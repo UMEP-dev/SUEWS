@@ -1134,7 +1134,7 @@ MODULE data_in
               RainAmongN, & ! Number of subintervals over which to disaggregate rainfall
               KdownZen, & ! Controls whether Kdown disaggregation uses zenith angle (1) or not (0)
               SuppressWarnings = 1, & ! Set to 1 to prevent warnings.txt file from being written
-              DiagMethod, &             !Specify the approach for near surface diagnostic: 0, MOST; 1, RSL; 2, Auto (MOST+RSL)
+              DiagMethod, & !Specify the approach for near surface diagnostic: 0, MOST; 1, RSL; 2, Auto (MOST+RSL)
               Diagnose, & !Set to 1 to get print-out of model progress
               DiagnoseDisagg, & !Set to 1 to get print-out of met forcing disaggregation progress
               !  ncMode, &               !Write output file in netCDF (1) or not (0) , TS, 09 Dec 2016

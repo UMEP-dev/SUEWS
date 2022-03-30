@@ -36,7 +36,7 @@
 SUBROUTINE SUEWS_Calculations(Gridiv, ir, iMB, irMax)
    USE data_in, ONLY: diagnose, ah_min, ah_slope_cooling, ah_slope_heating, &
                       alt, avkdn, avrh, avu1, BaseT_HC, diagqn, diagqs, drainrt, co2pointsource, CBLuse, &
-                      ef_umolco2perj, DiagMethod,BaseTMethod, emissionsmethod, enef_v_jkm, enddls, fcef_v_kgkm, fcld_obs, &
+                      ef_umolco2perj, DiagMethod, BaseTMethod, emissionsmethod, enef_v_jkm, enddls, fcef_v_kgkm, fcld_obs, &
                       frfossilfuel_heat, frfossilfuel_nonheat, EvapMethod, &
                       LAIcalcyes, LAI_obs, lat, ldown_obs, lng, maxfcmetab, maxqfmetab, &
                       minfcmetab, minqfmetab, netradiationmethod, ohmincqf, &

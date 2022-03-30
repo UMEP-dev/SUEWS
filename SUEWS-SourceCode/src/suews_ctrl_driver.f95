@@ -1299,7 +1299,7 @@ CONTAINS
       !============ roughness sub-layer diagonostics ===============
       IF (Diagnose == 1) WRITE (*, *) 'Calling RSLProfile...'
       CALL RSLProfile( &
-      DiagMethod, &
+         DiagMethod, &
          zH, z0m, zdm, z0v, &
          L_MOD, sfr_surf, FAI, FAIBldg, StabilityMethod, RA_h, &
          avcp, lv_J_kg, avdens, &
@@ -4158,7 +4158,7 @@ CONTAINS
             BaseTMethod, &
             BaseT_HC, beta_bioCO2, beta_enh_bioCO2, bldgH, CapMax_dec, CapMin_dec, &
             chAnOHM, CO2PointSource, cpAnOHM, CRWmax, CRWmin, DayWat, DayWatPer, &
-            DecTreeH, DiagMethod,Diagnose, DiagQN, DiagQS, DRAINRT, &
+            DecTreeH, DiagMethod, Diagnose, DiagQN, DiagQS, DRAINRT, &
             dt_since_start, dqndt, qn1_av, dqnsdt, qn1_s_av, &
             EF_umolCO2perJ, emis, EmissionsMethod, EnEF_v_Jkm, endDLS, EveTreeH, FAIBldg, &
             FAIDecTree, FAIEveTree, Faut, FcEF_v_kgkm, fcld_obs, FlowChange, &

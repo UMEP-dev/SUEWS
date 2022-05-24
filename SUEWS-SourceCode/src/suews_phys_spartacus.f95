@@ -124,7 +124,7 @@ CONTAINS
       clear_air_abs_sw_spc, wall_net_sw_spc, roof_net_sw_spc, &
       roof_in_sw_spc, top_dn_dir_sw_spc, top_net_sw_spc, &
       ground_dn_dir_sw_spc, ground_net_sw_spc, &
-      qn, kup, lup, qn_roof, qn_wall,&
+      qn, kup, lup, qn_roof, qn_wall, &
       dataOutLineSPARTACUS)
       USE parkind1, ONLY: jpim, jprb
       USE radsurf_interface, ONLY: radsurf
@@ -137,7 +137,7 @@ CONTAINS
       USE radsurf_canopy_flux, ONLY: canopy_flux_type
       USE radsurf_simple_spectrum, ONLY: calc_simple_spectrum_lw
       ! USE data_in, ONLY: fileinputpath
-      use allocateArray, only:ncolumnsDataOutSPARTACUS
+      USE allocateArray, ONLY: ncolumnsDataOutSPARTACUS
 
       IMPLICIT NONE
 
@@ -634,27 +634,27 @@ CONTAINS
 
       ! TODO: #101 to move SPARTACUS output here
       dataOutLineSPARTACUS = &
-            [alb_spc, emis_spc, &
-             top_dn_dir_sw_spc, &
-             sw_up_spc, &
-             top_dn_lw_spc, &
-             lw_up_spc, &
-             qn_spc, &
-             top_net_sw_spc, &
-             top_net_lw_spc, &
-             lw_emission_spc, &
-             ground_dn_dir_sw_spc, &
-             ground_net_sw_spc, &
-             ground_net_lw_spc, &
-             roof_in_sw_spc, &
-             roof_net_sw_spc, &
-             wall_net_sw_spc, &
-             clear_air_abs_sw_spc, &
-             roof_in_lw_spc, &
-             roof_net_lw_spc, &
-             wall_net_lw_spc, &
-             clear_air_abs_lw_spc &
-             ]
+         [alb_spc, emis_spc, &
+          top_dn_dir_sw_spc, &
+          sw_up_spc, &
+          top_dn_lw_spc, &
+          lw_up_spc, &
+          qn_spc, &
+          top_net_sw_spc, &
+          top_net_lw_spc, &
+          lw_emission_spc, &
+          ground_dn_dir_sw_spc, &
+          ground_net_sw_spc, &
+          ground_net_lw_spc, &
+          roof_in_sw_spc, &
+          roof_net_sw_spc, &
+          wall_net_sw_spc, &
+          clear_air_abs_sw_spc, &
+          roof_in_lw_spc, &
+          roof_net_lw_spc, &
+          wall_net_lw_spc, &
+          clear_air_abs_lw_spc &
+          ]
 
       !!!!!!!!!!!!!! Clear from memory !!!!!!!!!!!!!
 

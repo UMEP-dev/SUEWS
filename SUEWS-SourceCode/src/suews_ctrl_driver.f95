@@ -1010,7 +1010,7 @@ CONTAINS
             top_net_lw_spc, ground_net_lw_spc, top_dn_lw_spc, &
             clear_air_abs_lw_spc, wall_net_lw_spc, roof_net_lw_spc, roof_in_lw_spc, &
             top_dn_dir_sw_spc, top_net_sw_spc, ground_dn_dir_sw_spc, ground_net_sw_spc, &
-            clear_air_abs_sw_spc, wall_net_sw_spc, roof_net_sw_spc, roof_in_sw_spc,&
+            clear_air_abs_sw_spc, wall_net_sw_spc, roof_net_sw_spc, roof_in_sw_spc, &
             dataOutLineSPARTACUS)
 
          ! PRINT *, 'Qn_surf after SUEWS_cal_Qn ', qn_surf
@@ -1845,7 +1845,7 @@ CONTAINS
       top_net_lw_spc, ground_net_lw_spc, top_dn_lw_spc, &
       clear_air_abs_lw_spc, wall_net_lw_spc, roof_net_lw_spc, roof_in_lw_spc, &
       top_dn_dir_sw_spc, top_net_sw_spc, ground_dn_dir_sw_spc, ground_net_sw_spc, &
-      clear_air_abs_sw_spc, wall_net_sw_spc, roof_net_sw_spc, roof_in_sw_spc,&
+      clear_air_abs_sw_spc, wall_net_sw_spc, roof_net_sw_spc, roof_in_sw_spc, &
       dataOutLineSPARTACUS)
       USE NARP_MODULE, ONLY: RadMethod, NARP
       USE SPARTACUS_MODULE, ONLY: SPARTACUS

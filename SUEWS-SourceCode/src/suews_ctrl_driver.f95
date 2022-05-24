@@ -2038,7 +2038,7 @@ CONTAINS
                ! clear_air_abs_sw_spc, wall_net_sw_spc, roof_net_sw_spc, &
                ! roof_in_sw_spc, top_dn_dir_sw_spc, top_net_sw_spc, &
                ! ground_dn_dir_sw_spc, ground_net_sw_spc, &
-               qn, kup, lup, qn_roof, qn_wall, &!output:
+               qn, kup, lup, qn_roof, qn_wall, & !output:
                dataOutLineSPARTACUS)
          ELSE
             qn_roof = qn_surf(BldgSurf)

@@ -122,9 +122,9 @@ CONTAINS
 
       ! ########################################################################################
       ! input variables
-      INTEGER, INTENT(IN) :: AerodynamicResistanceMethod
-      INTEGER, INTENT(IN) :: BaseTMethod ! baset method
-      INTEGER, INTENT(IN) :: Diagnose ! flag for printing diagnostic info during runtime [N/A]C
+      INTEGER, INTENT(IN) :: AerodynamicResistanceMethod ! number of vertical layers in urban canyon(modify)
+      INTEGER, INTENT(IN) :: BaseTMethod
+      INTEGER, INTENT(IN) :: Diagnose
       INTEGER, INTENT(IN) :: DiagQN
       INTEGER, INTENT(IN) :: DiagQS
       INTEGER, INTENT(IN) :: startDLS
@@ -248,7 +248,7 @@ CONTAINS
       REAL(KIND(1D0)), INTENT(IN) :: TL
       REAL(KIND(1D0)), INTENT(IN) :: TrafficUnits
       REAL(KIND(1D0)), INTENT(IN) :: wu_m3
-      REAL(KIND(1D0)), INTENT(IN) :: xsmd ! soil moisture deficit [?]
+      REAL(KIND(1D0)), INTENT(IN) :: xsmd
       REAL(KIND(1D0)), INTENT(IN) :: Z
       REAL(KIND(1D0)), INTENT(IN) :: z0m_in
       REAL(KIND(1D0)), INTENT(IN) :: zdm_in
@@ -1592,48 +1592,48 @@ CONTAINS
       IMPLICIT NONE
 
       ! INTEGER, INTENT(in)::Diagnose
-      INTEGER, INTENT(in) :: DLS ! daylighting savings
+      INTEGER, INTENT(in) :: DLS
       INTEGER, INTENT(in) :: EmissionsMethod
       ! INTEGER, INTENT(in) :: id
-      INTEGER, INTENT(in) :: it ! hour
-      INTEGER, INTENT(in) :: imin ! minutes
+      INTEGER, INTENT(in) :: it
+      INTEGER, INTENT(in) :: imin
       ! INTEGER, INTENT(in) :: nsh
-      INTEGER, DIMENSION(3), INTENT(in) :: dayofWeek_id ! 1 - day of week; 2 - month; 3 - season
+      INTEGER, DIMENSION(3), INTENT(in) :: dayofWeek_id
 
-      REAL(KIND(1D0)), DIMENSION(6, 2), INTENT(in) :: HDD_id ! Heating Degree Days (see SUEWS_DailyState.f95)
+      REAL(KIND(1D0)), DIMENSION(6, 2), INTENT(in) :: HDD_id
 
-      REAL(KIND(1D0)), DIMENSION(2), INTENT(in) :: AH_MIN ! miniumum anthropogenic heat flux [W m-2]
-      REAL(KIND(1D0)), DIMENSION(2), INTENT(in) :: AH_SLOPE_Heating ! heating slope for the anthropogenic heat flux calculation
-      REAL(KIND(1D0)), DIMENSION(2), INTENT(in) :: AH_SLOPE_Cooling ! cooling slope for the anthropogenic heat flux calculation
-      REAL(KIND(1D0)), DIMENSION(2), INTENT(in) :: FcEF_v_kgkm ! CO2 Emission factor
+      REAL(KIND(1D0)), DIMENSION(2), INTENT(in) :: AH_MIN
+      REAL(KIND(1D0)), DIMENSION(2), INTENT(in) :: AH_SLOPE_Heating
+      REAL(KIND(1D0)), DIMENSION(2), INTENT(in) :: AH_SLOPE_Cooling
+      REAL(KIND(1D0)), DIMENSION(2), INTENT(in) :: FcEF_v_kgkm
       ! REAL(KIND(1d0)), DIMENSION(2), INTENT(in)::NumCapita
-      REAL(KIND(1D0)), DIMENSION(2), INTENT(in) :: PopDensDaytime ! Daytime population density [ha-1] (i.e. workers)
+      REAL(KIND(1D0)), DIMENSION(2), INTENT(in) :: PopDensDaytime
       REAL(KIND(1D0)), DIMENSION(2), INTENT(in) :: QF0_BEU
-      REAL(KIND(1D0)), DIMENSION(2), INTENT(in) :: Qf_A ! Qf coefficients
-      REAL(KIND(1D0)), DIMENSION(2), INTENT(in) :: Qf_B ! Qf coefficients
-      REAL(KIND(1D0)), DIMENSION(2), INTENT(in) :: Qf_C ! Qf coefficients
-      REAL(KIND(1D0)), DIMENSION(2), INTENT(in) :: BaseT_Heating ! critical outdoor air temperature with minimum heating energy use
-      REAL(KIND(1D0)), DIMENSION(2), INTENT(in) :: BaseT_Cooling ! critical outdoor air temperature with minimum cooling energy use
-      REAL(KIND(1D0)), DIMENSION(2), INTENT(in) :: TrafficRate ! Traffic rate
+      REAL(KIND(1D0)), DIMENSION(2), INTENT(in) :: Qf_A
+      REAL(KIND(1D0)), DIMENSION(2), INTENT(in) :: Qf_B
+      REAL(KIND(1D0)), DIMENSION(2), INTENT(in) :: Qf_C
+      REAL(KIND(1D0)), DIMENSION(2), INTENT(in) :: BaseT_Heating
+      REAL(KIND(1D0)), DIMENSION(2), INTENT(in) :: BaseT_Cooling
+      REAL(KIND(1D0)), DIMENSION(2), INTENT(in) :: TrafficRate
 
       REAL(KIND(1D0)), DIMENSION(0:23, 2), INTENT(in) :: AHProf_24hr
       REAL(KIND(1D0)), DIMENSION(0:23, 2), INTENT(in) :: HumActivity_24hr
       REAL(KIND(1D0)), DIMENSION(0:23, 2), INTENT(in) :: TraffProf_24hr
       REAL(KIND(1D0)), DIMENSION(0:23, 2), INTENT(in) :: PopProf_24hr
 
-      REAL(KIND(1D0)), INTENT(in) :: CO2PointSource ! point source [kgC day-1]
+      REAL(KIND(1D0)), INTENT(in) :: CO2PointSource
       REAL(KIND(1D0)), INTENT(in) :: EF_umolCO2perJ
-      REAL(KIND(1D0)), INTENT(in) :: EnEF_v_Jkm ! energy emission factor
-      REAL(KIND(1D0)), INTENT(in) :: FrFossilFuel_Heat ! fraction of fossil fuel heat
-      REAL(KIND(1D0)), INTENT(in) :: FrFossilFuel_NonHeat ! fraction of fossil fuel non heat
-      REAL(KIND(1D0)), INTENT(in) :: MaxFCMetab ! maximum FC metabolism
-      REAL(KIND(1D0)), INTENT(in) :: MaxQFMetab ! Maximum QF Metabolism
-      REAL(KIND(1D0)), INTENT(in) :: MinFCMetab ! minimum QF metabolism
-      REAL(KIND(1D0)), INTENT(in) :: MinQFMetab ! mMinimum FC metabolism
-      REAL(KIND(1D0)), INTENT(in) :: PopDensNighttime ! nighttime population density [ha-1] (i.e. residents)
+      REAL(KIND(1D0)), INTENT(in) :: EnEF_v_Jkm
+      REAL(KIND(1D0)), INTENT(in) :: FrFossilFuel_Heat
+      REAL(KIND(1D0)), INTENT(in) :: FrFossilFuel_NonHeat
+      REAL(KIND(1D0)), INTENT(in) :: MaxFCMetab
+      REAL(KIND(1D0)), INTENT(in) :: MaxQFMetab
+      REAL(KIND(1D0)), INTENT(in) :: MinFCMetab
+      REAL(KIND(1D0)), INTENT(in) :: MinQFMetab
+      REAL(KIND(1D0)), INTENT(in) :: PopDensNighttime
       REAL(KIND(1D0)), INTENT(in) :: QF_obs
-      REAL(KIND(1D0)), INTENT(in) :: Temp_C ! air temperature [C]
-      REAL(KIND(1D0)), INTENT(in) :: TrafficUnits ! traffic units choice
+      REAL(KIND(1D0)), INTENT(in) :: Temp_C
+      REAL(KIND(1D0)), INTENT(in) :: TrafficUnits
 
       ! REAL(KIND(1d0)), DIMENSION(nsurf), INTENT(in)::sfr_surf
       ! REAL(KIND(1d0)), DIMENSION(nsurf), INTENT(in)::SnowFrac

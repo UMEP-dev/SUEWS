@@ -729,7 +729,7 @@ SUBROUTINE SUEWS_Translate(Gridiv, ir, iMB)
    END IF
 
 ! ---- ESTM_ext related ------------------------------
-   IF (StorageHeatMethod == 5 .or. NetRadiationMethod > 1000) THEN
+   IF (StorageHeatMethod == 5 .OR. NetRadiationMethod > 1000) THEN
 
       nlayer = nlayer_grids(Gridiv)
 
@@ -1722,7 +1722,7 @@ SUBROUTINE SUEWS_TranslateBack(Gridiv, ir, irMax)
    ModelDailyState(Gridiv, cMDS_SnowDens(1:nsurf)) = SnowDens(1:nsurf)
    ModelDailyState(Gridiv, cMDS_SnowAlb) = SnowAlb
 
-   IF (StorageHeatMethod == 5 .or. NetRadiationMethod>1000) THEN
+   IF (StorageHeatMethod == 5 .OR. NetRadiationMethod > 1000) THEN
       ! ---- ESTM_ext related ------------------------------
       ! roof
 
@@ -1806,7 +1806,7 @@ SUBROUTINE SUEWS_TranslateBack(Gridiv, ir, irMax)
 
    tsfc_surf_grids(Gridiv, 1:nsurf) = tsfc_surf(1:nsurf)
 
-   if (ALLOCATED(tsfc_surf)) DEALLOCATE (tsfc_surf)
+   IF (ALLOCATED(tsfc_surf)) DEALLOCATE (tsfc_surf)
    ! if (ALLOCATED(tin_surf)) DEALLOCATE (tin_surf)
    ! =============================================================================
    ! === Translate values from variable names used in model to ModelOutputData ===

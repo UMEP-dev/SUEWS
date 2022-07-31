@@ -857,7 +857,7 @@ CONTAINS
       tsfc_out_surf = tsfc_surf
       tsfc0_out_surf = tsfc_surf
       ! TODO: ESTM work: to allow heterogeneous surface temperatures
-      IF (StorageHeatMethod == 5 .or. NetRadiationMethod >1000) THEN
+      IF (StorageHeatMethod == 5 .OR. NetRadiationMethod > 1000) THEN
          tsfc_out_roof = tsfc_roof
          tsfc0_out_roof = tsfc_roof
          tsfc_out_wall = tsfc_wall

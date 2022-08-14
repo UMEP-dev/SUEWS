@@ -128,19 +128,19 @@ CONTAINS
       INTEGER, INTENT(IN) :: DiagQN ! flag for printing diagnostic info for QN module during runtime [N/A]
       INTEGER, INTENT(IN) :: DiagQS ! flag for printing diagnostic info for QS module during runtime [N/A]
       INTEGER, INTENT(IN) :: startDLS !start of daylight saving  [DOY]
-      INTEGER, INTENT(IN) :: endDLS !end of daylight saving [DOY]
+      INTEGER, INTENT(IN) :: endDLS ! end of daylight saving [DOY]
       INTEGER, INTENT(IN) :: EmissionsMethod !method to calculate anthropogenic heat [-]
       INTEGER, INTENT(IN) :: Gridiv ! grid id [-]
       INTEGER, INTENT(IN) :: nlayer ! number of vertical layers in urban canyon [-]
       INTEGER, INTENT(IN) :: gsModel !choice of gs parameterisation (1 = Ja11, 2 = Wa16) [-]
       INTEGER, INTENT(IN) :: id ! day of year, 1-366 [-]
-      INTEGER, INTENT(IN) :: Ie_end !ending time of water use [DOY]
-      INTEGER, INTENT(IN) :: Ie_start !starting time of water use [DOY]
+      INTEGER, INTENT(IN) :: Ie_end ! ending time of water use [DOY]
+      INTEGER, INTENT(IN) :: Ie_start ! starting time of water use [DOY]
       INTEGER, INTENT(IN) :: isec ! seconds, 0-59 [s]
-      INTEGER, INTENT(IN) :: imin !minutes, 0-59 [min]
+      INTEGER, INTENT(IN) :: imin ! minutes, 0-59 [min]
       INTEGER, INTENT(IN) :: it ! hour, 0-23 [h]
       INTEGER, INTENT(IN) :: EvapMethod ! Evaporation calculated according to Rutter (1) or Shuttleworth (2) [-]
-      INTEGER, INTENT(IN) :: iy ! year [y]
+      INTEGER, INTENT(IN) :: iy ! year [YYYY]
       INTEGER, INTENT(IN) :: LAICalcYes ! boolean to determine if calculate LAI [-]
       INTEGER, INTENT(IN) :: NetRadiationMethod ! method for calculation of radiation fluxes [-]
       INTEGER, INTENT(IN) :: OHMIncQF ! Determines whether the storage heat flux calculation uses Q* or ( Q* +QF) [-]
@@ -150,7 +150,7 @@ CONTAINS
       INTEGER, INTENT(IN) :: SnowUse ! Determines whether the snow part of the model runs[-]
       INTEGER, INTENT(IN) :: StabilityMethod !method to calculate atmospheric stability [-]
       INTEGER, INTENT(IN) :: StorageHeatMethod !Determines method for calculating storage heat flux ΔQS [-]
-      INTEGER, INTENT(in) :: DiagMethod !Defines how near surface diagnostics are calculated
+      INTEGER, INTENT(in) :: DiagMethod !Defines how near surface diagnostics are calculated [-]
       INTEGER, INTENT(IN) :: tstep !timestep [s]
       INTEGER, INTENT(IN) :: tstep_prev ! tstep size of the previous step [s]
       INTEGER, INTENT(in) :: dt_since_start ! time since simulation starts [s]
@@ -169,8 +169,8 @@ CONTAINS
       REAL(KIND(1D0)), INTENT(IN) :: avU1 !average wind speed at 1m [W m-1]
       REAL(KIND(1D0)), INTENT(IN) :: BaseT_HC !base temperature for heating degree dayb [degC]
       REAL(KIND(1D0)), INTENT(IN) :: bldgH !average building height [m]
-      REAL(KIND(1D0)), INTENT(IN) :: CapMax_dec !maximum water storage capacity for upper surfaces (i.e. canopy)
-      REAL(KIND(1D0)), INTENT(IN) :: CapMin_dec !minimum water storage capacity for upper surfaces (i.e. canopy)
+      REAL(KIND(1D0)), INTENT(IN) :: CapMax_dec !maximum water storage capacity for upper surfaces (i.e. canopy) [mm]
+      REAL(KIND(1D0)), INTENT(IN) :: CapMin_dec !minimum water storage capacity for upper surfaces (i.e. canopy) [mm]
       REAL(KIND(1D0)), INTENT(IN) :: CO2PointSource ! point source [kgC day-1]
       REAL(KIND(1D0)), INTENT(IN) :: CRWmax !maximum water holding capacity of snow [mm]
       REAL(KIND(1D0)), INTENT(IN) :: CRWmin !minimum water holding capacity of snow [mm]
@@ -187,12 +187,12 @@ CONTAINS
       REAL(KIND(1D0)), INTENT(IN) :: FlowChange !Difference between the input and output flow in the water body [mm]
       REAL(KIND(1D0)), INTENT(IN) :: FrFossilFuel_Heat ! fraction of fossil fuel heat [-]
       REAL(KIND(1D0)), INTENT(IN) :: FrFossilFuel_NonHeat ! fraction of fossil fuel non heat [-]
-      REAL(KIND(1D0)), INTENT(IN) :: G1 !Fitted parameters related to surface res. calculations
-      REAL(KIND(1D0)), INTENT(IN) :: G2 !Fitted parameters related to surface res. calculations
-      REAL(KIND(1D0)), INTENT(IN) :: G3 !Fitted parameters related to surface res. calculations
-      REAL(KIND(1D0)), INTENT(IN) :: G4 !Fitted parameters related to surface res. calculations
-      REAL(KIND(1D0)), INTENT(IN) :: G5 !Fitted parameters related to surface res. calculations
-      REAL(KIND(1D0)), INTENT(IN) :: G6 !Fitted parameters related to surface res. calculations
+      REAL(KIND(1D0)), INTENT(IN) :: G1 !Fitted parameters related to surface res. calculations [-]
+      REAL(KIND(1D0)), INTENT(IN) :: G2 !Fitted parameters related to surface res. calculations [W m-2]
+      REAL(KIND(1D0)), INTENT(IN) :: G3 !Fitted parameters related to surface res. calculations [-]
+      REAL(KIND(1D0)), INTENT(IN) :: G4 !Fitted parameters related to surface res. calculations [-]
+      REAL(KIND(1D0)), INTENT(IN) :: G5 !Fitted parameters related to surface res. calculations [degC]
+      REAL(KIND(1D0)), INTENT(IN) :: G6 !Fitted parameters related to surface res. calculations [mm-1]
       REAL(KIND(1D0)), INTENT(IN) :: H_maintain ! ponding water depth to maintain [mm]
       REAL(KIND(1D0)), INTENT(IN) :: InternalWaterUse_h !Internal water use [mm h-1]
       REAL(KIND(1D0)), INTENT(IN) :: IrrFracPaved !fraction of paved which are irrigated [-]
@@ -215,8 +215,8 @@ CONTAINS
       REAL(KIND(1D0)), INTENT(IN) :: NARP_TRANS_SITE !atmospheric transmissivity for NARP [-]
       REAL(KIND(1D0)), INTENT(IN) :: PipeCapacity !capacity of pipes to transfer water [mm]
       REAL(KIND(1D0)), INTENT(IN) :: PopDensNighttime ! nighttime population density (i.e. residents) [ha-1]
-      REAL(KIND(1D0)), INTENT(IN) :: PorMax_dec !full leaf-on summertime value used only for DecTr
-      REAL(KIND(1D0)), INTENT(IN) :: PorMin_dec !leaf-off wintertime value used only for DecTr
+      REAL(KIND(1D0)), INTENT(IN) :: PorMax_dec !full leaf-on summertime value used only for DecTr [-]
+      REAL(KIND(1D0)), INTENT(IN) :: PorMin_dec !leaf-off wintertime value used only for DecTr [-]
       REAL(KIND(1D0)), INTENT(IN) :: Precip !rain data [mm]
       REAL(KIND(1D0)), INTENT(IN) :: PrecipLimit !temperature limit when precipitation falls as snow [degC]
       REAL(KIND(1D0)), INTENT(IN) :: PrecipLimitAlb !Limit for hourly precipitation when the ground is fully covered with snow [mm]
@@ -266,9 +266,9 @@ CONTAINS
       REAL(KIND(1D0)), DIMENSION(2), INTENT(IN) :: PopDensDaytime ! Daytime population density [people ha-1] (i.e. workers)
       REAL(KIND(1D0)), DIMENSION(2), INTENT(IN) :: BaseT_Cooling ! base temperature for cooling degree day [degC]
       REAL(KIND(1D0)), DIMENSION(2), INTENT(IN) :: BaseT_Heating ! base temperatrue for heating degree day [degC]
-      REAL(KIND(1D0)), DIMENSION(2), INTENT(IN) :: TrafficRate ! Traffic rate [veh km m-2 s-1]
-      REAL(KIND(1D0)), DIMENSION(3), INTENT(IN) :: Ie_a !Coefficient for automatic irrigation model
-      REAL(KIND(1D0)), DIMENSION(3), INTENT(IN) :: Ie_m !Coefficients for manual irrigation models
+      REAL(KIND(1D0)), DIMENSION(2), INTENT(IN) :: TrafficRate ! Traffic rate [veh km m-2 s-1] 
+      REAL(KIND(1D0)), DIMENSION(3), INTENT(IN) :: Ie_a !Coefficient for automatic irrigation model,(Ie_a1) [mm d-1], (Ie_a2) [mm d-1 K-1], (Ie_a3) [mm d-2 ]
+      REAL(KIND(1D0)), DIMENSION(3), INTENT(IN) :: Ie_m !Coefficients for manual irrigation models, (Ie_m1) [mm d-1], (Ie_m2) [mm d-1 K-1], (Ie_m3) [mm d-2 ]
       REAL(KIND(1D0)), DIMENSION(3), INTENT(IN) :: MaxConductance !the maximum conductance of each vegetation or surface type. [mm s-1]
       REAL(KIND(1D0)), DIMENSION(7), INTENT(IN) :: DayWat !Irrigation flag: 1 for on and 0 for off [-]
       REAL(KIND(1D0)), DIMENSION(7), INTENT(IN) :: DayWatPer !Fraction of properties using irrigation for each day of a week [-]
@@ -295,12 +295,12 @@ CONTAINS
       REAL(KIND(1D0)), DIMENSION(NVEGSURF), INTENT(IN) :: LAIMax !full leaf-on summertime value [m2 m-2]
       REAL(KIND(1D0)), DIMENSION(NVEGSURF), INTENT(IN) :: LAIMin !leaf-off wintertime value [m2 m-2]
       REAL(KIND(1D0)), DIMENSION(NVEGSURF), INTENT(IN) :: min_res_bioCO2 !Minimum soil respiration rate (for cold-temperature limit) [umol m-2 s-1]
-      REAL(KIND(1D0)), DIMENSION(NVEGSURF), INTENT(IN) :: resp_a !Respiration coefficient a
-      REAL(KIND(1D0)), DIMENSION(NVEGSURF), INTENT(IN) :: resp_b !Respiration coefficient b - related to air temperature dependency
+      REAL(KIND(1D0)), DIMENSION(NVEGSURF), INTENT(IN) :: resp_a !Respiration coefficient a [-]
+      REAL(KIND(1D0)), DIMENSION(NVEGSURF), INTENT(IN) :: resp_b !Respiration coefficient b - related to air temperature dependency [-]
       REAL(KIND(1D0)), DIMENSION(NVEGSURF), INTENT(IN) :: SDDFull !the sensesence degree days (SDD) needed to initiate leaf off [degC]
       REAL(KIND(1D0)), DIMENSION(0:23, 2), INTENT(IN) :: SnowProf_24hr !Hourly profile values used in snow clearing [-]
       REAL(KIND(1D0)), DIMENSION(NVEGSURF), INTENT(IN) :: theta_bioCO2 !The convexity of the curve at light saturation [-]
-      REAL(KIND(1D0)), DIMENSION(4, NVEGSURF), INTENT(IN) :: LAIPower !parameters required by LAI calculation
+      REAL(KIND(1D0)), DIMENSION(4, NVEGSURF), INTENT(IN) :: LAIPower !parameters required by LAI calculation [K-1]
       REAL(KIND(1D0)), DIMENSION(nsurf + 1, 4, 3), INTENT(IN) :: OHM_coef !Coefficients for OHM calculation
       REAL(KIND(1D0)), DIMENSION(NSURF + 1, NSURF - 1), INTENT(IN) :: WaterDist !Fraction of water redistribution [-]
       REAL(KIND(1D0)), DIMENSION(:), INTENT(IN) :: Ts5mindata_ir !surface temperature input data[degC]
@@ -388,16 +388,16 @@ CONTAINS
       INTEGER, INTENT(IN) :: n_vegetation_region_urban !Number of regions used to describe vegetation [-]
       INTEGER, INTENT(IN) :: n_stream_sw_urban ! shortwave diffuse streams per hemisphere [-]
       INTEGER, INTENT(IN) :: n_stream_lw_urban ! LW streams per hemisphere [-]
-      REAL(KIND(1D0)), INTENT(IN) :: sw_dn_direct_frac
-      REAL(KIND(1D0)), INTENT(IN) :: air_ext_sw
-      REAL(KIND(1D0)), INTENT(IN) :: air_ssa_sw
-      REAL(KIND(1D0)), INTENT(IN) :: veg_ssa_sw
-      REAL(KIND(1D0)), INTENT(IN) :: air_ext_lw
-      REAL(KIND(1D0)), INTENT(IN) :: air_ssa_lw
-      REAL(KIND(1D0)), INTENT(IN) :: veg_ssa_lw
-      REAL(KIND(1D0)), INTENT(IN) :: veg_fsd_const
-      REAL(KIND(1D0)), INTENT(IN) :: veg_contact_fraction_const
-      REAL(KIND(1D0)), INTENT(IN) :: ground_albedo_dir_mult_fact
+      REAL(KIND(1D0)), INTENT(IN) :: sw_dn_direct_frac ! Fraction of down-welling shortwave radiation that is direct[-]
+      REAL(KIND(1D0)), INTENT(IN) :: air_ext_sw ! Shortwave wavelength-independent air extinction coefficient [m-1]
+      REAL(KIND(1D0)), INTENT(IN) :: air_ssa_sw ! Shortwave single scattering albedo of air [-]
+      REAL(KIND(1D0)), INTENT(IN) :: veg_ssa_sw ! Shortwave single scattering albedo of leaves [-]
+      REAL(KIND(1D0)), INTENT(IN) :: air_ext_lw ! Longwave wavelength-independent air extinction coefficient [m-1]
+      REAL(KIND(1D0)), INTENT(IN) :: air_ssa_lw ! Longwave single scattering albedo of air [-]
+      REAL(KIND(1D0)), INTENT(IN) :: veg_ssa_lw ! Longwave single scattering albedo of vegetation [-]
+      REAL(KIND(1D0)), INTENT(IN) :: veg_fsd_const !Fractional standard deviation of the vegetation extinction. Determines the extinction coefficient in the inner and outer layers of the tree crown when n_vegetation_region_urban=2 [-]
+      REAL(KIND(1D0)), INTENT(IN) :: veg_contact_fraction_const ! Fraction of vegetation edge in contact with building walls [-]
+      REAL(KIND(1D0)), INTENT(IN) :: ground_albedo_dir_mult_fact ! Ratio of the direct and diffuse albedo of the ground [-]
 
       ! ########################################################################################
 
@@ -443,8 +443,8 @@ CONTAINS
       REAL(KIND(1D0)) :: Fc_point ! co2 emission from point source [umol m-2 s-1]
       REAL(KIND(1D0)) :: Fc_respi !co2 flux from respiration [umol m-2 s-1]
       REAL(KIND(1D0)) :: Fc_traff ! co2 emission from traffic component [umol m-2 s-1]
-      REAL(KIND(1D0)) :: gfunc
-      REAL(KIND(1D0)) :: gsc !Surface Layer Conductance
+      REAL(KIND(1D0)) :: gfunc !gdq*gtemp*gs*gq for photosynthesis calculations 
+      REAL(KIND(1D0)) :: gsc !Surface Layer Conductance [mm s-1]
       REAL(KIND(1D0)) :: QH_LUMPS !turbulent sensible heat flux from LUMPS model [W m-2]
       REAL(KIND(1D0)) :: wu_int !internal water use [mm]
       REAL(KIND(1D0)) :: kclear !clear sky incoming shortwave radiation [W m-2]
@@ -511,7 +511,7 @@ CONTAINS
       REAL(KIND(1D0)), DIMENSION(NSURF) :: qn_ind_snow !net all-wave radiation on snowpack [W m-2]
       REAL(KIND(1D0)), DIMENSION(NSURF) :: rainOnSnow !rain water on snow event [mm]
       REAL(KIND(1D0)), DIMENSION(NSURF) :: runoffSoil !Soil runoff from each soil sub-surface [mm]
-      REAL(KIND(1D0)), DIMENSION(NSURF) :: smd_nsurf !soil moisture deficit for each surface
+      REAL(KIND(1D0)), DIMENSION(NSURF) :: smd_nsurf !soil moisture deficit for each surface [mm]
       REAL(KIND(1D0)), DIMENSION(NSURF) :: snowDepth !Snow depth [m]
 
       REAL(KIND(1D0)), DIMENSION(nsurf) :: Tsurf_ind_snow !snowpack surface temperature [C]
@@ -526,7 +526,7 @@ CONTAINS
       REAL(KIND(1D0)) :: z0v !roughness for heat [m]
       REAL(KIND(1D0)) :: z0vSnow !roughness for heat [m]
       REAL(KIND(1D0)) :: RAsnow !Aerodynamic resistance for snow [s m-1]
-      REAL(KIND(1D0)) :: RB !boundary layer resistance shuttleworth
+      REAL(KIND(1D0)) :: RB !boundary layer resistance shuttleworth [s m-1]
       REAL(KIND(1D0)) :: runoff_per_interval !run-off at each time interval [mm]
       REAL(KIND(1D0)) :: s_hPa !vapour pressure versus temperature slope [hPa K-1]
       REAL(KIND(1D0)) :: sIce_hpa !satured curve on snow [hPa]
@@ -555,7 +555,7 @@ CONTAINS
 
       ! values that are derived from tstep
       INTEGER :: nsh ! number of timesteps per hour
-      REAL(KIND(1D0)) :: nsh_real ! nsh in type real [-]
+      REAL(KIND(1D0)) :: nsh_real  !timestep in a hour [-]
       REAL(KIND(1D0)) :: tstep_real ! tstep in type real
       REAL(KIND(1D0)) :: dectime !decimal time [-]
 
@@ -1584,12 +1584,12 @@ CONTAINS
       INTEGER, INTENT(in) :: DLS ! daylighting savings
       INTEGER, INTENT(in) :: EmissionsMethod !0 - Use values in met forcing file, or default QF;1 - Method according to Loridan et al. (2011) : SAHP; 2 - Method according to Jarvi et al. (2011)   : SAHP_2
       ! INTEGER, INTENT(in) :: id
-      INTEGER, INTENT(in) :: it ! hour [H]
-      INTEGER, INTENT(in) :: imin ! minutes [M]
+      INTEGER, INTENT(in) :: it ! hour, 0-23 [h]
+      INTEGER, INTENT(in) :: imin ! minutes, 0-59 [min]
       ! INTEGER, INTENT(in) :: nsh
       INTEGER, DIMENSION(3), INTENT(in) :: dayofWeek_id ! 1 - day of week; 2 - month; 3 - season
 
-      REAL(KIND(1D0)), DIMENSION(6, 2), INTENT(in) :: HDD_id ! Heating Degree Days (see SUEWS_DailyState.f95)
+      REAL(KIND(1D0)), DIMENSION(6, 2), INTENT(in) :: HDD_id ! Heating Degree Days [degC d]
 
       REAL(KIND(1D0)), DIMENSION(2), INTENT(in) :: AH_MIN ! miniumum anthropogenic heat flux [W m-2]
       REAL(KIND(1D0)), DIMENSION(2), INTENT(in) :: AH_SLOPE_Heating ! heating slope for the anthropogenic heat flux calculation [W m-2 K-1]
@@ -1619,7 +1619,7 @@ CONTAINS
       REAL(KIND(1D0)), INTENT(in) :: MaxQFMetab ! maximum QF Metabolism [W m-2]
       REAL(KIND(1D0)), INTENT(in) :: MinFCMetab ! minimum QF metabolism [umol m-2 s-1]
       REAL(KIND(1D0)), INTENT(in) :: MinQFMetab ! minimum FC metabolism [W m-2]
-      REAL(KIND(1D0)), INTENT(in) :: PopDensNighttime ! nighttime population density [ha-1] (i.e. residents)
+      REAL(KIND(1D0)), INTENT(in) :: PopDensNighttime ! nighttime population density(i.e. residents) [ha-1] 
       REAL(KIND(1D0)), INTENT(in) :: QF_obs ! observed anthropogenic heat flux from met forcing file when EmissionMethod=0 [W m-2]
       REAL(KIND(1D0)), INTENT(in) :: Temp_C ! air temperature [degC]
       REAL(KIND(1D0)), INTENT(in) :: TrafficUnits ! traffic units choice [-]
@@ -1693,8 +1693,8 @@ CONTAINS
       REAL(KIND(1D0)), DIMENSION(nvegsurf), INTENT(in) :: LAIMin !Min LAI [m2 m-2]
       REAL(KIND(1D0)), DIMENSION(nvegsurf), INTENT(in) :: LAIMax !Max LAI [m2 m-2]
       REAL(KIND(1D0)), DIMENSION(nvegsurf), INTENT(in) :: min_res_bioCO2 !minimum soil respiration rate (for cold-temperature limit) [umol m-2 s-1]
-      REAL(KIND(1D0)), DIMENSION(nvegsurf), INTENT(in) :: resp_a !Respiration coefficient a
-      REAL(KIND(1D0)), DIMENSION(nvegsurf), INTENT(in) :: resp_b !Respiration coefficient b - related to air temperature dependency
+      REAL(KIND(1D0)), DIMENSION(nvegsurf), INTENT(in) :: resp_a !Respiration coefficient a [-]
+      REAL(KIND(1D0)), DIMENSION(nvegsurf), INTENT(in) :: resp_b !Respiration coefficient b - related to air temperature dependency [-]
       REAL(KIND(1D0)), DIMENSION(nvegsurf), INTENT(in) :: theta_bioCO2 !The convexity of the curve at light saturation [-]
 
       REAL(KIND(1D0)), DIMENSION(nsurf), INTENT(in) :: sfr_surf ! surface fraction [-]
@@ -1705,12 +1705,12 @@ CONTAINS
       ! INTEGER, INTENT(in) :: BSoilSurf
       ! INTEGER, INTENT(in) :: ConifSurf
       ! INTEGER, INTENT(in) :: DecidSurf
-      INTEGER, INTENT(in) :: Diagnose
-      INTEGER, INTENT(in) :: EmissionsMethod
+      INTEGER, INTENT(in) :: Diagnose ! flag for printing diagnostic info during runtime [N/A]
+      INTEGER, INTENT(in) :: EmissionsMethod !method to calculate anthropogenic heat [-]
       ! INTEGER, INTENT(in) :: GrassSurf
       INTEGER, INTENT(in) :: gsmodel !choice of gs parameterisation (1 = Ja11, 2 = Wa16)
-      INTEGER, INTENT(in) :: id !day of year [-]
-      INTEGER, INTENT(in) :: it ! hour [H]
+      INTEGER, INTENT(in) :: id ! day of year, 1-366 [-]
+      INTEGER, INTENT(in) :: it ! hour, 0-23 [h]
       ! INTEGER, INTENT(in) :: ivConif
       ! INTEGER, INTENT(in) :: ivDecid
       ! INTEGER, INTENT(in) :: ivGrass
@@ -1722,13 +1722,13 @@ CONTAINS
       REAL(KIND(1D0)), INTENT(in) :: avRh !average relative humidity (%) [-]
       REAL(KIND(1D0)), INTENT(in) :: dectime !decimal time [-]
       REAL(KIND(1D0)), INTENT(in) :: Fc_anthro !anthropogenic co2 flux  [umol m-2 s-1]
-      REAL(KIND(1D0)), INTENT(in) :: G1 !Fitted parameters related to surface res. calculations
-      REAL(KIND(1D0)), INTENT(in) :: G2 !Fitted parameters related to surface res. calculations
-      REAL(KIND(1D0)), INTENT(in) :: G3 !Fitted parameters related to surface res. calculations
-      REAL(KIND(1D0)), INTENT(in) :: G4 !Fitted parameters related to surface res. calculations
-      REAL(KIND(1D0)), INTENT(in) :: G5 !Fitted parameters related to surface res. calculations
-      REAL(KIND(1D0)), INTENT(in) :: G6 !Fitted parameters related to surface res. calculations
-      REAL(KIND(1D0)), INTENT(in) :: gfunc
+      REAL(KIND(1D0)), INTENT(IN) :: G1 !Fitted parameters related to surface res. calculations [-]
+      REAL(KIND(1D0)), INTENT(IN) :: G2 !Fitted parameters related to surface res. calculations [W m-2]
+      REAL(KIND(1D0)), INTENT(IN) :: G3 !Fitted parameters related to surface res. calculations [-]
+      REAL(KIND(1D0)), INTENT(IN) :: G4 !Fitted parameters related to surface res. calculations [-]
+      REAL(KIND(1D0)), INTENT(IN) :: G5 !Fitted parameters related to surface res. calculations [degC]
+      REAL(KIND(1D0)), INTENT(IN) :: G6 !Fitted parameters related to surface res. calculations [mm-1]
+      REAL(KIND(1D0)), INTENT(in) :: gfunc !gdq*gtemp*gs*gq for photosynthesis calculations 
       REAL(KIND(1D0)), INTENT(in) :: Kmax !annual maximum hourly solar radiation [W m-2]
       REAL(KIND(1D0)), INTENT(in) :: Press_hPa !air pressure [hPa]
       REAL(KIND(1D0)), INTENT(in) :: S1 !a parameter related to soil moisture dependence [-]
@@ -1738,7 +1738,7 @@ CONTAINS
       REAL(KIND(1D0)), INTENT(in) :: TH !Maximum temperature limit [degC]
       REAL(KIND(1D0)), INTENT(in) :: TL !Minimum temperature limit [degC]
       REAL(KIND(1D0)), INTENT(in) :: vsmd !Soil moisture deficit for vegetated surfaces only [mm]
-      REAL(KIND(1D0)), INTENT(in) :: xsmd !Measured soil moisture deficit [mm]
+      REAL(KIND(1D0)), INTENT(in) :: xsmd ! observed soil moisture; can be provided either as volumetric ([m3 m-3] when SMDMethod = 1) or gravimetric quantity ([kg kg-1] when SMDMethod = 2
 
       REAL(KIND(1D0)), INTENT(out) :: Fc_biogen !biogenic CO2 flux [umol m-2 s-1]
       REAL(KIND(1D0)), INTENT(out) :: Fc_photo !co2 flux from photosynthesis [umol m-2 s-1]
@@ -1846,11 +1846,11 @@ CONTAINS
       ! INTEGER,PARAMETER ::DecidSurf = 4 !New surface classes: Grass = 5th/7 surfaces
       ! INTEGER,PARAMETER ::GrassSurf = 5
 
-      INTEGER, INTENT(in) :: storageheatmethod !Determines method for calculating storage heat flux ΔQS
-      INTEGER, INTENT(in) :: NetRadiationMethod !Determines method for calculation of radiation fluxes
-      INTEGER, INTENT(in) :: SnowUse !Determines whether the snow part of the model runs; 0-Snow calculations are not performed.1-Snow calculations are performed.
-      INTEGER, INTENT(in) :: Diagnose
-      INTEGER, INTENT(in) :: DiagQN
+      INTEGER, INTENT(in) :: storageheatmethod !Determines method for calculating storage heat flux ΔQS [-]
+      INTEGER, INTENT(in) :: NetRadiationMethod !Determines method for calculation of radiation fluxes [-]
+      INTEGER, INTENT(in) :: SnowUse !Determines whether the snow part of the model runs; 0-Snow calculations are not performed.1-Snow calculations are performed [-]
+      INTEGER, INTENT(in) :: Diagnose ! flag for printing diagnostic info during runtime [N/A]
+      INTEGER, INTENT(in) :: DiagQN ! flag for printing diagnostic info for QN module during runtime [N/A]
       INTEGER, INTENT(in) :: tstep !timestep [s]
       INTEGER, INTENT(in) :: nlayer !number of vertical levels in urban canopy [-]
 
@@ -1859,7 +1859,7 @@ CONTAINS
       REAL(KIND(1D0)), INTENT(in) :: fcld_obs !observed cloud fraction [-]
       REAL(KIND(1D0)), INTENT(in) :: dectime !decimal time [-]
       REAL(KIND(1D0)), INTENT(in) :: ZENITH_deg !solar zenith angle in degree [°]
-      REAL(KIND(1D0)), INTENT(in) :: Tsurf_0
+      REAL(KIND(1D0)), INTENT(in) :: Tsurf_0 !initial surface temperature [degree]
       REAL(KIND(1D0)), INTENT(in) :: kdown !incoming shortwave radiation [W m-2]
       REAL(KIND(1D0)), INTENT(in) :: Tair_C !Air temperature in degree C [degC]
       REAL(KIND(1D0)), INTENT(in) :: avRH !average relative humidity (%) in each layer [-]
@@ -1944,7 +1944,7 @@ CONTAINS
       REAL(KIND(1D0)), DIMENSION(nlayer), INTENT(IN) :: building_frac ! building fraction [-]
       REAL(KIND(1D0)), DIMENSION(nlayer), INTENT(IN) :: veg_frac !vegetation fraction [-]
       REAL(KIND(1D0)), DIMENSION(nlayer), INTENT(IN) :: building_scale ! diameter of buildings [[m]. The only L method for buildings is Eq. 19 Hogan et al. 2018.
-      REAL(KIND(1D0)), DIMENSION(nlayer), INTENT(IN) :: veg_scale ! scale of tree crowns [m]. Using the default use_symmetric_vegetation_scale_urban=.TRUE. so that Eq. 20 Hogan et al. 2018 is used for L.
+      REAL(KIND(1D0)), DIMENSION(nlayer), INTENT(IN) :: veg_scale ! scale of tree crowns. Using the default use_symmetric_vegetation_scale_urban=.TRUE. so that Eq. 20 Hogan et al. 2018 is used for L [m]
       REAL(KIND(1D0)), DIMENSION(nlayer), INTENT(IN) :: alb_roof !albedo of roof [-]
       REAL(KIND(1D0)), DIMENSION(nlayer), INTENT(IN) :: emis_roof ! emissivity of roof [-]
       REAL(KIND(1D0)), DIMENSION(nlayer), INTENT(IN) :: alb_wall !albedo of wall [-]
@@ -2099,21 +2099,21 @@ CONTAINS
       INTEGER, INTENT(in) :: id ! day of year [-]
       INTEGER, INTENT(in) :: tstep ! time step [s]
       INTEGER, INTENT(in) :: dt_since_start ! time since simulation starts [s]
-      INTEGER, INTENT(in) :: Diagnose
+      INTEGER, INTENT(in) :: Diagnose ! flag for printing diagnostic info during runtime [N/A]
       ! INTEGER, INTENT(in)  ::nsh              ! number of timesteps in one hour
       INTEGER, INTENT(in) :: SnowUse ! option for snow related calculations [-]
-      INTEGER, INTENT(in) :: DiagQS ! diagnostic option [-]
+      INTEGER, INTENT(in) :: DiagQS ! flag for printing diagnostic info for QS module during runtime [N/A]
       INTEGER, INTENT(in) :: EmissionsMethod ! AnthropHeat option [-]
       INTEGER, INTENT(in) :: nlayer ! number of vertical levels in urban canopy [-]
 
       REAL(KIND(1D0)), INTENT(in) :: OHM_coef(nsurf + 1, 4, 3) ! OHM coefficients [-]
       REAL(KIND(1D0)), INTENT(in) :: OHM_threshSW(nsurf + 1) ! Temperature threshold determining whether summer/winter OHM coefficients are applied [degC]
       REAL(KIND(1D0)), INTENT(in) :: OHM_threshWD(nsurf + 1) ! Soil moisture threshold determining whether wet/dry OHM coefficients are applied [-]
-      REAL(KIND(1D0)), INTENT(in) :: soilstore_id(nsurf) ! soil moisture on day of year
+      REAL(KIND(1D0)), INTENT(in) :: soilstore_id(nsurf) ! soil moisture on day of year [mm]
       REAL(KIND(1D0)), INTENT(in) :: SoilStoreCap(nsurf) ! capacity of soil store [J m-3 K-1]
       REAL(KIND(1D0)), INTENT(in) :: state_id(nsurf) ! wetness status [mm]
 
-      REAL(KIND(1D0)), DIMENSION(12), INTENT(in) :: HDD_id ! Heating degree day of the day of year
+      REAL(KIND(1D0)), DIMENSION(12), INTENT(in) :: HDD_id ! Heating degree day of the day of year [degC d]
       REAL(KIND(1D0)), INTENT(in) :: qf ! anthropogenic heat lufx [W m-2]
       REAL(KIND(1D0)), INTENT(in) :: qn ! net all-wave radiative flux [W m-2]
       REAL(KIND(1D0)), INTENT(in) :: qs_obs ! observed heat storage flux [W m-2]
@@ -2139,8 +2139,8 @@ CONTAINS
       REAL(KIND(1D0)), INTENT(out) :: dqndt_next ! Rate of change of net radiation at t+1 [W m-2 h-1]
       REAL(KIND(1D0)), INTENT(in) :: qn_s_av_prev ! weighted average of qn over snow for previous 60mins [W m-2]
       REAL(KIND(1D0)), INTENT(out) :: qn_s_av_next ! weighted average of qn over snow for next 60mins [W m-2]
-      REAL(KIND(1D0)), INTENT(in) :: dqnsdt_prev ! Rate of change of net radiation [W m-2 h-1] at t-1
-      REAL(KIND(1D0)), INTENT(out) :: dqnsdt_next ! Rate of change of net radiation [W m-2 h-1] at t+1
+      REAL(KIND(1D0)), INTENT(in) :: dqnsdt_prev ! Rate of change of net radiation at t-1 [W m-2 h-1]
+      REAL(KIND(1D0)), INTENT(out) :: dqnsdt_next ! Rate of change of net radiation at t+1 [W m-2 h-1]
       ! REAL(KIND(1d0)),DIMENSION(nsh),INTENT(inout)   ::qn1_store_grid
       ! REAL(KIND(1d0)),DIMENSION(nsh),INTENT(inout)   ::qn1_S_store_grid !< stored qn1 [W m-2]
 
@@ -2321,15 +2321,15 @@ CONTAINS
       IMPLICIT NONE
       ! INTEGER,PARAMETER :: nsurf=7! number of surface types
       ! INTEGER,PARAMETER ::WaterSurf = 7
-      INTEGER, INTENT(in) :: Diagnose
-      INTEGER, INTENT(in) :: SnowUse !!Snow part used (1) or not used (0) [-]
+      INTEGER, INTENT(in) :: Diagnose ! flag for printing diagnostic info during runtime [N/A]
+      INTEGER, INTENT(in) :: SnowUse !Snow part used (1) or not used (0) [-]
 
       REAL(KIND(1D0)), INTENT(in) :: NonWaterFraction !the surface fraction of non-water [-]
       REAL(KIND(1D0)), INTENT(in) :: addPipes !additional water in pipes [mm]
-      REAL(KIND(1D0)), INTENT(in) :: addImpervious !water from impervious surfaces of other grids [mm] for whole surface area
-      REAL(KIND(1D0)), INTENT(in) :: addVeg !Water from vegetated surfaces of other grids [mm] for whole surface area
-      REAL(KIND(1D0)), INTENT(in) :: addWaterBody ! water from water body of other grids [mm] for whole surface area
-      REAL(KIND(1D0)), INTENT(in) :: nsh_real !nsh cast as a real for use in calculations
+      REAL(KIND(1D0)), INTENT(in) :: addImpervious !water from impervious surfaces of other grids for whole surface area [mm]
+      REAL(KIND(1D0)), INTENT(in) :: addVeg !Water from vegetated surfaces of other grids for whole surface area [mm]
+      REAL(KIND(1D0)), INTENT(in) :: addWaterBody ! water from water body of other grids for whole surface area [mm]
+      REAL(KIND(1D0)), INTENT(in) :: nsh_real !!timestep in a hour [-]
 
       REAL(KIND(1D0)), DIMENSION(nsurf), INTENT(in) :: state_id !wetness states of each surface [mm]
       ! REAL(KIND(1D0)), DIMENSION(nsurf), INTENT(in) :: soilstore_id
@@ -2416,7 +2416,7 @@ CONTAINS
       REAL(KIND(1D0)), INTENT(in) :: avcp ! air heat capacity [J kg-1 K-1]
       REAL(KIND(1D0)), INTENT(in) :: h_mod !volumetric air heat capacity [J m-3 K-1]
       REAL(KIND(1D0)), INTENT(in) :: qn1 !net all-wave radiation [W m-2]
-      REAL(KIND(1D0)), INTENT(in) :: dectime !local time (days), not daylight savings
+      REAL(KIND(1D0)), INTENT(in) :: dectime !local time, not daylight savings [days]
       REAL(KIND(1D0)), INTENT(out) :: H_init !initial QH [W m-2]
 
       REAL(KIND(1D0)), PARAMETER :: NAN = -999
@@ -2461,11 +2461,11 @@ CONTAINS
 
       IMPLICIT NONE
 
-      INTEGER, INTENT(in) :: Diagnose
+      INTEGER, INTENT(in) :: Diagnose ! flag for printing diagnostic info during runtime [N/A]
       INTEGER, INTENT(in) :: nlayer !number of vertical levels in urban canopy [-]
       INTEGER, INTENT(in) :: tstep !timestep [s]
-      INTEGER, INTENT(in) :: imin ! minutes [min]
-      INTEGER, INTENT(in) :: it ! hour [H]
+      INTEGER, INTENT(in) :: imin ! minutes, 0-59 [min]
+      INTEGER, INTENT(in) :: it ! hour, 0-23 [h]
       INTEGER, INTENT(in) :: EvapMethod !Evaporation calculated according to Rutter (1) or Shuttleworth (2)
 
       INTEGER, DIMENSION(nsurf), INTENT(in) :: snowCalcSwitch
@@ -2817,7 +2817,7 @@ CONTAINS
 
       IMPLICIT NONE
 
-      INTEGER, INTENT(in) :: Diagnose
+      INTEGER, INTENT(in) :: Diagnose ! flag for printing diagnostic info during runtime [N/A]
       INTEGER, INTENT(in) :: storageheatmethod !Determines method for calculating storage heat flux ΔQS [-]
       INTEGER, INTENT(in) :: nlayer !number of vertical levels in urban canopy [-]
       INTEGER, INTENT(in) :: tstep !timesteps [s]
@@ -2860,8 +2860,8 @@ CONTAINS
       ! REAL(KIND(1d0)), INTENT(in)::wu_EveTr!Water use for evergreen trees/shrubs [mm]
       ! REAL(KIND(1d0)), INTENT(in)::wu_DecTr!Water use for deciduous trees/shrubs [mm]
       ! REAL(KIND(1d0)), INTENT(in)::wu_Grass!Water use for grass [mm]
-      REAL(KIND(1D0)), INTENT(in) :: addVeg !Water from vegetated surfaces of other grids [mm] for whole surface area
-      REAL(KIND(1D0)), INTENT(in) :: addWaterBody !Water from water surface of other grids [mm] for whole surface area
+      REAL(KIND(1D0)), INTENT(in) :: addVeg !Water from vegetated surfaces of other grids for whole surface area [mm]
+      REAL(KIND(1D0)), INTENT(in) :: addWaterBody !Water from water surface of other grids for whole surface area [mm]
       ! REAL(KIND(1D0)), INTENT(in) :: SnowLimPaved
       ! REAL(KIND(1D0)), INTENT(in) :: SnowLimBldg
       ! REAL(KIND(1D0)), INTENT(in) :: SurfaceArea
@@ -2984,9 +2984,9 @@ CONTAINS
       REAL(KIND(1D0)), DIMENSION(nlayer) :: qn_e_roof !net available energy for evaporation for roof[W m-2]
       REAL(KIND(1D0)), DIMENSION(nlayer) :: qn_e_wall !net available energy for evaporation for wall[W m-2]
 
-      REAL(KIND(1D0)) :: pin !Rain per time interval
+      REAL(KIND(1D0)) :: pin !Rain per time interval [mm]
       REAL(KIND(1D0)) :: tlv !Latent heat of vapourisation per timestep [J kg-1 s-1]
-      REAL(KIND(1D0)) :: nsh_real !timesteps per hour
+      REAL(KIND(1D0)) :: nsh_real !timesteps per hour [-]
       REAL(KIND(1D0)) :: state_building !aggregated surface water of building facets [mm]
       REAL(KIND(1D0)) :: soilstore_building !aggregated soilstore of building facets[mm]
       REAL(KIND(1D0)) :: capStore_builing ! aggregated storage capacity of building facets[mm]
@@ -3134,7 +3134,7 @@ CONTAINS
       qh_resist_surf, qh_resist_roof, qh_resist_wall)
       IMPLICIT NONE
 
-      INTEGER, INTENT(in) :: QHMethod ! option for QH calculation: 1, residual; 2, resistance-based
+      INTEGER, INTENT(in) :: QHMethod ! option for QH calculation: 1, residual; 2, resistance-based [-]
       INTEGER, INTENT(in) :: storageheatmethod !Determines method for calculating storage heat flux ΔQS [-]
       INTEGER, INTENT(in) :: nlayer !number of vertical levels in urban canopy [-]
 
@@ -3226,12 +3226,12 @@ CONTAINS
       IMPLICIT NONE
 
       INTEGER, INTENT(in) :: StabilityMethod !method to calculate atmospheric stability [-]
-      INTEGER, INTENT(in) :: Diagnose
+      INTEGER, INTENT(in) :: Diagnose ! flag for printing diagnostic info during runtime [N/A]
       INTEGER, INTENT(in) :: AerodynamicResistanceMethod !method to calculate RA [-]
       INTEGER, INTENT(in) :: RoughLenHeatMethod !method to calculate heat roughness length [-]
       INTEGER, INTENT(in) :: SnowUse !!Snow part used (1) or not used (0) [-]
-      INTEGER, INTENT(in) :: id ! day of the year [-]
-      INTEGER, INTENT(in) :: it !hour [h]
+      INTEGER, INTENT(in) :: id ! day of year, 1-366 [-]
+      INTEGER, INTENT(in) :: it ! hour, 0-23 [h]
       INTEGER, INTENT(in) :: gsModel !Choice of gs parameterisation (1 = Ja11, 2 = Wa16)
       INTEGER, INTENT(in) :: SMDMethod !Method of measured soil moisture
 
@@ -3247,18 +3247,18 @@ CONTAINS
       REAL(KIND(1D0)), INTENT(in) :: VegFraction !Fraction of vegetation [-]
       REAL(KIND(1D0)), INTENT(in) :: avkdn !Average downwelling shortwave radiation [W m-2]
       REAL(KIND(1D0)), INTENT(in) :: Kmax !Annual maximum hourly solar radiation [W m-2]
-      REAL(KIND(1D0)), INTENT(in) :: G1 !Fitted parameters related to surface res. calculations
-      REAL(KIND(1D0)), INTENT(in) :: G2 !Fitted parameters related to surface res. calculations
-      REAL(KIND(1D0)), INTENT(in) :: G3 !Fitted parameters related to surface res. calculations
-      REAL(KIND(1D0)), INTENT(in) :: G4 !Fitted parameters related to surface res. calculations
-      REAL(KIND(1D0)), INTENT(in) :: G5 !Fitted parameters related to surface res. calculations
-      REAL(KIND(1D0)), INTENT(in) :: G6 !Fitted parameters related to surface res. calculations
+      REAL(KIND(1D0)), INTENT(IN) :: G1 !Fitted parameters related to surface res. calculations [-]
+      REAL(KIND(1D0)), INTENT(IN) :: G2 !Fitted parameters related to surface res. calculations [W m-2]
+      REAL(KIND(1D0)), INTENT(IN) :: G3 !Fitted parameters related to surface res. calculations [-]
+      REAL(KIND(1D0)), INTENT(IN) :: G4 !Fitted parameters related to surface res. calculations [-]
+      REAL(KIND(1D0)), INTENT(IN) :: G5 !Fitted parameters related to surface res. calculations [degC]
+      REAL(KIND(1D0)), INTENT(IN) :: G6 !Fitted parameters related to surface res. calculations [mm-1]
       REAL(KIND(1D0)), INTENT(in) :: S1 !a parameter related to soil moisture dependence [-]
       REAL(KIND(1D0)), INTENT(in) :: S2 !a parameter related to soil moisture dependence [mm]
       REAL(KIND(1D0)), INTENT(in) :: TH !Maximum temperature limit [degC]
       REAL(KIND(1D0)), INTENT(in) :: TL !Minimum temperature limit [degC]
       REAL(KIND(1D0)), INTENT(in) :: dq !Specific humidity deficit
-      REAL(KIND(1D0)), INTENT(in) :: xsmd !Measured soil moisture deficit
+      REAL(KIND(1D0)), INTENT(in) :: xsmd !observed soil moisture; can be provided either as volumetric ([m3 m-3] when SMDMethod = 1) or gravimetric quantity ([kg kg-1] when SMDMethod = 2
       REAL(KIND(1D0)), INTENT(in) :: vsmd !Soil moisture deficit for vegetated surfaces only[mm]
 
       REAL(KIND(1D0)), DIMENSION(3), INTENT(in) :: MaxConductance !the maximum conductance of each vegetation or surface type. [mm s-1]
@@ -3271,15 +3271,15 @@ CONTAINS
       REAL(KIND(1D0)), INTENT(out) :: TStar !T* temperature scale
       REAL(KIND(1D0)), INTENT(out) :: UStar !friction velocity [m s-1]
       REAL(KIND(1D0)), INTENT(out) :: zL !stability scale
-      REAL(KIND(1D0)), INTENT(out) :: gsc !Surface Layer Conductance
+      REAL(KIND(1D0)), INTENT(out) :: gsc !Surface Layer Conductance [mm s-1]
       REAL(KIND(1D0)), INTENT(out) :: RS !surface resistance [s m-1]
       REAL(KIND(1D0)), INTENT(out) :: RA !Aerodynamic resistance [s m-1]
       REAL(KIND(1D0)), INTENT(out) :: z0v !roughness for heat [m]
       REAL(KIND(1D0)), INTENT(out) :: RASnow !Aerodynamic resistance for snow [s m-1]
       REAL(KIND(1D0)), INTENT(out) :: z0vSnow !roughness for heat [m]
-      REAL(KIND(1D0)), INTENT(out) :: RB !boundary layer resistance shuttleworth
+      REAL(KIND(1D0)), INTENT(out) :: RB !boundary layer resistance shuttleworth [s m-1]
       REAL(KIND(1D0)), INTENT(out) :: L_mod !Obukhov length [m]
-      REAL(KIND(1D0)) :: gfunc !gdq*gtemp*gs*gq for photosynthesis calculations
+      REAL(KIND(1D0)) :: gfunc !gdq*gtemp*gs*gq for photosynthesis calculations 
       ! REAL(KIND(1d0))              ::H_init    !Kinematic sensible heat flux [K m s-1] used to calculate friction velocity
 
       ! Get first estimate of sensible heat flux. Modified by HCW 26 Feb 2015
@@ -3377,17 +3377,17 @@ CONTAINS
 
       REAL(KIND(1D0)), PARAMETER :: NAN = -999
       INTEGER, INTENT(in) :: iy ! year [YYYY]
-      INTEGER, INTENT(in) :: id ! day of the year [DOY]
-      INTEGER, INTENT(in) :: it ! hour [H]
-      INTEGER, INTENT(in) :: imin ! minutes [M]
+      INTEGER, INTENT(in) :: id ! day of year, 1-366 [-]
+      INTEGER, INTENT(in) :: it ! hour, 0-23 [h]
+      INTEGER, INTENT(in) :: imin ! minutes, 0-59 [min]
       REAL(KIND(1D0)), INTENT(in) :: AdditionalWater !Additional water coming from other grids [mm]
       REAL(KIND(1D0)), INTENT(in) :: alb(nsurf) !albedo of each surfaces [-]
       REAL(KIND(1D0)), INTENT(in) :: avkdn !Average downwelling shortwave radiation [W m-2]
       REAL(KIND(1D0)), INTENT(in) :: avU10_ms !average wind speed at 10m [W m-1]
-      REAL(KIND(1D0)), INTENT(in) :: azimuth !solar azimuth [°]
+      REAL(KIND(1D0)), INTENT(in) :: azimuth !solar azimuth [deg]
       REAL(KIND(1D0)), INTENT(in) :: chSnow_per_interval ! change state_id of snow and surface per time interval [mm]
       REAL(KIND(1D0)), INTENT(in) :: dectime !decimal time [-]
-      REAL(KIND(1D0)), INTENT(in) :: drain_per_tstep ! total dr   ainage at each timestep [mm]
+      REAL(KIND(1D0)), INTENT(in) :: drain_per_tstep ! total drainage at each timestep [mm]
       REAL(KIND(1D0)), INTENT(in) :: E_mod
       REAL(KIND(1D0)), INTENT(in) :: ev_per_tstep ! evaporation at each time step [mm]
       REAL(KIND(1D0)), INTENT(in) :: ext_wu !external water use
@@ -3418,7 +3418,7 @@ CONTAINS
       REAL(KIND(1D0)), INTENT(in) :: qh !turbulent sensible heat flux [W m-2]
       REAL(KIND(1D0)), INTENT(in) :: qh_resist ! resistance-based turbulent sensible heat flux [W m-2]
       REAL(KIND(1D0)), INTENT(in) :: Qm !snowmelt-related heat [W m-2]
-      REAL(KIND(1D0)), INTENT(in) :: QmFreez !heat related to freezing of surface store
+      REAL(KIND(1D0)), INTENT(in) :: QmFreez !heat related to freezing of surface store [W m-2]
       REAL(KIND(1D0)), INTENT(in) :: QmRain !melt heat for rain on snow [W m-2]
       REAL(KIND(1D0)), INTENT(in) :: qn !net all-wave radiation [W m-2]
       REAL(KIND(1D0)), INTENT(in) :: qn_snow !net all-wave radiation on snow surface [W m-2]
@@ -3428,10 +3428,10 @@ CONTAINS
       REAL(KIND(1D0)), INTENT(in) :: resistsurf !surface resistance [s m-1]
       REAL(KIND(1D0)), INTENT(in) :: RH2 ! air relative humidity at 2m [-]
       REAL(KIND(1D0)), INTENT(in) :: runoff_per_tstep !runoff water at each time step [mm]
-      REAL(KIND(1D0)), INTENT(in) :: runoffAGimpervious !Above ground runoff from impervious surface for all surface area [mm]
+      REAL(KIND(1D0)), INTENT(in) :: runoffAGimpervious !Above ground runoff from impervious surface for all surface area [mm] 
       REAL(KIND(1D0)), INTENT(in) :: runoffAGveg !Above ground runoff from vegetated surfaces for all surface area [mm]
       REAL(KIND(1D0)), INTENT(in) :: runoffPipes !runoff to pipes [mm]
-      REAL(KIND(1D0)), INTENT(in) :: runoffSoil_per_tstep !Runoff to deep soil per timestep [mm] (for whole surface, excluding water body)
+      REAL(KIND(1D0)), INTENT(in) :: runoffSoil_per_tstep !Runoff to deep soil per timestep (for whole surface, excluding water body) [mm] 
       REAL(KIND(1D0)), INTENT(in) :: runoffWaterBody !Above ground runoff from water body for all surface area [mm]
       REAL(KIND(1D0)), INTENT(in) :: sfr_surf(nsurf) !surface fraction [-]
       REAL(KIND(1D0)), INTENT(in) :: smd !soil moisture deficit [mm]
@@ -3451,7 +3451,7 @@ CONTAINS
 
       REAL(KIND(1D0)), INTENT(in) :: z0m !Aerodynamic roughness length [m]
       REAL(KIND(1D0)), INTENT(in) :: zdm !zero-plane displacement [m]
-      REAL(KIND(1D0)), INTENT(in) :: zenith_deg !solar zenith angle in degree [°]
+      REAL(KIND(1D0)), INTENT(in) :: zenith_deg !solar zenith angle in degree [degree]
 
       REAL(KIND(1D0)), DIMENSION(5), INTENT(OUT) :: datetimeLine !date & time
       REAL(KIND(1D0)), DIMENSION(ncolumnsDataOutSUEWS - 5), INTENT(out) :: dataOutLineSUEWS
@@ -3566,9 +3566,9 @@ CONTAINS
       INTEGER, PARAMETER :: n_fill = 15
 
       INTEGER, INTENT(in) :: iy ! year [YYYY]
-      INTEGER, INTENT(in) :: id ! day of the year [DOY]
-      INTEGER, INTENT(in) :: it ! hour [H]
-      INTEGER, INTENT(in) :: imin ! minutes [M]
+      INTEGER, INTENT(in) :: id ! day of year, 1-366 [-]
+      INTEGER, INTENT(in) :: it ! hour, 0-23 [h]
+      INTEGER, INTENT(in) :: imin ! minutes 0-59 [min]
 
       INTEGER, INTENT(in) :: nlayer ! number of vertical levels in urban canopy [-]
       REAL(KIND(1D0)), INTENT(in) :: dectime !decimal time [-]
@@ -4096,12 +4096,12 @@ CONTAINS
       REAL(KIND(1D0)), DIMENSION(len_sim, 24), INTENT(IN) :: MetForcingBlock
       INTEGER, INTENT(IN) :: len_sim
       ! input variables
-      INTEGER, INTENT(IN) :: nlayer ! number of vertical layers in urban canyon
+      INTEGER, INTENT(IN) :: nlayer ! number of vertical layers in urban canyon [-]
       INTEGER, INTENT(IN) :: AerodynamicResistanceMethod !method to calculate RA [-]
       INTEGER, INTENT(IN) :: BaseTMethod ! base t method [-]
-      INTEGER, INTENT(IN) :: Diagnose
-      INTEGER, INTENT(IN) :: DiagQN
-      INTEGER, INTENT(IN) :: DiagQS
+      INTEGER, INTENT(IN) :: Diagnose! flag for printing diagnostic info during runtime [N/A]
+      INTEGER, INTENT(IN) :: DiagQN ! flag for printing diagnostic info during runtime [N/A]
+      INTEGER, INTENT(IN) :: DiagQS! flag for printing diagnostic info for QS module during runtime [N/A]
       INTEGER, INTENT(IN) :: startDLS !start of daylight saving  [DOY]
       INTEGER, INTENT(IN) :: endDLS !end of daylight saving [DOY]
       INTEGER, INTENT(IN) :: EmissionsMethod !method to calculate anthropogenic heat [-]
@@ -4121,7 +4121,7 @@ CONTAINS
       INTEGER, INTENT(IN) :: StabilityMethod !method to calculate atmospheric stability [-]
       INTEGER, INTENT(IN) :: StorageHeatMethod !Determines method for calculating storage heat flux ΔQS [-]
       INTEGER, INTENT(IN) :: tstep !timestep [s]
-      INTEGER, INTENT(IN) :: tstep_prev ! tstep size of the previous step
+      INTEGER, INTENT(IN) :: tstep_prev ! tstep size of the previous step [s]
       ! dt_since_start is intentionally made as inout to keep naming consistency with the embedded subroutine
       INTEGER, INTENT(inout) :: dt_since_start ! time since simulation starts [s]
       INTEGER, INTENT(IN) :: veg_type !Defines how vegetation is calculated for LUMPS [-]
@@ -4141,8 +4141,8 @@ CONTAINS
       ! REAL(KIND(1D0)),INTENT(IN)::avU1
       REAL(KIND(1D0)), INTENT(IN) :: BaseT_HC !base temperature for heating degree dayb [degC]
       REAL(KIND(1D0)), INTENT(IN) :: bldgH !average building height [m]
-      REAL(KIND(1D0)), INTENT(IN) :: CapMax_dec !maximum water storage capacity for upper surfaces (i.e. canopy)
-      REAL(KIND(1D0)), INTENT(IN) :: CapMin_dec !minimum water storage capacity for upper surfaces (i.e. canopy)
+      REAL(KIND(1D0)), INTENT(IN) :: CapMax_dec !maximum water storage capacity for upper surfaces (i.e. canopy) [mm]
+      REAL(KIND(1D0)), INTENT(IN) :: CapMin_dec !minimum water storage capacity for upper surfaces (i.e. canopy) [mm]
       REAL(KIND(1D0)), INTENT(IN) :: CO2PointSource ! point source [kgC day-1]
       REAL(KIND(1D0)), INTENT(IN) :: CRWmax !maximum water holding capacity of snow [mm]
       REAL(KIND(1D0)), INTENT(IN) :: CRWmin !minimum water holding capacity of snow [mm]
@@ -4159,12 +4159,12 @@ CONTAINS
       REAL(KIND(1D0)), INTENT(IN) :: FlowChange !Difference between the input and output flow in the water body [mm]
       REAL(KIND(1D0)), INTENT(IN) :: FrFossilFuel_Heat ! fraction of fossil fuel heat [-]
       REAL(KIND(1D0)), INTENT(IN) :: FrFossilFuel_NonHeat ! fraction of fossil fuel non heat [-]
-      REAL(KIND(1D0)), INTENT(IN) :: G1 !Fitted parameters related to surface res. calculations
-      REAL(KIND(1D0)), INTENT(IN) :: G2 !Fitted parameters related to surface res. calculations
-      REAL(KIND(1D0)), INTENT(IN) :: G3 !Fitted parameters related to surface res. calculations
-      REAL(KIND(1D0)), INTENT(IN) :: G4 !Fitted parameters related to surface res. calculations
-      REAL(KIND(1D0)), INTENT(IN) :: G5 !Fitted parameters related to surface res. calculations
-      REAL(KIND(1D0)), INTENT(IN) :: G6 !Fitted parameters related to surface res. calculations
+      REAL(KIND(1D0)), INTENT(IN) :: G1 !Fitted parameters related to surface res. calculations [-]
+      REAL(KIND(1D0)), INTENT(IN) :: G2 !Fitted parameters related to surface res. calculations [W m-2]
+      REAL(KIND(1D0)), INTENT(IN) :: G3 !Fitted parameters related to surface res. calculations [-]
+      REAL(KIND(1D0)), INTENT(IN) :: G4 !Fitted parameters related to surface res. calculations [-]
+      REAL(KIND(1D0)), INTENT(IN) :: G5 !Fitted parameters related to surface res. calculations [degC]
+      REAL(KIND(1D0)), INTENT(IN) :: G6 !Fitted parameters related to surface res. calculations [mm-1]
       REAL(KIND(1D0)), INTENT(IN) :: H_maintain ! ponding water depth to maintain [mm]
       REAL(KIND(1D0)), INTENT(IN) :: InternalWaterUse_h !Internal water use [mm h-1
       REAL(KIND(1D0)), INTENT(IN) :: IrrFracPaved !fraction of paved which are irrigated [-]
@@ -4186,9 +4186,9 @@ CONTAINS
       REAL(KIND(1D0)), INTENT(IN) :: NARP_EMIS_SNOW ! snow emissivity in NARP model [-]
       REAL(KIND(1D0)), INTENT(IN) :: NARP_TRANS_SITE !atmospheric transmissivity for NARP [-]
       REAL(KIND(1D0)), INTENT(IN) :: PipeCapacity !capacity of pipes to transfer water [mm]
-      REAL(KIND(1D0)), INTENT(IN) :: PopDensNighttime ! nighttime population density [ha-1] (i.e. residents)
-      REAL(KIND(1D0)), INTENT(IN) :: PorMax_dec !full leaf-on summertime value used only for DecTr
-      REAL(KIND(1D0)), INTENT(IN) :: PorMin_dec !leaf-off wintertime value used only for DecTr
+      REAL(KIND(1D0)), INTENT(IN) :: PopDensNighttime ! nighttime population density (i.e. residents) [ha-1]
+      REAL(KIND(1D0)), INTENT(IN) :: PorMax_dec !full leaf-on summertime value used only for DecTr [-]
+      REAL(KIND(1D0)), INTENT(IN) :: PorMin_dec !leaf-off wintertime value used only for DecTr [-]
       ! REAL(KIND(1D0)),INTENT(IN)::Precip
       REAL(KIND(1D0)), INTENT(IN) :: PrecipLimit !rain data [mm]
       REAL(KIND(1D0)), INTENT(IN) :: PrecipLimitAlb !temperature limit when precipitation falls as snow [degC]
@@ -4238,8 +4238,8 @@ CONTAINS
       REAL(KIND(1D0)), DIMENSION(2), INTENT(IN) :: BaseT_Cooling ! base temperature for cooling degree day [degC]
       REAL(KIND(1D0)), DIMENSION(2), INTENT(IN) :: BaseT_Heating ! base temperatrue for heating degree day [degC]
       REAL(KIND(1D0)), DIMENSION(2), INTENT(IN) :: TrafficRate ! Traffic rate [veh km m-2 s-1]
-      REAL(KIND(1D0)), DIMENSION(3), INTENT(IN) :: Ie_a !Coefficient for automatic irrigation model
-      REAL(KIND(1D0)), DIMENSION(3), INTENT(IN) :: Ie_m !Coefficients for manual irrigation models
+      REAL(KIND(1D0)), DIMENSION(3), INTENT(IN) :: Ie_a !Coefficient for automatic irrigation model,(Ie_a1) [mm d-1], (Ie_a2) [mm d-1 K-1], (Ie_a3) [mm d-2 ]
+      REAL(KIND(1D0)), DIMENSION(3), INTENT(IN) :: Ie_m !Coefficients for manual irrigation models，(Ie_m1) [mm d-1], (Ie_m2) [mm d-1 K-1], (Ie_m3) [mm d-2 ]
       REAL(KIND(1D0)), DIMENSION(3), INTENT(IN) :: MaxConductance !the maximum conductance of each vegetation or surface type. [mm s-1]
       REAL(KIND(1D0)), DIMENSION(7), INTENT(IN) :: DayWat !Irrigation flag: 1 for on and 0 for off [-]
       REAL(KIND(1D0)), DIMENSION(7), INTENT(IN) :: DayWatPer !Fraction of properties using irrigation for each day of a week [-]
@@ -4266,12 +4266,12 @@ CONTAINS
       REAL(KIND(1D0)), DIMENSION(NVEGSURF), INTENT(IN) :: LAIMax !full leaf-on summertime value [m2 m-2]
       REAL(KIND(1D0)), DIMENSION(NVEGSURF), INTENT(IN) :: LAIMin !leaf-off wintertime value [m2 m-2]
       REAL(KIND(1D0)), DIMENSION(NVEGSURF), INTENT(IN) :: min_res_bioCO2 !Minimum soil respiration rate (for cold-temperature limit) [umol m-2 s-1]
-      REAL(KIND(1D0)), DIMENSION(NVEGSURF), INTENT(IN) :: resp_a !Respiration coefficient a
-      REAL(KIND(1D0)), DIMENSION(NVEGSURF), INTENT(IN) :: resp_b !Respiration coefficient b - related to air temperature dependency
+      REAL(KIND(1D0)), DIMENSION(NVEGSURF), INTENT(IN) :: resp_a !Respiration coefficient a [-]
+      REAL(KIND(1D0)), DIMENSION(NVEGSURF), INTENT(IN) :: resp_b !Respiration coefficient b - related to air temperature dependency [-]
       REAL(KIND(1D0)), DIMENSION(NVEGSURF), INTENT(IN) :: SDDFull !the sensesence degree days (SDD) needed to initiate leaf off [degC]
       REAL(KIND(1D0)), DIMENSION(0:23, 2), INTENT(IN) :: SnowProf_24hr !Hourly profile values used in snow clearing [-]
       REAL(KIND(1D0)), DIMENSION(NVEGSURF), INTENT(IN) :: theta_bioCO2 !The convexity of the curve at light saturation [-]
-      REAL(KIND(1D0)), DIMENSION(4, NVEGSURF), INTENT(IN) :: LAIPower !parameters required by LAI calculation
+      REAL(KIND(1D0)), DIMENSION(4, NVEGSURF), INTENT(IN) :: LAIPower !parameters required by LAI calculation [K-1]
       REAL(KIND(1D0)), DIMENSION(nsurf + 1, 4, 3), INTENT(IN) :: OHM_coef !Coefficients for OHM calculation
       REAL(KIND(1D0)), DIMENSION(NSURF + 1, NSURF - 1), INTENT(IN) :: WaterDist !Fraction of water redistribution [-]
       REAL(KIND(1D0)), DIMENSION(:), INTENT(IN) :: Ts5mindata_ir !surface temperature input data[degC]
@@ -4309,8 +4309,8 @@ CONTAINS
 
       ! phenology related:
       REAL(KIND(1D0)), DIMENSION(NSURF), INTENT(INOUT) :: alb !albedo [-]
-      REAL(KIND(1D0)), DIMENSION(nvegsurf), INTENT(INOUT) :: GDD_id !Growing Degree Days [degC](see SUEWS_DailyState.f95)
-      REAL(KIND(1D0)), DIMENSION(nvegsurf), INTENT(INOUT) :: SDD_id !Senescence Degree Days [degC](see SUEWS_DailyState.f95)
+      REAL(KIND(1D0)), DIMENSION(nvegsurf), INTENT(INOUT) :: GDD_id !Growing Degree Days [degC]
+      REAL(KIND(1D0)), DIMENSION(nvegsurf), INTENT(INOUT) :: SDD_id !Senescence Degree Days [degC]
       REAL(KIND(1D0)), DIMENSION(nvegsurf), INTENT(INOUT) :: LAI_id !LAI for each veg surface [m2 m-2]
       REAL(KIND(1D0)), INTENT(INOUT) :: DecidCap_id !Moisture storage capacity of deciduous trees [mm]
       REAL(KIND(1D0)), INTENT(INOUT) :: albDecTr_id !Albedo of deciduous trees [-]
@@ -4322,10 +4322,10 @@ CONTAINS
       REAL(KIND(1D0)), INTENT(INOUT) :: lenday_id !daytime length [h]
 
       ! anthropogenic heat related:
-      REAL(KIND(1D0)), DIMENSION(12), INTENT(INOUT) :: HDD_id !Heating Degree Days  [degC d](see SUEWS_DailyState.f95)
+      REAL(KIND(1D0)), DIMENSION(12), INTENT(INOUT) :: HDD_id !Heating Degree Days  [degC d]
 
       ! water use related:
-      REAL(KIND(1D0)), DIMENSION(9), INTENT(INOUT) :: WUDay_id !Daily water use for EveTr, DecTr, Grass [mm] (see SUEWS_DailyState.f95)
+      REAL(KIND(1D0)), DIMENSION(9), INTENT(INOUT) :: WUDay_id !Daily water use for EveTr, DecTr, Grass [mm] 
 
       ! ESTM related:
       REAL(KIND(1D0)), INTENT(INOUT) :: Tair_av !average air temperature [degC]
@@ -4359,8 +4359,8 @@ CONTAINS
       REAL(KIND(1D0)), DIMENSION(nsurf, ndepth), INTENT(in) :: dz_surf ! thickness of each layer in each surface [m]
 
       ! SPARTACUS input variables
-      INTEGER, INTENT(IN) :: n_vegetation_region_urban, & !Number of regions used to describe vegetation
-                             n_stream_sw_urban, n_stream_lw_urban !shortwave diffuse streams per hemisphere; LW streams per hemisphere
+      INTEGER, INTENT(IN) :: n_vegetation_region_urban, & !Number of regions used to describe vegetation [-]
+                             n_stream_sw_urban, n_stream_lw_urban !shortwave diffuse streams per hemisphere; LW streams per hemisphere [-]
       REAL(KIND(1D0)), INTENT(IN) :: sw_dn_direct_frac, air_ext_sw, air_ssa_sw, &
                                      veg_ssa_sw, air_ext_lw, air_ssa_lw, veg_ssa_lw, &
                                      veg_fsd_const, veg_contact_fraction_const, &
@@ -4416,32 +4416,32 @@ CONTAINS
       ! length of met forcing block
       INTEGER :: ir
       ! met forcing variables
-      INTEGER :: iy
-      INTEGER :: id
-      INTEGER :: it
-      INTEGER :: imin
-      INTEGER :: isec
+      INTEGER :: iy ! year [Y]
+      INTEGER :: id ! day of year, 1-366 [-]
+      INTEGER :: it ! hour, 0-23 [h]
+      INTEGER :: imin ! minutes, 0-59 [min]
+      INTEGER :: isec ! seconds, 0-59 [s]
       INTEGER, PARAMETER :: gridiv_x = 1 ! a dummy gridiv as this routine is only one grid
-      REAL(KIND(1D0)) :: qn1_obs
-      REAL(KIND(1D0)) :: qh_obs
-      REAL(KIND(1D0)) :: qe_obs
-      REAL(KIND(1D0)) :: qs_obs
-      REAL(KIND(1D0)) :: qf_obs
-      REAL(KIND(1D0)) :: avu1
-      REAL(KIND(1D0)) :: avrh
-      REAL(KIND(1D0)) :: Temp_C
-      REAL(KIND(1D0)) :: Press_hPa
-      REAL(KIND(1D0)) :: Precip
-      REAL(KIND(1D0)) :: avkdn
-      REAL(KIND(1D0)) :: snowFrac_obs
-      REAL(KIND(1D0)) :: ldown_obs
-      REAL(KIND(1D0)) :: fcld_obs
-      REAL(KIND(1D0)) :: wu_m3
-      REAL(KIND(1D0)) :: xsmd
-      REAL(KIND(1D0)) :: LAI_obs
-      REAL(KIND(1D0)) :: kdiff
-      REAL(KIND(1D0)) :: kdir
-      REAL(KIND(1D0)) :: wdir
+      REAL(KIND(1D0)) :: qn1_obs ! observed net all-wave radiation [W m-2]
+      REAL(KIND(1D0)) :: qh_obs ! observed turbulent sensible heat flux [W m-2]
+      REAL(KIND(1D0)) :: qe_obs ! observed turbulent latent heat flux [W m-2]
+      REAL(KIND(1D0)) :: qs_obs ! observed heat storage flux [W m-2]
+      REAL(KIND(1D0)) :: qf_obs ! observed anthropogenic heat flux [W m-2]
+      REAL(KIND(1D0)) :: avu1 ! average wind speed at 1m [W m-1]
+      REAL(KIND(1D0)) :: avrh ! relative humidity [-]
+      REAL(KIND(1D0)) :: Temp_C ! air temperature [degC]
+      REAL(KIND(1D0)) :: Press_hPa ! air pressure [hPa]
+      REAL(KIND(1D0)) :: Precip ! rain data [mm]
+      REAL(KIND(1D0)) :: avkdn ! average downwelling shortwave radiation [W m-2]
+      REAL(KIND(1D0)) :: snowFrac_obs ! observed snow fraction [-]
+      REAL(KIND(1D0)) :: ldown_obs ! observed incoming longwave radiation [W m-2]
+      REAL(KIND(1D0)) :: fcld_obs ! observed cloud fraction [-]
+      REAL(KIND(1D0)) :: wu_m3 ! external water input (e.g., irrigation)  [m3]
+      REAL(KIND(1D0)) :: xsmd ! observed soil moisture; can be provided either as volumetric ([m3 m-3] when SMDMethod = 1) or gravimetric quantity ([kg kg-1] when SMDMethod = 2
+      REAL(KIND(1D0)) :: LAI_obs !observed LAI [m2 m-2]
+      REAL(KIND(1D0)) :: kdiff ! diffused  shortwave radiation [W m-2]
+      REAL(KIND(1D0)) :: kdir ! direct shortwave radiation [W m-2]
+      REAL(KIND(1D0)) :: wdir ! wind direction [deg]
 
       REAL(KIND(1D0)), DIMENSION(5) :: datetimeLine
       REAL(KIND(1D0)), DIMENSION(ncolumnsDataOutSUEWS - 5) :: dataOutLineSUEWS

@@ -266,7 +266,7 @@ CONTAINS
       REAL(KIND(1D0)), DIMENSION(2), INTENT(IN) :: PopDensDaytime ! Daytime population density [people ha-1] (i.e. workers)
       REAL(KIND(1D0)), DIMENSION(2), INTENT(IN) :: BaseT_Cooling ! base temperature for cooling degree day [degC]
       REAL(KIND(1D0)), DIMENSION(2), INTENT(IN) :: BaseT_Heating ! base temperatrue for heating degree day [degC]
-      REAL(KIND(1D0)), DIMENSION(2), INTENT(IN) :: TrafficRate ! Traffic rate [veh km m-2 s-1] 
+      REAL(KIND(1D0)), DIMENSION(2), INTENT(IN) :: TrafficRate ! Traffic rate [veh km m-2 s-1]
       REAL(KIND(1D0)), DIMENSION(3), INTENT(IN) :: Ie_a !Coefficient for automatic irrigation model,(Ie_a1) [mm d-1], (Ie_a2) [mm d-1 K-1], (Ie_a3) [mm d-2 ]
       REAL(KIND(1D0)), DIMENSION(3), INTENT(IN) :: Ie_m !Coefficients for manual irrigation models, (Ie_m1) [mm d-1], (Ie_m2) [mm d-1 K-1], (Ie_m3) [mm d-2 ]
       REAL(KIND(1D0)), DIMENSION(3), INTENT(IN) :: MaxConductance !the maximum conductance of each vegetation or surface type. [mm s-1]
@@ -443,7 +443,7 @@ CONTAINS
       REAL(KIND(1D0)) :: Fc_point ! co2 emission from point source [umol m-2 s-1]
       REAL(KIND(1D0)) :: Fc_respi !co2 flux from respiration [umol m-2 s-1]
       REAL(KIND(1D0)) :: Fc_traff ! co2 emission from traffic component [umol m-2 s-1]
-      REAL(KIND(1D0)) :: gfunc !gdq*gtemp*gs*gq for photosynthesis calculations 
+      REAL(KIND(1D0)) :: gfunc !gdq*gtemp*gs*gq for photosynthesis calculations
       REAL(KIND(1D0)) :: gsc !Surface Layer Conductance [mm s-1]
       REAL(KIND(1D0)) :: QH_LUMPS !turbulent sensible heat flux from LUMPS model [W m-2]
       REAL(KIND(1D0)) :: wu_int !internal water use [mm]
@@ -555,7 +555,7 @@ CONTAINS
 
       ! values that are derived from tstep
       INTEGER :: nsh ! number of timesteps per hour
-      REAL(KIND(1D0)) :: nsh_real  !timestep in a hour [-]
+      REAL(KIND(1D0)) :: nsh_real !timestep in a hour [-]
       REAL(KIND(1D0)) :: tstep_real ! tstep in type real
       REAL(KIND(1D0)) :: dectime !decimal time [-]
 
@@ -1619,7 +1619,7 @@ CONTAINS
       REAL(KIND(1D0)), INTENT(in) :: MaxQFMetab ! maximum QF Metabolism [W m-2]
       REAL(KIND(1D0)), INTENT(in) :: MinFCMetab ! minimum QF metabolism [umol m-2 s-1]
       REAL(KIND(1D0)), INTENT(in) :: MinQFMetab ! minimum FC metabolism [W m-2]
-      REAL(KIND(1D0)), INTENT(in) :: PopDensNighttime ! nighttime population density(i.e. residents) [ha-1] 
+      REAL(KIND(1D0)), INTENT(in) :: PopDensNighttime ! nighttime population density(i.e. residents) [ha-1]
       REAL(KIND(1D0)), INTENT(in) :: QF_obs ! observed anthropogenic heat flux from met forcing file when EmissionMethod=0 [W m-2]
       REAL(KIND(1D0)), INTENT(in) :: Temp_C ! air temperature [degC]
       REAL(KIND(1D0)), INTENT(in) :: TrafficUnits ! traffic units choice [-]
@@ -1728,7 +1728,7 @@ CONTAINS
       REAL(KIND(1D0)), INTENT(IN) :: G4 !Fitted parameters related to surface res. calculations [-]
       REAL(KIND(1D0)), INTENT(IN) :: G5 !Fitted parameters related to surface res. calculations [degC]
       REAL(KIND(1D0)), INTENT(IN) :: G6 !Fitted parameters related to surface res. calculations [mm-1]
-      REAL(KIND(1D0)), INTENT(in) :: gfunc !gdq*gtemp*gs*gq for photosynthesis calculations 
+      REAL(KIND(1D0)), INTENT(in) :: gfunc !gdq*gtemp*gs*gq for photosynthesis calculations
       REAL(KIND(1D0)), INTENT(in) :: Kmax !annual maximum hourly solar radiation [W m-2]
       REAL(KIND(1D0)), INTENT(in) :: Press_hPa !air pressure [hPa]
       REAL(KIND(1D0)), INTENT(in) :: S1 !a parameter related to soil moisture dependence [-]
@@ -3279,7 +3279,7 @@ CONTAINS
       REAL(KIND(1D0)), INTENT(out) :: z0vSnow !roughness for heat [m]
       REAL(KIND(1D0)), INTENT(out) :: RB !boundary layer resistance shuttleworth [s m-1]
       REAL(KIND(1D0)), INTENT(out) :: L_mod !Obukhov length [m]
-      REAL(KIND(1D0)) :: gfunc !gdq*gtemp*gs*gq for photosynthesis calculations 
+      REAL(KIND(1D0)) :: gfunc !gdq*gtemp*gs*gq for photosynthesis calculations
       ! REAL(KIND(1d0))              ::H_init    !Kinematic sensible heat flux [K m s-1] used to calculate friction velocity
 
       ! Get first estimate of sensible heat flux. Modified by HCW 26 Feb 2015
@@ -3428,10 +3428,10 @@ CONTAINS
       REAL(KIND(1D0)), INTENT(in) :: resistsurf !surface resistance [s m-1]
       REAL(KIND(1D0)), INTENT(in) :: RH2 ! air relative humidity at 2m [-]
       REAL(KIND(1D0)), INTENT(in) :: runoff_per_tstep !runoff water at each time step [mm]
-      REAL(KIND(1D0)), INTENT(in) :: runoffAGimpervious !Above ground runoff from impervious surface for all surface area [mm] 
+      REAL(KIND(1D0)), INTENT(in) :: runoffAGimpervious !Above ground runoff from impervious surface for all surface area [mm]
       REAL(KIND(1D0)), INTENT(in) :: runoffAGveg !Above ground runoff from vegetated surfaces for all surface area [mm]
       REAL(KIND(1D0)), INTENT(in) :: runoffPipes !runoff to pipes [mm]
-      REAL(KIND(1D0)), INTENT(in) :: runoffSoil_per_tstep !Runoff to deep soil per timestep (for whole surface, excluding water body) [mm] 
+      REAL(KIND(1D0)), INTENT(in) :: runoffSoil_per_tstep !Runoff to deep soil per timestep (for whole surface, excluding water body) [mm]
       REAL(KIND(1D0)), INTENT(in) :: runoffWaterBody !Above ground runoff from water body for all surface area [mm]
       REAL(KIND(1D0)), INTENT(in) :: sfr_surf(nsurf) !surface fraction [-]
       REAL(KIND(1D0)), INTENT(in) :: smd !soil moisture deficit [mm]
@@ -4099,9 +4099,9 @@ CONTAINS
       INTEGER, INTENT(IN) :: nlayer ! number of vertical layers in urban canyon [-]
       INTEGER, INTENT(IN) :: AerodynamicResistanceMethod !method to calculate RA [-]
       INTEGER, INTENT(IN) :: BaseTMethod ! base t method [-]
-      INTEGER, INTENT(IN) :: Diagnose! flag for printing diagnostic info during runtime [N/A]
+      INTEGER, INTENT(IN) :: Diagnose ! flag for printing diagnostic info during runtime [N/A]
       INTEGER, INTENT(IN) :: DiagQN ! flag for printing diagnostic info during runtime [N/A]
-      INTEGER, INTENT(IN) :: DiagQS! flag for printing diagnostic info for QS module during runtime [N/A]
+      INTEGER, INTENT(IN) :: DiagQS ! flag for printing diagnostic info for QS module during runtime [N/A]
       INTEGER, INTENT(IN) :: startDLS !start of daylight saving  [DOY]
       INTEGER, INTENT(IN) :: endDLS !end of daylight saving [DOY]
       INTEGER, INTENT(IN) :: EmissionsMethod !method to calculate anthropogenic heat [-]
@@ -4325,7 +4325,7 @@ CONTAINS
       REAL(KIND(1D0)), DIMENSION(12), INTENT(INOUT) :: HDD_id !Heating Degree Days  [degC d]
 
       ! water use related:
-      REAL(KIND(1D0)), DIMENSION(9), INTENT(INOUT) :: WUDay_id !Daily water use for EveTr, DecTr, Grass [mm] 
+      REAL(KIND(1D0)), DIMENSION(9), INTENT(INOUT) :: WUDay_id !Daily water use for EveTr, DecTr, Grass [mm]
 
       ! ESTM related:
       REAL(KIND(1D0)), INTENT(INOUT) :: Tair_av !average air temperature [degC]

@@ -31,7 +31,7 @@ CONTAINS
       INTEGER, PARAMETER :: ivGrass = 3
 
       ! TS 25 Aug 2022: remove Qm from input list as LUMPS is used for initial guess and Qm could be zero
-      REAL(KIND(1D0)), PARAMETER :: Qm =0 !Snow melt associated heat flux
+      REAL(KIND(1D0)), PARAMETER :: Qm = 0 !Snow melt associated heat flux
 
       INTEGER, INTENT(in) :: veg_type !Defines how vegetation is calculated for LUMPS
       INTEGER, INTENT(in) :: SnowUse ! option of snow module
@@ -65,7 +65,6 @@ CONTAINS
       REAL(KIND(1D0)), INTENT(out) :: VegPhenLumps
       ! REAL(KIND(1d0)),INTENT(inout) ::RainBucket !RAINFALL RESERVOIR [mm]
       ! INTEGER::iv
-
 
       REAL(KIND(1D0)), DIMENSION(3) :: sfrVeg ! veg surface fractions [-]                             !,start
       REAL(KIND(1D0)) :: VegPhen, VegMax, VegMin, & !Vegetation phenology for LUMPS

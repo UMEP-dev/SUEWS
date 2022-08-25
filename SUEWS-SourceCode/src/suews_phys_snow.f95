@@ -253,7 +253,6 @@ CONTAINS
       REAL(KIND(1D0)), INTENT(in) :: PrecipLimitAlb
       REAL(KIND(1D0)), INTENT(in) :: nsh_real
 
-
       REAL(KIND(1D0)), DIMENSION(nsurf), INTENT(in) :: sfr_surf
       REAL(KIND(1D0)), DIMENSION(nsurf), INTENT(in) :: Tsurf_ind
       REAL(KIND(1D0)), DIMENSION(nsurf), INTENT(in) :: state_id

@@ -27,83 +27,83 @@ on:
 
 
 jobs:
-  test-suews:
-    runs-on: macos-latest
+  # test-suews:
+  #   runs-on: macos-latest
 
-    steps:
-      - uses: actions/checkout@v2
-        with:
-          submodules: true
-          token: ${{ secrets.PAT }}
-          fetch-depth: 0 # to get all tags
+  #   steps:
+  #     - uses: actions/checkout@v2
+  #       with:
+  #         submodules: true
+  #         token: ${{ secrets.PAT }}
+  #         fetch-depth: 0 # to get all tags
 
-      - name: Setup Python for use with actions
-        uses: actions/setup-python@v2
-        with:
-          python-version: "3.9" # Version range or exact version of a Python version to use, using semvers version range syntax.
-          architecture: "x64" # (x64 or x86)
+  #     - name: Setup Python for use with actions
+  #       uses: actions/setup-python@v2
+  #       with:
+  #         python-version: "3.9" # Version range or exact version of a Python version to use, using semvers version range syntax.
+  #         architecture: "x64" # (x64 or x86)
 
-      - name: fix gfortran on mac
-        run: |
-          echo $PATH
-          which gfortran-11
-          ln -sf "$(which gfortran-11)" /usr/local/bin/gfortran
-          which gfortran
-          gfortran --version
+  #     - name: fix gfortran on mac
+  #       run: |
+  #         echo $PATH
+  #         which gfortran-11
+  #         ln -sf "$(which gfortran-11)" /usr/local/bin/gfortran
+  #         which gfortran
+  #         gfortran --version
 
-      - name: build and test
-        run: |
-          # `make release` is needed to install some python packages
-          make release
-          make test
+  #     - name: build and test
+  #       run: |
+  #         # `make release` is needed to install some python packages
+  #         make release
+  #         make test
 
-      - name: Upload diff results from test
-        if: ${{ always() }}
-        uses: actions/upload-artifact@v3
-        with:
-          name: diff csv
-          path: Test/BaseRun/**/*diff.csv
+  #     - name: Upload diff results from test
+  #       if: ${{ always() }}
+  #       uses: actions/upload-artifact@v3
+  #       with:
+  #         name: diff csv
+  #         path: Test/BaseRun/**/*diff.csv
 
-  build-binaries:
-    needs: test-suews
+  # build-binaries:
+  #   needs: test-suews
 
-    strategy:
-      matrix:
-        py: ["3.10"]
-        os: [macOS-latest, windows-latest, ubuntu-latest]
+  #   strategy:
+  #     matrix:
+  #       py: ["3.10"]
+  #       os: [macOS-latest, windows-latest, ubuntu-latest]
 
-    runs-on: ${{ matrix.os }}
-    steps:
-      - uses: actions/checkout@v2
-        with:
-          submodules: true
-          token: ${{ secrets.PAT }}
-          fetch-depth: 0 # to get all tags
+  #   runs-on: ${{ matrix.os }}
+  #   steps:
+  #     - uses: actions/checkout@v2
+  #       with:
+  #         submodules: true
+  #         token: ${{ secrets.PAT }}
+  #         fetch-depth: 0 # to get all tags
 
-      - name: fix gfortran on mac
-        if: startsWith(matrix.os, 'macOS')
-        run: |
-          echo $PATH
-          which gfortran-10
-          ln -sf "$(which gfortran-10)" /usr/local/bin/gfortran
-          which gfortran
-          gfortran --version
+  #     - name: fix gfortran on mac
+  #       if: startsWith(matrix.os, 'macOS')
+  #       run: |
+  #         echo $PATH
+  #         which gfortran-10
+  #         ln -sf "$(which gfortran-10)" /usr/local/bin/gfortran
+  #         which gfortran
+  #         gfortran --version
 
-      - name: set up py${{ matrix.py }}
-        uses: actions/setup-python@v2
-        with:
-          python-version: ${{ matrix.py }} # Version range or exact version of a Python version to use, using semvers version range syntax.
-          architecture: "x64" # (x64 or x86)
+  #     - name: set up py${{ matrix.py }}
+  #       uses: actions/setup-python@v2
+  #       with:
+  #         python-version: ${{ matrix.py }} # Version range or exact version of a Python version to use, using semvers version range syntax.
+  #         architecture: "x64" # (x64 or x86)
 
-      - name: build binary
-        run: |
-          make release
+  #     - name: build binary
+  #       run: |
+  #         make release
 
-      - name: Store the ${{ matrix.os }} release
-        uses: actions/upload-artifact@v2
-        with:
-          name: SUEWS-release
-          path: Release/SUEWS_*_*.zip
+  #     - name: Store the ${{ matrix.os }} release
+  #       uses: actions/upload-artifact@v2
+  #       with:
+  #         name: SUEWS-release
+  #         path: Release/SUEWS_*_*.zip
 
 
 
@@ -111,13 +111,13 @@ jobs:
   build_wheels:
       name: Build wheels on ${{ matrix.os }}
       needs:
-        - test-suews
+        # - test-suews
       runs-on: ${{ matrix.os }}
       strategy:
         fail-fast: false
         matrix:
-          os: [ubuntu-20.04, windows-2019, macos-11]
-          # os: [windows-2019]
+          # os: [ubuntu-20.04, windows-2019, macos-11]
+          os: [windows-latest]
 
       steps:
         - uses: actions/checkout@v3
@@ -192,7 +192,7 @@ jobs:
   release-github:
     name: Release on GitHub
     needs:
-      - build-binaries
+      # - build-binaries
       - build_wheels # only run this job if the build_wheels job was successful to avoid polluting the release with broken wheels
     runs-on: ubuntu-latest
 

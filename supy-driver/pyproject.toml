@@ -50,5 +50,6 @@ before-build = [
     "cd {package}",
     "python -m pip install numpy",
     "python build-win-def.py",
+    "git status",
 ]
 archs = ["auto64"]

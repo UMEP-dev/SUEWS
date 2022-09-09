@@ -3,18 +3,39 @@ requires = [
     "wheel",
     "setuptools<60",
     "oldest-supported-numpy",
-    "setuptools-git-versioning",
+    'versioningit',
 ]
 # the recommended "build_meta" does not work with nonstop f2py and hence is commented out
 # build-backend = "setuptools.build_meta"
 
 
-[tool.setuptools-git-versioning]
-enabled = true
-template = "2022.{tag}"
-dev_template = "{tag}.post{ccount}"
-# ignore "dirty" flag when building using CI
-dirty_template = "{tag}.post{ccount}"
+# [tool.setuptools-git-versioning]
+# enabled = true
+# template = "2022.{tag}"
+# dev_template = "{tag}.post{ccount}"
+# # ignore "dirty" flag when building using CI
+# dirty_template = "{tag}.post{ccount}"
+[tool.versioningit.vcs]
+# The method key:
+method = "git"  # <- The method name
+
+# Parameters to pass to the method:
+match = ["20*"]
+# default-tag = "0.0.0"
+
+[tool.versioningit.format]
+
+# Format used when there have been commits since the most recent tag:
+distance = "{base_version}.post{distance}+{vcs}{rev}"
+
+# Format used when there are uncommitted changes:
+dirty = "{base_version}+d{build_date:%Y%m%d}"
+
+# Format used when there are both commits and uncommitted changes:
+distance-dirty = "{base_version}.post{distance}+{vcs}{rev}.d{build_date:%Y%m%d}"
+
+[tool.versioningit.write]
+file = "supy_driver/version.py"
 
 
 [tool.cibuildwheel]

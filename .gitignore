@@ -358,4 +358,4 @@ Test/BaseRun/2021a-gridlayout/
 Test/meg/
 suews_ctrl_ver.f95
 supy-driver/supy_driver/version.py
-wheelhouse/
+wheelhouse/*

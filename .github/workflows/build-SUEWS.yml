@@ -158,36 +158,36 @@ jobs:
             path: ./wheelhouse/*.whl
 
 
-  # deploy:
-  #   name: Publish 🐍📦 to (Test)PyPI
-  #   needs:
-  #     - build_wheels
-  #   runs-on: ubuntu-latest
+  deploy:
+    name: Publish 🐍📦 to (Test)PyPI
+    needs:
+      - build_wheels
+    runs-on: ubuntu-latest
 
-  #   steps:
-  #     - name: Download all the dists
-  #       uses: actions/download-artifact@v3
-  #       with:
-  #         name: python-package-distributions
-  #         path: dist/
+    steps:
+      - name: Download all the dists
+        uses: actions/download-artifact@v3
+        with:
+          name: python-package-distributions
+          path: dist/
 
-  #     - name: Publish distribution 📦 to Test PyPI
-  #       uses: pypa/gh-action-pypi-publish@release/v1.5
-  #       with:
-  #         packages_dir: dist/
-  #         verbose: true
-  #         skip_existing: true
-  #         password: ${{ secrets.TEST_PYPI_API_TOKEN }}
-  #         repository_url: https://test.pypi.org/legacy/
+      - name: Publish distribution 📦 to Test PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1.5
+        with:
+          packages_dir: dist/
+          verbose: true
+          skip_existing: true
+          password: ${{ secrets.TEST_PYPI_API_TOKEN }}
+          repository_url: https://test.pypi.org/legacy/
 
-  #     - name: Publish distribution 📦 to PyPI
-  #       if: startsWith(github.ref, 'refs/tags')
-  #       uses: pypa/gh-action-pypi-publish@release/v1.5
-  #       with:
-  #         packages_dir: dist/
-  #         verbose: true
-  #         skip_existing: true
-  #         password: ${{ secrets.PYPI_API_TOKEN }}
+      - name: Publish distribution 📦 to PyPI
+        if: startsWith(github.ref, 'refs/tags')
+        uses: pypa/gh-action-pypi-publish@release/v1.5
+        with:
+          packages_dir: dist/
+          verbose: true
+          skip_existing: true
+          password: ${{ secrets.PYPI_API_TOKEN }}
 
   # release-github:
   #   name: Release on GitHub

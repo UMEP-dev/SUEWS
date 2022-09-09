@@ -13,9 +13,9 @@ requires = [
 enabled = true
 template = "{tag}"
 dev_template = "{tag}.post{ccount}"
-# ignore "dirty" flag when building using CI
-dirty_template = "{tag}.post{ccount}"
-
+# ignore "dirty" flag when building using CI for windows: seems to be a bug in the versioning tool
+dirty_template = "{tag}"
+# version_callback = "setup:get_version"
 
 [tool.cibuildwheel]
 # skip 32-bit and pypy builds
@@ -51,5 +51,7 @@ before-build = [
     "python -m pip install numpy",
     "python build-win-def.py",
     "git status",
+    "python -m pip install delvewheel"
 ]
 archs = ["auto64"]
+repair-wheel-command = "delvewheel repair -w {dest_dir} {wheel}"

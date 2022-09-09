@@ -10,8 +10,6 @@ import shutil
 from nonstopf2py import f2py
 
 
-
-
 # from gen_suewsdrv import merge_source
 
 # wrap OS-specific `SUEWS_driver` libs
@@ -76,6 +74,7 @@ if sysname == "Windows":
 
 src_f95 = path_target_f95 + path_other_f95
 
+
 def readme():
     f = """
     `supy_driver` is `F2PY`-based python binary package for `supy` with `SUEWS` as the computation core.
@@ -83,20 +82,35 @@ def readme():
     return f
 
 
-def get_suews_version(ver_minor, dir_source=dir_f95, file="suews_ctrl_const.f95"):
+def get_version(ver_minor=0, dir_source=dir_f95, file="suews_ctrl_const.f95"):
     import subprocess
 
     pipe = None
-    for cmd in ['git', 'git.cmd']:
+    for cmd in ["git", "git.cmd"]:
         # try to find git in system path
         try:
             pipe = subprocess.Popen(
-                [cmd, "describe", "--always", "--match", "2[0-9]*",'--dirty'],
-                stdout=subprocess.PIPE)
+                [cmd, "describe", "--always", "--match", "2[0-9]*", "--dirty"],
+                stdout=subprocess.PIPE,
+            )
             (sout, serr) = pipe.communicate()
 
             # use git describe to get the version
-            ver = sout.decode().strip()
+            ver_git = sout.decode().strip()
+            print('git describe: ', ver_git)
+            list_ver_git = ver_git.split("-")
+            ver_tag = list_ver_git[0]
+            flag_dirty = False
+            count_post = 0
+            if 'dirty' in list_ver_git:
+                flag_dirty = True
+            else:
+                if len(list_ver_git) > 1:
+                    count_post = int(list_ver_git[1])
+            if count_post > 0:
+                ver = f'{ver_tag}.post{count_post}'+('+dirty' if flag_dirty else '')
+            else:
+                ver = ver_tag
 
             if pipe.returncode == 0:
                 break
@@ -113,23 +127,24 @@ def get_suews_version(ver_minor, dir_source=dir_f95, file="suews_ctrl_const.f95"
             path_constfile = path_source / file
             print(path_constfile, path_constfile.exists())
             print(path_constfile)
+            with open(str(path_constfile)) as fm:
+                for line in fm:
+                    if "progname" in line:
+                        ver = line.split("SUEWS_V")[-1].replace("'", "").strip()
+                        ver += str(ver_minor)
         except IOError:
             raise IOError(f"{path_constfile} not existing!")
 
-        with open(str(path_constfile)) as fm:
-            for line in fm:
-                if "progname" in line:
-                    ver = line.split("SUEWS_V")[-1].replace("'", "").strip()
-                    ver += str(ver_minor)
 
     # cast `ver` to the driver package
     path_pkg_init = Path(".") / lib_basename / "version.py"
     try:
         with open(str(path_pkg_init), "w") as fm:
             fm.write("__version__='{ver}'".format(ver=ver))
-    except FileNotFoundError:
+    except:
         pass
 
+    print('running version: ', ver)
     return ver
 
 
@@ -152,7 +167,9 @@ ext_modules = [
         [str(p) for p in path_target_f95],
         extra_compile_args=[
             "-D_POSIX_C_SOURCE=200809L",
-            "-fbracket-depth=1024" if sysname == "Darwin" else '-Wall', # for clang on MacOS
+            "-fbracket-depth=1024"
+            if sysname == "Darwin"
+            else "-Wall",  # for clang on MacOS
         ],
         extra_f90_compile_args=["-cpp", f"-I{str(path_mod)}"],
         f2py_options=[
@@ -173,7 +190,7 @@ ext_modules = [
 setup(
     name="supy_driver",
     # update version info here!
-    version=get_suews_version(ver_minor=9),
+    version=get_version(ver_minor=9),
     description="the SUEWS driver driven by f2py",
     long_description=readme(),
     url="https://github.com/UMEP-dev/SuPy",

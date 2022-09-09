@@ -192,7 +192,7 @@ jobs:
   release-github:
     name: Release on GitHub
     needs:
-      # - build-binaries
+      - build-binaries
       - build_wheels # only run this job if the build_wheels job was successful to avoid polluting the release with broken wheels
     runs-on: ubuntu-latest
 

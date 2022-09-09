@@ -51,7 +51,7 @@ before-build = [
     "python -m pip install numpy",
     "python build-win-def.py",
     "git status",
-    "python -m pip install delvewheel"
+    # "python -m pip install delvewheel"
 ]
 archs = ["auto64"]
-repair-wheel-command = "delvewheel repair -w {dest_dir} {wheel}"
+# repair-wheel-command = "delvewheel repair -w {dest_dir} {wheel}"

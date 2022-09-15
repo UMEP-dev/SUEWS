@@ -322,6 +322,7 @@ exe: $(addprefix $(DIR_SRC_SUEWS), $(OTHERS) suews_program$(suffix_code))
 	@echo SUEWS built.
 	@echo $(TARGET) has been saved in $(DIR_BIN_SUEWS)
 	cd $(DIR_BIN_SUEWS) && ln -sf $(EXECUTABLE) $(TARGET)
+	rm -rf $(DIR_RELEASE_BASE_SUEWS)
 	mkdir -p $(DIR_RELEASE_SUEWS) && cp -f $(DIR_BIN_SUEWS)/$(EXECUTABLE) $(DIR_RELEASE_SUEWS)/$(TARGET)
 
 # special rule for the spartacus wrapper

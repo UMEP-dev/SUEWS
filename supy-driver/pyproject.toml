@@ -40,7 +40,7 @@ before-all = [
     'ln -sf "$(which gfortran-10)" /usr/local/bin/gfortran',
     "make suews",
 ]
-archs = ["x86_64", "arm64"]
+archs = ["auto64"]
 skip = ['cp311-macosx*','pp*']
 
 

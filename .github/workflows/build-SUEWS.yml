@@ -28,7 +28,8 @@ on:
 
 jobs:
   test-suews:
-    runs-on: macos-latest
+    # runs-on: macos-latest
+    runs-on: macOS-M1
 
     steps:
       - uses: actions/checkout@v2
@@ -70,7 +71,7 @@ jobs:
     strategy:
       matrix:
         py: ["3.10"]
-        os: [macOS-latest, windows-latest, ubuntu-latest]
+        os: [macOS-latest, windows-latest, ubuntu-latest, macOS-M1]
 
     runs-on: ${{ matrix.os }}
     steps:
@@ -116,8 +117,8 @@ jobs:
       strategy:
         fail-fast: false
         matrix:
-          os: [ubuntu-20.04, windows-2019, macos-11]
-          # os: [windows-2019]
+          # os: [ubuntu-20.04, windows-2019, macos-11, macOS-M1]
+          os: [macOS-M1]
 
       steps:
         - uses: actions/checkout@v3
@@ -159,7 +160,7 @@ jobs:
 
 
   deploy:
-    name: Publish 🐍📦 to (Test)PyPI
+    name: Publish Python package to (Test)PyPI
     needs:
       - build_wheels
     runs-on: ubuntu-latest

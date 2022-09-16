@@ -27,7 +27,7 @@ before-build = ["git describe --tags --always --dirty"]
 build-verbosity = 0
 
 test-requires = "pytest"
-test-command = "pytest -s {package}/supy_driver/test"
+test-command = 'pytest -s "{package}/supy_driver/test"'
 
 
 [tool.cibuildwheel.linux]

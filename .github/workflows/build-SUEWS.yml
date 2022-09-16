@@ -111,14 +111,14 @@ jobs:
 
   build_wheels:
       name: Build wheels on ${{ matrix.os }}
-      # needs:
-        # - test-suews
+      needs:
+        - test-suews
       runs-on: ${{ matrix.os }}
       strategy:
         fail-fast: false
         matrix:
-          # os: [ubuntu-20.04, windows-2019, macos-11, macOS-M1]
-          os: [macOS-M1]
+          os: [ubuntu-20.04, windows-2019, macos-11]
+          # os: [macOS-M1]
 
       steps:
         - uses: actions/checkout@v3

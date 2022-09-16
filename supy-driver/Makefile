@@ -92,9 +92,11 @@ dev:
 # upload wheels to pypi using twine
 upload:
 	$(MAKE) show
-	twine upload --skip-existing dist/*whl
+	pip install twine
+	twine upload --skip-existing wheelhouse/*whl
 	# $(shell twinup wheelhouse/*whl)
 
 # only local testing on mac
 cibuid:
-	pipx run cibuildwheel==2.9.0 --platform macos --config-file pyproject-localtest.toml
+	pipx run cibuildwheel==2.9.0 --platform macos
+	# pipx run cibuildwheel==2.9.0 --platform macos --config-file pyproject-localtest.toml

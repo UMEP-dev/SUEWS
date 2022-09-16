@@ -8,7 +8,7 @@ before-build = ["git describe --tags --always --dirty"]
 build-verbosity = 0
 
 test-requires = "pytest"
-test-command = "pytest -s {package}/supy_driver/test"
+test-command = 'pytest -s "{package}/supy_driver/test"'
 
 
 [tool.cibuildwheel.linux]
@@ -21,7 +21,9 @@ before-all = [
     'ln -sf "$(which gfortran-10)" /usr/local/bin/gfortran',
     "make suews",
 ]
-build = ['cp39*']
+build = ['cp3*']
+skip= ['cp311*']
+
 
 
 [tool.cibuildwheel.windows]

@@ -28,8 +28,8 @@ on:
 
 jobs:
   test-suews:
-    # runs-on: macos-latest
-    runs-on: macOS-M1
+    runs-on: macos-latest
+    # runs-on: macOS-M1
 
     steps:
       - uses: actions/checkout@v2
@@ -71,7 +71,7 @@ jobs:
     strategy:
       matrix:
         py: ["3.10"]
-        os: [macOS-latest, windows-latest, ubuntu-latest, macOS-M1]
+        os: [macOS-latest, windows-latest, ubuntu-latest]
 
     runs-on: ${{ matrix.os }}
     steps:

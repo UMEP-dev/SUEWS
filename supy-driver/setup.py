@@ -82,6 +82,7 @@ def readme():
     return f
 
 
+
 def get_version(ver_minor=0, dir_source=dir_f95, file="suews_ctrl_const.f95"):
     import subprocess
 
@@ -90,7 +91,7 @@ def get_version(ver_minor=0, dir_source=dir_f95, file="suews_ctrl_const.f95"):
         # try to find git in system path
         try:
             pipe = subprocess.Popen(
-                [cmd, "describe", "--always", "--match", "2[0-9]*", "--dirty"],
+                [cmd, "describe", "--tags", "--match", "2[0-9]*", "--dirty"],
                 stdout=subprocess.PIPE,
             )
             (sout, serr) = pipe.communicate()

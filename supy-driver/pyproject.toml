@@ -42,6 +42,7 @@ before-all = [
 ]
 archs = ["auto64"]
 skip = ['pp*']
+build-verbosity = 10
 
 
 [tool.cibuildwheel.windows]

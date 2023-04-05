@@ -111,8 +111,8 @@ jobs:
 
   build_wheels:
       name: Build wheels on ${{ matrix.os }}
-      needs:
-        - test-suews
+      # needs:
+      #   - test-suews
       runs-on: ${{ matrix.os }}
       strategy:
         fail-fast: false

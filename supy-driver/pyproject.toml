@@ -41,7 +41,7 @@ before-all = [
     "make suews",
 ]
 archs = ["auto64"]
-skip = ['cp311-macosx*','pp*']
+skip = ['pp*']
 
 
 [tool.cibuildwheel.windows]

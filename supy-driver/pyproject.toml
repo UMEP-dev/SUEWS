@@ -41,7 +41,7 @@ before-all = [
     "make suews",
 ]
 archs = ["auto64","arm64"]
-skip = ['*cp311*','pp*']
+skip = ['*cp311*','*cp310*','*cp39*','*cp37*','pp*']
 build-verbosity = 10
 
 

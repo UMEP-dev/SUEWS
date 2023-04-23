@@ -36,12 +36,11 @@ supy_driver_dir = ../supy_driver
 # install package in dev mode and do pytest
 main: dev test
 
-driver: suews
-	python3 build-win-def.py
-	rm -rf _supy_driver*.* supy_driver.py
+driver: clean suews
 	$(MAKE) -C $(supy_driver_dir) clean
 	$(MAKE) -C $(supy_driver_dir) all
-	mv $(supy_driver_dir)/_supy_driver* $(MODULE)/
+	ls -l $(supy_driver_dir)/_supy_driver*.*
+	mv $(supy_driver_dir)/_supy_driver.* $(MODULE)/
 	mv $(supy_driver_dir)/supy_driver.py $(MODULE)/
 
 # run pytest
@@ -59,14 +58,15 @@ wheel:
 # If wanted, clean all *.o files after build
 clean:
 	$(MAKE) -C $(supy_driver_dir) clean
-	rm -rf ${MODULE}/*.so ${MODULE}/supy_driver.py ${MODULE}/*.pyc ${MODULE}/__pycache__ ${MODULE}/*.dSYM
+	rm -rf ${MODULE}/_supy_driver.*.* ${MODULE}/supy_driver.py # driver files
+	rm -rf ${MODULE}/*.pyc ${MODULE}/__pycache__ ${MODULE}/*.dSYM
 	rm -rf ${MODULE}/test/*.pyc ${MODULE}/test/__pycache__
 	rm -rf ${MODULE}/util/*.pyc ${MODULE}/util/__pycache__
 	rm -rf ${MODULE}/cmd/*.pyc ${MODULE}/cmd/__pycache__
+	rm -rf *.pyc __pycache__ *.dSYM
 	rm -rf SuPy.log SuPy.log.*
 	rm -rf build dist
 	rm -rf .eggs .pytest_cache
-	rm -rf wheelhouse
 
 # upload wheels to pypi using twine
 upload:

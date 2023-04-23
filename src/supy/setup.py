@@ -449,6 +449,7 @@ setup(
     install_requires=[
         "pandas< 1.5; python_version <= '3.9'",  # to fix scipy dependency issue in UMEP under QGIS3 wtih python 3.9
         "pandas; python_version > '3.9'",
+        "importlib_resources; python_version < '3.9'", # to fix importlib issue in UMEP under QGIS3
         "matplotlib",
         "chardet",
         "f90wrap",
@@ -479,9 +480,10 @@ setup(
             "suews-convert=supy.cmd.table_converter:convert_table_cmd",
         ]
     },
-    python_requires="~=3.9",
+    python_requires="~=3.8",
     classifiers=[
         "Programming Language :: Python :: 3 :: Only",
+        "Programming Language :: Python :: 3.8",
         "Programming Language :: Python :: 3.9",
         "Programming Language :: Python :: 3.10",
         "Programming Language :: Python :: 3.11",

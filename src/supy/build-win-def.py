@@ -16,6 +16,7 @@ if sysname != "Windows":
     print("This script is for Windows only")
 else:
     print("Fixing def file for Windows")
+    print("Python version:", sys.version)
 
     dll_file = find_python_dll()
     p_dll = Path(dll_file)

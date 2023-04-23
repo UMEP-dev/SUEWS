@@ -13,7 +13,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "supy"
 dynamic = ["version"]
-requires-python = ">3.9"
+requires-python = ">3.8, <3.12"
 
 # [tool.setuptools.packages]
 # find = {"where"= "src"}
@@ -50,28 +50,40 @@ before-build = ["git describe --tags --always --dirty"]
 build-verbosity = 0
 
 test-requires = "pytest"
-test-command = "TEST_DATA_DIR='{project}/src/supy/supy/test/data_test' pytest -s '{package}/supy/test'"
-# only test on macOS python 3.9
-test-skip = "*win* *manylinux* cp31*-*"
+
+# only test on python 3.9
+# test-skip = [
+#     # "*win*",
+#     # "*manylinux*",
+#     # "cp38*-*",
+#     # "cp31*-*",
+#     ]
 
 [tool.cibuildwheel.linux]
 # Install system library
 before-build = [
     "yum install -y glibc-static",
-    "python3 -m pip install f90wrap",
+    "python3 -m pip install f90wrap oldest-supported-numpy",
+    "make -C '{package}' clean",
     "make -C '{package}' driver",
     "echo $ARCHFLAGS",
     "file '{package}'/supy/_supy_driver*.so",
+    "echo '===> numpy version:', $(python3 -c 'import numpy; print(numpy.__version__)')",
+    "echo '===> gfortran version:', $(gfortran --version)",
 ]
+test-command = "TEST_DATA_DIR='{project}/src/supy/supy/test/data_test' pytest -s '{package}/supy/test'"
 archs = ["auto64"]
 
 [tool.cibuildwheel.macos]
 before-build = [
     'ln -sf "$(which gfortran-10)" /usr/local/bin/gfortran',
-    "python3 -m pip install f90wrap",
+    "python3 -m pip install f90wrap oldest-supported-numpy",
     "make -C '{package}' driver",
+    "echo '===> numpy version:', $(python3 -c 'import numpy; print(numpy.__version__)')",
+    "echo '===> gfortran version:', $(gfortran --version)",
     "echo $ARCHFLAGS",
 ]
+test-command = "TEST_DATA_DIR='{project}/src/supy/supy/test/data_test' pytest -s '{package}/supy/test'"
 
 # archs = ["universal2"]
 # build-verbosity = 10
@@ -84,11 +96,18 @@ repair-wheel-command = "delocate-wheel --require-archs {delocate_archs} -w {dest
 [tool.cibuildwheel.windows]
 before-build = [
     "cd {package}",
-    "python3 -m pip install numpy charset_normalizer f90wrap",
+    "where python",
+    "python -m pip install oldest-supported-numpy charset_normalizer f90wrap delvewheel",
+    "python -v",
+    "python build-win-def.py",
     "make driver",
-    "python3 build-win-def.py",
+    "echo '===> numpy version:', $(python3 -c 'import numpy; print(numpy.__version__)')",
+    "echo '===> gfortran version:', $(gfortran --version)",
     # 'python -c "import numpy; print(numpy.__version__)"',
     # "python setup.py build_ext --inplace --compiler=mingw32",
     # "ls -l .",
 ]
 archs = ["auto64"]
+test-command = 'set "TEST_DATA_DIR={project}/src/supy/supy/test/data_test" && pytest -s "{package}/supy/test"'
+repair-wheel-command = "delvewheel repair -w {dest_dir} {wheel}"
+

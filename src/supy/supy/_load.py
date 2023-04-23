@@ -77,7 +77,9 @@ def extract_dict_docs(docLines):
 # for `suews_cal_multitsteps`
 def get_args_suews_multitsteps():
     # split doc lines for processing
-    docLines = np.array(_sd.f90wrap_suews_cal_multitsteps.__doc__.splitlines(), dtype=str)
+    docLines = np.array(
+        _sd.f90wrap_suews_cal_multitsteps.__doc__.splitlines(), dtype=str
+    )
 
     dict_inout_sd = extract_dict_docs(docLines)
 
@@ -1536,6 +1538,9 @@ def modify_df_init(df_init, list_var_dim):
                 dict_col_new[(var, ind)] = np.repeat(val, len_df)
     df_col_new = pd.DataFrame(dict_col_new, index=df_init_mod.index)
 
+    # Update column names to match df_init
+    df_col_new.columns.names = df_init.columns.names
+
     # 2. merge new columns into original dataframe
     df_init_mod = df_init_mod.merge(df_col_new, left_index=True, right_index=True)
 
@@ -1579,6 +1584,9 @@ def add_file_gridlayout_df(df_init):
         .apply(pd.Series)
     )
     df_grid_layout.index.set_names(["grid"], inplace=True)
+
+    # copy column names from df_init
+    df_grid_layout.columns.set_names(df_init.columns.names, inplace=True)
 
     # merge only those appeard in base df
     df_init = pd.concat([df_init, df_grid_layout], axis=1)
@@ -1763,14 +1771,18 @@ def add_temp_init_df(df_init):
     ndepth = 5
     temp_init = np.repeat(df_init.filter(like="tin_").values, ndepth, axis=1)
     df_temp = df_init.filter(like="cp_").rename(
-        lambda var: var.replace("cp", "temp"), axis="columns", level="var"
+        lambda var: var.replace("cp", "temp"),
+        axis="columns",
+        level="var",
     )
     df_temp.columns = df_temp.columns.remove_unused_levels()
     df_temp.loc[:, :] = temp_init
 
     # temperature at facet surface
     df_sfc = df_init.filter(like="tin_").rename(
-        lambda var: var.replace("tin", "tsfc"), axis="columns", level="var"
+        lambda var: var.replace("tin", "tsfc"),
+        axis="columns",
+        level="var",
     )
     df_sfc.columns = df_sfc.columns.remove_unused_levels()
     df_sfc.loc[:, :] = df_init.filter(like="tin_").values
@@ -1821,9 +1833,6 @@ def load_InitialCond_grid_df(path_runcontrol, force_reload=True):
     # add Initial Condition variables from namelist file
     logger_supy.debug("adding grid layout info...")
     df_init = add_file_gridlayout_df(df_init)
-
-    # df_init.to_pickle("df_init.pkl")
-    # print("df_init saved!")
 
     # add Initial temperatures into `df_init`
     logger_supy.debug("adding initial temperatures...")

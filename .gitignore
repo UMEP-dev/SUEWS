@@ -360,6 +360,7 @@ test/meg/
 suews_ctrl_ver.f95
 supy-driver/supy_driver/version.py
 wheelhouse/
+src/supy/wheelhouse/
 dev-test/
 SuPy.log
 

@@ -1,10 +1,14 @@
 # version info for supy
 
+try:
+    from importlib.resources import files
+except ImportError:
+    # backport for python < 3.9
+    from importlib_resources import files
 # from .supy_driver import __version__ as sd_ver
 from ._env import trv_supy_module
 import json
 import sys
-from importlib.resources import files
 from ._version_scm import __version__, __version_tuple__
 
 

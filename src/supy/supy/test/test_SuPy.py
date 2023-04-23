@@ -5,7 +5,7 @@ import io
 import sys
 import warnings
 from time import time
-from unittest import TestCase
+from unittest import TestCase,skipIf,skipUnless
 
 import numpy as np
 import pandas as pd
@@ -22,6 +22,8 @@ test_data_dir = Path(__file__).parent / 'data_test'
 # Construct the file path for the data file
 p_df_sample = Path(test_data_dir) / 'sample_output.pkl'
 
+# if platform is macOS and python version is 3.9, set flag_full_test to True
+flag_full_test = (sys.version_info[0] == 3 and sys.version_info[1] == 9 and platform.system() == "Darwin")
 
 class TestSuPy(TestCase):
     def setUp(self):
@@ -125,6 +127,7 @@ class TestSuPy(TestCase):
         # self.assertTrue(test_non_empty)
 
     # test if single-tstep and multi-tstep modes can produce the same SUEWS results
+    @skipUnless(flag_full_test, "Full test is not required.")
     def test_is_supy_euqal_mode(self):
         print("\n========================================")
         print("Testing if single-tstep and multi-tstep modes can produce the same SUEWS results...")
@@ -169,6 +172,7 @@ class TestSuPy(TestCase):
         )
 
     # test saving output files working
+    @skipUnless(flag_full_test, "Full test is not required.")
     def test_is_supy_save_working(self):
         print("\n========================================")
         print("Testing if saving output files working...")
@@ -196,6 +200,7 @@ class TestSuPy(TestCase):
         self.assertTrue(test_non_empty)
 
     # test saving output files working
+    @skipUnless(flag_full_test, "Full test is not required.")
     def test_is_checking_complete(self):
         print("\n========================================")
         print("Testing if checking-complete is working...")
@@ -216,6 +221,7 @@ class TestSuPy(TestCase):
         self.assertTrue(test_common_all)
 
     # test ERA5 forcing generation
+    @skipUnless(flag_full_test, "Full test is not required.")
     def test_gen_forcing(self):
         print("\n========================================")
         print("Testing if forcing generation working...")
@@ -255,6 +261,7 @@ class TestSuPy(TestCase):
             self.assertTrue(test_dif)
 
     # test if the sample output is the same as the one in the repo
+    @skipUnless(flag_full_test, "Full test is not required.")
     def test_is_sample_output_same(self):
         print("\n========================================")
         print("Testing if sample output is the same...")
@@ -278,6 +285,7 @@ class TestSuPy(TestCase):
         )
 
     # test if the weighted SMD of vegetated surfaces are properly calculated
+    @skipUnless(flag_full_test, "Full test is not required.")
     def test_is_smd_veg_weighted(self):
         print("\n========================================")
         print("Testing if SMD of vegetated surfaces are properly calculated...")

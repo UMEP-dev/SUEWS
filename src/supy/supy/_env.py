@@ -1,11 +1,16 @@
-from importlib.resources import files
+try:
+    from importlib.resources import files
+except ImportError:
+    # backport for python < 3.9
+    from importlib_resources import files
+
+
 from logging.handlers import TimedRotatingFileHandler
 import sys
 import logging
 import inspect
 from pathlib import Path
 import tempfile
-
 
 
 ########################################################################
@@ -16,7 +21,7 @@ import tempfile
 trv_supy_module = files("supy")
 
 # set up logger format, note `u` to guarantee UTF-8 encoding
-FORMATTER = logging.Formatter(u"%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+FORMATTER = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 
 # log file name
 LOG_FILE = "SuPy.log"
@@ -37,7 +42,9 @@ def get_file_handler():
         path_logfile = Path(tempdir) / LOG_FILE
 
     file_handler = TimedRotatingFileHandler(
-        path_logfile, when="midnight", encoding="utf-8",
+        path_logfile,
+        when="midnight",
+        encoding="utf-8",
     )
     file_handler.setFormatter(FORMATTER)
     return file_handler

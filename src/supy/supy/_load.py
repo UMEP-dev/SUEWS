@@ -1654,7 +1654,7 @@ def add_veg_init_df(df_init):
 # add surface specific info into `df_init`
 def add_sfc_init_df(df_init):
     # create snow flag
-    ser_snow_use = df_init[("snowuse", "0")]
+    ser_snow_use = df_init[("snowmethod", "0")]
     ser_snow_init = df_init[("snowinitially", "0")]
     ser_snow_flag = ser_snow_init.where(ser_snow_init == 0, 1)
     ser_snow_flag = ser_snow_use * ser_snow_flag

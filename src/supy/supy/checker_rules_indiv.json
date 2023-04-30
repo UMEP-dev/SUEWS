@@ -1585,7 +1585,7 @@
         },
         "unit": "1"
     },
-    "snowuse": {
+    "snowmethod": {
         "cat": "grid",
         "logic": "method",
         "param": {

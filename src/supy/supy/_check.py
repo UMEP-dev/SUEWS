@@ -324,6 +324,7 @@ def upgrade_df_state(df_state: pd.DataFrame) -> pd.DataFrame:
         "g4": "g_q_shape",
         "g5": "g_t",
         "g6": "g_sm",
+        "snowuse": "snowmethod",
     }
 
     # columns to remove

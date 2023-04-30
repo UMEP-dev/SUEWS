@@ -216,7 +216,7 @@ CONTAINS
       RoughLenHeatMethod, RoughLenMomMethod, RunoffToWater, S1, S2, &
       SatHydraulicConduct, SDDFull, SDD_id, SMDMethod, SnowAlb, SnowAlbMax, &
       SnowAlbMin, SnowPackLimit, SnowDens, SnowDensMax, SnowDensMin, SnowfallCum, SnowFrac, &
-      SnowLimBldg, SnowLimPaved, snowFrac_obs, SnowPack, SnowProf_24hr, SnowUse, SoilDepth, &
+      SnowLimBldg, SnowLimPaved, snowFrac_obs, SnowPack, SnowProf_24hr, SnowMethod, SoilDepth, &
       StabilityMethod, startDLS, &
       soilstore_surf, SoilStoreCap_surf, state_surf, StateLimit_surf, WetThresh_surf, &
       soilstore_roof, SoilStoreCap_roof, state_roof, StateLimit_roof, WetThresh_roof, &
@@ -272,7 +272,7 @@ CONTAINS
       INTEGER, INTENT(IN) :: RoughLenHeatMethod ! method to calculate heat roughness length [-]
       INTEGER, INTENT(IN) :: RoughLenMomMethod ! Determines how aerodynamic roughness length (z0m) and zero displacement height (zdm) are calculated [-]
       INTEGER, INTENT(IN) :: SMDMethod ! Determines method for calculating soil moisture deficit [-]
-      INTEGER, INTENT(IN) :: SnowUse ! Determines whether the snow part of the model runs[-]
+      INTEGER, INTENT(IN) :: SnowMethod ! Determines whether the snow part of the model runs[-]
       INTEGER, INTENT(IN) :: StabilityMethod !method to calculate atmospheric stability [-]
       INTEGER, INTENT(IN) :: StorageHeatMethod !Determines method for calculating storage heat flux ΔQS [-]
       INTEGER, INTENT(in) :: DiagMethod !Defines how near surface diagnostics are calculated
@@ -881,7 +881,7 @@ CONTAINS
 
       ! ####
       ! force several snow related state variables to zero if snow module is off
-      IF (snowuse == 0) THEN
+      IF (SnowMethod == 0) THEN
          SnowDens = 0.
          SnowFrac = 0.
          SnowWater = 0.
@@ -1142,7 +1142,7 @@ CONTAINS
          !    print *, 'snowFrac_prev=', snowFrac_prev
          ! endif
          CALL SUEWS_cal_Qn( &
-            StorageHeatMethod, NetRadiationMethod, SnowUse, & !input
+            StorageHeatMethod, NetRadiationMethod, SnowMethod, & !input
             tstep, nlayer, SnowPack_prev, tau_a, tau_f, SnowAlbMax, SnowAlbMin, &
             Diagnose, ldown_obs, fcld_obs, &
             dectime, ZENITH_deg, Ts_iter, kdown, Temp_C, avRH, ea_hPa, qn1_obs, &
@@ -1208,7 +1208,7 @@ CONTAINS
             tsfc_out_wall, tin_wall, temp_in_wall, k_wall, cp_wall, dz_wall, sfr_wall, & !input
             tsfc_out_surf, tin_surf, temp_in_surf, k_surf, cp_surf, dz_surf, sfr_surf, & !input
             OHM_coef, OHM_threshSW, OHM_threshWD, &
-            soilstore_surf_prev, SoilStoreCap_surf, state_surf_prev, SnowUse, SnowFrac_prev, DiagQS, &
+            soilstore_surf_prev, SoilStoreCap_surf, state_surf_prev, SnowMethod, SnowFrac_prev, DiagQS, &
             HDD_id, MetForcingData_grid, Ts5mindata_ir, qf, qn, &
             kdown, avu1, temp_c, zenith_deg, avrh, press_hpa, ldown, &
             bldgh, alb, emis, cpAnOHM, kkAnOHM, chAnOHM, EmissionsMethod, &
@@ -1256,7 +1256,7 @@ CONTAINS
             !Calculate QH and QE from LUMPS in the first iteration of each time step
             CALL LUMPS_cal_QHQE( &
                veg_type, & !input
-               SnowUse, qn, qf, qs, Temp_C, VegFraction, avcp, Press_hPa, lv_J_kg, &
+               SnowMethod, qn, qf, qs, Temp_C, VegFraction, avcp, Press_hPa, lv_J_kg, &
                tstep_real, DRAINRT, nsh_real, &
                Precip, RainMaxRes, RAINCOVER, sfr_surf, LAI_id_next, LAImax, LAImin, &
                QH_LUMPS, & !output
@@ -1272,7 +1272,7 @@ CONTAINS
          !============= calculate water balance =============
          CALL SUEWS_cal_Water( &
             Diagnose, & !input
-            SnowUse, NonWaterFraction, addPipes, addImpervious, addVeg, addWaterBody, &
+            SnowMethod, NonWaterFraction, addPipes, addImpervious, addVeg, addWaterBody, &
             state_surf_prev, sfr_surf, StoreDrainPrm_next, WaterDist, nsh_real, &
             drain_per_tstep, & !output
             drain_surf, frac_water2runoff, &
@@ -1283,7 +1283,7 @@ CONTAINS
          !===============Resistance Calculations=======================
          CALL SUEWS_cal_Resistance( &
             StabilityMethod, & !input:
-            Diagnose, AerodynamicResistanceMethod, RoughLenHeatMethod, SnowUse, &
+            Diagnose, AerodynamicResistanceMethod, RoughLenHeatMethod, SnowMethod, &
             id, it, gsModel, SMDMethod, &
             avdens, avcp, QH_Init, zzd, z0m, zdm, &
             avU1, Temp_C, VegFraction, kdown, &
@@ -1299,7 +1299,7 @@ CONTAINS
          !===================Resistance Calculations End=======================
 
          !===================Calculate surface hydrology and related soil water=======================
-         IF (SnowUse == 1) THEN
+         IF (SnowMethod == 1) THEN
 
             ! ===================Calculate snow related hydrology=======================
             CALL SUEWS_cal_snow( &
@@ -4284,7 +4284,7 @@ CONTAINS
       RoughLenHeatMethod, RoughLenMomMethod, RunoffToWater, S1, S2, &
       SatHydraulicConduct, SDDFull, SDD_id, SMDMethod, SnowAlb, SnowAlbMax, &
       SnowAlbMin, SnowPackLimit, SnowDens, SnowDensMax, SnowDensMin, SnowfallCum, SnowFrac, &
-      SnowLimBldg, SnowLimPaved, SnowPack, SnowProf_24hr, SnowUse, SoilDepth, &
+      SnowLimBldg, SnowLimPaved, SnowPack, SnowProf_24hr, SnowMethod, SoilDepth, &
       StabilityMethod, startDLS, &
       soilstore_surf, SoilStoreCap_surf, state_surf, StateLimit_surf, WetThresh_surf, &
       soilstore_roof, SoilStoreCap_roof, state_roof, StateLimit_roof, WetThresh_roof, &
@@ -4327,14 +4327,14 @@ CONTAINS
       INTEGER, INTENT(IN) :: gsModel !choice of gs parameterisation (1 = Ja11, 2 = Wa16)
       INTEGER, INTENT(IN) :: Ie_end !ending time of water use [DOY]
       INTEGER, INTENT(IN) :: Ie_start !starting time of water use [DOY]
-      ! INTEGER, INTENT(IN) :: LAICalcYes !boolean to determine if calculate LAI [-]
+      ! INTEGER, INTENT(IN) :: LAICalcYes !boolean to determine if calculate LAI [-] (1 = yes, 0 = no) ! disabled for now 30 Apr 2023 and will be reactivated in future
       INTEGER, INTENT(in) :: DiagMethod !Defines how near surface diagnostics are calculated [-]
       INTEGER, INTENT(IN) :: NetRadiationMethod ! method for calculation of radiation fluxes [-]
       INTEGER, INTENT(IN) :: OHMIncQF !Determines whether the storage heat flux calculation uses Q* or ( Q* +QF) [-]
       INTEGER, INTENT(IN) :: RoughLenHeatMethod !method to calculate heat roughness length [-]
       INTEGER, INTENT(IN) :: RoughLenMomMethod !Determines how aerodynamic roughness length (z0m) and zero displacement height (zdm) are calculated [-]
       INTEGER, INTENT(IN) :: SMDMethod !Determines method for calculating soil moisture deficit [-]
-      INTEGER, INTENT(IN) :: SnowUse !Determines whether the snow part of the model runs[-]
+      INTEGER, INTENT(IN) :: SnowMethod !Determines whether the snow part of the model runs[-]
       INTEGER, INTENT(IN) :: StabilityMethod !method to calculate atmospheric stability [-]
       INTEGER, INTENT(IN) :: StorageHeatMethod !Determines method for calculating storage heat flux ΔQS [-]
       INTEGER, INTENT(IN) :: tstep !timestep [s]
@@ -4993,7 +4993,7 @@ CONTAINS
             RoughLenHeatMethod, RoughLenMomMethod, RunoffToWater, S1, S2, &
             SatHydraulicConduct, SDDFull, SDD_id, SMDMethod, SnowAlb, SnowAlbMax, &
             SnowAlbMin, SnowPackLimit, SnowDens, SnowDensMax, SnowDensMin, SnowfallCum, SnowFrac, &
-            SnowLimBldg, SnowLimPaved, snowFrac_obs, SnowPack, SnowProf_24hr, SnowUse, SoilDepth, &
+            SnowLimBldg, SnowLimPaved, snowFrac_obs, SnowPack, SnowProf_24hr, SnowMethod, SoilDepth, &
             StabilityMethod, startDLS, &
             soilstore_surf, SoilStoreCap_surf, state_surf, StateLimit_surf, WetThresh_surf, &
             soilstore_roof, SoilStoreCap_roof, state_roof, StateLimit_roof, WetThresh_roof, &
@@ -5029,7 +5029,7 @@ CONTAINS
          !============ write out results ===============
          ! works at each timestep
          CALL SUEWS_update_output( &
-            SnowUse, storageheatmethod, & !input
+            SnowMethod, storageheatmethod, & !input
             len_sim, 1, &
             ir, gridiv_x, &
             output_line_suews%dataOutLineSUEWS, &

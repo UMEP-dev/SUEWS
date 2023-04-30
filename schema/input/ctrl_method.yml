@@ -37,25 +37,25 @@
   usage:
     DiagMethod: Method_Selection
 
-- name: evapmethod
-  use:
-    input: method
-  description: Internal use. Please DO NOT modify
-  dimensions: 0
-  unit: NA
-  suews table headers: None
-  usage:
-    EvapMethod: Method_Selection
+# - name: evapmethod # removed from SUEWS 2023.5
+#   use:
+#     input: method
+#   description: Internal use. Please DO NOT modify
+#   dimensions: 0
+#   unit: NA
+#   suews table headers: None
+#   usage:
+#     EvapMethod: Method_Selection
 
-- name: laicalcyes # rename to laimethod
-  use:
-    input: method
-  description: Internal use. Please DO NOT modify
-  dimensions: 0
-  unit: NA
-  suews table headers: None
-  usage:
-    LAI: Method_Selection
+# - name: laicalcyes # removed from SUEWS 2023.5
+#   use:
+#     input: method
+#   description: Internal use. Please DO NOT modify
+#   dimensions: 0
+#   unit: NA
+#   suews table headers: None
+#   usage:
+#     LAI: Method_Selection
 
 - name: netradiationmethod
   use:

@@ -55,8 +55,10 @@ def show_version(mode="simple", as_json=False):
             ser_json.to_json(path_json, orient="index")
     else:
 
+        print("------------------------------")
         print(f"SuPy version: {__version__}")
-        print("-------------")
+        print("------------------------------")
+
         # print(f"supy_driver: {__version_driver__}")
         if mode == "full":
             print("\n=================")

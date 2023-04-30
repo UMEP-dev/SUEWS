@@ -393,3 +393,6 @@ Backup of *.doc*
 # supy-driver wrapper
 src/supy/supy/supy_driver.py
 src/supy_driver/supy_driver.py
+
+# debugging info
+supy_info.json

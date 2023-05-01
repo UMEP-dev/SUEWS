@@ -67,15 +67,15 @@ MODULE SUEWS_Driver
    END TYPE array_m
 
    TYPE, PUBLIC :: output_block
-      REAL(KIND(1D0)), DIMENSION(:, :), ALLOCATABLE :: dataOutBlockSUEWS
-      REAL(KIND(1D0)), DIMENSION(:, :), ALLOCATABLE :: dataOutBlockSnow
-      REAL(KIND(1D0)), DIMENSION(:, :), ALLOCATABLE :: dataOutBlockESTM
-      REAL(KIND(1D0)), DIMENSION(:, :), ALLOCATABLE :: dataOutBlockESTMExt
-      REAL(KIND(1D0)), DIMENSION(:, :), ALLOCATABLE :: dataOutBlockRSL
-      REAL(KIND(1D0)), DIMENSION(:, :), ALLOCATABLE :: dataOutBlockBEERS
-      REAL(KIND(1D0)), DIMENSION(:, :), ALLOCATABLE :: dataOutBlockDebug
-      REAL(KIND(1D0)), DIMENSION(:, :), ALLOCATABLE :: dataOutBlockSPARTACUS
-      REAL(KIND(1D0)), DIMENSION(:, :), ALLOCATABLE :: dataOutBlockDailyState
+      REAL(KIND(1D0)), DIMENSION(:, :), ALLOCATABLE :: SUEWS
+      REAL(KIND(1D0)), DIMENSION(:, :), ALLOCATABLE :: Snow
+      REAL(KIND(1D0)), DIMENSION(:, :), ALLOCATABLE :: ESTM
+      REAL(KIND(1D0)), DIMENSION(:, :), ALLOCATABLE :: ESTMExt
+      REAL(KIND(1D0)), DIMENSION(:, :), ALLOCATABLE :: RSL
+      REAL(KIND(1D0)), DIMENSION(:, :), ALLOCATABLE :: BEERS
+      REAL(KIND(1D0)), DIMENSION(:, :), ALLOCATABLE :: Debug
+      REAL(KIND(1D0)), DIMENSION(:, :), ALLOCATABLE :: SPARTACUS
+      REAL(KIND(1D0)), DIMENSION(:, :), ALLOCATABLE :: DailyState
       ! contains
       !    ! Procedures
       !    PROCEDURE :: init => output_block_init
@@ -83,16 +83,16 @@ MODULE SUEWS_Driver
    END TYPE output_block
 
    TYPE, PUBLIC :: output_line
-      REAL(KIND(1D0)), DIMENSION(5) :: datetimeLine !date & time
-      REAL(KIND(1D0)), DIMENSION(ncolumnsDataOutSUEWS) :: dataOutLineSUEWS
-      REAL(KIND(1D0)), DIMENSION(ncolumnsDataOutSnow) :: dataOutLineSnow
-      REAL(KIND(1D0)), DIMENSION(ncolumnsDataOutESTM) :: dataOutLineESTM
-      REAL(KIND(1D0)), DIMENSION(ncolumnsDataOutESTMExt) :: dataOutLineESTMExt
-      REAL(KIND(1D0)), DIMENSION(ncolumnsDataOutRSL) :: dataoutLineRSL
-      REAL(KIND(1D0)), DIMENSION(ncolumnsDataOutBEERS) :: dataOutLineBEERS
-      REAL(KIND(1D0)), DIMENSION(ncolumnsDataOutDebug) :: dataOutLineDebug
-      REAL(KIND(1D0)), DIMENSION(ncolumnsDataOutSPARTACUS) :: dataOutLineSPARTACUS
-      REAL(KIND(1D0)), DIMENSION(ncolumnsDataOutDailyState) :: dataOutLineDailyState
+      REAL(KIND(1D0)), DIMENSION(5) :: datetime !date & time
+      REAL(KIND(1D0)), DIMENSION(ncolumnsDataOutSUEWS) :: SUEWS
+      REAL(KIND(1D0)), DIMENSION(ncolumnsDataOutSnow) :: Snow
+      REAL(KIND(1D0)), DIMENSION(ncolumnsDataOutESTM) :: ESTM
+      REAL(KIND(1D0)), DIMENSION(ncolumnsDataOutESTMExt) :: ESTMExt
+      REAL(KIND(1D0)), DIMENSION(ncolumnsDataOutRSL) :: RSL
+      REAL(KIND(1D0)), DIMENSION(ncolumnsDataOutBEERS) :: BEERS
+      REAL(KIND(1D0)), DIMENSION(ncolumnsDataOutDebug) :: Debug
+      REAL(KIND(1D0)), DIMENSION(ncolumnsDataOutSPARTACUS) :: SPARTACUS
+      REAL(KIND(1D0)), DIMENSION(ncolumnsDataOutDailyState) :: DailyState
    END TYPE output_line
 
 CONTAINS
@@ -101,16 +101,16 @@ CONTAINS
       TYPE(output_line), INTENT(inout) :: this_line
 
       ! Set default values
-      this_line%datetimeLine = -999.0
-      this_line%dataOutLineSUEWS = -999.0
-      this_line%dataOutLineSnow = -999.0
-      this_line%dataOutLineESTM = -999.0
-      this_line%dataOutLineESTMExt = -999.0
-      this_line%dataOutLineRSL = -999.0
-      this_line%dataOutLineBEERS = -999.0
-      this_line%dataOutLineDebug = -999.0
-      this_line%dataOutLineSPARTACUS = -999.0
-      this_line%dataOutLineDailyState = -999.0
+      this_line%datetime = -999.0
+      this_line%SUEWS = -999.0
+      this_line%Snow = -999.0
+      this_line%ESTM = -999.0
+      this_line%ESTMExt = -999.0
+      this_line%RSL = -999.0
+      this_line%BEERS = -999.0
+      this_line%Debug = -999.0
+      this_line%SPARTACUS = -999.0
+      this_line%DailyState = -999.0
    END SUBROUTINE output_line_init
 
    SUBROUTINE output_block_init(this_block, len)
@@ -118,41 +118,41 @@ CONTAINS
       INTEGER, INTENT(in) :: len
 
       ! Allocate memory for the arrays
-      ALLOCATE (this_block%dataOutBlockSUEWS(len, ncolumnsDataOutSUEWS))
-      ALLOCATE (this_block%dataOutBlockSnow(len, ncolumnsDataOutSnow))
-      ALLOCATE (this_block%dataOutBlockESTM(len, ncolumnsDataOutESTM))
-      ALLOCATE (this_block%dataOutBlockESTMExt(len, ncolumnsDataOutESTMExt))
-      ALLOCATE (this_block%dataOutBlockRSL(len, ncolumnsDataOutRSL))
-      ALLOCATE (this_block%dataOutBlockBEERS(len, ncolumnsDataOutBEERS))
-      ALLOCATE (this_block%dataOutBlockDebug(len, ncolumnsDataOutDebug))
-      ALLOCATE (this_block%dataOutBlockSPARTACUS(len, ncolumnsDataOutSPARTACUS))
-      ALLOCATE (this_block%dataOutBlockDailyState(len, ncolumnsDataOutDailyState))
+      ALLOCATE (this_block%SUEWS(len, ncolumnsDataOutSUEWS))
+      ALLOCATE (this_block%Snow(len, ncolumnsDataOutSnow))
+      ALLOCATE (this_block%ESTM(len, ncolumnsDataOutESTM))
+      ALLOCATE (this_block%ESTMExt(len, ncolumnsDataOutESTMExt))
+      ALLOCATE (this_block%RSL(len, ncolumnsDataOutRSL))
+      ALLOCATE (this_block%BEERS(len, ncolumnsDataOutBEERS))
+      ALLOCATE (this_block%Debug(len, ncolumnsDataOutDebug))
+      ALLOCATE (this_block%SPARTACUS(len, ncolumnsDataOutSPARTACUS))
+      ALLOCATE (this_block%DailyState(len, ncolumnsDataOutDailyState))
 
       ! Set default values
-      this_block%dataOutBlockSUEWS = -999.0
-      this_block%dataOutBlockSnow = -999.0
-      this_block%dataOutBlockESTM = -999.0
-      this_block%dataOutBlockESTMExt = -999.0
-      this_block%dataOutBlockRSL = -999.0
-      this_block%dataOutBlockBEERS = -999.0
-      this_block%dataOutBlockDebug = -999.0
-      this_block%dataOutBlockSPARTACUS = -999.0
-      this_block%dataOutBlockDailyState = -999.0
+      this_block%SUEWS = -999.0
+      this_block%Snow = -999.0
+      this_block%ESTM = -999.0
+      this_block%ESTMExt = -999.0
+      this_block%RSL = -999.0
+      this_block%BEERS = -999.0
+      this_block%Debug = -999.0
+      this_block%SPARTACUS = -999.0
+      this_block%DailyState = -999.0
    END SUBROUTINE output_block_init
 
    SUBROUTINE output_block_finalize(this_line)
       TYPE(output_block), INTENT(inout) :: this_line
 
       ! Deallocate memory for the arrays
-      IF (ALLOCATED(this_line%dataOutBlockSUEWS)) DEALLOCATE (this_line%dataOutBlockSUEWS)
-      IF (ALLOCATED(this_line%dataOutBlockSnow)) DEALLOCATE (this_line%dataOutBlockSnow)
-      IF (ALLOCATED(this_line%dataOutBlockESTM)) DEALLOCATE (this_line%dataOutBlockESTM)
-      IF (ALLOCATED(this_line%dataOutBlockESTMExt)) DEALLOCATE (this_line%dataOutBlockESTMExt)
-      IF (ALLOCATED(this_line%dataOutBlockRSL)) DEALLOCATE (this_line%dataOutBlockRSL)
-      IF (ALLOCATED(this_line%dataOutBlockBEERS)) DEALLOCATE (this_line%dataOutBlockBEERS)
-      IF (ALLOCATED(this_line%dataOutBlockDebug)) DEALLOCATE (this_line%dataOutBlockDebug)
-      IF (ALLOCATED(this_line%dataOutBlockSPARTACUS)) DEALLOCATE (this_line%dataOutBlockSPARTACUS)
-      IF (ALLOCATED(this_line%dataOutBlockDailyState)) DEALLOCATE (this_line%dataOutBlockDailyState)
+      IF (ALLOCATED(this_line%SUEWS)) DEALLOCATE (this_line%SUEWS)
+      IF (ALLOCATED(this_line%Snow)) DEALLOCATE (this_line%Snow)
+      IF (ALLOCATED(this_line%ESTM)) DEALLOCATE (this_line%ESTM)
+      IF (ALLOCATED(this_line%ESTMExt)) DEALLOCATE (this_line%ESTMExt)
+      IF (ALLOCATED(this_line%RSL)) DEALLOCATE (this_line%RSL)
+      IF (ALLOCATED(this_line%BEERS)) DEALLOCATE (this_line%BEERS)
+      IF (ALLOCATED(this_line%Debug)) DEALLOCATE (this_line%Debug)
+      IF (ALLOCATED(this_line%SPARTACUS)) DEALLOCATE (this_line%SPARTACUS)
+      IF (ALLOCATED(this_line%DailyState)) DEALLOCATE (this_line%DailyState)
 
    END SUBROUTINE output_block_finalize
 
@@ -236,7 +236,7 @@ CONTAINS
       WaterDist, WaterUseMethod, wu_m3, &
       WUDay_id, DecidCap_id, albDecTr_id, albEveTr_id, albGrass_id, porosity_id, &
       WUProfA_24hr, WUProfM_24hr, xsmd, Z, z0m_in, zdm_in, &
-      output_line_suews) ! output
+      output_line_all) ! output
       ! datetimeLine, dataOutLineSUEWS, dataOutLineSnow, dataOutLineESTM, dataoutLineRSL, & !output
       ! dataOutLineBEERS, & !output
       ! dataOutLineDebug, dataOutLineSPARTACUS, &
@@ -539,7 +539,7 @@ CONTAINS
       REAL(KIND(1D0)), DIMENSION(ncolumnsDataOutSPARTACUS - 5) :: dataOutLineSPARTACUS
       REAL(KIND(1D0)), DIMENSION(ncolumnsDataOutDailyState - 5) :: dataOutLineDailyState
       ! save all output variables in a single derived type
-      TYPE(output_line), INTENT(OUT) :: output_line_suews
+      TYPE(output_line), INTENT(OUT) :: output_line_all
       ! ########################################################################################
 
       ! ########################################################################################
@@ -1702,17 +1702,17 @@ CONTAINS
           i_iter*1D0, dqndt]
 
       !==============output==========================
-      CALL output_line_init(output_line_suews)
-      output_line_suews%datetimeLine = datetimeLine
-      output_line_suews%dataOutLineSUEWS = [datetimeLine, dataOutLineSUEWS]
-      output_line_suews%dataOutLineESTMExt = [datetimeLine, dataOutLineESTMExt]
-      output_line_suews%dataOutLineDailyState = [datetimeLine, dataOutLineDailyState]
-      output_line_suews%dataOutLineBEERS = [datetimeLine, dataOutLineBEERS]
-      output_line_suews%dataOutLineDebug = [datetimeLine, dataOutLineDebug]
-      output_line_suews%dataOutLineSPARTACUS = [datetimeLine, dataOutLineSPARTACUS]
-      output_line_suews%dataOutLineSnow = [datetimeLine, dataOutLineSnow]
-      output_line_suews%dataoutLineRSL = [datetimeLine, dataOutLineRSL]
-      output_line_suews%dataOutLineESTM = [datetimeLine, dataOutLineESTM]
+      CALL output_line_init(output_line_all)
+      output_line_all%datetime = datetimeLine
+      output_line_all%SUEWS = [datetimeLine, dataOutLineSUEWS]
+      output_line_all%ESTMExt = [datetimeLine, dataOutLineESTMExt]
+      output_line_all%DailyState = [datetimeLine, dataOutLineDailyState]
+      output_line_all%BEERS = [datetimeLine, dataOutLineBEERS]
+      output_line_all%Debug = [datetimeLine, dataOutLineDebug]
+      output_line_all%SPARTACUS = [datetimeLine, dataOutLineSPARTACUS]
+      output_line_all%Snow = [datetimeLine, dataOutLineSnow]
+      output_line_all%RSL = [datetimeLine, dataOutLineRSL]
+      output_line_all%ESTM = [datetimeLine, dataOutLineESTM]
 
    END SUBROUTINE SUEWS_cal_Main
 ! ================================================================================
@@ -4611,7 +4611,7 @@ CONTAINS
 
       ! ########################################################################################
       ! output variables
-      TYPE(output_line) :: output_line_suews
+      TYPE(output_line) :: output_line_all
       ! REAL(KIND(1D0)),DIMENSION(:,:,:),ALLOCATABLE,INTENT(OUT) ::datetimeBlock
       REAL(KIND(1D0)), DIMENSION(len_sim, ncolumnsDataOutSUEWS) :: dataOutBlockSUEWS
       REAL(KIND(1D0)), DIMENSION(len_sim, ncolumnsDataOutSnow) :: dataOutBlockSnow
@@ -5013,7 +5013,7 @@ CONTAINS
             WaterDist, WaterUseMethod, wu_m3, &
             WUDay_id, DecidCap_id, albDecTr_id, albEveTr_id, albGrass_id, porosity_id, &
             WUProfA_24hr, WUProfM_24hr, xsmd, Z, z0m_in, zdm_in, &
-            output_line_suews) !output
+            output_line_all) !output
          ! datetimeLine, dataOutLineSUEWS, dataOutLineSnow, dataOutLineESTM, dataoutLineRSL, & !output
          ! dataOutLineBEERS, & !output
          ! dataOutLineDebug, dataOutLineSPARTACUS, &
@@ -5024,7 +5024,7 @@ CONTAINS
          dt_since_start = dt_since_start + tstep
 
          !============ update DailyStateBlock ===============
-         dataOutBlockDailyState(ir, :) = [output_line_suews%dataOutLineDailyState]
+         dataOutBlockDailyState(ir, :) = [output_line_all%DailyState]
 
          !============ write out results ===============
          ! works at each timestep
@@ -5032,14 +5032,14 @@ CONTAINS
             SnowMethod, storageheatmethod, & !input
             len_sim, 1, &
             ir, gridiv_x, &
-            output_line_suews%dataOutLineSUEWS, &
-            output_line_suews%dataOutLineSnow, &
-            output_line_suews%dataOutLineESTM, & !input
-            output_line_suews%dataoutLineRSL, &
-            output_line_suews%dataOutLineBEERS, &
-            output_line_suews%dataOutLinedebug, &
-            output_line_suews%dataOutLineSPARTACUS, &
-            output_line_suews%dataOutLineESTMExt, & !input
+            output_line_all%SUEWS, &
+            output_line_all%Snow, &
+            output_line_all%ESTM, & !input
+            output_line_all%RSL, &
+            output_line_all%BEERS, &
+            output_line_all%Debug, &
+            output_line_all%SPARTACUS, &
+            output_line_all%ESTMExt, & !input
             dataOutBlockSUEWS_X, dataOutBlockSnow_X, dataOutBlockESTM_X, & !
             dataOutBlockRSL_X, dataOutBlockBEERS_X, dataOutBlockDebug_X, dataOutBlockSPARTACUS_X, dataOutBlockESTMExt_X) !inout
 
@@ -5059,15 +5059,15 @@ CONTAINS
       CALL output_block_finalize(output_block_suews)
       CALL output_block_init(output_block_suews, len_sim)
       ! transfer data to output block
-      output_block_suews%dataOutBlockSUEWS = dataOutBlockSUEWS
-      output_block_suews%dataOutBlockSnow = dataOutBlockSnow
-      output_block_suews%dataOutBlockESTM = dataOutBlockESTM
-      output_block_suews%dataOutBlockESTMExt = dataOutBlockESTMExt
-      output_block_suews%dataOutBlockRSL = dataOutBlockRSL
-      output_block_suews%dataOutBlockBEERS = dataOutBlockBEERS
-      output_block_suews%dataOutBlockDebug = dataOutBlockDebug
-      output_block_suews%dataOutBlockSPARTACUS = dataOutBlockSPARTACUS
-      output_block_suews%dataOutBlockDailyState = dataOutBlockDailyState
+      output_block_suews%SUEWS = dataOutBlockSUEWS
+      output_block_suews%Snow = dataOutBlockSnow
+      output_block_suews%ESTM = dataOutBlockESTM
+      output_block_suews%ESTMExt = dataOutBlockESTMExt
+      output_block_suews%RSL = dataOutBlockRSL
+      output_block_suews%BEERS = dataOutBlockBEERS
+      output_block_suews%Debug = dataOutBlockDebug
+      output_block_suews%SPARTACUS = dataOutBlockSPARTACUS
+      output_block_suews%DailyState = dataOutBlockDailyState
 
    END SUBROUTINE SUEWS_cal_multitsteps
 

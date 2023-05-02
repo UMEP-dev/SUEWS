@@ -25,6 +25,9 @@ p_df_sample = Path(test_data_dir) / 'sample_output.pkl'
 # if platform is macOS and python version is 3.9, set flag_full_test to True
 flag_full_test = (sys.version_info[0] == 3 and sys.version_info[1] == 9 and platform.system() == "Darwin")
 
+# increase logging level to DEBUG for testing
+sp._env.logger_supy.setLevel("DEBUG")
+
 class TestSuPy(TestCase):
     def setUp(self):
         warnings.simplefilter("ignore", category=ImportWarning)

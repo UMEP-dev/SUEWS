@@ -22,7 +22,7 @@ from ._misc import path_insensitive
 ########################################################################
 # get_args_suews can get the interface information
 # of the f2py-converted Fortran interface
-def get_args_suews(docstring=_sd.f90wrap_suews_cal_main.__doc__):
+def get_args_suews(docstring=_sd.f90wrap_suews_cal_multitsteps.__doc__):
     # split doc lines for processing
     docLines = np.array(docstring.splitlines(), dtype=str)
 

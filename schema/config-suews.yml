@@ -4,10 +4,23 @@
 - name: london sim
 - description: london sim
 - model:
-  - method:
-    - netradiationmethod: 1
+  - control:
+    - tstep: 300
+    - forcing_file: london_2016_2017.csv
+    - output_file: london_2016_2017_output.csv
     - daylightsaving_method: 1
+  - physics:
+    - netradiationmethod: 1
+    - emissionsmethod: 1
     - storageheatmethod: 1
+    - aerodynamicresistancemethod: 1
+    - roughlenmommethod: 1
+    - roughlenheatmethod: 1
+    - stabilitymethod: 1
+    - smdmethod: 1
+    - waterusemethod: 1
+    - diagmethod: 1
+    - snowuse: 0
 
 - site:
   - name: london

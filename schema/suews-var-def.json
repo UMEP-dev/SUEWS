@@ -9,7 +9,7 @@
     "items"
   ],
   "definitions": {
-    "outputOptions": {
+    "output_group": {
       "type": "string",
       "enum": [
         "SUEWS",
@@ -26,13 +26,13 @@
       "properties": {
         "input": {
           "type": "string",
-          "description": "intention of the input, one of the following: \n - `state`: model state, updated during simulation\n- `parameter`:site property, invariant during simulation\n- `forcing`: meteorological forcing\n - `model`: model configuration, invariant during simulation",
+          "description": "intention of the input, one of the following: \n - `state`: model state, updated during simulation\n- `parameter`:site property, invariant during simulation\n- `forcing`: meteorological forcing, loaded from external files specified in `model.control`\n - `control`: model configuration, invariant during simulation\n - `physics`: physcics configuration, invariant during simulation",
           "enum": [
             "state",
             "parameter",
             "forcing",
-            "model",
-            "method"
+            "control",
+            "physics"
           ]
         }
       },
@@ -48,12 +48,12 @@
           "oneOf": [
             {
               "type": "string",
-              "$ref": "#/definitions/outputOptions"
+              "$ref": "#/definitions/output_group"
             },
             {
               "type": "array",
               "items": {
-                "$ref": "#/definitions/outputOptions"
+                "$ref": "#/definitions/output_group"
               },
               "minItems": 1,
               "uniqueItems": true
@@ -65,22 +65,6 @@
         "output"
       ],
       "additionalProperties": false
-    },
-    "usage_def":{
-      "properties": {
-        "usage": {
-          "description": "detailed use of the variable: which physical process it is used for, which scheme it is used in, etc.",
-          "oneOf": [
-            {
-              "type": "object"
-            },
-            {
-              "type": "string"
-            }
-          ]
-        }
-      }
-
     },
     "var": {
       "type": "object",
@@ -136,8 +120,22 @@
           "uniqueItems": false,
           "description": "remarks on the variable, e.g. 'only used in the first 10 days of the simulation'.\n each item will be interpreted by Sphinx to construct documentation entries; a blank item will be interpreted as a line break."
         },
-        "usage": {
-          "$ref": "#/definitions/usage_def"
+        "requisite": {
+          "description": "detailed use of the variable: it should be one of the following:\n - `configuration`: this is used in model configuration\n - `physics_scheme.option`: the physics scheme and option identifier separated by a dot (`.`); e.g. `netradiation.3`",
+          "oneOf": [
+            {
+              "type": "string",
+              "enum": [
+                "configuration",
+                "site description",
+                "forcing"
+              ]
+            },
+            {
+              "type": "string",
+              "pattern": "^[_A-Za-z]+\\.[0-9]+[-A-Za-z]+$"
+            }
+          ]
         }
       },
       "required": [
@@ -161,7 +159,7 @@
       },
       "then": {
         "required": [
-          "usage","dimensions"
+          "requisite","dimensions"
         ]
       },
       "additionalProperties": {

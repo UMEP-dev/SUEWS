@@ -21,8 +21,8 @@
 # - phy_snow.yml
 # 2. site properties
 # - site.yml
-# to be checked:
 # 3. control methods
 # - ctrl_method.yml
+# to be checked:
 # 4. meteorological forcing
 # - forcing.yml

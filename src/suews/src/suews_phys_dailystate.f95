@@ -321,7 +321,7 @@ CONTAINS
             BaseT, BaseTe, CapMax_dec, CapMin_dec, DayWat, DayWatPer, Faut, GDDFull, &
             Ie_a, Ie_m, LAIMax, LAIMin, LAIPower, lat, PorMax_dec, PorMin_dec, SDDFull, LAI_obs, &
             state_id, soilstore_id, SoilStoreCap, H_maintain, & !input
-            StoreCap_surf,&
+            StoreCap_surf, &
             GDD_id, SDD_id, & !inout
             HDD_id, &
             LAI_id, &

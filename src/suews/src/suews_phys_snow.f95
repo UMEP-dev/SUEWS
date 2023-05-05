@@ -484,7 +484,7 @@ CONTAINS
       WetThresh, stateOld, mw_ind, SoilStoreCap, rainonsnow, &
       freezmelt, freezstate, freezstatevol, &
       Qm_Melt, Qm_rain, Tsurf_ind, sfr_surf, dayofWeek_id, &
-      StoreCap_surf,StoreCapMax_surf, &
+      StoreCap_surf, StoreCapMax_surf, &
       SnowPackLimit, &
       AddWater, addwaterrunoff, &
       soilstore_id, SnowPack, SurplusEvap, & !inout
@@ -1171,16 +1171,16 @@ CONTAINS
       END IF !SnowPack negative or positive
 
       !Check water state_id separately
-      IF (state_id(WaterSurf) > StoreCapMax_surf( WaterSurf)) THEN
-         runoff_snowfree(WaterSurf) = runoff_snowfree(WaterSurf) + (state_id(WaterSurf) - StoreCapMax_surf( WaterSurf))
-         state_id(WaterSurf) = StoreCapMax_surf( WaterSurf)
+      IF (state_id(WaterSurf) > StoreCapMax_surf(WaterSurf)) THEN
+         runoff_snowfree(WaterSurf) = runoff_snowfree(WaterSurf) + (state_id(WaterSurf) - StoreCapMax_surf(WaterSurf))
+         state_id(WaterSurf) = StoreCapMax_surf(WaterSurf)
          runoffWaterBody = runoffWaterBody + runoff_snowfree(WaterSurf)*sfr_surf(WaterSurf)
       ELSE
          state_id(WaterSurf) = state_id(WaterSurf) + surplusWaterBody
 
-         IF (state_id(WaterSurf) > StoreCapMax_surf( WaterSurf)) THEN
-            runoffWaterBody = runoffWaterBody + (state_id(WaterSurf) - StoreCapMax_surf( WaterSurf))*sfr_surf(WaterSurf)
-            state_id(WaterSurf) = StoreCapMax_surf( WaterSurf)
+         IF (state_id(WaterSurf) > StoreCapMax_surf(WaterSurf)) THEN
+            runoffWaterBody = runoffWaterBody + (state_id(WaterSurf) - StoreCapMax_surf(WaterSurf))*sfr_surf(WaterSurf)
+            state_id(WaterSurf) = StoreCapMax_surf(WaterSurf)
          END IF
       END IF
 

@@ -68,14 +68,14 @@ CONTAINS
       CapMax_dec, CapMin_dec, PorMax_dec, PorMin_dec, &
       Ie_a, Ie_m, DayWatPer, DayWat, &
       BaseT, BaseTe, GDDFull, SDDFull, LAIMin, LAIMax, LAIPower, &
-      DecidCap_id_prev, StoreDrainPrm_prev, LAI_id_prev, GDD_id_prev, SDD_id_prev, &
+      DecidCap_id_prev, StoreCap_surf_prev, LAI_id_prev, GDD_id_prev, SDD_id_prev, &
       albDecTr_id_prev, albEveTr_id_prev, albGrass_id_prev, porosity_id_prev, & !input
       HDD_id_prev, & !input
       state_id, soilstore_id, SoilStoreCap, H_maintain, & !input
       HDD_id_next, & !output
       Tmin_id_next, Tmax_id_next, lenDay_id_next, &
       albDecTr_id_next, albEveTr_id_next, albGrass_id_next, porosity_id_next, & !output
-      DecidCap_id_next, StoreDrainPrm_next, LAI_id_next, GDD_id_next, SDD_id_next, WUDay_id) !output
+      DecidCap_id_next, StoreCap_surf_next, LAI_id_next, GDD_id_next, SDD_id_next, WUDay_id) !output
 
       ! USE Snow_module, ONLY: SnowUpdate
       USE datetime_module, ONLY: datetime, timedelta
@@ -240,8 +240,11 @@ CONTAINS
       REAL(KIND(1D0)), INTENT(INOUT) :: porosity_id_prev
       REAL(KIND(1D0)), INTENT(INOUT) :: porosity_id_next
       REAL(KIND(1D0)), DIMENSION(6, nsurf) :: StoreDrainPrm
-      REAL(KIND(1D0)), DIMENSION(6, nsurf), INTENT(in) :: StoreDrainPrm_prev
-      REAL(KIND(1D0)), DIMENSION(6, nsurf), INTENT(out) :: StoreDrainPrm_next
+      ! REAL(KIND(1D0)), DIMENSION(6, nsurf), INTENT(in) :: StoreDrainPrm_prev
+      ! REAL(KIND(1D0)), DIMENSION(6, nsurf), INTENT(out) :: StoreDrainPrm_next
+      REAL(KIND(1D0)), DIMENSION(nsurf), INTENT(in) :: StoreCap_surf_prev
+      REAL(KIND(1D0)), DIMENSION(nsurf), INTENT(out) :: StoreCap_surf_next
+      REAL(KIND(1D0)), DIMENSION(nsurf) :: StoreCap_surf
 
       LOGICAL :: first_tstep_Q ! if this is the first tstep of a day
       LOGICAL :: last_tstep_Q ! if this is the last tstep of a day
@@ -254,7 +257,7 @@ CONTAINS
       Tmin_id = Tmin_id_prev
       Tmax_id = Tmax_id_prev
       lenDay_id = lenDay_id_prev
-      StoreDrainPrm = StoreDrainPrm_prev
+      StoreCap_surf = StoreCap_surf_prev
       DecidCap_id = DecidCap_id_prev
       albDecTr_id = albDecTr_id_prev
       albEveTr_id = albEveTr_id_prev
@@ -318,6 +321,7 @@ CONTAINS
             BaseT, BaseTe, CapMax_dec, CapMin_dec, DayWat, DayWatPer, Faut, GDDFull, &
             Ie_a, Ie_m, LAIMax, LAIMin, LAIPower, lat, PorMax_dec, PorMin_dec, SDDFull, LAI_obs, &
             state_id, soilstore_id, SoilStoreCap, H_maintain, & !input
+            StoreCap_surf,&
             GDD_id, SDD_id, & !inout
             HDD_id, &
             LAI_id, &
@@ -326,7 +330,6 @@ CONTAINS
             albEveTr_id, &
             albGrass_id, &
             porosity_id, &
-            StoreDrainPrm, &
             WUDay_id) !output
       END IF !End of section done only at the end of each day (i.e. only once per day)
 
@@ -337,7 +340,7 @@ CONTAINS
       Tmin_id_next = Tmin_id
       Tmax_id_next = Tmax_id
       lenDay_id_next = lenDay_id
-      StoreDrainPrm_next = StoreDrainPrm
+      StoreCap_surf_next = StoreCap_surf
       DecidCap_id_next = DecidCap_id
       albDecTr_id_next = albDecTr_id
       albEveTr_id_next = albEveTr_id
@@ -361,6 +364,7 @@ CONTAINS
       BaseT, BaseTe, CapMax_dec, CapMin_dec, DayWat, DayWatPer, Faut, GDDFull, &
       Ie_a, Ie_m, LAIMax, LAIMin, LAIPower, lat, PorMax_dec, PorMin_dec, SDDFull, LAI_obs, &
       state_id, soilstore_id, SoilStoreCap, H_maintain, & !input
+      StoreCap_surf, &
       GDD_id, SDD_id, & !inout
       HDD_id, &
       LAI_id, &
@@ -369,7 +373,6 @@ CONTAINS
       albEveTr_id, &
       albGrass_id, &
       porosity_id, &
-      StoreDrainPrm, &
       WUDay_id) !output
       IMPLICIT NONE
 
@@ -433,7 +436,8 @@ CONTAINS
       REAL(KIND(1D0)), INTENT(INOUT) :: albGrass_id
       REAL(KIND(1D0)), INTENT(INOUT) :: porosity_id
 
-      REAL(KIND(1D0)), DIMENSION(6, nsurf), INTENT(inout) :: StoreDrainPrm
+      ! REAL(KIND(1D0)), DIMENSION(6, nsurf), INTENT(inout) :: StoreDrainPrm
+      REAL(KIND(1D0)), DIMENSION(nsurf), INTENT(inout) :: StoreCap_surf
 
       ! Calculate heating degree days ------------------------------------------
       CALL update_HDD( &
@@ -481,7 +485,7 @@ CONTAINS
          albEveTr_id, &
          albGrass_id, &
          porosity_id, &
-         StoreDrainPrm)
+         StoreCap_surf)
 
       ! PRINT*, 'DecidCap',DecidCap(id),DecidCap_id
       ! PRINT*, 'albDecTr',albDecTr(id),albDecTr_id
@@ -585,7 +589,7 @@ CONTAINS
       albEveTr_id, &
       albGrass_id, &
       porosity_id, &
-      StoreDrainPrm) !output
+      StoreCap_surf) !output
 
       IMPLICIT NONE
 
@@ -611,7 +615,8 @@ CONTAINS
       REAL(KIND(1D0)), INTENT(INOUT) :: albGrass_id
       REAL(KIND(1D0)), INTENT(INOUT) :: porosity_id
 
-      REAL(KIND(1D0)), DIMENSION(6, nsurf), INTENT(inout) :: StoreDrainPrm
+      ! REAL(KIND(1D0)), DIMENSION(6, nsurf), INTENT(inout) :: StoreDrainPrm
+      REAL(KIND(1D0)), DIMENSION(nsurf), INTENT(inout) :: StoreCap_surf
 
       INTEGER :: iv
 
@@ -664,7 +669,7 @@ CONTAINS
       !write(*,*) deltaLAI, deltaLAIEveTr, deltaLAIGrass
 
       DecidCap_id = DecidCap_id - CapChange
-      StoreDrainPrm(6, DecidSurf) = DecidCap_id !Change current storage capacity of deciduous trees
+      StoreCap_surf(DecidSurf) = DecidCap_id !Change current storage capacity of deciduous trees
       porosity_id = porosity_id + porChange !- changed to + by HCW 20 Aug 2015 (porosity greatest when LAI smallest)
 
       ! update albedo values while limiting these to valid ranges
@@ -865,8 +870,8 @@ CONTAINS
       REAL(KIND(1D0)), INTENT(IN) :: FrIrriAuto !Fraction of irrigated area using automatic irrigation
 
       REAL(KIND(1D0)), DIMENSION(12), INTENT(IN) :: HDD_id
-      REAL(KIND(1D0)), DIMENSION(NVegSurf), INTENT(IN) :: Ie_a !Coefficients for automatic irrigation models
-      REAL(KIND(1D0)), DIMENSION(NVegSurf), INTENT(IN) :: Ie_m !Coefficients for manual irrigation models
+      REAL(KIND(1D0)), DIMENSION(3), INTENT(IN) :: Ie_a !Coefficients for automatic irrigation models
+      REAL(KIND(1D0)), DIMENSION(3), INTENT(IN) :: Ie_m !Coefficients for manual irrigation models
       REAL(KIND(1D0)), DIMENSION(nsurf), INTENT(IN) :: DayWatPer !% of houses following daily water
       REAL(KIND(1D0)), DIMENSION(nsurf), INTENT(IN) :: DayWat !Days of watering allowed
 

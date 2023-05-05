@@ -24,20 +24,189 @@
 
 - site:
   - name: london
-  - lat: 51.5074
-  - lon: 0.1278
-  - land cover:
-    - decidous trees:
+  - properties:
+    - lat: 51.5074
+    - lon: 0.1278
+    - pipecapacity: 100
+    - runofftowater: 0.5
+    - land cover:
+      - paved:
+        - soildepth: 0.1
+        - soilstore: 100
+        - soilstorecap: 200
+        - state: 10
+        - statelimit: 10
+        - sathydraulicconduct: 0.5
+        - irrfracpaved: 0.5
+        - storedrainprm: # for surface water (i.e. above ground)
+          - store_min: 0.1
+          - store_max: 0.2
+          - store_cap: 0.5
+          - drain_eq: 1
+          - drain_coef_1: 0.5
+          - drain_coef_2: 0.5
+        - waterdist: # sum of all values must be 1
+          - to_bldgs: 0.1
+          - to_dectr: 0.1
+          - to_evetr: 0.1
+          - to_grass: 0.1
+          - to_bsoil: 0.1
+          - to_water: 0.1
+          - to_runoff: 0.4
+      - buildings:
+        - soildepth: 0.1
+        - soilstore: 100
+        - soilstorecap: 200
+        - state: 10
+        - statelimit: 10
+        - sathydraulicconduct: 0.5
+        - irrfracbldgs: 0.5
+        - storedrainprm: # for surface water (i.e. above ground)
+          - store_min: 0.1
+          - store_max: 0.2
+          - store_cap: 0.5
+          - drain_eq: 1
+          - drain_coef_1: 0.5
+          - drain_coef_2: 0.5
+        - waterdist: # sum of all values must be 1
+          - to_paved: 0.1
+          - to_dectr: 0.1
+          - to_evetr: 0.1
+          - to_grass: 0.1
+          - to_bsoil: 0.1
+          - to_water: 0.1
+          - to_runoff: 0.4
+      - decidous trees:
+        - soildepth: 0.1
+        - soilstore: 100
+        - soilstorecap: 200
+        - statelimit: 10
+        - capmax_dec: 100
+        - capmin_dec: 10
+        - irrfracdectr: 0.5
+        - sathydraulicconduct: 0.5
+        - storedrainprm: # for surface water (i.e. above ground)
+          - store_min: 0.1
+          - store_max: 0.2
+          - store_cap: 0.5 # this is a state and changes with time depending on LAI
+          - drain_eq: 1
+          - drain_coef_1: 0.5
+          - drain_coef_2: 0.5
+        - waterdist: # sum of all values must be 1
+          - to_paved: 0.1
+          - to_bldgs: 0.1
+          - to_evetr: 0.1
+          - to_grass: 0.1
+          - to_bsoil: 0.1
+          - to_water: 0.1
+          - to_soilstore: 0.4
+      - evergreen trees:
+        - soildepth: 0.1
+        - soilstore: 100
+        - soilstorecap: 200
+        - state: 10
+        - statelimit: 10
+        - sathydraulicconduct: 0.5
+        - irrfracevetr: 0.5
+        - storedrainprm: # for surface water (i.e. above ground)
+          - store_min: 0.1
+          - store_max: 0.2
+          - store_cap: 0.5
+          - drain_eq: 1
+          - drain_coef_1: 0.5
+          - drain_coef_2: 0.5
+        - waterdist: # sum of all values must be 1
+          - to_paved: 0.1
+          - to_bldgs: 0.1
+          - to_dectr: 0.1
+          - to_grass: 0.1
+          - to_bsoil: 0.1
+          - to_water: 0.1
+          - to_soilstore: 0.4
+      - grass:
+        - soildepth: 0.1
+        - soilstore: 100
+        - soilstorecap: 200
+        - state: 10
+        - statelimit: 10
+        - sathydraulicconduct: 0.5
+        - irrfracgrass: 0.5
+        - storedrainprm: # for surface water (i.e. above ground)
+          - store_min: 0.1
+          - store_max: 0.2
+          - store_cap: 0.5
+          - drain_eq: 1
+          - drain_coef_1: 0.5
+          - drain_coef_2: 0.5
+        - waterdist: # sum of all values must be 1
+          - to_paved: 0.1
+          - to_bldgs: 0.1
+          - to_dectr: 0.1
+          - to_evetr: 0.1
+          - to_bsoil: 0.1
+          - to_water: 0.1
+          - to_soilstore: 0.4
+      - bare soil:
+        - soildepth: 0.1
+        - soilstore: 100
+        - soilstorecap: 200
+        - state: 10
+        - statelimit: 10
+        - sathydraulicconduct: 0.5
+        - irrfracbsoil: 0.5
+        - storedrainprm: # for surface water (i.e. above ground)
+          - store_min: 0.1
+          - store_max: 0.2
+          - store_cap: 0.5
+          - drain_eq: 1
+          - drain_coef_1: 0.5
+          - drain_coef_2: 0.5
+        - waterdist: # sum of all values must be 1
+          - to_paved: 0.1
+          - to_bldgs: 0.1
+          - to_dectr: 0.1
+          - to_evetr: 0.1
+          - to_grass: 0.1
+          - to_water: 0.1
+          - to_soilstore: 0.4
+      - water:
+        - soildepth: 0.1
+        - soilstore: 100
+        - soilstorecap: 200
+        - state: 10
+        - statelimit: 10
+        - sathydraulicconduct: 0.5
+        - irrfracwater: 0.5
+        - flowchange: 0.5
+        - storedrainprm: # for surface water (i.e. above ground)
+          - store_min: 0.1
+          - store_max: 0.2
+          - store_cap: 0.5
+          - drain_eq: 1
+          - drain_coef_1: 0.5
+          - drain_coef_2: 0.5
+        # `waterdist` is not needed for water
+    - irrigation:
+      - h_maintain: 10
+      - ie_a: [1,1,1]
+      - ie_m: [1,1,1]
+      - ie_start: 100
+      - ie_end: 200
+      - internalwateruse_h
+      - daywatper
+      - daywat
+
+
+  - initial states:
+    - decidcap_id: 1
+    - snow:
       - several properties
-    - evergreen trees:
+    - vegetation:
       - several properties
-    - grass:
-      - several properties
-    - water:
-      - several properties
-    - buildings:
+    - building:
       - several properties
     - paved:
       - several properties
-  -
+    - water:
+      - several properties
 

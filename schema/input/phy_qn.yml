@@ -25,7 +25,7 @@
   dimensions: 0
   unit: m^-1
   suews table headers: None
-  usage:
+  requisite:
     NetRadiationMethod:
       - "1001:SS+L_obs"
       - "1002:SS+L_cloud"
@@ -38,7 +38,7 @@
   dimensions: 0
   unit: m^-1
   suews table headers: None
-  usage:
+  requisite:
     NetRadiationMethod:
       - "1001:SS+L_obs"
       - "1002:SS+L_cloud"
@@ -51,7 +51,7 @@
   dimensions: 0
   unit: "-"
   suews table headers: None
-  usage:
+  requisite:
     NetRadiationMethod:
       - "1001:SS+L_obs"
       - "1002:SS+L_cloud"
@@ -64,7 +64,7 @@
   dimensions: 0
   unit: "-"
   suews table headers: None
-  usage:
+  requisite:
     NetRadiationMethod:
       - "1001:SS+L_obs"
       - "1002:SS+L_cloud"
@@ -80,7 +80,7 @@
     - 1.0 (Recommended in this version.)
     - "Can be updated from 1: if detailed knowledge of the direct and diffuse albedo is available."
   suews table headers: None
-  usage:
+  requisite:
     NetRadiationMethod:
       - "1001:SS+L_obs"
       - "1002:SS+L_cloud"
@@ -93,7 +93,7 @@
   dimensions: 0
   unit: "-"
   suews table headers: None
-  usage:
+  requisite:
     NetRadiationMethod:
       - "1001:SS+L_obs"
       - "1002:SS+L_cloud"
@@ -109,7 +109,7 @@
     - "4 (Recommended in this version.)"
     - "At large computational cost small improvements in accuracy can be made by increasing from 4 [Hogan, 2019]."
   suews table headers: None
-  usage:
+  requisite:
     NetRadiationMethod:
       - "1001:SS+L_obs"
       - "1002:SS+L_cloud"
@@ -125,7 +125,7 @@
     - "1 (default): heterogeneity of vegetation not considered. might be okay de pending on the level of accuracy needed. See Hogan et al. [2018] – details of SPARTACUS-Vegetation for more information."
     - "2: heterogeneity of vegetation considered"
   suews table headers: None
-  usage:
+  requisite:
     NetRadiationMethod:
       - "1001:SS+L_obs"
       - "1002:SS+L_cloud"
@@ -138,7 +138,7 @@
   dimensions: 0
   unit: "-"
   suews table headers: None
-  usage:
+  requisite:
     NetRadiationMethod:
       - "1001:SS+L_obs"
       - "1002:SS+L_cloud"
@@ -151,7 +151,7 @@
   dimensions: 0
   unit: "NA"
   suews table headers: None
-  usage:
+  requisite:
     NetRadiationMethod:
       - "1001:SS+L_obs"
       - "1002:SS+L_cloud"
@@ -164,7 +164,7 @@
   dimensions: 0
   unit: "-"
   suews table headers: None
-  usage:
+  requisite:
     NetRadiationMethod:
       - "1001:SS+L_obs"
       - "1002:SS+L_cloud"
@@ -177,7 +177,7 @@
   dimensions: 0
   unit: "-"
   suews table headers: None
-  usage:
+  requisite:
     NetRadiationMethod:
       - "1001:SS+L_obs"
       - "1002:SS+L_cloud"
@@ -194,7 +194,7 @@
     - Should be estimated using a vegetation type in https://speclib.jpl.nasa.gov/library (see Vegetation single scattering albedo (SSA) for details). - Reflectance is ~0.04 for Acer Pensylvanicum, - ~0.02 for Quercus Robur and - ~0.04 for Betula Lenta.
     - SSA ~ 2*reflectance so 0.06 is chosen as the default.
   suews table headers: None
-  usage:
+  requisite:
     NetRadiationMethod:
       - "1001:SS+L_obs"
       - "1002:SS+L_cloud"
@@ -210,7 +210,7 @@
     - Broadband shortwave vegetation SSA values ranged between 0.41 and 0.52 for RAMI5 Järvselja birch stand forest trees.
     - 0.46 is the default value but users can choose another value if the dominant tree type is one of the RAMI5 Järvselja birch stand forest trees (see Vegetation single scattering albedo (SSA) for details).
   suews table headers: None
-  usage:
+  requisite:
     NetRadiationMethod:
       - "1001:SS+L_obs"
       - "1002:SS+L_cloud"
@@ -224,7 +224,7 @@
   dimensions: 0
   unit: "-"
   suews table headers: :option:`NARP_Trans <suews:NARP_Trans>`
-  usage:
+  requisite:
     NetRadiationMethod: "<500: NARP"
 
 - name: emis
@@ -235,7 +235,7 @@
     7: "seven land covers: {`suews:Paved`, `suews:Bldgs`, `suews:EveTr`, `suews:DecTr`, `suews:Grass`, `suews:BSoil`, `suews:Water`}"
   unit: Effective surface emissivity
   suews table headers: :option:`Emissivity <suews:Emissivity>`
-  usage:
+  requisite:
     NetRadiationMethod: "<500: NARP"
 
 - name: alb
@@ -246,7 +246,7 @@
     7: "seven land covers: {`suews:Paved`, `suews:Bldgs`, `suews:EveTr`, `suews:DecTr`, `suews:Grass`, `suews:BSoil`, `suews:Water`}"
   unit: Effective surface albedo (middle of the day value)
   suews table headers: :option:`AlbedoMax <suews:AlbedoMax>`
-  usage:
+  requisite:
     NetRadiationMethod: "<500: NARP"
 
 - name: albdectr_id # unnecessary? could be removed if albedo is a state variable
@@ -256,7 +256,7 @@
   dimensions: 0
   unit: "-"
   suews table headers: :option:`albDecTr0 <suews:albDecTr0>`
-  usage:
+  requisite:
     NetRadiationMethod: ALL
 
 - name: albevetr_id # unnecessary? could be removed if albedo is a state variable
@@ -266,7 +266,7 @@
   dimensions: 0
   unit: Albedo of evergreen surface `EveTr` on day 0 of ru
   suews table headers: :option:`albEveTr0 <suews:albEveTr0>`
-  usage:
+  requisite:
     NetRadiationMethod: ALL
 
 - name: albgrass_id # unnecessary? could be removed if albedo is a state variable
@@ -276,7 +276,7 @@
   dimensions: 0
   unit: Albedo of grass surface `Grass` on day 0 of ru
   suews table headers: :option:`albGrass0 <suews:albGrass0>`
-  usage:
+  requisite:
     NetRadiationMethod: ALL
 
 - name: albmax_dectr
@@ -286,7 +286,7 @@
   dimensions: 0
   unit: Effective surface albedo (middle of the day value) for summertime
   suews table headers: :option:`AlbedoMax <suews:AlbedoMax>`
-  usage:
+  requisite:
     NetRadiationMethod: ALL
 
 - name: albmax_evetr
@@ -296,7 +296,7 @@
   dimensions: 0
   unit: Effective surface albedo (middle of the day value) for summertime
   suews table headers: :option:`AlbedoMax <suews:AlbedoMax>`
-  usage:
+  requisite:
     NetRadiationMethod: ALL
 
 - name: albmax_grass
@@ -306,7 +306,7 @@
   dimensions: 0
   unit: Effective surface albedo (middle of the day value) for summertime
   suews table headers: :option:`AlbedoMax <suews:AlbedoMax>`
-  usage:
+  requisite:
     NetRadiationMethod: ALL
 
 - name: albmin_dectr
@@ -318,7 +318,7 @@
   unit:
     Effective surface albedo (middle of the day value) for wintertime (not including snow)
   suews table headers: :option:`AlbedoMin <suews:AlbedoMin>`
-  usage:
+  requisite:
     NetRadiationMethod: ALL
 
 - name: albmin_evetr
@@ -330,7 +330,7 @@
   unit:
     Effective surface albedo (middle of the day value) for wintertime (not including snow)
   suews table headers: :option:`AlbedoMin <suews:AlbedoMin>`
-  usage:
+  requisite:
     NetRadiationMethod: ALL
 
 - name: albmin_grass
@@ -342,5 +342,5 @@
   unit:
     Effective surface albedo (middle of the day value) for wintertime (not including snow)
   suews table headers: :option:`AlbedoMin <suews:AlbedoMin>`
-  usage:
+  requisite:
     NetRadiationMethod: ALL

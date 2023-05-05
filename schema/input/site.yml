@@ -23,9 +23,9 @@
   description: Latitude
   dimensions: 0
   unit: deg
-  suews table headers: :option:`lat <suews:lat>`
-  usage:
-    SiteDescription: SiteDescription
+  # suews table headers: :option:`lat <suews:lat>`
+  requisite:
+    site description
 
 - name: lng
   use:
@@ -34,8 +34,8 @@
   dimensions: 0
   unit: deg
   suews table headers: :option:`lng <suews:lng>`
-  usage:
-    SiteDescription: SiteDescription
+  requisite:
+    site description
 
 - name: alt
   use:
@@ -44,8 +44,8 @@
   dimensions: 0
   unit: m
   suews table headers: :option:`Alt <suews:Alt>`
-  usage:
-    SiteDescription: SiteDescription
+  requisite:
+    site description
 
 - name: timezone
   use:
@@ -54,8 +54,8 @@
   dimensions: 0
   unit: h
   suews table headers: :option:`Timezone <suews:Timezone>`
-  usage:
-    SiteDescription: SiteDescription
+  requisite:
+    site description
 
 - name: surfacearea
   use:
@@ -64,8 +64,8 @@
   dimensions: 0
   unit: ha
   suews table headers: :option:`SurfaceArea <suews:SurfaceArea>`
-  usage:
-    SiteDescription: SiteDescription
+  requisite:
+    site description
 
 - name: sfr_surf # split into land cover based scalars?
   use:
@@ -78,8 +78,8 @@
     :option:`Fr_Bldgs <suews:Fr_Bldgs>`, :option:`Fr_Bsoil <suews:Fr_Bsoil>`,
     :option:`Fr_DecTr <suews:Fr_DecTr>`, :option:`Fr_EveTr <suews:Fr_EveTr>`, :option:`Fr_Grass
     <suews:Fr_Grass>`, :option:`Fr_Paved <suews:Fr_Paved>`, :option:`Fr_Water <suews:Fr_Water>`
-  usage:
-    SiteDescription: SiteDescription
+  requisite:
+    site description
 
 - name: z
   use:
@@ -88,8 +88,8 @@
   dimensions: 0
   unit: m
   suews table headers: :option:`z <suews:z>`
-  usage:
-    SiteDescription: SiteDescription
+  requisite:
+    site description
 
 - name: z0m_in
   use:
@@ -98,7 +98,7 @@
   dimensions: 0
   unit: m
   suews table headers: :option:`z0 <suews:z0>`
-  usage:
+  requisite:
     RoughLenMomMethod: 1:provided
 
 - name: zdm_in
@@ -108,7 +108,7 @@
   dimensions: 0
   unit: m
   suews table headers: :option:`zd <suews:zd>`
-  usage:
+  requisite:
     RoughLenMomMethod: 1:provided
 
 # surface fraction of automated irrigation
@@ -119,8 +119,8 @@
   dimensions: 0
   unit: "-"
   suews table headers: :option:`Faut <suews:Faut>`
-  usage:
-    WaterUseMethod: "0: Modelled"
+  requisite:
+    WaterUseMethod.0_modelled
 
 # day light savings
 - name: startdls
@@ -130,7 +130,7 @@
   dimensions: 0
   unit: DOY
   suews table headers: :option:`StartDLS <suews:StartDLS>`
-  usage:
+  requisite:
     daylightsavings: .nan
 
 - name: enddls
@@ -140,7 +140,7 @@
   dimensions: 0
   unit: DOY
   suews table headers: :option:`EndDLS <suews:EndDLS>`
-  usage:
+  requisite:
     daylightsavings - all human activities: NEW Option Automatic via Python Package or provide
 
 # land cover properties
@@ -152,7 +152,7 @@
   dimensions: 0
   unit: "-"
   suews table headers: :option:`FAI_Bldgs <suews:FAI_Bldgs>`
-  usage:
+  requisite:
     RoughLenMomMethod: "3: MacDonald"
 
 - name: faidectree # todo rename to fai_dectr
@@ -162,7 +162,7 @@
   dimensions: 0
   unit: "-"
   suews table headers: :option:`FAI_DecTr <suews:FAI_DecTr>`
-  usage:
+  requisite:
     RoughLenMomMethod: "3: MacDonald"
 
 - name: faievetree # todo rename to fai_evetr
@@ -172,7 +172,7 @@
   dimensions: 0
   unit: "-"
   suews table headers: :option:`FAI_EveTr <suews:FAI_EveTr>`
-  usage:
+  requisite:
     RoughLenMomMethod: "3: MacDonald"
 
 # mean height of roughness elements
@@ -183,8 +183,8 @@
   dimensions: 0
   unit: m
   suews table headers: :option:`H_DecTr <suews:H_DecTr>`
-  usage:
-    SiteDescription: SiteDescription
+  requisite:
+    site description
 
 - name: evetreeh # todo: rename to h_evetr
   use:
@@ -193,8 +193,8 @@
   dimensions: 0
   unit: m
   suews table headers: :option:`H_EveTr <suews:H_EveTr>`
-  usage:
-    SiteDescription: SiteDescription
+  requisite:
+    site description
 
 - name: bldgh # todo: rename to h_bldgs
   use:
@@ -203,8 +203,8 @@
   dimensions: 0
   unit: m
   suews table headers: :option:`H_Bldgs <suews:H_Bldgs>`
-  usage:
-    SiteDescription: SiteDescription
+  requisite:
+    site description
 
 # porosity
 - name: pormax_dec
@@ -216,7 +216,7 @@
   dimensions: 0
   unit: "-"
   suews table headers: :option:`PorosityMax <suews:PorosityMax>`
-  usage:
+  requisite:
     RoughLenMomMethod: ALL
 
 - name: pormin_dec
@@ -228,7 +228,7 @@
   dimensions: 0
   unit: "-"
   suews table headers: :option:`PorosityMin <suews:PorosityMin>`
-  usage:
+  requisite:
     RoughLenMomMethod: ALL
 
 - name: porosity_id
@@ -238,5 +238,5 @@
   dimensions: 0
   unit: "-"
   suews table headers: :option:`porosity0 <suews:porosity0>`
-  usage:
+  requisite:
     RoughLenMomMethod: ALL

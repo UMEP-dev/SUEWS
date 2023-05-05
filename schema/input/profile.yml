@@ -10,7 +10,7 @@
   suews table headers:
     :option:`WaterUseProfAutoWD <suews:WaterUseProfAutoWD>`, :option:`WaterUseProfAutoWE
     <suews:WaterUseProfAutoWE>`
-  usage:
+  requisite:
     WaterUseMethod: 0:Modelled
 - name: wuprofm_24hr
   use:
@@ -23,5 +23,5 @@
   suews table headers:
     :option:`WaterUseProfManuWD <suews:WaterUseProfManuWD>`, :option:`WaterUseProfManuWE
     <suews:WaterUseProfManuWE>`
-  usage:
+  requisite:
     WaterUseMethod: 0:Modelled

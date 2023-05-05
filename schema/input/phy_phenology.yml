@@ -24,7 +24,7 @@
     3: "vegetated land covers: { `EveTr`, `DecTr`, `Grass`}"
   unit: degC
   suews table headers: :option:`BaseT <BaseT>`
-  usage:
+  requisite:
     LAI: needs to be linked to a method
 
 
@@ -37,7 +37,7 @@
     3: "vegetated land covers: { `EveTr`, `DecTr`, `Grass`}"
   unit: degC d
   suews table headers: :option:`SDDFull <SDDFull>`
-  usage:
+  requisite:
     LAI: needs to be linked to a method
 
 
@@ -52,7 +52,7 @@
   suews table headers:
     :option:`LAIinitialDecTr <LAIinitialDecTr>`, :option:`LAIinitialEveTr
     <LAIinitialEveTr>`, :option:`LAIinitialGrass <LAIinitialGrass>`
-  usage:
+  requisite:
     LAIcalcyes: needs to be linked to a method
 
 - name: laimax
@@ -63,7 +63,7 @@
     3: "vegetated land covers: { `EveTr`, `DecTr`, `Grass`}"
   unit: full leaf-on summertime valu
   suews table headers: :option:`LAIMax <LAIMax>`
-  usage:
+  requisite:
     LAI: needs to be linked to a method
 
 - name: laimin
@@ -74,7 +74,7 @@
     3: "vegetated land covers: { `EveTr`, `DecTr`, `Grass`}"
   unit: leaf-off wintertime valu
   suews table headers: :option:`LAIMin <LAIMin>`
-  usage:
+  requisite:
     LAI: needs to be linked to a method
 
 - name: laipower
@@ -89,7 +89,7 @@
     :option:`LeafGrowthPower1 <LeafGrowthPower1>`, :option:`LeafGrowthPower2
     <LeafGrowthPower2>`, :option:`LeafOffPower1 <LeafOffPower1>`, :option:`LeafOffPower2
     <LeafOffPower2>`
-  usage:
+  requisite:
     LAI: needs to be linked to a method
 
 - name: laitype # this could be combined with laicalcyes as a single variable: lai_method? TODO
@@ -100,7 +100,7 @@
     3: "3: { `EveTr`, `DecTr`, `Grass`}"
   unit: LAI calculation choice
   suews table headers: :option:`LAIEq <LAIEq>`
-  usage:
+  requisite:
     LAI: Method_Selection
 
 
@@ -113,7 +113,7 @@
     3: "3: { `EveTr`, `DecTr`, `Grass`}"
   unit: degC
   suews table headers: :option:`BaseTe <BaseTe>`
-  usage:
+  requisite:
     LAI: needs to be linked to a method
 
 
@@ -126,7 +126,7 @@
     3: "3: { `EveTr`, `DecTr`, `Grass`}"
   unit: degC d
   suews table headers: :option:`GDDFull <GDDFull>`
-  usage:
+  requisite:
     LAI: needs to be linked to a method
 
 

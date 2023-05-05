@@ -22,7 +22,7 @@
   dimensions: 0
   unit: mm s^-1
   suews table headers: :option:`G1 <suews:G1>`
-  usage:
+  requisite:
     gsModel: ALL
 
 - name: g_k
@@ -32,7 +32,7 @@
   dimensions: 0
   unit: W m^-2
   suews table headers: :option:`G2 <suews:G2>`
-  usage:
+  requisite:
     gsModel: ALL
 
 - name: g_q_base
@@ -42,7 +42,7 @@
   dimensions: 0
   unit: units depend on `gsModel`
   suews table headers: :option:`G3 <suews:G3>`
-  usage:
+  requisite:
     gsModel: ALL
 
 - name: g_q_shape
@@ -52,7 +52,7 @@
   dimensions: 0
   unit: units depend on `gsModel`
   suews table headers: :option:`G4 <suews:G4>`
-  usage:
+  requisite:
     gsModel: ALL
 
 - name: g_t
@@ -62,7 +62,7 @@
   dimensions: 0
   unit: degC
   suews table headers: :option:`G5 <suews:G5>`
-  usage:
+  requisite:
     gsModel: ALL
 
 - name: g_sm
@@ -72,7 +72,7 @@
   dimensions: 0
   unit: mm^-1
   suews table headers: :option:`G6 <suews:G6>`
-  usage:
+  requisite:
     gsModel: ALL
 
 - name: kmax
@@ -82,7 +82,7 @@
   dimensions: 0
   unit: W m^-2
   suews table headers: :option:`Kmax <suews:Kmax>`
-  usage:
+  requisite:
     gsmodel: ALL
 
 - name: gsmodel # may rename to "conductance_model"? todo
@@ -92,7 +92,7 @@
   dimensions: 0
   unit: Formulation choice for conductance calculation
   suews table headers: :option:`gsModel <suews:gsModel>`
-  usage:
+  requisite:
     gsModel: Method_Selection
 
 - name: maxconductance
@@ -103,7 +103,7 @@
     3: "vegetated land covers: { `EveTr`, `DecTr`, `Grass`}"
   unit: mm s^-1
   suews table headers: :option:`MaxConductance <suews:MaxConductance>`
-  usage:
+  requisite:
     gsmodel: ALL
 
 - name: s1 # may merge with s2 to be one parameter related to wilting point? todo
@@ -113,7 +113,7 @@
   dimensions: 0
   unit: "-"
   suews table headers: :option:`S1 <suews:S1>`
-  usage:
+  requisite:
     gsmodel: could be made internal/removed
 
 - name: s2 # see comment for s1 #todo
@@ -123,7 +123,7 @@
   dimensions: 0
   unit: mm
   suews table headers: :option:`S2 <suews:S2>`
-  usage:
+  requisite:
     gsmodel: could be made internal/removed
 
 - name: wetthresh_surf
@@ -135,7 +135,7 @@
     7: "SUEWS land covers: { `Paved`, `Bldgs`, `EveTr`, `DecTr`, `Grass`,`BSoil`, `Water`}"
   unit: mm]
   suews table headers: :option:`WetThreshold <suews:WetThreshold>`
-  usage:
+  requisite:
     EvapMethod: "2: S78"
 
 - name: th
@@ -145,7 +145,7 @@
   dimensions: 0
   unit: degC
   suews table headers: :option:`TH <suews:TH>`
-  usage:
+  requisite:
     gsmodel: ALL
 
 - name: tl
@@ -155,5 +155,5 @@
   dimensions: 0
   unit: degC
   suews table headers: :option:`TL <suews:TL>`
-  usage:
+  requisite:
     gsModel: ALL

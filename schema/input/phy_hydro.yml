@@ -13,6 +13,7 @@
 # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 # revision history:
 # TS 07 Mar 2023: checked
+# TS 04 May 2023: all added to the newly created file config-suews.yml
 # ################################################################################
 
 
@@ -25,8 +26,8 @@
   dimensions: 0
   unit: Storage capacity of deciduous surface `DecTr` on day 0 of run
   suews table headers: :option:`decidCap0 <suews:decidCap0>`
-  usage:
-    "WaterStorageFlux: Interception": yes
+  requisite:
+    essential.0-hydro
 
 - name: capmax_dec
   use:
@@ -35,8 +36,8 @@
   dimensions: 0
   unit: Maximum water storage capacity for upper surfaces (i.e. canopy
   suews table headers: :option:`StorageMax <suews:StorageMax>`
-  usage:
-    interception: ALL
+  requisite:
+    essential.0-hydro
 
 
 - name: capmin_dec
@@ -46,8 +47,8 @@
   dimensions: 0
   unit: Minimum water storage capacity for upper surfaces (i.e. canopy)
   suews table headers: :option:`StorageMin <suews:StorageMin>`
-  usage:
-    interception: ALL
+  requisite:
+    essential.0-hydro
 # ##############################
 
 # ##############################
@@ -61,8 +62,8 @@
   dimensions: 0
   unit: mm]
   suews table headers: :option:`H_maintain <suews:H_maintain>`
-  usage:
-    WaterUseMethod: ALL
+  requisite:
+    WaterUseMethod.0-modelled
 
 - name: ie_a
   use:
@@ -74,8 +75,8 @@
   suews table headers:
     :option:`Ie_a1 <suews:Ie_a1>`, :option:`Ie_a2 <suews:Ie_a2>`,
     :option:`Ie_a3 <suews:Ie_a3>`
-  usage:
-    WaterUseMethod: 0:Modelled
+  requisite:
+    WaterUseMethod.0-modelled
 
 - name: ie_end
   use:
@@ -84,8 +85,8 @@
   dimensions: 0
   unit: DOY
   suews table headers: :option:`Ie_end <suews:Ie_end>`
-  usage:
-    WaterUseMethod: 0:Modelled
+  requisite:
+    WaterUseMethod.0-modelled
 
 - name: ie_m
   use:
@@ -97,8 +98,8 @@
   suews table headers:
     :option:`Ie_m1 <suews:Ie_m1>`, :option:`Ie_m2 <suews:Ie_m2>`,
     :option:`Ie_m3 <suews:Ie_m3>`
-  usage:
-    WaterUseMethod: 0:Modelled
+  requisite:
+    WaterUseMethod.0-modelled
 
 - name: ie_start
   use:
@@ -107,8 +108,8 @@
   dimensions: 0
   unit: DOY
   suews table headers: :option:`Ie_start <suews:Ie_start>`
-  usage:
-    WaterUseMethod: All
+  requisite:
+    WaterUseMethod.0-modelled
 
 - name: internalwateruse_h
   use:
@@ -117,8 +118,8 @@
   dimensions: 0
   unit: mm h^-1
   suews table headers: :option:`InternalWaterUse <suews:InternalWaterUse>`
-  usage:
-    WaterUseMethod: ALL
+  requisite:
+   WaterUseMethod.0-modelled
 
 - name: irrfracbldgs
   use:
@@ -127,8 +128,8 @@
   dimensions: 0
   unit: "-"
   suews table headers: :option:`IrrFr_Bldgs <suews:IrrFr_Bldgs>`
-  usage:
-    WaterUseMethod: All
+  requisite:
+    WaterUseMethod.0-modelled
 
 - name: irrfracbsoil
   use:
@@ -137,8 +138,8 @@
   dimensions: 0
   unit: "-"
   suews table headers: :option:`IrrFr_BSoil <suews:IrrFr_BSoil>`
-  usage:
-    WaterUseMethod: All
+  requisite:
+    WaterUseMethod.0-modelled
 
 - name: irrfracdectr
   use:
@@ -147,8 +148,8 @@
   dimensions: 0
   unit: "-"
   suews table headers: :option:`IrrFr_DecTr <suews:IrrFr_DecTr>`
-  usage:
-    WaterUseMethod: All
+  requisite:
+    WaterUseMethod.0-modelled
 
 - name: irrfracevetr
   use:
@@ -157,8 +158,8 @@
   dimensions: 0
   unit: "-"
   suews table headers: :option:`IrrFr_EveTr <suews:IrrFr_EveTr>`
-  usage:
-    WaterUseMethod: All
+  requisite:
+    WaterUseMethod.0-modelled
 
 - name: irrfracgrass
   use:
@@ -167,8 +168,8 @@
   dimensions: 0
   unit: "-"
   suews table headers: :option:`IrrFr_Grass <suews:IrrFr_Grass>`
-  usage:
-    WaterUseMethod: All
+  requisite:
+    WaterUseMethod.0-modelled
 
 - name: irrfracpaved
   use:
@@ -177,8 +178,8 @@
   dimensions: 0
   unit: "-"
   suews table headers: :option:`IrrFr_Paved <suews:IrrFr_Paved>`
-  usage:
-    WaterUseMethod: All
+  requisite:
+    WaterUseMethod.0-modelled
 
 - name: irrfracwater
   use:
@@ -187,8 +188,8 @@
   dimensions: 0
   unit: "-"
   suews table headers: :option:`IrrFr_Water <suews:IrrFr_Water>`
-  usage:
-    WaterUseMethod: All
+  requisite:
+    WaterUseMethod.0-modelled
 
 - name: daywatper
   use:
@@ -202,8 +203,8 @@
     <suews:DayWatPer(2)>`, :option:`DayWatPer(3) <suews:DayWatPer(3)>`, :option:`DayWatPer(4)
     <suews:DayWatPer(4)>`, :option:`DayWatPer(5) <suews:DayWatPer(5)>`, :option:`DayWatPer(6)
     <suews:DayWatPer(6)>`, :option:`DayWatPer(7) <suews:DayWatPer(7)>`
-  usage:
-    WaterUseMethod: 0:Modelled
+  requisite:
+    WaterUseMethod.0-modelled
 
 - name: daywat
   use:
@@ -217,8 +218,8 @@
     :option:`DayWat(3) <suews:DayWat(3)>`, :option:`DayWat(4) <suews:DayWat(4)>`,
     :option:`DayWat(5) <suews:DayWat(5)>`, :option:`DayWat(6) <suews:DayWat(6)>`,
     :option:`DayWat(7) <suews:DayWat(7)>`
-  usage:
-    WaterUseMethod: 0:Modelled
+  requisite:
+    WaterUseMethod.0-modelled
 # end of irrigation parameters
 # ##############################
 
@@ -229,8 +230,8 @@
   dimensions: 0
   unit: mm h^-1
   suews table headers: :option:`FlowChange <suews:FlowChange>`
-  usage:
-    surfacewater: .nan
+  requisite:
+    essential.0-hydro
 
 - name: sathydraulicconduct
   use:
@@ -242,23 +243,23 @@
       `suews:BSoil`, `suews:Water`}"
   unit: mm |s^-1|
   suews table headers: :option:`SatHydraulicCond <suews:SatHydraulicCond>`
-  usage:
-    smd; Runoff: SiteDescription
+  requisite:
+    essential.0-hydro
 
 
 - name: pipecapacity
   use:
-    input: state
+    input: parameter
   description: Storage capacity of pipes
   dimensions: 0
   unit: mm
   suews table headers: :option:`PipeCapacity <suews:PipeCapacity>`
-  usage:
-    runoff: ALL
+  requisite:
+    essential.0-hydro
 
 - name: waterdist
   use:
-    input: state
+    input: parameter
   description: Fraction of water redistribution
   dimensions:
     8: "SUEWS land covers: {`Paved`, `Bldgs`, `EveTr`, `DecTr`, `Grass`,`BSoil`, `Water`, one extra land cover type (currently NOT used)}"
@@ -269,8 +270,8 @@
     :option:`ToDecTr <suews:ToDecTr>`, :option:`ToEveTr <suews:ToEveTr>`, :option:`ToGrass
     <suews:ToGrass>`, :option:`ToPaved <suews:ToPaved>`, :option:`ToRunoff <suews:ToRunoff>`,
     :option:`ToSoilStore <suews:ToSoilStore>`, :option:`ToWater <suews:ToWater>`
-  usage:
-    runoff: ALL
+  requisite:
+    essential.0-hydro
 
 - name: runofftowater
   use:
@@ -279,8 +280,8 @@
   dimensions: 0
   unit: "-"
   suews table headers: :option:`RunoffToWater <suews:RunoffToWater>`
-  usage:
-    runoff: ALL
+  requisite:
+    essential.0-hydro
 
 - name: soildepth
   use:
@@ -290,8 +291,8 @@
     7: "SUEWS land covers: { `Paved`, `Bldgs`, `EveTr`, `DecTr`, `Grass`,`BSoil`, `Water`}"
   unit: mm
   suews table headers: :option:`SoilDepth <suews:SoilDepth>`
-  usage:
-    smdMethod: TO-DISCUSS
+  requisite:
+    essential.0-hydro
 
 - name: soilstore_surf
   use:
@@ -306,8 +307,8 @@
     <suews:SoilstoreDecTrState>`, :option:`SoilstoreEveTrState <suews:SoilstoreEveTrState>`,
     :option:`SoilstoreGrassState <suews:SoilstoreGrassState>`, :option:`SoilstoreBSoilState
     <suews:SoilstoreBSoilState>`
-  usage:
-    smd: SiteDescription
+  requisite:
+    essential.0-hydro
 
 - name: soilstorecap_surf
   use:
@@ -317,12 +318,12 @@
     7: "SUEWS land covers: { `Paved`, `Bldgs`, `EveTr`, `DecTr`, `Grass`,`BSoil`, `Water`}"
   unit: mm
   suews table headers: :option:`SoilStoreCap <suews:SoilStoreCap>`
-  usage:
-    smd: SiteDescription
+  requisite:
+    essential.0-hydro
 
 - name: storedrainprm
   use:
-    input: state # TODO: mixed - need to change the code to separate different uses of this compound variable
+    input: parameter
   description: Coefficients used in drainage calculation.
   dimensions:
     6: "{ `StorageMin`, `DrainageEq`, `DrainageCoef1`, `DrainageCoef2`, `StorageMax`, current storage}"
@@ -332,8 +333,8 @@
     :option:`DrainageCoef1 <suews:DrainageCoef1>`, :option:`DrainageCoef2
     <suews:DrainageCoef2>`, :option:`DrainageEq <suews:DrainageEq>`, :option:`StorageMax
     <suews:StorageMax>`, :option:`StorageMin <suews:StorageMin>`
-  usage:
-    runoff: ALL
+  requisite:
+    essential.0-hydro
 
 - name: statelimit_surf
   use:
@@ -343,8 +344,8 @@
     7: "SUEWS land covers: { `Paved`, `Bldgs`, `EveTr`, `DecTr`, `Grass`,`BSoil`, `Water`}"
   unit: mm
   suews table headers: :option:`StateLimit <suews:StateLimit>`
-  usage:
-    "WaterStorageFlux: Interception": SiteDescription
+  requisite:
+    essential.0-hydro
 
 - name: state_surf
   use:
@@ -359,5 +360,5 @@
     <suews:PavedState>`, :option:`DecTrState <suews:DecTrState>`, :option:`EveTrState
     <suews:EveTrState>`, :option:`GrassState <suews:GrassState>`, :option:`BSoilState
     <suews:BSoilState>`, :option:`WaterState <suews:WaterState>`
-  usage:
-    "WaterStorageFlux: Interception": SiteDescription
+  requisite:
+    essential.0-hydro

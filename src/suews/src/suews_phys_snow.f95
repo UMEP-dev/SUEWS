@@ -483,7 +483,9 @@ CONTAINS
       addVeg, SnowLimPaved, SnowLimBldg, FlowChange, drain, &
       WetThresh, stateOld, mw_ind, SoilStoreCap, rainonsnow, &
       freezmelt, freezstate, freezstatevol, &
-      Qm_Melt, Qm_rain, Tsurf_ind, sfr_surf, dayofWeek_id, StoreDrainPrm, SnowPackLimit, &
+      Qm_Melt, Qm_rain, Tsurf_ind, sfr_surf, dayofWeek_id, &
+      StoreCap_surf,StoreCapMax_surf, &
+      SnowPackLimit, &
       AddWater, addwaterrunoff, &
       soilstore_id, SnowPack, SurplusEvap, & !inout
       SnowFrac, SnowWater, iceFrac, SnowDens, &
@@ -585,7 +587,9 @@ CONTAINS
       REAL(KIND(1D0)), DIMENSION(nsurf), INTENT(in) :: SnowPackLimit
       REAL(KIND(1D0)), DIMENSION(nsurf), INTENT(in) :: AddWater
       REAL(KIND(1D0)), DIMENSION(nsurf), INTENT(in) :: addwaterrunoff
-      REAL(KIND(1D0)), DIMENSION(6, nsurf), INTENT(in) :: StoreDrainPrm
+      ! REAL(KIND(1D0)), DIMENSION(6, nsurf), INTENT(in) :: StoreDrainPrm
+      REAL(KIND(1D0)), DIMENSION(nsurf), INTENT(in) :: StoreCap_surf
+      REAL(KIND(1D0)), DIMENSION(nsurf), INTENT(in) :: StoreCapMax_surf
       REAL(KIND(1D0)), DIMENSION(0:23, 2), INTENT(in) :: SnowProf_24hr
 
       !Updated status: input and output
@@ -694,7 +698,8 @@ CONTAINS
       !======================================================================
       ! Calculate evaporation from SnowPack and snow free surfaces (in mm)
       ! IF (SnowFrac(is)<1) CALL Evap_SUEWS !ev and qe for snow free surface out
-      capStore(is) = StoreDrainPrm(6, is)
+      ! capStore(is) = StoreDrainPrm(6, is)
+      capStore(is) = StoreCap_surf(is)
       IF (SnowFrac(is) < 1) CALL cal_evap( &
          EvapMethod, state_id(is), WetThresh(is), capStore(is), & !input
          vpd_hPa, avdens, avcp, qn_e, s_hPa, psyc_hPa, ResistSurf, RA, rb, tlv, &
@@ -1166,16 +1171,16 @@ CONTAINS
       END IF !SnowPack negative or positive
 
       !Check water state_id separately
-      IF (state_id(WaterSurf) > StoreDrainPrm(5, WaterSurf)) THEN
-         runoff_snowfree(WaterSurf) = runoff_snowfree(WaterSurf) + (state_id(WaterSurf) - StoreDrainPrm(5, WaterSurf))
-         state_id(WaterSurf) = StoreDrainPrm(5, WaterSurf)
+      IF (state_id(WaterSurf) > StoreCapMax_surf( WaterSurf)) THEN
+         runoff_snowfree(WaterSurf) = runoff_snowfree(WaterSurf) + (state_id(WaterSurf) - StoreCapMax_surf( WaterSurf))
+         state_id(WaterSurf) = StoreCapMax_surf( WaterSurf)
          runoffWaterBody = runoffWaterBody + runoff_snowfree(WaterSurf)*sfr_surf(WaterSurf)
       ELSE
          state_id(WaterSurf) = state_id(WaterSurf) + surplusWaterBody
 
-         IF (state_id(WaterSurf) > StoreDrainPrm(5, WaterSurf)) THEN
-            runoffWaterBody = runoffWaterBody + (state_id(WaterSurf) - StoreDrainPrm(5, WaterSurf))*sfr_surf(WaterSurf)
-            state_id(WaterSurf) = StoreDrainPrm(5, WaterSurf)
+         IF (state_id(WaterSurf) > StoreCapMax_surf( WaterSurf)) THEN
+            runoffWaterBody = runoffWaterBody + (state_id(WaterSurf) - StoreCapMax_surf( WaterSurf))*sfr_surf(WaterSurf)
+            state_id(WaterSurf) = StoreCapMax_surf( WaterSurf)
          END IF
       END IF
 

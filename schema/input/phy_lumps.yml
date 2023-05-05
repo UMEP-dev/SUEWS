@@ -22,7 +22,7 @@
   dimensions: 0
   unit: mm
   suews table headers: :option:`LUMPS_Cover <suews:LUMPS_Cover>`
-  usage:
+  requisite:
     LUMPS: ALL
 
 - name: rainmaxres
@@ -32,7 +32,7 @@
   dimensions: 0
   unit: mm
   suews table headers: :option:`LUMPS_MaxRes <suews:LUMPS_MaxRes>`
-  usage:
+  requisite:
     LUMPS: ALL
 
 - name: drainrt
@@ -42,7 +42,7 @@
   dimensions: 0
   unit: mm h^-1
   suews table headers: :option:`LUMPS_DrRate <suews:LUMPS_DrRate>`
-  usage:
+  requisite:
     LUMPS: ALL
 
 - name: veg_type
@@ -52,5 +52,5 @@
   dimensions: 0
   unit: "-"
   suews table headers: None
-  usage:
+  requisite:
     LUMPS: ALL

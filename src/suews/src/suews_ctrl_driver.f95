@@ -475,7 +475,15 @@ CONTAINS
       ! water balance related:
       REAL(KIND(1D0)), DIMENSION(NSURF), INTENT(INOUT) :: soilstore_surf !soil moisture of each surface type [mm]
       REAL(KIND(1D0)), DIMENSION(NSURF), INTENT(INOUT) :: state_surf !wetness status of each surface type [mm]
-      REAL(KIND(1D0)), DIMENSION(6, NSURF), INTENT(INOUT) :: StoreDrainPrm !coefficients used in drainage calculation [-]
+      ! ---- Drainage characteristics ----------------------------------------------------------------
+      REAL(KIND(1D0)), DIMENSION(6, NSURF), INTENT(IN) :: StoreDrainPrm !coefficients used in drainage calculation [-]
+      ! 1 - min storage capacity [mm]
+      ! 2 - Drainage equation to use
+      ! 3 - Drainage coeff 1 [units depend on choice of eqn]
+      ! 4 - Drainage coeff 2 [units depend on choice of eqn]
+      ! 5 - max storage capacity [mm]
+      ! 6 - current storage capacity [mm]
+      !-----------------------------------------------------------------------------------------------
 
       ! phenology related:
       REAL(KIND(1D0)), DIMENSION(NSURF), INTENT(INOUT) :: alb !albedo [-]
@@ -678,7 +686,7 @@ CONTAINS
       REAL(KIND(1D0)) :: addVeg = 0
       REAL(KIND(1D0)) :: addWaterBody = 0
       REAL(KIND(1D0)), DIMENSION(NSURF) :: AddWater = 0
-      REAL(KIND(1D0)), DIMENSION(NSURF) :: frac_water2runoff = 0
+      REAL(KIND(1D0)), DIMENSION(NSURF) :: frac_waterdist_vert = 0 !Fraction of water redistributed vertically: to either runoff (if impervious) or sub-surface soil (pervious) [-]
 
       ! values that are derived from tstep
       INTEGER :: nsh ! number of timesteps per hour
@@ -863,6 +871,15 @@ CONTAINS
       REAL(KIND(1D0)) :: g_smd !gdq*gtemp*gs*gq for photosynthesis calculations
       REAL(KIND(1D0)) :: g_lai !gdq*gtemp*gs*gq for photosynthesis calculations
 
+      REAL(KIND(1D0)), DIMENSION(nsurf) :: StoreCap_surf !current storage capacity [mm]
+      REAL(KIND(1D0)), DIMENSION(nsurf) :: StoreCap_surf_prev !current storage capacity [mm]
+      REAL(KIND(1D0)), DIMENSION(nsurf) :: StoreCap_surf_next !current storage capacity [mm]
+      REAL(KIND(1D0)), DIMENSION(nsurf) :: StoreCapMax_surf !current storage capacity [mm]
+      REAL(KIND(1D0)), DIMENSION(nsurf) :: StoreCapMin_surf !current storage capacity [mm]
+      REAL(KIND(1D0)), DIMENSION(nsurf) :: DrainEq_surf !Drainage equation to use
+      REAL(KIND(1D0)), DIMENSION(nsurf) :: DrainCoef1_surf !Drainage coeff 1 [units depend on choice of eqn]
+      REAL(KIND(1D0)), DIMENSION(nsurf) :: DrainCoef2_surf !Drainage coeff 2 [units depend on choice of eqn]
+
       ! ####
       ! set initial values for output arrays
       SWE = 0.
@@ -991,6 +1008,16 @@ CONTAINS
       dataOutLineSPARTACUS = -999.
       dataOutLineDailyState = -999.
 
+      ! transfer input variables to local variables
+      StoreCap_surf = StoreDrainPrm(6, :)
+      StoreCap_surf_prev = StoreCap_surf
+      StoreCap_surf_next = StoreCap_surf
+      StoreCapMax_surf = StoreDrainPrm(5, :)
+      StoreCapMin_surf = StoreDrainPrm(1, :)
+      DrainEq_surf = StoreDrainPrm(2, :)
+      DrainCoef1_surf = StoreDrainPrm(3, :)
+      DrainCoef2_surf = StoreDrainPrm(4, :)
+
       !########################################################################################
       !           main calculation starts here
       !########################################################################################
@@ -1085,14 +1112,14 @@ CONTAINS
             CapMax_dec, CapMin_dec, PorMax_dec, PorMin_dec, &
             Ie_a, Ie_m, DayWatPer, DayWat, &
             BaseT, BaseTe, GDDFull, SDDFull, LAIMin, LAIMax, LAIPower, &
-            DecidCap_id_prev, StoreDrainPrm_prev, LAI_id_prev, GDD_id_prev, SDD_id_prev, &
+            DecidCap_id_prev, StoreCap_surf_prev, LAI_id_prev, GDD_id_prev, SDD_id_prev, &
             albDecTr_id_prev, albEveTr_id_prev, albGrass_id_prev, porosity_id_prev, & !input
             HDD_id_prev, & !input
             state_surf_prev, soilstore_surf_prev, SoilStoreCap_surf, H_maintain, & !input
             HDD_id_next, & !output
             Tmin_id_next, Tmax_id_next, lenDay_id_next, &
             albDecTr_id_next, albEveTr_id_next, albGrass_id_next, porosity_id_next, & !output
-            DecidCap_id_next, StoreDrainPrm_next, LAI_id_next, GDD_id_next, SDD_id_next, WUDay_id_next) !output
+            DecidCap_id_next, StoreCap_surf_next, LAI_id_next, GDD_id_next, SDD_id_next, WUDay_id_next) !output
 
          !=================Calculation of density and other water related parameters=================
          IF (Diagnose == 1) WRITE (*, *) 'Calling LUMPS_cal_AtmMoist...'
@@ -1273,9 +1300,11 @@ CONTAINS
          CALL SUEWS_cal_Water( &
             Diagnose, & !input
             SnowMethod, NonWaterFraction, addPipes, addImpervious, addVeg, addWaterBody, &
-            state_surf_prev, sfr_surf, StoreDrainPrm_next, WaterDist, nsh_real, &
+            state_surf_prev, sfr_surf, &
+            StoreCap_surf_next, DrainEq_surf, DrainCoef1_surf, DrainCoef2_surf, &
+            WaterDist, nsh_real, &
             drain_per_tstep, & !output
-            drain_surf, frac_water2runoff, &
+            drain_surf, frac_waterdist_vert, &
             AdditionalWater, runoffPipes, runoff_per_interval, &
             AddWater)
          !============= calculate water balance end =============
@@ -1315,7 +1344,9 @@ CONTAINS
                addVeg, SnowLimPaved, SnowLimBldg, &
                FlowChange, drain_surf, WetThresh_surf, SoilStoreCap_surf, &
                Tsurf_ind, sfr_surf, &
-               AddWater, frac_water2runoff, StoreDrainPrm_next, SnowPackLimit, SnowProf_24hr, &
+               AddWater, frac_waterdist_vert, &
+               StoreCap_surf_next, StoreCapMax_surf, &
+               SnowPackLimit, SnowProf_24hr, &
                SnowPack_prev, snowFrac_prev, SnowWater_prev, IceFrac_prev, SnowDens_prev, & ! input:
                SnowfallCum_prev, state_surf_prev, soilstore_surf_prev, & ! input:
                QN_surf, qs_surf, &
@@ -1345,7 +1376,7 @@ CONTAINS
                precip, PipeCapacity, RunoffToWater, &
                NonWaterFraction, wu_surf, addVeg, addWaterBody, AddWater, &
                FlowChange, drain_surf, &
-               frac_water2runoff, StoreDrainPrm_next, &
+               frac_waterdist_vert, StoreCap_surf_next, &
                sfr_surf, StateLimit_surf, SoilStoreCap_surf, WetThresh_surf, & ! input:
                state_surf_prev, soilstore_surf_prev, QN_surf, qs_surf, & ! input:
                sfr_roof, StateLimit_roof, SoilStoreCap_roof, WetThresh_roof, & ! input:
@@ -1587,7 +1618,7 @@ CONTAINS
       albEveTr_id = albEveTr_id_next
       albGrass_id = albGrass_id_next
       porosity_id = porosity_id_next
-      StoreDrainPrm = StoreDrainPrm_next
+      ! StoreDrainPrm = StoreDrainPrm_next
       Tair_av = Tair_av_next
       Tmin_id = Tmin_id_next
       Tmax_id = Tmax_id_next
@@ -2457,9 +2488,11 @@ CONTAINS
    SUBROUTINE SUEWS_cal_Water( &
       Diagnose, & !input
       SnowUse, NonWaterFraction, addPipes, addImpervious, addVeg, addWaterBody, &
-      state_id, sfr_surf, StoreDrainPrm, WaterDist, nsh_real, &
+      state_id, sfr_surf, &
+      StoreCap_surf, DrainEq_surf, DrainCoef1_surf, DrainCoef2_surf, &
+      WaterDist, nsh_real, &
       drain_per_tstep, & !output
-      drain, frac_water2runoff, &
+      drain, frac_waterdist_vert, &
       AdditionalWater, runoffPipes, runoff_per_interval, &
       AddWater)
 
@@ -2479,11 +2512,11 @@ CONTAINS
       REAL(KIND(1D0)), DIMENSION(nsurf), INTENT(in) :: state_id !wetness states of each surface [mm]
       ! REAL(KIND(1D0)), DIMENSION(nsurf), INTENT(in) :: soilstore_id
       REAL(KIND(1D0)), DIMENSION(nsurf), INTENT(in) :: sfr_surf !Surface fractions [-]
-      REAL(KIND(1D0)), DIMENSION(6, nsurf), INTENT(in) :: StoreDrainPrm ! drain storage capacity [mm]
+      ! REAL(KIND(1D0)), DIMENSION(6, nsurf), INTENT(in) :: StoreDrainPrm ! drain storage capacity [mm]
       REAL(KIND(1D0)), DIMENSION(nsurf + 1, nsurf - 1), INTENT(in) :: WaterDist !Within-grid water distribution to other surfaces and runoff/soil store [-]
 
       REAL(KIND(1D0)), DIMENSION(nsurf), INTENT(out) :: drain !drainage of each surface type [mm]
-      REAL(KIND(1D0)), DIMENSION(nsurf), INTENT(out) :: frac_water2runoff !Fraction of water going to runoff/sub-surface soil (WGWaterDist) [-]
+      REAL(KIND(1D0)), DIMENSION(nsurf), INTENT(out) :: frac_waterdist_vert !Fraction of water redistributed vertically: to either runoff (if impervious) or sub-surface soil (pervious) [-]
       REAL(KIND(1D0)), DIMENSION(nsurf), INTENT(out) :: AddWater !water from other surfaces (WGWaterDist in SUEWS_ReDistributeWater.f95) [mm]
       ! REAL(KIND(1D0)), DIMENSION(nsurf), INTENT(out) :: stateOld
       ! REAL(KIND(1D0)), DIMENSION(nsurf), INTENT(out) :: soilstoreOld
@@ -2493,6 +2526,16 @@ CONTAINS
       REAL(KIND(1D0)), INTENT(out) :: runoffPipes !run-off in pipes [mm]
       REAL(KIND(1D0)), INTENT(out) :: runoff_per_interval !run-off at each time interval [mm]
       INTEGER :: is
+
+      REAL(KIND(1D0)), DIMENSION(nsurf), INTENT(in) :: StoreCap_surf !current storage capacity [mm]
+      REAL(KIND(1D0)), DIMENSION(nsurf), INTENT(in) :: DrainEq_surf !Drainage equation to use
+      REAL(KIND(1D0)), DIMENSION(nsurf), INTENT(in) :: DrainCoef1_surf !Drainage coeff 1 [units depend on choice of eqn]
+      REAL(KIND(1D0)), DIMENSION(nsurf), INTENT(in) :: DrainCoef2_surf !Drainage coeff 2 [units depend on choice of eqn]
+
+      ! StoreCap = StoreDrainPrm(6, :)
+      ! DrainEq = StoreDrainPrm(2, :)
+      ! DrainCoef1 = StoreDrainPrm(3, :)
+      ! DrainCoef2 = StoreDrainPrm(4, :)
 
       ! Retain previous surface state_id and soil moisture state_id
       ! stateOld = state_id !state_id of each surface [mm] for the previous timestep
@@ -2521,10 +2564,10 @@ CONTAINS
             CALL drainage( &
                is, & ! input:
                state_id(is), &
-               StoreDrainPrm(6, is), &
-               StoreDrainPrm(2, is), &
-               StoreDrainPrm(3, is), &
-               StoreDrainPrm(4, is), &
+               StoreCap_surf(is), &
+               DrainEq_surf(is), &
+               DrainCoef1_surf(is), &
+               DrainCoef2_surf(is), &
                nsh_real, &
                drain(is)) ! output
 
@@ -2545,7 +2588,7 @@ CONTAINS
       !Calculates AddWater(is)
       CALL ReDistributeWater( &
          SnowUse, WaterDist, sfr_surf, Drain, & ! input:
-         frac_water2runoff, AddWater) ! output
+         frac_waterdist_vert, AddWater) ! output
 
    END SUBROUTINE SUEWS_cal_Water
 !=======================================================================
@@ -2594,7 +2637,9 @@ CONTAINS
       addVeg, SnowLimPaved, SnowLimBldg, &
       FlowChange, drain, WetThresh_surf, SoilStoreCap, &
       Tsurf_ind, sfr_surf, &
-      AddWater, addwaterrunoff, StoreDrainPrm, SnowPackLimit, SnowProf_24hr, &
+      AddWater, addwaterrunoff, &
+      StoreCap_surf, StoreCapMax_surf, &
+      SnowPackLimit, SnowProf_24hr, &
       SnowPack_in, SnowFrac_in, SnowWater_in, iceFrac_in, SnowDens_in, & ! input:
       SnowfallCum_in, state_id_in, soilstore_id_in, & ! input:
       qn_surf, qs_surf, &
@@ -2680,7 +2725,9 @@ CONTAINS
       ! REAL(KIND(1D0)), DIMENSION(nsurf), INTENT(in) :: StateLimit !Limit for state_id of each surface type [mm] (specified in input files)
       REAL(KIND(1D0)), DIMENSION(nsurf), INTENT(in) :: AddWater !addition water from other surfaces [mm]
       REAL(KIND(1D0)), DIMENSION(nsurf), INTENT(in) :: addwaterrunoff !Fraction of water going to runoff/sub-surface soil (WGWaterDist) [-]
-      REAL(KIND(1D0)), DIMENSION(6, nsurf), INTENT(in) :: StoreDrainPrm !Coefficients used in drainage calculation [-]
+      ! REAL(KIND(1D0)), DIMENSION(6, nsurf), INTENT(in) :: StoreDrainPrm !Coefficients used in drainage calculation [-]
+      REAL(KIND(1D0)), DIMENSION(nsurf), INTENT(in) :: StoreCap_surf
+      REAL(KIND(1D0)), DIMENSION(nsurf), INTENT(in) :: StoreCapMax_surf
       REAL(KIND(1D0)), DIMENSION(0:23, 2), INTENT(in) :: SnowProf_24hr !Hourly profile values used in snow clearing [-]
 
       ! Total water transported to each grid for grid-to-grid connectivity
@@ -2894,7 +2941,9 @@ CONTAINS
                addVeg, SnowLimPaved, SnowLimBldg, FlowChange, drain, &
                WetThresh_surf, state_id_in, mw_ind, SoilStoreCap, rainonsnow, &
                freezmelt, freezstate, freezstatevol, &
-               Qm_Melt, Qm_rain, Tsurf_ind, sfr_surf, dayofWeek_id, StoreDrainPrm, SnowPackLimit, &
+               Qm_Melt, Qm_rain, Tsurf_ind, sfr_surf, dayofWeek_id, &
+               StoreCap_surf, StoreCapMax_surf, &
+               SnowPackLimit, &
                AddWater, addwaterrunoff, &
                soilstore_id, SnowPack, SurplusEvap, & !inout
                SnowFrac, SnowWater, iceFrac, SnowDens, &
@@ -2970,7 +3019,7 @@ CONTAINS
       precip, PipeCapacity, RunoffToWater, &
       NonWaterFraction, WU_surf, addVeg, addWaterBody, AddWater_surf, &
       FlowChange, drain_surf, &
-      frac_water2runoff_surf, StoreDrainPrm, &
+      frac_waterdist_vert_surf, StoreCap_surf, &
       sfr_surf, StateLimit_surf, SoilStoreCap_surf, WetThresh_surf, & ! input:
       state_surf_in, soilstore_surf_in, qn_surf, qs_surf, & ! input:
       sfr_roof, StateLimit_roof, SoilStoreCap_roof, WetThresh_roof, & ! input:
@@ -3064,8 +3113,8 @@ CONTAINS
 
       ! REAL(KIND(1D0)), DIMENSION(nsurf), INTENT(in) :: SnowPackLimit
       REAL(KIND(1D0)), DIMENSION(nsurf), INTENT(in) :: AddWater_surf !Water from other surfaces (WGWaterDist in SUEWS_ReDistributeWater.f95) [mm]
-      REAL(KIND(1D0)), DIMENSION(nsurf), INTENT(in) :: frac_water2runoff_surf !Fraction of water going to runoff/sub-surface soil (WGWaterDist) [-]
-      REAL(KIND(1D0)), DIMENSION(6, nsurf), INTENT(in) :: StoreDrainPrm !Coefficients used in drainage calculation [-]
+      REAL(KIND(1D0)), DIMENSION(nsurf), INTENT(in) :: frac_waterdist_vert_surf !Fraction of water going to runoff/sub-surface soil (WGWaterDist) [-]
+      ! REAL(KIND(1D0)), DIMENSION(6, nsurf), INTENT(in) :: StoreDrainPrm !Coefficients used in drainage calculation [-]
       ! REAL(KIND(1D0)), DIMENSION(0:23, 2), INTENT(in) :: SnowProf_24hr
 
       ! Total water transported to each grid for grid-to-grid connectivity
@@ -3157,7 +3206,7 @@ CONTAINS
       REAL(KIND(1D0)) :: runoff_building !aggregated Runoff of building facets [mm]
       REAL(KIND(1D0)) :: qe_building !aggregated qe of building facets[W m-2]
 
-      REAL(KIND(1D0)), DIMENSION(7) :: capStore_surf ! current storage capacity [mm]
+      REAL(KIND(1D0)), DIMENSION(7) :: StoreCap_surf ! current storage capacity [mm]
 
       ! runoff_per_interval = runoff_per_interval_in
       state_surf_out = state_surf_in
@@ -3181,11 +3230,11 @@ CONTAINS
       ! net available energy for evaporation
       qn_e_surf = qn_surf + qf - qs_surf ! qn1 changed to qn1_snowfree, lj in May 2013
 
-      ! soil store capacity
-      capStore_surf = StoreDrainPrm(6, :)
+      ! above ground water store capacity
+      ! capStore_surf = StoreDrainPrm(6, :)
       CALL cal_evap_multi( &
          EvapMethod, & !input
-         sfr_surf, state_surf_in, WetThresh_surf, capStore_surf, & !input
+         sfr_surf, state_surf_in, WetThresh_surf, StoreCap_surf, & !input
          vpd_hPa, avdens, avcp, qn_e_surf, s_hPa, psyc_hPa, RS, RA_h, RB, tlv, &
          rss_surf, ev0_surf, qe0_surf) !output
 
@@ -3232,7 +3281,7 @@ CONTAINS
          addImpervious, addVeg, addWaterBody, FlowChange, &
          SoilStoreCap_surf, StateLimit_surf, &
          PervFraction, &
-         sfr_surf, drain_surf, AddWater_surf, frac_water2runoff_surf, WU_surf, &
+         sfr_surf, drain_surf, AddWater_surf, frac_waterdist_vert_surf, WU_surf, &
          ev0_surf, state_surf_in, soilstore_surf_in, &
          ev_surf, state_surf_out, soilstore_surf_out, & ! output:
          runoff_surf, &
@@ -3247,7 +3296,7 @@ CONTAINS
          ! update building specific values
          qe_surf(BldgSurf) = qe_building
          state_surf_out(BldgSurf) = state_building
-         soilstore_surf_out(BldgSurf) = soilstore_building/capStore_builing*capStore_surf(BldgSurf)
+         soilstore_surf_out(BldgSurf) = soilstore_building/capStore_builing*StoreCap_surf(BldgSurf)
          runoff_surf(BldgSurf) = runoff_building
       END IF
 
@@ -3282,7 +3331,7 @@ CONTAINS
       IF (storageheatmethod == 5) THEN
          IF (Diagnose == 1) PRINT *, 'in SUEWS_cal_QE soilstore_building = ', soilstore_building
          IF (Diagnose == 1) PRINT *, 'in SUEWS_cal_QE capStore_builing = ', capStore_builing
-         IF (Diagnose == 1) PRINT *, 'in SUEWS_cal_QE capStore_surf(BldgSurf) = ', capStore_surf(BldgSurf)
+         IF (Diagnose == 1) PRINT *, 'in SUEWS_cal_QE capStore_surf(BldgSurf) = ', StoreCap_surf(BldgSurf)
       END IF
       IF (Diagnose == 1) PRINT *, 'in SUEWS_cal_QE soilstore_id = ', soilstore_surf_out
 
@@ -4660,17 +4709,17 @@ CONTAINS
       REAL(KIND(1D0)) :: kdir
       REAL(KIND(1D0)) :: wdir
 
-      REAL(KIND(1D0)), DIMENSION(5) :: datetimeLine
-      REAL(KIND(1D0)), DIMENSION(ncolumnsDataOutSUEWS - 5) :: dataOutLineSUEWS
-      REAL(KIND(1D0)), DIMENSION(ncolumnsDataOutSnow - 5) :: dataOutLineSnow
-      REAL(KIND(1D0)), DIMENSION(ncolumnsDataOutESTM - 5) :: dataOutLineESTM
-      REAL(KIND(1D0)), DIMENSION(ncolumnsDataOutESTMExt - 5) :: dataOutLineESTMExt
-      REAL(KIND(1D0)), DIMENSION(ncolumnsDataOutRSL - 5) :: dataOutLineRSL
+      ! REAL(KIND(1D0)), DIMENSION(5) :: datetimeLine
+      ! REAL(KIND(1D0)), DIMENSION(ncolumnsDataOutSUEWS - 5) :: dataOutLineSUEWS
+      ! REAL(KIND(1D0)), DIMENSION(ncolumnsDataOutSnow - 5) :: dataOutLineSnow
+      ! REAL(KIND(1D0)), DIMENSION(ncolumnsDataOutESTM - 5) :: dataOutLineESTM
+      ! REAL(KIND(1D0)), DIMENSION(ncolumnsDataOutESTMExt - 5) :: dataOutLineESTMExt
+      ! REAL(KIND(1D0)), DIMENSION(ncolumnsDataOutRSL - 5) :: dataOutLineRSL
       ! REAL(KIND(1D0)), DIMENSION(ncolumnsdataOutSOLWEIG - 5) :: dataOutLineSOLWEIG
-      REAL(KIND(1D0)), DIMENSION(ncolumnsDataOutBEERS - 5) :: dataOutLineBEERS
-      REAL(KIND(1D0)), DIMENSION(ncolumnsDataOutDebug - 5) :: dataOutLinedebug
-      REAL(KIND(1D0)), DIMENSION(ncolumnsDataOutSPARTACUS - 5) :: dataOutLineSPARTACUS
-      REAL(KIND(1D0)), DIMENSION(ncolumnsDataOutDailyState - 5) :: dataOutLineDailyState
+      ! REAL(KIND(1D0)), DIMENSION(ncolumnsDataOutBEERS - 5) :: dataOutLineBEERS
+      ! REAL(KIND(1D0)), DIMENSION(ncolumnsDataOutDebug - 5) :: dataOutLinedebug
+      ! REAL(KIND(1D0)), DIMENSION(ncolumnsDataOutSPARTACUS - 5) :: dataOutLineSPARTACUS
+      ! REAL(KIND(1D0)), DIMENSION(ncolumnsDataOutDailyState - 5) :: dataOutLineDailyState
 
       REAL(KIND(1D0)), DIMENSION(len_sim, ncolumnsDataOutSUEWS, 1) :: dataOutBlockSUEWS_X
       REAL(KIND(1D0)), DIMENSION(len_sim, ncolumnsDataOutSnow, 1) :: dataOutBlockSnow_X

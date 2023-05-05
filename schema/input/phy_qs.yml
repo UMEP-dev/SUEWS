@@ -23,7 +23,7 @@
     7: "SUEWS land covers: { `Paved`, `Bldgs`, `EveTr`, `DecTr`, `Grass`,`BSoil`, `Water`}"
   unit: "-"
   suews table headers: :option:`AnOHM_Ch <suews:AnOHM_Ch>`
-  usage:
+  requisite:
     StorageHeatMethod: "3:AnOHM"
 
 - name: cpanohm # to be removed/merged as thermal properties
@@ -34,7 +34,7 @@
     7: "SUEWS land covers: { `Paved`, `Bldgs`, `EveTr`, `DecTr`, `Grass`,`BSoil`, `Water`}"
   unit: J m^-3
   suews table headers: :option:`AnOHM_Cp <suews:AnOHM_Cp>`
-  usage:
+  requisite:
     StorageHeatMethod: "3:AnOHM"
 
 - name: kkanohm # to be removed/merged as thermal properties
@@ -45,7 +45,7 @@
     7: " SUEWS land covers: {`Paved`, `Bldgs`, `EveTr`, `DecTr`, `Grass`,`BSoil`, `Water`}"
   unit: W m K^-1
   suews table headers: :option:`AnOHM_Kk <suews:AnOHM_Kk>`
-  usage:
+  requisite:
     StorageHeatMethod: 3:AnOHM
 
 - name: ohm_coef
@@ -59,7 +59,7 @@
     3: "OHM coefficients: {a1,a2,a3}"
   unit: Coefficients for OHM calculation
   suews table headers: :option:`a1 <suews:a1>`, :option:`a2 <suews:a2>`, :option:`a3 <suews:a3>`
-  usage:
+  requisite:
     StorageHeatMethod: "1:OHM"
 
 - name: ohm_threshsw
@@ -70,7 +70,7 @@
     8: "{ `Paved`, `Bldgs`, `EveTr`, `DecTr`, `Grass`, `BSoil`, `Water`, one extra land cover type (currently NOT used)} "
   unit: degC
   suews table headers: :option:`OHMThresh_SW <suews:OHMThresh_SW>`
-  usage:
+  requisite:
     StorageHeatMethod: "1:OHM"
 
 - name: ohm_threshwd
@@ -81,7 +81,7 @@
     8: "SUEWS land covers: {`Paved`, `Bldgs`, `EveTr`, `DecTr`, `Grass`,`BSoil`, `Water`, one extra land cover type (currently NOT used)} "
   unit: "-"
   suews table headers: :option:`OHMThresh_WD <suews:OHMThresh_WD>`
-  usage:
+  requisite:
     StorageHeatMethod: "1:OHM"
 
 - name: ohmincqf # this may be listed as heatstoragemethod=2?
@@ -91,5 +91,5 @@
   dimensions: 0
   unit: "-"
   suews table headers: :option:`OHMIncQF <suews:OHMIncQF>`
-  usage:
+  requisite:
     StorageHeatMethod: "1:OHM"

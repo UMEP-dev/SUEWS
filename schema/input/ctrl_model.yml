@@ -6,5 +6,5 @@
   dimensions: 0
   unit: s
   suews table headers: :option:`Tstep <suews:Tstep>`
-  usage:
+  requisite:
     "rundescription ": .nan

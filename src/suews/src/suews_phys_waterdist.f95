@@ -20,7 +20,7 @@ CONTAINS
    SUBROUTINE drainage( &
       is, & !input
       state_is, &
-      StorCap, &
+      StoreCap, &
       DrainEq, &
       DrainCoef1, &
       DrainCoef2, &
@@ -42,7 +42,7 @@ CONTAINS
       INTEGER, INTENT(in) :: is ! surface type number
 
       REAL(KIND(1D0)), INTENT(in) :: state_is !Wetness status of surface type "is" [mm]
-      REAL(KIND(1D0)), INTENT(in) :: StorCap !current storage capacity [mm]
+      REAL(KIND(1D0)), INTENT(in) :: StoreCap !current storage capacity [mm]
       REAL(KIND(1D0)), INTENT(in) :: DrainCoef1 !Drainage coeff 1 [units depend on choice of eqn]
       REAL(KIND(1D0)), INTENT(in) :: DrainCoef2 !Drainage coeff 2 [units depend on choice of eqn]
       REAL(KIND(1D0)), INTENT(in) :: DrainEq !Drainage equation to use
@@ -55,10 +55,10 @@ CONTAINS
       ELSE
          IF (INT(DrainEq) == 1) THEN !Falk and Niemczynowicz (1978): Drainage equation for paved, buildings and irrigated grass
 
-            IF (state_is < StorCap) THEN
+            IF (state_is < StoreCap) THEN
                drain_is = 0 !No drainage if state_id is less than storage capacity
             ELSE
-               drain_is = (DrainCoef1*(state_is - StorCap)**DrainCoef2)/nsh_real
+               drain_is = (DrainCoef1*(state_is - StoreCap)**DrainCoef2)/nsh_real
             END IF
 
          ELSEIF (INT(DrainEq) == 2) THEN !Rutter eqn corrected for c=0, see Eq 9 of Calder & Wright 1986
@@ -92,7 +92,7 @@ CONTAINS
    SUBROUTINE cal_water_storage( &
       is, sfr_surf, PipeCapacity, RunoffToWater, pin, & ! input:
       WU_surf, &
-      drain_surf, AddWater, addImpervious, nsh_real, state_in, frac_water2runoff, &
+      drain_surf, AddWater, addImpervious, nsh_real, state_in, frac_waterdist_vert, &
       PervFraction, addVeg, SoilStoreCap, addWaterBody, FlowChange, StateLimit, &
       runoffAGimpervious, runoffAGveg, runoffPipes, ev, soilstore_id, & ! inout:
       surplusWaterBody, SurplusEvap, runoffWaterBody, & ! inout:
@@ -145,7 +145,7 @@ CONTAINS
       REAL(KIND(1D0)), DIMENSION(nsurf), INTENT(in) :: sfr_surf ! surface fractions
       REAL(KIND(1D0)), DIMENSION(nsurf), INTENT(in) :: AddWater !Water from other surfaces (WGWaterDist in SUEWS_ReDistributeWater.f95) [mm]
       REAL(KIND(1D0)), DIMENSION(nsurf), INTENT(in) :: state_in !Wetness status of each surface type from previous timestep [mm]
-      REAL(KIND(1D0)), DIMENSION(nsurf), INTENT(in) :: frac_water2runoff !Fraction of water going to runoff/sub-surface soil (WGWaterDist) [-]
+      REAL(KIND(1D0)), DIMENSION(nsurf), INTENT(in) :: frac_waterdist_vert !Fraction of water going to runoff/sub-surface soil (WGWaterDist) [-]
       REAL(KIND(1D0)), DIMENSION(nsurf), INTENT(in) :: SoilStoreCap !Capacity of soil store for each surface [mm]
       REAL(KIND(1D0)), DIMENSION(nsurf), INTENT(in) :: StateLimit !Limit for state_id of each surface type [mm] (specified in input files)
       REAL(KIND(1D0)), DIMENSION(nsurf), INTENT(in) :: drain_surf !Drainage of each surface type [mm]
@@ -251,7 +251,7 @@ CONTAINS
 
          ! Runoff -------------------------------------------------------
          ! For impervious surfaces, some of drain(is) becomes runoff
-         runoff(is) = runoff(is) + drain_surf(is)*frac_water2runoff(is) !Drainage (that is not flowing to other surfaces) goes to runoff
+         runoff(is) = runoff(is) + drain_surf(is)*frac_waterdist_vert(is) !Drainage (that is not flowing to other surfaces) goes to runoff
 
          !So, up to this point, runoff(is) can have contributions if
          ! p_mm > ipthreshold (water input too fast)
@@ -317,7 +317,7 @@ CONTAINS
          ! soilstore_id -------------------------------------------------
          ! For pervious surfaces (not water), some of drain(is) goes to soil storage
          ! Drainage (that is not flowing to other surfaces) goes to soil storages
-         soilstore_id(is) = soilstore_id(is) + drain_surf(is)*frac_water2runoff(is)
+         soilstore_id(is) = soilstore_id(is) + drain_surf(is)*frac_waterdist_vert(is)
 
          ! If soilstore is full, the excess will go to runoff
          IF (soilstore_id(is) > SoilStoreCap(is)) THEN ! TODO: this should also go to flooding of some sort
@@ -401,7 +401,7 @@ CONTAINS
       addImpervious, addVeg, addWaterBody, FlowChange, &
       SoilStoreCap_surf, StateLimit_surf, &
       PervFraction, &
-      sfr_surf, drain_surf, AddWater_surf, frac_water2runoff_surf, WU_surf, &
+      sfr_surf, drain_surf, AddWater_surf, frac_waterdist_vert_surf, WU_surf, &
       ev_surf_in, state_surf_in, soilstore_surf_in, &
       ev_surf_out, state_surf_out, soilstore_surf_out, & ! output:
       runoff_surf, &
@@ -415,7 +415,7 @@ CONTAINS
       REAL(KIND(1D0)), DIMENSION(nsurf), INTENT(in) :: sfr_surf ! surface fractions
       REAL(KIND(1D0)), DIMENSION(nsurf), INTENT(in) :: AddWater_surf !Water from other surfaces (WGWaterDist in SUEWS_ReDistributeWater.f95) [mm]
       REAL(KIND(1D0)), DIMENSION(nsurf), INTENT(in) :: state_surf_in !Wetness status of each surface type from previous timestep [mm]
-      REAL(KIND(1D0)), DIMENSION(nsurf), INTENT(in) :: frac_water2runoff_surf !Fraction of water going to runoff/sub-surface soil (WGWaterDist) [-]
+      REAL(KIND(1D0)), DIMENSION(nsurf), INTENT(in) :: frac_waterdist_vert_surf !Fraction of water going to runoff/sub-surface soil (WGWaterDist) [-]
       REAL(KIND(1D0)), DIMENSION(nsurf), INTENT(in) :: SoilStoreCap_surf !Capacity of soil store for each surface [mm]
       REAL(KIND(1D0)), DIMENSION(nsurf), INTENT(in) :: StateLimit_surf !Limit for state_id of each surface type [mm] (specified in input files)
       REAL(KIND(1D0)), DIMENSION(nsurf), INTENT(in) :: drain_surf !Drainage of each surface type [mm]
@@ -495,7 +495,7 @@ CONTAINS
             CALL cal_water_storage( &
                is, sfr_surf, PipeCapacity, RunoffToWater, pin, & ! input:
                WU_surf, &
-               drain_surf, AddWater_surf, addImpervious, nsh_real, state_surf_in, frac_water2runoff_surf, &
+               drain_surf, AddWater_surf, addImpervious, nsh_real, state_surf_in, frac_waterdist_vert_surf, &
                PervFraction, addVeg, SoilStoreCap_surf, addWaterBody, FlowChange, StateLimit_surf, &
                runoffAGimpervious_grid, runoffAGveg_grid, runoffPipes_grid, ev_surf(is), soilstore, & ! inout:
                surplusWaterBody, SurplusEvap, runoffWaterBody_grid, & ! inout:
@@ -772,7 +772,7 @@ CONTAINS
    !------------------------------------------------------------------------------
    SUBROUTINE ReDistributeWater( &
       SnowUse, WaterDist, sfr_surf, Drain, & ! input:
-      AddWaterRunoff, AddWater) ! output:
+      frac_waterdist_vert, AddWater) ! output:
       !Drainage moves into different parts defined by WaterDistSS_YYYY.txt. LJ 2010
       !AddWater(is) is that amount of water that is gained for each surface
       !Latest update takes snow into account. 22/03/2013 LJ
@@ -785,7 +785,7 @@ CONTAINS
       REAL(KIND(1D0)), INTENT(in) :: sfr_surf(nsurf) !Surface fractions [-]
       REAL(KIND(1D0)), INTENT(in) :: Drain(nsurf) !Drainage of each surface type [mm]
 
-      REAL(KIND(1D0)), INTENT(out) :: AddWaterRunoff(nsurf) !Fraction of water going to runoff/sub-surface soil (WGWaterDist) [-]
+      REAL(KIND(1D0)), INTENT(out) :: frac_waterdist_vert(nsurf) !Fraction of water redistributed vertically: to either runoff (if impervious) or sub-surface soil (pervious) [-]
       REAL(KIND(1D0)), INTENT(out) :: AddWater(nsurf) !Water from other surfaces (WGWaterDist in SUEWS_ReDistributeWater.f95) [mm]
 
       INTEGER :: ii, jj
@@ -793,9 +793,9 @@ CONTAINS
 
       !Fractions that go to runoff from each surface
       DO ii = 1, nsurf - 1 !not water in the calculation
-         AddWaterRunoff(ii) = WaterDist(8, ii)
+         frac_waterdist_vert(ii) = WaterDist(8, ii)
       END DO
-      AddWaterRunoff(WaterSurf) = 0
+      frac_waterdist_vert(WaterSurf) = 0
       AddWater = 0
 
       DO ii = 1, nsurf - NSurfDoNotReceiveDrainage !go through surfaces from 1 to 7. These gain water through drainage
@@ -809,11 +809,11 @@ CONTAINS
 
                   !Snow included, This needs to be fixed at some point. LJ Mar 2013
                ELSE
-                  AddWaterRunoff(jj) = AddWaterRunoff(jj) + WaterDist(ii, jj) !No receiving surface -> runoff
+                  frac_waterdist_vert(jj) = frac_waterdist_vert(jj) + WaterDist(ii, jj) !No receiving surface -> runoff
                END IF
 
             ELSE
-               AddWaterRunoff(jj) = AddWaterRunoff(jj) + WaterDist(ii, jj) !If no receiving surface exists,
+               frac_waterdist_vert(jj) = frac_waterdist_vert(jj) + WaterDist(ii, jj) !If no receiving surface exists,
                !water fraction goes to AddWaterRunoff
             END IF
          END DO

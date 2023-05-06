@@ -13,6 +13,7 @@
 # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 # revision history:
 # TS 08 Mar 2023: checked
+# TS 06 May 2023: all added to the newly created file config-suews.yml
 # #########################################################################
 
 - name: baset
@@ -25,7 +26,7 @@
   unit: degC
   suews table headers: :option:`BaseT <BaseT>`
   requisite:
-    LAI: needs to be linked to a method
+    essential.2-lai
 
 
 
@@ -38,7 +39,7 @@
   unit: degC d
   suews table headers: :option:`SDDFull <SDDFull>`
   requisite:
-    LAI: needs to be linked to a method
+    essential.2-lai
 
 
 
@@ -53,7 +54,7 @@
     :option:`LAIinitialDecTr <LAIinitialDecTr>`, :option:`LAIinitialEveTr
     <LAIinitialEveTr>`, :option:`LAIinitialGrass <LAIinitialGrass>`
   requisite:
-    LAIcalcyes: needs to be linked to a method
+    essential.2-lai
 
 - name: laimax
   use:
@@ -64,7 +65,7 @@
   unit: full leaf-on summertime valu
   suews table headers: :option:`LAIMax <LAIMax>`
   requisite:
-    LAI: needs to be linked to a method
+    essential.2-lai
 
 - name: laimin
   use:
@@ -75,7 +76,7 @@
   unit: leaf-off wintertime valu
   suews table headers: :option:`LAIMin <LAIMin>`
   requisite:
-    LAI: needs to be linked to a method
+    essential.2-lai
 
 - name: laipower
   use:
@@ -90,7 +91,7 @@
     <LeafGrowthPower2>`, :option:`LeafOffPower1 <LeafOffPower1>`, :option:`LeafOffPower2
     <LeafOffPower2>`
   requisite:
-    LAI: needs to be linked to a method
+    essential.2-lai
 
 - name: laitype # this could be combined with laicalcyes as a single variable: lai_method? TODO
   use:
@@ -114,7 +115,7 @@
   unit: degC
   suews table headers: :option:`BaseTe <BaseTe>`
   requisite:
-    LAI: needs to be linked to a method
+    essential.2-lai
 
 
 - name: gddfull
@@ -127,7 +128,7 @@
   unit: degC d
   suews table headers: :option:`GDDFull <GDDFull>`
   requisite:
-    LAI: needs to be linked to a method
+    essential.2-lai
 
 
 

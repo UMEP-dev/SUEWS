@@ -13,6 +13,7 @@
 # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 # revision history:
 # TS 07 Mar 2023: checked
+# TS 06 May 2023: all added to the newly created file config-suews.yml
 # #########################################################################
 
 - name: raincover
@@ -23,7 +24,7 @@
   unit: mm
   suews table headers: :option:`LUMPS_Cover <suews:LUMPS_Cover>`
   requisite:
-    LUMPS: ALL
+    essential.1-lumps
 
 - name: rainmaxres
   use:
@@ -33,7 +34,7 @@
   unit: mm
   suews table headers: :option:`LUMPS_MaxRes <suews:LUMPS_MaxRes>`
   requisite:
-    LUMPS: ALL
+    essential.1-lumps
 
 - name: drainrt
   use:
@@ -43,7 +44,7 @@
   unit: mm h^-1
   suews table headers: :option:`LUMPS_DrRate <suews:LUMPS_DrRate>`
   requisite:
-    LUMPS: ALL
+    essential.1-lumps
 
 - name: veg_type
   use:
@@ -53,4 +54,4 @@
   unit: "-"
   suews table headers: None
   requisite:
-    LUMPS: ALL
+    essential.1-lumps

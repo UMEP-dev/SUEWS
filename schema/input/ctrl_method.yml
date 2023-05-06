@@ -6,6 +6,11 @@
 # - SUEWS variable json schema file to enable schema validation (via `convert_var_info_to_json_schema.py` in this repo)
 # any questions, please contact the SUEWS development team by submitting an issue:
 # https://github.com/UMEP-dev/SUEWS/issues/new
+# %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+# revision history:
+# TS 07 Mar 2023: checked
+# TS 04 May 2023: all added to the newly created file config-suews.yml
+# ################################################################################
 
 - name: aerodynamicresistancemethod
   use:

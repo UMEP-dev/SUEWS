@@ -43,6 +43,7 @@
         - statelimit: 10
         - sathydraulicconduct: 0.5
         - irrfracpaved: 0.5
+        - wetthresh: 0.5
         - storedrainprm: # for surface water (i.e. above ground)
           - store_min: 0.1
           - store_max: 0.2
@@ -66,6 +67,7 @@
         - statelimit: 10
         - sathydraulicconduct: 0.5
         - irrfracbldgs: 0.5
+        - wetthresh: 0.5
         - storedrainprm: # for surface water (i.e. above ground)
           - store_min: 0.1
           - store_max: 0.2
@@ -90,6 +92,19 @@
         - capmin_dec: 10
         - irrfracdectr: 0.5
         - sathydraulicconduct: 0.5
+        - wetthresh: 0.5
+        - conductance:
+          - g_max: 200
+          - g_k: 100
+          - g_q_base: 12
+          - g_q_shape: 2
+          - g_t: 20
+          - g_sm: 200
+          - kmax: 1200
+          - gsmodel: 1
+          - maxconductance: 20
+          - s1: 0.5
+          - s2: 0.5
         - lai:
           - baset: 20
           - gddfull: 100
@@ -99,7 +114,6 @@
           - laimax: 2
           - laipower: 2
           - laitype: 1
-
         - storedrainprm: # for surface water (i.e. above ground)
           - store_min: 0.1
           - store_max: 0.2
@@ -123,6 +137,19 @@
         - statelimit: 10
         - sathydraulicconduct: 0.5
         - irrfracevetr: 0.5
+        - wetthresh: 0.5
+        - conductance:
+          - g_max: 200
+          - g_k: 100
+          - g_q_base: 12
+          - g_q_shape: 2
+          - g_t: 20
+          - g_sm: 200
+          - kmax: 1200
+          - gsmodel: 1
+          - maxconductance: 20
+          - s1: 0.5
+          - s2: 0.5
         - lai:
           - baset: 20
           - gddfull: 100
@@ -155,6 +182,19 @@
         - statelimit: 10
         - sathydraulicconduct: 0.5
         - irrfracgrass: 0.5
+        - wetthresh: 0.5
+        - conductance:
+          - g_max: 200
+          - g_k: 100
+          - g_q_base: 12
+          - g_q_shape: 2
+          - g_t: 20
+          - g_sm: 200
+          - kmax: 1200
+          - gsmodel: 1
+          - maxconductance: 20
+          - s1: 0.5
+          - s2: 0.5
         - lai:
           - baset: 20
           - gddfull: 100
@@ -187,6 +227,7 @@
         - statelimit: 10
         - sathydraulicconduct: 0.5
         - irrfracbsoil: 0.5
+        - wetthresh: 0.5
         - storedrainprm: # for surface water (i.e. above ground)
           - store_min: 0.1
           - store_max: 0.2

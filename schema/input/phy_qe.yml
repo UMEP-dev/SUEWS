@@ -23,7 +23,7 @@
   unit: mm s^-1
   suews table headers: :option:`G1 <suews:G1>`
   requisite:
-    gsModel: ALL
+    essential.4-gs
 
 - name: g_k
   use:
@@ -33,7 +33,7 @@
   unit: W m^-2
   suews table headers: :option:`G2 <suews:G2>`
   requisite:
-    gsModel: ALL
+    essential.4-gs
 
 - name: g_q_base
   use:
@@ -43,7 +43,7 @@
   unit: units depend on `gsModel`
   suews table headers: :option:`G3 <suews:G3>`
   requisite:
-    gsModel: ALL
+    essential.4-gs
 
 - name: g_q_shape
   use:
@@ -53,7 +53,7 @@
   unit: units depend on `gsModel`
   suews table headers: :option:`G4 <suews:G4>`
   requisite:
-    gsModel: ALL
+    essential.4-gs
 
 - name: g_t
   use:
@@ -63,7 +63,7 @@
   unit: degC
   suews table headers: :option:`G5 <suews:G5>`
   requisite:
-    gsModel: ALL
+    essential.4-gs
 
 - name: g_sm
   use:
@@ -73,7 +73,7 @@
   unit: mm^-1
   suews table headers: :option:`G6 <suews:G6>`
   requisite:
-    gsModel: ALL
+    essential.4-gs
 
 - name: kmax
   use:
@@ -83,17 +83,17 @@
   unit: W m^-2
   suews table headers: :option:`Kmax <suews:Kmax>`
   requisite:
-    gsmodel: ALL
+    essential.4-gs
 
 - name: gsmodel # may rename to "conductance_model"? todo
   use:
-    input: method
+    input: parameter
   description: Formulation choice for conductance calculation.
   dimensions: 0
   unit: Formulation choice for conductance calculation
   suews table headers: :option:`gsModel <suews:gsModel>`
   requisite:
-    gsModel: Method_Selection
+    essential.4-gs
 
 - name: maxconductance
   use:
@@ -104,7 +104,7 @@
   unit: mm s^-1
   suews table headers: :option:`MaxConductance <suews:MaxConductance>`
   requisite:
-    gsmodel: ALL
+    essential.4-gs
 
 - name: s1 # may merge with s2 to be one parameter related to wilting point? todo
   use:
@@ -114,7 +114,7 @@
   unit: "-"
   suews table headers: :option:`S1 <suews:S1>`
   requisite:
-    gsmodel: could be made internal/removed
+    essential.4-gs
 
 - name: s2 # see comment for s1 #todo
   use:
@@ -124,7 +124,7 @@
   unit: mm
   suews table headers: :option:`S2 <suews:S2>`
   requisite:
-    gsmodel: could be made internal/removed
+    essential.4-gs
 
 - name: wetthresh_surf
   use:
@@ -136,7 +136,7 @@
   unit: mm]
   suews table headers: :option:`WetThreshold <suews:WetThreshold>`
   requisite:
-    EvapMethod: "2: S78"
+    essential.5-qe
 
 - name: th
   use:
@@ -146,7 +146,7 @@
   unit: degC
   suews table headers: :option:`TH <suews:TH>`
   requisite:
-    gsmodel: ALL
+    essential.4-gs
 
 - name: tl
   use:
@@ -156,4 +156,4 @@
   unit: degC
   suews table headers: :option:`TL <suews:TL>`
   requisite:
-    gsModel: ALL
+    essential.4-gs

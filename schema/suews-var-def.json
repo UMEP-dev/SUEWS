@@ -9,6 +9,10 @@
     "items"
   ],
   "definitions": {
+    "physics_scheme_pattern": {
+      "type": "string",
+      "pattern": "^[_A-Za-z]+\\.[0-9]+[-A-Za-z0-9]+$"
+    },
     "output_group": {
       "type": "string",
       "enum": [
@@ -132,8 +136,15 @@
               ]
             },
             {
-              "type": "string",
-              "pattern": "^[_A-Za-z]+\\.[0-9]+[-A-Za-z]+$"
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/physics_scheme_pattern"
+              },
+              "minItems": 1,
+              "uniqueItems": true
+            },
+            {
+              "$ref": "#/definitions/physics_scheme_pattern"
             }
           ]
         }

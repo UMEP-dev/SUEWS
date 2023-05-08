@@ -29,12 +29,31 @@
     - lon: 0.1278
     - pipecapacity: 100
     - runofftowater: 0.5
-    - raincover: 0.5
-    - rainmaxres: 0.5
-    - drainrt: 0.5
-    - veg_type: 1
+    - lumps: # lumps-specific parameters
+      - raincover: 0.5
+      - rainmaxres: 0.5
+      - drainrt: 0.5
+      - veg_type: 1
+    - spartacus:
+      - air_ext_lw: 1
+      - air_ext_sw: 1
+      - air_ssa_lw: 1
+      - air_ssa_sw: 1
+      - ground_albedo_dir_mult_fact: 1
+      - n_stream_lw_urban: 1
+      - n_stream_sw_urban: 1
+      - n_vegetation_region_urban: 1
+      - sw_dn_direct_frac: 1
+      - use_sw_direct_albedo: 0.1
+      - veg_contact_fraction_const: 1
+      - veg_fsd_const: 1
+      - veg_ssa_lw: 1
+      - veg_ssa_sw: 1
+    - narp_trans_site: 1
     - land cover:
       - paved:
+        - emis: .9
+        - alb: .1 # fixed for non-vegetated surfaces
         - soildepth: 0.1
         - soilstore: 100
         - soilstorecap: 200
@@ -59,6 +78,8 @@
           - to_water: 0.1
           - to_runoff: 0.4
       - bldgs: # buildings
+        - emis: .9
+        - alb: .1 # fixed for non-vegetated surfaces
         - soildepth: 0.1
         - soilstore: 100
         - soilstorecap: 200
@@ -83,6 +104,9 @@
           - to_water: 0.1
           - to_runoff: 0.4
       - dectr: # deciduous trees
+        - emis: .9
+        - alb_min: .1 # varying between min and max depending on LAI
+        - alb_max: .2 # varying between min and max depending on LAI
         - soildepth: 0.1
         - soilstore: 100
         - soilstorecap: 200
@@ -136,6 +160,9 @@
           - to_water: 0.1
           - to_soilstore: 0.4
       - evetr: # evergreen trees
+        - emis: .9
+        - alb_min: .1 # varying between min and max depending on LAI
+        - alb_max: .2 # varying between min and max depending on LAI
         - soildepth: 0.1
         - soilstore: 100
         - soilstorecap: 200
@@ -188,6 +215,9 @@
           - to_water: 0.1
           - to_soilstore: 0.4
       - grass:
+        - emis: .9
+        - alb_min: .1 # varying between min and max depending on LAI
+        - alb_max: .2 # varying between min and max depending on LAI
         - soildepth: 0.1
         - soilstore: 100
         - soilstorecap: 200
@@ -240,6 +270,8 @@
           - to_water: 0.1
           - to_soilstore: 0.4
       - bsoil: # bare soil
+        - emis: .9
+        - alb: .1 # fixed for non-vegetated surfaces
         - soildepth: 0.1
         - soilstore: 100
         - soilstorecap: 200
@@ -264,6 +296,8 @@
           - to_water: 0.1
           - to_soilstore: 0.4
       - water:
+        - emis: .9
+        - alb: .1 # fixed for non-vegetated surfaces
         - soildepth: 0.1
         - soilstore: 100
         - soilstorecap: 200
@@ -557,17 +591,15 @@
       - several properties
     - bldgs:
       - several properties
+    - evetr:
+      - alb_id: .2
     - dectr:
       - decidcap_id: 1
+      - alb_id: .2
+    - grass:
+      - alb_id: .2
+    - water:
       - several properties
     - snow:
-      - several properties
-    - vegetation:
-      - several properties
-    - building:
-      - several properties
-    - paved:
-      - several properties
-    - water:
       - several properties
 

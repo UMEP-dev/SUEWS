@@ -11,7 +11,7 @@
   "definitions": {
     "physics_scheme_pattern": {
       "type": "string",
-      "pattern": "^[_A-Za-z]+\\.[0-9]+[-A-Za-z0-9]+$"
+      "pattern": "^[_A-Za-z]+\\.[0-9]+[_\\-\\+A-Za-z0-9]+$"
     },
     "output_group": {
       "type": "string",

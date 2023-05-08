@@ -12,7 +12,8 @@
 #  variables used in anthropogenic heat/other emission calculations
 # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 # revision history:
-# TS 20230304: checked
+# TS 04 Mar 2023: checked
+# TS 06 May 2023: all variables are included in the yaml file
 # ########################################
 
 - name: ah_min

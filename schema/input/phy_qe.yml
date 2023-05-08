@@ -13,6 +13,7 @@
 # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 # revision history:
 # TS 07 Mar 2023: checked
+# TS 06 May 2023: all variables are included in the yaml file
 # ########################################################
 
 - name: g_max

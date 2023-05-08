@@ -31,6 +31,9 @@
     - alt: 0
     - timezone: 0
     - surfacearea: 1
+    - z: 40
+    - z0m_in: .1
+    - zdm_in: 2
     - pipecapacity: 100
     - runofftowater: 0.5
     - lumps: # lumps-specific parameters
@@ -56,6 +59,7 @@
     - narp_trans_site: 1
     - irrigation:
       - h_maintain: 10
+      - faut: 0.5
       - ie_a: [1,1,1]
       - ie_m: [1,1,1]
       - ie_start: 100
@@ -180,6 +184,8 @@
             - 23: 0.1
             - 24: 0.1
     - anthropogenic emissions:
+      - startdls: 150
+      - enddls: 250
       - heat:
         - qf0_beu:
           - working day: 10
@@ -495,6 +501,7 @@
       - radmeltfact: 0.1
     - land cover:
       - paved:
+        - sfr: 0.1
         - emis: .9
         - alb: .1 # fixed for non-vegetated surfaces
         - chanohm: 0.5
@@ -542,6 +549,9 @@
           - to_water: 0.1
           - to_runoff: 0.4
       - bldgs: # buildings
+        - sfr: 0.1
+        - faibldg: 0.1
+        - bldgh: 10
         - emis: .9
         - alb: .1 # fixed for non-vegetated surfaces
         - chanohm: 0.5
@@ -589,7 +599,12 @@
           - to_water: 0.1
           - to_runoff: 0.4
       - dectr: # deciduous trees
+        - sfr: 0.1
         - emis: .9
+        - faidectree: 0.1
+        - dectreeh: 10
+        - pormin_dec: 0.1
+        - pormax_dec: 0.1
         - alb_min: .1 # varying between min and max depending on LAI
         - alb_max: .2 # varying between min and max depending on LAI
         - chanohm: 0.5
@@ -666,6 +681,9 @@
           - to_water: 0.1
           - to_soilstore: 0.4
       - evetr: # evergreen trees
+        - sfr: 0.1
+        - faievetree: 0.1
+        - evetreeh: 10
         - emis: .9
         - alb_min: .1 # varying between min and max depending on LAI
         - alb_max: .2 # varying between min and max depending on LAI
@@ -742,6 +760,7 @@
           - to_water: 0.1
           - to_soilstore: 0.4
       - grass:
+        - sfr: 0.1
         - emis: .9
         - alb_min: .1 # varying between min and max depending on LAI
         - alb_max: .2 # varying between min and max depending on LAI
@@ -818,6 +837,7 @@
           - to_water: 0.1
           - to_soilstore: 0.4
       - bsoil: # bare soil
+        - sfr: 0.1
         - emis: .9
         - alb: .1 # fixed for non-vegetated surfaces
         - chanohm: 0.5
@@ -865,6 +885,7 @@
           - to_water: 0.1
           - to_soilstore: 0.4
       - water:
+        - sfr: 0.4
         - emis: .9
         - alb: .1 # fixed for non-vegetated surfaces
         - chanohm: 0.5
@@ -928,6 +949,7 @@
       - snowpack: 0
     - dectr:
       - decidcap_id: 1
+      - porosity_id: .2
       - alb_id: .2
       - snowwater: 1
       - snowalb: .8

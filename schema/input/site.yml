@@ -99,7 +99,7 @@
   unit: m
   suews table headers: :option:`z0 <suews:z0>`
   requisite:
-    RoughLenMomMethod: 1:provided
+    RoughLenMomMethod.1-provided
 
 - name: zdm_in
   use:
@@ -109,7 +109,7 @@
   unit: m
   suews table headers: :option:`zd <suews:zd>`
   requisite:
-    RoughLenMomMethod: 1:provided
+    RoughLenMomMethod.1-provided
 
 # surface fraction of automated irrigation
 - name: faut
@@ -131,7 +131,7 @@
   unit: DOY
   suews table headers: :option:`StartDLS <suews:StartDLS>`
   requisite:
-    daylightsavings: .nan
+    daylightsavings.1-provided
 
 - name: enddls
   use:
@@ -141,7 +141,8 @@
   unit: DOY
   suews table headers: :option:`EndDLS <suews:EndDLS>`
   requisite:
-    daylightsavings - all human activities: NEW Option Automatic via Python Package or provide
+    daylightsavings.1-provided
+
 
 # land cover properties
 # FAI: frontal area index
@@ -153,7 +154,7 @@
   unit: "-"
   suews table headers: :option:`FAI_Bldgs <suews:FAI_Bldgs>`
   requisite:
-    RoughLenMomMethod: "3: MacDonald"
+    RoughLenMomMethod.3-MacDonald
 
 - name: faidectree # todo rename to fai_dectr
   use:
@@ -163,7 +164,7 @@
   unit: "-"
   suews table headers: :option:`FAI_DecTr <suews:FAI_DecTr>`
   requisite:
-    RoughLenMomMethod: "3: MacDonald"
+    RoughLenMomMethod.3-MacDonald
 
 - name: faievetree # todo rename to fai_evetr
   use:
@@ -173,7 +174,7 @@
   unit: "-"
   suews table headers: :option:`FAI_EveTr <suews:FAI_EveTr>`
   requisite:
-    RoughLenMomMethod: "3: MacDonald"
+    RoughLenMomMethod.3-MacDonald
 
 # mean height of roughness elements
 - name: dectreeh # todo: rename to h_dectr
@@ -217,7 +218,9 @@
   unit: "-"
   suews table headers: :option:`PorosityMax <suews:PorosityMax>`
   requisite:
-    RoughLenMomMethod: ALL
+    - RoughLenMomMethod.2-GO99
+    - RoughLenMomMethod.3-MD99
+    - RoughLenMomMethod.4-GO99+PAI
 
 - name: pormin_dec
   use:
@@ -229,7 +232,9 @@
   unit: "-"
   suews table headers: :option:`PorosityMin <suews:PorosityMin>`
   requisite:
-    RoughLenMomMethod: ALL
+    - RoughLenMomMethod.2-GO99
+    - RoughLenMomMethod.3-MD99
+    - RoughLenMomMethod.4-GO99+PAI
 
 - name: porosity_id
   use:
@@ -239,4 +244,6 @@
   unit: "-"
   suews table headers: :option:`porosity0 <suews:porosity0>`
   requisite:
-    RoughLenMomMethod: ALL
+    - RoughLenMomMethod.2-GO99
+    - RoughLenMomMethod.3-MD99
+    - RoughLenMomMethod.4-GO99+PAI

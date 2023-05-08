@@ -13,6 +13,7 @@
     - netradiationmethod: 1
     - emissionsmethod: 1
     - storageheatmethod: 1
+    - ohmincqf: 1
     - aerodynamicresistancemethod: 1
     - roughlenmommethod: 1
     - roughlenheatmethod: 1
@@ -54,6 +55,27 @@
       - paved:
         - emis: .9
         - alb: .1 # fixed for non-vegetated surfaces
+        - chanohm: 0.5
+        - cpanohm: 200000
+        - kkanohm: 1.2
+        - ohm_threshsw: 18
+        - ohm_threshwd: .5
+        - ohm_coef:
+          - a1:
+            summer_dry: 0.1
+            summer_wet: 0.1
+            winter_dry: 0.1
+            winter_wet: 0.1
+          - a2:
+            summer_dry: 0.1
+            summer_wet: 0.1
+            winter_dry: 0.1
+            winter_wet: 0.1
+          - a3:
+            summer_dry: 20.1
+            summer_wet: 20.1
+            winter_dry: 20.1
+            winter_wet: 20.1
         - soildepth: 0.1
         - soilstore: 100
         - soilstorecap: 200
@@ -80,6 +102,27 @@
       - bldgs: # buildings
         - emis: .9
         - alb: .1 # fixed for non-vegetated surfaces
+        - chanohm: 0.5
+        - cpanohm: 200000
+        - kkanohm: 1.2
+        - ohm_threshsw: 18
+        - ohm_threshwd: .5
+        - ohm_coef:
+          - a1:
+            summer_dry: 0.1
+            summer_wet: 0.1
+            winter_dry: 0.1
+            winter_wet: 0.1
+          - a2:
+            summer_dry: 0.1
+            summer_wet: 0.1
+            winter_dry: 0.1
+            winter_wet: 0.1
+          - a3:
+            summer_dry: 20.1
+            summer_wet: 20.1
+            winter_dry: 20.1
+            winter_wet: 20.1
         - soildepth: 0.1
         - soilstore: 100
         - soilstorecap: 200
@@ -107,6 +150,27 @@
         - emis: .9
         - alb_min: .1 # varying between min and max depending on LAI
         - alb_max: .2 # varying between min and max depending on LAI
+        - chanohm: 0.5
+        - cpanohm: 200000
+        - kkanohm: 1.2
+        - ohm_threshsw: 18
+        - ohm_threshwd: .5
+        - ohm_coef:
+          - a1:
+            summer_dry: 0.1
+            summer_wet: 0.1
+            winter_dry: 0.1
+            winter_wet: 0.1
+          - a2:
+            summer_dry: 0.1
+            summer_wet: 0.1
+            winter_dry: 0.1
+            winter_wet: 0.1
+          - a3:
+            summer_dry: 20.1
+            summer_wet: 20.1
+            winter_dry: 20.1
+            winter_wet: 20.1
         - soildepth: 0.1
         - soilstore: 100
         - soilstorecap: 200
@@ -163,6 +227,27 @@
         - emis: .9
         - alb_min: .1 # varying between min and max depending on LAI
         - alb_max: .2 # varying between min and max depending on LAI
+        - chanohm: 0.5
+        - cpanohm: 200000
+        - kkanohm: 1.2
+        - ohm_threshsw: 18
+        - ohm_threshwd: .5
+        - ohm_coef:
+          - a1:
+            summer_dry: 0.1
+            summer_wet: 0.1
+            winter_dry: 0.1
+            winter_wet: 0.1
+          - a2:
+            summer_dry: 0.1
+            summer_wet: 0.1
+            winter_dry: 0.1
+            winter_wet: 0.1
+          - a3:
+            summer_dry: 20.1
+            summer_wet: 20.1
+            winter_dry: 20.1
+            winter_wet: 20.1
         - soildepth: 0.1
         - soilstore: 100
         - soilstorecap: 200
@@ -218,6 +303,27 @@
         - emis: .9
         - alb_min: .1 # varying between min and max depending on LAI
         - alb_max: .2 # varying between min and max depending on LAI
+        - chanohm: 0.5
+        - cpanohm: 200000
+        - kkanohm: 1.2
+        - ohm_threshsw: 18
+        - ohm_threshwd: .5
+        - ohm_coef:
+          - a1:
+            summer_dry: 0.1
+            summer_wet: 0.1
+            winter_dry: 0.1
+            winter_wet: 0.1
+          - a2:
+            summer_dry: 0.1
+            summer_wet: 0.1
+            winter_dry: 0.1
+            winter_wet: 0.1
+          - a3:
+            summer_dry: 20.1
+            summer_wet: 20.1
+            winter_dry: 20.1
+            winter_wet: 20.1
         - soildepth: 0.1
         - soilstore: 100
         - soilstorecap: 200
@@ -272,6 +378,27 @@
       - bsoil: # bare soil
         - emis: .9
         - alb: .1 # fixed for non-vegetated surfaces
+        - chanohm: 0.5
+        - cpanohm: 200000
+        - kkanohm: 1.2
+        - ohm_threshsw: 18
+        - ohm_threshwd: .5
+        - ohm_coef:
+          - a1:
+            summer_dry: 0.1
+            summer_wet: 0.1
+            winter_dry: 0.1
+            winter_wet: 0.1
+          - a2:
+            summer_dry: 0.1
+            summer_wet: 0.1
+            winter_dry: 0.1
+            winter_wet: 0.1
+          - a3:
+            summer_dry: 20.1
+            summer_wet: 20.1
+            winter_dry: 20.1
+            winter_wet: 20.1
         - soildepth: 0.1
         - soilstore: 100
         - soilstorecap: 200
@@ -298,6 +425,27 @@
       - water:
         - emis: .9
         - alb: .1 # fixed for non-vegetated surfaces
+        - chanohm: 0.5
+        - cpanohm: 200000
+        - kkanohm: 1.2
+        - ohm_threshsw: 18
+        - ohm_threshwd: .5
+        - ohm_coef:
+          - a1:
+            summer_dry: 0.1
+            summer_wet: 0.1
+            winter_dry: 0.1
+            winter_wet: 0.1
+          - a2:
+            summer_dry: 0.1
+            summer_wet: 0.1
+            winter_dry: 0.1
+            winter_wet: 0.1
+          - a3:
+            summer_dry: 20.1
+            summer_wet: 20.1
+            winter_dry: 20.1
+            winter_wet: 20.1
         - soildepth: 0.1
         - soilstore: 100
         - soilstorecap: 200

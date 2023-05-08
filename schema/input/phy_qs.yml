@@ -24,7 +24,7 @@
   unit: "-"
   suews table headers: :option:`AnOHM_Ch <suews:AnOHM_Ch>`
   requisite:
-    StorageHeatMethod: "3:AnOHM"
+    StorageHeatMethod.3-AnOHM
 
 - name: cpanohm # to be removed/merged as thermal properties
   use:
@@ -35,7 +35,7 @@
   unit: J m^-3
   suews table headers: :option:`AnOHM_Cp <suews:AnOHM_Cp>`
   requisite:
-    StorageHeatMethod: "3:AnOHM"
+    StorageHeatMethod.3-AnOHM
 
 - name: kkanohm # to be removed/merged as thermal properties
   use:
@@ -46,7 +46,7 @@
   unit: W m K^-1
   suews table headers: :option:`AnOHM_Kk <suews:AnOHM_Kk>`
   requisite:
-    StorageHeatMethod: 3:AnOHM
+    StorageHeatMethod.3-AnOHM
 
 - name: ohm_coef
   use:
@@ -60,7 +60,7 @@
   unit: Coefficients for OHM calculation
   suews table headers: :option:`a1 <suews:a1>`, :option:`a2 <suews:a2>`, :option:`a3 <suews:a3>`
   requisite:
-    StorageHeatMethod: "1:OHM"
+    StorageHeatMethod.1-OHM
 
 - name: ohm_threshsw
   use:
@@ -71,7 +71,7 @@
   unit: degC
   suews table headers: :option:`OHMThresh_SW <suews:OHMThresh_SW>`
   requisite:
-    StorageHeatMethod: "1:OHM"
+    StorageHeatMethod.1-OHM
 
 - name: ohm_threshwd
   use:
@@ -82,7 +82,7 @@
   unit: "-"
   suews table headers: :option:`OHMThresh_WD <suews:OHMThresh_WD>`
   requisite:
-    StorageHeatMethod: "1:OHM"
+    StorageHeatMethod.1-OHM
 
 - name: ohmincqf # this may be listed as heatstoragemethod=2?
   use:
@@ -92,4 +92,4 @@
   unit: "-"
   suews table headers: :option:`OHMIncQF <suews:OHMIncQF>`
   requisite:
-    StorageHeatMethod: "1:OHM"
+    StorageHeatMethod.1-OHM

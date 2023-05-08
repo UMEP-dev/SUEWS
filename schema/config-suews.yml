@@ -6,14 +6,14 @@
   model:
     control:
       tstep: 300
-      forcing_file: london_2016_2017.csv
-      output_file: london_2016_2017_output.csv
+      forcing_file: london_2016_2017.csv # planned change - inconsistent with current suews version
+      output_file: london_2016_2017_output.csv # planned change - inconsistent with current suews version
       daylightsaving_method: 1
     physics:
       netradiationmethod: 1
       emissionsmethod: 1
       storageheatmethod: 1
-      ohmincqf: 1
+      ohmincqf: 1 # this could be merged above as storageheatmethod=2
       aerodynamicresistancemethod: 1
       roughlenmommethod: 1
       roughlenheatmethod: 1

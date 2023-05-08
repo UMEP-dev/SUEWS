@@ -11,7 +11,7 @@
     :option:`WaterUseProfAutoWD <suews:WaterUseProfAutoWD>`, :option:`WaterUseProfAutoWE
     <suews:WaterUseProfAutoWE>`
   requisite:
-    WaterUseMethod: 0:Modelled
+    WaterUseMethod.0-Modelled
 - name: wuprofm_24hr
   use:
     input: state
@@ -24,4 +24,4 @@
     :option:`WaterUseProfManuWD <suews:WaterUseProfManuWD>`, :option:`WaterUseProfManuWE
     <suews:WaterUseProfManuWE>`
   requisite:
-    WaterUseMethod: 0:Modelled
+    WaterUseMethod.0-Modelled

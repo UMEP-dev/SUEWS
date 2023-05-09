@@ -125,6 +125,7 @@ LIBSRC_WRAP_SOURCES = suews_ctrl_driver \
 	suews_phys_anemsn \
 	suews_phys_rslprof \
 	suews_util_meteo \
+	suews_phys_estm \
 	suews_phys_spartacus \
 
 # file names

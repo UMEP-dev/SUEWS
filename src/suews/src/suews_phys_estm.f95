@@ -350,7 +350,7 @@ CONTAINS
       REAL(KIND(1D0)) :: Rmean, Rse, cosZ, Itoa
 
       Rmean = 149.6 !Stull 1998
-      Rse = solar_ESdist(doy)
+      Rse = solar_ESdist_estm(doy)
       IF (zenith < pi/2.) THEN
          cosZ = COS(zenith)
          Itoa = 1370*(Rmean/Rse)**2 !top of the atmosphere
@@ -454,7 +454,7 @@ CONTAINS
    !   END SUBROUTINE transmissivity
 
    !=======================================================
-   FUNCTION solar_ESdist(doy) RESULT(Rse)
+   FUNCTION solar_ESdist_estm(doy) RESULT(Rse)
       !from Stull, 1998
       INTEGER :: doy
       REAL(KIND(1D0)) :: Rse
@@ -467,7 +467,7 @@ CONTAINS
       nu = MA + 0.0333988*SIN(MA) + .0003486*SIN(2.*MA) + 5E-6*SIN(3.*MA) !true anomaly
       Rse = a*(1 - e*e)/(1 + e*COS(nu))
 
-   END FUNCTION solar_ESdist
+   END FUNCTION solar_ESdist_estm
 
 END MODULE modSolarCalc
 
@@ -2196,7 +2196,7 @@ CONTAINS
                         QS, Qsair, Qswall, Qsroof, Qsground, Qsibld, & !6
                         Twallout, Troofout, Tgroundout, Tibldout, Tievolve] !27 !NB. These all have 5 elements except Tievolve (1).
       ! set invalid values to nan
-      dataOutLineESTM = set_nan(dataOutLineESTM)
+      dataOutLineESTM = set_nan_estm(dataOutLineESTM)
       ! call r8vec_print(ncolumnsDataOutESTM-5,dataOutESTM(ir,6:ncolumnsDataOutESTM,Gridiv),'dataOutESTM')
 
       Tair2 = Tair1
@@ -2568,7 +2568,7 @@ CONTAINS
    END SUBROUTINE ESTM_ext
    ! ===============================================================================================
    !===============set variable of invalid value to NAN====================================
-   ELEMENTAL FUNCTION set_nan(x) RESULT(xx)
+   ELEMENTAL FUNCTION set_nan_estm(x) RESULT(xx)
       IMPLICIT NONE
       REAL(KIND(1D0)), PARAMETER :: pNAN = 9999
       REAL(KIND(1D0)), PARAMETER :: NAN = -999
@@ -2581,7 +2581,7 @@ CONTAINS
          xx = x
       END IF
 
-   END FUNCTION set_nan
+   END FUNCTION set_nan_estm
    !========================================================================
 
 END MODULE ESTM_module

@@ -624,18 +624,18 @@ CONTAINS
       LOGICAL, INTENT(in) :: debug
       INTEGER :: i, n !,j       !!!!!FO!!!!!
       REAL(KIND(1D0)), ALLOCATABLE :: w(:), a(:), T1(:), cfl(:)
-      
+
       REAL(KIND(1D0)) :: cfl_max
       REAL(KIND(1D0)) :: dt_remain
       REAL(KIND(1D0)) :: dt_step
       REAL(KIND(1D0)) :: dt_step_cfl
-   
+
       REAL(KIND(1D0)), ALLOCATABLE :: T_in(:), T_out(:)
       REAL(KIND(1D0)) :: dt_x ! for recursion
       INTEGER :: n_div ! for recursion
       n = SIZE(T)
       ALLOCATE (w(0:n), a(n), T1(n), cfl(n), T_in(n), T_out(n))
-   
+
       ! save initial temperatures
       T_in = T
       ! w = interface temperature
@@ -652,10 +652,10 @@ CONTAINS
       DO i = 1, n - 1
          w(i) = (T(i + 1)*a(i + 1) + T(i)*a(i))/(a(i) + a(i + 1))
       END DO
-   
+
       ! fix convergece issue with recursion
       dt_remain = dt
-      dt_step_cfl = 0.25 * MINVAL(dx**2 / (k / rhocp))
+      dt_step_cfl = 0.25*MINVAL(dx**2/(k/rhocp))
       DO WHILE (dt_remain > 1E-10)
          dt_step = MIN(dt_step_cfl, dt_remain)
          !PRINT *, 'dt_remain: ', dt_remain
@@ -690,7 +690,7 @@ CONTAINS
       !!FO!! k*d(dT/dx)/dx = rhoCp*(dT/dt) => rhoCp*(dT/dt)*dx = dQs => dQs = k*d(dT/dx)
       ! Qs = (w(0) - T(1))*2*a(1) + (w(n) - T(n))*2*a(n)
       ! Qs=sum((T1-T)*rhocp*dx)/dt!
-      
+
       Tsfc = w(0)
       ! save output temperatures
       T_out = T1

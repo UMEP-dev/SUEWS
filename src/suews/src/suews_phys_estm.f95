@@ -615,6 +615,91 @@ CONTAINS
       END IF
       ! print *, 'cfl_max: ', cfl_max, MAXLOC(cfl)
    END SUBROUTINE heatcond1d_ext
+
+   SUBROUTINE heatcond1d_vstep(T, Qs, Tsfc, dx, dt, k, rhocp, bc, bctype, debug)
+      REAL(KIND(1D0)), INTENT(inout) :: T(:)
+      REAL(KIND(1D0)), INTENT(in) :: dx(:), dt, k(:), rhocp(:), bc(2)
+      REAL(KIND(1D0)), INTENT(out) :: Qs, Tsfc
+      LOGICAL, INTENT(in) :: bctype(2) ! if true, use surrogate flux as boundary condition
+      LOGICAL, INTENT(in) :: debug
+      INTEGER :: i, n !,j       !!!!!FO!!!!!
+      REAL(KIND(1D0)), ALLOCATABLE :: w(:), a(:), T1(:), cfl(:)
+      
+      REAL(KIND(1D0)) :: cfl_max
+      REAL(KIND(1D0)) :: dt_remain
+      REAL(KIND(1D0)) :: dt_step
+      REAL(KIND(1D0)) :: dt_step_cfl
+   
+      REAL(KIND(1D0)), ALLOCATABLE :: T_in(:), T_out(:)
+      REAL(KIND(1D0)) :: dt_x ! for recursion
+      INTEGER :: n_div ! for recursion
+      n = SIZE(T)
+      ALLOCATE (w(0:n), a(n), T1(n), cfl(n), T_in(n), T_out(n))
+   
+      ! save initial temperatures
+      T_in = T
+      ! w = interface temperature
+      w(1:n) = T
+      w(0) = bc(1); w(n) = bc(2)
+      !convert from flux to equivalent temperature, not exact
+      ! F = k dT/dX => dx*F/k + T(i+1) = T(i)
+      IF (bctype(1)) w(0) = bc(1)*0.5*dx(1)/k(1) + w(1)
+      IF (bctype(2)) w(n) = bc(2)*0.5*dx(n)/k(n) + w(n)
+      ! print *, 'bc(1)=', bc(1), 'bc(2)=',bc(2)
+      ! print *, 'w(0)=', w(0), 'w(n)=', w(n)
+      ! print *, 'k=', k, 'dx=', dx
+      a = k/dx
+      DO i = 1, n - 1
+         w(i) = (T(i + 1)*a(i + 1) + T(i)*a(i))/(a(i) + a(i + 1))
+      END DO
+   
+      ! fix convergece issue with recursion
+      dt_remain = dt
+      dt_step_cfl = 0.25 * MINVAL(dx**2 / (k / rhocp))
+      DO WHILE (dt_remain > 1E-10)
+         dt_step = MIN(dt_step_cfl, dt_remain)
+         !PRINT *, 'dt_remain: ', dt_remain
+         !PRINT *, 'dt_step_cfl: ', dt_step_cfl
+         !PRINT *, '***** dt_step: ', dt_step
+         !!FO!!
+         ! PRINT *, 'w: ', w
+         ! PRINT *, 'rhocp: ', rhocp
+         ! PRINT *, 'dt: ', dt
+         ! PRINT *, 'dx: ', dx
+         ! PRINT *, 'a: ', a
+         DO i = 1, n
+            ! PRINT *, 'i: ', i
+            ! PRINT *, 'i: ', (dt/rhocp(i))
+            ! PRINT *, 'i: ', (w(i - 1) - 2*T(i) + w(i))
+            ! PRINT *, 'i: ', 2*a(i)/dx(i)
+            T1(i) = &
+               (dt_step/rhocp(i)) &
+               *(w(i - 1) - 2*T(i) + w(i)) &
+               *a(i)/dx(i) &
+               + T(i)
+         END DO
+         T = T1
+         DO i = 1, n - 1
+            w(i) = (T(i + 1)*a(i + 1) + T(i)*a(i))/(a(i) + a(i + 1))
+         END DO
+         dt_remain = dt_remain - dt_step
+      END DO
+      !!FO!!
+      ! PRINT *, 'T1: ', T1
+      !for storage the internal distribution of heat should not be important
+      !!FO!! k*d(dT/dx)/dx = rhoCp*(dT/dt) => rhoCp*(dT/dt)*dx = dQs => dQs = k*d(dT/dx)
+      ! Qs = (w(0) - T(1))*2*a(1) + (w(n) - T(n))*2*a(n)
+      ! Qs=sum((T1-T)*rhocp*dx)/dt!
+      
+      Tsfc = w(0)
+      ! save output temperatures
+      T_out = T1
+      ! new way for calcualating heat storage
+      Qs = SUM( &
+           (([bc(1), T_out(1:n - 1)] + T_out)/2. & ! updated temperature
+            -([bc(1), T_in(1:n - 1)] + T_in)/2) & ! initial temperature
+           *rhocp*dx/dt)
+   END SUBROUTINE heatcond1d_vstep
 END MODULE heatflux
 
 !==================================================================================
@@ -2240,7 +2325,7 @@ CONTAINS
       USE allocateArray, ONLY: &
          nsurf, ndepth, &
          PavSurf, BldgSurf, ConifSurf, DecidSurf, GrassSurf, BSoilSurf, WaterSurf
-      USE heatflux, ONLY: heatcond1d_ext
+      USE heatflux, ONLY: heatcond1d_ext, heatcond1d_vstep
 
       IMPLICIT NONE
       INTEGER, INTENT(in) :: tstep
@@ -2467,7 +2552,8 @@ CONTAINS
                ! ELSE
                !    debug = .FALSE.
                ! END IF
-               CALL heatcond1d_ext( &
+               ! CALL heatcond1d_ext( &
+               CALL heatcond1d_vstep( &
                   temp_cal(i_facet, :), &
                   QS_cal(i_facet), &
                   tsfc_cal(i_facet), &
@@ -2507,7 +2593,8 @@ CONTAINS
 
                ! 1D heat conduction for finite depth layers
                ! TODO: this should be a water specific heat conduction solver: to implement
-               CALL heatcond1d_ext( &
+               ! CALL heatcond1d_ext( &
+               CALL heatcond1d_vstep( &
                   temp_cal(i_facet, :), &
                   QS_cal(i_facet), &
                   tsfc_cal(i_facet), &

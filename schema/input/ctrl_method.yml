@@ -161,4 +161,8 @@
   dimensions: 0
   unit: Determines whether the snow part of the model runs
   requisite: configuration
+<<<<<<< HEAD
   suews table headers: :option:`SnowUse <suews:SnowUse>`
+=======
+  suews table headers: :option:`SnowUse <suews:SnowUse>`
+>>>>>>> origin/master

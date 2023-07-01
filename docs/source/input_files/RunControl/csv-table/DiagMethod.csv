@@ -1,4 +1,4 @@
 "Value","Comments"
 0,"Use MOST to calculate near surface diagnostics."
 1,"Use RST to calculate near surface diagnostics."
-1,"Use a set of criteria based on plan area index, frontal area index and heights of roughness elements to determine if RSL or MOST should be used."
+2,"Use a set of criteria based on plan area index, frontal area index and heights of roughness elements to determine if RSL or MOST should be used."

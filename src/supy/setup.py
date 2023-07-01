@@ -452,8 +452,8 @@ setup(
         "importlib_resources; python_version < '3.9'", # to fix importlib issue in UMEP under QGIS3
         "matplotlib",
         "chardet",
-        "f90wrap",
         "scipy",
+        "f90wrap==0.2.12", # f90wrap is required for f2py-based supy driver
         "dask",  # needs dask for parallel tasks
         "f90nml",  # utility for namelist files
         "seaborn",  # stat plotting

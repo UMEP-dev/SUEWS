@@ -79,9 +79,13 @@ suews:
 # only local testing on mac
 local: export CIBUILDWHEEL = 1
 local: export SETUPTOOLS_USE_DISTUTILS = stdlib
+# local: export FC = gfortran
 local: clean
-	echo ${SETUPTOOLS_USE_DISTUTILS};
-	echo ${CIBUILDWHEEL};
+	@echo "\n====================="
+	@echo "SETUPTOOLS_USE_DISTUTILS=${SETUPTOOLS_USE_DISTUTILS}";
+	@echo "CIBUILDWHEEL=${CIBUILDWHEEL}";
+	@echo "FC=${FC}";
+	@echo "=====================\n"
 	pipx run cibuildwheel==2.9.0 --platform macos --config-file pyproject.toml
 
 # produce sample_output.pkl for testing

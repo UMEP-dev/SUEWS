@@ -157,4 +157,8 @@
   unit: degC
   suews table headers: :option:`TL <suews:TL>`
   requisite:
+<<<<<<< HEAD
     essential.4-gs
+=======
+    essential.4-gs
+>>>>>>> origin/master

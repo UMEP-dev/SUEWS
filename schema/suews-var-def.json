@@ -98,7 +98,7 @@
           "type": "string",
           "description": "unit of the variable; e.g. 'W m-2'. This will be used to check the consistency of the input data and wrapped by latex notations in the documentation."
         },
-        "dimensions":{
+        "dimensions": {
           "description": "dimensions of the variable as well as related explanations, e.g. {2: ['weekday','weekend'], 3: 'height', ...}; or integer `0` for scalar variables. This will be used to check the consistency of the input data",
           "oneOf": [
             {
@@ -111,7 +111,6 @@
             },
             {
               "type": "integer"
-
             }
           ]
         },
@@ -159,8 +158,7 @@
         "properties": {
           "use": {
             "properties": {
-              "input": {
-              }
+              "input": {}
             },
             "required": [
               "input"
@@ -170,11 +168,15 @@
       },
       "then": {
         "required": [
+<<<<<<< HEAD
           "requisite","dimensions"
+=======
+          "requisite",
+          "dimensions"
+>>>>>>> origin/master
         ]
       },
-      "additionalProperties": {
-      }
+      "additionalProperties": {}
     }
   },
   "allOf": [

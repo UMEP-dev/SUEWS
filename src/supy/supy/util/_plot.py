@@ -186,7 +186,7 @@ def plot_comp(
             "label": "\n".join(
                 [
                     f"y={slope:.2f}x{'+' if intercept > 0 else ''}{intercept:.2f}",
-                    f"$R^2$={r_value:.4f}",
+                    f"$R^2$={r_value**2:.4f}",
                     f"MAE={mae:.2f}",
                     f"MBE={mbe:.2f}",
                     f"n={df_var_fit.shape[0]}",

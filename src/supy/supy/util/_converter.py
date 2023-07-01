@@ -28,7 +28,7 @@ import pandas as pd
 from chardet import detect
 
 from .._env import logger_supy, trv_supy_module
-from .._load import load_SUEWS_nml
+from .._load import load_SUEWS_nml_simple
 
 warnings.filterwarnings("ignore")
 ########################################################
@@ -386,7 +386,7 @@ def convert_table(fromDir, toDir, fromVer, toVer):
 
         # flatten all file structures in tempDir_1
         # locate input folder
-        ser_nml = load_SUEWS_nml(str(Path(fromDir) / "RunControl.nml")).runcontrol
+        ser_nml = load_SUEWS_nml_simple(str(Path(fromDir) / "RunControl.nml")).runcontrol
         path_input = (Path(fromDir) / ser_nml["fileinputpath"]).resolve()
         list_table_input = (
             [x for x in path_input.glob("SUEWS*.txt")]
@@ -435,7 +435,7 @@ def convert_table(fromDir, toDir, fromVer, toVer):
         rmtree(tempDir_2, ignore_errors=True)
 
     # cleaning and move input tables into the `input` folder
-    ser_nml = load_SUEWS_nml(str(Path(toDir) / "RunControl.nml")).runcontrol
+    ser_nml = load_SUEWS_nml_simple(str(Path(toDir) / "RunControl.nml")).runcontrol
 
     path_input = (Path(toDir) / ser_nml["fileinputpath"]).resolve()
     path_output = (Path(toDir) / ser_nml["fileoutputpath"]).resolve()

@@ -19,16 +19,19 @@
 - name: baset
   use:
     input: parameter
-  description:
-    Base Temperature for initiating growing degree days (GDD) for leaf growth.
+  description: Base Temperature for initiating growing degree days (GDD) for leaf growth.
   dimensions:
     3: "vegetated land covers: { `EveTr`, `DecTr`, `Grass`}"
   unit: degC
   suews table headers: :option:`BaseT <BaseT>`
+<<<<<<< HEAD
   requisite:
     essential.2-lai
 
 
+=======
+  requisite: essential.2-lai
+>>>>>>> origin/master
 
 - name: sddfull
   use:
@@ -38,10 +41,14 @@
     3: "vegetated land covers: { `EveTr`, `DecTr`, `Grass`}"
   unit: degC d
   suews table headers: :option:`SDDFull <SDDFull>`
+<<<<<<< HEAD
   requisite:
     essential.2-lai
 
 
+=======
+  requisite: essential.2-lai
+>>>>>>> origin/master
 
 - name: lai_id
   use:
@@ -53,8 +60,12 @@
   suews table headers:
     :option:`LAIinitialDecTr <LAIinitialDecTr>`, :option:`LAIinitialEveTr
     <LAIinitialEveTr>`, :option:`LAIinitialGrass <LAIinitialGrass>`
+<<<<<<< HEAD
   requisite:
     essential.2-lai
+=======
+  requisite: essential.2-lai
+>>>>>>> origin/master
 
 - name: laimax
   use:
@@ -64,8 +75,12 @@
     3: "vegetated land covers: { `EveTr`, `DecTr`, `Grass`}"
   unit: full leaf-on summertime valu
   suews table headers: :option:`LAIMax <LAIMax>`
+<<<<<<< HEAD
   requisite:
     essential.2-lai
+=======
+  requisite: essential.2-lai
+>>>>>>> origin/master
 
 - name: laimin
   use:
@@ -75,8 +90,12 @@
     3: "vegetated land covers: { `EveTr`, `DecTr`, `Grass`}"
   unit: leaf-off wintertime valu
   suews table headers: :option:`LAIMin <LAIMin>`
+<<<<<<< HEAD
   requisite:
     essential.2-lai
+=======
+  requisite: essential.2-lai
+>>>>>>> origin/master
 
 - name: laipower
   use:
@@ -90,8 +109,12 @@
     :option:`LeafGrowthPower1 <LeafGrowthPower1>`, :option:`LeafGrowthPower2
     <LeafGrowthPower2>`, :option:`LeafOffPower1 <LeafOffPower1>`, :option:`LeafOffPower2
     <LeafOffPower2>`
+<<<<<<< HEAD
   requisite:
     essential.2-lai
+=======
+  requisite: essential.2-lai
+>>>>>>> origin/master
 
 - name: laitype # this could be combined with laicalcyes as a single variable: lai_method? TODO
   use:
@@ -104,29 +127,31 @@
   requisite:
     LAI: Method_Selection
 
-
 - name: basete
   use:
     input: parameter
-  description:
-    Base temperature for initiating sensesance degree days (SDD) for leaf off.
+  description: Base temperature for initiating sensesance degree days (SDD) for leaf off.
   dimensions:
     3: "3: { `EveTr`, `DecTr`, `Grass`}"
   unit: degC
   suews table headers: :option:`BaseTe <BaseTe>`
+<<<<<<< HEAD
   requisite:
     essential.2-lai
 
+=======
+  requisite: essential.2-lai
+>>>>>>> origin/master
 
 - name: gddfull
   use:
     input: parameter
-  description:
-    The growing degree days (GDD) needed for full capacity of the leaf area index (LAI)
+  description: The growing degree days (GDD) needed for full capacity of the leaf area index (LAI)
   dimensions:
     3: "3: { `EveTr`, `DecTr`, `Grass`}"
   unit: degC d
   suews table headers: :option:`GDDFull <GDDFull>`
+<<<<<<< HEAD
   requisite:
     essential.2-lai
 
@@ -134,3 +159,6 @@
 
 
 
+=======
+  requisite: essential.2-lai
+>>>>>>> origin/master

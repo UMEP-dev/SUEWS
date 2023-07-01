@@ -14,3 +14,13 @@
   - [maintenance] added [script](src/supy/gen_sample_output.py) to update sample output for testing
   - [feature] added more upgrade options to the `upgrade_df_state` function
   - [change] removed `deltaLAI` from the `DailyState` output group as related info is already in `LAI` columns of all vegetated surfaces
+
+- 15 May 2023:
+  - [bugfix] fixed a bug in heat flux calculation (#182)
+  - [bugfix] fixed a bug in `table-converter` (#186)
+
+- 03 Jun 2023:
+  - [bugfix] fixed a bug in writing out `DailyState` - all rows were written as zero (#190)
+
+- 05 Jun 2023:
+  - [feature] added `FAIMethod` to help determine the FAI (#192)

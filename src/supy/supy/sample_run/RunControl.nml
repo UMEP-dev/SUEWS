@@ -9,6 +9,7 @@ OHMIncQF              = 0
 StabilityMethod       = 3
 RoughLenHeatMethod    = 2
 RoughLenMomMethod     = 2
+FAIMethod             = 0
 SMDMethod             = 0
 WaterUseMethod        = 0
 FileCode              = 'Kc'

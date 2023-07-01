@@ -410,4 +410,8 @@
     - NetRadiationMethod.13-NARP+Ts+L_RH
     - NetRadiationMethod.1001-SS+L_obs
     - NetRadiationMethod.1002-SS+L_cloud
+<<<<<<< HEAD
     - NetRadiationMethod.1003-SS+L_RH
+=======
+    - NetRadiationMethod.1003-SS+L_RH
+>>>>>>> origin/master

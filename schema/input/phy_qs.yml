@@ -23,8 +23,12 @@
     7: "SUEWS land covers: { `Paved`, `Bldgs`, `EveTr`, `DecTr`, `Grass`,`BSoil`, `Water`}"
   unit: "-"
   suews table headers: :option:`AnOHM_Ch <suews:AnOHM_Ch>`
+<<<<<<< HEAD
   requisite:
     StorageHeatMethod.3-AnOHM
+=======
+  requisite: StorageHeatMethod.3-AnOHM
+>>>>>>> origin/master
 
 - name: cpanohm # to be removed/merged as thermal properties
   use:
@@ -34,8 +38,12 @@
     7: "SUEWS land covers: { `Paved`, `Bldgs`, `EveTr`, `DecTr`, `Grass`,`BSoil`, `Water`}"
   unit: J m^-3
   suews table headers: :option:`AnOHM_Cp <suews:AnOHM_Cp>`
+<<<<<<< HEAD
   requisite:
     StorageHeatMethod.3-AnOHM
+=======
+  requisite: StorageHeatMethod.3-AnOHM
+>>>>>>> origin/master
 
 - name: kkanohm # to be removed/merged as thermal properties
   use:
@@ -45,8 +53,12 @@
     7: " SUEWS land covers: {`Paved`, `Bldgs`, `EveTr`, `DecTr`, `Grass`,`BSoil`, `Water`}"
   unit: W m K^-1
   suews table headers: :option:`AnOHM_Kk <suews:AnOHM_Kk>`
+<<<<<<< HEAD
   requisite:
     StorageHeatMethod.3-AnOHM
+=======
+  requisite: StorageHeatMethod.3-AnOHM
+>>>>>>> origin/master
 
 - name: ohm_coef
   use:
@@ -59,8 +71,12 @@
     3: "OHM coefficients: {a1,a2,a3}"
   unit: Coefficients for OHM calculation
   suews table headers: :option:`a1 <suews:a1>`, :option:`a2 <suews:a2>`, :option:`a3 <suews:a3>`
+<<<<<<< HEAD
   requisite:
     StorageHeatMethod.1-OHM
+=======
+  requisite: StorageHeatMethod.1-OHM
+>>>>>>> origin/master
 
 - name: ohm_threshsw
   use:
@@ -70,8 +86,12 @@
     8: "{ `Paved`, `Bldgs`, `EveTr`, `DecTr`, `Grass`, `BSoil`, `Water`, one extra land cover type (currently NOT used)} "
   unit: degC
   suews table headers: :option:`OHMThresh_SW <suews:OHMThresh_SW>`
+<<<<<<< HEAD
   requisite:
     StorageHeatMethod.1-OHM
+=======
+  requisite: StorageHeatMethod.1-OHM
+>>>>>>> origin/master
 
 - name: ohm_threshwd
   use:
@@ -81,8 +101,12 @@
     8: "SUEWS land covers: {`Paved`, `Bldgs`, `EveTr`, `DecTr`, `Grass`,`BSoil`, `Water`, one extra land cover type (currently NOT used)} "
   unit: "-"
   suews table headers: :option:`OHMThresh_WD <suews:OHMThresh_WD>`
+<<<<<<< HEAD
   requisite:
     StorageHeatMethod.1-OHM
+=======
+  requisite: StorageHeatMethod.1-OHM
+>>>>>>> origin/master
 
 - name: ohmincqf # this may be listed as heatstoragemethod=2?
   use:
@@ -91,5 +115,9 @@
   dimensions: 0
   unit: "-"
   suews table headers: :option:`OHMIncQF <suews:OHMIncQF>`
+<<<<<<< HEAD
   requisite:
     StorageHeatMethod.1-OHM
+=======
+  requisite: StorageHeatMethod.1-OHM
+>>>>>>> origin/master

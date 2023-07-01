@@ -23,8 +23,12 @@
   dimensions: 0
   unit: mm
   suews table headers: :option:`LUMPS_Cover <suews:LUMPS_Cover>`
+<<<<<<< HEAD
   requisite:
     essential.1-lumps
+=======
+  requisite: essential.1-lumps
+>>>>>>> origin/master
 
 - name: rainmaxres
   use:
@@ -33,8 +37,12 @@
   dimensions: 0
   unit: mm
   suews table headers: :option:`LUMPS_MaxRes <suews:LUMPS_MaxRes>`
+<<<<<<< HEAD
   requisite:
     essential.1-lumps
+=======
+  requisite: essential.1-lumps
+>>>>>>> origin/master
 
 - name: drainrt
   use:
@@ -43,8 +51,12 @@
   dimensions: 0
   unit: mm h^-1
   suews table headers: :option:`LUMPS_DrRate <suews:LUMPS_DrRate>`
+<<<<<<< HEAD
   requisite:
     essential.1-lumps
+=======
+  requisite: essential.1-lumps
+>>>>>>> origin/master
 
 - name: veg_type
   use:
@@ -53,5 +65,9 @@
   dimensions: 0
   unit: "-"
   suews table headers: None
+<<<<<<< HEAD
   requisite:
     essential.1-lumps
+=======
+  requisite: essential.1-lumps
+>>>>>>> origin/master

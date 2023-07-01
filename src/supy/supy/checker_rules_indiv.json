@@ -236,7 +236,6 @@
         },
         "unit": "1"
     },
-
     "beta_bioco2": {
         "cat": "grid",
         "logic": "NA",
@@ -413,8 +412,6 @@
         "param": {},
         "unit": "1"
     },
-
-
     "dqndt": {
         "cat": "grid",
         "logic": "NA",
@@ -560,6 +557,17 @@
         "param": {
             "max": "inf",
             "min": 0
+        },
+        "unit": "1"
+    },
+    "faimethod": {
+        "cat": "grid",
+        "logic": "method",
+        "param": {
+            "allowed": [
+                0,
+                1
+            ]
         },
         "unit": "1"
     },
@@ -716,7 +724,7 @@
         "cat": "grid",
         "logic": "range",
         "param": {
-            "max":"inf",
+            "max": "inf",
             "min": 0
         },
         "unit": "m"
@@ -1161,8 +1169,8 @@
         "cat": "grid",
         "logic": "range",
         "param": {
-            "max": "inf",
-            "min": 0
+            "max": 0.9,
+            "min": 0.1
         },
         "unit": "1"
     },
@@ -1170,8 +1178,8 @@
         "cat": "grid",
         "logic": "range",
         "param": {
-            "max": "inf",
-            "min": 0
+            "max": 0.9,
+            "min": 0.1
         },
         "unit": "1"
     },
@@ -1179,7 +1187,7 @@
         "cat": "grid",
         "logic": "range",
         "param": {
-            "max": "inf",
+            "max": 0.9,
             "min": 0
         },
         "unit": "1"
@@ -1205,7 +1213,7 @@
     "pres": {
         "cat": "grid",
         "logic": "range",
-        "optional":false,
+        "optional": false,
         "param": {
             "max": 1300,
             "min": 680
@@ -2120,7 +2128,7 @@
         "cat": "grid",
         "logic": "range",
         "param": {
-           "max": "inf",
+            "max": "inf",
             "min": 0
         },
         "unit": "1"

@@ -180,6 +180,7 @@ PHYS =	suews_phys_narp.o \
 	suews_phys_snow.o \
 	suews_phys_dailystate.o \
 	suews_phys_estm.o \
+	suews_phys_ehc.o \
 	suews_ctrl_ver.o \
 	suews_ctrl_output.o \
 	suews_phys_anohm.o \

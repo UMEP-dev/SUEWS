@@ -441,4 +441,8 @@
   unit: The convexity of the curve at light saturation
   suews table headers: :option:`theta <suews:theta>`
   requisite:
+<<<<<<< HEAD
     EmissionsMethod.4-CO2-Jarvi
+=======
+    EmissionsMethod.4-CO2-Jarvi
+>>>>>>> origin/master

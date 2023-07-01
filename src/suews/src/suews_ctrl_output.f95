@@ -705,6 +705,10 @@ MODULE ctrl_output
       varAttr('psyc_hPa', 'm', f104, 'Psychometric constant', aA, 'debug', 0), &
       ! varAttr('qn_av', 'm', f104, 'qn_av', aA, 'debug', 0), &
       varAttr('iter', '-', f104, 'qn_av', aS, 'debug', 0), &
+      varAttr('FAIBldg_use', '-', f104, 'FAIBldg_use', aA, 'debug', 0), &
+      varAttr('FAIEveTree_use', '-', f104, 'FAIEveTree_use', aA, 'debug', 0), &
+      varAttr('FAIDecTree_use', '-', f104, 'FAIDecTree_use', aA, 'debug', 0), &
+      varAttr('FAI', '-', f104, 'FAI', aA, 'debug', 0), &
       varAttr('dqndt', 'm', f104, 'dqndt', aA, 'debug', 0) &
       /
 

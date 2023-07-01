@@ -156,7 +156,8 @@ CONTAINS
          flag_RSL = &
             ! zd>0 subject to FAI > beta**2*(1-PAI); also beta<0.5;
             ! hence the lower limit of FAI below
-            FAI > 0.25*(1 - PAI) .AND. FAI < 0.45 .AND. & ! FAI
+            ! FAI > 0.25*(1 - PAI) .AND. FAI < 0.45 .AND. & ! FAI
+            ! FAI < 0.45 .AND. & ! remove the lower limit of FAI
             ! PAI > 0.1 .AND. PAI < 0.61 .AND. & ! PAI
             PAI > 0.1 .AND. PAI < 0.68 .AND. & ! PAI
             zH > 2 ! effective canopy height
@@ -371,6 +372,379 @@ CONTAINS
       RH2 = qa2RH(q2_gkg, press_hPa, T2_C)
 
    END SUBROUTINE RSLProfile
+
+   SUBROUTINE RSLProfile_DTS( &
+      DiagMethod, &
+      Zh, z0m, zdm, z0v, &
+      L_MOD, &
+      sfr_paved, sfr_bldg, sfr_evetr, sfr_dectr, sfr_grass, sfr_bsoil, sfr_water, &
+      FAI, PAI, &
+      StabilityMethod, RA_h, &
+      avcp, lv_J_kg, avdens, &
+      avU1, Temp_C, avRH, Press_hPa, zMeas, qh, qe, & ! input
+      T2_C, q2_gkg, U10_ms, RH2, & !output
+      dataoutLineRSL) ! output
+      !-----------------------------------------------------
+      ! calculates windprofiles using MOST with a RSL-correction
+      ! based on Harman & Finnigan 2007
+      !
+      ! last modified by:
+      ! NT 16 Mar 2019: initial version
+      ! TS 16 Oct 2019: improved consistency in parameters/varaibles within SUEWS
+      ! TODO how to improve the speed of this code
+      !
+      !-----------------------------------------------------
+
+      IMPLICIT NONE
+
+      REAL(KIND(1D0)), INTENT(IN) :: sfr_paved
+      REAL(KIND(1D0)), INTENT(IN) :: sfr_bldg
+      REAL(KIND(1D0)), INTENT(IN) :: sfr_evetr
+      REAL(KIND(1D0)), INTENT(IN) :: sfr_dectr
+      REAL(KIND(1D0)), INTENT(IN) :: sfr_grass
+      REAL(KIND(1D0)), INTENT(IN) :: sfr_bsoil
+      REAL(KIND(1D0)), INTENT(IN) :: sfr_water
+      REAL(KIND(1D0)), DIMENSION(nsurf) :: sfr_surf !surface fraction ratio [-]
+
+      REAL(KIND(1D0)), INTENT(in) :: zMeas ! height of atmospheric forcing [m]
+      REAL(KIND(1D0)), INTENT(in) :: avU1 ! Wind speed at forcing height [m s-1]
+      REAL(KIND(1D0)), INTENT(in) :: Temp_C ! Air temperature at forcing height [C]
+      REAL(KIND(1D0)), INTENT(in) :: avRH ! relative humidity at forcing height [-]
+      REAL(KIND(1D0)), INTENT(in) :: Press_hPa ! pressure at forcing height [hPa]
+      REAL(KIND(1D0)), INTENT(in) :: L_MOD ! Obukhov length [m]
+      REAL(KIND(1D0)), INTENT(in) :: RA_h ! aerodynamic resistance for heat [s m-1]
+      REAL(KIND(1D0)), INTENT(in) :: avcp ! specific heat capacity [J kg-1 K-1]
+      REAL(KIND(1D0)), INTENT(in) :: lv_J_kg ! Latent heat of vaporization in [J kg-1]
+      REAL(KIND(1D0)), INTENT(in) :: avdens ! air density [kg m-3]
+      REAL(KIND(1D0)), INTENT(in) :: qh ! sensible heat flux [W m-2]
+      REAL(KIND(1D0)), INTENT(in) :: qe ! Latent heat flux [W m-2]
+      REAL(KIND(1D0)), INTENT(in) :: Zh ! Mean building height [m]
+      REAL(KIND(1D0)), INTENT(in) :: z0m ! roughness for momentum [m]
+      REAL(KIND(1D0)), INTENT(in) :: z0v ! roughnesslength for heat [s m-1]
+      REAL(KIND(1D0)), INTENT(in) :: zdm ! zero-plane displacement [m]
+      REAL(KIND(1D0)), INTENT(in) :: FAI ! Frontal area index [-]
+      REAL(KIND(1D0)), INTENT(in) :: PAI ! Plan area index [-]
+      ! REAL(KIND(1D0)), INTENT(in) :: FAIBldg ! Frontal area index of buildings [-]
+      ! REAL(KIND(1D0)), INTENT(in) :: porosity_dectr ! porosity of deciduous trees [-]
+
+      INTEGER, INTENT(in) :: StabilityMethod
+      INTEGER, INTENT(in) :: DiagMethod
+
+      REAL(KIND(1D0)), INTENT(out) :: T2_C ! Air temperature at 2 m [C]
+      REAL(KIND(1D0)), INTENT(out) :: q2_gkg ! Air specific humidity at 2 m [g kg-1]
+      REAL(KIND(1D0)), INTENT(out) :: U10_ms ! wind speed at 10 m [m s-1]
+      REAL(KIND(1D0)), INTENT(out) :: RH2 ! Air relative humidity [-]
+
+      INTEGER, PARAMETER :: nz = 30 ! number of levels 10 levels in canopy plus 20 (3 x Zh) above the canopy
+
+      REAL(KIND(1D0)), PARAMETER :: cd_tree = 1.2 ! drag coefficient tree canopy !!!!needs adjusting!!!
+      REAL(KIND(1D0)), PARAMETER :: a_tree = 0.05 ! the foliage area per unit volume !!!!needs adjusting!!!
+      REAL(KIND(1D0)), PARAMETER :: kappa = 0.40 ! von karman constant
+
+      REAL(KIND(1D0)), PARAMETER :: beta_N = 0.40 ! H&F beta coefficient in neutral conditions from Theeuwes et al., 2019 BLM
+      REAL(KIND(1D0)), PARAMETER :: pi = 4.*ATAN(1.0), r = 0.1
+      REAL(KIND(1D0)), PARAMETER :: a1 = 4., a2 = -0.1, a3 = 1.5, a4 = -1. ! constraints to determine beta
+
+      REAL(KIND(1D0)), PARAMETER :: porosity_evetr = 0.32 ! assumed porosity of evergreen trees, ref: Lai et al. (2022), http://dx.doi.org/10.2139/ssrn.4058842
+
+      ! Variables array [z,U,T,q, 12 debug vars]
+      ! z: height array
+      ! U,T,q: wind speed, air temp, specific humidity at z;
+      ! debug vars: see dataoutLineRSL
+      REAL(KIND(1D0)), INTENT(out), DIMENSION(ncolumnsDataOutRSL - 5) :: dataoutLineRSL
+      REAL(KIND(1D0)), DIMENSION(nz) :: psihatm_z
+      REAL(KIND(1D0)), DIMENSION(nz) :: psihath_z
+      ! REAL(KIND(1D0)), DIMENSION(nz) :: dif
+      ! REAL(KIND(1d0)), DIMENSION(nz):: psihatm_z, psihath_z
+      REAL(KIND(1D0)), DIMENSION(nz) :: zarray
+      REAL(KIND(1D0)), DIMENSION(nz) :: dataoutLineURSL ! wind speed array [m s-1]
+      REAL(KIND(1D0)), DIMENSION(nz) :: dataoutLineTRSL ! Temperature array [C]
+      REAL(KIND(1D0)), DIMENSION(nz) :: dataoutLineqRSL ! Specific humidity array [g kg-1]
+
+      REAL(KIND(1D0)) :: z0_RSL ! roughness length from H&F
+      REAL(KIND(1D0)) :: zd_RSL ! zero-plane displacement
+
+      ! REAL(KIND(1d0))::Lc_build, Lc_tree, Lc ! canopy drag length scale
+      REAL(KIND(1D0)) :: Lc ! canopy drag length scale
+      ! REAL(KIND(1d0))::Lc_stab ! threshold of canopy drag length scale under stable conditions
+      ! REAL(KIND(1d0))::Lc_unstab ! threshold of canopy drag length scale under unstable conditions
+      REAL(KIND(1D0)) :: Scc ! Schmidt number for temperature and humidity
+      REAL(KIND(1D0)) :: psimz, psimz0, psimza, psihz, psihz0, psihza ! stability function for momentum
+      ! REAL(KIND(1d0))::betaHF, betaNL, beta, betaN2  ! beta coefficient from Harman 2012
+      REAL(KIND(1D0)) :: beta ! beta coefficient from Harman 2012
+      REAL(KIND(1D0)) :: elm ! mixing length
+      ! REAL(KIND(1d0))::xxm1, xxm1_2, xxh1, xxh1_2, dphi, dphih ! dummy variables for stability functions
+      REAL(KIND(1D0)) :: fx ! H&F'07 and H&F'08 'constants'
+      REAL(KIND(1D0)) :: t_h, q_h ! H&F'08 canopy corrections
+      REAL(KIND(1D0)) :: TStar_RSL ! temperature scale
+      REAL(KIND(1D0)) :: UStar_RSL ! friction velocity used in RSL
+      REAL(KIND(1D0)) :: UStar_heat ! friction velocity derived from RA_h with correction/restriction
+      ! REAL(KIND(1D0)) :: PAI ! plan area index, including areas of roughness elements: buildings and trees
+      ! REAL(KIND(1d0))::sfr_tr ! land cover fraction of trees
+      REAL(KIND(1D0)) :: L_MOD_RSL ! Obukhov length used in RSL module with thresholds applied
+      ! real(KIND(1D0))::L_stab ! threshold for Obukhov length under stable conditions
+      ! real(KIND(1D0))::L_unstab ! threshold for Obukhov length under unstable conditions
+
+      REAL(KIND(1D0)) :: zH_RSL ! mean canyon height used in RSL module with thresholds applied
+      REAL(KIND(1D0)) :: dz_above ! height step above canopy
+      REAL(KIND(1D0)) :: dz_can ! height step within canopy
+      ! REAL(KIND(1D0)) :: phi_hatmZh, phim_zh
+      ! REAL(KIND(1d0)), parameter::zH_min = 8! limit for minimum canyon height used in RSL module
+      ! REAL(KIND(1D0)), PARAMETER :: ratio_dz = 1.618 ! ratio between neighbouring height steps
+
+      REAL(KIND(1D0)) :: qa_gkg, qStar_RSL ! specific humidity scale
+      INTEGER :: I, z
+      INTEGER :: nz_can ! number of heights in canyon
+      INTEGER :: nz_above ! number of heights above canyon
+
+      LOGICAL :: flag_RSL ! whether RSL correction is used
+
+      ! CHARACTER(len=1024) :: Errmessage
+      ! Step 0: Calculate grid-cell dependent constants and Beta (crucial for H&F method)
+      ! Step 1: determine if RSL should be used
+      ! Step 2: determine vertical levels used in RSL
+      ! Step 3: calculate the stability dependent H&F constants
+      ! Step 4: determine psihat at levels above the canopy
+      ! Step 5: Calculate z0 iteratively
+      ! Step 6: Calculate mean variables above canopy
+      ! Step 7: Calculate mean variables in canopy
+
+!  ! Step 0: Calculate grid-cell dependent constants and Beta (crucial for H&F method)
+!       CALL RSL_cal_prms( &
+!          StabilityMethod, & !input
+!          zh, L_MOD, sfr_surf, FAI, PAI, & !input
+!          zH_RSL, L_MOD_RSL, & ! output
+!          Lc, beta, zd_RSL, z0_RSL, elm, Scc, fx)
+
+      ! Step 1: determine if RSL should be used
+      sfr_surf = [sfr_paved, sfr_bldg, sfr_evetr, sfr_dectr, sfr_grass, sfr_bsoil, sfr_water]
+
+      IF (DiagMethod == 0) THEN
+         ! force MOST to be used
+         flag_RSL = .FALSE.
+      ELSEIF (DiagMethod == 1) THEN
+         ! force RSL to be used
+         flag_RSL = .TRUE.
+      ELSEIF (DiagMethod == 2) THEN
+
+         flag_RSL = &
+            ! zd>0 subject to FAI > beta**2*(1-PAI); also beta<0.5;
+            ! hence the lower limit of FAI below
+            ! FAI > 0.25*(1 - PAI) .AND. FAI < 0.45 .AND. & ! FAI
+            ! PAI > 0.1 .AND. PAI < 0.61 .AND. & ! PAI
+            PAI > 0.1 .AND. PAI < 0.68 .AND. & ! PAI
+            zH > 2 ! effective canopy height
+         ! LB Oct2021 - FAI and PAI can be larger than 0.45 and 0.61 respectively -> remove (1.-PAI)/FAI > .021 constraint
+         !(note: it seems wrong anyway - should be 0.87 not 0.021 based on G&O1991 numbers)
+      ELSE
+         ! default is to use MOST
+         flag_RSL = .FALSE.
+      END IF
+
+      !
+      ! ! Step 2
+      ! ! determine vertical levels used in RSL
+      ! Define the height array with consideration of key heights
+      ! set number of heights within canopy
+      IF (Zh <= 2) THEN
+         nz_can = 3
+      ELSE IF (Zh <= 10) THEN
+         nz_can = 6
+      ELSE
+         nz_can = 15
+      END IF
+      ! fill up heights in canopy
+      dz_can = Zh/nz_can
+      DO i = 1, nz_can
+         zarray(i) = dz_can*i
+      END DO
+
+      ! guaranttee 2 m is within the zarray
+      IF (dz_can > 2) zarray(1) = 1.999
+
+      ! fill up heights above canopy
+      nz_above = nz - nz_can
+      dz_above = (zMeas - Zh)/nz_above
+      DO i = nz_can + 1, nz
+         zarray(i) = Zh + (i - nz_can)*dz_above
+      END DO
+
+      ! ! determine index at the canyon top
+      ! DO z = 1, nz
+      !    dif(z) = ABS(zarray(z) - Zh)
+      ! END DO
+      ! nz_can = MINLOC(dif, DIM=1)
+      ! ! zarray(idx_can+2) = Zh+.1
+      ! ! zarray(idx_can+1) = Zh+.05
+      ! zarray(nz_can) = Zh
+      ! zarray(idx_can-1) = Zh-.1
+
+      ! determine index at measurement height
+      ! nz = nz
+      zarray(nz) = zMeas
+
+      IF (flag_RSL) THEN
+
+         ! use RSL approach to calculate correction factors
+         psihatm_z = 0.*zarray
+         psihath_z = 0.*zarray
+         ! Step 0: Calculate grid-cell dependent constants and Beta (crucial for H&F method)
+         CALL RSL_cal_prms( &
+            StabilityMethod, & !input
+            nz_above, zarray(nz_can + 1:nz), & !input
+            zh, L_MOD, sfr_surf, FAI, PAI, & !input
+            psihatm_z(nz_can + 1:nz), psihath_z(nz_can + 1:nz), & !output
+            zH_RSL, L_MOD_RSL, & ! output
+            Lc, beta, zd_RSL, z0_RSL, elm, Scc, fx)
+
+         ! Step 3: calculate the stability dependent H&F constants
+
+         ! CALL cal_ch(StabilityMethod, zh_RSL, zd_RSL, Lc, beta, L_MOD_RSL, Scc, fx, c2h, ch)
+         ! CALL cal_cm(StabilityMethod, zH_RSL, zd_RSL, Lc, beta, L_MOD_RSL, c2m, cm)
+
+         ! ! Step 4: determine psihat at levels above the canopy
+         ! DO z = nz - 1, idx_can, -1
+         !    phimz = stab_phi_heat(StabilityMethod, (zarray(z) - zd_RSL)/L_MOD_RSL)
+         !    phimzp = stab_phi_heat(StabilityMethod, (zarray(z + 1) - zd_RSL)/L_MOD_RSL)
+         !    phihz = stab_phi_heat(StabilityMethod, (zarray(z) - zd_RSL)/L_MOD_RSL)
+         !    phihzp = stab_phi_heat(StabilityMethod, (zarray(z + 1) - zd_RSL)/L_MOD_RSL)
+
+         !    psihatm_z(z) = psihatm_z(z + 1) + dz_above/2.*phimzp*(cm*EXP(-1.*c2m*beta*(zarray(z + 1) - zd_RSL)/elm)) & !Taylor's approximation for integral
+         !                   /(zarray(z + 1) - zd_RSL)
+         !    psihatm_z(z) = psihatm_z(z) + dz_above/2.*phimz*(cm*EXP(-1.*c2m*beta*(zarray(z) - zd_RSL)/elm)) &
+         !                   /(zarray(z) - zd_RSL)
+         !    psihath_z(z) = psihath_z(z + 1) + dz_above/2.*phihzp*(ch*EXP(-1.*c2h*beta*(zarray(z + 1) - zd_RSL)/elm)) & !Taylor's approximation for integral
+         !                   /(zarray(z + 1) - zd_RSL)
+         !    psihath_z(z) = psihath_z(z) + dz_above/2.*phihz*(ch*EXP(-1.*c2h*beta*(zarray(z) - zd_RSL)/elm)) &
+         !                   /(zarray(z) - zd_RSL)
+         ! END DO
+
+      ELSE
+
+         ! correct parameters if RSL approach doesn't apply for scenario of isolated flows
+         ! see Fig 1 of Grimmond and Oke (1999)
+         ! when isolated flow or skimming flow, implying RSL doesn't apply, force RSL correction to zero
+         psihatm_z = 0
+         psihath_z = 0
+
+         ! use L_MOD as in other parts of SUEWS
+         L_MOD_RSL = L_MOD
+
+         !correct RSL-based using SUEWS system-wide values
+         z0_RSL = z0m
+         zd_RSL = zdm
+         zH_RSL = Zh
+
+         Lc = -999
+         beta = -999
+         Scc = -999
+         fx = -999
+         elm = -999
+
+         ! then MOST recovers from RSL correction
+      END IF
+
+      ! Step 6: Calculate mean variables above canopy
+      !
+      psimz0 = stab_psi_mom(StabilityMethod, z0_RSL/L_MOD_RSL)
+      psimza = stab_psi_mom(StabilityMethod, (zMeas - zd_RSL)/L_MOD_RSL)
+      psihza = stab_psi_heat(StabilityMethod, (zMeas - zd_RSL)/L_MOD_RSL)
+
+      UStar_RSL = avU1*kappa/(LOG((zMeas - zd_RSL)/z0_RSL) - psimza + psimz0 + psihatm_z(nz))
+
+      ! TS 11 Feb 2021: limit UStar and TStar to reasonable ranges
+      ! under all conditions, min(UStar)==0.001 m s-1 (Jimenez et al 2012, MWR, https://doi.org/10.1175/mwr-d-11-00056.1
+      UStar_RSL = MAX(0.001, UStar_RSL)
+      ! under convective/unstable condition, min(UStar)==0.15 m s-1: (Schumann 1988, BLM, https://doi.org/10.1007/BF00123019)
+      IF ((ZMeas - zd_RSL)/L_MOD_RSL < -neut_limit) UStar_RSL = MAX(0.15, UStar_RSL)
+
+      ! TStar_RSL = -1.*(qh/(avcp*avdens))/UStar_RSL
+      ! qStar_RSL = -1.*(qe/lv_J_kg*avdens)/UStar_RSL
+      IF (flag_RSL) THEN
+         UStar_heat = MAX(0.15, UStar_RSL)
+      ELSE
+         ! use UStar_heat implied by RA_h using MOST
+         psihz0 = stab_psi_heat(StabilityMethod, z0v/L_MOD_RSL)
+         UStar_heat = 1/(kappa*RA_h)*(LOG((zMeas - zd_RSL)/z0v) - psihza + psihz0)
+      END IF
+      TStar_RSL = -1.*(qh/(avcp*avdens))/UStar_heat
+      IF (qe == 0.0) THEN
+         qStar_RSL = 10.**(-10) ! avoid the situation where qe=0, qstar_RSL=0 and the code breaks LB 21 May 2021
+      ELSE
+         qStar_RSL = -1.*(qe/lv_J_kg*avdens)/UStar_heat
+      END IF
+      qa_gkg = RH2qa(avRH/100, Press_hPa, Temp_c)
+
+      DO z = nz_can, nz
+         psimz = stab_psi_mom(StabilityMethod, (zarray(z) - zd_RSL)/L_MOD_RSL)
+         psihz = stab_psi_heat(StabilityMethod, (zarray(z) - zd_RSL)/L_MOD_RSL)
+         dataoutLineURSL(z) = (LOG((zarray(z) - zd_RSL)/z0_RSL) - psimz + psimz0 + psihatm_z(z))/kappa ! eqn. 3 in Theeuwes et al. (2019 BLM)
+         dataoutLineTRSL(z) = (LOG((zarray(z) - zd_RSL)/(zMeas - zd_RSL)) - psihz + psihza + psihath_z(z) - psihath_z(nz))/kappa ! eqn. 4 in Theeuwes et al. (2019 BLM)
+         dataoutLineqRSL(z) = dataoutLineTRSL(z)
+      END DO
+      !
+      ! Step 7: calculate in canopy variables
+      !
+      IF (flag_RSL) THEN
+         ! RSL approach: exponential profiles within canopy
+         IF (nz_can > 1) THEN
+            t_h = Scc*TStar_RSL/(beta*fx)
+            q_h = Scc*qStar_RSL/(beta*fx)
+            DO z = 1, nz_can - 1
+               dataoutLineURSL(z) = dataoutLineURSL(nz_can)*EXP(beta*(zarray(z) - Zh_RSL)/elm)
+               dataoutLineTRSL(z) = dataoutLineTRSL(nz_can) + (t_h*EXP(beta*fx*(zarray(z) - Zh_RSL)/elm) - t_h)/TStar_RSL
+               dataoutLineqRSL(z) = dataoutLineqRSL(nz_can) + (q_h*EXP(beta*fx*(zarray(z) - Zh_RSL)/elm) - q_h)/qStar_RSL
+            END DO
+         END IF
+      ELSE
+         ! MOST approach:
+         DO z = 1, nz_can
+            ! when using MOST, all vertical levels should larger than zd_RSL
+            IF (zarray(z) <= zd_RSL) zarray(z) = 1.01*(zd_RSL + z0_RSL)
+            psimz = stab_psi_mom(StabilityMethod, (zarray(z) - zd_RSL)/L_MOD_RSL)
+            psihz = stab_psi_heat(StabilityMethod, (zarray(z) - zd_RSL)/L_MOD_RSL)
+            dataoutLineURSL(z) = (LOG((zarray(z) - zd_RSL)/z0_RSL) - psimz + psimz0)/kappa
+            dataoutLineTRSL(z) = (LOG((zarray(z) - zd_RSL)/(zMeas - zd_RSL)) - psihz + psihza)/kappa
+            dataoutLineqRSL(z) = dataoutLineTRSL(z)
+         END DO
+      END IF
+
+      ! associate physical quantities to correction profilles
+      dataoutLineURSL = dataoutLineURSL*UStar_RSL
+      dataoutLineTRSL = dataoutLineTRSL*TStar_RSL + Temp_C
+      dataoutLineqRSL = (dataoutLineqRSL*qStar_RSL + qa_gkg/1000.)*1000.
+
+      ! construct output line for output file
+      dataoutLineRSL = [zarray, dataoutLineURSL, dataoutLineTRSL, dataoutLineqRSL, &
+                        !information for debugging
+                        ! L_stab, L_unstab,
+                        L_MOD_RSL, &
+                        zH_RSL, &
+                        ! Lc_stab, Lc_unstab,
+                        Lc, &
+                        beta, zd_RSL, z0_RSL, elm, Scc, fx, &
+                        UStar_RSL, UStar_heat, TStar_RSL, FAI, PAI, MERGE(1.D0, 0.D0, flag_RSL) &
+                        ]
+
+      !
+      ! Step 8
+      ! retrieve the diagnostics at key heights
+      !
+      IF (flag_RSL) THEN
+         ! RSL approach: diagnostics within canopy, heights are above ground level
+         T2_C = interp_z(2D0, zarray, dataoutLineTRSL)
+         q2_gkg = interp_z(2D0, zarray, dataoutLineqRSL)
+         U10_ms = interp_z(10D0, zarray, dataoutLineURSL)
+      ELSE
+         ! MOST approach: diagnostics at heights above zdm+z0m to avoid insane values
+         T2_C = interp_z(2D0 + zd_rsl + z0_rsl, zarray, dataoutLineTRSL)
+         q2_gkg = interp_z(2D0 + zd_rsl + z0_rsl, zarray, dataoutLineqRSL)
+         U10_ms = interp_z(10D0 + zd_rsl + z0_rsl, zarray, dataoutLineURSL)
+      END IF
+      ! get relative humidity:
+      RH2 = qa2RH(q2_gkg, press_hPa, T2_C)
+
+   END SUBROUTINE RSLProfile_DTS
 
    FUNCTION interp_z(z_x, z, v) RESULT(v_x)
 

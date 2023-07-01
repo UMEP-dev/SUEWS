@@ -491,7 +491,7 @@ def resample_kdn(data_raw_kdn, tstep_mod, timezone, lat, lon, alt):
     datetime_mid_local = data_raw_kdn.index - timedelta(seconds=tstep_mod / 2)
     sol_elev = np.array(
         [
-            sd.suews_cal_sunposition(t.year, dectime(t), timezone, lat, lon, alt)[-1]
+            _sd.f90wrap_suews_cal_sunposition(t.year, dectime(t), timezone, lat, lon, alt)[-1]
             for t in datetime_mid_local
         ]
     )

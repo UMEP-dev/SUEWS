@@ -55,7 +55,7 @@ class TestSuPy(TestCase):
                 not df_state.empty,
             ]
         )
-        self.assertTrue(test_non_empty)
+        self.assertTrue((test_non_empty and not df_state.isnull().values.any()))
 
     # test if multi-tstep mode can run
     def test_is_supy_running_multi_step(self):
@@ -83,7 +83,7 @@ class TestSuPy(TestCase):
                 not df_state.empty,
             ]
         )
-        self.assertTrue(test_non_empty)
+        self.assertTrue((test_non_empty and not df_state.isnull().values.any()))
 
     # test if multi-grid simulation can run in parallel
     # def test_is_supy_sim_save_multi_grid_par(self):
@@ -221,6 +221,11 @@ class TestSuPy(TestCase):
 
         # test if common variables are all those in `df_state_init`
         test_common_all = set_var_df_init == set_var_common
+        if not test_common_all:
+            print("Variables not in `dict_rules` but in `df_state_init`:")
+            print(set_var_df_init.difference(set_var_common))
+            print("Variables not in `df_state_init` but in `dict_rules`:")
+            print(set_var_common.difference(set_var_df_init))
         self.assertTrue(test_common_all)
 
     # test ERA5 forcing generation
@@ -310,5 +315,23 @@ class TestSuPy(TestCase):
 
         test_equal = smd_veg_correct == smd_veg_test
         self.assertAlmostEqual(smd_veg_correct, smd_veg_test)
+
+    # test if dailystate are written out correctly
+    def test_dailystate_meaningful(self):
+        print("\n========================================")
+        print("Testing if dailystate are written out correctly...")
+        df_state_init, df_forcing_tstep = sp.load_SampleData()
+        n_days = 10
+        df_forcing_part = df_forcing_tstep.iloc[: 288 * n_days]
+
+        # single-step results
+        df_output, df_state = sp.run_supy(
+            df_forcing_part, df_state_init
+        )
+        df_dailystate=df_output.DailyState
+        n_days_test= df_dailystate.dropna().drop_duplicates().shape[0]
+        self.assertEqual(n_days_test,n_days)
+
+
 
 

@@ -33,6 +33,7 @@ from ._load import (
     load_SUEWS_dict_ModConfig,
     load_df_state,
     resample_forcing_met,
+    load_stebbs_grid_nml
 )
 from ._run import run_supy_par, run_supy_ser
 from ._save import get_save_info, save_df_output, save_df_state, save_initcond_nml
@@ -507,3 +508,23 @@ def save_supy(
         list_path_save.append(path_state_save)
 
     return list_path_save
+
+##############################################################################
+# 4. Print first namelist in the dictionary of buildings
+
+def load_stebbs_bldg_nml(gridname, atype_nml_p, general_nml_p, n_build):
+    # Call the function to load the dictionary of buildings
+    buildings_dict = load_stebbs_grid_nml(gridname, atype_nml_p, general_nml_p)
+
+    # Ensure n_build is within range
+    if n_build < 0 or n_build >= len(buildings_dict):
+        print(f"Error: n_build={n_build} is out of range.")
+        return
+    
+    # Convert dictionary keys to a list to access by index
+    building_keys = list(buildings_dict.keys())
+    building_name = building_keys[n_build]  # Get the n_build-th key
+    building_data = buildings_dict[building_name]  # Retrieve the corresponding data
+    
+    return n_build, building_name, building_data
+

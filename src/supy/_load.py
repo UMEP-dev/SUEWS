@@ -1934,3 +1934,21 @@ def load_df_state(path_csv: Path) -> pd.DataFrame:
         infer_datetime_format=True,
     )
     return df_state
+
+# load the DAVE namelist structure
+# return dictionary of nml
+def load_stebbs_grid_nml(grid_name, atype_nml_p, general_nml_p):
+    """Load STEBBS building namelists for all buildings in a single grid"""
+
+    building_keys = [k for k in atype_nml_p.keys() if str(grid_name) in k]
+    building_names = [b for b in building_keys  if '_r_' in b or '_m_' in b or '_o_' in b or '_nr_' in b]
+    
+    buildings = {}
+
+    for archetype in building_names:
+        grid_atype = atype_nml_p[archetype]
+        for key, val in general_nml_p['stebbs_general_params'].items():
+            grid_atype[key] = val
+        buildings[archetype] = grid_atype
+
+    return buildings

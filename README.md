@@ -7,7 +7,6 @@ This is a public repo for SUEWS source code and documentation.
 ---
 
 
-
 ## Documentation
 
 * Documentation site: <https://suews.readthedocs.io/>

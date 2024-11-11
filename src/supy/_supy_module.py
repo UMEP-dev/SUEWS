@@ -512,19 +512,18 @@ def save_supy(
 ##############################################################################
 # 4. Print first namelist in the dictionary of buildings
 
-def load_stebbs_bldg_nml(gridname, atype_nml_p, general_nml_p, n_build):
+def load_stebbs_bldg_nml(gridname, atype_nml_p, general_nml_p, bldg_method, bldg_atype_name):
     # Call the function to load the dictionary of buildings
     buildings_dict = load_stebbs_grid_nml(gridname, atype_nml_p, general_nml_p)
-
-    # Ensure n_build is within range
-    if n_build < 0 or n_build >= len(buildings_dict):
-        print(f"Error: n_build={n_build} is out of range.")
-        return
     
-    # Convert dictionary keys to a list to access by index
-    building_keys = list(buildings_dict.keys())
-    building_name = building_keys[n_build]  # Get the n_build-th key
-    building_data = buildings_dict[building_name]  # Retrieve the corresponding data
-    
-    return n_build, building_name, building_data
+    if bldg_method == 0:
+        return buildings_dict
+    elif bldg_method==1:
+        # Check if the specific key (bldg_atype) exists in the dictionary
+        if bldg_atype_name in buildings_dict:
+            building_data = buildings_dict[bldg_atype_name]  # Retrieve data for the specified key
+            return building_data
+        else:
+            print(f"Error: Building '{bldg_atype_name}' not found in the dictionary.")
+            return None
 

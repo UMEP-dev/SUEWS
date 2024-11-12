@@ -521,9 +521,20 @@ def load_stebbs_bldg_nml(gridname, atype_nml_p, general_nml_p, bldg_method, bldg
     elif bldg_method==1:
         # Check if the specific key (bldg_atype) exists in the dictionary
         if bldg_atype_name in buildings_dict:
-            building_data = buildings_dict[bldg_atype_name]  # Retrieve data for the specified key
-            return building_data
+            selected_building_dict = buildings_dict[bldg_atype_name]  # Retrieve data for the specified key
+            return selected_building_dict
         else:
             print(f"Error: Building '{bldg_atype_name}' not found in the dictionary.")
             return None
+    elif bldg_method == 2:
+        total_area_bldgs = sum(entry['footprintarea'] * entry['buildingcount'] for entry in buildings_dict.values())
+
+        largestareafraction_building_name, largestareafraction_building_dict = max(
+            buildings_dict.items(),
+            key=lambda item: (item[1]['footprintarea'] * item[1]['buildingcount']) / total_area_bldgs
+            if total_area_bldgs > 0 else 0
+        )
+        
+        return largestareafraction_building_name, largestareafraction_building_dict
+
 

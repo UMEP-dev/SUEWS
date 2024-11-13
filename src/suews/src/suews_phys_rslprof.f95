@@ -229,15 +229,15 @@ CONTAINS
          ! Step 0: Calculate grid-cell dependent constants and Beta (crucial for H&F method)
          CALL RSL_cal_prms( &
             StabilityMethod, & !input
-!nakao b
-!            nz_above, zarray(nz_can + 1:nz), & !input
-            nz_above+1, zarray(nz_can:nz), & !input
-!nakao a
+            !nakao b
+            !            nz_above, zarray(nz_can + 1:nz), & !input
+            nz_above + 1, zarray(nz_can:nz), & !input
+            !nakao a
             zh, L_MOD, sfr_surf, FAI, PAI, & !input
-!nakao b
-!            psihatm_z(nz_can + 1:nz), psihath_z(nz_can + 1:nz), & !output
+            !nakao b
+            !            psihatm_z(nz_can + 1:nz), psihath_z(nz_can + 1:nz), & !output
             psihatm_z(nz_can:nz), psihath_z(nz_can:nz), & !output
-!nakao a
+            !nakao a
             zH_RSL, L_MOD_RSL, & ! output
             Lc, beta, zd_RSL, z0_RSL, elm, Scc, fx)
 
@@ -319,7 +319,7 @@ CONTAINS
       END IF
       qa_gkg = RH2qa(avRH/100, Press_hPa, Temp_c)
 
-!nakao b psihatm_z(nz_can) is referred in the following but this is not casted on RSL_cal_prms (see the variables range (nz_can + 1,:nz) is originally referred there) 
+!nakao b psihatm_z(nz_can) is referred in the following but this is not casted on RSL_cal_prms (see the variables range (nz_can + 1,:nz) is originally referred there)
 !This level nz_can is referred at Step. 7 (in-canopy wind speed extention by exponential).
       DO z = nz_can, nz
          psimz = stab_psi_mom(StabilityMethod, (zarray(z) - zd_RSL)/L_MOD_RSL)
@@ -1898,8 +1898,8 @@ CONTAINS
                                     psihatm_top, psihatm_mid, &
                                     z_top, z_mid, z_btm, &
                                     cm, c2m, &
-! nakao b Not necessary but if L_MOD_RSL is preferred in this routine...
-!                                    zh_RSL, zd_RSL, L_MOD, beta, elm, Lc)
+                                    ! nakao b Not necessary but if L_MOD_RSL is preferred in this routine...
+                                    !                                    zh_RSL, zd_RSL, L_MOD, beta, elm, Lc)
                                     zh_RSL, zd_RSL, L_MOD_RSL, beta, elm, Lc)
 ! nakao a
          psihatm_array(iz - 2) = psihatm_btm
@@ -1911,8 +1911,8 @@ CONTAINS
                                     psihath_top, psihath_mid, &
                                     z_top, z_mid, z_btm, &
                                     ch, c2h, &
-! nakao b Not necessary but if L_MOD_RSL is preferred in this routine...
-!                                    zH_RSL, zd_RSL, L_MOD, beta, elm, Lc)
+                                    ! nakao b Not necessary but if L_MOD_RSL is preferred in this routine...
+                                    !                                    zH_RSL, zd_RSL, L_MOD, beta, elm, Lc)
                                     zH_RSL, zd_RSL, L_MOD_RSL, beta, elm, Lc)
 ! nakao a
          psihath_top = psihath_mid

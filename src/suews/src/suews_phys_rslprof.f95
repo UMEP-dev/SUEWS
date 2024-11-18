@@ -854,7 +854,6 @@ CONTAINS
       REAL(KIND(1D0)), DIMENSION(nz) :: dataoutLineURSL ! wind speed array [m s-1]
       REAL(KIND(1D0)), DIMENSION(nz) :: dataoutLineTRSL ! Temperature array [C]
       REAL(KIND(1D0)), DIMENSION(nz) :: dataoutLineqRSL ! Specific humidity array [g kg-1]
-
       REAL(KIND(1D0)) :: z0_RSL ! roughness length from H&F
       REAL(KIND(1D0)) :: zd_RSL ! zero-plane displacement
 
@@ -1006,6 +1005,21 @@ CONTAINS
                   zH > 2 ! effective canopy height
                ! LB Oct2021 - FAI and PAI can be larger than 0.45 and 0.61 respectively -> remove (1.-PAI)/FAI > .021 constraint
                !(note: it seems wrong anyway - should be 0.87 not 0.021 based on G&O1991 numbers)
+
+               ! Uncomment below session if constraint based on beta is used ALSO make this step to be after vertical layers created.
+               !psihatm_z = 0.*zarray
+               !psihath_z = 0.*zarray
+               !CALL RSL_cal_prms( &
+               !   StabilityMethod, & !input
+               !   nz_above, zarray(nz_can + 1:nz), & !input
+               !   zh, L_MOD, sfr_surf, FAI, PAI, & !input
+               !   psihatm_z(nz_can + 1:nz), psihath_z(nz_can + 1:nz), & !output
+               !   zH_RSL, L_MOD_RSL, & ! output
+               !   Lc, beta, zd_RSL, z0_RSL, elm, Scc, fx)
+
+               !IF (FAI < beta**2*(1.-PAI)) THEN
+                  ! To be decided
+
             ELSE
                ! default is to use MOST
                flag_RSL = .FALSE.
@@ -1060,9 +1074,11 @@ CONTAINS
                ! Step 0: Calculate grid-cell dependent constants and Beta (crucial for H&F method)
                CALL RSL_cal_prms( &
                   StabilityMethod, & !input
-                  nz_above, zarray(nz_can + 1:nz), & !input
+                  !nz_above, zarray(nz_can + 1:nz), & !input
+                  nz_above+1, zarray(nz_can:nz), & !input
                   zh, L_MOD, sfr_surf, FAI, PAI, & !input
-                  psihatm_z(nz_can + 1:nz), psihath_z(nz_can + 1:nz), & !output
+                  !psihatm_z(nz_can + 1:nz), psihath_z(nz_can + 1:nz), & !output
+                  psihatm_z(nz_can:nz), psihath_z(nz_can:nz), & !output
                   zH_RSL, L_MOD_RSL, & ! output
                   Lc, beta, zd_RSL, z0_RSL, elm, Scc, fx)
 
@@ -1890,7 +1906,7 @@ CONTAINS
                                     psihatm_top, psihatm_mid, &
                                     z_top, z_mid, z_btm, &
                                     cm, c2m, &
-                                    zh_RSL, zd_RSL, L_MOD, beta, elm, Lc)
+                                    zh_RSL, zd_RSL, L_MOD_RSL, beta, elm, Lc) ! Change L_MOD -> L_MOD_RLS
          psihatm_array(iz - 2) = psihatm_btm
          psihatm_top = psihatm_mid
          psihatm_mid = psihatm_btm
@@ -1900,7 +1916,7 @@ CONTAINS
                                     psihath_top, psihath_mid, &
                                     z_top, z_mid, z_btm, &
                                     ch, c2h, &
-                                    zH_RSL, zd_RSL, L_MOD, beta, elm, Lc)
+                                    zH_RSL, zd_RSL, L_MOD_RSL, beta, elm, Lc) ! Change L_MOD -> L_MOD_RLS
          psihath_top = psihath_mid
          psihath_mid = psihath_btm
          psihath_array(iz - 2) = psihath_btm

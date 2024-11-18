@@ -1018,7 +1018,7 @@ CONTAINS
                !   Lc, beta, zd_RSL, z0_RSL, elm, Scc, fx)
 
                !IF (FAI < beta**2*(1.-PAI)) THEN
-                  ! To be decided
+               ! To be decided
 
             ELSE
                ! default is to use MOST
@@ -1075,7 +1075,7 @@ CONTAINS
                CALL RSL_cal_prms( &
                   StabilityMethod, & !input
                   !nz_above, zarray(nz_can + 1:nz), & !input
-                  nz_above+1, zarray(nz_can:nz), & !input
+                  nz_above + 1, zarray(nz_can:nz), & !input
                   zh, L_MOD, sfr_surf, FAI, PAI, & !input
                   !psihatm_z(nz_can + 1:nz), psihath_z(nz_can + 1:nz), & !output
                   psihatm_z(nz_can:nz), psihath_z(nz_can:nz), & !output

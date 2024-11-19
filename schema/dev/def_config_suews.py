@@ -29,12 +29,32 @@ class SurfaceType(str, Enum):
 class SnowAlb(BaseModel):
     snowalb: float = Field(ge=0, le=1, description="Snow albedo")
 
+    ## Converting Field ge and le into range model_validator
+    #@model_validator(mode="after")
+    #def validate_snowalb_range(self) -> "SnowAlb":
+    #    if self.snowalb < 0 or self.snowalb > 1:
+    #        error_message = ValueError(
+    #            f"The value of snowalb must be between 0 and 1, inclusive (input: {self.snowalb})."
+    #        )
+    #        exceptions.append(error_message)
+    #    return self
 
 class WaterUse(BaseModel):
     wu_total: float = Field(ge=0, description="Total water use")
     wu_auto: float = Field(ge=0, description="Automatic water use")
     wu_manual: float = Field(ge=0, description="Manual water use")
 
+    ## Converting Field ge into range model_validator
+    # @model_validator(mode="after")
+    # def validate_wateruse_range(self) -> "WaterUse":
+    #     exceptions = []
+    #     if self.wu_total < 0:
+    #         exceptions.append(ValueError(f"The value of wu_total must be greater than or equal to 0 (input: {self.wu_total})."))
+    #     if self.wu_auto < 0:
+    #         exceptions.append(ValueError(f"The value of wu_auto must be greater than or equal to 0 (input: {self.wu_auto})."))
+    #     if self.wu_manual < 0:
+    #         exceptions.append(ValueError(f"The value of wu_manual must be greater than or equal to 0 (input: {self.wu_manual})."))
+    #     return self
 
 class SurfaceInitialState(BaseModel):
     """Initial state parameters for a surface type"""
@@ -79,6 +99,26 @@ class SurfaceInitialState(BaseModel):
         None  # TODO: add validation - only needed for vegetated surfaces
     )
     _surface_type: Optional[SurfaceType] = PrivateAttr(default=None)
+
+    ## Converting Field ge and le into range model_validator
+    # @model_validator(mode="after")
+    # def validate_surface_initial_state_range(self) -> "SurfaceInitialState":
+    #     exceptions = []
+    #     if self.state < 0:
+    #         exceptions.append(ValueError(f"The value of state must be greater than or equal to 0 (input: {self.state})."))
+    #     if self.soilstore < 0:
+    #         exceptions.append(ValueError(f"The value of soilstore must be greater than or equal to 0 (input: {self.soilstore})."))
+    #     if self.snowfrac < 0 or self.snowfrac > 1:
+    #         exceptions.append(ValueError(f"The value of snowfrac must be between 0 and 1, inclusive (input: {self.snowfrac})."))
+    #     if self.snowpack < 0:
+    #         exceptions.append(ValueError(f"The value of snowpack must be greater than or equal to 0 (input: {self.snowpack})."))
+    #     if self.icefrac < 0 or self.icefrac > 1:
+    #         exceptions.append(ValueError(f"The value of icefrac must be between 0 and 1, inclusive (input: {self.icefrac})."))
+    #     if self.snowwater < 0:
+    #         exceptions.append(ValueError(f"The value of snowwater must be greater than or equal to 0 (input: {self.snowwater})."))
+    #     if self.snowdens < 0:
+    #         exceptions.append(ValueError(f"The value of snowdens must be greater than or equal to 0 (input: {self.snowdens})."))
+    #     return self
 
     def set_surface_type(self, surface_type: SurfaceType):
         """Set and validate surface type specific parameters"""
@@ -1678,6 +1718,8 @@ if __name__ == "__main__":
     print(f"{len(na_cols)} Columns containing NA values:")
     for col in sorted(na_cols):
         print(col)
+
+    pdb.set_trace()
 
     # test running supy
     import supy as sp

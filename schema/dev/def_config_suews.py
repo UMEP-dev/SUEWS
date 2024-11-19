@@ -1748,7 +1748,7 @@ if __name__ == "__main__":
     for col in sorted(na_cols):
         print(col)
 
-    pdb.set_trace()
+    #pdb.set_trace()
 
     # test running supy
     import supy as sp
@@ -1756,7 +1756,8 @@ if __name__ == "__main__":
     df_state_test = pd.read_pickle("./df_state_test.pkl")
     sp.run_supy(df_forcing, df_state_test)
 
-
+    #df_test_output, df_state_test_final = sp.run_supy(df_forcing, df_state_test)
+    #sp.save_supy(df_output, df_state_final, path_dir_save='./output/', freq_s=300)
 
 # # Convert back to config
 # suews_config_back = SUEWSConfig.from_df_state(df_state)

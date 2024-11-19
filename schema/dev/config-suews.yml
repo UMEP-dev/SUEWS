@@ -13,7 +13,7 @@
     physics:
       netradiationmethod: 1
       emissionsmethod: 1
-      storageheatmethod: 1
+      storageheatmethod: 2
       ohmincqf: 1 # this could be merged above as storageheatmethod=2
       roughlenmommethod: 1
       roughlenheatmethod: 1

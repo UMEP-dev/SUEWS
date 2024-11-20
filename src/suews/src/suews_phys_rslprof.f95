@@ -8,7 +8,13 @@ MODULE rsl_module
 
    INTEGER, PARAMETER :: nz = 30 ! number of levels 10 levels in canopy plus 20 (3 x Zh) above the canopy
 
+!nakao b  Nov.2024 Tentatively limit the neutral category
+    INTEGER :: neut_limit_
+!nakao a  Nov.2024
+
 CONTAINS
+
+
 
    SUBROUTINE RSLProfile( &
       DiagMethod, &
@@ -145,6 +151,11 @@ CONTAINS
 
       ! Step 1: determine if RSL should be used
 
+!nakao b  Nov.2024
+      neut_limit_ = neut_limit
+      neut_limit = 0.0
+!nakao a  Nov.2024
+
       IF (DiagMethod == 0) THEN
          ! force MOST to be used
          flag_RSL = .FALSE.
@@ -229,15 +240,15 @@ CONTAINS
          ! Step 0: Calculate grid-cell dependent constants and Beta (crucial for H&F method)
          CALL RSL_cal_prms( &
             StabilityMethod, & !input
-            !nakao b
-            !            nz_above, zarray(nz_can + 1:nz), & !input
-            nz_above + 1, zarray(nz_can:nz), & !input
-            !nakao a
+!nakao b  Nov.2024
+!            nz_above, zarray(nz_can + 1:nz), & !input
+            nz_above+1, zarray(nz_can:nz), & !input
+!nakao a  Nov.2024
             zh, L_MOD, sfr_surf, FAI, PAI, & !input
-            !nakao b
-            !            psihatm_z(nz_can + 1:nz), psihath_z(nz_can + 1:nz), & !output
+!nakao b  Nov.2024
+!            psihatm_z(nz_can + 1:nz), psihath_z(nz_can + 1:nz), & !output
             psihatm_z(nz_can:nz), psihath_z(nz_can:nz), & !output
-            !nakao a
+!nakao a  Nov.2024
             zH_RSL, L_MOD_RSL, & ! output
             Lc, beta, zd_RSL, z0_RSL, elm, Scc, fx)
 
@@ -300,7 +311,10 @@ CONTAINS
       ! under all conditions, min(UStar)==0.001 m s-1 (Jimenez et al 2012, MWR, https://doi.org/10.1175/mwr-d-11-00056.1
       UStar_RSL = MAX(0.001, UStar_RSL)
       ! under convective/unstable condition, min(UStar)==0.15 m s-1: (Schumann 1988, BLM, https://doi.org/10.1007/BF00123019)
-      IF ((ZMeas - zd_RSL)/L_MOD_RSL < -neut_limit) UStar_RSL = MAX(0.15, UStar_RSL)
+!nakao b  Nov.2024 Below is to consider original neutral limit at measurement height
+!      IF ((ZMeas - zd_RSL)/L_MOD_RSL < -neut_limit) UStar_RSL = MAX(0.15, UStar_RSL)
+      IF ((ZMeas - zd_RSL)/L_MOD_RSL < -neut_limit_) UStar_RSL = MAX(0.15, UStar_RSL)
+!nakao a  Nov.2024
 
       ! TStar_RSL = -1.*(qh/(avcp*avdens))/UStar_RSL
       ! qStar_RSL = -1.*(qe/lv_J_kg*avdens)/UStar_RSL
@@ -319,8 +333,10 @@ CONTAINS
       END IF
       qa_gkg = RH2qa(avRH/100, Press_hPa, Temp_c)
 
-!nakao b psihatm_z(nz_can) is referred in the following but this is not casted on RSL_cal_prms (see the variables range (nz_can + 1,:nz) is originally referred there)
+!nakao b  Nov.2024 
+!psihatm_z(nz_can) is referred in the following but this is not casted on RSL_cal_prms (see the variables range (nz_can + 1,:nz) is originally referred there)
 !This level nz_can is referred at Step. 7 (in-canopy wind speed extention by exponential).
+!nakao a  Nov.2024
       DO z = nz_can, nz
          psimz = stab_psi_mom(StabilityMethod, (zarray(z) - zd_RSL)/L_MOD_RSL)
          psihz = stab_psi_heat(StabilityMethod, (zarray(z) - zd_RSL)/L_MOD_RSL)
@@ -389,6 +405,10 @@ CONTAINS
       END IF
       ! get relative humidity:
       RH2 = qa2RH(q2_gkg, press_hPa, T2_C)
+
+!nakao b  Nov.2024 : Retain neut_limit
+      neut_limit = neut_limit_
+!nakao a  Nov.2024
 
    END SUBROUTINE RSLProfile
 
@@ -911,6 +931,11 @@ CONTAINS
       ! Step 6: Calculate mean variables above canopy
       ! Step 7: Calculate mean variables in canopy
 
+!nakao b  Nov.2024
+      neut_limit_ = neut_limit
+      neut_limit = 0.0
+!nakao a  Nov.2024
+
 !  ! Step 0: Calculate grid-cell dependent constants and Beta (crucial for H&F method)
 !       CALL RSL_cal_prms( &
 !          StabilityMethod, & !input
@@ -1068,9 +1093,15 @@ CONTAINS
                ! Step 0: Calculate grid-cell dependent constants and Beta (crucial for H&F method)
                CALL RSL_cal_prms( &
                   StabilityMethod, & !input
-                  nz_above, zarray(nz_can + 1:nz), & !input
+!nakao b  Nov.2024
+!                  nz_above, zarray(nz_can + 1:nz), & !input
+                  nz_above+1, zarray(nz_can:nz), & !input
+!nakao a  Nov.2024
                   zh, L_MOD, sfr_surf, FAI, PAI, & !input
-                  psihatm_z(nz_can + 1:nz), psihath_z(nz_can + 1:nz), & !output
+!nakao b  Nov.2024
+!                  psihatm_z(nz_can + 1:nz), psihath_z(nz_can + 1:nz), & !output
+                  psihatm_z(nz_can:nz), psihath_z(nz_can:nz), & !output
+!nakao a  Nov.2024
                   zH_RSL, L_MOD_RSL, & ! output
                   Lc, beta, zd_RSL, z0_RSL, elm, Scc, fx)
 
@@ -1111,7 +1142,10 @@ CONTAINS
             ! under all conditions, min(UStar)==0.001 m s-1 (Jimenez et al 2012, MWR, https://doi.org/10.1175/mwr-d-11-00056.1
             UStar_RSL = MAX(0.001, UStar_RSL)
             ! under convective/unstable condition, min(UStar)==0.15 m s-1: (Schumann 1988, BLM, https://doi.org/10.1007/BF00123019)
-            IF ((ZMeas - zd_RSL)/L_MOD_RSL < -neut_limit) UStar_RSL = MAX(0.15, UStar_RSL)
+!nakao b  Nov.2024 Below is to consider original neutral limit at measurement height
+!            IF ((ZMeas - zd_RSL)/L_MOD_RSL < -neut_limit) UStar_RSL = MAX(0.15, UStar_RSL)
+            IF ((ZMeas - zd_RSL)/L_MOD_RSL < -neut_limit_) UStar_RSL = MAX(0.15, UStar_RSL)
+!nakao a  Nov.2024
 
             ! TStar_RSL = -1.*(qh/(avcp*avdens))/UStar_RSL
             ! qStar_RSL = -1.*(qe/lv_J_kg*avdens)/UStar_RSL
@@ -1203,6 +1237,10 @@ CONTAINS
 
          END ASSOCIATE
       END ASSOCIATE
+
+!nakao b  Nov.2024 : Retain neut_limit
+      neut_limit = neut_limit_
+!nakao a  Nov.2024
 
    END SUBROUTINE RSLProfile_DTS
 
@@ -1898,10 +1936,10 @@ CONTAINS
                                     psihatm_top, psihatm_mid, &
                                     z_top, z_mid, z_btm, &
                                     cm, c2m, &
-                                    ! nakao b Not necessary but if L_MOD_RSL is preferred in this routine...
-                                    !                                    zh_RSL, zd_RSL, L_MOD, beta, elm, Lc)
+! nakao b Nov.2024 Not necessary but if L_MOD_RSL is preferred in this routine...
+!                                    zh_RSL, zd_RSL, L_MOD, beta, elm, Lc)
                                     zh_RSL, zd_RSL, L_MOD_RSL, beta, elm, Lc)
-! nakao a
+! nakao a Nov.2024
          psihatm_array(iz - 2) = psihatm_btm
          psihatm_top = psihatm_mid
          psihatm_mid = psihatm_btm
@@ -1911,10 +1949,10 @@ CONTAINS
                                     psihath_top, psihath_mid, &
                                     z_top, z_mid, z_btm, &
                                     ch, c2h, &
-                                    ! nakao b Not necessary but if L_MOD_RSL is preferred in this routine...
-                                    !                                    zH_RSL, zd_RSL, L_MOD, beta, elm, Lc)
+! nakao b Nov.2024 Not necessary but if L_MOD_RSL is preferred in this routine...
+!                                    zH_RSL, zd_RSL, L_MOD, beta, elm, Lc)
                                     zH_RSL, zd_RSL, L_MOD_RSL, beta, elm, Lc)
-! nakao a
+! nakao a Nov.2024
          psihath_top = psihath_mid
          psihath_mid = psihath_btm
          psihath_array(iz - 2) = psihath_btm

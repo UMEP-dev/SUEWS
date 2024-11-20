@@ -852,7 +852,7 @@ class SUEWSConfig(BaseModel):
         extra = "allow"
 
     @model_validator(mode="after")
-    def storageheatmethod_validator(self) -> "SUEWSConfig":
+    def validate_storageheatmethod(self) -> "SUEWSConfig":
         if (self.model.physics.storageheatmethod == 1 and self.model.physics.ohmincqf == 0) or (
             self.model.physics.storageheatmethod == 2 and self.model.physics.ohmincqf == 1):
 

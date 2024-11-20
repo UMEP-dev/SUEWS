@@ -9,12 +9,10 @@ MODULE rsl_module
    INTEGER, PARAMETER :: nz = 30 ! number of levels 10 levels in canopy plus 20 (3 x Zh) above the canopy
 
 !nakao b  Nov.2024 Tentatively limit the neutral category
-    INTEGER :: neut_limit_
+   INTEGER :: neut_limit_
 !nakao a  Nov.2024
 
 CONTAINS
-
-
 
    SUBROUTINE RSLProfile( &
       DiagMethod, &
@@ -240,15 +238,15 @@ CONTAINS
          ! Step 0: Calculate grid-cell dependent constants and Beta (crucial for H&F method)
          CALL RSL_cal_prms( &
             StabilityMethod, & !input
-!nakao b  Nov.2024
-!            nz_above, zarray(nz_can + 1:nz), & !input
-            nz_above+1, zarray(nz_can:nz), & !input
-!nakao a  Nov.2024
+            !nakao b  Nov.2024
+            !            nz_above, zarray(nz_can + 1:nz), & !input
+            nz_above + 1, zarray(nz_can:nz), & !input
+            !nakao a  Nov.2024
             zh, L_MOD, sfr_surf, FAI, PAI, & !input
-!nakao b  Nov.2024
-!            psihatm_z(nz_can + 1:nz), psihath_z(nz_can + 1:nz), & !output
+            !nakao b  Nov.2024
+            !            psihatm_z(nz_can + 1:nz), psihath_z(nz_can + 1:nz), & !output
             psihatm_z(nz_can:nz), psihath_z(nz_can:nz), & !output
-!nakao a  Nov.2024
+            !nakao a  Nov.2024
             zH_RSL, L_MOD_RSL, & ! output
             Lc, beta, zd_RSL, z0_RSL, elm, Scc, fx)
 
@@ -333,7 +331,7 @@ CONTAINS
       END IF
       qa_gkg = RH2qa(avRH/100, Press_hPa, Temp_c)
 
-!nakao b  Nov.2024 
+!nakao b  Nov.2024
 !psihatm_z(nz_can) is referred in the following but this is not casted on RSL_cal_prms (see the variables range (nz_can + 1,:nz) is originally referred there)
 !This level nz_can is referred at Step. 7 (in-canopy wind speed extention by exponential).
 !nakao a  Nov.2024
@@ -1093,15 +1091,15 @@ CONTAINS
                ! Step 0: Calculate grid-cell dependent constants and Beta (crucial for H&F method)
                CALL RSL_cal_prms( &
                   StabilityMethod, & !input
-!nakao b  Nov.2024
-!                  nz_above, zarray(nz_can + 1:nz), & !input
-                  nz_above+1, zarray(nz_can:nz), & !input
-!nakao a  Nov.2024
+                  !nakao b  Nov.2024
+                  !                  nz_above, zarray(nz_can + 1:nz), & !input
+                  nz_above + 1, zarray(nz_can:nz), & !input
+                  !nakao a  Nov.2024
                   zh, L_MOD, sfr_surf, FAI, PAI, & !input
-!nakao b  Nov.2024
-!                  psihatm_z(nz_can + 1:nz), psihath_z(nz_can + 1:nz), & !output
+                  !nakao b  Nov.2024
+                  !                  psihatm_z(nz_can + 1:nz), psihath_z(nz_can + 1:nz), & !output
                   psihatm_z(nz_can:nz), psihath_z(nz_can:nz), & !output
-!nakao a  Nov.2024
+                  !nakao a  Nov.2024
                   zH_RSL, L_MOD_RSL, & ! output
                   Lc, beta, zd_RSL, z0_RSL, elm, Scc, fx)
 
@@ -1936,8 +1934,8 @@ CONTAINS
                                     psihatm_top, psihatm_mid, &
                                     z_top, z_mid, z_btm, &
                                     cm, c2m, &
-! nakao b Nov.2024 Not necessary but if L_MOD_RSL is preferred in this routine...
-!                                    zh_RSL, zd_RSL, L_MOD, beta, elm, Lc)
+                                    ! nakao b Nov.2024 Not necessary but if L_MOD_RSL is preferred in this routine...
+                                    !                                    zh_RSL, zd_RSL, L_MOD, beta, elm, Lc)
                                     zh_RSL, zd_RSL, L_MOD_RSL, beta, elm, Lc)
 ! nakao a Nov.2024
          psihatm_array(iz - 2) = psihatm_btm
@@ -1949,8 +1947,8 @@ CONTAINS
                                     psihath_top, psihath_mid, &
                                     z_top, z_mid, z_btm, &
                                     ch, c2h, &
-! nakao b Nov.2024 Not necessary but if L_MOD_RSL is preferred in this routine...
-!                                    zH_RSL, zd_RSL, L_MOD, beta, elm, Lc)
+                                    ! nakao b Nov.2024 Not necessary but if L_MOD_RSL is preferred in this routine...
+                                    !                                    zH_RSL, zd_RSL, L_MOD, beta, elm, Lc)
                                     zH_RSL, zd_RSL, L_MOD_RSL, beta, elm, Lc)
 ! nakao a Nov.2024
          psihath_top = psihath_mid

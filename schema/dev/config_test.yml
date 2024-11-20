@@ -1,0 +1,6 @@
+- snowalb:
+    snowalb: -0.5  # Invalid: less than 0
+  wateruse:
+    wu_total: -10   # Invalid: less than 0
+    wu_auto: -5     # Invalid: less than 0
+    wu_manual: -2   # Invalid: less than 0

@@ -29,31 +29,10 @@ class SurfaceType(str, Enum):
 class SnowAlb(BaseModel):
     snowalb: float = Field(ge=0, le=1, description="Snow albedo")
 
-    ## Converting Field ge and le into range model_validator
-    #@model_validator(mode="after")
-    #def validate_snowalb_range(self) -> "SnowAlb":
-    #    if self.snowalb < 0 or self.snowalb > 1:
-    #        error_message = ValueError(
-    #            f"The value of snowalb must be between 0 and 1, inclusive (got: {self.snowalb})."
-    #        )
-    #        exceptions.append(error_message)
-    #    return self
-
 class WaterUse(BaseModel):
     wu_total: float = Field(ge=0, description="Total water use")
     wu_auto: float = Field(ge=0, description="Automatic water use")
     wu_manual: float = Field(ge=0, description="Manual water use")
-
-    ## Converting Field ge into range model_validator
-    # @model_validator(mode="after")
-    # def validate_wateruse_range(self) -> "WaterUse":
-    #     if self.wu_total < 0:
-    #         exceptions.append(ValueError(f"The value of wu_total must be greater than or equal to 0 (got: {self.wu_total})."))
-    #     if self.wu_auto < 0:
-    #         exceptions.append(ValueError(f"The value of wu_auto must be greater than or equal to 0 (got: {self.wu_auto})."))
-    #     if self.wu_manual < 0:
-    #         exceptions.append(ValueError(f"The value of wu_manual must be greater than or equal to 0 (got: {self.wu_manual})."))
-    #     return self
 
 class SurfaceInitialState(BaseModel):
     """Initial state parameters for a surface type"""
@@ -98,25 +77,6 @@ class SurfaceInitialState(BaseModel):
         None  # TODO: add validation - only needed for vegetated surfaces
     )
     _surface_type: Optional[SurfaceType] = PrivateAttr(default=None)
-
-    ## Converting Field ge and le into range model_validator
-    # @model_validator(mode="after")
-    # def validate_surfaceinitialstate_range(self) -> "SurfaceInitialState":
-    #     if self.state < 0:
-    #         exceptions.append(ValueError(f"The value of state must be greater than or equal to 0 (got: {self.state})."))
-    #     if self.soilstore < 0:
-    #         exceptions.append(ValueError(f"The value of soilstore must be greater than or equal to 0 (got: {self.soilstore})."))
-    #     if self.snowfrac < 0 or self.snowfrac > 1:
-    #         exceptions.append(ValueError(f"The value of snowfrac must be between 0 and 1, inclusive (got: {self.snowfrac})."))
-    #     if self.snowpack < 0:
-    #         exceptions.append(ValueError(f"The value of snowpack must be greater than or equal to 0 (got: {self.snowpack})."))
-    #     if self.icefrac < 0 or self.icefrac > 1:
-    #         exceptions.append(ValueError(f"The value of icefrac must be between 0 and 1, inclusive (got: {self.icefrac})."))
-    #     if self.snowwater < 0:
-    #         exceptions.append(ValueError(f"The value of snowwater must be greater than or equal to 0 (got: {self.snowwater})."))
-    #     if self.snowdens < 0:
-    #         exceptions.append(ValueError(f"The value of snowdens must be greater than or equal to 0 (got: {self.snowdens})."))
-    #     return self
 
     def set_surface_type(self, surface_type: SurfaceType):
         """Set and validate surface type specific parameters"""
@@ -197,32 +157,11 @@ class InitialStates(BaseModel):
         self.bsoil.set_surface_type(SurfaceType.BSOIL)
         self.water.set_surface_type(SurfaceType.WATER)
 
-    ## Converting Field ge and le into range model_validator
-    # @model_validator(mode="after")
-    # def validate_initialstate_range(self) -> "InitialStates":
-    #     if self.snowalb < 0 or self.snowalb > 1:
-    #         error_message = ValueError(
-    #             f"The value of snowalb must be between 0 and 1, inclusive (got: {self.snowalb})."
-    #         )
-    #         exceptions.append(error_message)
-    #     return self
-
 
 class ThermalLayer(BaseModel):
     dz: List[float] = Field(min_items=5, max_items=5)
     k: List[float] = Field(min_items=5, max_items=5)
     cp: List[float] = Field(min_items=5, max_items=5)
-
-    ## Validating that all lists have exactly 5 elements
-    # @model_validator(mode="after")
-    # def validate_thermallayer_range(self) -> "ThermalLayer":
-    #     if len(self.dz) != 5:
-    #         exceptions.append(ValueError(f"The dz list must have exactly 5 elements (got: {len(self.dz)})."))
-    #     if len(self.k) != 5:
-    #         exceptions.append(ValueError(f"The k list must have exactly 5 elements (got: {len(self.k)})."))
-    #     if len(self.cp) != 5:
-    #         exceptions.append(ValueError(f"The cp list must have exactly 5 elements (got: {len(self.cp)})."))    #
-    #     return self
 
 class VegetationParams(BaseModel):
     porosity_id: int
@@ -336,18 +275,6 @@ class StorageDrainParams(BaseModel):
     drain_eq: int
     drain_coef_1: float
     drain_coef_2: float
-
-    ## Converting Field ge into range model_validator
-    # @model_validator(mode="after")
-    # def validate_storagedrainparams_range(self) -> "StorageDrainParams":
-    #     if self.store_min < 0:
-    #         exceptions.append(ValueError(f"The value of store_min must be greater than or equal to 0 (got: {self.store_min})."))
-    #     if self.store_max < 0:
-    #         exceptions.append(ValueError(f"The value of store_max must be greater than or equal to 0 (got: {self.store_max})."))
-    #     if self.store_cap < 0:
-    #         exceptions.append(ValueError(f"The value of store_cap must be greater than or equal to 0 (got: {self.store_cap})."))
-    #     return self
-
 
 class OHMCoefficients(BaseModel):
     a1: Dict[str, float]

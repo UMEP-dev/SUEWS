@@ -13,7 +13,7 @@
     physics:
       netradiationmethod: 1
       emissionsmethod: 1
-      storageheatmethod: 2
+      storageheatmethod: 1
       ohmincqf: 1 # this could be merged above as storageheatmethod=2
       roughlenmommethod: 1
       roughlenheatmethod: 1
@@ -573,8 +573,8 @@
               k: [1.0, 1.0, 1.0, 1.0, 1.0]
               cp: [1000, 1000, 1000, 1000, 1000]
           bldgs: # buildings
-            sfr: 0.5
-            faibldg: 0.3
+            sfr: 0.1
+            faibldg: 0.5
             bldgh: 20
             emis: .9
             alb: .1 # fixed for non-vegetated surfaces

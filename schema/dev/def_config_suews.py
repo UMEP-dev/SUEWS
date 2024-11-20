@@ -317,7 +317,6 @@ class SurfaceProperties(BaseModel):
                 )
             self.waterdist.validate_distribution(self._surface_type)
 
-
 class NonVegetatedSurfaceProperties(SurfaceProperties):
     alb: float = Field(ge=0, le=1, description="Surface albedo")
 
@@ -407,7 +406,6 @@ class BuildingProperties(NonVegetatedSurfaceProperties):
         return self
 
 
-
 class BaresoilProperties(NonVegetatedSurfaceProperties):
     surface_type: Literal[SurfaceType.BSOIL] = SurfaceType.BSOIL
 
@@ -439,7 +437,6 @@ class ModelPhysics(BaseModel):
     faimethod: int
     localclimatemethod: int
     snowuse: int
-
 
 class LUMPSParams(BaseModel):
     raincover: float = Field(ge=0, le=1)
@@ -830,6 +827,22 @@ class SUEWSConfig(BaseModel):
 
     class Config:
         extra = "allow"
+
+    @model_validator(mode="after")
+    def storageheatmethod_validator(self) -> "SUEWSConfig":
+        if self.model.physics.storageheatmethod == 1:
+            print("StorageHeatMethod is set to", self.model.physics.storageheatmethod)
+
+            land_covers: List[str] = ['paved', 'bldgs', 'dectr', 'evetr', 'grass', 'bsoil', 'water']
+            
+            for cover in land_covers:
+                # Access the land cover properties dynamically using getattr
+                land_cover = getattr(self.site[0].properties.land_cover, cover)
+                if land_cover.sfr > 0:
+                    print(f"\n{cover.capitalize()} Land Cover Fraction is greater than zero:", land_cover.sfr)
+                    print(f"{cover.capitalize()} Land Cover Ohm coeff are:", land_cover.ohm_coef)
+
+        return self
 
     def create_multi_index_columns(self, columns_file: str) -> pd.MultiIndex:
         """Create MultiIndex from df_state_columns.txt"""
@@ -1644,6 +1657,7 @@ if __name__ == "__main__":
         raise ExceptionGroup("Validation errors occurred", exceptions)
 
     print(r"testing suews_config done!")
+    pdb.set_trace()
 
     # pdb.set_trace()
 
@@ -1674,8 +1688,6 @@ if __name__ == "__main__":
     print(f"{len(na_cols)} Columns containing NA values:")
     for col in sorted(na_cols):
         print(col)
-
-    #pdb.set_trace()
 
     # test running supy
     import supy as sp

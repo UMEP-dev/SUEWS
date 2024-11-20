@@ -3,7 +3,7 @@ MODULE AtmMoistStab_module
    IMPLICIT NONE
 !nakao b Nov. 2024 : To set neutral limit flexible in suews_phys_rslprof.f95
 !   REAL(KIND(1D0)), PARAMETER :: neut_limit = 1.E-2 !Limit for neutral stability
-   REAL(KIND(1D0)), save :: neut_limit = 1.E-2 !Limit for neutral stability
+   REAL(KIND(1D0)), SAVE :: neut_limit = 1.E-2 !Limit for neutral stability
 !nakao a Nov. 2024
    REAL(KIND(1D0)), PARAMETER :: k = 0.4 !Von Karman's contant
    REAL(KIND(1D0)), PARAMETER :: grav = 9.80665 !g - gravity - physics today august 1987

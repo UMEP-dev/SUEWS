@@ -460,6 +460,7 @@ class ModelPhysics(BaseModel):
     faimethod: int
     localclimatemethod: int
     snowuse: int
+    stebbs_stebbsmethod: int
 
 class LUMPSParams(BaseModel):
     raincover: float = Field(ge=0, le=1)
@@ -857,12 +858,14 @@ class SUEWSConfig(BaseModel):
     def validate_netradiationmethod(self) -> "SUEWSConfig":
         if self.model.physics.netradiationmethod is not None:
             print(f"NetRadiationMethod is set to {self.model.physics.netradiationmethod}. Not checked.")
+        return self
 
     @model_validator(mode="after")
     #this will be populated with rules, now it is only a printing function.
     def validate_emissionsmethod(self) -> "SUEWSConfig":
         if self.model.physics.emissionsmethod is not None:
             print(f"EmissionsMethod is set to {self.model.physics.emissionsmethod}. Not checked.")
+        return self
 
 
     @model_validator(mode="after")
@@ -922,60 +925,70 @@ class SUEWSConfig(BaseModel):
     def validate_roughlenmommethod(self) -> "SUEWSConfig":
         if self.model.physics.roughlenmommethod is not None:
             print(f"RoughLenMomMethod is set to {self.model.physics.roughlenmommethod}. Not checked.")
+        return self
 
     @model_validator(mode="after")
     #this will be populated with rules, now it is only a printing function.
     def validate_roughlenheatmethod(self) -> "SUEWSConfig":
         if self.model.physics.roughlenheatmethod is not None:
             print(f"RoughLenHeatMethod is set to {self.model.physics.roughlenheatmethod}. Not checked.")
+        return self
 
     @model_validator(mode="after")
     #this will be populated with rules, now it is only a printing function.
     def validate_stabilitymethod(self) -> "SUEWSConfig":
         if self.model.physics.stabilitymethod is not None:
             print(f"StabilityMethod is set to {self.model.physics.stabilitymethod}. Not checked.")
+        return self
 
     @model_validator(mode="after")
     #this will be populated with rules, now it is only a printing function.
     def validate_smdmethod(self) -> "SUEWSConfig":
         if self.model.physics.smdmethod is not None:
             print(f"SMDMethod is set to {self.model.physics.smdmethod}. Not checked.")
+        return self
 
     @model_validator(mode="after")
     #this will be populated with rules, now it is only a printing function.
     def validate_waterusemethod(self) -> "SUEWSConfig":
         if self.model.physics.waterusemethod is not None:
             print(f"WaterUseMethod is set to {self.model.physics.waterusemethod}. Not checked.")
+        return self
 
     @model_validator(mode="after")
     #this will be populated with rules, now it is only a printing function.
     def validate_diagmethod(self) -> "SUEWSConfig":
         if self.model.physics.diagmethod is not None:
             print(f"DiagMethod is set to {self.model.physics.diagmethod}. Not checked.")
+        return self
 
     @model_validator(mode="after")
     #this will be populated with rules, now it is only a printing function.
     def validate_faimethod(self) -> "SUEWSConfig":
         if self.model.physics.faimethod is not None:
             print(f"FAIMethod is set to {self.model.physics.faimethod}. Not checked.")
+        return self
 
     @model_validator(mode="after")
     #this will be populated with rules, now it is only a printing function.
     def validate_localclimatemethod(self) -> "SUEWSConfig":
         if self.model.physics.localclimatemethod is not None:
             print(f"LocalClimateMethod is set to {self.model.physics.localclimatemethod}. Not checked.")
+        return self
 
     @model_validator(mode="after")
     #this will be populated with rules, now it is only a printing function.
     def validate_snowuse(self) -> "SUEWSConfig":
         if self.model.physics.snowuse is not None:
             print(f"SnowUse is set to {self.model.physics.snowuse}. Not checked.")
+        return self
 
     @model_validator(mode="after")
     #this will be populated with rules, now it is only a printing function.
     def validate_stebbs_stebbsmethod(self) -> "SUEWSConfig":
         if self.model.physics.stebbs_stebbsmethod is not None:
             print(f"Stebbs_StebbsMethod is set to {self.model.physics.stebbs_stebbsmethod}. Not checked.")
+        return self
 
 
     def create_multi_index_columns(self, columns_file: str) -> pd.MultiIndex:

@@ -8,19 +8,19 @@ model:
     daylightsaving_method: 1
     diagnose: 0
   physics:
-    netradiationmethod: 1
-    emissionsmethod: 1
-    storageheatmethod: 2
-    ohmincqf: 0 #if storageheatmethod = 2, this is = 1
-    roughlenmommethod: 1
-    roughlenheatmethod: 1
-    stabilitymethod: 1
-    smdmethod: 1
-    waterusemethod: 1
-    diagmethod: 1
-    faimethod: 1
-    localclimatemethod: 1
-    snowuse: 0
+    netradiationmethod: 3 
+    emissionsmethod: 2 
+    storageheatmethod: 1 
+    ohmincqf: 0 #if storageheatmethod = 2, this has to be = 1; if storageheatmethod = 1, this has to be = 0
+    roughlenmommethod: 3 
+    roughlenheatmethod: 2 
+    stabilitymethod: 3 
+    smdmethod: 0 
+    waterusemethod: 1 
+    diagmethod: 2 
+    faimethod: 0 
+    localclimatemethod: 1 
+    snowuse: 0 
     stebbs_stebbsmethod: 0  # [-]
 site:
   - name: london
@@ -58,18 +58,18 @@ site:
         veg_ssa_lw: 1
         veg_ssa_sw: 1
       conductance:
-        g_max: 200
-        g_k: 100
-        g_q_base: 12
-        g_q_shape: 2
-        g_t: 20
-        g_sm: 200
-        kmax: 1200
+        g_max: 3.5
+        g_k: 200.0
+        g_q_base: 0.13
+        g_q_shape: 0.7
+        g_t: 30.0
+        g_sm: 0.05
+        kmax: 1200.0
         gsmodel: 1
-        s1: 0.5
-        s2: 0.5
-        tl: -10
-        th: 50
+        s1: 5.56
+        s2: 0.0
+        tl: -10.0
+        th: 55.0
       irrigation:
         h_maintain: 10
         faut: 0.5
@@ -818,7 +818,7 @@ site:
           resp_b: 0.5
           theta_bioco2: 0.5
           min_res_bioco2: 0.1
-          maxconductance: 0.5
+          maxconductance: 11.7
           irrfrac: 0.5
           lai:
             baset: 20
@@ -912,7 +912,7 @@ site:
           resp_b: 0.5
           theta_bioco2: 0.5
           min_res_bioco2: 0.1
-          maxconductance: 0.5
+          maxconductance: 7.4
           lai:
             baset: 20
             gddfull: 100
@@ -1003,7 +1003,7 @@ site:
           resp_b: 0.5
           theta_bioco2: 0.5
           min_res_bioco2: 0.1
-          maxconductance: 0.5
+          maxconductance: 33.1
           lai:
             baset: 20
             gddfull: 100

@@ -851,6 +851,20 @@ class SUEWSConfig(BaseModel):
     class Config:
         extra = "allow"
 
+
+    @model_validator(mode="after")
+    #this will be populated with rules, now it is only a printing function.
+    def validate_netradiationmethod(self) -> "SUEWSConfig":
+        if self.model.physics.netradiationmethod is not None:
+            print(f"NetRadiationMethod is set to {self.model.physics.netradiationmethod}. Not checked.")
+
+    @model_validator(mode="after")
+    #this will be populated with rules, now it is only a printing function.
+    def validate_emissionsmethod(self) -> "SUEWSConfig":
+        if self.model.physics.emissionsmethod is not None:
+            print(f"EmissionsMethod is set to {self.model.physics.emissionsmethod}. Not checked.")
+
+
     @model_validator(mode="after")
     def validate_storageheatmethod(self) -> "SUEWSConfig":
         if (self.model.physics.storageheatmethod == 1 and self.model.physics.ohmincqf == 0) or (
@@ -902,6 +916,67 @@ class SUEWSConfig(BaseModel):
                 exceptions.append(error_message)
                 
         return self
+    
+    @model_validator(mode="after")
+    #this will be populated with rules, now it is only a printing function.
+    def validate_roughlenmommethod(self) -> "SUEWSConfig":
+        if self.model.physics.roughlenmommethod is not None:
+            print(f"RoughLenMomMethod is set to {self.model.physics.roughlenmommethod}. Not checked.")
+
+    @model_validator(mode="after")
+    #this will be populated with rules, now it is only a printing function.
+    def validate_roughlenheatmethod(self) -> "SUEWSConfig":
+        if self.model.physics.roughlenheatmethod is not None:
+            print(f"RoughLenHeatMethod is set to {self.model.physics.roughlenheatmethod}. Not checked.")
+
+    @model_validator(mode="after")
+    #this will be populated with rules, now it is only a printing function.
+    def validate_stabilitymethod(self) -> "SUEWSConfig":
+        if self.model.physics.stabilitymethod is not None:
+            print(f"StabilityMethod is set to {self.model.physics.stabilitymethod}. Not checked.")
+
+    @model_validator(mode="after")
+    #this will be populated with rules, now it is only a printing function.
+    def validate_smdmethod(self) -> "SUEWSConfig":
+        if self.model.physics.smdmethod is not None:
+            print(f"SMDMethod is set to {self.model.physics.smdmethod}. Not checked.")
+
+    @model_validator(mode="after")
+    #this will be populated with rules, now it is only a printing function.
+    def validate_waterusemethod(self) -> "SUEWSConfig":
+        if self.model.physics.waterusemethod is not None:
+            print(f"WaterUseMethod is set to {self.model.physics.waterusemethod}. Not checked.")
+
+    @model_validator(mode="after")
+    #this will be populated with rules, now it is only a printing function.
+    def validate_diagmethod(self) -> "SUEWSConfig":
+        if self.model.physics.diagmethod is not None:
+            print(f"DiagMethod is set to {self.model.physics.diagmethod}. Not checked.")
+
+    @model_validator(mode="after")
+    #this will be populated with rules, now it is only a printing function.
+    def validate_faimethod(self) -> "SUEWSConfig":
+        if self.model.physics.faimethod is not None:
+            print(f"FAIMethod is set to {self.model.physics.faimethod}. Not checked.")
+
+    @model_validator(mode="after")
+    #this will be populated with rules, now it is only a printing function.
+    def validate_localclimatemethod(self) -> "SUEWSConfig":
+        if self.model.physics.localclimatemethod is not None:
+            print(f"LocalClimateMethod is set to {self.model.physics.localclimatemethod}. Not checked.")
+
+    @model_validator(mode="after")
+    #this will be populated with rules, now it is only a printing function.
+    def validate_snowuse(self) -> "SUEWSConfig":
+        if self.model.physics.snowuse is not None:
+            print(f"SnowUse is set to {self.model.physics.snowuse}. Not checked.")
+
+    @model_validator(mode="after")
+    #this will be populated with rules, now it is only a printing function.
+    def validate_stebbs_stebbsmethod(self) -> "SUEWSConfig":
+        if self.model.physics.stebbs_stebbsmethod is not None:
+            print(f"Stebbs_StebbsMethod is set to {self.model.physics.stebbs_stebbsmethod}. Not checked.")
+
 
     def create_multi_index_columns(self, columns_file: str) -> pd.MultiIndex:
         """Create MultiIndex from df_state_columns.txt"""
@@ -1714,7 +1789,7 @@ if __name__ == "__main__":
     # test the sample config
     # Load YAML config
     #with open("./config-suews.yml", "r") as file:
-    with open("./config-suews-ohmcoefftest.yml", "r") as file:
+    with open("./config-suews-test-211124.yml", "r") as file:
         yaml_config = yaml.safe_load(file)
 
     # Create SUEWSConfig object
@@ -1761,9 +1836,10 @@ if __name__ == "__main__":
     import supy as sp
     df_state, df_forcing = sp.load_SampleData()
     df_state_test = pd.read_pickle("./df_state_test.pkl")
-    sp.run_supy(df_forcing.iloc[0:288*10], df_state_test)
+    #sp.run_supy(df_forcing.iloc[0:288*10], df_state_test)
+    sp.run_supy(df_forcing, df_state_test)
 
-    #df_test_output, df_state_test_final = sp.run_supy(df_forcing, df_state_test)
+    #df_output, df_state_final = sp.run_supy(df_forcing, df_state_test)
     #sp.save_supy(df_output, df_state_final, path_dir_save='./output/', freq_s=300)
 
 # # Convert back to config

@@ -871,10 +871,8 @@ class SUEWSConfig(BaseModel):
     @model_validator(mode="after")
     def validate_storageheatmethod(self) -> "SUEWSConfig":
         if (self.model.physics.storageheatmethod == 1 and self.model.physics.ohmincqf == 0) or (
-            self.model.physics.storageheatmethod == 2 and self.model.physics.ohmincqf == 1):
-
-            print("StorageHeatMethod is set to", self.model.physics.storageheatmethod, " and OhmIncQf is set to ", self.model.physics.ohmincqf, ".")
-
+            self.model.physics.storageheatmethod == 2 and self.model.physics.ohmincqf == 1
+        ):
             cover_to_sheet = {
                 "bldgs": "Building",
                 "grass": "Vegetation",
@@ -902,22 +900,31 @@ class SUEWSConfig(BaseModel):
                                 )
                                 exceptions.append(error_message)
                                 all_valid = False
-            if all_valid == True: 
-                print("All valid and checked.")
+
+            if all_valid:
+                print(
+                    f"StorageHeatMethod is set to {self.model.physics.storageheatmethod} and "
+                    f"OhmIncQf is set to {self.model.physics.ohmincqf}. All valid and checked."
+                )
+            else:
+                print(
+                    f"StorageHeatMethod is set to {self.model.physics.storageheatmethod} and "
+                    f"OhmIncQf is set to {self.model.physics.ohmincqf}."
+                )
         else:
             if self.model.physics.storageheatmethod == 1 and self.model.physics.ohmincqf != 0:
-                error_message= ValueError(
-                        f"StorageHeatMethod is set to {self.model.physics.storageheatmethod} "
-                        f"and OhmIncQf is set to {self.model.physics.ohmincqf}. You should input OhmIncQf=0."
-                    )
+                error_message = ValueError(
+                    f"StorageHeatMethod is set to {self.model.physics.storageheatmethod} "
+                    f"and OhmIncQf is set to {self.model.physics.ohmincqf}. You should input OhmIncQf=0."
+                )
                 exceptions.append(error_message)
             elif self.model.physics.storageheatmethod == 2 and self.model.physics.ohmincqf != 1:
                 error_message = ValueError(
-                        f"StorageHeatMethod is set to {self.model.physics.storageheatmethod} "
-                        f"and OhmIncQf is set to {self.model.physics.ohmincqf}. You should input OhmIncQf=1."
-                    )
+                    f"StorageHeatMethod is set to {self.model.physics.storageheatmethod} "
+                    f"and OhmIncQf is set to {self.model.physics.ohmincqf}. You should input OhmIncQf=1."
+                )
                 exceptions.append(error_message)
-                
+
         return self
     
     @model_validator(mode="after")
@@ -1850,10 +1857,10 @@ if __name__ == "__main__":
     df_state, df_forcing = sp.load_SampleData()
     df_state_test = pd.read_pickle("./df_state_test.pkl")
     #sp.run_supy(df_forcing.iloc[0:288*10], df_state_test)
-    sp.run_supy(df_forcing, df_state_test)
+    #sp.run_supy(df_forcing, df_state_test)
 
-    #df_output, df_state_final = sp.run_supy(df_forcing, df_state_test)
-    #sp.save_supy(df_output, df_state_final, path_dir_save='./output/', freq_s=300)
+    df_output, df_state_final = sp.run_supy(df_forcing, df_state_test)
+    sp.save_supy(df_output, df_state_final, path_dir_save='./output/', freq_s=300)
 
 # # Convert back to config
 # suews_config_back = SUEWSConfig.from_df_state(df_state)

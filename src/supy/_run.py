@@ -393,8 +393,8 @@ def run_supy_ser(
 
             list_dict_state_end, list_df_output, list_dict_debug = zip(*list_res_grid)
 
-        except Exception:
-            path_zip_debug = save_zip_debug(df_forcing, df_state_init)
+        except Exception as e:
+            path_zip_debug = save_zip_debug(df_forcing, df_state_init, error_info=e)
             raise RuntimeError(
                 f"\n====================\n"
                 f"SUEWS kernel error!\n"

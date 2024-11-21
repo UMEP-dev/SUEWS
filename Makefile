@@ -59,7 +59,7 @@ suews:
 
 # make supy and install locally
 dev:
-	$(PYTHON) -m pip install --no-deps -e .
+	$(PYTHON) -m pip install --no-build-isolation --editable .
 
 # make supy dist and test
 test:

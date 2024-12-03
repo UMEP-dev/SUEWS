@@ -81,15 +81,24 @@ CONTAINS
       REAL(KIND(1D0)), INTENT(out), DIMENSION(ncolumnsDataOutRSL - 5) :: dataoutLineRSL
       REAL(KIND(1D0)), DIMENSION(nz) :: psihatm_z
       REAL(KIND(1D0)), DIMENSION(nz) :: psihath_z
+      REAL(KIND(1D0)) :: psihatm_zref ! Zref
+      REAL(KIND(1D0)) :: psimz_zref ! Zref
       ! REAL(KIND(1D0)), DIMENSION(nz) :: dif
       ! REAL(KIND(1d0)), DIMENSION(nz):: psihatm_z, psihath_z
       REAL(KIND(1D0)), DIMENSION(nz) :: zarray
+      REAL(KIND(1D0)), DIMENSION(nz) :: log_profile !
+      REAL(KIND(1D0)), DIMENSION(nz) :: psimz_prof !
+      REAL(KIND(1D0)), DIMENSION(nz) :: psimz_profile !
+      REAL(KIND(1D0)), DIMENSION(nz) :: psimz0_profile !
+      REAL(KIND(1D0)), DIMENSION(nz) :: psihatm_profile !
       REAL(KIND(1D0)), DIMENSION(nz) :: dataoutLineURSL ! wind speed array [m s-1]
       REAL(KIND(1D0)), DIMENSION(nz) :: dataoutLineTRSL ! Temperature array [C]
       REAL(KIND(1D0)), DIMENSION(nz) :: dataoutLineqRSL ! Specific humidity array [g kg-1]
 
       REAL(KIND(1D0)) :: z0_RSL ! roughness length from H&F
       REAL(KIND(1D0)) :: zd_RSL ! zero-plane displacement
+      REAL(KIND(1D0)) :: zref ! Reference height - 2.5 zH
+      REAL(KIND(1D0)) :: uref ! Reference velocity at 2.5 zH
 
       ! REAL(KIND(1d0))::Lc_build, Lc_tree, Lc ! canopy drag length scale
       REAL(KIND(1D0)) :: Lc ! canopy drag length scale
@@ -221,6 +230,8 @@ CONTAINS
       ! nz = nz
       zarray(nz) = zMeas
 
+      !Reference Height - to be used for different applications
+      zref = 2.5*zH_RSL
       IF (flag_RSL) THEN
 
          ! use RSL approach to calculate correction factors
@@ -235,7 +246,7 @@ CONTAINS
             !psihatm_z(nz_can + 1:nz), psihath_z(nz_can + 1:nz), & !output
             psihatm_z(nz_can:nz), psihath_z(nz_can:nz), & ! Calculate psihatm_z at zH
             zH_RSL, L_MOD_RSL, & ! output
-            Lc, beta, zd_RSL, z0_RSL, elm, Scc, fx)
+            Lc, beta, zd_RSL, z0_RSL, elm, Scc, fx, psihatm_zref)
 
          ! Step 3: calculate the stability dependent H&F constants
 
@@ -349,6 +360,16 @@ CONTAINS
          END DO
       END IF
 
+      ! Calculate reference velocity
+      psimz_zref = stab_psi_mom(StabilityMethod, (zref  - zd_RSL)/L_MOD_RSL)
+      uref = (LOG((zref - zd_RSL)/z0_RSL) - psimz_zref + psimz0 + psihatm_zref)*UStar_RSL/kappa
+
+      ! Velocity components MOST profiles
+      log_profile = LOG((zref - zd_RSL)/z0_RSL) * psihatm_z/kappa
+      psimz_profile = psimz * psihatm_z/kappa
+      psimz0_profile = psimz0 * psihatm_z/kappa
+      psihatm_profile = psihatm_z * psihatm_z/kappa
+
       ! associate physical quantities to correction profilles
       dataoutLineURSL = dataoutLineURSL*UStar_RSL
       dataoutLineTRSL = dataoutLineTRSL*TStar_RSL + Temp_C
@@ -356,6 +377,7 @@ CONTAINS
 
       ! construct output line for output file
       dataoutLineRSL = [zarray, dataoutLineURSL, dataoutLineTRSL, dataoutLineqRSL, &
+                        log_profile, psimz_profile, psimz0_profile, psihatm_profile, & ! Information for stability
                         !information for debugging
                         ! L_stab, L_unstab,
                         L_MOD_RSL, &
@@ -363,7 +385,8 @@ CONTAINS
                         ! Lc_stab, Lc_unstab,
                         Lc, &
                         beta, zd_RSL, z0_RSL, elm, Scc, fx, &
-                        UStar_RSL, UStar_heat, TStar_RSL, FAI, PAI, MERGE(1.D0, 0.D0, flag_RSL) &
+                        UStar_RSL, UStar_heat, TStar_RSL, FAI, PAI, MERGE(1.D0, 0.D0, flag_RSL), &
+                        zref, uref &
                         ]
 
       !
@@ -850,9 +873,16 @@ CONTAINS
       REAL(KIND(1D0)), INTENT(out), DIMENSION(ncolumnsDataOutRSL - 5) :: dataoutLineRSL
       REAL(KIND(1D0)), DIMENSION(nz) :: psihatm_z
       REAL(KIND(1D0)), DIMENSION(nz) :: psihath_z
+      REAL(KIND(1D0)) :: psihatm_zref ! Zref
+      REAL(KIND(1D0)) :: psimz_zref ! Zref
       ! REAL(KIND(1D0)), DIMENSION(nz) :: dif
       ! REAL(KIND(1d0)), DIMENSION(nz):: psihatm_z, psihath_z
       REAL(KIND(1D0)), DIMENSION(nz) :: zarray
+      REAL(KIND(1D0)), DIMENSION(nz) :: log_profile !
+      REAL(KIND(1D0)), DIMENSION(nz) :: psimz_prof !
+      REAL(KIND(1D0)), DIMENSION(nz) :: psimz_profile !
+      REAL(KIND(1D0)), DIMENSION(nz) :: psimz0_profile !
+      REAL(KIND(1D0)), DIMENSION(nz) :: psihatm_profile !
       REAL(KIND(1D0)), DIMENSION(nz) :: dataoutLineURSL ! wind speed array [m s-1]
       REAL(KIND(1D0)), DIMENSION(nz) :: dataoutLineTRSL ! Temperature array [C]
       REAL(KIND(1D0)), DIMENSION(nz) :: dataoutLineqRSL ! Specific humidity array [g kg-1]
@@ -882,6 +912,8 @@ CONTAINS
       ! real(KIND(1D0))::L_unstab ! threshold for Obukhov length under unstable conditions
 
       REAL(KIND(1D0)) :: zH_RSL ! mean canyon height used in RSL module with thresholds applied
+      REAL(KIND(1D0)) :: zref ! Reference height - 2.5 zH
+      REAL(KIND(1D0)) :: uref ! Reference velocity at 2.5 zH
       REAL(KIND(1D0)) :: dz_above ! height step above canopy
       REAL(KIND(1D0)) :: dz_can ! height step within canopy
       ! REAL(KIND(1D0)) :: phi_hatmZh, phim_zh
@@ -1004,6 +1036,7 @@ CONTAINS
                   ! hence the lower limit of FAI below
                   ! FAI > 0.25*(1 - PAI) .AND. FAI < 0.45 .AND. & ! FAI
                   ! PAI > 0.1 .AND. PAI < 0.61 .AND. & ! PAI
+                  !FAI > 0.16*(1. - PAI) .AND.  PAI > 0.1 .AND. PAI < 0.68 .AND. & ! PAI
                   PAI > 0.1 .AND. PAI < 0.68 .AND. & ! PAI
                   zH > 2 ! effective canopy height
                ! LB Oct2021 - FAI and PAI can be larger than 0.45 and 0.61 respectively -> remove (1.-PAI)/FAI > .021 constraint
@@ -1021,6 +1054,8 @@ CONTAINS
 
             ! minimum canyon height is 0.4 m to avoid insane values (e.g. zH=0 m when no buildings - 100% grass)
             zH_RSL = MAX(Zh, 2.)
+            !Reference Height - to be used for different applications
+            zref = 2.5*zH_RSL
 
             ! the array will be filled in three parts:
             ! 1. within canopy: 20 levels
@@ -1062,11 +1097,13 @@ CONTAINS
                ! Step 0: Calculate grid-cell dependent constants and Beta (crucial for H&F method)
                CALL RSL_cal_prms( &
                   StabilityMethod, & !input
-                  nz_above, zarray(nz_can + 1:nz), & !input
+                  !nz_above, zarray(nz_can + 1:nz), & !input
+                  nz_above+1, zarray(nz_can:nz), & !input
                   zh, L_MOD, sfr_surf, FAI, PAI, & !input
-                  psihatm_z(nz_can + 1:nz), psihath_z(nz_can + 1:nz), & !output
+                  !psihatm_z(nz_can + 1:nz), psihath_z(nz_can + 1:nz), & !output
+                  psihatm_z(nz_can:nz), psihath_z(nz_can:nz), & !output
                   zH_RSL, L_MOD_RSL, & ! output
-                  Lc, beta, zd_RSL, z0_RSL, elm, Scc, fx)
+                  Lc, beta, zd_RSL, z0_RSL, elm, Scc, fx, psihatm_zref)
 
             ELSE
 
@@ -1126,6 +1163,7 @@ CONTAINS
 
             DO z = nz_can, nz
                psimz = stab_psi_mom(StabilityMethod, (zarray(z) - zd_RSL)/L_MOD_RSL)
+               psimz_prof(z) = stab_psi_mom(StabilityMethod, (zarray(z) - zd_RSL)/L_MOD_RSL) ! profile for output
                psihz = stab_psi_heat(StabilityMethod, (zarray(z) - zd_RSL)/L_MOD_RSL)
                dataoutLineURSL(z) = (LOG((zarray(z) - zd_RSL)/z0_RSL) - psimz + psimz0 + psihatm_z(z))/kappa ! eqn. 3 in Theeuwes et al. (2019 BLM)
                ! eqn. 4 in Theeuwes et al. (2019 BLM)
@@ -1133,6 +1171,10 @@ CONTAINS
                                     /kappa
                dataoutLineqRSL(z) = dataoutLineTRSL(z)
             END DO
+
+            ! Calculate reference velocity
+            psimz_zref = stab_psi_mom(StabilityMethod, (zref  - zd_RSL)/L_MOD_RSL)
+            uref = (LOG((zref - zd_RSL)/z0_RSL) - psimz_zref + psimz0 + psihatm_zref)*UStar_RSL/kappa
             !
             ! Step 7: calculate in canopy variables
             !
@@ -1153,12 +1195,20 @@ CONTAINS
                   ! when using MOST, all vertical levels should larger than zd_RSL
                   IF (zarray(z) <= zd_RSL) zarray(z) = 1.01*(zd_RSL + z0_RSL)
                   psimz = stab_psi_mom(StabilityMethod, (zarray(z) - zd_RSL)/L_MOD_RSL)
+                  psimz_prof(z) = stab_psi_mom(StabilityMethod, (zarray(z) - zd_RSL)/L_MOD_RSL)
                   psihz = stab_psi_heat(StabilityMethod, (zarray(z) - zd_RSL)/L_MOD_RSL)
                   dataoutLineURSL(z) = (LOG((zarray(z) - zd_RSL)/z0_RSL) - psimz + psimz0)/kappa
                   dataoutLineTRSL(z) = (LOG((zarray(z) - zd_RSL)/(zMeas - zd_RSL)) - psihz + psihza)/kappa
                   dataoutLineqRSL(z) = dataoutLineTRSL(z)
                END DO
             END IF
+
+            ! Velocity components MOST profiles
+            psimz_prof(1) = 0
+            log_profile = LOG((zarray - zd_RSL)/z0_RSL) * UStar_RSL/kappa
+            psimz_profile = psimz_prof * UStar_RSL/kappa
+            psimz0_profile = psimz0 * UStar_RSL/kappa
+            psihatm_profile = psihatm_z * UStar_RSL/kappa
 
             ! associate physical quantities to correction profilles
             dataoutLineURSL = dataoutLineURSL*UStar_RSL
@@ -1167,6 +1217,7 @@ CONTAINS
 
             ! construct output line for output file
             dataoutLineRSL = [zarray, dataoutLineURSL, dataoutLineTRSL, dataoutLineqRSL, &
+                              log_profile, psimz_profile, psimz0_profile, psihatm_profile, &
                               !information for debugging
                               ! L_stab, L_unstab,
                               L_MOD_RSL, &
@@ -1174,7 +1225,8 @@ CONTAINS
                               ! Lc_stab, Lc_unstab,
                               Lc, &
                               beta, zd_RSL, z0_RSL, elm, Scc, fx, &
-                              UStar_RSL, UStar_heat, TStar_RSL, FAI, PAI, MERGE(1.D0, 0.D0, flag_RSL) &
+                              UStar_RSL, UStar_heat, TStar_RSL, FAI, PAI, MERGE(1.D0, 0.D0, flag_RSL), &
+                              zref, uref &
                               ]
 
             !
@@ -1750,7 +1802,7 @@ CONTAINS
 
    SUBROUTINE RSL_cal_prms( &
       StabilityMethod, nz_above, z_array, zh, L_MOD, sfr_surf, FAI, PAI, & !input
-      psihatm_array, psihath_array, zH_RSL, L_MOD_RSL, Lc, beta, zd_RSL, z0_RSL, elm, Scc, fx) !output
+      psihatm_array, psihath_array, zH_RSL, L_MOD_RSL, Lc, beta, zd_RSL, z0_RSL, elm, Scc, fx, psihatm_zref) !output
 
       IMPLICIT NONE
       INTEGER, INTENT(in) :: StabilityMethod ! stability method
@@ -1780,6 +1832,7 @@ CONTAINS
       REAL(KIND(1D0)), INTENT(out) :: elm ! length scale used in RSL
       REAL(KIND(1D0)), INTENT(out) :: Scc ! parameter in RSL
       REAL(KIND(1D0)), INTENT(out) :: fx ! parameter in RSL
+      REAL(KIND(1D0)), INTENT(out) :: psihatm_zref ! psihat at zref
 
       ! internal variables
       INTEGER :: iz
@@ -1883,6 +1936,15 @@ CONTAINS
       psihath_array(nz_above) = 0
       psihath_array(nz_above - 1) = 0
 
+      !Calculate psihat value at zref
+      z_top = 3.5*zH_RSL
+      z_mid = 3.0*zH_RSL
+      z_btm = 2.5*zH_RSL ! zref
+      psihatm_zref = cal_psim_hat(StabilityMethod, &
+                                 psihatm_top, psihatm_mid, &
+                                 z_top, z_mid, z_btm, &
+                                 cm, c2m, &
+                                 zh_RSL, zd_RSL, L_MOD_RSL, beta, elm, Lc)
       DO iz = nz_above, 3, -1
          z_top = z_array(iz)
          z_mid = z_array(iz - 1)
@@ -1894,7 +1956,7 @@ CONTAINS
                                     z_top, z_mid, z_btm, &
                                     cm, c2m, &
                                     zh_RSL, zd_RSL, L_MOD_RSL, beta, elm, Lc)
-         !zh_RSL, zd_RSL, L_MOD, beta, elm, Lc)
+                                    !zh_RSL, zd_RSL, L_MOD, beta, elm, Lc)
          psihatm_array(iz - 2) = psihatm_btm
          psihatm_top = psihatm_mid
          psihatm_mid = psihatm_btm
@@ -1904,7 +1966,8 @@ CONTAINS
                                     psihath_top, psihath_mid, &
                                     z_top, z_mid, z_btm, &
                                     ch, c2h, &
-                                    zH_RSL, zd_RSL, L_MOD, beta, elm, Lc)
+                                    !zH_RSL, zd_RSL, L_MOD, beta, elm, Lc)
+                                    zh_RSL, zd_RSL, L_MOD_RSL, beta, elm, Lc)
          psihath_top = psihath_mid
          psihath_mid = psihath_btm
          psihath_array(iz - 2) = psihath_btm

@@ -544,6 +544,126 @@ MODULE ctrl_output
       varAttr('q_28', 'g kg-1', f104, 'q at 2.8Zh', aA, 'RSL', 0), &
       varAttr('q_29', 'g kg-1', f104, 'q at 2.9Zh', aA, 'RSL', 0), &
       varAttr('q_30', 'g kg-1', f104, 'q at 3.0Zh', aA, 'RSL', 0), &
+      varAttr('log_1', 'm s-1', f104, 'q at 0.1Zh', aA, 'RSL', 0), &
+      varAttr('log_2', 'm s-1', f104, 'q at 0.2Zh', aA, 'RSL', 0), &
+      varAttr('log_3', 'm s-1', f104, 'q at 0.3Zh', aA, 'RSL', 0), &
+      varAttr('log_4', 'm s-1', f104, 'q at 0.4Zh', aA, 'RSL', 0), &
+      varAttr('log_5', 'm s-1', f104, 'q at 0.5Zh', aA, 'RSL', 0), &
+      varAttr('log_6', 'm s-1', f104, 'q at 0.6Zh', aA, 'RSL', 0), &
+      varAttr('log_7', 'gm s-1', f104, 'q at 0.7Zh', aA, 'RSL', 0), &
+      varAttr('log_8', 'm s-1', f104, 'q at 0.8Zh', aA, 'RSL', 0), &
+      varAttr('log_9', 'm s-1', f104, 'q at 0.9Zh', aA, 'RSL', 0), &
+      varAttr('log_10', 'm s-1', f104, 'q at Zh', aA, 'RSL', 0), &
+      varAttr('log_11', 'm s-1', f104, 'q at 1.1Zh', aA, 'RSL', 0), &
+      varAttr('log_12', 'm s-1', f104, 'q at 1.2Zh', aA, 'RSL', 0), &
+      varAttr('log_13', 'm s-1', f104, 'q at 1.3Zh', aA, 'RSL', 0), &
+      varAttr('log_14', 'm s-1', f146, 'q at 1.4Zh', aA, 'RSL', 0), &
+      varAttr('log_15', 'm s-1', f104, 'q at 1.5Zh', aA, 'RSL', 0), &
+      varAttr('log_16', 'm s-1', f104, 'q at 1.6Zh', aA, 'RSL', 0), &
+      varAttr('log_17', 'm s-1', f104, 'q at 1.7Zh', aA, 'RSL', 0), &
+      varAttr('log_18', 'm s-1', f104, 'q at 1.8Zh', aA, 'RSL', 0), &
+      varAttr('log_19', 'm s-1', f104, 'q at 1.9Zh', aA, 'RSL', 0), &
+      varAttr('log_20', 'm s-1', f104, 'q at 2.0Zh', aA, 'RSL', 0), &
+      varAttr('log_21', 'm s-1', f146, 'q at 2.1Zh', aA, 'RSL', 0), &
+      varAttr('log_22', 'm s-1', f104, 'q at 2.2Zh', aA, 'RSL', 0), &
+      varAttr('log_23', 'm s-1', f104, 'q at 2.3Zh', aA, 'RSL', 0), &
+      varAttr('log_24', 'm s-1', f104, 'q at 2.4Zh', aA, 'RSL', 0), &
+      varAttr('log_25', 'm s-1', f104, 'q at 2.5Zh', aA, 'RSL', 0), &
+      varAttr('log_26', 'm s-1', f104, 'q at 2.6Zh', aA, 'RSL', 0), &
+      varAttr('log_27', 'm s-1', f104, 'q at 2.7Zh', aA, 'RSL', 0), &
+      varAttr('log_28', 'm s-1', f104, 'q at 2.8Zh', aA, 'RSL', 0), &
+      varAttr('log_29', 'm s-1', f104, 'q at 2.9Zh', aA, 'RSL', 0), &
+      varAttr('log_30', 'm s-1', f104, 'q at 3.0Zh', aA, 'RSL', 0), &
+      varAttr('psihz_1', 'm s-1', f104, 'q at 0.1Zh', aA, 'RSL', 0), &
+      varAttr('psihz_2', 'm s-1', f104, 'q at 0.2Zh', aA, 'RSL', 0), &
+      varAttr('psihz_3', 'm s-1', f104, 'q at 0.3Zh', aA, 'RSL', 0), &
+      varAttr('psihz_4', 'm s-1', f104, 'q at 0.4Zh', aA, 'RSL', 0), &
+      varAttr('psihz_5', 'm s-1', f104, 'q at 0.5Zh', aA, 'RSL', 0), &
+      varAttr('psihz_6', 'm s-1', f104, 'q at 0.6Zh', aA, 'RSL', 0), &
+      varAttr('psihz_7', 'gm s-1', f104, 'q at 0.7Zh', aA, 'RSL', 0), &
+      varAttr('psihz_8', 'm s-1', f104, 'q at 0.8Zh', aA, 'RSL', 0), &
+      varAttr('psihz_9', 'm s-1', f104, 'q at 0.9Zh', aA, 'RSL', 0), &
+      varAttr('psihz_10', 'm s-1', f104, 'q at Zh', aA, 'RSL', 0), &
+      varAttr('psihz_11', 'm s-1', f104, 'q at 1.1Zh', aA, 'RSL', 0), &
+      varAttr('psihz_12', 'm s-1', f104, 'q at 1.2Zh', aA, 'RSL', 0), &
+      varAttr('psihz_13', 'm s-1', f104, 'q at 1.3Zh', aA, 'RSL', 0), &
+      varAttr('psihz_14', 'm s-1', f146, 'q at 1.4Zh', aA, 'RSL', 0), &
+      varAttr('psihz_15', 'm s-1', f104, 'q at 1.5Zh', aA, 'RSL', 0), &
+      varAttr('psihz_16', 'm s-1', f104, 'q at 1.6Zh', aA, 'RSL', 0), &
+      varAttr('psihz_17', 'm s-1', f104, 'q at 1.7Zh', aA, 'RSL', 0), &
+      varAttr('psihz_18', 'm s-1', f104, 'q at 1.8Zh', aA, 'RSL', 0), &
+      varAttr('psihz_19', 'm s-1', f104, 'q at 1.9Zh', aA, 'RSL', 0), &
+      varAttr('psihz_20', 'm s-1', f104, 'q at 2.0Zh', aA, 'RSL', 0), &
+      varAttr('psihz_21', 'm s-1', f146, 'q at 2.1Zh', aA, 'RSL', 0), &
+      varAttr('psihz_22', 'm s-1', f104, 'q at 2.2Zh', aA, 'RSL', 0), &
+      varAttr('psihz_23', 'm s-1', f104, 'q at 2.3Zh', aA, 'RSL', 0), &
+      varAttr('psihz_24', 'm s-1', f104, 'q at 2.4Zh', aA, 'RSL', 0), &
+      varAttr('psihz_25', 'm s-1', f104, 'q at 2.5Zh', aA, 'RSL', 0), &
+      varAttr('psihz_26', 'm s-1', f104, 'q at 2.6Zh', aA, 'RSL', 0), &
+      varAttr('psihz_27', 'm s-1', f104, 'q at 2.7Zh', aA, 'RSL', 0), &
+      varAttr('psihz_28', 'm s-1', f104, 'q at 2.8Zh', aA, 'RSL', 0), &
+      varAttr('psihz_29', 'm s-1', f104, 'q at 2.9Zh', aA, 'RSL', 0), &
+      varAttr('psihz_30', 'm s-1', f104, 'q at 3.0Zh', aA, 'RSL', 0), &
+      varAttr('psiha_1', 'm s-1', f104, 'q at 0.1Zh', aA, 'RSL', 0), &
+      varAttr('psiha_2', 'm s-1', f104, 'q at 0.2Zh', aA, 'RSL', 0), &
+      varAttr('psiha_3', 'm s-1', f104, 'q at 0.3Zh', aA, 'RSL', 0), &
+      varAttr('psiha_4', 'm s-1', f104, 'q at 0.4Zh', aA, 'RSL', 0), &
+      varAttr('psiha_5', 'm s-1', f104, 'q at 0.5Zh', aA, 'RSL', 0), &
+      varAttr('psiha_6', 'm s-1', f104, 'q at 0.6Zh', aA, 'RSL', 0), &
+      varAttr('psiha_7', 'gm s-1', f104, 'q at 0.7Zh', aA, 'RSL', 0), &
+      varAttr('psiha_8', 'm s-1', f104, 'q at 0.8Zh', aA, 'RSL', 0), &
+      varAttr('psiha_9', 'm s-1', f104, 'q at 0.9Zh', aA, 'RSL', 0), &
+      varAttr('psiha_10', 'm s-1', f104, 'q at Zh', aA, 'RSL', 0), &
+      varAttr('psiha_11', 'm s-1', f104, 'q at 1.1Zh', aA, 'RSL', 0), &
+      varAttr('psiha_12', 'm s-1', f104, 'q at 1.2Zh', aA, 'RSL', 0), &
+      varAttr('psiha_13', 'm s-1', f104, 'q at 1.3Zh', aA, 'RSL', 0), &
+      varAttr('psiha_14', 'm s-1', f146, 'q at 1.4Zh', aA, 'RSL', 0), &
+      varAttr('psiha_15', 'm s-1', f104, 'q at 1.5Zh', aA, 'RSL', 0), &
+      varAttr('psiha_16', 'm s-1', f104, 'q at 1.6Zh', aA, 'RSL', 0), &
+      varAttr('psiha_17', 'm s-1', f104, 'q at 1.7Zh', aA, 'RSL', 0), &
+      varAttr('psiha_18', 'm s-1', f104, 'q at 1.8Zh', aA, 'RSL', 0), &
+      varAttr('psiha_19', 'm s-1', f104, 'q at 1.9Zh', aA, 'RSL', 0), &
+      varAttr('psiha_20', 'm s-1', f104, 'q at 2.0Zh', aA, 'RSL', 0), &
+      varAttr('psiha_21', 'm s-1', f146, 'q at 2.1Zh', aA, 'RSL', 0), &
+      varAttr('psiha_22', 'm s-1', f104, 'q at 2.2Zh', aA, 'RSL', 0), &
+      varAttr('psiha_23', 'm s-1', f104, 'q at 2.3Zh', aA, 'RSL', 0), &
+      varAttr('psiha_24', 'm s-1', f104, 'q at 2.4Zh', aA, 'RSL', 0), &
+      varAttr('psiha_25', 'm s-1', f104, 'q at 2.5Zh', aA, 'RSL', 0), &
+      varAttr('psiha_26', 'm s-1', f104, 'q at 2.6Zh', aA, 'RSL', 0), &
+      varAttr('psiha_27', 'm s-1', f104, 'q at 2.7Zh', aA, 'RSL', 0), &
+      varAttr('psiha_28', 'm s-1', f104, 'q at 2.8Zh', aA, 'RSL', 0), &
+      varAttr('psiha_29', 'm s-1', f104, 'q at 2.9Zh', aA, 'RSL', 0), &
+      varAttr('psiha_30', 'm s-1', f104, 'q at 3.0Zh', aA, 'RSL', 0), &
+      varAttr('psihatm_1', 'm s-1', f104, 'q at 0.1Zh', aA, 'RSL', 0), &
+      varAttr('psihatm_2', 'm s-1', f104, 'q at 0.2Zh', aA, 'RSL', 0), &
+      varAttr('psihatm_3', 'm s-1', f104, 'q at 0.3Zh', aA, 'RSL', 0), &
+      varAttr('psihatm_4', 'm s-1', f104, 'q at 0.4Zh', aA, 'RSL', 0), &
+      varAttr('psihatm_5', 'm s-1', f104, 'q at 0.5Zh', aA, 'RSL', 0), &
+      varAttr('psihatm_6', 'm s-1', f104, 'q at 0.6Zh', aA, 'RSL', 0), &
+      varAttr('psihatm_7', 'gm s-1', f104, 'q at 0.7Zh', aA, 'RSL', 0), &
+      varAttr('psihatm_8', 'm s-1', f104, 'q at 0.8Zh', aA, 'RSL', 0), &
+      varAttr('psihatm_9', 'm s-1', f104, 'q at 0.9Zh', aA, 'RSL', 0), &
+      varAttr('psihatm_10', 'm s-1', f104, 'q at Zh', aA, 'RSL', 0), &
+      varAttr('psihatm_11', 'm s-1', f104, 'q at 1.1Zh', aA, 'RSL', 0), &
+      varAttr('psihatm_12', 'm s-1', f104, 'q at 1.2Zh', aA, 'RSL', 0), &
+      varAttr('psihatm_13', 'm s-1', f104, 'q at 1.3Zh', aA, 'RSL', 0), &
+      varAttr('psihatm_14', 'm s-1', f146, 'q at 1.4Zh', aA, 'RSL', 0), &
+      varAttr('psihatm_15', 'm s-1', f104, 'q at 1.5Zh', aA, 'RSL', 0), &
+      varAttr('psihatm_16', 'm s-1', f104, 'q at 1.6Zh', aA, 'RSL', 0), &
+      varAttr('psihatm_17', 'm s-1', f104, 'q at 1.7Zh', aA, 'RSL', 0), &
+      varAttr('psihatm_18', 'm s-1', f104, 'q at 1.8Zh', aA, 'RSL', 0), &
+      varAttr('psihatm_19', 'm s-1', f104, 'q at 1.9Zh', aA, 'RSL', 0), &
+      varAttr('psihatm_20', 'm s-1', f104, 'q at 2.0Zh', aA, 'RSL', 0), &
+      varAttr('psihatm_21', 'm s-1', f146, 'q at 2.1Zh', aA, 'RSL', 0), &
+      varAttr('psihatm_22', 'm s-1', f104, 'q at 2.2Zh', aA, 'RSL', 0), &
+      varAttr('psihatm_23', 'm s-1', f104, 'q at 2.3Zh', aA, 'RSL', 0), &
+      varAttr('psihatm_24', 'm s-1', f104, 'q at 2.4Zh', aA, 'RSL', 0), &
+      varAttr('psihatm_25', 'm s-1', f104, 'q at 2.5Zh', aA, 'RSL', 0), &
+      varAttr('psihatm_26', 'm s-1', f104, 'q at 2.6Zh', aA, 'RSL', 0), &
+      varAttr('psihatm_27', 'm s-1', f104, 'q at 2.7Zh', aA, 'RSL', 0), &
+      varAttr('psihatm_28', 'm s-1', f104, 'q at 2.8Zh', aA, 'RSL', 0), &
+      varAttr('psihatm_29', 'm s-1', f104, 'q at 2.9Zh', aA, 'RSL', 0), &
+      varAttr('psihatm_30', 'm s-1', f104, 'q at 3.0Zh', aA, 'RSL', 0), &
       ! debug info
       ! varAttr('L_stab', 'm', f104, 'threshold of Obukhob length under stable conditions', aA, 'RSL', 0), &
       ! varAttr('L_unstab', 'm', f104, 'threshold of Obukhob length under unstable conditions', aA, 'RSL', 0), &
@@ -563,7 +683,9 @@ MODULE ctrl_output
       varAttr('TStar_RSL', 'K', f104, 'friction temperature used in RSL', aA, 'RSL', 0), &
       varAttr('FAI', '-', f104, 'frontal area index', aA, 'RSL', 0), &
       varAttr('PAI', '-', f104, 'plan area index', aA, 'RSL', 0), &
-      varAttr('flag_RSL', '-', f104, 'flag for RSL', aA, 'RSL', 0) &
+      varAttr('flag_RSL', '-', f104, 'flag for RSL', aA, 'RSL', 0), &
+      varAttr('zref', '-', f104, 'z at 2.5 zH_RSL', aA, 'RSL', 0), &
+      varAttr('uref', '-', f104, 'U at 2.5 zH_RSL', aA, 'RSL', 0) &
       /
 
    ! debug info

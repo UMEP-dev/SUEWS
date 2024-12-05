@@ -361,14 +361,14 @@ CONTAINS
       END IF
 
       ! Calculate reference velocity
-      psimz_zref = stab_psi_mom(StabilityMethod, (zref  - zd_RSL)/L_MOD_RSL)
+      psimz_zref = stab_psi_mom(StabilityMethod, (zref - zd_RSL)/L_MOD_RSL)
       uref = (LOG((zref - zd_RSL)/z0_RSL) - psimz_zref + psimz0 + psihatm_zref)*UStar_RSL/kappa
 
       ! Velocity components MOST profiles
-      log_profile = LOG((zref - zd_RSL)/z0_RSL) * psihatm_z/kappa
-      psimz_profile = psimz * psihatm_z/kappa
-      psimz0_profile = psimz0 * psihatm_z/kappa
-      psihatm_profile = psihatm_z * psihatm_z/kappa
+      log_profile = LOG((zref - zd_RSL)/z0_RSL)*psihatm_z/kappa
+      psimz_profile = psimz*psihatm_z/kappa
+      psimz0_profile = psimz0*psihatm_z/kappa
+      psihatm_profile = psihatm_z*psihatm_z/kappa
 
       ! associate physical quantities to correction profilles
       dataoutLineURSL = dataoutLineURSL*UStar_RSL
@@ -1098,7 +1098,7 @@ CONTAINS
                CALL RSL_cal_prms( &
                   StabilityMethod, & !input
                   !nz_above, zarray(nz_can + 1:nz), & !input
-                  nz_above+1, zarray(nz_can:nz), & !input
+                  nz_above + 1, zarray(nz_can:nz), & !input
                   zh, L_MOD, sfr_surf, FAI, PAI, & !input
                   !psihatm_z(nz_can + 1:nz), psihath_z(nz_can + 1:nz), & !output
                   psihatm_z(nz_can:nz), psihath_z(nz_can:nz), & !output
@@ -1173,7 +1173,7 @@ CONTAINS
             END DO
 
             ! Calculate reference velocity
-            psimz_zref = stab_psi_mom(StabilityMethod, (zref  - zd_RSL)/L_MOD_RSL)
+            psimz_zref = stab_psi_mom(StabilityMethod, (zref - zd_RSL)/L_MOD_RSL)
             uref = (LOG((zref - zd_RSL)/z0_RSL) - psimz_zref + psimz0 + psihatm_zref)*UStar_RSL/kappa
             !
             ! Step 7: calculate in canopy variables
@@ -1205,10 +1205,10 @@ CONTAINS
 
             ! Velocity components MOST profiles
             psimz_prof(1) = 0
-            log_profile = LOG((zarray - zd_RSL)/z0_RSL) * UStar_RSL/kappa
-            psimz_profile = psimz_prof * UStar_RSL/kappa
-            psimz0_profile = psimz0 * UStar_RSL/kappa
-            psihatm_profile = psihatm_z * UStar_RSL/kappa
+            log_profile = LOG((zarray - zd_RSL)/z0_RSL)*UStar_RSL/kappa
+            psimz_profile = psimz_prof*UStar_RSL/kappa
+            psimz0_profile = psimz0*UStar_RSL/kappa
+            psihatm_profile = psihatm_z*UStar_RSL/kappa
 
             ! associate physical quantities to correction profilles
             dataoutLineURSL = dataoutLineURSL*UStar_RSL
@@ -1941,10 +1941,10 @@ CONTAINS
       z_mid = 3.0*zH_RSL
       z_btm = 2.5*zH_RSL ! zref
       psihatm_zref = cal_psim_hat(StabilityMethod, &
-                                 psihatm_top, psihatm_mid, &
-                                 z_top, z_mid, z_btm, &
-                                 cm, c2m, &
-                                 zh_RSL, zd_RSL, L_MOD_RSL, beta, elm, Lc)
+                                  psihatm_top, psihatm_mid, &
+                                  z_top, z_mid, z_btm, &
+                                  cm, c2m, &
+                                  zh_RSL, zd_RSL, L_MOD_RSL, beta, elm, Lc)
       DO iz = nz_above, 3, -1
          z_top = z_array(iz)
          z_mid = z_array(iz - 1)
@@ -1956,7 +1956,7 @@ CONTAINS
                                     z_top, z_mid, z_btm, &
                                     cm, c2m, &
                                     zh_RSL, zd_RSL, L_MOD_RSL, beta, elm, Lc)
-                                    !zh_RSL, zd_RSL, L_MOD, beta, elm, Lc)
+         !zh_RSL, zd_RSL, L_MOD, beta, elm, Lc)
          psihatm_array(iz - 2) = psihatm_btm
          psihatm_top = psihatm_mid
          psihatm_mid = psihatm_btm

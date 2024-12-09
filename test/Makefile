@@ -36,7 +36,7 @@ PYTHON := $(if $(PYTHON_exe),$(PYTHON_exe),python)
 # update sample run with the latest bin
 # !USE WITH CAUTION!
 update_sample_output:
-	cd code; python gen_sample_output.py
+	python gen_sample_output.py
 
 clean:
 	rm -rf *.zip

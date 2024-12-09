@@ -94,7 +94,7 @@ CONTAINS
       WU_surf, &
       drain_surf, AddWater, addImpervious, nsh_real, state_in, frac_water2runoff, &
       PervFraction, addVeg, SoilStoreCap, addWaterBody, FlowChange, StateLimit, &
-      runoffAGimpervious, runoffAGveg, runoffPipes, ev, soilstore_id, & ! inout:
+      runoffAGimpervious, runoffAGveg, runoffPipes, ev, soilstore, & ! inout:
       surplusWaterBody, SurplusEvap, runoffWaterBody, & ! inout:
       runoff, state_out) !output:
       !------------------------------------------------------------------------------
@@ -161,7 +161,7 @@ CONTAINS
       REAL(KIND(1D0)), INTENT(in) :: addWaterBody !Water from water surface of other grids [mm] for whole surface area
       REAL(KIND(1D0)), INTENT(in) :: FlowChange !Difference between the input and output flow in the water body
 
-      REAL(KIND(1D0)), DIMENSION(nsurf), INTENT(inout) :: soilstore_id !Soil moisture of each surface type [mm]
+      REAL(KIND(1D0)), DIMENSION(nsurf), INTENT(inout) :: soilstore !Soil moisture of each surface type [mm]
       REAL(KIND(1D0)), DIMENSION(2), INTENT(inout) :: SurplusEvap !Surplus for evaporation in 5 min timestep
 
       REAL(KIND(1D0)), DIMENSION(nsurf) :: chang !Change in state_id [mm]
@@ -294,8 +294,8 @@ CONTAINS
          IF (state_out(is) < 0.0) THEN ! Cannot have a negative surface state_id
             ! If there is not sufficient water on the surface, then remove water from soilstore
             ! Allow evaporation until soilstore_id is depleted and surface is dry
-            IF ((soilstore_id(is) + state_out(is)) >= 0) THEN
-               soilstore_id(is) = soilstore_id(is) + state_out(is)
+            IF ((soilstore(is) + state_out(is)) >= 0) THEN
+               soilstore(is) = soilstore(is) + state_out(is)
                state_out(is) = 0.0
                ! If there is not sufficient water on the surface or soilstore, then don't allow this evaporation to happen
             ELSE
@@ -317,14 +317,14 @@ CONTAINS
          ! soilstore_id -------------------------------------------------
          ! For pervious surfaces (not water), some of drain(is) goes to soil storage
          ! Drainage (that is not flowing to other surfaces) goes to soil storages
-         soilstore_id(is) = soilstore_id(is) + drain_surf(is)*frac_water2runoff(is)
+         soilstore(is) = soilstore(is) + drain_surf(is)*frac_water2runoff(is)
 
          ! If soilstore is full, the excess will go to runoff
-         IF (soilstore_id(is) > SoilStoreCap(is)) THEN ! TODO: this should also go to flooding of some sort
-            runoff(is) = runoff(is) + (soilstore_id(is) - SoilStoreCap(is))
-            soilstore_id(is) = SoilStoreCap(is)
-         ELSEIF (soilstore_id(is) < 0) THEN !! QUESTION: But where does this lack of water go? !!Can this really happen here?
-            CALL ErrorHint(62, 'SUEWS_store: soilstore_id(is) < 0 ', soilstore_id(is), NotUsed, is)
+         IF (soilstore(is) > SoilStoreCap(is)) THEN ! TODO: this should also go to flooding of some sort
+            runoff(is) = runoff(is) + (soilstore(is) - SoilStoreCap(is))
+            soilstore(is) = SoilStoreCap(is)
+         ELSEIF (soilstore(is) < 0) THEN !! QUESTION: But where does this lack of water go? !!Can this really happen here?
+            CALL ErrorHint(62, 'SUEWS_store: soilstore_id(is) < 0 ', soilstore(is), NotUsed, is)
             ! Code this properly - soilstore_id(is) < 0 shouldn't happen given the above loops
             !soilstore_id(is)=0   !Groundwater / deeper soil should kick in
          END IF

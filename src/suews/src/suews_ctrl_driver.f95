@@ -250,6 +250,11 @@ CONTAINS
                   PRINT *, 'iteration is ', i_iter
                END IF
 
+               ! #316: restore initial hydroState as hydrostate should not be changed during iterations
+               ! IF (config%flag_test) THEN
+               hydroState = modState_init%hydroState
+               ! snowstate should probably be restored as well but not done for now - should be revisited
+               ! END IF
                !==============main calculation start=======================
 
                ! WIP notes: TS 23 Aug 2023

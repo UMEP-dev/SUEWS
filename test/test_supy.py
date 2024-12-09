@@ -373,7 +373,7 @@ class TestSuPy(TestCase):
     def test_dailystate_meaningful(self):
         print("\n========================================")
         print("Testing if dailystate are written out correctly...")
-        df_state_init, df_forcing_tstep = sp.load_SampleData()
+        # df_state_init, df_forcing_tstep = sp.load_SampleData()
         n_days = 10
         df_forcing_part = df_forcing_tstep.iloc[: 288 * n_days]
 
@@ -382,3 +382,37 @@ class TestSuPy(TestCase):
         df_dailystate = df_output.DailyState
         n_days_test = df_dailystate.dropna().drop_duplicates().shape[0]
         self.assertEqual(n_days_test, n_days)
+
+    # test if the water balance is closed
+    def test_water_balance_closed(self):
+        print("\n========================================")
+        print("Testing if water balance is closed...")
+        n_days = 100
+        df_forcing_part = df_forcing_tstep.iloc[: 288 * n_days]
+        df_output, df_state = sp.run_supy(df_forcing_part, df_state_init)
+
+        # get soilstore
+        df_soilstore = df_output.loc[1,"debug"].filter(regex="^ss_.*_next$")
+        ser_sfr_surf = df_state_init.sfr_surf.iloc[0]
+        ser_soilstore = df_soilstore.dot(ser_sfr_surf.values)
+
+        # get water balance
+        df_water = df_output.SUEWS[['Rain','Irr','Evap','RO','State']].assign(
+            SoilStore=ser_soilstore,
+            TotalStore=ser_soilstore+df_output.SUEWS.State
+        )
+        # ===============================
+        # check if water balance is closed
+        # ===============================
+        # change in total store
+        ser_totalstore_change = df_water.TotalStore.diff().dropna()
+        # water input
+        ser_water_in = df_water.Rain+df_water.Irr
+        # water output
+        ser_water_out = df_water.Evap+df_water.RO
+        # water balance
+        ser_water_balance = ser_water_in-ser_water_out
+        # test if water balance is closed
+        test_dif = (ser_totalstore_change-ser_water_balance).abs().max() < 1e-6
+        self.assertTrue(test_dif)
+

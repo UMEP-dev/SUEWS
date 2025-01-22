@@ -8,7 +8,6 @@ import time
 
 # import logging
 import traceback
-from ast import literal_eval
 from pathlib import Path
 from typing import Tuple
 import pandas
@@ -565,10 +564,55 @@ def run_supy_par(df_forcing_tstep, df_state_init_m, save_state, chunk_day, debug
 
 
 # pack one Series of var into np.array
-def pack_var(ser_var):
-    dim = np.array(literal_eval(ser_var.index[-1])) + 1
-    val = np.array(ser_var.values.reshape(dim), order="F")
-    return val
+def pack_var(ser_var: pd.Series) -> np.ndarray:
+    """Convert a pandas Series with tuple-like index strings into a numpy array.
+
+    Parameters
+    ----------
+    ser_var : pandas.Series
+        Series with index strings like '(0,1)' representing dimensions
+
+    Returns
+    -------
+    numpy.ndarray
+        Reshaped array based on index dimensions
+    """
+    # Handle scalar values (single element Series)
+    if len(ser_var) == 1:
+        return np.array([ser_var.iloc[0]])
+
+    try:
+        # Convert index strings to tuples of integers
+        # e.g. '(1,2)' -> (1,2)
+        # import pdb; pdb.set_trace()
+        index_tuples = [
+            tuple(map(int, filter(None, idx.strip('()').split(','))))
+            for idx in ser_var.index
+        ]
+
+        # Create new Series with tuple indices for proper sorting
+        ser_var_indexed = pd.Series(
+            ser_var.values,
+            index=index_tuples
+        ).sort_index()
+
+        # Get dimensions from max indices
+        # Add 1 since indices are 0-based
+        dimensions = np.array(ser_var_indexed.index[-1]) + 1
+
+        # Reshape using Fortran-style ordering to match original
+        res = np.array(ser_var_indexed.values).reshape(dimensions, order="F")
+
+        try:
+            return res.astype(float)
+        except:
+            return res.astype(str)
+
+    except (ValueError, AttributeError) as e:
+        # Log error and fall back to scalar handling
+        print(f"Error reshaping Series: {e}")
+        return np.array([ser_var.iloc[0]])
+
 
 
 # pack one Series of grid vars into dict of `np.array`s
@@ -580,7 +624,7 @@ def pack_grid_dict(ser_grid):
     dict_var = {}
     for var in list_var:
         if var not in ["file_init"]:
-            dict_var[var] = pack_var(ser_grid[var]).astype(float)
+            dict_var[var] = pack_var(ser_grid[var])
         else:
             pass
     # dict_var = {

@@ -789,32 +789,36 @@ CONTAINS
       REAL(KIND(1D0)), INTENT(out) :: AddWaterRunoff(nsurf) !Fraction of water going to runoff/sub-surface soil (WGWaterDist) [-]
       REAL(KIND(1D0)), INTENT(out) :: AddWater(nsurf) !Water from other surfaces (WGWaterDist in SUEWS_ReDistributeWater.f95) [mm]
 
-      INTEGER :: ii, jj
+      INTEGER :: i_receiver, i_contributor, i_surface
       INTEGER :: NSurfDoNotReceiveDrainage = 0 !Number of surfaces that do not receive drainage water (green roof)
 
       !Fractions that go to runoff from each surface
-      DO ii = 1, nsurf - 1 !not water in the calculation
-         AddWaterRunoff(ii) = WaterDist(8, ii)
+      DO i_surface = 1, nsurf - 1 !not water in the calculation
+         AddWaterRunoff(i_surface) = WaterDist(8, i_surface)
       END DO
       AddWaterRunoff(WaterSurf) = 0
       AddWater = 0
 
-      DO ii = 1, nsurf - NSurfDoNotReceiveDrainage !go through surfaces from 1 to 7. These gain water through drainage
-         DO jj = 1, nsurf - (NSurfDoNotReceiveDrainage + 1) !From where surface ii can gain water - can't gain water from itself
+      DO i_receiver = 1, nsurf - NSurfDoNotReceiveDrainage !go through surfaces from 1 to 7. These gain water through drainage
+         DO i_contributor = 1, nsurf - (NSurfDoNotReceiveDrainage + 1) !From where surface ii can gain water - can't gain water from itself
 
-            IF (sfr_surf(ii) /= 0) THEN !Water movement takes place only if surface fraction exists
+            IF (sfr_surf(i_receiver) /= 0) THEN !Water movement takes place only if surface fraction exists
 
-               !No snow calculations!
                IF (SnowUse == 0) THEN
-                  AddWater(ii) = AddWater(ii) + (Drain(jj)*sfr_surf(jj)/sfr_surf(ii))*WaterDist(ii, jj) !Original
+                  !No snow calculations!
+                  AddWater(i_receiver) = AddWater(i_receiver) &
+                                         + (Drain(i_contributor)*sfr_surf(i_contributor) &
+                                            /sfr_surf(i_receiver))*WaterDist(i_receiver, i_contributor) !Original
 
-                  !Snow included, This needs to be fixed at some point. LJ Mar 2013
                ELSE
-                  AddWaterRunoff(jj) = AddWaterRunoff(jj) + WaterDist(ii, jj) !No receiving surface -> runoff
+                  !Snow included, This needs to be fixed at some point. LJ Mar 2013
+                  AddWaterRunoff(i_contributor) = AddWaterRunoff(i_contributor) &
+                                                  + WaterDist(i_receiver, i_contributor) !No receiving surface -> runoff
                END IF
 
             ELSE
-               AddWaterRunoff(jj) = AddWaterRunoff(jj) + WaterDist(ii, jj) !If no receiving surface exists,
+               AddWaterRunoff(i_contributor) = AddWaterRunoff(i_contributor) &
+                                               + WaterDist(i_receiver, i_contributor) !If no receiving surface exists,
                !water fraction goes to AddWaterRunoff
             END IF
          END DO

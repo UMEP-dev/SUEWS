@@ -84,7 +84,8 @@ def check_method(ser_to_check: pd.Series, rule_var: dict) -> Tuple:
     description = ""
 
     is_accepted_flag = False
-    for value in np.nditer(ser_to_check.values):
+    # for value in np.nditer(ser_to_check.values):
+    for value in ser_to_check.values:
         if value in list_val:
             is_accepted_flag = True
         else:

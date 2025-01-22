@@ -34,5 +34,5 @@ SuppressWarnings      = 1
 KdownZen              = 0
 diagnose              = 0
 diagMethod            = 2
-stebbsmethod          = 0
+stebbsuse             = 0
 /

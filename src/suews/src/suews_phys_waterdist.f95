@@ -828,7 +828,7 @@ CONTAINS
    !------------------------------------------------------------------------------
 
    !------------------------------------------------------------------------------
-     SUBROUTINE SUEWS_update_SoilMoist( &
+   SUBROUTINE SUEWS_update_SoilMoist( &
       timer, config, forcing, siteInfo, & ! input
       modState) ! input/output:
       ! hydroState)
@@ -847,7 +847,6 @@ CONTAINS
 
       TYPE(SUEWS_STATE), INTENT(inout) :: modState
       REAL(KIND(1D0)), DIMENSION(nsurf) :: soilstore_surf
-
 
       REAL(KIND(1D0)), DIMENSION(nsurf) :: SoilStoreCap
 
@@ -1748,7 +1747,6 @@ CONTAINS
       END IF
 
    END SUBROUTINE SUEWS_cal_WaterUse
-
 
    SUBROUTINE SUEWS_cal_WaterUse_DTS( &
       timer, config, forcing, siteInfo, & ! input

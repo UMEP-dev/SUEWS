@@ -37,8 +37,8 @@ MODULE SUEWS_Driver
    USE WaterDist_module, ONLY: &
       drainage, cal_water_storage_surf, &
       cal_water_storage_building, &
-      SUEWS_cal_SoilState, SUEWS_cal_SoilState_DTS, &
-      SUEWS_update_SoilMoist, SUEWS_update_SoilMoist_DTS, &
+      SUEWS_cal_SoilStore, SUEWS_cal_SoilState_DTS, &
+      SUEWS_update_SoilMoist, SUEWS_update_SoilMoist, &
       ReDistributeWater, SUEWS_cal_HorizontalSoilWater, &
       SUEWS_cal_HorizontalSoilWater_DTS, &
       SUEWS_cal_WaterUse, SUEWS_cal_WaterUse_DTS
@@ -308,7 +308,7 @@ CONTAINS
 
                !======== Calculate soil moisture =========
                IF (Diagnose == 1) WRITE (*, *) 'Calling SUEWS_update_SoilMoist...'
-               CALL SUEWS_update_SoilMoist_DTS( &
+               CALL SUEWS_update_SoilMoist( &
                   timer, config, forcing, siteInfo, & ! input
                   modState) ! input/output:
 
@@ -480,7 +480,7 @@ CONTAINS
 
             !==============translation of  output variables into output array===========
             IF (Diagnose == 1) WRITE (*, *) 'Calling SUEWS_update_outputLine_DTS...'
-            CALL SUEWS_update_outputLine_DTS( &
+            CALL SUEWS_update_outputLine( &
                timer, config, forcing, siteInfo, & ! input
                modState, & ! input/output:
                datetimeLine, dataOutLineSUEWS) !output
@@ -2731,7 +2731,7 @@ CONTAINS
             smd_surf => hydroState%smd_surf, &
             smd => hydroState%smd, &
             tot_chang_per_tstep => hydroState%tot_chang_per_tstep, &
-            SoilState => hydroState%SoilState, &
+            SoilStore => hydroState%SoilStore, &
             StoreDrainPrm => phenState%StoreDrainPrm, &
             snowfrac_in => snowstate%SnowFrac, &
             SMDMethod => config%SMDMethod, &
@@ -2918,11 +2918,11 @@ CONTAINS
                   )
 
                !========== Calculate soil moisture of a whole grid ============
-               CALL SUEWS_cal_SoilState( &
+               CALL SUEWS_cal_SoilStore( &
                   SMDMethod, xsmd, NonWaterFraction, SoilMoistCap, & !input
                   SoilStoreCap_surf, surf_chang_per_tstep, &
                   soilstore_surf, soilstore_surf_in, sfr_surf, &
-                  smd, smd_surf, tot_chang_per_tstep, SoilState) !output
+                  smd, smd_surf, tot_chang_per_tstep, SoilStore) !output
 
             END ASSOCIATE
          END ASSOCIATE
@@ -3399,7 +3399,7 @@ CONTAINS
             runoffWaterBody => hydroState%runoffWaterBody, &
             smd => hydroState%smd, &
             smd_surf => hydroState%smd_surf, &
-            soilstore => hydroState%soilstore, &
+            soilstore => hydroState%SoilStore, &
             soilstore_surf => hydroState%soilstore_surf, &
             SnowRemoval => snowState%SnowRemoval, &
             state_per_tstep => hydroState%state_per_tstep, &

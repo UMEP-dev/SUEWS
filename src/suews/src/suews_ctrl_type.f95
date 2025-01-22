@@ -701,7 +701,7 @@ MODULE SUEWS_DEF_DTS
       REAL(KIND(1D0)) :: runoffSoil_per_tstep !Runoff to deep soil per timestep [mm] (for whole surface, excluding water body)
       REAL(KIND(1D0)) :: runoffwaterbody !Above ground runoff from water body for all surface area [mm]
       REAL(KIND(1D0)) :: smd !soil moisture deficit [mm]
-      REAL(KIND(1D0)) :: SoilState !Area-averaged soil moisture  for whole surface [mm]
+      REAL(KIND(1D0)) :: SoilStore !Area-averaged soil moisture  for whole surface [mm]
       REAL(KIND(1D0)) :: state_per_tstep !state_id at each timestep [mm]
       REAL(KIND(1D0)) :: surf_chang_per_tstep !change in state_id (exluding snowpack) per timestep [mm]
       REAL(KIND(1D0)) :: tot_chang_per_tstep !Change in surface state_id [mm]

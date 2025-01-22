@@ -33,9 +33,12 @@ from ._load import (
     load_SUEWS_dict_ModConfig,
     load_df_state,
     resample_forcing_met,
+    load_SUEWS_Forcing_met_df_yaml,
 )
 from ._run import run_supy_par, run_supy_ser
 from ._save import get_save_info, save_df_output, save_df_state, save_initcond_nml
+
+from .util._config import init_config_from_yaml
 
 
 # set up logging module
@@ -98,20 +101,31 @@ def init_supy(
     except FileNotFoundError:
         logger_supy.exception(f"{path_init_x} does not exists!")
     else:
-        if path_init_x.suffix == ".nml":
-            # SUEWS `RunControl.nml`:
-            df_state_init = load_InitialCond_grid_df(
-                path_init_x,
-                force_reload=force_reload,
-            )
-        elif path_init_x.suffix == ".csv":
-            # SuPy `df_state.csv`:
-            df_state_init = load_df_state(path_init_x)
+        if path_init_x.suffix == ".yml":
+            # SUEWS `config_suews.yaml`:
+            logger_supy.info("Loading config from yaml")
+            df_state_init = init_config_from_yaml(path=path_init_x).to_df_state()
         else:
-            logger_supy.critical(
-                f"{path_init_x} is NOT a valid file to initialise SuPy!"
+            logger_supy.warning(
+                "Input is not a yaml file, loading from other sources. These methods will be deprecated in later versions.",
+                stacklevel=2,
             )
-            raise RuntimeError("{path_init_x} is NOT a valid file to initialise SuPy!")
+            if path_init_x.suffix == ".nml":
+                # SUEWS `RunControl.nml`:
+                df_state_init = load_InitialCond_grid_df(
+                    path_init_x,
+                    force_reload=force_reload,
+                )
+            elif path_init_x.suffix == ".csv":
+                # SuPy `df_state.csv`:
+                df_state_init = load_df_state(path_init_x)
+            else:
+                logger_supy.critical(
+                    f"{path_init_x} is NOT a valid file to initialise SuPy!"
+                )
+                raise RuntimeError(
+                    "{path_init_x} is NOT a valid file to initialise SuPy!"
+                )
         if check_input:
             try:
                 list_issues = check_state(df_state_init)
@@ -135,10 +149,11 @@ def init_supy(
 # TODO:
 # to be superseded by a more generic wrapper: load_forcing
 def load_forcing_grid(
-    path_runcontrol: str,
+    path_init: str,
     grid: int,
     check_input=False,
     force_reload=True,
+    df_state_init: pd.DataFrame = None,
 ) -> pd.DataFrame:
     """Load forcing data for a specific grid included in the index of `df_state_init </data-structure/supy-io.ipynb#df_state_init:-model-initial-states>`.
 
@@ -172,51 +187,95 @@ def load_forcing_grid(
     """
 
     try:
-        path_runcontrol = Path(path_runcontrol).expanduser().resolve()
+        path_init = Path(path_init).expanduser().resolve()
     except FileNotFoundError:
-        logger_supy.exception(f"{path_runcontrol} does not exists!")
+        logger_supy.exception(f"{path_init} does not exists!")
     else:
-        dict_mod_cfg = load_SUEWS_dict_ModConfig(path_runcontrol)
-        df_state_init = init_supy(path_runcontrol, force_reload)
+        if path_init.suffix == ".nml":
+            # load settings from RunControl.nml
+            dict_mod_cfg = load_SUEWS_dict_ModConfig(path_init)
+            # load setting variables from dict_mod_cfg
+            (
+                filecode,
+                kdownzen,
+                tstep_met_in,
+                tstep_ESTM_in,
+                multiplemetfiles,
+                multipleestmfiles,
+                dir_input_cfg,
+            ) = (
+                dict_mod_cfg[x]
+                for x in [
+                    "filecode",
+                    "kdownzen",
+                    "resolutionfilesin",
+                    "resolutionfilesinestm",
+                    "multiplemetfiles",
+                    "multipleestmfiles",
+                    "fileinputpath",
+                ]
+            )
 
-        # load setting variables from dict_mod_cfg
-        (
-            filecode,
-            kdownzen,
-            tstep_met_in,
-            tstep_ESTM_in,
-            multiplemetfiles,
-            multipleestmfiles,
-            dir_input_cfg,
-        ) = (
-            dict_mod_cfg[x]
-            for x in [
-                "filecode",
-                "kdownzen",
-                "resolutionfilesin",
-                "resolutionfilesinestm",
-                "multiplemetfiles",
-                "multipleestmfiles",
-                "fileinputpath",
-            ]
-        )
+            path_site = path_init.parent
+            path_input = path_site / dict_mod_cfg["fileinputpath"]
+        else:
+            config = init_config_from_yaml(path=path_init)
+            path_site = path_init.parent
+            path_input = path_site / config.model.control.forcing_file.value
+
         tstep_mod, lat, lon, alt, timezone = df_state_init.loc[
-            grid, [(x, "0") for x in ["tstep", "lat", "lng", "alt", "timezone"]]
+            grid,
+            [
+                (x, "0")
+                for x in [
+                    "tstep",
+                    "lat",
+                    "lng",
+                    "alt",
+                    "timezone",
+                ]
+            ],
         ].values
-
-        path_site = path_runcontrol.parent
-        path_input = path_site / dict_mod_cfg["fileinputpath"]
 
         # load raw data
         # met forcing
-        df_forcing_met = load_SUEWS_Forcing_met_df_raw(
-            path_input, filecode, grid, tstep_met_in, multiplemetfiles
-        )
-
-        # resample raw data from tstep_in to tstep_mod
-        df_forcing_met_tstep = resample_forcing_met(
-            df_forcing_met, tstep_met_in, tstep_mod, lat, lon, alt, timezone, kdownzen
-        )
+        if path_init.suffix == ".nml":
+            df_forcing_met = load_SUEWS_Forcing_met_df_raw(
+                path_input, filecode, grid, tstep_met_in, multiplemetfiles
+            )
+            # resample raw data from tstep_in to tstep_mod
+            df_forcing_met_tstep = resample_forcing_met(
+                df_forcing_met,
+                tstep_met_in,
+                tstep_mod,
+                lat,
+                lon,
+                alt,
+                timezone,
+                kdownzen,
+            )
+        elif path_init.suffix == ".yml":
+            df_forcing_met = load_SUEWS_Forcing_met_df_yaml(path_input)
+            tstep_met_in = df_forcing_met.index[1] - df_forcing_met.index[0]
+            tstep_met_in = int(tstep_met_in.total_seconds())
+            kdownzen = init_config_from_yaml(
+                path=path_init
+            ).model.control.kdownzen.value
+            if kdownzen is None:
+                df_forcing_met_tstep = resample_forcing_met(
+                    df_forcing_met, tstep_met_in, tstep_mod, lat, lon, alt, timezone
+                )
+            else:
+                df_forcing_met_tstep = resample_forcing_met(
+                    df_forcing_met,
+                    tstep_met_in,
+                    tstep_mod,
+                    lat,
+                    lon,
+                    alt,
+                    timezone,
+                    kdownzen,
+                )
 
         # coerced precision here to prevent numerical errors inside Fortran
         df_forcing = df_forcing_met_tstep.round(10)
@@ -242,6 +301,14 @@ def load_forcing_grid(
 # load sample data for quickly starting a demo run
 # TODO: to deprecate this by renaming for case consistency: load_SampleData-->load_sample_data
 def load_SampleData() -> Tuple[pandas.DataFrame, pandas.DataFrame]:
+    logger_supy.warning(
+        "This function name will be deprecated. Please use `load_sample_data()` instead.",
+        stacklevel=2,
+    )
+    return load_sample_data()
+
+
+def load_sample_data() -> Tuple[pandas.DataFrame, pandas.DataFrame]:
     """Load sample data for quickly starting a demo run.
 
     Returns
@@ -253,15 +320,17 @@ def load_SampleData() -> Tuple[pandas.DataFrame, pandas.DataFrame]:
     Examples
     --------
 
-    >>> df_state_init, df_forcing = supy.load_SampleData()
+    >>> df_state_init, df_forcing = supy.load_sample_data()
 
     """
-    from ._env import trv_supy_module
 
-    trv_SampleData = trv_supy_module / "sample_run"
-    path_runcontrol = trv_SampleData / "RunControl.nml"
-    df_state_init = init_supy(path_runcontrol, force_reload=False)
-    df_forcing = load_forcing_grid(path_runcontrol, df_state_init.index[0])
+    trv_sample_data = trv_supy_module / "sample_run"
+    # path_config_default = trv_sample_data / "sample_config.yml"
+    path_config_default = trv_sample_data / "RunControl.nml"
+    df_state_init = init_supy(path_config_default, force_reload=False)
+    df_forcing = load_forcing_grid(
+        path_config_default, df_state_init.index[0], df_state_init=df_state_init
+    )
     return df_state_init, df_forcing
 
 
@@ -376,10 +445,14 @@ def run_supy(
 
     if n_grid > 1 and os.name != "nt" and (not serial_mode):
         logger_supy.info(f"SuPy is running in parallel mode")
-        res_supy = run_supy_par(df_forcing, df_state_init, save_state, chunk_day, debug_mode)
+        res_supy = run_supy_par(
+            df_forcing, df_state_init, save_state, chunk_day, debug_mode
+        )
     else:
         logger_supy.info(f"SuPy is running in serial mode")
-        res_supy = run_supy_ser(df_forcing, df_state_init, save_state, chunk_day, debug_mode)
+        res_supy = run_supy_ser(
+            df_forcing, df_state_init, save_state, chunk_day, debug_mode
+        )
         # try:
         #     res_supy = run_supy_ser(df_forcing, df_state_init, save_state, chunk_day)
         # except:
@@ -398,7 +471,6 @@ def run_supy(
         return df_output, df_state_final, res_debug
     else:
         return df_output, df_state_final
-
 
 
 ##############################################################################

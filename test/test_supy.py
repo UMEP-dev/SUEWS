@@ -33,7 +33,7 @@ flag_full_test = all(
 )
 
 # Load sample data once, as it will be used frequently later to save time.
-df_state_init, df_forcing_tstep = sp.load_SampleData()
+df_state_init, df_forcing_tstep = sp.load_sample_data()
 
 
 class TestSuPy(TestCase):

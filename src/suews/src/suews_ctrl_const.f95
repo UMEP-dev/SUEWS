@@ -1160,7 +1160,7 @@ MODULE data_in
               !  nCol, &                 !number of columns of checker board layout in the netCDF output, TS, 09 Dec 2016
               DiagnoseDisaggESTM, & !Set to 1 to get print-out of ESTM forcing disaggregation progress
               DiagQN, DiagQS, & !Set to 1 to print values/components
-              stebbsmethod !Stebbins
+              stebbsuse !Stebbins
 
    ! For more complex downscaling allow different RainAmongN for different intensities
    INTEGER, DIMENSION(5) :: MultRainAmongN ! RainAmongN for each intensity bin

@@ -10,7 +10,7 @@ MODULE rsl_module
 
 CONTAINS
 
-   SUBROUTINE RSLProfile( &
+   SUBROUTINE RSLProfile_old( &
       DiagMethod, &
       Zh, z0m, zdm, z0v, &
       L_MOD, sfr_surf, FAI, PAI, &
@@ -384,7 +384,7 @@ CONTAINS
       ! get relative humidity:
       RH2 = qa2RH(q2_gkg, press_hPa, T2_C)
 
-   END SUBROUTINE RSLProfile
+   END SUBROUTINE RSLProfile_old
 
 !    SUBROUTINE RSLProfile_DTS( &
 !       DiagMethod, &
@@ -759,7 +759,7 @@ CONTAINS
 
 !    END SUBROUTINE RSLProfile_DTS
 
-   SUBROUTINE RSLProfile_DTS( &
+   SUBROUTINE RSLProfile( &
       timer, config, forcing, siteInfo, & ! input
       modState, & ! input/output:
       dataoutLineRSL) ! output
@@ -1062,9 +1062,11 @@ CONTAINS
                ! Step 0: Calculate grid-cell dependent constants and Beta (crucial for H&F method)
                CALL RSL_cal_prms( &
                   StabilityMethod, & !input
-                  nz_above, zarray(nz_can + 1:nz), & !input
+                  !nz_above, zarray(nz_can + 1:nz), & !input
+                  nz_above + 1, zarray(nz_can:nz), & !input
                   zh, L_MOD, sfr_surf, FAI, PAI, & !input
-                  psihatm_z(nz_can + 1:nz), psihath_z(nz_can + 1:nz), & !output
+                  !psihatm_z(nz_can + 1:nz), psihath_z(nz_can + 1:nz), & !output
+                  psihatm_z(nz_can:nz), psihath_z(nz_can:nz), & !output
                   zH_RSL, L_MOD_RSL, & ! output
                   Lc, beta, zd_RSL, z0_RSL, elm, Scc, fx)
 
@@ -1198,7 +1200,7 @@ CONTAINS
          END ASSOCIATE
       END ASSOCIATE
 
-   END SUBROUTINE RSLProfile_DTS
+   END SUBROUTINE RSLProfile
 
    FUNCTION interp_z(z_x, z, v) RESULT(v_x)
 

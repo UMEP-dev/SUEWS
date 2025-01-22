@@ -487,7 +487,7 @@ CONTAINS
 
             IF (config%StorageHeatMethod == 5) THEN
                IF (Diagnose == 1) WRITE (*, *) 'Calling ECH_update_outputLine_DTS...'
-               CALL EHC_update_outputLine_DTS( &
+               CALL EHC_update_outputLine( &
                   timer, & !input
                   modState, & ! input/output:
                   datetimeLine, dataOutLineEHC) !output
@@ -3578,7 +3578,7 @@ CONTAINS
 
    ! END SUBROUTINE EHC_update_outputLine
 
-   SUBROUTINE EHC_update_outputLine_DTS( &
+   SUBROUTINE EHC_update_outputLine( &
       timer, & !input
       modState, & ! input/output:
       datetimeLine, dataOutLineEHC) !output
@@ -3657,7 +3657,7 @@ CONTAINS
             !====================update output line end==============================
          END ASSOCIATE
       END ASSOCIATE
-   END SUBROUTINE EHC_update_outputLine_DTS
+   END SUBROUTINE EHC_update_outputLine
 !========================================================================
 
    FUNCTION fill_result_x(res_valid, n_fill) RESULT(res_filled)

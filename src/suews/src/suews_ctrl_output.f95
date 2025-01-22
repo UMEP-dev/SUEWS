@@ -102,6 +102,7 @@ MODULE ctrl_output
       varAttr('State', 'mm', f104, 'Surface Wetness State', aL, 'SUEWS', 0), &
       varAttr('NWtrState', 'mm', f104, 'Surface wetness state (non-water surfaces)', aL, 'SUEWS', 0), &
       varAttr('Drainage', 'mm', f104, 'Drainage', aS, 'SUEWS', 0), &
+      varAttr('SoilStore', 'mm', f94, 'Soil Store', aL, 'SUEWS', 0), &
       varAttr('SMD', 'mm', f94, 'Soil Moisture Deficit', aL, 'SUEWS', 0), &
       varAttr('FlowCh', 'mm', f104, 'Additional flow into water body', aS, 'SUEWS', 1), &
       varAttr('AddWater', 'mm', f104, 'Addtional water from other grids', aS, 'SUEWS', 1), &
@@ -114,6 +115,12 @@ MODULE ctrl_output
       varAttr('WUEveTr', 'mm', f94, 'Water use for evergreen trees', aS, 'SUEWS', 1), &
       varAttr('WUDecTr', 'mm', f94, 'Water use for deciduous trees', aS, 'SUEWS', 1), &
       varAttr('WUGrass', 'mm', f94, 'Water use for grass', aS, 'SUEWS', 1), &
+      varAttr('SSPaved', 'mm', f94, 'Soil store for paved surface', aL, 'SUEWS', 1), &
+      varAttr('SSBldgs', 'mm', f94, 'Soil store for building surface', aL, 'SUEWS', 1), &
+      varAttr('SSEveTr', 'mm', f94, 'Soil store for evergreen tree surface', aL, 'SUEWS', 1), &
+      varAttr('SSDecTr', 'mm', f94, 'Soil store for deciduous tree surface', aL, 'SUEWS', 1), &
+      varAttr('SSGrass', 'mm', f94, 'Soil store for grass surface', aL, 'SUEWS', 1), &
+      varAttr('SSBSoil', 'mm', f94, 'Soil store for bare soil surface', aL, 'SUEWS', 1), &
       varAttr('SMDPaved', 'mm', f94, 'Soil moisture deficit for paved surface', aL, 'SUEWS', 1), &
       varAttr('SMDBldgs', 'mm', f94, 'Soil moisture deficit for building surface', aL, 'SUEWS', 1), &
       varAttr('SMDEveTr', 'mm', f94, 'Soil moisture deficit for evergreen tree surface', aL, 'SUEWS', 1), &

@@ -3288,7 +3288,7 @@ CONTAINS
 
 !==============Update output arrays=========================
 
-   SUBROUTINE SUEWS_update_outputLine_DTS( &
+   SUBROUTINE SUEWS_update_outputLine( &
       timer, config, forcing, siteInfo, & ! input
       modState, & ! input/output:
       datetimeLine, dataOutLineSUEWS) !output
@@ -3321,6 +3321,7 @@ CONTAINS
       REAL(KIND(1D0)) :: bulkalbedo !output area-weighted albedo [-]
       REAL(KIND(1D0)) :: smd_surf_x(nsurf) !output soil moisture deficit for each surface [mm]
       REAL(KIND(1D0)) :: state_x(nsurf) !output wetness status of each surfaces[mm]
+      REAL(KIND(1D0)) :: soilstore_surf_x(nsurf) !output soil store for each surface [mm]
       REAL(KIND(1D0)) :: wu_DecTr !water use for deciduous tree and shrubs [mm]
       REAL(KIND(1D0)) :: wu_EveTr !water use of evergreen tree and shrubs [mm]
       REAL(KIND(1D0)) :: wu_Grass !water use for grass [mm]
@@ -3398,6 +3399,8 @@ CONTAINS
             runoffWaterBody => hydroState%runoffWaterBody, &
             smd => hydroState%smd, &
             smd_surf => hydroState%smd_surf, &
+            soilstore => hydroState%soilstore, &
+            soilstore_surf => hydroState%soilstore_surf, &
             SnowRemoval => snowState%SnowRemoval, &
             state_per_tstep => hydroState%state_per_tstep, &
             surf_chang_per_tstep => hydroState%surf_chang_per_tstep, &
@@ -3419,6 +3422,7 @@ CONTAINS
             ! Remove non-existing surface type from surface and soil outputs   ! Added back in with NANs by HCW 24 Aug 2016
             state_x = UNPACK(SPREAD(NAN, dim=1, ncopies=SIZE(sfr_surf)), mask=(sfr_surf < 0.00001), field=state_surf)
             smd_surf_x = UNPACK(SPREAD(NAN, dim=1, ncopies=SIZE(sfr_surf)), mask=(sfr_surf < 0.00001), field=smd_surf)
+            soilstore_surf_x = UNPACK(SPREAD(NAN, dim=1, ncopies=SIZE(sfr_surf)), mask=(sfr_surf < 0.00001), field=soilstore_surf)
 
             ResistSurf_x = MIN(9999., RS)
 
@@ -3450,10 +3454,12 @@ CONTAINS
                                qn, qf, qs, qh, qe, &
                                QH_LUMPS, QE_LUMPS, qh_resist, &
                                rain, wu_ext, ev_per_tstep, runoff_per_tstep, tot_chang_per_tstep, &
-                               surf_chang_per_tstep_x, state_per_tstep, NWstate_per_tstep, drain_per_tstep, smd, &
+                               surf_chang_per_tstep_x, state_per_tstep, NWstate_per_tstep, drain_per_tstep, &
+                               soilstore, smd, &
                                FlowChange/nsh_real, AdditionalWater, &
                                runoffSoil_per_tstep, runoffPipes, runoffAGimpervious, runoffAGveg, runoffWaterBody, &
                                wu_int, wu_EveTr, wu_DecTr, wu_Grass, &
+                               soilstore_surf_x(1:nsurf - 1), &
                                smd_surf_x(1:nsurf - 1), &
                                state_x(1:nsurf), &
                                zenith_deg, azimuth, bulkalbedo, Fcld, &
@@ -3472,7 +3478,7 @@ CONTAINS
             !====================update output line end==============================
          END ASSOCIATE
       END ASSOCIATE
-   END SUBROUTINE SUEWS_update_outputLine_DTS
+   END SUBROUTINE SUEWS_update_outputLine
 !========================================================================
 
 !==============Update output arrays=========================

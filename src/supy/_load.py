@@ -1382,7 +1382,7 @@ def load_SUEWS_dict_ModConfig(path_runcontrol, dict_default=dict_RunControl_defa
     dict_RunControl.update(dict_RunControl_x)
 
     # load STEBBS-specific variables:
-    if dict_RunControl["stebbsmethod"] == 1:
+    if dict_RunControl["stebbsuse"] == 1:
         path_stebbs_typologies = (
             path_runcontrol.parent
             / dict_RunControl["fileinputpath"]

@@ -325,7 +325,8 @@ def load_sample_data() -> Tuple[pandas.DataFrame, pandas.DataFrame]:
     """
 
     trv_sample_data = trv_supy_module / "sample_run"
-    path_config_default = trv_sample_data / "sample_config.yml"
+    # path_config_default = trv_sample_data / "sample_config.yml"
+    path_config_default = trv_sample_data / "RunControl.nml"
     df_state_init = init_supy(path_config_default, force_reload=False)
     df_forcing = load_forcing_grid(
         path_config_default, df_state_init.index[0], df_state_init=df_state_init

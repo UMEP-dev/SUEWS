@@ -15,7 +15,8 @@ import yaml
 import pdb
 import math
 
-T = TypeVar('T')
+T = TypeVar("T")
+
 
 class Reference(BaseModel):
     desc: Optional[str] = None
@@ -70,6 +71,7 @@ class ValueWithDOI(BaseModel, Generic[T]):
             return self.value != other.value
         return self.value != other
 
+
 def init_df_state(grid_id: int) -> pd.DataFrame:
     idx = pd.Index([grid_id], name="grid")
     col = pd.MultiIndex.from_tuples([("gridiv", "0")], names=["var", "ind_dim"])
@@ -92,7 +94,8 @@ class SnowAlb(BaseModel):
     snowalb: ValueWithDOI[float] = Field(
         description="Snow albedo",
         default=ValueWithDOI(0.7),
-        ge=0, le=1,
+        ge=0,
+        le=1,
     )
 
     def to_df_state(self, grid_id: int) -> pd.DataFrame:
@@ -146,9 +149,15 @@ class WaterUse(BaseModel):
     def to_df_state(self, veg_idx: int, grid_id: int) -> pd.DataFrame:
         """Convert water use to DataFrame state format."""
         df_state = init_df_state(grid_id)
-        df_state.loc[grid_id, ("wuday_id", f"({veg_idx * 3 + 0},)")] = self.wu_total.value
-        df_state.loc[grid_id, ("wuday_id", f"({veg_idx * 3 + 1},)")] = self.wu_auto.value
-        df_state.loc[grid_id, ("wuday_id", f"({veg_idx * 3 + 2},)")] = self.wu_manual.value
+        df_state.loc[grid_id, ("wuday_id", f"({veg_idx * 3 + 0},)")] = (
+            self.wu_total.value
+        )
+        df_state.loc[grid_id, ("wuday_id", f"({veg_idx * 3 + 1},)")] = (
+            self.wu_auto.value
+        )
+        df_state.loc[grid_id, ("wuday_id", f"({veg_idx * 3 + 2},)")] = (
+            self.wu_manual.value
+        )
         return df_state
 
     @classmethod
@@ -171,7 +180,7 @@ class WaterUse(BaseModel):
         return cls(
             wu_total=ValueWithDOI[float](wu_total),
             wu_auto=ValueWithDOI[float](wu_auto),
-            wu_manual=ValueWithDOI[float](wu_manual)
+            wu_manual=ValueWithDOI[float](wu_manual),
         )
 
 
@@ -191,7 +200,8 @@ class SurfaceInitialState(BaseModel):
     snowfrac: Optional[Union[ValueWithDOI[float], None]] = Field(
         description="Snow fraction",
         default=ValueWithDOI(0.0),
-        ge=0, le=1,
+        ge=0,
+        le=1,
     )  # Default set to 0.0 means no snow on the ground.
     snowpack: Optional[Union[ValueWithDOI[float], None]] = Field(
         description="Snow pack",
@@ -201,7 +211,8 @@ class SurfaceInitialState(BaseModel):
     icefrac: Optional[Union[ValueWithDOI[float], None]] = Field(
         description="Ice fraction",
         default=ValueWithDOI(0.0),
-        ge=0, le=1,
+        ge=0,
+        le=1,
     )
     snowwater: Optional[Union[ValueWithDOI[float], None]] = Field(
         description="Snow water",
@@ -222,8 +233,7 @@ class SurfaceInitialState(BaseModel):
         default=ValueWithDOI(15.0),
     )
     tin: Optional[Union[ValueWithDOI[float], None]] = Field(
-        description="Initial interior surface temperature",
-        default=ValueWithDOI(20.0)
+        description="Initial interior surface temperature", default=ValueWithDOI(20.0)
     )  # We need to know which model is using this.
     _surface_type: Optional[SurfaceType] = PrivateAttr(default=None)
 
@@ -232,7 +242,7 @@ class SurfaceInitialState(BaseModel):
     @field_validator("temperature", mode="before")
     def validate_temperature(cls, v):
         if isinstance(v, dict):
-            value = v['value']
+            value = v["value"]
         else:
             value = v.value
         if len(value) != 5:
@@ -319,16 +329,30 @@ class SurfaceInitialState(BaseModel):
             SurfaceInitialState: Instance of SurfaceInitialState.
         """
         # Base surface state parameters
-        state = ValueWithDOI[float](df.loc[grid_id, (f"state_{str_type}", f"({surf_idx},)")])
-        soilstore = ValueWithDOI[float](df.loc[grid_id, (f"soilstore_{str_type}", f"({surf_idx},)")])
+        state = ValueWithDOI[float](
+            df.loc[grid_id, (f"state_{str_type}", f"({surf_idx},)")]
+        )
+        soilstore = ValueWithDOI[float](
+            df.loc[grid_id, (f"soilstore_{str_type}", f"({surf_idx},)")]
+        )
 
         # Snow/ice parameters
         if str_type not in ["roof", "wall"]:
-            snowfrac = ValueWithDOI[float](df.loc[grid_id, (f"snowfrac", f"({surf_idx},)")])
-            snowpack = ValueWithDOI[float](df.loc[grid_id, (f"snowpack", f"({surf_idx},)")])
-            icefrac = ValueWithDOI[float](df.loc[grid_id, (f"icefrac", f"({surf_idx},)")])
-            snowwater = ValueWithDOI[float](df.loc[grid_id, (f"snowwater", f"({surf_idx},)")])
-            snowdens = ValueWithDOI[float](df.loc[grid_id, (f"snowdens", f"({surf_idx},)")])
+            snowfrac = ValueWithDOI[float](
+                df.loc[grid_id, (f"snowfrac", f"({surf_idx},)")]
+            )
+            snowpack = ValueWithDOI[float](
+                df.loc[grid_id, (f"snowpack", f"({surf_idx},)")]
+            )
+            icefrac = ValueWithDOI[float](
+                df.loc[grid_id, (f"icefrac", f"({surf_idx},)")]
+            )
+            snowwater = ValueWithDOI[float](
+                df.loc[grid_id, (f"snowwater", f"({surf_idx},)")]
+            )
+            snowdens = ValueWithDOI[float](
+                df.loc[grid_id, (f"snowdens", f"({surf_idx},)")]
+            )
         else:
             snowfrac = None
             snowpack = None
@@ -337,14 +361,20 @@ class SurfaceInitialState(BaseModel):
             snowdens = None
 
         # Temperature parameters
-        temperature = ValueWithDOI[List[float]]([
-            df.loc[grid_id, (f"temp_{str_type}", f"({surf_idx}, {i})")]
-            for i in range(5)
-        ])
+        temperature = ValueWithDOI[List[float]](
+            [
+                df.loc[grid_id, (f"temp_{str_type}", f"({surf_idx}, {i})")]
+                for i in range(5)
+            ]
+        )
 
         # Exterior and interior surface temperature
-        tsfc = ValueWithDOI[float](df.loc[grid_id, (f"tsfc_{str_type}", f"({surf_idx},)")])
-        tin = ValueWithDOI[float](df.loc[grid_id, (f"tin_{str_type}", f"({surf_idx},)")])
+        tsfc = ValueWithDOI[float](
+            df.loc[grid_id, (f"tsfc_{str_type}", f"({surf_idx},)")]
+        )
+        tin = ValueWithDOI[float](
+            df.loc[grid_id, (f"tin_{str_type}", f"({surf_idx},)")]
+        )
 
         return cls(
             state=state,
@@ -377,15 +407,14 @@ class InitialStateVeg(SurfaceInitialState):
     )
     lai_id: ValueWithDOI[float] = Field(
         description="Initial leaf area index (depends on time of year).",
-        default=ValueWithDOI(1.0)
+        default=ValueWithDOI(1.0),
     )
     gdd_id: ValueWithDOI[float] = Field(
         description="Growing degree days  on day 1 of model run ID",
-        default=ValueWithDOI(0)
+        default=ValueWithDOI(0),
     )  # We need to check this and give info for setting values.
     sdd_id: ValueWithDOI[float] = Field(
-        description="Senescence degree days ID",
-        default=ValueWithDOI(0)
+        description="Senescence degree days ID", default=ValueWithDOI(0)
     )  # This need to be consistent with GDD.
     wu: WaterUse = Field(default_factory=WaterUse)
 
@@ -525,7 +554,8 @@ class InitialStateDectr(InitialStateVeg):
         default=ValueWithDOI(0.2), description="Initial porosity for deciduous trees"
     )
     decidcap_id: ValueWithDOI[float] = Field(
-        default=ValueWithDOI(0.3), description="Initial deciduous capacity for deciduous trees"
+        default=ValueWithDOI(0.3),
+        description="Initial deciduous capacity for deciduous trees",
     )
     _surface_type: Literal[SurfaceType.DECTR] = SurfaceType.DECTR
 
@@ -646,7 +676,8 @@ class InitialStates(BaseModel):
     snowalb: ValueWithDOI[float] = Field(
         description="Initial snow albedo",
         default=ValueWithDOI(0.5),
-        ge=0, le=1,
+        ge=0,
+        le=1,
     )
     paved: InitialStatePaved = Field(default_factory=InitialStatePaved)
     bldgs: InitialStateBldgs = Field(default_factory=InitialStateBldgs)
@@ -783,9 +814,15 @@ class InitialStates(BaseModel):
 
 
 class ThermalLayers(BaseModel):
-    dz: ValueWithDOI[List[float]] = Field(default=ValueWithDOI([0.1, 0.2, 0.3, 0.4, 0.5]))
-    k: ValueWithDOI[List[float]] = Field(default=ValueWithDOI([1.0, 1.0, 1.0, 1.0, 1.0]))
-    cp: ValueWithDOI[List[float]] = Field(default=ValueWithDOI([1000, 1000, 1000, 1000, 1000]))
+    dz: ValueWithDOI[List[float]] = Field(
+        default=ValueWithDOI([0.1, 0.2, 0.3, 0.4, 0.5])
+    )
+    k: ValueWithDOI[List[float]] = Field(
+        default=ValueWithDOI([1.0, 1.0, 1.0, 1.0, 1.0])
+    )
+    cp: ValueWithDOI[List[float]] = Field(
+        default=ValueWithDOI([1000, 1000, 1000, 1000, 1000])
+    )
 
     ref: Optional[Reference] = None
 
@@ -899,8 +936,12 @@ class WaterDistribution(BaseModel):
     to_grass: Optional[ValueWithDOI[float]] = Field(None, ge=0, le=1)
     to_bsoil: Optional[ValueWithDOI[float]] = Field(None, ge=0, le=1)
     to_water: Optional[ValueWithDOI[float]] = Field(None, ge=0, le=1)
-    to_runoff: Optional[ValueWithDOI[float]] = Field(None, ge=0, le=1)  # For paved/bldgs
-    to_soilstore: Optional[ValueWithDOI[float]] = Field(None, ge=0, le=1)  # For vegetated surfaces
+    to_runoff: Optional[ValueWithDOI[float]] = Field(
+        None, ge=0, le=1
+    )  # For paved/bldgs
+    to_soilstore: Optional[ValueWithDOI[float]] = Field(
+        None, ge=0, le=1
+    )  # For vegetated surfaces
     _surface_type: Optional[SurfaceType] = PrivateAttr(None)
 
     ref: Optional[Reference] = None
@@ -1057,7 +1098,10 @@ class WaterDistribution(BaseModel):
             values.append(value)
 
         # Validate sum
-        total = sum(value.value if isinstance(value, ValueWithDOI) else value for value in values)
+        total = sum(
+            value.value if isinstance(value, ValueWithDOI) else value
+            for value in values
+        )
         # if not np.isclose(total, 1.0, rtol=1e-5):
         if not math.isclose(total, 1.0, rel_tol=1e-5):
             raise ValueError(f"Water distribution sum must be 1.0, got {total}")
@@ -1114,7 +1158,10 @@ class WaterDistribution(BaseModel):
         columns = pd.MultiIndex.from_tuples(param_tuples, names=["var", "ind_dim"])
 
         # Convert ValueWithDOI to float
-        values = [value.value if isinstance(value, ValueWithDOI) else value for value in values]
+        values = [
+            value.value if isinstance(value, ValueWithDOI) else value
+            for value in values
+        ]
 
         # Create DataFrame with single row
         df = pd.DataFrame(
@@ -1344,17 +1391,11 @@ class OHMCoefficients(BaseModel):
             OHMCoefficients: Reconstructed instance.
         """
         # Map coefficient to indices
-        a_map = {
-            "a1": 0,
-            "a2": 1,
-            "a3": 2
-        }
+        a_map = {"a1": 0, "a2": 1, "a3": 2}
 
         # Extract values for each season/wetness combination
         params = {
-            aX: df.loc[
-                grid_id, ("ohm_coef", f"({surf_idx}, {idx_s}, {idx})")
-            ]
+            aX: df.loc[grid_id, ("ohm_coef", f"({surf_idx}, {idx_s}, {idx})")]
             for aX, idx in a_map.items()
         }
 
@@ -1398,7 +1439,9 @@ class OHM_Coefficient_season_wetness(BaseModel):
         df_state = init_df_state(grid_id)
 
         # Convert each coefficient
-        for idx_s, coef in enumerate([self.summer_dry, self.summer_wet, self.winter_dry, self.winter_wet]):
+        for idx_s, coef in enumerate(
+            [self.summer_dry, self.summer_wet, self.winter_dry, self.winter_wet]
+        ):
             df_coef = coef.to_df_state(grid_id, surf_idx, idx_s)
             df_coef_extra = coef.to_df_state(
                 grid_id, 7, idx_s
@@ -1409,7 +1452,6 @@ class OHM_Coefficient_season_wetness(BaseModel):
         df_state = df_state.loc[:, ~df_state.columns.duplicated()]
 
         return df_state
-
 
     @classmethod
     def from_df_state(
@@ -1437,20 +1479,27 @@ class OHM_Coefficient_season_wetness(BaseModel):
             summer_dry=summer_dry,
             summer_wet=summer_wet,
             winter_dry=winter_dry,
-            winter_wet=winter_wet
+            winter_wet=winter_wet,
         )
 
 
 class SurfaceProperties(BaseModel):
     """Base properties for all surface types"""
-    sfr: ValueWithDOI[float] = Field(ge=0, le=1, description="Surface fraction", default=ValueWithDOI(1.0 / 7))
-    emis: ValueWithDOI[float] = Field(ge=0, le=1, description="Surface emissivity", default=ValueWithDOI(0.95))
+
+    sfr: ValueWithDOI[float] = Field(
+        ge=0, le=1, description="Surface fraction", default=ValueWithDOI(1.0 / 7)
+    )
+    emis: ValueWithDOI[float] = Field(
+        ge=0, le=1, description="Surface emissivity", default=ValueWithDOI(0.95)
+    )
     chanohm: Optional[ValueWithDOI[float]] = Field(default=ValueWithDOI(0.0))
     cpanohm: Optional[ValueWithDOI[float]] = Field(default=ValueWithDOI(1200.0))
     kkanohm: Optional[ValueWithDOI[float]] = Field(default=ValueWithDOI(0.4))
     ohm_threshsw: Optional[ValueWithDOI[float]] = Field(default=ValueWithDOI(0.0))
     ohm_threshwd: Optional[ValueWithDOI[float]] = Field(default=ValueWithDOI(0.0))
-    ohm_coef: Optional[OHM_Coefficient_season_wetness] = Field(default_factory=OHM_Coefficient_season_wetness)
+    ohm_coef: Optional[OHM_Coefficient_season_wetness] = Field(
+        default_factory=OHM_Coefficient_season_wetness
+    )
     soildepth: ValueWithDOI[float] = Field(default=ValueWithDOI(0.15))
     soilstorecap: ValueWithDOI[float] = Field(default=ValueWithDOI(150.0))
     statelimit: ValueWithDOI[float] = Field(default=ValueWithDOI(10.0))
@@ -1673,7 +1722,9 @@ class SurfaceProperties(BaseModel):
 
 
 class NonVegetatedSurfaceProperties(SurfaceProperties):
-    alb: ValueWithDOI[float] = Field(ge=0, le=1, description="Surface albedo", default=ValueWithDOI(0.1))
+    alb: ValueWithDOI[float] = Field(
+        ge=0, le=1, description="Surface albedo", default=ValueWithDOI(0.1)
+    )
 
     def to_df_state(self, grid_id: int) -> pd.DataFrame:
         """Convert non-vegetated surface properties to DataFrame state format."""
@@ -1694,7 +1745,9 @@ class NonVegetatedSurfaceProperties(SurfaceProperties):
         return df_base
 
 
-class PavedProperties(NonVegetatedSurfaceProperties):  # May need to move VWD for waterdist to here for referencing
+class PavedProperties(
+    NonVegetatedSurfaceProperties
+):  # May need to move VWD for waterdist to here for referencing
     _surface_type: Literal[SurfaceType.PAVED] = SurfaceType.PAVED
     waterdist: WaterDistribution = Field(
         default_factory=lambda: WaterDistribution(SurfaceType.PAVED),
@@ -1769,16 +1822,24 @@ class PavedProperties(NonVegetatedSurfaceProperties):  # May need to move VWD fo
         return instance
 
 
-class BuildingLayer(BaseModel): # May need to move VWD for thermal layers here for referencing
-    alb: ValueWithDOI[float] = Field(ge=0, le=1, description="Surface albedo", default=ValueWithDOI(0.1))
-    emis: ValueWithDOI[float] = Field(ge=0, le=1, description="Surface emissivity", default=ValueWithDOI(0.95))
+class BuildingLayer(
+    BaseModel
+):  # May need to move VWD for thermal layers here for referencing
+    alb: ValueWithDOI[float] = Field(
+        ge=0, le=1, description="Surface albedo", default=ValueWithDOI(0.1)
+    )
+    emis: ValueWithDOI[float] = Field(
+        ge=0, le=1, description="Surface emissivity", default=ValueWithDOI(0.95)
+    )
     thermal_layers: ThermalLayers = Field(
         default_factory=ThermalLayers, description="Thermal layers for the surface"
     )
     statelimit: ValueWithDOI[float] = Field(default=ValueWithDOI(10.0))
     soilstorecap: ValueWithDOI[float] = Field(default=ValueWithDOI(150.0))
     wetthresh: ValueWithDOI[float] = Field(default=ValueWithDOI(0.5))
-    roof_albedo_dir_mult_fact: Optional[ValueWithDOI[float]] = Field(default=ValueWithDOI(0.1))
+    roof_albedo_dir_mult_fact: Optional[ValueWithDOI[float]] = Field(
+        default=ValueWithDOI(0.1)
+    )
     wall_specular_frac: Optional[ValueWithDOI[float]] = Field(default=ValueWithDOI(0.1))
     _facet_type: Literal["roof", "wall"] = PrivateAttr(default="roof")
 
@@ -1804,8 +1865,12 @@ class BuildingLayer(BaseModel): # May need to move VWD for thermal layers here f
         # Add basic parameters
         df_state[(f"alb_{facet_type}", f"({layer_idx},)")] = self.alb.value
         df_state[(f"emis_{facet_type}", f"({layer_idx},)")] = self.emis.value
-        df_state[(f"statelimit_{facet_type}", f"({layer_idx},)")] = self.statelimit.value
-        df_state[(f"soilstorecap_{facet_type}", f"({layer_idx},)")] = self.soilstorecap.value
+        df_state[(f"statelimit_{facet_type}", f"({layer_idx},)")] = (
+            self.statelimit.value
+        )
+        df_state[(f"soilstorecap_{facet_type}", f"({layer_idx},)")] = (
+            self.soilstorecap.value
+        )
         df_state[(f"wetthresh_{facet_type}", f"({layer_idx},)")] = self.wetthresh.value
 
         # Determine prefix based on layer type
@@ -1894,7 +1959,8 @@ class WallLayer(BuildingLayer):
 
 class VerticalLayers(BaseModel):
     nlayer: ValueWithDOI[int] = Field(
-        default=ValueWithDOI(3), description="Number of vertical layers in the urban canopy"
+        default=ValueWithDOI(3),
+        description="Number of vertical layers in the urban canopy",
     )
     height: ValueWithDOI[List[float]] = Field(
         default=ValueWithDOI([0.0, 10.0, 20.0, 30.0]),
@@ -1985,11 +2051,17 @@ class VerticalLayers(BaseModel):
 
         # Convert roof and wall properties to DataFrame format for each layer
         df_roofs = pd.concat(
-            [self.roofs[i].to_df_state(grid_id, i, "roof") for i in range(self.nlayer.value)],
+            [
+                self.roofs[i].to_df_state(grid_id, i, "roof")
+                for i in range(self.nlayer.value)
+            ],
             axis=1,
         )
         df_walls = pd.concat(
-            [self.walls[i].to_df_state(grid_id, i, "wall") for i in range(self.nlayer.value)],
+            [
+                self.walls[i].to_df_state(grid_id, i, "wall")
+                for i in range(self.nlayer.value)
+            ],
             axis=1,
         )
 
@@ -2034,7 +2106,9 @@ class VerticalLayers(BaseModel):
         )
 
 
-class BldgsProperties(NonVegetatedSurfaceProperties): # May need to move VWD for waterdist to here for referencing
+class BldgsProperties(
+    NonVegetatedSurfaceProperties
+):  # May need to move VWD for waterdist to here for referencing
     _surface_type: Literal[SurfaceType.BLDGS] = SurfaceType.BLDGS
     faibldg: ValueWithDOI[float] = Field(
         ge=0, default=ValueWithDOI(0.3), description="Frontal area index of buildings"
@@ -2078,7 +2152,9 @@ class BldgsProperties(NonVegetatedSurfaceProperties): # May need to move VWD for
         return instance
 
 
-class BsoilProperties(NonVegetatedSurfaceProperties): # May need to move VWD for waterdist to here for referencing
+class BsoilProperties(
+    NonVegetatedSurfaceProperties
+):  # May need to move VWD for waterdist to here for referencing
     _surface_type: Literal[SurfaceType.BSOIL] = SurfaceType.BSOIL
     waterdist: WaterDistribution = Field(
         default_factory=lambda: WaterDistribution(SurfaceType.BSOIL),
@@ -2136,10 +2212,12 @@ class ModelControl(BaseModel):
         default=300, description="Time step in seconds for model calculations"
     )
     forcing_file: ValueWithDOI[str] = Field(
-        default=ValueWithDOI("forcing.txt"), description="Path to meteorological forcing data file"
+        default=ValueWithDOI("forcing.txt"),
+        description="Path to meteorological forcing data file",
     )
     kdownzen: Optional[ValueWithDOI[int]] = Field(
-        default=None, description="Use zenithal correction for downward shortwave radiation"
+        default=None,
+        description="Use zenithal correction for downward shortwave radiation",
     )
     output_file: str = Field(
         default="output.txt", description="Path to model output file"
@@ -2174,7 +2252,7 @@ class ModelControl(BaseModel):
         """Reconstruct model control properties from DataFrame state format."""
         instance = cls()
         for attr in ["tstep", "diagnose"]:
-            setattr(instance, attr, df.loc[grid_id, (attr, "0")])
+            setattr(instance, attr, int(df.loc[grid_id, (attr, "0")]))
         return instance
 
 
@@ -2183,36 +2261,46 @@ class ModelPhysics(BaseModel):
         default=ValueWithDOI(3), description="Method used to calculate net radiation"
     )
     emissionsmethod: ValueWithDOI[int] = Field(
-        default=ValueWithDOI(2), description="Method used to calculate anthropogenic emissions"
+        default=ValueWithDOI(2),
+        description="Method used to calculate anthropogenic emissions",
     )
     storageheatmethod: ValueWithDOI[int] = Field(
-        default=ValueWithDOI(1), description="Method used to calculate storage heat flux"
+        default=ValueWithDOI(1),
+        description="Method used to calculate storage heat flux",
     )
     ohmincqf: ValueWithDOI[int] = Field(
         default=ValueWithDOI(0),
         description="Include anthropogenic heat in OHM calculations (1) or not (0)",
     )
     roughlenmommethod: ValueWithDOI[int] = Field(
-        default=ValueWithDOI(2), description="Method used to calculate momentum roughness length"
+        default=ValueWithDOI(2),
+        description="Method used to calculate momentum roughness length",
     )
     roughlenheatmethod: ValueWithDOI[int] = Field(
-        default=ValueWithDOI(2), description="Method used to calculate heat roughness length"
+        default=ValueWithDOI(2),
+        description="Method used to calculate heat roughness length",
     )
     stabilitymethod: ValueWithDOI[int] = Field(
-        default=ValueWithDOI(2), description="Method used for atmospheric stability calculation"
+        default=ValueWithDOI(2),
+        description="Method used for atmospheric stability calculation",
     )
     smdmethod: ValueWithDOI[int] = Field(
-        default=ValueWithDOI(1), description="Method used to calculate soil moisture deficit"
+        default=ValueWithDOI(1),
+        description="Method used to calculate soil moisture deficit",
     )
     waterusemethod: ValueWithDOI[int] = Field(
         default=ValueWithDOI(1), description="Method used to calculate water use"
     )
-    diagmethod: ValueWithDOI[int] = Field(default=ValueWithDOI(1), description="Method used for model diagnostics")
+    diagmethod: ValueWithDOI[int] = Field(
+        default=ValueWithDOI(1), description="Method used for model diagnostics"
+    )
     faimethod: ValueWithDOI[int] = Field(
-        default=ValueWithDOI(1), description="Method used to calculate frontal area index"
+        default=ValueWithDOI(1),
+        description="Method used to calculate frontal area index",
     )
     localclimatemethod: ValueWithDOI[int] = Field(
-        default=ValueWithDOI(0), description="Method used for local climate zone calculations"
+        default=ValueWithDOI(0),
+        description="Method used for local climate zone calculations",
     )
     snowuse: ValueWithDOI[int] = Field(
         default=ValueWithDOI(0), description="Include snow calculations (1) or not (0)"
@@ -2385,42 +2473,51 @@ class LUMPSParams(BaseModel):
 
 class SPARTACUSParams(BaseModel):
     air_ext_lw: ValueWithDOI[float] = Field(
-        default=ValueWithDOI(0.0), description="Air extinction coefficient for longwave radiation"
+        default=ValueWithDOI(0.0),
+        description="Air extinction coefficient for longwave radiation",
     )
     air_ext_sw: ValueWithDOI[float] = Field(
-        default=ValueWithDOI(0.0), description="Air extinction coefficient for shortwave radiation"
+        default=ValueWithDOI(0.0),
+        description="Air extinction coefficient for shortwave radiation",
     )
     air_ssa_lw: ValueWithDOI[float] = Field(
-        default=ValueWithDOI(0.5), description="Air single scattering albedo for longwave radiation"
+        default=ValueWithDOI(0.5),
+        description="Air single scattering albedo for longwave radiation",
     )
     air_ssa_sw: ValueWithDOI[float] = Field(
-        default=ValueWithDOI(0.5), description="Air single scattering albedo for shortwave radiation"
+        default=ValueWithDOI(0.5),
+        description="Air single scattering albedo for shortwave radiation",
     )
     ground_albedo_dir_mult_fact: ValueWithDOI[float] = Field(
-        default=ValueWithDOI(1.0), description="Multiplication factor for direct ground albedo"
+        default=ValueWithDOI(1.0),
+        description="Multiplication factor for direct ground albedo",
     )
     n_stream_lw_urban: ValueWithDOI[int] = Field(
-        default=ValueWithDOI(2), description="Number of streams for longwave radiation in urban areas"
+        default=ValueWithDOI(2),
+        description="Number of streams for longwave radiation in urban areas",
     )
     n_stream_sw_urban: ValueWithDOI[int] = Field(
         default=ValueWithDOI(2),
         description="Number of streams for shortwave radiation in urban areas",
     )
     n_vegetation_region_urban: ValueWithDOI[int] = Field(
-        default=ValueWithDOI(1), description="Number of vegetation regions in urban areas"
+        default=ValueWithDOI(1),
+        description="Number of vegetation regions in urban areas",
     )
     sw_dn_direct_frac: ValueWithDOI[float] = Field(
         default=ValueWithDOI(0.5),
         description="Fraction of downward shortwave radiation that is direct",
     )
     use_sw_direct_albedo: ValueWithDOI[float] = Field(
-        default=ValueWithDOI(1.0), description="Flag to use direct albedo for shortwave radiation"
+        default=ValueWithDOI(1.0),
+        description="Flag to use direct albedo for shortwave radiation",
     )
     veg_contact_fraction_const: ValueWithDOI[float] = Field(
         default=ValueWithDOI(0.5), description="Constant vegetation contact fraction"
     )
     veg_fsd_const: ValueWithDOI[float] = Field(
-        default=ValueWithDOI(0.5), description="Constant vegetation fractional standard deviation"
+        default=ValueWithDOI(0.5),
+        description="Constant vegetation fractional standard deviation",
     )
     veg_ssa_lw: ValueWithDOI[float] = Field(
         default=ValueWithDOI(0.5),
@@ -2500,7 +2597,10 @@ class SPARTACUSParams(BaseModel):
             "veg_ssa_sw",
         }
 
-        params = {param: ValueWithDOI(df.loc[grid_id, (param, "0")]) for param in spartacus_params}
+        params = {
+            param: ValueWithDOI(df.loc[grid_id, (param, "0")])
+            for param in spartacus_params
+        }
 
         return cls(**params)
 
@@ -2739,13 +2839,21 @@ class HourlyProfile(BaseModel):
         return cls(working_day=working_day, holiday=holiday)
 
 
-class IrrigationParams(BaseModel): # TODO: May need to add ValueWithDOI to the profiles here
+class IrrigationParams(
+    BaseModel
+):  # TODO: May need to add ValueWithDOI to the profiles here
     h_maintain: ValueWithDOI[float] = Field(
         default=ValueWithDOI(0.5), description="Soil moisture threshold for irrigation"
     )
-    faut: ValueWithDOI[float] = Field(default=ValueWithDOI(0.0), description="Fraction of automatic irrigation")
-    ie_start: ValueWithDOI[float] = Field(default=ValueWithDOI(0.0), description="Start time of irrigation (hour)")
-    ie_end: ValueWithDOI[float] = Field(default=ValueWithDOI(0.0), description="End time of irrigation (hour)")
+    faut: ValueWithDOI[float] = Field(
+        default=ValueWithDOI(0.0), description="Fraction of automatic irrigation"
+    )
+    ie_start: ValueWithDOI[float] = Field(
+        default=ValueWithDOI(0.0), description="Start time of irrigation (hour)"
+    )
+    ie_end: ValueWithDOI[float] = Field(
+        default=ValueWithDOI(0.0), description="End time of irrigation (hour)"
+    )
     internalwateruse_h: ValueWithDOI[float] = Field(
         default=ValueWithDOI(0.0), description="Internal water use per hour"
     )
@@ -2773,7 +2881,9 @@ class IrrigationParams(BaseModel): # TODO: May need to add ValueWithDOI to the p
         df_state.loc[grid_id, ("faut", "0")] = self.faut.value
         df_state.loc[grid_id, ("ie_start", "0")] = self.ie_start.value
         df_state.loc[grid_id, ("ie_end", "0")] = self.ie_end.value
-        df_state.loc[grid_id, ("internalwateruse_h", "0")] = self.internalwateruse_h.value
+        df_state.loc[grid_id, ("internalwateruse_h", "0")] = (
+            self.internalwateruse_h.value
+        )
 
         df_daywatper = self.daywatper.to_df_state(grid_id, "daywatper")
         df_daywat = self.daywat.to_df_state(grid_id, "daywat")
@@ -2837,7 +2947,9 @@ class IrrigationParams(BaseModel): # TODO: May need to add ValueWithDOI to the p
         )
 
 
-class AnthropogenicHeat(BaseModel): # TODO: May need to add the ValueWithDOI to the profiles here
+class AnthropogenicHeat(
+    BaseModel
+):  # TODO: May need to add the ValueWithDOI to the profiles here
     qf0_beu: DayProfile = Field(
         description="Base anthropogenic heat flux for buildings, equipment and urban metabolism",
         default_factory=DayProfile,
@@ -2980,7 +3092,9 @@ class AnthropogenicHeat(BaseModel): # TODO: May need to add the ValueWithDOI to 
         )
 
 
-class CO2Params(BaseModel): # TODO: May need to add the ValueWithDOI to the profiles here
+class CO2Params(
+    BaseModel
+):  # TODO: May need to add the ValueWithDOI to the profiles here
     co2pointsource: ValueWithDOI[float] = Field(
         default=ValueWithDOI(0.0), description="CO2 point source emission factor"
     )
@@ -2988,7 +3102,8 @@ class CO2Params(BaseModel): # TODO: May need to add the ValueWithDOI to the prof
         default=ValueWithDOI(0.0), description="CO2 emission factor per unit of fuel"
     )
     enef_v_jkm: ValueWithDOI[float] = Field(
-        default=ValueWithDOI(0.0), description="CO2 emission factor per unit of vehicle distance"
+        default=ValueWithDOI(0.0),
+        description="CO2 emission factor per unit of vehicle distance",
     )
     fcef_v_kgkm: DayProfile = Field(
         description="Fuel consumption efficiency for vehicles",
@@ -3015,7 +3130,9 @@ class CO2Params(BaseModel): # TODO: May need to add the ValueWithDOI to the prof
     trafficrate: DayProfile = Field(
         description="Traffic rate", default_factory=DayProfile
     )
-    trafficunits: ValueWithDOI[float] = Field(default=ValueWithDOI(0.0), description="Traffic units")
+    trafficunits: ValueWithDOI[float] = Field(
+        default=ValueWithDOI(0.0), description="Traffic units"
+    )
     traffprof_24hr: HourlyProfile = Field(
         description="24-hour profile of traffic rate", default_factory=HourlyProfile
     )
@@ -3100,7 +3217,9 @@ class CO2Params(BaseModel): # TODO: May need to add the ValueWithDOI to the prof
         }
 
         # Convert scalar attributes to ValueWithDOI
-        scalar_params = {key: ValueWithDOI(value) for key, value in scalar_params.items()}
+        scalar_params = {
+            key: ValueWithDOI(value) for key, value in scalar_params.items()
+        }
 
         # Extract DayProfile attributes
         day_profiles = {
@@ -3128,10 +3247,12 @@ class CO2Params(BaseModel): # TODO: May need to add the ValueWithDOI to the prof
 
 class AnthropogenicEmissions(BaseModel):
     startdls: ValueWithDOI[float] = Field(
-        default=ValueWithDOI(0.0), description="Start of daylight savings time in decimal day of year"
+        default=ValueWithDOI(0.0),
+        description="Start of daylight savings time in decimal day of year",
     )
     enddls: ValueWithDOI[float] = Field(
-        default=ValueWithDOI(0.0), description="End of daylight savings time in decimal day of year"
+        default=ValueWithDOI(0.0),
+        description="End of daylight savings time in decimal day of year",
     )
     heat: AnthropogenicHeat = Field(
         description="Anthropogenic heat emission parameters",
@@ -3197,7 +3318,9 @@ class AnthropogenicEmissions(BaseModel):
 
 
 class Conductance(BaseModel):
-    g_max: ValueWithDOI[float] = Field(default=ValueWithDOI(40.0), description="Maximum conductance")
+    g_max: ValueWithDOI[float] = Field(
+        default=ValueWithDOI(40.0), description="Maximum conductance"
+    )
     g_k: ValueWithDOI[float] = Field(
         default=ValueWithDOI(0.6),
         description="Conductance parameter related to incoming solar radiation",
@@ -3211,21 +3334,33 @@ class Conductance(BaseModel):
         description="Shape parameter for conductance related to vapor pressure deficit",
     )
     g_t: ValueWithDOI[float] = Field(
-        default=ValueWithDOI(30.0), description="Conductance parameter related to air temperature"
+        default=ValueWithDOI(30.0),
+        description="Conductance parameter related to air temperature",
     )
     g_sm: ValueWithDOI[float] = Field(
-        default=ValueWithDOI(0.5), description="Conductance parameter related to soil moisture"
+        default=ValueWithDOI(0.5),
+        description="Conductance parameter related to soil moisture",
     )
     kmax: ValueWithDOI[float] = Field(
         default=ValueWithDOI(1200.0), description="Maximum incoming shortwave radiation"
     )
-    gsmodel: ValueWithDOI[int] = Field(default=ValueWithDOI(1), description="Stomatal conductance model selection")
-    s1: ValueWithDOI[float] = Field(default=ValueWithDOI(0.2), description="Soil moisture threshold parameter")
-    s2: ValueWithDOI[float] = Field(default=ValueWithDOI(0.5), description="Soil moisture threshold parameter")
-    tl: ValueWithDOI[float] = Field(default=ValueWithDOI(0.0), description="Air temperature threshold parameter")
-    th: ValueWithDOI[float] = Field(default=ValueWithDOI(50.0), description="Air temperature threshold parameter")
+    gsmodel: ValueWithDOI[int] = Field(
+        default=ValueWithDOI(1), description="Stomatal conductance model selection"
+    )
+    s1: ValueWithDOI[float] = Field(
+        default=ValueWithDOI(0.2), description="Soil moisture threshold parameter"
+    )
+    s2: ValueWithDOI[float] = Field(
+        default=ValueWithDOI(0.5), description="Soil moisture threshold parameter"
+    )
+    tl: ValueWithDOI[float] = Field(
+        default=ValueWithDOI(0.0), description="Air temperature threshold parameter"
+    )
+    th: ValueWithDOI[float] = Field(
+        default=ValueWithDOI(50.0), description="Air temperature threshold parameter"
+    )
 
-    ref: Optional[Reference] = Reference(ref='Test ref', DOI="test doi", ID="test id")
+    ref: Optional[Reference] = Reference(ref="Test ref", DOI="test doi", ID="test id")
 
     def to_df_state(self, grid_id: int) -> pd.DataFrame:
         """
@@ -3288,7 +3423,9 @@ class Conductance(BaseModel):
         }
 
         # Convert scalar parameters to ValueWithDOI
-        scalar_params = {key: ValueWithDOI(value) for key, value in scalar_params.items()}
+        scalar_params = {
+            key: ValueWithDOI(value) for key, value in scalar_params.items()
+        }
 
         return cls(**scalar_params)
 
@@ -3397,7 +3534,9 @@ class LAIParams(BaseModel):
         default=ValueWithDOI(100.0),
         description="Senescence degree days (SDD) needed to initiate leaf off [degC]",
     )
-    laimin: ValueWithDOI[float] = Field(default=ValueWithDOI(0.1), description="Leaf-off wintertime value [m2 m-2]")
+    laimin: ValueWithDOI[float] = Field(
+        default=ValueWithDOI(0.1), description="Leaf-off wintertime value [m2 m-2]"
+    )
     laimax: ValueWithDOI[float] = Field(
         default=ValueWithDOI(10.0), description="Full leaf-on summertime value [m2 m-2]"
     )
@@ -3515,22 +3654,32 @@ class LAIParams(BaseModel):
 
 
 class VegetatedSurfaceProperties(SurfaceProperties):
-    alb_min: ValueWithDOI[float] = Field(ge=0, le=1, description="Minimum albedo", default=ValueWithDOI(0.2))
-    alb_max: ValueWithDOI[float] = Field(ge=0, le=1, description="Maximum albedo", default=ValueWithDOI(0.3))
+    alb_min: ValueWithDOI[float] = Field(
+        ge=0, le=1, description="Minimum albedo", default=ValueWithDOI(0.2)
+    )
+    alb_max: ValueWithDOI[float] = Field(
+        ge=0, le=1, description="Maximum albedo", default=ValueWithDOI(0.3)
+    )
     beta_bioco2: ValueWithDOI[float] = Field(
         default=ValueWithDOI(0.6), description="Biogenic CO2 exchange coefficient"
     )
     beta_enh_bioco2: ValueWithDOI[float] = Field(
-        default=ValueWithDOI(0.7), description="Enhanced biogenic CO2 exchange coefficient"
+        default=ValueWithDOI(0.7),
+        description="Enhanced biogenic CO2 exchange coefficient",
     )
     alpha_bioco2: ValueWithDOI[float] = Field(
         default=ValueWithDOI(0.8), description="Biogenic CO2 exchange coefficient"
     )
     alpha_enh_bioco2: ValueWithDOI[float] = Field(
-        default=ValueWithDOI(0.9), description="Enhanced biogenic CO2 exchange coefficient"
+        default=ValueWithDOI(0.9),
+        description="Enhanced biogenic CO2 exchange coefficient",
     )
-    resp_a: ValueWithDOI[float] = Field(default=ValueWithDOI(1.0), description="Respiration coefficient")
-    resp_b: ValueWithDOI[float] = Field(default=ValueWithDOI(1.1), description="Respiration coefficient")
+    resp_a: ValueWithDOI[float] = Field(
+        default=ValueWithDOI(1.0), description="Respiration coefficient"
+    )
+    resp_b: ValueWithDOI[float] = Field(
+        default=ValueWithDOI(1.1), description="Respiration coefficient"
+    )
     theta_bioco2: ValueWithDOI[float] = Field(
         default=ValueWithDOI(1.2), description="Biogenic CO2 exchange coefficient"
     )
@@ -3544,10 +3693,12 @@ class VegetatedSurfaceProperties(SurfaceProperties):
         default_factory=LAIParams, description="Leaf area index parameters"
     )
     ie_a: ValueWithDOI[float] = Field(
-        default=ValueWithDOI(0.5), description="Irrigation efficiency coefficient-automatic"
+        default=ValueWithDOI(0.5),
+        description="Irrigation efficiency coefficient-automatic",
     )
     ie_m: ValueWithDOI[float] = Field(
-        default=ValueWithDOI(0.6), description="Irrigation efficiency coefficient-manual"
+        default=ValueWithDOI(0.6),
+        description="Irrigation efficiency coefficient-manual",
     )
 
     ref: Optional[Reference] = None
@@ -3599,11 +3750,13 @@ class VegetatedSurfaceProperties(SurfaceProperties):
         return df_state
 
 
-class EvetrProperties(VegetatedSurfaceProperties): # TODO: Move waterdist VWD here?
+class EvetrProperties(VegetatedSurfaceProperties):  # TODO: Move waterdist VWD here?
     faievetree: ValueWithDOI[float] = Field(
         default=ValueWithDOI(0.1), description="Frontal area index of evergreen trees"
     )
-    evetreeh: ValueWithDOI[float] = Field(default=ValueWithDOI(15.0), description="Evergreen tree height")
+    evetreeh: ValueWithDOI[float] = Field(
+        default=ValueWithDOI(15.0), description="Evergreen tree height"
+    )
     _surface_type: Literal[SurfaceType.EVETR] = SurfaceType.EVETR
     waterdist: WaterDistribution = Field(
         default_factory=lambda: WaterDistribution(SurfaceType.EVETR),
@@ -3649,15 +3802,21 @@ class DectrProperties(VegetatedSurfaceProperties):
     faidectree: ValueWithDOI[float] = Field(
         default=ValueWithDOI(0.1), description="Frontal area index of deciduous trees"
     )
-    dectreeh: ValueWithDOI[float] = Field(default=ValueWithDOI(15.0), description="Deciduous tree height")
+    dectreeh: ValueWithDOI[float] = Field(
+        default=ValueWithDOI(15.0), description="Deciduous tree height"
+    )
     pormin_dec: ValueWithDOI[float] = Field(
         ge=0.1, le=0.9, default=ValueWithDOI(0.2), description="Minimum porosity"
     )  # pormin_dec cannot be less than 0.1 and greater than 0.9
     pormax_dec: ValueWithDOI[float] = Field(
         ge=0.1, le=0.9, default=ValueWithDOI(0.6), description="Maximum porosity"
     )  # pormax_dec cannot be less than 0.1 and greater than 0.9
-    capmax_dec: ValueWithDOI[float] = Field(default=ValueWithDOI(100.0), description="Maximum capacity")
-    capmin_dec: ValueWithDOI[float] = Field(default=ValueWithDOI(10.0), description="Minimum capacity")
+    capmax_dec: ValueWithDOI[float] = Field(
+        default=ValueWithDOI(100.0), description="Maximum capacity"
+    )
+    capmin_dec: ValueWithDOI[float] = Field(
+        default=ValueWithDOI(10.0), description="Minimum capacity"
+    )
     _surface_type: Literal[SurfaceType.DECTR] = SurfaceType.DECTR
     waterdist: WaterDistribution = Field(
         default_factory=lambda: WaterDistribution(SurfaceType.DECTR),
@@ -3732,33 +3891,57 @@ class GrassProperties(VegetatedSurfaceProperties):
 
 
 class SnowParams(BaseModel):
-    crwmax: ValueWithDOI[float] = Field(default=ValueWithDOI(0.1), description="Maximum water capacity of snow")
-    crwmin: ValueWithDOI[float] = Field(default=ValueWithDOI(0.05), description="Minimum water capacity of snow")
-    narp_emis_snow: ValueWithDOI[float] = Field(default=ValueWithDOI(0.99), description="Snow surface emissivity")
+    crwmax: ValueWithDOI[float] = Field(
+        default=ValueWithDOI(0.1), description="Maximum water capacity of snow"
+    )
+    crwmin: ValueWithDOI[float] = Field(
+        default=ValueWithDOI(0.05), description="Minimum water capacity of snow"
+    )
+    narp_emis_snow: ValueWithDOI[float] = Field(
+        default=ValueWithDOI(0.99), description="Snow surface emissivity"
+    )
     preciplimit: ValueWithDOI[float] = Field(
         default=ValueWithDOI(2.2), description="Limit for snow vs rain precipitation"
     )
     preciplimitalb: ValueWithDOI[float] = Field(
         default=ValueWithDOI(0.1), description="Precipitation limit for albedo aging"
     )
-    snowalbmax: ValueWithDOI[float] = Field(default=ValueWithDOI(0.85), description="Maximum snow albedo")
-    snowalbmin: ValueWithDOI[float] = Field(default=ValueWithDOI(0.4), description="Minimum snow albedo")
+    snowalbmax: ValueWithDOI[float] = Field(
+        default=ValueWithDOI(0.85), description="Maximum snow albedo"
+    )
+    snowalbmin: ValueWithDOI[float] = Field(
+        default=ValueWithDOI(0.4), description="Minimum snow albedo"
+    )
     snowdensmin: ValueWithDOI[float] = Field(
         default=ValueWithDOI(100.0), description="Minimum snow density (kg m-3)"
     )
     snowdensmax: ValueWithDOI[float] = Field(
         default=ValueWithDOI(400.0), description="Maximum snow density (kg m-3)"
     )
-    snowlimbldg: ValueWithDOI = Field(default=ValueWithDOI(0.1), description="Snow limit on buildings")
-    snowlimpaved: ValueWithDOI = Field(default=ValueWithDOI(0.1), description="Snow limit on paved surfaces")
+    snowlimbldg: ValueWithDOI = Field(
+        default=ValueWithDOI(0.1), description="Snow limit on buildings"
+    )
+    snowlimpaved: ValueWithDOI = Field(
+        default=ValueWithDOI(0.1), description="Snow limit on paved surfaces"
+    )
     snowprof_24hr: HourlyProfile = Field(
         default_factory=HourlyProfile, description="24-hour snow profile"
     )
-    tau_a: ValueWithDOI[float] = Field(default=ValueWithDOI(0.018), description="Aging constant for cold snow")
-    tau_f: ValueWithDOI[float] = Field(default=ValueWithDOI(0.11), description="Aging constant for melting snow")
-    tau_r: ValueWithDOI[float] = Field(default=ValueWithDOI(0.05), description="Aging constant for refreezing snow")
-    tempmeltfact: ValueWithDOI[float] = Field(default=ValueWithDOI(0.12), description="Temperature melt factor")
-    radmeltfact: ValueWithDOI[float] = Field(default=ValueWithDOI(0.0016), description="Radiation melt factor")
+    tau_a: ValueWithDOI[float] = Field(
+        default=ValueWithDOI(0.018), description="Aging constant for cold snow"
+    )
+    tau_f: ValueWithDOI[float] = Field(
+        default=ValueWithDOI(0.11), description="Aging constant for melting snow"
+    )
+    tau_r: ValueWithDOI[float] = Field(
+        default=ValueWithDOI(0.05), description="Aging constant for refreezing snow"
+    )
+    tempmeltfact: ValueWithDOI[float] = Field(
+        default=ValueWithDOI(0.12), description="Temperature melt factor"
+    )
+    radmeltfact: ValueWithDOI[float] = Field(
+        default=ValueWithDOI(0.0016), description="Radiation melt factor"
+    )
 
     ref: Optional[Reference] = None
 
@@ -3850,7 +4033,9 @@ class SnowParams(BaseModel):
         }
 
         # Convert scalar parameters to ValueWithDOI
-        scalar_params = {key: ValueWithDOI(value) for key, value in scalar_params.items()}
+        scalar_params = {
+            key: ValueWithDOI(value) for key, value in scalar_params.items()
+        }
 
         # Extract HourlyProfile
         snowprof_24hr = HourlyProfile.from_df_state(df, grid_id, "snowprof_24hr")
@@ -3949,13 +4134,14 @@ class ArchetypeProperties(BaseModel):
     # BuildingCode='1'
     # BuildingClass='SampleClass'
 
-    BuildingType: str='SampleType'
-    BuildingName: str='SampleBuilding'
+    BuildingType: str = "SampleType"
+    BuildingName: str = "SampleBuilding"
     BuildingCount: ValueWithDOI[int] = Field(
         default=ValueWithDOI(1), description="Number of buildings of this archetype [-]"
     )
     Occupants: ValueWithDOI[int] = Field(
-        default=ValueWithDOI(1), description="Number of occupants present in building [-]"
+        default=ValueWithDOI(1),
+        description="Number of occupants present in building [-]",
     )
 
     # Not used in STEBBS - DAVE only
@@ -3992,12 +4178,14 @@ class ArchetypeProperties(BaseModel):
     RatioInternalVolume: ValueWithDOI[float] = Field(
         default=ValueWithDOI(0.01),
         description="Ratio of internal mass volume to total building volume [-]",
-        ge=0.0, le=1.0,
+        ge=0.0,
+        le=1.0,
     )
     WWR: ValueWithDOI[float] = Field(
         default=ValueWithDOI(0.20),
         description="window to wall ratio [-]",
-        ge=0.0, le=1.0,
+        ge=0.0,
+        le=1.0,
     )
     WallThickness: ValueWithDOI[float] = Field(
         default=ValueWithDOI(20.0),
@@ -4022,32 +4210,38 @@ class ArchetypeProperties(BaseModel):
     Wallx1: ValueWithDOI[float] = Field(
         default=ValueWithDOI(1.0),
         description="Weighting factor for heat capacity of walls and roof [-]",
-        ge=0.0, le=1.0,
+        ge=0.0,
+        le=1.0,
     )
     WallExternalEmissivity: ValueWithDOI[float] = Field(
         default=ValueWithDOI(0.9),
         description="Emissivity of the external surface of walls and roof [-]",
-        ge=0.0, le=1.0,
+        ge=0.0,
+        le=1.0,
     )
     WallInternalEmissivity: ValueWithDOI[float] = Field(
         default=ValueWithDOI(0.9),
         description="Emissivity of the internal surface of walls and roof [-]",
-        ge=0.0, le=1.0,
+        ge=0.0,
+        le=1.0,
     )
     WallTransmissivity: ValueWithDOI[float] = Field(
         default=ValueWithDOI(0.0),
         description="Transmissivity of walls and roof [-]",
-        ge=0.0, le=1.0,
+        ge=0.0,
+        le=1.0,
     )
     WallAbsorbtivity: ValueWithDOI[float] = Field(
         default=ValueWithDOI(0.8),
         description="Absorbtivity of walls and roof [-]",
-        ge=0.0, le=1.0,
+        ge=0.0,
+        le=1.0,
     )
     WallReflectivity: ValueWithDOI[float] = Field(
         default=ValueWithDOI(0.2),
         description="Reflectivity of the external surface of walls and roof [-]",
-        ge=0.0, le=1.0,
+        ge=0.0,
+        le=1.0,
     )
     FloorThickness: ValueWithDOI[float] = Field(
         default=ValueWithDOI(0.2),
@@ -4092,60 +4286,61 @@ class ArchetypeProperties(BaseModel):
     WindowExternalEmissivity: ValueWithDOI[float] = Field(
         default=ValueWithDOI(0.90),
         description="Emissivity of the external surface of windows [-]",
-        ge=0.0, le=1.0,
+        ge=0.0,
+        le=1.0,
     )
     WindowInternalEmissivity: ValueWithDOI[float] = Field(
         default=ValueWithDOI(0.90),
         description="Emissivity of the internal surface of windows [-]",
-        ge=0.0, le=1.0,
+        ge=0.0,
+        le=1.0,
     )
     WindowTransmissivity: ValueWithDOI[float] = Field(
         default=ValueWithDOI(0.90),
         description="Transmissivity of windows [-]",
-        ge=0.0, le=1.0,
+        ge=0.0,
+        le=1.0,
     )
     WindowAbsorbtivity: ValueWithDOI[float] = Field(
         default=ValueWithDOI(0.01),
         description="Absorbtivity of windows [-]",
-        ge=0.0, le=1.0,
+        ge=0.0,
+        le=1.0,
     )
     WindowReflectivity: ValueWithDOI[float] = Field(
         default=ValueWithDOI(0.09),
         description="Reflectivity of the external surface of windows [-]",
-        ge=0.0, le=1.0,
+        ge=0.0,
+        le=1.0,
     )
     # TODO: Add defaults below here
     InternalMassDensity: ValueWithDOI[float] = Field(
         default=ValueWithDOI(0.0),
-        description="Effective density of the internal mass [kg m-3]"
+        description="Effective density of the internal mass [kg m-3]",
     )
     InternalMassCp: ValueWithDOI[float] = Field(
         default=ValueWithDOI(0.0),
-        description="Specific heat capacity of internal mass [J kg-1 K-1]"
+        description="Specific heat capacity of internal mass [J kg-1 K-1]",
     )
     InternalMassEmissivity: ValueWithDOI[float] = Field(
-        default=ValueWithDOI(0.0),
-        description="Emissivity of internal mass [-]"
+        default=ValueWithDOI(0.0), description="Emissivity of internal mass [-]"
     )
     MaxHeatingPower: ValueWithDOI[float] = Field(
         default=ValueWithDOI(0.0),
-        description="Maximum power demand of heating system [W]"
+        description="Maximum power demand of heating system [W]",
     )
     WaterTankWaterVolume: ValueWithDOI[float] = Field(
-        default=ValueWithDOI(0.0),
-        description="Volume of water in hot water tank [m3]"
+        default=ValueWithDOI(0.0), description="Volume of water in hot water tank [m3]"
     )
     MaximumHotWaterHeatingPower: ValueWithDOI[float] = Field(
         default=ValueWithDOI(0.0),
-        description="Maximum power demand of water heating system [W]"
+        description="Maximum power demand of water heating system [W]",
     )
     HeatingSetpointTemperature: ValueWithDOI[float] = Field(
-        default=ValueWithDOI(0.0),
-        description="Heating setpoint temperature [degC]"
+        default=ValueWithDOI(0.0), description="Heating setpoint temperature [degC]"
     )
     CoolingSetpointTemperature: ValueWithDOI[float] = Field(
-        default=ValueWithDOI(0.0),
-        description="Cooling setpoint temperature [degC]"
+        default=ValueWithDOI(0.0), description="Cooling setpoint temperature [degC]"
     )
 
     ref: Optional[Reference] = None
@@ -4156,7 +4351,9 @@ class ArchetypeProperties(BaseModel):
         df_state = init_df_state(grid_id)
 
         # Create an empty DataFrame with MultiIndex columns
-        columns = [(field.lower(), "0") for field in self.model_fields.keys() if field != "ref"]
+        columns = [
+            (field.lower(), "0") for field in self.model_fields.keys() if field != "ref"
+        ]
         df_state = pd.DataFrame(
             index=[grid_id], columns=pd.MultiIndex.from_tuples(columns)
         )
@@ -4178,7 +4375,8 @@ class ArchetypeProperties(BaseModel):
         # Extract the values from the DataFrame
         params = {
             field_name: df.loc[grid_id, (field_name, "0")]
-            for field_name in cls.model_fields.keys() if field_name != "ref"
+            for field_name in cls.model_fields.keys()
+            if field_name != "ref"
         }
 
         # Convert params to ValueWithDOI
@@ -4194,7 +4392,8 @@ class StebbsProperties(BaseModel):
         description="Internal convection coefficient of walls and roof [W m-2 K-1]",
     )
     InternalMassConvectionCoefficient: ValueWithDOI[float] = Field(
-        default=ValueWithDOI(0.0), description="Convection coefficient of internal mass [W m-2 K-1]"
+        default=ValueWithDOI(0.0),
+        description="Convection coefficient of internal mass [W m-2 K-1]",
     )
     FloorInternalConvectionCoefficient: ValueWithDOI[float] = Field(
         default=ValueWithDOI(0.0),
@@ -4213,26 +4412,33 @@ class StebbsProperties(BaseModel):
         description="Initial external convection coefficient of windows [W m-2 K-1]",
     )
     GroundDepth: ValueWithDOI[float] = Field(
-        default=ValueWithDOI(0.0), description="Depth of external ground (deep soil) [m]"
+        default=ValueWithDOI(0.0),
+        description="Depth of external ground (deep soil) [m]",
     )
-    ExternalGroundConductivity: ValueWithDOI[float] = Field(default=ValueWithDOI(0.0), description="")
+    ExternalGroundConductivity: ValueWithDOI[float] = Field(
+        default=ValueWithDOI(0.0), description=""
+    )
     IndoorAirDensity: ValueWithDOI[float] = Field(
         default=ValueWithDOI(0.0), description="Density of indoor air [kg m-3]"
     )
     IndoorAirCp: ValueWithDOI[float] = Field(
-        default=ValueWithDOI(0.0), description="Specific heat capacity of indoor air [J kg-1 K-1]"
+        default=ValueWithDOI(0.0),
+        description="Specific heat capacity of indoor air [J kg-1 K-1]",
     )
     WallBuildingViewFactor: ValueWithDOI[float] = Field(
-        default=ValueWithDOI(0.0), description="Building view factor of external walls [-]"
+        default=ValueWithDOI(0.0),
+        description="Building view factor of external walls [-]",
     )
     WallGroundViewFactor: ValueWithDOI[float] = Field(
-        default=ValueWithDOI(0.0), description="Ground view factor of external walls [-]"
+        default=ValueWithDOI(0.0),
+        description="Ground view factor of external walls [-]",
     )
     WallSkyViewFactor: ValueWithDOI[float] = Field(
         default=ValueWithDOI(0.0), description="Sky view factor of external walls [-]"
     )
     MetabolicRate: ValueWithDOI[float] = Field(
-        default=ValueWithDOI(0.0), description="Metabolic rate of building occupants [W]"
+        default=ValueWithDOI(0.0),
+        description="Metabolic rate of building occupants [W]",
     )
     LatentSensibleRatio: ValueWithDOI[float] = Field(
         default=ValueWithDOI(0.0),
@@ -4242,7 +4448,8 @@ class StebbsProperties(BaseModel):
         default=ValueWithDOI(0.0), description="Power demand of single appliance [W]"
     )
     TotalNumberofAppliances: ValueWithDOI[float] = Field(
-        default=ValueWithDOI(0.0), description="Number of appliances present in building [-]"
+        default=ValueWithDOI(0.0),
+        description="Number of appliances present in building [-]",
     )
     ApplianceUsageFactor: ValueWithDOI[float] = Field(
         default=ValueWithDOI(0.0), description="Number of appliances in use [-]"
@@ -4251,13 +4458,16 @@ class StebbsProperties(BaseModel):
         default=ValueWithDOI(0.0), description="Efficiency of space heating system [-]"
     )
     MaxCoolingPower: ValueWithDOI[float] = Field(
-        default=ValueWithDOI(0.0), description="Maximum power demand of cooling system [W]"
+        default=ValueWithDOI(0.0),
+        description="Maximum power demand of cooling system [W]",
     )
     CoolingSystemCOP: ValueWithDOI[float] = Field(
-        default=ValueWithDOI(0.0), description="Coefficient of performance of cooling system [-]"
+        default=ValueWithDOI(0.0),
+        description="Coefficient of performance of cooling system [-]",
     )
     VentilationRate: ValueWithDOI[float] = Field(
-        default=ValueWithDOI(0.0), description="Ventilation rate (air changes per hour, ACH) [h-1]"
+        default=ValueWithDOI(0.0),
+        description="Ventilation rate (air changes per hour, ACH) [h-1]",
     )
     IndoorAirStartTemperature: ValueWithDOI[float] = Field(
         default=ValueWithDOI(0.0), description="Initial indoor air temperature [degC]"
@@ -4266,16 +4476,20 @@ class StebbsProperties(BaseModel):
         default=ValueWithDOI(0.0), description="Initial indoor mass temperature [degC]"
     )
     WallIndoorSurfaceTemperature: ValueWithDOI[float] = Field(
-        default=ValueWithDOI(0.0), description="Initial wall/roof indoor surface temperature [degC]"
+        default=ValueWithDOI(0.0),
+        description="Initial wall/roof indoor surface temperature [degC]",
     )
     WallOutdoorSurfaceTemperature: ValueWithDOI[float] = Field(
-        default=ValueWithDOI(0.0), description="Initial wall/roof outdoor surface temperature [degC]"
+        default=ValueWithDOI(0.0),
+        description="Initial wall/roof outdoor surface temperature [degC]",
     )
     WindowIndoorSurfaceTemperature: ValueWithDOI[float] = Field(
-        default=ValueWithDOI(0.0), description="Initial window indoor surface temperature [degC]"
+        default=ValueWithDOI(0.0),
+        description="Initial window indoor surface temperature [degC]",
     )
     WindowOutdoorSurfaceTemperature: ValueWithDOI[float] = Field(
-        default=ValueWithDOI(0.0), description="Initial window outdoor surface temperature [degC]"
+        default=ValueWithDOI(0.0),
+        description="Initial window outdoor surface temperature [degC]",
     )
     GroundFloorIndoorSurfaceTemperature: ValueWithDOI[float] = Field(
         default=ValueWithDOI(0.0),
@@ -4286,7 +4500,8 @@ class StebbsProperties(BaseModel):
         description="Initial ground floor outdoor surface temperature [degC]",
     )
     WaterTankTemperature: ValueWithDOI[float] = Field(
-        default=ValueWithDOI(0.0), description="Initial water temperature in hot water tank [degC]"
+        default=ValueWithDOI(0.0),
+        description="Initial water temperature in hot water tank [degC]",
     )
     InternalWallWaterTankTemperature: ValueWithDOI[float] = Field(
         default=ValueWithDOI(0.0),
@@ -4304,7 +4519,8 @@ class StebbsProperties(BaseModel):
         description="Temperature of water coming into the water tank [degC]",
     )
     WaterTankSurfaceArea: ValueWithDOI[float] = Field(
-        default=ValueWithDOI(0.0), description="Surface area of hot water tank cylinder [m2]"
+        default=ValueWithDOI(0.0),
+        description="Surface area of hot water tank cylinder [m2]",
     )
     HotWaterHeatingSetpointTemperature: ValueWithDOI[float] = Field(
         default=ValueWithDOI(0.0), description="Water tank setpoint temperature [degC]"
@@ -4329,24 +4545,28 @@ class StebbsProperties(BaseModel):
         default=ValueWithDOI(0.0), description="Hot water vessel wall thickness [m]"
     )
     DHWWaterVolume: ValueWithDOI[float] = Field(
-        default=ValueWithDOI(0.0), description="Volume of water held in use in building [m3]"
+        default=ValueWithDOI(0.0),
+        description="Volume of water held in use in building [m3]",
     )
     DHWSurfaceArea: ValueWithDOI[float] = Field(
-        default=ValueWithDOI(0.0), description="Surface area of hot water in vessels in building [m2]"
+        default=ValueWithDOI(0.0),
+        description="Surface area of hot water in vessels in building [m2]",
     )
     DHWVesselEmissivity: ValueWithDOI[float] = Field(
         default=ValueWithDOI(0.0),
         description="NEEDS CHECKED! NOT USED (assumed same as DHWVesselWallEmissivity) [-]",
     )
     HotWaterFlowRate: ValueWithDOI[float] = Field(
-        default=ValueWithDOI(0.0), description="Hot water flow rate from tank to vessel [m3 s-1]"
+        default=ValueWithDOI(0.0),
+        description="Hot water flow rate from tank to vessel [m3 s-1]",
     )
     DHWDrainFlowRate: ValueWithDOI[float] = Field(
         default=ValueWithDOI(0.0),
         description="Flow rate of hot water held in building to drain [m3 s-1]",
     )
     DHWSpecificHeatCapacity: ValueWithDOI[float] = Field(
-        default=ValueWithDOI(0.0), description="Specific heat capacity of hot water [J kg-1 K-1]"
+        default=ValueWithDOI(0.0),
+        description="Specific heat capacity of hot water [J kg-1 K-1]",
     )
     HotWaterTankSpecificHeatCapacity: ValueWithDOI[float] = Field(
         default=ValueWithDOI(0.0),
@@ -4416,7 +4636,9 @@ class StebbsProperties(BaseModel):
         df_state = init_df_state(grid_id)
 
         # Create an empty DataFrame with MultiIndex columns
-        columns = [(field.lower(), "0") for field in self.model_fields.keys() if field != "ref"]
+        columns = [
+            (field.lower(), "0") for field in self.model_fields.keys() if field != "ref"
+        ]
         df_state = pd.DataFrame(
             index=[grid_id], columns=pd.MultiIndex.from_tuples(columns)
         )
@@ -4425,7 +4647,9 @@ class StebbsProperties(BaseModel):
         for field_name, field_info in self.model_fields.items():
             if field_name == "ref":
                 continue
-            df_state.loc[grid_id, (field_name.lower(), "0")] = getattr(self, field_name).value
+            df_state.loc[grid_id, (field_name.lower(), "0")] = getattr(
+                self, field_name
+            ).value
 
         return df_state
 
@@ -4435,7 +4659,8 @@ class StebbsProperties(BaseModel):
         # Extract the values from the DataFrame
         params = {
             field_name: df.loc[grid_id, (field_name, "0")]
-            for field_name in cls.model_fields.keys() if field_name != "ref"
+            for field_name in cls.model_fields.keys()
+            if field_name != "ref"
         }
 
         # Convert params to ValueWithDOI
@@ -4447,31 +4672,50 @@ class StebbsProperties(BaseModel):
 
 class SiteProperties(BaseModel):
     lat: ValueWithDOI[float] = Field(
-        ge=-90, le=90, description="Latitude of the site in degrees", default=ValueWithDOI(51.5)
+        ge=-90,
+        le=90,
+        description="Latitude of the site in degrees",
+        default=ValueWithDOI(51.5),
     )
     lng: ValueWithDOI[float] = Field(
-        ge=-180, le=180, description="Longitude of the site in degrees", default=ValueWithDOI(-0.13)
+        ge=-180,
+        le=180,
+        description="Longitude of the site in degrees",
+        default=ValueWithDOI(-0.13),
     )
     alt: ValueWithDOI[float] = Field(
-        gt=0, description="Altitude of the site in metres above sea level", default=ValueWithDOI(40.0)
+        gt=0,
+        description="Altitude of the site in metres above sea level",
+        default=ValueWithDOI(40.0),
     )
     timezone: ValueWithDOI[int] = Field(
-        ge=-12, le=12, description="Time zone offset from UTC in hours", default=ValueWithDOI(0)
+        ge=-12,
+        le=12,
+        description="Time zone offset from UTC in hours",
+        default=ValueWithDOI(0),
     )
     surfacearea: ValueWithDOI[float] = Field(
         gt=0,
         description="Total surface area of the site in square metres",
         default=ValueWithDOI(10000.0),
     )
-    z: ValueWithDOI[float] = Field(gt=0, description="Measurement height in metres", default=ValueWithDOI(10.0))
+    z: ValueWithDOI[float] = Field(
+        gt=0, description="Measurement height in metres", default=ValueWithDOI(10.0)
+    )
     z0m_in: ValueWithDOI[float] = Field(
-        gt=0, description="Momentum roughness length in metres", default=ValueWithDOI(1.0)
+        gt=0,
+        description="Momentum roughness length in metres",
+        default=ValueWithDOI(1.0),
     )
     zdm_in: ValueWithDOI[float] = Field(
-        gt=0, description="Zero-plane displacement height in metres", default=ValueWithDOI(5.0)
+        gt=0,
+        description="Zero-plane displacement height in metres",
+        default=ValueWithDOI(5.0),
     )
     pipecapacity: ValueWithDOI[float] = Field(
-        gt=0, description="Maximum capacity of drainage pipes in mm/hr", default=ValueWithDOI(100.0)
+        gt=0,
+        description="Maximum capacity of drainage pipes in mm/hr",
+        default=ValueWithDOI(100.0),
     )
     runofftowater: ValueWithDOI[float] = Field(
         ge=0,
@@ -4480,7 +4724,8 @@ class SiteProperties(BaseModel):
         default=ValueWithDOI(0.0),
     )
     narp_trans_site: ValueWithDOI[float] = Field(
-        description="Site-specific NARP transmission coefficient", default=ValueWithDOI(0.2)
+        description="Site-specific NARP transmission coefficient",
+        default=ValueWithDOI(0.2),
     )
     lumps: LUMPSParams = Field(
         default_factory=LUMPSParams,
@@ -4804,13 +5049,17 @@ class SUEWSConfig(BaseModel):
 
     def to_yaml(self, path: str = "./config-suews.yml"):
         """Convert config to YAML format"""
-        with open(path, 'w') as file:
-            yaml.dump(self.model_dump(exclude_none=True), file, sort_keys=False, allow_unicode=True)
+        with open(path, "w") as file:
+            yaml.dump(
+                self.model_dump(exclude_none=True),
+                file,
+                sort_keys=False,
+                allow_unicode=True,
+            )
 
 
 def init_config_from_yaml(path: str = "./config-suews.yml") -> SUEWSConfig:
     """Initialize SUEWSConfig from YAML file"""
-    with open(path, 'r') as file:
+    with open(path, "r") as file:
         config = yaml.load(file, Loader=yaml.FullLoader)
     return SUEWSConfig(**config)
-

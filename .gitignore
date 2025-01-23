@@ -417,3 +417,6 @@ data_met_raw.pkl
 test-quick.py
 df_water*.pkl
 test-quick.ipynb
+test-supy-release.ipynb
+
+supy.log*

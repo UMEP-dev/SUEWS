@@ -3485,7 +3485,6 @@ CONTAINS
    END SUBROUTINE SUEWS_update_outputLine
 !========================================================================
 
-
    SUBROUTINE EHC_update_outputLine( &
       timer, & !input
       modState, & ! input/output:

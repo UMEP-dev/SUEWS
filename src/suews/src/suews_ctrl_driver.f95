@@ -3325,6 +3325,7 @@ CONTAINS
       REAL(KIND(1D0)) :: wu_DecTr !water use for deciduous tree and shrubs [mm]
       REAL(KIND(1D0)) :: wu_EveTr !water use of evergreen tree and shrubs [mm]
       REAL(KIND(1D0)) :: wu_Grass !water use for grass [mm]
+      REAL(KIND(1D0)) :: soilstore !output soil store [mm]
 
       !=====================================================================
       !====================== Prepare data for output ======================
@@ -3399,7 +3400,7 @@ CONTAINS
             runoffWaterBody => hydroState%runoffWaterBody, &
             smd => hydroState%smd, &
             smd_surf => hydroState%smd_surf, &
-            soilstore => hydroState%SoilStore, &
+            ! soilstore => hydroState%SoilStore, &
             soilstore_surf => hydroState%soilstore_surf, &
             SnowRemoval => snowState%SnowRemoval, &
             state_per_tstep => hydroState%state_per_tstep, &
@@ -3443,6 +3444,9 @@ CONTAINS
             wu_EveTr = hydroState%wu_surf(4)
             wu_Grass = hydroState%wu_surf(5)
 
+            ! calculate soil store
+            soilstore = DOT_PRODUCT(soilstore_surf, sfr_surf)
+
             !====================== update output line ==============================
             ! date & time:
             datetimeLine = [ &
@@ -3481,102 +3485,6 @@ CONTAINS
    END SUBROUTINE SUEWS_update_outputLine
 !========================================================================
 
-!==============Update output arrays=========================
-   ! SUBROUTINE EHC_update_outputLine( &
-   !    iy, id, it, imin, dectime, nlayer, & !input
-   !    tsfc_out_surf, qs_surf, &
-   !    tsfc_out_roof, &
-   !    Qn_roof, &
-   !    QS_roof, &
-   !    QE_roof, &
-   !    QH_roof, &
-   !    state_roof, &
-   !    soilstore_roof, &
-   !    tsfc_out_wall, &
-   !    Qn_wall, &
-   !    QS_wall, &
-   !    QE_wall, &
-   !    QH_wall, &
-   !    state_wall, &
-   !    soilstore_wall, &
-   !    datetimeLine, dataOutLineEHC) !output
-   !    IMPLICIT NONE
-
-   !    REAL(KIND(1D0)), PARAMETER :: NAN = -999
-   !    INTEGER, PARAMETER :: n_fill = 15
-
-   !    INTEGER, INTENT(in) :: iy ! year [YYYY]
-   !    INTEGER, INTENT(in) :: id ! day of the year [DOY]
-   !    INTEGER, INTENT(in) :: it ! hour [H]
-   !    INTEGER, INTENT(in) :: imin ! minutes [M]
-
-   !    INTEGER, INTENT(in) :: nlayer ! number of vertical levels in urban canopy [-]
-   !    REAL(KIND(1D0)), INTENT(in) :: dectime !decimal time [-]
-
-   !    REAL(KIND(1D0)), DIMENSION(nsurf), INTENT(in) :: tsfc_out_surf !surface temperature [degC]
-   !    REAL(KIND(1D0)), DIMENSION(nsurf), INTENT(in) :: qs_surf !heat storage flux of each surface type [W m-2]
-   !    REAL(KIND(1D0)), DIMENSION(nlayer), INTENT(in) :: tsfc_out_roof !roof surface temperature [degC]
-   !    REAL(KIND(1D0)), DIMENSION(nlayer), INTENT(in) :: Qn_roof !net all-wave radiation of the roof [W m-2]
-   !    REAL(KIND(1D0)), DIMENSION(nlayer), INTENT(in) :: QS_roof !heat storage flux of the roof [W m-2]
-   !    REAL(KIND(1D0)), DIMENSION(nlayer), INTENT(in) :: QE_roof !latent heat flux of the roof [W m-2]
-   !    REAL(KIND(1D0)), DIMENSION(nlayer), INTENT(in) :: QH_roof !sensible heat flux of the roof [W m-2]
-   !    REAL(KIND(1D0)), DIMENSION(nlayer), INTENT(in) :: state_roof !wetness state of the roof [mm]
-   !    REAL(KIND(1D0)), DIMENSION(nlayer), INTENT(in) :: soilstore_roof !soil moisture of roof [mm]
-   !    REAL(KIND(1D0)), DIMENSION(nlayer), INTENT(in) :: tsfc_out_wall !wall surface temperature [degC]
-   !    REAL(KIND(1D0)), DIMENSION(nlayer), INTENT(in) :: Qn_wall !net all-wave radiation of the wall [W m-2]
-   !    REAL(KIND(1D0)), DIMENSION(nlayer), INTENT(in) :: QS_wall !heat storage flux of the wall [W m-2]
-   !    REAL(KIND(1D0)), DIMENSION(nlayer), INTENT(in) :: QE_wall !latent heat flux of the wall [W m-2]
-   !    REAL(KIND(1D0)), DIMENSION(nlayer), INTENT(in) :: QH_wall !sensible heat flux of the wall [W m-2]
-   !    REAL(KIND(1D0)), DIMENSION(nlayer), INTENT(in) :: state_wall !wetness state of the wall [mm]
-   !    REAL(KIND(1D0)), DIMENSION(nlayer), INTENT(in) :: soilstore_wall !soil moisture of wall [mm]
-
-   !    REAL(KIND(1D0)), DIMENSION(5), INTENT(OUT) :: datetimeLine !date & time
-   !    REAL(KIND(1D0)), DIMENSION(ncolumnsDataOutEHC - 5), INTENT(out) :: dataOutLineEHC
-   !    ! REAL(KIND(1d0)),DIMENSION(ncolumnsDataOutSnow-5),INTENT(out) :: dataOutLineSnow
-   !    ! REAL(KIND(1d0)),DIMENSION(ncolumnsDataOutESTM-5),INTENT(out) :: dataOutLineESTM
-   !    ! INTEGER:: is
-   !    ! REAL(KIND(1D0)) :: LAI_wt !area weighted LAI [m2 m-2]
-   !    ! REAL(KIND(1D0)) :: RH2_pct ! RH2 in percentage [-]
-
-   !    ! the variables below with '_x' endings stand for 'exported' values
-   !    ! REAL(KIND(1D0)) :: ResistSurf_x !output surface resistance [s m-1]
-   !    ! REAL(KIND(1D0)) :: surf_chang_per_tstep_x !output change in state_id (exluding snowpack) per timestep [mm]
-   !    ! REAL(KIND(1D0)) :: l_mod_x !output  Obukhov length [m]
-   !    ! REAL(KIND(1D0)) :: bulkalbedo !output area-weighted albedo [-]
-   !    ! REAL(KIND(1D0)) :: smd_nsurf_x(nsurf) !output soil moisture deficit for each surface [mm]
-   !    ! REAL(KIND(1D0)) :: state_x(nsurf) !output wetness status of each surfaces[mm]
-   !    ! REAL(KIND(1D0)) :: wu_DecTr !water use for deciduous tree and shrubs [mm]
-   !    ! REAL(KIND(1D0)) :: wu_EveTr !water use of evergreen tree and shrubs [mm]
-   !    ! REAL(KIND(1D0)) :: wu_Grass !water use for grass [mm]
-
-   !    ! date & time:
-   !    datetimeLine = [ &
-   !                   REAL(iy, KIND(1D0)), REAL(id, KIND(1D0)), &
-   !                   REAL(it, KIND(1D0)), REAL(imin, KIND(1D0)), dectime]
-   !    !Define the overall output matrix to be printed out step by step
-   !    dataOutLineEHC = [ &
-   !                     tsfc_out_surf, qs_surf, & !output
-   !                     fill_result_x(tsfc_out_roof, n_fill), &
-   !                     fill_result_x(Qn_roof, n_fill), &
-   !                     fill_result_x(QS_roof, n_fill), &
-   !                     fill_result_x(QE_roof, n_fill), &
-   !                     fill_result_x(QH_roof, n_fill), &
-   !                     fill_result_x(state_roof, n_fill), &
-   !                     fill_result_x(soilstore_roof, n_fill), &
-   !                     fill_result_x(tsfc_out_wall, n_fill), &
-   !                     fill_result_x(Qn_wall, n_fill), &
-   !                     fill_result_x(QS_wall, n_fill), &
-   !                     fill_result_x(QE_wall, n_fill), &
-   !                     fill_result_x(QH_wall, n_fill), &
-   !                     fill_result_x(state_wall, n_fill), &
-   !                     fill_result_x(soilstore_wall, n_fill) &
-   !                     ]
-   !    ! set invalid values to NAN
-   !    ! dataOutLineSUEWS = set_nan(dataOutLineSUEWS)
-
-   !    !====================update output line end==============================
-
-   ! END SUBROUTINE EHC_update_outputLine
 
    SUBROUTINE EHC_update_outputLine( &
       timer, & !input

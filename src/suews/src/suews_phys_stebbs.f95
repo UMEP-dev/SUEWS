@@ -2113,7 +2113,7 @@ SUBROUTINE gen_building(stebbsState, bldgState, self)
    self%Vair_ind = &
       (self%Afootprint*self%height_building)* &
       (1 - self%ratioInternalVolume) ! # Multiplied by factor that accounts for internal mass
-      self%ventilation_rate = self%Vair_ind*stebbsPrm%VentilationRate/3600.0 ! Fixed at begining to have no natural ventilation. Given in units of volume of air per second
+   self%ventilation_rate = self%Vair_ind*stebbsPrm%VentilationRate/3600.0 ! Fixed at begining to have no natural ventilation. Given in units of volume of air per second
    self%Awallroof = &
       (self%wallExternalArea*(1 - self%ratio_window_wall)) + &
       self%Afootprint ! # last component accounts for the roof as not considered seperately in the model

@@ -1692,6 +1692,13 @@ class NonVegetatedSurfaceProperties(SurfaceProperties):
             df_base = df_base.sort_index(axis=1)
 
         return df_base
+    
+    @classmethod
+    def from_df_state(cls, df: pd.DataFrame, grid_id: int, surf_idx: int) -> "NonVegetatedSurfaceProperties":
+        """Reconstruct non-vegetated surface properties from DataFrame state format."""
+        instance = super().from_df_state(df, grid_id, surf_idx)
+        instance.alb = ValueWithDOI(df.loc[grid_id, ("alb", f"({surf_idx},)")])
+        return instance
 
 
 class PavedProperties(NonVegetatedSurfaceProperties):  # May need to move VWD for waterdist to here for referencing
@@ -2048,17 +2055,17 @@ class BldgsProperties(NonVegetatedSurfaceProperties): # May need to move VWD for
 
     ref: Optional[Reference] = None
 
-    @model_validator(mode="after")
-    def validate_rsl_zd_range(self) -> "BldgsProperties":
-        sfr_bldg_lower_limit = 0.18
-        if self.sfr < sfr_bldg_lower_limit:
-            if self.faibldg.value < 0.25 * (1 - self.sfr.value):
-                raise ValueError(
-                    "Frontal Area Index (FAI) is below a lower limit of: 0.25 * (1 - PAI), which is likely to cause a negative displacement height (zd) in the RSL.\n"
-                    f"\tYou have entered a building FAI of {self.faibldg} and a building PAI of {self.sfr}.\n"
-                    "\tFor more details, please refer to: https://github.com/UMEP-dev/SUEWS/issues/302"
-                )
-        return self
+    # @model_validator(mode="after")    # This is no longer appropriate - may be reintroduced and altered
+    # def validate_rsl_zd_range(self) -> "BldgsProperties":
+    #     sfr_bldg_lower_limit = 0.18
+    #     if self.sfr < sfr_bldg_lower_limit:
+    #         if self.faibldg.value < 0.25 * (1 - self.sfr.value):
+    #             raise ValueError(         # This should be a warning not raising an error
+    #                 "Frontal Area Index (FAI) is below a lower limit of: 0.25 * (1 - PAI), which is likely to cause a negative displacement height (zd) in the RSL.\n"
+    #                 f"\tYou have entered a building FAI of {self.faibldg} and a building PAI of {self.sfr}.\n"
+    #                 "\tFor more details, please refer to: https://github.com/UMEP-dev/SUEWS/issues/302"
+    #             )
+    #     return self
 
     def to_df_state(self, grid_id: int) -> pd.DataFrame:
         """Convert building properties to DataFrame state format."""
@@ -2075,6 +2082,8 @@ class BldgsProperties(NonVegetatedSurfaceProperties): # May need to move VWD for
         """Reconstruct building properties from DataFrame state format."""
         surf_idx = 1
         instance = super().from_df_state(df, grid_id, surf_idx)
+        instance.bldgh = ValueWithDOI(df.loc[grid_id, ("bldgh", "0")])
+        instance.faibldg = ValueWithDOI(df.loc[grid_id, ("faibldg", "0")])
         return instance
 
 
@@ -2128,6 +2137,7 @@ class WaterProperties(NonVegetatedSurfaceProperties):
         """Reconstruct water properties from DataFrame state format."""
         surf_idx = 6
         instance = super().from_df_state(df, grid_id, surf_idx)
+        instance.flowchange = ValueWithDOI(df.loc[grid_id, ("flowchange", f"0")])
         return instance
 
 
@@ -2152,6 +2162,15 @@ class ModelControl(BaseModel):
 
     ref: Optional[Reference] = None
 
+    @field_validator("tstep", "diagnose", mode="after")
+    def validate_int_float(cls, v):
+        if isinstance(v, (np.float64, np.float32)):
+            return float(v)
+        elif isinstance(v, (np.int64, np.int32)):
+            return int(v)
+        return v
+
+
     def to_df_state(self, grid_id: int) -> pd.DataFrame:
         """Convert model control properties to DataFrame state format."""
         df_state = init_df_state(grid_id)
@@ -2174,7 +2193,8 @@ class ModelControl(BaseModel):
         """Reconstruct model control properties from DataFrame state format."""
         instance = cls()
         for attr in ["tstep", "diagnose"]:
-            setattr(instance, attr, df.loc[grid_id, (attr, "0")])
+            value = df.loc[grid_id, (attr, "0")]
+            setattr(instance, attr, int(value) if isinstance(value, (np.int64, np.int32)) else value)
         return instance
 
 
@@ -4177,12 +4197,13 @@ class ArchetypeProperties(BaseModel):
         """Reconstruct ArchetypeProperties from DataFrame state format."""
         # Extract the values from the DataFrame
         params = {
-            field_name: df.loc[grid_id, (field_name, "0")]
+            field_name: df.loc[grid_id, (field_name.lower(), "0")]
             for field_name in cls.model_fields.keys() if field_name != "ref"
         }
 
         # Convert params to ValueWithDOI
-        params = {key: ValueWithDOI(value) for key, value in params.items()}
+        non_value_with_doi = ["BuildingType", "BuildingName"]
+        params = {key: ValueWithDOI(value) for key, value in params.items() if key not in non_value_with_doi}
 
         # Create an instance using the extracted parameters
         return cls(**params)
@@ -4434,7 +4455,7 @@ class StebbsProperties(BaseModel):
         """Reconstruct StebbsProperties from DataFrame state format."""
         # Extract the values from the DataFrame
         params = {
-            field_name: df.loc[grid_id, (field_name, "0")]
+            field_name: df.loc[grid_id, (field_name.lower(), "0")]
             for field_name in cls.model_fields.keys() if field_name != "ref"
         }
 
@@ -4614,6 +4635,9 @@ class SiteProperties(BaseModel):
         params["land_cover"] = LandCover.from_df_state(df, grid_id)
         params["vertical_layers"] = VerticalLayers.from_df_state(df, grid_id)
 
+        params["stebbs"] = StebbsProperties.from_df_state(df, grid_id)
+        params["building_archetype"] = ArchetypeProperties.from_df_state(df, grid_id)
+
         return cls(**params)
 
 
@@ -4651,6 +4675,17 @@ class Model(BaseModel):
         description="Model physics parameters including surface properties, coefficients, etc.",
     )
 
+    @model_validator(mode="after")
+    def validate_radiation_method(self) -> "Model":
+        if self.physics.netradiationmethod.value == 1 and self.control.forcing_file.value == "forcing.txt":
+            raise ValueError(
+                "NetRadiationMethod is set to 1 (using observed Ldown). "
+                "The sample forcing file lacks observed Ldown. Use netradiation = 3 for sample forcing. "
+                "If not using sample forcing, ensure that the forcing file contains Ldown and rename from forcing.txt."
+                # TODO: This is a temporary solution. We need to provide a better way to catch this.
+            )
+        return self
+
     def to_df_state(self, grid_id: int) -> pd.DataFrame:
         """Convert model to DataFrame state format"""
         df_state = init_df_state(grid_id)
@@ -4658,6 +4693,16 @@ class Model(BaseModel):
         df_physics = self.physics.to_df_state(grid_id)
         df_state = pd.concat([df_state, df_control, df_physics], axis=1)
         return df_state
+    
+    @classmethod
+    def from_df_state(cls, df: pd.DataFrame, grid_id: int) -> "Model":
+        """Reconstruct Model from DataFrame state format."""
+        # Extract control and physics parameters
+        control = ModelControl.from_df_state(df, grid_id)
+        physics = ModelPhysics.from_df_state(df, grid_id)
+
+        # Create an instance using the extracted parameters
+        return cls(control=control, physics=physics)
 
 
 class SUEWSConfig(BaseModel):
@@ -4733,11 +4778,9 @@ class SUEWSConfig(BaseModel):
     def to_df_state(self) -> pd.DataFrame:
         """Convert config to DataFrame state format"""
         list_df_site = []
-        config_model = self.model
-        for config_site in self.site:
-            grid_id_site = config_site.gridiv
-            df_site = config_site.to_df_state(grid_id_site)
-            df_model = config_model.to_df_state(grid_id_site)
+        for grid_id in range(len(self.site)):
+            df_site = self.site[grid_id].to_df_state(grid_id)
+            df_model = self.model.to_df_state(grid_id)
             df_site = pd.concat([df_site, df_model], axis=1)
             list_df_site.append(df_site)
 
@@ -4787,18 +4830,18 @@ class SUEWSConfig(BaseModel):
         config.site = sites
 
         # Reconstruct model
-        model = Model()
-        for grid_id in grid_ids:
-            # Set model control
-            model_control = ModelControl.from_df_state(df, grid_id)
-            model.control = model_control
+        config.model = Model.from_df_state(df, grid_ids[0])
+        # for grid_id in grid_ids:
+        #     # Set model control
+        #     model_control = ModelControl.from_df_state(df, grid_id)
+        #     model.control = model_control
 
-            # Set model physics
-            model_physics = ModelPhysics.from_df_state(df, grid_id)
-            model.physics = model_physics
-            break  # Only need one as model is shared across sites
+        #     # Set model physics
+        #     model_physics = ModelPhysics.from_df_state(df, grid_id)
+        #     model.physics = model_physics
+        #     break  # Only need one as model is shared across sites
 
-        config.model = model
+        # config.model = model
 
         return config
 

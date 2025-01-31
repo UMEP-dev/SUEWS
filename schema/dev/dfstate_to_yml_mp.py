@@ -46,7 +46,7 @@ IGNORECOLSDICT = {
         'SMDMethod',
         'WaterUseMethod',
         'DiagMethod',
-        'stebbsuse'
+        'stebbsmethod'
     ]
 }
 
@@ -72,10 +72,10 @@ class ModelParameters:
 
     def get_building_objects(self, grid_name):
         """Create dicts of STEBBS building objects for all  buildings in a single grid"""
-
+        
         building_keys = [k for k in self.atype_file.keys() if str(grid_name) in k]
         building_names = [b for b in building_keys  if '_r_' in b or '_m_' in b or '_o_' in b or '_nr_' in b]
-
+        
         buildings = {}
 
         for archetype in building_names:
@@ -101,7 +101,7 @@ class ModelParameters:
         if contains is not None:
             params = params[params.index.get_level_values('SuPy Input').str.contains(contains)]
         self.df.drop(index=params.index, inplace=True)
-
+        
         building_data = self.get_building_objects(17240202)
 
         units = params['Units']
@@ -110,7 +110,7 @@ class ModelParameters:
         comments = dict(zip(params, units))
         glob_comments.update(comments)
         params = {param: None for param in params}
-        for building_name in building_data:
+        for building_name in building_data: 
             building_params = building_data[building_name]
             for building_param in building_params:
                 if 'stebbs_'+building_param in params:
@@ -160,7 +160,7 @@ class YamlEditor:
         if model_name not in self.config_data['site'][0]['properties']:
             self.config_data['site'][0]['properties'][model_name] = {}
         self.config_data['site'][0]['properties'][model_name] = parameters
-
+    
     def convert_to_commented_map(self):
         def convert_dict_to_commented_map(d):
             if isinstance(d, dict):
@@ -179,7 +179,7 @@ class YamlEditor:
     def update_values(self, path, values, type=None):
         """
         Update the value of a key using the path to the key.
-
+        
         :param path: The path to the key as a list of keys.
         :param value: The new value to set.
         """
@@ -198,11 +198,11 @@ class YamlEditor:
     def write_yaml_file(self):
         with open('./schema/dev/config-suews_update.yml', 'w') as file:
             yaml.dump(self.config_data, file)
-
+    
     def search_dict(self, dct, key, path=None):
         """
         Recursively search for a key in a dictionary that may contain sub-dictionaries.
-
+        
         :param d: The dictionary to search.
         :param key: The key to search for.
         :param path: The current path to the key.
@@ -224,11 +224,11 @@ class YamlEditor:
                         if result is not None:
                             return result
         return None
-
+    
     def make_comment(self, path, value):
         """
         Update the value of a key using the path to the key.
-
+        
         :param path: The path to the key as a list of keys.
         :param value: The new value to set.
         """
@@ -246,7 +246,7 @@ class YamlEditor:
                 key_path = self.search_dict(self.config_data, key)
                 if key_path is not None:
                     self.make_comment(key_path, value)
-
+                    
         with open('./schema/dev/config-suews_update.yml', 'w') as file:
             yaml.dump(self.config_data, file)
 
@@ -325,7 +325,7 @@ if __name__ == '__main__':
     yamlEditor = YamlEditor(yaml_file_path='./schema/dev/config-suews.yml')
     for method in stebbs_methods:
         yamlEditor.add_method(method=method, method_type='physics')
-
+    
     yamlEditor.add_siteInfo(siteInfo=siteInfo_update)
     yamlEditor.add_all_parameters(model_name='stebbs', parameters=supyParameters.filter_parameters(model='STEBBS'))
 
@@ -347,7 +347,7 @@ if __name__ == '__main__':
         "faimethod",
         "localclimatemethod",
         "snowuse"
-        # "stebbs_stebbsuse"  # [-]
+        # "stebbs_stebbsmethod"  # [-]
     ])
     methods = methods.drop([0,1])
     for col in methods:

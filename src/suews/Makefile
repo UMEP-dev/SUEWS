@@ -304,9 +304,6 @@ libdriver: $(addprefix $(DIR_SRC_SUEWS), $(C_MODULE) $(UTILS) $(PHYS) $(DRIVER))
 	@echo "Compiling SUEWS driver module..."
 	mkdir -p $(DIR_LIB_SUEWS)
 	ar r $(LIBDRIVER) $^
-	@echo "================================================"
-	@echo "SUEWS libraries built successfully."
-	@echo "================================================"
 
 
 # suews: libspartacus libdriver exe

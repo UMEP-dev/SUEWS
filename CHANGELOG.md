@@ -47,13 +47,3 @@
 
 - 02 Aug 2024:
   - [bugfix] Fixed a bug in the calculation of the surface temperature (#281)
-
-- 23 Jan 2025:
-  - [feature] Added a pydantic-based input structure to ease the input of model parameters (#324)
-
-- 24 Jan 2025:
-  - [maintenance] Improved CI testing workflow:
-    - Added quick test mode for faster CI runs
-    - Added matrix-dependent macOS deployment targets
-    - Optimised test selection for different Python versions
-    - Updated cibuildwheel configuration for better cross-platform compatibility

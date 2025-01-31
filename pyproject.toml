@@ -26,7 +26,7 @@ dependencies = [
     "matplotlib",
     "chardet",
     "scipy",
-    "pydantic",
+    "pydantic",                                    # for yaml-based config
     "f90wrap==0.2.15",                             # f90wrap is required for f2py-based supy driver
     "dask",                                        # needs dask for parallel tasks
     "f90nml",                                      # utility for namelist files
@@ -46,6 +46,7 @@ classifiers = [
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Intended Audience :: Education",
     "Intended Audience :: Science/Research",
     "Operating System :: MacOS :: MacOS X",

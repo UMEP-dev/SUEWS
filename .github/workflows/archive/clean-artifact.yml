@@ -1,0 +1,14 @@
+name: 'nightly artifacts cleanup'
+on:
+  schedule:
+    - cron: '0 1 * * *' # every night at 1 am UTC
+
+jobs:
+  delete-artifacts:
+    runs-on: ubuntu-latest
+    steps:
+
+      - name: GitHub Actions Artifact Cleaner
+        uses: glassechidna/artifact-cleaner@v2
+        with:
+          minimumAge: 86400 # all artifacts at least one day old

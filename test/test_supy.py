@@ -23,12 +23,24 @@ test_data_dir = Path(__file__).parent / "data_test"
 p_df_sample = Path(test_data_dir) / "sample_output.pkl"
 
 # if platform is macOS and python version is 3.12, set flag_full_test to True
-flag_full_test = all(
+flag_full_test = any(
     [
-        sys.version_info[0] == 3,
-        sys.version_info[1] == 12,
-        platform.system() == "Darwin",
-        platform.machine() == "arm64",
+        all(
+            [
+                sys.version_info[0] == 3,
+                sys.version_info[1] == 12,
+                platform.system() == "Darwin",
+                platform.machine() == "arm64",
+            ]
+        ),
+        all(
+            [
+                sys.version_info[0] == 3,
+                sys.version_info[1] == 13,
+                platform.system() == "Linux",
+                platform.machine() == "x86_64",
+            ]
+        ),
     ]
 )
 

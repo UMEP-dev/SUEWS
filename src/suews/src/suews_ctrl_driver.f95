@@ -15,7 +15,7 @@ MODULE SUEWS_Driver
                             OHM_STATE, PHENOLOGY_STATE, SNOW_STATE, SUEWS_FORCING, SUEWS_TIMER, &
                             HYDRO_STATE, HEAT_STATE, &
                             ROUGHNESS_STATE, solar_State, atm_state, flag_STATE, &
-                            SUEWS_STATE, SUEWS_DEBUG, STEBBS_STATE, BUILDING_ARCHETYPE_PRM, STEBBS_PRM, &
+                            SUEWS_STATE, SUEWS_DEBUG, STEBBS_STATE, BUILDING_STATE, &
                             output_line, output_block
    USE meteo, ONLY: qsatf, RH2qa, qa2RH
    USE AtmMoistStab_module, ONLY: cal_AtmMoist, cal_Stab, stab_psi_heat, stab_psi_mom, SUEWS_update_atmState
@@ -2066,7 +2066,7 @@ CONTAINS
             WaterDist(5, 1) = pavedPrm%waterdist%to_grass
             WaterDist(6, 1) = pavedPrm%waterdist%to_bsoil
             WaterDist(7, 1) = pavedPrm%waterdist%to_water
-            WaterDist(8, 1) = pavedPrm%waterdist%to_soilstore
+            WaterDist(8, 1) = pavedPrm%waterdist%to_soilstore_or_runoff
 
             WaterDist(1, 2) = bldgPrm%waterdist%to_paved
             WaterDist(2, 2) = bldgPrm%waterdist%to_bldg
@@ -2075,7 +2075,7 @@ CONTAINS
             WaterDist(5, 2) = bldgPrm%waterdist%to_grass
             WaterDist(6, 2) = bldgPrm%waterdist%to_bsoil
             WaterDist(7, 2) = bldgPrm%waterdist%to_water
-            WaterDist(8, 2) = bldgPrm%waterdist%to_soilstore
+            WaterDist(8, 2) = bldgPrm%waterdist%to_soilstore_or_runoff
 
             WaterDist(1, 3) = evetrPrm%waterdist%to_paved
             WaterDist(2, 3) = evetrPrm%waterdist%to_bldg
@@ -2084,7 +2084,7 @@ CONTAINS
             WaterDist(5, 3) = evetrPrm%waterdist%to_grass
             WaterDist(6, 3) = evetrPrm%waterdist%to_bsoil
             WaterDist(7, 3) = evetrPrm%waterdist%to_water
-            WaterDist(8, 3) = evetrPrm%waterdist%to_soilstore
+            WaterDist(8, 3) = evetrPrm%waterdist%to_soilstore_or_runoff
 
             WaterDist(1, 4) = dectrPrm%waterdist%to_paved
             WaterDist(2, 4) = dectrPrm%waterdist%to_bldg
@@ -2093,7 +2093,7 @@ CONTAINS
             WaterDist(5, 4) = dectrPrm%waterdist%to_grass
             WaterDist(6, 4) = dectrPrm%waterdist%to_bsoil
             WaterDist(7, 4) = dectrPrm%waterdist%to_water
-            WaterDist(8, 4) = dectrPrm%waterdist%to_soilstore
+            WaterDist(8, 4) = dectrPrm%waterdist%to_soilstore_or_runoff
 
             WaterDist(1, 5) = grassPrm%waterdist%to_paved
             WaterDist(2, 5) = grassPrm%waterdist%to_bldg
@@ -2102,7 +2102,7 @@ CONTAINS
             WaterDist(5, 5) = grassPrm%waterdist%to_grass
             WaterDist(6, 5) = grassPrm%waterdist%to_bsoil
             WaterDist(7, 5) = grassPrm%waterdist%to_water
-            WaterDist(8, 5) = grassPrm%waterdist%to_soilstore
+            WaterDist(8, 5) = grassPrm%waterdist%to_soilstore_or_runoff
 
             WaterDist(1, 6) = bsoilPrm%waterdist%to_paved
             WaterDist(2, 6) = bsoilPrm%waterdist%to_bldg
@@ -2111,7 +2111,7 @@ CONTAINS
             WaterDist(5, 6) = bsoilPrm%waterdist%to_grass
             WaterDist(6, 6) = bsoilPrm%waterdist%to_bsoil
             WaterDist(7, 6) = bsoilPrm%waterdist%to_water
-            WaterDist(8, 6) = bsoilPrm%waterdist%to_soilstore
+            WaterDist(8, 6) = bsoilPrm%waterdist%to_soilstore_or_runoff
 
             ! Retain previous surface state_id and soil moisture state_id
             ! stateOld = state_id !state_id of each surface [mm] for the previous timestep
@@ -4125,7 +4125,9 @@ CONTAINS
       veg_fsd_const, veg_contact_fraction_const, &
       ground_albedo_dir_mult_fact, use_sw_direct_albedo, & !input
       stebbsmethod, & ! stebbs building input
-      BuildingCount, Occupants, hhs0, age_0_4, age_5_11, age_12_18, age_19_64, age_65plus, stebbs_Height, &
+      BuildingCount, Occupants, &
+      ! hhs0, age_0_4, age_5_11, age_12_18, age_19_64, age_65plus,
+      stebbs_Height, &
       FootprintArea, WallExternalArea, RatioInternalVolume, WWR, WallThickness, WallEffectiveConductivity, &
       WallDensity, WallCp, Wallx1, WallExternalEmissivity, WallInternalEmissivity, WallTransmissivity, &
       WallAbsorbtivity, WallReflectivity, FloorThickness, GroundFloorEffectiveConductivity, &
@@ -4584,15 +4586,15 @@ CONTAINS
       REAL(KIND(1D0)) :: MinimumVolumeOfDHWinUse
 
       ! ---stebbs building related states
-      TYPE(BUILDING_ARCHETYPE_PRM) :: building_archtype
+      TYPE(BUILDING_STATE) :: bldgState
       REAL(KIND(1D0)) :: BuildingCount
       REAL(KIND(1D0)) :: Occupants
-      REAL(KIND(1D0)) :: hhs0
-      REAL(KIND(1D0)) :: age_0_4
-      REAL(KIND(1D0)) :: age_5_11
-      REAL(KIND(1D0)) :: age_12_18
-      REAL(KIND(1D0)) :: age_19_64
-      REAL(KIND(1D0)) :: age_65plus
+      ! REAL(KIND(1D0)) :: hhs0
+      ! REAL(KIND(1D0)) :: age_0_4
+      ! REAL(KIND(1D0)) :: age_5_11
+      ! REAL(KIND(1D0)) :: age_12_18
+      ! REAL(KIND(1D0)) :: age_19_64
+      ! REAL(KIND(1D0)) :: age_65plus
       REAL(KIND(1D0)) :: stebbs_Height
       REAL(KIND(1D0)) :: FootprintArea
       REAL(KIND(1D0)) :: WallExternalArea
@@ -4629,8 +4631,6 @@ CONTAINS
       REAL(KIND(1D0)) :: MaximumHotWaterHeatingPower
       REAL(KIND(1D0)) :: HeatingSetpointTemperature
       REAL(KIND(1D0)) :: CoolingSetpointTemperature
-
-      TYPE(STEBBS_PRM) :: stebbsPrm
 
       ! lumped states
       TYPE(SUEWS_DEBUG), INTENT(OUT) :: debug_state
@@ -5007,7 +5007,7 @@ CONTAINS
       pavedPrm%waterdist%to_grass = WaterDist(5, PavSurf)
       pavedPrm%waterdist%to_bsoil = WaterDist(6, PavSurf)
       pavedPrm%waterdist%to_water = WaterDist(7, PavSurf)
-      pavedPrm%waterdist%to_soilstore = WaterDist(8, PavSurf)
+      pavedPrm%waterdist%to_soilstore_or_runoff = WaterDist(8, PavSurf)
 
       bldgPrm%sfr = sfr_surf(BldgSurf)
       bldgPrm%faibldg = FAIBldg
@@ -5049,7 +5049,7 @@ CONTAINS
       bldgPrm%waterdist%to_grass = WaterDist(5, BldgSurf)
       bldgPrm%waterdist%to_bsoil = WaterDist(6, BldgSurf)
       bldgPrm%waterdist%to_water = WaterDist(7, BldgSurf)
-      bldgPrm%waterdist%to_soilstore = WaterDist(8, BldgSurf)
+      bldgPrm%waterdist%to_soilstore_or_runoff = WaterDist(8, BldgSurf)
 
       dectrPrm%sfr = sfr_surf(DecidSurf)
       dectrPrm%emis = emis(DecidSurf)
@@ -5115,7 +5115,7 @@ CONTAINS
       dectrPrm%waterdist%to_grass = WaterDist(5, DecidSurf)
       dectrPrm%waterdist%to_bsoil = WaterDist(6, DecidSurf)
       dectrPrm%waterdist%to_water = WaterDist(7, DecidSurf)
-      dectrPrm%waterdist%to_soilstore = WaterDist(8, DecidSurf)
+      dectrPrm%waterdist%to_soilstore_or_runoff = WaterDist(8, DecidSurf)
 
       evetrPrm%sfr = sfr_surf(ConifSurf)
       evetrPrm%emis = emis(ConifSurf)
@@ -5176,7 +5176,7 @@ CONTAINS
       evetrPrm%waterdist%to_grass = WaterDist(5, ConifSurf)
       evetrPrm%waterdist%to_bsoil = WaterDist(6, ConifSurf)
       evetrPrm%waterdist%to_water = WaterDist(7, ConifSurf)
-      evetrPrm%waterdist%to_soilstore = WaterDist(8, ConifSurf)
+      evetrPrm%waterdist%to_soilstore_or_runoff = WaterDist(8, ConifSurf)
 
       grassPrm%sfr = sfr_surf(GrassSurf)
       grassPrm%emis = emis(GrassSurf)
@@ -5235,7 +5235,7 @@ CONTAINS
       grassPrm%waterdist%to_grass = WaterDist(5, GrassSurf)
       grassPrm%waterdist%to_bsoil = WaterDist(6, GrassSurf)
       grassPrm%waterdist%to_water = WaterDist(7, GrassSurf)
-      grassPrm%waterdist%to_soilstore = WaterDist(8, GrassSurf)
+      grassPrm%waterdist%to_soilstore_or_runoff = WaterDist(8, GrassSurf)
 
       bsoilPrm%sfr = sfr_surf(BSoilSurf)
       bsoilPrm%emis = emis(BSoilSurf)
@@ -5281,7 +5281,7 @@ CONTAINS
       bsoilPrm%waterdist%to_grass = WaterDist(5, BSoilSurf)
       bsoilPrm%waterdist%to_bsoil = WaterDist(6, BSoilSurf)
       bsoilPrm%waterdist%to_water = WaterDist(7, BSoilSurf)
-      bsoilPrm%waterdist%to_soilstore = WaterDist(8, BSoilSurf)
+      bsoilPrm%waterdist%to_soilstore_or_runoff = WaterDist(8, BSoilSurf)
 
       waterPrm%sfr = sfr_surf(WaterSurf)
       waterPrm%emis = emis(WaterSurf)
@@ -5375,58 +5375,28 @@ CONTAINS
       phenState%StoreDrainPrm = StoreDrainPrm
 
       ! assign stebbs values
-      ! parameters - invariant during the simulation
-      stebbsPrm%WallInternalConvectionCoefficient = WallInternalConvectionCoefficient
-      stebbsPrm%InternalMassConvectionCoefficient = InternalMassConvectionCoefficient
-      stebbsPrm%FloorInternalConvectionCoefficient = FloorInternalConvectionCoefficient
-      stebbsPrm%WindowInternalConvectionCoefficient = WindowInternalConvectionCoefficient
-      stebbsPrm%WallExternalConvectionCoefficient = WallExternalConvectionCoefficient
-      stebbsPrm%WindowExternalConvectionCoefficient = WindowExternalConvectionCoefficient
-      stebbsPrm%GroundDepth = GroundDepth
-      stebbsPrm%ExternalGroundConductivity = ExternalGroundConductivity
-      stebbsPrm%IndoorAirDensity = IndoorAirDensity
-      stebbsPrm%IndoorAirCp = IndoorAirCp
-      stebbsPrm%WallBuildingViewFactor = WallBuildingViewFactor
-      stebbsPrm%WallGroundViewFactor = WallGroundViewFactor
-      stebbsPrm%WallSkyViewFactor = WallSkyViewFactor
-      stebbsPrm%MetabolicRate = MetabolicRate
-      stebbsPrm%LatentSensibleRatio = LatentSensibleRatio
-      stebbsPrm%ApplianceRating = ApplianceRating
-      stebbsPrm%TotalNumberofAppliances = TotalNumberofAppliances
-      stebbsPrm%ApplianceUsageFactor = ApplianceUsageFactor
-      stebbsPrm%HeatingSystemEfficiency = HeatingSystemEfficiency
-      stebbsPrm%MaxCoolingPower = MaxCoolingPower
-      stebbsPrm%CoolingSystemCOP = CoolingSystemCOP
-      stebbsPrm%VentilationRate = VentilationRate
-      stebbsPrm%WaterTankWallThickness = WaterTankWallThickness
-      stebbsPrm%WaterTankSurfaceArea = WaterTankSurfaceArea
-      stebbsPrm%HotWaterHeatingSetpointTemperature = HotWaterHeatingSetpointTemperature
-      stebbsPrm%HotWaterTankWallEmissivity = HotWaterTankWallEmissivity
-      stebbsPrm%DHWVesselWallThickness = DHWVesselWallThickness
-      stebbsPrm%DHWWaterVolume = DHWWaterVolume
-      stebbsPrm%DHWSurfaceArea = DHWSurfaceArea
-      stebbsPrm%DHWVesselEmissivity = DHWVesselEmissivity
-      stebbsPrm%HotWaterFlowRate = HotWaterFlowRate
-      stebbsPrm%DHWDrainFlowRate = DHWDrainFlowRate
-      stebbsPrm%DHWSpecificHeatCapacity = DHWSpecificHeatCapacity
-      stebbsPrm%HotWaterTankSpecificHeatCapacity = HotWaterTankSpecificHeatCapacity
-      stebbsPrm%DHWVesselSpecificHeatCapacity = DHWVesselSpecificHeatCapacity
-      stebbsPrm%DHWDensity = DHWDensity
-      stebbsPrm%HotWaterTankWallDensity = HotWaterTankWallDensity
-      stebbsPrm%DHWVesselDensity = DHWVesselDensity
-      stebbsPrm%HotWaterTankBuildingWallViewFactor = HotWaterTankBuildingWallViewFactor
-      stebbsPrm%HotWaterTankInternalMassViewFactor = HotWaterTankInternalMassViewFactor
-      stebbsPrm%HotWaterTankWallConductivity = HotWaterTankWallConductivity
-      stebbsPrm%HotWaterTankInternalWallConvectionCoefficient = HotWaterTankInternalWallConvectionCoefficient
-      stebbsPrm%HotWaterTankExternalWallConvectionCoefficient = HotWaterTankExternalWallConvectionCoefficient
-      stebbsPrm%DHWVesselWallConductivity = DHWVesselWallConductivity
-      stebbsPrm%DHWVesselInternalWallConvectionCoefficient = DHWVesselInternalWallConvectionCoefficient
-      stebbsPrm%DHWVesselExternalWallConvectionCoefficient = DHWVesselExternalWallConvectionCoefficient
-      stebbsPrm%DHWVesselWallEmissivity = DHWVesselWallEmissivity
-      stebbsPrm%HotWaterHeatingEfficiency = HotWaterHeatingEfficiency
-      stebbsPrm%MinimumVolumeOfDHWinUse = MinimumVolumeOfDHWinUse
-
-      ! states - updated during the simulation
+      stebbsState%WallInternalConvectionCoefficient = WallInternalConvectionCoefficient
+      stebbsState%InternalMassConvectionCoefficient = InternalMassConvectionCoefficient
+      stebbsState%FloorInternalConvectionCoefficient = FloorInternalConvectionCoefficient
+      stebbsState%WindowInternalConvectionCoefficient = WindowInternalConvectionCoefficient
+      stebbsState%WallExternalConvectionCoefficient = WallExternalConvectionCoefficient
+      stebbsState%WindowExternalConvectionCoefficient = WindowExternalConvectionCoefficient
+      stebbsState%GroundDepth = GroundDepth
+      stebbsState%ExternalGroundConductivity = ExternalGroundConductivity
+      stebbsState%IndoorAirDensity = IndoorAirDensity
+      stebbsState%IndoorAirCp = IndoorAirCp
+      stebbsState%WallBuildingViewFactor = WallBuildingViewFactor
+      stebbsState%WallGroundViewFactor = WallGroundViewFactor
+      stebbsState%WallSkyViewFactor = WallSkyViewFactor
+      stebbsState%MetabolicRate = MetabolicRate
+      stebbsState%LatentSensibleRatio = LatentSensibleRatio
+      stebbsState%ApplianceRating = ApplianceRating
+      stebbsState%TotalNumberofAppliances = TotalNumberofAppliances
+      stebbsState%ApplianceUsageFactor = ApplianceUsageFactor
+      stebbsState%HeatingSystemEfficiency = HeatingSystemEfficiency
+      stebbsState%MaxCoolingPower = MaxCoolingPower
+      stebbsState%CoolingSystemCOP = CoolingSystemCOP
+      stebbsState%VentilationRate = VentilationRate
       stebbsState%IndoorAirStartTemperature = IndoorAirStartTemperature
       stebbsState%IndoorMassStartTemperature = IndoorMassStartTemperature
       stebbsState%WallIndoorSurfaceTemperature = WallIndoorSurfaceTemperature
@@ -5438,10 +5408,87 @@ CONTAINS
       stebbsState%WaterTankTemperature = WaterTankTemperature
       stebbsState%InternalWallWaterTankTemperature = InternalWallWaterTankTemperature
       stebbsState%ExternalWallWaterTankTemperature = ExternalWallWaterTankTemperature
+      stebbsState%WaterTankWallThickness = WaterTankWallThickness
       stebbsState%MainsWaterTemperature = MainsWaterTemperature
+      stebbsState%WaterTankSurfaceArea = WaterTankSurfaceArea
+      stebbsState%HotWaterHeatingSetpointTemperature = HotWaterHeatingSetpointTemperature
+      stebbsState%HotWaterTankWallEmissivity = HotWaterTankWallEmissivity
       stebbsState%DomesticHotWaterTemperatureInUseInBuilding = DomesticHotWaterTemperatureInUseInBuilding
       stebbsState%InternalWallDHWVesselTemperature = InternalWallDHWVesselTemperature
       stebbsState%ExternalWallDHWVesselTemperature = ExternalWallDHWVesselTemperature
+      stebbsState%DHWVesselWallThickness = DHWVesselWallThickness
+      stebbsState%DHWWaterVolume = DHWWaterVolume
+      stebbsState%DHWSurfaceArea = DHWSurfaceArea
+      stebbsState%DHWVesselEmissivity = DHWVesselEmissivity
+      stebbsState%HotWaterFlowRate = HotWaterFlowRate
+      stebbsState%DHWDrainFlowRate = DHWDrainFlowRate
+      stebbsState%DHWSpecificHeatCapacity = DHWSpecificHeatCapacity
+      stebbsState%HotWaterTankSpecificHeatCapacity = HotWaterTankSpecificHeatCapacity
+      stebbsState%DHWVesselSpecificHeatCapacity = DHWVesselSpecificHeatCapacity
+      stebbsState%DHWDensity = DHWDensity
+      stebbsState%HotWaterTankWallDensity = HotWaterTankWallDensity
+      stebbsState%DHWVesselDensity = DHWVesselDensity
+      stebbsState%HotWaterTankBuildingWallViewFactor = HotWaterTankBuildingWallViewFactor
+      stebbsState%HotWaterTankInternalMassViewFactor = HotWaterTankInternalMassViewFactor
+      stebbsState%HotWaterTankWallConductivity = HotWaterTankWallConductivity
+      stebbsState%HotWaterTankInternalWallConvectionCoefficient = HotWaterTankInternalWallConvectionCoefficient
+      stebbsState%HotWaterTankExternalWallConvectionCoefficient = HotWaterTankExternalWallConvectionCoefficient
+      stebbsState%DHWVesselWallConductivity = DHWVesselWallConductivity
+      stebbsState%DHWVesselInternalWallConvectionCoefficient = DHWVesselInternalWallConvectionCoefficient
+      stebbsState%DHWVesselExternalWallConvectionCoefficient = DHWVesselExternalWallConvectionCoefficient
+      stebbsState%DHWVesselWallEmissivity = DHWVesselWallEmissivity
+      stebbsState%HotWaterHeatingEfficiency = HotWaterHeatingEfficiency
+      stebbsState%MinimumVolumeOfDHWinUse = MinimumVolumeOfDHWinUse
+
+      ! assign stebbs building parameters
+      ! bldgState%BuildingCode
+      ! bldgState%BuildingClass
+      ! bldgState%BuildingType
+      ! bldgState%BuildingName
+      bldgState%BuildingCount = BuildingCount
+      bldgState%Occupants = Occupants
+      ! bldgState%hhs0 = hhs0
+      ! bldgState%age_0_4 = age_0_4
+      ! bldgState%age_5_11 = age_5_11
+      ! bldgState%age_12_18 = age_12_18
+      ! bldgState%age_19_64 = age_19_64
+      ! bldgState%age_65plus = age_65plus
+      bldgState%stebbs_Height = stebbs_Height
+      bldgState%FootprintArea = FootprintArea
+      bldgState%WallExternalArea = WallExternalArea
+      bldgState%RatioInternalVolume = RatioInternalVolume
+      bldgState%WWR = WWR
+      bldgState%WallThickness = WallThickness
+      bldgState%WallEffectiveConductivity = WallEffectiveConductivity
+      bldgState%WallDensity = WallDensity
+      bldgState%WallCp = WallCp
+      bldgState%Wallx1 = Wallx1
+      bldgState%WallExternalEmissivity = WallExternalEmissivity
+      bldgState%WallInternalEmissivity = WallInternalEmissivity
+      bldgState%WallTransmissivity = WallTransmissivity
+      bldgState%WallAbsorbtivity = WallAbsorbtivity
+      bldgState%WallReflectivity = WallReflectivity
+      bldgState%FloorThickness = FloorThickness
+      bldgState%GroundFloorEffectiveConductivity = GroundFloorEffectiveConductivity
+      bldgState%GroundFloorDensity = GroundFloorDensity
+      bldgState%GroundFloorCp = GroundFloorCp
+      bldgState%WindowThickness = WindowThickness
+      bldgState%WindowEffectiveConductivity = WindowEffectiveConductivity
+      bldgState%WindowDensity = WindowDensity
+      bldgState%WindowCp = WindowCp
+      bldgState%WindowExternalEmissivity = WindowExternalEmissivity
+      bldgState%WindowInternalEmissivity = WindowInternalEmissivity
+      bldgState%WindowTransmissivity = WindowTransmissivity
+      bldgState%WindowAbsorbtivity = WindowAbsorbtivity
+      bldgState%WindowReflectivity = WindowReflectivity
+      bldgState%InternalMassDensity = InternalMassDensity
+      bldgState%InternalMassCp = InternalMassCp
+      bldgState%InternalMassEmissivity = InternalMassEmissivity
+      bldgState%MaxHeatingPower = MaxHeatingPower
+      bldgState%WaterTankWaterVolume = WaterTankWaterVolume
+      bldgState%MaximumHotWaterHeatingPower = MaximumHotWaterHeatingPower
+      bldgState%HeatingSetpointTemperature = HeatingSetpointTemperature
+      bldgState%CoolingSetpointTemperature = CoolingSetpointTemperature
 
       ! ! transfer states into modState
       mod_State%anthroemisState = anthroEmisState
@@ -5451,7 +5498,7 @@ CONTAINS
       mod_State%snowState = snowState
       mod_State%phenState = phenState
       mod_State%stebbsState = stebbsState
-      ! mod_State%bldgState = bldgState
+      mod_State%bldgState = bldgState
 
       ! ############# evaluation for DTS variables (end) #############
       CALL siteInfo%ALLOCATE(nlayer)
@@ -5472,59 +5519,6 @@ CONTAINS
       siteInfo%lc_water = waterPrm
       CALL siteInfo%cal_surf(config)
 
-      ! assign stebbs parameters
-      siteInfo%stebbs = stebbsPrm
-
-      ! assign stebbs building parameters
-      ! bldgState%BuildingCode
-      ! bldgState%BuildingClass
-      ! bldgState%BuildingType
-      ! bldgState%BuildingName
-      building_archtype%BuildingCount = BuildingCount
-      building_archtype%Occupants = Occupants
-      building_archtype%hhs0 = hhs0
-      building_archtype%age_0_4 = age_0_4
-      building_archtype%age_5_11 = age_5_11
-      building_archtype%age_12_18 = age_12_18
-      building_archtype%age_19_64 = age_19_64
-      building_archtype%age_65plus = age_65plus
-      building_archtype%stebbs_Height = stebbs_Height
-      building_archtype%FootprintArea = FootprintArea
-      building_archtype%WallExternalArea = WallExternalArea
-      building_archtype%RatioInternalVolume = RatioInternalVolume
-      building_archtype%WWR = WWR
-      building_archtype%WallThickness = WallThickness
-      building_archtype%WallEffectiveConductivity = WallEffectiveConductivity
-      building_archtype%WallDensity = WallDensity
-      building_archtype%WallCp = WallCp
-      building_archtype%Wallx1 = Wallx1
-      building_archtype%WallExternalEmissivity = WallExternalEmissivity
-      building_archtype%WallInternalEmissivity = WallInternalEmissivity
-      building_archtype%WallTransmissivity = WallTransmissivity
-      building_archtype%WallAbsorbtivity = WallAbsorbtivity
-      building_archtype%WallReflectivity = WallReflectivity
-      building_archtype%FloorThickness = FloorThickness
-      building_archtype%GroundFloorEffectiveConductivity = GroundFloorEffectiveConductivity
-      building_archtype%GroundFloorDensity = GroundFloorDensity
-      building_archtype%GroundFloorCp = GroundFloorCp
-      building_archtype%WindowThickness = WindowThickness
-      building_archtype%WindowEffectiveConductivity = WindowEffectiveConductivity
-      building_archtype%WindowDensity = WindowDensity
-      building_archtype%WindowCp = WindowCp
-      building_archtype%WindowExternalEmissivity = WindowExternalEmissivity
-      building_archtype%WindowInternalEmissivity = WindowInternalEmissivity
-      building_archtype%WindowTransmissivity = WindowTransmissivity
-      building_archtype%WindowAbsorbtivity = WindowAbsorbtivity
-      building_archtype%WindowReflectivity = WindowReflectivity
-      building_archtype%InternalMassDensity = InternalMassDensity
-      building_archtype%InternalMassCp = InternalMassCp
-      building_archtype%InternalMassEmissivity = InternalMassEmissivity
-      building_archtype%MaxHeatingPower = MaxHeatingPower
-      building_archtype%WaterTankWaterVolume = WaterTankWaterVolume
-      building_archtype%MaximumHotWaterHeatingPower = MaximumHotWaterHeatingPower
-      building_archtype%HeatingSetpointTemperature = HeatingSetpointTemperature
-      building_archtype%CoolingSetpointTemperature = CoolingSetpointTemperature
-      siteInfo%building_archtype = building_archtype
       !   allocate output arrays
 
       Diagnose = 0

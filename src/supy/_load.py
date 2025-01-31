@@ -808,6 +808,42 @@ def load_SUEWS_Forcing_met_df_pattern(path_input, file_pattern):
     return df_forcing_met
 
 
+
+def load_SUEWS_Forcing_met_df_yaml(path_forcing):
+    from pathlib import Path
+    from .util._io import read_suews
+
+    if isinstance(path_forcing, (str, Path)):
+        path_forcing = Path(path_forcing).resolve()
+        df_forcing_met = read_suews(path_forcing)
+    elif isinstance(path_forcing, list):
+        path_forcing = [Path(p).resolve() for p in path_forcing]
+        df_forcing_met = pd.concat([read_suews(fn) for fn in path_forcing])
+    else:
+        import pdb; pdb.set_trace()
+    # `drop_duplicates` in case some duplicates mixed
+    df_forcing_met = df_forcing_met.drop_duplicates()
+    # drop `isec`: redundant for this dataframe
+    col_suews_met_forcing = list(dict_var_type_forcing.keys())[:-1]
+    # rename these columns to match variables via the driver interface
+    df_forcing_met.columns = col_suews_met_forcing
+
+    # convert unit from kPa to hPa
+    df_forcing_met["pres"] *= 10
+
+    # add `isec` for WRF-SUEWS interface
+    df_forcing_met["isec"] = 0
+
+    # set correct data types
+    df_forcing_met[["iy", "id", "it", "imin", "isec"]] = df_forcing_met[
+        ["iy", "id", "it", "imin", "isec"]
+    ].astype(np.int64)
+
+    df_forcing_met = set_index_dt(df_forcing_met)
+
+    return df_forcing_met
+
+
 # TODO: add support for loading multi-grid forcing datasets
 # def load_SUEWS_Forcing_df(dir_site, ser_mod_cfg, df_state_init):
 #     pass
@@ -1242,9 +1278,10 @@ def load_SUEWS_SurfaceChar_df(path_input):
         elif var == "waterdist":
             dim_x = dict_var_ndim[var]  # [-1::-1]
             val_x0 = val.reshape((len_grid, 9, 6))
-            # directly load the values for commen land covers
+            # directly load the values for common land covers
             val_x1 = val_x0[:, :7]
             # process the ToSoilStore and ToRunoff entries
+            # since only one of ToSoilStore and ToRunoff can be non-zero for each row, we sum them up and combine them
             val_x2 = val_x0[:, 7:].reshape(len_grid, 6, 2).sum(axis=2).reshape(-1, 1, 6)
             # combine valuees of common land convers and special cases
             val_x = np.hstack((val_x1, val_x2))
@@ -1332,6 +1369,29 @@ def load_SUEWS_dict_ModConfig(path_runcontrol, dict_default=dict_RunControl_defa
         / dict_RunControl["fileinputpath"]
         / "SUEWS_SPARTACUS.nml"
     )
+
+
+    # load STEBBS-specific variables:
+    if dict_RunControl["stebbsmethod"] == 2:
+        path_stebbs_typologies = (
+            path_runcontrol.parent
+            / dict_RunControl["fileinputpath"]
+            / "stebbs_building_typologies.nml"
+        )
+        path_stebbs_general = (
+            path_runcontrol.parent
+            / dict_RunControl["fileinputpath"]
+            / "stebbs_general_params.nml"
+        )
+    else:
+        path_stebbs_typologies = (
+            trv_supy_module / "sample_run" / "Input"
+            / "test_stebbs_building_typologies.nml"
+        )
+        path_stebbs_general = (
+            trv_supy_module / "sample_run" / "Input"
+            / "test_stebbs_general_params.nml"
+        )
 
     dict_RunControl_x = {k[0]: v for k, v in load_SUEWS_nml(path_spartacus).items()}
     dict_RunControl.update(dict_RunControl_x)

@@ -1,0 +1,125 @@
+name: build-wheels
+
+on:
+  push:
+    paths: # Push events containing matching files
+      - "src/suews/**"
+      - "src/supy/**"
+      - "src/supy_driver/**"
+      - ".github/workflows/test-meson.yml"
+
+  pull_request:
+    paths: # PR events containing matching files
+      - "src/suews/**"
+      - "src/supy/**"
+      - "src/supy_driver/**"
+      - ".github/workflows/test-meson.yml"
+
+jobs:
+  test-meson:
+    name: Build wheels for ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-20.04
+          - windows-2019
+          - macos-11 # Intel build runner
+          - macos-14 # Apple Silicon build runner
+
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+
+    - name: Install Meson and Ninja
+      run: python3 -m pip install meson ninja f90wrap build
+
+    # # remote debugging
+    # - name: Setup upterm session
+    #   uses: lhotari/action-upterm@v1
+
+    # macOS make is too old
+    - if: runner.os == 'macOS'
+      run: |
+        brew install make automake libtool
+        which pipx || brew install pipx && pipx ensurepath
+        brew install gfortran gnu-sed
+        brew unlink gfortran
+        brew link gfortran
+
+    - name: check git info
+      run: |
+        git tag -l
+        git status
+        git describe --tags --dirty --match "2[0-9]*"
+
+    # - name: test meson.build
+    #   run: |
+    #     meson setup build
+    #     meson compile -C build
+    # - name: test building wheels
+    #   run: |
+    #     python3 -m build --wheel
+
+    - name: Build wheels
+      uses: pypa/cibuildwheel@v2.16.5
+      env:
+        # SETUPTOOLS_USE_DISTUTILS: stdlib
+        CC: gcc
+        CXX: g++
+        CIBW_BEFORE_ALL_MACOS: "brew install gfortran gnu-sed && brew unlink gfortran && brew link gfortran"
+      with:
+        # package-dir: ./src/supy
+        output-dir: wheelhouse
+        # config-file: ./src/supy/pyproject.toml
+
+    # - name: Setup tmate session for debugging
+    #   if: failure()
+    #   uses: mxschmitt/action-tmate@v3
+    #   timeout-minutes: 5
+
+    # - name: upload wheels
+    #   uses: actions/upload-artifact@v3
+    #   with:
+    #     name: python-package-distributions
+    #     path: ./wheelhouse/*.whl
+
+
+
+  # deploy:
+  #   name: Publish to (Test)PyPI
+  #   needs:
+  #     - build_wheels
+  #   runs-on: ubuntu-latest
+
+  #   steps:
+  #     - name: Download all the dists
+  #       uses: actions/download-artifact@v3
+  #       with:
+  #         name: python-package-distributions
+  #         path: dist/
+
+  #     - name: Publish distribution to Test PyPI
+  #       uses: pypa/gh-action-pypi-publish@release/v1.5
+  #       with:
+  #         packages_dir: dist/
+  #         verbose: true
+  #         skip_existing: true
+  #         password: ${{ secrets.TEST_PYPI_API_TOKEN }}
+  #         repository_url: https://test.pypi.org/legacy/
+
+  #     - name: Publish distribution to PyPI
+  #       if: startsWith(github.ref, 'refs/tags')
+  #       uses: pypa/gh-action-pypi-publish@release/v1.5
+  #       with:
+  #         packages_dir: dist/
+  #         verbose: true
+  #         skip_existing: true
+  #         password: ${{ secrets.PYPI_API_TOKEN }}

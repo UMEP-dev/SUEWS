@@ -21,7 +21,6 @@ from heapq import heappop, heappush
 from pathlib import Path
 from shutil import copyfile, move, rmtree
 from tempfile import TemporaryDirectory
-import shutil
 
 import f90nml
 import numpy as np
@@ -475,15 +474,7 @@ def convert_utf8(file_src):
                 e.write(text)
 
             os.remove(path_src)  # remove old encoding file
-            try:
-                path_dst.rename(path_src)
-            except OSError as e:
-                if e.errno == 18:
-                    logger_supy.error("Invalid cross-link device")
-                    shutil.copy2(path_dst, path_src)
-                    os.remove(path_dst)
-                else:
-                    raise e
+            path_dst.rename(path_src)
 
             # os.rename(trgfile, srcfile) # rename new encoding
         except UnicodeDecodeError:

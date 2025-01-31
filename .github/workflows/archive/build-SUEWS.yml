@@ -1,0 +1,323 @@
+name: build and check
+
+on:
+  schedule:
+    # * is a special character in YAML so you have to quote this string
+    # * the cron syntax is: https://en.wikipedia.org/wiki/Cron#CRON_expression
+    # latest-dev of SUEWS is a weekly build
+    - cron:  '30 5 * * 6'
+  # File paths to consider in the event. Optional; defaults to all
+  push:
+    branches:    # Array of patterns that match refs/heads
+      - '**'
+    #   - master     # Push events on master branch
+    #   - test-dev
+    #     - 'releases/*' # Push events to branches matching refs/heads/releases/*
+    #     - '!refs/pull/*'
+    tags-ignore:
+      - latest-dev # ignore this tag as it is created by this workflow
+#     tags:        # Array of patterns that match refs/tags.
+    #   - supy_v*    # Push events to supy-driver
+    #   - v*         # Push events to SUEWS
+    paths: # Push events containing matching files
+      - "src/suews/*"
+      - "src/supy/*"
+      - ".github/workflows/build-SUEWS.yml"
+      - 'Test/BaseRun/*'
+
+
+jobs:
+  # test-suews:
+  #   runs-on: macos-latest
+
+  #   steps:
+  #     - uses: actions/checkout@v2
+  #       with:
+  #         submodules: true
+  #         token: ${{ secrets.PAT }}
+  #         fetch-depth: 0 # to get all tags
+
+  #     - name: Setup Python for use with actions
+  #       uses: actions/setup-python@v2
+  #       with:
+  #         python-version: "3.9" # Version range or exact version of a Python version to use, using semvers version range syntax.
+  #         architecture: "x64" # (x64 or x86)
+
+  #     - name: fix gfortran on mac
+  #       run: |
+  #         echo $PATH
+  #         which gfortran-11
+  #         ln -sf "$(which gfortran-11)" /usr/local/bin/gfortran
+  #         which gfortran
+  #         gfortran --version
+
+  #     - name: build and test
+  #       run: |
+  #         # `make release` is needed to install some python packages
+  #         make release
+  #         make test
+
+  #     - name: Upload diff results from test
+  #       if: ${{ always() }}
+  #       uses: actions/upload-artifact@v3
+  #       with:
+  #         name: diff csv
+  #         path: Test/BaseRun/**/*diff.csv
+
+  # build-binaries:
+  #   needs: test-suews
+
+  #   strategy:
+  #     matrix:
+  #       py: ["3.10"]
+  #       os: [macOS-latest, windows-latest, ubuntu-latest]
+
+  #   runs-on: ${{ matrix.os }}
+  #   steps:
+  #     - uses: actions/checkout@v2
+  #       with:
+  #         submodules: true
+  #         token: ${{ secrets.PAT }}
+  #         fetch-depth: 0 # to get all tags
+
+  #     - name: fix gfortran on mac
+  #       if: startsWith(matrix.os, 'macOS')
+  #       run: |
+  #         echo $PATH
+  #         which gfortran-10
+  #         ln -sf "$(which gfortran-10)" /usr/local/bin/gfortran
+  #         which gfortran
+  #         gfortran --version
+
+  #     - name: set up py${{ matrix.py }}
+  #       uses: actions/setup-python@v2
+  #       with:
+  #         python-version: ${{ matrix.py }} # Version range or exact version of a Python version to use, using semvers version range syntax.
+  #         architecture: "x64" # (x64 or x86)
+
+  #     - name: build binary
+  #       run: |
+  #         make release
+
+  #     - name: Store the ${{ matrix.os }} release
+  #       uses: actions/upload-artifact@v2
+  #       with:
+  #         name: SUEWS-release
+  #         path: Release/SUEWS_*_*.zip
+
+
+
+
+  build_wheels:
+      name: Build wheels on ${{ matrix.os }}
+      # needs:
+        # - test-suews
+      runs-on: ${{ matrix.os }}
+      strategy:
+        fail-fast: false
+        matrix:
+          os: [ubuntu-20.04, windows-2019, macos-11]
+          # os: [windows-2019]
+
+      steps:
+        - uses: actions/checkout@v3
+          with:
+            submodules: true
+            token: ${{ secrets.PAT }}
+            fetch-depth: 0 # to get all tags
+
+        # # remote debugging
+        # - name: Setup upterm session
+        #   uses: lhotari/action-upterm@v1
+
+        - name: check git
+          run: |
+            git describe --tags --always --dirty
+            git status
+
+        # - name: Build wheels
+        #   run: pipx run cibuildwheel==2.9.0 --output-dir wheelhouse --config-file ./supy-driver/pyproject.toml ./supy-driver
+
+        - name: Build wheels
+          uses: pypa/cibuildwheel@v2.9.0
+          # env:
+            # SETUPTOOLS_ENABLE_FEATURES: legacy-editable
+          with:
+            package-dir: ./supy
+            output-dir: wheelhouse
+            config-file: ./supy/pyproject.toml
+
+        - name: check git
+          run: |
+            git describe --tags --always --dirty
+            git status
+
+        - uses: actions/upload-artifact@v3
+          with:
+            name: python-package-distributions
+            path: ./wheelhouse/*.whl
+
+
+  deploy:
+    name: Publish 🐍📦 to (Test)PyPI
+    needs:
+      - build_wheels
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download all the dists
+        uses: actions/download-artifact@v3
+        with:
+          name: python-package-distributions
+          path: dist/
+
+      - name: Publish distribution 📦 to Test PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1.5
+        with:
+          packages_dir: dist/
+          verbose: true
+          skip_existing: true
+          password: ${{ secrets.TEST_PYPI_API_TOKEN }}
+          repository_url: https://test.pypi.org/legacy/
+
+      - name: Publish distribution 📦 to PyPI
+        if: startsWith(github.ref, 'refs/tags')
+        uses: pypa/gh-action-pypi-publish@release/v1.5
+        with:
+          packages_dir: dist/
+          verbose: true
+          skip_existing: true
+          password: ${{ secrets.PYPI_API_TOKEN }}
+
+  # release-github:
+  #   name: Release on GitHub
+  #   needs:
+  #     - build-binaries
+  #     - build_wheels # only run this job if the build_wheels job was successful to avoid polluting the release with broken wheels
+  #   runs-on: ubuntu-latest
+
+  #   steps:
+  #     - name: Download all binaries
+  #       uses: actions/download-artifact@v3
+  #       with:
+  #         name: SUEWS-release
+  #         path: SUEWS-release/
+
+  #     - name: Download all binaries
+  #       uses: actions/download-artifact@v3
+  #       with:
+  #         name: python-package-distributions
+  #         path: wheels/
+
+  #     - name: Automatic Releases
+  #       uses: marvinpinto/action-automatic-releases@v1.2.1
+  #       with:
+  #         repo_token: "${{ secrets.PAT }}"
+  #         automatic_release_tag: "latest-dev"
+  #         prerelease: true
+  #         title: "Development Build"
+  #         files: |
+  #           SUEWS-release/SUEWS_*_*.zip
+  #           wheels/*.whl
+
+
+
+####################################################################################
+# archived workflows
+  # build-wheels-manylinux:
+  #   # needs: test-suews
+
+  #   runs-on: ubuntu-latest
+
+  #   strategy:
+  #     matrix:
+  #       manylinux-python-target:
+  #         # NOTE: Must be from this list:
+  #         # NOTE: $ docker run -it --rm quay.io/pypa/manylinux2014_x86_64
+  #         # NOTE:   ls -1 /opt/python
+  #         - cp310-cp310
+  #         # - cp39-cp39
+  #         # - cp38-cp38
+  #         # - cp37-cp37m
+
+  #   steps:
+  #     - uses: actions/checkout@v2
+  #       with:
+  #         submodules: true
+  #         token: ${{ secrets.PAT }}
+  #         fetch-depth: 0 # to get all tags
+
+  #     # # remote debugging
+  #     # - name: Setup upterm session
+  #     #   uses: lhotari/action-upterm@v1
+
+  #     # for debugging this:
+  #     # docker run -it -v $(pwd):/io --rm quay.io/pypa/manylinux2014_x86_64
+  #     - name: build for ${{ matrix.manylinux-python-target }}
+  #       run: |
+  #         docker run -v $(pwd):/io quay.io/pypa/manylinux2014_x86_64 bash -c \
+  #         "yum install glibc-static -y; cd /io/supy-driver; make suews"
+  #         docker run -v $(pwd):/io quay.io/pypa/manylinux2014_x86_64 bash -c \
+  #         "ln -sf /opt/python/${{ matrix.manylinux-python-target }}/bin/python /usr/bin/python; \
+  #         ln -sf /opt/python/${{ matrix.manylinux-python-target }}/bin/python /usr/local/bin/python; \
+  #         which python;\
+  #         python -m pip install -U pip pytest --user; \
+  #         cd /io/supy-driver; \
+  #         export SETUPTOOLS_ENABLE_FEATURES="legacy-editable"; \
+  #         echo $SETUPTOOLS_ENABLE_FEATURES; \
+  #         make test"
+
+  #     - name: Store ${{ matrix.manylinux-python-target }} binary wheel
+  #       uses: actions/upload-artifact@v2
+  #       with:
+  #         name: python-package-distributions
+  #         path: supy-driver/wheelhouse/
+
+  # build-wheels-mac_win:
+  #   needs: test-suews
+
+  #   strategy:
+  #     matrix:
+  #       py: ["3.10"]
+  #       # py: ["3.10", "3.9", "3.8", "3.7"]
+  #       os: [macOS-latest, windows-latest]
+  #       # os: [macOS-latest]
+  #       # os: [windows-latest]
+
+  #   runs-on: ${{ matrix.os }}
+  #   steps:
+  #     - uses: actions/checkout@v2
+  #       with:
+  #         submodules: true
+  #         token: ${{ secrets.PAT }}
+  #         fetch-depth: 0 # to get all tags
+
+  #     - name: mac specific settings
+  #       if: startsWith(matrix.os, 'macOS')
+  #       run: |
+  #         echo $PATH
+  #         which gfortran-10
+  #         ln -sf "$(which gfortran-10)" /usr/local/bin/gfortran
+  #         which gfortran
+  #         gfortran --version
+  #         export SETUPTOOLS_ENABLE_FEATURES="legacy-editable"
+
+  #     - name: set up py${{ matrix.py }}
+  #       uses: actions/setup-python@v2
+  #       with:
+  #         python-version: ${{ matrix.py }} # Version range or exact version of a Python version to use, using semvers version range syntax.
+  #         architecture: "x64" # (x64 or x86)
+
+  #     # # remote debugging
+  #     # - name: Setup upterm session
+  #     #   uses: lhotari/action-upterm@v1
+
+  #     - name: build supy-driver
+  #       run: |
+  #         make driver
+
+  #     - name: Store the ${{ matrix.py }} wheel
+  #       uses: actions/upload-artifact@v2
+  #       with:
+  #         name: python-package-distributions
+  #         path: supy-driver/dist/

@@ -1904,7 +1904,7 @@ CONTAINS
                                     psihath_top, psihath_mid, &
                                     z_top, z_mid, z_btm, &
                                     ch, c2h, &
-                                    zH_RSL, zd_RSL, L_MOD, beta, elm, Lc)
+                                    zH_RSL, zd_RSL, L_MOD_RSL, beta, elm, Lc)
          psihath_top = psihath_mid
          psihath_mid = psihath_btm
          psihath_array(iz - 2) = psihath_btm
@@ -1946,8 +1946,19 @@ CONTAINS
 
       ! betaN for trees found to be 0.3 and for urban 0.4 linearly interpolate between the two using surface fractions
       ! betaN2 = 0.30 + (1.-sfr_surf(ConifSurf) - sfr_surf(ConifSurf))*0.1
-      IF (PAI > 0) THEN
-         betaN2 = 0.30*sfr_tr/PAI + (PAI - sfr_tr)/PAI*0.4
+      !IF (PAI > 0) THEN
+      !   betaN2 = 0.30*sfr_tr/PAI + (PAI - sfr_tr)/PAI*0.4
+      !ELSE
+      !   betaN2 = 0.35
+      !END IF
+
+      ! ## Issue 338 - beta
+      IF (PAI >= 0.0 .AND. PAI <= 0.2) THEN
+         betaN2 = 0.24
+      ELSE IF (PAI > 0.2 .AND. PAI <= 0.4) THEN
+         betaN2 = 0.32
+      ELSE IF (PAI > 0.4 .AND. PAI <= 1.0) THEN
+         betaN2 = 0.40
       ELSE
          betaN2 = 0.35
       END IF

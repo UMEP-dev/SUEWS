@@ -727,7 +727,7 @@ CONTAINS
                ALLOCATE (cases(1))
 
                resolution = config%stebbsresolution
-               
+
                WRITE (*, *) 'Initialising STEBBS at resolution: ', resolution
                ALLOCATE (blds(1))
 

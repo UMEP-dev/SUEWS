@@ -725,9 +725,12 @@ CONTAINS
             !       !
             IF (flginit == 0) THEN
                ALLOCATE (cases(1))
-               WRITE (*, *) 'Initialising STEBBS'
+
+               resolution = config%stebbsresolution
+               
+               WRITE (*, *) 'Initialising STEBBS at resolution: ', resolution
                ALLOCATE (blds(1))
-               resolution = 1
+
                CALL gen_building(stebbsState, stebbsPrm, building_archtype, blds(1))
                ! call create_building(cases(1),blds(1),1)
 

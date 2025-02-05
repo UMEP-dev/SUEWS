@@ -3387,18 +3387,18 @@ class AnthropogenicEmissions(BaseModel):
 
 class Conductance(BaseModel):
     g_max: ValueWithDOI[float] = Field(
-        default=ValueWithDOI(40.0), description="Maximum conductance"
+        default=ValueWithDOI(3.5), description="Maximum conductance"
     )
     g_k: ValueWithDOI[float] = Field(
-        default=ValueWithDOI(0.6),
+        default=ValueWithDOI(200),
         description="Conductance parameter related to incoming solar radiation",
     )
     g_q_base: ValueWithDOI[float] = Field(
-        default=ValueWithDOI(0.03),
+        default=ValueWithDOI(0.13),
         description="Base value for conductance parameter related to vapor pressure deficit",
     )
     g_q_shape: ValueWithDOI[float] = Field(
-        default=ValueWithDOI(0.9),
+        default=ValueWithDOI(0.7),
         description="Shape parameter for conductance related to vapor pressure deficit",
     )
     g_t: ValueWithDOI[float] = Field(
@@ -3406,7 +3406,7 @@ class Conductance(BaseModel):
         description="Conductance parameter related to air temperature",
     )
     g_sm: ValueWithDOI[float] = Field(
-        default=ValueWithDOI(0.5),
+        default=ValueWithDOI(0.05),
         description="Conductance parameter related to soil moisture",
     )
     kmax: ValueWithDOI[float] = Field(
@@ -3416,19 +3416,19 @@ class Conductance(BaseModel):
         default=ValueWithDOI(1), description="Stomatal conductance model selection"
     )
     s1: ValueWithDOI[float] = Field(
-        default=ValueWithDOI(0.2), description="Soil moisture threshold parameter"
+        default=ValueWithDOI(5.56), description="Soil moisture threshold parameter"
     )
     s2: ValueWithDOI[float] = Field(
-        default=ValueWithDOI(0.5), description="Soil moisture threshold parameter"
+        default=ValueWithDOI(0.0), description="Soil moisture threshold parameter"
     )
     tl: ValueWithDOI[float] = Field(
-        default=ValueWithDOI(0.0), description="Air temperature threshold parameter"
+        default=ValueWithDOI(-10.0), description="Air temperature threshold parameter"
     )
     th: ValueWithDOI[float] = Field(
-        default=ValueWithDOI(50.0), description="Air temperature threshold parameter"
+        default=ValueWithDOI(55.0), description="Air temperature threshold parameter"
     )
 
-    ref: Optional[Reference] = Reference(ref="Test ref", DOI="test doi", ID="test id")
+    ref: Optional[Reference] = None
 
     def to_df_state(self, grid_id: int) -> pd.DataFrame:
         """

@@ -4939,7 +4939,10 @@ class SiteProperties(BaseModel):
 
 
 class Site(BaseModel):
-    name: str = Field(description="Name of the site", default="test site")
+    name: str = Field(
+        description="Name of the site",
+        default="sample site"
+    )
     gridiv: int = Field(
         description="Grid ID for identifying this site in multi-site simulations",
         default=1,

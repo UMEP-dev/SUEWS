@@ -3167,10 +3167,10 @@ class CO2Params(
         default=ValueWithDOI(0.0), description="CO2 point source emission factor"
     )
     ef_umolco2perj: ValueWithDOI[float] = Field(
-        default=ValueWithDOI(0.0), description="CO2 emission factor per unit of fuel"
+        default=ValueWithDOI(1.159), description="CO2 emission factor per unit of fuel"
     )
     enef_v_jkm: ValueWithDOI[float] = Field(
-        default=ValueWithDOI(0.0),
+        default=ValueWithDOI(3970000.0),
         description="CO2 emission factor per unit of vehicle distance",
     )
     fcef_v_kgkm: DayProfile = Field(
@@ -3178,28 +3178,28 @@ class CO2Params(
         default_factory=DayProfile,
     )
     frfossilfuel_heat: ValueWithDOI[float] = Field(
-        default=ValueWithDOI(0.0), description="Fraction of fossil fuel heat"
+        default=ValueWithDOI(0.7), description="Fraction of fossil fuel heat"
     )
     frfossilfuel_nonheat: ValueWithDOI[float] = Field(
-        default=ValueWithDOI(0.0), description="Fraction of fossil fuel non-heat"
+        default=ValueWithDOI(0.7), description="Fraction of fossil fuel non-heat"
     )
     maxfcmetab: ValueWithDOI[float] = Field(
-        default=ValueWithDOI(0.0), description="Maximum fuel consumption metabolic rate"
+        default=ValueWithDOI(280.0), description="Maximum fuel consumption metabolic rate"
     )
     maxqfmetab: ValueWithDOI[float] = Field(
-        default=ValueWithDOI(0.0), description="Maximum heat production metabolic rate"
+        default=ValueWithDOI(175.0), description="Maximum heat production metabolic rate"
     )
     minfcmetab: ValueWithDOI[float] = Field(
-        default=ValueWithDOI(0.0), description="Minimum fuel consumption metabolic rate"
+        default=ValueWithDOI(120.0), description="Minimum fuel consumption metabolic rate"
     )
     minqfmetab: ValueWithDOI[float] = Field(
-        default=ValueWithDOI(0.0), description="Minimum heat production metabolic rate"
+        default=ValueWithDOI(75.0), description="Minimum heat production metabolic rate"
     )
     trafficrate: DayProfile = Field(
         description="Traffic rate", default_factory=DayProfile
     )
     trafficunits: ValueWithDOI[float] = Field(
-        default=ValueWithDOI(0.0), description="Traffic units"
+        default=ValueWithDOI(1.0), description="Traffic units"
     )
     traffprof_24hr: HourlyProfile = Field(
         description="24-hour profile of traffic rate", default_factory=HourlyProfile

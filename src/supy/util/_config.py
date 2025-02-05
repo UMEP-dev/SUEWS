@@ -2911,16 +2911,16 @@ class IrrigationParams(
     BaseModel
 ):  # TODO: May need to add ValueWithDOI to the profiles here
     h_maintain: ValueWithDOI[float] = Field(
-        default=ValueWithDOI(0.5), description="Soil moisture threshold for irrigation"
+        default=ValueWithDOI(-999), description="Soil moisture threshold for irrigation"
     )
     faut: ValueWithDOI[float] = Field(
         default=ValueWithDOI(0.0), description="Fraction of automatic irrigation"
     )
     ie_start: ValueWithDOI[float] = Field(
-        default=ValueWithDOI(0.0), description="Start time of irrigation (hour)"
+        default=ValueWithDOI(1.0), description="Start time of irrigation (hour)"
     )
     ie_end: ValueWithDOI[float] = Field(
-        default=ValueWithDOI(0.0), description="End time of irrigation (hour)"
+        default=ValueWithDOI(366.0), description="End time of irrigation (hour)"
     )
     internalwateruse_h: ValueWithDOI[float] = Field(
         default=ValueWithDOI(0.0), description="Internal water use per hour"

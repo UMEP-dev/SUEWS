@@ -1814,7 +1814,7 @@ SUBROUTINE reinitialiseTemperatures
 END SUBROUTINE reinitialiseTemperatures
 
 MODULE stebbs_building
-   CONTAINS
+CONTAINS
    SUBROUTINE gen_building(stebbsState, stebbsPrm, building_archtype, self)
 
       USE SUEWS_DEF_DTS, ONLY: BUILDING_ARCHETYPE_PRM, STEBBS_STATE, STEBBS_PRM, LBM
@@ -1908,26 +1908,26 @@ MODULE stebbs_building
       self%Vindoormass = self%Vair_ind*self%ratioInternalVolume ! # Multiplied by factor that accounts for internal mass as proportion of total air volume
       self%Aindoormass = 6*(self%Vindoormass**(2./3.)) ! # Assumed internal mass as a cube
       self%h_i = (/self%conv_coeff_intwallroof, self%conv_coeff_indoormass, &
-                  self%conv_coeff_intgroundfloor, self%conv_coeff_intwindow/)
+                   self%conv_coeff_intgroundfloor, self%conv_coeff_intwindow/)
 
       self%h_o = (/self%conv_coeff_extwallroof, self%conv_coeff_extwindow/)
       self%k_eff = (/self%conductivity_wallroof, self%conductivity_groundfloor, &
                      self%conductivity_window, self%conductivity_ground/)
 
       self%rho = (/self%density_wallroof, self%density_groundfloor, &
-                  self%density_window, self%density_indoormass, &
-                  self%density_air_ind/)
+                   self%density_window, self%density_indoormass, &
+                   self%density_air_ind/)
       self%Cp = (/self%cp_wallroof, self%cp_groundfloor, self%cp_window, &
                   self%cp_indoormass, self%cp_air_ind/)
       self%emis = (/self%emissivity_extwallroof, self%emissivity_intwallroof, &
-                  self%emissivity_indoormass, self%emissivity_extwindow, &
-                  self%emissivity_intwindow/)
+                    self%emissivity_indoormass, self%emissivity_extwindow, &
+                    self%emissivity_intwindow/)
       self%wiTAR = (/self%windowTransmissivity, self%windowAbsorbtivity, self%windowReflectivity/)
       self%waTAR = (/self%wallTransmisivity, self%wallAbsorbtivity, self%wallReflectivity/)
 
       self%viewFactors = (/self%BVF_extwall, self%GVF_extwall, self%SVF_extwall/) !  # Building, ground, and sky view factors
       self%occupantData = (/self%occupants, self%metabolic_rate, &
-                           self%ratio_metabolic_latent_sensible/)
+                            self%ratio_metabolic_latent_sensible/)
 
       self%Tair_ind = stebbsState%IndoorAirStartTemperature + 273.15 ! # Indoor air temperature (K)
       self%Tindoormass = stebbsState%IndoorMassStartTemperature + 273.15 ! # Indoor mass temperature (K)
@@ -1941,7 +1941,7 @@ MODULE stebbs_building
       self%Ts = (/building_archtype%HeatingSetpointTemperature + 273.15, &
                   building_archtype%CoolingSetpointTemperature + 273.15/) ! # Heating and Cooling setpoint temperatures (K), respectively
       self%initTs = (/building_archtype%HeatingSetpointTemperature + 273.15, &
-                     building_archtype%CoolingSetpointTemperature + 273.15/)
+                      building_archtype%CoolingSetpointTemperature + 273.15/)
       self%HTsAverage = (/18 + 273.15, 18 + 273.15, 18 + 273.15/) ! #
       self%HWTsAverage = (/10 + 273.15, 10 + 273.15, 10 + 273.15/)
 

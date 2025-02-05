@@ -728,8 +728,7 @@ CONTAINS
 
             !       !
             IF (flginit == 0) THEN
-               resolution = 1
-
+               resolution = config%stebbsresolution
                sout%ntstep = 1
                ALLOCATE (sout%datetime(sout%ntstep))
                ALLOCATE (sout%hourmin(sout%ntstep))

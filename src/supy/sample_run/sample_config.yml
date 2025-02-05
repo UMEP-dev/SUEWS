@@ -9,6 +9,7 @@ model:
       value: 0
     output_file: output.txt
     diagnose: 0
+    stebbsresoltion: 1
   physics:
     netradiationmethod:
       value: 3

@@ -2261,6 +2261,9 @@ class ModelControl(BaseModel):
         default=0,
         description="Level of diagnostic output (0=none, 1=basic, 2=detailed)",
     )
+    stebbsresolution: int = Field(
+        default=1, description="Resolution of stebbs calculations"
+    )
 
     ref: Optional[Reference] = None
 
@@ -2285,7 +2288,7 @@ class ModelControl(BaseModel):
                 df_state[(col_name, idx_str)] = None
             df_state.at[grid_id, (col_name, idx_str)] = value
 
-        list_attr = ["tstep", "diagnose"]
+        list_attr = ["tstep", "diagnose", "stebbsresolution"]
         for attr in list_attr:
             set_df_value(attr, getattr(self, attr))
         return df_state
@@ -2294,7 +2297,7 @@ class ModelControl(BaseModel):
     def from_df_state(cls, df: pd.DataFrame, grid_id: int) -> "ModelControl":
         """Reconstruct model control properties from DataFrame state format."""
         instance = cls()
-        for attr in ["tstep", "diagnose"]:
+        for attr in ["tstep", "diagnose", "stebbsresolution"]:
             value = df.loc[grid_id, (attr, "0")]
             setattr(instance, attr, int(value) if isinstance(value, (np.int64, np.int32)) else value)
         return instance

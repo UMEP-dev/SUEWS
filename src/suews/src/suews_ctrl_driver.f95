@@ -4126,8 +4126,10 @@ CONTAINS
       veg_ssa_sw, air_ext_lw, air_ssa_lw, veg_ssa_lw, &
       veg_fsd_const, veg_contact_fraction_const, &
       ground_albedo_dir_mult_fact, use_sw_direct_albedo, & !input
-      stebbsmethod, & ! stebbs building input
-      BuildingCount, Occupants, hhs0, age_0_4, age_5_11, age_12_18, age_19_64, age_65plus, stebbs_Height, &
+      stebbsmethod, stebbsresolution, & ! stebbs building input
+      BuildingCount, Occupants, &
+      ! hhs0, age_0_4, age_5_11, age_12_18, age_19_64, age_65plus, ! Not used in STEBBS, DAVE only
+      stebbs_Height, &
       FootprintArea, WallExternalArea, RatioInternalVolume, WWR, WallThickness, WallEffectiveConductivity, &
       WallDensity, WallCp, Wallx1, WallExternalEmissivity, WallInternalEmissivity, WallTransmissivity, &
       WallAbsorbtivity, WallReflectivity, FloorThickness, GroundFloorEffectiveConductivity, &
@@ -4248,6 +4250,7 @@ CONTAINS
       INTEGER, INTENT(IN) :: OHMIncQF ! Determines whether the storage heat flux calculation uses Q* or ( Q* +QF) [-]
       ! INTEGER, INTENT(IN) :: nbtype ! number of building types [-] STEBBS
       INTEGER, INTENT(IN) :: stebbsmethod ! method to calculate building energy use [-] STEBBS
+      INTEGER, INTENT(IN) :: stebbsresolution ! resolution of the stebbs model [s]
 
       ! ---lumps-related variables
       TYPE(LUMPS_PRM) :: lumpsPrm
@@ -4589,12 +4592,12 @@ CONTAINS
       TYPE(BUILDING_ARCHETYPE_PRM) :: building_archtype
       REAL(KIND(1D0)) :: BuildingCount
       REAL(KIND(1D0)) :: Occupants
-      REAL(KIND(1D0)) :: hhs0
-      REAL(KIND(1D0)) :: age_0_4
-      REAL(KIND(1D0)) :: age_5_11
-      REAL(KIND(1D0)) :: age_12_18
-      REAL(KIND(1D0)) :: age_19_64
-      REAL(KIND(1D0)) :: age_65plus
+      ! REAL(KIND(1D0)) :: hhs0 ! DAVE only - not STEBBS
+      ! REAL(KIND(1D0)) :: age_0_4
+      ! REAL(KIND(1D0)) :: age_5_11
+      ! REAL(KIND(1D0)) :: age_12_18
+      ! REAL(KIND(1D0)) :: age_19_64
+      ! REAL(KIND(1D0)) :: age_65plus
       REAL(KIND(1D0)) :: stebbs_Height
       REAL(KIND(1D0)) :: FootprintArea
       REAL(KIND(1D0)) :: WallExternalArea
@@ -4776,6 +4779,7 @@ CONTAINS
       config%EvapMethod = 2
       config%LAImethod = 1
       config%stebbsmethod = stebbsmethod
+      config%stebbsresolution = stebbsresolution
 
       ! testing flag
       config%flag_test = flag_test
@@ -5484,12 +5488,12 @@ CONTAINS
       ! bldgState%BuildingName
       building_archtype%BuildingCount = BuildingCount
       building_archtype%Occupants = Occupants
-      building_archtype%hhs0 = hhs0
-      building_archtype%age_0_4 = age_0_4
-      building_archtype%age_5_11 = age_5_11
-      building_archtype%age_12_18 = age_12_18
-      building_archtype%age_19_64 = age_19_64
-      building_archtype%age_65plus = age_65plus
+      ! building_archtype%hhs0 = hhs0 ! DAVE parameters only
+      ! building_archtype%age_0_4 = age_0_4
+      ! building_archtype%age_5_11 = age_5_11
+      ! building_archtype%age_12_18 = age_12_18
+      ! building_archtype%age_19_64 = age_19_64
+      ! building_archtype%age_65plus = age_65plus
       building_archtype%stebbs_Height = stebbs_Height
       building_archtype%FootprintArea = FootprintArea
       building_archtype%WallExternalArea = WallExternalArea

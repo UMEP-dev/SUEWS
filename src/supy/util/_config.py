@@ -4445,7 +4445,7 @@ class ArchetypeProperties(BaseModel):
         """Reconstruct ArchetypeProperties from DataFrame state format."""
         # Extract the values from the DataFrame
         params = {
-            field_name: df.loc[grid_id, (field_name, "0")]
+            field_name: df.loc[grid_id, (field_name.lower(), "0")]
             for field_name in cls.model_fields.keys()
             if field_name != "ref"
         }
@@ -4730,7 +4730,7 @@ class StebbsProperties(BaseModel):
         """Reconstruct StebbsProperties from DataFrame state format."""
         # Extract the values from the DataFrame
         params = {
-            field_name: df.loc[grid_id, (field_name, "0")]
+            field_name: df.loc[grid_id, (field_name.lower(), "0")]
             for field_name in cls.model_fields.keys()
             if field_name != "ref"
         }

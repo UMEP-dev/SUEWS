@@ -4748,18 +4748,18 @@ class SiteProperties(BaseModel):
         ge=-90,
         le=90,
         description="Latitude of the site in degrees",
-        default=ValueWithDOI(51.5),
+        default=ValueWithDOI(51.51),
     )
     lng: ValueWithDOI[float] = Field(
         ge=-180,
         le=180,
         description="Longitude of the site in degrees",
-        default=ValueWithDOI(-0.13),
+        default=ValueWithDOI(-0.12),
     )
     alt: ValueWithDOI[float] = Field(
         gt=0,
         description="Altitude of the site in metres above sea level",
-        default=ValueWithDOI(40.0),
+        default=ValueWithDOI(35.0),
     )
     timezone: ValueWithDOI[int] = Field(
         ge=-12,
@@ -4770,20 +4770,20 @@ class SiteProperties(BaseModel):
     surfacearea: ValueWithDOI[float] = Field(
         gt=0,
         description="Total surface area of the site in square metres",
-        default=ValueWithDOI(10000.0),
+        default=ValueWithDOI(22215600.0),
     )
     z: ValueWithDOI[float] = Field(
-        gt=0, description="Measurement height in metres", default=ValueWithDOI(10.0)
+        gt=0, description="Measurement height in metres", default=ValueWithDOI(49.6)
     )
     z0m_in: ValueWithDOI[float] = Field(
         gt=0,
         description="Momentum roughness length in metres",
-        default=ValueWithDOI(1.0),
+        default=ValueWithDOI(1.9),
     )
     zdm_in: ValueWithDOI[float] = Field(
         gt=0,
         description="Zero-plane displacement height in metres",
-        default=ValueWithDOI(5.0),
+        default=ValueWithDOI(14.2),
     )
     pipecapacity: ValueWithDOI[float] = Field(
         gt=0,
@@ -4798,7 +4798,7 @@ class SiteProperties(BaseModel):
     )
     narp_trans_site: ValueWithDOI[float] = Field(
         description="Site-specific NARP transmission coefficient",
-        default=ValueWithDOI(0.2),
+        default=ValueWithDOI(1.0),
     )
     lumps: LUMPSParams = Field(
         default_factory=LUMPSParams,

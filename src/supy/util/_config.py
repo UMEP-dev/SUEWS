@@ -3315,11 +3315,11 @@ class CO2Params(
 
 class AnthropogenicEmissions(BaseModel):
     startdls: ValueWithDOI[float] = Field(
-        default=ValueWithDOI(0.0),
+        default=ValueWithDOI(86.0),
         description="Start of daylight savings time in decimal day of year",
     )
     enddls: ValueWithDOI[float] = Field(
-        default=ValueWithDOI(0.0),
+        default=ValueWithDOI(303.0),
         description="End of daylight savings time in decimal day of year",
     )
     heat: AnthropogenicHeat = Field(

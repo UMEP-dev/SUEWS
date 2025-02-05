@@ -1059,7 +1059,7 @@ MODULE SUEWS_DEF_DTS
       TYPE(HEAT_STATE) :: heatState
       TYPE(ROUGHNESS_STATE) :: roughnessState
       TYPE(STEBBS_STATE) :: stebbsState
-      ! TYPE(LBM), ALLOCATABLE, DIMENSION(:) :: stebbsBldgs
+      ! TYPE(LBM), ALLOCATABLE, DIMENSION(:) :: stebbsBldgs ! Reintroduce after fix for pickling fortran object
    CONTAINS
       PROCEDURE :: ALLOCATE => allocSUEWSState_c
       PROCEDURE :: DEALLOCATE => deallocSUEWSState_c

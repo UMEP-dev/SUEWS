@@ -596,7 +596,8 @@ MODULE stebbs_module
 CONTAINS
 
    SUBROUTINE stebbsonlinecouple( &
-      timer, config, forcing, siteInfo, stebbsBldgs, & ! Input
+      timer, config, forcing, siteInfo, & ! Input
+      stebbsBldgs, & ! TODO Remove when in modState
       modState, & ! Input/Output
       datetimeLine, &
       dataOutLineSTEBBS) ! Output
@@ -615,7 +616,7 @@ CONTAINS
       TYPE(SUEWS_FORCING), INTENT(IN) :: forcing
       TYPE(SUEWS_SITE), INTENT(IN) :: siteInfo
       TYPE(SUEWS_STATE), INTENT(INOUT) :: modState
-      TYPE(LBM), DIMENSION(:), INTENT(INOUT) :: stebbsBldgs
+      TYPE(LBM), DIMENSION(:), INTENT(INOUT) :: stebbsBldgs ! TODO Remove once integrated to modState
       REAL(KIND(1D0)), INTENT(OUT), DIMENSION(ncolumnsDataOutSTEBBS - 5) :: dataOutLineSTEBBS
       INTEGER, SAVE :: flginit = 0
       REAL(rprc), DIMENSION(5), INTENT(in) :: datetimeLine
@@ -688,8 +689,8 @@ CONTAINS
          atmState => modState%atmState, &
          roughnessState => modState%roughnessState, &
          stebbsState => modState%stebbsState, &
-         ! stebbsBldgs => modState%stebbsBldgs, &
-         blds => stebbsBldgs, &
+         ! blds => modState%stebbsBldgs, &
+         blds => stebbsBldgs, & ! TODO Remove once integrated to modState, uncomment above
          building_archtype => siteInfo%building_archtype, &
          stebbsPrm => siteInfo%stebbs &
          )
@@ -768,7 +769,8 @@ CONTAINS
             ! DO i = 1, nbtype, 1
 
             CALL suewsstebbscouple( &
-               blds(1), flginit, datetimeLine, &
+               blds(1), &
+               flginit, datetimeLine, &
                Tair_ind, Tindoormass, Tintwallroof, Textwallroof, Tintwindow, Textwindow, Tintgroundfloor, &
                Textgroundfloor, Qtotal_heating, Qtotal_cooling, Qsw_transmitted_window_tstepTotal, &
                Qsw_absorbed_window_tstepTotal, Qsw_absorbed_wallroof_tstepTotal, Qconv_indair_to_indoormass_tstepTotal, &

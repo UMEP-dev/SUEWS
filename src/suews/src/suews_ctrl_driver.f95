@@ -5528,9 +5528,11 @@ CONTAINS
       building_archtype%CoolingSetpointTemperature = CoolingSetpointTemperature
       siteInfo%building_archtype = building_archtype
 
-      ALLOCATE(stebbsBldgs(1))
-      CALL gen_building(stebbsState, stebbsPrm, building_archtype, stebbsBldgs(1))
-      ! mod_State%stebbsBldgs = stebbsBldgs
+      IF (config%stebbsmethod == 1) THEN
+         ALLOCATE(stebbsBldgs(1))
+         CALL gen_building(stebbsState, stebbsPrm, building_archtype, stebbsBldgs(1))
+         ! mod_State%stebbsBldgs = stebbsBldgs ! TODO uncomment when integration fixed
+      END IF
 
       !   allocate output arrays
 

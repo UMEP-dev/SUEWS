@@ -2343,21 +2343,21 @@ class ModelPhysics(BaseModel):
         description="Method used to calculate heat roughness length",
     )
     stabilitymethod: ValueWithDOI[int] = Field(
-        default=ValueWithDOI(2),
+        default=ValueWithDOI(3),
         description="Method used for atmospheric stability calculation",
     )
     smdmethod: ValueWithDOI[int] = Field(
-        default=ValueWithDOI(1),
+        default=ValueWithDOI(0),
         description="Method used to calculate soil moisture deficit",
     )
     waterusemethod: ValueWithDOI[int] = Field(
-        default=ValueWithDOI(1), description="Method used to calculate water use"
+        default=ValueWithDOI(0), description="Method used to calculate water use"
     )
     diagmethod: ValueWithDOI[int] = Field(
-        default=ValueWithDOI(1), description="Method used for model diagnostics"
+        default=ValueWithDOI(2), description="Method used for model diagnostics"
     )
     faimethod: ValueWithDOI[int] = Field(
-        default=ValueWithDOI(1),
+        default=ValueWithDOI(0),
         description="Method used to calculate frontal area index",
     )
     localclimatemethod: ValueWithDOI[int] = Field(

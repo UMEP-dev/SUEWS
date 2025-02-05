@@ -5528,7 +5528,7 @@ CONTAINS
       building_archtype%CoolingSetpointTemperature = CoolingSetpointTemperature
       siteInfo%building_archtype = building_archtype
 
-      ALLOCATE(stebbsBldgs(1))
+      ALLOCATE (stebbsBldgs(1))
       CALL gen_building(stebbsState, stebbsPrm, building_archtype, stebbsBldgs(1))
       ! mod_State%stebbsBldgs = stebbsBldgs
 

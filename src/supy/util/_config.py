@@ -1994,23 +1994,23 @@ class VerticalLayers(BaseModel):
         description="Number of vertical layers in the urban canopy",
     )
     height: ValueWithDOI[List[float]] = Field(
-        default=ValueWithDOI([0.0, 10.0, 20.0, 30.0]),
+        default=ValueWithDOI([0.0, 11.0, 25.0, 22.0]),
         description="Heights of layer boundaries in metres, length must be nlayer+1",
     )
     veg_frac: ValueWithDOI[List[float]] = Field(
-        default=ValueWithDOI([0.0, 0.0, 0.0]),
+        default=ValueWithDOI([0.01, 0.02, 0.01]),
         description="Fraction of vegetation in each layer, length must be nlayer",
     )
     veg_scale: ValueWithDOI[List[float]] = Field(
-        default=ValueWithDOI([1.0, 1.0, 1.0]),
+        default=ValueWithDOI([10.0, 10.0, 10.0]),
         description="Scaling factor for vegetation in each layer, length must be nlayer",
     )
     building_frac: ValueWithDOI[List[float]] = Field(
-        default=ValueWithDOI([0.4, 0.3, 0.3]),
+        default=ValueWithDOI([0.43, 0.38, 0.2]),
         description="Fraction of buildings in each layer, must sum to 1.0, length must be nlayer",
     )
     building_scale: ValueWithDOI[List[float]] = Field(
-        default=ValueWithDOI([1.0, 1.0, 1.0]),
+        default=ValueWithDOI([50.0, 50.0, 50.0]),
         description="Scaling factor for buildings in each layer, length must be nlayer",
     )
     roofs: List[RoofLayer] = Field(

@@ -3061,7 +3061,7 @@ class AnthropogenicHeat(
         description="Daytime population density", default_factory=DayProfile
     )
     popdensnighttime: float = Field(
-        default=10.0, description="Nighttime population density"
+        default=204.58, description="Nighttime population density"
     )
     popprof_24hr: HourlyProfile = Field(
         description="24-hour profile of population density",

@@ -2549,11 +2549,11 @@ class SPARTACUSParams(BaseModel):
         description="Air extinction coefficient for shortwave radiation",
     )
     air_ssa_lw: ValueWithDOI[float] = Field(
-        default=ValueWithDOI(0.5),
+        default=ValueWithDOI(0.0),
         description="Air single scattering albedo for longwave radiation",
     )
     air_ssa_sw: ValueWithDOI[float] = Field(
-        default=ValueWithDOI(0.5),
+        default=ValueWithDOI(0.95),
         description="Air single scattering albedo for shortwave radiation",
     )
     ground_albedo_dir_mult_fact: ValueWithDOI[float] = Field(
@@ -2561,11 +2561,11 @@ class SPARTACUSParams(BaseModel):
         description="Multiplication factor for direct ground albedo",
     )
     n_stream_lw_urban: ValueWithDOI[int] = Field(
-        default=ValueWithDOI(2),
+        default=ValueWithDOI(4),
         description="Number of streams for longwave radiation in urban areas",
     )
     n_stream_sw_urban: ValueWithDOI[int] = Field(
-        default=ValueWithDOI(2),
+        default=ValueWithDOI(4),
         description="Number of streams for shortwave radiation in urban areas",
     )
     n_vegetation_region_urban: ValueWithDOI[int] = Field(
@@ -2573,26 +2573,26 @@ class SPARTACUSParams(BaseModel):
         description="Number of vegetation regions in urban areas",
     )
     sw_dn_direct_frac: ValueWithDOI[float] = Field(
-        default=ValueWithDOI(0.5),
+        default=ValueWithDOI(0.45),
         description="Fraction of downward shortwave radiation that is direct",
     )
     use_sw_direct_albedo: ValueWithDOI[float] = Field(
-        default=ValueWithDOI(1.0),
+        default=ValueWithDOI(0.0),
         description="Flag to use direct albedo for shortwave radiation",
     )
     veg_contact_fraction_const: ValueWithDOI[float] = Field(
-        default=ValueWithDOI(0.5), description="Constant vegetation contact fraction"
+        default=ValueWithDOI(0.0), description="Constant vegetation contact fraction"
     )
     veg_fsd_const: ValueWithDOI[float] = Field(
-        default=ValueWithDOI(0.5),
+        default=ValueWithDOI(0.75),
         description="Constant vegetation fractional standard deviation",
     )
     veg_ssa_lw: ValueWithDOI[float] = Field(
-        default=ValueWithDOI(0.5),
+        default=ValueWithDOI(0.06),
         description="Vegetation single scattering albedo for longwave radiation",
     )
     veg_ssa_sw: ValueWithDOI[float] = Field(
-        default=ValueWithDOI(0.5),
+        default=ValueWithDOI(0.46),
         description="Vegetation single scattering albedo for shortwave radiation",
     )
 

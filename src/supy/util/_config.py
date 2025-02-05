@@ -2493,8 +2493,8 @@ class ModelPhysics(BaseModel):
 
 
 class LUMPSParams(BaseModel):
-    raincover: ValueWithDOI[float] = Field(ge=0, le=1, default=ValueWithDOI(0.25))
-    rainmaxres: ValueWithDOI[float] = Field(ge=0, le=20, default=ValueWithDOI(0.25))
+    raincover: ValueWithDOI[float] = Field(ge=0, le=1, default=ValueWithDOI(1.0))
+    rainmaxres: ValueWithDOI[float] = Field(ge=0, le=20, default=ValueWithDOI(10.0))
     drainrt: ValueWithDOI[float] = Field(ge=0, le=1, default=ValueWithDOI(0.25))
     veg_type: ValueWithDOI[int] = Field(default=ValueWithDOI(1))
 

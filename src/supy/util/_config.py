@@ -699,7 +699,7 @@ class InitialStates(BaseModel):
 
     snowalb: ValueWithDOI[float] = Field(
         description="Initial snow albedo",
-        default=ValueWithDOI(0.5),
+        default=ValueWithDOI(0.3),
         ge=0,
         le=1,
     )

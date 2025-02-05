@@ -2243,10 +2243,11 @@ class WaterProperties(NonVegetatedSurfaceProperties):
 
 class ModelControl(BaseModel):
     tstep: int = Field(
-        default=300, description="Time step in seconds for model calculations"
+        default=300,
+        description="Time step in seconds for model calculations"
     )
     forcing_file: ValueWithDOI[str] = Field(
-        default=ValueWithDOI("forcing.txt"),
+        default=ValueWithDOI("./Input/Kc_2012_data_60.txt"),
         description="Path to meteorological forcing data file",
     )
     kdownzen: Optional[ValueWithDOI[int]] = Field(

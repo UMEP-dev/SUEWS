@@ -15,7 +15,7 @@ MODULE SUEWS_Driver
                             OHM_STATE, PHENOLOGY_STATE, SNOW_STATE, SUEWS_FORCING, SUEWS_TIMER, &
                             HYDRO_STATE, HEAT_STATE, &
                             ROUGHNESS_STATE, solar_State, atm_state, flag_STATE, &
-                            SUEWS_STATE, SUEWS_DEBUG, STEBBS_STATE, BUILDING_ARCHETYPE_PRM, STEBBS_PRM, &
+                            SUEWS_STATE, SUEWS_DEBUG, STEBBS_STATE, BUILDING_ARCHETYPE_PRM, STEBBS_PRM, LBM, &
                             output_line, output_block
    USE meteo, ONLY: qsatf, RH2qa, qa2RH
    USE AtmMoistStab_module, ONLY: cal_AtmMoist, cal_Stab, stab_psi_heat, stab_psi_mom, SUEWS_update_atmState
@@ -62,6 +62,7 @@ MODULE SUEWS_Driver
    USE solweig_module, ONLY: SOLWEIG_cal_main
    USE beers_module, ONLY: BEERS_cal_main, BEERS_cal_main_DTS
    USE stebbs_module, ONLY: stebbsonlinecouple
+   USE stebbs_building, ONLY: gen_building
    USE version, ONLY: git_commit, compiler_ver
    USE time_module, ONLY: SUEWS_cal_dectime_DTS, SUEWS_cal_tstep_DTS, SUEWS_cal_weekday_DTS, &
                           SUEWS_cal_DLS_DTS
@@ -73,7 +74,7 @@ CONTAINS
 ! ===================MAIN CALCULATION WRAPPER FOR ENERGY AND WATER FLUX===========
 
    SUBROUTINE SUEWS_cal_Main( &
-      timer, forcing, config, siteInfo, &
+      timer, forcing, config, siteInfo, stebbsBldgs, &
       modState, &
       debugState, &
       outputLine) ! output
@@ -92,6 +93,7 @@ CONTAINS
       TYPE(SUEWS_DEBUG), INTENT(OUT) :: debugState
 
       TYPE(SUEWS_STATE), INTENT(INOUT) :: modState
+      TYPE(LBM), ALLOCATABLE, DIMENSION(:), INTENT(INOUT) :: stebbsBldgs
       ! ####################################################################################
 
       ! ########################################################################################
@@ -472,7 +474,7 @@ CONTAINS
             IF (config%stebbsmethod == 1) THEN
                IF (Diagnose == 1) WRITE (*, *) 'Calling STEBBS...'
                CALL stebbsonlinecouple( &
-                  timer, config, forcing, siteInfo, & ! input
+                  timer, config, forcing, siteInfo, stebbsBldgs, & ! input
                   modState, & ! input/output:
                   datetimeLine, & ! input
                   dataOutLineSTEBBS) ! output
@@ -4631,6 +4633,7 @@ CONTAINS
       REAL(KIND(1D0)) :: CoolingSetpointTemperature
 
       TYPE(STEBBS_PRM) :: stebbsPrm
+      TYPE(LBM), ALLOCATABLE, DIMENSION(:) :: stebbsBldgs
 
       ! lumped states
       TYPE(SUEWS_DEBUG), INTENT(OUT) :: debug_state
@@ -5451,7 +5454,6 @@ CONTAINS
       mod_State%snowState = snowState
       mod_State%phenState = phenState
       mod_State%stebbsState = stebbsState
-      ! mod_State%bldgState = bldgState
 
       ! ############# evaluation for DTS variables (end) #############
       CALL siteInfo%ALLOCATE(nlayer)
@@ -5525,6 +5527,11 @@ CONTAINS
       building_archtype%HeatingSetpointTemperature = HeatingSetpointTemperature
       building_archtype%CoolingSetpointTemperature = CoolingSetpointTemperature
       siteInfo%building_archtype = building_archtype
+
+      ALLOCATE(stebbsBldgs(1))
+      CALL gen_building(stebbsState, stebbsPrm, building_archtype, stebbsBldgs(1))
+      ! mod_State%stebbsBldgs = stebbsBldgs
+
       !   allocate output arrays
 
       Diagnose = 0
@@ -5587,7 +5594,7 @@ CONTAINS
 
          !CALL SUEWS_cal_Main( &
          CALL SUEWS_cal_Main( &
-            timer, forcing, config, siteInfo, &
+            timer, forcing, config, siteInfo, stebbsBldgs, &
             mod_State, &
             debug_state, &
             output_line_suews) !output

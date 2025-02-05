@@ -3963,7 +3963,7 @@ class SnowParams(BaseModel):
         default=ValueWithDOI(0.1), description="Maximum water capacity of snow"
     )
     crwmin: ValueWithDOI[float] = Field(
-        default=ValueWithDOI(0.05), description="Minimum water capacity of snow"
+        default=ValueWithDOI(0.03), description="Minimum water capacity of snow"
     )
     narp_emis_snow: ValueWithDOI[float] = Field(
         default=ValueWithDOI(0.99), description="Snow surface emissivity"
@@ -3972,43 +3972,43 @@ class SnowParams(BaseModel):
         default=ValueWithDOI(2.2), description="Limit for snow vs rain precipitation"
     )
     preciplimitalb: ValueWithDOI[float] = Field(
-        default=ValueWithDOI(0.1), description="Precipitation limit for albedo aging"
+        default=ValueWithDOI(2.0), description="Precipitation limit for albedo aging"
     )
     snowalbmax: ValueWithDOI[float] = Field(
-        default=ValueWithDOI(0.85), description="Maximum snow albedo"
+        default=ValueWithDOI(0.8), description="Maximum snow albedo"
     )
     snowalbmin: ValueWithDOI[float] = Field(
-        default=ValueWithDOI(0.4), description="Minimum snow albedo"
+        default=ValueWithDOI(0.18), description="Minimum snow albedo"
     )
     snowdensmin: ValueWithDOI[float] = Field(
         default=ValueWithDOI(100.0), description="Minimum snow density (kg m-3)"
     )
     snowdensmax: ValueWithDOI[float] = Field(
-        default=ValueWithDOI(400.0), description="Maximum snow density (kg m-3)"
+        default=ValueWithDOI(450.0), description="Maximum snow density (kg m-3)"
     )
     snowlimbldg: ValueWithDOI = Field(
-        default=ValueWithDOI(0.1), description="Snow limit on buildings"
+        default=ValueWithDOI(-999), description="Snow limit on buildings"
     )
     snowlimpaved: ValueWithDOI = Field(
-        default=ValueWithDOI(0.1), description="Snow limit on paved surfaces"
+        default=ValueWithDOI(-999), description="Snow limit on paved surfaces"
     )
     snowprof_24hr: HourlyProfile = Field(
         default_factory=HourlyProfile, description="24-hour snow profile"
     )
     tau_a: ValueWithDOI[float] = Field(
-        default=ValueWithDOI(0.018), description="Aging constant for cold snow"
+        default=ValueWithDOI(0.01), description="Aging constant for cold snow"
     )
     tau_f: ValueWithDOI[float] = Field(
-        default=ValueWithDOI(0.11), description="Aging constant for melting snow"
+        default=ValueWithDOI(0.1), description="Aging constant for melting snow"
     )
     tau_r: ValueWithDOI[float] = Field(
-        default=ValueWithDOI(0.05), description="Aging constant for refreezing snow"
+        default=ValueWithDOI(0.02), description="Aging constant for refreezing snow"
     )
     tempmeltfact: ValueWithDOI[float] = Field(
-        default=ValueWithDOI(0.12), description="Temperature melt factor"
+        default=ValueWithDOI(0.14), description="Temperature melt factor"
     )
     radmeltfact: ValueWithDOI[float] = Field(
-        default=ValueWithDOI(0.0016), description="Radiation melt factor"
+        default=ValueWithDOI(0.001), description="Radiation melt factor"
     )
 
     ref: Optional[Reference] = None

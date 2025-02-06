@@ -2315,6 +2315,17 @@ class EmissionsMethod(Enum):
     def __int__(self):
         """Representation showing just the value"""
         return self.value
+    
+    def __repr__(self):
+        """Representation showing the name and value"""
+        return str(self.value)
+    
+
+def yaml_equivalent_of_default(dumper, data):
+    return dumper.represent_scalar("tag:yaml.org,2002:int", str(data.value))
+
+yaml.add_representer(EmissionsMethod, yaml_equivalent_of_default)
+
 
 # TODO: implement the Enum for other physics schemes
 

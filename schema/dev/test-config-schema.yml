@@ -1,0 +1,36 @@
+# yaml-language-server: $schema=../../docs/source/_static/suews-config-schema.json
+# use the above definition to enable schema validation in VSCode
+
+name: "Test Config"
+description: "This is a test configuration file"
+model:
+  control:
+    tstep: 300
+    forcing_file:
+      value: "forcing.txt"
+  physics:
+    netradiationmethod:
+      value: 3
+    emissionsmethod:
+      value: 2
+    storageheatmethod:
+      value: 1
+site:
+  - gridiv: 0
+    properties:
+      lat:
+        value: 51.5
+      lng:
+        value: -0.13
+      alt:
+        value: 40.0
+      timezone:
+        value: 34
+      surfacearea:
+        value: 100000
+      z:
+        value: 10
+      dd:
+        ca: 12
+
+

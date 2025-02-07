@@ -53,6 +53,7 @@ import supy
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 sys.path.insert(0, os.path.abspath("."))
+sys.path.insert(0, os.path.abspath('_ext'))
 
 print(r"this build is made by:", "\n", sys.version)
 # determine if in RTD environment
@@ -230,6 +231,8 @@ extensions = [
     "sphinx_last_updated_by_git",
     "sphinx_click.ext",
     # 'exhale'
+    'sphinx.ext.napoleon',
+    'suews_config_editor',  # Our custom extension
 ]
 
 # email_automode = True
@@ -412,6 +415,9 @@ html_static_path = ["_static", "doxygenoutput"]
 #      }
 
 # html_extra_path = ['doxygenoutput']
+
+# Copy React build output to _static
+html_extra_path = ['../suews-config-ui/dist']
 
 # Custom sidebar templates, must be a dictionary that maps document names
 # to template names.
@@ -878,5 +884,22 @@ class MyStyle_author_year_note(UnsrtStyle):
     # format_book = format_article
 
 
+# Add the path to custom extensions
 register_plugin("pybtex.style.formatting", "rl", MyStyle_author_year_note)
 register_plugin("pybtex.style.sorting", "year_author_title", MySort_year_author_title)
+
+
+
+# Add any paths that contain custom static files (such as style sheets) here,
+# relative to this directory. They are copied after the builtin static files,
+# so a file named "default.css" will overwrite the builtin "default.css".
+
+# These paths are either relative to html_static_path or fully qualified paths (eg. https://...)
+html_css_files = [
+    'suews-config-ui/main.css',
+]
+
+html_js_files = [
+    'suews-config-ui/main.js',
+]
+

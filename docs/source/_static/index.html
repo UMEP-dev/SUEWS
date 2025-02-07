@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <title>SUEWS Config Editor</title>
+    <!-- Load json-editor from a CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/json-editor@latest/dist/jsoneditor.min.js"></script>
+</head>
+
+<body>
+    <h1>SUEWS Config Editor</h1>
+
+    <!-- Container for the generated form -->
+    <div id="editor_holder" style="margin-bottom:20px;"></div>
+
+    <!-- Button to print the current form data -->
+    <button id="submit">Show JSON</button>
+
+    <!-- A place to display the result -->
+    <pre id="result" style="border:1px solid #ccc; padding:10px;"></pre>
+
+    <script>
+        // Fetch the local schema from the same directory
+        fetch('suews-config-schema.json')
+            .then(response => response.json())
+            .then(schema => {
+
+                // Initialise JSONEditor with your schema
+                const editor = new JSONEditor(document.getElementById('editor_holder'), {
+                    schema: schema,
+                    theme: 'html',   // or 'bootstrap4', 'spectre', etc. if you prefer
+                    disable_collapse: true,
+                    disable_edit_json: true,
+                    disable_properties: false
+                });
+
+                // When user clicks 'Show JSON', display the data from the form
+                document.getElementById('submit').addEventListener('click', () => {
+                    const formData = editor.getValue();
+                    document.getElementById('result').textContent = JSON.stringify(formData, null, 2);
+                });
+            })
+            .catch(error => {
+                console.error("Failed to load schema:", error);
+            });
+    </script>
+</body>
+
+</html>

@@ -1680,6 +1680,57 @@ class SiteProperties(BaseModel):
 
     ref: Optional[Reference] = None
 
+    class Config:
+        extra = "forbid"  # This will prevent extra fields from being accepted
+        validate_assignment = True  # This will validate fields on assignment
+        validate_default = True  # This will validate default values
+
+    @model_validator(mode="after")
+    def validate_required_fields(self) -> "SiteProperties":
+        """Validate that all required fields are present and have valid values."""
+        errors = []
+
+        # List of required fields that must be present and non-None
+        required_fields = [
+            "lat",
+            "lng",
+            "alt",
+            "timezone",
+            "surfacearea",
+            "z",
+            "z0m_in",
+            "zdm_in",
+            "pipecapacity",
+            "runofftowater",
+            "narp_trans_site",
+            "lumps",
+            "spartacus",
+            "conductance",
+            "irrigation",
+            "anthropogenic_emissions",
+            "snow",
+            "land_cover",
+            "vertical_layers",
+        ]
+
+        for field in required_fields:
+            value = getattr(self, field, None)
+            if value is None:
+                errors.append(f"Required field '{field}' is missing")
+            elif isinstance(value, ValueWithDOI) and value.value is None:
+                errors.append(f"Required field '{field}' has no value")
+
+        # Additional validation rules
+        if self.z0m_in.value >= self.zdm_in.value:
+            errors.append(
+                f"z0m_in ({self.z0m_in.value}) must be less than zdm_in ({self.zdm_in.value})"
+            )
+
+        if errors:
+            raise ValueError("\n".join(errors))
+
+        return self
+
     def to_df_state(self, grid_id: int) -> pd.DataFrame:
         """Convert site properties to DataFrame state format"""
         df_state = init_df_state(grid_id)

@@ -153,3 +153,29 @@ How to support SUEWS?
 
    GitHub discussion <https://github.com/UMEP-dev/UMEP/discussions>
 
+.. toctree::
+   :maxdepth: 2
+   :caption: Getting Started
+
+   introduction
+   installation
+   quickstart
+   config-editor
+   configuration-reference
+
+.. toctree::
+   :maxdepth: 2
+   :caption: User Guide
+
+   tutorial
+   examples
+   api-reference
+   faq
+
+.. toctree::
+   :maxdepth: 1
+   :caption: Development
+
+   contributing
+   changelog
+

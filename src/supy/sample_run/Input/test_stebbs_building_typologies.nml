@@ -1,8 +1,8 @@
 &test
 !BuildingCode='test'
 !BuildingClass='test'
-!BuildingType='test'
-!BuildingName='test'
+BuildingType='test'
+BuildingName='test'
 BuildingCount=1
 Occupants=0
 hhs0=0

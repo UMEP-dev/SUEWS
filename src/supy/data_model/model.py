@@ -10,14 +10,27 @@ from .type import init_df_state
 
 
 class EmissionsMethod(Enum):
+    '''
+    0: Uses values provided in the meteorological forcing file (SSss_YYYY_data_tt.txt) to calculate QF. If you do not want to include QF to the calculation of surface energy balance, you should set values in the meteorological forcing file to zero to prevent calculation of QF. UMEP provides two methods to calculate QF LQF which is simpler GQF which is more complete but requires more data inputs
+
+    1: Not recommended in this version. QF calculated according to Loridan et al. [2011] using coefficients specified. Modelled values will be used even if QF is provided in the meteorological forcing file. CO2 emission is not calculated
+
+    2: Recommended in this version. QF calculated according to Järvi et al. [2011] using coefficients specified and diurnal patterns specified. Modelled values will be used even if QF is provided in the meteorological forcing file. CO2 emission is not calculated
+    
+    3: Updated Loridan et al. [2011] method using daily (not instantaneous) air temperature (HDD(id-1,3)) using coefficients specified. CO2 emission is not calculated
+
+    4: Järvi et al. [2019] method, in addition to anthropogenic heat due to building energy use calculated by Järvi et al. [2011], that due to metabolism and traffic is also calculated using coefficients specified and diurnal patterns specified. Modelled values will be used even if QF is provided in the meteorological forcing file. CO2 emission is not calculated
+
+    5: QF calculated using EmissionMethod = 4. Fc (both biogenic and anthropogenic) components calculated following Järvi et al. [2019]. Emissions from traffic and human metabolism calculated as a bottom up approach using coefficients specified and diurnal patterns specified. Building emissions are calculated with the aid of heating and cooling degree days. Biogenic emissions and sinks are calculated using coefficients specified
+    '''
     # just a demo to show how to use Enum for emissionsmethod
     NO_EMISSIONS = 0
-    CO2_ONLY = 1
-    CO2_AND_ENERGY = 2
-    CO2_AND_ENERGY_AND_VOC = 3
-    CO2_AND_ENERGY_AND_VOC_AND_NOX = 4
-    CO2_AND_ENERGY_AND_VOC_AND_NOX_AND_SO2 = 45
-    CO2_AND_ENERGY_AND_VOC_AND_NOX_AND_SO2_AND_PM = 111
+    L11 = 1
+    J11 = 2
+    L11_UPDATED = 3
+    J19 = 4
+    J19_UPDATED = 4
+  
 
     def __int__(self):
         """Representation showing just the value"""
@@ -28,13 +41,35 @@ class EmissionsMethod(Enum):
         return str(self.value)
 
 
-
-
-
 class NetRadiationMethod(Enum):
-    OBSERVED_LDOWN = 1  # Using observed Ldown
-    OBSERVED_LDOWN_LOUT = 2  # Using observed Ldown and Lout
-    MODELLED = 3  # Using modelled radiation components
+    '''
+    0: Uses observed values of Q* supplied in meteorological forcing file
+    1: Q* modelled with L↓ observations supplied in meteorological forcing file. Zenith angle not accounted for in albedo calculation
+    2: Q* modelled with L↓ modelled using cloud cover fraction supplied in meteorological forcing file [Loridan et al., 2011]. Zenith angle not accounted for in albedo calculation
+    3: Q* modelled with L↓ modelled using air temperature and relative humidity supplied in meteorological forcing file [Loridan et al., 2011]. Zenith angle not accounted for in albedo calculation
+    11: Same as 1 but with L↑ modelled using surface temperature Not recommended in this version
+    12: Same as 2 but with L↑ modelled using surface temperature Not recommended in this version
+    13: Same as 3 but with L↑ modelled using surface temperature Not recommended in this version
+    100: Q* modelled with L↓ observations supplied in meteorological forcing file. Zenith angle accounted for in albedo calculation. SSss_YYYY_NARPOut.txt file produced. Not recommended in this version
+    200: Q* modelled with L↓ modelled using cloud cover fraction supplied in meteorological forcing file [Loridan et al., 2011]. Zenith angle accounted for in albedo calculation. SSss_YYYY_NARPOut.txt file produced. Not recommended in this version
+    300: Q* modelled with L↓ modelled using air temperature and relative humidity supplied in meteorological forcing file [Loridan et al., 2011]. Zenith angle accounted for in albedo calculation. SSss_YYYY_NARPOut.txt file produced. Not recommended in this version
+    1001: Q* modelled with SPARTACUS-Surface (SS) but with L↓ modelled as in 1. Experimental in this version
+    1002: Q* modelled with SPARTACUS-Surface (SS) but with L↓ modelled as in 2. Experimental in this version
+    1003: Q* modelled with SPARTACUS-Surface (SS) but with L↓ modelled as in 3. Experimental in this version
+    '''
+    OBSERVED = 0
+    LDOWN_OBSERVED = 1
+    LDOWN_CLOUD = 2
+    LDOWN_AIR = 3
+    LDOWN_SURFACE = 11
+    LDOWN_CLOUD_SURFACE = 12
+    LDOWN_AIR_SURFACE = 13
+    LDOWN_ZENITH = 100
+    LDOWN_CLOUD_ZENITH = 200
+    LDOWN_AIR_ZENITH = 300
+    LDOWN_SS_OBSERVED = 1001
+    LDOWN_SS_CLOUD = 1002
+    LDOWN_SS_AIR = 1003
 
     def __int__(self):
         return self.value
@@ -44,8 +79,16 @@ class NetRadiationMethod(Enum):
 
 
 class StorageHeatMethod(Enum):
-    OHM_WITHOUT_QF = 1  # OHM without anthropogenic heat
-    OHM_WITH_QF = 2  # OHM with anthropogenic heat
+    '''
+    0: Uses observed values of ΔQS supplied in meteorological forcing file
+    1: ΔQS modelled using the objective hysteresis model (OHM) [Grimmond et al., 1991] using parameters specified for each surface type
+    3: ΔQS modelled using AnOHM [Sun et al., 2017]. Not recommended in this version
+    4: ΔQS modelled using the Element Surface Temperature Method (ESTM) [Offerle et al., 2005]. Not recommended in this version
+    '''
+    OBSERVED = 0
+    OHM_WITHOUT_QF = 1
+    ANOHM = 3
+    ESTM = 4
 
     def __int__(self):
         return self.value
@@ -53,9 +96,14 @@ class StorageHeatMethod(Enum):
     def __repr__(self):
         return str(self.value)
 
+
 class OhmIncQf(Enum):
-    INCLUDE = 1  # Include anthropogenic heat in OHM calculations
-    EXCLUDE = 0  # Exclude anthropogenic heat in OHM calculations
+    '''
+    0: ΔQS modelled Q* only
+    1: ΔQS modelled using Q*+QF
+    '''
+    EXCLUDE = 0
+    INCLUDE = 1
 
     def __int__(self):
         return self.value
@@ -65,8 +113,12 @@ class OhmIncQf(Enum):
 
 
 class RoughnessMethod(Enum):
+    '''
+    TODO:
+    '''
     FIXED = 1  # Fixed roughness length
     VARIABLE = 2  # Variable roughness length based on vegetation state
+    FIVE = 5  # Not documented
 
     def __int__(self):
         return self.value
@@ -76,8 +128,33 @@ class RoughnessMethod(Enum):
 
 
 class StabilityMethod(Enum):
-    NEUTRAL = 1  # Neutral stability
-    VARIABLE = 2  # Variable stability based on atmospheric conditions
+    '''
+    0: Not used
+    1: Not used
+    2: 
+    Momentum:
+        unstable: Dyer [1974] modified by Högström [1988]
+        stable: Van Ulden and Holtslag [1985]
+    Heat: Dyer [1974] modified by Högström [1988]
+    Not recommended in this version.
+    
+    3:
+    Momentum: Campbell and Norman [1998] (Eq 7.27, Pg97)
+    Heat
+        unstable: Campbell and Norman [1998]
+        stable: Campbell and Norman [1998]
+    Recommended in this version.
+    
+    4:
+    Momentum: Businger et al. [1971] modified by Högström [1988]
+    Heat: Businger et al. [1971] modified by Högström [1988]
+    Not recommended in this version.
+    '''
+    NOT_USED = 0
+    NOT_USED2 = 1
+    HOEGSTROM = 2
+    CAMPBELL_NORMAN = 3
+    BUSINGER_HOEGSTROM = 4
 
     def __int__(self):
         return self.value
@@ -87,8 +164,14 @@ class StabilityMethod(Enum):
 
 
 class SMDMethod(Enum):
-    BASIC = 1  # Basic soil moisture deficit calculation
-    ADVANCED = 2  # Advanced soil moisture deficit calculation with more processes
+    '''
+    0: SMD modelled using parameters specified
+    1: Observed SM provided in the meteorological forcing file is used. Data are provided as volumetric soil moisture content. Metadata must be provided
+    2: Observed SM provided in the meteorological forcing file is used. Data are provided as gravimetric soil moisture content. Metadata must be provided
+    '''
+    MODELLED = 0
+    OBSERVED_VOLUMETRIC = 1
+    OBSERVED_GRAVIMETRIC = 2
 
     def __int__(self):
         return self.value
@@ -98,9 +181,12 @@ class SMDMethod(Enum):
 
 
 class WaterUseMethod(Enum):
-    NONE = 0  # No water use calculation
-    BASIC = 1  # Basic water use calculation
-    ADVANCED = 2  # Advanced water use calculation with irrigation
+    '''
+    0: External water use modelled using parameters specified
+    1: Observations of external water use provided in the meteorological forcing file are used.
+    '''
+    MODELLED = 0
+    OBSERVED = 1
 
     def __int__(self):
         return self.value
@@ -110,9 +196,14 @@ class WaterUseMethod(Enum):
 
 
 class DiagMethod(Enum):
-    NONE = 0  # No diagnostics
-    BASIC = 1  # Basic diagnostics
-    DETAILED = 2  # Detailed diagnostics
+    '''
+    0: Use MOST to calculate near surface diagnostics
+    1: Use RST to calculate near surface diagnostics
+    2: Use a set of criteria based on plan area index, frontal area index and heights of roughness elements to determine if RSL or MOST should be used.
+    '''
+    MOST = 0
+    RST = 1
+    VARIABLE = 2
 
     def __int__(self):
         return self.value
@@ -122,6 +213,10 @@ class DiagMethod(Enum):
 
 
 class FAIMethod(Enum):
+    '''
+    TODO: Add more detailed description for each method
+    '''
+    ZERO = 0 # Not documented
     FIXED = 1  # Fixed frontal area index
     VARIABLE = 2  # Variable frontal area index based on vegetation state
 
@@ -133,9 +228,12 @@ class FAIMethod(Enum):
 
 
 class LocalClimateMethod(Enum):
-    NONE = 0  # No local climate zone calculations
-    BASIC = 1  # Basic local climate zone calculations
-    DETAILED = 2  # Detailed local climate zone calculations
+    '''
+    TODO: Add more detailed description for each method
+    '''
+    NONE = 0
+    BASIC = 1
+    DETAILED = 2
 
     def __int__(self):
         return self.value
@@ -145,9 +243,14 @@ class LocalClimateMethod(Enum):
 
 
 class StebbsMethod(Enum):
+    '''
     NONE = 0  # No STEBBS calculations
-    BASIC = 1  # Basic STEBBS calculations
-    DETAILED = 2  # Detailed STEBBS calculations
+    BASIC = 1  # STEBBS used with default stebbs parameters
+    DETAILED = 2  # STEBBS used with provided stebbs parameters from user
+    '''
+    NONE = 0
+    DEFAULT = 1
+    PROVIDED = 2
 
     def __int__(self):
         return self.value
@@ -156,8 +259,12 @@ class StebbsMethod(Enum):
         return str(self.value)
 
 class SnowUse(Enum):
-    ENABLED = 1  # Using snow calculations
-    DISABLED = 0  # Not using snow calculations
+    '''
+    DISABLED = 0  # Snow calculations are performed
+    ENABLED = 1  # Snow calculations are not performed
+    '''
+    DISABLED = 0 
+    ENABLED = 1
 
     def __int__(self):
         return self.value
@@ -202,11 +309,11 @@ for enum_class in [
 
 class ModelPhysics(BaseModel):
     netradiationmethod: ValueWithDOI[NetRadiationMethod] = Field(
-        default=ValueWithDOI(NetRadiationMethod.MODELLED),
+        default=ValueWithDOI(NetRadiationMethod.LDOWN_AIR),
         description="Method used to calculate net radiation",
     )
     emissionsmethod: ValueWithDOI[EmissionsMethod] = Field(
-        default=ValueWithDOI(EmissionsMethod.CO2_AND_ENERGY),
+        default=ValueWithDOI(EmissionsMethod.J11),
         description="Method used to calculate anthropogenic emissions",
     )
     storageheatmethod: ValueWithDOI[StorageHeatMethod] = Field(
@@ -226,19 +333,19 @@ class ModelPhysics(BaseModel):
         description="Method used to calculate heat roughness length",
     )
     stabilitymethod: ValueWithDOI[StabilityMethod] = Field(
-        default=ValueWithDOI(StabilityMethod.VARIABLE),
+        default=ValueWithDOI(StabilityMethod.CAMPBELL_NORMAN),
         description="Method used for atmospheric stability calculation",
     )
     smdmethod: ValueWithDOI[SMDMethod] = Field(
-        default=ValueWithDOI(SMDMethod.BASIC),
+        default=ValueWithDOI(SMDMethod.MODELLED),
         description="Method used to calculate soil moisture deficit",
     )
     waterusemethod: ValueWithDOI[WaterUseMethod] = Field(
-        default=ValueWithDOI(WaterUseMethod.BASIC),
+        default=ValueWithDOI(WaterUseMethod.MODELLED),
         description="Method used to calculate water use",
     )
     diagmethod: ValueWithDOI[DiagMethod] = Field(
-        default=ValueWithDOI(DiagMethod.BASIC),
+        default=ValueWithDOI(DiagMethod.VARIABLE),
         description="Method used for model diagnostics",
     )
     faimethod: ValueWithDOI[FAIMethod] = Field(

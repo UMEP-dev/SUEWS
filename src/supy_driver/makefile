@@ -103,7 +103,7 @@ LIBSRC_SOURCES = suews_ctrl_const \
 	suews_phys_snow \
 	suews_phys_dailystate \
 	suews_phys_lumps \
-	suews_phys_anemsn \
+	suews_phys_anthro \
 	suews_phys_rslprof \
 	suews_phys_biogenco2 \
 	suews_phys_ohm \
@@ -138,7 +138,7 @@ LIBSRC_WRAP_SOURCES = suews_ctrl_driver \
 	suews_phys_resist \
 	suews_phys_evap \
 	suews_phys_dailystate \
-	suews_phys_anemsn \
+	suews_phys_anthro \
 	suews_phys_rslprof \
 	suews_util_meteo \
 	suews_phys_spartacus \

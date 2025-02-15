@@ -273,7 +273,7 @@ SUBROUTINE ErrorHint(errh, ProblemFile, VALUE, value2, valueI)
    ELSEIF (errh == 65) THEN
       text1 = 'Negative gs calculated! Check suitability of parameters in SUEWS_Conductance.txt.'
       flag_continue_on_error = .TRUE.
-      v7 = .TRUE. ! 1 real, 2 integers
+      v7 = .TRUE.
    ELSEIF (errh == 66) THEN
       text1 = 'Different number of lines in ESTM forcing and Met forcing files.'
       v6 = .TRUE.

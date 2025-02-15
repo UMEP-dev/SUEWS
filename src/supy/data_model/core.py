@@ -7,7 +7,6 @@ from pydantic import (
     PrivateAttr,
     conlist,
 )
-import numpy as np
 import pandas as pd
 import yaml
 import datetime
@@ -15,6 +14,7 @@ import datetime
 
 from .model import Model
 from .site import Site, SiteProperties, InitialStates
+from .. import load_sample_data
 
 
 class SUEWSConfig(BaseModel):
@@ -189,8 +189,9 @@ class SUEWSConfig(BaseModel):
     def to_df_state(self) -> pd.DataFrame:
         """Convert config to DataFrame state format"""
         list_df_site = []
-        for grid_id in range(len(self.site)):
-            df_site = self.site[grid_id].to_df_state(grid_id)
+        for i in range(len(self.site)):
+            grid_id = self.site[i].gridiv
+            df_site = self.site[i].to_df_state(grid_id)
             df_model = self.model.to_df_state(grid_id)
             df_site = pd.concat([df_site, df_model], axis=1)
             list_df_site.append(df_site)
@@ -203,6 +204,12 @@ class SUEWSConfig(BaseModel):
         df.index.set_names("grid", inplace=True)
         # set column names
         df.columns.set_names(["var", "ind_dim"], inplace=True)
+
+        # Reindex columns to match the sample data columns order
+        sample_columns = load_sample_data()[0].columns
+
+        # Reindex to match sample columns and then append non-matching columns
+        df = df.reindex(columns=sample_columns)
         return df
 
     @classmethod

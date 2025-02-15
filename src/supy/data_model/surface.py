@@ -236,7 +236,7 @@ class SurfaceProperties(BaseModel):
                 "waterdist",
                 "storedrainprm",
                 "ohm_coef",
-                "lai",
+                # "lai",
             ]:
                 nested_obj = getattr(self, property)
                 if nested_obj is not None and hasattr(nested_obj, "to_df_state"):
@@ -299,6 +299,7 @@ class SurfaceProperties(BaseModel):
             "chanohm",
             "cpanohm",
             "kkanohm",
+            "ohm_coef",
             "ohm_threshsw",
             "ohm_threshwd",
             "soildepth",
@@ -327,8 +328,8 @@ class SurfaceProperties(BaseModel):
             if property in [
                 "waterdist",
                 "storedrainprm",
-                "ohm_coef",
-                "lai",
+                # "ohm_coef",
+                # "lai",
             ]:
                 nested_obj = cls.model_fields[property].annotation
                 if nested_obj is not None and hasattr(nested_obj, "from_df_state"):
@@ -336,6 +337,11 @@ class SurfaceProperties(BaseModel):
                         df, grid_id, surf_idx
                     )
                 continue
+            elif property == "ohm_coef": # moved seperately as optional fails hasattr()
+                if cls.model_fields[property].annotation is not None:
+                    property_values[property] = OHM_Coefficient_season_wetness.from_df_state(
+                        df, grid_id, surf_idx
+                    )
             elif property == "thermal_layers":
                 property_values[property] = cls.model_fields[
                     "thermal_layers"

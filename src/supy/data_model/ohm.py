@@ -112,7 +112,7 @@ class OHM_Coefficient_season_wetness(BaseModel):
 
         # Convert each coefficient
         for idx_s, coef in enumerate(
-            [self.summer_dry, self.summer_wet, self.winter_dry, self.winter_wet]
+            [self.summer_wet, self.summer_dry, self.winter_wet, self.winter_dry]
         ):
             df_coef = coef.to_df_state(grid_id, surf_idx, idx_s)
             df_coef_extra = coef.to_df_state(
@@ -142,10 +142,10 @@ class OHM_Coefficient_season_wetness(BaseModel):
             OHM_Coefficient_season_wetness: Reconstructed instance.
         """
 
-        summer_dry = OHMCoefficients.from_df_state(df, grid_id, surf_idx, 0)
-        summer_wet = OHMCoefficients.from_df_state(df, grid_id, surf_idx, 1)
-        winter_dry = OHMCoefficients.from_df_state(df, grid_id, surf_idx, 2)
-        winter_wet = OHMCoefficients.from_df_state(df, grid_id, surf_idx, 3)
+        summer_dry = OHMCoefficients.from_df_state(df, grid_id, surf_idx, 1)
+        summer_wet = OHMCoefficients.from_df_state(df, grid_id, surf_idx, 0)
+        winter_dry = OHMCoefficients.from_df_state(df, grid_id, surf_idx, 3)
+        winter_wet = OHMCoefficients.from_df_state(df, grid_id, surf_idx, 2)
 
         return cls(
             summer_dry=summer_dry,

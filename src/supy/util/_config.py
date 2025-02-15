@@ -480,7 +480,7 @@ class InitialStateVeg(SurfaceInitialState):
 
         # Add vegetated surface specific parameters
         # alb is universal so use surf_idx
-        df_state[("alb", f"({surf_idx},)")] = self.alb_id.value
+        # df_state[("alb", f"({surf_idx},)")] = self.alb_id.value
         # others are aligned with veg_idx
         df_state[("lai_id", f"({veg_idx},)")] = self.lai_id.value
         df_state[("gdd_id", f"({veg_idx},)")] = self.gdd_id.value
@@ -637,13 +637,17 @@ class InitialStateDectr(InitialStateVeg):
         # Deciduous tree-specific parameters
         porosity_id = df.loc[grid_id, ("porosity_id", "0")]
         decidcap_id = df.loc[grid_id, ("decidcap_id", "0")]
+        alb_id = df.loc[grid_id, ("albdectr_id", "0")]
 
         # Convert to ValueWithDOI
         porosity_id = ValueWithDOI[float](porosity_id)
         decidcap_id = ValueWithDOI[float](decidcap_id)
 
+        base_instance_dict = base_instance.model_dump()
+        base_instance_dict["alb_id"] = {"value": alb_id}  # Update alb_id explicitly
+
         return cls(
-            **base_instance.model_dump(),
+            **base_instance_dict,
             porosity_id=porosity_id,
             decidcap_id=decidcap_id,
         )
@@ -1465,7 +1469,7 @@ class OHM_Coefficient_season_wetness(BaseModel):
 
         # Convert each coefficient
         for idx_s, coef in enumerate(
-            [self.summer_dry, self.summer_wet, self.winter_dry, self.winter_wet]
+            [self.summer_wet, self.summer_dry, self.winter_wet, self.winter_dry]
         ):
             df_coef = coef.to_df_state(grid_id, surf_idx, idx_s)
             df_coef_extra = coef.to_df_state(
@@ -1495,10 +1499,10 @@ class OHM_Coefficient_season_wetness(BaseModel):
             OHM_Coefficient_season_wetness: Reconstructed instance.
         """
 
-        summer_dry = OHMCoefficients.from_df_state(df, grid_id, surf_idx, 0)
-        summer_wet = OHMCoefficients.from_df_state(df, grid_id, surf_idx, 1)
-        winter_dry = OHMCoefficients.from_df_state(df, grid_id, surf_idx, 2)
-        winter_wet = OHMCoefficients.from_df_state(df, grid_id, surf_idx, 3)
+        summer_wet = OHMCoefficients.from_df_state(df, grid_id, surf_idx, 0)
+        summer_dry = OHMCoefficients.from_df_state(df, grid_id, surf_idx, 1)
+        winter_wet = OHMCoefficients.from_df_state(df, grid_id, surf_idx, 2)
+        winter_dry = OHMCoefficients.from_df_state(df, grid_id, surf_idx, 3)
 
         return cls(
             summer_dry=summer_dry,
@@ -1628,12 +1632,16 @@ class SurfaceProperties(BaseModel):
             if property in [
                 "waterdist",
                 "storedrainprm",
-                "ohm_coef",
-                "lai",
+                # "ohm_coef",
+                # "lai", # LAI is not nested - it is above the surface properties in hierarchy
             ]:
                 nested_obj = getattr(self, property)
                 if nested_obj is not None and hasattr(nested_obj, "to_df_state"):
                     nested_df = nested_obj.to_df_state(grid_id, surf_idx)
+                    dfs.append(nested_df)
+            elif property == "ohm_coef":
+                if self.ohm_coef is not None:
+                    nested_df = self.ohm_coef.to_df_state(grid_id, surf_idx)
                     dfs.append(nested_df)
             elif property == "thermal_layers":
                 nested_df = self.thermal_layers.to_df_state(
@@ -1692,6 +1700,7 @@ class SurfaceProperties(BaseModel):
             "chanohm",
             "cpanohm",
             "kkanohm",
+            "ohm_coef",
             "ohm_threshsw",
             "ohm_threshwd",
             "soildepth",
@@ -1720,8 +1729,6 @@ class SurfaceProperties(BaseModel):
             if property in [
                 "waterdist",
                 "storedrainprm",
-                "ohm_coef",
-                "lai",
             ]:
                 nested_obj = cls.model_fields[property].annotation
                 if nested_obj is not None and hasattr(nested_obj, "from_df_state"):
@@ -1729,6 +1736,11 @@ class SurfaceProperties(BaseModel):
                         df, grid_id, surf_idx
                     )
                 continue
+            elif property == "ohm_coef": # moved seperately as optional fails hasattr()
+                if cls.model_fields[property].annotation is not None:
+                    property_values[property] = OHM_Coefficient_season_wetness.from_df_state(
+                        df, grid_id, surf_idx
+                    )
             elif property == "thermal_layers":
                 property_values[property] = cls.model_fields[
                     "thermal_layers"
@@ -3833,6 +3845,31 @@ class VegetatedSurfaceProperties(SurfaceProperties):
 
         return df_state
 
+    @classmethod
+    def from_df_state(cls, df: pd.DataFrame, grid_id: int, surf_idx: int) -> "VegetatedSurfaceProperties":
+        """Reconstruct vegetated surface properties from DataFrame state format."""
+        instance = super().from_df_state(df, grid_id, surf_idx)
+        # add ordinary float properties
+        for attr in [
+            # "alb_min",
+            # "alb_max",
+            "beta_bioco2",
+            "beta_enh_bioco2",
+            "alpha_bioco2",
+            "alpha_enh_bioco2",
+            "resp_a",
+            "resp_b",
+            "theta_bioco2",
+            "maxconductance",
+            "min_res_bioco2",
+            "ie_a",
+            "ie_m",
+        ]:
+            setattr(instance, attr, ValueWithDOI(df.loc[grid_id, (attr, f"({surf_idx-2},)")]))
+
+        instance.lai = LAIParams.from_df_state(df, grid_id, surf_idx)
+
+        return instance
 
 class EvetrProperties(VegetatedSurfaceProperties):  # TODO: Move waterdist VWD here?
     faievetree: ValueWithDOI[float] = Field(
@@ -3879,6 +3916,13 @@ class EvetrProperties(VegetatedSurfaceProperties):  # TODO: Move waterdist VWD h
         """Reconstruct evergreen tree properties from DataFrame state format."""
         surf_idx = 2
         instance = super().from_df_state(df, grid_id, surf_idx)
+
+        instance.faievetree = ValueWithDOI(df.loc[grid_id, ("faievetree", "0")])
+        instance.evetreeh = ValueWithDOI(df.loc[grid_id, ("evetreeh", "0")])
+
+        instance.alb_min = ValueWithDOI(df.loc[grid_id, ("albmin_evetr", "0")])
+        instance.alb_max = ValueWithDOI(df.loc[grid_id, ("albmax_evetr", "0")])
+
         return instance
 
 
@@ -3945,6 +3989,17 @@ class DectrProperties(VegetatedSurfaceProperties):
         """Reconstruct deciduous tree properties from DataFrame state format."""
         surf_idx = 3
         instance = super().from_df_state(df, grid_id, surf_idx)
+
+        instance.faidectree = ValueWithDOI(df.loc[grid_id, ("faidectree", "0")])
+        instance.dectreeh = ValueWithDOI(df.loc[grid_id, ("dectreeh", "0")])
+        instance.pormin_dec = ValueWithDOI(df.loc[grid_id, ("pormin_dec", "0")])
+        instance.pormax_dec = ValueWithDOI(df.loc[grid_id, ("pormax_dec", "0")])
+        instance.capmax_dec = ValueWithDOI(df.loc[grid_id, ("capmax_dec", "0")])
+        instance.capmin_dec = ValueWithDOI(df.loc[grid_id, ("capmin_dec", "0")])
+
+        instance.alb_min = ValueWithDOI(df.loc[grid_id, ("albmin_dectr", "0")])
+        instance.alb_max = ValueWithDOI(df.loc[grid_id, ("albmax_dectr", "0")])
+
         return instance
 
 
@@ -3971,6 +4026,10 @@ class GrassProperties(VegetatedSurfaceProperties):
         """Reconstruct grass properties from DataFrame state format."""
         surf_idx = 4
         instance = super().from_df_state(df, grid_id, surf_idx)
+
+        instance.alb_min = ValueWithDOI(df.loc[grid_id, ("albmin_grass", "0")])
+        instance.alb_max = ValueWithDOI(df.loc[grid_id, ("albmax_grass", "0")])
+
         return instance
 
 
@@ -5062,8 +5121,9 @@ class SUEWSConfig(BaseModel):
     def to_df_state(self) -> pd.DataFrame:
         """Convert config to DataFrame state format"""
         list_df_site = []
-        for grid_id in range(len(self.site)):
-            df_site = self.site[grid_id].to_df_state(grid_id)
+        for i in range(len(self.site)):
+            grid_id = self.site[i].gridiv
+            df_site = self.site[i].to_df_state(grid_id)
             df_model = self.model.to_df_state(grid_id)
             df_site = pd.concat([df_site, df_model], axis=1)
             list_df_site.append(df_site)
@@ -5074,6 +5134,7 @@ class SUEWSConfig(BaseModel):
 
         # set index name
         df.index.set_names("grid", inplace=True)
+
         # set column names
         df.columns.set_names(["var", "ind_dim"], inplace=True)
         return df

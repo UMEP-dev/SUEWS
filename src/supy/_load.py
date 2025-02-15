@@ -1370,17 +1370,24 @@ def load_SUEWS_dict_ModConfig(path_runcontrol, dict_default=dict_RunControl_defa
         / "SUEWS_SPARTACUS.nml"
     )
 
+    dict_RunControl_x = {k[0]: v for k, v in load_SUEWS_nml(path_spartacus).items()}
+    dict_RunControl.update(dict_RunControl_x)
 
+    return dict_RunControl
+
+# load stebbs nml files
+def load_SUEWS_dict_Stebbs(path_runcontrol, dict_runconfig):
     # load STEBBS-specific variables:
-    if dict_RunControl["stebbsmethod"] == 2:
+    stebbs_dict = {}
+    if dict_runconfig["stebbsmethod"] == 2:
         path_stebbs_typologies = (
             path_runcontrol.parent
-            / dict_RunControl["fileinputpath"]
+            / path_runcontrol["fileinputpath"]
             / "stebbs_building_typologies.nml"
         )
         path_stebbs_general = (
             path_runcontrol.parent
-            / dict_RunControl["fileinputpath"]
+            / path_runcontrol["fileinputpath"]
             / "stebbs_general_params.nml"
         )
     else:
@@ -1393,35 +1400,15 @@ def load_SUEWS_dict_ModConfig(path_runcontrol, dict_default=dict_RunControl_defa
             / "test_stebbs_general_params.nml"
         )
 
-    dict_RunControl_x = {k[0]: v for k, v in load_SUEWS_nml(path_spartacus).items()}
-    dict_RunControl.update(dict_RunControl_x)
+    stebbs_dict_y = {k[0]: v for k, v in load_SUEWS_nml(path_stebbs_typologies).items()}
+    stebbs_dict.update(stebbs_dict_y)
 
-    # load STEBBS-specific variables:
-    if dict_RunControl["stebbsmethod"] == 1:
-        path_stebbs_typologies = (
-            path_runcontrol.parent
-            / dict_RunControl["fileinputpath"]
-            / "test_stebbs_building_typologies.nml"
-        )
-        path_stebbs_general = (
-            path_runcontrol.parent
-            / dict_RunControl["fileinputpath"]
-            / "test_stebbs_general_params.nml"
-        )
-    else:
-        trv_SampleData = trv_supy_module / "sample_run"
-        path_stebbs_general = trv_SampleData / "Input/test_stebbs_general_params.nml"
-        path_stebbs_typologies = trv_SampleData / "Input/test_stebbs_building_typologies.nml"
-
-    dict_RunControl_y = {k[0]: v for k, v in load_SUEWS_nml(path_stebbs_typologies).items()}
-    dict_RunControl.update(dict_RunControl_y)
-
-    dict_RunControl_z = {
+    stebbs_dict_z = {
         k[0]: v for k, v in load_SUEWS_nml(path_stebbs_general).items()
     }
-    dict_RunControl.update(dict_RunControl_z)
+    stebbs_dict.update(stebbs_dict_z)
 
-    return dict_RunControl
+    return stebbs_dict
 
 
 # initialise InitialCond_df with default values
@@ -1549,6 +1536,24 @@ def load_SUEWS_InitialCond_df(path_runcontrol):
     # and generate the secondary dimensions
     df_init = modify_df_init(df_init, list_var_dim_from_dict_ModConfig)
 
+    # add stebbs values
+    logger_supy.debug("loading stebbs values")
+    stebbs_dict = load_SUEWS_dict_Stebbs(path_runcontrol, dict_ModConfig)
+    list_var_dim_from_stebbs = []
+    for var, val in stebbs_dict.items():
+        if isinstance(val, (float, int, np.number, np.bool_, str)):
+            list_var_dim_from_stebbs.append((var, 0, val))
+        else:
+            print(
+                var,
+                val,
+                type(val),
+                "is not included: this should not happen!",
+                "please report to the developer:",
+            )
+
+    df_init = modify_df_init(df_init, list_var_dim_from_stebbs)
+
     # initialise df_InitialCond_grid with default values
     logger_supy.debug("adding initial condition namelists")
     dict_mod = {k: v for k, v in dict_InitCond_default.items()}
@@ -1596,7 +1601,6 @@ def load_SUEWS_InitialCond_df(path_runcontrol):
     df_init[("file_gridlayout", "0")] = df_init[("file_gridlayout", "0")].map(
         lambda fn: path_input / fn
     )
-
     return df_init
 
 
@@ -1622,7 +1626,7 @@ def modify_df_init(df_init, list_var_dim):
     for var, dim, val in list_var_dim:
         ind_dim = [str(i) for i in np.ndindex(int(dim))] if dim > 0 else ["0"]
         for ind in ind_dim:
-            if isinstance(val, str):
+            if isinstance(val, str) and var not in ["buildingname", "buildingtype"]:
                 dict_col_new[(var, ind)] = df_init_mod[val].values.reshape(len_df)
             else:
                 dict_col_new[(var, ind)] = np.repeat(val, len_df)
@@ -1982,7 +1986,6 @@ def load_InitialCond_grid_df(path_runcontrol, force_reload=True):
     df_sfr_surf = df_init.sfr_surf.copy()
     df_sfr_surf = df_sfr_surf.div(df_sfr_surf.sum(axis=1), axis=0)
     df_init.sfr_surf = df_sfr_surf
-
     return df_init
 
 

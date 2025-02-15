@@ -567,8 +567,11 @@ def run_supy_par(df_forcing_tstep, df_state_init_m, save_state, chunk_day, debug
 # pack one Series of var into np.array
 def pack_var_old(ser_var):
     dim = np.array(literal_eval(ser_var.index[-1])) + 1
-    val = np.array(ser_var.values.reshape(dim), order="F").astype(float)
-    return val
+    val = np.array(ser_var.values.reshape(dim), order="F")
+    try:
+        return val.astype(float)
+    except:
+        return val
 
 
 # pack one Series of var into np.array

@@ -187,7 +187,7 @@ PHYS =	suews_phys_narp.o \
 	suews_phys_ohm.o \
 	suews_phys_anohm.o \
 	suews_phys_lumps.o \
-	suews_phys_anemsn.o \
+	suews_phys_anthro.o \
     suews_phys_rslprof.o \
 	suews_phys_biogenco2.o \
 	suews_phys_solweig.o \

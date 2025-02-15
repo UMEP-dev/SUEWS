@@ -494,13 +494,17 @@ class InitialStateDectr(InitialStateVeg):
         # Deciduous tree-specific parameters
         porosity_id = df.loc[grid_id, ("porosity_id", "0")]
         decidcap_id = df.loc[grid_id, ("decidcap_id", "0")]
+        alb_id = df.loc[grid_id, ("albdectr_id", "0")]
 
         # Convert to ValueWithDOI
         porosity_id = ValueWithDOI[float](porosity_id)
         decidcap_id = ValueWithDOI[float](decidcap_id)
+        base_instance_dict = base_instance.model_dump()
+        base_instance_dict["alb_id"] = {"value": alb_id}  # Update alb_id explicitly
+
 
         return cls(
-            **base_instance.model_dump(),
+            **base_instance_dict,
             porosity_id=porosity_id,
             decidcap_id=decidcap_id,
         )
@@ -585,6 +589,21 @@ class InitialStates(BaseModel):
         description="Initial states for wall layers",
     )
 
+    dqndt: float = Field(default=0, description="Change in net radiation")
+    dqnsdt: float = Field(default=0, description="Change in net shortwave radiation")
+    dt_since_start: float = Field(default=0, description="Time since start")
+    lenday_id: int = Field(default=0, description="Length of the day ID")
+    qn_av: float = Field(default=0, description="Average net radiation")
+    qn_s_av: float = Field(default=0, description="Average net shortwave radiation")
+    tair_av: float = Field(default=0, description="Average air temperature")
+    tmax_id: float = Field(default=0, description="Maximum temperature ID")
+    tmin_id: float = Field(default=0, description="Minimum temperature ID")
+    tstep_prev: float = Field(default=0, description="Previous time step")
+    snowfallcum: float = Field(default=0, description="Cumulative snowfall")
+    hdd_id: List[float] = Field(
+        default=[0] * 12, description="Heating degree days ID"
+    )
+
     def to_df_state(self, grid_id: int) -> pd.DataFrame:
         """Convert initial states to DataFrame state format."""
         df_state = init_df_state(grid_id)
@@ -616,27 +635,25 @@ class InitialStates(BaseModel):
                     df_state = pd.concat([df_state, df_facet], axis=1)
                     df_state = df_state.sort_index(axis=1)
 
-        # add dummy columns to conform to SUEWS convention
-        list_cols = [
-            "dqndt",
-            "dqnsdt",
-            "dt_since_start",
-            "lenday_id",
-            "qn_av",
-            "qn_s_av",
-            "tair_av",
-            "tmax_id",
-            "tmin_id",
-            "tstep_prev",
-            "snowfallcum",
-        ]
-        for col in list_cols:
-            df_state[(col, "0")] = 0
-            df_state = df_state.sort_index(axis=1)
+        # Add these attributes to the DataFrame
+        df_state[("dqndt", "0")] = self.dqndt
+        df_state[("dqnsdt", "0")] = self.dqnsdt
+        df_state[("dt_since_start", "0")] = self.dt_since_start
+        df_state[("lenday_id", "0")] = self.lenday_id
+        df_state[("qn_av", "0")] = self.qn_av
+        df_state[("qn_s_av", "0")] = self.qn_s_av
+        df_state[("tair_av", "0")] = self.tair_av
+        df_state[("tmax_id", "0")] = self.tmax_id
+        df_state[("tmin_id", "0")] = self.tmin_id
+        df_state[("tstep_prev", "0")] = self.tstep_prev
+        df_state[("snowfallcum", "0")] = self.snowfallcum
+
+        df_state = df_state.sort_index(axis=1)
         # special treatment for hdd_id
-        for i in range(12):
-            df_state[(f"hdd_id", f"({i},)")] = 0
-            df_state = df_state.sort_index(axis=1)
+        for i, hdd in enumerate(self.hdd_id):
+            df_state[(f"hdd_id", f"({i},)")] = hdd
+        df_state = df_state.sort_index(axis=1)
+
         # Drop duplicate columns while preserving first occurrence
         df_state = df_state.loc[:, ~df_state.columns.duplicated(keep="first")]
 
@@ -681,15 +698,44 @@ class InitialStates(BaseModel):
             "wall", SurfaceInitialState, len(cls.model_fields["walls"].default)
         )
 
+        dqndt = df.loc[grid_id, ("dqndt", "0")]
+        dqnsdt = df.loc[grid_id, ("dqnsdt", "0")]
+        dt_since_start = df.loc[grid_id, ("dt_since_start", "0")]
+        lenday_id = df.loc[grid_id, ("lenday_id", "0")]
+        qn_av = df.loc[grid_id, ("qn_av", "0")]
+        qn_s_av = df.loc[grid_id, ("qn_s_av", "0")]
+        tair_av = df.loc[grid_id, ("tair_av", "0")]
+        tmax_id = df.loc[grid_id, ("tmax_id", "0")]
+        tmin_id = df.loc[grid_id, ("tmin_id", "0")]
+        tstep_prev = df.loc[grid_id, ("tstep_prev", "0")]
+        snowfallcum = df.loc[grid_id, ("snowfallcum", "0")]
+        hdd_id = [df.loc[grid_id, (f"hdd_id", f"({i},)")] for i in range(12)]
+
+        initital_state = {
+            "snowalb": snowalb,
+            "paved": surfaces["paved"],
+            "bldgs": surfaces["bldgs"],
+            "evetr": surfaces["evetr"],
+            "dectr": surfaces["dectr"],
+            "grass": surfaces["grass"],
+            "bsoil": surfaces["bsoil"],
+            "water": surfaces["water"],
+            "roofs": roofs,
+            "walls": walls,
+            "dqndt": dqndt,
+            "dqnsdt": dqnsdt,
+            "dt_since_start": dt_since_start,
+            "lenday_id": lenday_id,
+            "qn_av": qn_av,
+            "qn_s_av": qn_s_av,
+            "tair_av": tair_av,
+            "tmax_id": tmax_id,
+            "tmin_id": tmin_id,
+            "tstep_prev": tstep_prev,
+            "snowfallcum": snowfallcum,
+            "hdd_id": hdd_id,
+        }
+
         return cls(
-            snowalb=snowalb,
-            paved=surfaces["paved"],
-            bldgs=surfaces["bldgs"],
-            evetr=surfaces["evetr"],
-            dectr=surfaces["dectr"],
-            grass=surfaces["grass"],
-            bsoil=surfaces["bsoil"],
-            water=surfaces["water"],
-            roofs=roofs,
-            walls=walls,
+            **initital_state,
         )

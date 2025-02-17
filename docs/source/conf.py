@@ -313,7 +313,7 @@ pygments_style = "sphinx"
 default_role = "any"
 
 # some text replacement defintions
-rst_prolog = """
+rst_prolog = r"""
 .. |km^-1| replace:: km\ :sup:`-1`
 .. |mm^-1| replace:: mm\ :sup:`-1`
 .. |m^-1| replace:: m\ :sup:`-1`

@@ -963,5 +963,7 @@
   "year": "Year",
   "z": "z",
   "z0m_in": "z0",
-  "zdm_in": "zd"
+  "zdm_in": "zd",
+  "n_buildings": "n_buildings",
+  "h_std": "h_std"
 }

@@ -17,6 +17,8 @@ This is a public repo for SUEWS source code and documentation.
 
 ## Compilation
 
+*Note: the following steps have been tested on macOS 14.1 and above, and WSL on Windows 10.*
+
 ### Prerequisites
 
 #### Essential
@@ -25,56 +27,53 @@ This is a public repo for SUEWS source code and documentation.
 * [mamba](https://mamba.readthedocs.io/en/latest/) - avoid using `conda` as it is too slow
 
 #### Recommended
-* [WSL](https://docs.microsoft.com/en-us/windows/wsl/install-win10) - for Linux-like environment on Windows
 * [VS Code](https://code.visualstudio.com/) - for code editing
 * [VS Code Co-pilot](https://marketplace.visualstudio.com/items?itemName=GitHub.copilot) - for AI-assisted code writing (free for academic use)
+* [WSL](https://docs.microsoft.com/en-us/windows/wsl/install-win10) - for Linux-like environment on Windows (Windows users only)
 
+### Compilation Steps
 
-### Compilation
-1. Since SUEWS includes a dependency package [SPARTACUS](https://github.com/Urban-Meteorology-Reading/spartacus-surface), one needs to initialise this submodule by:
+1. Since SUEWS includes a dependency package [SPARTACUS](https://github.com/Urban-Meteorology-Reading/spartacus-surface), initialise this submodule by:
 ```shell
 git submodule init
 git submodule update
-
 ```
-Then source code of SPARTACUS will be loaded into `SUEWS-SourceCode/ext_lib/spartacus-surface`
+
+Then source code of SPARTACUS will be loaded into `ext_lib/spartacus-surface`
 
 *Note: if a `permission denied` error occurs, one usually needs to fix the SSH connection to GitHub by following the [official guide here](https://docs.github.com/en/github/authenticating-to-github/connecting-to-github-with-ssh).*
 
-
-
-2. Configure mamba environment by:
+2. Configure mamba environment:
 ```shell
 mamba env create -f env.yml
 ```
-This will create a new environment named `suews-dev` with all the required packages installed.
+This will create a new environment named `suews-dev` with all required packages installed.
 
-3. Activate the environment by:
+3. Activate the environment:
 ```shell
-make activate suews-dev
+mamba activate suews-dev
 ```
 
+4. Compile SUEWS:
 
-4. Compile SUEWS
-
-4.1 compile the code and perform all tests
+4.1. For development with all tests:
 ```shell
 make
 ```
 
-4.2 only compile the code
+4.2. For development without tests:
 ```shell
 make dev
 ```
 
-
-This will install a python package `supy-driver` and `supy` into the current environment (i.e., `suews-dev`).
-Also, several command-line tools will be installed under `bin` folder, which can be used to perform SUEWS simulations:
+This will install Python packages `supy-driver` and `supy` into the current environment (`suews-dev`).
+Several command-line tools will be installed under `bin` folder for SUEWS simulations:
 - `suews-run`: the main SUEWS binary
-- `suews-convert`: a tool to convert SUEWS input files from old format to new format
-the usage of both of which can be checked by `--help` option (e.g., `suews-run --help`).
+- `suews-convert`: a tool to convert SUEWS input files between formats
 
-5. Check if `supy` is installed by:
+The usage of both tools can be checked with the `--help` option (e.g., `suews-run --help`).
+
+5. Verify installation:
 ```shell
 pip show supy
 ```

@@ -40,17 +40,7 @@ supy_dir = src/supy
 
 PYTHON := $(if $(PYTHON_exe),$(PYTHON_exe),python)
 
-all: test
-
-# set up the development environment
-# use `-p [x.y]` to specify python version: e.g. `-p 3.12`
-env:
-	uv venv .venv -p 3.11
-
-# install dependencies
-reqs:
-	uv pip compile requirements.in -o requirements.txt
-	uv pip install -r requirements.txt
+all: install test
 
 # make suews driver library
 suews:

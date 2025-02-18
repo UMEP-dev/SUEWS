@@ -471,7 +471,7 @@ class VegetatedSurfaceProperties(SurfaceProperties):
         df_state = pd.concat([df_state, df_lai], axis=1).sort_index(axis=1)
 
         return df_state
-    
+
     @classmethod
     def from_df_state(cls, df: pd.DataFrame, grid_id: int, surf_idx: int) -> "VegetatedSurfaceProperties":
         """Reconstruct vegetated surface properties from DataFrame state format."""
@@ -1745,6 +1745,16 @@ class SiteProperties(BaseModel):
         description="Parameters for vertical layer structure",
     )
 
+    n_buildings: ValueWithDOI[int] = Field(
+        default=ValueWithDOI(1),
+        description="Number of buildings in the site",
+    )
+
+    h_std: ValueWithDOI[float] = Field(
+        default=ValueWithDOI(10.0),
+        description="Standard deviation of building heights in the site",
+    )
+
     ref: Optional[Reference] = None
 
     class Config:
@@ -1815,6 +1825,8 @@ class SiteProperties(BaseModel):
             "pipecapacity",
             "runofftowater",
             "narp_trans_site",
+            "n_buildings",
+            "h_std",
         ]:
             df_state.loc[grid_id, (f"{var}", "0")] = getattr(self, var).value
 
@@ -1873,6 +1885,8 @@ class SiteProperties(BaseModel):
             "pipecapacity",
             "runofftowater",
             "narp_trans_site",
+            "n_buildings",
+            "h_std",
         ]:
             params[var] = ValueWithDOI(df.loc[grid_id, (var, "0")])
 

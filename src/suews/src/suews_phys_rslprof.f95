@@ -110,7 +110,9 @@ CONTAINS
       REAL(KIND(1D0)) :: L_MOD_RSL ! Obukhov length used in RSL module with thresholds applied
       ! real(KIND(1D0))::L_stab ! threshold for Obukhov length under stable conditions
       ! real(KIND(1D0))::L_unstab ! threshold for Obukhov length under unstable conditions
-
+      REAL(KIND(1D0)) :: zStd ! Standard deviation of buildings heights !added vlavor
+      REAL(KIND(1D0)) :: SurfaceArea
+      REAL(KIND(1D0)) :: nBuildings
       REAL(KIND(1D0)) :: zH_RSL ! mean canyon height used in RSL module with thresholds applied
       REAL(KIND(1D0)) :: dz_above ! height step above canopy
       REAL(KIND(1D0)) :: dz_can ! height step within canopy
@@ -230,7 +232,7 @@ CONTAINS
             StabilityMethod, & !input
             !nz_above, zarray(nz_can + 1:nz), & !input
             nz_above + 1, zarray(nz_can:nz), & !input
-            zh, L_MOD, sfr_surf, FAI, PAI, & !input
+            zh, zStd, L_MOD, sfr_surf, FAI, PAI, SurfaceArea, nBuildings, & !input
             !psihatm_z(nz_can + 1:nz), psihath_z(nz_can + 1:nz), & !output
             psihatm_z(nz_can:nz), psihath_z(nz_can:nz), & ! Calculate psihatm_z at zH
             zH_RSL, L_MOD_RSL, & ! output
@@ -917,6 +919,8 @@ CONTAINS
          )
 
          ASSOCIATE ( &
+            zStd => siteInfo%h_std, &
+            nBuildings => siteInfo%n_buildings, &
             pavedPrm => siteInfo%lc_paved, &
             bldgPrm => siteInfo%lc_bldg, &
             evetrPrm => siteInfo%lc_evetr, &
@@ -1011,7 +1015,6 @@ CONTAINS
                ! default is to use MOST
                flag_RSL = .FALSE.
             END IF
-
             !
             ! ! Step 2
             ! ! determine vertical levels used in RSL
@@ -1063,7 +1066,7 @@ CONTAINS
                   StabilityMethod, & !input
                   !nz_above, zarray(nz_can + 1:nz), & !input
                   nz_above + 1, zarray(nz_can:nz), & !input
-                  zh, L_MOD, sfr_surf, FAI, PAI, & !input
+                  zh, zStd, L_MOD, sfr_surf, FAI, PAI, SurfaceArea, nBuildings, & !input
                   !psihatm_z(nz_can + 1:nz), psihath_z(nz_can + 1:nz), & !output
                   psihatm_z(nz_can:nz), psihath_z(nz_can:nz), & !output
                   zH_RSL, L_MOD_RSL, & ! output
@@ -1750,7 +1753,7 @@ CONTAINS
    END FUNCTION cal_z0_RSL
 
    SUBROUTINE RSL_cal_prms( &
-      StabilityMethod, nz_above, z_array, zh, L_MOD, sfr_surf, FAI, PAI, & !input
+      StabilityMethod, nz_above, z_array, zh, zStd, L_MOD, sfr_surf, FAI, PAI, SurfaceArea, nBuildings, & !input
       psihatm_array, psihath_array, zH_RSL, L_MOD_RSL, Lc, beta, zd_RSL, z0_RSL, elm, Scc, fx) !output
 
       IMPLICIT NONE
@@ -1760,6 +1763,7 @@ CONTAINS
       REAL(KIND(1D0)), DIMENSION(nz_above), INTENT(out) :: psihatm_array ! land cover fractions
       REAL(KIND(1D0)), DIMENSION(nz_above), INTENT(out) :: psihath_array ! land cover fractions
       REAL(KIND(1D0)), INTENT(in) :: zh ! canyon depth [m]
+      REAL(KIND(1D0)), INTENT(in) :: zStd ! Standard deviation of buildings heights
       REAL(KIND(1D0)), INTENT(in) :: FAI ! frontal area index inlcuding trees
       ! REAL(KIND(1D0)), INTENT(in) :: FAIBldg ! frontal area index of buildings
       REAL(KIND(1D0)), INTENT(in) :: PAI ! plan area index inlcuding area of trees
@@ -1797,6 +1801,11 @@ CONTAINS
       ! real(KIND(1D0)) ::betaNL
       REAL(KIND(1D0)) :: Lc_min ! LB Oct2021 - minimum value of Lc
       REAL(KIND(1D0)) :: dim_bluffbody ! LB Oct2021 - horizontal building dimensions
+      REAL(KIND(1D0)) :: SurfaceArea ! Grid Surface Area: TODO Check units
+      REAL(KIND(1D0)) :: nBuildings ! Number of Buildings in Grid
+      REAL(KIND(1D0)) :: Dx
+      REAL(KIND(1D0)) :: Lx
+      REAL(KIND(1D0)) :: zR
 
       REAL(KIND(1D0)), PARAMETER :: cd_tree = 1.2 ! drag coefficient tree canopy !!!!needs adjusting!!!
       REAL(KIND(1D0)), PARAMETER :: a_tree = 0.05 ! the foliage area per unit volume !!!!needs adjusting!!!
@@ -1858,7 +1867,7 @@ CONTAINS
 
       ! Step 2:
       ! Parameterise beta according to Harman 2012 with upper limit of 0.5
-      beta = cal_beta_RSL(StabilityMethod, PAI, sfr_tr, lc_over_L)
+      beta = cal_beta_RSL(StabilityMethod, zH_RSL, zStd, FAI, PAI, sfr_tr, lc_over_L)
 
       ! Schmidt number Harman and Finnigan 2008: assuming the same for heat and momemntum
       Scc = 0.5 + 0.3*TANH(2.*lc_over_L)
@@ -1872,6 +1881,12 @@ CONTAINS
 
       CALL cal_ch(StabilityMethod, zh_RSL, zd_RSL, Lc, beta, L_MOD_RSL, Scc, fx, c2h, ch)
       CALL cal_cm(StabilityMethod, zH_RSL, zd_RSL, Lc, beta, L_MOD_RSL, c2m, cm)
+
+      ! Calculate blending height zR - the height at which RSL influences both momentum and heat # Issue338
+      ! ref: eqn 21 in Grimmond (1999, JAM)
+      Dx = SQRT(SurfaceArea/nBuildings)
+      Lx = SQRT(Dx**2*PAI)
+      zR = zH_RSL + 1.5*(Dx - Lx)
 
       ! calculate psihat values at desirable heights
       psihatm_top = 0
@@ -1896,7 +1911,13 @@ CONTAINS
                                     cm, c2m, &
                                     zh_RSL, zd_RSL, L_MOD_RSL, beta, elm, Lc)
          !zh_RSL, zd_RSL, L_MOD, beta, elm, Lc)
-         psihatm_array(iz - 2) = psihatm_btm
+         IF (z_btm < zR) THEN
+            psihatm_array(iz - 2) = psihatm_btm
+         ELSE
+            psihatm_btm = 0 ! psihah = 0 if z>zR
+            psihatm_array(iz - 2) = psihatm_btm
+         END IF
+         !psihatm_array(iz - 2) = psihatm_btm
          psihatm_top = psihatm_mid
          psihatm_mid = psihatm_btm
 
@@ -1906,9 +1927,15 @@ CONTAINS
                                     z_top, z_mid, z_btm, &
                                     ch, c2h, &
                                     zH_RSL, zd_RSL, L_MOD_RSL, beta, elm, Lc)
+         IF (z_btm < zR) THEN
+            psihath_array(iz - 2) = psihath_btm
+         ELSE
+            psihath_btm = 0 ! psihah = 0 if z>zR
+            psihath_array(iz - 2) = psihath_btm
+         END IF
+         !psihath_array(iz - 2) = psihath_btm
          psihath_top = psihath_mid
          psihath_mid = psihath_btm
-         psihath_array(iz - 2) = psihath_btm
 
       END DO
 
@@ -1918,13 +1945,16 @@ CONTAINS
 
    END SUBROUTINE RSL_cal_prms
 
-   FUNCTION cal_beta_RSL(StabilityMethod, PAI, sfr_tr, lc_over_L) RESULT(beta)
+   FUNCTION cal_beta_RSL(StabilityMethod, zH_RSL, zStd, FAI, PAI, sfr_tr, lc_over_L) RESULT(beta)
       ! Step 2:
       ! Parameterise beta according to Harman 2012 with upper limit of 0.5
       IMPLICIT NONE
 
       INTEGER, INTENT(in) :: StabilityMethod ! stability method
+      REAL(KIND(1D0)), INTENT(in) :: zH_RSL
+      REAL(KIND(1D0)), INTENT(in) :: zStd
       REAL(KIND(1D0)), INTENT(in) :: PAI
+      REAL(KIND(1D0)), INTENT(in) :: FAI
       REAL(KIND(1D0)), INTENT(in) :: sfr_tr
       REAL(KIND(1D0)), INTENT(in) :: lc_over_L
 
@@ -1934,6 +1964,7 @@ CONTAINS
       ! internal use
       REAL(KIND(1D0)) :: betaHF
       REAL(KIND(1D0)) :: betaNL
+      REAL(KIND(1D0)) :: H_
 
       REAL(KIND(1D0)), PARAMETER :: kappa = 0.4
       REAL(KIND(1D0)), PARAMETER :: a1 = 4., a2 = -0.1, a3 = 1.5, a4 = -1.
@@ -1953,16 +1984,18 @@ CONTAINS
       !   betaN2 = 0.35
       !END IF
 
-      ! ## Issue 338 - beta
-      IF (PAI >= 0.0 .AND. PAI <= 0.2) THEN
-         betaN2 = 0.24
-      ELSE IF (PAI > 0.2 .AND. PAI <= 0.4) THEN
-         betaN2 = 0.32
-      ELSE IF (PAI > 0.4 .AND. PAI <= 1.0) THEN
-         betaN2 = 0.40
+      ! Include betaN2 parametrized based on UrbanTALES dataset (https://urbantales.vercel.app/) #Issue338
+      ! betaN2 = f(H_, FAI)
+      H_ = zStd/zH_RSL
+
+      IF (H_ < 0.25) THEN
+         betaN2 = (3.444*FAI**0.971)/(1 + 10.487*FAI**0.971)
+      ELSEIF (H_ >= 0.25 .AND. H_ <= 0.50) THEN
+         betaN2 = (0.264*FAI**0.348)/(1 - 0.511*FAI**0.348)
       ELSE
-         betaN2 = 0.35
+         betaN2 = (6.822*FAI**1.365)/(1 + 14.808*FAI**1.365)
       END IF
+      betaN2 = MIN(MAX(betaN2, 0.15), 0.50) !
 
       betaHF = cal_beta_lc(stabilityMethod, betaN2, lc_over_L)
 

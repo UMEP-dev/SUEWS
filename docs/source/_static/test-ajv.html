@@ -227,22 +227,22 @@
                     }
 
                     // Check if it's a valid number
-                    if (!/^-?\d*\.?\d+$/.test(value)) {
-                        errorDiv.textContent = `${input.id}: should be number`;
-                        input.setCustomValidity("Invalid number");
-                        return null;
-                    }
+                    // if (!/^-?\d*\.?\d+$/.test(value)) {
+                    //     errorDiv.textContent = `${input.id}: should be number`;
+                    //     input.setCustomValidity("Invalid number");
+                    //     return null;
+                    // }
 
                     const num = Number(value);
                     const fieldName = input.id;
                     const constraints = schema.properties[fieldName];
 
-                    if (num < constraints.minimum || num > constraints.maximum) {
-                        const message = `Number must be between ${constraints.minimum} and ${constraints.maximum}`;
-                        errorDiv.textContent = message;
-                        input.setCustomValidity(message);
-                        return null;
-                    }
+                    // if (num < constraints.minimum || num > constraints.maximum) {
+                    //     const message = `Number must be between ${constraints.minimum} and ${constraints.maximum}`;
+                    //     errorDiv.textContent = message;
+                    //     input.setCustomValidity(message);
+                    //     return null;
+                    // }
 
                     return num;
                 }

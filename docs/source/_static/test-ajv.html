@@ -165,31 +165,50 @@
             });
         }
 
-        // Initialize the form once Ajv is loaded
-        checkAjvLoaded()
-            .then(() => {
+        // Function to load schema from external file
+        async function loadSchema() {
+            try {
+                const response = await fetch('form-schema.json');
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                const schema = await response.json();
+                console.log('Schema loaded successfully:', schema);
+                return schema;
+            } catch (error) {
+                console.error('Error loading schema:', error);
+                throw error;
+            }
+        }
+
+        // Initialize the form once Ajv and schema are loaded
+        async function initializeForm() {
+            try {
+                // Wait for both Ajv and schema to be ready
+                const [ajvClass, schema] = await Promise.all([
+                    checkAjvLoaded(),
+                    loadSchema()
+                ]);
+
                 console.log('Starting form initialization');
                 // Remove loading indicator
                 document.getElementById('loading-indicator').style.display = 'none';
-
-                // Your existing initialization code
-                const schema = {
-                    type: "object",
-                    properties: {
-                        field1: { type: "number", minimum: 1, maximum: 10 },
-                        field2: { type: "number", minimum: -5, maximum: 5 }
-                    },
-                    required: ["field1", "field2"]
-                };
 
                 // Display schema
                 document.getElementById('schema-display').textContent = JSON.stringify(schema, null, 2);
 
                 // Initialize Ajv with options
-                const ajv = new window.Ajv({
+                const ajv = new ajvClass({
                     allErrors: true,
                     verbose: true,
-                    $data: true
+                    $data: true,
+                    messages: true
+                });
+
+                // Add better error messages
+                ajv.addFormat("number", {
+                    validate: (str) => !isNaN(str) && isFinite(str),
+                    compare: (a, b) => a - b
                 });
 
                 const validate = ajv.compile(schema);
@@ -351,30 +370,28 @@
                 [field1, field2].forEach(field => {
                     field.addEventListener("input", runValidation);
                 });
-            })
-            .catch(error => {
-                console.error('Detailed error:', error);
-                // Show error in debug panel
+            } catch (error) {
+                console.error('Initialization error:', error);
                 document.getElementById('loading-indicator').style.display = 'none';
                 document.getElementById('debug-panel').innerHTML = `
                     <div class="error" style="padding: 20px;">
-                        <h3>⚠️ Validation Initialization Error</h3>
+                        <h3>⚠️ Initialization Error</h3>
                         <p>${error.message}</p>
                         <p>Technical details have been logged to the console (F12)</p>
                         <p>This might be because:</p>
                         <ul>
+                            <li>The schema file could not be loaded</li>
+                            <li>The schema file contains invalid JSON</li>
                             <li>The network connection is not available</li>
-                            <li>The CDN is not accessible</li>
-                            <li>The browser's security settings are blocking script execution</li>
-                        </ul>
-                        <p>Alternative options:</p>
-                        <ul>
-                            <li>Try refreshing the page</li>
-                            <li>Check if you can access <a href="https://cdn.jsdelivr.net/npm/ajv@6.12.6/dist/ajv.min.js" target="_blank">the Ajv library directly</a></li>
+                            <li>The Ajv library failed to load</li>
                         </ul>
                     </div>
                 `;
-            });
+            }
+        }
+
+        // Start initialization
+        initializeForm();
     </script>
 
 </body>

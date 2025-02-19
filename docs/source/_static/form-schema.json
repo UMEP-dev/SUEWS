@@ -1,0 +1,34 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "type": "object",
+    "title": "Form Validation Schema",
+    "description": "Schema for validating numeric input fields",
+    "properties": {
+        "field1": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 100,
+            "title": "Field 1",
+            "description": "A number between 1 and 100",
+            "errorMessage": {
+                "type": "Field 1 must be a valid number",
+                "minimum": "Field 1 must be at least 1",
+                "maximum": "Field 1 must be at most 10"
+            }
+        },
+        "field2": {
+            "type": "number",
+            "minimum": -5,
+            "maximum": 5,
+            "title": "Field 2",
+            "description": "A number between -5 and 5",
+            "errorMessage": {
+                "type": "Field 2 must be a valid number",
+                "minimum": "Field 2 must be at least -5",
+                "maximum": "Field 2 must be at most 5"
+            }
+        }
+    },
+    "required": ["field1", "field2"],
+    "additionalProperties": false
+}

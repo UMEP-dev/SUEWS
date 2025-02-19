@@ -5,6 +5,9 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AJV Form Validation App</title>
+    <!-- Load browser-compatible version of Ajv -->
+    <script src="https://cdn.jsdelivr.net/npm/ajv@6.12.6/dist/ajv.min.js"></script>
+    <!-- Add loading indicator -->
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -64,10 +67,44 @@
             border-radius: 3px;
             font-weight: bold;
         }
+
+        #loading-indicator {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.9);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
     </style>
 </head>
 
 <body>
+    <!-- Add loading indicator -->
+    <div id="loading-indicator">
+        <div>
+            <div class="spinner"></div>
+            <p>Initializing validation...</p>
+        </div>
+    </div>
 
     <h1>Real-time Numeric Validation</h1>
 
@@ -103,29 +140,39 @@
         </div>
     </div>
 
-    <!-- First load Ajv -->
-    <script src="https://cdn.jsdelivr.net/npm/ajv@8.12.0/dist/ajv7.min.js"></script>
-
-    <!-- Then initialize our app -->
     <script>
-        // Function to initialize the app once Ajv is loaded
-        function initializeApp() {
-            if (typeof Ajv === 'undefined') {
-                document.getElementById('debug-panel').innerHTML = `
-                    <div class="error" style="padding: 20px;">
-                        <h3>⚠️ Loading Error</h3>
-                        <p>The Ajv library is not available. Trying to reload...</p>
-                    </div>
-                `;
-                // Try loading from alternate CDN
-                const script = document.createElement('script');
-                script.src = 'https://cdnjs.cloudflare.com/ajax/libs/ajv/8.12.0/ajv7.min.js';
-                script.onload = initializeApp;
-                document.head.appendChild(script);
-                return;
-            }
+        // Function to check if Ajv is loaded
+        function checkAjvLoaded(maxAttempts = 5) {
+            let attempts = 0;
 
-            try {
+            return new Promise((resolve, reject) => {
+                function check() {
+                    attempts++;
+                    console.log('Checking Ajv availability, attempt:', attempts);
+
+                    if (typeof window.Ajv === 'function') {
+                        console.log('Ajv loaded successfully');
+                        resolve(window.Ajv);
+                    } else if (attempts >= maxAttempts) {
+                        console.error('Failed to load Ajv');
+                        reject(new Error('Failed to load Ajv after multiple attempts'));
+                    } else {
+                        console.log('Ajv not loaded yet, retrying...');
+                        setTimeout(check, 100);
+                    }
+                }
+                check();
+            });
+        }
+
+        // Initialize the form once Ajv is loaded
+        checkAjvLoaded()
+            .then(() => {
+                console.log('Starting form initialization');
+                // Remove loading indicator
+                document.getElementById('loading-indicator').style.display = 'none';
+
+                // Your existing initialization code
                 const schema = {
                     type: "object",
                     properties: {
@@ -139,10 +186,10 @@
                 document.getElementById('schema-display').textContent = JSON.stringify(schema, null, 2);
 
                 // Initialize Ajv with options
-                const ajv = new Ajv({
+                const ajv = new window.Ajv({
                     allErrors: true,
                     verbose: true,
-                    strict: false
+                    $data: true
                 });
 
                 const validate = ajv.compile(schema);
@@ -166,18 +213,22 @@
                     wrapper.appendChild(errorDiv);
                 });
 
-                function isValidNumber(value) {
-                    if (value === "") return false;
-                    const num = Number(value);
-                    return !isNaN(num) && isFinite(num);
-                }
-
                 function validateInput(input) {
                     const errorDiv = input.nextElementSibling;
-                    const value = input.value;
+                    const value = input.value.trim();
 
-                    if (!isValidNumber(value)) {
-                        errorDiv.textContent = "Please enter a valid number";
+                    // Clear previous error
+                    errorDiv.textContent = "";
+                    input.setCustomValidity("");
+
+                    // Handle empty input
+                    if (value === "") {
+                        return null;
+                    }
+
+                    // Check if it's a valid number
+                    if (!/^-?\d*\.?\d+$/.test(value)) {
+                        errorDiv.textContent = `${input.id}: should be number`;
                         input.setCustomValidity("Invalid number");
                         return null;
                     }
@@ -193,8 +244,6 @@
                         return null;
                     }
 
-                    errorDiv.textContent = "";
-                    input.setCustomValidity("");
                     return num;
                 }
 
@@ -224,32 +273,61 @@
                     // Always show validation result
                     if (!valid) {
                         // Format validation errors for better readability
-                        const formattedErrors = validate.errors.map(err => {
-                            const field = err.instancePath.replace('/', '') || 'field';
-                            const fieldLabel = field === 'field1' ? 'Field 1' : 'Field 2';
-                            const value = formData[field];
-                            const constraints = schema.properties[field];
-                            return {
-                                field: fieldLabel,
-                                error: err.message,
-                                currentValue: value,
-                                allowedRange: `${constraints.minimum} to ${constraints.maximum}`
-                            };
-                        });
+                        const formattedErrors = validate.errors
+                            .filter(err => err.keyword !== 'required' || !err.params || !err.params.missingProperty)
+                            .map(err => {
+                                const field = (err.dataPath || '').replace('/', '') ||
+                                            (err.params && err.params.missingProperty);
+                                const fieldLabel = field === 'field1' ? 'Field 1' : 'Field 2';
+                                const value = formData[field];
+                                const constraints = schema.properties[field];
 
-                        const errorDisplay = formattedErrors.map(err =>
-                            `Field: ${err.field}\n` +
-                            `Error: ${err.error}\n` +
-                            `Current Value: ${err.currentValue}\n` +
-                            `Allowed Range: ${err.allowedRange}`
-                        ).join('\n\n');
+                                return {
+                                    field,
+                                    fieldLabel,
+                                    error: err.message,
+                                    currentValue: value,
+                                    allowedRange: constraints ? `${constraints.minimum} to ${constraints.maximum}` : 'N/A'
+                                };
+                            });
+
+                        console.log('Raw validation errors:', validate.errors);
+                        console.log('Formatted errors:', formattedErrors);
+
+                        // Format for raw error display
+                        const errorDisplay = formattedErrors.map(err => {
+                            const parts = [];
+                            parts.push(`Field: ${err.fieldLabel}`);
+                            parts.push(`Error: ${err.error}`);
+
+                            if (err.currentValue !== undefined && err.currentValue !== null) {
+                                parts.push(`Current Value: ${err.currentValue}`);
+                            }
+
+                            if (err.allowedRange !== 'N/A') {
+                                parts.push(`Allowed Range: ${err.allowedRange}`);
+                            }
+
+                            return parts.join('\n');
+                        }).join('\n\n');
 
                         rawErrorsDisplay.textContent = errorDisplay;
 
-                        // Show user-friendly error messages
+                        // Show user-friendly error messages in a more concise format
                         const errorMessages = formattedErrors
-                            .map(err => `${err.field}: ${err.error}\nCurrent: ${err.currentValue}, Allowed: ${err.allowedRange}`)
-                            .join("\n\n");
+                            .map(err => {
+                                let msg = `${err.fieldLabel}: ${err.error}`;
+                                if (err.currentValue !== undefined && err.currentValue !== null) {
+                                    msg = `${msg} (Current: ${err.currentValue}`;
+                                    if (err.allowedRange !== 'N/A') {
+                                        msg = `${msg}, Allowed: ${err.allowedRange}`;
+                                    }
+                                    msg = `${msg})`;
+                                }
+                                return msg;
+                            })
+                            .join("\n");
+
                         errorContainer.textContent = errorMessages;
                         errorContainer.style.display = 'block';
                     } else {
@@ -270,25 +348,30 @@
                 [field1, field2].forEach(field => {
                     field.addEventListener("input", runValidation);
                 });
-
-            } catch (error) {
-                console.error('Initialization error:', error);
+            })
+            .catch(error => {
+                console.error('Detailed error:', error);
+                // Show error in debug panel
+                document.getElementById('loading-indicator').style.display = 'none';
                 document.getElementById('debug-panel').innerHTML = `
                     <div class="error" style="padding: 20px;">
-                        <h3>⚠️ Initialization Error</h3>
-                        <p>There was an error initializing the validation: ${error.message}</p>
-                        <p>Please check the console for more details.</p>
+                        <h3>⚠️ Validation Initialization Error</h3>
+                        <p>${error.message}</p>
+                        <p>Technical details have been logged to the console (F12)</p>
+                        <p>This might be because:</p>
+                        <ul>
+                            <li>The network connection is not available</li>
+                            <li>The CDN is not accessible</li>
+                            <li>The browser's security settings are blocking script execution</li>
+                        </ul>
+                        <p>Alternative options:</p>
+                        <ul>
+                            <li>Try refreshing the page</li>
+                            <li>Check if you can access <a href="https://cdn.jsdelivr.net/npm/ajv@6.12.6/dist/ajv.min.js" target="_blank">the Ajv library directly</a></li>
+                        </ul>
                     </div>
                 `;
-            }
-        }
-
-        // Wait for the page to load, then initialize
-        if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', initializeApp);
-        } else {
-            initializeApp();
-        }
+            });
     </script>
 
 </body>

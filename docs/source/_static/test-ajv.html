@@ -237,12 +237,12 @@
                     const fieldName = input.id;
                     const constraints = schema.properties[fieldName];
 
-                    // if (num < constraints.minimum || num > constraints.maximum) {
-                    //     const message = `Number must be between ${constraints.minimum} and ${constraints.maximum}`;
-                    //     errorDiv.textContent = message;
-                    //     input.setCustomValidity(message);
-                    //     return null;
-                    // }
+                    if (num < constraints.minimum || num > constraints.maximum) {
+                        const message = `Number must be between ${constraints.minimum} and ${constraints.maximum}`;
+                        errorDiv.textContent = message;
+                        input.setCustomValidity(message);
+                        return null;
+                    }
 
                     return num;
                 }

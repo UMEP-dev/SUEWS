@@ -276,9 +276,9 @@
                         const formattedErrors = validate.errors
                             .filter(err => err.keyword !== 'required' || !err.params || !err.params.missingProperty)
                             .map(err => {
-                                const field = (err.dataPath || '').replace('/', '') ||
-                                            (err.params && err.params.missingProperty);
-                                const fieldLabel = field === 'field1' ? 'Field 1' : 'Field 2';
+                                const field = (err.dataPath || '').replace(/^\./, '') ||
+                                             (err.params && err.params.missingProperty);
+                               const fieldLabel = field === 'field1' ? 'Field 1' : 'Field 2';
                                 const value = formData[field];
                                 const constraints = schema.properties[field];
 
@@ -324,11 +324,14 @@
                                     }
                                     msg = `${msg})`;
                                 }
-                                return msg;
+                                // Return each error as an HTML list item
+                                return `<li>${msg}</li>`;
                             })
-                            .join("\n");
+                            // No newline separator because we now have <li></li> items
+                            .join("");
 
-                        errorContainer.textContent = errorMessages;
+                        // Use innerHTML to insert the list structure
+                        errorContainer.innerHTML = `<ul>${errorMessages}</ul>`;
                         errorContainer.style.display = 'block';
                     } else {
                         rawErrorsDisplay.textContent = "✅ All validations passed\nAll values are within their allowed ranges.";

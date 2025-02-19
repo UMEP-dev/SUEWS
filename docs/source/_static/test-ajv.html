@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AJV Form Validation App</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+
+        .error {
+            color: red;
+            margin: 5px 0;
+            padding: 5px;
+            border-left: 3px solid red;
+        }
+
+        input:invalid {
+            border-color: red;
+            background-color: #fff0f0;
+        }
+        .input-wrapper {
+            position: relative;
+            margin-bottom: 10px;
+        }
+        .input-error {
+            color: red;
+            font-size: 0.8em;
+            margin-top: 2px;
+            padding: 2px 5px;
+        }
+
+        #debug-panel {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #f5f5f5;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+        }
+
+        #debug-panel > div {
+            margin-bottom: 15px;
+            padding: 10px;
+            background: white;
+            border-radius: 3px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        #debug-panel pre {
+            background-color: #f8f8f8;
+            padding: 10px;
+            border-radius: 3px;
+            border: 1px solid #ddd;
+            margin: 5px 0;
+            white-space: pre-wrap;
+        }
+
+        #validation-status {
+            display: inline-block;
+            padding: 5px 10px;
+            border-radius: 3px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+
+<body>
+
+    <h1>Real-time Numeric Validation</h1>
+
+    <form id="my-form">
+        <div>
+            <label for="field1">Field 1 (1 to 10): </label>
+            <input type="text" id="field1" name="field1">
+        </div>
+        <div>
+            <label for="field2">Field 2 (-5 to 5): </label>
+            <input type="text" id="field2" name="field2">
+        </div>
+        <div id="validation-errors" class="error"></div>
+    </form>
+
+    <div id="debug-panel">
+        <h3>Debug Information</h3>
+        <div>
+            <strong>Current Form Data:</strong>
+            <pre id="current-data"></pre>
+        </div>
+        <div>
+            <strong>Validation Status:</strong>
+            <span id="validation-status"></span>
+        </div>
+        <div>
+            <strong>Raw Validation Errors:</strong>
+            <pre id="raw-errors"></pre>
+        </div>
+        <div>
+            <strong>Schema:</strong>
+            <pre id="schema-display"></pre>
+        </div>
+    </div>
+
+    <!-- First load Ajv -->
+    <script src="https://cdn.jsdelivr.net/npm/ajv@8.12.0/dist/ajv7.min.js"></script>
+
+    <!-- Then initialize our app -->
+    <script>
+        // Function to initialize the app once Ajv is loaded
+        function initializeApp() {
+            if (typeof Ajv === 'undefined') {
+                document.getElementById('debug-panel').innerHTML = `
+                    <div class="error" style="padding: 20px;">
+                        <h3>⚠️ Loading Error</h3>
+                        <p>The Ajv library is not available. Trying to reload...</p>
+                    </div>
+                `;
+                // Try loading from alternate CDN
+                const script = document.createElement('script');
+                script.src = 'https://cdnjs.cloudflare.com/ajax/libs/ajv/8.12.0/ajv7.min.js';
+                script.onload = initializeApp;
+                document.head.appendChild(script);
+                return;
+            }
+
+            try {
+                const schema = {
+                    type: "object",
+                    properties: {
+                        field1: { type: "number", minimum: 1, maximum: 10 },
+                        field2: { type: "number", minimum: -5, maximum: 5 }
+                    },
+                    required: ["field1", "field2"]
+                };
+
+                // Display schema
+                document.getElementById('schema-display').textContent = JSON.stringify(schema, null, 2);
+
+                // Initialize Ajv with options
+                const ajv = new Ajv({
+                    allErrors: true,
+                    verbose: true,
+                    strict: false
+                });
+
+                const validate = ajv.compile(schema);
+
+                const form = document.getElementById("my-form");
+                const field1 = document.getElementById("field1");
+                const field2 = document.getElementById("field2");
+                const errorContainer = document.getElementById("validation-errors");
+                const currentDataDisplay = document.getElementById("current-data");
+                const validationStatusDisplay = document.getElementById("validation-status");
+                const rawErrorsDisplay = document.getElementById("raw-errors");
+
+                // Wrap inputs in div for error messages
+                [field1, field2].forEach(field => {
+                    const wrapper = document.createElement('div');
+                    wrapper.className = 'input-wrapper';
+                    const errorDiv = document.createElement('div');
+                    errorDiv.className = 'input-error';
+                    field.parentNode.insertBefore(wrapper, field);
+                    wrapper.appendChild(field);
+                    wrapper.appendChild(errorDiv);
+                });
+
+                function isValidNumber(value) {
+                    if (value === "") return false;
+                    const num = Number(value);
+                    return !isNaN(num) && isFinite(num);
+                }
+
+                function validateInput(input) {
+                    const errorDiv = input.nextElementSibling;
+                    const value = input.value;
+
+                    if (!isValidNumber(value)) {
+                        errorDiv.textContent = "Please enter a valid number";
+                        input.setCustomValidity("Invalid number");
+                        return null;
+                    }
+
+                    const num = Number(value);
+                    const fieldName = input.id;
+                    const constraints = schema.properties[fieldName];
+
+                    if (num < constraints.minimum || num > constraints.maximum) {
+                        const message = `Number must be between ${constraints.minimum} and ${constraints.maximum}`;
+                        errorDiv.textContent = message;
+                        input.setCustomValidity(message);
+                        return null;
+                    }
+
+                    errorDiv.textContent = "";
+                    input.setCustomValidity("");
+                    return num;
+                }
+
+                function runValidation() {
+                    const formData = {
+                        field1: validateInput(field1),
+                        field2: validateInput(field2)
+                    };
+
+                    // Always show current form data with type information
+                    const formDataStr = JSON.stringify(formData, null, 2);
+                    const typeInfo = Object.entries(formData)
+                        .map(([key, value]) => `${key}: ${typeof value} (${value})`)
+                        .join('\n');
+                    currentDataDisplay.textContent = `Form Data:\n${formDataStr}\n\nInput Types:\n${typeInfo}`;
+
+                    const valid = validate(formData);
+
+                    // Always show validation status
+                    const statusText = valid ? "✅ Valid" : "❌ Invalid";
+                    const details = valid ? "" : " - Found validation errors";
+                    validationStatusDisplay.innerHTML = `${statusText}${details}`;
+                    validationStatusDisplay.style.backgroundColor = valid ? "#e6ffe6" : "#ffe6e6";
+                    validationStatusDisplay.style.padding = "5px 10px";
+                    validationStatusDisplay.style.borderRadius = "3px";
+
+                    // Always show validation result
+                    if (!valid) {
+                        // Format validation errors for better readability
+                        const formattedErrors = validate.errors.map(err => {
+                            const field = err.instancePath.replace('/', '') || 'field';
+                            const fieldLabel = field === 'field1' ? 'Field 1' : 'Field 2';
+                            const value = formData[field];
+                            const constraints = schema.properties[field];
+                            return {
+                                field: fieldLabel,
+                                error: err.message,
+                                currentValue: value,
+                                allowedRange: `${constraints.minimum} to ${constraints.maximum}`
+                            };
+                        });
+
+                        const errorDisplay = formattedErrors.map(err =>
+                            `Field: ${err.field}\n` +
+                            `Error: ${err.error}\n` +
+                            `Current Value: ${err.currentValue}\n` +
+                            `Allowed Range: ${err.allowedRange}`
+                        ).join('\n\n');
+
+                        rawErrorsDisplay.textContent = errorDisplay;
+
+                        // Show user-friendly error messages
+                        const errorMessages = formattedErrors
+                            .map(err => `${err.field}: ${err.error}\nCurrent: ${err.currentValue}, Allowed: ${err.allowedRange}`)
+                            .join("\n\n");
+                        errorContainer.textContent = errorMessages;
+                        errorContainer.style.display = 'block';
+                    } else {
+                        rawErrorsDisplay.textContent = "✅ All validations passed\nAll values are within their allowed ranges.";
+                        errorContainer.textContent = "";
+                        errorContainer.style.display = 'none';
+                    }
+                }
+
+                // Set initial values and trigger validation
+                field1.value = field1.value || "";
+                field2.value = field2.value || "";
+
+                // Run initial validation
+                runValidation();
+
+                // Add input event listeners
+                [field1, field2].forEach(field => {
+                    field.addEventListener("input", runValidation);
+                });
+
+            } catch (error) {
+                console.error('Initialization error:', error);
+                document.getElementById('debug-panel').innerHTML = `
+                    <div class="error" style="padding: 20px;">
+                        <h3>⚠️ Initialization Error</h3>
+                        <p>There was an error initializing the validation: ${error.message}</p>
+                        <p>Please check the console for more details.</p>
+                    </div>
+                `;
+            }
+        }
+
+        // Wait for the page to load, then initialize
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initializeApp);
+        } else {
+            initializeApp();
+        }
+    </script>
+
+</body>
+
+</html>

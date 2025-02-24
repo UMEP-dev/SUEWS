@@ -241,8 +241,6 @@ tsfc_wall
 tsfc_surf
 n_buildings
 h_std
-rho_wall
-rho_surf
 buildingtype
 buildingname
 buildingcount

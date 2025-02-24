@@ -14,7 +14,6 @@ import supy as sp
 
 from .model import Model
 from .site import Site, SiteProperties, InitialStates
-from .. import load_sample_data
 import os
 
 

@@ -38,7 +38,8 @@ from ._load import (
 from ._run import run_supy_par, run_supy_ser
 from ._save import get_save_info, save_df_output, save_df_state, save_initcond_nml
 
-from .util._config import init_config_from_yaml
+# from .util._config import init_config_from_yaml
+from .data_model import init_config_from_yaml
 
 
 # set up logging module

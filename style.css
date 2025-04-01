@@ -1,0 +1,318 @@
+/* Reset and base styles */
+:root {
+    --primary-color: #2c3e50;
+    --secondary-color: #3498db;
+    --background-color: #f8f9fa;
+    --border-color: #dee2e6;
+    --error-color: #e74c3c;
+    --success-color: #2ecc71;
+    --text-color: #333;
+    --spacing-unit: 1rem;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    line-height: 1.6;
+    color: var(--text-color);
+    background-color: var(--background-color);
+    padding: var(--spacing-unit);
+}
+
+/* Layout */
+header, main, footer {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: var(--spacing-unit);
+}
+
+header {
+    text-align: center;
+    margin-bottom: calc(var(--spacing-unit) * 2);
+}
+
+h1 {
+    color: var(--primary-color);
+    margin-bottom: var(--spacing-unit);
+}
+
+.description {
+    color: #666;
+    font-size: 1.1rem;
+}
+
+/* Controls */
+.controls {
+    display: flex;
+    gap: var(--spacing-unit);
+    margin-bottom: calc(var(--spacing-unit) * 2);
+    justify-content: center;
+}
+
+.btn {
+    padding: 0.75rem 1.5rem;
+    background-color: var(--secondary-color);
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 1rem;
+    transition: background-color 0.2s ease;
+}
+
+.btn:hover {
+    background-color: #2980b9;
+}
+
+/* Form container */
+#form-container {
+    background: white;
+    padding: calc(var(--spacing-unit) * 2);
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Loading indicator */
+.loading-indicator {
+    text-align: center;
+    padding: calc(var(--spacing-unit) * 2);
+    color: #666;
+}
+
+/* Form elements (will be expanded as we add dynamic content) */
+.form-group {
+    margin-bottom: var(--spacing-unit);
+}
+
+.form-label {
+    display: block;
+    margin-bottom: calc(var(--spacing-unit) * 0.5);
+    font-weight: 500;
+}
+
+.form-label span {
+    font-size: 0.8em;
+    color: var(--secondary-color);
+    margin-left: 4px;
+}
+
+.form-label-inline {
+    margin-left: calc(var(--spacing-unit) * 0.5);
+    font-weight: normal;
+    display: inline-block;
+}
+
+.form-group-checkbox {
+    display: flex;
+    align-items: center;
+}
+
+.form-input, .form-select {
+    width: 100%;
+    padding: 0.5rem;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    font-size: 1rem;
+    background-color: white;
+    line-height: 1.5; /* Ensure consistent height */
+}
+
+.form-checkbox {
+    margin-right: 5px;
+    width: 16px;
+    height: 16px;
+}
+
+.form-input:focus, .form-select:focus {
+    outline: none;
+    border-color: var(--secondary-color);
+    box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
+}
+
+fieldset.form-section {
+    border: 1px solid var(--border-color);
+    padding: var(--spacing-unit);
+    margin-bottom: var(--spacing-unit);
+    border-radius: 4px;
+    transition: all 0.3s ease;
+}
+
+fieldset.form-section legend {
+    font-weight: bold;
+    padding: 0 0.5rem;
+    margin-left: 0.5rem;
+    color: var(--primary-color);
+    cursor: pointer;
+    user-select: none;
+    display: flex;
+    align-items: center;
+}
+
+/* Collapsible section styles */
+fieldset.form-section legend::before {
+    content: '▼';
+    display: inline-block;
+    font-size: 0.7em;
+    margin-right: 0.5rem;
+    transition: transform 0.3s ease;
+}
+
+fieldset.form-section.collapsed legend::before {
+    transform: rotate(-90deg);
+}
+
+fieldset.form-section.collapsed {
+    padding-top: 0.5rem;
+    padding-bottom: 0.5rem;
+}
+
+fieldset.form-section.collapsed > *:not(legend) {
+    display: none;
+}
+
+/* Special styling for nested fieldsets to improve visual hierarchy */
+fieldset.form-section fieldset.form-section {
+    border-color: #e9ecef;
+    background-color: #fafafa;
+}
+
+fieldset.form-section fieldset.form-section legend {
+    font-size: 0.95em;
+    color: #555;
+}
+
+/* Further nesting */
+fieldset.form-section fieldset.form-section fieldset.form-section {
+    background-color: #f5f5f5;
+}
+
+/* Site Tab Interface */
+.site-interface {
+    margin-top: calc(var(--spacing-unit) * 2);
+    border-top: 2px solid var(--border-color);
+    padding-top: var(--spacing-unit);
+}
+
+.tab-list {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 var(--spacing-unit) 0;
+    display: flex;
+    flex-wrap: wrap;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.tab-button {
+    padding: 0.75rem 1.5rem;
+    border: none;
+    background-color: transparent;
+    cursor: pointer;
+    font-size: 1rem;
+    color: var(--primary-color);
+    border-bottom: 3px solid transparent; /* Placeholder for active state */
+    transition: border-color 0.2s ease, background-color 0.2s ease;
+    margin-right: 5px; /* Spacing between tabs */
+    margin-bottom: -1px; /* Align bottom edge with border */
+}
+
+.tab-button:hover {
+    background-color: #e9ecef;
+}
+
+.tab-button.active {
+    border-bottom-color: var(--secondary-color);
+    font-weight: bold;
+}
+
+.tab-panels {
+    padding-top: var(--spacing-unit);
+}
+
+.tab-panel {
+    border: 1px solid var(--border-color);
+    padding: var(--spacing-unit);
+    border-radius: 4px;
+    background-color: #fdfdfd; /* Slightly off-white */
+}
+
+.btn-add-site {
+    margin-top: var(--spacing-unit);
+    background-color: var(--success-color);
+}
+
+.btn-add-site:hover {
+    background-color: #27ae60;
+}
+
+.btn-remove {
+    background-color: var(--error-color);
+    padding: 0.3rem 0.6rem;
+    font-size: 0.8rem;
+    margin-bottom: 0.5rem; /* Space below remove button */
+}
+
+.btn-remove:hover {
+    background-color: #c0392b;
+}
+
+.btn-remove:disabled {
+    background-color: #ccc;
+    opacity: 0.7;
+    cursor: not-allowed;
+}
+
+/* Validation styles */
+.error-field {
+    border-color: var(--error-color) !important;
+}
+
+.error-message {
+    color: var(--error-color);
+    font-size: 0.875rem;
+    margin-top: calc(var(--spacing-unit) * 0.25);
+}
+
+/* Footer */
+footer {
+    text-align: center;
+    margin-top: calc(var(--spacing-unit) * 2);
+    padding-top: var(--spacing-unit);
+    border-top: 1px solid var(--border-color);
+    color: #666;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    body {
+        padding: calc(var(--spacing-unit) * 0.5);
+    }
+
+    .controls {
+        flex-direction: column;
+    }
+
+    .btn {
+        width: 100%;
+    }
+
+    .tab-list {
+        flex-direction: column;
+        border-bottom: none;
+    }
+
+    .tab-button {
+        width: 100%;
+        border-bottom: 1px solid var(--border-color);
+        margin-bottom: 0;
+        text-align: left;
+    }
+
+    .tab-button.active {
+        border-bottom: 3px solid var(--secondary-color);
+    }
+}

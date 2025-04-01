@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SUEWS Configuration Tool</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <header>
+        <h1>SUEWS Configuration Tool</h1>
+        <p class="description">
+            Generate and modify SUEWS configuration files with schema-based validation.
+        </p>
+    </header>
+
+    <main>
+        <div class="controls">
+            <button id="load-json-btn" class="btn">Load Configuration</button>
+            <button id="export-json-btn" class="btn">Export Configuration</button>
+            <input type="file" id="file-input" accept=".json" style="display: none;">
+        </div>
+
+        <div id="form-container">
+            <!-- Dynamic form will be generated here -->
+            <div class="loading-indicator">Loading schema...</div>
+        </div>
+    </main>
+
+    <footer>
+        <p>Built for SUEWS - Surface Urban Energy and Water Balance Scheme</p>
+    </footer>
+
+    <script src="script.js"></script>
+</body>
+</html>

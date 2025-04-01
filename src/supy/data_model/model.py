@@ -89,6 +89,7 @@ class StorageHeatMethod(Enum):
     OHM_WITHOUT_QF = 1
     ANOHM = 3
     ESTM = 4
+    FIVE = 5
 
     def __int__(self):
         return self.value
@@ -118,6 +119,7 @@ class RoughnessMethod(Enum):
     '''
     FIXED = 1  # Fixed roughness length
     VARIABLE = 2  # Variable roughness length based on vegetation state
+    THREE = 3  # Not documented
     FIVE = 5  # Not documented
 
     def __int__(self):

@@ -14,7 +14,7 @@ import datetime
 
 from .model import Model
 from .site import Site, SiteProperties, InitialStates
-from .. import load_sample_data
+import os
 
 
 class SUEWSConfig(BaseModel):
@@ -200,16 +200,61 @@ class SUEWSConfig(BaseModel):
         # remove duplicate columns
         df = df.loc[:, ~df.columns.duplicated()]
 
-        # set index name
-        df.index.set_names("grid", inplace=True)
+        # # Fix level=1 columns sorted alphabetically not numerically (i.e. 10 < 2)
+        # # Filter columns based on level=0 criteria
+        # level_0_counts = df.columns.get_level_values(0).value_counts()
+        # columns_to_sort = [col for col in df.columns if level_0_counts[col[0]] >= 10]
+
+        # # Sort the filtered columns numericallyí
+        # def sort_key(col):
+        #     try:
+        #         return (col[0], ast.literal_eval(col[1]))
+        #     except ValueError:
+        #         return (col[0], col[1])
+
+        # sorted_columns = sorted(columns_to_sort, key=sort_key)
+
+        # # Combine the sorted columns with the remaining columns
+        # remaining_columns = [col for col in df.columns if col not in columns_to_sort]
+        # final_columns = remaining_columns + sorted_columns
+
+        # # Reindex the DataFrame using the final column order
+        # df = df.reindex(columns=pd.MultiIndex.from_tuples(final_columns))
+
+        # # set index name
+        # df.index.set_names("grid", inplace=True)
+
+        # Custom sorting function for level=1 columns
+        def parse_level_1(value):
+            """Parse level=1 column values into sortable tuples."""
+            if value.startswith("(") and value.endswith(")"):
+                # Remove parentheses and split by comma
+                parts = value[1:-1].split(",")
+                # Convert to integers, ignoring empty strings
+                return tuple(int(part) for part in parts if part)
+            try:
+                # Try converting to an integer for single values like "x"
+                return (int(value),)
+            except ValueError:
+                # Fallback for non-numeric values
+                return (value,)
+
+        # Extract MultiIndex levels as a list of tuples
+        columns = list(df.columns)
+
+        # Sort the columns using the custom function
+        sorted_columns = sorted(columns, key=lambda col: (col[0], parse_level_1(col[1])))
+
+        # Re-create the MultiIndex with the sorted columns
+        sorted_multi_index = pd.MultiIndex.from_tuples(sorted_columns)
+
+        # Reindex the DataFrame with the sorted MultiIndex to preserve values
+        df = df.reindex(columns=sorted_multi_index)
+
         # set column names
         df.columns.set_names(["var", "ind_dim"], inplace=True)
+        df.index.name = "grid"
 
-        # Reindex columns to match the sample data columns order
-        sample_columns = load_sample_data()[0].columns
-
-        # Reindex to match sample columns and then append non-matching columns
-        df = df.reindex(columns=sample_columns)
         return df
 
     @classmethod

@@ -368,7 +368,7 @@ MODULE ctrl_output
         ncolumnsDataOutSUEWS + ncolumnsdataOutBEERS - 5 &
         + ncolumnsdataOutBL - 5 + ncolumnsDataOutSnow - 5 + ncolumnsDataOutESTM - 5 &
         + ncolumnsDataOutDailyState - 5)/ &
-      varAttr('HDD1_h', 'to be added', f104, 'to be added', aL, 'DailyState', 0), &
+      varAttr('HDD1_h', '[DegC]', f104, 'used for accumulation during calculation', aL, 'DailyState', 0), &
       varAttr('HDD2_c', 'to be added', f104, 'to be added', aL, 'DailyState', 0), &
       varAttr('HDD3_Tmean', 'to be added', f104, 'to be added', aL, 'DailyState', 0), &
       varAttr('HDD4_T5d', 'to be added', f104, 'to be added', aL, 'DailyState', 0), &
@@ -1247,6 +1247,33 @@ MODULE ctrl_output
       varAttr('Vwater_tank', 'm3', f104, 'Volume of water in tank', aA, 'STEBBS', 0) &
       /
 
+   ! NHood info
+   DATA(varListAll(n), &
+        n=ncolumnsDataOutSUEWS + ncolumnsdataOutBEERS - 5 &
+        + ncolumnsdataOutBL - 5 &
+        + ncolumnsDataOutSnow - 5 &
+        + ncolumnsDataOutESTM - 5 &
+        + ncolumnsDataOutDailyState - 5 &
+        + ncolumnsDataOutRSL - 5 &
+        + ncolumnsDataOutDebug - 5 &
+        + ncolumnsDataOutSPARTACUS - 5 &
+        + ncolumnsDataOutEHC - 5 &
+        + ncolumnsDataOutSTEBBS - 5 &
+        + 1, &
+        ncolumnsDataOutSUEWS + ncolumnsdataOutBEERS - 5 &
+        + ncolumnsdataOutBL - 5 &
+        + ncolumnsDataOutSnow - 5 &
+        + ncolumnsDataOutESTM - 5 &
+        + ncolumnsDataOutDailyState - 5 &
+        + ncolumnsDataOutRSL - 5 &
+        + ncolumnsDataOutDebug - 5 &
+        + ncolumnsDataOutSPARTACUS - 5 &
+        + ncolumnsDataOutEHC - 5 &
+        + ncolumnsDataOutSTEBBS - 5 &
+        + ncolumnsDataOutNHood - 5 &
+        )/ &
+      varAttr('iter_count', '-', f104, 'iteration count of convergence loop', aA, 'NHood', 0) &
+      /
 CONTAINS
    ! main wrapper that handles both txt and nc files
    SUBROUTINE SUEWS_Output(irMax, iv, Gridiv, iyr)
@@ -1260,9 +1287,9 @@ CONTAINS
 
       INTEGER :: n_group_use, err, outLevel, i
       TYPE(varAttr), DIMENSION(:), ALLOCATABLE :: varListX
-      CHARACTER(len=10) :: groupList0(11)
+      CHARACTER(len=10) :: groupList0(12)
       CHARACTER(len=10), DIMENSION(:), ALLOCATABLE :: grpList
-      LOGICAL :: groupCond(11)
+      LOGICAL :: groupCond(12)
 
       ! determine outLevel
       SELECT CASE (WriteOutOption)
@@ -1287,6 +1314,7 @@ CONTAINS
       groupList0(9) = 'SPARTACUS'
       groupList0(10) = 'EHC'
       groupList0(11) = 'STEBBS'
+
       groupCond = [ &
                   .TRUE., &
                   .TRUE., &
@@ -1298,6 +1326,7 @@ CONTAINS
                   .TRUE., &
                   .TRUE., &
                   StorageHeatMethod == 5, &
+                  .TRUE., &
                   .TRUE. &
                   ]
       n_group_use = COUNT(groupCond)
@@ -1402,6 +1431,9 @@ CONTAINS
 
       CASE ('STEBBS') !STEBBS
          dataOutX = dataOutSTEBBS(1:irMax, 1:n_var, Gridiv)
+
+      CASE ('NHood') !NHood
+         dataOutX = dataOutNHood(1:irMax, 1:n_var, Gridiv)
 
       CASE ('DailyState') !DailyState
          ! get correct day index

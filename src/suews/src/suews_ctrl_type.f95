@@ -7,7 +7,7 @@ MODULE SUEWS_DEF_DTS
       ncolumnsDataOutESTM, ncolumnsDataOutDailyState, &
       ncolumnsDataOutRSL, ncolumnsdataOutSOLWEIG, ncolumnsDataOutBEERS, &
       ncolumnsDataOutDebug, ncolumnsDataOutSPARTACUS, ncolumnsDataOutEHC, &
-      ncolumnsDataOutSTEBBS
+      ncolumnsDataOutSTEBBS, ncolumnsDataOutNHood
 
    IMPLICIT NONE
    ! in the following, the type definitions starting with `SUEWS_` are used in the main program
@@ -574,6 +574,9 @@ MODULE SUEWS_DEF_DTS
       LOGICAL :: flag_converge ! flag for convergence of surface temperature
       INTEGER :: i_iter ! number of iterations for convergence
 
+      ! flag for iteration safety - YES - as we this should be updated every iteration
+      LOGICAL :: iter_safe = .TRUE.
+
    END TYPE flag_STATE
 
    TYPE, PUBLIC :: anthroEmis_STATE
@@ -605,6 +608,10 @@ MODULE SUEWS_DEF_DTS
       REAL(KIND(1D0)) :: Fc_point ! co2 emission from point source [umol m-2 s-1]
       REAL(KIND(1D0)) :: Fc_respi !co2 flux from respiration [umol m-2 s-1]
       REAL(KIND(1D0)) :: Fc_traff ! co2 emission from traffic component [umol m-2 s-1]
+
+      ! flag for iteration safety - NO
+      ! HDD_id includes extensive quantities and thus cannot be used for iteration safety
+      LOGICAL :: iter_safe = .FALSE.
    END TYPE anthroEmis_STATE
 
    TYPE, PUBLIC :: OHM_STATE
@@ -615,11 +622,19 @@ MODULE SUEWS_DEF_DTS
       REAL(KIND(1D0)) :: a1 !AnOHM coefficients of grid [-]
       REAL(KIND(1D0)) :: a2 ! AnOHM coefficients of grid [h]
       REAL(KIND(1D0)) :: a3 !AnOHM coefficients of grid [W m-2]
+
+      ! flag for iteration safety - YES
+      ! all variables are intensive and thus can be used for iteration safety
+      LOGICAL :: iter_safe = .TRUE.
    END TYPE OHM_STATE
 
    TYPE, PUBLIC :: solar_State
       REAL(KIND(1D0)) :: azimuth_deg !solar azimuth [angle]
       REAL(KIND(1D0)) :: ZENITH_deg !solar zenith angle [deg]
+
+      ! flag for iteration safety - YES
+      ! all variables are intensive and thus can be used for iteration safety
+      LOGICAL :: iter_safe = .TRUE.
    END TYPE solar_State
 
    TYPE, PUBLIC :: atm_state
@@ -654,6 +669,9 @@ MODULE SUEWS_DEF_DTS
       REAL(KIND(1D0)) :: Tair_av ! 5-day moving average of air temperature [degC]
       REAL(KIND(1D0)), DIMENSION(NSURF) :: rss_surf ! surface resistance adjusted by surface wetness state[s m-1]
 
+      ! flag for iteration safety - YES
+      ! all variables are intensive and thus can be used for iteration safety
+      LOGICAL :: iter_safe = .TRUE.
    END TYPE atm_state
 
    TYPE, PUBLIC :: PHENOLOGY_STATE
@@ -661,12 +679,12 @@ MODULE SUEWS_DEF_DTS
       REAL(KIND(1D0)), DIMENSION(nvegsurf) :: lai_id ! Initial LAI values.
       REAL(KIND(1D0)), DIMENSION(nvegsurf) :: GDD_id ! Growing Degree Days [degC](see SUEWS_DailyState.f95)
       REAL(KIND(1D0)), DIMENSION(nvegsurf) :: SDD_id ! Senescence Degree Days [degC](see SUEWS_DailyState.f95)
-      REAL(KIND(1D0)) :: VegPhenLumps
-      REAL(KIND(1D0)) :: porosity_id !
+      REAL(KIND(1D0)) :: VegPhenLumps ! phenology indicator used lumps [-] - NOT USED - TO BE REMOVED
+      REAL(KIND(1D0)) :: porosity_id ! porosity of each surface type [-]
       REAL(KIND(1D0)) :: decidcap_id ! Storage capacity of deciduous surface `DecTr`; updated each day in simulaiton due to changes in LAI.
-      REAL(KIND(1D0)) :: albDecTr_id !
-      REAL(KIND(1D0)) :: albEveTr_id !
-      REAL(KIND(1D0)) :: albGrass_id !
+      REAL(KIND(1D0)) :: albDecTr_id ! albedo of deciduous tree surface [-]
+      REAL(KIND(1D0)) :: albEveTr_id ! albedo of evergreen tree surface [-]
+      REAL(KIND(1D0)) :: albGrass_id ! albedo of grass surface [-]
       REAL(KIND(1D0)) :: Tmin_id ! Daily minimum temperature [degC]
       REAL(KIND(1D0)) :: Tmax_id ! Daily maximum temperature [degC]
       REAL(KIND(1D0)) :: lenDay_id ! daytime length [h]
@@ -680,10 +698,15 @@ MODULE SUEWS_DEF_DTS
       REAL(KIND(1D0)) :: g_ta ! surface conductance function for air temperature [-]
       REAL(KIND(1D0)) :: g_smd ! surface conductance function for soil moisture deficit [-]
       REAL(KIND(1D0)) :: g_lai ! surface conductance function for LAI [-]
+
+      ! flag for iteration safety - NO
+      ! GDD_id and SDD_id include extensive quantities and thus cannot be used for iteration safety
+      LOGICAL :: iter_safe = .FALSE.
+
    END TYPE PHENOLOGY_STATE
 
    TYPE, PUBLIC :: SNOW_STATE
-      REAL(KIND(1D0)) :: snowfallCum !
+      REAL(KIND(1D0)) :: snowfallCum ! cumulative snowfall [mm]
       REAL(KIND(1D0)) :: snowalb ! albedo of snow [-]
       REAL(KIND(1D0)) :: chSnow_per_interval ! change state_id of snow and surface per time interval [mm]
       REAL(KIND(1D0)) :: mwh !snowmelt [mm]
@@ -711,6 +734,10 @@ MODULE SUEWS_DEF_DTS
       REAL(KIND(1D0)), DIMENSION(NSURF) :: qn_ind_snow !net all-wave radiation on snowpack [W m-2]
       REAL(KIND(1D0)), DIMENSION(NSURF) :: deltaQi ! storage heat flux of snow surfaces [W m-2]
       REAL(KIND(1D0)), DIMENSION(nsurf) :: Tsurf_ind_snow !snowpack surface temperature [C]
+
+      ! flag for iteration safety - NO
+      ! multiple variables (e.g. snowpack, snowwater, snowfallCum, etc) include extensive quantities and thus cannot be used for iteration safety
+      LOGICAL :: iter_safe = .FALSE.
    END TYPE SNOW_STATE
 
    TYPE, PUBLIC :: HYDRO_STATE
@@ -779,6 +806,10 @@ MODULE SUEWS_DEF_DTS
       REAL(KIND(1D0)) :: addWaterBody = 0
       REAL(KIND(1D0)), DIMENSION(NSURF) :: AddWater = 0
       REAL(KIND(1D0)), DIMENSION(NSURF) :: frac_water2runoff = 0
+
+      ! flag for iteration safety - NO
+      ! multiple variables (e.g. soilstore_surf, state_surf, etc) include extensive quantities and thus cannot be used for iteration safety
+      LOGICAL :: iter_safe = .FALSE.
    CONTAINS
       PROCEDURE :: ALLOCATE => allocHydroState_c
       PROCEDURE :: DEALLOCATE => deallocHydroState_c
@@ -792,9 +823,10 @@ MODULE SUEWS_DEF_DTS
       REAL(KIND(1D0)), DIMENSION(:), ALLOCATABLE :: tsfc_wall ! wall surface temperature [degC]
       REAL(KIND(1D0)), DIMENSION(:), ALLOCATABLE :: tsfc_surf ! surface temperature [degC]
 
-      REAL(KIND(1D0)), DIMENSION(:), ALLOCATABLE :: tsfc0_out_roof !surface temperature of roof[degC]
-      REAL(KIND(1D0)), DIMENSION(:), ALLOCATABLE :: tsfc0_out_wall !surface temperature of wall[degC]
-      REAL(KIND(1D0)), DIMENSION(:), ALLOCATABLE :: tsfc0_out_surf !surface temperature [degC]
+      ! surface temperature saved at the beginning of the time step - not updated during the time step
+      REAL(KIND(1D0)), DIMENSION(:), ALLOCATABLE :: tsfc_roof_stepstart !surface temperature of roof saved at the beginning of the time step [degC]
+      REAL(KIND(1D0)), DIMENSION(:), ALLOCATABLE :: tsfc_wall_stepstart !surface temperature of wall saved at the beginning of the time step [degC]
+      REAL(KIND(1D0)), DIMENSION(:), ALLOCATABLE :: tsfc_surf_stepstart !surface temperature saved at the beginning of the time step [degC]
 
       REAL(KIND(1D0)), DIMENSION(:), ALLOCATABLE :: QS_roof ! heat storage flux for roof component [W m-2]
       REAL(KIND(1D0)), DIMENSION(:), ALLOCATABLE :: QN_roof ! net all-wave radiation of roof surface [W m-2]
@@ -838,6 +870,10 @@ MODULE SUEWS_DEF_DTS
       REAL(KIND(1D0)) :: TSfc_C ! surface temperature [degC]
       REAL(KIND(1D0)) :: tsurf !surface temperatue [degC]
       REAL(KIND(1D0)) :: QH_Init !initialised sensible heat flux [W m-2]
+
+      ! flag for iteration safety - YES
+      ! all variables are intensive and thus can be used for iteration safety
+      LOGICAL :: iter_safe = .TRUE.
    CONTAINS
       PROCEDURE :: ALLOCATE => allocHeatState_c
       PROCEDURE :: DEALLOCATE => deallocHeatState_c
@@ -847,17 +883,21 @@ MODULE SUEWS_DEF_DTS
       ! this type is used to collect the intermediate results in the SUEWS model
 
       ! calculated values of FAI
-      REAL(KIND(1D0)) :: FAIBldg_use
-      REAL(KIND(1D0)) :: FAIEveTree_use
-      REAL(KIND(1D0)) :: FAIDecTree_use
+      REAL(KIND(1D0)) :: FAIBldg_use ! frontal area index of buildings [-]
+      REAL(KIND(1D0)) :: FAIEveTree_use ! frontal area index of evergreen trees [-]
+      REAL(KIND(1D0)) :: FAIDecTree_use ! frontal area index of deciduous trees [-]
 
-      REAL(KIND(1D0)) :: FAI
-      REAL(KIND(1D0)) :: PAI
-      REAL(KIND(1D0)) :: Zh ! effective height of bluff bodies
-      REAL(KIND(1D0)) :: z0m ! aerodynamic roughness length
+      REAL(KIND(1D0)) :: FAI ! frontal area index [-]
+      REAL(KIND(1D0)) :: PAI ! plan area index [-]
+      REAL(KIND(1D0)) :: Zh ! effective height of bluff bodies [m]
+      REAL(KIND(1D0)) :: z0m ! aerodynamic roughness length [m]
       REAL(KIND(1D0)) :: z0v ! roughness for heat [m]
-      REAL(KIND(1D0)) :: zdm ! zero-plance displacement
-      REAL(KIND(1D0)) :: ZZD ! z-zdm
+      REAL(KIND(1D0)) :: zdm ! zero-plance displacement [m]
+      REAL(KIND(1D0)) :: ZZD ! z-zdm [m]
+
+      ! flag for iteration safety - YES
+      ! all variables are intensive and thus can be used for iteration safety
+      LOGICAL :: iter_safe = .TRUE.
 
    END TYPE ROUGHNESS_STATE
 
@@ -894,9 +934,25 @@ MODULE SUEWS_DEF_DTS
       REAL(KIND(1D0)) :: InternalWallDHWVesselTemperature ! Initial hot water vessel internal wall temperature [degC]
       REAL(KIND(1D0)) :: ExternalWallDHWVesselTemperature ! Initial hot water vessel external wall temperature [degC]
 
+      ! flag for iteration safety - YES
+      ! all variables are intensive and thus can be used for iteration safety
+      LOGICAL :: iter_safe = .TRUE.
+
    END TYPE STEBBS_STATE
 
-   ! incorporate all model states into one lumped type
+   TYPE, PUBLIC :: NHOOD_STATE
+
+      REAL(KIND(1D0)) :: U_hbh_1dravg ! 24hr running average wind speed at half building height [m s-1]
+      REAL(KIND(1D0)) :: QN_1dravg ! 24hr running average net all-wave radiation [W m-2]
+      REAL(KIND(1D0)) :: Tair_mn_prev ! Previous midnight air temperature [degC]
+      REAL(KIND(1D0)) :: iter_count ! iteration count of convergence loop [-]
+
+      ! flag for iteration safety - NO
+      ! iter_count is used to count the number of iterations and thus cannot be used for iteration safety
+      LOGICAL :: iter_safe = .FALSE.
+
+   END TYPE NHOOD_STATE
+
    TYPE, PUBLIC :: SUEWS_STATE
       TYPE(flag_STATE) :: flagState
       TYPE(anthroEmis_STATE) :: anthroemisState
@@ -909,9 +965,12 @@ MODULE SUEWS_DEF_DTS
       TYPE(HEAT_STATE) :: heatState
       TYPE(ROUGHNESS_STATE) :: roughnessState
       TYPE(STEBBS_STATE) :: stebbsState
+      TYPE(NHOOD_STATE) :: nhoodState
+
    CONTAINS
       PROCEDURE :: ALLOCATE => allocSUEWSState_c
       PROCEDURE :: DEALLOCATE => deallocSUEWSState_c
+      PROCEDURE :: check_and_reset_states => check_and_reset_unsafe_states
    END TYPE SUEWS_STATE
 
    ! ********** SUEWS_forcing schema **********
@@ -968,6 +1027,7 @@ MODULE SUEWS_DEF_DTS
       REAL(KIND(1D0)), DIMENSION(:, :), ALLOCATABLE :: dataOutBlockSPARTACUS
       REAL(KIND(1D0)), DIMENSION(:, :), ALLOCATABLE :: dataOutBlockDailyState
       REAL(KIND(1D0)), DIMENSION(:, :), ALLOCATABLE :: dataOutBlockSTEBBS
+      REAL(KIND(1D0)), DIMENSION(:, :), ALLOCATABLE :: dataOutBlockNHood
    CONTAINS
       ! Procedures
       PROCEDURE :: init => output_block_init
@@ -987,6 +1047,7 @@ MODULE SUEWS_DEF_DTS
       REAL(KIND(1D0)), DIMENSION(ncolumnsDataOutSPARTACUS) :: dataOutLineSPARTACUS
       REAL(KIND(1D0)), DIMENSION(ncolumnsDataOutDailyState) :: dataOutLineDailyState
       REAL(KIND(1D0)), DIMENSION(ncolumnsDataOutSTEBBS) :: dataOutLineSTEBBS
+      REAL(KIND(1D0)), DIMENSION(ncolumnsDataOutNHood) :: dataOutLineNHood
    CONTAINS
       ! Procedures
       PROCEDURE :: init => output_line_init
@@ -1018,7 +1079,37 @@ MODULE SUEWS_DEF_DTS
       PROCEDURE :: init => init_suews_debug
    END TYPE SUEWS_DEBUG
 
+   TYPE, PUBLIC :: SUEWS_STATE_BLOCK
+      TYPE(SUEWS_STATE), DIMENSION(:), ALLOCATABLE :: BLOCK
+   CONTAINS
+      PROCEDURE :: init => init_suews_state_block
+   END TYPE SUEWS_STATE_BLOCK
+
 CONTAINS
+
+   SUBROUTINE init_suews_state_block(self, nlayer, ndepth, len_sim)
+      CLASS(SUEWS_STATE_BLOCK), INTENT(inout) :: self
+      INTEGER, INTENT(in) :: nlayer, ndepth
+      INTEGER, INTENT(in) :: len_sim
+      INTEGER :: ir
+
+      ! allocate debug_state_block
+      ALLOCATE (self%BLOCK(len_sim))
+
+      ! initialise each element
+      DO ir = 1, len_sim
+         CALL self%BLOCK(ir)%ALLOCATE(nlayer, ndepth)
+      END DO
+   END SUBROUTINE init_suews_state_block
+
+   ! SUBROUTINE dealloc_suews_debug_block(self)
+   !    CLASS(SUEWS_DEBUG_BLOCK), INTENT(inout) :: self
+
+   !    ! deallocate each element
+   !    DO ir = 1, len_sim
+   !       CALL self(ir)%dealloc()
+   !    END DO
+   ! END SUBROUTINE dealloc_suews_debug_block
 
    SUBROUTINE init_suews_debug(self, nlayer, ndepth)
       CLASS(SUEWS_DEBUG), INTENT(inout) :: self
@@ -1056,6 +1147,7 @@ CONTAINS
       self%dataOutLineSPARTACUS = -999.0
       self%dataOutLineDailyState = -999.0
       self%dataOutLineSTEBBS = -999.0
+      self%dataOutLineNHood = -999.0
    END SUBROUTINE output_line_init
 
    SUBROUTINE output_block_init(self, len)
@@ -1073,6 +1165,7 @@ CONTAINS
       ALLOCATE (self%dataOutBlockSPARTACUS(len, ncolumnsDataOutSPARTACUS))
       ALLOCATE (self%dataOutBlockDailyState(len, ncolumnsDataOutDailyState))
       ALLOCATE (self%dataOutBlockSTEBBS(len, ncolumnsDataOutSTEBBS))
+      ALLOCATE (self%dataOutBlockNHood(len, ncolumnsDataOutNHood))
 
       ! Set default values
       self%dataOutBlockSUEWS = -999.0
@@ -1085,6 +1178,7 @@ CONTAINS
       self%dataOutBlockSPARTACUS = -999.0
       self%dataOutBlockDailyState = -999.0
       self%dataOutBlockSTEBBS = -999.0
+      self%dataOutBlockNHood = -999.0
 
    END SUBROUTINE output_block_init
 
@@ -1102,6 +1196,7 @@ CONTAINS
       IF (ALLOCATED(self%dataOutBlockSPARTACUS)) DEALLOCATE (self%dataOutBlockSPARTACUS)
       IF (ALLOCATED(self%dataOutBlockDailyState)) DEALLOCATE (self%dataOutBlockDailyState)
       IF (ALLOCATED(self%dataOutBlockSTEBBS)) DEALLOCATE (self%dataOutBlockSTEBBS)
+      IF (ALLOCATED(self%dataOutBlockNHood)) DEALLOCATE (self%dataOutBlockNHood)
 
    END SUBROUTINE output_block_finalize
 
@@ -1209,9 +1304,9 @@ CONTAINS
       ALLOCATE (self%tsfc_wall(num_layer))
       ALLOCATE (self%tsfc_surf(num_surf))
 
-      ALLOCATE (self%tsfc0_out_roof(num_layer))
-      ALLOCATE (self%tsfc0_out_wall(num_layer))
-      ALLOCATE (self%tsfc0_out_surf(num_surf))
+      ALLOCATE (self%tsfc_roof_stepstart(num_layer))
+      ALLOCATE (self%tsfc_wall_stepstart(num_layer))
+      ALLOCATE (self%tsfc_surf_stepstart(num_surf))
 
       ALLOCATE (self%QS_roof(num_layer))
       ALLOCATE (self%QN_roof(num_layer))
@@ -1236,9 +1331,9 @@ CONTAINS
       IF (ALLOCATED(self%tsfc_roof)) DEALLOCATE (self%tsfc_roof)
       IF (ALLOCATED(self%tsfc_wall)) DEALLOCATE (self%tsfc_wall)
       IF (ALLOCATED(self%tsfc_surf)) DEALLOCATE (self%tsfc_surf)
-      IF (ALLOCATED(self%tsfc0_out_roof)) DEALLOCATE (self%tsfc0_out_roof)
-      IF (ALLOCATED(self%tsfc0_out_wall)) DEALLOCATE (self%tsfc0_out_wall)
-      IF (ALLOCATED(self%tsfc0_out_surf)) DEALLOCATE (self%tsfc0_out_surf)
+      IF (ALLOCATED(self%tsfc_roof_stepstart)) DEALLOCATE (self%tsfc_roof_stepstart)
+      IF (ALLOCATED(self%tsfc_wall_stepstart)) DEALLOCATE (self%tsfc_wall_stepstart)
+      IF (ALLOCATED(self%tsfc_surf_stepstart)) DEALLOCATE (self%tsfc_surf_stepstart)
       IF (ALLOCATED(self%temp_surf)) DEALLOCATE (self%temp_surf)
       IF (ALLOCATED(self%QS_roof)) DEALLOCATE (self%QS_roof)
       IF (ALLOCATED(self%QN_roof)) DEALLOCATE (self%QN_roof)
@@ -1435,5 +1530,59 @@ CONTAINS
       END ASSOCIATE
 
    END SUBROUTINE SUEWS_cal_surf_DTS
+
+   SUBROUTINE check_and_reset_unsafe_states(self, ref_state)
+      CLASS(SUEWS_STATE), INTENT(inout) :: self
+      TYPE(SUEWS_STATE), INTENT(in) :: ref_state
+
+      ! Direct checks for each component
+      IF (.NOT. self%flagState%iter_safe) THEN
+         self%flagState = ref_state%flagState
+      END IF
+
+      IF (.NOT. self%anthroemisState%iter_safe) THEN
+         self%anthroemisState = ref_state%anthroemisState
+      END IF
+
+      IF (.NOT. self%ohmState%iter_safe) THEN
+         self%ohmState = ref_state%ohmState
+      END IF
+
+      IF (.NOT. self%solarState%iter_safe) THEN
+         self%solarState = ref_state%solarState
+      END IF
+
+      IF (.NOT. self%atmState%iter_safe) THEN
+         self%atmState = ref_state%atmState
+      END IF
+
+      IF (.NOT. self%phenState%iter_safe) THEN
+         self%phenState = ref_state%phenState
+      END IF
+
+      IF (.NOT. self%snowState%iter_safe) THEN
+         self%snowState = ref_state%snowState
+      END IF
+
+      IF (.NOT. self%hydroState%iter_safe) THEN
+         self%hydroState = ref_state%hydroState
+      END IF
+
+      IF (.NOT. self%heatState%iter_safe) THEN
+         self%heatState = ref_state%heatState
+      END IF
+
+      IF (.NOT. self%roughnessState%iter_safe) THEN
+         self%roughnessState = ref_state%roughnessState
+      END IF
+
+      IF (.NOT. self%stebbsState%iter_safe) THEN
+         self%stebbsState = ref_state%stebbsState
+      END IF
+
+      IF (.NOT. self%nhoodState%iter_safe) THEN
+         self%nhoodState = ref_state%nhoodState
+      END IF
+   END SUBROUTINE check_and_reset_unsafe_states
 
 END MODULE SUEWS_DEF_DTS

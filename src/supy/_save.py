@@ -8,7 +8,7 @@ import pandas as pd
 
 from ._env import logger_supy
 from ._load import load_SUEWS_dict_ModConfig
-from ._post import resample_output, var_df as df_var_out
+from ._post import resample_output, df_var as df_var_out
 
 
 def gen_df_save(df_grid_group: pd.DataFrame) -> pd.DataFrame:

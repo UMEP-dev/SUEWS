@@ -50,6 +50,8 @@ def extract_dict_docs(docLines):
 
     list_var_inout = tuple(dict_InOutInfo.keys())
     list_var_in = tuple(set(dict_InputInfo.keys()))
+    # temporary fix for state variables
+    list_var_in = list(set(list_var_in) - set(["state_debug", "block_mod_state"]))
     # dict_InOutInfo
     # get the information of output variables for SUEWS_driver
 
@@ -808,19 +810,23 @@ def load_SUEWS_Forcing_met_df_pattern(path_input, file_pattern):
     return df_forcing_met
 
 
-
 def load_SUEWS_Forcing_met_df_yaml(path_forcing):
     from pathlib import Path
     from .util._io import read_suews
 
     if isinstance(path_forcing, (str, Path)):
         path_forcing = Path(path_forcing).resolve()
-        df_forcing_met = read_suews(path_forcing)
-    elif isinstance(path_forcing, list):
+        if path_forcing.is_dir():
+            path_forcing = sorted(path_forcing.glob("*"))
+        else:
+            df_forcing_met = read_suews(path_forcing)
+    if isinstance(path_forcing, list):
         path_forcing = [Path(p).resolve() for p in path_forcing]
         df_forcing_met = pd.concat([read_suews(fn) for fn in path_forcing])
-    else:
-        import pdb; pdb.set_trace()
+    if not isinstance(path_forcing, (str, Path)) and not isinstance(path_forcing, list):
+        import pdb
+
+        pdb.set_trace()
     # `drop_duplicates` in case some duplicates mixed
     df_forcing_met = df_forcing_met.drop_duplicates()
     # drop `isec`: redundant for this dataframe
@@ -1375,6 +1381,7 @@ def load_SUEWS_dict_ModConfig(path_runcontrol, dict_default=dict_RunControl_defa
 
     return dict_RunControl
 
+
 # load stebbs nml files
 def load_SUEWS_dict_Stebbs(path_runcontrol, dict_runconfig):
     # load STEBBS-specific variables:
@@ -1392,20 +1399,19 @@ def load_SUEWS_dict_Stebbs(path_runcontrol, dict_runconfig):
         )
     else:
         path_stebbs_typologies = (
-            trv_supy_module / "sample_run" / "Input"
+            trv_supy_module
+            / "sample_run"
+            / "Input"
             / "test_stebbs_building_typologies.nml"
         )
         path_stebbs_general = (
-            trv_supy_module / "sample_run" / "Input"
-            / "test_stebbs_general_params.nml"
+            trv_supy_module / "sample_run" / "Input" / "test_stebbs_general_params.nml"
         )
 
     stebbs_dict_y = {k[0]: v for k, v in load_SUEWS_nml(path_stebbs_typologies).items()}
     stebbs_dict.update(stebbs_dict_y)
 
-    stebbs_dict_z = {
-        k[0]: v for k, v in load_SUEWS_nml(path_stebbs_general).items()
-    }
+    stebbs_dict_z = {k[0]: v for k, v in load_SUEWS_nml(path_stebbs_general).items()}
     stebbs_dict.update(stebbs_dict_z)
 
     return stebbs_dict

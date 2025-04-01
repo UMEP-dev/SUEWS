@@ -303,11 +303,15 @@ CONTAINS
 
       REAL(KIND(1D0)) :: tair ! air temperature [degC]
 
+      ! Define a logical flag
+      LOGICAL :: execute_subroutines
+
       ASSOCIATE ( &
          phenState => modState%phenState, &
          anthroEmisState => modState%anthroEmisState, &
          hydroState => modState%hydroState, &
-         atmState => modState%atmState &
+         atmState => modState%atmState, &
+         flagState => modState%flagState &
          )
 
          ! save initial values
@@ -337,7 +341,8 @@ CONTAINS
             dectrPrm => siteInfo%lc_dectr, &
             evetrPrm => siteInfo%lc_evetr, &
             bsoilPrm => siteInfo%lc_bsoil, &
-            waterPrm => siteInfo%lc_water &
+            waterPrm => siteInfo%lc_water, &
+            i_iter => flagState%i_iter &
             )
 
             ASSOCIATE ( &
@@ -438,6 +443,8 @@ CONTAINS
                )
 
                ! before
+               ! Set the flag based on i_iter
+               execute_subroutines = (i_iter == 1)
 
                LAIPower(:, 1) = evetrLAIPower
                LAIPower(:, 2) = dectrLAIPower
@@ -469,7 +476,7 @@ CONTAINS
 
                ! --------------------------------------------------------------------------------
                ! On first timestep of each day, define whether the day each a workday or weekend
-               IF (first_tstep_Q) THEN
+               IF ((first_tstep_Q) .AND. execute_subroutines) THEN
                   CALL update_DailyState_Start( &
                      it, imin, & !input
                      HDD_id) !inout
@@ -489,17 +496,19 @@ CONTAINS
                END IF
 
                ! regular update at all timesteps of a day
-               CALL update_DailyState_Day( &
-                  BaseTMethod, &
-                  DayofWeek_id, &
-                  avkdn, & !input
-                  Tair, &
-                  Precip, &
-                  BaseT_HC, &
-                  BaseT_Heating, BaseT_Cooling, &
-                  nsh_real, &
-                  Tmin_id, Tmax_id, lenDay_id, & !inout
-                  HDD_id) !inout
+               IF (execute_subroutines) THEN
+                  CALL update_DailyState_Day( &
+                     BaseTMethod, &
+                     DayofWeek_id, &
+                     avkdn, & !input
+                     Tair, &
+                     Precip, &
+                     BaseT_HC, &
+                     BaseT_Heating, BaseT_Cooling, &
+                     nsh_real, &
+                     Tmin_id, Tmax_id, lenDay_id, & !inout
+                     HDD_id) !inout
+               END IF
 
                ! Update snow density, albedo surface fraction
                ! TODO: to recover snow related functions
@@ -514,9 +523,11 @@ CONTAINS
                !  so main program should use values from the previous day
                IF (last_tstep_Q) THEN
                   ! Calculate heating degree days ------------------------------------------
-                  CALL update_HDD( &
-                     dt_since_start, it, imin, tstep, & !input
-                     HDD_id) !inout
+                  IF (execute_subroutines) THEN
+                     CALL update_HDD( &
+                        dt_since_start, it, imin, tstep, & !input
+                        HDD_id) !inout
+                  END IF
 
                   ! Calculate modelled daily water use ------------------------------------------
                   CALL update_WaterUse( &
@@ -536,30 +547,32 @@ CONTAINS
                   ! save initial LAI_id
                   ! LAI_id_in = LAI_id
 
-                  CALL update_GDDLAI( &
-                     id, LAICalcYes, & !input
-                     lat, LAI_obs, &
-                     Tmin_id, Tmax_id, lenDay_id, &
-                     BaseT, BaseTe, &
-                     GDDFull, SDDFull, &
-                     LAIMin, LAIMax, LAIPower, LAIType, &
-                     LAI_id_prev, &
-                     GDD_id, SDD_id, & !inout
-                     LAI_id) !output
+                  IF (execute_subroutines) THEN
+                     CALL update_GDDLAI( &
+                        id, LAICalcYes, & !input
+                        lat, LAI_obs, &
+                        Tmin_id, Tmax_id, lenDay_id, &
+                        BaseT, BaseTe, &
+                        GDDFull, SDDFull, &
+                        LAIMin, LAIMax, LAIPower, LAIType, &
+                        LAI_id_prev, &
+                        GDD_id, SDD_id, & !inout
+                        LAI_id) !output
 
-                  CALL update_Veg( &
-                     LAImax, LAIMin, & !input
-                     AlbMax_DecTr, AlbMax_EveTr, AlbMax_Grass, &
-                     AlbMin_DecTr, AlbMin_EveTr, AlbMin_Grass, &
-                     CapMax_dec, CapMin_dec, &
-                     PorMax_dec, PorMin_dec, &
-                     LAI_id, LAI_id_prev, &
-                     DecidCap_id, & !inout
-                     albDecTr_id, &
-                     albEveTr_id, &
-                     albGrass_id, &
-                     porosity_id, &
-                     StoreDrainPrm)
+                     CALL update_Veg( &
+                        LAImax, LAIMin, & !input
+                        AlbMax_DecTr, AlbMax_EveTr, AlbMax_Grass, &
+                        AlbMin_DecTr, AlbMin_EveTr, AlbMin_Grass, &
+                        CapMax_dec, CapMin_dec, &
+                        PorMax_dec, PorMin_dec, &
+                        LAI_id, LAI_id_prev, &
+                        DecidCap_id, & !inout
+                        albDecTr_id, &
+                        albEveTr_id, &
+                        albGrass_id, &
+                        porosity_id, &
+                        StoreDrainPrm)
+                  END IF
                END IF !End of section done only at the end of each day (i.e. only once per day)
 
                ! translate values back

@@ -1,4 +1,7 @@
 From,To,Action,File,Variable,Column,Value
+2024a,2025a,Add,SUEWS_SiteSelect.txt,h_std,107,5.0
+2024a,2025a,Add,SUEWS_SiteSelect.txt,n_buildings,106,150
+2023a,2024a,Keep,-999,-999,-999,-999
 2021a,2023a,Delete,RunControl.nml,DiagQS,-999,-999
 2021a,2023a,Delete,RunControl.nml,DiagQN,-999,-999
 2021a,2023a,Delete,SUEWS_AnthropogenicEmission.txt,BaseT_HC,-999,-999

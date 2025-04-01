@@ -844,13 +844,13 @@ class LandCover(BaseModel):
         default_factory=BldgsProperties,
         description="Properties for building surfaces including roofs and walls",
     )
-    dectr: DectrProperties = Field(
-        default_factory=DectrProperties,
-        description="Properties for deciduous trees and vegetation",
-    )
     evetr: EvetrProperties = Field(
         default_factory=EvetrProperties,
         description="Properties for evergreen trees and vegetation",
+    )
+    dectr: DectrProperties = Field(
+        default_factory=DectrProperties,
+        description="Properties for deciduous trees and vegetation",
     )
     grass: GrassProperties = Field(
         default_factory=GrassProperties, description="Properties for grass surfaces"

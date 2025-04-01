@@ -265,7 +265,8 @@ CONTAINS
                   DOT_PRODUCT(SurplusEvap(PavSurf:BldgSurf), sfr_surf(PavSurf:BldgSurf)/PervFraction), &
                   0D0, &
                   PervFraction /= 0)
-
+         ! EvPart needs be distributed to each pervious surface weighted by sfr_surf(is)
+         EvPart = EvPart*sfr_surf(is)/PervFraction
          ! Add surplus evaporation to ev for pervious surfaces
          ev = ev + EvPart
 

@@ -19,6 +19,9 @@ import pandas as pd
 from .supy_driver import suews_driver as sd
 import copy
 
+# these are used in debug mode to save extra outputs
+from .supy_driver import suews_def_dts as sd_dts
+
 from ._load import (
     df_var_info,
     list_var_inout,
@@ -32,8 +35,8 @@ from ._post import (
     pack_df_output_line,
     pack_df_output_array,
     pack_df_state,
-    pack_dict_debug,
-    pack_df_debug,
+    pack_dts,
+    pack_dict_dts_datetime_grid,
 )
 
 
@@ -149,10 +152,62 @@ def suews_cal_tstep_multi(dict_state_start, df_forcing_block, debug_mode=False):
         dict_input["flag_test"] = False
 
     dict_input = {k: dict_input[k] for k in list_var_input_multitsteps}
-    # main calculation:
+    # Pickle the input dictionary for debugging purposes
+    if debug_mode:
+        import pickle
+        from pathlib import Path
+        import datetime as dt
 
+        # Create a timestamp for the filename
+        timestamp = dt.datetime.now().strftime("%Y%m%d_%H%M%S")
+        path_pickle = Path(f"supy_input_dict_{timestamp}.pkl")
+
+        # Save the dictionary to a pickle file
+        with open(path_pickle, "wb") as f:
+            pickle.dump(dict_input, f)
+
+        # Log information about the saved file
+        logger_supy.debug(f"Input dictionary pickled to: {path_pickle}")
+        logger_supy.debug(f"Dictionary contains {len(dict_input)} variables")
+        logger_supy.debug(f"Simulation length: {dict_input['len_sim']} timesteps")
+
+        # The pickled input dictionary can be used for:
+        # 1. Debugging model crashes by loading and examining the exact input state
+        # 2. Reproducing model runs with identical inputs
+        # 3. Comparing inputs between different model versions
+        # 4. Validating input data structure before expensive computations
+        #
+        # To load the pickled dictionary:
+        # ```python
+        # import pickle
+        # from pathlib import Path
+        #
+        # # Replace with actual pickle file path
+        # path_pickle = Path("supy_input_dict_YYYYMMDD_HHMMSS.pkl")
+        #
+        # with open(path_pickle, "rb") as f:
+        #     dict_input_loaded = pickle.load(f)
+        # ```
+    # main calculation:
     try:
-        res_suews_tstep_multi, res_mod_state = sd.suews_cal_multitsteps(**dict_input)
+        if debug_mode:
+            # initialise the debug objects
+            # they can only be used as input arguments
+            # but not explicitly returned as output arguments
+            # so we need to pass them as keyword arguments to the SUEWS kernel
+            # and then they will be updated by the SUEWS kernel and used later
+            state_debug = sd_dts.SUEWS_DEBUG()
+            block_mod_state = sd_dts.SUEWS_STATE_BLOCK()
+        else:
+            state_debug = None
+            block_mod_state = None
+
+        # note the extra arguments are passed to the SUEWS kernel as keyword arguments in the debug mode
+        res_suews_tstep_multi = sd.suews_cal_multitsteps(
+            **dict_input,
+            state_debug=state_debug,
+            block_mod_state=block_mod_state,
+        )
 
     except Exception as ex:
         # show trace info
@@ -193,13 +248,27 @@ def suews_cal_tstep_multi(dict_state_start, df_forcing_block, debug_mode=False):
         dict_output_array = dict(zip(list_var, list_arr))
         df_output_block = pack_df_output_block(dict_output_array, df_forcing_block)
 
-        # TODO: #233 res_mod_state will be used in the future for debugging purpose
         # convert res_mod_state to a dict
         # Assuming dts_debug is your object instance
         # deepcopy is used to avoid reference issue when passing the object
-        dict_debug = copy.deepcopy(pack_dict_debug(res_mod_state))
+        if debug_mode:
+            dict_debug = copy.deepcopy(pack_dts(state_debug))
+            dts_state = block_mod_state # save the raw object
+        else:
+            dict_debug = None
+            dts_state = None
 
-        return dict_state_end, df_output_block, dict_debug
+        # convert res_state to a dict
+        # dict_state = copy.deepcopy(
+        #     {
+        #         ir: pack_dict_dts(dts_state)
+        #         for ir, dts_state in enumerate(res_state.block)
+        #     }
+        # )
+        if debug_mode:
+            return dict_state_end, df_output_block, dict_debug, dts_state
+        else:
+            return dict_state_end, df_output_block
 
 
 # dataframe based wrapper
@@ -368,21 +437,25 @@ def run_supy_ser(
         list_df_output = []
         list_df_state = []
         list_df_debug = []
+        list_dts_state = []
         for grp in grp_forcing_chunk.groups:
             # get forcing of a specific year
             df_forcing_chunk = grp_forcing_chunk.get_group(grp)
             # run supy: actual execution done in the `else` clause below
-            df_output_chunk, df_state_final_chunk, df_debug_chunk = run_supy_ser(
-                df_forcing_chunk,
-                df_state_init_chunk,
-                chunk_day=chunk_day,
+            df_output_chunk, df_state_final_chunk, df_debug_chunk, dts_state_chunk = (
+                run_supy_ser(
+                    df_forcing_chunk,
+                    df_state_init_chunk,
+                    chunk_day=chunk_day,
+                    debug_mode=debug_mode,
+                )
             )
             df_state_init_chunk = df_state_final_chunk.copy()
             # collect results
             list_df_output.append(df_output_chunk)
             list_df_state.append(df_state_final_chunk)
             list_df_debug.append(df_debug_chunk)
-
+            list_dts_state.append(dts_state_chunk)
         # re-organise results of each year
         df_output = pd.concat(list_df_output).sort_index()
         df_state_final = pd.concat(list_df_state).sort_index().drop_duplicates()
@@ -399,8 +472,12 @@ def run_supy_ser(
                 suews_cal_tstep_multi(dict_state_input, df_forcing, debug_mode)
                 for dict_state_input in list_dict_state_input
             ]
-
-            list_dict_state_end, list_df_output, list_dict_debug = zip(*list_res_grid)
+            if debug_mode:
+                list_dict_state_end, list_df_output, list_dict_debug, list_dts_state = (
+                    zip(*list_res_grid)
+                )
+            else:
+                list_dict_state_end, list_df_output = zip(*list_res_grid)
 
         except Exception as e:
             path_zip_debug = save_zip_debug(df_forcing, df_state_init, error_info=e)
@@ -436,19 +513,34 @@ def run_supy_ser(
         df_output = df_output.drop("ESTM", axis=1, level="group")
         # trim multi-index based columns
         df_output.columns = df_output.columns.remove_unused_levels()
+        if debug_mode:
+            # collect debug info
+            dict_debug = {
+                (tstep_final, grid): debug
+                for grid, debug in zip(list_grid, list_dict_debug)
+            }
+            df_debug = pack_dict_dts_datetime_grid(dict_debug)
 
-        # collect debug info
-        dict_debug = {
-            (tstep_final, grid): debug
-            for grid, debug in zip(list_grid, list_dict_debug)
-        }
-        df_debug = pack_df_debug(dict_debug)
+            # collect state info
+            dict_dts_state = {
+                grid: dts_state for grid, dts_state in zip(list_grid, list_dts_state)
+            }
+        else:
+            df_debug = None
+            dict_dts_state = None
 
-    return df_output, df_state_final, df_debug
+
+    return df_output, df_state_final, df_debug, dict_dts_state
 
 
 def run_save_supy(
-    df_forcing_tstep, df_state_init_m, ind, save_state, chunk_day, path_dir_temp, debug_mode=False
+    df_forcing_tstep,
+    df_state_init_m,
+    ind,
+    save_state,
+    chunk_day,
+    path_dir_temp,
+    debug_mode=False,
 ):
     """Run SuPy simulation and save results to temporary files.
 
@@ -475,23 +567,39 @@ def run_save_supy(
         Results are saved to files in path_dir_temp:
         - {ind}_out.pkl: Output results DataFrame
         - {ind}_state.pkl: Final model states DataFrame
-        - {ind}_debug.pkl: Debug information DataFrame
+        - {ind}_debug.pkl: Debug information DataFrame (if debug_mode=True)
+        - {ind}_state_obj.pkl: Raw state objects (if debug_mode=True)
     """
     # run supy in serial mode
-    df_output, df_state_final, df_debug = run_supy_ser(
+    result = run_supy_ser(
         df_forcing_tstep, df_state_init_m, save_state, chunk_day, debug_mode
     )
-    # save to path_dir_temp
+
+    # Save results based on debug mode
+    if debug_mode:
+        df_output, df_state_final, df_debug, res_state = result
+        # save debug data
+        path_debug = path_dir_temp / f"{ind}_debug.pkl"
+        df_debug.to_pickle(path_debug)
+        # save state objects
+        path_state_obj = path_dir_temp / f"{ind}_state_obj.pkl"
+        with open(path_state_obj, 'wb') as f:
+            import pickle
+            pickle.dump(res_state, f)
+    else:
+        df_output, df_state_final, _, _ = result
+
+    # save output and state data (always)
     path_out = path_dir_temp / f"{ind}_out.pkl"
     path_state = path_dir_temp / f"{ind}_state.pkl"
-    path_debug = path_dir_temp / f"{ind}_debug.pkl"
     df_output.to_pickle(path_out)
     df_state_final.to_pickle(path_state)
-    df_debug.to_pickle(path_debug)
 
 
 # parallel mode: only used on Linux/macOS; Windows is not supported yet.
-def run_supy_par(df_forcing_tstep, df_state_init_m, save_state, chunk_day, debug_mode=False):
+def run_supy_par(
+    df_forcing_tstep, df_state_init_m, save_state, chunk_day, debug_mode=False
+):
     """Perform supy simulation in parallel mode.
 
     Parameters
@@ -509,10 +617,11 @@ def run_supy_par(df_forcing_tstep, df_state_init_m, save_state, chunk_day, debug
 
     Returns
     -------
-    Tuple[pandas.DataFrame, pandas.DataFrame, pandas.DataFrame]
+    Tuple[pandas.DataFrame, pandas.DataFrame, pandas.DataFrame, dict]
         - df_output: Output results
         - df_state_final: Final model states
-        - df_debug: Debug information
+        - df_debug: Debug information (None if debug_mode=False)
+        - dict_res_state: Raw state objects (None if debug_mode=False)
     """
     n_grid = df_state_init_m.index.size
     list_forcing = [df_forcing_tstep for _ in range(n_grid)]
@@ -541,7 +650,7 @@ def run_supy_par(df_forcing_tstep, df_state_init_m, save_state, chunk_day, debug
                 ),
             )
 
-        # load dumped h5 files
+        # load dumped pickle files
         df_output = pd.concat(
             [pd.read_pickle(path_dir_temp / f"{n}_out.pkl") for n in np.arange(n_grid)]
         )
@@ -551,18 +660,32 @@ def run_supy_par(df_forcing_tstep, df_state_init_m, save_state, chunk_day, debug
                 for n in np.arange(n_grid)
             ]
         )
-        df_debug = pd.concat(
-            [
-                pd.read_pickle(path_dir_temp / f"{n}_debug.pkl")
-                for n in np.arange(n_grid)
-            ]
-        )
 
-    return df_output, df_state_final, df_debug
+        # Handle debug mode data if available
+        if debug_mode:
+            df_debug = pd.concat(
+                [
+                    pd.read_pickle(path_dir_temp / f"{n}_debug.pkl")
+                    for n in np.arange(n_grid)
+                ]
+            )
+            # Load state objects
+            import pickle
+            dict_res_state = {}
+            for n in np.arange(n_grid):
+                path_state_obj = path_dir_temp / f"{n}_state_obj.pkl"
+                with open(path_state_obj, 'rb') as f:
+                    dict_res_state[n] = pickle.load(f)
+        else:
+            df_debug = None
+            dict_res_state = None
+
+    return df_output, df_state_final, df_debug, dict_res_state
 
 
 # main calculation end here
 ##############################################################################
+
 
 # pack one Series of var into np.array
 def pack_var_old(ser_var):
@@ -597,15 +720,12 @@ def pack_var(ser_var: pd.Series) -> np.ndarray:
         # e.g. '(1,2)' -> (1,2)
         # import pdb; pdb.set_trace()
         index_tuples = [
-            tuple(map(int, filter(None, idx.strip('()').split(','))))
+            tuple(map(int, filter(None, idx.strip("()").split(","))))
             for idx in ser_var.index
         ]
 
         # Create new Series with tuple indices for proper sorting
-        ser_var_indexed = pd.Series(
-            ser_var.values,
-            index=index_tuples
-        ).sort_index()
+        ser_var_indexed = pd.Series(ser_var.values, index=index_tuples).sort_index()
 
         # Get dimensions from max indices
         # Add 1 since indices are 0-based
@@ -624,7 +744,6 @@ def pack_var(ser_var: pd.Series) -> np.ndarray:
         # Log error and fall back to scalar handling
         print(f"Error reshaping Series: {e}")
         return np.array([ser_var.iloc[0]])
-
 
 
 # pack one Series of grid vars into dict of `np.array`s

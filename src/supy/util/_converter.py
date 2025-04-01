@@ -100,7 +100,8 @@ def rename_var_nml(toFile, toVar, toVal):
     nml = f90nml.read(toFile)
     title = list(nml.keys())[0]
     if toVar.lower() in nml[title].keys():
-        nml[title][toVal] = nml[title].pop(toVar)
+        # all use lower case for consistency
+        nml[title][toVal.lower()] = nml[title].pop(toVar.lower())
     else:
         logger_supy.warning(f"{toVar} does not exist!")
     nml.write(toFile, force=True)
@@ -187,7 +188,7 @@ def add_var(toFile, toVar, toCol, toVal):
             comment="!",
         )
         # construct new column
-        colNew = np.empty(dataX.shape[0], dtype=np.object)
+        colNew = np.empty(dataX.shape[0], dtype=object)
         colNew = toVal
         # insert new column
         dataX.insert(

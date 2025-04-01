@@ -25,8 +25,16 @@ from ._supy_module import (
     check_forcing,
     check_state,
     init_config,
+    run_supy_sample,
+    resample_output,
 )
 
+# debug utilities
+from ._post import (
+    pack_dts_state_selective,
+    inspect_dts_structure,
+    dict_structure,
+)
 
 # utilities
 from . import util

@@ -179,6 +179,8 @@ fieldset.form-section.collapsed > *:not(legend) {
 fieldset.form-section fieldset.form-section {
     border-color: #e9ecef;
     background-color: #fafafa;
+    margin-left: 0.5rem;
+    margin-right: 0.5rem;
 }
 
 fieldset.form-section fieldset.form-section legend {
@@ -315,4 +317,69 @@ footer {
     .tab-button.active {
         border-bottom: 3px solid var(--secondary-color);
     }
+}
+
+/* Land cover surface type specific styling */
+.tab-panel fieldset.form-section > fieldset.form-section {
+    border-left: 3px solid var(--border-color);
+    margin-bottom: 1rem;
+}
+
+/* Add specific colors for each land cover type when expanded */
+.tab-panel fieldset.form-section > fieldset.form-section:not(.collapsed) {
+    border-left-color: var(--secondary-color);
+}
+
+/* Add icons before surface type sections */
+.tab-panel fieldset.form-section > fieldset.form-section > legend::after {
+    content: ' ';
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    margin-left: 8px;
+    border-radius: 50%;
+    background-color: #aaa;
+}
+
+/* Surface type icons with specific colors */
+.tab-panel fieldset.form-section > fieldset.form-section:nth-of-type(1) > legend::after {
+    background-color: #777; /* Paved */
+}
+.tab-panel fieldset.form-section > fieldset.form-section:nth-of-type(2) > legend::after {
+    background-color: #a55; /* Buildings */
+}
+.tab-panel fieldset.form-section > fieldset.form-section:nth-of-type(3) > legend::after {
+    background-color: #7a7; /* Deciduous */
+}
+.tab-panel fieldset.form-section > fieldset.form-section:nth-of-type(4) > legend::after {
+    background-color: #575; /* Evergreen */
+}
+.tab-panel fieldset.form-section > fieldset.form-section:nth-of-type(5) > legend::after {
+    background-color: #9b9; /* Grass */
+}
+.tab-panel fieldset.form-section > fieldset.form-section:nth-of-type(6) > legend::after {
+    background-color: #b94; /* Bare soil */
+}
+.tab-panel fieldset.form-section > fieldset.form-section:nth-of-type(7) > legend::after {
+    background-color: #59f; /* Water */
+}
+
+/* Further nesting - third level */
+fieldset.form-section fieldset.form-section fieldset.form-section {
+    background-color: #f5f5f5;
+    border-left: 1px solid #ddd;
+}
+
+/* Make sfr property fields more prominent for land cover types */
+.form-group[data-label$="sfr"] .form-label,
+.form-group[data-label="Surface Fraction"] .form-label {
+    font-weight: bold;
+    color: var(--primary-color);
+}
+
+/* Enhance form headers for land cover sections */
+.tab-panel fieldset.form-section > fieldset.form-section > .form-group:first-of-type {
+    border-bottom: 1px dashed #eee;
+    padding-bottom: 8px;
+    margin-bottom: 12px;
 }

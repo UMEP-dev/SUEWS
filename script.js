@@ -91,6 +91,8 @@ const getSchemaType = (schemaNode) => {
 const createFormGroup = (key, labelText, element, description) => {
     const group = document.createElement('div');
     group.className = 'form-group';
+    // Add data-label attribute for CSS targeting
+    group.dataset.label = labelText || key;
 
     const labelElement = document.createElement('label');
     labelElement.className = 'form-label';
@@ -499,44 +501,128 @@ const addSiteTab = (siteIndex, siteData = null) => {
 
         // 1. Basic Information Section
         const basicInfo = createCollapsibleSection('Basic Information', tabPanel);
-        const basicProps = ['gridiv', 'gridx', 'name', 'lat', 'lng', 'timezone', 'altitude', 'description'];
+        // Basic information properties
+        const basicProps = ['gridiv', 'grid', 'name', 'lat', 'lng', 'timezone', 'altitude', 'alt', 'description', 'z', 'z0m_in', 'zdm_in'];
 
-        // 2. Built Environment Section
+        // 2. Land Cover Section - will be populated with subsections
+        const landCoverSection = createCollapsibleSection('Land Cover', tabPanel);
+
+        // 3. Environmental Parameters Section
+        const environmentalSection = createCollapsibleSection('Environmental Parameters', tabPanel);
+        const environmentalProps = ['anthropogenic_emissions', 'conductance', 'irrigation', 'snow'];
+
+        // 4. Built Environment Section
         const builtEnvironment = createCollapsibleSection('Built Environment', tabPanel);
-        const builtProps = ['surfacearea', 'buildingheight', 'landcover', 'heights', 'facadeheight', 'facadearea'];
+        const builtProps = [
+            'buildingheight', 'buildingHeight', 'height', 'heights', 'building_archetype',
+            'wallarea', 'wallArea', 'facadearea', 'facadeHeight', 'vertical_layers',
+            'irrigationrate', 'maxconductance', 'pipecapacity', 'runofftowater'
+        ];
 
-        // 3. Vegetation Properties
-        const vegetationSection = createCollapsibleSection('Vegetation', tabPanel);
-        const vegProps = ['vegtype', 'vegcoverfract', 'albedo', 'soilmoisture', 'LAI'];
+        // Special nested properties in lumps, spartacus, stebbs
+        const specialGroups = ['lumps', 'spartacus', 'stebbs'];
 
-        // 4. Other Properties Section (for remaining properties)
-        const otherSection = createCollapsibleSection('Other Properties', tabPanel);
+        // Special handling for the 'properties' field - based on sample_config.yml
+        // Most fields in the sample are nested under 'properties'
+        const hasSiteProperties = properties.properties && getResolvedSchema(properties.properties);
 
-        // Group and create form fields by category
-        Object.entries(properties).forEach(([propKey, propSchema]) => {
-            const propPath = `${siteRootPath}.${propKey}`;
+        // If there's a 'properties' field, we'll use its contents instead
+        const propsToProcess = hasSiteProperties ?
+            getResolvedSchema(properties.properties).properties || {} :
+            properties;
+
+        // Process each property
+        Object.entries(propsToProcess).forEach(([propKey, propSchema]) => {
+            // If we're using the 'properties' field, adjust the path
+            const propPath = hasSiteProperties ?
+                `${siteRootPath}.properties.${propKey}` :
+                `${siteRootPath}.${propKey}`;
+
             const propKeyLower = propKey.toLowerCase();
 
-            // Determine which section to add this property to
-            let targetSection = otherSection;
+            // Special handling for land_cover which needs its own subsections
+            if (propKeyLower === 'land_cover') {
+                // Get the resolved schema for land_cover
+                const landCoverSchema = getResolvedSchema(propSchema);
 
-            if (basicProps.some(p => propKeyLower.includes(p))) {
-                targetSection = basicInfo;
-            } else if (builtProps.some(p => propKeyLower.includes(p))) {
-                targetSection = builtEnvironment;
-            } else if (vegProps.some(p => propKeyLower.includes(p))) {
-                targetSection = vegetationSection;
+                if (landCoverSchema && landCoverSchema.properties) {
+                    // Create a container for the 7 land cover types
+                    const landCoverTypeProps = landCoverSchema.properties;
+
+                    // Create separate section for each of the 7 surface types
+                    const surfaceTypes = ['paved', 'bldgs', 'dectr', 'evetr', 'grass', 'bsoil', 'water'];
+
+                    // Map of nice display names for surface types
+                    const surfaceTypeDisplayNames = {
+                        'paved': 'Paved Surfaces',
+                        'bldgs': 'Buildings',
+                        'dectr': 'Deciduous Trees',
+                        'evetr': 'Evergreen Trees',
+                        'grass': 'Grass',
+                        'bsoil': 'Bare Soil',
+                        'water': 'Water'
+                    };
+
+                    // Create a collapsible section for each surface type
+                    surfaceTypes.forEach(surfaceType => {
+                        if (landCoverTypeProps[surfaceType]) {
+                            const surfaceSection = createCollapsibleSection(
+                                surfaceTypeDisplayNames[surfaceType] || surfaceType,
+                                landCoverSection
+                            );
+
+                            // Add to collapsed state by default
+                            surfaceSection.classList.add('collapsed');
+
+                            // Generate form for this surface type
+                            generateFormSection(
+                                surfaceType,
+                                landCoverTypeProps[surfaceType],
+                                surfaceSection,
+                                `${propPath}.${surfaceType}`
+                            );
+                        }
+                    });
+                } else {
+                    // Fallback if land_cover schema not properly resolved
+                    generateFormSection(propKey, propSchema, landCoverSection, propPath);
+                }
+                return; // Skip further processing for land_cover
             }
 
-            // Generate form section for this property within the appropriate section
+            // Place other properties in their appropriate sections
+            let targetSection;
+
+            // Determine the target section based on the property key
+            if (basicProps.some(p => propKeyLower === p.toLowerCase())) {
+                targetSection = basicInfo;
+            } else if (builtProps.some(p => propKeyLower === p.toLowerCase() || propKeyLower.includes(p.toLowerCase()))) {
+                targetSection = builtEnvironment;
+            } else if (environmentalProps.some(p => propKeyLower === p.toLowerCase() || propKeyLower.includes(p.toLowerCase()))) {
+                targetSection = environmentalSection;
+            } else if (specialGroups.includes(propKeyLower)) {
+                // Create special collapsible sections for lumps, spartacus, stebbs
+                targetSection = createCollapsibleSection(propKey.charAt(0).toUpperCase() + propKey.slice(1), tabPanel);
+                targetSection.classList.add('collapsed'); // Collapse by default
+            } else {
+                // Default to placing directly in tab panel
+                targetSection = tabPanel;
+            }
+
+            // Generate form section for this property
             generateFormSection(propKey, propSchema, targetSection, propPath);
         });
 
+        // If the site has a properties field but we didn't use it above, add it now
+        if (properties.properties && !hasSiteProperties) {
+            generateFormSection('properties', properties.properties, tabPanel, `${siteRootPath}.properties`);
+        }
+
         // Expand Basic Information section by default, collapse others
         basicInfo.classList.remove('collapsed');
+        landCoverSection.classList.remove('collapsed'); // Show land cover section by default
         builtEnvironment.classList.add('collapsed');
-        vegetationSection.classList.add('collapsed');
-        otherSection.classList.add('collapsed');
+        environmentalSection.classList.add('collapsed');
     }
 
     sitePanelContainer.appendChild(tabPanel);

@@ -217,7 +217,126 @@ const createSelect = (dataPath, schemaNode) => {
     return select;
 };
 
+// Helper function to check if a schema node is a ValueWithDOI object
+const isValueWithDOI = (schemaNode) => {
+    if (!schemaNode?.properties) return false;
 
+    // Check if it has both value and DOI/ref properties
+    const hasValue = schemaNode.properties.value || schemaNode.properties.Value;
+    const hasReference = schemaNode.properties.DOI || schemaNode.properties.doi ||
+                        schemaNode.properties.ref || schemaNode.properties.reference;
+
+    return hasValue && hasReference;
+};
+
+// Function to create an input for a ValueWithDOI object
+const createValueWithDOIInput = (key, schemaNode, parentElement, dataPath) => {
+    const resolvedSchema = getResolvedSchema(schemaNode);
+    const displayLabel = key.charAt(0).toUpperCase() + key.slice(1);
+
+    // Create container for the value and reference fields
+    const container = document.createElement('div');
+    container.className = 'value-with-doi-container';
+
+    // Find the property keys for value and reference
+    const valueKey = resolvedSchema.properties.value ? 'value' : 'Value';
+    const valueSchema = resolvedSchema.properties[valueKey];
+    const valueType = getResolvedSchema(valueSchema).type || 'string';
+
+    // Create input for the value
+    const valueInput = document.createElement('input');
+    valueInput.type = (valueType === 'number' || valueType === 'integer') ? 'number' : 'text';
+    valueInput.className = 'form-input';
+    valueInput.id = `input-${dataPath.replace(/[\.\[\]]/g, '-')}-${valueKey}`;
+    valueInput.dataset.path = `${dataPath}.${valueKey}`;
+
+    // If there's a default value, set it
+    if (valueSchema.default !== undefined) {
+        valueInput.value = valueSchema.default;
+        // Update the config object
+        setNestedValue(currentConfig, valueInput.dataset.path, valueSchema.default);
+    }
+
+    // Add event listener to update config on input change
+    valueInput.addEventListener('input', (e) => {
+        const value = e.target.type === 'number' ? parseFloat(e.target.value) : e.target.value;
+        setNestedValue(currentConfig, e.target.dataset.path, value);
+    });
+
+    // Create form group for the value
+    const valueGroup = createFormGroup(key, displayLabel, valueInput, resolvedSchema.description);
+
+    // Create button to add reference
+    const addRefButton = document.createElement('button');
+    addRefButton.type = 'button';
+    addRefButton.className = 'btn-add-ref';
+    addRefButton.textContent = '+ Add Reference';
+    addRefButton.style.marginLeft = '8px';
+    addRefButton.style.padding = '4px 8px';
+    addRefButton.style.fontSize = '0.8rem';
+    addRefButton.style.backgroundColor = '#f0f0f0';
+    addRefButton.style.border = '1px solid #ccc';
+    addRefButton.style.borderRadius = '4px';
+    addRefButton.style.cursor = 'pointer';
+
+    // Reference container (hidden by default)
+    const refContainer = document.createElement('div');
+    refContainer.className = 'reference-fields';
+    refContainer.style.display = 'none';
+    refContainer.style.marginTop = '8px';
+    refContainer.style.padding = '8px';
+    refContainer.style.backgroundColor = '#f9f9f9';
+    refContainer.style.border = '1px solid #eee';
+    refContainer.style.borderRadius = '4px';
+
+    // Create inputs for each reference field
+    Object.entries(resolvedSchema.properties).forEach(([propKey, propSchema]) => {
+        // Skip the value field
+        if (propKey === valueKey) return;
+
+        // Create input for this reference property
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.className = 'form-input';
+        input.id = `input-${dataPath.replace(/[\.\[\]]/g, '-')}-${propKey}`;
+        input.dataset.path = `${dataPath}.${propKey}`;
+        input.placeholder = propKey;
+
+        // Add event listener
+        input.addEventListener('input', (e) => {
+            setNestedValue(currentConfig, e.target.dataset.path, e.target.value);
+        });
+
+        // Create label and form group
+        const propLabel = document.createElement('label');
+        propLabel.textContent = propKey.charAt(0).toUpperCase() + propKey.slice(1);
+        propLabel.className = 'form-label';
+        propLabel.htmlFor = input.id;
+
+        const formGroup = document.createElement('div');
+        formGroup.className = 'form-group';
+        formGroup.style.marginBottom = '8px';
+        formGroup.appendChild(propLabel);
+        formGroup.appendChild(input);
+
+        refContainer.appendChild(formGroup);
+    });
+
+    // Toggle reference fields visibility
+    addRefButton.addEventListener('click', () => {
+        const isHidden = refContainer.style.display === 'none';
+        refContainer.style.display = isHidden ? 'block' : 'none';
+        addRefButton.textContent = isHidden ? '- Hide Reference' : '+ Add Reference';
+    });
+
+    // Append elements to container
+    valueGroup.appendChild(addRefButton);
+    container.appendChild(valueGroup);
+    container.appendChild(refContainer);
+    parentElement.appendChild(container);
+};
+
+// Update the generateFormSection function to use the new ValueWithDOI handling
 const generateFormSection = (key, schemaNode, parentElement, dataPath) => {
     // When we call getResolvedSchema, tell it to preserve existing titles if any
     const resolvedSchema = getResolvedSchema(schemaNode, true);
@@ -226,30 +345,9 @@ const generateFormSection = (key, schemaNode, parentElement, dataPath) => {
         return;
     }
 
-    // The resolved schema may have complex ValueWithDOI structure
-    // Check if we're dealing with a ValueWithDOI or similar complex type
-    const isValueWithDOI = resolvedSchema.properties &&
-                          (resolvedSchema.properties.value || resolvedSchema.properties.Value) &&
-                          (resolvedSchema.properties.DOI || resolvedSchema.properties.doi);
-
-    // Only simplify value-with-DOI fields that are directly within a site
-    // For deeper structures, preserve the hierarchy
-    if (isValueWithDOI && dataPath.match(/^site\[\d+\]\.[\w]+$/)) {
-        // Simple display for basic ValueWithDOI properties directly under a site
-        const valueKey = resolvedSchema.properties.value ? 'value' : 'Value';
-        const valueSchema = resolvedSchema.properties[valueKey];
-
-        // Just create a simple input for the value property
-        const valueType = getResolvedSchema(valueSchema).type || 'string';
-        const input = valueType === 'number' || valueType === 'integer' ?
-                    createInput('number', `${dataPath}.${valueKey}`, valueSchema) :
-                    createInput('text', `${dataPath}.${valueKey}`, valueSchema);
-
-        // Use the original field key (capitalized) as the label, not "Value"
-        const displayLabel = key.charAt(0).toUpperCase() + key.slice(1);
-        parentElement.appendChild(
-            createFormGroup(key, displayLabel, input, resolvedSchema.description)
-        );
+    // Check if this is a ValueWithDOI object
+    if (isValueWithDOI(resolvedSchema)) {
+        createValueWithDOIInput(key, resolvedSchema, parentElement, dataPath);
         return;
     }
 

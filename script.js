@@ -549,6 +549,63 @@ const createSiteInterface = (key, schemaNode, parentElement, dataPath) => {
     }
 };
 
+// Helper function to update tab names based on site data
+const updateTabName = (siteIndex) => {
+    const site = currentConfig.site?.[siteIndex];
+    if (!site) return;
+
+    // Find the tab button for this site
+    const tabButton = document.querySelector(`.tab-button[data-index="${siteIndex}"]`);
+    if (!tabButton) return;
+
+    // Get the site name and gridiv values
+    let name = '';
+    let gridid = '';
+
+    // Check if values exist in the config object - handle different possible structures
+    if (site.name?.value) {
+        name = site.name.value;
+    } else if (site.name) {
+        name = site.name;
+    } else if (site.properties?.name?.value) {
+        name = site.properties.name.value;
+    }
+
+    if (site.gridiv?.value) {
+        gridid = site.gridiv.value;
+    } else if (site.gridiv) {
+        gridid = site.gridiv;
+    } else if (site.properties?.gridiv?.value) {
+        gridid = site.properties.gridiv.value;
+    }
+
+    // Format the tab name
+    let tabName = `Site ${siteIndex + 1}`;
+    if (name && gridid) {
+        tabName = `${name}`;
+        tabButton.setAttribute('data-has-id', 'true');
+        tabButton.setAttribute('data-grid-id', gridid);
+        tabButton.title = `Grid ID: ${gridid}`;
+    } else if (name) {
+        tabName = name;
+        tabButton.removeAttribute('data-has-id');
+        tabButton.removeAttribute('data-grid-id');
+        tabButton.title = '';
+    } else if (gridid) {
+        tabName = `ID: ${gridid}`;
+        tabButton.removeAttribute('data-has-id');
+        tabButton.removeAttribute('data-grid-id');
+        tabButton.title = '';
+    } else {
+        tabButton.removeAttribute('data-has-id');
+        tabButton.removeAttribute('data-grid-id');
+        tabButton.title = '';
+    }
+
+    // Update the tab name
+    tabButton.textContent = tabName;
+};
+
 const addSiteTab = (siteIndex, siteData = null) => {
      if (!siteSchema) {
         console.error("Site schema is not resolved. Cannot add site tab.");
@@ -567,7 +624,7 @@ const addSiteTab = (siteIndex, siteData = null) => {
     const tabItem = document.createElement('li');
     const tabButton = document.createElement('button');
     tabButton.className = 'tab-button';
-    tabButton.textContent = `Site ${siteIndex + 1}`; // Keep tab label simple
+    tabButton.textContent = `Site ${siteIndex + 1}`; // Default name, will be updated
     tabButton.dataset.index = siteIndex;
     tabButton.addEventListener('click', () => switchTab(siteIndex));
     tabItem.appendChild(tabButton);
@@ -604,15 +661,212 @@ const addSiteTab = (siteIndex, siteData = null) => {
             getResolvedSchema(properties.properties).properties || {} :
             properties;
 
-        // Process top-level properties directly
+        // Create a special section for site identifiers at the top
+        const identifierSection = document.createElement('div');
+        identifierSection.className = 'site-identifiers';
+        identifierSection.style.padding = '0 0 12px 0';
+        identifierSection.style.marginBottom = '12px';
+        identifierSection.style.borderBottom = '1px solid #ddd';
+        tabPanel.appendChild(identifierSection);
+
+        // Identifier keys to display at the top
+        const identifierKeys = ['name', 'gridiv'];
         const processedKeys = new Set();
 
-        // First, process direct properties that should appear at the top level
+        // Process identifier fields first
+        identifierKeys.forEach(key => {
+            // Always create these important identifier fields directly at the site level
+            const propPath = `${siteRootPath}.${key}`;
+
+            // Get existing value if any
+            let existingValue = '';
+            if (currentConfig.site?.[siteIndex]) {
+                const site = currentConfig.site[siteIndex];
+                if (site[key]?.value) {
+                    existingValue = site[key].value;
+                } else if (site[key]) {
+                    existingValue = site[key];
+                }
+            }
+
+            // Get schema information if available
+            const schemaExists = properties[key];
+            let schemaInfo = {
+                title: key.charAt(0).toUpperCase() + key.slice(1),
+                description: key === 'gridiv' ? 'Grid identifier number' : 'Site name'
+            };
+
+            // If schema exists, get title and description
+            if (schemaExists) {
+                const resolvedSchema = getResolvedSchema(properties[key]);
+                if (resolvedSchema.title) {
+                    schemaInfo.title = resolvedSchema.title;
+                }
+                if (resolvedSchema.description) {
+                    schemaInfo.description = resolvedSchema.description;
+                }
+            }
+
+            // Create the appropriate field
+            if (schemaExists && isValueWithDOI(getResolvedSchema(properties[key]))) {
+                // For ValueWithDOI objects, create a specialized field
+                const container = document.createElement('div');
+                container.className = 'identifier-field';
+
+                // Get the value schema
+                const resolvedSchema = getResolvedSchema(properties[key]);
+                const valueKey = resolvedSchema.properties.value ? 'value' : 'Value';
+                const valueSchema = resolvedSchema.properties[valueKey];
+
+                // Create special input for the identifier that updates tab name
+                const input = document.createElement('input');
+                input.type = 'text';
+                input.className = 'form-input';
+                input.id = `input-${propPath.replace(/[\.\[\]]/g, '-')}-${valueKey}`;
+                input.dataset.path = `${propPath}.${valueKey}`;
+                input.dataset.isIdentifier = 'true';
+                input.value = existingValue;
+                input.placeholder = schemaInfo.description;
+                input.title = schemaInfo.description;
+
+                // Add special event listener to update tab name
+                input.addEventListener('input', (e) => {
+                    const value = e.target.value;
+                    setNestedValue(currentConfig, e.target.dataset.path, value);
+                    updateTabName(siteIndex);
+                });
+
+                // Create the label
+                const label = document.createElement('label');
+                label.className = 'form-label';
+                label.textContent = schemaInfo.title;
+                label.htmlFor = input.id;
+
+                // Add description as a tooltip if available
+                if (schemaInfo.description) {
+                    const infoSpan = document.createElement('span');
+                    infoSpan.textContent = ' ℹ';
+                    infoSpan.style.cursor = 'help';
+                    infoSpan.title = schemaInfo.description;
+                    infoSpan.className = 'field-info';
+                    label.appendChild(infoSpan);
+                }
+
+                // Create the form group
+                const group = document.createElement('div');
+                group.className = 'form-group';
+                group.appendChild(label);
+                group.appendChild(input);
+
+                // Add reference button
+                const addRefButton = document.createElement('button');
+                addRefButton.type = 'button';
+                addRefButton.className = 'btn-add-ref';
+                addRefButton.textContent = '+ Add Reference';
+                addRefButton.style.marginLeft = '8px';
+                group.appendChild(addRefButton);
+
+                // Reference container
+                const refContainer = document.createElement('div');
+                refContainer.className = 'reference-fields';
+                refContainer.style.display = 'none';
+
+                // Add reference fields
+                Object.entries(resolvedSchema.properties).forEach(([propKey, propSchema]) => {
+                    if (propKey === valueKey) return;
+
+                    const refInput = document.createElement('input');
+                    refInput.type = 'text';
+                    refInput.className = 'form-input';
+                    refInput.id = `input-${propPath.replace(/[\.\[\]]/g, '-')}-${propKey}`;
+                    refInput.dataset.path = `${propPath}.${propKey}`;
+                    refInput.placeholder = propKey;
+
+                    refInput.addEventListener('input', (e) => {
+                        setNestedValue(currentConfig, e.target.dataset.path, e.target.value);
+                    });
+
+                    const refLabel = document.createElement('label');
+                    refLabel.textContent = propKey.charAt(0).toUpperCase() + propKey.slice(1);
+                    refLabel.className = 'form-label';
+                    refLabel.htmlFor = refInput.id;
+
+                    const refGroup = document.createElement('div');
+                    refGroup.className = 'form-group';
+                    refGroup.style.marginBottom = '8px';
+                    refGroup.appendChild(refLabel);
+                    refGroup.appendChild(refInput);
+
+                    refContainer.appendChild(refGroup);
+                });
+
+                // Toggle reference fields
+                addRefButton.addEventListener('click', () => {
+                    const isHidden = refContainer.style.display === 'none';
+                    refContainer.style.display = isHidden ? 'block' : 'none';
+                    addRefButton.textContent = isHidden ? '- Hide Reference' : '+ Add Reference';
+                });
+
+                container.appendChild(group);
+                container.appendChild(refContainer);
+                identifierSection.appendChild(container);
+            } else {
+                // For regular fields or if schema doesn't exist
+                const input = document.createElement('input');
+                input.type = 'text';
+                input.className = 'form-input';
+                input.id = `input-${propPath.replace(/[\.\[\]]/g, '-')}`;
+                input.dataset.path = propPath;
+                input.dataset.isIdentifier = 'true';
+                input.value = existingValue;
+                input.placeholder = schemaInfo.description;
+                input.title = schemaInfo.description;
+
+                // Add special event listener to update tab name
+                input.addEventListener('input', (e) => {
+                    const value = e.target.value;
+                    setNestedValue(currentConfig, e.target.dataset.path, value);
+                    updateTabName(siteIndex);
+                });
+
+                // Create the label
+                const label = document.createElement('label');
+                label.className = 'form-label';
+                label.textContent = schemaInfo.title;
+                label.htmlFor = input.id;
+
+                // Add description as a tooltip if available
+                if (schemaInfo.description) {
+                    const infoSpan = document.createElement('span');
+                    infoSpan.textContent = ' ℹ';
+                    infoSpan.style.cursor = 'help';
+                    infoSpan.title = schemaInfo.description;
+                    infoSpan.className = 'field-info';
+                    label.appendChild(infoSpan);
+                }
+
+                // Create the form group
+                const group = document.createElement('div');
+                group.className = 'form-group';
+                group.appendChild(label);
+                group.appendChild(input);
+                identifierSection.appendChild(group);
+            }
+
+            // Mark as processed
+            processedKeys.add(key);
+        });
+
+        // Rest of the code to process remaining properties...
+        // ... [existing property processing code] ...
+
+        // Process top-level properties directly (except identifiers)
         Object.entries(propsToProcess).forEach(([propKey, propSchema]) => {
-            if (propKey.toLowerCase() === 'land_cover' ||
+            // Skip identifiers and complex objects
+            if (processedKeys.has(propKey) ||
+                propKey.toLowerCase() === 'land_cover' ||
                 propSchema.type === 'object' ||
                 (propSchema.$ref && propSchema.$ref.includes('object'))) {
-                // Skip complex objects for now - will process them next
                 return;
             }
 
@@ -639,53 +893,31 @@ const addSiteTab = (siteIndex, siteData = null) => {
             if (landCoverSchema && landCoverSchema.properties) {
                 // Process all land cover types directly
                 Object.entries(landCoverSchema.properties).forEach(([surfaceKey, surfaceSchema]) => {
-                    // Resolve the surface schema to get its properties
-                    const resolvedSurfaceSchema = getResolvedSchema(surfaceSchema);
-
                     // Create a collapsible section for this surface type
                     const surfaceSection = createCollapsibleSection(surfaceKey, landCoverSection);
-                    surfaceSection.classList.add('collapsed'); // Start collapsed by default
 
-                    // IMPORTANT: Direct property processing to avoid extra nesting
-                    if (resolvedSurfaceSchema.properties) {
-                        // Direct property access to avoid double nesting
-                        const surfaceProperties = resolvedSurfaceSchema.properties;
-                        Object.keys(surfaceProperties).forEach(propKey => {
-                            const propSchema = surfaceProperties[propKey];
-                            const propFullPath = `${propPath}.${surfaceKey}.${propKey}`;
+                    // Start collapsed by default
+                    surfaceSection.classList.add('collapsed');
 
-                            // Handle special case for "sfr" to make it more prominent
-                            if (propKey === 'sfr') {
-                                const sfrDiv = document.createElement('div');
-                                sfrDiv.className = 'surface-fraction';
-                                sfrDiv.style.padding = '8px 0';
-                                sfrDiv.style.borderBottom = '1px solid #eee';
-                                sfrDiv.style.marginBottom = '12px';
-                                sfrDiv.style.fontWeight = 'bold';
-
-                                generateFormSection(propKey, propSchema, sfrDiv, propFullPath);
-                                surfaceSection.appendChild(sfrDiv);
-                            } else {
-                                generateFormSection(propKey, propSchema, surfaceSection, propFullPath);
-                            }
+                    // For each surface type, directly add its properties to the section
+                    // This avoids creating an unnecessary nested level
+                    if (surfaceSchema.properties) {
+                        Object.entries(surfaceSchema.properties).forEach(([propKey, propSchema]) => {
+                            generateFormSection(
+                                propKey,
+                                propSchema,
+                                surfaceSection,
+                                `${propPath}.${surfaceKey}.${propKey}`
+                            );
                         });
-                    } else if (resolvedSurfaceSchema.type && resolvedSurfaceSchema.type !== 'object') {
-                        // For primitive types, generate directly
-                        const input = document.createElement('input');
-                        input.type = resolvedSurfaceSchema.type === 'number' ? 'number' : 'text';
-                        input.className = 'form-input';
-                        input.dataset.path = `${propPath}.${surfaceKey}`;
-
-                        const label = document.createElement('label');
-                        label.textContent = surfaceKey;
-                        label.className = 'form-label';
-
-                        const group = document.createElement('div');
-                        group.className = 'form-group';
-                        group.appendChild(label);
-                        group.appendChild(input);
-
-                        surfaceSection.appendChild(group);
+                    } else {
+                        // If no properties, just generate the surface as a whole
+                        generateFormSection(
+                            surfaceKey,
+                            surfaceSchema,
+                            surfaceSection,
+                            `${propPath}.${surfaceKey}`
+                        );
                     }
                 });
             } else {
@@ -732,6 +964,9 @@ const addSiteTab = (siteIndex, siteData = null) => {
         if (properties.properties && !hasSiteProperties) {
             generateFormSection('properties', properties.properties, tabPanel, `${siteRootPath}.properties`);
         }
+
+        // Update the tab name if we have identifier fields
+        updateTabName(siteIndex);
     }
 
     sitePanelContainer.appendChild(tabPanel);
@@ -759,70 +994,117 @@ const createCollapsibleSection = (title, parentElement) => {
 };
 
 const switchTab = (targetIndex) => {
-    // Update button active states
-    siteTabList.querySelectorAll('.tab-button').forEach((btn, idx) => {
-        btn.classList.toggle('active', idx === targetIndex);
+    // Update tab classes
+    document.querySelectorAll('.tab-button').forEach(btn => {
+        if (parseInt(btn.dataset.index) === targetIndex) {
+            btn.classList.add('active');
+        } else {
+            btn.classList.remove('active');
+        }
     });
 
-    // Show/hide panels
-    sitePanelContainer.querySelectorAll('.tab-panel').forEach((panel, idx) => {
-        panel.style.display = (idx === targetIndex) ? 'block' : 'none';
+    // Update panel visibility
+    document.querySelectorAll('.tab-panel').forEach(panel => {
+        if (parseInt(panel.dataset.index) === targetIndex) {
+            panel.style.display = 'block';
+        } else {
+            panel.style.display = 'none';
+        }
     });
+
+    // Make sure the tab name is up-to-date with current values
+    updateTabName(targetIndex);
 };
 
 const removeSiteTab = (indexToRemove) => {
-    if (currentConfig.site.length <= 1) {
-        alert("Cannot remove the last site.");
+    // Make sure we have sites to remove
+    if (!currentConfig.site || currentConfig.site.length === 0) {
+        console.error("No sites to remove");
         return;
     }
 
-    // Confirm removal
-    if (!confirm(`Are you sure you want to remove Site ${indexToRemove + 1}?`)) {
-        return;
-    }
+    // Get current active tab index (before removal)
+    const activeTabButton = document.querySelector('.tab-button.active');
+    const activeIndex = activeTabButton ? parseInt(activeTabButton.dataset.index) : 0;
 
-    // Remove data from config
+    // Remove the site from the config array
     currentConfig.site.splice(indexToRemove, 1);
 
-    // Remove tab and panel from DOM
-    siteTabList.querySelector(`button[data-index="${indexToRemove}"]`).parentElement.remove();
-    sitePanelContainer.querySelector(`.tab-panel[data-index="${indexToRemove}"]`).remove();
+    // Remove the tab button
+    const tabToRemove = document.querySelector(`.tab-button[data-index="${indexToRemove}"]`);
+    if (tabToRemove && tabToRemove.parentElement) {
+        tabToRemove.parentElement.remove();
+    } else {
+        console.warn(`No tab button found for index ${indexToRemove}`);
+    }
 
-    // Re-index subsequent tabs and panels and update data paths
-    siteTabList.querySelectorAll('.tab-button').forEach((btn, newIndex) => {
-         const oldIndex = parseInt(btn.dataset.index);
-         if (oldIndex > indexToRemove) {
-            btn.dataset.index = newIndex;
-            btn.textContent = `Site ${newIndex + 1}`;
-            // Update associated panel's index
-             const panel = sitePanelContainer.querySelector(`.tab-panel[data-index="${oldIndex}"]`);
-             if(panel) {
-                panel.dataset.index = newIndex;
-                // Update data-path attributes within the panel
-                panel.querySelectorAll('[data-path]').forEach(el => {
-                    el.dataset.path = el.dataset.path.replace(`site[${oldIndex}]`, `site[${newIndex}]`);
-                    const idSuffix = el.dataset.path.replace(/[\.\[\]]/g, '-');
-                    if (el.id.startsWith('input-')) el.id = `input-${idSuffix}`;
-                    if (el.id.startsWith('select-')) el.id = `select-${idSuffix}`;
-                    if (el.id.startsWith('checkbox-')) el.id = `checkbox-${idSuffix}`;
-                    // Update label 'for' attribute
-                    const label = panel.querySelector(`label[for="${el.id.replace(idSuffix, el.dataset.path.replace(`site[${newIndex}]`, `site[${oldIndex}]`).replace(/[\.\[\]]/g, '-'))}"]`);
-                     if(label) label.htmlFor = el.id;
+    // Remove the tab panel
+    const panelToRemove = document.querySelector(`.tab-panel[data-index="${indexToRemove}"]`);
+    if (panelToRemove) {
+        panelToRemove.remove();
+    } else {
+        console.warn(`No tab panel found for index ${indexToRemove}`);
+    }
 
-                });
-             }
-         }
+    // Update all remaining tab indexes to reflect new positions
+    // First, update the tab buttons
+    document.querySelectorAll('.tab-button').forEach((btn, newIndex) => {
+        // Save the current index before changing it
+        const oldIndex = parseInt(btn.dataset.index);
+
+        // Update the index
+        btn.dataset.index = newIndex;
+
+        // Update the tab name based on config data
+        // The tab text will be updated by updateTabName
     });
 
+    // Then, update the panels
+    document.querySelectorAll('.tab-panel').forEach((panel, newIndex) => {
+        const oldIndex = parseInt(panel.dataset.index);
+        panel.dataset.index = newIndex;
 
-    // Activate the previous tab or the first tab
-    const newActiveIndex = Math.max(0, indexToRemove - 1);
-    switchTab(newActiveIndex);
+        // Update all data-path attributes in this panel
+        panel.querySelectorAll('[data-path]').forEach(el => {
+            // Replace site[x] with site[newIndex]
+            const oldPath = el.dataset.path;
+            const newPath = oldPath.replace(/site\[\d+\]/, `site[${newIndex}]`);
+            el.dataset.path = newPath;
+        });
+    });
 
-    // Update remove buttons state
+    // Determine which tab to activate after removal
+    let newActiveIndex = activeIndex;
+
+    // If we removed the currently active tab
+    if (activeIndex === indexToRemove) {
+        // Show the previous tab, or the first one if there isn't a previous
+        newActiveIndex = Math.max(0, activeIndex - 1);
+    }
+    // If we removed a tab before the active tab, update the active index
+    else if (activeIndex > indexToRemove) {
+        newActiveIndex = activeIndex - 1;
+    }
+
+    const totalRemaining = document.querySelectorAll('.tab-button').length;
+    if (totalRemaining > 0) {
+        // Activate the determined tab
+        switchTab(Math.min(newActiveIndex, totalRemaining - 1));
+    } else {
+        // No tabs left, add a default one
+        addSiteTab(0);
+        switchTab(0);
+    }
+
+    // Update all tab names based on current config
+    document.querySelectorAll('.tab-button').forEach((btn) => {
+        const index = parseInt(btn.dataset.index);
+        updateTabName(index);
+    });
+
     updateRemoveButtons();
 
-     console.log("Config updated after removal:", JSON.stringify(currentConfig, null, 2));
+    console.log("Updated config after removal:", currentConfig);
 };
 
 const updateRemoveButtons = () => {

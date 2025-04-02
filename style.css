@@ -207,28 +207,53 @@ fieldset.form-section fieldset.form-section fieldset.form-section {
     display: flex;
     flex-wrap: wrap;
     border-bottom: 1px solid var(--border-color);
+    gap: 4px;
 }
 
 .tab-button {
     padding: 0.75rem 1.5rem;
     border: none;
-    background-color: transparent;
+    border-top-left-radius: 6px;
+    border-top-right-radius: 6px;
+    background-color: #f5f5f5;
     cursor: pointer;
     font-size: 1rem;
     color: var(--primary-color);
-    border-bottom: 3px solid transparent; /* Placeholder for active state */
-    transition: border-color 0.2s ease, background-color 0.2s ease;
-    margin-right: 5px; /* Spacing between tabs */
-    margin-bottom: -1px; /* Align bottom edge with border */
+    border-bottom: 3px solid transparent;
+    transition: all 0.2s ease;
+    margin-right: 1px;
+    margin-bottom: -1px;
+    position: relative;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 200px;
+}
+
+/* Optional: add a badge for the ID number */
+.tab-button[data-has-id="true"]::after {
+    content: attr(data-grid-id);
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    background-color: var(--secondary-color);
+    color: white;
+    font-size: 0.7rem;
+    padding: 1px 5px;
+    border-radius: 10px;
+    opacity: 0.8;
 }
 
 .tab-button:hover {
     background-color: #e9ecef;
+    border-bottom-color: #ddd;
 }
 
 .tab-button.active {
     border-bottom-color: var(--secondary-color);
     font-weight: bold;
+    background-color: #f0f7ff;
+    box-shadow: 0 -1px 3px rgba(0,0,0,0.05);
 }
 
 .tab-panels {
@@ -420,4 +445,80 @@ fieldset.form-section fieldset.form-section fieldset.form-section {
 .reference-fields .form-label {
     font-size: 0.9rem;
     color: #555;
+}
+
+/* Site identifier section styling */
+.site-identifiers {
+    padding: 16px;
+    margin-bottom: 20px;
+    border-bottom: 2px solid var(--border-color);
+    background-color: #f0f7fc;
+    border-radius: 6px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    position: relative;
+}
+
+.site-identifiers::before {
+    content: "Site Identification";
+    position: absolute;
+    top: -10px;
+    left: 10px;
+    background-color: var(--secondary-color);
+    color: white;
+    padding: 2px 10px;
+    font-size: 0.8rem;
+    font-weight: bold;
+    border-radius: 4px;
+}
+
+.site-identifiers .form-group {
+    margin-bottom: 10px;
+}
+
+.site-identifiers .form-label {
+    font-weight: 600;
+    color: var(--primary-color);
+    font-size: 1.1rem;
+}
+
+.site-identifiers .form-input {
+    font-weight: 500;
+    border-color: #ccc;
+    font-size: 1.05rem;
+    padding: 8px 12px;
+    border-width: 2px;
+}
+
+.site-identifiers .form-input:focus {
+    border-color: var(--secondary-color);
+    box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.3);
+}
+
+/* Highlight active tab more prominently */
+.tab-button.active {
+    border-bottom-color: var(--secondary-color);
+    font-weight: bold;
+    background-color: #f0f7ff;
+}
+
+/* Info icon styling */
+.field-info {
+    display: inline-block;
+    color: var(--secondary-color);
+    opacity: 0.7;
+    font-size: 0.9em;
+    margin-left: 4px;
+    transition: all 0.2s ease;
+}
+
+.field-info:hover {
+    opacity: 1;
+    transform: scale(1.1);
+}
+
+/* Add required field indication */
+.form-label.required::after {
+    content: "*";
+    color: #e74c3c;
+    margin-left: 4px;
 }

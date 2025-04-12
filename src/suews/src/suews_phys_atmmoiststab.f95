@@ -925,7 +925,7 @@ CONTAINS
          ! Dyer 1974 X=(1.-(16.*ZL))**(0.5)modified Hosgstrom
          x = 0.95*(1.-15.2*zl)**0.5
          ! PSYH=2*LOG((1+x**2)/2) ! Original line from snippet - potentially incorrect B-D form
-         PSYH = 2*LOG((1 + x)/2) ! Corrected form based on standard B-D type functions
+         PSYH = 2*LOG((1 + x**2)/2) ! Corrected form based on standard B-D type functions
       ELSE IF (zL > neut_limit) THEN !Stable
          ! Dyer (1974)  PSYH=(-5)*ZL        modifed  Hogstrom (1988) (implicit else case)
          PSYH = (-4.5)*Zl

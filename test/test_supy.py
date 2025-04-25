@@ -306,59 +306,22 @@ class TestSuPy(TestCase):
             test_dif = -30 < ser_tair.max() < 100
             self.assertTrue(test_dif)
 
-    # test if the sample output is the same as the one in the repo
-    @skipUnless(flag_full_test, "Full test is not required.")
-    def test_benchmark1_same(self):
-        print("\n========================================")
-        print("Testing if benchmark1 output is the same...")
-        path_to_bm1 = Path(__file__).parent / "benchmark1"
-        path_to_bm1_yml = path_to_bm1 / "benchmark1.yml"
-        p_df_bm1 = path_to_bm1 / "benchmark1.pkl"
-
-        config = sp.data_model.init_config_from_yaml(path_to_bm1_yml)
-        df_state_init = config.to_df_state()
-        grid = df_state_init.index[0]
-        df_forcing_tstep = sp.load_forcing_grid(path_to_bm1_yml, grid=grid, df_state_init=df_state_init)
-        # met_path = str(config.model.control.forcing_file)
-        # df_forcing_tstep = sp._load.load_SUEWS_Forcing_met_df_yaml(met_path)
-
-        df_forcing_part = df_forcing_tstep.iloc[: 288 * 365]
-
-        # single-step results
-        df_output_s, df_state_s = sp.run_supy(df_forcing_part, df_state_init)
-
-        # only test chosen columns
-        col_test = [
-            "QN",
-            "QF",
-            "QS",
-            "QE",
-            "QH",
-            "T2",
-            "RH2",
-            "U10",
-        ]
-
-        print(f"Columns to test: {col_test}")
-
-        # load sample output
-        df_res_bm1 = pd.read_pickle(p_df_bm1).loc[:, col_test]
-
-        # choose the same columns as the testing group
-        df_res_s = df_output_s.SUEWS.loc[df_res_bm1.index, df_res_bm1.columns]
-
-        pd.testing.assert_frame_equal(
-            left=df_res_s,
-            right=df_res_bm1,
-            rtol=8e-3,  # 0.8% tolerance - temporary fix to pass the CI test
-        )
-
     # # test if the sample output is the same as the one in the repo
     # @skipUnless(flag_full_test, "Full test is not required.")
-    # def test_is_sample_output_same(self):
+    # def test_benchmark1_same(self):
     #     print("\n========================================")
-    #     print("Testing if sample output is the same...")
-    #     df_state_init, df_forcing_tstep = sp.load_SampleData()
+    #     print("Testing if benchmark1 output is the same...")
+    #     path_to_bm1 = Path(__file__).parent / "benchmark1"
+    #     path_to_bm1_yml = path_to_bm1 / "benchmark1.yml"
+    #     p_df_bm1 = path_to_bm1 / "benchmark1.pkl"
+
+    #     config = sp.data_model.init_config_from_yaml(path_to_bm1_yml)
+    #     df_state_init = config.to_df_state()
+    #     grid = df_state_init.index[0]
+    #     df_forcing_tstep = sp.load_forcing_grid(path_to_bm1_yml, grid=grid, df_state_init=df_state_init)
+    #     # met_path = str(config.model.control.forcing_file)
+    #     # df_forcing_tstep = sp._load.load_SUEWS_Forcing_met_df_yaml(met_path)
+
     #     df_forcing_part = df_forcing_tstep.iloc[: 288 * 365]
 
     #     # single-step results
@@ -379,16 +342,53 @@ class TestSuPy(TestCase):
     #     print(f"Columns to test: {col_test}")
 
     #     # load sample output
-    #     df_res_sample = pd.read_pickle(p_df_sample).loc[:, col_test]
+    #     df_res_bm1 = pd.read_pickle(p_df_bm1).loc[:, col_test]
 
     #     # choose the same columns as the testing group
-    #     df_res_s = df_output_s.SUEWS.loc[df_res_sample.index, df_res_sample.columns]
-    #     import pdb; pdb.set_trace()
+    #     df_res_s = df_output_s.SUEWS.loc[df_res_bm1.index, df_res_bm1.columns]
+
     #     pd.testing.assert_frame_equal(
     #         left=df_res_s,
-    #         right=df_res_sample,
+    #         right=df_res_bm1,
     #         rtol=8e-3,  # 0.8% tolerance - temporary fix to pass the CI test
     #     )
+
+    # # test if the sample output is the same as the one in the repo
+    @skipUnless(flag_full_test, "Full test is not required.")
+    def test_is_sample_output_same(self):
+        print("\n========================================")
+        print("Testing if sample output is the same...")
+        df_state_init, df_forcing_tstep = sp.load_SampleData()
+        df_forcing_part = df_forcing_tstep.iloc[: 288 * 365]
+
+        # single-step results
+        df_output_s, df_state_s = sp.run_supy(df_forcing_part, df_state_init)
+
+        # only test chosen columns
+        col_test = [
+            "QN",
+            "QF",
+            "QS",
+            "QE",
+            "QH",
+            "T2",
+            "RH2",
+            "U10",
+        ]
+
+        print(f"Columns to test: {col_test}")
+
+        # load sample output
+        df_res_sample = pd.read_pickle(p_df_sample).loc[:, col_test]
+
+        # choose the same columns as the testing group
+        df_res_s = df_output_s.SUEWS.loc[df_res_sample.index, df_res_sample.columns]
+        import pdb; pdb.set_trace()
+        pd.testing.assert_frame_equal(
+            left=df_res_s,
+            right=df_res_sample,
+            rtol=8e-3,  # 0.8% tolerance - temporary fix to pass the CI test
+        )
 
     # test if the weighted SMD of vegetated surfaces are properly calculated
     @skipUnless(flag_full_test, "Full test is not required.")

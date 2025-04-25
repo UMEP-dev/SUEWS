@@ -430,7 +430,6 @@ class TestSuPy(TestCase):
 
         # choose the same columns as the testing group
         df_res_s = df_output_s.SUEWS.loc[df_res_sample.index, df_res_sample.columns]
-        import pdb; pdb.set_trace()
         pd.testing.assert_frame_equal(
             left=df_res_s,
             right=df_res_sample,

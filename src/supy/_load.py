@@ -950,7 +950,6 @@ def build_code_df(code, path_input, df_base):
     lib_code = dict_Code2File[code]
     str_lib = lib_code.replace(".txt", "").replace("SUEWS", "lib")
     # lib = dict_libs[str_lib]
-
     df_code0 = pd.concat([dict_libs[str_lib]], axis=1, keys=[code])
     # df_siteselect = dict_libs['lib_SiteSelect']
     # if isinstance(df_base.columns, pd.core.index.MultiIndex):
@@ -1582,7 +1581,7 @@ def load_SUEWS_InitialCond_df(path_runcontrol):
 
     # update `waterstate` with df_gridSurfaceChar
     # drop_duplicates in case multi-year run is set
-    df_init[("waterstate", "0")] = df_init["waterdepth"].values
+    df_init[("waterstate", "0")] = df_init[("waterdepth", "0")].values
 
     # generate proper Initial Condition file names
     base_str = "initialconditions" + dict_ModConfig["filecode"]
@@ -1683,7 +1682,6 @@ def add_file_gridlayout_df(df_init):
 
     # copy column names from df_init
     df_grid_layout.columns.set_names(df_init.columns.names, inplace=True)
-
     # merge only those appeard in base df
     df_init = pd.concat([df_init, df_grid_layout], axis=1)
 
@@ -1815,9 +1813,9 @@ def add_state_init_df(df_init):
 
     # modifications for special cases
     # `lai_id` corrections:
-    df_init[("lai_id", "(0,)")] = df_init["laiinitialevetr"].values
-    df_init[("lai_id", "(1,)")] = df_init["laiinitialdectr"].values
-    df_init[("lai_id", "(2,)")] = df_init["laiinitialgrass"].values
+    df_init[("lai_id", "(0,)")] = df_init[("laiinitialevetr", "0")].values
+    df_init[("lai_id", "(1,)")] = df_init[("laiinitialdectr", "0")].values
+    df_init[("lai_id", "(2,)")] = df_init[("laiinitialgrass", "0")].values
     # # `gdd_id` corrections:
     # df_init[('gdd_id', '(2,)')] = 90
     # df_init[('gdd_id', '(3,)')] = -90

@@ -205,8 +205,8 @@ def add_var(toFile, toVar, toCol, toVal):
         dataX.to_csv(
             toFile,
             sep=" ",
-            float_format="%10.4f",
-            quotechar=" ",
+            # float_format="%10.4f",
+            # quotechar="",
             index=False,
         )
 

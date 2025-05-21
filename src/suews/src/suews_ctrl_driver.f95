@@ -3019,35 +3019,35 @@ CONTAINS
 
                IF (Diagnose == 1) WRITE (*, *) 'Calling STAB_lumps...'
                !u* and Obukhov length out
-               ! CALL cal_Stab( &
-               !    StabilityMethod, & ! input
-               !    zzd, & !Active measurement height (meas. height-displac. height)
-               !    z0m, & !Aerodynamic roughness length
-               !    zdm, & !zero-plane displacement
-               !    avU1, & !Average wind speed
-               !    Temp_C, & !Air temperature
-               !    QH_init, & !sensible heat flux
-               !    avdens, & ! air density
-               !    avcp, & ! heat capacity of air
-               !    L_mod, & ! output: !Obukhov length
-               !    TStar, & !T*, temperature scale
-               !    UStar, & !Friction velocity
-               !    zL) !Stability scale
+               CALL cal_Stab( &
+                  StabilityMethod, & ! input
+                  zzd, & !Active measurement height (meas. height-displac. height)
+                  z0m, & !Aerodynamic roughness length
+                  zdm, & !zero-plane displacement
+                  avU1, & !Average wind speed
+                  Temp_C, & !Air temperature
+                  QH_init, & !sensible heat flux
+                  avdens, & ! air density
+                  avcp, & ! heat capacity of air
+                  L_mod, & ! output: !Obukhov length
+                  TStar, & !T*, temperature scale
+                  UStar, & !Friction velocity
+                  zL) !Stability scale
 
-               CALL cal_Stab_BulkRichardson( &
-                  StabilityMethod, &
-                  zzd, &
-                  z0m, &
-                  zdm, &
-                  avU1, &
-                  Temp_C, &
-                  QH_init, &
-                  avdens, &
-                  avcp, &
-                  L_mod, &
-                  TStar, &
-                  UStar, &
-                  zL)
+               ! CALL cal_Stab_BulkRichardson( &
+               !    StabilityMethod, &
+               !    zzd, &
+               !    z0m, &
+               !    zdm, &
+               !    avU1, &
+               !    Temp_C, &
+               !    QH_init, &
+               !    avdens, &
+               !    avcp, &
+               !    L_mod, &
+               !    TStar, &
+               !    UStar, &
+               !    zL)
 
                IF (Diagnose == 1) WRITE (*, *) 'Calling AerodynamicResistance...'
                CALL AerodynamicResistance( &

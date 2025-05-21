@@ -385,56 +385,56 @@ CONTAINS
       IMPLICIT NONE
       ! Input Arguments
       INTEGER, INTENT(IN) :: StabilityMethod ! Unused in this specific Rib routine, kept for signature compatibility with cal_Stab.
-      REAL(KIND(1D0)), INTENT(IN) :: zzd       ! Active measurement height (z_observation - displacement_height) [m]
-      REAL(KIND(1D0)), INTENT(IN) :: z0m       ! Aerodynamic roughness length for momentum [m]
-      REAL(KIND(1D0)), INTENT(IN) :: zdm       ! Displacement height [m] (Note: zzd should already account for this)
-      REAL(KIND(1D0)), INTENT(IN) :: avU1      ! Average wind speed at height zzd [m s-1]
-      REAL(KIND(1D0)), INTENT(IN) :: Temp_C    ! Air temperature at height zzd [degC]
-      REAL(KIND(1D0)), INTENT(IN) :: QH_init   ! Sensible heat flux [W m-2] (positive upwards)
-      REAL(KIND(1D0)), INTENT(IN) :: avdens    ! Air density [kg m-3]
-      REAL(KIND(1D0)), INTENT(IN) :: avcp      ! Specific heat capacity of air at constant pressure [J kg-1 K-1]
+      REAL(KIND(1D0)), INTENT(IN) :: zzd ! Active measurement height (z_observation - displacement_height) [m]
+      REAL(KIND(1D0)), INTENT(IN) :: z0m ! Aerodynamic roughness length for momentum [m]
+      REAL(KIND(1D0)), INTENT(IN) :: zdm ! Displacement height [m] (Note: zzd should already account for this)
+      REAL(KIND(1D0)), INTENT(IN) :: avU1 ! Average wind speed at height zzd [m s-1]
+      REAL(KIND(1D0)), INTENT(IN) :: Temp_C ! Air temperature at height zzd [degC]
+      REAL(KIND(1D0)), INTENT(IN) :: QH_init ! Sensible heat flux [W m-2] (positive upwards)
+      REAL(KIND(1D0)), INTENT(IN) :: avdens ! Air density [kg m-3]
+      REAL(KIND(1D0)), INTENT(IN) :: avcp ! Specific heat capacity of air at constant pressure [J kg-1 K-1]
 
       ! Output Arguments
-      REAL(KIND(1D0)), INTENT(OUT) :: L_MOD    ! Monin-Obukhov length [m]
-      REAL(KIND(1D0)), INTENT(OUT) :: TStar    ! Temperature scale T* [K]
-      REAL(KIND(1D0)), INTENT(OUT) :: UStar    ! Friction velocity u* [m s-1]
-      REAL(KIND(1D0)), INTENT(OUT) :: zL       ! Stability parameter zzd / L_MOD [-]
+      REAL(KIND(1D0)), INTENT(OUT) :: L_MOD ! Monin-Obukhov length [m]
+      REAL(KIND(1D0)), INTENT(OUT) :: TStar ! Temperature scale T* [K]
+      REAL(KIND(1D0)), INTENT(OUT) :: UStar ! Friction velocity u* [m s-1]
+      REAL(KIND(1D0)), INTENT(OUT) :: zL ! Stability parameter zzd / L_MOD [-]
 
       ! Local variables for Bulk Richardson method
-      REAL(KIND(1D0)) :: G_T_K_local          ! Grouped term: (grav / T_air_K_local) * k
-      REAL(KIND(1D0)) :: KUZ_local            ! Grouped term: k * avU1 (used for neutral U* estimate)
-      REAL(KIND(1D0)) :: H_init_kin_local     ! Kinematic sensible heat flux [K m s-1]
-      REAL(KIND(1D0)) :: T_air_K_local        ! Air temperature in Kelvin [K]
-      REAL(KIND(1D0)) :: C_MN_local           ! Neutral drag coefficient for momentum [-]
-      REAL(KIND(1D0)) :: target_val_local     ! Term ~ Rib * Fh(Rib), used to determine stability regime and Rib
-      REAL(KIND(1D0)) :: F_m_Rib_local        ! Stability correction factor for momentum derived from Rib [-]
-      REAL(KIND(1D0)) :: Rib_s_local          ! Bulk Richardson number for stable conditions (positive) [-]
-      REAL(KIND(1D0)) :: Rib_u_abs_local      ! Absolute value of Bulk Richardson number for unstable conditions [-]
+      REAL(KIND(1D0)) :: G_T_K_local ! Grouped term: (grav / T_air_K_local) * k
+      REAL(KIND(1D0)) :: KUZ_local ! Grouped term: k * avU1 (used for neutral U* estimate)
+      REAL(KIND(1D0)) :: H_init_kin_local ! Kinematic sensible heat flux [K m s-1]
+      REAL(KIND(1D0)) :: T_air_K_local ! Air temperature in Kelvin [K]
+      REAL(KIND(1D0)) :: C_MN_local ! Neutral drag coefficient for momentum [-]
+      REAL(KIND(1D0)) :: target_val_local ! Term ~ Rib * Fh(Rib), used to determine stability regime and Rib
+      REAL(KIND(1D0)) :: F_m_Rib_local ! Stability correction factor for momentum derived from Rib [-]
+      REAL(KIND(1D0)) :: Rib_s_local ! Bulk Richardson number for stable conditions (positive) [-]
+      REAL(KIND(1D0)) :: Rib_u_abs_local ! Absolute value of Bulk Richardson number for unstable conditions [-]
 
       ! Parameters for the Rib method
       REAL(KIND(1D0)), PARAMETER :: Rib_crit_stable_prm = 0.2D0 ! Critical Richardson number for stable conditions beyond which turbulence is suppressed.
-      REAL(KIND(1D0)), PARAMETER :: UStar_min_prm = 0.001D0     ! Minimum friction velocity [m s-1] to avoid zero values.
+      REAL(KIND(1D0)), PARAMETER :: UStar_min_prm = 0.001D0 ! Minimum friction velocity [m s-1] to avoid zero values.
       ! INTEGER, PARAMETER :: notUsedI_prm = -55 ! For ErrorHint, if needed (though ErrorHint not used here currently)
 
       ! Calculate kinematic sensible heat flux (positive upwards)
-      H_init_kin_local = QH_init / (avdens * avcp)
+      H_init_kin_local = QH_init/(avdens*avcp)
 
       ! Calculate helper terms
-      T_air_K_local = Temp_C + 273.16D0  ! Convert air temperature to Kelvin
-      G_T_K_local = (grav / T_air_K_local) * k ! Grouped term for L_MOD calculation: (g/T_k) * vonKarman
-      KUZ_local = k * avU1                   ! Grouped term: vonKarman * WindSpeed (part of neutral U*)
+      T_air_K_local = Temp_C + 273.16D0 ! Convert air temperature to Kelvin
+      G_T_K_local = (grav/T_air_K_local)*k ! Grouped term for L_MOD calculation: (g/T_k) * vonKarman
+      KUZ_local = k*avU1 ! Grouped term: vonKarman * WindSpeed (part of neutral U*)
 
       ! Initial check for problematic input conditions (e.g., very low wind speed, zzd <= z0m)
       ! If problematic, default to neutral conditions.
-      IF (avU1 < 0.01D0 .OR. zzd <= z0m .OR. LOG(zzd / z0m) < 0.001D0) THEN
+      IF (avU1 < 0.01D0 .OR. zzd <= z0m .OR. LOG(zzd/z0m) < 0.001D0) THEN
          ! Default to neutral conditions for U*, T*, L_MOD, zL
-         IF (LOG(zzd / z0m) < 0.001D0 .AND. zzd > z0m) THEN ! Avoid log of zero or negative if zzd is just slightly > z0m
+         IF (LOG(zzd/z0m) < 0.001D0 .AND. zzd > z0m) THEN ! Avoid log of zero or negative if zzd is just slightly > z0m
             UStar = UStar_min_prm ! Fallback for very small log argument to prevent extremely large KUZ / log(...)
          ELSEIF (zzd <= z0m) THEN
             UStar = UStar_min_prm ! Logarithm is undefined or negative if zzd <= z0m
          ELSE
             ! Neutral friction velocity calculation
-            UStar = MAX(UStar_min_prm, KUZ_local / MAX(0.001D0, LOG(zzd / z0m)))
+            UStar = MAX(UStar_min_prm, KUZ_local/MAX(0.001D0, LOG(zzd/z0m)))
          END IF
          TStar = 0.0D0
          L_MOD = 0.0D0 ! Represents infinite L for neutral conditions
@@ -443,24 +443,24 @@ CONTAINS
       END IF
 
       ! Calculate Neutral drag coefficient for momentum (assuming z0m = z0h for simplicity in C_MN)
-      C_MN_local = (k / LOG(zzd / z0m))**2
+      C_MN_local = (k/LOG(zzd/z0m))**2
 
       ! Calculate target_val_local = Rib * Fh(Rib), where Fh is the stability function for heat.
       ! This term helps determine the stability regime and the value of Rib.
       ! Based on: target_val = (g * zzd * H_init_kin) / (T_air_K * avU1**3 * C_MN)
       IF (ABS(avU1) < 1.0D-6) THEN ! Avoid division by zero if avU1 is extremely small
-          target_val_local = 0.0D0
+         target_val_local = 0.0D0
       ELSE
-          ! Ensure C_MN_local in denominator is not zero (already handled by zzd > z0m check indirectly)
-          target_val_local = (grav * zzd * H_init_kin_local) / &
-                             (T_air_K_local * avU1**3 * MAX(1.0D-10, C_MN_local))
+         ! Ensure C_MN_local in denominator is not zero (already handled by zzd > z0m check indirectly)
+         target_val_local = (grav*zzd*H_init_kin_local)/ &
+                            (T_air_K_local*avU1**3*MAX(1.0D-10, C_MN_local))
       END IF
 
       ! Determine stability and calculate U*, T*, L_MOD, zL accordingly
       IF (ABS(H_init_kin_local) < 1.0D-6 .OR. ABS(target_val_local) < 1.0D-6) THEN
          ! Near-neutral conditions (very small heat flux or target_val_local)
          F_m_Rib_local = 1.0D0 ! No stability correction for momentum
-         UStar = avU1 * SQRT(C_MN_local * F_m_Rib_local) ! U* = U * sqrt(C_MN)
+         UStar = avU1*SQRT(C_MN_local*F_m_Rib_local) ! U* = U * sqrt(C_MN)
          UStar = MAX(UStar_min_prm, UStar) ! Apply minimum U*
          TStar = 0.0D0
          L_MOD = 0.0D0 ! Represents infinite L
@@ -474,32 +474,32 @@ CONTAINS
          ! Since target_val_local is negative, let target_val_abs = -target_val_local.
          ! Then Rib_s = target_val_abs / (1 + bs * target_val_abs)
          ! Using bs = 10 as a typical coefficient for Louis-type schemes.
-         Rib_s_local = (-target_val_local) / MAX(1.0D-6, 1.0D0 + 10.0D0 * target_val_local) ! Rib_s_local is positive
+         Rib_s_local = (-target_val_local)/MAX(1.0D-6, 1.0D0 + 10.0D0*target_val_local) ! Rib_s_local is positive
          Rib_s_local = MIN(Rib_s_local, Rib_crit_stable_prm) ! Cap Rib_s at critical value
 
-         F_m_Rib_local = (1.0D0 + 10.0D0 * Rib_s_local)**(-1.0D0) ! Stability correction for momentum
-         F_m_Rib_local = MAX(0.01D0, MIN(1.0D0, F_m_Rib_local))  ! Ensure F_m_Rib is within sensible bounds (0 to 1 for stable)
+         F_m_Rib_local = (1.0D0 + 10.0D0*Rib_s_local)**(-1.0D0) ! Stability correction for momentum
+         F_m_Rib_local = MAX(0.01D0, MIN(1.0D0, F_m_Rib_local)) ! Ensure F_m_Rib is within sensible bounds (0 to 1 for stable)
 
-         UStar = avU1 * SQRT(MAX(0.0D0, C_MN_local * F_m_Rib_local))
+         UStar = avU1*SQRT(MAX(0.0D0, C_MN_local*F_m_Rib_local))
          UStar = MAX(UStar_min_prm, UStar) ! Apply minimum U*
 
          IF (ABS(UStar) < 1.0D-6) THEN ! If U* is effectively zero
-             TStar = 0.0D0
-             L_MOD = 0.0D0
-             zL = 0.0D0
+            TStar = 0.0D0
+            L_MOD = 0.0D0
+            zL = 0.0D0
          ELSE
-             TStar = -H_init_kin_local / UStar ! T* definition
-             IF (ABS(TStar) < 1.0D-3 .OR. ABS(G_T_K_local) < 1.0D-6) THEN ! If T* or G_T_K is zero, L is undefined (neutral-like)
-                 L_MOD = 0.0D0 ! Represents infinite L for neutral stability
-                 zL = 0.0D0    ! z/L is zero for neutral
-             ELSE
-                 L_MOD = UStar**2 / (G_T_K_local * TStar) ! Monin-Obukhov Length L = u*^2 / ((g/T_k)*k*T*)
-                 IF (ABS(L_MOD) < 1.0D-3) THEN ! If L_MOD is extremely small (near zero)
-                      zL = SIGN(1.0D6, L_MOD) ! z/L becomes very large, sign matches L_MOD
-                 ELSE
-                      zL = zzd / L_MOD ! Stability parameter z/L
-                 ENDIF
-             END IF
+            TStar = -H_init_kin_local/UStar ! T* definition
+            IF (ABS(TStar) < 1.0D-3 .OR. ABS(G_T_K_local) < 1.0D-6) THEN ! If T* or G_T_K is zero, L is undefined (neutral-like)
+               L_MOD = 0.0D0 ! Represents infinite L for neutral stability
+               zL = 0.0D0 ! z/L is zero for neutral
+            ELSE
+               L_MOD = UStar**2/(G_T_K_local*TStar) ! Monin-Obukhov Length L = u*^2 / ((g/T_k)*k*T*)
+               IF (ABS(L_MOD) < 1.0D-3) THEN ! If L_MOD is extremely small (near zero)
+                  zL = SIGN(1.0D6, L_MOD) ! z/L becomes very large, sign matches L_MOD
+               ELSE
+                  zL = zzd/L_MOD ! Stability parameter z/L
+               END IF
+            END IF
          END IF
 
       ELSE
@@ -532,40 +532,40 @@ CONTAINS
          ! U* = U_neutral * (phi_m_neutral / phi_m_actual). If U* = U * sqrt(C_MN * F_m_Rib), then F_m_Rib = (phi_m_neutral / phi_m_actual)^2
          ! where phi_m_neutral=1. So F_m_Rib = (1/phi_m_actual)^2.
          ! phi_m_unstable = (1 - 16 * Rib_u_abs_local)**(-0.25) (approximating zeta with Rib_u_abs_local)
-         F_m_Rib_local = ( (1.0D0 - 16.0D0 * (-Rib_u_abs_local) )**(-0.25D0) )**(-2.0D0) ! This is (1/phi_m)^2, but Rib_u_abs is positive.
+         F_m_Rib_local = ((1.0D0 - 16.0D0*(-Rib_u_abs_local))**(-0.25D0))**(-2.0D0) ! This is (1/phi_m)^2, but Rib_u_abs is positive.
          ! Let's try a simpler form: F_m_Rib should be > 1. Example: (1 + c*|Rib|)^p or 1/(1-c*|Rib|)^p
          ! Using a more standard approach: F_m_Rib related to MOST functions.
          ! Dyer (1974) / Businger (1971) type for phi_m: (1 - 16*zeta)^-0.25. Assume F_m_Rib = (phi_m_neutral/phi_m_Rib)^2 = 1/phi_m_Rib^2
          ! This means F_m_Rib = (1 - 16*(-Rib_u_abs_local))**0.5.  This should be F_m_Rib_local = (1 + 16.0D0 * Rib_u_abs_local)**0.5
 
-         F_m_Rib_local = (1.0D0 + 3.0D0 * Rib_u_abs_local)**0.5 ! Simple enhancement, F_m_Rib > 1. Needs proper form.
-                                                              ! The previous (1+16*R_u_abs)^(-0.25) then MAX(1,FmRib) was problematic.
-                                                              ! A common form for C_D/C_DN is (1 - N*Rib)^p. For unstable Rib is negative.
-                                                              ! So (1 + N*|Rib|)^p.
-                                                              ! Using a generic enhancement factor for testing.
-         F_m_Rib_local = 1.0D0 + 5.0D0 * Rib_u_abs_local ! Simplified linear enhancement, ensures F_m_Rib > 1.
-                                                        ! This is a placeholder and should be replaced with a more physically based formulation.
+         F_m_Rib_local = (1.0D0 + 3.0D0*Rib_u_abs_local)**0.5 ! Simple enhancement, F_m_Rib > 1. Needs proper form.
+         ! The previous (1+16*R_u_abs)^(-0.25) then MAX(1,FmRib) was problematic.
+         ! A common form for C_D/C_DN is (1 - N*Rib)^p. For unstable Rib is negative.
+         ! So (1 + N*|Rib|)^p.
+         ! Using a generic enhancement factor for testing.
+         F_m_Rib_local = 1.0D0 + 5.0D0*Rib_u_abs_local ! Simplified linear enhancement, ensures F_m_Rib > 1.
+         ! This is a placeholder and should be replaced with a more physically based formulation.
 
-         UStar = avU1 * SQRT(MAX(0.0D0, C_MN_local * F_m_Rib_local))
+         UStar = avU1*SQRT(MAX(0.0D0, C_MN_local*F_m_Rib_local))
          UStar = MAX(UStar_min_prm, UStar) ! Apply minimum U*
 
          IF (ABS(UStar) < 1.0D-6) THEN ! If U* is effectively zero
-             TStar = 0.0D0
-             L_MOD = 0.0D0
-             zL = 0.0D0
+            TStar = 0.0D0
+            L_MOD = 0.0D0
+            zL = 0.0D0
          ELSE
-             TStar = -H_init_kin_local / UStar ! T* definition
-              IF (ABS(TStar) < 1.0D-6 .OR. ABS(G_T_K_local) < 1.0D-6) THEN ! If T* or G_T_K is zero, L is undefined (neutral-like)
-                 L_MOD = 0.0D0 ! Represents infinite L for neutral stability
-                 zL = 0.0D0    ! z/L is zero for neutral
-             ELSE
-                 L_MOD = UStar**2 / (G_T_K_local * TStar) ! Monin-Obukhov Length L = u*^2 / ((g/T_k)*k*T*)
-                 IF (ABS(L_MOD) < 1.0D-6) THEN ! If L_MOD is extremely small (near zero)
-                      zL = SIGN(1.0D6, L_MOD) ! z/L becomes very large, sign matches L_MOD
-                 ELSE
-                      zL = zzd / L_MOD ! Stability parameter z/L
-                 ENDIF
-             END IF
+            TStar = -H_init_kin_local/UStar ! T* definition
+            IF (ABS(TStar) < 1.0D-6 .OR. ABS(G_T_K_local) < 1.0D-6) THEN ! If T* or G_T_K is zero, L is undefined (neutral-like)
+               L_MOD = 0.0D0 ! Represents infinite L for neutral stability
+               zL = 0.0D0 ! z/L is zero for neutral
+            ELSE
+               L_MOD = UStar**2/(G_T_K_local*TStar) ! Monin-Obukhov Length L = u*^2 / ((g/T_k)*k*T*)
+               IF (ABS(L_MOD) < 1.0D-6) THEN ! If L_MOD is extremely small (near zero)
+                  zL = SIGN(1.0D6, L_MOD) ! z/L becomes very large, sign matches L_MOD
+               ELSE
+                  zL = zzd/L_MOD ! Stability parameter z/L
+               END IF
+            END IF
          END IF
       END IF
    END SUBROUTINE cal_Stab_BulkRichardson

@@ -489,13 +489,13 @@ CONTAINS
              zL = 0.0D0
          ELSE
              TStar = -H_init_kin_local / UStar ! T* definition
-             IF (ABS(TStar) < 1.0D-6 .OR. ABS(G_T_K_local) < 1.0D-6) THEN ! If T* or G_T_K is zero, L is undefined (neutral-like)
-                 L_MOD = 0.0D0
-                 zL = 0.0D0
+             IF (ABS(TStar) < 1.0D-3 .OR. ABS(G_T_K_local) < 1.0D-6) THEN ! If T* or G_T_K is zero, L is undefined (neutral-like)
+                 L_MOD = 0.0D0 ! Represents infinite L for neutral stability
+                 zL = 0.0D0    ! z/L is zero for neutral
              ELSE
                  L_MOD = UStar**2 / (G_T_K_local * TStar) ! Monin-Obukhov Length L = u*^2 / ((g/T_k)*k*T*)
-                 IF (ABS(L_MOD) < 1.0D-6) THEN ! If L_MOD is extremely small
-                      zL = SIGN(1.0D0, zzd) * 1.0D6 ! z/L becomes very large (effectively infinite)
+                 IF (ABS(L_MOD) < 1.0D-3) THEN ! If L_MOD is extremely small (near zero)
+                      zL = SIGN(1.0D6, L_MOD) ! z/L becomes very large, sign matches L_MOD
                  ELSE
                       zL = zzd / L_MOD ! Stability parameter z/L
                  ENDIF
@@ -556,12 +556,12 @@ CONTAINS
          ELSE
              TStar = -H_init_kin_local / UStar ! T* definition
               IF (ABS(TStar) < 1.0D-6 .OR. ABS(G_T_K_local) < 1.0D-6) THEN ! If T* or G_T_K is zero, L is undefined (neutral-like)
-                 L_MOD = 0.0D0
-                 zL = 0.0D0
+                 L_MOD = 0.0D0 ! Represents infinite L for neutral stability
+                 zL = 0.0D0    ! z/L is zero for neutral
              ELSE
                  L_MOD = UStar**2 / (G_T_K_local * TStar) ! Monin-Obukhov Length L = u*^2 / ((g/T_k)*k*T*)
-                 IF (ABS(L_MOD) < 1.0D-6) THEN ! If L_MOD is extremely small
-                      zL = SIGN(1.0D0, zzd) * 1.0D6 ! z/L becomes very large (effectively infinite)
+                 IF (ABS(L_MOD) < 1.0D-6) THEN ! If L_MOD is extremely small (near zero)
+                      zL = SIGN(1.0D6, L_MOD) ! z/L becomes very large, sign matches L_MOD
                  ELSE
                       zL = zzd / L_MOD ! Stability parameter z/L
                  ENDIF

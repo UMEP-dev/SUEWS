@@ -361,6 +361,145 @@ CONTAINS
 
    END SUBROUTINE cal_Stab
 
+   SUBROUTINE cal_Stab_BulkRichardson( &
+      StabilityMethod, & ! input - present for signature consistency, not used to switch Rib methods here
+      zzd, & !Active measurement height (meas. height-displac. height)
+      z0m, & !Aerodynamic roughness length
+      zdm, & !Displacement height (part of signature, zzd should be z_obs - zdm)
+      avU1, & !Average wind speed
+      Temp_C, & !Air temperature
+      QH_init, & !sensible heat flux [W m-2]
+      avdens, & ! air density
+      avcp, & ! heat capacity of air
+      L_MOD, & !Obukhov length! output:
+      TStar, & !T*
+      UStar, & !Friction velocity
+      zL) !Stability scale
+
+      IMPLICIT NONE
+      ! Input
+      INTEGER, INTENT(IN) :: StabilityMethod ! Unused in this specific Rib routine, for signature compatibility
+      REAL(KIND(1D0)), INTENT(IN) :: zzd
+      REAL(KIND(1D0)), INTENT(IN) :: z0m
+      REAL(KIND(1D0)), INTENT(IN) :: zdm ! Unused directly if zzd is already z_obs - zdm
+      REAL(KIND(1D0)), INTENT(IN) :: avU1
+      REAL(KIND(1D0)), INTENT(IN) :: Temp_C
+      REAL(KIND(1D0)), INTENT(IN) :: QH_init
+      REAL(KIND(1D0)), INTENT(IN) :: avdens
+      REAL(KIND(1D0)), INTENT(IN) :: avcp
+      ! Output
+      REAL(KIND(1D0)), INTENT(OUT) :: L_MOD
+      REAL(KIND(1D0)), INTENT(OUT) :: TStar
+      REAL(KIND(1D0)), INTENT(OUT) :: UStar
+      REAL(KIND(1D0)), INTENT(OUT) :: zL
+
+      ! Local variables for Bulk Richardson method
+      REAL(KIND(1D0)) :: G_T_K_local, KUZ_local, H_init_kin_local
+      REAL(KIND(1D0)) :: T_air_K_local, C_MN_local, target_val_local, F_m_Rib_local
+      REAL(KIND(1D0)) :: Rib_s_local, Rib_u_abs_local
+      REAL(KIND(1D0)), PARAMETER :: Rib_crit_stable_prm = 0.2D0 ! Critical Richardson number for stable conditions
+      REAL(KIND(1D0)), PARAMETER :: UStar_min_prm = 0.001D0     ! Minimum friction velocity
+      ! INTEGER, PARAMETER :: notUsedI_prm = -55 ! For ErrorHint, if needed (though ErrorHint not used here currently)
+
+      !Kinematic sensible heat flux [K m s-1]
+      H_init_kin_local = QH_init / (avdens * avcp)
+
+      G_T_K_local = (Grav / (Temp_C + 273.16D0)) * k !gravity constant/(Temperature*Von Karman Constant)
+      KUZ_local = k * avU1 !Von Karman constant*mean wind speed
+
+      T_air_K_local = Temp_C + 273.16D0
+
+      ! Check for potential issues (calm wind, zzd <= z0m)
+      IF (avU1 < 0.01D0 .OR. zzd <= z0m .OR. LOG(zzd / z0m) < 0.001D0) THEN
+         ! Default to neutral conditions if wind is too low or heights are problematic
+         IF (LOG(zzd / z0m) < 0.001D0 .AND. zzd > z0m) THEN ! Avoid log of zero or negative if zzd is just slightly > z0m
+            UStar = UStar_min_prm ! Fallback for very small log argument
+         ELSEIF (zzd <= z0m) THEN
+            UStar = UStar_min_prm ! Undefined log if zzd <= z0m
+         ELSE
+            UStar = MAX(UStar_min_prm, KUZ_local / MAX(0.001D0, LOG(zzd / z0m)))
+         END IF
+         TStar = 0.0D0
+         L_MOD = 0.0D0 ! Represents infinite L for neutral
+         zL = 0.0D0
+         RETURN
+      END IF
+
+      C_MN_local = (k / LOG(zzd / z0m))**2 ! Neutral transfer coefficient for momentum (assuming z0m=z0h)
+
+      ! target_val = Rib * Fh(Rib)
+      ! where Fh(Rib) is the stability function for heat in a Louis-type scheme
+      ! target_val = (g * zzd * H_init_kin) / (T_air_K * avU1**3 * C_MN)
+      IF (ABS(avU1) < 1.0D-6) THEN ! Avoid division by zero if avU1 is extremely small
+          target_val_local = 0.0D0
+      ELSE
+          target_val_local = (grav * zzd * H_init_kin_local) / (T_air_K_local * avU1**3 * MAX(1.0D-10, C_MN_local))
+      END IF
+
+      IF (ABS(H_init_kin_local) < 1.0D-6 .OR. ABS(target_val_local) < 1.0D-6) THEN ! Near-neutral or zero heat flux
+         F_m_Rib_local = 1.0D0
+         UStar = avU1 * SQRT(C_MN_local * F_m_Rib_local)
+         UStar = MAX(UStar_min_prm, UStar)
+         TStar = 0.0D0
+         L_MOD = 0.0D0 ! Represents infinite L
+         zL = 0.0D0
+      ELSEIF (target_val_local < 0.0D0) THEN ! Stable conditions (H_init_kin < 0)
+         Rib_s_local = (-target_val_local) / MAX(1.0D-6, 1.0D0 + 10.0D0 * target_val_local) ! Rib_s will be positive
+         Rib_s_local = MIN(Rib_s_local, Rib_crit_stable_prm) ! Cap Rib_s
+         F_m_Rib_local = (1.0D0 + 10.0D0 * Rib_s_local)**(-1.0D0)
+         F_m_Rib_local = MAX(0.01D0, MIN(1.0D0, F_m_Rib_local)) ! Ensure F_m_Rib is sensible
+
+         UStar = avU1 * SQRT(MAX(0.0D0, C_MN_local * F_m_Rib_local))
+         UStar = MAX(UStar_min_prm, UStar)
+
+         IF (ABS(UStar) < 1.0D-6) THEN
+             TStar = 0.0D0
+             L_MOD = 0.0D0
+             zL = 0.0D0
+         ELSE
+             TStar = -H_init_kin_local / UStar
+             IF (ABS(TStar) < 1.0D-6 .OR. ABS(G_T_K_local) < 1.0D-6) THEN
+                 L_MOD = 0.0D0
+                 zL = 0.0D0
+             ELSE
+                 L_MOD = UStar**2 / (G_T_K_local * TStar)
+                 IF (ABS(L_MOD) < 1.0D-6) THEN
+                      zL = SIGN(1.0D0, zzd) * 1.0D6 ! Effectively infinite z/L if L is tiny
+                 ELSE
+                      zL = zzd / L_MOD
+                 ENDIF
+             END IF
+         END IF
+
+      ELSE ! Unstable conditions (target_val > 0, H_init_kin > 0)
+         Rib_u_abs_local = target_val_local ! This is an approximation for |Rib|
+         F_m_Rib_local = (1.0D0 + 16.0D0 * Rib_u_abs_local)**(-0.25D0) ! Analogous to (phi_m)^-1 for unstable
+         F_m_Rib_local = MAX(1.0D0, F_m_Rib_local) ! Ensure F_m_Rib for unstable is >= 1
+
+         UStar = avU1 * SQRT(MAX(0.0D0, C_MN_local * F_m_Rib_local))
+         UStar = MAX(UStar_min_prm, UStar)
+
+         IF (ABS(UStar) < 1.0D-6) THEN
+             TStar = 0.0D0
+             L_MOD = 0.0D0
+             zL = 0.0D0
+         ELSE
+             TStar = -H_init_kin_local / UStar
+              IF (ABS(TStar) < 1.0D-6 .OR. ABS(G_T_K_local) < 1.0D-6) THEN
+                 L_MOD = 0.0D0
+                 zL = 0.0D0
+             ELSE
+                 L_MOD = UStar**2 / (G_T_K_local * TStar)
+                 IF (ABS(L_MOD) < 1.0D-6) THEN
+                      zL = SIGN(1.0D0, zzd) * 1.0D6 ! Effectively infinite z/L if L is tiny
+                 ELSE
+                      zL = zzd / L_MOD
+                 ENDIF
+             END IF
+         END IF
+      END IF
+   END SUBROUTINE cal_Stab_BulkRichardson
+
    !==================================================================
    ! TS 20210208: restructure stability corrections funtions;
    !  - the previous implementations are kept down below for cross-validation

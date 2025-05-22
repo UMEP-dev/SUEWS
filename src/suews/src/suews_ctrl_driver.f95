@@ -445,7 +445,7 @@ CONTAINS
                i_iter = i_iter + 1
                IF (i_iter == max_iter .AND. .NOT. flag_converge) THEN
                   IF (diagnose == 1) PRINT *, 'Iteration did not converge in', i_iter, ' iterations'
-               
+
                END IF
                IF (diagnose == 1) PRINT *, '========================='
                IF (diagnose == 1) PRINT *, ''
@@ -454,12 +454,12 @@ CONTAINS
             END DO ! end iteration for tsurf calculations
 
             ! MP: Add test for QH zL signs - recalculate zL if the same
-            IF (modState%heatState%QH * modState%atmState%zL > 0) THEN
+            IF (modState%heatState%QH*modState%atmState%zL > 0) THEN
                IF (Diagnose == 1) WRITE (*, *) 'Calling SUEWS_cal_Resistance...'
                CALL SUEWS_cal_Resistance( &
                   timer, config, forcing, siteInfo, & ! input
                   modState) ! input/output:
-            END IF       
+            END IF
 
             !==============================================================
             ! Calculate diagnostics: these variables are decoupled from the main SUEWS calculation
@@ -2896,7 +2896,7 @@ CONTAINS
                   ! aggregate QH of roof and wall
                   qh_resist_surf(BldgSurf) = (DOT_PRODUCT(qh_resist_roof, sfr_roof) + DOT_PRODUCT(qh_resist_wall, sfr_wall))/2.
                END IF
-               
+
                ! MP: TODO - Check if this works correctly
                qh_resist = DOT_PRODUCT(qh_resist_surf, sfr_surf)
 

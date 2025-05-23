@@ -101,8 +101,10 @@ CONTAINS
             ! PRINT*, 'resistances:',rbsg,rsrbsg,rss
             !surfaces (zero if W=1). Eq7, Jarvi et al. (2011)
             qe = numPM/(s_hPa + psyc_hPa*(1 + RSS/RA)) !QE [W m-2]
-            IF (qe /= qe) THEN
-               PRINT*, 'qe',qe
+            ! Check for NaN in qe calculation inputs and print if found
+            IF (ANY([s_hPa, psyc_hPa, RSS, RA] == NAN)) THEN
+               PRINT *, 'NaN detected in qe calculation:'
+               PRINT *, 's_hPa=', s_hPa, ' psyc_hPa=', psyc_hPa, ' RSS=', RSS, ' RA=', RA
             END IF
             ev = qe/tlv !Ev [mm]
             ! PRINT*, 'numPM',numPM

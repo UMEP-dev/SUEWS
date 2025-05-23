@@ -102,9 +102,20 @@ CONTAINS
             !surfaces (zero if W=1). Eq7, Jarvi et al. (2011)
             qe = numPM/(s_hPa + psyc_hPa*(1 + RSS/RA)) !QE [W m-2]
             ! Check for NaN in qe calculation inputs and print if found
-            IF (ANY([s_hPa, psyc_hPa, RSS, RA] == NAN)) THEN
-               PRINT *, 'NaN detected in qe calculation:'
-               PRINT *, 's_hPa=', s_hPa, ' psyc_hPa=', psyc_hPa, ' RSS=', RSS, ' RA=', RA
+            IF (numPM /= numPM) THEN
+               PRINT*, 'numPM', numPM
+            END IF
+            IF (s_hPa /= s_hPa) THEN
+               PRINT*, 's_hPa', s_hPa
+            END IF
+            IF (psyc_hPa /= psyc_hPa) THEN
+               PRINT*, 'psyc_hPa', psyc_hPa
+            END IF
+            IF (RSS /= RSS) THEN
+               PRINT*, 'RSS', RSS
+            END IF
+            IF (RA /= RA) THEN
+               PRINT*, 'RA', RA
             END IF
 
             ev = qe/tlv !Ev [mm]

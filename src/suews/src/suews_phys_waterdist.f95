@@ -334,6 +334,7 @@ CONTAINS
          IF (sfr_surf(WaterSurf) /= 0) THEN
 
             ! ---- Add water from neighbouring grids (RG2G) ----
+            write(*,*) 'Evaporation start = ', ev
             p_mm = p_mm + addWaterBody/sfr_surf(WaterSurf)
 
             ! Calculate change in surface state_id (inputs - outputs)
@@ -347,6 +348,9 @@ CONTAINS
             ! Check state_id is within physical limits between zero (dry) and max. storage capacity
             IF (state_out(is) < 0.0) THEN ! Cannot have a negative surface state_id
                ! If there is not sufficient water on the surface, then don't allow this evaporation to happen
+               write(*,*) 'WaterSurf: state_out(is) < 0.0'
+               WRITE(*,*) 'WaterSurf: state_out(is) = ', state_out(is)
+               WRITE(*,*) 'Evaporation = ', ev
                ev = ev - ABS(state_out(is)) !Limit evaporation according to water availability
                state_out(is) = 0.0 !Now surface is dry
                !elseif (state_id(is)>StoreDrainPrm(6,is)) then   !!This should perhaps be StateLimit(is)
@@ -375,14 +379,7 @@ CONTAINS
             ! Recalculate change in surface state_id from difference with previous timestep
             chang(is) = state_out(is) - state_in(is)
             ! Check for NaN in variables used to calculate state_out for WaterSurf
-            
-            IF ( &
-               (p_mm /= p_mm) .OR. &
-               (FlowChange /= FlowChange) .OR. &
-               (ev /= ev) .OR. &
-               (state_in(is) /= state_in(is)) ) THEN
-               WRITE(*,*) 'NaN detected in WaterSurf state_out calculation', p_mm, ev, is
-            END IF
+         
          END IF
       END SELECT
       !==================================================================

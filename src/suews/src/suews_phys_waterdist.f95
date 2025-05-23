@@ -375,6 +375,7 @@ CONTAINS
             ! Recalculate change in surface state_id from difference with previous timestep
             chang(is) = state_out(is) - state_in(is)
             ! Check for NaN in variables used to calculate state_out for WaterSurf
+            
             IF ( &
                (p_mm /= p_mm) .OR. &
                (FlowChange /= FlowChange) .OR. &

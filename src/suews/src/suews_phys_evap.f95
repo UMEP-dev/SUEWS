@@ -101,6 +101,9 @@ CONTAINS
             ! PRINT*, 'resistances:',rbsg,rsrbsg,rss
             !surfaces (zero if W=1). Eq7, Jarvi et al. (2011)
             qe = numPM/(s_hPa + psyc_hPa*(1 + RSS/RA)) !QE [W m-2]
+            IF (qe /= qe) THEN
+               PRINT*, 'qe',qe
+            END IF
             ev = qe/tlv !Ev [mm]
             ! PRINT*, 'numPM',numPM
             ! PRINT*, 'qe',qe

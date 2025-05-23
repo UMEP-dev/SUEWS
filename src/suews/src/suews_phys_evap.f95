@@ -92,22 +92,16 @@ CONTAINS
             ELSE !if((state(is)<StorCap).and.(state(is)>0.001).or.(ResistSurf<50)) then
                r = (RS/RA)*(RA - RB)/rsrbsg
                W = (r - 1)/(r - (WetThresh_is/state_is))
+               print*, 'WetThresh',WetThresh_is
+               print*, 'state',state_is
+               print*, 'r',r
             END IF
 
             ! PRINT*, 'r',r
             ! PRINT*, 'W',W
 
             RSS = (1/((W/RB_SG) + ((1 - W)/rsrbsg))) - RB_SG !Redefined surface resistance for wet
-            
-            IF (rsrbsg /= rsrbsg) THEN
-               PRINT*, 'rsrbsg', rsrbsg
-            END IF
-            IF (W /= W) THEN
-               PRINT*, 'W', W
-            END IF
-            IF (RB_SG /= RB_SG) THEN
-               PRINT*, 'RB_SG', RB_SG
-            END IF
+
             ! PRINT*, 'resistances:',rbsg,rsrbsg,rss
             !surfaces (zero if W=1). Eq7, Jarvi et al. (2011)
             qe = numPM/(s_hPa + psyc_hPa*(1 + RSS/RA)) !QE [W m-2]

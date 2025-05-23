@@ -103,19 +103,19 @@ CONTAINS
             qe = numPM/(s_hPa + psyc_hPa*(1 + RSS/RA)) !QE [W m-2]
             ! Check for NaN in qe calculation inputs and print if found
             IF (numPM /= numPM) THEN
-               PRINT*, 'numPM', numPM
+               PRINT *, 'numPM', numPM
             END IF
             IF (s_hPa /= s_hPa) THEN
-               PRINT*, 's_hPa', s_hPa
+               PRINT *, 's_hPa', s_hPa
             END IF
             IF (psyc_hPa /= psyc_hPa) THEN
-               PRINT*, 'psyc_hPa', psyc_hPa
+               PRINT *, 'psyc_hPa', psyc_hPa
             END IF
             IF (RSS /= RSS) THEN
-               PRINT*, 'RSS', RSS
+               PRINT *, 'RSS', RSS
             END IF
             IF (RA /= RA) THEN
-               PRINT*, 'RA', RA
+               PRINT *, 'RA', RA
             END IF
 
             ev = qe/tlv !Ev [mm]

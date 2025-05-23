@@ -445,7 +445,7 @@ CONTAINS
                i_iter = i_iter + 1
                IF (i_iter == max_iter .AND. .NOT. flag_converge) THEN
                   IF (diagnose == 1) PRINT *, 'Iteration did not converge in', i_iter, ' iterations'
-               
+
                END IF
                IF (diagnose == 1) PRINT *, '========================='
                IF (diagnose == 1) PRINT *, ''
@@ -459,7 +459,7 @@ CONTAINS
                CALL SUEWS_cal_Resistance( &
                   timer, config, forcing, siteInfo, & ! input
                   modState) ! input/output:
-            END IF       
+            END IF
 
             !==============================================================
             ! Calculate diagnostics: these variables are decoupled from the main SUEWS calculation

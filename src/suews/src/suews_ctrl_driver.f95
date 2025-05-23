@@ -2469,6 +2469,7 @@ CONTAINS
             print*, 'hydroState: ', hydroState%state_surf(7)
          end if
 
+         
          ASSOCIATE ( &
             pavedPrm => siteInfo%lc_paved, &
             bldgPrm => siteInfo%lc_bldg, &

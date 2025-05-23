@@ -98,21 +98,20 @@ CONTAINS
             ! PRINT*, 'W',W
 
             RSS = (1/((W/RB_SG) + ((1 - W)/rsrbsg))) - RB_SG !Redefined surface resistance for wet
-            
+
             IF (rsrbsg /= rsrbsg) THEN
-               PRINT*, 'rsrbsg', rsrbsg
+               PRINT *, 'rsrbsg', rsrbsg
             END IF
             IF (W /= W) THEN
-               PRINT*, 'W', W
+               PRINT *, 'W', W
             END IF
             IF (RB_SG /= RB_SG) THEN
-               PRINT*, 'RB_SG', RB_SG
+               PRINT *, 'RB_SG', RB_SG
             END IF
             ! PRINT*, 'resistances:',rbsg,rsrbsg,rss
             !surfaces (zero if W=1). Eq7, Jarvi et al. (2011)
             qe = numPM/(s_hPa + psyc_hPa*(1 + RSS/RA)) !QE [W m-2]
             ! Check for NaN in qe calculation inputs and print if found
-
 
             ev = qe/tlv !Ev [mm]
             ! PRINT*, 'numPM',numPM

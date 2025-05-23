@@ -106,7 +106,7 @@ CONTAINS
                PRINT *, 'NaN detected in qe calculation:'
                PRINT *, 's_hPa=', s_hPa, ' psyc_hPa=', psyc_hPa, ' RSS=', RSS, ' RA=', RA
             END IF
-            
+
             ev = qe/tlv !Ev [mm]
             ! PRINT*, 'numPM',numPM
             ! PRINT*, 'qe',qe

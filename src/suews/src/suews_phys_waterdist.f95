@@ -379,7 +379,7 @@ CONTAINS
                (p_mm /= p_mm) .OR. &
                (FlowChange /= FlowChange) .OR. &
                (ev /= ev) .OR. &
-               (state_in(is) /= state_in(is)) ) THEN
+               (state_in(is) /= state_in(is))) THEN
                CALL ErrorHint(99, 'NaN detected in WaterSurf state_out calculation', p_mm, ev, is)
             END IF
          END IF

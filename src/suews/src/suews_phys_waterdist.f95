@@ -380,6 +380,7 @@ CONTAINS
             chang(is) = state_out(is) - state_in(is)
             ! Check for NaN in variables used to calculate state_out for WaterSurf
          
+            
          END IF
       END SELECT
       !==================================================================

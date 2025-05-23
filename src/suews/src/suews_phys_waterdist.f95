@@ -374,9 +374,13 @@ CONTAINS
 
             ! Recalculate change in surface state_id from difference with previous timestep
             chang(is) = state_out(is) - state_in(is)
-            ! Check if state_out(is) is NaN and write to terminal if so
-            IF (state_out(is) /= state_out(is)) THEN
-               WRITE(*,*) 'Warning: state_out(', is, ') is NaN in cal_water_storage (WaterSurf case)'
+            ! Check for NaN in variables used to calculate state_out for WaterSurf
+            IF ( &
+               (p_mm /= p_mm) .OR. &
+               (FlowChange /= FlowChange) .OR. &
+               (ev /= ev) .OR. &
+               (state_in(is) /= state_in(is)) ) THEN
+               CALL ErrorHint(99, 'NaN detected in WaterSurf state_out calculation', p_mm, ev, is)
             END IF
          END IF
       END SELECT

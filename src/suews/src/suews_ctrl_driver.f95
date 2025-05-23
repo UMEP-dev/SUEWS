@@ -185,9 +185,9 @@ CONTAINS
             QmRain = 0.
 
             ! these output variables are used for debugging
-            qe0_surf = 0 ! QE from PM: only meaningful when snowuse=0
-            ev0_surf = 0 ! ev from PM: only meaningful when snowuse=0
-            ev_surf = 0 ! ev from water balance: only meaningful when snowuse=0
+            qe0_surf = 0. ! QE from PM: only meaningful when snowuse=0
+            ev0_surf = 0. ! ev from PM: only meaningful when snowuse=0
+            ev_surf = 0. ! ev from water balance: only meaningful when snowuse=0
 
             ! force several snow related state variables to zero if snow module is off
             IF (config%snowuse == 0) THEN

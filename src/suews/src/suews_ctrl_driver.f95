@@ -2464,6 +2464,11 @@ CONTAINS
          ! save initial model states
          hydroState_in = hydroState
 
+         if (hydroState_in%state_surf /= hydroState_in%state_surf) then
+            print*, 'Error: hydroState_in%state_surf is NaN', hydroState_in%state_surf
+            print*, 'hydroState: ', hydroState%state_surf
+         end if
+
          ASSOCIATE ( &
             pavedPrm => siteInfo%lc_paved, &
             bldgPrm => siteInfo%lc_bldg, &

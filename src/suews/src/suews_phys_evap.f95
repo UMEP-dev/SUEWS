@@ -92,9 +92,6 @@ CONTAINS
             ELSE !if((state(is)<StorCap).and.(state(is)>0.001).or.(ResistSurf<50)) then
                r = (RS/RA)*(RA - RB)/rsrbsg
                W = (r - 1)/(r - (WetThresh_is/state_is))
-               PRINT *, 'WetThresh', WetThresh_is
-               PRINT *, 'state', state_is
-               PRINT *, 'r', r
             END IF
 
             ! PRINT*, 'r',r

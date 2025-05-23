@@ -107,7 +107,6 @@ CONTAINS
             qe = numPM/(s_hPa + psyc_hPa*(1 + RSS/RA)) !QE [W m-2]
             ! Check for NaN in qe calculation inputs and print if found
 
-
             ev = qe/tlv !Ev [mm]
             ! PRINT*, 'numPM',numPM
             ! PRINT*, 'qe',qe

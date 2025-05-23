@@ -477,16 +477,16 @@ CONTAINS
       ev_surf = ev_surf_in
       soilstore = soilstore_surf_in
 
-      SurplusEvap = 0
+      SurplusEvap = 0.
 !      runoffAGveg_grid = 0
 !      runoffPipes_grid = 0
 !     runoffAGimpervious_grid = 0
 !      runoffWaterBody_grid = 0
-      surplusWaterBody = 0
+      surplusWaterBody = 0.
 
       ! surf_chang_grid = 0
-      runoff_surf = 0
-      state_surf_out = 0
+      runoff_surf = 0.
+      state_surf_out = 0.
       ! state_grid = 0
       ! NWstate_grid = 0
       ! print *, 'cal_water_storage_surf: entering'

@@ -4854,6 +4854,7 @@ CONTAINS
       CALL hydroState%ALLOCATE(nlayer)
       ! Remove non-existing surface type from surface and soil outputs   ! Added back in with NANs by HCW 24 Aug 2016
       state_surf = UNPACK(SPREAD(0.0D0, dim=1, ncopies=SIZE(sfr_surf)), mask=(sfr_surf < 0.00001), field=state_surf)
+      print*, 'state_surf 1', state_surf
       smd_surf = UNPACK(SPREAD(0.0D0, dim=1, ncopies=SIZE(sfr_surf)), mask=(sfr_surf < 0.00001), field=smd_surf)
       hydroState%soilstore_roof = soilstore_roof
       hydroState%state_roof = state_roof
@@ -4861,6 +4862,7 @@ CONTAINS
       hydroState%state_wall = state_wall
       hydroState%soilstore_surf = soilstore_surf
       hydroState%state_surf = state_surf
+      print*, 'state_surf 2', state_surf
       hydroState%smd_surf = smd_surf
       hydroState%WUDay_id = WUDay_id
 

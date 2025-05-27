@@ -71,7 +71,13 @@ jobs:
         with:
           update: true
           install: mingw-w64-x86_64-gcc-fortran
-        run:
+      
+      # Make sure MSYS2's mingw64 is in PATH on Windows before building wheels
+      - name: Add MSYS2 mingw64 to PATH (Windows)
+        if: runner.os == 'Windows'
+        shell: msys2 {0}
+        run: |
+          export PATH=/mingw64/bin:$PATH
           gfortran --version  # Verify new version
 
       - name: Build wheels

@@ -88,6 +88,7 @@ def check_method(ser_to_check: pd.Series, rule_var: dict) -> Tuple:
         if value in list_val:
             is_accepted_flag = True
         else:
+            # Note MP: daywat flags here as converted to array of 0D arrays
             description = f"`{var}` should be one of {list_val} but is set as `{value}`"
 
     if not is_accepted_flag:

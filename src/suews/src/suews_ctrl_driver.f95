@@ -3717,7 +3717,7 @@ CONTAINS
       WaterDist, WaterUseMethod, &
       WUDay_id, DecidCap_id, albDecTr_id, albEveTr_id, albGrass_id, porosity_id, &
       WUProfA_24hr, WUProfM_24hr, Z, z0m_in, zdm_in, &
-      counter, &
+      ! counter, &
       output_block_suews, state_debug, block_mod_state) !output
 
       IMPLICIT NONE
@@ -4247,8 +4247,8 @@ CONTAINS
       REAL(KIND(1D0)), DIMENSION(len_sim, ncolumnsDataOutNHood, 1) :: dataOutBlockNHood_X
 
       ! REAL(KIND(1D0)), DIMENSION(10) :: MetForcingData_grid ! fake array as a placeholder
-      REAL(KIND(1D0)), INTENT(in) :: counter
-      REAL(KIND(1D0)) :: counter_f
+      ! REAL(KIND(1D0)), INTENT(in) :: counter
+      ! REAL(KIND(1D0)) :: counter_f
 
       TYPE(output_block), INTENT(OUT) :: output_block_suews
 
@@ -4256,6 +4256,9 @@ CONTAINS
 
          CALL block_mod_state%init(nlayer, ndepth, len_sim)
       END IF
+
+      ! counter_f = counter + 1
+      ! print*, 'SUEWS: counter_f = ', counter_f
 
       ! ############# evaluation for DTS variables (start) #############
       siteInfo%lat = lat
@@ -4850,8 +4853,7 @@ CONTAINS
       ! water balance related:
       CALL hydroState%ALLOCATE(nlayer)
       ! Remove non-existing surface type from surface and soil outputs   ! Added back in with NANs by HCW 24 Aug 2016
-      PRINT *, 'Counter, state_surf init', counter, state_surf
-      counter_f = counter + 1
+      PRINT *, 'state_surf init', state_surf
       state_surf = UNPACK(SPREAD(0.0D0, dim=1, ncopies=SIZE(sfr_surf)), mask=(sfr_surf < 0.00001), field=state_surf)
       smd_surf = UNPACK(SPREAD(0.0D0, dim=1, ncopies=SIZE(sfr_surf)), mask=(sfr_surf < 0.00001), field=smd_surf)
       hydroState%soilstore_roof = soilstore_roof

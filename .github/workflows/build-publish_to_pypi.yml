@@ -65,20 +65,20 @@ jobs:
         with:
             python-version: 3.12
         
-      - name: Install gfortran on Windows
-        if: runner.os == 'Windows'
-        uses: msys2/setup-msys2@v2
-        with:
-          update: true
-          install: mingw-w64-x86_64-gcc-fortran
+      # - name: Install gfortran on Windows
+      #   if: runner.os == 'Windows'
+      #   uses: msys2/setup-msys2@v2
+      #   with:
+      #     update: true
+      #     install: mingw-w64-x86_64-gcc-fortran
       
-      # Make sure MSYS2's mingw64 is in PATH on Windows before building wheels
-      - name: Add MSYS2 mingw64 to PATH (Windows)
-        if: runner.os == 'Windows'
-        shell: msys2 {0}
-        run: |
-          export PATH=/mingw64/bin:$PATH
-          gfortran --version  # Verify new version
+      # # Make sure MSYS2's mingw64 is in PATH on Windows before building wheels
+      # - name: Add MSYS2 mingw64 to PATH (Windows)
+      #   if: runner.os == 'Windows'
+      #   shell: msys2 {0}
+      #   run: |
+      #     export PATH=/mingw64/bin:$PATH
+      #     gfortran --version  # Verify new version
 
       - name: Build wheels
         uses: pypa/cibuildwheel@v2.20

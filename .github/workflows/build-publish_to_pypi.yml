@@ -30,10 +30,10 @@ jobs:
             - [windows-2019, win, AMD64]
 
         python:
-          # - "cp39"
-          # - "cp310"
-          # - "cp311"
-          # - "cp312"
+          - "cp39"
+          - "cp310"
+          - "cp311"
+          - "cp312"
           - "cp313"
         # exclude:
         # - buildplat: [macos-latest, macosx, arm64]

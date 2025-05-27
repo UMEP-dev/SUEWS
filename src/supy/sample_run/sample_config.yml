@@ -2003,7 +2003,7 @@ site:
       value: 0.3
     paved:
       state:
-        value: 0.0
+        value: 1.0
       soilstore:
         value: 120.0
       snowfrac:

@@ -203,7 +203,12 @@ def suews_cal_tstep_multi(dict_state_start, df_forcing_block, debug_mode=False):
             block_mod_state = None
 
         # note the extra arguments are passed to the SUEWS kernel as keyword arguments in the debug mode
-        print("Running SUEWS kernel for multiple timesteps...")
+        if not dict_input["state_surf"].flags['F_CONTIGUOUS']: # must be True
+            logger_supy.warning(
+                "Input state_surf is not Fortran-contiguous, which may cause performance issues."
+            )
+            dict_input["state_surf"] = np.asfortranarray(dict_input["state_surf"])
+        
         res_suews_tstep_multi = sd.suews_cal_multitsteps(
             **dict_input,
             state_debug=state_debug,

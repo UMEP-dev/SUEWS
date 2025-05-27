@@ -61,7 +61,10 @@ jobs:
           fetch-depth: 0
 
       - name: Clean wheelhouse
-        run: rm -rf wheelhouse/
+        run: |
+          if (Test-Path wheelhouse) { Remove-Item -Recurse -Force wheelhouse }
+        shell: pwsh
+
 
       - name: Set up Python
         uses: actions/setup-python@v5

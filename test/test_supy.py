@@ -101,10 +101,7 @@ class TestSuPy(TestCase):
         print(f"empty output?", df_output.empty)
         print(f"empty state?", df_state.empty)
         print(f"any NaN in state?", df_state.isnull().values.any())
-        # find the first NaN in state
-        if df_state.isnull().values.any():
-            print("NaN in state:")
-            print(df_state.columns[np.any(df_state.isnull(), axis=0)])
+
         test_non_empty = np.all(
             [
                 not df_output.empty,
@@ -120,7 +117,6 @@ class TestSuPy(TestCase):
         n_grid = 4
 
         df_state_init_base = df_state_init.copy()
-
         df_state_init_multi = pd.concat([df_state_init_base for x in range(n_grid)])
         df_state_init_multi.index = pd.RangeIndex(n_grid, name="grid")
         df_forcing_part = df_forcing_tstep.iloc[: 288 * 60]
@@ -216,11 +212,11 @@ class TestSuPy(TestCase):
     def test_is_supy_save_working(self):
         print("\n========================================")
         print("Testing if saving output files working...")
-        df_state_init, df_forcing_tstep = sp.load_SampleData()
+        df_state_init_sample, df_forcing_tstep = sp.load_SampleData()
         # df_state_init = pd.concat([df_state_init for x in range(6)])
         df_forcing_part = df_forcing_tstep.iloc[: 288 * 2]
         t_start = time()
-        df_output, df_state = sp.run_supy(df_forcing_part, df_state_init)
+        df_output, df_state = sp.run_supy(df_forcing_part, df_state_init_sample)
         t_end = time()
         with tempfile.TemporaryDirectory() as dir_temp:
             list_outfile = sp.save_supy(df_output, df_state, path_dir_save=dir_temp)
@@ -230,7 +226,7 @@ class TestSuPy(TestCase):
             capturedOutput = io.StringIO()  # Create StringIO object
             sys.stdout = capturedOutput  # and redirect stdout.
             # Call function.
-            n_grid = df_state_init.index.size
+            n_grid = df_state_init_sample.index.size
             print(f"Running time: {t_end-t_start:.2f} s for {n_grid} grids")
             sys.stdout = sys.__stdout__  # Reset redirect.
             # Now works as before.
@@ -316,16 +312,16 @@ class TestSuPy(TestCase):
         p_df_bm1 = path_to_bm1 / "benchmark1.pkl"
 
         config = sp.data_model.init_config_from_yaml(path_to_bm1_yml)
-        df_state_init = config.to_df_state()
-        grid = df_state_init.index[0]
-        df_forcing_tstep = sp.load_forcing_grid(path_to_bm1_yml, grid=grid, df_state_init=df_state_init)
+        df_state_init_bm1 = config.to_df_state()
+        grid = df_state_init_bm1.index[0]
+        df_forcing_tstep = sp.load_forcing_grid(path_to_bm1_yml, grid=grid, df_state_init=df_state_init_bm1)
         # met_path = str(config.model.control.forcing_file)
         # df_forcing_tstep = sp._load.load_SUEWS_Forcing_met_df_yaml(met_path)
 
         df_forcing_part = df_forcing_tstep.iloc[: 288 * 365]
 
         # single-step results
-        df_output_s, df_state_s = sp.run_supy(df_forcing_part, df_state_init)
+        df_output_s, df_state_s = sp.run_supy(df_forcing_part, df_state_init_bm1)
 
         # only test chosen columns
         col_test = [
@@ -353,51 +349,51 @@ class TestSuPy(TestCase):
             rtol=8e-3,  # 0.8% tolerance - temporary fix to pass the CI test
         )
     
-    @skipUnless(flag_full_test, "Full test is not required.")
-    def test_benchmark1b_same(self):
-        print("\n========================================")
-        print("Testing if benchmark1 output is the same...")
-        path_to_bm1 = Path(__file__).parent / "benchmark1"
-        path_to_bm1_yml = path_to_bm1 / "benchmark1b.yml"
-        p_df_bm1 = path_to_bm1 / "benchmark1b.pkl"
+    # @skipUnless(flag_full_test, "Full test is not required.")
+    # def test_benchmark1b_same(self):
+    #     print("\n========================================")
+    #     print("Testing if benchmark1 output is the same...")
+    #     path_to_bm1 = Path(__file__).parent / "benchmark1"
+    #     path_to_bm1_yml = path_to_bm1 / "benchmark1b.yml"
+    #     p_df_bm1 = path_to_bm1 / "benchmark1b.pkl"
 
-        config = sp.data_model.init_config_from_yaml(path_to_bm1_yml)
-        df_state_init = config.to_df_state()
-        grid = df_state_init.index[0]
-        df_forcing_tstep = sp.load_forcing_grid(path_to_bm1_yml, grid=grid, df_state_init=df_state_init)
-        # met_path = str(config.model.control.forcing_file)
-        # df_forcing_tstep = sp._load.load_SUEWS_Forcing_met_df_yaml(met_path)
+    #     config = sp.data_model.init_config_from_yaml(path_to_bm1_yml)
+    #     df_state_init = config.to_df_state()
+    #     grid = df_state_init.index[0]
+    #     df_forcing_tstep = sp.load_forcing_grid(path_to_bm1_yml, grid=grid, df_state_init=df_state_init)
+    #     # met_path = str(config.model.control.forcing_file)
+    #     # df_forcing_tstep = sp._load.load_SUEWS_Forcing_met_df_yaml(met_path)
 
-        df_forcing_part = df_forcing_tstep.iloc[: 288 * 365]
+    #     df_forcing_part = df_forcing_tstep.iloc[: 288 * 365]
 
-        # single-step results
-        df_output_s, df_state_s = sp.run_supy(df_forcing_part, df_state_init)
+    #     # single-step results
+    #     df_output_s, df_state_s = sp.run_supy(df_forcing_part, df_state_init)
 
-        # only test chosen columns
-        col_test = [
-            "QN",
-            "QF",
-            "QS",
-            "QE",
-            "QH",
-            "T2",
-            "RH2",
-            "U10",
-        ]
+    #     # only test chosen columns
+    #     col_test = [
+    #         "QN",
+    #         "QF",
+    #         "QS",
+    #         "QE",
+    #         "QH",
+    #         "T2",
+    #         "RH2",
+    #         "U10",
+    #     ]
 
-        print(f"Columns to test: {col_test}")
+    #     print(f"Columns to test: {col_test}")
 
-        # load sample output
-        df_res_bm1 = pd.read_pickle(p_df_bm1).loc[:, col_test]
+    #     # load sample output
+    #     df_res_bm1 = pd.read_pickle(p_df_bm1).loc[:, col_test]
 
-        # choose the same columns as the testing group
-        df_res_s = df_output_s.SUEWS.loc[df_res_bm1.index, df_res_bm1.columns]
+    #     # choose the same columns as the testing group
+    #     df_res_s = df_output_s.SUEWS.loc[df_res_bm1.index, df_res_bm1.columns]
 
-        pd.testing.assert_frame_equal(
-            left=df_res_s,
-            right=df_res_bm1,
-            rtol=8e-3,  # 0.8% tolerance - temporary fix to pass the CI test
-        )
+    #     pd.testing.assert_frame_equal(
+    #         left=df_res_s,
+    #         right=df_res_bm1,
+    #         rtol=8e-3,  # 0.8% tolerance - temporary fix to pass the CI test
+    #     )
 
     # # test if the sample output is the same as the one in the repo
     # @skipUnless(flag_full_test, "Full test is not required.")

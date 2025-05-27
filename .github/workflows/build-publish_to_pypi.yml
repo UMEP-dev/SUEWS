@@ -60,6 +60,9 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Clean wheelhouse
+        run: rm -rf wheelhouse/
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:

@@ -203,6 +203,7 @@ def suews_cal_tstep_multi(dict_state_start, df_forcing_block, debug_mode=False):
             block_mod_state = None
 
         # note the extra arguments are passed to the SUEWS kernel as keyword arguments in the debug mode
+        print("Running SUEWS kernel for multiple timesteps...")
         res_suews_tstep_multi = sd.suews_cal_multitsteps(
             **dict_input,
             state_debug=state_debug,

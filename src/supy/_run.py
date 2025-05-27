@@ -208,7 +208,8 @@ def suews_cal_tstep_multi(dict_state_start, df_forcing_block, debug_mode=False):
                 "Input state_surf is not Fortran-contiguous, which may cause performance issues."
             )
             dict_input["state_surf"] = np.asfortranarray(dict_input["state_surf"])
-        
+        print("Input state_surf is Fortran-contiguous:", dict_input["state_surf"].flags['F_CONTIGUOUS'])
+        print(dict_input["state_surf"])
         res_suews_tstep_multi = sd.suews_cal_multitsteps(
             **dict_input,
             state_debug=state_debug,

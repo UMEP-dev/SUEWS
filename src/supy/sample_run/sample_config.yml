@@ -2208,7 +2208,7 @@ site:
         value: 2.0
     water:
       state:
-        value: 25000.0
+        value: 20000.0
       soilstore:
         value: 10.0
       snowfrac:

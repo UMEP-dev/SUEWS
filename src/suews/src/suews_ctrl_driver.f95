@@ -4246,6 +4246,7 @@ CONTAINS
       REAL(KIND(1D0)), DIMENSION(len_sim, ncolumnsDataOutNHood, 1) :: dataOutBlockNHood_X
 
       ! REAL(KIND(1D0)), DIMENSION(10) :: MetForcingData_grid ! fake array as a placeholder
+      REAL(KIND(1D0)) :: counter
 
       TYPE(output_block), INTENT(OUT) :: output_block_suews
 
@@ -4847,7 +4848,8 @@ CONTAINS
       ! water balance related:
       CALL hydroState%ALLOCATE(nlayer)
       ! Remove non-existing surface type from surface and soil outputs   ! Added back in with NANs by HCW 24 Aug 2016
-      PRINT *, 'state_surf init', state_surf
+      PRINT *, 'Counter, state_surf init', counter, state_surf
+      counter = counter + 1
       state_surf = UNPACK(SPREAD(0.0D0, dim=1, ncopies=SIZE(sfr_surf)), mask=(sfr_surf < 0.00001), field=state_surf)
       smd_surf = UNPACK(SPREAD(0.0D0, dim=1, ncopies=SIZE(sfr_surf)), mask=(sfr_surf < 0.00001), field=smd_surf)
       hydroState%soilstore_roof = soilstore_roof

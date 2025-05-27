@@ -204,7 +204,7 @@ def suews_cal_tstep_multi(dict_state_start, df_forcing_block, debug_mode=False):
 
         # note the extra arguments are passed to the SUEWS kernel as keyword arguments in the debug mode
         if not dict_input["state_surf"].flags['F_CONTIGUOUS']: # must be True
-            logger_supy.warning(
+            print(
                 "Input state_surf is not Fortran-contiguous, which may cause performance issues."
             )
             dict_input["state_surf"] = np.asfortranarray(dict_input["state_surf"])

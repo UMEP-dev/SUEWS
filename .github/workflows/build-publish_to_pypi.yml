@@ -71,6 +71,8 @@ jobs:
         with:
           update: true
           install: mingw-w64-x86_64-gcc-fortran
+        run:
+          gfortran --version  # Verify new version
 
       - name: Build wheels
         uses: pypa/cibuildwheel@v2.20

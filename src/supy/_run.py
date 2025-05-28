@@ -202,12 +202,6 @@ def suews_cal_tstep_multi(dict_state_start, df_forcing_block, debug_mode=False):
             state_debug = None
             block_mod_state = None
 
-        # note the extra arguments are passed to the SUEWS kernel as keyword arguments in the debug mode
-        # dict_input.update(
-        #     {
-        #         "counter": 0,  # counter for debugging
-        #     }
-        # )
         res_suews_tstep_multi = sd.suews_cal_multitsteps(
             **dict_input,
             state_debug=state_debug,

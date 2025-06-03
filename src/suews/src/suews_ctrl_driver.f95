@@ -1272,7 +1272,11 @@ CONTAINS
                tau_f => snowPrm%tau_f, &
                SnowAlbMax => snowPrm%SnowAlbMax, &
                SnowAlbMin => snowPrm%SnowAlbMin, &
-               NARP_EMIS_SNOW => snowPrm%NARP_EMIS_SNOW &
+               NARP_EMIS_SNOW => snowPrm%NARP_EMIS_SNOW, &
+               roof_in_sw_spc => heatState%roof_in_sw_spc, &
+               roof_in_lw_spc => heatState%roof_in_lw_spc, &
+               wall_in_sw_spc => heatState%wall_in_sw_spc, &
+               wall_in_lw_spc => heatState%wall_in_lw_spc &
                )
 
                emis = [pavedPrm%emis, bldgPrm%emis, evetrPrm%emis, dectrPrm%emis, &
@@ -1345,6 +1349,8 @@ CONTAINS
                         alb_roof, emis_roof, alb_wall, emis_wall, &
                         roof_albedo_dir_mult_fact, wall_specular_frac, &
                         qn, kup, lup, qn_roof, qn_wall, qn_surf, & !output:
+                        roof_in_sw_spc, roof_in_lw_spc, &
+                        wall_in_sw_spc, wall_in_lw_spc, &
                         dataOutLineSPARTACUS)
                   ELSE
                      qn_roof = qn_surf(BldgSurf)

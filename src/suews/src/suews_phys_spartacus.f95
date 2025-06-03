@@ -581,10 +581,10 @@ CONTAINS
       grnd_vertical_diff = sw_flux%ground_vertical_diff(nspec, ncol)
 
       ! De-normalise the fluxes
-      wall_in_sw_spc(:nlayer) = wall_in_sw_spc(:nlayer)/sfr_wall(:nlayer)
-      wall_net_sw_spc(:nlayer) = wall_net_sw_spc(:nlayer)/sfr_wall(:nlayer)
-      roof_in_sw_spc(:nlayer) = roof_in_sw_spc(:nlayer)/sfr_roof(:nlayer)
-      roof_net_sw_spc(:nlayer) = roof_net_sw_spc(:nlayer)/sfr_roof(:nlayer)
+      wall_in_sw_spc(:nlayer) = wall_in_sw_spc(:nlayer)/sfr_wall_spc(:nlayer)
+      wall_net_sw_spc(:nlayer) = wall_net_sw_spc(:nlayer)/sfr_wall_spc(:nlayer)
+      roof_in_sw_spc(:nlayer) = roof_in_sw_spc(:nlayer)/sfr_roof_spc(:nlayer)
+      roof_net_sw_spc(:nlayer) = roof_net_sw_spc(:nlayer)/sfr_roof_spc(:nlayer)
 
       !!!!!!!!!!!!!! Bulk KUP, LUP, QSTAR for SUEWS !!!!!!!!!!!!!!
 

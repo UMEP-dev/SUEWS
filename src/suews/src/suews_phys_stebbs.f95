@@ -735,7 +735,7 @@ CONTAINS
                ALLOCATE (blds(1))
                resolution = 1
                CALL gen_building(stebbsState, stebbsPrm, building_archtype, blds(1))
-               
+
                sout%ntstep = 1
                ALLOCATE (sout%datetime(sout%ntstep))
                ALLOCATE (sout%hourmin(sout%ntstep))

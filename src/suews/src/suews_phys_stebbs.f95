@@ -708,19 +708,25 @@ CONTAINS
             Lwest => stebbsState%Lwest &
             )
 
-            wallStatesK(1) = Knorth
-            wallStatesK(2) = Ksouth
-            wallStatesK(3) = Keast
-            wallStatesK(4) = Kwest
-            ! Calculate the mean of the wall states
-            Kwall_sout = SUM(wallStatesK)/SIZE(wallStatesK)
+            IF (config%NetRadiationMethod < 1000) THEN
+               wallStatesK(1) = Knorth
+               wallStatesK(2) = Ksouth
+               wallStatesK(3) = Keast
+               wallStatesK(4) = Kwest
+               ! Calculate the mean of the wall states
+               Kwall_sout = SUM(wallStatesK)/SIZE(wallStatesK)
 
-            ! Calculate the mean of the wall states
-            wallStatesL(1) = Lnorth
-            wallStatesL(2) = Lsouth
-            wallStatesL(3) = Least
-            wallStatesL(4) = Lwest
-            Lwall_sout = SUM(wallStatesL)/SIZE(wallStatesL)
+               ! Calculate the mean of the wall states
+               wallStatesL(1) = Lnorth
+               wallStatesL(2) = Lsouth
+               wallStatesL(3) = Least
+               wallStatesL(4) = Lwest
+               Lwall_sout = SUM(wallStatesL)/SIZE(wallStatesL)
+            ELSE
+               ! If the NetRadiationMethod is 1000 or greater, use the values from SPARTACUS
+               Kwall_sout = heatState%wall_in_sw_spc(1)
+               Lwall_sout = heatState%wall_in_lw_spc(1)
+            END IF
 
             !       !
             IF (flginit == 0) THEN

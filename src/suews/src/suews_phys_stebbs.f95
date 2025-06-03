@@ -812,6 +812,8 @@ CONTAINS
                ! If the NetRadiationMethod is 1000 or greater, use the values from SPARTACUS
                Kwall_sout = heatState%wall_in_sw_spc(1)
                Lwall_sout = heatState%wall_in_lw_spc(1)
+               Kroof_sout = heatState%roof_in_sw_spc(1)
+               Lroof_sout = heatState%roof_in_lw_spc(1)
             END IF
 
             !       !

@@ -724,10 +724,12 @@ CONTAINS
                Lwall_sout = SUM(wallStatesL)/SIZE(wallStatesL)
             ELSE
                ! If the NetRadiationMethod is 1000 or greater, use the values from SPARTACUS
+               ! Here testing with layer 1 for walls and layer 2 for roofs (dimension up to 15)
+               ! MP TODO: Need to update for dynamic layer selection based on building type
                Kwall_sout = heatState%wall_in_sw_spc(1)
                Lwall_sout = heatState%wall_in_lw_spc(1)
-               Kroof_sout = heatState%roof_in_sw_spc(1)
-               Lroof_sout = heatState%roof_in_lw_spc(1)
+               Kroof_sout = heatState%roof_in_sw_spc(2)
+               Lroof_sout = heatState%roof_in_lw_spc(2)
             END IF
 
             !       !

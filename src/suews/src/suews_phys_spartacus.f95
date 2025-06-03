@@ -578,6 +578,12 @@ CONTAINS
       grnd_net_sw_spc = sw_flux%ground_net(nspec, ncol)
       grnd_vertical_diff = sw_flux%ground_vertical_diff(nspec, ncol)
 
+      ! De-normalise the fluxes
+      wall_in_sw_spc(:nlayer) = wall_in_sw_spc(:nlayer)/sfr_wall(:nlayer)
+      wall_net_sw_spc(:nlayer) = wall_net_sw_spc(:nlayer)/sfr_wall(:nlayer)
+      roof_in_sw_spc(:nlayer) = roof_in_sw_spc(:nlayer)/sfr_roof(:nlayer)
+      roof_net_sw_spc(:nlayer) = roof_net_sw_spc(:nlayer)/sfr_roof(:nlayer)
+
       !!!!!!!!!!!!!! Bulk KUP, LUP, QSTAR for SUEWS !!!!!!!!!!!!!!
 
       lup = lw_up_spc
@@ -596,10 +602,11 @@ CONTAINS
 
       ! de-normalise net radiation for roof/wall - these will be used in other SUEWS calculations
       ! note the orignal results from above SS calcuations are normalised by the whole grid area
+      ! MP 03/06/25: denormalised lw and sw separately - no need for qn now
       ! roof: need to de-normalise by dividing the building/roof fraction
-      qn_roof = qn_roof/sfr_roof(:nlayer)
+      ! qn_roof = qn_roof/sfr_roof(:nlayer)
       ! wall: need to de-normalise by dividing the building/wall fraction
-      qn_wall = qn_wall/sfr_wall(:nlayer)
+      ! qn_wall = qn_wall/sfr_wall(:nlayer)
 
       ! ============================================================
       ! net radiation for ground surfaces

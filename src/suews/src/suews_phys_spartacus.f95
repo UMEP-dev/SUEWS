@@ -82,6 +82,8 @@ CONTAINS
       alb_roof, emis_roof, alb_wall, emis_wall, &
       roof_albedo_dir_mult_fact, wall_specular_frac, &
       qn, kup, lup, qn_roof, qn_wall, qn_surf, & !output:
+      roof_in_sw_spc, roof_in_lw_spc, &
+      wall_in_sw_spc, wall_in_lw_spc, &
       dataOutLineSPARTACUS)
       USE parkind1, ONLY: jpim, jprb
       USE radsurf_interface, ONLY: radsurf
@@ -163,12 +165,12 @@ CONTAINS
       REAL(KIND(1D0)) :: grnd_vertical_diff
       REAL(KIND(1D0)), DIMENSION(15) :: clear_air_abs_lw_spc
       REAL(KIND(1D0)), DIMENSION(15) :: clear_air_abs_sw_spc
-      REAL(KIND(1D0)), DIMENSION(15) :: roof_in_sw_spc
-      REAL(KIND(1D0)), DIMENSION(15) :: roof_in_lw_spc
+      REAL(KIND(1D0)), DIMENSION(15), INTENT(OUT) :: roof_in_sw_spc
+      REAL(KIND(1D0)), DIMENSION(15), INTENT(OUT) :: roof_in_lw_spc
       REAL(KIND(1D0)), DIMENSION(15) :: roof_net_sw_spc
       REAL(KIND(1D0)), DIMENSION(15) :: roof_net_lw_spc
-      REAL(KIND(1D0)), DIMENSION(15) :: wall_in_sw_spc
-      REAL(KIND(1D0)), DIMENSION(15) :: wall_in_lw_spc
+      REAL(KIND(1D0)), DIMENSION(15), INTENT(OUT) :: wall_in_sw_spc
+      REAL(KIND(1D0)), DIMENSION(15), INTENT(OUT) :: wall_in_lw_spc
       REAL(KIND(1D0)), DIMENSION(15) :: wall_net_sw_spc
       REAL(KIND(1D0)), DIMENSION(15) :: wall_net_lw_spc
       REAL(KIND(1D0)), DIMENSION(15) :: sfr_roof_spc

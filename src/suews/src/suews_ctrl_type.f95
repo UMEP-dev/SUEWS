@@ -428,16 +428,34 @@ MODULE SUEWS_DEF_DTS
       REAL(KIND(1D0)) :: WallExternalArea = 0.0D0 ! External wall area (including window area) [m2]
       REAL(KIND(1D0)) :: RatioInternalVolume = 0.0D0 ! Ratio of internal mass volume to total building volume [-]
       REAL(KIND(1D0)) :: WWR = 0.0D0 ! window to wall ratio [-]
-      REAL(KIND(1D0)) :: WallThickness = 0.0D0 ! Thickness of external wall and roof (weighted) [m]
-      REAL(KIND(1D0)) :: WallEffectiveConductivity = 0.0D0 ! Effective thermal conductivity of walls and roofs (weighted) [W m-1 K-1]
-      REAL(KIND(1D0)) :: WallDensity = 0.0D0 ! Effective density of the walls and roof (weighted) [kg m-3]
-      REAL(KIND(1D0)) :: WallCp = 0.0D0 ! Effective specific heat capacity of walls and roof (weighted) [J kg-1 K-1]
-      REAL(KIND(1D0)) :: Wallx1 = 0.0D0 ! Weighting factor for heat capacity of walls and roof [-]
-      REAL(KIND(1D0)) :: WallExternalEmissivity = 0.0D0 ! Emissivity of the external surface of walls and roof [-]
-      REAL(KIND(1D0)) :: WallInternalEmissivity = 0.0D0 ! Emissivity of the internal surface of walls and roof [-]
-      REAL(KIND(1D0)) :: WallTransmissivity = 0.0D0 ! Transmissivity of walls and roof [-]
-      REAL(KIND(1D0)) :: WallAbsorbtivity = 0.0D0 ! Absorbtivity of walls and roof [-]
-      REAL(KIND(1D0)) :: WallReflectivity = 0.0D0 ! Reflectivity of the external surface of walls and roof [-]
+      REAL(KIND(1D0)) :: WallThickness = 0.0D0 ! Thickness of external wall [m]
+      REAL(KIND(1D0)) :: WallEffectiveConductivity = 0.0D0 ! Effective thermal conductivity of walls [W m-1 K-1]
+      REAL(KIND(1D0)) :: WallDensity = 0.0D0 ! Effective density of the walls [kg m-3]
+      REAL(KIND(1D0)) :: WallCp = 0.0D0 ! Effective specific heat capacity of walls [J kg-1 K-1]
+      REAL(KIND(1D0)) :: WallextThickness = 0.0D0 ! Thickness of layers external to insulation in external wall [m]
+      REAL(KIND(1D0)) :: WallextEffectiveConductivity = 0.0D0 ! Effective thermal conductivity of layers external to insulation inof walls [W m-1 K-1]
+      REAL(KIND(1D0)) :: WallextDensity = 0.0D0 ! Effective density of layers external to insulation in the walls [kg m-3]
+      REAL(KIND(1D0)) :: WallextCp = 0.0D0 ! Effective specific heat capacity of layers external to insulation in walls [J kg-1 K-1]
+      REAL(KIND(1D0)) :: Wallx1 = 0.0D0 ! Weighting factor for heat capacity of walls [-]
+      REAL(KIND(1D0)) :: WallExternalEmissivity = 0.0D0 ! Emissivity of the external surface of walls [-]
+      REAL(KIND(1D0)) :: WallInternalEmissivity = 0.0D0 ! Emissivity of the internal surface of walls [-]
+      REAL(KIND(1D0)) :: WallTransmissivity = 0.0D0 ! Transmissivity of walls [-]
+      REAL(KIND(1D0)) :: WallAbsorbtivity = 0.0D0 ! Absorbtivity of walls [-]
+      REAL(KIND(1D0)) :: WallReflectivity = 0.0D0 ! Reflectivity of the external surface of walls [-]
+      REAL(KIND(1D0)) :: RoofThickness = 0.0D0 ! Thickness of external roof [m]
+      REAL(KIND(1D0)) :: RoofEffectiveConductivity = 0.0D0 ! Effective thermal conductivity of roofs (weighted) [W m-1 K-1]
+      REAL(KIND(1D0)) :: RoofDensity = 0.0D0 ! Effective density of the roof  [kg m-3]
+      REAL(KIND(1D0)) :: RoofCp = 0.0D0 ! Effective specific heat capacity of layers external to insulation in roof  [J kg-1 K-1]
+      REAL(KIND(1D0)) :: RoofextThickness = 0.0D0 ! Thickness of external  layers external to insulation roof [m]
+      REAL(KIND(1D0)) :: RoofextEffectiveConductivity = 0.0D0 ! Effective thermal conductivity of  layers external to insulation roofs (weighted) [W m-1 K-1]
+      REAL(KIND(1D0)) :: RoofextDensity = 0.0D0 ! Effective density of the  layers external to insulation roof [kg m-3]
+      REAL(KIND(1D0)) :: RoofextCp = 0.0D0 ! Effective specific heat capacity of layers external to insulation in roof  [J kg-1 K-1]
+      REAL(KIND(1D0)) :: Roofx1 = 0.0D0 ! Weighting factor for heat capacity of roof [-]
+      REAL(KIND(1D0)) :: RoofExternalEmissivity = 0.0D0 ! Emissivity of the external surface of roof [-]
+      REAL(KIND(1D0)) :: RoofInternalEmissivity = 0.0D0 ! Emissivity of the internal surface of roof [-]
+      REAL(KIND(1D0)) :: RoofTransmissivity = 0.0D0 ! Transmissivity of walls roof [-]
+      REAL(KIND(1D0)) :: RoofAbsorbtivity = 0.0D0 ! Absorbtivity of walls roof [-]
+      REAL(KIND(1D0)) :: RoofReflectivity = 0.0D0 ! Reflectivity of the external surface of roof [-]
       REAL(KIND(1D0)) :: FloorThickness = 0.0D0 ! Thickness of ground floor [m]
       REAL(KIND(1D0)) :: GroundFloorEffectiveConductivity = 0.0D0 ! Effective thermal conductivity of ground floor [W m-1 K-1]
       REAL(KIND(1D0)) :: GroundFloorDensity = 0.0D0 ! Density of the ground floor [kg m-3]
@@ -463,11 +481,13 @@ MODULE SUEWS_DEF_DTS
 
    TYPE, PUBLIC :: STEBBS_PRM
       ! Collect general parameters for STEBBS
-      REAL(KIND(1D0)) :: WallInternalConvectionCoefficient = 0.0D0 ! Internal convection coefficient of walls and roof [W m-2 K-1]
+      REAL(KIND(1D0)) :: WallInternalConvectionCoefficient = 0.0D0 ! Internal convection coefficient of walls  [W m-2 K-1]
+      REAL(KIND(1D0)) :: RoofInternalConvectionCoefficient = 0.0D0 ! Internal convection coefficient of roof [W m-2 K-1]
       REAL(KIND(1D0)) :: InternalMassConvectionCoefficient = 0.0D0 ! Convection coefficient of internal mass [W m-2 K-1]
       REAL(KIND(1D0)) :: FloorInternalConvectionCoefficient = 0.0D0 ! Internal convection coefficient of ground floor [W m-2 K-1]
       REAL(KIND(1D0)) :: WindowInternalConvectionCoefficient = 0.0D0 ! Internal convection coefficient of windows [W m-2 K-1]
-      REAL(KIND(1D0)) :: WallExternalConvectionCoefficient = 0.0D0 ! Initial external convection coefficient of walls and roof [W m-2 K-1]
+      REAL(KIND(1D0)) :: WallExternalConvectionCoefficient = 0.0D0 ! Initial external convection coefficient of walls [W m-2 K-1]
+      REAL(KIND(1D0)) :: RoofExternalConvectionCoefficient = 0.0D0 ! Initial external convection coefficient of roof [W m-2 K-1]
       REAL(KIND(1D0)) :: WindowExternalConvectionCoefficient = 0.0D0 ! Initial external convection coefficient of windows [W m-2 K-1]
       REAL(KIND(1D0)) :: GroundDepth = 0.0D0 ! Depth of external ground (deep soil) [m]
       REAL(KIND(1D0)) :: ExternalGroundConductivity = 0.0D0
@@ -475,7 +495,10 @@ MODULE SUEWS_DEF_DTS
       REAL(KIND(1D0)) :: IndoorAirCp = 0.0D0 ! Specific heat capacity of indoor air [J kg-1 K-1]
       REAL(KIND(1D0)) :: WallBuildingViewFactor = 0.0D0 ! Building view factor of external walls [-]
       REAL(KIND(1D0)) :: WallGroundViewFactor = 0.0D0 ! Ground view factor of external walls [-]
-      REAL(KIND(1D0)) :: WallSkyViewFactor = 0.0D0 ! Sky view factor of external walls [-]
+      REAL(KIND(1D0)) :: WallSkyViewFactor = 0.0D0 ! Sky view factor of external roofs [-]
+      REAL(KIND(1D0)) :: RoofBuildingViewFactor = 0.0D0 ! Building view factor of external roofs [-]
+      REAL(KIND(1D0)) :: RoofGroundViewFactor = 0.0D0 ! Ground view factor of external roofs [-]
+      REAL(KIND(1D0)) :: RoofSkyViewFactor = 0.0D0 ! Sky view factor of external roofs [-]
       REAL(KIND(1D0)) :: MetabolicRate = 0.0D0 ! Metabolic rate of building occupants [W]
       REAL(KIND(1D0)) :: LatentSensibleRatio = 0.0D0 ! Latent-to-sensible ratio of metabolic energy release of occupants [-]
       REAL(KIND(1D0)) :: ApplianceRating = 0.0D0 ! Power demand of single appliance [W]
@@ -932,8 +955,10 @@ MODULE SUEWS_DEF_DTS
       ! Initial conditions that are updated during runtime
       REAL(KIND(1D0)) :: IndoorAirStartTemperature = 0.0D0 ! Initial indoor air temperature [degC]
       REAL(KIND(1D0)) :: IndoorMassStartTemperature = 0.0D0 ! Initial indoor mass temperature [degC]
-      REAL(KIND(1D0)) :: WallIndoorSurfaceTemperature = 0.0D0 ! Initial wall/roof indoor surface temperature [degC]
-      REAL(KIND(1D0)) :: WallOutdoorSurfaceTemperature = 0.0D0 ! Initial wall/roof outdoor surface temperature [degC]
+      REAL(KIND(1D0)) :: WallIndoorSurfaceTemperature = 0.0D0 ! Initial wall indoor surface temperature [degC]
+      REAL(KIND(1D0)) :: WallOutdoorSurfaceTemperature = 0.0D0 ! Initial walloutdoor surface temperature [degC]
+      REAL(KIND(1D0)) :: RoofIndoorSurfaceTemperature = 0.0D0 ! Initial roof indoor surface temperature [degC]
+      REAL(KIND(1D0)) :: RoofOutdoorSurfaceTemperature = 0.0D0 ! Initial roof outdoor surface temperature [degC]
       REAL(KIND(1D0)) :: WindowIndoorSurfaceTemperature = 0.0D0 ! Initial window indoor surface temperature [degC]
       REAL(KIND(1D0)) :: WindowOutdoorSurfaceTemperature = 0.0D0 ! Initial window outdoor surface temperature [degC]
       REAL(KIND(1D0)) :: GroundFloorIndoorSurfaceTemperature = 0.0D0 ! Initial ground floor indoor surface temperature [degC]
@@ -1066,7 +1091,7 @@ MODULE SUEWS_DEF_DTS
       REAL(KIND(1D0)), DIMENSION(ncolumnsDataOutDailyState) :: dataOutLineDailyState = -999
       REAL(KIND(1D0)), DIMENSION(ncolumnsDataOutSTEBBS) :: dataOutLineSTEBBS = -999
       REAL(KIND(1D0)), DIMENSION(ncolumnsDataOutNHood) :: dataOutLineNHood = -999
-
+      REAL(KIND(1D0)), DIMENSION(30) :: zarray = -999 !RSL layer heights
       REAL(KIND(1D0)), DIMENSION(30) :: dataoutLineURSL = -999 ! wind speed array [m s-1]
       REAL(KIND(1D0)), DIMENSION(30) :: dataoutLineTRSL = -999 ! Temperature array [C]
       REAL(KIND(1D0)), DIMENSION(30) :: dataoutLineqRSL = -999 ! Specific humidity array [g kg-1]
@@ -1165,6 +1190,7 @@ CONTAINS
       self%dataOutLineEHC = -999.0
       self%dataOutLineRSL = -999.0
       ! Assign dataOutLineURSL, TRSL, qRSL
+      self%zarray = -999.0
       self%dataOutLineURSL = -999.0
       self%dataOutLineTRSL = -999.0
       self%dataOutLineqRSL = -999.0

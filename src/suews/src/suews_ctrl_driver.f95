@@ -109,6 +109,7 @@ CONTAINS
       REAL(KIND(1D0)), DIMENSION(ncolumnsDataOutESTM - 5) :: dataOutLineESTM
       REAL(KIND(1D0)), DIMENSION(ncolumnsDataOutEHC - 5) :: dataOutLineEHC
       REAL(KIND(1D0)), DIMENSION(ncolumnsDataOutRSL - 5) :: dataoutLineRSL
+      REAL(KIND(1D0)), DIMENSION(30) :: zarray ! RSL layer height
       REAL(KIND(1D0)), DIMENSION(30) :: dataoutLineURSL ! wind speed array [m s-1]
       REAL(KIND(1D0)), DIMENSION(30) :: dataoutLineTRSL ! Temperature array [C]
       REAL(KIND(1D0)), DIMENSION(30) :: dataoutLineqRSL ! Specific humidity array [g kg-1]
@@ -219,6 +220,7 @@ CONTAINS
             dataOutLineESTM = -999.
             dataOutLineEHC = -999.
             dataoutLineRSL = -999.
+            zarray = -999.
             dataoutLineURSL = -999.
             dataoutLineTRSL = -999.
             dataoutLineqRSL = -999.
@@ -483,7 +485,7 @@ CONTAINS
             CALL RSLProfile_DTS( &
                timer, config, forcing, siteInfo, & ! input
                modState, & ! input/output:
-               dataoutLineURSL, dataoutLineTRSL, dataoutLineqRSL, &
+               zarray, dataoutLineURSL, dataoutLineTRSL, dataoutLineqRSL, &
                dataoutLineRSL) ! output
             IF (config%flag_test .AND. PRESENT(debugState)) THEN
                debugState%state_13_rsl = modState
@@ -523,6 +525,7 @@ CONTAINS
             IF (config%stebbsmethod == 1 .OR. config%stebbsmethod == 2) THEN
                IF (Diagnose == 1) WRITE (*, *) 'Calling STEBBS...'
                CALL stebbsonlinecouple( &
+                  zarray, dataoutLineURSL, dataoutLineTRSL, &
                   timer, config, forcing, siteInfo, & ! input
                   modState, & ! input/output:
                   datetimeLine, & ! input
@@ -3675,23 +3678,28 @@ CONTAINS
       ! hhs0, age_0_4, age_5_11, age_12_18, age_19_64, age_65plus, ! NOT USED
       stebbs_Height, &
       FootprintArea, WallExternalArea, RatioInternalVolume, WWR, WallThickness, WallEffectiveConductivity, &
-      WallDensity, WallCp, Wallx1, WallExternalEmissivity, WallInternalEmissivity, WallTransmissivity, &
-      WallAbsorbtivity, WallReflectivity, FloorThickness, GroundFloorEffectiveConductivity, &
+      WallDensity, WallCp, WallextThickness, WallextEffectiveConductivity, WallextDensity, WallextCp, Wallx1, WallExternalEmissivity, WallInternalEmissivity, WallTransmissivity, &
+      WallAbsorbtivity, WallReflectivity, &
+      RoofThickness, RoofEffectiveConductivity, RoofDensity, RoofCp, RoofextThickness, RoofextEffectiveConductivity, RoofextDensity, RoofextCp,&
+      Roofx1, RoofExternalEmissivity, RoofInternalEmissivity, RoofTransmissivity, &
+      RoofAbsorbtivity, RoofReflectivity,&
+      FloorThickness, GroundFloorEffectiveConductivity, &
       GroundFloorDensity, GroundFloorCp, WindowThickness, WindowEffectiveConductivity, &
       WindowDensity, WindowCp, WindowExternalEmissivity, WindowInternalEmissivity, WindowTransmissivity, &
       WindowAbsorbtivity, WindowReflectivity, InternalMassDensity, InternalMassCp, InternalMassEmissivity, &
       MaxHeatingPower, WaterTankWaterVolume, MaximumHotWaterHeatingPower, HeatingSetpointTemperature, &
       CoolingSetpointTemperature, &
-      WallInternalConvectionCoefficient, InternalMassConvectionCoefficient, & ! stebbs general input
+      WallInternalConvectionCoefficient, RoofInternalConvectionCoefficient, InternalMassConvectionCoefficient, & ! stebbs general input
       FloorInternalConvectionCoefficient, WindowInternalConvectionCoefficient, &
-      WallExternalConvectionCoefficient, WindowExternalConvectionCoefficient, &
+      WallExternalConvectionCoefficient, RoofExternalConvectionCoefficient,WindowExternalConvectionCoefficient, &
       GroundDepth, ExternalGroundConductivity, IndoorAirDensity, IndoorAirCp, &
       WallBuildingViewFactor, WallGroundViewFactor, WallSkyViewFactor, &
+      RoofBuildingViewFactor, RoofGroundViewFactor, RoofSkyViewFactor, &
       MetabolicRate, LatentSensibleRatio, ApplianceRating, &
       TotalNumberofAppliances, ApplianceUsageFactor, HeatingSystemEfficiency, &
       MaxCoolingPower, CoolingSystemCOP, VentilationRate, IndoorAirStartTemperature, &
-      IndoorMassStartTemperature, WallIndoorSurfaceTemperature, &
-      WallOutdoorSurfaceTemperature, WindowIndoorSurfaceTemperature, &
+      IndoorMassStartTemperature, WallIndoorSurfaceTemperature, RoofIndoorSurfaceTemperature,&
+      WallOutdoorSurfaceTemperature, RoofOutdoorSurfaceTemperature,WindowIndoorSurfaceTemperature, &
       WindowOutdoorSurfaceTemperature, GroundFloorIndoorSurfaceTemperature, &
       GroundFloorOutdoorSurfaceTemperature, WaterTankTemperature, &
       InternalWallWaterTankTemperature, ExternalWallWaterTankTemperature, &
@@ -4075,10 +4083,12 @@ CONTAINS
       ! ---stebbs related states
       TYPE(STEBBS_STATE) :: stebbsState
       REAL(KIND(1D0)) :: WallInternalConvectionCoefficient
+      REAL(KIND(1D0)) :: RoofInternalConvectionCoefficient
       REAL(KIND(1D0)) :: InternalMassConvectionCoefficient
       REAL(KIND(1D0)) :: FloorInternalConvectionCoefficient
       REAL(KIND(1D0)) :: WindowInternalConvectionCoefficient
       REAL(KIND(1D0)) :: WallExternalConvectionCoefficient
+      REAL(KIND(1D0)) :: RoofExternalConvectionCoefficient
       REAL(KIND(1D0)) :: WindowExternalConvectionCoefficient
       REAL(KIND(1D0)) :: GroundDepth
       REAL(KIND(1D0)) :: ExternalGroundConductivity
@@ -4087,6 +4097,9 @@ CONTAINS
       REAL(KIND(1D0)) :: WallBuildingViewFactor
       REAL(KIND(1D0)) :: WallGroundViewFactor
       REAL(KIND(1D0)) :: WallSkyViewFactor
+      REAL(KIND(1D0)) :: RoofBuildingViewFactor
+      REAL(KIND(1D0)) :: RoofGroundViewFactor
+      REAL(KIND(1D0)) :: RoofSkyViewFactor
       REAL(KIND(1D0)) :: MetabolicRate
       REAL(KIND(1D0)) :: LatentSensibleRatio
       REAL(KIND(1D0)) :: ApplianceRating
@@ -4100,6 +4113,8 @@ CONTAINS
       REAL(KIND(1D0)) :: IndoorMassStartTemperature
       REAL(KIND(1D0)) :: WallIndoorSurfaceTemperature
       REAL(KIND(1D0)) :: WallOutdoorSurfaceTemperature
+      REAL(KIND(1D0)) :: RoofIndoorSurfaceTemperature
+      REAL(KIND(1D0)) :: RoofOutdoorSurfaceTemperature
       REAL(KIND(1D0)) :: WindowIndoorSurfaceTemperature
       REAL(KIND(1D0)) :: WindowOutdoorSurfaceTemperature
       REAL(KIND(1D0)) :: GroundFloorIndoorSurfaceTemperature
@@ -4160,12 +4175,30 @@ CONTAINS
       REAL(KIND(1D0)) :: WallEffectiveConductivity
       REAL(KIND(1D0)) :: WallDensity
       REAL(KIND(1D0)) :: WallCp
+      REAL(KIND(1D0)) :: WallextThickness
+      REAL(KIND(1D0)) :: WallextEffectiveConductivity
+      REAL(KIND(1D0)) :: WallextDensity
+      REAL(KIND(1D0)) :: WallextCp
       REAL(KIND(1D0)) :: Wallx1
       REAL(KIND(1D0)) :: WallExternalEmissivity
       REAL(KIND(1D0)) :: WallInternalEmissivity
       REAL(KIND(1D0)) :: WallTransmissivity
       REAL(KIND(1D0)) :: WallAbsorbtivity
       REAL(KIND(1D0)) :: WallReflectivity
+      REAL(KIND(1D0)) :: RoofThickness
+      REAL(KIND(1D0)) :: RoofEffectiveConductivity
+      REAL(KIND(1D0)) :: RoofDensity
+      REAL(KIND(1D0)) :: RoofCp
+      REAL(KIND(1D0)) :: RoofextThickness
+      REAL(KIND(1D0)) :: RoofextEffectiveConductivity
+      REAL(KIND(1D0)) :: RoofextDensity
+      REAL(KIND(1D0)) :: RoofextCp
+      REAL(KIND(1D0)) :: Roofx1
+      REAL(KIND(1D0)) :: RoofExternalEmissivity
+      REAL(KIND(1D0)) :: RoofInternalEmissivity
+      REAL(KIND(1D0)) :: RoofTransmissivity
+      REAL(KIND(1D0)) :: RoofAbsorbtivity
+      REAL(KIND(1D0)) :: RoofReflectivity
       REAL(KIND(1D0)) :: FloorThickness
       REAL(KIND(1D0)) :: GroundFloorEffectiveConductivity
       REAL(KIND(1D0)) :: GroundFloorDensity
@@ -4923,10 +4956,12 @@ CONTAINS
       ! assign stebbs values
       ! parameters - invariant during the simulation
       stebbsPrm%WallInternalConvectionCoefficient = WallInternalConvectionCoefficient
+      stebbsPrm%RoofInternalConvectionCoefficient = RoofInternalConvectionCoefficient
       stebbsPrm%InternalMassConvectionCoefficient = InternalMassConvectionCoefficient
       stebbsPrm%FloorInternalConvectionCoefficient = FloorInternalConvectionCoefficient
       stebbsPrm%WindowInternalConvectionCoefficient = WindowInternalConvectionCoefficient
       stebbsPrm%WallExternalConvectionCoefficient = WallExternalConvectionCoefficient
+      stebbsPrm%RoofExternalConvectionCoefficient = RoofExternalConvectionCoefficient
       stebbsPrm%WindowExternalConvectionCoefficient = WindowExternalConvectionCoefficient
       stebbsPrm%GroundDepth = GroundDepth
       stebbsPrm%ExternalGroundConductivity = ExternalGroundConductivity
@@ -4935,6 +4970,9 @@ CONTAINS
       stebbsPrm%WallBuildingViewFactor = WallBuildingViewFactor
       stebbsPrm%WallGroundViewFactor = WallGroundViewFactor
       stebbsPrm%WallSkyViewFactor = WallSkyViewFactor
+      stebbsPrm%RoofBuildingViewFactor = RoofBuildingViewFactor
+      stebbsPrm%RoofGroundViewFactor = RoofGroundViewFactor
+      stebbsPrm%RoofSkyViewFactor = RoofSkyViewFactor
       stebbsPrm%MetabolicRate = MetabolicRate
       stebbsPrm%LatentSensibleRatio = LatentSensibleRatio
       stebbsPrm%ApplianceRating = ApplianceRating
@@ -4977,6 +5015,8 @@ CONTAINS
       stebbsState%IndoorMassStartTemperature = IndoorMassStartTemperature
       stebbsState%WallIndoorSurfaceTemperature = WallIndoorSurfaceTemperature
       stebbsState%WallOutdoorSurfaceTemperature = WallOutdoorSurfaceTemperature
+      stebbsState%RoofIndoorSurfaceTemperature = RoofIndoorSurfaceTemperature
+      stebbsState%RoofOutdoorSurfaceTemperature = RoofOutdoorSurfaceTemperature
       stebbsState%WindowIndoorSurfaceTemperature = WindowIndoorSurfaceTemperature
       stebbsState%WindowOutdoorSurfaceTemperature = WindowOutdoorSurfaceTemperature
       stebbsState%GroundFloorIndoorSurfaceTemperature = GroundFloorIndoorSurfaceTemperature
@@ -5033,12 +5073,30 @@ CONTAINS
       building_archtype%WallEffectiveConductivity = WallEffectiveConductivity
       building_archtype%WallDensity = WallDensity
       building_archtype%WallCp = WallCp
+      building_archtype%WallextThickness = WallextThickness
+      building_archtype%WallextEffectiveConductivity = WallextEffectiveConductivity
+      building_archtype%WallextDensity = WallextDensity
+      building_archtype%WallextCp = WallextCp
       building_archtype%Wallx1 = Wallx1
       building_archtype%WallExternalEmissivity = WallExternalEmissivity
       building_archtype%WallInternalEmissivity = WallInternalEmissivity
       building_archtype%WallTransmissivity = WallTransmissivity
       building_archtype%WallAbsorbtivity = WallAbsorbtivity
       building_archtype%WallReflectivity = WallReflectivity
+      building_archtype%RoofThickness = RoofThickness
+      building_archtype%RoofEffectiveConductivity = RoofEffectiveConductivity
+      building_archtype%RoofDensity = RoofDensity
+      building_archtype%RoofCp = RoofCp
+      building_archtype%RoofextThickness = RoofextThickness
+      building_archtype%RoofextEffectiveConductivity = RoofextEffectiveConductivity
+      building_archtype%RoofextDensity = RoofextDensity
+      building_archtype%RoofextCp = RoofextCp
+      building_archtype%Roofx1 = Roofx1
+      building_archtype%RoofExternalEmissivity = RoofExternalEmissivity
+      building_archtype%RoofInternalEmissivity = RoofInternalEmissivity
+      building_archtype%RoofTransmissivity = RoofTransmissivity
+      building_archtype%RoofAbsorbtivity = RoofAbsorbtivity
+      building_archtype%RoofReflectivity = RoofReflectivity
       building_archtype%FloorThickness = FloorThickness
       building_archtype%GroundFloorEffectiveConductivity = GroundFloorEffectiveConductivity
       building_archtype%GroundFloorDensity = GroundFloorDensity

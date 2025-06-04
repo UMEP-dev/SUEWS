@@ -764,7 +764,7 @@ CONTAINS
    SUBROUTINE RSLProfile_DTS( &
       timer, config, forcing, siteInfo, & ! input
       modState, & ! input/output:
-      dataoutLineURSL, dataoutLineTRSL, dataoutLineqRSL, &
+      zarray, dataoutLineURSL, dataoutLineTRSL, dataoutLineqRSL, &
       dataoutLineRSL) ! output
       !-----------------------------------------------------
       ! calculates windprofiles using MOST with a RSL-correction

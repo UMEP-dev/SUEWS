@@ -980,57 +980,153 @@ class ArchetypeProperties(BaseModel):
     )
     WallThickness: ValueWithDOI[float] = Field(
         default=ValueWithDOI(20.0),
-        description="Thickness of external wall and roof (weighted) [m]",
+        description="Thickness of external wall [m]",
         gt=0.0,
     )
     WallEffectiveConductivity: ValueWithDOI[float] = Field(
         default=ValueWithDOI(60.0),
-        description="Effective thermal conductivity of walls and roofs (weighted) [W m-1 K-1]",
+        description="Effective thermal conductivity of walls [W m-1 K-1]",
         gt=0.0,
     )
     WallDensity: ValueWithDOI[float] = Field(
         default=ValueWithDOI(1600.0),
-        description="Effective density of the walls and roof (weighted) [kg m-3]",
+        description="Effective density of the walls [kg m-3]",
         gt=0.0,
     )
     WallCp: ValueWithDOI[float] = Field(
         default=ValueWithDOI(850.0),
-        description="Effective specific heat capacity of walls and roof (weighted) [J kg-1 K-1]",
+        description="Effective specific heat capacity of walls [J kg-1 K-1]",
         gt=0.0,
     )
+    WallextThickness: ValueWithDOI[float] = Field(
+        default=ValueWithDOI(20.0),
+        description="Thickness of layers external to insulation in external wall [m]",
+        gt=0.0,
+    )
+    WallextEffectiveConductivity: ValueWithDOI[float] = Field(
+        default=ValueWithDOI(60.0),
+        description="Effective thermal conductivity of layers external to insulation in walls [W m-1 K-1]",
+        gt=0.0,
+    )
+    WallextDensity: ValueWithDOI[float] = Field(
+        default=ValueWithDOI(1600.0),
+        description="Effective density of layers external to insulation in the walls [kg m-3]",
+        gt=0.0,
+    )
+    WallextCp: ValueWithDOI[float] = Field(
+        default=ValueWithDOI(850.0),
+        description="Effective specific heat capacity of layers external to insulation in walls [J kg-1 K-1]",
+        gt=0.0,
+    )    
     Wallx1: ValueWithDOI[float] = Field(
         default=ValueWithDOI(1.0),
-        description="Weighting factor for heat capacity of walls and roof [-]",
+        description="Weighting factor for heat capacity of walls [-]",
         ge=0.0,
         le=1.0,
     )
     WallExternalEmissivity: ValueWithDOI[float] = Field(
         default=ValueWithDOI(0.9),
-        description="Emissivity of the external surface of walls and roof [-]",
+        description="Emissivity of the external surface of walls [-]",
         ge=0.0,
         le=1.0,
     )
     WallInternalEmissivity: ValueWithDOI[float] = Field(
         default=ValueWithDOI(0.9),
-        description="Emissivity of the internal surface of walls and roof [-]",
+        description="Emissivity of the internal surface of walls [-]",
         ge=0.0,
         le=1.0,
     )
     WallTransmissivity: ValueWithDOI[float] = Field(
         default=ValueWithDOI(0.0),
-        description="Transmissivity of walls and roof [-]",
+        description="Transmissivity of walls [-]",
         ge=0.0,
         le=1.0,
     )
     WallAbsorbtivity: ValueWithDOI[float] = Field(
         default=ValueWithDOI(0.8),
-        description="Absorbtivity of walls and roof [-]",
+        description="Absorbtivity of walls [-]",
         ge=0.0,
         le=1.0,
     )
     WallReflectivity: ValueWithDOI[float] = Field(
         default=ValueWithDOI(0.2),
-        description="Reflectivity of the external surface of walls and roof [-]",
+        description="Reflectivity of the external surface of walls [-]",
+        ge=0.0,
+        le=1.0,
+    )
+    RoofThickness: ValueWithDOI[float] = Field(
+        default=ValueWithDOI(20.0),
+        description="Thickness of external roof [m]",
+        gt=0.0,
+    )
+    RoofEffectiveConductivity: ValueWithDOI[float] = Field(
+        default=ValueWithDOI(60.0),
+        description="Effective thermal conductivity of roof [W m-1 K-1]",
+        gt=0.0,
+    )
+    RoofDensity: ValueWithDOI[float] = Field(
+        default=ValueWithDOI(1600.0),
+        description="Effective density of the roof [kg m-3]",
+        gt=0.0,
+    )
+    RoofCp: ValueWithDOI[float] = Field(
+        default=ValueWithDOI(850.0),
+        description="Effective specific heat capacity of roof [J kg-1 K-1]",
+        gt=0.0,
+    )
+    RoofextThickness: ValueWithDOI[float] = Field(
+        default=ValueWithDOI(20.0),
+        description="Thickness of layers external to insulation in external roof [m]",
+        gt=0.0,
+    )
+    RoofextEffectiveConductivity: ValueWithDOI[float] = Field(
+        default=ValueWithDOI(60.0),
+        description="Effective thermal conductivity of layers external to insulation in roof [W m-1 K-1]",
+        gt=0.0,
+    )
+    RoofextDensity: ValueWithDOI[float] = Field(
+        default=ValueWithDOI(1600.0),
+        description="Effective density of layers external to insulation in the roof [kg m-3]",
+        gt=0.0,
+    )
+    RoofextCp: ValueWithDOI[float] = Field(
+        default=ValueWithDOI(850.0),
+        description="Effective specific heat capacity of layers external to insulation in roof [J kg-1 K-1]",
+        gt=0.0,
+    )
+    Roofx1: ValueWithDOI[float] = Field(
+        default=ValueWithDOI(1.0),
+        description="Weighting factor for heat capacity of roof [-]",
+        ge=0.0,
+        le=1.0,
+    )
+    RoofExternalEmissivity: ValueWithDOI[float] = Field(
+        default=ValueWithDOI(0.9),
+        description="Emissivity of the external surface of roof [-]",
+        ge=0.0,
+        le=1.0,
+    )
+    RoofInternalEmissivity: ValueWithDOI[float] = Field(
+        default=ValueWithDOI(0.9),
+        description="Emissivity of the internal surface of roof [-]",
+        ge=0.0,
+        le=1.0,
+    )
+    RoofTransmissivity: ValueWithDOI[float] = Field(
+        default=ValueWithDOI(0.0),
+        description="Transmissivity of roof [-]",
+        ge=0.0,
+        le=1.0,
+    )
+    RoofAbsorbtivity: ValueWithDOI[float] = Field(
+        default=ValueWithDOI(0.8),
+        description="Absorbtivity of roof [-]",
+        ge=0.0,
+        le=1.0,
+    )
+    RoofReflectivity: ValueWithDOI[float] = Field(
+        default=ValueWithDOI(0.2),
+        description="Reflectivity of the external surface of roof [-]",
         ge=0.0,
         le=1.0,
     )
@@ -1186,8 +1282,12 @@ class ArchetypeProperties(BaseModel):
 class StebbsProperties(BaseModel):
     WallInternalConvectionCoefficient: ValueWithDOI[float] = Field(
         default=ValueWithDOI(0.0),
-        description="Internal convection coefficient of walls and roof [W m-2 K-1]",
+        description="Internal convection coefficient of walls [W m-2 K-1]",
     )
+    RoofInternalConvectionCoefficient: ValueWithDOI[float] = Field(
+        default=ValueWithDOI(0.0),
+        description="Internal convection coefficient of roof [W m-2 K-1]",
+    )    
     InternalMassConvectionCoefficient: ValueWithDOI[float] = Field(
         default=ValueWithDOI(0.0),
         description="Convection coefficient of internal mass [W m-2 K-1]",
@@ -1202,8 +1302,12 @@ class StebbsProperties(BaseModel):
     )
     WallExternalConvectionCoefficient: ValueWithDOI[float] = Field(
         default=ValueWithDOI(0.0),
-        description="Initial external convection coefficient of walls and roof [W m-2 K-1]",
+        description="Initial external convection coefficient of walls [W m-2 K-1]",
     )
+    RoofExternalConvectionCoefficient: ValueWithDOI[float] = Field(
+        default=ValueWithDOI(0.0),
+        description="Initial external convection coefficient of roof [W m-2 K-1]",
+    )   
     WindowExternalConvectionCoefficient: ValueWithDOI[float] = Field(
         default=ValueWithDOI(0.0),
         description="Initial external convection coefficient of windows [W m-2 K-1]",
@@ -1218,7 +1322,7 @@ class StebbsProperties(BaseModel):
     IndoorAirDensity: ValueWithDOI[float] = Field(
         default=ValueWithDOI(0.0), description="Density of indoor air [kg m-3]"
     )
-    IndoorAirCp: ValueWithDOI[float] = Field(
+    IndoorAirCp: ValueWithDOI[float] = Field( 
         default=ValueWithDOI(0.0),
         description="Specific heat capacity of indoor air [J kg-1 K-1]",
     )
@@ -1233,6 +1337,17 @@ class StebbsProperties(BaseModel):
     WallSkyViewFactor: ValueWithDOI[float] = Field(
         default=ValueWithDOI(0.0), description="Sky view factor of external walls [-]"
     )
+    RoofBuildingViewFactor: ValueWithDOI[float] = Field(
+        default=ValueWithDOI(0.0),
+        description="Building view factor of external roof [-]",
+    )
+    RoofGroundViewFactor: ValueWithDOI[float] = Field(
+        default=ValueWithDOI(0.0),
+        description="Ground view factor of external roof [-]",
+    )
+    RoofSkyViewFactor: ValueWithDOI[float] = Field(
+        default=ValueWithDOI(0.0), description="Sky view factor of external roof [-]"
+    )    
     MetabolicRate: ValueWithDOI[float] = Field(
         default=ValueWithDOI(0.0),
         description="Metabolic rate of building occupants [W]",
@@ -1274,12 +1389,20 @@ class StebbsProperties(BaseModel):
     )
     WallIndoorSurfaceTemperature: ValueWithDOI[float] = Field(
         default=ValueWithDOI(0.0),
-        description="Initial wall/roof indoor surface temperature [degC]",
+        description="Initial wall indoor surface temperature [degC]",
     )
     WallOutdoorSurfaceTemperature: ValueWithDOI[float] = Field(
         default=ValueWithDOI(0.0),
-        description="Initial wall/roof outdoor surface temperature [degC]",
+        description="Initial wall outdoor surface temperature [degC]",
     )
+    RoofIndoorSurfaceTemperature: ValueWithDOI[float] = Field(
+        default=ValueWithDOI(0.0),
+        description="Initial roof indoor surface temperature [degC]",
+    )
+    RoofOutdoorSurfaceTemperature: ValueWithDOI[float] = Field(
+        default=ValueWithDOI(0.0),
+        description="Initial roof outdoor surface temperature [degC]",
+    )   
     WindowIndoorSurfaceTemperature: ValueWithDOI[float] = Field(
         default=ValueWithDOI(0.0),
         description="Initial window indoor surface temperature [degC]",

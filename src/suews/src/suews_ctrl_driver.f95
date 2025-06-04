@@ -3672,7 +3672,7 @@ CONTAINS
       WallAbsorbtivity, WallReflectivity, &
       RoofThickness, RoofEffectiveConductivity, RoofDensity, RoofCp, RoofextThickness, RoofextEffectiveConductivity, RoofextDensity, RoofextCp,&
       Roofx1, RoofExternalEmissivity, RoofInternalEmissivity, RoofTransmissivity, &
-      RoofAbsorbtivity, RoofReflectivity,&
+      RoofAbsorbtivity, RoofReflectivity, &
       FloorThickness, GroundFloorEffectiveConductivity, &
       GroundFloorDensity, GroundFloorCp, WindowThickness, WindowEffectiveConductivity, &
       WindowDensity, WindowCp, WindowExternalEmissivity, WindowInternalEmissivity, WindowTransmissivity, &
@@ -3681,15 +3681,15 @@ CONTAINS
       CoolingSetpointTemperature, &
       WallInternalConvectionCoefficient, RoofInternalConvectionCoefficient, InternalMassConvectionCoefficient, & ! stebbs general input
       FloorInternalConvectionCoefficient, WindowInternalConvectionCoefficient, &
-      WallExternalConvectionCoefficient, RoofExternalConvectionCoefficient,WindowExternalConvectionCoefficient, &
+      WallExternalConvectionCoefficient, RoofExternalConvectionCoefficient, WindowExternalConvectionCoefficient, &
       GroundDepth, ExternalGroundConductivity, IndoorAirDensity, IndoorAirCp, &
       WallBuildingViewFactor, WallGroundViewFactor, WallSkyViewFactor, &
       RoofBuildingViewFactor, RoofGroundViewFactor, RoofSkyViewFactor, &
       MetabolicRate, LatentSensibleRatio, ApplianceRating, &
       TotalNumberofAppliances, ApplianceUsageFactor, HeatingSystemEfficiency, &
       MaxCoolingPower, CoolingSystemCOP, VentilationRate, IndoorAirStartTemperature, &
-      IndoorMassStartTemperature, WallIndoorSurfaceTemperature, RoofIndoorSurfaceTemperature,&
-      WallOutdoorSurfaceTemperature, RoofOutdoorSurfaceTemperature,WindowIndoorSurfaceTemperature, &
+      IndoorMassStartTemperature, WallIndoorSurfaceTemperature, RoofIndoorSurfaceTemperature, &
+      WallOutdoorSurfaceTemperature, RoofOutdoorSurfaceTemperature, WindowIndoorSurfaceTemperature, &
       WindowOutdoorSurfaceTemperature, GroundFloorIndoorSurfaceTemperature, &
       GroundFloorOutdoorSurfaceTemperature, WaterTankTemperature, &
       InternalWallWaterTankTemperature, ExternalWallWaterTankTemperature, &

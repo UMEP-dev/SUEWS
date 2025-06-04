@@ -794,19 +794,29 @@ CONTAINS
             Lwest => stebbsState%Lwest &
             )
 
-            wallStatesK(1) = Knorth
-            wallStatesK(2) = Ksouth
-            wallStatesK(3) = Keast
-            wallStatesK(4) = Kwest
-            ! Calculate the mean of the wall states
-            Kwall_sout = SUM(wallStatesK)/SIZE(wallStatesK)
+            IF (config%NetRadiationMethod < 1000) THEN
+               wallStatesK(1) = Knorth
+               wallStatesK(2) = Ksouth
+               wallStatesK(3) = Keast
+               wallStatesK(4) = Kwest
+               ! Calculate the mean of the wall states
+               Kwall_sout = SUM(wallStatesK)/SIZE(wallStatesK)
 
-            ! Calculate the mean of the wall states
-            wallStatesL(1) = Lnorth
-            wallStatesL(2) = Lsouth
-            wallStatesL(3) = Least
-            wallStatesL(4) = Lwest
-            Lwall_sout = SUM(wallStatesL)/SIZE(wallStatesL)
+               ! Calculate the mean of the wall states
+               wallStatesL(1) = Lnorth
+               wallStatesL(2) = Lsouth
+               wallStatesL(3) = Least
+               wallStatesL(4) = Lwest
+               Lwall_sout = SUM(wallStatesL)/SIZE(wallStatesL)
+            ELSE
+               ! If the NetRadiationMethod is 1000 or greater, use the values from SPARTACUS
+               ! Here testing with layer 1 for walls and layer 2 for roofs (dimension up to 15)
+               ! MP TODO: Need to update for dynamic layer selection based on building type
+               Kwall_sout = heatState%wall_in_sw_spc(1)
+               Lwall_sout = heatState%wall_in_lw_spc(1)
+               Kroof_sout = heatState%roof_in_sw_spc(2)
+               Lroof_sout = heatState%roof_in_lw_spc(2)
+            END IF
 
             !       !
             IF (flginit == 0) THEN
@@ -815,163 +825,7 @@ CONTAINS
                ALLOCATE (blds(1))
                resolution = 1
                CALL gen_building(stebbsState, stebbsPrm, building_archtype, blds(1))
-               ! call create_building(cases(1),blds(1),1)
 
-               ! Print out all values of blds(1) to check initialization
-               ! WRITE (*, *) 'Building Type: ', blds(1)%BuildingType
-               ! WRITE (*, *) 'Building Name: ', blds(1)%BuildingName
-               ! WRITE (*, *) 'File Name LBM: ', blds(1)%fnmlLBM
-               ! WRITE (*, *) 'Case: ', blds(1)%CASE
-               ! WRITE (*, *) 'ID LBM: ', blds(1)%idLBM
-               ! WRITE (*, *) 'Flag Init: ', blds(1)%flginit
-               ! WRITE (*, *) 'Total Number of Appliances: ', blds(1)%appliance_totalnumber
-               ! WRITE (*, *) 'Qtotal Heating: ', blds(1)%Qtotal_heating
-               ! WRITE (*, *) 'Qtotal Cooling: ', blds(1)%Qtotal_cooling
-               ! WRITE (*, *) 'Qmetabolic Sensible: ', blds(1)%Qmetabolic_sensible
-               ! WRITE (*, *) 'Qmetabolic Latent: ', blds(1)%Qmetabolic_latent
-               ! WRITE (*, *) 'Qtotal Water Tank: ', blds(1)%Qtotal_water_tank
-               ! WRITE (*, *) 'qhwt Drain: ', blds(1)%qhwtDrain
-               ! WRITE (*, *) 'Ratio Window Wall: ', blds(1)%ratio_window_wall
-               ! WRITE (*, *) 'Afootprint: ', blds(1)%Afootprint
-               ! WRITE (*, *) 'Height Building: ', blds(1)%height_building
-               ! WRITE (*, *) 'Wall External Area: ', blds(1)%wallExternalArea
-               ! WRITE (*, *) 'Ratio Internal Volume: ', blds(1)%ratioInternalVolume
-               ! WRITE (*, *) 'Thickness Wall Roof: ', blds(1)%thickness_wallroof
-               ! WRITE (*, *) 'Thickness Ground Floor: ', blds(1)%thickness_groundfloor
-               ! WRITE (*, *) 'Depth Ground: ', blds(1)%depth_ground
-               ! WRITE (*, *) 'Thickness Window: ', blds(1)%thickness_window
-               ! WRITE (*, *) 'Conv Coeff Int Wall Roof: ', blds(1)%conv_coeff_intwallroof
-               ! WRITE (*, *) 'Conv Coeff Indoor Mass: ', blds(1)%conv_coeff_indoormass
-               ! WRITE (*, *) 'Conv Coeff Int Ground Floor: ', blds(1)%conv_coeff_intgroundfloor
-               ! WRITE (*, *) 'Conv Coeff Int Window: ', blds(1)%conv_coeff_intwindow
-               ! WRITE (*, *) 'Conv Coeff Ext Wall Roof: ', blds(1)%conv_coeff_extwallroof
-               ! WRITE (*, *) 'Conv Coeff Ext Window: ', blds(1)%conv_coeff_extwindow
-               ! WRITE (*, *) 'Conductivity Wall Roof: ', blds(1)%conductivity_wallroof
-               ! WRITE (*, *) 'Conductivity Ground Floor: ', blds(1)%conductivity_groundfloor
-               ! WRITE (*, *) 'Conductivity Window: ', blds(1)%conductivity_window
-               ! WRITE (*, *) 'Conductivity Ground: ', blds(1)%conductivity_ground
-               ! WRITE (*, *) 'Density Wall Roof: ', blds(1)%density_wallroof
-               ! WRITE (*, *) 'Weighting Factor Heat Capacity Wall Roof: ', blds(1)%weighting_factor_heatcapacity_wallroof
-               ! WRITE (*, *) 'Density Ground Floor: ', blds(1)%density_groundfloor
-               ! WRITE (*, *) 'Density Window: ', blds(1)%density_window
-               ! WRITE (*, *) 'Density Indoor Mass: ', blds(1)%density_indoormass
-               ! WRITE (*, *) 'Density Air Indoor: ', blds(1)%density_air_ind
-               ! WRITE (*, *) 'Cp Wall Roof: ', blds(1)%cp_wallroof
-               ! WRITE (*, *) 'Cp Ground Floor: ', blds(1)%cp_groundfloor
-               ! WRITE (*, *) 'Cp Window: ', blds(1)%cp_window
-               ! WRITE (*, *) 'Cp Indoor Mass: ', blds(1)%cp_indoormass
-               ! WRITE (*, *) 'Cp Air Indoor: ', blds(1)%cp_air_ind
-               ! WRITE (*, *) 'Emissivity Ext Wall Roof: ', blds(1)%emissivity_extwallroof
-               ! WRITE (*, *) 'Emissivity Int Wall Roof: ', blds(1)%emissivity_intwallroof
-               ! WRITE (*, *) 'Emissivity Indoor Mass: ', blds(1)%emissivity_indoormass
-               ! WRITE (*, *) 'Emissivity Ext Window: ', blds(1)%emissivity_extwindow
-               ! WRITE (*, *) 'Emissivity Int Window: ', blds(1)%emissivity_intwindow
-               ! WRITE (*, *) 'Window Transmissivity: ', blds(1)%windowTransmissivity
-               ! WRITE (*, *) 'Window Absorptivity: ', blds(1)%windowAbsorbtivity
-               ! WRITE (*, *) 'Window Reflectivity: ', blds(1)%windowReflectivity
-               ! WRITE (*, *) 'Wall Transmissivity: ', blds(1)%wallTransmisivity
-               ! WRITE (*, *) 'Wall Absorptivity: ', blds(1)%wallAbsorbtivity
-               ! WRITE (*, *) 'Wall Reflectivity: ', blds(1)%wallReflectivity
-               ! WRITE (*, *) 'BVF Ext Wall: ', blds(1)%BVF_extwall
-               ! WRITE (*, *) 'GVF Ext Wall: ', blds(1)%GVF_extwall
-               ! WRITE (*, *) 'SVF Ext Wall: ', blds(1)%SVF_extwall
-               ! WRITE (*, *) 'Occupants: ', blds(1)%occupants
-               ! WRITE (*, *) 'Metabolic Rate: ', blds(1)%metabolic_rate
-               ! WRITE (*, *) 'Ratio Metabolic Latent Sensible: ', blds(1)%ratio_metabolic_latent_sensible
-               ! WRITE (*, *) 'Appliance Power Rating: ', blds(1)%appliance_power_rating
-               ! WRITE (*, *) 'Appliance Usage Factor: ', blds(1)%appliance_usage_factor
-               ! WRITE (*, *) 'Max Heating Power Air: ', blds(1)%maxheatingpower_air
-               ! WRITE (*, *) 'Heating Efficiency Air: ', blds(1)%heating_efficiency_air
-               ! WRITE (*, *) 'Max Cooling Power Air: ', blds(1)%maxcoolingpower_air
-               ! WRITE (*, *) 'Coeff Performance Cooling: ', blds(1)%coeff_performance_cooling
-               ! WRITE (*, *) 'Vair Indoor: ', blds(1)%Vair_ind
-               ! WRITE (*, *) 'Ventilation Rate: ', blds(1)%ventilation_rate
-               ! WRITE (*, *) 'Awall Roof: ', blds(1)%Awallroof
-               ! WRITE (*, *) 'Vwall Roof: ', blds(1)%Vwallroof
-               ! WRITE (*, *) 'Vground Floor: ', blds(1)%Vgroundfloor
-               ! WRITE (*, *) 'Awindow: ', blds(1)%Awindow
-               ! WRITE (*, *) 'Vwindow: ', blds(1)%Vwindow
-               ! WRITE (*, *) 'Vindoormass: ', blds(1)%Vindoormass
-               ! WRITE (*, *) 'Aindoormass: ', blds(1)%Aindoormass
-               ! WRITE (*, *) 'Tair Indoor: ', blds(1)%Tair_ind
-               ! WRITE (*, *) 'Tindoormass: ', blds(1)%Tindoormass
-               ! WRITE (*, *) 'Tint Wall Roof: ', blds(1)%Tintwallroof
-               ! WRITE (*, *) 'Text Wall Roof: ', blds(1)%Textwallroof
-               ! WRITE (*, *) 'Tint Window: ', blds(1)%Tintwindow
-               ! WRITE (*, *) 'Text Window: ', blds(1)%Textwindow
-               ! WRITE (*, *) 'Tint Ground Floor: ', blds(1)%Tintgroundfloor
-               ! WRITE (*, *) 'Text Ground Floor: ', blds(1)%Textgroundfloor
-               ! WRITE (*, *) 'Twater Tank: ', blds(1)%Twater_tank
-               ! WRITE (*, *) 'Tint Wall Tank: ', blds(1)%Tintwall_tank
-               ! WRITE (*, *) 'Text Wall Tank: ', blds(1)%Textwall_tank
-               ! WRITE (*, *) 'Thickness Tank Wall: ', blds(1)%thickness_tankwall
-               ! WRITE (*, *) 'Tincoming Water Tank: ', blds(1)%Tincomingwater_tank
-               ! WRITE (*, *) 'Vwater Tank: ', blds(1)%Vwater_tank
-               ! WRITE (*, *) 'Asurf Tank: ', blds(1)%Asurf_tank
-               ! WRITE (*, *) 'Vwall Tank: ', blds(1)%Vwall_tank
-               ! WRITE (*, *) 'Set Twater Tank: ', blds(1)%setTwater_tank
-               ! WRITE (*, *) 'Init Wt Ts: ', blds(1)%init_wtTs
-               ! WRITE (*, *) 'Twater Vessel: ', blds(1)%Twater_vessel
-               ! WRITE (*, *) 'Tint Wall Vessel: ', blds(1)%Tintwall_vessel
-               ! WRITE (*, *) 'Text Wall Vessel: ', blds(1)%Textwall_vessel
-               ! WRITE (*, *) 'Thickness Wall Vessel: ', blds(1)%thickness_wall_vessel
-               ! WRITE (*, *) 'Vwater Vessel: ', blds(1)%Vwater_vessel
-               ! WRITE (*, *) 'Awater Vessel: ', blds(1)%Awater_vessel
-               ! WRITE (*, *) 'Vwall Vessel: ', blds(1)%Vwall_vessel
-               ! WRITE (*, *) 'Flowrate Water Supply: ', blds(1)%flowrate_water_supply
-               ! WRITE (*, *) 'Flowrate Water Drain: ', blds(1)%flowrate_water_drain
-               ! WRITE (*, *) 'Single Flowrate Water Supply: ', blds(1)%single_flowrate_water_supply
-               ! WRITE (*, *) 'Single Flowrate Water Drain: ', blds(1)%single_flowrate_water_drain
-               ! WRITE (*, *) 'Cp Water: ', blds(1)%cp_water
-               ! WRITE (*, *) 'Cp Water Tank: ', blds(1)%cp_water_tank
-               ! WRITE (*, *) 'Cp Wall Tank: ', blds(1)%cp_wall_tank
-               ! WRITE (*, *) 'Cp Wall Vessel: ', blds(1)%cp_wall_vessel
-               ! WRITE (*, *) 'Density Water: ', blds(1)%density_water
-               ! WRITE (*, *) 'Density Wall Tank: ', blds(1)%density_wall_tank
-               ! WRITE (*, *) 'Density Wall Vessel: ', blds(1)%density_wall_vessel
-               ! WRITE (*, *) 'BVF Tank: ', blds(1)%BVF_tank
-               ! WRITE (*, *) 'MVF Tank: ', blds(1)%MVF_tank
-               ! WRITE (*, *) 'Conductivity Wall Tank: ', blds(1)%conductivity_wall_tank
-               ! WRITE (*, *) 'Conv Coeff Int Wall Tank: ', blds(1)%conv_coeff_intwall_tank
-               ! WRITE (*, *) 'Conv Coeff Ext Wall Tank: ', blds(1)%conv_coeff_extwall_tank
-               ! WRITE (*, *) 'Emissivity Ext Wall Tank: ', blds(1)%emissivity_extwall_tank
-               ! WRITE (*, *) 'Conductivity Wall Vessel: ', blds(1)%conductivity_wall_vessel
-               ! WRITE (*, *) 'Conv Coeff Int Wall Vessel: ', blds(1)%conv_coeff_intwall_vessel
-               ! WRITE (*, *) 'Conv Coeff Ext Wall Vessel: ', blds(1)%conv_coeff_extwall_vessel
-               ! WRITE (*, *) 'Emissivity Ext Wall Vessel: ', blds(1)%emissivity_extwall_vessel
-               ! WRITE (*, *) 'Max Heating Power Water: ', blds(1)%maxheatingpower_water
-               ! WRITE (*, *) 'Heating Efficiency Water: ', blds(1)%heating_efficiency_water
-               ! WRITE (*, *) 'Min Vwater Vessel: ', blds(1)%minVwater_vessel
-               ! WRITE (*, *) 'Min Heating Power DHW: ', blds(1)%minHeatingPower_DHW
-               ! WRITE (*, *) 'Heating Power DHW: ', blds(1)%HeatingPower_DHW
-               ! WRITE (*, *) 'Ts: ', blds(1)%Ts
-               ! WRITE (*, *) 'Init Ts: ', blds(1)%initTs
-               ! WRITE (*, *) 'h_i: ', blds(1)%h_i
-               ! WRITE (*, *) 'k_eff: ', blds(1)%k_eff
-               ! WRITE (*, *) 'h_o: ', blds(1)%h_o
-               ! WRITE (*, *) 'rho: ', blds(1)%rho
-               ! WRITE (*, *) 'Cp: ', blds(1)%Cp
-               ! WRITE (*, *) 'emis: ', blds(1)%emis
-               ! WRITE (*, *) 'wiTAR: ', blds(1)%wiTAR
-               ! WRITE (*, *) 'waTAR: ', blds(1)%waTAR
-               ! WRITE (*, *) 'viewFactors: ', blds(1)%viewFactors
-               ! WRITE (*, *) 'occupantData: ', blds(1)%occupantData
-               ! WRITE (*, *) 'HTsAverage: ', blds(1)%HTsAverage
-               ! WRITE (*, *) 'HWTsAverage: ', blds(1)%HWTsAverage
-               ! WRITE (*, *) 'HWPowerAverage: ', blds(1)%HWPowerAverage
-               ! WRITE (*, *) 'Energy Exchanges: ', blds(1)%EnergyExchanges
-               ! WRITE (*, *) 'qfm_dom: ', blds(1)%qfm_dom
-               ! WRITE (*, *) 'qheat_dom: ', blds(1)%qheat_dom
-               ! WRITE (*, *) 'qcool_dom: ', blds(1)%qcool_dom
-               ! WRITE (*, *) 'qfb_hw_dom: ', blds(1)%qfb_hw_dom
-               ! WRITE (*, *) 'qfb_dom_air: ', blds(1)%qfb_dom_air
-               ! WRITE (*, *) 'dom_temp: ', blds(1)%dom_temp
-               ! WRITE (*, *) 'QStar: ', blds(1)%QStar
-               ! WRITE (*, *) 'QEC: ', blds(1)%QEC
-               ! WRITE (*, *) 'QH: ', blds(1)%QH
-               ! WRITE (*, *) 'QS: ', blds(1)%QS
-               ! WRITE (*, *) 'QBAE: ', blds(1)%QBAE
-               ! WRITE (*, *) 'QWaste: ', blds(1)%QWaste
                sout%ntstep = 1
                ALLOCATE (sout%datetime(sout%ntstep))
                ALLOCATE (sout%hourmin(sout%ntstep))

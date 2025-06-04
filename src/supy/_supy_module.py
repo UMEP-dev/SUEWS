@@ -38,6 +38,7 @@ from ._load import (
 from ._run import run_supy_par, run_supy_ser
 from ._save import get_save_info, save_df_output, save_df_state, save_initcond_nml
 from ._post import resample_output
+from ._version import __version__
 
 # from .util._config import init_config_from_yaml
 from .data_model import init_config_from_yaml
@@ -446,6 +447,7 @@ def run_supy(
 
     # print some diagnostic info
     logger_supy.info(f"====================")
+    logger_supy.info(f"SUEWS version: {__version__}")
     logger_supy.info(f"Simulation period:")
     logger_supy.info(f"  Start: {df_forcing.index[0]}")
     logger_supy.info(f"  End: {df_forcing.index[-1]}")
@@ -455,10 +457,10 @@ def run_supy(
     logger_supy.info(f"No. of grids: {n_grid}")
 
     if n_grid > 1 and os.name != "nt" and (not serial_mode):
-        logger_supy.info(f"SuPy is running in parallel mode")
+        logger_supy.info(f"SUEWS is running in parallel mode")
         res_supy = run_supy_par(df_forcing, df_state_init, save_state, chunk_day, debug_mode)
     else:
-        logger_supy.info(f"SuPy is running in serial mode")
+        logger_supy.info(f"SUEWS is running in serial mode")
         res_supy = run_supy_ser(df_forcing, df_state_init, save_state, chunk_day, debug_mode)
         # try:
         #     res_supy = run_supy_ser(df_forcing, df_state_init, save_state, chunk_day)

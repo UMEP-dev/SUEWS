@@ -424,3 +424,5 @@ quick-test-script.py
 # binary files
 SUEWS_V20*
 
+# quick test script
+quick-test.py

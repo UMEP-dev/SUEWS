@@ -66,7 +66,7 @@ jobs:
             python-version: 3.12
 
       - name: Build wheels
-        uses: pypa/cibuildwheel@v2.20
+        uses: pypa/cibuildwheel@v2.23.3
 
       - name: Setup tmate session for debugging
         if: failure()

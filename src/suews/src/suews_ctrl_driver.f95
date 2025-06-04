@@ -116,7 +116,7 @@ CONTAINS
       TYPE(SUEWS_STATE) :: modState_tstepstart
 
       ! these local variables are used in iteration
-      INTEGER, PARAMETER :: max_iter = 30 ! maximum number of iteration
+      INTEGER, PARAMETER :: max_iter = 60 ! maximum number of iteration
 
       ! ####################################################################################
       ASSOCIATE ( &
@@ -256,7 +256,7 @@ CONTAINS
             ! through iterations, the surface temperature is examined to be converged
             i_iter = 1
             ! max_iter = 30
-            DO WHILE ((.NOT. flag_converge) .AND. i_iter < max_iter)
+            DO WHILE (i_iter < 3 .OR. ((.NOT. flag_converge) .AND. (i_iter < max_iter)))
                IF (diagnose == 1) THEN
                   PRINT *, '=========================== '
                   PRINT *, 'iteration is ', i_iter
@@ -264,7 +264,7 @@ CONTAINS
                ! ========================================================================================
                ! #374: solve the issue of iteration safety
                ! IMPORTANT: restore some initial states as they SHOULD NOT be changed during iterations
-               IF ((.NOT. flag_converge) .AND. i_iter > 1) THEN
+               IF (((.NOT. flag_converge) .AND. i_iter > 1) .OR. (flag_converge .AND. i_iter == 2)) THEN
                   CALL modState%check_and_reset_states(modState_tstepstart)
                END IF
                ! ========================================================================================
@@ -444,7 +444,6 @@ CONTAINS
                ! IF (i_iter == 1) THEN
                !    modState_tstepstart = modState
                ! END IF
-
                i_iter = i_iter + 1
                IF (i_iter == max_iter .AND. .NOT. flag_converge) THEN
                   IF (diagnose == 1) PRINT *, 'Iteration did not converge in', i_iter, ' iterations'
@@ -455,6 +454,14 @@ CONTAINS
 
                !==============main calculation end=======================
             END DO ! end iteration for tsurf calculations
+
+            ! MP: Add test for QH zL signs - recalculate zL if the same
+            IF (modState%heatState%QH*modState%atmState%zL > 0) THEN
+               IF (Diagnose == 1) WRITE (*, *) 'Calling SUEWS_cal_Resistance...'
+               CALL SUEWS_cal_Resistance( &
+                  timer, config, forcing, siteInfo, & ! input
+                  modState) ! input/output:
+            END IF
 
             !==============================================================
             ! Calculate diagnostics: these variables are decoupled from the main SUEWS calculation
@@ -470,14 +477,15 @@ CONTAINS
                debugState%state_13_rsl = modState
             END IF
 
-            ! ============ BIOGENIC CO2 FLUX =======================
-            IF (Diagnose == 1) WRITE (*, *) 'Calling SUEWS_cal_BiogenCO2_DTS...'
-            CALL SUEWS_cal_BiogenCO2( &
-               timer, config, forcing, siteInfo, & ! input
-               modState) ! input/output:
-            IF (config%flag_test .AND. PRESENT(debugState)) THEN
-               debugState%state_14_biogenco2 = modState
-            END IF
+!             ! SG 05/25: Subroutine commented out until checked
+!             ! ============ BIOGENIC CO2 FLUX =======================
+!             IF (Diagnose == 1) WRITE (*, *) 'Calling SUEWS_cal_BiogenCO2_DTS...'
+!             CALL SUEWS_cal_BiogenCO2( &
+!                timer, config, forcing, siteInfo, & ! input
+!                modState) ! input/output:
+!             IF (config%flag_test .AND. PRESENT(debugState)) THEN
+!                debugState%state_14_biogenco2 = modState
+!             END IF
 
             ! calculations of diagnostics end
             !==============================================================
@@ -741,7 +749,8 @@ CONTAINS
             ! if (NetRadiationMethod < 10 .or. NetRadiationMethod > 100) exit
 
             ! Test if sensible heat fluxes converge in iterations
-            IF (dif_tsfc_iter > .1) THEN
+            ! MP Testing 0.1 -> 0.05
+            IF (dif_tsfc_iter > .05) THEN
                flag_converge = .FALSE.
             ELSE
                flag_converge = .TRUE.
@@ -931,192 +940,193 @@ CONTAINS
    END SUBROUTINE SUEWS_cal_AnthropogenicEmission
 ! ================================================================================
 
-!==============BIOGENIC CO2 flux==================================================
-   SUBROUTINE SUEWS_cal_BiogenCO2( &
-      timer, config, forcing, siteInfo, & ! input
-      modState) ! input/output:
-
-      USE SUEWS_DEF_DTS, ONLY: LC_EVETR_PRM, LC_DECTR_PRM, LC_GRASS_PRM, &
-                               SUEWS_CONFIG, CONDUCTANCE_PRM, SUEWS_FORCING, &
-                               SUEWS_TIMER, PHENOLOGY_STATE, SNOW_STATE, atm_state, &
-                               SUEWS_STATE
-
-      IMPLICIT NONE
-
-      TYPE(SUEWS_CONFIG), INTENT(IN) :: config
-      TYPE(SUEWS_TIMER), INTENT(IN) :: timer
-      TYPE(SUEWS_FORCING), INTENT(IN) :: forcing
-      TYPE(SUEWS_SITE), INTENT(IN) :: siteInfo
-
-      TYPE(SUEWS_STATE), INTENT(INout) :: modState
-
-      REAL(KIND(1D0)) :: gfunc2 !gdq*gtemp*gs*gq for photosynthesis calculations (With modelled 2 meter temperature)
-      REAL(KIND(1D0)) :: dq !Specific humidity deficit [g/kg]
-      REAL(KIND(1D0)) :: t2 !air temperature at 2m [degC]
-      REAL(KIND(1D0)) :: dummy1 !Latent heat of vaporization in [J kg-1]
-      REAL(KIND(1D0)) :: dummy2 !Latent heat of sublimation in J/kg
-      REAL(KIND(1D0)) :: dummy3 !Saturation vapour pressure over water[hPa]
-      REAL(KIND(1D0)) :: dummy4 !Vapour pressure of water[hpa]
-      REAL(KIND(1D0)) :: dummy5 !vapour pressure deficit[hpa]
-      REAL(KIND(1D0)) :: dummy6 !vapour pressure deficit[pa]
-      REAL(KIND(1D0)) :: dummy7 !Vap density or absolute humidity [kg m-3]
-      REAL(KIND(1D0)) :: dummy8 !specific heat capacity [J kg-1 K-1]
-      REAL(KIND(1D0)) :: dummy9 !Air density [kg m-3]
-      REAL(KIND(1D0)) :: dummy10 !Surface Layer Conductance [mm s-1]
-      REAL(KIND(1D0)) :: dummy11 !Surface resistance [s m-1]
-
-      ASSOCIATE ( &
-         atmState => modState%atmState, &
-         phenState => modState%phenState, &
-         snowState => modState%snowState, &
-         hydroState => modState%hydroState, &
-         anthroEmisState => modState%anthroEmisState &
-         )
-
-         ASSOCIATE ( &
-            pavedPrm => siteInfo%lc_paved, &
-            bldgPrm => siteInfo%lc_bldg, &
-            evetrPrm => siteInfo%lc_evetr, &
-            dectrPrm => siteInfo%lc_dectr, &
-            grassPrm => siteInfo%lc_grass, &
-            bsoilPrm => siteInfo%lc_bsoil, &
-            waterPrm => siteInfo%lc_water, &
-            ehcPrm => siteInfo%ehc, &
-            nlayer => siteInfo%nlayer, &
-            sfr_surf => siteInfo%sfr_surf, &
-            sfr_roof => siteInfo%sfr_roof, &
-            sfr_wall => siteInfo%sfr_wall, &
-            SurfaceArea => siteInfo%SurfaceArea, &
-            snowPrm => siteInfo%snow, &
-            PipeCapacity => siteInfo%PipeCapacity, &
-            RunoffToWater => siteInfo%RunoffToWater, &
-            FlowChange => siteInfo%FlowChange, &
-            PervFraction => siteInfo%PervFraction, &
-            vegfraction => siteInfo%vegfraction, &
-            NonWaterFraction => siteInfo%NonWaterFraction, &
-            zMeas => siteInfo%z, &
-            conductancePrm => siteInfo%conductance, &
-            tstep_real => timer%tstep_real, &
-            avkdn => forcing%kdown, &
-            xsmd => forcing%xsmd, &
-            Temp_C => forcing%Temp_C, &
-            avU1 => forcing%U, &
-            avRH => forcing%RH, &
-            Press_hPa => forcing%pres, &
-            RA_h => atmState%RA_h, &
-            avdens => atmState%avdens, &
-            avcp => atmState%avcp, &
-            lv_J_kg => atmState%lv_J_kg, &
-            L_MOD => atmState%L_MOD, &
-            t2_C => atmState%t2_C, &
-            LAI_id => phenState%LAI_id, &
-            gfunc => phenState%gfunc, &
-            vsmd => hydroState%vsmd, &
-            id => timer%id, &
-            it => timer%it, &
-            dectime => timer%dectime, &
-            Fc_anthro => anthroEmisState%Fc_anthro, &
-            Fc => anthroEmisState%Fc, &
-            Fc_biogen => anthroEmisState%Fc_biogen, &
-            Fc_photo => anthroEmisState%Fc_photo, &
-            Fc_respi => anthroEmisState%Fc_respi, &
-            SnowFrac => snowState%SnowFrac, &
-            SMDMethod => config%SMDMethod, &
-            storageheatmethod => config%StorageHeatMethod, &
-            DiagMethod => config%DiagMethod, &
-            StabilityMethod => config%StabilityMethod, &
-            EmissionsMethod => config%EmissionsMethod, &
-            Diagnose => config%Diagnose &
-            )
-
-            ASSOCIATE ( &
-               alpha_bioCO2 => [evetrPrm%bioco2%alpha_bioco2, &
-                                dectrPrm%bioco2%alpha_bioco2, &
-                                grassPrm%bioco2%alpha_bioco2], &
-               alpha_enh_bioCO2 => [evetrPrm%bioco2%alpha_enh_bioco2, &
-                                    dectrPrm%bioco2%alpha_enh_bioco2, &
-                                    grassPrm%bioco2%alpha_enh_bioco2], &
-               beta_bioCO2 => [evetrPrm%bioco2%beta_bioCO2, &
-                               dectrPrm%bioco2%beta_bioCO2, &
-                               grassPrm%bioco2%beta_bioCO2], &
-               beta_enh_bioCO2 => [evetrPrm%bioco2%beta_enh_bioco2, &
-                                   dectrPrm%bioco2%beta_enh_bioco2, &
-                                   grassPrm%bioco2%beta_enh_bioco2], &
-               LAIMin => [evetrPrm%lai%laimin, dectrPrm%lai%laimin, grassPrm%lai%laimin], &
-               LAIMax => [evetrPrm%lai%laimax, dectrPrm%lai%laimax, grassPrm%lai%laimax], &
-               min_res_bioCO2 => [evetrPrm%bioco2%min_res_bioCO2, &
-                                  dectrPrm%bioco2%min_res_bioCO2, &
-                                  grassPrm%bioco2%min_res_bioCO2], &
-               resp_a => [evetrPrm%bioco2%resp_a, dectrPrm%bioco2%resp_a, grassPrm%bioco2%resp_a], &
-               resp_b => [evetrPrm%bioco2%resp_b, dectrPrm%bioco2%resp_b, grassPrm%bioco2%resp_b], &
-               theta_bioCO2 => [evetrPrm%bioco2%theta_bioCO2, &
-                                dectrPrm%bioco2%theta_bioCO2, &
-                                grassPrm%bioco2%theta_bioco2], &
-               MaxConductance => [evetrPrm%MaxConductance, dectrPrm%MaxConductance, grassPrm%MaxConductance], &
-               G_max => conductancePrm%g_max, &
-               G_k => conductancePrm%g_k, &
-               G_q_base => conductancePrm%g_q_base, &
-               G_q_shape => conductancePrm%g_q_shape, &
-               G_t => conductancePrm%g_t, &
-               G_sm => conductancePrm%g_sm, &
-               gsmodel => conductancePrm%gsmodel, &
-               Kmax => conductancePrm%Kmax, &
-               S1 => conductancePrm%S1, &
-               S2 => conductancePrm%S2, &
-               TH => conductancePrm%TH, &
-               TL => conductancePrm%TL &
-               )
-
-               IF (EmissionsMethod >= 11) THEN
-
-                  IF (gsmodel == 3 .OR. gsmodel == 4) THEN ! With modelled 2 meter temperature
-                     ! Call LUMPS_cal_AtmMoist for dq and SurfaceResistance for gfunc with 2 meter temperature
-                     ! If modelled 2 meter temperature is too different from measured air temperature then
-                     ! use temp_c
-                     IF (ABS(Temp_C - t2_C) > 5) THEN
-                        t2 = Temp_C
-                     ELSE
-                        t2 = t2_C
-                     END IF
-
-                     CALL cal_AtmMoist( &
-                        t2, Press_hPa, avRh, dectime, & ! input:
-                        dummy1, dummy2, & ! output:
-                        dummy3, dummy4, dummy5, dummy6, dq, dummy7, dummy8, dummy9)
-
-                     CALL SurfaceResistance( &
-                        id, it, & ! input:
-                        SMDMethod, SnowFrac, sfr_surf, avkdn, t2, dq, xsmd, vsmd, MaxConductance, &
-                        LAIMax, LAI_id, gsModel, Kmax, &
-                        G_max, G_k, G_q_base, G_q_shape, G_t, G_sm, TH, TL, S1, S2, &
-                        dummy10, dummy10, dummy10, dummy10, dummy10, & ! output:
-                        gfunc2, dummy10, dummy11) ! output:
-                  END IF
-
-                  ! Calculate CO2 fluxes from biogenic components
-                  IF (Diagnose == 1) WRITE (*, *) 'Calling CO2_biogen...'
-                  CALL CO2_biogen( &
-                     alpha_bioCO2, alpha_enh_bioCO2, avkdn, beta_bioCO2, beta_enh_bioCO2, BSoilSurf, & ! input:
-                     ConifSurf, DecidSurf, dectime, EmissionsMethod, gfunc, gfunc2, GrassSurf, gsmodel, &
-                     id, it, ivConif, ivDecid, ivGrass, LAI_id, LAIMin, LAIMax, min_res_bioCO2, nsurf, &
-                     NVegSurf, resp_a, resp_b, sfr_surf, SnowFrac, t2, Temp_C, theta_bioCO2, &
-                     Fc_biogen, Fc_photo, Fc_respi) ! output:
-               END IF
-
-               IF (EmissionsMethod >= 0 .AND. EmissionsMethod <= 6) THEN
-                  Fc_biogen = 0
-                  Fc_photo = 0
-                  Fc_respi = 0
-               END IF
-
-               Fc = Fc_anthro + Fc_biogen
-
-            END ASSOCIATE
-         END ASSOCIATE
-      END ASSOCIATE
-
-   END SUBROUTINE SUEWS_cal_BiogenCO2
-!========================================================================
+! ! SG 05/25: Need finishing/fixing - dummy variables causing compiler warnings
+! !==============BIOGENIC CO2 flux==================================================
+!    SUBROUTINE SUEWS_cal_BiogenCO2( &
+!       timer, config, forcing, siteInfo, & ! input
+!       modState) ! input/output:
+!
+!       USE SUEWS_DEF_DTS, ONLY: LC_EVETR_PRM, LC_DECTR_PRM, LC_GRASS_PRM, &
+!                                SUEWS_CONFIG, CONDUCTANCE_PRM, SUEWS_FORCING, &
+!                                SUEWS_TIMER, PHENOLOGY_STATE, SNOW_STATE, atm_state, &
+!                                SUEWS_STATE
+!
+!       IMPLICIT NONE
+!
+!       TYPE(SUEWS_CONFIG), INTENT(IN) :: config
+!       TYPE(SUEWS_TIMER), INTENT(IN) :: timer
+!       TYPE(SUEWS_FORCING), INTENT(IN) :: forcing
+!       TYPE(SUEWS_SITE), INTENT(IN) :: siteInfo
+!
+!       TYPE(SUEWS_STATE), INTENT(INout) :: modState
+!
+!       REAL(KIND(1D0)) :: gfunc2 !gdq*gtemp*gs*gq for photosynthesis calculations (With modelled 2 meter temperature)
+!       REAL(KIND(1D0)) :: dq !Specific humidity deficit [g/kg]
+!       REAL(KIND(1D0)) :: t2 !air temperature at 2m [degC]
+!       REAL(KIND(1D0)) :: dummy1 !Latent heat of vaporization in [J kg-1]
+!       REAL(KIND(1D0)) :: dummy2 !Latent heat of sublimation in J/kg
+!       REAL(KIND(1D0)) :: dummy3 !Saturation vapour pressure over water[hPa]
+!       REAL(KIND(1D0)) :: dummy4 !Vapour pressure of water[hpa]
+!       REAL(KIND(1D0)) :: dummy5 !vapour pressure deficit[hpa]
+!       REAL(KIND(1D0)) :: dummy6 !vapour pressure deficit[pa]
+!       REAL(KIND(1D0)) :: dummy7 !Vap density or absolute humidity [kg m-3]
+!       REAL(KIND(1D0)) :: dummy8 !specific heat capacity [J kg-1 K-1]
+!       REAL(KIND(1D0)) :: dummy9 !Air density [kg m-3]
+!       REAL(KIND(1D0)) :: dummy10 !Surface Layer Conductance [mm s-1]
+!       REAL(KIND(1D0)) :: dummy11 !Surface resistance [s m-1]
+!
+!       ASSOCIATE ( &
+!          atmState => modState%atmState, &
+!          phenState => modState%phenState, &
+!          snowState => modState%snowState, &
+!          hydroState => modState%hydroState, &
+!          anthroEmisState => modState%anthroEmisState &
+!          )
+!
+!          ASSOCIATE ( &
+!             pavedPrm => siteInfo%lc_paved, &
+!             bldgPrm => siteInfo%lc_bldg, &
+!             evetrPrm => siteInfo%lc_evetr, &
+!             dectrPrm => siteInfo%lc_dectr, &
+!             grassPrm => siteInfo%lc_grass, &
+!             bsoilPrm => siteInfo%lc_bsoil, &
+!             waterPrm => siteInfo%lc_water, &
+!             ehcPrm => siteInfo%ehc, &
+!             nlayer => siteInfo%nlayer, &
+!             sfr_surf => siteInfo%sfr_surf, &
+!             sfr_roof => siteInfo%sfr_roof, &
+!             sfr_wall => siteInfo%sfr_wall, &
+!             SurfaceArea => siteInfo%SurfaceArea, &
+!             snowPrm => siteInfo%snow, &
+!             PipeCapacity => siteInfo%PipeCapacity, &
+!             RunoffToWater => siteInfo%RunoffToWater, &
+!             FlowChange => siteInfo%FlowChange, &
+!             PervFraction => siteInfo%PervFraction, &
+!             vegfraction => siteInfo%vegfraction, &
+!             NonWaterFraction => siteInfo%NonWaterFraction, &
+!             zMeas => siteInfo%z, &
+!             conductancePrm => siteInfo%conductance, &
+!             tstep_real => timer%tstep_real, &
+!             avkdn => forcing%kdown, &
+!             xsmd => forcing%xsmd, &
+!             Temp_C => forcing%Temp_C, &
+!             avU1 => forcing%U, &
+!             avRH => forcing%RH, &
+!             Press_hPa => forcing%pres, &
+!             RA_h => atmState%RA_h, &
+!             avdens => atmState%avdens, &
+!             avcp => atmState%avcp, &
+!             lv_J_kg => atmState%lv_J_kg, &
+!             L_MOD => atmState%L_MOD, &
+!             t2_C => atmState%t2_C, &
+!             LAI_id => phenState%LAI_id, &
+!             gfunc => phenState%gfunc, &
+!             vsmd => hydroState%vsmd, &
+!             id => timer%id, &
+!             it => timer%it, &
+!             dectime => timer%dectime, &
+!             Fc_anthro => anthroEmisState%Fc_anthro, &
+!             Fc => anthroEmisState%Fc, &
+!             Fc_biogen => anthroEmisState%Fc_biogen, &
+!             Fc_photo => anthroEmisState%Fc_photo, &
+!             Fc_respi => anthroEmisState%Fc_respi, &
+!             SnowFrac => snowState%SnowFrac, &
+!             SMDMethod => config%SMDMethod, &
+!             storageheatmethod => config%StorageHeatMethod, &
+!             DiagMethod => config%DiagMethod, &
+!             StabilityMethod => config%StabilityMethod, &
+!             EmissionsMethod => config%EmissionsMethod, &
+!             Diagnose => config%Diagnose &
+!             )
+!
+!             ASSOCIATE ( &
+!                alpha_bioCO2 => [evetrPrm%bioco2%alpha_bioco2, &
+!                                 dectrPrm%bioco2%alpha_bioco2, &
+!                                 grassPrm%bioco2%alpha_bioco2], &
+!                alpha_enh_bioCO2 => [evetrPrm%bioco2%alpha_enh_bioco2, &
+!                                     dectrPrm%bioco2%alpha_enh_bioco2, &
+!                                     grassPrm%bioco2%alpha_enh_bioco2], &
+!                beta_bioCO2 => [evetrPrm%bioco2%beta_bioCO2, &
+!                                dectrPrm%bioco2%beta_bioCO2, &
+!                                grassPrm%bioco2%beta_bioCO2], &
+!                beta_enh_bioCO2 => [evetrPrm%bioco2%beta_enh_bioco2, &
+!                                    dectrPrm%bioco2%beta_enh_bioco2, &
+!                                    grassPrm%bioco2%beta_enh_bioco2], &
+!                LAIMin => [evetrPrm%lai%laimin, dectrPrm%lai%laimin, grassPrm%lai%laimin], &
+!                LAIMax => [evetrPrm%lai%laimax, dectrPrm%lai%laimax, grassPrm%lai%laimax], &
+!                min_res_bioCO2 => [evetrPrm%bioco2%min_res_bioCO2, &
+!                                   dectrPrm%bioco2%min_res_bioCO2, &
+!                                   grassPrm%bioco2%min_res_bioCO2], &
+!                resp_a => [evetrPrm%bioco2%resp_a, dectrPrm%bioco2%resp_a, grassPrm%bioco2%resp_a], &
+!                resp_b => [evetrPrm%bioco2%resp_b, dectrPrm%bioco2%resp_b, grassPrm%bioco2%resp_b], &
+!                theta_bioCO2 => [evetrPrm%bioco2%theta_bioCO2, &
+!                                 dectrPrm%bioco2%theta_bioCO2, &
+!                                 grassPrm%bioco2%theta_bioco2], &
+!                MaxConductance => [evetrPrm%MaxConductance, dectrPrm%MaxConductance, grassPrm%MaxConductance], &
+!                G_max => conductancePrm%g_max, &
+!                G_k => conductancePrm%g_k, &
+!                G_q_base => conductancePrm%g_q_base, &
+!                G_q_shape => conductancePrm%g_q_shape, &
+!                G_t => conductancePrm%g_t, &
+!                G_sm => conductancePrm%g_sm, &
+!                gsmodel => conductancePrm%gsmodel, &
+!                Kmax => conductancePrm%Kmax, &
+!                S1 => conductancePrm%S1, &
+!                S2 => conductancePrm%S2, &
+!                TH => conductancePrm%TH, &
+!                TL => conductancePrm%TL &
+!                )
+!
+!                IF (EmissionsMethod >= 11) THEN
+!
+!                   IF (gsmodel == 3 .OR. gsmodel == 4) THEN ! With modelled 2 meter temperature
+!                      ! Call LUMPS_cal_AtmMoist for dq and SurfaceResistance for gfunc with 2 meter temperature
+!                      ! If modelled 2 meter temperature is too different from measured air temperature then
+!                      ! use temp_c
+!                      IF (ABS(Temp_C - t2_C) > 5) THEN
+!                         t2 = Temp_C
+!                      ELSE
+!                         t2 = t2_C
+!                      END IF
+!
+!                      CALL cal_AtmMoist( &
+!                         t2, Press_hPa, avRh, dectime, & ! input:
+!                         dummy1, dummy2, & ! output:
+!                         dummy3, dummy4, dummy5, dummy6, dq, dummy7, dummy8, dummy9)
+!                      !MP: TODO FIX CO2!!! Equations for dummy10 all different assigned to one variable
+!                      CALL SurfaceResistance( &
+!                         id, it, & ! input:
+!                         SMDMethod, SnowFrac, sfr_surf, avkdn, t2, dq, xsmd, vsmd, MaxConductance, &
+!                         LAIMax, LAI_id, gsModel, Kmax, &
+!                         G_max, G_k, G_q_base, G_q_shape, G_t, G_sm, TH, TL, S1, S2, &
+!                         dummy10, dummy10, dummy10, dummy10, dummy10, & ! output:
+!                         gfunc2, dummy10, dummy11) ! output:
+!                   END IF
+!
+! !                   ! Calculate CO2 fluxes from biogenic components
+!                   IF (Diagnose == 1) WRITE (*, *) 'Calling CO2_biogen...'
+!                   CALL CO2_biogen( &
+!                      alpha_bioCO2, alpha_enh_bioCO2, avkdn, beta_bioCO2, beta_enh_bioCO2, BSoilSurf, & ! input:
+!                      ConifSurf, DecidSurf, dectime, EmissionsMethod, gfunc, gfunc2, GrassSurf, gsmodel, &
+!                      id, it, ivConif, ivDecid, ivGrass, LAI_id, LAIMin, LAIMax, min_res_bioCO2, nsurf, &
+!                      NVegSurf, resp_a, resp_b, sfr_surf, SnowFrac, t2, Temp_C, theta_bioCO2, &
+!                      Fc_biogen, Fc_photo, Fc_respi) ! output:
+!                END IF
+!
+!                IF (EmissionsMethod >= 0 .AND. EmissionsMethod <= 6) THEN
+!                   Fc_biogen = 0
+!                   Fc_photo = 0
+!                   Fc_respi = 0
+!                END IF
+!
+!                Fc = Fc_anthro + Fc_biogen
+!
+!             END ASSOCIATE
+!          END ASSOCIATE
+!       END ASSOCIATE
+!
+!    END SUBROUTINE SUEWS_cal_BiogenCO2
+! !========================================================================
 
 !=============net all-wave radiation=====================================
 
@@ -1261,7 +1271,11 @@ CONTAINS
                tau_f => snowPrm%tau_f, &
                SnowAlbMax => snowPrm%SnowAlbMax, &
                SnowAlbMin => snowPrm%SnowAlbMin, &
-               NARP_EMIS_SNOW => snowPrm%NARP_EMIS_SNOW &
+               NARP_EMIS_SNOW => snowPrm%NARP_EMIS_SNOW, &
+               roof_in_sw_spc => heatState%roof_in_sw_spc, &
+               roof_in_lw_spc => heatState%roof_in_lw_spc, &
+               wall_in_sw_spc => heatState%wall_in_sw_spc, &
+               wall_in_lw_spc => heatState%wall_in_lw_spc &
                )
 
                emis = [pavedPrm%emis, bldgPrm%emis, evetrPrm%emis, dectrPrm%emis, &
@@ -1334,6 +1348,8 @@ CONTAINS
                         alb_roof, emis_roof, alb_wall, emis_wall, &
                         roof_albedo_dir_mult_fact, wall_specular_frac, &
                         qn, kup, lup, qn_roof, qn_wall, qn_surf, & !output:
+                        roof_in_sw_spc, roof_in_lw_spc, &
+                        wall_in_sw_spc, wall_in_lw_spc, &
                         dataOutLineSPARTACUS)
                   ELSE
                      qn_roof = qn_surf(BldgSurf)
@@ -2622,6 +2638,7 @@ CONTAINS
                   vpd_hPa, avdens, avcp, qn_e_surf, s_hPa, psyc_hPa, RS, RA_h, RB, tlv, &
                   rss_surf, ev0_surf, qe0_surf) !output
 
+               ! MP: Use EHC
                IF (storageheatmethod == 5) THEN
                   ! --- roofs ---
                   ! net available energy for evaporation
@@ -2649,8 +2666,10 @@ CONTAINS
                      ev_roof, state_roof_in, soilstore_roof_in, & ! input:
                      sfr_wall, StateLimit_wall, SoilStoreCap_wall, WetThresh_wall, & ! input:
                      ev_wall, state_wall_in, soilstore_wall_in, & ! input:
-                     ev_roof, state_roof, soilstore_roof, runoff_roof, & ! general output:
-                     ev_wall, state_wall, soilstore_wall, runoff_wall, & ! general output:
+                     !                      ev_roof,
+                     state_roof, soilstore_roof, runoff_roof, & ! general output:
+                     !                      ev_wall,
+                     state_wall, soilstore_wall, runoff_wall, & ! general output:
                      state_building, soilstore_building, runoff_building, capStore_builing)
 
                   ! update QE based on the water balance
@@ -2821,6 +2840,7 @@ CONTAINS
             qh_resist_roof => heatState%qh_resist_roof, &
             qh_resist_wall => heatState%qh_resist_wall, &
             qh => heatState%qh, &
+            qh_init => heatState%qh_init, &
             qh_resist => heatState%qh_resist, &
             qh_residual => heatState%qh_residual, &
             qh_surf => heatState%qh_surf, &
@@ -2845,43 +2865,50 @@ CONTAINS
 
             ! sfr_surf = [pavedPrm%sfr, bldgPrm%sfr, evetrPrm%sfr, dectrPrm%sfr, grassPrm%sfr, bsoilPrm%sfr, waterPrm%sfr]
             ! Calculate sensible heat flux as a residual (Modified by LJ in Nov 2012)
-            qh_residual = (qn + qf + QmRain) - (qe + qs + Qm + QmFreez) !qh=(qn1+qf+QmRain+QmFreez)-(qeOut+qs+Qm)
-
-            ! ! Calculate QH using resistance method (for testing HCW 06 Jul 2016)
-            ! Aerodynamic-Resistance-based method
-            DO is = 1, nsurf
-               IF (RA_h /= 0) THEN
-                  qh_resist_surf(is) = avdens*avcp*(tsfc_surf(is) - Temp_C)/RA_h
-               ELSE
-                  qh_resist_surf(is) = NAN
-               END IF
-            END DO
-            IF (storageheatmethod == 5) THEN
-               DO is = 1, nlayer
+            ! choose output QH
+            SELECT CASE (QHMethod)
+            CASE (1)
+               qh_residual = (qn + qf + QmRain) - (qe + qs + Qm + QmFreez) !qh=(qn1+qf+QmRain+QmFreez)-(qeOut+qs+Qm)
+               ! Testing: qh_resist here is a dummy test - difference in QH per cycle
+!                   IF ((QH / QE) < 1) THEN
+!                         qh_resist = qh - qh_residual
+!                         qs = qs - qh_resist
+!                         ! Dumping energy into QS
+!                         qh_residual = (qn + qf + QmRain) - (qe + qs + Qm + QmFreez)
+!                   END IF
+               qh = qh_residual
+            CASE (2)
+               ! ! Calculate QH using resistance method (for testing HCW 06 Jul 2016)
+               ! Aerodynamic-Resistance-based method
+               DO is = 1, nsurf
                   IF (RA_h /= 0) THEN
-                     qh_resist_roof(is) = avdens*avcp*(tsfc_roof(is) - Temp_C)/RA_h
-                     qh_resist_wall(is) = avdens*avcp*(tsfc_wall(is) - Temp_C)/RA_h
+                     qh_resist_surf(is) = avdens*avcp*(tsfc_surf(is) - Temp_C)/RA_h
                   ELSE
                      qh_resist_surf(is) = NAN
                   END IF
                END DO
+               IF (storageheatmethod == 5) THEN
+                  DO is = 1, nlayer
+                     IF (RA_h /= 0) THEN
+                        qh_resist_roof(is) = avdens*avcp*(tsfc_roof(is) - Temp_C)/RA_h
+                        qh_resist_wall(is) = avdens*avcp*(tsfc_wall(is) - Temp_C)/RA_h
+                     ELSE
+                        qh_resist_surf(is) = NAN
+                     END IF
+                  END DO
 
-               ! IF (RA /= 0) THEN
-               !    qh_resist = avdens*avcp*(tsurf - Temp_C)/RA
-               ! ELSE
-               !    qh_resist = NAN
-               ! END IF
-               ! aggregate QH of roof and wall
-               qh_resist_surf(BldgSurf) = (DOT_PRODUCT(qh_resist_roof, sfr_roof) + DOT_PRODUCT(qh_resist_wall, sfr_wall))/2.
-            END IF
+                  ! IF (RA /= 0) THEN
+                  !    qh_resist = avdens*avcp*(tsurf - Temp_C)/RA
+                  ! ELSE
+                  !    qh_resist = NAN
+                  ! END IF
+                  ! aggregate QH of roof and wall
+                  qh_resist_surf(BldgSurf) = (DOT_PRODUCT(qh_resist_roof, sfr_roof) + DOT_PRODUCT(qh_resist_wall, sfr_wall))/2.
+               END IF
 
-            qh_resist = DOT_PRODUCT(qh_resist_surf, sfr_surf)
+               ! MP: TODO - Check if this works correctly
+               qh_resist = DOT_PRODUCT(qh_resist_surf, sfr_surf)
 
-            ! choose output QH
-            SELECT CASE (QHMethod)
-            CASE (1)
-               qh = qh_residual
-            CASE (2)
                qh = qh_resist
             END SELECT
 
@@ -2889,6 +2916,8 @@ CONTAINS
             QH_surf = QN_surf + qf - qs_surf - qe_surf
             QH_roof = QN_roof + qf - qs_roof - qe_roof
             QH_wall = QN_wall + qf - qs_wall - qe_wall
+            !END SELECT
+            qh_init = qh
 
          END ASSOCIATE
       END ASSOCIATE
@@ -3167,6 +3196,7 @@ CONTAINS
             qe => heatState%qe, &
             qf => heatState%qf, &
             qh => heatState%qh, &
+            QH_init => heatState%QH_init, &
             qh_resist => heatState%qh_resist, &
             Qm => snowState%Qm, &
             QmFreez => snowState%QmFreez, &
@@ -3195,9 +3225,11 @@ CONTAINS
             tot_chang_per_tstep => hydroState%tot_chang_per_tstep, &
             tsurf => heatState%tsurf, &
             UStar => atmState%UStar, &
+            TStar => atmState%TStar, &
             wu_surf => hydroState%wu_surf, &
             z0m => roughnessState%z0m, &
             zdm => roughnessState%zdm, &
+            zL => atmState%zL, &
             zenith_deg => solarState%zenith_deg, &
             kdown => forcing%kdown, &
             rain => forcing%rain, &
@@ -3238,7 +3270,7 @@ CONTAINS
             dataOutLineSUEWS = [ &
                                kdown, kup, ldown, lup, tsurf, &
                                qn, qf, qs, qh, qe, &
-                               QH_LUMPS, QE_LUMPS, qh_resist, &
+                               QH_LUMPS, QE_LUMPS, QH_init, qh_resist, &
                                rain, wu_ext, ev_per_tstep, runoff_per_tstep, tot_chang_per_tstep, &
                                surf_chang_per_tstep_x, state_per_tstep, NWstate_per_tstep, drain_per_tstep, smd, &
                                FlowChange/nsh_real, AdditionalWater, &
@@ -3247,8 +3279,8 @@ CONTAINS
                                smd_surf_x(1:nsurf - 1), &
                                state_x(1:nsurf), &
                                zenith_deg, azimuth, bulkalbedo, Fcld, &
-                               LAI_wt, z0m, zdm, &
-                               UStar, l_mod, RA, RS, &
+                               LAI_wt, z0m, zdm, zL, &
+                               UStar, TStar, l_mod, RA, RS, &
                                Fc, &
                                Fc_photo, Fc_respi, Fc_metab, Fc_traff, Fc_build, Fc_point, &
                                qn_snowfree, qn_snow, SnowAlb, &

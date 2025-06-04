@@ -405,7 +405,7 @@ CONTAINS
          CALL errorHint(71, 'Value of gsModel not recognised.', notUsed, NotUsed, gsModel)
       END IF
 
-      RS = 1/(gsc/1000) ![s m-1]
+      RS = 1./(gsc/1000.) ![s m-1]
       gfunc = g_dq*g_ta*g_smd*g_kdown
 
       RETURN
@@ -430,9 +430,9 @@ CONTAINS
 
       REAL(KIND(1D0)), PARAMETER :: k = 0.4
 
-      IF (UStar < 0.01) THEN
-         UStar = avu1/LOG(zzd/z0m)*k
-      END IF
+!       IF (UStar < 0.001) THEN
+!          UStar = avu1/LOG(zzd/z0m)*k
+!       END IF
 
       rb = (1.1/UStar) + (5.6*(UStar**0.333333)) !rb - boundary layer resistance shuttleworth
 

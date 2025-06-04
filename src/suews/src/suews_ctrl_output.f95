@@ -92,6 +92,7 @@ MODULE ctrl_output
       varAttr('QE', 'W m-2', f104, 'Latent heat flux', aA, 'SUEWS', 0), &
       varAttr('QHlumps', 'W m-2', f104, 'Sensible heat flux (using LUMPS)', aA, 'SUEWS', 1), &
       varAttr('QElumps', 'W m-2', f104, 'Latent heat flux (using LUMPS)', aA, 'SUEWS', 1), &
+      varAttr('QHinit', 'W m-2', f104, 'Init Sensible heat flux for TStar', aA, 'SUEWS', 1), &
       varAttr('QHresis', 'W m-2', f104, 'Sensible heat flux (resistance method)', aA, 'SUEWS', 1), &
       varAttr('Rain', 'mm', f104, 'Rain', aS, 'SUEWS', 0), &
       varAttr('Irr', 'mm', f104, 'Irrigation', aS, 'SUEWS', 0), &
@@ -134,7 +135,9 @@ MODULE ctrl_output
       varAttr('LAI', 'm2 m-2', f94, 'Leaf area index', aA, 'SUEWS', 0), &
       varAttr('z0m', 'm', f94, 'Roughness length for momentum', aA, 'SUEWS', 1), &
       varAttr('zdm', 'm', f94, 'Zero-plane displacement height', aA, 'SUEWS', 1), &
+      varAttr('zL', '-', f94, 'Stability scale', aA, 'SUEWS', 1), &
       varAttr('UStar', 'm s-1', f94, 'Friction velocity', aA, 'SUEWS', 0), &
+      varAttr('TStar', 'm s-1', f94, ' ', aA, 'SUEWS', 0), &
       varAttr('Lob', 'm', f146, 'Obukhov length', aA, 'SUEWS', 0), &
       varAttr('RA', 's m-1', f104, 'Aerodynamic resistance', aA, 'SUEWS', 1), &
       varAttr('RS', 's m-1', f104, 'Surface resistance', aA, 'SUEWS', 1), &

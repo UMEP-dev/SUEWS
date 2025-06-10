@@ -45,10 +45,10 @@ jobs:
       CIBW_ARCHS: ${{ matrix.buildplat[2] }}
       CIBW_ENVIRONMENT_PASS_LINUX: RUNNER_OS
       CIBW_ENVIRONMENT_WINDOWS: |
-        CFLAGS="-D__MINGW_USE_VC_SETJMP=1"
-        CPPFLAGS="-D__MINGW_USE_VC_SETJMP=1"
-        FFLAGS="-D__MINGW_USE_VC_SETJMP=1"
-        FCFLAGS="-D__MINGW_USE_VC_SETJMP=1"
+        CC=cl
+        CXX=cl
+        FC=ifx
+        MESON_ARGS=-Db_vscrt=md
       CIBW_BEFORE_ALL_MACOS: >
         brew install gfortran &&
         brew unlink gfortran &&
@@ -71,6 +71,13 @@ jobs:
         uses: actions/setup-python@v5
         with:
             python-version: 3.12
+
+      - name: Setup Intel Fortran on Windows
+        if: matrix.buildplat[0] == 'windows-2025'
+        uses: fortran-lang/setup-fortran@v1
+        with:
+          compiler: intel
+          version: '2024.2'
 
       - name: Build wheels
         uses: pypa/cibuildwheel@v2.23.3

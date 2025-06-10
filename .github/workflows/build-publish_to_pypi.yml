@@ -6,6 +6,7 @@ on:
       - "src/suews/**"
       - "src/supy/**"
       - "src/supy_driver/**"
+      - "meson.build"
       - ".github/workflows/build-publish_to_pypi.yml"
       - "test/**"
       - "pyproject.toml"
@@ -15,6 +16,7 @@ on:
       - "src/suews/**"
       - "src/supy/**"
       - "src/supy_driver/**"
+      - "meson.build"
       - ".github/workflows/build-publish_to_pypi.yml"
       - "pyproject.toml"
 jobs:
@@ -42,6 +44,11 @@ jobs:
       CIBW_BUILD: ${{ matrix.python }}-${{ matrix.buildplat[1] }}*
       CIBW_ARCHS: ${{ matrix.buildplat[2] }}
       CIBW_ENVIRONMENT_PASS_LINUX: RUNNER_OS
+      CIBW_ENVIRONMENT_WINDOWS: |
+        CFLAGS="-D__MINGW_USE_VC_SETJMP=1"
+        CPPFLAGS="-D__MINGW_USE_VC_SETJMP=1"
+        FFLAGS="-D__MINGW_USE_VC_SETJMP=1"
+        FCFLAGS="-D__MINGW_USE_VC_SETJMP=1"
       CIBW_BEFORE_ALL_MACOS: >
         brew install gfortran &&
         brew unlink gfortran &&

@@ -586,6 +586,11 @@ CONTAINS
       roof_in_sw_spc(:nlayer) = roof_in_sw_spc(:nlayer)/sfr_roof_spc(:nlayer)
       roof_net_sw_spc(:nlayer) = roof_net_sw_spc(:nlayer)/sfr_roof_spc(:nlayer)
 
+      wall_in_lw_spc(:nlayer) = wall_in_lw_spc(:nlayer)/sfr_wall_spc(:nlayer)
+      wall_net_lw_spc(:nlayer) = wall_net_lw_spc(:nlayer)/sfr_wall_spc(:nlayer)
+      roof_in_lw_spc(:nlayer) = roof_in_lw_spc(:nlayer)/sfr_roof_spc(:nlayer)
+      roof_net_lw_spc(:nlayer) = roof_net_lw_spc(:nlayer)/sfr_roof_spc(:nlayer)
+
       !!!!!!!!!!!!!! Bulk KUP, LUP, QSTAR for SUEWS !!!!!!!!!!!!!!
 
       lup = lw_up_spc

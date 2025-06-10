@@ -27,7 +27,11 @@ elif fortran_compiler.get_id() == 'intel'
   fortran_program = find_program('ifort')
 elif fortran_compiler.get_id() == 'intel-llvm' or fortran_compiler.get_id() == 'intel-llvm-cl'
   # Intel ifx (LLVM-based) compiler
-  f90flags = ['-fpscomp logicals', '-fPIC']
+  if host_machine.system() == 'windows'
+    f90flags = ['/fpscomp:logicals', '/fPIC']
+  else
+    f90flags = ['-fpscomp logicals', '-fPIC']
+  endif
   fortran_program = find_program('ifx')
 else
   # Fallback for other compilers

@@ -6,19 +6,36 @@ project(
     meson_version: '>=0.64.0',
 )
 
-# Windows-specific configuration to fix f2py _setjmpex issues with MinGW
+# Windows-specific configuration for f2py with MinGW
 if host_machine.system() == 'windows'
-  add_project_arguments(
-    '-DMS_WIN64',
-    '-D_hypot=hypot',
-    '-D__USE_MINGW_SETJMP_TWO_ARGS',
-    language : ['c']
-  )
-  # Also need to ensure we're using the right runtime
-  add_project_link_arguments(
-    '-lmsvcrt',
-    language : ['c', 'fortran']
-  )
+  # Get compilers
+  cc = meson.get_compiler('c')
+  fc = meson.get_compiler('fortran')
+  
+  # Windows 64-bit specific flags
+  if host_machine.cpu_family() == 'x86_64'
+    add_project_arguments(
+      '-DMS_WIN64',
+      '-D_hypot=hypot',
+      language : ['c']
+    )
+  endif
+  
+  # MinGW-specific configuration
+  if cc.get_id() == 'gcc'
+    # Use static libraries to avoid DLL issues
+    add_project_arguments(
+      '-static-libgfortran',
+      '-static-libgcc',
+      language : ['fortran']
+    )
+    
+    # Add Windows system libraries
+    add_project_link_arguments(
+      '-lmsvcrt',
+      language : ['c', 'fortran']
+    )
+  endif
 endif
 
 # find the python installation

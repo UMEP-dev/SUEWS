@@ -11,6 +11,8 @@
 ##################################################################
 # set the compiler flags
 fortran_compiler = meson.get_compiler('fortran')
+host_machine = meson.get_cross_build_info() ? meson.get_external_property('host_machine') : host_machine
+
 if fortran_compiler.get_id() == 'gcc'
   f90flags = [
     '-fPIC',
@@ -24,6 +26,20 @@ elif fortran_compiler.get_id() == 'intel'
   f90flags = ['-fpscomp logicals', '-fPIC']
   fortran_program = find_program('ifort')
 endif
+
+# Windows-specific flags for MinGW
+if host_machine.system() == 'windows'
+  if fortran_compiler.get_id() == 'gcc'
+    # Add Windows-specific flags for MinGW
+    f90flags += ['-static-libgfortran', '-static-libgcc']
+    # Remove -fPIC as it's not needed for Windows DLLs with MinGW
+    f90flags = []
+    foreach flag : ['-fconvert=big-endian', '-g', '-O0', '-fcheck=all', '-static-libgfortran', '-static-libgcc']
+      f90flags += flag
+    endforeach
+  endif
+endif
+
 add_global_arguments(f90flags, language: 'fortran')
 
 c_compiler = meson.get_compiler('c')
@@ -33,13 +49,37 @@ cflags = [
   '-g',
   '-O0',
 ]
+
+# Windows-specific C flags
+if host_machine.system() == 'windows'
+  # Remove POSIX flag and adjust PIC for Windows
+  cflags = [
+    '-g',
+    '-O0',
+  ]
+  
+  # Add Windows-specific defines for setjmp handling
+  if c_compiler.get_id() == 'gcc'
+    # For MinGW, we need to handle the setjmp/setjmpex issue
+    # This tells the compiler to use the correct setjmp variant
+    cflags += ['-D__USE_MINGW_SETJMP_TWO_ARGS']
+    # MinGW doesn't need -fPIC for Windows DLLs
+  elif c_compiler.get_id() == 'msvc'
+    # MSVC doesn't use -fPIC
+    cflags = ['/Od', '/Z7']  # Debug flags for MSVC
+  endif
+endif
+
 if c_compiler.get_id() == 'clang'
   cflags += ['-fbracket-depth=1024']
 endif
 add_global_arguments(cflags, language: 'c')
 
 # flags for converting f95 to fpp
-fpp_flags = ['-E', '-x', 'f95-cpp-input', '-fPIC']
+fpp_flags = ['-E', '-x', 'f95-cpp-input']
+if host_machine.system() != 'windows'
+  fpp_flags += ['-fPIC']
+endif
 ##################################################################
 
 ##################################################################
@@ -193,6 +233,28 @@ gen_module_c = custom_target(
   build_by_default: true,
 )
 
+# On Windows x64, patch the generated C file to fix setjmp issues
+if host_machine.system() == 'windows' and host_machine.cpu_family() == 'x86_64'
+  gen_module_c_patched = custom_target(
+    'patch_supy_drivermodule',
+    command: [
+      py,
+      '@CURRENT_SOURCE_DIR@/patch_setjmp_windows.py',
+      '@INPUT@',
+      '@OUTPUT@',
+    ],
+    input: gen_module_c[0],  # _supy_drivermodule.c
+    output: '_supy_drivermodule_patched.c',
+    depends: gen_module_c,
+    build_by_default: true,
+  )
+  # Use the patched C file for building
+  module_c_source = gen_module_c_patched
+else
+  # Use the original C file on other platforms
+  module_c_source = gen_module_c[0]
+endif
+
 ##################################################################
 # 4. build the python extension module
 
@@ -214,7 +276,12 @@ fortranobject_c = incdir_f2py / 'fortranobject.c'
 inc_np = include_directories(incdir_numpy, incdir_f2py)
 
 # gh-25000
-dep_quadmath = fortran_compiler.find_library('quadmath', required: true)
+# On Windows with MinGW, quadmath might not be available
+if host_machine.system() == 'windows'
+  dep_quadmath = fortran_compiler.find_library('quadmath', required: false)
+else
+  dep_quadmath = fortran_compiler.find_library('quadmath', required: true)
+endif
 
 # Share this object across multiple modules.
 lib_fortranobject = static_library(
@@ -245,10 +312,33 @@ dep_suews = [dep_lib_src, dep_lib_suews]
 
 inc_suews_mod = include_directories('../suews/mod')
 
+# Prepare link arguments for Windows
+link_args = []
+if host_machine.system() == 'windows'
+  if c_compiler.get_id() == 'gcc'
+    # Add static linking for MinGW runtime libraries to avoid DLL dependencies
+    link_args += ['-static-libgcc', '-static-libgfortran']
+    # Add Windows system libraries that might be needed for setjmp
+    link_args += ['-lmsvcrt']
+  endif
+endif
+
+# Build dependencies list
+ext_dependencies = [
+  dep_py,
+  dep_fortranobject,
+  dep_suews,
+]
+# Only add quadmath if it was found
+if dep_quadmath.found()
+  ext_dependencies += dep_quadmath
+endif
+
 ext_supy_driver = py.extension_module(
   '_supy_driver',
   sources: [
-    gen_module_c,
+    module_c_source,  # Use the potentially patched C source
+    gen_module_c[1],  # The Fortran wrapper file
     gen_f90wrap_f90,
     fortranobject_c,
   ],
@@ -256,12 +346,8 @@ ext_supy_driver = py.extension_module(
     inc_np,
     inc_suews_mod, # the path is relative to the current directory where the meson.build file is located
   ],
-  dependencies: [
-    dep_py,
-    dep_fortranobject,
-    dep_quadmath,
-    dep_suews,
-  ],
+  dependencies: ext_dependencies,
+  link_args: link_args,
   install: true,
   subdir: 'supy',
 

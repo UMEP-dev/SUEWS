@@ -203,30 +203,50 @@ Windows build fails with ``undefined reference to '_setjmpex'``
 
 **Cause**: This error occurs because f2py-generated C code uses MSVC-specific functions like ``_setjmpex`` that are not available in MinGW. The f2py wrapper assumes a Microsoft Visual C++ environment but the build system uses MinGW/GCC.
 
-**Solution**: Add Windows-specific compiler and linker flags to the project-level ``meson.build`` file:
+**Solution**: This issue requires a two-part solution:
+
+1. **Add Windows-specific compiler flags** in the project-level ``meson.build``:
 
 .. code-block:: meson
 
-    # Windows-specific configuration to fix f2py _setjmpex issues with MinGW
+    # Windows-specific configuration for f2py with MinGW
     if host_machine.system() == 'windows'
-      add_project_arguments(
-        '-DMS_WIN64',
-        '-D_hypot=hypot',
-        '-D__USE_MINGW_SETJMP_TWO_ARGS',
-        language : ['c']
-      )
-      # Also need to ensure we're using the right runtime
-      add_project_link_arguments(
-        '-lmsvcrt',
-        language : ['c', 'fortran']
-      )
+      # Get compilers
+      cc = meson.get_compiler('c')
+      fc = meson.get_compiler('fortran')
+      
+      # Windows 64-bit specific flags
+      if host_machine.cpu_family() == 'x86_64'
+        add_project_arguments(
+          '-DMS_WIN64',
+          '-D_hypot=hypot',
+          language : ['c']
+        )
+      endif
+      
+      # MinGW-specific configuration
+      if cc.get_id() == 'gcc'
+        # Use static libraries to avoid DLL issues
+        add_project_arguments(
+          '-static-libgfortran',
+          '-static-libgcc',
+          language : ['fortran']
+        )
+        
+        # Add Windows system libraries
+        add_project_link_arguments(
+          '-lmsvcrt',
+          language : ['c', 'fortran']
+        )
+      endif
     endif
 
-These flags:
-- ``-DMS_WIN64``: Tell f2py-generated code to use Windows 64-bit code paths compatible with MinGW
-- ``-D_hypot=hypot``: Map the MSVC-specific ``_hypot`` function to the standard ``hypot`` function
-- ``-D__USE_MINGW_SETJMP_TWO_ARGS``: Force MinGW to use the two-argument setjmp instead of _setjmpex
-- ``-lmsvcrt``: Explicitly link against the Microsoft C runtime library
+2. **Patch f2py-generated C files** to add setjmp compatibility on Windows x64. The build system automatically applies ``src/supy_driver/patch_setjmp_windows.py`` which adds compatibility definitions before the setjmp.h include to force use of MinGW's setjmp implementation.
+
+This approach:
+- Uses static linking to avoid runtime DLL dependencies
+- Ensures proper headers are used for setjmp functionality on Windows x64
+- Is the standard approach used by numpy and other scientific Python packages
 
 **Note**: This issue is most commonly seen in CI environments using Windows Server 2025 or similar images with MinGW toolchains.
 

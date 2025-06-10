@@ -40,6 +40,14 @@ add_global_arguments(cflags, language: 'c')
 
 # flags for converting f95 to fpp
 fpp_flags = ['-E', '-x', 'f95-cpp-input', '-fPIC']
+
+# Use UCRT for everything when on Windows
+if host_machine.system() == 'windows'
+  add_project_arguments('-mcrtdll=ucrtbase', language : ['c','fortran'])
+  add_project_link_arguments('-mcrtdll=ucrtbase', language : ['c','fortran'])
+  # Avoid the <setjmpex.h> macro that drags in _setjmpex
+  add_project_arguments('-D__USE_MINGW_SETJMP', language : 'c')
+endif
 ##################################################################
 
 ##################################################################

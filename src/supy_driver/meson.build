@@ -11,6 +11,8 @@
 ##################################################################
 # set the compiler flags
 fortran_compiler = meson.get_compiler('fortran')
+f90flags = []  # Initialize with empty array as fallback
+
 if fortran_compiler.get_id() == 'gcc'
   f90flags = [
     '-fPIC',
@@ -23,23 +25,59 @@ if fortran_compiler.get_id() == 'gcc'
 elif fortran_compiler.get_id() == 'intel'
   f90flags = ['-fpscomp logicals', '-fPIC']
   fortran_program = find_program('ifort')
+elif fortran_compiler.get_id() == 'intel-llvm' or fortran_compiler.get_id() == 'intel-llvm-cl'
+  # Intel ifx (LLVM-based) compiler
+  f90flags = ['-fpscomp logicals', '-fPIC']
+  fortran_program = find_program('ifx')
+else
+  # Fallback for other compilers
+  f90flags = ['-fPIC']
+  fortran_program = fortran_compiler
 endif
-add_global_arguments(f90flags, language: 'fortran')
+
+if f90flags.length() > 0
+  add_global_arguments(f90flags, language: 'fortran')
+endif
 
 c_compiler = meson.get_compiler('c')
-cflags = [
-  '-fPIC',
-  '-D_POSIX_C_SOURCE=200809L',
-  '-g',
-  '-O0',
-]
-if c_compiler.get_id() == 'clang'
-  cflags += ['-fbracket-depth=1024']
+cflags = []  # Initialize with empty array as fallback
+
+if c_compiler.get_id() == 'gcc' or c_compiler.get_id() == 'clang'
+  cflags = [
+    '-fPIC',
+    '-D_POSIX_C_SOURCE=200809L',
+    '-g',
+    '-O0',
+  ]
+  if c_compiler.get_id() == 'clang'
+    cflags += ['-fbracket-depth=1024']
+  endif
+elif c_compiler.get_id() == 'msvc'
+  # MSVC-specific flags
+  cflags = [
+    '/D_CRT_SECURE_NO_WARNINGS',
+    '/D_USE_MATH_DEFINES',
+    '/DWIN32',
+    '/DNDEBUG',
+  ]
+else
+  # Fallback for other compilers
+  cflags = []
 endif
-add_global_arguments(cflags, language: 'c')
+
+if cflags.length() > 0
+  add_global_arguments(cflags, language: 'c')
+endif
 
 # flags for converting f95 to fpp
-fpp_flags = ['-E', '-x', 'f95-cpp-input', '-fPIC']
+if fortran_compiler.get_id() == 'gcc'
+  fpp_flags = ['-E', '-x', 'f95-cpp-input', '-fPIC']
+elif fortran_compiler.get_id() == 'intel' or fortran_compiler.get_id() == 'intel-llvm' or fortran_compiler.get_id() == 'intel-llvm-cl'
+  fpp_flags = ['-EP', '-fPIC']
+else
+  # Fallback - try Intel flags first
+  fpp_flags = ['-EP']
+endif
 ##################################################################
 
 ##################################################################

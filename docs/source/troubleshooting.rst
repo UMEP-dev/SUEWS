@@ -241,7 +241,10 @@ Windows build fails with ``undefined reference to '_setjmpex'``
       endif
     endif
 
-2. **Patch f2py-generated C files** to add setjmp compatibility on Windows x64. The build system automatically applies ``src/supy_driver/patch_setjmp_windows.py`` which adds compatibility definitions before the setjmp.h include to force use of MinGW's setjmp implementation.
+2. **Patch f2py-generated C files** to fix setjmp compatibility on Windows x64. The build system automatically applies ``src/supy_driver/patch_setjmp_windows.py`` which:
+   - Prevents the inclusion of MS-specific setjmpex.h
+   - Redirects any _setjmpex calls to the standard _setjmp function
+   - This ensures MinGW's standard setjmp implementation is used instead of MSVC-specific functions
 
 This approach:
 - Uses static linking to avoid runtime DLL dependencies

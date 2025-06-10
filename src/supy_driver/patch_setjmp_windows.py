@@ -21,29 +21,28 @@ from pathlib import Path
 
 
 def patch_setjmp_header(input_file, output_file):
-    """Add setjmp compatibility layer for MinGW in f2py-generated C files."""
+    """Fix setjmp issues in f2py-generated C files for MinGW on Windows."""
     with open(input_file, 'r') as f:
         content = f.read()
     
-    # Add compatibility definitions that redirect _setjmpex to __builtin_setjmp
-    setjmp_compat = """
-/* MinGW setjmp compatibility for f2py on Windows x64 */
-#ifdef _WIN64
-#ifdef __MINGW64__
-/* Redirect _setjmpex to GCC's builtin setjmp */
-#define _setjmpex __builtin_setjmp
-/* Also ensure regular setjmp uses builtin */
-#define setjmp(x) __builtin_setjmp(x)
-#define longjmp(x,y) __builtin_longjmp(x,y)
-#endif
+    # The core issue is that f2py generates code that uses setjmp, which
+    # on Windows x64 with certain headers expands to _setjmpex (MSVC-specific).
+    # The solution is to ensure we use the standard setjmp, not the MS version.
+    
+    setjmp_fix = """
+/* Fix for MinGW setjmp issues with f2py on Windows x64 */
+#if defined(_WIN64) && defined(__MINGW32__)
+  /* Force use of standard setjmp instead of MS _setjmpex */
+  #define _INC_SETJMPEX  /* Prevent setjmpex.h from being included */
+  
+  /* If setjmp.h tries to use _setjmpex, redirect to standard _setjmp */
+  #define _setjmpex(buf) _setjmp(buf)
 #endif
 
 """
     
-    # Insert the compatibility code before the first include
-    if '#include' in content:
-        first_include_pos = content.find('#include')
-        content = content[:first_include_pos] + setjmp_compat + content[first_include_pos:]
+    # Add our fix at the very beginning, before any includes
+    content = setjmp_fix + content
     
     with open(output_file, 'w') as f:
         f.write(content)

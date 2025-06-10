@@ -11,7 +11,6 @@
 ##################################################################
 # set the compiler flags
 fortran_compiler = meson.get_compiler('fortran')
-host_machine = meson.get_cross_build_info() ? meson.get_external_property('host_machine') : host_machine
 
 if fortran_compiler.get_id() == 'gcc'
   f90flags = [

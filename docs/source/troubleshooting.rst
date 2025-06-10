@@ -188,3 +188,46 @@ Please check the following:
 A general rule of thumb is to use the `load_SampleData` to generate the initial model states from the sample data shipped by SuPy.
 
 
+Build and Installation Issues
+-----------------------------
+
+Windows build fails with ``undefined reference to '_setjmpex'``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+**Problem**: When building SUEWS on Windows with MinGW/GCC, the build fails during the linking stage with errors like:
+
+.. code-block:: text
+
+    undefined reference to '_setjmpex'
+    collect2.exe: error: ld returned 1 exit status
+
+**Cause**: This error occurs because f2py-generated C code uses MSVC-specific functions like ``_setjmpex`` that are not available in MinGW. The f2py wrapper assumes a Microsoft Visual C++ environment but the build system uses MinGW/GCC.
+
+**Solution**: Add Windows-specific compiler and linker flags to the project-level ``meson.build`` file:
+
+.. code-block:: meson
+
+    # Windows-specific configuration to fix f2py _setjmpex issues with MinGW
+    if host_machine.system() == 'windows'
+      add_project_arguments(
+        '-DMS_WIN64',
+        '-D_hypot=hypot',
+        '-D__USE_MINGW_SETJMP_TWO_ARGS',
+        language : ['c']
+      )
+      # Also need to ensure we're using the right runtime
+      add_project_link_arguments(
+        '-lmsvcrt',
+        language : ['c', 'fortran']
+      )
+    endif
+
+These flags:
+- ``-DMS_WIN64``: Tell f2py-generated code to use Windows 64-bit code paths compatible with MinGW
+- ``-D_hypot=hypot``: Map the MSVC-specific ``_hypot`` function to the standard ``hypot`` function
+- ``-D__USE_MINGW_SETJMP_TWO_ARGS``: Force MinGW to use the two-argument setjmp instead of _setjmpex
+- ``-lmsvcrt``: Explicitly link against the Microsoft C runtime library
+
+**Note**: This issue is most commonly seen in CI environments using Windows Server 2025 or similar images with MinGW toolchains.
+
+

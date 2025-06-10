@@ -6,6 +6,7 @@ on:
       - "src/suews/**"
       - "src/supy/**"
       - "src/supy_driver/**"
+      - "meson.build"
       - ".github/workflows/build-publish_to_pypi.yml"
       - "test/**"
       - "pyproject.toml"

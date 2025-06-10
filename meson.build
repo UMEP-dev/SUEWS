@@ -11,7 +11,13 @@ if host_machine.system() == 'windows'
   add_project_arguments(
     '-DMS_WIN64',
     '-D_hypot=hypot',
+    '-D__USE_MINGW_SETJMP_TWO_ARGS',
     language : ['c']
+  )
+  # Also need to ensure we're using the right runtime
+  add_project_link_arguments(
+    '-lmsvcrt',
+    language : ['c', 'fortran']
   )
 endif
 

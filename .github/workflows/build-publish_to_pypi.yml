@@ -7,6 +7,7 @@ on:
       - "src/supy/**"
       - "src/supy_driver/**"
       - ".github/workflows/build-publish_to_pypi.yml"
+      - "meson.build"
       - "test/**"
       - "pyproject.toml"
 
@@ -15,6 +16,7 @@ on:
       - "src/suews/**"
       - "src/supy/**"
       - "src/supy_driver/**"
+      - "meson.build"
       - ".github/workflows/build-publish_to_pypi.yml"
       - "pyproject.toml"
 jobs:

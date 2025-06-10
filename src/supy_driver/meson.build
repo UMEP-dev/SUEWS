@@ -46,7 +46,7 @@ if host_machine.system() == 'windows'
   # The UCRT64 msys2 environment implicitly handles linking to the UCRT.
   # Explicitly adding '-mcrtdll=ucrtbase' can fail with older GCC versions.
   # Avoid the <setjmpex.h> macro that drags in _setjmpex
-  add_project_arguments('-D__USE_MINGW_SETJMP', language : 'c')
+  add_project_arguments('-D__USE_MINGW_SETJMP_NON_SEH', language : 'c')
 endif
 ##################################################################
 

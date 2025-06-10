@@ -9,7 +9,7 @@ project(
 if host_machine.system() == 'windows'
   add_project_arguments('-D__USE_MINGW_SETJMP', language : 'c')   # keep setjmp, not _setjmpex
 #   add_project_arguments('-mcrtdll=ucrtbase', language : ['c','fortran'])
-  add_project_link_arguments('-mcrtdll=ucrtbase', language : ['c','fortran'])
+#   add_project_link_arguments('-mcrtdll=ucrtbase', language : ['c','fortran'])
 endif
 
 # find the python installation

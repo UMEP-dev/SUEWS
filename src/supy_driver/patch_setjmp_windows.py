@@ -25,13 +25,16 @@ def patch_setjmp_header(input_file, output_file):
     with open(input_file, 'r') as f:
         content = f.read()
     
-    # Add compatibility definitions before setjmp.h include
+    # Add compatibility definitions that redirect _setjmpex to __builtin_setjmp
     setjmp_compat = """
 /* MinGW setjmp compatibility for f2py on Windows x64 */
 #ifdef _WIN64
 #ifdef __MINGW64__
-/* Force use of MinGW's setjmp implementation */
-#define _UCRT
+/* Redirect _setjmpex to GCC's builtin setjmp */
+#define _setjmpex __builtin_setjmp
+/* Also ensure regular setjmp uses builtin */
+#define setjmp(x) __builtin_setjmp(x)
+#define longjmp(x,y) __builtin_longjmp(x,y)
 #endif
 #endif
 

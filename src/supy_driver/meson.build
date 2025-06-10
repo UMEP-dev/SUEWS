@@ -8,13 +8,6 @@
 # 3. use f2py-f90wrap to generate the C file for the python interface
 # 4. build the python extension module
 
-if host_machine.system() == 'windows'
-  add_project_arguments(
-    '-D__MINGW_USE_VC_SETJMP=1',
-    language : ['c', 'cpp', 'fortran']
-  )
-endif
-
 ##################################################################
 # set the compiler flags
 fortran_compiler = meson.get_compiler('fortran')

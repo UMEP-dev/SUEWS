@@ -27,22 +27,43 @@ def patch_setjmp_header(input_file, output_file):
     
     # The core issue is that f2py generates code that uses setjmp, which
     # on Windows x64 with certain headers expands to _setjmpex (MSVC-specific).
-    # The solution is to ensure we use the standard setjmp, not the MS version.
+    # We need to provide a working implementation for MinGW.
     
-    setjmp_fix = """
+    # First, find where setjmp.h is included and add our fix before it
+    setjmp_include_pos = content.find('#include <setjmp.h>')
+    
+    if setjmp_include_pos != -1:
+        # Insert our compatibility layer before the setjmp.h include
+        setjmp_fix = """
 /* Fix for MinGW setjmp issues with f2py on Windows x64 */
 #if defined(_WIN64) && defined(__MINGW32__)
-  /* Force use of standard setjmp instead of MS _setjmpex */
-  #define _INC_SETJMPEX  /* Prevent setjmpex.h from being included */
-  
-  /* If setjmp.h tries to use _setjmpex, redirect to standard _setjmp */
+  /* Define this to use the two-argument setjmp */
+  #define __USE_MINGW_SETJMP_TWO_ARGS 1
+#endif
+
+"""
+        content = (content[:setjmp_include_pos] + 
+                  setjmp_fix + 
+                  content[setjmp_include_pos:])
+    
+    # Also add a fallback definition for _setjmpex after all includes
+    # Find a good position after includes but before function definitions
+    last_include = content.rfind('#include')
+    if last_include != -1:
+        # Find the end of the last include line
+        end_of_line = content.find('\n', last_include)
+        if end_of_line != -1:
+            setjmpex_fix = """
+
+/* Provide _setjmpex compatibility for MinGW if needed */
+#if defined(_WIN64) && defined(__MINGW32__) && !defined(_setjmpex)
   #define _setjmpex(buf) _setjmp(buf)
 #endif
 
 """
-    
-    # Add our fix at the very beginning, before any includes
-    content = setjmp_fix + content
+            content = (content[:end_of_line + 1] + 
+                      setjmpex_fix + 
+                      content[end_of_line + 1:])
     
     with open(output_file, 'w') as f:
         f.write(content)

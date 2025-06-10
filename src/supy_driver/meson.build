@@ -57,12 +57,10 @@ if host_machine.system() == 'windows'
     '-O0',
   ]
   
-  # Add Windows-specific defines for setjmp handling
+  # Add Windows-specific defines
   if c_compiler.get_id() == 'gcc'
-    # For MinGW, we need to handle the setjmp/setjmpex issue
-    # This tells the compiler to use the correct setjmp variant
-    cflags += ['-D__USE_MINGW_SETJMP_TWO_ARGS']
     # MinGW doesn't need -fPIC for Windows DLLs
+    # The setjmp/setjmpex issue is handled by patch_setjmp_windows.py
   elif c_compiler.get_id() == 'msvc'
     # MSVC doesn't use -fPIC
     cflags = ['/Od', '/Z7']  # Debug flags for MSVC

@@ -53,10 +53,10 @@ jobs:
         C:\tools\msys64\usr\bin\bash.exe -lc "pacman -Syu --noconfirm" &&
         C:\tools\msys64\usr\bin\bash.exe -lc "pacman -S --needed --noconfirm mingw-w64-ucrt-x86_64-toolchain mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-gcc-fortran mingw-w64-ucrt-x86_64-openblas"
       CIBW_ENVIRONMENT_WINDOWS: >
-        PATH="C:\tools\msys64\ucrt64\bin;$PATH"
-        CC=gcc
-        CXX=g++
-        FC=gfortran
+        PATH="C:\tools\msys64\ucrt64\bin;%PATH%"
+        CC=C:\tools\msys64\ucrt64\bin\gcc.exe
+        CXX=C:\tools\msys64\ucrt64\bin\g++.exe
+        FC=C:\tools\msys64\ucrt64\bin\gfortran.exe
         CFLAGS="-D__USE_MINGW_SETJMP_NON_SEH -D__USE_MINGW_ANSI_STDIO=1 -mlong-double-64"
         FCFLAGS="-fno-optimize-sibling-calls"
         LDFLAGS="-lucrt -static-libgcc -static-libgfortran"

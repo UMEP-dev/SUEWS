@@ -69,9 +69,34 @@ CIBW_ENVIRONMENT_WINDOWS: >
 3. **Toolchain consistency**: Ensuring the same compiler toolchain is used throughout the build process is critical
 4. **Static linking**: Using static linking flags helps avoid runtime library conflicts
 
+## Additional Issues Encountered
+
+### YAML Formatting Problems
+Multiple iterations were needed to get the cibuildwheel environment configuration correct:
+
+1. **Multiline string parsing**: Initial attempt with backslash line continuations failed
+   ```
+   cibuildwheel: Malformed environment option 'PATH=C:\\tools\\msys64\\ucrt64\\bin;$PATH \\ CC=gcc...'
+   ```
+
+2. **Environment variable format**: Had to use proper YAML multiline syntax with `>` indicator
+
+### Command Shell Mismatch
+The `CIBW_BEFORE_BUILD_WINDOWS` commands were initially written in bash syntax but needed Windows CMD:
+
+**Problem**: Commands like `echo "PATH: $PATH"` were outputting literal strings
+**Solution**: Used Windows CMD syntax:
+- `%PATH%` instead of `$PATH`
+- `dir` instead of `ls`
+- `where` instead of `which`
+- `&` instead of `&&` for command chaining
+
 ## Related Commits
 - Fix implemented in branch: `fix-windows-gcc-scipy`
-- Final working commit: `0c7166bf`
+- Initial toolchain fix: `4ef00cc8`
+- YAML formatting fix: `abf21099` 
+- Environment variable format: `0c7166bf`
+- CMD syntax fix: `af556e27`
 
 ## Impact
-This fix ensures that Windows wheel builds work reliably on modern GitHub Actions runners (windows-2022) and should be more robust against future platform updates.
+This fix ensures that Windows wheel builds work reliably on modern GitHub Actions runners (windows-2022) and should be more robust against future platform updates. The solution also provides a template for other projects facing similar cibuildwheel toolchain issues on Windows.

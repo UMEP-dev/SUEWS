@@ -48,7 +48,7 @@ jobs:
         brew install gfortran &&
         brew unlink gfortran &&
         brew link gfortran
-      CIBW_ENVIRONMENT_WINDOWS: |
+      CIBW_ENVIRONMENT_WINDOWS: >-
         PATH="C:\msys64\ucrt64\bin;%PATH%"
         CC=gcc
         CXX=g++

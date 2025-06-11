@@ -48,14 +48,10 @@ jobs:
         brew install gfortran &&
         brew unlink gfortran &&
         brew link gfortran
-      CIBW_ENVIRONMENT_WINDOWS: >-
-        PATH="C:\msys64\ucrt64\bin;%PATH%"
-        CC=gcc
-        CXX=g++
-        FC=gfortran
-        CFLAGS="-D__USE_MINGW_SETJMP_NON_SEH -D__USE_MINGW_ANSI_STDIO=1 -mlong-double-64"
-        FCFLAGS="-fno-optimize-sibling-calls"
-        LDFLAGS="-lucrt"
+      CIBW_ENVIRONMENT_WINDOWS: 'PATH=/c/msys64/ucrt64/bin:$PATH \
+        CC=gcc CXX=g++ FC=gfortran \
+        CFLAGS="-D__USE_MINGW_SETJMP_NON_SEH -D__USE_MINGW_ANSI_STDIO=1 -mlong-double-64" \
+        FCFLAGS="-fno-optimize-sibling-calls" LDFLAGS="-lucrt"'
       CIBW_BEFORE_BUILD_WINDOWS: "pip install delvewheel" # Use delvewheel on windows
       CIBW_REPAIR_WHEEL_COMMAND_WINDOWS: "delvewheel repair -w {dest_dir} {wheel}"
       CIBW_TEST_REQUIRES: pytest

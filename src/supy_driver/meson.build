@@ -45,8 +45,7 @@ fpp_flags = ['-E', '-x', 'f95-cpp-input', '-fPIC']
 if host_machine.system() == 'windows'
   # The UCRT64 msys2 environment implicitly handles linking to the UCRT.
   # Explicitly adding '-mcrtdll=ucrtbase' can fail with older GCC versions.
-  # Avoid the <setjmpex.h> macro that drags in _setjmpex
-  add_project_arguments('-D__USE_MINGW_SETJMP_NON_SEH', language : 'c')
+  # Note: We don't use -D__USE_MINGW_SETJMP_NON_SEH with UCRT64 as it supports SEH properly
 endif
 ##################################################################
 

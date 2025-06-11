@@ -80,8 +80,19 @@ jobs:
         if: runner.os == 'Windows'
         shell: msys2 {0}
         run: |
-          [[ "$MSYSTEM" == "UCRT64" ]] || { echo "Not in UCRT64"; exit 1; }
-          which gcc | grep -q '/ucrt64/' || { echo "gcc not from ucrt64"; exit 1; }
+          set -euxo pipefail                # -x prints every command
+          echo "MSYSTEM is $MSYSTEM"
+          echo "gcc path: $(which gcc)"
+
+          [[ "$MSYSTEM" == "UCRT64" ]] \
+            && echo "✅ Running inside UCRT64" \
+            || { echo "❌ Not in UCRT64"; exit 1; }
+
+          if [[ $(which gcc) == */ucrt64/* ]]; then
+            echo "✅ gcc comes from UCRT64"
+          else
+            echo "❌ gcc not from UCRT64"; exit 1
+          fi
 
       - name: Set up Python
         uses: actions/setup-python@v5

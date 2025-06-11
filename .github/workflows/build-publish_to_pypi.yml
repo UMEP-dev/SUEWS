@@ -48,16 +48,24 @@ jobs:
         brew install gfortran &&
         brew unlink gfortran &&
         brew link gfortran
-      CIBW_ENVIRONMENT_WINDOWS: 'PATH=/c/msys64/ucrt64/bin:$PATH \
+      CIBW_BEFORE_ALL_WINDOWS: >
+        choco install msys2 -y --no-progress &&
+        C:\tools\msys64\usr\bin\bash.exe -lc "pacman -Syu --noconfirm" &&
+        C:\tools\msys64\usr\bin\bash.exe -lc "pacman -S --needed --noconfirm mingw-w64-ucrt-x86_64-toolchain mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-gcc-fortran mingw-w64-ucrt-x86_64-openblas"
+      CIBW_ENVIRONMENT_WINDOWS: 'PATH=C:\tools\msys64\ucrt64\bin;$PATH \
         CC=gcc CXX=g++ FC=gfortran \
         CFLAGS="-D__USE_MINGW_SETJMP_NON_SEH -D__USE_MINGW_ANSI_STDIO=1 -mlong-double-64" \
-        FCFLAGS="-fno-optimize-sibling-calls" LDFLAGS="-lucrt"'
+        FCFLAGS="-fno-optimize-sibling-calls" \
+        LDFLAGS="-lucrt -static-libgcc -static-libgfortran"'
       CIBW_BEFORE_BUILD_WINDOWS: >
-        echo PATH: %PATH% &&
-        where gcc &&
-        where gfortran &&
-        echo UCRT64 bin contents: &&
-        dir C:\msys64\ucrt64\bin &&
+        echo "PATH: $PATH" &&
+        echo "Checking MSYS2 locations:" &&
+        ls -la C:/tools/msys64/ucrt64/bin/ 2>/dev/null | head -10 || echo "Not in C:/tools/msys64" &&
+        ls -la /c/tools/msys64/ucrt64/bin/ 2>/dev/null | head -10 || echo "Not in /c/tools/msys64" &&
+        which gcc &&
+        which gfortran &&
+        gcc --version &&
+        gfortran --version &&
         pip install delvewheel
       CIBW_REPAIR_WHEEL_COMMAND_WINDOWS: "delvewheel repair -w {dest_dir} {wheel}"
       CIBW_TEST_REQUIRES: pytest
@@ -72,33 +80,6 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Set up UCRT-based MinGW-w64
-        if: runner.os == 'Windows'
-        uses: msys2/setup-msys2@v2
-        with:
-          msystem: UCRT64
-          update: true
-          install: >-
-            mingw-w64-ucrt-x86_64-toolchain
-            ninja
-            meson
-      - name: Assert UCRT tool-chain
-        if: runner.os == 'Windows'
-        shell: msys2 {0}
-        run: |
-          set -euo pipefail                 # -x removed to keep logs concise
-          echo "MSYSTEM is $MSYSTEM"
-          echo "gcc path: $(which gcc)"
-
-          [[ "$MSYSTEM" == "UCRT64" ]] \
-            && echo "✅ Running inside UCRT64" \
-            || { echo "❌ Not in UCRT64"; exit 1; }
-
-          if [[ $(which gcc) == */ucrt64/* ]]; then
-            echo "✅ gcc comes from UCRT64"
-          else
-            echo "❌ gcc not from UCRT64"; exit 1
-          fi
 
       - name: Set up Python
         uses: actions/setup-python@v5

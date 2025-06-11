@@ -61,13 +61,14 @@ jobs:
         FCFLAGS="-fno-optimize-sibling-calls"
         LDFLAGS="-lucrt -static-libgcc -static-libgfortran -lsetjmp_compat"
       CIBW_BEFORE_BUILD_WINDOWS: >
-        echo "int _setjmpex(void*); int __intrinsic_setjmpex(void*); int _setjmpex(void* buf) { return __intrinsic_setjmpex(buf); }" > setjmp_compat.c &
-        gcc -c setjmp_compat.c -o setjmp_compat.o &
-        ar rcs libsetjmp_compat.a setjmp_compat.o &
-        copy libsetjmp_compat.a C:\msys64\ucrt64\lib\ &
-        where python &
-        where gcc &
-        gcc --version &
+        echo int _setjmpex(void* buf) { extern int __intrinsic_setjmpex(void*); return __intrinsic_setjmpex(buf); } > setjmp_compat.c &&
+        C:\msys64\ucrt64\bin\gcc.exe -c setjmp_compat.c -o setjmp_compat.o &&
+        C:\msys64\ucrt64\bin\ar.exe rcs libsetjmp_compat.a setjmp_compat.o &&
+        copy libsetjmp_compat.a C:\msys64\ucrt64\lib\ &&
+        C:\msys64\ucrt64\bin\nm.exe libsetjmp_compat.a &&
+        where python &&
+        where gcc &&
+        gcc --version &&
         pip install delvewheel
       CIBW_REPAIR_WHEEL_COMMAND_WINDOWS: "delvewheel repair -w {dest_dir} {wheel}"
       CIBW_TEST_REQUIRES: pytest

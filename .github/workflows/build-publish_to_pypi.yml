@@ -52,11 +52,7 @@ jobs:
         choco install msys2 -y --no-progress &&
         C:\tools\msys64\usr\bin\bash.exe -lc "pacman -Syu --noconfirm" &&
         C:\tools\msys64\usr\bin\bash.exe -lc "pacman -S --needed --noconfirm mingw-w64-ucrt-x86_64-toolchain mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-gcc-fortran mingw-w64-ucrt-x86_64-openblas"
-      CIBW_ENVIRONMENT_WINDOWS: 'PATH=C:\tools\msys64\ucrt64\bin;$PATH \
-        CC=gcc CXX=g++ FC=gfortran \
-        CFLAGS="-D__USE_MINGW_SETJMP_NON_SEH -D__USE_MINGW_ANSI_STDIO=1 -mlong-double-64" \
-        FCFLAGS="-fno-optimize-sibling-calls" \
-        LDFLAGS="-lucrt -static-libgcc -static-libgfortran"'
+      CIBW_ENVIRONMENT_WINDOWS: 'PATH=C:\tools\msys64\ucrt64\bin;$PATH CC=gcc CXX=g++ FC=gfortran CFLAGS="-D__USE_MINGW_SETJMP_NON_SEH -D__USE_MINGW_ANSI_STDIO=1 -mlong-double-64" FCFLAGS="-fno-optimize-sibling-calls" LDFLAGS="-lucrt -static-libgcc -static-libgfortran"'
       CIBW_BEFORE_BUILD_WINDOWS: >
         echo "PATH: $PATH" &&
         echo "Checking MSYS2 locations:" &&

@@ -59,8 +59,12 @@ jobs:
         CFLAGS="-D__USE_MINGW_ANSI_STDIO=1 -mlong-double-64"
         CXXFLAGS="-D__USE_MINGW_ANSI_STDIO=1 -mlong-double-64"
         FCFLAGS="-fno-optimize-sibling-calls"
-        LDFLAGS="-lucrt -static-libgcc -static-libgfortran -lmsvcr120"
+        LDFLAGS="-lucrt -static-libgcc -static-libgfortran"
       CIBW_BEFORE_BUILD_WINDOWS: >
+        echo "int _setjmpex() { extern int __intrinsic_setjmpex(); return __intrinsic_setjmpex(); }" > setjmp_compat.c &
+        gcc -c setjmp_compat.c -o setjmp_compat.o &
+        ar rcs libsetjmp_compat.a setjmp_compat.o &
+        set "LDFLAGS=%LDFLAGS% -L. -lsetjmp_compat" &
         where python &
         where gcc &
         gcc --version &

@@ -52,7 +52,6 @@ jobs:
         C:\msys64\usr\bin\bash.exe -lc "pacman -Syu --noconfirm" &&
         C:\msys64\usr\bin\bash.exe -lc "pacman -S --needed --noconfirm mingw-w64-ucrt-x86_64-toolchain mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-gcc-fortran mingw-w64-ucrt-x86_64-openblas"
       CIBW_ENVIRONMENT_WINDOWS: >
-        PATH="$PATH;C:\\msys64\\ucrt64\\bin"
         CC=C:\\msys64\\ucrt64\\bin\\gcc.exe
         CXX=C:\\msys64\\ucrt64\\bin\\g++.exe
         FC=C:\\msys64\\ucrt64\\bin\\gfortran.exe
@@ -60,13 +59,11 @@ jobs:
         FCFLAGS="-fno-optimize-sibling-calls"
         LDFLAGS="-lucrt -static-libgcc -static-libgfortran"
       CIBW_BEFORE_BUILD_WINDOWS: >
-        echo PATH: %PATH% &
-        echo Checking MSYS2 locations: &
-        dir C:\msys64\ucrt64\bin\ &
-        where gcc &
-        where gfortran &
-        gcc --version &
-        gfortran --version &
+        echo CC: %CC% &
+        echo CXX: %CXX% &
+        echo FC: %FC% &
+        %CC% --version &
+        %FC% --version &
         pip install delvewheel
       CIBW_REPAIR_WHEEL_COMMAND_WINDOWS: "delvewheel repair -w {dest_dir} {wheel}"
       CIBW_TEST_REQUIRES: pytest

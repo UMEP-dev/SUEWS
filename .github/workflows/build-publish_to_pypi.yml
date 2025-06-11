@@ -52,7 +52,7 @@ jobs:
         C:\msys64\usr\bin\bash.exe -lc "pacman -Syu --noconfirm" &&
         C:\msys64\usr\bin\bash.exe -lc "pacman -S --needed --noconfirm mingw-w64-ucrt-x86_64-toolchain mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-gcc-fortran mingw-w64-ucrt-x86_64-openblas"
       CIBW_ENVIRONMENT_WINDOWS: >
-        PATH=C:\msys64\ucrt64\bin;%PATH%
+        PATH="C:\\msys64\\ucrt64\\bin;%PATH%"
         CC=C:\msys64\ucrt64\bin\gcc.exe
         CXX=C:\msys64\ucrt64\bin\g++.exe
         FC=C:\msys64\ucrt64\bin\gfortran.exe

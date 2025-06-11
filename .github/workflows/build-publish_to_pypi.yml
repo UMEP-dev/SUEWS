@@ -56,7 +56,8 @@ jobs:
         CC=gcc
         CXX=g++
         FC=gfortran
-        CFLAGS="-D__USE_MINGW_SETJMP_NON_SEH -D__USE_MINGW_ANSI_STDIO=1 -mlong-double-64"
+        CFLAGS="-D__USE_MINGW_ANSI_STDIO=1 -mlong-double-64"
+        CXXFLAGS="-D__USE_MINGW_ANSI_STDIO=1 -mlong-double-64"
         FCFLAGS="-fno-optimize-sibling-calls"
         LDFLAGS="-lucrt -static-libgcc -static-libgfortran"
       CIBW_BEFORE_BUILD_WINDOWS: >

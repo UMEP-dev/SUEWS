@@ -59,13 +59,20 @@ jobs:
         CFLAGS="-D__USE_MINGW_ANSI_STDIO=1 -mlong-double-64"
         CXXFLAGS="-D__USE_MINGW_ANSI_STDIO=1 -mlong-double-64"
         FCFLAGS="-fno-optimize-sibling-calls"
-        LDFLAGS="-lucrt -static-libgcc -static-libgfortran -lsetjmp_compat"
+        LDFLAGS="-lucrt -static-libgcc -static-libgfortran -LC:/msys64/ucrt64/lib -lsetjmp_compat"
       CIBW_BEFORE_BUILD_WINDOWS: >
+        echo Creating setjmp compatibility library... &&
         echo int _setjmpex(void* buf) { extern int __intrinsic_setjmpex(void*); return __intrinsic_setjmpex(buf); } > setjmp_compat.c &&
         C:\msys64\ucrt64\bin\gcc.exe -c setjmp_compat.c -o setjmp_compat.o &&
         C:\msys64\ucrt64\bin\ar.exe rcs libsetjmp_compat.a setjmp_compat.o &&
-        copy libsetjmp_compat.a C:\msys64\ucrt64\lib\ &&
+        echo Library created, checking contents: &&
         C:\msys64\ucrt64\bin\nm.exe libsetjmp_compat.a &&
+        echo Copying to standard locations: &&
+        copy libsetjmp_compat.a C:\msys64\ucrt64\lib\ &&
+        copy libsetjmp_compat.a C:\msys64\ucrt64\x86_64-w64-mingw32\lib\ &&
+        echo Verifying library locations: &&
+        dir C:\msys64\ucrt64\lib\libsetjmp_compat.a &&
+        dir C:\msys64\ucrt64\x86_64-w64-mingw32\lib\libsetjmp_compat.a &&
         where python &&
         where gcc &&
         gcc --version &&

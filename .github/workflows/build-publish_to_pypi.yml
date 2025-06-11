@@ -53,10 +53,9 @@ jobs:
         CC=gcc
         CXX=g++
         FC=gfortran
-        # Ensure all compilation units link against the universal CRT
         CFLAGS="-D__USE_MINGW_SETJMP_NON_SEH -D__USE_MINGW_ANSI_STDIO=1 -mlong-double-64"
         FCFLAGS="-fno-optimize-sibling-calls"
-        LDFLAGS="-mcrtdll=ucrtbase -lucrt"
+        LDFLAGS="-lucrt"
       CIBW_BEFORE_BUILD_WINDOWS: "pip install delvewheel" # Use delvewheel on windows
       CIBW_REPAIR_WHEEL_COMMAND_WINDOWS: "delvewheel repair -w {dest_dir} {wheel}"
       CIBW_TEST_REQUIRES: pytest

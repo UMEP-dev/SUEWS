@@ -696,7 +696,7 @@ class BldgsProperties(
     NonVegetatedSurfaceProperties
 ):  # May need to move VWD for waterdist to here for referencing
     _surface_type: Literal[SurfaceType.BLDGS] = SurfaceType.BLDGS
-    faibldg: RefValue[float] = Field(
+    faibldg: Optional[RefValue[float]] = Field(
         ge=0,
         default=RefValue(0.3),
         description="Frontal area index of buildings",

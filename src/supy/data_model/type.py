@@ -63,7 +63,7 @@ class RefValue(BaseModel, Generic[T]):
         ref (Optional[Reference]): Optional reference information for the value
     """
 
-    value: T
+    value: Optional[T]
     ref: Optional[Reference] = None
 
     def __init__(self, value: T, ref: Optional[Reference] = None):

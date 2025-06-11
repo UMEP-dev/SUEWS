@@ -61,14 +61,13 @@ jobs:
         FCFLAGS="-fno-optimize-sibling-calls"
         LDFLAGS="-lucrt -static-libgcc -static-libgfortran"
       CIBW_BEFORE_BUILD_WINDOWS: >
-        echo "PATH: $PATH" &&
-        echo "Checking MSYS2 locations:" &&
-        ls -la C:/tools/msys64/ucrt64/bin/ 2>/dev/null | head -10 || echo "Not in C:/tools/msys64" &&
-        ls -la /c/tools/msys64/ucrt64/bin/ 2>/dev/null | head -10 || echo "Not in /c/tools/msys64" &&
-        which gcc &&
-        which gfortran &&
-        gcc --version &&
-        gfortran --version &&
+        echo PATH: %PATH% &
+        echo Checking MSYS2 locations: &
+        dir C:\tools\msys64\ucrt64\bin\ &
+        where gcc &
+        where gfortran &
+        gcc --version &
+        gfortran --version &
         pip install delvewheel
       CIBW_REPAIR_WHEEL_COMMAND_WINDOWS: "delvewheel repair -w {dest_dir} {wheel}"
       CIBW_TEST_REQUIRES: pytest

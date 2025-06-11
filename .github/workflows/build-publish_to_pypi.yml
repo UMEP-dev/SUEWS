@@ -80,7 +80,7 @@ jobs:
         if: runner.os == 'Windows'
         shell: msys2 {0}
         run: |
-          set -euxo pipefail                # -x prints every command
+          set -euo pipefail                 # -x removed to keep logs concise
           echo "MSYSTEM is $MSYSTEM"
           echo "gcc path: $(which gcc)"
 

@@ -2,7 +2,7 @@
 requires = [
     "wheel",
     "pytest",
-    "f90wrap==0.2.15",
+    "f90wrap==0.2.16",
     "numpy>=2.0",
     "meson-python>=0.12.0",
 ]
@@ -27,7 +27,7 @@ dependencies = [
     "chardet",
     "scipy",
     "pydantic",
-    "f90wrap==0.2.15",                             # f90wrap is required for f2py-based supy driver
+    "f90wrap==0.2.16",                             # f90wrap is required for f2py-based supy driver
     "dask",                                        # needs dask for parallel tasks
     "f90nml",                                      # utility for namelist files
     "seaborn",                                     # stat plotting

@@ -9,8 +9,11 @@ project(
 if host_machine.system() == 'windows'
   # Always link against the modern UCRT and opt-out of SEH-based setjmp/longjmp
   add_project_arguments('-D__USE_MINGW_SETJMP_NON_SEH', language : 'c')
-  add_project_arguments('-mcrtdll=ucrtbase', language : ['c','fortran'])
-  add_project_link_arguments('-mcrtdll=ucrtbase', language : ['c','fortran'])
+  # Note: recent MinGW-w64 GCC dropped support for the compile-time
+  # "-mcrtdll=..." switch.  We therefore omit it here and rely on
+  # LDFLAGS (set in the CI workflow) to pull in the UCRT at link time.
+  # add_project_arguments('-mcrtdll=ucrtbase', language : ['c','fortran'])
+  add_project_link_arguments('-lucrt', language : ['c','fortran'])
 
   # Extra safety knobs cribbed from SciPy's build system
   cc = meson.get_compiler('c')

@@ -68,10 +68,10 @@ MODULE allocateArray
                             32 & ! Use ESTM with dynamic OHM
                             ]
    INTEGER, DIMENSION(3) :: ehc_triggers = [ & ! StorageHeatMethod triggers for EHC
-      5, & ! Use EHC
-      21, & ! Use EHC with OHM
-      22  & ! Use EHC with dynamic OHM
-   ]
+                            5, & ! Use EHC
+                            21, & ! Use EHC with OHM
+                            22 & ! Use EHC with dynamic OHM
+                            ]
 
    ! ---- Set number of columns in input files ----------------------------------------------------
    INTEGER, PARAMETER :: ncolumnsSiteSelect = 105 !SUEWS_SiteSelect.txt

@@ -1027,7 +1027,7 @@ SUBROUTINE suewsstebbscouple(self, datetimeLine, &
                                Qlw_dn_extwall, Qlw_dn_extroof, sout%timestep, &
                                resolution, &
                                datetimeLine &
-                              !  flginit &
+                               !  flginit &
                                )
 
       Tair_ind = self%Tair_ind
@@ -1143,7 +1143,7 @@ SUBROUTINE timeStepCalculation(self, Tair_out, Tground_deep, Tsurf, &
                                Qsw_dn_extroof, Qsw_dn_extwall, &
                                Qlw_dn_extwall, Qlw_dn_extroof, &
                                timestep, resolution, datetimeLine &
-                              !  flginit &
+                               !  flginit &
                                )
    USE modulestebbsprecision
    USE modulestebbs, ONLY: LBM

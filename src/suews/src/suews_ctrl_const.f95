@@ -58,6 +58,16 @@ MODULE allocateArray
 
    REAL(KIND(1D0)), DIMENSION(nsurf) :: sfr_surf !Surface fractions [-]
 
+   ! ---- Set of physics options for different methods -------------------------------------------------
+   INTEGER, DIMENSION(6) :: ohm_triggers = [ &
+      1, & ! Use OHM
+      6, & ! Use dynamic OHM
+      21, & ! Use EHC with OHM
+      22, & ! Use EHC with dynamic OHM
+      31, & ! Use ESTM with OHM
+      32 & ! Use ESTM with dynamic OHM
+   ]
+
    ! ---- Set number of columns in input files ----------------------------------------------------
    INTEGER, PARAMETER :: ncolumnsSiteSelect = 105 !SUEWS_SiteSelect.txt
    INTEGER, PARAMETER :: ncolumnsNonVeg = 24 !SUEWS_NonVeg.txt

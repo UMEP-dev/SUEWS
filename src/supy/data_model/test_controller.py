@@ -111,19 +111,15 @@ print(f"\nUPDATING YAML -- New yaml with null values saved to: {new_path}")
 # --- DAYLIGHT-SAVING CONTROLLER ---
 print("CHECKING -- Daylight-Saving dates.")
 
-# 1) site lat/lon
 lat = updated_cfg["site"][0]["properties"]["lat"]["value"]
 lon = updated_cfg["site"][0]["properties"]["lng"]["value"]
 
-# 2) what's in your YAML
-yaml_start = updated_cfg["site"][0]["properties"]["anthropogenic_emissions"]["startdls"]["value"]
-yaml_end   = updated_cfg["site"][0]["properties"]["anthropogenic_emissions"]["enddls"]["value"]
+startdls_val = updated_cfg["site"][0]["properties"]["anthropogenic_emissions"]["startdls"]["value"]
+enddls_val   = updated_cfg["site"][0]["properties"]["anthropogenic_emissions"]["enddls"]["value"]
 
-# 3) pick year (allow override via argv[2])
 #year = int(sys.argv[2]) if len(sys.argv) > 2 else datetime.now().year
 year = 2025
 
-# 4) find IANA tz
 tf = TimezoneFinder()
 tz_name = tf.timezone_at(lat=lat, lng=lon)
 if tz_name is None:
@@ -133,13 +129,12 @@ else:
 
     def find_transition(month):
         """Return day-of-year when UTC offset at local noon changes."""
-        # start with offset on the 1st of month at noon
         try:
             prev_dt = tz.localize(datetime(year, month, 1, 12, 0), is_dst=None)
         except Exception:
             return None
         prev_off = prev_dt.utcoffset()
-        # step day by day
+
         for day in range(2, 32):
             try:
                 curr_dt = tz.localize(datetime(year, month, day, 12, 0), is_dst=None)
@@ -147,20 +142,18 @@ else:
                 continue
             curr_off = curr_dt.utcoffset()
             if curr_off != prev_off:
-                # transition occurred on this date
                 return curr_dt.timetuple().tm_yday
             prev_off = curr_off
         return None
 
-    # DST typically begins Mar/Apr and ends Oct/Nov
     actual_start = find_transition(3) or find_transition(4)
     actual_end   = find_transition(10) or find_transition(11)
 
     if actual_start and actual_end:
-        if (yaml_start, yaml_end) != (actual_start, actual_end):
+        if (startdls_val, enddls_val) != (actual_start, actual_end):
             print("ERROR — DLS mismatch:")
             print(f"  computed start={actual_start}, end={actual_end}")
-            print(f"  in YAML   start={yaml_start}, end={yaml_end}")
+            print(f"  in YAML   start={startdls_val}, end={enddls_val}")
             sys.exit(4)
         else:
             print("Daylight-Saving dates OK.")

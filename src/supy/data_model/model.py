@@ -106,6 +106,11 @@ class StorageHeatMethod(Enum):
     '''
     OBSERVED = 0
     OHM_WITHOUT_QF = 1
+    DYNAMIC_OHM = 2
+    EHC_OHM_WITHOUT_QF = 21
+    EHC_DYNAMIC_OHM = 22
+    ESTM_OHM_WITHOUT_QF = 31
+    ESTM_DYNAMIC_OHM = 32
     ANOHM = 3
     ESTM = 4
     ESTM_EXTENDED = 5

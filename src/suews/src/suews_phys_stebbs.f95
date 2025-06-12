@@ -1278,7 +1278,8 @@ SUBROUTINE timeStepCalculation(self, Tair_out, Tair_out_bh, Tair_out_hbh, Tgroun
    self%Qtotal_water_tank = 0.0
    self%qhwtDrain = 0.0
    CALL tstep( &
-      flginit, datetimeLine, Tair_out, Tground_deep, Tsurf, &
+      !flginit, 
+      datetimeLine, Tair_out, Tair_out_bh, Tair_out_hbh, Tground_deep, Tsurf, &
       density_air_out, cp_air_out, &
       Qsw_dn_extroof, Qsw_dn_extwall, &
       Qlw_dn_extwall, Qlw_dn_extroof, &
@@ -1298,7 +1299,7 @@ SUBROUTINE timeStepCalculation(self, Tair_out, Tair_out_bh, Tair_out_hbh, Tgroun
       self%density_window, self%density_indoormass, self%density_air_ind, &
       self%cp_wall, self%cp_roof, self%cp_groundfloor, self%cp_window, &
       self%cp_indoormass, self%cp_air_ind, &
-   self%emissivity_extwall, self%emissivity_extroof, self%emissivity_intwall, self%emissivity_introof, self%emissivity_indoormass, &
+      self%emissivity_extwall, self%emissivity_extroof, self%emissivity_intwall, self%emissivity_introof, self%emissivity_indoormass, &
       self%emissivity_extwindow, self%emissivity_intwindow, &
       self%windowTransmissivity, self%windowAbsorbtivity, self%windowReflectivity, &
       self%wallTransmisivity, self%wallAbsorbtivity, self%wallReflectivity, &

@@ -4,6 +4,9 @@ import os
 import copy
 from pydantic import ValidationError
 from supy.data_model.core import SUEWSConfig
+from datetime import datetime, timedelta
+import pytz
+from timezonefinder import TimezoneFinder
 
 #yaml_path = "../../../test/benchmark1/benchmark1b.yml"
 yaml_path = "../sample_run/sample_config.yml"
@@ -94,7 +97,6 @@ def insert_nulls(data, path=""):
 print("\nSCANNING YAML -- Looking for missing parameters values and replacing empty strings with null values...")
 insert_nulls(updated_cfg)
 
-
 # --- SAVE updated YAML ---
 yaml_basename = os.path.basename(yaml_path)
 yaml_dirname = os.path.dirname(yaml_path)
@@ -105,6 +107,68 @@ with open(new_path, "w") as f:
     yaml.dump(updated_cfg, f, sort_keys=False)
 
 print(f"\nUPDATING YAML -- New yaml with null values saved to: {new_path}")
+
+# --- DAYLIGHT-SAVING CONTROLLER ---
+print("CHECKING -- Daylight-Saving dates.")
+
+# 1) site lat/lon
+lat = updated_cfg["site"][0]["properties"]["lat"]["value"]
+lon = updated_cfg["site"][0]["properties"]["lng"]["value"]
+
+# 2) what's in your YAML
+yaml_start = updated_cfg["site"][0]["properties"]["anthropogenic_emissions"]["startdls"]["value"]
+yaml_end   = updated_cfg["site"][0]["properties"]["anthropogenic_emissions"]["enddls"]["value"]
+
+# 3) pick year (allow override via argv[2])
+#year = int(sys.argv[2]) if len(sys.argv) > 2 else datetime.now().year
+year = 2025
+
+# 4) find IANA tz
+tf = TimezoneFinder()
+tz_name = tf.timezone_at(lat=lat, lng=lon)
+if tz_name is None:
+    print(f"WARNING: cannot determine timezone for {lat},{lon}; skipping DLS check.")
+else:
+    tz = pytz.timezone(tz_name)
+
+    def find_transition(month):
+        """Return day-of-year when UTC offset at local noon changes."""
+        # start with offset on the 1st of month at noon
+        try:
+            prev_dt = tz.localize(datetime(year, month, 1, 12, 0), is_dst=None)
+        except Exception:
+            return None
+        prev_off = prev_dt.utcoffset()
+        # step day by day
+        for day in range(2, 32):
+            try:
+                curr_dt = tz.localize(datetime(year, month, day, 12, 0), is_dst=None)
+            except Exception:
+                continue
+            curr_off = curr_dt.utcoffset()
+            if curr_off != prev_off:
+                # transition occurred on this date
+                return curr_dt.timetuple().tm_yday
+            prev_off = curr_off
+        return None
+
+    # DST typically begins Mar/Apr and ends Oct/Nov
+    actual_start = find_transition(3) or find_transition(4)
+    actual_end   = find_transition(10) or find_transition(11)
+
+    if actual_start and actual_end:
+        if (yaml_start, yaml_end) != (actual_start, actual_end):
+            print("ERROR — DLS mismatch:")
+            print(f"  computed start={actual_start}, end={actual_end}")
+            print(f"  in YAML   start={yaml_start}, end={yaml_end}")
+            sys.exit(4)
+        else:
+            print("Daylight-Saving dates OK.")
+    else:
+        print("WARNING — unable to detect one or both DST transitions; please verify manually.")
+
+# --- end DLS CONTROLLER ---
+
 
 # --- SURFACE FRACTIONS CONTROLLER ---
 print("CHECKING -- Surface fractions.")
@@ -156,6 +220,7 @@ if missing_sf:
 else:
     print("All surface‐fraction dependent parameters are checked.")
 
+# --- end SURFACE FRACTIONS CONTROLLER ---
 
 # --- DIAGMETHOD CONTROLLER ---
 print("CHECKING -- DiagMethod options.")
@@ -276,6 +341,8 @@ elif diag_val == 2:
 else:
     print(f"diagmethod = {diag_val}: validation will proceed.")
 
+# --- end DIAGMETHOD CONTROLLER ---
+
 # --- STORAGEHEATMETHOD CONTROLLER ---
 print("CHECKING -- StorageHeatMethod options.")
 storage_val = updated_cfg["model"]["physics"]["storageheatmethod"]["value"]
@@ -334,6 +401,8 @@ if storage_val == 6:
         sys.exit(6)
     else:
         print("All storageheatmethod==6 related parameters are present.")
+
+# --- end STORAGEHEATMETHOD CONTROLLER ---
 
 # --- Validate config using SUEWSConfig ---
 

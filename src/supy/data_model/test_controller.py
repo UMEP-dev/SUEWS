@@ -21,7 +21,7 @@ except yaml.YAMLError as e:
 
 updated_cfg = copy.deepcopy(cfg)
 
-# --- CRITICAL model.physics methods that must NOT be null or missing ---
+# --- CHECK that model.physics methods are NOT null or missing ---
 required_methods = [
     "netradiationmethod", "emissionsmethod", "storageheatmethod", "ohmincqf",
     "roughlenmommethod", "roughlenheatmethod", "stabilitymethod", "smdmethod",
@@ -29,7 +29,7 @@ required_methods = [
     "snowuse", "stebbsmethod"
 ]
 
-print("CHECKING model options")
+print("CHECKING -- Model options.")
 physics = updated_cfg.get("model", {}).get("physics", {})
 errors = []
 
@@ -40,12 +40,12 @@ for method in required_methods:
         errors.append(f"Missing {method} option or null")
 
 if errors:
-    print("Critical model options are missing or null:")
+    print("WARNING -- These model options are missing or null:")
     for e in errors:
         print("  -", e)
     sys.exit(2)
 else:
-    print("All required model options are present.")
+    print("CHECKING DONE -- All required model options are present.")
 
 def insert_nulls(data, path=""):
     """
@@ -58,10 +58,8 @@ def insert_nulls(data, path=""):
         for key, val in data.items():
             current_path = f"{path}.{key}" if path else key
 
-            # if this leaf is "" or None (and not under model.physics), replace it
             if val == "" or (val is None and not current_path.startswith("model.physics.")):
                 parts = current_path.split(".")
-                # derive a friendly param name
                 if parts[-1] == "value" and len(parts) >= 2:
                     param_name = parts[-2]
                 else:
@@ -70,7 +68,6 @@ def insert_nulls(data, path=""):
                 data[key] = None
                 updated = True
 
-            # otherwise, recurse deeper
             elif insert_nulls(val, current_path):
                 updated = True
 
@@ -78,9 +75,7 @@ def insert_nulls(data, path=""):
         for idx, item in enumerate(data):
             current_path = f"{path}[{idx}]"
 
-            # catch list‐element leaves
             if item == "" or (item is None and not current_path.startswith("model.physics.")):
-                # if the path ends in ".value[<n>]" we use param_name = the part before '.value'
                 parts = current_path.replace("]", "").replace("[", ".").split(".")
                 if "value" in parts:
                     i = parts.index("value")
@@ -91,14 +86,12 @@ def insert_nulls(data, path=""):
                 data[idx] = None
                 updated = True
 
-            # if it’s a nested container, recurse
             elif insert_nulls(item, current_path):
                 updated = True
 
     return updated
 
-# … later in your script …
-print("\nSCANNING YAML for missing parameters values...")
+print("\nSCANNING YAML -- Looking for missing parameters values...")
 insert_nulls(updated_cfg)
 
 
@@ -111,15 +104,15 @@ new_path = os.path.join(yaml_dirname, new_filename)
 with open(new_path, "w") as f:
     yaml.dump(updated_cfg, f, sort_keys=False)
 
-print(f"\nUpdated YAML saved to: {new_path}")
+print(f"\nUPDATING YAML -- New yaml with null values saved to: {new_path}")
 
 # --- DIAGMETHOD CONTROLLER ---
 diag_val = updated_cfg["model"]["physics"]["diagmethod"]["value"]
 
 if diag_val == 0:
-    print("diagmethod is 0 (OFF). Proceeding to validation.")
+    print("diagmethod is 0 (OFF).")
 elif diag_val == 2:
-    print("diagmethod is 2. Checking related parameters...")
+    print("diagmethod is 2 (ON). Checking related parameters...")
 
     diag2_fields = [
         "site[0].properties.surfacearea",
@@ -149,7 +142,6 @@ elif diag_val == 2:
                     ref = ref[int(part)]
                 else:
                     ref = ref[part]
-            # If final value is a dict with 'value', check that
             if isinstance(ref, dict) and "value" in ref:
                 if ref["value"] is None:
                     missing_diag2.append(field + ".value")
@@ -159,14 +151,14 @@ elif diag_val == 2:
             missing_diag2.append(field)
 
     if missing_diag2:
-        print("The following required fields for diagmethod==2 are missing or null:")
+        print("WARNING -- The following required fields for diagmethod==2 are missing or null:")
         for m in missing_diag2:
             parts = m.replace("]", "").replace("[", ".").split(".")
             param_name = parts[-2] if parts[-1] == "value" else parts[-1]
             print(f"  - Parameter '{param_name}' is missing (at {m})")
         sys.exit(4)
     else:
-        print("All diagmethod==2 related parameters are present. Proceeding.")
+        print("All diagmethod==2 related parameters are present.")
 
 else:
     print(f"diagmethod = {diag_val}: validation will proceed.")
@@ -176,7 +168,7 @@ else:
 storage_val = updated_cfg["model"]["physics"]["storageheatmethod"]["value"]
 
 if storage_val == 6:
-    print("storageheatmethod is 6. Checking related parameters…")
+    print("storageheatmethod is 6. Checking related parameters...")
 
     missing_sh = []
 
@@ -190,7 +182,6 @@ if storage_val == 6:
                     ref = ref[int(part)]
                 else:
                     ref = ref[part]
-            # ref is either dict-with-value or a leaf
             if isinstance(ref, dict):
                 val = ref.get("value", None)
                 if val is None or (isinstance(val, list) and not val):
@@ -225,13 +216,13 @@ if storage_val == 6:
                     missing_sh.append(leaf)
 
     if missing_sh:
-        print("The following required fields for storageheatmethod==6 are missing or null:")
+        print("WARNING -- The following required fields for storageheatmethod==6 are missing or null:")
         for m in missing_sh:
             name = m.split(".")[-2] if m.endswith(".value") else m.split(".")[-1]
             print(f"  - Parameter '{name}' is missing at {m}")
         sys.exit(5)
     else:
-        print("All storageheatmethod==6 related parameters are present. Proceeding.")
+        print("All storageheatmethod==6 related parameters are present.")
 
 # --- Validate config using SUEWSConfig ---
 try:

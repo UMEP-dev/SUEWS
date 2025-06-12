@@ -1137,7 +1137,7 @@ Qsw_absorbed_window_tstepTotal, Qsw_absorbed_wall_tstepTotal, Qsw_absorbed_roof_
                                Qlw_dn_extwall, Qlw_dn_extroof, sout%timestep, &
                                resolution, &
                                datetimeLine &
-                              !  flginit &
+                               !  flginit &
                                )
 
       Tair_ind = self%Tair_ind
@@ -1261,7 +1261,7 @@ SUBROUTINE timeStepCalculation(self, Tair_out, Tair_out_bh, Tair_out_hbh, Tgroun
                                Qsw_dn_extroof, Qsw_dn_extwall, &
                                Qlw_dn_extwall, Qlw_dn_extroof, &
                                timestep, resolution, datetimeLine &
-                              !  flginit &
+                               !  flginit &
                                )
    USE modulestebbsprecision
    USE modulestebbs, ONLY: LBM

@@ -1716,7 +1716,7 @@ CONTAINS
                IF (StorageHeatMethod == 0) THEN !Use observed QS
                   qs = qs_obs
 
-               ELSEIF (any(storageheatmethod == ohm_triggers)) THEN !Use OHM to calculate QS
+               ELSEIF (ANY(storageheatmethod == ohm_triggers)) THEN !Use OHM to calculate QS
                   Tair_mav_5d = HDD_id(10)
                   IF (Diagnose == 1) WRITE (*, *) 'Calling OHM...'
                   CALL OHM(qn_use, ohmState%qn_av, ohmState%dqndt, &

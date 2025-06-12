@@ -702,7 +702,7 @@ class BldgsProperties(
         description="Frontal area index of buildings",
         unit="dimensionless",
     )
-    bldgh: RefValue[float] = Field(
+    bldgh: Optional[RefValue[float]] = Field(
         ge=3, default=RefValue(10.0), description="Building height", unit="m"
     )  # We need to check if there is a building - and then this has to be greather than 0, accordingly.
     waterdist: WaterDistribution = Field(

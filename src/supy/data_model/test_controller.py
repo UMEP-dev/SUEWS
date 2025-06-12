@@ -91,7 +91,7 @@ def insert_nulls(data, path=""):
 
     return updated
 
-print("\nSCANNING YAML -- Looking for missing parameters values...")
+print("\nSCANNING YAML -- Looking for missing parameters values and replacing empty strings with null values...")
 insert_nulls(updated_cfg)
 
 
@@ -106,15 +106,66 @@ with open(new_path, "w") as f:
 
 print(f"\nUPDATING YAML -- New yaml with null values saved to: {new_path}")
 
+# --- SURFACE FRACTIONS CONTROLLER ---
+print("CHECKING -- Surface fractions.")
+# grab your three surface fractions
+bldgs_sfr_val = updated_cfg["site"][0]["properties"]["land_cover"]["bldgs"]["sfr"]["value"]
+evetr_sfr_val = updated_cfg["site"][0]["properties"]["land_cover"]["evetr"]["sfr"]["value"]
+dectr_sfr_val = updated_cfg["site"][0]["properties"]["land_cover"]["dectr"]["sfr"]["value"]
+
+# define for each group which companion params to handle
+groups = {
+    "bldgs": {"sfr": bldgs_sfr_val, "params": ["faibldg", "bldgh"]},
+    "evetr": {"sfr": evetr_sfr_val, "params": ["faievetree", "evetreeh"]},
+    "dectr": {"sfr": dectr_sfr_val, "params": ["faidectree", "dectreeh", "pormin_dec", "pormax_dec"]},
+}
+
+missing_sf = []
+
+for grp, info in groups.items():
+    sfr = info["sfr"]
+    base = updated_cfg["site"][0]["properties"]["land_cover"][grp]
+
+    for companion in info["params"]:
+        # ensure the node exists
+        try:
+            node = base[companion]
+        except KeyError:
+            missing_sf.append(f"site[0].properties.land_cover.{grp}.{companion}")
+            continue
+
+        # CASE A: sfr is None → set companion.value = None
+        if sfr is None:
+            node["value"] = None
+
+        # CASE B: sfr == 0 → set companion.value = 0
+        elif sfr == 0:
+            node["value"] = 0
+
+        # CASE C: sfr > 0 → enforce companion.value exists & non‐null
+        else:
+            # if no “value” key or it’s None, record missing
+            if "value" not in node or node["value"] is None:
+                missing_sf.append(f"site[0].properties.land_cover.{grp}.{companion}.value")
+
+if missing_sf:
+    print("ERROR — the following surface‐fraction parameters are missing or null:")
+    for fld in missing_sf:
+        print("  -", fld)
+    sys.exit(5)
+else:
+    print("All surface‐fraction dependent parameters are checked.")
+
+
 # --- DIAGMETHOD CONTROLLER ---
+print("CHECKING -- DiagMethod options.")
 diag_val = updated_cfg["model"]["physics"]["diagmethod"]["value"]
+stability_val = updated_cfg["model"]["physics"]["stabilitymethod"]["value"]
 
 if diag_val == 0:
     print("diagmethod is 0 (OFF).")
 elif diag_val == 2:
     print("diagmethod is 2 (ON). Checking related parameters...")
-
-    stability_val = updated_cfg["model"]["physics"]["stabilitymethod"]["value"]
     if stability_val != 3:
         print("WARNING -- For diagmethod==2, stabilitymethod==3 should be selected.")
         sys.exit(4)
@@ -122,17 +173,17 @@ elif diag_val == 2:
     diag2_fields = [
         "site[0].properties.surfacearea",
         "site[0].properties.land_cover.bldgs.sfr",
-        #"site[0].properties.land_cover.bldgs.bldgh",
-        #"site[0].properties.land_cover.bldgs.faibldg",
+        "site[0].properties.land_cover.bldgs.bldgh",
+        "site[0].properties.land_cover.bldgs.faibldg",
         "site[0].properties.land_cover.paved.sfr",
         "site[0].properties.land_cover.evetr.sfr",
-        #"site[0].properties.land_cover.evetr.evetreeh",
-        #"site[0].properties.land_cover.evetr.faievetree",
+        "site[0].properties.land_cover.evetr.evetreeh",
+        "site[0].properties.land_cover.evetr.faievetree",
         "site[0].properties.land_cover.dectr.sfr",
-        #"site[0].properties.land_cover.dectr.pormin_dec",
-        #"site[0].properties.land_cover.dectr.pormax_dec",
-        #"site[0].properties.land_cover.dectr.dectreeh",
-        #"site[0].properties.land_cover.dectr.faidectree",
+        "site[0].properties.land_cover.dectr.pormin_dec",
+        "site[0].properties.land_cover.dectr.pormax_dec",
+        "site[0].properties.land_cover.dectr.dectreeh",
+        "site[0].properties.land_cover.dectr.faidectree",
         "site[0].properties.n_buildings",
         "site[0].initial_states.dectr.porosity_id"
     ]
@@ -208,7 +259,6 @@ elif diag_val == 2:
                 if val is None:
                     missing_consistency.append(field + ".value")
 
-    # report
     if missing_consistency:
         print("WARNING -- consistency check failed, missing or null fields:")
         for m in missing_consistency:
@@ -223,13 +273,11 @@ elif diag_val == 2:
     else:
         print("Consistency checks for diagmethod == 2 passed.")
 
-
-
 else:
     print(f"diagmethod = {diag_val}: validation will proceed.")
 
 # --- STORAGEHEATMETHOD CONTROLLER ---
-
+print("CHECKING -- StorageHeatMethod options.")
 storage_val = updated_cfg["model"]["physics"]["storageheatmethod"]["value"]
 
 if storage_val == 6:
@@ -237,7 +285,6 @@ if storage_val == 6:
 
     missing_sh = []
 
-    # 1) top-level lambda_c under site[0].properties
     for field in ["site[0].properties.lambda_c.value"]:
         parts = field.replace("]", "").replace("[", ".").split(".")
         ref = updated_cfg
@@ -257,7 +304,6 @@ if storage_val == 6:
         except (KeyError, IndexError, TypeError):
             missing_sh.append(field)
 
-    # 2) each wall under vertical_layers.walls
     try:
         walls = updated_cfg["site"][0]["properties"]["vertical_layers"]["walls"]
     except (KeyError, TypeError):

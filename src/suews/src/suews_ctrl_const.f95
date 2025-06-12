@@ -60,13 +60,13 @@ MODULE allocateArray
 
    ! ---- Set of physics options for different methods -------------------------------------------------
    INTEGER, DIMENSION(6) :: ohm_triggers = [ & ! StorageHeatMethod triggers for OHM
-      1, & ! Use OHM
-      6, & ! Use dynamic OHM
-      21, & ! Use EHC with OHM
-      22, & ! Use EHC with dynamic OHM
-      31, & ! Use ESTM with OHM
-      32 & ! Use ESTM with dynamic OHM
-   ]
+                            1, & ! Use OHM
+                            6, & ! Use dynamic OHM
+                            21, & ! Use EHC with OHM
+                            22, & ! Use EHC with dynamic OHM
+                            31, & ! Use ESTM with OHM
+                            32 & ! Use ESTM with dynamic OHM
+                            ]
    INTEGER, DIMENSION(3) :: ehc_triggers = [ & ! StorageHeatMethod triggers for EHC
       5, & ! Use EHC
       21, & ! Use EHC with OHM

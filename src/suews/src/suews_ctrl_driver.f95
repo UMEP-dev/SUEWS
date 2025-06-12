@@ -3449,7 +3449,7 @@ CONTAINS
          dataOutESTM(ir, 1:ncolumnsDataOutESTM, Gridiv) = [set_nan(dataOutLineESTM)]
       END IF
 
-      IF (storageheatmethod == 5  .OR. storageheatmethod == 21 .OR. storageheatmethod == 22) THEN
+      IF (storageheatmethod == 5 .OR. storageheatmethod == 21 .OR. storageheatmethod == 22) THEN
          dataOutEHC(ir, 1:ncolumnsDataOutEHC, Gridiv) = [set_nan(dataOutLineEHC)]
       END IF
 
@@ -5194,7 +5194,7 @@ CONTAINS
       porosity_id = phenState%porosity_id
       StoreDrainPrm = phenState%StoreDrainPrm
 
-      IF (config%StorageHeatMethod == 5  .OR. config%storageheatmethod == 21 .OR. config%storageheatmethod == 22) THEN
+      IF (config%StorageHeatMethod == 5 .OR. config%storageheatmethod == 21 .OR. config%storageheatmethod == 22) THEN
          ! ESTM_ehc related
          temp_roof = heatState%temp_roof
          temp_wall = heatState%temp_wall

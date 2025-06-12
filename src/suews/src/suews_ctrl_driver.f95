@@ -228,7 +228,7 @@ CONTAINS
             ! save surface temperature at the beginning of the time step
             tsfc_surf_stepstart = tsfc_surf
             ! ! TODO: ESTM work: to allow heterogeneous surface temperatures
-            IF (config%StorageHeatMethod == 5 .OR. config%NetRadiationMethod > 1000) THEN
+            IF (config%StorageHeatMethod == 5  .OR. config%StorageHeatMethod == 21 .OR. config%StorageHeatMethod == 22 .OR. config%NetRadiationMethod > 1000) THEN
                tsfc_roof_stepstart = tsfc_roof
                tsfc_wall_stepstart = tsfc_wall
             END IF
@@ -522,7 +522,7 @@ CONTAINS
                modState, & ! input/output:
                datetimeLine, dataOutLineSUEWS) !output
 
-            IF (config%StorageHeatMethod == 5) THEN
+            IF (config%StorageHeatMethod == 5 .OR. config%StorageHeatMethod == 21 .OR. config%StorageHeatMethod == 22) THEN
                IF (Diagnose == 1) WRITE (*, *) 'Calling ECH_update_outputLine_DTS...'
                CALL EHC_update_outputLine( &
                   timer, & !input
@@ -724,7 +724,7 @@ CONTAINS
             END DO
 
             dif_tsfc_iter = MAXVAL(ABS(tsfc_surf - tsfc0_out_surf))
-            IF (StorageHeatMethod == 5) THEN
+            IF (StorageHeatMethod == 5 .OR. storageheatmethod == 21 .OR. storageheatmethod == 22) THEN
                dif_tsfc_iter = MAX(MAXVAL(ABS(tsfc_roof - tsfc0_out_roof)), dif_tsfc_iter)
                dif_tsfc_iter = MAX(MAXVAL(ABS(tsfc0_out_wall - tsfc_wall)), dif_tsfc_iter)
             END IF
@@ -734,7 +734,7 @@ CONTAINS
             ! ratio_iter = 1
             ratio_iter = .3
             tsfc_surf = (tsfc0_out_surf*(1 - ratio_iter) + tsfc_surf*ratio_iter)
-            IF (StorageHeatMethod == 5) THEN
+            IF (StorageHeatMethod == 5 .OR. storageheatmethod == 21 .OR. storageheatmethod == 22) THEN
                tsfc_roof = (tsfc0_out_roof*(1 - ratio_iter) + tsfc_roof*ratio_iter)
                tsfc_wall = (tsfc0_out_wall*(1 - ratio_iter) + tsfc_wall*ratio_iter)
             END IF
@@ -1780,7 +1780,7 @@ CONTAINS
                      dataOutLineESTM, QS) !output
                   !    CALL ESTM(QSestm,Gridiv,ir)  ! iMB corrected to Gridiv, TS 09 Jun 2016
                   !    QS=QSestm   ! Use ESTM qs
-               ELSEIF (StorageHeatMethod == 5) THEN
+               ELSEIF (StorageHeatMethod == 5 .OR. storageheatmethod == 21 .OR. storageheatmethod == 22) THEN
                   !    !CALL ESTM(QSestm,iMB)
                   IF (Diagnose == 1) WRITE (*, *) 'Calling extended ESTM...'
                   ! facets: seven suews standard facets + extra for buildings [roof, wall] (can be extended for heterogeneous buildings)
@@ -2630,7 +2630,7 @@ CONTAINS
                   rss_surf, ev0_surf, qe0_surf) !output
 
                ! MP: Use EHC
-               IF (storageheatmethod == 5) THEN
+               IF (storageheatmethod == 5 .OR. storageheatmethod == 21 .OR. storageheatmethod == 22) THEN
                   ! --- roofs ---
                   ! net available energy for evaporation
                   qn_e_roof = qn_roof + qf - qs_roof ! qn1 changed to qn1_snowfree, lj in May 2013
@@ -2690,7 +2690,7 @@ CONTAINS
                qe_surf = tlv*ev_surf
 
                ! --- update building related ---
-               IF (storageheatmethod == 5) THEN
+               IF (storageheatmethod == 5 .OR. storageheatmethod == 21 .OR. storageheatmethod == 22) THEN
                   ! update building specific values
                   qe_surf(BldgSurf) = qe_building
                   state_surf(BldgSurf) = state_building
@@ -2726,7 +2726,7 @@ CONTAINS
 
                ! state_id_out = state_id_out
                ! soilstore_id_out = soilstore_id
-               IF (storageheatmethod == 5) THEN
+               IF (storageheatmethod == 5 .OR. storageheatmethod == 21 .OR. storageheatmethod == 22) THEN
                   IF (Diagnose == 1) PRINT *, 'in SUEWS_cal_QE soilstore_building = ', soilstore_building
                   IF (Diagnose == 1) PRINT *, 'in SUEWS_cal_QE capStore_builing = ', capStore_builing
                   IF (Diagnose == 1) PRINT *, 'in SUEWS_cal_QE capStore_surf(BldgSurf) = ', capStore_surf(BldgSurf)
@@ -2878,7 +2878,7 @@ CONTAINS
                      qh_resist_surf(is) = NAN
                   END IF
                END DO
-               IF (storageheatmethod == 5) THEN
+               IF (storageheatmethod == 5 .OR. storageheatmethod == 21 .OR. storageheatmethod == 22) THEN
                   DO is = 1, nlayer
                      IF (RA_h /= 0) THEN
                         qh_resist_roof(is) = avdens*avcp*(tsfc_roof(is) - Temp_C)/RA_h
@@ -3449,7 +3449,7 @@ CONTAINS
          dataOutESTM(ir, 1:ncolumnsDataOutESTM, Gridiv) = [set_nan(dataOutLineESTM)]
       END IF
 
-      IF (storageheatmethod == 5) THEN
+      IF (storageheatmethod == 5  .OR. storageheatmethod == 21 .OR. storageheatmethod == 22) THEN
          dataOutEHC(ir, 1:ncolumnsDataOutEHC, Gridiv) = [set_nan(dataOutLineEHC)]
       END IF
 
@@ -3503,7 +3503,7 @@ CONTAINS
       PervFraction = 1 - ImpervFraction
       NonWaterFraction = 1 - sfr_surf(WaterSurf)
 
-      IF (StorageHeatMethod == 5 .OR. NetRadiationMethod > 1000) THEN
+      IF (StorageHeatMethod == 5 .OR. StorageHeatMethod == 21 .OR. StorageHeatMethod == 22 .OR. NetRadiationMethod > 1000) THEN
          ! get individual building fractions of each layer
          ! NB.: sum(sfr_roof) = building_frac(1)
          sfr_roof = 0.
@@ -5194,7 +5194,7 @@ CONTAINS
       porosity_id = phenState%porosity_id
       StoreDrainPrm = phenState%StoreDrainPrm
 
-      IF (config%StorageHeatMethod == 5) THEN
+      IF (config%StorageHeatMethod == 5  .OR. config%storageheatmethod == 21 .OR. config%storageheatmethod == 22) THEN
          ! ESTM_ehc related
          temp_roof = heatState%temp_roof
          temp_wall = heatState%temp_wall

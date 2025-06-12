@@ -574,6 +574,7 @@ MODULE SUEWS_DEF_DTS
    TYPE, PUBLIC :: flag_STATE
       LOGICAL :: flag_converge ! flag for convergence of surface temperature
       INTEGER :: i_iter ! number of iterations for convergence
+      INTEGER :: stebbs_bldg_init = 0 ! stebbs flag for building initialization
 
       ! flag for iteration safety - YES - as we this should be updated every iteration
       LOGICAL :: iter_safe = .TRUE.

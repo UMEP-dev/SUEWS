@@ -27,7 +27,7 @@ MODULE modulestebbs
          fnmlLBM, &
          CASE
       INTEGER :: idLBM
-      INTEGER :: flginit = 0
+      ! INTEGER :: flginit = 0
       INTEGER :: appliance_totalnumber
       REAL(rprc) :: &
          Qtotal_heating, &
@@ -616,7 +616,6 @@ CONTAINS
       TYPE(SUEWS_SITE), INTENT(IN) :: siteInfo
       TYPE(SUEWS_STATE), INTENT(INOUT) :: modState
       REAL(KIND(1D0)), INTENT(OUT), DIMENSION(ncolumnsDataOutSTEBBS - 5) :: dataOutLineSTEBBS
-      INTEGER, SAVE :: flginit = 0
       REAL(rprc), DIMENSION(5), INTENT(in) :: datetimeLine
       REAL(KIND(1D0)), DIMENSION(4) :: wallStatesK, wallStatesL
       REAL(rprc) :: Kwall_sout, Lwall_sout
@@ -683,6 +682,7 @@ CONTAINS
 
       ASSOCIATE ( &
          timestep => timer%tstep, &
+         flagstate => modState%flagstate, &
          heatState => modState%heatState, &
          atmState => modState%atmState, &
          roughnessState => modState%roughnessState, &
@@ -692,6 +692,7 @@ CONTAINS
          )
 
          ASSOCIATE ( &
+            stebbs_bldg_init => flagstate%stebbs_bldg_init, &
             ws => atmState%U10_ms, &
             Tair_sout => atmState%t2_C, &
             Tsurf_sout => heatState%Tsurf, &
@@ -733,7 +734,7 @@ CONTAINS
             END IF
 
             !       !
-            IF (flginit == 0) THEN
+            IF (stebbs_bldg_init == 0) THEN
                ALLOCATE (cases(1))
                WRITE (*, *) 'Initialising STEBBS'
                ALLOCATE (blds(1))
@@ -779,7 +780,7 @@ CONTAINS
             ! DO i = 1, nbtype, 1
 
             CALL suewsstebbscouple( &
-               blds(1), flginit, datetimeLine, &
+               blds(1), datetimeLine, &
                Tair_ind, Tindoormass, Tintwallroof, Textwallroof, Tintwindow, Textwindow, Tintgroundfloor, &
                Textgroundfloor, Qtotal_heating, Qtotal_cooling, Qsw_transmitted_window_tstepTotal, &
                Qsw_absorbed_window_tstepTotal, Qsw_absorbed_wallroof_tstepTotal, Qconv_indair_to_indoormass_tstepTotal, &
@@ -798,7 +799,7 @@ CONTAINS
                Vwall_tank, Vwater_tank &
                )
             ! END DO
-            flginit = 1
+            stebbs_bldg_init = 1
 
             dataOutLineSTEBBS = [ &
                                 ! Forcing
@@ -903,7 +904,7 @@ SUBROUTINE readsuewsout()
    CLOSE (8)
    RETURN
 END SUBROUTINE readsuewsout
-SUBROUTINE suewsstebbscouple(self, flginit, datetimeLine, &
+SUBROUTINE suewsstebbscouple(self, datetimeLine, &
                              Tair_ind, Tindoormass, Tintwallroof, Textwallroof, Tintwindow, Textwindow, Tintgroundfloor, &
                              Textgroundfloor, Qtotal_heating, Qtotal_cooling, Qsw_transmitted_window_tstepTotal, &
                           Qsw_absorbed_window_tstepTotal, Qsw_absorbed_wallroof_tstepTotal, Qconv_indair_to_indoormass_tstepTotal, &
@@ -935,7 +936,7 @@ SUBROUTINE suewsstebbscouple(self, flginit, datetimeLine, &
    IMPLICIT NONE
    TYPE(LBM) :: self
    INTEGER :: tstep, i
-   INTEGER, INTENT(in) :: flginit
+   ! INTEGER, INTENT(in) :: flginit
    ! Internal variables
    REAL(rprc) :: Area, qinternal, qe_cool, qe_heat, q_waste, q_ventilation
 
@@ -1025,8 +1026,8 @@ SUBROUTINE suewsstebbscouple(self, flginit, datetimeLine, &
                                Qsw_dn_extroof, Qsw_dn_extwall, &
                                Qlw_dn_extwall, Qlw_dn_extroof, sout%timestep, &
                                resolution, &
-                               datetimeLine, &
-                               flginit &
+                               datetimeLine &
+                              !  flginit &
                                )
 
       Tair_ind = self%Tair_ind
@@ -1141,13 +1142,14 @@ SUBROUTINE timeStepCalculation(self, Tair_out, Tground_deep, Tsurf, &
                                density_air_out, cp_air_out, &
                                Qsw_dn_extroof, Qsw_dn_extwall, &
                                Qlw_dn_extwall, Qlw_dn_extroof, &
-                               timestep, resolution, datetimeLine, flginit &
+                               timestep, resolution, datetimeLine &
+                              !  flginit &
                                )
    USE modulestebbsprecision
    USE modulestebbs, ONLY: LBM
    IMPLICIT NONE
    INTEGER :: timestep, resolution
-   INTEGER, INTENT(in) :: flginit
+   ! INTEGER, INTENT(in) :: flginit
    REAL(rprc) :: Tair_out, Tground_deep, Tsurf, density_air_out, &
                  cp_air_out, Qsw_dn_extroof, Qsw_dn_extwall, &
                  Qlw_dn_extwall, Qlw_dn_extroof
@@ -1158,7 +1160,8 @@ SUBROUTINE timeStepCalculation(self, Tair_out, Tground_deep, Tsurf, &
    self%Qtotal_water_tank = 0.0
    self%qhwtDrain = 0.0
    CALL tstep( &
-      flginit, datetimeLine, Tair_out, Tground_deep, Tsurf, &
+      ! flginit,
+      datetimeLine, Tair_out, Tground_deep, Tsurf, &
       density_air_out, cp_air_out, &
       Qsw_dn_extroof, Qsw_dn_extwall, &
       Qlw_dn_extwall, Qlw_dn_extroof, &
@@ -1243,7 +1246,8 @@ SUBROUTINE timeStepCalculation(self, Tair_out, Tground_deep, Tsurf, &
    RETURN
 END SUBROUTINE timeStepCalculation
 SUBROUTINE tstep( &
-   flginit, datetimeLine, Tair_out, Tground_deep, Tsurf, &
+   ! flginit,
+   datetimeLine, Tair_out, Tground_deep, Tsurf, &
    density_air_out, cp_air_out, &
    Qsw_dn_extroof, Qsw_dn_extwall, &
    Qlw_dn_extwall, Qlw_dn_extroof, &
@@ -1319,7 +1323,7 @@ SUBROUTINE tstep( &
    USE modulestebbsprecision
    USE modulestebbsfunc
    IMPLICIT NONE
-   INTEGER, INTENT(in) :: flginit
+   ! INTEGER, INTENT(in) :: flginit
    REAL(rprc), DIMENSION(5), INTENT(in) :: datetimeLine
    INTEGER :: i
    REAL(rprc) :: Tair_out, Tground_deep, Tsurf, &

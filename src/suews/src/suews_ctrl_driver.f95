@@ -439,9 +439,6 @@ CONTAINS
                   debugState%state_12_tsurf = modState
                END IF
 
-               ! IF (i_iter == 1) THEN
-               !    modState_tstepstart = modState
-               ! END IF
                i_iter = i_iter + 1
                IF (i_iter == max_iter .AND. .NOT. flag_converge) THEN
                   IF (diagnose == 1) PRINT *, 'Iteration did not converge in', i_iter, ' iterations'

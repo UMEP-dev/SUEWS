@@ -13,7 +13,7 @@ model:
     emissionsmethod:
       value: 2
     storageheatmethod:
-      value: 6 #1 
+      value: 1 #6
     ohmincqf:
       value: 0
     roughlenmommethod:
@@ -21,13 +21,13 @@ model:
     roughlenheatmethod:
       value: 2
     stabilitymethod:
-      value: 3
+      value: 3 #2
     smdmethod:
       value: 0
     waterusemethod:
       value: 0
     diagmethod:
-      value: 0 #2
+      value: 2 #0
     faimethod:
       value: 0
     localclimatemethod:
@@ -930,7 +930,7 @@ site:
           value: 0.1
       bldgs:
         sfr:
-          value: 0.38
+          value: 0 #0.38
         emis:
           value: 0.91
         chanohm:
@@ -1039,9 +1039,9 @@ site:
         alb:
           value: 0.12
         faibldg:
-          value: 0.3
+          value: #0.3
         bldgh:
-          value: 22.0
+          value: #22.0
       evetr:
         sfr:
           value: 0.0
@@ -1891,7 +1891,7 @@ site:
         thermal_layers:
           dz:
             value:
-            - #0.2
+            - 0.2
             - 0.1
             - 0.1
             - 0.01
@@ -1899,7 +1899,7 @@ site:
           k:
             value:
             - 1.2
-            - #1.2
+            - 1.2
             - 1.2
             - 1.2
             - 1.2
@@ -1997,7 +1997,7 @@ site:
     h_std:
       value: 5.0
     lambda_c:
-      value: #1.0
+      value: 1.0
   initial_states:
     snowalb:
       value: 0.3

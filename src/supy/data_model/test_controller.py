@@ -114,20 +114,25 @@ if diag_val == 0:
 elif diag_val == 2:
     print("diagmethod is 2 (ON). Checking related parameters...")
 
+    stability_val = updated_cfg["model"]["physics"]["stabilitymethod"]["value"]
+    if stability_val != 3:
+        print("WARNING -- For diagmethod==2, stabilitymethod==3 should be selected.")
+        sys.exit(4)
+
     diag2_fields = [
         "site[0].properties.surfacearea",
         "site[0].properties.land_cover.bldgs.sfr",
-        "site[0].properties.land_cover.bldgs.bldgh",
-        "site[0].properties.land_cover.bldgs.faibldg",
+        #"site[0].properties.land_cover.bldgs.bldgh",
+        #"site[0].properties.land_cover.bldgs.faibldg",
         "site[0].properties.land_cover.paved.sfr",
         "site[0].properties.land_cover.evetr.sfr",
-        "site[0].properties.land_cover.evetr.evetreeh",
-        "site[0].properties.land_cover.evetr.faievetree",
+        #"site[0].properties.land_cover.evetr.evetreeh",
+        #"site[0].properties.land_cover.evetr.faievetree",
         "site[0].properties.land_cover.dectr.sfr",
-        "site[0].properties.land_cover.dectr.pormin_dec",
-        "site[0].properties.land_cover.dectr.pormax_dec",
-        "site[0].properties.land_cover.dectr.dectreeh",
-        "site[0].properties.land_cover.dectr.faidectree",
+        #"site[0].properties.land_cover.dectr.pormin_dec",
+        #"site[0].properties.land_cover.dectr.pormax_dec",
+        #"site[0].properties.land_cover.dectr.dectreeh",
+        #"site[0].properties.land_cover.dectr.faidectree",
         "site[0].properties.n_buildings",
         "site[0].initial_states.dectr.porosity_id"
     ]
@@ -156,9 +161,69 @@ elif diag_val == 2:
             parts = m.replace("]", "").replace("[", ".").split(".")
             param_name = parts[-2] if parts[-1] == "value" else parts[-1]
             print(f"  - Parameter '{param_name}' is missing (at {m})")
-        sys.exit(4)
+        sys.exit(5)
     else:
         print("All diagmethod==2 related parameters are present.")
+    
+    print("Checking consistency among parameters...")
+
+    missing_consistency = []
+
+    #If bldg sfr > 0, faibldg and bldgh must be present
+    bldgs_sfr_val = updated_cfg["site"][0]["properties"]["land_cover"]["bldgs"]["sfr"]["value"]
+    if bldgs_sfr_val > 0:
+        for param in ("faibldg", "bldgh"):
+            field = f"site[0].properties.land_cover.bldgs.{param}"
+            try:
+                val = updated_cfg["site"][0]["properties"]["land_cover"]["bldgs"][param]["value"]
+            except KeyError:
+                missing_consistency.append(field)
+            else:
+                if val is None:
+                    missing_consistency.append(field + ".value")
+
+    #If evetr sfr > 0, evetreeh and faievetree must be present
+    evetr_sfr_val = updated_cfg["site"][0]["properties"]["land_cover"]["evetr"]["sfr"]["value"]
+    if evetr_sfr_val > 0:
+        for param in ("evetreeh", "faievetree"):
+            field = f"site[0].properties.land_cover.evetr.{param}"
+            try:
+                val = updated_cfg["site"][0]["properties"]["land_cover"]["evetr"][param]["value"]
+            except KeyError:
+                missing_consistency.append(field)
+            else:
+                if val is None:
+                    missing_consistency.append(field + ".value")
+
+    #If dectre sfr > 0, check dectr parameters too
+    dectr_sfr_val = updated_cfg["site"][0]["properties"]["land_cover"]["dectr"]["sfr"]["value"]
+    if dectr_sfr_val > 0:
+        for param in ("pormin_dec", "pormax_dec", "dectreeh", "faidectree"):
+            field = f"site[0].properties.land_cover.dectr.{param}"
+            try:
+                val = updated_cfg["site"][0]["properties"]["land_cover"]["dectr"][param]["value"]
+            except KeyError:
+                missing_consistency.append(field)
+            else:
+                if val is None:
+                    missing_consistency.append(field + ".value")
+
+    # report
+    if missing_consistency:
+        print("WARNING -- consistency check failed, missing or null fields:")
+        for m in missing_consistency:
+            # derive friendly param name
+            parts = m.replace("]", "").replace("[", ".").split(".")
+            if parts[-1] == "value":
+                name = parts[-2]
+            else:
+                name = parts[-1]
+            print(f"  - Parameter '{name}' missing at {m}")
+        sys.exit(6)
+    else:
+        print("Consistency checks for diagmethod == 2 passed.")
+
+
 
 else:
     print(f"diagmethod = {diag_val}: validation will proceed.")
@@ -220,11 +285,13 @@ if storage_val == 6:
         for m in missing_sh:
             name = m.split(".")[-2] if m.endswith(".value") else m.split(".")[-1]
             print(f"  - Parameter '{name}' is missing at {m}")
-        sys.exit(5)
+        sys.exit(6)
     else:
         print("All storageheatmethod==6 related parameters are present.")
 
 # --- Validate config using SUEWSConfig ---
+
+print("\n Starting Pydantic Validation")
 try:
     config = SUEWSConfig.from_yaml(new_path)
     print("Validation passed.")

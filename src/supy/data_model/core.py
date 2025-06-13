@@ -15,7 +15,35 @@ import supy as sp
 
 from .model import Model
 from .site import Site, SiteProperties, InitialStates
+try:
+    from ..validation import enhanced_from_yaml_validation, enhanced_to_df_state_validation
+    _validation_available = True
+except ImportError:
+    try:
+        from .validation_controller import validate_suews_config_conditional
+        def enhanced_from_yaml_validation(config_data, strict=True):
+            result = validate_suews_config_conditional(config_data, strict=False, verbose=True)
+            if result['errors'] and strict:
+                error_msg = f"SUEWS Configuration Validation Failed: {len(result['errors'])} errors\n"
+                error_msg += "\n".join(f"  - {err}" for err in result['errors'])
+                raise ValueError(error_msg)
+            return result
+        
+        def enhanced_to_df_state_validation(config_data, strict=False):
+            result = validate_suews_config_conditional(config_data, strict=False, verbose=False)
+            if result['errors'] and strict:
+                error_msg = f"Configuration validation found {len(result['errors'])} issues\n"
+                error_msg += "\n".join(f"  - {err}" for err in result['errors'])
+                raise ValueError(error_msg)
+            return result
+        
+        _validation_available = True
+    except ImportError:
+        _validation_available = False
+        enhanced_from_yaml_validation = None
+        enhanced_to_df_state_validation = None
 import os
+import warnings
 
 
 class SUEWSConfig(BaseModel):
@@ -48,18 +76,46 @@ class SUEWSConfig(BaseModel):
             return (col[0], col[1])
 
     @classmethod
-    def from_yaml(cls, path: str) -> "SUEWSConfig":
-        """Initialize SUEWSConfig from YAML file.
+    def from_yaml(cls, path: str, use_conditional_validation: bool = True, strict: bool = True) -> "SUEWSConfig":
+        """Initialize SUEWSConfig from YAML file with conditional validation.
 
         Args:
             path (str): Path to YAML configuration file
+            use_conditional_validation (bool): Whether to use conditional validation
+            strict (bool): If True, raise errors on validation failure
 
         Returns:
             SUEWSConfig: Instance of SUEWSConfig initialized from YAML
         """
         with open(path, "r") as file:
-            config = yaml.load(file, Loader=yaml.FullLoader)
-        return cls(**config)
+            config_data = yaml.load(file, Loader=yaml.FullLoader)
+        
+        if use_conditional_validation and _validation_available:
+            # Step 1: Pre-validation with enhanced validation
+            try:
+                enhanced_from_yaml_validation(config_data, strict=strict)
+            except ValueError:
+                if strict:
+                    raise
+                # Continue with warnings already issued
+            
+            # Step 2: Create config with conditional validation applied
+            try:
+                return cls(**config_data)
+            except Exception as e:
+                if strict:
+                    raise ValueError(f"Failed to create SUEWSConfig after conditional validation: {e}")
+                else:
+                    warnings.warn(f"Config creation warning: {e}")
+                    # Try with model_construct to bypass strict validation
+                    return cls.model_construct(**config_data)
+        elif use_conditional_validation and not _validation_available:
+            warnings.warn("Conditional validation requested but not available. Using standard validation.")
+            # Fall back to original behavior
+            return cls(**config_data)
+        else:
+            # Original behavior - validate everything
+            return cls(**config_data)
 
     def create_multi_index_columns(self, columns_file: str) -> pd.MultiIndex:
         """Create MultiIndex from df_state_columns.txt"""
@@ -74,19 +130,47 @@ class SUEWSConfig(BaseModel):
 
         return pd.MultiIndex.from_tuples(tuples)
 
-    def to_df_state(self) -> pd.DataFrame:
-        """Convert config to DataFrame state format"""
-        list_df_site = []
-        for i in range(len(self.site)):
-            grid_id = self.site[i].gridiv
-            df_site = self.site[i].to_df_state(grid_id)
-            df_model = self.model.to_df_state(grid_id)
-            df_site = pd.concat([df_site, df_model], axis=1)
-            list_df_site.append(df_site)
+    def to_df_state(self, use_conditional_validation: bool = True, strict: bool = False) -> pd.DataFrame:
+        """Convert config to DataFrame state format with optional conditional validation.
+        
+        Args:
+            use_conditional_validation (bool): Whether to run conditional validation before conversion
+            strict (bool): If True, fail on validation errors; if False, warn and continue
+            
+        Returns:
+            pd.DataFrame: DataFrame containing SUEWS configuration state
+        """
+        if use_conditional_validation and _validation_available:
+            # Pre-validate configuration before conversion
+            config_data = self.model_dump()
+            try:
+                enhanced_to_df_state_validation(config_data, strict=strict)
+            except ValueError:
+                if strict:
+                    raise
+                # Continue with warnings already issued
+        elif use_conditional_validation and not _validation_available:
+            warnings.warn("Conditional validation requested but not available.")
+        
+        # Proceed with DataFrame conversion
+        try:
+            list_df_site = []
+            for i in range(len(self.site)):
+                grid_id = self.site[i].gridiv
+                df_site = self.site[i].to_df_state(grid_id)
+                df_model = self.model.to_df_state(grid_id)
+                df_site = pd.concat([df_site, df_model], axis=1)
+                list_df_site.append(df_site)
 
-        df = pd.concat(list_df_site, axis=0)
-        # remove duplicate columns
-        df = df.loc[:, ~df.columns.duplicated()]
+            df = pd.concat(list_df_site, axis=0)
+            # remove duplicate columns
+            df = df.loc[:, ~df.columns.duplicated()]
+        except Exception as e:
+            if use_conditional_validation and not strict:
+                warnings.warn(f"Error during to_df_state conversion: {e}. This may be due to invalid parameters for disabled methods.")
+                raise
+            else:
+                raise
 
         # # Fix level=1 columns sorted alphabetically not numerically (i.e. 10 < 2)
         # # Filter columns based on level=0 criteria

@@ -180,6 +180,70 @@ When adding new RefValue parameters:
 3. **For configuration parameters**: No unit parameter needed
 4. **Follow existing naming conventions**: Use ASCII notation for compound units (e.g., `W m^-2 K^-1`)
 
+## Conditional Validation and JSON Schema Export
+
+### Validation Coverage Comparison
+
+The data model includes comprehensive conditional validation that validates only parameters relevant to enabled physics methods. When exporting to JSON Schema for web interfaces, different validation approaches provide varying coverage:
+
+| Validation Type | Python Implementation | Online JSON Validator | Static JSON Schema |
+|----------------|----------------------|----------------------|-------------------|
+| Basic field validation | ✅ Full | ✅ Full | ✅ Full |
+| Method-specific fields | ✅ Full | ✅ ~70% | ❌ Limited |
+| Storage heat dependencies | ✅ Full | ✅ Full | ✅ Full |
+| Complex conditional logic | ✅ Full | ❌ Limited | ❌ None |
+| Cross-site validation | ✅ Full | ❌ Very Limited | ❌ None |
+| Dynamic error messages | ✅ Full | ✅ Partial | ❌ Basic |
+| SUEWS domain knowledge | ✅ Full | ❌ None | ❌ None |
+
+### JSON Schema Capabilities
+
+**What CAN be implemented in JSON Schema:**
+- ✅ Basic method dependencies (e.g., `if diagmethod=1 then require building_height`)
+- ✅ Field relevance logic (show/hide parameters based on enabled methods)
+- ✅ Simple parameter relationships (e.g., `storageheatmethod=1 requires ohmincqf=0`)
+- ✅ Value range dependencies and type validation
+
+**What CANNOT be implemented in JSON Schema:**
+- ❌ Complex Python validation logic
+- ❌ Multi-step validation chains
+- ❌ SUEWS-specific domain rules (e.g., "Snow calculations enabled but no validation implemented")
+- ❌ Advanced cross-field dependencies across multiple configuration sections
+
+### Implementation Recommendations
+
+**For static deployment (GitHub Pages/ReadTheDocs):**
+
+1. **Enhanced JSON Schema** (~60-70% validation coverage):
+   ```json
+   {
+     "if": {"properties": {"diagmethod": {"const": 0}}},
+     "then": {
+       "properties": {"z0m_in": {"type": "number", "minimum": 0}},
+       "not": {"required": ["building_height"]}
+     }
+   }
+   ```
+
+2. **Smart UI Design** (Primary defence):
+   - Conditional field visibility based on method selection
+   - Dynamic form sections for enabled methods only
+   - Helpful tooltips explaining parameter relevance
+
+3. **Clear Documentation** (Secondary defence):
+   - Method-specific examples and guidance
+   - Warning messages about remaining validation requirements
+   - "Validate in Python before use" recommendations
+
+**For server-based deployment:**
+- Use full Python conditional validation via API endpoints
+- Implement real-time validation with the complete logic
+- Provide 100% validation coverage
+
+### Online JSON Validators
+
+Popular validators like JSONSchemaValidator.net, AJV Online, and Hyperjump support JSON Schema Draft 2019-09 with conditional validation, providing significantly better coverage than basic schemas but still missing complex SUEWS-specific logic.
+
 ### References
 - Järvi, L., et al. (2011). Development of the Surface Urban Energy and Water Balance Scheme (SUEWS) for cold climate conditions. *Geoscientific Model Development*, 4(4), 845-869.
 - Ward, H. C., et al. (2016). Surface Urban Energy and Water Balance Scheme (SUEWS): Development and evaluation at two UK sites. *Urban Climate*, 18, 1-32.

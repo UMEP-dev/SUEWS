@@ -7,6 +7,10 @@ from supy.data_model.core import SUEWSConfig
 from datetime import datetime, timedelta
 import pytz
 from timezonefinder import TimezoneFinder
+from datetime import datetime
+from timezonefinder import TimezoneFinder
+from zoneinfo import ZoneInfo
+import requests
 
 #yaml_path = "../../../test/benchmark1/benchmark1b.yml"
 yaml_path = "../sample_run/sample_config.yml"
@@ -111,54 +115,82 @@ print(f"\nUPDATING YAML -- New yaml with null values saved to: {new_path}")
 # --- DAYLIGHT-SAVING CONTROLLER ---
 print("CHECKING -- Daylight-Saving dates.")
 
-lat = updated_cfg["site"][0]["properties"]["lat"]["value"]
-lon = updated_cfg["site"][0]["properties"]["lng"]["value"]
+switch_dls_mode = "offline"  # or "online" > requires API key
+year=2025
 
-startdls_val = updated_cfg["site"][0]["properties"]["anthropogenic_emissions"]["startdls"]["value"]
-enddls_val   = updated_cfg["site"][0]["properties"]["anthropogenic_emissions"]["enddls"]["value"]
+lat_val = cfg["site"][0]["properties"]["lat"]["value"]
+lng_val = cfg["site"][0]["properties"]["lng"]["value"]
 
-#year = int(sys.argv[2]) if len(sys.argv) > 2 else datetime.now().year
-year = 2025
+try:
+    startdls_val = cfg["site"][0]["properties"]["anthropogenic_emissions"]["startdls"]["value"]
+    enddls_val = cfg["site"][0]["properties"]["anthropogenic_emissions"]["enddls"]["value"]
+except KeyError:
+    startdls_val = enddls_val = None
 
-tf = TimezoneFinder()
-tz_name = tf.timezone_at(lat=lat, lng=lon)
-if tz_name is None:
-    print(f"WARNING: cannot determine timezone for {lat},{lon}; skipping DLS check.")
-else:
-    tz = pytz.timezone(tz_name)
-
-    def find_transition(month):
-        """Return day-of-year when UTC offset at local noon changes."""
-        try:
-            prev_dt = tz.localize(datetime(year, month, 1, 12, 0), is_dst=None)
-        except Exception:
-            return None
-        prev_off = prev_dt.utcoffset()
-
-        for day in range(2, 32):
-            try:
-                curr_dt = tz.localize(datetime(year, month, day, 12, 0), is_dst=None)
-            except Exception:
-                continue
-            curr_off = curr_dt.utcoffset()
-            if curr_off != prev_off:
-                return curr_dt.timetuple().tm_yday
-            prev_off = curr_off
-        return None
-
-    actual_start = find_transition(3) or find_transition(4)
-    actual_end   = find_transition(10) or find_transition(11)
-
-    if actual_start and actual_end:
-        if (startdls_val, enddls_val) != (actual_start, actual_end):
-            print("ERROR — DLS mismatch:")
-            print(f"  computed start={actual_start}, end={actual_end}")
-            print(f"  in YAML   start={startdls_val}, end={enddls_val}")
-            sys.exit(4)
-        else:
-            print("Daylight-Saving dates OK.")
+if switch_dls_mode == "offline":
+    tf = TimezoneFinder()
+    tz_name = tf.timezone_at(lat=lat_val, lng=lng_val)
+    if tz_name is None:
+        print(f"WARNING: cannot determine timezone for {lat_val},{lng_val}; skipping DLS check.")
     else:
-        print("WARNING — unable to detect one or both DST transitions; please verify manually.")
+        tz = pytz.timezone(tz_name)
+
+        def find_transition(month):
+            """Return day-of-year when UTC offset at local noon changes."""
+            try:
+                prev_dt = tz.localize(datetime(year, month, 1, 12, 0), is_dst=None)
+            except Exception:
+                return None
+            prev_off = prev_dt.utcoffset()
+
+            for day in range(2, 32):
+                try:
+                    curr_dt = tz.localize(datetime(year, month, day, 12, 0), is_dst=None)
+                except Exception:
+                    continue
+                curr_off = curr_dt.utcoffset()
+                if curr_off != prev_off:
+                    return curr_dt.timetuple().tm_yday
+                prev_off = curr_off
+            return None
+
+        actual_start = find_transition(3) or find_transition(4)
+        actual_end   = find_transition(10) or find_transition(11)
+
+        if actual_start and actual_end:
+            if (startdls_val, enddls_val) != (actual_start, actual_end):
+                print("ERROR — DLS mismatch:")
+                print(f"  computed start={actual_start}, end={actual_end}")
+                print(f"  in YAML   start={startdls_val}, end={enddls_val}")
+                sys.exit(4)
+            else:
+                print("Daylight-Saving dates OK.")
+        else:
+            print("WARNING — unable to detect one or both DST transitions; please verify manually.")
+
+else:  # online mode
+    try:
+        API_KEY = "YOUR_API_KEY_HERE"  # Replace with your TimeZoneDB API key
+        url = f"http://api.timezonedb.com/v2.1/get-time-zone?key={API_KEY}&format=json&by=position&lat={lat}&lng={lng}"
+        response = requests.get(url)
+        data = response.json()
+
+        if data.get("dst") == "0":
+            start_day = end_day = None
+        else:
+            start_dt = datetime.strptime(data.get("zoneStart", ""), "%Y-%m-%d %H:%M:%S")
+            end_dt = datetime.strptime(data.get("zoneEnd", ""), "%Y-%m-%d %H:%M:%S")
+            start_day = start_dt.timetuple().tm_yday
+            end_day = end_dt.timetuple().tm_yday
+    except Exception as e:
+        print("WARNING — Online DST check failed:", e)
+
+if startdls_val == start_day and enddls_val == end_day:
+    print(f"DLS dates are correct: start={start_day}, end={end_day}")
+else:
+    print("ERROR — DLS mismatch:")
+    print(f"  computed start={start_day}, end={end_day}")
+    print(f"  in YAML   start={startdls_val}, end={enddls_val}")
 
 # --- end DLS CONTROLLER ---
 

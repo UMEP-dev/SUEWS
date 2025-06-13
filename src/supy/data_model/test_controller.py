@@ -46,6 +46,8 @@ for method in required_methods:
     elif "value" not in physics[method] or physics[method]["value"] is None:
         errors.append(f"Missing {method} option or null")
 
+# ADD HERE RELATION BETWEEN OPTIONS -> for example diagmethod == , change stabilitymethod == 3 (print this to user)
+
 if errors:
     print("WARNING -- These model options are missing or null:")
     for e in errors:
@@ -116,7 +118,7 @@ print(f"\nUPDATING YAML -- New yaml with null values saved to: {new_path}")
 print("CHECKING -- Daylight-Saving dates.")
 
 switch_dls_mode = "offline"  # or "online" > requires API key
-year=2025
+year=2014 #2025
 
 lat_val = cfg["site"][0]["properties"]["lat"]["value"]
 lng_val = cfg["site"][0]["properties"]["lng"]["value"]
@@ -197,16 +199,24 @@ else:
 
 # --- SURFACE FRACTIONS CONTROLLER ---
 print("CHECKING -- Surface fractions.")
-# grab your three surface fractions
+
+paved_sfr_val = updated_cfg["site"][0]["properties"]["land_cover"]["paved"]["sfr"]["value"]
 bldgs_sfr_val = updated_cfg["site"][0]["properties"]["land_cover"]["bldgs"]["sfr"]["value"]
 evetr_sfr_val = updated_cfg["site"][0]["properties"]["land_cover"]["evetr"]["sfr"]["value"]
 dectr_sfr_val = updated_cfg["site"][0]["properties"]["land_cover"]["dectr"]["sfr"]["value"]
+grass_sfr_val = updated_cfg["site"][0]["properties"]["land_cover"]["grass"]["sfr"]["value"]
+bsoil_sfr_val = updated_cfg["site"][0]["properties"]["land_cover"]["bsoil"]["sfr"]["value"]
+water_sfr_val = updated_cfg["site"][0]["properties"]["land_cover"]["water"]["sfr"]["value"]
 
 # define for each group which companion params to handle
 groups = {
-    "bldgs": {"sfr": bldgs_sfr_val, "params": ["faibldg", "bldgh"]},
+    "paved": {"sfr": paved_sfr_val, "params": ["emis", "alb"]},
+    "bldgs": {"sfr": bldgs_sfr_val, "params": [ "emis", "alb", "faibldg", "bldgh"]},
     "evetr": {"sfr": evetr_sfr_val, "params": ["faievetree", "evetreeh"]},
     "dectr": {"sfr": dectr_sfr_val, "params": ["faidectree", "dectreeh", "pormin_dec", "pormax_dec"]},
+    "grass": {"sfr": grass_sfr_val, "params": ["emis", "alb"]},
+    "bsoil": {"sfr": bsoil_sfr_val, "params": ["emis", "alb"]},
+    "water": {"sfr": water_sfr_val, "params": ["emis", "alb"]},
 }
 
 missing_sf = []
@@ -223,19 +233,20 @@ for grp, info in groups.items():
             missing_sf.append(f"site[0].properties.land_cover.{grp}.{companion}")
             continue
 
-        # CASE A: sfr is None → set companion.value = None
+        # CASE A: sfr is None -> set companion.value = None
         if sfr is None:
             node["value"] = None
 
-        # CASE B: sfr == 0 → set companion.value = 0
+        # CASE B: sfr == 0 -> set companion.value = None
         elif sfr == 0:
-            node["value"] = 0
+            node["value"] = None
 
-        # CASE C: sfr > 0 → enforce companion.value exists & non‐null
+        # CASE C: sfr > 0 -> enforce companion.value exists & non‐null
         else:
             # if no “value” key or it’s None, record missing
             if "value" not in node or node["value"] is None:
                 missing_sf.append(f"site[0].properties.land_cover.{grp}.{companion}.value")
+            ## Will probably need to add here controls for params (ranges), i.e. albedo between 0 and 1 and so on?
 
 if missing_sf:
     print("ERROR — the following surface‐fraction parameters are missing or null:")
@@ -245,189 +256,194 @@ if missing_sf:
 else:
     print("All surface‐fraction dependent parameters are checked.")
 
+
+
 # --- end SURFACE FRACTIONS CONTROLLER ---
 
-# --- DIAGMETHOD CONTROLLER ---
-print("CHECKING -- DiagMethod options.")
-diag_val = updated_cfg["model"]["physics"]["diagmethod"]["value"]
-stability_val = updated_cfg["model"]["physics"]["stabilitymethod"]["value"]
+# Incorporate Diagmethod into land cover fractions
+# We have these surfaces > is this ok for diagmethod?
+# faibldg > 0
 
-if diag_val == 0:
-    print("diagmethod is 0 (OFF).")
-elif diag_val == 2:
-    print("diagmethod is 2 (ON). Checking related parameters...")
-    if stability_val != 3:
-        print("WARNING -- For diagmethod==2, stabilitymethod==3 should be selected.")
-        sys.exit(4)
+# # --- DIAGMETHOD CONTROLLER ---
+# print("CHECKING -- DiagMethod options.")
+# diag_val = updated_cfg["model"]["physics"]["diagmethod"]["value"]
+# stability_val = updated_cfg["model"]["physics"]["stabilitymethod"]["value"]
 
-    diag2_fields = [
-        "site[0].properties.surfacearea",
-        "site[0].properties.land_cover.bldgs.sfr",
-        "site[0].properties.land_cover.bldgs.bldgh",
-        "site[0].properties.land_cover.bldgs.faibldg",
-        "site[0].properties.land_cover.paved.sfr",
-        "site[0].properties.land_cover.evetr.sfr",
-        "site[0].properties.land_cover.evetr.evetreeh",
-        "site[0].properties.land_cover.evetr.faievetree",
-        "site[0].properties.land_cover.dectr.sfr",
-        "site[0].properties.land_cover.dectr.pormin_dec",
-        "site[0].properties.land_cover.dectr.pormax_dec",
-        "site[0].properties.land_cover.dectr.dectreeh",
-        "site[0].properties.land_cover.dectr.faidectree",
-        "site[0].properties.n_buildings",
-        "site[0].initial_states.dectr.porosity_id"
-    ]
+# if diag_val == 0:
+#     print("diagmethod is 0 (OFF).")
+# elif diag_val == 2:
+#     print("diagmethod is 2 (ON). Checking related parameters...")
+#     if stability_val != 3:
+#         print("WARNING -- For diagmethod==2, stabilitymethod==3 should be selected.")
+#         sys.exit(4)
 
-    missing_diag2 = []
-    for field in diag2_fields:
-        parts = field.replace("]", "").replace("[", ".").split(".")
-        ref = updated_cfg
-        try:
-            for part in parts:
-                if part.isdigit():
-                    ref = ref[int(part)]
-                else:
-                    ref = ref[part]
-            if isinstance(ref, dict) and "value" in ref:
-                if ref["value"] is None:
-                    missing_diag2.append(field + ".value")
-            elif ref is None:
-                missing_diag2.append(field)
-        except (KeyError, IndexError, TypeError):
-            missing_diag2.append(field)
+#     diag2_fields = [
+#         "site[0].properties.surfacearea",
+#         "site[0].properties.land_cover.bldgs.sfr",
+#         "site[0].properties.land_cover.bldgs.bldgh",
+#         "site[0].properties.land_cover.bldgs.faibldg",
+#         "site[0].properties.land_cover.evetr.sfr",
+#         "site[0].properties.land_cover.evetr.evetreeh",
+#         "site[0].properties.land_cover.evetr.faievetree",
+#         "site[0].properties.land_cover.dectr.sfr",
+#         "site[0].properties.land_cover.dectr.pormin_dec",
+#         "site[0].properties.land_cover.dectr.pormax_dec",
+#         "site[0].properties.land_cover.dectr.dectreeh",
+#         "site[0].properties.land_cover.dectr.faidectree",
+#         "site[0].properties.n_buildings",
+#         "site[0].initial_states.dectr.porosity_id"
+#     ]
 
-    if missing_diag2:
-        print("WARNING -- The following required fields for diagmethod==2 are missing or null:")
-        for m in missing_diag2:
-            parts = m.replace("]", "").replace("[", ".").split(".")
-            param_name = parts[-2] if parts[-1] == "value" else parts[-1]
-            print(f"  - Parameter '{param_name}' is missing (at {m})")
-        sys.exit(5)
-    else:
-        print("All diagmethod==2 related parameters are present.")
+#     missing_diag2 = []
+#     for field in diag2_fields:
+#         parts = field.replace("]", "").replace("[", ".").split(".")
+#         ref = updated_cfg
+#         try:
+#             for part in parts:
+#                 if part.isdigit():
+#                     ref = ref[int(part)]
+#                 else:
+#                     ref = ref[part]
+#             if isinstance(ref, dict) and "value" in ref:
+#                 if ref["value"] is None:
+#                     missing_diag2.append(field + ".value")
+#             elif ref is None:
+#                 missing_diag2.append(field)
+#         except (KeyError, IndexError, TypeError):
+#             missing_diag2.append(field)
+
+#     if missing_diag2:
+#         print("WARNING -- The following required fields for diagmethod==2 are missing or null:")
+#         for m in missing_diag2:
+#             parts = m.replace("]", "").replace("[", ".").split(".")
+#             param_name = parts[-2] if parts[-1] == "value" else parts[-1]
+#             print(f"  - Parameter '{param_name}' is missing (at {m})")
+#         sys.exit(5)
+#     else:
+#         print("All diagmethod==2 related parameters are present.")
     
-    print("Checking consistency among parameters...")
+#     print("Checking consistency among parameters...")
 
-    missing_consistency = []
+#     missing_consistency = []
 
-    #If bldg sfr > 0, faibldg and bldgh must be present
-    bldgs_sfr_val = updated_cfg["site"][0]["properties"]["land_cover"]["bldgs"]["sfr"]["value"]
-    if bldgs_sfr_val > 0:
-        for param in ("faibldg", "bldgh"):
-            field = f"site[0].properties.land_cover.bldgs.{param}"
-            try:
-                val = updated_cfg["site"][0]["properties"]["land_cover"]["bldgs"][param]["value"]
-            except KeyError:
-                missing_consistency.append(field)
-            else:
-                if val is None:
-                    missing_consistency.append(field + ".value")
+#     #If bldg sfr > 0, faibldg and bldgh must be present
+#     bldgs_sfr_val = updated_cfg["site"][0]["properties"]["land_cover"]["bldgs"]["sfr"]["value"]
+#     if bldgs_sfr_val > 0:
+#         for param in ("faibldg", "bldgh"):
+#             field = f"site[0].properties.land_cover.bldgs.{param}"
+#             try:
+#                 val = updated_cfg["site"][0]["properties"]["land_cover"]["bldgs"][param]["value"]
+#             except KeyError:
+#                 missing_consistency.append(field)
+#             else:
+#                 if val is None:
+#                     missing_consistency.append(field + ".value")
 
-    #If evetr sfr > 0, evetreeh and faievetree must be present
-    evetr_sfr_val = updated_cfg["site"][0]["properties"]["land_cover"]["evetr"]["sfr"]["value"]
-    if evetr_sfr_val > 0:
-        for param in ("evetreeh", "faievetree"):
-            field = f"site[0].properties.land_cover.evetr.{param}"
-            try:
-                val = updated_cfg["site"][0]["properties"]["land_cover"]["evetr"][param]["value"]
-            except KeyError:
-                missing_consistency.append(field)
-            else:
-                if val is None:
-                    missing_consistency.append(field + ".value")
+#     #If evetr sfr > 0, evetreeh and faievetree must be present
+#     evetr_sfr_val = updated_cfg["site"][0]["properties"]["land_cover"]["evetr"]["sfr"]["value"]
+#     if evetr_sfr_val > 0:
+#         for param in ("evetreeh", "faievetree"):
+#             field = f"site[0].properties.land_cover.evetr.{param}"
+#             try:
+#                 val = updated_cfg["site"][0]["properties"]["land_cover"]["evetr"][param]["value"]
+#             except KeyError:
+#                 missing_consistency.append(field)
+#             else:
+#                 if val is None:
+#                     missing_consistency.append(field + ".value")
 
-    #If dectre sfr > 0, check dectr parameters too
-    dectr_sfr_val = updated_cfg["site"][0]["properties"]["land_cover"]["dectr"]["sfr"]["value"]
-    if dectr_sfr_val > 0:
-        for param in ("pormin_dec", "pormax_dec", "dectreeh", "faidectree"):
-            field = f"site[0].properties.land_cover.dectr.{param}"
-            try:
-                val = updated_cfg["site"][0]["properties"]["land_cover"]["dectr"][param]["value"]
-            except KeyError:
-                missing_consistency.append(field)
-            else:
-                if val is None:
-                    missing_consistency.append(field + ".value")
+#     #If dectre sfr > 0, check dectr parameters too
+#     dectr_sfr_val = updated_cfg["site"][0]["properties"]["land_cover"]["dectr"]["sfr"]["value"]
+#     if dectr_sfr_val > 0:
+#         for param in ("pormin_dec", "pormax_dec", "dectreeh", "faidectree"):
+#             field = f"site[0].properties.land_cover.dectr.{param}"
+#             try:
+#                 val = updated_cfg["site"][0]["properties"]["land_cover"]["dectr"][param]["value"]
+#             except KeyError:
+#                 missing_consistency.append(field)
+#             else:
+#                 if val is None:
+#                     missing_consistency.append(field + ".value")
 
-    if missing_consistency:
-        print("WARNING -- consistency check failed, missing or null fields:")
-        for m in missing_consistency:
-            # derive friendly param name
-            parts = m.replace("]", "").replace("[", ".").split(".")
-            if parts[-1] == "value":
-                name = parts[-2]
-            else:
-                name = parts[-1]
-            print(f"  - Parameter '{name}' missing at {m}")
-        sys.exit(6)
-    else:
-        print("Consistency checks for diagmethod == 2 passed.")
+#     if missing_consistency:
+#         print("WARNING -- consistency check failed, missing or null fields:")
+#         for m in missing_consistency:
+#             # derive friendly param name
+#             parts = m.replace("]", "").replace("[", ".").split(".")
+#             if parts[-1] == "value":
+#                 name = parts[-2]
+#             else:
+#                 name = parts[-1]
+#             print(f"  - Parameter '{name}' missing at {m}")
+#         sys.exit(6)
+#     else:
+#         print("Consistency checks for diagmethod == 2 passed.")
 
-else:
-    print(f"diagmethod = {diag_val}: validation will proceed.")
+# else:
+#     print(f"diagmethod = {diag_val}: validation will proceed.")
 
-# --- end DIAGMETHOD CONTROLLER ---
+# # --- end DIAGMETHOD CONTROLLER ---
 
-# --- STORAGEHEATMETHOD CONTROLLER ---
-print("CHECKING -- StorageHeatMethod options.")
-storage_val = updated_cfg["model"]["physics"]["storageheatmethod"]["value"]
+# # --- STORAGEHEATMETHOD CONTROLLER ---
+# print("CHECKING -- StorageHeatMethod options.")
+# storage_val = updated_cfg["model"]["physics"]["storageheatmethod"]["value"]
 
-if storage_val == 6:
-    print("storageheatmethod is 6. Checking related parameters...")
+# if storage_val == 6:
+#     print("storageheatmethod is 6. Checking related parameters...")
 
-    missing_sh = []
+#     missing_sh = []
 
-    for field in ["site[0].properties.lambda_c.value"]:
-        parts = field.replace("]", "").replace("[", ".").split(".")
-        ref = updated_cfg
-        try:
-            for part in parts:
-                if part.isdigit():
-                    ref = ref[int(part)]
-                else:
-                    ref = ref[part]
-            if isinstance(ref, dict):
-                val = ref.get("value", None)
-                if val is None or (isinstance(val, list) and not val):
-                    missing_sh.append(field)
-            else:
-                if ref is None or (isinstance(ref, (list, str)) and not ref):
-                    missing_sh.append(field)
-        except (KeyError, IndexError, TypeError):
-            missing_sh.append(field)
+#     for field in ["site[0].properties.lambda_c.value"]:
+#         parts = field.replace("]", "").replace("[", ".").split(".")
+#         ref = updated_cfg
+#         try:
+#             for part in parts:
+#                 if part.isdigit():
+#                     ref = ref[int(part)]
+#                 else:
+#                     ref = ref[part]
+#             if isinstance(ref, dict):
+#                 val = ref.get("value", None)
+#                 if val is None or (isinstance(val, list) and not val):
+#                     missing_sh.append(field)
+#             else:
+#                 if ref is None or (isinstance(ref, (list, str)) and not ref):
+#                     missing_sh.append(field)
+#         except (KeyError, IndexError, TypeError):
+#             missing_sh.append(field)
 
-    try:
-        walls = updated_cfg["site"][0]["properties"]["vertical_layers"]["walls"]
-    except (KeyError, TypeError):
-        missing_sh.append("site[0].properties.vertical_layers.walls")
-    else:
-        for idx, wall in enumerate(walls):
-            base = f"site[0].properties.vertical_layers.walls[{idx}].thermal_layers"
-            try:
-                layers = wall["thermal_layers"]
-            except (KeyError, TypeError):
-                missing_sh.append(base)
-                continue
+#     try:
+#         walls = updated_cfg["site"][0]["properties"]["vertical_layers"]["walls"]
+#     except (KeyError, TypeError):
+#         missing_sh.append("site[0].properties.vertical_layers.walls")
+#     else:
+#         for idx, wall in enumerate(walls):
+#             base = f"site[0].properties.vertical_layers.walls[{idx}].thermal_layers"
+#             try:
+#                 layers = wall["thermal_layers"]
+#             except (KeyError, TypeError):
+#                 missing_sh.append(base)
+#                 continue
 
-            for prop in ("dz", "k", "cp"):
-                leaf = f"{base}.{prop}.value[0]"
-                try:
-                    vals = layers[prop]["value"]
-                    if not isinstance(vals, list) or not vals or vals[0] is None:
-                        missing_sh.append(leaf)
-                except (KeyError, TypeError):
-                    missing_sh.append(leaf)
+#             for prop in ("dz", "k", "cp"):
+#                 leaf = f"{base}.{prop}.value[0]"
+#                 try:
+#                     vals = layers[prop]["value"]
+#                     if not isinstance(vals, list) or not vals or vals[0] is None:
+#                         missing_sh.append(leaf)
+#                 except (KeyError, TypeError):
+#                     missing_sh.append(leaf)
 
-    if missing_sh:
-        print("WARNING -- The following required fields for storageheatmethod==6 are missing or null:")
-        for m in missing_sh:
-            name = m.split(".")[-2] if m.endswith(".value") else m.split(".")[-1]
-            print(f"  - Parameter '{name}' is missing at {m}")
-        sys.exit(6)
-    else:
-        print("All storageheatmethod==6 related parameters are present.")
+#     if missing_sh:
+#         print("WARNING -- The following required fields for storageheatmethod==6 are missing or null:")
+#         for m in missing_sh:
+#             name = m.split(".")[-2] if m.endswith(".value") else m.split(".")[-1]
+#             print(f"  - Parameter '{name}' is missing at {m}")
+#         sys.exit(6)
+#     else:
+#         print("All storageheatmethod==6 related parameters are present.")
 
-# --- end STORAGEHEATMETHOD CONTROLLER ---
+# # --- end STORAGEHEATMETHOD CONTROLLER ---
 
 # --- Validate config using SUEWSConfig ---
 

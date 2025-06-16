@@ -20,161 +20,7 @@ MODULE modulestebbs
 
    INTEGER :: nbtype
    CHARACTER(len=256), ALLOCATABLE, DIMENSION(:) :: fnmls, cases
-   TYPE :: LBM
-      CHARACTER(len=256) :: &
-         BuildingType, &
-         BuildingName, &
-         fnmlLBM, &
-         CASE
-      INTEGER :: idLBM
-      ! INTEGER :: flginit = 0
-      INTEGER :: appliance_totalnumber
-      REAL(rprc) :: &
-         Qtotal_heating, &
-         Qtotal_cooling, &
-         Qmetabolic_sensible, &
-         Qmetabolic_latent, &
-         Qtotal_water_tank, &
-         qhwtDrain, &
-         ratio_window_wall, &
-         Afootprint, &
-         height_building, &
-         wallExternalArea, &
-         ratioInternalVolume, &
-         thickness_wallroof, &
-         thickness_groundfloor, &
-         depth_ground, &
-         thickness_window, &
-         conv_coeff_intwallroof, &
-         conv_coeff_indoormass, &
-         conv_coeff_intgroundfloor, &
-         conv_coeff_intwindow, &
-         conv_coeff_extwallroof, &
-         conv_coeff_extwindow, &
-         conductivity_wallroof, &
-         conductivity_groundfloor, &
-         conductivity_window, &
-         conductivity_ground, &
-         density_wallroof, &
-         weighting_factor_heatcapacity_wallroof, &
-         density_groundfloor, &
-         density_window, &
-         density_indoormass, &
-         density_air_ind, &
-         cp_wallroof, &
-         cp_groundfloor, &
-         cp_window, &
-         cp_indoormass, &
-         cp_air_ind, &
-         emissivity_extwallroof, &
-         emissivity_intwallroof, &
-         emissivity_indoormass, &
-         emissivity_extwindow, &
-         emissivity_intwindow, &
-         windowTransmissivity, &
-         windowAbsorbtivity, &
-         windowReflectivity, &
-         wallTransmisivity, &
-         wallAbsorbtivity, &
-         wallReflectivity, &
-         BVF_extwall, &
-         GVF_extwall, &
-         SVF_extwall, &
-         occupants, &
-         metabolic_rate, &
-         ratio_metabolic_latent_sensible, &
-         appliance_power_rating, &
-         appliance_usage_factor, &
-         maxheatingpower_air, &
-         heating_efficiency_air, &
-         maxcoolingpower_air, &
-         coeff_performance_cooling, &
-         Vair_ind, &
-         ventilation_rate, &
-         Awallroof, &
-         Vwallroof, &
-         Vgroundfloor, &
-         Awindow, &
-         Vwindow, &
-         Vindoormass, &
-         Aindoormass, &
-         Tair_ind, &
-         Tindoormass, &
-         Tintwallroof, &
-         Textwallroof, &
-         Tintwindow, &
-         Textwindow, &
-         Tintgroundfloor, &
-         Textgroundfloor, &
-         Twater_tank, &
-         Tintwall_tank, &
-         Textwall_tank, &
-         thickness_tankwall, &
-         Tincomingwater_tank, &
-         Vwater_tank, &
-         Asurf_tank, &
-         Vwall_tank, &
-         setTwater_tank, &
-         init_wtTs, &
-         Twater_vessel, &
-         Tintwall_vessel, &
-         Textwall_vessel, &
-         thickness_wall_vessel, &
-         Vwater_vessel, &
-         Awater_vessel, &
-         Vwall_vessel, &
-         flowrate_water_supply, &
-         flowrate_water_drain, &
-         single_flowrate_water_supply, &
-         single_flowrate_water_drain, &
-         cp_water, &
-         cp_wall_tank, &
-         cp_wall_vessel, &
-         density_water, &
-         density_wall_tank, &
-         density_wall_vessel, &
-         BVF_tank, &
-         MVF_tank, &
-         conductivity_wall_tank, &
-         conv_coeff_intwall_tank, &
-         conv_coeff_extwall_tank, &
-         emissivity_extwall_tank, &
-         conductivity_wall_vessel, &
-         conv_coeff_intwall_vessel, &
-         conv_coeff_extwall_vessel, &
-         emissivity_extwall_vessel, &
-         maxheatingpower_water, &
-         heating_efficiency_water, &
-         minVwater_vessel, &
-         minHeatingPower_DHW, &
-         HeatingPower_DHW
-      REAL(rprc) :: &
-         qfm_dom, & ! Metabolic sensible and latent heat
-         qheat_dom, & ! Hourly heating load  [W]
-         qcool_dom, & ! Hourly cooling load  [W]
-         qfb_hw_dom, & ! Hot water
-         qfb_dom_air, & ! Sensible heat to air [W]
-         dom_temp, & ! Domain temperature   [W]
-         QStar, & ! Net radiation        [W m-2]
-         QEC, & ! Energy use           [W m-2]
-         QH, & ! Sensible heat flux   [W m-2]
-         QS, & ! Storage heat flux    [W m-2]
-         QBAE, & ! Building exchange    [W m-2]
-         QWaste ! Waste heating        [W m-2]
-      REAL(rprc), DIMENSION(2) :: Ts, initTs
-      REAL(rprc), DIMENSION(4) :: h_i, k_eff
-      REAL(rprc), DIMENSION(2) :: h_o
-      REAL(rprc), DIMENSION(5) :: rho
-      REAL(rprc), DIMENSION(5) :: Cp
-      REAL(rprc), DIMENSION(5) :: emis
-      REAL(rprc), DIMENSION(3) :: wiTAR, waTAR
-      REAL(rprc), DIMENSION(3) :: viewFactors
-      REAL(rprc), DIMENSION(3) :: occupantData
-      REAL(rprc), DIMENSION(3) :: HTsAverage, HWTsAverage
-      REAL(rprc), DIMENSION(3) :: HWPowerAverage
-      REAL(rprc), DIMENSION(25) :: EnergyExchanges = 0.0
-   END TYPE
-   TYPE(LBM), ALLOCATABLE, DIMENSION(:) :: blds
+
 END MODULE modulestebbs
 MODULE modulestebbsfunc
    USE modulestebbsprecision
@@ -600,7 +446,7 @@ CONTAINS
       modState, & ! Input/Output
       datetimeLine, &
       dataOutLineSTEBBS) ! Output
-      USE modulestebbs, ONLY: blds, cases, resolution
+      USE modulestebbs, ONLY: cases, resolution
       USE modulesuewsstebbscouple, ONLY: sout ! Defines sout
       USE modulestebbsprecision, ONLY: rprc ! Defines rprc as REAL64
       USE allocateArray, ONLY: ncolumnsDataOutSTEBBS
@@ -608,13 +454,15 @@ CONTAINS
                                LC_EVETR_PRM, LC_DECTR_PRM, LC_GRASS_PRM, &
                                LC_BSOIL_PRM, LC_WATER_PRM, &
                                SUEWS_SITE, atm_state, ROUGHNESS_STATE, &
-                               HEAT_STATE, SUEWS_STATE, STEBBS_STATE, BUILDING_ARCHETYPE_PRM, STEBBS_PRM
+                               HEAT_STATE, SUEWS_STATE, STEBBS_STATE, BUILDING_ARCHETYPE_PRM, STEBBS_PRM, &
+                               STEBBS_BLDG
       IMPLICIT NONE
       TYPE(SUEWS_CONFIG), INTENT(IN) :: config
       TYPE(SUEWS_TIMER), INTENT(IN) :: timer
       TYPE(SUEWS_FORCING), INTENT(IN) :: forcing
       TYPE(SUEWS_SITE), INTENT(IN) :: siteInfo
       TYPE(SUEWS_STATE), INTENT(INOUT) :: modState
+
       REAL(KIND(1D0)), INTENT(OUT), DIMENSION(ncolumnsDataOutSTEBBS - 5) :: dataOutLineSTEBBS
       REAL(rprc), DIMENSION(5), INTENT(in) :: datetimeLine
       REAL(KIND(1D0)), DIMENSION(4) :: wallStatesK, wallStatesL
@@ -693,6 +541,7 @@ CONTAINS
 
          ASSOCIATE ( &
             stebbs_bldg_init => flagstate%stebbs_bldg_init, &
+            buildings => stebbsState%buildings, &
             ws => atmState%U10_ms, &
             Tair_sout => atmState%t2_C, &
             Tsurf_sout => heatState%Tsurf, &
@@ -733,17 +582,16 @@ CONTAINS
                Lroof_sout = heatState%roof_in_lw_spc(2)
             END IF
 
-            !       !
             IF (stebbs_bldg_init == 0) THEN
 
-               IF (ALLOCATED(cases)) DEALLOCATE(cases)
-               ALLOCATE (cases(1))
-               WRITE (*, *) 'Initialising STEBBS'
+               !IF (ALLOCATED(cases)) DEALLOCATE(cases)
+               !ALLOCATE (cases(1))
+               !WRITE (*, *) 'Initialising STEBBS'
 
-               IF (ALLOCATED(blds)) DEALLOCATE(blds)
-               ALLOCATE (blds(1))
+               !IF (ALLOCATED(blds)) DEALLOCATE(blds)
+               !ALLOCATE (blds(1))
                resolution = 1
-               CALL gen_building(stebbsState, stebbsPrm, building_archtype, blds(1))
+               CALL gen_building(stebbsState, stebbsPrm, building_archtype, buildings(1))
 
                sout%ntstep = 1
 
@@ -821,7 +669,7 @@ CONTAINS
             ! DO i = 1, nbtype, 1
 
             CALL suewsstebbscouple( &
-               blds(1), datetimeLine, &
+               buildings(1), datetimeLine, &
                Tair_ind, Tindoormass, Tintwallroof, Textwallroof, Tintwindow, Textwindow, Tintgroundfloor, &
                Textgroundfloor, Qtotal_heating, Qtotal_cooling, Qsw_transmitted_window_tstepTotal, &
                Qsw_absorbed_window_tstepTotal, Qsw_absorbed_wallroof_tstepTotal, Qconv_indair_to_indoormass_tstepTotal, &
@@ -965,7 +813,7 @@ SUBROUTINE suewsstebbscouple(self, datetimeLine, &
                              ) ! Output
 
    USE modulestebbsprecision
-   USE modulestebbs, ONLY: LBM, resolution
+   USE modulestebbs, ONLY: resolution
    USE modulestebbsfunc, ONLY: ext_conv_coeff
    USE modulesuewsstebbscouple, ONLY: &
       sout, &
@@ -974,8 +822,9 @@ SUBROUTINE suewsstebbscouple(self, datetimeLine, &
       Qsw_dn_extroof, &
       Qsw_dn_extwall, &
       Qlw_dn_extwall, Qlw_dn_extroof
+   USE SUEWS_DEF_DTS, ONLY: STEBBS_BLDG
    IMPLICIT NONE
-   TYPE(LBM) :: self
+   TYPE(STEBBS_BLDG) :: self
    INTEGER :: tstep, i
    ! INTEGER, INTENT(in) :: flginit
    ! Internal variables
@@ -1187,7 +1036,7 @@ SUBROUTINE timeStepCalculation(self, Tair_out, Tground_deep, Tsurf, &
                                !  flginit &
                                )
    USE modulestebbsprecision
-   USE modulestebbs, ONLY: LBM
+   USE SUEWS_DEF_DTS, ONLY: STEBBS_BLDG
    IMPLICIT NONE
    INTEGER :: timestep, resolution
    ! INTEGER, INTENT(in) :: flginit
@@ -1195,7 +1044,7 @@ SUBROUTINE timeStepCalculation(self, Tair_out, Tground_deep, Tsurf, &
                  cp_air_out, Qsw_dn_extroof, Qsw_dn_extwall, &
                  Qlw_dn_extwall, Qlw_dn_extroof
    REAL(rprc), DIMENSION(5), INTENT(in) :: datetimeLine
-   TYPE(LBM) :: self
+   TYPE(STEBBS_BLDG) :: self
    self%Qtotal_heating = 0.0
    self%Qtotal_cooling = 0.0
    self%Qtotal_water_tank = 0.0
@@ -1868,10 +1717,10 @@ END SUBROUTINE reinitialiseTemperatures
 
 SUBROUTINE gen_building(stebbsState, stebbsPrm, building_archtype, self)
 
-   USE modulestebbs, ONLY: LBM
-   USE SUEWS_DEF_DTS, ONLY: BUILDING_ARCHETYPE_PRM, STEBBS_STATE, STEBBS_PRM
+   USE SUEWS_DEF_DTS, ONLY: BUILDING_ARCHETYPE_PRM, STEBBS_STATE, STEBBS_PRM, STEBBS_BLDG
    IMPLICIT NONE
-   TYPE(LBM) :: self
+
+   TYPE(STEBBS_BLDG) :: self
 
    TYPE(STEBBS_STATE), INTENT(IN) :: stebbsState
    TYPE(BUILDING_ARCHETYPE_PRM), INTENT(IN) :: building_archtype
@@ -2056,11 +1905,12 @@ SUBROUTINE gen_building(stebbsState, stebbsPrm, building_archtype, self)
 END SUBROUTINE gen_building
 
 SUBROUTINE create_building(CASE, self, icase)
-   USE modulestebbs, ONLY: LBM
+   USE SUEWS_DEF_DTS, ONLY: STEBBS_BLDG
    IMPLICIT NONE
    INTEGER, INTENT(in) :: icase
    CHARACTER(len=256) :: CASE
-   TYPE(LBM) :: self
+   TYPE(STEBBS_BLDG) :: self
+
    self%idLBM = icase
    ! self%fnmlLBM = './BuildClasses/'//TRIM(CASE)//'.nml'
    self%fnmlLBM = TRIM(CASE)

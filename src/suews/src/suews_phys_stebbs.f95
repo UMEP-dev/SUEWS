@@ -666,11 +666,9 @@ CONTAINS
             IF (stebbs_bldg_init == 0) THEN
                resolution = 1
                CALL gen_building(stebbsState, stebbsPrm, building_archtype, buildings(1))
-
                sout%ntstep = 1
-
             END IF
-
+            
             sout%Tair = Tair_sout
             sout%Tsurf = Tsurf_sout
             sout%Kroof = Kroof_sout
@@ -687,10 +685,11 @@ CONTAINS
             ws_hbh = interp_z((blds(1)%height_building)/2, zarray, dataoutLineURSL)
             Tair_bh = interp_z(blds(1)%height_building, zarray, dataoutLineTRSL)
             Tair_hbh = interp_z((blds(1)%height_building)/2, zarray, dataoutLineTRSL)
-            sout%Tair_exch_bh(1) = Tair_bh
-            sout%Tair_exch_hbh(1) = Tair_hbh
-            sout%ws_exch_bh(1) = ws_bh
-            sout%ws_exch_hbh(1) = ws_hbh
+            sout%Tair_exch_bh = Tair_bh
+            sout%Tair_exch_hbh = Tair_hbh
+            sout%ws_exch_bh = ws_bh
+            sout%ws_exch_hbh = ws_hbh
+
             CALL setdatetime(datetimeLine)
 
             CALL suewsstebbscouple( &

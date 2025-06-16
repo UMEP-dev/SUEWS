@@ -821,37 +821,86 @@ CONTAINS
 
             !       !
             IF (stebbs_bldg_init == 0) THEN
+
+               IF (ALLOCATED(cases)) DEALLOCATE(cases)
                ALLOCATE (cases(1))
                WRITE (*, *) 'Initialising STEBBS'
+
+               IF (ALLOCATED(blds)) DEALLOCATE(blds)
                ALLOCATE (blds(1))
                resolution = 1
                CALL gen_building(stebbsState, stebbsPrm, building_archtype, blds(1))
                
                sout%ntstep = 1
+
+               IF (ALLOCATED(sout%datetime)) DEALLOCATE(sout%datetime)
                ALLOCATE (sout%datetime(sout%ntstep))
+
+               IF (ALLOCATED(sout%hourmin)) DEALLOCATE(sout%hourmin)
                ALLOCATE (sout%hourmin(sout%ntstep))
+
+               IF (ALLOCATED(sout%Tair)) DEALLOCATE(sout%Tair)
                ALLOCATE (sout%Tair(sout%ntstep))
+
+               IF (ALLOCATED(sout%Tsurf)) DEALLOCATE(sout%Tsurf)
                ALLOCATE (sout%Tsurf(sout%ntstep))
+
+               IF (ALLOCATED(sout%Kwall)) DEALLOCATE(sout%Kwall)
                ALLOCATE (sout%Kwall(sout%ntstep))
+
+               IF (ALLOCATED(sout%Kroof)) DEALLOCATE(sout%Kroof)
                ALLOCATE (sout%Kroof(sout%ntstep))
+
+               IF (ALLOCATED(sout%ws)) DEALLOCATE(sout%ws)
                ALLOCATE (sout%ws(sout%ntstep))
+
+               IF (ALLOCATED(sout%Lroof)) DEALLOCATE(sout%Lroof)
                ALLOCATE (sout%Lroof(sout%ntstep))
+
+               IF (ALLOCATED(sout%Lwall)) DEALLOCATE(sout%Lwall)
                ALLOCATE (sout%Lwall(sout%ntstep))
+
+               IF (ALLOCATED(sout%datetime_exch)) DEALLOCATE(sout%datetime_exch)
                ALLOCATE (sout%datetime_exch(sout%ntstep))
+
+               IF (ALLOCATED(sout%hourmin_exch)) DEALLOCATE(sout%hourmin_exch)
                ALLOCATE (sout%hourmin_exch(sout%ntstep))
+
+               IF (ALLOCATED(sout%Tair_exch)) DEALLOCATE(sout%Tair_exch)
                ALLOCATE (sout%Tair_exch(sout%ntstep))
+
+               IF (ALLOCATED(sout%Tair_exch_bh)) DEALLOCATE(sout%Tair_exch_bh)
                ALLOCATE (sout%Tair_exch_bh(sout%ntstep))
+
+               IF (ALLOCATED(sout%Tair_exch_hbh)) DEALLOCATE(sout%Tair_exch_hbh)
                ALLOCATE (sout%Tair_exch_hbh(sout%ntstep))
+
+               IF (ALLOCATED(sout%Tsurf_exch)) DEALLOCATE(sout%Tsurf_exch)
                ALLOCATE (sout%Tsurf_exch(sout%ntstep))
+
+               IF (ALLOCATED(sout%Kwall_exch)) DEALLOCATE(sout%Kwall_exch)
                ALLOCATE (sout%Kwall_exch(sout%ntstep))
+
+               IF (ALLOCATED(sout%Kroof_exch)) DEALLOCATE(sout%Kroof_exch)
                ALLOCATE (sout%Kroof_exch(sout%ntstep))
+
+               IF (ALLOCATED(sout%ws_exch)) DEALLOCATE(sout%ws_exch)
                ALLOCATE (sout%ws_exch(sout%ntstep))
+
+               IF (ALLOCATED(sout%ws_exch_bh)) DEALLOCATE(sout%ws_exch_bh)
                ALLOCATE (sout%ws_exch_bh(sout%ntstep))
+
+               IF (ALLOCATED(sout%ws_exch_hbh)) DEALLOCATE(sout%ws_exch_hbh)
                ALLOCATE (sout%ws_exch_hbh(sout%ntstep))
+
+               IF (ALLOCATED(sout%Lroof_exch)) DEALLOCATE(sout%Lroof_exch)
                ALLOCATE (sout%Lroof_exch(sout%ntstep))
+
+               IF (ALLOCATED(sout%Lwall_exch)) DEALLOCATE(sout%Lwall_exch)
                ALLOCATE (sout%Lwall_exch(sout%ntstep))
-               !
+
             END IF
+
 
             sout%Tair(1) = Tair_sout
             sout%Tsurf(1) = Tsurf_sout

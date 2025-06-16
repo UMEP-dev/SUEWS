@@ -925,7 +925,7 @@ MODULE SUEWS_DEF_DTS
       CHARACTER(len=256) :: CASE
       INTEGER :: idLBM
       INTEGER :: appliance_totalnumber
-      
+
       REAL(KIND(1D0)) :: Qtotal_heating
       REAL(KIND(1D0)) :: Qtotal_cooling
       REAL(KIND(1D0)) :: Qmetabolic_sensible
@@ -1044,7 +1044,7 @@ MODULE SUEWS_DEF_DTS
       REAL(KIND(1D0)) :: minVwater_vessel
       REAL(KIND(1D0)) :: minHeatingPower_DHW
       REAL(KIND(1D0)) :: HeatingPower_DHW
-      
+
       REAL(KIND(1D0)) :: qfm_dom ! Metabolic sensible and latent heat
       REAL(KIND(1D0)) :: qheat_dom ! Hourly heating load  [W]
       REAL(KIND(1D0)) :: qcool_dom ! Hourly cooling load  [W]
@@ -1057,7 +1057,7 @@ MODULE SUEWS_DEF_DTS
       REAL(KIND(1D0)) :: QS ! Storage heat flux    [W m-2]
       REAL(KIND(1D0)) :: QBAE ! Building exchange    [W m-2]
       REAL(KIND(1D0)) :: QWaste ! Waste heating        [W m-2]
-      
+
       REAL(KIND(1D0)), DIMENSION(2) :: Ts, initTs
       REAL(KIND(1D0)), DIMENSION(4) :: h_i, k_eff
       REAL(KIND(1D0)), DIMENSION(2) :: h_o
@@ -1616,9 +1616,7 @@ CONTAINS
       INTEGER, INTENT(IN) :: ntypes
 
       CALL self%DEALLOCATE()
-      ALLOCATE(self%buildings(ntypes))
-
-
+      ALLOCATE (self%buildings(ntypes))
 
    END SUBROUTINE allocSTEBBS_bldg
 
@@ -1626,7 +1624,7 @@ CONTAINS
       IMPLICIT NONE
 
       CLASS(STEBBS_STATE), INTENT(INOUT) :: self
-      IF (ALLOCATED(self%buildings)) DEALLOCATE(self%buildings)
+      IF (ALLOCATED(self%buildings)) DEALLOCATE (self%buildings)
 
    END SUBROUTINE deallocSTEBBS_bldg
 

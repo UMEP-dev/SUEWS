@@ -1137,10 +1137,52 @@ MODULE SUEWS_DEF_DTS
       REAL(KIND(1D0)), DIMENSION(3) :: HWPowerAverage
       REAL(KIND(1D0)), DIMENSION(25) :: EnergyExchanges = 0.0
 
+   END TYPE
+
+   TYPE, PUBLIC :: STEBBS_STATE
+
+      ! Beers output for STEBBS - TODO: these should be kept in the HEAT_STATE type -
+      REAL(KIND(1D0)) :: Kdown2d ! incoming shortwave radiation onto roof [W m-2]
+      REAL(KIND(1D0)) :: Kup2d ! outgoing shortwave radiation from roof [W m-2]
+      REAL(KIND(1D0)) :: Kwest ! incoming shortwave radiation from west [W m-2]
+      REAL(KIND(1D0)) :: Ksouth ! incoming shortwave radiation from south [W m-2]
+      REAL(KIND(1D0)) :: Knorth ! incoming shortwave radiation from north [W m-2]
+      REAL(KIND(1D0)) :: Keast ! incoming shortwave radiation from east [W m-2]
+      REAL(KIND(1D0)) :: Ldown2d ! incoming longwave radiation onto roof [W m-2]
+      REAL(KIND(1D0)) :: Lup2d ! outgoing longwave radiation from roof [W m-2]
+      REAL(KIND(1D0)) :: Lwest ! incoming longwave radiation from west [W m-2]
+      REAL(KIND(1D0)) :: Lsouth ! incoming longwave radiation from south [W m-2]
+      REAL(KIND(1D0)) :: Lnorth ! incoming longwave radiation from north [W m-2]
+      REAL(KIND(1D0)) :: Least ! incoming longwave radiation from east [W m-2]
+
+      ! Initial conditions that are updated during runtime
+      REAL(KIND(1D0)) :: IndoorAirStartTemperature ! Initial indoor air temperature [degC]
+      REAL(KIND(1D0)) :: IndoorMassStartTemperature ! Initial indoor mass temperature [degC]
+      REAL(KIND(1D0)) :: WallIndoorSurfaceTemperature ! Initial wall/roof indoor surface temperature [degC]
+      REAL(KIND(1D0)) :: WallOutdoorSurfaceTemperature ! Initial wall/roof outdoor surface temperature [degC]
+      REAL(KIND(1D0)) :: WindowIndoorSurfaceTemperature ! Initial window indoor surface temperature [degC]
+      REAL(KIND(1D0)) :: WindowOutdoorSurfaceTemperature ! Initial window outdoor surface temperature [degC]
+      REAL(KIND(1D0)) :: GroundFloorIndoorSurfaceTemperature ! Initial ground floor indoor surface temperature [degC]
+      REAL(KIND(1D0)) :: GroundFloorOutdoorSurfaceTemperature ! Initial ground floor outdoor surface temperature [degC]
+      REAL(KIND(1D0)) :: WaterTankTemperature ! Initial water temperature in hot water tank [degC]
+      REAL(KIND(1D0)) :: InternalWallWaterTankTemperature ! Initial hot water tank internal wall temperature [degC]
+      REAL(KIND(1D0)) :: ExternalWallWaterTankTemperature ! Initial hot water tank external wall temperature [degC]
+      REAL(KIND(1D0)) :: MainsWaterTemperature ! Temperature of water coming into the water tank [degC]
+      REAL(KIND(1D0)) :: DomesticHotWaterTemperatureInUseInBuilding ! Initial water temperature of water held in use in building [degC]
+      REAL(KIND(1D0)) :: InternalWallDHWVesselTemperature ! Initial hot water vessel internal wall temperature [degC]
+      REAL(KIND(1D0)) :: ExternalWallDHWVesselTemperature ! Initial hot water vessel external wall temperature [degC]
+
+      TYPE(STEBBS_BLDG), ALLOCATABLE, DIMENSION(:) :: buildings ! Array holding all buildings states for STEBBS [-]
+
+      ! flag for iteration safety - YES
+      ! all variables are intensive and thus can be used for iteration safety
+      LOGICAL :: iter_safe = .TRUE.
+
    CONTAINS
       PROCEDURE :: ALLOCATE => allocSTEBBS_bldg
       PROCEDURE :: DEALLOCATE => deallocSTEBBS_bldg
-   END TYPE
+
+   END TYPE STEBBS_STATE
 
    TYPE, PUBLIC :: NHOOD_STATE
 
@@ -1653,17 +1695,24 @@ CONTAINS
 
    END SUBROUTINE deallocate_site_prm_c
 
-   SUBROUTINE allocSTEBBS_bldg
+   SUBROUTINE allocSTEBBS_bldg(self, ntypes)
       IMPLICIT NONE
+
+      CLASS(STEBBS_STATE), INTENT(INOUT) :: self
+      INTEGER, INTENT(IN) :: ntypes
+
+      CALL self%DEALLOCATE()
+      ALLOCATE(self%buildings(ntypes))
 
 
 
    END SUBROUTINE allocSTEBBS_bldg
 
-   SUBROUTINE deallocSTEBBS_bldg
+   SUBROUTINE deallocSTEBBS_bldg(self)
       IMPLICIT NONE
 
-
+      CLASS(STEBBS_STATE), INTENT(INOUT) :: self
+      IF (ALLOCATED(self%buildings)) DEALLOCATE(self%buildings)
 
    END SUBROUTINE deallocSTEBBS_bldg
 

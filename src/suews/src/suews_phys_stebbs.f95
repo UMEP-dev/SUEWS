@@ -666,7 +666,7 @@ CONTAINS
                CALL gen_building(stebbsState, stebbsPrm, building_archtype, buildings(1))
                sout%ntstep = 1
             END IF
-
+            
             sout%Tair = Tair_sout
             sout%Tsurf = Tsurf_sout
             sout%Kroof = Kroof_sout

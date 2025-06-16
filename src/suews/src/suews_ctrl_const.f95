@@ -58,6 +58,9 @@ MODULE allocateArray
 
    REAL(KIND(1D0)), DIMENSION(nsurf) :: sfr_surf !Surface fractions [-]
 
+   ! STEBBS Related
+   INTEGER, PARAMETER :: nbtypes = 1 ! Number of building archetypes. TODO: Make dynamic
+
    ! ---- Set number of columns in input files ----------------------------------------------------
    INTEGER, PARAMETER :: ncolumnsSiteSelect = 105 !SUEWS_SiteSelect.txt
    INTEGER, PARAMETER :: ncolumnsNonVeg = 24 !SUEWS_NonVeg.txt

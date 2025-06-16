@@ -1695,10 +1695,6 @@ CONTAINS
       ALLOCATE(self%buildings(ntypes))
 
 
-      CALL self%DEALLOCATE()
-      ALLOCATE(self%buildings(ntypes))
-
-
 
    END SUBROUTINE allocSTEBBS_bldg
 
@@ -1706,8 +1702,7 @@ CONTAINS
       IMPLICIT NONE
 
       CLASS(STEBBS_STATE), INTENT(INOUT) :: self
-      IF (ALLOCATED(self%buildings)) DEALLOCATE(self%buildings)
-      IF (ALLOCATED(self%buildings)) DEALLOCATE(self%buildings)
+      IF (ALLOCATED(self%buildings)) DEALLOCATE (self%buildings)
 
    END SUBROUTINE deallocSTEBBS_bldg
 

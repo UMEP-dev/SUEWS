@@ -668,7 +668,7 @@ CONTAINS
                sout%ntstep = 1
 
             END IF
-
+            
             sout%Tair = Tair_sout
             sout%Tsurf = Tsurf_sout
             sout%Kroof = Kroof_sout

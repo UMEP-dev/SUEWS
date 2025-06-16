@@ -983,6 +983,165 @@ MODULE SUEWS_DEF_DTS
 
    END TYPE STEBBS_STATE
 
+   TYPE :: STEBBS_BLDG
+      ! MP TODO: Add initialisation values e.g. =0
+      CHARACTER(len=256) :: BuildingType
+      CHARACTER(len=256) :: BuildingName
+      CHARACTER(len=256) :: fnmlLBM
+      CHARACTER(len=256) :: CASE
+      INTEGER :: idLBM
+      INTEGER :: appliance_totalnumber
+      
+      REAL(KIND(1D0)) :: Qtotal_heating
+      REAL(KIND(1D0)) :: Qtotal_cooling
+      REAL(KIND(1D0)) :: Qmetabolic_sensible
+      REAL(KIND(1D0)) :: Qmetabolic_latent
+      REAL(KIND(1D0)) :: Qtotal_water_tank
+      REAL(KIND(1D0)) :: qhwtDrain
+      REAL(KIND(1D0)) :: ratio_window_wall
+      REAL(KIND(1D0)) :: Afootprint
+      REAL(KIND(1D0)) :: height_building
+      REAL(KIND(1D0)) :: wallExternalArea
+      REAL(KIND(1D0)) :: ratioInternalVolume
+      REAL(KIND(1D0)) :: thickness_wallroof
+      REAL(KIND(1D0)) :: thickness_groundfloor
+      REAL(KIND(1D0)) :: depth_ground
+      REAL(KIND(1D0)) :: thickness_window
+      REAL(KIND(1D0)) :: conv_coeff_intwallroof
+      REAL(KIND(1D0)) :: conv_coeff_indoormass
+      REAL(KIND(1D0)) :: conv_coeff_intgroundfloor
+      REAL(KIND(1D0)) :: conv_coeff_intwindow
+      REAL(KIND(1D0)) :: conv_coeff_extwallroof
+      REAL(KIND(1D0)) :: conv_coeff_extwindow
+      REAL(KIND(1D0)) :: conductivity_wallroof
+      REAL(KIND(1D0)) :: conductivity_groundfloor
+      REAL(KIND(1D0)) :: conductivity_window
+      REAL(KIND(1D0)) :: conductivity_ground
+      REAL(KIND(1D0)) :: density_wallroof
+      REAL(KIND(1D0)) :: weighting_factor_heatcapacity_wallroof
+      REAL(KIND(1D0)) :: density_groundfloor
+      REAL(KIND(1D0)) :: density_window
+      REAL(KIND(1D0)) :: density_indoormass
+      REAL(KIND(1D0)) :: density_air_ind
+      REAL(KIND(1D0)) :: cp_wallroof
+      REAL(KIND(1D0)) :: cp_groundfloor
+      REAL(KIND(1D0)) :: cp_window
+      REAL(KIND(1D0)) :: cp_indoormass
+      REAL(KIND(1D0)) :: cp_air_ind
+      REAL(KIND(1D0)) :: emissivity_extwallroof
+      REAL(KIND(1D0)) :: emissivity_intwallroof
+      REAL(KIND(1D0)) :: emissivity_indoormass
+      REAL(KIND(1D0)) :: emissivity_extwindow
+      REAL(KIND(1D0)) :: emissivity_intwindow
+      REAL(KIND(1D0)) :: windowTransmissivity
+      REAL(KIND(1D0)) :: windowAbsorbtivity
+      REAL(KIND(1D0)) :: windowReflectivity
+      REAL(KIND(1D0)) :: wallTransmisivity
+      REAL(KIND(1D0)) :: wallAbsorbtivity
+      REAL(KIND(1D0)) :: wallReflectivity
+      REAL(KIND(1D0)) :: BVF_extwall
+      REAL(KIND(1D0)) :: GVF_extwall
+      REAL(KIND(1D0)) :: SVF_extwall
+      REAL(KIND(1D0)) :: occupants
+      REAL(KIND(1D0)) :: metabolic_rate
+      REAL(KIND(1D0)) :: ratio_metabolic_latent_sensible
+      REAL(KIND(1D0)) :: appliance_power_rating
+      REAL(KIND(1D0)) :: appliance_usage_factor
+      REAL(KIND(1D0)) :: maxheatingpower_air
+      REAL(KIND(1D0)) :: heating_efficiency_air
+      REAL(KIND(1D0)) :: maxcoolingpower_air
+      REAL(KIND(1D0)) :: coeff_performance_cooling
+      REAL(KIND(1D0)) :: Vair_ind
+      REAL(KIND(1D0)) :: ventilation_rate
+      REAL(KIND(1D0)) :: Awallroof
+      REAL(KIND(1D0)) :: Vwallroof
+      REAL(KIND(1D0)) :: Vgroundfloor
+      REAL(KIND(1D0)) :: Awindow
+      REAL(KIND(1D0)) :: Vwindow
+      REAL(KIND(1D0)) :: Vindoormass
+      REAL(KIND(1D0)) :: Aindoormass
+      REAL(KIND(1D0)) :: Tair_ind
+      REAL(KIND(1D0)) :: Tindoormass
+      REAL(KIND(1D0)) :: Tintwallroof
+      REAL(KIND(1D0)) :: Textwallroof
+      REAL(KIND(1D0)) :: Tintwindow
+      REAL(KIND(1D0)) :: Textwindow
+      REAL(KIND(1D0)) :: Tintgroundfloor
+      REAL(KIND(1D0)) :: Textgroundfloor
+      REAL(KIND(1D0)) :: Twater_tank
+      REAL(KIND(1D0)) :: Tintwall_tank
+      REAL(KIND(1D0)) :: Textwall_tank
+      REAL(KIND(1D0)) :: thickness_tankwall
+      REAL(KIND(1D0)) :: Tincomingwater_tank
+      REAL(KIND(1D0)) :: Vwater_tank
+      REAL(KIND(1D0)) :: Asurf_tank
+      REAL(KIND(1D0)) :: Vwall_tank
+      REAL(KIND(1D0)) :: setTwater_tank
+      REAL(KIND(1D0)) :: init_wtTs
+      REAL(KIND(1D0)) :: Twater_vessel
+      REAL(KIND(1D0)) :: Tintwall_vessel
+      REAL(KIND(1D0)) :: Textwall_vessel
+      REAL(KIND(1D0)) :: thickness_wall_vessel
+      REAL(KIND(1D0)) :: Vwater_vessel
+      REAL(KIND(1D0)) :: Awater_vessel
+      REAL(KIND(1D0)) :: Vwall_vessel
+      REAL(KIND(1D0)) :: flowrate_water_supply
+      REAL(KIND(1D0)) :: flowrate_water_drain
+      REAL(KIND(1D0)) :: single_flowrate_water_supply
+      REAL(KIND(1D0)) :: single_flowrate_water_drain
+      REAL(KIND(1D0)) :: cp_water
+      REAL(KIND(1D0)) :: cp_wall_tank
+      REAL(KIND(1D0)) :: cp_wall_vessel
+      REAL(KIND(1D0)) :: density_water
+      REAL(KIND(1D0)) :: density_wall_tank
+      REAL(KIND(1D0)) :: density_wall_vessel
+      REAL(KIND(1D0)) :: BVF_tank
+      REAL(KIND(1D0)) :: MVF_tank
+      REAL(KIND(1D0)) :: conductivity_wall_tank
+      REAL(KIND(1D0)) :: conv_coeff_intwall_tank
+      REAL(KIND(1D0)) :: conv_coeff_extwall_tank
+      REAL(KIND(1D0)) :: emissivity_extwall_tank
+      REAL(KIND(1D0)) :: conductivity_wall_vessel
+      REAL(KIND(1D0)) :: conv_coeff_intwall_vessel
+      REAL(KIND(1D0)) :: conv_coeff_extwall_vessel
+      REAL(KIND(1D0)) :: emissivity_extwall_vessel
+      REAL(KIND(1D0)) :: maxheatingpower_water
+      REAL(KIND(1D0)) :: heating_efficiency_water
+      REAL(KIND(1D0)) :: minVwater_vessel
+      REAL(KIND(1D0)) :: minHeatingPower_DHW
+      REAL(KIND(1D0)) :: HeatingPower_DHW
+      
+      REAL(KIND(1D0)) :: qfm_dom ! Metabolic sensible and latent heat
+      REAL(KIND(1D0)) :: qheat_dom ! Hourly heating load  [W]
+      REAL(KIND(1D0)) :: qcool_dom ! Hourly cooling load  [W]
+      REAL(KIND(1D0)) :: qfb_hw_dom ! Hot water
+      REAL(KIND(1D0)) :: qfb_dom_air ! Sensible heat to air [W]
+      REAL(KIND(1D0)) :: dom_temp ! Domain temperature   [W]
+      REAL(KIND(1D0)) :: QStar ! Net radiation        [W m-2]
+      REAL(KIND(1D0)) :: QEC ! Energy use           [W m-2]
+      REAL(KIND(1D0)) :: QH ! Sensible heat flux   [W m-2]
+      REAL(KIND(1D0)) :: QS ! Storage heat flux    [W m-2]
+      REAL(KIND(1D0)) :: QBAE ! Building exchange    [W m-2]
+      REAL(KIND(1D0)) :: QWaste ! Waste heating        [W m-2]
+      
+      REAL(KIND(1D0)), DIMENSION(2) :: Ts, initTs
+      REAL(KIND(1D0)), DIMENSION(4) :: h_i, k_eff
+      REAL(KIND(1D0)), DIMENSION(2) :: h_o
+      REAL(KIND(1D0)), DIMENSION(5) :: rho
+      REAL(KIND(1D0)), DIMENSION(5) :: Cp
+      REAL(KIND(1D0)), DIMENSION(5) :: emis
+      REAL(KIND(1D0)), DIMENSION(3) :: wiTAR, waTAR
+      REAL(KIND(1D0)), DIMENSION(3) :: viewFactors
+      REAL(KIND(1D0)), DIMENSION(3) :: occupantData
+      REAL(KIND(1D0)), DIMENSION(3) :: HTsAverage, HWTsAverage
+      REAL(KIND(1D0)), DIMENSION(3) :: HWPowerAverage
+      REAL(KIND(1D0)), DIMENSION(25) :: EnergyExchanges = 0.0
+
+   CONTAINS
+      PROCEDURE :: ALLOCATE => allocSTEBBS_bldg
+      PROCEDURE :: DEALLOCATE => deallocSTEBBS_bldg
+   END TYPE
+
    TYPE, PUBLIC :: NHOOD_STATE
 
       REAL(KIND(1D0)) :: U_hbh_1dravg = 0.0D0 ! 24hr running average wind speed at half building height [m s-1]
@@ -1495,6 +1654,20 @@ CONTAINS
       IF (ALLOCATED(self%sfr_wall)) DEALLOCATE (self%sfr_wall)
 
    END SUBROUTINE deallocate_site_prm_c
+
+   SUBROUTINE allocSTEBBS_bldg
+      IMPLICIT NONE
+
+
+
+   END SUBROUTINE allocSTEBBS_bldg
+
+   SUBROUTINE deallocSTEBBS_bldg
+      IMPLICIT NONE
+
+
+
+   END SUBROUTINE deallocSTEBBS_bldg
 
    SUBROUTINE SUEWS_cal_surf_DTS( &
       self, & !inout

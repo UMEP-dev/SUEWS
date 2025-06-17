@@ -533,6 +533,14 @@ class ModelControl(BaseModel):
         default=0,
         description="Level of diagnostic output (0=none, 1=basic, 2=detailed)",
     )
+    start_time: Optional[str] = Field(
+        default=None,
+        description="Start time of model run. If None use forcing data bounds."
+    )
+    end_time: Optional[str] = Field(
+        default=None,
+        description="End time of model run. If None use forcing data bounds."
+    )
 
     ref: Optional[Reference] = None
 
@@ -543,6 +551,11 @@ class ModelControl(BaseModel):
         elif isinstance(v, (np.int64, np.int32)):
             return int(v)
         return v
+
+    @model_validator(mode="after")
+    def check_forcing(self):
+        from .._load import load_SUEWS_Forcing_met_df_yaml
+        forcing = load_SUEWS_Forcing_met_df_yaml(self.forcing_file.value)
 
     def to_df_state(self, grid_id: int) -> pd.DataFrame:
         """Convert model control properties to DataFrame state format."""

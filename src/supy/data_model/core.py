@@ -6,6 +6,7 @@ from pydantic import (
     field_validator,
     PrivateAttr,
     conlist,
+    ValidationError
 )
 import numpy as np
 import pandas as pd
@@ -13,8 +14,11 @@ import yaml
 import ast
 import supy as sp
 
+from .site import DLSValidator
 from .model import Model
-from .site import Site, SiteProperties, InitialStates
+from .site import Site, SiteProperties, InitialStates, LandCover
+from .site import SeasonCheck
+
 try:
     from ..validation import enhanced_from_yaml_validation, enhanced_to_df_state_validation
     _validation_available = True
@@ -74,6 +78,65 @@ class SUEWSConfig(BaseModel):
             return (col[0], ast.literal_eval(col[1]))
         except ValueError:
             return (col[0], col[1])
+
+    @model_validator(mode="before")
+    @classmethod
+    def precheck(cls, data):
+        sites_data = data.get("site", [])
+        if not isinstance(sites_data, list):
+            raise TypeError("Expected 'site' to be a list.")
+
+        for i, site in enumerate(sites_data):
+            props = site.get("properties", {})
+
+            # --- Season Check  ---
+            try:
+                lat = props.get("lat", {}).get("value")
+                start_date = "2014-06-20"  # hardcoded for now
+                end_date = "2014-08-20" # hardcoded for now
+                if lat is not None:
+                    season_check = SeasonCheck(start_date=start_date, end_date=end_date, lat=lat)
+                    season_check.validate_season()
+                else:
+                    print(f"⚠️ [site #{i}] Skipping season check: missing lat")
+            except Exception as e:
+                raise ValueError(f"[site #{i}] SeasonCheck failed: {e}")
+
+            # --- DLS Validator ---
+            try:
+                lng = props.get("lng", {}).get("value")
+                emissions = props.get("anthropogenic_emissions", {})
+                startdls = emissions.get("startdls", {}).get("value")
+                enddls = emissions.get("enddls", {}).get("value")
+
+                if lat is None or lng is None:
+                    raise ValueError("Missing lat or lng for DLS check")
+
+                dlsvalidator = DLSValidator(
+                    lat=lat,
+                    lng=lng,
+                    startdls=startdls,
+                    enddls=enddls,
+                    year=2014  # hardcoded for now
+                )
+                dlsvalidator.validate_dls()
+            except Exception as e:
+                raise ValueError(f"[site #{i}] DLS validation failed: {e}")
+
+            # --- Land Cover Validator ---
+            landcover_data = props.get("land_cover") or props.get("landcover")
+            if landcover_data is None:
+                raise ValueError(f"[site #{i}] Missing 'land_cover' section in site properties")
+            if not isinstance(landcover_data, dict):
+                raise TypeError(f"[site #{i}] 'land_cover' must be a dict, got {type(landcover_data).__name__}")
+            try:
+                print(f"🧪 Validating land_cover for site #{i}...")
+                LandCover(**landcover_data)
+            except ValidationError as e:
+                raise ValueError(f"[site #{i}] Invalid land_cover: {e}")
+
+        return data
+
 
     @classmethod
     def from_yaml(cls, path: str, use_conditional_validation: bool = True, strict: bool = True) -> "SUEWSConfig":

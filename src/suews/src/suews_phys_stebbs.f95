@@ -497,7 +497,7 @@ CONTAINS
 
          ASSOCIATE ( &
             stebbs_bldg_init => flagstate%stebbs_bldg_init, &
-            buildings => stebbsState%buildings
+            buildings => stebbsState%buildings &
             )
 
             IF (stebbs_bldg_init == 0) THEN
@@ -508,7 +508,7 @@ CONTAINS
             CALL setdatetime(datetimeLine)
 
             CALL suewsstebbscouple( &
-               buildings(1), modState, datetimeLine, &
+               buildings(1), config, timer, modState, siteInfo, datetimeLine, &
                dataOutLineSTEBBS &
                )
 
@@ -521,7 +521,7 @@ CONTAINS
    END SUBROUTINE stebbsonlinecouple
 END MODULE stebbs_module
 
-SUBROUTINE suewsstebbscouple(self, modState, datetimeLine, &
+SUBROUTINE suewsstebbscouple(self, config, timer, modState, siteInfo, datetimeLine, &
                              dataOutLineSTEBBS &
                              ) ! Output
    USE allocateArray, ONLY: ncolumnsDataOutSTEBBS
@@ -535,10 +535,13 @@ SUBROUTINE suewsstebbscouple(self, modState, datetimeLine, &
       Qsw_dn_extroof, &
       Qsw_dn_extwall, &
       Qlw_dn_extwall, Qlw_dn_extroof
-   USE SUEWS_DEF_DTS, ONLY: SUEWS_STATE, STEBBS_BLDG
+   USE SUEWS_DEF_DTS, ONLY: SUEWS_CONFIG, SUEWS_STATE, SUEWS_TIMER, SUEWS_SITE, STEBBS_BLDG
    IMPLICIT NONE
 
+   TYPE(SUEWS_CONFIG), INTENT(IN) :: config
    TYPE(SUEWS_STATE) :: modState
+   TYPE(SUEWS_TIMER), INTENT(IN) :: timer
+   TYPE(SUEWS_SITE), INTENT(IN) :: siteInfo
    TYPE(STEBBS_BLDG) :: self
    INTEGER :: tstep, i
    INTEGER :: ntstep = 1
@@ -547,6 +550,7 @@ SUBROUTINE suewsstebbscouple(self, modState, datetimeLine, &
 
    ! Met variables
    REAL(KIND(1D0)) :: ws
+   REAL(KIND(1D0)) :: ws_exch
    REAL(KIND(1D0)) :: Tair_sout
    REAL(KIND(1D0)) :: Tsurf_sout
    REAL(KIND(1D0)) :: Kroof_sout

@@ -1010,10 +1010,10 @@ MODULE SUEWS_DEF_DTS
       REAL(KIND(1D0)) :: coeff_performance_cooling
       REAL(KIND(1D0)) :: Vair_ind
       REAL(KIND(1D0)) :: ventilation_rate
-      REAL(KIND(1D0)) :: Awall, &
-      REAL(KIND(1D0)) :: Vwall, &
-      REAL(KIND(1D0)) :: Aroof, &
-      REAL(KIND(1D0)) :: Vroof, &
+      REAL(KIND(1D0)) :: Awall
+      REAL(KIND(1D0)) :: Vwall
+      REAL(KIND(1D0)) :: Aroof
+      REAL(KIND(1D0)) :: Vroof
       REAL(KIND(1D0)) :: Vgroundfloor
       REAL(KIND(1D0)) :: Awindow
       REAL(KIND(1D0)) :: Vwindow

@@ -511,10 +511,10 @@ CONTAINS
             IF (config%stebbsmethod == 1 .OR. config%stebbsmethod == 2) THEN
                IF (Diagnose == 1) WRITE (*, *) 'Calling STEBBS...'
                CALL stebbsonlinecouple( &
-                  zarray, dataoutLineURSL, dataoutLineTRSL, &
                   timer, config, forcing, siteInfo, & ! input
                   modState, & ! input/output:
                   datetimeLine, & ! input
+                  zarray, dataoutLineURSL, dataoutLineTRSL, &
                   dataOutLineSTEBBS) ! output
             END IF
 

@@ -20,188 +20,7 @@ MODULE modulestebbs
 
    INTEGER :: nbtype
    CHARACTER(len=256), ALLOCATABLE, DIMENSION(:) :: fnmls, cases
-   TYPE :: LBM
-      CHARACTER(len=256) :: &
-         BuildingType, &
-         BuildingName, &
-         fnmlLBM, &
-         CASE
-      INTEGER :: idLBM
-      ! INTEGER :: flginit = 0
-      INTEGER :: appliance_totalnumber
-      REAL(rprc) :: &
-         Qtotal_heating, &
-         Qtotal_cooling, &
-         Qmetabolic_sensible, &
-         Qmetabolic_latent, &
-         Qtotal_water_tank, &
-         qhwtDrain, &
-         ratio_window_wall, &
-         Afootprint, &
-         height_building, &
-         wallExternalArea, &
-         ratioInternalVolume, &
-         thickness_wall, &
-         thickness_wallext, &
-         thickness_roof, &
-         thickness_roofext, &
-         thickness_groundfloor, &
-         depth_ground, &
-         thickness_window, &
-         conv_coeff_intwall, &
-         conv_coeff_introof, &
-         conv_coeff_indoormass, &
-         conv_coeff_intgroundfloor, &
-         conv_coeff_intwindow, &
-         conv_coeff_extwall, &
-         conv_coeff_extroof, &
-         conv_coeff_extwindow, &
-         conductivity_wall, &
-         conductivity_wallext, &
-         conductivity_roof, &
-         conductivity_roofext, &
-         conductivity_groundfloor, &
-         conductivity_window, &
-         conductivity_ground, &
-         density_wall, &
-         density_wallext, &
-         density_roof, &
-         density_roofext, &
-         weighting_factor_heatcapacity_wall, &
-         weighting_factor_heatcapacity_roof, &
-         density_groundfloor, &
-         density_window, &
-         density_indoormass, &
-         density_air_ind, &
-         cp_wall, &
-         cp_wallext, &
-         cp_roof, &
-         cp_roofext, &
-         cp_groundfloor, &
-         cp_window, &
-         cp_indoormass, &
-         cp_air_ind, &
-         emissivity_extwall, &
-         emissivity_extroof, &
-         emissivity_intwall, &
-         emissivity_introof, &
-         emissivity_indoormass, &
-         emissivity_extwindow, &
-         emissivity_intwindow, &
-         windowTransmissivity, &
-         windowAbsorbtivity, &
-         windowReflectivity, &
-         wallTransmisivity, &
-         wallAbsorbtivity, &
-         wallReflectivity, &
-         roofTransmisivity, &
-         roofAbsorbtivity, &
-         roofReflectivity, &
-         BVF_extwall, &
-         GVF_extwall, &
-         SVF_extwall, &
-         BVF_extroof, &
-         GVF_extroof, &
-         SVF_extroof, &
-         occupants, &
-         metabolic_rate, &
-         ratio_metabolic_latent_sensible, &
-         appliance_power_rating, &
-         appliance_usage_factor, &
-         maxheatingpower_air, &
-         heating_efficiency_air, &
-         maxcoolingpower_air, &
-         coeff_performance_cooling, &
-         Vair_ind, &
-         ventilation_rate, &
-         Awall, &
-         Vwall, &
-         Aroof, &
-         Vroof, &
-         Vgroundfloor, &
-         Awindow, &
-         Vwindow, &
-         Vindoormass, &
-         Aindoormass, &
-         Tair_ind, &
-         Tindoormass, &
-         Tintwall, &
-         Textwall, &
-         Tintroof, &
-         Textroof, &
-         Tintwindow, &
-         Textwindow, &
-         Tintgroundfloor, &
-         Textgroundfloor, &
-         Twater_tank, &
-         Tintwall_tank, &
-         Textwall_tank, &
-         thickness_tankwall, &
-         Tincomingwater_tank, &
-         Vwater_tank, &
-         Asurf_tank, &
-         Vwall_tank, &
-         setTwater_tank, &
-         init_wtTs, &
-         Twater_vessel, &
-         Tintwall_vessel, &
-         Textwall_vessel, &
-         thickness_wall_vessel, &
-         Vwater_vessel, &
-         Awater_vessel, &
-         Vwall_vessel, &
-         flowrate_water_supply, &
-         flowrate_water_drain, &
-         single_flowrate_water_supply, &
-         single_flowrate_water_drain, &
-         cp_water, &
-         cp_wall_tank, &
-         cp_wall_vessel, &
-         density_water, &
-         density_wall_tank, &
-         density_wall_vessel, &
-         BVF_tank, &
-         MVF_tank, &
-         conductivity_wall_tank, &
-         conv_coeff_intwall_tank, &
-         conv_coeff_extwall_tank, &
-         emissivity_extwall_tank, &
-         conductivity_wall_vessel, &
-         conv_coeff_intwall_vessel, &
-         conv_coeff_extwall_vessel, &
-         emissivity_extwall_vessel, &
-         maxheatingpower_water, &
-         heating_efficiency_water, &
-         minVwater_vessel, &
-         minHeatingPower_DHW, &
-         HeatingPower_DHW
-      REAL(rprc) :: &
-         qfm_dom, & ! Metabolic sensible and latent heat
-         qheat_dom, & ! Hourly heating load  [W]
-         qcool_dom, & ! Hourly cooling load  [W]
-         qfb_hw_dom, & ! Hot water
-         qfb_dom_air, & ! Sensible heat to air [W]
-         dom_temp, & ! Domain temperature   [W]
-         QStar, & ! Net radiation        [W m-2]
-         QEC, & ! Energy use           [W m-2]
-         QH, & ! Sensible heat flux   [W m-2]
-         QS, & ! Storage heat flux    [W m-2]
-         QBAE, & ! Building exchange    [W m-2]
-         QWaste ! Waste heating        [W m-2]
-      REAL(rprc), DIMENSION(2) :: Ts, initTs
-      REAL(rprc), DIMENSION(5) :: h_i, k_eff
-      REAL(rprc), DIMENSION(3) :: h_o ! modified for wall, roof and windows
-      REAL(rprc), DIMENSION(6) :: rho
-      REAL(rprc), DIMENSION(6) :: Cp
-      REAL(rprc), DIMENSION(7) :: emis
-      REAL(rprc), DIMENSION(3) :: wiTAR, waTAR, roofTAR
-      REAL(rprc), DIMENSION(6) :: viewFactors
-      REAL(rprc), DIMENSION(3) :: occupantData
-      REAL(rprc), DIMENSION(3) :: HTsAverage, HWTsAverage
-      REAL(rprc), DIMENSION(3) :: HWPowerAverage
-      REAL(rprc), DIMENSION(31) :: EnergyExchanges = 0.0
-   END TYPE
-   TYPE(LBM), ALLOCATABLE, DIMENSION(:) :: blds
+
 END MODULE modulestebbs
 MODULE modulestebbsfunc
    USE modulestebbsprecision
@@ -222,8 +41,8 @@ CONTAINS
       USE modulestebbsprecision
       IMPLICIT NONE
       INTEGER, INTENT(in) :: timeResolution
-      REAL(rprc), INTENT(in) :: rho, Cp, vFRo, Tout
-      REAL(rprc) :: q_wt
+      REAL(KIND(1D0)), INTENT(in) :: rho, Cp, vFRo, Tout
+      REAL(KIND(1D0)) :: q_wt
       q_wt = rho*Cp*Tout*(vFRo*timeResolution)
    END FUNCTION
    !-------------------------------------------------------------------
@@ -240,8 +59,8 @@ CONTAINS
    FUNCTION indoorConvectionHeatTransfer(h, A, Twi, Ti) RESULT(ind_cht)
       USE modulestebbsprecision
       IMPLICIT NONE
-      REAL(rprc), INTENT(in) :: h, A, Twi, Ti
-      REAL(rprc) :: ind_cht
+      REAL(KIND(1D0)), INTENT(in) :: h, A, Twi, Ti
+      REAL(KIND(1D0)) :: ind_cht
       ind_cht = h*A*(Ti - Twi)
    END FUNCTION indoorConvectionHeatTransfer
    !-------------------------------------------------------------------
@@ -258,8 +77,8 @@ CONTAINS
    FUNCTION internalConvectionHeatTransfer(h, A, Tio, Ti) RESULT(int_cht)
       USE modulestebbsprecision
       IMPLICIT NONE
-      REAL(rprc), INTENT(in) :: h, A, Tio, Ti
-      REAL(rprc) :: int_cht
+      REAL(KIND(1D0)), INTENT(in) :: h, A, Tio, Ti
+      REAL(KIND(1D0)) :: int_cht
       int_cht = h*A*(Ti - Tio)
    END FUNCTION internalConvectionHeatTransfer
    !-------------------------------------------------------------------
@@ -272,7 +91,7 @@ CONTAINS
    FUNCTION indoorRadiativeHeatTransfer() RESULT(q)
       USE modulestebbsprecision
       IMPLICIT NONE
-      REAL(rprc) :: q
+      REAL(KIND(1D0)) :: q
       q = 0.0
       RETURN
    END FUNCTION indoorRadiativeHeatTransfer
@@ -290,8 +109,8 @@ CONTAINS
    FUNCTION outdoorConvectionHeatTransfer(h, A, Two, Ta) RESULT(out_cht)
       USE modulestebbsprecision
       IMPLICIT NONE
-      REAL(rprc), INTENT(in) :: h, A, Two, Ta
-      REAL(rprc) :: out_cht
+      REAL(KIND(1D0)), INTENT(in) :: h, A, Two, Ta
+      REAL(KIND(1D0)) :: out_cht
       out_cht = h*A*(Two - Ta)
       RETURN
    END FUNCTION outdoorConvectionHeatTransfer
@@ -311,8 +130,8 @@ CONTAINS
       USE modulestebbsprecision
       USE modulestebbs, ONLY: sigma
       IMPLICIT NONE
-      REAL(rprc), INTENT(in) :: f, A, emis, Two, Ts
-      REAL(rprc) :: q
+      REAL(KIND(1D0)), INTENT(in) :: f, A, emis, Two, Ts
+      REAL(KIND(1D0)) :: q
       q = A*f*sigma*emis*(Two**4.0 - Ts**4.0)
       RETURN
    END FUNCTION outdoorRadiativeHeatTransfer
@@ -331,8 +150,8 @@ CONTAINS
       USE modulestebbsprecision
       USE modulestebbs, ONLY: sigma
       IMPLICIT NONE
-      REAL(rprc), INTENT(in) :: A, emis, Two, lw
-      REAL(rprc) :: q
+      REAL(KIND(1D0)), INTENT(in) :: A, emis, Two, lw
+      REAL(KIND(1D0)) :: q
       q = A*sigma*emis*(Two**4.0) - emis*lw*a ! Revised based on Yiqing's discovery
       RETURN
    END FUNCTION lwoutdoorRadiativeHeatTransfer
@@ -349,8 +168,8 @@ CONTAINS
    FUNCTION windowInsolation(Irr, Tr, A) RESULT(wi_in)
       USE modulestebbsprecision
       IMPLICIT NONE
-      REAL(rprc), INTENT(in) :: Irr, Tr, A
-      REAL(rprc) :: wi_in
+      REAL(KIND(1D0)), INTENT(in) :: Irr, Tr, A
+      REAL(KIND(1D0)) :: wi_in
       wi_in = Irr*Tr*A
       RETURN
    END FUNCTION windowInsolation
@@ -367,8 +186,8 @@ CONTAINS
    FUNCTION wallInsolation(Irr, Ab, A) RESULT(wa_in)
       USE modulestebbsprecision
       IMPLICIT NONE
-      REAL(rprc), INTENT(in) :: Irr, Ab, A
-      REAL(rprc) :: wa_in
+      REAL(KIND(1D0)), INTENT(in) :: Irr, Ab, A
+      REAL(KIND(1D0)) :: wa_in
       wa_in = Irr*Ab*A
       RETURN
    END FUNCTION wallInsolation
@@ -387,8 +206,8 @@ CONTAINS
    FUNCTION wallConduction(k_eff, A, Twi, Two, L) RESULT(wa_co)
       USE modulestebbsprecision
       IMPLICIT NONE
-      REAL(rprc), INTENT(in) :: k_eff, Twi, Two, A, L
-      REAL(rprc) :: wa_co
+      REAL(KIND(1D0)), INTENT(in) :: k_eff, Twi, Two, A, L
+      REAL(KIND(1D0)) :: wa_co
       wa_co = k_eff*A*((Twi - Two)/L)
    END FUNCTION wallConduction
    !-------------------------------------------------------------------
@@ -406,8 +225,8 @@ CONTAINS
    FUNCTION windowConduction(k_eff, A, Twi, Two, L) RESULT(wi_co)
       USE modulestebbsprecision
       IMPLICIT NONE
-      REAL(rprc), INTENT(in) :: k_eff, Twi, Two, A, L
-      REAL(rprc) :: wi_co
+      REAL(KIND(1D0)), INTENT(in) :: k_eff, Twi, Two, A, L
+      REAL(KIND(1D0)) :: wi_co
       wi_co = k_eff*A*((Twi - Two)/L)
    END FUNCTION windowConduction
    !-------------------------------------------------------------------
@@ -424,8 +243,8 @@ CONTAINS
    FUNCTION heating(Ts, Ti, epsilon, P) RESULT(q_heating)
       USE modulestebbsprecision
       IMPLICIT NONE
-      REAL(rprc), INTENT(in) :: Ts, Ti, epsilon, P
-      REAL(rprc) :: q_heating
+      REAL(KIND(1D0)), INTENT(in) :: Ts, Ti, epsilon, P
+      REAL(KIND(1D0)) :: q_heating
       q_heating = 0.0
       IF (Ti < Ts) THEN
          q_heating = (P - (P/EXP(Ts - Ti)))*epsilon
@@ -446,8 +265,8 @@ CONTAINS
    FUNCTION ventilationHeatTransfer(rho, Cp, V, To, Ti) RESULT(q_in)
       USE modulestebbsprecision
       IMPLICIT NONE
-      REAL(rprc), INTENT(in) :: rho, Cp, V, To, Ti
-      REAL(rprc) :: q_in
+      REAL(KIND(1D0)), INTENT(in) :: rho, Cp, V, To, Ti
+      REAL(KIND(1D0)) :: q_in
       q_in = rho*Cp*V*(To - Ti)
    END FUNCTION ventilationHeatTransfer
    !-------------------------------------------------------------------
@@ -462,8 +281,8 @@ CONTAINS
    FUNCTION additionalSystemHeatingEnergy(q_heating, epsilon) RESULT(qH_additional)
       USE modulestebbsprecision
       IMPLICIT NONE
-      REAL(rprc), INTENT(in) :: q_heating, epsilon
-      REAL(rprc) :: qH_additional
+      REAL(KIND(1D0)), INTENT(in) :: q_heating, epsilon
+      REAL(KIND(1D0)) :: qH_additional
       qH_additional = 0.0
       qH_additional = (q_heating/epsilon) - q_heating
    END FUNCTION additionalSystemHeatingEnergy
@@ -481,8 +300,8 @@ CONTAINS
    FUNCTION cooling(Ts, Ti, COP, P) RESULT(q_cooling)
       USE modulestebbsprecision
       IMPLICIT NONE
-      REAL(rprc), INTENT(in) :: Ts, Ti, COP, P
-      REAL(rprc) :: q_cooling
+      REAL(KIND(1D0)), INTENT(in) :: Ts, Ti, COP, P
+      REAL(KIND(1D0)) :: q_cooling
       q_cooling = 0.0
       IF (Ti > Ts) THEN
          q_cooling = P - (P/EXP(Ti - Ts))
@@ -500,8 +319,8 @@ CONTAINS
    FUNCTION additionalSystemCoolingEnergy(q_cooling, COP) RESULT(qC_additional)
       USE modulestebbsprecision
       IMPLICIT NONE
-      REAL(rprc), INTENT(in) :: q_cooling, COP
-      REAL(rprc) :: qC_additional
+      REAL(KIND(1D0)), INTENT(in) :: q_cooling, COP
+      REAL(KIND(1D0)) :: qC_additional
       qC_additional = q_cooling/COP
    END FUNCTION additionalSystemCoolingEnergy
    !-------------------------------------------------------------------
@@ -517,9 +336,9 @@ CONTAINS
    FUNCTION internalOccupancyGains(Occupants, metRate, LSR) RESULT(qSL)
       USE modulestebbsprecision
       IMPLICIT NONE
-      REAL(rprc), INTENT(in) :: Occupants, metRate, LSR
-      REAL(rprc) :: qSen, qLat
-      REAL(rprc), DIMENSION(2) :: qSL
+      REAL(KIND(1D0)), INTENT(in) :: Occupants, metRate, LSR
+      REAL(KIND(1D0)) :: qSen, qLat
+      REAL(KIND(1D0)), DIMENSION(2) :: qSL
       qSL(1) = (metRate*Occupants)/(1.0 + LSR)
       qSL(2) = (metRate*Occupants)*LSR/(1.0 + LSR)
    END FUNCTION internalOccupancyGains
@@ -537,8 +356,8 @@ CONTAINS
       USE modulestebbsprecision
       IMPLICIT NONE
       INTEGER, INTENT(in) :: n
-      REAL(rprc), INTENT(in) :: P, f
-      REAL(rprc) :: qapp
+      REAL(KIND(1D0)), INTENT(in) :: P, f
+      REAL(KIND(1D0)) :: qapp
       qapp = P*f*n
    END FUNCTION internalApplianceGains
    !-------------------------------------------------------------------
@@ -554,8 +373,8 @@ CONTAINS
 
       USE modulestebbsprecision
       IMPLICIT NONE
-      REAL(rprc), INTENT(in) :: wind_speed, dT
-      REAL(rprc) :: hn, a, b, Rf, hcglass, hc
+      REAL(KIND(1D0)), INTENT(in) :: wind_speed, dT
+      REAL(KIND(1D0)) :: hn, a, b, Rf, hcglass, hc
       hn = 1.31*(ABS(dT)**(1.0/3.0))
       a = 3.26
       b = 0.89
@@ -613,17 +432,39 @@ END MODULE modulestebbsfunc
 MODULE modulesuewsstebbscouple
    USE modulestebbsprecision
    IMPLICIT NONE
-   REAL(rprc) :: Tair_out, Tair_out_bh, Tair_out_hbh, Tsurf, Tground_deep, &
-                 density_air_out, cp_air_out, &
-                 Qsw_dn_extroof, Qsw_dn_extwall, &
-                 Qlw_dn_extwall, Qlw_dn_extroof
+   REAL(KIND(1D0)) :: Tair_out, Tair_out_bh, Tair_out_hbh, Tsurf, Tground_deep, &
+                      density_air_out, cp_air_out, &
+                      Qsw_dn_extroof, Qsw_dn_extwall, &
+                      Qlw_dn_extwall, Qlw_dn_extroof
    TYPE :: suewsprop
       INTEGER :: ntstep, timestep
-      CHARACTER(len=256), ALLOCATABLE, DIMENSION(:) :: datetime, hourmin
-      REAL(rprc), ALLOCATABLE, DIMENSION(:) :: Tair, Tair_bh, Tair_hbh, Tsurf, Kwall, Kroof, ws, ws_bh, ws_hbh, Lroof, Lwall
+      !CHARACTER(len=256), ALLOCATABLE, DIMENSION(:) :: datetime, hourmin
+      CHARACTER(len=256) :: datetime
+      CHARACTER(len=256) :: hourmin
+      ! REAL(KIND(1D0)), ALLOCATABLE, DIMENSION(:) :: Tair, Tsurf, Kwall, Kroof, ws, Lroof, Lwall
+      REAL(KIND(1D0)) :: Tair
+      REAL(KIND(1D0)) :: Tsurf
+      REAL(KIND(1D0)) :: Kwall
+      REAL(KIND(1D0)) :: Kroof
+      REAL(KIND(1D0)) :: ws
+      REAL(KIND(1D0)) :: Lroof
+      REAL(KIND(1D0)) :: Lwall
       INTEGER :: ntskip
-      CHARACTER(len=256), ALLOCATABLE, DIMENSION(:) :: datetime_exch, hourmin_exch
-      REAL(rprc), ALLOCATABLE, DIMENSION(:) :: Tair_exch, Tair_exch_bh,Tair_exch_hbh,Tsurf_exch, Kwall_exch, Kroof_exch, ws_exch_bh, ws_exch_hbh, ws_exch, Lroof_exch, Lwall_exch
+      !CHARACTER(len=256), ALLOCATABLE, DIMENSION(:) :: datetime_exch, hourmin_exch
+      CHARACTER(len=256) :: datetime_exch
+      CHARACTER(len=256) :: hourmin_exch
+      ! REAL(KIND(1D0)), ALLOCATABLE, DIMENSION(:) :: Tair_exch, Tsurf_exch, Kwall_exch, Kroof_exch, ws_exch, Lroof_exch, Lwall_exch
+      REAL(KIND(1D0)) :: Tair_exch
+      REAL(KIND(1D0)) :: Tair_exch_bh
+      REAL(KIND(1D0)) :: Tair_exch_hbh
+      REAL(KIND(1D0)) :: Tsurf_exch
+      REAL(KIND(1D0)) :: Kwall_exch
+      REAL(KIND(1D0)) :: Kroof_exch
+      REAL(KIND(1D0)) :: ws_exch
+      REAL(KIND(1D0)) :: ws_exch_bh
+      REAL(KIND(1D0)) :: ws_exch_hbh
+      REAL(KIND(1D0)) :: Lroof_exch
+      REAL(KIND(1D0)) :: Lwall_exch
    END TYPE
    TYPE(suewsprop) :: sout
 END MODULE modulesuewsstebbscouple
@@ -631,7 +472,7 @@ SUBROUTINE setdatetime(datetimeLine)
    USE modulestebbsprecision
    USE modulesuewsstebbscouple, ONLY: sout
    IMPLICIT NONE
-   REAL(rprc), DIMENSION(5), INTENT(in) :: datetimeLine
+   REAL(KIND(1D0)), DIMENSION(5), INTENT(in) :: datetimeLine
    INTEGER :: i
    CHARACTER(len=4) :: cyear
    CHARACTER(len=2) :: cmonth, cday, chour, cmin, csec
@@ -657,8 +498,8 @@ SUBROUTINE setdatetime(datetimeLine)
    WRITE (chour, '(i2.2)') INT(datetimeLine(3))
    WRITE (cmin, '(i2.2)') INT(datetimeLine(4))
    WRITE (csec, '(i2.2)') 0
-   sout%datetime(1) = TRIM(cyear//'-'//cmonth//'-'//cday)
-   sout%hourmin(1) = TRIM(chour//':'//cmin//':'//csec)
+   sout%datetime = TRIM(cyear//'-'//cmonth//'-'//cday)
+   sout%hourmin = TRIM(chour//':'//cmin//':'//csec)
    RETURN
 END SUBROUTINE setdatetime
 MODULE stebbs_module
@@ -674,7 +515,7 @@ CONTAINS
       modState, & ! Input/Output
       datetimeLine, &
       dataOutLineSTEBBS) ! Output
-      USE modulestebbs, ONLY: blds, cases, resolution
+      USE modulestebbs, ONLY: cases, resolution
       USE modulesuewsstebbscouple, ONLY: sout ! Defines sout
       USE modulestebbsprecision, ONLY: rprc ! Defines rprc as REAL64
       USE allocateArray, ONLY: ncolumnsDataOutSTEBBS
@@ -683,89 +524,89 @@ CONTAINS
                                LC_EVETR_PRM, LC_DECTR_PRM, LC_GRASS_PRM, &
                                LC_BSOIL_PRM, LC_WATER_PRM, &
                                SUEWS_SITE, atm_state, ROUGHNESS_STATE, &
-                               HEAT_STATE, SUEWS_STATE, STEBBS_STATE, BUILDING_ARCHETYPE_PRM, STEBBS_PRM
+                               HEAT_STATE, SUEWS_STATE, STEBBS_STATE, BUILDING_ARCHETYPE_PRM, STEBBS_PRM, &
+                               STEBBS_BLDG
       IMPLICIT NONE
       TYPE(SUEWS_CONFIG), INTENT(IN) :: config
       TYPE(SUEWS_TIMER), INTENT(IN) :: timer
       TYPE(SUEWS_FORCING), INTENT(IN) :: forcing
       TYPE(SUEWS_SITE), INTENT(IN) :: siteInfo
       TYPE(SUEWS_STATE), INTENT(INOUT) :: modState
+
       REAL(KIND(1D0)), INTENT(OUT), DIMENSION(ncolumnsDataOutSTEBBS - 5) :: dataOutLineSTEBBS
-      REAL(rprc), DIMENSION(5), INTENT(in) :: datetimeLine
+      REAL(KIND(1D0)), DIMENSION(5), INTENT(in) :: datetimeLine
       REAL(KIND(1D0)), DIMENSION(4) :: wallStatesK, wallStatesL
-      REAL(rprc) :: Kwall_sout, Lwall_sout
-      REAL(rprc) :: Tsurf_sout
       REAL(KIND(1D0)), DIMENSION(30), INTENT(IN) :: zarray, dataoutLineURSL, dataoutLineTRSL
       ! Output variables
-      REAL(rprc) :: ws
-      REAL(rprc) :: ws_bh
-      REAL(rprc) :: ws_hbh
-      REAL(rprc) :: Tair_sout
-      REAL(rprc) :: Tair_bh
-      REAL(rprc) :: Tair_hbh
-      ! REAL(rprc) :: Tsurf_sout
-      REAL(rprc) :: Kroof_sout
-      REAL(rprc) :: Lroof_sout
-      ! REAL(rprc) :: Kwall_sout
-      ! REAL(rprc) :: Lwall_sout
-      REAL(rprc) :: Tair_ind
-      REAL(rprc) :: Tindoormass
-      REAL(rprc) :: Tintwall
-      REAL(rprc) :: Tintroof
-      REAL(rprc) :: Textwall
-      REAL(rprc) :: Textroof
-      REAL(rprc) :: Tintwindow
-      REAL(rprc) :: Textwindow
-      REAL(rprc) :: Tintgroundfloor
-      REAL(rprc) :: Textgroundfloor
-      REAL(rprc) :: Qtotal_heating
-      REAL(rprc) :: Qtotal_cooling
-      REAL(rprc) :: Qsw_transmitted_window_tstepTotal
-      REAL(rprc) :: Qsw_absorbed_window_tstepTotal
-      REAL(rprc) :: Qsw_absorbed_wall_tstepTotal
-      REAL(rprc) :: Qsw_absorbed_roof_tstepTotal
-      REAL(rprc) :: Qconv_indair_to_indoormass_tstepTotal
-      REAL(rprc) :: Qlw_net_intwall_to_allotherindoorsurfaces_tstepTotal
-      REAL(rprc) :: Qlw_net_introof_to_allotherindoorsurfaces_tstepTotal
-      REAL(rprc) :: Qlw_net_intwindow_to_allotherindoorsurfaces_tstepTotal
-      REAL(rprc) :: Qlw_net_intgroundfloor_to_allotherindoorsurfaces_tstepTotal
-      REAL(rprc) :: Q_appliance_tstepTotal
-      REAL(rprc) :: Q_ventilation_tstepTotal
-      REAL(rprc) :: Qconv_indair_to_intwall_tstepTotal
-      REAL(rprc) :: Qconv_indair_to_introof_tstepTotal
-      REAL(rprc) :: Qconv_indair_to_intwindow_tstepTotal
-      REAL(rprc) :: Qconv_indair_to_intgroundfloor_tstepTotal
-      REAL(rprc) :: Qloss_efficiency_heating_air_tstepTotal
-      REAL(rprc) :: Qcond_wall_tstepTotal
-      REAL(rprc) :: Qcond_roof_tstepTotal
-      REAL(rprc) :: Qcond_window_tstepTotal
-      REAL(rprc) :: Qcond_groundfloor_tstepTotal
-      REAL(rprc) :: Qcond_ground_tstepTotal
-      REAL(rprc) :: Qlw_net_extwall_to_outair_tstepTotal
-      REAL(rprc) :: Qlw_net_extroof_to_outair_tstepTotal
-      REAL(rprc) :: Qlw_net_extwindow_to_outair_tstepTotal
-      REAL(rprc) :: Qconv_extwall_to_outair_tstepTotal
-      REAL(rprc) :: Qconv_extroof_to_outair_tstepTotal
-      REAL(rprc) :: Qconv_extwindow_to_outair_tstepTotal
-      REAL(rprc) :: q_cooling_timestepTotal
-      REAL(rprc) :: Qtotal_water_tank
-      REAL(rprc) :: Qloss_drain
-      REAL(rprc) :: Twater_tank
-      REAL(rprc) :: Tintwall_tank
-      REAL(rprc) :: Textwall_tank
-      REAL(rprc) :: Twater_vessel
-      REAL(rprc) :: Tintwall_vessel
-      REAL(rprc) :: Textwall_vessel
-      REAL(rprc) :: Vwater_vessel
-      REAL(rprc) :: Awater_vessel
-      REAL(rprc) :: Vwall_vessel
-      REAL(rprc) :: qsensible_timestepTotal
-      REAL(rprc) :: qlatent_timestepTotal
-      REAL(rprc) :: QS_tstepTotal
-      REAL(rprc) :: QS_fabric_tstepTotal
-      REAL(rprc) :: QS_air_tstepTotal
-      REAL(rprc) :: Vwall_tank
-      REAL(rprc) :: Vwater_tank
+      REAL(KIND(1D0)) :: ws
+      REAL(KIND(1D0)) :: ws_bh
+      REAL(KIND(1D0)) :: ws_hbh
+      REAL(KIND(1D0)) :: Tair_sout
+      REAL(KIND(1D0)) :: Tair_bh
+      REAL(KIND(1D0)) :: Tair_hbh
+      REAL(KIND(1D0)) :: Tsurf_sout
+      REAL(KIND(1D0)) :: Kroof_sout
+      REAL(KIND(1D0)) :: Lroof_sout
+      REAL(KIND(1D0)) :: Kwall_sout
+      REAL(KIND(1D0)) :: Lwall_sout
+      REAL(KIND(1D0)) :: Tair_ind
+      REAL(KIND(1D0)) :: Tindoormass
+      REAL(KIND(1D0)) :: Tintwall
+      REAL(KIND(1D0)) :: Tintroof
+      REAL(KIND(1D0)) :: Textwall
+      REAL(KIND(1D0)) :: Textroof
+      REAL(KIND(1D0)) :: Tintwindow
+      REAL(KIND(1D0)) :: Textwindow
+      REAL(KIND(1D0)) :: Tintgroundfloor
+      REAL(KIND(1D0)) :: Textgroundfloor
+      REAL(KIND(1D0)) :: Qtotal_heating
+      REAL(KIND(1D0)) :: Qtotal_cooling
+      REAL(KIND(1D0)) :: Qsw_transmitted_window_tstepTotal
+      REAL(KIND(1D0)) :: Qsw_absorbed_window_tstepTotal
+      REAL(KIND(1D0)) :: Qsw_absorbed_wall_tstepTotal
+      REAL(KIND(1D0)) :: Qsw_absorbed_roof_tstepTotal
+      REAL(KIND(1D0)) :: Qconv_indair_to_indoormass_tstepTotal
+      REAL(KIND(1D0)) :: Qlw_net_intwall_to_allotherindoorsurfaces_tstepTotal
+      REAL(KIND(1D0)) :: Qlw_net_introof_to_allotherindoorsurfaces_tstepTotal
+      REAL(KIND(1D0)) :: Qlw_net_intwindow_to_allotherindoorsurfaces_tstepTotal
+      REAL(KIND(1D0)) :: Qlw_net_intgroundfloor_to_allotherindoorsurfaces_tstepTotal
+      REAL(KIND(1D0)) :: Q_appliance_tstepTotal
+      REAL(KIND(1D0)) :: Q_ventilation_tstepTotal
+      REAL(KIND(1D0)) :: Qconv_indair_to_intwall_tstepTotal
+      REAL(KIND(1D0)) :: Qconv_indair_to_introof_tstepTotal
+      REAL(KIND(1D0)) :: Qconv_indair_to_intwindow_tstepTotal
+      REAL(KIND(1D0)) :: Qconv_indair_to_intgroundfloor_tstepTotal
+      REAL(KIND(1D0)) :: Qloss_efficiency_heating_air_tstepTotal
+      REAL(KIND(1D0)) :: Qcond_wall_tstepTotal
+      REAL(KIND(1D0)) :: Qcond_roof_tstepTotal
+      REAL(KIND(1D0)) :: Qcond_window_tstepTotal
+      REAL(KIND(1D0)) :: Qcond_groundfloor_tstepTotal
+      REAL(KIND(1D0)) :: Qcond_ground_tstepTotal
+      REAL(KIND(1D0)) :: Qlw_net_extwall_to_outair_tstepTotal
+      REAL(KIND(1D0)) :: Qlw_net_extroof_to_outair_tstepTotal
+      REAL(KIND(1D0)) :: Qlw_net_extwindow_to_outair_tstepTotal
+      REAL(KIND(1D0)) :: Qconv_extwall_to_outair_tstepTotal
+      REAL(KIND(1D0)) :: Qconv_extroof_to_outair_tstepTotal
+      REAL(KIND(1D0)) :: Qconv_extwindow_to_outair_tstepTotal
+      REAL(KIND(1D0)) :: q_cooling_timestepTotal
+      REAL(KIND(1D0)) :: Qtotal_water_tank
+      REAL(KIND(1D0)) :: Qloss_drain
+      REAL(KIND(1D0)) :: Twater_tank
+      REAL(KIND(1D0)) :: Tintwall_tank
+      REAL(KIND(1D0)) :: Textwall_tank
+      REAL(KIND(1D0)) :: Twater_vessel
+      REAL(KIND(1D0)) :: Tintwall_vessel
+      REAL(KIND(1D0)) :: Textwall_vessel
+      REAL(KIND(1D0)) :: Vwater_vessel
+      REAL(KIND(1D0)) :: Awater_vessel
+      REAL(KIND(1D0)) :: Vwall_vessel
+      REAL(KIND(1D0)) :: qsensible_timestepTotal
+      REAL(KIND(1D0)) :: qlatent_timestepTotal
+      REAL(KIND(1D0)) :: QS_tstepTotal
+      REAL(KIND(1D0)) :: QS_fabric_tstepTotal
+      REAL(KIND(1D0)) :: QS_air_tstepTotal
+      REAL(KIND(1D0)) :: Vwall_tank
+      REAL(KIND(1D0)) :: Vwater_tank
       ASSOCIATE ( &
          timestep => timer%tstep, &
          flagstate => modState%flagstate, &
@@ -779,6 +620,7 @@ CONTAINS
 
          ASSOCIATE ( &
             stebbs_bldg_init => flagstate%stebbs_bldg_init, &
+            buildings => stebbsState%buildings, &
             ws => atmState%U10_ms, &
             Tair_sout => atmState%t2_C, &
             Tsurf_sout => heatState%Tsurf, &
@@ -819,115 +661,37 @@ CONTAINS
                Lroof_sout = heatState%roof_in_lw_spc(2)
             END IF
 
-            !       !
             IF (stebbs_bldg_init == 0) THEN
-
-               IF (ALLOCATED(cases)) DEALLOCATE (cases)
-               ALLOCATE (cases(1))
-               WRITE (*, *) 'Initialising STEBBS'
-
-               IF (ALLOCATED(blds)) DEALLOCATE (blds)
-               ALLOCATE (blds(1))
                resolution = 1
-               CALL gen_building(stebbsState, stebbsPrm, building_archtype, blds(1))
-
+               CALL gen_building(stebbsState, stebbsPrm, building_archtype, buildings(1))
                sout%ntstep = 1
-
-               IF (ALLOCATED(sout%datetime)) DEALLOCATE (sout%datetime)
-               ALLOCATE (sout%datetime(sout%ntstep))
-
-               IF (ALLOCATED(sout%hourmin)) DEALLOCATE (sout%hourmin)
-               ALLOCATE (sout%hourmin(sout%ntstep))
-
-               IF (ALLOCATED(sout%Tair)) DEALLOCATE (sout%Tair)
-               ALLOCATE (sout%Tair(sout%ntstep))
-
-               IF (ALLOCATED(sout%Tsurf)) DEALLOCATE (sout%Tsurf)
-               ALLOCATE (sout%Tsurf(sout%ntstep))
-
-               IF (ALLOCATED(sout%Kwall)) DEALLOCATE (sout%Kwall)
-               ALLOCATE (sout%Kwall(sout%ntstep))
-
-               IF (ALLOCATED(sout%Kroof)) DEALLOCATE (sout%Kroof)
-               ALLOCATE (sout%Kroof(sout%ntstep))
-
-               IF (ALLOCATED(sout%ws)) DEALLOCATE (sout%ws)
-               ALLOCATE (sout%ws(sout%ntstep))
-
-               IF (ALLOCATED(sout%Lroof)) DEALLOCATE (sout%Lroof)
-               ALLOCATE (sout%Lroof(sout%ntstep))
-
-               IF (ALLOCATED(sout%Lwall)) DEALLOCATE (sout%Lwall)
-               ALLOCATE (sout%Lwall(sout%ntstep))
-
-               IF (ALLOCATED(sout%datetime_exch)) DEALLOCATE (sout%datetime_exch)
-               ALLOCATE (sout%datetime_exch(sout%ntstep))
-
-               IF (ALLOCATED(sout%hourmin_exch)) DEALLOCATE (sout%hourmin_exch)
-               ALLOCATE (sout%hourmin_exch(sout%ntstep))
-
-               IF (ALLOCATED(sout%Tair_exch)) DEALLOCATE (sout%Tair_exch)
-               ALLOCATE (sout%Tair_exch(sout%ntstep))
-
-               IF (ALLOCATED(sout%Tair_exch_bh)) DEALLOCATE (sout%Tair_exch_bh)
-               ALLOCATE (sout%Tair_exch_bh(sout%ntstep))
-
-               IF (ALLOCATED(sout%Tair_exch_hbh)) DEALLOCATE (sout%Tair_exch_hbh)
-               ALLOCATE (sout%Tair_exch_hbh(sout%ntstep))
-
-               IF (ALLOCATED(sout%Tsurf_exch)) DEALLOCATE (sout%Tsurf_exch)
-               ALLOCATE (sout%Tsurf_exch(sout%ntstep))
-
-               IF (ALLOCATED(sout%Kwall_exch)) DEALLOCATE (sout%Kwall_exch)
-               ALLOCATE (sout%Kwall_exch(sout%ntstep))
-
-               IF (ALLOCATED(sout%Kroof_exch)) DEALLOCATE (sout%Kroof_exch)
-               ALLOCATE (sout%Kroof_exch(sout%ntstep))
-
-               IF (ALLOCATED(sout%ws_exch)) DEALLOCATE (sout%ws_exch)
-               ALLOCATE (sout%ws_exch(sout%ntstep))
-
-               IF (ALLOCATED(sout%ws_exch_bh)) DEALLOCATE (sout%ws_exch_bh)
-               ALLOCATE (sout%ws_exch_bh(sout%ntstep))
-               
-               IF (ALLOCATED(sout%ws_exch_hbh)) DEALLOCATE (sout%ws_exch_hbh)
-               ALLOCATE (sout%ws_exch_hbh(sout%ntstep))
-
-               IF (ALLOCATED(sout%Lroof_exch)) DEALLOCATE (sout%Lroof_exch)
-               ALLOCATE (sout%Lroof_exch(sout%ntstep))
-
-               IF (ALLOCATED(sout%Lwall_exch)) DEALLOCATE (sout%Lwall_exch)
-               ALLOCATE (sout%Lwall_exch(sout%ntstep))
-
             END IF
 
-            sout%Tair(1) = Tair_sout
-            sout%Tsurf(1) = Tsurf_sout
-            sout%Kroof(1) = Kroof_sout
-            sout%Kwall(1) = Kwall_sout
-            sout%Lwall(1) = Lwall_sout
-            sout%Lroof(1) = Lroof_sout
+            sout%Tair = Tair_sout
+            sout%Tsurf = Tsurf_sout
+            sout%Kroof = Kroof_sout
+            sout%Kwall = Kwall_sout
+            sout%Lwall = Lwall_sout
+            sout%Lroof = Lroof_sout
             sout%timestep = timestep
-            ! sout%timestep = 3600
-            sout%Tair_exch(1) = Tair_sout
-            sout%Tsurf_exch(1) = Tsurf_sout
-            sout%ws(1) = ws
-            sout%ws_exch(1) = ws
+            sout%Tair_exch = Tair_sout
+            sout%Tsurf_exch = Tsurf_sout
+            sout%ws = ws
+            sout%ws_exch = ws
             ! air temperature and wind speed at building/half building height from RSL
-            ws_bh = interp_z(blds(1)%height_building, zarray, dataoutLineURSL)
-            ws_hbh = interp_z((blds(1)%height_building)/2, zarray, dataoutLineURSL)
-            Tair_bh = interp_z(blds(1)%height_building, zarray, dataoutLineTRSL)
-            Tair_hbh = interp_z((blds(1)%height_building)/2, zarray, dataoutLineTRSL)
-            sout%Tair_exch_bh(1) = Tair_bh
-            sout%Tair_exch_hbh(1) = Tair_hbh
-            sout%ws_exch_bh(1) = ws_bh
-            sout%ws_exch_hbh(1) = ws_hbh
+            ws_bh = interp_z(buildings(1)%height_building, zarray, dataoutLineURSL)
+            ws_hbh = interp_z((buildings(1)%height_building)/2, zarray, dataoutLineURSL)
+            Tair_bh = interp_z(buildings(1)%height_building, zarray, dataoutLineTRSL)
+            Tair_hbh = interp_z((buildings(1)%height_building)/2, zarray, dataoutLineTRSL)
+            sout%Tair_exch_bh = Tair_bh
+            sout%Tair_exch_hbh = Tair_hbh
+            sout%ws_exch_bh = ws_bh
+            sout%ws_exch_hbh = ws_hbh
+
             CALL setdatetime(datetimeLine)
-            ! nbtype = SIZE(blds)
-            ! DO i = 1, nbtype, 1
 
             CALL suewsstebbscouple( &
-               blds(1), datetimeLine, &
+               buildings(1), datetimeLine, &
                Tair_ind, Tindoormass, Tintwall, Tintroof, Textwall, Textroof, Tintwindow, Textwindow, Tintgroundfloor, &
                Textgroundfloor, Qtotal_heating, Qtotal_cooling, Qsw_transmitted_window_tstepTotal, &
 Qsw_absorbed_window_tstepTotal, Qsw_absorbed_wall_tstepTotal, Qsw_absorbed_roof_tstepTotal, Qconv_indair_to_indoormass_tstepTotal, &
@@ -988,69 +752,7 @@ Qsw_absorbed_window_tstepTotal, Qsw_absorbed_wall_tstepTotal, Qsw_absorbed_roof_
 
    END SUBROUTINE stebbsonlinecouple
 END MODULE stebbs_module
-SUBROUTINE readsuewsout()
-   USE modulesuewsstebbscouple
-   IMPLICIT NONE
-   INTEGER :: i, reason, icrop
-   sout%timestep = 3600 ! 1hr, hard-coded for the test
-   OPEN (8, file='./SUEWS_output_res.csv', form='formatted')
 
-   i = 0
-   DO WHILE (.TRUE.)
-      READ (8, *, iostat=reason)
-      IF (reason < 0) go to 333
-      i = i + 1
-   END DO
-333 CONTINUE
-   sout%ntstep = i - 1
-   ALLOCATE (sout%datetime(sout%ntstep))
-   ALLOCATE (sout%hourmin(sout%ntstep))
-   ALLOCATE (sout%Tair(sout%ntstep))
-   ALLOCATE (sout%Tsurf(sout%ntstep))
-   ALLOCATE (sout%Kwall(sout%ntstep))
-   ALLOCATE (sout%Kroof(sout%ntstep))
-   ALLOCATE (sout%ws(sout%ntstep))
-   ALLOCATE (sout%Lroof(sout%ntstep))
-   ALLOCATE (sout%Lwall(sout%ntstep))
-   ALLOCATE (sout%datetime_exch(sout%ntstep))
-   ALLOCATE (sout%hourmin_exch(sout%ntstep))
-   ALLOCATE (sout%Tair_exch(sout%ntstep))
-   ALLOCATE (sout%Tsurf_exch(sout%ntstep))
-   ALLOCATE (sout%Kwall_exch(sout%ntstep))
-   ALLOCATE (sout%Kroof_exch(sout%ntstep))
-   ALLOCATE (sout%ws_exch(sout%ntstep))
-   ALLOCATE (sout%Lroof_exch(sout%ntstep))
-   ALLOCATE (sout%Lwall_exch(sout%ntstep))
-   REWIND (8)
-   READ (8, *)
-   DO i = 1, sout%ntstep, 1
-      READ (8, *) sout%datetime(i), sout%hourmin(i), sout%Tair(i), sout%Tsurf(i), &
-         sout%Kwall(i), sout%Kroof(i), sout%ws(i), sout%Lroof(i), sout%Lwall(i)
-   END DO
-   WRITE (*, *) '    + SUEWS output profile'
-   WRITE (*, *) '    + Date            : ', TRIM(sout%datetime(1)), ' ', TRIM(sout%hourmin(1)), ' - ', &
-      TRIM(sout%datetime(sout%ntstep)), ' ', TRIM(sout%hourmin(sout%ntstep))
-   WRITE (*, *) '    + Total data step : ', sout%ntstep
-   CLOSE (8)
-   sout%ntskip = 12
-   OPEN (8, file='./SUEWS_output.csv', form='formatted')
-   READ (8, *)
-
-   DO i = 1, sout%ntstep*sout%ntskip, 1
-      IF (MOD(i - 1, sout%ntskip) == 0) THEN
-         icrop = INT((i - 1)/sout%ntskip) + 1
-         READ (8, *) sout%datetime_exch(icrop), sout%hourmin_exch(icrop), &
-            sout%Tair_exch(icrop), sout%Tsurf_exch(icrop), &
-            sout%Kwall_exch(icrop), sout%Kroof_exch(icrop), &
-            sout%ws_exch(icrop), sout%Lroof_exch(icrop), &
-            sout%Lwall_exch(icrop)
-      ELSE
-         READ (8, *)
-      END IF
-   END DO
-   CLOSE (8)
-   RETURN
-END SUBROUTINE readsuewsout
 SUBROUTINE suewsstebbscouple(self, datetimeLine, &
                            Tair_ind, Tindoormass, Tintwall, Tintroof, Textwall, Textroof, Tintwindow, Textwindow, Tintgroundfloor, &
                              Textgroundfloor, Qtotal_heating, Qtotal_cooling, Qsw_transmitted_window_tstepTotal, &
@@ -1071,7 +773,7 @@ Qsw_absorbed_window_tstepTotal, Qsw_absorbed_wall_tstepTotal, Qsw_absorbed_roof_
                              ) ! Output
 
    USE modulestebbsprecision
-   USE modulestebbs, ONLY: LBM, resolution
+   USE modulestebbs, ONLY: resolution
    USE modulestebbsfunc, ONLY: ext_conv_coeff
    USE modulesuewsstebbscouple, ONLY: &
       sout, &
@@ -1080,104 +782,106 @@ Qsw_absorbed_window_tstepTotal, Qsw_absorbed_wall_tstepTotal, Qsw_absorbed_roof_
       Qsw_dn_extroof, &
       Qsw_dn_extwall, &
       Qlw_dn_extwall, Qlw_dn_extroof
+   USE SUEWS_DEF_DTS, ONLY: SUEWS_STATE, STEBBS_BLDG
    IMPLICIT NONE
-   TYPE(LBM) :: self
+   TYPE(SUEWS_STATE) :: modState
+   TYPE(STEBBS_BLDG) :: self
    INTEGER :: tstep, i
    ! INTEGER, INTENT(in) :: flginit
    ! Internal variables
-   REAL(rprc) :: Area, qinternal, qe_cool, qe_heat, q_waste, q_ventilation
+   REAL(KIND(1D0)) :: Area, qinternal, qe_cool, qe_heat, q_waste, q_ventilation
 
    ! Output variables with INTENT(OUT)
-   REAL(rprc), INTENT(OUT) :: Tair_ind
-   REAL(rprc), INTENT(OUT) :: Tindoormass
-   REAL(rprc), INTENT(OUT) :: Tintwall
-   REAL(rprc), INTENT(OUT) :: Tintroof
-   REAL(rprc), INTENT(OUT) :: Textwall
-   REAL(rprc), INTENT(OUT) :: Textroof
-   REAL(rprc), INTENT(OUT) :: Tintwindow
-   REAL(rprc), INTENT(OUT) :: Textwindow
-   REAL(rprc), INTENT(OUT) :: Tintgroundfloor
-   REAL(rprc), INTENT(OUT) :: Textgroundfloor
-   REAL(rprc), INTENT(OUT) :: Qtotal_heating
-   REAL(rprc), INTENT(OUT) :: Qtotal_cooling
-   REAL(rprc), INTENT(OUT) :: Qsw_transmitted_window_tstepTotal
-   REAL(rprc), INTENT(OUT) :: Qsw_absorbed_window_tstepTotal
-   REAL(rprc), INTENT(OUT) :: Qsw_absorbed_wall_tstepTotal
-   REAL(rprc), INTENT(OUT) :: Qsw_absorbed_roof_tstepTotal
-   REAL(rprc), INTENT(OUT) :: Qconv_indair_to_indoormass_tstepTotal
-   REAL(rprc), INTENT(OUT) :: Qlw_net_intwall_to_allotherindoorsurfaces_tstepTotal
-   REAL(rprc), INTENT(OUT) :: Qlw_net_introof_to_allotherindoorsurfaces_tstepTotal
-   REAL(rprc), INTENT(OUT) :: Qlw_net_intwindow_to_allotherindoorsurfaces_tstepTotal
-   REAL(rprc), INTENT(OUT) :: Qlw_net_intgroundfloor_to_allotherindoorsurfaces_tstepTotal
-   REAL(rprc), INTENT(OUT) :: Q_appliance_tstepTotal
-   REAL(rprc), INTENT(OUT) :: Q_ventilation_tstepTotal
-   REAL(rprc), INTENT(OUT) :: Qconv_indair_to_intwall_tstepTotal
-   REAL(rprc), INTENT(OUT) :: Qconv_indair_to_introof_tstepTotal
-   REAL(rprc), INTENT(OUT) :: Qconv_indair_to_intwindow_tstepTotal
-   REAL(rprc), INTENT(OUT) :: Qconv_indair_to_intgroundfloor_tstepTotal
-   REAL(rprc), INTENT(OUT) :: Qloss_efficiency_heating_air_tstepTotal
-   REAL(rprc), INTENT(OUT) :: Qcond_wall_tstepTotal
-   REAL(rprc), INTENT(OUT) :: Qcond_roof_tstepTotal
-   REAL(rprc), INTENT(OUT) :: Qcond_window_tstepTotal
-   REAL(rprc), INTENT(OUT) :: Qcond_groundfloor_tstepTotal
-   REAL(rprc), INTENT(OUT) :: Qcond_ground_tstepTotal
-   REAL(rprc), INTENT(OUT) :: Qlw_net_extwall_to_outair_tstepTotal
-   REAL(rprc), INTENT(OUT) :: Qlw_net_extroof_to_outair_tstepTotal
-   REAL(rprc), INTENT(OUT) :: Qlw_net_extwindow_to_outair_tstepTotal
-   REAL(rprc), INTENT(OUT) :: Qconv_extwall_to_outair_tstepTotal
-   REAL(rprc), INTENT(OUT) :: Qconv_extroof_to_outair_tstepTotal
-   REAL(rprc), INTENT(OUT) :: Qconv_extwindow_to_outair_tstepTotal
-   REAL(rprc), INTENT(OUT) :: q_cooling_timestepTotal
-   REAL(rprc), INTENT(OUT) :: Qtotal_water_tank
-   REAL(rprc), INTENT(OUT) :: Qloss_drain
-   REAL(rprc), INTENT(OUT) :: Twater_tank
-   REAL(rprc), INTENT(OUT) :: Tintwall_tank
-   REAL(rprc), INTENT(OUT) :: Textwall_tank
-   REAL(rprc), INTENT(OUT) :: Twater_vessel
-   REAL(rprc), INTENT(OUT) :: Tintwall_vessel
-   REAL(rprc), INTENT(OUT) :: Textwall_vessel
-   REAL(rprc), INTENT(OUT) :: Vwater_vessel
-   REAL(rprc), INTENT(OUT) :: Awater_vessel
-   REAL(rprc), INTENT(OUT) :: Vwall_vessel
-   REAL(rprc), INTENT(OUT) :: qsensible_timestepTotal
-   REAL(rprc), INTENT(OUT) :: qlatent_timestepTotal
-   REAL(rprc), INTENT(OUT) :: QS_tstepTotal
-   REAL(rprc), INTENT(OUT) :: QS_fabric_tstepTotal
-   REAL(rprc), INTENT(OUT) :: QS_air_tstepTotal
-   REAL(rprc), INTENT(OUT) :: Vwall_tank
-   REAL(rprc), INTENT(OUT) :: Vwater_tank
+   REAL(KIND(1D0)), INTENT(OUT) :: Tair_ind
+   REAL(KIND(1D0)), INTENT(OUT) :: Tindoormass
+   REAL(KIND(1D0)), INTENT(OUT) :: Tintwall
+   REAL(KIND(1D0)), INTENT(OUT) :: Tintroof
+   REAL(KIND(1D0)), INTENT(OUT) :: Textwall
+   REAL(KIND(1D0)), INTENT(OUT) :: Textroof
+   REAL(KIND(1D0)), INTENT(OUT) :: Tintwindow
+   REAL(KIND(1D0)), INTENT(OUT) :: Textwindow
+   REAL(KIND(1D0)), INTENT(OUT) :: Tintgroundfloor
+   REAL(KIND(1D0)), INTENT(OUT) :: Textgroundfloor
+   REAL(KIND(1D0)), INTENT(OUT) :: Qtotal_heating
+   REAL(KIND(1D0)), INTENT(OUT) :: Qtotal_cooling
+   REAL(KIND(1D0)), INTENT(OUT) :: Qsw_transmitted_window_tstepTotal
+   REAL(KIND(1D0)), INTENT(OUT) :: Qsw_absorbed_window_tstepTotal
+   REAL(KIND(1D0)), INTENT(OUT) :: Qsw_absorbed_wall_tstepTotal
+   REAL(KIND(1D0)), INTENT(OUT) :: Qsw_absorbed_roof_tstepTotal
+   REAL(KIND(1D0)), INTENT(OUT) :: Qconv_indair_to_indoormass_tstepTotal
+   REAL(KIND(1D0)), INTENT(OUT) :: Qlw_net_intwall_to_allotherindoorsurfaces_tstepTotal
+   REAL(KIND(1D0)), INTENT(OUT) :: Qlw_net_introof_to_allotherindoorsurfaces_tstepTotal
+   REAL(KIND(1D0)), INTENT(OUT) :: Qlw_net_intwindow_to_allotherindoorsurfaces_tstepTotal
+   REAL(KIND(1D0)), INTENT(OUT) :: Qlw_net_intgroundfloor_to_allotherindoorsurfaces_tstepTotal
+   REAL(KIND(1D0)), INTENT(OUT) :: Q_appliance_tstepTotal
+   REAL(KIND(1D0)), INTENT(OUT) :: Q_ventilation_tstepTotal
+   REAL(KIND(1D0)), INTENT(OUT) :: Qconv_indair_to_intwall_tstepTotal
+   REAL(KIND(1D0)), INTENT(OUT) :: Qconv_indair_to_introof_tstepTotal
+   REAL(KIND(1D0)), INTENT(OUT) :: Qconv_indair_to_intwindow_tstepTotal
+   REAL(KIND(1D0)), INTENT(OUT) :: Qconv_indair_to_intgroundfloor_tstepTotal
+   REAL(KIND(1D0)), INTENT(OUT) :: Qloss_efficiency_heating_air_tstepTotal
+   REAL(KIND(1D0)), INTENT(OUT) :: Qcond_wall_tstepTotal
+   REAL(KIND(1D0)), INTENT(OUT) :: Qcond_roof_tstepTotal
+   REAL(KIND(1D0)), INTENT(OUT) :: Qcond_window_tstepTotal
+   REAL(KIND(1D0)), INTENT(OUT) :: Qcond_groundfloor_tstepTotal
+   REAL(KIND(1D0)), INTENT(OUT) :: Qcond_ground_tstepTotal
+   REAL(KIND(1D0)), INTENT(OUT) :: Qlw_net_extwall_to_outair_tstepTotal
+   REAL(KIND(1D0)), INTENT(OUT) :: Qlw_net_extroof_to_outair_tstepTotal
+   REAL(KIND(1D0)), INTENT(OUT) :: Qlw_net_extwindow_to_outair_tstepTotal
+   REAL(KIND(1D0)), INTENT(OUT) :: Qconv_extwall_to_outair_tstepTotal
+   REAL(KIND(1D0)), INTENT(OUT) :: Qconv_extroof_to_outair_tstepTotal
+   REAL(KIND(1D0)), INTENT(OUT) :: Qconv_extwindow_to_outair_tstepTotal
+   REAL(KIND(1D0)), INTENT(OUT) :: q_cooling_timestepTotal
+   REAL(KIND(1D0)), INTENT(OUT) :: Qtotal_water_tank
+   REAL(KIND(1D0)), INTENT(OUT) :: Qloss_drain
+   REAL(KIND(1D0)), INTENT(OUT) :: Twater_tank
+   REAL(KIND(1D0)), INTENT(OUT) :: Tintwall_tank
+   REAL(KIND(1D0)), INTENT(OUT) :: Textwall_tank
+   REAL(KIND(1D0)), INTENT(OUT) :: Twater_vessel
+   REAL(KIND(1D0)), INTENT(OUT) :: Tintwall_vessel
+   REAL(KIND(1D0)), INTENT(OUT) :: Textwall_vessel
+   REAL(KIND(1D0)), INTENT(OUT) :: Vwater_vessel
+   REAL(KIND(1D0)), INTENT(OUT) :: Awater_vessel
+   REAL(KIND(1D0)), INTENT(OUT) :: Vwall_vessel
+   REAL(KIND(1D0)), INTENT(OUT) :: qsensible_timestepTotal
+   REAL(KIND(1D0)), INTENT(OUT) :: qlatent_timestepTotal
+   REAL(KIND(1D0)), INTENT(OUT) :: QS_tstepTotal
+   REAL(KIND(1D0)), INTENT(OUT) :: QS_fabric_tstepTotal
+   REAL(KIND(1D0)), INTENT(OUT) :: QS_air_tstepTotal
+   REAL(KIND(1D0)), INTENT(OUT) :: Vwall_tank
+   REAL(KIND(1D0)), INTENT(OUT) :: Vwater_tank
 
    ! Other declarations
-   REAL(rprc), DIMENSION(6) :: bem_qf_1
-   REAL(rprc), DIMENSION(25) :: energyEx
+   REAL(KIND(1D0)), DIMENSION(6) :: bem_qf_1
+   REAL(KIND(1D0)), DIMENSION(25) :: energyEx
    CHARACTER(len=256) :: CASE
    CHARACTER(len=256), DIMENSION(4) :: fout
-   REAL(rprc), DIMENSION(5), INTENT(in) :: datetimeLine
+   REAL(KIND(1D0)), DIMENSION(5), INTENT(in) :: datetimeLine
    CHARACTER(len=256) :: debug_array_dir
 
    ! CASE = self%CASE
    Area = self%Afootprint
    DO tstep = 1, sout%ntstep, 1
-      Tair_out = sout%Tair(tstep) + 273.15
-      Tair_out_bh = sout%Tair_exch_bh(tstep) + 273.15
-      Tair_out_hbh = sout%Tair_exch_hbh(tstep) + 273.15
+      Tair_out = sout%Tair + 273.15
+      Tair_out_bh = sout%Tair_exch_bh + 273.15
+      Tair_out_hbh = sout%Tair_exch_hbh + 273.15
       Tground_deep = 273.15 + 10.0
-      Tsurf = sout%Tsurf(tstep) + 273.15
+      Tsurf = sout%Tsurf + 273.15
       density_air_out = 1.225
       cp_air_out = 1005.0
-      Qsw_dn_extroof = sout%Kroof(tstep)
-      Qsw_dn_extwall = sout%Kwall(tstep)
-      Qlw_dn_extwall = sout%Lwall(tstep)
-      Qlw_dn_extroof = sout%Lroof(tstep)
+      Qsw_dn_extroof = sout%Kroof
+      Qsw_dn_extwall = sout%Kwall
+      Qlw_dn_extwall = sout%Lwall
+      Qlw_dn_extroof = sout%Lroof
       debug_array_dir = './debug_array.csv'
-      IF (sout%ws_exch(tstep) < 0) THEN
-         sout%ws_exch(tstep) = 0.2
+      IF (sout%ws_exch < 0) THEN
+         sout%ws_exch = 0.2
          ! WRITE (*, *) 'Wind speed is negative, set to 0.2'
       END IF
       IF (tstep >= 2) THEN !use updated temperature to calculate new coefficients
-         self%h_o(1) = ext_conv_coeff(sout%ws_exch_hbh(tstep), self%Textwall - sout%Tair_exch_hbh(tstep)) !wall
-         self%h_o(2) = ext_conv_coeff(sout%ws_exch_hbh(tstep), self%Textwindow - sout%Tair_exch_hbh(tstep)) !new function is needed for winodws (smooth)
-         self%h_o(3) = ext_conv_coeff(sout%ws_exch_bh(tstep), self%Textroof - sout%Tair_exch_bh(tstep)) !new function is needed to horizontal roof
+         self%h_o(1) = ext_conv_coeff(sout%ws_exch_hbh, self%Textwall - sout%Tair_exch_hbh) !wall
+         self%h_o(2) = ext_conv_coeff(sout%ws_exch_hbh, self%Textwindow - sout%Tair_exch_hbh) !new function is needed for winodws (smooth)
+         self%h_o(3) = ext_conv_coeff(sout%ws_exch_bh, self%Textroof - sout%Tair_exch_bh) !new function is needed to horizontal roof
       END IF
       CALL timeStepCalculation(self, Tair_out, Tair_out_bh, Tair_out_hbh, Tground_deep, Tsurf, &
                                density_air_out, cp_air_out, &
@@ -1312,15 +1016,15 @@ SUBROUTINE timeStepCalculation(self, Tair_out, Tair_out_bh, Tair_out_hbh, Tgroun
                                !  flginit &
                                )
    USE modulestebbsprecision
-   USE modulestebbs, ONLY: LBM
+   USE SUEWS_DEF_DTS, ONLY: STEBBS_BLDG
    IMPLICIT NONE
    INTEGER :: timestep, resolution
    ! INTEGER, INTENT(in) :: flginit
-   REAL(rprc) :: Tair_out, Tair_out_bh, Tair_out_hbh, Tground_deep, Tsurf, density_air_out, &
-                 cp_air_out, Qsw_dn_extroof, Qsw_dn_extwall, &
-                 Qlw_dn_extwall, Qlw_dn_extroof
-   REAL(rprc), DIMENSION(5), INTENT(in) :: datetimeLine
-   TYPE(LBM) :: self
+   REAL(KIND(1D0)) :: Tair_out, Tair_out_bh, Tair_out_hbh, Tground_deep, Tsurf, density_air_out, &
+                      cp_air_out, Qsw_dn_extroof, Qsw_dn_extwall, &
+                      Qlw_dn_extwall, Qlw_dn_extroof
+   REAL(KIND(1D0)), DIMENSION(5), INTENT(in) :: datetimeLine
+   TYPE(STEBBS_BLDG) :: self
    self%Qtotal_heating = 0.0
    self%Qtotal_cooling = 0.0
    self%Qtotal_water_tank = 0.0
@@ -1503,172 +1207,172 @@ SUBROUTINE tstep( &
    USE modulestebbsfunc
    IMPLICIT NONE
    ! INTEGER, INTENT(in) :: flginit
-   REAL(rprc), DIMENSION(5), INTENT(in) :: datetimeLine
+   REAL(KIND(1D0)), DIMENSION(5), INTENT(in) :: datetimeLine
    INTEGER :: i
-   REAL(rprc) :: Tair_out, Tair_out_bh, Tair_out_hbh, Tground_deep, Tsurf, &
-                 density_air_out, cp_air_out, Qsw_dn_extroof, &
-                 Qsw_dn_extwall, Qlw_dn_extwall, Qlw_dn_extroof
-   REAL(rprc) :: Twater_tank, & ! Water temperature in Hot Water Tank [K]
-                 Tintwall_tank, & ! Hot water tank internal wall temperature [K]
-                 Textwall_tank ! Hot water tank external wall temperature [K]
-   REAL(rprc) :: dTwater_tank = 0.0, dTintwall_tank = 0.0, dTextwall_tank = 0.0
-   REAL(rprc) :: thickness_tankwall ! Hot water tank wall thickness [m]
-   REAL(rprc) :: Tincomingwater_tank ! Water temperature of Water coming into the Water Tank [K]
-   REAL(rprc) :: Vwater_tank, & ! Volume of Water in Hot Water Tank [m3]
-                 Asurf_tank, & ! Surface Area of Hot Water Tank [m2]
-                 Vwall_tank, & ! Wall volume of Hot Water Tank [m3]
-                 setTwater_tank ! Water Tank setpoint temperature [K]
-   REAL(rprc) :: Twater_vessel, & ! Water temperature of water held in use in Building [K]
-                 Tintwall_vessel, & ! Hot water tank internal wall temperature [K]
-                 Textwall_vessel ! Hot water tank external wall temperature [K]
-   REAL(rprc) :: dTwater_vessel = 0.0, dTintwall_vessel = 0.0, dTextwall_vessel = 0.0
-   REAL(rprc) :: thickness_wall_vessel ! DHW vessels wall thickness [m]
-   REAL(rprc) :: Vwater_vessel ! Volume of water held in use in building [m3]
-   REAL(rprc) :: dVwater_vessel = 0.0 ! Change in volume of Domestic Hot Water held in use in building [m3]
-   REAL(rprc) :: Awater_vessel, & ! Surface Area of Hot Water in Vessels in Building [m2]
-                 Vwall_vessel, & ! Wall volume of Hot water Vessels in Building [m3]
-                 flowrate_water_supply, & ! Hot Water Flow Rate [m3 s-1]
-                 flowrate_water_drain ! Draining of Domestic Hot Water held in building [m3 s-1]
-   REAL(rprc) :: cp_water, & ! Specific Heat Capacity of Domestic Hot Water [J kg-1 K-1]
-                 cp_wall_tank, & ! Specific Heat Capacity of Hot Water Tank wall [J kg-1 K-1]
-                 cp_wall_vessel ! Specific Heat Capacity of Vessels containing DHW in use in Building [J kg-1 K-1]
-   REAL(rprc) :: density_water, & ! Density of water [kg m-3]
-                 density_wall_tank, & ! Density of hot water tank wall [kg m-3]
-                 density_wall_vessel ! Density of vessels containing DHW in use in buildings [kg m-3]
-   REAL(rprc) :: BVF_tank, & ! water tank - building wall view factor [-]
-                 MVF_tank ! water tank - building internal mass view factor [-]
-   REAL(rprc) :: conductivity_wall_tank, & ! Effective Wall conductivity of the Hot Water Tank [W m-1 K-1]
-                 conv_coeff_intwall_tank, & ! Effective Internal Wall convection coefficient of the Hot Water Tank [W m-2 K-1]
-                 conv_coeff_extwall_tank, & ! Effective External Wall convection coefficient of the Hot Water Tank [W m-2 K-1]
-                 emissivity_extwall_tank, & ! Effective External Wall emissivity of the Hot Water Tank [-]
-                 conductivity_wall_vessel, & ! Effective Conductivity of vessels containing DHW in use in Building [W m-1 K-1]
-                 conv_coeff_intwall_vessel, & ! Effective Internal Wall convection coefficient of the Vessels holding DHW in use in Building [W m-2 K-1]
-                 conv_coeff_extwall_vessel, & ! Effective Enternal Wall convection coefficient of the Vessels holding DHW in use in Building [W m-2 K-1]
-                 emissivity_extwall_vessel ! Effective External Wall emissivity of hot water being used within building [-]
-   REAL(rprc) :: maxheatingpower_water, & ! [deg C]
-                 heating_efficiency_water ! [-]
-   REAL(rprc) :: winT, & ! // window transmisivity [-]
-                 winA, & ! // window absorptivity [-]
-                 winR, & ! // window reflectivity [-]
-                 walT, & ! // wall transmisivity [-]
-                 walA, & ! // wall absorptivity [-]
-                 walR, & ! // wall reflectivity [-]
+   REAL(KIND(1D0)) :: Tair_out, Tair_out_bh, Tair_out_hbh, Tground_deep, Tsurf, &
+                      density_air_out, cp_air_out, Qsw_dn_extroof, &
+                      Qsw_dn_extwall, Qlw_dn_extwall, Qlw_dn_extroof
+   REAL(KIND(1D0)) :: Twater_tank, & ! Water temperature in Hot Water Tank [K]
+                      Tintwall_tank, & ! Hot water tank internal wall temperature [K]
+                      Textwall_tank ! Hot water tank external wall temperature [K]
+   REAL(KIND(1D0)) :: dTwater_tank = 0.0, dTintwall_tank = 0.0, dTextwall_tank = 0.0
+   REAL(KIND(1D0)) :: thickness_tankwall ! Hot water tank wall thickness [m]
+   REAL(KIND(1D0)) :: Tincomingwater_tank ! Water temperature of Water coming into the Water Tank [K]
+   REAL(KIND(1D0)) :: Vwater_tank, & ! Volume of Water in Hot Water Tank [m3]
+                      Asurf_tank, & ! Surface Area of Hot Water Tank [m2]
+                      Vwall_tank, & ! Wall volume of Hot Water Tank [m3]
+                      setTwater_tank ! Water Tank setpoint temperature [K]
+   REAL(KIND(1D0)) :: Twater_vessel, & ! Water temperature of water held in use in Building [K]
+                      Tintwall_vessel, & ! Hot water tank internal wall temperature [K]
+                      Textwall_vessel ! Hot water tank external wall temperature [K]
+   REAL(KIND(1D0)) :: dTwater_vessel = 0.0, dTintwall_vessel = 0.0, dTextwall_vessel = 0.0
+   REAL(KIND(1D0)) :: thickness_wall_vessel ! DHW vessels wall thickness [m]
+   REAL(KIND(1D0)) :: Vwater_vessel ! Volume of water held in use in building [m3]
+   REAL(KIND(1D0)) :: dVwater_vessel = 0.0 ! Change in volume of Domestic Hot Water held in use in building [m3]
+   REAL(KIND(1D0)) :: Awater_vessel, & ! Surface Area of Hot Water in Vessels in Building [m2]
+                      Vwall_vessel, & ! Wall volume of Hot water Vessels in Building [m3]
+                      flowrate_water_supply, & ! Hot Water Flow Rate [m3 s-1]
+                      flowrate_water_drain ! Draining of Domestic Hot Water held in building [m3 s-1]
+   REAL(KIND(1D0)) :: cp_water, & ! Specific Heat Capacity of Domestic Hot Water [J kg-1 K-1]
+                      cp_wall_tank, & ! Specific Heat Capacity of Hot Water Tank wall [J kg-1 K-1]
+                      cp_wall_vessel ! Specific Heat Capacity of Vessels containing DHW in use in Building [J kg-1 K-1]
+   REAL(KIND(1D0)) :: density_water, & ! Density of water [kg m-3]
+                      density_wall_tank, & ! Density of hot water tank wall [kg m-3]
+                      density_wall_vessel ! Density of vessels containing DHW in use in buildings [kg m-3]
+   REAL(KIND(1D0)) :: BVF_tank, & ! water tank - building wall view factor [-]
+                      MVF_tank ! water tank - building internal mass view factor [-]
+   REAL(KIND(1D0)) :: conductivity_wall_tank, & ! Effective Wall conductivity of the Hot Water Tank [W m-1 K-1]
+                      conv_coeff_intwall_tank, & ! Effective Internal Wall convection coefficient of the Hot Water Tank [W m-2 K-1]
+                      conv_coeff_extwall_tank, & ! Effective External Wall convection coefficient of the Hot Water Tank [W m-2 K-1]
+                      emissivity_extwall_tank, & ! Effective External Wall emissivity of the Hot Water Tank [-]
+                      conductivity_wall_vessel, & ! Effective Conductivity of vessels containing DHW in use in Building [W m-1 K-1]
+                      conv_coeff_intwall_vessel, & ! Effective Internal Wall convection coefficient of the Vessels holding DHW in use in Building [W m-2 K-1]
+                      conv_coeff_extwall_vessel, & ! Effective Enternal Wall convection coefficient of the Vessels holding DHW in use in Building [W m-2 K-1]
+                      emissivity_extwall_vessel ! Effective External Wall emissivity of hot water being used within building [-]
+   REAL(KIND(1D0)) :: maxheatingpower_water, & ! [deg C]
+                      heating_efficiency_water ! [-]
+   REAL(KIND(1D0)) :: winT, & ! // window transmisivity [-]
+                      winA, & ! // window absorptivity [-]
+                      winR, & ! // window reflectivity [-]
+                      walT, & ! // wall transmisivity [-]
+                      walA, & ! // wall absorptivity [-]
+                      walR, & ! // wall reflectivity [-]
                  roofT, & ! // roof transmisivity [-]
                  roofA, & ! // roof absorptivity [-]
                  roofR ! // roof reflectivity [-]
-   REAL(rprc) :: Qtotal_heating, & ! // currently only sensible but this needs to be  split into sensible and latent heat components
-                 Qtotal_cooling ! // currently only sensible but this needs to be  split into sensible and latent heat components
-   REAL(rprc) :: height_building, ratio_window_wall, & ! [m], [-]
-                 thickness_wall, thickness_roof, thickness_groundfloor, depth_ground, thickness_window, & ! [m] [m], [m], [m], [m]
-                 !    //float height_building, width, depth, ratio_window_wall, thickness_wallroof, thickness_groundfloor, depth_ground, thickness_window;
-                 conv_coeff_intwall, conv_coeff_introof, conv_coeff_indoormass, & ! [W m-2 K-1], [W m-2 K-1], [W m-2 K-1]
-                 conv_coeff_intgroundfloor, conv_coeff_intwindow, & ! [W m-2 K-1], [W m-2 K-1]
-                 conv_coeff_extwall, conv_coeff_extroof, conv_coeff_extwindow, & ! [W m-2 K-1], [W m-2 K-1], [W m-2 K-1]
-                 conductivity_wall, conductivity_roof, conductivity_groundfloor, & ! [W m-1 K-1], [W m-1 K-1],[W m-1 K-1]
-                 conductivity_window, conductivity_ground, & ! [W m-1 K-1], [W m-1 K-1]
-                 density_wall, density_roof, density_groundfloor, density_window, & ! [kg m-3], [kg m-3], [kg m-3], [kg m-3]
-                 density_indoormass, density_air_ind, & ! [kg m-3], [kg m-3]
-                 cp_wall, cp_roof, cp_groundfloor, cp_window, & ! [J kg-1 K-1], [J kg-1 K-1], [J kg-1 K-1], [J kg-1 K-1]
-                 cp_indoormass, cp_air_ind, & ! [J kg-1 K-1], [J kg-1 K-1]
-                 emissivity_extwall, emissivity_extroof, emissivity_intwall, emissivity_introof, & ! [-], [-] [-], [-]
-                 emissivity_indoormass, emissivity_extwindow, emissivity_intwindow, & ! [-], [-], [-]
-                 windowTransmissivity, windowAbsorbtivity, windowReflectivity, & ! [-], [-], [-]
-                 wallTransmisivity, wallAbsorbtivity, wallReflectivity, & ! [-], [-], [-]
-                 roofTransmisivity, roofAbsorbtivity, roofReflectivity, & ! [-], [-], [-]
+   REAL(KIND(1D0)) :: Qtotal_heating, & ! // currently only sensible but this needs to be  split into sensible and latent heat components
+                      Qtotal_cooling ! // currently only sensible but this needs to be  split into sensible and latent heat components
+   REAL(KIND(1D0)) :: height_building, ratio_window_wall, & ! [m], [-]
+                      thickness_wall, thickness_roof, thickness_groundfloor, depth_ground, thickness_window, & ! [m] [m], [m], [m], [m]
+                      !    //float height_building, width, depth, ratio_window_wall, thickness_wallroof, thickness_groundfloor, depth_ground, thickness_window;
+                      conv_coeff_intwall, conv_coeff_introof, conv_coeff_indoormass, & ! [W m-2 K-1], [W m-2 K-1], [W m-2 K-1]
+                      conv_coeff_intgroundfloor, conv_coeff_intwindow, & ! [W m-2 K-1], [W m-2 K-1]
+                      conv_coeff_extwall, conv_coeff_extroof, conv_coeff_extwindow, & ! [W m-2 K-1], [W m-2 K-1], [W m-2 K-1]
+                      conductivity_wall, conductivity_roof, conductivity_groundfloor, & ! [W m-1 K-1], [W m-1 K-1],[W m-1 K-1]
+                      conductivity_window, conductivity_ground, & ! [W m-1 K-1], [W m-1 K-1]
+                      density_wall, density_roof, density_groundfloor, density_window, & ! [kg m-3], [kg m-3], [kg m-3], [kg m-3]
+                      density_indoormass, density_air_ind, & ! [kg m-3], [kg m-3]
+                      cp_wall, cp_roof, cp_groundfloor, cp_window, & ! [J kg-1 K-1], [J kg-1 K-1], [J kg-1 K-1], [J kg-1 K-1]
+                      cp_indoormass, cp_air_ind, & ! [J kg-1 K-1], [J kg-1 K-1]
+                      emissivity_extwall, emissivity_extroof, emissivity_intwall, emissivity_introof, & ! [-], [-] [-], [-]
+                      emissivity_indoormass, emissivity_extwindow, emissivity_intwindow, & ! [-], [-], [-]
+                      windowTransmissivity, windowAbsorbtivity, windowReflectivity, & ! [-], [-], [-]
+                      wallTransmisivity, wallAbsorbtivity, wallReflectivity, & ! [-], [-], [-]
+                      roofTransmisivity, roofAbsorbtivity, roofReflectivity, & ! [-], [-], [-]
                  BVF_extwall, GVF_extwall, SVF_extwall, & ! [-], [-], [-]
                  BVF_extroof, GVF_extroof, SVF_extroof ! [-], [-], [-]
-   REAL(rprc) :: occupants ! Number of occupants [-]
-   REAL(rprc) :: metabolic_rate, ratio_metabolic_latent_sensible, & ! [W], [-]
-                 appliance_power_rating ! [W]
+   REAL(KIND(1D0)) :: occupants ! Number of occupants [-]
+   REAL(KIND(1D0)) :: metabolic_rate, ratio_metabolic_latent_sensible, & ! [W], [-]
+                      appliance_power_rating ! [W]
    INTEGER :: appliance_totalnumber ! Number of appliances [-]
-   REAL(rprc) :: appliance_usage_factor, & ! Number of appliances in use [-]
-                 maxheatingpower_air, heating_efficiency_air, & ! [W], [-]
-                 maxcoolingpower_air, coeff_performance_cooling, & ! [W], [-]
-                 Vair_ind, ventilation_rate, & ! Fixed at begining to have no natural ventilation.
-                 Awall, Vwall, & ! [m2], [m3]
+   REAL(KIND(1D0)) :: appliance_usage_factor, & ! Number of appliances in use [-]
+                      maxheatingpower_air, heating_efficiency_air, & ! [W], [-]
+                      maxcoolingpower_air, coeff_performance_cooling, & ! [W], [-]
+                      Vair_ind, ventilation_rate, & ! Fixed at begining to have no natural ventilation.
+                      Awall, Vwall, & ! [m2], [m3]
                  Aroof, Vroof, & ! [m2], [m3]
-                 Afootprint, Vgroundfloor, & ! [m2], [m3]
-                 Awindow, Vwindow, & ! [m2], [m3]
-                 Vindoormass, Aindoormass ! Assumed internal mass as a cube [m3], [m2]
-   REAL(rprc) :: Tair_ind, Tindoormass, Tintwall, Tintroof, Textwall, Textroof, & ! [K], [K], [K], [K], [K], [K]
-                 Tintwindow, Textwindow, Tintgroundfloor, Textgroundfloor ! [K], [K], [K], [K]
-   REAL(rprc) :: dTair_ind = 0.0, dTindoormass = 0.0, dTintwall = 0.0, dTintroof = 0.0, & ! [K], [K], [K]
-                 dTextwall = 0.0, dTextroof = 0.0, dTintwindow = 0.0, dTextwindow = 0.0, & ! [K], [K], [K], [K]
-                 dTintgroundfloor = 0.0, dTextgroundfloor = 0.0 ! [K], [K]
-   REAL(rprc) :: Qconv_water_to_inttankwall = 0.0, & ! heat flux to internal wall of hot water tank
-                 Qconv_exttankwall_to_indair = 0.0, & ! convective heat flux to external wall of hot water tank
-                 Qlw_net_exttankwall_to_intwall = 0.0, & !
-                 Qlw_net_exttankwall_to_indoormass = 0.0, & ! radiative heat flux to external wall of hot water tank
-                 Qcond_tankwall = 0.0, & ! heat flux through wall of hot water tank
-                 Qtotal_water_tank, & ! total heat input into water of hot water tank over simulation, hence do not equate to zero
-                 Qconv_water_to_intvesselwall = 0.0, & ! heat flux to internal wall of vessels holding DHW in use in building
-                 Qcond_vesselwall = 0.0, & ! heat flux through wall of vessels holding DHW in use in building
-                 Qconv_extvesselwall_to_indair = 0.0, & ! convective heat flux to external wall of vessels holding DHW in use in building
-                 Qlw_net_extvesselwall_to_wall = 0.0, &
-                 Qlw_net_extvesselwall_to_indoormass = 0.0, & ! radiative heat flux to external wall of vessels holding DHW in use in building
-                 !                      Qloss_drain = 0.0,                         & ! Heat loss as water held in use in building drains to sewer
-                 Qloss_efficiency_heating_water = 0.0 ! additional heat release from efficieny losses/gains of heating hot water
+                      Afootprint, Vgroundfloor, & ! [m2], [m3]
+                      Awindow, Vwindow, & ! [m2], [m3]
+                      Vindoormass, Aindoormass ! Assumed internal mass as a cube [m3], [m2]
+   REAL(KIND(1D0)) :: Tair_ind, Tindoormass, Tintwall, Tintroof, Textwall, Textroof, & ! [K], [K], [K], [K], [K], [K]
+                      Tintwindow, Textwindow, Tintgroundfloor, Textgroundfloor ! [K], [K], [K], [K]
+   REAL(KIND(1D0)) :: dTair_ind = 0.0, dTindoormass = 0.0, dTintwall = 0.0, dTintroof = 0.0, & ! [K], [K], [K]
+                      dTextwall = 0.0, dTextroof = 0.0, dTintwindow = 0.0, dTextwindow = 0.0, & ! [K], [K], [K], [K]
+                      dTintgroundfloor = 0.0, dTextgroundfloor = 0.0 ! [K], [K]
+   REAL(KIND(1D0)) :: Qconv_water_to_inttankwall = 0.0, & ! heat flux to internal wall of hot water tank
+                      Qconv_exttankwall_to_indair = 0.0, & ! convective heat flux to external wall of hot water tank
+                      Qlw_net_exttankwall_to_intwall = 0.0, & !
+                      Qlw_net_exttankwall_to_indoormass = 0.0, & ! radiative heat flux to external wall of hot water tank
+                      Qcond_tankwall = 0.0, & ! heat flux through wall of hot water tank
+                      Qtotal_water_tank, & ! total heat input into water of hot water tank over simulation, hence do not equate to zero
+                      Qconv_water_to_intvesselwall = 0.0, & ! heat flux to internal wall of vessels holding DHW in use in building
+                      Qcond_vesselwall = 0.0, & ! heat flux through wall of vessels holding DHW in use in building
+                      Qconv_extvesselwall_to_indair = 0.0, & ! convective heat flux to external wall of vessels holding DHW in use in building
+                      Qlw_net_extvesselwall_to_wall = 0.0, &
+                      Qlw_net_extvesselwall_to_indoormass = 0.0, & ! radiative heat flux to external wall of vessels holding DHW in use in building
+                      !                      Qloss_drain = 0.0,                         & ! Heat loss as water held in use in building drains to sewer
+                      Qloss_efficiency_heating_water = 0.0 ! additional heat release from efficieny losses/gains of heating hot water
 
-   REAL(rprc), INTENT(out) :: Qloss_drain ! Heat loss as water held in use in building drains to sewer
-   REAL(rprc) :: Qtotal_net_water_tank = 0.0, Qtotal_net_intwall_tank = 0.0, &
-                 Qtotal_net_extwall_tank = 0.0, Qtotal_net_water_vessel = 0.0, &
-                 Qtotal_net_intwall_vessel = 0.0, Qtotal_net_extwall_vessel = 0.0
-   REAL(rprc) :: qhwt_timestep = 0.0
-   REAL(rprc) :: VARatio_water_vessel = 0.0
-   REAL(rprc) :: minVwater_vessel
-   REAL(rprc) :: weighting_factor_heatcapacity_wall, weighting_factor_heatcapacity_roof
-   REAL(rprc), DIMENSION(2) :: Ts ! Heating and Cooling setpoint temperature (K)s, respectively
-   REAL(rprc), DIMENSION(2) :: Qm ! Metabolic heat, sensible(1) and latent(2)
+   REAL(KIND(1D0)), INTENT(out) :: Qloss_drain ! Heat loss as water held in use in building drains to sewer
+   REAL(KIND(1D0)) :: Qtotal_net_water_tank = 0.0, Qtotal_net_intwall_tank = 0.0, &
+                      Qtotal_net_extwall_tank = 0.0, Qtotal_net_water_vessel = 0.0, &
+                      Qtotal_net_intwall_vessel = 0.0, Qtotal_net_extwall_vessel = 0.0
+   REAL(KIND(1D0)) :: qhwt_timestep = 0.0
+   REAL(KIND(1D0)) :: VARatio_water_vessel = 0.0
+   REAL(KIND(1D0)) :: minVwater_vessel
+   REAL(KIND(1D0)) :: weighting_factor_heatcapacity_wall, weighting_factor_heatcapacity_roof
+   REAL(KIND(1D0)), DIMENSION(2) :: Ts ! Heating and Cooling setpoint temperature (K)s, respectively
+   REAL(KIND(1D0)), DIMENSION(2) :: Qm ! Metabolic heat, sensible(1) and latent(2)
    INTEGER :: timestep, resolution
-   REAL(rprc) :: Qf_ground_timestep = 0.0, &
-                 q_heating_timestep = 0.0, &
-                 q_cooling_timestep = 0.0
-   REAL(rprc) :: Qsw_transmitted_window = 0.0, Qsw_absorbed_window = 0.0, Qsw_absorbed_wall = 0.0, Qsw_absorbed_roof = 0.0, &
-Qconv_indair_to_indoormass = 0.0, Qlw_net_intwall_to_allotherindoorsurfaces = 0.0, Qlw_net_introof_to_allotherindoorsurfaces = 0.0,&
-                 Qlw_net_intwindow_to_allotherindoorsurfaces = 0.0, Qlw_net_intgroundfloor_to_allotherindoorsurfaces = 0.0
-   REAL(rprc) :: Q_appliance = 0.0, Q_ventilation = 0.0, Qconv_indair_to_intwall = 0.0, Qconv_indair_to_introof = 0.0, &
-                 Qconv_indair_to_intwindow = 0.0, Qconv_indair_to_intgroundfloor = 0.0
-   REAL(rprc) :: Qloss_efficiency_heating_air = 0.0, Qcond_wall = 0.0, Qcond_roof = 0.0, Qcond_window = 0.0, &
-                 Qcond_groundfloor = 0.0, Qcond_ground = 0.0
-   REAL(rprc) :: Qlw_net_extwall_to_outair = 0.0, Qlw_net_extroof_to_outair = 0.0, Qlw_net_extwindow_to_outair = 0.0, &
-                 Qconv_extwall_to_outair = 0.0, Qconv_extroof_to_outair = 0.0, Qconv_extwindow_to_outair = 0.0
-   REAL(rprc) :: QS_total = 0.0, QS_fabric = 0.0, QS_air = 0.0
-   REAL(rprc), INTENT(inout) :: Qsw_transmitted_window_tstepTotal, &
-                                Qsw_absorbed_window_tstepTotal, &
-                                Qsw_absorbed_wall_tstepTotal, &
+   REAL(KIND(1D0)) :: Qf_ground_timestep = 0.0, &
+                      q_heating_timestep = 0.0, &
+                      q_cooling_timestep = 0.0
+   REAL(KIND(1D0)) :: Qsw_transmitted_window = 0.0, Qsw_absorbed_window = 0.0, Qsw_absorbed_wall = 0.0, Qsw_absorbed_roof = 0.0, &
+     Qconv_indair_to_indoormass = 0.0, Qlw_net_intwall_to_allotherindoorsurfaces = 0.0, Qlw_net_introof_to_allotherindoorsurfaces = 0.0,&
+                      Qlw_net_intwindow_to_allotherindoorsurfaces = 0.0, Qlw_net_intgroundfloor_to_allotherindoorsurfaces = 0.0
+   REAL(KIND(1D0)) :: Q_appliance = 0.0, Q_ventilation = 0.0, Qconv_indair_to_intwall = 0.0, Qconv_indair_to_introof = 0.0, &
+                      Qconv_indair_to_intwindow = 0.0, Qconv_indair_to_intgroundfloor = 0.0
+   REAL(KIND(1D0)) :: Qloss_efficiency_heating_air = 0.0, Qcond_wall = 0.0, Qcond_roof = 0.0, Qcond_window = 0.0, &
+                      Qcond_groundfloor = 0.0, Qcond_ground = 0.0
+   REAL(KIND(1D0)) :: Qlw_net_extwall_to_outair = 0.0, Qlw_net_extroof_to_outair = 0.0, Qlw_net_extwindow_to_outair = 0.0, &
+                      Qconv_extwall_to_outair = 0.0, Qconv_extroof_to_outair = 0.0, Qconv_extwindow_to_outair = 0.0
+   REAL(KIND(1D0)) :: QS_total = 0.0, QS_fabric = 0.0, QS_air = 0.0
+   REAL(KIND(1D0)), INTENT(inout) :: Qsw_transmitted_window_tstepTotal, &
+                                     Qsw_absorbed_window_tstepTotal, &
+                                     Qsw_absorbed_wall_tstepTotal, &
                                 Qsw_absorbed_roof_tstepTotal, &
-                                Qconv_indair_to_indoormass_tstepTotal, &
-                                Qlw_net_intwall_to_allotherindoorsurfaces_tstepTotal, &
+                                     Qconv_indair_to_indoormass_tstepTotal, &
+                                     Qlw_net_intwall_to_allotherindoorsurfaces_tstepTotal, &
                                 Qlw_net_introof_to_allotherindoorsurfaces_tstepTotal, &
-                                Qlw_net_intwindow_to_allotherindoorsurfaces_tstepTotal, &
-                                Qlw_net_intgroundfloor_to_allotherindoorsurfaces_tstepTotal
-   REAL(rprc), INTENT(inout) :: Q_appliance_tstepTotal, &
-                                Q_ventilation_tstepTotal, &
-                                Qconv_indair_to_intwall_tstepTotal, &
+                                     Qlw_net_intwindow_to_allotherindoorsurfaces_tstepTotal, &
+                                     Qlw_net_intgroundfloor_to_allotherindoorsurfaces_tstepTotal
+   REAL(KIND(1D0)), INTENT(inout) :: Q_appliance_tstepTotal, &
+                                     Q_ventilation_tstepTotal, &
+                                     Qconv_indair_to_intwall_tstepTotal, &
                                 Qconv_indair_to_introof_tstepTotal, &
-                                Qconv_indair_to_intwindow_tstepTotal, &
-                                Qconv_indair_to_intgroundfloor_tstepTotal
-   REAL(rprc), INTENT(inout) :: Qloss_efficiency_heating_air_tstepTotal, &
-                                Qcond_wall_tstepTotal, &
+                                     Qconv_indair_to_intwindow_tstepTotal, &
+                                     Qconv_indair_to_intgroundfloor_tstepTotal
+   REAL(KIND(1D0)), INTENT(inout) :: Qloss_efficiency_heating_air_tstepTotal, &
+                                     Qcond_wall_tstepTotal, &
                                 Qcond_roof_tstepTotal, &
-                                Qcond_window_tstepTotal, &
-                                Qcond_groundfloor_tstepTotal, &
-                                Qcond_ground_tstepTotal
-   REAL(rprc), INTENT(inout) :: Qlw_net_extwall_to_outair_tstepTotal, &
+                                     Qcond_window_tstepTotal, &
+                                     Qcond_groundfloor_tstepTotal, &
+                                     Qcond_ground_tstepTotal
+   REAL(KIND(1D0)), INTENT(inout) :: Qlw_net_extwall_to_outair_tstepTotal, &
                                 Qlw_net_extroof_to_outair_tstepTotal, &
-                                Qlw_net_extwindow_to_outair_tstepTotal, &
-                                Qconv_extwall_to_outair_tstepTotal, &
+                                     Qlw_net_extwindow_to_outair_tstepTotal, &
+                                     Qconv_extwall_to_outair_tstepTotal, &
                                 Qconv_extroof_to_outair_tstepTotal, &
-                                Qconv_extwindow_to_outair_tstepTotal
-   REAL(rprc), INTENT(inout) :: q_cooling_timestepTotal, &
-                                qsensible_timestepTotal, &
-                                qlatent_timestepTotal
-   REAL(rprc), INTENT(inout) :: QS_tstepTotal, QS_fabric_tstepTotal, QS_air_tstepTotal
-   REAL(rprc) :: Qmetabolic_sensible = 0.0, Qmetabolic_latent = 0.0
-   REAL(rprc) :: Qtotal_net_indoormass = 0.0, Qtotal_net_indair = 0.0, &
-                 Qtotal_net_intwall = 0.0, Qtotal_net_introof = 0.0, Qtotal_net_extwall = 0.0, Qtotal_net_extroof = 0.0, &
-                 Qtotal_net_intwindow = 0.0, Qtotal_net_extwindow = 0.0, &
-                 Qtotal_net_intgroundfloor = 0.0, Qtotal_net_extgroundfloor = 0.0
+                                     Qconv_extwindow_to_outair_tstepTotal
+   REAL(KIND(1D0)), INTENT(inout) :: q_cooling_timestepTotal, &
+                                     qsensible_timestepTotal, &
+                                     qlatent_timestepTotal
+   REAL(KIND(1D0)), INTENT(inout) :: QS_tstepTotal, QS_fabric_tstepTotal, QS_air_tstepTotal
+   REAL(KIND(1D0)) :: Qmetabolic_sensible = 0.0, Qmetabolic_latent = 0.0
+   REAL(KIND(1D0)) :: Qtotal_net_indoormass = 0.0, Qtotal_net_indair = 0.0, &
+                      Qtotal_net_intwall = 0.0, Qtotal_net_introof = 0.0, Qtotal_net_extwall = 0.0, Qtotal_net_extroof = 0.0, &
+                      Qtotal_net_intwindow = 0.0, Qtotal_net_extwindow = 0.0, &
+                      Qtotal_net_intgroundfloor = 0.0, Qtotal_net_extgroundfloor = 0.0
    CHARACTER(len=256) :: fout
    Qsw_transmitted_window_tstepTotal = 0.0
    Qsw_absorbed_window_tstepTotal = 0.0
@@ -2059,11 +1763,11 @@ END SUBROUTINE reinitialiseTemperatures
 
 SUBROUTINE gen_building(stebbsState, stebbsPrm, building_archtype, self)
 
-   USE modulestebbs, ONLY: LBM
-   USE SUEWS_DEF_DTS, ONLY: BUILDING_ARCHETYPE_PRM, STEBBS_STATE, STEBBS_PRM
+   USE SUEWS_DEF_DTS, ONLY: BUILDING_ARCHETYPE_PRM, STEBBS_STATE, STEBBS_PRM, STEBBS_BLDG
    USE modulestebbsfunc, ONLY: calculate_x1
    IMPLICIT NONE
-   TYPE(LBM) :: self
+
+   TYPE(STEBBS_BLDG) :: self
 
    TYPE(STEBBS_STATE), INTENT(IN) :: stebbsState
    TYPE(BUILDING_ARCHETYPE_PRM), INTENT(IN) :: building_archtype
@@ -2278,11 +1982,12 @@ SUBROUTINE gen_building(stebbsState, stebbsPrm, building_archtype, self)
 END SUBROUTINE gen_building
 
 SUBROUTINE create_building(CASE, self, icase)
-   USE modulestebbs, ONLY: LBM
+   USE SUEWS_DEF_DTS, ONLY: STEBBS_BLDG
    IMPLICIT NONE
    INTEGER, INTENT(in) :: icase
    CHARACTER(len=256) :: CASE
-   TYPE(LBM) :: self
+   TYPE(STEBBS_BLDG) :: self
+
    self%idLBM = icase
    ! self%fnmlLBM = './BuildClasses/'//TRIM(CASE)//'.nml'
    self%fnmlLBM = TRIM(CASE)

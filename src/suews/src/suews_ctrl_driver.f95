@@ -15,7 +15,7 @@ MODULE SUEWS_Driver
                             OHM_STATE, PHENOLOGY_STATE, SNOW_STATE, SUEWS_FORCING, SUEWS_TIMER, &
                             HYDRO_STATE, HEAT_STATE, &
                             ROUGHNESS_STATE, solar_State, atm_state, flag_STATE, &
-                            SUEWS_STATE, SUEWS_DEBUG, STEBBS_STATE, BUILDING_ARCHETYPE_PRM, STEBBS_PRM, &
+                            SUEWS_STATE, SUEWS_DEBUG, STEBBS_STATE, BUILDING_ARCHETYPE_PRM, STEBBS_PRM, STEBBS_BLDG, &
                             SUEWS_STATE_BLOCK, &
                             output_line, output_block
    USE meteo, ONLY: qsatf, RH2qa, qa2RH
@@ -47,7 +47,7 @@ MODULE SUEWS_Driver
    USE anemsn_module, ONLY: AnthropogenicEmissions
    USE CO2_module, ONLY: CO2_biogen
    USE allocateArray, ONLY: &
-      nsurf, nvegsurf, ndepth, nspec, &
+      nsurf, nvegsurf, ndepth, nspec, nbtypes, &
       PavSurf, BldgSurf, ConifSurf, DecidSurf, GrassSurf, BSoilSurf, WaterSurf, &
       ivConif, ivDecid, ivGrass, &
       ncolumnsDataOutSUEWS, ncolumnsDataOutSnow, &
@@ -5001,6 +5001,8 @@ CONTAINS
       stebbsPrm%MinimumVolumeOfDHWinUse = MinimumVolumeOfDHWinUse
 
       ! states - updated during the simulation
+      ! TODO: STEBBS States act as parameters for building generation (move all but allocation?)
+      CALL stebbsState%ALLOCATE(nbtypes)
       stebbsState%IndoorAirStartTemperature = IndoorAirStartTemperature
       stebbsState%IndoorMassStartTemperature = IndoorMassStartTemperature
       stebbsState%WallIndoorSurfaceTemperature = WallIndoorSurfaceTemperature
@@ -5027,7 +5029,6 @@ CONTAINS
       mod_State%snowState = snowState
       mod_State%phenState = phenState
       mod_State%stebbsState = stebbsState
-      ! mod_State%bldgState = bldgState
 
       ! ############# evaluation for DTS variables (end) #############
       CALL siteInfo%ALLOCATE(nlayer)

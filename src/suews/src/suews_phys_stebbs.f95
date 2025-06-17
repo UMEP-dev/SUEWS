@@ -818,45 +818,43 @@ SUBROUTINE suewsstebbscouple(self, modState, datetimeLine, &
             ! self%QBAE = QBAE
             ! self%QWaste = QWaste
          END DO
+
+         dataOutLineSTEBBS = [ &
+                       ! Forcing
+                       sout%ws, sout%Tair, sout%Tsurf, &
+                       sout%Kroof, sout%Lroof, sout%Kwall, sout%Lwall, &
+                       ! Temperatures
+                       Tair_ind, Tindoormass, Tintwallroof, Textwallroof, Tintwindow, &
+                       Textwindow, Tintgroundfloor, &
+                       Textgroundfloor, Qtotal_heating, &
+                       Qtotal_cooling, Qsw_transmitted_window_tstepTotal, &
+                       Qsw_absorbed_window_tstepTotal, Qsw_absorbed_wallroof_tstepTotal, &
+                       Qconv_indair_to_indoormass_tstepTotal, &
+                       Qlw_net_intwallroof_to_allotherindoorsurfaces_tstepTotal, &
+                       Qlw_net_intwindow_to_allotherindoorsurfaces_tstepTotal, &
+                       Qlw_net_intgroundfloor_to_allotherindoorsurfaces_tstepTotal, &
+                       Q_appliance_tstepTotal, &
+                       Q_ventilation_tstepTotal, Qconv_indair_to_intwallroof_tstepTotal, &
+                       Qconv_indair_to_intwindow_tstepTotal, &
+                       Qconv_indair_to_intgroundfloor_tstepTotal, &
+                       Qloss_efficiency_heating_air_tstepTotal, &
+                       Qcond_wallroof_tstepTotal, Qcond_window_tstepTotal, &
+                       Qcond_groundfloor_tstepTotal, &
+                       Qcond_ground_tstepTotal, &
+                       Qlw_net_extwallroof_to_outair_tstepTotal, &
+                       Qlw_net_extwindow_to_outair_tstepTotal, &
+                       Qconv_extwallroof_to_outair_tstepTotal, &
+                       Qconv_extwindow_to_outair_tstepTotal, q_cooling_timestepTotal, &
+                       Qtotal_water_tank, Qloss_drain, &
+                       Twater_tank, Tintwall_tank, Textwall_tank, Twater_vessel, &
+                       Tintwall_vessel, Textwall_vessel, &
+                       Vwater_vessel, Awater_vessel, Vwall_vessel, qsensible_timestepTotal, &
+                       qlatent_timestepTotal, &
+                       QS_tstepTotal, QS_fabric_tstepTotal, QS_air_tstepTotal, &
+                       Vwall_tank, Vwater_tank &
+                       ]
       END ASSOCIATE
    END ASSOCIATE
-
-   dataOutLineSTEBBS = [ &
-      ! Forcing
-      sout%ws, sout%Tair, sout%Tsurf, &
-      sout%Kroof, sout%Lroof, sout%Kwall, sout%Lwall, &
-      ! Temperatures
-      Tair_ind, Tindoormass, Tintwallroof, Textwallroof, Tintwindow, &
-      Textwindow, Tintgroundfloor, &
-      Textgroundfloor, Qtotal_heating, &
-      Qtotal_cooling, Qsw_transmitted_window_tstepTotal, &
-      Qsw_absorbed_window_tstepTotal, Qsw_absorbed_wallroof_tstepTotal, &
-      Qconv_indair_to_indoormass_tstepTotal, &
-      Qlw_net_intwallroof_to_allotherindoorsurfaces_tstepTotal, &
-      Qlw_net_intwindow_to_allotherindoorsurfaces_tstepTotal, &
-      Qlw_net_intgroundfloor_to_allotherindoorsurfaces_tstepTotal, &
-      Q_appliance_tstepTotal, &
-      Q_ventilation_tstepTotal, Qconv_indair_to_intwallroof_tstepTotal, &
-      Qconv_indair_to_intwindow_tstepTotal, &
-      Qconv_indair_to_intgroundfloor_tstepTotal, &
-      Qloss_efficiency_heating_air_tstepTotal, &
-      Qcond_wallroof_tstepTotal, Qcond_window_tstepTotal, &
-      Qcond_groundfloor_tstepTotal, &
-      Qcond_ground_tstepTotal, &
-      Qlw_net_extwallroof_to_outair_tstepTotal, &
-      Qlw_net_extwindow_to_outair_tstepTotal, &
-      Qconv_extwallroof_to_outair_tstepTotal, &
-      Qconv_extwindow_to_outair_tstepTotal, q_cooling_timestepTotal, &
-      Qtotal_water_tank, Qloss_drain, &
-      Twater_tank, Tintwall_tank, Textwall_tank, Twater_vessel, &
-      Tintwall_vessel, Textwall_vessel, &
-      Vwater_vessel, Awater_vessel, Vwall_vessel, qsensible_timestepTotal, &
-      qlatent_timestepTotal, &
-      QS_tstepTotal, QS_fabric_tstepTotal, QS_air_tstepTotal, &
-      Vwall_tank, Vwater_tank &
-      ]
-   END ASSOCIATE
-
    RETURN
 END SUBROUTINE suewsstebbscouple
 SUBROUTINE timeStepCalculation(self, Tair_out, Tground_deep, Tsurf, &

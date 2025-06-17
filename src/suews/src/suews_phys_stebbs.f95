@@ -418,11 +418,13 @@ MODULE modulesuewsstebbscouple
    END TYPE
    TYPE(suewsprop) :: sout
 END MODULE modulesuewsstebbscouple
-SUBROUTINE setdatetime(datetimeLine)
+SUBROUTINE setdatetime(datetimeLine, datetime, hourmin)
    USE modulestebbsprecision
    USE modulesuewsstebbscouple, ONLY: sout
    IMPLICIT NONE
    REAL(KIND(1D0)), DIMENSION(5), INTENT(in) :: datetimeLine
+   CHARACTER(len=256), INTENT(OUT) :: datetime
+   CHARACTER(len=256), INTENT(OUT) :: hourmin
    INTEGER :: i
    CHARACTER(len=4) :: cyear
    CHARACTER(len=2) :: cmonth, cday, chour, cmin, csec
@@ -448,8 +450,8 @@ SUBROUTINE setdatetime(datetimeLine)
    WRITE (chour, '(i2.2)') INT(datetimeLine(3))
    WRITE (cmin, '(i2.2)') INT(datetimeLine(4))
    WRITE (csec, '(i2.2)') 0
-   sout%datetime = TRIM(cyear//'-'//cmonth//'-'//cday)
-   sout%hourmin = TRIM(chour//':'//cmin//':'//csec)
+   datetime = TRIM(cyear//'-'//cmonth//'-'//cday)
+   hourmin = TRIM(chour//':'//cmin//':'//csec)
    RETURN
 END SUBROUTINE setdatetime
 MODULE stebbs_module
@@ -505,12 +507,13 @@ CONTAINS
             CALL gen_building(stebbsState, stebbsPrm, building_archtype, buildings(1))
          END IF
 
-         CALL setdatetime(datetimeLine)
+         ! TODO: Is this even needed?
+         ! CALL setdatetime(datetimeLine, datetime, hourmin)
 
-            CALL suewsstebbscouple( &
-               buildings(1), modState, datetimeLine, &
-               dataOutLineSTEBBS &
-               )
+         CALL suewsstebbscouple( &
+            buildings(1), config, timer, modState, siteInfo, datetimeLine, &
+            dataOutLineSTEBBS &
+            )
 
          stebbs_bldg_init = 1
 
@@ -521,7 +524,7 @@ CONTAINS
       END SUBROUTINE stebbsonlinecouple
    END MODULE stebbs_module
 
-SUBROUTINE suewsstebbscouple(self, modState, datetimeLine, &
+SUBROUTINE suewsstebbscouple(self, config, timer, modState, siteInfo, datetimeLine, &
                              dataOutLineSTEBBS &
                              ) ! Output
    USE allocateArray, ONLY: ncolumnsDataOutSTEBBS
@@ -535,10 +538,13 @@ SUBROUTINE suewsstebbscouple(self, modState, datetimeLine, &
       Qsw_dn_extroof, &
       Qsw_dn_extwall, &
       Qlw_dn_extwall, Qlw_dn_extroof
-   USE SUEWS_DEF_DTS, ONLY: SUEWS_STATE, STEBBS_BLDG
+   USE SUEWS_DEF_DTS, ONLY: SUEWS_CONFIG, SUEWS_STATE, SUEWS_TIMER, SUEWS_SITE, STEBBS_BLDG
    IMPLICIT NONE
 
+   TYPE(SUEWS_CONFIG), INTENT(IN) :: config
    TYPE(SUEWS_STATE) :: modState
+   TYPE(SUEWS_TIMER), INTENT(IN) :: timer
+   TYPE(SUEWS_SITE), INTENT(IN) :: siteInfo
    TYPE(STEBBS_BLDG) :: self
    INTEGER :: tstep, i
    INTEGER :: ntstep = 1
@@ -547,6 +553,7 @@ SUBROUTINE suewsstebbscouple(self, modState, datetimeLine, &
 
    ! Met variables
    REAL(KIND(1D0)) :: ws
+   REAL(KIND(1D0)) :: ws_exch
    REAL(KIND(1D0)) :: Tair_sout
    REAL(KIND(1D0)) :: Tsurf_sout
    REAL(KIND(1D0)) :: Kroof_sout
@@ -821,8 +828,8 @@ SUBROUTINE suewsstebbscouple(self, modState, datetimeLine, &
 
             dataOutLineSTEBBS = [ &
                                 ! Forcing
-                                sout%ws, sout%Tair, sout%Tsurf, &
-                                sout%Kroof, sout%Lroof, sout%Kwall, sout%Lwall, &
+                                ws, Tair_sout, Tsurf_sout, &
+                                Kroof_sout, Lroof_sout, Kwall_sout, Lwall_sout, &
                                 ! Temperatures
                                 Tair_ind, Tindoormass, Tintwallroof, Textwallroof, Tintwindow, &
                                 Textwindow, Tintgroundfloor, &

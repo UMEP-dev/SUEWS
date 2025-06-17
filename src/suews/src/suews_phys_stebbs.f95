@@ -508,16 +508,15 @@ MODULE stebbs_module
 CONTAINS
 
    SUBROUTINE stebbsonlinecouple( &
-      zarray, dataoutLineURSL, dataoutLineTRSL, & ! Input
       timer, config, forcing, siteInfo, &
       modState, & ! Input/Output
       datetimeLine, &
+      zarray, dataoutLineURSL, dataoutLineTRSL, & ! Input
       dataOutLineSTEBBS) ! Output
       USE modulestebbs, ONLY: cases, resolution
       USE modulesuewsstebbscouple, ONLY: sout ! Defines sout
       USE modulestebbsprecision, ONLY: rprc ! Defines rprc as REAL64
       USE allocateArray, ONLY: ncolumnsDataOutSTEBBS
-      USE rsl_module, ONLY: interp_z
       USE SUEWS_DEF_DTS, ONLY: SUEWS_CONFIG, SUEWS_TIMER, SUEWS_FORCING, LC_PAVED_PRM, LC_BLDG_PRM, &
                                LC_EVETR_PRM, LC_DECTR_PRM, LC_GRASS_PRM, &
                                LC_BSOIL_PRM, LC_WATER_PRM, &
@@ -533,6 +532,7 @@ CONTAINS
 
       REAL(KIND(1D0)), INTENT(OUT), DIMENSION(ncolumnsDataOutSTEBBS - 5) :: dataOutLineSTEBBS
       REAL(KIND(1D0)), DIMENSION(5), INTENT(in) :: datetimeLine
+      REAL(KIND(1D0)), DIMENSION(30), INTENT(IN) :: zarray, dataoutLineURSL, dataoutLineTRSL
 
       ASSOCIATE ( &
          timestep => timer%tstep, &
@@ -560,6 +560,7 @@ CONTAINS
 
             CALL suewsstebbscouple( &
                buildings(1), config, timer, modState, siteInfo, datetimeLine, &
+               zarray, dataoutLineURSL, dataoutLineTRSL, & ! Input
                dataOutLineSTEBBS &
                )
 
@@ -573,20 +574,22 @@ CONTAINS
 END MODULE stebbs_module
 
 SUBROUTINE suewsstebbscouple(self, config, timer, modState, siteInfo, datetimeLine, &
+                             zarray, dataoutLineURSL, dataoutLineTRSL, &
                              dataOutLineSTEBBS &
                              ) ! Output
    USE allocateArray, ONLY: ncolumnsDataOutSTEBBS
    USE modulestebbsprecision
    USE modulestebbs, ONLY: resolution
    USE modulestebbsfunc, ONLY: ext_conv_coeff
-   USE modulesuewsstebbscouple, ONLY: &
-      sout, &
-      Tair_out, Tground_deep, Tsurf, density_air_out, &
-      cp_air_out, &
-      Qsw_dn_extroof, &
-      Qsw_dn_extwall, &
-      Qlw_dn_extwall, Qlw_dn_extroof
+   !USE modulesuewsstebbscouple, ONLY: &
+   !   sout, &
+   !   Tair_out, Tground_deep, Tsurf, density_air_out, &
+   !   cp_air_out, &
+   !   Qsw_dn_extroof, &
+   !   Qsw_dn_extwall, &
+   !   Qlw_dn_extwall, Qlw_dn_extroof
    USE SUEWS_DEF_DTS, ONLY: SUEWS_CONFIG, SUEWS_STATE, SUEWS_TIMER, SUEWS_SITE, STEBBS_BLDG
+   USE rsl_module, ONLY: interp_z
    IMPLICIT NONE
 
    TYPE(SUEWS_CONFIG), INTENT(IN) :: config
@@ -594,6 +597,9 @@ SUBROUTINE suewsstebbscouple(self, config, timer, modState, siteInfo, datetimeLi
    TYPE(SUEWS_TIMER), INTENT(IN) :: timer
    TYPE(SUEWS_SITE), INTENT(IN) :: siteInfo
    TYPE(STEBBS_BLDG) :: self
+
+   REAL(KIND(1D0)), DIMENSION(30), INTENT(IN) :: zarray, dataoutLineURSL, dataoutLineTRSL
+   
    INTEGER :: tstep, i
    INTEGER :: ntstep = 1
 
@@ -602,12 +608,28 @@ SUBROUTINE suewsstebbscouple(self, config, timer, modState, siteInfo, datetimeLi
    ! Met variables
    REAL(KIND(1D0)) :: ws
    REAL(KIND(1D0)) :: ws_exch
+   REAL(KIND(1D0)) :: ws_bh
+   REAL(KIND(1D0)) :: ws_hbh
    REAL(KIND(1D0)) :: Tair_sout
+   REAL(KIND(1D0)) :: Tair_bh
+   REAL(KIND(1D0)) :: Tair_hbh
    REAL(KIND(1D0)) :: Tsurf_sout
    REAL(KIND(1D0)) :: Kroof_sout
    REAL(KIND(1D0)) :: Lroof_sout
    REAL(KIND(1D0)) :: Kwall_sout
    REAL(KIND(1D0)) :: Lwall_sout
+
+   REAL(KIND(1D0)) :: Tair_out
+   REAL(KIND(1D0)) :: Tair_out_bh
+   REAL(KIND(1D0)) :: Tair_out_hbh
+   REAL(KIND(1D0)) :: Tsurf
+   REAL(KIND(1D0)) :: Tground_deep
+   REAL(KIND(1D0)) :: density_air_out
+   REAL(KIND(1D0)) :: cp_air_out
+   REAL(KIND(1D0)) :: Qsw_dn_extroof
+   REAL(KIND(1D0)) :: Qsw_dn_extwall
+   REAL(KIND(1D0)) :: Qlw_dn_extwall
+   REAL(KIND(1D0)) :: Qlw_dn_extroof
 
    ! Internal variables
    REAL(KIND(1D0)) :: Area
@@ -620,8 +642,10 @@ SUBROUTINE suewsstebbscouple(self, config, timer, modState, siteInfo, datetimeLi
    ! Output variables
    REAL(KIND(1D0)) :: Tair_ind
    REAL(KIND(1D0)) :: Tindoormass
-   REAL(KIND(1D0)) :: Tintwallroof
-   REAL(KIND(1D0)) :: Textwallroof
+   REAL(KIND(1D0)) :: Tintwall
+   REAL(KIND(1D0)) :: Tintroof
+   REAL(KIND(1D0)) :: Textwall
+   REAL(KIND(1D0)) :: Textroof
    REAL(KIND(1D0)) :: Tintwindow
    REAL(KIND(1D0)) :: Textwindow
    REAL(KIND(1D0)) :: Tintgroundfloor
@@ -630,24 +654,30 @@ SUBROUTINE suewsstebbscouple(self, config, timer, modState, siteInfo, datetimeLi
    REAL(KIND(1D0)) :: Qtotal_cooling
    REAL(KIND(1D0)) :: Qsw_transmitted_window_tstepTotal
    REAL(KIND(1D0)) :: Qsw_absorbed_window_tstepTotal
-   REAL(KIND(1D0)) :: Qsw_absorbed_wallroof_tstepTotal
+   REAL(KIND(1D0)) :: Qsw_absorbed_wall_tstepTotal
+   REAL(KIND(1D0)) :: Qsw_absorbed_roof_tstepTotal
    REAL(KIND(1D0)) :: Qconv_indair_to_indoormass_tstepTotal
-   REAL(KIND(1D0)) :: Qlw_net_intwallroof_to_allotherindoorsurfaces_tstepTotal
+   REAL(KIND(1D0)) :: Qlw_net_intwall_to_allotherindoorsurfaces_tstepTotal
+   REAL(KIND(1D0)) :: Qlw_net_introof_to_allotherindoorsurfaces_tstepTotal
    REAL(KIND(1D0)) :: Qlw_net_intwindow_to_allotherindoorsurfaces_tstepTotal
    REAL(KIND(1D0)) :: Qlw_net_intgroundfloor_to_allotherindoorsurfaces_tstepTotal
    REAL(KIND(1D0)) :: Q_appliance_tstepTotal
    REAL(KIND(1D0)) :: Q_ventilation_tstepTotal
-   REAL(KIND(1D0)) :: Qconv_indair_to_intwallroof_tstepTotal
+   REAL(KIND(1D0)) :: Qconv_indair_to_intwall_tstepTotal
+   REAL(KIND(1D0)) :: Qconv_indair_to_introof_tstepTotal
    REAL(KIND(1D0)) :: Qconv_indair_to_intwindow_tstepTotal
    REAL(KIND(1D0)) :: Qconv_indair_to_intgroundfloor_tstepTotal
    REAL(KIND(1D0)) :: Qloss_efficiency_heating_air_tstepTotal
-   REAL(KIND(1D0)) :: Qcond_wallroof_tstepTotal
+   REAL(KIND(1D0)) :: Qcond_wall_tstepTotal
+   REAL(KIND(1D0)) :: Qcond_roof_tstepTotal
    REAL(KIND(1D0)) :: Qcond_window_tstepTotal
    REAL(KIND(1D0)) :: Qcond_groundfloor_tstepTotal
    REAL(KIND(1D0)) :: Qcond_ground_tstepTotal
-   REAL(KIND(1D0)) :: Qlw_net_extwallroof_to_outair_tstepTotal
+   REAL(KIND(1D0)) :: Qlw_net_extwall_to_outair_tstepTotal
+   REAL(KIND(1D0)) :: Qlw_net_extroof_to_outair_tstepTotal
    REAL(KIND(1D0)) :: Qlw_net_extwindow_to_outair_tstepTotal
-   REAL(KIND(1D0)) :: Qconv_extwallroof_to_outair_tstepTotal
+   REAL(KIND(1D0)) :: Qconv_extwall_to_outair_tstepTotal
+   REAL(KIND(1D0)) :: Qconv_extroof_to_outair_tstepTotal
    REAL(KIND(1D0)) :: Qconv_extwindow_to_outair_tstepTotal
    REAL(KIND(1D0)) :: q_cooling_timestepTotal
    REAL(KIND(1D0)) :: Qtotal_water_tank
@@ -710,6 +740,12 @@ SUBROUTINE suewsstebbscouple(self, config, timer, modState, siteInfo, datetimeLi
          Least => stebbsState%Least, &
          Lwest => stebbsState%Lwest &
          )
+         ! air temperature and wind speed at building/half building height from RSL
+         ws_bh = interp_z(buildings(1)%height_building, zarray, dataoutLineURSL)
+         ws_hbh = interp_z((buildings(1)%height_building)/2, zarray, dataoutLineURSL)
+         Tair_bh = interp_z(buildings(1)%height_building, zarray, dataoutLineTRSL)
+         Tair_hbh = interp_z((buildings(1)%height_building)/2, zarray, dataoutLineTRSL)
+
          IF (config%NetRadiationMethod < 1000) THEN
             wallStatesK(1) = Knorth
             wallStatesK(2) = Ksouth
@@ -735,6 +771,8 @@ SUBROUTINE suewsstebbscouple(self, config, timer, modState, siteInfo, datetimeLi
          END IF
          DO tstep = 1, ntstep, 1
             Tair_out = Tair_sout + 273.15
+            Tair_out_bh = Tair_bh + 273.15
+            Tair_out_hbh = Tair_hbh + 273.15
             Tground_deep = 273.15 + 10.0
             Tsurf = Tsurf_sout + 273.15
             density_air_out = 1.225
@@ -760,20 +798,19 @@ SUBROUTINE suewsstebbscouple(self, config, timer, modState, siteInfo, datetimeLi
             self%h_o(1) = ext_conv_coeff(ws_exch, Tair_out - Tsurf)
             self%h_o(2) = ext_conv_coeff(ws_exch, Tair_out - Tsurf)
 
-            CALL timeStepCalculation(self, Tair_out, Tground_deep, Tsurf, &
+            CALL timeStepCalculation(self, Tair_out, Tair_out_bh, Tair_out_hbh, Tground_deep, Tsurf, &
                                      density_air_out, cp_air_out, &
                                      Qsw_dn_extroof, Qsw_dn_extwall, &
-                                     Qlw_dn_extwall, Qlw_dn_extroof, timestep, &
-                                     resolution, &
-                                     datetimeLine &
+                                     Qlw_dn_extwall, Qlw_dn_extroof, &
+                                     timestep, resolution, datetimeLine &
                                      )
 
             Tair_ind = self%Tair_ind
             Tindoormass = self%Tindoormass
             Tintwall = self%Tintwall
-      Tintroof = self%Tintroof
+            Tintroof = self%Tintroof
             Textwall = self%Textwall
-      Textroof = self%Textroof
+            Textroof = self%Textroof
             Tintwindow = self%Tintwindow
             Textwindow = self%Textwindow
             Tintgroundfloor = self%Tintgroundfloor
@@ -781,40 +818,40 @@ SUBROUTINE suewsstebbscouple(self, config, timer, modState, siteInfo, datetimeLi
             Qtotal_heating = self%Qtotal_heating
             Qtotal_cooling = self%Qtotal_cooling
 
-      Qsw_transmitted_window_tstepTotal = self%EnergyExchanges(1) !Qsw_transmitted_window_tstepTotal
-      Qsw_absorbed_window_tstepTotal = self%EnergyExchanges(2) !Qsw_absorbed_window_tstepTotal
-      Qsw_absorbed_wall_tstepTotal = self%EnergyExchanges(3) !Qsw_absorbed_wall_tstepTotal
-      Qsw_absorbed_roof_tstepTotal = self%EnergyExchanges(4) !Qsw_absorbed_roof_tstepTotal
-      Qconv_indair_to_indoormass_tstepTotal = self%EnergyExchanges(5) !Qconv_indair_to_indoormass_tstepTotal
-      Qlw_net_intwall_to_allotherindoorsurfaces_tstepTotal = self%EnergyExchanges(6) !Qlw_net_intwall_to_allotherindoorsurfaces_tstepTotal
-      Qlw_net_introof_to_allotherindoorsurfaces_tstepTotal = self%EnergyExchanges(7) !Qlw_net_introof_to_allotherindoorsurfaces_tstepTotal
-      Qlw_net_intwindow_to_allotherindoorsurfaces_tstepTotal = self%EnergyExchanges(8) !Qlw_net_intwindow_to_allotherindoorsurfaces_tstepTotal
-      Qlw_net_intgroundfloor_to_allotherindoorsurfaces_tstepTotal = self%EnergyExchanges(9) !Qlw_net_intgroundfloor_to_allotherindoorsurfaces_tstepTotal
-      Q_appliance_tstepTotal = self%EnergyExchanges(10) !Q_appliance_tstepTotal
-      Q_ventilation_tstepTotal = self%EnergyExchanges(11) !Q_ventilation_tstepTotal
-      Qconv_indair_to_intwall_tstepTotal = self%EnergyExchanges(12) !Qconv_indair_to_intwall_tstepTotal
-      Qconv_indair_to_introof_tstepTotal = self%EnergyExchanges(13) !Qconv_indair_to_introof_tstepTotal
-      Qconv_indair_to_intwindow_tstepTotal = self%EnergyExchanges(14) !Qconv_indair_to_intwindow_tstepTotal
-      Qconv_indair_to_intgroundfloor_tstepTotal = self%EnergyExchanges(15) !Qconv_indair_to_intgroundfloor_tstepTotal
-      Qloss_efficiency_heating_air_tstepTotal = self%EnergyExchanges(16) !Qloss_efficiency_heating_air_tstepTotal
-      Qcond_wall_tstepTotal = self%EnergyExchanges(17) !Qcond_wall_tstepTotal
-      Qcond_roof_tstepTotal = self%EnergyExchanges(18) !Qcond_roof_tstepTotal
-      Qcond_window_tstepTotal = self%EnergyExchanges(19) !Qcond_window_tstepTotal
-      Qcond_groundfloor_tstepTotal = self%EnergyExchanges(20) !Qcond_groundfloor_tstepTotal
-      Qcond_ground_tstepTotal = self%EnergyExchanges(21) !Qcond_ground_tstepTotal
-      Qlw_net_extwall_to_outair_tstepTotal = self%EnergyExchanges(22) !Qlw_net_extwall_to_outair_tstepTotal
-      Qlw_net_extroof_to_outair_tstepTotal = self%EnergyExchanges(23) !Qlw_net_extroof_to_outair_tstepTotal
-      Qlw_net_extwindow_to_outair_tstepTotal = self%EnergyExchanges(24) !Qlw_net_extwindow_to_outair_tstepTotal
-      Qconv_extwall_to_outair_tstepTotal = self%EnergyExchanges(25) !Qconv_extwall_to_outair_tstepTotal
-      Qconv_extroof_to_outair_tstepTotal = self%EnergyExchanges(26) !Qconv_extroof_to_outair_tstepTotal
-      Qconv_extwindow_to_outair_tstepTotal = self%EnergyExchanges(27) !Qconv_extwindow_to_outair_tstepTotal
-      q_cooling_timestepTotal = self%EnergyExchanges(28) !q_cooling_timestepTotal
-      QS_tstepTotal = self%EnergyExchanges(29) !QS_tstepTotal
-      QS_fabric_tstepTotal = self%EnergyExchanges(30) !QS_fabric_tstepTotal
-      QS_air_tstepTotal = self%EnergyExchanges(31) !QS_air_tstepTotal
-      Qloss_drain = self%qhwtDrain !Qloss_drain
-      qsensible_timestepTotal = self%Qmetabolic_sensible !qsensible_timestepTotal
-      qlatent_timestepTotal = self%Qmetabolic_latent !qlatent_timestepTotal
+            Qsw_transmitted_window_tstepTotal = self%EnergyExchanges(1) !Qsw_transmitted_window_tstepTotal
+            Qsw_absorbed_window_tstepTotal = self%EnergyExchanges(2) !Qsw_absorbed_window_tstepTotal
+            Qsw_absorbed_wall_tstepTotal = self%EnergyExchanges(3) !Qsw_absorbed_wall_tstepTotal
+            Qsw_absorbed_roof_tstepTotal = self%EnergyExchanges(4) !Qsw_absorbed_roof_tstepTotal
+            Qconv_indair_to_indoormass_tstepTotal = self%EnergyExchanges(5) !Qconv_indair_to_indoormass_tstepTotal
+            Qlw_net_intwall_to_allotherindoorsurfaces_tstepTotal = self%EnergyExchanges(6) !Qlw_net_intwall_to_allotherindoorsurfaces_tstepTotal
+            Qlw_net_introof_to_allotherindoorsurfaces_tstepTotal = self%EnergyExchanges(7) !Qlw_net_introof_to_allotherindoorsurfaces_tstepTotal
+            Qlw_net_intwindow_to_allotherindoorsurfaces_tstepTotal = self%EnergyExchanges(8) !Qlw_net_intwindow_to_allotherindoorsurfaces_tstepTotal
+            Qlw_net_intgroundfloor_to_allotherindoorsurfaces_tstepTotal = self%EnergyExchanges(9) !Qlw_net_intgroundfloor_to_allotherindoorsurfaces_tstepTotal
+            Q_appliance_tstepTotal = self%EnergyExchanges(10) !Q_appliance_tstepTotal
+            Q_ventilation_tstepTotal = self%EnergyExchanges(11) !Q_ventilation_tstepTotal
+            Qconv_indair_to_intwall_tstepTotal = self%EnergyExchanges(12) !Qconv_indair_to_intwall_tstepTotal
+            Qconv_indair_to_introof_tstepTotal = self%EnergyExchanges(13) !Qconv_indair_to_introof_tstepTotal
+            Qconv_indair_to_intwindow_tstepTotal = self%EnergyExchanges(14) !Qconv_indair_to_intwindow_tstepTotal
+            Qconv_indair_to_intgroundfloor_tstepTotal = self%EnergyExchanges(15) !Qconv_indair_to_intgroundfloor_tstepTotal
+            Qloss_efficiency_heating_air_tstepTotal = self%EnergyExchanges(16) !Qloss_efficiency_heating_air_tstepTotal
+            Qcond_wall_tstepTotal = self%EnergyExchanges(17) !Qcond_wall_tstepTotal
+            Qcond_roof_tstepTotal = self%EnergyExchanges(18) !Qcond_roof_tstepTotal
+            Qcond_window_tstepTotal = self%EnergyExchanges(19) !Qcond_window_tstepTotal
+            Qcond_groundfloor_tstepTotal = self%EnergyExchanges(20) !Qcond_groundfloor_tstepTotal
+            Qcond_ground_tstepTotal = self%EnergyExchanges(21) !Qcond_ground_tstepTotal
+            Qlw_net_extwall_to_outair_tstepTotal = self%EnergyExchanges(22) !Qlw_net_extwall_to_outair_tstepTotal
+            Qlw_net_extroof_to_outair_tstepTotal = self%EnergyExchanges(23) !Qlw_net_extroof_to_outair_tstepTotal
+            Qlw_net_extwindow_to_outair_tstepTotal = self%EnergyExchanges(24) !Qlw_net_extwindow_to_outair_tstepTotal
+            Qconv_extwall_to_outair_tstepTotal = self%EnergyExchanges(25) !Qconv_extwall_to_outair_tstepTotal
+            Qconv_extroof_to_outair_tstepTotal = self%EnergyExchanges(26) !Qconv_extroof_to_outair_tstepTotal
+            Qconv_extwindow_to_outair_tstepTotal = self%EnergyExchanges(27) !Qconv_extwindow_to_outair_tstepTotal
+            q_cooling_timestepTotal = self%EnergyExchanges(28) !q_cooling_timestepTotal
+            QS_tstepTotal = self%EnergyExchanges(29) !QS_tstepTotal
+            QS_fabric_tstepTotal = self%EnergyExchanges(30) !QS_fabric_tstepTotal
+            QS_air_tstepTotal = self%EnergyExchanges(31) !QS_air_tstepTotal
+            Qloss_drain = self%qhwtDrain !Qloss_drain
+            qsensible_timestepTotal = self%Qmetabolic_sensible !qsensible_timestepTotal
+            qlatent_timestepTotal = self%Qmetabolic_latent !qlatent_timestepTotal
 
             Qtotal_water_tank = self%Qtotal_water_tank
             Twater_tank = self%Twater_tank
@@ -884,29 +921,29 @@ SUBROUTINE suewsstebbscouple(self, config, timer, modState, siteInfo, datetimeLi
 
          dataOutLineSTEBBS = [ &
                              ! Forcing
-                             ws, Tair_sout, Tsurf_sout, &
+                             ws, ws_bh, ws_hbh, Tair_sout, Tair_bh, Tair_hbh, Tsurf_sout, &
                              Kroof_sout, Lroof_sout, Kwall_sout, Lwall_sout, &
                              ! Temperatures
-                             Tair_ind, Tindoormass, Tintwallroof, Textwallroof, Tintwindow, &
+                             Tair_ind, Tindoormass, Tintwall, Tintroof, Textwall, Textroof, Tintwindow, &
                              Textwindow, Tintgroundfloor, &
                              Textgroundfloor, Qtotal_heating, &
                              Qtotal_cooling, Qsw_transmitted_window_tstepTotal, &
-                             Qsw_absorbed_window_tstepTotal, Qsw_absorbed_wallroof_tstepTotal, &
+                             Qsw_absorbed_window_tstepTotal, Qsw_absorbed_wall_tstepTotal, Qsw_absorbed_roof_tstepTotal, &
                              Qconv_indair_to_indoormass_tstepTotal, &
-                             Qlw_net_intwallroof_to_allotherindoorsurfaces_tstepTotal, &
+                             Qlw_net_intwall_to_allotherindoorsurfaces_tstepTotal, Qlw_net_introof_to_allotherindoorsurfaces_tstepTotal, &
                              Qlw_net_intwindow_to_allotherindoorsurfaces_tstepTotal, &
                              Qlw_net_intgroundfloor_to_allotherindoorsurfaces_tstepTotal, &
                              Q_appliance_tstepTotal, &
-                             Q_ventilation_tstepTotal, Qconv_indair_to_intwallroof_tstepTotal, &
+                             Q_ventilation_tstepTotal, Qconv_indair_to_intwall_tstepTotal, Qconv_indair_to_introof_tstepTotal, &
                              Qconv_indair_to_intwindow_tstepTotal, &
                              Qconv_indair_to_intgroundfloor_tstepTotal, &
                              Qloss_efficiency_heating_air_tstepTotal, &
-                             Qcond_wallroof_tstepTotal, Qcond_window_tstepTotal, &
+                             Qcond_wall_tstepTotal, Qcond_roof_tstepTotal, Qcond_window_tstepTotal, &
                              Qcond_groundfloor_tstepTotal, &
                              Qcond_ground_tstepTotal, &
-                             Qlw_net_extwallroof_to_outair_tstepTotal, &
+                             Qlw_net_extwall_to_outair_tstepTotal, Qlw_net_extroof_to_outair_tstepTotal, &
                              Qlw_net_extwindow_to_outair_tstepTotal, &
-                             Qconv_extwallroof_to_outair_tstepTotal, &
+                             Qconv_extwall_to_outair_tstepTotal, Qconv_extroof_to_outair_tstepTotal, &
                              Qconv_extwindow_to_outair_tstepTotal, q_cooling_timestepTotal, &
                              Qtotal_water_tank, Qloss_drain, &
                              Twater_tank, Tintwall_tank, Textwall_tank, Twater_vessel, &
@@ -925,7 +962,7 @@ SUBROUTINE timeStepCalculation(self, Tair_out, Tair_out_bh, Tair_out_hbh, Tgroun
                                Qsw_dn_extroof, Qsw_dn_extwall, &
                                Qlw_dn_extwall, Qlw_dn_extroof, &
                                timestep, resolution, datetimeLine &
-                                )
+                              )
    USE modulestebbsprecision
    USE SUEWS_DEF_DTS, ONLY: STEBBS_BLDG
    IMPLICIT NONE

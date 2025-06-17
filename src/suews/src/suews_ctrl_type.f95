@@ -960,33 +960,50 @@ MODULE SUEWS_DEF_DTS
       REAL(KIND(1D0)) :: height_building
       REAL(KIND(1D0)) :: wallExternalArea
       REAL(KIND(1D0)) :: ratioInternalVolume
-      REAL(KIND(1D0)) :: thickness_wallroof
+      REAL(KIND(1D0)) :: thickness_wall
+      REAL(KIND(1D0)) :: thickness_wallext
+      REAL(KIND(1D0)) :: thickness_roof
+      REAL(KIND(1D0)) :: thickness_roofext
       REAL(KIND(1D0)) :: thickness_groundfloor
       REAL(KIND(1D0)) :: depth_ground
       REAL(KIND(1D0)) :: thickness_window
-      REAL(KIND(1D0)) :: conv_coeff_intwallroof
+      REAL(KIND(1D0)) :: conv_coeff_intwall
+      REAL(KIND(1D0)) :: conv_coeff_introof
       REAL(KIND(1D0)) :: conv_coeff_indoormass
       REAL(KIND(1D0)) :: conv_coeff_intgroundfloor
       REAL(KIND(1D0)) :: conv_coeff_intwindow
-      REAL(KIND(1D0)) :: conv_coeff_extwallroof
+      REAL(KIND(1D0)) :: conv_coeff_extwall
+      REAL(KIND(1D0)) :: conv_coeff_extroof
       REAL(KIND(1D0)) :: conv_coeff_extwindow
-      REAL(KIND(1D0)) :: conductivity_wallroof
+      REAL(KIND(1D0)) :: conductivity_wall
+      REAL(KIND(1D0)) :: conductivity_wallext
+      REAL(KIND(1D0)) :: conductivity_roof
+      REAL(KIND(1D0)) :: conductivity_roofext
       REAL(KIND(1D0)) :: conductivity_groundfloor
       REAL(KIND(1D0)) :: conductivity_window
       REAL(KIND(1D0)) :: conductivity_ground
-      REAL(KIND(1D0)) :: density_wallroof
-      REAL(KIND(1D0)) :: weighting_factor_heatcapacity_wallroof
+      REAL(KIND(1D0)) :: density_wall
+      REAL(KIND(1D0)) :: density_wallext
+      REAL(KIND(1D0)) :: density_roof
+      REAL(KIND(1D0)) :: density_roofext
+      REAL(KIND(1D0)) :: weighting_factor_heatcapacity_wall
+      REAL(KIND(1D0)) :: weighting_factor_heatcapacity_roof
       REAL(KIND(1D0)) :: density_groundfloor
       REAL(KIND(1D0)) :: density_window
       REAL(KIND(1D0)) :: density_indoormass
       REAL(KIND(1D0)) :: density_air_ind
-      REAL(KIND(1D0)) :: cp_wallroof
+      REAL(KIND(1D0)) :: cp_wall
+      REAL(KIND(1D0)) :: cp_wallext
+      REAL(KIND(1D0)) :: cp_roof
+      REAL(KIND(1D0)) :: cp_roofext
       REAL(KIND(1D0)) :: cp_groundfloor
       REAL(KIND(1D0)) :: cp_window
       REAL(KIND(1D0)) :: cp_indoormass
       REAL(KIND(1D0)) :: cp_air_ind
-      REAL(KIND(1D0)) :: emissivity_extwallroof
-      REAL(KIND(1D0)) :: emissivity_intwallroof
+      REAL(KIND(1D0)) :: emissivity_extwall
+      REAL(KIND(1D0)) :: emissivity_extroof
+      REAL(KIND(1D0)) :: emissivity_intwall
+      REAL(KIND(1D0)) :: emissivity_introof
       REAL(KIND(1D0)) :: emissivity_indoormass
       REAL(KIND(1D0)) :: emissivity_extwindow
       REAL(KIND(1D0)) :: emissivity_intwindow
@@ -996,9 +1013,15 @@ MODULE SUEWS_DEF_DTS
       REAL(KIND(1D0)) :: wallTransmisivity
       REAL(KIND(1D0)) :: wallAbsorbtivity
       REAL(KIND(1D0)) :: wallReflectivity
+      REAL(KIND(1D0)) :: roofTransmisivity
+      REAL(KIND(1D0)) :: roofAbsorbtivity
+      REAL(KIND(1D0)) :: roofReflectivity
       REAL(KIND(1D0)) :: BVF_extwall
       REAL(KIND(1D0)) :: GVF_extwall
       REAL(KIND(1D0)) :: SVF_extwall
+      REAL(KIND(1D0)) :: BVF_extroof
+      REAL(KIND(1D0)) :: GVF_extroof
+      REAL(KIND(1D0)) :: SVF_extroof
       REAL(KIND(1D0)) :: occupants
       REAL(KIND(1D0)) :: metabolic_rate
       REAL(KIND(1D0)) :: ratio_metabolic_latent_sensible
@@ -1021,8 +1044,10 @@ MODULE SUEWS_DEF_DTS
       REAL(KIND(1D0)) :: Aindoormass
       REAL(KIND(1D0)) :: Tair_ind
       REAL(KIND(1D0)) :: Tindoormass
-      REAL(KIND(1D0)) :: Tintwallroof
-      REAL(KIND(1D0)) :: Textwallroof
+      REAL(KIND(1D0)) :: Tintwall
+      REAL(KIND(1D0)) :: Tintroof
+      REAL(KIND(1D0)) :: Textwall
+      REAL(KIND(1D0)) :: Textroof
       REAL(KIND(1D0)) :: Tintwindow
       REAL(KIND(1D0)) :: Textwindow
       REAL(KIND(1D0)) :: Tintgroundfloor
@@ -1084,17 +1109,17 @@ MODULE SUEWS_DEF_DTS
       REAL(KIND(1D0)) :: QWaste ! Waste heating        [W m-2]
 
       REAL(KIND(1D0)), DIMENSION(2) :: Ts, initTs
-      REAL(KIND(1D0)), DIMENSION(4) :: h_i, k_eff
-      REAL(KIND(1D0)), DIMENSION(2) :: h_o
-      REAL(KIND(1D0)), DIMENSION(5) :: rho
-      REAL(KIND(1D0)), DIMENSION(5) :: Cp
-      REAL(KIND(1D0)), DIMENSION(5) :: emis
-      REAL(KIND(1D0)), DIMENSION(3) :: wiTAR, waTAR
-      REAL(KIND(1D0)), DIMENSION(3) :: viewFactors
+      REAL(KIND(1D0)), DIMENSION(5) :: h_i, k_eff
+      REAL(KIND(1D0)), DIMENSION(3) :: h_o
+      REAL(KIND(1D0)), DIMENSION(6) :: rho
+      REAL(KIND(1D0)), DIMENSION(6) :: Cp
+      REAL(KIND(1D0)), DIMENSION(7) :: emis
+      REAL(KIND(1D0)), DIMENSION(3) :: wiTAR, waTAR, roofTAR
+      REAL(KIND(1D0)), DIMENSION(6) :: viewFactors
       REAL(KIND(1D0)), DIMENSION(3) :: occupantData
       REAL(KIND(1D0)), DIMENSION(3) :: HTsAverage, HWTsAverage
       REAL(KIND(1D0)), DIMENSION(3) :: HWPowerAverage
-      REAL(KIND(1D0)), DIMENSION(25) :: EnergyExchanges = 0.0
+      REAL(KIND(1D0)), DIMENSION(31) :: EnergyExchanges = 0.0
 
    END TYPE
 

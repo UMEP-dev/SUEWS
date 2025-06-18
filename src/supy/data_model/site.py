@@ -2175,68 +2175,48 @@ class SnowAlb(BaseModel):
         return cls(snowalb=RefValue(snowalb))
 
 
-# class DLSValidator(BaseModel):
-#     lat: float
-#     lng: float
-#     startdls: Optional[float] = None
-#     enddls: Optional[float] = None
-#     year: int 
+class DLSCheck(BaseModel):
+    lat: float
+    lng: float
+    year: int
+    startdls: Optional[int] = None
+    enddls: Optional[int] = None
 
-#     def validate_dls(self):
-#         print("CHECKING -- Daylight-Saving dates.")
-#         print(f"[DEBUG] Running validate_dls with: self.lat={self.lat}, self.lng={self.lng}, self.startdls={self.startdls}, self.enddls={self.enddls}, self.year={self.year}")
+    def compute_dst_transitions(self):
+        tf = TimezoneFinder()
+        tz_name = tf.timezone_at(lat=self.lat, lng=self.lng)
 
-#         tf = TimezoneFinder()
-#         tz_name = tf.timezone_at(lat=self.lat, lng=self.lng)
-#         if not tz_name:
-#             print(f"[DEBUG] Cannot determine timezone for lat={self.lat}, lng={self.lng}; skipping DST check.")
-#             return
+        if not tz_name:
+            print(f"[DLS] ❌ Cannot determine timezone for lat={self.lat}, lng={self.lng}")
+            return None, None, None
 
-#         if tz_name.startswith("Etc/"):
-#             print(f"[DEBUG] Timezone returned is '{tz_name}', which may not support DST.")
-#             return
+        tz = pytz.timezone(tz_name)
 
-#         tz = pytz.timezone(tz_name)
+        def find_transition(month: int) -> Optional[int]:
+            try:
+                prev_dt = tz.localize(datetime(self.year, month, 1, 12), is_dst=None)
+                prev_offset = prev_dt.utcoffset()
+                for day in range(2, 32):
+                    try:
+                        curr_dt = tz.localize(datetime(self.year, month, day, 12), is_dst=None)
+                        curr_offset = curr_dt.utcoffset()
+                        if curr_offset != prev_offset:
+                            return curr_dt.timetuple().tm_yday
+                        prev_offset = curr_offset
+                    except Exception:
+                        continue
+                return None
+            except Exception:
+                return None
 
-#         def find_transition(month: int) -> Optional[int]:
-#             try:
-#                 prev_dt = tz.localize(datetime(self.year, month, 1, 12, 0), is_dst=None)
-#             except Exception:
-#                 return None
-#             prev_off = prev_dt.utcoffset()
+        if self.lat >= 0:  # Northern Hemisphere
+            start = find_transition(3) or find_transition(4)
+            end = find_transition(10) or find_transition(11)
+        else:  # Southern Hemisphere
+            start = find_transition(9) or find_transition(10)
+            end = find_transition(3) or find_transition(4)
 
-#             for day in range(2, 32):
-#                 try:
-#                     curr_dt = tz.localize(datetime(self.year, month, day, 12, 0), is_dst=None)
-#                 except Exception:
-#                     continue
-#                 curr_off = curr_dt.utcoffset()
-#                 if curr_off != prev_off:
-#                     return curr_dt.timetuple().tm_yday
-#                 prev_off = curr_off
-#             return None
-
-#         if self.lat >= 0:
-#             actual_start = find_transition(3) or find_transition(4)
-#             actual_end = find_transition(10) or find_transition(11)
-#         else:
-#             actual_start = find_transition(9) or find_transition(10)
-#             actual_end = find_transition(3) or find_transition(4)
-
-#         print(f"[DEBUG] Computed DST start={actual_start}, end={actual_end}")
-#         print(f"[DEBUG] Provided startdls={self.startdls}, enddls={self.enddls}")
-
-#         if actual_start and actual_end:
-#             if (self.startdls, self.enddls) != (actual_start, actual_end):
-#                 raise ValueError(
-#                     f"ERROR — DLS mismatch:\n"
-#                     f"  computed start={actual_start}, end={actual_end}\n"
-#                     f"  in YAML   start={self.startdls}, end={self.enddls}"
-#                 )
-#             else:
-#                 print("Daylight-Saving dates OK.")
-#         else:
-#             print("⚠️ Unable to detect one or both DST transitions; please verify manually.")
+        return start, end, tz_name
 
 
 class SeasonCheck(BaseModel):
@@ -2256,15 +2236,20 @@ class SeasonCheck(BaseModel):
                 return "summer"
             elif 60 < start <= 150 and 60 < end <= 150:
                 return "spring"
+            elif 250 <= start < 335 and 250 <= end < 335:
+                return "fall"
             elif (start <= 60 or start >= 335) and (end <= 60 or end >= 335):
                 return "winter"
+
         else:  # Southern Hemisphere
             # Southern seasons are offset by ~6 months
             if (start >= 335 or start <= 60) and (end >= 335 or end <= 60):
                 return "summer"
             elif 61 <= start <= 150 and 61 <= end <= 150:
-                return "fall"  # southern fall = north spring
+                return "fall"
             elif 151 <= start <= 250 and 151 <= end <= 250:
-                return "winter"  # southern winter = north summer
+                return "winter"
+            elif 251 <= start <= 334 and 251 <= end <= 334:
+                return "spring"
 
         return "unknown"

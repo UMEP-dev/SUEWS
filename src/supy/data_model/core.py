@@ -14,10 +14,10 @@ import yaml
 import ast
 import supy as sp
 
-#from .site import DLSValidator
+
 from .model import Model
 from .site import Site, SiteProperties, InitialStates, LandCover
-from .site import SeasonCheck
+from .site import SeasonCheck, DLSCheck
 
 try:
     from ..validation import enhanced_from_yaml_validation, enhanced_to_df_state_validation
@@ -79,66 +79,84 @@ class SUEWSConfig(BaseModel):
         except ValueError:
             return (col[0], col[1])
 
-@model_validator(mode="before")
-@classmethod
-def precheck(cls, data):
-    sites_data = data.get("site", [])
-    if not isinstance(sites_data, list):
-        raise TypeError("Expected 'site' to be a list.")
+    @model_validator(mode="before")
+    @classmethod
+    def precheck(cls, data):
+        sites_data = data.get("site", [])
+        if not isinstance(sites_data, list):
+            raise TypeError("Expected 'site' to be a list.")
 
-    start_date = "2014-06-20"  # placeholder: to be passed externally
-    end_date = "2014-08-20"
+        start_date = "2014-06-20"  # placeholder: to be passed externally
+        end_date = "2014-08-20"
 
-    for i, site in enumerate(sites_data):
-        props = site.get("properties", {})
+        for i, site in enumerate(sites_data):
+            props = site.get("properties", {})
+            initial_states = site.get("initial_states", {})
 
-        # --- Season Check ---
+            # --- Season Check ---
+            try:
+                lat = props.get("lat", {}).get("value")
+                if lat is not None:
+                    season_check = SeasonCheck(start_date=start_date, end_date=end_date, lat=lat)
+                    season = season_check.get_season()
+                    print(f"[site #{i}] Season detected: {season}")
+
+                    # Update param based on season
+                    if season == "summer": # If summer LAI decidous tree gets LAI decidus tree MAX, if winter MIN, if spring/fall - medium value 
+                        if "snowalb" in initial_states:
+                            print(f"[site #{i}] snowalb BEFORE: {initial_states['snowalb']}")
+                            if isinstance(initial_states["snowalb"], dict):
+                                initial_states["snowalb"]["value"] = None
+                                print(f"[site #{i}] Set 'snowalb.value' to None for summer season (in initial_states)")
+                                print(f"[site #{i}] snowalb AFTER: {initial_states['snowalb']}")
+                            else:
+                                print(f"[site #{i}] Warning: 'snowalb' not in expected dict format")
+                        else:
+                            print(f"[site #{i}] 'snowalb' not present in initial_states")
+                else:
+                    print(f"[site #{i}] Skipping season check: missing lat")
+            except Exception as e:
+                raise ValueError(f"[site #{i}] SeasonCheck failed: {e}")
+
+            # Save modified initial_states back into site
+            site["initial_states"] = initial_states
+    
+            # --- DLS Validator ---
         try:
-            lat = props.get("lat", {}).get("value")
-            if lat is not None:
-                season_check = SeasonCheck(start_date=start_date, end_date=end_date, lat=lat)
-                season = season_check.get_season()
-                print(f"[site #{i}] Season detected: {season}")
+            lng = props.get("lng", {}).get("value")
+            emissions = props.get("anthropogenic_emissions", {})
+            tz_field = props.setdefault("timezone", {})
 
-                # Update param based on season
-                if season == "summer":
-                    # Set snowalbmax to None if present
-                    if "snowalbmax" in props:
-                        props["snowalbmax"] = None
-                        print(f"[site #{i}] Set 'snowalbmax' to None for summer season")
+            if lat is not None and lng is not None:
+                dls_validator = DLSCheck(
+                    lat=lat,
+                    lng=lng,
+                    year=2014  # replace with dynamic run_year if available
+                )
+                start_dls, end_dls, tz_name = dls_validator.compute_dst_transitions()
+
+                if start_dls is not None and end_dls is not None:
+                    emissions.setdefault("startdls", {})["value"] = start_dls
+                    emissions.setdefault("enddls", {})["value"] = end_dls
+                    print(f"[site #{i}] DLS populated: start={start_dls}, end={end_dls}")
+                else:
+                    print(f"[site #{i}] Unable to compute full DST dates")
+
+                if tz_name:
+                    tz_field["value"] = tz_name
+                    print(f"[site #{i}] Timezone set to '{tz_name}'")
+
+                # Save updates back
+                props["anthropogenic_emissions"] = emissions
+                site["properties"] = props
             else:
-                print(f"[site #{i}] Skipping season check: missing lat")
+                print(f"[site #{i}] Skipping DLS: missing lat/lng")
         except Exception as e:
-            raise ValueError(f"[site #{i}] SeasonCheck failed: {e}")
+            raise ValueError(f"[site #{i}] DLS validation failed: {e}")
 
-        # Update back the modified site properties - p0
-        site["properties"] = props
-        # add here a yaml save
-
-    # Update back the full config data
-    data["site"] = sites_data
-    return data
-
-            # # --- DLS Validator ---
-            # try:
-            #     lng = props.get("lng", {}).get("value")
-            #     emissions = props.get("anthropogenic_emissions", {})
-            #     startdls = emissions.get("startdls", {}).get("value")
-            #     enddls = emissions.get("enddls", {}).get("value")
-
-            #     if lat is None or lng is None:
-            #         raise ValueError("Missing lat or lng for DLS check")
-
-            #     dlsvalidator = DLSValidator(
-            #         lat=lat,
-            #         lng=lng,
-            #         startdls=startdls,
-            #         enddls=enddls,
-            #         year=run_year  # hardcoded for now
-            #     )
-            #     dlsvalidator.validate_dls()
-            # except Exception as e:
-            #     raise ValueError(f"[site #{i}] DLS validation failed: {e}")
+        # Update full config with modified sites
+        data["site"] = sites_data
+        return data
 
             # # --- Land Cover Validator ---
             # landcover_data = props.get("land_cover") or props.get("landcover")
@@ -151,8 +169,6 @@ def precheck(cls, data):
             #     LandCover(**landcover_data)
             # except ValidationError as e:
             #     raise ValueError(f"[site #{i}] Invalid land_cover: {e}")
-
-
 
 
     @classmethod

@@ -9,7 +9,7 @@ Installation
 Formal releases
 ---------------
 
-Since 2023, SUEWS is available as a command line tool via its Python wrapper package `SuPy (SUEWS in Python) <SuPy>`_ on `PyPI`_ and `conda-forge`_.
+Since 2023, SUEWS is available as a command line tool via its Python wrapper package `SuPy (SUEWS in Python) <SuPy>`_ on `PyPI`_.
 
 .. note::
 
@@ -54,11 +54,7 @@ One can install ``supy`` using ``pip``:
 
 
 
-
-
-
 .. _PyPI: https://pypi.org/project/supy/
-.. _conda-forge: https://anaconda.org/conda-forge/supy
 .. _mamba: https://github.com/mamba-org/mamba
 .. _SuPy: :ref:`supy_index`
 

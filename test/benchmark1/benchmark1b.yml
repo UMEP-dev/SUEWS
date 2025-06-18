@@ -36,7 +36,7 @@ model:
       value: 0
     stebbsmethod:
       value: 0
-site:
+sites:
 - name: KCL
   gridiv: 1
   properties:

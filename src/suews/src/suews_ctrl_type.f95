@@ -519,7 +519,7 @@ MODULE SUEWS_DEF_DTS
       REAL(KIND(1D0)) :: alt ! solar altitude [deg]
       INTEGER :: gridiv ! grid id [-]
       REAL(KIND(1D0)) :: timezone ! time zone, for site relative to UTC (east is positive) [h]
-      REAL(KIND(1D0)) :: surfacearea ! area of the grid [ha]
+      REAL(KIND(1D0)) :: surfacearea ! area of the grid [m2]
       REAL(KIND(1D0)) :: z ! measurement height [m]
       REAL(KIND(1D0)) :: z0m_in ! roughness length for momentum [m]
       REAL(KIND(1D0)) :: zdm_in ! zero-plane displacement [m]
@@ -992,7 +992,7 @@ MODULE SUEWS_DEF_DTS
       REAL(KIND(1D0)) :: Tair_av_5d ! 5-day moving average of air temperature [degC]
       REAL(KIND(1D0)) :: U !
       REAL(KIND(1D0)) :: rain !
-      REAL(KIND(1D0)) :: Wuh !  external water use
+      REAL(KIND(1D0)) :: Wu_m3 !  external water use amount in m3 for each timestep
       REAL(KIND(1D0)) :: fcld !
       REAL(KIND(1D0)) :: LAI_obs !
       REAL(KIND(1D0)) :: snowfrac !

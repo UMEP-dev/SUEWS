@@ -47,7 +47,7 @@ Then source code of SPARTACUS will be loaded into `ext_lib/spartacus-surface`
 ```shell
 mamba env create -f env.yml
 ```
-This will create a new environment named `suews-dev` with all required packages installed.
+This will create a new environment named `suews-dev` with all required packages for both development and documentation.
 
 3. Activate the environment:
 ```shell

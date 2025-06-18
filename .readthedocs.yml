@@ -8,16 +8,16 @@ version: 2
 build:
   os: ubuntu-22.04
   tools:
-    python: "mambaforge-4.10"
+    python: "mambaforge-latest"
   jobs:
     pre_install:
-      - git update-index --assume-unchanged docs/env.yml docs/source/conf.py
+      - git update-index --assume-unchanged env.yml docs/source/conf.py
       - make dev
     # pre_build:
     #  - python docs/source/related-softwares/supy/proc_var_info/gen_rst.py
 
 conda:
-  environment: docs/env.yml
+  environment: env.yml
 
 # Build documentation in the docs/ directory with Sphinx
 sphinx:

@@ -30,7 +30,7 @@ class SUEWSConfig(BaseModel):
         default_factory=Model,
         description="Model control and physics parameters",
     )
-    site: List[Site] = Field(
+    sites: List[Site] = Field(
         default=[Site()],
         description="List of sites to simulate",
         min_items=1,
@@ -77,9 +77,9 @@ class SUEWSConfig(BaseModel):
     def to_df_state(self) -> pd.DataFrame:
         """Convert config to DataFrame state format"""
         list_df_site = []
-        for i in range(len(self.site)):
-            grid_id = self.site[i].gridiv
-            df_site = self.site[i].to_df_state(grid_id)
+        for i in range(len(self.sites)):
+            grid_id = self.sites[i].gridiv
+            df_site = self.sites[i].to_df_state(grid_id)
             df_model = self.model.to_df_state(grid_id)
             df_site = pd.concat([df_site, df_model], axis=1)
             list_df_site.append(df_site)
@@ -108,7 +108,7 @@ class SUEWSConfig(BaseModel):
 
         # # Reindex the DataFrame using the final column order
         # df = df.reindex(columns=pd.MultiIndex.from_tuples(final_columns))
-        
+
         # # set index name
         # df.index.set_names("grid", inplace=True)
 
@@ -178,7 +178,7 @@ class SUEWSConfig(BaseModel):
             sites.append(site)
 
         # Update config with reconstructed data
-        config.site = sites
+        config.sites = sites
 
         # Reconstruct model
         config.model = Model.from_df_state(df, grid_ids[0])

@@ -5,6 +5,28 @@
 <!-- [doc]: Documentation updates -->
 <!-- [change]: Changes exposed to users -->
 
+- 15 Jun 2025:
+  - [feature] Implemented cross-platform isolated build directories (`/tmp/suews-builds/`) to prevent environment conflicts
+  - [feature] Enhanced `make dev` with automatic environment detection and appropriate build configuration
+  - [feature] Added new Makefile target: `make deactivate` (environment management helper)
+  - [feature] Comprehensive help system with `make help` displaying Quick Start guide and complete command reference
+  - [maintenance] Improved cross-platform compatibility for Windows, macOS, and Linux build environments
+  - [maintenance] Enhanced Makefile with unified development workflow
+  - [maintenance] Added automatic .gitignore rules for SPARTACUS generated files to prevent repository pollution
+  - [bugfix] Resolved meson build conflicts between different Python environments by implementing isolated build directories
+  - [bugfix] Fixed numpy path issues when using virtual environments located within project directory structure
+  - [doc] Updated CLAUDE.md with comprehensive changelog management guidelines and development workflow documentation
+
+- 13 Jun 2025:
+  - [feature] Added YAML-based configuration system with comprehensive conversion tools and interactive web UI (#343)
+  - [feature] Implemented `to_yaml.py` command-line tool for converting legacy table-based inputs to modern YAML format with optional version upgrade support
+  - [feature] Created interactive web-based configuration builder with real-time validation, Bootstrap UI, and YAML/JSON export capabilities
+  - [feature] Added automatic JSON Schema generation from Pydantic data models for configuration validation and UI integration
+  - [doc] Enhanced documentation system with modernised structure and comprehensive migration guides from table-based to YAML-based configuration
+  - [maintenance] Unified development and documentation environments into single `environment.yml` file to simplify workflow and reduce maintenance overhead
+  - [maintenance] Migrated from deprecated `_config.py` to dedicated `data_model` subpackage with type-safe Pydantic models
+  - [maintenance] Improved Windows build compatibility with UCRT support, enhanced CI/CD workflows, and Windows-specific compiler optimisations
+
 - 06 Jun 2025:
   - [doc] Added comprehensive unit documentation to all RefValue parameters in data model, improving dimensional consistency and user understanding of expected parameter scales and ranges (#398)
 

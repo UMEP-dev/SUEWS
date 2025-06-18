@@ -7,8 +7,9 @@ import re
 def get_version_from_git():
     try:
         # Get the most recent tag and the number of commits since that tag
+        # Only match version tags (starting with digits)
         describe_output = (
-            subprocess.check_output(["git", "describe", "--tags", "--long"])
+            subprocess.check_output(["git", "describe", "--tags", "--long", "--match=[0-9]*"])
             .strip()
             .decode("utf-8")
         )

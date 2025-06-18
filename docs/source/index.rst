@@ -10,8 +10,11 @@ SUEWS: Surface Urban Energy and Water Balance Scheme
 What is SUEWS?
 ---------------
 
-Surface Urban Energy and Water Balance Scheme (**SUEWS**) :cite:`J11,W16` is a neighbourhood/local-scale urban land surface model to simulate the urban radiation, energy and water balances using only commonly measured meteorological variables and information about the surface cover.
-SUEWS utilises an evaporation-interception approach :cite:`GO91`, similar to that used in forests, to model evaporation from urban surfaces.
+Surface Urban Energy and Water Balance Scheme (**SUEWS**) :cite:`J11,W16` is a neighbourhood/local-scale urban land surface model delivered through **SuPy**, a comprehensive Python interface that integrates seamlessly with the scientific Python ecosystem.
+
+SUEWS simulates the urban radiation, energy and water balances using only commonly measured meteorological variables and information about the surface cover. The model utilises an evaporation-interception approach :cite:`GO91`, similar to that used in forests, to model evaporation from urban surfaces.
+
+**SuPy** (SUEWS in Python) provides the modern interface for SUEWS with powerful data analysis capabilities, interactive configuration tools, and seamless integration with pandas, matplotlib, and the broader scientific Python stack.
 
 
 .. figure:: /assets/img/SUEWS_Overview_s.png
@@ -34,30 +37,41 @@ Horizontal movement of water above and below ground level is allowed.
 How to get SUEWS?
 ------------------------------
 
-Please follow the guidance in :ref:`installation` to get SUEWS.
+**Modern Python Interface (Recommended):**
+
+.. code-block:: bash
+
+   # Install SuPy (includes SUEWS)
+   pip install supy
+
+**Alternative Installation:**
+
+For legacy table-based workflows, please follow the guidance in :ref:`installation` to get SUEWS.
 
 
 How to use SUEWS?
 ------------------------------
 
-- **For existing users:**
+**Quick Start (Recommended):**
 
-  Overview of changes in this version, see :ref:`new_latest`.
-  If these changes impact your existing simulations, please see appropriate parts of the manual. It may be necessary to adapt some of your input files for for the current version.
+Get started immediately with the :ref:`Getting Started with SUEWS <Workflow>` guide, which provides an interactive tutorial using sample data and modern Python tools.
 
-  .. tip::
+**For new users:**
 
-      A helper python script, `SUEWS table converter <input_converter>`, is provided to help facilitate the conversion of input files between different SUEWS versions.
+1. **Install SuPy**: ``pip install supy``
+2. **Follow tutorials**: Start with :ref:`SUEWS Tutorials <tutorials_suews>` for hands-on learning
+3. **Configure your site**: Use the :ref:`Configuration Guide <Workflow>` and YAML tools
+4. **Explore advanced features**: Multi-site studies, climate impacts, model coupling
 
-  Additionally, the manuals for previous versions can be accessed in respective sections under `version_history`.
+**For existing users:**
 
+- **Migration guide**: :ref:`Transition from table-based inputs <inputs/transition_guide>` to modern YAML configuration
+- **Version changes**: See :ref:`new_latest` for updates in this version
+- **Legacy support**: The `SUEWS table converter <input_converter>` helps convert existing input files
 
-- **For new users:**
+**Scientific Background:**
 
-
-  Before performing SUEWS simulations, new users should read the overview :ref:`introduction`, then follow the steps in `Workflow` to prepare `input files <input_files>` for SUEWS.
-
-  Note there are tutorials learning about running SUEWS available :ref:`the tutorial <tutorials_suews>`.
+Before performing SUEWS simulations, users should understand the :ref:`physical principles <parameterisations-and-sub-models>` and review `input requirements <input_files>` for their specific application.
 
 
 How to get help in using SUEWS?
@@ -111,11 +125,13 @@ How to support SUEWS?
 
    installation
    workflow
-   input_files/input_files
-   output_files/output_files
-   troubleshooting
-   related-softwares/related_softwares
    sub-tutorials/tutorials
+   inputs/index
+   output_files/output_files
+   api
+   data-structures/supy-io
+   integration/index
+   troubleshooting
    benchmark/benchmark_report
    notation
 
@@ -127,7 +143,7 @@ How to support SUEWS?
    :hidden:
 
    contributing/contributing
-   api
+   fortran-api
    acknowledgement
    version-history/version-history
    GitHub repository <https://github.com/UMEP-dev/SUEWS>
@@ -152,4 +168,3 @@ How to support SUEWS?
    :hidden:
 
    GitHub discussion <https://github.com/UMEP-dev/UMEP/discussions>
-

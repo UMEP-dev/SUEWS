@@ -9,6 +9,15 @@
 # 4. build the python extension module
 
 ##################################################################
+# to fix newer windows (later than 2019) build
+if host_machine.system() == 'windows'
+  add_project_arguments(
+    '-D__MINGW_USE_VC_SETJMP=1',
+    language : ['c', 'cpp', 'fortran']
+  )
+endif
+
+##################################################################
 # set the compiler flags
 fortran_compiler = meson.get_compiler('fortran')
 if fortran_compiler.get_id() == 'gcc'
@@ -40,6 +49,13 @@ add_global_arguments(cflags, language: 'c')
 
 # flags for converting f95 to fpp
 fpp_flags = ['-E', '-x', 'f95-cpp-input', '-fPIC']
+
+# Use UCRT for everything when on Windows
+if host_machine.system() == 'windows'
+  # The UCRT64 msys2 environment implicitly handles linking to the UCRT.
+  # Explicitly adding '-mcrtdll=ucrtbase' can fail with older GCC versions.
+  # Note: We don't use -D__USE_MINGW_SETJMP_NON_SEH with UCRT64 as it supports SEH properly
+endif
 ##################################################################
 
 ##################################################################
@@ -245,6 +261,19 @@ dep_suews = [dep_lib_src, dep_lib_suews]
 
 inc_suews_mod = include_directories('../suews/mod')
 
+link_args_windows = []
+c_args_windows = ['-D__MINGW_USE_VC_SETJMP=1']
+
+if host_machine.system() == 'windows'
+  if host_machine.cpu_family() == 'x86'
+    # 32-bit MSVCRT build – link explicitly for _setjmp
+    link_args_windows = ['-lmsvcrt']
+  else
+    # 64-bit: _setjmp is in the default CRT; add mingwex for safety
+    link_args_windows = ['-lmingwex']
+  endif
+endif
+
 ext_supy_driver = py.extension_module(
   '_supy_driver',
   sources: [
@@ -256,15 +285,16 @@ ext_supy_driver = py.extension_module(
     inc_np,
     inc_suews_mod, # the path is relative to the current directory where the meson.build file is located
   ],
+  c_args: c_args_windows,
   dependencies: [
     dep_py,
     dep_fortranobject,
     dep_quadmath,
     dep_suews,
   ],
+  link_args: link_args_windows,
   install: true,
   subdir: 'supy',
-
 )
 
 # move the generated `supy_driver.py` to the correct directory

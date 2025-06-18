@@ -5094,7 +5094,7 @@ CONTAINS
          forcing%snowfrac = MetForcingBlock(ir, 16)
          forcing%ldown = MetForcingBlock(ir, 17)
          forcing%fcld = MetForcingBlock(ir, 18)
-         forcing%Wuh = MetForcingBlock(ir, 19)
+         forcing%Wu_m3 = MetForcingBlock(ir, 19)
          forcing%xsmd = MetForcingBlock(ir, 20)
          forcing%LAI_obs = MetForcingBlock(ir, 21)
 

@@ -1,5 +1,5 @@
 from typing import TypeVar, Optional, Generic
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 import numpy as np
 import pandas as pd
 from enum import Enum
@@ -18,9 +18,18 @@ T = TypeVar("T")
 
 
 class Reference(BaseModel):
-    desc: Optional[str] = None
-    ID: Optional[str] = None
-    DOI: Optional[str] = None
+    desc: Optional[str] = Field(
+        default=None,
+        description="Description of the reference source"
+    )
+    ID: Optional[str] = Field(
+        default=None,
+        description="Identifier for the reference (e.g., citation key)"
+    )
+    DOI: Optional[str] = Field(
+        default=None,
+        description="Digital Object Identifier for the reference"
+    )
 
 
 class RefValue(BaseModel, Generic[T]):
@@ -30,7 +39,7 @@ class RefValue(BaseModel, Generic[T]):
     It handles numeric type conversion and implements comparison operators.
 
     When used in Field definitions for physical quantities, units should be specified:
-    
+
     Examples:
         # Physical quantity with units
         temperature: RefValue[float] = Field(
@@ -38,14 +47,14 @@ class RefValue(BaseModel, Generic[T]):
             description="Air temperature",
             unit="degC"
         )
-        
+
         # Dimensionless ratio
         albedo: RefValue[float] = Field(
             default=RefValue(0.2),
             description="Surface albedo",
             unit="dimensionless"
         )
-        
+
         # Configuration parameter (no unit needed)
         method: RefValue[int] = Field(
             default=RefValue(1),

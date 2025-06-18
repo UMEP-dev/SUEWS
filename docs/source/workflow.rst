@@ -1,16 +1,546 @@
 .. _Workflow:
 
-Workflow of using SUEWS
-==========================
+Getting Started with SUEWS
+===========================
 
-The following is to help with the model setup.
-Note that there are also starting `tutorials`_  for the version of SUEWS in `UMEP`_.
-The version there is the same (i.e. the executable) as the standalone version so you can swap to that later once you have some familiarity.
+SUEWS is a powerful urban climate modelling tool delivered through **SuPy**, a comprehensive Python interface that integrates seamlessly with the scientific Python ecosystem. This guide provides a clear learning path from your first simulation to advanced urban climate research.
 
-Preparatory reading
--------------------
+What is SUEWS?
+--------------
 
-Read the manual and relevant papers (and references therein):
+SUEWS (Surface Urban Energy and Water balance Scheme) is a physics-based model that simulates urban surface energy and water balance through Python. The model helps researchers understand:
+
+- **Urban heat islands** and energy flux dynamics
+- **Urban hydrology** and surface water balance  
+- **Building and vegetation interactions** with the atmosphere
+- **Climate change impacts** on urban environments
+
+**SuPy** (SUEWS in Python) is not just an interface - it IS modern SUEWS. All model functionality is accessed through Python, providing pandas DataFrames for analysis, powerful visualisation capabilities, and seamless integration with the broader scientific Python ecosystem.
+
+Part I: Your First Simulation (Interactive Tutorial)
+----------------------------------------------------
+
+The best way to understand SUEWS is to run it immediately. Follow this interactive tutorial to get hands-on experience.
+
+Installation and Setup
+^^^^^^^^^^^^^^^^^^^^^^^
+
+**Install SuPy:**
+
+.. code-block:: bash
+
+   # Install SuPy (includes SUEWS)
+   pip install supy
+
+**Set up your Python environment:**
+
+.. code-block:: python
+
+   import supy as sp
+   import pandas as pd
+   import matplotlib.pyplot as plt
+   import numpy as np
+   
+   # Verify installation
+   print(f"SuPy version: {sp.__version__}")
+   print("✅ SUEWS is ready to use!")
+
+Quick Start: Sample Data Tutorial
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+**Step 1: Load sample data and run your first simulation**
+
+.. code-block:: python
+
+   # Load built-in sample data - no configuration needed!
+   df_state_init, df_forcing = sp.load_sample_data()
+   
+   # Examine the sample data
+   print("📊 Sample forcing data:")
+   print(f"Period: {df_forcing.index[0]} to {df_forcing.index[-1]}")
+   print(f"Variables: {list(df_forcing.columns)}")
+   print(f"Location: Example urban site")
+   
+   # Run SUEWS simulation  
+   df_output, df_state_final = sp.run_supy(df_forcing, df_state_init)
+   
+   print("\n🎉 Congratulations! You've run your first urban climate simulation.")
+   print(f"Generated {len(df_output)} time steps of urban climate data")
+
+**Step 2: Explore your results**
+
+.. code-block:: python
+
+   # Quick overview of results
+   print("📈 Key output variables:")
+   key_vars = ['QN', 'QF', 'QS', 'QE', 'QH', 'Runoff', 'T2']
+   print(df_output[key_vars].describe().round(2))
+
+**Step 3: Create your first urban climate visualisation**
+
+.. code-block:: python
+
+   # Plot energy balance components
+   fig, axes = plt.subplots(2, 2, figsize=(15, 10))
+   
+   # Daily energy fluxes
+   energy_cols = ['QN', 'QF', 'QS', 'QE', 'QH']
+   df_energy = df_output[energy_cols]
+   daily_energy = df_energy.resample('D').mean()
+   
+   daily_energy.plot(ax=axes[0,0], title='Daily Mean Energy Fluxes')
+   axes[0,0].set_ylabel('Energy Flux (W/m²)')
+   axes[0,0].legend(bbox_to_anchor=(1.05, 1), loc='upper left')
+   
+   # Monthly patterns
+   monthly_energy = df_energy.groupby(df_energy.index.month).mean()
+   monthly_energy.plot(kind='bar', ax=axes[0,1], title='Monthly Energy Balance')
+   axes[0,1].set_ylabel('Energy Flux (W/m²)')
+   axes[0,1].set_xlabel('Month')
+   
+   # Diurnal patterns (summer months)
+   summer_data = df_output[df_output.index.month.isin([6,7,8])]
+   hourly_temp = summer_data.groupby(summer_data.index.hour)['T2'].mean()
+   hourly_temp.plot(ax=axes[1,0], title='Summer Diurnal Temperature Cycle', marker='o')
+   axes[1,0].set_ylabel('Air Temperature (°C)')
+   axes[1,0].set_xlabel('Hour of Day')
+   axes[1,0].grid(True, alpha=0.3)
+   
+   # Runoff vs Precipitation
+   daily_water = df_output[['Rain', 'Runoff']].resample('D').sum()
+   daily_water.plot(ax=axes[1,1], title='Daily Water Balance')
+   axes[1,1].set_ylabel('Water (mm/day)')
+   axes[1,1].legend()
+   
+   plt.tight_layout()
+   plt.show()
+
+Understanding Your Results
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The simulation produces comprehensive urban climate data:
+
+.. list-table:: Key SUEWS Output Variables
+   :widths: 15 20 65
+   :header-rows: 1
+
+   * - Variable
+     - Units
+     - Description
+   * - **QN**
+     - W/m²
+     - Net all-wave radiation (incoming - outgoing)
+   * - **QF**  
+     - W/m²
+     - Anthropogenic heat flux (human activities)
+   * - **QS**
+     - W/m²
+     - Net storage heat flux (thermal mass)
+   * - **QE**
+     - W/m²
+     - Latent heat flux (evaporation/transpiration)
+   * - **QH**
+     - W/m²
+     - Sensible heat flux (air heating)
+   * - **Runoff**
+     - mm
+     - Surface runoff from precipitation
+   * - **T2**
+     - °C
+     - Air temperature at 2m height
+   * - **RH2**
+     - %
+     - Relative humidity at 2m height
+
+.. note::
+
+   **Energy Balance**: The fundamental equation is QN + QF = QS + QE + QH
+   
+   This shows how incoming energy (radiation + anthropogenic) is partitioned between storage in urban materials, evaporation, and heating the air.
+
+**Complete Interactive Tutorial**
+
+For the full hands-on experience, run the complete tutorial notebook:
+
+📓 **Interactive Notebook**: :doc:`Complete Quick Start Tutorial <tutorials/python/quick-start>`
+
+This notebook includes:
+- Detailed explanations of each step
+- Additional visualisation examples  
+- Data exploration exercises
+- Troubleshooting tips
+
+Part II: Configure SUEWS for Your Site
+---------------------------------------
+
+Now that you understand how SUEWS works, let's configure it for your specific research site.
+
+Understanding YAML Configuration
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Modern SUEWS uses YAML configuration files that organise all model parameters in a clear, hierarchical structure. This replaces the legacy table-based approach with a more intuitive format:
+
+.. code-block:: yaml
+
+   # Complete SUEWS configuration example
+   model:
+     control:
+       tstep: 300  # 5-minute time steps
+       forcing_file:
+         value: "Input/Met_Data.txt"
+       start_date: "2015-01-01"
+       end_date: "2015-12-31"
+     physics:
+       netradiationmethod:
+         value: 3  # NARP method
+       storageheatmethod:
+         value: 1  # OHM method
+   
+   sites:
+     - name: MyUrbanSite
+       grid_id:
+         value: 1
+       properties:
+         # Geographic location
+         lat:
+           value: 51.51  # London coordinates
+         lng:
+           value: -0.12
+         alt:
+           value: 35.0
+         # Surface cover fractions (must sum to 1.0)
+         frc_land_cover:
+           Paved:
+             value: 0.43
+           Buildings:
+             value: 0.38
+           Grass:
+             value: 0.15
+           DeciduousTrees:
+             value: 0.04
+         # Surface properties for each land cover type
+         land_cover_params:
+           Paved:
+             alb:
+               value: 0.10  # Albedo
+             emis:
+               value: 0.95  # Emissivity
+           Buildings:
+             alb:
+               value: 0.15
+             emis:
+               value: 0.90
+             bldgh:
+               value: 12.0  # Average building height (m)
+
+Interactive Configuration Builder
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+**For guided configuration setup:**
+
+The `SUEWS Configuration Builder <_static/index.html>`__ provides a web-based interface to create YAML configurations:
+
+1. **Launch the Builder** in your browser
+2. **Enter site details**: coordinates, land cover fractions, measurement heights
+3. **Configure parameters**: surface properties, anthropogenic heat, vegetation
+4. **Validate and export**: download your complete ``config_suews.yml`` file
+
+This approach is ideal for:
+- First-time users learning the parameter structure
+- Quick configuration for standard urban sites
+- Validation of parameter ranges and relationships
+
+Setup Your Site Tutorial
+^^^^^^^^^^^^^^^^^^^^^^^^^
+
+For detailed guidance on configuring SUEWS for your specific site:
+
+📓 **Interactive Tutorial**: :doc:`Setup Your Own Site <tutorials/python/setup-own-site>`
+
+This comprehensive notebook covers:
+- Site characterisation and data collection
+- Land cover fraction determination
+- Parameter estimation techniques
+- Validation and sensitivity testing
+- Common configuration challenges
+
+Using Your Configuration
+^^^^^^^^^^^^^^^^^^^^^^^^
+
+Once you have a YAML configuration file:
+
+.. code-block:: python
+
+   import supy as sp
+   
+   # Note: YAML configuration loading functionality is in development
+   # For now, use sample data or legacy table-based inputs
+   # Future API will include:
+   # config = sp.load_config("path/to/your/config_suews.yml")
+   # df_state_init, df_forcing = sp.prepare_inputs(config)
+   
+   # Current approach for custom configurations:
+   df_state_init, df_forcing = sp.load_sample_data()  # Start with sample data
+   # Then modify parameters as needed using pandas operations
+   
+   # Run simulation for your site
+   df_output, df_state_final = sp.run_supy(df_forcing, df_state_init)
+   
+   # Site-specific analysis
+   print(f"Simulation for {config['sites'][0]['name']}")
+   print(f"Location: {config['sites'][0]['properties']['lat']['value']:.2f}°N, "
+         f"{config['sites'][0]['properties']['lng']['value']:.2f}°E")
+
+Data Requirements and Quality
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+**Essential Data for Your Site:**
+
+- **Meteorological forcing**: Air temperature, humidity, wind speed, radiation, precipitation
+- **Site characteristics**: Land cover fractions, building heights, vegetation properties  
+- **Geographic information**: Latitude, longitude, altitude
+
+**Data Quality Guidelines:**
+
+- Land cover fractions are critical - ensure accuracy :cite:`W16`
+- Quality meteorological data, especially precipitation and radiation :cite:`K18UC`
+- Representative measurement heights above the urban canopy
+- Continuous data without gaps for the simulation period
+
+.. tip::
+
+   **Data Sources**: Use the `UMEP`_ plugin for QGIS to derive land cover fractions from satellite imagery or local spatial datasets.
+
+Part III: Advanced Applications and Research
+---------------------------------------------
+
+SuPy enables sophisticated urban climate research through powerful analysis capabilities and model coupling options.
+
+Multi-Site and Comparative Studies
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+**Parallel Processing for Multiple Sites:**
+
+.. code-block:: python
+
+   import supy as sp
+   from multiprocessing import Pool
+   import pandas as pd
+   
+   # Load sample data and modify for different sites
+   def create_site_config(site_name, lat, lng, urban_fraction):
+       """Create configuration for a single site"""
+       df_state, df_forcing = sp.load_sample_data()
+       
+       # Modify site characteristics
+       # Note: This uses pandas operations until YAML config API is available
+       # df_state.loc[:, ('lat', 0)] = lat
+       # df_state.loc[:, ('lng', 0)] = lng
+       # df_state.loc[:, ('sfr_surf', slice(None))] = urban_fraction
+       
+       return site_name, df_state, df_forcing
+   
+   def run_single_site(site_data):
+       """Run SUEWS for a single site"""
+       site_name, df_state, df_forcing = site_data
+       df_output, df_final = sp.run_supy(df_forcing, df_state)
+       return site_name, df_output
+   
+   # Create configurations for multiple sites
+   site_configs = [
+       create_site_config("London", 51.51, -0.12, [0.4, 0.4, 0.1, 0.1, 0.0, 0.0, 0.0]),
+       create_site_config("Manchester", 53.48, -2.24, [0.3, 0.5, 0.1, 0.1, 0.0, 0.0, 0.0]),
+       create_site_config("Birmingham", 52.48, -1.90, [0.35, 0.45, 0.1, 0.1, 0.0, 0.0, 0.0])
+   ]
+   
+   # Parallel execution across all sites
+   with Pool() as pool:
+       results = pool.map(run_single_site, site_configs)
+   
+   # Combine results for comparative analysis
+   site_outputs = {name: output for name, output in results}
+   
+   # Example: Compare urban heat island intensities
+   monthly_temps = {}
+   for site, df in site_outputs.items():
+       monthly_temps[site] = df.groupby(df.index.month)['T2'].mean()
+   
+   temp_comparison = pd.DataFrame(monthly_temps)
+   temp_comparison.plot(kind='bar', title='Monthly Temperature Comparison')
+
+Climate Change Impact Studies
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+**Scenario-Based Analysis:**
+
+.. code-block:: python
+
+   # Climate scenario analysis
+   scenarios = {
+       'baseline': 'historical_met_data.csv',
+       'rcp45_2050': 'rcp45_2050_met_data.csv', 
+       'rcp85_2050': 'rcp85_2050_met_data.csv'
+   }
+   
+   scenario_results = {}
+   
+   for scenario_name, met_file in scenarios.items():
+       # Load base configuration with sample data
+       df_state, df_forcing = sp.load_sample_data()
+       
+       # Replace meteorological forcing with scenario data
+       # df_forcing = pd.read_csv(met_file)  # Load scenario-specific met data
+       # Note: Actual implementation would load and format the scenario data
+       
+       # Run simulation
+       df_output, _ = sp.run_supy(df_forcing, df_state)
+       scenario_results[scenario_name] = df_output
+   
+   # Calculate climate change impacts
+   baseline = scenario_results['baseline']
+   rcp85 = scenario_results['rcp85_2050']
+   
+   # Temperature changes
+   temp_change = rcp85['T2'].mean() - baseline['T2'].mean()
+   print(f"Projected temperature increase: {temp_change:.1f}°C")
+   
+   # Energy flux changes
+   flux_changes = {
+       'Sensible Heat': rcp85['QH'].mean() - baseline['QH'].mean(),
+       'Latent Heat': rcp85['QE'].mean() - baseline['QE'].mean(),
+       'Storage Heat': rcp85['QS'].mean() - baseline['QS'].mean()
+   }
+
+**Complete Tutorial**: :doc:`Impact Studies <tutorials/python/impact-studies>`
+
+Model Coupling and Integration
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+SuPy enables integration with other atmospheric and urban models:
+
+.. code-block:: python
+
+   # Example: Prepare SUEWS output for WRF coupling
+   def prepare_wrf_coupling(df_suews, grid_config):
+       """Prepare SUEWS output for WRF model coupling"""
+       
+       # Extract surface fluxes for WRF
+       wrf_fluxes = pd.DataFrame({
+           'sensible_heat': df_suews['QH'],
+           'latent_heat': df_suews['QE'],
+           'ground_heat': df_suews['QS'],
+           'momentum_flux': df_suews['Tau'],
+           'surface_temp': df_suews['TSurf']
+       })
+       
+       return wrf_fluxes
+
+**Complete Tutorial**: :doc:`External Model Integration <integration/external-interaction>`
+
+Advanced Analysis Patterns
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+**Urban Heat Island Analysis:**
+
+.. code-block:: python
+
+   # Compare urban vs rural sites
+   def calculate_uhi_intensity(urban_output, rural_output):
+       """Calculate urban heat island intensity"""
+       
+       urban_temp = urban_output['T2']
+       rural_temp = rural_output['T2']
+       
+       # UHI intensity by time of day
+       uhi_diurnal = urban_temp.groupby(urban_temp.index.hour).mean() - \
+                     rural_temp.groupby(rural_temp.index.hour).mean()
+       
+       # Seasonal UHI patterns
+       uhi_seasonal = urban_temp.groupby(urban_temp.index.month).mean() - \
+                      rural_temp.groupby(rural_temp.index.month).mean()
+       
+       return uhi_diurnal, uhi_seasonal
+
+**Energy Balance Analysis:**
+
+.. code-block:: python
+
+   def analyse_energy_balance(df_output):
+       """Comprehensive energy balance analysis"""
+       
+       # Energy balance components
+       energy_in = df_output['QN'] + df_output['QF']
+       energy_out = df_output['QS'] + df_output['QE'] + df_output['QH']
+       
+       # Balance closure
+       balance_error = energy_in - energy_out
+       
+       # Seasonal energy partitioning
+       seasonal_partition = df_output.groupby(df_output.index.month)[
+           ['QS', 'QE', 'QH']].mean()
+       
+       # Bowen ratio (sensible/latent heat)
+       bowen_ratio = df_output['QH'] / df_output['QE']
+       
+       return {
+           'balance_closure': balance_error.std(),
+           'seasonal_partitioning': seasonal_partition,
+           'mean_bowen_ratio': bowen_ratio.mean()
+       }
+
+Migration from Legacy SUEWS
+----------------------------
+
+**For users transitioning from table-based SUEWS:**
+
+The modern SuPy interface offers significant advantages over legacy formats:
+
+- **Streamlined workflow**: Single Python environment for all operations
+- **Better data handling**: Native pandas integration with powerful analysis tools
+- **Advanced capabilities**: Parallel processing, automated validation, model coupling
+- **Future development**: All new features use the SuPy interface
+
+Migration Process
+^^^^^^^^^^^^^^^^^
+
+**Automated Conversion:**
+
+.. code-block:: bash
+
+   # Convert legacy table inputs to modern YAML
+   suews-convert to-yaml -i legacy_input_dir/ -o modern_config.yml
+   
+   # Validate converted configuration
+   supy-validate modern_config.yml
+
+**Testing Your Migration:**
+
+.. code-block:: python
+
+   # For now, manually test configuration changes
+   # Future: config = sp.load_config("migrated_config.yml")
+   # Future: df_state, df_forcing = sp.prepare_inputs(config)
+   
+   # Current approach: Load sample data and verify structure
+   df_state, df_forcing = sp.load_sample_data()
+   
+   # Short validation run
+   df_output, _ = sp.run_supy(df_forcing.head(144), df_state)  # 1 day
+   
+   # Check energy balance
+   print("✅ Migration validation:")
+   print(df_output[['QE', 'QH', 'QS', 'QF']].describe())
+
+Getting Support and Community
+-----------------------------
+
+**SuPy and SUEWS Community:**
+
+- **GitHub Repository**: `SUEWS on GitHub <https://github.com/UMEP-dev/SUEWS>`__ for issues and contributions
+- **Mailing List**: `Join the SUEWS community <https://www.lists.reading.ac.uk/mailman/listinfo/met-suews>`__ for discussions
+- **Documentation**: :doc:`Complete API reference <inputs/yaml/index>` and parameter guides
+
+**Essential Reading:**
 
 .. bibliography:: assets/refs/refs-SUEWS.bib
    :filter: False
@@ -20,344 +550,12 @@ Read the manual and relevant papers (and references therein):
    J14
    W16
 
+**Recent Applications:**
 
-`See other publications with example applications <Recent_publications>`
+See `Recent Publications <Recent_publications>`__ for the latest research using SUEWS and SuPy.
 
-Decide what type of model run you are interested in
----------------------------------------------------
+**Training and Workshops:**
 
-.. list-table::
-   :widths: 50 50
-   :header-rows: 1
+The SUEWS community regularly organises training workshops and webinars. Check the mailing list for announcements of upcoming events.
 
-   * -
-     - Available in this release
-   * - SUEWS at a point or for an individual area
-     - Yes
-   * - SUEWS for multiple grids or areas
-     - Yes
-   * - SUEWS with Boundary Layer (BL)
-     - Yes
-   * - SUEWS with snow
-     - Yes
-
-Download the program and example data files
--------------------------------------------
-
-Visit the `SUEWS download page`_ to receive a link to download the program and example data files.
-Select the appropriate compiled version for your platform to download.
-There is also a python-based version in `UMEP`_ under the QGIS environment.
-For python users, `SuPy <https://supy.readthedocs.io/en/latest/>` - a python wrapper for SUEWS - is also available.
-
-Note, as the definition of long double precision varies between
-computers (e.g. Mac vs Windows) slightly different results may occur in
-the output files.
-
-Test/example files are shipped in the archive with the SUEWS executable, which are based on measurements of the London KCL site, 2011 data (denoted :code:`Kc11`)
-
-In the following, :code:`SS` is the site code (e.g. :code:`Kc`), :code:`ss` the grid ID, :code:`YYYY` the year and :code:`tt` the time interval.
-
-.. list-table::
-   :widths: 33 33 33
-   :header-rows: 1
-
-   * - Filename
-     - Description
-     - Input/output
-   * - `SSss_data.txt <met_input>`
-     - Meteorological input
-     - Input file (60-min)
-   * - `SSss_YYYY_data_5.txt <met_input>`
-     - Meteorological input
-     - Input file (5-min)
-   * - `InitialConditionsSSss <Initial_Conditions>`
-     - Initial conditions
-     - Input - _YYYY.nml(+) file
-   * - `SUEWS_***.txt <SUEWS Site Information>`
-     - Property look-up tables
-     - Input text files containing all other input information
-   * - `RunControl.nml`
-     - Sets model run
-     - Input (located in options main directory)
-   * - `SS_Filechoices.txt <file_choices>`
-     - Summary of model run
-     - Output  options
-   * - `SSss_YYYY_5.txt <SSss_YYYY_SUEWS_TT.txt>`
-     - (Optional) 5-min
-     - Output resolution output file
-   * - `SSss_YYYY_60.txt <SSss_YYYY_SUEWS_TT.txt>`
-     - 60-min resolution
-     - Output output file
-   * - `SSss_DailyState.txt <SSss_DailyState.txt>`
-     - Daily state variables
-     - Output (all years in one file)
-
-
-
-
-
-(+) There is a second file InitialConditionsSSss_YYYY_EndOfRun.nml or InitialConditionsSSss_YYYY+1.nml in the input directory.
-At the end of the run, and at the end of each year of the run, these files are written out so that this information could be used to initialize further model runs.
-
-Run the model for example data
-------------------------------
-
-Before running the model with your own data, check that you get the same results as the test run example files provided.
-Copy the example output files elsewhere so you can compare the results.
-When you run the program it will write over the supplied files.
-
-To run the model you can use **Command Prompt** (in the directory where the programme is located type the model name) or just double click the executable file.
-
-Please see `Troubleshooting` if you have problems running the model.
-
-Preparation of data
--------------------
-
-.. tip:: If you need help preparing the data you can use some of the `UMEP`_ tools.
-
-
-The information required to run SUEWS for your site consists of:
-
-- Continuous *meteorological forcing data* for the entire period to be modelled without gaps.
-
-- Knowledge of the *surface and soil conditions immediately prior to the first model timestep*.
-
-  .. note::
-    If these initial conditions are unknown, model spin-up can help; i.e. run the model and use the output at the end of the run to infer the conditions at the start of the main run).
-    Spin-up is important for getting appropriate initial conditions for the model.
-    An example of a spin-up can be found in :cite:t:`K18WRR`.
-
-- The *location of the site* (latitude, longitude, altitude).
-
-- Information about the *characteristics of the surface*, including land cover, heights of buildings and trees, radiative characteristics (e.g. albedo, emissivity), drainage characteristics, soil characteristics, snow characteristics, phenological characteristics (e.g. seasonal cycle of LAI).
-
-  .. note::
-   For guidance on how to derive parameters related to LAI, albedo, surface conductance and surface roughness, the reader is referred to this `link <https://gmd.copernicus.org/preprints/gmd-2020-148/>`_.
-
-- Information about *human behaviour*, including energy use and water use (e.g. for irrigation or street cleaning) and snow clearing (if applicable).
-
-  .. note::
-    The anthropogenic energy use and water use may be provided as a time series in the meteorological forcing file (by setting `EmissionsMethod` = 0) if these data are available or modelled based on parameters provided to the model, including population density, hourly and weekly profiles of energy and water use, information about the proportion of properties using irrigation and the type of irrigation (automatic or manual).
-
-It is particularly important to ensure the following input information is appropriate and representative of the site:
-
--  Fractions of different land cover types and (less so) heights of buildings :cite:`W16`
--  Accurate meteorological forcing data, particularly precipitation and incoming shortwave radiation :cite:`K18UC`
--  Initial soil moisture conditions :cite:`BG14`
--  Anthropogenic heat flux parameters, particularly if there are considerable energy emissions from transport, buildings, metabolism, etc :cite:`W16`.
--  External water use (if irrigation or street cleaning occurs)
--  Snow clearing (if running the snow option)
--  Surface conductance parameterisation :cite:`J11, W16`
-
-SUEWS can be run either for an individual area or for multiple areas.
-There is no requirement for the areas to be of any particular shape but here we refer to them as model 'grids'.
-
-Preparation of site characteristics and model parameters
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-The area to be modelled is described by a set of characteristics that are specified in the `SUEWS_SiteSelect.txt` file.
-Each row corresponds to one model grid for one year (i.e. running a single grid over three years would require three rows; running two grids over two years would require four rows).
-Characteristics are often selected by a code for a particular set of conditions.
-For example, a specific soil type (links to `SUEWS_Soil.txt`) or characteristics of deciduous trees in a particular region (links to `SUEWS_Veg.txt`).
-The intent is to build a library of characteristics for different types of urban areas.
-The codes are specified by the user, must be integer values and must be unique within the first column of each input file, otherwise the model will return an error.
-
-.. note::
-   The first column of `SUEWS_SiteSelect.txt` the is labelled 'Grid' and can contain repeat values for different years.
-   See `Input_files` for details. Note `UMEP`_ maybe helpful for components of this.
-
-Land cover
-^^^^^^^^^^
-
-For each grid, the land cover must be classified using the following
-surface types:
-
-.. list-table::
-   :widths: 25 25 50
-   :header-rows: 1
-   :stub-columns: 1
-
-   * - Classification
-     - Surface type
-     - File where characteristics are specified
-   * - Non-vegetated
-     - Paved surfaces
-     - `SUEWS_NonVeg.txt`
-   * -
-     - Building
-     - `SUEWS_NonVeg.txt`
-   * -
-     - Bare soil
-     - `SUEWS_NonVeg.txt`
-   * - Vegetation
-     - Evergreen trees
-     - `SUEWS_Veg.txt`
-   * -
-     - Deciduous trees
-     - `SUEWS_Veg.txt`
-   * -
-     - Grass
-     - `SUEWS_Veg.txt`
-   * - Water
-     - Water
-     - `SUEWS_Water.txt`
-   * - Snow
-     - Snow
-     - `SUEWS_Snow.txt`
-
-
-The surface cover fractions (i.e. proportion of the grid taken up by each surface) must be specified in `SUEWS_SiteSelect.txt`.
-The surface cover fractions are **critical**, so make certain that the different surface cover fractions are appropriate for your site.
-
-For some locations, land cover information may be already available
-(e.g. from various remote sensing resources).
-If not, websites like Bing Maps and Google Maps allow you to see aerial images of your site and can be used to estimate the relative proportion of each land cover type.
-If detailed spatial datasets are available, `UMEP`_ allows for a direct link to a GIS environment using QGIS.
-
-.. _anthropogenic-heat-flux-qf-1:
-
-Anthropogenic heat flux (|QF|)
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-You can either model |QF| within SUEWS or provide it as an input.
-
--  To model it population density is needed as an input for LUMPS and SUEWS to calculate |QF|.
--  If you have no information about the population of the site we recommend that you use the `LUCY`_ model :cite:`A11, L13` to estimate the anthropogenic heat flux which can then be provided as input SUEWS along with the meteorological forcing data.
-
-Alternatively, you can use the updated version of LUCY called `LQF`_, which is included in `UMEP`_.
-
-Other information
-^^^^^^^^^^^^^^^^^
-
-The surface cover fractions and population density can have a major impact on the model output.
-However, it is important to consider the suitability of all parameters for your site.
-Using inappropriate parameters may result in the model returning an error or, worse, generating output that is simply not representative of your site.
-Please read the section on `input_files`.
-Recommended or reasonable ranges of values are suggested for some parameters, along with important considerations for how to select appropriate values for your site.
-
-.. _data_entry:
-
-Data Entry
-^^^^^^^^^^
-
-To create the series of input text files describing the characteristics of your site, there are three options:
-
-#. Data can be entered directly into the input text files.
-   The example (.txt) files provide a template to create your own files which can be edited with :ref:`A_text_editor` directly.
-#. Use `UMEP`_.
-
-
-Note that in all txt files:
-
--  The first two rows are headers: the first row is the column number; the second row is the column name.
--  The names and order of the columns should not be altered from the templates, as these are checked by the model and errors will be returned if particular columns cannot be found.
--  Since v2017a it is no longer necessary for the meteorological forcing data to have two rows with -9 in column 1 as their last two rows.
--  “!” indicates a comment, so any text following "!" on the same line will not be read by the model.
--  If data are unavailable or not required, enter the value -999 in the correct place in the input file.
--  Ensure the units are correct for all input information. See `Input_files` for a description of parameters.
-
-In addition to these text files, the following files are also needed to
-run the model.
-
-Preparation of the RunControl file
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-In the `RunControl.nml` file the site name (:code:`SS`) and directories for the model input and output are given. This means **before running** the model (even the with the example datasets) you must either
-
-#. open the `RunControl.nml` file and edit the input and output file paths and the site name (with a :ref:`A_text_editor`) so that they are correct for your setup, or
-#. create the directories specified in the RunControl.nml file
-
-From the given site identification the model identifies the input files
-and generates the output files. For example if you specify::
-
-    FileOutputPath = “C:\FolderName\SUEWSOutput\” 
-
-and use site code SS the model creates an output file::
-
-    C:\FolderName\SUEWSOutput\SSss_YYYY_TT.txt 
-
-.. note:: The path separator differs between Windows (backslash: ``\``) and Linux/Mac (slash, or forward slash: ``/``).
-
-
-If the file paths are not correct the program will return an error when
-run and write the error to the `problems.txt` file.
-
-Preparation of the Meteorological forcing data
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-The model time-step is specified in `RunControl.nml` (5 min is highly recommended).
-If meteorological forcing data are not available at this resolution, SUEWS has the option to downscale (e.g. hourly) data to the time-step required. See details about the `SSss_YYYY_data_tt.txt` to learn more about choices of data input.
-Each grid can have its own meteorological forcing file, or a single file can be used for all grids.
-The forcing data should be representative of the local-scale, i.e. collected (or derived) above the height of the roughness elements (buildings and trees).
-
-Preparation of the InitialConditions file
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-Information about the surface state and meteorological conditions just before the start of the run are provided in the Initial Conditions file.
-At the very start of the run, each grid can have its own Initial Conditions file, or a single file can be used for all grids.
-For details see `Initial_Conditions`.
-
-Run the model for your site
----------------------------
-
-To run the model you can use **Command Prompt** (in the directory where the programme is located type the model name) or just double click the executable file.
-
-Please see `Troubleshooting` if you have problems running the model.
-
-
-
-Analyse the output
-------------------
-
-It is a good idea to perform initial checks that the model output looks reasonable.
-
-.. list-table::
-   :widths: 20 80
-   :header-rows: 1
-
-   * - Characteristic
-     - Things to check
-   * - Leaf area index
-     - Does the phenology look appropriate?
-        * what does the seasonal cycle of `leaf area index (LAI) <http://glossary.ametsoc.org/wiki/Leaf_area_index>`__ look like?
-        * Are the leaves on the trees at approximately the right time of the year?
-   * - Kdown
-     - Is the timing of diurnal cycles correct for the incoming solar radiation?
-        * Although Kdown is a required input, it is also included in the output file. It is a good idea to check that the timing of Kdown in the output file is appropriate, as problems can indicate errors with the timestamp, incorrect time settings or problems with the disaggregation. In particular, make sure the sign of the longitude is specified correctly in `SUEWS_SiteSelect.txt`.
-        * Checking solar angles (zenith and azimuth) can also be a useful check that the timing is correct.
-   * - Albedo
-     -
-      Is the bulk albedo correct?
-        * This is critical because a small error has an impact on all the fluxes (energy and hydrology).
-        * If you have measurements of outgoing shortwave radiation compare these with the modelled values.
-        * How do the values compare to literature values for your area?
-
-
-
-Summary of files
-----------------
-
-The table below lists the files required to run SUEWS and the output files produced.
-``SS`` is the two-letter code (specified in `RunControl.nml`) representing the site name, ss is the grid identification (integer values between 0 and 2,147,483,647 (largest 4-byte integer)) and ``YYYY`` is the year.
-``TT`` is the resolution of the input/output file and tt is the model time-step.
-
-The last column indicates whether the files are needed/produced once per
-run (1/run), or once per day (1/day), for each year (1/year) or for each
-grid (1/grid)::
-
-    [B] indicates files used with the CBL part of SUEWS (BLUEWS) and therefore are only needed/produced if this option is selected
-    [E] indicates files associated with ESTM storage heat flux models and therefore are only needed/produced if this option is selected
-
-Get in contact
---------------
-For issues met in using SUEWS, we recommend the following ways to get in contact with the developers and the SUEWS community:
-
-#. Report issues on `our GitHub page <https://github.com/UMEP-dev/SUEWS/issues>`_.
-
-#. Ask for help by joining `the Email-list for SUEWS <https://www.lists.reading.ac.uk/mailman/listinfo/met-suews>`_.
-
-
-.. _`tutorials`: http://umep-docs.readthedocs.io/en/latest/Tutorials/Tutorials.html
 .. _`UMEP`: http://umep-docs.readthedocs.io/en/latest/index.html
-.. _`LQF`: http://umep-docs.readthedocs.io/en/latest/OtherManuals/LQF_Manual.html
-.. _`LUCY`: https://UMEP-dev.github.io/LUCY

@@ -153,7 +153,8 @@ class SUEWSConfig(BaseModel):
         with open(path, "r") as file:
             config_data = yaml.load(file, Loader=yaml.FullLoader)
         
-        if use_conditional_validation and _validation_available:
+        
+        if use_conditional_validation and _validation_available: #_validation_available is always FALSE -- need to fix this
             # Step 1: Pre-validation with enhanced validation
             try:
                 enhanced_from_yaml_validation(config_data, strict=strict)

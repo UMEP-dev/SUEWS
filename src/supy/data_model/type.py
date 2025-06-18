@@ -117,6 +117,8 @@ class RefValue(BaseModel, Generic[T]):
 
     def __ge__(self, other):
         """Greater than or equal comparison operator"""
+        if self.value is None:
+            return True
         if isinstance(other, RefValue):
             return self.value >= other.value
         return self.value >= other

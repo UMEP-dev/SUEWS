@@ -79,28 +79,45 @@ class SUEWSConfig(BaseModel):
         except ValueError:
             return (col[0], col[1])
 
-    @model_validator(mode="before")
-    @classmethod
-    def precheck(cls, data):
-        sites_data = data.get("site", [])
-        if not isinstance(sites_data, list):
-            raise TypeError("Expected 'site' to be a list.")
+@model_validator(mode="before")
+@classmethod
+def precheck(cls, data):
+    sites_data = data.get("site", [])
+    if not isinstance(sites_data, list):
+        raise TypeError("Expected 'site' to be a list.")
 
-        for i, site in enumerate(sites_data):
-            props = site.get("properties", {})
+    start_date = "2014-06-20"  # placeholder: to be passed externally
+    end_date = "2014-08-20"
 
-            # --- Season Check  ---
-            try:
-                lat = props.get("lat", {}).get("value")
-                start_date = "2014-06-20"  # hardcoded for now
-                end_date = "2014-08-20" # hardcoded for now
-                if lat is not None:
-                    season_check = SeasonCheck(start_date=start_date, end_date=end_date, lat=lat)
-                    season_check.validate_season()
-                else:
-                    print(f"⚠️ [site #{i}] Skipping season check: missing lat")
-            except Exception as e:
-                raise ValueError(f"[site #{i}] SeasonCheck failed: {e}")
+    for i, site in enumerate(sites_data):
+        props = site.get("properties", {})
+
+        # --- Season Check ---
+        try:
+            lat = props.get("lat", {}).get("value")
+            if lat is not None:
+                season_check = SeasonCheck(start_date=start_date, end_date=end_date, lat=lat)
+                season = season_check.get_season()
+                print(f"[site #{i}] Season detected: {season}")
+
+                # Update param based on season
+                if season == "summer":
+                    # Set snowalbmax to None if present
+                    if "snowalbmax" in props:
+                        props["snowalbmax"] = None
+                        print(f"[site #{i}] Set 'snowalbmax' to None for summer season")
+            else:
+                print(f"[site #{i}] Skipping season check: missing lat")
+        except Exception as e:
+            raise ValueError(f"[site #{i}] SeasonCheck failed: {e}")
+
+        # Update back the modified site properties - p0
+        site["properties"] = props
+        # add here a yaml save
+
+    # Update back the full config data
+    data["site"] = sites_data
+    return data
 
             # # --- DLS Validator ---
             # try:
@@ -117,25 +134,25 @@ class SUEWSConfig(BaseModel):
             #         lng=lng,
             #         startdls=startdls,
             #         enddls=enddls,
-            #         year=2014  # hardcoded for now
+            #         year=run_year  # hardcoded for now
             #     )
             #     dlsvalidator.validate_dls()
             # except Exception as e:
             #     raise ValueError(f"[site #{i}] DLS validation failed: {e}")
 
-            # --- Land Cover Validator ---
-            landcover_data = props.get("land_cover") or props.get("landcover")
-            if landcover_data is None:
-                raise ValueError(f"[site #{i}] Missing 'land_cover' section in site properties")
-            if not isinstance(landcover_data, dict):
-                raise TypeError(f"[site #{i}] 'land_cover' must be a dict, got {type(landcover_data).__name__}")
-            try:
-                print(f"🧪 Validating land_cover for site #{i}...")
-                LandCover(**landcover_data)
-            except ValidationError as e:
-                raise ValueError(f"[site #{i}] Invalid land_cover: {e}")
+            # # --- Land Cover Validator ---
+            # landcover_data = props.get("land_cover") or props.get("landcover")
+            # if landcover_data is None:
+            #     raise ValueError(f"[site #{i}] Missing 'land_cover' section in site properties")
+            # if not isinstance(landcover_data, dict):
+            #     raise TypeError(f"[site #{i}] 'land_cover' must be a dict, got {type(landcover_data).__name__}")
+            # try:
+            #     print(f"🧪 Validating land_cover for site #{i}...")
+            #     LandCover(**landcover_data)
+            # except ValidationError as e:
+            #     raise ValueError(f"[site #{i}] Invalid land_cover: {e}")
 
-        return data
+
 
 
     @classmethod

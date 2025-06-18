@@ -2244,22 +2244,27 @@ class SeasonCheck(BaseModel):
     end_date: str
     lat: float
 
-    def validate_season(self):
+    def get_season(self) -> str:
         try:
             start = datetime.strptime(self.start_date, "%Y-%m-%d").timetuple().tm_yday
             end = datetime.strptime(self.end_date, "%Y-%m-%d").timetuple().tm_yday
         except ValueError:
             raise ValueError("start_date and end_date must be in YYYY-MM-DD format")
 
-        if self.lat >= 0:
-            # summer = approx. DOY 150–250
-            if start > 150 and end < 250:
-                print("[SeasonCheck] Interval falls in summer (Northern Hemisphere)")
-            else:
-                print("[SeasonCheck] Interval not in peak summer (DOY 150–250)")
-        else:
-            # summer = approx. DOY 335–365 and 0–59 (Dec–Feb)
-            if start > 335 or start < 60:
-                print("[SeasonCheck] Interval falls in summer (Southern Hemisphere)")
-            else:
-                print("[SeasonCheck] Interval not in summer (Southern Hemisphere)")
+        if self.lat >= 0:  # Northern Hemisphere
+            if 150 < start < 250 and 150 < end < 250:
+                return "summer"
+            elif 60 < start <= 150 and 60 < end <= 150:
+                return "spring"
+            elif (start <= 60 or start >= 335) and (end <= 60 or end >= 335):
+                return "winter"
+        else:  # Southern Hemisphere
+            # Southern seasons are offset by ~6 months
+            if (start >= 335 or start <= 60) and (end >= 335 or end <= 60):
+                return "summer"
+            elif 61 <= start <= 150 and 61 <= end <= 150:
+                return "fall"  # southern fall = north spring
+            elif 151 <= start <= 250 and 151 <= end <= 250:
+                return "winter"  # southern winter = north summer
+
+        return "unknown"

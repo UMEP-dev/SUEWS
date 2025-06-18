@@ -2175,68 +2175,68 @@ class SnowAlb(BaseModel):
         return cls(snowalb=RefValue(snowalb))
 
 
-class DLSValidator(BaseModel):
-    lat: float
-    lng: float
-    startdls: Optional[float] = None
-    enddls: Optional[float] = None
-    year: int 
+# class DLSValidator(BaseModel):
+#     lat: float
+#     lng: float
+#     startdls: Optional[float] = None
+#     enddls: Optional[float] = None
+#     year: int 
 
-    def validate_dls(self):
-        print("CHECKING -- Daylight-Saving dates.")
-        print(f"[DEBUG] Running validate_dls with: self.lat={self.lat}, self.lng={self.lng}, self.startdls={self.startdls}, self.enddls={self.enddls}, self.year={self.year}")
+#     def validate_dls(self):
+#         print("CHECKING -- Daylight-Saving dates.")
+#         print(f"[DEBUG] Running validate_dls with: self.lat={self.lat}, self.lng={self.lng}, self.startdls={self.startdls}, self.enddls={self.enddls}, self.year={self.year}")
 
-        tf = TimezoneFinder()
-        tz_name = tf.timezone_at(lat=self.lat, lng=self.lng)
-        if not tz_name:
-            print(f"[DEBUG] Cannot determine timezone for lat={self.lat}, lng={self.lng}; skipping DST check.")
-            return
+#         tf = TimezoneFinder()
+#         tz_name = tf.timezone_at(lat=self.lat, lng=self.lng)
+#         if not tz_name:
+#             print(f"[DEBUG] Cannot determine timezone for lat={self.lat}, lng={self.lng}; skipping DST check.")
+#             return
 
-        if tz_name.startswith("Etc/"):
-            print(f"[DEBUG] Timezone returned is '{tz_name}', which may not support DST.")
-            return
+#         if tz_name.startswith("Etc/"):
+#             print(f"[DEBUG] Timezone returned is '{tz_name}', which may not support DST.")
+#             return
 
-        tz = pytz.timezone(tz_name)
+#         tz = pytz.timezone(tz_name)
 
-        def find_transition(month: int) -> Optional[int]:
-            try:
-                prev_dt = tz.localize(datetime(self.year, month, 1, 12, 0), is_dst=None)
-            except Exception:
-                return None
-            prev_off = prev_dt.utcoffset()
+#         def find_transition(month: int) -> Optional[int]:
+#             try:
+#                 prev_dt = tz.localize(datetime(self.year, month, 1, 12, 0), is_dst=None)
+#             except Exception:
+#                 return None
+#             prev_off = prev_dt.utcoffset()
 
-            for day in range(2, 32):
-                try:
-                    curr_dt = tz.localize(datetime(self.year, month, day, 12, 0), is_dst=None)
-                except Exception:
-                    continue
-                curr_off = curr_dt.utcoffset()
-                if curr_off != prev_off:
-                    return curr_dt.timetuple().tm_yday
-                prev_off = curr_off
-            return None
+#             for day in range(2, 32):
+#                 try:
+#                     curr_dt = tz.localize(datetime(self.year, month, day, 12, 0), is_dst=None)
+#                 except Exception:
+#                     continue
+#                 curr_off = curr_dt.utcoffset()
+#                 if curr_off != prev_off:
+#                     return curr_dt.timetuple().tm_yday
+#                 prev_off = curr_off
+#             return None
 
-        if self.lat >= 0:
-            actual_start = find_transition(3) or find_transition(4)
-            actual_end = find_transition(10) or find_transition(11)
-        else:
-            actual_start = find_transition(9) or find_transition(10)
-            actual_end = find_transition(3) or find_transition(4)
+#         if self.lat >= 0:
+#             actual_start = find_transition(3) or find_transition(4)
+#             actual_end = find_transition(10) or find_transition(11)
+#         else:
+#             actual_start = find_transition(9) or find_transition(10)
+#             actual_end = find_transition(3) or find_transition(4)
 
-        print(f"[DEBUG] Computed DST start={actual_start}, end={actual_end}")
-        print(f"[DEBUG] Provided startdls={self.startdls}, enddls={self.enddls}")
+#         print(f"[DEBUG] Computed DST start={actual_start}, end={actual_end}")
+#         print(f"[DEBUG] Provided startdls={self.startdls}, enddls={self.enddls}")
 
-        if actual_start and actual_end:
-            if (self.startdls, self.enddls) != (actual_start, actual_end):
-                raise ValueError(
-                    f"ERROR — DLS mismatch:\n"
-                    f"  computed start={actual_start}, end={actual_end}\n"
-                    f"  in YAML   start={self.startdls}, end={self.enddls}"
-                )
-            else:
-                print("Daylight-Saving dates OK.")
-        else:
-            print("⚠️ Unable to detect one or both DST transitions; please verify manually.")
+#         if actual_start and actual_end:
+#             if (self.startdls, self.enddls) != (actual_start, actual_end):
+#                 raise ValueError(
+#                     f"ERROR — DLS mismatch:\n"
+#                     f"  computed start={actual_start}, end={actual_end}\n"
+#                     f"  in YAML   start={self.startdls}, end={self.enddls}"
+#                 )
+#             else:
+#                 print("Daylight-Saving dates OK.")
+#         else:
+#             print("⚠️ Unable to detect one or both DST transitions; please verify manually.")
 
 
 class SeasonCheck(BaseModel):

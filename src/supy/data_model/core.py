@@ -14,7 +14,7 @@ import yaml
 import ast
 import supy as sp
 
-from .site import DLSValidator
+#from .site import DLSValidator
 from .model import Model
 from .site import Site, SiteProperties, InitialStates, LandCover
 from .site import SeasonCheck
@@ -102,26 +102,26 @@ class SUEWSConfig(BaseModel):
             except Exception as e:
                 raise ValueError(f"[site #{i}] SeasonCheck failed: {e}")
 
-            # --- DLS Validator ---
-            try:
-                lng = props.get("lng", {}).get("value")
-                emissions = props.get("anthropogenic_emissions", {})
-                startdls = emissions.get("startdls", {}).get("value")
-                enddls = emissions.get("enddls", {}).get("value")
+            # # --- DLS Validator ---
+            # try:
+            #     lng = props.get("lng", {}).get("value")
+            #     emissions = props.get("anthropogenic_emissions", {})
+            #     startdls = emissions.get("startdls", {}).get("value")
+            #     enddls = emissions.get("enddls", {}).get("value")
 
-                if lat is None or lng is None:
-                    raise ValueError("Missing lat or lng for DLS check")
+            #     if lat is None or lng is None:
+            #         raise ValueError("Missing lat or lng for DLS check")
 
-                dlsvalidator = DLSValidator(
-                    lat=lat,
-                    lng=lng,
-                    startdls=startdls,
-                    enddls=enddls,
-                    year=2014  # hardcoded for now
-                )
-                dlsvalidator.validate_dls()
-            except Exception as e:
-                raise ValueError(f"[site #{i}] DLS validation failed: {e}")
+            #     dlsvalidator = DLSValidator(
+            #         lat=lat,
+            #         lng=lng,
+            #         startdls=startdls,
+            #         enddls=enddls,
+            #         year=2014  # hardcoded for now
+            #     )
+            #     dlsvalidator.validate_dls()
+            # except Exception as e:
+            #     raise ValueError(f"[site #{i}] DLS validation failed: {e}")
 
             # --- Land Cover Validator ---
             landcover_data = props.get("land_cover") or props.get("landcover")

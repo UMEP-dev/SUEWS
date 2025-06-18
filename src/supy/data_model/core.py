@@ -5,7 +5,7 @@ from pydantic import (
     model_validator,
     field_validator,
     PrivateAttr,
-    conlist,
+    conlist
 )
 import numpy as np
 import pandas as pd
@@ -15,6 +15,7 @@ import supy as sp
 
 from .model import Model
 from .site import Site, SiteProperties, InitialStates
+from .type import SurfaceType
 import os
 
 
@@ -46,6 +47,50 @@ class SUEWSConfig(BaseModel):
             return (col[0], ast.literal_eval(col[1]))
         except ValueError:
             return (col[0], col[1])
+
+    @model_validator(mode="after")
+    def check_forcing(self):
+        from .._load import load_SUEWS_Forcing_met_df_yaml
+        forcing = load_SUEWS_Forcing_met_df_yaml(self.model.control.forcing_file.value)
+        
+        # Cut the forcing data to model period
+        cut_forcing = forcing.loc[self.model.control.start_time: self.model.control.end_time]
+        
+        # Check for missing forcing data
+        missing_data = any(cut_forcing.isna().any())
+        if missing_data:
+            raise ValueError("Forcing data contains missing values.")
+
+        # Check initial meteorology (for initial_states)
+        first_day_forcing = cut_forcing.loc[self.model.control.start_time]
+        first_day_min_temp = first_day_forcing.iloc[0]["Tair"]
+        first_day_precip = first_day_forcing.iloc[0]["rain"] # Could check previous day if available
+
+        # Use min temp for surface temperature states
+        for site in self.sites:
+            for surf_type in SurfaceType:
+                surface = getattr(site.initial_states, surf_type)
+                surface.temperature.value = [first_day_min_temp]*5
+                surface.tsfc = first_day_min_temp
+                surface.tin = first_day_min_temp
+
+        # Use precip to determine wetness state
+        for site in self.sites:
+            for surf_type in SurfaceType:
+                surface_is = getattr(site.initial_states, surf_type)
+                surface_props =getattr(site.properties.land_cover, surf_type)
+                if first_day_precip:
+                    surface_is.state = surface_props.statelimit
+                    surface_is.soilstore = surface_props.soilstorecap
+                    if first_day_min_temp < 4:
+                        surface_is.snowpack = surface_props.snowpacklimit
+                        surface_is.snowfrac = 0.5 # Can these sum to greater than 1?
+                        surface_is.icefrac = 0.5 # Can these sum to greater than 1?
+                        surface_is.snowwater = 1 # TODO: What is the limit to this?
+                        surface_is.snowdens = surface_props.snowdensmax
+                else:
+                    surface_is.state = 0
+        return self
 
     @classmethod
     def from_yaml(cls, path: str) -> "SUEWSConfig":

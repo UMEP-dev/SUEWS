@@ -159,6 +159,41 @@ class SUEWSConfig(BaseModel):
 
             site["initial_states"] = initial_states
 
+            # ── Step 1.1.1: Adjust LAI values for deciduous trees ──
+            try:
+                dectr = props.get("land_cover", {}).get("dectr", {})
+                sfr_dectr = dectr.get("sfr", {}).get("value", 0)
+
+                if sfr_dectr > 0:
+                    lai = dectr.get("lai", {})
+                    laimin = lai.get("laimin", {}).get("value")
+                    laimax = lai.get("laimax", {}).get("value")
+
+                    if laimin is not None and laimax is not None:
+                        if season == "summer":
+                            lai["base"] = {"value": laimax}
+                            print(f"[site #{i}] LAI base set to laimax ({laimax}) for summer")
+                        elif season == "winter":
+                            lai["base"] = {"value": laimin}
+                            print(f"[site #{i}] LAI base set to laimin ({laimin}) for winter")
+                        elif season in ("spring", "fall"):
+                            lai["base"] = {"value": (laimax + laimin) / 2}
+                            print(f"[site #{i}] LAI base set to average of laimax and laimin ({(laimax + laimin) / 2:.2f})")
+                    else:
+                        print(f"[site #{i}] Missing laimin or laimax under lai")
+
+                    dectr["lai"] = lai
+                else:
+                    # sfr == 0 → nullify all lai-related values #this might need to be more specific
+                    if "lai" in dectr:
+                        print(f"[site #{i}] Nullifying all LAI parameters (sfr_dectr = 0)")
+                        for key in dectr["lai"]:
+                            if isinstance(dectr["lai"][key], dict):
+                                dectr["lai"][key]["value"] = None
+                                print (f"Set {key} to {dectr["lai"][key]["value"]}")
+            except Exception as e:
+                raise ValueError(f"[site #{i}] LAI seasonal adjustment failed: {e}")
+
             # ── Step 1.2: Daylight Saving Time & Timezone ──
             try:
                 lng = props.get("lng", {}).get("value")

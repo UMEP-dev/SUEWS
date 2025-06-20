@@ -85,6 +85,23 @@ class SUEWSConfig(BaseModel):
     def precheck(cls, data):
         print("\nStarting precheck procedure...\n")
 
+        # -- Getting initial state info from forcing through yaml ...
+
+        control = data.get("model", {}).get("control", {})
+        start_date = control.get("start_time")
+        end_date = control.get("end_time")
+
+        if not isinstance(start_date, str) or "-" not in start_date:
+            raise ValueError("Missing or invalid 'start_time' in model.control — must be in 'YYYY-MM-DD' format.")
+
+        if not isinstance(end_date, str) or "-" not in end_date:
+            raise ValueError("Missing or invalid 'end_time' in model.control — must be in 'YYYY-MM-DD' format.")
+
+        try:
+            model_year = int(start_date.split("-")[0])
+        except Exception:
+            raise ValueError("Could not extract model year from 'start_time'. Ensure it is in 'YYYY-MM-DD' format.")
+
         # ── Step 0.0: Check model.physics required keys and halt if any .value == "" ──
         model_data = data.get("model", {})
         physics = model_data.get("physics", {})
@@ -129,9 +146,6 @@ class SUEWSConfig(BaseModel):
         sites_data = data.get("sites", [])
         if not isinstance(sites_data, list):
             raise TypeError("Expected 'site' to be a list.")
-
-        start_date = "2014-06-20"  # placeholder
-        end_date = "2014-08-20"
 
         for i, site in enumerate(sites_data):
             props = site.get("properties", {})
@@ -202,7 +216,7 @@ class SUEWSConfig(BaseModel):
                 tz_field = props.setdefault("timezone", {})
 
                 if lat is not None and lng is not None:
-                    dls = DLSCheck(lat=lat, lng=lng, year=2014)
+                    dls = DLSCheck(lat=lat, lng=lng, year=model_year)
                     start_dls, end_dls, tz_name = dls.compute_dst_transitions()
 
                     if start_dls and end_dls:

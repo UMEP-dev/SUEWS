@@ -51,7 +51,7 @@ except ImportError:
     validate_suews_config_conditional = None
     ValidationController = None
     ValidationResult = None
-=======
+
 # post-processing
 from ._post import resample_output
 

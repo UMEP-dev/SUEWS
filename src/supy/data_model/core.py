@@ -271,7 +271,7 @@ class SUEWSConfig(BaseModel):
 
 
     @model_validator(mode="after")
-    def check_forcing(self):
+    def update_initial_states(self):
         from .._load import load_SUEWS_Forcing_met_df_yaml
         forcing = load_SUEWS_Forcing_met_df_yaml(self.model.control.forcing_file.value)
         

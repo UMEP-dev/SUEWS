@@ -64,7 +64,7 @@ class SUEWSConfig(BaseModel):
         description="Model control and physics parameters",
     )
     sites: List[Site] = Field(
-        default=[Site()],
+        default_factory=lambda: [],
         description="List of sites to simulate",
         min_items=1,
     )
@@ -126,7 +126,7 @@ class SUEWSConfig(BaseModel):
         clean_empty_strings(data)
 
         # ── Step 1: Loop through sites ──
-        sites_data = data.get("site", [])
+        sites_data = data.get("sites", [])
         if not isinstance(sites_data, list):
             raise TypeError("Expected 'site' to be a list.")
 
@@ -265,7 +265,7 @@ class SUEWSConfig(BaseModel):
             # Final update
             site["properties"] = props
 
-        data["site"] = sites_data
+        data["sites"] = sites_data
         print("\n Precheck complete. Proceeding with Pydantic validation...\n")
         return data
 

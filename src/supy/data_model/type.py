@@ -93,36 +93,48 @@ class RefValue(BaseModel, Generic[T]):
 
     def __eq__(self, other):
         """Equal comparison operator"""
+        if self.value is None:
+            return True
         if isinstance(other, RefValue):
             return self.value == other.value
         return self.value == other
 
     def __lt__(self, other):
         """Less than comparison operator"""
+        if self.value is None:
+            return True
         if isinstance(other, RefValue):
             return self.value < other.value
         return self.value < other
 
     def __le__(self, other):
         """Less than or equal comparison operator"""
+        if self.value is None:
+            return True
         if isinstance(other, RefValue):
             return self.value <= other.value
         return self.value <= other
 
     def __gt__(self, other):
         """Greater than comparison operator"""
+        if self.value is None:
+            return True
         if isinstance(other, RefValue):
             return self.value > other.value
         return self.value > other
 
     def __ge__(self, other):
         """Greater than or equal comparison operator"""
+        if self.value is None:
+            return True
         if isinstance(other, RefValue):
             return self.value >= other.value
         return self.value >= other
 
     def __ne__(self, other):
         """Not equal comparison operator"""
+        if self.value is None:
+            return True
         if isinstance(other, RefValue):
             return self.value != other.value
         return self.value != other

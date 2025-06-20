@@ -6,6 +6,7 @@ from pydantic import (
     field_validator,
     PrivateAttr,
     conlist,
+    ValidationError
 )
 import numpy as np
 import pandas as pd
@@ -13,9 +14,41 @@ import yaml
 import ast
 import supy as sp
 
+
 from .model import Model
-from .site import Site, SiteProperties, InitialStates
+from .site import Site, SiteProperties, InitialStates, LandCover
+from .site import SeasonCheck, DLSCheck
+
+try:
+    from ..validation import enhanced_from_yaml_validation, enhanced_to_df_state_validation
+    _validation_available = True
+except ImportError:
+    try:
+        from .validation_controller import validate_suews_config_conditional
+        def enhanced_from_yaml_validation(config_data, strict=True):
+            result = validate_suews_config_conditional(config_data, strict=False, verbose=True)
+            if result['errors'] and strict:
+                error_msg = f"SUEWS Configuration Validation Failed: {len(result['errors'])} errors\n"
+                error_msg += "\n".join(f"  - {err}" for err in result['errors'])
+                raise ValueError(error_msg)
+            return result
+        
+        def enhanced_to_df_state_validation(config_data, strict=False):
+            result = validate_suews_config_conditional(config_data, strict=False, verbose=False)
+            if result['errors'] and strict:
+                error_msg = f"Configuration validation found {len(result['errors'])} issues\n"
+                error_msg += "\n".join(f"  - {err}" for err in result['errors'])
+                raise ValueError(error_msg)
+            return result
+        
+        _validation_available = True
+    except ImportError:
+        _validation_available = False
+        enhanced_from_yaml_validation = None
+        enhanced_to_df_state_validation = None
+from .type import SurfaceType
 import os
+import warnings
 
 
 class SUEWSConfig(BaseModel):
@@ -31,7 +64,7 @@ class SUEWSConfig(BaseModel):
         description="Model control and physics parameters",
     )
     sites: List[Site] = Field(
-        default=[Site()],
+        default_factory=lambda: [],
         description="List of sites to simulate",
         min_items=1,
     )
@@ -47,19 +80,306 @@ class SUEWSConfig(BaseModel):
         except ValueError:
             return (col[0], col[1])
 
+    @model_validator(mode="before")
     @classmethod
-    def from_yaml(cls, path: str) -> "SUEWSConfig":
-        """Initialize SUEWSConfig from YAML file.
+    def precheck(cls, data):
+        print("\nStarting precheck procedure...\n")
+
+        # -- Getting initial state info from forcing through yaml ...
+
+        control = data.get("model", {}).get("control", {})
+        start_date = control.get("start_time")
+        end_date = control.get("end_time")
+
+        if not isinstance(start_date, str) or "-" not in start_date:
+            raise ValueError("Missing or invalid 'start_time' in model.control — must be in 'YYYY-MM-DD' format.")
+
+        if not isinstance(end_date, str) or "-" not in end_date:
+            raise ValueError("Missing or invalid 'end_time' in model.control — must be in 'YYYY-MM-DD' format.")
+
+        try:
+            model_year = int(start_date.split("-")[0])
+        except Exception:
+            raise ValueError("Could not extract model year from 'start_time'. Ensure it is in 'YYYY-MM-DD' format.")
+
+        # ── Step 0.0: Check model.physics required keys and halt if any .value == "" ──
+        model_data = data.get("model", {})
+        physics = model_data.get("physics", {})
+
+        required_physics_keys = [
+            "netradiationmethod", "emissionsmethod", "storageheatmethod", "ohmincqf",
+            "roughlenmommethod", "roughlenheatmethod", "stabilitymethod", "smdmethod",
+            "waterusemethod", "diagmethod", "faimethod", "localclimatemethod",
+            "snowuse", "stebbsmethod"
+        ]
+
+        if not isinstance(physics, dict):
+            raise TypeError("[model.physics] Expected a dictionary")
+
+        missing_keys = [k for k in required_physics_keys if k not in physics]
+        if missing_keys:
+            raise ValueError(f"[model.physics] Missing required parameters: {missing_keys}")
+
+        empty_string_keys = [
+            k for k in required_physics_keys
+            if isinstance(physics.get(k), dict) and physics[k].get("value") == (("") or (None))
+        ]
+        if empty_string_keys:
+            raise ValueError(f"[model.physics] Parameters with empty string or null values: {empty_string_keys}")
+
+        # ── Step 0.1: Logic check ──
+        diag = physics.get("diagmethod", {}).get("value")
+        stab = physics.get("stabilitymethod", {}).get("value")
+        if diag == 2 and stab != 3:
+            raise ValueError("Invalid model logic: diagmethod == 2 requires stabilitymethod == 3")
+
+        # ── Step 0.2: Now clean the rest of the config from "" -> None ──
+        def clean_empty_strings(d):
+            for key, val in d.items():
+                if isinstance(val, dict):
+                    clean_empty_strings(val)
+                elif val == "":
+                    d[key] = None
+        clean_empty_strings(data)
+
+        # ── Step 1: Loop through sites ──
+        sites_data = data.get("sites", [])
+        if not isinstance(sites_data, list):
+            raise TypeError("Expected 'site' to be a list.")
+
+        for i, site in enumerate(sites_data):
+            props = site.get("properties", {})
+            initial_states = site.get("initial_states", {})
+
+            # ── Step 1.1: Seasonal check ──
+            try:
+                lat = props.get("lat", {}).get("value")
+                if lat is not None:
+                    season = SeasonCheck(start_date=start_date, end_date=end_date, lat=lat).get_season()
+                    print(f"[site #{i}] Season detected: {season}")
+
+                    if season in ("summer", "tropical", "equatorial") and "snowalb" in initial_states:
+                        snowalb = initial_states["snowalb"]
+                        #print(f"[site #{i}] snowalb BEFORE: {snowalb}")
+                        if isinstance(snowalb, dict):
+                            snowalb["value"] = None
+                            print(f"[site #{i}] Set 'snowalb.value' to None for summer")
+                            #print(f"[site #{i}] snowalb AFTER: {snowalb}")
+                        else:
+                            print(f"[site #{i}] 'snowalb' not in expected format")
+                else:
+                    print(f"[site #{i}] Skipping SeasonCheck (missing lat)")
+            except Exception as e:
+                raise ValueError(f"[site #{i}] SeasonCheck failed: {e}")
+
+            site["initial_states"] = initial_states
+
+            # ── Step 1.1.1: Adjust LAI values for deciduous trees ──
+            try:
+                dectr_props = props.get("land_cover", {}).get("dectr", {})
+                sfr_dectr = dectr_props.get("sfr", {}).get("value", 0)
+
+                if sfr_dectr > 0:
+                    lai_info = dectr_props.get("lai", {})
+                    laimin = lai_info.get("laimin", {}).get("value")
+                    laimax = lai_info.get("laimax", {}).get("value")
+
+                    if laimin is not None and laimax is not None:
+                        if season == "summer":
+                            lai_value = laimax
+                            print(f"[site #{i}] LAI lai_id set to laimax ({laimax}) for summer")
+                        elif season == "winter":
+                            lai_value = laimin
+                            print(f"[site #{i}] LAI lai_id set to laimin ({laimin}) for winter")
+                        elif season in ("spring", "fall"):
+                            lai_value = (laimax + laimin) / 2
+                            print(f"[site #{i}] LAI lai_id set to seasonal average ({lai_value:.2f})")
+                        else:
+                            lai_value = None
+                            print(f"[site #{i}] Season '{season}' not recognized for LAI update")
+                    else:
+                        print(f"[site #{i}] Missing laimin or laimax in land_cover.dectr.lai")
+                        lai_value = None
+
+                    # Set lai_id in initial_states.dectr
+                    if "dectr" in initial_states:
+                        if isinstance(initial_states["dectr"], dict):
+                            initial_states["dectr"]["lai_id"] = {"value": lai_value}
+                        else:
+                            print(f"[site #{i}] initial_states.dectr not in expected dict format")
+                    else:
+                        print(f"[site #{i}] No initial_states.dectr found to set lai_id")
+
+                else:
+                    # sfr == 0 → nullify lai_id in initial_states
+                    if "dectr" in initial_states and isinstance(initial_states["dectr"], dict):
+                        initial_states["dectr"]["lai_id"] = {"value": None}
+                        print(f"[site #{i}] Nullified lai_id in initial_states.dectr (sfr_dectr = 0)")
+            except Exception as e:
+                raise ValueError(f"[site #{i}] LAI seasonal adjustment failed: {e}")
+
+            # ── Step 1.2: Daylight Saving Time & Timezone ──
+            try:
+                lng = props.get("lng", {}).get("value")
+                emissions = props.get("anthropogenic_emissions", {})
+                tz_field = props.setdefault("timezone", {})
+
+                if lat is not None and lng is not None:
+                    dls = DLSCheck(lat=lat, lng=lng, year=model_year)
+                    start_dls, end_dls, tz_name = dls.compute_dst_transitions()
+
+                    if start_dls and end_dls:
+                        emissions.setdefault("startdls", {})["value"] = start_dls
+                        emissions.setdefault("enddls", {})["value"] = end_dls
+                        print(f"[site #{i}] DLS populated: start={start_dls}, end={end_dls}")
+                    else:
+                        print(f"[site #{i}] DLS transitions could not be computed")
+
+                    if tz_name:
+                        tz_field["value"] = tz_name
+                        print(f"[site #{i}] Timezone set to '{tz_name}'")
+
+                    props["anthropogenic_emissions"] = emissions
+                    site["properties"] = props
+                else:
+                    print(f"[site #{i}] Skipping DLS (missing lat/lng)")
+            except Exception as e:
+                raise ValueError(f"[site #{i}] DLS validation failed: {e}")
+
+            # ── Step 1.3: Land cover fraction correction ──
+            landcover_data = props.get("land_cover") or props.get("landcover")
+            if landcover_data is None:
+                raise ValueError(f"[site #{i}] Missing 'land_cover' section")
+            if not isinstance(landcover_data, dict):
+                raise TypeError(f"[site #{i}] 'land_cover' must be a dict")
+
+            try:
+                print(f"[site #{i}] 🧪 Checking land_cover sfr fractions...")
+                sfr_values = {
+                    k: v["sfr"]["value"]
+                    for k, v in landcover_data.items()
+                    if isinstance(v, dict) and "sfr" in v and isinstance(v["sfr"].get("value"), (int, float))
+                }
+
+                total = sum(sfr_values.values())
+
+                if 0.9999 <= total < 1.0:
+                    max_key = max(sfr_values, key=sfr_values.get)
+                    delta = round(1.0 - total, 10)
+                    landcover_data[max_key]["sfr"]["value"] += delta
+                    print(f"[site #{i}] Rounded UP '{max_key}' by {delta:.6f} (total={total:.6f})")
+
+                elif 1.0 < total <= 1.0001:
+                    max_key = max(sfr_values, key=sfr_values.get)
+                    delta = round(total - 1.0, 10)
+                    landcover_data[max_key]["sfr"]["value"] -= delta
+                    print(f"[site #{i}] Rounded DOWN '{max_key}' by {delta:.6f} (total={total:.6f})")
+
+                elif abs(total - 1.0) > 0.0001:
+                    raise ValueError(f"[site #{i}] Invalid land_cover sfr sum: {total:.6f} (must be 1.0)")
+
+                LandCover(**landcover_data)
+                print(f"[site #{i}] Land cover validated.")
+
+                props["land_cover"] = landcover_data
+            except ValidationError as e:
+                raise ValueError(f"[site #{i}] Invalid land_cover: {e}")
+
+            # Final update
+            site["properties"] = props
+
+        data["sites"] = sites_data
+        print("\n Precheck complete. Proceeding with Pydantic validation...\n")
+        return data
+
+
+    @model_validator(mode="after")
+    def update_initial_states(self):
+        from .._load import load_SUEWS_Forcing_met_df_yaml
+        forcing = load_SUEWS_Forcing_met_df_yaml(self.model.control.forcing_file.value)
+        
+        # Cut the forcing data to model period
+        cut_forcing = forcing.loc[self.model.control.start_time: self.model.control.end_time]
+        
+        # Check for missing forcing data
+        missing_data = any(cut_forcing.isna().any())
+        if missing_data:
+            raise ValueError("Forcing data contains missing values.")
+
+        # Check initial meteorology (for initial_states)
+        first_day_forcing = cut_forcing.loc[self.model.control.start_time]
+        first_day_min_temp = first_day_forcing.iloc[0]["Tair"]
+        first_day_precip = first_day_forcing.iloc[0]["rain"] # Could check previous day if available
+
+        # Use min temp for surface temperature states
+        for site in self.sites:
+            for surf_type in SurfaceType:
+                surface = getattr(site.initial_states, surf_type)
+                surface.temperature.value = [first_day_min_temp]*5
+                surface.tsfc = first_day_min_temp
+                surface.tin = first_day_min_temp
+
+        # Use precip to determine wetness state
+        for site in self.sites:
+            for surf_type in SurfaceType:
+                surface_is = getattr(site.initial_states, surf_type)
+                surface_props =getattr(site.properties.land_cover, surf_type)
+                if first_day_precip:
+                    surface_is.state = surface_props.statelimit
+                    surface_is.soilstore = surface_props.soilstorecap
+                    if first_day_min_temp < 4:
+                        surface_is.snowpack = surface_props.snowpacklimit
+                        surface_is.snowfrac = 0.5 # Can these sum to greater than 1?
+                        surface_is.icefrac = 0.5 # Can these sum to greater than 1?
+                        surface_is.snowwater = 1 # TODO: What is the limit to this?
+                        surface_is.snowdens = surface_props.snowdensmax
+                else:
+                    surface_is.state = 0
+        return self
+
+    @classmethod
+    def from_yaml(cls, path: str, use_conditional_validation: bool = True, strict: bool = True) -> "SUEWSConfig":
+        """Initialize SUEWSConfig from YAML file with conditional validation.
 
         Args:
             path (str): Path to YAML configuration file
+            use_conditional_validation (bool): Whether to use conditional validation
+            strict (bool): If True, raise errors on validation failure
 
         Returns:
             SUEWSConfig: Instance of SUEWSConfig initialized from YAML
         """
         with open(path, "r") as file:
-            config = yaml.load(file, Loader=yaml.FullLoader)
-        return cls(**config)
+            config_data = yaml.load(file, Loader=yaml.FullLoader)
+        
+        
+        if use_conditional_validation and _validation_available: #_validation_available is always FALSE -- need to fix this
+            # Step 1: Pre-validation with enhanced validation
+            try:
+                enhanced_from_yaml_validation(config_data, strict=strict)
+            except ValueError:
+                if strict:
+                    raise
+                # Continue with warnings already issued
+            
+            # Step 2: Create config with conditional validation applied
+            try:
+                return cls(**config_data)
+            except Exception as e:
+                if strict:
+                    raise ValueError(f"Failed to create SUEWSConfig after conditional validation: {e}")
+                else:
+                    warnings.warn(f"Config creation warning: {e}")
+                    # Try with model_construct to bypass strict validation
+                    return cls.model_construct(**config_data)
+        elif use_conditional_validation and not _validation_available:
+            warnings.warn("Conditional validation requested but not available. Using standard validation.")
+            # Fall back to original behavior
+            return cls(**config_data)
+        else:
+            # Original behavior - validate everything
+            print ("Entering SUEWSConfig pydantic validator...")
+            return cls(**config_data)
 
     def create_multi_index_columns(self, columns_file: str) -> pd.MultiIndex:
         """Create MultiIndex from df_state_columns.txt"""
@@ -74,19 +394,47 @@ class SUEWSConfig(BaseModel):
 
         return pd.MultiIndex.from_tuples(tuples)
 
-    def to_df_state(self) -> pd.DataFrame:
-        """Convert config to DataFrame state format"""
-        list_df_site = []
-        for i in range(len(self.sites)):
-            grid_id = self.sites[i].gridiv
-            df_site = self.sites[i].to_df_state(grid_id)
-            df_model = self.model.to_df_state(grid_id)
-            df_site = pd.concat([df_site, df_model], axis=1)
-            list_df_site.append(df_site)
+    def to_df_state(self, use_conditional_validation: bool = True, strict: bool = False) -> pd.DataFrame:
+        """Convert config to DataFrame state format with optional conditional validation.
+        
+        Args:
+            use_conditional_validation (bool): Whether to run conditional validation before conversion
+            strict (bool): If True, fail on validation errors; if False, warn and continue
+            
+        Returns:
+            pd.DataFrame: DataFrame containing SUEWS configuration state
+        """
+        if use_conditional_validation and _validation_available:
+            # Pre-validate configuration before conversion
+            config_data = self.model_dump()
+            try:
+                enhanced_to_df_state_validation(config_data, strict=strict)
+            except ValueError:
+                if strict:
+                    raise
+                # Continue with warnings already issued
+        elif use_conditional_validation and not _validation_available:
+            warnings.warn("Conditional validation requested but not available.")
+        
+        # Proceed with DataFrame conversion
+        try:
+            list_df_site = []
+            for i in range(len(self.sites)):
+                grid_id = self.sites[i].gridiv
+                df_site = self.sites[i].to_df_state(grid_id)
+                df_model = self.model.to_df_state(grid_id)
+                df_site = pd.concat([df_site, df_model], axis=1)
+                list_df_site.append(df_site)
 
-        df = pd.concat(list_df_site, axis=0)
-        # remove duplicate columns
-        df = df.loc[:, ~df.columns.duplicated()]
+            df = pd.concat(list_df_site, axis=0)
+            # remove duplicate columns
+            df = df.loc[:, ~df.columns.duplicated()]
+        except Exception as e:
+            if use_conditional_validation and not strict:
+                warnings.warn(f"Error during to_df_state conversion: {e}. This may be due to invalid parameters for disabled methods.")
+                raise
+            else:
+                raise
 
         # # Fix level=1 columns sorted alphabetically not numerically (i.e. 10 < 2)
         # # Filter columns based on level=0 criteria

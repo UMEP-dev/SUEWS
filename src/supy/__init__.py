@@ -42,8 +42,28 @@ from . import util
 # data model
 from . import data_model
 
+# validation functionality
+try:
+    from .validation import validate_suews_config_conditional
+    from .data_model import ValidationController, ValidationResult
+except ImportError:
+    # Validation functionality not available
+    validate_suews_config_conditional = None
+    ValidationController = None
+    ValidationResult = None
+
 # post-processing
 from ._post import resample_output
+
+# validation functionality
+try:
+    from .validation import validate_suews_config_conditional
+    from .data_model import ValidationController, ValidationResult
+except ImportError:
+    # Validation functionality not available
+    validate_suews_config_conditional = None
+    ValidationController = None
+    ValidationResult = None
 
 # version info
 from ._version import show_version, __version__

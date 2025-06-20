@@ -533,6 +533,14 @@ class ModelControl(BaseModel):
         default=0,
         description="Level of diagnostic output (0=none, 1=basic, 2=detailed)",
     )
+    start_time: Optional[str] = Field(
+        default=None,
+        description="Start time of model run. If None use forcing data bounds."
+    )
+    end_time: Optional[str] = Field(
+        default=None,
+        description="End time of model run. If None use forcing data bounds."
+    )
 
     ref: Optional[Reference] = None
 

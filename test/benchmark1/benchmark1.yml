@@ -4,9 +4,11 @@ model:
   control:
     tstep: 300
     forcing_file:
-      value: forcing/
+      value: ../forcing/Kc_Ward2016/
     output_file: output.txt
     diagnose: 0
+    start_time: "2011-01-01"
+    end_time: "2013-12-31"
   physics:
     netradiationmethod:
       value: 3
@@ -49,7 +51,7 @@ sites:
     timezone:
       value: 0
     surfacearea:
-      value: 785000.0
+      value: 785.0
     z:
       value: 40.0
     z0m_in:
@@ -1996,6 +1998,8 @@ sites:
       value: 150
     h_std:
       value: 5.0
+    lambda_c:
+      value: 3.0
   initial_states:
     snowalb:
       value: 0.0

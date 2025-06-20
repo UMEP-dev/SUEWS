@@ -176,36 +176,45 @@ class SUEWSConfig(BaseModel):
 
             # ── Step 1.1.1: Adjust LAI values for deciduous trees ──
             try:
-                dectr = props.get("land_cover", {}).get("dectr", {})
-                sfr_dectr = dectr.get("sfr", {}).get("value", 0)
+                dectr_props = props.get("land_cover", {}).get("dectr", {})
+                sfr_dectr = dectr_props.get("sfr", {}).get("value", 0)
 
                 if sfr_dectr > 0:
-                    lai = dectr.get("lai", {})
-                    laimin = lai.get("laimin", {}).get("value")
-                    laimax = lai.get("laimax", {}).get("value")
+                    lai_info = dectr_props.get("lai", {})
+                    laimin = lai_info.get("laimin", {}).get("value")
+                    laimax = lai_info.get("laimax", {}).get("value")
 
                     if laimin is not None and laimax is not None:
                         if season == "summer":
-                            lai["base"] = {"value": laimax}
-                            print(f"[site #{i}] LAI base set to laimax ({laimax}) for summer")
+                            lai_value = laimax
+                            print(f"[site #{i}] LAI lai_id set to laimax ({laimax}) for summer")
                         elif season == "winter":
-                            lai["base"] = {"value": laimin}
-                            print(f"[site #{i}] LAI base set to laimin ({laimin}) for winter")
+                            lai_value = laimin
+                            print(f"[site #{i}] LAI lai_id set to laimin ({laimin}) for winter")
                         elif season in ("spring", "fall"):
-                            lai["base"] = {"value": (laimax + laimin) / 2}
-                            print(f"[site #{i}] LAI base set to average of laimax and laimin ({(laimax + laimin) / 2:.2f})")
+                            lai_value = (laimax + laimin) / 2
+                            print(f"[site #{i}] LAI lai_id set to seasonal average ({lai_value:.2f})")
+                        else:
+                            lai_value = None
+                            print(f"[site #{i}] Season '{season}' not recognized for LAI update")
                     else:
-                        print(f"[site #{i}] Missing laimin or laimax under lai")
+                        print(f"[site #{i}] Missing laimin or laimax in land_cover.dectr.lai")
+                        lai_value = None
 
-                    dectr["lai"] = lai
+                    # Set lai_id in initial_states.dectr
+                    if "dectr" in initial_states:
+                        if isinstance(initial_states["dectr"], dict):
+                            initial_states["dectr"]["lai_id"] = {"value": lai_value}
+                        else:
+                            print(f"[site #{i}] initial_states.dectr not in expected dict format")
+                    else:
+                        print(f"[site #{i}] No initial_states.dectr found to set lai_id")
+
                 else:
-                    # sfr == 0 → nullify all lai-related values #this might need to be more specific
-                    if "lai" in dectr:
-                        print(f"[site #{i}] Nullifying all LAI parameters (sfr_dectr = 0)")
-                        for key in dectr["lai"]:
-                            if isinstance(dectr["lai"][key], dict):
-                                dectr["lai"][key]["value"] = None
-                                print (f"Set {key} to {dectr["lai"][key]["value"]}")
+                    # sfr == 0 → nullify lai_id in initial_states
+                    if "dectr" in initial_states and isinstance(initial_states["dectr"], dict):
+                        initial_states["dectr"]["lai_id"] = {"value": None}
+                        print(f"[site #{i}] Nullified lai_id in initial_states.dectr (sfr_dectr = 0)")
             except Exception as e:
                 raise ValueError(f"[site #{i}] LAI seasonal adjustment failed: {e}")
 

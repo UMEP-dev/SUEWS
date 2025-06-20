@@ -27,6 +27,12 @@ if host_machine.system() == 'windows'
     # Statically link the universal CRT to avoid mixed CRTs at runtime
     add_project_link_arguments('-lucrt', language : ['c','fortran'])
   endif
+elif host_machine.system() == 'darwin'
+  # macOS-specific configuration for conda gfortran linking issues
+  add_project_link_arguments([
+    '-L/usr/lib', 
+    '-L/System/Library/Frameworks'
+  ], language : ['c','fortran'])
 endif
 
 # find the python installation

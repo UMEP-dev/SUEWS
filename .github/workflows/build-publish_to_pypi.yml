@@ -37,7 +37,6 @@ jobs:
         #   python: ["cp38", "cp39"]
 
       fail-fast: false
-
     env:
       IS_32_BIT: ${{ matrix.buildplat[2] == 'x86' }}
       WHEEL_NAME: ${{ matrix.python }}-${{ matrix.buildplat[1] }}-${{ matrix.buildplat[2] }}

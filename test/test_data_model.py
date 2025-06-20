@@ -40,8 +40,8 @@ class TestSUEWSConfig(unittest.TestCase):
             config_reconst.model.physics.netradiationmethod.value
         )
         self.assertEqual(
-            self.config.site[0].properties.lat.value,
-            config_reconst.site[0].properties.lat.value
+            self.config.sites[0].properties.lat.value,
+            config_reconst.sites[0].properties.lat.value
         )
 
         # Test if DataFrame conversion preserves structure
@@ -136,7 +136,7 @@ class TestSUEWSConfig(unittest.TestCase):
         config = SUEWSConfig(
             name="Multi-site test",
             description="Test configuration with multiple sites",
-            site=[
+            sites=[
                 Site(gridiv=0),
                 Site(gridiv=1),
                 Site(gridiv=2),
@@ -152,8 +152,8 @@ class TestSUEWSConfig(unittest.TestCase):
 
         # Convert back and check if sites are preserved
         config_reconst = SUEWSConfig.from_df_state(df_state)
-        self.assertEqual(len(config_reconst.site), 3)
-        self.assertEqual([site.gridiv for site in config_reconst.site], [0, 1, 2])
+        self.assertEqual(len(config_reconst.sites), 3)
+        self.assertEqual([site.gridiv for site in config_reconst.sites], [0, 1, 2])
 
 
 if __name__ == '__main__':

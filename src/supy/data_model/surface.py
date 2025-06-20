@@ -24,7 +24,7 @@ class ThermalLayers(BaseModel):
         description="Thermal conductivity of each thermal layer",
         unit="W m^-1 K^-1",
     )
-    cv: RefValue[List[float]] = Field(
+    rho_cp: RefValue[List[float]] = Field(
         default=RefValue([1000, 1000, 1000, 1000, 1000]),
         description="Volumetric heat capacity of each thermal layer",
         unit="J m^-3 K^-1",
@@ -70,7 +70,7 @@ class ThermalLayers(BaseModel):
         for i in range(5):
             df_state[(f"dz_{suffix}", f"({idx}, {i})")] = self.dz.value[i]
             df_state[(f"k_{suffix}", f"({idx}, {i})")] = self.k.value[i]
-            df_state[(f"cp_{suffix}", f"({idx}, {i})")] = self.cv.value[i] # TODO: Change df_state to use cv instead of cp
+            df_state[(f"cp_{suffix}", f"({idx}, {i})")] = self.rho_cp.value[i] # TODO: Change df_state to use rho_cp instead of cp
 
         return df_state
 
@@ -95,7 +95,7 @@ class ThermalLayers(BaseModel):
         """
         dz = []
         k = []
-        cv = []
+        rho_cp = []
 
         # Determine suffix based on surf_type
         if surf_type == "roof":
@@ -109,15 +109,15 @@ class ThermalLayers(BaseModel):
         for i in range(5):
             dz.append(df.loc[grid_id, (f"dz_{suffix}", f"({idx}, {i})")])
             k.append(df.loc[grid_id, (f"k_{suffix}", f"({idx}, {i})")])
-            cv.append(df.loc[grid_id, (f"cp_{suffix}", f"({idx}, {i})")])
+            rho_cp.append(df.loc[grid_id, (f"cp_{suffix}", f"({idx}, {i})")])
 
         # Convert to RefValue
         dz = RefValue[List[float]](dz)
         k = RefValue[List[float]](k)
-        cv = RefValue[List[float]](cv)
+        rho_cp = RefValue[List[float]](rho_cp)
 
         # Return reconstructed instance
-        return cls(dz=dz, k=k, cv=cv)
+        return cls(dz=dz, k=k, rho_cp=rho_cp)
 
 
 class SurfaceProperties(BaseModel):
@@ -135,19 +135,22 @@ class SurfaceProperties(BaseModel):
         le=1,
         description="Surface emissivity for longwave radiation",
         unit="dimensionless",
-        default=RefValue(0.95),
+        default=RefValue(
+            value=0.95,
+            ref=Reference(desc="example value description")
+        ),
     )
-    chanohm: Optional[RefValue[float]] = Field(
+    ch_anohm: Optional[RefValue[float]] = Field(
         default=RefValue(0.0),
-        description="Bulk transfer coefficient for this surface to use in AnOHM",
+        description="Bulk transfer coefficient for this surface. Option: AnOHM",
         unit="J m^-3 K^-1",
     )
-    cpanohm: Optional[RefValue[float]] = Field(
+    rho_cp_anohm: Optional[RefValue[float]] = Field(
         default=RefValue(1200.0),
         description="Volumetric heat capacity for this surface to use in AnOHM",
         unit="J m^-3 K^-1",
     )
-    kkanohm: Optional[RefValue[float]] = Field(
+    k_anohm: Optional[RefValue[float]] = Field(
         default=RefValue(0.4),
         description="Thermal conductivity for this surface to use in AnOHM",
         unit="W m^-1 K^-1",
@@ -166,9 +169,9 @@ class SurfaceProperties(BaseModel):
         default_factory=OHM_Coefficient_season_wetness
     )
     soildepth: RefValue[float] = Field(
-        default=RefValue(0.15),
+        default=RefValue(150),
         description="Depth of soil layer for hydrological calculations",
-        unit="m",
+        unit="mm",
     )
     soilstorecap: RefValue[float] = Field(
         default=RefValue(150.0),
@@ -176,7 +179,7 @@ class SurfaceProperties(BaseModel):
         unit="mm",
     )
     statelimit: RefValue[float] = Field(
-        default=RefValue(10.0),
+        default=RefValue(10.0), # TODO: Check if this is an appropriate default
         description="Minimum water storage capacity for state change",
         unit="mm",
     )
@@ -191,7 +194,7 @@ class SurfaceProperties(BaseModel):
         unit="mm s^-1",
     )
     waterdist: Optional[WaterDistribution] = Field(
-        default=None,
+        default=None, # TODO: Can this be None?
         description="Water distribution parameters",
     )
     storedrainprm: StorageDrainParams = Field(
@@ -268,9 +271,9 @@ class SurfaceProperties(BaseModel):
         properties = [
             "sfr",
             "emis",
-            "chanohm",
-            "cpanohm",
-            "kkanohm",
+            "ch_anohm",
+            "rho_cp_anohm",
+            "k_anohm",
             "ohm_coef",
             "ohm_threshsw",
             "ohm_threshwd",
@@ -318,6 +321,18 @@ class SurfaceProperties(BaseModel):
                 value = getattr(self, property)
                 value = value.value if isinstance(value, RefValue) else value
                 set_df_value(f"{property}_surf", value)
+            elif property == "rho_cp_anohm":  # Moved to cp in df_state
+                value = getattr(self, property)
+                value = value.value if isinstance(value, RefValue) else value
+                set_df_value("cpanohm", value)
+            elif property == "ch_anohm":  # Moved to ch in df_state
+                value = getattr(self, property)
+                value = value.value if isinstance(value, RefValue) else value
+                set_df_value("chanohm", value)
+            elif property == "k_anohm":  # Moved to k in df_state
+                value = getattr(self, property)
+                value = value.value if isinstance(value, RefValue) else value
+                set_df_value("kkanohm", value)
             else:
                 value = getattr(self, property)
                 value = value.value if isinstance(value, RefValue) else value
@@ -359,9 +374,9 @@ class SurfaceProperties(BaseModel):
         properties = [
             "sfr",
             "emis",
-            "chanohm",
-            "cpanohm",
-            "kkanohm",
+            "ch_anohm",
+            "rho_cp_anohm",
+            "k_anohm",
             "ohm_coef",
             "ohm_threshsw",
             "ohm_threshwd",
@@ -417,6 +432,15 @@ class SurfaceProperties(BaseModel):
             elif property in ["sfr", "soilstorecap", "statelimit", "wetthresh"]:
                 value = df.loc[grid_id, (f"{property}_surf", f"({surf_idx},)")]
                 property_values[property] = RefValue(value)
+            elif property == "rho_cp_anohm":  # Moved to cp in df_state
+                value = df.loc[grid_id, ("cpanohm", f"({surf_idx},)")]
+                property_values["rho_cp_anohm"] = RefValue(value)
+            elif property == "ch_anohm":  # Moved to ch in df_state
+                value = df.loc[grid_id, ("chanohm", f"({surf_idx},)")]
+                property_values["ch_anohm"] = RefValue(value)
+            elif property == "k_anohm":  # Moved to k in df_state
+                value = df.loc[grid_id, ("kkanohm", f"({surf_idx},)")]
+                property_values["k_anohm"] = RefValue(value)
             else:
                 value = df.loc[grid_id, (property, f"({surf_idx},)")]
                 property_values[property] = RefValue(value)

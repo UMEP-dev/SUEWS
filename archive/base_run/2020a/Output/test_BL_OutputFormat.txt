@@ -1,6 +1,0 @@
-1;2;3;4;5;6;7;8;9;10;11;12;13;14;15;16;17;18;19;20;21;22
-Year;DOY;Hour;Min;Dectime;z;theta;q;theta+;q+;Temp_C;rh;QH_use;QE_use;Press_hPa;avu1;UStar;avdens;lv_J_kg;avcp;gamt;gamq
-Year;Day of Year;Hour;Minute;Decimal time;z;theta;q;theta+;q+;Temp_C;rh;QH_use;QE_use;Press_hPa;avu1;UStar;avdens;lv_J_kg;avcp;gamt;gamq
-YYYY;DOY;HH;MM;-;to_add;to_add;to_add;to_add;to_add;to_add;to_add;to_add;to_add;to_add;to_add;to_add;to_add;to_add;to_add;to_add;to_add
-i0004,1X;i0004,1X;i0004,1X;i0004,1X;f08.4,1X;f10.4,1X;f10.4,1X;f10.4,1X;f10.4,1X;f10.4,1X;f10.4,1X;f10.4,1X;f10.4,1X;f10.4,1X;f10.4,1X;f10.4,1X;f10.4,1X;f10.4,1X;f14.6,1X;f10.4,1X;f10.4,1X;f10.4,1X
-T;T;T;T;T;A;A;A;A;A;A;A;A;A;A;A;A;A;A;A;A;A

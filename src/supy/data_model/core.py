@@ -46,6 +46,7 @@ except ImportError:
         _validation_available = False
         enhanced_from_yaml_validation = None
         enhanced_to_df_state_validation = None
+from .type import SurfaceType
 import os
 import warnings
 
@@ -62,7 +63,7 @@ class SUEWSConfig(BaseModel):
         default_factory=Model,
         description="Model control and physics parameters",
     )
-    site: List[Site] = Field(
+    sites: List[Site] = Field(
         default=[Site()],
         description="List of sites to simulate",
         min_items=1,
@@ -234,6 +235,50 @@ class SUEWSConfig(BaseModel):
         return data
 
 
+    @model_validator(mode="after")
+    def check_forcing(self):
+        from .._load import load_SUEWS_Forcing_met_df_yaml
+        forcing = load_SUEWS_Forcing_met_df_yaml(self.model.control.forcing_file.value)
+        
+        # Cut the forcing data to model period
+        cut_forcing = forcing.loc[self.model.control.start_time: self.model.control.end_time]
+        
+        # Check for missing forcing data
+        missing_data = any(cut_forcing.isna().any())
+        if missing_data:
+            raise ValueError("Forcing data contains missing values.")
+
+        # Check initial meteorology (for initial_states)
+        first_day_forcing = cut_forcing.loc[self.model.control.start_time]
+        first_day_min_temp = first_day_forcing.iloc[0]["Tair"]
+        first_day_precip = first_day_forcing.iloc[0]["rain"] # Could check previous day if available
+
+        # Use min temp for surface temperature states
+        for site in self.sites:
+            for surf_type in SurfaceType:
+                surface = getattr(site.initial_states, surf_type)
+                surface.temperature.value = [first_day_min_temp]*5
+                surface.tsfc = first_day_min_temp
+                surface.tin = first_day_min_temp
+
+        # Use precip to determine wetness state
+        for site in self.sites:
+            for surf_type in SurfaceType:
+                surface_is = getattr(site.initial_states, surf_type)
+                surface_props =getattr(site.properties.land_cover, surf_type)
+                if first_day_precip:
+                    surface_is.state = surface_props.statelimit
+                    surface_is.soilstore = surface_props.soilstorecap
+                    if first_day_min_temp < 4:
+                        surface_is.snowpack = surface_props.snowpacklimit
+                        surface_is.snowfrac = 0.5 # Can these sum to greater than 1?
+                        surface_is.icefrac = 0.5 # Can these sum to greater than 1?
+                        surface_is.snowwater = 1 # TODO: What is the limit to this?
+                        surface_is.snowdens = surface_props.snowdensmax
+                else:
+                    surface_is.state = 0
+        return self
+
     @classmethod
     def from_yaml(cls, path: str, use_conditional_validation: bool = True, strict: bool = True) -> "SUEWSConfig":
         """Initialize SUEWSConfig from YAML file with conditional validation.
@@ -316,9 +361,9 @@ class SUEWSConfig(BaseModel):
         # Proceed with DataFrame conversion
         try:
             list_df_site = []
-            for i in range(len(self.site)):
-                grid_id = self.site[i].gridiv
-                df_site = self.site[i].to_df_state(grid_id)
+            for i in range(len(self.sites)):
+                grid_id = self.sites[i].gridiv
+                df_site = self.sites[i].to_df_state(grid_id)
                 df_model = self.model.to_df_state(grid_id)
                 df_site = pd.concat([df_site, df_model], axis=1)
                 list_df_site.append(df_site)
@@ -353,7 +398,7 @@ class SUEWSConfig(BaseModel):
 
         # # Reindex the DataFrame using the final column order
         # df = df.reindex(columns=pd.MultiIndex.from_tuples(final_columns))
-        
+
         # # set index name
         # df.index.set_names("grid", inplace=True)
 
@@ -423,7 +468,7 @@ class SUEWSConfig(BaseModel):
             sites.append(site)
 
         # Update config with reconstructed data
-        config.site = sites
+        config.sites = sites
 
         # Reconstruct model
         config.model = Model.from_df_state(df, grid_ids[0])

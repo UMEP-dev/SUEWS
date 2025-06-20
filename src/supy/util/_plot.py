@@ -58,6 +58,7 @@ def plot_day_clm(df_var, fig=None, ax=None, show_dif=False, col_ref="Obs"):
     """
     import matplotlib.dates as mdates
     import matplotlib.pyplot as plt
+    from datetime import datetime
 
     if fig is None and ax is None:
         fig, ax = plt.subplots()
@@ -75,7 +76,7 @@ def plot_day_clm(df_var, fig=None, ax=None, show_dif=False, col_ref="Obs"):
     month = df_var.index.month.min()
     day = df_var.index.day.min()
     idx = [
-        pd.datetime(year, month, day, h, m)
+        datetime(year, month, day, h, m)
         for h, m in sorted(grp_sdf_var.groups.keys())
     ]
     idx = pd.date_range(idx[0], idx[-1], periods=len(idx))

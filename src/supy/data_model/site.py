@@ -2241,6 +2241,8 @@ class DLSCheck(BaseModel):
             print(f"[DLS] ❌ Cannot determine timezone for lat={self.lat}, lng={self.lng}")
             return None, None, None
 
+        print(f"[DLS] Timezone identified as '{tz_name}'")
+
         tz = pytz.timezone(tz_name)
 
         def find_transition(month: int) -> Optional[int]:
@@ -2260,6 +2262,16 @@ class DLSCheck(BaseModel):
             except Exception:
                 return None
 
+        # Get timezone integer (standard time, i.e. in winter)
+        try:
+            std_dt = tz.localize(datetime(self.year, 1, 15), is_dst=False)
+            utc_offset_hours = int(std_dt.utcoffset().total_seconds() / 3600)
+            print(f"[DLS] UTC offset in standard time: {utc_offset_hours}")
+        except Exception as e:
+            print(f"[DLS] Failed to compute UTC offset: {e}")
+            utc_offset_hours = None
+
+        # Detect transitions
         if self.lat >= 0:  # Northern Hemisphere
             start = find_transition(3) or find_transition(4)
             end = find_transition(10) or find_transition(11)
@@ -2267,7 +2279,8 @@ class DLSCheck(BaseModel):
             start = find_transition(9) or find_transition(10)
             end = find_transition(3) or find_transition(4)
 
-        return start, end, tz_name
+        return start, end, utc_offset_hours
+
 
 
 class SeasonCheck(BaseModel):

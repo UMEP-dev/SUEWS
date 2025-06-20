@@ -143,13 +143,13 @@ class SUEWSConfig(BaseModel):
                     season = SeasonCheck(start_date=start_date, end_date=end_date, lat=lat).get_season()
                     print(f"[site #{i}] Season detected: {season}")
 
-                    if season == "summer" and "snowalb" in initial_states:
+                    if season in ("summer", "tropical", "equatorial") and "snowalb" in initial_states:
                         snowalb = initial_states["snowalb"]
-                        print(f"[site #{i}] snowalb BEFORE: {snowalb}")
+                        #print(f"[site #{i}] snowalb BEFORE: {snowalb}")
                         if isinstance(snowalb, dict):
                             snowalb["value"] = None
                             print(f"[site #{i}] Set 'snowalb.value' to None for summer")
-                            print(f"[site #{i}] snowalb AFTER: {snowalb}")
+                            #print(f"[site #{i}] snowalb AFTER: {snowalb}")
                         else:
                             print(f"[site #{i}] 'snowalb' not in expected format")
                 else:

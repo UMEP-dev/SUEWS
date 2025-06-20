@@ -2282,6 +2282,17 @@ class SeasonCheck(BaseModel):
         except ValueError:
             raise ValueError("start_date and end_date must be in YYYY-MM-DD format")
 
+        abs_lat = abs(self.lat)
+
+        # Near equator: no season
+        if abs_lat <= 10:
+            return "equatorial"
+
+        # Tropical belt
+        if 10 < abs_lat < 23.5:
+            return "tropical"
+
+        # Standard seasonal logic
         if self.lat >= 0:  # Northern Hemisphere
             if 150 < start < 250 and 150 < end < 250:
                 return "summer"
@@ -2291,16 +2302,14 @@ class SeasonCheck(BaseModel):
                 return "fall"
             elif (start <= 60 or start >= 335) and (end <= 60 or end >= 335):
                 return "winter"
-
         else:  # Southern Hemisphere
-            # Southern seasons are offset by ~6 months
-            if (start >= 335 or start <= 60) and (end >= 335 or end <= 60):
-                return "summer"
-            elif 61 <= start <= 150 and 61 <= end <= 150:
-                return "fall"
-            elif 151 <= start <= 250 and 151 <= end <= 250:
+            if 150 < start < 250 and 150 < end < 250:
                 return "winter"
-            elif 251 <= start <= 334 and 251 <= end <= 334:
+            elif 60 < start <= 150 and 60 < end <= 150:
+                return "fall"
+            elif 250 <= start < 335 and 250 <= end < 335:
                 return "spring"
+            elif (start <= 60 or start >= 335) and (end <= 60 or end >= 335):
+                return "summer"
 
         return "unknown"

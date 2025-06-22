@@ -257,6 +257,23 @@ class LocalClimateMethod(Enum):
     def __repr__(self):
         return str(self.value)
 
+class gsmodel(Enum):
+    """
+    1: original parameterisation (Jarvi et al. 2011)
+    2:new parameterisation (Ward et al. 2016)
+    3:original parameterisation (Jarvi et al. 2011) with 2 m temperature
+    4:new parameterisation (Ward et al. 2016) with 2 m temperature
+    """
+    JARVI = 1
+    WARD = 2
+    JARVI_2M = 3
+    WARD_2M = 4
+
+    def __int__(self):
+        return self.value
+
+    def __repr__(self):
+        return str(self.value)
 
 class StebbsMethod(Enum):
     '''
@@ -384,6 +401,11 @@ class ModelPhysics(BaseModel):
         description="Method used for accounting for local climate effects on surface processes (e.g. near-surface temperature impacts on phenology). Options include none, basic, or detailed approaches",
         unit="dimensionless"
     )
+    gsmodel: RefValue[gsmodel] = Field(
+        default=RefValue(gsmodel.WARD_2M),
+        description="Stomatal conductance model selection",
+        unit="dimensionless"
+    )
     snowuse: RefValue[SnowUse] = Field(
         default=RefValue(SnowUse.DISABLED),
         description="Whether to include snow calculations in the model. 0: snow calculations disabled, 1: snow calculations enabled",
@@ -465,6 +487,7 @@ class ModelPhysics(BaseModel):
             "diagmethod",
             "faimethod",
             "localclimatemethod",
+            "gsmodel",
             "snowuse",
             "stebbsmethod",
         ]
@@ -500,6 +523,7 @@ class ModelPhysics(BaseModel):
             "diagmethod",
             "faimethod",
             "localclimatemethod",
+            "gsmodel",
             "snowuse",
             "stebbsmethod",
         ]

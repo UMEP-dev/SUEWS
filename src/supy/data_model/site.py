@@ -72,11 +72,6 @@ class Conductance(BaseModel):
         description="Maximum incoming shortwave radiation",
         unit="W m^-2"
     )
-    gsmodel: RefValue[int] = Field(
-        default=RefValue(1),
-        description="Stomatal conductance model selection",
-        unit="dimensionless"
-    )
     s1: RefValue[float] = Field(
         default=RefValue(0.2),
         description="Lower soil moisture threshold for conductance response",

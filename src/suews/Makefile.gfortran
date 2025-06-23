@@ -11,10 +11,22 @@ CPPFLAGS = -cpp
 #  to read Fortran unformatted data files as big endian
 BASICFLAGS = -J./mod -fconvert=big-endian
 
+# Fast build mode - skip endian conversion
+ifeq ($(PROFILE),fast)
+BASICFLAGS = -J./mod
+endif
+
 # OpenMP flag
 OMPFLAG = -fopenmp
 
-ifndef DEBUG
+# Check for fast build profile
+ifeq ($(PROFILE),fast)
+# --FAST BUILD CONFIGURATION--
+OPTFLAGS = -O0
+WARNFLAGS = 
+DEBUGFLAGS = 
+
+else ifndef DEBUG
 # --NORMAL CONFIGURATION--
 
 # Optimization flags

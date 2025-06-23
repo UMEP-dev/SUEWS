@@ -589,3 +589,8 @@ docs/source/tutorials/python/df_state.csv
 docs/source/_autosummary/
 
 .claude-parent-branch
+
+# Optimization tools and temporary files
+/tmp/suews-builds/
+ccache-*/
+*.ccache

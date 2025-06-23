@@ -38,7 +38,7 @@ else
 endif
 
 # enable this if we want to use the debug version of SUEWS
-DEBUG=1
+# DEBUG=1  # Commented out for optimized builds
 
 LIBUTILS = $(addprefix $(DIR_LIB_SUEWS),libsuewsutil.a)
 LIBPHYS = $(addprefix $(DIR_LIB_SUEWS),libsuewsphys.a)
@@ -295,15 +295,15 @@ libutil: $(addprefix $(DIR_SRC_SUEWS), $(C_MODULE) $(UTILS))
 	mkdir -p $(DIR_LIB_SUEWS)
 	ar r $(LIBUTILS) $^
 
-libphys: $(addprefix $(DIR_SRC_SUEWS), $(C_MODULE) $(UTILS) $(PHYS))
+libphys: libutil $(addprefix $(DIR_SRC_SUEWS), $(PHYS))
 	@echo "Compiling SUEWS physics modules..."
 	mkdir -p $(DIR_LIB_SUEWS)
-	ar r $(LIBPHYS) $^
+	ar r $(LIBPHYS) $(addprefix $(DIR_SRC_SUEWS), $(C_MODULE) $(UTILS) $(PHYS))
 
-libdriver: $(addprefix $(DIR_SRC_SUEWS), $(C_MODULE) $(UTILS) $(PHYS) $(DRIVER))
+libdriver: libphys $(addprefix $(DIR_SRC_SUEWS), $(DRIVER))
 	@echo "Compiling SUEWS driver module..."
 	mkdir -p $(DIR_LIB_SUEWS)
-	ar r $(LIBDRIVER) $^
+	ar r $(LIBDRIVER) $(addprefix $(DIR_SRC_SUEWS), $(C_MODULE) $(UTILS) $(PHYS) $(DRIVER))
 	@echo "================================================"
 	@echo "SUEWS libraries built successfully."
 	@echo "================================================"

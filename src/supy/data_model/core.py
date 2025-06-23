@@ -14,7 +14,6 @@ import yaml
 import ast
 import supy as sp
 
-
 from .model import Model
 from .site import Site, SiteProperties, InitialStates, LandCover
 from .site import SeasonCheck, DLSCheck
@@ -50,6 +49,128 @@ from .type import SurfaceType
 import os
 import warnings
 
+def run_precheck(data):
+    print("\nStarting precheck procedure...\n")
+
+    control = data.get("model", {}).get("control", {})
+    start_date = control.get("start_time")
+    end_date = control.get("end_time")
+
+    if not isinstance(start_date, str) or "-" not in start_date:
+        raise ValueError("Missing or invalid 'start_time' in model.control — must be in 'YYYY-MM-DD' format.")
+    if not isinstance(end_date, str) or "-" not in end_date:
+        raise ValueError("Missing or invalid 'end_time' in model.control — must be in 'YYYY-MM-DD' format.")
+    try:
+        model_year = int(start_date.split("-")[0])
+    except Exception:
+        raise ValueError("Could not extract model year from 'start_time'. Ensure it is in 'YYYY-MM-DD' format.")
+
+    model_data = data.get("model", {})
+    physics = model_data.get("physics", {})
+
+    required_keys = [
+        "netradiationmethod", "emissionsmethod", "storageheatmethod", "ohmincqf",
+        "roughlenmommethod", "roughlenheatmethod", "stabilitymethod", "smdmethod",
+        "waterusemethod", "diagmethod", "faimethod", "localclimatemethod",
+        "snowuse", "stebbsmethod"
+    ]
+
+    missing_keys = [k for k in required_keys if k not in physics]
+    if missing_keys:
+        raise ValueError(f"[model.physics] Missing required parameters: {missing_keys}")
+
+    empty_keys = [k for k in required_keys if physics.get(k, {}).get("value") in ("", None)]
+    if empty_keys:
+        raise ValueError(f"[model.physics] Parameters with empty string or null values: {empty_keys}")
+
+    if physics["diagmethod"]["value"] == 2 and physics["stabilitymethod"]["value"] != 3:
+        raise ValueError("Invalid model logic: diagmethod == 2 requires stabilitymethod == 3")
+
+    def clean_empty_strings(d):
+        for k, v in d.items():
+            if isinstance(v, dict):
+                clean_empty_strings(v)
+            elif v == "":
+                d[k] = None
+    clean_empty_strings(data)
+
+    for i, site in enumerate(data.get("sites", [])):
+        props = site.get("properties", {})
+        initial_states = site.get("initial_states", {})
+        lat = props.get("lat", {}).get("value")
+        try:
+            if lat is not None:
+                season = SeasonCheck(start_date=start_date, lat=lat).get_season()
+                print(f"[site #{i}] Season detected: {season}")
+                if season in ("summer", "tropical", "equatorial") and "snowalb" in initial_states:
+                    if isinstance(initial_states["snowalb"], dict):
+                        initial_states["snowalb"]["value"] = None
+                        print(f"[site #{i}] Set snowalb to None")
+        except Exception as e:
+            raise ValueError(f"[site #{i}] SeasonCheck failed: {e}")
+
+        dectr = props.get("land_cover", {}).get("dectr", {})
+        sfr = dectr.get("sfr", {}).get("value", 0)
+        if sfr > 0:
+            lai = dectr.get("lai", {})
+            laimin = lai.get("laimin", {}).get("value")
+            laimax = lai.get("laimax", {}).get("value")
+            lai_val = None
+            if laimin is not None and laimax is not None:
+                if season == "summer":
+                    lai_val = laimax
+                elif season == "winter":
+                    lai_val = laimin
+                elif season in ("spring", "fall"):
+                    lai_val = (laimax + laimin) / 2
+            if "dectr" in initial_states:
+                initial_states["dectr"]["lai_id"] = {"value": lai_val}
+        else:
+            if "dectr" in initial_states:
+                initial_states["dectr"]["lai_id"] = {"value": None}
+                print(f"[site #{i}] Nullified lai_id")
+
+        lng = props.get("lng", {}).get("value")
+        emissions = props.get("anthropogenic_emissions", {})
+        if lat is not None and lng is not None:
+            try:
+                dls = DLSCheck(lat=lat, lng=lng, year=model_year)
+                start_dls, end_dls, tz_name = dls.compute_dst_transitions()
+                if start_dls and end_dls:
+                    emissions.setdefault("startdls", {})["value"] = start_dls
+                    emissions.setdefault("enddls", {})["value"] = end_dls
+                    print(f"[site #{i}] DLS: start={start_dls}, end={end_dls}")
+                if tz_name:
+                    props.setdefault("timezone", {})["value"] = tz_name
+                    print(f"[site #{i}] Timezone set to {tz_name}")
+            except Exception as e:
+                raise ValueError(f"[site #{i}] DLSCheck failed: {e}")
+        props["anthropogenic_emissions"] = emissions
+        site["properties"] = props
+
+        land_cover = props.get("land_cover")
+        if not land_cover:
+            raise ValueError(f"[site #{i}] Missing land_cover")
+        sfr_sum = sum(
+            v.get("sfr", {}).get("value", 0)
+            for v in land_cover.values()
+            if isinstance(v, dict)
+        )
+        if 0.9999 <= sfr_sum < 1.0:
+            max_key = max(land_cover, key=lambda k: land_cover[k]["sfr"]["value"])
+            land_cover[max_key]["sfr"]["value"] += 1.0 - sfr_sum
+        elif 1.0 < sfr_sum <= 1.0001:
+            max_key = max(land_cover, key=lambda k: land_cover[k]["sfr"]["value"])
+            land_cover[max_key]["sfr"]["value"] -= sfr_sum - 1.0
+        elif abs(sfr_sum - 1.0) > 0.0001:
+            raise ValueError(f"[site #{i}] Invalid land_cover sfr sum: {sfr_sum:.4f}")
+        try:
+            LandCover(**land_cover)
+        except ValidationError as e:
+            raise ValueError(f"[site #{i}] Invalid land_cover: {e}")
+
+    print("\nPrecheck complete.\n")
+    return data
 
 class SUEWSConfig(BaseModel):
     name: str = Field(
@@ -83,215 +204,7 @@ class SUEWSConfig(BaseModel):
     @model_validator(mode="before")
     @classmethod
     def precheck(cls, data):
-        print("\nStarting precheck procedure...\n")
-
-        # -- Getting initial state info from forcing through yaml ...
-
-        control = data.get("model", {}).get("control", {})
-        start_date = control.get("start_time")
-        end_date = control.get("end_time")
-
-        if not isinstance(start_date, str) or "-" not in start_date:
-            raise ValueError("Missing or invalid 'start_time' in model.control — must be in 'YYYY-MM-DD' format.")
-
-        if not isinstance(end_date, str) or "-" not in end_date:
-            raise ValueError("Missing or invalid 'end_time' in model.control — must be in 'YYYY-MM-DD' format.")
-
-        try:
-            model_year = int(start_date.split("-")[0])
-        except Exception:
-            raise ValueError("Could not extract model year from 'start_time'. Ensure it is in 'YYYY-MM-DD' format.")
-
-        # ── Step 0.0: Check model.physics required keys and halt if any .value == "" ──
-        model_data = data.get("model", {})
-        physics = model_data.get("physics", {})
-
-        required_physics_keys = [
-            "netradiationmethod", "emissionsmethod", "storageheatmethod", "ohmincqf",
-            "roughlenmommethod", "roughlenheatmethod", "stabilitymethod", "smdmethod",
-            "waterusemethod", "diagmethod", "faimethod", "localclimatemethod",
-            "snowuse", "stebbsmethod"
-        ]
-
-        if not isinstance(physics, dict):
-            raise TypeError("[model.physics] Expected a dictionary")
-
-        missing_keys = [k for k in required_physics_keys if k not in physics]
-        if missing_keys:
-            raise ValueError(f"[model.physics] Missing required parameters: {missing_keys}")
-
-        empty_string_keys = [
-            k for k in required_physics_keys
-            if isinstance(physics.get(k), dict) and physics[k].get("value") == (("") or (None))
-        ]
-        if empty_string_keys:
-            raise ValueError(f"[model.physics] Parameters with empty string or null values: {empty_string_keys}")
-
-        # ── Step 0.1: Logic check ──
-        diag = physics.get("diagmethod", {}).get("value")
-        stab = physics.get("stabilitymethod", {}).get("value")
-        if diag == 2 and stab != 3:
-            raise ValueError("Invalid model logic: diagmethod == 2 requires stabilitymethod == 3")
-
-        # ── Step 0.2: Now clean the rest of the config from "" -> None ──
-        def clean_empty_strings(d):
-            for key, val in d.items():
-                if isinstance(val, dict):
-                    clean_empty_strings(val)
-                elif val == "":
-                    d[key] = None
-        clean_empty_strings(data)
-
-        # ── Step 1: Loop through sites ──
-        sites_data = data.get("sites", [])
-        if not isinstance(sites_data, list):
-            raise TypeError("Expected 'site' to be a list.")
-
-        for i, site in enumerate(sites_data):
-            props = site.get("properties", {})
-            initial_states = site.get("initial_states", {})
-
-            # ── Step 1.1: Seasonal check ──
-            try:
-                lat = props.get("lat", {}).get("value")
-                if lat is not None:
-                    season = SeasonCheck(start_date=start_date, end_date=end_date, lat=lat).get_season()
-                    print(f"[site #{i}] Season detected: {season}")
-
-                    if season in ("summer", "tropical", "equatorial") and "snowalb" in initial_states:
-                        snowalb = initial_states["snowalb"]
-                        #print(f"[site #{i}] snowalb BEFORE: {snowalb}")
-                        if isinstance(snowalb, dict):
-                            snowalb["value"] = None
-                            print(f"[site #{i}] Set 'snowalb.value' to None for summer")
-                            #print(f"[site #{i}] snowalb AFTER: {snowalb}")
-                        else:
-                            print(f"[site #{i}] 'snowalb' not in expected format")
-                else:
-                    print(f"[site #{i}] Skipping SeasonCheck (missing lat)")
-            except Exception as e:
-                raise ValueError(f"[site #{i}] SeasonCheck failed: {e}")
-
-            site["initial_states"] = initial_states
-
-            # ── Step 1.1.1: Adjust LAI values for deciduous trees ──
-            try:
-                dectr_props = props.get("land_cover", {}).get("dectr", {})
-                sfr_dectr = dectr_props.get("sfr", {}).get("value", 0)
-
-                if sfr_dectr > 0:
-                    lai_info = dectr_props.get("lai", {})
-                    laimin = lai_info.get("laimin", {}).get("value")
-                    laimax = lai_info.get("laimax", {}).get("value")
-
-                    if laimin is not None and laimax is not None:
-                        if season == "summer":
-                            lai_value = laimax
-                            print(f"[site #{i}] LAI lai_id set to laimax ({laimax}) for summer")
-                        elif season == "winter":
-                            lai_value = laimin
-                            print(f"[site #{i}] LAI lai_id set to laimin ({laimin}) for winter")
-                        elif season in ("spring", "fall"):
-                            lai_value = (laimax + laimin) / 2
-                            print(f"[site #{i}] LAI lai_id set to seasonal average ({lai_value:.2f})")
-                        else:
-                            lai_value = None
-                            print(f"[site #{i}] Season '{season}' not recognized for LAI update")
-                    else:
-                        print(f"[site #{i}] Missing laimin or laimax in land_cover.dectr.lai")
-                        lai_value = None
-
-                    # Set lai_id in initial_states.dectr
-                    if "dectr" in initial_states:
-                        if isinstance(initial_states["dectr"], dict):
-                            initial_states["dectr"]["lai_id"] = {"value": lai_value}
-                        else:
-                            print(f"[site #{i}] initial_states.dectr not in expected dict format")
-                    else:
-                        print(f"[site #{i}] No initial_states.dectr found to set lai_id")
-
-                else:
-                    # sfr == 0 → nullify lai_id in initial_states
-                    if "dectr" in initial_states and isinstance(initial_states["dectr"], dict):
-                        initial_states["dectr"]["lai_id"] = {"value": None}
-                        print(f"[site #{i}] Nullified lai_id in initial_states.dectr (sfr_dectr = 0)")
-            except Exception as e:
-                raise ValueError(f"[site #{i}] LAI seasonal adjustment failed: {e}")
-
-            # ── Step 1.2: Daylight Saving Time & Timezone ──
-            try:
-                lng = props.get("lng", {}).get("value")
-                emissions = props.get("anthropogenic_emissions", {})
-                tz_field = props.setdefault("timezone", {})
-
-                if lat is not None and lng is not None:
-                    dls = DLSCheck(lat=lat, lng=lng, year=model_year)
-                    start_dls, end_dls, tz_name = dls.compute_dst_transitions()
-
-                    if start_dls and end_dls:
-                        emissions.setdefault("startdls", {})["value"] = start_dls
-                        emissions.setdefault("enddls", {})["value"] = end_dls
-                        print(f"[site #{i}] DLS populated: start={start_dls}, end={end_dls}")
-                    else:
-                        print(f"[site #{i}] DLS transitions could not be computed")
-
-                    if tz_name:
-                        tz_field["value"] = tz_name
-                        print(f"[site #{i}] Timezone set to '{tz_name}'")
-
-                    props["anthropogenic_emissions"] = emissions
-                    site["properties"] = props
-                else:
-                    print(f"[site #{i}] Skipping DLS (missing lat/lng)")
-            except Exception as e:
-                raise ValueError(f"[site #{i}] DLS validation failed: {e}")
-
-            # ── Step 1.3: Land cover fraction correction ──
-            landcover_data = props.get("land_cover") or props.get("landcover")
-            if landcover_data is None:
-                raise ValueError(f"[site #{i}] Missing 'land_cover' section")
-            if not isinstance(landcover_data, dict):
-                raise TypeError(f"[site #{i}] 'land_cover' must be a dict")
-
-            try:
-                print(f"[site #{i}] 🧪 Checking land_cover sfr fractions...")
-                sfr_values = {
-                    k: v["sfr"]["value"]
-                    for k, v in landcover_data.items()
-                    if isinstance(v, dict) and "sfr" in v and isinstance(v["sfr"].get("value"), (int, float))
-                }
-
-                total = sum(sfr_values.values())
-
-                if 0.9999 <= total < 1.0:
-                    max_key = max(sfr_values, key=sfr_values.get)
-                    delta = round(1.0 - total, 10)
-                    landcover_data[max_key]["sfr"]["value"] += delta
-                    print(f"[site #{i}] Rounded UP '{max_key}' by {delta:.6f} (total={total:.6f})")
-
-                elif 1.0 < total <= 1.0001:
-                    max_key = max(sfr_values, key=sfr_values.get)
-                    delta = round(total - 1.0, 10)
-                    landcover_data[max_key]["sfr"]["value"] -= delta
-                    print(f"[site #{i}] Rounded DOWN '{max_key}' by {delta:.6f} (total={total:.6f})")
-
-                elif abs(total - 1.0) > 0.0001:
-                    raise ValueError(f"[site #{i}] Invalid land_cover sfr sum: {total:.6f} (must be 1.0)")
-
-                LandCover(**landcover_data)
-                print(f"[site #{i}] Land cover validated.")
-
-                props["land_cover"] = landcover_data
-            except ValidationError as e:
-                raise ValueError(f"[site #{i}] Invalid land_cover: {e}")
-
-            # Final update
-            site["properties"] = props
-
-        data["sites"] = sites_data
-        print("\n Precheck complete. Proceeding with Pydantic validation...\n")
-        return data
-
+        return run_precheck(data)
 
     @model_validator(mode="after")
     def update_initial_states(self):

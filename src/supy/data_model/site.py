@@ -2281,19 +2281,17 @@ class DLSCheck(BaseModel):
 
         return start, end, utc_offset_hours
 
-
-
 class SeasonCheck(BaseModel):
     start_date: str  # YYYY-MM-DD
-    end_date: str
+    #end_date: str
     lat: float
 
     def get_season(self) -> str:
         try:
             start = datetime.strptime(self.start_date, "%Y-%m-%d").timetuple().tm_yday
-            end = datetime.strptime(self.end_date, "%Y-%m-%d").timetuple().tm_yday
+            #end = datetime.strptime(self.end_date, "%Y-%m-%d").timetuple().tm_yday
         except ValueError:
-            raise ValueError("start_date and end_date must be in YYYY-MM-DD format")
+            raise ValueError("start_date must be in YYYY-MM-DD format")
 
         abs_lat = abs(self.lat)
 
@@ -2307,22 +2305,22 @@ class SeasonCheck(BaseModel):
 
         # Standard seasonal logic
         if self.lat >= 0:  # Northern Hemisphere
-            if 150 < start < 250 and 150 < end < 250:
+            if 150 < start < 250: #and 150 < end < 250:
                 return "summer"
-            elif 60 < start <= 150 and 60 < end <= 150:
+            elif 60 < start <= 150: #and 60 < end <= 150:
                 return "spring"
-            elif 250 <= start < 335 and 250 <= end < 335:
+            elif 250 <= start < 335: #and 250 <= end < 335:
                 return "fall"
-            elif (start <= 60 or start >= 335) and (end <= 60 or end >= 335):
+            elif (start <= 60 or start >= 335): #and (end <= 60 or end >= 335):
                 return "winter"
         else:  # Southern Hemisphere
-            if 150 < start < 250 and 150 < end < 250:
+            if 150 < start < 250: # and 150 < end < 250:
                 return "winter"
-            elif 60 < start <= 150 and 60 < end <= 150:
+            elif 60 < start <= 150: # and 60 < end <= 150:
                 return "fall"
-            elif 250 <= start < 335 and 250 <= end < 335:
+            elif 250 <= start < 335: #and 250 <= end < 335:
                 return "spring"
-            elif (start <= 60 or start >= 335) and (end <= 60 or end >= 335):
+            elif (start <= 60 or start >= 335): #and (end <= 60 or end >= 335):
                 return "summer"
 
         return "unknown"

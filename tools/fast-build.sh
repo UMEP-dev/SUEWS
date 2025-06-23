@@ -15,7 +15,16 @@ echo ""
 
 # Detect system capabilities
 NPROCS=$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 4)
-TOTAL_MEM=$(free -m 2>/dev/null | awk '/^Mem:/{print $2}' || echo "8192")
+
+# Get total memory (Linux vs macOS)
+if command -v free >/dev/null 2>&1; then
+    TOTAL_MEM=$(free -m | awk '/^Mem:/{print $2}')
+elif command -v sysctl >/dev/null 2>&1; then
+    # macOS - convert bytes to MB
+    TOTAL_MEM=$(( $(sysctl -n hw.memsize 2>/dev/null || echo 8589934592) / 1024 / 1024 ))
+else
+    TOTAL_MEM="8192"
+fi
 BUILD_DIR_SIZE=$((TOTAL_MEM / 4)) # Use 1/4 of available memory
 
 echo -e "${YELLOW}System Info:${NC}"
@@ -25,7 +34,9 @@ echo ""
 
 # For now, skip RAM disk due to permission issues
 echo -e "${YELLOW}Using optimized regular disk build${NC}"
-BUILD_BASE="/workspace/build"
+# Get the repository root directory
+REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+BUILD_BASE="$REPO_ROOT/build"
 rm -rf "$BUILD_BASE"
 
 # Export optimized environment variables
@@ -33,6 +44,9 @@ export PROFILE=fast
 export DEBUG=
 export MAKEFLAGS="-j$NPROCS"
 export NINJA_STATUS="[%f/%t %es] "
+
+# Ensure we're in the correct directory
+cd "$(dirname "$0")/.." || exit 1
 
 # Compiler flags for maximum speed
 export CFLAGS="-O0 -pipe"

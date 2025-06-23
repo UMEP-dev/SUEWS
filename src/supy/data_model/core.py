@@ -98,6 +98,8 @@ def run_precheck(data):
         props = site.get("properties", {})
         initial_states = site.get("initial_states", {})
         lat = props.get("lat", {}).get("value")
+        season = None
+
         try:
             if lat is not None:
                 season = SeasonCheck(start_date=start_date, lat=lat).get_season()
@@ -131,7 +133,9 @@ def run_precheck(data):
                 print(f"[site #{i}] Nullified lai_id")
 
         lng = props.get("lng", {}).get("value")
-        emissions = props.get("anthropogenic_emissions", {})
+        #emissions = props.get("anthropogenic_emissions", {})
+        emissions = props.setdefault("anthropogenic_emissions", {})
+
         if lat is not None and lng is not None:
             try:
                 dls = DLSCheck(lat=lat, lng=lng, year=model_year)

@@ -98,7 +98,12 @@ endif
 
 # Include a platform-specific makefile that defines FC, FCFLAGS and
 # LIBS
+# Handle fast profile by using gfortran with fast settings
+ifeq ($(PROFILE),fast)
+include	Makefile.gfortran
+else
 include	Makefile.$(PROFILE)
+endif
 
 # Check for presence of the NETCDF_INCLUDE and NETCDF_LIB flags
 ifndef NETCDF_INCLUDE

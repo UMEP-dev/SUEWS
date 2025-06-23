@@ -21,13 +21,15 @@ endif
 # set the compiler flags
 fortran_compiler = meson.get_compiler('fortran')
 if fortran_compiler.get_id() == 'gcc'
-  f90flags = [
-    '-fPIC',
-    '-fconvert=big-endian',
-    '-g',
-    '-O0',
-    '-fcheck=all',
-  ]
+  f90flags = ['-fPIC']
+  # Minimal flags for different build types
+  if get_option('buildtype') == 'debug'
+    f90flags += ['-g', '-fcheck=all', '-fconvert=big-endian']
+  elif get_option('buildtype') == 'plain'
+    # Fast build - no extra flags
+  else
+    f90flags += ['-fconvert=big-endian']
+  endif
   fortran_program = find_program('gfortran')
 elif fortran_compiler.get_id() == 'intel'
   f90flags = ['-fpscomp logicals', '-fPIC']
@@ -36,12 +38,15 @@ endif
 add_global_arguments(f90flags, language: 'fortran')
 
 c_compiler = meson.get_compiler('c')
-cflags = [
-  '-fPIC',
-  '-D_POSIX_C_SOURCE=200809L',
-  '-g',
-  '-O0',
-]
+cflags = ['-fPIC']
+# Minimal flags for different build types  
+if get_option('buildtype') == 'debug'
+  cflags += ['-g', '-D_POSIX_C_SOURCE=200809L']
+elif get_option('buildtype') == 'plain'
+  # Fast build - minimal flags
+else
+  cflags += ['-D_POSIX_C_SOURCE=200809L']
+endif
 if c_compiler.get_id() == 'clang'
   cflags += ['-fbracket-depth=1024']
 endif
@@ -127,9 +132,14 @@ endforeach
 ##################################################################
 # 1. build the SUEWS library using fortran compiler
 # invoke make in the suews directory to build the objects
+# Pass DEBUG variable only if buildtype is debug
+make_env = []
+if get_option('buildtype') != 'debug'
+  make_env = ['env', 'DEBUG=']
+endif
 build_suews = custom_target(
   'suews_objects',
-  command: ['make', '-C', meson.current_source_dir() / '../suews/'],
+  command: make_env + ['make', '-C', meson.current_source_dir() / '../suews/'],
   build_by_default: true,
   output: 'suews_objects',
 )

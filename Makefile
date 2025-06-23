@@ -1,6 +1,6 @@
 # SUEWS Makefile - read the README file before editing
 
-.PHONY: main clean test pip supy docs dev livehtml schema proc-csv config-ui check-dev-install mamba-dev help deactivate
+.PHONY: main clean test pip supy docs dev dev-exp dev-ultrafast livehtml schema proc-csv config-ui check-dev-install mamba-dev help deactivate
 
 # OS-specific configurations
 ifeq ($(OS),Windows_NT)
@@ -55,6 +55,8 @@ help:
 	@echo ""
 	@echo "Build and Development:"
 	@echo "  dev             - Build and install SUEWS in editable mode"
+	@echo "  dev-exp         - Experimental optimized build (faster compilation)"
+	@echo "  dev-ultrafast   - Ultra-fast build using RAM disk and all optimizations"
 	@echo "  install         - Install SUEWS to current Python environment (not editable)"
 	@echo "  wheel           - Build distribution wheels"
 	@echo "  clean           - Clean all build artifacts"
@@ -105,6 +107,26 @@ dev:
 	else \
 		$(PYTHON) -m pip install --no-build-isolation --editable .; \
 	fi
+
+# Experimental optimized development build
+dev-exp:
+	@echo "=== EXPERIMENTAL FAST BUILD ==="
+	@echo "Optimizations:"
+	@echo "  - Minimal optimization flags (-O0)"
+	@echo "  - No debug symbols" 
+	@echo "  - Simplified build flags"
+	@echo "  - Parallel ninja compilation"
+	@echo ""
+	@rm -rf build/
+	@PROFILE=fast DEBUG= $(PYTHON) -m pip install --no-build-isolation --editable . \
+		--config-settings=setup-args="-Dbuildtype=plain" \
+		--config-settings=setup-args="-Doptimization=0" \
+		--config-settings=setup-args="-Ddebug=false" \
+		--config-settings=compile-args="-j$$(nproc 2>/dev/null || echo 4)"
+
+# Ultra-fast build using all optimizations
+dev-ultrafast:
+	@./tools/fast-build.sh
 
 # install supy locally
 install:

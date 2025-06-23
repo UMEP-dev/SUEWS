@@ -88,7 +88,7 @@ class SUEWSConfig(BaseModel):
                         surface_is.icefrac.value = 0.5 # Can these sum to greater than 1?
                         surface_is.snowwater.value = 1 # TODO: What is the limit to this?
                         surface_is.snowdens.value = surface_props.snowdensmax
-                else:
+                elif surf_type != SurfaceType.WATER:
                     surface_is.state.value = 0
         return self
 

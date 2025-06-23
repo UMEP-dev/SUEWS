@@ -139,7 +139,7 @@ if get_option('buildtype') != 'debug'
 endif
 build_suews = custom_target(
   'suews_objects',
-  command: make_env + ['make', '-C', meson.current_source_dir() / '../suews/'],
+  command: make_env + ['make', '-C', meson.current_source_dir() / '../suews/', 'all'],
   build_by_default: true,
   output: 'suews_objects',
 )

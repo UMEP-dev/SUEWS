@@ -42,7 +42,9 @@ rm -rf "$BUILD_BASE"
 # Export optimized environment variables
 export PROFILE=fast
 export DEBUG=
-export MAKEFLAGS="-j$NPROCS"
+# Don't use parallel make for SUEWS Fortran build as it has module dependency issues
+# The meson/ninja build system will handle parallelism at a higher level
+unset MAKEFLAGS
 export NINJA_STATUS="[%f/%t %es] "
 
 # Ensure we're in the correct directory

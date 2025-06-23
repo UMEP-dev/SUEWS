@@ -816,10 +816,10 @@ def load_SUEWS_Forcing_met_df_yaml(path_forcing):
 
     if isinstance(path_forcing, (str, Path)):
         path_forcing = Path(path_forcing).resolve()
-        if path_forcing.is_dir():
-            path_forcing = sorted(path_forcing.glob("*"))
-        else:
+        if path_forcing.is_file():
             df_forcing_met = read_suews(path_forcing)
+        else:
+            raise ValueError("Path to forcing is not a file.")
     if isinstance(path_forcing, list):
         path_forcing = [Path(p).resolve() for p in path_forcing]
         df_forcing_met = pd.concat([read_suews(fn) for fn in path_forcing])

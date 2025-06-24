@@ -1879,7 +1879,7 @@ class SiteProperties(BaseModel):
     surfacearea: RefValue[float] = Field(
         gt=0,
         description="Total surface area of the site",
-        unit="ha",
+        unit="m^2",
         default=RefValue(1.0),
     )
     z: RefValue[float] = Field(

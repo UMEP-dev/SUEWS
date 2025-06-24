@@ -307,7 +307,7 @@ class TestSuPy(TestCase):
             self.assertTrue(test_dif)
 
     # test if the sample output is the same as the one in the repo
-    @skipIf(True, "Temporarily disabled for validation integration testing.")
+    @skipIf(False, "Temporarily disabled for validation integration testing.")
     def test_benchmark1_same(self):
         print("\n========================================")
         print("Testing if benchmark1 output is the same...")

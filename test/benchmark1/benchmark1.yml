@@ -4,7 +4,7 @@ model:
   control:
     tstep: 300
     forcing_file:
-      value: ../forcing/Kc_Ward2016/
+      value: forcing/Kc1_2011_data_5.txt
     output_file: output.txt
     diagnose: 0
     start_time: "2011-01-01"

@@ -428,7 +428,7 @@ def load_SUEWS_SurfaceChar(path_input):
             df_gridSurfaceChar.at[xgrid, "alb"]
         )
 
-        # convert unit of `surfacearea` from ha to m^2
+        # convert unit of `surfacearea` from ha to m^2 for table-based inputs
         df_gridSurfaceChar.at[xgrid, "surfacearea"] = np.array(
             df_gridSurfaceChar.at[xgrid, "surfacearea"] * 10000.0
         )
@@ -1259,7 +1259,7 @@ def load_SUEWS_SurfaceChar_df(path_input):
         var: np.squeeze(df_gridSurfaceChar_exp[var].values) for var in list_var
     }
 
-    # correct the unit for 'surfacearea'
+    # correct the unit for 'surfacearea' from ha to m^2 for table-based inputs
     dict_gridSurfaceChar["surfacearea"] *= 1e4
 
     for var, dim in dict_var_ndim.items():

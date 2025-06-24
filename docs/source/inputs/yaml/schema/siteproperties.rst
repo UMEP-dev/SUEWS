@@ -35,8 +35,8 @@ Siteproperties
 
    Total surface area of the site
 
-   :Unit: ha
-   :Default: ``1.0``
+   :Unit: m^2
+   :Default: ``10000.0``
 
 .. option:: z <RefValue[float]>
 

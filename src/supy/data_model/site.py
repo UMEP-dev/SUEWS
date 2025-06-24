@@ -1905,7 +1905,7 @@ class SiteProperties(BaseModel):
         gt=0,
         description="Total surface area of the site",
         unit="m^2",
-        default=RefValue(1.0),
+        default=RefValue(10000.0),  # 1 hectare in m²
     )
     z: RefValue[float] = Field(
         gt=0,

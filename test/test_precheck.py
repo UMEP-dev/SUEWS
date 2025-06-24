@@ -1,29 +1,13 @@
 import pytest
+from copy import deepcopy
 from supy.data_model import SUEWSConfig
+from supy.data_model.core import precheck_start_end_date
 
-def test_precheck_invocation(capsys):
-    yaml_input = {
-        "name": "test",
-        "model": {
-            "control": {
-                "start_time": "2012-01-01",
-                "end_time": "2012-12-31",
-                "forcing_file": {"value": "dummy.txt"},
-            },
-            "physics": {
-                "diagmethod": 2,
-                "stabilitymethod": 3,
-                "storageheatmethod": 2,
-            },
-        },
-        "sites": [{}],
-    }
+def test_precheck_start_end_date():
+    data = {}
+    updated_data, model_year, start_date, end_date = precheck_start_end_date(data)
 
-    try:
-        SUEWSConfig(**yaml_input)
-    except Exception:
-        pass  # precheck is tested, don't care about rest
-
-    captured = capsys.readouterr()
-    assert "Starting precheck procedure..." in captured.out
-    assert "Precheck complete." in captured.out
+    assert updated_data == data
+    assert start_date == "2011-01-22"
+    assert end_date == "2011-02-22"
+    assert model_year == 2011

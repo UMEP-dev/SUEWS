@@ -7,8 +7,6 @@ model:
       value: ../forcing/Kc_Ward2016/
     output_file: output.txt
     diagnose: 0
-    start_time: "2011-01-01"
-    end_time: "2013-12-31"
   physics:
     netradiationmethod:
       value: 3

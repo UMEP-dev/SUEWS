@@ -18,9 +18,25 @@ from .model import Model
 from .site import Site, SiteProperties, InitialStates
 import os
 
-def run_precheck(data: dict) -> dict:
+def precheck_printing(data: dict) -> dict:
     print("Running basic precheck...")
     return data
+
+def precheck_start_end_date(data: dict) -> Tuple[dict, int, str, str]:
+    start_date = "2011-01-22"
+    end_date = "2011-02-22"
+
+    if not isinstance(start_date, str) or "-" not in start_date:
+        raise ValueError("Missing or invalid 'start_time' in model.control — must be in 'YYYY-MM-DD' format.")
+    if not isinstance(end_date, str) or "-" not in end_date:
+        raise ValueError("Missing or invalid 'end_time' in model.control — must be in 'YYYY-MM-DD' format.")
+
+    try:
+        model_year = int(start_date.split("-")[0])
+    except Exception:
+        raise ValueError("Could not extract model year from 'start_time'. Ensure it is in 'YYYY-MM-DD' format.")
+
+    return data, model_year, start_date, end_date
 
 class SUEWSConfig(BaseModel):
     name: str = Field(
@@ -54,9 +70,13 @@ class SUEWSConfig(BaseModel):
     @classmethod
     def preprocess(cls, data: dict) -> dict:
         print("\nStarting precheck procedure...")
-        data = run_precheck(data)
+        data = precheck_printing(data)
+        data, model_year, start_date, end_date = precheck_start_end_date(data)
+        print(f"Start date: {start_date}; End date: {end_date}")
+        print(f"Extracted model year: {model_year}")
         print("Precheck complete.\n")
         return data
+
 
     @classmethod
     def from_yaml(cls, path: str) -> "SUEWSConfig":

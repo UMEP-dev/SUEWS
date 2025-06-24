@@ -78,6 +78,46 @@ def precheck_model_options_constraints(data: dict) -> dict:
     print("diagmethod-stabilitymethod constraint passed.")
     return data
 
+def precheck_replace_empty_strings_with_none(data: dict) -> dict:
+    model_keys_to_ignore = {"control", "physics"}
+
+    def recurse(obj, path=()):
+        if isinstance(obj, dict):
+            new_dict = {}
+            for k, v in obj.items():
+                new_path = path + (k,)
+                if (
+                    v == ""
+                    and not (len(new_path) >= 2 and new_path[0] == "model" and new_path[1] in model_keys_to_ignore)
+                ):
+                    new_dict[k] = None
+                else:
+                    new_dict[k] = recurse(v, new_path)
+            return new_dict
+        elif isinstance(obj, list):
+            return [recurse(item, path) for item in obj]
+        else:
+            return obj
+
+    cleaned = recurse(data)
+    print("Empty strings replaced with null (None), except for model.control and model.physics.")
+    return cleaned
+
+def run_precheck(data: dict) -> dict:
+    print("\nStarting precheck procedure...")
+
+    data = precheck_replace_empty_strings_with_none(data)
+    data = precheck_printing(data)
+    data, model_year, start_date, end_date = precheck_start_end_date(data)
+    print(f"Start date: {start_date}; End date: {end_date}")
+    print(f"Extracted model year: {model_year}")
+    data = precheck_model_physics_params(data)
+    data = precheck_model_options_constraints(data)
+
+    print("Precheck complete.\n")
+    return data
+
+
 class SUEWSConfig(BaseModel):
     name: str = Field(
         default="sample config", description="Name of the SUEWS configuration"
@@ -109,16 +149,7 @@ class SUEWSConfig(BaseModel):
     @model_validator(mode="before")
     @classmethod
     def preprocess(cls, data: dict) -> dict:
-        print("\nStarting precheck procedure...")
-        data = precheck_printing(data)
-        data, model_year, start_date, end_date = precheck_start_end_date(data)
-        data = precheck_model_physics_params(data)
-        data = precheck_model_options_constraints(data)
-        print(f"Start date: {start_date}; End date: {end_date}")
-        print(f"Extracted model year: {model_year}")
-        print("Precheck complete.\n")
-        return data
-
+        return run_precheck(data)
 
     @classmethod
     def from_yaml(cls, path: str) -> "SUEWSConfig":

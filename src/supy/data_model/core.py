@@ -38,6 +38,32 @@ def precheck_start_end_date(data: dict) -> Tuple[dict, int, str, str]:
 
     return data, model_year, start_date, end_date
 
+def precheck_model_physics_params(data: dict) -> dict:
+    model_data = data.get("model", {})
+    physics = model_data.get("physics", {})
+
+    if not physics:
+        print("Skipping physics param check — physics is empty.")
+        return data
+
+    required_keys = [
+        "netradiationmethod", "emissionsmethod", "storageheatmethod", "ohmincqf",
+        "roughlenmommethod", "roughlenheatmethod", "stabilitymethod", "smdmethod",
+        "waterusemethod", "diagmethod", "faimethod", "localclimatemethod",
+        "snowuse", "stebbsmethod"
+    ]
+
+    missing_keys = [k for k in required_keys if k not in physics]
+    if missing_keys:
+        raise ValueError(f"[model.physics] Missing required parameters: {missing_keys}")
+
+    empty_keys = [k for k in required_keys if physics.get(k, {}).get("value") in ("", None)]
+    if empty_keys:
+        raise ValueError(f"[model.physics] Parameters with empty string or null values: {empty_keys}")
+
+    print(f"All required model.physics parameters present and non-empty.")
+    return data
+
 class SUEWSConfig(BaseModel):
     name: str = Field(
         default="sample config", description="Name of the SUEWS configuration"
@@ -72,6 +98,7 @@ class SUEWSConfig(BaseModel):
         print("\nStarting precheck procedure...")
         data = precheck_printing(data)
         data, model_year, start_date, end_date = precheck_start_end_date(data)
+        data = precheck_model_physics_params(data)
         print(f"Start date: {start_date}; End date: {end_date}")
         print(f"Extracted model year: {model_year}")
         print("Precheck complete.\n")

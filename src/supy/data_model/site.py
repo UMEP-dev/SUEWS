@@ -79,11 +79,6 @@ class Conductance(BaseModel):
         description="Maximum incoming shortwave radiation",
         unit="W m^-2"
     )
-    gsmodel: RefValue[int] = Field(
-        default=RefValue(1),
-        description="Stomatal conductance model selection",
-        unit="dimensionless"
-    )
     s1: RefValue[float] = Field(
         default=RefValue(0.2),
         description="Lower soil moisture threshold for conductance response",
@@ -128,7 +123,6 @@ class Conductance(BaseModel):
             "g_t": self.g_t,
             "g_sm": self.g_sm,
             "kmax": self.kmax,
-            "gsmodel": self.gsmodel,
             "s1": self.s1,
             "s2": self.s2,
             "tl": self.tl,
@@ -160,7 +154,6 @@ class Conductance(BaseModel):
             "g_t": df.loc[grid_id, ("g_t", "0")],
             "g_sm": df.loc[grid_id, ("g_sm", "0")],
             "kmax": df.loc[grid_id, ("kmax", "0")],
-            "gsmodel": int(df.loc[grid_id, ("gsmodel", "0")]),
             "s1": df.loc[grid_id, ("s1", "0")],
             "s2": df.loc[grid_id, ("s2", "0")],
             "tl": df.loc[grid_id, ("tl", "0")],

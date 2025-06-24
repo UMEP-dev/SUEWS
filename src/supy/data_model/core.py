@@ -233,8 +233,8 @@ class SUEWSConfig(BaseModel):
             for surf_type in SurfaceType:
                 surface = getattr(site.initial_states, surf_type)
                 surface.temperature.value = [first_day_min_temp]*5
-                surface.tsfc = first_day_min_temp
-                surface.tin = first_day_min_temp
+                surface.tsfc.value = first_day_min_temp
+                surface.tin.value = first_day_min_temp
 
         # Use precip to determine wetness state
         for site in self.sites:
@@ -242,16 +242,16 @@ class SUEWSConfig(BaseModel):
                 surface_is = getattr(site.initial_states, surf_type)
                 surface_props =getattr(site.properties.land_cover, surf_type)
                 if first_day_precip:
-                    surface_is.state = surface_props.statelimit
-                    surface_is.soilstore = surface_props.soilstorecap
+                    surface_is.state.value = surface_props.statelimit
+                    surface_is.soilstore.value = surface_props.soilstorecap
                     if first_day_min_temp < 4:
-                        surface_is.snowpack = surface_props.snowpacklimit
-                        surface_is.snowfrac = 0.5 # Can these sum to greater than 1?
-                        surface_is.icefrac = 0.5 # Can these sum to greater than 1?
-                        surface_is.snowwater = 1 # TODO: What is the limit to this?
-                        surface_is.snowdens = surface_props.snowdensmax
-                else:
-                    surface_is.state = 0
+                        surface_is.snowpack.value = surface_props.snowpacklimit
+                        surface_is.snowfrac.value = 0.5 # Can these sum to greater than 1?
+                        surface_is.icefrac.value = 0.5 # Can these sum to greater than 1?
+                        surface_is.snowwater.value = 1 # TODO: What is the limit to this?
+                        surface_is.snowdens.value = surface_props.snowdensmax
+                elif surf_type != SurfaceType.WATER:
+                    surface_is.state.value = 0
         return self
 
     @classmethod

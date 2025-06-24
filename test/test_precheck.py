@@ -64,3 +64,60 @@ def test_model_physics_empty_value_raises():
     }
     with pytest.raises(ValueError, match="Parameters with empty string or null values"):
         precheck_model_physics_params(yaml_input)
+
+def test_diagmethod_stability_constraint_passes():
+    yaml_input = {
+        "name": "test",
+        "model": {
+            "control": {"forcing_file": {"value": "dummy.txt"}},
+            "physics": {
+                "diagmethod": {"value": 2},
+                "stabilitymethod": {"value": 3},
+                "storageheatmethod": {"value": 1},
+                "netradiationmethod": {"value": 1},
+                "emissionsmethod": {"value": 1},
+                "ohmincqf": {"value": 1},
+                "roughlenmommethod": {"value": 1},
+                "roughlenheatmethod": {"value": 1},
+                "smdmethod": {"value": 1},
+                "waterusemethod": {"value": 1},
+                "faimethod": {"value": 1},
+                "localclimatemethod": {"value": 1},
+                "snowuse": {"value": 0},
+                "stebbsmethod": {"value": 0},
+            },
+        },
+        "sites": [{}],
+    }
+
+    # Should not raise
+    SUEWSConfig(**deepcopy(yaml_input))
+
+
+def test_diagmethod_stability_constraint_fails():
+    yaml_input = {
+        "name": "test",
+        "model": {
+            "control": {"forcing_file": {"value": "dummy.txt"}},
+            "physics": {
+                "diagmethod": {"value": 2},
+                "stabilitymethod": {"value": 1},  # ❌ Not allowed!
+                "storageheatmethod": {"value": 1},
+                "netradiationmethod": {"value": 1},
+                "emissionsmethod": {"value": 1},
+                "ohmincqf": {"value": 1},
+                "roughlenmommethod": {"value": 1},
+                "roughlenheatmethod": {"value": 1},
+                "smdmethod": {"value": 1},
+                "waterusemethod": {"value": 1},
+                "faimethod": {"value": 1},
+                "localclimatemethod": {"value": 1},
+                "snowuse": {"value": 0},
+                "stebbsmethod": {"value": 0},
+            },
+        },
+        "sites": [{}],
+    }
+
+    with pytest.raises(ValueError, match=r"If diagmethod == 2, then stabilitymethod must be 3"):
+        SUEWSConfig(**deepcopy(yaml_input))

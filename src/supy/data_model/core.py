@@ -64,6 +64,20 @@ def precheck_model_physics_params(data: dict) -> dict:
     print(f"All required model.physics parameters present and non-empty.")
     return data
 
+def precheck_model_options_constraints(data: dict) -> dict:
+    physics = data.get("model", {}).get("physics", {})
+
+    diag = physics.get("diagmethod", {}).get("value")
+    stability = physics.get("stabilitymethod", {}).get("value")
+
+    if diag == 2 and stability != 3:
+        raise ValueError(
+            "[model.physics] If diagmethod == 2, then stabilitymethod must be 3."
+        )
+
+    print("diagmethod-stabilitymethod constraint passed.")
+    return data
+
 class SUEWSConfig(BaseModel):
     name: str = Field(
         default="sample config", description="Name of the SUEWS configuration"
@@ -99,6 +113,7 @@ class SUEWSConfig(BaseModel):
         data = precheck_printing(data)
         data, model_year, start_date, end_date = precheck_start_end_date(data)
         data = precheck_model_physics_params(data)
+        data = precheck_model_options_constraints(data)
         print(f"Start date: {start_date}; End date: {end_date}")
         print(f"Extracted model year: {model_year}")
         print("Precheck complete.\n")

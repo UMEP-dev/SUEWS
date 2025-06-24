@@ -18,6 +18,9 @@ from .model import Model
 from .site import Site, SiteProperties, InitialStates
 import os
 
+def run_precheck(data: dict) -> dict:
+    print("Running basic precheck...")
+    return data
 
 class SUEWSConfig(BaseModel):
     name: str = Field(
@@ -46,6 +49,14 @@ class SUEWSConfig(BaseModel):
             return (col[0], ast.literal_eval(col[1]))
         except ValueError:
             return (col[0], col[1])
+        
+    @model_validator(mode="before")
+    @classmethod
+    def preprocess(cls, data: dict) -> dict:
+        print("\nStarting precheck procedure...")
+        data = run_precheck(data)
+        print("Precheck complete.\n")
+        return data
 
     @classmethod
     def from_yaml(cls, path: str) -> "SUEWSConfig":

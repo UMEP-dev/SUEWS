@@ -213,7 +213,18 @@ class SUEWSConfig(BaseModel):
     @model_validator(mode="after")
     def update_initial_states(self):
         from .._load import load_SUEWS_Forcing_met_df_yaml
-        forcing = load_SUEWS_Forcing_met_df_yaml(self.model.control.forcing_file.value)
+        from pathlib import Path
+        
+        # Try to resolve forcing file path relative to config file if available
+        forcing_file_path = self.model.control.forcing_file.value
+        
+        # Check if the path is relative and if we have a config path context
+        if hasattr(self, '_config_path') and not Path(forcing_file_path).is_absolute():
+            # Resolve relative to config file directory
+            config_dir = Path(self._config_path).parent
+            forcing_file_path = config_dir / forcing_file_path
+        
+        forcing = load_SUEWS_Forcing_met_df_yaml(str(forcing_file_path))
         
         # Cut the forcing data to model period
         cut_forcing = forcing.loc[self.model.control.start_time: self.model.control.end_time]
@@ -466,4 +477,11 @@ def init_config_from_yaml(path: str = "./config-suews.yml") -> SUEWSConfig:
     """Initialize SUEWSConfig from YAML file"""
     with open(path, "r") as file:
         config = yaml.load(file, Loader=yaml.FullLoader)
-    return SUEWSConfig(**config)
+    
+    # Store the config file path in the data for context
+    config['_config_path'] = str(path)
+    
+    # Create config instance
+    config_instance = SUEWSConfig(**config)
+    
+    return config_instance

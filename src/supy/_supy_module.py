@@ -221,7 +221,16 @@ def load_forcing_grid(
             if config is None:
                 config = init_config_from_yaml(path=path_init)
             path_site = path_init.parent
-            path_input = config.model.control.forcing_file.value
+            
+            # Get forcing file path
+            forcing_file_path = config.model.control.forcing_file.value
+            
+            # If forcing file path is relative and we have config path context, resolve it
+            if hasattr(config, '_config_path') and not Path(forcing_file_path).is_absolute():
+                config_dir = Path(config._config_path).parent
+                path_input = config_dir / forcing_file_path
+            else:
+                path_input = forcing_file_path
 
         tstep_mod, lat, lon, alt, timezone = df_state_init.loc[
             grid, [(x, "0") for x in ["tstep", "lat", "lng", "alt", "timezone"]]

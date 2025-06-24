@@ -3,6 +3,8 @@ description: this is a sample config for testing purposes ONLY - values are not 
 model:
   control:
     tstep: 300
+    start_time: "2012-01-01"
+    end_time: "2012-12-31"
     forcing_file:
       value: Input/Kc_2012_data_60.txt
     output_file: output.txt
@@ -49,7 +51,7 @@ sites:
     timezone:
       value: 0
     surfacearea:
-      value: 22215600.0
+      value: 2221560.0
     z:
       value: 49.6
     z0m_in:

@@ -6,9 +6,20 @@
 
 set -e
 
+# Function to display elapsed time
+show_duration() {
+    local start_time=$1
+    local end_time=$(date +%s)
+    local duration=$((end_time - start_time))
+    echo "  ⏱️  Duration: ${duration}s"
+}
+
+SCRIPT_START=$(date +%s)
+
 echo "=== Git Bisect Benchmark1 Test ==="
 echo "Testing commit: $(git rev-parse --short HEAD)"
 echo "Commit message: $(git log --oneline -1)"
+echo "Start time: $(date)"
 echo
 
 # Check if benchmark1 test files exist
@@ -18,14 +29,18 @@ if [[ ! -f "test/benchmark1/benchmark1.yml" || ! -f "test/benchmark1/benchmark1.
 fi
 
 # Try to build the project
+BUILD_START=$(date +%s)
 echo "🔨 Building project..."
 
 # Clean build directories
+CLEAN_START=$(date +%s)
 echo "  Cleaning build directories..."
 make clean >/dev/null 2>&1
 rm -rf build/ >/dev/null 2>&1
+show_duration $CLEAN_START
 
 # Build Fortran components first
+FORTRAN_START=$(date +%s)
 echo "  Building Fortran components..."
 cd src/suews
 if ! make >/dev/null 2>&1; then
@@ -34,15 +49,19 @@ if ! make >/dev/null 2>&1; then
     exit 125
 fi
 cd ../..
+show_duration $FORTRAN_START
 
 # Now build Python components
+PYTHON_START=$(date +%s)
 echo "  Building Python components..."
 if ! timeout 120 python -m pip install -e . --no-deps >/dev/null 2>&1; then
     echo "❌ Python build failed or timed out - skipping this commit"
     exit 125
 fi
+show_duration $PYTHON_START
 
 echo "✅ Build successful"
+show_duration $BUILD_START
 
 # Check if benchmark1 test is enabled (not skipped)
 if grep -q "skipIf(True" test/test_supy.py; then
@@ -64,11 +83,14 @@ else
 fi
 
 # Run the benchmark1 test with timeout
+TEST_START=$(date +%s)
 echo "🧪 Running benchmark1 test..."
 set +e  # Don't exit on test failure - we want to capture the exit code
 
 timeout 300 python -m pytest test/test_supy.py::TestSuPy::test_benchmark1_same -v --tb=no -q
 TEST_EXIT_CODE=$?
+
+show_duration $TEST_START
 
 # Restore any temporary modifications
 if [[ "$MODIFIED_TEST" == "true" ]]; then
@@ -83,14 +105,20 @@ fi
 case $TEST_EXIT_CODE in
     0)
         echo "✅ Benchmark1 test PASSED - this is a GOOD commit"
+        echo "End time: $(date)"
+        echo "Total script duration: $(($(date +%s) - SCRIPT_START))s"
         exit 0
         ;;
     124)
         echo "⏰ Test timed out - treating as BAD commit"
+        echo "End time: $(date)"
+        echo "Total script duration: $(($(date +%s) - SCRIPT_START))s"
         exit 1
         ;;
     *)
         echo "❌ Benchmark1 test FAILED - this is a BAD commit"
+        echo "End time: $(date)"
+        echo "Total script duration: $(($(date +%s) - SCRIPT_START))s"
         exit 1
         ;;
 esac

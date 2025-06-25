@@ -1,4 +1,4 @@
-from typing import Dict, List, Optional, Union, Literal, Tuple, Type, Generic, TypeVar
+from typing import Dict, List, Optional, Union, Literal, Tuple, Type, Generic, TypeVar, Any
 from pydantic import (
     ConfigDict,
     BaseModel,
@@ -18,50 +18,84 @@ from .model import Model
 from .site import Site, SiteProperties, InitialStates
 import os
 
+from datetime import datetime
+
+class SeasonCheck(BaseModel):
+    start_date: str  # Expected format: YYYY-MM-DD
+    lat: float
+
+    def get_season(self) -> str:
+        try:
+            start = datetime.strptime(self.start_date, "%Y-%m-%d").timetuple().tm_yday
+        except ValueError:
+            raise ValueError("start_date must be in YYYY-MM-DD format")
+
+        abs_lat = abs(self.lat)
+
+        if abs_lat <= 10:
+            return "equatorial"
+        if 10 < abs_lat < 23.5:
+            return "tropical"
+
+        if self.lat >= 0:  # Northern Hemisphere
+            if 150 < start < 250:
+                return "summer"
+            elif 60 < start <= 150:
+                return "spring"
+            elif 250 <= start < 335:
+                return "fall"
+            else:
+                return "winter"
+        else:  # Southern Hemisphere
+            if 150 < start < 250:
+                return "winter"
+            elif 60 < start <= 150:
+                return "fall"
+            elif 250 <= start < 335:
+                return "spring"
+            else:
+                return "summer"
+
+
 def precheck_printing(data: dict) -> dict:
     print("Running basic precheck...")
     return data
 
 def precheck_start_end_date(data: dict) -> Tuple[dict, int, str, str]:
-    start_date = "2011-01-22"
+    start_date = "2011-01-22"  # Placeholder: Replace with real YAML read
     end_date = "2011-02-22"
 
     if not isinstance(start_date, str) or "-" not in start_date:
-        raise ValueError("Missing or invalid 'start_time' in model.control — must be in 'YYYY-MM-DD' format.")
+        raise ValueError("Invalid 'start_time' — must be YYYY-MM-DD")
     if not isinstance(end_date, str) or "-" not in end_date:
-        raise ValueError("Missing or invalid 'end_time' in model.control — must be in 'YYYY-MM-DD' format.")
+        raise ValueError("Invalid 'end_time' — must be YYYY-MM-DD")
 
-    try:
-        model_year = int(start_date.split("-")[0])
-    except Exception:
-        raise ValueError("Could not extract model year from 'start_time'. Ensure it is in 'YYYY-MM-DD' format.")
-
+    model_year = int(start_date.split("-")[0])
     return data, model_year, start_date, end_date
 
 def precheck_model_physics_params(data: dict) -> dict:
-    model_data = data.get("model", {})
-    physics = model_data.get("physics", {})
+    physics = data.get("model", {}).get("physics", {})
 
     if not physics:
         print("Skipping physics param check — physics is empty.")
         return data
 
-    required_keys = [
+    required = [
         "netradiationmethod", "emissionsmethod", "storageheatmethod", "ohmincqf",
         "roughlenmommethod", "roughlenheatmethod", "stabilitymethod", "smdmethod",
         "waterusemethod", "diagmethod", "faimethod", "localclimatemethod",
         "snowuse", "stebbsmethod"
     ]
 
-    missing_keys = [k for k in required_keys if k not in physics]
-    if missing_keys:
-        raise ValueError(f"[model.physics] Missing required parameters: {missing_keys}")
+    missing = [k for k in required if k not in physics]
+    if missing:
+        raise ValueError(f"[model.physics] Missing required params: {missing}")
 
-    empty_keys = [k for k in required_keys if physics.get(k, {}).get("value") in ("", None)]
-    if empty_keys:
-        raise ValueError(f"[model.physics] Parameters with empty string or null values: {empty_keys}")
+    empty = [k for k in required if physics.get(k, {}).get("value") in ("", None)]
+    if empty:
+        raise ValueError(f"[model.physics] Empty or null values for: {empty}")
 
-    print(f"All required model.physics parameters present and non-empty.")
+    print("All model.physics required params present and non-empty.")
     return data
 
 def precheck_model_options_constraints(data: dict) -> dict:
@@ -71,52 +105,91 @@ def precheck_model_options_constraints(data: dict) -> dict:
     stability = physics.get("stabilitymethod", {}).get("value")
 
     if diag == 2 and stability != 3:
-        raise ValueError(
-            "[model.physics] If diagmethod == 2, then stabilitymethod must be 3."
-        )
+        raise ValueError("[model.physics] If diagmethod == 2, stabilitymethod must be 3.")
 
     print("diagmethod-stabilitymethod constraint passed.")
     return data
 
 def precheck_replace_empty_strings_with_none(data: dict) -> dict:
-    model_keys_to_ignore = {"control", "physics"}
+    ignore_keys = {"control", "physics"}
 
-    def recurse(obj, path=()):
+    def recurse(obj: Any, path=()):
         if isinstance(obj, dict):
-            new_dict = {}
+            new = {}
             for k, v in obj.items():
-                new_path = path + (k,)
+                sub_path = path + (k,)
                 if (
                     v == ""
-                    and not (len(new_path) >= 2 and new_path[0] == "model" and new_path[1] in model_keys_to_ignore)
+                    and not (len(sub_path) >= 2 and sub_path[0] == "model" and sub_path[1] in ignore_keys)
                 ):
-                    new_dict[k] = None
+                    new[k] = None
                 else:
-                    new_dict[k] = recurse(v, new_path)
-            return new_dict
+                    new[k] = recurse(v, sub_path)
+            return new
         elif isinstance(obj, list):
             return [None if item == "" else recurse(item, path) for item in obj]
         else:
             return obj
 
     cleaned = recurse(data)
-    print("Empty strings replaced with null (None), except for model.control and model.physics.")
+    print("Empty strings replaced with None (except model.control and model.physics).")
     return cleaned
 
+
+def precheck_site_season_adjustments(data: dict, start_date: str) -> dict:
+    cleaned_sites = []
+    for i, site in enumerate(data.get("sites", [])):
+        if isinstance(site, BaseModel):
+            site = site.model_dump(mode="python")
+
+        props = site.get("properties", {})
+        initial_states = site.get("initial_states", {})
+
+        lat_entry = props.get("lat", {})
+        lat = lat_entry.get("value") if isinstance(lat_entry, dict) else lat_entry
+
+        try:
+            if lat is not None:
+                season = SeasonCheck(start_date=start_date, lat=lat).get_season()
+                print(f"[site #{i}] Season detected: {season}")
+                if season in ("summer", "tropical", "equatorial") and "snowalb" in initial_states:
+                    if isinstance(initial_states["snowalb"], dict):
+                        initial_states["snowalb"]["value"] = None
+                        print(f"[site #{i}] Set snowalb to None")
+        except Exception as e:
+            raise ValueError(f"[site #{i}] SeasonCheck failed: {e}")
+
+        cleaned_sites.append(site)
+
+    data["sites"] = cleaned_sites
+    return data
+
+
 def run_precheck(data: dict) -> dict:
-    print("\nStarting precheck procedure...")
+    if isinstance(data, BaseModel):
+        data = data.model_dump(mode="python")
+
+    # Also flatten any BaseModel in sites
+    if "sites" in data and isinstance(data["sites"], list):
+        flat_sites = []
+        for site in data["sites"]:
+            if isinstance(site, BaseModel):
+                flat_sites.append(site.model_dump(mode="python"))
+            else:
+                flat_sites.append(site)
+        data["sites"] = flat_sites
 
     data = precheck_printing(data)
     data, model_year, start_date, end_date = precheck_start_end_date(data)
-    print(f"Start date: {start_date}; End date: {end_date}")
-    print(f"Extracted model year: {model_year}")
+    print(f"Start date: {start_date}, end date: {end_date}, year: {model_year}")
+
     data = precheck_model_physics_params(data)
     data = precheck_model_options_constraints(data)
     data = precheck_replace_empty_strings_with_none(data)
+    data = precheck_site_season_adjustments(data, start_date)
 
-    print("Precheck complete.\n")
+    print("Precheck complete.")
     return data
-
 
 class SUEWSConfig(BaseModel):
     name: str = Field(
@@ -146,10 +219,10 @@ class SUEWSConfig(BaseModel):
         except ValueError:
             return (col[0], col[1])
         
-    @model_validator(mode="before")
-    @classmethod
-    def preprocess(cls, data: dict) -> dict:
-        return run_precheck(data)
+    # @model_validator(mode="before")
+    # @classmethod
+    # def preprocess(cls, data: dict) -> dict:
+    #     return run_precheck(data)
 
     @classmethod
     def from_yaml(cls, path: str) -> "SUEWSConfig":

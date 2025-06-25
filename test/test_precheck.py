@@ -228,3 +228,79 @@ def test_empty_string_in_list_of_floats():
 
     result = run_precheck(deepcopy(yaml_input))
     assert result["sites"][0]["properties"]["thermal_layers"]["dz"]["value"][1] is None
+
+def test_empty_string_in_nested_dict():
+    yaml_input = {
+        "model": {
+            "control": {"forcing_file": {"value": "dummy.txt"}},
+            "physics": {
+                "diagmethod": {"value": 2},
+                "stabilitymethod": {"value": 3},
+                "storageheatmethod": {"value": 3},
+                "netradiationmethod": {"value": 1},
+                "emissionsmethod": {"value": 1},
+                "ohmincqf": {"value": 1},
+                "roughlenmommethod": {"value": 1},
+                "roughlenheatmethod": {"value": 1},
+                "smdmethod": {"value": 1},
+                "waterusemethod": {"value": 1},
+                "faimethod": {"value": 1},
+                "localclimatemethod": {"value": 1},
+                "snowuse": {"value": 0},
+                "stebbsmethod": {"value": 0},
+            },
+        },
+        "sites": [
+            {
+                "gridiv": 1,
+                "properties": {
+                    "ohm_coef": {
+                        "summer_dry": {
+                            "a1": {"value": ""},
+                            "a2": {"value": 0.3},
+                        }
+                    }
+                }
+            }
+        ],
+    }
+
+    result = run_precheck(deepcopy(yaml_input))
+    assert result["sites"][0]["properties"]["ohm_coef"]["summer_dry"]["a1"]["value"] is None
+
+def test_empty_string_in_surface_type_dict():
+    yaml_input = {
+        "model": {
+            "control": {"forcing_file": {"value": "dummy.txt"}},
+            "physics": {
+                "diagmethod": {"value": 2},
+                "stabilitymethod": {"value": 3},
+                "storageheatmethod": {"value": 3},
+                "netradiationmethod": {"value": 1},
+                "emissionsmethod": {"value": 1},
+                "ohmincqf": {"value": 1},
+                "roughlenmommethod": {"value": 1},
+                "roughlenheatmethod": {"value": 1},
+                "smdmethod": {"value": 1},
+                "waterusemethod": {"value": 1},
+                "faimethod": {"value": 1},
+                "localclimatemethod": {"value": 1},
+                "snowuse": {"value": 0},
+                "stebbsmethod": {"value": 0},
+            },
+        },
+        "sites": [
+            {
+                "gridiv": 1,
+                "properties": {
+                    "waterdist": {
+                        "to_grass": {"value": ""},
+                        "to_runoff": {"value": 0.9}
+                    }
+                }
+            }
+        ],
+    }
+
+    result = run_precheck(deepcopy(yaml_input))
+    assert result["sites"][0]["properties"]["waterdist"]["to_grass"]["value"] is None

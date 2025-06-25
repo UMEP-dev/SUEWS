@@ -95,7 +95,7 @@ def precheck_replace_empty_strings_with_none(data: dict) -> dict:
                     new_dict[k] = recurse(v, new_path)
             return new_dict
         elif isinstance(obj, list):
-            return [recurse(item, path) for item in obj]
+            return [None if item == "" else recurse(item, path) for item in obj]
         else:
             return obj
 

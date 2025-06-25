@@ -192,3 +192,39 @@ def test_empty_string_becomes_none():
     result = run_precheck(deepcopy(yaml_input))
     assert result["sites"][0]["site_name"] is None
     assert result["sites"][0]["properties"]["lat"]["value"] is None
+
+def test_empty_string_in_list_of_floats():
+    yaml_input = {
+        "model": {
+            "control": {"forcing_file": {"value": "dummy.txt"}},
+            "physics": {
+                "diagmethod": {"value": 2},
+                "stabilitymethod": {"value": 3},
+                "storageheatmethod": {"value": 3},
+                "netradiationmethod": {"value": 1},
+                "emissionsmethod": {"value": 1},
+                "ohmincqf": {"value": 1},
+                "roughlenmommethod": {"value": 1},
+                "roughlenheatmethod": {"value": 1},
+                "smdmethod": {"value": 1},
+                "waterusemethod": {"value": 1},
+                "faimethod": {"value": 1},
+                "localclimatemethod": {"value": 1},
+                "snowuse": {"value": 0},
+                "stebbsmethod": {"value": 0},
+            },
+        },
+        "sites": [
+            {
+                "gridiv": 1,
+                "properties": {
+                    "thermal_layers": {
+                        "dz": {"value": [0.2, "", 0.1]}
+                    }
+                }
+            }
+        ],
+    }
+
+    result = run_precheck(deepcopy(yaml_input))
+    assert result["sites"][0]["properties"]["thermal_layers"]["dz"]["value"][1] is None

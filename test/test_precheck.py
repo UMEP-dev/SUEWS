@@ -266,3 +266,108 @@ def test_season_check_southern_summer():
 def test_season_check_invalid_date():
     with pytest.raises(ValueError, match=r"start_date must be in YYYY-MM-DD format"):
         SeasonCheck(start_date="bad-date", lat=51.5).get_season()
+
+def test_lai_id_set_in_summer():
+    yaml_input = {
+        "sites": [
+            {
+                "properties": {
+                    "lat": {"value": 51.5},
+                    "land_cover": {
+                        "dectr": {
+                            "sfr": {"value": 0.2},
+                            "lai": {
+                                "laimin": {"value": 1.0},
+                                "laimax": {"value": 5.0},
+                            }
+                        }
+                    }
+                },
+                "initial_states": {
+                    "dectr": {}
+                }
+            }
+        ]
+    }
+    result = precheck_site_season_adjustments(deepcopy(yaml_input), "2025-07-01")
+    assert result["sites"][0]["initial_states"]["dectr"]["lai_id"]["value"] == 5.0
+
+
+def test_lai_id_set_in_winter():
+    yaml_input = {
+        "sites": [
+            {
+                "properties": {
+                    "lat": {"value": 51.5},
+                    "land_cover": {
+                        "dectr": {
+                            "sfr": {"value": 0.2},
+                            "lai": {
+                                "laimin": {"value": 1.0},
+                                "laimax": {"value": 5.0},
+                            }
+                        }
+                    }
+                },
+                "initial_states": {
+                    "dectr": {}
+                }
+            }
+        ]
+    }
+    result = precheck_site_season_adjustments(deepcopy(yaml_input), "2025-01-15")
+    assert result["sites"][0]["initial_states"]["dectr"]["lai_id"]["value"] == 1.0
+
+
+def test_lai_id_set_in_fall():
+    yaml_input = {
+        "sites": [
+            {
+                "properties": {
+                    "lat": {"value": 51.5},
+                    "land_cover": {
+                        "dectr": {
+                            "sfr": {"value": 0.2},
+                            "lai": {
+                                "laimin": {"value": 1.0},
+                                "laimax": {"value": 5.0},
+                            }
+                        }
+                    }
+                },
+                "initial_states": {
+                    "dectr": {}
+                }
+            }
+        ]
+    }
+    result = precheck_site_season_adjustments(deepcopy(yaml_input), "2025-10-01")
+    assert result["sites"][0]["initial_states"]["dectr"]["lai_id"]["value"] == 3.0  # (1.0 + 5.0) / 2
+
+
+def test_lai_id_nullified_if_no_dectr_surface():
+    yaml_input = {
+        "sites": [
+            {
+                "properties": {
+                    "lat": {"value": 51.5},
+                    "land_cover": {
+                        "dectr": {
+                            "sfr": {"value": 0.0},
+                            "lai": {
+                                "laimin": {"value": 1.0},
+                                "laimax": {"value": 5.0},
+                            }
+                        }
+                    }
+                },
+                "initial_states": {
+                    "dectr": {
+                        "lai_id": {"value": 999.0}  # Dummy old value to be nullified
+                    }
+                }
+            }
+        ]
+    }
+    result = precheck_site_season_adjustments(deepcopy(yaml_input), "2025-07-01")
+    assert result["sites"][0]["initial_states"]["dectr"]["lai_id"]["value"] is None

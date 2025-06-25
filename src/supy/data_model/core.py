@@ -138,6 +138,7 @@ def precheck_replace_empty_strings_with_none(data: dict) -> dict:
 
 def precheck_site_season_adjustments(data: dict, start_date: str) -> dict:
     cleaned_sites = []
+
     for i, site in enumerate(data.get("sites", [])):
         if isinstance(site, BaseModel):
             site = site.model_dump(mode="python")
@@ -145,13 +146,19 @@ def precheck_site_season_adjustments(data: dict, start_date: str) -> dict:
         props = site.get("properties", {})
         initial_states = site.get("initial_states", {})
 
+        # --------------------
+        # 1. Determine season
+        # --------------------
         lat_entry = props.get("lat", {})
         lat = lat_entry.get("value") if isinstance(lat_entry, dict) else lat_entry
+        season = None
 
         try:
             if lat is not None:
                 season = SeasonCheck(start_date=start_date, lat=lat).get_season()
                 print(f"[site #{i}] Season detected: {season}")
+
+                # If equatorial / tropical / summer → nullify snowalb
                 if season in ("summer", "tropical", "equatorial") and "snowalb" in initial_states:
                     if isinstance(initial_states["snowalb"], dict):
                         initial_states["snowalb"]["value"] = None
@@ -159,10 +166,39 @@ def precheck_site_season_adjustments(data: dict, start_date: str) -> dict:
         except Exception as e:
             raise ValueError(f"[site #{i}] SeasonCheck failed: {e}")
 
+        # --------------------------------------
+        # 2. Seasonal adjustment for DecTrees LAI
+        # --------------------------------------
+        dectr = props.get("land_cover", {}).get("dectr", {})
+        sfr = dectr.get("sfr", {}).get("value", 0)
+
+        if sfr > 0:
+            lai = dectr.get("lai", {})
+            laimin = lai.get("laimin", {}).get("value")
+            laimax = lai.get("laimax", {}).get("value")
+            lai_val = None
+
+            if laimin is not None and laimax is not None:
+                if season == "summer":
+                    lai_val = laimax
+                elif season == "winter":
+                    lai_val = laimin
+                elif season in ("spring", "fall"):
+                    lai_val = (laimax + laimin) / 2
+
+                if "dectr" in initial_states:
+                    initial_states["dectr"]["lai_id"] = {"value": lai_val}
+                    print(f"[site #{i}] Set lai_id to {lai_val} for season {season}")
+        else:
+            if "dectr" in initial_states:
+                initial_states["dectr"]["lai_id"] = {"value": None}
+                print(f"[site #{i}] Nullified lai_id (no dectr surface)")
+
         cleaned_sites.append(site)
 
     data["sites"] = cleaned_sites
     return data
+
 
 
 def run_precheck(data: dict) -> dict:

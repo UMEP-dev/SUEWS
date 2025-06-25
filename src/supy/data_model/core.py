@@ -106,13 +106,13 @@ def precheck_replace_empty_strings_with_none(data: dict) -> dict:
 def run_precheck(data: dict) -> dict:
     print("\nStarting precheck procedure...")
 
-    data = precheck_replace_empty_strings_with_none(data)
     data = precheck_printing(data)
     data, model_year, start_date, end_date = precheck_start_end_date(data)
     print(f"Start date: {start_date}; End date: {end_date}")
     print(f"Extracted model year: {model_year}")
     data = precheck_model_physics_params(data)
     data = precheck_model_options_constraints(data)
+    data = precheck_replace_empty_strings_with_none(data)
 
     print("Precheck complete.\n")
     return data

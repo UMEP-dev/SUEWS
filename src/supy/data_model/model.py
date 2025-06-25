@@ -543,7 +543,7 @@ class ModelControl(BaseModel):
     tstep: int = Field(
         default=300, description="Time step in seconds for model calculations"
     )
-    forcing_file: RefValue[str|list] = Field(
+    forcing_file: RefValue[str] | RefValue[list] = Field(
         default=RefValue("forcing.txt"),
         description="Path to meteorological forcing data file",
     )

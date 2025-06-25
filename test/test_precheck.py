@@ -208,7 +208,7 @@ def test_season_check_sets_snowalb_to_none():
             }
         ],
     }
-    result = precheck_site_season_adjustments(deepcopy(yaml_input), "2025-06-01")
+    result = precheck_site_season_adjustments(deepcopy(yaml_input), "2025-06-01", model_year=2025)
     assert result["sites"][0]["initial_states"]["snowalb"]["value"] is None
 
 
@@ -221,7 +221,7 @@ def test_site_in_winter_does_not_touch_snowalb():
             }
         ]
     }
-    result = precheck_site_season_adjustments(deepcopy(data), "2025-01-15")
+    result = precheck_site_season_adjustments(deepcopy(data), "2025-01-15", model_year=2025)
     assert result["sites"][0]["initial_states"]["snowalb"]["value"] == 0.3
 
 
@@ -234,7 +234,7 @@ def test_site_equatorial_sets_snowalb_none():
             }
         ]
     }
-    result = precheck_site_season_adjustments(deepcopy(data), "2025-06-01")
+    result = precheck_site_season_adjustments(deepcopy(data), "2025-06-01", model_year=2025)
     assert result["sites"][0]["initial_states"]["snowalb"]["value"] is None
 
 
@@ -289,7 +289,7 @@ def test_lai_id_set_in_summer():
             }
         ]
     }
-    result = precheck_site_season_adjustments(deepcopy(yaml_input), "2025-07-01")
+    result = precheck_site_season_adjustments(deepcopy(yaml_input), "2025-07-01",model_year=2025)
     assert result["sites"][0]["initial_states"]["dectr"]["lai_id"]["value"] == 5.0
 
 
@@ -315,7 +315,7 @@ def test_lai_id_set_in_winter():
             }
         ]
     }
-    result = precheck_site_season_adjustments(deepcopy(yaml_input), "2025-01-15")
+    result = precheck_site_season_adjustments(deepcopy(yaml_input), "2025-01-15",model_year=2025)
     assert result["sites"][0]["initial_states"]["dectr"]["lai_id"]["value"] == 1.0
 
 
@@ -341,7 +341,7 @@ def test_lai_id_set_in_fall():
             }
         ]
     }
-    result = precheck_site_season_adjustments(deepcopy(yaml_input), "2025-10-01")
+    result = precheck_site_season_adjustments(deepcopy(yaml_input), "2025-10-01",model_year=2025)
     assert result["sites"][0]["initial_states"]["dectr"]["lai_id"]["value"] == 3.0  # (1.0 + 5.0) / 2
 
 
@@ -369,5 +369,76 @@ def test_lai_id_nullified_if_no_dectr_surface():
             }
         ]
     }
-    result = precheck_site_season_adjustments(deepcopy(yaml_input), "2025-07-01")
+    result = precheck_site_season_adjustments(deepcopy(yaml_input), "2025-07-01",model_year=2025)
     assert result["sites"][0]["initial_states"]["dectr"]["lai_id"]["value"] is None
+
+def test_precheck_dls_assignment():
+    data = {
+        "sites": [
+            {
+                "properties": {
+                    "lat": {"value": 51.5},
+                    "lng": {"value": -0.12},
+                    "anthropogenic_emissions": {}
+                },
+                "initial_states": {},
+            }
+        ]
+    }
+
+    updated = precheck_site_season_adjustments(deepcopy(data), start_date="2025-03-01", model_year=2025)
+    emissions = updated["sites"][0]["properties"]["anthropogenic_emissions"]
+    props = updated["sites"][0]["properties"]
+
+    assert "startdls" in emissions
+    assert "enddls" in emissions
+    assert "timezone" in props
+    assert emissions["startdls"]["value"] is not None
+    assert emissions["enddls"]["value"] is not None
+    assert props["timezone"]["value"] == 0  # London standard time offset (UTC+0)
+
+def test_precheck_dls_for_unknown_location_graceful():
+    data = {
+        "sites": [
+            {
+                "properties": {
+                    "lat": {"value": 0.0},
+                    "lng": {"value": 0.0},
+                    "anthropogenic_emissions": {}
+                },
+                "initial_states": {},
+            }
+        ]
+    }
+
+    result = precheck_site_season_adjustments(deepcopy(data), "2025-03-01", model_year=2025)
+    props = result["sites"][0]["properties"]
+
+    assert "timezone" in props
+    assert props["timezone"]["value"] == 0  # 'Etc/GMT' offset
+
+
+def test_precheck_dls_overwrites_existing_values():
+    data = {
+        "sites": [
+            {
+                "properties": {
+                    "lat": {"value": 51.5},
+                    "lng": {"value": -0.12},
+                    "anthropogenic_emissions": {
+                        "startdls": {"value": 999},
+                        "enddls": {"value": 999},
+                    }
+                },
+                "initial_states": {},
+            }
+        ]
+    }
+
+    updated = precheck_site_season_adjustments(deepcopy(data), start_date="2025-03-01", model_year=2025)
+    emissions = updated["sites"][0]["properties"]["anthropogenic_emissions"]
+
+    assert emissions["startdls"]["value"] != 999
+    assert emissions["enddls"]["value"] != 999
+    assert isinstance(emissions["startdls"]["value"], int)
+    assert isinstance(emissions["enddls"]["value"], int)

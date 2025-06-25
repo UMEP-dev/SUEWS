@@ -322,18 +322,6 @@ def precheck_land_cover_fractions(data: dict) -> dict:
     return data
 
 def run_precheck(data: dict) -> dict:
-    # if isinstance(data, BaseModel):
-    #     data = data.model_dump(mode="python")
-
-    # # Also flatten any BaseModel in sites
-    # if "sites" in data and isinstance(data["sites"], list):
-    #     flat_sites = []
-    #     for site in data["sites"]:
-    #         if isinstance(site, BaseModel):
-    #             flat_sites.append(site.model_dump(mode="python"))
-    #         else:
-    #             flat_sites.append(site)
-    #     data["sites"] = flat_sites
 
     # ---- Step 1: Print start message ----
     data = precheck_printing(data)

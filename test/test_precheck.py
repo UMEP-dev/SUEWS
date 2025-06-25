@@ -135,7 +135,11 @@ def test_empty_string_becomes_none():
                 "site_name": "",
                 "properties": {
                     "lat": {"value": ""},
-                    "lng": {"value": -0.12}
+                    "lng": {"value": -0.12},
+                    "land_cover": {
+                        "bldgs": {"sfr": {"value": 0.5}},
+                        "paved": {"sfr": {"value": 0.5}},
+                    }
                 }
             }
         ],
@@ -152,6 +156,10 @@ def test_empty_string_in_list_of_floats():
                 "properties": {
                     "thermal_layers": {
                         "dz": {"value": [0.2, "", 0.1]}
+                    },
+                    "land_cover": {
+                        "bldgs": {"sfr": {"value": 0.5}},
+                        "paved": {"sfr": {"value": 0.5}},
                     }
                 }
             }
@@ -171,6 +179,10 @@ def test_empty_string_in_nested_dict():
                             "a1": {"value": ""},
                             "a2": {"value": 0.3},
                         }
+                    },
+                    "land_cover": {
+                        "bldgs": {"sfr": {"value": 0.5}},
+                        "paved": {"sfr": {"value": 0.5}},
                     }
                 }
             }
@@ -188,6 +200,10 @@ def test_empty_string_in_surface_type_dict():
                     "waterdist": {
                         "to_grass": {"value": ""},
                         "to_runoff": {"value": 0.9}
+                    },
+                    "land_cover": {
+                        "bldgs": {"sfr": {"value": 0.5}},
+                        "paved": {"sfr": {"value": 0.5}},
                     }
                 }
             }
@@ -442,3 +458,100 @@ def test_precheck_dls_overwrites_existing_values():
     assert emissions["enddls"]["value"] != 999
     assert isinstance(emissions["startdls"]["value"], int)
     assert isinstance(emissions["enddls"]["value"], int)
+
+from supy.data_model.core import precheck_land_cover_fractions
+from copy import deepcopy
+import pytest
+
+def test_land_cover_exact_sum():
+    data = {
+        "sites": [
+            {
+                "properties": {
+                    "land_cover": {
+                        "dectr": {"sfr": {"value": 0.4}},
+                        "grass": {"sfr": {"value": 0.6}},
+                    }
+                }
+            }
+        ]
+    }
+    result = precheck_land_cover_fractions(deepcopy(data))
+    total = sum(
+        v.get("sfr", {}).get("value", 0)
+        for v in result["sites"][0]["properties"]["land_cover"].values()
+    )
+    assert abs(total - 1.0) < 1e-6
+
+def test_land_cover_low_sum_autofix():
+    data = {
+        "sites": [
+            {
+                "properties": {
+                    "land_cover": {
+                        "dectr": {"sfr": {"value": 0.49995}},
+                        "grass": {"sfr": {"value": 0.49995}},
+                    }
+                }
+            }
+        ]
+    }
+    result = precheck_land_cover_fractions(deepcopy(data))
+    total = sum(
+        v.get("sfr", {}).get("value", 0)
+        for v in result["sites"][0]["properties"]["land_cover"].values()
+    )
+    assert abs(total - 1.0) < 1e-6
+
+def test_land_cover_high_sum_autofix():
+    data = {
+        "sites": [
+            {
+                "properties": {
+                    "land_cover": {
+                        "dectr": {"sfr": {"value": 0.50005}},
+                        "grass": {"sfr": {"value": 0.50005}},
+                    }
+                }
+            }
+        ]
+    }
+    result = precheck_land_cover_fractions(deepcopy(data))
+    total = sum(
+        v.get("sfr", {}).get("value", 0)
+        for v in result["sites"][0]["properties"]["land_cover"].values()
+    )
+    assert abs(total - 1.0) < 1e-6
+
+def test_land_cover_invalid_sum_raises():
+    data = {
+        "sites": [
+            {
+                "properties": {
+                    "land_cover": {
+                        "dectr": {"sfr": {"value": 0.3}},
+                        "grass": {"sfr": {"value": 0.3}},
+                    }
+                }
+            }
+        ]
+    }
+    with pytest.raises(ValueError, match="Invalid land_cover sfr sum"):
+        precheck_land_cover_fractions(deepcopy(data))
+
+def test_land_cover_invalid_structure_raises():
+    data = {
+        "sites": [
+            {
+                "properties": {
+                    "land_cover": {
+                        "dectr": {"sfr": {"value": 0.7}},
+                        # Missing 'sfr' in grass → should trigger Pydantic error
+                        "grass": {},
+                    }
+                }
+            }
+        ]
+    }
+    with pytest.raises(ValueError, match="Invalid land_cover"):
+        precheck_land_cover_fractions(deepcopy(data))

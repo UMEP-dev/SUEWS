@@ -15,7 +15,7 @@ import ast
 import supy as sp
 
 from .model import Model
-from .site import Site, SiteProperties, InitialStates
+from .site import Site, SiteProperties, InitialStates, LandCover
 import os
 
 from datetime import datetime
@@ -279,6 +279,47 @@ def precheck_site_season_adjustments(data: dict, start_date: str, model_year: in
     data["sites"] = cleaned_sites
     return data
 
+def precheck_land_cover_fractions(data: dict) -> dict:
+    for i, site in enumerate(data.get("sites", [])):
+        props = site.get("properties", {})
+
+        land_cover = props.get("land_cover")
+        if not land_cover:
+            raise ValueError(f"[site #{i}] Missing land_cover block.")
+
+        # Calculate sum of all surface fractions
+        sfr_sum = sum(
+            v.get("sfr", {}).get("value", 0)
+            for v in land_cover.values()
+            if isinstance(v, dict)
+        )
+
+        print(f"[site #{i}] Total land_cover sfr sum: {sfr_sum:.6f}")
+
+        # Auto-fix tiny floating point errors (epsilon ~0.0001)
+        if 0.9999 <= sfr_sum < 1.0:
+            max_key = max(land_cover, key=lambda k: land_cover[k]["sfr"]["value"])
+            correction = 1.0 - sfr_sum
+            land_cover[max_key]["sfr"]["value"] += correction
+            print(f"[site #{i}] Adjusted {max_key}.sfr up by {correction:.6f} to reach 1.0")
+        elif 1.0 < sfr_sum <= 1.0001:
+            max_key = max(land_cover, key=lambda k: land_cover[k]["sfr"]["value"])
+            correction = sfr_sum - 1.0
+            land_cover[max_key]["sfr"]["value"] -= correction
+            print(f"[site #{i}] Adjusted {max_key}.sfr down by {correction:.6f} to reach 1.0")
+        elif abs(sfr_sum - 1.0) > 0.0001:
+            raise ValueError(f"[site #{i}] Invalid land_cover sfr sum: {sfr_sum:.6f}")
+
+        # Validate using Pydantic LandCover model
+        try:
+            LandCover(**land_cover)
+        except ValidationError as e:
+            raise ValueError(f"[site #{i}] Invalid land_cover: {e}")
+
+        # Save back the potentially modified land_cover
+        site["properties"] = props
+
+    return data
 
 def run_precheck(data: dict) -> dict:
     # if isinstance(data, BaseModel):
@@ -313,7 +354,10 @@ def run_precheck(data: dict) -> dict:
     # ---- Step 6: Season + LAI + DLS adjustments per site ----
     data = precheck_site_season_adjustments(data, start_date=start_date, model_year=model_year)
 
-    # ---- Step 7: Print completion ----
+    # ---- Step 7: Land Cover Fractions checks & adjustments ----
+    data = precheck_land_cover_fractions(data)
+
+    # ---- Step 8: Print completion ----
     print("Precheck complete.\n")
     return data
 

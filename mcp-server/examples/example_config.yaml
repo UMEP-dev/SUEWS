@@ -1,0 +1,21 @@
+# Example partial SUEWS configuration for testing
+site_properties:
+  latitude: 51.5074  # London
+  longitude: -0.1278
+  altitude: 25.0
+  population_density_day: 150.0  # people/ha
+
+surface_fractions:
+  building_fraction: 0.3
+  paved_fraction: 0.35
+  evergreen_fraction: 0.05
+  deciduous_fraction: 0.1
+  grass_fraction: 0.15
+  bare_soil_fraction: 0.03
+  water_fraction: 0.02
+
+# Physics methods selection
+model:
+  NetRadiationMethod: NARP
+  StorageHeatMethod: OHM
+  EmissionsMethod: FixedWeekly

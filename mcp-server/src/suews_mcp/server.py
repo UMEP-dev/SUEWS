@@ -209,7 +209,13 @@ async def generate_suews_insights_report(
 # Main entry point
 def main():
     """Run the SUEWS MCP server."""
-    import uvicorn
-
+    import sys
+    
+    # Debug output
+    print("SUEWS MCP server starting...", file=sys.stderr)
+    
     # Run with stdio transport by default
     mcp.run(transport="stdio")
+    
+if __name__ == "__main__":
+    main()

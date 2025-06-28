@@ -14,7 +14,7 @@
     "type": "python",
     "entry_point": "src/suews_mcp/server.py",
     "mcp_config": {
-      "command": "python",
+      "command": "python3",
       "args": ["-m", "suews_mcp.server"],
       "env": {
         "PYTHONPATH": "${extension_dir}/src:${extension_dir}"

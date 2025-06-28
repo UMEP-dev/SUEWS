@@ -7,6 +7,7 @@ from supy.util._converter import convert_table, list_ver_to
 from supy._load import load_InitialCond_grid_df
 from supy.data_model.core import SUEWSConfig
 
+
 @click.command(
     short_help="Convert SUEWS table-based input to a YAML configuration file."
 )
@@ -52,12 +53,16 @@ def to_yaml(input_dir: str, output_file: str, from_ver: str):
     try:
         if from_ver:
             to_ver = sorted(list_ver_to)[-1]
-            click.echo(f"Step 1: Converting tables from version {from_ver} to latest version {to_ver}...")
+            click.echo(
+                f"Step 1: Converting tables from version {from_ver} to latest version {to_ver}..."
+            )
             temp_dir_obj = tempfile.TemporaryDirectory()
             temp_dir_path = Path(temp_dir_obj.name)
             convert_table(str(input_path), str(temp_dir_path), from_ver, to_ver)
             processing_dir = temp_dir_path
-            click.echo(f"Table conversion complete. Using converted tables in: {processing_dir}")
+            click.echo(
+                f"Table conversion complete. Using converted tables in: {processing_dir}"
+            )
 
         path_runcontrol = processing_dir / "RunControl.nml"
         if not path_runcontrol.exists():
@@ -77,6 +82,7 @@ def to_yaml(input_dir: str, output_file: str, from_ver: str):
     finally:
         if temp_dir_obj:
             temp_dir_obj.cleanup()
+
 
 if __name__ == "__main__":
     to_yaml()

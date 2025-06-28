@@ -4,6 +4,7 @@ import numpy as np
 import pandas as pd
 from enum import Enum
 
+
 class SurfaceType(str, Enum):
     PAVED = "paved"
     BLDGS = "bldgs"
@@ -19,16 +20,13 @@ T = TypeVar("T")
 
 class Reference(BaseModel):
     desc: Optional[str] = Field(
-        default=None,
-        description="Description of the reference source"
+        default=None, description="Description of the reference source"
     )
     ID: Optional[str] = Field(
-        default=None,
-        description="Identifier for the reference (e.g., citation key)"
+        default=None, description="Identifier for the reference (e.g., citation key)"
     )
     DOI: Optional[str] = Field(
-        default=None,
-        description="Digital Object Identifier for the reference"
+        default=None, description="Digital Object Identifier for the reference"
     )
 
 
@@ -82,7 +80,7 @@ class RefValue(BaseModel, Generic[T]):
         super().__init__(value=value, ref=ref)
 
     @classmethod
-    def wrap(cls, value: Union[T, 'RefValue[T]']) -> 'RefValue[T]':
+    def wrap(cls, value: Union[T, "RefValue[T]"]) -> "RefValue[T]":
         """Auto-wrap simple values in RefValue, return RefValue unchanged"""
         if isinstance(value, cls):
             return value

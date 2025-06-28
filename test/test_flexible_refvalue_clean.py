@@ -20,9 +20,9 @@ def remove_value_keys(data):
     """
     if isinstance(data, dict):
         # Check if this dict is a simple {value: X} structure
-        if len(data) == 1 and 'value' in data:
-            return data['value']
-        
+        if len(data) == 1 and "value" in data:
+            return data["value"]
+
         # Otherwise, process each key-value pair
         result = {}
         for key, val in data.items():
@@ -36,52 +36,58 @@ def remove_value_keys(data):
 
 def test_flexible_refvalue_with_cleaning():
     """Test FlexibleRefValue by cleaning the sample config"""
-    
+
     print("Testing FlexibleRefValue by removing 'value' keys from sample config")
     print("=" * 70)
-    
+
     # Load original sample config
     test_dir = Path(__file__).parent
     repo_root = test_dir.parent
     sample_config_path = repo_root / "src/supy/sample_run/sample_config.yml"
-    
+
     if not sample_config_path.exists():
         print(f"\nError: Sample config not found at: {sample_config_path}")
         print(f"Current working directory: {Path.cwd()}")
         print(f"Test directory: {test_dir}")
         print(f"Repository root: {repo_root}")
         return False
-    
+
     print(f"\n1. Loading original sample config from: {sample_config_path}")
-    with open(sample_config_path, 'r') as f:
+    with open(sample_config_path, "r") as f:
         original_data = yaml.safe_load(f)
-    
+
     # Create a cleaned version
     cleaned_data = copy.deepcopy(original_data)
     cleaned_data = remove_value_keys(cleaned_data)
-    
+
     print("\n2. Examples of cleaning:")
     # Show some examples of what was cleaned
     examples = [
-        ("model.control.tstep", 
-         original_data['model']['control']['tstep'],
-         cleaned_data['model']['control']['tstep']),
-        ("sites[0].properties.lat",
-         original_data['sites'][0]['properties']['lat'],
-         cleaned_data['sites'][0]['properties']['lat']),
-        ("sites[0].properties.lumps.raincover",
-         original_data['sites'][0]['properties']['lumps']['raincover'],
-         cleaned_data['sites'][0]['properties']['lumps']['raincover']),
+        (
+            "model.control.tstep",
+            original_data["model"]["control"]["tstep"],
+            cleaned_data["model"]["control"]["tstep"],
+        ),
+        (
+            "sites[0].properties.lat",
+            original_data["sites"][0]["properties"]["lat"],
+            cleaned_data["sites"][0]["properties"]["lat"],
+        ),
+        (
+            "sites[0].properties.lumps.raincover",
+            original_data["sites"][0]["properties"]["lumps"]["raincover"],
+            cleaned_data["sites"][0]["properties"]["lumps"]["raincover"],
+        ),
     ]
-    
+
     for path, orig, clean in examples:
         print(f"\n   {path}:")
         print(f"   Original: {orig}")
         print(f"   Cleaned:  {clean}")
-    
+
     # Test loading both versions
     print("\n3. Testing SUEWSConfig loading:")
-    
+
     print("\n   a) Loading original config with value keys...")
     try:
         config_original = SUEWSConfig(**original_data)
@@ -89,7 +95,7 @@ def test_flexible_refvalue_with_cleaning():
     except Exception as e:
         print(f"      ✗ Failed: {e}")
         return False
-    
+
     print("\n   b) Loading cleaned config without value keys...")
     try:
         config_cleaned = SUEWSConfig(**cleaned_data)
@@ -97,10 +103,10 @@ def test_flexible_refvalue_with_cleaning():
     except Exception as e:
         print(f"      ✗ Failed: {e}")
         return False
-    
+
     # Compare key values
     print("\n4. Comparing values between original and cleaned configs:")
-    
+
     test_values = [
         ("tstep", lambda c: c.model.control.tstep),
         ("forcing_file", lambda c: c.model.control.forcing_file),
@@ -109,60 +115,62 @@ def test_flexible_refvalue_with_cleaning():
         ("raincover", lambda c: c.sites[0].properties.lumps.raincover),
         ("g_max", lambda c: c.sites[0].properties.conductance.g_max),
     ]
-    
+
     all_match = True
     for name, getter in test_values:
         try:
             val_orig = getter(config_original)
             val_clean = getter(config_cleaned)
-            
+
             # Extract values if they're RefValue objects
             if isinstance(val_orig, RefValue):
                 val_orig = val_orig.value
             if isinstance(val_clean, RefValue):
                 val_clean = val_clean.value
-            
+
             match = val_orig == val_clean
             symbol = "✓" if match else "✗"
             print(f"   {symbol} {name}: {val_orig} == {val_clean}")
-            
+
             if not match:
                 all_match = False
         except Exception as e:
             print(f"   ✗ {name}: Error - {e}")
             all_match = False
-    
+
     # Test DataFrame conversion
     print("\n5. Testing DataFrame conversion:")
     try:
         df_orig = config_original.to_df_state()
         df_clean = config_cleaned.to_df_state()
-        
+
         print(f"   Original DataFrame shape: {df_orig.shape}")
         print(f"   Cleaned DataFrame shape:  {df_clean.shape}")
-        
+
         if df_orig.shape == df_clean.shape:
             print("   ✓ DataFrame shapes match")
         else:
             print("   ✗ DataFrame shapes differ")
             all_match = False
-            
+
     except Exception as e:
         print(f"   ✗ DataFrame conversion failed: {e}")
         all_match = False
-    
+
     # Count how many value keys were removed
     print("\n6. Cleaning statistics:")
     value_count = count_value_keys(original_data)
     print(f"   Total 'value' keys removed: {value_count}")
-    
+
     print("\n" + "=" * 70)
-    
+
     assert all_match, "Some tests failed"
+
+
 def count_value_keys(data, count=0):
     """Count the number of 'value' keys that would be removed"""
     if isinstance(data, dict):
-        if len(data) == 1 and 'value' in data:
+        if len(data) == 1 and "value" in data:
             return count + 1
         for val in data.values():
             count = count_value_keys(val, count)

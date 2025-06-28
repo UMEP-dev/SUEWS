@@ -155,7 +155,6 @@ def delete_var_nml(toFile, toVar, toVal):
 # add:
 # add variable(s) to a file
 def add_var(toFile, toVar, toCol, toVal):
-
     # # toFile missing
     # if not (os.path.isfile(toFile)):
     #     print(toFile, "is a new file")
@@ -286,9 +285,9 @@ def SUEWS_Converter_file(fileX, actionList):
         "Rename_File": 5,
     }
 
-    todoList = np.array(
-        [np.concatenate(([order[x[0]]], x)).tolist() for x in actionList]
-    )
+    todoList = np.array([
+        np.concatenate(([order[x[0]]], x)).tolist() for x in actionList
+    ])
 
     # sort by Column number, then by Action order in actionList; also expand
     # dtype size
@@ -387,7 +386,9 @@ def convert_table(fromDir, toDir, fromVer, toVer):
 
         # flatten all file structures in tempDir_1
         # locate input folder
-        ser_nml = load_SUEWS_nml_simple(str(Path(fromDir) / "RunControl.nml")).runcontrol
+        ser_nml = load_SUEWS_nml_simple(
+            str(Path(fromDir) / "RunControl.nml")
+        ).runcontrol
         path_input = (Path(fromDir) / ser_nml["fileinputpath"]).resolve()
         list_table_input = (
             [x for x in path_input.glob("SUEWS*.txt")]
@@ -469,9 +470,10 @@ def convert_utf8(file_src):
 
         # add try: except block for reliability
         try:
-            with open(path_src, "r", encoding=from_codec) as f, open(
-                path_dst, "w", encoding="utf-8"
-            ) as e:
+            with (
+                open(path_src, "r", encoding=from_codec) as f,
+                open(path_dst, "w", encoding="utf-8") as e,
+            ):
                 text = f.read()  # for small files, for big use chunks
                 e.write(text)
 

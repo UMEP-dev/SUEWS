@@ -193,8 +193,8 @@ def plot_reclassification(
     # WRF LCs
     list_wrf = df_flow.source.unique().tolist()
     # LC types
-    list_type = df_flow.type.unique()[[1,2,0,3]].tolist()
-    print('list_type:', list_type)
+    list_type = df_flow.type.unique()[[1, 2, 0, 3]].tolist()
+    print("list_type:", list_type)
     lc_by_type = Partition.Simple("type", list_type)
 
     nodes = {

@@ -14,7 +14,7 @@ from .._load import load_SUEWS_nml_simple
 # run the whole supy workflow mimicking SUEWS binary
 @click.command(
     short_help="Run SUEWS simulation using settings in PATH_RUNCONTROL",
-    help='''
+    help="""
 Run SUEWS simulation using settings in PATH_RUNCONTROL
 (default: "./RunControl.nml", i.e., the RunControl namelist file in the current directory).
 
@@ -27,7 +27,7 @@ Examples:
 2. Run SUEWS simulation using an arbitray RunControl namelist file by specifying the path to the RunControl namelist file:
 
     $ suews-run -p /path/to/RunControl.nml
-''',
+""",
 )
 @click.option(
     "--path_runcontrol",

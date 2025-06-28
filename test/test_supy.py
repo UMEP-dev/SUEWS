@@ -22,29 +22,24 @@ test_data_dir = Path(__file__).parent / "data_test"
 p_df_sample = Path(test_data_dir) / "sample_output.pkl"
 
 # if platform is macOS and python version is 3.12, set flag_full_test to True
-flag_full_test = any(
-    [
-        all(
-            [
-                sys.version_info[0] == 3,
-                sys.version_info[1] == 12,
-                platform.system() == "Darwin",
-                platform.machine() == "arm64",
-            ]
-        ),
-        all(
-            [
-                sys.version_info[0] == 3,
-                sys.version_info[1] == 13,
-                platform.system() == "Linux",
-                platform.machine() == "x86_64",
-            ]
-        ),
-    ]
-)
+flag_full_test = any([
+    all([
+        sys.version_info[0] == 3,
+        sys.version_info[1] == 12,
+        platform.system() == "Darwin",
+        platform.machine() == "arm64",
+    ]),
+    all([
+        sys.version_info[0] == 3,
+        sys.version_info[1] == 13,
+        platform.system() == "Linux",
+        platform.machine() == "x86_64",
+    ]),
+])
 
 # Load sample data once, as it will be used frequently later to save time.
 df_state_init, df_forcing_tstep = sp.load_SampleData()
+
 
 class TestSuPy(TestCase):
     def setUp(self):
@@ -105,12 +100,10 @@ class TestSuPy(TestCase):
         if df_state.isnull().values.any():
             print("NaN in state:")
             print(df_state.columns[np.any(df_state.isnull(), axis=0)])
-        test_non_empty = np.all(
-            [
-                not df_output.empty,
-                not df_state.empty,
-            ]
-        )
+        test_non_empty = np.all([
+            not df_output.empty,
+            not df_state.empty,
+        ])
         self.assertTrue((test_non_empty and not df_state.isnull().values.any()))
 
     # test if multi-grid simulation can run in parallel
@@ -128,12 +121,10 @@ class TestSuPy(TestCase):
         df_output, df_state = sp.run_supy(df_forcing_part, df_state_init_multi)
         t_end = time()
 
-        test_success_sim = np.all(
-            [
-                not df_output.empty,
-                not df_state.empty,
-            ]
-        )
+        test_success_sim = np.all([
+            not df_output.empty,
+            not df_state.empty,
+        ])
 
         with tempfile.TemporaryDirectory() as dir_temp:
             list_outfile = sp.save_supy(
@@ -150,14 +141,12 @@ class TestSuPy(TestCase):
         # only print to screen on macOS due incompatibility on Windows
         if platform.system() == "Darwin":
             n_grid = df_state_init_multi.index.size
-            print(f"Running time: {t_end-t_start:.2f} s for {n_grid} grids")
+            print(f"Running time: {t_end - t_start:.2f} s for {n_grid} grids")
 
-        test_non_empty = np.all(
-            [
-                not df_output.empty,
-                not df_state.empty,
-            ]
-        )
+        test_non_empty = np.all([
+            not df_output.empty,
+            not df_state.empty,
+        ])
         self.assertTrue(test_non_empty)
 
     #  test if flag_test can be set to True
@@ -231,7 +220,7 @@ class TestSuPy(TestCase):
             sys.stdout = capturedOutput  # and redirect stdout.
             # Call function.
             n_grid = df_state_init.index.size
-            print(f"Running time: {t_end-t_start:.2f} s for {n_grid} grids")
+            print(f"Running time: {t_end - t_start:.2f} s for {n_grid} grids")
             sys.stdout = sys.__stdout__  # Reset redirect.
             # Now works as before.
             print("Captured:\n", capturedOutput.getvalue())
@@ -318,7 +307,9 @@ class TestSuPy(TestCase):
         config = sp.data_model.init_config_from_yaml(path_to_bm1_yml)
         df_state_init = config.to_df_state()
         grid = df_state_init.index[0]
-        df_forcing_tstep = sp.load_forcing_grid(path_to_bm1_yml, grid=grid, df_state_init=df_state_init)
+        df_forcing_tstep = sp.load_forcing_grid(
+            path_to_bm1_yml, grid=grid, df_state_init=df_state_init
+        )
         # met_path = str(config.model.control.forcing_file)
         # df_forcing_tstep = sp._load.load_SUEWS_Forcing_met_df_yaml(met_path)
 
@@ -483,14 +474,13 @@ class TestSuPy(TestCase):
         df_output, df_state = sp.run_supy(df_forcing_part, df_state_init)
 
         # get soilstore
-        df_soilstore = df_output.loc[1,"debug"].filter(regex="^ss_.*_next$")
+        df_soilstore = df_output.loc[1, "debug"].filter(regex="^ss_.*_next$")
         ser_sfr_surf = df_state_init.sfr_surf.iloc[0]
         ser_soilstore = df_soilstore.dot(ser_sfr_surf.values)
 
         # get water balance
-        df_water = df_output.SUEWS[['Rain','Irr','Evap','RO','State']].assign(
-            SoilStore=ser_soilstore,
-            TotalStore=ser_soilstore+df_output.SUEWS.State
+        df_water = df_output.SUEWS[["Rain", "Irr", "Evap", "RO", "State"]].assign(
+            SoilStore=ser_soilstore, TotalStore=ser_soilstore + df_output.SUEWS.State
         )
         # ===============================
         # check if water balance is closed
@@ -498,11 +488,11 @@ class TestSuPy(TestCase):
         # change in total store
         ser_totalstore_change = df_water.TotalStore.diff().dropna()
         # water input
-        ser_water_in = df_water.Rain+df_water.Irr
+        ser_water_in = df_water.Rain + df_water.Irr
         # water output
-        ser_water_out = df_water.Evap+df_water.RO
+        ser_water_out = df_water.Evap + df_water.RO
         # water balance
-        ser_water_balance = ser_water_in-ser_water_out
+        ser_water_balance = ser_water_in - ser_water_out
         # test if water balance is closed
-        test_dif = (ser_totalstore_change-ser_water_balance).abs().max() < 1e-6
+        test_dif = (ser_totalstore_change - ser_water_balance).abs().max() < 1e-6
         self.assertTrue(test_dif)

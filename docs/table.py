@@ -94,11 +94,11 @@ def readfile(infile):
     """
     infile = path.realpath(infile)
     try:
-        with open(infile, 'r') as f:
+        with open(infile, "r") as f:
             data = f.read()
-        return(data)
+        return data
     except Exception as e:
-        logging.error('File error (readData): ' + str(e))
+        logging.error("File error (readData): " + str(e))
         return 1
 
 
@@ -113,11 +113,11 @@ def writefile(outfile, data):
     """
     outfile = path.realpath(outfile)
     try:
-        with open(outfile, 'w') as f:
+        with open(outfile, "w") as f:
             f.write(data)
         return 0
     except Exception as e:
-        logging.error('File error (writeData): ' + str(e))
+        logging.error("File error (writeData): " + str(e))
         return 1
 
 
@@ -130,22 +130,22 @@ def adjustrow(row):
     :return: a row of list-table text
     :rtype: str
     """
-    if row.startswith('+') is True:
-        return('\n')
-    row = row.split('|')
+    if row.startswith("+") is True:
+        return "\n"
+    row = row.split("|")
     new_row = []
     for entry in row:
         new_row.append(entry)
         try:
-            new_row.pop(new_row.index(''))
+            new_row.pop(new_row.index(""))
         except:
             pass
     convert = []
-    convert.append('   * - ' + new_row[0].strip())
+    convert.append("   * - " + new_row[0].strip())
     for entry in new_row[1:]:
-        convert.append(('\n     - ' + entry.strip()).rstrip())
-    result = ''.join(convert)
-    return(result)
+        convert.append(("\n     - " + entry.strip()).rstrip())
+    result = "".join(convert)
+    return result
 
 
 def buildtable(gridtable):
@@ -157,20 +157,22 @@ def buildtable(gridtable):
     :return: an RST list-table
     :rtype: str
     """
-    col_num = gridtable[0].count('+') - 1
+    col_num = gridtable[0].count("+") - 1
     col_width = str(int(100 / col_num))
-    col_width = (' ' + col_width) * col_num
+    col_width = (" " + col_width) * col_num
 
     output = []
     for line in gridtable:
         row = adjustrow(line)
         output.append(row)
-    result = ''.join(output)
-    list_table = """.. list-table::\n   :widths:%s\n   :header-rows: 1\n%s""" \
-                 % (col_width, result)
+    result = "".join(output)
+    list_table = """.. list-table::\n   :widths:%s\n   :header-rows: 1\n%s""" % (
+        col_width,
+        result,
+    )
     global numtables
     numtables += 1
-    return(list_table)
+    return list_table
 
 
 def dofile(infile, replace, create):
@@ -182,11 +184,11 @@ def dofile(infile, replace, create):
     gridtable = []
     content = []
     for line in data:
-        if line.startswith('+--') is True or line.startswith('+==') is True:
+        if line.startswith("+--") is True or line.startswith("+==") is True:
             grid = True
             insert = True
             gridtable.append(line)
-        elif grid is True and line.startswith('|') is True:
+        elif grid is True and line.startswith("|") is True:
             gridtable.append(line)
         else:
             grid = False
@@ -194,34 +196,43 @@ def dofile(infile, replace, create):
             if insert is True:
                 insert = False
                 newtable = buildtable(gridtable)
-                content.append(newtable + '\n')
+                content.append(newtable + "\n")
                 gridtable = []
             else:
-                content.append(line + '\n')
-    content = ''.join(content)
+                content.append(line + "\n")
+    content = "".join(content)
     if replace is True:
         writefile(infile, content)
     elif create is True:
-        writefile(infile + '.new', content)
+        writefile(infile + ".new", content)
     else:
         print(content)
     return
 
 
-
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser(prog="table",
-                                     description='''Convert RST grid table
-                                     to list-table.''')
-    parser.add_argument('INPUT', type=str, nargs='+', help='RST file(s)')
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(
+        prog="table",
+        description="""Convert RST grid table
+                                     to list-table.""",
+    )
+    parser.add_argument("INPUT", type=str, nargs="+", help="RST file(s)")
     group = parser.add_mutually_exclusive_group()
-    group.add_argument('-c', '--create', action='store_true',
-                       help='''create new files (*.rst.new) with the converted
-                       tables. Original files are unchanged.''')
-    group.add_argument('-r', '--replace', action='store_true',
-                       help='''modify input files, replacing grid tables with
-                       list-tables''')
+    group.add_argument(
+        "-c",
+        "--create",
+        action="store_true",
+        help="""create new files (*.rst.new) with the converted
+                       tables. Original files are unchanged.""",
+    )
+    group.add_argument(
+        "-r",
+        "--replace",
+        action="store_true",
+        help="""modify input files, replacing grid tables with
+                       list-tables""",
+    )
     args = parser.parse_args()
     for file in args.INPUT:
         dofile(file, args.replace, args.create)
-    print('\033[92mTables converted: ' + str(numtables) + '\033[0m')
+    print("\033[92mTables converted: " + str(numtables) + "\033[0m")

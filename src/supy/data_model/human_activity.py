@@ -14,28 +14,50 @@ class IrrigationParams(
 ):  # TODO: May need to add RefValue to the profiles here
     h_maintain: Optional[FlexibleRefValue(float)] = Field(
         default=None,
-        description="Water depth to maintain through irrigation", json_schema_extra={"unit": "mm", "display_name": "Maintain Height"},
+        description="Water depth to maintain through irrigation",
+        json_schema_extra={"unit": "mm", "display_name": "Maintain Height"},
     )
     faut: FlexibleRefValue(float) = Field(
         default=0.0,
-        description="Fraction of automatic irrigation", json_schema_extra={"unit": "dimensionless", "display_name": "Automatic Fraction"},
+        description="Fraction of automatic irrigation",
+        json_schema_extra={
+            "unit": "dimensionless",
+            "display_name": "Automatic Fraction",
+        },
     )
     ie_start: Optional[FlexibleRefValue(float)] = Field(
         default=None,
-        description="Start time of irrigation", json_schema_extra={"unit": "hour", "display_name": "Irrigation Start Hour"},
+        description="Start time of irrigation",
+        json_schema_extra={"unit": "hour", "display_name": "Irrigation Start Hour"},
     )
     ie_end: Optional[FlexibleRefValue(float)] = Field(
         default=None,
-        description="End time of irrigation", json_schema_extra={"unit": "hour", "display_name": "Irrigation End Hour"},
+        description="End time of irrigation",
+        json_schema_extra={"unit": "hour", "display_name": "Irrigation End Hour"},
     )
     internalwateruse_h: Optional[FlexibleRefValue(float)] = Field(
         default=None,
-        description="Internal water use rate", json_schema_extra={"unit": "mm h^-1", "display_name": "Internal Water Use Rate"},
+        description="Internal water use rate",
+        json_schema_extra={
+            "unit": "mm h^-1",
+            "display_name": "Internal Water Use Rate",
+        },
     )
-    daywatper: WeeklyProfile = Field(default_factory=WeeklyProfile, json_schema_extra={"display_name": "Day Water Per"})
-    daywat: WeeklyProfile = Field(default_factory=WeeklyProfile, json_schema_extra={"display_name": "Day Water"})
-    wuprofa_24hr: HourlyProfile = Field(default_factory=HourlyProfile, json_schema_extra={"display_name": "Water Use Profile Automatic (24hr)"})
-    wuprofm_24hr: HourlyProfile = Field(default_factory=HourlyProfile, json_schema_extra={"display_name": "Water Use Profile Manual (24hr)"})
+    daywatper: WeeklyProfile = Field(
+        default_factory=WeeklyProfile,
+        json_schema_extra={"display_name": "Day Water Per"},
+    )
+    daywat: WeeklyProfile = Field(
+        default_factory=WeeklyProfile, json_schema_extra={"display_name": "Day Water"}
+    )
+    wuprofa_24hr: HourlyProfile = Field(
+        default_factory=HourlyProfile,
+        json_schema_extra={"display_name": "Water Use Profile Automatic (24hr)"},
+    )
+    wuprofm_24hr: HourlyProfile = Field(
+        default_factory=HourlyProfile,
+        json_schema_extra={"display_name": "Water Use Profile Manual (24hr)"},
+    )
 
     ref: Optional[Reference] = None
 
@@ -52,12 +74,36 @@ class IrrigationParams(
 
         df_state = init_df_state(grid_id)
 
-        df_state.loc[grid_id, ("h_maintain", "0")] = self.h_maintain.value if isinstance(self.h_maintain, RefValue) else self.h_maintain if self.h_maintain is not None else 0.0
-        df_state.loc[grid_id, ("faut", "0")] = self.faut.value if isinstance(self.faut, RefValue) else self.faut
-        df_state.loc[grid_id, ("ie_start", "0")] = self.ie_start.value if isinstance(self.ie_start, RefValue) else self.ie_start if self.ie_start is not None else 0.0
-        df_state.loc[grid_id, ("ie_end", "0")] = self.ie_end.value if isinstance(self.ie_end, RefValue) else self.ie_end if self.ie_end is not None else 0.0
+        df_state.loc[grid_id, ("h_maintain", "0")] = (
+            self.h_maintain.value
+            if isinstance(self.h_maintain, RefValue)
+            else self.h_maintain
+            if self.h_maintain is not None
+            else 0.0
+        )
+        df_state.loc[grid_id, ("faut", "0")] = (
+            self.faut.value if isinstance(self.faut, RefValue) else self.faut
+        )
+        df_state.loc[grid_id, ("ie_start", "0")] = (
+            self.ie_start.value
+            if isinstance(self.ie_start, RefValue)
+            else self.ie_start
+            if self.ie_start is not None
+            else 0.0
+        )
+        df_state.loc[grid_id, ("ie_end", "0")] = (
+            self.ie_end.value
+            if isinstance(self.ie_end, RefValue)
+            else self.ie_end
+            if self.ie_end is not None
+            else 0.0
+        )
         df_state.loc[grid_id, ("internalwateruse_h", "0")] = (
-            self.internalwateruse_h.value if isinstance(self.internalwateruse_h, RefValue) else self.internalwateruse_h if self.internalwateruse_h is not None else 0.0
+            self.internalwateruse_h.value
+            if isinstance(self.internalwateruse_h, RefValue)
+            else self.internalwateruse_h
+            if self.internalwateruse_h is not None
+            else 0.0
         )
 
         df_daywatper = self.daywatper.to_df_state(grid_id, "daywatper")
@@ -128,66 +174,70 @@ class AnthropogenicHeat(
     qf0_beu: DayProfile = Field(
         description="Base anthropogenic heat flux for buildings, equipment and urban metabolism",
         default_factory=DayProfile,
-        json_schema_extra={"display_name": "Base Energy Use QF"}
+        json_schema_extra={"display_name": "Base Energy Use QF"},
     )
     qf_a: DayProfile = Field(
         description="Coefficient a for anthropogenic heat flux calculation",
         default_factory=DayProfile,
-        json_schema_extra={"display_name": "QF Coefficient A"}
+        json_schema_extra={"display_name": "QF Coefficient A"},
     )
     qf_b: DayProfile = Field(
         description="Coefficient b for anthropogenic heat flux calculation",
         default_factory=DayProfile,
-        json_schema_extra={"display_name": "QF Coefficient B"}
+        json_schema_extra={"display_name": "QF Coefficient B"},
     )
     qf_c: DayProfile = Field(
         description="Coefficient c for anthropogenic heat flux calculation",
         default_factory=DayProfile,
-        json_schema_extra={"display_name": "QF Coefficient C"}
+        json_schema_extra={"display_name": "QF Coefficient C"},
     )
     baset_cooling: DayProfile = Field(
         description="Base temperature for cooling degree days",
         default_factory=DayProfile,
-        json_schema_extra={"display_name": "Base Temperature Cooling"}
+        json_schema_extra={"display_name": "Base Temperature Cooling"},
     )
     baset_heating: DayProfile = Field(
         description="Base temperature for heating degree days",
         default_factory=DayProfile,
-        json_schema_extra={"display_name": "Base Temperature Heating"}
+        json_schema_extra={"display_name": "Base Temperature Heating"},
     )
     ah_min: DayProfile = Field(
         description="Minimum anthropogenic heat flux",
         default_factory=DayProfile,
-        json_schema_extra={"display_name": "Minimum Anthropogenic Heat"}
+        json_schema_extra={"display_name": "Minimum Anthropogenic Heat"},
     )
     ah_slope_cooling: DayProfile = Field(
         description="Slope of anthropogenic heat vs cooling degree days",
         default_factory=DayProfile,
-        json_schema_extra={"display_name": "AH Slope Cooling"}
+        json_schema_extra={"display_name": "AH Slope Cooling"},
     )
     ah_slope_heating: DayProfile = Field(
         description="Slope of anthropogenic heat vs heating degree days",
         default_factory=DayProfile,
-        json_schema_extra={"display_name": "AH Slope Heating"}
+        json_schema_extra={"display_name": "AH Slope Heating"},
     )
     ahprof_24hr: HourlyProfile = Field(
         description="24-hour profile of anthropogenic heat flux",
         default_factory=HourlyProfile,
-        json_schema_extra={"display_name": "Anthropogenic Heat Profile (24hr)"}
+        json_schema_extra={"display_name": "Anthropogenic Heat Profile (24hr)"},
     )
     popdensdaytime: DayProfile = Field(
         description="Daytime population density",
         default_factory=DayProfile,
-        json_schema_extra={"display_name": "Daytime Population Density"}
+        json_schema_extra={"display_name": "Daytime Population Density"},
     )
     popdensnighttime: float = Field(
         default=10.0,
-        description="Nighttime population density", json_schema_extra={"unit": "people ha^-1", "display_name": "Nighttime Population Density"},
+        description="Nighttime population density",
+        json_schema_extra={
+            "unit": "people ha^-1",
+            "display_name": "Nighttime Population Density",
+        },
     )
     popprof_24hr: HourlyProfile = Field(
         description="24-hour profile of population density",
         default_factory=HourlyProfile,
-        json_schema_extra={"display_name": "Population Profile (24hr)"}
+        json_schema_extra={"display_name": "Population Profile (24hr)"},
     )
 
     ref: Optional[Reference] = None
@@ -285,63 +335,97 @@ class AnthropogenicHeat(
 class CO2Params(BaseModel):  # TODO: May need to add the RefValue to the profiles here
     co2pointsource: Optional[FlexibleRefValue(float)] = Field(
         default=None,
-        description="CO2 point source emission factor", json_schema_extra={"unit": "kg m^-2 s^-1", "display_name": "CO2 Point Source"},
+        description="CO2 point source emission factor",
+        json_schema_extra={"unit": "kg m^-2 s^-1", "display_name": "CO2 Point Source"},
     )
     ef_umolco2perj: Optional[FlexibleRefValue(float)] = Field(
         default=None,
-        description="CO2 emission factor per unit of fuel energy", json_schema_extra={"unit": "umol J^-1", "display_name": "Emission Factor (umol CO2/J)"},
+        description="CO2 emission factor per unit of fuel energy",
+        json_schema_extra={
+            "unit": "umol J^-1",
+            "display_name": "Emission Factor (umol CO2/J)",
+        },
     )
     enef_v_jkm: Optional[FlexibleRefValue(float)] = Field(
         default=None,
-        description="Vehicle energy consumption factor", json_schema_extra={"unit": "J km^-1", "display_name": "Energy Emission Factor Vehicles"},
+        description="Vehicle energy consumption factor",
+        json_schema_extra={
+            "unit": "J km^-1",
+            "display_name": "Energy Emission Factor Vehicles",
+        },
     )
     fcef_v_kgkm: DayProfile = Field(
         description="Fuel consumption efficiency for vehicles",
         default_factory=DayProfile,
-        json_schema_extra={"display_name": "Fuel Carbon Emission Factor Vehicles"}
+        json_schema_extra={"display_name": "Fuel Carbon Emission Factor Vehicles"},
     )
     frfossilfuel_heat: Optional[FlexibleRefValue(float)] = Field(
         default=None,
-        description="Fraction of heating energy from fossil fuels", json_schema_extra={"unit": "dimensionless", "display_name": "Fossil Fuel Fraction Heating"},
+        description="Fraction of heating energy from fossil fuels",
+        json_schema_extra={
+            "unit": "dimensionless",
+            "display_name": "Fossil Fuel Fraction Heating",
+        },
     )
     frfossilfuel_nonheat: Optional[FlexibleRefValue(float)] = Field(
         default=None,
-        description="Fraction of non-heating energy from fossil fuels", json_schema_extra={"unit": "dimensionless", "display_name": "Fossil Fuel Fraction Non-Heating"},
+        description="Fraction of non-heating energy from fossil fuels",
+        json_schema_extra={
+            "unit": "dimensionless",
+            "display_name": "Fossil Fuel Fraction Non-Heating",
+        },
     )
     maxfcmetab: Optional[FlexibleRefValue(float)] = Field(
         default=None,
-        description="Maximum metabolic CO2 flux rate", json_schema_extra={"unit": "umol m^-2 s^-1", "display_name": "Maximum Metabolic CO2 Flux"},
+        description="Maximum metabolic CO2 flux rate",
+        json_schema_extra={
+            "unit": "umol m^-2 s^-1",
+            "display_name": "Maximum Metabolic CO2 Flux",
+        },
     )
     maxqfmetab: Optional[FlexibleRefValue(float)] = Field(
         default=None,
-        description="Maximum metabolic heat flux rate", json_schema_extra={"unit": "W m^-2", "display_name": "Maximum Metabolic Heat Flux"},
+        description="Maximum metabolic heat flux rate",
+        json_schema_extra={
+            "unit": "W m^-2",
+            "display_name": "Maximum Metabolic Heat Flux",
+        },
     )
     minfcmetab: Optional[FlexibleRefValue(float)] = Field(
         default=None,
-        description="Minimum metabolic CO2 flux rate", json_schema_extra={"unit": "umol m^-2 s^-1", "display_name": "Minimum Metabolic CO2 Flux"},
+        description="Minimum metabolic CO2 flux rate",
+        json_schema_extra={
+            "unit": "umol m^-2 s^-1",
+            "display_name": "Minimum Metabolic CO2 Flux",
+        },
     )
     minqfmetab: Optional[FlexibleRefValue(float)] = Field(
         default=None,
-        description="Minimum metabolic heat flux rate", json_schema_extra={"unit": "W m^-2", "display_name": "Minimum Metabolic Heat Flux"},
+        description="Minimum metabolic heat flux rate",
+        json_schema_extra={
+            "unit": "W m^-2",
+            "display_name": "Minimum Metabolic Heat Flux",
+        },
     )
     trafficrate: DayProfile = Field(
         description="Traffic rate",
         default_factory=DayProfile,
-        json_schema_extra={"display_name": "Traffic Rate"}
+        json_schema_extra={"display_name": "Traffic Rate"},
     )
     trafficunits: Optional[FlexibleRefValue(float)] = Field(
         default=None,
-        description="Units for traffic density normalisation", json_schema_extra={"unit": "vehicle km ha^-1", "display_name": "Traffic Units"},
+        description="Units for traffic density normalisation",
+        json_schema_extra={"unit": "vehicle km ha^-1", "display_name": "Traffic Units"},
     )
     traffprof_24hr: HourlyProfile = Field(
         description="24-hour profile of traffic rate",
         default_factory=HourlyProfile,
-        json_schema_extra={"display_name": "Traffic Profile (24hr)"}
+        json_schema_extra={"display_name": "Traffic Profile (24hr)"},
     )
     humactivity_24hr: HourlyProfile = Field(
         description="24-hour profile of human activity",
         default_factory=HourlyProfile,
-        json_schema_extra={"display_name": "Human Activity Profile (24hr)"}
+        json_schema_extra={"display_name": "Human Activity Profile (24hr)"},
     )
 
     ref: Optional[Reference] = None
@@ -356,10 +440,14 @@ class CO2Params(BaseModel):  # TODO: May need to add the RefValue to the profile
             "frfossilfuel_heat": "Fraction of heating energy from fossil fuels",
             "frfossilfuel_nonheat": "Fraction of non-heating energy from fossil fuels",
         }
-        
-        missing_params = check_missing_params(critical_params, self, "CO2 emission", "model accuracy")
-        warn_missing_params(missing_params, "CO2 emission", "model accuracy", stacklevel=2)
-        
+
+        missing_params = check_missing_params(
+            critical_params, self, "CO2 emission", "model accuracy"
+        )
+        warn_missing_params(
+            missing_params, "CO2 emission", "model accuracy", stacklevel=2
+        )
+
         return self
 
     # DayProfile coulmns need to be fixed
@@ -377,16 +465,56 @@ class CO2Params(BaseModel):  # TODO: May need to add the RefValue to the profile
         df_state = init_df_state(grid_id)
 
         scalar_params = {
-            "co2pointsource": self.co2pointsource.value if isinstance(self.co2pointsource, RefValue) else self.co2pointsource if self.co2pointsource is not None else 0.0,
-            "ef_umolco2perj": self.ef_umolco2perj.value if isinstance(self.ef_umolco2perj, RefValue) else self.ef_umolco2perj if self.ef_umolco2perj is not None else 0.0,
-            "enef_v_jkm": self.enef_v_jkm.value if isinstance(self.enef_v_jkm, RefValue) else self.enef_v_jkm if self.enef_v_jkm is not None else 0.0,
-            "frfossilfuel_heat": self.frfossilfuel_heat.value if isinstance(self.frfossilfuel_heat, RefValue) else self.frfossilfuel_heat if self.frfossilfuel_heat is not None else 0.0,
-            "frfossilfuel_nonheat": self.frfossilfuel_nonheat.value if isinstance(self.frfossilfuel_nonheat, RefValue) else self.frfossilfuel_nonheat if self.frfossilfuel_nonheat is not None else 0.0,
-            "maxfcmetab": self.maxfcmetab.value if isinstance(self.maxfcmetab, RefValue) else self.maxfcmetab if self.maxfcmetab is not None else 0.0,
-            "maxqfmetab": self.maxqfmetab.value if isinstance(self.maxqfmetab, RefValue) else self.maxqfmetab if self.maxqfmetab is not None else 0.0,
-            "minfcmetab": self.minfcmetab.value if isinstance(self.minfcmetab, RefValue) else self.minfcmetab if self.minfcmetab is not None else 0.0,
-            "minqfmetab": self.minqfmetab.value if isinstance(self.minqfmetab, RefValue) else self.minqfmetab if self.minqfmetab is not None else 0.0,
-            "trafficunits": self.trafficunits.value if isinstance(self.trafficunits, RefValue) else self.trafficunits if self.trafficunits is not None else 0.0,
+            "co2pointsource": self.co2pointsource.value
+            if isinstance(self.co2pointsource, RefValue)
+            else self.co2pointsource
+            if self.co2pointsource is not None
+            else 0.0,
+            "ef_umolco2perj": self.ef_umolco2perj.value
+            if isinstance(self.ef_umolco2perj, RefValue)
+            else self.ef_umolco2perj
+            if self.ef_umolco2perj is not None
+            else 0.0,
+            "enef_v_jkm": self.enef_v_jkm.value
+            if isinstance(self.enef_v_jkm, RefValue)
+            else self.enef_v_jkm
+            if self.enef_v_jkm is not None
+            else 0.0,
+            "frfossilfuel_heat": self.frfossilfuel_heat.value
+            if isinstance(self.frfossilfuel_heat, RefValue)
+            else self.frfossilfuel_heat
+            if self.frfossilfuel_heat is not None
+            else 0.0,
+            "frfossilfuel_nonheat": self.frfossilfuel_nonheat.value
+            if isinstance(self.frfossilfuel_nonheat, RefValue)
+            else self.frfossilfuel_nonheat
+            if self.frfossilfuel_nonheat is not None
+            else 0.0,
+            "maxfcmetab": self.maxfcmetab.value
+            if isinstance(self.maxfcmetab, RefValue)
+            else self.maxfcmetab
+            if self.maxfcmetab is not None
+            else 0.0,
+            "maxqfmetab": self.maxqfmetab.value
+            if isinstance(self.maxqfmetab, RefValue)
+            else self.maxqfmetab
+            if self.maxqfmetab is not None
+            else 0.0,
+            "minfcmetab": self.minfcmetab.value
+            if isinstance(self.minfcmetab, RefValue)
+            else self.minfcmetab
+            if self.minfcmetab is not None
+            else 0.0,
+            "minqfmetab": self.minqfmetab.value
+            if isinstance(self.minqfmetab, RefValue)
+            else self.minqfmetab
+            if self.minqfmetab is not None
+            else 0.0,
+            "trafficunits": self.trafficunits.value
+            if isinstance(self.trafficunits, RefValue)
+            else self.trafficunits
+            if self.trafficunits is not None
+            else 0.0,
         }
         for param_name, value in scalar_params.items():
             df_state.loc[grid_id, (param_name, "0")] = value
@@ -466,21 +594,23 @@ class CO2Params(BaseModel):  # TODO: May need to add the RefValue to the profile
 class AnthropogenicEmissions(BaseModel):
     startdls: Optional[FlexibleRefValue(float)] = Field(
         default=None,
-        description="Start of daylight savings time in decimal day of year", json_schema_extra={"unit": "day", "display_name": "Daylight Saving Start"},
+        description="Start of daylight savings time in decimal day of year",
+        json_schema_extra={"unit": "day", "display_name": "Daylight Saving Start"},
     )
     enddls: Optional[FlexibleRefValue(float)] = Field(
         default=None,
-        description="End of daylight savings time in decimal day of year", json_schema_extra={"unit": "day", "display_name": "Daylight Saving End"},
+        description="End of daylight savings time in decimal day of year",
+        json_schema_extra={"unit": "day", "display_name": "Daylight Saving End"},
     )
     heat: AnthropogenicHeat = Field(
         description="Anthropogenic heat emission parameters",
         default_factory=AnthropogenicHeat,
-        json_schema_extra={"display_name": "Heat"}
+        json_schema_extra={"display_name": "Heat"},
     )
     co2: CO2Params = Field(
         description="CO2 emission parameters",
         default_factory=CO2Params,
-        json_schema_extra={"display_name": "CO2"}
+        json_schema_extra={"display_name": "CO2"},
     )
 
     ref: Optional[Reference] = None
@@ -498,8 +628,20 @@ class AnthropogenicEmissions(BaseModel):
         df_state = init_df_state(grid_id)
 
         # Set start and end daylight saving times
-        df_state.loc[grid_id, ("startdls", "0")] = self.startdls.value if isinstance(self.startdls, RefValue) else self.startdls if self.startdls is not None else 0.0
-        df_state.loc[grid_id, ("enddls", "0")] = self.enddls.value if isinstance(self.enddls, RefValue) else self.enddls if self.enddls is not None else 0.0
+        df_state.loc[grid_id, ("startdls", "0")] = (
+            self.startdls.value
+            if isinstance(self.startdls, RefValue)
+            else self.startdls
+            if self.startdls is not None
+            else 0.0
+        )
+        df_state.loc[grid_id, ("enddls", "0")] = (
+            self.enddls.value
+            if isinstance(self.enddls, RefValue)
+            else self.enddls
+            if self.enddls is not None
+            else 0.0
+        )
 
         # Add heat parameters
         df_heat = self.heat.to_df_state(grid_id)

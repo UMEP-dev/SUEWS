@@ -151,13 +151,11 @@ def gen_csv_suews(path_csv):
 
 # determine latest version and release
 path_source = Path(".").resolve()
-list_ver = sorted(
-    [
-        x.stem
-        for x in list((path_source / "version-history").glob("v*rst"))
-        if "version" not in x.stem
-    ]
-)
+list_ver = sorted([
+    x.stem
+    for x in list((path_source / "version-history").glob("v*rst"))
+    if "version" not in x.stem
+])
 
 
 # The short X.Y version

@@ -14,17 +14,18 @@ async def test_server():
     """Test that the server has tools registered."""
     print("✅ Server created successfully")
     print(f"Server name: {mcp.name}")
-    
+
     # List registered tools
     tools = await mcp.list_tools()
     print(f"\n📦 Registered tools ({len(tools)}):")
     for tool in tools:
         print(f"  - {tool.name}: {tool.description}")
-    
+
     print("\n✅ All tools registered successfully!")
     print("\nTo run the server, use: python -m suews_mcp.server")
 
 
 if __name__ == "__main__":
     import asyncio
+
     asyncio.run(test_server())

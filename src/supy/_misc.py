@@ -11,19 +11,19 @@ def path_insensitive(path):
     """
     Get a case-insensitive path for use on a case sensitive system.
 
-    >>> path_insensitive('/Home')
+    >>> path_insensitive("/Home")
     '/home'
-    >>> path_insensitive('/Home/chris')
+    >>> path_insensitive("/Home/chris")
     '/home/chris'
-    >>> path_insensitive('/HoME/CHris/')
+    >>> path_insensitive("/HoME/CHris/")
     '/home/chris/'
-    >>> path_insensitive('/home/CHRIS')
+    >>> path_insensitive("/home/CHRIS")
     '/home/chris'
-    >>> path_insensitive('/Home/CHRIS/.gtk-bookmarks')
+    >>> path_insensitive("/Home/CHRIS/.gtk-bookmarks")
     '/home/chris/.gtk-bookmarks'
-    >>> path_insensitive('/home/chris/.GTK-bookmarks')
+    >>> path_insensitive("/home/chris/.GTK-bookmarks")
     '/home/chris/.gtk-bookmarks'
-    >>> path_insensitive('/HOME/Chris/.GTK-bookmarks')
+    >>> path_insensitive("/HOME/Chris/.GTK-bookmarks")
     '/home/chris/.gtk-bookmarks'
     >>> path_insensitive("/HOME/Chris/I HOPE this doesn't exist")
     "/HOME/Chris/I HOPE this doesn't exist"

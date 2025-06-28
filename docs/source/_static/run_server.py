@@ -11,6 +11,7 @@ import os
 import sys
 from pathlib import Path
 
+
 def main():
     # Change to the _static directory
     static_dir = Path(__file__).parent
@@ -21,7 +22,9 @@ def main():
     # Try to find an available port
     for port in range(PORT, PORT + 10):
         try:
-            with socketserver.TCPServer(("", port), http.server.SimpleHTTPRequestHandler) as httpd:
+            with socketserver.TCPServer(
+                ("", port), http.server.SimpleHTTPRequestHandler
+            ) as httpd:
                 print(f"🚀 SUEWS Configuration Builder")
                 print(f"📁 Serving from: {static_dir}")
                 print(f"🌐 Server running at: http://localhost:{port}")
@@ -37,8 +40,9 @@ def main():
         except OSError:
             continue
 
-    print(f"❌ Could not find an available port in range {PORT}-{PORT+9}")
+    print(f"❌ Could not find an available port in range {PORT}-{PORT + 9}")
     sys.exit(1)
+
 
 if __name__ == "__main__":
     main()

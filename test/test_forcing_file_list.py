@@ -22,10 +22,10 @@ def test_forcing_file_list_of_strings():
 def test_forcing_file_with_ref_value():
     """Test that forcing_file works with RefValue wrapper"""
     from supy.data_model.type import RefValue
-    
+
     # Single file with RefValue
     control = ModelControl(forcing_file=RefValue("forcing_with_ref.txt"))
-    assert hasattr(control.forcing_file, 'value')
+    assert hasattr(control.forcing_file, "value")
     assert control.forcing_file.value == "forcing_with_ref.txt"
 
 
@@ -33,7 +33,7 @@ def test_yaml_loading_with_list():
     """Test loading a YAML config with forcing file list"""
     import yaml
     from supy.data_model.core import SUEWSConfig
-    
+
     yaml_content = """
 model:
   control:
@@ -46,10 +46,10 @@ sites:
     latitude: 51.5
     longitude: -0.1
 """
-    
+
     config_dict = yaml.safe_load(yaml_content)
     config = SUEWSConfig(**config_dict)
-    
+
     assert isinstance(config.model.control.forcing_file, list)
     assert len(config.model.control.forcing_file) == 3
     assert config.model.control.forcing_file[0] == "forcing_2020.txt"

@@ -272,7 +272,7 @@ def cal_g_dq(dq, g_dq_base, g_dq_shape):
     numeric
         Air humidity-related correction coefficient
     """
-    g_dq = g_dq_base + (1 - g_dq_base) * g_dq_shape ** dq
+    g_dq = g_dq_base + (1 - g_dq_base) * g_dq_shape**dq
     return g_dq
 
 
@@ -400,7 +400,6 @@ def cal_gs_suews(
     gs = g_max * gs_c
 
     if debug:
-
         # pack results into a dataframe
         df_gs = pd.concat(
             {
@@ -719,9 +718,9 @@ def deriv_g_ta_noah(b1):
 
 def deriv_g_dq_noah(hs):
     ar_dq = np.linspace(0, 20, 100)
-    ser_dq = pd.Series(ar_dq*1e-3, index=ar_dq)
+    ser_dq = pd.Series(ar_dq * 1e-3, index=ar_dq)
     ser_g = cal_g_dq_noah(ser_dq, hs)
-    res_fit = fit_g_dq(ser_dq*1e3, ser_g)
+    res_fit = fit_g_dq(ser_dq * 1e3, ser_g)
     return res_fit
 
 

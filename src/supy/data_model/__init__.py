@@ -17,15 +17,15 @@ from .site import Site, SiteProperties
 from .state import InitialStates
 from .human_activity import AnthropogenicEmissions, AnthropogenicHeat, CO2Params
 from .type import RefValue, Reference
+
 try:
     from .validation_controller import (
-        ValidationController, 
-        ValidationResult, 
-        validate_suews_config_conditional
+        ValidationController,
+        ValidationResult,
+        validate_suews_config_conditional,
     )
 except ImportError:
     # Fallback if validation controller not available
     ValidationController = None
     ValidationResult = None
     validate_suews_config_conditional = None
-

@@ -82,12 +82,10 @@ def pack_df_grid(dict_output):
     # pack
     df_xx0 = df_xx.map(pd.Series)
     df_xx1 = df_xx0.map(pd.DataFrame.from_dict)
-    df_xx2 = pd.concat(
-        {
-            grid: pd.concat(df_xx1[grid].to_dict()).unstack().dropna(axis=1)
-            for grid in df_xx1.columns
-        }
-    )
+    df_xx2 = pd.concat({
+        grid: pd.concat(df_xx1[grid].to_dict()).unstack().dropna(axis=1)
+        for grid in df_xx1.columns
+    })
     # drop redundant levels
     df_xx2.columns = df_xx2.columns.droplevel(0)
     # regroup by `grid`
@@ -276,7 +274,7 @@ def proc_df_rsl(df_output, debug=False):
     >>> # Basic processing
     >>> df_rsl = proc_df_rsl(df_output)
     >>> # Plot vertical profiles
-    >>> df_rsl.xs('u', level='var').T.plot(legend=True)
+    >>> df_rsl.xs("u", level="var").T.plot(legend=True)
     >>>
     >>> # With debug information
     >>> df_rsl, df_debug_vars = proc_df_rsl(df_output, debug=True)
@@ -409,7 +407,9 @@ def fast_pack_dts(dts_obj, dict_structure=None):
     >>>
     >>> # For efficient processing of multiple objects
     >>> dict_structure = inspect_dts_structure(state_debug)
-    >>> list_debug_dicts = [fast_pack_dts(obj, dict_structure) for obj in debug_objects]
+    >>> list_debug_dicts = [
+    ...     fast_pack_dts(obj, dict_structure) for obj in debug_objects
+    ... ]
     """
     if dict_structure is None:
         dict_structure = inspect_dts_structure(dts_obj)
@@ -480,7 +480,7 @@ def pack_dts2dict_selective(dts_obj, dict_needed_vars):
     Examples
     --------
     >>> # Extract only specific variables of interest
-    >>> dict_needed = {'energy_balance': ['qn', 'qh', 'qe'], 'surface': None}
+    >>> dict_needed = {"energy_balance": ["qn", "qh", "qe"], "surface": None}
     >>> dict_subset_data = pack_dts_selective(debug_obj, dict_needed)
     """
     dict_dts = {}
@@ -633,15 +633,13 @@ def pack_dict_dts_datetime_grid(dict_dts_datetime_grid):
     df_dts_raw = pack_dict_dts(dict_dts_datetime_grid)
 
     # Rename index levels for clarity
-    df_dts_raw.index = df_dts_raw.index.rename(
-        [
-            "datetime",
-            "grid",
-            "step",
-            "group",
-            "var",
-        ]
-    )
+    df_dts_raw.index = df_dts_raw.index.rename([
+        "datetime",
+        "grid",
+        "step",
+        "group",
+        "var",
+    ])
 
     # Restructure to have a more user-friendly format
     df_dts = (
@@ -742,14 +740,16 @@ def pack_dts_state_selective(
                 df_grid.index = pd.RangeIndex(len(list_rows), name="timestep")
 
             if not df_grid.empty:
-                df_grid.columns = pd.MultiIndex.from_tuples(df_grid.columns, names=['state', 'variable'])
+                df_grid.columns = pd.MultiIndex.from_tuples(
+                    df_grid.columns, names=["state", "variable"]
+                )
                 # Add grid information
                 df_grid = df_grid.assign(grid=grid_id)
-                df_grid.set_index('grid', append=True, inplace=True)
+                df_grid.set_index("grid", append=True, inplace=True)
 
                 # Reorder index levels to put datetime first if present
-                if 'datetime' in df_grid.index.names:
-                    df_grid = df_grid.reorder_levels(['datetime', 'grid'])
+                if "datetime" in df_grid.index.names:
+                    df_grid = df_grid.reorder_levels(["datetime", "grid"])
 
                 list_dfs.append(df_grid)
 

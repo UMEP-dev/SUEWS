@@ -16,7 +16,9 @@ from supy.data_model import (
 class TestSUEWSConfig(unittest.TestCase):
     def setUp(self):
         """Set up test fixtures."""
-        self.path_sample_config = Path(sp.__file__).parent / "sample_run" / "sample_config.yml"
+        self.path_sample_config = (
+            Path(sp.__file__).parent / "sample_run" / "sample_config.yml"
+        )
         self.config = SUEWSConfig.from_yaml(self.path_sample_config)
 
     def test_config_conversion_cycle(self):
@@ -34,14 +36,16 @@ class TestSUEWSConfig(unittest.TestCase):
         # We'll compare a few key attributes as a basic test
         self.assertEqual(self.config.name, config_reconst.name)
         self.assertEqual(self.config.description, config_reconst.description)
-        self.assertEqual(self.config.model.control.tstep, config_reconst.model.control.tstep)
+        self.assertEqual(
+            self.config.model.control.tstep, config_reconst.model.control.tstep
+        )
         self.assertEqual(
             self.config.model.physics.netradiationmethod.value,
-            config_reconst.model.physics.netradiationmethod.value
+            config_reconst.model.physics.netradiationmethod.value,
         )
         self.assertEqual(
             self.config.sites[0].properties.lat.value,
-            config_reconst.sites[0].properties.lat.value
+            config_reconst.sites[0].properties.lat.value,
         )
 
         # Test if DataFrame conversion preserves structure
@@ -52,7 +56,9 @@ class TestSUEWSConfig(unittest.TestCase):
     def test_df_state_conversion_cycle(self):
         """Test conversion cycle starting from a DataFrame state."""
         print("\n========================================")
-        print("Testing DataFrame-YAML-DataFrame conversion cycle for SUEWS configuration...")
+        print(
+            "Testing DataFrame-YAML-DataFrame conversion cycle for SUEWS configuration..."
+        )
         # TODO: Fix loopholes for bad sample data
 
         # Load initial DataFrame state
@@ -73,17 +79,25 @@ class TestSUEWSConfig(unittest.TestCase):
         # Reset ohm_coef 7th surface parameter as not used or changed
         for x in range(4):
             for y in range(3):
-                df_state_reconst[("ohm_coef", f"(7, {x}, {y})")] = df_state_init[("ohm_coef", f"(7, {x}, {y})")]
+                df_state_reconst[("ohm_coef", f"(7, {x}, {y})")] = df_state_init[
+                    ("ohm_coef", f"(7, {x}, {y})")
+                ]
 
-        df_state_reconst[("ohm_threshsw", f"(7,)")] = df_state_init[("ohm_threshsw", f"(7,)")]
-        df_state_reconst[("ohm_threshwd", f"(7,)")] = df_state_init[("ohm_threshwd", f"(7,)")]
+        df_state_reconst[("ohm_threshsw", f"(7,)")] = df_state_init[
+            ("ohm_threshsw", f"(7,)")
+        ]
+        df_state_reconst[("ohm_threshwd", f"(7,)")] = df_state_init[
+            ("ohm_threshwd", f"(7,)")
+        ]
 
         for i in range(1, 7):
             if df_state_init[("soilstore_surf", f"({i},)")].values[0] < 10:
                 df_state_reconst[("soilstore_surf", f"({i},)")] = 0
 
         # Compare the initial and reconstructed DataFrame states
-        pd.testing.assert_frame_equal(df_state_init, df_state_reconst, check_dtype=False, check_like=True)
+        pd.testing.assert_frame_equal(
+            df_state_init, df_state_reconst, check_dtype=False, check_like=True
+        )
 
     def test_model_physics_validation(self):
         """Test model physics validation rules."""
@@ -140,7 +154,7 @@ class TestSUEWSConfig(unittest.TestCase):
                 Site(gridiv=0),
                 Site(gridiv=1),
                 Site(gridiv=2),
-            ]
+            ],
         )
 
         # Convert to DataFrame
@@ -156,6 +170,5 @@ class TestSUEWSConfig(unittest.TestCase):
         self.assertEqual([site.gridiv for site in config_reconst.sites], [0, 1, 2])
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()
-

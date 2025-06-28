@@ -53,28 +53,34 @@ def gen_FS_DF(df_output):
         df_output,
         values=["T2", "U10", "Kdown", "RH2"],
         index=["Year", "Month", "Day"],
-        aggfunc=[min, max, np.mean,],
+        aggfunc=[
+            min,
+            max,
+            np.mean,
+        ],
     )
     df_day_all_year = pd.pivot_table(
         df_output,
         values=["T2", "U10", "Kdown", "RH2"],
         index=["Month", "Day"],
-        aggfunc=[min, max, np.mean,],
+        aggfunc=[
+            min,
+            max,
+            np.mean,
+        ],
     )
 
     array_yr_mon = df_day.index.droplevel("Day").to_frame().drop_duplicates().values
 
-    df_fs = pd.DataFrame(
-        {
-            (yr, mon): (
-                df_day.loc[(yr, mon)].apply(gen_score_ser)
-                - df_day_all_year.loc[mon].apply(gen_score_ser)
-            )
-            .abs()
-            .mean()
-            for yr, mon in array_yr_mon
-        }
-    )
+    df_fs = pd.DataFrame({
+        (yr, mon): (
+            df_day.loc[(yr, mon)].apply(gen_score_ser)
+            - df_day_all_year.loc[mon].apply(gen_score_ser)
+        )
+        .abs()
+        .mean()
+        for yr, mon in array_yr_mon
+    })
 
     return df_fs
 
@@ -173,24 +179,32 @@ def pick_year(df_output, n=1):
 
 def cal_rmsd_mon(df_output):
     df_day = pd.pivot_table(
-        df_output, values="Kdown", index=["Year", "Month", "Day"], aggfunc=[np.mean,]
+        df_output,
+        values="Kdown",
+        index=["Year", "Month", "Day"],
+        aggfunc=[
+            np.mean,
+        ],
     )
 
     df_day_all_year = pd.pivot_table(
-        df_output, values="Kdown", index=["Month", "Day"], aggfunc=[np.mean,]
+        df_output,
+        values="Kdown",
+        index=["Month", "Day"],
+        aggfunc=[
+            np.mean,
+        ],
     )
 
     array_yr_mon = df_day.index.droplevel("Day").to_frame().drop_duplicates().values
 
     df_rmse = (
-        pd.DataFrame(
-            {
-                (yr, mon): np.sqrt(
-                    np.square(df_day.loc[(yr, mon)] - df_day_all_year.loc[mon]).mean()
-                )
-                for yr, mon in array_yr_mon
-            }
-        )
+        pd.DataFrame({
+            (yr, mon): np.sqrt(
+                np.square(df_day.loc[(yr, mon)] - df_day_all_year.loc[mon]).mean()
+            )
+            for yr, mon in array_yr_mon
+        })
         .stack()
         .T.dropna()
     )
@@ -277,12 +291,10 @@ def gen_TMY(df_output):
     df_output_x = conv_0to24(df_output_x)
 
     # generate TMY data
-    df_TMY = pd.concat(
-        [
-            df_output_x.groupby(["Month", "Year"]).get_group(grp)
-            for grp in year_sel.items()
-        ]
-    )
+    df_TMY = pd.concat([
+        df_output_x.groupby(["Month", "Year"]).get_group(grp)
+        for grp in year_sel.items()
+    ])
 
     return df_TMY
 
@@ -327,7 +339,11 @@ def read_epw(path_epw: Path) -> pd.DataFrame:
 
 # generate EPW file from `df_TMY`
 def gen_epw(
-    df_output: pd.DataFrame, lat, lon, tz=0, path_epw=Path("./uTMY.epw"),
+    df_output: pd.DataFrame,
+    lat,
+    lon,
+    tz=0,
+    path_epw=Path("./uTMY.epw"),
 ) -> Tuple[pd.DataFrame, str, Path]:
     """Generate an `epw` file of uTMY (urbanised Typical Meteorological Year) using SUEWS simulation results
 
@@ -470,9 +486,9 @@ def gen_epw(
             except:
                 df_epw[var] = np.nan
     # fill 'Data Source and Uncertainty Flags'
-    df_epw[
-        "Data Source and Uncertainty Flags"
-    ] = "?9?9?9?9E0?9?9?9*9*9?9*9*9?9*9*9?9?9*9*_*9*9*9*9*9"
+    df_epw["Data Source and Uncertainty Flags"] = (
+        "?9?9?9?9E0?9?9?9*9*9?9*9*9?9*9*9?9?9*9*_*9*9*9*9*9"
+    )
     # df_epw["Global Horizontal Radiation"] = np.ones(len(df_epw)) * 9999
     df_epw.index = df_TMY_x.index
 
@@ -499,10 +515,10 @@ COMMENTS 2, none
 DATA PERIODS,1,1,Data,Sunday,1/1,12/31
     """
     text_meta = text_meta.split("\n")[1:-1]
-    #change the default latitude, longuitude and timezone from args, which will be used to calculate solar position and received direct solar radiation at each surface in EnergyPlus
-    text_meta[0] = text_meta[0].replace('lat',str(lat))
-    text_meta[0] = text_meta[0].replace('lon',str(lon))
-    text_meta[0] = text_meta[0].replace('tz',str(tz))
+    # change the default latitude, longuitude and timezone from args, which will be used to calculate solar position and received direct solar radiation at each surface in EnergyPlus
+    text_meta[0] = text_meta[0].replace("lat", str(lat))
+    text_meta[0] = text_meta[0].replace("lon", str(lon))
+    text_meta[0] = text_meta[0].replace("tz", str(tz))
     # lines = []
     text_epw = "\n".join(text_meta + text_data)
     # with open(path_epw, 'r') as f:

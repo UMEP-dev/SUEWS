@@ -30,11 +30,17 @@ def gen_df_save(df_grid_group: pd.DataFrame) -> pd.DataFrame:
     ser_DOY = pd.Series(idx_dt.dayofyear, index=idx_dt, name="DOY")
     ser_hour = pd.Series(idx_dt.hour, index=idx_dt, name="Hour")
     ser_min = pd.Series(idx_dt.minute, index=idx_dt, name="Min")
-    df_datetime = pd.concat([ser_year, ser_DOY, ser_hour, ser_min,], axis=1)
-    dt_delta=idx_dt-idx_dt.to_period("d").to_timestamp()
-    df_datetime["Dectime"] = (
-        ser_DOY - 1 + dt_delta.total_seconds() / (24 * 60 * 60)
+    df_datetime = pd.concat(
+        [
+            ser_year,
+            ser_DOY,
+            ser_hour,
+            ser_min,
+        ],
+        axis=1,
     )
+    dt_delta = idx_dt - idx_dt.to_period("d").to_timestamp()
+    df_datetime["Dectime"] = ser_DOY - 1 + dt_delta.total_seconds() / (24 * 60 * 60)
     df_save = pd.concat([df_datetime, df_grid_group], axis=1)
     return df_save
 
@@ -56,9 +62,7 @@ def format_df_save(df_save):
 
     for var in df_save.columns[5:]:
         width_var_name = max([8, len(var)])
-        df_save[var] = df_save[var].map(
-            lambda s: f"{s:{' '}>{width_var_name}.4f}"
-        )
+        df_save[var] = df_save[var].map(lambda s: f"{s:{' '}>{width_var_name}.4f}")
 
     # format column names
     col_fmt = df_save.columns.to_series()
@@ -127,13 +131,17 @@ def save_df_grid_group(df_year, grid, group, dir_save, site):
     # generate df_save with datetime info prepended to each row
     df_save = gen_df_save(df_year)
     t_end = time.time()
-    logger_supy.debug(f"df_save for {path_out.name} is generated in {t_end - t_start:.2f} s")
+    logger_supy.debug(
+        f"df_save for {path_out.name} is generated in {t_end - t_start:.2f} s"
+    )
     # format df_save with right-justified view
     df_save = format_df_save(df_save)
     t_start = time.time()
     # save to txt file
     df_save.to_csv(
-        path_out, index=False, sep="\t",
+        path_out,
+        index=False,
+        sep="\t",
     )
     t_end = time.time()
     # remove freq info from `DailyState` file
@@ -215,7 +223,7 @@ def save_df_output(
 
     # drop snow related group from output groups
     if not save_snow:
-        df_save = df_save.drop("snow", axis=1,level='group')
+        df_save = df_save.drop("snow", axis=1, level="group")
 
     # resample `df_output` at `freq_save`
     df_rsmp = resample_output(df_save, freq_save)
@@ -339,7 +347,7 @@ def save_df_ser(df_save, path_dir_save, site, output_level):
             # for naming files
             for year in list_year:
                 df_year = gen_df_year(df_save, year, grid, group, output_level)
-                if df_year.shape[0]>0:
+                if df_year.shape[0] > 0:
                     path_save = save_df_grid_group(
                         df_year, grid, group, path_dir_save, site
                     )
@@ -349,7 +357,9 @@ def save_df_ser(df_save, path_dir_save, site, output_level):
 
 # save model state for restart runs
 def save_df_state(
-    df_state: pd.DataFrame, site: str = "", path_dir_save: Path = Path("."),
+    df_state: pd.DataFrame,
+    site: str = "",
+    path_dir_save: Path = Path("."),
 ) -> Path:
     """save `df_state` to a csv file
 
@@ -480,7 +490,9 @@ dict_init_nml = {
 
 # save initcond namelist as SUEWS binary
 def save_initcond_nml(
-    df_state: pd.DataFrame, site: str = "", path_dir_save: Path = Path("."),
+    df_state: pd.DataFrame,
+    site: str = "",
+    path_dir_save: Path = Path("."),
 ) -> Path:
     # get last time step
     try:

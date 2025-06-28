@@ -1,4 +1,15 @@
-from typing import Dict, List, Optional, Union, Literal, Tuple, Type, Generic, TypeVar, Any
+from typing import (
+    Dict,
+    List,
+    Optional,
+    Union,
+    Literal,
+    Tuple,
+    Type,
+    Generic,
+    TypeVar,
+    Any,
+)
 from pydantic import (
     ConfigDict,
     BaseModel,
@@ -7,7 +18,7 @@ from pydantic import (
     field_validator,
     PrivateAttr,
     conlist,
-    ValidationError
+    ValidationError,
 )
 import numpy as np
 import pandas as pd
@@ -25,27 +36,38 @@ import pytz
 from .._env import logger_supy
 
 try:
-    from ..validation import enhanced_from_yaml_validation, enhanced_to_df_state_validation
+    from ..validation import (
+        enhanced_from_yaml_validation,
+        enhanced_to_df_state_validation,
+    )
+
     _validation_available = True
 except ImportError:
     try:
         from .validation_controller import validate_suews_config_conditional
+
         def enhanced_from_yaml_validation(config_data, strict=True):
-            result = validate_suews_config_conditional(config_data, strict=False, verbose=True)
-            if result['errors'] and strict:
+            result = validate_suews_config_conditional(
+                config_data, strict=False, verbose=True
+            )
+            if result["errors"] and strict:
                 error_msg = f"SUEWS Configuration Validation Failed: {len(result['errors'])} errors\n"
-                error_msg += "\n".join(f"  - {err}" for err in result['errors'])
+                error_msg += "\n".join(f"  - {err}" for err in result["errors"])
                 raise ValueError(error_msg)
             return result
-        
+
         def enhanced_to_df_state_validation(config_data, strict=False):
-            result = validate_suews_config_conditional(config_data, strict=False, verbose=False)
-            if result['errors'] and strict:
-                error_msg = f"Configuration validation found {len(result['errors'])} issues\n"
-                error_msg += "\n".join(f"  - {err}" for err in result['errors'])
+            result = validate_suews_config_conditional(
+                config_data, strict=False, verbose=False
+            )
+            if result["errors"] and strict:
+                error_msg = (
+                    f"Configuration validation found {len(result['errors'])} issues\n"
+                )
+                error_msg += "\n".join(f"  - {err}" for err in result["errors"])
                 raise ValueError(error_msg)
             return result
-        
+
         _validation_available = True
     except ImportError:
         _validation_available = False
@@ -53,6 +75,7 @@ except ImportError:
         enhanced_to_df_state_validation = None
 import os
 import warnings
+
 
 class SeasonCheck(BaseModel):
     start_date: str  # Expected format: YYYY-MM-DD
@@ -90,6 +113,7 @@ class SeasonCheck(BaseModel):
             else:
                 return "summer"
 
+
 class DLSCheck(BaseModel):
     lat: float
     lng: float
@@ -102,7 +126,9 @@ class DLSCheck(BaseModel):
         tz_name = tf.timezone_at(lat=self.lat, lng=self.lng)
 
         if not tz_name:
-            logger_supy.debug(f"[DLS] Cannot determine timezone for lat={self.lat}, lng={self.lng}")
+            logger_supy.debug(
+                f"[DLS] Cannot determine timezone for lat={self.lat}, lng={self.lng}"
+            )
             return None, None, None
 
         logger_supy.debug(f"[DLS] Timezone identified as '{tz_name}'")
@@ -114,7 +140,9 @@ class DLSCheck(BaseModel):
                 prev_offset = prev_dt.utcoffset()
                 for day in range(2, 32):
                     try:
-                        curr_dt = tz.localize(datetime(self.year, month, day, 12), is_dst=None)
+                        curr_dt = tz.localize(
+                            datetime(self.year, month, day, 12), is_dst=None
+                        )
                         curr_offset = curr_dt.utcoffset()
                         if curr_offset != prev_offset:
                             return curr_dt.timetuple().tm_yday
@@ -144,9 +172,11 @@ class DLSCheck(BaseModel):
 
         return start, end, utc_offset_hours
 
+
 def precheck_printing(data: dict) -> dict:
     logger_supy.info("Running basic precheck...")
     return data
+
 
 def precheck_start_end_date(data: dict) -> Tuple[dict, int, str, str]:
     control = data.get("model", {}).get("control", {})
@@ -155,17 +185,24 @@ def precheck_start_end_date(data: dict) -> Tuple[dict, int, str, str]:
     end_date = control.get("end_time")
 
     if not isinstance(start_date, str) or "-" not in start_date:
-        raise ValueError("Missing or invalid 'start_time' in model.control — must be in 'YYYY-MM-DD' format.")
+        raise ValueError(
+            "Missing or invalid 'start_time' in model.control — must be in 'YYYY-MM-DD' format."
+        )
 
     if not isinstance(end_date, str) or "-" not in end_date:
-        raise ValueError("Missing or invalid 'end_time' in model.control — must be in 'YYYY-MM-DD' format.")
+        raise ValueError(
+            "Missing or invalid 'end_time' in model.control — must be in 'YYYY-MM-DD' format."
+        )
 
     try:
         model_year = int(start_date.split("-")[0])
     except Exception:
-        raise ValueError("Could not extract model year from 'start_time'. Ensure it is in 'YYYY-MM-DD' format.")
+        raise ValueError(
+            "Could not extract model year from 'start_time'. Ensure it is in 'YYYY-MM-DD' format."
+        )
 
     return data, model_year, start_date, end_date
+
 
 def precheck_model_physics_params(data: dict) -> dict:
     physics = data.get("model", {}).get("physics", {})
@@ -175,10 +212,20 @@ def precheck_model_physics_params(data: dict) -> dict:
         return data
 
     required = [
-        "netradiationmethod", "emissionsmethod", "storageheatmethod", "ohmincqf",
-        "roughlenmommethod", "roughlenheatmethod", "stabilitymethod", "smdmethod",
-        "waterusemethod", "rslmethod", "faimethod", "rsllevel",
-        "snowuse", "stebbsmethod"
+        "netradiationmethod",
+        "emissionsmethod",
+        "storageheatmethod",
+        "ohmincqf",
+        "roughlenmommethod",
+        "roughlenheatmethod",
+        "stabilitymethod",
+        "smdmethod",
+        "waterusemethod",
+        "rslmethod",
+        "faimethod",
+        "rsllevel",
+        "snowuse",
+        "stebbsmethod",
     ]
 
     missing = [k for k in required if k not in physics]
@@ -192,6 +239,7 @@ def precheck_model_physics_params(data: dict) -> dict:
     logger_supy.debug("All model.physics required params present and non-empty.")
     return data
 
+
 def precheck_model_options_constraints(data: dict) -> dict:
     physics = data.get("model", {}).get("physics", {})
 
@@ -199,10 +247,13 @@ def precheck_model_options_constraints(data: dict) -> dict:
     stability = physics.get("stabilitymethod", {}).get("value")
 
     if diag == 2 and stability != 3:
-        raise ValueError("[model.physics] If rslmethod == 2, stabilitymethod must be 3.")
+        raise ValueError(
+            "[model.physics] If rslmethod == 2, stabilitymethod must be 3."
+        )
 
     logger_supy.debug("rslmethod-stabilitymethod constraint passed.")
     return data
+
 
 def precheck_replace_empty_strings_with_none(data: dict) -> dict:
     ignore_keys = {"control", "physics"}
@@ -212,9 +263,10 @@ def precheck_replace_empty_strings_with_none(data: dict) -> dict:
             new = {}
             for k, v in obj.items():
                 sub_path = path + (k,)
-                if (
-                    v == ""
-                    and not (len(sub_path) >= 2 and sub_path[0] == "model" and sub_path[1] in ignore_keys)
+                if v == "" and not (
+                    len(sub_path) >= 2
+                    and sub_path[0] == "model"
+                    and sub_path[1] in ignore_keys
                 ):
                     new[k] = None
                 else:
@@ -226,11 +278,15 @@ def precheck_replace_empty_strings_with_none(data: dict) -> dict:
             return obj
 
     cleaned = recurse(data)
-    logger_supy.info("Empty strings replaced with None (except model.control and model.physics).")
+    logger_supy.info(
+        "Empty strings replaced with None (except model.control and model.physics)."
+    )
     return cleaned
 
 
-def precheck_site_season_adjustments(data: dict, start_date: str, model_year: int) -> dict:
+def precheck_site_season_adjustments(
+    data: dict, start_date: str, model_year: int
+) -> dict:
     cleaned_sites = []
 
     for i, site in enumerate(data.get("sites", [])):
@@ -249,12 +305,15 @@ def precheck_site_season_adjustments(data: dict, start_date: str, model_year: in
         season = None
 
         try:
-            if lat is not None: # <- Placeholder: consider cases where lat is None
+            if lat is not None:  # <- Placeholder: consider cases where lat is None
                 season = SeasonCheck(start_date=start_date, lat=lat).get_season()
                 logger_supy.debug(f"[site #{i}] Season detected: {season}")
 
                 # If equatorial / tropical / summer → nullify snowalb
-                if season in ("summer", "tropical", "equatorial") and "snowalb" in initial_states:
+                if (
+                    season in ("summer", "tropical", "equatorial")
+                    and "snowalb" in initial_states
+                ):
                     if isinstance(initial_states["snowalb"], dict):
                         initial_states["snowalb"]["value"] = None
                         logger_supy.info(f"[site #{i}] Set snowalb to None")
@@ -283,7 +342,9 @@ def precheck_site_season_adjustments(data: dict, start_date: str, model_year: in
 
                 if "dectr" in initial_states:
                     initial_states["dectr"]["lai_id"] = {"value": lai_val}
-                    logger_supy.debug(f"[site #{i}] Set lai_id to {lai_val} for season {season}")
+                    logger_supy.debug(
+                        f"[site #{i}] Set lai_id to {lai_val} for season {season}"
+                    )
         else:
             if "dectr" in initial_states:
                 initial_states["dectr"]["lai_id"] = {"value": None}
@@ -292,7 +353,9 @@ def precheck_site_season_adjustments(data: dict, start_date: str, model_year: in
         # --------------------------------------
         # 3. DLS Check (timezone and DST start/end days)
         # --------------------------------------
-        if lat is not None and lng is not None: # <- Placeholder: consider cases where lat is None
+        if (
+            lat is not None and lng is not None
+        ):  # <- Placeholder: consider cases where lat is None
             try:
                 dls = DLSCheck(lat=lat, lng=lng, year=model_year)
                 start_dls, end_dls, tz_offset = dls.compute_dst_transitions()
@@ -300,13 +363,17 @@ def precheck_site_season_adjustments(data: dict, start_date: str, model_year: in
                 if start_dls and end_dls:
                     props["anthropogenic_emissions"]["startdls"] = {"value": start_dls}
                     props["anthropogenic_emissions"]["enddls"] = {"value": end_dls}
-                    logger_supy.debug(f"[site #{i}] DLS: start={start_dls}, end={end_dls}")
+                    logger_supy.debug(
+                        f"[site #{i}] DLS: start={start_dls}, end={end_dls}"
+                    )
 
                 if tz_offset is not None:
                     props["timezone"] = {"value": tz_offset}
                     logger_supy.debug(f"[site #{i}] Timezone set to {tz_offset}")
 
-                logger_supy.info(f"[site #{i}] Overwriting pre-existing startdls and enddls with computed values.")
+                logger_supy.info(
+                    f"[site #{i}] Overwriting pre-existing startdls and enddls with computed values."
+                )
             except Exception as e:
                 raise ValueError(f"[site #{i}] DLSCheck failed: {e}")
 
@@ -317,6 +384,7 @@ def precheck_site_season_adjustments(data: dict, start_date: str, model_year: in
 
     data["sites"] = cleaned_sites
     return data
+
 
 def precheck_land_cover_fractions(data: dict) -> dict:
     for i, site in enumerate(data.get("sites", [])):
@@ -338,25 +406,37 @@ def precheck_land_cover_fractions(data: dict) -> dict:
         # Auto-fix tiny floating point errors (epsilon ~0.0001)
         if 0.9999 <= sfr_sum < 1.0:
             max_key = max(
-                (k for k, v in land_cover.items() if v.get("sfr", {}).get("value") is not None),
-                key=lambda k: land_cover[k]["sfr"]["value"]
+                (
+                    k
+                    for k, v in land_cover.items()
+                    if v.get("sfr", {}).get("value") is not None
+                ),
+                key=lambda k: land_cover[k]["sfr"]["value"],
             )
             correction = 1.0 - sfr_sum
             land_cover[max_key]["sfr"]["value"] += correction
-            logger_supy.info(f"[site #{i}] Adjusted {max_key}.sfr up by {correction:.6f} to reach 1.0")
+            logger_supy.info(
+                f"[site #{i}] Adjusted {max_key}.sfr up by {correction:.6f} to reach 1.0"
+            )
 
         elif 1.0 < sfr_sum <= 1.0001:
             max_key = max(
-                (k for k, v in land_cover.items() if v.get("sfr", {}).get("value") is not None),
-                key=lambda k: land_cover[k]["sfr"]["value"]
+                (
+                    k
+                    for k, v in land_cover.items()
+                    if v.get("sfr", {}).get("value") is not None
+                ),
+                key=lambda k: land_cover[k]["sfr"]["value"],
             )
             correction = sfr_sum - 1.0
             land_cover[max_key]["sfr"]["value"] -= correction
-            logger_supy.info(f"[site #{i}] Adjusted {max_key}.sfr down by {correction:.6f} to reach 1.0")
+            logger_supy.info(
+                f"[site #{i}] Adjusted {max_key}.sfr down by {correction:.6f} to reach 1.0"
+            )
 
         elif abs(sfr_sum - 1.0) > 0.0001:
             raise ValueError(f"[site #{i}] Invalid land_cover sfr sum: {sfr_sum:.6f}")
-        
+
         site["properties"] = props
 
     return data
@@ -369,7 +449,9 @@ def precheck_nullify_zero_sfr_params(data: dict) -> dict:
         for surf_type, props in land_cover.items():
             sfr = props.get("sfr", {}).get("value", 0)
             if sfr == 0:
-                logger_supy.info(f"[site #{site_idx}] Nullifying params for surface '{surf_type}' with sfr == 0")
+                logger_supy.info(
+                    f"[site #{site_idx}] Nullifying params for surface '{surf_type}' with sfr == 0"
+                )
                 for param_key, param_val in props.items():
                     if param_key == "sfr":
                         continue
@@ -378,6 +460,7 @@ def precheck_nullify_zero_sfr_params(data: dict) -> dict:
                         param_val["value"] = None
                     # Nullify nested blocks (like ohm_coef, thermal_layers etc)
                     elif isinstance(param_val, dict):
+
                         def recursive_nullify(d):
                             for k, v in d.items():
                                 if isinstance(v, dict):
@@ -388,8 +471,10 @@ def precheck_nullify_zero_sfr_params(data: dict) -> dict:
                                             v["value"] = None
                                     else:
                                         recursive_nullify(v)
+
                         recursive_nullify(param_val)
     return data
+
 
 def precheck_nonzero_sfr_requires_nonnull_params(data: dict) -> dict:
     """
@@ -402,7 +487,9 @@ def precheck_nonzero_sfr_requires_nonnull_params(data: dict) -> dict:
         if isinstance(d, dict):
             if "value" in d:
                 val = d["value"]
-                if val in (None, "") or (isinstance(val, list) and any(v in (None, "") for v in val)):
+                if val in (None, "") or (
+                    isinstance(val, list) and any(v in (None, "") for v in val)
+                ):
                     full_path = ".".join(path)
                     raise ValueError(
                         f"[site #{site_idx}] land_cover.{full_path} must be set (not None or empty) "
@@ -424,10 +511,15 @@ def precheck_nonzero_sfr_requires_nonnull_params(data: dict) -> dict:
                 for param_key, param_val in props.items():
                     if param_key == "sfr":
                         continue
-                    check_recursively(param_val, path=[surf_type, param_key], site_idx=site_idx)
+                    check_recursively(
+                        param_val, path=[surf_type, param_key], site_idx=site_idx
+                    )
 
-    logger_supy.info("[precheck] Nonzero sfr parameters validated (all required fields are set).")
+    logger_supy.info(
+        "[precheck] Nonzero sfr parameters validated (all required fields are set)."
+    )
     return data
+
 
 def precheck_diagmethod(data: dict) -> dict:
     physics = data.get("model", {}).get("physics", {})
@@ -447,17 +539,27 @@ def precheck_diagmethod(data: dict) -> dict:
             faibldg = bldgs.get("faibldg", {})
             faibldg_value = faibldg.get("value")
             if faibldg_value in (None, "", []):
-                raise ValueError(f"[site #{i}] For rslmethod==2 and bldgs.sfr > 0, faibldg must be set and non-null.")
+                raise ValueError(
+                    f"[site #{i}] For rslmethod==2 and bldgs.sfr > 0, faibldg must be set and non-null."
+                )
 
     logger_supy.info("[precheck] faibldg check for rslmethod==2 passed.")
     return data
 
+
 def precheck_storageheatmethod(data: dict) -> dict:
-    """If storageheatmethod == 6, check required wall thermal properties and lambda_c.""" # <--- Placeholder: this case refers to DyOHM
-    storage_method = data.get("model", {}).get("physics", {}).get("storageheatmethod", {}).get("value")
+    """If storageheatmethod == 6, check required wall thermal properties and lambda_c."""  # <--- Placeholder: this case refers to DyOHM
+    storage_method = (
+        data.get("model", {})
+        .get("physics", {})
+        .get("storageheatmethod", {})
+        .get("value")
+    )
 
     if storage_method != 6:
-        logger_supy.debug("[precheck] storageheatmethod != 6, skipping wall thermal layer checks.")
+        logger_supy.debug(
+            "[precheck] storageheatmethod != 6, skipping wall thermal layer checks."
+        )
         return data
 
     for site_idx, site in enumerate(data.get("sites", [])):
@@ -466,7 +568,9 @@ def precheck_storageheatmethod(data: dict) -> dict:
         walls = vertical_layers.get("walls", [])
 
         if not walls or not isinstance(walls, list) or len(walls) == 0:
-            raise ValueError(f"[site #{site_idx}] Missing vertical_layers.walls for storageheatmethod == 6.")
+            raise ValueError(
+                f"[site #{site_idx}] Missing vertical_layers.walls for storageheatmethod == 6."
+            )
 
         wall0 = walls[0]
         thermal = wall0.get("thermal_layers", {})
@@ -474,16 +578,25 @@ def precheck_storageheatmethod(data: dict) -> dict:
         for param in ["dz", "k", "cp"]:
             param_list = thermal.get(param, {}).get("value")
             if not isinstance(param_list, list) or len(param_list) == 0:
-                raise ValueError(f"[site #{site_idx}] Missing wall thermal_layers.{param} for storageheatmethod == 6.")
+                raise ValueError(
+                    f"[site #{site_idx}] Missing wall thermal_layers.{param} for storageheatmethod == 6."
+                )
             if param_list[0] in (None, ""):
-                raise ValueError(f"[site #{site_idx}] wall thermal_layers.{param}[0] must be set for storageheatmethod == 6.")
+                raise ValueError(
+                    f"[site #{site_idx}] wall thermal_layers.{param}[0] must be set for storageheatmethod == 6."
+                )
 
         lambda_c = props.get("lambda_c", {}).get("value")
         if lambda_c in (None, ""):
-            raise ValueError(f"[site #{site_idx}] properties.lambda_c must be set for storageheatmethod == 6.")
+            raise ValueError(
+                f"[site #{site_idx}] properties.lambda_c must be set for storageheatmethod == 6."
+            )
 
-    logger_supy.info("[precheck] storageheatmethod == 6 → wall thermal layers and lambda_c check passed.")
+    logger_supy.info(
+        "[precheck] storageheatmethod == 6 → wall thermal layers and lambda_c check passed."
+    )
     return data
+
 
 def precheck_stebbsmethod(data: dict) -> dict:
     """
@@ -517,7 +630,6 @@ def precheck_stebbsmethod(data: dict) -> dict:
 
 
 def run_precheck(path: str) -> dict:
-
     # ---- Step 0: Load yaml from path into a dict ----
     with open(path, "r") as file:
         data = yaml.load(file, Loader=yaml.FullLoader)
@@ -527,7 +639,9 @@ def run_precheck(path: str) -> dict:
 
     # ---- Step 2: Extract start_date, end_date, model_year ----
     data, model_year, start_date, end_date = precheck_start_end_date(data)
-    logger_supy.debug(f"Start date: {start_date}, end date: {end_date}, year: {model_year}")
+    logger_supy.debug(
+        f"Start date: {start_date}, end date: {end_date}, year: {model_year}"
+    )
 
     # ---- Step 3: Check model.physics parameters ----
     data = precheck_model_physics_params(data)
@@ -539,7 +653,9 @@ def run_precheck(path: str) -> dict:
     data = precheck_replace_empty_strings_with_none(data)
 
     # ---- Step 6: Season + LAI + DLS adjustments per site ----
-    data = precheck_site_season_adjustments(data, start_date=start_date, model_year=model_year)
+    data = precheck_site_season_adjustments(
+        data, start_date=start_date, model_year=model_year
+    )
 
     # ---- Step 7: Nullify params for surfaces with sfr == 0 ----
     data = precheck_nullify_zero_sfr_params(data)
@@ -552,7 +668,7 @@ def run_precheck(path: str) -> dict:
 
     # ---- Step 10: Rules associated to selected model options ----
     data = precheck_diagmethod(data)
-    data = precheck_storageheatmethod(data) 
+    data = precheck_storageheatmethod(data)
     data = precheck_stebbsmethod(data)
 
     # ---- Step 11: Save output YAML ----
@@ -568,27 +684,28 @@ def run_precheck(path: str) -> dict:
     logger_supy.info("Precheck complete.\n")
     return data
 
+
 class SUEWSConfig(BaseModel):
     name: str = Field(
-        default="sample config", 
+        default="sample config",
         description="Name of the SUEWS configuration",
-        json_schema_extra={"display_name": "Configuration Name"}
+        json_schema_extra={"display_name": "Configuration Name"},
     )
     description: str = Field(
         default="this is a sample config for testing purposes ONLY - values are not realistic",
         description="Description of this SUEWS configuration",
-        json_schema_extra={"display_name": "Configuration Description"}
+        json_schema_extra={"display_name": "Configuration Description"},
     )
     model: Model = Field(
         default_factory=Model,
         description="Model control and physics parameters",
-        json_schema_extra={"display_name": "Model Parameters"}
+        json_schema_extra={"display_name": "Model Parameters"},
     )
     sites: List[Site] = Field(
         default=[Site()],
         description="List of sites to simulate",
         min_length=1,
-        json_schema_extra={"display_name": "Sites"}
+        json_schema_extra={"display_name": "Sites"},
     )
 
     model_config = ConfigDict(extra="allow")
@@ -605,10 +722,10 @@ class SUEWSConfig(BaseModel):
     # def check_forcing(self):
     #     from .._load import load_SUEWS_Forcing_met_df_yaml
     #     forcing = load_SUEWS_Forcing_met_df_yaml(self.model.control.forcing_file.value)
-    #     
+    #
     #     # Cut the forcing data to model period
     #     cut_forcing = forcing.loc[self.model.control.start_time: self.model.control.end_time]
-    #     
+    #
     #     # Check for missing forcing data
     #     missing_data = any(cut_forcing.isna().any())
     #     if missing_data:
@@ -646,7 +763,9 @@ class SUEWSConfig(BaseModel):
     #     return self
 
     @classmethod
-    def from_yaml(cls, path: str, use_conditional_validation: bool = True, strict: bool = True) -> "SUEWSConfig":
+    def from_yaml(
+        cls, path: str, use_conditional_validation: bool = True, strict: bool = True
+    ) -> "SUEWSConfig":
         """Initialize SUEWSConfig from YAML file with conditional validation.
 
         Args:
@@ -659,9 +778,10 @@ class SUEWSConfig(BaseModel):
         """
         with open(path, "r") as file:
             config_data = yaml.load(file, Loader=yaml.FullLoader)
-        
-        
-        if use_conditional_validation and _validation_available: #_validation_available is always FALSE -- need to fix this
+
+        if (
+            use_conditional_validation and _validation_available
+        ):  # _validation_available is always FALSE -- need to fix this
             # Step 1: Pre-validation with enhanced validation
             try:
                 enhanced_from_yaml_validation(config_data, strict=strict)
@@ -669,24 +789,28 @@ class SUEWSConfig(BaseModel):
                 if strict:
                     raise
                 # Continue with warnings already issued
-            
+
             # Step 2: Create config with conditional validation applied
             try:
                 return cls(**config_data)
             except Exception as e:
                 if strict:
-                    raise ValueError(f"Failed to create SUEWSConfig after conditional validation: {e}")
+                    raise ValueError(
+                        f"Failed to create SUEWSConfig after conditional validation: {e}"
+                    )
                 else:
                     warnings.warn(f"Config creation warning: {e}")
                     # Try with model_construct to bypass strict validation
                     return cls.model_construct(**config_data)
         elif use_conditional_validation and not _validation_available:
-            warnings.warn("Conditional validation requested but not available. Using standard validation.")
+            warnings.warn(
+                "Conditional validation requested but not available. Using standard validation."
+            )
             # Fall back to original behavior
             return cls(**config_data)
         else:
             # Original behavior - validate everything
-            logger_supy.info ("Entering SUEWSConfig pydantic validator...")
+            logger_supy.info("Entering SUEWSConfig pydantic validator...")
             return cls(**config_data)
 
     def create_multi_index_columns(self, columns_file: str) -> pd.MultiIndex:
@@ -702,13 +826,15 @@ class SUEWSConfig(BaseModel):
 
         return pd.MultiIndex.from_tuples(tuples)
 
-    def to_df_state(self, use_conditional_validation: bool = True, strict: bool = False) -> pd.DataFrame:
+    def to_df_state(
+        self, use_conditional_validation: bool = True, strict: bool = False
+    ) -> pd.DataFrame:
         """Convert config to DataFrame state format with optional conditional validation.
-        
+
         Args:
             use_conditional_validation (bool): Whether to run conditional validation before conversion
             strict (bool): If True, fail on validation errors; if False, warn and continue
-            
+
         Returns:
             pd.DataFrame: DataFrame containing SUEWS configuration state
         """
@@ -723,7 +849,7 @@ class SUEWSConfig(BaseModel):
                 # Continue with warnings already issued
         elif use_conditional_validation and not _validation_available:
             warnings.warn("Conditional validation requested but not available.")
-        
+
         # Proceed with DataFrame conversion
         try:
             list_df_site = []
@@ -739,7 +865,9 @@ class SUEWSConfig(BaseModel):
             df = df.loc[:, ~df.columns.duplicated()]
         except Exception as e:
             if use_conditional_validation and not strict:
-                warnings.warn(f"Error during to_df_state conversion: {e}. This may be due to invalid parameters for disabled methods.")
+                warnings.warn(
+                    f"Error during to_df_state conversion: {e}. This may be due to invalid parameters for disabled methods."
+                )
                 raise
             else:
                 raise
@@ -787,7 +915,9 @@ class SUEWSConfig(BaseModel):
         columns = list(df.columns)
 
         # Sort the columns using the custom function
-        sorted_columns = sorted(columns, key=lambda col: (col[0], parse_level_1(col[1])))
+        sorted_columns = sorted(
+            columns, key=lambda col: (col[0], parse_level_1(col[1]))
+        )
 
         # Re-create the MultiIndex with the sorted columns
         sorted_multi_index = pd.MultiIndex.from_tuples(sorted_columns)
@@ -838,7 +968,6 @@ class SUEWSConfig(BaseModel):
 
         # Reconstruct model
         config.model = Model.from_df_state(df, grid_ids[0])
-
 
         return config
 

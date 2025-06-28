@@ -276,5 +276,5 @@ def cal_z0zd(
         return res
     except Exception as e:
         print(e)
-        print('Fitting failed! Use 0.1h and 0.7h for z0 and zd, respectively')
+        print("Fitting failed! Use 0.1h and 0.7h for z0 and zd, respectively")
         return h_sfc * 0.1, h_sfc * 0.7

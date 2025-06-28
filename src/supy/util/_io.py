@@ -25,9 +25,9 @@ def read_suews(path_suews_file: str) -> pd.DataFrame:
     path_suews_file = Path(path_suews_file).resolve()
     df_raw = pd.read_csv(
         path_suews_file,
-        sep=r"\s+", # any whitespace
+        sep=r"\s+",  # any whitespace
         comment="!",
-        on_bad_lines='error',
+        on_bad_lines="error",
     )
     df_suews = set_index_dt(df_raw)
     return df_suews

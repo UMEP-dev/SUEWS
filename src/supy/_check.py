@@ -215,9 +215,9 @@ def check_state(df_state: pd.DataFrame, fix=True) -> List:
     ]
 
     # variables defined in the rule json file:
-    list_col_rule = set(dict_rules_indiv.keys()).difference(
-        [x.lower() for x in list_col_forcing]
-    )
+    list_col_rule = set(dict_rules_indiv.keys()).difference([
+        x.lower() for x in list_col_forcing
+    ])
 
     # check the following:
     # 0. mandatory variables in supy_driver
@@ -351,9 +351,9 @@ def upgrade_df_state(df_state: pd.DataFrame) -> pd.DataFrame:
     )
 
     # check if a df_state is before v2023.7.3
-    set_col_rule = set(dict_rules_indiv.keys()).difference(
-        [x.lower() for x in list_col_forcing]
-    )
+    set_col_rule = set(dict_rules_indiv.keys()).difference([
+        x.lower() for x in list_col_forcing
+    ])
     set_col_new = set_col_rule.difference(set(df_state_deprecated.columns.levels[0]))
     if len(set_col_new) > 0:
         logger_supy.info("A deprecated df_state is detected.")
@@ -430,9 +430,10 @@ def upgrade_df_state(df_state: pd.DataFrame) -> pd.DataFrame:
             df_state_upgrade = pd.concat([df_state_init_add, df_state_upgrade], axis=1)
 
         # add column levels
-        df_state_upgrade.columns = df_state_upgrade.columns.set_names(
-            ["var", "ind_dim"]
-        )
+        df_state_upgrade.columns = df_state_upgrade.columns.set_names([
+            "var",
+            "ind_dim",
+        ])
 
         return df_state_upgrade
     else:

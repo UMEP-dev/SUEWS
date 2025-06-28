@@ -47,7 +47,9 @@ for f in list_p_out:
                 p_target.rmdir()
                 print("Removed the existing directory.")
             else:
-                raise FileExistsError(f"{p_target} exists and is not a file or directory.")
+                raise FileExistsError(
+                    f"{p_target} exists and is not a file or directory."
+                )
     else:
         print(p_target, "does not exist in the output directory.")
     # move the file

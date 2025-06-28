@@ -13,12 +13,12 @@ SITE_TEMPLATES = {
             "dectr": 0.10,
             "evetr": 0.03,
             "bsoil": 0.01,
-            "water": 0.01
+            "water": 0.01,
         },
         "building_height": 25.0,
         "tree_height": 8.0,
         "fai_bldg": 0.5,
-        "population_density": 10000
+        "population_density": 10000,
     },
     "suburban": {
         "landcover": {
@@ -28,12 +28,12 @@ SITE_TEMPLATES = {
             "dectr": 0.15,
             "evetr": 0.05,
             "bsoil": 0.03,
-            "water": 0.02
+            "water": 0.02,
         },
         "building_height": 8.0,
         "tree_height": 10.0,
         "fai_bldg": 0.3,
-        "population_density": 3000
+        "population_density": 3000,
     },
     "industrial": {
         "landcover": {
@@ -43,12 +43,12 @@ SITE_TEMPLATES = {
             "dectr": 0.02,
             "evetr": 0.01,
             "bsoil": 0.01,
-            "water": 0.01
+            "water": 0.01,
         },
         "building_height": 12.0,
         "tree_height": 5.0,
         "fai_bldg": 0.4,
-        "population_density": 500
+        "population_density": 500,
     },
     "residential": {
         "landcover": {
@@ -58,12 +58,12 @@ SITE_TEMPLATES = {
             "dectr": 0.20,
             "evetr": 0.05,
             "bsoil": 0.03,
-            "water": 0.02
+            "water": 0.02,
         },
         "building_height": 10.0,
         "tree_height": 12.0,
         "fai_bldg": 0.25,
-        "population_density": 5000
+        "population_density": 5000,
     },
     "park": {
         "landcover": {
@@ -73,48 +73,48 @@ SITE_TEMPLATES = {
             "dectr": 0.20,
             "evetr": 0.08,
             "bsoil": 0.03,
-            "water": 0.02
+            "water": 0.02,
         },
         "building_height": 5.0,
         "tree_height": 15.0,
         "fai_bldg": 0.05,
-        "population_density": 100
-    }
+        "population_density": 100,
+    },
 }
 
 # Research focus specific settings
 RESEARCH_SETTINGS = {
     "energy_balance": {
         "NetRadiationMethod": 3,  # LDOWN_AIR
-        "StorageHeatMethod": 1,   # OHM
-        "EmissionsMethod": 2,     # J11
-        "output_groups": ["energy", "radiation"]
+        "StorageHeatMethod": 1,  # OHM
+        "EmissionsMethod": 2,  # J11
+        "output_groups": ["energy", "radiation"],
     },
     "thermal_comfort": {
         "NetRadiationMethod": 3,
         "StorageHeatMethod": 1,
-        "RSLMethod": 1,           # RST for better near-surface
-        "output_groups": ["energy", "thermal_comfort", "rsl"]
+        "RSLMethod": 1,  # RST for better near-surface
+        "output_groups": ["energy", "thermal_comfort", "rsl"],
     },
     "water_balance": {
         "NetRadiationMethod": 3,
         "StorageHeatMethod": 1,
-        "SMDMethod": 0,           # Modelled
-        "output_groups": ["water", "evapotranspiration", "soil"]
+        "SMDMethod": 0,  # Modelled
+        "output_groups": ["water", "evapotranspiration", "soil"],
     },
     "urban_climate": {
         "NetRadiationMethod": 3,
-        "StorageHeatMethod": 6,   # Enhanced OHM
-        "EmissionsMethod": 4,     # J19
-        "RSLMethod": 2,           # Variable
-        "output_groups": ["energy", "rsl", "thermal_comfort"]
+        "StorageHeatMethod": 6,  # Enhanced OHM
+        "EmissionsMethod": 4,  # J19
+        "RSLMethod": 2,  # Variable
+        "output_groups": ["energy", "rsl", "thermal_comfort"],
     },
     "green_infrastructure": {
         "NetRadiationMethod": 3,
         "StorageHeatMethod": 1,
-        "LAIMethod": 1,           # Variable LAI
-        "output_groups": ["vegetation", "evapotranspiration", "water"]
-    }
+        "LAIMethod": 1,  # Variable LAI
+        "output_groups": ["vegetation", "evapotranspiration", "water"],
+    },
 }
 
 
@@ -142,18 +142,18 @@ async def generate_config_template(
     site_type: str, research_focus: str, include_comments: bool = True
 ) -> str:
     """Generate a configuration template based on site characteristics."""
-    
+
     # Validate inputs
     if site_type not in SITE_TEMPLATES:
         return f"Error: Unknown site type '{site_type}'. Available: {list(SITE_TEMPLATES.keys())}"
-    
+
     if research_focus not in RESEARCH_SETTINGS:
         return f"Error: Unknown research focus '{research_focus}'. Available: {list(RESEARCH_SETTINGS.keys())}"
-    
+
     # Get base templates
     site_config = SITE_TEMPLATES[site_type]
     research_config = RESEARCH_SETTINGS[research_focus]
-    
+
     # Build configuration
     config = {
         "model_control": {
@@ -162,10 +162,10 @@ async def generate_config_template(
             "output_file": {
                 "format": "hdf5" if research_focus == "urban_climate" else "txt",
                 "freq": 3600,  # Hourly output
-                "groups": research_config.get("output_groups", ["energy", "water"])
+                "groups": research_config.get("output_groups", ["energy", "water"]),
             },
             "start_time": "2024-01-01 00:00:00",
-            "end_time": "2024-12-31 23:59:59"
+            "end_time": "2024-12-31 23:59:59",
         },
         "model_physics": {
             "NetRadiationMethod": research_config.get("NetRadiationMethod", 3),
@@ -174,7 +174,7 @@ async def generate_config_template(
             "RSLMethod": research_config.get("RSLMethod", 0),
             "OHMIncQF": 0 if research_config.get("StorageHeatMethod") == 1 else 1,
             "SnowUse": 0,  # Default no snow
-            "SMDMethod": research_config.get("SMDMethod", 0)
+            "SMDMethod": research_config.get("SMDMethod", 0),
         },
         "site": {
             "name": f"Example {site_type} site",
@@ -186,21 +186,21 @@ async def generate_config_template(
             "site_properties": {
                 "z": 10.0,  # Measurement height
                 "z0m": site_config["building_height"] * 0.1,  # Roughness length
-                "zd": site_config["building_height"] * 0.7   # Displacement height
+                "zd": site_config["building_height"] * 0.7,  # Displacement height
             },
             "bldgs": {
                 "bldgh": site_config["building_height"],
                 "faibldg": site_config["fai_bldg"],
                 "alb": 0.15,
-                "emis": 0.95
+                "emis": 0.95,
             },
             "anthropogenic_emissions": {
                 "population_density": site_config["population_density"],
                 "base_qf": 10.0 if site_type == "industrial" else 5.0,
                 "qf_a": [0.2, 0.2],  # Weekday/weekend
                 "qf_b": [0.01, 0.01],
-                "qf_c": [0.015, 0.015]
-            }
+                "qf_c": [0.015, 0.015],
+            },
         },
         "initial_states": {
             "tair_av": 10.0,  # Average air temperature
@@ -211,11 +211,11 @@ async def generate_config_template(
                 "dectr": 100.0,
                 "evetr": 100.0,
                 "bsoil": 50.0,
-                "water": 1000.0
-            }
-        }
+                "water": 1000.0,
+            },
+        },
     }
-    
+
     # Add vegetation parameters if needed
     if site_config["landcover"]["dectr"] > 0.1 or research_focus == "green_infrastructure":
         config["site"]["dectr"] = {
@@ -223,17 +223,17 @@ async def generate_config_template(
             "lai_max": 5.5,
             "lai_min": 1.0,
             "alb_max": 0.18,
-            "alb_min": 0.12
+            "alb_min": 0.12,
         }
-    
+
     # Convert to YAML
     yaml_str = yaml.dump(config, default_flow_style=False, sort_keys=False)
-    
+
     # Add comments if requested
     if include_comments:
         header = add_comments(config, site_type, research_focus)
         yaml_str = header + yaml_str
-        
+
         # Add inline comments for key parameters
         replacements = [
             ("tstep:", "tstep:  # Time step in seconds"),
@@ -242,10 +242,10 @@ async def generate_config_template(
             ("latitude:", "latitude:  # Decimal degrees"),
             ("z:", "z:  # Measurement height (m)"),
             ("bldgh:", "bldgh:  # Mean building height (m)"),
-            ("population_density:", "population_density:  # people/ha")
+            ("population_density:", "population_density:  # people/ha"),
         ]
-        
+
         for old, new in replacements:
             yaml_str = yaml_str.replace(old, new)
-    
+
     return yaml_str

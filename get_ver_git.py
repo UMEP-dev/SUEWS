@@ -9,7 +9,13 @@ def get_version_from_git():
         # Get the most recent tag and the number of commits since that tag
         # Only match version tags (starting with digits)
         describe_output = (
-            subprocess.check_output(["git", "describe", "--tags", "--long", "--match=[0-9]*"])
+            subprocess.check_output([
+                "git",
+                "describe",
+                "--tags",
+                "--long",
+                "--match=[0-9]*",
+            ])
             .strip()
             .decode("utf-8")
         )
@@ -25,13 +31,13 @@ def get_version_from_git():
             distance = int(match.group(2))
 
             # Clean up version to be valid Python packaging version
-            if base_version.startswith('v'):
+            if base_version.startswith("v"):
                 base_version = base_version[1:]
-            
+
             # Handle .dev in base version
-            if '.dev' in base_version:
-                base_version = base_version.replace('.dev', '')
-            
+            if ".dev" in base_version:
+                base_version = base_version.replace(".dev", "")
+
             if distance == 0:
                 version = base_version
             else:

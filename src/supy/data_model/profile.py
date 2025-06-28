@@ -6,7 +6,9 @@ from .type import init_df_state
 
 
 class DayProfile(BaseModel):
-    working_day: float = Field(default=1.0, json_schema_extra={"display_name": "Working Day"})
+    working_day: float = Field(
+        default=1.0, json_schema_extra={"display_name": "Working Day"}
+    )
     holiday: float = Field(default=0.0, json_schema_extra={"display_name": "Holiday"})
 
     ref: Optional[Reference] = None
@@ -201,11 +203,11 @@ class HourlyProfile(BaseModel):
 
         # Set working day values (index 0)
         for hour, value in self.working_day.items():
-            df_state[(param_name, f"({int(hour)-1}, 0)")] = value
+            df_state[(param_name, f"({int(hour) - 1}, 0)")] = value
 
         # Set holiday/weekend values (index 1)
         for hour, value in self.holiday.items():
-            df_state[(param_name, f"({int(hour)-1}, 1)")] = value
+            df_state[(param_name, f"({int(hour) - 1}, 1)")] = value
 
         return df_state
 

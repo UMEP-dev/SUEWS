@@ -130,9 +130,9 @@ def get_ser_val_alt(
     alt_t_1d = da_alt.sel(latitude=lat, longitude=lon, method="nearest")
     val_t_1d = da_val.sel(latitude=lat, longitude=lon, method="nearest")
     alt_x = da_alt_x.sel(latitude=lat, longitude=lon, method="nearest")[0]
-    val_alt = np.array(
-        [interp1d(alt_1d, val_1d)(alt_x) for alt_1d, val_1d in zip(alt_t_1d, val_t_1d)]
-    )
+    val_alt = np.array([
+        interp1d(alt_1d, val_1d)(alt_x) for alt_1d, val_1d in zip(alt_t_1d, val_t_1d)
+    ])
     ser_alt = pd.Series(
         val_alt,
         index=da_val.time.values,
@@ -271,7 +271,9 @@ def gen_req_sfc(lat_x, lon_x, start, end, grid=None, scale=0):
 
     Examples
     --------
-    >>> gen_req_sfc(28, 116, '2015-01', '2015-01-31 23', grid=[0.125, 0.125], scale=0)
+    >>> gen_req_sfc(
+    ...     28, 116, "2015-01", "2015-01-31 23", grid=[0.125, 0.125], scale=0
+    ... )
 
     """
     # variable name: data type
@@ -854,9 +856,12 @@ def format_df_forcing(df_forcing_raw):
     df_forcing_grid.iloc[:, 4:] = df_forcing_grid.iloc[:, 4:].round(2)
 
     # coerce integer
-    df_forcing_grid = df_forcing_grid.astype(
-        {"iy": "int32", "id": "int32", "it": "int32", "imin": "int32"}
-    )
+    df_forcing_grid = df_forcing_grid.astype({
+        "iy": "int32",
+        "id": "int32",
+        "it": "int32",
+        "imin": "int32",
+    })
 
     # replace nan with -999
     df_forcing_grid = df_forcing_grid.replace(np.nan, -999).asfreq("1h")
@@ -1030,15 +1035,13 @@ def diag_era5_simple(z0m, ustar, pres_z0, uv10, t2, q2, z):
     uv_z = uv10 * (np.log((z + z0m) / z0m) / np.log((10 + z0m) / z0m))
 
     # generate dataset
-    ds_diag = xr.merge(
-        [
-            uv_z.rename("uv_z"),
-            t_z.rename("t_z"),
-            q_z.rename("q_z"),
-            RH_z.rename("RH_z"),
-            p_z.rename("p_z"),
-        ]
-    )
+    ds_diag = xr.merge([
+        uv_z.rename("uv_z"),
+        t_z.rename("t_z"),
+        q_z.rename("q_z"),
+        RH_z.rename("RH_z"),
+        p_z.rename("p_z"),
+    ])
 
     return ds_diag
 
@@ -1141,21 +1144,18 @@ def diag_era5(
     RH_z = RH_z.where(RH_z < 105, 105)
 
     # generate dataset
-    ds_diag = xr.merge(
-        [
-            uv_z.rename("uv_z"),
-            t_z.rename("t_z"),
-            q_z.rename("q_z"),
-            RH_z.rename("RH_z"),
-            p_z.rename("p_z"),
-        ]
-    )
+    ds_diag = xr.merge([
+        uv_z.rename("uv_z"),
+        t_z.rename("t_z"),
+        q_z.rename("q_z"),
+        RH_z.rename("RH_z"),
+        p_z.rename("p_z"),
+    ])
     return ds_diag
 
 
 # diagnose ISL variable using MOST
 def get_era5_pressure_level(list_fn_ml, pressure_level):
-
     from atmosp import calculate as ac
     import xarray as xr
     from ._atm import cal_lat_vap, cal_cp, cal_psi_mom, cal_psi_heat
@@ -1200,15 +1200,13 @@ def get_era5_pressure_level(list_fn_ml, pressure_level):
     RH_z = RH_z.where(RH_z < 105, 105)
 
     # generate dataset
-    ds_diag = xr.merge(
-        [
-            uv_z.rename("uv_z"),
-            t_z.rename("t_z"),
-            q_z.rename("q_z"),
-            RH_z.rename("RH_z"),
-            p_z.rename("p_z"),
-        ]
-    )
+    ds_diag = xr.merge([
+        uv_z.rename("uv_z"),
+        t_z.rename("t_z"),
+        q_z.rename("q_z"),
+        RH_z.rename("RH_z"),
+        p_z.rename("p_z"),
+    ])
 
     # merge altitude
     ds_diag = ds_diag.merge(ds_alt_z).drop_vars("level")

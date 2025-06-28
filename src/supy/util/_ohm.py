@@ -32,8 +32,6 @@ def derive_ohm_coef(ser_QS, ser_QN):
         a1, a2 coefficients and a3 (intercept)
     """
 
-
-
     from sklearn.linear_model import LinearRegression
 
     # derive dt in hours

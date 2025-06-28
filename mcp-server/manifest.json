@@ -1,0 +1,101 @@
+{
+  "manifestVersion": "1.0.0",
+  "engineVersion": "1",
+  "name": "SUEWS Assistant",
+  "description": "AI-powered configuration guidance and result interpretation for the Surface Urban Energy and Water balance Scheme (SUEWS)",
+  "author": "Ting Sun & Claude Code",
+  "license": "MIT",
+  "homepage": "https://github.com/UMEP-dev/SUEWS",
+  "mcp": {
+    "command": "python",
+    "args": ["-m", "suews_mcp.server"],
+    "env": {
+      "PYTHONPATH": "${extensionDir}/src:${extensionDir}",
+      "SUEWS_MCP_DEBUG": "false"
+    }
+  },
+  "config": {
+    "userConfigurable": {
+      "suewsPath": {
+        "type": "path",
+        "displayName": "SUEWS Installation Path",
+        "description": "Path to SUEWS installation (optional - for advanced features)",
+        "required": false
+      },
+      "dataPath": {
+        "type": "path", 
+        "displayName": "SUEWS Data Directory",
+        "description": "Default directory for SUEWS input/output files",
+        "required": false,
+        "default": "${userHome}/Documents/SUEWS"
+      },
+      "debugMode": {
+        "type": "boolean",
+        "displayName": "Enable Debug Mode",
+        "description": "Show detailed logging for troubleshooting",
+        "required": false,
+        "default": false
+      }
+    }
+  },
+  "tools": {
+    "validate_suews_config": {
+      "displayName": "Validate Configuration",
+      "description": "Check a SUEWS configuration file for scientific soundness and common errors"
+    },
+    "suggest_suews_parameters": {
+      "displayName": "Suggest Parameters",
+      "description": "Get parameter recommendations based on urban context and climate zone"
+    },
+    "check_suews_physics_compatibility": {
+      "displayName": "Check Physics Compatibility",
+      "description": "Verify that selected physics methods work well together"
+    },
+    "generate_suews_template": {
+      "displayName": "Generate Template",
+      "description": "Create a configuration template tailored to your site and research focus"
+    },
+    "explain_suews_parameter": {
+      "displayName": "Explain Parameter",
+      "description": "Get detailed explanation of any SUEWS parameter with typical values"
+    },
+    "diagnose_suews_energy_balance": {
+      "displayName": "Diagnose Energy Balance",
+      "description": "Analyze energy balance closure and identify potential issues"
+    },
+    "interpret_suews_thermal_comfort": {
+      "displayName": "Analyze Thermal Comfort",
+      "description": "Interpret thermal comfort metrics from SUEWS outputs"
+    },
+    "analyze_suews_urban_effects": {
+      "displayName": "Analyze Urban Effects",
+      "description": "Examine urban heat island and other urban climate effects"
+    },
+    "validate_suews_against_observations": {
+      "displayName": "Validate Against Observations",
+      "description": "Compare model results with measured data"
+    },
+    "generate_suews_insights_report": {
+      "displayName": "Generate Insights Report",
+      "description": "Create comprehensive narrative report from simulation results"
+    }
+  },
+  "prompts": [
+    {
+      "name": "urban_climate_expert",
+      "description": "I'm an expert in urban climate modeling and SUEWS. I can help you create scientifically sound configurations, interpret results, and understand urban climate processes."
+    },
+    {
+      "name": "config_wizard", 
+      "description": "Starting a new SUEWS project? I'll guide you through creating the perfect configuration for your site and research goals."
+    },
+    {
+      "name": "result_interpreter",
+      "description": "I can analyze your SUEWS outputs and provide insights about energy balance, thermal comfort, and urban climate effects."
+    }
+  ],
+  "requirements": {
+    "python": ">=3.9",
+    "platforms": ["darwin", "linux", "win32"]
+  }
+}

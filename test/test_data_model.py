@@ -169,6 +169,67 @@ class TestSUEWSConfig(unittest.TestCase):
         self.assertEqual(len(config_reconst.sites), 3)
         self.assertEqual([site.gridiv for site in config_reconst.sites], [0, 1, 2])
 
+    def test_wrap_numeric(self):
+        """Test that wrap creates a RefValue from a plain numeric."""
+        rv = RefValue.wrap(5.0)
+        self.assertIsInstance(rv, RefValue)
+        self.assertEqual(rv.value, 5.0)
+
+    def test_wrap_existing_refvalue(self):
+        """Test that wrap leaves an existing RefValue unchanged."""
+        original = RefValue(10.0)
+        wrapped = RefValue.wrap(original)
+        self.assertIs(wrapped, original)
+
+    def test_equality_between_refvalues(self):
+        """Test equality and inequality between RefValues."""
+        a = RefValue(5.0)
+        b = RefValue(5.0)
+        c = RefValue(10.0)
+        self.assertEqual(a, b)
+        self.assertNotEqual(a, c)
+
+    def test_equality_with_plain_value(self):
+        """Test equality comparison between RefValue and plain value."""
+        a = RefValue(5.0)
+        self.assertEqual(a, 5.0)
+        self.assertNotEqual(a, 10.0)
+
+    def test_less_than_strict_none_behavior(self):
+        """Test that '<' with None raises ValueError."""
+        a = RefValue(None)
+        b = RefValue(5.0)
+        with self.assertRaises(ValueError):
+            _ = a < b
+        with self.assertRaises(ValueError):
+            _ = b < a
+
+    def test_greater_than_strict_none_behavior(self):
+        """Test that '>' with None raises ValueError."""
+        a = RefValue(None)
+        b = RefValue(5.0)
+        with self.assertRaises(ValueError):
+            _ = a > b
+        with self.assertRaises(ValueError):
+            _ = b > a
+
+    def test_less_equal_strict_none_behavior(self):
+        """Test that '<=' with None raises ValueError."""
+        a = RefValue(None)
+        b = RefValue(5.0)
+        with self.assertRaises(ValueError):
+            _ = a <= b
+        with self.assertRaises(ValueError):
+            _ = b <= a
+
+    def test_greater_equal_strict_none_behavior(self):
+        """Test that '>=' with None raises ValueError."""
+        a = RefValue(None)
+        b = RefValue(5.0)
+        with self.assertRaises(ValueError):
+            _ = a >= b
+        with self.assertRaises(ValueError):
+            _ = b >= a
 
 if __name__ == "__main__":
     unittest.main()

@@ -23,23 +23,33 @@ SUEWS/
 
 ### Working with Worktrees
 
-**🚀 Quick Start (Recommended):**
-Use the automated scripts for friction-free worktree management:
+**🚀 Quick Start with uv (Recommended - Ultra Fast!):**
+Use `uv` for blazing fast worktree setup:
 
 ```bash
-# Create new worktree with environment
-./.claude/scripts/worktree-setup.sh my-feature
+# One-time: Install uv
+brew install uv  # or: curl -LsSf https://astral.sh/uv/install.sh | sh
 
-# Start working
+# Create worktree (takes seconds!)
+./.claude/scripts/uv-simple.sh my-feature
+
+# Work without activation!
 cd worktrees/my-feature
-./activate.sh  # or: source .venv/bin/activate
-make test
+uv run python           # Run Python
+uv run pytest          # Run tests
+uv run make test       # Run make commands
 
 # Clean up when done
 ./.claude/scripts/worktree-cleanup.sh my-feature
 ```
 
-See `.claude/scripts/README.md` for script documentation and `.claude/workspace/claude-code-worktree-guide.md` for the streamlined workflow guide.
+**Why uv?**
+- 10-100x faster than pip/mamba
+- No environment activation needed
+- Single command setup
+- Works everywhere
+
+See `.claude/scripts/README.md` for all available scripts and `.claude/workspace/uv-adoption-guide.md` for details.
 
 #### Legacy: Manual Mamba Setup (If Required)
 
@@ -79,9 +89,9 @@ git commit -m "chore: remove worktree plan for merged feature"
 ### Best Practices
 - Always create worktrees under `worktrees/` directory
 - Use descriptive names matching the feature
-- **Use the automated scripts** for consistent setup/cleanup
-- **Each worktree gets its own isolated environment** (venv or mamba)
-- Clean up BOTH worktree AND environment after merging
+- **Use uv for speed** - setup takes seconds, not minutes
+- **No activation needed** - just use `uv run` commands
+- Clean up with `.claude/scripts/worktree-cleanup.sh`
 - **IMPORTANT**: Also remove `.claude/worktree-plans/feature-{branch-name}.md` when cleaning up merged worktrees
 - Pull master in each worktree to access latest `.claude/worktree-plans/`
 
@@ -94,14 +104,13 @@ git commit -m "chore: remove worktree plan for merged feature"
 1. **Root Directory** (`/SUEWS/`): Uses base `suews-dev` mamba environment
 2. **Each Worktree** (`/worktrees/{name}/`): Uses its own isolated environment (venv recommended)
 
-#### Quick Setup with Scripts
+#### Quick Setup with uv
 
 ```bash
-# Automated setup (recommended)
-./.claude/scripts/worktree-setup.sh feature-name
+# Ultra-fast setup with uv
+./.claude/scripts/uv-simple.sh feature-name
 cd worktrees/feature-name
-./activate.sh
-make test
+uv run make test  # No activation needed!
 ```
 
 #### Why Separate Environments Are Required
@@ -118,11 +127,11 @@ make test
 - **Quick tests**: `pytest test/test_supy.py -v`
 
 See:
-- `.claude/workspace/claude-code-worktree-guide.md` for streamlined worktree workflow
-- `.claude/scripts/README.md` for automation script documentation
+- `.claude/workspace/uv-adoption-guide.md` for uv benefits and usage
+- `.claude/scripts/README.md` for all automation scripts
+- `.claude/scripts/uv-simple.sh` for the recommended worktree setup
 - `.claude/workspace/worktree-build-analysis.md` for build isolation strategies
 - `.claude/workspace/environment-isolation-guide.md` for legacy mamba setup
-- `.claude/workspace/worktree-analysis-20250627.md` for worktree analysis
 
 ### Current Development Status
 - For an overview of all active branches and their associated GitHub issues, see `.claude/worktree-plans/claude-dev-notes.md`

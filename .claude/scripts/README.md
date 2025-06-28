@@ -4,7 +4,30 @@ This directory contains scripts to streamline worktree management for Claude Cod
 
 ## Available Scripts
 
-### worktree-setup.sh
+### uv-worktree-setup.sh (Recommended - Ultra Fast!)
+Creates a new worktree using `uv` for blazing fast environment setup.
+
+**Usage:**
+```bash
+./.claude/scripts/uv-worktree-setup.sh feature-name
+```
+
+**What it does:**
+1. Creates git worktree at `worktrees/feature-name`
+2. Sets up Python venv with `uv` (10-100x faster than pip)
+3. Installs package in development mode
+4. Creates quick activation script
+5. Runs initial build
+
+**Example:**
+```bash
+./.claude/scripts/uv-worktree-setup.sh yaml-validation
+cd worktrees/yaml-validation
+source .venv/bin/activate  # or ./activate.sh
+make test
+```
+
+### worktree-setup.sh (Standard venv)
 Creates a new worktree with an isolated Python virtual environment.
 
 **Usage:**
@@ -41,10 +64,31 @@ Removes a worktree and associated resources.
 3. Removes worktree plan from `.claude/worktree-plans/`
 4. Shows remaining worktrees
 
+## Performance Comparison
+
+| Method | Setup Time | Reliability |
+|--------|-----------|-------------|
+| mamba clone | 2-5 minutes | Shell issues |
+| python venv | 30-60 seconds | Good |
+| **uv** | **2-5 seconds** | **Excellent** |
+
+## Installing uv
+
+```bash
+# Option 1: Official installer
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Option 2: Homebrew (macOS/Linux)
+brew install uv
+
+# Option 3: pip (if you prefer)
+pip install uv
+```
+
 ## Benefits for Claude Code
 
 1. **Single Command Setup**: No need to remember multiple steps
-2. **Fast Environment Creation**: Uses venv instead of slow mamba clone
+2. **Ultra-Fast with uv**: 10-100x faster than traditional methods
 3. **No Shell Issues**: Works reliably without shell configuration
 4. **Clean Isolation**: Each worktree is completely independent
 5. **Easy Cleanup**: One command removes everything

@@ -1626,164 +1626,122 @@ class ArchetypeProperties(BaseModel):
 
 
 class StebbsProperties(BaseModel):
-    WallInternalConvectionCoefficient: FlexibleRefValue(float) = Field(
+    WallInternalConvectionCoefficient: Optional[FlexibleRefValue(float)] = Field(
         default=0.0,
         description="Internal convection coefficient of walls and roof [W m-2 K-1]",
-        json_schema_extra={
-            "unit": "W m^-2 K^-1",
-            "display_name": "Wallinternalconvectioncoefficient",
-        },
+        json_schema_extra={"unit": "W m^-2 K^-1", "display_name": "Wallinternalconvectioncoefficient"},
     )
-    InternalMassConvectionCoefficient: FlexibleRefValue(float) = Field(
+    InternalMassConvectionCoefficient: Optional[FlexibleRefValue(float)] = Field(
         default=0.0,
         description="Convection coefficient of internal mass [W m-2 K-1]",
-        json_schema_extra={
-            "unit": "W m^-2 K^-1",
-            "display_name": "Internalmassconvectioncoefficient",
-        },
+        json_schema_extra={"unit": "W m^-2 K^-1", "display_name": "Internalmassconvectioncoefficient"},
     )
-    FloorInternalConvectionCoefficient: FlexibleRefValue(float) = Field(
+    FloorInternalConvectionCoefficient: Optional[FlexibleRefValue(float)] = Field(
         default=0.0,
         description="Internal convection coefficient of ground floor [W m-2 K-1]",
-        json_schema_extra={
-            "unit": "W m^-2 K^-1",
-            "display_name": "Floorinternalconvectioncoefficient",
-        },
+        json_schema_extra={"unit": "W m^-2 K^-1", "display_name": "Floorinternalconvectioncoefficient"},
     )
-    WindowInternalConvectionCoefficient: FlexibleRefValue(float) = Field(
+    WindowInternalConvectionCoefficient: Optional[FlexibleRefValue(float)] = Field(
         default=0.0,
         description="Internal convection coefficient of windows [W m-2 K-1]",
-        json_schema_extra={
-            "unit": "W m^-2 K^-1",
-            "display_name": "Windowinternalconvectioncoefficient",
-        },
+        json_schema_extra={"unit": "W m^-2 K^-1", "display_name": "Windowinternalconvectioncoefficient"},
     )
-    WallExternalConvectionCoefficient: FlexibleRefValue(float) = Field(
+    WallExternalConvectionCoefficient: Optional[FlexibleRefValue(float)] = Field(
         default=0.0,
         description="Initial external convection coefficient of walls and roof [W m-2 K-1]",
-        json_schema_extra={
-            "unit": "W m^-2 K^-1",
-            "display_name": "Wallexternalconvectioncoefficient",
-        },
+        json_schema_extra={"unit": "W m^-2 K^-1", "display_name": "Wallexternalconvectioncoefficient"},
     )
-    WindowExternalConvectionCoefficient: FlexibleRefValue(float) = Field(
+    WindowExternalConvectionCoefficient: Optional[FlexibleRefValue(float)] = Field(
         default=0.0,
         description="Initial external convection coefficient of windows [W m-2 K-1]",
-        json_schema_extra={
-            "unit": "W m^-2 K^-1",
-            "display_name": "Windowexternalconvectioncoefficient",
-        },
+        json_schema_extra={"unit": "W m^-2 K^-1", "display_name": "Windowexternalconvectioncoefficient"},
     )
-    GroundDepth: FlexibleRefValue(float) = Field(
+    GroundDepth: Optional[FlexibleRefValue(float)] = Field(
         default=0.0,
         description="Depth of external ground (deep soil) [m]",
         json_schema_extra={"unit": "m", "display_name": "Grounddepth"},
     )
-    ExternalGroundConductivity: FlexibleRefValue(float) = Field(
+    ExternalGroundConductivity: Optional[FlexibleRefValue(float)] = Field(
         default=0.0,
         description="External ground thermal conductivity",
-        json_schema_extra={
-            "unit": "W m^-1 K^-1",
-            "display_name": "Externalgroundconductivity",
-        },
+        json_schema_extra={"unit": "W m^-1 K^-1", "display_name": "Externalgroundconductivity"},
     )
-    IndoorAirDensity: FlexibleRefValue(float) = Field(
+    IndoorAirDensity: Optional[FlexibleRefValue(float)] = Field(
         default=0.0,
         description="Density of indoor air [kg m-3]",
         json_schema_extra={"unit": "kg m^-3", "display_name": "Indoorairdensity"},
     )
-    IndoorAirCp: FlexibleRefValue(float) = Field(
+    IndoorAirCp: Optional[FlexibleRefValue(float)] = Field(
         default=0.0,
         description="Specific heat capacity of indoor air [J kg-1 K-1]",
         json_schema_extra={"unit": "J kg^-1 K^-1", "display_name": "Indooraircp"},
     )
-    WallBuildingViewFactor: FlexibleRefValue(float) = Field(
+    WallBuildingViewFactor: Optional[FlexibleRefValue(float)] = Field(
         default=0.0,
         description="Building view factor of external walls [-]",
-        json_schema_extra={
-            "unit": "dimensionless",
-            "display_name": "Wallbuildingviewfactor",
-        },
+        json_schema_extra={"unit": "dimensionless", "display_name": "Wallbuildingviewfactor"},
     )
-    WallGroundViewFactor: FlexibleRefValue(float) = Field(
+    WallGroundViewFactor: Optional[FlexibleRefValue(float)] = Field(
         default=0.0,
         description="Ground view factor of external walls [-]",
-        json_schema_extra={
-            "unit": "dimensionless",
-            "display_name": "Wallgroundviewfactor",
-        },
+        json_schema_extra={"unit": "dimensionless", "display_name": "Wallgroundviewfactor"},
     )
-    WallSkyViewFactor: FlexibleRefValue(float) = Field(
+    WallSkyViewFactor: Optional[FlexibleRefValue(float)] = Field(
         default=0.0,
         description="Sky view factor of external walls [-]",
-        json_schema_extra={
-            "unit": "dimensionless",
-            "display_name": "Wallskyviewfactor",
-        },
+        json_schema_extra={"unit": "dimensionless", "display_name": "Wallskyviewfactor"},
     )
-    MetabolicRate: FlexibleRefValue(float) = Field(
+    MetabolicRate: Optional[FlexibleRefValue(float)] = Field(
         default=0.0,
         description="Metabolic rate of building occupants [W]",
         json_schema_extra={"unit": "W", "display_name": "Metabolicrate"},
     )
-    LatentSensibleRatio: FlexibleRefValue(float) = Field(
+    LatentSensibleRatio: Optional[FlexibleRefValue(float)] = Field(
         default=0.0,
         description="Latent-to-sensible ratio of metabolic energy release of occupants [-]",
-        json_schema_extra={
-            "unit": "dimensionless",
-            "display_name": "Latentsensibleratio",
-        },
+        json_schema_extra={"unit": "dimensionless", "display_name": "Latentsensibleratio"},
     )
-    ApplianceRating: FlexibleRefValue(float) = Field(
+    ApplianceRating: Optional[FlexibleRefValue(float)] = Field(
         default=0.0,
         description="Power demand of single appliance [W]",
         json_schema_extra={"unit": "W", "display_name": "Appliancerating"},
     )
-    TotalNumberofAppliances: FlexibleRefValue(float) = Field(
+    TotalNumberofAppliances: Optional[FlexibleRefValue(float)] = Field(
         default=0.0,
         description="Number of appliances present in building [-]",
-        json_schema_extra={
-            "unit": "dimensionless",
-            "display_name": "Totalnumberofappliances",
-        },
+        json_schema_extra={"unit": "dimensionless", "display_name": "Totalnumberofappliances"},
     )
-    ApplianceUsageFactor: FlexibleRefValue(float) = Field(
+    ApplianceUsageFactor: Optional[FlexibleRefValue(float)] = Field(
         default=0.0,
         description="Number of appliances in use [-]",
-        json_schema_extra={
-            "unit": "dimensionless",
-            "display_name": "Applianceusagefactor",
-        },
+        json_schema_extra={"unit": "dimensionless", "display_name": "Applianceusagefactor"},
     )
-    HeatingSystemEfficiency: FlexibleRefValue(float) = Field(
+    HeatingSystemEfficiency: Optional[FlexibleRefValue(float)] = Field(
         default=0.0,
         description="Efficiency of space heating system [-]",
-        json_schema_extra={
-            "unit": "dimensionless",
-            "display_name": "Heatingsystemefficiency",
-        },
+        json_schema_extra={"unit": "dimensionless", "display_name": "Heatingsystemefficiency"},
     )
-    MaxCoolingPower: FlexibleRefValue(float) = Field(
+    MaxCoolingPower: Optional[FlexibleRefValue(float)] = Field(
         default=0.0,
         description="Maximum power demand of cooling system [W]",
         json_schema_extra={"unit": "W", "display_name": "Maxcoolingpower"},
     )
-    CoolingSystemCOP: FlexibleRefValue(float) = Field(
+    CoolingSystemCOP: Optional[FlexibleRefValue(float)] = Field(
         default=0.0,
         description="Coefficient of performance of cooling system [-]",
         json_schema_extra={"unit": "dimensionless", "display_name": "Coolingsystemcop"},
     )
-    VentilationRate: FlexibleRefValue(float) = Field(
+    VentilationRate: Optional[FlexibleRefValue(float)] = Field(
         default=0.0,
         description="Ventilation rate (air changes per hour, ACH) [h-1]",
         json_schema_extra={"unit": "h^-1", "display_name": "Ventilationrate"},
     )
-    IndoorAirStartTemperature: FlexibleRefValue(float) = Field(
+    IndoorAirStartTemperature: Optional[FlexibleRefValue(float)] = Field(
         default=0.0,
         description="Initial indoor air temperature [degC]",
         json_schema_extra={"unit": "degC", "display_name": "Indoorairstarttemperature"},
     )
-    IndoorMassStartTemperature: FlexibleRefValue(float) = Field(
+    IndoorMassStartTemperature: Optional[FlexibleRefValue(float)] = Field(
         default=0.0,
         description="Initial indoor mass temperature [degC]",
         json_schema_extra={
@@ -1791,7 +1749,7 @@ class StebbsProperties(BaseModel):
             "display_name": "Indoormassstarttemperature",
         },
     )
-    WallIndoorSurfaceTemperature: FlexibleRefValue(float) = Field(
+    WallIndoorSurfaceTemperature: Optional[FlexibleRefValue(float)] = Field(
         default=0.0,
         description="Initial wall/roof indoor surface temperature [degC]",
         json_schema_extra={
@@ -1799,7 +1757,7 @@ class StebbsProperties(BaseModel):
             "display_name": "Wallindoorsurfacetemperature",
         },
     )
-    WallOutdoorSurfaceTemperature: FlexibleRefValue(float) = Field(
+    WallOutdoorSurfaceTemperature: Optional[FlexibleRefValue(float)] = Field(
         default=0.0,
         description="Initial wall/roof outdoor surface temperature [degC]",
         json_schema_extra={
@@ -1807,7 +1765,7 @@ class StebbsProperties(BaseModel):
             "display_name": "Walloutdoorsurfacetemperature",
         },
     )
-    WindowIndoorSurfaceTemperature: FlexibleRefValue(float) = Field(
+    WindowIndoorSurfaceTemperature: Optional[FlexibleRefValue(float)] = Field(
         default=0.0,
         description="Initial window indoor surface temperature [degC]",
         json_schema_extra={
@@ -1815,7 +1773,7 @@ class StebbsProperties(BaseModel):
             "display_name": "Windowindoorsurfacetemperature",
         },
     )
-    WindowOutdoorSurfaceTemperature: FlexibleRefValue(float) = Field(
+    WindowOutdoorSurfaceTemperature: Optional[FlexibleRefValue(float)] = Field(
         default=0.0,
         description="Initial window outdoor surface temperature [degC]",
         json_schema_extra={
@@ -1823,7 +1781,7 @@ class StebbsProperties(BaseModel):
             "display_name": "Windowoutdoorsurfacetemperature",
         },
     )
-    GroundFloorIndoorSurfaceTemperature: FlexibleRefValue(float) = Field(
+    GroundFloorIndoorSurfaceTemperature: Optional[FlexibleRefValue(float)] = Field(
         default=0.0,
         description="Initial ground floor indoor surface temperature [degC]",
         json_schema_extra={
@@ -1831,7 +1789,7 @@ class StebbsProperties(BaseModel):
             "display_name": "Groundfloorindoorsurfacetemperature",
         },
     )
-    GroundFloorOutdoorSurfaceTemperature: FlexibleRefValue(float) = Field(
+    GroundFloorOutdoorSurfaceTemperature: Optional[FlexibleRefValue(float)] = Field(
         default=0.0,
         description="Initial ground floor outdoor surface temperature [degC]",
         json_schema_extra={
@@ -1839,12 +1797,12 @@ class StebbsProperties(BaseModel):
             "display_name": "Groundflooroutdoorsurfacetemperature",
         },
     )
-    WaterTankTemperature: FlexibleRefValue(float) = Field(
+    WaterTankTemperature: Optional[FlexibleRefValue(float)] = Field(
         default=0.0,
         description="Initial water temperature in hot water tank [degC]",
         json_schema_extra={"unit": "degC", "display_name": "Watertanktemperature"},
     )
-    InternalWallWaterTankTemperature: FlexibleRefValue(float) = Field(
+    InternalWallWaterTankTemperature: Optional[FlexibleRefValue(float)] = Field(
         default=0.0,
         description="Initial hot water tank internal wall temperature [degC]",
         json_schema_extra={
@@ -1852,7 +1810,7 @@ class StebbsProperties(BaseModel):
             "display_name": "Internalwallwatertanktemperature",
         },
     )
-    ExternalWallWaterTankTemperature: FlexibleRefValue(float) = Field(
+    ExternalWallWaterTankTemperature: Optional[FlexibleRefValue(float)] = Field(
         default=0.0,
         description="Initial hot water tank external wall temperature [degC]",
         json_schema_extra={
@@ -1860,22 +1818,22 @@ class StebbsProperties(BaseModel):
             "display_name": "Externalwallwatertanktemperature",
         },
     )
-    WaterTankWallThickness: FlexibleRefValue(float) = Field(
+    WaterTankWallThickness: Optional[FlexibleRefValue(float)] = Field(
         default=0.0,
         description="Hot water tank wall thickness [m]",
         json_schema_extra={"unit": "m", "display_name": "Watertankwallthickness"},
     )
-    MainsWaterTemperature: FlexibleRefValue(float) = Field(
+    MainsWaterTemperature: Optional[FlexibleRefValue(float)] = Field(
         default=0.0,
         description="Temperature of water coming into the water tank [degC]",
         json_schema_extra={"unit": "degC", "display_name": "Mainswatertemperature"},
     )
-    WaterTankSurfaceArea: FlexibleRefValue(float) = Field(
+    WaterTankSurfaceArea: Optional[FlexibleRefValue(float)] = Field(
         default=0.0,
         description="Surface area of hot water tank cylinder [m2]",
         json_schema_extra={"unit": "m^2", "display_name": "Watertanksurfacearea"},
     )
-    HotWaterHeatingSetpointTemperature: FlexibleRefValue(float) = Field(
+    HotWaterHeatingSetpointTemperature: Optional[FlexibleRefValue(float)] = Field(
         default=0.0,
         description="Water tank setpoint temperature [degC]",
         json_schema_extra={
@@ -1883,7 +1841,7 @@ class StebbsProperties(BaseModel):
             "display_name": "Hotwaterheatingsetpointtemperature",
         },
     )
-    HotWaterTankWallEmissivity: FlexibleRefValue(float) = Field(
+    HotWaterTankWallEmissivity: Optional[FlexibleRefValue(float)] = Field(
         default=0.0,
         description="Effective external wall emissivity of the hot water tank [-]",
         json_schema_extra={
@@ -1891,7 +1849,7 @@ class StebbsProperties(BaseModel):
             "display_name": "Hotwatertankwallemissivity",
         },
     )
-    DomesticHotWaterTemperatureInUseInBuilding: FlexibleRefValue(float) = Field(
+    DomesticHotWaterTemperatureInUseInBuilding: Optional[FlexibleRefValue(float)] = Field(
         default=0.0,
         description="Initial water temperature of water held in use in building [degC]",
         json_schema_extra={
@@ -1899,7 +1857,7 @@ class StebbsProperties(BaseModel):
             "display_name": "Domestichotwatertemperatureinuseinbuilding",
         },
     )
-    InternalWallDHWVesselTemperature: FlexibleRefValue(float) = Field(
+    InternalWallDHWVesselTemperature: Optional[FlexibleRefValue(float)] = Field(
         default=0.0,
         description="Initial hot water vessel internal wall temperature [degC]",
         json_schema_extra={
@@ -1907,7 +1865,7 @@ class StebbsProperties(BaseModel):
             "display_name": "Internalwalldhwvesseltemperature",
         },
     )
-    ExternalWallDHWVesselTemperature: FlexibleRefValue(float) = Field(
+    ExternalWallDHWVesselTemperature: Optional[FlexibleRefValue(float)] = Field(
         default=0.0,
         description="Initial hot water vessel external wall temperature [degC]",
         json_schema_extra={
@@ -1915,22 +1873,22 @@ class StebbsProperties(BaseModel):
             "display_name": "Externalwalldhwvesseltemperature",
         },
     )
-    DHWVesselWallThickness: FlexibleRefValue(float) = Field(
+    DHWVesselWallThickness: Optional[FlexibleRefValue(float)] = Field(
         default=0.0,
         description="Hot water vessel wall thickness [m]",
         json_schema_extra={"unit": "m", "display_name": "Dhwvesselwallthickness"},
     )
-    DHWWaterVolume: FlexibleRefValue(float) = Field(
+    DHWWaterVolume: Optional[FlexibleRefValue(float)] = Field(
         default=0.0,
         description="Volume of water held in use in building [m3]",
         json_schema_extra={"unit": "m^3", "display_name": "Dhwwatervolume"},
     )
-    DHWSurfaceArea: FlexibleRefValue(float) = Field(
+    DHWSurfaceArea: Optional[FlexibleRefValue(float)] = Field(
         default=0.0,
         description="Surface area of hot water in vessels in building [m2]",
         json_schema_extra={"unit": "m^2", "display_name": "Dhwsurfacearea"},
     )
-    DHWVesselEmissivity: FlexibleRefValue(float) = Field(
+    DHWVesselEmissivity: Optional[FlexibleRefValue(float)] = Field(
         default=0.0,
         description="NEEDS CHECKED! NOT USED (assumed same as DHWVesselWallEmissivity) [-]",
         json_schema_extra={
@@ -1938,17 +1896,17 @@ class StebbsProperties(BaseModel):
             "display_name": "Dhwvesselemissivity",
         },
     )
-    HotWaterFlowRate: FlexibleRefValue(float) = Field(
+    HotWaterFlowRate: Optional[FlexibleRefValue(float)] = Field(
         default=0.0,
         description="Hot water flow rate from tank to vessel [m3 s-1]",
         json_schema_extra={"unit": "m^3 s^-1", "display_name": "Hotwaterflowrate"},
     )
-    DHWDrainFlowRate: FlexibleRefValue(float) = Field(
+    DHWDrainFlowRate: Optional[FlexibleRefValue(float)] = Field(
         default=0.0,
         description="Flow rate of hot water held in building to drain [m3 s-1]",
         json_schema_extra={"unit": "m^3 s^-1", "display_name": "Dhwdrainflowrate"},
     )
-    DHWSpecificHeatCapacity: FlexibleRefValue(float) = Field(
+    DHWSpecificHeatCapacity: Optional[FlexibleRefValue(float)] = Field(
         default=0.0,
         description="Specific heat capacity of hot water [J kg-1 K-1]",
         json_schema_extra={
@@ -1956,7 +1914,7 @@ class StebbsProperties(BaseModel):
             "display_name": "Dhwspecificheatcapacity",
         },
     )
-    HotWaterTankSpecificHeatCapacity: FlexibleRefValue(float) = Field(
+    HotWaterTankSpecificHeatCapacity: Optional[FlexibleRefValue(float)] = Field(
         default=0.0,
         description="Specific heat capacity of hot water tank wal [J kg-1 K-1]",
         json_schema_extra={
@@ -1964,7 +1922,7 @@ class StebbsProperties(BaseModel):
             "display_name": "Hotwatertankspecificheatcapacity",
         },
     )
-    DHWVesselSpecificHeatCapacity: FlexibleRefValue(float) = Field(
+    DHWVesselSpecificHeatCapacity: Optional[FlexibleRefValue(float)] = Field(
         default=0.0,
         description="Specific heat capacity of vessels containing hot water in use in buildings [J kg-1 K-1]",
         json_schema_extra={
@@ -1972,12 +1930,12 @@ class StebbsProperties(BaseModel):
             "display_name": "Dhwvesselspecificheatcapacity",
         },
     )
-    DHWDensity: FlexibleRefValue(float) = Field(
+    DHWDensity: Optional[FlexibleRefValue(float)] = Field(
         default=0.0,
         description="Density of hot water in use [kg m-3]",
         json_schema_extra={"unit": "kg m^-3", "display_name": "Dhwdensity"},
     )
-    HotWaterTankWallDensity: FlexibleRefValue(float) = Field(
+    HotWaterTankWallDensity: Optional[FlexibleRefValue(float)] = Field(
         default=0.0,
         description="Density of hot water tank wall [kg m-3]",
         json_schema_extra={
@@ -1985,12 +1943,12 @@ class StebbsProperties(BaseModel):
             "display_name": "Hotwatertankwalldensity",
         },
     )
-    DHWVesselDensity: FlexibleRefValue(float) = Field(
+    DHWVesselDensity: Optional[FlexibleRefValue(float)] = Field(
         default=0.0,
         description="Density of vessels containing hot water in use [kg m-3]",
         json_schema_extra={"unit": "kg m^-3", "display_name": "Dhwvesseldensity"},
     )
-    HotWaterTankBuildingWallViewFactor: FlexibleRefValue(float) = Field(
+    HotWaterTankBuildingWallViewFactor: Optional[FlexibleRefValue(float)] = Field(
         default=0.0,
         description="Water tank/vessel internal building wall/roof view factor [-]",
         json_schema_extra={
@@ -1998,7 +1956,7 @@ class StebbsProperties(BaseModel):
             "display_name": "Hotwatertankbuildingwallviewfactor",
         },
     )
-    HotWaterTankInternalMassViewFactor: FlexibleRefValue(float) = Field(
+    HotWaterTankInternalMassViewFactor: Optional[FlexibleRefValue(float)] = Field(
         default=0.0,
         description="Water tank/vessel building internal mass view factor [-]",
         json_schema_extra={
@@ -2006,7 +1964,7 @@ class StebbsProperties(BaseModel):
             "display_name": "Hotwatertankinternalmassviewfactor",
         },
     )
-    HotWaterTankWallConductivity: FlexibleRefValue(float) = Field(
+    HotWaterTankWallConductivity: Optional[FlexibleRefValue(float)] = Field(
         default=0.0,
         description="Effective wall conductivity of the hot water tank [W m-1 K-1]",
         json_schema_extra={
@@ -2014,7 +1972,7 @@ class StebbsProperties(BaseModel):
             "display_name": "Hotwatertankwallconductivity",
         },
     )
-    HotWaterTankInternalWallConvectionCoefficient: FlexibleRefValue(float) = Field(
+    HotWaterTankInternalWallConvectionCoefficient: Optional[FlexibleRefValue(float)] = Field(
         default=0.0,
         description="Effective internal wall convection coefficient of the hot water tank [W m-2 K-1]",
         json_schema_extra={
@@ -2022,7 +1980,7 @@ class StebbsProperties(BaseModel):
             "display_name": "Hotwatertankinternalwallconvectioncoefficient",
         },
     )
-    HotWaterTankExternalWallConvectionCoefficient: FlexibleRefValue(float) = Field(
+    HotWaterTankExternalWallConvectionCoefficient: Optional[FlexibleRefValue(float)] = Field(
         default=0.0,
         description="Effective external wall convection coefficient of the hot water tank [W m-2 K-1]",
         json_schema_extra={
@@ -2030,7 +1988,7 @@ class StebbsProperties(BaseModel):
             "display_name": "Hotwatertankexternalwallconvectioncoefficient",
         },
     )
-    DHWVesselWallConductivity: FlexibleRefValue(float) = Field(
+    DHWVesselWallConductivity: Optional[FlexibleRefValue(float)] = Field(
         default=0.0,
         description="Effective wall conductivity of the hot water tank [W m-1 K-1]",
         json_schema_extra={
@@ -2038,7 +1996,7 @@ class StebbsProperties(BaseModel):
             "display_name": "Dhwvesselwallconductivity",
         },
     )
-    DHWVesselInternalWallConvectionCoefficient: FlexibleRefValue(float) = Field(
+    DHWVesselInternalWallConvectionCoefficient: Optional[FlexibleRefValue(float)] = Field(
         default=0.0,
         description="Effective internal wall convection coefficient of the vessels holding hot water in use in building [W m-2 K-1]",
         json_schema_extra={
@@ -2046,7 +2004,7 @@ class StebbsProperties(BaseModel):
             "display_name": "Dhwvesselinternalwallconvectioncoefficient",
         },
     )
-    DHWVesselExternalWallConvectionCoefficient: FlexibleRefValue(float) = Field(
+    DHWVesselExternalWallConvectionCoefficient: Optional[FlexibleRefValue(float)] = Field(
         default=0.0,
         description="Effective external wall convection coefficient of the vessels holding hot water in use in building [W m-2 K-1]",
         json_schema_extra={
@@ -2054,7 +2012,7 @@ class StebbsProperties(BaseModel):
             "display_name": "Dhwvesselexternalwallconvectioncoefficient",
         },
     )
-    DHWVesselWallEmissivity: FlexibleRefValue(float) = Field(
+    DHWVesselWallEmissivity: Optional[FlexibleRefValue(float)] = Field(
         default=0.0,
         description="Effective external wall emissivity of hot water being used within building [-]",
         json_schema_extra={
@@ -2062,7 +2020,7 @@ class StebbsProperties(BaseModel):
             "display_name": "Dhwvesselwallemissivity",
         },
     )
-    HotWaterHeatingEfficiency: FlexibleRefValue(float) = Field(
+    HotWaterHeatingEfficiency: Optional[FlexibleRefValue(float)] = Field(
         default=0.0,
         description="Efficiency of hot water system [-]",
         json_schema_extra={
@@ -2070,7 +2028,7 @@ class StebbsProperties(BaseModel):
             "display_name": "Hotwaterheatingefficiency",
         },
     )
-    MinimumVolumeOfDHWinUse: FlexibleRefValue(float) = Field(
+    MinimumVolumeOfDHWinUse: Optional[FlexibleRefValue(float)] = Field(
         default=0.0,
         description="Minimum volume of hot water in use [m3]",
         json_schema_extra={"unit": "m^3", "display_name": "Minimumvolumeofdhwinuse"},

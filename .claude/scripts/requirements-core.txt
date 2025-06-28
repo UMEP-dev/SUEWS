@@ -1,0 +1,44 @@
+# Core requirements for SUEWS development
+# Based on env.yml, excluding documentation packages
+
+# Build tools
+pip>=22.0
+setuptools>=65.0
+wheel
+meson-python>=0.17.0
+
+# Core data science
+pandas
+scipy
+matplotlib-base
+matplotlib-inline
+scikit-learn
+scikit-image
+
+# Geospatial and data handling
+geopandas
+rtree
+openpyxl
+pytables
+psutil
+salem==0.3.8
+floweaver==2.0.0
+
+# Configuration and CLI
+f90nml
+click
+pydantic
+
+# Jupyter support
+ipykernel
+jupyter_client
+jupyter_core
+
+# Testing and code quality
+pytest
+pytest-cov
+ruff
+
+# Fortran wrapper and atmospheric science
+f90wrap==0.2.16
+atmosp

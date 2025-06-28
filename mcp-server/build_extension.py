@@ -30,6 +30,28 @@ def create_desktop_extension():
     # Copy manifest
     print("Copying manifest...")
     shutil.copy("manifest.json", build_dir / "manifest.json")
+    
+    # Copy run_server.py
+    print("Copying run_server.py...")
+    shutil.copy("run_server.py", build_dir / "run_server.py")
+    
+    # Bundle SuPy from the parent worktree
+    print("Bundling SuPy...")
+    supy_src = Path("../../src/supy")  # Path to SuPy in the worktree
+    if supy_src.exists():
+        supy_dest = src_dir / "supy"
+        shutil.copytree(supy_src, supy_dest)
+        print(f"  Copied SuPy from {supy_src}")
+    else:
+        print(f"  Warning: SuPy not found at {supy_src}")
+        # Try alternative path
+        supy_src_alt = Path("../../../src/supy")
+        if supy_src_alt.exists():
+            supy_dest = src_dir / "supy"
+            shutil.copytree(supy_src_alt, supy_dest)
+            print(f"  Copied SuPy from {supy_src_alt}")
+        else:
+            print("  Error: Could not find SuPy to bundle")
 
     # Create requirements file
     print("Creating requirements file...")

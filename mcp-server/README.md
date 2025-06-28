@@ -88,3 +88,9 @@ mypy src
 ## Contributing
 
 Please see the main SUEWS repository for contribution guidelines.
+
+## Desktop Extension Development
+
+For desktop extension development and manifest specification, see:
+- https://github.com/anthropics/dxt
+- [DXT Manifest Specification](https://github.com/anthropics/dxt/blob/main/MANIFEST.md)

@@ -2,6 +2,12 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Desktop Extension Development
+
+For desktop extension (DXT) development and manifest specification:
+- https://github.com/anthropics/dxt
+- [DXT Manifest Specification](https://github.com/anthropics/dxt/blob/main/MANIFEST.md)
+
 ## Git Worktrees for Claude Code
 
 This repository uses nested git worktrees to enable parallel development with Claude Code. All worktrees are located under `worktrees/` directory for Claude Code accessibility.

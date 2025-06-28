@@ -1,245 +1,97 @@
 {
-  "dxt_version": "0.1.0",
-  "name": "SUEWS Assistant",
+  "dxt_version": "0.1",
+  "name": "suews-assistant",
   "version": "1.0.0",
-  "description": "AI-powered configuration guidance and result interpretation for the Surface Urban Energy and Water balance Scheme (SUEWS)",
+  "display_name": "SUEWS Assistant",
+  "description": "AI-powered configuration guidance and result interpretation for SUEWS",
+  "long_description": "The SUEWS Assistant provides intelligent help for the Surface Urban Energy and Water balance Scheme (SUEWS). It offers configuration validation, parameter suggestions, physics compatibility checks, and comprehensive result interpretation including energy balance diagnosis, thermal comfort analysis, and urban climate effects assessment.",
   "author": {
-    "name": "Ting Sun & Claude Code"
+    "name": "Ting Sun & Claude Code",
+    "email": "suews@urban-climate.net",
+    "url": "https://github.com/UMEP-dev/SUEWS"
   },
   "server": {
-    "command": "python",
-    "args": ["-m", "suews_mcp.server"]
+    "type": "python",
+    "entry_point": "src/suews_mcp/server.py",
+    "mcp_config": {
+      "command": "python",
+      "args": ["-m", "suews_mcp.server"],
+      "env": {
+        "PYTHONPATH": "${extension_dir}/src:${extension_dir}"
+      }
+    }
   },
   "tools": [
     {
       "name": "validate_suews_config",
-      "description": "Check a SUEWS configuration file for scientific soundness and common errors",
-      "inputSchema": {
-        "type": "object",
-        "properties": {
-          "config_path": {
-            "type": "string",
-            "description": "Path to YAML configuration file"
-          },
-          "strict": {
-            "type": "boolean",
-            "description": "Whether to enforce all validation rules"
-          }
-        },
-        "required": ["config_path"]
-      }
+      "description": "Check a SUEWS configuration file for scientific soundness and common errors"
     },
     {
       "name": "suggest_suews_parameters",
-      "description": "Get parameter recommendations based on urban context and climate zone",
-      "inputSchema": {
-        "type": "object",
-        "properties": {
-          "partial_config": {
-            "type": "string",
-            "description": "Path to partial YAML configuration"
-          },
-          "context": {
-            "type": "string",
-            "description": "Urban context (city_centre, suburban, industrial, etc.)"
-          },
-          "climate_zone": {
-            "type": "string",
-            "description": "Climate classification"
-          }
-        },
-        "required": ["partial_config"]
-      }
+      "description": "Get parameter recommendations based on urban context and climate zone"
     },
     {
       "name": "check_suews_physics_compatibility",
-      "description": "Verify that selected physics methods work well together",
-      "inputSchema": {
-        "type": "object",
-        "properties": {
-          "methods": {
-            "type": "object",
-            "description": "Dictionary of method selections"
-          }
-        },
-        "required": ["methods"]
-      }
+      "description": "Verify that selected physics methods work well together"
     },
     {
       "name": "generate_suews_template",
-      "description": "Create a configuration template tailored to your site and research focus",
-      "inputSchema": {
-        "type": "object",
-        "properties": {
-          "site_type": {
-            "type": "string",
-            "description": "Type of urban site"
-          },
-          "research_focus": {
-            "type": "string",
-            "description": "Primary research interest"
-          },
-          "include_comments": {
-            "type": "boolean",
-            "description": "Whether to include explanatory comments"
-          }
-        },
-        "required": ["site_type", "research_focus"]
-      }
+      "description": "Create a configuration template tailored to your site and research focus"
     },
     {
       "name": "explain_suews_parameter",
-      "description": "Get detailed explanation of any SUEWS parameter with typical values",
-      "inputSchema": {
-        "type": "object",
-        "properties": {
-          "parameter_name": {
-            "type": "string",
-            "description": "Name of the parameter"
-          },
-          "include_examples": {
-            "type": "boolean",
-            "description": "Whether to include usage examples"
-          }
-        },
-        "required": ["parameter_name"]
-      }
+      "description": "Get detailed explanation of any SUEWS parameter with typical values"
     },
     {
       "name": "diagnose_suews_energy_balance",
-      "description": "Analyze energy balance closure and identify potential issues",
-      "inputSchema": {
-        "type": "object",
-        "properties": {
-          "output_path": {
-            "type": "string",
-            "description": "Path to SUEWS output file"
-          },
-          "site_metadata": {
-            "type": "object",
-            "description": "Optional site information"
-          }
-        },
-        "required": ["output_path"]
-      }
+      "description": "Analyze energy balance closure and identify potential issues"
     },
     {
       "name": "interpret_suews_thermal_comfort",
-      "description": "Interpret thermal comfort metrics from SUEWS outputs",
-      "inputSchema": {
-        "type": "object",
-        "properties": {
-          "output_path": {
-            "type": "string",
-            "description": "Path to SUEWS output file"
-          },
-          "period": {
-            "type": "string",
-            "description": "Analysis period (full, summer, heatwave, etc.)"
-          }
-        },
-        "required": ["output_path"]
-      }
+      "description": "Interpret thermal comfort metrics from SUEWS outputs"
     },
     {
       "name": "analyze_suews_urban_effects",
-      "description": "Examine urban heat island and other urban climate effects",
-      "inputSchema": {
-        "type": "object",
-        "properties": {
-          "output_path": {
-            "type": "string",
-            "description": "Path to SUEWS output file"
-          },
-          "rural_reference": {
-            "type": "string",
-            "description": "Optional rural reference data"
-          }
-        },
-        "required": ["output_path"]
-      }
+      "description": "Examine urban heat island and other urban climate effects"
     },
     {
       "name": "validate_suews_against_observations",
-      "description": "Compare model results with measured data",
-      "inputSchema": {
-        "type": "object",
-        "properties": {
-          "model_output": {
-            "type": "string",
-            "description": "Path to SUEWS output"
-          },
-          "observations": {
-            "type": "string",
-            "description": "Path to observation data"
-          },
-          "variables": {
-            "type": "array",
-            "description": "Specific variables to validate",
-            "items": {
-              "type": "string"
-            }
-          }
-        },
-        "required": ["model_output", "observations"]
-      }
+      "description": "Compare model results with measured data"
     },
     {
       "name": "generate_suews_insights_report",
-      "description": "Create comprehensive narrative report from simulation results",
-      "inputSchema": {
-        "type": "object",
-        "properties": {
-          "output_path": {
-            "type": "string",
-            "description": "Path to SUEWS output"
-          },
-          "config_path": {
-            "type": "string",
-            "description": "Path to configuration used"
-          },
-          "research_context": {
-            "type": "string",
-            "description": "Research questions and goals"
-          }
-        },
-        "required": ["output_path", "config_path", "research_context"]
-      }
+      "description": "Create comprehensive narrative report from simulation results"
     }
   ],
   "prompts": [
     {
       "name": "urban_climate_expert",
-      "description": "Expert in urban climate modeling and SUEWS",
-      "arguments": [
-        {
-          "name": "question",
-          "description": "Your urban climate or SUEWS question",
-          "required": true
-        }
-      ]
+      "description": "Expert guidance on urban climate modeling",
+      "text": "You are an expert in urban climate modeling with deep knowledge of SUEWS. Help users understand urban climate processes, create scientifically sound configurations, and interpret results with physical insights."
     },
     {
       "name": "config_wizard",
-      "description": "Configuration setup wizard",
-      "arguments": [
-        {
-          "name": "site_info",
-          "description": "Information about your site and research goals",
-          "required": true
-        }
-      ]
+      "description": "Step-by-step configuration setup",
+      "text": "Guide me through setting up a SUEWS configuration for my urban site. Ask about my location, available data, site characteristics, and research goals to create the optimal configuration."
     },
     {
       "name": "result_interpreter",
-      "description": "Results analysis expert",
-      "arguments": [
-        {
-          "name": "output_info",
-          "description": "Information about your SUEWS outputs to analyze",
-          "required": true
-        }
-      ]
+      "description": "Comprehensive results analysis",
+      "text": "Analyze my SUEWS simulation outputs and provide insights about energy balance, thermal comfort, and urban climate effects. Explain the results in accessible language with actionable recommendations."
     }
-  ]
+  ],
+  "keywords": ["urban-climate", "suews", "energy-balance", "heat-island", "thermal-comfort"],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/UMEP-dev/SUEWS"
+  },
+  "homepage": "https://suews.readthedocs.io",
+  "documentation": "https://github.com/UMEP-dev/SUEWS/tree/master/mcp-server",
+  "compatibility": {
+    "minimum_dxt_version": "0.1",
+    "runtime": {
+      "python": ">=3.9"
+    }
+  }
 }

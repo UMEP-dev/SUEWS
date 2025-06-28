@@ -32,7 +32,7 @@ try:
         ValidationController = None
 except ImportError as e:
     raise ImportError(
-        f"Failed to import SUEWS data models. Ensure SUEWS is properly installed: {e}"
+        f"Failed to import SUEWS data models. Ensure SuPy is properly installed: {e}"
     )
 
 

@@ -35,27 +35,25 @@ def create_desktop_extension():
     print("Copying run_server.py...")
     shutil.copy("run_server.py", build_dir / "run_server.py")
     
-    # Bundle SuPy from the parent worktree
-    print("Bundling SuPy...")
-    supy_src = Path("../../src/supy")  # Path to SuPy in the worktree
-    if supy_src.exists():
-        supy_dest = src_dir / "supy"
-        shutil.copytree(supy_src, supy_dest)
-        print(f"  Copied SuPy from {supy_src}")
-    else:
-        print(f"  Warning: SuPy not found at {supy_src}")
-        # Try alternative path
-        supy_src_alt = Path("../../../src/supy")
-        if supy_src_alt.exists():
-            supy_dest = src_dir / "supy"
-            shutil.copytree(supy_src_alt, supy_dest)
-            print(f"  Copied SuPy from {supy_src_alt}")
-        else:
-            print("  Error: Could not find SuPy to bundle")
+    # Copy pyproject.toml
+    print("Copying pyproject.toml...")
+    shutil.copy("pyproject.toml", build_dir / "pyproject.toml")
+    
+    # Note: SuPy is now a required dependency and will be installed via pip
+    print("Note: SuPy is a required dependency (supy==2025.6.2.dev)")
+    print("  Users will need to install it separately or via pip when installing the MCP server")
 
     # Create requirements file
     print("Creating requirements file...")
-    requirements = ["mcp>=0.9.0", "pydantic>=2.0", "pyyaml>=6.0", "pandas>=2.0", "numpy>=1.20"]
+    requirements = [
+        "mcp>=1.3.4",
+        "pydantic>=2.0",
+        "pyyaml>=6.0",
+        "pandas>=2.0",
+        "numpy>=1.20",
+        "xarray>=2024.0",
+        "supy==2025.6.2.dev"
+    ]
 
     with open(build_dir / "requirements.txt", "w") as f:
         f.write("\n".join(requirements))
@@ -69,11 +67,13 @@ setup(
     packages=find_packages(where="src"),
     package_dir={"": "src"},
     install_requires=[
-        "mcp>=0.9.0",
-        "pydantic>=2.0", 
+        "mcp>=1.3.4",
+        "pydantic>=2.0",
         "pyyaml>=6.0",
         "pandas>=2.0",
-        "numpy>=1.20"
+        "numpy>=1.20",
+        "xarray>=2024.0",
+        "supy==2025.6.2.dev"
     ],
 )'''
     
@@ -93,10 +93,15 @@ This extension provides AI-powered assistance for SUEWS urban climate modeling.
 - Physics method compatibility checking
 - Result interpretation and insights
 
+## Dependencies
+This extension requires SuPy v2025.6.2.dev to be installed in your Python environment.
+Install it using: `pip install supy==2025.6.2.dev`
+
 ## Usage
 1. Install the extension in Claude Desktop
-2. Use the provided tools to work with SUEWS configurations and results
-3. Ask questions about urban climate modeling
+2. Ensure SuPy is installed in your Python environment
+3. Use the provided tools to work with SUEWS configurations and results
+4. Ask questions about urban climate modeling
 
 ## Support
 Visit https://github.com/UMEP-dev/SUEWS for more information.

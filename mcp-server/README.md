@@ -43,8 +43,27 @@ The easiest way to use SUEWS MCP is via the desktop extension:
 # From the mcp-server directory
 pip install -e .
 
+# This will install all dependencies including SuPy
+# Note: SuPy includes Fortran components and requires compilation
+
 # Install development dependencies
 pip install -e ".[dev]"
+```
+
+### SuPy Dependency
+
+The MCP server requires SuPy v2025.6.2.dev for full validation using SUEWS data models and physics constraints. This dependency is automatically installed with the package.
+
+If you need to install SuPy separately:
+```bash
+# Using pip (requires compiler)
+pip install supy==2025.6.2.dev
+
+# Using conda (for pre-compiled binaries)
+conda install -c conda-forge supy
+
+# Development version from GitHub
+pip install git+https://github.com/UMEP-dev/SUEWS.git@master
 ```
 
 ## Usage with Claude Desktop

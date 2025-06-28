@@ -28,6 +28,17 @@ This MCP server helps users:
 
 ## Installation
 
+### Desktop Extension (Recommended)
+
+The easiest way to use SUEWS MCP is via the desktop extension:
+
+1. Download `suews-assistant-20250628.dxt` from the `dist/` folder
+2. Open Claude Desktop
+3. Go to Extensions
+4. Install the .dxt file
+
+### Manual Installation
+
 ```bash
 # From the mcp-server directory
 pip install -e .
@@ -38,7 +49,7 @@ pip install -e ".[dev]"
 
 ## Usage with Claude Desktop
 
-Add to your Claude Desktop configuration:
+If not using the desktop extension, add to your Claude Desktop configuration:
 
 ```json
 {

@@ -1,66 +1,75 @@
 # Claude Code Workspace Directory
 
-This directory contains all Claude Code-specific files, including worktree plans, instructions, and workspace documents.
+This directory contains all Claude Code-specific documentation, plans, and configuration for SUEWS development.
 
 ## Directory Structure
 
 ```
 .claude/
-├── worktree-plans/      # Feature branch plans (committed to git)
-│   ├── README.md
+├── howto/               # Step-by-step guides
+│   ├── setup-worktree.md
+│   ├── setup-environment.md
+│   ├── parallel-development.md
+│   └── README.md
+├── reference/           # Technical documentation
+│   ├── build-isolation.md
+│   ├── environment-types.md
+│   ├── uv-adoption.md
+│   └── README.md
+├── plans/               # Feature development plans
+│   ├── doing/          # Currently active
+│   ├── todo/           # Planned features
+│   ├── done/           # Completed features
 │   ├── claude-dev-notes.md
-│   └── feature-*.md
-├── instructions/        # Agent launch instructions and guides
-│   ├── agent-launch-instructions.md
-│   └── agent-quick-launch.md
-├── workspace/           # Analysis and working documents
-│   ├── worktree-analysis-*.md
-│   └── worktree-build-analysis.md
+│   └── README.md
+├── templates/           # Reusable templates
+│   ├── feature-plan.md
+│   ├── commit-message.md
+│   └── README.md
 ├── settings.json        # Claude Code settings (committed)
-└── settings.local.json  # Local Claude Code settings (ignored)
+└── settings.local.json  # Local settings (ignored)
 ```
 
 ## Directory Purposes
 
-### worktree-plans/
-**Status**: Committed to git  
-Contains branch-specific plans that provide context across Claude Code sessions. These plans track:
-- GitHub issues to address
-- Progress on tasks
-- Key decisions and findings
-- Implementation notes
+### howto/
+**Purpose**: Step-by-step guides for common tasks  
+- Setting up worktrees with different tools
+- Managing Python environments
+- Running parallel Claude Code agents
 
-### instructions/
-**Status**: Committed to git  
-Contains detailed instructions for:
-- Launching multiple Claude Code agents
-- Managing parallel development
-- Build system isolation strategies
-- Testing requirements
+### reference/
+**Purpose**: Technical documentation and analysis  
+- Build system architecture and isolation
+- Environment management comparison
+- Tool adoption strategies
 
-### workspace/
-**Status**: Committed to git (except temp-* files)  
-Contains analysis documents and workspace information:
-- Build system analysis
-- Worktree status reports
-- Temporary working documents (temp-* are ignored)
+### plans/
+**Purpose**: Feature-specific development plans  
+- `doing/` - Features currently being developed
+- `todo/` - Features planned but not started
+- `done/` - Completed features for reference
+- Plans track progress, decisions, and implementation details
 
-### settings files
-- `settings.json`: Shared Claude Code configuration (committed)
-- `settings.local.json`: Local overrides (ignored)
+### templates/
+**Purpose**: Reusable templates for consistency  
+- Feature plan template
+- Commit message format
+- Other common documents
 
-## Quick Reference
+## Quick Navigation
 
-### For Claude Code Agents
-1. Check your branch: `git branch --show-current`
-2. Read your plan: `cat ../../.claude/worktree-plans/feature-{branch-name}.md`
-3. Follow instructions: `cat ../../.claude/instructions/agent-quick-launch.md`
+**"How do I...?"** → Check `howto/`  
+**"Why does X work this way?"** → Check `reference/`  
+**"What's the status of feature Y?"** → Check `plans/`  
+**"I need to create a new Z"** → Check `templates/`
 
-### For Developers
-- All worktree plans are in `.claude/worktree-plans/`
-- Launch instructions are in `.claude/instructions/`
-- Build analysis is in `.claude/workspace/worktree-build-analysis.md`
+## For Claude Code Sessions
+
+1. Check current branch: `git branch --show-current`
+2. Find your plan: `ls .claude/plans/doing/`
+3. Read setup guide: `cat .claude/howto/setup-worktree.md`
 
 ## Git Policy
-- ✅ Commit: worktree-plans/, instructions/, workspace/*-analysis.md, settings.json
-- ❌ Ignore: settings.local.json, workspace/temp-*
+- ✅ Commit: All directories and files (except settings.local.json)
+- ❌ Ignore: settings.local.json, any temp-* files

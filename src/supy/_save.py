@@ -184,6 +184,7 @@ def save_df_output(
     output_level=1,
     save_snow=True,
     debug=False,
+    output_groups=None,
 ) -> list:
     """save supy output dataframe to txt files
 
@@ -206,6 +207,8 @@ def save_df_output(
         whether to save snow-related output variables in a separate file, by default True.
     debug : bool, optional
         whether to enable debug mode (e.g., writing out in serial mode, and other debug uses), by default False.
+    output_groups : list, optional
+        list of output groups to save (e.g., ['SUEWS', 'DailyState', 'ESTM']). If None, defaults to ['SUEWS', 'DailyState'].
 
     Returns
     -------
@@ -220,10 +223,24 @@ def save_df_output(
 
     # resample output if `freq_s` is different from runtime `freq` (usually 5 min)
     freq_save = pd.Timedelta(freq_s, "s")
+    
+    # Handle output groups filtering
+    if output_groups is None:
+        # Default groups
+        output_groups = ['SUEWS', 'DailyState']
+    
+    # Get all available groups
+    all_groups = df_save.columns.get_level_values('group').unique().tolist()
+    
+    # Filter to only requested groups
+    groups_to_drop = [g for g in all_groups if g not in output_groups]
+    for group in groups_to_drop:
+        if group in df_save.columns.get_level_values('group'):
+            df_save = df_save.drop(group, axis=1, level='group')
 
-    # drop snow related group from output groups
-    if not save_snow:
-        df_save = df_save.drop("snow", axis=1, level="group")
+    # drop snow related group from output groups if not requested
+    if not save_snow and 'snow' in df_save.columns.get_level_values('group'):
+        df_save = df_save.drop("snow", axis=1, level='group')
 
     # resample `df_output` at `freq_save`
     df_rsmp = resample_output(df_save, freq_save)
@@ -532,3 +549,113 @@ def save_initcond_nml(
         # f90nml.write(nml, nml_file,force=True)
         list_path_nml.append(path_nml)
     return list_path_nml
+
+
+def save_df_output_parquet(
+    df_output: pd.DataFrame,
+    df_state_final: pd.DataFrame,
+    freq_s: int = 3600,
+    site: str = "",
+    path_dir_save: Path = Path("."),
+    save_tstep=False,
+) -> list:
+    """Save supy output to Parquet format.
+    
+    Parameters
+    ----------
+    df_output : pd.DataFrame
+        Output dataframe from supy simulation
+    df_state_final : pd.DataFrame
+        Final state dataframe
+    freq_s : int, optional
+        Output frequency in seconds (default 3600)
+    site : str, optional
+        Site identifier for filename
+    path_dir_save : Path, optional
+        Directory to save Parquet file
+    save_tstep : bool, optional
+        Whether to save at simulation timestep resolution
+        
+    Returns
+    -------
+    list
+        List containing paths to saved Parquet files
+    """
+    # Check if pyarrow or fastparquet is available
+    try:
+        import pyarrow
+        engine = 'pyarrow'
+    except ImportError:
+        try:
+            import fastparquet
+            engine = 'fastparquet'
+        except ImportError:
+            raise ImportError(
+                "Parquet output requires either 'pyarrow' or 'fastparquet'. "
+                "Install with: pip install pyarrow (recommended) or pip install fastparquet"
+            )
+    
+    from ._version import __version__
+    
+    # Resample if needed
+    df_save = df_output.copy()
+    freq_save = pd.Timedelta(freq_s, "s")
+    
+    if not save_tstep:
+        # Resample output
+        df_rsmp = resample_output(df_save, freq_save)
+        # Keep DailyState at original resolution
+        if 'DailyState' in df_save.columns.get_level_values('group'):
+            df_daily = df_save.loc[:, ["DailyState"]]
+            # Combine for saving
+            df_to_save = pd.concat([df_rsmp, df_daily], axis=1)
+        else:
+            df_to_save = df_rsmp
+    else:
+        df_to_save = df_save
+    
+    # Construct filenames
+    list_path_save = []
+    
+    # Save output data
+    filename_output = f"{site}_SUEWS_output.parquet" if site else "SUEWS_output.parquet"
+    path_output = path_dir_save / filename_output
+    
+    # Save with metadata
+    metadata = {
+        'site': site,
+        'output_frequency_s': freq_s,
+        'save_tstep': save_tstep,
+        'creation_time': pd.Timestamp.now().isoformat(),
+        'supy_version': __version__
+    }
+    
+    # Write output data
+    df_to_save.to_parquet(
+        path_output, 
+        engine=engine, 
+        compression='snappy',
+        index=True  # Preserve multi-index
+    )
+    list_path_save.append(path_output)
+    
+    # Save final state separately
+    filename_state = f"{site}_SUEWS_state_final.parquet" if site else "SUEWS_state_final.parquet"
+    path_state = path_dir_save / filename_state
+    df_state_final.to_parquet(
+        path_state,
+        engine=engine,
+        compression='snappy',
+        index=True
+    )
+    list_path_save.append(path_state)
+    
+    # Save metadata as a separate small parquet file
+    filename_meta = f"{site}_SUEWS_metadata.parquet" if site else "SUEWS_metadata.parquet"
+    path_meta = path_dir_save / filename_meta
+    df_meta = pd.DataFrame([metadata])
+    df_meta.to_parquet(path_meta, engine=engine)
+    list_path_save.append(path_meta)
+    
+    logger_supy.info(f"Saved Parquet output to {path_output}")
+    return list_path_save

@@ -25,6 +25,10 @@ import pandas as pd
 import yaml
 import ast
 
+import csv
+import os
+from copy import deepcopy
+
 from .model import Model
 from .site import Site, SiteProperties, InitialStates, LandCover
 from .type import SurfaceType
@@ -171,6 +175,94 @@ class DLSCheck(BaseModel):
             end = find_transition(3) or find_transition(4)
 
         return start, end, utc_offset_hours
+
+def collect_yaml_differences(original: Any, updated: Any, path: str = "") -> List[dict]:
+    diffs = []
+
+    if isinstance(original, dict) and isinstance(updated, dict):
+        all_keys = set(original.keys()) | set(updated.keys())
+        for key in all_keys:
+            new_path = f"{path}.{key}" if path else key
+            orig_val = original.get(key, "__MISSING__")
+            updated_val = updated.get(key, "__MISSING__")
+            diffs.extend(collect_yaml_differences(orig_val, updated_val, new_path))
+
+    elif isinstance(original, list) and isinstance(updated, list):
+        max_len = max(len(original), len(updated))
+        for i in range(max_len):
+            orig_val = original[i] if i < len(original) else "__MISSING__"
+            updated_val = updated[i] if i < len(updated) else "__MISSING__"
+            new_path = f"{path}[{i}]"
+            diffs.extend(collect_yaml_differences(orig_val, updated_val, new_path))
+
+    else:
+        if original != updated:
+            # Extract site index
+            site = None
+            if "sites[" in path:
+                try:
+                    site = int(path.split("sites[")[1].split("]")[0])
+                except Exception:
+                    site = None
+
+            # Get param name: key before '.value' or the last part of the path
+            if ".value" in path:
+                param_name = path.split(".")[-2]
+            else:
+                param_name = path.split(".")[-1]
+
+            diffs.append({
+                "site": site,
+                "parameter": param_name,
+                "old_value": original,
+                "new_value": updated,
+                "reason": "Updated by precheck"
+            })
+
+    return diffs
+
+def save_precheck_diff_report(diffs: List[dict], original_yaml_path: str):
+    """Save precheck diff report as CSV next to the original YAML file."""
+    if not diffs:
+        logger_supy.info("No differences found between original and updated YAML.")
+        return
+
+    report_filename = f"precheck_report_{os.path.basename(original_yaml_path).replace('.yml', '.csv')}"
+    report_path = os.path.join(os.path.dirname(original_yaml_path), report_filename)
+
+    with open(report_path, "w", newline="") as csvfile:
+        writer = csv.DictWriter(csvfile, fieldnames=["site", "parameter", "old_value", "new_value", "reason"])
+        writer.writeheader()
+        for row in diffs:
+            for key in ["old_value", "new_value"]:
+                if row[key] is None:
+                    row[key] = "null"
+            writer.writerow(row)
+
+    logger_supy.info(f"Precheck difference report saved to: {report_path}")
+
+def get_monthly_avg_temp(lat: float, month: int) -> float:
+
+    lat_band = None
+    abs_lat = abs(lat)
+
+    if abs_lat < 10:
+        lat_band = "tropics"
+    elif abs_lat < 35:
+        lat_band = "subtropics"
+    elif abs_lat < 60:
+        lat_band = "midlatitudes"
+    else:
+        lat_band = "polar"
+
+    monthly_temp = {
+        "tropics": [26.0, 26.5, 27.0, 27.5, 28.0, 28.5, 28.0, 27.5, 27.0, 26.5, 26.0, 25.5],
+        "subtropics": [15.0, 16.0, 18.0, 20.0, 24.0, 28.0, 30.0, 29.0, 26.0, 22.0, 18.0, 15.0],
+        "midlatitudes": [5.0, 6.0, 9.0, 12.0, 17.0, 21.0, 23.0, 22.0, 19.0, 14.0, 9.0, 6.0],
+        "polar": [-15.0, -13.0, -10.0, -5.0, 0.0, 5.0, 8.0, 7.0, 3.0, -2.0, -8.0, -12.0],
+    }
+
+    return monthly_temp[lat_band][month - 1]
 
 
 def precheck_printing(data: dict) -> dict:
@@ -385,6 +477,51 @@ def precheck_site_season_adjustments(
     data["sites"] = cleaned_sites
     return data
 
+def precheck_update_surface_temperature(data: dict, start_date: str) -> dict:
+
+    month = datetime.strptime(start_date, "%Y-%m-%d").month
+
+    for site_idx, site in enumerate(data.get("sites", [])):
+        props = site.get("properties", {})
+        initial_states = site.get("initial_states", {})
+
+        # Get site latitude
+        lat_entry = props.get("lat", {})
+        lat = lat_entry.get("value") if isinstance(lat_entry, dict) else lat_entry
+        if lat is None:
+            logger_supy.warning(f"[site #{site_idx}] Latitude missing, skipping surface temperature update.")
+            continue
+
+        # Get estimated average temperature
+        avg_temp = get_monthly_avg_temp(lat, month)
+        logger_supy.info(f"[site #{site_idx}] Setting surface temperatures to {avg_temp} °C for month {month} (lat={lat})")
+
+        # Loop over all surface types
+        for surface_type in ["paved", "bldgs", "evetr", "dectr", "grass", "bsoil", "water"]:
+            surf = initial_states.get(surface_type, {})
+            if not isinstance(surf, dict):
+                continue
+
+            # Set 5-layer temperature array
+            if "temperature" in surf and isinstance(surf["temperature"], dict):
+                surf["temperature"]["value"] = [avg_temp] * 5
+
+            # Set tsfc
+            if "tsfc" in surf and isinstance(surf["tsfc"], dict):
+                surf["tsfc"]["value"] = avg_temp
+
+            # Set tin
+            if "tin" in surf and isinstance(surf["tin"], dict):
+                surf["tin"]["value"] = avg_temp
+
+            initial_states[surface_type] = surf
+
+        # Save back
+        site["initial_states"] = initial_states
+        data["sites"][site_idx] = site
+
+    return data
+
 
 def precheck_land_cover_fractions(data: dict) -> dict:
     for i, site in enumerate(data.get("sites", [])):
@@ -520,119 +657,89 @@ def precheck_nonzero_sfr_requires_nonnull_params(data: dict) -> dict:
     )
     return data
 
+def precheck_model_option_rules(data: dict) -> dict:
+    """
+    Unified handler for model-option-dependent rules.
+    Applies constraints and parameter nullification based on model.physics settings.
+    """
 
-def precheck_diagmethod(data: dict) -> dict:
     physics = data.get("model", {}).get("physics", {})
     rslmethod = physics.get("rslmethod", {}).get("value")
+    storagemethod = physics.get("storageheatmethod", {}).get("value")
+    stebbsmethod = physics.get("stebbsmethod", {}).get("value")
 
-    if rslmethod != 2:
-        logger_supy.debug("[precheck] rslmethod != 2, skipping faibldg check.")
-        return data
+    # --- RSLMETHOD RULES (diagnostic method logic) ---
+    if rslmethod == 2:
+        logger_supy.info("[precheck] rslmethod==2 detected → checking faibldg for bldgs with sfr > 0.")
 
-    for i, site in enumerate(data.get("sites", [])):
-        props = site.get("properties", {})
-        land_cover = props.get("land_cover", {})
-        bldgs = land_cover.get("bldgs", {})
-        sfr = bldgs.get("sfr", {}).get("value", 0)
+        for site_idx, site in enumerate(data.get("sites", [])):
+            props = site.get("properties", {})
+            land_cover = props.get("land_cover", {})
+            bldgs = land_cover.get("bldgs", {})
+            sfr = bldgs.get("sfr", {}).get("value", 0)
 
-        if sfr > 0:
-            faibldg = bldgs.get("faibldg", {})
-            faibldg_value = faibldg.get("value")
-            if faibldg_value in (None, "", []):
-                raise ValueError(
-                    f"[site #{i}] For rslmethod==2 and bldgs.sfr > 0, faibldg must be set and non-null."
-                )
+            if sfr > 0:
+                faibldg = bldgs.get("faibldg", {})
+                faibldg_value = faibldg.get("value")
+                if faibldg_value in (None, "", []):
+                    raise ValueError(f"[site #{site_idx}] For rslmethod==2 and bldgs.sfr > 0, faibldg must be set and non-null.")
 
-    logger_supy.info("[precheck] faibldg check for rslmethod==2 passed.")
-    return data
+    # --- STORAGEHEATMETHOD RULES (DyOHM logic) ---
+    if storagemethod == 6:
+        logger_supy.info("[precheck] storageheatmethod==6 detected → checking wall thermal layers and lambda_c.")
 
+        for site_idx, site in enumerate(data.get("sites", [])):
+            props = site.get("properties", {})
+            vertical_layers = props.get("vertical_layers", {})
+            walls = vertical_layers.get("walls", [])
 
-def precheck_storageheatmethod(data: dict) -> dict:
-    """If storageheatmethod == 6, check required wall thermal properties and lambda_c."""  # <--- Placeholder: this case refers to DyOHM
-    storage_method = (
-        data.get("model", {})
-        .get("physics", {})
-        .get("storageheatmethod", {})
-        .get("value")
-    )
+            if not walls or not isinstance(walls, list) or len(walls) == 0:
+                raise ValueError(f"[site #{site_idx}] Missing vertical_layers.walls for storageheatmethod == 6.")
 
-    if storage_method != 6:
-        logger_supy.debug(
-            "[precheck] storageheatmethod != 6, skipping wall thermal layer checks."
-        )
-        return data
+            wall0 = walls[0]
+            thermal = wall0.get("thermal_layers", {})
 
-    for site_idx, site in enumerate(data.get("sites", [])):
-        props = site.get("properties", {})
-        vertical_layers = props.get("vertical_layers", {})
-        walls = vertical_layers.get("walls", [])
+            for param in ["dz", "k", "cp"]:
+                param_list = thermal.get(param, {}).get("value")
+                if not isinstance(param_list, list) or len(param_list) == 0:
+                    raise ValueError(f"[site #{site_idx}] Missing wall thermal_layers.{param} for storageheatmethod == 6.")
+                if param_list[0] in (None, ""):
+                    raise ValueError(f"[site #{site_idx}] wall thermal_layers.{param}[0] must be set for storageheatmethod == 6.")
 
-        if not walls or not isinstance(walls, list) or len(walls) == 0:
-            raise ValueError(
-                f"[site #{site_idx}] Missing vertical_layers.walls for storageheatmethod == 6."
-            )
+            lambda_c = props.get("lambda_c", {}).get("value")
+            if lambda_c in (None, ""):
+                raise ValueError(f"[site #{site_idx}] properties.lambda_c must be set for storageheatmethod == 6.")
 
-        wall0 = walls[0]
-        thermal = wall0.get("thermal_layers", {})
+    # --- STEBBSMETHOD RULES ---
+    if stebbsmethod == 0:
+        logger_supy.info("[precheck] stebbsmethod==0 detected → nullifying stebbs parameters at site level.")
 
-        for param in ["dz", "k", "cp"]:
-            param_list = thermal.get(param, {}).get("value")
-            if not isinstance(param_list, list) or len(param_list) == 0:
-                raise ValueError(
-                    f"[site #{site_idx}] Missing wall thermal_layers.{param} for storageheatmethod == 6."
-                )
-            if param_list[0] in (None, ""):
-                raise ValueError(
-                    f"[site #{site_idx}] wall thermal_layers.{param}[0] must be set for storageheatmethod == 6."
-                )
+        for site_idx, site in enumerate(data.get("sites", [])):
+            props = site.get("properties", {})
+            stebbs_block = props.get("stebbs", {})
 
-        lambda_c = props.get("lambda_c", {}).get("value")
-        if lambda_c in (None, ""):
-            raise ValueError(
-                f"[site #{site_idx}] properties.lambda_c must be set for storageheatmethod == 6."
-            )
+            def recursive_nullify(d):
+                for k, v in d.items():
+                    if isinstance(v, dict):
+                        if "value" in v:
+                            v["value"] = None
+                        else:
+                            recursive_nullify(v)
 
-    logger_supy.info(
-        "[precheck] storageheatmethod == 6 → wall thermal layers and lambda_c check passed."
-    )
-    return data
+            recursive_nullify(stebbs_block)
+            site["properties"]["stebbs"] = stebbs_block
 
-
-def precheck_stebbsmethod(data: dict) -> dict:
-    """
-    If stebbsmethod == 0, nullify all parameters under each site's properties.stebbs block.
-    """
-    physics = data.get("model", {}).get("physics", {})
-    stebbs_method = physics.get("stebbsmethod", {}).get("value")
-
-    if stebbs_method != 0:
-        logger_supy.info("[precheck] stebbsmethod != 0, skipping stebbs nullification.")
-        return data
-
-    logger_supy.info("[precheck] stebbsmethod == 0, nullifying stebbs parameters...")
-
-    for site_idx, site in enumerate(data.get("sites", [])):
-        props = site.get("properties", {})
-        stebbs_block = props.get("stebbs", {})
-
-        def recursive_nullify(d):
-            for k, v in d.items():
-                if isinstance(v, dict):
-                    if "value" in v:
-                        v["value"] = None
-                    else:
-                        recursive_nullify(v)
-
-        recursive_nullify(stebbs_block)
-        site["properties"]["stebbs"] = stebbs_block
-
+    logger_supy.info("[precheck] Model-option-based rules completed.")
     return data
 
 
 def run_precheck(path: str) -> dict:
+
     # ---- Step 0: Load yaml from path into a dict ----
     with open(path, "r") as file:
         data = yaml.load(file, Loader=yaml.FullLoader)
+
+    original_data = deepcopy(data)
 
     # ---- Step 1: Print start message ----
     data = precheck_printing(data)
@@ -657,21 +764,22 @@ def run_precheck(path: str) -> dict:
         data, start_date=start_date, model_year=model_year
     )
 
-    # ---- Step 7: Nullify params for surfaces with sfr == 0 ----
+    # ---- Step 7: Update surface temperatures from lat/month ----
+    data = precheck_update_surface_temperature(data, start_date=start_date)
+
+    # ---- Step 8: Nullify params for surfaces with sfr == 0 ----
     data = precheck_nullify_zero_sfr_params(data)
 
-    # ---- Step 8: Check existence of params for surfaces with sfr > 0 ----
+    # ---- Step 9: Check existence of params for surfaces with sfr > 0 ----
     data = precheck_nonzero_sfr_requires_nonnull_params(data)
 
-    # ---- Step 9: Land Cover Fractions checks & adjustments ----
+    # ---- Step 10: Land Cover Fractions checks & adjustments ----
     data = precheck_land_cover_fractions(data)
 
-    # ---- Step 10: Rules associated to selected model options ----
-    data = precheck_diagmethod(data)
-    data = precheck_storageheatmethod(data)
-    data = precheck_stebbsmethod(data)
+    # ---- Step 11: Rules associated to selected model options ----
+    data = precheck_model_option_rules(data)
 
-    # ---- Step 11: Save output YAML ----
+    # ---- Step 12: Save output YAML ----
     output_filename = f"py0_{os.path.basename(path)}"
     output_path = os.path.join(os.path.dirname(path), output_filename)
 
@@ -680,7 +788,11 @@ def run_precheck(path: str) -> dict:
 
     logger_supy.info(f"Saved updated YAML file to: {output_path}")
 
-    # ---- Step 12: Print completion ----
+    # ---- Step 13: Generate precheck diff report CSV ----
+    diffs = collect_yaml_differences(original_data, data)
+    save_precheck_diff_report(diffs, path)
+
+    # ---- Step 14: Print completion ----
     logger_supy.info("Precheck complete.\n")
     return data
 

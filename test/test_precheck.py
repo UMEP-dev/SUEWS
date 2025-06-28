@@ -1,5 +1,6 @@
 import pytest
 from copy import deepcopy
+from datetime import datetime
 from supy.data_model.core import (
     precheck_model_physics_params,
     precheck_start_end_date,
@@ -9,9 +10,10 @@ from supy.data_model.core import (
     precheck_land_cover_fractions,
     precheck_nullify_zero_sfr_params,
     precheck_nonzero_sfr_requires_nonnull_params,
-    precheck_diagmethod,
-    precheck_storageheatmethod,
-    precheck_stebbsmethod,
+    precheck_model_option_rules,
+    collect_yaml_differences,
+    precheck_update_surface_temperature, 
+    get_monthly_avg_temp,
     SeasonCheck,
 )
 
@@ -88,7 +90,7 @@ def test_model_physics_empty_value_raises():
         precheck_model_physics_params(yaml_input)
 
 
-def test_diagmethod_stability_constraint_fails():
+def test_rslmethod_stability_constraint_fails():
     yaml_input = {
         "model": {
             "control": {"start_time": "2025-01-01", "end_time": "2025-12-31"},
@@ -691,97 +693,6 @@ def test_land_cover_invalid_structure_raises():
     with pytest.raises(ValueError, match="Invalid land_cover"):
         precheck_land_cover_fractions(deepcopy(data))
 
-
-def test_diagmethod2_requires_faibldg_null_raises():
-    yaml_input = {
-        "model": {
-            "control": {
-                "start_time": "2025-01-01",
-                "end_time": "2025-12-31",
-            },
-            "physics": {
-                "rslmethod": {"value": 2},
-                "stabilitymethod": {"value": 3},
-                "storageheatmethod": {"value": 1},
-                "netradiationmethod": {"value": 1},
-                "emissionsmethod": {"value": 1},
-                "ohmincqf": {"value": 1},
-                "roughlenmommethod": {"value": 1},
-                "roughlenheatmethod": {"value": 1},
-                "smdmethod": {"value": 1},
-                "waterusemethod": {"value": 1},
-                "faimethod": {"value": 1},
-                "rsllevel": {"value": 1},
-                "snowuse": {"value": 0},
-                "stebbsmethod": {"value": 0},
-            },
-        },
-        "sites": [
-            {
-                "properties": {
-                    "land_cover": {
-                        "bldgs": {
-                            "sfr": {"value": 0.5},
-                            "faibldg": {"value": None},  # Correct position under bldgs
-                        },
-                        "paved": {"sfr": {"value": 0.5}},
-                    }
-                }
-            }
-        ],
-    }
-
-    with pytest.raises(ValueError, match=r"faibldg.*must be set and non-null"):
-        precheck_diagmethod(yaml_input)
-
-
-def test_diagmethod2_requires_faibldg_passes_if_present():
-    yaml_input = {
-        "model": {
-            "control": {
-                "start_time": "2025-01-01",
-                "end_time": "2025-12-31",
-            },
-            "physics": {
-                "rslmethod": {"value": 2},
-                "stabilitymethod": {"value": 3},
-                "storageheatmethod": {"value": 1},
-                "netradiationmethod": {"value": 1},
-                "emissionsmethod": {"value": 1},
-                "ohmincqf": {"value": 1},
-                "roughlenmommethod": {"value": 1},
-                "roughlenheatmethod": {"value": 1},
-                "smdmethod": {"value": 1},
-                "waterusemethod": {"value": 1},
-                "faimethod": {"value": 1},
-                "rsllevel": {"value": 1},
-                "snowuse": {"value": 0},
-                "stebbsmethod": {"value": 0},
-            },
-        },
-        "sites": [
-            {
-                "properties": {
-                    "land_cover": {
-                        "bldgs": {
-                            "sfr": {"value": 0.5},
-                            "faibldg": {"value": 1.5},  # Correct position under bldgs
-                        },
-                        "paved": {"sfr": {"value": 0.5}},
-                    }
-                }
-            }
-        ],
-    }
-
-    result = precheck_diagmethod(yaml_input)
-
-    assert (
-        result["sites"][0]["properties"]["land_cover"]["bldgs"]["faibldg"]["value"]
-        == 1.5
-    )
-
-
 def test_precheck_nullify_zero_sfr_params_nullifies_correctly():
     yaml_input = {
         "sites": [
@@ -985,12 +896,34 @@ def test_nonzero_sfr_with_list_containing_none_raises():
         precheck_nonzero_sfr_requires_nonnull_params(deepcopy(data))
 
 
-def test_storageheatmethod6_valid_passes():
-    yaml_input = {
-        "model": {"physics": {"storageheatmethod": {"value": 6}}},
+def build_base_yaml():
+    """Minimal valid YAML input for physics and sites blocks."""
+    return {
+        "model": {
+            "physics": {
+                "rslmethod": {"value": 1},
+                "stabilitymethod": {"value": 3},
+                "storageheatmethod": {"value": 1},
+                "stebbsmethod": {"value": 1},
+                "netradiationmethod": {"value": 1},
+                "emissionsmethod": {"value": 1},
+                "ohmincqf": {"value": 1},
+                "roughlenmommethod": {"value": 1},
+                "roughlenheatmethod": {"value": 1},
+                "smdmethod": {"value": 1},
+                "waterusemethod": {"value": 1},
+                "faimethod": {"value": 1},
+                "rsllevel": {"value": 1},
+                "snowuse": {"value": 0},
+            }
+        },
         "sites": [
             {
                 "properties": {
+                    "land_cover": {
+                        "bldgs": {"sfr": {"value": 0.5}, "faibldg": {"value": 1.2}},
+                        "paved": {"sfr": {"value": 0.5}},
+                    },
                     "vertical_layers": {
                         "walls": [
                             {
@@ -1003,106 +936,196 @@ def test_storageheatmethod6_valid_passes():
                         ]
                     },
                     "lambda_c": {"value": 3.0},
-                }
-            }
-        ],
-    }
-    result = precheck_storageheatmethod(deepcopy(yaml_input))
-    assert isinstance(result, dict)
-
-
-def test_storageheatmethod6_dz_null_raises():
-    yaml_input = {
-        "model": {"physics": {"storageheatmethod": {"value": 6}}},
-        "sites": [
-            {
-                "properties": {
-                    "vertical_layers": {
-                        "walls": [
-                            {
-                                "thermal_layers": {
-                                    "dz": {"value": [None]},
-                                    "k": {"value": [1.2]},
-                                    "cp": {"value": [1000000.0]},
-                                }
-                            }
-                        ]
-                    },
-                    "lambda_c": {"value": 3.0},
-                }
-            }
-        ],
-    }
-    with pytest.raises(
-        ValueError, match=r"thermal_layers\.dz.*must be set.*storageheatmethod == 6"
-    ):
-        precheck_storageheatmethod(deepcopy(yaml_input))
-
-
-def test_storageheatmethod6_null_lambda_c_raises():
-    yaml_input = {
-        "model": {"physics": {"storageheatmethod": {"value": 6}}},
-        "sites": [
-            {
-                "properties": {
-                    "vertical_layers": {
-                        "walls": [
-                            {
-                                "thermal_layers": {
-                                    "dz": {"value": [0.2]},
-                                    "k": {"value": [1.2]},
-                                    "cp": {"value": [1000000.0]},
-                                }
-                            }
-                        ]
-                    },
-                    "lambda_c": {"value": None},  # Invalid
-                }
-            }
-        ],
-    }
-    with pytest.raises(ValueError, match=r"lambda_c.*storageheatmethod == 6"):
-        precheck_storageheatmethod(deepcopy(yaml_input))
-
-
-def test_stebbs_nullified_when_method_zero():
-    yaml_input = {
-        "model": {"physics": {"stebbsmethod": {"value": 0}}},
-        "sites": [
-            {
-                "properties": {
                     "stebbs": {
                         "WallInternalConvectionCoefficient": {"value": 5.0},
                         "WindowExternalConvectionCoefficient": {"value": 30.0},
-                    }
+                    },
                 }
             }
-        ],
+        ]
     }
 
-    result = precheck_stebbsmethod(deepcopy(yaml_input))
+def test_rslmethod2_requires_faibldg():
+    yaml_input = build_base_yaml()
+    yaml_input["model"]["physics"]["rslmethod"]["value"] = 2
+    yaml_input["sites"][0]["properties"]["land_cover"]["bldgs"]["faibldg"]["value"] = None
 
+    with pytest.raises(ValueError, match=r"faibldg.*must be set"):
+
+        precheck_model_option_rules(deepcopy(yaml_input))
+
+def test_rslmethod2_with_faibldg_passes():
+    yaml_input = build_base_yaml()
+    yaml_input["model"]["physics"]["rslmethod"]["value"] = 2
+    yaml_input["sites"][0]["properties"]["land_cover"]["bldgs"]["faibldg"]["value"] = 1.5
+
+    result = precheck_model_option_rules(deepcopy(yaml_input))
+    assert result["sites"][0]["properties"]["land_cover"]["bldgs"]["faibldg"]["value"] == 1.5
+
+def test_storageheatmethod6_requires_wall_layers():
+    yaml_input = build_base_yaml()
+    yaml_input["model"]["physics"]["storageheatmethod"]["value"] = 6
+    yaml_input["sites"][0]["properties"]["vertical_layers"]["walls"] = []
+
+    with pytest.raises(ValueError, match=r"Missing vertical_layers\.walls.*storageheatmethod == 6"):
+        precheck_model_option_rules(deepcopy(yaml_input))
+
+def test_storageheatmethod6_requires_thermal_layers_params():
+    yaml_input = build_base_yaml()
+    yaml_input["model"]["physics"]["storageheatmethod"]["value"] = 6
+    wall = yaml_input["sites"][0]["properties"]["vertical_layers"]["walls"][0]
+    wall["thermal_layers"]["dz"]["value"] = []
+    
+    with pytest.raises(ValueError, match=r"thermal_layers\.dz.*storageheatmethod == 6"):
+        precheck_model_option_rules(deepcopy(yaml_input))
+
+def test_storageheatmethod6_requires_lambda_c():
+    yaml_input = build_base_yaml()
+    yaml_input["model"]["physics"]["storageheatmethod"]["value"] = 6
+    yaml_input["sites"][0]["properties"]["lambda_c"]["value"] = None
+
+    with pytest.raises(ValueError, match=r"lambda_c.*storageheatmethod == 6"):
+        precheck_model_option_rules(deepcopy(yaml_input))
+
+def test_storageheatmethod6_valid_passes():
+    yaml_input = build_base_yaml()
+    yaml_input["model"]["physics"]["storageheatmethod"]["value"] = 6
+
+    result = precheck_model_option_rules(deepcopy(yaml_input))
+    assert result["sites"][0]["properties"]["lambda_c"]["value"] == 3.0
+
+def test_stebbsmethod0_nullifies_stebbs():
+    yaml_input = build_base_yaml()
+    yaml_input["model"]["physics"]["stebbsmethod"]["value"] = 0
+    yaml_input["sites"][0]["properties"]["stebbs"]["WallInternalConvectionCoefficient"]["value"] = 5.0
+
+    result = precheck_model_option_rules(deepcopy(yaml_input))
     stebbs = result["sites"][0]["properties"]["stebbs"]
     assert stebbs["WallInternalConvectionCoefficient"]["value"] is None
     assert stebbs["WindowExternalConvectionCoefficient"]["value"] is None
 
+def test_combined_diag2_stebbs0_storage6():
+    yaml_input = build_base_yaml()
+    yaml_input["model"]["physics"]["rslmethod"]["value"] = 2
+    yaml_input["model"]["physics"]["stebbsmethod"]["value"] = 0
+    yaml_input["model"]["physics"]["storageheatmethod"]["value"] = 6
+    yaml_input["sites"][0]["properties"]["land_cover"]["bldgs"]["faibldg"]["value"] = 1.5
 
-def test_stebbs_not_touched_if_method_nonzero():
-    yaml_input = {
-        "model": {"physics": {"stebbsmethod": {"value": 1}}},
+    result = precheck_model_option_rules(deepcopy(yaml_input))
+
+    # Check stebbs nullified
+    stebbs = result["sites"][0]["properties"]["stebbs"]
+    assert all(v["value"] is None for v in stebbs.values())
+
+    # Check faibldg still set
+    assert result["sites"][0]["properties"]["land_cover"]["bldgs"]["faibldg"]["value"] == 1.5
+
+    # Check wall layers untouched (still present)
+    walls = result["sites"][0]["properties"]["vertical_layers"]["walls"]
+    assert walls[0]["thermal_layers"]["dz"]["value"] == [0.2]
+
+
+def test_collect_yaml_differences_simple():
+    original = {
         "sites": [
             {
                 "properties": {
-                    "stebbs": {
-                        "WallInternalConvectionCoefficient": {"value": 5.0},
-                        "WindowExternalConvectionCoefficient": {"value": 30.0},
-                    }
+                    "snowalb": {"value": 0.3},
+                    "lat": {"value": 51.5},
+                },
+                "initial_states": {
+                    "dectr": {"lai_id": {"value": 2.0}}
                 }
             }
-        ],
+        ]
     }
 
-    result = precheck_stebbsmethod(deepcopy(yaml_input))
-    stebbs = result["sites"][0]["properties"]["stebbs"]
-    assert stebbs["WallInternalConvectionCoefficient"]["value"] == 5.0
-    assert stebbs["WindowExternalConvectionCoefficient"]["value"] == 30.0
+    updated = {
+        "sites": [
+            {
+                "properties": {
+                    "snowalb": {"value": None},  # Was 0.3 → now null
+                    "lat": {"value": 51.5},      # No change
+                },
+                "initial_states": {
+                    "dectr": {"lai_id": {"value": 5.0}}  # Changed from 2.0 → 5.0
+                }
+            }
+        ]
+    }
+
+    diffs = collect_yaml_differences(original, updated)
+
+    # Must detect 2 diffs: snowalb and lai_id
+    assert len(diffs) == 2
+
+    expected_params = {d["parameter"] for d in diffs}
+    assert "snowalb" in expected_params
+    assert "lai_id" in expected_params
+
+    for d in diffs:
+        if d["parameter"] == "snowalb":
+            assert d["old_value"] == 0.3
+            assert d["new_value"] is None
+            assert d["site"] == 0
+        if d["parameter"] == "lai_id":
+            assert d["old_value"] == 2.0
+            assert d["new_value"] == 5.0
+            assert d["site"] == 0
+
+def build_minimal_yaml_for_surface_temp():
+    return {
+        "model": {
+            "control": {
+                "start_time": "2011-07-01",  # July → month = 7
+                "end_time": "2011-12-31"
+            }
+        },
+        "sites": [
+            {
+                "properties": {
+                    "lat": {"value": 45.0},  # midlatitudes
+                    "lng": {"value": 10.0}
+                },
+                "initial_states": {
+                    surf: {
+                        "temperature": {"value": [0, 0, 0, 0, 0]},
+                        "tsfc": {"value": 0},
+                        "tin": {"value": 0}
+                    } for surf in ["paved", "bldgs", "evetr", "dectr", "grass", "bsoil", "water"]
+                }
+            }
+        ]
+    }
+
+def test_precheck_update_surface_temperature():
+    data = build_minimal_yaml_for_surface_temp()
+    start_date = data["model"]["control"]["start_time"]
+    month = datetime.strptime(start_date, "%Y-%m-%d").month
+    lat = data["sites"][0]["properties"]["lat"]["value"]
+
+    expected_temp = get_monthly_avg_temp(lat, month)
+
+    updated = precheck_update_surface_temperature(deepcopy(data), start_date=start_date)
+
+    for surface in ["paved", "bldgs", "evetr", "dectr", "grass", "bsoil", "water"]:
+        temp_array = updated["sites"][0]["initial_states"][surface]["temperature"]["value"]
+        tsfc = updated["sites"][0]["initial_states"][surface]["tsfc"]["value"]
+        tin = updated["sites"][0]["initial_states"][surface]["tin"]["value"]
+
+        assert temp_array == [expected_temp] * 5, f"Mismatch in temperature array for {surface}"
+        assert tsfc == expected_temp, f"Mismatch in tsfc for {surface}"
+        assert tin == expected_temp, f"Mismatch in tin for {surface}"
+
+def test_precheck_update_surface_temperature_missing_lat():
+    data = build_minimal_yaml_for_surface_temp()
+    data["sites"][0]["properties"]["lat"] = None  # Simulate missing lat
+
+    start_date = data["model"]["control"]["start_time"]
+
+    # Should not raise, but skip update
+    updated = precheck_update_surface_temperature(deepcopy(data), start_date=start_date)
+
+    for surface in ["paved", "bldgs", "evetr", "dectr", "grass", "bsoil", "water"]:
+        temp_array = updated["sites"][0]["initial_states"][surface]["temperature"]["value"]
+        assert temp_array == [0, 0, 0, 0, 0], f"Temperature should stay unchanged for {surface} when lat is missing."

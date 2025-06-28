@@ -29,23 +29,38 @@ SUEWS/
 
 ### Working with Worktrees
 
-**🚀 Quick Start (Recommended):**
-Use the automated scripts for friction-free worktree management:
+**🚀 Quick Start with uv (Recommended - Ultra Fast!):**
+Use `uv` for blazing fast worktree setup. See `.claude/guides/worktree-setup-guide.md` for the complete workflow.
 
 ```bash
-# Create new worktree with environment
-./.claude/scripts/worktree-setup.sh my-feature
+# One-time: Install uv
+brew install uv  # or: curl -LsSf https://astral.sh/uv/install.sh | sh
 
-# Start working
-cd worktrees/my-feature
-./activate.sh  # or: source .venv/bin/activate
-make test
+# Quick setup (from the guide)
+FEATURE="my-feature"
+git worktree add worktrees/$FEATURE feature/$FEATURE
+cd worktrees/$FEATURE
+uv venv
+source .venv/bin/activate  # or use uv run
+uv pip install pandas scipy matplotlib # ... see guide for full list
+make dev
 
-# Clean up when done
-./.claude/scripts/worktree-cleanup.sh my-feature
+# Work without activation!
+uv run python           # Run Python
+uv run pytest          # Run tests
+uv run make test       # Run make commands
 ```
 
-See `.claude/scripts/README.md` for script documentation and `.claude/workspace/claude-code-worktree-guide.md` for the streamlined workflow guide.
+**Why uv?**
+- 10-100x faster than pip/mamba
+- No environment activation needed
+- Single command setup
+- Works everywhere
+
+See:
+- `.claude/howto/setup-worktree.md` - Complete setup and cleanup commands
+- `.claude/howto/setup-environment.md` - All environment options (uv, venv, mamba)
+- `.claude/reference/uv-adoption.md` - Full uv adoption details
 
 #### Legacy: Manual Mamba Setup (If Required)
 
@@ -85,11 +100,11 @@ git commit -m "chore: remove worktree plan for merged feature"
 ### Best Practices
 - Always create worktrees under `worktrees/` directory
 - Use descriptive names matching the feature
-- **Use the automated scripts** for consistent setup/cleanup
-- **Each worktree gets its own isolated environment** (venv or mamba)
-- Clean up BOTH worktree AND environment after merging
-- **IMPORTANT**: Also remove `.claude/worktree-plans/feature-{branch-name}.md` when cleaning up merged worktrees
-- Pull master in each worktree to access latest `.claude/worktree-plans/`
+- **Use uv for speed** - setup takes seconds, not minutes
+- **No activation needed** - just use `uv run` commands
+- See cleanup commands in `.claude/howto/setup-worktree.md`
+- **IMPORTANT**: Also remove `.claude/plans/*/feature-{branch-name}.md` when cleaning up merged worktrees
+- Pull master in each worktree to access latest `.claude/plans/`
 
 ### Build System and Testing
 
@@ -100,14 +115,18 @@ git commit -m "chore: remove worktree plan for merged feature"
 1. **Root Directory** (`/SUEWS/`): Uses base `suews-dev` mamba environment
 2. **Each Worktree** (`/worktrees/{name}/`): Uses its own isolated environment (venv recommended)
 
-#### Quick Setup with Scripts
+#### Quick Setup with uv
+
+See `.claude/howto/setup-worktree.md` for the complete commands. Quick example:
 
 ```bash
-# Automated setup (recommended)
-./.claude/scripts/worktree-setup.sh feature-name
+# Ultra-fast setup with uv
+git worktree add worktrees/feature-name feature/feature-name
 cd worktrees/feature-name
-./activate.sh
-make test
+uv venv && source .venv/bin/activate
+uv pip install pandas scipy matplotlib # ... (see guide)
+make dev
+uv run make test  # No activation needed!
 ```
 
 #### Why Separate Environments Are Required
@@ -124,22 +143,22 @@ make test
 - **Quick tests**: `pytest test/test_supy.py -v`
 
 See:
-- `.claude/workspace/claude-code-worktree-guide.md` for streamlined worktree workflow
-- `.claude/scripts/README.md` for automation script documentation
-- `.claude/workspace/worktree-build-analysis.md` for build isolation strategies
-- `.claude/workspace/environment-isolation-guide.md` for legacy mamba setup
-- `.claude/workspace/worktree-analysis-20250627.md` for worktree analysis
+- `.claude/howto/setup-worktree.md` for complete setup workflows
+- `.claude/howto/setup-environment.md` for all environment options
+- `.claude/reference/uv-adoption.md` for uv benefits and usage
+- `.claude/reference/build-isolation.md` for build isolation strategies
+- `.claude/reference/environment-types.md` for legacy mamba setup
 
 ### Current Development Status
-- For an overview of all active branches and their associated GitHub issues, see `.claude/worktree-plans/claude-dev-notes.md`
-- For agent launch instructions, see `.claude/instructions/agent-launch-instructions.md`
-- For quick agent launch, see `.claude/instructions/agent-quick-launch.md`
+- For an overview of all active branches and their associated GitHub issues, see `.claude/plans/claude-dev-notes.md`
+- For parallel development instructions, see `.claude/howto/parallel-development.md`
 
 ### Claude Code Resources
 - `.claude/README.md` - Overview of the .claude directory structure and purpose
-- `.claude/instructions/` - Agent launch instructions and guidelines
-- `.claude/workspace/` - Analysis documents and development guides
-- `.claude/worktree-plans/` - Feature-specific development plans
+- `.claude/howto/` - Step-by-step guides for common tasks
+- `.claude/reference/` - Technical documentation and analysis
+- `.claude/plans/` - Feature-specific development plans
+- `.claude/templates/` - Reusable templates for consistency
 
 ## Worktree Context Management
 
@@ -152,17 +171,16 @@ When working in a git worktree or on a specific feature branch, check for branch
    ```
 
 2. **Then load the corresponding plan if it exists:**
-   - For branch `feature/hide-internal-options` → See `.claude/worktree-plans/feature-hide-internal-options.md`
-   - For branch `feature/rsl-physics-fixes` → See `.claude/worktree-plans/feature-rsl-physics-fixes.md`
-   - For branch `feature/fast-dev-build` → See `.claude/worktree-plans/feature-fast-dev-build.md`
-   - For other feature branches → Check `.claude/worktree-plans/feature-{branch-name}.md`
+   - Check `.claude/plans/doing/feature-{branch-name}.md` for active work
+   - Check `.claude/plans/todo/feature-{branch-name}.md` for planned work
+   - Check `.claude/plans/done/feature-{branch-name}.md` for completed features
    
    **Note**: When in a worktree, plans are in the parent directory:
    ```bash
-   # From worktree, access plans with:
-   cat ../../.claude/worktree-plans/feature-{branch-name}.md
-   # Or navigate to parent:
-   cd ../.. && cat .claude/worktree-plans/feature-{branch-name}.md
+   # From worktree, check all plan directories:
+   ls ../../.claude/plans/*/feature-{branch-name}.md
+   # Or read directly:
+   cat ../../.claude/plans/doing/feature-{branch-name}.md
    ```
 
 3. **If no plan exists**, proceed with standard development practices.
@@ -179,7 +197,7 @@ When working in a git worktree or on a specific feature branch, check for branch
 **Example update during work:**
 ```bash
 # After completing a task, update the plan:
-# Edit .claude/worktree-plans/feature-{branch-name}.md and:
+# Edit .claude/plans/doing/feature-{branch-name}.md and:
 # - Change "- [ ] Fix validation bug" to "- [x] Fix validation bug"
 # - Add notes like "Found issue in line 234 of validation.py"
 # - Document any new tasks discovered
@@ -199,7 +217,7 @@ When working in a git worktree or on a specific feature branch, check for branch
    ```bash
    cd worktrees/{feature-name}
    git branch --show-current  # Verify branch
-   cat ../../.claude/worktree-plans/feature-{branch-name}.md  # Read plan
+   cat ../../.claude/plans/doing/feature-{branch-name}.md  # Read plan
    make dev  # Ensure build is ready
    ```
 
@@ -229,9 +247,14 @@ When working in a git worktree or on a specific feature branch, check for branch
 ### Plan Lifecycle Management
 
 **Creating a new plan:**
-- When starting complex multi-session work, create `.claude/worktree-plans/feature-{branch-name}.md`
+- When starting complex multi-session work, create `.claude/plans/todo/feature-{branch-name}.md`
+- Use the template: `cp .claude/templates/feature-plan.md .claude/plans/todo/feature-{branch-name}.md`
 - Include: current context, progress tracking, key decisions, implementation steps
 - Commit to master/main branch so it's available in all worktrees
+
+**Moving plans between states:**
+- Start work: `git mv .claude/plans/todo/feature-X.md .claude/plans/doing/`
+- Complete work: `git mv .claude/plans/doing/feature-X.md .claude/plans/done/`
 
 **Maintaining plans:**
 - Update progress status in the plan as work proceeds
@@ -239,18 +262,24 @@ When working in a git worktree or on a specific feature branch, check for branch
 - Keep plans focused and actionable
 
 **Cleaning up completed plans:**
-- When a feature branch is merged, remove its plan file AND worktree
+- When a feature branch is merged, move plan to `done/`
 - Archive important decisions to main documentation if needed
-- Clean up worktree plan: `git rm .claude/worktree-plans/feature-{branch-name}.md`
 - Follow full worktree cleanup process as described in "Removing a worktree" section above
-- This ensures both the physical worktree and its documentation are removed together
+- This ensures both the physical worktree and its documentation are properly handled
 
 ### Example Plan Structure
+
+See `.claude/templates/feature-plan.md` for the full template. Basic structure:
+
 ```markdown
 # Feature: [Feature Name]
 
 ## Context
 Brief description of what this feature/fix addresses
+
+## GitHub Issues
+- #123 - Main issue (PRIMARY)
+- #124 - Related issue
 
 ## Progress Tracking
 - [ ] Task 1
@@ -262,11 +291,11 @@ Brief description of what this feature/fix addresses
 - Decision 2: Reasoning
 
 ## Implementation Notes
-Specific implementation details, gotchas, or important context
+Technical details, gotchas, important context
 
 ## Files to Modify
-- `path/to/file1.py`
-- `path/to/file2.py`
+- `path/to/file1.py` - What to change
+- `path/to/file2.py` - What to change
 ```
 
 ### Worktree Plan Writing Guide

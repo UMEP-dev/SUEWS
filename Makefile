@@ -100,30 +100,62 @@ suews:
 # ref: https://mesonbuild.com/meson-python/how-to-guides/editable-installs.html#editable-installs
 dev:
 	@echo "Building supy with development install..."
-	@if [ -x "/opt/homebrew/bin/gfortran" ]; then \
-		echo "Using Homebrew gfortran for better macOS compatibility"; \
-		FC=/opt/homebrew/bin/gfortran $(PYTHON) -m pip install --no-build-isolation --editable .; \
+	@# Check if uv is available for faster installation
+	@if command -v uv >/dev/null 2>&1; then \
+		echo "Found uv - using for ultra-fast installation!"; \
+		if [ -x "/opt/homebrew/bin/gfortran" ]; then \
+			echo "Using Homebrew gfortran for better macOS compatibility"; \
+			FC=/opt/homebrew/bin/gfortran uv pip install --no-build-isolation --editable .; \
+		else \
+			uv pip install --no-build-isolation --editable .; \
+		fi \
 	else \
-		$(PYTHON) -m pip install --no-build-isolation --editable .; \
+		if [ -x "/opt/homebrew/bin/gfortran" ]; then \
+			echo "Using Homebrew gfortran for better macOS compatibility"; \
+			FC=/opt/homebrew/bin/gfortran $(PYTHON) -m pip install --no-build-isolation --editable .; \
+		else \
+			$(PYTHON) -m pip install --no-build-isolation --editable .; \
+		fi \
 	fi
 
 # make supy and install locally with fast build optimizations
 dev-fast:
 	@echo "Building supy with fast development install (optimized compiler flags)..."
-	@if [ -x "/opt/homebrew/bin/gfortran" ]; then \
-		echo "Using Homebrew gfortran with fast build optimizations"; \
-		FC=/opt/homebrew/bin/gfortran $(PYTHON) -m pip install --no-build-isolation --editable . --config-settings=setup-args=-Dfast_build=true; \
+	@# Check if uv is available for faster installation
+	@if command -v uv >/dev/null 2>&1; then \
+		echo "Found uv - using for ultra-fast installation!"; \
+		if [ -x "/opt/homebrew/bin/gfortran" ]; then \
+			echo "Using Homebrew gfortran with fast build optimizations"; \
+			FC=/opt/homebrew/bin/gfortran uv pip install --no-build-isolation --editable . --config-settings=setup-args=-Dfast_build=true; \
+		else \
+			uv pip install --no-build-isolation --editable . --config-settings=setup-args=-Dfast_build=true; \
+		fi \
 	else \
-		$(PYTHON) -m pip install --no-build-isolation --editable . --config-settings=setup-args=-Dfast_build=true; \
+		if [ -x "/opt/homebrew/bin/gfortran" ]; then \
+			echo "Using Homebrew gfortran with fast build optimizations"; \
+			FC=/opt/homebrew/bin/gfortran $(PYTHON) -m pip install --no-build-isolation --editable . --config-settings=setup-args=-Dfast_build=true; \
+		else \
+			$(PYTHON) -m pip install --no-build-isolation --editable . --config-settings=setup-args=-Dfast_build=true; \
+		fi \
 	fi
 
 # install supy locally
 install:
-	$(PYTHON) -m pip install .
+	@if command -v uv >/dev/null 2>&1; then \
+		echo "Using uv for installation..."; \
+		uv pip install .; \
+	else \
+		$(PYTHON) -m pip install .; \
+	fi
 
 # make supy dist and test
 test:
-	$(PYTHON) -m pytest test -v --tb=short
+	@if command -v uv >/dev/null 2>&1 && [ -n "$${UV_RUN:-}" ]; then \
+		echo "Running tests with uv..."; \
+		uv run pytest test -v --tb=short; \
+	else \
+		$(PYTHON) -m pytest test -v --tb=short; \
+	fi
 
 # make supy wheels using cibuild
 wheel:

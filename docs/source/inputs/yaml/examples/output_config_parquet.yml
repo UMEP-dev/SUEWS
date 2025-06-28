@@ -1,0 +1,23 @@
+# Example: Parquet output configuration
+# This example shows how to configure SUEWS to save output in Parquet format
+
+model:
+  control:
+    tstep: 300  # 5-minute timestep
+    forcing_file: "forcing_2020.txt"
+    
+    # Parquet output configuration
+    output_file:
+      format: parquet   # Save as Parquet file (efficient columnar format)
+      freq: 3600        # Save hourly data (must be multiple of tstep)
+      # Note: groups parameter is ignored for Parquet - all groups are saved
+      
+  physics:
+    netradiationmethod: 3
+    emissionsmethod: 2
+
+sites:
+  - name: "Urban_Site"
+    latitude: 51.5
+    longitude: -0.1
+    # ... other site parameters

@@ -3,6 +3,9 @@ name: Fortran_prettify
 on:
   # File paths to consider in the event. Optional; defaults to all
   push:
+    branches:
+      - '**'  # Run on all branches
+      - '!master'  # Exclude master branch
     paths:       # Push events containing matching files
       - 'src/suews/src/*'
       - '.github/workflows/fprettify.yml'

@@ -5,6 +5,20 @@
 <!-- [doc]: Documentation updates -->
 <!-- [change]: Changes exposed to users -->
 
+- 28 Jun 2025:
+  - [feature] Streamlined worktree workflow for Claude Code development
+    - Created automated scripts for worktree management: worktree-setup.sh and worktree-cleanup.sh
+    - Replaced slow mamba environment cloning with fast Python venv creation
+    - Updated CLAUDE.md to prioritise friction-free workflow with single-command operations
+    - Added comprehensive guide at .claude/workspace/claude-code-worktree-guide.md
+    - Benefits: seconds vs minutes for setup, no shell integration issues, self-contained environments
+  - [feature] Completed SUEWS MCP (Model Context Protocol) server implementation
+    - Finished all 11 tools across configuration guidance and result interpretation
+    - Implemented comprehensive parameter knowledge base with scientific documentation
+    - Added physics compatibility matrix for method validation
+    - Created desktop extension (.dxt) for easy Claude Desktop integration
+    - Tools include: validation, suggestions, templates, energy balance diagnosis, thermal comfort analysis, urban effects, validation metrics, and narrative insights
+
 - 22 Jun 2025:
   - [feature] Successfully completed SUEWSSimulation class implementation and testing
     - Fixed core SUEWSSimulation functionality to work with real SUEWS benchmark data

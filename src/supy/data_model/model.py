@@ -29,6 +29,16 @@ class EmissionsMethod(Enum):
     J19 = 4
     J19_UPDATED = 5
 
+    def __new__(cls, value):
+        obj = object.__new__(cls)
+        obj._value_ = value
+        # Mark internal options
+        if value in [3, 5]:  # L11_UPDATED and J19_UPDATED
+            obj._internal = True
+        else:
+            obj._internal = False
+        return obj
+
     def __int__(self):
         """Representation showing just the value"""
         return self.value
@@ -65,6 +75,16 @@ class NetRadiationMethod(Enum):
     LDOWN_SS_CLOUD = 1002
     LDOWN_SS_AIR = 1003
 
+    def __new__(cls, value):
+        obj = object.__new__(cls)
+        obj._value_ = value
+        # Mark internal options (not recommended/experimental)
+        if value in [11, 12, 13, 100, 200, 300, 1001, 1002, 1003]:
+            obj._internal = True
+        else:
+            obj._internal = False
+        return obj
+
     def __int__(self):
         return self.value
 
@@ -90,6 +110,16 @@ class StorageHeatMethod(Enum):
     ESTM = 4
     ESTM_EXTENDED = 5
     OHM_ENHANCED = 6
+
+    def __new__(cls, value):
+        obj = object.__new__(cls)
+        obj._value_ = value
+        # Mark internal options (not recommended)
+        if value in [3, 4]:  # ANOHM and ESTM
+            obj._internal = True
+        else:
+            obj._internal = False
+        return obj
 
     def __int__(self):
         return self.value
@@ -133,6 +163,16 @@ class RoughnessMethod(Enum):
     LAMBDAP_DEPENDENT = 4  # lambdaP dependent method
     ALTERNATIVE = 5  # Alternative method
 
+    def __new__(cls, value):
+        obj = object.__new__(cls)
+        obj._value_ = value
+        # Mark internal options
+        if value == 5:  # ALTERNATIVE (vague method)
+            obj._internal = True
+        else:
+            obj._internal = False
+        return obj
+
     def __int__(self):
         return self.value
 
@@ -156,6 +196,16 @@ class StabilityMethod(Enum):
     HOEGSTROM = 2
     CAMPBELL_NORMAN = 3
     BUSINGER_HOEGSTROM = 4
+
+    def __new__(cls, value):
+        obj = object.__new__(cls)
+        obj._value_ = value
+        # Mark internal options (reserved/not recommended)
+        if value in [0, 1, 2, 4]:  # NOT_USED, NOT_USED2, HOEGSTROM, BUSINGER_HOEGSTROM
+            obj._internal = True
+        else:
+            obj._internal = False
+        return obj
 
     def __int__(self):
         return self.value
@@ -234,6 +284,16 @@ class FAIMethod(Enum):
     ZERO = 0  # Not documented
     FIXED = 1  # Fixed frontal area index
     VARIABLE = 2  # Variable frontal area index based on vegetation state
+
+    def __new__(cls, value):
+        obj = object.__new__(cls)
+        obj._value_ = value
+        # Mark internal options
+        if value == 0:  # ZERO (not documented)
+            obj._internal = True
+        else:
+            obj._internal = False
+        return obj
 
     def __int__(self):
         return self.value
@@ -609,6 +669,7 @@ class ModelControl(BaseModel):
     kdownzen: Optional[FlexibleRefValue(int)] = Field(
         default=None,
         description="Use zenithal correction for downward shortwave radiation",
+        json_schema_extra={"internal_only": True},
     )
     output_file: str = Field(
         default="output.txt",
@@ -618,6 +679,7 @@ class ModelControl(BaseModel):
     diagnose: int = Field(
         default=0,
         description="Level of diagnostic output (0=none, 1=basic, 2=detailed)",
+        json_schema_extra={"internal_only": True},
     )
     start_time: Optional[str] = Field(
         default=None,

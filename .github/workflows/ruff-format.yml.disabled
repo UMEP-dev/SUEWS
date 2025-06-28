@@ -11,6 +11,7 @@ on:
   push:
     branches:
       - '**'  # Run on all branches
+      - '!master'  # Exclude master branch
     paths:
       - '**.py'
       - 'pyproject.toml'

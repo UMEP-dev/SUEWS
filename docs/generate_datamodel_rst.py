@@ -17,6 +17,7 @@ import importlib
 from pathlib import Path
 import sys
 from typing import Any, Dict, List, Optional, Type, Union, get_args, get_origin, Literal
+import argparse
 
 from pydantic import BaseModel
 from pydantic.fields import FieldInfo
@@ -132,13 +133,74 @@ def process_unit_part(part: str) -> str:
 
 
 # --- Helper function to parse and format method options ---
-def parse_method_options(description: str) -> tuple[str, list[str]]:
+def get_enum_class_from_field(
+    field_info: FieldInfo, field_type_hint: Any
+) -> Optional[Type]:
+    """Extract the enum class from a field's type hint."""
+    from enum import Enum
+
+    # Handle Union types
+    origin = get_origin(field_type_hint)
+    if origin is Union:
+        # Check each type in the Union
+        for arg in get_args(field_type_hint):
+            enum_class = get_enum_class_from_field(field_info, arg)
+            if enum_class:
+                return enum_class
+        return None
+
+    # Handle RefValue[EnumClass] and FlexibleRefValue(EnumClass)
+    origin = get_origin(field_type_hint) or field_type_hint
+    args = get_args(field_type_hint)
+
+    if hasattr(origin, "__name__") and origin.__name__ in [
+        "RefValue",
+        "FlexibleRefValue",
+    ]:
+        if args and hasattr(args[0], "__bases__"):
+            # Check if it's an Enum
+            if Enum in args[0].__bases__:
+                return args[0]
+
+    # Direct enum type
+    if hasattr(field_type_hint, "__bases__"):
+        if Enum in field_type_hint.__bases__:
+            return field_type_hint
+
+    return None
+
+
+def is_internal_enum_value(enum_class: Type, value: int) -> bool:
+    """Check if an enum value is marked as internal."""
+    if not enum_class:
+        return False
+
+    try:
+        # Find the enum member with this value
+        for member in enum_class:
+            if member.value == value:
+                return getattr(member, "_internal", False)
+    except:
+        pass
+
+    return False
+
+
+def parse_method_options(
+    description: str, enum_class: Optional[Type] = None, include_internal: bool = True
+) -> tuple[str, list[str]]:
     """
     Parse method options from description string.
+
+    Args:
+        description: The field description to parse
+        enum_class: The enum class if this field uses one
+        include_internal: Whether to include internal options
 
     Returns:
         tuple: (main_description, list_of_option_strings)
     """
+
     # Check if description contains "Options:" pattern
     if "Options:" in description:
         parts = description.split("Options:", 1)
@@ -155,6 +217,23 @@ def parse_method_options(description: str) -> tuple[str, list[str]]:
                 match = re.match(r"^(\d+(?:-\d+)?)\s*\(([^)]+)\)\s*=\s*(.+)$", opt)
                 if match:
                     num, name, desc = match.groups()
+
+                    # Check if this option should be filtered out
+                    if not include_internal and enum_class:
+                        # Handle ranges like "11-13" or "100-300"
+                        if "-" in num:
+                            start, end = map(int, num.split("-"))
+                            # If any value in range is internal, skip the whole range
+                            if any(
+                                is_internal_enum_value(enum_class, v)
+                                for v in range(start, end + 1)
+                            ):
+                                continue
+                        else:
+                            # Single value
+                            if is_internal_enum_value(enum_class, int(num)):
+                                continue
+
                     # Check for recommendations in description
                     if "(recommended)" in desc:
                         desc = desc.replace("(recommended)", "**(recommended)**")
@@ -206,6 +285,7 @@ def generate_rst_for_model(
     output_dir: Path,
     processed_models: set[Type[BaseModel]],
     all_supy_models: Dict[str, Type[BaseModel]],
+    include_internal: bool = True,
 ) -> None:
     """
     Generates an .rst file for a given Pydantic model, focusing on user configuration.
@@ -282,6 +362,10 @@ def generate_rst_for_model(
     rst_content.append("")
 
     for field_name, field_info in model_class.model_fields.items():
+        # Check if field is marked as internal
+        if not include_internal and isinstance(field_info.json_schema_extra, dict):
+            if field_info.json_schema_extra.get("internal_only", False):
+                continue  # Skip internal fields in user docs
         field_type_hint = field_info.annotation
         user_type_name = get_user_friendly_type_name(field_type_hint)
 
@@ -305,8 +389,13 @@ def generate_rst_for_model(
         options_list = []
 
         if base_description:
+            # Get enum class if this field uses one
+            enum_class = get_enum_class_from_field(field_info, field_type_hint)
+
             # Parse method options if present
-            main_desc, options = parse_method_options(base_description)
+            main_desc, options = parse_method_options(
+                base_description, enum_class, include_internal
+            )
 
             if options:
                 # Store options for later, just add main description here
@@ -565,7 +654,11 @@ def generate_rst_for_model(
             rst_content.append(link_message)
             # The recursive call was here, it should remain to generate the linked doc.
             generate_rst_for_model(
-                nested_model_to_document, output_dir, processed_models, all_supy_models
+                nested_model_to_document,
+                output_dir,
+                processed_models,
+                all_supy_models,
+                include_internal,
             )
 
         rst_content.append("")  # Blank line after each option
@@ -593,6 +686,16 @@ def get_all_models_in_module(module) -> Dict[str, Type[BaseModel]]:
 
 
 def main():
+    # Parse command line arguments
+    parser = argparse.ArgumentParser(
+        description="Generate RST documentation for SUEWS data models"
+    )
+    parser.add_argument(
+        "--include-internal",
+        action="store_true",
+        help="Include internal/developer options in documentation",
+    )
+    args = parser.parse_args()
     output_dir_name = "inputs/yaml/schema"
     docs_source_path = PROJECT_ROOT / "docs" / "source"
     output_dir = docs_source_path / output_dir_name
@@ -644,7 +747,11 @@ def main():
 
     for model_class in models_to_process:
         generate_rst_for_model(
-            model_class, output_dir, processed_models, all_supy_data_models
+            model_class,
+            output_dir,
+            processed_models,
+            all_supy_data_models,
+            args.include_internal,
         )
 
     # Do NOT generate an index file here. User will manage their own index file.

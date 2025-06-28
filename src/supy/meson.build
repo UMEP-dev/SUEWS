@@ -36,6 +36,7 @@ py.install_sources(
             'util/_plot.py',
             'util/_roughness.py',
             'util/_spinup.py',
+            'util/_state_io.py',
             'util/_tmy.py',
             'util/_wrf.py',
             'util/rules.csv',

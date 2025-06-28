@@ -26,11 +26,11 @@ model:
       value: 0
     waterusemethod:
       value: 0
-    diagmethod:
+    rslmethod:
       value: 2
     faimethod:
       value: 0
-    localclimatemethod:
+    rsllevel:
       value: 1
     snowuse:
       value: 0

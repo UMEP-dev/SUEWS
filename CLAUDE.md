@@ -29,81 +29,55 @@ SUEWS/
 
 ### Working with Worktrees
 
-**Creating a new worktree with its environment:**
+**🚀 Quick Start (Recommended):**
+Use the automated scripts for friction-free worktree management:
+
 ```bash
-# Step 1: Create the worktree
-git worktree add worktrees/my-feature feature/my-feature-name
+# Create new worktree with environment
+./.claude/scripts/worktree-setup.sh my-feature
 
-# Step 2: Create dedicated environment
-mamba create -n suews-dev-my-feature --clone suews-dev
-
-# Step 3: Navigate and activate
+# Start working
 cd worktrees/my-feature
-mamba activate suews-dev-my-feature
+./activate.sh  # or: source .venv/bin/activate
+make test
 
-# Step 4: Build in the new environment
-make dev
+# Clean up when done
+./.claude/scripts/worktree-cleanup.sh my-feature
 ```
 
-#### Important: Mamba Environment Setup in Claude Code
+See `.claude/scripts/README.md` for script documentation and `.claude/workspace/claude-code-worktree-guide.md` for the streamlined workflow guide.
+
+#### Legacy: Manual Mamba Setup (If Required)
+
+**Note:** The automated scripts above use Python venv for faster setup. Only use mamba if the project has complex compiled dependencies.
 
 **Mamba Configuration in Claude Code:**
 - Mamba is installed at: `/opt/homebrew/bin/mamba`
 - Mamba root prefix: `/Users/tingsun/.local/share/mamba`
 - Main environment: `suews-dev`
 
-**Creating Environments in Claude Code:**
+**Manual mamba setup:**
 ```bash
-# Option 1: Export and recreate (when --clone doesn't work)
+# Create worktree
+git worktree add worktrees/my-feature feature/my-feature-name
+
+# Create environment (if --clone fails, use export method)
+/opt/homebrew/bin/mamba create -n suews-dev-my-feature --clone suews-dev
+
+# Or export and recreate
 /opt/homebrew/bin/mamba env export -n suews-dev > /tmp/suews-dev-env.yml
 /opt/homebrew/bin/mamba env create -n suews-dev-{feature-name} -f /tmp/suews-dev-env.yml -y
 
-# Option 2: Initialize shell and use mamba normally
-source ~/.zshrc && mamba activate suews-dev-{feature-name}
-
-# Always build after creating environment
-cd worktrees/{feature-name}
+# Activate and build
+cd worktrees/my-feature
+source ~/.zshrc && mamba activate suews-dev-my-feature
 make dev
 ```
 
-**Common Issues and Solutions:**
-- If `mamba activate` fails, use: `source ~/.zshrc` first
-- If environments fail to create, check with: `/opt/homebrew/bin/mamba env list`
-- Always use full path `/opt/homebrew/bin/mamba` if shell integration issues occur
-
-**Switching between worktrees:**
+**Manual cleanup:**
 ```bash
-# Step 1: Deactivate current environment (if any)
-mamba deactivate
-
-# Step 2: Navigate to worktree
-cd worktrees/my-feature
-
-# Step 3: Activate matching environment
-mamba activate suews-dev-my-feature
-
-# Step 4: Verify correct environment
-echo "Active env: $CONDA_DEFAULT_ENV"  # Should show: suews-dev-my-feature
-```
-
-**Listing worktrees:**
-```bash
-git worktree list
-```
-
-**Removing a worktree (including environment):**
-```bash
-# Step 1: Remove the worktree
 git worktree remove worktrees/my-feature
-
-# Step 2: Remove the associated environment
 mamba env remove -n suews-dev-my-feature
-
-# Step 3: Verify cleanup
-git worktree list
-mamba env list | grep suews-dev-my-feature  # Should return nothing
-
-# Step 4: Remove the worktree plan file
 git rm .claude/worktree-plans/feature-{branch-name}.md
 git commit -m "chore: remove worktree plan for merged feature"
 ```
@@ -111,37 +85,30 @@ git commit -m "chore: remove worktree plan for merged feature"
 ### Best Practices
 - Always create worktrees under `worktrees/` directory
 - Use descriptive names matching the feature
-- **Each worktree gets its own `suews-dev-{name}` environment**
+- **Use the automated scripts** for consistent setup/cleanup
+- **Each worktree gets its own isolated environment** (venv or mamba)
 - Clean up BOTH worktree AND environment after merging
 - **IMPORTANT**: Also remove `.claude/worktree-plans/feature-{branch-name}.md` when cleaning up merged worktrees
-- Never share environments between worktrees
 - Pull master in each worktree to access latest `.claude/worktree-plans/`
 
 ### Build System and Testing
 
-**CRITICAL**: Each worktree MUST use a separate conda/mamba environment. Never use the base `suews-dev` environment in worktrees!
+**CRITICAL**: Each worktree MUST use a separate Python environment. Never use the base `suews-dev` environment in worktrees!
 
 #### Environment Setup Rules
 
-1. **Root Directory** (`/SUEWS/`): Uses base `suews-dev` environment
-2. **Each Worktree** (`/worktrees/{name}/`): MUST use its own environment
+1. **Root Directory** (`/SUEWS/`): Uses base `suews-dev` mamba environment
+2. **Each Worktree** (`/worktrees/{name}/`): Uses its own isolated environment (venv recommended)
 
-#### Creating Worktree Environments
+#### Quick Setup with Scripts
 
-**For single worktree development:**
 ```bash
-# Create environment for your worktree
-mamba create -n suews-dev-{feature-name} --clone suews-dev
-cd worktrees/{feature-name}
-mamba activate suews-dev-{feature-name}
-make dev        # This installs to the worktree-specific environment
-make test       # Run tests in isolated environment
+# Automated setup (recommended)
+./.claude/scripts/worktree-setup.sh feature-name
+cd worktrees/feature-name
+./activate.sh
+make test
 ```
-
-**Environment Naming Convention:**
-- Base environment: `suews-dev` (root directory only)
-- Worktree environments: `suews-dev-{feature-name}`
-- Examples: `suews-dev-core-fixes`, `suews-dev-rsl-physics`
 
 #### Why Separate Environments Are Required
 
@@ -157,8 +124,10 @@ make test       # Run tests in isolated environment
 - **Quick tests**: `pytest test/test_supy.py -v`
 
 See:
+- `.claude/workspace/claude-code-worktree-guide.md` for streamlined worktree workflow
+- `.claude/scripts/README.md` for automation script documentation
 - `.claude/workspace/worktree-build-analysis.md` for build isolation strategies
-- `.claude/workspace/environment-isolation-guide.md` for environment setup
+- `.claude/workspace/environment-isolation-guide.md` for legacy mamba setup
 - `.claude/workspace/worktree-analysis-20250627.md` for worktree analysis
 
 ### Current Development Status
@@ -417,3 +386,7 @@ Common locations to debug benchmark failures:
 ## Documentation Guidelines
 
 - Remember the yaml rst files are generated - so modify the `generate_datamodel_rst.py` script rather than the rst files if edits are needed
+
+## Development Tasks and Reminders
+
+- **Remember to include new files in meson.build appropriately**

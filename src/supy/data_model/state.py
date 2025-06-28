@@ -640,64 +640,112 @@ class HDD_ID(BaseModel):
     hdd_accum: float = Field(
         default=0.0,
         description="Current day's heating degree days accumulation [degC]",
-        json_schema_extra={"unit": "degC", "display_name": "Hdd Accum"},
+        json_schema_extra={
+            "unit": "degC",
+            "display_name": "Hdd Accum",
+            "internal_only": True,
+        },
     )
     cdd_accum: float = Field(
         default=0.0,
         description="Current day's cooling degree days accumulation [degC]",
-        json_schema_extra={"unit": "degC", "display_name": "Cdd Accum"},
+        json_schema_extra={
+            "unit": "degC",
+            "display_name": "Cdd Accum",
+            "internal_only": True,
+        },
     )
     temp_accum: float = Field(
         default=0.0,
         description="Current day's temperature accumulation for daily mean [degC]",
-        json_schema_extra={"unit": "degC", "display_name": "Temp Accum"},
+        json_schema_extra={
+            "unit": "degC",
+            "display_name": "Temp Accum",
+            "internal_only": True,
+        },
     )
     temp_5day_accum: float = Field(
         default=0.0,
         description="5-day running mean temperature accumulation [degC]",
-        json_schema_extra={"unit": "degC", "display_name": "Temp 5Day Accum"},
+        json_schema_extra={
+            "unit": "degC",
+            "display_name": "Temp 5Day Accum",
+            "internal_only": True,
+        },
     )
     precip_accum: float = Field(
         default=0.0,
         description="Current day's precipitation total [mm]",
-        json_schema_extra={"unit": "mm", "display_name": "Precip Accum"},
+        json_schema_extra={
+            "unit": "mm",
+            "display_name": "Precip Accum",
+            "internal_only": True,
+        },
     )
     days_since_rain_accum: float = Field(
         default=0.0,
         description="Days since rain counter (current) [days]",
-        json_schema_extra={"unit": "days", "display_name": "Days Since Rain Accum"},
+        json_schema_extra={
+            "unit": "days",
+            "display_name": "Days Since Rain Accum",
+            "internal_only": True,
+        },
     )
 
     # Previous day values (used in calculations)
     hdd_daily: float = Field(
         default=0.0,
         description="Previous day's heating degree days for QF calculations [degC]",
-        json_schema_extra={"unit": "degC", "display_name": "Hdd Daily"},
+        json_schema_extra={
+            "unit": "degC",
+            "display_name": "Hdd Daily",
+            "internal_only": True,
+        },
     )
     cdd_daily: float = Field(
         default=0.0,
         description="Previous day's cooling degree days for QF calculations [degC]",
-        json_schema_extra={"unit": "degC", "display_name": "Cdd Daily"},
+        json_schema_extra={
+            "unit": "degC",
+            "display_name": "Cdd Daily",
+            "internal_only": True,
+        },
     )
     temp_daily_mean: float = Field(
         default=0.0,
         description="Previous day's mean temperature for water use calculations [degC]",
-        json_schema_extra={"unit": "degC", "display_name": "Temp Daily Mean"},
+        json_schema_extra={
+            "unit": "degC",
+            "display_name": "Temp Daily Mean",
+            "internal_only": True,
+        },
     )
     temp_5day_mean: float = Field(
         default=0.0,
         description="Previous 5-day running mean temperature for QF calculations [degC]",
-        json_schema_extra={"unit": "degC", "display_name": "Temp 5Day Mean"},
+        json_schema_extra={
+            "unit": "degC",
+            "display_name": "Temp 5Day Mean",
+            "internal_only": True,
+        },
     )
     precip_daily_total: float = Field(
         default=0.0,
         description="Previous day's precipitation total [mm]",
-        json_schema_extra={"unit": "mm", "display_name": "Precip Daily Total"},
+        json_schema_extra={
+            "unit": "mm",
+            "display_name": "Precip Daily Total",
+            "internal_only": True,
+        },
     )
     days_since_rain: float = Field(
         default=0.0,
         description="Days since rain for irrigation calculations [days]",
-        json_schema_extra={"unit": "days", "display_name": "Days Since Rain"},
+        json_schema_extra={
+            "unit": "days",
+            "display_name": "Days Since Rain",
+            "internal_only": True,
+        },
     )
 
     def to_list(self) -> List[float]:
@@ -795,32 +843,38 @@ class InitialStates(BaseModel):
     dqndt: float = Field(
         default=0,
         description="Change in net radiation",
-        json_schema_extra={"display_name": "dQn/dt"},
+        json_schema_extra={"display_name": "dQn/dt", "internal_only": True},
     )
     dqnsdt: float = Field(
         default=0,
         description="Change in net shortwave radiation",
-        json_schema_extra={"display_name": "dQns/dt"},
+        json_schema_extra={"display_name": "dQns/dt", "internal_only": True},
     )
     dt_since_start: float = Field(
         default=0,
         description="Time since start",
-        json_schema_extra={"display_name": "Time Since Start"},
+        json_schema_extra={"display_name": "Time Since Start", "internal_only": True},
     )
     lenday_id: int = Field(
         default=0,
         description="Length of the day ID",
-        json_schema_extra={"display_name": "Day Length ID"},
+        json_schema_extra={"display_name": "Day Length ID", "internal_only": True},
     )
     qn_av: float = Field(
         default=0,
         description="Average net radiation",
-        json_schema_extra={"display_name": "Average Net Radiation"},
+        json_schema_extra={
+            "display_name": "Average Net Radiation",
+            "internal_only": True,
+        },
     )
     qn_s_av: float = Field(
         default=0,
         description="Average net shortwave radiation",
-        json_schema_extra={"display_name": "Average Net Shortwave Radiation"},
+        json_schema_extra={
+            "display_name": "Average Net Shortwave Radiation",
+            "internal_only": True,
+        },
     )
     tair_av: float = Field(
         default=0,
@@ -830,22 +884,31 @@ class InitialStates(BaseModel):
     tmax_id: float = Field(
         default=0,
         description="Maximum temperature ID",
-        json_schema_extra={"display_name": "Maximum Temperature ID"},
+        json_schema_extra={
+            "display_name": "Maximum Temperature ID",
+            "internal_only": True,
+        },
     )
     tmin_id: float = Field(
         default=0,
         description="Minimum temperature ID",
-        json_schema_extra={"display_name": "Minimum Temperature ID"},
+        json_schema_extra={
+            "display_name": "Minimum Temperature ID",
+            "internal_only": True,
+        },
     )
     tstep_prev: float = Field(
         default=0,
         description="Previous time step",
-        json_schema_extra={"display_name": "Previous Time Step"},
+        json_schema_extra={"display_name": "Previous Time Step", "internal_only": True},
     )
     snowfallcum: float = Field(
         default=0,
         description="Cumulative snowfall",
-        json_schema_extra={"display_name": "Cumulative Snowfall"},
+        json_schema_extra={
+            "display_name": "Cumulative Snowfall",
+            "internal_only": True,
+        },
     )
     hdd_id: HDD_ID = Field(
         default_factory=HDD_ID,

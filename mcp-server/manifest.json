@@ -15,9 +15,9 @@
     "entry_point": "run_server.py",
     "mcp_config": {
       "command": "python3",
-      "args": ["run_server.py"],
+      "args": ["${__dirname}/run_server.py"],
       "env": {
-        "PYTHONPATH": "src"
+        "PYTHONPATH": "${__dirname}/src:${__dirname}"
       }
     }
   },

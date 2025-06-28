@@ -37,6 +37,26 @@ def create_desktop_extension():
 
     with open(build_dir / "requirements.txt", "w") as f:
         f.write("\n".join(requirements))
+    
+    # Copy setup.py for proper installation
+    setup_content = '''from setuptools import setup, find_packages
+
+setup(
+    name="suews-mcp",
+    version="1.0.0",
+    packages=find_packages(where="src"),
+    package_dir={"": "src"},
+    install_requires=[
+        "mcp>=0.9.0",
+        "pydantic>=2.0", 
+        "pyyaml>=6.0",
+        "pandas>=2.0",
+        "numpy>=1.20"
+    ],
+)'''
+    
+    with open(build_dir / "setup.py", "w") as f:
+        f.write(setup_content)
 
     # Create README for the extension
     print("Creating extension README...")

@@ -12,10 +12,10 @@
   },
   "server": {
     "type": "python",
-    "entry_point": "src/suews_mcp/server.py",
+    "entry_point": "run_server.py",
     "mcp_config": {
       "command": "python3",
-      "args": ["-m", "suews_mcp.server"],
+      "args": ["${extension_dir}/run_server.py"],
       "env": {
         "PYTHONPATH": "${extension_dir}/src:${extension_dir}"
       }

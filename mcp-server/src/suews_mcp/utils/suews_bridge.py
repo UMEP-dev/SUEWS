@@ -17,13 +17,27 @@ try:
         StorageHeatMethod,
         RoughnessMethod,
         StabilityMethod,
-        RSLMethod,
         FAIMethod,
-        RSLLevel,
-        GSModel,
         StebbsMethod,
         SnowUse,
     )
+
+    # Try to import newer features if available
+    try:
+        from supy.data_model.model import RSLMethod, RSLLevel, GSModel
+    except ImportError:
+        # Create placeholder classes for compatibility
+        class RSLMethod:
+            NONE = 0
+            VARIABLE = 1
+        
+        class RSLLevel:
+            Z = 0
+            ZD = 1
+        
+        class GSModel:
+            J11 = 0
+            W16 = 1
 
     # Try to import validation controller (optional)
     try:

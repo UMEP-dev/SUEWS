@@ -7,12 +7,6 @@ import os
 # Add the src directory to Python path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))
 
-# For local testing, also add the parent SuPy
-parent_supy = os.path.join(os.path.dirname(__file__), '../../../src')
-if os.path.exists(parent_supy):
-    sys.path.insert(0, parent_supy)
-    print(f"Added parent SuPy to path: {parent_supy}", file=sys.stderr)
-
 # Now import and run the server
 try:
     from suews_mcp.server import main

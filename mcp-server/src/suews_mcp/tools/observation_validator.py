@@ -1,6 +1,6 @@
 """Observation validator for SUEWS MCP."""
 
-from typing import Optional, List, Dict, Tuple
+from typing import Any, Optional, List, Dict, Tuple
 import pandas as pd
 import numpy as np
 from pathlib import Path

@@ -1,0 +1,25 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "supy-settings-mcp"
+version = "0.1.0"
+description = "Simple MCP server for SuPy settings validation"
+requires-python = ">=3.9"
+dependencies = [
+    "mcp>=1.3.4",
+    "pydantic>=2.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "uvicorn>=0.35.0",  # if using FastAPI variant
+]
+
+[project.scripts]
+supy-settings-server = "server:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["."]

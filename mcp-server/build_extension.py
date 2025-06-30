@@ -35,6 +35,10 @@ def create_desktop_extension():
     print("Copying run_server.py...")
     shutil.copy("run_server.py", build_dir / "run_server.py")
     
+    # Copy check_and_run.py
+    print("Copying check_and_run.py...")
+    shutil.copy("check_and_run.py", build_dir / "check_and_run.py")
+    
     # Copy pyproject.toml
     print("Copying pyproject.toml...")
     shutil.copy("pyproject.toml", build_dir / "pyproject.toml")

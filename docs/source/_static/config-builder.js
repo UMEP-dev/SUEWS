@@ -5,8 +5,11 @@ let ajv = null;
 let importModal = null;
 let validationModal = null;
 
+console.log('config-builder.js loaded');
+
 document.addEventListener('DOMContentLoaded', function () {
     console.log('DOM loaded, initializing application...');
+    console.log('Preview container exists:', !!document.getElementById('preview-container'));
     
     // Clear initial loading message
     const previewContainer = document.getElementById('preview-container');
@@ -141,7 +144,15 @@ function displayDebug(message, containerId = 'general-form-container') {
 
 // Update the loadSchema function
 function loadSchema() {
+    console.log('loadSchema called');
     displayDebug('Loading schema...');
+    
+    // Update preview to show loading state
+    const previewContainer = document.getElementById('preview-container');
+    if (previewContainer) {
+        previewContainer.textContent = '# Loading schema file...';
+    }
+    
     showLoading();
     fetch('suews-config-schema.json')
         .then(response => {

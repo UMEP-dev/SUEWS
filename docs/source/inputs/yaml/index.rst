@@ -36,6 +36,23 @@ Here's a minimal example of the YAML structure:
 
 For a complete working example, please refer to the `sample configuration file <https://github.com/UMEP-dev/SUEWS/blob/master/src/supy/sample_run/sample_config.yml>`_ provided with SuPy.
 
+Validation and Error Handling
+-----------------------------
+
+When loading a YAML configuration file, SUEWS performs comprehensive validation to ensure all required parameters are present and valid. If validation errors occur:
+
+1. **Clear error messages** are displayed in the log, listing all missing or invalid parameters
+2. **An annotated YAML file** is automatically generated to help you fix the issues
+
+The annotated YAML file includes:
+
+- **Location**: ``{config_file}_annotated_{timestamp}.yml`` in the same directory as your config
+- **Error markers**: Missing parameters marked with ``[ERROR] MISSING:``
+- **Help tips**: Suggested fixes marked with ``[TIP] ADD HERE:``
+- **Parameter descriptions**: Each error includes the parameter description and expected type
+
+This feature significantly simplifies the process of creating valid configuration files, especially for new users or when using advanced physics options that require additional parameters.
+
 
 Data Files
 ----------

@@ -2471,11 +2471,7 @@ function generateArrayFields(arraySchema, arrayData, container, path) {
     }
 
     // Special handling for vertical_layers arrays - don't show Add button
-    const isVerticalLayerArray = path.includes('vertical_layers') && 
-        (path.endsWith('height') || path.endsWith('veg_frac') || path.endsWith('veg_scale') || 
-         path.endsWith('building_frac') || path.endsWith('building_scale') || 
-         path.endsWith('roofs') || path.endsWith('walls'));
-    
+    // (isVerticalLayerArray is already declared above)
     if (isVerticalLayerArray) {
         // Hide the Add button for vertical layer arrays
         addButton.style.display = 'none';

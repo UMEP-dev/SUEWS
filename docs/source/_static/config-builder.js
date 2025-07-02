@@ -216,6 +216,15 @@ function initializeEmptyConfig() {
             }
         });
     }
+
+    // Special handling for sites with vertical_layers
+    if (configData.sites && Array.isArray(configData.sites)) {
+        configData.sites.forEach(site => {
+            if (site.vertical_layers) {
+                ensureVerticalLayersSync(site.vertical_layers);
+            }
+        });
+    }
 }
 
 // Convert default array values to FlexibleRefValue format
@@ -600,6 +609,11 @@ function generateObjectFields(objSchema, objData, container, path) {
         return;
     }
 
+    // Special handling for VerticalLayers to ensure arrays are synchronized
+    if (path.includes('vertical_layers') && resolvedSchema.title === 'VerticalLayers') {
+        ensureVerticalLayersSync(objData);
+    }
+
     // Create sections for different property groups
     const sections = {};
     const defaultSection = document.createElement('div');
@@ -626,6 +640,10 @@ function generateObjectFields(objSchema, objData, container, path) {
         if (objData[propKey] === undefined) {
             if (propSchema.type === 'object') {
                 objData[propKey] = createEmptyObject(propSchema);
+                // Special handling for vertical_layers object creation
+                if (propKey === 'vertical_layers' && objData[propKey]) {
+                    ensureVerticalLayersSync(objData[propKey]);
+                }
             } else if (propSchema.type === 'array') {
                 objData[propKey] = [];
             } else {
@@ -847,6 +865,11 @@ function generateValueWithDOIField(propSchema, propData, container, path, propKe
             // Update value
             propData.value = convertedValue;
 
+            // Special handling for nlayer field in vertical_layers
+            if (path.includes('vertical_layers.nlayer')) {
+                synchronizeVerticalLayerArrays(path, convertedValue);
+            }
+
             // Update preview
             updatePreview();
         },
@@ -910,6 +933,179 @@ function convertValueToType(value, type) {
             return Boolean(value);
         default:
             return value;
+    }
+}
+
+// Ensure vertical layers arrays are synchronized with nlayer
+function ensureVerticalLayersSync(verticalLayers) {
+    if (!verticalLayers || !verticalLayers.nlayer) {
+        return;
+    }
+    
+    // Get the actual nlayer value
+    let nlayerValue;
+    if (typeof verticalLayers.nlayer === 'object' && verticalLayers.nlayer.value !== undefined) {
+        nlayerValue = parseInt(verticalLayers.nlayer.value);
+    } else {
+        nlayerValue = parseInt(verticalLayers.nlayer);
+    }
+    
+    if (isNaN(nlayerValue) || nlayerValue < 1) {
+        return;
+    }
+    
+    console.log(`Ensuring vertical layers are synchronized with nlayer=${nlayerValue}`);
+    
+    // Arrays that need to match nlayer length
+    const arraysToSync = ['veg_frac', 'veg_scale', 'building_frac', 'building_scale', 'roofs', 'walls'];
+    
+    // Height array needs to be nlayer + 1
+    if (!verticalLayers.height) {
+        verticalLayers.height = [];
+    }
+    const targetHeightLength = nlayerValue + 1;
+    const currentHeightLength = verticalLayers.height.length;
+    
+    if (currentHeightLength < targetHeightLength) {
+        const lastHeight = verticalLayers.height[currentHeightLength - 1] || 0;
+        for (let i = currentHeightLength; i < targetHeightLength; i++) {
+            verticalLayers.height.push(lastHeight + 10 * (i - currentHeightLength + 1));
+        }
+    } else if (currentHeightLength > targetHeightLength) {
+        verticalLayers.height.length = targetHeightLength;
+    }
+    
+    // Synchronize other arrays
+    arraysToSync.forEach(arrayName => {
+        if (!verticalLayers[arrayName]) {
+            verticalLayers[arrayName] = [];
+        }
+        
+        const currentLength = verticalLayers[arrayName].length;
+        
+        if (currentLength < nlayerValue) {
+            for (let i = currentLength; i < nlayerValue; i++) {
+                let newItem;
+                
+                if (arrayName === 'roofs' || arrayName === 'walls') {
+                    const itemSchemaPath = arrayName === 'roofs' ? 'RoofLayer' : 'WallLayer';
+                    if (schema.$defs && schema.$defs[itemSchemaPath]) {
+                        newItem = createEmptyObject({ $ref: `#/$defs/${itemSchemaPath}` });
+                    } else {
+                        newItem = {};
+                    }
+                } else {
+                    if (arrayName === 'veg_frac' || arrayName === 'building_frac') {
+                        newItem = 0.0;
+                    } else {
+                        newItem = 1.0;
+                    }
+                }
+                
+                verticalLayers[arrayName].push(newItem);
+            }
+        } else if (currentLength > nlayerValue) {
+            verticalLayers[arrayName].length = nlayerValue;
+        }
+    });
+}
+
+// Synchronize vertical layer arrays when nlayer changes
+function synchronizeVerticalLayerArrays(nlayerPath, newNlayer) {
+    console.log(`Synchronizing vertical layer arrays for nlayer change to ${newNlayer}`);
+    
+    // Extract the base path to vertical_layers from the nlayer path
+    const basePath = nlayerPath.replace('.nlayer', '');
+    
+    // Get the vertical_layers object
+    const verticalLayers = getNestedProperty(configData, basePath);
+    if (!verticalLayers) {
+        console.error('Could not find vertical_layers object');
+        return;
+    }
+    
+    // Ensure newNlayer is a valid integer
+    const nlayerValue = parseInt(newNlayer);
+    if (isNaN(nlayerValue) || nlayerValue < 1) {
+        console.error('Invalid nlayer value:', newNlayer);
+        return;
+    }
+    
+    // Arrays that need to match nlayer length
+    const arraysToSync = ['veg_frac', 'veg_scale', 'building_frac', 'building_scale', 'roofs', 'walls'];
+    
+    // Height array needs to be nlayer + 1
+    if (verticalLayers.height) {
+        const currentHeightLength = verticalLayers.height.length;
+        const targetHeightLength = nlayerValue + 1;
+        
+        if (currentHeightLength < targetHeightLength) {
+            // Add new height values
+            const lastHeight = verticalLayers.height[currentHeightLength - 1] || 0;
+            for (let i = currentHeightLength; i < targetHeightLength; i++) {
+                verticalLayers.height.push(lastHeight + 10 * (i - currentHeightLength + 1));
+            }
+        } else if (currentHeightLength > targetHeightLength) {
+            // Remove excess height values
+            verticalLayers.height.length = targetHeightLength;
+        }
+    }
+    
+    // Synchronize other arrays to match nlayer
+    arraysToSync.forEach(arrayName => {
+        if (!verticalLayers[arrayName]) {
+            verticalLayers[arrayName] = [];
+        }
+        
+        const currentLength = verticalLayers[arrayName].length;
+        
+        if (currentLength < nlayerValue) {
+            // Add new items
+            for (let i = currentLength; i < nlayerValue; i++) {
+                let newItem;
+                
+                if (arrayName === 'roofs' || arrayName === 'walls') {
+                    // For roofs and walls, create empty objects based on schema
+                    const itemSchemaPath = arrayName === 'roofs' ? 'RoofLayer' : 'WallLayer';
+                    if (schema.$defs && schema.$defs[itemSchemaPath]) {
+                        newItem = createEmptyObject({ $ref: `#/$defs/${itemSchemaPath}` });
+                    } else {
+                        newItem = {};
+                    }
+                } else {
+                    // For numeric arrays, use appropriate defaults
+                    if (arrayName === 'veg_frac' || arrayName === 'building_frac') {
+                        newItem = 0.0;
+                    } else {
+                        newItem = 1.0;
+                    }
+                }
+                
+                verticalLayers[arrayName].push(newItem);
+            }
+        } else if (currentLength > nlayerValue) {
+            // Remove excess items
+            verticalLayers[arrayName].length = nlayerValue;
+        }
+    });
+    
+    // Regenerate the form to reflect the changes
+    const verticalLayersContainer = document.querySelector(`[data-path="${basePath}"]`);
+    if (verticalLayersContainer) {
+        // Find the parent container and regenerate just the vertical_layers section
+        const parentCard = verticalLayersContainer.closest('.card');
+        if (parentCard) {
+            const cardBody = parentCard.querySelector('.card-body');
+            if (cardBody) {
+                cardBody.innerHTML = '';
+                generateObjectFields(
+                    schema.$defs.VerticalLayers,
+                    verticalLayers,
+                    cardBody,
+                    basePath
+                );
+            }
+        }
     }
 }
 
@@ -1055,6 +1251,15 @@ function importConfig() {
 
             // Update config data
             configData = importedConfig;
+
+            // Ensure vertical layers are synchronized if present
+            if (configData.sites && Array.isArray(configData.sites)) {
+                configData.sites.forEach(site => {
+                    if (site.vertical_layers) {
+                        ensureVerticalLayersSync(site.vertical_layers);
+                    }
+                });
+            }
 
             // Regenerate form
             generateForm();
@@ -1522,6 +1727,11 @@ function addNewSite() {
     // Set default name
     newSite.name = `Site ${configData.sites.length + 1}`;
 
+    // Ensure vertical layers are synchronized if present
+    if (newSite.vertical_layers) {
+        ensureVerticalLayersSync(newSite.vertical_layers);
+    }
+
     // Add to config data
     configData.sites.push(newSite);
 
@@ -1808,6 +2018,11 @@ function generatePrimitiveField(propSchema, propData, container, path, propKey) 
             // Update data
             setNestedProperty(configData, path, convertedValue);
 
+            // Special handling for nlayer field in vertical_layers
+            if (path.includes('vertical_layers.nlayer')) {
+                synchronizeVerticalLayerArrays(path, convertedValue);
+            }
+
             // Update preview
             updatePreview();
         },
@@ -1868,6 +2083,17 @@ function generateArrayFields(arraySchema, arrayData, container, path) {
         const copyButton = document.createElement('button');
         copyButton.className = 'btn btn-sm btn-secondary';
         copyButton.innerHTML = '<i class="fas fa-copy"></i> Copy';
+        
+        // Check if this is a vertical layer array
+        const isVerticalLayerArrayForCopy = path.includes('vertical_layers') && 
+            (path.includes('height') || path.includes('veg_frac') || path.includes('veg_scale') || 
+             path.includes('building_frac') || path.includes('building_scale') || 
+             path.includes('roofs') || path.includes('walls'));
+        
+        if (isVerticalLayerArrayForCopy) {
+            copyButton.style.display = 'none';
+        }
+        
         copyButton.addEventListener('click', () => {
             // Deep copy the item data
             const copiedData = JSON.parse(JSON.stringify(arrayData[itemIndex]));
@@ -1888,23 +2114,37 @@ function generateArrayFields(arraySchema, arrayData, container, path) {
         const removeButton = document.createElement('button');
         removeButton.className = 'btn btn-sm btn-danger';
         removeButton.innerHTML = '<i class="fas fa-times"></i> Remove';
+        
+        // Check if this is a vertical layer array
+        const isVerticalLayerArray = path.includes('vertical_layers') && 
+            (path.includes('height') || path.includes('veg_frac') || path.includes('veg_scale') || 
+             path.includes('building_frac') || path.includes('building_scale') || 
+             path.includes('roofs') || path.includes('walls'));
+        
+        if (isVerticalLayerArray) {
+            removeButton.disabled = true;
+            removeButton.title = 'Array length is controlled by nlayer';
+        }
+        
         removeButton.addEventListener('click', () => {
-            // Remove item from array
-            arrayData.splice(itemIndex, 1);
+            if (!isVerticalLayerArray) {
+                // Remove item from array
+                arrayData.splice(itemIndex, 1);
 
-            // Remove item from DOM
-            itemDiv.remove();
+                // Remove item from DOM
+                itemDiv.remove();
 
-            // Update indices for remaining items
-            const items = itemsContainer.querySelectorAll('.array-item');
-            items.forEach((item, idx) => {
-                item.dataset.index = idx;
-                const isCopied = arrayData[idx] && arrayData[idx].__is_copied;
-                item.querySelector('h5').textContent = `Item ${idx + 1}${isCopied ? ' (copied)' : ''}`;
-            });
+                // Update indices for remaining items
+                const items = itemsContainer.querySelectorAll('.array-item');
+                items.forEach((item, idx) => {
+                    item.dataset.index = idx;
+                    const isCopied = arrayData[idx] && arrayData[idx].__is_copied;
+                    item.querySelector('h5').textContent = `Item ${idx + 1}${isCopied ? ' (copied)' : ''}`;
+                });
 
-            // Update preview
-            updatePreview();
+                // Update preview
+                updatePreview();
+            }
         });
 
         buttonContainer.appendChild(copyButton);
@@ -1967,6 +2207,19 @@ function generateArrayFields(arraySchema, arrayData, container, path) {
     const addButton = document.createElement('button');
     addButton.className = 'btn btn-primary mt-2';
     addButton.innerHTML = '<i class="fas fa-plus"></i> Add Item';
+    
+    // Check if this is a vertical layer array
+    const isVerticalLayerArray = path.includes('vertical_layers') && 
+        (path.includes('height') || path.includes('veg_frac') || path.includes('veg_scale') || 
+         path.includes('building_frac') || path.includes('building_scale') || 
+         path.includes('roofs') || path.includes('walls'));
+    
+    if (isVerticalLayerArray) {
+        addButton.disabled = true;
+        addButton.title = 'Array length is controlled by nlayer';
+        addButton.innerHTML = '<i class="fas fa-lock"></i> Array length controlled by nlayer';
+    }
+    
     addButton.addEventListener('click', addItem);
     arrayContainer.appendChild(addButton);
 
@@ -1997,6 +2250,17 @@ function generateArrayFields(arraySchema, arrayData, container, path) {
             const copyButton = document.createElement('button');
             copyButton.className = 'btn btn-sm btn-secondary';
             copyButton.innerHTML = '<i class="fas fa-copy"></i> Copy';
+            
+            // Check if this is a vertical layer array
+            const isVerticalLayerArrayForCopy = path.includes('vertical_layers') && 
+                (path.includes('height') || path.includes('veg_frac') || path.includes('veg_scale') || 
+                 path.includes('building_frac') || path.includes('building_scale') || 
+                 path.includes('roofs') || path.includes('walls'));
+            
+            if (isVerticalLayerArrayForCopy) {
+                copyButton.style.display = 'none';
+            }
+            
             copyButton.addEventListener('click', () => {
                 // Deep copy the item data
                 const copiedData = JSON.parse(JSON.stringify(itemData));
@@ -2082,23 +2346,37 @@ function generateArrayFields(arraySchema, arrayData, container, path) {
             const removeButton = document.createElement('button');
             removeButton.className = 'btn btn-sm btn-danger';
             removeButton.innerHTML = '<i class="fas fa-times"></i> Remove';
+            
+            // Check if this is a vertical layer array
+            const isVerticalLayerArray = path.includes('vertical_layers') && 
+                (path.includes('height') || path.includes('veg_frac') || path.includes('veg_scale') || 
+                 path.includes('building_frac') || path.includes('building_scale') || 
+                 path.includes('roofs') || path.includes('walls'));
+            
+            if (isVerticalLayerArray) {
+                removeButton.disabled = true;
+                removeButton.title = 'Array length is controlled by nlayer';
+            }
+            
             removeButton.addEventListener('click', () => {
-                // Remove item from array
-                arrayData.splice(itemIndex, 1);
+                if (!isVerticalLayerArray) {
+                    // Remove item from array
+                    arrayData.splice(itemIndex, 1);
 
-                // Remove item from DOM
-                itemDiv.remove();
+                    // Remove item from DOM
+                    itemDiv.remove();
 
-                // Update indices for remaining items
-                const items = itemsContainer.querySelectorAll('.array-item');
-                items.forEach((item, idx) => {
-                    item.dataset.index = idx;
-                    const isCopied = arrayData[idx] && arrayData[idx].__is_copied;
-                    item.querySelector('h5').textContent = `Item ${idx + 1}${isCopied ? ' (copied)' : ''}`;
-                });
+                    // Update indices for remaining items
+                    const items = itemsContainer.querySelectorAll('.array-item');
+                    items.forEach((item, idx) => {
+                        item.dataset.index = idx;
+                        const isCopied = arrayData[idx] && arrayData[idx].__is_copied;
+                        item.querySelector('h5').textContent = `Item ${idx + 1}${isCopied ? ' (copied)' : ''}`;
+                    });
 
-                // Update preview
-                updatePreview();
+                    // Update preview
+                    updatePreview();
+                }
             });
 
             buttonContainer.appendChild(copyButton);
@@ -2139,8 +2417,26 @@ function generateArrayFields(arraySchema, arrayData, container, path) {
         });
     }
 
-    // If array is empty, add one item by default
-    if (!arrayData.length) {
+    // Special handling for vertical_layers arrays - don't show Add button
+    const isVerticalLayerArray = path.includes('vertical_layers') && 
+        (path.endsWith('height') || path.endsWith('veg_frac') || path.endsWith('veg_scale') || 
+         path.endsWith('building_frac') || path.endsWith('building_scale') || 
+         path.endsWith('roofs') || path.endsWith('walls'));
+    
+    if (isVerticalLayerArray) {
+        // Hide the Add button for vertical layer arrays
+        addButton.style.display = 'none';
+        
+        // Also modify remove buttons to be disabled
+        const allRemoveButtons = itemsContainer.querySelectorAll('.btn-danger');
+        allRemoveButtons.forEach(btn => {
+            btn.disabled = true;
+            btn.title = 'Array length is controlled by nlayer';
+        });
+    }
+    
+    // If array is empty and not a vertical layer array, add one item by default
+    if (!arrayData.length && !isVerticalLayerArray) {
         addItem();
     }
 }

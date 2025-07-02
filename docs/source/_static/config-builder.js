@@ -310,22 +310,9 @@ function createEmptyObject(schemaObj) {
             if (resolvedPropSchema.type === 'object') {
                 obj[propKey] = createEmptyObject(resolvedPropSchema);
             } else if (resolvedPropSchema.type === 'array') {
+                // Initialize empty array without default items
+                // Users will add items using the "Add Item" button
                 obj[propKey] = [];
-                // Add one empty item for arrays
-                if (resolvedPropSchema.items) {
-                    let resolvedItems = resolvedPropSchema.items;
-                    if (resolvedPropSchema.items.$ref && resolvedPropSchema.items.$ref.startsWith('#/$defs/')) {
-                        const refPath = resolvedPropSchema.items.$ref.replace('#/$defs/', '');
-                        if (schema.$defs && schema.$defs[refPath]) {
-                            resolvedItems = schema.$defs[refPath];
-                        }
-                    }
-
-                    if (resolvedItems.type === 'object') {
-                        const emptyItem = createEmptyObject(resolvedItems);
-                        obj[propKey].push(emptyItem);
-                    }
-                }
             } else {
                 // Check for FlexibleRefValue (anyOf)
                 if (propSchema.anyOf && propSchema.anyOf.length === 2) {

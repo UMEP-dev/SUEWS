@@ -438,3 +438,41 @@ Common locations to debug benchmark failures:
 ## Development Tasks and Reminders
 
 - **Remember to include new files in meson.build appropriately**
+
+## Python Package Upgrade Strategy
+
+### Priority Build Packages
+When upgrading Python dependencies, follow this priority order:
+
+1. **f90wrap** - CRITICAL: Check pyproject.toml for pinned version
+   - Required for Fortran wrapping
+   - Version is strictly pinned - DO NOT change
+
+2. **pandas** - Primary data handling package
+   - Upgrade to latest stable version
+   - Will determine numpy compatibility
+
+3. **numpy** - Follow pandas requirements
+   - Must also satisfy build requirements in pyproject.toml
+   - Choose version compatible with both pandas and scipy
+
+4. **scipy** - Scientific computing
+   - Follow numpy compatibility
+
+### Upgrade Process
+```bash
+# 1. Check current versions and requirements
+pip list | grep -E "f90wrap|pandas|numpy|scipy"
+grep -E "f90wrap|numpy" pyproject.toml  # Check build requirements
+
+# 2. Upgrade pandas first (it will suggest compatible numpy)
+pip install --upgrade pandas
+
+# 3. Adjust numpy if needed for scipy compatibility
+# 4. Upgrade scipy to match numpy
+
+# 5. Always run tests after upgrades
+make test
+```
+
+**Note**: Always check pyproject.toml for current version constraints before upgrading.

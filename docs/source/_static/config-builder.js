@@ -2175,8 +2175,7 @@ function generateArrayFields(arraySchema, arrayData, container, path) {
              path.includes('roofs') || path.includes('walls'));
         
         if (isVerticalLayerArray) {
-            removeButton.disabled = true;
-            removeButton.title = 'Array length is controlled by nlayer';
+            removeButton.style.display = 'none';
         }
         
         removeButton.addEventListener('click', () => {
@@ -2407,8 +2406,7 @@ function generateArrayFields(arraySchema, arrayData, container, path) {
                  path.includes('roofs') || path.includes('walls'));
             
             if (isVerticalLayerArray) {
-                removeButton.disabled = true;
-                removeButton.title = 'Array length is controlled by nlayer';
+                removeButton.style.display = 'none';
             }
             
             removeButton.addEventListener('click', () => {
@@ -2476,11 +2474,10 @@ function generateArrayFields(arraySchema, arrayData, container, path) {
         // Hide the Add button for vertical layer arrays
         addButton.style.display = 'none';
         
-        // Also modify remove buttons to be disabled
+        // Also hide all remove buttons for vertical layer arrays
         const allRemoveButtons = itemsContainer.querySelectorAll('.btn-danger');
         allRemoveButtons.forEach(btn => {
-            btn.disabled = true;
-            btn.title = 'Array length is controlled by nlayer';
+            btn.style.display = 'none';
         });
     }
     

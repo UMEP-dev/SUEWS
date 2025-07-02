@@ -7,6 +7,12 @@ let validationModal = null;
 
 document.addEventListener('DOMContentLoaded', function () {
     console.log('DOM loaded, initializing application...');
+    
+    // Clear initial loading message
+    const previewContainer = document.getElementById('preview-container');
+    if (previewContainer) {
+        previewContainer.textContent = '# Loading schema...';
+    }
 
     // Initialize Bootstrap modals if they exist
     const importModalEl = document.getElementById('importModal');
@@ -45,8 +51,10 @@ document.addEventListener('DOMContentLoaded', function () {
     // Set up event listeners for buttons if they exist
     setupEventListeners();
 
-    // Load the schema
-    loadSchema();
+    // Load the schema with a small delay to ensure DOM is ready
+    setTimeout(() => {
+        loadSchema();
+    }, 100);
 
     // Manually activate the first tab
     const firstTab = document.querySelector('.nav-tabs .nav-link');
@@ -164,24 +172,43 @@ function loadSchema() {
             console.error('Error loading schema:', error);
             displayDebug(`Error loading schema: ${error.message}`);
             hideLoading();
+            
+            // Update preview container with error message
+            const previewContainer = document.getElementById('preview-container');
+            if (previewContainer) {
+                previewContainer.textContent = `# Error loading configuration schema\n# ${error.message}\n\n# Please check:\n# 1. The file 'suews-config-schema.json' exists\n# 2. You are accessing this page via a web server (not file://)`;
+            }
+            
+            // Show error in form container
+            const generalContainer = document.getElementById('general-form-container');
+            if (generalContainer) {
+                generalContainer.innerHTML = `
+                    <div class="alert alert-danger">
+                        <h5>Failed to load configuration schema</h5>
+                        <p>${error.message}</p>
+                        <p>Make sure you're accessing this page through a web server and that the schema file exists.</p>
+                    </div>
+                `;
+            }
         });
 }
 
 // Initialize empty config with required properties
 function initializeEmptyConfig() {
-    configData = {
-        name: "New SUEWS Configuration",
-        description: "Description of this configuration"
-    };
+    try {
+        configData = {
+            name: "New SUEWS Configuration",
+            description: "Description of this configuration"
+        };
 
-    // Add required properties from schema
-    if (schema && schema.properties) {
-        Object.keys(schema.properties).forEach(key => {
-            if (key !== 'name' && key !== 'description') {
-                const propSchema = schema.properties[key];
-                
-                // Check if it's an array type (direct or in anyOf)
-                let isArray = false;
+        // Add required properties from schema
+        if (schema && schema.properties) {
+            Object.keys(schema.properties).forEach(key => {
+                if (key !== 'name' && key !== 'description') {
+                    const propSchema = schema.properties[key];
+                    
+                    // Check if it's an array type (direct or in anyOf)
+                    let isArray = false;
                 let arraySchema = null;
                 
                 if (propSchema.type === 'array') {
@@ -224,6 +251,15 @@ function initializeEmptyConfig() {
                 ensureVerticalLayersSync(site.vertical_layers);
             }
         });
+    }
+    } catch (error) {
+        console.error('Error in initializeEmptyConfig:', error);
+        displayDebug(`Error initializing config: ${error.message}`);
+        // Set minimal config to prevent further errors
+        configData = {
+            name: "New SUEWS Configuration",
+            description: "Error during initialization"
+        };
     }
 }
 
@@ -1124,6 +1160,12 @@ function updatePreview() {
             // Check if jsyaml is defined
             if (typeof jsyaml === 'undefined') {
                 previewContainer.textContent = 'YAML library not loaded. Cannot generate preview.';
+                return;
+            }
+
+            // Check if configData is properly initialized
+            if (!configData || Object.keys(configData).length === 0) {
+                previewContainer.textContent = '# Configuration is being initialized...';
                 return;
             }
 

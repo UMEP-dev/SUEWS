@@ -6,7 +6,11 @@ import warnings
 from .type import RefValue, Reference, FlexibleRefValue
 from .profile import HourlyProfile, WeeklyProfile, DayProfile
 from .type import init_df_state
-from .validation_utils import warn_missing_params, check_missing_params
+from .validation_utils import (
+    warn_missing_params, 
+    check_missing_params,
+    validate_only_when_complete
+)
 
 
 class IrrigationParams(
@@ -429,26 +433,6 @@ class CO2Params(BaseModel):  # TODO: May need to add the RefValue to the profile
     )
 
     ref: Optional[Reference] = None
-
-    @model_validator(mode="after")
-    def check_missing_co2_params(self) -> "CO2Params":
-        """Check for missing critical CO2 parameters and issue warnings."""
-        # Check critical CO2 emission parameters
-        critical_params = {
-            "co2pointsource": "CO2 point source emission factor",
-            "ef_umolco2perj": "CO2 emission factor per unit of fuel energy",
-            "frfossilfuel_heat": "Fraction of heating energy from fossil fuels",
-            "frfossilfuel_nonheat": "Fraction of non-heating energy from fossil fuels",
-        }
-
-        missing_params = check_missing_params(
-            critical_params, self, "CO2 emission", "model accuracy"
-        )
-        warn_missing_params(
-            missing_params, "CO2 emission", "model accuracy", stacklevel=2
-        )
-
-        return self
 
     # DayProfile coulmns need to be fixed
     def to_df_state(self, grid_id: int) -> pd.DataFrame:

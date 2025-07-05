@@ -55,6 +55,93 @@ body {
     opacity: 1;
 }
 
+/* Radio Button Group Styling */
+.radio-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+}
+
+.radio-group .form-check {
+    margin-bottom: 0;
+    padding: 0.5rem 0.75rem;
+    padding-left: 2.25rem;
+    border-radius: var(--radius-sm);
+    transition: background-color 0.2s ease;
+}
+
+.radio-group .form-check:hover {
+    background-color: var(--secondary-color);
+}
+
+.radio-group .form-check-input {
+    margin-top: 0.125rem;
+    margin-left: -1.5rem;
+}
+
+.radio-group .form-check-input[type="radio"] {
+    border-radius: 50%;
+}
+
+.radio-group .form-check-label {
+    font-weight: normal;
+    color: var(--text-primary);
+    cursor: pointer;
+    user-select: none;
+    margin-left: 0.25rem;
+}
+
+/* Override Bootstrap switch styling for radio buttons */
+.form-check-input[type="radio"] {
+    /* Force standard radio button appearance */
+    -webkit-appearance: radio !important;
+    -moz-appearance: radio !important;
+    appearance: radio !important;
+    width: 1rem !important;
+    height: 1rem !important;
+    margin-top: 0.25rem !important;
+    vertical-align: top !important;
+    background-color: transparent !important;
+    border: none !important;
+    background-image: none !important;
+}
+
+/* Fallback styling if appearance doesn't work */
+@supports not (appearance: radio) {
+    .form-check-input[type="radio"] {
+        -webkit-appearance: none !important;
+        -moz-appearance: none !important;
+        appearance: none !important;
+        width: 1rem !important;
+        height: 1rem !important;
+        margin-top: 0.25rem !important;
+        vertical-align: top !important;
+        background-color: #fff !important;
+        background-repeat: no-repeat !important;
+        background-position: center !important;
+        background-size: contain !important;
+        border: 2px solid #6c757d !important;
+        border-radius: 50% !important;
+    }
+
+    .form-check-input[type="radio"]:checked {
+        background-color: #fff !important;
+        border-color: var(--primary-color) !important;
+        background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='-4 -4 8 8'%3e%3ccircle r='3' fill='%234361ee'/%3e%3c/svg%3e") !important;
+    }
+
+    .form-check-input[type="radio"]:focus {
+        border-color: #86b7fe !important;
+        outline: 0 !important;
+        box-shadow: 0 0 0 0.25rem rgba(67, 97, 238, 0.25) !important;
+    }
+
+    .form-check-input[type="radio"]:hover {
+        border-color: var(--primary-color) !important;
+    }
+}
+
 /* Form Controls */
 .form-control, .form-select {
     border: 1px solid var(--border-color);
@@ -580,4 +667,47 @@ body {
         border: 1px solid #000 !important;
         background: white !important;
     }
+}
+/* Inline Array Styles for Vertical Layers */
+.inline-array-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 10px;
+    padding: 12px;
+    background-color: #f8f9fa;
+    border-radius: 8px;
+    border: 1px solid #e9ecef;
+}
+
+.inline-array-item {
+    flex: 1;
+    min-width: 80px;
+    max-width: 150px;
+}
+
+.inline-array-item label {
+    font-size: 0.8rem;
+    color: #6c757d;
+    margin-bottom: 2px;
+    font-weight: 500;
+}
+
+.inline-array-item input {
+    width: 100%;
+    padding: 6px 10px;
+    font-size: 0.875rem;
+    border: 1px solid #ced4da;
+    border-radius: 4px;
+    transition: border-color 0.15s ease-in-out;
+}
+
+.inline-array-item input:focus {
+    border-color: #80bdff;
+    outline: 0;
+    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+}
+
+.inline-array-item input:hover {
+    border-color: #adb5bd;
 }

@@ -188,3 +188,51 @@ Please check the following:
 A general rule of thumb is to use the `load_SampleData` to generate the initial model states from the sample data shipped by SuPy.
 
 
+YAML Configuration Validation Errors
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+When your YAML configuration has missing or invalid parameters, SUEWS will:
+
+1. Display clear error messages in the log indicating which parameters are missing
+2. Generate an annotated YAML file with helpful guidance
+
+The annotated YAML file features:
+   
+   - File location: ``{config_file}_annotated_{timestamp}.yml``
+   - Missing parameters are marked with ``[ERROR] MISSING:``
+   - Helpful tips are marked with ``[TIP] ADD HERE:``
+   - Each error includes the expected type and description
+
+Example of annotated output::
+
+    sites:
+      - name: "London_KCL"
+        properties:
+          lat: {value: 51.5115}
+          lng: {value: -0.1160}
+          # [ERROR] MISSING: alt (Site altitude above sea level [m])
+          # [TIP] ADD HERE:
+          alt: {value: 10.0}  # Example: 10.0 meters above sea level
+          
+          land_cover:
+            bldgs:
+              sfr: {value: 0.45}
+              # [ERROR] MISSING: bldgh (Mean building height [m])
+              # [TIP] ADD HERE:
+              bldgh: {value: 20.0}  # Example: 20.0 meters
+
+To fix validation errors:
+
+1. Look for the generated annotated YAML file in the same directory as your config
+2. Search for ``[ERROR]`` markers to find missing parameters
+3. Add the missing parameters with appropriate values
+4. Re-run your simulation with the corrected configuration
+
+Common validation errors:
+
+- Missing building height (``bldgh``) when buildings are present
+- Missing thermal properties when using advanced storage heat methods
+- Missing surface fractions that don't sum to 1.0
+- Missing vegetation parameters when vegetation surfaces are present
+
+

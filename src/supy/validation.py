@@ -180,8 +180,8 @@ def validate_storage_heat_parameters(
     """Validate storage heat method parameters based on method type."""
     errors = []
 
-    storage_method_val = extract_numeric_value(physics.get("storageheatmethod", 0))
-    ohmincqf_val = extract_numeric_value(physics.get("ohmincqf", 0))
+    storage_method_val = _extract_value(physics.get("storageheatmethod", 0))
+    ohmincqf_val = _extract_value(physics.get("ohmincqf", 0))
 
     if method_type == "ESTM":
         # ESTM methods (4, 5) - advanced parameter validation would go here
@@ -211,7 +211,7 @@ def validate_netradiation_parameters(
     """Validate net radiation method parameters."""
     errors = []
 
-    netrad_val = extract_numeric_value(physics.get("netradiationmethod", 0))
+    netrad_val = _extract_value(physics.get("netradiationmethod", 0))
 
     if method_type == "SPARTACUS":
         # SPARTACUS methods (≥1000) - validate SPARTACUS-specific parameters
@@ -242,7 +242,7 @@ def validate_emissions_parameters(
     """Validate emissions method parameters."""
     errors = []
 
-    emissions_val = extract_numeric_value(physics.get("emissionsmethod", 0))
+    emissions_val = _extract_value(physics.get("emissionsmethod", 0))
 
     if method_type == "ADVANCED":
         # Advanced emissions methods (≥4)
@@ -258,7 +258,7 @@ def validate_snow_parameters(physics: Dict[str, Any], sites: List[Dict]) -> List
     """Validate snow calculation parameters."""
     errors = []
 
-    snow_use = extract_numeric_value(physics.get("snowuse", 0))
+    snow_use = _extract_value(physics.get("snowuse", 0))
 
     if snow_use == 1:
         # Snow calculations are enabled - validate snow-related parameters
@@ -316,7 +316,7 @@ def validate_suews_config_conditional(
     validated_methods = set()
     skipped_methods = set()
 
-    sites = config_data.get("site", [])
+    sites = config_data.get("sites", [])
     physics = config_data.get("model", {}).get("physics", {})
 
     # Diagnostic method validation
@@ -396,7 +396,7 @@ def validate_suews_config_conditional(
         skipped_methods.add("EMISSIONS_ADVANCED")
 
     # Snow method validation
-    snow_enabled = extract_numeric_value(physics.get("snowuse", 0)) == 1
+    snow_enabled = _extract_value(physics.get("snowuse", 0)) == 1
     if snow_enabled:
         if verbose:
             print("Snow calculations: validating snow parameters")
@@ -420,7 +420,7 @@ def validate_suews_config_conditional(
 
     if verbose:
         print(
-            f"\n{'❌ FAILED' if errors else '✅ PASSED'}: {len(errors)} errors, {len(skipped)} skipped"
+            f"\n{'[FAILED] FAILED' if errors else '[PASSED] PASSED'}: {len(errors)} errors, {len(skipped)} skipped"
         )
         if errors:
             for error in errors:

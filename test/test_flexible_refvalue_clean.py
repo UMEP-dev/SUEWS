@@ -50,7 +50,7 @@ def test_flexible_refvalue_with_cleaning():
         print(f"Current working directory: {Path.cwd()}")
         print(f"Test directory: {test_dir}")
         print(f"Repository root: {repo_root}")
-        return False
+        assert False, f"Sample config not found at: {sample_config_path}"
 
     print(f"\n1. Loading original sample config from: {sample_config_path}")
     with open(sample_config_path, "r") as f:
@@ -94,7 +94,7 @@ def test_flexible_refvalue_with_cleaning():
         print("      ✓ Original config loaded successfully")
     except Exception as e:
         print(f"      ✗ Failed: {e}")
-        return False
+        assert False, f"Failed to load original config: {e}"
 
     print("\n   b) Loading cleaned config without value keys...")
     try:
@@ -102,7 +102,7 @@ def test_flexible_refvalue_with_cleaning():
         print("      ✓ Cleaned config loaded successfully")
     except Exception as e:
         print(f"      ✗ Failed: {e}")
-        return False
+        assert False, f"Failed to load original config: {e}"
 
     # Compare key values
     print("\n4. Comparing values between original and cleaned configs:")
@@ -178,14 +178,3 @@ def count_value_keys(data, count=0):
         for item in data:
             count = count_value_keys(item, count)
     return count
-
-
-if __name__ == "__main__":
-    success = test_flexible_refvalue_with_cleaning()
-    if success:
-        print("\n✓ All tests passed! FlexibleRefValue works correctly.")
-        print("\nConclusion: Users can now omit 'value:' keys in their YAML configs,")
-        print("making them much cleaner and more intuitive to write.")
-    else:
-        print("\n✗ Some tests failed")
-        sys.exit(1)

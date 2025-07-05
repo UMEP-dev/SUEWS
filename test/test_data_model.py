@@ -169,6 +169,52 @@ class TestSUEWSConfig(unittest.TestCase):
         self.assertEqual(len(config_reconst.sites), 3)
         self.assertEqual([site.gridiv for site in config_reconst.sites], [0, 1, 2])
 
+    def test_wrap_numeric(self):
+        """Test that wrap creates a RefValue from a plain numeric."""
+        rv = RefValue.wrap(5.0)
+        self.assertIsInstance(rv, RefValue)
+        self.assertEqual(rv.value, 5.0)
+
+    def test_wrap_existing_refvalue(self):
+        """Test that wrap leaves an existing RefValue unchanged."""
+        original = RefValue(10.0)
+        wrapped = RefValue.wrap(original)
+        self.assertIs(wrapped, original)
+
+    def test_equality_between_refvalues(self):
+        """Test equality and inequality between RefValues."""
+        a = RefValue(5.0)
+        b = RefValue(5.0)
+        c = RefValue(10.0)
+        self.assertEqual(a, b)
+        self.assertNotEqual(a, c)
+
+    def test_equality_with_plain_value(self):
+        """Test equality comparison between RefValue and plain value."""
+        a = RefValue(5.0)
+        self.assertEqual(a, 5.0)
+        self.assertNotEqual(a, 10.0)
+
+    def test_comparison_with_none_returns_true(self):
+        """Test that comparison with None always returns True."""
+        a = RefValue(None)
+        b = RefValue(5.0)
+
+        # Less than
+        self.assertTrue(a < b)
+        self.assertTrue(b < a)
+
+        # Less than or equal
+        self.assertTrue(a <= b)
+        self.assertTrue(b <= a)
+
+        # Greater than
+        self.assertTrue(a > b)
+        self.assertTrue(b > a)
+
+        # Greater than or equal
+        self.assertTrue(a >= b)
+        self.assertTrue(b >= a)
 
 if __name__ == "__main__":
     unittest.main()

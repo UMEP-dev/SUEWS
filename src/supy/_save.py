@@ -95,7 +95,9 @@ def gen_df_year(df_save, year, grid, group, output_level):
         df_grid_group = df_grid_group[dict_level_var[output_level]]
     # select data from year of interest and shift back to align with SUEWS convention
     df_year = df_grid_group.loc[f"{year}"]
-    df_year.index = df_year.index.shift(1)
+    # Skip timestamp shift for DailyState as it contains end-of-day values
+    if group != "DailyState":
+        df_year.index = df_year.index.shift(1)
     # remove `nan`s
     df_year = df_year.dropna(how="all", axis=0)
     return df_year
@@ -242,34 +244,57 @@ def save_df_output(
     if not save_snow and 'snow' in df_save.columns.get_level_values('group'):
         df_save = df_save.drop("snow", axis=1, level='group')
 
-    # resample `df_output` at `freq_save`
-    df_rsmp = resample_output(df_save, freq_save)
+    # Extract DailyState before resampling (it contains daily variables only written at last timestep of each day)
+    df_dailystate = None
+    if 'DailyState' in df_save.columns.get_level_values('group'):
+        df_dailystate = df_save.loc[:, ["DailyState"]].copy()
+        # Remove all NaN rows from DailyState (keep only the daily values)
+        df_dailystate = df_dailystate.dropna(how='all')
+        # Drop DailyState from df_save before resampling
+        df_save_no_daily = df_save.drop("DailyState", axis=1, level='group')
+    else:
+        df_save_no_daily = df_save
 
-    # 'DailyState' group will be dropped in `resample_output` as resampling is not needed
-    df_rsmp = df_rsmp.drop(columns="DailyState", level="group")
+    # resample `df_output` at `freq_save` (excluding DailyState)
+    df_rsmp = resample_output(df_save_no_daily, freq_save)
 
     # dataframes to save
-    list_df_save = (
+    if save_tstep:
         # both original and resampled output dataframes
-        [df_save, df_rsmp]
-        if save_tstep
-        # only those resampled ones
-        else [df_save.loc[:, ["DailyState"]], df_rsmp]
-    )
+        list_df_save = [df_save, df_rsmp]
+    else:
+        # combine resampled data with DailyState (if it exists)
+        list_df_save = []
+        if df_dailystate is not None:
+            list_df_save.append(df_dailystate)
+        list_df_save.append(df_rsmp)
 
     # save output at the resampling frequency
     for i, df_save in enumerate(list_df_save):
-        # shift temporal index to make timestampes indicating the start of periods
-        idx_dt = df_save.index.get_level_values("datetime").drop_duplicates()
+        # Check if this is DailyState-only data
+        is_dailystate_only = (len(df_save.columns) > 0 and 
+                             all(df_save.columns.get_level_values('group') == 'DailyState'))
+        
+        if not is_dailystate_only:
+            # For regular output data, shift temporal index to make timestamps indicating the start of periods
+            idx_dt = df_save.index.get_level_values("datetime").drop_duplicates()
 
-        # cast freq to index if not associated
-        if idx_dt.freq is None:
-            ser_idx = idx_dt.to_series()
-            freq = ser_idx.diff().iloc[-1]
-            idx_dt = ser_idx.asfreq(freq).index
+            # cast freq to index if not associated
+            if idx_dt.freq is None:
+                ser_idx = idx_dt.to_series()
+                if len(ser_idx) > 1:
+                    freq = ser_idx.diff().iloc[-1]
+                    idx_dt = ser_idx.asfreq(freq).index
+                else:
+                    idx_dt = ser_idx.index
 
-        idx_dt = idx_dt.shift(-1)
-        df_save.index = df_save.index.set_levels(idx_dt, level="datetime")
+            # Shift timestamps for non-DailyState data
+            if len(idx_dt) > 1:
+                idx_dt = idx_dt.shift(-1)
+            
+            # Update the index
+            df_save.index = df_save.index.set_levels(idx_dt, level="datetime")
+        # For DailyState data, we don't need to shift the index as it already represents daily values
         # tidy up columns so only necessary groups are included in the output
         df_save.columns = df_save.columns.remove_unused_levels()
         # import os

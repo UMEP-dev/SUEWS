@@ -13,9 +13,9 @@ model:
       groups:           # Select which output groups to save
         - SUEWS         # Main SUEWS output
         - DailyState    # Daily state variables
-        - ESTM          # Surface temperature output
         - RSL           # Roughness sublayer output
-        # Omitted groups: snow, BL, debug
+        - debug         # Debug output
+        # Omitted groups: snow, BL, ESTM
       
   physics:
     netradiationmethod: 3

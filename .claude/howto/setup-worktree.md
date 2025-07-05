@@ -20,7 +20,7 @@ cd worktrees/$FEATURE
 uv venv
 source .venv/bin/activate
 
-# Install core requirements
+# Install core requirements (matches env.yml)
 uv pip install pandas scipy matplotlib-base matplotlib-inline scikit-learn scikit-image \
     geopandas rtree openpyxl pytables psutil salem==0.3.8 floweaver==2.0.0 \
     f90nml click pydantic ipykernel jupyter_client jupyter_core \
@@ -132,7 +132,7 @@ chmod +x activate.sh
 
 ## Core Requirements
 
-These are the essential Python packages for SUEWS development:
+These are the essential Python packages for SUEWS development. The complete package list is maintained in `env.yml` at the repository root. This section provides the pip-installable versions for use with uv or standard Python environments:
 
 ```
 # Build tools
@@ -140,6 +140,7 @@ pip>=22.0
 setuptools>=65.0
 wheel
 meson-python>=0.17.0
+doxygen  # For documentation generation
 
 # Core data science
 pandas
@@ -176,6 +177,49 @@ ruff
 # Fortran wrapper and atmospheric science
 f90wrap==0.2.16
 atmosp
+
+# Documentation system (optional for worktree development)
+# Only install if working on documentation:
+# sphinx>=4.0,<8.2
+# sphinx-autobuild
+# pybtex
+# nbsphinx
+# recommonmark
+# docutils>=0.16,<0.17
+# jinja2>=3.0,<3.1
+# urlpath
+# sphinxcontrib_programoutput
+# sphinx-jsonschema
+# sphinxcontrib.bibtex~=2.4
+# sphinx_comments
+# sphinx-rtd-theme>=0.5
+# sphinx-book-theme
+# sphinx-panels
+# sphinxcontrib.email
+# sphinx-last-updated-by-git
+# sphinx-click
+# jsonschema2rst
+```
+
+### Full Package Installation Commands
+
+For a complete development environment with uv:
+
+**Note:** Always check `env.yml` in the repository root for the most up-to-date package versions and any new dependencies.
+
+```bash
+# Core packages (always needed)
+uv pip install pandas scipy matplotlib-base matplotlib-inline scikit-learn scikit-image \
+    geopandas rtree openpyxl pytables psutil salem==0.3.8 floweaver==2.0.0 \
+    f90nml click pydantic ipykernel jupyter_client jupyter_core \
+    pytest pytest-cov ruff f90wrap==0.2.16 atmosp meson-python>=0.17.0
+
+# Documentation packages (optional - only if working on docs)
+uv pip install "sphinx>=4.0,<8.2" sphinx-autobuild pybtex nbsphinx recommonmark \
+    "docutils>=0.16,<0.17" "jinja2>=3.0,<3.1" urlpath sphinxcontrib_programoutput \
+    sphinx-jsonschema "sphinxcontrib.bibtex~=2.4" sphinx_comments \
+    "sphinx-rtd-theme>=0.5" sphinx-book-theme sphinx-panels sphinxcontrib.email \
+    sphinx-last-updated-by-git sphinx-click jsonschema2rst
 ```
 
 ## Tips

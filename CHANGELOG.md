@@ -5,6 +5,20 @@
 <!-- [doc]: Documentation updates -->
 <!-- [change]: Changes exposed to users -->
 
+- 02 Jul 2025:
+  - [feature] Added automatic annotated YAML generation for parameter validation errors
+    - Generates helpful annotated YAML files when configuration validation fails
+    - Marks missing parameters with [ERROR] MISSING: and provides [TIP] ADD HERE: suggestions
+    - Includes parameter descriptions and expected types for each missing field
+    - Significantly improves user experience when creating configuration files
+  - [change] Replaced emoji markers with text markers in annotated YAML files
+    - Changed from emoji (🔴, 💡) to text markers ([ERROR], [TIP]) for Windows compatibility
+    - Ensures consistent display across all platforms without Unicode encoding issues
+  - [bugfix] Fixed parameter validation false positives and improved validation messages (#448)
+    - Resolved spurious warnings during normal operations
+    - Made validation messages clearer and more actionable
+    - Fixed platform-specific test failures on Windows, Linux, and macOS
+
 - 28 Jun 2025:
   - [feature] Streamlined worktree workflow for Claude Code development
     - Created automated scripts for worktree management: worktree-setup.sh and worktree-cleanup.sh

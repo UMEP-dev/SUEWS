@@ -1,7 +1,10 @@
 import pytest
+import copy
+import logging
+from supy._env import logger_supy
 from copy import deepcopy
 from datetime import datetime
-from supy.data_model.core import (
+from supy.data_model.precheck import (
     precheck_model_physics_params,
     precheck_start_end_date,
     precheck_site_season_adjustments,
@@ -14,6 +17,7 @@ from supy.data_model.core import (
     collect_yaml_differences,
     precheck_update_surface_temperature, 
     get_monthly_avg_temp,
+    precheck_warn_zero_sfr_params,
     SeasonCheck,
 )
 

@@ -36,6 +36,23 @@ Here's a minimal example of the YAML structure:
 
 For a complete working example, please refer to the `sample configuration file <https://github.com/UMEP-dev/SUEWS/blob/master/src/supy/sample_run/sample_config.yml>`_ provided with SuPy.
 
+Validation and Error Handling
+-----------------------------
+
+When loading a YAML configuration file, SUEWS performs comprehensive validation to ensure all required parameters are present and valid. If validation errors occur:
+
+1. **Clear error messages** are displayed in the log, listing all missing or invalid parameters
+2. **An annotated YAML file** is automatically generated to help you fix the issues
+
+The annotated YAML file includes:
+
+- **Location**: ``{config_file}_annotated_{timestamp}.yml`` in the same directory as your config
+- **Error markers**: Missing parameters marked with ``[ERROR] MISSING:``
+- **Help tips**: Suggested fixes marked with ``[TIP] ADD HERE:``
+- **Parameter descriptions**: Each error includes the parameter description and expected type
+
+This feature significantly simplifies the process of creating valid configuration files, especially for new users or when using advanced physics options that require additional parameters.
+
 
 Data Files
 ----------
@@ -74,12 +91,22 @@ In addition to the YAML configuration file, SUEWS works with input and output da
   The ``output_file`` parameter now supports advanced configuration:
   
   1. **Output format**: Choose between 'txt' (traditional text files) or 'parquet' (efficient columnar format)
-  2. **Output frequency**: Specify custom output frequency (must be multiple of timestep)
+  2. **Output frequency**: Specify custom output frequency in seconds
+     - Single value: e.g., ``freq: 3600`` for hourly output
+     - Must be a multiple of the model timestep
   3. **Output groups**: Select which groups to save (txt format only)
+  
+  .. note::
+     **Backward Compatibility**: When using a simple string value for ``output_file`` (e.g., ``output_file: "output.txt"``), 
+     SUEWS will use default settings: txt format, hourly output (3600s), and save only the SUEWS and DailyState groups. 
+     This ensures compatibility with existing configuration files.
   
   Example configurations:
   
   .. code-block:: yaml
+  
+     # Simple backward-compatible configuration (saves only SUEWS and DailyState)
+     output_file: "output.txt"
   
      # Parquet output with hourly data
      output_file:
@@ -90,13 +117,45 @@ In addition to the YAML configuration file, SUEWS works with input and output da
      output_file:
        format: txt
        freq: 1800
-       groups: ["SUEWS", "DailyState", "ESTM"]
+       groups: ["SUEWS", "DailyState", "debug"]
+
+  **Output File Naming Convention**:
+  
+  - **Text format**: 
+    
+    - Regular groups: ``{site_name}_{year}_{group}_{freq_min}.txt``
+      
+      - ``site_name``: Name from site configuration  
+      - ``year``: Year of simulation
+      - ``group``: Output group name (SUEWS, RSL, BL, debug, etc.)
+      - ``freq_min``: Output frequency in minutes
+      - Example: ``London_KCL_2020_SUEWS_60.txt``
+    
+    - DailyState: ``{site_name}_{year}_DailyState.txt``
+      
+      - No frequency suffix as it always contains daily data
+      - Example: ``London_KCL_2020_DailyState.txt``
+  
+  - **Parquet format**: 
+    
+    - Output data: ``{site_name}_SUEWS_output.parquet``
+      
+      - All groups and frequencies saved in a single file
+      - Contains all years of simulation data
+      - Example: ``London_KCL_SUEWS_output.parquet``
+    
+    - Final state: ``{site_name}_SUEWS_state_final.parquet``
+      
+      - Final model state for restart runs
+      - Example: ``London_KCL_SUEWS_state_final.parquet``
+    
+    Note: Parquet format does not split by year - all simulation data is in one file
 
 For detailed information about:
 
 - **Input data format and variables**: see :ref:`met_input`
 - **Output file formats and variables**: see :ref:`output_files`
-- **Output configuration options**: see :ref:`outputconfig`
+- **Output configuration options**: see the `Output Data`_ section above
 - **Parquet output format**: see :ref:`parquet_note`
 
 Configuration Builder (Experimental)
@@ -115,11 +174,13 @@ Configuration Builder (Experimental)
    Features:
 
    - Interactive forms for parameter input
-   - Basic validation for parameter values
-   - YAML file export functionality
-   - Integrated parameter documentation
+   - Real-time YAML preview
+   - Parameter search functionality
+   - Import/Export capabilities
+   - Automatic array synchronisation
+   - Built-in validation
 
-   **Alternative**: You can also create YAML files manually using the schema documentation below or by adapting the sample configuration files provided with SuPy.
+   **Alternative**: You can also create YAML files manually using the schema documentation below or by adapting the `sample configuration files <https://github.com/UMEP-dev/SUEWS/blob/master/src/supy/sample_run/sample_config.yml>`_ provided with SuPy.
 
 Data Model Schema
 -----------------

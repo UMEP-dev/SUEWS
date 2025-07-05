@@ -123,11 +123,13 @@ See `.claude/howto/setup-worktree.md` for the complete commands. Quick example:
 # Ultra-fast setup with uv
 git worktree add worktrees/feature-name feature/feature-name
 cd worktrees/feature-name
-uv venv && source .venv/bin/activate
+uv venv && source .venv/bin/activate  # ALWAYS create venv for each worktree!
 uv pip install pandas scipy matplotlib # ... (see guide)
 make dev
 uv run make test  # No activation needed!
 ```
+
+**⚠️ REMINDER**: Always use `uv venv` when starting work in a worktree! Never use the base environment.
 
 #### Why Separate Environments Are Required
 
@@ -139,8 +141,13 @@ uv run make test  # No activation needed!
 #### Testing Requirements
 - **After each task**: Run `make test`
 - **Before commits**: Run full test suite
-- **For Fortran changes**: `make clean && make dev && make test`
+- **For Fortran changes**: `make dev && make test`
 - **Quick tests**: `pytest test/test_supy.py -v`
+
+#### When to Rebuild
+- **Not needed**: If supy is already installed and you're only changing Python code
+- **make dev**: After Fortran changes, when switching branches, or first time setup
+- **make clean && make dev**: Only when serious issues occur (build errors, import failures, unexpected test failures)
 
 See:
 - `.claude/howto/setup-worktree.md` for complete setup workflows
@@ -218,17 +225,35 @@ When working in a git worktree or on a specific feature branch, check for branch
    cd worktrees/{feature-name}
    git branch --show-current  # Verify branch
    cat ../../.claude/plans/doing/feature-{branch-name}.md  # Read plan
-   make dev  # Ensure build is ready
+   
+   # IMPORTANT: Always use uv venv in worktrees!
+   source .venv/bin/activate  # Activate the worktree's venv
+   # Or use uv run commands without activation
+   
+   # Check if supy is already installed locally
+   if python -c "import supy" 2>/dev/null; then
+       echo "✓ supy already installed, skipping rebuild"
+   else
+       make dev  # Initial build
+   fi
    ```
 
 2. **During Development**
    - After Python changes: `make test`
-   - After Fortran changes: `make clean && make dev && make test`
+   - After Fortran changes: `make dev && make test`
    - Update plan progress immediately when tasks complete
 
 3. **Before Committing**
    ```bash
-   make clean && make dev && make test  # Full rebuild and test
+   # For Python-only changes:
+   make test  # Usually sufficient
+   
+   # For Fortran changes:
+   make dev && make test
+   
+   # Only if serious issues occur (build errors, import failures):
+   make clean && make dev && make test  # Full rebuild
+   
    # Only commit if all tests pass!
    ```
 
@@ -355,7 +380,14 @@ When creating a plan for Claude Code, follow these guidelines to ensure consiste
 
 ## Git and GitHub Tips
 
-- When using gh cli, first check remotes, only keep original - remove others
+- **IMPORTANT**: Always use `origin` as the only git remote for this repository
+- When using gh cli, first check remotes with `git remote -v`
+- If multiple remotes exist, remove all except `origin`:
+  ```bash
+  git remote remove upstream
+  git remote remove Urban-Meteorology-Reading
+  # Keep only: origin -> git@github.com:UMEP-dev/SUEWS.git
+  ```
 
 ## Style and Language Guidelines
 
@@ -415,6 +447,31 @@ Common locations to debug benchmark failures:
 ## Documentation Guidelines
 
 - Remember the yaml rst files are generated - so modify the `generate_datamodel_rst.py` script rather than the rst files if edits are needed
+
+## SUEWS Configuration Builder Web Interface
+
+The project includes an interactive web-based configuration builder located at `docs/source/_static/`:
+
+### Key Files:
+- **index.html** - Main HTML interface with Bootstrap styling
+- **config-builder.js** - JavaScript logic for form generation and validation
+- **config-builder.css** - Custom styling for the interface
+- **suews-config-schema.json** - JSON Schema generated from the Pydantic data model
+
+### Features:
+- Interactive form generation from JSON Schema
+- Real-time YAML preview of configuration
+- Import/Export functionality (YAML format)
+- Client-side validation using AJV
+- Responsive design with collapsible sections
+- Array handling with add/remove/copy functionality
+- Support for complex nested structures
+
+### Maintenance:
+- **Schema Updates**: Run `python docs/gen_schema.py` to regenerate the schema when data model changes
+- **Testing**: Open `docs/source/_static/index.html` directly in a browser to test
+- **Array Initialization**: Arrays start empty - users add items via "Add Item" buttons
+- **Object Display**: Empty objects in arrays are not pre-populated to avoid "[object Object]" display issues
 
 ## Development Tasks and Reminders
 

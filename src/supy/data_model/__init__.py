@@ -12,6 +12,7 @@ See README.md for detailed unit conventions and usage examples.
 """
 
 from .core import SUEWSConfig, init_config_from_yaml
+from .precheck import run_precheck
 from .model import Model
 from .site import Site, SiteProperties
 from .state import InitialStates

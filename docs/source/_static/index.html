@@ -7,7 +7,7 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
-    <link rel="stylesheet" href="config-builder.css">
+    <link rel="stylesheet" href="config-builder.css?v=7">
     <style>
         :root {
             --primary-color: #4361ee;
@@ -94,6 +94,43 @@
             color: white;
             transform: translateY(-1px);
         }
+        
+        /* Header Search */
+        .header-search {
+            max-width: 300px;
+        }
+        
+        .header-search .input-group {
+            height: 38px;
+        }
+        
+        .header-search .input-group-text {
+            background: rgba(255, 255, 255, 0.15);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: white;
+        }
+        
+        .header-search .form-control {
+            background: rgba(255, 255, 255, 0.15);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: white;
+        }
+        
+        .header-search .form-control::placeholder {
+            color: rgba(255, 255, 255, 0.7);
+        }
+        
+        .header-search .form-control:focus {
+            background: rgba(255, 255, 255, 0.2);
+            border-color: rgba(255, 255, 255, 0.5);
+            color: white;
+            box-shadow: 0 0 0 0.2rem rgba(255, 255, 255, 0.25);
+        }
+        
+        .header-search .btn-outline-light {
+            border-color: rgba(255, 255, 255, 0.3);
+        }
+        
 
         /* App Container */
         .app-container {
@@ -268,11 +305,9 @@
             display: flex;
             overflow: hidden;
             transition: flex-direction 0.3s ease;
+            width: 100%;
         }
 
-        .content-body.horizontal {
-            flex-direction: column;
-        }
 
         .form-panel {
             flex: 1;
@@ -324,26 +359,6 @@
             color: white;
         }
 
-        .content-body.horizontal .resize-handle {
-            width: 100%;
-            height: 8px;
-            cursor: row-resize;
-            flex-direction: row;
-        }
-
-        .content-body.horizontal .resize-handle-line {
-            height: 1px;
-            width: auto;
-            flex: 1;
-        }
-
-        .content-body.horizontal .resize-handle-grip {
-            padding: 0 0.5rem;
-        }
-
-        .content-body.horizontal .resize-handle-grip i {
-            transform: rotate(90deg);
-        }
 
         .preview-panel {
             width: 400px;
@@ -355,18 +370,6 @@
             transition: all 0.3s ease;
         }
 
-        .content-body.horizontal .preview-panel {
-            width: 100%;
-            height: 400px;
-            min-height: 300px;
-            border-left: none;
-            border-top: 1px solid var(--border-color);
-        }
-
-        .content-body.horizontal .form-panel {
-            width: 100%;
-            min-width: auto;
-        }
 
         .preview-header {
             padding: 1rem 1.5rem;
@@ -555,6 +558,224 @@
         @keyframes spin {
             to { transform: rotate(360deg); }
         }
+        
+        /* UX Controls Bar */
+        
+        
+        /* Modern form switch */
+        .form-check-input:checked {
+            background-color: #48bb78;
+            border-color: #48bb78;
+        }
+        
+        .form-check-input {
+            width: 3rem;
+            height: 1.5rem;
+            background-color: rgba(255, 255, 255, 0.3);
+            border: 2px solid rgba(255, 255, 255, 0.5);
+        }
+        
+        .form-check-input:focus {
+            box-shadow: 0 0 0 0.25rem rgba(255, 255, 255, 0.25);
+        }
+        
+        /* Advanced mode styling */
+        .basic-only {
+            display: block;
+        }
+        
+        .advanced-only {
+            display: none;
+        }
+        
+        body.advanced-mode .basic-only {
+            display: none;
+        }
+        
+        body.advanced-mode .advanced-only {
+            display: block;
+        }
+        
+        /* Search highlighting */
+        .search-highlight {
+            background-color: #fff3cd;
+            border: 2px solid #ffc107;
+            border-radius: 4px;
+            padding: 2px;
+        }
+        
+        .search-no-match {
+            display: none !important;
+        }
+        
+        /* Welcome Hero */
+        .welcome-hero {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 3rem 2rem;
+            margin-bottom: 2rem;
+            border-radius: 12px;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.2);
+        }
+        
+        .welcome-hero::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+            animation: float 20s infinite ease-in-out;
+        }
+        
+        @keyframes float {
+            0%, 100% { transform: translate(0, 0) rotate(0deg); }
+            50% { transform: translate(-30px, -30px) rotate(180deg); }
+        }
+        
+        .welcome-content {
+            position: relative;
+            text-align: center;
+            color: white;
+        }
+        
+        .welcome-title {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .welcome-subtitle {
+            font-size: 1.25rem;
+            opacity: 0.9;
+            margin-bottom: 2rem;
+        }
+        
+        .welcome-features {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 2rem;
+            margin-top: 2rem;
+        }
+        
+        .feature-card {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            padding: 1.5rem;
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            transition: transform 0.3s ease;
+        }
+        
+        .feature-card:hover {
+            transform: translateY(-5px);
+            background: rgba(255, 255, 255, 0.15);
+        }
+        
+        .feature-icon {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+            opacity: 0.9;
+        }
+        
+        .feature-card h4 {
+            font-size: 1.1rem;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+        }
+        
+        .feature-card p {
+            margin: 0;
+            opacity: 0.9;
+            font-size: 0.9rem;
+        }
+        
+        .btn-close-white {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            filter: brightness(0) invert(1);
+            opacity: 0.8;
+        }
+        
+        /* Modern form improvements */
+        .form-field {
+            margin-bottom: 1.5rem;
+            padding: 1.25rem;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border: 1px solid #e9ecef;
+            transition: all 0.3s ease;
+        }
+        
+        .form-field:hover {
+            border-color: #667eea;
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.1);
+        }
+        
+        .field-label {
+            font-weight: 600;
+            color: #2d3748;
+            margin-bottom: 0.5rem;
+        }
+        
+        .form-control, .form-select {
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            padding: 0.75rem 1rem;
+            transition: all 0.3s ease;
+        }
+        
+        .form-control:focus, .form-select:focus {
+            border-color: #667eea;
+            box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+        }
+        
+        /* Section improvements */
+        .config-section {
+            background: white;
+            border-radius: 12px;
+            padding: 2rem;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+        }
+        
+        .section-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #2d3748;
+            margin-bottom: 1.5rem;
+            padding-bottom: 1rem;
+            border-bottom: 2px solid #e9ecef;
+        }
+        
+        .section-title i {
+            color: #667eea;
+            margin-right: 0.5rem;
+        }
+        
+        /* Card improvements */
+        .card {
+            border: none;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+            margin-bottom: 1.5rem;
+            overflow: hidden;
+        }
+        
+        .card-header {
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            border: none;
+            padding: 1rem 1.5rem;
+            font-weight: 600;
+        }
+        
+        .card-body {
+            padding: 1.5rem;
+        }
     </style>
 </head>
 <body>
@@ -581,10 +802,19 @@
                     <button id="validateBtn" class="btn btn-header">
                         <i class="fas fa-check-circle"></i> Validate
                     </button>
-                    <button id="layoutToggleBtn" class="btn btn-header">
-                        <i class="fas fa-columns"></i>
-                        <span class="d-none d-lg-inline ms-1">Horizontal</span>
-                    </button>
+                    <!-- Search Bar -->
+                    <div class="header-search">
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="fas fa-search"></i></span>
+                            <input type="text" class="form-control" id="parameterSearch" 
+                                   placeholder="Search parameters..." 
+                                   aria-label="Search parameters">
+                            <button class="btn btn-outline-light" type="button" id="clearSearchBtn" 
+                                    style="display: none;" title="Clear search">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                    </div>
                     <button id="newBtn" class="btn btn-header">
                         <i class="fas fa-file"></i> New
                     </button>
@@ -592,6 +822,30 @@
             </div>
         </div>
     </header>
+
+    <!-- Experimental Warning Banner -->
+    <div class="alert alert-warning alert-dismissible fade show mx-3 mt-3 mb-0" role="alert" style="border-radius: 8px; border-left: 5px solid #ff6b6b;">
+        <div class="d-flex align-items-start">
+            <i class="fas fa-exclamation-triangle me-3 mt-1" style="font-size: 1.5rem; color: #ff6b6b;"></i>
+            <div class="flex-grow-1">
+                <h5 class="alert-heading mb-2">
+                    <strong>⚠️ Experimental Feature - Not for Production Use</strong>
+                </h5>
+                <p class="mb-2">
+                    This configuration builder is <strong>highly experimental</strong> and under active development. 
+                    It is <strong>NOT recommended for production use</strong>. Please use the traditional YAML editing 
+                    approach for critical work.
+                </p>
+                <p class="mb-0">
+                    <strong>We welcome your feedback!</strong> Please submit any issues or suggestions to our 
+                    <a href="https://github.com/UMEP-dev/SUEWS/issues" target="_blank" class="alert-link">
+                        GitHub Issues page <i class="fas fa-external-link-alt ms-1"></i>
+                    </a>
+                </p>
+            </div>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    </div>
 
     <!-- Sidebar Overlay for Mobile -->
     <div class="sidebar-overlay" id="sidebarOverlay"></div>
@@ -659,6 +913,8 @@
         <!-- Main Content -->
         <main class="main-content">
             <div class="content-body">
+                
+                
                 <!-- Form Panel -->
                 <div class="form-panel" id="formPanel">
                     <div id="general-section" class="config-section active">
@@ -668,6 +924,12 @@
                         </div>
                         <div id="general-form-container">
                             <!-- General form will be populated by JavaScript -->
+                            <div class="text-center p-5">
+                                <div class="spinner-border text-primary" role="status">
+                                    <span class="visually-hidden">Loading...</span>
+                                </div>
+                                <p class="mt-3">Loading configuration builder...</p>
+                            </div>
                         </div>
                     </div>
 
@@ -717,7 +979,7 @@
                         </div>
                     </div>
                     <div class="preview-content">
-                        <pre id="preview-container">message: "Loading configuration builder..."</pre>
+                        <pre id="preview-container"># Loading configuration builder...</pre>
                     </div>
                 </div>
             </div>
@@ -772,7 +1034,16 @@
     <script src="https://cdn.jsdelivr.net/npm/js-yaml@4.1.0/dist/js-yaml.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/ajv@6.12.6/dist/ajv.bundle.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
-    <script src="config-builder.js?v=3"></script>
+    
+    <!-- Modular config builder scripts -->
+    <script src="js/config-builder-core.js?v=12"></script>
+    <script src="js/config-builder-schema.js?v=9"></script>
+    <script src="js/config-builder-field-order.js?v=2"></script>
+    <script src="js/config-builder-field-types.js?v=2"></script>
+    <script src="js/config-builder-arrays.js?v=9"></script>
+    <script src="js/config-builder-ui.js?v=10"></script>
+    <script src="js/config-builder-forms.js?v=10"></script>
+    <script src="js/config-builder-preview.js?v=10"></script>
     <script>
         // Modern UI Controller for direct configuration builder
         document.addEventListener('DOMContentLoaded', () => {
@@ -792,8 +1063,6 @@
             // Initialize resize functionality
             initializeResize();
 
-            // Initialize layout toggle
-            initializeLayoutToggle();
 
             function switchSection(sectionName) {
                 // Update navigation
@@ -834,7 +1103,8 @@
                     return;
                 }
 
-                let sidebarHidden = false;
+                // Check if sidebar has hidden class initially
+                let sidebarHidden = sidebar.classList.contains('hidden');
 
                 const updateToggleButtons = () => {
                     const isMobile = window.innerWidth <= 768;
@@ -923,64 +1193,6 @@
                 updateToggleButtons();
             }
 
-            // Initialize layout toggle functionality
-            function initializeLayoutToggle() {
-                const layoutToggleBtn = document.getElementById('layoutToggleBtn');
-                const contentBody = document.querySelector('.content-body');
-
-                if (!layoutToggleBtn || !contentBody) {
-                    console.warn('Layout toggle elements not found');
-                    return;
-                }
-
-                let isHorizontal = false;
-
-                const toggleLayout = () => {
-                    isHorizontal = !isHorizontal;
-                    contentBody.classList.toggle('horizontal', isHorizontal);
-
-                    // Update button icon and text
-                    const icon = layoutToggleBtn.querySelector('i');
-                    const text = layoutToggleBtn.querySelector('span');
-
-                    if (isHorizontal) {
-                        icon.className = 'fas fa-grip-lines';
-                        if (text) text.textContent = 'Vertical';
-                    } else {
-                        icon.className = 'fas fa-columns';
-                        if (text) text.textContent = 'Horizontal';
-                    }
-
-                    // Reset any custom sizing when switching layouts
-                    const formPanel = document.getElementById('formPanel');
-                    const previewPanel = document.getElementById('previewPanel');
-
-                    if (formPanel && previewPanel) {
-                        if (isHorizontal) {
-                            // Reset to default sizes for horizontal layout
-                            formPanel.style.flex = '1';
-                            formPanel.style.width = '';
-                            formPanel.style.height = '';
-                            previewPanel.style.width = '';
-                            previewPanel.style.height = '400px';
-                        } else {
-                            // Reset to default sizes for vertical layout
-                            formPanel.style.flex = '1';
-                            formPanel.style.width = '';
-                            formPanel.style.height = '';
-                            previewPanel.style.width = '400px';
-                            previewPanel.style.height = '';
-                        }
-                    }
-                };
-
-                // Layout toggle button click
-                layoutToggleBtn.addEventListener('click', toggleLayout);
-
-                // Store the toggle function globally for potential external use
-                window.toggleLayout = toggleLayout;
-            }
-
             // Initialize resize functionality
             function initializeResize() {
                 const resizeHandle = document.getElementById('resizeHandle');
@@ -1003,19 +1215,12 @@
 
                 resizeHandle.addEventListener('mousedown', (e) => {
                     isResizing = true;
-                    const isHorizontalLayout = contentBody.classList.contains('horizontal');
-
-                    if (isHorizontalLayout) {
-                        startY = e.clientY;
-                        startFormHeight = formPanel.offsetHeight;
-                        startPreviewHeight = previewPanel.offsetHeight;
-                        document.body.style.cursor = 'row-resize';
-                    } else {
-                        startX = e.clientX;
-                        startFormWidth = formPanel.offsetWidth;
-                        startPreviewWidth = previewPanel.offsetWidth;
-                        document.body.style.cursor = 'col-resize';
-                    }
+                    
+                    // Only vertical layout (resize horizontally)
+                    startX = e.clientX;
+                    startFormWidth = formPanel.offsetWidth;
+                    startPreviewWidth = previewPanel.offsetWidth;
+                    document.body.style.cursor = 'col-resize';
 
                     resizeHandle.classList.add('resizing');
                     document.body.style.userSelect = 'none';
@@ -1023,60 +1228,32 @@
                     e.preventDefault();
                 });
 
-                                document.addEventListener('mousemove', (e) => {
+                document.addEventListener('mousemove', (e) => {
                     if (!isResizing) return;
 
-                    const isHorizontalLayout = contentBody.classList.contains('horizontal');
+                    // Only vertical layout: resize horizontally
+                    const deltaX = e.clientX - startX;
+                    const containerWidth = contentBody.offsetWidth - 8; // Subtract handle width
 
-                    if (isHorizontalLayout) {
-                        // Horizontal layout: resize vertically
-                        const deltaY = e.clientY - startY;
-                        const containerHeight = contentBody.offsetHeight - 8; // Subtract handle height
+                    let newFormWidth = startFormWidth + deltaX;
+                    let newPreviewWidth = startPreviewWidth - deltaX;
 
-                        let newFormHeight = startFormHeight + deltaY;
-                        let newPreviewHeight = startPreviewHeight - deltaY;
+                    // Enforce minimum widths
+                    const minFormWidth = 300;
+                    const minPreviewWidth = 250;
 
-                        // Enforce minimum heights
-                        const minFormHeight = 200;
-                        const minPreviewHeight = 150;
-
-                        if (newFormHeight < minFormHeight) {
-                            newFormHeight = minFormHeight;
-                            newPreviewHeight = containerHeight - newFormHeight;
-                        } else if (newPreviewHeight < minPreviewHeight) {
-                            newPreviewHeight = minPreviewHeight;
-                            newFormHeight = containerHeight - newPreviewHeight;
-                        }
-
-                        // Apply the new heights
-                        formPanel.style.flex = 'none';
-                        formPanel.style.height = `${newFormHeight}px`;
-                        previewPanel.style.height = `${newPreviewHeight}px`;
-                    } else {
-                        // Vertical layout: resize horizontally
-                        const deltaX = e.clientX - startX;
-                        const containerWidth = contentBody.offsetWidth - 8; // Subtract handle width
-
-                        let newFormWidth = startFormWidth + deltaX;
-                        let newPreviewWidth = startPreviewWidth - deltaX;
-
-                        // Enforce minimum widths
-                        const minFormWidth = 300;
-                        const minPreviewWidth = 250;
-
-                        if (newFormWidth < minFormWidth) {
-                            newFormWidth = minFormWidth;
-                            newPreviewWidth = containerWidth - newFormWidth;
-                        } else if (newPreviewWidth < minPreviewWidth) {
-                            newPreviewWidth = minPreviewWidth;
-                            newFormWidth = containerWidth - newPreviewWidth;
-                        }
-
-                        // Apply the new widths
-                        formPanel.style.flex = 'none';
-                        formPanel.style.width = `${newFormWidth}px`;
-                        previewPanel.style.width = `${newPreviewWidth}px`;
+                    if (newFormWidth < minFormWidth) {
+                        newFormWidth = minFormWidth;
+                        newPreviewWidth = containerWidth - newFormWidth;
+                    } else if (newPreviewWidth < minPreviewWidth) {
+                        newPreviewWidth = minPreviewWidth;
+                        newFormWidth = containerWidth - newPreviewWidth;
                     }
+
+                    // Apply the new widths
+                    formPanel.style.flex = 'none';
+                    formPanel.style.width = `${newFormWidth}px`;
+                    previewPanel.style.width = `${newPreviewWidth}px`;
                 });
 
                 document.addEventListener('mouseup', () => {
@@ -1090,21 +1267,10 @@
 
                 // Handle double-click to reset to default sizes
                 resizeHandle.addEventListener('dblclick', () => {
-                    const isHorizontalLayout = contentBody.classList.contains('horizontal');
-
+                    // Reset to default sizes for vertical layout
                     formPanel.style.flex = '1';
-
-                    if (isHorizontalLayout) {
-                        formPanel.style.height = '';
-                        previewPanel.style.height = '400px';
-                        formPanel.style.width = '';
-                        previewPanel.style.width = '';
-                    } else {
-                        formPanel.style.width = '';
-                        previewPanel.style.width = '400px';
-                        formPanel.style.height = '';
-                        previewPanel.style.height = '';
-                    }
+                    formPanel.style.width = '';
+                    previewPanel.style.width = '400px';
                 });
             }
 
@@ -1113,5 +1279,12 @@
             window.updateValidationStatus = updateValidationStatus;
         });
     </script>
+
+    <!-- Version Footer -->
+    <footer class="version-footer" style="position: fixed; bottom: 0; right: 0; padding: 0.5rem 1rem; background: rgba(0,0,0,0.05); border-top-left-radius: 8px; font-size: 0.75rem; color: #6c757d;">
+        <span>SUEWS v2025.6.2.dev473</span>
+        <span class="mx-2">|</span>
+        <span>Commit: f5adac3d</span>
+    </footer>
 </body>
 </html>

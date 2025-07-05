@@ -78,7 +78,11 @@ py.install_sources(
             'data_model/state.py',
             'data_model/surface.py',
             'data_model/type.py',
+            'data_model/validation_controller.py',
             'data_model/validation_utils.py',
+            'data_model/yaml_annotator.py',
+            'data_model/yaml_annotator_json.py',
+            'data_model/precheck.py'
         ],
     ],
     subdir: 'supy',

@@ -11,7 +11,7 @@ Table-based Input Files (Legacy Format)
 
    **For existing users**: Please migrate to the YAML format using:
 
-   - 🌐 **Interactive builder**: `SUEWS Configuration Builder <../../_static/index.html>`__ (recommended for beginners)
+   - 🌐 **Interactive builder**: `SUEWS Configuration Builder <../../_static/index.html>`__ (**experimental** - not for production use)
    - 📖 **Migration guide**: :doc:`Transition Guide <../transition_guide>`
 
 

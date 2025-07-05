@@ -490,8 +490,8 @@ class ModelPhysics(BaseModel):
         description="Method for incorporating urban microclimate feedbacks on vegetation and evapotranspiration. Options: 0 (NONE) = No local climate adjustments, use forcing file meteorology directly; 1 (BASIC) = Simple adjustments for urban temperature effects on leaf area index and growing degree days; 2 (DETAILED) = Comprehensive feedbacks including moisture stress, urban CO2 dome effects, and modified phenology cycles",
         json_schema_extra={"unit": "dimensionless"},
     )
-    gsmodel: RefValue[GSModel] = Field(
-        default=RefValue(GSModel.WARD),
+    gsmodel: FlexibleRefValue(GSModel) = Field(
+        default=GSModel.WARD,
         description="Stomatal conductance parameterisation method for vegetation surfaces. Options: 1 (JARVI) = Original parameterisation (Järvi et al. 2011) based on environmental controls; 2 (WARD) = Updated parameterisation (Ward et al. 2016) with improved temperature and VPD responses",
         json_schema_extra={"unit": "dimensionless"},
     )

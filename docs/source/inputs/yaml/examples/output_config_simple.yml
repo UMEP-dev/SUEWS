@@ -1,0 +1,24 @@
+# Example: Simple output configuration (backward compatible)
+# This example shows the simplest output configuration
+
+model:
+  control:
+    tstep: 300  # 5-minute timestep
+    forcing_file: "forcing_2020.txt"
+    
+    # Simple output configuration (backward compatible)
+    # When using a simple string value, SUEWS automatically applies these defaults:
+    # - format: txt (traditional text files)
+    # - freq: 3600 (hourly output regardless of timestep)
+    # - groups: ["SUEWS", "DailyState"] (only these two groups are saved)
+    output_file: "output.txt"
+      
+  physics:
+    netradiationmethod: 3
+    emissionsmethod: 2
+
+sites:
+  - name: "Urban_Site"
+    latitude: 51.5
+    longitude: -0.1
+    # ... other site parameters

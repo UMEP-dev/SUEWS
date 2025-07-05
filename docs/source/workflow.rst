@@ -233,10 +233,16 @@ Modern SUEWS uses YAML configuration files that organise all model parameters in
              bldgh:
                value: 12.0  # Average building height (m)
 
-Interactive Configuration Builder
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Interactive Configuration Builder (Experimental)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 **For guided configuration setup:**
+
+.. warning::
+   The SUEWS Configuration Builder is **highly experimental** and under active development. 
+   It is **NOT recommended for production use**. Please use the traditional YAML editing 
+   approach for critical work. We welcome feedback - please submit issues to our 
+   `GitHub Issues page <https://github.com/UMEP-dev/SUEWS/issues>`__.
 
 The `SUEWS Configuration Builder <_static/index.html>`__ provides a web-based interface to create YAML configurations:
 

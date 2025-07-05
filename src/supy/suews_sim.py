@@ -81,6 +81,7 @@ class SUEWSSimulation:
             If configuration or forcing files cannot be found.
         """
         self._config = None
+        self._config_path = None
         self._df_state_init = None
         self._df_forcing = None
         self._df_output = None
@@ -94,12 +95,45 @@ class SUEWSSimulation:
         # Set up forcing data if provided
         if forcing_file is not None:
             self.setup_forcing(forcing_file)
+        else:
+            # Try to load forcing from config if not explicitly provided
+            self._try_load_forcing_from_config()
 
         self._log("SUEWSSimulation initialised successfully")
 
     def _log(self, message: str, level: str = "info"):
         """Simple logging that doesn't depend on SuPy logger."""
         print(f"[{level.upper()}] {message}")
+
+    def _try_load_forcing_from_config(self):
+        """
+        Try to load forcing data from configuration if not explicitly provided.
+        
+        This implements the fallback mechanism requested in issue #458.
+        """
+        if self._config is None:
+            return
+        
+        try:
+            # Check if config has forcing_file in model.control
+            if hasattr(self._config, 'model') and hasattr(self._config.model, 'control'):
+                forcing_file_obj = getattr(self._config.model.control, 'forcing_file', None)
+                
+                if forcing_file_obj is not None:
+                    # Handle RefValue wrapper
+                    if hasattr(forcing_file_obj, 'value'):
+                        forcing_value = forcing_file_obj.value
+                    else:
+                        forcing_value = forcing_file_obj
+                    
+                    # Skip default placeholder value
+                    if forcing_value and forcing_value != "forcing.txt":
+                        self._log(f"Loading forcing data from config")
+                        self.setup_forcing(forcing_value, _from_config=True)
+                    
+        except Exception as e:
+            # Don't fail initialization if forcing can't be loaded
+            self._log(f"Could not load forcing from config: {e}", "warning")
 
     def _get_supy_module(self, module_name: str):
         """Get SuPy module with deferred import."""
@@ -145,11 +179,15 @@ class SUEWSSimulation:
 
             if hasattr(config, "__class__") and "SUEWSConfig" in str(config.__class__):
                 self._config = config
+                # No config path when using existing object
+                self._config_path = None
             elif isinstance(config, dict):
                 if SUEWSConfig != dict:
                     self._config = SUEWSConfig(**config)
                 else:
                     self._config = config
+                # No config path when using dict
+                self._config_path = None
             elif isinstance(config, (str, Path)):
                 config_path = Path(config)
                 if not config_path.exists():
@@ -157,6 +195,8 @@ class SUEWSSimulation:
                         f"Configuration file not found: {config_path}"
                     )
                 self._config = init_config_from_yaml(config_path)
+                # Store config path for relative path resolution
+                self._config_path = config_path
             else:
                 raise ValueError(f"Unsupported configuration type: {type(config)}")
 
@@ -210,31 +250,50 @@ class SUEWSSimulation:
         """
         return cls(yaml_path, **kwargs)
 
-    def setup_forcing(self, forcing_data: Union[str, Path, pd.DataFrame]):
+    def setup_forcing(self, forcing_data: Union[str, Path, List[Union[str, Path]], pd.DataFrame], 
+                      _from_config: bool = False):
         """
         Load and validate meteorological forcing data.
 
         Parameters
         ----------
-        forcing_data : str, Path, or DataFrame
+        forcing_data : str, Path, list of paths, or DataFrame
             Forcing data source:
-            - Path to forcing data file (CSV, netCDF, etc.)
+            - Path to a single forcing data file
+            - List of paths to forcing data files (will be concatenated in order)
+            - Path to directory containing forcing files (deprecated - issues warning)
             - DataFrame with forcing data
+        _from_config : bool, optional
+            Internal flag indicating if path comes from config (for relative path resolution)
+            
+        Notes
+        -----
+        Supported scenarios:
+        - Single file: Recommended for single-period simulations
+        - List of files: Recommended for multi-period simulations
+        - Directory: Deprecated, retained for backward compatibility only
+        
+        Not allowed:
+        - Mixed lists containing both directories and files
+        - Nonexistent file paths
 
         Raises
         ------
         ValueError
-            If forcing data format is invalid
+            If forcing data format is invalid or contains mixed types
         FileNotFoundError
-            If forcing file cannot be found
+            If forcing file(s) cannot be found
         """
         try:
             if isinstance(forcing_data, pd.DataFrame):
                 self._df_forcing = forcing_data.copy()
+            elif isinstance(forcing_data, list):
+                # Handle list of files
+                self._df_forcing = self._load_forcing_from_list(forcing_data, _from_config)
             elif isinstance(forcing_data, (str, Path)):
-                forcing_path = Path(forcing_data)
+                forcing_path = self._resolve_forcing_path(forcing_data, _from_config)
                 if not forcing_path.exists():
-                    raise FileNotFoundError(f"Forcing file not found: {forcing_path}")
+                    raise FileNotFoundError(f"Forcing path not found: {forcing_path}")
                 # Use existing loading functions
                 self._df_forcing = self._load_forcing_file(forcing_path)
             else:
@@ -248,12 +307,125 @@ class SUEWSSimulation:
         except Exception as e:
             self._log(f"Failed to setup forcing data: {e}", "error")
             raise
+    
+    def _resolve_forcing_path(self, forcing_path: Union[str, Path], from_config: bool = False) -> Path:
+        """Resolve forcing path, handling relative paths."""
+        forcing_path = Path(forcing_path)
+        # Only resolve relative paths when:
+        # 1. Path is from config (not user-provided)
+        # 2. Path is not absolute
+        # 3. We have a config path to resolve relative to
+        if (from_config and 
+            not forcing_path.is_absolute() and 
+            hasattr(self, '_config_path') and 
+            self._config_path is not None):
+            # Make relative to config file directory
+            config_dir = self._config_path.parent
+            return config_dir / forcing_path
+        return forcing_path
+    
+    def _load_forcing_from_list(self, forcing_list: List[Union[str, Path]], from_config: bool = False) -> pd.DataFrame:
+        """
+        Load forcing data from a list of files.
+        
+        Parameters
+        ----------
+        forcing_list : list of str or Path
+            List of forcing file paths
+            
+        Returns
+        -------
+        pd.DataFrame
+            Concatenated forcing data
+            
+        Raises
+        ------
+        ValueError
+            If list contains directories or mixed types
+        FileNotFoundError
+            If any file in the list doesn't exist
+        """
+        from supy.util._io import read_forcing
+        
+        if not forcing_list:
+            raise ValueError("Empty forcing file list provided")
+        
+        # First pass: validate all paths
+        resolved_paths = []
+        has_directory = False
+        
+        for item in forcing_list:
+            path = self._resolve_forcing_path(item, from_config)
+            
+            if not path.exists():
+                raise FileNotFoundError(f"Forcing file not found: {path}")
+            
+            if path.is_dir():
+                has_directory = True
+            
+            resolved_paths.append(path)
+        
+        # Check for mixed types
+        all_files = all(p.is_file() for p in resolved_paths)
+        if has_directory and all_files:
+            raise ValueError(
+                "Mixed directories and files in forcing list not allowed. "
+                "Please use either all files or a single directory."
+            )
+        
+        # Load all files
+        dfs = []
+        for path in resolved_paths:
+            if path.is_file():
+                self._log(f"Reading forcing file: {path.name}")
+                df = read_forcing(str(path))
+                dfs.append(df)
+            else:
+                raise ValueError(
+                    f"Directory '{path}' found in forcing file list. "
+                    "Directories are not allowed in lists. "
+                    "Use a single directory path instead of a list."
+                )
+        
+        # Concatenate all dataframes
+        return pd.concat(dfs, axis=0).sort_index()
 
     def _load_forcing_file(self, forcing_path: Path) -> pd.DataFrame:
-        """Load forcing data from file using existing SuPy functions."""
+        """Load forcing data from file or directory using existing SuPy functions."""
         from supy.util._io import read_forcing
 
-        return read_forcing(str(forcing_path))
+        # Check if it's a directory
+        if forcing_path.is_dir():
+            # Issue deprecation warning for directory usage
+            import warnings
+            warnings.warn(
+                f"Loading forcing data from directory '{forcing_path}' is deprecated. "
+                "This functionality is retained for backward compatibility only. "
+                "Please specify individual files or use a list of files instead.",
+                DeprecationWarning,
+                stacklevel=3
+            )
+            
+            # Find forcing files in directory (common patterns)
+            patterns = ['*.txt', '*.csv', '*.met']
+            forcing_files = []
+            for pattern in patterns:
+                forcing_files.extend(sorted(forcing_path.glob(pattern)))
+            
+            if not forcing_files:
+                raise FileNotFoundError(f"No forcing files found in directory: {forcing_path}")
+            
+            # Concatenate all files (sorted by name)
+            # This handles multi-year forcing data
+            dfs = []
+            for file in forcing_files:
+                self._log(f"Reading forcing file: {file.name}")
+                dfs.append(read_forcing(str(file)))
+            
+            # Concatenate all dataframes
+            return pd.concat(dfs, axis=0).sort_index()
+        else:
+            return read_forcing(str(forcing_path))
 
     def _validate_forcing(self):
         """Validate forcing data format and content."""
@@ -702,59 +874,144 @@ class SUEWSSimulation:
         plt.show()
 
     def save(
-        self, output_path: Union[str, Path], format: str = "csv", **save_kwargs
-    ) -> Path:
+        self, output_path: Union[str, Path], format: str = None, **save_kwargs
+    ) -> Union[Path, List[Path]]:
         """
         Save simulation results to file.
 
         Parameters
         ----------
         output_path : str or Path
-            Output file path.
-        format : str, default 'csv'
-            Output format: 'csv', 'excel', 'pickle', 'netcdf'.
+            Output file path. For txt format, this should be a directory.
+        format : str, optional
+            Output format: 'txt' or 'parquet'.
+            If None, uses format from OutputConfig in model configuration.
+            Default is 'parquet' if no OutputConfig is present.
         **save_kwargs
             Additional arguments passed to save function.
 
         Returns
         -------
-        Path
-            Path to saved file.
+        Path or List[Path]
+            Path to saved file (parquet) or list of paths (txt).
 
         Examples
         --------
-        >>> sim.save("results.csv")
-        >>> sim.save("results.xlsx", format="excel")
-        >>> sim.save("results.nc", format="netcdf")
+        >>> sim.save("results.parquet")  # Default format
+        >>> sim.save("results.parquet", format="parquet")  # Explicit parquet
+        >>> sim.save("output_dir/", format="txt")  # Legacy txt format
         """
         if not self._run_completed:
             raise RuntimeError("No simulation results available. Run simulation first.")
 
         output_path = Path(output_path)
+        
+        # Get format from OutputConfig if not specified
+        if format is None:
+            format = self._get_output_format_from_config()
+            self._log(f"Using output format from config: {format}")
+
+        # Validate format
+        valid_formats = ['txt', 'parquet']
+        if format.lower() not in valid_formats:
+            raise ValueError(
+                f"Unsupported format: '{format}'. "
+                f"Valid formats are: {', '.join(valid_formats)}"
+            )
 
         # Ensure output directory exists
-        output_path.parent.mkdir(parents=True, exist_ok=True)
-
-        if format.lower() == "csv":
-            self._df_output.to_csv(output_path, **save_kwargs)
-        elif format.lower() == "excel":
-            self._df_output.to_excel(output_path, **save_kwargs)
-        elif format.lower() == "pickle":
-            self._df_output.to_pickle(output_path, **save_kwargs)
-        elif format.lower() == "netcdf":
-            # Convert to xarray and save as netCDF
-            try:
-                import xarray as xr
-
-                ds = xr.Dataset.from_dataframe(self._df_output)
-                ds.to_netcdf(output_path, **save_kwargs)
-            except ImportError:
-                raise ImportError("xarray required for netCDF export")
+        if format.lower() == "txt":
+            # For txt format, output_path is a directory
+            output_path.mkdir(parents=True, exist_ok=True)
         else:
-            raise ValueError(f"Unsupported format: {format}")
+            output_path.parent.mkdir(parents=True, exist_ok=True)
 
-        self._log(f"Results saved to: {output_path}")
-        return output_path
+        if format.lower() == "parquet":
+            # Use parquet for efficient columnar storage
+            self._df_output.to_parquet(output_path, **save_kwargs)
+            self._log(f"Results saved to: {output_path}")
+            return output_path
+        elif format.lower() == "txt":
+            # Use existing save_supy function for backward compatibility
+            supy = importlib.import_module("supy")
+            
+            # Extract parameters from config
+            freq_s = 3600  # default hourly
+            site = ""
+            output_level = 1  # default
+            
+            # Get output configuration if available
+            if (self._config and 
+                hasattr(self._config, 'model') and 
+                hasattr(self._config.model, 'control')):
+                
+                control = self._config.model.control
+                
+                # Get output frequency from OutputConfig
+                if (hasattr(control, 'output_file') and 
+                    not isinstance(control.output_file, str) and
+                    hasattr(control.output_file, 'freq') and 
+                    control.output_file.freq is not None):
+                    freq_s = control.output_file.freq
+                    if hasattr(freq_s, 'value'):
+                        freq_s = freq_s.value
+                
+                # Get site code
+                if hasattr(control, 'file_code'):
+                    site = str(control.file_code)
+                    if hasattr(site, 'value'):
+                        site = str(site.value)
+                
+                # Get output level
+                if hasattr(control, 'write_out_option'):
+                    output_level = control.write_out_option
+                    if hasattr(output_level, 'value'):
+                        output_level = output_level.value
+            
+            # Use save_supy for txt format - without passing output_config
+            list_path_save = supy.save_supy(
+                df_output=self._df_output,
+                df_state_final=self._df_state_final,
+                freq_s=int(freq_s),
+                site=site,
+                path_dir_save=str(output_path),
+                output_level=int(output_level),
+                **save_kwargs
+            )
+            
+            self._log(f"Results saved to: {output_path}")
+            return list_path_save
+
+    def _get_output_format_from_config(self) -> str:
+        """
+        Get output format from OutputConfig in model configuration.
+        
+        Returns default 'parquet' if no OutputConfig is found.
+        """
+        try:
+            if (self._config and 
+                hasattr(self._config, 'model') and 
+                hasattr(self._config.model, 'control') and
+                hasattr(self._config.model.control, 'output_file')):
+                
+                output_config = self._config.model.control.output_file
+                
+                # Check if it's an OutputConfig object (not a string)
+                if hasattr(output_config, 'format') and not isinstance(output_config, str):
+                    # Handle both direct attribute and value wrapper
+                    format_val = output_config.format
+                    if hasattr(format_val, 'value'):
+                        return str(format_val.value)
+                    elif hasattr(format_val, 'name'):  # Enum value
+                        return str(format_val.value)
+                    else:
+                        return str(format_val)
+        except Exception as e:
+            self._log(f"Could not get output format from config: {e}", "warning")
+        
+        # Default format
+        return "parquet"
+    
 
     def clone(self) -> "SUEWSSimulation":
         """

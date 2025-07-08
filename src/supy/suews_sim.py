@@ -254,6 +254,8 @@ class SUEWSSimulation:
         **run_kwargs
             Additional keyword arguments passed to run_supy.
             Common options:
+            - start_date: Start date for simulation (Timestamp or str)
+            - end_date: End date for simulation (Timestamp or str)
             - save_state: Save state at each timestep (default False)
             - chunk_day: Days per chunk for memory efficiency (default 3660)
 
@@ -273,9 +275,23 @@ class SUEWSSimulation:
         if self._df_forcing is None:
             raise RuntimeError("No forcing data loaded. Use update_forcing() first.")
 
+        # Extract date filtering parameters
+        start_date = run_kwargs.pop('start_date', None)
+        end_date = run_kwargs.pop('end_date', None)
+        
+        # Filter forcing data if dates provided
+        df_forcing_to_run = self._df_forcing
+        if start_date is not None or end_date is not None:
+            if start_date is not None:
+                start_date = pd.Timestamp(start_date)
+                df_forcing_to_run = df_forcing_to_run[df_forcing_to_run.index >= start_date]
+            if end_date is not None:
+                end_date = pd.Timestamp(end_date)
+                df_forcing_to_run = df_forcing_to_run[df_forcing_to_run.index <= end_date]
+
         # Run simulation
-        self._df_output, self._df_state_final = run_supy_ser(
-            self._df_forcing,
+        self._df_output, self._df_state_final, _, _ = run_supy_ser(
+            df_forcing_to_run,
             self._df_state_init,
             **run_kwargs
         )

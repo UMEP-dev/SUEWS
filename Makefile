@@ -100,21 +100,40 @@ suews:
 # ref: https://mesonbuild.com/meson-python/how-to-guides/editable-installs.html#editable-installs
 dev:
 	@echo "Building supy with development install..."
-	@# Check if uv is available for faster installation
-	@if command -v uv >/dev/null 2>&1; then \
-		echo "Found uv - using for ultra-fast installation!"; \
+	@# Check if build directory is missing
+	@if [ ! -d "build/cp312" ]; then \
+		echo "Build directory missing - using pip for proper build..."; \
+		if $(PYTHON) -m pip show supy >/dev/null 2>&1; then \
+			echo "Uninstalling existing supy installation..."; \
+			$(PYTHON) -m pip uninstall -y supy || true; \
+		fi; \
 		if [ -x "/opt/homebrew/bin/gfortran" ]; then \
 			echo "Using Homebrew gfortran for better macOS compatibility"; \
-			FC=/opt/homebrew/bin/gfortran uv pip install --no-build-isolation --editable .; \
+			FC=/opt/homebrew/bin/gfortran $(PYTHON) -m pip install --no-build-isolation --editable . -v; \
 		else \
-			uv pip install --no-build-isolation --editable .; \
+			$(PYTHON) -m pip install --no-build-isolation --editable . -v; \
 		fi \
 	else \
-		if [ -x "/opt/homebrew/bin/gfortran" ]; then \
-			echo "Using Homebrew gfortran for better macOS compatibility"; \
-			FC=/opt/homebrew/bin/gfortran $(PYTHON) -m pip install --no-build-isolation --editable .; \
+		echo "Build directory exists - using fast installation..."; \
+		if command -v uv >/dev/null 2>&1; then \
+			echo "Found uv - using for ultra-fast installation!"; \
+			if [ -x "/opt/homebrew/bin/gfortran" ]; then \
+				echo "Using Homebrew gfortran for better macOS compatibility"; \
+				FC=/opt/homebrew/bin/gfortran uv pip install --no-build-isolation --editable . -v || \
+				(echo "uv build failed, falling back to pip..." && \
+				 FC=/opt/homebrew/bin/gfortran $(PYTHON) -m pip install --no-build-isolation --editable . -v); \
+			else \
+				uv pip install --no-build-isolation --editable . -v || \
+				(echo "uv build failed, falling back to pip..." && \
+				 $(PYTHON) -m pip install --no-build-isolation --editable . -v); \
+			fi \
 		else \
-			$(PYTHON) -m pip install --no-build-isolation --editable .; \
+			if [ -x "/opt/homebrew/bin/gfortran" ]; then \
+				echo "Using Homebrew gfortran for better macOS compatibility"; \
+				FC=/opt/homebrew/bin/gfortran $(PYTHON) -m pip install --no-build-isolation --editable . -v; \
+			else \
+				$(PYTHON) -m pip install --no-build-isolation --editable . -v; \
+			fi \
 		fi \
 	fi
 
@@ -126,9 +145,9 @@ dev-fast:
 		echo "Found uv - using for ultra-fast installation!"; \
 		if [ -x "/opt/homebrew/bin/gfortran" ]; then \
 			echo "Using Homebrew gfortran with fast build optimizations"; \
-			FC=/opt/homebrew/bin/gfortran uv pip install --no-build-isolation --editable . --config-settings=setup-args=-Dfast_build=true; \
+			FC=/opt/homebrew/bin/gfortran uv pip install --no-build-isolation --editable . --config-settings=setup-args=-Dfast_build=true -v; \
 		else \
-			uv pip install --no-build-isolation --editable . --config-settings=setup-args=-Dfast_build=true; \
+			uv pip install --no-build-isolation --editable . --config-settings=setup-args=-Dfast_build=true -v; \
 		fi \
 	else \
 		if [ -x "/opt/homebrew/bin/gfortran" ]; then \

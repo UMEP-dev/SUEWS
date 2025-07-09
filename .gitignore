@@ -599,3 +599,4 @@ worktrees/
 .claude-plans/
 test/precheck_testcase/run_precheck_testcase.py
 test/precheck_testcase/precheck_testcase.py
+test/test_data/sample_forcing_1day.txt

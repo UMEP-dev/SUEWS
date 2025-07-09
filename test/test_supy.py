@@ -333,7 +333,7 @@ class TestSuPy(TestCase):
         pd.testing.assert_frame_equal(
             left=df_res_s,
             right=df_res_sample_common,
-            rtol=2e-2,  # 2% tolerance - reasonable for scientific computing with different initial states
+            rtol=1e-3,  # 0.1% tolerance - reasonable for scientific computing with different initial states
             check_exact=False,  # Use tolerance checking instead of exact comparison
         )
 

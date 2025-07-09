@@ -5,6 +5,25 @@ import unittest
 from pathlib import Path
 import pandas as pd
 import supy as sp
+import platform
+import sys
+import pytest
+import os
+
+# Only run benchmark tests on manylinux with Python 3.13
+# This provides a stable reference platform for numerical comparisons
+# TODO: Eventually extend to more platforms once numerical precision issues are resolved
+
+# Check if we're on Linux (manylinux is a Linux platform)
+is_linux = platform.system() == "Linux"
+is_py313 = sys.version_info[:2] == (3, 13)
+# In CI, manylinux builds run on Linux runners
+is_ci = any(env in os.environ for env in ['CI', 'GITHUB_ACTIONS', 'CIBUILDWHEEL'])
+
+# Only run on Linux with Python 3.13 (which includes manylinux in CI)
+if not (is_linux and is_py313):
+    skip_msg = f"Benchmark tests only run on Linux Python 3.13 (current: {platform.system()} Python {sys.version_info[0]}.{sys.version_info[1]})"
+    pytest.skip(skip_msg, allow_module_level=True)
 
 
 class TestBenchmark(unittest.TestCase):

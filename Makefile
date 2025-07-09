@@ -100,8 +100,8 @@ suews:
 # ref: https://mesonbuild.com/meson-python/how-to-guides/editable-installs.html#editable-installs
 dev:
 	@echo "Building supy with development install..."
-	@# Check if build directory is missing
-	@if [ ! -d "build/cp312" ]; then \
+	@# Check if any build directory exists (works for any Python version)
+	@if [ -z "$$(ls -d build/cp* 2>/dev/null)" ]; then \
 		echo "Build directory missing - using pip for proper build..."; \
 		if $(PYTHON) -m pip show supy >/dev/null 2>&1; then \
 			echo "Uninstalling existing supy installation..."; \

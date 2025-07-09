@@ -99,7 +99,11 @@ def test_annotation_with_sample_config():
         # Fallback to development location
         sample_config = Path("src/supy/sample_run/sample_config.yml")
         if not sample_config.exists():
-            pytest.skip("Sample config not found")
+            raise FileNotFoundError(
+                f"Sample config not found in expected locations:\n"
+                f"  - Package: supy/sample_run/sample_config.yml\n"
+                f"  - Development: {sample_config}"
+            )
     
     # Load the sample config
     config = SUEWSConfig.from_yaml(sample_config)

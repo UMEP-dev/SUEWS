@@ -37,8 +37,13 @@ def sample_config_path():
     if dev_path.exists():
         return dev_path
     
-    # If neither exists, skip the tests
-    pytest.skip("Sample config file not found in package")
+    # If neither exists, fail the test with clear error
+    raise FileNotFoundError(
+        "Sample config file not found in package. "
+        "Expected locations:\n"
+        f"  - Package: supy/sample_run/sample_config.yml\n"
+        f"  - Development: {dev_path}"
+    )
 
 
 @pytest.fixture(scope="module")
@@ -58,8 +63,13 @@ def sample_forcing_path():
     if dev_path.exists():
         return dev_path
     
-    # If neither exists, skip the tests
-    pytest.skip("Sample forcing file not found in package")
+    # If neither exists, fail the test with clear error
+    raise FileNotFoundError(
+        "Sample forcing file not found in package. "
+        "Expected locations:\n"
+        f"  - Package: supy/sample_run/Input/Kc_2012_data_60.txt\n"
+        f"  - Development: {dev_path}"
+    )
 
 
 @pytest.fixture(scope="module")

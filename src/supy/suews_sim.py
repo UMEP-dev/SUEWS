@@ -299,26 +299,33 @@ class SUEWSSimulation:
         self._run_completed = True
         return self._df_output
 
-    def save(self, output_path: Union[str, Path] = None, **save_kwargs) -> List[Path]:
+    def save(self, output_path: Union[str, Path] = None, format: str = "parquet", **save_kwargs) -> Union[Path, List[Path]]:
         """
-        Save simulation results according to OutputConfig settings.
+        Save simulation results in specified format.
 
         Parameters
         ----------
         output_path : str or Path, optional
-            Output directory path. If None, uses current directory.
+            Output path. If None, uses current directory.
+            For parquet format: path to the output file
+            For txt format: path to the output directory
+        format : str, optional
+            Output format: "parquet" (default) or "txt"
         **save_kwargs
-            Additional arguments passed to save_supy.
+            Additional arguments passed to save functions.
 
         Returns
         -------
-        List[Path]
-            List of paths to saved files.
+        Path or List[Path]
+            For parquet: Path to saved file
+            For txt: List of paths to saved files
 
         Raises
         ------
         RuntimeError
             If no simulation results are available.
+        ValueError
+            If unsupported format is specified.
         """
         if not self._run_completed:
             raise RuntimeError("No simulation results available. Run simulation first.")
@@ -329,36 +336,53 @@ class SUEWSSimulation:
         else:
             output_path = Path(output_path)
 
-        # Extract parameters from config
-        freq_s = 3600  # default hourly
-        site = ""
-        
-        if self._config:
-            # Get output frequency from OutputConfig if available
-            if (hasattr(self._config, 'model') and 
-                hasattr(self._config.model, 'control') and
-                hasattr(self._config.model.control, 'output_file') and 
-                not isinstance(self._config.model.control.output_file, str)):
-                
-                output_config = self._config.model.control.output_file
-                if hasattr(output_config, 'freq') and output_config.freq is not None:
-                    freq_s = output_config.freq
+        if format == "parquet":
+            # Save as parquet
+            if output_path.is_dir():
+                output_path = output_path / "results.parquet"
+            elif not output_path.suffix:
+                output_path = output_path.with_suffix(".parquet")
             
-            # Get site name from first site
-            if hasattr(self._config, 'sites') and len(self._config.sites) > 0:
-                site = self._config.sites[0].name
+            # Ensure parent directory exists
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+            
+            # Save to parquet
+            self._df_output.to_parquet(output_path, **save_kwargs)
+            return output_path
+            
+        elif format == "txt":
+            # Extract parameters from config
+            freq_s = 3600  # default hourly
+            site = ""
+            
+            if self._config:
+                # Get output frequency from OutputConfig if available
+                if (hasattr(self._config, 'model') and 
+                    hasattr(self._config.model, 'control') and
+                    hasattr(self._config.model.control, 'output_file') and 
+                    not isinstance(self._config.model.control.output_file, str)):
+                    
+                    output_config = self._config.model.control.output_file
+                    if hasattr(output_config, 'freq') and output_config.freq is not None:
+                        freq_s = output_config.freq
+                
+                # Get site name from first site
+                if hasattr(self._config, 'sites') and len(self._config.sites) > 0:
+                    site = self._config.sites[0].name
 
-        # Use save_supy for all formats
-        list_path_save = save_supy(
-            df_output=self._df_output,
-            df_state_final=self._df_state_final,
-            freq_s=int(freq_s),
-            site=site,
-            path_dir_save=str(output_path),
-            **save_kwargs
-        )
-        
-        return list_path_save
+            # Use save_supy for txt format
+            list_path_save = save_supy(
+                df_output=self._df_output,
+                df_state_final=self._df_state_final,
+                freq_s=int(freq_s),
+                site=site,
+                path_dir_save=str(output_path),
+                **save_kwargs
+            )
+            
+            return list_path_save
+        else:
+            raise ValueError(f"Unsupported format: {format}. Use 'parquet' or 'txt'.")
 
     def reset(self):
         """Reset simulation to initial state, clearing results."""

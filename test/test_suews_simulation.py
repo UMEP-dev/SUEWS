@@ -136,7 +136,9 @@ class TestSUEWSSimulationError:
         if not benchmark_config.exists():
             pytest.skip("Benchmark config file not found")
 
+        # Create a simulation and clear any auto-loaded forcing
         sim = SUEWSSimulation(benchmark_config)
+        sim._df_forcing = None  # Clear any auto-loaded forcing
 
         with pytest.raises(RuntimeError, match="No forcing data loaded"):
             sim.run()
@@ -161,7 +163,8 @@ class TestSUEWSSimulationForcing:
             pytest.skip("Benchmark config file not found")
         
         forcing_file = forcing_dir / "Kc1_2011_data_5.txt"
-        sim = SUEWSSimulation(benchmark_config, forcing_file=str(forcing_file))
+        sim = SUEWSSimulation(benchmark_config)
+        sim.update_forcing(str(forcing_file))
         
         assert sim._df_forcing is not None
         assert len(sim._df_forcing) == 105120  # One year of 5-min data
@@ -175,7 +178,8 @@ class TestSUEWSSimulationForcing:
             str(forcing_dir / "Kc1_2011_data_5.txt"),
             str(forcing_dir / "Kc1_2012_data_5.txt")
         ]
-        sim = SUEWSSimulation(benchmark_config, forcing_file=forcing_files)
+        sim = SUEWSSimulation(benchmark_config)
+        sim.update_forcing(forcing_files)
         
         assert sim._df_forcing is not None
         # Two years of 5-min data (2012 is leap year)
@@ -189,7 +193,8 @@ class TestSUEWSSimulationForcing:
         import warnings
         with warnings.catch_warnings(record=True) as w:
             warnings.simplefilter("always")
-            sim = SUEWSSimulation(benchmark_config, forcing_file=str(forcing_dir))
+            sim = SUEWSSimulation(benchmark_config)
+            sim.update_forcing(str(forcing_dir))
             
             # Check deprecation warning was issued
             assert any(issubclass(warning.category, DeprecationWarning) for warning in w)
@@ -209,16 +214,18 @@ class TestSUEWSSimulationForcing:
             str(forcing_dir / "Kc1_2011_data_5.txt")  # File
         ]
         
+        sim = SUEWSSimulation(benchmark_config)
         with pytest.raises(ValueError, match="Directory.*not allowed in lists"):
-            SUEWSSimulation(benchmark_config, forcing_file=mixed_list)
+            sim.update_forcing(mixed_list)
 
     def test_nonexistent_file_rejected(self, benchmark_config):
         """Test that nonexistent files are rejected."""
         if not benchmark_config.exists():
             pytest.skip("Benchmark config file not found")
         
+        sim = SUEWSSimulation(benchmark_config)
         with pytest.raises(FileNotFoundError):
-            SUEWSSimulation(benchmark_config, forcing_file="nonexistent.txt")
+            sim.update_forcing("nonexistent.txt")
 
     def test_forcing_fallback_from_config(self, forcing_dir):
         """Test that forcing is loaded from config when not explicitly provided."""
@@ -251,11 +258,12 @@ class TestSUEWSSimulationOutputFormats:
         if not config_path.exists() or not forcing_path.exists():
             pytest.skip("Benchmark files not found")
         
-        sim = SUEWSSimulation(config_path, forcing_file=forcing_path)
+        sim = SUEWSSimulation(config_path)
+        sim.update_forcing(forcing_path)
         
-        # Run short simulation
+        # Run short simulation - need at least 3 hours for hourly resampling to work
         start_date = pd.Timestamp("2011-01-01 00:05:00")
-        end_date = pd.Timestamp("2011-01-01 02:00:00")
+        end_date = pd.Timestamp("2011-01-01 04:00:00")
         sim.run(start_date=start_date, end_date=end_date)
         
         return sim

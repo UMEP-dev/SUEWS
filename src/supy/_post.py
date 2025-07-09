@@ -43,7 +43,7 @@ dict_func_aggm = {
     "T": lambda x: x.iloc[-1] if len(x) > 0 else np.nan,  # last value
     "A": "mean",
     "S": "sum",
-    "L": lambda x: x.iloc[-1] if len(x) > 0 else np.nan,  # last value
+    "L": lambda x: x.dropna().iloc[-1] if len(x.dropna()) > 0 else np.nan,  # last non-NaN value
 }
 df_var["func"] = df_var.aggm.apply(lambda x: dict_func_aggm[x])
 
@@ -198,11 +198,17 @@ def resample_output(df_output, freq="60T", dict_aggm=dict_var_aggm):
         Returns:
             Resampled DataFrame
         """
-        return df_group.dropna().resample(
+        # Don't use dropna() as it drops rows with ANY NaN values
+        # Some columns like Fcld may be all NaN which would drop all data
+        df_resampled = df_group.resample(
             freq, 
             closed="right", 
             label=label
         ).agg(dict_aggm_group)
+        
+        # For sparse data like DailyState, ensure we keep rows that have at least some data
+        # This is important for variables that only have values at specific times
+        return df_resampled
     
     # get grid and group names
     list_grid = df_output.index.get_level_values("grid").unique()

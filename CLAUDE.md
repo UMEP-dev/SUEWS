@@ -404,14 +404,17 @@ make test
 ```
 
 The test suite includes several critical tests:
-- **Benchmark Test** (`test_benchmark1_same`): Validates SUEWS model outputs against known good results
+- **Benchmark Test** (`test_benchmark.py::test_benchmark1_same`): Validates SUEWS model outputs against known good results - **MUST NEVER BE SKIPPED**
+- **Sample Output Test** (`test_supy.py::test_is_sample_output_same`): Validates consistency with sample data
 - **Precheck Tests**: Validate input data preprocessing and validation logic
 - **Data Model Tests**: Ensure data structures work correctly
 - **Conditional Validation Tests**: Check physics option compatibility
 
 ### Benchmark Test Details
 
-The benchmark test (`test_supy.py::TestSuPy::test_benchmark1_same`) is particularly critical as it:
+**CRITICAL**: The benchmark test has been moved to `test_benchmark.py` to avoid test interaction issues with shared global state in the Fortran module.
+
+The benchmark test (`test_benchmark.py::TestBenchmark::test_benchmark1_same`) is particularly critical as it:
 - Loads configuration from `test/benchmark1/benchmark1.yml`
 - Runs a full year SUEWS simulation with real forcing data
 - Compares outputs against pre-computed results (`benchmark1.pkl`)

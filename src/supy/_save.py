@@ -271,6 +271,9 @@ def save_df_output(
 
     # save output at the resampling frequency
     for i, df_save in enumerate(list_df_save):
+        # Debug print
+        logger_supy.debug(f"Processing df_save {i}: shape={df_save.shape}, columns={df_save.columns.get_level_values('group').unique().tolist()}")
+        
         # Check if this is DailyState-only data
         is_dailystate_only = (len(df_save.columns) > 0 and 
                              all(df_save.columns.get_level_values('group') == 'DailyState'))
@@ -315,6 +318,7 @@ def save_df_output(
         # else:
         # SERIAL mode: only on Windows
         list_path_save_df = save_df_ser(df_save, path_dir_save, site, output_level)
+        logger_supy.debug(f"save_df_ser returned {len(list_path_save_df)} paths")
 
         # add up path list
         list_path_save += list_path_save_df

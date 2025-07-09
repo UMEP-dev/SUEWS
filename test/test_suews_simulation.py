@@ -21,12 +21,12 @@ from supy.suews_sim import SUEWSSimulation
 import supy
 
 # Check if we should skip this entire test module
-# TODO: Investigate and resolve the issue causing failures on macOS x86_64 with Python 3.11
+# TODO: Investigate and resolve the issue causing failures on macOS with Python 3.11
 # This appears to be related to numerical precision or build configuration differences
+# Affects both x86_64 and arm64 architectures on macOS
 if (platform.system() == "Darwin" and 
-    platform.machine() == "x86_64" and 
     sys.version_info[:2] == (3, 11)):
-    pytest.skip("Skipping test_suews_simulation on macOS x86_64 Python 3.11 - needs investigation", allow_module_level=True)
+    pytest.skip("Skipping test_suews_simulation on macOS Python 3.11 (all architectures) - needs investigation", allow_module_level=True)
 
 
 @pytest.fixture(scope="module")

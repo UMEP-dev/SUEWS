@@ -11,31 +11,68 @@ import sys
 import tempfile
 import shutil
 import warnings
+import pkg_resources
 
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 from supy.suews_sim import SUEWSSimulation
+import supy
 
 
 @pytest.fixture(scope="module")
 def sample_config_path():
-    """Path to sample configuration file."""
-    return Path("src/supy/sample_run/sample_config.yml")
+    """Path to sample configuration file shipped with supy package."""
+    # Use pkg_resources to get the path to the sample config within the package
+    try:
+        # First try the standard installed package location
+        sample_config = pkg_resources.resource_filename('supy', 'sample_run/sample_config.yml')
+        if Path(sample_config).exists():
+            return Path(sample_config)
+    except:
+        pass
+    
+    # Fallback to development location
+    dev_path = Path(__file__).parent.parent / "src/supy/sample_run/sample_config.yml"
+    if dev_path.exists():
+        return dev_path
+    
+    # If neither exists, skip the tests
+    pytest.skip("Sample config file not found in package")
 
 
 @pytest.fixture(scope="module")
 def sample_forcing_path():
-    """Path to sample forcing file."""
-    return Path("src/supy/sample_run/Input/Kc_2012_data_60.txt")
+    """Path to sample forcing file shipped with supy package."""
+    # Use pkg_resources to get the path to the sample forcing within the package
+    try:
+        # First try the standard installed package location
+        sample_forcing = pkg_resources.resource_filename('supy', 'sample_run/Input/Kc_2012_data_60.txt')
+        if Path(sample_forcing).exists():
+            return Path(sample_forcing)
+    except:
+        pass
+    
+    # Fallback to development location
+    dev_path = Path(__file__).parent.parent / "src/supy/sample_run/Input/Kc_2012_data_60.txt"
+    if dev_path.exists():
+        return dev_path
+    
+    # If neither exists, skip the tests
+    pytest.skip("Sample forcing file not found in package")
+
+
+@pytest.fixture(scope="module")
+def sample_data():
+    """Load the built-in sample data from supy package."""
+    # This uses the package's built-in sample data loading
+    df_state_init, df_forcing = supy.load_sample_data()
+    return df_state_init, df_forcing
 
 
 @pytest.fixture(scope="module")
 def shared_simulation(sample_config_path):
     """Create a shared SUEWSSimulation instance for all tests."""
-    if not sample_config_path.exists():
-        pytest.skip("Sample config file not found")
-    
     # Create simulation and let it auto-load forcing (only once!)
     sim = SUEWSSimulation(sample_config_path)
     return sim
@@ -44,9 +81,6 @@ def shared_simulation(sample_config_path):
 @pytest.fixture(scope="module")
 def simulation_no_forcing(sample_config_path):
     """Create a simulation without auto-loading forcing."""
-    if not sample_config_path.exists():
-        pytest.skip("Sample config file not found")
-    
     # Mock auto-loading to create a simulation without forcing
     import unittest.mock
     with unittest.mock.patch.object(SUEWSSimulation, '_try_load_forcing_from_config'):
@@ -144,9 +178,6 @@ class TestSUEWSSimulationForcing:
     
     def test_update_forcing_single_file(self, simulation_no_forcing, sample_forcing_path):
         """Test updating forcing with a single file."""
-        if not sample_forcing_path.exists():
-            pytest.skip("Sample forcing file not found")
-        
         # Update forcing
         simulation_no_forcing.update_forcing(str(sample_forcing_path))
         
@@ -155,9 +186,6 @@ class TestSUEWSSimulationForcing:
 
     def test_list_of_files_forcing(self, sample_config_path, sample_forcing_path):
         """Test loading a list of forcing files."""
-        if not sample_config_path.exists() or not sample_forcing_path.exists():
-            pytest.skip("Test files not found")
-        
         # Create fresh instance for this test
         import unittest.mock
         with unittest.mock.patch.object(SUEWSSimulation, '_try_load_forcing_from_config'):
@@ -170,20 +198,16 @@ class TestSUEWSSimulationForcing:
         assert sim._df_forcing is not None
         assert len(sim._df_forcing) > 0
 
-    def test_directory_forcing_with_warning(self, sample_config_path):
+    def test_directory_forcing_with_warning(self, sample_config_path, sample_forcing_path):
         """Test loading from directory issues deprecation warning."""
-        if not sample_config_path.exists():
-            pytest.skip("Sample config file not found")
-        
         # Create a directory with only forcing files
         with tempfile.TemporaryDirectory() as tmpdir:
             temp_forcing_dir = Path(tmpdir) / "forcing"
             temp_forcing_dir.mkdir()
             
             # Copy a forcing file to the temp directory
-            sample_forcing = Path("src/supy/sample_run/Input/Kc_2012_data_60.txt")
-            if sample_forcing.exists():
-                shutil.copy(sample_forcing, temp_forcing_dir / "test_forcing.txt")
+            if sample_forcing_path.exists():
+                shutil.copy(sample_forcing_path, temp_forcing_dir / "test_forcing.txt")
             
             with warnings.catch_warnings(record=True) as w:
                 warnings.simplefilter("always")
@@ -202,9 +226,6 @@ class TestSUEWSSimulationForcing:
 
     def test_nonexistent_file_rejected(self, sample_config_path):
         """Test that nonexistent files are rejected."""
-        if not sample_config_path.exists():
-            pytest.skip("Sample config file not found")
-        
         # Create fresh instance
         import unittest.mock
         with unittest.mock.patch.object(SUEWSSimulation, '_try_load_forcing_from_config'):

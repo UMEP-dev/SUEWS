@@ -88,9 +88,18 @@ sites:
 def test_annotation_with_sample_config():
     """Test annotation with the sample config file."""
     
-    sample_config = Path("src/supy/sample_run/sample_config.yml")
-    if not sample_config.exists():
-        pytest.skip("Sample config not found")
+    # Try to get sample config from package resources first
+    try:
+        import pkg_resources
+        sample_config_path = pkg_resources.resource_filename('supy', 'sample_run/sample_config.yml')
+        sample_config = Path(sample_config_path)
+        if not sample_config.exists():
+            raise FileNotFoundError()
+    except:
+        # Fallback to development location
+        sample_config = Path("src/supy/sample_run/sample_config.yml")
+        if not sample_config.exists():
+            pytest.skip("Sample config not found")
     
     # Load the sample config
     config = SUEWSConfig.from_yaml(sample_config)

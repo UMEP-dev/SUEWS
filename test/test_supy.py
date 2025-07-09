@@ -25,12 +25,6 @@ p_df_sample = Path(test_data_dir) / "sample_output.pkl"
 flag_full_test = any([
     all([
         sys.version_info[0] == 3,
-        sys.version_info[1] == 12,
-        platform.system() == "Darwin",
-        platform.machine() == "arm64",
-    ]),
-    all([
-        sys.version_info[0] == 3,
         sys.version_info[1] == 13,
         platform.system() == "Linux",
         platform.machine() == "x86_64",

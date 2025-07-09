@@ -43,6 +43,7 @@ dependencies = [
     "platypus-opt==1.0.4",                         # a multi-objective optimiser
     "timezonefinder",                              # timezone detection from coordinates
     "pytz",                                        # timezone handling
+    "pyarrow",                                     # Parquet file support for pandas
 ]
 classifiers = [
     "Programming Language :: Python :: 3 :: Only",

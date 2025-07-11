@@ -3,8 +3,8 @@
   "name": "suews-assistant",
   "version": "1.0.0",
   "display_name": "SUEWS Assistant",
-  "description": "AI-powered configuration guidance and result interpretation for SUEWS",
-  "long_description": "The SUEWS Assistant provides intelligent help for the Surface Urban Energy and Water balance Scheme (SUEWS). It offers configuration validation, parameter suggestions, physics compatibility checks, and comprehensive result interpretation including energy balance diagnosis, thermal comfort analysis, and urban climate effects assessment.",
+  "description": "Get detailed explanations of SUEWS urban climate model parameters",
+  "long_description": "The SUEWS Parameter Explainer provides comprehensive explanations for all Surface Urban Energy and Water balance Scheme (SUEWS) parameters. Get instant access to parameter descriptions, units, typical values, scientific context, and usage examples to help configure your urban climate simulations correctly.",
   "author": {
     "name": "Ting Sun & Claude Code",
     "email": "suews@urban-climate.net",
@@ -15,7 +15,7 @@
     "entry_point": "run_server.py",
     "mcp_config": {
       "command": "python3",
-      "args": ["${__dirname}/check_and_run.py"],
+      "args": ["${__dirname}/run_server.py"],
       "env": {
         "PYTHONPATH": "${__dirname}/src:${__dirname}"
       }
@@ -23,64 +23,18 @@
   },
   "tools": [
     {
-      "name": "validate_suews_config",
-      "description": "Check a SUEWS configuration file for scientific soundness and common errors"
-    },
-    {
-      "name": "suggest_suews_parameters",
-      "description": "Get parameter recommendations based on urban context and climate zone"
-    },
-    {
-      "name": "check_suews_physics_compatibility",
-      "description": "Verify that selected physics methods work well together"
-    },
-    {
-      "name": "generate_suews_template",
-      "description": "Create a configuration template tailored to your site and research focus"
-    },
-    {
       "name": "explain_suews_parameter",
-      "description": "Get detailed explanation of any SUEWS parameter with typical values"
-    },
-    {
-      "name": "diagnose_suews_energy_balance",
-      "description": "Analyze energy balance closure and identify potential issues"
-    },
-    {
-      "name": "interpret_suews_thermal_comfort",
-      "description": "Interpret thermal comfort metrics from SUEWS outputs"
-    },
-    {
-      "name": "analyze_suews_urban_effects",
-      "description": "Examine urban heat island and other urban climate effects"
-    },
-    {
-      "name": "validate_suews_against_observations",
-      "description": "Compare model results with measured data"
-    },
-    {
-      "name": "generate_suews_insights_report",
-      "description": "Create comprehensive narrative report from simulation results"
+      "description": "Get detailed explanation of any SUEWS parameter with typical values and scientific context"
     }
   ],
   "prompts": [
     {
-      "name": "urban_climate_expert",
-      "description": "Expert guidance on urban climate modeling",
-      "text": "You are an expert in urban climate modeling with deep knowledge of SUEWS. Help users understand urban climate processes, create scientifically sound configurations, and interpret results with physical insights."
-    },
-    {
-      "name": "config_wizard",
-      "description": "Step-by-step configuration setup",
-      "text": "Guide me through setting up a SUEWS configuration for my urban site. Ask about my location, available data, site characteristics, and research goals to create the optimal configuration."
-    },
-    {
-      "name": "result_interpreter",
-      "description": "Comprehensive results analysis",
-      "text": "Analyze my SUEWS simulation outputs and provide insights about energy balance, thermal comfort, and urban climate effects. Explain the results in accessible language with actionable recommendations."
+      "name": "parameter_guide",
+      "description": "Guide me through SUEWS parameters",
+      "text": "I need help understanding SUEWS parameters. Ask me which parameter I'm interested in or what aspect of the model I'm configuring, then provide detailed explanations with typical values and scientific context."
     }
   ],
-  "keywords": ["urban-climate", "suews", "energy-balance", "heat-island", "thermal-comfort"],
+  "keywords": ["suews", "urban-climate", "parameters", "documentation"],
   "license": "MIT",
   "repository": {
     "type": "git",

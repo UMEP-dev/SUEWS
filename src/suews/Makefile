@@ -360,6 +360,7 @@ clean-bin:
 clean-ext:
 	$(MAKE) -C $(DIR_SPTCS) clean
 	rm -rf $(DIR_SPTCS)/*/*.mod
+	rm -rf $(DIR_SPTCS)/*/*.f95
 
 
 

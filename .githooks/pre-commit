@@ -1,0 +1,39 @@
+#!/bin/bash
+
+# Only check if committing to master branch
+CURRENT_BRANCH=$(git branch --show-current)
+if [ "$CURRENT_BRANCH" != "master" ]; then
+    exit 0
+fi
+
+echo "Checking file types for master branch commit..."
+
+# Get list of staged files
+STAGED_FILES=$(git diff --cached --name-only)
+
+# Check each file
+INVALID_FILES=""
+for file in $STAGED_FILES; do
+    # Skip deleted files
+    if [ ! -f "$file" ]; then
+        continue
+    fi
+    
+    # Check if file is allowed (*.md, *.yml, *.yaml, or in .github/workflows)
+    if [[ ! "$file" =~ \.(md|yml|yaml)$ ]] && [[ ! "$file" =~ ^\.github/workflows/ ]] && [[ ! "$file" =~ ^\.githooks/ ]]; then
+        INVALID_FILES="$INVALID_FILES\n  - $file"
+    fi
+done
+
+# Fail if invalid files found
+if [ -n "$INVALID_FILES" ]; then
+    echo "❌ Error: Only markdown (*.md) and YAML config files (*.yml, *.yaml) are allowed on master branch"
+    echo -e "\nInvalid files detected:$INVALID_FILES"
+    echo -e "\nPlease create a feature branch for changes to source code files:"
+    echo "  git checkout -b feature/your-feature-name"
+    echo "  git commit ..."
+    exit 1
+fi
+
+echo "✅ All staged files are allowed types for master branch"
+exit 0

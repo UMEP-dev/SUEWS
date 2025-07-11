@@ -29,8 +29,6 @@ def cal_des_dta(ta, pa, dta=1.0):
     return des_dta
 
 
-
-
 # calculate specific humidity [kg kg-1] using relative humidity [%]
 def cal_qa(rh_pct, theta_K, pres_hPa):
     from atmosp import calculate as ac
@@ -64,7 +62,11 @@ def cal_lat_vap(qa_kgkg, theta_K, pres_hPa):
 
     # wel-bulb temperature
     tw = ac(
-        "Tw", qv=qa_kgkg, p=pres_hPa*100, theta=theta_K, remove_assumptions=("constant Lv")
+        "Tw",
+        qv=qa_kgkg,
+        p=pres_hPa * 100,
+        theta=theta_K,
+        remove_assumptions=("constant Lv"),
     )
     # latent heat [J kg-1]
     Lv = 2.501e6 - 2370.0 * (tw - 273.15)
@@ -199,13 +201,13 @@ def cal_vap_sat(Temp_C, Press_hPa):
     ser_emb_pos = 6.1121 * np.exp(
         ((18.678 - ser_TaC / 234.5) * ser_TaC) / (ser_TaC + 257.14)
     )
-    ser_f_pos = 1.00072 + ser_pres_kPa * (3.2e-6 + 5.9e-10 * ser_TaC ** 2)
+    ser_f_pos = 1.00072 + ser_pres_kPa * (3.2e-6 + 5.9e-10 * ser_TaC**2)
 
     # -40 < ser_TaC <= -0.001000:
     ser_emb_neg = 6.1115 * np.exp(
         ((23.036 - ser_TaC / 333.7) * ser_TaC) / (ser_TaC + 279.82)
     )
-    ser_f_neg = 1.00022 + ser_pres_kPa * (3.83e-6 + 6.4e-10 * ser_TaC ** 2)
+    ser_f_neg = 1.00022 + ser_pres_kPa * (3.83e-6 + 6.4e-10 * ser_TaC**2)
 
     # combine both conditions
     ser_emb = ser_emb_pos.where(ser_TaC >= 0.001, ser_emb_neg)
@@ -285,7 +287,7 @@ def cal_Lob(QH, UStar, Temp_C, RH_pct, Pres_hPa, g=9.8, k=0.4):
     TStar = -H / UStar
 
     # Obukhov length
-    Lob = (UStar ** 2) / (G_T_K * TStar)
+    Lob = (UStar**2) / (G_T_K * TStar)
 
     return Lob
 
@@ -326,7 +328,7 @@ def cal_ra_obs(zm, zd, z0m, z0v, ws, Lob):
 
     ra = (
         1
-        / (k ** 2 * ws)
+        / (k**2 * ws)
         * (np.log(zmd / z0m) - (cal_psi_mom(zoL) - cal_psi_mom(z0m / Lob)))
         * (np.log(zmd / z0v) - (cal_psi_heat(zoL) - cal_psi_heat(z0v / Lob)))
     )

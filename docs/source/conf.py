@@ -53,6 +53,7 @@ import supy
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 sys.path.insert(0, os.path.abspath("."))
+sys.path.insert(0, os.path.abspath("_ext"))
 
 print(r"this build is made by:", "\n", sys.version)
 # determine if in RTD environment
@@ -75,6 +76,7 @@ def subprocess_cmd(command):
 
 # run script to generate rst files for df_{group}
 # subprocess_cmd('cd supy/proc_var_info; python3 gen_rst.py')
+
 
 # load all csv as a whole df
 def load_df_csv(path_csv):
@@ -100,7 +102,7 @@ def load_df_opt_desc(file_options):
         file_options,
         sep=r"\n",
         skipinitialspace=True,
-        )
+    )
     ser_opts = ser_opts.iloc[:, 0]
     ind_opt = ser_opts.index[ser_opts.str.contains(".. option::")]
     ser_opt_name = ser_opts[ind_opt].str.replace(".. option::", "").str.strip()
@@ -149,13 +151,11 @@ def gen_csv_suews(path_csv):
 
 # determine latest version and release
 path_source = Path(".").resolve()
-list_ver = sorted(
-    [
-        x.stem
-        for x in list((path_source / "version-history").glob("v*rst"))
-        if "version" not in x.stem
-    ]
-)
+list_ver = sorted([
+    x.stem
+    for x in list((path_source / "version-history").glob("v*rst"))
+    if "version" not in x.stem
+])
 
 
 # The short X.Y version
@@ -179,13 +179,12 @@ if read_the_docs_build:
     subprocess.call("doxygen", shell=True)
 
     # generate summary tables using info in `Input_Options.rst`
-    path_csv = path_source / "input_files/SUEWS_SiteInfo/csv-table"
+    path_csv = path_source / "inputs/tables/SUEWS_SiteInfo/csv-table"
     gen_csv_suews(path_csv)
 
     # update `today`
     dt_today = datetime.today()
 else:
-
     dt_today = datetime(2021, 11, 11)
     # subprocess.call("doxygen", shell=True)
     pass
@@ -230,6 +229,9 @@ extensions = [
     "sphinx_last_updated_by_git",
     "sphinx_click.ext",
     # 'exhale'
+    "sphinx.ext.napoleon",
+    # 'suews_config_editor',  # Our custom extension
+    # 'sphinx-jsonschema', # to genenrate docs based JSON Schema from SUEWSConfig
 ]
 
 # email_automode = True
@@ -292,13 +294,17 @@ master_doc_latex = "index_latex"
 #
 # This is also used if you do content translation via gettext catalogs.
 # Usually you set "language" from the command line for these cases.
-language = None
+language = "en"
 
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
 # This pattern also affects html_static_path and html_extra_path .
 
-exclude_patterns = ["_build", "**.ipynb_checkpoints"]
+exclude_patterns = [
+    "_build",
+    "**.ipynb_checkpoints",
+    "build",
+]
 # tags.add('html')
 # if tags.has('html'):
 #     exclude_patterns = ['references.rst']
@@ -310,7 +316,7 @@ pygments_style = "sphinx"
 default_role = "any"
 
 # some text replacement defintions
-rst_prolog = """
+rst_prolog = r"""
 .. |km^-1| replace:: km\ :sup:`-1`
 .. |mm^-1| replace:: mm\ :sup:`-1`
 .. |m^-1| replace:: m\ :sup:`-1`
@@ -412,6 +418,9 @@ html_static_path = ["_static", "doxygenoutput"]
 #      }
 
 # html_extra_path = ['doxygenoutput']
+
+# Copy React build output to _static
+html_extra_path = ["../suews-config-ui/dist"]
 
 # Custom sidebar templates, must be a dictionary that maps document names
 # to template names.
@@ -546,6 +555,18 @@ def source_read_handler(app, docname, source):
         # and do nothing
         return
 
+    # Add deprecation warning to table-based input documentation
+    deprecation_warning = ""
+    if docname.startswith("inputs/tables/") and not docname.endswith("index"):
+        deprecation_warning = """
+.. warning::
+
+   **DEPRECATED**: This table-based input format is deprecated as of 2025. 
+   Please use the modern :ref:`YAML format <yaml_input>` instead. 
+   See our :doc:`transition guide </inputs/transition_guide>` for migration help.
+
+"""
+
     # modify the issue link to provide page specific URL
     str_base = "docs/source"
     str_repo = html_context["github_repo"]
@@ -563,7 +584,7 @@ def source_read_handler(app, docname, source):
     str_GHPage = f"""
 .. _GitHub Issues: {str_url}
 """
-    rendered = "\n".join([str_GHPage, src])
+    rendered = "\n".join([str_GHPage, deprecation_warning, src])
     source[0] = rendered.rstrip("\n")
 
 
@@ -705,7 +726,6 @@ class AuthorYearLabelStyle(BaseLabelStyle):
 
 
 class JsaiStyle(UnsrtStyle):
-
     default_label_style = "author_year_label"
 
 
@@ -747,7 +767,6 @@ class LabelStyle_key(BaseLabelStyle):
 
 
 class LabelStyle_key(UnsrtStyle):
-
     default_label_style = LabelStyle_key
 
 
@@ -801,9 +820,7 @@ class MyStyle_author_year(UnsrtStyle):
 
     def format_web_refs(self, e):
         # based on urlbst output.web.refs
-        return sentence[
-            optional[self.format_doi(e)],
-        ]
+        return sentence[optional[self.format_doi(e)],]
 
     def get_book_template(self, e):
         template = toplevel[
@@ -829,9 +846,7 @@ class MyStyle_year_author(UnsrtStyle):
 
     def format_web_refs(self, e):
         # based on urlbst output.web.refs
-        return sentence[
-            optional[self.format_doi(e)],
-        ]
+        return sentence[optional[self.format_doi(e)],]
 
     def get_book_template(self, e):
         template = toplevel[
@@ -849,6 +864,7 @@ class MyStyle_year_author(UnsrtStyle):
 
 register_plugin("pybtex.style.formatting", "refs_recent", MyStyle_year_author)
 
+
 # reading list style
 class MyStyle_author_year_note(UnsrtStyle):
     default_sorting_style = "author_year_title"
@@ -857,9 +873,7 @@ class MyStyle_author_year_note(UnsrtStyle):
 
     def format_web_refs(self, e):
         # based on urlbst output.web.refs
-        return sentence[
-            optional[self.format_doi(e)],
-        ]
+        return sentence[optional[self.format_doi(e)],]
 
     def get_book_template(self, e):
         template = toplevel[
@@ -878,5 +892,20 @@ class MyStyle_author_year_note(UnsrtStyle):
     # format_book = format_article
 
 
+# Add the path to custom extensions
 register_plugin("pybtex.style.formatting", "rl", MyStyle_author_year_note)
 register_plugin("pybtex.style.sorting", "year_author_title", MySort_year_author_title)
+
+
+# Add any paths that contain custom static files (such as style sheets) here,
+# relative to this directory. They are copied after the builtin static files,
+# so a file named "default.css" will overwrite the builtin "default.css".
+
+# These paths are either relative to html_static_path or fully qualified paths (eg. https://...)
+html_css_files = [
+    "suews-config-ui/main.css",
+]
+
+html_js_files = [
+    "suews-config-ui/main.js",
+]

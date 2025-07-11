@@ -7,15 +7,22 @@ import re
 def get_version_from_git():
     try:
         # Get the most recent tag and the number of commits since that tag
+        # Only match version tags (starting with digits)
         describe_output = (
-            subprocess.check_output(["git", "describe", "--tags", "--long"])
+            subprocess.check_output([
+                "git",
+                "describe",
+                "--tags",
+                "--long",
+                "--match=[0-9]*",
+            ])
             .strip()
             .decode("utf-8")
         )
 
         # Match against the pattern including optional 'dev' part
         match = re.match(
-            r"^(v?\d+\.\d+\.\d+)(?:\.dev)?-(\d+)-g[0-9a-f]+$", describe_output
+            r"^(v?\d+\.\d+\.\d+(?:\.\w+)?)-(\d+)-g[0-9a-f]+$", describe_output
         )
         # print(match.groups())
 
@@ -23,11 +30,16 @@ def get_version_from_git():
             base_version = match.group(1)
             distance = int(match.group(2))
 
+            # Clean up version to be valid Python packaging version
+            if base_version.startswith("v"):
+                base_version = base_version[1:]
+
+            # Handle .dev in base version
+            if ".dev" in base_version:
+                base_version = base_version.replace(".dev", "")
+
             if distance == 0:
-                if "dev" in describe_output:
-                    version = f"{base_version}.dev"
-                else:
-                    version = base_version
+                version = base_version
             else:
                 version = f"{base_version}.dev{distance}"
         else:

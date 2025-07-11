@@ -1,0 +1,68 @@
+name: Python Auto-Format
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      - '**.py'
+      - 'pyproject.toml'
+      - 'ruff.toml'
+      - '.ruff.toml'
+  push:
+    branches:
+      - '**'  # Run on all branches
+      - '!master'  # Exclude master branch
+    paths:
+      - '**.py'
+      - 'pyproject.toml'
+      - 'ruff.toml'
+      - '.ruff.toml'
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  auto-format-python:
+    name: Auto-format Python Code
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+          
+      - name: Check if formatting is needed
+        id: format-check
+        uses: astral-sh/ruff-action@v3
+        with:
+          args: "format --check --diff"
+        continue-on-error: true
+          
+      - name: Auto-format Python code
+        if: steps.format-check.outcome == 'failure'
+        run: |
+          pip install ruff
+          ruff format .
+          
+      - name: Commit formatting changes
+        if: steps.format-check.outcome == 'failure'
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "style: auto-format Python code with ruff 🎨"
+          commit_options: '--no-verify'
+          file_pattern: '*.py'
+          
+  python-lint:
+    name: Python Linting
+    runs-on: ubuntu-latest
+    needs: auto-format-python
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Run Ruff linter
+        uses: astral-sh/ruff-action@v3
+        with:
+          args: "check --output-format=github"

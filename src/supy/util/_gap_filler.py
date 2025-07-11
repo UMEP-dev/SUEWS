@@ -45,12 +45,10 @@ def fill_gap_one(ser_test, freq="1D", pattern="010"):
     # base series for gap filling
     ser_fill_base = pd.concat([ser_prev, ser_post])
     ser_fill = (
-        ser_fill_base.groupby(
-            [
-                ser_fill_base.index.hour.rename("hr"),
-                ser_fill_base.index.minute.rename("min"),
-            ]
-        )
+        ser_fill_base.groupby([
+            ser_fill_base.index.hour.rename("hr"),
+            ser_fill_base.index.minute.rename("min"),
+        ])
         .median()
         .reset_index(drop=True)
     )

@@ -414,7 +414,10 @@ MODULE ctrl_output
       varAttr('DensSnow_Water', 'to be added', f146, 'to be added', aL, 'DailyState', 0), &
       varAttr('a1', 'to be added', f104, 'to be added', aL, 'DailyState', 0), &
       varAttr('a2', 'to be added', f104, 'to be added', aL, 'DailyState', 0), &
-      varAttr('a3', 'to be added', f104, 'to be added', aL, 'DailyState', 0) &
+      varAttr('a3', 'to be added', f104, 'to be added', aL, 'DailyState', 0), &
+      varAttr('a1_bldg', 'to be added', f104, 'to be added', aL, 'DailyState', 0), &
+      varAttr('a2_bldg', 'to be added', f104, 'to be added', aL, 'DailyState', 0), &
+      varAttr('a3_bldg', 'to be added', f104, 'to be added', aL, 'DailyState', 0) &
       /
 
    ! RSL profiles
@@ -583,13 +586,13 @@ MODULE ctrl_output
         + ncolumnsDataOutDebug - 5 &
         )/ &
       varAttr('flag_test', '-', f104, 'flag for testing', aA, 'debug', 0), &
-      varAttr('Tsfc_Paved', 'degC', f104, 'surface temperature for paved surface', aA, 'debug', 0), &
-      varAttr('Tsfc_Bldgs', 'degC', f104, 'surface temperature for building surface', aA, 'debug', 0), &
-      varAttr('Tsfc_EveTr', 'degC', f104, 'surface temperature for evergreen tree surface', aA, 'debug', 0), &
-      varAttr('Tsfc_DecTr', 'degC', f104, 'surface temperature for deciduous tree surface', aA, 'debug', 0), &
-      varAttr('Tsfc_Grass', 'degC', f104, 'surface temperature for grass surface', aA, 'debug', 0), &
-      varAttr('Tsfc_BSoil', 'degC', f104, 'surface temperature for bare soil surface', aA, 'debug', 0), &
-      varAttr('Tsfc_Water', 'degC', f104, 'surface temperature for water surface', aA, 'debug', 0), &
+      varAttr('Ts_Paved', 'degC', f104, 'surface temperature for paved surface', aA, 'debug', 0), &
+      varAttr('Ts_Bldgs', 'degC', f104, 'surface temperature for building surface', aA, 'debug', 0), &
+      varAttr('Ts_EveTr', 'degC', f104, 'surface temperature for evergreen tree surface', aA, 'debug', 0), &
+      varAttr('Ts_DecTr', 'degC', f104, 'surface temperature for deciduous tree surface', aA, 'debug', 0), &
+      varAttr('Ts_Grass', 'degC', f104, 'surface temperature for grass surface', aA, 'debug', 0), &
+      varAttr('Ts_BSoil', 'degC', f104, 'surface temperature for bare soil surface', aA, 'debug', 0), &
+      varAttr('Ts_Water', 'degC', f104, 'surface temperature for water surface', aA, 'debug', 0), &
       varAttr('QN_Paved', 'W m-2', f104, 'Net all-wave radiation for paved surface', aA, 'debug', 0), &
       varAttr('QN_Bldgs', 'W m-2', f104, 'Net all-wave radiation for building surface', aA, 'debug', 0), &
       varAttr('QN_EveTr', 'W m-2', f104, 'Net all-wave radiation for evergreen tree surface', aA, 'debug', 0), &

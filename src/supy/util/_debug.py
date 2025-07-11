@@ -35,7 +35,13 @@ def diag_rsl(df_forcing, df_state, df_output, include_rsl=False):
     sfr = df_state.sfr.values[0]
     zmeas = df_state.z.values[0]
     zh = df_state[["bldgh", "evetreeh", "dectreeh"]].dot(sfr[[1, 2, 3]])
-    fai = df_state[["faibldg", "faievetree", "faidectree",]].dot(sfr[[1, 2, 3]])
+    fai = df_state[
+        [
+            "faibldg",
+            "faievetree",
+            "faidectree",
+        ]
+    ].dot(sfr[[1, 2, 3]])
     stabilitymethod = df_state.stabilitymethod.values[0]
     dict_sfc = {}
     dict_rsl = {}
@@ -152,10 +158,16 @@ def diag_rsl_prm(df_state, df_output):
             scc,
             f,
             PAI,
-        ) = rsl_module.rsl_cal_prms(stabilitymethod, zh, l_mod, sfr, fai,)
-        dict_prm.update(
-            {idx.isoformat(): [l_mod_rsl, zh_rsl, lc, beta, zd, z0, elm, scc, f, PAI]}
+        ) = rsl_module.rsl_cal_prms(
+            stabilitymethod,
+            zh,
+            l_mod,
+            sfr,
+            fai,
         )
+        dict_prm.update({
+            idx.isoformat(): [l_mod_rsl, zh_rsl, lc, beta, zd, z0, elm, scc, f, PAI]
+        })
 
     # post-process results
     df_prm = pd.DataFrame.from_dict(
@@ -209,12 +221,13 @@ def save_zip_debug(df_forcing, df_state_init, error_info=None):
 
     # get a random hash to use as a unique identifier for this run
     import hashlib
-    hash=hashlib.md5(str(path_dir_save).encode('utf-8')).hexdigest()[:8]
+
+    hash = hashlib.md5(str(path_dir_save).encode("utf-8")).hexdigest()[:8]
 
     # save error information if provided
     if error_info is not None:
         path_error = path_dir_save / "error_info.md"
-        with open(path_error, 'w') as f:
+        with open(path_error, "w") as f:
             # Write timestamp as header
             f.write(f"# SuPy Error Report\n\n")
             f.write(f"## Timestamp\n")
@@ -228,7 +241,7 @@ def save_zip_debug(df_forcing, df_state_init, error_info=None):
                 f.write(f"```shell\n{str(error_info)}\n```\n\n")
                 f.write(f"## Traceback\n")
                 f.write("```python\n")
-                f.write(''.join(traceback.format_tb(error_info.__traceback__)))
+                f.write("".join(traceback.format_tb(error_info.__traceback__)))
                 f.write("```\n")
             else:
                 f.write(f"## Error Details\n")
@@ -236,7 +249,7 @@ def save_zip_debug(df_forcing, df_state_init, error_info=None):
 
     # bundle all files in a zip file
     path_zip_debug = path_dir_save / f"supy_debug-{hash}.zip"
-    with zipfile.ZipFile(path_zip_debug, 'w') as myzip:
+    with zipfile.ZipFile(path_zip_debug, "w") as myzip:
         myzip.write(path_forcing.as_posix(), arcname=path_forcing.name)
         myzip.write(path_state_init.as_posix(), arcname=path_state_init.name)
         myzip.write(path_json_version.as_posix(), arcname=path_json_version.name)
@@ -244,4 +257,3 @@ def save_zip_debug(df_forcing, df_state_init, error_info=None):
             myzip.write(path_error.as_posix(), arcname=path_error.name)
 
     return path_zip_debug
-

@@ -22,6 +22,61 @@ incoming shortwave radiation to be provided.
    based on incoming shortwave radiation, temperature, relative humidity
    and surface characteristics (albedo, emissivity).
 #. `SPARTACUS-Surface (SS)` computes the 3D interaction of shortwave and longwave radiation with complex surface canopies, including vegetated and urban canopies (with or without vegetation). More details can be found in the `SPARTACUS-Surface (SS)` section.
+#. **BEERS** (Building Envelope Energy Radiation Scheme) calculates detailed radiation components for urban surfaces including point-specific radiation analysis. More details can be found in the `BEERS` section.
+
+BEERS (Building Envelope Energy Radiation Scheme)
+--------------------------------------------------
+
+**BEERS** is the successor to SOLWEIG and provides advanced radiation modelling for urban environments. BEERS calculates detailed radiation components at specific points of interest (POI) within urban areas, considering the complex 3D geometry of buildings and vegetation.
+
+**Key Features:**
+
+- **Point-specific Analysis:** Calculates radiation at specific points rather than grid averages
+- **Directional Radiation:** Provides radiation from cardinal directions (north, south, east, west)
+- **Surface Temperature Modelling:** Computes ground, wall, and roof surface temperatures
+- **Mean Radiant Temperature:** Calculates mean radiant temperature for human thermal comfort studies
+- **Shadow Analysis:** Models shadows cast by buildings and vegetation on ground and walls
+
+**Output Variables:**
+
+BEERS provides comprehensive radiation output including:
+
+- **Incoming/Outgoing Radiation:** Shortwave (Kdown2d, Kup2d) and longwave (Ldown2d, Lup2d) at POI
+- **Directional Components:** Radiation from north, south, east, west directions
+- **Shadow Information:** Shadow patterns on ground (SH_Ground) and walls (SH_Walls)  
+- **Sky View Factors:** From ground (SVF_Ground), roof (SVF_Roof), and buildings/vegetation (SVF_BdVeg)
+- **Surface Temperatures:** Ground (Tg), wall (Tw), and air (Ta) temperatures
+- **Comfort Metrics:** Mean radiant temperature (Tmrt) for thermal comfort assessment
+
+**Physical Basis:**
+
+BEERS solves the urban radiation balance by:
+
+1. **Solar Position Calculation:** Determines sun position using astronomical algorithms
+2. **Geometry Analysis:** Analyzes 3D urban geometry to determine view factors and shadowing
+3. **Radiation Transfer:** Calculates direct, diffuse, and reflected radiation components
+4. **Surface Energy Balance:** Solves energy balance for different urban surfaces
+5. **Thermal Comfort:** Computes mean radiant temperature for human comfort studies
+
+**Applications:**
+
+- Urban climate analysis and heat island studies
+- Building energy assessment in urban contexts
+- Human thermal comfort evaluation in urban spaces
+- Urban planning and design optimisation
+- Microclimate analysis for specific locations
+
+**Configuration:**
+
+BEERS can be enabled in SUEWS through the model physics settings. Required inputs include:
+
+- Albedo values for ground and building surfaces
+- Emissivity values for ground and wall surfaces
+- Building morphology parameters (plan area fraction, building height)
+- Location coordinates and time zone information
+
+.. note::
+   BEERS provides detailed radiation output that is particularly valuable for applications requiring point-specific radiation analysis or human thermal comfort assessment in urban environments.
 
 Anthropogenic heat flux, Q\ :sub:`F`
 ------------------------------------

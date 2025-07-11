@@ -492,6 +492,8 @@ CONTAINS
                !> assign Tair with either the forcing air temperature or the local diagnostic air temperature
                IF (config%localClimateMethod == 1) THEN
                   Tair = atmState%t2_C
+               ELSE IF (config%localClimateMethod == 2) THEN
+                  Tair = atmState%T_hbh_C
                ELSE
                   Tair = Temp_C
                END IF
@@ -1343,6 +1345,9 @@ CONTAINS
             a1 => OHMState%a1, &
             a2 => OHMState%a2, &
             a3 => OHMState%a3, &
+            a1_bldg => ohmState%a1_bldg, &
+            a2_bldg => ohmState%a2_bldg, &
+            a3_bldg => ohmState%a3_bldg, &
             it => timer%it, &
             imin => timer%imin, &
             nsh_real => timer%nsh_real &
@@ -1364,7 +1369,7 @@ CONTAINS
                ! DailyStateLine(38 + 1:38 + 3) = [a1, a2, a3]
                DailyStateLine = [HDD_id(1:6), GDD_id, SDD_id, Tmin_id, Tmax_id, lenday_id, LAI_id, DecidCap_id, Porosity_id, &
                                  AlbEveTr_id, AlbDecTr_id, AlbGrass_id, WUDay_id, VegPhenLumps, SnowAlb, SnowDens, &
-                                 a1, a2, a3]
+                                 a1, a2, a3, a1_bldg, a2_bldg, a3_bldg]
 
             END IF
 

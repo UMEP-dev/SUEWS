@@ -9,16 +9,42 @@
 # 4. build the python extension module
 
 ##################################################################
+# to fix newer windows (later than 2019) build
+if host_machine.system() == 'windows'
+  add_project_arguments(
+    '-D__MINGW_USE_VC_SETJMP=1',
+    language : ['c', 'cpp', 'fortran']
+  )
+endif
+
+##################################################################
 # set the compiler flags
 fortran_compiler = meson.get_compiler('fortran')
+
+# Check for fast build environment variable
+fast_build = get_option('fast_build')
+if fast_build
+  message('Using fast build configuration')
+endif
+
 if fortran_compiler.get_id() == 'gcc'
-  f90flags = [
-    '-fPIC',
-    '-fconvert=big-endian',
-    '-g',
-    '-O0',
-    '-fcheck=all',
-  ]
+  if fast_build
+    f90flags = [
+      '-fPIC',
+      '-fconvert=big-endian',
+      '-g',
+      '-O1',  # Faster than -O0
+      # Remove -fcheck=all for faster compilation
+    ]
+  else
+    f90flags = [
+      '-fPIC',
+      '-fconvert=big-endian',
+      '-g',
+      '-O0',
+      '-fcheck=all',
+    ]
+  endif
   fortran_program = find_program('gfortran')
 elif fortran_compiler.get_id() == 'intel'
   f90flags = ['-fpscomp logicals', '-fPIC']
@@ -27,12 +53,21 @@ endif
 add_global_arguments(f90flags, language: 'fortran')
 
 c_compiler = meson.get_compiler('c')
-cflags = [
-  '-fPIC',
-  '-D_POSIX_C_SOURCE=200809L',
-  '-g',
-  '-O0',
-]
+if fast_build
+  cflags = [
+    '-fPIC',
+    '-D_POSIX_C_SOURCE=200809L',
+    '-g',
+    '-O1',  # Faster than -O0
+  ]
+else
+  cflags = [
+    '-fPIC',
+    '-D_POSIX_C_SOURCE=200809L',
+    '-g',
+    '-O0',
+  ]
+endif
 if c_compiler.get_id() == 'clang'
   cflags += ['-fbracket-depth=1024']
 endif
@@ -40,6 +75,13 @@ add_global_arguments(cflags, language: 'c')
 
 # flags for converting f95 to fpp
 fpp_flags = ['-E', '-x', 'f95-cpp-input', '-fPIC']
+
+# Use UCRT for everything when on Windows
+if host_machine.system() == 'windows'
+  # The UCRT64 msys2 environment implicitly handles linking to the UCRT.
+  # Explicitly adding '-mcrtdll=ucrtbase' can fail with older GCC versions.
+  # Note: We don't use -D__USE_MINGW_SETJMP_NON_SEH with UCRT64 as it supports SEH properly
+endif
 ##################################################################
 
 ##################################################################
@@ -204,28 +246,32 @@ incdir_numpy = run_command(
   check: true,
 ).stdout().strip()
 
-inc_np = include_directories(incdir_numpy)
+# Create a dependency for numpy includes instead of using include_directories with absolute paths
+numpy_inc = declare_dependency(compile_args: ['-I' + incdir_numpy])
 
 # this is the path to the f2py source code - better compatibility with older numpy versions
 incdir_f2py = incdir_numpy / '..' / '..' / 'f2py' / 'src'
-inc_f2py = include_directories(incdir_f2py)
+f2py_inc = declare_dependency(compile_args: ['-I' + incdir_f2py])
 fortranobject_c = incdir_f2py / 'fortranobject.c'
 
-inc_np = include_directories(incdir_numpy, incdir_f2py)
+# Combine the dependencies
+inc_np_dep = declare_dependency(compile_args: ['-I' + incdir_numpy, '-I' + incdir_f2py])
+
+# Create compiler arguments for numpy include directories (for backward compatibility)
+numpy_inc_args = ['-I' + incdir_numpy, '-I' + incdir_f2py]
 
 # gh-25000
-dep_quadmath = fortran_compiler.find_library('quadmath', required: true)
+dep_quadmath = fortran_compiler.find_library('quadmath', required: false)
 
 # Share this object across multiple modules.
 lib_fortranobject = static_library(
   '_fortranobject',
   fortranobject_c,
-  dependencies: dep_py,
-  include_directories: [inc_np, inc_f2py],
+  dependencies: [dep_py, inc_np_dep],
 )
 dep_fortranobject = declare_dependency(
   link_with: lib_fortranobject,
-  include_directories: [inc_np, inc_f2py],
+  dependencies: [inc_np_dep],
 )
 
 dep_lib_src = declare_dependency(
@@ -245,6 +291,19 @@ dep_suews = [dep_lib_src, dep_lib_suews]
 
 inc_suews_mod = include_directories('../suews/mod')
 
+link_args_windows = []
+c_args_windows = ['-D__MINGW_USE_VC_SETJMP=1']
+
+if host_machine.system() == 'windows'
+  if host_machine.cpu_family() == 'x86'
+    # 32-bit MSVCRT build – link explicitly for _setjmp
+    link_args_windows = ['-lmsvcrt']
+  else
+    # 64-bit: _setjmp is in the default CRT; add mingwex for safety
+    link_args_windows = ['-lmingwex']
+  endif
+endif
+
 ext_supy_driver = py.extension_module(
   '_supy_driver',
   sources: [
@@ -253,18 +312,19 @@ ext_supy_driver = py.extension_module(
     fortranobject_c,
   ],
   include_directories: [
-    inc_np,
     inc_suews_mod, # the path is relative to the current directory where the meson.build file is located
   ],
+  c_args: c_args_windows + numpy_inc_args,
   dependencies: [
     dep_py,
     dep_fortranobject,
     dep_quadmath,
+    inc_np_dep,
     dep_suews,
   ],
+  link_args: link_args_windows,
   install: true,
   subdir: 'supy',
-
 )
 
 # move the generated `supy_driver.py` to the correct directory

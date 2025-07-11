@@ -1,0 +1,34 @@
+# Example: YAML configuration with multiple forcing files
+# This example shows how to specify a list of forcing files
+# The files will be automatically concatenated in chronological order
+
+model:
+  control:
+    tstep: 3600
+    forcing_file:   # List of forcing files
+      - "forcing_2020.txt"
+      - "forcing_2021.txt"
+      - "forcing_2022.txt"
+    output_file: "output_2020_2022.txt"
+  physics:
+    netradiationmethod: 3
+    emissionsmethod: 2
+
+sites:
+  - name: "London_KCL"
+    latitude: 51.5115
+    longitude: -0.1160
+    altitude: 31.0
+    land_cover:
+      paved: 0.38
+      bldgs: 0.37
+      evetr: 0.02
+      dectr: 0.04
+      grass: 0.14
+      bsoil: 0.01
+      water: 0.04
+
+# Notes:
+# - Files must have consistent column structure
+# - Files will be concatenated based on their timestamps
+# - Ensure no gaps or overlaps in time periods between files

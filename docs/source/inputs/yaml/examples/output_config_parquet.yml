@@ -1,0 +1,36 @@
+# Example: Parquet output configuration
+# This example shows how to use the modern Parquet format for more efficient storage
+
+model:
+  control:
+    tstep: 300  # 5-minute timestep
+    forcing_file: "forcing_2020.txt"
+    
+    # Parquet output configuration
+    # Parquet files are more efficient for storage and faster to read
+    output_file:
+      format: parquet   # Modern columnar format
+      freq: 300         # Keep original 5-minute resolution (no resampling)
+      # Note: For Parquet format, all groups are saved in a single file
+      # The 'groups' parameter is ignored for Parquet output
+      
+  physics:
+    netradiationmethod: 3
+    emissionsmethod: 2
+
+sites:
+  - name: "Urban_Site"
+    latitude: 51.5
+    longitude: -0.1
+    # ... other site parameters
+
+# Benefits of Parquet format:
+# - Single file output (instead of multiple text files per year/group)
+# - Typically 70-80% smaller file size (2-5x compression vs text)
+# - Much faster to read into pandas/Python
+# - Preserves data types (no parsing needed)
+# - Works well with cloud storage and big data tools
+
+# Output files created:
+# - {site}_SUEWS_output.parquet - All output data (all years, all groups)
+# - {site}_SUEWS_state_final.parquet - Final model state for restart runs

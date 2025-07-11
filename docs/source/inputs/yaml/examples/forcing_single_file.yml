@@ -1,0 +1,25 @@
+# Example: YAML configuration with single forcing file
+# This example shows how to specify a single forcing file
+
+model:
+  control:
+    tstep: 3600
+    forcing_file: "forcing_2020.txt"  # Single forcing file
+    output_file: "output_2020.txt"
+  physics:
+    netradiationmethod: 3
+    emissionsmethod: 2
+
+sites:
+  - name: "London_KCL"
+    latitude: 51.5115
+    longitude: -0.1160
+    altitude: 31.0
+    land_cover:
+      paved: 0.38
+      bldgs: 0.37
+      evetr: 0.02
+      dectr: 0.04
+      grass: 0.14
+      bsoil: 0.01
+      water: 0.04

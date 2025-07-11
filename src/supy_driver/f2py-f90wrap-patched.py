@@ -36,8 +36,10 @@ def get_msvcr_patch():
 
 
 import sys
+
 if sys.version_info < (3, 12):
     import distutils.cygwinccompiler
+
     distutils.cygwinccompiler.get_msvcr = get_msvcr_patch
 else:
     pass
@@ -47,6 +49,7 @@ else:
 import re
 import sys
 from f90wrap.scripts.f2py_f90wrap import main
-if __name__ == '__main__':
-    sys.argv[0] = re.sub(r'(-script\.pyw|\.exe)?$', '', sys.argv[0])
+
+if __name__ == "__main__":
+    sys.argv[0] = re.sub(r"(-script\.pyw|\.exe)?$", "", sys.argv[0])
     sys.exit(main())

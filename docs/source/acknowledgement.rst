@@ -20,7 +20,7 @@ Contributors
     - v2011b – onwards
     - Team Leader
   * - Dr Ting Sun
-    - University of Reading, UK
+    - University College London, UK
     - AnOHM; Documentation system; WRF-SUEWS coupling; SuPy (python wrapper of SUEWS)
     - v2017b – onwards
     - Current Lead Developer
@@ -37,8 +37,28 @@ Contributors
   * - Dr Fredrik Lindberg
     - Göteborg University, Sweden
     - UMEP-related work, NARP, ESTM
-    - v2011b – owards
+    - v2011b – onwards
     - Lead Developer of UMEP
+  * - Matthew Paskin
+    - University of Reading, UK
+    - Documentation improvements, model physics enhancements, build system updates, YAML configuration system
+    - v2023a – onwards
+    - Co-Lead Developer since v2024a
+  * - Dr Silvia Rognone
+    - University of Reading, UK
+    - YAML configuration system, testing framework improvements
+    - v2024a – onwards
+    -
+  * - Dr Vitor Lavor
+    - University of Reading, UK
+    - RSL improvements
+    - v2024a – onwards
+    -
+  * - Dr Yuanyuan Liu
+    - University of Reading, UK
+    - OHM improvements
+    - v2024a – onwards
+    -
   * - Dr Lewis Blunn
     - University of Reading, UK
     - SUEWS-SPARTACUS coupling; RSL improvement
@@ -87,8 +107,11 @@ Dependency Libraries
 
 .. note::
 
-    We gratefully acknowledge the libraries/code that SUEWS uses as dependency and greatly appreciate their developers for the excellent work.
-    Please let us know if any inapproriate use of these code and we will remove/modify the related parts accordingly.
+    We gratefully acknowledge the libraries/code that SUEWS uses as dependencies and greatly appreciate their developers for the excellent work.
+
+    The libraries listed below are for the Fortran core of SUEWS. Python dependencies for SuPy and the broader SUEWS ecosystem can be found in `pyproject.toml <https://github.com/UMEP-dev/SUEWS/blob/master/pyproject.toml>`_.
+
+    Please let us know if any inappropriate use of these code and we will remove/modify the related parts accordingly.
 
 .. list-table::
   :widths: auto
@@ -188,5 +211,8 @@ Funding
   * - CFCAS
     - Environmental Prediction for Canadian Cities
     - D, O
+  * - UCL
+    - Open Source Software Sustainability Grant
+    - D
 
 

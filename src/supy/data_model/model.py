@@ -1,36 +1,43 @@
 import yaml
-from typing import Optional
+from typing import Optional, Union, List
 import numpy as np
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import ConfigDict, BaseModel, Field, field_validator, model_validator
 import pandas as pd
 from enum import Enum
 
-from .type import ValueWithDOI, Reference
+from .type import RefValue, Reference, FlexibleRefValue
 from .type import init_df_state
 
 
 class EmissionsMethod(Enum):
-    '''
-    0: Uses values provided in the meteorological forcing file (SSss_YYYY_data_tt.txt) to calculate QF. If you do not want to include QF to the calculation of surface energy balance, you should set values in the meteorological forcing file to zero to prevent calculation of QF. UMEP provides two methods to calculate QF LQF which is simpler GQF which is more complete but requires more data inputs
+    """
+    Method for calculating anthropogenic heat flux (QF) and CO2 emissions.
 
-    1: Not recommended in this version. QF calculated according to Loridan et al. [2011] using coefficients specified. Modelled values will be used even if QF is provided in the meteorological forcing file. CO2 emission is not calculated
+    0: NO_EMISSIONS - Uses observed QF values from forcing file. Set to zero in forcing file to exclude QF from energy balance
+    1: L11 - Loridan et al. (2011) SAHP method. Linear relation with air temperature, weekday/weekend profiles, scales with population density
+    2: J11 - Järvi et al. (2011) SAHP_2 method. Uses heating/cooling degree days, weekday/weekend differences via profiles and coefficients
+    3: L11_UPDATED - Modified Loridan method using daily mean air temperature instead of instantaneous values
+    4: J19 - Järvi et al. (2019) method. Includes building energy use, human metabolism, and traffic contributions
+    5: J19_UPDATED - As method 4 but also calculates CO2 emissions (biogenic and anthropogenic components)
+    """
 
-    2: Recommended in this version. QF calculated according to Järvi et al. [2011] using coefficients specified and diurnal patterns specified. Modelled values will be used even if QF is provided in the meteorological forcing file. CO2 emission is not calculated
-    
-    3: Updated Loridan et al. [2011] method using daily (not instantaneous) air temperature (HDD(id-1,3)) using coefficients specified. CO2 emission is not calculated
-
-    4: Järvi et al. [2019] method, in addition to anthropogenic heat due to building energy use calculated by Järvi et al. [2011], that due to metabolism and traffic is also calculated using coefficients specified and diurnal patterns specified. Modelled values will be used even if QF is provided in the meteorological forcing file. CO2 emission is not calculated
-
-    5: QF calculated using EmissionMethod = 4. Fc (both biogenic and anthropogenic) components calculated following Järvi et al. [2019]. Emissions from traffic and human metabolism calculated as a bottom up approach using coefficients specified and diurnal patterns specified. Building emissions are calculated with the aid of heating and cooling degree days. Biogenic emissions and sinks are calculated using coefficients specified
-    '''
     # just a demo to show how to use Enum for emissionsmethod
     NO_EMISSIONS = 0
     L11 = 1
     J11 = 2
     L11_UPDATED = 3
     J19 = 4
-    J19_UPDATED = 4
-  
+    J19_UPDATED = 5
+
+    def __new__(cls, value):
+        obj = object.__new__(cls)
+        obj._value_ = value
+        # Mark internal options
+        if value in [3, 5]:  # L11_UPDATED and J19_UPDATED
+            obj._internal = True
+        else:
+            obj._internal = False
+        return obj
 
     def __int__(self):
         """Representation showing just the value"""
@@ -42,21 +49,18 @@ class EmissionsMethod(Enum):
 
 
 class NetRadiationMethod(Enum):
-    '''
-    0: Uses observed values of Q* supplied in meteorological forcing file
-    1: Q* modelled with L↓ observations supplied in meteorological forcing file. Zenith angle not accounted for in albedo calculation
-    2: Q* modelled with L↓ modelled using cloud cover fraction supplied in meteorological forcing file [Loridan et al., 2011]. Zenith angle not accounted for in albedo calculation
-    3: Q* modelled with L↓ modelled using air temperature and relative humidity supplied in meteorological forcing file [Loridan et al., 2011]. Zenith angle not accounted for in albedo calculation
-    11: Same as 1 but with L↑ modelled using surface temperature Not recommended in this version
-    12: Same as 2 but with L↑ modelled using surface temperature Not recommended in this version
-    13: Same as 3 but with L↑ modelled using surface temperature Not recommended in this version
-    100: Q* modelled with L↓ observations supplied in meteorological forcing file. Zenith angle accounted for in albedo calculation. SSss_YYYY_NARPOut.txt file produced. Not recommended in this version
-    200: Q* modelled with L↓ modelled using cloud cover fraction supplied in meteorological forcing file [Loridan et al., 2011]. Zenith angle accounted for in albedo calculation. SSss_YYYY_NARPOut.txt file produced. Not recommended in this version
-    300: Q* modelled with L↓ modelled using air temperature and relative humidity supplied in meteorological forcing file [Loridan et al., 2011]. Zenith angle accounted for in albedo calculation. SSss_YYYY_NARPOut.txt file produced. Not recommended in this version
-    1001: Q* modelled with SPARTACUS-Surface (SS) but with L↓ modelled as in 1. Experimental in this version
-    1002: Q* modelled with SPARTACUS-Surface (SS) but with L↓ modelled as in 2. Experimental in this version
-    1003: Q* modelled with SPARTACUS-Surface (SS) but with L↓ modelled as in 3. Experimental in this version
-    '''
+    """
+    Method for calculating net all-wave radiation (Q*).
+
+    0: OBSERVED - Uses observed Q* values from forcing file
+    1: LDOWN_OBSERVED - Models Q* using observed longwave down radiation (L↓) from forcing file
+    2: LDOWN_CLOUD - Models Q* with L↓ estimated from cloud cover fraction
+    3: LDOWN_AIR - Models Q* with L↓ estimated from air temperature and relative humidity (recommended for basic runs)
+    11-13: Surface temperature variants of methods 1-3 (not recommended)
+    100-300: Zenith angle correction variants with NARP output (not recommended)
+    1001-1003: SPARTACUS-Surface integration variants (experimental)
+    """
+
     OBSERVED = 0
     LDOWN_OBSERVED = 1
     LDOWN_CLOUD = 2
@@ -71,6 +75,16 @@ class NetRadiationMethod(Enum):
     LDOWN_SS_CLOUD = 1002
     LDOWN_SS_AIR = 1003
 
+    def __new__(cls, value):
+        obj = object.__new__(cls)
+        obj._value_ = value
+        # Mark internal options (not recommended/experimental)
+        if value in [11, 12, 13, 100, 200, 300, 1001, 1002, 1003]:
+            obj._internal = True
+        else:
+            obj._internal = False
+        return obj
+
     def __int__(self):
         return self.value
 
@@ -79,18 +93,33 @@ class NetRadiationMethod(Enum):
 
 
 class StorageHeatMethod(Enum):
-    '''
-    0: Uses observed values of ΔQS supplied in meteorological forcing file
-    1: ΔQS modelled using the objective hysteresis model (OHM) [Grimmond et al., 1991] using parameters specified for each surface type
-    3: ΔQS modelled using AnOHM [Sun et al., 2017]. Not recommended in this version
-    4: ΔQS modelled using the Element Surface Temperature Method (ESTM) [Offerle et al., 2005]. Not recommended in this version
-    '''
+    """
+    Method for calculating storage heat flux (ΔQS).
+
+    0: OBSERVED - Uses observed ΔQS values from forcing file
+    1: OHM_WITHOUT_QF - Objective Hysteresis Model using Q* only (use with OhmIncQf=0)
+    3: ANOHM - Analytical OHM (Sun et al., 2017) - not recommended
+    4: ESTM - Element Surface Temperature Method (Offerle et al., 2005) - not recommended
+    5: ESTM_EXTENDED - Extended ESTM with separate roof/wall/ground temperatures
+    6: OHM_ENHANCED - OHM with enhanced parameterisation
+    """
+
     OBSERVED = 0
     OHM_WITHOUT_QF = 1
     ANOHM = 3
     ESTM = 4
-    FIVE = 5
-    OHM_YL = 6
+    ESTM_EXTENDED = 5
+    OHM_ENHANCED = 6
+
+    def __new__(cls, value):
+        obj = object.__new__(cls)
+        obj._value_ = value
+        # Mark internal options (not recommended)
+        if value in [3, 4]:  # ANOHM and ESTM
+            obj._internal = True
+        else:
+            obj._internal = False
+        return obj
 
     def __int__(self):
         return self.value
@@ -100,10 +129,13 @@ class StorageHeatMethod(Enum):
 
 
 class OhmIncQf(Enum):
-    '''
-    0: ΔQS modelled Q* only
-    1: ΔQS modelled using Q*+QF
-    '''
+    """
+    Controls inclusion of anthropogenic heat flux in OHM storage heat calculations.
+
+    0: EXCLUDE - Use Q* only (required when StorageHeatMethod=1)
+    1: INCLUDE - Use Q*+QF (required when StorageHeatMethod=2)
+    """
+
     EXCLUDE = 0
     INCLUDE = 1
 
@@ -115,13 +147,31 @@ class OhmIncQf(Enum):
 
 
 class RoughnessMethod(Enum):
-    '''
-    TODO:
-    '''
+    """
+    Method for calculating aerodynamic roughness length (z0m) and thermal roughness length (z0h).
+
+    1: FIXED - Fixed roughness length from site parameters
+    2: VARIABLE - Variable based on vegetation LAI using rule of thumb (Grimmond & Oke 1999)
+    3: MACDONALD - MacDonald et al. (1998) morphometric method based on building geometry
+    4: LAMBDAP_DEPENDENT - Varies with plan area fraction λp (Grimmond & Oke 1999)
+    5: ALTERNATIVE - Alternative variable method
+    """
+
     FIXED = 1  # Fixed roughness length
     VARIABLE = 2  # Variable roughness length based on vegetation state
-    THREE = 3  # Not documented
-    FIVE = 5  # Not documented
+    MACDONALD = 3  # MacDonald 1998 method
+    LAMBDAP_DEPENDENT = 4  # lambdaP dependent method
+    ALTERNATIVE = 5  # Alternative method
+
+    def __new__(cls, value):
+        obj = object.__new__(cls)
+        obj._value_ = value
+        # Mark internal options
+        if value == 5:  # ALTERNATIVE (vague method)
+            obj._internal = True
+        else:
+            obj._internal = False
+        return obj
 
     def __int__(self):
         return self.value
@@ -131,33 +181,31 @@ class RoughnessMethod(Enum):
 
 
 class StabilityMethod(Enum):
-    '''
-    0: Not used
-    1: Not used
-    2: 
-    Momentum:
-        unstable: Dyer [1974] modified by Högström [1988]
-        stable: Van Ulden and Holtslag [1985]
-    Heat: Dyer [1974] modified by Högström [1988]
-    Not recommended in this version.
-    
-    3:
-    Momentum: Campbell and Norman [1998] (Eq 7.27, Pg97)
-    Heat
-        unstable: Campbell and Norman [1998]
-        stable: Campbell and Norman [1998]
-    Recommended in this version.
-    
-    4:
-    Momentum: Businger et al. [1971] modified by Högström [1988]
-    Heat: Businger et al. [1971] modified by Högström [1988]
-    Not recommended in this version.
-    '''
+    """
+    Atmospheric stability correction functions for momentum and heat fluxes.
+
+    0: NOT_USED - Reserved
+    1: NOT_USED2 - Reserved
+    2: HOEGSTROM - Dyer (1974)/Högström (1988) for momentum, Van Ulden & Holtslag (1985) for stable conditions (not recommended)
+    3: CAMPBELL_NORMAN - Campbell & Norman (1998) formulations for both momentum and heat (recommended)
+    4: BUSINGER_HOEGSTROM - Businger et al. (1971)/Högström (1988) formulations (not recommended)
+    """
+
     NOT_USED = 0
     NOT_USED2 = 1
     HOEGSTROM = 2
     CAMPBELL_NORMAN = 3
     BUSINGER_HOEGSTROM = 4
+
+    def __new__(cls, value):
+        obj = object.__new__(cls)
+        obj._value_ = value
+        # Mark internal options (reserved/not recommended)
+        if value in [0, 1, 2, 4]:  # NOT_USED, NOT_USED2, HOEGSTROM, BUSINGER_HOEGSTROM
+            obj._internal = True
+        else:
+            obj._internal = False
+        return obj
 
     def __int__(self):
         return self.value
@@ -167,11 +215,14 @@ class StabilityMethod(Enum):
 
 
 class SMDMethod(Enum):
-    '''
-    0: SMD modelled using parameters specified
-    1: Observed SM provided in the meteorological forcing file is used. Data are provided as volumetric soil moisture content. Metadata must be provided
-    2: Observed SM provided in the meteorological forcing file is used. Data are provided as gravimetric soil moisture content. Metadata must be provided
-    '''
+    """
+    Method for determining soil moisture deficit (SMD).
+
+    0: MODELLED - SMD calculated from water balance using soil parameters
+    1: OBSERVED_VOLUMETRIC - Uses observed volumetric soil moisture content (m³/m³) from forcing file
+    2: OBSERVED_GRAVIMETRIC - Uses observed gravimetric soil moisture content (kg/kg) from forcing file
+    """
+
     MODELLED = 0
     OBSERVED_VOLUMETRIC = 1
     OBSERVED_GRAVIMETRIC = 2
@@ -184,10 +235,13 @@ class SMDMethod(Enum):
 
 
 class WaterUseMethod(Enum):
-    '''
-    0: External water use modelled using parameters specified
-    1: Observations of external water use provided in the meteorological forcing file are used.
-    '''
+    """
+    Method for determining external water use (irrigation).
+
+    0: MODELLED - Water use calculated based on soil moisture deficit and irrigation parameters
+    1: OBSERVED - Uses observed water use values from forcing file
+    """
+
     MODELLED = 0
     OBSERVED = 1
 
@@ -198,12 +252,15 @@ class WaterUseMethod(Enum):
         return str(self.value)
 
 
-class DiagMethod(Enum):
-    '''
-    0: Use MOST to calculate near surface diagnostics
-    1: Use RST to calculate near surface diagnostics
-    2: Use a set of criteria based on plan area index, frontal area index and heights of roughness elements to determine if RSL or MOST should be used.
-    '''
+class RSLMethod(Enum):
+    """
+    Method for calculating near-surface meteorological diagnostics (2m temperature, 2m humidity, 10m wind speed).
+
+    0: MOST (Monin-Obukhov Similarity Theory) - Appropriate for relatively homogeneous, flat surfaces
+    1: RST (Roughness Sublayer Theory) - Appropriate for heterogeneous urban surfaces with tall roughness elements
+    2: VARIABLE - Automatically selects between MOST and RST based on surface morphology (plan area index, frontal area index, and roughness element heights)
+    """
+
     MOST = 0
     RST = 1
     VARIABLE = 2
@@ -216,12 +273,27 @@ class DiagMethod(Enum):
 
 
 class FAIMethod(Enum):
-    '''
-    TODO: Add more detailed description for each method
-    '''
-    ZERO = 0 # Not documented
+    """
+    Method for calculating frontal area index (FAI) - the ratio of frontal area to plan area.
+
+    0: ZERO - FAI set to zero (typically for non-urban areas)
+    1: FIXED - Fixed FAI from site parameters
+    2: VARIABLE - Variable FAI based on vegetation LAI changes
+    """
+
+    ZERO = 0  # Not documented
     FIXED = 1  # Fixed frontal area index
     VARIABLE = 2  # Variable frontal area index based on vegetation state
+
+    def __new__(cls, value):
+        obj = object.__new__(cls)
+        obj._value_ = value
+        # Mark internal options
+        if value == 0:  # ZERO (not documented)
+            obj._internal = True
+        else:
+            obj._internal = False
+        return obj
 
     def __int__(self):
         return self.value
@@ -230,10 +302,16 @@ class FAIMethod(Enum):
         return str(self.value)
 
 
-class LocalClimateMethod(Enum):
-    '''
-    TODO: Add more detailed description for each method
-    '''
+class RSLLevel(Enum):
+    """
+    Method for incorporating local environmental feedbacks on surface processes, particularly vegetation phenology
+    and evapotranspiration responses to urban heat island effects.
+
+    0: NONE - No local climate adjustments; use forcing file meteorology directly
+    1: BASIC - Simple adjustments for urban temperature effects on leaf area index (LAI) and growing degree days
+    2: DETAILED - Comprehensive feedbacks including moisture stress, urban CO2 dome effects, and modified phenology cycles
+    """
+
     NONE = 0
     BASIC = 1
     DETAILED = 2
@@ -245,12 +323,36 @@ class LocalClimateMethod(Enum):
         return str(self.value)
 
 
+class GSModel(Enum):
+    """
+    Stomatal conductance parameterisation method for vegetation surfaces.
+
+    1: JARVI - Original parameterisation (Järvi et al. 2011) based on environmental controls
+    2: WARD - Updated parameterisation (Ward et al. 2016) with improved temperature and VPD responses
+    """
+
+    JARVI = 1
+    WARD = 2
+    # MP: Removed as dependent on rsllevel - legacy options for CO2 with 2 m temperature
+    # JARVI_2M = 3
+    # WARD_2M = 4
+
+    def __int__(self):
+        return self.value
+
+    def __repr__(self):
+        return str(self.value)
+
+
 class StebbsMethod(Enum):
-    '''
-    NONE = 0  # No STEBBS calculations
-    BASIC = 1  # STEBBS used with default stebbs parameters
-    DETAILED = 2  # STEBBS used with provided stebbs parameters from user
-    '''
+    """
+    Surface Temperature Energy Balance Based Scheme (STEBBS) for facet temperatures.
+
+    0: NONE - STEBBS calculations disabled
+    1: DEFAULT - STEBBS enabled with default parameters
+    2: PROVIDED - STEBBS enabled with user-specified parameters
+    """
+
     NONE = 0
     DEFAULT = 1
     PROVIDED = 2
@@ -261,12 +363,16 @@ class StebbsMethod(Enum):
     def __repr__(self):
         return str(self.value)
 
+
 class SnowUse(Enum):
-    '''
-    DISABLED = 0  # Snow calculations are performed
-    ENABLED = 1  # Snow calculations are not performed
-    '''
-    DISABLED = 0 
+    """
+    Controls snow process calculations.
+
+    0: DISABLED - Snow processes not included
+    1: ENABLED - Snow accumulation, melt, and albedo effects included
+    """
+
+    DISABLED = 0
     ENABLED = 1
 
     def __int__(self):
@@ -291,6 +397,7 @@ def yaml_equivalent_of_default(dumper, data):
     """
     return dumper.represent_scalar("tag:yaml.org,2002:int", str(data.value))
 
+
 # Register YAML representers for all enums
 for enum_class in [
     NetRadiationMethod,
@@ -300,9 +407,10 @@ for enum_class in [
     StabilityMethod,
     SMDMethod,
     WaterUseMethod,
-    DiagMethod,
+    RSLMethod,
     FAIMethod,
-    LocalClimateMethod,
+    RSLLevel,
+    GSModel,
     StebbsMethod,
     SnowUse,
     OhmIncQf,
@@ -311,61 +419,91 @@ for enum_class in [
 
 
 class ModelPhysics(BaseModel):
-    netradiationmethod: ValueWithDOI[NetRadiationMethod] = Field(
-        default=ValueWithDOI(NetRadiationMethod.LDOWN_AIR),
-        description="Method used to calculate net radiation",
+    """
+    Model physics configuration options.
+
+    Key method interactions:
+
+    - diagmethod: Determines HOW near-surface values (2m temp, 10m wind) are calculated from forcing data
+    - stabilitymethod: Provides stability correction functions used BY diagmethod calculations
+    - localclimatemethod: Uses the near-surface values FROM diagmethod to modify vegetation processes
+    - gsmodel: Stomatal conductance model that may be influenced by localclimatemethod adjustments
+    """
+
+    netradiationmethod: FlexibleRefValue(NetRadiationMethod) = Field(
+        default=NetRadiationMethod.LDOWN_AIR,
+        description="Method for calculating net all-wave radiation (Q*). Options: 0 (OBSERVED) = Uses observed Q* from forcing file; 1 (LDOWN_OBSERVED) = Models Q* using observed L↓; 2 (LDOWN_CLOUD) = Models Q* with L↓ from cloud cover; 3 (LDOWN_AIR) = Models Q* with L↓ from air temp and RH (recommended); 11 (LDOWN_SURFACE) = Surface temp variant of method 1 (not recommended); 12 (LDOWN_CLOUD_SURFACE) = Surface temp variant of method 2 (not recommended); 13 (LDOWN_AIR_SURFACE) = Surface temp variant of method 3 (not recommended); 100 (LDOWN_ZENITH) = Zenith angle variant of method 1; 200 (LDOWN_CLOUD_ZENITH) = Zenith angle variant of method 2; 300 (LDOWN_AIR_ZENITH) = Zenith angle variant of method 3; 1001 (LDOWN_SS_OBSERVED) = SPARTACUS-Surface variant of method 1 (experimental); 1002 (LDOWN_SS_CLOUD) = SPARTACUS-Surface variant of method 2 (experimental); 1003 (LDOWN_SS_AIR) = SPARTACUS-Surface variant of method 3 (experimental)",
+        json_schema_extra={"unit": "dimensionless"},
     )
-    emissionsmethod: ValueWithDOI[EmissionsMethod] = Field(
-        default=ValueWithDOI(EmissionsMethod.J11),
-        description="Method used to calculate anthropogenic emissions",
+    emissionsmethod: FlexibleRefValue(EmissionsMethod) = Field(
+        default=EmissionsMethod.J11,
+        description="Method for calculating anthropogenic heat flux (QF) and CO2 emissions. Options: 0 (NO_EMISSIONS) = Observed QF from forcing file; 1 (L11) = Loridan et al. 2011 linear temp relation; 2 (J11) = Järvi et al. 2011 with HDD/CDD; 3 (L11_UPDATED) = Loridan with daily mean temp; 4 (J19) = Järvi et al. 2019 including metabolism and traffic; 5 (J19_UPDATED) = As 4 with CO2 emissions",
+        json_schema_extra={"unit": "dimensionless"},
     )
-    storageheatmethod: ValueWithDOI[StorageHeatMethod] = Field(
-        default=ValueWithDOI(StorageHeatMethod.OHM_WITHOUT_QF),
-        description="Method used to calculate storage heat flux",
+    storageheatmethod: FlexibleRefValue(StorageHeatMethod) = Field(
+        default=StorageHeatMethod.OHM_WITHOUT_QF,
+        description="Method for calculating storage heat flux (ΔQS). Options: 0 (OBSERVED) = Uses observed ΔQS from forcing file; 1 (OHM_WITHOUT_QF) = Objective Hysteresis Model using Q* only; 3 (ANOHM) = Analytical OHM (not recommended); 4 (ESTM) = Element Surface Temperature Method (not recommended); 5 (ESTM_EXTENDED) = Extended ESTM with separate facet temps; 6 (OHM_ENHANCED) = Enhanced OHM parameterisation",
+        json_schema_extra={"unit": "dimensionless"},
     )
-    ohmincqf: ValueWithDOI[OhmIncQf] = Field(
-        default=ValueWithDOI(OhmIncQf.EXCLUDE),
-        description="Include anthropogenic heat in OHM calculations (1) or not (0)",
+    ohmincqf: FlexibleRefValue(OhmIncQf) = Field(
+        default=OhmIncQf.EXCLUDE,
+        description="Controls inclusion of anthropogenic heat flux in OHM storage heat calculations. Options: 0 (EXCLUDE) = Use Q* only (required when StorageHeatMethod=1); 1 (INCLUDE) = Use Q*+QF (required when StorageHeatMethod=2)",
+        json_schema_extra={"unit": "dimensionless"},
     )
-    roughlenmommethod: ValueWithDOI[RoughnessMethod] = Field(
-        default=ValueWithDOI(RoughnessMethod.VARIABLE),
-        description="Method used to calculate momentum roughness length",
+    roughlenmommethod: FlexibleRefValue(RoughnessMethod) = Field(
+        default=RoughnessMethod.VARIABLE,
+        description="Method for calculating momentum roughness length (z0m). Options: 1 (FIXED) = Fixed from site parameters; 2 (VARIABLE) = Varies with vegetation LAI; 3 (MACDONALD) = MacDonald et al. 1998 morphometric method; 4 (LAMBDAP_DEPENDENT) = Varies with plan area fraction; 5 (ALTERNATIVE) = Alternative variable method",
+        json_schema_extra={"unit": "dimensionless"},
     )
-    roughlenheatmethod: ValueWithDOI[RoughnessMethod] = Field(
-        default=ValueWithDOI(RoughnessMethod.VARIABLE),
-        description="Method used to calculate heat roughness length",
+    roughlenheatmethod: FlexibleRefValue(RoughnessMethod) = Field(
+        default=RoughnessMethod.VARIABLE,
+        description="Method for calculating thermal roughness length (z0h). Options: 1 (FIXED) = Fixed from site parameters; 2 (VARIABLE) = Varies with vegetation LAI; 3 (MACDONALD) = MacDonald et al. 1998 morphometric method; 4 (LAMBDAP_DEPENDENT) = Varies with plan area fraction; 5 (ALTERNATIVE) = Alternative variable method",
+        json_schema_extra={"unit": "dimensionless"},
     )
-    stabilitymethod: ValueWithDOI[StabilityMethod] = Field(
-        default=ValueWithDOI(StabilityMethod.CAMPBELL_NORMAN),
-        description="Method used for atmospheric stability calculation",
+    stabilitymethod: FlexibleRefValue(StabilityMethod) = Field(
+        default=StabilityMethod.CAMPBELL_NORMAN,
+        description="Atmospheric stability correction functions for momentum and heat fluxes. Options: 0 = Reserved; 1 = Reserved; 2 (HOEGSTROM) = Dyer/Högström formulations (not recommended); 3 (CAMPBELL_NORMAN) = Campbell & Norman 1998 formulations (recommended); 4 (BUSINGER_HOEGSTROM) = Businger/Högström formulations (not recommended)",
+        json_schema_extra={"unit": "dimensionless"},
     )
-    smdmethod: ValueWithDOI[SMDMethod] = Field(
-        default=ValueWithDOI(SMDMethod.MODELLED),
-        description="Method used to calculate soil moisture deficit",
+    smdmethod: FlexibleRefValue(SMDMethod) = Field(
+        default=SMDMethod.MODELLED,
+        description="Method for determining soil moisture deficit (SMD). Options: 0 (MODELLED) = Calculated from water balance using soil parameters; 1 (OBSERVED_VOLUMETRIC) = Uses observed volumetric soil moisture (m³/m³) from forcing file; 2 (OBSERVED_GRAVIMETRIC) = Uses observed gravimetric soil moisture (kg/kg) from forcing file",
+        json_schema_extra={"unit": "dimensionless"},
     )
-    waterusemethod: ValueWithDOI[WaterUseMethod] = Field(
-        default=ValueWithDOI(WaterUseMethod.MODELLED),
-        description="Method used to calculate water use",
+    waterusemethod: FlexibleRefValue(WaterUseMethod) = Field(
+        default=WaterUseMethod.MODELLED,
+        description="Method for determining external water use (irrigation). Options: 0 (MODELLED) = Calculated based on soil moisture deficit and irrigation parameters; 1 (OBSERVED) = Uses observed water use values from forcing file",
+        json_schema_extra={"unit": "dimensionless"},
     )
-    diagmethod: ValueWithDOI[DiagMethod] = Field(
-        default=ValueWithDOI(DiagMethod.VARIABLE),
-        description="Method used for model diagnostics",
+    rslmethod: FlexibleRefValue(RSLMethod) = Field(
+        default=RSLMethod.VARIABLE,
+        description="Method for calculating near-surface meteorological diagnostics (2m temperature, 2m humidity, 10m wind speed). Options: 0 (MOST) = Monin-Obukhov Similarity Theory for homogeneous surfaces; 1 (RST) = Roughness Sublayer Theory for heterogeneous urban surfaces; 2 (VARIABLE) = Automatic selection based on surface morphology (plan area index, frontal area index, and roughness element heights)",
+        json_schema_extra={"unit": "dimensionless"},
     )
-    faimethod: ValueWithDOI[FAIMethod] = Field(
-        default=ValueWithDOI(FAIMethod.FIXED),
-        description="Method used to calculate frontal area index",
+    faimethod: FlexibleRefValue(FAIMethod) = Field(
+        default=FAIMethod.FIXED,
+        description="Method for calculating frontal area index (FAI) - the ratio of frontal area to plan area. Options: 0 (ZERO) = FAI set to zero (non-urban areas); 1 (FIXED) = Fixed FAI from site parameters; 2 (VARIABLE) = Variable FAI based on vegetation LAI changes",
+        json_schema_extra={"unit": "dimensionless"},
     )
-    localclimatemethod: ValueWithDOI[LocalClimateMethod] = Field(
-        default=ValueWithDOI(LocalClimateMethod.NONE),
-        description="Method used for local climate zone calculations",
+    rsllevel: FlexibleRefValue(RSLLevel) = Field(
+        default=RSLLevel.NONE,
+        description="Method for incorporating urban microclimate feedbacks on vegetation and evapotranspiration. Options: 0 (NONE) = No local climate adjustments, use forcing file meteorology directly; 1 (BASIC) = Simple adjustments for urban temperature effects on leaf area index and growing degree days; 2 (DETAILED) = Comprehensive feedbacks including moisture stress, urban CO2 dome effects, and modified phenology cycles",
+        json_schema_extra={"unit": "dimensionless"},
     )
-    snowuse: ValueWithDOI[SnowUse] = Field(
-        default=ValueWithDOI(SnowUse.DISABLED),
-        description="Include snow calculations (1) or not (0)",
+    gsmodel: FlexibleRefValue(GSModel) = Field(
+        default=GSModel.WARD,
+        description="Stomatal conductance parameterisation method for vegetation surfaces. Options: 1 (JARVI) = Original parameterisation (Järvi et al. 2011) based on environmental controls; 2 (WARD) = Updated parameterisation (Ward et al. 2016) with improved temperature and VPD responses",
+        json_schema_extra={"unit": "dimensionless"},
     )
-    stebbsmethod: ValueWithDOI[StebbsMethod] = Field(
-        default=ValueWithDOI(StebbsMethod.NONE),
-        description="Method used for stebbs calculations",
+    snowuse: FlexibleRefValue(SnowUse) = Field(
+        default=SnowUse.DISABLED,
+        description="Controls snow process calculations. Options: 0 (DISABLED) = Snow processes not included; 1 (ENABLED) = Snow accumulation, melt, and albedo effects included",
+        json_schema_extra={"unit": "dimensionless"},
+    )
+    stebbsmethod: FlexibleRefValue(StebbsMethod) = Field(
+        default=StebbsMethod.NONE,
+        description="Surface Temperature Energy Balance Based Scheme (STEBBS) for facet temperatures. Options: 0 (NONE) = STEBBS disabled; 1 (DEFAULT) = STEBBS with default parameters; 2 (PROVIDED) = STEBBS with user-specified parameters",
+        json_schema_extra={"unit": "dimensionless"},
     )
 
     ref: Optional[Reference] = None
@@ -377,22 +515,37 @@ class ModelPhysics(BaseModel):
         so multiple errors (if any) can be raised together
         """
         errors = []
+        # Get values for comparison
+        storageheatmethod_val = (
+            self.storageheatmethod.value
+            if isinstance(self.storageheatmethod, RefValue)
+            else self.storageheatmethod
+        )
+        ohmincqf_val = (
+            self.ohmincqf.value
+            if isinstance(self.ohmincqf, RefValue)
+            else self.ohmincqf
+        )
+        snowuse_val = (
+            self.snowuse.value if isinstance(self.snowuse, RefValue) else self.snowuse
+        )
+
         # storageheatmethod check
-        if self.storageheatmethod == 1 and self.ohmincqf != 0:
+        if storageheatmethod_val == 1 and ohmincqf_val != 0:
             errors.append(
-                f"\nStorageHeatMethod is set to {self.storageheatmethod} and OhmIncQf is set to {self.ohmincqf}.\n"
+                f"\nStorageHeatMethod is set to {storageheatmethod_val} and OhmIncQf is set to {ohmincqf_val}.\n"
                 f"You should switch to OhmIncQf=0.\n"
             )
-        elif self.storageheatmethod == 2 and self.ohmincqf != 1:
+        elif storageheatmethod_val == 2 and ohmincqf_val != 1:
             errors.append(
-                f"\nStorageHeatMethod is set to {self.storageheatmethod} and OhmIncQf is set to {self.ohmincqf}.\n"
+                f"\nStorageHeatMethod is set to {storageheatmethod_val} and OhmIncQf is set to {ohmincqf_val}.\n"
                 f"You should switch to OhmIncQf=1.\n"
             )
 
         # snowusemethod check
-        if self.snowuse == 1:
+        if snowuse_val == 1:
             errors.append(
-                f"\nSnowUse is set to {self.snowuse}.\n"
+                f"\nSnowUse is set to {snowuse_val}.\n"
                 f"There are no checks implemented for this case (snow calculations included in the run).\n"
                 f"You should switch to SnowUse=0.\n"
             )
@@ -423,7 +576,8 @@ class ModelPhysics(BaseModel):
             if (col_name, idx_str) not in df_state.columns:
                 # df_state[(col_name, idx_str)] = np.nan
                 df_state[(col_name, idx_str)] = None
-            df_state.at[grid_id, (col_name, idx_str)] = int(value.value)
+            val = value.value if isinstance(value, RefValue) else value
+            df_state.at[grid_id, (col_name, idx_str)] = int(val)
 
         list_attr = [
             "netradiationmethod",
@@ -435,13 +589,20 @@ class ModelPhysics(BaseModel):
             "stabilitymethod",
             "smdmethod",
             "waterusemethod",
-            "diagmethod",
+            "rslmethod",
             "faimethod",
-            "localclimatemethod",
+            "rsllevel",
+            "gsmodel",
             "snowuse",
             "stebbsmethod",
         ]
         for attr in list_attr:
+            if attr == "rslmethod":
+                set_df_value("diagmethod", getattr(self, attr))
+                continue
+            if attr == "rsllevel":
+                set_df_value("localclimatemethod", getattr(self, attr))
+                continue
             set_df_value(attr, getattr(self, attr))
         return df_state
 
@@ -470,41 +631,103 @@ class ModelPhysics(BaseModel):
             "stabilitymethod",
             "smdmethod",
             "waterusemethod",
-            "diagmethod",
+            "rslmethod",
             "faimethod",
-            "localclimatemethod",
+            "rsllevel",
+            "gsmodel",
             "snowuse",
             "stebbsmethod",
         ]
 
         for attr in list_attr:
             try:
-                properties[attr] = ValueWithDOI(int(df.loc[grid_id, (attr, "0")]))
+                if attr == "rslmethod":
+                    properties[attr] = RefValue(
+                        int(df.loc[grid_id, ("diagmethod", "0")])
+                    )
+                    continue
+                if attr == "rsllevel":
+                    properties[attr] = RefValue(
+                        int(df.loc[grid_id, ("localclimatemethod", "0")])
+                    )
+                    continue
+                properties[attr] = RefValue(int(df.loc[grid_id, (attr, "0")]))
             except KeyError:
                 raise ValueError(f"Missing attribute '{attr}' in the DataFrame")
 
         return cls(**properties)
 
 
+class OutputFormat(Enum):
+    '''
+    Output file format options.
+    
+    TXT: Traditional text files (one per year/grid/group)
+    PARQUET: Single Parquet file containing all output data (efficient columnar format)
+    '''
+    TXT = "txt"
+    PARQUET = "parquet"
+    
+    def __str__(self):
+        return self.value
+
+
+class OutputConfig(BaseModel):
+    '''Configuration for model output files.'''
+    
+    format: OutputFormat = Field(
+        default=OutputFormat.TXT,
+        description="Output file format. Options: 'txt' for traditional text files (one per year/grid/group), 'parquet' for single Parquet file containing all data"
+    )
+    freq: Optional[int] = Field(
+        default=None,
+        description="Output frequency in seconds. Must be a multiple of the model timestep (tstep). If not specified, defaults to 3600 (hourly)"
+    )
+    groups: Optional[List[str]] = Field(
+        default=None,
+        description="List of output groups to save (only applies to txt format). Available groups: 'SUEWS', 'DailyState', 'snow', 'ESTM', 'RSL', 'BL', 'debug'. If not specified, defaults to ['SUEWS', 'DailyState']"
+    )
+    
+    @field_validator('groups')
+    def validate_groups(cls, v):
+        if v is not None:
+            valid_groups = {'SUEWS', 'DailyState', 'snow', 'ESTM', 'RSL', 'BL', 'debug'}
+            invalid = set(v) - valid_groups
+            if invalid:
+                raise ValueError(f"Invalid output groups: {invalid}. Valid groups are: {valid_groups}")
+        return v
+
+
 class ModelControl(BaseModel):
     tstep: int = Field(
         default=300, description="Time step in seconds for model calculations"
     )
-    forcing_file: ValueWithDOI[str] = Field(
-        default=ValueWithDOI("forcing.txt"),
-        description="Path to meteorological forcing data file",
+    forcing_file: Union[FlexibleRefValue(str), List[str]] = Field(
+        default="forcing.txt",
+        description="Path(s) to meteorological forcing data file(s). This can be either: (1) A single file path as a string (e.g., 'forcing.txt'), or (2) A list of file paths (e.g., ['forcing_2020.txt', 'forcing_2021.txt', 'forcing_2022.txt']). When multiple files are provided, they will be automatically concatenated in chronological order. The forcing data contains time-series meteorological measurements that drive SUEWS simulations. For detailed information about required variables, file format, and data preparation guidelines, see :ref:`met_input`.",
     )
-    kdownzen: Optional[ValueWithDOI[int]] = Field(
+    kdownzen: Optional[FlexibleRefValue(int)] = Field(
         default=None,
         description="Use zenithal correction for downward shortwave radiation",
+        json_schema_extra={"internal_only": True},
     )
-    output_file: str = Field(
-        default="output.txt", description="Path to model output file"
+    output_file: Union[str, OutputConfig] = Field(
+        default="output.txt", 
+        description="Output file configuration. DEPRECATED: String values are ignored and will issue a warning. Please use an OutputConfig object specifying format ('txt' or 'parquet'), frequency (seconds, must be multiple of tstep), and groups to save (for txt format only). Example: {'format': 'parquet', 'freq': 3600} or {'format': 'txt', 'freq': 1800, 'groups': ['SUEWS', 'DailyState', 'ESTM']}. For detailed information about output variables and file structure, see :ref:`output_files`."
     )
     # daylightsaving_method: int
     diagnose: int = Field(
         default=0,
         description="Level of diagnostic output (0=none, 1=basic, 2=detailed)",
+        json_schema_extra={"internal_only": True},
+    )
+    start_time: Optional[str] = Field(
+        default=None,
+        description="Start time of model run. If None use forcing data bounds.",
+    )
+    end_time: Optional[str] = Field(
+        default=None,
+        description="End time of model run. If None use forcing data bounds.",
     )
 
     ref: Optional[Reference] = None
@@ -560,15 +783,46 @@ class Model(BaseModel):
 
     @model_validator(mode="after")
     def validate_radiation_method(self) -> "Model":
-        if (
-            self.physics.netradiationmethod.value == 1
-            and self.control.forcing_file.value == "forcing.txt"
-        ):
+        netradiationmethod_val = (
+            self.physics.netradiationmethod.value
+            if isinstance(self.physics.netradiationmethod, RefValue)
+            else self.physics.netradiationmethod
+        )
+        forcing_file_val = (
+            self.control.forcing_file.value
+            if isinstance(self.control.forcing_file, RefValue)
+            else self.control.forcing_file
+        )
+
+        if netradiationmethod_val == 1 and forcing_file_val == "forcing.txt":
             raise ValueError(
                 "NetRadiationMethod is set to 1 (using observed Ldown). "
                 "The sample forcing file lacks observed Ldown. Use netradiation = 3 for sample forcing. "
                 "If not using sample forcing, ensure that the forcing file contains Ldown and rename from forcing.txt."
                 # TODO: This is a temporary solution. We need to provide a better way to catch this.
+            )
+        return self
+    
+    @model_validator(mode="after")
+    def validate_output_config(self) -> "Model":
+        """Validate output configuration, especially frequency vs timestep."""
+        if isinstance(self.control.output_file, OutputConfig):
+            output_config = self.control.output_file
+            if output_config.freq is not None:
+                tstep = self.control.tstep
+                if output_config.freq % tstep != 0:
+                    raise ValueError(
+                        f"Output frequency ({output_config.freq}s) must be a multiple of timestep ({tstep}s)"
+                    )
+        elif isinstance(self.control.output_file, str) and self.control.output_file != "output.txt":
+            # Issue warning for non-default string values
+            import warnings
+            warnings.warn(
+                f"The 'output_file' parameter with value '{self.control.output_file}' is deprecated and was never used. "
+                "Please use the new OutputConfig format or remove this parameter. "
+                "Example: output_file: {format: 'parquet', freq: 3600}",
+                DeprecationWarning,
+                stacklevel=3
             )
         return self
 

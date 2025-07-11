@@ -1,24 +1,80 @@
-from pydantic import BaseModel, Field, PrivateAttr
+from pydantic import ConfigDict, BaseModel, Field, PrivateAttr
 from typing import Optional
 import pandas as pd
-from .type import ValueWithDOI, Reference, SurfaceType
+from .type import RefValue, Reference, SurfaceType, FlexibleRefValue
 import math
 
 
 class WaterDistribution(BaseModel):
     # Optional fields for all possible distributions
-    to_paved: Optional[ValueWithDOI[float]] = Field(None, ge=0, le=1)
-    to_bldgs: Optional[ValueWithDOI[float]] = Field(None, ge=0, le=1)
-    to_dectr: Optional[ValueWithDOI[float]] = Field(None, ge=0, le=1)
-    to_evetr: Optional[ValueWithDOI[float]] = Field(None, ge=0, le=1)
-    to_grass: Optional[ValueWithDOI[float]] = Field(None, ge=0, le=1)
-    to_bsoil: Optional[ValueWithDOI[float]] = Field(None, ge=0, le=1)
-    to_water: Optional[ValueWithDOI[float]] = Field(None, ge=0, le=1)
-    to_runoff: Optional[ValueWithDOI[float]] = Field(
-        None, ge=0, le=1
+    to_paved: Optional[FlexibleRefValue(float)] = Field(
+        None,
+        description="Fraction of water redistributed to paved surfaces within the grid",
+        json_schema_extra={"unit": "dimensionless", "display_name": "To Paved"},
+        ge=0,
+        le=1,
+    )
+    to_bldgs: Optional[FlexibleRefValue(float)] = Field(
+        None,
+        description="Fraction of water redistributed to building surfaces within the grid",
+        json_schema_extra={"unit": "dimensionless", "display_name": "To Buildings"},
+        ge=0,
+        le=1,
+    )
+    to_dectr: Optional[FlexibleRefValue(float)] = Field(
+        None,
+        description="Fraction of water redistributed to deciduous tree surfaces within the grid",
+        json_schema_extra={
+            "unit": "dimensionless",
+            "display_name": "To Deciduous Trees",
+        },
+        ge=0,
+        le=1,
+    )
+    to_evetr: Optional[FlexibleRefValue(float)] = Field(
+        None,
+        description="Fraction of water redistributed to evergreen tree surfaces within the grid",
+        json_schema_extra={
+            "unit": "dimensionless",
+            "display_name": "To Evergreen Trees",
+        },
+        ge=0,
+        le=1,
+    )
+    to_grass: Optional[FlexibleRefValue(float)] = Field(
+        None,
+        description="Fraction of water redistributed to grass surfaces within the grid",
+        json_schema_extra={"unit": "dimensionless", "display_name": "To Grass"},
+        ge=0,
+        le=1,
+    )
+    to_bsoil: Optional[FlexibleRefValue(float)] = Field(
+        None,
+        description="Fraction of water redistributed to bare soil surfaces within the grid",
+        json_schema_extra={"unit": "dimensionless", "display_name": "To Bare Soil"},
+        ge=0,
+        le=1,
+    )
+    to_water: Optional[FlexibleRefValue(float)] = Field(
+        None,
+        description="Fraction of water redistributed to water surfaces within the grid",
+        json_schema_extra={"unit": "dimensionless", "display_name": "To Water"},
+        ge=0,
+        le=1,
+    )
+    to_runoff: Optional[FlexibleRefValue(float)] = Field(
+        None,
+        description="Fraction of water going to surface runoff (for impervious surfaces: paved and buildings)",
+        json_schema_extra={"unit": "dimensionless", "display_name": "To Runoff"},
+        ge=0,
+        le=1,
     )  # For paved/bldgs
-    to_soilstore: Optional[ValueWithDOI[float]] = Field(
-        None, ge=0, le=1
+    to_soilstore: Optional[FlexibleRefValue(float)] = Field(
+        None,
+        description="Fraction of water going to subsurface soil storage (for pervious surfaces: vegetation and bare soil)",
+        json_schema_extra={"unit": "dimensionless", "display_name": "To Soil Store"},
+        ge=0,
+        le=1,
     )  # For vegetated surfaces
     _surface_type: Optional[SurfaceType] = PrivateAttr(None)
 
@@ -38,58 +94,58 @@ class WaterDistribution(BaseModel):
         # Default distributions based on surface type
         default_distributions = {
             SurfaceType.PAVED: {
-                "to_bldgs": ValueWithDOI(0.2),
-                "to_evetr": ValueWithDOI(0.1),
-                "to_dectr": ValueWithDOI(0.1),
-                "to_grass": ValueWithDOI(0.1),
-                "to_bsoil": ValueWithDOI(0.1),
-                "to_water": ValueWithDOI(0.1),
-                "to_runoff": ValueWithDOI(0.3),
+                "to_bldgs": RefValue(0.2),
+                "to_evetr": RefValue(0.1),
+                "to_dectr": RefValue(0.1),
+                "to_grass": RefValue(0.1),
+                "to_bsoil": RefValue(0.1),
+                "to_water": RefValue(0.1),
+                "to_runoff": RefValue(0.3),
             },
             SurfaceType.BLDGS: {
-                "to_paved": ValueWithDOI(0.2),
-                "to_evetr": ValueWithDOI(0.1),
-                "to_dectr": ValueWithDOI(0.1),
-                "to_grass": ValueWithDOI(0.1),
-                "to_bsoil": ValueWithDOI(0.1),
-                "to_water": ValueWithDOI(0.1),
-                "to_runoff": ValueWithDOI(0.3),
+                "to_paved": RefValue(0.2),
+                "to_evetr": RefValue(0.1),
+                "to_dectr": RefValue(0.1),
+                "to_grass": RefValue(0.1),
+                "to_bsoil": RefValue(0.1),
+                "to_water": RefValue(0.1),
+                "to_runoff": RefValue(0.3),
             },
             SurfaceType.EVETR: {
-                "to_paved": ValueWithDOI(0.1),
-                "to_bldgs": ValueWithDOI(0.1),
-                "to_dectr": ValueWithDOI(0.1),
-                "to_grass": ValueWithDOI(0.1),
-                "to_bsoil": ValueWithDOI(0.1),
-                "to_water": ValueWithDOI(0.1),
-                "to_soilstore": ValueWithDOI(0.4),
+                "to_paved": RefValue(0.1),
+                "to_bldgs": RefValue(0.1),
+                "to_dectr": RefValue(0.1),
+                "to_grass": RefValue(0.1),
+                "to_bsoil": RefValue(0.1),
+                "to_water": RefValue(0.1),
+                "to_soilstore": RefValue(0.4),
             },
             SurfaceType.DECTR: {
-                "to_paved": ValueWithDOI(0.1),
-                "to_bldgs": ValueWithDOI(0.1),
-                "to_evetr": ValueWithDOI(0.1),
-                "to_grass": ValueWithDOI(0.1),
-                "to_bsoil": ValueWithDOI(0.1),
-                "to_water": ValueWithDOI(0.1),
-                "to_soilstore": ValueWithDOI(0.4),
+                "to_paved": RefValue(0.1),
+                "to_bldgs": RefValue(0.1),
+                "to_evetr": RefValue(0.1),
+                "to_grass": RefValue(0.1),
+                "to_bsoil": RefValue(0.1),
+                "to_water": RefValue(0.1),
+                "to_soilstore": RefValue(0.4),
             },
             SurfaceType.GRASS: {
-                "to_paved": ValueWithDOI(0.1),
-                "to_bldgs": ValueWithDOI(0.1),
-                "to_dectr": ValueWithDOI(0.1),
-                "to_evetr": ValueWithDOI(0.1),
-                "to_bsoil": ValueWithDOI(0.1),
-                "to_water": ValueWithDOI(0.1),
-                "to_soilstore": ValueWithDOI(0.4),
+                "to_paved": RefValue(0.1),
+                "to_bldgs": RefValue(0.1),
+                "to_dectr": RefValue(0.1),
+                "to_evetr": RefValue(0.1),
+                "to_bsoil": RefValue(0.1),
+                "to_water": RefValue(0.1),
+                "to_soilstore": RefValue(0.4),
             },
             SurfaceType.BSOIL: {
-                "to_paved": ValueWithDOI(0.1),
-                "to_bldgs": ValueWithDOI(0.1),
-                "to_dectr": ValueWithDOI(0.1),
-                "to_evetr": ValueWithDOI(0.1),
-                "to_grass": ValueWithDOI(0.1),
-                "to_water": ValueWithDOI(0.1),
-                "to_soilstore": ValueWithDOI(0.4),
+                "to_paved": RefValue(0.1),
+                "to_bldgs": RefValue(0.1),
+                "to_dectr": RefValue(0.1),
+                "to_evetr": RefValue(0.1),
+                "to_grass": RefValue(0.1),
+                "to_water": RefValue(0.1),
+                "to_soilstore": RefValue(0.4),
             },
         }
 
@@ -177,8 +233,7 @@ class WaterDistribution(BaseModel):
 
         # Validate sum
         total = sum(
-            value.value if isinstance(value, ValueWithDOI) else value
-            for value in values
+            value.value if isinstance(value, RefValue) else value for value in values
         )
         # if not np.isclose(total, 1.0, rtol=1e-5):
         if not math.isclose(total, 1.0, rel_tol=1e-5):
@@ -201,19 +256,17 @@ class WaterDistribution(BaseModel):
         # Add all non-None distribution parameters using a two-step process
         # 1. Collect all non-None values
         list_waterdist_value = []
-        for i, attr in enumerate(
-            [
-                "to_paved",
-                "to_bldgs",
-                "to_evetr",
-                "to_dectr",
-                "to_grass",
-                "to_bsoil",
-                "to_water",
-                # "to_soilstore",
-                # "to_runoff",
-            ]
-        ):
+        for i, attr in enumerate([
+            "to_paved",
+            "to_bldgs",
+            "to_evetr",
+            "to_dectr",
+            "to_grass",
+            "to_bsoil",
+            "to_water",
+            # "to_soilstore",
+            # "to_runoff",
+        ]):
             value = getattr(self, attr)
             if value is None:
                 list_waterdist_value.append(0.0)
@@ -235,10 +288,9 @@ class WaterDistribution(BaseModel):
         # Create MultiIndex columns
         columns = pd.MultiIndex.from_tuples(param_tuples, names=["var", "ind_dim"])
 
-        # Convert ValueWithDOI to float
+        # Convert RefValue to float
         values = [
-            value.value if isinstance(value, ValueWithDOI) else value
-            for value in values
+            value.value if isinstance(value, RefValue) else value for value in values
         ]
 
         # Create DataFrame with single row
@@ -298,13 +350,13 @@ class WaterDistribution(BaseModel):
             for param, idx in param_map.items()
         }
         for param, value in params.items():
-            value = ValueWithDOI(value)
+            value = RefValue(value)
             if getattr(instance, param) is not None:
                 setattr(instance, param, value)
 
         # set the last to_soilstore or to_runoff
         waterdist_last = df.loc[grid_id, ("waterdist", f"(7, {surf_idx})")]
-        waterdist_last = ValueWithDOI(waterdist_last)
+        waterdist_last = RefValue(waterdist_last)
         if getattr(instance, "to_soilstore") is None:
             setattr(instance, "to_runoff", waterdist_last)
         else:
@@ -314,12 +366,45 @@ class WaterDistribution(BaseModel):
 
 
 class StorageDrainParams(BaseModel):
-    store_min: ValueWithDOI[float] = Field(ge=0, default=ValueWithDOI(0.0))
-    store_max: ValueWithDOI[float] = Field(ge=0, default=ValueWithDOI(10.0))
-    store_cap: ValueWithDOI[float] = Field(ge=0, default=ValueWithDOI(10.0))
-    drain_eq: ValueWithDOI[int] = Field(default=ValueWithDOI(0))
-    drain_coef_1: ValueWithDOI[float] = Field(default=ValueWithDOI(0.013))
-    drain_coef_2: ValueWithDOI[float] = Field(default=ValueWithDOI(1.71))
+    store_min: FlexibleRefValue(float) = Field(
+        ge=0,
+        default=0.0,
+        description="Minimum water storage capacity",
+        json_schema_extra={"unit": "mm", "display_name": "Minimum Storage"},
+    )
+    store_max: Optional[FlexibleRefValue(float)] = Field(
+        ge=0,
+        default=None,
+        description="Maximum water storage capacity",
+        json_schema_extra={"unit": "mm", "display_name": "Maximum Storage"},
+    )
+    store_cap: Optional[FlexibleRefValue(float)] = Field(
+        ge=0,
+        default=None,
+        description="Current water storage capacity - the actual storage capacity available for surface water retention. This represents the depth of water that can be stored on or in the surface before drainage begins. For paved surfaces, this might represent depression storage; for vegetated surfaces, it includes canopy interception storage.",
+        json_schema_extra={"unit": "mm", "display_name": "Storage Capacity"},
+    )
+    drain_eq: FlexibleRefValue(int) = Field(
+        default=0,
+        description="Drainage equation selection (0: linear, 1: exponential)",
+        json_schema_extra={
+            "unit": "dimensionless",
+            "display_name": "Drainage Equation",
+        },
+    )
+    drain_coef_1: Optional[FlexibleRefValue(float)] = Field(
+        default=None,
+        description="Drainage coefficient 1 (rate parameter)",
+        json_schema_extra={"unit": "mm h^-1", "display_name": "Drainage Coefficient 1"},
+    )
+    drain_coef_2: Optional[FlexibleRefValue(float)] = Field(
+        default=None,
+        description="Drainage coefficient 2 (shape parameter)",
+        json_schema_extra={
+            "unit": "dimensionless",
+            "display_name": "Drainage Coefficient 2",
+        },
+    )
 
     ref: Optional[Reference] = None
 
@@ -336,16 +421,14 @@ class StorageDrainParams(BaseModel):
         # Create tuples for MultiIndex columns
         param_tuples = [
             ("storedrainprm", f"({i}, {surf_idx})")
-            for i, _ in enumerate(
-                [
-                    "store_min",
-                    "drain_eq",
-                    "drain_coef_1",
-                    "drain_coef_2",
-                    "store_max",
-                    "store_cap",
-                ]
-            )
+            for i, _ in enumerate([
+                "store_min",
+                "drain_eq",
+                "drain_coef_1",
+                "drain_coef_2",
+                "store_max",
+                "store_cap",
+            ])
         ]
 
         # Create MultiIndex columns
@@ -357,19 +440,20 @@ class StorageDrainParams(BaseModel):
         )
 
         # Fill values
-        for i, var in enumerate(
-            [
-                "store_min",
-                "drain_eq",
-                "drain_coef_1",
-                "drain_coef_2",
-                "store_max",
-                "store_cap",
-            ]
-        ):
-            df.loc[grid_id, ("storedrainprm", f"({i}, {surf_idx})")] = getattr(
-                self, var
-            ).value
+        for i, var in enumerate([
+            "store_min",
+            "drain_eq",
+            "drain_coef_1",
+            "drain_coef_2",
+            "store_max",
+            "store_cap",
+        ]):
+            field_val = getattr(self, var)
+            if field_val is not None:
+                val = field_val.value if isinstance(field_val, RefValue) else field_val
+            else:
+                val = 0.0  # Default to 0.0 for DataFrame compatibility
+            df.loc[grid_id, ("storedrainprm", f"({i}, {surf_idx})")] = val
 
         return df
 
@@ -404,8 +488,8 @@ class StorageDrainParams(BaseModel):
             for param, idx in param_map.items()
         }
 
-        # Conver params to ValueWithDOI
-        params = {key: ValueWithDOI(value) for key, value in params.items()}
+        # Conver params to RefValue
+        params = {key: RefValue(value) for key, value in params.items()}
 
         # Create an instance using the extracted parameters
         return cls(**params)

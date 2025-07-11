@@ -1,0 +1,28 @@
+# Example: Text output configuration with group selection
+# This example shows how to configure text output with specific groups
+
+model:
+  control:
+    tstep: 300  # 5-minute timestep
+    forcing_file: "forcing_2020.txt"
+    
+    # Text output configuration with custom groups
+    output_file:
+      format: txt       # Traditional text files (default)
+      freq: 1800        # Save half-hourly data (30 min = 1800 s)
+      groups:           # Select which output groups to save
+        - SUEWS         # Main SUEWS output
+        - DailyState    # Daily state variables
+        - RSL           # Roughness sublayer output
+        - debug         # Debug output
+        # Omitted groups: snow, BL, ESTM
+      
+  physics:
+    netradiationmethod: 3
+    emissionsmethod: 2
+
+sites:
+  - name: "Urban_Site"
+    latitude: 51.5
+    longitude: -0.1
+    # ... other site parameters

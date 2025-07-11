@@ -859,6 +859,7 @@ CONTAINS
                QF => heatState%QF, &
                QF_SAHP => heatState%QF_SAHP, &
                T2_c => atmstate%t2_C, &
+               T_hbh_C => atmState%T_hbh_C, &
                Temp_C => forcing%Temp_C, &
                QF_obs => forcing%QF_obs &
                )
@@ -902,7 +903,7 @@ CONTAINS
                   qf = QF_obs
                ELSEIF ((EmissionsMethod > 0 .AND. EmissionsMethod <= 6) .OR. EmissionsMethod >= 11) THEN
                   ! choose temperature for anthropogenic heat flux calculation
-                  Tair = MERGE(T2_c, Temp_C, localClimateMethod == 1)
+                  Tair = MERGE(T_hbh_C, MERGE(T2_C, Temp_C, localClimateMethod == 1), localClimateMethod == 2)
 
                   CALL AnthropogenicEmissions( &
                      CO2PointSource, EmissionsMethod, &
@@ -1417,7 +1418,7 @@ CONTAINS
       REAL(KIND(1D0)) :: OHM_threshSW(nsurf + 1) ! Temperature threshold determining whether summer/winter OHM coefficients are applied [degC]
       REAL(KIND(1D0)) :: OHM_threshWD(nsurf + 1) ! Soil moisture threshold determining whether wet/dry OHM coefficients are applied [-]
 
-      REAL(KIND(1D0)) :: SoilStoreCap(nsurf) ! capacity of soil store [J m-3 K-1]
+      REAL(KIND(1D0)) :: SoilStoreCap(nsurf) ! capacity of soil store [mm]
 
       REAL(KIND(1D0)) :: state_id(nsurf) ! wetness status [mm]
 
@@ -2993,6 +2994,7 @@ CONTAINS
             L_mod => atmState%L_mod, &
             RB => atmState%RB, &
             T2_C => atmState%T2_C, &
+            T_hbh_C => atmState%T_hbh_C, &
             QH_init => heatState%QH_init, &
             z0v => roughnessState%z0v, &
             zzd => roughnessState%zzd, &
@@ -3081,7 +3083,7 @@ CONTAINS
 
                IF (Diagnose == 1) WRITE (*, *) 'Calling SurfaceResistance...'
                ! CALL SurfaceResistance(id,it)   !qsc and surface resistance out
-               Tair = MERGE(T2_C, Temp_C, localClimateMethod == 1)
+               Tair = MERGE(T_hbh_C, MERGE(T2_C, Temp_C, localClimateMethod == 1), localClimateMethod == 2)
                CALL SurfaceResistance( &
                   id, it, & ! input:
                   SMDMethod, SnowFrac, sfr_surf, avkdn, Tair, dq, xsmd, vsmd, MaxConductance, &
@@ -5159,7 +5161,7 @@ CONTAINS
          forcing%snowfrac = MetForcingBlock(ir, 16)
          forcing%ldown = MetForcingBlock(ir, 17)
          forcing%fcld = MetForcingBlock(ir, 18)
-         forcing%Wuh = MetForcingBlock(ir, 19)
+         forcing%Wu_m3 = MetForcingBlock(ir, 19)
          forcing%xsmd = MetForcingBlock(ir, 20)
          forcing%LAI_obs = MetForcingBlock(ir, 21)
 

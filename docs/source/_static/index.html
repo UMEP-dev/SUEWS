@@ -1,0 +1,1290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SUEWS Configuration Builder</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+    <link rel="stylesheet" href="config-builder.css?v=7">
+    <style>
+        :root {
+            --primary-color: #4361ee;
+            --primary-dark: #3a56d4;
+            --secondary-color: #f8f9fa;
+            --accent-color: #0d6efd;
+            --text-primary: #212529;
+            --text-secondary: #6c757d;
+            --border-color: #dee2e6;
+            --success-color: #198754;
+            --warning-color: #ffc107;
+            --danger-color: #dc3545;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: #ffffff;
+            color: var(--text-primary);
+            line-height: 1.6;
+            margin: 0;
+            padding: 0;
+        }
+
+        /* Modern Header */
+        .modern-header {
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
+            color: white;
+            padding: 1.5rem 0;
+            box-shadow: 0 4px 20px rgba(67, 97, 238, 0.15);
+        }
+
+        .header-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        .header-title {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .header-title h1 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin: 0;
+            letter-spacing: -0.025em;
+        }
+
+        .header-logo {
+            width: 40px;
+            height: 40px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.25rem;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+        }
+
+        .btn-header {
+            background: rgba(255, 255, 255, 0.15);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            font-weight: 500;
+            transition: all 0.2s ease;
+            backdrop-filter: blur(10px);
+            font-size: 0.875rem;
+        }
+
+        .btn-header:hover {
+            background: rgba(255, 255, 255, 0.25);
+            color: white;
+            transform: translateY(-1px);
+        }
+        
+        /* Header Search */
+        .header-search {
+            max-width: 300px;
+        }
+        
+        .header-search .input-group {
+            height: 38px;
+        }
+        
+        .header-search .input-group-text {
+            background: rgba(255, 255, 255, 0.15);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: white;
+        }
+        
+        .header-search .form-control {
+            background: rgba(255, 255, 255, 0.15);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: white;
+        }
+        
+        .header-search .form-control::placeholder {
+            color: rgba(255, 255, 255, 0.7);
+        }
+        
+        .header-search .form-control:focus {
+            background: rgba(255, 255, 255, 0.2);
+            border-color: rgba(255, 255, 255, 0.5);
+            color: white;
+            box-shadow: 0 0 0 0.2rem rgba(255, 255, 255, 0.25);
+        }
+        
+        .header-search .btn-outline-light {
+            border-color: rgba(255, 255, 255, 0.3);
+        }
+        
+
+        /* App Container */
+        .app-container {
+            display: flex;
+            height: calc(100vh - 100px);
+            background: #ffffff;
+        }
+
+        /* Modern Sidebar */
+        .modern-sidebar {
+            width: 280px;
+            min-width: 280px;
+            background: #ffffff;
+            border-right: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            transition: transform 0.3s ease, width 0.3s ease;
+            position: relative;
+            z-index: 100;
+        }
+
+        .modern-sidebar.hidden {
+            transform: translateX(-100%);
+            width: 0;
+            min-width: 0;
+            border-right: none;
+        }
+
+        .sidebar-header {
+            padding: 1rem;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
+            min-height: 60px;
+        }
+
+        .sidebar-toggle-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-secondary);
+            font-size: 1.25rem;
+            padding: 0.5rem;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 36px;
+            height: 36px;
+        }
+
+        .sidebar-toggle-btn:hover {
+            background: rgba(67, 97, 238, 0.1);
+            color: var(--primary-color);
+        }
+
+        .sidebar-toggle-btn:active {
+            transform: scale(0.95);
+        }
+
+        /* When sidebar is hidden, show a floating toggle button */
+        .sidebar-toggle-floating {
+            position: fixed;
+            top: 1rem;
+            left: 1rem;
+            z-index: 1001;
+            background: white;
+            border: 1px solid var(--border-color);
+            color: var(--text-secondary);
+            font-size: 1.25rem;
+            padding: 0.75rem;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            display: none;
+        }
+
+        .sidebar-toggle-floating:hover {
+            background: var(--primary-color);
+            color: white;
+            transform: translateY(-1px);
+            box-shadow: 0 6px 20px rgba(67, 97, 238, 0.3);
+        }
+
+        .sidebar-nav {
+            padding: 1.5rem 0;
+            flex: 1;
+            overflow-y: auto;
+        }
+
+        .nav-section {
+            margin-bottom: 2rem;
+        }
+
+        .nav-link-text {
+            flex: 1;
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .nav-section-title {
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-secondary);
+            padding: 0 1.5rem;
+            margin-bottom: 0.75rem;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .nav-item {
+            margin: 0;
+        }
+
+        .nav-link {
+            display: flex;
+            align-items: center;
+            padding: 0.75rem 1.5rem;
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-weight: 500;
+            transition: all 0.2s ease;
+            border: none;
+            border-radius: 0;
+            background: transparent;
+            width: 100%;
+            text-align: left;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            line-height: 1.4;
+        }
+
+        .nav-link:hover {
+            background: rgba(67, 97, 238, 0.08);
+            color: var(--primary-color);
+        }
+
+        .nav-link.active {
+            background: rgba(67, 97, 238, 0.12);
+            color: var(--primary-color);
+            border-right: 3px solid var(--primary-color);
+        }
+
+        .nav-link i {
+            width: 20px;
+            min-width: 20px;
+            margin-right: 0.75rem;
+            font-size: 1rem;
+            flex-shrink: 0;
+        }
+
+        /* Main Content Area */
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            min-width: 0;
+        }
+
+        .content-body {
+            flex: 1;
+            display: flex;
+            overflow: hidden;
+            transition: flex-direction 0.3s ease;
+            width: 100%;
+        }
+
+
+        .form-panel {
+            flex: 1;
+            padding: 2rem;
+            overflow-y: auto;
+            background: #ffffff;
+            min-width: 300px;
+        }
+
+        .resize-handle {
+            width: 8px;
+            background: var(--border-color);
+            cursor: col-resize;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            transition: background-color 0.2s ease;
+            user-select: none;
+        }
+
+        .resize-handle:hover {
+            background: var(--primary-color);
+        }
+
+        .resize-handle-line {
+            width: 1px;
+            background: rgba(255, 255, 255, 0.3);
+            flex: 1;
+        }
+
+        .resize-handle-grip {
+            padding: 0.5rem 0;
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 0.75rem;
+            transition: color 0.2s ease;
+        }
+
+        .resize-handle:hover .resize-handle-grip {
+            color: white;
+        }
+
+        .resize-handle.resizing {
+            background: var(--primary-color);
+        }
+
+        .resize-handle.resizing .resize-handle-grip {
+            color: white;
+        }
+
+
+        .preview-panel {
+            width: 400px;
+            background: var(--secondary-color);
+            border-left: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            min-width: 250px;
+            transition: all 0.3s ease;
+        }
+
+
+        .preview-header {
+            padding: 1rem 1.5rem;
+            border-bottom: 1px solid var(--border-color);
+            background: white;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .preview-content {
+            flex: 1;
+            padding: 1.5rem;
+            overflow-y: auto;
+            background: white;
+            margin: 1rem;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+        }
+
+        .preview-content pre {
+            margin: 0;
+            font-family: 'JetBrains Mono', 'Fira Code', monospace;
+            font-size: 0.875rem;
+            line-height: 1.5;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+
+        /* Form Styling */
+        .section-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        /* Status Indicators */
+        .status-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.875rem;
+            font-weight: 500;
+        }
+
+        .status-valid {
+            background: rgba(25, 135, 84, 0.1);
+            color: var(--success-color);
+        }
+
+        .status-invalid {
+            background: rgba(220, 53, 69, 0.1);
+            color: var(--danger-color);
+        }
+
+        .status-pending {
+            background: rgba(255, 193, 7, 0.1);
+            color: #b45309;
+        }
+
+        .preview-format-label {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+
+        .preview-format-label i {
+            color: var(--primary-color);
+        }
+
+        /* Responsive Design */
+        @media (max-width: 1024px) {
+            .preview-panel {
+                width: 350px;
+            }
+        }
+
+        /* Sidebar overlay for mobile */
+        .sidebar-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 99;
+            display: none;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .sidebar-overlay.show {
+            display: block;
+            opacity: 1;
+        }
+
+        @media (max-width: 768px) {
+            .modern-sidebar {
+                position: fixed;
+                left: 0;
+                top: 0;
+                height: 100vh;
+                z-index: 1000;
+                box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
+                transform: translateX(-100%);
+            }
+
+            .modern-sidebar.show {
+                transform: translateX(0);
+            }
+
+            .modern-sidebar.hidden {
+                transform: translateX(-100%);
+                width: 280px; /* Keep original width on mobile */
+            }
+
+            .sidebar-header {
+                padding: 0.75rem 1rem;
+                min-height: 50px;
+            }
+
+            .sidebar-toggle-btn {
+                width: 32px;
+                height: 32px;
+                font-size: 1rem;
+            }
+
+            .sidebar-toggle-floating {
+                top: 0.75rem;
+                left: 0.75rem;
+                padding: 0.5rem;
+                font-size: 1rem;
+            }
+
+            .app-container {
+                height: calc(100vh - 80px);
+            }
+
+            .preview-panel {
+                display: none;
+            }
+
+            .resize-handle {
+                display: none;
+            }
+
+            #layoutToggleBtn {
+                display: none;
+            }
+
+            .header-content {
+                flex-direction: column;
+                text-align: center;
+            }
+
+            .header-title h1 {
+                font-size: 1.25rem;
+            }
+        }
+
+        /* Loading States */
+        .loading {
+            opacity: 0.6;
+            pointer-events: none;
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 1rem;
+            height: 1rem;
+            border: 2px solid transparent;
+            border-top: 2px solid currentColor;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        /* UX Controls Bar */
+        
+        
+        /* Modern form switch */
+        .form-check-input:checked {
+            background-color: #48bb78;
+            border-color: #48bb78;
+        }
+        
+        .form-check-input {
+            width: 3rem;
+            height: 1.5rem;
+            background-color: rgba(255, 255, 255, 0.3);
+            border: 2px solid rgba(255, 255, 255, 0.5);
+        }
+        
+        .form-check-input:focus {
+            box-shadow: 0 0 0 0.25rem rgba(255, 255, 255, 0.25);
+        }
+        
+        /* Advanced mode styling */
+        .basic-only {
+            display: block;
+        }
+        
+        .advanced-only {
+            display: none;
+        }
+        
+        body.advanced-mode .basic-only {
+            display: none;
+        }
+        
+        body.advanced-mode .advanced-only {
+            display: block;
+        }
+        
+        /* Search highlighting */
+        .search-highlight {
+            background-color: #fff3cd;
+            border: 2px solid #ffc107;
+            border-radius: 4px;
+            padding: 2px;
+        }
+        
+        .search-no-match {
+            display: none !important;
+        }
+        
+        /* Welcome Hero */
+        .welcome-hero {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 3rem 2rem;
+            margin-bottom: 2rem;
+            border-radius: 12px;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.2);
+        }
+        
+        .welcome-hero::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+            animation: float 20s infinite ease-in-out;
+        }
+        
+        @keyframes float {
+            0%, 100% { transform: translate(0, 0) rotate(0deg); }
+            50% { transform: translate(-30px, -30px) rotate(180deg); }
+        }
+        
+        .welcome-content {
+            position: relative;
+            text-align: center;
+            color: white;
+        }
+        
+        .welcome-title {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .welcome-subtitle {
+            font-size: 1.25rem;
+            opacity: 0.9;
+            margin-bottom: 2rem;
+        }
+        
+        .welcome-features {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 2rem;
+            margin-top: 2rem;
+        }
+        
+        .feature-card {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            padding: 1.5rem;
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            transition: transform 0.3s ease;
+        }
+        
+        .feature-card:hover {
+            transform: translateY(-5px);
+            background: rgba(255, 255, 255, 0.15);
+        }
+        
+        .feature-icon {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+            opacity: 0.9;
+        }
+        
+        .feature-card h4 {
+            font-size: 1.1rem;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+        }
+        
+        .feature-card p {
+            margin: 0;
+            opacity: 0.9;
+            font-size: 0.9rem;
+        }
+        
+        .btn-close-white {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            filter: brightness(0) invert(1);
+            opacity: 0.8;
+        }
+        
+        /* Modern form improvements */
+        .form-field {
+            margin-bottom: 1.5rem;
+            padding: 1.25rem;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border: 1px solid #e9ecef;
+            transition: all 0.3s ease;
+        }
+        
+        .form-field:hover {
+            border-color: #667eea;
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.1);
+        }
+        
+        .field-label {
+            font-weight: 600;
+            color: #2d3748;
+            margin-bottom: 0.5rem;
+        }
+        
+        .form-control, .form-select {
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            padding: 0.75rem 1rem;
+            transition: all 0.3s ease;
+        }
+        
+        .form-control:focus, .form-select:focus {
+            border-color: #667eea;
+            box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+        }
+        
+        /* Section improvements */
+        .config-section {
+            background: white;
+            border-radius: 12px;
+            padding: 2rem;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+        }
+        
+        .section-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #2d3748;
+            margin-bottom: 1.5rem;
+            padding-bottom: 1rem;
+            border-bottom: 2px solid #e9ecef;
+        }
+        
+        .section-title i {
+            color: #667eea;
+            margin-right: 0.5rem;
+        }
+        
+        /* Card improvements */
+        .card {
+            border: none;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+            margin-bottom: 1.5rem;
+            overflow: hidden;
+        }
+        
+        .card-header {
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            border: none;
+            padding: 1rem 1.5rem;
+            font-weight: 600;
+        }
+        
+        .card-body {
+            padding: 1.5rem;
+        }
+    </style>
+</head>
+<body>
+    <!-- Modern Header -->
+    <header class="modern-header">
+        <div class="container-fluid">
+            <div class="header-content">
+                <div class="header-title">
+                    <div class="header-logo">
+                        <i class="fas fa-cogs"></i>
+                    </div>
+                    <div>
+                        <h1>SUEWS Configuration Builder</h1>
+                        <p class="mb-0 opacity-75 small">Schema-driven configuration interface</p>
+                    </div>
+                </div>
+                <div class="header-actions">
+                    <button id="importBtn" class="btn btn-header">
+                        <i class="fas fa-file-import"></i> Import
+                    </button>
+                    <button id="exportYamlBtn" class="btn btn-header">
+                        <i class="fas fa-download"></i> Export YAML
+                    </button>
+                    <button id="validateBtn" class="btn btn-header">
+                        <i class="fas fa-check-circle"></i> Validate
+                    </button>
+                    <!-- Search Bar -->
+                    <div class="header-search">
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="fas fa-search"></i></span>
+                            <input type="text" class="form-control" id="parameterSearch" 
+                                   placeholder="Search parameters..." 
+                                   aria-label="Search parameters">
+                            <button class="btn btn-outline-light" type="button" id="clearSearchBtn" 
+                                    style="display: none;" title="Clear search">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <button id="newBtn" class="btn btn-header">
+                        <i class="fas fa-file"></i> New
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Experimental Warning Banner -->
+    <div class="alert alert-warning alert-dismissible fade show mx-3 mt-3 mb-0" role="alert" style="border-radius: 8px; border-left: 5px solid #ff6b6b;">
+        <div class="d-flex align-items-start">
+            <i class="fas fa-exclamation-triangle me-3 mt-1" style="font-size: 1.5rem; color: #ff6b6b;"></i>
+            <div class="flex-grow-1">
+                <h5 class="alert-heading mb-2">
+                    <strong>⚠️ Experimental Feature - Not for Production Use</strong>
+                </h5>
+                <p class="mb-2">
+                    This configuration builder is <strong>highly experimental</strong> and under active development. 
+                    It is <strong>NOT recommended for production use</strong>. Please use the traditional YAML editing 
+                    approach for critical work.
+                </p>
+                <p class="mb-0">
+                    <strong>We welcome your feedback!</strong> Please submit any issues or suggestions to our 
+                    <a href="https://github.com/UMEP-dev/SUEWS/issues" target="_blank" class="alert-link">
+                        GitHub Issues page <i class="fas fa-external-link-alt ms-1"></i>
+                    </a>
+                </p>
+            </div>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    </div>
+
+    <!-- Sidebar Overlay for Mobile -->
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+    <!-- Floating Sidebar Toggle (shown when sidebar is hidden) -->
+    <button id="floatingToggle" class="sidebar-toggle-floating">
+        <i class="fas fa-chevron-right"></i>
+    </button>
+
+    <!-- Configuration Builder -->
+    <div class="app-container">
+        <!-- Sidebar Navigation -->
+        <nav class="modern-sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <button id="toggleSidebar" class="sidebar-toggle-btn">
+                    <i class="fas fa-chevron-left"></i>
+                </button>
+            </div>
+            <div class="sidebar-nav">
+                <div class="nav-section">
+                    <div class="nav-section-title">Configuration</div>
+                    <div class="nav-item">
+                        <button class="nav-link active" data-section="general">
+                            <i class="fas fa-info-circle"></i>
+                            <span class="nav-link-text">General Settings</span>
+                        </button>
+                    </div>
+                    <div class="nav-item">
+                        <button class="nav-link" data-section="model">
+                            <i class="fas fa-cogs"></i>
+                            <span class="nav-link-text">Model Configuration</span>
+                        </button>
+                    </div>
+                    <div class="nav-item">
+                        <button class="nav-link" data-section="site">
+                            <i class="fas fa-map-marker-alt"></i>
+                            <span class="nav-link-text">Site Information</span>
+                        </button>
+                    </div>
+                </div>
+                <div class="nav-section">
+                    <div class="nav-section-title">Help</div>
+                    <div class="nav-item">
+                        <a class="nav-link" href="../inputs/yaml/index.html" target="_blank">
+                            <i class="fas fa-book"></i>
+                            <span class="nav-link-text">YAML Documentation</span>
+                        </a>
+                    </div>
+                    <div class="nav-item">
+                        <a class="nav-link" href="../inputs/tables/index.html" target="_blank">
+                            <i class="fas fa-table"></i>
+                            <span class="nav-link-text">Legacy Tables</span>
+                        </a>
+                    </div>
+                    <div class="nav-item">
+                        <a class="nav-link" href="../workflow.html" target="_blank">
+                            <i class="fas fa-sitemap"></i>
+                            <span class="nav-link-text">Workflow Guide</span>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <div class="content-body">
+                
+                
+                <!-- Form Panel -->
+                <div class="form-panel" id="formPanel">
+                    <div id="general-section" class="config-section active">
+                        <div class="section-title">
+                            <i class="fas fa-info-circle"></i>
+                            General Settings
+                        </div>
+                        <div id="general-form-container">
+                            <!-- General form will be populated by JavaScript -->
+                            <div class="text-center p-5">
+                                <div class="spinner-border text-primary" role="status">
+                                    <span class="visually-hidden">Loading...</span>
+                                </div>
+                                <p class="mt-3">Loading configuration builder...</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="model-section" class="config-section" style="display: none;">
+                        <div class="section-title">
+                            <i class="fas fa-cogs"></i>
+                            Model Configuration
+                        </div>
+                        <div id="model-form-container">
+                            <!-- Model form will be populated by JavaScript -->
+                        </div>
+                    </div>
+
+                    <div id="site-section" class="config-section" style="display: none;">
+                        <div class="section-title">
+                            <i class="fas fa-map-marker-alt"></i>
+                            Site Information
+                        </div>
+                        <div id="site-form-container">
+                            <!-- Site form will be populated by JavaScript -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Resize Handle -->
+                <div class="resize-handle" id="resizeHandle" title="Drag to resize panels | Double-click to reset">
+                    <div class="resize-handle-line"></div>
+                    <div class="resize-handle-grip">
+                        <i class="fas fa-grip-lines-vertical"></i>
+                    </div>
+                    <div class="resize-handle-line"></div>
+                </div>
+
+                <!-- Preview Panel -->
+                <div class="preview-panel" id="previewPanel">
+                    <div class="preview-header">
+                        <h3>Configuration Preview</h3>
+                        <div class="d-flex align-items-center gap-2">
+                            <span id="validationStatus" class="status-indicator status-pending">
+                                <i class="fas fa-clock"></i>
+                                Pending
+                            </span>
+                            <div class="preview-format-label">
+                                <i class="fas fa-file-code"></i>
+                                YAML Format
+                            </div>
+                        </div>
+                    </div>
+                    <div class="preview-content">
+                        <pre id="preview-container"># Loading configuration builder...</pre>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Import Modal -->
+    <div class="modal fade" id="importModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Import Configuration</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="importFile" class="form-label">Select File</label>
+                        <input class="form-control" type="file" id="importFile" accept=".yaml,.yml">
+                    </div>
+                    <div class="mb-3">
+                        <label for="importText" class="form-label">Or paste YAML configuration</label>
+                        <textarea class="form-control" id="importText" rows="10" placeholder="Paste your YAML configuration here..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" id="confirmImport">Import</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Validation Modal -->
+    <div class="modal fade" id="validationModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Validation Results</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body" id="validationResults">
+                    <!-- Validation results will be displayed here -->
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/js-yaml@4.1.0/dist/js-yaml.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/ajv@6.12.6/dist/ajv.bundle.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+    
+    <!-- Modular config builder scripts -->
+    <script src="js/config-builder-core.js?v=12"></script>
+    <script src="js/config-builder-schema.js?v=9"></script>
+    <script src="js/config-builder-field-order.js?v=2"></script>
+    <script src="js/config-builder-field-types.js?v=2"></script>
+    <script src="js/config-builder-arrays.js?v=9"></script>
+    <script src="js/config-builder-ui.js?v=10"></script>
+    <script src="js/config-builder-forms.js?v=10"></script>
+    <script src="js/config-builder-preview.js?v=10"></script>
+    <script>
+        // Modern UI Controller for direct configuration builder
+        document.addEventListener('DOMContentLoaded', () => {
+            // Sidebar navigation
+            document.querySelectorAll('.nav-link[data-section]').forEach(link => {
+                link.addEventListener('click', (e) => {
+                    const section = e.target.closest('.nav-link').dataset.section;
+                    if (section) {
+                        switchSection(section);
+                    }
+                });
+            });
+
+            // Sidebar toggle functionality
+            initializeSidebarToggle();
+
+            // Initialize resize functionality
+            initializeResize();
+
+
+            function switchSection(sectionName) {
+                // Update navigation
+                document.querySelectorAll('.nav-link[data-section]').forEach(link => {
+                    link.classList.remove('active');
+                });
+                document.querySelector(`[data-section="${sectionName}"]`).classList.add('active');
+
+                // Update content
+                document.querySelectorAll('.config-section').forEach(section => {
+                    section.style.display = 'none';
+                });
+                document.getElementById(`${sectionName}-section`).style.display = 'block';
+            }
+
+            function updateValidationStatus(status, message) {
+                const statusEl = document.getElementById('validationStatus');
+                if (statusEl) {
+                    statusEl.className = `status-indicator status-${status}`;
+                    const icons = {
+                        valid: 'fas fa-check-circle',
+                        invalid: 'fas fa-exclamation-triangle',
+                        pending: 'fas fa-clock'
+                    };
+                    statusEl.innerHTML = `<i class="${icons[status]}"></i> ${message}`;
+                }
+            }
+
+                        // Initialize sidebar toggle functionality
+            function initializeSidebarToggle() {
+                const toggleBtn = document.getElementById('toggleSidebar');
+                const floatingToggle = document.getElementById('floatingToggle');
+                const sidebar = document.getElementById('sidebar');
+                const overlay = document.getElementById('sidebarOverlay');
+
+                if (!toggleBtn || !floatingToggle || !sidebar || !overlay) {
+                    console.warn('Sidebar toggle elements not found');
+                    return;
+                }
+
+                // Check if sidebar has hidden class initially
+                let sidebarHidden = sidebar.classList.contains('hidden');
+
+                const updateToggleButtons = () => {
+                    const isMobile = window.innerWidth <= 768;
+                    const icon = toggleBtn.querySelector('i');
+                    const floatingIcon = floatingToggle.querySelector('i');
+
+                    if (isMobile) {
+                        // Mobile: always show chevron-left in sidebar, chevron-right in floating
+                        icon.className = 'fas fa-chevron-left';
+                        floatingIcon.className = 'fas fa-chevron-right';
+                        floatingToggle.style.display = 'none'; // Hide floating button on mobile
+                    } else {
+                        // Desktop: update based on sidebar state
+                        if (sidebarHidden) {
+                            icon.className = 'fas fa-chevron-right';
+                            floatingIcon.className = 'fas fa-chevron-right';
+                            floatingToggle.style.display = 'block';
+                        } else {
+                            icon.className = 'fas fa-chevron-left';
+                            floatingIcon.className = 'fas fa-chevron-right';
+                            floatingToggle.style.display = 'none';
+                        }
+                    }
+                };
+
+                const toggleSidebar = () => {
+                    const isMobile = window.innerWidth <= 768;
+
+                    if (isMobile) {
+                        // Mobile behavior: show/hide with overlay
+                        const isShowing = sidebar.classList.contains('show');
+                        sidebar.classList.toggle('show');
+                        overlay.classList.toggle('show');
+                    } else {
+                        // Desktop behavior: hide/show sidebar
+                        sidebarHidden = !sidebarHidden;
+                        sidebar.classList.toggle('hidden', sidebarHidden);
+                        updateToggleButtons();
+                    }
+                };
+
+                // Toggle button clicks
+                toggleBtn.addEventListener('click', toggleSidebar);
+                floatingToggle.addEventListener('click', toggleSidebar);
+
+                // Close sidebar when clicking overlay (mobile)
+                overlay.addEventListener('click', () => {
+                    sidebar.classList.remove('show');
+                    overlay.classList.remove('show');
+                });
+
+                // Handle window resize
+                window.addEventListener('resize', () => {
+                    const isMobile = window.innerWidth <= 768;
+
+                    if (isMobile) {
+                        // Reset desktop classes on mobile
+                        sidebar.classList.remove('hidden');
+                        sidebarHidden = false;
+                        floatingToggle.style.display = 'none';
+
+                        // Close mobile sidebar when switching to mobile
+                        sidebar.classList.remove('show');
+                        overlay.classList.remove('show');
+                    } else {
+                        // Close mobile sidebar when switching to desktop
+                        sidebar.classList.remove('show');
+                        overlay.classList.remove('show');
+                    }
+
+                    updateToggleButtons();
+                });
+
+                // Close mobile sidebar with Escape key
+                document.addEventListener('keydown', (e) => {
+                    if (e.key === 'Escape') {
+                        const isMobile = window.innerWidth <= 768;
+                        if (isMobile && sidebar.classList.contains('show')) {
+                            sidebar.classList.remove('show');
+                            overlay.classList.remove('show');
+                        }
+                    }
+                });
+
+                // Initialize button states
+                updateToggleButtons();
+            }
+
+            // Initialize resize functionality
+            function initializeResize() {
+                const resizeHandle = document.getElementById('resizeHandle');
+                const formPanel = document.getElementById('formPanel');
+                const previewPanel = document.getElementById('previewPanel');
+                const contentBody = document.querySelector('.content-body');
+
+                if (!resizeHandle || !formPanel || !previewPanel || !contentBody) {
+                    console.warn('Resize elements not found');
+                    return;
+                }
+
+                                let isResizing = false;
+                let startX = 0;
+                let startY = 0;
+                let startFormWidth = 0;
+                let startPreviewWidth = 0;
+                let startFormHeight = 0;
+                let startPreviewHeight = 0;
+
+                resizeHandle.addEventListener('mousedown', (e) => {
+                    isResizing = true;
+                    
+                    // Only vertical layout (resize horizontally)
+                    startX = e.clientX;
+                    startFormWidth = formPanel.offsetWidth;
+                    startPreviewWidth = previewPanel.offsetWidth;
+                    document.body.style.cursor = 'col-resize';
+
+                    resizeHandle.classList.add('resizing');
+                    document.body.style.userSelect = 'none';
+
+                    e.preventDefault();
+                });
+
+                document.addEventListener('mousemove', (e) => {
+                    if (!isResizing) return;
+
+                    // Only vertical layout: resize horizontally
+                    const deltaX = e.clientX - startX;
+                    const containerWidth = contentBody.offsetWidth - 8; // Subtract handle width
+
+                    let newFormWidth = startFormWidth + deltaX;
+                    let newPreviewWidth = startPreviewWidth - deltaX;
+
+                    // Enforce minimum widths
+                    const minFormWidth = 300;
+                    const minPreviewWidth = 250;
+
+                    if (newFormWidth < minFormWidth) {
+                        newFormWidth = minFormWidth;
+                        newPreviewWidth = containerWidth - newFormWidth;
+                    } else if (newPreviewWidth < minPreviewWidth) {
+                        newPreviewWidth = minPreviewWidth;
+                        newFormWidth = containerWidth - newPreviewWidth;
+                    }
+
+                    // Apply the new widths
+                    formPanel.style.flex = 'none';
+                    formPanel.style.width = `${newFormWidth}px`;
+                    previewPanel.style.width = `${newPreviewWidth}px`;
+                });
+
+                document.addEventListener('mouseup', () => {
+                    if (isResizing) {
+                        isResizing = false;
+                        resizeHandle.classList.remove('resizing');
+                        document.body.style.cursor = '';
+                        document.body.style.userSelect = '';
+                    }
+                });
+
+                // Handle double-click to reset to default sizes
+                resizeHandle.addEventListener('dblclick', () => {
+                    // Reset to default sizes for vertical layout
+                    formPanel.style.flex = '1';
+                    formPanel.style.width = '';
+                    previewPanel.style.width = '400px';
+                });
+            }
+
+            // Make functions available globally
+            window.switchSection = switchSection;
+            window.updateValidationStatus = updateValidationStatus;
+        });
+    </script>
+
+    <!-- Version Footer -->
+    <footer class="version-footer" style="position: fixed; bottom: 0; right: 0; padding: 0.5rem 1rem; background: rgba(0,0,0,0.05); border-top-left-radius: 8px; font-size: 0.75rem; color: #6c757d;">
+        <span>SUEWS v2025.6.2.dev473</span>
+        <span class="mx-2">|</span>
+        <span>Commit: f5adac3d</span>
+    </footer>
+</body>
+</html>

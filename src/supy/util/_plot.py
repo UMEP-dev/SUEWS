@@ -58,6 +58,7 @@ def plot_day_clm(df_var, fig=None, ax=None, show_dif=False, col_ref="Obs"):
     """
     import matplotlib.dates as mdates
     import matplotlib.pyplot as plt
+    from datetime import datetime
 
     if fig is None and ax is None:
         fig, ax = plt.subplots()
@@ -67,16 +68,16 @@ def plot_day_clm(df_var, fig=None, ax=None, show_dif=False, col_ref="Obs"):
         ax = fig.gca()
 
     # group by hour and minute
-    grp_sdf_var = df_var.groupby(
-        [df_var.index.hour.rename("hr"), df_var.index.minute.rename("min")]
-    )
+    grp_sdf_var = df_var.groupby([
+        df_var.index.hour.rename("hr"),
+        df_var.index.minute.rename("min"),
+    ])
     # get index
     year = df_var.index.year.min()
     month = df_var.index.month.min()
     day = df_var.index.day.min()
     idx = [
-        pd.datetime(year, month, day, h, m)
-        for h, m in sorted(grp_sdf_var.groups.keys())
+        datetime(year, month, day, h, m) for h, m in sorted(grp_sdf_var.groups.keys())
     ]
     idx = pd.date_range(idx[0], idx[-1], periods=len(idx))
     idx = mdates.date2num(idx)
@@ -125,7 +126,11 @@ def plot_day_clm(df_var, fig=None, ax=None, show_dif=False, col_ref="Obs"):
 def plot_comp(
     df_var,
     scatter_kws={"alpha": 0.1, "s": 0.3, "color": "k"},
-    kde_kws={"shade": True, "shade_lowest": False, "levels": 4,},
+    kde_kws={
+        "shade": True,
+        "shade_lowest": False,
+        "levels": 4,
+    },
     show_pdf=False,
     fig=None,
     ax=None,
@@ -169,8 +174,8 @@ def plot_comp(
         val_x = df_var_fit["Obs"]
         val_y = df_var_fit["Sim"]
     except:
-        val_x = df_var_fit.iloc[:,0]
-        val_y = df_var_fit.iloc[:,1]
+        val_x = df_var_fit.iloc[:, 0]
+        val_y = df_var_fit.iloc[:, 1]
 
     slope, intercept, r_value, p_value, std_err = stats.linregress(val_x, val_y)
     mae = (val_y - val_x).abs().mean()
@@ -183,15 +188,13 @@ def plot_comp(
         ax=ax,
         fit_reg=True,
         line_kws={
-            "label": "\n".join(
-                [
-                    f"y={slope:.2f}x{'+' if intercept > 0 else ''}{intercept:.2f}",
-                    f"$R^2$={r_value**2:.4f}",
-                    f"MAE={mae:.2f}",
-                    f"MBE={mbe:.2f}",
-                    f"n={df_var_fit.shape[0]}",
-                ]
-            )
+            "label": "\n".join([
+                f"y={slope:.2f}x{'+' if intercept > 0 else ''}{intercept:.2f}",
+                f"$R^2$={r_value**2:.4f}",
+                f"MAE={mae:.2f}",
+                f"MBE={mbe:.2f}",
+                f"n={df_var_fit.shape[0]}",
+            ])
         },
         scatter_kws=scatter_kws,
     )
@@ -201,7 +204,12 @@ def plot_comp(
     color_last = ax.lines[0].get_color()
     if show_pdf:
         sns.kdeplot(
-            df_var.Obs, df_var.Sim, ax=ax, color=color_last, zorder=0, **kde_kws,
+            df_var.Obs,
+            df_var.Sim,
+            ax=ax,
+            color=color_last,
+            zorder=0,
+            **kde_kws,
         )
 
     # set equal plotting range
@@ -344,7 +352,10 @@ def plot_colortable(colors, title, sort_colors=True, emptycols=0):
 
 # plotting RSL profiles
 def plot_rsl(
-    df_output, var=None, fig=None, ax=None,
+    df_output,
+    var=None,
+    fig=None,
+    ax=None,
 ):
     """
     Produce a quick plot of RSL results

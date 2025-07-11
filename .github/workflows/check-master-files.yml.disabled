@@ -1,0 +1,43 @@
+name: Check Master File Types
+
+on:
+  push:
+    branches: [ master ]
+
+jobs:
+  check-files:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    
+    - name: Check file types
+      run: |
+        # Get list of changed files in the last commit
+        CHANGED_FILES=$(git diff --name-only HEAD^ HEAD 2>/dev/null || git diff --name-only $(git rev-list --max-parents=0 HEAD) HEAD)
+        
+        # Check each file
+        INVALID_FILES=""
+        for file in $CHANGED_FILES; do
+          # Skip deleted files
+          if [ ! -f "$file" ]; then
+            continue
+          fi
+          
+          # Check if file is allowed (*.md, *.yml, *.yaml, or in .github/workflows, or in .githooks)
+          if [[ ! "$file" =~ \.(md|yml|yaml)$ ]] && [[ ! "$file" =~ ^\.github/workflows/ ]] && [[ ! "$file" =~ ^\.githooks/ ]]; then
+            INVALID_FILES="$INVALID_FILES\n  - $file"
+          fi
+        done
+        
+        # Fail if invalid files found
+        if [ -n "$INVALID_FILES" ]; then
+          echo "❌ Error: Only markdown (*.md) and YAML config files (*.yml, *.yaml) are allowed on master branch"
+          echo -e "\nInvalid files detected:$INVALID_FILES"
+          echo -e "\nPlease create a feature branch for changes to source code files."
+          exit 1
+        fi
+        
+        echo "✅ All changed files are allowed types (markdown or YAML configs)"

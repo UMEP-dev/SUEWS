@@ -1,135 +1,256 @@
 .. _dev_guide:
 
-
 Development Guide
--------------------------
+=================
 
 .. note:: If you are interested in contributing to the code please open a new discussion in the `UMEP Community`_ to illustrate your proposal: we are happy to collaborate in an open development mode.
 
+Quick Start - Get Coding in 5 Minutes
+--------------------------------------
 
+Get a working development environment and start contributing:
 
+.. code-block:: bash
 
+   # Clone and setup
+   git clone https://github.com/UMEP-dev/SUEWS.git
+   cd SUEWS
+   mamba env create -f env.yml
+   mamba activate suews-dev
+   make dev
 
-Essential pre-requisites
-************************
+   # Verify everything works
+   make test
 
-compliation
+You're ready! GitHub Actions will handle code formatting automatically.
 
-git
+Development Workflow
+--------------------
 
-testing
+Code → Test → Push → Let CI Handle the Rest
+*******************************************
 
-Code guidelines
-************************
+.. code-block:: bash
 
+   # Find what to work on
+   gh issue list --assignee @me
 
-If you are interested in contributing to the code please contact Sue
-Grimmond.
+   # Create your branch
+   git checkout -b feature/your-feature-name
 
-Coding
-******
+   # Make changes and test locally
+   make test
 
-#. Core physics and calculation schemes of SUEWS are written in Fortran 90
+   # Push and create PR
+   git push -u origin feature/your-feature-name
+   gh pr create
 
-#. Code is hosted in GitHub as private repository
+Common Development Tasks
+------------------------
 
-#. Variables
+Adding a New Output Variable
+****************************
 
-   -  Names should be defined at least in one place in the code –
-      ideally when defined
-   -  Implicit None should be used in all subroutines
-   -  Variable name should include units. e.g. Temp\_C, Temp\_K
-   -  Output variable attributes should be provided in the TYPE
-      structure defined in the ctrl_output module as follows:
+1. **Modify Output Definition**: Add variable to ``src/suews/src/suews_ctrl_output.f95``
 
-       ::
+   .. code-block:: fortran
 
-           : TYPE varAttr
-           : CHARACTER(len = 15) :: header ! short name in headers
-           : CHARACTER(len = 12) :: unit   ! unit
-           : CHARACTER(len = 14) :: fmt    ! output format
-           : CHARACTER(len = 50) :: longNm ! long name for detailed description
-           : CHARACTER(len = 1)  :: aggreg ! aggregation method
-           : CHARACTER(len = 10) :: group  ! group: datetime, default, ESTM, Snow, etc.
-           : INTEGER             :: level  ! output priority level: 0 for highest (defualt output)
-           : END TYPE varAttr
+      varAttr('YourVar', 'units', f104, 'Description', aA, 'Group', 0)
 
-#. Code should be written generally
-#. Data set for testing should be provided
-#. Demonstration that the model performance has improved when new code
-   has been added or that any deterioration is warranted.
-#. Additional requirements for modelling need to be indicated in the
-   manual
-#. All code should be commented in the program (with initials of who
-   made the changes – name specified somewhere and institution)
-#. The references used in the code and in the equations will be
-   collected to a webpage
-#. Current developments that are being actively worked on
+2. **Rebuild**: ``make dev``
 
+3. **Test**: ``pytest test/test_suews_simulation.py -v``
 
-Testing
-*******
+Fixing a Physics Bug
+*********************
 
-#. The testing of SUEWS is done using Python 3
-#. The following tests are done for each release of SUEWS:
+1. **Find Physics Code**: Look in ``src/suews/src/suews_phys_*.f95``
+2. **Use Benchmark Data**: Test against ``test/benchmark1/benchmark1.yml``
+3. **Validate**: ``make test``
 
-  #. Working status of `all physics schemes <scheme_options>`
-  #. Year-grid looping logic
-  #. Identity of output results with internal test dataset
+Adding YAML Configuration Option
+*********************************
 
-Please use pre-defined ``make test`` option to check if your code can pass all tests or not.
-If not, the correctness of added code should be justified with caution.
+1. **Update Data Model**: Modify ``src/supy/data_model/``
+2. **Test Validation**: ``pytest test/test_data_model.py -v``
 
+Quick Testing
+*************
 
+.. code-block:: bash
 
-Preparation of SUEWS Manual
-***************************
+   # Run all tests
+   make test
 
-#. The SUEWS manual is written in `reStructuredText (aka rst) <http://www.sphinx-doc.org/en/master/usage/restructuredtext/basics.html>`_ with a `Sphinx <http://www.sphinx-doc.org/>`_ flavour
-#. The SUEWS manual is hosted by `readthedocs.org <https://www.readthedocs.org>`_
-#. CSV tables used in following pages are automatically generated from the *Description* field in `Input_Options` by each build, so **DON'T** manually edit them as your edits will be swiped automatically:
+   # Run specific test file
+   pytest test/test_supy.py -v
 
-  * `SUEWS_AnthropogenicEmission.txt`
-  * `SUEWS_BiogenCO2.txt`
-  * `SUEWS_Conductance.txt`
-  * `SUEWS_Irrigation.txt`
-  * `SUEWS_NonVeg.txt`
-  * `SUEWS_OHMCoefficients.txt`
-  * `SUEWS_Profiles.txt`
-  * `SUEWS_SiteSelect.txt`
-  * `SUEWS_Snow.txt`
-  * `SUEWS_Soil.txt`
-  * `SUEWS_Veg.txt`
-  * `SUEWS_Water.txt`
-  * `SUEWS_WithinGridWaterDist.txt`
+   # Run specific test method
+   pytest test/test_supy.py::TestClass::test_method -v
 
-F2PY tips
-*********
+   # Quick iteration with specific config
+   python -c "import supy as sp; sp.run('test/benchmark1/benchmark1.yml')"
 
-This includes several **DON'T**'s
-that have never been mentioned by F2PY docs:
+Debugging
+---------
 
-1. DON'T mix comments as lines into argument list of Fortran subroutines/functions:
+Python Debugging
+*****************
 
-  DONT:
+.. code-block:: python
 
-  .. code-block:: fortran
+   # Interactive debugging
+   import ipdb; ipdb.set_trace()
 
-      subroutine(&
-      ! DONT DO this
-      args&
-      )
+   # Quick inspection
+   print(f"Variable value: {your_variable}")
 
-  OK:
+Fortran Debugging
+*****************
 
-  .. code-block:: fortran
+For Fortran debugging, see the GDB section in ``README.md``.
 
-      subroutine(&
-      args& ! OK this way
-      )
+Build Issues
+************
 
-2. DON'T end a subroutine as ``ENDSUBROUTINE``.
-Instead, leave a space in between
-to form ``END SUBROUTINE``.
-Otherwise, the subroutines won't be correctly
-parsed and picked up by F2PY.
+.. code-block:: bash
+
+   # Common fixes for build problems
+   make clean && make dev    # Clean rebuild
+   mamba activate suews-dev  # Ensure correct environment
+
+Test Data Resources
+-------------------
+
+Use these for validation and testing:
+
+**Benchmark Configuration:**
+   ``test/benchmark1/benchmark1.yml``
+
+**Forcing Data:**
+   ``test/benchmark1/forcing/Kc1_2011_data_5.txt``
+
+**Multi-grid Tests:**
+   ``test/data_test/multi-grid/``
+
+**ERA5 Test Data:**
+   ``test/data_test/single-grid/``
+
+Project Structure
+-----------------
+
+Key directories for development:
+
+.. code-block:: text
+
+   SUEWS/
+   ├── src/
+   │   ├── suews/          # Fortran physics engine
+   │   │   └── src/        # Core physics modules
+   │   ├── supy/           # Python interface
+   │   │   ├── data_model/ # YAML configuration models
+   │   │   └── util/       # Utility functions
+   │   └── supy_driver/    # F2Py wrapper
+   ├── test/               # Test suite and data
+   ├── docs/               # Documentation source
+   └── Makefile           # Build commands
+
+Code Quality Tools (Handled by CI)
+-----------------------------------
+
+These tools run automatically in GitHub Actions:
+
+**Python:**
+   - **ruff**: Fast linting and formatting
+   - **pytest**: Testing framework
+
+**Fortran:**
+   - **fprettify**: Auto-formatting
+   - **gfortran**: Compilation with warnings
+
+**VS Code Extensions** (Optional):
+   - Modern Fortran
+   - Python
+   - GitLens
+   - GitHub Copilot
+
+Performance Analysis (Optional)
+*******************************
+
+For performance work:
+
+.. code-block:: bash
+
+   # Python profiling
+   python -m cProfile your_script.py
+
+   # Line-by-line profiling
+   pip install line_profiler
+   @profile  # Add decorator to functions
+   kernprof -l -v your_script.py
+
+Build Commands Reference
+------------------------
+
+.. code-block:: bash
+
+   make dev          # Fast development build (recommended)
+   make              # Full build with tests
+   make test         # Run test suite only
+   make clean        # Clean build artifacts
+   make docs         # Build documentation
+   make livehtml     # Live documentation preview
+
+SUEWS-Specific Patterns
+-----------------------
+
+Variable Naming
+***************
+
+Follow the existing pattern in the codebase:
+
+- Include units in variable names: ``Temp_C``, ``Press_hPa``
+- Use descriptive names: ``LatentHeatFlux`` not ``LHF``
+- Fortran: ALL_CAPS for parameters, CamelCase for variables
+
+Output Variables
+****************
+
+When adding output variables:
+
+1. Define in ``suews_ctrl_output.f95``
+2. Calculate in appropriate physics module
+3. Add to output group (SUEWS, ESTM, BEERS, etc.)
+4. Document in output files documentation
+
+Testing Philosophy
+******************
+
+- **Always test against benchmark data** before submitting
+- **Add tests for new features** in ``test/test_*.py``
+- **Use existing test patterns** - copy similar tests
+- **Test edge cases** - what happens with missing data?
+
+Getting Help
+------------
+
+- **GitHub Issues**: `Report bugs or request features <https://github.com/UMEP-dev/SUEWS/issues>`_
+- **Discussions**: `Ask questions <https://github.com/UMEP-dev/UMEP/discussions>`_
+- **Documentation**: This manual and inline code comments
+
+Troubleshooting Common Issues
+-----------------------------
+
+**Import Errors**
+   ``make clean && make dev``
+
+**Test Failures After Fortran Changes**
+   Need full rebuild: ``make clean && make``
+
+**F2PY Compilation Issues**
+   Check function signatures match between Fortran and Python wrapper
+
+**Permission Errors (Windows)**
+   Right-click project folder → Properties → Security → Edit → Everyone → Allow
+
+.. _UMEP Community: https://github.com/UMEP-dev/UMEP/discussions

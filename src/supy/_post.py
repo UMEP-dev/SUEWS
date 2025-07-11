@@ -38,11 +38,12 @@ df_var = get_output_info_df()
 dict_var_lower = {group.lower(): group for group in df_var.index.levels[0].str.strip()}
 
 #  generate dict of functions to apply for each variable
+# Use lambda for 'last' to avoid pandas compatibility issues
 dict_func_aggm = {
-    "T": "last",
+    "T": lambda x: x.iloc[-1] if len(x) > 0 else np.nan,  # last value
     "A": "mean",
     "S": "sum",
-    "L": "last",
+    "L": lambda x: x.iloc[-1] if len(x) > 0 else np.nan,  # last value
 }
 df_var["func"] = df_var.aggm.apply(lambda x: dict_func_aggm[x])
 
@@ -81,12 +82,10 @@ def pack_df_grid(dict_output):
     # pack
     df_xx0 = df_xx.map(pd.Series)
     df_xx1 = df_xx0.map(pd.DataFrame.from_dict)
-    df_xx2 = pd.concat(
-        {
-            grid: pd.concat(df_xx1[grid].to_dict()).unstack().dropna(axis=1)
-            for grid in df_xx1.columns
-        }
-    )
+    df_xx2 = pd.concat({
+        grid: pd.concat(df_xx1[grid].to_dict()).unstack().dropna(axis=1)
+        for grid in df_xx1.columns
+    })
     # drop redundant levels
     df_xx2.columns = df_xx2.columns.droplevel(0)
     # regroup by `grid`
@@ -186,9 +185,31 @@ def pack_df_output_block(dict_output_block, df_forcing_block):
 
 # resample supy output
 def resample_output(df_output, freq="60T", dict_aggm=dict_var_aggm):
+    # Helper function to resample a group with specified parameters
+    def _resample_group(df_group, freq, label, dict_aggm_group):
+        """Resample a dataframe group with specified aggregation rules.
+        
+        Args:
+            df_group: DataFrame group to resample
+            freq: Resampling frequency
+            label: Label parameter for resample ('left' or 'right')
+            dict_aggm_group: Aggregation dictionary for this group
+        
+        Returns:
+            Resampled DataFrame
+        """
+        return df_group.dropna().resample(
+            freq, 
+            closed="right", 
+            label=label
+        ).agg(dict_aggm_group)
+    
     # get grid and group names
     list_grid = df_output.index.get_level_values("grid").unique()
     list_group = df_output.columns.get_level_values("group").unique()
+
+    # Skip DailyState if it somehow gets here (it should be handled separately)
+    list_group = [g for g in list_group if g != 'DailyState']
 
     # resampling output according to different rules defined in dict_aggm
     # note the setting in .resample: (closed='right',label='right')
@@ -198,13 +219,12 @@ def resample_output(df_output, freq="60T", dict_aggm=dict_var_aggm):
         {
             grid: pd.concat(
                 {
-                    group: df_output.loc[grid, group]
-                    .resample(
+                    group: _resample_group(
+                        df_output.loc[grid, group],
                         freq,
-                        closed="right",
-                        label="right",
+                        "right",  # Regular variables use 'right' label
+                        dict_aggm[group]
                     )
-                    .agg(dict_aggm[group])
                     for group in list_group
                 },
                 axis=1,
@@ -215,9 +235,33 @@ def resample_output(df_output, freq="60T", dict_aggm=dict_var_aggm):
         names=["grid"],
     )
 
+    # Handle DailyState separately if present
+    if "DailyState" in df_output and "DailyState" in dict_aggm:
+        # DailyState uses label="left" as it represents state at the beginning of the period
+        # whereas other variables use label="right" following SUEWS convention for period-ending values
+        df_dailystate_rsmp = pd.concat(
+            {
+                grid: pd.concat(
+                    {
+                        "DailyState": _resample_group(
+                            df_output.loc[grid, "DailyState"],
+                            freq,
+                            "left",  # DailyState uses 'left' label
+                            dict_aggm["DailyState"]
+                        )
+                    },
+                    axis=1,
+                    names=["group", "var"],
+                )
+                for grid in list_grid
+            },
+            names=["grid"],
+        )
+
+        df_rsmp = pd.concat([df_rsmp, df_dailystate_rsmp], axis=1)
+
     # clean results
     df_rsmp = df_rsmp.dropna(how="all", axis=0)
-
     return df_rsmp
 
 
@@ -275,7 +319,7 @@ def proc_df_rsl(df_output, debug=False):
     >>> # Basic processing
     >>> df_rsl = proc_df_rsl(df_output)
     >>> # Plot vertical profiles
-    >>> df_rsl.xs('u', level='var').T.plot(legend=True)
+    >>> df_rsl.xs("u", level="var").T.plot(legend=True)
     >>>
     >>> # With debug information
     >>> df_rsl, df_debug_vars = proc_df_rsl(df_output, debug=True)
@@ -408,7 +452,9 @@ def fast_pack_dts(dts_obj, dict_structure=None):
     >>>
     >>> # For efficient processing of multiple objects
     >>> dict_structure = inspect_dts_structure(state_debug)
-    >>> list_debug_dicts = [fast_pack_dts(obj, dict_structure) for obj in debug_objects]
+    >>> list_debug_dicts = [
+    ...     fast_pack_dts(obj, dict_structure) for obj in debug_objects
+    ... ]
     """
     if dict_structure is None:
         dict_structure = inspect_dts_structure(dts_obj)
@@ -479,7 +525,7 @@ def pack_dts2dict_selective(dts_obj, dict_needed_vars):
     Examples
     --------
     >>> # Extract only specific variables of interest
-    >>> dict_needed = {'energy_balance': ['qn', 'qh', 'qe'], 'surface': None}
+    >>> dict_needed = {"energy_balance": ["qn", "qh", "qe"], "surface": None}
     >>> dict_subset_data = pack_dts_selective(debug_obj, dict_needed)
     """
     dict_dts = {}
@@ -632,15 +678,13 @@ def pack_dict_dts_datetime_grid(dict_dts_datetime_grid):
     df_dts_raw = pack_dict_dts(dict_dts_datetime_grid)
 
     # Rename index levels for clarity
-    df_dts_raw.index = df_dts_raw.index.rename(
-        [
-            "datetime",
-            "grid",
-            "step",
-            "group",
-            "var",
-        ]
-    )
+    df_dts_raw.index = df_dts_raw.index.rename([
+        "datetime",
+        "grid",
+        "step",
+        "group",
+        "var",
+    ])
 
     # Restructure to have a more user-friendly format
     df_dts = (
@@ -741,14 +785,16 @@ def pack_dts_state_selective(
                 df_grid.index = pd.RangeIndex(len(list_rows), name="timestep")
 
             if not df_grid.empty:
-                df_grid.columns = pd.MultiIndex.from_tuples(df_grid.columns, names=['state', 'variable'])
+                df_grid.columns = pd.MultiIndex.from_tuples(
+                    df_grid.columns, names=["state", "variable"]
+                )
                 # Add grid information
                 df_grid = df_grid.assign(grid=grid_id)
-                df_grid.set_index('grid', append=True, inplace=True)
+                df_grid.set_index("grid", append=True, inplace=True)
 
                 # Reorder index levels to put datetime first if present
-                if 'datetime' in df_grid.index.names:
-                    df_grid = df_grid.reorder_levels(['datetime', 'grid'])
+                if "datetime" in df_grid.index.names:
+                    df_grid = df_grid.reorder_levels(["datetime", "grid"])
 
                 list_dfs.append(df_grid)
 

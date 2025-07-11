@@ -15,68 +15,21 @@ This is a public repo for SUEWS source code and documentation.
 * Documentation source: `docs` folder in this repo
 
 
-## Compilation
+## Quick Start
 
-*Note: the following steps have been tested on macOS 14.1 and above, and WSL on Windows 10.*
+For users who want to run SUEWS simulations:
 
-### Prerequisites
+1. **Install from PyPI** (simplest):
+   ```bash
+   pip install supy
+   ```
 
-#### Essential
-* [gfortran](https://gcc.gnu.org/wiki/GFortran) (>= 9.3.0)
-* [git](https://git-scm.com/) - for version control
-* [mamba](https://mamba.readthedocs.io/en/latest/) - avoid using `conda` as it is too slow
+2. **Run a simulation**:
+   ```bash
+   suews-run /path/to/config.yml
+   ```
 
-#### Recommended
-* [VS Code](https://code.visualstudio.com/) - for code editing
-* [VS Code Co-pilot](https://marketplace.visualstudio.com/items?itemName=GitHub.copilot) - for AI-assisted code writing (free for academic use)
-* [WSL](https://docs.microsoft.com/en-us/windows/wsl/install-win10) - for Linux-like environment on Windows (Windows users only)
-
-### Compilation Steps
-
-1. Since SUEWS includes a dependency package [SPARTACUS](https://github.com/Urban-Meteorology-Reading/spartacus-surface), initialise this submodule by:
-```shell
-git submodule init
-git submodule update
-```
-
-Then source code of SPARTACUS will be loaded into `ext_lib/spartacus-surface`
-
-*Note: if a `permission denied` error occurs, one usually needs to fix the SSH connection to GitHub by following the [official guide here](https://docs.github.com/en/github/authenticating-to-github/connecting-to-github-with-ssh).*
-
-2. Configure mamba environment:
-```shell
-mamba env create -f env.yml
-```
-This will create a new environment named `suews-dev` with all required packages installed.
-
-3. Activate the environment:
-```shell
-mamba activate suews-dev
-```
-
-4. Compile SUEWS:
-
-4.1. For development with all tests:
-```shell
-make
-```
-
-4.2. For development without tests:
-```shell
-make dev
-```
-
-This will install Python packages `supy-driver` and `supy` into the current environment (`suews-dev`).
-Several command-line tools will be installed under `bin` folder for SUEWS simulations:
-- `suews-run`: the main SUEWS binary
-- `suews-convert`: a tool to convert SUEWS input files between formats
-
-The usage of both tools can be checked with the `--help` option (e.g., `suews-run --help`).
-
-5. Verify installation:
-```shell
-pip show supy
-```
+For developers, see the [Developer Note](#developer-note) section below.
 
 
 
@@ -85,59 +38,124 @@ pip show supy
 > [!NOTE]
 > **the following is deprecated and will be updated**
 
-<!-- When doing `pip install -e supy-driver` using WSL in VS Code on Windows 10 I got the error "[Errno 13] Permission denied: 'build/bdist.linux-x86_64/wheel/supy_driver-2021a2.dist-info'". The solution was in the Windows file explorer to right-click the project directory (SUEWS) -> properties -> security -> edit -> everyone -> tick allow -> apply.
+### Development Environment
 
-### Branch
+#### Claude Code Integration
 
-#### `master` branch
+For enhanced development productivity, SUEWS includes integration with Claude Code in a containerised environment:
 
-`master` is the main branch that keeps milestone and stable features.
-  * `push` is restricted to admin members.
+* **Setup Guide**: See [`claude-dev/README.md`](claude-dev/README.md) for complete setup instructions
+* **Quick Start**:
+  - **Workspace Manager** (recommended): `./claude-dev/claude.sh start myproject`
+  - **Direct Setup**: `./claude-dev/setup-claude-dev.sh` from repository root
+* **Features**: Intelligent code assistance, automated testing, British academic standards, multi-workspace support
+* **Benefits**: Isolated environment, reproducible development, AI-powered debugging, parallel project development
 
-If one needs to fix a bug or implement a new feature, please open an issue with details and then submit a pull request with respect to that issue.
+#### Traditional Development
 
+For local development without containerisation, follow these steps:
 
-### Documentation
+##### Prerequisites
 
-* Please keep the development changes in [CHANGELOG.md](CHANGELOG.md).
+**Essential Tools**:
+* **Fortran Compiler**: [gfortran](https://gcc.gnu.org/wiki/GFortran) (≥ 9.3.0) or Intel ifort
+  - macOS: `brew install gcc`
+  - Ubuntu/Debian: `sudo apt-get install gfortran`
+  - Windows: Use WSL or MinGW-w64
+* **Version Control**: [git](https://git-scm.com/)
+* **Package Manager**: [mamba](https://mamba.readthedocs.io/en/latest/) (faster than conda)
+  ```bash
+  # Install mambaforge (if not already installed)
+  curl -L -O "https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-$(uname)-$(uname -m).sh"
+  bash Miniforge3-$(uname)-$(uname -m).sh
+  ```
 
-### Test
+**Recommended Tools**:
+* [VS Code](https://code.visualstudio.com/) with extensions:
+  - Modern Fortran
+  - Python
+  - GitHub Copilot (free for academic use)
+* [WSL](https://docs.microsoft.com/en-us/windows/wsl/install-win10) (Windows users)
 
-Whenever changes are made, please run `make test` in the repo root to check if your changes are working or not.
-If any error, please resolve it or justify that the test is giving false alarm.
+##### Setup Steps
 
-#### Tests and purposes
-`make test` will perform the following checks:
+1. **Clone the repository**:
+   ```bash
+   git clone https://github.com/UMEP-dev/SUEWS.git
+   cd SUEWS
+   ```
 
-- if single-grid-multi-year run could be successful: to check if multi-year run is functional;
-- if multi-grid-multi-year run could be successful: to check if multi-grid run is functional;
-- if test run results could match those from the standard run (runs under `BaseRun`): to check if any non-functional changes would break the current code;
-- if all physics schemes are working: to check possible invalid physics schemes.
+2. **Initialise submodules** (required for SPARTACUS dependency):
+   ```bash
+   git submodule init
+   git submodule update
+   ```
+   *Note: If permission denied, [configure SSH for GitHub](https://docs.github.com/en/github/authenticating-to-github/connecting-to-github-with-ssh)*
 
-<!-- #### Workflow
-The test workflow is as follows (details refer to the Makefile `test` recipe and related python code):
+3. **Create development environment**:
+   ```bash
+   mamba env create -f env.yml
+   ```
+   This creates `suews-dev` environment with all required packages.
 
-1. clean existing build and rebuild the code;
-2. create a temporary directory as working directory to perform checks;
-3. copy the rebuilt `SUEWS_{version}` binary to the temporary folder;
-4. copy the version specific input files under `Release/InputTables/{version}` to the temporary folder (see below for its preparation);
-5. run python code to perform the above checks and write out test results to the console:
-   1. if all tests are successful, the code is generally good to go;
-   2. if any test failed, we NEED to look into the reasons for the failure and resolve them before any further feature-added operations. -->
+4. **Activate environment**:
+   ```bash
+   mamba activate suews-dev
+   ```
 
-<!-- #### Preparation of tests
+5. **Build SUEWS**:
+   ```bash
+   # Quick development build (recommended)
+   make dev
 
-1. Prepare a base run:
-   - under `Test/BaseRun`, create a folder named with version/feature info (e.g., `2019a`);
-   - perform a simulation to produce example output files, which will later be used as standard run to verify the correct code functionalities.
+   # Or full build with tests
+   make
+   ```
 
-   *Note: all the above input files will be automatically copied under `Release/InputTables` with explicit version/feature (e.g., `Release/InputTables/2019a`) and later archived in public releases for users; so carefully construct test data to include in the input files.*
-2. Configure test namelist file `Test/code/BTS_config.nml`:
+6. **Verify installation**:
+   ```bash
+   pip show supy
+   suews-run --help
+   ```
 
-   - `name_exe`: the SUEWS binary name that will be used for testing.
-   - `dir_exe`: the directory to copy `name_exe`.
-   - `dir_input`: the directory to copy input files; suggested to be `Release/InputTables/{version}`.
-   - `dir_baserun`: the base run against which to test identity in results. -->
+##### Development Workflow
+
+* **Build commands**:
+  ```bash
+  make dev          # Fast development build
+  make              # Full build with tests
+  make test         # Run test suite only
+  make clean        # Clean build artifacts
+  make wheel        # Build distribution wheels
+  make docs         # Build documentation
+  make livehtml     # Live documentation preview
+  ```
+
+* **Environment management**:
+  ```bash
+  make help         # Show all available commands
+  make deactivate   # Show deactivation command
+  ```
+
+* **Common issues**:
+  - **Build conflicts**: Run `make clean` before rebuilding
+  - **Import errors**: Ensure you're in the `suews-dev` environment
+  - **Permission errors on Windows**: Right-click project folder → Properties → Security → Edit → Everyone → Allow
+
+##### Project Structure
+
+```
+SUEWS/
+├── src/
+│   ├── suews/          # Fortran physics engine
+│   ├── supy/           # Python interface
+│   └── supy_driver/    # F2Py wrapper
+├── test/               # Test suite
+├── docs/               # Documentation source
+├── env.yml             # Development environment
+└── Makefile            # Build commands
+```
+
 
 ### Debugging with GDB
 

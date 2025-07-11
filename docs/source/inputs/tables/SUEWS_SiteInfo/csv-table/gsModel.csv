@@ -1,0 +1,8 @@
+"Referencing Table","Requirement","Comment"
+"`SUEWS_Conductance.txt`","`MD`","Surface conductance model selection:
+- :code:`1` Järvi et al. (2011) model using measurement height air temperature :cite:`J11`
+- :code:`2` Ward et al. (2016) model using measurement height air temperature :cite:`W16` |Recmd|
+- :code:`3` Järvi et al. (2011) model using 2-meter air temperature (standardized height)
+- :code:`4` Ward et al. (2016) model using 2-meter air temperature (standardized height) |Recmd|
+
+Models 2 and 4 are recommended as they provide better representation of stomatal responses to environmental controls. Models 3 and 4 use standardized 2-meter air temperature for improved consistency across different measurement heights."

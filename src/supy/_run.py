@@ -94,9 +94,9 @@ def suews_cal_tstep(dict_state_start, dict_met_forcing_tstep):
         # update state variables
         # if save_state:  # deep copy states results
         dict_state_end = copy.deepcopy(dict_state_start)
-        dict_state_end.update(
-            {var: copy.copy(dict_input[var]) for var in list_var_inout}
-        )
+        dict_state_end.update({
+            var: copy.copy(dict_input[var]) for var in list_var_inout
+        })
 
         # update timestep info
         dict_state_end["tstep_prev"] = dict_state_end["tstep"]
@@ -129,22 +129,20 @@ def suews_cal_tstep_multi(dict_state_start, df_forcing_block, debug_mode=False):
 
     # use single dict as input for suews_cal_main
     dict_input = copy.deepcopy(dict_state_start)
-    dict_input.update(
-        {
-            "metforcingblock": np.array(
-                df_forcing_block.drop(
-                    columns=[
-                        "metforcingdata_grid",
-                        "ts5mindata_ir",
-                        "isec",
-                    ]
-                ),
-                order="F",
+    dict_input.update({
+        "metforcingblock": np.array(
+            df_forcing_block.drop(
+                columns=[
+                    "metforcingdata_grid",
+                    "ts5mindata_ir",
+                    "isec",
+                ]
             ),
-            "ts5mindata_ir": np.array(df_forcing_block["ts5mindata_ir"], order="F"),
-            "len_sim": np.array(df_forcing_block.shape[0], dtype=int),
-        }
-    )
+            order="F",
+        ),
+        "ts5mindata_ir": np.array(df_forcing_block["ts5mindata_ir"], order="F"),
+        "len_sim": np.array(df_forcing_block.shape[0], dtype=int),
+    })
 
     if debug_mode:
         dict_input["flag_test"] = True
@@ -227,9 +225,9 @@ def suews_cal_tstep_multi(dict_state_start, df_forcing_block, debug_mode=False):
 
         # update state variables with the output of the model:
         # note `dict_input` is updated with the output of the model
-        dict_state_end.update(
-            {var: dict_input[var] for var in list_var_inout_multitsteps}
-        )
+        dict_state_end.update({
+            var: dict_input[var] for var in list_var_inout_multitsteps
+        })
 
         # update timestep info
         dict_state_end["tstep_prev"] = dict_state_end["tstep"]
@@ -253,7 +251,7 @@ def suews_cal_tstep_multi(dict_state_start, df_forcing_block, debug_mode=False):
         # deepcopy is used to avoid reference issue when passing the object
         if debug_mode:
             dict_debug = copy.deepcopy(pack_dts(state_debug))
-            dts_state = block_mod_state # save the raw object
+            dts_state = block_mod_state  # save the raw object
         else:
             dict_debug = None
             dts_state = None
@@ -535,7 +533,6 @@ def run_supy_ser(
             df_debug = None
             dict_dts_state = None
 
-
     return df_output, df_state_final, df_debug, dict_dts_state
 
 
@@ -589,8 +586,9 @@ def run_save_supy(
         df_debug.to_pickle(path_debug)
         # save state objects
         path_state_obj = path_dir_temp / f"{ind}_state_obj.pkl"
-        with open(path_state_obj, 'wb') as f:
+        with open(path_state_obj, "wb") as f:
             import pickle
+
             pickle.dump(res_state, f)
     else:
         df_output, df_state_final, _, _ = result
@@ -657,30 +655,26 @@ def run_supy_par(
             )
 
         # load dumped pickle files
-        df_output = pd.concat(
-            [pd.read_pickle(path_dir_temp / f"{n}_out.pkl") for n in np.arange(n_grid)]
-        )
-        df_state_final = pd.concat(
-            [
-                pd.read_pickle(path_dir_temp / f"{n}_state.pkl")
-                for n in np.arange(n_grid)
-            ]
-        )
+        df_output = pd.concat([
+            pd.read_pickle(path_dir_temp / f"{n}_out.pkl") for n in np.arange(n_grid)
+        ])
+        df_state_final = pd.concat([
+            pd.read_pickle(path_dir_temp / f"{n}_state.pkl") for n in np.arange(n_grid)
+        ])
 
         # Handle debug mode data if available
         if debug_mode:
-            df_debug = pd.concat(
-                [
-                    pd.read_pickle(path_dir_temp / f"{n}_debug.pkl")
-                    for n in np.arange(n_grid)
-                ]
-            )
+            df_debug = pd.concat([
+                pd.read_pickle(path_dir_temp / f"{n}_debug.pkl")
+                for n in np.arange(n_grid)
+            ])
             # Load state objects
             import pickle
+
             dict_res_state = {}
             for n in np.arange(n_grid):
                 path_state_obj = path_dir_temp / f"{n}_state_obj.pkl"
-                with open(path_state_obj, 'rb') as f:
+                with open(path_state_obj, "rb") as f:
                     dict_res_state[n] = pickle.load(f)
         else:
             df_debug = None

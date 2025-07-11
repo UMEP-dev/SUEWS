@@ -19,19 +19,17 @@ def main():
 
     # Call f2py to generate the modules
     try:
-        subprocess.check_call(
-            [
-                f90wrap_executable,
-                "-m",
-                module_name,
-                *input_files,
-                "-k",
-                os.path.join(current_source_dir, "kind_map"),
-                "--skip",
-                "error_hint",
-                # "--package",
-            ]
-        )
+        subprocess.check_call([
+            f90wrap_executable,
+            "-m",
+            module_name,
+            *input_files,
+            "-k",
+            os.path.join(current_source_dir, "kind_map"),
+            "--skip",
+            "error_hint",
+            # "--package",
+        ])
         print("f90wrap call successful")
     except subprocess.CalledProcessError as e:
         print(f"Error calling f2py: {e}")
@@ -39,14 +37,12 @@ def main():
 
     # Move generated files to the output directory
     try:
-        subprocess.check_call(
-            [
-                "python",
-                os.path.join(current_source_dir, "move_output_gen.py"),
-                *output_files,
-                output_dir,
-            ]
-        )
+        subprocess.check_call([
+            "python",
+            os.path.join(current_source_dir, "move_output_gen.py"),
+            *output_files,
+            output_dir,
+        ])
         print("Output files moved successfully")
     except subprocess.CalledProcessError as e:
         print(f"Error moving output files: {e}")

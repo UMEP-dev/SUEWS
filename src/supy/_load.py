@@ -41,9 +41,9 @@ def extract_dict_docs(docLines):
     # get the information of input variables for SUEWS_driver
     ser_docs = pd.Series(docLines)
     varInputLines = ser_docs[ser_docs.str.contains("input|in/output")].values
-    varInputInfo = np.array(
-        [[xx.rstrip() for xx in x.split(":")] for x in varInputLines]
-    )
+    varInputInfo = np.array([
+        [xx.rstrip() for xx in x.split(":")] for x in varInputLines
+    ])
     # varInputInfo
     dict_InputInfo = {xx[0]: xx[1] for xx in varInputInfo}
     dict_InOutInfo = {xx[0]: xx[1] for xx in varInputInfo if "in/out" in xx[1]}
@@ -58,9 +58,9 @@ def extract_dict_docs(docLines):
     varOutputLines = ser_docs[ser_docs.str.startswith(("dataout", "dailystate"))].values
 
     # varOutputLines = docLines[posOutput[0][0] + 2 :]
-    varOutputInfo = np.array(
-        [[xx.rstrip() for xx in x.split(":")] for x in varOutputLines]
-    )
+    varOutputInfo = np.array([
+        [xx.rstrip() for xx in x.split(":")] for x in varOutputLines
+    ])
     # varOutputInfo
     dict_OutputInfo = {xx[0]: xx[1] for xx in varOutputInfo}
     list_var_out = tuple(dict_OutputInfo.keys())
@@ -428,7 +428,7 @@ def load_SUEWS_SurfaceChar(path_input):
             df_gridSurfaceChar.at[xgrid, "alb"]
         )
 
-        # convert unit of `surfacearea` from ha to m^2
+        # convert unit of `surfacearea` from ha to m^2 for table-based inputs
         df_gridSurfaceChar.at[xgrid, "surfacearea"] = np.array(
             df_gridSurfaceChar.at[xgrid, "surfacearea"] * 10000.0
         )
@@ -486,14 +486,12 @@ def dectime(timestamp):
 def resample_kdn(data_raw_kdn, tstep_mod, timezone, lat, lon, alt):
     # adjust solar radiation
     datetime_mid_local = data_raw_kdn.index - timedelta(seconds=tstep_mod / 2)
-    sol_elev = np.array(
-        [
-            _sd.f90wrap_suews_cal_sunposition(
-                t.year, dectime(t), timezone, lat, lon, alt
-            )[-1]
-            for t in datetime_mid_local
+    sol_elev = np.array([
+        _sd.f90wrap_suews_cal_sunposition(t.year, dectime(t), timezone, lat, lon, alt)[
+            -1
         ]
-    )
+        for t in datetime_mid_local
+    ])
     sol_elev_reset = np.zeros_like(sol_elev)
     sol_elev_reset[sol_elev <= 90] = 1.0
     data_tstep_kdn_adj = sol_elev_reset * data_raw_kdn.copy()
@@ -781,9 +779,9 @@ def load_SUEWS_Forcing_met_df_pattern(path_input, file_pattern):
     # list of met forcing files
     path_input = Path(path_input).resolve()
     # forcingfile_met_pattern = os.path.abspath(forcingfile_met_pattern)
-    list_file_MetForcing = sorted(
-        [f for f in path_input.glob(file_pattern) if "ESTM" not in f.name]
-    )
+    list_file_MetForcing = sorted([
+        f for f in path_input.glob(file_pattern) if "ESTM" not in f.name
+    ])
 
     # load met data
     df_forcing_met = pd.concat([read_suews(fn) for fn in list_file_MetForcing])
@@ -1259,7 +1257,7 @@ def load_SUEWS_SurfaceChar_df(path_input):
         var: np.squeeze(df_gridSurfaceChar_exp[var].values) for var in list_var
     }
 
-    # correct the unit for 'surfacearea'
+    # correct the unit for 'surfacearea' from ha to m^2 for table-based inputs
     dict_gridSurfaceChar["surfacearea"] *= 1e4
 
     for var, dim in dict_var_ndim.items():
@@ -1762,13 +1760,11 @@ def add_sfc_init_df(df_init):
         var: ["{var}{sfc}".format(var=var, sfc=sfc) for sfc in list_sfc]
         for var in ["snowdens", "snowfrac", "snowpack"]
     }
-    dict_var_sfc.update(
-        {
-            "snowwater": ["snowwater{}state".format(sfc) for sfc in list_sfc],
-            "soilstore_surf": ["soilstore{}state".format(sfc) for sfc in list_sfc],
-            "state_surf": ["{}state".format(sfc) for sfc in list_sfc],
-        }
-    )
+    dict_var_sfc.update({
+        "snowwater": ["snowwater{}state".format(sfc) for sfc in list_sfc],
+        "soilstore_surf": ["soilstore{}state".format(sfc) for sfc in list_sfc],
+        "state_surf": ["{}state".format(sfc) for sfc in list_sfc],
+    })
 
     # set values according to `dict_var_sfc`
     # and generate the secondary dimensions

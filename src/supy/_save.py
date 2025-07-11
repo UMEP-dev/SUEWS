@@ -30,11 +30,17 @@ def gen_df_save(df_grid_group: pd.DataFrame) -> pd.DataFrame:
     ser_DOY = pd.Series(idx_dt.dayofyear, index=idx_dt, name="DOY")
     ser_hour = pd.Series(idx_dt.hour, index=idx_dt, name="Hour")
     ser_min = pd.Series(idx_dt.minute, index=idx_dt, name="Min")
-    df_datetime = pd.concat([ser_year, ser_DOY, ser_hour, ser_min,], axis=1)
-    dt_delta=idx_dt-idx_dt.to_period("d").to_timestamp()
-    df_datetime["Dectime"] = (
-        ser_DOY - 1 + dt_delta.total_seconds() / (24 * 60 * 60)
+    df_datetime = pd.concat(
+        [
+            ser_year,
+            ser_DOY,
+            ser_hour,
+            ser_min,
+        ],
+        axis=1,
     )
+    dt_delta = idx_dt - idx_dt.to_period("d").to_timestamp()
+    df_datetime["Dectime"] = ser_DOY - 1 + dt_delta.total_seconds() / (24 * 60 * 60)
     df_save = pd.concat([df_datetime, df_grid_group], axis=1)
     return df_save
 
@@ -56,9 +62,7 @@ def format_df_save(df_save):
 
     for var in df_save.columns[5:]:
         width_var_name = max([8, len(var)])
-        df_save[var] = df_save[var].map(
-            lambda s: f"{s:{' '}>{width_var_name}.4f}"
-        )
+        df_save[var] = df_save[var].map(lambda s: f"{s:{' '}>{width_var_name}.4f}")
 
     # format column names
     col_fmt = df_save.columns.to_series()
@@ -91,7 +95,9 @@ def gen_df_year(df_save, year, grid, group, output_level):
         df_grid_group = df_grid_group[dict_level_var[output_level]]
     # select data from year of interest and shift back to align with SUEWS convention
     df_year = df_grid_group.loc[f"{year}"]
-    df_year.index = df_year.index.shift(1)
+    # Skip timestamp shift for DailyState as it contains end-of-day values
+    if group != "DailyState":
+        df_year.index = df_year.index.shift(1)
     # remove `nan`s
     df_year = df_year.dropna(how="all", axis=0)
     return df_year
@@ -127,13 +133,17 @@ def save_df_grid_group(df_year, grid, group, dir_save, site):
     # generate df_save with datetime info prepended to each row
     df_save = gen_df_save(df_year)
     t_end = time.time()
-    logger_supy.debug(f"df_save for {path_out.name} is generated in {t_end - t_start:.2f} s")
+    logger_supy.debug(
+        f"df_save for {path_out.name} is generated in {t_end - t_start:.2f} s"
+    )
     # format df_save with right-justified view
     df_save = format_df_save(df_save)
     t_start = time.time()
     # save to txt file
     df_save.to_csv(
-        path_out, index=False, sep="\t",
+        path_out,
+        index=False,
+        sep="\t",
     )
     t_end = time.time()
     # remove freq info from `DailyState` file
@@ -176,6 +186,7 @@ def save_df_output(
     output_level=1,
     save_snow=True,
     debug=False,
+    output_groups=None,
 ) -> list:
     """save supy output dataframe to txt files
 
@@ -198,6 +209,8 @@ def save_df_output(
         whether to save snow-related output variables in a separate file, by default True.
     debug : bool, optional
         whether to enable debug mode (e.g., writing out in serial mode, and other debug uses), by default False.
+    output_groups : list, optional
+        list of output groups to save (e.g., ['SUEWS', 'DailyState', 'ESTM']). If None, defaults to ['SUEWS', 'DailyState'].
 
     Returns
     -------
@@ -212,39 +225,76 @@ def save_df_output(
 
     # resample output if `freq_s` is different from runtime `freq` (usually 5 min)
     freq_save = pd.Timedelta(freq_s, "s")
+    
+    # Handle output groups filtering
+    if output_groups is None:
+        # Default groups
+        output_groups = ['SUEWS', 'DailyState']
+    
+    # Get all available groups
+    all_groups = df_save.columns.get_level_values('group').unique().tolist()
+    
+    # Filter to only requested groups
+    groups_to_drop = [g for g in all_groups if g not in output_groups]
+    for group in groups_to_drop:
+        if group in df_save.columns.get_level_values('group'):
+            df_save = df_save.drop(group, axis=1, level='group')
 
-    # drop snow related group from output groups
-    if not save_snow:
-        df_save = df_save.drop("snow", axis=1,level='group')
+    # drop snow related group from output groups if not requested
+    if not save_snow and 'snow' in df_save.columns.get_level_values('group'):
+        df_save = df_save.drop("snow", axis=1, level='group')
 
-    # resample `df_output` at `freq_save`
-    df_rsmp = resample_output(df_save, freq_save)
+    # Extract DailyState before resampling (it contains daily variables only written at last timestep of each day)
+    df_dailystate = None
+    if 'DailyState' in df_save.columns.get_level_values('group'):
+        df_dailystate = df_save.loc[:, ["DailyState"]].copy()
+        # Remove all NaN rows from DailyState (keep only the daily values)
+        df_dailystate = df_dailystate.dropna(how='all')
+        # Drop DailyState from df_save before resampling
+        df_save_no_daily = df_save.drop("DailyState", axis=1, level='group')
+    else:
+        df_save_no_daily = df_save
 
-    # 'DailyState' group will be dropped in `resample_output` as resampling is not needed
-    df_rsmp = df_rsmp.drop(columns="DailyState", level="group")
+    # resample `df_output` at `freq_save` (excluding DailyState)
+    df_rsmp = resample_output(df_save_no_daily, freq_save)
 
     # dataframes to save
-    list_df_save = (
+    if save_tstep:
         # both original and resampled output dataframes
-        [df_save, df_rsmp]
-        if save_tstep
-        # only those resampled ones
-        else [df_save.loc[:, ["DailyState"]], df_rsmp]
-    )
+        list_df_save = [df_save, df_rsmp]
+    else:
+        # combine resampled data with DailyState (if it exists)
+        list_df_save = []
+        if df_dailystate is not None:
+            list_df_save.append(df_dailystate)
+        list_df_save.append(df_rsmp)
 
     # save output at the resampling frequency
     for i, df_save in enumerate(list_df_save):
-        # shift temporal index to make timestampes indicating the start of periods
-        idx_dt = df_save.index.get_level_values("datetime").drop_duplicates()
+        # Check if this is DailyState-only data
+        is_dailystate_only = (len(df_save.columns) > 0 and 
+                             all(df_save.columns.get_level_values('group') == 'DailyState'))
+        
+        if not is_dailystate_only:
+            # For regular output data, shift temporal index to make timestamps indicating the start of periods
+            idx_dt = df_save.index.get_level_values("datetime").drop_duplicates()
 
-        # cast freq to index if not associated
-        if idx_dt.freq is None:
-            ser_idx = idx_dt.to_series()
-            freq = ser_idx.diff().iloc[-1]
-            idx_dt = ser_idx.asfreq(freq).index
+            # cast freq to index if not associated
+            if idx_dt.freq is None:
+                ser_idx = idx_dt.to_series()
+                if len(ser_idx) > 1:
+                    freq = ser_idx.diff().iloc[-1]
+                    idx_dt = ser_idx.asfreq(freq).index
+                else:
+                    idx_dt = ser_idx.index
 
-        idx_dt = idx_dt.shift(-1)
-        df_save.index = df_save.index.set_levels(idx_dt, level="datetime")
+            # Shift timestamps for non-DailyState data
+            if len(idx_dt) > 1:
+                idx_dt = idx_dt.shift(-1)
+            
+            # Update the index
+            df_save.index = df_save.index.set_levels(idx_dt, level="datetime")
+        # For DailyState data, we don't need to shift the index as it already represents daily values
         # tidy up columns so only necessary groups are included in the output
         df_save.columns = df_save.columns.remove_unused_levels()
         # import os
@@ -339,7 +389,7 @@ def save_df_ser(df_save, path_dir_save, site, output_level):
             # for naming files
             for year in list_year:
                 df_year = gen_df_year(df_save, year, grid, group, output_level)
-                if df_year.shape[0]>0:
+                if df_year.shape[0] > 0:
                     path_save = save_df_grid_group(
                         df_year, grid, group, path_dir_save, site
                     )
@@ -349,7 +399,9 @@ def save_df_ser(df_save, path_dir_save, site, output_level):
 
 # save model state for restart runs
 def save_df_state(
-    df_state: pd.DataFrame, site: str = "", path_dir_save: Path = Path("."),
+    df_state: pd.DataFrame,
+    site: str = "",
+    path_dir_save: Path = Path("."),
 ) -> Path:
     """save `df_state` to a csv file
 
@@ -480,7 +532,9 @@ dict_init_nml = {
 
 # save initcond namelist as SUEWS binary
 def save_initcond_nml(
-    df_state: pd.DataFrame, site: str = "", path_dir_save: Path = Path("."),
+    df_state: pd.DataFrame,
+    site: str = "",
+    path_dir_save: Path = Path("."),
 ) -> Path:
     # get last time step
     try:
@@ -520,3 +574,113 @@ def save_initcond_nml(
         # f90nml.write(nml, nml_file,force=True)
         list_path_nml.append(path_nml)
     return list_path_nml
+
+
+def save_df_output_parquet(
+    df_output: pd.DataFrame,
+    df_state_final: pd.DataFrame,
+    freq_s: int = 3600,
+    site: str = "",
+    path_dir_save: Path = Path("."),
+    save_tstep=False,
+) -> list:
+    """Save supy output to Parquet format.
+    
+    Parameters
+    ----------
+    df_output : pd.DataFrame
+        Output dataframe from supy simulation
+    df_state_final : pd.DataFrame
+        Final state dataframe
+    freq_s : int, optional
+        Output frequency in seconds (default 3600)
+    site : str, optional
+        Site identifier for filename
+    path_dir_save : Path, optional
+        Directory to save Parquet file
+    save_tstep : bool, optional
+        Whether to save at simulation timestep resolution
+        
+    Returns
+    -------
+    list
+        List containing paths to saved Parquet files
+    """
+    # Check if pyarrow or fastparquet is available
+    try:
+        import pyarrow
+        engine = 'pyarrow'
+    except ImportError:
+        try:
+            import fastparquet
+            engine = 'fastparquet'
+        except ImportError:
+            raise ImportError(
+                "Parquet output requires either 'pyarrow' or 'fastparquet'. "
+                "Install with: pip install pyarrow (recommended) or pip install fastparquet"
+            )
+    
+    from ._version import __version__
+    
+    # Resample if needed
+    df_save = df_output.copy()
+    freq_save = pd.Timedelta(freq_s, "s")
+    
+    if not save_tstep:
+        # Resample output
+        df_rsmp = resample_output(df_save, freq_save)
+        # Keep DailyState at original resolution
+        if 'DailyState' in df_save.columns.get_level_values('group'):
+            df_daily = df_save.loc[:, ["DailyState"]]
+            # Combine for saving
+            df_to_save = pd.concat([df_rsmp, df_daily], axis=1)
+        else:
+            df_to_save = df_rsmp
+    else:
+        df_to_save = df_save
+    
+    # Construct filenames
+    list_path_save = []
+    
+    # Save output data
+    filename_output = f"{site}_SUEWS_output.parquet" if site else "SUEWS_output.parquet"
+    path_output = path_dir_save / filename_output
+    
+    # Save with metadata
+    metadata = {
+        'site': site,
+        'output_frequency_s': freq_s,
+        'save_tstep': save_tstep,
+        'creation_time': pd.Timestamp.now().isoformat(),
+        'supy_version': __version__
+    }
+    
+    # Write output data
+    df_to_save.to_parquet(
+        path_output, 
+        engine=engine, 
+        compression='snappy',
+        index=True  # Preserve multi-index
+    )
+    list_path_save.append(path_output)
+    
+    # Save final state separately
+    filename_state = f"{site}_SUEWS_state_final.parquet" if site else "SUEWS_state_final.parquet"
+    path_state = path_dir_save / filename_state
+    df_state_final.to_parquet(
+        path_state,
+        engine=engine,
+        compression='snappy',
+        index=True
+    )
+    list_path_save.append(path_state)
+    
+    # Save metadata as a separate small parquet file
+    filename_meta = f"{site}_SUEWS_metadata.parquet" if site else "SUEWS_metadata.parquet"
+    path_meta = path_dir_save / filename_meta
+    df_meta = pd.DataFrame([metadata])
+    df_meta.to_parquet(path_meta, engine=engine)
+    list_path_save.append(path_meta)
+    
+    logger_supy.info(f"Saved Parquet output to {path_output}")
+    return list_path_save

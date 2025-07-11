@@ -1,0 +1,27 @@
+No.,Column Name,Use,Description
+1,`Code`,`L`,Code linking to a corresponding look-up table.
+2,`Ie_start`,`MU`,Day when irrigation starts [DOY]
+3,`Ie_end`,`MU`,Day when irrigation ends [DOY]
+4,`InternalWaterUse`,`MU`,Internal water use [mm |h^-1|]
+5,`Faut`,`MU`,Fraction of irrigated area that is irrigated using automated systems
+6,`H_maintain`,`MU`,"water depth to maintain used in automatic irrigation (e.g., ponding water due to flooding irrigation in rice crop-field) [mm]."
+7,`Ie_a1`,`MD`,Base irrigation rate coefficient for automatic irrigation model. Represents baseline daily irrigation amount [mm |d^-1| ]
+8,`Ie_a2`,`MD`,Temperature dependency coefficient for automatic irrigation model. Controls how irrigation responds to air temperature [mm |d^-1| |K^-1|]
+9,`Ie_a3`,`MD`,Nonlinear coefficient for automatic irrigation model. Modulates irrigation based on temperature and soil moisture interactions [mm |d^-2| ]
+10,`Ie_m1`,`MD`,Base irrigation rate coefficient for manual irrigation model. Represents baseline daily irrigation amount [mm |d^-1| ]
+11,`Ie_m2`,`MD`,Temperature dependency coefficient for manual irrigation model. Controls how manual irrigation responds to air temperature [mm |d^-1| |K^-1|]
+12,`Ie_m3`,`MD`,Nonlinear coefficient for manual irrigation model. Modulates irrigation based on temperature and soil moisture interactions [mm |d^-2| ]
+13,`DayWat(1)`,`MU`,"Irrigation allowed on Sundays [1], if not [0]"
+14,`DayWat(2)`,`MU`,"Irrigation allowed on Mondays [1], if not [0]"
+15,`DayWat(3)`,`MU`,"Irrigation allowed on Tuesdays [1], if not [0]"
+16,`DayWat(4)`,`MU`,"Irrigation allowed on Wednesdays [1], if not [0]"
+17,`DayWat(5)`,`MU`,"Irrigation allowed on Thursdays [1], if not [0]"
+18,`DayWat(6)`,`MU`,"Irrigation allowed on Fridays [1], if not [0]"
+19,`DayWat(7)`,`MU`,"Irrigation allowed on Saturdays [1], if not [0]"
+20,`DayWatPer(1)`,`MU`,Fraction of properties using irrigation on Sundays [0-1]
+21,`DayWatPer(2)`,`MU`,Fraction of properties using irrigation on Mondays [0-1]
+22,`DayWatPer(3)`,`MU`,Fraction of properties using irrigation on Tuesdays [0-1]
+23,`DayWatPer(4)`,`MU`,Fraction of properties using irrigation on Wednesdays [0-1]
+24,`DayWatPer(5)`,`MU`,Fraction of properties using irrigation on Thursdays [0-1]
+25,`DayWatPer(6)`,`MU`,Fraction of properties using irrigation on Fridays [0-1]
+26,`DayWatPer(7)`,`MU`,Fraction of properties using irrigation on Saturdays [0-1]

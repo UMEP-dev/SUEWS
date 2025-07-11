@@ -8,7 +8,7 @@
 7,"Kup","0,1,2","Outgoing shortwave radiation [W |m^-2|]"
 8,"Ldown","0,1,2","Incoming longwave radiation [W |m^-2|]"
 9,"Lup","0,1,2","Outgoing longwave radiation [W |m^-2|]"
-10,"Tsurf","0,1,2","Bulk surface temperature [°C]"
+10,"Ts","0,1,2","Bulk surface temperature [°C]"
 11,"QN","0,1,2","Net all-wave radiation [W |m^-2|]"
 12,"QF","0,1,2","Anthropogenic heat flux [W |m^-2|]"
 13,"QS","0,1,2","Storage heat flux [W |m^-2|]"

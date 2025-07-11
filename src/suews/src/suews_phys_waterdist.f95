@@ -2404,7 +2404,7 @@ CONTAINS
                HDD_id => anthroEmisState%HDD_id, &
                WUDay_id => hydroState%WUDay_id, &
                WaterUseMethod => config%WaterUseMethod, &
-               wu_m3 => forcing%Wuh, &
+               wu_m3 => forcing%Wu_m3, &
                wu_surf => hydroState%wu_surf, &
                wu_int => hydroState%wu_int, &
                wu_ext => hydroState%wu_ext, &
@@ -2463,11 +2463,11 @@ CONTAINS
                      wu = 0
                   ELSE !If water use
                      IF (WUAreaTotal_m2 > 0) THEN
-                        wu = (wu_m3/WUAreaTotal_m2*1000) !Water use in mm for the whole irrigated area
+                        wu = (wu_m3/WUAreaTotal_m2*1000) !Water use in mm for the whole irrigated area - used here for water use calculation of each surface type
 
                         wu_surf = wu*IrrFrac
 
-                        wu = (wu_m3/SurfaceArea*1000) !Water use for the whole study area in mm
+                        wu = (wu_m3/SurfaceArea*1000) !Water use for the whole study area in mm - used in output for easier comparison with other water budgets
                      END IF
                   END IF
 

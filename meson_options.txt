@@ -1,0 +1,1 @@
+option('fast_build', type: 'boolean', value: false, description: 'Enable fast build with optimized compiler flags')

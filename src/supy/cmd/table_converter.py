@@ -5,6 +5,7 @@ from pathlib import Path
 
 from ..util._converter import convert_table, list_ver_from, list_ver_to
 
+
 # convert SUEWS tables from older versions to newer ones
 @click.command(
     short_help="Convert SUEWS input tables from older versions to newer ones (one-way only)"
@@ -42,6 +43,5 @@ from ..util._converter import convert_table, list_ver_from, list_ver_to
     required=True,
 )
 def convert_table_cmd(fromDir: Path, toDir: Path, fromVer: str, toVer: str):
-    """Convert SUEWS input tables from older versions to newer ones (one-way only).
-    """
+    """Convert SUEWS input tables from older versions to newer ones (one-way only)."""
     convert_table(fromDir, toDir, fromVer, toVer)

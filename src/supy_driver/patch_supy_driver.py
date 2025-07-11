@@ -14,7 +14,9 @@ def main():
     current_build_dir = Path.cwd()
     print(f"current_build_dir: {current_build_dir.resolve()}")
 
-    p_fn_supy_driver = Path(sys.argv[2])  # path to generated supy_driver.py relative to meson build root
+    p_fn_supy_driver = Path(
+        sys.argv[2]
+    )  # path to generated supy_driver.py relative to meson build root
     if p_fn_supy_driver.exists():
         # supy_driver.py is already patched and moved to the output directory
         p_supy_driver = p_fn_supy_driver
@@ -32,14 +34,12 @@ def main():
         fn_supy_driver = p_fn_supy_driver.name
         output_dir = sys.argv[3]
         try:
-            subprocess.check_call(
-                [
-                    "python",
-                    os.path.join(current_source_dir, "move_output_gen.py"),
-                    fn_supy_driver,
-                    output_dir,
-                ]
-            )
+            subprocess.check_call([
+                "python",
+                os.path.join(current_source_dir, "move_output_gen.py"),
+                fn_supy_driver,
+                output_dir,
+            ])
             print("Output files moved successfully")
         except subprocess.CalledProcessError as e:
             print(f"Error moving output files: {e}")
@@ -67,8 +67,6 @@ except ImportError:
         # write back to supy_driver.py
         with open(p_supy_driver, "w") as f:
             f.writelines(lines)
-
-
 
     return 0
 

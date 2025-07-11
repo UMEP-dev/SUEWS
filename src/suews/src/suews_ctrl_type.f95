@@ -110,8 +110,8 @@ MODULE SUEWS_DEF_DTS
    END TYPE OHM_PRM
 
    TYPE, PUBLIC :: SOIL_PRM
-      REAL(KIND(1D0)) :: soildepth
-      REAL(KIND(1D0)) :: soilstorecap
+      REAL(KIND(1D0)) :: soildepth ! Depth of soil beneath the surface [mm]
+      REAL(KIND(1D0)) :: soilstorecap ! Capacity of soil store [mm]
       REAL(KIND(1D0)) :: sathydraulicconduct ! !Hydraulic conductivity for saturated soil [mm s-1]
    END TYPE SOIL_PRM
 
@@ -282,9 +282,9 @@ MODULE SUEWS_DEF_DTS
       REAL(KIND(1D0)), DIMENSION(:, :), ALLOCATABLE :: k_roof ! thermal conductivity of roof [W m-1 K]
       REAL(KIND(1D0)), DIMENSION(:, :), ALLOCATABLE :: k_wall ! thermal conductivity of wall [W m-1 K]
       REAL(KIND(1D0)), DIMENSION(:, :), ALLOCATABLE :: k_surf ! thermal conductivity of v [W m-1 K]
-      REAL(KIND(1D0)), DIMENSION(:, :), ALLOCATABLE :: cp_roof ! Heat capacity of roof [J m-3 K-1]
-      REAL(KIND(1D0)), DIMENSION(:, :), ALLOCATABLE :: cp_wall ! Heat capacity of wall [J m-3 K-1]
-      REAL(KIND(1D0)), DIMENSION(:, :), ALLOCATABLE :: cp_surf ! Heat capacity of each surface [J m-3 K-1]
+      REAL(KIND(1D0)), DIMENSION(:, :), ALLOCATABLE :: cp_roof ! Volumetric Heat capacity of roof [J m-3 K-1]
+      REAL(KIND(1D0)), DIMENSION(:, :), ALLOCATABLE :: cp_wall ! Volumetric Heat capacity of wall [J m-3 K-1]
+      REAL(KIND(1D0)), DIMENSION(:, :), ALLOCATABLE :: cp_surf ! Volumetric Heat capacity of each surface [J m-3 K-1]
       REAL(KIND(1D0)), DIMENSION(:, :), ALLOCATABLE :: dz_roof ! thickness of each layer in roof [m]
       REAL(KIND(1D0)), DIMENSION(:, :), ALLOCATABLE :: dz_wall ! thickness of each layer in wall [m]
       REAL(KIND(1D0)), DIMENSION(:, :), ALLOCATABLE :: dz_surf ! thickness of each layer in surface [m]
@@ -300,7 +300,7 @@ MODULE SUEWS_DEF_DTS
       TYPE(OHM_PRM) :: ohm
       TYPE(SOIL_PRM) :: soil
       REAL(KIND(1D0)) :: state
-      REAL(KIND(1D0)) :: statelimit
+      REAL(KIND(1D0)) :: statelimit ! upper limit to the surface state [mm]
       REAL(KIND(1D0)) :: irrfracpaved
       REAL(KIND(1D0)) :: wetthresh
       TYPE(WATER_DIST_PRM) :: waterdist
@@ -315,7 +315,7 @@ MODULE SUEWS_DEF_DTS
       TYPE(OHM_PRM) :: ohm
       TYPE(SOIL_PRM) :: soil
       REAL(KIND(1D0)) :: state
-      REAL(KIND(1D0)) :: statelimit
+      REAL(KIND(1D0)) :: statelimit ! upper limit to the surface state [mm]
       REAL(KIND(1D0)) :: irrfracbldgs
       REAL(KIND(1D0)) :: wetthresh
       TYPE(WATER_DIST_PRM) :: waterdist
@@ -333,7 +333,7 @@ MODULE SUEWS_DEF_DTS
       REAL(KIND(1D0)) :: alb_max
       TYPE(OHM_PRM) :: ohm
       TYPE(SOIL_PRM) :: soil
-      REAL(KIND(1D0)) :: statelimit ! ******* dummy variable *******
+      REAL(KIND(1D0)) :: statelimit ! upper limit to the surface state [mm] ! ******* dummy variable *******
       REAL(KIND(1D0)) :: capmax_dec ! Maximum water storage capacity for upper surfaces (i.e. canopy) (absent for evergreen trees ??)
       REAL(KIND(1D0)) :: capmin_dec ! Minimum water storage capacity for upper surfaces (i.e. canopy).
       REAL(KIND(1D0)) :: irrfracdectr
@@ -373,7 +373,7 @@ MODULE SUEWS_DEF_DTS
       REAL(KIND(1D0)) :: alb_max
       TYPE(OHM_PRM) :: ohm
       TYPE(SOIL_PRM) :: soil
-      REAL(KIND(1D0)) :: statelimit
+      REAL(KIND(1D0)) :: statelimit ! upper limit to the surface state [mm]
       REAL(KIND(1D0)) :: irrfracgrass
       REAL(KIND(1D0)) :: wetthresh
       TYPE(bioCO2_PRM) :: bioco2
@@ -389,7 +389,7 @@ MODULE SUEWS_DEF_DTS
       REAL(KIND(1D0)) :: emis
       TYPE(OHM_PRM) :: ohm
       TYPE(SOIL_PRM) :: soil
-      REAL(KIND(1D0)) :: statelimit
+      REAL(KIND(1D0)) :: statelimit ! upper limit to the surface state [mm]
       REAL(KIND(1D0)) :: irrfracbsoil
       REAL(KIND(1D0)) :: wetthresh
       TYPE(WATER_DIST_PRM) :: waterdist
@@ -401,7 +401,7 @@ MODULE SUEWS_DEF_DTS
       REAL(KIND(1D0)) :: emis
       TYPE(OHM_PRM) :: ohm
       TYPE(SOIL_PRM) :: soil
-      REAL(KIND(1D0)) :: statelimit
+      REAL(KIND(1D0)) :: statelimit ! upper limit to the surface state [mm]
       REAL(KIND(1D0)) :: irrfracwater
       REAL(KIND(1D0)) :: wetthresh ! ******* dummy variable *******
       REAL(KIND(1D0)) :: flowchange ! special term in water
@@ -542,7 +542,7 @@ MODULE SUEWS_DEF_DTS
       REAL(KIND(1D0)) :: alt ! solar altitude [deg]
       INTEGER :: gridiv ! grid id [-]
       REAL(KIND(1D0)) :: timezone ! time zone, for site relative to UTC (east is positive) [h]
-      REAL(KIND(1D0)) :: surfacearea ! area of the grid [ha]
+      REAL(KIND(1D0)) :: surfacearea ! area of the grid [m2]
       REAL(KIND(1D0)) :: z ! measurement height [m]
       REAL(KIND(1D0)) :: z0m_in ! roughness length for momentum [m]
       REAL(KIND(1D0)) :: zdm_in ! zero-plane displacement [m]
@@ -1212,7 +1212,7 @@ MODULE SUEWS_DEF_DTS
       REAL(KIND(1D0)) :: Tair_av_5d ! 5-day moving average of air temperature [degC]
       REAL(KIND(1D0)) :: U !
       REAL(KIND(1D0)) :: rain !
-      REAL(KIND(1D0)) :: Wuh !  external water use
+      REAL(KIND(1D0)) :: Wu_m3 !  external water use amount in m3 for each timestep
       REAL(KIND(1D0)) :: fcld !
       REAL(KIND(1D0)) :: LAI_obs !
       REAL(KIND(1D0)) :: snowfrac !

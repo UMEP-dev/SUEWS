@@ -36,7 +36,7 @@ from ._load import (
     load_SUEWS_Forcing_met_df_yaml,
 )
 from ._run import run_supy_par, run_supy_ser
-from ._save import get_save_info, save_df_output, save_df_state, save_initcond_nml
+from ._save import get_save_info, save_df_output, save_df_state, save_initcond_nml, save_df_output_parquet
 from ._post import resample_output
 from ._version import __version__
 
@@ -109,7 +109,10 @@ def init_supy(
             logger_supy.info("Loading config from yaml")
             df_state_init = init_config_from_yaml(path=path_init_x).to_df_state()
         else:
-            logger_supy.warning("Input is not a yaml file, loading from other sources. These methods will be deprecated in later versions.", stacklevel=2)
+            logger_supy.warning(
+                "Input is not a yaml file, loading from other sources. These methods will be deprecated in later versions.",
+                stacklevel=2,
+            )
             if path_init_x.suffix == ".nml":
                 # SUEWS `RunControl.nml`:
                 df_state_init = load_InitialCond_grid_df(
@@ -123,7 +126,9 @@ def init_supy(
                 logger_supy.critical(
                     f"{path_init_x} is NOT a valid file to initialise SuPy!"
                 )
-                raise RuntimeError("{path_init_x} is NOT a valid file to initialise SuPy!")
+                raise RuntimeError(
+                    "{path_init_x} is NOT a valid file to initialise SuPy!"
+                )
         if check_input:
             try:
                 list_issues = check_state(df_state_init)
@@ -152,7 +157,7 @@ def load_forcing_grid(
     check_input=False,
     force_reload=True,
     df_state_init: pd.DataFrame = None,
-    config = None
+    config=None,
 ) -> pd.DataFrame:
     """Load forcing data for a specific grid included in the index of `df_state_init </data-structure/supy-io.ipynb#df_state_init:-model-initial-states>`.
 
@@ -177,10 +182,16 @@ def load_forcing_grid(
 
     Examples
     --------
-    >>> path_runcontrol = "~/SUEWS_sims/RunControl.nml"  # a valid path to `RunControl.nml`
-    >>> df_state_init = supy.init_supy(path_runcontrol) # get `df_state_init`
-    >>> grid = df_state_init.index[0] # first grid number included in `df_state_init`
-    >>> df_forcing = supy.load_forcing_grid(path_runcontrol, grid) # get df_forcing
+    >>> path_runcontrol = (
+    ...     "~/SUEWS_sims/RunControl.nml"  # a valid path to `RunControl.nml`
+    ... )
+    >>> df_state_init = supy.init_supy(path_runcontrol)  # get `df_state_init`
+    >>> grid = df_state_init.index[
+    ...     0
+    ... ]  # first grid number included in `df_state_init`
+    >>> df_forcing = supy.load_forcing_grid(
+    ...     path_runcontrol, grid
+    ... )  # get df_forcing
 
 
     """
@@ -221,7 +232,17 @@ def load_forcing_grid(
             if config is None:
                 config = init_config_from_yaml(path=path_init)
             path_site = path_init.parent
-            path_input = path_site / config.model.control.forcing_file.value
+            forcing_file_val = (
+                config.model.control.forcing_file.value
+                if hasattr(config.model.control.forcing_file, "value")
+                else config.model.control.forcing_file
+            )
+            if isinstance(forcing_file_val, list):
+                # Handle list of files
+                path_input = [path_site / f for f in forcing_file_val]
+            else:
+                # Handle single file
+                path_input = path_site / forcing_file_val
 
         tstep_mod, lat, lon, alt, timezone = df_state_init.loc[
             grid, [(x, "0") for x in ["tstep", "lat", "lng", "alt", "timezone"]]
@@ -235,7 +256,14 @@ def load_forcing_grid(
             )
             # resample raw data from tstep_in to tstep_mod
             df_forcing_met_tstep = resample_forcing_met(
-                df_forcing_met, tstep_met_in, tstep_mod, lat, lon, alt, timezone, kdownzen
+                df_forcing_met,
+                tstep_met_in,
+                tstep_mod,
+                lat,
+                lon,
+                alt,
+                timezone,
+                kdownzen,
             )
         elif path_init.suffix == ".yml":
             df_forcing_met = load_SUEWS_Forcing_met_df_yaml(path_input)
@@ -250,9 +278,15 @@ def load_forcing_grid(
                 )
             else:
                 df_forcing_met_tstep = resample_forcing_met(
-                    df_forcing_met, tstep_met_in, tstep_mod, lat, lon, alt, timezone, kdownzen
+                    df_forcing_met,
+                    tstep_met_in,
+                    tstep_mod,
+                    lat,
+                    lon,
+                    alt,
+                    timezone,
+                    kdownzen,
                 )
-
 
         # coerced precision here to prevent numerical errors inside Fortran
         df_forcing = df_forcing_met_tstep.round(10)
@@ -280,9 +314,10 @@ def load_forcing_grid(
 def load_SampleData() -> Tuple[pandas.DataFrame, pandas.DataFrame]:
     logger_supy.warning(
         "This function name will be deprecated. Please use `load_sample_data()` instead.",
-        stacklevel=2
+        stacklevel=2,
     )
     return load_sample_data()
+
 
 def load_sample_data() -> Tuple[pandas.DataFrame, pandas.DataFrame]:
     """Load sample data for quickly starting a demo run.
@@ -304,7 +339,9 @@ def load_sample_data() -> Tuple[pandas.DataFrame, pandas.DataFrame]:
     path_config_default = trv_sample_data / "sample_config.yml"
     # path_config_default = trv_sample_data / "RunControl.nml" # TODO: to be deprecated - but keep for now to pass tests
     df_state_init = init_supy(path_config_default, force_reload=False)
-    df_forcing = load_forcing_grid(path_config_default, df_state_init.index[0], df_state_init=df_state_init)
+    df_forcing = load_forcing_grid(
+        path_config_default, df_state_init.index[0], df_state_init=df_state_init
+    )
     return df_state_init, df_forcing
 
 
@@ -334,13 +371,15 @@ def load_config_from_df(df_state: pd.DataFrame):
 
     return config
 
-def init_config(df_state: pd.DataFrame=None):
+
+def init_config(df_state: pd.DataFrame = None):
     """
     Initialise SUEWS configuration object either from existing df_state dataframe or as the default configuration.
     """
 
     if df_state is None:
         from .util._config import SUEWSConfig
+
         return SUEWSConfig()
 
     return load_config_from_df(df_state)
@@ -458,10 +497,14 @@ def run_supy(
 
     if n_grid > 1 and os.name != "nt" and (not serial_mode):
         logger_supy.info(f"SUEWS is running in parallel mode")
-        res_supy = run_supy_par(df_forcing, df_state_init, save_state, chunk_day, debug_mode)
+        res_supy = run_supy_par(
+            df_forcing, df_state_init, save_state, chunk_day, debug_mode
+        )
     else:
         logger_supy.info(f"SUEWS is running in serial mode")
-        res_supy = run_supy_ser(df_forcing, df_state_init, save_state, chunk_day, debug_mode)
+        res_supy = run_supy_ser(
+            df_forcing, df_state_init, save_state, chunk_day, debug_mode
+        )
         # try:
         #     res_supy = run_supy_ser(df_forcing, df_state_init, save_state, chunk_day)
         # except:
@@ -482,7 +525,6 @@ def run_supy(
         return df_output, df_state_final
 
 
-
 ##############################################################################
 # 3. save results of a supy run
 def save_supy(
@@ -496,6 +538,7 @@ def save_supy(
     logging_level=50,
     output_level=1,
     debug=False,
+    output_config=None,
 ) -> list:
     """Save SuPy run results to files
 
@@ -524,6 +567,8 @@ def save_supy(
         Notes: 0 for all but snow-related; 1 for all; 2 for a minimal set without land cover specific information.
     debug : bool, optional
         whether to enable debug mode (e.g., writing out in serial mode, and other debug uses), by default False.
+    output_config : OutputConfig, optional
+        Output configuration object specifying format, frequency, and groups to save. If provided, overrides freq_s parameter.
 
 
     Returns
@@ -540,12 +585,20 @@ def save_supy(
 
     2. save results according to settings in :ref:`RunControl.nml <suews:RunControl.nml>`
 
-    >>> list_path_save = supy.save_supy(df_output, df_state_final, path_runcontrol='path/to/RunControl.nml')
+    >>> list_path_save = supy.save_supy(
+    ...     df_output, df_state_final, path_runcontrol="path/to/RunControl.nml"
+    ... )
 
 
     3. save results of a supy run at resampling frequency of 1800 s (i.e., half-hourly results) under the site code ``Test`` to a customised location 'path/to/some/dir'
 
-    >>> list_path_save = supy.save_supy(df_output, df_state_final, freq_s=1800, site='Test', path_dir_save='path/to/some/dir')
+    >>> list_path_save = supy.save_supy(
+    ...     df_output,
+    ...     df_state_final,
+    ...     freq_s=1800,
+    ...     site="Test",
+    ...     path_dir_save="path/to/some/dir",
+    ... )
     """
     # adjust logging level
     logger_supy.setLevel(logging_level)
@@ -556,6 +609,35 @@ def save_supy(
             path_runcontrol
         )
 
+    # Handle output configuration if provided
+    output_format = "txt"  # default
+    output_groups = None  # default will be handled in save_df_output
+    
+    if output_config is not None:
+        from .data_model.model import OutputConfig, OutputFormat
+        if isinstance(output_config, OutputConfig):
+            # Override frequency if specified in config
+            if output_config.freq is not None:
+                freq_s = output_config.freq
+            # Get format
+            output_format = str(output_config.format)
+            # Get groups for txt format
+            if output_format == "txt" and output_config.groups is not None:
+                output_groups = output_config.groups
+        elif isinstance(output_config, str):
+            # Legacy string format - issue deprecation warning
+            import warnings
+            warnings.warn(
+                "The 'output_file' parameter as a string is deprecated and was never used. "
+                "Please use the new OutputConfig format or remove this parameter. "
+                "Falling back to default text output. "
+                "Example: output_file: {format: 'parquet', freq: 3600}",
+                DeprecationWarning,
+                stacklevel=2
+            )
+            # Fall back to default text format
+            output_format = "txt"
+
     # determine `save_snow` option
     snowuse = df_state_final.iloc[-1].loc["snowuse"].values.item()
     save_snow = True if snowuse == 1 else False
@@ -565,17 +647,30 @@ def save_supy(
     if not path_dir_save.exists():
         path_dir_save.mkdir(parents=True)
 
-    # save df_output to several files
-    list_path_save = save_df_output(
-        df_output,
-        freq_s,
-        site,
-        path_dir_save,
-        save_tstep,
-        output_level,
-        save_snow,
-        debug,
-    )
+    # save based on format
+    if output_format == "parquet":
+        # Save as Parquet
+        list_path_save = save_df_output_parquet(
+            df_output,
+            df_state_final,
+            freq_s,
+            site,
+            path_dir_save,
+            save_tstep,
+        )
+    else:
+        # Save as text files (existing behavior)
+        list_path_save = save_df_output(
+            df_output,
+            freq_s,
+            site,
+            path_dir_save,
+            save_tstep,
+            output_level,
+            save_snow,
+            debug,
+            output_groups=output_groups,
+        )
 
     # save df_state
     if path_runcontrol is not None:
@@ -665,5 +760,3 @@ def run_supy_sample(
     else:
         df_output, df_state_final = res_supy
         return df_output, df_state_final
-
-

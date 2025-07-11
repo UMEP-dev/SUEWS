@@ -2,7 +2,7 @@
 requires = [
     "wheel",
     "pytest",
-    "f90wrap==0.2.15",
+    "f90wrap==0.2.16",
     "numpy>=2.0",
     "meson-python>=0.12.0",
 ]
@@ -18,6 +18,7 @@ authors = [
     { name = "Prof Sue Grimmond", email = "c.s.grimmond@reading.ac.uk" },
 ]
 dynamic = ["version"]
+requires-python = ">=3.9"
 
 license = { text = "GPL-V3.0" }
 
@@ -27,7 +28,7 @@ dependencies = [
     "chardet",
     "scipy",
     "pydantic",
-    "f90wrap==0.2.15",                             # f90wrap is required for f2py-based supy driver
+    "f90wrap==0.2.16",                             # f90wrap is required for f2py-based supy driver
     "dask",                                        # needs dask for parallel tasks
     "f90nml",                                      # utility for namelist files
     "seaborn",                                     # stat plotting
@@ -40,9 +41,12 @@ dependencies = [
     "numdifftools",                                # required by `lmfit` for uncertainty estimation
     "pvlib",                                       # TMY-related solar radiation calculations
     "platypus-opt==1.0.4",                         # a multi-objective optimiser
+    "timezonefinder",                              # timezone detection from coordinates
+    "pytz",                                        # timezone handling
 ]
 classifiers = [
     "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
@@ -63,3 +67,44 @@ content-type = "text/markdown"
 [project.scripts]
 suews-run = "supy.cmd.SUEWS:SUEWS"
 suews-convert = "supy.cmd.table_converter:convert_table_cmd"
+
+[project.optional-dependencies]
+dev = [
+    # Development and testing
+    "pytest",
+    "pytest-cov",
+    "ruff",
+    "pyarrow",  # Parquet support for pandas (recommended for output format)
+    # Personal analysis tools
+    "geopandas",
+    "scikit-learn",
+    "jupyter",
+    "ipykernel",
+]
+docs = [
+    # Core Sphinx
+    "sphinx>=4.0,<8.2",
+    "sphinx-autobuild",
+    "pybtex",
+    "nbsphinx",
+    "recommonmark",
+    "docutils>=0.16,<0.17",
+    "jinja2>=3.0,<3.1",
+    "urlpath",
+    # Sphinx extensions
+    "sphinxcontrib.bibtex~=2.4",
+    "sphinxcontrib_programoutput",
+    "sphinx-jsonschema",
+    "sphinx_comments",
+    "sphinx-rtd-theme>=0.5",
+    "sphinx-book-theme",
+    "sphinx-panels",
+    "sphinxcontrib.email",
+    "sphinx-last-updated-by-git",
+    "sphinx-click",
+    "jsonschema2rst",
+]
+all = [
+    # All optional dependencies
+    "supy[dev,docs]",
+]

@@ -5,17 +5,16 @@ SUEWSSimulation Class
 
 .. currentmodule:: supy
 
-The :class:`SUEWSSimulation` class provides an object-oriented interface for running SUEWS simulations.
+The :class:`SUEWSSimulation` class provides a simplified object-oriented interface for running SUEWS simulations.
 
 Key Features
 ------------
 
 - **YAML Configuration**: Load configurations from YAML files
-- **Method Chaining**: Intuitive workflow with chainable methods
-- **Validation**: Built-in configuration and forcing data validation
-- **Multiple Formats**: Export results to CSV, Excel, NetCDF, or Pickle
-- **Parameter Overrides**: Easy runtime parameter modification
-- **Scenario Analysis**: Clone simulations for comparative studies
+- **Configuration Updates**: Update configuration with dictionaries or YAML files
+- **Forcing Management**: Load single files, lists of files, or DataFrames
+- **Simple API**: Clean interface focused on essential functionality
+- **Format Support**: Save results in txt or parquet formats via OutputConfig
 
 For usage examples and tutorials, see :doc:`/sub-tutorials/suews-simulation-tutorial`.
 
@@ -30,17 +29,14 @@ Class Reference
     :show-inheritance:
 
     .. automethod:: __init__
-    .. automethod:: from_yaml
-    .. automethod:: setup_forcing
+    .. automethod:: update_config
+    .. automethod:: update_forcing
     .. automethod:: run
-    .. automethod:: get_results
     .. automethod:: save
-    .. automethod:: summary
-    .. automethod:: see
-    .. automethod:: quick_plot
-    .. automethod:: clone
     .. automethod:: reset
-    .. automethod:: validate
+    .. autoproperty:: config
+    .. autoproperty:: forcing
+    .. autoproperty:: results
 
 Quick Example
 -------------
@@ -50,13 +46,18 @@ Quick Example
     from supy import SUEWSSimulation
     
     # Create and run simulation
-    sim = SUEWSSimulation.from_yaml('config.yml')
-    sim.setup_forcing('forcing_data.txt')
+    sim = SUEWSSimulation('config.yml')
+    sim.update_forcing('forcing_data.txt')
     sim.run()
     
     # Access and save results
-    results = sim.get_results()
-    sim.save('outputs.csv')
+    results = sim.results
+    sim.save('output_dir/')
+    
+    # Update configuration and re-run
+    sim.update_config({'model': {'control': {'tstep': 600}}})
+    sim.reset()
+    sim.run()
 
 See Also
 --------

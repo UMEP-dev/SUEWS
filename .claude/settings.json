@@ -1,9 +1,0 @@
-{
-  "tools": {
-    "bash": {
-      "timeouts": {
-        "make": 600000
-      }
-    }
-  }
-}

@@ -8,6 +8,7 @@ from typing import (
     Type,
     Generic,
     TypeVar,
+    ClassVar,
     Any,
 )
 from pydantic import (
@@ -42,49 +43,20 @@ import pytz
 from .._env import logger_supy
 from .yaml_annotator_json import JsonYamlAnnotator as YAMLAnnotator
 
-try:
-    from ..validation import (
-        enhanced_from_yaml_validation,
-        enhanced_to_df_state_validation,
-    )
+_validation_available = False
+enhanced_from_yaml_validation = None
+enhanced_to_df_state_validation = None
 
-    _validation_available = True
-except ImportError:
-    try:
-        from .validation_controller import validate_suews_config_conditional
-
-        def enhanced_from_yaml_validation(config_data, strict=True):
-            result = validate_suews_config_conditional(
-                config_data, strict=False, verbose=True
-            )
-            if result.errors and strict:
-                error_msg = f"SUEWS Configuration Validation Failed: {len(result.errors)} errors\n"
-                error_msg += "\n".join(f"  - {err}" for err in result.errors)
-                raise ValueError(error_msg)
-            return result
-
-        def enhanced_to_df_state_validation(config_data, strict=False):
-            result = validate_suews_config_conditional(
-                config_data, strict=False, verbose=False
-            )
-            if result.errors and strict:
-                error_msg = (
-                    f"Configuration validation found {len(result.errors)} issues\n"
-                )
-                error_msg += "\n".join(f"  - {err}" for err in result.errors)
-                raise ValueError(error_msg)
-            return result
-
-        _validation_available = True
-    except ImportError:
-        _validation_available = False
-        enhanced_from_yaml_validation = None
-        enhanced_to_df_state_validation = None
 import os
 import warnings
 
+def _is_valid_layer_array(field) -> bool:
+    return hasattr(field, "value") and isinstance(field.value, list) and len(field.value) > 0
+
+
 
 class SUEWSConfig(BaseModel):
+
     name: str = Field(
         default="sample config",
         description="Name of the SUEWS configuration",
@@ -109,6 +81,74 @@ class SUEWSConfig(BaseModel):
 
     model_config = ConfigDict(extra="allow")
 
+    # Class-level constant for STEBBS validation parameters
+    STEBBS_REQUIRED_PARAMS: ClassVar[List[str]] = [
+        "WallInternalConvectionCoefficient",
+        "InternalMassConvectionCoefficient",
+        "FloorInternalConvectionCoefficient",
+        "WindowInternalConvectionCoefficient",
+        "WallExternalConvectionCoefficient",
+        "WindowExternalConvectionCoefficient",
+        "GroundDepth",
+        "ExternalGroundConductivity",
+        "IndoorAirDensity",
+        "IndoorAirCp",
+        "WallBuildingViewFactor",
+        "WallGroundViewFactor",
+        "WallSkyViewFactor",
+        "MetabolicRate",
+        "LatentSensibleRatio",
+        "ApplianceRating",
+        "TotalNumberofAppliances",
+        "ApplianceUsageFactor",
+        "HeatingSystemEfficiency",
+        "MaxCoolingPower",
+        "CoolingSystemCOP",
+        "VentilationRate",
+        "IndoorAirStartTemperature",
+        "IndoorMassStartTemperature",
+        "WallIndoorSurfaceTemperature",
+        "WallOutdoorSurfaceTemperature",
+        "WindowIndoorSurfaceTemperature",
+        "WindowOutdoorSurfaceTemperature",
+        "GroundFloorIndoorSurfaceTemperature",
+        "GroundFloorOutdoorSurfaceTemperature",
+        "WaterTankTemperature",
+        "InternalWallWaterTankTemperature",
+        "ExternalWallWaterTankTemperature",
+        "WaterTankWallThickness",
+        "MainsWaterTemperature",
+        "WaterTankSurfaceArea",
+        "HotWaterHeatingSetpointTemperature",
+        "HotWaterTankWallEmissivity",
+        "DomesticHotWaterTemperatureInUseInBuilding",
+        "InternalWallDHWVesselTemperature",
+        "ExternalWallDHWVesselTemperature",
+        "DHWVesselWallThickness",
+        "DHWWaterVolume",
+        "DHWSurfaceArea",
+        "DHWVesselEmissivity",
+        "HotWaterFlowRate",
+        "DHWDrainFlowRate",
+        "DHWSpecificHeatCapacity",
+        "HotWaterTankSpecificHeatCapacity",
+        "DHWVesselSpecificHeatCapacity",
+        "DHWDensity",
+        "HotWaterTankWallDensity",
+        "DHWVesselDensity",
+        "HotWaterTankBuildingWallViewFactor",
+        "HotWaterTankInternalMassViewFactor",
+        "HotWaterTankWallConductivity",
+        "HotWaterTankInternalWallConvectionCoefficient",
+        "HotWaterTankExternalWallConvectionCoefficient",
+        "DHWVesselWallConductivity",
+        "DHWVesselInternalWallConvectionCoefficient",
+        "DHWVesselExternalWallConvectionCoefficient",
+        "DHWVesselWallEmissivity",
+        "HotWaterHeatingEfficiency",
+        "MinimumVolumeOfDHWinUse",
+    ]
+
     # Sort the filtered columns numerically
     @staticmethod
     def sort_key(col):
@@ -120,33 +160,50 @@ class SUEWSConfig(BaseModel):
     @model_validator(mode="after")
     def validate_parameter_completeness(self) -> "SUEWSConfig":
         """
-        Validate all parameters after complete construction.
-        This runs AFTER all values are populated from YAML.
+        Validate all parameters after full construction.
+        This runs AFTER all values have been populated from YAML.
         """
-        # Track validation issues for summary
+        ### 1) Initialize the summary of validation issues
         self._validation_summary = {
             "total_warnings": 0,
             "sites_with_issues": [],
             "issue_types": set(),
-            "yaml_path": None,
+            "yaml_path": getattr(self, "_yaml_path", None),
+            "detailed_messages": [],  ## Add this line to store detailed messages
         }
 
+        ### 2) Run the standard site-by-site checks
         for i, site in enumerate(self.sites):
             self._validate_site_parameters(site, site_index=i)
 
-        # Show summary if there are warnings
+        ### 3) Run any conditional validations (e.g. STEBBS when stebbsmethod==1)
+        cond_issues = self._validate_conditional_parameters()
+        if cond_issues:
+            ### Tally the warnings
+            self._validation_summary["total_warnings"] += len(cond_issues)
+            
+            ### Store the detailed messages for the summary
+            self._validation_summary["detailed_messages"].extend(cond_issues)
+            
+            ### No need to log each issue individually
+            ## for issue_msg in cond_issues:
+            ##    logger_supy.warning(f"Conditional validation issue: {issue_msg}")
+
+        ### 4) If there were any warnings, show the summary
         if self._validation_summary["total_warnings"] > 0:
             self._show_validation_summary()
 
         return self
 
+
+
     def _show_validation_summary(self) -> None:
         """Show a concise summary of validation issues."""
-        # Check if we have a yaml path stored
+        ## Check if we have a yaml path stored
         yaml_path = getattr(self, "_yaml_path", None)
 
         if yaml_path:
-            # When loaded from YAML, we know the source file
+            ## When loaded from YAML, we know the source file
             annotated_filename = Path(yaml_path).stem + "_annotated.yml"
             fix_instructions = (
                 f"To see detailed fixes for each parameter: please refer to inline guidance "
@@ -160,19 +217,35 @@ class SUEWSConfig(BaseModel):
                 f"   3. An annotated file with inline guidance will be generated"
             )
 
-        logger_supy.warning(
+        ## Build the summary message
+        summary_message = (
             f"\n{'=' * 60}\n"
             f"VALIDATION SUMMARY\n"
             f"{'=' * 60}\n"
             f"Found {self._validation_summary['total_warnings']} parameter issue(s) across "
             f"{len(self._validation_summary['sites_with_issues'])} site(s).\n\n"
+        )
+        
+        ## Add issue types
+        summary_message += (
             f"Issue types:\n"
             f"  - "
             + "\n  - ".join(sorted(self._validation_summary["issue_types"]))
             + "\n\n"
-            f"{fix_instructions}\n"
-            f"{'=' * 60}"
         )
+        
+        ## Add detailed messages if available
+        if self._validation_summary.get("detailed_messages"):
+            summary_message += "Detailed issues:\n"
+            for msg in self._validation_summary["detailed_messages"]:
+                summary_message += f"  - {msg}\n"
+            summary_message += "\n"
+        
+        ## Add fix instructions
+        summary_message += f"{fix_instructions}\n{'=' * 60}"
+        
+        ## Log the complete summary
+        logger_supy.warning(summary_message)
 
     def _validate_site_parameters(self, site: Site, site_index: int) -> None:
         """Validate all parameters for a single site."""
@@ -343,12 +416,16 @@ class SUEWSConfig(BaseModel):
         """Check thermal layer parameters. Returns True if issues found."""
         missing_params = []
 
-        if not hasattr(thermal_layers, "dz") or thermal_layers.dz is None:
+        def _is_valid_layer_array(field):
+            return hasattr(field, "value") and isinstance(field.value, list) and len(field.value) > 0
+
+        if not hasattr(thermal_layers, "dz") or not _is_valid_layer_array(thermal_layers.dz):
             missing_params.append("dz (Layer thickness)")
-        if not hasattr(thermal_layers, "k") or thermal_layers.k is None:
+        if not hasattr(thermal_layers, "k") or not _is_valid_layer_array(thermal_layers.k):
             missing_params.append("k (Thermal conductivity)")
-        if not hasattr(thermal_layers, "rho_cp") or thermal_layers.rho_cp is None:
+        if not hasattr(thermal_layers, "rho_cp") or not _is_valid_layer_array(thermal_layers.rho_cp):
             missing_params.append("rho_cp (Volumetric heat capacity)")
+
 
         if missing_params:
             self._validation_summary["total_warnings"] += len(missing_params)
@@ -357,6 +434,284 @@ class SUEWSConfig(BaseModel):
             )
             return True
         return False
+    
+    def _needs_stebbs_validation(self) -> bool:
+        """
+        Return True if STEBBS should be validated,
+        i.e. physics.stebbsmethod == 1.
+        """
+
+        if not hasattr(self.model, 'physics') or not hasattr(self.model.physics, 'stebbsmethod'):
+            return False
+            
+        stebbsmethod = self.model.physics.stebbsmethod
+        
+
+        if hasattr(stebbsmethod, 'value'):
+            stebbsmethod = stebbsmethod.value
+        if hasattr(stebbsmethod, '__int__'):
+            stebbsmethod = int(stebbsmethod)
+        if isinstance(stebbsmethod, str) and stebbsmethod == "1":
+            stebbsmethod = 1
+            
+        #print(f"Final stebbsmethod value for validation: {stebbsmethod} (type: {type(stebbsmethod)})")
+        
+        return stebbsmethod == 1
+
+    def _validate_stebbs(self, site: Site, site_index: int) -> List[str]:
+        """
+        If stebbsmethod==1, enforce that site.properties.stebbs
+        has all required parameters with non-null values.
+        Returns a list of issue messages.
+        """
+        issues: List[str] = []
+        
+        ## First check if properties exists and is not None
+        if not hasattr(site, 'properties') or site.properties is None:
+            issues.append("Missing 'properties' section (required for STEBBS validation)")
+            return issues
+        
+        props = site.properties
+        
+        ## Must have a stebbs block
+        if not hasattr(props, 'stebbs') or props.stebbs is None:
+            issues.append("Missing 'stebbs' section (required when stebbsmethod=1)")
+            return issues
+        
+        stebbs = props.stebbs
+        
+        # ## Define all required STEBBS parameters
+        # required_params = [
+        #     "WallInternalConvectionCoefficient",
+        #     "InternalMassConvectionCoefficient",
+        #     "FloorInternalConvectionCoefficient",
+        #     "WindowInternalConvectionCoefficient",
+        #     "WallExternalConvectionCoefficient",
+        #     "WindowExternalConvectionCoefficient",
+        #     "GroundDepth",
+        #     "ExternalGroundConductivity",
+        #     "IndoorAirDensity",
+        #     "IndoorAirCp",
+        #     "WallBuildingViewFactor",
+        #     "WallGroundViewFactor",
+        #     "WallSkyViewFactor",
+        #     "MetabolicRate",
+        #     "LatentSensibleRatio",
+        #     "ApplianceRating",
+        #     "TotalNumberofAppliances",
+        #     "ApplianceUsageFactor",
+        #     "HeatingSystemEfficiency",
+        #     "MaxCoolingPower",
+        #     "CoolingSystemCOP",
+        #     "VentilationRate",
+        #     "IndoorAirStartTemperature",
+        #     "IndoorMassStartTemperature",
+        #     "WallIndoorSurfaceTemperature",
+        #     "WallOutdoorSurfaceTemperature",
+        #     "WindowIndoorSurfaceTemperature",
+        #     "WindowOutdoorSurfaceTemperature",
+        #     "GroundFloorIndoorSurfaceTemperature",
+        #     "GroundFloorOutdoorSurfaceTemperature",
+        #     "WaterTankTemperature",
+        #     "InternalWallWaterTankTemperature",
+        #     "ExternalWallWaterTankTemperature",
+        #     "WaterTankWallThickness",
+        #     "MainsWaterTemperature",
+        #     "WaterTankSurfaceArea",
+        #     "HotWaterHeatingSetpointTemperature",
+        #     "HotWaterTankWallEmissivity",
+        #     "DomesticHotWaterTemperatureInUseInBuilding",
+        #     "InternalWallDHWVesselTemperature",
+        #     "ExternalWallDHWVesselTemperature",
+        #     "DHWVesselWallThickness",
+        #     "DHWWaterVolume",
+        #     "DHWSurfaceArea",
+        #     "DHWVesselEmissivity",
+        #     "HotWaterFlowRate",
+        #     "DHWDrainFlowRate",
+        #     "DHWSpecificHeatCapacity",
+        #     "HotWaterTankSpecificHeatCapacity",
+        #     "DHWVesselSpecificHeatCapacity",
+        #     "DHWDensity",
+        #     "HotWaterTankWallDensity",
+        #     "DHWVesselDensity",
+        #     "HotWaterTankBuildingWallViewFactor",
+        #     "HotWaterTankInternalMassViewFactor",
+        #     "HotWaterTankWallConductivity",
+        #     "HotWaterTankInternalWallConvectionCoefficient",
+        #     "HotWaterTankExternalWallConvectionCoefficient",
+        #     "DHWVesselWallConductivity",
+        #     "DHWVesselInternalWallConvectionCoefficient",
+        #     "DHWVesselExternalWallConvectionCoefficient",
+        #     "DHWVesselWallEmissivity",
+        #     "HotWaterHeatingEfficiency",
+        #     "MinimumVolumeOfDHWinUse"
+        # ]
+        
+        ## Check each parameter
+        missing_params = []
+        for param in self.STEBBS_REQUIRED_PARAMS:
+            ## Check if parameter exists
+            if not hasattr(stebbs, param):
+                missing_params.append(param)
+                continue
+                
+            ## Get parameter value
+            param_obj = getattr(stebbs, param)
+            
+            ## Check if the parameter has a value attribute that is None
+            if hasattr(param_obj, 'value') and param_obj.value is None:
+                missing_params.append(param)
+                continue
+                
+            ## If the parameter itself is None
+            if param_obj is None:
+                missing_params.append(param)
+        
+        ## Always list all missing parameters, regardless of count
+        if missing_params:
+            param_list = ", ".join(missing_params)
+            issues.append(f"Missing required STEBBS parameters: {param_list} (required when stebbsmethod=1)")
+        
+        return issues
+    
+    def _needs_rsl_validation(self) -> bool:
+        """
+        Return True if RSL diagnostic method is enabled,
+        i.e. physics.rslmethod == 2.
+        """
+        rm = self.model.physics.rslmethod
+        method = getattr(rm, "value", rm)
+        try:
+            method = int(method)
+        except (TypeError, ValueError):
+            pass
+        return method == 2
+
+    def _validate_rsl(self, site: Site, site_index: int) -> List[str]:
+        """
+        If rslmethod==2, then for any site where bldgs.sfr > 0,
+        bldgs.faibldg must be set and non-null.
+        """
+        issues: List[str] = []
+        props = getattr(site, "properties", None)
+        if not props or not hasattr(props, "land_cover") or not props.land_cover:
+            return issues
+
+        lc = props.land_cover
+        bldgs = getattr(lc, "bldgs", None)
+        if not bldgs or not hasattr(bldgs, "sfr") or bldgs.sfr is None:
+            return issues
+
+        sfr = getattr(bldgs.sfr, "value", bldgs.sfr)
+        try:
+            sfr = float(sfr)
+        except (TypeError, ValueError):
+            sfr = 0.0
+
+        if sfr > 0:
+            faibldg = getattr(bldgs, "faibldg", None)
+            val = getattr(faibldg, "value", faibldg) if faibldg is not None else None
+            if val is None:
+                site_name = getattr(site, "name", f"Site {site_index}")
+                issues.append(
+                    f"{site_name}: for rslmethod=2 and bldgs.sfr={sfr}, bldgs.faibldg must be set"
+                )
+        return issues
+
+    def _needs_storage_validation(self) -> bool:
+        """
+        Return True if DyOHM storage‐heat method is enabled,
+        i.e. physics.storageheatmethod == 6.
+        """
+        shm = getattr(self.model.physics.storageheatmethod, "value", None)
+        try:
+            shm = int(shm)
+        except (TypeError, ValueError):
+            pass
+        return shm == 6
+
+    def _validate_storage(self, site: Site, site_index: int) -> List[str]:
+        issues: List[str] = []
+        # prendi sempre il nome
+        site_name = getattr(site, "name", f"Site {site_index}")
+        props = getattr(site, "properties", None)
+        if not props:
+            return issues
+
+        vl = getattr(props, "vertical_layers", None)
+        walls = getattr(vl, "walls", None) if vl else None
+        if not walls or len(walls) == 0:
+            issues.append(
+                f"{site_name}: storageheatmethod=6 → missing vertical_layers.walls"
+            )
+            return issues
+
+        th = getattr(walls[0], "thermal_layers", None)
+        for arr in ("dz", "k", "rho_cp"):
+            field = getattr(th, arr, None) if th else None
+            vals = getattr(field, "value", None) if field else None
+            if not isinstance(vals, list) or len(vals) == 0 or any(v is None for v in vals) or any(not isinstance(v, (int, float)) for v in vals):
+                issues.append(
+                    f"{site_name}: storageheatmethod=6 → "
+                    f"thermal_layers.{arr} must be a non‐empty list of numeric values (no nulls)"
+                )
+
+        lam = getattr(getattr(props, "lambda_c", None), "value", None)
+        if lam in (None, ""):
+            issues.append(
+                f"{site_name}: storageheatmethod=6 → properties.lambda_c must be set and non-null"
+            )
+
+        return issues
+
+    def _validate_conditional_parameters(self) -> List[str]:
+        """
+        Run any method‐specific validations (STEBBS, RSL, StorageHeat) in one
+        site-loop. Returns all issue messages.
+        """
+        all_issues: List[str] = []
+
+        # Determine which checks to run once up front
+        needs_stebbs  = self._needs_stebbs_validation()
+        needs_rsl     = self._needs_rsl_validation()
+        needs_storage = self._needs_storage_validation()
+
+        # Nothing to do?
+        if not (needs_stebbs or needs_rsl or needs_storage):
+            return all_issues
+
+        for idx, site in enumerate(self.sites):
+            site_name = getattr(site, "name", f"Site {idx}")
+
+            # STEBBS
+            if needs_stebbs:
+                stebbs_issues = self._validate_stebbs(site, idx)
+                if stebbs_issues:
+                    self._validation_summary["issue_types"].add("STEBBS parameters")
+                    if site_name not in self._validation_summary["sites_with_issues"]:
+                        self._validation_summary["sites_with_issues"].append(site_name)
+                    all_issues.extend(stebbs_issues)
+
+            # RSL
+            if needs_rsl:
+                rsl_issues = self._validate_rsl(site, idx)
+                if rsl_issues:
+                    self._validation_summary["issue_types"].add("RSL faibldg")
+                    if site_name not in self._validation_summary["sites_with_issues"]:
+                        self._validation_summary["sites_with_issues"].append(site_name)
+                    all_issues.extend(rsl_issues)
+
+            # StorageHeat (DyOHM)
+            if needs_storage:
+                storage_issues = self._validate_storage(site, idx)
+                if storage_issues:
+                    self._validation_summary["issue_types"].add("StorageHeat parameters")
+                    if site_name not in self._validation_summary["sites_with_issues"]:
+                        self._validation_summary["sites_with_issues"].append(site_name)
+                    all_issues.extend(storage_issues)
+
+        return all_issues
 
     def generate_annotated_yaml(
         self, yaml_path: str, output_path: Optional[str] = None
@@ -517,14 +872,12 @@ class SUEWSConfig(BaseModel):
                             and surface.thermal_layers
                         ):
                             thermal = surface.thermal_layers
-                            if (
-                                not hasattr(thermal, "dz")
-                                or thermal.dz is None
-                                or not hasattr(thermal, "k")
-                                or thermal.k is None
-                                or not hasattr(thermal, "rho_cp")
-                                or thermal.rho_cp is None
-                            ):
+                        if (
+                            not _is_valid_layer_array(getattr(thermal, "dz", None)) or
+                            not _is_valid_layer_array(getattr(thermal, "k", None)) or
+                            not _is_valid_layer_array(getattr(thermal, "rho_cp", None))
+                        ):
+
                                 annotator.add_issue(
                                     path=f"{path}/thermal_layers",
                                     param="thermal_layers",
@@ -597,39 +950,13 @@ class SUEWSConfig(BaseModel):
         # Store yaml path in config data for later use
         config_data["_yaml_path"] = path
 
-        if (
-            use_conditional_validation and _validation_available
-        ):  # _validation_available is always FALSE -- need to fix this
-            # Step 1: Pre-validation with enhanced validation
-            try:
-                enhanced_from_yaml_validation(config_data, strict=strict)
-            except ValueError:
-                if strict:
-                    raise
-                # Continue with warnings already issued
-
-            # Step 2: Create config with conditional validation applied
-            try:
-                return cls(**config_data)
-            except Exception as e:
-                if strict:
-                    raise ValueError(
-                        f"Failed to create SUEWSConfig after conditional validation: {e}"
-                    )
-                else:
-                    warnings.warn(f"Config creation warning: {e}")
-                    # Try with model_construct to bypass strict validation
-                    return cls.model_construct(**config_data)
-        elif use_conditional_validation and not _validation_available:
-            warnings.warn(
-                "Conditional validation requested but not available. Using standard validation."
-            )
-            # Fall back to original behavior
+        if use_conditional_validation:
+            logger_supy.info("Using internal validation only (SUEWSConfig.validate_parameter_completeness).")
             return cls(**config_data)
         else:
-            # Original behavior - validate everything
-            logger_supy.info("Entering SUEWSConfig pydantic validator...")
-            return cls(**config_data)
+            logger_supy.info("Validation disabled by user. Loading without checks.")
+            return cls.model_construct(**config_data)
+
 
     def create_multi_index_columns(self, columns_file: str) -> pd.MultiIndex:
         """Create MultiIndex from df_state_columns.txt"""

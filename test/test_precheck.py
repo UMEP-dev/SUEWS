@@ -900,133 +900,47 @@ def test_nonzero_sfr_with_list_containing_none_raises():
         precheck_nonzero_sfr_requires_nonnull_params(deepcopy(data))
 
 
-def build_base_yaml():
-    """Minimal valid YAML input for physics and sites blocks."""
+def build_minimal_yaml(stebbsmethod_value: int, stebbs_block: dict):
     return {
         "model": {
             "physics": {
-                "rslmethod": {"value": 1},
-                "stabilitymethod": {"value": 3},
-                "storageheatmethod": {"value": 1},
-                "stebbsmethod": {"value": 1},
-                "netradiationmethod": {"value": 1},
-                "emissionsmethod": {"value": 1},
-                "ohmincqf": {"value": 1},
-                "roughlenmommethod": {"value": 1},
-                "roughlenheatmethod": {"value": 1},
-                "smdmethod": {"value": 1},
-                "waterusemethod": {"value": 1},
-                "faimethod": {"value": 1},
-                "rsllevel": {"value": 1},
-                "snowuse": {"value": 0},
+                "stebbsmethod": {"value": stebbsmethod_value}
             }
         },
         "sites": [
             {
                 "properties": {
-                    "land_cover": {
-                        "bldgs": {"sfr": {"value": 0.5}, "faibldg": {"value": 1.2}},
-                        "paved": {"sfr": {"value": 0.5}},
-                    },
-                    "vertical_layers": {
-                        "walls": [
-                            {
-                                "thermal_layers": {
-                                    "dz": {"value": [0.2]},
-                                    "k": {"value": [1.2]},
-                                    "cp": {"value": [1000000.0]},
-                                }
-                            }
-                        ]
-                    },
-                    "lambda_c": {"value": 3.0},
-                    "stebbs": {
-                        "WallInternalConvectionCoefficient": {"value": 5.0},
-                        "WindowExternalConvectionCoefficient": {"value": 30.0},
-                    },
+                    "stebbs": deepcopy(stebbs_block)
                 }
             }
         ]
     }
 
-def test_rslmethod2_requires_faibldg():
-    yaml_input = build_base_yaml()
-    yaml_input["model"]["physics"]["rslmethod"]["value"] = 2
-    yaml_input["sites"][0]["properties"]["land_cover"]["bldgs"]["faibldg"]["value"] = None
+def test_stebbsmethod0_nullifies_all_stebbs_values():
+    stebbs_block = {
+        "WallInternalConvectionCoefficient": {"value": 5.0},
+        "nested": {
+            "WindowExternalConvectionCoefficient": {"value": 30.0}
+        }
+    }
+    data = build_minimal_yaml(0, stebbs_block)
+    result = precheck_model_option_rules(deepcopy(data))
 
-    with pytest.raises(ValueError, match=r"faibldg.*must be set"):
+    out = result["sites"][0]["properties"]["stebbs"]
+    # top‐level keys
+    assert out["WallInternalConvectionCoefficient"]["value"] is None
+    # nested dict also nullified
+    assert out["nested"]["WindowExternalConvectionCoefficient"]["value"] is None
 
-        precheck_model_option_rules(deepcopy(yaml_input))
+def test_stebbsmethod1_leaves_stebbs_untouched():
+    stebbs_block = {
+        "WallInternalConvectionCoefficient": {"value": 5.0},
+    }
+    data = build_minimal_yaml(1, stebbs_block)
+    result = precheck_model_option_rules(deepcopy(data))
 
-def test_rslmethod2_with_faibldg_passes():
-    yaml_input = build_base_yaml()
-    yaml_input["model"]["physics"]["rslmethod"]["value"] = 2
-    yaml_input["sites"][0]["properties"]["land_cover"]["bldgs"]["faibldg"]["value"] = 1.5
-
-    result = precheck_model_option_rules(deepcopy(yaml_input))
-    assert result["sites"][0]["properties"]["land_cover"]["bldgs"]["faibldg"]["value"] == 1.5
-
-def test_storageheatmethod6_requires_wall_layers():
-    yaml_input = build_base_yaml()
-    yaml_input["model"]["physics"]["storageheatmethod"]["value"] = 6
-    yaml_input["sites"][0]["properties"]["vertical_layers"]["walls"] = []
-
-    with pytest.raises(ValueError, match=r"Missing vertical_layers\.walls.*storageheatmethod == 6"):
-        precheck_model_option_rules(deepcopy(yaml_input))
-
-def test_storageheatmethod6_requires_thermal_layers_params():
-    yaml_input = build_base_yaml()
-    yaml_input["model"]["physics"]["storageheatmethod"]["value"] = 6
-    wall = yaml_input["sites"][0]["properties"]["vertical_layers"]["walls"][0]
-    wall["thermal_layers"]["dz"]["value"] = []
-    
-    with pytest.raises(ValueError, match=r"thermal_layers\.dz.*storageheatmethod == 6"):
-        precheck_model_option_rules(deepcopy(yaml_input))
-
-def test_storageheatmethod6_requires_lambda_c():
-    yaml_input = build_base_yaml()
-    yaml_input["model"]["physics"]["storageheatmethod"]["value"] = 6
-    yaml_input["sites"][0]["properties"]["lambda_c"]["value"] = None
-
-    with pytest.raises(ValueError, match=r"lambda_c.*storageheatmethod == 6"):
-        precheck_model_option_rules(deepcopy(yaml_input))
-
-def test_storageheatmethod6_valid_passes():
-    yaml_input = build_base_yaml()
-    yaml_input["model"]["physics"]["storageheatmethod"]["value"] = 6
-
-    result = precheck_model_option_rules(deepcopy(yaml_input))
-    assert result["sites"][0]["properties"]["lambda_c"]["value"] == 3.0
-
-def test_stebbsmethod0_nullifies_stebbs():
-    yaml_input = build_base_yaml()
-    yaml_input["model"]["physics"]["stebbsmethod"]["value"] = 0
-    yaml_input["sites"][0]["properties"]["stebbs"]["WallInternalConvectionCoefficient"]["value"] = 5.0
-
-    result = precheck_model_option_rules(deepcopy(yaml_input))
-    stebbs = result["sites"][0]["properties"]["stebbs"]
-    assert stebbs["WallInternalConvectionCoefficient"]["value"] is None
-    assert stebbs["WindowExternalConvectionCoefficient"]["value"] is None
-
-def test_combined_diag2_stebbs0_storage6():
-    yaml_input = build_base_yaml()
-    yaml_input["model"]["physics"]["rslmethod"]["value"] = 2
-    yaml_input["model"]["physics"]["stebbsmethod"]["value"] = 0
-    yaml_input["model"]["physics"]["storageheatmethod"]["value"] = 6
-    yaml_input["sites"][0]["properties"]["land_cover"]["bldgs"]["faibldg"]["value"] = 1.5
-
-    result = precheck_model_option_rules(deepcopy(yaml_input))
-
-    # Check stebbs nullified
-    stebbs = result["sites"][0]["properties"]["stebbs"]
-    assert all(v["value"] is None for v in stebbs.values())
-
-    # Check faibldg still set
-    assert result["sites"][0]["properties"]["land_cover"]["bldgs"]["faibldg"]["value"] == 1.5
-
-    # Check wall layers untouched (still present)
-    walls = result["sites"][0]["properties"]["vertical_layers"]["walls"]
-    assert walls[0]["thermal_layers"]["dz"]["value"] == [0.2]
+    out = result["sites"][0]["properties"]["stebbs"]
+    assert out["WallInternalConvectionCoefficient"]["value"] == 5.0
 
 
 def test_collect_yaml_differences_simple():

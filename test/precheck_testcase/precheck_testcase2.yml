@@ -168,9 +168,9 @@ sites:
       GroundFloorOutdoorSurfaceTemperature:
         value: 22.0
       WaterTankTemperature:
-        value: not_a_float #25.0
+        value: #25.0
       InternalWallWaterTankTemperature:
-        value: 25.0
+        value: #25.0
       ExternalWallWaterTankTemperature:
         value: 25.0
       WaterTankWallThickness:
@@ -921,7 +921,7 @@ sites:
             - 1.1
             - 1.1
             - 1.1
-          cp:
+          rho_cp:
             value:
             - 2200000.0
             - 2200000.0
@@ -1031,7 +1031,7 @@ sites:
             - 1.1
             - 1.5
             - 1.6
-          cp:
+          rho_cp:
             value:
             - 1200000.0
             - 1100000.0
@@ -1043,7 +1043,7 @@ sites:
         alb:
           value: 0.12
         faibldg:
-          value: 0.1
+          value: #0.1
         bldgh:
           value: 4.19
       dectr:
@@ -1145,7 +1145,7 @@ sites:
             - 1.1
             - 1.5
             - 1.6
-          cp:
+          rho_cp:
             value:
             - 3200000.0
             - 1100000.0
@@ -1315,7 +1315,7 @@ sites:
             - 1.1
             - 1.5
             - 1.6
-          cp:
+          rho_cp:
             value:
             - 3200000.0
             - 1100000.0
@@ -1477,7 +1477,7 @@ sites:
             - 1.1
             - 1.5
             - 1.6
-          cp:
+          rho_cp:
             value:
             - 1600000.0
             - 1100000.0
@@ -1635,7 +1635,7 @@ sites:
             - 1.1
             - 1.5
             - 1.6
-          cp:
+          rho_cp:
             value:
             - 1900000.0
             - 1100000.0
@@ -1730,7 +1730,7 @@ sites:
             - 1.1
             - 1.5
             - 1.6
-          cp:
+          rho_cp:
             value:
             - 1900000.0
             - 1100000.0
@@ -1792,7 +1792,7 @@ sites:
             - 1.2
             - 1.2
             - 1.2
-          cp:
+          rho_cp:
             value:
             - 2000000.0
             - 2000000.0
@@ -1828,7 +1828,7 @@ sites:
             - 1.2
             - 1.2
             - 1.2
-          cp:
+          rho_cp:
             value:
             - 2000000.0
             - 3000000.0
@@ -1864,7 +1864,7 @@ sites:
             - 1.2
             - 1.2
             - 1.2
-          cp:
+          rho_cp:
             value:
             - 2000000.0
             - 3000000.0
@@ -1901,7 +1901,7 @@ sites:
             - 1.2
             - 1.2
             - 1.2
-          cp:
+          rho_cp:
             value:
             - 1527372.0
             - 2000000.0
@@ -1937,7 +1937,7 @@ sites:
             - 1.2
             - 1.2
             - 1.2
-          cp:
+          rho_cp:
             value:
             - 2000000.0
             - 3000000.0
@@ -1973,7 +1973,7 @@ sites:
             - 1.2
             - 1.2
             - 1.2
-          cp:
+          rho_cp:
             value:
             - 2000000.0
             - 3000000.0

@@ -62,11 +62,9 @@ from ._post import *
 
 from .util._era5 import *
 from .util._wrf import *
-from .util._gap_fill import *
+from .util._gap_filler import *
 from .util._roughness import *
 from .util._plot import *
-from .util import _datalayer
-from .util._sim import *
 
 # load sample data
 from ._sample_data import load_SampleData

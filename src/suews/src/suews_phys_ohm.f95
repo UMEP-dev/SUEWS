@@ -316,9 +316,10 @@ CONTAINS
       REAL(KIND(1D0)) :: surfrac, soil_moisture_ratio
       INTEGER :: i, ii, is
       ! Tolerance parameters for numerical comparisons
-      REAL(KIND(1D0)), PARAMETER :: eps_temp = 1.0D-6      ! Temperature tolerance (0.000001°C)
-      REAL(KIND(1D0)), PARAMETER :: eps_moisture = 1.0D-9  ! Moisture ratio tolerance
-      REAL(KIND(1D0)), PARAMETER :: eps_state = 1.0D-12    ! State comparison tolerance
+      ! Increased tolerances to handle Windows Python 3.13 floating-point behavior
+      REAL(KIND(1D0)), PARAMETER :: eps_temp = 1.0D-5      ! Temperature tolerance (0.00001°C)
+      REAL(KIND(1D0)), PARAMETER :: eps_moisture = 1.0D-8  ! Moisture ratio tolerance
+      REAL(KIND(1D0)), PARAMETER :: eps_state = 1.0D-11    ! State comparison tolerance
 
       ! OHM coefficients --------
       ! Set to zero initially

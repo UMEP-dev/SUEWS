@@ -24,50 +24,50 @@ on:
 jobs:
   # Fast-fail validation job that runs before expensive wheel building
   validate_sample_output:
-    name: Validate Sample Output - Python ${{ matrix.python-version }} on ${{ matrix.os }}
+    name: Validate sample output - Py${{ matrix.python-version }}-${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
         python-version: ["3.9", "3.10", "3.11", "3.12", "3.13"]
       fail-fast: true  # Stop immediately if any combination fails
-    
+
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
-      
+
       # Install platform-specific compilers
       - name: Install gfortran (Linux)
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
           sudo apt-get install -y gfortran
-      
+
       - name: Install gfortran (macOS)
         if: runner.os == 'macOS'
         run: brew install gfortran
-      
+
       # Common Python dependencies for all platforms
       - name: Install Python dependencies
         run: |
           python -m pip install --upgrade pip setuptools
           # Install build dependencies from pyproject.toml + common build backends
           pip install wheel pytest f90wrap==0.2.16 "numpy>=2.0" "meson-python>=0.12.0" ninja poetry-core
-      
+
       - name: Build and install supy
         run: |
           pip install -e . --no-build-isolation
-      
+
       - name: Run sample output validation
         run: |
           python -m pytest test/test_sample_output.py -v
-      
+
       - name: Upload test artifacts on failure
         if: failure()
         uses: actions/upload-artifact@v4

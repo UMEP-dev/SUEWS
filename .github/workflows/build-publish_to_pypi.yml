@@ -46,7 +46,7 @@ jobs:
             python-version: "3.12"
           - python: cp313
             python-version: "3.13"
-      fail-fast: true  # Stop immediately if any combination fails
+      fail-fast: false  # Continue running all jobs even if some fail
 
     steps:
       - uses: actions/checkout@v4
@@ -68,7 +68,7 @@ jobs:
       - name: Install gfortran (macOS)
         if: runner.os == 'macOS'
         run: brew install gfortran
-      
+
       # Windows-specific setup using pre-installed MSYS2
       - name: Setup Windows build environment
         if: runner.os == 'Windows'
@@ -76,10 +76,10 @@ jobs:
           # Update MSYS2 and install required packages
           C:\msys64\usr\bin\bash.exe -lc "pacman -Syu --noconfirm"
           C:\msys64\usr\bin\bash.exe -lc "pacman -S --needed --noconfirm mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-gcc-fortran mingw-w64-ucrt-x86_64-binutils mingw-w64-ucrt-x86_64-make mingw-w64-ucrt-x86_64-openblas"
-          
+
           # Add MSYS2 binaries to PATH
           echo "C:\msys64\ucrt64\bin" >> $env:GITHUB_PATH
-          
+
           # Set environment variables
           echo "CC=gcc" >> $env:GITHUB_ENV
           echo "CXX=g++" >> $env:GITHUB_ENV
@@ -88,7 +88,7 @@ jobs:
           echo "CXXFLAGS=-D__USE_MINGW_ANSI_STDIO=1 -mlong-double-64" >> $env:GITHUB_ENV
           echo "FCFLAGS=-fno-optimize-sibling-calls" >> $env:GITHUB_ENV
           echo "LDFLAGS=-lucrt -static-libgcc -static-libgfortran -LC:/msys64/ucrt64/lib -lsetjmp_compat" >> $env:GITHUB_ENV
-      
+
       - name: Create setjmp compatibility library (Windows)
         if: runner.os == 'Windows'
         shell: cmd
@@ -105,7 +105,7 @@ jobs:
         with:
           enable-cache: true
           cache-dependency-glob: ".github/requirements-ci.txt"
-      
+
       # Common Python dependencies for all platforms
       - name: Install Python dependencies
         run: |
@@ -135,7 +135,7 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: sample-test-artifacts-py${{ matrix.python-version }}-${{ matrix.os }}
+          name: sample-test-artifacts-py${{ matrix.python-version }}-${{ matrix.buildplat[1] }}-${{ matrix.buildplat[2] }}
           path: ${{ runner.temp }}/suews_test_artifacts/
           retention-days: 30
 

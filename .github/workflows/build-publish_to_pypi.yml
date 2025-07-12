@@ -116,16 +116,26 @@ jobs:
         run: |
           uv pip install --system -e . --no-build-isolation
 
-      # Windows-specific: Verify DLL availability
-      - name: Verify Windows environment
+      # Windows-specific: Fix DLL search paths
+      - name: Configure Windows DLL search paths  
         if: runner.os == 'Windows'
         run: |
-          Write-Host "Current PATH:"
-          $env:PATH -split ';' | ForEach-Object { Write-Host $_ }
-          Write-Host "`nChecking for gfortran DLLs in C:\msys64\ucrt64\bin:"
-          Get-ChildItem "C:\msys64\ucrt64\bin\*.dll" | Where-Object { $_.Name -match "gfortran|gcc" } | Select-Object Name
-          Write-Host "`nPython executable:"
-          where.exe python
+          # Add MSYS2 DLL directory to Windows DLL search path
+          Write-Host "Adding MSYS2 DLL directory to system PATH for DLL resolution"
+          [Environment]::SetEnvironmentVariable("PATH", "C:\msys64\ucrt64\bin;$env:PATH", [EnvironmentVariableTarget]::Process)
+          
+          # Also try copying DLLs to Python Scripts directory as a fallback
+          $pythonScripts = (python -c "import sysconfig; print(sysconfig.get_path('scripts'))")
+          Write-Host "Python scripts directory: $pythonScripts"
+          
+          $dllsToCopy = @("libgcc_s_seh-1.dll", "libgfortran-5.dll", "libquadmath-0.dll", "libwinpthread-1.dll")
+          foreach ($dll in $dllsToCopy) {
+              $source = "C:\msys64\ucrt64\bin\$dll"
+              if (Test-Path $source) {
+                  Copy-Item $source -Destination $pythonScripts -Force
+                  Write-Host "Copied $dll to $pythonScripts"
+              }
+          }
 
       - name: Run sample output validation (Linux/macOS)
         if: runner.os != 'Windows'

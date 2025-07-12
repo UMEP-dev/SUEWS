@@ -24,11 +24,15 @@ on:
 jobs:
   # Fast-fail validation job that runs before expensive wheel building
   validate_sample_output:
-    name: Validate sample output - Py${{ matrix.python-version }}-${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
+    name: Validate sample output - Py${{ matrix.python-version }}-${{ matrix.buildplat[1] }}-${{ matrix.buildplat[2] }}
+    runs-on: ${{ matrix.buildplat[0] }}
     strategy:
       matrix:
-        os: [ubuntu-latest, macos-13, macos-latest, windows-latest]
+        buildplat:
+            - [ubuntu-latest, manylinux, x86_64]
+            - [macos-13, macosx, x86_64]
+            - [macos-latest, macosx, arm64]
+            - [windows-2025, win, AMD64]
         python-version: ["3.9", "3.10", "3.11", "3.12", "3.13"]
       fail-fast: true  # Stop immediately if any combination fails
 

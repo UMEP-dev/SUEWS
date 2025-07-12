@@ -4,7 +4,7 @@
   "version": "1.0.0",
   "display_name": "SUEWS Assistant",
   "description": "Get detailed explanations of SUEWS urban climate model parameters",
-  "long_description": "The SUEWS Parameter Explainer provides comprehensive explanations for all Surface Urban Energy and Water balance Scheme (SUEWS) parameters. Get instant access to parameter descriptions, units, typical values, scientific context, and usage examples to help configure your urban climate simulations correctly.",
+  "long_description": "The SUEWS Assistant provides comprehensive explanations for all Surface Urban Energy and Water balance Scheme (SUEWS) parameters. Get instant access to parameter descriptions, units, typical values, scientific context, and usage examples to help configure your urban climate simulations correctly.\n\n## Features\n- **Comprehensive Knowledge Base**: Covers all major SUEWS parameters\n- **Scientific Context**: Explains the physics behind each parameter\n- **Typical Values**: Provides ranges for different urban environments\n- **SuPy Integration**: Enhanced with data model validation\n- **Examples**: Real-world usage scenarios\n\n## Usage\nAsk about any SUEWS parameter:\n- \"Explain the albedo parameter\"\n- \"What is tstep?\"\n- \"Tell me about NetRadiationMethod\"\n- \"What's the typical range for lai_max?\"",
   "author": {
     "name": "Ting Sun & Claude Code",
     "email": "suews@urban-climate.net",
@@ -34,7 +34,7 @@
       "text": "I need help understanding SUEWS parameters. Ask me which parameter I'm interested in or what aspect of the model I'm configuring, then provide detailed explanations with typical values and scientific context."
     }
   ],
-  "keywords": ["suews", "urban-climate", "parameters", "documentation"],
+  "keywords": ["suews", "urban-climate", "parameters", "documentation", "mcp"],
   "license": "MIT",
   "repository": {
     "type": "git",

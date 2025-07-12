@@ -1,6 +1,23 @@
 """Parameter explanation tool for SUEWS MCP."""
 
 from typing import Dict, Optional
+import logging
+
+logger = logging.getLogger(__name__)
+
+# Try to import SuPy data models for enhanced validation
+try:
+    from supy.data_model import (
+        SUEWSConfig,
+        SiteParameters, 
+        SurfaceParameters,
+        AnthroHeatParameters
+    )
+    SUPY_AVAILABLE = True
+    logger.info("SuPy data models loaded for enhanced parameter information")
+except ImportError:
+    SUPY_AVAILABLE = False
+    logger.info("SuPy not available - using built-in knowledge base only")
 
 # Comprehensive parameter knowledge base
 PARAMETER_KNOWLEDGE = {
@@ -202,22 +219,94 @@ PARAMETER_KNOWLEDGE = {
 }
 
 
+def get_supy_field_info(param_name: str) -> Optional[Dict[str, str]]:
+    """Get field information from SuPy data models if available."""
+    if not SUPY_AVAILABLE:
+        return None
+    
+    try:
+        # Check all data models for the field
+        models = [
+            (SUEWSConfig, "SUEWSConfig"),
+            (SiteParameters, "SiteParameters"),
+            (SurfaceParameters, "SurfaceParameters"),
+            (AnthroHeatParameters, "AnthroHeatParameters")
+        ]
+        
+        for model_class, model_name in models:
+            if hasattr(model_class, '__fields__'):
+                fields = model_class.__fields__
+                if param_name in fields:
+                    field = fields[param_name]
+                    return {
+                        'model': model_name,
+                        'type': str(field.annotation),
+                        'required': field.is_required(),
+                        'default': str(field.default) if field.default is not None else None,
+                        'description': field.field_info.description if hasattr(field.field_info, 'description') else None
+                    }
+        
+        # Check nested fields
+        if hasattr(SUEWSConfig, 'model_fields'):
+            # Pydantic v2 style
+            for field_name, field_info in SUEWSConfig.model_fields.items():
+                if param_name in str(field_info):
+                    return {
+                        'model': 'SUEWSConfig',
+                        'parent_field': field_name,
+                        'info': 'Nested parameter'
+                    }
+                    
+    except Exception as e:
+        logger.debug(f"Error getting SuPy field info: {e}")
+    
+    return None
+
+
 def get_parameter_info(param_name: str) -> Optional[Dict]:
-    """Get parameter information from knowledge base."""
+    """Get parameter information from knowledge base and SuPy models."""
     # Try exact match first
     if param_name in PARAMETER_KNOWLEDGE:
-        return PARAMETER_KNOWLEDGE[param_name]
+        info = PARAMETER_KNOWLEDGE[param_name].copy()
+        
+        # Enhance with SuPy field info if available
+        supy_info = get_supy_field_info(param_name)
+        if supy_info:
+            info['supy_model_info'] = supy_info
+            
+        return info
 
     # Try case-insensitive match
     param_lower = param_name.lower()
     for key, value in PARAMETER_KNOWLEDGE.items():
         if key.lower() == param_lower:
-            return value
+            info = value.copy()
+            supy_info = get_supy_field_info(key)
+            if supy_info:
+                info['supy_model_info'] = supy_info
+            return info
 
     # Try partial match
     for key, value in PARAMETER_KNOWLEDGE.items():
         if param_lower in key.lower() or key.lower() in param_lower:
-            return value
+            info = value.copy()
+            supy_info = get_supy_field_info(key)
+            if supy_info:
+                info['supy_model_info'] = supy_info
+            return info
+
+    # If not in knowledge base, try SuPy models directly
+    supy_info = get_supy_field_info(param_name)
+    if supy_info:
+        return {
+            'name': param_name,
+            'from_supy_model': True,
+            'supy_model_info': supy_info,
+            'description': f"Parameter found in {supy_info['model']}",
+            'unit': 'See model documentation',
+            'typical_values': {},
+            'scientific_context': f"This parameter is defined in the {supy_info['model']} data model."
+        }
 
     return None
 
@@ -260,6 +349,19 @@ def format_parameter_explanation(param_info: Dict, param_name: str, include_exam
 
     # Scientific context
     output += f"## Scientific Context\n\n{param_info['scientific_context']}\n\n"
+    
+    # SuPy model information if available
+    if 'supy_model_info' in param_info and param_info['supy_model_info']:
+        supy_info = param_info['supy_model_info']
+        output += "## Data Model Information\n\n"
+        output += f"- **Model**: `{supy_info.get('model', 'Unknown')}`\n"
+        if 'type' in supy_info:
+            output += f"- **Type**: `{supy_info['type']}`\n"
+        if 'required' in supy_info:
+            output += f"- **Required**: {'Yes' if supy_info['required'] else 'No'}\n"
+        if 'default' in supy_info and supy_info['default']:
+            output += f"- **Default**: `{supy_info['default']}`\n"
+        output += "\n"
 
     # Examples
     if include_examples and "examples" in param_info:

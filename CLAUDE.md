@@ -2,11 +2,52 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## Desktop Extension Development
+## Desktop Extension (DXT) Development
 
-For desktop extension (DXT) development and manifest specification:
-- https://github.com/anthropics/dxt
-- [DXT Manifest Specification](https://github.com/anthropics/dxt/blob/main/MANIFEST.md)
+When building MCP servers as Desktop Extensions, follow these guidelines:
+
+### DXT Specifications
+1. **Read specifications thoroughly**:
+   - Architecture: https://github.com/anthropics/dxt/blob/main/README.md
+   - Manifest spec: https://github.com/anthropics/dxt/blob/main/MANIFEST.md
+   - Examples: https://github.com/anthropics/dxt/tree/main/examples
+
+2. **Create proper extension structure**:
+   - Valid manifest.json following MANIFEST.md spec
+   - MCP server with proper tool definitions
+   - Error handling, security measures, timeout management
+
+3. **Development practices**:
+   - Use stdio transport for MCP communication
+   - Structure tools with clear schemas and validation
+   - Consistent JSON responses
+   - Appropriate logging to stderr (not stdout)
+   - Defensive programming with clear error messages
+
+4. **Testing**:
+   - Validate manifest loads correctly
+   - Verify all tool calls return proper responses
+   - Test timeout and error handling
+   - Check host integration works
+
+### MCP Server Implementation
+
+When implementing MCP servers:
+- Use @modelcontextprotocol/sdk or mcp Python package
+- Configure logging to stderr to avoid stdio interference
+- Implement proper input validation and sanitization
+- Add timeout management (e.g., 30 second default)
+- Don't expose internal error details to users
+- Follow JSON-RPC 2.0 protocol strictly
+
+### Build Process
+
+1. Validate manifest: `python validate_dxt.py`
+2. Run tests: `python test_simple.py`
+3. Build extension: `python build_extension.py`
+4. Test in Claude Desktop
+
+See `mcp-server/DXT_BUILD_GUIDE.md` for complete details.
 
 ## Git Worktrees for Claude Code
 

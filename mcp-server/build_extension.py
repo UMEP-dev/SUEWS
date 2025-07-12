@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build desktop extension package for SUEWS MCP."""
+"""Build desktop extension package for SUEWS Parameter Explainer MCP."""
 
 import json
 import os
@@ -12,9 +12,12 @@ from datetime import datetime
 def create_desktop_extension():
     """Create .dxt desktop extension package."""
 
+    # Base directory
+    base_dir = Path(__file__).parent
+    
     # Paths
-    build_dir = Path("build/extension")
-    output_dir = Path("dist")
+    build_dir = base_dir / "build" / "extension"
+    output_dir = base_dir / "dist"
 
     # Clean and create directories
     if build_dir.exists():
@@ -25,59 +28,46 @@ def create_desktop_extension():
     # Copy source files
     print("Copying source files...")
     src_dir = build_dir / "src"
-    shutil.copytree("src", src_dir)
+    # Create minimal src structure
+    (src_dir / "suews_mcp" / "tools").mkdir(parents=True)
+    
+    # Copy only needed files
+    shutil.copy(base_dir / "src/suews_mcp/__init__.py", src_dir / "suews_mcp" / "__init__.py")
+    shutil.copy(base_dir / "src/suews_mcp/server.py", src_dir / "suews_mcp" / "server.py")
+    shutil.copy(base_dir / "src/suews_mcp/tools/__init__.py", src_dir / "suews_mcp" / "tools" / "__init__.py")
+    shutil.copy(base_dir / "src/suews_mcp/tools/parameter_explainer.py", src_dir / "suews_mcp" / "tools" / "parameter_explainer.py")
 
     # Copy manifest
     print("Copying manifest...")
-    shutil.copy("manifest.json", build_dir / "manifest.json")
+    shutil.copy(base_dir / "manifest.json", build_dir / "manifest.json")
     
     # Copy run_server.py
     print("Copying run_server.py...")
-    shutil.copy("run_server.py", build_dir / "run_server.py")
+    shutil.copy(base_dir / "run_server.py", build_dir / "run_server.py")
     
-    # Copy check_and_run.py
-    print("Copying check_and_run.py...")
-    shutil.copy("check_and_run.py", build_dir / "check_and_run.py")
-    
-    # Copy pyproject.toml
-    print("Copying pyproject.toml...")
-    shutil.copy("pyproject.toml", build_dir / "pyproject.toml")
-    
-    # Note: SuPy is now a required dependency and will be installed via pip
-    print("Note: SuPy is a required dependency (supy==2025.6.2.dev)")
-    print("  Users will need to install it separately or via pip when installing the MCP server")
-
-    # Create requirements file
+    # Create requirements file with SuPy
     print("Creating requirements file...")
     requirements = [
-        "mcp>=1.3.4",
+        "mcp>=0.1.0",
         "pydantic>=2.0",
-        "pyyaml>=6.0",
-        "pandas>=2.0",
-        "numpy>=1.20",
-        "xarray>=2024.0",
-        "supy==2025.6.2.dev"
+        "supy==2025.7.6"  # Latest stable version with wheels for all platforms
     ]
 
     with open(build_dir / "requirements.txt", "w") as f:
         f.write("\n".join(requirements))
     
-    # Copy setup.py for proper installation
+    # Create setup.py with SuPy
     setup_content = '''from setuptools import setup, find_packages
 
 setup(
-    name="suews-mcp",
+    name="suews-assistant",
     version="1.0.0",
     packages=find_packages(where="src"),
     package_dir={"": "src"},
     install_requires=[
-        "mcp>=1.3.4",
+        "mcp>=0.1.0",
         "pydantic>=2.0",
-        "pyyaml>=6.0",
-        "pandas>=2.0",
-        "numpy>=1.20",
-        "xarray>=2024.0",
-        "supy==2025.6.2.dev"
+        "supy==2025.7.6"
     ],
 )'''
     
@@ -86,26 +76,25 @@ setup(
 
     # Create README for the extension
     print("Creating extension README...")
-    readme_content = """# SUEWS MCP Desktop Extension
+    readme_content = """# SUEWS Parameter Explainer Desktop Extension
 
-This extension provides AI-powered assistance for SUEWS urban climate modeling.
+This extension provides instant explanations for SUEWS urban climate model parameters.
 
 ## Features
-- Configuration validation and suggestions
-- Parameter explanations with scientific context
-- Template generation for different site types
-- Physics method compatibility checking
-- Result interpretation and insights
-
-## Dependencies
-This extension requires SuPy v2025.6.2.dev to be installed in your Python environment.
-Install it using: `pip install supy==2025.6.2.dev`
+- Detailed parameter descriptions
+- Units and typical values
+- Scientific context
+- Usage examples
+- Related parameters
 
 ## Usage
 1. Install the extension in Claude Desktop
-2. Ensure SuPy is installed in your Python environment
-3. Use the provided tools to work with SUEWS configurations and results
-4. Ask questions about urban climate modeling
+2. Use the `explain_suews_parameter` tool
+3. Ask about any SUEWS parameter
+
+## Example
+Ask: "Explain the albedo parameter"
+Get: Detailed explanation with typical values for different surfaces
 
 ## Support
 Visit https://github.com/UMEP-dev/SUEWS for more information.

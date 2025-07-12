@@ -85,6 +85,8 @@ jobs:
       - name: Configure Windows build environment
         if: runner.os == 'Windows'
         run: |
+          # Add MSYS2 binaries to PATH for both build and runtime
+          echo "D:\a\_temp\msys64\ucrt64\bin" >> $env:GITHUB_PATH
           echo "${{ runner.temp }}\msys64\ucrt64\bin" >> $env:GITHUB_PATH
           echo "CC=gcc" >> $env:GITHUB_ENV
           echo "CXX=g++" >> $env:GITHUB_ENV

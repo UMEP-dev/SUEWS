@@ -343,7 +343,7 @@ class TestSampleOutput(TestCase):
         # The sample data represents typical urban conditions
         print("\nLoading test data...")
         df_state_init, df_forcing_tstep = sp.load_SampleData()
-        df_forcing_part = df_forcing_tstep.iloc[: 288 * 365]  # One year
+        df_forcing_part = df_forcing_tstep.iloc[: 288 * 366]  # One year (2012 is a leap year)
         
         # Run simulation - full year to capture seasonal variations
         # This tests the model under diverse meteorological conditions

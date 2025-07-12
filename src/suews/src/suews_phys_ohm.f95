@@ -313,8 +313,12 @@ CONTAINS
          state_id(nsurf) ! wetness status
       REAL(KIND(1D0)), INTENT(out) :: a1, a2, a3
 
-      REAL(KIND(1D0)) :: surfrac
+      REAL(KIND(1D0)) :: surfrac, soil_moisture_ratio
       INTEGER :: i, ii, is
+      ! Tolerance parameters for numerical comparisons
+      REAL(KIND(1D0)), PARAMETER :: eps_temp = 1.0D-6      ! Temperature tolerance (0.000001°C)
+      REAL(KIND(1D0)), PARAMETER :: eps_moisture = 1.0D-9  ! Moisture ratio tolerance
+      REAL(KIND(1D0)), PARAMETER :: eps_state = 1.0D-12    ! State comparison tolerance
 
       ! OHM coefficients --------
       ! Set to zero initially
@@ -328,20 +332,27 @@ CONTAINS
          surfrac = sfr_surf(is)
 
          ! Use 5-day running mean Tair to decide whether it is summer or winter ----------------
-         IF (Tair_mav_5d >= OHM_threshSW(is)) THEN !Summer
+         ! Apply tolerance to handle floating-point precision near threshold
+         IF (Tair_mav_5d >= OHM_threshSW(is) - eps_temp) THEN !Summer
             ii = 0
          ELSE !Winter
             ii = 2
          END IF
 
-         IF (state_id(is) > 0) THEN !Wet surface
+         ! Check wetness state with tolerance for near-zero values
+         IF (state_id(is) > eps_state) THEN !Wet surface
             i = ii + 1
          ELSE !Dry surface
             i = ii + 2
             ! If the surface is dry but SM is close to capacity, use coefficients for wet surfaces
             IF (is > BldgSurf .AND. is /= WaterSurf) THEN !Wet soil (i.e. EveTr, DecTr, Grass, BSoil surfaces)
-               IF (soilstore_id(is)/SoilStoreCap(is) > OHM_threshWD(is)) THEN
-                  i = ii + 1
+               ! Calculate soil moisture ratio with guard against division by zero
+               IF (SoilStoreCap(is) > 0.0D0) THEN
+                  soil_moisture_ratio = soilstore_id(is)/SoilStoreCap(is)
+                  ! Apply tolerance for comparison near threshold
+                  IF (soil_moisture_ratio > OHM_threshWD(is) - eps_moisture) THEN
+                     i = ii + 1
+                  END IF
                END IF
             END IF
          END IF

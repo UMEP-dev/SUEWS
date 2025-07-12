@@ -1,0 +1,25 @@
+# CI build requirements
+# Extracted from pyproject.toml build-system.requires
+# Plus additional requirements for building dependencies
+
+# Core build tools
+wheel
+setuptools
+pip>=21.3
+
+# Build backends
+poetry-core
+meson-python>=0.12.0
+ninja
+
+# Fortran wrapper
+f90wrap==0.2.16
+
+# Scientific computing
+numpy>=2.0
+
+# Testing
+pytest
+
+# Additional build dependencies
+cffi  # Required by timezonefinder

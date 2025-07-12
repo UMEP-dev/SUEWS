@@ -231,6 +231,8 @@ Testing Philosophy
 - **Use existing test patterns** - copy similar tests
 - **Test edge cases** - what happens with missing data?
 
+For a comprehensive guide on SUEWS testing approach, including tolerance-based validation and platform considerations, see :ref:`testing_guide`.
+
 Getting Help
 ------------
 

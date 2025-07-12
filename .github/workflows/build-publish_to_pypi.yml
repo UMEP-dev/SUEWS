@@ -127,8 +127,16 @@ jobs:
           Write-Host "`nPython executable:"
           where.exe python
 
-      - name: Run sample output validation
+      - name: Run sample output validation (Linux/macOS)
+        if: runner.os != 'Windows'
         run: |
+          python -m pytest test/test_sample_output.py -v
+      
+      - name: Run sample output validation (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          # Ensure DLLs are available at runtime
+          $env:PATH = "C:\msys64\ucrt64\bin;$env:PATH"
           python -m pytest test/test_sample_output.py -v
 
       - name: Upload test artifacts on failure

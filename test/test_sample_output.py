@@ -21,6 +21,10 @@ acceptable bounds.
 
 This test runs first in CI/CD to provide fast feedback before expensive
 wheel building operations.
+
+Note on NumPy Compatibility:
+Python 3.9 requires NumPy 1.x due to f90wrap binary compatibility issues.
+Python 3.10+ can use NumPy 2.0. This is handled in pyproject.toml build requirements.
 """
 
 import os
@@ -29,7 +33,7 @@ import json
 import platform
 import tempfile
 from pathlib import Path
-from unittest import TestCase, skipIf, skipUnless
+from unittest import TestCase, skipUnless
 import warnings
 
 import numpy as np
@@ -307,8 +311,6 @@ class TestSampleOutput(TestCase):
         for file in saved_files:
             print(f"   - {file}")
     
-    @skipIf(sys.version_info[:2] == (3, 9), 
-            "Python 3.9 with NumPy 2.0 produces significantly different results - needs investigation")
     def test_sample_output_validation(self):
         """
         Test SUEWS output against reference data with appropriate tolerances.

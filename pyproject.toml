@@ -3,7 +3,8 @@ requires = [
     "wheel",
     "pytest",
     "f90wrap==0.2.16",
-    "numpy>=2.0",
+    "numpy>=2.0; python_version>='3.10'",
+    "numpy<2.0; python_version<'3.10'",  # Pin NumPy 1.x for Python 3.9 due to f90wrap compatibility
     "meson-python>=0.12.0",
 ]
 build-backend = 'mesonpy'

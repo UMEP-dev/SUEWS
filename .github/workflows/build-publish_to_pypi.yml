@@ -73,7 +73,7 @@ jobs:
       - name: Configure Windows build environment
         if: runner.os == 'Windows'
         run: |
-          echo "PATH=C:\msys64\ucrt64\bin;$env:PATH" >> $env:GITHUB_ENV
+          echo "${{ runner.temp }}\msys64\ucrt64\bin" >> $env:GITHUB_PATH
           echo "CC=gcc" >> $env:GITHUB_ENV
           echo "CXX=g++" >> $env:GITHUB_ENV
           echo "FC=gfortran" >> $env:GITHUB_ENV
@@ -83,13 +83,13 @@ jobs:
       
       - name: Create setjmp compatibility library (Windows)
         if: runner.os == 'Windows'
-        shell: cmd
+        shell: msys2 {0}
         run: |
-          echo int _setjmpex(void* buf) { extern int __intrinsic_setjmpex(void*); return __intrinsic_setjmpex(buf); } > setjmp_compat.c
-          C:\msys64\ucrt64\bin\gcc.exe -c setjmp_compat.c -o setjmp_compat.o
-          C:\msys64\ucrt64\bin\ar.exe rcs libsetjmp_compat.a setjmp_compat.o
-          copy libsetjmp_compat.a C:\msys64\ucrt64\lib\
-          echo LDFLAGS=-lucrt -static-libgcc -static-libgfortran -LC:/msys64/ucrt64/lib -lsetjmp_compat >> %GITHUB_ENV%
+          echo 'int _setjmpex(void* buf) { extern int __intrinsic_setjmpex(void*); return __intrinsic_setjmpex(buf); }' > setjmp_compat.c
+          gcc -c setjmp_compat.c -o setjmp_compat.o
+          ar rcs libsetjmp_compat.a setjmp_compat.o
+          cp libsetjmp_compat.a /ucrt64/lib/
+          echo "LDFLAGS=-lucrt -static-libgcc -static-libgfortran -L/ucrt64/lib -lsetjmp_compat" >> $GITHUB_ENV
 
       # Install uv for ultra-fast Python package management
       - name: Install uv

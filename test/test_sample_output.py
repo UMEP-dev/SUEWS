@@ -303,7 +303,7 @@ class TestSampleOutput(TestCase):
             }, f, indent=2)
         saved_files.append(tolerance_file)
         
-        print(f"\n📁 Debug artifacts saved to: {self.artifact_dir}")
+        print(f"\n[ARTIFACTS] Debug artifacts saved to: {self.artifact_dir}")
         for file in saved_files:
             print(f"   - {file}")
     
@@ -373,7 +373,7 @@ class TestSampleOutput(TestCase):
         for var in variables_to_test:
             # Get data
             if var not in df_output.SUEWS.columns:
-                report = f"\n❌ ERROR: Variable {var} not found in output!"
+                report = f"\n[ERROR] Variable {var} not found in output!"
                 full_report.append(report)
                 print(report)
                 all_passed = False
@@ -381,7 +381,7 @@ class TestSampleOutput(TestCase):
                 continue
             
             if var not in df_sample.columns:
-                report = f"\n❌ ERROR: Variable {var} not found in reference!"
+                report = f"\n[ERROR] Variable {var} not found in reference!"
                 full_report.append(report)
                 print(report)
                 all_passed = False
@@ -393,7 +393,7 @@ class TestSampleOutput(TestCase):
             
             # Handle length mismatch
             if len(actual) != len(expected):
-                print(f"\n⚠️  Warning: Length mismatch for {var}: {len(actual)} vs {len(expected)}")
+                print(f"\n[WARNING] Length mismatch for {var}: {len(actual)} vs {len(expected)}")
                 min_len = min(len(actual), len(expected))
                 actual = actual[:min_len]
                 expected = expected[:min_len]
@@ -410,9 +410,9 @@ class TestSampleOutput(TestCase):
             
             # Add pass/fail indicator
             if passed:
-                report = f"\n✅ {report}"
+                report = f"\n[PASS] {report}"
             else:
-                report = f"\n❌ {report}"
+                report = f"\n[FAIL] {report}"
                 failed_variables.append(var)
             
             full_report.append(report)
@@ -427,14 +427,14 @@ class TestSampleOutput(TestCase):
         print("="*70)
         
         if all_passed:
-            print("✅ All variables passed validation!")
+            print("[SUCCESS] All variables passed validation!")
         else:
-            print(f"❌ Validation failed for {len(failed_variables)} variables: {', '.join(failed_variables)}")
+            print(f"[FAILED] Validation failed for {len(failed_variables)} variables: {', '.join(failed_variables)}")
         
         # Save artifacts if running in CI for offline debugging
         # This is critical for diagnosing platform-specific issues
         if not all_passed and self.in_ci:
-            print("\n💾 Saving debug artifacts...")
+            print("\n[INFO] Saving debug artifacts...")
             self.save_debug_artifacts(
                 df_state_init,
                 df_forcing_part,

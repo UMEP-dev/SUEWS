@@ -69,41 +69,35 @@ jobs:
         if: runner.os == 'macOS'
         run: brew install gfortran
       
-      # Windows-specific setup with MSYS2/MinGW-w64
-      - name: Setup MSYS2 (Windows)
-        if: runner.os == 'Windows'
-        uses: msys2/setup-msys2@v2
-        with:
-          msystem: UCRT64
-          update: true
-          install: >-
-            mingw-w64-ucrt-x86_64-gcc
-            mingw-w64-ucrt-x86_64-gcc-fortran
-            mingw-w64-ucrt-x86_64-binutils
-            mingw-w64-ucrt-x86_64-make
-      
-      - name: Configure Windows build environment
+      # Windows-specific setup using pre-installed MSYS2
+      - name: Setup Windows build environment
         if: runner.os == 'Windows'
         run: |
-          # Add MSYS2 binaries to PATH for both build and runtime
-          echo "D:\a\_temp\msys64\ucrt64\bin" >> $env:GITHUB_PATH
-          echo "${{ runner.temp }}\msys64\ucrt64\bin" >> $env:GITHUB_PATH
+          # Update MSYS2 and install required packages
+          C:\msys64\usr\bin\bash.exe -lc "pacman -Syu --noconfirm"
+          C:\msys64\usr\bin\bash.exe -lc "pacman -S --needed --noconfirm mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-gcc-fortran mingw-w64-ucrt-x86_64-binutils mingw-w64-ucrt-x86_64-make mingw-w64-ucrt-x86_64-openblas"
+          
+          # Add MSYS2 binaries to PATH
+          echo "C:\msys64\ucrt64\bin" >> $env:GITHUB_PATH
+          
+          # Set environment variables
           echo "CC=gcc" >> $env:GITHUB_ENV
           echo "CXX=g++" >> $env:GITHUB_ENV
           echo "FC=gfortran" >> $env:GITHUB_ENV
           echo "CFLAGS=-D__USE_MINGW_ANSI_STDIO=1 -mlong-double-64" >> $env:GITHUB_ENV
+          echo "CXXFLAGS=-D__USE_MINGW_ANSI_STDIO=1 -mlong-double-64" >> $env:GITHUB_ENV
           echo "FCFLAGS=-fno-optimize-sibling-calls" >> $env:GITHUB_ENV
-          echo "LDFLAGS=-lucrt -static-libgcc -static-libgfortran" >> $env:GITHUB_ENV
+          echo "LDFLAGS=-lucrt -static-libgcc -static-libgfortran -LC:/msys64/ucrt64/lib -lsetjmp_compat" >> $env:GITHUB_ENV
       
       - name: Create setjmp compatibility library (Windows)
         if: runner.os == 'Windows'
-        shell: msys2 {0}
+        shell: cmd
         run: |
-          echo 'int _setjmpex(void* buf) { extern int __intrinsic_setjmpex(void*); return __intrinsic_setjmpex(buf); }' > setjmp_compat.c
-          gcc -c setjmp_compat.c -o setjmp_compat.o
-          ar rcs libsetjmp_compat.a setjmp_compat.o
-          cp libsetjmp_compat.a /ucrt64/lib/
-          echo "LDFLAGS=-lucrt -static-libgcc -static-libgfortran -L/ucrt64/lib -lsetjmp_compat" >> $GITHUB_ENV
+          echo int _setjmpex(void* buf) { extern int __intrinsic_setjmpex(void*); return __intrinsic_setjmpex(buf); } > setjmp_compat.c
+          C:\msys64\ucrt64\bin\gcc.exe -c setjmp_compat.c -o setjmp_compat.o
+          C:\msys64\ucrt64\bin\ar.exe rcs libsetjmp_compat.a setjmp_compat.o
+          copy libsetjmp_compat.a C:\msys64\ucrt64\lib\
+          dir C:\msys64\ucrt64\lib\libsetjmp_compat.a
 
       # Install uv for ultra-fast Python package management
       - name: Install uv

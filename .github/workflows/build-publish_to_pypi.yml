@@ -116,6 +116,17 @@ jobs:
         run: |
           uv pip install --system -e . --no-build-isolation
 
+      # Windows-specific: Verify DLL availability
+      - name: Verify Windows environment
+        if: runner.os == 'Windows'
+        run: |
+          Write-Host "Current PATH:"
+          $env:PATH -split ';' | ForEach-Object { Write-Host $_ }
+          Write-Host "`nChecking for gfortran DLLs in C:\msys64\ucrt64\bin:"
+          Get-ChildItem "C:\msys64\ucrt64\bin\*.dll" | Where-Object { $_.Name -match "gfortran|gcc" } | Select-Object Name
+          Write-Host "`nPython executable:"
+          where.exe python
+
       - name: Run sample output validation
         run: |
           python -m pytest test/test_sample_output.py -v

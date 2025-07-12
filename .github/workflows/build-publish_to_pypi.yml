@@ -42,26 +42,19 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
       
-      # Platform-specific dependency installation
-      - name: Install dependencies (Linux)
+      # Install platform-specific compilers
+      - name: Install gfortran (Linux)
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
           sudo apt-get install -y gfortran
-          python -m pip install --upgrade pip
-          # Install build dependencies from pyproject.toml
-          pip install wheel pytest f90wrap==0.2.16 "numpy>=2.0" "meson-python>=0.12.0" ninja
       
-      - name: Install dependencies (macOS)
+      - name: Install gfortran (macOS)
         if: runner.os == 'macOS'
-        run: |
-          brew install gfortran
-          python -m pip install --upgrade pip
-          # Install build dependencies from pyproject.toml
-          pip install wheel pytest f90wrap==0.2.16 "numpy>=2.0" "meson-python>=0.12.0" ninja
+        run: brew install gfortran
       
-      - name: Install dependencies (Windows)
-        if: runner.os == 'Windows'
+      # Common Python dependencies for all platforms
+      - name: Install Python dependencies
         run: |
           python -m pip install --upgrade pip
           # Install build dependencies from pyproject.toml

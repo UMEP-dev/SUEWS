@@ -24,7 +24,7 @@ on:
 jobs:
   # Fast-fail validation job that runs before expensive wheel building
   validate_sample_output:
-    name: Validate sample output - Py${{ matrix.python-version }}-${{ matrix.buildplat[1] }}-${{ matrix.buildplat[2] }}
+    name: Test sample for ${{ matrix.buildplat[1] }}-${{ matrix.buildplat[2] }}-${{ matrix.python-version }}
     runs-on: ${{ matrix.buildplat[0] }}
     strategy:
       matrix:
@@ -57,15 +57,22 @@ jobs:
         if: runner.os == 'macOS'
         run: brew install gfortran
 
+      # Install uv for ultra-fast Python package management
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+          cache-dependency-glob: ".github/requirements-ci.txt"
+      
       # Common Python dependencies for all platforms
       - name: Install Python dependencies
         run: |
-          python -m pip install --upgrade pip
-          pip install -r .github/requirements-ci.txt
+          uv pip install --system --upgrade pip
+          uv pip install --system -r .github/requirements-ci.txt
 
       - name: Build and install supy
         run: |
-          pip install -e . --no-build-isolation
+          uv pip install --system -e . --no-build-isolation
 
       - name: Run sample output validation
         run: |

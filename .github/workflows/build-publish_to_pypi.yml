@@ -116,43 +116,12 @@ jobs:
         run: |
           uv pip install --system -e . --no-build-isolation
 
-      # Windows-specific: Fix DLL search paths
-      - name: Configure Windows DLL search paths  
+      # Windows-specific: Bundle DLLs with extension
+      - name: Bundle Windows DLLs  
         if: runner.os == 'Windows'
         run: |
-          # Find where the extension was built
-          Write-Host "Looking for built extension..."
-          $extPath = Get-ChildItem -Path "." -Filter "_supy_driver*.pyd" -Recurse | Select-Object -First 1
-          
-          if ($extPath) {
-              Write-Host "Found extension at: $($extPath.FullName)"
-              $extDir = $extPath.DirectoryName
-              Write-Host "Extension directory: $extDir"
-              
-              # Copy DLLs to the extension directory
-              $dllsToCopy = @("libgcc_s_seh-1.dll", "libgfortran-5.dll", "libquadmath-0.dll", "libwinpthread-1.dll")
-              foreach ($dll in $dllsToCopy) {
-                  $source = "C:\msys64\ucrt64\bin\$dll"
-                  if (Test-Path $source) {
-                      Copy-Item $source -Destination $extDir -Force
-                      Write-Host "Copied $dll to extension directory"
-                  }
-              }
-          } else {
-              Write-Host "Warning: Could not find built extension"
-              # Fallback: copy to site-packages
-              $sitePackages = (python -c "import site; print(site.getsitepackages()[0])")
-              Write-Host "Site packages: $sitePackages"
-              
-              $dllsToCopy = @("libgcc_s_seh-1.dll", "libgfortran-5.dll", "libquadmath-0.dll", "libwinpthread-1.dll")
-              foreach ($dll in $dllsToCopy) {
-                  $source = "C:\msys64\ucrt64\bin\$dll"
-                  if (Test-Path $source) {
-                      Copy-Item $source -Destination $sitePackages -Force
-                      Write-Host "Copied $dll to site-packages"
-                  }
-              }
-          }
+          # Run the DLL bundling script
+          python src/supy_driver/bundle_windows_dlls.py
 
       - name: Run sample output validation (Linux/macOS)
         if: runner.os != 'Windows'

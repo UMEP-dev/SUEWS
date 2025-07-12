@@ -346,4 +346,20 @@ gen_supy_driver_py = custom_target(
   install_dir: [py.get_install_dir() / 'supy'], # this is the directory where the python module will be installed
 )
 ##################################################################
-# 5. add the test for the python module
+# 5. Bundle Windows DLLs with the extension module
+if host_machine.system() == 'windows'
+  bundle_dlls = custom_target(
+    'bundle_windows_dlls',
+    command: [
+      py,
+      '@CURRENT_SOURCE_DIR@/bundle_windows_dlls.py',
+    ],
+    output: 'bundle_dlls.stamp',
+    depends: ext_supy_driver,
+    build_by_default: true,
+    install: false,
+  )
+endif
+
+##################################################################
+# 6. add the test for the python module

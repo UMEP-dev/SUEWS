@@ -12,6 +12,56 @@
 # 02 Oct 2019: logger restructured
 ###########################################################################
 
+# Handle Windows DLL loading before importing the extension
+import os
+import sys
+import platform
+
+def _setup_windows_dll_path():
+    """Ensure Windows can find the MinGW runtime DLLs."""
+    if platform.system() != 'Windows':
+        return
+    
+    # Add the directory containing the extension module to DLL search path
+    try:
+        # For Python 3.8+, use os.add_dll_directory
+        if hasattr(os, 'add_dll_directory'):
+            import importlib.util
+            import pathlib
+            
+            # Find the directory containing our extension
+            spec = importlib.util.find_spec('supy._supy_driver')
+            if spec and spec.origin:
+                ext_dir = pathlib.Path(spec.origin).parent
+                if ext_dir.exists():
+                    os.add_dll_directory(str(ext_dir))
+                    
+                    # Also add any DLL subdirectories
+                    dll_dir = ext_dir / '.libs'
+                    if dll_dir.exists():
+                        os.add_dll_directory(str(dll_dir))
+        
+        # For older Python versions, modify PATH
+        else:
+            import pathlib
+            import importlib
+            
+            # Try to find the module directory
+            try:
+                import supy
+                supy_dir = pathlib.Path(supy.__file__).parent
+                if supy_dir.exists():
+                    os.environ['PATH'] = str(supy_dir) + os.pathsep + os.environ.get('PATH', '')
+            except:
+                pass
+                
+    except Exception as e:
+        # Don't fail import if DLL setup fails
+        import warnings
+        warnings.warn(f"Could not set up Windows DLL search path: {e}")
+
+# Set up DLL paths before any imports
+_setup_windows_dll_path()
 
 # core functions
 from ._supy_module import (

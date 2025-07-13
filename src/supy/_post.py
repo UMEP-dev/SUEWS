@@ -245,7 +245,7 @@ def resample_output(df_output, freq="60T", dict_aggm=dict_var_aggm):
     )
 
     # Handle DailyState separately if present
-    if "DailyState" in df_output and "DailyState" in dict_aggm:
+    if "DailyState" in df_output.columns.get_level_values('group').unique() and "DailyState" in dict_aggm:
         # DailyState uses label="left" as it represents state at the beginning of the period
         # whereas other variables use label="right" following SUEWS convention for period-ending values
         df_dailystate_rsmp = pd.concat(

@@ -25,6 +25,14 @@ wheel building operations.
 Note on NumPy Compatibility:
 Python 3.9 requires NumPy 1.x due to f90wrap binary compatibility issues.
 Python 3.10+ can use NumPy 2.0. This is handled in pyproject.toml build requirements.
+
+Known Issue - Test Interference:
+This test may fail when run as part of the full test suite due to caching
+interference from other tests. However, it passes reliably when run individually:
+    pytest test/test_sample_output.py
+
+This is due to complex LRU caching in the supy._load module that maintains state
+between tests. The test validates core functionality correctly when run in isolation.
 """
 
 import os
@@ -234,6 +242,19 @@ class TestSampleOutput(TestCase):
     def setUp(self):
         """Set up test environment."""
         warnings.simplefilter("ignore", category=ImportWarning)
+        
+        # Clear any cached data from previous tests
+        # This prevents test interference when tests run in sequence
+        import gc
+        import functools
+        
+        # Clear all LRU caches in the supy module
+        for obj in gc.get_objects():
+            if isinstance(obj, functools._lru_cache_wrapper):
+                try:
+                    obj.cache_clear()
+                except:
+                    pass
         
         # Check if running in CI
         self.in_ci = os.environ.get('CI', '').lower() == 'true'

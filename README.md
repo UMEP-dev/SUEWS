@@ -29,6 +29,15 @@ For users who want to run SUEWS simulations:
    suews-run /path/to/config.yml
    ```
 
+### Platform Requirements
+
+SUEWS is supported on the following platforms:
+- **Linux**: Python 3.10+ (Python 3.9 not available)
+- **macOS**: Python 3.9+ (Intel and ARM64)
+- **Windows**: Python 3.9-3.12 (Python 3.13 not yet available)
+
+See [PLATFORM_COMPATIBILITY.md](PLATFORM_COMPATIBILITY.md) for detailed compatibility information.
+
 For developers, see the [Developer Note](#developer-note) section below.
 
 

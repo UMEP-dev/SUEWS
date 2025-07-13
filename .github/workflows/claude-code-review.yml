@@ -77,6 +77,45 @@ jobs:
             - Test coverage
             
             Be constructive and helpful in your feedback.
+            
+            IMPORTANT: Structure your response using collapsible HTML sections for better readability:
+            
+            <details>
+            <summary><b>🔍 Code Quality & Best Practices</b></summary>
+            
+            Your feedback here...
+            
+            </details>
+            
+            <details>
+            <summary><b>🐛 Potential Issues</b></summary>
+            
+            Your feedback here...
+            
+            </details>
+            
+            <details>
+            <summary><b>⚡ Performance Considerations</b></summary>
+            
+            Your feedback here...
+            
+            </details>
+            
+            <details>
+            <summary><b>🔒 Security Review</b></summary>
+            
+            Your feedback here...
+            
+            </details>
+            
+            <details>
+            <summary><b>🧪 Test Coverage</b></summary>
+            
+            Your feedback here...
+            
+            </details>
+            
+            Keep the summary brief and expand details inside each section.
 
           # Optional: Use sticky comments to make Claude reuse the same comment on subsequent pushes to the same PR
           # use_sticky_comment: true

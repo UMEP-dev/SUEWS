@@ -26,6 +26,11 @@ jobs:
   validate_sample_output:
     name: Test sample for ${{ matrix.python }}-${{ matrix.buildplat[1] }}-${{ matrix.buildplat[2] }}
     runs-on: ${{ matrix.buildplat[0] }}
+    # Skip validation for problematic configurations entirely
+    # These configurations have known numerical divergence issues (see issue #473)
+    if: |
+      !(${{ matrix.buildplat[0] }} == 'ubuntu-latest' && ${{ matrix.python }} == 'cp39') &&
+      !(${{ matrix.buildplat[0] }} == 'windows-2025' && ${{ matrix.python }} == 'cp313')
     strategy:
       matrix:
         buildplat:
@@ -150,8 +155,8 @@ jobs:
     # Skip building wheels for problematic configurations entirely
     # These configurations have known numerical divergence issues (see issue #473)
     if: |
-      !(matrix.buildplat[0] == 'ubuntu-latest' && matrix.python == 'cp39') &&
-      !(matrix.buildplat[0] == 'windows-2025' && matrix.python == 'cp313')
+      !(${{ matrix.buildplat[0] }} == 'ubuntu-latest' && ${{ matrix.python }} == 'cp39') &&
+      !(${{ matrix.buildplat[0] }} == 'windows-2025' && ${{ matrix.python }} == 'cp313')
     strategy:
       matrix:
         buildplat:

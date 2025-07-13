@@ -33,7 +33,7 @@ jobs:
         run: |
           # STRICT ACCESS: Require CLAUDE_AUTHORIZED_USERS to be configured
           if [ -z "$AUTHORIZED_USERS" ]; then
-            echo "❌ CLAUDE_AUTHORIZED_USERS secret not configured - access denied"
+            echo "CLAUDE_AUTHORIZED_USERS secret not configured - access denied"
             echo "authorized=false" >> $GITHUB_OUTPUT
             exit 0
           fi
@@ -43,10 +43,10 @@ jobs:
           USERS_LIST=$(echo "$AUTHORIZED_USERS" | tr ',' '\n' | tr -d ' ')
 
           if echo "$USERS_LIST" | grep -q "^$COMMENT_USER$"; then
-            echo "✅ User $COMMENT_USER is authorised"
+            echo "✓ User $COMMENT_USER is authorised"
             echo "authorized=true" >> $GITHUB_OUTPUT
           else
-            echo "❌ User $COMMENT_USER is not authorised"
+            echo "User $COMMENT_USER is not authorised"
             echo "authorized=false" >> $GITHUB_OUTPUT
           fi
 
@@ -61,7 +61,7 @@ jobs:
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 issue_number: issueNumber,
-                body: '❌ Access denied. Claude is restricted to authorised users only. Please contact the repository maintainers to request access.'
+                body: 'Access denied. Claude is restricted to authorised users only. Please contact the repository maintainers to request access.'
               };
               await github.rest.issues.createComment(comment);
             }
@@ -84,8 +84,8 @@ jobs:
           additional_permissions: |
             actions: read
           
-          # Use Claude Opus 4 for complex tasks (optional)
-          model: ${{ contains(github.event.comment.body || github.event.issue.body || '', 'complex') && 'claude-opus-4-20250514' || 'claude-sonnet-4-20250514' }}
+          # Use Claude Opus 4 by default for better performance
+          model: claude-opus-4-20250514
           
           # Enhanced allowed tools for SUEWS development
           allowed_tools: |

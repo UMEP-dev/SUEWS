@@ -23,12 +23,12 @@ class TestSUEWSSimulationBasic:
     @pytest.fixture
     def benchmark_config(self):
         """Path to benchmark configuration file."""
-        return Path("test/benchmark1/benchmark1.yml")
+        return Path(__file__).parent / "benchmark1" / "benchmark1.yml"
 
     @pytest.fixture
     def benchmark_forcing(self):
         """Path to benchmark forcing file."""
-        return Path("test/benchmark1/forcing/Kc1_2011_data_5.txt")
+        return Path(__file__).parent / "benchmark1" / "forcing" / "Kc1_2011_data_5.txt"
 
     def test_init_from_yaml(self, benchmark_config):
         """Test initialization from YAML config."""
@@ -132,11 +132,22 @@ class TestSUEWSSimulationError:
 
     def test_run_without_forcing(self):
         """Test run without forcing data."""
-        benchmark_config = Path("test/benchmark1/benchmark1.yml")
+        benchmark_config = Path(__file__).parent / "benchmark1" / "benchmark1.yml"
         if not benchmark_config.exists():
             pytest.skip("Benchmark config file not found")
 
-        sim = SUEWSSimulation(benchmark_config)
+        # Load config from YAML
+        from supy.data_model.core import SUEWSConfig
+        config = SUEWSConfig.from_yaml(str(benchmark_config))
+        
+        # Clear the forcing file to prevent auto-loading
+        config.model.control.forcing_file = None
+        
+        # Create simulation without auto-loading forcing
+        sim = SUEWSSimulation(config)
+        
+        # Verify no forcing was loaded
+        assert sim._df_forcing is None
 
         with pytest.raises(RuntimeError, match="No forcing data loaded"):
             sim.run()
@@ -148,12 +159,12 @@ class TestSUEWSSimulationForcing:
     @pytest.fixture
     def benchmark_config(self):
         """Path to benchmark configuration file."""
-        return Path("test/benchmark1/benchmark1.yml")
+        return Path(__file__).parent / "benchmark1" / "benchmark1.yml"
 
     @pytest.fixture
     def forcing_dir(self):
         """Path to forcing directory."""
-        return Path("test/benchmark1/forcing")
+        return Path(__file__).parent / "benchmark1" / "forcing"
 
     def test_single_file_forcing(self, benchmark_config, forcing_dir):
         """Test loading a single forcing file."""
@@ -223,7 +234,7 @@ class TestSUEWSSimulationForcing:
     def test_forcing_fallback_from_config(self, forcing_dir):
         """Test that forcing is loaded from config when not explicitly provided."""
         # Use the real benchmark config which has forcing_file: value: forcing/
-        config_path = Path("test/benchmark1/benchmark1.yml")
+        config_path = Path(__file__).parent / "benchmark1" / "benchmark1.yml"
         if not config_path.exists():
             pytest.skip("Benchmark config file not found")
         
@@ -245,8 +256,8 @@ class TestSUEWSSimulationOutputFormats:
     @pytest.fixture
     def sim_with_results(self):
         """Create a simulation with results ready to save."""
-        config_path = Path("test/benchmark1/benchmark1.yml")
-        forcing_path = Path("test/benchmark1/forcing/Kc1_2011_data_5.txt")
+        config_path = Path(__file__).parent / "benchmark1" / "benchmark1.yml"
+        forcing_path = Path(__file__).parent / "benchmark1" / "forcing" / "Kc1_2011_data_5.txt"
         
         if not config_path.exists() or not forcing_path.exists():
             pytest.skip("Benchmark files not found")

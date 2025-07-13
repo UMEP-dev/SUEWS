@@ -41,7 +41,7 @@ class SUEWSSimulation:
     >>> sim.run()
     """
 
-    def __init__(self, config: Union[str, Path, Dict, Any] = None):
+    def __init__(self, config: Union[str, Path, Dict, Any] = None, forcing_file: Union[str, Path, List[Union[str, Path]]] = None):
         """
         Initialize SUEWS simulation.
 
@@ -53,6 +53,12 @@ class SUEWSSimulation:
             - Dictionary with configuration parameters
             - SUEWSConfig object
             - None to create empty simulation
+        forcing_file : str, Path, or list of paths, optional
+            Forcing data source:
+            - Path to a single forcing file
+            - List of paths to forcing files (concatenated in order)
+            - Path to directory containing forcing files (deprecated)
+            - None to load from config or set later
         """
         self._config = None
         self._config_path = None
@@ -64,6 +70,10 @@ class SUEWSSimulation:
 
         if config is not None:
             self.update_config(config)
+        
+        # Load forcing if provided
+        if forcing_file is not None:
+            self.update_forcing(forcing_file)
 
     def update_config(self, config: Union[str, Path, Dict, Any]):
         """
@@ -245,12 +255,16 @@ class SUEWSSimulation:
         else:
             return read_forcing(str(forcing_path))
 
-    def run(self, **run_kwargs) -> pd.DataFrame:
+    def run(self, start_date: pd.Timestamp = None, end_date: pd.Timestamp = None, **run_kwargs) -> pd.DataFrame:
         """
         Run SUEWS simulation.
 
         Parameters
         ----------
+        start_date : pd.Timestamp, optional
+            Start date for simulation. If None, uses first timestamp in forcing.
+        end_date : pd.Timestamp, optional
+            End date for simulation. If None, uses last timestamp in forcing.
         **run_kwargs
             Additional keyword arguments passed to run_supy.
             Common options:
@@ -273,39 +287,64 @@ class SUEWSSimulation:
         if self._df_forcing is None:
             raise RuntimeError("No forcing data loaded. Use update_forcing() first.")
 
+        # Filter forcing data by date range if specified
+        df_forcing_to_use = self._df_forcing
+        if start_date is not None or end_date is not None:
+            if start_date is None:
+                start_date = df_forcing_to_use.index[0]
+            if end_date is None:
+                end_date = df_forcing_to_use.index[-1]
+            df_forcing_to_use = df_forcing_to_use.loc[start_date:end_date]
+
         # Run simulation
-        self._df_output, self._df_state_final = run_supy_ser(
-            self._df_forcing,
+        # run_supy_ser returns 4 values: df_output, df_state_final, df_debug, dict_dts_state
+        # We only need the first two for normal operation
+        result = run_supy_ser(
+            df_forcing_to_use,
             self._df_state_init,
             **run_kwargs
         )
+        self._df_output = result[0]
+        self._df_state_final = result[1]
         
         self._run_completed = True
         return self._df_output
 
-    def save(self, output_path: Union[str, Path] = None, **save_kwargs) -> List[Path]:
+    def save(self, output_path: Union[str, Path] = None, format: str = "parquet", **save_kwargs) -> Union[Path, List[Path]]:
         """
-        Save simulation results according to OutputConfig settings.
+        Save simulation results in specified format.
 
         Parameters
         ----------
         output_path : str or Path, optional
-            Output directory path. If None, uses current directory.
+            Output path. For parquet format, this is the file path.
+            For txt format, this is the directory path.
+            If None, uses current directory.
+        format : str, optional
+            Output format: "parquet" (default) or "txt".
         **save_kwargs
             Additional arguments passed to save_supy.
 
         Returns
         -------
-        List[Path]
-            List of paths to saved files.
+        Path or List[Path]
+            For parquet format: Path to saved file.
+            For txt format: List of paths to saved files.
 
         Raises
         ------
         RuntimeError
             If no simulation results are available.
+        ValueError
+            If unsupported format is specified.
         """
         if not self._run_completed:
             raise RuntimeError("No simulation results available. Run simulation first.")
+
+        # Validate format
+        supported_formats = ["parquet", "txt"]
+        if format not in supported_formats:
+            raise ValueError(f"Unsupported format '{format}'. Supported formats: {supported_formats}")
 
         # Set default path
         if output_path is None:
@@ -313,36 +352,55 @@ class SUEWSSimulation:
         else:
             output_path = Path(output_path)
 
-        # Extract parameters from config
-        freq_s = 3600  # default hourly
-        site = ""
-        
-        if self._config:
-            # Get output frequency from OutputConfig if available
-            if (hasattr(self._config, 'model') and 
-                hasattr(self._config.model, 'control') and
-                hasattr(self._config.model.control, 'output_file') and 
-                not isinstance(self._config.model.control.output_file, str)):
-                
-                output_config = self._config.model.control.output_file
-                if hasattr(output_config, 'freq') and output_config.freq is not None:
-                    freq_s = output_config.freq
+        if format == "parquet":
+            # Save as parquet file
+            if output_path.is_dir():
+                output_path = output_path / "results.parquet"
             
-            # Get site name from first site
-            if hasattr(self._config, 'sites') and len(self._config.sites) > 0:
-                site = self._config.sites[0].name
+            # Ensure .parquet extension
+            if output_path.suffix != ".parquet":
+                output_path = output_path.with_suffix(".parquet")
+            
+            # Save the output dataframe
+            self._df_output.to_parquet(output_path)
+            return output_path
+            
+        elif format == "txt":
+            # Use legacy save_supy for txt format
+            # Extract parameters from config
+            freq_s = 3600  # default hourly
+            site = ""
+            
+            if self._config:
+                # Get output frequency from OutputConfig if available
+                if (hasattr(self._config, 'model') and 
+                    hasattr(self._config.model, 'control') and
+                    hasattr(self._config.model.control, 'output_file') and 
+                    not isinstance(self._config.model.control.output_file, str)):
+                    
+                    output_config = self._config.model.control.output_file
+                    if hasattr(output_config, 'freq') and output_config.freq is not None:
+                        freq_s = output_config.freq
+                
+                # Get site name from first site
+                if hasattr(self._config, 'sites') and len(self._config.sites) > 0:
+                    site = self._config.sites[0].name
 
-        # Use save_supy for all formats
-        list_path_save = save_supy(
-            df_output=self._df_output,
-            df_state_final=self._df_state_final,
-            freq_s=int(freq_s),
-            site=site,
-            path_dir_save=str(output_path),
-            **save_kwargs
-        )
-        
-        return list_path_save
+            # save_supy expects a directory for txt format
+            if not output_path.is_dir():
+                output_path.mkdir(parents=True, exist_ok=True)
+
+            # Use save_supy for txt format
+            list_path_save = save_supy(
+                df_output=self._df_output,
+                df_state_final=self._df_state_final,
+                freq_s=int(freq_s),
+                site=site,
+                path_dir_save=str(output_path),
+                **save_kwargs
+            )
+            
+            return list_path_save
 
     def reset(self):
         """Reset simulation to initial state, clearing results."""

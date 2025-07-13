@@ -23,12 +23,12 @@ class TestSUEWSSimulationBasic:
     @pytest.fixture
     def benchmark_config(self):
         """Path to benchmark configuration file."""
-        return Path("test/benchmark1/benchmark1.yml")
+        return Path(__file__).parent / "benchmark1" / "benchmark1.yml"
 
     @pytest.fixture
     def benchmark_forcing(self):
         """Path to benchmark forcing file."""
-        return Path("test/benchmark1/forcing/Kc1_2011_data_5.txt")
+        return Path(__file__).parent / "benchmark1" / "forcing" / "Kc1_2011_data_5.txt"
 
     def test_init_from_yaml(self, benchmark_config):
         """Test initialization from YAML config."""
@@ -132,7 +132,7 @@ class TestSUEWSSimulationError:
 
     def test_run_without_forcing(self):
         """Test run without forcing data."""
-        benchmark_config = Path("test/benchmark1/benchmark1.yml")
+        benchmark_config = Path(__file__).parent / "benchmark1" / "benchmark1.yml"
         if not benchmark_config.exists():
             pytest.skip("Benchmark config file not found")
 
@@ -148,12 +148,12 @@ class TestSUEWSSimulationForcing:
     @pytest.fixture
     def benchmark_config(self):
         """Path to benchmark configuration file."""
-        return Path("test/benchmark1/benchmark1.yml")
+        return Path(__file__).parent / "benchmark1" / "benchmark1.yml"
 
     @pytest.fixture
     def forcing_dir(self):
         """Path to forcing directory."""
-        return Path("test/benchmark1/forcing")
+        return Path(__file__).parent / "benchmark1" / "forcing"
 
     def test_single_file_forcing(self, benchmark_config, forcing_dir):
         """Test loading a single forcing file."""
@@ -161,7 +161,8 @@ class TestSUEWSSimulationForcing:
             pytest.skip("Benchmark config file not found")
         
         forcing_file = forcing_dir / "Kc1_2011_data_5.txt"
-        sim = SUEWSSimulation(benchmark_config, forcing_file=str(forcing_file))
+        sim = SUEWSSimulation(benchmark_config)
+        sim.update_forcing(str(forcing_file))
         
         assert sim._df_forcing is not None
         assert len(sim._df_forcing) == 105120  # One year of 5-min data
@@ -175,7 +176,8 @@ class TestSUEWSSimulationForcing:
             str(forcing_dir / "Kc1_2011_data_5.txt"),
             str(forcing_dir / "Kc1_2012_data_5.txt")
         ]
-        sim = SUEWSSimulation(benchmark_config, forcing_file=forcing_files)
+        sim = SUEWSSimulation(benchmark_config)
+        sim.update_forcing(forcing_files)
         
         assert sim._df_forcing is not None
         # Two years of 5-min data (2012 is leap year)
@@ -189,7 +191,8 @@ class TestSUEWSSimulationForcing:
         import warnings
         with warnings.catch_warnings(record=True) as w:
             warnings.simplefilter("always")
-            sim = SUEWSSimulation(benchmark_config, forcing_file=str(forcing_dir))
+            sim = SUEWSSimulation(benchmark_config)
+            sim.update_forcing(str(forcing_dir))
             
             # Check deprecation warning was issued
             assert any(issubclass(warning.category, DeprecationWarning) for warning in w)
@@ -209,21 +212,23 @@ class TestSUEWSSimulationForcing:
             str(forcing_dir / "Kc1_2011_data_5.txt")  # File
         ]
         
+        sim = SUEWSSimulation(benchmark_config)
         with pytest.raises(ValueError, match="Directory.*not allowed in lists"):
-            SUEWSSimulation(benchmark_config, forcing_file=mixed_list)
+            sim.update_forcing(mixed_list)
 
     def test_nonexistent_file_rejected(self, benchmark_config):
         """Test that nonexistent files are rejected."""
         if not benchmark_config.exists():
             pytest.skip("Benchmark config file not found")
         
+        sim = SUEWSSimulation(benchmark_config)
         with pytest.raises(FileNotFoundError):
-            SUEWSSimulation(benchmark_config, forcing_file="nonexistent.txt")
+            sim.update_forcing("nonexistent.txt")
 
     def test_forcing_fallback_from_config(self, forcing_dir):
         """Test that forcing is loaded from config when not explicitly provided."""
         # Use the real benchmark config which has forcing_file: value: forcing/
-        config_path = Path("test/benchmark1/benchmark1.yml")
+        config_path = Path(__file__).parent / "benchmark1" / "benchmark1.yml"
         if not config_path.exists():
             pytest.skip("Benchmark config file not found")
         
@@ -245,13 +250,14 @@ class TestSUEWSSimulationOutputFormats:
     @pytest.fixture
     def sim_with_results(self):
         """Create a simulation with results ready to save."""
-        config_path = Path("test/benchmark1/benchmark1.yml")
-        forcing_path = Path("test/benchmark1/forcing/Kc1_2011_data_5.txt")
+        config_path = Path(__file__).parent / "benchmark1" / "benchmark1.yml"
+        forcing_path = Path(__file__).parent / "benchmark1" / "forcing" / "Kc1_2011_data_5.txt"
         
         if not config_path.exists() or not forcing_path.exists():
             pytest.skip("Benchmark files not found")
         
-        sim = SUEWSSimulation(config_path, forcing_file=forcing_path)
+        sim = SUEWSSimulation(config_path)
+        sim.update_forcing(forcing_path)
         
         # Run short simulation
         start_date = pd.Timestamp("2011-01-01 00:05:00")

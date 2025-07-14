@@ -62,8 +62,28 @@ class TestResampleOutput:
         # Check if we have any non-NaN values after the initialization period
         non_nan_mask = df_dailystate_resampled.notna().any(axis=1)
         
-        # Should have some rows with non-NaN values
-        assert non_nan_mask.any(), "DailyState should have some non-NaN values after resampling"
+        # TEMPORARILY FORCE FAILURE to see debug output
+        # Check if dropna(how='all') is working correctly
+        df_dailystate_original = df_output.loc[:, 'DailyState']
+        df_after_dropna_all = df_dailystate_original.dropna(how='all')
+        
+        print(f"\n=== FORCED DEBUG OUTPUT ===")
+        print(f"Original DailyState shape: {df_dailystate_original.shape}")
+        print(f"After dropna(how='all'): {df_after_dropna_all.shape}")
+        print(f"Non-NaN values in original: {df_dailystate_original.notna().sum().sum()}")
+        
+        # Show column-wise NaN analysis
+        col_nan_counts = df_dailystate_original.isna().sum()
+        print(f"\nColumns with mixed NaN values:")
+        mixed_nan_cols = col_nan_counts[(col_nan_counts > 0) & (col_nan_counts < len(df_dailystate_original))]
+        for col, nan_count in mixed_nan_cols.items():
+            print(f"  {col}: {nan_count} NaN out of {len(df_dailystate_original)} rows")
+        
+        # Force failure to see output
+        assert False, f"INTENTIONAL FAILURE: DailyState has {df_after_dropna_all.shape[0]} rows after dropna(how='all')"
+        
+        # Original assertion (unreachable now)
+        # assert non_nan_mask.any(), "DailyState should have some non-NaN values after resampling"
         
     def test_resample_without_dailystate(self):
         """Test that resample works correctly when DailyState is not present."""

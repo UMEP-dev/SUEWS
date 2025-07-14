@@ -34,11 +34,17 @@ def debug_on_ci(func):
             return result
         except Exception as e:
             if is_ci:
-                print(f"\n✗ {func.__name__} FAILED")
+                print(f"\n{'='*60}")
+                print(f"✗ {func.__name__} FAILED")
                 print(f"Error type: {type(e).__name__}")
                 print(f"Error message: {str(e)}")
+                print(f"Platform: {sys.platform}")
+                print(f"Python: {sys.version}")
+                print(f"NumPy: {np.__version__}")
+                print(f"Pandas: {pd.__version__}")
                 print("\nTraceback:")
                 traceback.print_exc()
+                print(f"{'='*60}\n")
                 
                 # Try to extract test instance and print relevant data
                 if args and hasattr(args[0], '__dict__'):

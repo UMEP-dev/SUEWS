@@ -221,6 +221,11 @@ def resample_output(df_output, freq="60T", dict_aggm=dict_var_aggm):
                     row_data = df_group.loc[idx]
                     non_nan_count = row_data.notna().sum()
                     logger_supy.debug(f"DailyState resampling - row {idx}: {non_nan_count}/{len(row_data)} non-NaN values")
+                    
+                    # Show which columns have NaN in these rows
+                    if non_nan_count < len(row_data):
+                        nan_cols = row_data[row_data.isna()].index.tolist()
+                        logger_supy.debug(f"DailyState resampling - row {idx} NaN columns: {nan_cols[:5]}...")
             
             # Apply dropna
             df_with_data = df_group.dropna(how='all')
@@ -234,6 +239,11 @@ def resample_output(df_output, freq="60T", dict_aggm=dict_var_aggm):
                 logger_supy.warning("DailyState resampling - DataFrame empty after dropna(how='all')")
                 # If no data, return empty DataFrame with proper structure
                 return pd.DataFrame(index=pd.DatetimeIndex([]), columns=df_group.columns)
+            
+            # Check if dropna() removes all data but dropna(how='all') doesn't
+            if df_dropna_any.empty and not df_with_data.empty:
+                logger_supy.warning("DailyState has mixed NaN values - using only rows with some data")
+                # Use dropna(how='all') result but be aware of partial data
             
             # Resample the non-empty data
             df_resampled = df_with_data.resample(
@@ -266,9 +276,6 @@ def resample_output(df_output, freq="60T", dict_aggm=dict_var_aggm):
     list_grid = df_output.index.get_level_values("grid").unique()
     list_group = df_output.columns.get_level_values("group").unique()
 
-    # Skip DailyState if it somehow gets here (it should be handled separately)
-    list_group = [g for g in list_group if g != 'DailyState']
-
     # resampling output according to different rules defined in dict_aggm
     # note the setting in .resample: (closed='right',label='right')
     # which is to conform to SUEWS convention
@@ -280,11 +287,12 @@ def resample_output(df_output, freq="60T", dict_aggm=dict_var_aggm):
                     group: _resample_group(
                         df_output.xs(grid, level='grid')[group],
                         freq,
-                        "right",  # Regular variables use 'right' label
+                        "right" if group != "DailyState" else "left",  # DailyState uses 'left' label
                         dict_aggm[group],
                         group_name=group
                     )
                     for group in list_group
+                    if group in dict_aggm  # Only process groups that are in dict_aggm
                 },
                 axis=1,
                 names=["group", "var"],
@@ -293,60 +301,6 @@ def resample_output(df_output, freq="60T", dict_aggm=dict_var_aggm):
         },
         names=["grid"],
     )
-
-    # Handle DailyState separately - NO RESAMPLING needed
-    # Only process if DailyState is in the output AND in dict_aggm (meaning it's requested)
-    if "DailyState" in df_output.columns.get_level_values('group').unique() and "DailyState" in dict_aggm:
-        logger_supy.debug("Processing DailyState - no resampling needed for daily values")
-        
-        # Extract DailyState data for all grids
-        df_dailystate_list = []
-        for grid in list_grid:
-            df_dailystate_grid = df_output.xs(grid, level='grid')["DailyState"]
-            
-            # Log detailed info for debugging
-            logger_supy.debug(f"DailyState for grid {grid} - shape: {df_dailystate_grid.shape}")
-            logger_supy.debug(f"DailyState for grid {grid} - non-NaN count: {df_dailystate_grid.notna().sum().sum()}")
-            
-            # Check pattern of data
-            rows_with_data = ~df_dailystate_grid.isna().all(axis=1)
-            if rows_with_data.any():
-                indices_with_data = df_dailystate_grid.index[rows_with_data]
-                logger_supy.debug(f"DailyState for grid {grid} - timestamps with data: {len(indices_with_data)}")
-                logger_supy.debug(f"DailyState for grid {grid} - first 5 timestamps: {indices_with_data[:5].tolist()}")
-                
-                # Check if timestamps are at end of day (23:55 or similar)
-                hours = pd.Series(indices_with_data).dt.hour
-                minutes = pd.Series(indices_with_data).dt.minute
-                logger_supy.debug(f"DailyState for grid {grid} - unique hours with data: {hours.unique()}")
-                logger_supy.debug(f"DailyState for grid {grid} - unique minutes with data: {minutes.unique()}")
-            
-            # For DailyState, just keep the rows with data (no resampling)
-            df_dailystate_clean = df_dailystate_grid.dropna(how='all')
-            logger_supy.debug(f"DailyState for grid {grid} - shape after dropna: {df_dailystate_clean.shape}")
-            
-            if not df_dailystate_clean.empty:
-                # Add back the group level to match structure
-                df_dailystate_clean.columns = pd.MultiIndex.from_product(
-                    [["DailyState"], df_dailystate_clean.columns],
-                    names=["group", "var"]
-                )
-                df_dailystate_list.append((grid, df_dailystate_clean))
-        
-        # Combine all grids' DailyState data
-        if df_dailystate_list:
-            df_dailystate_combined = pd.concat(
-                dict(df_dailystate_list),
-                names=["grid"]
-            )
-            
-            logger_supy.debug(f"DailyState combined shape: {df_dailystate_combined.shape}")
-            
-            # Merge with resampled data
-            # Need to align indices - DailyState will have fewer timestamps
-            df_rsmp = pd.concat([df_rsmp, df_dailystate_combined], axis=1, sort=True)
-        else:
-            logger_supy.warning("No DailyState data found after processing")
 
     # clean results
     df_rsmp = df_rsmp.dropna(how="all", axis=0)

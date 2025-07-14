@@ -72,12 +72,36 @@ class TestResampleOutput:
         print(f"After dropna(how='all'): {df_after_dropna_all.shape}")
         print(f"Non-NaN values in original: {df_dailystate_original.notna().sum().sum()}")
         
-        # Show column-wise NaN analysis
-        col_nan_counts = df_dailystate_original.isna().sum()
-        print(f"\nColumns with mixed NaN values:")
-        mixed_nan_cols = col_nan_counts[(col_nan_counts > 0) & (col_nan_counts < len(df_dailystate_original))]
+        # Show column-wise NaN analysis BEFORE dropna
+        col_nan_counts_before = df_dailystate_original.isna().sum()
+        print(f"\nColumns with mixed NaN values BEFORE dropna(how='all'):")
+        mixed_nan_cols = col_nan_counts_before[(col_nan_counts_before > 0) & (col_nan_counts_before < len(df_dailystate_original))]
         for col, nan_count in mixed_nan_cols.items():
             print(f"  {col}: {nan_count} NaN out of {len(df_dailystate_original)} rows")
+        
+        # NOW ANALYZE AFTER dropna(how='all')
+        print(f"\n=== AFTER dropna(how='all') ===")
+        print(f"Remaining shape: {df_after_dropna_all.shape}")
+        
+        if not df_after_dropna_all.empty:
+            # Analyze NaN patterns in the remaining rows
+            col_nan_counts_after = df_after_dropna_all.isna().sum()
+            cols_with_nan_after = col_nan_counts_after[col_nan_counts_after > 0]
+            
+            print(f"\nColumns that STILL have NaN after dropna(how='all'):")
+            if len(cols_with_nan_after) > 0:
+                for col, nan_count in cols_with_nan_after.items():
+                    nan_pct = (nan_count / len(df_after_dropna_all)) * 100
+                    print(f"  {col}: {nan_count} NaN ({nan_pct:.1f}%)")
+            else:
+                print("  None - all remaining rows have complete data")
+            
+            # Show which rows have data
+            print(f"\nRows with data (timestamps):")
+            for i, idx in enumerate(df_after_dropna_all.index[:5]):
+                print(f"  {i+1}. {idx}")
+            if len(df_after_dropna_all) > 5:
+                print(f"  ... and {len(df_after_dropna_all) - 5} more rows")
         
         # Force failure to see output
         assert False, f"INTENTIONAL FAILURE: DailyState has {df_after_dropna_all.shape[0]} rows after dropna(how='all')"

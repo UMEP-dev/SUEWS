@@ -43,7 +43,13 @@ jobs:
         run: |
           uv pip install --system -e . --no-build-isolation
       
+      - name: Fail immediately for SSH access
+        run: |
+          echo "Intentionally failing to get SSH access for HDD debugging"
+          exit 1
+          
       - name: Create HDD debug test
+        if: false  # Skip this
         run: |
           cat > test/test_hdd_debug.py << 'EOF'
           """Debug test for HDD NaN issues in CI."""
@@ -210,11 +216,9 @@ jobs:
           
           python test/test_hdd_init.py
       
-      - name: Compare with local environment
-        run: |
-          echo "Environment differences that might affect HDD calculations:"
-          echo "CI gfortran version:"
-          gfortran --version
-          echo -e "\nCI system info:"
-          uname -a
-          sw_vers
+      - name: Setup tmate session for debugging
+        if: always()
+        uses: mxschmitt/action-tmate@v3
+        timeout-minutes: 30
+        with:
+          limit-access-to-actor: true

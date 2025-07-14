@@ -62,52 +62,35 @@ class TestResampleOutput:
         # Check if we have any non-NaN values after the initialization period
         non_nan_mask = df_dailystate_resampled.notna().any(axis=1)
         
-        # TEMPORARILY FORCE FAILURE to see debug output
-        # Check if dropna(how='all') is working correctly
-        df_dailystate_original = df_output.loc[:, 'DailyState']
-        df_after_dropna_all = df_dailystate_original.dropna(how='all')
-        
-        print(f"\n=== FORCED DEBUG OUTPUT ===")
-        print(f"Original DailyState shape: {df_dailystate_original.shape}")
-        print(f"After dropna(how='all'): {df_after_dropna_all.shape}")
-        print(f"Non-NaN values in original: {df_dailystate_original.notna().sum().sum()}")
-        
-        # Show column-wise NaN analysis BEFORE dropna
-        col_nan_counts_before = df_dailystate_original.isna().sum()
-        print(f"\nColumns with mixed NaN values BEFORE dropna(how='all'):")
-        mixed_nan_cols = col_nan_counts_before[(col_nan_counts_before > 0) & (col_nan_counts_before < len(df_dailystate_original))]
-        for col, nan_count in mixed_nan_cols.items():
-            print(f"  {col}: {nan_count} NaN out of {len(df_dailystate_original)} rows")
-        
-        # NOW ANALYZE AFTER dropna(how='all')
-        print(f"\n=== AFTER dropna(how='all') ===")
-        print(f"Remaining shape: {df_after_dropna_all.shape}")
-        
-        if not df_after_dropna_all.empty:
-            # Analyze NaN patterns in the remaining rows
-            col_nan_counts_after = df_after_dropna_all.isna().sum()
-            cols_with_nan_after = col_nan_counts_after[col_nan_counts_after > 0]
+        # Additional HDD-specific debugging for CI
+        import os
+        if os.environ.get('GITHUB_ACTIONS', 'false').lower() == 'true':
+            # Check original DailyState for HDD columns
+            df_dailystate_orig = df_output.loc[:, 'DailyState']
+            df_after_dropna = df_dailystate_orig.dropna(how='all')
             
-            print(f"\nColumns that STILL have NaN after dropna(how='all'):")
-            if len(cols_with_nan_after) > 0:
-                for col, nan_count in cols_with_nan_after.items():
-                    nan_pct = (nan_count / len(df_after_dropna_all)) * 100
-                    print(f"  {col}: {nan_count} NaN ({nan_pct:.1f}%)")
-            else:
-                print("  None - all remaining rows have complete data")
-            
-            # Show which rows have data
-            print(f"\nRows with data (timestamps):")
-            for i, idx in enumerate(df_after_dropna_all.index[:5]):
-                print(f"  {i+1}. {idx}")
-            if len(df_after_dropna_all) > 5:
-                print(f"  ... and {len(df_after_dropna_all) - 5} more rows")
+            if not df_after_dropna.empty:
+                problem_cols = []
+                for col in ['HDD3_Tmean', 'HDD4_T5d']:
+                    if col in df_after_dropna.columns:
+                        if df_after_dropna[col].isna().all():
+                            problem_cols.append(col)
+                
+                if problem_cols:
+                    print(f"\n!!! HDD PROBLEM DETECTED !!!")
+                    print(f"Columns {problem_cols} are completely NaN even after dropna(how='all')")
+                    
+                    # Check initial state for base temperatures
+                    if hasattr(self, 'df_state_init'):
+                        base_t_cols = [c for c in self.df_state_init.columns if 'BaseT' in str(c)]
+                        print(f"\nBase temperature columns in initial state: {base_t_cols}")
+                    
+                    # Check if it's related to the 5-day rolling mean
+                    print(f"\nSimulation length: {len(df_output)} timesteps ({len(df_output)/288:.1f} days)")
+                    print("Note: HDD4_T5d requires 5-day rolling mean, might need longer simulation")
         
-        # Force failure to see output
-        assert False, f"INTENTIONAL FAILURE: DailyState has {df_after_dropna_all.shape[0]} rows after dropna(how='all')"
-        
-        # Original assertion (unreachable now)
-        # assert non_nan_mask.any(), "DailyState should have some non-NaN values after resampling"
+        # Original assertion
+        assert non_nan_mask.any(), "DailyState should have some non-NaN values after resampling"
         
     def test_resample_without_dailystate(self):
         """Test that resample works correctly when DailyState is not present."""

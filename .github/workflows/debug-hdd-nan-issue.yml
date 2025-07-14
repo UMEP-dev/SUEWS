@@ -1,0 +1,219 @@
+name: Debug HDD NaN Issue on ARM Mac
+
+on:
+  push:
+    paths:
+      - ".github/workflows/debug-hdd-nan-issue.yml"
+      - "test/test_hdd_debug.py"
+      - "src/supy/**"
+      - "src/suews/**"
+  
+  workflow_dispatch:
+
+jobs:
+  debug_hdd_nan:
+    name: Debug HDD NaN on cp312 ARM Mac  
+    runs-on: macos-latest  # ARM64 Mac
+    
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      
+      - name: Install gfortran
+        run: brew install gfortran
+      
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+      
+      - name: Install dependencies
+        run: |
+          uv pip install --system --upgrade pip
+          uv pip install --system -r .github/requirements-ci.txt
+      
+      - name: Build and install supy
+        run: |
+          uv pip install --system -e . --no-build-isolation
+      
+      - name: Create HDD debug test
+        run: |
+          cat > test/test_hdd_debug.py << 'EOF'
+          """Debug test for HDD NaN issues in CI."""
+          import numpy as np
+          import pandas as pd
+          import supy as sp
+          import platform
+          import sys
+          
+          def test_hdd_nan_debug():
+              print(f"\n{'='*60}")
+              print("HDD NaN DEBUG TEST")
+              print(f"Platform: {platform.system()} {platform.machine()}")
+              print(f"Python: {sys.version}")
+              print(f"NumPy: {np.__version__}")
+              print(f"Pandas: {pd.__version__}")
+              print(f"{'='*60}\n")
+              
+              # Load sample data
+              df_state_init, df_forcing = sp.load_SampleData()
+              
+              # Check initial state for HDD-related parameters
+              print("Initial state HDD-related parameters:")
+              hdd_params = [col for col in df_state_init.columns if 'HDD' in str(col) or 'BaseT' in str(col)]
+              for param in hdd_params:
+                  if param in df_state_init.columns:
+                      val = df_state_init.loc[0, param]
+                      print(f"  {param}: {val}")
+              
+              # Run simulation
+              df_forcing_multi_day = df_forcing.iloc[:288*10]  # 10 days
+              print(f"\nRunning simulation for {len(df_forcing_multi_day)} timesteps...")
+              
+              # Enable debug mode to get more info
+              df_output, df_state_final = sp.run_supy(
+                  df_forcing_multi_day, 
+                  df_state_init,
+                  debug_mode=True
+              )
+              
+              # Check DailyState
+              if 'DailyState' not in df_output.columns.get_level_values('group').unique():
+                  print("ERROR: No DailyState in output!")
+                  return
+              
+              df_dailystate = df_output.loc[:, 'DailyState']
+              print(f"\nDailyState shape: {df_dailystate.shape}")
+              
+              # Analyze HDD columns
+              hdd_cols = ['HDD1_h', 'HDD2_c', 'HDD3_Tmean', 'HDD4_T5d']
+              print("\nHDD column analysis:")
+              for col in hdd_cols:
+                  if col in df_dailystate.columns:
+                      nan_count = df_dailystate[col].isna().sum()
+                      nan_pct = (nan_count / len(df_dailystate)) * 100
+                      print(f"\n{col}:")
+                      print(f"  Total NaN: {nan_count}/{len(df_dailystate)} ({nan_pct:.1f}%)")
+                      
+                      # Check after dropna
+                      df_after_dropna = df_dailystate.dropna(how='all')
+                      if not df_after_dropna.empty and col in df_after_dropna.columns:
+                          nan_after = df_after_dropna[col].isna().sum()
+                          if nan_after == 0:
+                              print(f"  After dropna: All {len(df_after_dropna)} rows have data")
+                              print(f"  Values: {df_after_dropna[col].describe()}")
+                          else:
+                              print(f"  After dropna: {nan_after}/{len(df_after_dropna)} still NaN!")
+                              # This is the problem case
+                              if nan_after == len(df_after_dropna):
+                                  print(f"  WARNING: {col} is COMPLETELY NaN even after dropna!")
+              
+              # Check debug output for HDD calculations
+              if 'debug' in df_output.columns.get_level_values('group').unique():
+                  df_debug = df_output.loc[:, 'debug']
+                  debug_hdd_cols = [col for col in df_debug.columns if 'HDD' in str(col) or 'GDD' in str(col)]
+                  if debug_hdd_cols:
+                      print(f"\nDebug columns related to HDD: {debug_hdd_cols}")
+              
+              # Check temperature data used for HDD calculations
+              df_met = df_output.loc[:, 'met']
+              if 'Tair' in df_met.columns:
+                  print(f"\nTemperature statistics:")
+                  print(f"  Tair range: {df_met.Tair.min():.2f} to {df_met.Tair.max():.2f}")
+                  print(f"  Tair mean: {df_met.Tair.mean():.2f}")
+                  print(f"  Any NaN in Tair: {df_met.Tair.isna().any()}")
+              
+              # Check if HDD3_Tmean and HDD4_T5d are the problem
+              problem_cols = []
+              df_after_dropna = df_dailystate.dropna(how='all')
+              if not df_after_dropna.empty:
+                  for col in ['HDD3_Tmean', 'HDD4_T5d']:
+                      if col in df_after_dropna.columns:
+                          if df_after_dropna[col].isna().all():
+                              problem_cols.append(col)
+              
+              if problem_cols:
+                  print(f"\n{'!'*60}")
+                  print(f"PROBLEM IDENTIFIED: {problem_cols} are completely NaN!")
+                  print(f"{'!'*60}")
+                  
+                  # Try to understand why
+                  print("\nInvestigating potential causes...")
+                  
+                  # Check if it's a 5-day rolling mean issue for HDD4_T5d
+                  if 'HDD4_T5d' in problem_cols:
+                      print("\nHDD4_T5d uses a 5-day rolling mean.")
+                      print("With only 10 days of simulation, initialization might be an issue.")
+                  
+                  # Check base temperature settings
+                  if 'BaseT_HC' in df_state_init.columns:
+                      base_t = df_state_init.loc[0, 'BaseT_HC']
+                      print(f"\nBase temperature for heating/cooling: {base_t}")
+              
+              # Force assertion to see all output
+              assert len(problem_cols) == 0, f"Columns {problem_cols} are completely NaN in DailyState!"
+          
+          if __name__ == "__main__":
+              test_hdd_nan_debug()
+          EOF
+      
+      - name: Run HDD debug test
+        run: |
+          python test/test_hdd_debug.py
+      
+      - name: Run actual resample test with more debug
+        run: |
+          # Run just the specific test with verbose output
+          python -m pytest test/test_resample_output.py::TestResampleOutput::test_resample_with_dailystate -v -s
+      
+      - name: Check HDD initialization
+        run: |
+          # Create a test to check HDD initialization
+          cat > test/test_hdd_init.py << 'EOF'
+          """Test HDD initialization values."""
+          import numpy as np
+          import pandas as pd
+          import supy as sp
+          
+          # Load sample data
+          df_state_init, df_forcing = sp.load_SampleData()
+          
+          print("Checking HDD_id in initial state:")
+          if 'hdd_id' in df_state_init.columns:
+              hdd_val = df_state_init.loc[0, 'hdd_id']
+              print(f"  hdd_id type: {type(hdd_val)}")
+              print(f"  hdd_id value: {hdd_val}")
+              
+              # If it's a list or array, check individual elements
+              if hasattr(hdd_val, '__len__'):
+                  print(f"  hdd_id length: {len(hdd_val)}")
+                  for i, val in enumerate(hdd_val):
+                      print(f"    hdd_id[{i}] = {val}")
+                      if pd.isna(val) or np.isnan(val):
+                          print(f"      WARNING: hdd_id[{i}] is NaN!")
+          else:
+              print("  ERROR: hdd_id not found in initial state!")
+              
+          # Also check if it's nested in another structure
+          for col in df_state_init.columns:
+              if 'hdd' in str(col).lower():
+                  print(f"\nFound HDD-related column: {col}")
+                  print(f"  Value: {df_state_init.loc[0, col]}")
+          EOF
+          
+          python test/test_hdd_init.py
+      
+      - name: Compare with local environment
+        run: |
+          echo "Environment differences that might affect HDD calculations:"
+          echo "CI gfortran version:"
+          gfortran --version
+          echo -e "\nCI system info:"
+          uname -a
+          sw_vers

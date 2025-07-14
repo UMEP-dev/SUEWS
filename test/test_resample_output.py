@@ -8,16 +8,18 @@ from supy._post import resample_output, dict_var_aggm
 
 # Import debug utilities
 try:
-    from .debug_utils import debug_on_ci, capture_test_artifacts
+    from .debug_utils import debug_on_ci, capture_test_artifacts, analyze_dailystate_nan
 except ImportError:
     # Fallback if decorators not available
     def debug_on_ci(func): return func
     def capture_test_artifacts(name): return lambda func: func
+    def analyze_dailystate_nan(func): return func
 
 
 class TestResampleOutput:
     """Test suite for resample_output functionality."""
 
+    @analyze_dailystate_nan  # Add NaN analysis even when test passes
     @debug_on_ci
     @capture_test_artifacts('dailystate_resample')
     def test_resample_with_dailystate(self):

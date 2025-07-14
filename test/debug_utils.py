@@ -233,3 +233,128 @@ def capture_test_artifacts(artifact_name):
         
         return wrapper
     return decorator
+
+
+def analyze_dailystate_nan(func):
+    """
+    Decorator specifically for DailyState tests that logs NaN patterns
+    even when tests pass. Only activates for cp312 on ARM Mac in CI.
+    """
+    @functools.wraps(func)
+    def wrapper(self, *args, **kwargs):
+        import os
+        import platform
+        
+        # Check if we're in CI on ARM Mac with Python 3.12
+        is_ci = os.environ.get('GITHUB_ACTIONS', 'false').lower() == 'true'
+        is_arm_mac = platform.machine() == 'arm64' and platform.system() == 'Darwin'
+        is_py312 = sys.version_info[:2] == (3, 12)
+        
+        should_analyze = is_ci and is_arm_mac and is_py312
+        
+        if should_analyze:
+            print(f"\n{'='*60}")
+            print(f"DAILYSTATE NaN ANALYSIS (cp312 ARM Mac)")
+            print(f"Test: {func.__name__}")
+            print(f"Time: {datetime.now()}")
+            print(f"{'='*60}")
+        
+        # Run the test
+        result = func(self, *args, **kwargs)
+        
+        # After test passes, analyze DailyState if available
+        if should_analyze:
+            try:
+                # Try to find df_output in the test instance or locals
+                df_output = None
+                
+                # Check instance attributes
+                if hasattr(self, 'df_output'):
+                    df_output = self.df_output
+                else:
+                    # Try to access from function's local variables
+                    # This is a bit hacky but useful for debugging
+                    import inspect
+                    frame = inspect.currentframe()
+                    if frame and frame.f_back and frame.f_back.f_locals:
+                        df_output = frame.f_back.f_locals.get('df_output')
+                
+                if df_output is not None and 'DailyState' in df_output.columns.get_level_values('group').unique():
+                    df_dailystate = df_output.loc[:, 'DailyState']
+                    
+                    print(f"\nDailyState shape: {df_dailystate.shape}")
+                    print(f"Total values: {df_dailystate.size}")
+                    print(f"Non-NaN values: {df_dailystate.notna().sum().sum()}")
+                    print(f"NaN percentage: {(df_dailystate.isna().sum().sum() / df_dailystate.size * 100):.2f}%")
+                    
+                    # Analyze NaN patterns by column
+                    col_nan_counts = df_dailystate.isna().sum()
+                    col_nan_pct = (col_nan_counts / len(df_dailystate) * 100).round(2)
+                    
+                    # Group columns by NaN pattern
+                    always_nan = col_nan_counts[col_nan_counts == len(df_dailystate)]
+                    never_nan = col_nan_counts[col_nan_counts == 0]
+                    sometimes_nan = col_nan_counts[(col_nan_counts > 0) & (col_nan_counts < len(df_dailystate))]
+                    
+                    if len(always_nan) > 0:
+                        print(f"\nColumns ALWAYS NaN ({len(always_nan)}):")
+                        for col in always_nan.index[:10]:
+                            print(f"  - {col}")
+                        if len(always_nan) > 10:
+                            print(f"  ... and {len(always_nan) - 10} more")
+                    
+                    if len(never_nan) > 0:
+                        print(f"\nColumns NEVER NaN ({len(never_nan)}):")
+                        for col in never_nan.index[:10]:
+                            print(f"  - {col}")
+                        if len(never_nan) > 10:
+                            print(f"  ... and {len(never_nan) - 10} more")
+                    
+                    if len(sometimes_nan) > 0:
+                        print(f"\nColumns with MIXED NaN ({len(sometimes_nan)}):")
+                        for col in sometimes_nan.index:
+                            nan_pct = col_nan_pct[col]
+                            print(f"  - {col}: {nan_pct}% NaN")
+                    
+                    # Analyze temporal pattern
+                    rows_with_any_data = ~df_dailystate.isna().all(axis=1)
+                    if rows_with_any_data.any():
+                        indices_with_data = df_dailystate.index[rows_with_any_data]
+                        print(f"\nTemporal pattern:")
+                        print(f"  Rows with data: {len(indices_with_data)} out of {len(df_dailystate)}")
+                        print(f"  First data at: {indices_with_data[0]}")
+                        print(f"  Last data at: {indices_with_data[-1]}")
+                        
+                        # Check if it's truly daily (end of day pattern)
+                        if len(indices_with_data) > 1:
+                            time_diffs = pd.Series(indices_with_data).diff().dropna()
+                            unique_diffs = time_diffs.value_counts()
+                            print(f"  Time intervals between data points:")
+                            for diff, count in unique_diffs.head(3).items():
+                                print(f"    {diff}: {count} occurrences")
+                    
+                    # After resampling analysis
+                    if hasattr(self, 'df_resampled') or 'df_resampled' in frame.f_back.f_locals:
+                        df_resampled = getattr(self, 'df_resampled', None) or frame.f_back.f_locals.get('df_resampled')
+                        if df_resampled is not None and 'DailyState' in df_resampled.columns.get_level_values('group').unique():
+                            df_dailystate_resampled = df_resampled.loc[:, 'DailyState']
+                            print(f"\nAfter resampling:")
+                            print(f"  Shape: {df_dailystate_resampled.shape}")
+                            print(f"  Non-NaN values: {df_dailystate_resampled.notna().sum().sum()}")
+                            print(f"  NaN percentage: {(df_dailystate_resampled.isna().sum().sum() / df_dailystate_resampled.size * 100):.2f}%")
+                
+                else:
+                    print("\nNo DailyState data found in output")
+                    
+            except Exception as e:
+                print(f"\nError during DailyState analysis: {type(e).__name__}: {str(e)}")
+                import traceback
+                traceback.print_exc()
+            
+            print(f"\n{'='*60}")
+            print(f"Test {func.__name__} completed successfully")
+            print(f"{'='*60}\n")
+        
+        return result
+    
+    return wrapper

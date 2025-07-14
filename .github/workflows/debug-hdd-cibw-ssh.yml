@@ -1,0 +1,194 @@
+name: Debug HDD with CIBW and SSH
+
+on:
+  workflow_dispatch:
+
+jobs:
+  debug_hdd_cibw:
+    name: Debug HDD in CIBW Environment
+    runs-on: macos-latest  # ARM64 Mac
+    
+    env:
+      CIBW_BUILD: cp312-macosx*
+      CIBW_ARCHS: arm64
+      CIBW_TEST_REQUIRES: pytest pytest-order
+      CIBW_TEST_COMMAND: "python -m pytest {project}/test/test_resample_output.py::TestResampleOutput::test_resample_with_dailystate -v -s || true"
+      CIBW_BEFORE_ALL_MACOS: >
+        brew install gfortran &&
+        brew unlink gfortran &&
+        brew link gfortran
+    
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: 3.12
+      
+      - name: Build wheels (expecting failure)
+        id: build
+        continue-on-error: true
+        uses: pypa/cibuildwheel@v3.0.0
+      
+      - name: Prepare debug script
+        if: always()
+        run: |
+          cat > ~/debug_hdd_issue.sh << 'EOF'
+          #!/bin/bash
+          echo "==================================="
+          echo "HDD NaN Debug Environment Setup"
+          echo "==================================="
+          
+          # Function to install Claude Code
+          install_claude() {
+              echo "Installing Claude Code..."
+              if command -v claude &> /dev/null; then
+                  echo "Claude Code already installed"
+              else
+                  echo "Installing via npm..."
+                  npm install -g @anthropic-ai/claude-cli
+                  # Or via homebrew if npm fails
+                  if ! command -v claude &> /dev/null; then
+                      echo "Trying homebrew..."
+                      brew install claude
+                  fi
+              fi
+          }
+          
+          # Function to set up Python environment
+          setup_python_env() {
+              echo -e "\nSetting up Python environment..."
+              # Find the cibuildwheel virtualenv
+              CIBW_VENV=$(find /private/var/folders -name "cp312-*" -type d 2>/dev/null | grep -E "cibw.*cp312" | head -1)
+              
+              if [ -n "$CIBW_VENV" ]; then
+                  echo "Found cibuildwheel venv at: $CIBW_VENV"
+                  source "$CIBW_VENV/bin/activate"
+              else
+                  echo "Creating fresh environment..."
+                  python3.12 -m venv debug_env
+                  source debug_env/bin/activate
+              fi
+              
+              # Install dependencies
+              pip install --upgrade pip
+              pip install pandas numpy pytest
+          }
+          
+          # Function to build supy from scratch
+          build_supy_fresh() {
+              echo -e "\nBuilding supy from scratch..."
+              cd $GITHUB_WORKSPACE
+              
+              # Clean any previous builds
+              rm -rf build dist *.egg-info
+              
+              # Install build dependencies
+              pip install meson-python meson ninja numpy
+              
+              # Build with verbose output
+              pip install -e . --no-build-isolation -v
+          }
+          
+          # Function to run the specific test
+          run_hdd_test() {
+              echo -e "\nRunning HDD debug test..."
+              cd $GITHUB_WORKSPACE
+              
+              # Create debug test
+              cat > test_hdd_debug_manual.py << 'PYTEST'
+          import numpy as np
+          import pandas as pd
+          import supy as sp
+          import sys
+          import platform
+          
+          print(f"Platform: {platform.system()} {platform.machine()}")
+          print(f"Python: {sys.version}")
+          print(f"NumPy: {np.__version__}")
+          print(f"Pandas: {pd.__version__}")
+          
+          # Load and run
+          df_state_init, df_forcing = sp.load_SampleData()
+          
+          # Check HDD initial values
+          print("\nHDD_id initial values:")
+          for i in range(12):
+              col = ('hdd_id', f'({i},)')
+              if col in df_state_init.columns:
+                  val = df_state_init.iloc[0][col]
+                  print(f"  hdd_id[{i}] = {val}")
+          
+          # Run simulation
+          df_forcing_10day = df_forcing.iloc[:288*10]
+          df_output, df_state = sp.run_supy(df_forcing_10day, df_state_init)
+          
+          # Check DailyState
+          df_dailystate = df_output.loc[:, 'DailyState']
+          df_after_dropna = df_dailystate.dropna(how='all')
+          
+          print(f"\nDailyState after dropna(how='all'): {df_after_dropna.shape}")
+          
+          # Check HDD columns
+          for col in ['HDD1_h', 'HDD2_c', 'HDD3_Tmean', 'HDD4_T5d']:
+              if col in df_after_dropna.columns:
+                  nan_count = df_after_dropna[col].isna().sum()
+                  if nan_count == len(df_after_dropna):
+                      print(f"PROBLEM: {col} is completely NaN!")
+                  else:
+                      print(f"{col}: {len(df_after_dropna) - nan_count} valid values")
+          PYTEST
+              
+              python test_hdd_debug_manual.py
+          }
+          
+          # Function to explore Fortran internals
+          explore_fortran() {
+              echo -e "\nExploring Fortran HDD calculations..."
+              cd $GITHUB_WORKSPACE/src/suews/src
+              
+              echo "Files with HDD calculations:"
+              grep -l "HDD_id" *.f95
+              
+              echo -e "\nKey HDD update logic:"
+              grep -A5 -B5 "HDD_id(3)" suews_phys_dailystate.f95 | head -20
+              
+              echo -e "\ndt_since_start usage:"
+              grep -n "dt_since_start" suews_phys_dailystate.f95 | head -10
+          }
+          
+          # Main menu
+          echo -e "\nDebug options:"
+          echo "1. Install Claude Code"
+          echo "2. Set up Python environment"
+          echo "3. Build supy from scratch"
+          echo "4. Run HDD debug test"
+          echo "5. Explore Fortran HDD code"
+          echo "6. Start interactive Python with supy"
+          echo "7. Run all steps in sequence"
+          
+          echo -e "\nEnvironment info:"
+          echo "GITHUB_WORKSPACE: $GITHUB_WORKSPACE"
+          echo "Current directory: $(pwd)"
+          echo "Python: $(which python3.12)"
+          echo "Gfortran: $(which gfortran)"
+          gfortran --version | head -1
+          
+          # Quick command reference
+          echo -e "\nQuick commands:"
+          echo "source ~/debug_hdd_issue.sh  # Re-run this script"
+          echo "cd $GITHUB_WORKSPACE         # Go to repo root"
+          EOF
+          
+          chmod +x ~/debug_hdd_issue.sh
+          echo "Debug script prepared at: ~/debug_hdd_issue.sh"
+      
+      - name: Setup tmate session for debugging
+        if: always()
+        uses: mxschmitt/action-tmate@v3
+        timeout-minutes: 30
+        with:
+          limit-access-to-actor: true

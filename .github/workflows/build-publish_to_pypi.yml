@@ -211,12 +211,13 @@ jobs:
         gcc --version &&
         pip install delvewheel
       CIBW_REPAIR_WHEEL_COMMAND_WINDOWS: "delvewheel repair -w {dest_dir} {wheel}"
-      CIBW_TEST_REQUIRES: pytest
+      CIBW_TEST_REQUIRES: pytest pytest-order
       # Run ALL tests including sample output to validate the built wheel
       # Even though sample output ran in fast-fail, we run it again here because:
       # 1. This tests the actual wheel, not source
       # 2. Different build environment may expose issues
       # 3. Ensures wheel is properly packaged and functional
+      # Note: pytest-order ensures test_sample_output runs first to avoid Fortran state interference
       CIBW_TEST_COMMAND_MACOS: "python -m pytest '{project}/test'"
       CIBW_TEST_COMMAND_LINUX: "python -m pytest '{project}/test'"
       CIBW_TEST_COMMAND_WINDOWS: "python -m pytest {project}\\test"

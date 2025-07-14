@@ -20,6 +20,7 @@ numpy>=2.0
 
 # Testing
 pytest
+pytest-order  # Control test execution order
 
 # Additional build dependencies
 cffi  # Required by timezonefinder

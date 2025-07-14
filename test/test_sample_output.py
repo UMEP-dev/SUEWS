@@ -26,13 +26,27 @@ Note on NumPy Compatibility:
 Python 3.9 requires NumPy 1.x due to f90wrap binary compatibility issues.
 Python 3.10+ can use NumPy 2.0. This is handled in pyproject.toml build requirements.
 
-Known Issue - Test Interference:
-This test may fail when run as part of the full test suite due to caching
-interference from other tests. However, it passes reliably when run individually:
+Test Ordering Solution:
+This test uses @pytest.mark.order(1) to run first in the test suite, avoiding
+Fortran model state interference from other tests. If pytest-order is not installed,
+the test may fail when run as part of the full suite but will pass individually:
     pytest test/test_sample_output.py
 
-This is due to complex LRU caching in the supy._load module that maintains state
-between tests. The test validates core functionality correctly when run in isolation.
+Root cause:
+- The Fortran model maintains internal state between test runs
+- When other tests run first, they leave the model in a different state
+- This causes small numerical differences that accumulate over a year-long simulation
+- The force_reload parameter doesn't help as it's ignored for YAML config files
+
+CI/CD Configuration:
+- pytest-order is included in pyproject.toml[project.optional-dependencies.dev]
+- pytest-order is included in .github/requirements-ci.txt for CI environments
+- The test will run first automatically in CI/CD pipelines
+
+Install pytest-order to ensure correct test execution:
+    pip install pytest-order
+    # or with dev dependencies:
+    pip install -e ".[dev]"
 """
 
 import os
@@ -43,9 +57,13 @@ import tempfile
 from pathlib import Path
 from unittest import TestCase, skipUnless
 import warnings
+from functools import wraps
+import traceback
+from datetime import datetime
 
 import numpy as np
 import pandas as pd
+import pytest
 
 import supy as sp
 
@@ -251,6 +269,7 @@ def compare_arrays_with_tolerance(actual, expected, rtol, atol, var_name=""):
 # TEST CLASS
 # ============================================================================
 
+@pytest.mark.order(1)  # Run this test first to avoid state interference
 class TestSampleOutput(TestCase):
     """Dedicated test class for validating SUEWS outputs against reference data."""
     
@@ -270,6 +289,17 @@ class TestSampleOutput(TestCase):
                     obj.cache_clear()
                 except:
                     pass
+        
+        # More aggressive cache clearing for supy._load module
+        try:
+            import supy._load
+            # Clear specific caches in _load module
+            for attr_name in dir(supy._load):
+                attr = getattr(supy._load, attr_name)
+                if hasattr(attr, 'cache_clear'):
+                    attr.cache_clear()
+        except:
+            pass
         
         # Check if running in CI
         self.in_ci = os.environ.get('CI', '').lower() == 'true'
@@ -382,7 +412,20 @@ class TestSampleOutput(TestCase):
         # Load sample data - use test data from the test directory
         # The sample data represents typical urban conditions
         print("\nLoading test data...")
-        df_state_init, df_forcing_tstep = sp.load_SampleData()
+        
+        # Force reload to avoid cache interference
+        # This is a workaround for the caching issue in supy._load
+        from pathlib import Path
+        import supy as sp
+        trv_sample_data = Path(sp.__file__).parent / "sample_run"
+        path_config_default = trv_sample_data / "sample_config.yml"
+        
+        # Force reload to clear any cached state
+        df_state_init = sp.init_supy(path_config_default, force_reload=True)
+        df_forcing_tstep = sp.load_forcing_grid(
+            path_config_default, df_state_init.index[0], df_state_init=df_state_init
+        )
+        
         df_forcing_part = df_forcing_tstep.iloc[: 288 * 366]  # One year (2012 is a leap year)
         
         # Run simulation - full year to capture seasonal variations

@@ -100,9 +100,20 @@ suews:
 # ref: https://mesonbuild.com/meson-python/how-to-guides/editable-installs.html#editable-installs
 dev:
 	@echo "Building supy with development install..."
-	@# Check if uv is available for faster installation
-	@if command -v uv >/dev/null 2>&1; then \
+	@# Smart environment detection: use pip in mamba/conda, uv in venv
+	@if [ -n "$$CONDA_DEFAULT_ENV" ] || [ -n "$$MAMBA_DEFAULT_ENV" ]; then \
+		echo "Detected mamba/conda environment - using pip for compatibility"; \
+		if [ -x "/opt/homebrew/bin/gfortran" ]; then \
+			echo "Using Homebrew gfortran for better macOS compatibility"; \
+			FC=/opt/homebrew/bin/gfortran $(PYTHON) -m pip install --no-build-isolation --editable .; \
+		else \
+			$(PYTHON) -m pip install --no-build-isolation --editable .; \
+		fi \
+	elif command -v uv >/dev/null 2>&1; then \
 		echo "Found uv - using for ultra-fast installation!"; \
+		if [ -n "$$VIRTUAL_ENV" ]; then \
+			echo "Detected venv environment"; \
+		fi; \
 		if [ -x "/opt/homebrew/bin/gfortran" ]; then \
 			echo "Using Homebrew gfortran for better macOS compatibility"; \
 			FC=/opt/homebrew/bin/gfortran uv pip install --no-build-isolation --editable .; \
@@ -110,6 +121,7 @@ dev:
 			uv pip install --no-build-isolation --editable .; \
 		fi \
 	else \
+		echo "Using standard pip installation"; \
 		if [ -x "/opt/homebrew/bin/gfortran" ]; then \
 			echo "Using Homebrew gfortran for better macOS compatibility"; \
 			FC=/opt/homebrew/bin/gfortran $(PYTHON) -m pip install --no-build-isolation --editable .; \
@@ -121,9 +133,20 @@ dev:
 # make supy and install locally with fast build optimizations
 dev-fast:
 	@echo "Building supy with fast development install (optimized compiler flags)..."
-	@# Check if uv is available for faster installation
-	@if command -v uv >/dev/null 2>&1; then \
+	@# Smart environment detection: use pip in mamba/conda, uv in venv
+	@if [ -n "$$CONDA_DEFAULT_ENV" ] || [ -n "$$MAMBA_DEFAULT_ENV" ]; then \
+		echo "Detected mamba/conda environment - using pip for compatibility"; \
+		if [ -x "/opt/homebrew/bin/gfortran" ]; then \
+			echo "Using Homebrew gfortran with fast build optimizations"; \
+			FC=/opt/homebrew/bin/gfortran $(PYTHON) -m pip install --no-build-isolation --editable . --config-settings=setup-args=-Dfast_build=true; \
+		else \
+			$(PYTHON) -m pip install --no-build-isolation --editable . --config-settings=setup-args=-Dfast_build=true; \
+		fi \
+	elif command -v uv >/dev/null 2>&1; then \
 		echo "Found uv - using for ultra-fast installation!"; \
+		if [ -n "$$VIRTUAL_ENV" ]; then \
+			echo "Detected venv environment"; \
+		fi; \
 		if [ -x "/opt/homebrew/bin/gfortran" ]; then \
 			echo "Using Homebrew gfortran with fast build optimizations"; \
 			FC=/opt/homebrew/bin/gfortran uv pip install --no-build-isolation --editable . --config-settings=setup-args=-Dfast_build=true; \
@@ -131,6 +154,7 @@ dev-fast:
 			uv pip install --no-build-isolation --editable . --config-settings=setup-args=-Dfast_build=true; \
 		fi \
 	else \
+		echo "Using standard pip installation"; \
 		if [ -x "/opt/homebrew/bin/gfortran" ]; then \
 			echo "Using Homebrew gfortran with fast build optimizations"; \
 			FC=/opt/homebrew/bin/gfortran $(PYTHON) -m pip install --no-build-isolation --editable . --config-settings=setup-args=-Dfast_build=true; \
@@ -141,19 +165,30 @@ dev-fast:
 
 # install supy locally
 install:
-	@if command -v uv >/dev/null 2>&1; then \
+	@if [ -n "$$CONDA_DEFAULT_ENV" ] || [ -n "$$MAMBA_DEFAULT_ENV" ]; then \
+		echo "Detected mamba/conda environment - using pip for compatibility"; \
+		$(PYTHON) -m pip install .; \
+	elif command -v uv >/dev/null 2>&1; then \
 		echo "Using uv for installation..."; \
+		if [ -n "$$VIRTUAL_ENV" ]; then \
+			echo "Detected venv environment"; \
+		fi; \
 		uv pip install .; \
 	else \
+		echo "Using standard pip installation"; \
 		$(PYTHON) -m pip install .; \
 	fi
 
 # make supy dist and test
 test:
-	@if command -v uv >/dev/null 2>&1 && [ -n "$${UV_RUN:-}" ]; then \
+	@if [ -n "$$CONDA_DEFAULT_ENV" ] || [ -n "$$MAMBA_DEFAULT_ENV" ]; then \
+		echo "Running tests in mamba/conda environment..."; \
+		$(PYTHON) -m pytest test -v --tb=short; \
+	elif command -v uv >/dev/null 2>&1 && [ -z "$$CONDA_DEFAULT_ENV" ] && [ -z "$$MAMBA_DEFAULT_ENV" ]; then \
 		echo "Running tests with uv..."; \
 		uv run pytest test -v --tb=short; \
 	else \
+		echo "Running tests with standard Python..."; \
 		$(PYTHON) -m pytest test -v --tb=short; \
 	fi
 

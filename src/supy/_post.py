@@ -3,6 +3,7 @@ import pandas as pd
 import copy
 from .supy_driver import suews_driver as sd
 from .supy_driver import suews_def_dts as sd_dts
+from ._env import logger_supy
 
 
 ##############################################################################
@@ -202,10 +203,35 @@ def resample_output(df_output, freq="60T", dict_aggm=dict_var_aggm):
         # Only apply dropna to DailyState group
         # Other groups may have NaN values in some variables (e.g., Fcld)
         if group_name == 'DailyState':
-            # For DailyState, we need to handle sparse data carefully
-            # First check if there's any data to resample
+            # Log detailed information for debugging
+            logger_supy.debug(f"DailyState resampling - original shape: {df_group.shape}")
+            logger_supy.debug(f"DailyState resampling - non-NaN count: {df_group.notna().sum().sum()}")
+            
+            # Check which rows have any non-NaN values
+            rows_with_data = ~df_group.isna().all(axis=1)
+            logger_supy.debug(f"DailyState resampling - rows with any data: {rows_with_data.sum()}")
+            
+            # Show first few rows with data
+            if rows_with_data.any():
+                indices_with_data = df_group.index[rows_with_data]
+                logger_supy.debug(f"DailyState resampling - first 5 timestamps with data: {indices_with_data[:5].tolist()}")
+                
+                # Check pattern of NaN values in rows with data
+                for idx in indices_with_data[:3]:  # Check first 3 rows with data
+                    row_data = df_group.loc[idx]
+                    non_nan_count = row_data.notna().sum()
+                    logger_supy.debug(f"DailyState resampling - row {idx}: {non_nan_count}/{len(row_data)} non-NaN values")
+            
+            # Apply dropna
             df_with_data = df_group.dropna(how='all')
+            logger_supy.debug(f"DailyState resampling - shape after dropna(how='all'): {df_with_data.shape}")
+            
+            # Try different dropna strategies for debugging
+            df_dropna_any = df_group.dropna()
+            logger_supy.debug(f"DailyState resampling - shape after dropna(): {df_dropna_any.shape}")
+            
             if df_with_data.empty:
+                logger_supy.warning("DailyState resampling - DataFrame empty after dropna(how='all')")
                 # If no data, return empty DataFrame with proper structure
                 return pd.DataFrame(index=pd.DatetimeIndex([]), columns=df_group.columns)
             
@@ -216,10 +242,15 @@ def resample_output(df_output, freq="60T", dict_aggm=dict_var_aggm):
                 label=label
             ).agg(dict_aggm_group)
             
+            logger_supy.debug(f"DailyState resampling - shape after resample: {df_resampled.shape}")
+            logger_supy.debug(f"DailyState resampling - non-NaN count after resample: {df_resampled.notna().sum().sum()}")
+            
             # Reindex to match the expected output timerange
             # This ensures we have the full time range even if data is sparse
             full_index = df_group.resample(freq, closed="right", label=label).asfreq().index
             df_resampled = df_resampled.reindex(full_index)
+            
+            logger_supy.debug(f"DailyState resampling - final shape after reindex: {df_resampled.shape}")
             
             return df_resampled
         else:
@@ -263,31 +294,59 @@ def resample_output(df_output, freq="60T", dict_aggm=dict_var_aggm):
         names=["grid"],
     )
 
-    # Handle DailyState separately if present
+    # Handle DailyState separately - NO RESAMPLING needed
+    # Only process if DailyState is in the output AND in dict_aggm (meaning it's requested)
     if "DailyState" in df_output.columns.get_level_values('group').unique() and "DailyState" in dict_aggm:
-        # DailyState uses label="left" as it represents state at the beginning of the period
-        # whereas other variables use label="right" following SUEWS convention for period-ending values
-        df_dailystate_rsmp = pd.concat(
-            {
-                grid: pd.concat(
-                    {
-                        "DailyState": _resample_group(
-                            df_output.xs(grid, level='grid')["DailyState"],
-                            freq,
-                            "left",  # DailyState uses 'left' label
-                            dict_aggm["DailyState"],
-                            group_name="DailyState"
-                        )
-                    },
-                    axis=1,
-                    names=["group", "var"],
+        logger_supy.debug("Processing DailyState - no resampling needed for daily values")
+        
+        # Extract DailyState data for all grids
+        df_dailystate_list = []
+        for grid in list_grid:
+            df_dailystate_grid = df_output.xs(grid, level='grid')["DailyState"]
+            
+            # Log detailed info for debugging
+            logger_supy.debug(f"DailyState for grid {grid} - shape: {df_dailystate_grid.shape}")
+            logger_supy.debug(f"DailyState for grid {grid} - non-NaN count: {df_dailystate_grid.notna().sum().sum()}")
+            
+            # Check pattern of data
+            rows_with_data = ~df_dailystate_grid.isna().all(axis=1)
+            if rows_with_data.any():
+                indices_with_data = df_dailystate_grid.index[rows_with_data]
+                logger_supy.debug(f"DailyState for grid {grid} - timestamps with data: {len(indices_with_data)}")
+                logger_supy.debug(f"DailyState for grid {grid} - first 5 timestamps: {indices_with_data[:5].tolist()}")
+                
+                # Check if timestamps are at end of day (23:55 or similar)
+                hours = pd.Series(indices_with_data).dt.hour
+                minutes = pd.Series(indices_with_data).dt.minute
+                logger_supy.debug(f"DailyState for grid {grid} - unique hours with data: {hours.unique()}")
+                logger_supy.debug(f"DailyState for grid {grid} - unique minutes with data: {minutes.unique()}")
+            
+            # For DailyState, just keep the rows with data (no resampling)
+            df_dailystate_clean = df_dailystate_grid.dropna(how='all')
+            logger_supy.debug(f"DailyState for grid {grid} - shape after dropna: {df_dailystate_clean.shape}")
+            
+            if not df_dailystate_clean.empty:
+                # Add back the group level to match structure
+                df_dailystate_clean.columns = pd.MultiIndex.from_product(
+                    [["DailyState"], df_dailystate_clean.columns],
+                    names=["group", "var"]
                 )
-                for grid in list_grid
-            },
-            names=["grid"],
-        )
-
-        df_rsmp = pd.concat([df_rsmp, df_dailystate_rsmp], axis=1)
+                df_dailystate_list.append((grid, df_dailystate_clean))
+        
+        # Combine all grids' DailyState data
+        if df_dailystate_list:
+            df_dailystate_combined = pd.concat(
+                dict(df_dailystate_list),
+                names=["grid"]
+            )
+            
+            logger_supy.debug(f"DailyState combined shape: {df_dailystate_combined.shape}")
+            
+            # Merge with resampled data
+            # Need to align indices - DailyState will have fewer timestamps
+            df_rsmp = pd.concat([df_rsmp, df_dailystate_combined], axis=1, sort=True)
+        else:
+            logger_supy.warning("No DailyState data found after processing")
 
     # clean results
     df_rsmp = df_rsmp.dropna(how="all", axis=0)

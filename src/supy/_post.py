@@ -202,7 +202,7 @@ def resample_output(df_output, freq="60T", dict_aggm=dict_var_aggm):
         # Only apply dropna to DailyState group
         # Other groups may have NaN values in some variables (e.g., Fcld)
         if group_name == 'DailyState':
-            df_to_resample = df_group.dropna()
+            df_to_resample = df_group.dropna(how='all')
         else:
             df_to_resample = df_group
             

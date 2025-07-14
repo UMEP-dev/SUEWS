@@ -7,6 +7,11 @@ MODULE OHM_module
    ! USE time
 
    IMPLICIT NONE
+   
+   ! Smooth transition parameters for OHM coefficients (Issue #473)
+   ! This eliminates discontinuities at threshold temperatures
+   REAL(KIND(1D0)), PARAMETER :: TRANSITION_WIDTH = 2.0D0  ! Width of transition zone in K
+   REAL(KIND(1D0)), PARAMETER :: WETDRY_TRANSITION_WIDTH = 0.1D0  ! Width for wet/dry transition (fraction)
 CONTAINS
 !========================================================================================
    SUBROUTINE OHM(qn1, qn_av_prev, dqndt_prev, qn_av_next, dqndt_next, &
@@ -315,6 +320,15 @@ CONTAINS
 
       REAL(KIND(1D0)) :: surfrac
       INTEGER :: i, ii, is
+      ! Variables for smooth transition calculation (Issue #473)
+      REAL(KIND(1D0)) :: season_weight, wetness_weight
+      REAL(KIND(1D0)) :: a1_surface, a2_surface, a3_surface
+      REAL(KIND(1D0)) :: a1_winter_dry, a2_winter_dry, a3_winter_dry
+      REAL(KIND(1D0)) :: a1_winter_wet, a2_winter_wet, a3_winter_wet
+      REAL(KIND(1D0)) :: a1_summer_dry, a2_summer_dry, a3_summer_dry
+      REAL(KIND(1D0)) :: a1_summer_wet, a2_summer_wet, a3_summer_wet
+      REAL(KIND(1D0)) :: a1_winter, a2_winter, a3_winter
+      REAL(KIND(1D0)) :: a1_summer, a2_summer, a3_summer
 
       ! OHM coefficients --------
       ! Set to zero initially
@@ -327,24 +341,56 @@ CONTAINS
       DO is = 1, nsurf
          surfrac = sfr_surf(is)
 
-         ! Use 5-day running mean Tair to decide whether it is summer or winter ----------------
-         IF (Tair_mav_5d >= OHM_threshSW(is)) THEN !Summer
-            ii = 0
-         ELSE !Winter
-            ii = 2
-         END IF
-
-         IF (state_id(is) > 0) THEN !Wet surface
-            i = ii + 1
-         ELSE !Dry surface
-            i = ii + 2
-            ! If the surface is dry but SM is close to capacity, use coefficients for wet surfaces
-            IF (is > BldgSurf .AND. is /= WaterSurf) THEN !Wet soil (i.e. EveTr, DecTr, Grass, BSoil surfaces)
-               IF (soilstore_id(is)/SoilStoreCap(is) > OHM_threshWD(is)) THEN
-                  i = ii + 1
-               END IF
+         ! Calculate smooth transition weights for summer/winter and wet/dry conditions (Issue #473)
+         ! Calculate smooth transition weight for summer/winter
+         season_weight = smooth_transition_weight(Tair_mav_5d, OHM_threshSW(is), TRANSITION_WIDTH)
+         
+         ! Get coefficients for all four combinations
+         a1_winter_dry = OHM_coef(is, 4, 1)  ! Winter dry (ii=2, i=4)
+         a2_winter_dry = OHM_coef(is, 4, 2)
+         a3_winter_dry = OHM_coef(is, 4, 3)
+         
+         a1_winter_wet = OHM_coef(is, 3, 1)  ! Winter wet (ii=2, i=3)
+         a2_winter_wet = OHM_coef(is, 3, 2)
+         a3_winter_wet = OHM_coef(is, 3, 3)
+         
+         a1_summer_dry = OHM_coef(is, 2, 1)  ! Summer dry (ii=0, i=2)
+         a2_summer_dry = OHM_coef(is, 2, 2)
+         a3_summer_dry = OHM_coef(is, 2, 3)
+         
+         a1_summer_wet = OHM_coef(is, 1, 1)  ! Summer wet (ii=0, i=1)
+         a2_summer_wet = OHM_coef(is, 1, 2)
+         a3_summer_wet = OHM_coef(is, 1, 3)
+         
+         ! Calculate wetness weight
+         IF (state_id(is) > 0) THEN 
+            ! Surface is wet
+            wetness_weight = 1.0D0
+         ELSE 
+            ! Surface is dry - check soil moisture for some surfaces
+            IF (is > BldgSurf .AND. is /= WaterSurf) THEN 
+               ! For vegetated and bare soil surfaces, use smooth transition based on soil moisture
+               wetness_weight = smooth_transition_weight(soilstore_id(is)/SoilStoreCap(is), &
+                                                       OHM_threshWD(is), WETDRY_TRANSITION_WIDTH)
+            ELSE
+               ! For building and water surfaces, use dry coefficients
+               wetness_weight = 0.0D0
             END IF
          END IF
+         
+         ! Interpolate between wet and dry coefficients for each season
+         a1_winter = wetness_weight * a1_winter_wet + (1.0D0 - wetness_weight) * a1_winter_dry
+         a2_winter = wetness_weight * a2_winter_wet + (1.0D0 - wetness_weight) * a2_winter_dry
+         a3_winter = wetness_weight * a3_winter_wet + (1.0D0 - wetness_weight) * a3_winter_dry
+         
+         a1_summer = wetness_weight * a1_summer_wet + (1.0D0 - wetness_weight) * a1_summer_dry
+         a2_summer = wetness_weight * a2_summer_wet + (1.0D0 - wetness_weight) * a2_summer_dry
+         a3_summer = wetness_weight * a3_summer_wet + (1.0D0 - wetness_weight) * a3_summer_dry
+         
+         ! Interpolate between winter and summer coefficients
+         a1_surface = season_weight * a1_summer + (1.0D0 - season_weight) * a1_winter
+         a2_surface = season_weight * a2_summer + (1.0D0 - season_weight) * a2_winter
+         a3_surface = season_weight * a3_summer + (1.0D0 - season_weight) * a3_winter
 
          ! If snow, adjust surface fractions accordingly
          IF (SnowUse == 1 .AND. is /= BldgSurf .AND. is /= WaterSurf) THEN ! QUESTION: Why is BldgSurf excluded here?
@@ -352,9 +398,9 @@ CONTAINS
          END IF
 
          ! Calculate the areally-weighted OHM coefficients
-         a1 = a1 + surfrac*OHM_coef(is, i, 1)
-         a2 = a2 + surfrac*OHM_coef(is, i, 2)
-         a3 = a3 + surfrac*OHM_coef(is, i, 3)
+         a1 = a1 + surfrac*a1_surface
+         a2 = a2 + surfrac*a2_surface
+         a3 = a3 + surfrac*a3_surface
 
       END DO !end of loop over surface types ------------------------------------------------
    END SUBROUTINE OHM_coef_cal
@@ -637,5 +683,32 @@ CONTAINS
       a3 = a1*slope*QStar
 
    END SUBROUTINE calculate_a3
+
+   !========================================================================================
+   ! Smooth transition function for eliminating discontinuities (Issue #473)
+   FUNCTION smooth_transition_weight(value, threshold, width) RESULT(weight)
+      IMPLICIT NONE
+      REAL(KIND(1D0)), INTENT(IN) :: value      ! Current value (e.g., temperature)
+      REAL(KIND(1D0)), INTENT(IN) :: threshold  ! Threshold value
+      REAL(KIND(1D0)), INTENT(IN) :: width      ! Width of transition zone
+      REAL(KIND(1D0)) :: weight                 ! Output weight (0 to 1)
+      
+      ! Use hyperbolic tangent for smooth transition
+      ! weight = 0 when value << threshold (winter/dry conditions)
+      ! weight = 1 when value >> threshold (summer/wet conditions)
+      ! Smooth transition in between
+      
+      IF (width > 0.0D0) THEN
+         weight = 0.5D0 * (1.0D0 + TANH((value - threshold) / width))
+      ELSE
+         ! Fallback to step function if width is zero
+         IF (value >= threshold) THEN
+            weight = 1.0D0
+         ELSE
+            weight = 0.0D0
+         END IF
+      END IF
+      
+   END FUNCTION smooth_transition_weight
 
 END MODULE OHM_module

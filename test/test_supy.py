@@ -14,9 +14,9 @@ import platform
 
 from pathlib import Path
 
-# Import debug decorators
+# Import debug utilities
 try:
-    from .debug_decorators import (
+    from .debug_utils import (
         debug_on_ci, 
         debug_dataframe_output, 
         debug_water_balance,

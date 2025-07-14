@@ -6,9 +6,9 @@ import pytest
 import supy as sp
 from supy._post import resample_output, dict_var_aggm
 
-# Import debug decorators
+# Import debug utilities
 try:
-    from .debug_decorators import debug_on_ci, capture_test_artifacts
+    from .debug_utils import debug_on_ci, capture_test_artifacts
 except ImportError:
     # Fallback if decorators not available
     def debug_on_ci(func): return func

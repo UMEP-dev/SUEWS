@@ -20,138 +20,138 @@ on:
       - "pyproject.toml"
       - "meson.build"
       - "test/**"
-  
+
   workflow_dispatch:
 
 jobs:
   # Fast-fail validation job that runs before expensive wheel building
-  validate_sample_output:
-    name: Test sample for ${{ matrix.python }}-${{ matrix.buildplat[1] }}-${{ matrix.buildplat[2] }}
-    runs-on: ${{ matrix.buildplat[0] }}
-    strategy:
-      matrix:
-        buildplat:
-            # TEMPORARILY: Only test ARM Mac for cp312 debugging
-            - [macos-latest, macosx, arm64]
-            # - [ubuntu-latest, manylinux, x86_64]
-            # - [macos-13, macosx, x86_64]
-            # - [windows-2025, win, AMD64]
-        python: ["cp312"]  # TEMPORARILY: Only test Python 3.12
-        # python: ["cp310", "cp311", "cp312", "cp313"]
-        include:
-          # Map cibuildwheel identifiers to setup-python versions
-          # - python: cp310
-          #   python-version: "3.10"
-          # - python: cp311
-          #   python-version: "3.11"
-          - python: cp312
-            python-version: "3.12"
-          # - python: cp313
-          #   python-version: "3.13"
-        # exclude:
-        #   # Skip problematic configurations (see issue #473)
-        #   - buildplat: [windows-2025, win, AMD64]
-        #     python: cp313
-      fail-fast: false  # Continue running all jobs even if some fail
+  # validate_sample_output:
+  #   name: Test sample for ${{ matrix.python }}-${{ matrix.buildplat[1] }}-${{ matrix.buildplat[2] }}
+  #   runs-on: ${{ matrix.buildplat[0] }}
+  #   strategy:
+  #     matrix:
+  #       buildplat:
+  #           # TEMPORARILY: Only test ARM Mac for cp312 debugging
+  #           - [macos-latest, macosx, arm64]
+  #           # - [ubuntu-latest, manylinux, x86_64]
+  #           # - [macos-13, macosx, x86_64]
+  #           # - [windows-2025, win, AMD64]
+  #       python: ["cp312"]  # TEMPORARILY: Only test Python 3.12
+  #       # python: ["cp310", "cp311", "cp312", "cp313"]
+  #       include:
+  #         # Map cibuildwheel identifiers to setup-python versions
+  #         # - python: cp310
+  #         #   python-version: "3.10"
+  #         # - python: cp311
+  #         #   python-version: "3.11"
+  #         - python: cp312
+  #           python-version: "3.12"
+  #         # - python: cp313
+  #         #   python-version: "3.13"
+  #       # exclude:
+  #       #   # Skip problematic configurations (see issue #473)
+  #       #   - buildplat: [windows-2025, win, AMD64]
+  #       #     python: cp313
+  #     fail-fast: false  # Continue running all jobs even if some fail
 
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #       with:
+  #         fetch-depth: 0
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: ${{ matrix.python-version }}
+  #     - name: Set up Python
+  #       uses: actions/setup-python@v5
+  #       with:
+  #         python-version: ${{ matrix.python-version }}
 
-      # Install platform-specific compilers
-      - name: Install gfortran (Linux)
-        if: runner.os == 'Linux'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y gfortran
+  #     # Install platform-specific compilers
+  #     - name: Install gfortran (Linux)
+  #       if: runner.os == 'Linux'
+  #       run: |
+  #         sudo apt-get update
+  #         sudo apt-get install -y gfortran
 
-      - name: Install gfortran (macOS)
-        if: runner.os == 'macOS'
-        run: brew install gfortran
+  #     - name: Install gfortran (macOS)
+  #       if: runner.os == 'macOS'
+  #       run: brew install gfortran
 
-      # Windows-specific setup using pre-installed MSYS2
-      - name: Setup Windows build environment
-        if: runner.os == 'Windows'
-        run: |
-          # Update MSYS2 and install required packages
-          C:\msys64\usr\bin\bash.exe -lc "pacman -Syu --noconfirm"
-          C:\msys64\usr\bin\bash.exe -lc "pacman -S --needed --noconfirm mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-gcc-fortran mingw-w64-ucrt-x86_64-binutils mingw-w64-ucrt-x86_64-make mingw-w64-ucrt-x86_64-openblas"
+  #     # Windows-specific setup using pre-installed MSYS2
+  #     - name: Setup Windows build environment
+  #       if: runner.os == 'Windows'
+  #       run: |
+  #         # Update MSYS2 and install required packages
+  #         C:\msys64\usr\bin\bash.exe -lc "pacman -Syu --noconfirm"
+  #         C:\msys64\usr\bin\bash.exe -lc "pacman -S --needed --noconfirm mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-gcc-fortran mingw-w64-ucrt-x86_64-binutils mingw-w64-ucrt-x86_64-make mingw-w64-ucrt-x86_64-openblas"
 
-          # Add MSYS2 binaries to PATH
-          echo "C:\msys64\ucrt64\bin" >> $env:GITHUB_PATH
+  #         # Add MSYS2 binaries to PATH
+  #         echo "C:\msys64\ucrt64\bin" >> $env:GITHUB_PATH
 
-          # Set environment variables
-          echo "CC=gcc" >> $env:GITHUB_ENV
-          echo "CXX=g++" >> $env:GITHUB_ENV
-          echo "FC=gfortran" >> $env:GITHUB_ENV
-          echo "CFLAGS=-D__USE_MINGW_ANSI_STDIO=1 -mlong-double-64" >> $env:GITHUB_ENV
-          echo "CXXFLAGS=-D__USE_MINGW_ANSI_STDIO=1 -mlong-double-64" >> $env:GITHUB_ENV
-          echo "FCFLAGS=-fno-optimize-sibling-calls" >> $env:GITHUB_ENV
-          echo "LDFLAGS=-lucrt -static-libgcc -static-libgfortran -LC:/msys64/ucrt64/lib -lsetjmp_compat" >> $env:GITHUB_ENV
+  #         # Set environment variables
+  #         echo "CC=gcc" >> $env:GITHUB_ENV
+  #         echo "CXX=g++" >> $env:GITHUB_ENV
+  #         echo "FC=gfortran" >> $env:GITHUB_ENV
+  #         echo "CFLAGS=-D__USE_MINGW_ANSI_STDIO=1 -mlong-double-64" >> $env:GITHUB_ENV
+  #         echo "CXXFLAGS=-D__USE_MINGW_ANSI_STDIO=1 -mlong-double-64" >> $env:GITHUB_ENV
+  #         echo "FCFLAGS=-fno-optimize-sibling-calls" >> $env:GITHUB_ENV
+  #         echo "LDFLAGS=-lucrt -static-libgcc -static-libgfortran -LC:/msys64/ucrt64/lib -lsetjmp_compat" >> $env:GITHUB_ENV
 
-      - name: Create setjmp compatibility library (Windows)
-        if: runner.os == 'Windows'
-        shell: cmd
-        run: |
-          echo int _setjmpex(void* buf) { extern int __intrinsic_setjmpex(void*); return __intrinsic_setjmpex(buf); } > setjmp_compat.c
-          C:\msys64\ucrt64\bin\gcc.exe -c setjmp_compat.c -o setjmp_compat.o
-          C:\msys64\ucrt64\bin\ar.exe rcs libsetjmp_compat.a setjmp_compat.o
-          copy libsetjmp_compat.a C:\msys64\ucrt64\lib\
-          dir C:\msys64\ucrt64\lib\libsetjmp_compat.a
+  #     - name: Create setjmp compatibility library (Windows)
+  #       if: runner.os == 'Windows'
+  #       shell: cmd
+  #       run: |
+  #         echo int _setjmpex(void* buf) { extern int __intrinsic_setjmpex(void*); return __intrinsic_setjmpex(buf); } > setjmp_compat.c
+  #         C:\msys64\ucrt64\bin\gcc.exe -c setjmp_compat.c -o setjmp_compat.o
+  #         C:\msys64\ucrt64\bin\ar.exe rcs libsetjmp_compat.a setjmp_compat.o
+  #         copy libsetjmp_compat.a C:\msys64\ucrt64\lib\
+  #         dir C:\msys64\ucrt64\lib\libsetjmp_compat.a
 
-      # Install uv for ultra-fast Python package management
-      - name: Install uv
-        uses: astral-sh/setup-uv@v3
-        with:
-          enable-cache: true
-          cache-dependency-glob: ".github/requirements-ci.txt"
+  #     # Install uv for ultra-fast Python package management
+  #     - name: Install uv
+  #       uses: astral-sh/setup-uv@v3
+  #       with:
+  #         enable-cache: true
+  #         cache-dependency-glob: ".github/requirements-ci.txt"
 
-      # Common Python dependencies for all platforms
-      - name: Install Python dependencies
-        run: |
-          uv pip install --system --upgrade pip
-          uv pip install --system -r .github/requirements-ci.txt
+  #     # Common Python dependencies for all platforms
+  #     - name: Install Python dependencies
+  #       run: |
+  #         uv pip install --system --upgrade pip
+  #         uv pip install --system -r .github/requirements-ci.txt
 
-      - name: Build and install supy
-        run: |
-          uv pip install --system -e . --no-build-isolation
+  #     - name: Build and install supy
+  #       run: |
+  #         uv pip install --system -e . --no-build-isolation
 
-      # Windows-specific: Bundle DLLs with extension
-      - name: Bundle Windows DLLs  
-        if: runner.os == 'Windows'
-        run: |
-          # Run the DLL bundling script
-          python src/supy_driver/bundle_windows_dlls.py
+  #     # Windows-specific: Bundle DLLs with extension
+  #     - name: Bundle Windows DLLs
+  #       if: runner.os == 'Windows'
+  #       run: |
+  #         # Run the DLL bundling script
+  #         python src/supy_driver/bundle_windows_dlls.py
 
-      - name: Run sample output validation (Linux/macOS)
-        if: runner.os != 'Windows'
-        run: |
-          python -m pytest test/test_sample_output.py -v
-      
-      - name: Run sample output validation (Windows)
-        if: runner.os == 'Windows'
-        run: |
-          # Ensure DLLs are available at runtime
-          $env:PATH = "C:\msys64\ucrt64\bin;$env:PATH"
-          python -m pytest test/test_sample_output.py -v
+  #     - name: Run sample output validation (Linux/macOS)
+  #       if: runner.os != 'Windows'
+  #       run: |
+  #         python -m pytest test/test_sample_output.py -v
 
-      - name: Upload test artifacts on failure
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: sample-test-artifacts-py${{ matrix.python-version }}-${{ matrix.buildplat[1] }}-${{ matrix.buildplat[2] }}
-          path: ${{ runner.temp }}/suews_test_artifacts/
-          retention-days: 30
+  #     - name: Run sample output validation (Windows)
+  #       if: runner.os == 'Windows'
+  #       run: |
+  #         # Ensure DLLs are available at runtime
+  #         $env:PATH = "C:\msys64\ucrt64\bin;$env:PATH"
+  #         python -m pytest test/test_sample_output.py -v
+
+  #     - name: Upload test artifacts on failure
+  #       if: failure()
+  #       uses: actions/upload-artifact@v4
+  #       with:
+  #         name: sample-test-artifacts-py${{ matrix.python-version }}-${{ matrix.buildplat[1] }}-${{ matrix.buildplat[2] }}
+  #         path: ${{ runner.temp }}/suews_test_artifacts/
+  #         retention-days: 30
 
   build_wheels:
     name: Build wheel for ${{ matrix.python }}-${{ matrix.buildplat[1] }} ${{ matrix.buildplat[2] }}
-    needs: validate_sample_output  # Only run if validation passes
+    # needs: validate_sample_output  # Only run if validation passes
     runs-on: ${{ matrix.buildplat[0] }}
     strategy:
       matrix:

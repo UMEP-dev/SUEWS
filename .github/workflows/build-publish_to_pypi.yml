@@ -33,11 +33,9 @@ jobs:
             - [macos-13, macosx, x86_64]
             - [macos-latest, macosx, arm64]
             - [windows-2025, win, AMD64]
-        python: ["cp39", "cp310", "cp311", "cp312", "cp313"]
+        python: ["cp310", "cp311", "cp312", "cp313"]
         include:
           # Map cibuildwheel identifiers to setup-python versions
-          - python: cp39
-            python-version: "3.9"
           - python: cp310
             python-version: "3.10"
           - python: cp311
@@ -48,8 +46,6 @@ jobs:
             python-version: "3.13"
         exclude:
           # Skip problematic configurations (see issue #473)
-          - buildplat: [ubuntu-latest, manylinux, x86_64]
-            python: cp39
           - buildplat: [windows-2025, win, AMD64]
             python: cp313
       fail-fast: false  # Continue running all jobs even if some fail
@@ -161,11 +157,9 @@ jobs:
             - [macos-latest, macosx, arm64]
             - [windows-2025, win, AMD64]
 
-        python: ["cp39", "cp310", "cp311", "cp312", "cp313"]
+        python: ["cp310", "cp311", "cp312", "cp313"]
         exclude:
           # Skip problematic configurations (see issue #473)
-          - buildplat: [ubuntu-latest, manylinux, x86_64]
-            python: cp39
           - buildplat: [windows-2025, win, AMD64]
             python: cp313
       fail-fast: false
@@ -222,7 +216,7 @@ jobs:
       CIBW_TEST_COMMAND_LINUX: "python -m pytest '{project}/test'"
       CIBW_TEST_COMMAND_WINDOWS: "python -m pytest {project}\\test"
       # Skip tests for problematic combinations that need OHM tolerance investigation (issue #473)
-      CIBW_TEST_SKIP: "cp39-manylinux* cp313-win*"
+      CIBW_TEST_SKIP: "cp313-win*"
       MACOSX_DEPLOYMENT_TARGET: ${{ matrix.buildplat[0] == 'macos-13' && '13.0' || '14.0' }}
 
     steps:

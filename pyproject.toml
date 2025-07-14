@@ -3,11 +3,7 @@ requires = [
     "wheel",
     "pytest",
     "f90wrap==0.2.16",
-    # NumPy 2.0+ works fine for Python 3.9 on macOS and Windows
-    # Only Linux + Python 3.9 has issues with NumPy 2.0 due to manylinux build environment
-    "numpy>=2.0; python_version>='3.10'",
-    "numpy>=2.0; python_version=='3.9' and platform_system!='Linux'",
-    "numpy<2.0; python_version=='3.9' and platform_system=='Linux'",  # Linux Python 3.9 requires NumPy 1.x
+    "numpy>=2.0",  # NumPy 2.0+ for all platforms now that we require Python 3.10+
     "meson-python>=0.12.0",
 ]
 build-backend = 'mesonpy'
@@ -22,7 +18,7 @@ authors = [
     { name = "Prof Sue Grimmond", email = "c.s.grimmond@reading.ac.uk" },
 ]
 dynamic = ["version"]
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 
 license = { text = "GPL-V3.0" }
 
@@ -50,7 +46,6 @@ dependencies = [
 ]
 classifiers = [
     "Programming Language :: Python :: 3 :: Only",
-    "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",

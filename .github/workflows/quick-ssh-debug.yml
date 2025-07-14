@@ -1,0 +1,40 @@
+name: Quick SSH Debug - py312 ARM Mac
+
+on:
+  workflow_dispatch:
+
+jobs:
+  ssh_debug:
+    name: SSH Debug py312 ARM Mac
+    runs-on: macos-latest  # ARM64 Mac
+    
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      
+      - name: Quick environment info
+        run: |
+          echo "=== Environment Info ==="
+          echo "Python: $(python --version)"
+          echo "Platform: $(uname -a)"
+          echo "Arch: $(arch)"
+          echo "PWD: $(pwd)"
+          echo "Gfortran: $(which gfortran || echo 'not found')"
+          
+      - name: Intentionally fail to trigger SSH
+        run: |
+          echo "Failing to trigger SSH session..."
+          exit 1
+      
+      - name: Setup tmate session
+        if: always()
+        uses: mxschmitt/action-tmate@v3
+        timeout-minutes: 30
+        with:
+          limit-access-to-actor: true

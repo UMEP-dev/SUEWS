@@ -48,6 +48,10 @@ class TestResampleOutput:
         # Resample to hourly
         df_resampled = resample_output(df_output, freq="60min")
         
+        # Store for decorator access
+        self.df_output = df_output
+        self.df_resampled = df_resampled
+        
         # Check DailyState is still present after resampling
         assert 'DailyState' in df_resampled.columns.get_level_values('group').unique()
         

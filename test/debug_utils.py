@@ -252,6 +252,10 @@ def analyze_dailystate_nan(func):
         
         should_analyze = is_ci and is_arm_mac and is_py312
         
+        # Debug print to verify conditions
+        if is_ci:
+            print(f"\n[NaN Analysis] CI={is_ci}, ARM={is_arm_mac}, PY312={is_py312}, platform={platform.machine()}")
+        
         if should_analyze:
             print(f"\n{'='*60}")
             print(f"DAILYSTATE NaN ANALYSIS (cp312 ARM Mac)")

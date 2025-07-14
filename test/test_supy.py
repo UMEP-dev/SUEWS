@@ -14,6 +14,21 @@ import platform
 
 from pathlib import Path
 
+# Import debug decorators
+try:
+    from .debug_decorators import (
+        debug_on_ci, 
+        debug_dataframe_output, 
+        debug_water_balance,
+        capture_test_artifacts
+    )
+except ImportError:
+    # Fallback if decorators not available
+    def debug_on_ci(func): return func
+    def debug_dataframe_output(func): return func
+    def debug_water_balance(func): return func
+    def capture_test_artifacts(name): return lambda func: func
+
 # Get the test data directory from the environment variable
 test_data_dir = Path(__file__).parent / "data_test"
 # test_data_dir = os.environ.get('TEST_DATA_DIR', Path(__file__).parent / 'data_test')
@@ -77,6 +92,9 @@ class TestSuPy(TestCase):
         # self.assertFalse(df_state.isnull().values.any())
 
     # test if multi-tstep mode can run
+    @debug_on_ci
+    @debug_dataframe_output
+    @capture_test_artifacts('multi_step')
     def test_is_supy_running_multi_step(self):
         print("\n========================================")
         print("Testing if multi-tstep mode can run...")
@@ -480,6 +498,8 @@ class TestSuPy(TestCase):
                            "DailyState should have at least some data")
 
     # test if the water balance is closed
+    @debug_water_balance
+    @capture_test_artifacts('water_balance')
     def test_water_balance_closed(self):
         print("\n========================================")
         print("Testing if water balance is closed...")

@@ -6,10 +6,20 @@ import pytest
 import supy as sp
 from supy._post import resample_output, dict_var_aggm
 
+# Import debug decorators
+try:
+    from .debug_decorators import debug_on_ci, capture_test_artifacts
+except ImportError:
+    # Fallback if decorators not available
+    def debug_on_ci(func): return func
+    def capture_test_artifacts(name): return lambda func: func
+
 
 class TestResampleOutput:
     """Test suite for resample_output functionality."""
 
+    @debug_on_ci
+    @capture_test_artifacts('dailystate_resample')
     def test_resample_with_dailystate(self):
         """Test that DailyState is correctly resampled when present."""
         # Load sample data and run simulation

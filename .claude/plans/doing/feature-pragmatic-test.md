@@ -160,8 +160,27 @@ All tests pass except for the known test_sample_output.py interference issue whe
 
 **Files Modified for CI Fix**:
 - `src/supy/_post.py` - Fixed DailyState handling in resample_output
-- `.github/workflows/test-arm-mac-py312.yml` - Added debug workflow (temporary)
-- `.github/workflows/build-publish_to_pypi.yml` - Set to manual trigger temporarily
+- `.github/workflows/test-arm-mac-py312.yml` - Added debug workflow (removed after fix)
+- `.github/workflows/build-publish_to_pypi.yml` - Temporarily set to manual trigger (restored)
+
+### Next Phase: CP311 ARM Mac Issues
+
+**Status**: Issues identified, investigation pending
+
+**Failed Tests** (from run #16266807007):
+1. `test_is_supy_running_multi_step` - AssertionError: False is not true
+   - Checks for empty outputs or NaN values in state
+   - Likely a numerical or initialization issue
+   
+2. `test_water_balance_closed` - AssertionError: False is not true  
+   - Verifies water balance equation closure
+   - Tests if: change_in_storage = water_in - water_out
+   - Tolerance check: difference < 1e-6
+
+**Approach**:
+- Create focused CI workflow for cp311 ARM Mac
+- Add debug output to understand the specific values causing failures
+- May need to adjust tolerances or handle platform-specific numerical differences
 
 ## Final Status
 

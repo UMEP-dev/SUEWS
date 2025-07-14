@@ -202,7 +202,26 @@ def resample_output(df_output, freq="60T", dict_aggm=dict_var_aggm):
         # Only apply dropna to DailyState group
         # Other groups may have NaN values in some variables (e.g., Fcld)
         if group_name == 'DailyState':
-            df_to_resample = df_group.dropna()
+            # For DailyState, we need to handle sparse data carefully
+            # First check if there's any data to resample
+            df_with_data = df_group.dropna(how='all')
+            if df_with_data.empty:
+                # If no data, return empty DataFrame with proper structure
+                return pd.DataFrame(index=pd.DatetimeIndex([]), columns=df_group.columns)
+            
+            # Resample the non-empty data
+            df_resampled = df_with_data.resample(
+                freq, 
+                closed="right", 
+                label=label
+            ).agg(dict_aggm_group)
+            
+            # Reindex to match the expected output timerange
+            # This ensures we have the full time range even if data is sparse
+            full_index = df_group.resample(freq, closed="right", label=label).asfreq().index
+            df_resampled = df_resampled.reindex(full_index)
+            
+            return df_resampled
         else:
             df_to_resample = df_group
             

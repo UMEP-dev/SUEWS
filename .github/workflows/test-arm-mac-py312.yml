@@ -1,0 +1,132 @@
+name: Test ARM Mac Python 3.12 DailyState Issue
+
+on:
+  push:
+    branches:
+      - feature/pragmatic-test
+  workflow_dispatch:
+
+jobs:
+  test_arm_mac_py312:
+    name: Debug DailyState on ARM Mac + Py3.12
+    runs-on: macos-latest  # This is ARM64 (M1/M2)
+    
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install gfortran
+        run: brew install gfortran
+
+      # Install uv for fast package management
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+          cache-dependency-glob: ".github/requirements-ci.txt"
+
+      # Install dependencies
+      - name: Install Python dependencies
+        run: |
+          uv pip install --system --upgrade pip
+          uv pip install --system -r .github/requirements-ci.txt
+
+      - name: Build and install supy
+        run: |
+          uv pip install --system -e . --no-build-isolation
+
+      # Run ONLY the failing test with debug logging
+      - name: Run DailyState resample test with debug
+        env:
+          SUPY_LOG: DEBUG
+        run: |
+          # First, set up Python to show debug logs
+          export PYTHONUNBUFFERED=1
+          
+          # Run the specific test with verbose output
+          python -m pytest test/test_resample_output.py::TestResampleOutput::test_resample_with_dailystate -vvs --tb=short --log-cli-level=DEBUG 2>&1 | tee test_output.log
+          
+          # Also run all resample tests to see if others fail
+          echo "=== Running all resample tests ==="
+          python -m pytest test/test_resample_output.py -v --tb=short 2>&1 | tee -a test_output.log
+
+      # Always upload the log file
+      - name: Upload test logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dailystate-debug-logs
+          path: test_output.log
+          retention-days: 7
+
+      # If test fails, also run a diagnostic script
+      - name: Run diagnostic script on failure
+        if: failure()
+        run: |
+          cat > diagnose_dailystate.py << 'EOF'
+          import supy as sp
+          import numpy as np
+          import pandas as pd
+          from supy._post import resample_output
+          
+          print("=== DailyState Diagnostic ===")
+          print(f"NumPy version: {np.__version__}")
+          print(f"Pandas version: {pd.__version__}")
+          print(f"Python version: {pd.__version__}")
+          
+          # Load and run sample data
+          df_state_init, df_forcing = sp.load_SampleData()
+          df_forcing_multi_day = df_forcing.iloc[:288*10]  # 10 days
+          
+          print("\nRunning simulation...")
+          df_output, df_state_final = sp.run_supy(df_forcing_multi_day, df_state_init)
+          
+          # Check DailyState
+          if 'DailyState' in df_output.columns.get_level_values('group').unique():
+              df_dailystate = df_output.loc[:, 'DailyState']
+              print(f"\nDailyState shape: {df_dailystate.shape}")
+              print(f"Non-NaN count: {df_dailystate.notna().sum().sum()}")
+              
+              # Check NaN patterns
+              col_nan_counts = df_dailystate.isna().sum()
+              print(f"\nColumns with all NaN: {(col_nan_counts == len(df_dailystate)).sum()}")
+              print(f"Columns with no NaN: {(col_nan_counts == 0).sum()}")
+              print(f"Columns with mixed NaN: {((col_nan_counts > 0) & (col_nan_counts < len(df_dailystate))).sum()}")
+              
+              # Show mixed NaN columns
+              mixed_nan_cols = col_nan_counts[(col_nan_counts > 0) & (col_nan_counts < len(df_dailystate))].index
+              if len(mixed_nan_cols) > 0:
+                  print(f"\nMixed NaN columns: {mixed_nan_cols.tolist()}")
+              
+              # Test dropna behavior
+              df_dropna_all = df_dailystate.dropna(how='all')
+              df_dropna_any = df_dailystate.dropna()
+              print(f"\nDropna results:")
+              print(f"  dropna(how='all'): {df_dropna_all.shape}")
+              print(f"  dropna(): {df_dropna_any.shape}")
+              
+              if df_dropna_any.empty and not df_dropna_all.empty:
+                  print("\n!!! ISSUE FOUND: dropna() removes all rows but dropna(how='all') doesn't")
+                  # Show first row with data
+                  first_data_idx = df_dropna_all.index[0]
+                  row_data = df_dailystate.loc[first_data_idx]
+                  nan_mask = row_data.isna()
+                  print(f"First row with data has {nan_mask.sum()} NaN out of {len(row_data)} columns")
+                  print(f"NaN columns: {row_data[nan_mask].index.tolist()}")
+          EOF
+          
+          python diagnose_dailystate.py 2>&1 | tee diagnostic_output.log
+
+      - name: Upload diagnostic logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dailystate-diagnostic-logs
+          path: diagnostic_output.log
+          retention-days: 7

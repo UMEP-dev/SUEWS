@@ -1,25 +1,29 @@
 name: Build and Publish Python wheels to PyPI and TestPyPI
 
 on:
-  push:
-    paths: # Push events containing matching files
-      - "src/suews/**"
-      - "src/supy/**"
-      - "src/supy_driver/**"
-      - ".github/workflows/build-publish_to_pypi.yml"
-      - "test/**"
-      - "pyproject.toml"
-      - "meson.build"
+  # TEMPORARILY DISABLED for focused testing
+  # push:
+  #   paths: # Push events containing matching files
+  #     - "src/suews/**"
+  #     - "src/supy/**"
+  #     - "src/supy_driver/**"
+  #     - ".github/workflows/build-publish_to_pypi.yml"
+  #     - "test/**"
+  #     - "pyproject.toml"
+  #     - "meson.build"
 
-  pull_request:
-    paths: # PR events containing matching files
-      - "src/suews/**"
-      - "src/supy/**"
-      - "src/supy_driver/**"
-      - ".github/workflows/build-publish_to_pypi.yml"
-      - "pyproject.toml"
-      - "meson.build"
-      - "test/**"
+  # pull_request:
+  #   paths: # PR events containing matching files
+  #     - "src/suews/**"
+  #     - "src/supy/**"
+  #     - "src/supy_driver/**"
+  #     - ".github/workflows/build-publish_to_pypi.yml"
+  #     - "pyproject.toml"
+  #     - "meson.build"
+  #     - "test/**"
+  
+  # Only run manually during debugging
+  workflow_dispatch:
 
 jobs:
   # Fast-fail validation job that runs before expensive wheel building

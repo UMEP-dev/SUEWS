@@ -84,7 +84,27 @@ def check_method(ser_to_check: pd.Series, rule_var: dict) -> Tuple:
     description = ""
 
     is_accepted_flag = False
-    for value in np.nditer(list(ser_to_check.values)):
+    
+    # Handle both single values and multi-column cases
+    values = ser_to_check.values
+    
+    # Flatten the values if they are multi-dimensional or structured
+    if hasattr(values, 'flatten'):
+        values_to_check = values.flatten()
+    elif hasattr(values, '__iter__') and not isinstance(values, (str, bytes)):
+        # Handle cases where values might be a tuple of arrays
+        try:
+            values_to_check = np.array(values).flatten()
+        except:
+            values_to_check = [values]
+    else:
+        values_to_check = [values]
+    
+    for value in values_to_check:
+        # Extract scalar value if it's an array
+        if hasattr(value, 'item'):
+            value = value.item()
+            
         if value in list_val:
             is_accepted_flag = True
         else:

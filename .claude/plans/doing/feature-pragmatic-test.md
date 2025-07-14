@@ -5,6 +5,7 @@ Implement comprehensive robustness testing for SUEWS focusing on scientific vali
 
 ## GitHub Issues
 - None directly related (new feature)
+- #468 - CI test failures (addressed during this work)
 
 ## Progress Tracking
 
@@ -142,3 +143,33 @@ The pragmatic tolerance-based approach (0.8% for energy fluxes) is appropriate g
 - Energy balance closure limitations in field measurements
 
 All tests pass except for the known test_sample_output.py interference issue when run in the full suite, which has a documented workaround.
+
+### CI Test Failures Fixed
+
+**DailyState Resample Test (ARM Mac + Python 3.12)**:
+- **Problem**: `test_resample_with_dailystate` failing with "DailyState should have some non-NaN values after resampling"
+- **Root Cause**: DailyState data has mixed NaN patterns (sparse data), and `dropna()` was removing all rows
+- **Solution**: Modified `_resample_group` to use `dropna(how='all')` for DailyState, preserving rows with partial data
+- **Status**: ✅ Fixed and confirmed working in CI
+
+**Implementation**:
+- Enhanced `src/supy/_post.py` with proper DailyState handling
+- Added comprehensive debug logging to diagnose CI-specific issues
+- Created focused test workflow for rapid debugging
+- The issue only manifested in cibuildwheel environment, not locally
+
+**Files Modified for CI Fix**:
+- `src/supy/_post.py` - Fixed DailyState handling in resample_output
+- `.github/workflows/test-arm-mac-py312.yml` - Added debug workflow (temporary)
+- `.github/workflows/build-publish_to_pypi.yml` - Set to manual trigger temporarily
+
+## Final Status
+
+This branch successfully implements:
+
+1. **Pragmatic robustness testing** with scientifically justified tolerances (0.8% for energy fluxes)
+2. **Fixed CI test failures** including the DailyState resample issue on ARM Mac
+3. **Enhanced test suite** with better isolation and sample data usage
+4. **Documented approach** for handling test interference and platform differences
+
+The deterministic build infrastructure was created but determined unnecessary for SUEWS' scientific use case. The tolerance-based approach better reflects real-world measurement and model uncertainties.

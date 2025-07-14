@@ -203,78 +203,13 @@ def resample_output(df_output, freq="60T", dict_aggm=dict_var_aggm):
         # Only apply dropna to DailyState group
         # Other groups may have NaN values in some variables (e.g., Fcld)
         if group_name == 'DailyState':
-            # Log detailed information for debugging
-            logger_supy.debug(f"=== DailyState Resampling Debug Info ===")
-            logger_supy.debug(f"Resampling params - freq: {freq}, label: {label}")
-            logger_supy.debug(f"Original shape: {df_group.shape}")
-            logger_supy.debug(f"Total non-NaN values: {df_group.notna().sum().sum()}")
-            
-            # Analyze column-wise NaN patterns
-            col_nan_counts = df_group.isna().sum()
-            always_nan_cols = col_nan_counts[col_nan_counts == len(df_group)].index.tolist()
-            never_nan_cols = col_nan_counts[col_nan_counts == 0].index.tolist()
-            sometimes_nan_cols = col_nan_counts[(col_nan_counts > 0) & (col_nan_counts < len(df_group))].index.tolist()
-            
-            logger_supy.debug(f"Columns always NaN ({len(always_nan_cols)}): {always_nan_cols[:10]}...")
-            logger_supy.debug(f"Columns never NaN ({len(never_nan_cols)}): {never_nan_cols[:10]}...")
-            logger_supy.debug(f"Columns sometimes NaN ({len(sometimes_nan_cols)}): {sometimes_nan_cols[:10]}...")
-            
-            # Check which rows have any non-NaN values
-            rows_with_data = ~df_group.isna().all(axis=1)
-            logger_supy.debug(f"Rows with any data: {rows_with_data.sum()} out of {len(df_group)}")
-            
-            # Analyze timestamp pattern
-            if rows_with_data.any():
-                indices_with_data = df_group.index[rows_with_data]
-                logger_supy.debug(f"First 10 timestamps with data: {indices_with_data[:10].tolist()}")
-                
-                # Check time pattern (should be end of day for DailyState)
-                hours_minutes = [(t.hour, t.minute) for t in indices_with_data[:10]]
-                logger_supy.debug(f"Time pattern (hour, minute) for first 10: {hours_minutes}")
-                
-                # Detailed analysis of first few rows with data
-                for i, idx in enumerate(indices_with_data[:3]):
-                    row_data = df_group.loc[idx]
-                    non_nan_vals = row_data.dropna()
-                    logger_supy.debug(f"\nRow {i+1} at {idx}:")
-                    logger_supy.debug(f"  - Non-NaN count: {len(non_nan_vals)}/{len(row_data)}")
-                    logger_supy.debug(f"  - Non-NaN columns: {non_nan_vals.index.tolist()[:10]}...")
-                    logger_supy.debug(f"  - Sample values: {dict(list(non_nan_vals.items())[:5])}")
-                    
-                    # If mixed NaN, show which columns
-                    if 0 < len(non_nan_vals) < len(row_data):
-                        nan_cols = row_data[row_data.isna()].index.tolist()
-                        logger_supy.debug(f"  - NaN columns ({len(nan_cols)}): {nan_cols[:10]}...")
-            
-            # Check aggregation functions being used
-            logger_supy.debug(f"\nAggregation functions: {list(dict_aggm_group.keys())[:10]}...")
-            sample_func = next(iter(dict_aggm_group.values()))
-            logger_supy.debug(f"Sample aggregation function type: {type(sample_func)}")
-            
-            # Apply dropna strategies
+            # DailyState contains sparse data (values only at end of each day)
+            # Use dropna(how='all') to preserve rows with partial data
             df_with_data = df_group.dropna(how='all')
-            df_dropna_any = df_group.dropna()
-            
-            logger_supy.debug(f"\nDropna results:")
-            logger_supy.debug(f"  - dropna(how='all'): {df_with_data.shape}")
-            logger_supy.debug(f"  - dropna(): {df_dropna_any.shape}")
             
             if df_with_data.empty:
-                logger_supy.warning("DataFrame empty after dropna(how='all') - no rows with any data!")
+                # No data at all - return empty DataFrame with proper structure
                 return pd.DataFrame(index=pd.DatetimeIndex([]), columns=df_group.columns)
-            
-            # Critical diagnostic: if dropna() removes all but dropna(how='all') doesn't
-            if df_dropna_any.empty and not df_with_data.empty:
-                logger_supy.warning(f"CRITICAL: Mixed NaN issue detected!")
-                logger_supy.warning(f"  - dropna(how='all') keeps {len(df_with_data)} rows")
-                logger_supy.warning(f"  - dropna() removes ALL rows")
-                logger_supy.warning(f"  - This means every row has at least one NaN")
-                
-                # Show which columns are causing the issue
-                for idx in df_with_data.index[:3]:
-                    row = df_group.loc[idx]
-                    nan_mask = row.isna()
-                    logger_supy.warning(f"  - Row {idx}: {nan_mask.sum()} NaN out of {len(row)} columns")
             
             # Resample the non-empty data
             df_resampled = df_with_data.resample(
@@ -283,15 +218,10 @@ def resample_output(df_output, freq="60T", dict_aggm=dict_var_aggm):
                 label=label
             ).agg(dict_aggm_group)
             
-            logger_supy.debug(f"DailyState resampling - shape after resample: {df_resampled.shape}")
-            logger_supy.debug(f"DailyState resampling - non-NaN count after resample: {df_resampled.notna().sum().sum()}")
-            
             # Reindex to match the expected output timerange
             # This ensures we have the full time range even if data is sparse
             full_index = df_group.resample(freq, closed="right", label=label).asfreq().index
             df_resampled = df_resampled.reindex(full_index)
-            
-            logger_supy.debug(f"DailyState resampling - final shape after reindex: {df_resampled.shape}")
             
             return df_resampled
         else:

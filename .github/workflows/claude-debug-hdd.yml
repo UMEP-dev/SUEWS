@@ -1,0 +1,123 @@
+name: Claude Debug HDD Issue
+
+on:
+  workflow_dispatch:
+  
+  # Can also trigger on push for testing
+  push:
+    paths:
+      - ".github/workflows/claude-debug-hdd.yml"
+
+jobs:
+  claude-debug:
+    name: Claude Debug HDD NaN on ARM Mac
+    runs-on: macos-latest  # ARM64 Mac
+    permissions:
+      contents: read
+      pull-requests: read
+      issues: write
+      id-token: write
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      
+      - name: Install gfortran
+        run: brew install gfortran
+      
+      - name: Install dependencies and build
+        run: |
+          pip install --upgrade pip
+          pip install -r .github/requirements-ci.txt
+          pip install -e . --no-build-isolation
+      
+      - name: Run Claude Code Debug
+        id: claude-debug
+        uses: anthropics/claude-code-action@beta
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          
+          # Use Claude Opus 4 for complex debugging
+          model: claude-opus-4-20250514
+          
+          # Direct debugging prompt
+          direct_prompt: |
+            I need help debugging GitHub issue #478: HDD3_Tmean and HDD4_T5d columns are completely NaN in CI but work fine locally.
+            
+            Environment: ARM64 Mac, Python 3.12, GitHub Actions
+            
+            First, run this investigation:
+            ```python
+            import pandas as pd
+            import numpy as np
+            import supy as sp
+            
+            # Check initial HDD values
+            df_state_init, df_forcing = sp.load_SampleData()
+            print("Initial HDD values:")
+            grid = df_state_init.index[0]
+            for i in range(12):
+                col = ('hdd_id', f'({i},)')
+                val = df_state_init.loc[grid, col]
+                print(f'  hdd_id[{i}] = {val}')
+            
+            # Run simulation and check DailyState
+            df_output, _ = sp.run_supy(df_forcing[:288*10], df_state_init)
+            df_daily = df_output.loc[:, 'DailyState'].dropna(how='all')
+            
+            print(f"\nDailyState shape: {df_daily.shape}")
+            for col in ['HDD1_h', 'HDD2_c', 'HDD3_Tmean', 'HDD4_T5d']:
+                if col in df_daily.columns:
+                    nan_count = df_daily[col].isna().sum()
+                    print(f"{col}: {nan_count}/{len(df_daily)} NaN")
+            ```
+            
+            Then investigate:
+            1. Why are HDD3_Tmean and HDD4_T5d NaN only in CI?
+            2. Check src/suews/src/suews_phys_dailystate.f95 lines 821 and 1233
+            3. Is it a dt_since_start initialization issue?
+            4. Compare compiler flags and numpy versions
+            
+            The test now passes with dropna(how='all') but we need to understand the root cause.
+          
+          # Tools Claude can use
+          allowed_tools: |
+            Bash(python *),
+            Bash(pip list),
+            Bash(gfortran -v),
+            Bash(grep -n * src/suews/src/*.f95),
+            Bash(python -c *),
+            Read,
+            Grep,
+            WebFetch
+          
+          # Environment context
+          claude_env: |
+            GITHUB_ISSUE: 478
+            PLATFORM: macos-arm64
+            PYTHON_VERSION: 3.12
+            PROJECT: SUEWS
+      
+      - name: Post findings to issue
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const issueNumber = 478;
+            const claudeOutput = process.env.CLAUDE_OUTPUT || 'Claude debugging failed to produce output';
+            
+            const comment = {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issueNumber,
+              body: `## Claude Code Debug Results (CI Environment)\n\n${claudeOutput}\n\n_Generated in workflow run: ${context.runId}_`
+            };
+            
+            await github.rest.issues.createComment(comment);

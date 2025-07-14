@@ -1,0 +1,87 @@
+name: Auto Debug Test Failures
+
+on:
+  workflow_run:
+    workflows: ["Debug HDD NaN Issue on ARM Mac"]
+    types: [completed]
+
+jobs:
+  debug-if-failed:
+    if: ${{ github.event.workflow_run.conclusion == 'failure' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
+      issues: write
+      id-token: write
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Download workflow logs
+        uses: actions/github-script@v7
+        id: download-logs
+        with:
+          script: |
+            const runId = context.payload.workflow_run.id;
+            
+            // Get the failed job
+            const jobs = await github.rest.actions.listJobsForWorkflowRun({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              run_id: runId
+            });
+            
+            const failedJob = jobs.data.jobs.find(job => job.conclusion === 'failure');
+            if (!failedJob) {
+              console.log('No failed job found');
+              return;
+            }
+            
+            // Get logs
+            const logs = await github.rest.actions.downloadJobLogsForWorkflowRun({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              job_id: failedJob.id
+            });
+            
+            // Save key parts of the log
+            const logText = logs.data;
+            const hddSection = logText.match(/HDD.*NaN.*[\s\S]*?(?=##\[|$)/gi);
+            
+            core.setOutput('failed_job_name', failedJob.name);
+            core.setOutput('log_snippet', hddSection ? hddSection.join('\n') : 'No HDD-related errors found');
+      
+      - name: Run Claude Code Analysis
+        if: steps.download-logs.outputs.log_snippet
+        uses: anthropics/claude-code-action@beta
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          
+          model: claude-opus-4-20250514
+          
+          direct_prompt: |
+            A test failure was detected in the CI. Please analyze the logs and help debug the issue.
+            
+            Failed job: ${{ steps.download-logs.outputs.failed_job_name }}
+            
+            Log snippet:
+            ```
+            ${{ steps.download-logs.outputs.log_snippet }}
+            ```
+            
+            This appears to be related to issue #478 (HDD NaN issue). Please:
+            1. Analyze what caused the failure
+            2. Suggest specific fixes
+            3. Check if it's the known HDD3_Tmean/HDD4_T5d NaN issue
+            
+            Focus on actionable solutions.
+          
+          allowed_tools: |
+            Read,
+            Grep,
+            WebFetch
+          
+          # Post findings as a comment
+          use_sticky_comment: true

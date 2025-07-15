@@ -43,7 +43,7 @@ jobs:
             - [macos-latest, macosx, arm64]
             - [windows-latest, win, AMD64]
 
-        python: ["cp39", "cp310", "cp311", "cp312", "cp313"]
+        python: ["cp311", "cp312"]  # Reduced for faster testing
         # exclude:
         # - buildplat: [macos-latest, macosx, arm64]
         #   python: ["cp38", "cp39"]

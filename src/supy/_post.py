@@ -189,14 +189,14 @@ def resample_output(df_output, freq="60T", dict_aggm=dict_var_aggm):
     # Helper function to resample a group with specified parameters
     def _resample_group(df_group, freq, label, dict_aggm_group, group_name=None):
         """Resample a dataframe group with specified aggregation rules.
-        
+
         Args:
             df_group: DataFrame group to resample
             freq: Resampling frequency
             label: Label parameter for resample ('left' or 'right')
             dict_aggm_group: Aggregation dictionary for this group
             group_name: Name of the group (used to apply dropna only to DailyState)
-        
+
         Returns:
             Resampled DataFrame
         """
@@ -225,13 +225,13 @@ def resample_output(df_output, freq="60T", dict_aggm=dict_var_aggm):
             return df_resampled
         else:
             df_to_resample = df_group
-            
+
         return df_to_resample.resample(
-            freq, 
-            closed="right", 
+            freq,
+            closed="right",
             label=label
         ).agg(dict_aggm_group)
-    
+
     # get grid and group names
     list_grid = df_output.index.get_level_values("grid").unique()
     list_group = df_output.columns.get_level_values("group").unique()

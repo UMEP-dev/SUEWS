@@ -1,0 +1,192 @@
+name: Debug cibuildwheel with SSH
+
+on:
+  workflow_dispatch:
+    inputs:
+      platform:
+        description: 'Platform to debug'
+        required: true
+        default: 'ubuntu-latest'
+        type: choice
+        options:
+          - ubuntu-latest
+          - macos-13
+          - macos-latest
+          - windows-2025
+      python_version:
+        description: 'Python version'
+        required: true
+        default: 'cp312'
+        type: choice
+        options:
+          - cp39
+          - cp310
+          - cp311
+          - cp312
+          - cp313
+      arch:
+        description: 'Architecture'
+        required: true
+        default: 'x86_64'
+        type: choice
+        options:
+          - x86_64
+          - arm64
+          - AMD64
+          - x86
+      debug_mode:
+        description: 'Enable SSH debugging'
+        required: true
+        default: 'before-build'
+        type: choice
+        options:
+          - before-build
+          - after-failure
+          - always
+          - disabled
+
+jobs:
+  debug_build:
+    name: Debug ${{ inputs.python_version }} on ${{ inputs.platform }} (${{ inputs.arch }})
+    runs-on: ${{ inputs.platform }}
+    
+    env:
+      # Set build configuration based on platform
+      CIBW_BUILD: ${{ inputs.python_version }}-${{ inputs.platform == 'ubuntu-latest' && 'manylinux' || inputs.platform == 'windows-2025' && 'win' || 'macosx' }}*
+      CIBW_ARCHS: ${{ inputs.arch }}
+      
+      # Platform-specific environments
+      CIBW_ENVIRONMENT_PASS_LINUX: RUNNER_OS
+      CIBW_MANYLINUX_X86_64_IMAGE: manylinux_2_28
+      CIBW_MANYLINUX_AARCH64_IMAGE: manylinux_2_28
+      
+      # macOS setup
+      CIBW_BEFORE_ALL_MACOS: >
+        brew install gfortran &&
+        brew unlink gfortran &&
+        brew link gfortran
+        
+      # Windows setup
+      CIBW_BEFORE_ALL_WINDOWS: >
+        C:\msys64\usr\bin\bash.exe -lc "pacman -Syu --noconfirm" &&
+        C:\msys64\usr\bin\bash.exe -lc "pacman -S --needed --noconfirm mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-gcc-fortran mingw-w64-ucrt-x86_64-binutils mingw-w64-ucrt-x86_64-make mingw-w64-ucrt-x86_64-openblas"
+        
+      CIBW_ENVIRONMENT_WINDOWS: >
+        PATH="C:\\msys64\\ucrt64\\bin;$PATH"
+        CC=gcc
+        CXX=g++
+        FC=gfortran
+        CFLAGS="-D__USE_MINGW_ANSI_STDIO=1 -mlong-double-64"
+        CXXFLAGS="-D__USE_MINGW_ANSI_STDIO=1 -mlong-double-64"
+        FCFLAGS="-fno-optimize-sibling-calls"
+        LDFLAGS="-lucrt -static-libgcc -static-libgfortran -LC:/msys64/ucrt64/lib -lsetjmp_compat"
+        
+      CIBW_BEFORE_BUILD_WINDOWS: >
+        echo Creating setjmp compatibility library... &&
+        echo int _setjmpex(void* buf) { extern int __intrinsic_setjmpex(void*); return __intrinsic_setjmpex(buf); } > setjmp_compat.c &&
+        C:\msys64\ucrt64\bin\gcc.exe -c setjmp_compat.c -o setjmp_compat.o &&
+        C:\msys64\ucrt64\bin\ar.exe rcs libsetjmp_compat.a setjmp_compat.o &&
+        echo Library created, checking contents: &&
+        C:\msys64\ucrt64\bin\nm.exe libsetjmp_compat.a &&
+        echo Copying to standard locations: &&
+        copy libsetjmp_compat.a C:\msys64\ucrt64\lib\ &&
+        copy libsetjmp_compat.a C:\msys64\ucrt64\x86_64-w64-mingw32\lib\ &&
+        echo Verifying library locations: &&
+        dir C:\msys64\ucrt64\lib\libsetjmp_compat.a &&
+        dir C:\msys64\ucrt64\x86_64-w64-mingw32\lib\libsetjmp_compat.a &&
+        where python &&
+        where gcc &&
+        gcc --version &&
+        pip install delvewheel
+        
+      CIBW_REPAIR_WHEEL_COMMAND_WINDOWS: "delvewheel repair -w {dest_dir} {wheel}"
+      
+      # Test configuration
+      CIBW_TEST_REQUIRES: pytest
+      CIBW_TEST_COMMAND_MACOS: "python -m pytest '{project}/test'"
+      CIBW_TEST_COMMAND_LINUX: "python -m pytest '{project}/test'"
+      CIBW_TEST_COMMAND_WINDOWS: "python -m pytest {project}\\test"
+      
+      # macOS deployment target
+      MACOSX_DEPLOYMENT_TARGET: ${{ inputs.platform == 'macos-13' && '13.0' || '14.0' }}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: 3.12
+          
+      - name: Install Claude Code (Linux/macOS)
+        if: runner.os != 'Windows'
+        run: |
+          echo "Installing Claude Code CLI..."
+          curl -fsSL https://cli.claude.ai/install.sh | sh
+          export PATH="$HOME/.local/bin:$PATH"
+          claude version || echo "Claude CLI not in PATH yet"
+          
+      - name: Install Claude Code (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          echo "Installing Claude Code CLI on Windows..."
+          # Install via npm as fallback for Windows
+          npm install -g claude-cli || echo "npm install failed, trying alternative"
+          # Alternative: download directly
+          Invoke-WebRequest -Uri "https://github.com/anthropics/claude-code/releases/latest/download/claude-win-x64.exe" -OutFile "claude.exe"
+          .\claude.exe version || echo "Claude CLI not working yet"
+        shell: pwsh
+          
+      - name: Pre-build SSH Debug Session
+        if: inputs.debug_mode == 'before-build' || inputs.debug_mode == 'always'
+        uses: mxschmitt/action-tmate@v3
+        with:
+          limit-access-to-actor: true
+        timeout-minutes: 60
+        
+      - name: Build environment info
+        run: |
+          echo "=== Build Configuration ==="
+          echo "Platform: ${{ inputs.platform }}"
+          echo "Python: ${{ inputs.python_version }}"
+          echo "Architecture: ${{ inputs.arch }}"
+          echo "CIBW_BUILD: ${{ env.CIBW_BUILD }}"
+          echo "CIBW_ARCHS: ${{ env.CIBW_ARCHS }}"
+          echo ""
+          echo "=== System Info ==="
+          python --version
+          pip --version
+          
+      - name: Build wheels with verbose output
+        uses: pypa/cibuildwheel@v3.0.0
+        env:
+          CIBW_BUILD_VERBOSITY: 3
+        continue-on-error: true
+        id: build
+        
+      - name: Post-failure SSH Debug Session
+        if: (failure() && inputs.debug_mode == 'after-failure') || inputs.debug_mode == 'always'
+        uses: mxschmitt/action-tmate@v3
+        with:
+          limit-access-to-actor: true
+        timeout-minutes: 60
+        
+      - name: Upload build logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: debug-logs-${{ inputs.platform }}-${{ inputs.python_version }}-${{ inputs.arch }}
+          path: |
+            cibuildwheel*.log
+            build/
+            dist/
+            wheelhouse/
+            
+      - name: Upload wheels (if successful)
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: wheels-${{ inputs.platform }}-${{ inputs.python_version }}-${{ inputs.arch }}
+          path: ./wheelhouse/*.whl

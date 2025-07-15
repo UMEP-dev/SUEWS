@@ -52,17 +52,18 @@ Automated build and publish workflow that:
 - Updated to latest action versions
 - **Fixed duplicate runs**: Push events only trigger on master/main branches and tags, PR events handle feature branch testing
 
-### 3. Fortran Prettify (`fprettify.yml`)
-Automatically formats Fortran code using fprettify when:
-- Changes are pushed to any branch except master
-- Fortran source files are modified
+### 3. Auto-Format (`auto-format.yml`)
+**Manual formatting workflow** that can be triggered when needed:
+- Formats Python code with ruff
+- Formats Fortran code with fprettify
+- Only commits when changes are detected
+- Triggered via workflow_dispatch (manual)
 
-**Recent Improvements:**
-- Added concurrency control
-- Smart formatting detection (only commits when needed)
-- Improved caching for faster execution
-- Better commit messages
-- **Fixed duplicate runs**: Runs on feature branch pushes and PR events without duplication
+**Features:**
+- Selective formatting (choose Python and/or Fortran)
+- Smart change detection
+- Proper commit messages
+- Job summaries showing results
 
 ### 4. Claude Code Review (`claude-code-review.yml`)
 Automated code review using Claude for pull requests:
@@ -74,17 +75,23 @@ Automated code review using Claude for pull requests:
 ### 5. Continuous Integration (`ci.yml`)
 Comprehensive CI pipeline for code quality:
 - Python linting with ruff
-- Code formatting checks
+- Python formatting checks
+- Fortran formatting checks
 - Branch protection for master/main
 - Proper caching and performance optimization
 - Detailed job summaries
 
-### 6. Python Auto-Format (`ruff-format.yml.disabled`)
-**Status: Disabled** - Enhanced Python formatting workflow:
-- Automatic code formatting with ruff
-- Smart detection to avoid unnecessary commits
-- Comprehensive linting after formatting
-- Can be enabled by removing `.disabled` extension
+**Recent Improvements:**
+- **Integrated formatting checks**: Now includes both Python and Fortran formatting validation
+- **Centralized quality control**: All code quality checks in one place
+- **Efficient execution**: Only runs on push to master/main and PR events
+
+### 6. Disabled Workflows
+**Status: Disabled** - Legacy formatting workflows replaced by integrated CI:
+- `fprettify.yml.disabled` - Standalone Fortran formatting
+- `ruff-format.yml.disabled` - Standalone Python formatting
+
+These have been replaced by the integrated CI workflow for better efficiency.
 
 ## Configuration
 
@@ -144,10 +151,12 @@ Without this configuration, all Claude requests will be denied.
    - Extensive caching reduces build times
    - Smart detection prevents unnecessary work
    - Workflows only run when relevant files change
+   - **Integrated formatting**: Checks moved to CI workflow for efficiency
 
 4. **Code Quality:**
-   - New CI workflow ensures consistent code quality
-   - Automatic formatting available for both Python and Fortran
+   - Integrated CI workflow with all quality checks
+   - Formatting validation for both Python and Fortran in CI
+   - Manual formatting workflow available when needed
    - Branch protection prevents direct pushes to master
    - Comprehensive testing and validation
 

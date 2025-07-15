@@ -38,7 +38,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install ruff pytest
+          pip install ruff pytest fprettify
 
       - name: Run Python linting
         run: ruff check --output-format=github .
@@ -46,12 +46,22 @@ jobs:
       - name: Run Python formatting check
         run: ruff format --check --diff .
         
+      - name: Check Fortran formatting
+        run: |
+          if ls src/suews/src/*.f95 >/dev/null 2>&1; then
+            echo "Checking Fortran formatting..."
+            fprettify src/suews/src/*.f95 -c .fprettify.yml --diff
+          else
+            echo "No Fortran files found to check"
+          fi
+        
       - name: Generate job summary
         if: always()
         run: |
           echo "## Code Quality Results" >> $GITHUB_STEP_SUMMARY
           echo "- ✅ Python linting completed" >> $GITHUB_STEP_SUMMARY
           echo "- ✅ Python formatting check completed" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Fortran formatting check completed" >> $GITHUB_STEP_SUMMARY
           echo "- 🔍 See action logs for detailed results" >> $GITHUB_STEP_SUMMARY
 
   branch-protection:

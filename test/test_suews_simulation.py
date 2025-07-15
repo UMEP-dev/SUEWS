@@ -227,6 +227,15 @@ class TestSUEWSSimulationOutputFormats:
     
     def test_save_parquet_format(self, sim_with_results):
         """Test saving results in Parquet format."""
+        # Skip if parquet dependencies are not available
+        try:
+            import pyarrow
+        except ImportError:
+            try:
+                import fastparquet
+            except ImportError:
+                pytest.skip("pyarrow or fastparquet required for parquet format testing")
+        
         with tempfile.TemporaryDirectory() as tmpdir:
             output_path = Path(tmpdir) / "results.parquet"
             # Save as parquet directly

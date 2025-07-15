@@ -35,8 +35,33 @@ For developers, see the [Developer Note](#developer-note) section below.
 
 ## Developer Note
 
-> [!NOTE]
-> **the following is deprecated and will be updated**
+### Parallel Development with Worktrees
+
+SUEWS uses git worktrees for parallel feature development. This allows multiple features to be developed simultaneously without branch switching.
+
+#### Quick Start with Claude Code
+
+```bash
+# Start new feature
+claude -p "/worktree new"
+
+# Sync with master  
+claude -p "/worktree sync"
+
+# Create pull request
+claude -p "/worktree pr"
+
+# Finish feature
+claude -p "/worktree finish"
+```
+
+Each worktree has:
+- Isolated Python environment
+- Development plan with lead developer tracking
+- GitHub issue integration
+- Clean lifecycle management (create → develop → PR → archive)
+
+See `.claude/howto/worktree-workflow.md` for detailed guide.
 
 ### Development Environment
 

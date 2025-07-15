@@ -70,6 +70,41 @@ This directory contains all Claude Code-specific documentation, plans, and confi
 2. Find your plan: `ls .claude/plans/doing/`
 3. Read setup guide: `cat .claude/howto/setup-worktree.md`
 
+## Slash Commands
+
+Custom commands for streamlined workflows:
+
+### /worktree
+Comprehensive worktree management with four simple subcommands:
+
+- **`new`** - Start a new feature worktree
+  - Interactive setup with feature name, issue, and lead developer
+  - Creates worktree, plan, and environment automatically
+  
+- **`sync`** - Synchronize with master
+  - Pull latest changes and update dependencies
+  - Show conflicts if any
+  
+- **`pr`** - Create pull request
+  - Push changes and create PR via GitHub CLI
+  - Link to issue and show PR URL
+  
+- **`finish`** - Complete or abandon worktree
+  - Option to finish via PR or abandon with reason
+  - Clean up and archive plan
+
+**Usage**: `/worktree [subcommand]`
+
+**Examples**:
+```bash
+/worktree new        # Start new feature
+/worktree sync       # Update from master
+/worktree pr         # Create pull request
+/worktree finish     # Complete feature
+```
+
+See `.claude/howto/worktree-workflow.md` for detailed workflow guide.
+
 ## Git Policy
 - ✅ Commit: All directories and files (except settings.local.json)
 - ❌ Ignore: settings.local.json, any temp-* files

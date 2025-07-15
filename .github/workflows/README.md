@@ -42,7 +42,7 @@ Automated build and publish workflow that:
 - Supports Python 3.9-3.13 on multiple platforms (Linux, macOS, Windows)
 - Runs tests on each platform to ensure quality
 - Publishes to TestPyPI on every push (not PRs)
-- Publishes to PyPI on version tags (v*.*.*)
+- Publishes to PyPI on release tags (excludes dev tags)
 
 **Recent Improvements:**
 - Added concurrency control to prevent conflicting builds
@@ -52,6 +52,7 @@ Automated build and publish workflow that:
 - Updated to latest action versions
 - **Comprehensive testing**: Builds run on all branches to catch issues early
 - **Smart publishing**: Only publishes on push events, not PR events
+- **Correct tag format**: Uses repository's date-based tag format (e.g., 2025.1.1)
 
 ### 3. Auto-Format (`auto-format.yml`)
 **Manual formatting workflow** that can be triggered when needed:

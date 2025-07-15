@@ -245,35 +245,17 @@ def resample_output(df_output, freq="60T", dict_aggm=dict_var_aggm):
     )
 
     # Handle DailyState separately if present
-    if "DailyState" in df_output and "DailyState" in dict_aggm:
-        # DailyState is inherently daily data, so we need special handling
-        # Parse the frequency to determine if it's finer or coarser than daily
-        freq_offset = pd.tseries.frequencies.to_offset(freq)
-        daily_offset = pd.tseries.frequencies.to_offset('1D')
-        
+    if "DailyState" in df_output:
+        # DailyState is inherently daily data - no resampling needed
+        # Just clean NaN rows and include in output
         df_dailystate_list = []
         for grid in list_grid:
             df_daily = df_output.xs(grid, level='grid')["DailyState"]
             # Remove rows where all values are NaN
             df_daily_clean = df_daily.dropna(how='all')
             
-            if freq_offset < daily_offset:
-                # Finer than daily: forward fill to propagate daily values
-                # Use 'first' to preserve the sparse daily data, then forward fill
-                df_daily_resampled = df_daily_clean.resample(freq, closed="right", label="right").first()
-                # Forward fill to propagate daily values to all hourly timestamps
-                df_daily_resampled = df_daily_resampled.ffill()
-            elif freq_offset > daily_offset:
-                # Coarser than daily: use normal aggregation
-                df_daily_resampled = df_daily_clean.resample(
-                    freq, closed="right", label="right"
-                ).agg(dict_aggm["DailyState"])
-            else:
-                # Exactly daily: just use the cleaned data
-                df_daily_resampled = df_daily_clean
-            
             df_dailystate_list.append(pd.concat(
-                {"DailyState": df_daily_resampled},
+                {"DailyState": df_daily_clean},
                 axis=1,
                 names=["group", "var"]
             ))

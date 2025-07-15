@@ -187,7 +187,7 @@ def pack_df_output_block(dict_output_block, df_forcing_block):
 # resample supy output
 def resample_output(df_output, freq="60T", dict_aggm=dict_var_aggm):
     # Helper function to resample a group with specified parameters
-    def _resample_group(df_group, freq, label, dict_aggm_group, group_name=None):
+    def _resample_group(df_group, freq, label, dict_aggm_group):
         """Resample a dataframe group with specified aggregation rules.
 
         Args:
@@ -195,7 +195,6 @@ def resample_output(df_output, freq="60T", dict_aggm=dict_var_aggm):
             freq: Resampling frequency
             label: Label parameter for resample ('left' or 'right')
             dict_aggm_group: Aggregation dictionary for this group
-            group_name: Name of the group (used to apply dropna only to DailyState)
 
         Returns:
             Resampled DataFrame

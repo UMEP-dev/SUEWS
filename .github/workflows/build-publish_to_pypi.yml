@@ -32,6 +32,7 @@ jobs:
     permissions:
       contents: read
       actions: read  # Required for Claude Code to read CI results
+      issues: write  # Required for creating transparency issues
     strategy:
       matrix:
         buildplat:
@@ -142,6 +143,7 @@ jobs:
 
       - name: Claude Code automatic build failure fix
         if: failure() && steps.auth-check.outputs.authorized == 'true'
+        id: claude-fix
         uses: anthropics/claude-code-action@beta
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
@@ -207,6 +209,49 @@ jobs:
             4. Verify platform-specific build requirements
             5. Test fixes thoroughly before committing
 
+      - name: Create transparency issue for Claude Code fix
+        if: failure() && steps.auth-check.outputs.authorized == 'true' && steps.claude-fix.conclusion == 'success'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const title = `✅ Claude Code Fix: Build failure resolved - ${{ matrix.python }}-${{ matrix.buildplat[1] }}-${{ matrix.buildplat[2] }}`;
+            const body = `🤖 **Claude Code Automatic Fix Report**
+
+            **Build Details:**
+            - Platform: ${{ matrix.buildplat[0] }}
+            - Python: ${{ matrix.python }}
+            - Architecture: ${{ matrix.buildplat[2] }}
+            - Workflow: ${{ github.workflow }}
+            - Run ID: ${{ github.run_id }}
+
+            **Fix Context:**
+            - Branch: ${{ github.ref_name }}
+            - Commit: ${{ github.sha }}
+            - Actor: ${{ github.actor }}
+            - Fixed by: Claude Code (automated)
+
+            **What Happened:**
+            1. Build failed during wheel building process
+            2. Claude Code automatically analyzed the failure
+            3. Claude Code provided and implemented a fix
+            4. Build should now succeed (or fallback to manual debugging)
+
+            **Build logs and Claude Code actions:** https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+            **This is an automated transparency report** - Claude Code has intervened to fix a build failure.
+            
+            ⚠️ **Please review the changes** made by Claude Code to ensure they are appropriate.`;
+
+            const issue = await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: title,
+              body: body,
+              labels: ['claude-code-fix', 'automated', 'transparency', 'build-fix']
+            });
+            
+            console.log(`Created transparency issue #${issue.data.number} for Claude Code fix`);
+
       - name: Setup tmate session for manual debugging
         if: failure()
         uses: mxschmitt/action-tmate@v3
@@ -230,6 +275,7 @@ jobs:
       id-token: write  # Required for trusted publishing to PyPI
       contents: read   # Required for checkout
       actions: read    # Required for Claude Code to read CI results
+      issues: write    # Required for creating transparency issues
 
     steps:
       - name: Download all the built wheels
@@ -269,6 +315,7 @@ jobs:
 
       - name: Claude Code automatic deployment failure fix
         if: failure() && steps.deploy-auth-check.outputs.authorized == 'true'
+        id: claude-deploy-fix
         uses: anthropics/claude-code-action@beta
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
@@ -328,6 +375,47 @@ jobs:
             3. Verify package metadata and version
             4. Check authentication and permissions
             5. Consider PyPI service status for transient issues
+
+      - name: Create transparency issue for Claude Code deployment fix
+        if: failure() && steps.deploy-auth-check.outputs.authorized == 'true' && steps.claude-deploy-fix.conclusion == 'success'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const title = `✅ Claude Code Fix: Deployment failure resolved`;
+            const body = `🤖 **Claude Code Automatic Deployment Fix Report**
+
+            **Deployment Details:**
+            - Workflow: ${{ github.workflow }}
+            - Run ID: ${{ github.run_id }}
+            - Job: deploy
+
+            **Fix Context:**
+            - Branch: ${{ github.ref_name }}
+            - Commit: ${{ github.sha }}
+            - Actor: ${{ github.actor }}
+            - Fixed by: Claude Code (automated)
+
+            **What Happened:**
+            1. Deployment failed during wheel validation or publishing
+            2. Claude Code automatically analyzed the failure
+            3. Claude Code provided and implemented a fix
+            4. Deployment should now succeed (or fallback to manual debugging)
+
+            **Deployment logs and Claude Code actions:** https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+            **This is an automated transparency report** - Claude Code has intervened to fix a deployment failure.
+            
+            ⚠️ **Please review the changes** made by Claude Code to ensure they are appropriate.`;
+
+            const issue = await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: title,
+              body: body,
+              labels: ['claude-code-fix', 'automated', 'transparency', 'deployment-fix']
+            });
+            
+            console.log(`Created transparency issue #${issue.data.number} for Claude Code deployment fix`);
 
       - name: Setup tmate session for manual debugging
         if: failure()

@@ -71,10 +71,12 @@ When a build fails, the workflow automatically:
 - Fortran compilation problems
 
 **Features:**
-- **Direct integration**: No issue creation, immediate Claude Code response
+- **Direct integration**: Immediate Claude Code response without polling
 - **Authorized users only**: Respects existing Claude Code security settings
 - **Context-aware**: Provides specific failure type and platform information
 - **Comprehensive tooling**: Full access to development tools for fixing
+- **Transparency tracking**: Creates issues to document what was fixed (when successful)
+- **Audit trail**: Full record of automatic fixes for review and accountability
 
 ### 3. Auto-Format (`auto-format.yml`)
 **Manual formatting workflow** that can be triggered when needed:

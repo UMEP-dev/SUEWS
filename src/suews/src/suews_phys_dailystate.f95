@@ -1232,7 +1232,7 @@ CONTAINS
                       FLOOR(REAL(dt_since_start, KIND(1D0))/(24*60*60))) ! dt_since_start < 4 days
       ! Check if HDD_id(4) is NaN before calculation
       IF (HDD_id(4) /= HDD_id(4)) THEN
-         HDD_id(4) = HDD_id(3)  ! Use today's average if previous is NaN
+         HDD_id(4) = HDD_id(3) ! Use today's average if previous is NaN
       ELSE
          HDD_id(4) = (HDD_id(4)*days_prev + HDD_id(3))/(days_prev + 1)
       END IF

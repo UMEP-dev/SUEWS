@@ -129,38 +129,44 @@ jobs:
             const arch = '${{ matrix.buildplat[2] }}';
             const runId = '${{ github.run_id }}';
             const sha = '${{ github.sha }}';
+            const branch = '${{ github.ref_name }}';
+            const actor = '${{ github.actor }}';
+            const repo = '${{ github.repository }}';
             
             const issueTitle = `🚨 Build failure: ${platform}/${python}/${arch} (${sha.substring(0,7)})`;
             
-            const body = `## Build Failure Report
-
-**Platform**: ${platform}
-**Python**: ${python}
-**Architecture**: ${arch}
-**Branch**: ${{ github.ref_name }}
-**Commit**: ${sha}
-**Actor**: ${{ github.actor }}
-
-### Failure Details
-[View full build logs](https://github.com/${{ github.repository }}/actions/runs/${runId})
-
-### Debug This Issue
-[🔧 Launch Debug Environment](https://github.com/${{ github.repository }}/actions/workflows/debug-build.yml?platform=${platform}&python=${python}&issue=${issueTitle})
-
-### Quick Diagnostics
-\`\`\`bash
-# Platform-specific diagnostics
-${platform === 'windows-latest' ? `where python
-where gcc
-where bash
-echo %PATH%` : `which python
-which gcc
-which gfortran
-echo $PATH`}
-\`\`\`
-
----
-*This issue was automatically created. Use the debug link above to investigate and fix.*`;
+            let diagnostics = '';
+            if (platform === 'windows-latest') {
+              diagnostics = 'where python\nwhere gcc\nwhere bash\necho %PATH%';
+            } else {
+              diagnostics = 'which python\nwhich gcc\nwhich gfortran\necho $PATH';
+            }
+            
+            const body = [
+              '## Build Failure Report',
+              '',
+              `**Platform**: ${platform}`,
+              `**Python**: ${python}`,
+              `**Architecture**: ${arch}`,
+              `**Branch**: ${branch}`,
+              `**Commit**: ${sha}`,
+              `**Actor**: ${actor}`,
+              '',
+              '### Failure Details',
+              `[View full build logs](https://github.com/${repo}/actions/runs/${runId})`,
+              '',
+              '### Debug This Issue',
+              `[🔧 Launch Debug Environment](https://github.com/${repo}/actions/workflows/debug-build.yml)`,
+              '',
+              '### Quick Diagnostics',
+              '```bash',
+              '# Platform-specific diagnostics',
+              diagnostics,
+              '```',
+              '',
+              '---',
+              '*This issue was automatically created. Use the debug link above to investigate and fix.*'
+            ].join('\n');
             
             const issue = await github.rest.issues.create({
               owner: context.repo.owner,
@@ -211,30 +217,35 @@ echo $PATH`}
           script: |
             const runId = '${{ github.run_id }}';
             const sha = '${{ github.sha }}';
+            const branch = '${{ github.ref_name }}';
+            const actor = '${{ github.actor }}';
+            const repo = '${{ github.repository }}';
             
             const issueTitle = `🚨 Deployment failure (${sha.substring(0,7)})`;
             
-            const body = `## Deployment Failure Report
-
-**Job**: deploy
-**Branch**: ${{ github.ref_name }}
-**Commit**: ${sha}
-**Actor**: ${{ github.actor }}
-
-### Failure Details
-[View deployment logs](https://github.com/${{ github.repository }}/actions/runs/${runId})
-
-### Debug This Issue
-[🔧 Launch Debug Environment](https://github.com/${{ github.repository }}/actions/workflows/debug-build.yml?platform=ubuntu-latest&python=cp312&issue=${issueTitle})
-
-### Common Issues
-- Wheel validation errors (twine check)
-- PyPI/TestPyPI authentication issues
-- Package metadata problems
-- Version conflicts
-
----
-*This issue was automatically created. Use the debug link above to investigate and fix.*`;
+            const body = [
+              '## Deployment Failure Report',
+              '',
+              '**Job**: deploy',
+              `**Branch**: ${branch}`,
+              `**Commit**: ${sha}`,
+              `**Actor**: ${actor}`,
+              '',
+              '### Failure Details',
+              `[View deployment logs](https://github.com/${repo}/actions/runs/${runId})`,
+              '',
+              '### Debug This Issue',
+              `[🔧 Launch Debug Environment](https://github.com/${repo}/actions/workflows/debug-build.yml)`,
+              '',
+              '### Common Issues',
+              '- Wheel validation errors (twine check)',
+              '- PyPI/TestPyPI authentication issues',
+              '- Package metadata problems',
+              '- Version conflicts',
+              '',
+              '---',
+              '*This issue was automatically created. Use the debug link above to investigate and fix.*'
+            ].join('\n');
             
             const issue = await github.rest.issues.create({
               owner: context.repo.owner,

@@ -180,10 +180,10 @@ jobs:
 
       - name: SSH Debug Session (Before Build)
         if: inputs.debug_mode == 'before-build' || inputs.debug_mode == 'always'
-        uses: tmate-io/action-tmate@v3
+        uses: mxschmitt/action-tmate@v3
         with:
           limit-access-to-actor: true
-          session-name: "pre-build-${{ inputs.python_version }}-${{ inputs.platform }}"
+          tmate_session_name: "pre-build-${{ inputs.python_version }}-${{ inputs.platform }}"
         timeout-minutes: 60
 
       - name: Build wheel with cibuildwheel
@@ -205,10 +205,10 @@ jobs:
         if: |
           (inputs.debug_mode == 'after-failure' && env.BUILD_FAILED == 'true') ||
           inputs.debug_mode == 'always'
-        uses: tmate-io/action-tmate@v3
+        uses: mxschmitt/action-tmate@v3
         with:
           limit-access-to-actor: true
-          session-name: "post-build-${{ inputs.python_version }}-${{ inputs.platform }}"
+          tmate_session_name: "post-build-${{ inputs.python_version }}-${{ inputs.platform }}"
         timeout-minutes: 60
 
       - name: Collect debug artifacts

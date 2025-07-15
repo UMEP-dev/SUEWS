@@ -31,9 +31,10 @@ jobs:
     runs-on: ${{ matrix.buildplat[0] }}
     permissions:
       contents: read
-      actions: read     # Required for Claude Code to read CI results
-      issues: write     # Required for creating transparency issues
-      id-token: write   # Required for Claude Code OIDC token
+      pull-requests: read  # Required for Claude Code
+      issues: write        # Required for creating transparency issues
+      actions: read        # Required for Claude Code to read CI results
+      id-token: write      # Required for Claude Code authentication
     strategy:
       matrix:
         buildplat:
@@ -148,6 +149,11 @@ jobs:
         uses: anthropics/claude-code-action@beta
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          
+          # This is an optional setting that allows Claude to read CI results on PRs
+          additional_permissions: |
+            actions: read
+          
           model: claude-sonnet-4-20250514
           direct_prompt: |
             🚨 **Automated Build Failure - Please Fix**
@@ -215,43 +221,87 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
-            const title = `✅ Claude Code Fix: Build failure resolved - ${{ matrix.python }}-${{ matrix.buildplat[1] }}-${{ matrix.buildplat[2] }}`;
-            const body = `🤖 **Claude Code Automatic Fix Report**
-
-            **Build Details:**
-            - Platform: ${{ matrix.buildplat[0] }}
-            - Python: ${{ matrix.python }}
-            - Architecture: ${{ matrix.buildplat[2] }}
-            - Workflow: ${{ github.workflow }}
-            - Run ID: ${{ github.run_id }}
+            const commitSha = '${{ github.sha }}';
+            const runId = '${{ github.run_id }}';
+            const platform = '${{ matrix.buildplat[0] }}';
+            const python = '${{ matrix.python }}';
+            const arch = '${{ matrix.buildplat[2] }}';
+            
+            // Create platform-specific title by default
+            const platformTitle = `✅ Claude Code Fix: Build failure resolved - ${platform}/${python}/${arch} (${commitSha.substring(0,7)})`;
+            
+            // Check if issue already exists for this commit (look for universal issues first)
+            const existingIssues = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              labels: 'claude-code-fix,build-fix',
+              state: 'open'
+            });
+            
+            // Look for universal issue (without platform specifics)
+            const universalIssue = existingIssues.data.find(issue => 
+              issue.title.includes(`Build failure resolved (${commitSha.substring(0,7)})`) &&
+              !issue.title.includes('/')  // No platform-specific markers
+            );
+            
+            // Look for platform-specific issue
+            const platformIssue = existingIssues.data.find(issue => 
+              issue.title.includes(`${platform}/${python}/${arch}`)
+            );
+            
+            if (existingIssue) {
+              // Update existing issue with additional platform info
+              const currentBody = existingIssue.body;
+              const platformInfo = `- ${{ matrix.buildplat[0] }} / ${{ matrix.python }} / ${{ matrix.buildplat[2] }}`;
+              
+              const updatedBody = currentBody.replace(
+                /(\*\*Affected Platforms:\*\*\n(?:- [^\n]+\n)*)/,
+                `$1${platformInfo}\n`
+              ) || currentBody + `\n\n**Additional Platform Fixed:**\n${platformInfo}`;
+              
+              await github.rest.issues.update({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: existingIssue.number,
+                body: updatedBody
+              });
+              
+              console.log(`Updated existing issue #${existingIssue.number} with additional platform info`);
+            } else {
+              // Create new consolidated issue
+              const body = `🤖 **Claude Code Automatic Fix Report**
 
             **Fix Context:**
             - Branch: ${{ github.ref_name }}
-            - Commit: ${{ github.sha }}
+            - Commit: ${commitSha}
             - Actor: ${{ github.actor }}
             - Fixed by: Claude Code (automated)
 
+            **Affected Platforms:**
+            - ${{ matrix.buildplat[0] }} / ${{ matrix.python }} / ${{ matrix.buildplat[2] }}
+
             **What Happened:**
-            1. Build failed during wheel building process
+            1. Build failed during wheel building process across multiple platforms
             2. Claude Code automatically analyzed the failure
             3. Claude Code provided and implemented a fix
-            4. Build should now succeed (or fallback to manual debugging)
+            4. Build should now succeed across all platforms
 
-            **Build logs and Claude Code actions:** https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+            **Build logs and Claude Code actions:** https://github.com/${{ github.repository }}/actions/runs/${runId}
 
             **This is an automated transparency report** - Claude Code has intervened to fix a build failure.
             
             ⚠️ **Please review the changes** made by Claude Code to ensure they are appropriate.`;
 
-            const issue = await github.rest.issues.create({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              title: title,
-              body: body,
-              labels: ['claude-code-fix', 'build-fix']
-            });
-            
-            console.log(`Created transparency issue #${issue.data.number} for Claude Code fix`);
+              const issue = await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title: issueTitle,
+                body: body,
+                labels: ['claude-code-fix', 'build-fix']
+              });
+              
+              console.log(`Created new transparency issue #${issue.data.number} for Claude Code fix`);
+            }
 
       - name: Setup tmate session for manual debugging
         if: failure()
@@ -320,6 +370,11 @@ jobs:
         uses: anthropics/claude-code-action@beta
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          
+          # This is an optional setting that allows Claude to read CI results on PRs
+          additional_permissions: |
+            actions: read
+          
           model: claude-sonnet-4-20250514
           direct_prompt: |
             🚨 **Automated Deployment Failure - Please Fix**
@@ -382,17 +437,44 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
-            const title = `✅ Claude Code Fix: Deployment failure resolved`;
-            const body = `🤖 **Claude Code Automatic Deployment Fix Report**
-
-            **Deployment Details:**
-            - Workflow: ${{ github.workflow }}
-            - Run ID: ${{ github.run_id }}
-            - Job: deploy
+            const commitSha = '${{ github.sha }}';
+            const runId = '${{ github.run_id }}';
+            const issueTitle = `✅ Claude Code Fix: Deployment failure resolved (${commitSha.substring(0,7)})`;
+            
+            // Check if issue already exists for this commit
+            const existingIssues = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              labels: 'claude-code-fix,deployment-fix',
+              state: 'open'
+            });
+            
+            const existingIssue = existingIssues.data.find(issue => 
+              issue.title.includes(commitSha.substring(0,7))
+            );
+            
+            if (existingIssue) {
+              // Update existing issue to indicate deployment was also fixed
+              const currentBody = existingIssue.body;
+              const deploymentInfo = `\n\n**Deployment Fix:** Deployment job was also automatically fixed by Claude Code.`;
+              
+              if (!currentBody.includes('Deployment Fix:')) {
+                await github.rest.issues.update({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: existingIssue.number,
+                  body: currentBody + deploymentInfo
+                });
+                
+                console.log(`Updated existing issue #${existingIssue.number} with deployment fix info`);
+              }
+            } else {
+              // Create new issue for deployment fix
+              const body = `🤖 **Claude Code Automatic Deployment Fix Report**
 
             **Fix Context:**
             - Branch: ${{ github.ref_name }}
-            - Commit: ${{ github.sha }}
+            - Commit: ${commitSha}
             - Actor: ${{ github.actor }}
             - Fixed by: Claude Code (automated)
 
@@ -400,23 +482,24 @@ jobs:
             1. Deployment failed during wheel validation or publishing
             2. Claude Code automatically analyzed the failure
             3. Claude Code provided and implemented a fix
-            4. Deployment should now succeed (or fallback to manual debugging)
+            4. Deployment should now succeed
 
-            **Deployment logs and Claude Code actions:** https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+            **Deployment logs and Claude Code actions:** https://github.com/${{ github.repository }}/actions/runs/${runId}
 
             **This is an automated transparency report** - Claude Code has intervened to fix a deployment failure.
             
             ⚠️ **Please review the changes** made by Claude Code to ensure they are appropriate.`;
 
-            const issue = await github.rest.issues.create({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              title: title,
-              body: body,
-              labels: ['claude-code-fix', 'deployment-fix']
-            });
-            
-            console.log(`Created transparency issue #${issue.data.number} for Claude Code deployment fix`);
+              const issue = await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title: issueTitle,
+                body: body,
+                labels: ['claude-code-fix', 'deployment-fix']
+              });
+              
+              console.log(`Created new transparency issue #${issue.data.number} for Claude Code deployment fix`);
+            }
 
       - name: Setup tmate session for manual debugging
         if: failure()

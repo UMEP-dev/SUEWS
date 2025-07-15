@@ -117,7 +117,7 @@ jobs:
             ${{ runner.os }}-pip-
 
       - name: Build wheels
-        uses: pypa/cibuildwheel@v2.22.0
+        uses: pypa/cibuildwheel@v2.23.1
 
       - name: Create issue for build failure
         if: failure()

@@ -122,26 +122,31 @@ jobs:
       - name: Check user authorization for Claude Code
         if: failure()
         id: auth-check
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const authorizedUsers = process.env.CLAUDE_AUTHORIZED_USERS;
+            const currentUser = context.actor;
+            
+            // Check if Claude Code is available and user is authorized
+            if (!authorizedUsers) {
+              console.log('CLAUDE_AUTHORIZED_USERS secret not configured - skipping Claude Code');
+              core.setOutput('authorized', 'false');
+              return;
+            }
+            
+            // Check if user is in the authorized list (supports both comma and newline separated)
+            const usersList = authorizedUsers.split(/[,\n]/).map(u => u.trim()).filter(u => u);
+            
+            if (usersList.includes(currentUser)) {
+              console.log(`✓ User ${currentUser} is authorized for Claude Code`);
+              core.setOutput('authorized', 'true');
+            } else {
+              console.log(`User ${currentUser} is not authorized for Claude Code`);
+              core.setOutput('authorized', 'false');
+            }
         env:
-          AUTHORIZED_USERS: ${{ secrets.CLAUDE_AUTHORIZED_USERS }}
-          CURRENT_USER: ${{ github.actor }}
-        run: |
-          # Check if Claude Code is available and user is authorized
-          if [ -z "$AUTHORIZED_USERS" ]; then
-            echo "CLAUDE_AUTHORIZED_USERS secret not configured - skipping Claude Code"
-            echo "authorized=false" >> $GITHUB_OUTPUT
-            exit 0
-          fi
-
-          # Check if user is in the authorized list
-          USERS_LIST=$(echo "$AUTHORIZED_USERS" | tr ',' '\n' | tr -d ' ')
-          if echo "$USERS_LIST" | grep -q "^$CURRENT_USER$"; then
-            echo "✓ User $CURRENT_USER is authorized for Claude Code"
-            echo "authorized=true" >> $GITHUB_OUTPUT
-          else
-            echo "User $CURRENT_USER is not authorized for Claude Code"
-            echo "authorized=false" >> $GITHUB_OUTPUT
-          fi
+          CLAUDE_AUTHORIZED_USERS: ${{ secrets.CLAUDE_AUTHORIZED_USERS }}
 
       - name: Claude Code automatic build failure fix
         if: failure() && steps.auth-check.outputs.authorized == 'true'
@@ -338,26 +343,31 @@ jobs:
       - name: Check user authorization for Claude Code
         if: failure()
         id: deploy-auth-check
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const authorizedUsers = process.env.CLAUDE_AUTHORIZED_USERS;
+            const currentUser = context.actor;
+            
+            // Check if Claude Code is available and user is authorized
+            if (!authorizedUsers) {
+              console.log('CLAUDE_AUTHORIZED_USERS secret not configured - skipping Claude Code');
+              core.setOutput('authorized', 'false');
+              return;
+            }
+            
+            // Check if user is in the authorized list (supports both comma and newline separated)
+            const usersList = authorizedUsers.split(/[,\n]/).map(u => u.trim()).filter(u => u);
+            
+            if (usersList.includes(currentUser)) {
+              console.log(`✓ User ${currentUser} is authorized for Claude Code`);
+              core.setOutput('authorized', 'true');
+            } else {
+              console.log(`User ${currentUser} is not authorized for Claude Code`);
+              core.setOutput('authorized', 'false');
+            }
         env:
-          AUTHORIZED_USERS: ${{ secrets.CLAUDE_AUTHORIZED_USERS }}
-          CURRENT_USER: ${{ github.actor }}
-        run: |
-          # Check if Claude Code is available and user is authorized
-          if [ -z "$AUTHORIZED_USERS" ]; then
-            echo "CLAUDE_AUTHORIZED_USERS secret not configured - skipping Claude Code"
-            echo "authorized=false" >> $GITHUB_OUTPUT
-            exit 0
-          fi
-
-          # Check if user is in the authorized list
-          USERS_LIST=$(echo "$AUTHORIZED_USERS" | tr ',' '\n' | tr -d ' ')
-          if echo "$USERS_LIST" | grep -q "^$CURRENT_USER$"; then
-            echo "✓ User $CURRENT_USER is authorized for Claude Code"
-            echo "authorized=true" >> $GITHUB_OUTPUT
-          else
-            echo "User $CURRENT_USER is not authorized for Claude Code"
-            echo "authorized=false" >> $GITHUB_OUTPUT
-          fi
+          CLAUDE_AUTHORIZED_USERS: ${{ secrets.CLAUDE_AUTHORIZED_USERS }}
 
       - name: Claude Code automatic deployment failure fix
         if: failure() && steps.deploy-auth-check.outputs.authorized == 'true'

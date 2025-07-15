@@ -152,6 +152,9 @@ jobs:
         if: failure() && steps.auth-check.outputs.authorized == 'true'
         id: claude-fix
         uses: anthropics/claude-code-base-action@beta
+        env:
+          # Configure shell for Claude Code on Windows
+          SHELL: ${{ matrix.buildplat[0] == 'windows-latest' && 'C:/msys64/usr/bin/bash.exe' || '/bin/bash' }}
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           model: claude-sonnet-4-20250514
@@ -373,6 +376,9 @@ jobs:
         if: failure() && steps.deploy-auth-check.outputs.authorized == 'true'
         id: claude-deploy-fix
         uses: anthropics/claude-code-base-action@beta
+        env:
+          # Configure shell for Claude Code - deployment runs on ubuntu-latest, so use bash
+          SHELL: /bin/bash
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           model: claude-sonnet-4-20250514

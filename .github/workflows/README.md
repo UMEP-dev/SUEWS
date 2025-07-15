@@ -38,11 +38,11 @@ AI-powered workflow automation using Claude. Mention `@claude` to:
 
 ### 2. Build and Publish (`build-publish_to_pypi.yml`)
 Automated build and publish workflow that:
-- Builds wheels for multiple platforms (Linux, macOS, Windows)
-- Supports Python 3.9-3.13
-- Runs tests on each platform
-- Publishes to TestPyPI on every push
-- Publishes to PyPI on tagged releases
+- **Builds wheels on ALL branches** for comprehensive testing
+- Supports Python 3.9-3.13 on multiple platforms (Linux, macOS, Windows)
+- Runs tests on each platform to ensure quality
+- Publishes to TestPyPI on every push (not PRs)
+- Publishes to PyPI on version tags (v*.*.*)
 
 **Recent Improvements:**
 - Added concurrency control to prevent conflicting builds
@@ -50,7 +50,8 @@ Automated build and publish workflow that:
 - Improved security with proper permissions
 - Added wheel validation before publishing
 - Updated to latest action versions
-- **Fixed duplicate runs**: Push events only trigger on master/main branches and tags, PR events handle feature branch testing
+- **Comprehensive testing**: Builds run on all branches to catch issues early
+- **Smart publishing**: Only publishes on push events, not PR events
 
 ### 3. Auto-Format (`auto-format.yml`)
 **Manual formatting workflow** that can be triggered when needed:

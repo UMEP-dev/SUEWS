@@ -7,7 +7,6 @@ concurrency:
 
 on:
   push:
-    branches: [master, main]  # Only run on main branches for releases
     paths: # Push events containing matching files
       - "src/suews/**"
       - "src/supy/**"
@@ -16,8 +15,6 @@ on:
       - "test/**"
       - "pyproject.toml"
       - "meson.build"
-    tags:
-      - "v*.*.*"  # Run on version tags for PyPI releases
 
   pull_request:
     paths: # PR events containing matching files
@@ -133,6 +130,8 @@ jobs:
     runs-on: ubuntu-latest
     needs:
       - build_wheels
+    # Only run deploy on pushes (not PRs) to avoid duplicate publishing
+    if: github.event_name == 'push'
     permissions:
       id-token: write  # Required for trusted publishing to PyPI
       contents: read   # Required for checkout
@@ -164,7 +163,7 @@ jobs:
           repository-url: https://test.pypi.org/legacy/
 
       - name: Publish distribution to PyPI
-        if: startsWith(github.ref, 'refs/tags')
+        if: startsWith(github.ref, 'refs/tags/v')
         uses: pypa/gh-action-pypi-publish@release/v1.11
         with:
           packages-dir: dist/

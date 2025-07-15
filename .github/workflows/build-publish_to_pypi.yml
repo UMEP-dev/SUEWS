@@ -148,13 +148,27 @@ jobs:
         env:
           CLAUDE_AUTHORIZED_USERS: ${{ secrets.CLAUDE_AUTHORIZED_USERS }}
 
+      - name: Setup shell for Claude Code on Windows
+        if: failure() && steps.auth-check.outputs.authorized == 'true' && matrix.buildplat[0] == 'windows-latest'
+        run: |
+          echo "Setting up POSIX shell for Claude Code on Windows..."
+          echo "C:\Program Files\Git\bin" >> $GITHUB_PATH
+          echo "C:\msys64\usr\bin" >> $GITHUB_PATH
+          # Create symlinks for shell detection
+          New-Item -ItemType Directory -Force -Path C:\bin
+          New-Item -ItemType SymbolicLink -Force -Path C:\bin\bash.exe -Target "C:\Program Files\Git\bin\bash.exe"
+          New-Item -ItemType SymbolicLink -Force -Path C:\bin\sh.exe -Target "C:\Program Files\Git\bin\sh.exe"
+        shell: pwsh
+
       - name: Claude Code automatic build failure fix
         if: failure() && steps.auth-check.outputs.authorized == 'true'
         id: claude-fix
         uses: anthropics/claude-code-base-action@beta
         env:
           # Configure shell for Claude Code on Windows
-          SHELL: ${{ matrix.buildplat[0] == 'windows-latest' && 'C:/msys64/usr/bin/bash.exe' || '/bin/bash' }}
+          SHELL: ${{ matrix.buildplat[0] == 'windows-latest' && 'C:/Program Files/Git/bin/bash.exe' || '/bin/bash' }}
+          # Add PATH for Windows shell detection
+          PATH: ${{ matrix.buildplat[0] == 'windows-latest' && 'C:\Program Files\Git\bin;C:\msys64\usr\bin;' || '' }}${{ env.PATH }}
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           model: claude-sonnet-4-20250514

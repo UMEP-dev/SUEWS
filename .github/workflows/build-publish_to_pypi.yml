@@ -247,7 +247,7 @@ jobs:
               repo: context.repo.repo,
               title: title,
               body: body,
-              labels: ['claude-code-fix', 'automated', 'transparency', 'build-fix']
+              labels: ['claude-code-fix', 'build-fix']
             });
             
             console.log(`Created transparency issue #${issue.data.number} for Claude Code fix`);
@@ -412,7 +412,7 @@ jobs:
               repo: context.repo.repo,
               title: title,
               body: body,
-              labels: ['claude-code-fix', 'automated', 'transparency', 'deployment-fix']
+              labels: ['claude-code-fix', 'deployment-fix']
             });
             
             console.log(`Created transparency issue #${issue.data.number} for Claude Code deployment fix`);

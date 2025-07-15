@@ -20,6 +20,9 @@ jobs:
     #   github.event.pull_request.user.login == 'new-developer' ||
     #   github.event.pull_request.author_association == 'FIRST_TIME_CONTRIBUTOR'
     
+    # Auto-skip review for WIP PRs - checks for these patterns (case-insensitive):
+    # - WIP, Work in Progress, Draft, [WIP], [DRAFT], Do Not Merge, DNM
+    
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -28,8 +31,23 @@ jobs:
       id-token: write
     
     steps:
+      - name: Check PR title for WIP
+        id: wip-check
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          # Skip review if PR title indicates work in progress
+          if echo "$PR_TITLE" | grep -iE '(wip|work in progress|draft|\[wip\]|\[draft\]|do not merge|dnm)'; then
+            echo "PR title indicates work in progress - skipping Claude review"
+            echo "skip_review=true" >> $GITHUB_OUTPUT
+          else
+            echo "PR title doesn't indicate WIP - proceeding with review"
+            echo "skip_review=false" >> $GITHUB_OUTPUT
+          fi
+
       - name: Check user authorization
         id: auth-check
+        if: steps.wip-check.outputs.skip_review == 'false'
         env:
           AUTHORIZED_USERS: ${{ secrets.CLAUDE_AUTHORIZED_USERS }}
           PR_USER: ${{ github.event.pull_request.user.login }}
@@ -54,13 +72,13 @@ jobs:
           fi
 
       - name: Checkout repository
-        if: steps.auth-check.outputs.authorized == 'true'
+        if: steps.wip-check.outputs.skip_review == 'false' && steps.auth-check.outputs.authorized == 'true'
         uses: actions/checkout@v4
         with:
           fetch-depth: 1
 
       - name: Run Claude Code Review
-        if: steps.auth-check.outputs.authorized == 'true'
+        if: steps.wip-check.outputs.skip_review == 'false' && steps.auth-check.outputs.authorized == 'true'
         id: claude-review
         uses: anthropics/claude-code-action@beta
         with:

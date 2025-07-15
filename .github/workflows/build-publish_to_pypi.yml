@@ -1,5 +1,10 @@
 name: Build and Publish Python wheels to PyPI and TestPyPI
 
+# Prevent concurrent builds on the same branch
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 on:
   push:
     paths: # Push events containing matching files
@@ -29,7 +34,7 @@ jobs:
             - [ubuntu-latest, manylinux, x86_64]
             - [macos-13, macosx, x86_64]
             - [macos-latest, macosx, arm64]
-            - [windows-2025, win, AMD64]
+            - [windows-latest, win, AMD64]
 
         python: ["cp39", "cp310", "cp311", "cp312", "cp313"]
         # exclude:
@@ -96,8 +101,16 @@ jobs:
         with:
             python-version: 3.12
 
+      - name: Cache Python dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/pyproject.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
       - name: Build wheels
-        uses: pypa/cibuildwheel@v3.0.0
+        uses: pypa/cibuildwheel@v2.22.0
 
       - name: Setup tmate session for debugging
         if: failure()
@@ -116,8 +129,9 @@ jobs:
     runs-on: ubuntu-latest
     needs:
       - build_wheels
-    # permissions:
-    #   id-token: write
+    permissions:
+      id-token: write  # Required for trusted publishing to PyPI
+      contents: read   # Required for checkout
 
     steps:
       - name: Download all the built wheels
@@ -126,13 +140,18 @@ jobs:
           path: dist/
           merge-multiple: true
 
+      - name: Validate wheel contents
+        run: |
+          pip install twine
+          twine check dist/*
+          
       - name: Setup tmate session for debugging
         if: failure()
         uses: mxschmitt/action-tmate@v3
         timeout-minutes: 15
 
       - name: Publish distribution to Test PyPI
-        uses: pypa/gh-action-pypi-publish@release/v1.8
+        uses: pypa/gh-action-pypi-publish@release/v1.11
         with:
           packages-dir: dist/
           verbose: true
@@ -142,7 +161,7 @@ jobs:
 
       - name: Publish distribution to PyPI
         if: startsWith(github.ref, 'refs/tags')
-        uses: pypa/gh-action-pypi-publish@release/v1.8
+        uses: pypa/gh-action-pypi-publish@release/v1.11
         with:
           packages-dir: dist/
           verbose: true

@@ -2,6 +2,11 @@ name: Claude Code Review
 # This workflow uses Claude to automatically review pull requests
 # Reviews are formatted with collapsible HTML sections for better readability
 
+# Prevent concurrent reviews on the same PR
+concurrency:
+  group: claude-review-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
 on:
   pull_request:
     types: [opened, synchronize]
@@ -66,8 +71,8 @@ jobs:
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
 
-          # Use Claude Opus 4 for better code review quality
-          model: claude-opus-4-20250514
+          # Use Claude Sonnet 4 for good code review quality with better cost efficiency
+          model: claude-sonnet-4-20250514
           
           # Direct prompt for automated review (no @claude mention needed)
           direct_prompt: |

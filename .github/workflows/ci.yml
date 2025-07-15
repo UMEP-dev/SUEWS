@@ -1,0 +1,99 @@
+name: Continuous Integration
+
+# Prevent concurrent runs on the same branch
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+on:
+  push:
+    branches: [ master, main ]
+  pull_request:
+    branches: [ master, main ]
+
+jobs:
+  code-quality:
+    name: Code Quality Checks
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          
+      - name: Cache Python dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-ci-${{ hashFiles('**/pyproject.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-ci-
+            
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install ruff pytest
+
+      - name: Run Python linting
+        run: ruff check --output-format=github .
+        
+      - name: Run Python formatting check
+        run: ruff format --check --diff .
+        
+      - name: Generate job summary
+        if: always()
+        run: |
+          echo "## Code Quality Results" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Python linting completed" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Python formatting check completed" >> $GITHUB_STEP_SUMMARY
+          echo "- 🔍 See action logs for detailed results" >> $GITHUB_STEP_SUMMARY
+
+  branch-protection:
+    name: Branch Protection
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          
+      - name: Check file types on master
+        run: |
+          # Get list of changed files in the last commit
+          CHANGED_FILES=$(git diff --name-only HEAD^ HEAD 2>/dev/null || git diff --name-only $(git rev-list --max-parents=0 HEAD) HEAD)
+          
+          # Check each file
+          INVALID_FILES=""
+          for file in $CHANGED_FILES; do
+            # Skip deleted files
+            if [ ! -f "$file" ]; then
+              continue
+            fi
+            
+            # Check if file is allowed (*.md, *.yml, *.yaml, or in .github/workflows, or in .githooks)
+            if [[ ! "$file" =~ \.(md|yml|yaml)$ ]] && [[ ! "$file" =~ ^\.github/workflows/ ]] && [[ ! "$file" =~ ^\.githooks/ ]]; then
+              INVALID_FILES="$INVALID_FILES\n  - $file"
+            fi
+          done
+          
+          # Generate summary
+          echo "## Branch Protection Results" >> $GITHUB_STEP_SUMMARY
+          
+          # Fail if invalid files found
+          if [ -n "$INVALID_FILES" ]; then
+            echo "❌ Error: Only markdown (*.md) and YAML config files (*.yml, *.yaml) are allowed on master branch" >> $GITHUB_STEP_SUMMARY
+            echo "### Invalid files detected:" >> $GITHUB_STEP_SUMMARY
+            echo -e "$INVALID_FILES" >> $GITHUB_STEP_SUMMARY
+            echo "Please create a feature branch for changes to source code files." >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
+          
+          echo "✅ All changed files are allowed types (markdown or YAML configs)" >> $GITHUB_STEP_SUMMARY

@@ -1,5 +1,10 @@
 name: Fortran_prettify
 
+# Prevent concurrent runs on the same branch
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 on:
   # File paths to consider in the event. Optional; defaults to all
   push:
@@ -27,19 +32,38 @@ jobs:
       with:
         python-version: '3.12' # Version range or exact version of a Python version to use, using semvers version range syntax.
 
-    - name: install fprettify
+    - name: Cache Python dependencies
+      uses: actions/cache@v4
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-fprettify-${{ hashFiles('**/pyproject.toml') }}
+        restore-keys: |
+          ${{ runner.os }}-fprettify-
+
+    - name: Install fprettify
       run: |
         pip install fprettify -U
         make pip
 
-    - name: format Fortran code
+    - name: Check if formatting needed
+      id: format-check
+      run: |
+        if fprettify src/suews/src/*f95 -c .fprettify.yml --diff > /dev/null 2>&1; then
+          echo "needs_formatting=false" >> $GITHUB_OUTPUT
+        else
+          echo "needs_formatting=true" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Format Fortran code
+      if: steps.format-check.outputs.needs_formatting == 'true'
       run: fprettify src/suews/src/*f95 -c .fprettify.yml
 
     - name: Add & Commit
+      if: steps.format-check.outputs.needs_formatting == 'true'
       uses: EndBug/add-and-commit@v9
       with:
         add: 'src/suews/src/*f95'
-        message: "[GH Actions] fprettify source code"
+        message: "style: auto-format Fortran code with fprettify 💎"
 
 
 

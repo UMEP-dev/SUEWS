@@ -1,5 +1,10 @@
 name: Python Auto-Format
 
+# Prevent concurrent runs on the same branch
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 on:
   pull_request:
     types: [opened, synchronize, reopened]
@@ -33,6 +38,14 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           fetch-depth: 0
           
+      - name: Cache Ruff
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ruff
+          key: ${{ runner.os }}-ruff-${{ hashFiles('**/pyproject.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-ruff-
+            
       - name: Check if formatting is needed
         id: format-check
         uses: astral-sh/ruff-action@v3
@@ -42,9 +55,9 @@ jobs:
           
       - name: Auto-format Python code
         if: steps.format-check.outcome == 'failure'
-        run: |
-          pip install ruff
-          ruff format .
+        uses: astral-sh/ruff-action@v3
+        with:
+          args: "format"
           
       - name: Commit formatting changes
         if: steps.format-check.outcome == 'failure'

@@ -1,5 +1,10 @@
 name: Claude Code
 
+# Prevent concurrent runs on the same issue/PR
+concurrency:
+  group: claude-${{ github.event.issue.number || github.event.pull_request.number }}
+  cancel-in-progress: false
+
 on:
   issue_comment:
     types: [created]
@@ -61,7 +66,13 @@ jobs:
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 issue_number: issueNumber,
-                body: 'Access denied. Claude is restricted to authorised users only. Please contact the repository maintainers to request access.'
+                body: `🚫 **Access Denied**
+                
+                Claude is restricted to authorised users only. 
+                
+                **Current user**: \`${{ github.event.comment.user.login || github.event.issue.user.login || github.event.pull_request.user.login || github.event.review.user.login }}\`
+                
+                Please contact the repository maintainers to request access.`
               };
               await github.rest.issues.createComment(comment);
             }
@@ -84,8 +95,8 @@ jobs:
           additional_permissions: |
             actions: read
           
-          # Use Claude Opus 4 by default for better performance
-          model: claude-opus-4-20250514
+          # Use Claude Sonnet 4 by default for better performance and lower cost
+          model: claude-sonnet-4-20250514
           
           # Enhanced allowed tools for SUEWS development
           allowed_tools: |

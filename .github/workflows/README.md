@@ -53,6 +53,21 @@ Automated build and publish workflow that:
 - **Comprehensive testing**: Builds run on all branches to catch issues early
 - **Smart publishing**: Only publishes on push events, not PR events
 - **Correct tag format**: Uses repository's date-based tag format (e.g., 2025.1.1)
+- **🤖 Automatic fixing**: Claude Code automatically intervenes on build failures
+- **Fallback debugging**: Manual tmate sessions available if Claude cannot fix issues
+
+#### 🤖 Automatic Build Failure Resolution
+When a build fails, the workflow automatically:
+1. **Creates an issue** with detailed failure information
+2. **Mentions @claude** to trigger automatic intervention
+3. **Waits up to 10 minutes** for Claude to analyze and provide fixes
+4. **Falls back to manual debugging** if Claude cannot resolve the issue
+
+**Failure types automatically handled:**
+- Build wheel failures (platform-specific issues)
+- Deployment failures (wheel validation, PyPI publishing)
+- Dependencies and environment issues
+- Compilation errors
 
 ### 3. Auto-Format (`auto-format.yml`)
 **Manual formatting workflow** that can be triggered when needed:

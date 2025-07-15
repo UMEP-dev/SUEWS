@@ -7,6 +7,7 @@ concurrency:
 
 on:
   push:
+    branches: [master, main]  # Only run on main branches for releases
     paths: # Push events containing matching files
       - "src/suews/**"
       - "src/supy/**"
@@ -15,6 +16,8 @@ on:
       - "test/**"
       - "pyproject.toml"
       - "meson.build"
+    tags:
+      - "v*.*.*"  # Run on version tags for PyPI releases
 
   pull_request:
     paths: # PR events containing matching files
@@ -22,6 +25,7 @@ on:
       - "src/supy/**"
       - "src/supy_driver/**"
       - ".github/workflows/build-publish_to_pypi.yml"
+      - "test/**"
       - "pyproject.toml"
       - "meson.build"
 jobs:

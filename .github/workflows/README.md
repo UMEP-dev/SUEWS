@@ -50,6 +50,7 @@ Automated build and publish workflow that:
 - Improved security with proper permissions
 - Added wheel validation before publishing
 - Updated to latest action versions
+- **Fixed duplicate runs**: Push events only trigger on master/main branches and tags, PR events handle feature branch testing
 
 ### 3. Fortran Prettify (`fprettify.yml`)
 Automatically formats Fortran code using fprettify when:
@@ -61,6 +62,7 @@ Automatically formats Fortran code using fprettify when:
 - Smart formatting detection (only commits when needed)
 - Improved caching for faster execution
 - Better commit messages
+- **Fixed duplicate runs**: Runs on feature branch pushes and PR events without duplication
 
 ### 4. Claude Code Review (`claude-code-review.yml`)
 Automated code review using Claude for pull requests:

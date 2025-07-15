@@ -6,12 +6,19 @@ concurrency:
   cancel-in-progress: true
 
 on:
-  # File paths to consider in the event. Optional; defaults to all
+  # Only run on push to feature branches (not master) to avoid duplicate runs with PRs
   push:
     branches:
       - '**'  # Run on all branches
       - '!master'  # Exclude master branch
+      - '!main'    # Exclude main branch
     paths:       # Push events containing matching files
+      - 'src/suews/src/*'
+      - '.github/workflows/fprettify.yml'
+  
+  # Also run on PRs to ensure formatting before merge
+  pull_request:
+    paths:
       - 'src/suews/src/*'
       - '.github/workflows/fprettify.yml'
 

@@ -17,6 +17,7 @@ on:
     branches:
       - '**'  # Run on all branches
       - '!master'  # Exclude master branch
+      - '!main'    # Exclude main branch
     paths:
       - '**.py'
       - 'pyproject.toml'

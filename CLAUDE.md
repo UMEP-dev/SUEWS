@@ -15,10 +15,11 @@ SUEWS/
 │   ├── fast-dev-build/    # feature/fast-dev-build
 │   └── ...
 └── .claude/              # Claude Code workspace
-    └── worktree-plans/   # Branch-specific context (in master)
-        ├── README.md
-        ├── feature-core-runtime-fixes.md
-        └── ...
+    └── plans/            # Feature-specific development plans (in master)
+        ├── todo/         # Features planned but not started
+        ├── doing/        # Features actively being worked on
+        ├── done/         # Completed features (to be cleaned up)
+        └── README.md
 ```
 
 ### Working with Worktrees
@@ -87,7 +88,8 @@ make dev
 ```bash
 git worktree remove worktrees/my-feature
 mamba env remove -n suews-dev-my-feature
-git rm .claude/worktree-plans/feature-{branch-name}.md
+# Remove plan file (find in todo/doing/done directories)
+git rm .claude/plans/*/feature-{branch-name}.md
 git commit -m "chore: remove worktree plan for merged feature"
 ```
 

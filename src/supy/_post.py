@@ -188,14 +188,14 @@ def resample_output(df_output, freq="60T", dict_aggm=dict_var_aggm):
     # Helper function to resample a group with specified parameters
     def _resample_group(df_group, freq, label, dict_aggm_group, group_name=None):
         """Resample a dataframe group with specified aggregation rules.
-        
+
         Args:
             df_group: DataFrame group to resample
             freq: Resampling frequency
             label: Label parameter for resample ('left' or 'right')
             dict_aggm_group: Aggregation dictionary for this group
             group_name: Name of the group (used to apply dropna only to DailyState)
-        
+
         Returns:
             Resampled DataFrame
         """
@@ -205,13 +205,13 @@ def resample_output(df_output, freq="60T", dict_aggm=dict_var_aggm):
             df_to_resample = df_group.dropna(how='all')
         else:
             df_to_resample = df_group
-            
+
         return df_to_resample.resample(
-            freq, 
-            closed="right", 
+            freq,
+            closed="right",
             label=label
         ).agg(dict_aggm_group)
-    
+
     # get grid and group names
     list_grid = df_output.index.get_level_values("grid").unique()
     list_group = df_output.columns.get_level_values("group").unique()
@@ -246,26 +246,41 @@ def resample_output(df_output, freq="60T", dict_aggm=dict_var_aggm):
 
     # Handle DailyState separately if present
     if "DailyState" in df_output and "DailyState" in dict_aggm:
-        # DailyState uses label="left" as it represents state at the beginning of the period
-        # whereas other variables use label="right" following SUEWS convention for period-ending values
+        # DailyState is inherently daily data, so we need special handling
+        # Parse the frequency to determine if it's finer or coarser than daily
+        freq_offset = pd.tseries.frequencies.to_offset(freq)
+        daily_offset = pd.tseries.frequencies.to_offset('1D')
+        
+        df_dailystate_list = []
+        for grid in list_grid:
+            df_daily = df_output.xs(grid, level='grid')["DailyState"]
+            # Remove rows where all values are NaN
+            df_daily_clean = df_daily.dropna(how='all')
+            
+            if freq_offset < daily_offset:
+                # Finer than daily: forward fill to propagate daily values
+                # Use 'first' to preserve the sparse daily data, then forward fill
+                df_daily_resampled = df_daily_clean.resample(freq, closed="right", label="right").first()
+                # Forward fill to propagate daily values to all hourly timestamps
+                df_daily_resampled = df_daily_resampled.ffill()
+            elif freq_offset > daily_offset:
+                # Coarser than daily: use normal aggregation
+                df_daily_resampled = df_daily_clean.resample(
+                    freq, closed="right", label="right"
+                ).agg(dict_aggm["DailyState"])
+            else:
+                # Exactly daily: just use the cleaned data
+                df_daily_resampled = df_daily_clean
+            
+            df_dailystate_list.append(pd.concat(
+                {"DailyState": df_daily_resampled},
+                axis=1,
+                names=["group", "var"]
+            ))
+        
         df_dailystate_rsmp = pd.concat(
-            {
-                grid: pd.concat(
-                    {
-                        "DailyState": _resample_group(
-                            df_output.xs(grid, level='grid')["DailyState"],
-                            freq,
-                            "left",  # DailyState uses 'left' label
-                            dict_aggm["DailyState"],
-                            group_name="DailyState"
-                        )
-                    },
-                    axis=1,
-                    names=["group", "var"],
-                )
-                for grid in list_grid
-            },
-            names=["grid"],
+            {grid: df for grid, df in zip(list_grid, df_dailystate_list)},
+            names=["grid"]
         )
 
         df_rsmp = pd.concat([df_rsmp, df_dailystate_rsmp], axis=1)

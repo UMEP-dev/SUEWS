@@ -38,12 +38,12 @@ jobs:
     strategy:
       matrix:
         buildplat:
-            - [ubuntu-latest, manylinux, x86_64]
-            - [macos-13, macosx, x86_64]
-            - [macos-latest, macosx, arm64]
+            # - [ubuntu-latest, manylinux, x86_64]
+            # - [macos-13, macosx, x86_64]
+            # - [macos-latest, macosx, arm64]
             - [windows-latest, win, AMD64]
 
-        python: ["cp311", "cp312"]  # Reduced for faster testing
+        python: ["cp312"]  # Just Windows cp312 for testing
         # exclude:
         # - buildplat: [macos-latest, macosx, arm64]
         #   python: ["cp38", "cp39"]

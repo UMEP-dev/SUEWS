@@ -58,9 +58,9 @@ Automated build and publish workflow that:
 
 #### 🤖 Automatic Build Failure Resolution
 When a build fails, the workflow automatically:
-1. **Creates an issue** with detailed failure information
-2. **Mentions @claude** to trigger automatic intervention
-3. **Waits up to 10 minutes** for Claude to analyze and provide fixes
+1. **Checks user authorization** for Claude Code access
+2. **Triggers Claude Code directly** with detailed failure context
+3. **Provides comprehensive analysis prompt** with specific focus areas
 4. **Falls back to manual debugging** if Claude cannot resolve the issue
 
 **Failure types automatically handled:**
@@ -68,6 +68,13 @@ When a build fails, the workflow automatically:
 - Deployment failures (wheel validation, PyPI publishing)
 - Dependencies and environment issues
 - Compilation errors
+- Fortran compilation problems
+
+**Features:**
+- **Direct integration**: No issue creation, immediate Claude Code response
+- **Authorized users only**: Respects existing Claude Code security settings
+- **Context-aware**: Provides specific failure type and platform information
+- **Comprehensive tooling**: Full access to development tools for fixing
 
 ### 3. Auto-Format (`auto-format.yml`)
 **Manual formatting workflow** that can be triggered when needed:

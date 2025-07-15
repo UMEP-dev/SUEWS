@@ -1,20 +1,10 @@
 # Feature: SUEWS MCP Prototype
 
-## Lead Developer
-- **GitHub**: @sunt05
-- **Started**: 2025-06-28
-
 ## Context
 Create a Model Context Protocol (MCP) server for SUEWS that provides intelligent configuration guidance and result interpretation. This will help users create scientifically sound model configurations and understand their simulation outputs.
 
 ## GitHub Issues
 - No specific issue yet (prototype development)
-
-## Status
-- **Current**: doing
-- **Outcome**: pending
-- **Completed**: [pending]
-- **PR**: [pending]
 
 ## Progress Tracking
 
@@ -79,18 +69,6 @@ Create a Model Context Protocol (MCP) server for SUEWS that provides intelligent
 - `worktrees/suews-mcp/mcp-server/manifest.json` (desktop extension) ✅
 - `worktrees/suews-mcp/mcp-server/pyproject.toml` (project config) ✅
 - `worktrees/suews-mcp/mcp-server/README.md` (documentation) ✅
-
-## Testing Strategy
-- Test desktop extension with Claude Desktop
-- Create example workflows for common use cases
-- Validate scientific accuracy of all tools
-- Performance testing with large configurations
-
-## Documentation Updates
-- User guide for MCP server usage
-- API documentation for each tool
-- Configuration examples for different urban contexts
-- Video demonstrations of key features
 
 ## Current Status (2025-07-11)
 - Worktree at `worktrees/suews-mcp` fully implemented

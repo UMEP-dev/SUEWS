@@ -1,24 +1,10 @@
 # Feature: Parameter Validation Fixes
 
-## Lead Developer
-- **GitHub**: @sunt05
-- **Started**: 2025-07-01
-
 ## Context
 Fix parameter validation issues including false positive warnings for supplied parameters and site/sites configuration problems that allow the model to run without proper parameters. These are standalone issues in the YAML configuration system.
 
 ## GitHub Issues
 - #444 - Fix parameter validation false positives and site/sites configuration issues (PRIMARY)
-- #448 - PR addressing issue #444
-- #453 - PR for annotated YAML documentation
-- #400 - Conditional validation migration guide
-- #454 - Config builder improvements (follow-up)
-
-## Status
-- **Current**: done
-- **Outcome**: completed
-- **Completed**: 2025-07-03
-- **PR**: #448, #453
 
 ## Progress Tracking
 
@@ -53,8 +39,8 @@ Fix parameter validation issues including false positive warnings for supplied p
 - The validation correctly reports the parameter as missing from its expected location
 - Test confirms: correct placement eliminates the warning
 
-### 4. Documentation ⚠️ PARTIALLY COMPLETED
-- [x] Document proper parameter configuration (via annotated YAML)
+### 4. Documentation
+- [ ] Document proper parameter configuration
 - [ ] Add troubleshooting guide for validation warnings
 - [ ] Update error message documentation
 

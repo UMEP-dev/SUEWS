@@ -126,25 +126,18 @@ jobs:
         with:
           python-version: 3.12
           
+      # Install Node.js for Claude Code CLI
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'  # Use Node.js 20 for better compatibility
+          
       # Install Claude Code CLI for AI-assisted debugging
-      - name: Install Claude Code (Linux/macOS)
-        if: runner.os != 'Windows'
+      - name: Install Claude Code
         run: |
           echo "Installing Claude Code CLI..."
-          curl -fsSL https://cli.claude.ai/install.sh | sh
-          export PATH="$HOME/.local/bin:$PATH"
-          claude version || echo "Claude CLI not in PATH yet"
-          
-      - name: Install Claude Code (Windows)
-        if: runner.os == 'Windows'
-        run: |
-          echo "Installing Claude Code CLI on Windows..."
-          # Install via npm as fallback for Windows
-          npm install -g claude-cli || echo "npm install failed, trying alternative"
-          # Alternative: download directly
-          Invoke-WebRequest -Uri "https://github.com/anthropics/claude-code/releases/latest/download/claude-win-x64.exe" -OutFile "claude.exe"
-          .\claude.exe version || echo "Claude CLI not working yet"
-        shell: pwsh
+          npm install -g @anthropic-ai/claude-code
+          claude doctor || echo "Claude doctor check completed"
           
       # SSH debug session BEFORE build
       - name: Pre-build SSH Debug Session

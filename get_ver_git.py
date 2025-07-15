@@ -34,14 +34,20 @@ def get_version_from_git():
             if base_version.startswith("v"):
                 base_version = base_version[1:]
 
-            # Handle .dev in base version
-            if ".dev" in base_version:
-                base_version = base_version.replace(".dev", "")
+            # Keep .dev suffix if it's part of the tag (intentional development release)
+            # Only add .devN suffix if there are commits after the tag
+            has_dev_suffix = ".dev" in base_version
 
             if distance == 0:
+                # Keep the tag as-is (including .dev if present)
                 version = base_version
             else:
-                version = f"{base_version}.dev{distance}"
+                # If tag already has .dev, append the commit count
+                # Otherwise add .dev with commit count
+                if has_dev_suffix:
+                    version = f"{base_version}{distance}"
+                else:
+                    version = f"{base_version}.dev{distance}"
         else:
             raise ValueError(
                 f"Output '{describe_output}' does not match the expected pattern."

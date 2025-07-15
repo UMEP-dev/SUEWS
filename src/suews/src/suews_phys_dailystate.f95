@@ -1229,8 +1229,13 @@ CONTAINS
 
       ! Calculate a quasi-5-day-running-mean temp
       days_prev = MIN(4, & ! dt_since_start >= 4 days
-                      FLOOR(dt_since_start/(24*60*60)*1.)) ! dt_since_start < 4 days
-      HDD_id(4) = (HDD_id(4)*days_prev + HDD_id(3))/(days_prev + 1)
+                      FLOOR(REAL(dt_since_start, KIND(1D0))/(24*60*60))) ! dt_since_start < 4 days
+      ! Check if HDD_id(4) is NaN before calculation
+      IF (HDD_id(4) /= HDD_id(4)) THEN
+         HDD_id(4) = HDD_id(3)  ! Use today's average if previous is NaN
+      ELSE
+         HDD_id(4) = (HDD_id(4)*days_prev + HDD_id(3))/(days_prev + 1)
+      END IF
 
       ! Calculate number of days since rain
       IF (HDD_id(5) > 0) THEN !Rain occurred
@@ -1261,7 +1266,12 @@ CONTAINS
       HDD_id_daysSR = HDD_id(6)
       IF (it == 0 .AND. imin == 0) THEN
          HDD_id = 0
-         HDD_id(4) = HDD_id_mav
+         ! Check if HDD_id_mav is NaN and set to 0 if it is
+         IF (HDD_id_mav /= HDD_id_mav) THEN
+            HDD_id(4) = 0D0
+         ELSE
+            HDD_id(4) = HDD_id_mav
+         END IF
          HDD_id(6) = HDD_id_daysSR
       END IF
 

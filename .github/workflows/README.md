@@ -48,6 +48,23 @@ Automatically formats Fortran code using fprettify when:
 - Changes are pushed to any branch except master
 - Fortran source files are modified
 
+### 4. Debug cibuildwheel (`cibuildwheel-debug.yml`)
+Manual workflow for debugging cibuildwheel build issues with SSH access. Features:
+- **Manual triggering** with specific platform/Python version selection
+- **SSH debug sessions** at different build stages (before/after/on-failure)
+- **Claude Code CLI** pre-installed for AI-assisted debugging
+- **Verbose logging** and artifact uploads for post-mortem analysis
+
+**Usage:**
+1. Go to Actions tab → "Debug cibuildwheel with SSH"
+2. Click "Run workflow" and select:
+   - Platform: ubuntu-latest, macos-13, macos-latest, windows-2025
+   - Python version: cp39-cp313
+   - Architecture: x86_64, arm64, AMD64, x86
+   - Debug mode: before-build, after-failure, always, or disabled
+3. Connect via SSH when prompted (restricted to workflow actor)
+4. Use `claude -p "help debug this cibuildwheel error"` for assistance
+
 ## Configuration
 
 ### Required Secrets

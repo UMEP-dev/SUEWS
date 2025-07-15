@@ -29,7 +29,7 @@ on:
       platform:
         description: 'Platform to test'
         required: true
-        default: 'ubuntu-latest'
+        default: 'macos-latest'
         type: choice
         options:
           - ubuntu-latest
@@ -37,9 +37,9 @@ on:
           - macos-latest
           - windows-2025
       python_version:
-        description: 'Python version (e.g., cp39, cp310, cp311, cp312, cp313)'
+        description: 'Python version'
         required: true
-        default: 'cp312'
+        default: 'cp311'
         type: choice
         options:
           - cp39
@@ -50,7 +50,7 @@ on:
       architecture:
         description: 'Architecture'
         required: true
-        default: 'x86_64'
+        default: 'arm64'
         type: choice
         options:
           - x86_64
@@ -72,36 +72,36 @@ jobs:
   debug-cibuildwheel:
     name: Debug ${{ inputs.python_version }}-${{ inputs.platform }}-${{ inputs.architecture }}
     runs-on: ${{ inputs.platform }}
-    
+
     # Environment variables - matching main workflow
     env:
       # Determine build platform identifier
-      BUILDPLAT: ${{ 
+      BUILDPLAT: ${{
         inputs.platform == 'ubuntu-latest' && 'manylinux' ||
         (inputs.platform == 'macos-13' || inputs.platform == 'macos-latest') && 'macosx' ||
         inputs.platform == 'windows-2025' && 'win' }}
-      
+
       # Core cibuildwheel configuration
       CIBW_BUILD: ${{ inputs.python_version }}-*
       CIBW_ARCHS: ${{ inputs.architecture }}
       CIBW_BUILD_VERBOSITY: 3  # Maximum verbosity for debugging
-      
+
       # Linux-specific settings
       CIBW_ENVIRONMENT_PASS_LINUX: RUNNER_OS
       CIBW_MANYLINUX_X86_64_IMAGE: manylinux_2_28
       CIBW_MANYLINUX_AARCH64_IMAGE: manylinux_2_28
-      
+
       # macOS-specific settings
       CIBW_BEFORE_ALL_MACOS: >
         brew install gfortran &&
         brew unlink gfortran &&
         brew link gfortran
-      
+
       # Windows-specific settings
       CIBW_BEFORE_ALL_WINDOWS: >
         C:\msys64\usr\bin\bash.exe -lc "pacman -Syu --noconfirm" &&
         C:\msys64\usr\bin\bash.exe -lc "pacman -S --needed --noconfirm mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-gcc-fortran mingw-w64-ucrt-x86_64-binutils mingw-w64-ucrt-x86_64-make mingw-w64-ucrt-x86_64-openblas"
-      
+
       CIBW_ENVIRONMENT_WINDOWS: >
         PATH="C:\\msys64\\ucrt64\\bin;$PATH"
         CC=gcc
@@ -111,7 +111,7 @@ jobs:
         CXXFLAGS="-D__USE_MINGW_ANSI_STDIO=1 -mlong-double-64"
         FCFLAGS="-fno-optimize-sibling-calls"
         LDFLAGS="-lucrt -static-libgcc -static-libgfortran -LC:/msys64/ucrt64/lib -lsetjmp_compat"
-      
+
       CIBW_BEFORE_BUILD_WINDOWS: >
         echo Creating setjmp compatibility library... &&
         echo int _setjmpex(void* buf) { extern int __intrinsic_setjmpex(void*); return __intrinsic_setjmpex(buf); } > setjmp_compat.c &&
@@ -129,15 +129,15 @@ jobs:
         where gcc &&
         gcc --version &&
         pip install delvewheel
-      
+
       CIBW_REPAIR_WHEEL_COMMAND_WINDOWS: "delvewheel repair -w {dest_dir} {wheel}"
-      
+
       # Test configuration
       CIBW_TEST_REQUIRES: pytest
       CIBW_TEST_COMMAND_MACOS: "python -m pytest '{project}/test'"
       CIBW_TEST_COMMAND_LINUX: "python -m pytest '{project}/test'"
       CIBW_TEST_COMMAND_WINDOWS: "python -m pytest {project}\\test"
-      
+
       # macOS deployment target
       MACOSX_DEPLOYMENT_TARGET: ${{ inputs.platform == 'macos-13' && '13.0' || '14.0' }}
 
@@ -216,27 +216,27 @@ jobs:
         run: |
           # Create debug directory
           mkdir -p debug-artifacts
-          
+
           # Collect cibuildwheel logs
           if [ -d "cibuildwheel" ]; then
             cp -r cibuildwheel debug-artifacts/ || true
           fi
-          
+
           # Collect build logs
           find . -name "*.log" -type f -exec cp {} debug-artifacts/ \; 2>/dev/null || true
-          
+
           # System information
           echo "=== System Information ===" > debug-artifacts/system-info.txt
           echo "Date: $(date)" >> debug-artifacts/system-info.txt
           echo "Platform: ${{ runner.os }}" >> debug-artifacts/system-info.txt
           echo "Architecture: ${{ runner.arch }}" >> debug-artifacts/system-info.txt
           uname -a >> debug-artifacts/system-info.txt 2>/dev/null || true
-          
+
           # Python information
           echo -e "\n=== Python Information ===" >> debug-artifacts/system-info.txt
           python --version >> debug-artifacts/system-info.txt
           python -m pip list >> debug-artifacts/system-info.txt
-          
+
           # Compiler information
           echo -e "\n=== Compiler Information ===" >> debug-artifacts/system-info.txt
           if command -v gcc &> /dev/null; then

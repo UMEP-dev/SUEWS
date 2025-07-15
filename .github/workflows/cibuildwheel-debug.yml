@@ -3,6 +3,10 @@ name: Debug cibuildwheel with SSH
 # Manual workflow for debugging cibuildwheel build issues with SSH access
 # Usage: Actions tab → "Debug cibuildwheel with SSH" → Run workflow → Select options
 # SSH sessions are restricted to the workflow actor for security
+# 
+# Windows Note: Claude Code requires Git Bash. If you get "No suitable shell found" in SSH:
+# export CLAUDE_CODE_GIT_BASH_PATH="C:\Program Files\Git\bin\bash.exe"
+# export SHELL="C:\Program Files\Git\bin\bash.exe"
 
 on:
   workflow_dispatch:
@@ -137,6 +141,28 @@ jobs:
         run: |
           echo "Installing Claude Code CLI..."
           npm install -g @anthropic-ai/claude-code
+          
+      # Configure Claude Code for Windows (Git Bash path)
+      - name: Configure Claude Code on Windows
+        if: runner.os == 'Windows'
+        run: |
+          echo "Configuring Claude Code for Windows..."
+          # Set Git Bash path for Claude Code to use as POSIX shell
+          echo "CLAUDE_CODE_GIT_BASH_PATH=C:\Program Files\Git\bin\bash.exe" >> $env:GITHUB_ENV
+          # Also set SHELL environment variable
+          echo "SHELL=C:\Program Files\Git\bin\bash.exe" >> $env:GITHUB_ENV
+          # Verify Git Bash exists
+          if (Test-Path "C:\Program Files\Git\bin\bash.exe") {
+            echo "Git Bash found at expected location"
+          } else {
+            echo "Git Bash not found, checking alternative locations..."
+            Get-ChildItem -Path C:\ -Filter bash.exe -Recurse -ErrorAction SilentlyContinue | Select-Object -First 5
+          }
+        shell: pwsh
+        
+      # Verify Claude Code installation
+      - name: Verify Claude Code
+        run: |
           claude doctor || echo "Claude doctor check completed"
           
       # SSH debug session BEFORE build
@@ -146,6 +172,9 @@ jobs:
         with:
           limit-access-to-actor: true
         timeout-minutes: 60
+        # Windows users: If Claude Code fails with "No suitable shell found", run:
+        # export CLAUDE_CODE_GIT_BASH_PATH="C:\Program Files\Git\bin\bash.exe"
+        # export SHELL="C:\Program Files\Git\bin\bash.exe"
         
       - name: Build environment info
         run: |

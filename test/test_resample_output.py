@@ -228,5 +228,5 @@ class TestResampleOutput:
         
         # SUEWS should be resampled
         assert 'SUEWS' in df_resampled.columns.get_level_values('group').unique()
-        # DailyState should not be in resampled output
-        assert 'DailyState' not in df_resampled.columns.get_level_values('group').unique()
+        # DailyState should still be in output (not resampled, just cleaned)
+        assert 'DailyState' in df_resampled.columns.get_level_values('group').unique()

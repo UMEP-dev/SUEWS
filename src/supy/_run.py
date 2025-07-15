@@ -6,6 +6,8 @@ import multiprocess
 import os
 import sys
 import time
+# TEST: Deliberate syntax error to test Claude Code automatic fixing
+import this_module_does_not_exist
 
 # import logging
 import traceback

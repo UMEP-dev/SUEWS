@@ -38,12 +38,12 @@ jobs:
     strategy:
       matrix:
         buildplat:
-            # - [ubuntu-latest, manylinux, x86_64]
-            # - [macos-13, macosx, x86_64]
-            # - [macos-latest, macosx, arm64]
+            - [ubuntu-latest, manylinux, x86_64]
+            - [macos-13, macosx, x86_64]
+            - [macos-latest, macosx, arm64]
             - [windows-latest, win, AMD64]
 
-        python: ["cp312"]  # Just Windows cp312 for testing
+        python: ["cp311", "cp312"]  # Reduced for faster testing
         # exclude:
         # - buildplat: [macos-latest, macosx, arm64]
         #   python: ["cp38", "cp39"]
@@ -119,211 +119,58 @@ jobs:
       - name: Build wheels
         uses: pypa/cibuildwheel@v2.22.0
 
-      - name: Check user authorization for Claude Code
+      - name: Create issue for build failure
         if: failure()
-        id: auth-check
         uses: actions/github-script@v7
         with:
           script: |
-            const authorizedUsers = process.env.CLAUDE_AUTHORIZED_USERS;
-            const currentUser = context.actor;
-            
-            // Check if Claude Code is available and user is authorized
-            if (!authorizedUsers) {
-              console.log('CLAUDE_AUTHORIZED_USERS secret not configured - skipping Claude Code');
-              core.setOutput('authorized', 'false');
-              return;
-            }
-            
-            // Check if user is in the authorized list (supports both comma and newline separated)
-            const usersList = authorizedUsers.split(/[,\n]/).map(u => u.trim()).filter(u => u);
-            
-            if (usersList.includes(currentUser)) {
-              console.log(`✓ User ${currentUser} is authorized for Claude Code`);
-              core.setOutput('authorized', 'true');
-            } else {
-              console.log(`User ${currentUser} is not authorized for Claude Code`);
-              core.setOutput('authorized', 'false');
-            }
-        env:
-          CLAUDE_AUTHORIZED_USERS: ${{ secrets.CLAUDE_AUTHORIZED_USERS }}
-
-      - name: Setup shell for Claude Code on Windows
-        if: failure() && steps.auth-check.outputs.authorized == 'true' && matrix.buildplat[0] == 'windows-latest'
-        run: |
-          echo "Setting up POSIX shell for Claude Code on Windows..."
-          echo "C:\Program Files\Git\bin" >> $GITHUB_PATH
-          echo "C:\msys64\usr\bin" >> $GITHUB_PATH
-          # Create symlinks for shell detection
-          New-Item -ItemType Directory -Force -Path C:\bin
-          New-Item -ItemType SymbolicLink -Force -Path C:\bin\bash.exe -Target "C:\Program Files\Git\bin\bash.exe"
-          New-Item -ItemType SymbolicLink -Force -Path C:\bin\sh.exe -Target "C:\Program Files\Git\bin\sh.exe"
-        shell: pwsh
-
-      - name: Claude Code automatic build failure fix
-        if: failure() && steps.auth-check.outputs.authorized == 'true'
-        id: claude-fix
-        uses: anthropics/claude-code-base-action@beta
-        env:
-          # Configure shell for Claude Code on Windows
-          SHELL: ${{ matrix.buildplat[0] == 'windows-latest' && 'C:/Program Files/Git/bin/bash.exe' || '/bin/bash' }}
-          # Add PATH for Windows shell detection
-          PATH: ${{ matrix.buildplat[0] == 'windows-latest' && 'C:\Program Files\Git\bin;C:\msys64\usr\bin;' || '' }}${{ env.PATH }}
-        with:
-          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          model: claude-sonnet-4-20250514
-          prompt: |
-            🚨 **Automated Build Failure - Please Fix**
-
-            **Build Details:**
-            - Platform: ${{ matrix.buildplat[0] }}
-            - Python: ${{ matrix.python }}
-            - Architecture: ${{ matrix.buildplat[2] }}
-            - Workflow: ${{ github.workflow }}
-            - Run ID: ${{ github.run_id }}
-
-            **Failure Context:**
-            - Branch: ${{ github.ref_name }}
-            - Commit: ${{ github.sha }}
-            - Actor: ${{ github.actor }}
-
-            The build failed during the wheel building process using cibuildwheel. Please:
-
-            1. **Analyze the build failure logs** from this GitHub Actions run
-            2. **Identify the root cause** of the wheel building failure
-            3. **Provide a fix** with specific code changes
-            4. **If this is a transient issue**, suggest retry strategies
-            5. **If unable to fix automatically**, document the issue clearly
-
-            **Focus areas:**
-            - Compilation errors (C/C++/Fortran)
-            - Dependency issues
-            - Platform-specific problems
-            - Build configuration issues
-            - Environment setup problems
-
-            **This is an automated request** - please provide a direct fix or create an issue if manual intervention is needed.
-
-            ---
-            **Custom instructions for build failure context:**
-
-            You are analyzing a build failure in the SUEWS project. This is a Fortran/Python urban climate model.
-
-            Key build information:
-            - Build system: meson-python with cibuildwheel
-            - Languages: Fortran (f95), Python
-            - Testing: pytest
-            - Common issues: Fortran compilation, dependency conflicts, platform-specific problems
-
-            When fixing build failures:
-            1. Check build logs for specific error messages
-            2. Look for compilation errors in Fortran code
-            3. Check dependency versions and conflicts
-            4. Verify platform-specific build requirements
-            5. Test fixes thoroughly before committing
-          allowed_tools: |
-            Bash(make dev),
-            Bash(make test),
-            Bash(make clean),
-            Bash(python -m pytest test/* -v),
-            Bash(git status),
-            Bash(git diff),
-            Bash(git log --oneline -10),
-            Read,Write,Edit,MultiEdit,
-            Grep,Glob,LS,
-            TodoRead,TodoWrite
-
-      - name: Create transparency issue for Claude Code fix
-        if: failure() && steps.auth-check.outputs.authorized == 'true' && steps.claude-fix.conclusion == 'success'
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const commitSha = '${{ github.sha }}';
-            const runId = '${{ github.run_id }}';
             const platform = '${{ matrix.buildplat[0] }}';
             const python = '${{ matrix.python }}';
             const arch = '${{ matrix.buildplat[2] }}';
+            const runId = '${{ github.run_id }}';
+            const sha = '${{ github.sha }}';
+            
+            const issueTitle = `🚨 Build failure: ${platform}/${python}/${arch} (${sha.substring(0,7)})`;
+            
+            const body = `## Build Failure Report
 
-            // Create platform-specific title by default
-            const platformTitle = `✅ Claude Code Fix: Build failure resolved - ${platform}/${python}/${arch} (${commitSha.substring(0,7)})`;
+**Platform**: ${platform}
+**Python**: ${python}
+**Architecture**: ${arch}
+**Branch**: ${{ github.ref_name }}
+**Commit**: ${sha}
+**Actor**: ${{ github.actor }}
 
-            // Check if issue already exists for this commit (look for universal issues first)
-            const existingIssues = await github.rest.issues.listForRepo({
+### Failure Details
+[View full build logs](https://github.com/${{ github.repository }}/actions/runs/${runId})
+
+### Debug This Issue
+[🔧 Launch Debug Environment](https://github.com/${{ github.repository }}/actions/workflows/debug-build.yml?platform=${platform}&python=${python}&issue=${issueTitle})
+
+### Quick Diagnostics
+\`\`\`bash
+# Platform-specific diagnostics
+${platform === 'windows-latest' ? `where python
+where gcc
+where bash
+echo %PATH%` : `which python
+which gcc
+which gfortran
+echo $PATH`}
+\`\`\`
+
+---
+*This issue was automatically created. Use the debug link above to investigate and fix.*`;
+            
+            const issue = await github.rest.issues.create({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              labels: 'claude-code-fix,build-fix',
-              state: 'open'
+              title: issueTitle,
+              body: body,
+              labels: ['build-failure', platform]
             });
-
-            // Look for universal issue (without platform specifics)
-            const universalIssue = existingIssues.data.find(issue =>
-              issue.title.includes(`Build failure resolved (${commitSha.substring(0,7)})`) &&
-              !issue.title.includes('/')  // No platform-specific markers
-            );
-
-            // Look for platform-specific issue
-            const platformIssue = existingIssues.data.find(issue =>
-              issue.title.includes(`${platform}/${python}/${arch}`)
-            );
-
-            if (existingIssue) {
-              // Update existing issue with additional platform info
-              const currentBody = existingIssue.body;
-              const platformInfo = `- ${{ matrix.buildplat[0] }} / ${{ matrix.python }} / ${{ matrix.buildplat[2] }}`;
-
-              const updatedBody = currentBody.replace(
-                /(\*\*Affected Platforms:\*\*\n(?:- [^\n]+\n)*)/,
-                `$1${platformInfo}\n`
-              ) || currentBody + `\n\n**Additional Platform Fixed:**\n${platformInfo}`;
-
-              await github.rest.issues.update({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: existingIssue.number,
-                body: updatedBody
-              });
-
-              console.log(`Updated existing issue #${existingIssue.number} with additional platform info`);
-            } else {
-              // Create new consolidated issue
-              const body = `🤖 **Claude Code Automatic Fix Report**
-
-            **Fix Context:**
-            - Branch: ${{ github.ref_name }}
-            - Commit: ${commitSha}
-            - Actor: ${{ github.actor }}
-            - Fixed by: Claude Code (automated)
-
-            **Affected Platforms:**
-            - ${{ matrix.buildplat[0] }} / ${{ matrix.python }} / ${{ matrix.buildplat[2] }}
-
-            **What Happened:**
-            1. Build failed during wheel building process across multiple platforms
-            2. Claude Code automatically analyzed the failure
-            3. Claude Code provided and implemented a fix
-            4. Build should now succeed across all platforms
-
-            **Build logs and Claude Code actions:** https://github.com/${{ github.repository }}/actions/runs/${runId}
-
-            **This is an automated transparency report** - Claude Code has intervened to fix a build failure.
-
-            ⚠️ **Please review the changes** made by Claude Code to ensure they are appropriate.`;
-
-              const issue = await github.rest.issues.create({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                title: issueTitle,
-                body: body,
-                labels: ['claude-code-fix', 'build-fix']
-              });
-
-              console.log(`Created new transparency issue #${issue.data.number} for Claude Code fix`);
-            }
-
-      - name: Setup tmate session for manual debugging
-        if: failure()
-        uses: mxschmitt/action-tmate@v3
-        timeout-minutes: 15
+            
+            console.log(`Created issue #${issue.data.number} for build failure`);
 
       - name: upload wheels
         uses: actions/upload-artifact@v4
@@ -357,174 +204,47 @@ jobs:
           pip install twine
           twine check dist/*
 
-      - name: Check user authorization for Claude Code
+      - name: Create issue for deployment failure
         if: failure()
-        id: deploy-auth-check
         uses: actions/github-script@v7
         with:
           script: |
-            const authorizedUsers = process.env.CLAUDE_AUTHORIZED_USERS;
-            const currentUser = context.actor;
-            
-            // Check if Claude Code is available and user is authorized
-            if (!authorizedUsers) {
-              console.log('CLAUDE_AUTHORIZED_USERS secret not configured - skipping Claude Code');
-              core.setOutput('authorized', 'false');
-              return;
-            }
-            
-            // Check if user is in the authorized list (supports both comma and newline separated)
-            const usersList = authorizedUsers.split(/[,\n]/).map(u => u.trim()).filter(u => u);
-            
-            if (usersList.includes(currentUser)) {
-              console.log(`✓ User ${currentUser} is authorized for Claude Code`);
-              core.setOutput('authorized', 'true');
-            } else {
-              console.log(`User ${currentUser} is not authorized for Claude Code`);
-              core.setOutput('authorized', 'false');
-            }
-        env:
-          CLAUDE_AUTHORIZED_USERS: ${{ secrets.CLAUDE_AUTHORIZED_USERS }}
-
-      - name: Claude Code automatic deployment failure fix
-        if: failure() && steps.deploy-auth-check.outputs.authorized == 'true'
-        id: claude-deploy-fix
-        uses: anthropics/claude-code-base-action@beta
-        env:
-          # Configure shell for Claude Code - deployment runs on ubuntu-latest, so use bash
-          SHELL: /bin/bash
-        with:
-          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          model: claude-sonnet-4-20250514
-          prompt: |
-            🚨 **Automated Deployment Failure - Please Fix**
-
-            **Deployment Details:**
-            - Workflow: ${{ github.workflow }}
-            - Run ID: ${{ github.run_id }}
-            - Job: deploy
-
-            **Failure Context:**
-            - Branch: ${{ github.ref_name }}
-            - Commit: ${{ github.sha }}
-            - Actor: ${{ github.actor }}
-
-            The deployment failed during wheel validation or publishing to PyPI/TestPyPI. Please:
-
-            1. **Analyze the deployment failure logs** from this GitHub Actions run
-            2. **Check wheel validation issues** or publishing problems
-            3. **Provide a fix** with specific code changes
-            4. **If this is a PyPI/TestPyPI service issue**, suggest retry strategies
-            5. **If unable to fix automatically**, document the issue clearly
-
-            **Focus areas:**
-            - Wheel validation errors (twine check)
-            - PyPI/TestPyPI publishing issues
-            - Authentication problems
-            - Package metadata issues
-            - Version conflicts
-
-            **This is an automated request** - please provide a direct fix or create an issue if manual intervention is needed.
-
-            ---
-            **Custom instructions for deployment failure context:**
-
-            You are analyzing a deployment failure in the SUEWS project. This is a Fortran/Python urban climate model.
-
-            Key deployment information:
-            - Publishing: PyPI and TestPyPI
-            - Build system: meson-python with cibuildwheel
-            - Wheel validation: twine check
-
-            When fixing deployment failures:
-            1. Check twine validation output for wheel issues
-            2. Look for PyPI publishing errors
-            3. Verify package metadata and version
-            4. Check authentication and permissions
-            5. Consider PyPI service status for transient issues
-          allowed_tools: |
-            Bash(make dev),
-            Bash(make test),
-            Bash(git status),
-            Bash(git diff),
-            Bash(git log --oneline -10),
-            Read,Write,Edit,MultiEdit,
-            Grep,Glob,LS,
-            TodoRead,TodoWrite
-
-      - name: Create transparency issue for Claude Code deployment fix
-        if: failure() && steps.deploy-auth-check.outputs.authorized == 'true' && steps.claude-deploy-fix.conclusion == 'success'
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const commitSha = '${{ github.sha }}';
             const runId = '${{ github.run_id }}';
-            const issueTitle = `✅ Claude Code Fix: Deployment failure resolved (${commitSha.substring(0,7)})`;
+            const sha = '${{ github.sha }}';
+            
+            const issueTitle = `🚨 Deployment failure (${sha.substring(0,7)})`;
+            
+            const body = `## Deployment Failure Report
 
-            // Check if issue already exists for this commit
-            const existingIssues = await github.rest.issues.listForRepo({
+**Job**: deploy
+**Branch**: ${{ github.ref_name }}
+**Commit**: ${sha}
+**Actor**: ${{ github.actor }}
+
+### Failure Details
+[View deployment logs](https://github.com/${{ github.repository }}/actions/runs/${runId})
+
+### Debug This Issue
+[🔧 Launch Debug Environment](https://github.com/${{ github.repository }}/actions/workflows/debug-build.yml?platform=ubuntu-latest&python=cp312&issue=${issueTitle})
+
+### Common Issues
+- Wheel validation errors (twine check)
+- PyPI/TestPyPI authentication issues
+- Package metadata problems
+- Version conflicts
+
+---
+*This issue was automatically created. Use the debug link above to investigate and fix.*`;
+            
+            const issue = await github.rest.issues.create({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              labels: 'claude-code-fix,deployment-fix',
-              state: 'open'
+              title: issueTitle,
+              body: body,
+              labels: ['deployment-failure']
             });
-
-            const existingIssue = existingIssues.data.find(issue =>
-              issue.title.includes(commitSha.substring(0,7))
-            );
-
-            if (existingIssue) {
-              // Update existing issue to indicate deployment was also fixed
-              const currentBody = existingIssue.body;
-              const deploymentInfo = `\n\n**Deployment Fix:** Deployment job was also automatically fixed by Claude Code.`;
-
-              if (!currentBody.includes('Deployment Fix:')) {
-                await github.rest.issues.update({
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  issue_number: existingIssue.number,
-                  body: currentBody + deploymentInfo
-                });
-
-                console.log(`Updated existing issue #${existingIssue.number} with deployment fix info`);
-              }
-            } else {
-              // Create new issue for deployment fix
-              const body = `🤖 **Claude Code Automatic Deployment Fix Report**
-
-            **Fix Context:**
-            - Branch: ${{ github.ref_name }}
-            - Commit: ${commitSha}
-            - Actor: ${{ github.actor }}
-            - Fixed by: Claude Code (automated)
-
-            **What Happened:**
-            1. Deployment failed during wheel validation or publishing
-            2. Claude Code automatically analyzed the failure
-            3. Claude Code provided and implemented a fix
-            4. Deployment should now succeed
-
-            **Deployment logs and Claude Code actions:** https://github.com/${{ github.repository }}/actions/runs/${runId}
-
-            **This is an automated transparency report** - Claude Code has intervened to fix a deployment failure.
-
-            ⚠️ **Please review the changes** made by Claude Code to ensure they are appropriate.`;
-
-              const issue = await github.rest.issues.create({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                title: issueTitle,
-                body: body,
-                labels: ['claude-code-fix', 'deployment-fix']
-              });
-
-              console.log(`Created new transparency issue #${issue.data.number} for Claude Code deployment fix`);
-            }
-
-      - name: Setup tmate session for manual debugging
-        if: failure()
-        uses: mxschmitt/action-tmate@v3
-        timeout-minutes: 15
+            
+            console.log(`Created issue #${issue.data.number} for deployment failure`);
 
       - name: Publish distribution to Test PyPI
         uses: pypa/gh-action-pypi-publish@release/v1.11

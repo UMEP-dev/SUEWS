@@ -1,0 +1,175 @@
+name: Debug Build Environment
+
+on:
+  workflow_dispatch:
+    inputs:
+      issue_number:
+        description: 'Related issue number (optional)'
+        required: false
+        type: string
+      platform:
+        description: 'Platform to debug on'
+        required: true
+        type: choice
+        options:
+          - ubuntu-latest
+          - macos-13
+          - macos-latest
+          - windows-latest
+      python_version:
+        description: 'Python version'
+        required: true
+        type: choice
+        options:
+          - 'cp39'
+          - 'cp310'
+          - 'cp311'
+          - 'cp312'
+          - 'cp313'
+      debug_mode:
+        description: 'Debug mode'
+        required: true
+        type: choice
+        options:
+          - 'tmate-ssh'      # Manual SSH debugging
+          - 'claude-code'    # Interactive Claude session
+          - 'both'           # Both options available
+
+jobs:
+  debug:
+    name: Debug ${{ inputs.platform }} / ${{ inputs.python_version }}
+    runs-on: ${{ inputs.platform }}
+    permissions:
+      contents: write
+      issues: read
+      pull-requests: write
+      id-token: write
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: 3.12
+
+      - name: Setup build environment (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gfortran
+
+      - name: Setup build environment (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          brew install gfortran
+          brew unlink gfortran
+          brew link gfortran
+
+      - name: Setup build environment (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          C:\msys64\usr\bin\bash.exe -lc "pacman -Syu --noconfirm"
+          C:\msys64\usr\bin\bash.exe -lc "pacman -S --needed --noconfirm mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-gcc-fortran"
+          echo "C:\msys64\ucrt64\bin" >> $GITHUB_PATH
+          echo "C:\Program Files\Git\bin" >> $GITHUB_PATH
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install build twine cibuildwheel
+          
+      - name: Load issue context
+        if: inputs.issue_number != ''
+        id: issue-context
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const issueNumber = '${{ inputs.issue_number }}';
+            if (issueNumber) {
+              try {
+                const issue = await github.rest.issues.get({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: parseInt(issueNumber)
+                });
+                console.log(`Loaded issue #${issueNumber}: ${issue.data.title}`);
+                core.setOutput('issue_title', issue.data.title);
+                core.setOutput('issue_body', issue.data.body);
+              } catch (e) {
+                console.log(`Could not load issue #${issueNumber}: ${e.message}`);
+              }
+            }
+
+      - name: Setup shell for Claude Code on Windows
+        if: runner.os == 'Windows' && (inputs.debug_mode == 'claude-code' || inputs.debug_mode == 'both')
+        run: |
+          echo "Setting up POSIX shell for Claude Code on Windows..."
+          # Create symlinks for shell detection
+          New-Item -ItemType Directory -Force -Path C:\bin
+          if (Test-Path "C:\Program Files\Git\bin\bash.exe") {
+            New-Item -ItemType SymbolicLink -Force -Path C:\bin\bash.exe -Target "C:\Program Files\Git\bin\bash.exe"
+            New-Item -ItemType SymbolicLink -Force -Path C:\bin\sh.exe -Target "C:\Program Files\Git\bin\sh.exe"
+          }
+        shell: pwsh
+
+      - name: Launch Claude Code session
+        if: inputs.debug_mode == 'claude-code' || inputs.debug_mode == 'both'
+        env:
+          SHELL: ${{ runner.os == 'Windows' && 'C:/Program Files/Git/bin/bash.exe' || '/bin/bash' }}
+          PATH: ${{ runner.os == 'Windows' && 'C:\Program Files\Git\bin;C:\msys64\usr\bin;' || '' }}${{ env.PATH }}
+        run: |
+          # Install Claude Code
+          npm install -g @anthropic-ai/claude-code@latest
+          
+          # Create context file
+          cat > debug-context.md << 'EOF'
+          # Debug Session Context
+          
+          Platform: ${{ inputs.platform }}
+          Python: ${{ inputs.python_version }}
+          Issue: #${{ inputs.issue_number }}
+          
+          ## Issue Details
+          ${{ steps.issue-context.outputs.issue_title }}
+          
+          ${{ steps.issue-context.outputs.issue_body }}
+          
+          ## Quick Commands
+          - Build: `make dev`
+          - Test: `make test`
+          - Check environment: `python -c "import sys; print(sys.version)"`
+          
+          ## Your Task
+          1. Analyze the build/deployment failure
+          2. Identify the root cause
+          3. Implement and test a fix
+          4. Create a branch and commit the changes
+          EOF
+          
+          echo "Claude Code is ready. Use the context above to debug the issue."
+          echo "This is an interactive session - Claude will wait for your instructions."
+          
+          # Start interactive Claude session
+          claude-code -i
+
+      - name: Setup tmate SSH session
+        if: inputs.debug_mode == 'tmate-ssh' || inputs.debug_mode == 'both'
+        uses: mxschmitt/action-tmate@v3
+        with:
+          detached: ${{ inputs.debug_mode == 'both' }}
+          limit-access-to-actor: true
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "## Debug Session Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Platform**: ${{ inputs.platform }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Python**: ${{ inputs.python_version }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Issue**: #${{ inputs.issue_number }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Debug Mode**: ${{ inputs.debug_mode }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Session started at: $(date)" >> $GITHUB_STEP_SUMMARY

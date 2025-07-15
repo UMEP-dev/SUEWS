@@ -26,16 +26,28 @@ Guide for running multiple Claude Code agents simultaneously:
 - Agent launch procedures
 - Resource management
 
+### worktree-workflow.md
+Complete workflow guide for the `/worktree` slash command:
+- Interactive worktree creation with lead developer tracking
+- Synchronizing with master
+- Creating pull requests
+- Completing or abandoning features
+- Best practices and troubleshooting
+
 ## Quick Reference
 
 **Need to set up a new feature?**
-→ See `setup-worktree.md`
+→ See `worktree-workflow.md` (using `/worktree` command)
+→ See `setup-worktree.md` (manual setup)
 
 **Environment issues?**
 → See `setup-environment.md`
 
 **Want to run multiple agents?**
 → See `parallel-development.md`
+
+**Using the /worktree command?**
+→ See `worktree-workflow.md`
 
 ## Best Practices
 

@@ -13,6 +13,15 @@ FEATURE="my-feature"
 # Create the worktree
 git worktree add worktrees/$FEATURE feature/$FEATURE || exit 1
 
+# Create plan file in master branch (if complex feature)
+# Note: This should be done BEFORE entering the worktree
+if [ ! -f ".claude/plans/todo/feature-$FEATURE.md" ]; then
+    cp .claude/templates/feature-plan.md .claude/plans/todo/feature-$FEATURE.md
+    git add .claude/plans/todo/feature-$FEATURE.md
+    git commit -m "chore: add plan for feature/$FEATURE"
+    echo "✓ Created plan file in .claude/plans/todo/"
+fi
+
 # Navigate to the worktree
 cd worktrees/$FEATURE
 
@@ -61,10 +70,15 @@ FEATURE="my-feature"
 git worktree remove worktrees/$FEATURE --force
 
 # Remove the worktree plan (if exists)
-if [ -f ".claude/worktree-plans/feature-$FEATURE.md" ]; then
-    git rm .claude/worktree-plans/feature-$FEATURE.md
-    git commit -m "chore: remove worktree plan for $FEATURE"
-fi
+# Check in all plan directories (todo/doing/done)
+for dir in todo doing done; do
+    if [ -f ".claude/plans/$dir/feature-$FEATURE.md" ]; then
+        git rm .claude/plans/$dir/feature-$FEATURE.md
+        git commit -m "chore: remove worktree plan for $FEATURE"
+        echo "✓ Removed plan from .claude/plans/$dir/"
+        break
+    fi
+done
 
 # List remaining worktrees
 git worktree list

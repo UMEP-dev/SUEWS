@@ -1,45 +1,70 @@
 ---
-allowed-tools: Bash(git:*), Bash(cd:*), Bash(uv:*), Bash(make:*), Bash(ls:*), Bash(source:*), Bash(echo:*), Bash(cat:*), Bash(rm:*), Bash(test:*), Bash(python:*), LS, Read
-description: Manage git worktrees for SUEWS development
+allowed-tools: Bash(git:*), Bash(cd:*), Bash(uv:*), Bash(make:*), Bash(ls:*), Bash(source:*), Bash(echo:*), Bash(cat:*), Bash(rm:*), Bash(test:*), Bash(python:*), Bash(gh:*), Bash(date:*), LS, Read, Write, Edit
+description: Streamlined worktree management for SUEWS development
 ---
 
 # Worktree Management for SUEWS
 
 ## Current Status
-- **Current directory**: !`pwd`
-- **Current branch**: !`git branch --show-current 2>/dev/null || echo "Not in git repo"`
-- **Active worktrees**: !`git worktree list 2>/dev/null || echo "No worktrees"`
-- **Current environment**: !`python -c "import sys; print(sys.prefix)" 2>/dev/null || echo "No Python"`
+- **Location**: !`pwd`
+- **Branch**: !`git branch --show-current 2>/dev/null || echo "Not in git repo"`
+- **Worktree**: !`git worktree list | grep -E "^\$(pwd)" | head -1 || echo "Not in worktree"`
+- **Active worktrees**: !`git worktree list | wc -l | xargs -I {} echo "{} worktrees"`
+- **Environment**: !`python -c "import sys; print(sys.prefix)" 2>/dev/null | xargs basename || echo "No Python env"`
+- **Uncommitted changes**: !`git status --porcelain 2>/dev/null | wc -l | xargs -I {} echo "{} files" || echo "N/A"`
 
-## Your task
-Based on the arguments provided: $ARGUMENTS
+## Available Plans
+- **Todo**: !`ls .claude/plans/todo/feature-*.md 2>/dev/null | wc -l | xargs -I {} echo "{} planned" || echo "0"`
+- **Doing**: !`ls .claude/plans/doing/feature-*.md 2>/dev/null | wc -l | xargs -I {} echo "{} active" || echo "0"`
+- **Done**: !`ls .claude/plans/done/feature-*.md 2>/dev/null | wc -l | xargs -I {} echo "{} completed" || echo "0"`
 
-Choose the appropriate action:
+## Your Command: $ARGUMENTS
 
-1. **Create new worktree** (if args contain "create", "new", or "add"):
-   - Parse feature name from arguments
-   - Create `worktrees/{feature}` directory with branch `feature/{feature}`
-   - Set up uv environment with core dependencies
-   - Run `make dev` to build SUEWS
-   - Create marker file and test setup
+Based on the command provided, I'll help you with worktree management.
 
-2. **Switch to existing worktree** (if args contain "switch", "cd", or "goto"):
-   - Change to specified worktree directory
-   - Activate environment if needed
-   - Show current status
+### Available Commands:
 
-3. **List worktrees** (if args contain "list", "ls", or "show"):
-   - Show all active worktrees with their branches
-   - Show current location if in a worktree
+1. **`new`** - Start a new feature worktree
+   - Interactive setup with feature name, issue, and lead developer
+   - Creates worktree, plan, and environment automatically
+   
+2. **`sync`** - Synchronize with master
+   - Pull latest changes from master
+   - Update dependencies if needed
+   - Show any conflicts
+   
+3. **`pr`** - Create a pull request
+   - Push changes and create PR
+   - Link to GitHub issue
+   - Show PR URL
+   
+4. **`finish`** - Complete or abandon worktree
+   - Option to complete via PR or abandon
+   - Document outcome and clean up
+   - Archive plan appropriately
 
-4. **Clean up worktree** (if args contain "remove", "clean", or "delete"):
-   - Remove specified worktree
-   - Remove associated plan file if exists
-   - Clean up environment
+### Quick Actions:
 
-5. **Status check** (if no specific action or args contain "status"):
-   - Show current worktree status
-   - Check if in worktree vs main repo
-   - Show environment info
+If no command specified, I'll:
+- Show detailed status if in a worktree
+- List all worktrees if in main repo
+- Suggest next actions based on context
 
-Use the commands from `.claude/howto/setup-worktree.md` as reference for implementation.
+## Implementation Notes:
+
+When creating a new worktree:
+1. Check prerequisites (clean state, up-to-date master)
+2. Create worktree with feature branch
+3. Create plan file with lead developer info
+4. Set up Python environment with uv
+5. Run initial build
+6. Move plan to "doing" state
+
+When finishing a worktree:
+1. Check completion method (PR or abandon)
+2. Update plan with outcome and timestamp
+3. Move plan to "done" directory
+4. Clean up worktree and environment
+5. Commit plan changes to master
+
+Use interactive prompts to gather needed information rather than parsing complex arguments.

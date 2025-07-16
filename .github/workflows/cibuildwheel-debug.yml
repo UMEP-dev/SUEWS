@@ -22,9 +22,9 @@ name: Debug cibuildwheel with SSH
 #
 # Security: SSH access is restricted to the workflow actor (person who triggered it)
 # 
-# Windows Note: Claude Code requires Git Bash. If you get "No suitable shell found" in SSH:
-# export CLAUDE_CODE_GIT_BASH_PATH="C:\Program Files\Git\bin\bash.exe"
-# export SHELL="C:\Program Files\Git\bin\bash.exe"
+# Windows Note: Claude Code requires Git Bash. The workflow now automatically configures
+# the environment for proper shell support. If you encounter issues, type 'bash' at
+# the SSH prompt to enter Git Bash.
 
 on:
   workflow_dispatch:
@@ -38,7 +38,7 @@ on:
           - ubuntu-latest-x86_64    # Linux 64-bit
           - macos-13-x86_64         # macOS Intel
           - macos-latest-arm64      # macOS Apple Silicon
-          - windows-2025-AMD64      # Windows 64-bit
+          - windows-2025           # Windows 64-bit
       python_version:
         description: 'Python version'
         required: true
@@ -68,7 +68,7 @@ jobs:
       (inputs.platform_arch || 'macos-latest-arm64') == 'ubuntu-latest-x86_64' && 'ubuntu-latest' ||
       (inputs.platform_arch || 'macos-latest-arm64') == 'macos-13-x86_64' && 'macos-13' ||
       (inputs.platform_arch || 'macos-latest-arm64') == 'macos-latest-arm64' && 'macos-latest' ||
-      (inputs.platform_arch || 'macos-latest-arm64') == 'windows-2025-AMD64' && 'windows-2025' }}
+      (inputs.platform_arch || 'macos-latest-arm64') == 'windows-2025' && 'windows-2025' }}
 
     # Environment variables - matching main workflow
     env:
@@ -77,13 +77,13 @@ jobs:
         (inputs.platform_arch || 'macos-latest-arm64') == 'ubuntu-latest-x86_64' && 'ubuntu-latest' ||
         (inputs.platform_arch || 'macos-latest-arm64') == 'macos-13-x86_64' && 'macos-13' ||
         (inputs.platform_arch || 'macos-latest-arm64') == 'macos-latest-arm64' && 'macos-latest' ||
-        (inputs.platform_arch || 'macos-latest-arm64') == 'windows-2025-AMD64' && 'windows-2025' }}
+        (inputs.platform_arch || 'macos-latest-arm64') == 'windows-2025' && 'windows-2025' }}
 
       ARCHITECTURE: ${{
         (inputs.platform_arch || 'macos-latest-arm64') == 'ubuntu-latest-x86_64' && 'x86_64' ||
         (inputs.platform_arch || 'macos-latest-arm64') == 'macos-13-x86_64' && 'x86_64' ||
         (inputs.platform_arch || 'macos-latest-arm64') == 'macos-latest-arm64' && 'arm64' ||
-        (inputs.platform_arch || 'macos-latest-arm64') == 'windows-2025-AMD64' && 'AMD64' }}
+        (inputs.platform_arch || 'macos-latest-arm64') == 'windows-2025' && 'AMD64' }}
 
       # Determine build platform identifier
       BUILDPLAT: ${{
@@ -97,7 +97,7 @@ jobs:
         (inputs.platform_arch || 'macos-latest-arm64') == 'ubuntu-latest-x86_64' && 'x86_64' ||
         (inputs.platform_arch || 'macos-latest-arm64') == 'macos-13-x86_64' && 'x86_64' ||
         (inputs.platform_arch || 'macos-latest-arm64') == 'macos-latest-arm64' && 'arm64' ||
-        (inputs.platform_arch || 'macos-latest-arm64') == 'windows-2025-AMD64' && 'AMD64' }}
+        (inputs.platform_arch || 'macos-latest-arm64') == 'windows-2025' && 'AMD64' }}
       CIBW_BUILD_VERBOSITY: 3  # Maximum verbosity for debugging
 
       # Linux-specific settings
@@ -169,33 +169,29 @@ jobs:
         with:
           python-version: 3.12
 
-      - name: Install Claude Code CLI
-        # Install Claude Code for AI-assisted debugging
+      - name: Install and Configure Claude Code CLI
+        # Install Claude Code and configure it for AI-assisted debugging
         shell: bash
         run: |
-          echo "Installing Claude Code CLI for debugging assistance..."
+          echo "Installing Claude Code CLI..."
           npm install -g @anthropic-ai/claude-code
-          echo "Claude Code installed. Use 'claude -p \"help debug this error\"' during SSH session"
+          echo "Claude Code installed."
           
-          # Windows-specific: Configure Claude Code to use Git Bash
           if [[ "${{ runner.os }}" == "Windows" ]]; then
-            echo "Configuring Claude Code for Windows..."
-            # Set up environment variables for Git Bash
-            echo "export CLAUDE_CODE_GIT_BASH_PATH=\"C:\\Program Files\\Git\\bin\\bash.exe\"" >> ~/.bashrc
-            echo "export SHELL=\"C:\\Program Files\\Git\\bin\\bash.exe\"" >> ~/.bashrc
-            echo "# Claude Code Windows configuration" >> ~/.bashrc
-            echo "alias claude='CLAUDE_CODE_GIT_BASH_PATH=\"C:\\Program Files\\Git\\bin\\bash.exe\" SHELL=\"C:\\Program Files\\Git\\bin\\bash.exe\" claude'" >> ~/.bashrc
+            echo "Configuring environment for Claude Code on Windows..."
+            # Note: GitHub Actions uses forward slashes for paths in bash
+            GIT_BASH_PATH="C:/Program Files/Git/bin/bash.exe"
             
-            # Also set for current session
-            export CLAUDE_CODE_GIT_BASH_PATH="C:\\Program Files\\Git\\bin\\bash.exe"
-            export SHELL="C:\\Program Files\\Git\\bin\\bash.exe"
-            
-            # Verify Git Bash is available
-            if [ -f "C:\\Program Files\\Git\\bin\\bash.exe" ]; then
-              echo "✓ Git Bash found at: C:\\Program Files\\Git\\bin\\bash.exe"
+            if [ -f "$GIT_BASH_PATH" ]; then
+              echo "✓ Git Bash found at: $GIT_BASH_PATH"
+              # Persist SHELL and Claude's Git Bash path for all subsequent steps.
+              # This ensures the tmate SSH session inherits the correct environment.
+              echo "SHELL=$GIT_BASH_PATH" >> $GITHUB_ENV
+              echo "CLAUDE_CODE_GIT_BASH_PATH=$GIT_BASH_PATH" >> $GITHUB_ENV
+              echo "Environment variables set for tmate SSH session."
             else
-              echo "⚠️  Git Bash not found at expected location"
-              where bash || echo "bash not found in PATH"
+              echo "::error::Git Bash not found at the expected path: $GIT_BASH_PATH"
+              exit 1
             fi
           fi
 
@@ -318,12 +314,11 @@ jobs:
           fi
           echo "" >> ssh-welcome.txt
           
-          # Windows-specific instructions
           if [[ "${{ runner.os }}" == "Windows" ]]; then
-            echo "🪟 Windows SSH Session:" >> ssh-welcome.txt
-            echo "  - Use Git Bash shell (should be configured automatically)" >> ssh-welcome.txt
-            echo "  - If Claude Code fails, run: source ~/.bashrc" >> ssh-welcome.txt
-            echo "  - Or manually set: export SHELL=\"C:\\Program Files\\Git\\bin\\bash.exe\"" >> ssh-welcome.txt
+            echo "🪟 Windows SSH Session Info:" >> ssh-welcome.txt
+            echo "  - The environment has been configured for Git Bash." >> ssh-welcome.txt
+            echo "  - If your prompt is 'C:\\...>', simply type 'bash' and press Enter." >> ssh-welcome.txt
+            echo "  - Once in bash, 'claude --help' should work correctly." >> ssh-welcome.txt
             echo "" >> ssh-welcome.txt
           fi
           

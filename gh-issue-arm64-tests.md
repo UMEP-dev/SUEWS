@@ -50,21 +50,29 @@ The issue is **test isolation**, not a Fortran/ARM64-specific problem:
 
 4. **Identified test contamination** as the root cause
 
-## Solution Applied (commit d5053de4)
+## Solution Applied
 
-1. **Test Data Isolation**: Modified `TestSuPy.setUp()` to reload fresh data for each test:
-   ```python
-   def setUp(self):
-       # Reload data for each test to ensure isolation
-       df_state_temp, df_forcing_temp = sp.load_SampleData()
-       # Make deep copies to ensure complete isolation
-       self.df_state_init = df_state_temp.copy()
-       self.df_forcing_tstep = df_forcing_temp.copy()
-   ```
+### Initial Fix (commit d5053de4)
+Applied test isolation to work around the issue by reloading test data for each test.
 
-2. **Update Tests**: Changed all references from global `df_state_init` to `self.df_state_init`
+### Root Cause Fix (commit fa07ceab)
+Fixed the actual bug in `src/supy/_load.py` in the `add_sfc_init_df` function:
 
-3. **Handle Legitimate NaN Values**: Water-related parameters can legitimately be NaN when water surface is not present
+```python
+# Handle both single-level and MultiIndex columns
+if var_sfc in df_init.columns:
+    df_init[(var, ind_str)] = df_init[var_sfc]
+elif (var_sfc, "0") in df_init.columns:
+    df_init[(var, ind_str)] = df_init[(var_sfc, "0")]
+else:
+    # Use appropriate default value instead of NaN
+    if var_sfc.startswith("snow"):
+        df_init[(var, ind_str)] = -999.0  # SUEWS default
+    else:
+        df_init[(var, ind_str)] = 0.0  # Default for other states
+```
+
+The function was trying to access columns like `"pavedstate"` directly, but they were stored as MultiIndex `("pavedstate", "0")`. When access failed, it introduced NaN values that propagated through calculations.
 
 ## Recommendations
 

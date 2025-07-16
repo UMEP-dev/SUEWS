@@ -48,24 +48,22 @@ Automatically formats Fortran code using fprettify when:
 - Changes are pushed to any branch except master
 - Fortran source files are modified
 
-### 4. Debug cibuildwheel with SSH (`cibuildwheel-debug.yml`)
-Interactive debugging environment for cibuildwheel build issues:
-- **Manual triggering** with specific platform/Python/architecture combinations
-- **SSH access** at different build stages (before, after failure, or both)
+### 4. Debug cibuildwheel (`cibuildwheel-debug.yml`)
+Manual workflow for debugging cibuildwheel build issues with SSH access. Features:
+- **Manual triggering** with specific platform/Python version selection
+- **SSH debug sessions** at different build stages (before/after/on-failure)
 - **Claude Code CLI** pre-installed for AI-assisted debugging
-- **Comprehensive logging** with build artifacts and system information
+- **Verbose logging** and artifact uploads for post-mortem analysis
 
 **Usage:**
-1. Go to Actions → "Debug cibuildwheel with SSH"
-2. Select parameters:
+1. Go to Actions tab → "Debug cibuildwheel with SSH"
+2. Click "Run workflow" and select:
    - Platform: ubuntu-latest, macos-13, macos-latest, windows-2025
-   - Python: cp39, cp310, cp311, cp312, cp313
+   - Python version: cp39-cp313
    - Architecture: x86_64, arm64, AMD64, x86
-   - Debug mode: before-build, after-failure, always, disabled
-3. Connect via SSH when prompted
-4. Use `claude -p "help debug this error"` for assistance
-
-**Security:** SSH access restricted to workflow actor only
+   - Debug mode: before-build, after-failure, always, or disabled
+3. Connect via SSH when prompted (restricted to workflow actor)
+4. Use `claude -p "help debug this cibuildwheel error"` for assistance
 
 ## Configuration
 

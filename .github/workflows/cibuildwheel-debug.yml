@@ -171,10 +171,33 @@ jobs:
 
       - name: Install Claude Code CLI
         # Install Claude Code for AI-assisted debugging
+        shell: bash
         run: |
           echo "Installing Claude Code CLI for debugging assistance..."
           npm install -g @anthropic-ai/claude-code
           echo "Claude Code installed. Use 'claude -p \"help debug this error\"' during SSH session"
+          
+          # Windows-specific: Configure Claude Code to use Git Bash
+          if [[ "${{ runner.os }}" == "Windows" ]]; then
+            echo "Configuring Claude Code for Windows..."
+            # Set up environment variables for Git Bash
+            echo "export CLAUDE_CODE_GIT_BASH_PATH=\"C:\\Program Files\\Git\\bin\\bash.exe\"" >> ~/.bashrc
+            echo "export SHELL=\"C:\\Program Files\\Git\\bin\\bash.exe\"" >> ~/.bashrc
+            echo "# Claude Code Windows configuration" >> ~/.bashrc
+            echo "alias claude='CLAUDE_CODE_GIT_BASH_PATH=\"C:\\Program Files\\Git\\bin\\bash.exe\" SHELL=\"C:\\Program Files\\Git\\bin\\bash.exe\" claude'" >> ~/.bashrc
+            
+            # Also set for current session
+            export CLAUDE_CODE_GIT_BASH_PATH="C:\\Program Files\\Git\\bin\\bash.exe"
+            export SHELL="C:\\Program Files\\Git\\bin\\bash.exe"
+            
+            # Verify Git Bash is available
+            if [ -f "C:\\Program Files\\Git\\bin\\bash.exe" ]; then
+              echo "✓ Git Bash found at: C:\\Program Files\\Git\\bin\\bash.exe"
+            else
+              echo "⚠️  Git Bash not found at expected location"
+              where bash || echo "bash not found in PATH"
+            fi
+          fi
 
       - name: Display debug information
         run: |
@@ -294,6 +317,16 @@ jobs:
             echo "You can explore the successful build artifacts in ./wheelhouse/" >> ssh-welcome.txt
           fi
           echo "" >> ssh-welcome.txt
+          
+          # Windows-specific instructions
+          if [[ "${{ runner.os }}" == "Windows" ]]; then
+            echo "🪟 Windows SSH Session:" >> ssh-welcome.txt
+            echo "  - Use Git Bash shell (should be configured automatically)" >> ssh-welcome.txt
+            echo "  - If Claude Code fails, run: source ~/.bashrc" >> ssh-welcome.txt
+            echo "  - Or manually set: export SHELL=\"C:\\Program Files\\Git\\bin\\bash.exe\"" >> ssh-welcome.txt
+            echo "" >> ssh-welcome.txt
+          fi
+          
           echo "Session will timeout after 60 minutes." >> ssh-welcome.txt
           echo "================================" >> ssh-welcome.txt
           cat ssh-welcome.txt

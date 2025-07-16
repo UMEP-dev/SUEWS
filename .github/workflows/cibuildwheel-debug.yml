@@ -210,6 +210,7 @@ jobs:
       - name: Build wheel with cibuildwheel
         id: build
         continue-on-error: true
+        shell: bash
         run: |
           # Determine cibuildwheel platform argument
           if [[ "${{ env.PLATFORM }}" == *"ubuntu"* ]]; then
@@ -229,6 +230,7 @@ jobs:
 
       - name: Check build result and capture errors
         if: always()
+        shell: bash
         run: |
           # Check if build failed
           if [ "${{ steps.build.outcome }}" == "failure" ] || [ "${{ steps.build.outputs.exit_code }}" != "0" ]; then
@@ -276,6 +278,7 @@ jobs:
         if: |
           (env.DEBUG_MODE == 'after-failure' && env.BUILD_FAILED == 'true') ||
           env.DEBUG_MODE == 'always'
+        shell: bash
         run: |
           echo "=== SSH DEBUG SESSION STARTING ===" > ssh-welcome.txt
           if [ "${{ env.BUILD_FAILED }}" == "true" ]; then
@@ -307,6 +310,7 @@ jobs:
 
       - name: Collect debug artifacts
         if: always()
+        shell: bash
         run: |
           # Create debug directory
           mkdir -p debug-artifacts
@@ -367,6 +371,7 @@ jobs:
 
       - name: Final status
         if: always()
+        shell: bash
         run: |
           echo "=== Build Summary ==="
           echo "Build Status: ${{ steps.build.outcome }}"

@@ -21,7 +21,7 @@ name: Debug cibuildwheel with SSH
 # 4. Use Claude Code for help: `claude -p "help me debug this cibuildwheel error"`
 #
 # Security: SSH access is restricted to the workflow actor (person who triggered it)
-# 
+#
 # Windows Note: Claude Code requires Git Bash. The workflow now automatically configures
 # the environment for proper shell support. If you encounter issues, type 'bash' at
 # the SSH prompt to enter Git Bash.
@@ -176,12 +176,12 @@ jobs:
           echo "Installing Claude Code CLI..."
           npm install -g @anthropic-ai/claude-code
           echo "Claude Code installed."
-          
+
           if [[ "${{ runner.os }}" == "Windows" ]]; then
             echo "Configuring environment for Claude Code on Windows..."
             # Note: GitHub Actions uses forward slashes for paths in bash
             GIT_BASH_PATH="C:/Program Files/Git/bin/bash.exe"
-            
+
             if [ -f "$GIT_BASH_PATH" ]; then
               echo "✓ Git Bash found at: $GIT_BASH_PATH"
               # Persist SHELL and Claude's Git Bash path for all subsequent steps.
@@ -214,13 +214,24 @@ jobs:
           git config --global user.email "${{ github.actor }}@users.noreply.github.com"
           echo "Git configured for user: ${{ github.actor }}"
 
-      - name: SSH Debug Session (Before Build)
-        if: env.DEBUG_MODE == 'before-build' || env.DEBUG_MODE == 'always'
+      - name: SSH Debug Session (Before Build) [Non-Windows]
+        if: (env.DEBUG_MODE == 'before-build' || env.DEBUG_MODE == 'always') && runner.os != 'Windows'
         uses: mxschmitt/action-tmate@v3
         with:
           limit-access-to-actor: true
           tmate_session_name: "pre-build-${{ inputs.python_version }}-${{ inputs.platform_arch }}"
-        timeout-minutes: 60
+          timeout-minutes: 60
+
+      - name: SSH Debug Session (Before Build) [Windows]
+        if: (env.DEBUG_MODE == 'before-build' || env.DEBUG_MODE == 'always') && runner.os == 'Windows'
+        uses: mxschmitt/action-tmate@v3
+        with:
+          limit-access-to-actor: true
+          tmate_session_name: "pre-build-${{ inputs.python_version }}-${{ inputs.platform_arch }}"
+          timeout-minutes: 60
+          tmate-conf: |
+            set-option -g tmate-shell "C:/Program Files/Git/bin/bash.exe"
+            set-option -g default-command "bash"
 
       - name: Install cibuildwheel
         run: |
@@ -241,7 +252,7 @@ jobs:
           else
             CIBW_PLATFORM="auto"
           fi
-          
+
           # Run cibuildwheel and capture output
           python -m cibuildwheel --platform $CIBW_PLATFORM --output-dir wheelhouse 2>&1 | tee cibuildwheel-output.log
           # Capture exit code
@@ -313,7 +324,7 @@ jobs:
             echo "You can explore the successful build artifacts in ./wheelhouse/" >> ssh-welcome.txt
           fi
           echo "" >> ssh-welcome.txt
-          
+
           if [[ "${{ runner.os }}" == "Windows" ]]; then
             echo "🪟 Windows SSH Session Info:" >> ssh-welcome.txt
             echo "  - The environment has been configured for Git Bash." >> ssh-welcome.txt
@@ -321,20 +332,29 @@ jobs:
             echo "  - Once in bash, 'claude --help' should work correctly." >> ssh-welcome.txt
             echo "" >> ssh-welcome.txt
           fi
-          
+
           echo "Session will timeout after 60 minutes." >> ssh-welcome.txt
           echo "================================" >> ssh-welcome.txt
           cat ssh-welcome.txt
 
-      - name: SSH Debug Session (After Failure)
-        if: |
-          (env.DEBUG_MODE == 'after-failure' && env.BUILD_FAILED == 'true') ||
-          env.DEBUG_MODE == 'always'
+      - name: SSH Debug Session (After Failure) [Non-Windows]
+        if: ((env.DEBUG_MODE == 'after-failure' && env.BUILD_FAILED == 'true') || env.DEBUG_MODE == 'always') && runner.os != 'Windows'
         uses: mxschmitt/action-tmate@v3
         with:
           limit-access-to-actor: true
           tmate_session_name: "post-build-${{ inputs.python_version }}-${{ inputs.platform_arch }}"
-        timeout-minutes: 60
+          timeout-minutes: 60
+
+      - name: SSH Debug Session (After Failure) [Windows]
+        if: ((env.DEBUG_MODE == 'after-failure' && env.BUILD_FAILED == 'true') || env.DEBUG_MODE == 'always') && runner.os == 'Windows'
+        uses: mxschmitt/action-tmate@v3
+        with:
+          limit-access-to-actor: true
+          tmate_session_name: "post-build-${{ inputs.python_version }}-${{ inputs.platform_arch }}"
+          timeout-minutes: 60
+          tmate-conf: |
+            set-option -g tmate-shell "C:/Program Files/Git/bin/bash.exe"
+            set-option -g default-command "bash"
 
       - name: Collect debug artifacts
         if: always()

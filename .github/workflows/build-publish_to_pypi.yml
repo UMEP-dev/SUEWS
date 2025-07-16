@@ -2,6 +2,7 @@ name: Build and Publish Python wheels to PyPI and TestPyPI
 
 on:
   push:
+    branches: [master]  # Only run on master branch pushes
     paths: # Push events containing matching files
       - "src/suews/**"
       - "src/supy/**"

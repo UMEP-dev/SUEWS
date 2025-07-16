@@ -189,16 +189,69 @@ jobs:
         id: build
         continue-on-error: true
         uses: pypa/cibuildwheel@v3.0.0
+        env:
+          CIBW_OUTPUT_DIR: wheelhouse
 
-      - name: Check build result
+      - name: Check build result and capture errors
+        if: always()
         run: |
           if [ "${{ steps.build.outcome }}" == "failure" ]; then
             echo "::error::Build failed! Check logs above for details."
             echo "BUILD_FAILED=true" >> $GITHUB_ENV
+            
+            # Create error summary file for SSH session
+            mkdir -p debug-info
+            echo "=== CIBUILDWHEEL BUILD FAILURE ===" > debug-info/build-error-summary.txt
+            echo "Build failed at: $(date)" >> debug-info/build-error-summary.txt
+            echo "Platform: ${{ inputs.platform }}" >> debug-info/build-error-summary.txt
+            echo "Python: ${{ inputs.python_version }}" >> debug-info/build-error-summary.txt
+            echo "Architecture: ${{ inputs.architecture }}" >> debug-info/build-error-summary.txt
+            echo "" >> debug-info/build-error-summary.txt
+            echo "=== ERROR DETAILS ===" >> debug-info/build-error-summary.txt
+            
+            # Try to capture specific error patterns from logs
+            if [ -f "cibuildwheel.log" ]; then
+              echo "Extracting errors from cibuildwheel.log..." >> debug-info/build-error-summary.txt
+              grep -i -A5 -B5 "error\|failed\|fatal" cibuildwheel.log >> debug-info/build-error-summary.txt || true
+            fi
+            
+            # Look for build logs
+            find . -name "*.log" -type f -exec echo "=== {} ===" \; -exec tail -100 {} \; >> debug-info/build-error-summary.txt 2>/dev/null || true
+            
+            echo "" >> debug-info/build-error-summary.txt
+            echo "=== QUICK DIAGNOSIS COMMANDS ===" >> debug-info/build-error-summary.txt
+            echo "1. View error summary: cat debug-info/build-error-summary.txt" >> debug-info/build-error-summary.txt
+            echo "2. Search all logs: find . -name '*.log' -type f" >> debug-info/build-error-summary.txt
+            echo "3. Check build environment: which python && python --version" >> debug-info/build-error-summary.txt
+            echo "4. Use Claude for help: claude -p 'help me debug this cibuildwheel error'" >> debug-info/build-error-summary.txt
+            
           else
             echo "::notice::Build succeeded!"
             echo "BUILD_FAILED=false" >> $GITHUB_ENV
           fi
+
+      - name: Prepare SSH session information
+        if: |
+          (inputs.debug_mode == 'after-failure' && env.BUILD_FAILED == 'true') ||
+          inputs.debug_mode == 'always'
+        run: |
+          echo "=== SSH DEBUG SESSION STARTING ===" > ssh-welcome.txt
+          if [ "${{ env.BUILD_FAILED }}" == "true" ]; then
+            echo "⚠️  BUILD FAILED - Error summary available!" >> ssh-welcome.txt
+            echo "" >> ssh-welcome.txt
+            echo "Quick start commands:" >> ssh-welcome.txt
+            echo "  cat debug-info/build-error-summary.txt    # View error summary" >> ssh-welcome.txt
+            echo "  claude -p 'help debug this error'         # Get AI assistance" >> ssh-welcome.txt
+            echo "  find . -name '*.log'                      # Find all log files" >> ssh-welcome.txt
+          else
+            echo "✅ BUILD SUCCEEDED" >> ssh-welcome.txt
+            echo "" >> ssh-welcome.txt
+            echo "You can explore the successful build artifacts in ./wheelhouse/" >> ssh-welcome.txt
+          fi
+          echo "" >> ssh-welcome.txt
+          echo "Session will timeout after 60 minutes." >> ssh-welcome.txt
+          echo "================================" >> ssh-welcome.txt
+          cat ssh-welcome.txt
 
       - name: SSH Debug Session (After Failure)
         if: |

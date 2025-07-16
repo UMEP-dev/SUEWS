@@ -234,6 +234,154 @@ def test_validate_lai_ranges_none_values():
     assert has_issues is False
 
 
+def test_validate_land_cover_fractions_no_land_cover():
+    """Test land cover fraction validation with no land cover."""
+    cfg = SUEWSConfig.model_construct()
+    has_issues = cfg._check_land_cover_fractions(None, "TestSite")
+    assert has_issues is False
+
+
+def test_validate_land_cover_fractions_sum_to_one():
+    """Test land cover fraction validation passes when fractions sum to 1.0."""
+    cfg = SUEWSConfig.model_construct()
+    # Create land cover with fractions that sum to 1.0
+    lc = SimpleNamespace(
+        paved=SimpleNamespace(sfr=SimpleNamespace(value=0.4)),
+        bldgs=SimpleNamespace(sfr=SimpleNamespace(value=0.3)),
+        grass=SimpleNamespace(sfr=SimpleNamespace(value=0.2)),
+        dectr=SimpleNamespace(sfr=SimpleNamespace(value=0.1)),
+        evetr=SimpleNamespace(sfr=SimpleNamespace(value=0.0)),
+        bsoil=SimpleNamespace(sfr=SimpleNamespace(value=0.0)),
+        water=SimpleNamespace(sfr=SimpleNamespace(value=0.0))
+    )
+    
+    has_issues = cfg._check_land_cover_fractions(lc, "TestSite")
+    assert has_issues is False
+    assert cfg._validation_summary["total_warnings"] == 0
+
+
+def test_validate_land_cover_fractions_sum_too_high():
+    """Test land cover fraction validation detects fractions that sum > 1.0."""
+    cfg = SUEWSConfig.model_construct()
+    # Create land cover with fractions that sum to > 1.0
+    lc = SimpleNamespace(
+        paved=SimpleNamespace(sfr=SimpleNamespace(value=0.6)),
+        bldgs=SimpleNamespace(sfr=SimpleNamespace(value=0.5)),
+        grass=SimpleNamespace(sfr=SimpleNamespace(value=0.2)),
+        dectr=SimpleNamespace(sfr=SimpleNamespace(value=0.1)),
+        evetr=SimpleNamespace(sfr=SimpleNamespace(value=0.0)),
+        bsoil=SimpleNamespace(sfr=SimpleNamespace(value=0.0)),
+        water=SimpleNamespace(sfr=SimpleNamespace(value=0.0))
+    )
+    
+    has_issues = cfg._check_land_cover_fractions(lc, "TestSite")
+    assert has_issues is True
+    assert cfg._validation_summary["total_warnings"] >= 1
+    assert "Land cover fraction validation" in cfg._validation_summary["issue_types"]
+    assert any("must sum to 1.0 (got 1.400000)" in msg 
+              for msg in cfg._validation_summary["detailed_messages"])
+
+
+def test_validate_land_cover_fractions_sum_too_low():
+    """Test land cover fraction validation detects fractions that sum < 1.0."""
+    cfg = SUEWSConfig.model_construct()
+    # Create land cover with fractions that sum to < 1.0
+    lc = SimpleNamespace(
+        paved=SimpleNamespace(sfr=SimpleNamespace(value=0.3)),
+        bldgs=SimpleNamespace(sfr=SimpleNamespace(value=0.2)),
+        grass=SimpleNamespace(sfr=SimpleNamespace(value=0.1)),
+        dectr=SimpleNamespace(sfr=SimpleNamespace(value=0.0)),
+        evetr=SimpleNamespace(sfr=SimpleNamespace(value=0.0)),
+        bsoil=SimpleNamespace(sfr=SimpleNamespace(value=0.0)),
+        water=SimpleNamespace(sfr=SimpleNamespace(value=0.0))
+    )
+    
+    has_issues = cfg._check_land_cover_fractions(lc, "TestSite")
+    assert has_issues is True
+    assert cfg._validation_summary["total_warnings"] >= 1
+    assert "Land cover fraction validation" in cfg._validation_summary["issue_types"]
+    assert any("must sum to 1.0 (got 0.600000)" in msg 
+              for msg in cfg._validation_summary["detailed_messages"])
+
+
+def test_validate_land_cover_fractions_handles_missing_surfaces():
+    """Test land cover fraction validation handles missing surface types."""
+    cfg = SUEWSConfig.model_construct()
+    # Create land cover with only some surface types
+    lc = SimpleNamespace(
+        paved=SimpleNamespace(sfr=SimpleNamespace(value=0.5)),
+        bldgs=SimpleNamespace(sfr=SimpleNamespace(value=0.5))
+        # Missing other surface types
+    )
+    
+    has_issues = cfg._check_land_cover_fractions(lc, "TestSite")
+    assert has_issues is False  # Sum is 1.0 (0.5 + 0.5 + 0.0 + 0.0 + 0.0 + 0.0 + 0.0 = 1.0)
+
+
+def test_validate_land_cover_fractions_handles_none_values():
+    """Test land cover fraction validation handles None sfr values."""
+    cfg = SUEWSConfig.model_construct()
+    # Create land cover with None sfr values
+    lc = SimpleNamespace(
+        paved=SimpleNamespace(sfr=None),
+        bldgs=SimpleNamespace(sfr=SimpleNamespace(value=1.0)),
+        grass=SimpleNamespace(),  # No sfr attribute
+        dectr=SimpleNamespace(sfr=SimpleNamespace(value=0.0)),
+        evetr=SimpleNamespace(sfr=SimpleNamespace(value=0.0)),
+        bsoil=SimpleNamespace(sfr=SimpleNamespace(value=0.0)),
+        water=SimpleNamespace(sfr=SimpleNamespace(value=0.0))
+    )
+    
+    has_issues = cfg._check_land_cover_fractions(lc, "TestSite")
+    assert has_issues is False  # Sum is 1.0 (0.0 + 1.0 + 0.0 + 0.0 + 0.0 + 0.0 + 0.0 = 1.0)
+
+
+def test_validate_land_cover_fractions_handles_direct_values():
+    """Test land cover fraction validation handles direct (non-RefValue) values."""
+    cfg = SUEWSConfig.model_construct()
+    # Create land cover with direct values (not RefValue)
+    lc = SimpleNamespace(
+        paved=SimpleNamespace(sfr=0.4),  # Direct value
+        bldgs=SimpleNamespace(sfr=SimpleNamespace(value=0.3)),  # RefValue
+        grass=SimpleNamespace(sfr=0.2),  # Direct value
+        dectr=SimpleNamespace(sfr=0.1),  # Direct value
+        evetr=SimpleNamespace(sfr=0.0),
+        bsoil=SimpleNamespace(sfr=0.0),
+        water=SimpleNamespace(sfr=0.0)
+    )
+    
+    has_issues = cfg._check_land_cover_fractions(lc, "TestSite")
+    assert has_issues is False  # Sum is 1.0
+
+
+def test_validate_land_cover_fractions_detailed_message():
+    """Test land cover fraction validation provides detailed error message."""
+    cfg = SUEWSConfig.model_construct()
+    # Create land cover with fractions that sum to != 1.0
+    lc = SimpleNamespace(
+        paved=SimpleNamespace(sfr=SimpleNamespace(value=0.3)),
+        bldgs=SimpleNamespace(sfr=SimpleNamespace(value=0.2)),
+        grass=SimpleNamespace(sfr=SimpleNamespace(value=0.1)),
+        dectr=SimpleNamespace(sfr=SimpleNamespace(value=0.1)),
+        evetr=SimpleNamespace(sfr=SimpleNamespace(value=0.1)),
+        bsoil=SimpleNamespace(sfr=SimpleNamespace(value=0.1)),
+        water=SimpleNamespace(sfr=SimpleNamespace(value=0.05))
+    )
+    
+    has_issues = cfg._check_land_cover_fractions(lc, "TestSite")
+    assert has_issues is True
+    
+    # Check detailed message contains all surface types
+    messages = cfg._validation_summary["detailed_messages"]
+    assert len(messages) >= 1
+    message = messages[0]
+    assert "TestSite" in message
+    assert "paved=0.300" in message
+    assert "bldgs=0.200" in message
+    assert "grass=0.100" in message
+    assert "got 0.950000" in message  # Sum is 0.95
+
+
 
 
 

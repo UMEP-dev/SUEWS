@@ -50,6 +50,45 @@ If no command specified, I'll:
 - List all worktrees if in main repo
 - Suggest next actions based on context
 
+---
+
+## Command Implementation
+
+Based on your command: **$ARGUMENTS**
+
+I'll help you manage your worktrees based on what you need.
+
+### If you want to finish a worktree:
+
+Navigate to the worktree directory first: `cd worktrees/FEATURE_NAME`
+
+#### Enhanced Finish Flow
+- **Current worktree**: !`if git worktree list | grep -q "$(pwd)"; then basename $(pwd); else echo "Not in worktree"; fi`
+- **Branch**: !`git branch --show-current 2>/dev/null || echo "No branch"`
+- **Uncommitted**: !`git status --porcelain 2>/dev/null | wc -l | xargs -I {} echo "{} files"`
+- **PR status**: !`BRANCH=$(git branch --show-current 2>/dev/null); if [[ -n "$BRANCH" ]]; then PR_INFO=$(gh pr list --head "$BRANCH" --json number,state,merged --limit 1 2>/dev/null || echo "[]"); if [[ "$PR_INFO" != "[]" ]]; then echo "$PR_INFO" | jq -r '"PR #" + (.[0].number|tostring) + " - " + .[0].state + " (merged: " + (.[0].merged|tostring) + ")"'; else echo "No PR found"; fi; else echo "No branch"; fi`
+
+**Finish options:**
+1. **Merged via PR** - PR is merged on GitHub
+2. **Merged locally** - Changes merged without PR
+3. **Pause work** - Keep worktree, mark as paused
+4. **Abandon** - Delete worktree without merging
+
+Tell me your choice (1-4) and I'll:
+- Update the plan with completion details
+- Generate a cleanup script with recovery backup
+- Archive the plan appropriately
+- Clean up the worktree and environment
+
+### For other commands:
+
+- `/worktree new` - Create a new feature worktree
+- `/worktree sync` - Sync with master branch
+- `/worktree pr` - Create a pull request
+- `/worktree` (no args) - Show current status
+
+**Current context**: !`pwd` on branch !`git branch --show-current 2>/dev/null || echo "No branch"`
+
 ## Implementation Notes:
 
 When creating a new worktree:

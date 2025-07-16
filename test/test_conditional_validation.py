@@ -102,6 +102,138 @@ def test_validate_storage_requires_numeric_and_lambda():
     assert any("SiteS" in m for m in msgs)
 
 
+def test_validate_lai_ranges_no_land_cover():
+    """Test LAI validation with no land cover."""
+    cfg = SUEWSConfig.model_construct()
+    site = DummySite(properties=None)
+    has_issues = cfg._check_lai_ranges(None, "TestSite")
+    assert has_issues is False
+
+
+def test_validate_lai_ranges_no_vegetation():
+    """Test LAI validation with no vegetation surfaces."""
+    cfg = SUEWSConfig.model_construct()
+    # land_cover with no vegetation surfaces
+    lc = SimpleNamespace(
+        paved=SimpleNamespace(sfr=SimpleNamespace(value=0.5)),
+        bldgs=SimpleNamespace(sfr=SimpleNamespace(value=0.5))
+    )
+    has_issues = cfg._check_lai_ranges(lc, "TestSite")
+    assert has_issues is False
+
+
+def test_validate_lai_ranges_invalid_laimin_laimax():
+    """Test LAI validation detects invalid laimin > laimax."""
+    cfg = SUEWSConfig.model_construct()
+    # Create vegetation surface with invalid LAI range
+    lai = SimpleNamespace(
+        laimin=SimpleNamespace(value=5.0),
+        laimax=SimpleNamespace(value=3.0)
+    )
+    grass = SimpleNamespace(lai=lai)
+    lc = SimpleNamespace(grass=grass)
+    
+    has_issues = cfg._check_lai_ranges(lc, "TestSite")
+    assert has_issues is True
+    assert cfg._validation_summary["total_warnings"] >= 1
+    assert "LAI range validation" in cfg._validation_summary["issue_types"]
+    assert any("laimin (5.0) must be ≤ laimax (3.0)" in msg 
+              for msg in cfg._validation_summary["detailed_messages"])
+
+
+def test_validate_lai_ranges_invalid_baset_gddfull():
+    """Test LAI validation detects invalid baset > gddfull."""
+    cfg = SUEWSConfig.model_construct()
+    # Create vegetation surface with invalid baset/gddfull range
+    lai = SimpleNamespace(
+        laimin=SimpleNamespace(value=1.0),
+        laimax=SimpleNamespace(value=5.0),
+        baset=SimpleNamespace(value=15.0),
+        gddfull=SimpleNamespace(value=10.0)
+    )
+    dectr = SimpleNamespace(lai=lai)
+    lc = SimpleNamespace(dectr=dectr)
+    
+    has_issues = cfg._check_lai_ranges(lc, "TestSite")
+    assert has_issues is True
+    assert cfg._validation_summary["total_warnings"] >= 1
+    assert "LAI range validation" in cfg._validation_summary["issue_types"]
+    assert any("baset (15.0) must be ≤ gddfull (10.0)" in msg 
+              for msg in cfg._validation_summary["detailed_messages"])
+
+
+def test_validate_lai_ranges_multiple_vegetation_surfaces():
+    """Test LAI validation checks all vegetation surfaces."""
+    cfg = SUEWSConfig.model_construct()
+    # Create multiple vegetation surfaces with invalid LAI ranges
+    lai_invalid = SimpleNamespace(
+        laimin=SimpleNamespace(value=5.0),
+        laimax=SimpleNamespace(value=3.0)
+    )
+    
+    grass = SimpleNamespace(lai=lai_invalid)
+    dectr = SimpleNamespace(lai=lai_invalid)
+    evetr = SimpleNamespace(lai=lai_invalid)
+    
+    lc = SimpleNamespace(grass=grass, dectr=dectr, evetr=evetr)
+    
+    has_issues = cfg._check_lai_ranges(lc, "TestSite")
+    assert has_issues is True
+    assert cfg._validation_summary["total_warnings"] >= 3
+    
+    # Check that all surfaces were validated
+    messages = cfg._validation_summary["detailed_messages"]
+    assert any("grass" in msg for msg in messages)
+    assert any("dectr" in msg for msg in messages)
+    assert any("evetr" in msg for msg in messages)
+
+
+def test_validate_lai_ranges_valid_ranges():
+    """Test LAI validation passes with valid ranges."""
+    cfg = SUEWSConfig.model_construct()
+    # Create vegetation surface with valid LAI ranges
+    lai = SimpleNamespace(
+        laimin=SimpleNamespace(value=1.0),
+        laimax=SimpleNamespace(value=5.0),
+        baset=SimpleNamespace(value=5.0),
+        gddfull=SimpleNamespace(value=200.0)
+    )
+    grass = SimpleNamespace(lai=lai)
+    lc = SimpleNamespace(grass=grass)
+    
+    has_issues = cfg._check_lai_ranges(lc, "TestSite")
+    assert has_issues is False
+    assert cfg._validation_summary["total_warnings"] == 0
+
+
+def test_validate_lai_ranges_missing_lai_graceful():
+    """Test LAI validation handles missing LAI gracefully."""
+    cfg = SUEWSConfig.model_construct()
+    # Create vegetation surface without LAI
+    grass = SimpleNamespace()  # No lai attribute
+    lc = SimpleNamespace(grass=grass)
+    
+    has_issues = cfg._check_lai_ranges(lc, "TestSite")
+    assert has_issues is False
+
+
+def test_validate_lai_ranges_none_values():
+    """Test LAI validation handles None values gracefully."""
+    cfg = SUEWSConfig.model_construct()
+    # Create vegetation surface with None LAI values
+    lai = SimpleNamespace(
+        laimin=None,
+        laimax=None,
+        baset=None,
+        gddfull=None
+    )
+    grass = SimpleNamespace(lai=lai)
+    lc = SimpleNamespace(grass=grass)
+    
+    has_issues = cfg._check_lai_ranges(lc, "TestSite")
+    assert has_issues is False
+
+
 
 
 

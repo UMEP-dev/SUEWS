@@ -14,9 +14,8 @@ name: Debug cibuildwheel with SSH
 # Usage:
 # 1. Go to Actions tab → Select "Debug cibuildwheel with SSH"
 # 2. Click "Run workflow" and fill in parameters:
-#    - Platform: ubuntu-latest, macos-13, macos-latest, windows-2025
+#    - Platform-Arch: Choose from 4 valid combinations (Linux/macOS Intel/macOS ARM/Windows)
 #    - Python: cp39, cp310, cp311, cp312, cp313
-#    - Architecture: x86_64, arm64, AMD64, x86
 #    - Debug mode: before-build, after-failure, always, disabled
 # 3. When SSH session starts, connect using the command shown in logs
 # 4. Use Claude Code for help: `claude -p "help me debug this cibuildwheel error"`
@@ -26,16 +25,16 @@ name: Debug cibuildwheel with SSH
 on:
   workflow_dispatch:
     inputs:
-      platform:
-        description: 'Platform to test'
+      platform_arch:
+        description: 'Platform and architecture'
         required: true
-        default: 'macos-latest'
+        default: 'macos-latest-arm64'
         type: choice
         options:
-          - ubuntu-latest
-          - macos-13
-          - macos-latest
-          - windows-2025
+          - ubuntu-latest-x86_64    # Linux 64-bit
+          - macos-13-x86_64         # macOS Intel
+          - macos-latest-arm64      # macOS Apple Silicon
+          - windows-2025-AMD64      # Windows 64-bit
       python_version:
         description: 'Python version'
         required: true
@@ -47,16 +46,6 @@ on:
           - cp311
           - cp312
           - cp313
-      architecture:
-        description: 'Architecture'
-        required: true
-        default: 'arm64'
-        type: choice
-        options:
-          - x86_64
-          - arm64
-          - AMD64
-          - x86
       debug_mode:
         description: 'Debug mode - when to provide SSH access'
         required: true
@@ -70,20 +59,41 @@ on:
 
 jobs:
   debug-cibuildwheel:
-    name: Debug ${{ inputs.python_version }}-${{ inputs.platform }}-${{ inputs.architecture }}
-    runs-on: ${{ inputs.platform }}
+    name: Debug ${{ inputs.python_version }}-${{ inputs.platform_arch }}
+    runs-on: ${{
+      inputs.platform_arch == 'ubuntu-latest-x86_64' && 'ubuntu-latest' ||
+      inputs.platform_arch == 'macos-13-x86_64' && 'macos-13' ||
+      inputs.platform_arch == 'macos-latest-arm64' && 'macos-latest' ||
+      inputs.platform_arch == 'windows-2025-AMD64' && 'windows-2025' }}
 
     # Environment variables - matching main workflow
     env:
+      # Extract platform and architecture from combined input
+      PLATFORM: ${{
+        inputs.platform_arch == 'ubuntu-latest-x86_64' && 'ubuntu-latest' ||
+        inputs.platform_arch == 'macos-13-x86_64' && 'macos-13' ||
+        inputs.platform_arch == 'macos-latest-arm64' && 'macos-latest' ||
+        inputs.platform_arch == 'windows-2025-AMD64' && 'windows-2025' }}
+
+      ARCHITECTURE: ${{
+        inputs.platform_arch == 'ubuntu-latest-x86_64' && 'x86_64' ||
+        inputs.platform_arch == 'macos-13-x86_64' && 'x86_64' ||
+        inputs.platform_arch == 'macos-latest-arm64' && 'arm64' ||
+        inputs.platform_arch == 'windows-2025-AMD64' && 'AMD64' }}
+
       # Determine build platform identifier
       BUILDPLAT: ${{
-        inputs.platform == 'ubuntu-latest' && 'manylinux' ||
-        (inputs.platform == 'macos-13' || inputs.platform == 'macos-latest') && 'macosx' ||
-        inputs.platform == 'windows-2025' && 'win' }}
+        contains(inputs.platform_arch, 'ubuntu') && 'manylinux' ||
+        contains(inputs.platform_arch, 'macos') && 'macosx' ||
+        contains(inputs.platform_arch, 'windows') && 'win' }}
 
       # Core cibuildwheel configuration
       CIBW_BUILD: ${{ inputs.python_version }}-*
-      CIBW_ARCHS: ${{ inputs.architecture }}
+      CIBW_ARCHS: ${{
+        inputs.platform_arch == 'ubuntu-latest-x86_64' && 'x86_64' ||
+        inputs.platform_arch == 'macos-13-x86_64' && 'x86_64' ||
+        inputs.platform_arch == 'macos-latest-arm64' && 'arm64' ||
+        inputs.platform_arch == 'windows-2025-AMD64' && 'AMD64' }}
       CIBW_BUILD_VERBOSITY: 3  # Maximum verbosity for debugging
 
       # Linux-specific settings
@@ -139,7 +149,7 @@ jobs:
       CIBW_TEST_COMMAND_WINDOWS: "python -m pytest {project}\\test"
 
       # macOS deployment target
-      MACOSX_DEPLOYMENT_TARGET: ${{ inputs.platform == 'macos-13' && '13.0' || '14.0' }}
+      MACOSX_DEPLOYMENT_TARGET: ${{ contains(inputs.platform_arch, 'macos-13') && '13.0' || '14.0' }}
 
     steps:
       - name: Checkout code
@@ -162,9 +172,10 @@ jobs:
       - name: Display debug information
         run: |
           echo "=== Debug Build Configuration ==="
-          echo "Platform: ${{ inputs.platform }}"
+          echo "Platform-Arch: ${{ inputs.platform_arch }}"
+          echo "Platform: ${{ env.PLATFORM }}"
+          echo "Architecture: ${{ env.ARCHITECTURE }}"
           echo "Python Version: ${{ inputs.python_version }}"
-          echo "Architecture: ${{ inputs.architecture }}"
           echo "Build Platform: ${{ env.BUILDPLAT }}"
           echo "Debug Mode: ${{ inputs.debug_mode }}"
           echo "Actor: ${{ github.actor }}"
@@ -182,7 +193,7 @@ jobs:
         uses: mxschmitt/action-tmate@v3
         with:
           limit-access-to-actor: true
-          tmate_session_name: "pre-build-${{ inputs.python_version }}-${{ inputs.platform }}"
+          tmate_session_name: "pre-build-${{ inputs.python_version }}-${{ inputs.platform_arch }}"
         timeout-minutes: 60
 
       - name: Install cibuildwheel
@@ -205,32 +216,31 @@ jobs:
           if [ "${{ steps.build.outcome }}" == "failure" ] || [ "${{ steps.build.outputs.exit_code }}" != "0" ]; then
             echo "::error::Build failed! Check logs for details."
             echo "BUILD_FAILED=true" >> $GITHUB_ENV
-            
+
             # Create error summary file for SSH session
             mkdir -p debug-info
             echo "=== CIBUILDWHEEL BUILD FAILURE ===" > debug-info/build-error-summary.txt
             echo "Build failed at: $(date)" >> debug-info/build-error-summary.txt
-            echo "Platform: ${{ inputs.platform }}" >> debug-info/build-error-summary.txt
+            echo "Platform-Arch: ${{ inputs.platform_arch }}" >> debug-info/build-error-summary.txt
             echo "Python: ${{ inputs.python_version }}" >> debug-info/build-error-summary.txt
-            echo "Architecture: ${{ inputs.architecture }}" >> debug-info/build-error-summary.txt
             echo "" >> debug-info/build-error-summary.txt
-            
+
             # Extract the last 200 lines of cibuildwheel output (usually contains the error)
             if [ -f "cibuildwheel-output.log" ]; then
               echo "=== LAST 200 LINES OF BUILD OUTPUT ===" >> debug-info/build-error-summary.txt
               tail -200 cibuildwheel-output.log >> debug-info/build-error-summary.txt
-              
+
               echo "" >> debug-info/build-error-summary.txt
               echo "=== ERROR EXCERPTS ===" >> debug-info/build-error-summary.txt
               # Extract lines containing common error patterns
               grep -i -A3 -B3 "error:\|failed\|fatal\|traceback\|exception\|undefined reference\|cannot find\|no such file\|permission denied" cibuildwheel-output.log >> debug-info/build-error-summary.txt || true
             fi
-            
+
             # Also check for any other log files created during build
             echo "" >> debug-info/build-error-summary.txt
             echo "=== OTHER LOG FILES FOUND ===" >> debug-info/build-error-summary.txt
             find . -name "*.log" -not -name "cibuildwheel-output.log" -type f -exec echo "Found: {}" \; >> debug-info/build-error-summary.txt
-            
+
             echo "" >> debug-info/build-error-summary.txt
             echo "=== QUICK DIAGNOSIS COMMANDS ===" >> debug-info/build-error-summary.txt
             echo "1. View full build output: less cibuildwheel-output.log" >> debug-info/build-error-summary.txt
@@ -238,7 +248,7 @@ jobs:
             echo "3. Search for specific error: grep -i 'error' cibuildwheel-output.log" >> debug-info/build-error-summary.txt
             echo "4. Check environment: env | grep -E 'CIBW|PATH|PYTHON'" >> debug-info/build-error-summary.txt
             echo "5. Use Claude for help: claude -p 'help me debug this cibuildwheel error'" >> debug-info/build-error-summary.txt
-            
+
           else
             echo "::notice::Build succeeded!"
             echo "BUILD_FAILED=false" >> $GITHUB_ENV
@@ -274,7 +284,7 @@ jobs:
         uses: mxschmitt/action-tmate@v3
         with:
           limit-access-to-actor: true
-          tmate_session_name: "post-build-${{ inputs.python_version }}-${{ inputs.platform }}"
+          tmate_session_name: "post-build-${{ inputs.python_version }}-${{ inputs.platform_arch }}"
         timeout-minutes: 60
 
       - name: Collect debug artifacts
@@ -326,7 +336,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: debug-${{ inputs.python_version }}-${{ inputs.platform }}-${{ inputs.architecture }}-${{ github.run_number }}
+          name: debug-${{ inputs.python_version }}-${{ inputs.platform_arch }}-${{ github.run_number }}
           path: debug-artifacts/
           retention-days: 7
 
@@ -334,7 +344,7 @@ jobs:
         if: steps.build.outcome == 'success'
         uses: actions/upload-artifact@v4
         with:
-          name: wheel-${{ inputs.python_version }}-${{ inputs.platform }}-${{ inputs.architecture }}
+          name: wheel-${{ inputs.python_version }}-${{ inputs.platform_arch }}
           path: ./wheelhouse/*.whl
 
       - name: Final status
@@ -342,8 +352,8 @@ jobs:
         run: |
           echo "=== Build Summary ==="
           echo "Build Status: ${{ steps.build.outcome }}"
-          echo "Debug artifacts uploaded: debug-${{ inputs.python_version }}-${{ inputs.platform }}-${{ inputs.architecture }}-${{ github.run_number }}"
+          echo "Debug artifacts uploaded: debug-${{ inputs.python_version }}-${{ inputs.platform_arch }}-${{ github.run_number }}"
           if [ "${{ steps.build.outcome }}" == "success" ]; then
-            echo "Wheels uploaded: wheel-${{ inputs.python_version }}-${{ inputs.platform }}-${{ inputs.architecture }}"
+            echo "Wheels uploaded: wheel-${{ inputs.python_version }}-${{ inputs.platform_arch }}"
           fi
           echo "===================="

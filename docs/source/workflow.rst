@@ -71,10 +71,13 @@ Quick Start: Sample Data Tutorial
 
 .. code-block:: python
 
+   # Extract SUEWS output group for analysis
+   df_output_suews = df_output["SUEWS"]
+   
    # Quick overview of results
    print("📈 Key output variables:")
-   key_vars = ['QN', 'QF', 'QS', 'QE', 'QH', 'Runoff', 'T2']
-   print(df_output[key_vars].describe().round(2))
+   key_vars = ['QN', 'QF', 'QS', 'QE', 'QH', 'RO', 'T2']
+   print(df_output_suews[key_vars].describe().round(2))
 
 **Step 3: Create your first urban climate visualisation**
 
@@ -85,7 +88,9 @@ Quick Start: Sample Data Tutorial
    
    # Daily energy fluxes
    energy_cols = ['QN', 'QF', 'QS', 'QE', 'QH']
-   df_energy = df_output[energy_cols]
+   df_energy = df_output_suews[energy_cols]
+   # Handle MultiIndex by resetting to datetime only
+   df_energy = df_energy.droplevel('grid')
    daily_energy = df_energy.resample('D').mean()
    
    daily_energy.plot(ax=axes[0,0], title='Daily Mean Energy Fluxes')
@@ -99,7 +104,8 @@ Quick Start: Sample Data Tutorial
    axes[0,1].set_xlabel('Month')
    
    # Diurnal patterns (summer months)
-   summer_data = df_output[df_output.index.month.isin([6,7,8])]
+   df_temp = df_output_suews[['T2']].droplevel('grid')
+   summer_data = df_temp[df_temp.index.month.isin([6,7,8])]
    hourly_temp = summer_data.groupby(summer_data.index.hour)['T2'].mean()
    hourly_temp.plot(ax=axes[1,0], title='Summer Diurnal Temperature Cycle', marker='o')
    axes[1,0].set_ylabel('Air Temperature (°C)')
@@ -107,7 +113,8 @@ Quick Start: Sample Data Tutorial
    axes[1,0].grid(True, alpha=0.3)
    
    # Runoff vs Precipitation
-   daily_water = df_output[['Rain', 'Runoff']].resample('D').sum()
+   df_water = df_output_suews[['Rain', 'RO']].droplevel('grid')
+   daily_water = df_water.resample('D').sum()
    daily_water.plot(ax=axes[1,1], title='Daily Water Balance')
    axes[1,1].set_ylabel('Water (mm/day)')
    axes[1,1].legend()
@@ -142,7 +149,7 @@ The simulation produces comprehensive urban climate data:
    * - **QH**
      - W/m²
      - Sensible heat flux (air heating)
-   * - **Runoff**
+   * - **RO**
      - mm
      - Surface runoff from precipitation
    * - **T2**

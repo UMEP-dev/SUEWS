@@ -223,7 +223,16 @@ def check_state(df_state: pd.DataFrame, fix=True) -> List:
     # 0. mandatory variables in supy_driver
     set_diff = set_var_use.difference(set(list_col_rule).union(set(list_var_exclude)))
     if len(set_diff) > 0:
-        str_issue = f"Mandatory parameters missing from rule file: {set_diff}"
+        # Check if these are STEBBS-related parameters
+        stebbs_params = {p for p in set_diff if 'stebbs' in str(p).lower() or any(
+            x in str(p).lower() for x in ['dhw', 'hotwater', 'buildingtype', 'occupants', 
+            'appliance', 'metabolic', 'ventilation', 'cooling', 'heating', 'window', 
+            'wall', 'floor', 'internalmass', 'indoorair']
+        )}
+        if stebbs_params:
+            str_issue = f"Optional STEBBS parameters not in validation rules (only needed if STEBBS is enabled): {stebbs_params}"
+        else:
+            str_issue = f"Parameters missing from validation rule file: {set_diff}"
         list_issues.append(str_issue)
         flag_valid = False
 
@@ -238,7 +247,24 @@ def check_state(df_state: pd.DataFrame, fix=True) -> List:
     # 1.2 if all columns are included in the checking list
     set_diff = set(col_df_state).difference(list_col_rule)
     if len(set_diff) > 0:
-        str_issue = f"Columns not included in checking list: {set_diff}"
+        # Check if these are STEBBS-related or metadata columns
+        stebbs_cols = {c for c in set_diff if any(
+            x in str(c).lower() for x in ['stebbs', 'dhw', 'hotwater', 'buildingtype', 
+            'occupants', 'appliance', 'metabolic', 'ventilation', 'cooling', 'heating', 
+            'window', 'wall', 'floor', 'internalmass', 'indoorair']
+        )}
+        metadata_cols = {c for c in set_diff if str(c).lower() in ['config', 'description']}
+        other_cols = set_diff - stebbs_cols - metadata_cols
+        
+        issues = []
+        if stebbs_cols:
+            issues.append(f"Optional STEBBS columns (only needed if STEBBS is enabled): {stebbs_cols}")
+        if metadata_cols:
+            issues.append(f"Metadata columns (informational only): {metadata_cols}")
+        if other_cols:
+            issues.append(f"Columns not included in validation rules: {other_cols}")
+        
+        str_issue = "; ".join(issues)
         list_issues.append(str_issue)
         flag_valid = False
 

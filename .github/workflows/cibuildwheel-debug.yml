@@ -23,6 +23,10 @@ name: Debug cibuildwheel with SSH
 # Security: SSH access is restricted to the workflow actor (person who triggered it)
 
 on:
+  # Temporary push trigger for testing - REMOVE AFTER TESTING
+  push:
+    branches:
+      - feature/cibuildwheel-debug
   workflow_dispatch:
     inputs:
       platform_arch:
@@ -59,41 +63,41 @@ on:
 
 jobs:
   debug-cibuildwheel:
-    name: Debug ${{ inputs.python_version }}-${{ inputs.platform_arch }}
+    name: Debug ${{ inputs.python_version || 'cp311' }}-${{ inputs.platform_arch || 'ubuntu-latest-x86_64' }}
     runs-on: ${{
-      inputs.platform_arch == 'ubuntu-latest-x86_64' && 'ubuntu-latest' ||
-      inputs.platform_arch == 'macos-13-x86_64' && 'macos-13' ||
-      inputs.platform_arch == 'macos-latest-arm64' && 'macos-latest' ||
-      inputs.platform_arch == 'windows-2025-AMD64' && 'windows-2025' }}
+      (inputs.platform_arch || 'ubuntu-latest-x86_64') == 'ubuntu-latest-x86_64' && 'ubuntu-latest' ||
+      (inputs.platform_arch || 'ubuntu-latest-x86_64') == 'macos-13-x86_64' && 'macos-13' ||
+      (inputs.platform_arch || 'ubuntu-latest-x86_64') == 'macos-latest-arm64' && 'macos-latest' ||
+      (inputs.platform_arch || 'ubuntu-latest-x86_64') == 'windows-2025-AMD64' && 'windows-2025' }}
 
     # Environment variables - matching main workflow
     env:
       # Extract platform and architecture from combined input
       PLATFORM: ${{
-        inputs.platform_arch == 'ubuntu-latest-x86_64' && 'ubuntu-latest' ||
-        inputs.platform_arch == 'macos-13-x86_64' && 'macos-13' ||
-        inputs.platform_arch == 'macos-latest-arm64' && 'macos-latest' ||
-        inputs.platform_arch == 'windows-2025-AMD64' && 'windows-2025' }}
+        (inputs.platform_arch || 'ubuntu-latest-x86_64') == 'ubuntu-latest-x86_64' && 'ubuntu-latest' ||
+        (inputs.platform_arch || 'ubuntu-latest-x86_64') == 'macos-13-x86_64' && 'macos-13' ||
+        (inputs.platform_arch || 'ubuntu-latest-x86_64') == 'macos-latest-arm64' && 'macos-latest' ||
+        (inputs.platform_arch || 'ubuntu-latest-x86_64') == 'windows-2025-AMD64' && 'windows-2025' }}
 
       ARCHITECTURE: ${{
-        inputs.platform_arch == 'ubuntu-latest-x86_64' && 'x86_64' ||
-        inputs.platform_arch == 'macos-13-x86_64' && 'x86_64' ||
-        inputs.platform_arch == 'macos-latest-arm64' && 'arm64' ||
-        inputs.platform_arch == 'windows-2025-AMD64' && 'AMD64' }}
+        (inputs.platform_arch || 'ubuntu-latest-x86_64') == 'ubuntu-latest-x86_64' && 'x86_64' ||
+        (inputs.platform_arch || 'ubuntu-latest-x86_64') == 'macos-13-x86_64' && 'x86_64' ||
+        (inputs.platform_arch || 'ubuntu-latest-x86_64') == 'macos-latest-arm64' && 'arm64' ||
+        (inputs.platform_arch || 'ubuntu-latest-x86_64') == 'windows-2025-AMD64' && 'AMD64' }}
 
       # Determine build platform identifier
       BUILDPLAT: ${{
-        contains(inputs.platform_arch, 'ubuntu') && 'manylinux' ||
-        contains(inputs.platform_arch, 'macos') && 'macosx' ||
-        contains(inputs.platform_arch, 'windows') && 'win' }}
+        contains(inputs.platform_arch || 'ubuntu-latest-x86_64', 'ubuntu') && 'manylinux' ||
+        contains(inputs.platform_arch || 'ubuntu-latest-x86_64', 'macos') && 'macosx' ||
+        contains(inputs.platform_arch || 'ubuntu-latest-x86_64', 'windows') && 'win' }}
 
       # Core cibuildwheel configuration
-      CIBW_BUILD: ${{ inputs.python_version }}-*
+      CIBW_BUILD: ${{ inputs.python_version || 'cp311' }}-*
       CIBW_ARCHS: ${{
-        inputs.platform_arch == 'ubuntu-latest-x86_64' && 'x86_64' ||
-        inputs.platform_arch == 'macos-13-x86_64' && 'x86_64' ||
-        inputs.platform_arch == 'macos-latest-arm64' && 'arm64' ||
-        inputs.platform_arch == 'windows-2025-AMD64' && 'AMD64' }}
+        (inputs.platform_arch || 'ubuntu-latest-x86_64') == 'ubuntu-latest-x86_64' && 'x86_64' ||
+        (inputs.platform_arch || 'ubuntu-latest-x86_64') == 'macos-13-x86_64' && 'x86_64' ||
+        (inputs.platform_arch || 'ubuntu-latest-x86_64') == 'macos-latest-arm64' && 'arm64' ||
+        (inputs.platform_arch || 'ubuntu-latest-x86_64') == 'windows-2025-AMD64' && 'AMD64' }}
       CIBW_BUILD_VERBOSITY: 3  # Maximum verbosity for debugging
 
       # Linux-specific settings
@@ -149,7 +153,10 @@ jobs:
       CIBW_TEST_COMMAND_WINDOWS: "python -m pytest {project}\\test"
 
       # macOS deployment target
-      MACOSX_DEPLOYMENT_TARGET: ${{ contains(inputs.platform_arch, 'macos-13') && '13.0' || '14.0' }}
+      MACOSX_DEPLOYMENT_TARGET: ${{ contains(inputs.platform_arch || 'ubuntu-latest-x86_64', 'macos-13') && '13.0' || '14.0' }}
+
+      # Debug mode for SSH sessions
+      DEBUG_MODE: ${{ inputs.debug_mode || 'disabled' }}
 
     steps:
       - name: Checkout code
@@ -172,12 +179,12 @@ jobs:
       - name: Display debug information
         run: |
           echo "=== Debug Build Configuration ==="
-          echo "Platform-Arch: ${{ inputs.platform_arch }}"
+          echo "Platform-Arch: ${{ inputs.platform_arch || 'ubuntu-latest-x86_64' }}"
           echo "Platform: ${{ env.PLATFORM }}"
           echo "Architecture: ${{ env.ARCHITECTURE }}"
-          echo "Python Version: ${{ inputs.python_version }}"
+          echo "Python Version: ${{ inputs.python_version || 'cp311' }}"
           echo "Build Platform: ${{ env.BUILDPLAT }}"
-          echo "Debug Mode: ${{ inputs.debug_mode }}"
+          echo "Debug Mode: ${{ env.DEBUG_MODE }}"
           echo "Actor: ${{ github.actor }}"
           echo "================================"
 
@@ -189,7 +196,7 @@ jobs:
           echo "Git configured for user: ${{ github.actor }}"
 
       - name: SSH Debug Session (Before Build)
-        if: inputs.debug_mode == 'before-build' || inputs.debug_mode == 'always'
+        if: env.DEBUG_MODE == 'before-build' || env.DEBUG_MODE == 'always'
         uses: mxschmitt/action-tmate@v3
         with:
           limit-access-to-actor: true
@@ -232,8 +239,8 @@ jobs:
             mkdir -p debug-info
             echo "=== CIBUILDWHEEL BUILD FAILURE ===" > debug-info/build-error-summary.txt
             echo "Build failed at: $(date)" >> debug-info/build-error-summary.txt
-            echo "Platform-Arch: ${{ inputs.platform_arch }}" >> debug-info/build-error-summary.txt
-            echo "Python: ${{ inputs.python_version }}" >> debug-info/build-error-summary.txt
+            echo "Platform-Arch: ${{ inputs.platform_arch || 'ubuntu-latest-x86_64' }}" >> debug-info/build-error-summary.txt
+            echo "Python: ${{ inputs.python_version || 'cp311' }}" >> debug-info/build-error-summary.txt
             echo "" >> debug-info/build-error-summary.txt
 
             # Extract the last 200 lines of cibuildwheel output (usually contains the error)
@@ -267,8 +274,8 @@ jobs:
 
       - name: Prepare SSH session information
         if: |
-          (inputs.debug_mode == 'after-failure' && env.BUILD_FAILED == 'true') ||
-          inputs.debug_mode == 'always'
+          (env.DEBUG_MODE == 'after-failure' && env.BUILD_FAILED == 'true') ||
+          env.DEBUG_MODE == 'always'
         run: |
           echo "=== SSH DEBUG SESSION STARTING ===" > ssh-welcome.txt
           if [ "${{ env.BUILD_FAILED }}" == "true" ]; then
@@ -290,8 +297,8 @@ jobs:
 
       - name: SSH Debug Session (After Failure)
         if: |
-          (inputs.debug_mode == 'after-failure' && env.BUILD_FAILED == 'true') ||
-          inputs.debug_mode == 'always'
+          (env.DEBUG_MODE == 'after-failure' && env.BUILD_FAILED == 'true') ||
+          env.DEBUG_MODE == 'always'
         uses: mxschmitt/action-tmate@v3
         with:
           limit-access-to-actor: true
@@ -347,7 +354,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: debug-${{ inputs.python_version }}-${{ inputs.platform_arch }}-${{ github.run_number }}
+          name: debug-${{ inputs.python_version || 'cp311' }}-${{ inputs.platform_arch || 'ubuntu-latest-x86_64' }}-${{ github.run_number }}
           path: debug-artifacts/
           retention-days: 7
 
@@ -355,7 +362,7 @@ jobs:
         if: steps.build.outcome == 'success'
         uses: actions/upload-artifact@v4
         with:
-          name: wheel-${{ inputs.python_version }}-${{ inputs.platform_arch }}
+          name: wheel-${{ inputs.python_version || 'cp311' }}-${{ inputs.platform_arch || 'ubuntu-latest-x86_64' }}
           path: ./wheelhouse/*.whl
 
       - name: Final status
@@ -363,8 +370,8 @@ jobs:
         run: |
           echo "=== Build Summary ==="
           echo "Build Status: ${{ steps.build.outcome }}"
-          echo "Debug artifacts uploaded: debug-${{ inputs.python_version }}-${{ inputs.platform_arch }}-${{ github.run_number }}"
+          echo "Debug artifacts uploaded: debug-${{ inputs.python_version || 'cp311' }}-${{ inputs.platform_arch || 'ubuntu-latest-x86_64' }}-${{ github.run_number }}"
           if [ "${{ steps.build.outcome }}" == "success" ]; then
-            echo "Wheels uploaded: wheel-${{ inputs.python_version }}-${{ inputs.platform_arch }}"
+            echo "Wheels uploaded: wheel-${{ inputs.python_version || 'cp311' }}-${{ inputs.platform_arch || 'ubuntu-latest-x86_64' }}"
           fi
           echo "===================="

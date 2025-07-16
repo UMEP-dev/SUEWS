@@ -179,18 +179,23 @@ jobs:
 
           if [[ "${{ runner.os }}" == "Windows" ]]; then
             echo "Configuring environment for Claude Code on Windows..."
-            # Note: GitHub Actions uses forward slashes for paths in bash
-            GIT_BASH_PATH="C:/Program Files/Git/bin/bash.exe"
+            # Your build uses MSYS2, so we will consistently use its bash shell.
+            MSYS_BASH_POSIX="C:/msys64/usr/bin/bash.exe"
+            # Use native Windows path with escaped backslashes for the Claude CLI variable, which it expects.
+            MSYS_BASH_WINDOWS="C:\\msys64\\usr\\bin\\bash.exe"
 
-            if [ -f "$GIT_BASH_PATH" ]; then
-              echo "✓ Git Bash found at: $GIT_BASH_PATH"
-              # Persist SHELL and Claude's Git Bash path for all subsequent steps.
-              # This ensures the tmate SSH session inherits the correct environment.
-              echo "SHELL=$GIT_BASH_PATH" >> $GITHUB_ENV
-              echo "CLAUDE_CODE_GIT_BASH_PATH=$GIT_BASH_PATH" >> $GITHUB_ENV
-              echo "Environment variables set for tmate SSH session."
+            if [ -f "$MSYS_BASH_POSIX" ]; then
+              echo "✓ MSYS2 Bash found."
+              # Set SHELL for the general environment using a POSIX-style path.
+              echo "SHELL=$MSYS_BASH_POSIX" >> $GITHUB_ENV
+              # Set the variable for Claude CLI using the required native Windows path format.
+              echo "CLAUDE_CODE_GIT_BASH_PATH=$MSYS_BASH_WINDOWS" >> $GITHUB_ENV
+
+              echo "Environment variables set for tmate session:"
+              echo "  -> SHELL set to $MSYS_BASH_POSIX"
+              echo "  -> CLAUDE_CODE_GIT_BASH_PATH set to $MSYS_BASH_WINDOWS"
             else
-              echo "::error::Git Bash not found at the expected path: $GIT_BASH_PATH"
+              echo "::error::MSYS2 Bash not found at the expected path: $MSYS_BASH_POSIX"
               exit 1
             fi
           fi
@@ -230,7 +235,7 @@ jobs:
           tmate_session_name: "pre-build-${{ inputs.python_version }}-${{ inputs.platform_arch }}"
           timeout-minutes: 60
           tmate-conf: |
-            set-option -g tmate-shell "C:/Program Files/Git/bin/bash.exe"
+            set-option -g tmate-shell "C:/msys64/usr/bin/bash.exe"
             set-option -g default-command "bash"
 
       - name: Install cibuildwheel
@@ -353,7 +358,7 @@ jobs:
           tmate_session_name: "post-build-${{ inputs.python_version }}-${{ inputs.platform_arch }}"
           timeout-minutes: 60
           tmate-conf: |
-            set-option -g tmate-shell "C:/Program Files/Git/bin/bash.exe"
+            set-option -g tmate-shell "C:/msys64/usr/bin/bash.exe"
             set-option -g default-command "bash"
 
       - name: Collect debug artifacts

@@ -178,6 +178,13 @@ jobs:
           echo "Actor: ${{ github.actor }}"
           echo "================================"
 
+      - name: Configure git for debugging session
+        run: |
+          # Set git user to the workflow actor
+          git config --global user.name "${{ github.actor }}"
+          git config --global user.email "${{ github.actor }}@users.noreply.github.com"
+          echo "Git configured for user: ${{ github.actor }}"
+
       - name: SSH Debug Session (Before Build)
         if: inputs.debug_mode == 'before-build' || inputs.debug_mode == 'always'
         uses: mxschmitt/action-tmate@v3

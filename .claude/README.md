@@ -70,6 +70,16 @@ This directory contains all Claude Code-specific documentation, plans, and confi
 2. Find your plan: `ls .claude/plans/doing/`
 3. Read setup guide: `cat .claude/howto/setup-worktree.md`
 
+## Recent Updates (2025-07-16)
+
+### ARM64 Test Investigation Completed
+- **Issue**: Two tests failing on macOS ARM64 in cibuildwheel
+- **Investigation**: Initially appeared as test isolation issue
+- **Root Cause**: Bug in `add_sfc_init_df` function handling DataFrame column formats
+- **Resolution**: Fixed in commit 03567504 - function now handles both single-level and MultiIndex columns
+- **Key Learning**: Thorough investigation revealed the actual bug was in data loading, not test isolation
+- **Documentation**: Full investigation details in worktree `cibw-mac-arm64-cp311-tests`
+
 ## Slash Commands
 
 Custom commands for streamlined workflows:

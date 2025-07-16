@@ -23,10 +23,6 @@ name: Debug cibuildwheel with SSH
 # Security: SSH access is restricted to the workflow actor (person who triggered it)
 
 on:
-  # Temporary push trigger for SSH debugging test - REMOVE AFTER TESTING
-  push:
-    branches:
-      - feature/cibuildwheel-debug
   workflow_dispatch:
     inputs:
       platform_arch:

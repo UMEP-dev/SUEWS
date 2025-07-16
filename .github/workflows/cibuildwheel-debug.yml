@@ -154,17 +154,9 @@ jobs:
 
       - name: Install Claude Code CLI
         # Install Claude Code for AI-assisted debugging
-        # Skip on Windows as it requires different installation method
-        if: runner.os != 'Windows'
         run: |
           echo "Installing Claude Code CLI for debugging assistance..."
-          if command -v brew &> /dev/null; then
-            # macOS
-            brew install claude
-          else
-            # Linux
-            curl -fsSL https://github.com/anthropics/claude-code/releases/latest/download/install.sh | sh
-          fi
+          npm install -g @anthropic/claude-cli
           echo "Claude Code installed. Use 'claude -p \"help debug this error\"' during SSH session"
 
       - name: Display debug information

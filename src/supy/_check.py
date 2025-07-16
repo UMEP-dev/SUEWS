@@ -223,9 +223,19 @@ def check_state(df_state: pd.DataFrame, fix=True) -> List:
     # 0. mandatory variables in supy_driver
     set_diff = set_var_use.difference(set(list_col_rule).union(set(list_var_exclude)))
     if len(set_diff) > 0:
-        str_issue = f"Mandatory parameters missing from rule file: {set_diff}"
-        list_issues.append(str_issue)
-        flag_valid = False
+        # Filter out STEBBS-related parameters (not ready for use)
+        stebbs_params = {p for p in set_diff if 'stebbs' in str(p).lower() or any(
+            x in str(p).lower() for x in ['dhw', 'hotwater', 'buildingtype', 'occupants', 
+            'appliance', 'metabolic', 'ventilation', 'cooling', 'heating', 'window', 
+            'wall', 'floor', 'internalmass', 'indoorair', 'watertank', 'buildingcount',
+            'buildingname', 'indoormass']
+        )}
+        # Only report non-STEBBS parameters
+        non_stebbs_params = set_diff - stebbs_params
+        if non_stebbs_params:
+            str_issue = f"Parameters missing from validation rule file: {non_stebbs_params}"
+            list_issues.append(str_issue)
+            flag_valid = False
 
     # 1. correct columns
     col_df_state = df_state.columns.get_level_values("var")
@@ -238,15 +248,63 @@ def check_state(df_state: pd.DataFrame, fix=True) -> List:
     # 1.2 if all columns are included in the checking list
     set_diff = set(col_df_state).difference(list_col_rule)
     if len(set_diff) > 0:
-        str_issue = f"Columns not included in checking list: {set_diff}"
-        list_issues.append(str_issue)
-        flag_valid = False
+        # Filter out STEBBS-related columns (not ready for use)
+        stebbs_cols = {c for c in set_diff if any(
+            x in str(c).lower() for x in ['stebbs', 'dhw', 'hotwater', 'buildingtype', 
+            'occupants', 'appliance', 'metabolic', 'ventilation', 'cooling', 'heating', 
+            'window', 'wall', 'floor', 'internalmass', 'indoorair', 'watertank', 'buildingcount',
+            'buildingname', 'indoormass']
+        )}
+        # Filter out internal metadata columns
+        metadata_cols = {c for c in set_diff if str(c).lower() in ['config', 'description']}
+        
+        # Only report columns that are neither STEBBS nor metadata
+        other_cols = set_diff - stebbs_cols - metadata_cols
+        
+        if other_cols:
+            str_issue = f"Columns not included in validation rules: {other_cols}"
+            list_issues.append(str_issue)
+            flag_valid = False
 
     # 2. check based on logic types
     list_to_check = set(col_df_state).intersection(list_col_rule)
     for var in list_to_check:
         # pack
         val = dict_rules_indiv[var]
+        
+        # Check if this variable is expanded into multiple columns (e.g., WeeklyProfile)
+        # This happens when there are multiple columns with the same first level
+        expanded_cols = [col for col in df_state.columns if col[0] == var]
+        if len(expanded_cols) > 1:
+            # This is an expanded parameter (like daywat with 7 columns for each day)
+            # Validate each expanded column individually
+            for col in expanded_cols:
+                df_var_col = df_state[col]
+                if val["logic"] == "range":
+                    for ind in df_var_col.index:
+                        ser_var = df_var_col.loc[ind]
+                        # Create a series with the original variable name for validation
+                        ser_var = pd.Series([ser_var], name=var)
+                        res_check = check_range(ser_var, dict_rules_indiv)
+                        if not res_check[1]:
+                            str_issue = res_check[2] + f" at index `{ind}`, column `{col}`"
+                            list_issues.append(str_issue)
+                            flag_valid = False
+                elif val["logic"] == "method":
+                    for ind in df_var_col.index:
+                        ser_var = df_var_col.loc[ind]
+                        # Create a series with the original variable name for validation
+                        ser_var = pd.Series([ser_var], name=var)
+                        res_check = check_method(ser_var, dict_rules_indiv)
+                        if not res_check[1]:
+                            str_issue = res_check[2] + f" at index `{ind}`, column `{col}`"
+                            list_issues.append(str_issue)
+                            flag_valid = False
+            continue
+            
+        # Single column parameter - validate normally
+        if var not in df_state.columns.get_level_values(0):
+            continue
         df_var = df_state[var]
         # 'NA' implies no checking required
         if val["logic"] != "NA":

@@ -166,7 +166,7 @@ jobs:
         # Install Claude Code for AI-assisted debugging
         run: |
           echo "Installing Claude Code CLI for debugging assistance..."
-          npm install -g @anthropic/claude-cli
+          npm install -g @anthropic-ai/claude-code
           echo "Claude Code installed. Use 'claude -p \"help debug this error\"' during SSH session"
 
       - name: Display debug information

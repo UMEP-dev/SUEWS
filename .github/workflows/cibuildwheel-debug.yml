@@ -166,7 +166,7 @@ jobs:
         # Install Claude Code for AI-assisted debugging
         run: |
           echo "Installing Claude Code CLI for debugging assistance..."
-          npm install -g @anthropic-ai/claude-code
+          npm install -g @anthropic/claude-cli
           echo "Claude Code installed. Use 'claude -p \"help debug this error\"' during SSH session"
 
       - name: Display debug information
@@ -204,8 +204,19 @@ jobs:
         id: build
         continue-on-error: true
         run: |
+          # Determine cibuildwheel platform argument
+          if [[ "${{ env.PLATFORM }}" == *"ubuntu"* ]]; then
+            CIBW_PLATFORM="linux"
+          elif [[ "${{ env.PLATFORM }}" == *"macos"* ]]; then
+            CIBW_PLATFORM="macos"
+          elif [[ "${{ env.PLATFORM }}" == *"windows"* ]]; then
+            CIBW_PLATFORM="windows"
+          else
+            CIBW_PLATFORM="auto"
+          fi
+          
           # Run cibuildwheel and capture output
-          python -m cibuildwheel --platform ${{ env.BUILDPLAT }} --output-dir wheelhouse 2>&1 | tee cibuildwheel-output.log
+          python -m cibuildwheel --platform $CIBW_PLATFORM --output-dir wheelhouse 2>&1 | tee cibuildwheel-output.log
           # Capture exit code
           echo "exit_code=${PIPESTATUS[0]}" >> $GITHUB_OUTPUT
 

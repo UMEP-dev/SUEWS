@@ -84,9 +84,17 @@ pytest test/test_supy.py::TestSuPy::test_water_balance_closed -xvs
 pytest test -v --tb=short
 ```
 
-## Current Status
-- Investigation complete: Issue was test isolation, not Fortran/ARM64
-- Test isolation fix in d5053de4 is the correct solution
-- Both tests pass individually and in full suite with the fix
-- No ARM64-specific Fortran issues found
-- Ready to close the investigation
+## Current Status (Updated 2025-07-16)
+- Investigation complete: Root cause found in `add_sfc_init_df` function
+- Issue was improper handling of DataFrame column structures (single-level vs MultiIndex)
+- Fixed in commit 03567504 by handling both column formats in `src/supy/_load.py`
+- Both tests now pass individually and in full suite without test isolation fixes
+- No ARM64-specific or Fortran issues found
+- Ready to create PR with the fix
+
+## Final Resolution
+The actual root cause was not test isolation but improper error handling in `add_sfc_init_df`:
+- Function expected single-level columns like `"pavedstate"`
+- Sometimes received MultiIndex columns like `("pavedstate", "0")`
+- Fix allows function to handle both formats gracefully
+- See INVESTIGATION_SUMMARY.md for full details

@@ -681,14 +681,15 @@ CONTAINS
             sout%ws = ws
             sout%ws_exch = ws
             ! air temperature and wind speed at building/half building height from RSL
-            ws_bh = interp_z(blds(1)%height_building, zarray, dataoutLineURSL)
-            ws_hbh = interp_z((blds(1)%height_building)/2, zarray, dataoutLineURSL)
-            Tair_bh = interp_z(blds(1)%height_building, zarray, dataoutLineTRSL)
-            Tair_hbh = interp_z((blds(1)%height_building)/2, zarray, dataoutLineTRSL)
-            sout%Tair_exch_bh(1) = Tair_bh
-            sout%Tair_exch_hbh(1) = Tair_hbh
-            sout%ws_exch_bh(1) = ws_bh
-            sout%ws_exch_hbh(1) = ws_hbh
+            ws_bh = interp_z(buildings(1)%height_building, zarray, dataoutLineURSL)
+            ws_hbh = interp_z((buildings(1)%height_building)/2, zarray, dataoutLineURSL)
+            Tair_bh = interp_z(buildings(1)%height_building, zarray, dataoutLineTRSL)
+            Tair_hbh = interp_z((buildings(1)%height_building)/2, zarray, dataoutLineTRSL)
+            sout%Tair_exch_bh = Tair_bh
+            sout%Tair_exch_hbh = Tair_hbh
+            sout%ws_exch_bh = ws_bh
+            sout%ws_exch_hbh = ws_hbh
+
             CALL setdatetime(datetimeLine)
 
             CALL suewsstebbscouple( &
@@ -755,7 +756,7 @@ Qsw_absorbed_window_tstepTotal, Qsw_absorbed_wall_tstepTotal, Qsw_absorbed_roof_
 END MODULE stebbs_module
 
 SUBROUTINE suewsstebbscouple(self, datetimeLine, &
-                             Tair_ind, Tindoormass, Tintwallroof, Textwallroof, Tintwindow, Textwindow, Tintgroundfloor, &
+                           Tair_ind, Tindoormass, Tintwall, Tintroof, Textwall, Textroof, Tintwindow, Textwindow, Tintgroundfloor, &
                              Textgroundfloor, Qtotal_heating, Qtotal_cooling, Qsw_transmitted_window_tstepTotal, &
 Qsw_absorbed_window_tstepTotal, Qsw_absorbed_wall_tstepTotal, Qsw_absorbed_roof_tstepTotal, Qconv_indair_to_indoormass_tstepTotal, &
                        Qlw_net_intwall_to_allotherindoorsurfaces_tstepTotal, Qlw_net_introof_to_allotherindoorsurfaces_tstepTotal, &
@@ -864,8 +865,8 @@ Qsw_absorbed_window_tstepTotal, Qsw_absorbed_wall_tstepTotal, Qsw_absorbed_roof_
    Area = self%Afootprint
    DO tstep = 1, sout%ntstep, 1
       Tair_out = sout%Tair + 273.15
-      Tair_out_bh = sout%Tair_exch_bh(tstep) + 273.15
-      Tair_out_hbh = sout%Tair_exch_hbh(tstep) + 273.15
+      Tair_out_bh = sout%Tair_exch_bh + 273.15
+      Tair_out_hbh = sout%Tair_exch_hbh+ 273.15
       Tground_deep = 273.15 + 10.0
       Tsurf = sout%Tsurf + 273.15
       density_air_out = 1.225
@@ -880,9 +881,9 @@ Qsw_absorbed_window_tstepTotal, Qsw_absorbed_wall_tstepTotal, Qsw_absorbed_roof_
          ! WRITE (*, *) 'Wind speed is negative, set to 0.2'
       END IF
       IF (tstep >= 2) THEN !use updated temperature to calculate new coefficients
-         self%h_o(1) = ext_conv_coeff(sout%ws_exch_hbh(tstep), self%Textwall - sout%Tair_exch_hbh(tstep)) !wall
-         self%h_o(2) = ext_conv_coeff(sout%ws_exch_hbh(tstep), self%Textwindow - sout%Tair_exch_hbh(tstep)) !new function is needed for winodws (smooth)
-         self%h_o(3) = ext_conv_coeff(sout%ws_exch_bh(tstep), self%Textroof - sout%Tair_exch_bh(tstep)) !new function is needed to horizontal roof
+         self%h_o(1) = ext_conv_coeff(sout%ws_exch_hbh, self%Textwall - sout%Tair_exch_hbh) !wall
+         self%h_o(2) = ext_conv_coeff(sout%ws_exch_hbh, self%Textwindow - sout%Tair_exch_hbh) !new function is needed for winodws (smooth)
+         self%h_o(3) = ext_conv_coeff(sout%ws_exch_bh, self%Textroof - sout%Tair_exch_bh) !new function is needed to horizontal roof
       END IF
       CALL timeStepCalculation(self, Tair_out, Tair_out_bh, Tair_out_hbh, Tground_deep, Tsurf, &
                                density_air_out, cp_air_out, &
@@ -1328,15 +1329,15 @@ SUBROUTINE tstep( &
    REAL(KIND(1D0)) :: Qf_ground_timestep = 0.0, &
                  q_heating_timestep = 0.0, &
                  q_cooling_timestep = 0.0
-   REAL(KIND(1D0)) :: Qsw_transmitted_window = 0.0, Qsw_absorbed_window = 0.0, Qsw_absorbed_wallroof = 0.0, &
-                 Qconv_indair_to_indoormass = 0.0, Qlw_net_intwallroof_to_allotherindoorsurfaces = 0.0, &
-                 Qlw_net_intwindow_to_allotherindoorsurfaces = 0.0, Qlw_net_intgroundfloor_to_allotherindoorsurfaces = 0.0
-   REAL(KIND(1D0)) :: Q_appliance = 0.0, Q_ventilation = 0.0, Qconv_indair_to_intwallroof = 0.0, &
-                 Qconv_indair_to_intwindow = 0.0, Qconv_indair_to_intgroundfloor = 0.0
-   REAL(KIND(1D0)) :: Qloss_efficiency_heating_air = 0.0, Qcond_wallroof = 0.0, Qcond_window = 0.0, &
-                 Qcond_groundfloor = 0.0, Qcond_ground = 0.0
-   REAL(KIND(1D0)) :: Qlw_net_extwallroof_to_outair = 0.0, Qlw_net_extwindow_to_outair = 0.0, &
-                 Qconv_extwallroof_to_outair = 0.0, Qconv_extwindow_to_outair = 0.0
+   REAL(KIND(1D0)) :: Qsw_transmitted_window = 0.0, Qsw_absorbed_window = 0.0, Qsw_absorbed_wall = 0.0, Qsw_absorbed_roof = 0.0, &
+     Qconv_indair_to_indoormass = 0.0, Qlw_net_intwall_to_allotherindoorsurfaces = 0.0, Qlw_net_introof_to_allotherindoorsurfaces = 0.0,&
+                      Qlw_net_intwindow_to_allotherindoorsurfaces = 0.0, Qlw_net_intgroundfloor_to_allotherindoorsurfaces = 0.0
+   REAL(KIND(1D0)) :: Q_appliance = 0.0, Q_ventilation = 0.0, Qconv_indair_to_intwall = 0.0, Qconv_indair_to_introof = 0.0, &
+                      Qconv_indair_to_intwindow = 0.0, Qconv_indair_to_intgroundfloor = 0.0
+   REAL(KIND(1D0)) :: Qloss_efficiency_heating_air = 0.0, Qcond_wall = 0.0, Qcond_roof = 0.0, Qcond_window = 0.0, &
+                      Qcond_groundfloor = 0.0, Qcond_ground = 0.0
+   REAL(KIND(1D0)) :: Qlw_net_extwall_to_outair = 0.0, Qlw_net_extroof_to_outair = 0.0, Qlw_net_extwindow_to_outair = 0.0, &
+                      Qconv_extwall_to_outair = 0.0, Qconv_extroof_to_outair = 0.0, Qconv_extwindow_to_outair = 0.0
    REAL(KIND(1D0)) :: QS_total = 0.0, QS_fabric = 0.0, QS_air = 0.0
    REAL(KIND(1D0)), INTENT(inout) :: Qsw_transmitted_window_tstepTotal, &
                                      Qsw_absorbed_window_tstepTotal, &
@@ -1764,8 +1765,8 @@ END SUBROUTINE reinitialiseTemperatures
 
 SUBROUTINE gen_building(stebbsState, stebbsPrm, building_archtype, self)
 
-   USE modulestebbs, ONLY: LBM
-   USE SUEWS_DEF_DTS, ONLY: BUILDING_ARCHETYPE_PRM, STEBBS_STATE, STEBBS_PRM
+   USE SUEWS_DEF_DTS, ONLY: BUILDING_ARCHETYPE_PRM, STEBBS_STATE, STEBBS_PRM, STEBBS_BLDG
+   USE modulestebbsfunc, ONLY: calculate_x1
    IMPLICIT NONE
 
    TYPE(STEBBS_BLDG) :: self

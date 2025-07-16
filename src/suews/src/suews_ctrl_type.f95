@@ -942,57 +942,16 @@ MODULE SUEWS_DEF_DTS
 
    END TYPE ROUGHNESS_STATE
 
-   TYPE, PUBLIC :: STEBBS_STATE
-
-      ! Beers output for STEBBS - TODO: these should be kept in the HEAT_STATE type -
-      REAL(KIND(1D0)) :: Kdown2d = 0.0D0 ! incoming shortwave radiation onto roof [W m-2]
-      REAL(KIND(1D0)) :: Kup2d = 0.0D0 ! outgoing shortwave radiation from roof [W m-2]
-      REAL(KIND(1D0)) :: Kwest = 0.0D0 ! incoming shortwave radiation from west [W m-2]
-      REAL(KIND(1D0)) :: Ksouth = 0.0D0 ! incoming shortwave radiation from south [W m-2]
-      REAL(KIND(1D0)) :: Knorth = 0.0D0 ! incoming shortwave radiation from north [W m-2]
-      REAL(KIND(1D0)) :: Keast = 0.0D0 ! incoming shortwave radiation from east [W m-2]
-      REAL(KIND(1D0)) :: Ldown2d = 0.0D0 ! incoming longwave radiation onto roof [W m-2]
-      REAL(KIND(1D0)) :: Lup2d = 0.0D0 ! outgoing longwave radiation from roof [W m-2]
-      REAL(KIND(1D0)) :: Lwest = 0.0D0 ! incoming longwave radiation from west [W m-2]
-      REAL(KIND(1D0)) :: Lsouth = 0.0D0 ! incoming longwave radiation from south [W m-2]
-      REAL(KIND(1D0)) :: Lnorth = 0.0D0 ! incoming longwave radiation from north [W m-2]
-      REAL(KIND(1D0)) :: Least = 0.0D0 ! incoming longwave radiation from east [W m-2]
-
-      ! Initial conditions that are updated during runtime
-      REAL(KIND(1D0)) :: IndoorAirStartTemperature = 0.0D0 ! Initial indoor air temperature [degC]
-      REAL(KIND(1D0)) :: IndoorMassStartTemperature = 0.0D0 ! Initial indoor mass temperature [degC]
-      REAL(KIND(1D0)) :: WallIndoorSurfaceTemperature = 0.0D0 ! Initial wall indoor surface temperature [degC]
-      REAL(KIND(1D0)) :: WallOutdoorSurfaceTemperature = 0.0D0 ! Initial walloutdoor surface temperature [degC]
-      REAL(KIND(1D0)) :: RoofIndoorSurfaceTemperature = 0.0D0 ! Initial roof indoor surface temperature [degC]
-      REAL(KIND(1D0)) :: RoofOutdoorSurfaceTemperature = 0.0D0 ! Initial roof outdoor surface temperature [degC]
-      REAL(KIND(1D0)) :: WindowIndoorSurfaceTemperature = 0.0D0 ! Initial window indoor surface temperature [degC]
-      REAL(KIND(1D0)) :: WindowOutdoorSurfaceTemperature = 0.0D0 ! Initial window outdoor surface temperature [degC]
-      REAL(KIND(1D0)) :: GroundFloorIndoorSurfaceTemperature = 0.0D0 ! Initial ground floor indoor surface temperature [degC]
-      REAL(KIND(1D0)) :: GroundFloorOutdoorSurfaceTemperature = 0.0D0 ! Initial ground floor outdoor surface temperature [degC]
-      REAL(KIND(1D0)) :: WaterTankTemperature = 0.0D0 ! Initial water temperature in hot water tank [degC]
-      REAL(KIND(1D0)) :: InternalWallWaterTankTemperature = 0.0D0 ! Initial hot water tank internal wall temperature [degC]
-      REAL(KIND(1D0)) :: ExternalWallWaterTankTemperature = 0.0D0 ! Initial hot water tank external wall temperature [degC]
-      REAL(KIND(1D0)) :: MainsWaterTemperature = 0.0D0 ! Temperature of water coming into the water tank [degC]
-      REAL(KIND(1D0)) :: DomesticHotWaterTemperatureInUseInBuilding = 0.0D0 ! Initial water temperature of water held in use in building [degC]
-      REAL(KIND(1D0)) :: InternalWallDHWVesselTemperature = 0.0D0 ! Initial hot water vessel internal wall temperature [degC]
-      REAL(KIND(1D0)) :: ExternalWallDHWVesselTemperature = 0.0D0 ! Initial hot water vessel external wall temperature [degC]
-
-      ! flag for iteration safety - YES
-      ! all variables are intensive and thus can be used for iteration safety
-      LOGICAL :: iter_safe = .TRUE.
-
-   END TYPE STEBBS_STATE
-
    TYPE :: STEBBS_BLDG
       ! MP TODO: Add initialisation values e.g. =0
-      CHARACTER(len=256) :: BuildingType
-      CHARACTER(len=256) :: BuildingName
-      CHARACTER(len=256) :: fnmlLBM
-      CHARACTER(len=256) :: CASE
-      INTEGER :: idLBM
-      INTEGER :: appliance_totalnumber
-      
-      REAL(KIND(1D0)) :: Qtotal_heating
+      CHARACTER(len=256) :: BuildingType = 'Default'
+      CHARACTER(len=256) :: BuildingName= 'Default'
+      CHARACTER(len=256) :: fnmlLBM = 'Default'
+      CHARACTER(len=256) :: CASE = 'Default'
+      INTEGER :: idLBM = 0 
+      INTEGER :: appliance_totalnumber = 0
+
+      REAL(KIND(1D0)) :: Qtotal_heating = 0.0D0 
       REAL(KIND(1D0)) :: Qtotal_cooling
       REAL(KIND(1D0)) :: Qmetabolic_sensible
       REAL(KIND(1D0)) :: Qmetabolic_latent
@@ -1003,33 +962,50 @@ MODULE SUEWS_DEF_DTS
       REAL(KIND(1D0)) :: height_building
       REAL(KIND(1D0)) :: wallExternalArea
       REAL(KIND(1D0)) :: ratioInternalVolume
-      REAL(KIND(1D0)) :: thickness_wallroof
+      REAL(KIND(1D0)) :: thickness_wall
+      REAL(KIND(1D0)) :: thickness_wallext
+      REAL(KIND(1D0)) :: thickness_roof
+      REAL(KIND(1D0)) :: thickness_roofext
       REAL(KIND(1D0)) :: thickness_groundfloor
       REAL(KIND(1D0)) :: depth_ground
       REAL(KIND(1D0)) :: thickness_window
-      REAL(KIND(1D0)) :: conv_coeff_intwallroof
+      REAL(KIND(1D0)) :: conv_coeff_intwall
+      REAL(KIND(1D0)) :: conv_coeff_introof
       REAL(KIND(1D0)) :: conv_coeff_indoormass
       REAL(KIND(1D0)) :: conv_coeff_intgroundfloor
       REAL(KIND(1D0)) :: conv_coeff_intwindow
-      REAL(KIND(1D0)) :: conv_coeff_extwallroof
+      REAL(KIND(1D0)) :: conv_coeff_extwall
+      REAL(KIND(1D0)) :: conv_coeff_extroof
       REAL(KIND(1D0)) :: conv_coeff_extwindow
-      REAL(KIND(1D0)) :: conductivity_wallroof
+      REAL(KIND(1D0)) :: conductivity_wall
+      REAL(KIND(1D0)) :: conductivity_wallext
+      REAL(KIND(1D0)) :: conductivity_roof
+      REAL(KIND(1D0)) :: conductivity_roofext
       REAL(KIND(1D0)) :: conductivity_groundfloor
       REAL(KIND(1D0)) :: conductivity_window
       REAL(KIND(1D0)) :: conductivity_ground
-      REAL(KIND(1D0)) :: density_wallroof
-      REAL(KIND(1D0)) :: weighting_factor_heatcapacity_wallroof
+      REAL(KIND(1D0)) :: density_wall
+      REAL(KIND(1D0)) :: density_wallext
+      REAL(KIND(1D0)) :: density_roof
+      REAL(KIND(1D0)) :: density_roofext
+      REAL(KIND(1D0)) :: weighting_factor_heatcapacity_wall
+      REAL(KIND(1D0)) :: weighting_factor_heatcapacity_roof
       REAL(KIND(1D0)) :: density_groundfloor
       REAL(KIND(1D0)) :: density_window
       REAL(KIND(1D0)) :: density_indoormass
       REAL(KIND(1D0)) :: density_air_ind
-      REAL(KIND(1D0)) :: cp_wallroof
+      REAL(KIND(1D0)) :: cp_wall
+      REAL(KIND(1D0)) :: cp_wallext
+      REAL(KIND(1D0)) :: cp_roof
+      REAL(KIND(1D0)) :: cp_roofext
       REAL(KIND(1D0)) :: cp_groundfloor
       REAL(KIND(1D0)) :: cp_window
       REAL(KIND(1D0)) :: cp_indoormass
       REAL(KIND(1D0)) :: cp_air_ind
-      REAL(KIND(1D0)) :: emissivity_extwallroof
-      REAL(KIND(1D0)) :: emissivity_intwallroof
+      REAL(KIND(1D0)) :: emissivity_extwall
+      REAL(KIND(1D0)) :: emissivity_extroof
+      REAL(KIND(1D0)) :: emissivity_intwall
+      REAL(KIND(1D0)) :: emissivity_introof
       REAL(KIND(1D0)) :: emissivity_indoormass
       REAL(KIND(1D0)) :: emissivity_extwindow
       REAL(KIND(1D0)) :: emissivity_intwindow
@@ -1039,9 +1015,15 @@ MODULE SUEWS_DEF_DTS
       REAL(KIND(1D0)) :: wallTransmisivity
       REAL(KIND(1D0)) :: wallAbsorbtivity
       REAL(KIND(1D0)) :: wallReflectivity
+      REAL(KIND(1D0)) :: roofTransmisivity
+      REAL(KIND(1D0)) :: roofAbsorbtivity
+      REAL(KIND(1D0)) :: roofReflectivity
       REAL(KIND(1D0)) :: BVF_extwall
       REAL(KIND(1D0)) :: GVF_extwall
       REAL(KIND(1D0)) :: SVF_extwall
+      REAL(KIND(1D0)) :: BVF_extroof
+      REAL(KIND(1D0)) :: GVF_extroof
+      REAL(KIND(1D0)) :: SVF_extroof
       REAL(KIND(1D0)) :: occupants
       REAL(KIND(1D0)) :: metabolic_rate
       REAL(KIND(1D0)) :: ratio_metabolic_latent_sensible
@@ -1053,8 +1035,10 @@ MODULE SUEWS_DEF_DTS
       REAL(KIND(1D0)) :: coeff_performance_cooling
       REAL(KIND(1D0)) :: Vair_ind
       REAL(KIND(1D0)) :: ventilation_rate
-      REAL(KIND(1D0)) :: Awallroof
-      REAL(KIND(1D0)) :: Vwallroof
+      REAL(KIND(1D0)) :: Awall
+      REAL(KIND(1D0)) :: Aroof
+      REAL(KIND(1D0)) :: Vwall
+      REAL(KIND(1D0)) :: Vroof
       REAL(KIND(1D0)) :: Vgroundfloor
       REAL(KIND(1D0)) :: Awindow
       REAL(KIND(1D0)) :: Vwindow
@@ -1062,8 +1046,10 @@ MODULE SUEWS_DEF_DTS
       REAL(KIND(1D0)) :: Aindoormass
       REAL(KIND(1D0)) :: Tair_ind
       REAL(KIND(1D0)) :: Tindoormass
-      REAL(KIND(1D0)) :: Tintwallroof
-      REAL(KIND(1D0)) :: Textwallroof
+      REAL(KIND(1D0)) :: Tintwall
+      REAL(KIND(1D0)) :: Tintroof
+      REAL(KIND(1D0)) :: Textwall
+      REAL(KIND(1D0)) :: Textroof
       REAL(KIND(1D0)) :: Tintwindow
       REAL(KIND(1D0)) :: Textwindow
       REAL(KIND(1D0)) :: Tintgroundfloor
@@ -1125,52 +1111,54 @@ MODULE SUEWS_DEF_DTS
       REAL(KIND(1D0)) :: QWaste ! Waste heating        [W m-2]
       
       REAL(KIND(1D0)), DIMENSION(2) :: Ts, initTs
-      REAL(KIND(1D0)), DIMENSION(4) :: h_i, k_eff
-      REAL(KIND(1D0)), DIMENSION(2) :: h_o
-      REAL(KIND(1D0)), DIMENSION(5) :: rho
-      REAL(KIND(1D0)), DIMENSION(5) :: Cp
-      REAL(KIND(1D0)), DIMENSION(5) :: emis
-      REAL(KIND(1D0)), DIMENSION(3) :: wiTAR, waTAR
-      REAL(KIND(1D0)), DIMENSION(3) :: viewFactors
+      REAL(KIND(1D0)), DIMENSION(5) :: h_i, k_eff
+      REAL(KIND(1D0)), DIMENSION(3) :: h_o
+      REAL(KIND(1D0)), DIMENSION(6) :: rho
+      REAL(KIND(1D0)), DIMENSION(6) :: Cp
+      REAL(KIND(1D0)), DIMENSION(7) :: emis
+      REAL(KIND(1D0)), DIMENSION(3) :: wiTAR, waTAR, roofTAR
+      REAL(KIND(1D0)), DIMENSION(6) :: viewFactors
       REAL(KIND(1D0)), DIMENSION(3) :: occupantData
       REAL(KIND(1D0)), DIMENSION(3) :: HTsAverage, HWTsAverage
       REAL(KIND(1D0)), DIMENSION(3) :: HWPowerAverage
-      REAL(KIND(1D0)), DIMENSION(25) :: EnergyExchanges = 0.0
+      REAL(KIND(1D0)), DIMENSION(31) :: EnergyExchanges = 0.0
 
    END TYPE
 
    TYPE, PUBLIC :: STEBBS_STATE
 
       ! Beers output for STEBBS - TODO: these should be kept in the HEAT_STATE type -
-      REAL(KIND(1D0)) :: Kdown2d ! incoming shortwave radiation onto roof [W m-2]
-      REAL(KIND(1D0)) :: Kup2d ! outgoing shortwave radiation from roof [W m-2]
-      REAL(KIND(1D0)) :: Kwest ! incoming shortwave radiation from west [W m-2]
-      REAL(KIND(1D0)) :: Ksouth ! incoming shortwave radiation from south [W m-2]
-      REAL(KIND(1D0)) :: Knorth ! incoming shortwave radiation from north [W m-2]
-      REAL(KIND(1D0)) :: Keast ! incoming shortwave radiation from east [W m-2]
-      REAL(KIND(1D0)) :: Ldown2d ! incoming longwave radiation onto roof [W m-2]
-      REAL(KIND(1D0)) :: Lup2d ! outgoing longwave radiation from roof [W m-2]
-      REAL(KIND(1D0)) :: Lwest ! incoming longwave radiation from west [W m-2]
-      REAL(KIND(1D0)) :: Lsouth ! incoming longwave radiation from south [W m-2]
-      REAL(KIND(1D0)) :: Lnorth ! incoming longwave radiation from north [W m-2]
-      REAL(KIND(1D0)) :: Least ! incoming longwave radiation from east [W m-2]
+      REAL(KIND(1D0)) :: Kdown2d = 0.0D0 ! incoming shortwave radiation onto roof [W m-2]
+      REAL(KIND(1D0)) :: Kup2d = 0.0D0 ! outgoing shortwave radiation from roof [W m-2]
+      REAL(KIND(1D0)) :: Kwest = 0.0D0 ! incoming shortwave radiation from west [W m-2]
+      REAL(KIND(1D0)) :: Ksouth = 0.0D0 ! incoming shortwave radiation from south [W m-2]
+      REAL(KIND(1D0)) :: Knorth = 0.0D0 ! incoming shortwave radiation from north [W m-2]
+      REAL(KIND(1D0)) :: Keast = 0.0D0 ! incoming shortwave radiation from east [W m-2]
+      REAL(KIND(1D0)) :: Ldown2d = 0.0D0 ! incoming longwave radiation onto roof [W m-2]
+      REAL(KIND(1D0)) :: Lup2d = 0.0D0 ! outgoing longwave radiation from roof [W m-2]
+      REAL(KIND(1D0)) :: Lwest = 0.0D0 ! incoming longwave radiation from west [W m-2]
+      REAL(KIND(1D0)) :: Lsouth = 0.0D0 ! incoming longwave radiation from south [W m-2]
+      REAL(KIND(1D0)) :: Lnorth = 0.0D0 ! incoming longwave radiation from north [W m-2]
+      REAL(KIND(1D0)) :: Least = 0.0D0 ! incoming longwave radiation from east [W m-2]
 
       ! Initial conditions that are updated during runtime
-      REAL(KIND(1D0)) :: IndoorAirStartTemperature ! Initial indoor air temperature [degC]
-      REAL(KIND(1D0)) :: IndoorMassStartTemperature ! Initial indoor mass temperature [degC]
-      REAL(KIND(1D0)) :: WallIndoorSurfaceTemperature ! Initial wall/roof indoor surface temperature [degC]
-      REAL(KIND(1D0)) :: WallOutdoorSurfaceTemperature ! Initial wall/roof outdoor surface temperature [degC]
-      REAL(KIND(1D0)) :: WindowIndoorSurfaceTemperature ! Initial window indoor surface temperature [degC]
-      REAL(KIND(1D0)) :: WindowOutdoorSurfaceTemperature ! Initial window outdoor surface temperature [degC]
-      REAL(KIND(1D0)) :: GroundFloorIndoorSurfaceTemperature ! Initial ground floor indoor surface temperature [degC]
-      REAL(KIND(1D0)) :: GroundFloorOutdoorSurfaceTemperature ! Initial ground floor outdoor surface temperature [degC]
-      REAL(KIND(1D0)) :: WaterTankTemperature ! Initial water temperature in hot water tank [degC]
-      REAL(KIND(1D0)) :: InternalWallWaterTankTemperature ! Initial hot water tank internal wall temperature [degC]
-      REAL(KIND(1D0)) :: ExternalWallWaterTankTemperature ! Initial hot water tank external wall temperature [degC]
-      REAL(KIND(1D0)) :: MainsWaterTemperature ! Temperature of water coming into the water tank [degC]
-      REAL(KIND(1D0)) :: DomesticHotWaterTemperatureInUseInBuilding ! Initial water temperature of water held in use in building [degC]
-      REAL(KIND(1D0)) :: InternalWallDHWVesselTemperature ! Initial hot water vessel internal wall temperature [degC]
-      REAL(KIND(1D0)) :: ExternalWallDHWVesselTemperature ! Initial hot water vessel external wall temperature [degC]
+      REAL(KIND(1D0)) :: IndoorAirStartTemperature = 0.0D0 ! Initial indoor air temperature [degC]
+      REAL(KIND(1D0)) :: IndoorMassStartTemperature = 0.0D0 ! Initial indoor mass temperature [degC]
+      REAL(KIND(1D0)) :: WallIndoorSurfaceTemperature = 0.0D0 ! Initial wall indoor surface temperature [degC]
+      REAL(KIND(1D0)) :: WallOutdoorSurfaceTemperature = 0.0D0 ! Initial walloutdoor surface temperature [degC]
+      REAL(KIND(1D0)) :: RoofIndoorSurfaceTemperature = 0.0D0 ! Initial roof indoor surface temperature [degC]
+      REAL(KIND(1D0)) :: RoofOutdoorSurfaceTemperature = 0.0D0 ! Initial roof outdoor surface temperature [degC]
+      REAL(KIND(1D0)) :: WindowIndoorSurfaceTemperature = 0.0D0 ! Initial window indoor surface temperature [degC]
+      REAL(KIND(1D0)) :: WindowOutdoorSurfaceTemperature = 0.0D0 ! Initial window outdoor surface temperature [degC]
+      REAL(KIND(1D0)) :: GroundFloorIndoorSurfaceTemperature = 0.0D0 ! Initial ground floor indoor surface temperature [degC]
+      REAL(KIND(1D0)) :: GroundFloorOutdoorSurfaceTemperature = 0.0D0 ! Initial ground floor outdoor surface temperature [degC]
+      REAL(KIND(1D0)) :: WaterTankTemperature = 0.0D0 ! Initial water temperature in hot water tank [degC]
+      REAL(KIND(1D0)) :: InternalWallWaterTankTemperature = 0.0D0 ! Initial hot water tank internal wall temperature [degC]
+      REAL(KIND(1D0)) :: ExternalWallWaterTankTemperature = 0.0D0 ! Initial hot water tank external wall temperature [degC]
+      REAL(KIND(1D0)) :: MainsWaterTemperature = 0.0D0 ! Temperature of water coming into the water tank [degC]
+      REAL(KIND(1D0)) :: DomesticHotWaterTemperatureInUseInBuilding = 0.0D0 ! Initial water temperature of water held in use in building [degC]
+      REAL(KIND(1D0)) :: InternalWallDHWVesselTemperature = 0.0D0 ! Initial hot water vessel internal wall temperature [degC]
+      REAL(KIND(1D0)) :: ExternalWallDHWVesselTemperature = 0.0D0 ! Initial hot water vessel external wall temperature [degC]
 
       TYPE(STEBBS_BLDG), ALLOCATABLE, DIMENSION(:) :: buildings ! Array holding all buildings states for STEBBS [-]
 

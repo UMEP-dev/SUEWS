@@ -185,18 +185,25 @@ jobs:
           tmate_session_name: "pre-build-${{ inputs.python_version }}-${{ inputs.platform }}"
         timeout-minutes: 60
 
+      - name: Install cibuildwheel
+        run: |
+          python -m pip install cibuildwheel==v3.0.0
+
       - name: Build wheel with cibuildwheel
         id: build
         continue-on-error: true
-        uses: pypa/cibuildwheel@v3.0.0
-        env:
-          CIBW_OUTPUT_DIR: wheelhouse
+        run: |
+          # Run cibuildwheel and capture output
+          python -m cibuildwheel --platform ${{ env.BUILDPLAT }} --output-dir wheelhouse 2>&1 | tee cibuildwheel-output.log
+          # Capture exit code
+          echo "exit_code=${PIPESTATUS[0]}" >> $GITHUB_OUTPUT
 
       - name: Check build result and capture errors
         if: always()
         run: |
-          if [ "${{ steps.build.outcome }}" == "failure" ]; then
-            echo "::error::Build failed! Check logs above for details."
+          # Check if build failed
+          if [ "${{ steps.build.outcome }}" == "failure" ] || [ "${{ steps.build.outputs.exit_code }}" != "0" ]; then
+            echo "::error::Build failed! Check logs for details."
             echo "BUILD_FAILED=true" >> $GITHUB_ENV
             
             # Create error summary file for SSH session
@@ -207,23 +214,30 @@ jobs:
             echo "Python: ${{ inputs.python_version }}" >> debug-info/build-error-summary.txt
             echo "Architecture: ${{ inputs.architecture }}" >> debug-info/build-error-summary.txt
             echo "" >> debug-info/build-error-summary.txt
-            echo "=== ERROR DETAILS ===" >> debug-info/build-error-summary.txt
             
-            # Try to capture specific error patterns from logs
-            if [ -f "cibuildwheel.log" ]; then
-              echo "Extracting errors from cibuildwheel.log..." >> debug-info/build-error-summary.txt
-              grep -i -A5 -B5 "error\|failed\|fatal" cibuildwheel.log >> debug-info/build-error-summary.txt || true
+            # Extract the last 200 lines of cibuildwheel output (usually contains the error)
+            if [ -f "cibuildwheel-output.log" ]; then
+              echo "=== LAST 200 LINES OF BUILD OUTPUT ===" >> debug-info/build-error-summary.txt
+              tail -200 cibuildwheel-output.log >> debug-info/build-error-summary.txt
+              
+              echo "" >> debug-info/build-error-summary.txt
+              echo "=== ERROR EXCERPTS ===" >> debug-info/build-error-summary.txt
+              # Extract lines containing common error patterns
+              grep -i -A3 -B3 "error:\|failed\|fatal\|traceback\|exception\|undefined reference\|cannot find\|no such file\|permission denied" cibuildwheel-output.log >> debug-info/build-error-summary.txt || true
             fi
             
-            # Look for build logs
-            find . -name "*.log" -type f -exec echo "=== {} ===" \; -exec tail -100 {} \; >> debug-info/build-error-summary.txt 2>/dev/null || true
+            # Also check for any other log files created during build
+            echo "" >> debug-info/build-error-summary.txt
+            echo "=== OTHER LOG FILES FOUND ===" >> debug-info/build-error-summary.txt
+            find . -name "*.log" -not -name "cibuildwheel-output.log" -type f -exec echo "Found: {}" \; >> debug-info/build-error-summary.txt
             
             echo "" >> debug-info/build-error-summary.txt
             echo "=== QUICK DIAGNOSIS COMMANDS ===" >> debug-info/build-error-summary.txt
-            echo "1. View error summary: cat debug-info/build-error-summary.txt" >> debug-info/build-error-summary.txt
-            echo "2. Search all logs: find . -name '*.log' -type f" >> debug-info/build-error-summary.txt
-            echo "3. Check build environment: which python && python --version" >> debug-info/build-error-summary.txt
-            echo "4. Use Claude for help: claude -p 'help me debug this cibuildwheel error'" >> debug-info/build-error-summary.txt
+            echo "1. View full build output: less cibuildwheel-output.log" >> debug-info/build-error-summary.txt
+            echo "2. View error summary: cat debug-info/build-error-summary.txt" >> debug-info/build-error-summary.txt
+            echo "3. Search for specific error: grep -i 'error' cibuildwheel-output.log" >> debug-info/build-error-summary.txt
+            echo "4. Check environment: env | grep -E 'CIBW|PATH|PYTHON'" >> debug-info/build-error-summary.txt
+            echo "5. Use Claude for help: claude -p 'help me debug this cibuildwheel error'" >> debug-info/build-error-summary.txt
             
           else
             echo "::notice::Build succeeded!"
@@ -269,12 +283,22 @@ jobs:
           # Create debug directory
           mkdir -p debug-artifacts
 
-          # Collect cibuildwheel logs
+          # Copy the main cibuildwheel output
+          if [ -f "cibuildwheel-output.log" ]; then
+            cp cibuildwheel-output.log debug-artifacts/
+          fi
+
+          # Copy error summary if it exists
+          if [ -f "debug-info/build-error-summary.txt" ]; then
+            cp debug-info/build-error-summary.txt debug-artifacts/
+          fi
+
+          # Collect cibuildwheel working directory if exists
           if [ -d "cibuildwheel" ]; then
             cp -r cibuildwheel debug-artifacts/ || true
           fi
 
-          # Collect build logs
+          # Collect all other build logs
           find . -name "*.log" -type f -exec cp {} debug-artifacts/ \; 2>/dev/null || true
 
           # System information

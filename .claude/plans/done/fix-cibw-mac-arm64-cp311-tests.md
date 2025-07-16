@@ -98,3 +98,8 @@ The actual root cause was not test isolation but improper error handling in `add
 - Sometimes received MultiIndex columns like `("pavedstate", "0")`
 - Fix allows function to handle both formats gracefully
 - See INVESTIGATION_SUMMARY.md for full details
+
+## Completion Status
+- Completed: 2025-07-16
+- PR #498 merged successfully
+- Fixed DataFrame column handling issue in add_sfc_init_df

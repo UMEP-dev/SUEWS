@@ -130,9 +130,19 @@ class TestSuPy(TestCase):
             # Get columns with NaN
             nan_cols = df_state.columns[df_state.isnull().any()].tolist()
             # Water-related columns that may legitimately have NaN
-            water_related_cols = [col for col in nan_cols if 
-                                  (col[0] in ['state_surf', 'tsfc_surf'] and col[1] == '(6,)') or
-                                  (col[0] == 'hdd_id' and col[1] in ['(2,)', '(8,)', '(9,)'])]
+            water_related_cols = []
+            for col in nan_cols:
+                # Handle both MultiIndex (tuple) and flat string column names
+                if isinstance(col, tuple) and len(col) >= 2:
+                    if ((col[0] in ['state_surf', 'tsfc_surf'] and col[1] == '(6,)') or
+                        (col[0] == 'hdd_id' and col[1] in ['(2,)', '(8,)', '(9,)'])):
+                        water_related_cols.append(col)
+                elif isinstance(col, str):
+                    # For flat column names, check if they contain water-related identifiers
+                    if (('state_surf' in col and '(6,)' in col) or
+                        ('tsfc_surf' in col and '(6,)' in col) or
+                        ('hdd_id' in col and ('(2,)' in col or '(8,)' in col or '(9,)' in col))):
+                        water_related_cols.append(col)
             # Check if all NaN columns are water-related
             unexpected_nan_cols = [col for col in nan_cols if col not in water_related_cols]
             if unexpected_nan_cols:

@@ -1771,7 +1771,20 @@ def add_sfc_init_df(df_init):
     for var in dict_var_sfc:
         for ind, var_sfc in zip(np.ndindex(len(list_sfc)), dict_var_sfc[var]):
             ind_str = str(ind)
-            df_init[(var, ind_str)] = df_init[var_sfc]
+            # Handle both single-level and MultiIndex columns
+            if var_sfc in df_init.columns:
+                df_init[(var, ind_str)] = df_init[var_sfc]
+            elif (var_sfc, "0") in df_init.columns:
+                df_init[(var, ind_str)] = df_init[(var_sfc, "0")]
+            else:
+                # This shouldn't happen normally, but handle gracefully
+                logger_supy.debug(f"Column {var_sfc} not found in df_init, using default value")
+                # Use appropriate default value based on variable type
+                if var_sfc.startswith("snow"):
+                    df_init[(var, ind_str)] = -999.0  # SUEWS default for missing snow values
+                else:
+                    df_init[(var, ind_str)] = 0.0  # Default for other states
+                
             if var_sfc.startswith("snow"):
                 df_init[(var, ind_str)] *= ser_snow_flag.values.flatten()
 

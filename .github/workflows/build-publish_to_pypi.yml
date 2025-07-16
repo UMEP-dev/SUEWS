@@ -20,6 +20,7 @@ on:
       - ".github/workflows/build-publish_to_pypi.yml"
       - "pyproject.toml"
       - "meson.build"
+      - "test/**"
 jobs:
   build_wheels:
     name: Build wheel for ${{ matrix.python }}-${{ matrix.buildplat[1] }} ${{ matrix.buildplat[2] }}

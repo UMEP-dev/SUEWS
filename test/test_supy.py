@@ -553,6 +553,13 @@ class TestSuPy(TestCase):
         # get soilstore
         df_soilstore = df_output.loc[1, "debug"].filter(regex="^ss_.*_next$")
         ser_sfr_surf = self.df_state_init.sfr_surf.iloc[0]
+        
+        # CRITICAL FIX: Ensure ser_sfr_surf has numeric dtype to prevent object dtype propagation
+        # The issue was that ser_sfr_surf had object dtype, causing the dot product to return object dtype,
+        # which then propagated through all water balance calculations and caused NaN in CI environments
+        import pandas as pd
+        ser_sfr_surf = pd.to_numeric(ser_sfr_surf, errors='coerce')
+        
         ser_soilstore = df_soilstore.dot(ser_sfr_surf.values)
 
         # get water balance

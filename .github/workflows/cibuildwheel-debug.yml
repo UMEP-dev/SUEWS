@@ -21,6 +21,10 @@ name: Debug cibuildwheel with SSH
 # 4. Use Claude Code for help: `claude -p "help me debug this cibuildwheel error"`
 #
 # Security: SSH access is restricted to the workflow actor (person who triggered it)
+# 
+# Windows Note: Claude Code requires Git Bash. If you get "No suitable shell found" in SSH:
+# export CLAUDE_CODE_GIT_BASH_PATH="C:\Program Files\Git\bin\bash.exe"
+# export SHELL="C:\Program Files\Git\bin\bash.exe"
 
 on:
   workflow_dispatch:

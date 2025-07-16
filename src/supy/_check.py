@@ -227,7 +227,8 @@ def check_state(df_state: pd.DataFrame, fix=True) -> List:
         stebbs_params = {p for p in set_diff if 'stebbs' in str(p).lower() or any(
             x in str(p).lower() for x in ['dhw', 'hotwater', 'buildingtype', 'occupants', 
             'appliance', 'metabolic', 'ventilation', 'cooling', 'heating', 'window', 
-            'wall', 'floor', 'internalmass', 'indoorair']
+            'wall', 'floor', 'internalmass', 'indoorair', 'watertank', 'buildingcount',
+            'buildingname', 'indoormass']
         )}
         if stebbs_params:
             str_issue = f"Optional STEBBS parameters not in validation rules (only needed if STEBBS is enabled): {stebbs_params}"
@@ -251,7 +252,8 @@ def check_state(df_state: pd.DataFrame, fix=True) -> List:
         stebbs_cols = {c for c in set_diff if any(
             x in str(c).lower() for x in ['stebbs', 'dhw', 'hotwater', 'buildingtype', 
             'occupants', 'appliance', 'metabolic', 'ventilation', 'cooling', 'heating', 
-            'window', 'wall', 'floor', 'internalmass', 'indoorair']
+            'window', 'wall', 'floor', 'internalmass', 'indoorair', 'watertank', 'buildingcount',
+            'buildingname', 'indoormass']
         )}
         metadata_cols = {c for c in set_diff if str(c).lower() in ['config', 'description']}
         other_cols = set_diff - stebbs_cols - metadata_cols

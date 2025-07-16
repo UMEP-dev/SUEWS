@@ -2,15 +2,20 @@ name: Claude Code Review
 # This workflow uses Claude to automatically review pull requests
 # Reviews are formatted with collapsible HTML sections for better readability
 
+# AUTO-REVIEW DISABLED - Uncomment to re-enable
+# on:
+#   pull_request:
+#     types: [opened, synchronize]
+#     # Optional: Only run on specific file changes
+#     # paths:
+#     #   - "src/**/*.ts"
+#     #   - "src/**/*.tsx"
+#     #   - "src/**/*.js"
+#     #   - "src/**/*.jsx"
+
+# Manual trigger only (disabled auto-review)
 on:
-  pull_request:
-    types: [opened, synchronize]
-    # Optional: Only run on specific file changes
-    # paths:
-    #   - "src/**/*.ts"
-    #   - "src/**/*.tsx"
-    #   - "src/**/*.js"
-    #   - "src/**/*.jsx"
+  workflow_dispatch:
 
 jobs:
   claude-review:

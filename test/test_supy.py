@@ -48,6 +48,21 @@ class TestSuPy(TestCase):
         warnings.simplefilter("ignore", category=ImportWarning)
         # Reload data for each test to ensure isolation
         df_state_temp, df_forcing_temp = sp.load_SampleData()
+        
+        # Debug: Check dtypes immediately after loading
+        if hasattr(self, '_testMethodName') and self._testMethodName == 'test_water_balance_closed':
+            print(f"\nDEBUG in setUp for water balance test:")
+            print(f"Python version: {sys.version}")
+            print(f"Platform: {platform.system()} {platform.machine()}")
+            print(f"Pandas version: {pd.__version__}")
+            print(f"Numpy version: {np.__version__}")
+            
+            print(f"\ndf_state_temp dtypes sample:")
+            sfr_cols = [col for col in df_state_temp.columns if col[0] == 'sfr_surf']
+            print(f"sfr_surf columns: {sfr_cols}")
+            for col in sfr_cols[:3]:  # Show first 3
+                print(f"  {col}: dtype={df_state_temp[col].dtype}, values={df_state_temp[col].values}")
+        
         # Make deep copies to ensure complete isolation
         self.df_state_init = df_state_temp.copy()
         self.df_forcing_tstep = df_forcing_temp.copy()
@@ -551,6 +566,13 @@ class TestSuPy(TestCase):
         tolerance = 1e-6
         grid_id = 1
 
+        # Debug: Check df_state_init before simulation
+        print(f"DEBUG BEFORE SIMULATION:")
+        print(f"df_state_init dtypes for sfr_surf:")
+        for idx in self.df_state_init.index:
+            sfr_data = self.df_state_init.loc[idx, "sfr_surf"]
+            print(f"  Grid {idx}: dtype={sfr_data.dtype}, values={sfr_data.values}")
+        
         # Run simulation
         df_forcing_part = self.df_forcing_tstep.iloc[:288 * n_days]
         df_output, df_state = sp.run_supy(df_forcing_part, self.df_state_init)
@@ -559,16 +581,51 @@ class TestSuPy(TestCase):
         # This avoids index alignment issues between different DataFrame structures
         df_soilstore = df_output.loc[grid_id, "debug"].filter(regex="^ss_.*_next$")
         ser_sfr_surf = self.df_state_init.loc[grid_id, "sfr_surf"]
+        
+        # Debug: Why is ser_sfr_surf object dtype?
+        print(f"\nDEBUG AFTER EXTRACTION:")
+        print(f"ser_sfr_surf type: {type(ser_sfr_surf)}")
+        print(f"ser_sfr_surf.index: {ser_sfr_surf.index}")
+        print(f"ser_sfr_surf raw values: {repr(ser_sfr_surf.values)}")
+        print(f"Element types: {[type(x) for x in ser_sfr_surf.values]}")
+        
 
-        # Calculate weighted soilstore using .values to bypass pandas index alignment
-        ser_soilstore_weighted = df_soilstore.dot(ser_sfr_surf.values)
+        # Calculate weighted soilstore - ensure float64 to handle object dtype on macOS ARM64
+        # Convert to float64 explicitly to avoid object dtype issues in CI
+        sfr_values_float = np.asarray(ser_sfr_surf.values, dtype=np.float64)
+        ser_soilstore_weighted = df_soilstore.dot(sfr_values_float)
 
         # Debug information for CI environment
         print(f"Debug: df_soilstore shape: {df_soilstore.shape}")
+        print(f"Debug: df_soilstore dtypes:\n{df_soilstore.dtypes}")
         print(f"Debug: ser_sfr_surf shape: {ser_sfr_surf.shape}")
         print(f"Debug: ser_sfr_surf dtype: {ser_sfr_surf.dtype}")
         print(f"Debug: ser_sfr_surf values: {ser_sfr_surf.values}")
-        print(f"Debug: ser_soilstore_weighted has NaN: {ser_soilstore_weighted.isnull().any()}")
+        print(f"Debug: ser_sfr_surf value types: {[type(v) for v in ser_sfr_surf.values]}")
+        
+        # Test the dot product step by step
+        print(f"\nDebug: Testing dot product step by step:")
+        try:
+            # Check if values can be converted
+            sfr_values = ser_sfr_surf.values
+            print(f"  sfr_values type: {type(sfr_values)}")
+            print(f"  sfr_values dtype: {sfr_values.dtype}")
+            
+            # Try explicit float conversion
+            sfr_values_float = np.asarray(sfr_values, dtype=np.float64)
+            print(f"  After asarray: dtype={sfr_values_float.dtype}, values={sfr_values_float}")
+            
+            # Try the dot product
+            result = df_soilstore.dot(sfr_values_float)
+            print(f"  Dot product result type: {type(result)}")
+            print(f"  Dot product result dtype: {result.dtype if hasattr(result, 'dtype') else 'N/A'}")
+            print(f"  Has NaN: {result.isnull().any() if hasattr(result, 'isnull') else 'N/A'}")
+        except Exception as e:
+            print(f"  ERROR in dot product: {e}")
+            import traceback
+            traceback.print_exc()
+        
+        print(f"\nDebug: ser_soilstore_weighted has NaN: {ser_soilstore_weighted.isnull().any()}")
         if ser_soilstore_weighted.isnull().any():
             print(f"Debug: First 5 NaN indices: {ser_soilstore_weighted[ser_soilstore_weighted.isnull()].index[:5].tolist()}")
 

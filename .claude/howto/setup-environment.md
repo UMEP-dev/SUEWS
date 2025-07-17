@@ -39,10 +39,12 @@ python script.py  # Works as normal
 
 ```bash
 # Core packages for SUEWS development
-uv pip install pandas scipy matplotlib-base matplotlib-inline scikit-learn scikit-image \
-    geopandas rtree openpyxl pytables psutil salem==0.3.8 floweaver==2.0.0 \
+# Note: Some package names differ between conda and pip
+uv pip install pandas scipy matplotlib scikit-learn scikit-image \
+    geopandas rtree openpyxl tables psutil salem==0.3.8 floweaver==2.0.0 \
     f90nml click pydantic ipykernel jupyter_client jupyter_core \
-    pytest pytest-cov ruff f90wrap==0.2.16 atmosp meson-python>=0.17.0
+    pytest pytest-cov ruff f90wrap==0.2.16 atmosp meson-python>=0.17.0 \
+    pip>=22.0 setuptools>=65.0 wheel
 
 # Then build SUEWS
 make dev
@@ -63,6 +65,26 @@ sudo dnf install gcc-gfortran  # Fedora/RHEL
 # Verify
 which gfortran
 ```
+
+### macOS ARM64 (Apple Silicon) Special Instructions
+
+When building on macOS ARM64, you may encounter issues with the build system looking for architecture-specific tools. Here's how to resolve them:
+
+```bash
+# Set environment variables for the build tools
+export AR=/usr/bin/ar
+export RANLIB=/usr/bin/ranlib
+export FC=/opt/homebrew/bin/gfortran
+export CC=clang
+
+# Then install with pip (not uv) for ARM64 builds
+pip install --no-build-isolation --editable .
+
+# Or if using make dev, the Makefile will handle FC for you:
+make dev
+```
+
+**Note**: On ARM64 Macs, the build may fail if it tries to use conda/mamba's cross-compilation tools. Always use Homebrew's native gfortran and system tools for best compatibility.
 
 ## Performance Comparison
 

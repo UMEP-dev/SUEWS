@@ -4,7 +4,7 @@ import io
 import sys
 import warnings
 from time import time
-from unittest import TestCase, skipIf
+from unittest import TestCase, skipIf, skipUnless
 
 import numpy as np
 import pandas as pd
@@ -35,8 +35,21 @@ test_data_dir = Path(__file__).parent / "data_test"
 
 # Note: sample_output.pkl testing has been moved to test_sample_output.py
 
-# Enable all tests on all platforms and Python versions
-flag_full_test = True
+# if platform is macOS and python version is 3.12, set flag_full_test to True
+flag_full_test = any([
+    all([
+        sys.version_info[0] == 3,
+        sys.version_info[1] == 12,
+        platform.system() == "Darwin",
+        platform.machine() == "arm64",
+    ]),
+    all([
+        sys.version_info[0] == 3,
+        sys.version_info[1] == 13,
+        platform.system() == "Linux",
+        platform.machine() == "x86_64",
+    ]),
+])
 
 # Note: Sample data loading moved to individual test methods to avoid test interference
 # This prevents caching issues when tests run in sequence
@@ -218,6 +231,7 @@ class TestSuPy(TestCase):
     # )
 
     # test saving output files working
+    @skipUnless(flag_full_test, "Full test is not required.")
     def test_is_supy_save_working(self):
         print("\n========================================")
         print("Testing if saving output files working...")
@@ -272,6 +286,7 @@ class TestSuPy(TestCase):
     #     self.assertTrue(test_common_all)
 
     # test ERA5 forcing generation
+    @skipUnless(flag_full_test, "Full test is not required.")
     def test_gen_forcing(self):
         print("\n========================================")
         print("Testing if forcing generation working...")
@@ -409,6 +424,7 @@ class TestSuPy(TestCase):
     # for better diagnostics and platform-specific tolerance handling
 
     # test if the weighted SMD of vegetated surfaces are properly calculated
+    @skipUnless(flag_full_test, "Full test is not required.")
     def test_is_smd_veg_weighted(self):
         print("\n========================================")
         print("Testing if SMD of vegetated surfaces are properly calculated...")

@@ -199,6 +199,7 @@ MODULE mod_solver
    !     Created on Thu Jan 22 07:50:01 2004
    !     Copyright (c) 2001 MyCompany. All rights reserved.
 
+   USE PhysConstants, ONLY: eps_fp
    IMPLICIT NONE
 
 CONTAINS
@@ -238,7 +239,7 @@ CONTAINS
 
          f = f + Pcoeff(n)
          xprev = x
-         IF (fp == 0.) fp = TINY(1.)
+         IF (ABS(fp) <= eps_fp) fp = TINY(1.)
          x = xprev - f/fp
          e = x - xprev
       END DO
@@ -1246,7 +1247,7 @@ CONTAINS
       ! HCW 30 Jun 2016
 
       USE defaultNotUsed, ONLY: nan
-      USE PhysConstants, ONLY: c2k, sbconst
+      USE PhysConstants, ONLY: c2k, sbconst, eps_fp
       USE ESTM_data
       USE allocateArray
       USE gis_data, ONLY: bldgh
@@ -1401,7 +1402,7 @@ CONTAINS
          RVF_ROOF = 0
          RVF_WALL = 0
          RVF_VEG = FVEG
-      ELSE IF (Fground == 0.0) THEN !check fground==0 (or HW==0) scenario to avoid division-by-zero error, TS 21 Jul 2016
+      ELSE IF (ABS(Fground) <= eps_fp) THEN !check fground==0 (or HW==0) scenario to avoid division-by-zero error, TS 21 Jul 2016
          ! the following values are calculated given HW=0
          W = 0
          WB = 1

@@ -100,9 +100,17 @@ suews:
 # ref: https://mesonbuild.com/meson-python/how-to-guides/editable-installs.html#editable-installs
 dev:
 	@echo "Building supy with development install..."
-	@# Check if uv is available for faster installation
-	@if command -v uv >/dev/null 2>&1; then \
-		echo "Found uv - using for ultra-fast installation!"; \
+	@# Check environment type and choose appropriate installer
+	@if [ -n "$$CONDA_PREFIX" ]; then \
+		echo "Detected conda/mamba environment - using pip for compatibility"; \
+		if [ -x "/opt/homebrew/bin/gfortran" ]; then \
+			echo "Using Homebrew gfortran for better macOS compatibility"; \
+			FC=/opt/homebrew/bin/gfortran $(PYTHON) -m pip install --no-build-isolation --editable .; \
+		else \
+			$(PYTHON) -m pip install --no-build-isolation --editable .; \
+		fi \
+	elif command -v uv >/dev/null 2>&1 && [ -n "$$VIRTUAL_ENV" ]; then \
+		echo "Found uv in venv - using for ultra-fast installation!"; \
 		if [ -x "/opt/homebrew/bin/gfortran" ]; then \
 			echo "Using Homebrew gfortran for better macOS compatibility"; \
 			FC=/opt/homebrew/bin/gfortran uv pip install --no-build-isolation --editable .; \
@@ -110,6 +118,7 @@ dev:
 			uv pip install --no-build-isolation --editable .; \
 		fi \
 	else \
+		echo "Using standard pip installation"; \
 		if [ -x "/opt/homebrew/bin/gfortran" ]; then \
 			echo "Using Homebrew gfortran for better macOS compatibility"; \
 			FC=/opt/homebrew/bin/gfortran $(PYTHON) -m pip install --no-build-isolation --editable .; \
@@ -121,9 +130,17 @@ dev:
 # make supy and install locally with fast build optimizations
 dev-fast:
 	@echo "Building supy with fast development install (optimized compiler flags)..."
-	@# Check if uv is available for faster installation
-	@if command -v uv >/dev/null 2>&1; then \
-		echo "Found uv - using for ultra-fast installation!"; \
+	@# Check environment type and choose appropriate installer
+	@if [ -n "$$CONDA_PREFIX" ]; then \
+		echo "Detected conda/mamba environment - using pip for compatibility"; \
+		if [ -x "/opt/homebrew/bin/gfortran" ]; then \
+			echo "Using Homebrew gfortran with fast build optimizations"; \
+			FC=/opt/homebrew/bin/gfortran $(PYTHON) -m pip install --no-build-isolation --editable . --config-settings=setup-args=-Dfast_build=true; \
+		else \
+			$(PYTHON) -m pip install --no-build-isolation --editable . --config-settings=setup-args=-Dfast_build=true; \
+		fi \
+	elif command -v uv >/dev/null 2>&1 && [ -n "$$VIRTUAL_ENV" ]; then \
+		echo "Found uv in venv - using for ultra-fast installation!"; \
 		if [ -x "/opt/homebrew/bin/gfortran" ]; then \
 			echo "Using Homebrew gfortran with fast build optimizations"; \
 			FC=/opt/homebrew/bin/gfortran uv pip install --no-build-isolation --editable . --config-settings=setup-args=-Dfast_build=true; \
@@ -131,6 +148,7 @@ dev-fast:
 			uv pip install --no-build-isolation --editable . --config-settings=setup-args=-Dfast_build=true; \
 		fi \
 	else \
+		echo "Using standard pip installation with fast build"; \
 		if [ -x "/opt/homebrew/bin/gfortran" ]; then \
 			echo "Using Homebrew gfortran with fast build optimizations"; \
 			FC=/opt/homebrew/bin/gfortran $(PYTHON) -m pip install --no-build-isolation --editable . --config-settings=setup-args=-Dfast_build=true; \

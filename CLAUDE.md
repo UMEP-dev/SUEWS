@@ -537,3 +537,25 @@ When implementing a feature that uses configuration:
 - [ ] Keep configuration parsing logic in one place (the high-level class)
 
 This pattern ensures clean architecture and maintains the intended separation between configuration management and core functionality.
+
+## Current Investigations and Findings
+
+### QE/QH Discrepancy Investigation (Branch: matthewp/testing_sample_data) - ✅ **RESOLVED**
+
+**Issue**: Tests pass individually but fail when run in full test suite, specifically `test_sample_output_validation` with QE/QH mismatches.
+
+**Root Cause Identified**: Uninitialized Fortran variables in derived types cause state pollution between test runs, compounded by exact floating-point equality checks.
+
+#### Key Findings:
+1. **Critical Code Location**: `src/suews/src/suews_phys_atmmoiststab.f95` lines 243 and 288
+   - These exact equality checks (`IF (H == 0.)`) have been replaced with epsilon-based comparisons
+   
+2. **Solution Implemented**:
+   - Added `eps_fp = 1.0E-12` constant in `PhysConstants` module
+   - Replaced all exact floating-point equality checks with `ABS(var) <= eps_fp`
+   - Added comprehensive test suite for floating-point stability
+
+3. **Test Files Added**:
+   - `test/test_floating_point_stability.py` - Tests for compiler-independent behavior
+   - `test/test_fortran_state_persistence.py` - Tests for state isolation
+   - `test/debug_utils.py` - Enhanced debugging for CI environments

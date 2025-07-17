@@ -27,15 +27,23 @@ jobs:
     strategy:
       matrix:
         buildplat:
-            - [ubuntu-latest, manylinux, x86_64]
-            - [macos-13, macosx, x86_64]
-            - [macos-latest, macosx, arm64]
-            - [windows-2025, win, AMD64]
+            # - [ubuntu-latest, manylinux, x86_64]  # Commented for testing water balance fix
+            # - [macos-13, macosx, x86_64]          # Commented for testing water balance fix
+            - [macos-latest, macosx, arm64]         # Keep: ARM Mac with Python 3.11 (water balance issue)
+            - [windows-2025, win, AMD64]            # Keep: Windows for comparison testing
 
-        python: ["cp39", "cp310", "cp311", "cp312", "cp313"]
-        # exclude:
-        # - buildplat: [macos-latest, macosx, arm64]
-        #   python: ["cp38", "cp39"]
+        python: 
+            # - "cp39"   # Commented for testing water balance fix
+            - "cp310"   # Keep: Windows test
+            - "cp311"   # Keep: ARM Mac test (water balance issue target)
+            # - "cp312"  # Commented for testing water balance fix
+            # - "cp313"  # Commented for testing water balance fix
+        exclude:
+            # Only run specific combinations for testing water balance fix
+            - buildplat: [macos-latest, macosx, arm64]
+              python: "cp310"  # Skip ARM Mac with Python 3.10
+            - buildplat: [windows-2025, win, AMD64]
+              python: "cp311"  # Skip Windows with Python 3.11
 
       fail-fast: false
     env:
@@ -85,7 +93,8 @@ jobs:
       CIBW_TEST_COMMAND_LINUX: "python -m pytest '{project}/test'"
       CIBW_TEST_COMMAND_WINDOWS: "python -m pytest {project}\\test"
       # CIBW_TEST_SKIP: "cp310-macosx_arm64" # skip test on arm64 on python 3.10 - cannot pass the water balance test for unknown reason even though it should be the same as x86_64
-      MACOSX_DEPLOYMENT_TARGET: ${{ matrix.buildplat[0] == 'macos-13' && '13.0' || '14.0' }}
+      # macOS 15.0 deployment target required for gfortran 15.1 compatibility on ARM64
+      MACOSX_DEPLOYMENT_TARGET: ${{ matrix.buildplat[2] == 'arm64' && '15.0' || (matrix.buildplat[0] == 'macos-13' && '13.0' || '14.0') }}
 
     steps:
       - uses: actions/checkout@v4

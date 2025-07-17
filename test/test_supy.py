@@ -563,16 +563,25 @@ class TestSuPy(TestCase):
         # Calculate weighted soilstore using .values to bypass pandas index alignment
         ser_soilstore_weighted = df_soilstore.dot(ser_sfr_surf.values)
 
+        # Debug information for CI environment
+        print(f"Debug: df_soilstore shape: {df_soilstore.shape}")
+        print(f"Debug: ser_sfr_surf shape: {ser_sfr_surf.shape}")
+        print(f"Debug: ser_sfr_surf dtype: {ser_sfr_surf.dtype}")
+        print(f"Debug: ser_sfr_surf values: {ser_sfr_surf.values}")
+        print(f"Debug: ser_soilstore_weighted has NaN: {ser_soilstore_weighted.isnull().any()}")
+        if ser_soilstore_weighted.isnull().any():
+            print(f"Debug: First 5 NaN indices: {ser_soilstore_weighted[ser_soilstore_weighted.isnull()].index[:5].tolist()}")
+
         # Extract water balance components using consistent .loc approach
         water_columns = ["Rain", "Irr", "Evap", "RO", "State"]
         df_suews_water = df_output.loc[grid_id, "SUEWS"][water_columns]
 
-        # Create water balance DataFrame using .values to prevent index mismatch NaN
+        # Create water balance DataFrame using numpy arrays to prevent index mismatch NaN
         # Note: ser_soilstore_weighted has DatetimeIndex, df_suews_water has MultiIndex
-        df_water = df_suews_water.assign(
-            SoilStore=ser_soilstore_weighted.values,
-            TotalStore=ser_soilstore_weighted.values + df_suews_water["State"].values
-        )
+        # Use numpy arrays to completely bypass pandas index alignment issues
+        df_water = df_suews_water.copy()
+        df_water["SoilStore"] = np.array(ser_soilstore_weighted)
+        df_water["TotalStore"] = np.array(ser_soilstore_weighted) + np.array(df_suews_water["State"])
 
         # Calculate water balance closure
         ser_totalstore_change = df_water["TotalStore"].diff().dropna()

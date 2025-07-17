@@ -14,12 +14,26 @@ import platform
 
 from pathlib import Path
 
+# Import debug utilities
+try:
+    from .debug_utils import (
+        debug_on_ci, 
+        debug_dataframe_output, 
+        debug_water_balance,
+        capture_test_artifacts
+    )
+except ImportError:
+    # Fallback if decorators not available
+    def debug_on_ci(func): return func
+    def debug_dataframe_output(func): return func
+    def debug_water_balance(func): return func
+    def capture_test_artifacts(name): return lambda func: func
+
 # Get the test data directory from the environment variable
 test_data_dir = Path(__file__).parent / "data_test"
 # test_data_dir = os.environ.get('TEST_DATA_DIR', Path(__file__).parent / 'data_test')
 
-# Construct the file path for the data file
-p_df_sample = Path(test_data_dir) / "sample_output.pkl"
+# Note: sample_output.pkl testing has been moved to test_sample_output.py
 
 # if platform is macOS and python version is 3.12, set flag_full_test to True
 flag_full_test = any([
@@ -37,20 +51,13 @@ flag_full_test = any([
     ]),
 ])
 
-# Load sample data once, as it will be used frequently later to save time.
-# Note: These are loaded at module level for compatibility, but tests should
-# use the class attributes to ensure fresh data
-df_state_init, df_forcing_tstep = sp.load_SampleData()
+# Note: Sample data loading moved to individual test methods to avoid test interference
+# This prevents caching issues when tests run in sequence
 
 
 class TestSuPy(TestCase):
     def setUp(self):
         warnings.simplefilter("ignore", category=ImportWarning)
-        # Reload data for each test to ensure isolation
-        df_state_temp, df_forcing_temp = sp.load_SampleData()
-        # Make deep copies to ensure complete isolation
-        self.df_state_init = df_state_temp.copy()
-        self.df_forcing_tstep = df_forcing_temp.copy()
 
     # test if supy_driver can be connected
     def test_is_driver_connected(self):
@@ -64,6 +71,9 @@ class TestSuPy(TestCase):
     def test_is_supy_running_single_step(self):
         print("\n========================================")
         print("Testing if single-tstep mode can run...")
+        
+        # Load sample data
+        df_state_init, df_forcing_tstep = sp.load_SampleData()
 
         df_forcing_part = df_forcing_tstep.iloc[: 12 * 8]
         df_output, df_state = sp.run_supy(
@@ -82,14 +92,19 @@ class TestSuPy(TestCase):
         # self.assertFalse(df_state.isnull().values.any())
 
     # test if multi-tstep mode can run
+    @debug_on_ci
+    @debug_dataframe_output
+    @capture_test_artifacts('multi_step')
     def test_is_supy_running_multi_step(self):
         print("\n========================================")
         print("Testing if multi-tstep mode can run...")
+        
+        # Load sample data
+        df_state_init, df_forcing_tstep = sp.load_SampleData()
 
-        # Use instance variables which are reloaded for each test
-        df_forcing_part = self.df_forcing_tstep.iloc[: 288 * 10]
+        df_forcing_part = df_forcing_tstep.iloc[: 288 * 10]
         df_output, df_state = sp.run_supy(
-            df_forcing_part, self.df_state_init, check_input=True
+            df_forcing_part, df_state_init, check_input=True
         )
 
         # # only print to screen on macOS due incompatibility on Windows
@@ -112,44 +127,16 @@ class TestSuPy(TestCase):
             not df_output.empty,
             not df_state.empty,
         ])
-        # Debug info
-        print(f"test_non_empty: {test_non_empty}")
-        print(f"NaN check: {df_state.isnull().values.any()}")
-        final_test = test_non_empty and not df_state.isnull().values.any()
-        print(f"Final test value: {final_test}")
-        if not final_test:
-            print(f"Test failure details:")
-            print(f"  df_output.empty: {df_output.empty}")
-            print(f"  df_state.empty: {df_state.empty}")
-            print(f"  df_state has NaN: {df_state.isnull().values.any()}")
-            if df_state.isnull().values.any():
-                nan_cols = df_state.columns[df_state.isnull().any()].tolist()
-                print(f"  Columns with NaN: {nan_cols[:10]}...")  # Show first 10
-        # Check for NaN but allow water-related columns to have NaN if water surface is not present
-        if df_state.isnull().values.any():
-            # Get columns with NaN
-            nan_cols = df_state.columns[df_state.isnull().any()].tolist()
-            # Water-related columns that may legitimately have NaN
-            water_related_cols = [col for col in nan_cols if 
-                                  (col[0] in ['state_surf', 'tsfc_surf'] and col[1] == '(6,)') or
-                                  (col[0] == 'hdd_id' and col[1] in ['(2,)', '(8,)', '(9,)'])]
-            # Check if all NaN columns are water-related
-            unexpected_nan_cols = [col for col in nan_cols if col not in water_related_cols]
-            if unexpected_nan_cols:
-                print(f"Unexpected NaN columns: {unexpected_nan_cols}")
-                self.assertTrue(False, f"Unexpected NaN values in columns: {unexpected_nan_cols}")
-            else:
-                # All NaN columns are water-related, which is acceptable
-                self.assertTrue(test_non_empty)
-        else:
-            # No NaN values at all, which is good
-            self.assertTrue(test_non_empty)
+        self.assertTrue((test_non_empty and not df_state.isnull().values.any()))
 
     # test if multi-grid simulation can run in parallel
     def test_is_supy_sim_save_multi_grid_par(self):
         print("\n========================================")
         print("Testing if multi-grid simulation can run in parallel...")
         n_grid = 4
+        
+        # Load sample data
+        df_state_init, df_forcing_tstep = sp.load_SampleData()
 
         df_state_init_base = df_state_init.copy()
 
@@ -192,6 +179,10 @@ class TestSuPy(TestCase):
     def test_is_flag_test_working(self):
         print("\n========================================")
         print("Testing if flag_test can be set to True...")
+        
+        # Load sample data
+        df_state_init, df_forcing_tstep = sp.load_SampleData()
+        
         df_forcing_part = df_forcing_tstep.iloc[: 288 * 10]
         df_output, df_state, df_debug, res_state = sp.run_supy(
             df_forcing_part,
@@ -429,46 +420,8 @@ class TestSuPy(TestCase):
     #         rtol=8e-3,  # 0.8% tolerance - temporary fix to pass the CI test
     #     )
 
-    # test if the sample output is the same as the one in the repo
-    @skipUnless(flag_full_test, "Full test is not required.")
-    def test_is_sample_output_same(self):
-        print("\n========================================")
-        print("Testing if sample output is the same...")
-        df_state_init, df_forcing_tstep = sp.load_SampleData()
-        df_forcing_part = df_forcing_tstep.iloc[: 288 * 365]
-
-        # single-step results
-        df_output_s, df_state_s = sp.run_supy(df_forcing_part, df_state_init)
-
-        # only test chosen columns
-        col_test = [
-            "QN",
-            "QF",
-            "QS",
-            "QE",
-            "QH",
-            "T2",
-            "RH2",
-            "U10",
-        ]
-
-        print(f"Columns to test: {col_test}")
-
-        # load sample output
-        df_res_sample = pd.read_pickle(p_df_sample).loc[:, col_test]
-
-        # find common indices to handle potential timestamp mismatches
-        common_idx = df_output_s.SUEWS.index.intersection(df_res_sample.index)
-        
-        # choose the same columns as the testing group
-        df_res_s = df_output_s.SUEWS.loc[common_idx, df_res_sample.columns]
-        df_res_sample_common = df_res_sample.loc[common_idx]
-
-        pd.testing.assert_frame_equal(
-            left=df_res_s,
-            right=df_res_sample_common,
-            rtol=8e-3,  # 0.8% tolerance - temporary fix to pass the CI test
-        )
+    # Note: test_is_sample_output_same has been moved to test_sample_output.py
+    # for better diagnostics and platform-specific tolerance handling
 
     # test if the weighted SMD of vegetated surfaces are properly calculated
     @skipUnless(flag_full_test, "Full test is not required.")
@@ -498,7 +451,10 @@ class TestSuPy(TestCase):
     def test_dailystate_meaningful(self):
         print("\n========================================")
         print("Testing if dailystate are written out correctly...")
-        # df_state_init, df_forcing_tstep = sp.load_SampleData()
+        
+        # Load sample data
+        df_state_init, df_forcing_tstep = sp.load_SampleData()
+        
         n_days = 10
         df_forcing_part = df_forcing_tstep.iloc[: 288 * n_days]
 
@@ -542,17 +498,22 @@ class TestSuPy(TestCase):
                            "DailyState should have at least some data")
 
     # test if the water balance is closed
+    @debug_water_balance
+    @capture_test_artifacts('water_balance')
     def test_water_balance_closed(self):
         print("\n========================================")
         print("Testing if water balance is closed...")
+        
+        # Load sample data
+        df_state_init, df_forcing_tstep = sp.load_SampleData()
+        
         n_days = 100
-        # Use instance variables which are reloaded for each test
-        df_forcing_part = self.df_forcing_tstep.iloc[: 288 * n_days]
-        df_output, df_state = sp.run_supy(df_forcing_part, self.df_state_init)
+        df_forcing_part = df_forcing_tstep.iloc[: 288 * n_days]
+        df_output, df_state = sp.run_supy(df_forcing_part, df_state_init)
 
         # get soilstore
         df_soilstore = df_output.loc[1, "debug"].filter(regex="^ss_.*_next$")
-        ser_sfr_surf = self.df_state_init.sfr_surf.iloc[0]
+        ser_sfr_surf = df_state_init.sfr_surf.iloc[0]
         ser_soilstore = df_soilstore.dot(ser_sfr_surf.values)
 
         # get water balance
@@ -571,24 +532,5 @@ class TestSuPy(TestCase):
         # water balance
         ser_water_balance = ser_water_in - ser_water_out
         # test if water balance is closed
-        try:
-            max_diff = (ser_totalstore_change - ser_water_balance).abs().max()
-            test_dif = max_diff < 1e-6
-            print(f"Max water balance difference: {max_diff}")
-            print(f"Test result: {test_dif}")
-            if not test_dif:
-                print(f"Water balance failure: max_diff={max_diff} > 1e-6")
-                # Show some sample differences
-                diff_series = (ser_totalstore_change - ser_water_balance).abs()
-                print("Largest differences:")
-                try:
-                    print(diff_series.nlargest(10))
-                except Exception as e:
-                    print(f"Could not print largest differences: {e}")
-                    print(f"Diff series dtype: {diff_series.dtype}")
-        except Exception as e:
-            print(f"Error in water balance calculation: {e}")
-            print(f"totalstore_change type: {type(ser_totalstore_change)}")
-            print(f"water_balance type: {type(ser_water_balance)}")
-            raise
+        test_dif = (ser_totalstore_change - ser_water_balance).abs().max() < 1e-6
         self.assertTrue(test_dif)

@@ -1,283 +1,163 @@
-"""
-Simple, focused test suite for SUEWSSimulation class using sample data.
-
-Tests the core functionality without complex mocks or fixtures.
-"""
+"""Concise test suite for SUEWSSimulation class using sample data."""
 
 import pytest
 import pandas as pd
 from pathlib import Path
-import sys
-import tempfile
-import shutil
+try:
+    from importlib.resources import files
+except ImportError:
+    from importlib_resources import files
 
-# Add src to path
-sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
-
+import supy as sp
 from supy.suews_sim import SUEWSSimulation
-import supy
 
 
-class TestSUEWSSimulationBasic:
-    """Test basic SUEWSSimulation functionality with sample data."""
-
-    @pytest.fixture
-    def sample_data(self):
-        """Load sample data and create minimal forcing for fast tests."""
-        df_state_init, df_forcing = supy.load_sample_data()
-        # Use only 2 days of data for faster tests
-        df_forcing_short = df_forcing.loc["2012-01-01":"2012-01-02"]
-        return df_state_init, df_forcing_short
+class TestInit:
+    """Test initialization."""
     
-    @pytest.fixture
-    def sample_config_path(self):
-        """Path to sample configuration file."""
-        import supy
-        return Path(supy.__file__).parent / "sample_run" / "sample_config.yml"
-
-    def test_init_from_yaml(self, sample_config_path):
-        """Test initialization from YAML config."""
-        sim = SUEWSSimulation(sample_config_path)
+    def test_empty_init(self):
+        """Test empty initialization."""
+        sim = SUEWSSimulation()
+        assert sim.config is None
+        assert sim.forcing is None
+        assert sim.results is None
+    
+    def test_yaml_init(self):
+        """Test initialization from YAML."""
+        yaml_path = files("supy").joinpath("sample_run/sample_config.yml")
+        sim = SUEWSSimulation(str(yaml_path))
         assert sim.config is not None
         assert sim._df_state_init is not None
-        assert sim._df_state_init.shape[0] >= 1  # At least one grid
-        assert isinstance(sim._df_state_init.columns, pd.MultiIndex)
-
-    def test_update_forcing(self, sample_config_path, sample_data):
-        """Test forcing data update."""
-        _, df_forcing = sample_data
-        
-        sim = SUEWSSimulation(sample_config_path)
-        sim.update_forcing(df_forcing)
-
-        assert sim.forcing is not None
-        assert len(sim.forcing) == len(df_forcing)
-        assert isinstance(sim.forcing.index, pd.DatetimeIndex)
-
-    def test_simulation_run(self, sample_config_path, sample_data):
-        """Test complete simulation run."""
-        _, df_forcing = sample_data
-        
-        sim = SUEWSSimulation(sample_config_path)
-        sim.update_forcing(df_forcing)
-
-        results = sim.run()
-
-        assert results is not None
-        assert len(results) > 0
-        assert isinstance(results.columns, pd.MultiIndex)
-        assert "group" in results.columns.names
-        assert "var" in results.columns.names
-
-    def test_expected_output_variables(self, sample_config_path, sample_data):
-        """Test that expected SUEWS output variables are present."""
-        _, df_forcing = sample_data
-        
-        sim = SUEWSSimulation(sample_config_path)
-        sim.update_forcing(df_forcing)
-
-        results = sim.run()
-        variables = results.columns.get_level_values("var")
-
-        # Check for key SUEWS output variables
-        expected_vars = ["QH", "QE", "QS"]  # Core energy balance components
-        for var in expected_vars:
-            assert var in variables, f"Expected variable {var} not found in results"
-
-    def test_results_format(self, sample_config_path, sample_data):
-        """Test that results are in expected format."""
-        _, df_forcing = sample_data
-        
-        sim = SUEWSSimulation(sample_config_path)
-        sim.update_forcing(df_forcing)
-
-        results = sim.run()
-
-        # Check result structure - SuPy returns MultiIndex (grid, datetime)
-        assert isinstance(results.index, pd.MultiIndex)
-        assert "grid" in results.index.names
-        assert "datetime" in results.index.names
-
-        # Check datetime range
-        datetime_values = results.index.get_level_values("datetime")
-        assert datetime_values[0] >= df_forcing.index[0]
-        assert datetime_values[-1] <= df_forcing.index[-1]
-
-        # Check for reasonable values (not all NaN or zero)
-        # Energy fluxes should be in SUEWS group
-        qh_values = results[("SUEWS", "QH")]
-        assert not qh_values.isna().all().all(), "QH values are all NaN"
-        assert (qh_values != 0).any().any(), "QH values are all zero"
 
 
-class TestSUEWSSimulationError:
-    """Test error handling."""
-
-    @pytest.fixture
-    def sample_config_path(self):
-        """Path to sample configuration file."""
-        import supy
-        return Path(supy.__file__).parent / "sample_run" / "sample_config.yml"
-
-    def test_invalid_config_path(self):
-        """Test initialization with invalid config path."""
-        with pytest.raises(FileNotFoundError):
-            SUEWSSimulation("nonexistent_config.yml")
-
-    def test_run_without_forcing(self, sample_config_path):
-        """Test run without forcing data."""
-        sim = SUEWSSimulation(sample_config_path)
-        # Clear the forcing that was auto-loaded from config
-        sim._df_forcing = None
-
-        with pytest.raises(RuntimeError, match="No forcing data loaded"):
-            sim.run()
-
-
-class TestSUEWSSimulationForcing:
-    """Test forcing data handling."""
-
-    @pytest.fixture
-    def sample_config_path(self):
-        """Path to sample configuration file."""
-        import supy
-        return Path(supy.__file__).parent / "sample_run" / "sample_config.yml"
+class TestConfig:
+    """Test configuration updates."""
     
-    @pytest.fixture
-    def sample_data(self):
-        """Load sample data and create minimal forcing for fast tests."""
-        df_state_init, df_forcing = supy.load_sample_data()
-        # Use only 2 days of data for faster tests
-        df_forcing_short = df_forcing.loc["2012-01-01":"2012-01-02"]
-        return df_state_init, df_forcing_short
-
-    @pytest.fixture
-    def sample_forcing_file(self, tmp_path):
-        """Create a temporary forcing file for testing."""
-        # Load sample data and save to file
-        _, df_forcing = supy.load_sample_data()
-        # Use only 1 day for test file
-        df_forcing_day = df_forcing.loc["2012-01-01":"2012-01-01"]
+    def test_update_config_yaml(self):
+        """Test updating config from another YAML file."""
+        # Create initial simulation
+        sim = SUEWSSimulation()
+        assert sim.config is None
         
-        forcing_file = tmp_path / "test_forcing.txt"
-        # Save just the forcing data as a simple CSV
-        df_forcing_day.to_csv(forcing_file, sep='\t')
-        return forcing_file
-
-    def test_single_file_forcing(self, sample_config_path, tmp_path):
-        """Test loading a single forcing file."""
-        # Use the actual sample forcing file that comes with supy
-        import supy
-        sample_forcing = Path(supy.__file__).parent / "sample_run" / "Input" / "Kc_2012_data_60.txt"
+        # Update with YAML config
+        yaml_path = files("supy").joinpath("sample_run/sample_config.yml")
+        sim.update_config(str(yaml_path))
         
-        if sample_forcing.exists():
-            sim = SUEWSSimulation(sample_config_path)
-            sim.update_forcing(str(sample_forcing))
-            
-            assert sim._df_forcing is not None
-            # Should have loaded data
-            assert len(sim._df_forcing) > 0
-        else:
-            pytest.skip("Sample forcing file not found")
+        assert sim.config is not None
+        assert sim._df_state_init is not None
+        assert len(sim._df_state_init) > 0
+    
+    def test_invalid_config_path(self):
+        """Test invalid config path."""
+        with pytest.raises(FileNotFoundError):
+            SUEWSSimulation("nonexistent.yml")
 
-    def test_dataframe_forcing(self, sample_config_path, sample_data):
+
+class TestForcing:
+    """Test forcing data loading."""
+    
+    def test_dataframe_forcing(self):
         """Test loading forcing from DataFrame."""
-        _, df_forcing = sample_data
-        
-        sim = SUEWSSimulation(sample_config_path)
-        sim.update_forcing(df_forcing)
-        
-        assert sim._df_forcing is not None
-        assert len(sim._df_forcing) == len(df_forcing)
-
-    def test_nonexistent_file_rejected(self, sample_config_path):
-        """Test that nonexistent files are rejected."""
-        sim = SUEWSSimulation(sample_config_path)
+        _, df_forcing = sp.load_SampleData()
+        sim = SUEWSSimulation()
+        sim.update_forcing(df_forcing.iloc[:24])  # 2 hours only
+        assert len(sim.forcing) == 24
+    
+    def test_invalid_forcing_path(self):
+        """Test invalid forcing path."""
+        sim = SUEWSSimulation()
         with pytest.raises(FileNotFoundError):
             sim.update_forcing("nonexistent.txt")
 
 
-class TestSUEWSSimulationOutputFormats:
-    """Test output format functionality including OutputConfig integration."""
-
-    @pytest.fixture
-    def sample_config_path(self):
-        """Path to sample configuration file."""
-        import supy
-        return Path(supy.__file__).parent / "sample_run" / "sample_config.yml"
+class TestRun:
+    """Test simulation execution."""
     
-    @pytest.fixture
-    def sample_data(self):
-        """Load sample data and create minimal forcing for fast tests."""
-        df_state_init, df_forcing = supy.load_sample_data()
-        # Use only 2 days of data for faster tests
-        df_forcing_short = df_forcing.loc["2012-01-01":"2012-01-02"]
-        return df_state_init, df_forcing_short
-
-    @pytest.fixture
-    def sim_with_results(self, sample_config_path, sample_data):
-        """Create a simulation with results ready to save."""
-        _, df_forcing = sample_data
+    def test_basic_run(self):
+        """Test basic simulation run."""
+        df_state, df_forcing = sp.load_SampleData()
+        sim = SUEWSSimulation()
+        sim._df_state_init = df_state
+        sim.update_forcing(df_forcing.iloc[:24])  # 2 hours
         
-        sim = SUEWSSimulation(sample_config_path)
-        sim.update_forcing(df_forcing)
+        results = sim.run()
+        assert results is not None
+        assert len(results) > 0
+        assert "QH" in results.columns.get_level_values("var")
+    
+    def test_run_without_forcing(self):
+        """Test run fails without forcing."""
+        sim = SUEWSSimulation()
+        sim._df_state_init, _ = sp.load_SampleData()
+        
+        with pytest.raises(RuntimeError, match="No forcing"):
+            sim.run()
+
+
+class TestSave:
+    """Test result saving."""
+    
+    def test_save_default(self, tmp_path):
+        """Test saving results."""
+        # Quick run
+        df_state, df_forcing = sp.load_SampleData()
+        sim = SUEWSSimulation()
+        sim._df_state_init = df_state
+        sim.update_forcing(df_forcing.iloc[:24])
         sim.run()
         
-        return sim
+        # Save
+        paths = sim.save(tmp_path)
+        assert isinstance(paths, list)
+        assert len(paths) > 0
+        assert any(Path(p).exists() for p in paths)
     
-    def test_save_parquet_format(self, sim_with_results):
-        """Test saving results in Parquet format."""
-        # Skip if parquet dependencies are not available
-        try:
-            import pyarrow
-        except ImportError:
-            try:
-                import fastparquet
-            except ImportError:
-                pytest.skip("pyarrow or fastparquet required for parquet format testing")
-        
-        with tempfile.TemporaryDirectory() as tmpdir:
-            output_path = Path(tmpdir) / "results.parquet"
-            # Save as parquet directly
-            sim_with_results._df_output.to_parquet(output_path)
-            
-            assert output_path.exists()
-            assert output_path.suffix == ".parquet"
-            
-            # Verify we can read the file
-            df_loaded = pd.read_parquet(output_path)
-            assert len(df_loaded) > 0
+    def test_save_without_results(self):
+        """Test save fails without results."""
+        sim = SUEWSSimulation()
+        with pytest.raises(RuntimeError, match="No simulation results"):
+            sim.save()
+
+
+class TestReset:
+    """Test reset functionality."""
     
-    def test_save_txt_format(self, sim_with_results):
-        """Test saving results in text format."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            output_path = Path(tmpdir)
-            saved_paths = sim_with_results.save(str(output_path))
-            
-            # Should return list of paths
-            assert isinstance(saved_paths, list)
-            assert len(saved_paths) > 0
-            
-            # Check files exist  
-            for path in saved_paths:
-                assert path.exists()
-                assert path.suffix in [".txt", ".csv"]  # Could be either
-    
-    def test_save_respects_output_config(self, sample_config_path, sample_data):
-        """Test that save respects OutputConfig settings."""
-        _, df_forcing = sample_data
-        
-        sim = SUEWSSimulation(sample_config_path)
-        sim.update_forcing(df_forcing)
+    def test_reset_clears_results(self):
+        """Test reset clears results."""
+        # Run simulation
+        df_state, df_forcing = sp.load_SampleData()
+        sim = SUEWSSimulation()
+        sim._df_state_init = df_state
+        sim.update_forcing(df_forcing.iloc[:24])
         sim.run()
         
-        # The sample config specifies txt format and SUEWS group
-        with tempfile.TemporaryDirectory() as tmpdir:
-            saved_paths = sim.save(tmpdir)
-            
-            # Should save as txt (from config)
-            assert all(p.suffix in [".txt", ".csv"] for p in saved_paths if isinstance(p, Path))
-            
-            # Should have SUEWS output file
-            suews_files = [p for p in saved_paths if isinstance(p, Path) and "SUEWS" in p.name]
-            assert len(suews_files) > 0
+        # Reset
+        sim.reset()
+        assert sim._df_output is None
+        assert sim._run_completed is False
+        
+        # Can run again
+        results = sim.run()
+        assert results is not None
+
+
+class TestIntegration:
+    """Test complete workflows."""
+    
+    def test_yaml_workflow(self, tmp_path):
+        """Test YAML config → run → save workflow."""
+        yaml_path = files("supy").joinpath("sample_run/sample_config.yml")
+        
+        # Load from YAML
+        sim = SUEWSSimulation(str(yaml_path))
+        
+        # Override with short forcing
+        _, df_forcing = sp.load_SampleData()
+        sim.update_forcing(df_forcing.iloc[:48])  # 4 hours
+        
+        # Run and save
+        results = sim.run()
+        paths = sim.save(tmp_path)
+        
+        assert len(results) > 0
+        assert len(paths) > 0

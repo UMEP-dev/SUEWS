@@ -18,6 +18,7 @@ on:
       - "src/supy/**"
       - "src/supy_driver/**"
       - ".github/workflows/build-publish_to_pypi.yml"
+      - "test/**"
       - "pyproject.toml"
       - "meson.build"
 jobs:

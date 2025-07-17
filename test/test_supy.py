@@ -130,7 +130,7 @@ class TestSuPy(TestCase):
             # Get columns with NaN
             nan_cols = df_state.columns[df_state.isnull().any()].tolist()
             # Water-related columns that may legitimately have NaN
-            water_related_cols = [col for col in nan_cols if 
+            water_related_cols = [col for col in nan_cols if
                                   (col[0] in ['state_surf', 'tsfc_surf'] and col[1] == '(6,)') or
                                   (col[0] == 'hdd_id' and col[1] in ['(2,)', '(8,)', '(9,)'])]
             # Check if all NaN columns are water-related
@@ -459,7 +459,7 @@ class TestSuPy(TestCase):
 
         # find common indices to handle potential timestamp mismatches
         common_idx = df_output_s.SUEWS.index.intersection(df_res_sample.index)
-        
+
         # choose the same columns as the testing group
         df_res_s = df_output_s.SUEWS.loc[common_idx, df_res_sample.columns]
         df_res_sample_common = df_res_sample.loc[common_idx]
@@ -504,19 +504,19 @@ class TestSuPy(TestCase):
 
         # single-step results
         df_output, df_state = sp.run_supy(df_forcing_part, df_state_init)
-        
+
         # Check that DailyState exists in output
         groups = df_output.columns.get_level_values('group').unique()
         self.assertIn('DailyState', groups, "DailyState should be in output groups")
-        
+
         # Use xs() for robust MultiIndex column access across platforms
         df_dailystate = df_output.xs('DailyState', level='group', axis=1)
-        
+
         # More robust check: Count rows that have at least one non-NaN value
         # This avoids issues with dropna() behavior across pandas versions
         mask_has_data = df_dailystate.notna().any(axis=1)
         n_days_with_data = mask_has_data.sum()
-        
+
         # For even more robustness, also count unique days based on a key column
         # that should always have data (e.g., HDD1_h)
         if 'HDD1_h' in df_dailystate.columns:
@@ -524,19 +524,19 @@ class TestSuPy(TestCase):
         else:
             # Fallback to first column if HDD1_h doesn't exist
             n_days_by_hdd = df_dailystate.loc[mask_has_data].iloc[:, 0].notna().sum()
-        
+
         # Debug information
         print(f"DailyState shape: {df_dailystate.shape}")
         print(f"Rows with any data: {n_days_with_data}")
         print(f"Days with valid data (by column check): {n_days_by_hdd}")
-        
+
         # Check we have the expected number of days
         # Use the count of rows with data instead of dropna().drop_duplicates()
         self.assertGreaterEqual(n_days_with_data, n_days - 1,
                                 f"Expected at least {n_days - 1} days of DailyState data, got {n_days_with_data}")
         self.assertLessEqual(n_days_with_data, n_days + 1,
                              f"Expected at most {n_days + 1} days of DailyState data, got {n_days_with_data}")
-        
+
         # Additional check: ensure we have actual data
         self.assertGreater(n_days_with_data, 0,
                            "DailyState should have at least some data")
@@ -545,47 +545,53 @@ class TestSuPy(TestCase):
     def test_water_balance_closed(self):
         print("\n========================================")
         print("Testing if water balance is closed...")
+
+        # Configuration
         n_days = 100
-        # Use instance variables which are reloaded for each test
-        df_forcing_part = self.df_forcing_tstep.iloc[: 288 * n_days]
+        tolerance = 1e-6
+        grid_id = 1
+
+        # Run simulation
+        df_forcing_part = self.df_forcing_tstep.iloc[:288 * n_days]
         df_output, df_state = sp.run_supy(df_forcing_part, self.df_state_init)
 
-        # get soilstore
-        df_soilstore = df_output.loc[1, "debug"].filter(regex="^ss_.*_next$")
-        ser_sfr_surf = self.df_state_init.sfr_surf.iloc[0]
-        
-        # CRITICAL FIX: Ensure ser_sfr_surf has numeric dtype to prevent object dtype propagation
-        # The issue was that ser_sfr_surf had object dtype, causing the dot product to return object dtype,
-        # which then propagated through all water balance calculations and caused NaN in CI environments
-        import pandas as pd
-        ser_sfr_surf = pd.to_numeric(ser_sfr_surf, errors='coerce')
-        
-        ser_soilstore = df_soilstore.dot(ser_sfr_surf.values)
+        # Extract data using consistent .loc approach and .values for calculations
+        # This avoids index alignment issues between different DataFrame structures
+        df_soilstore = df_output.loc[grid_id, "debug"].filter(regex="^ss_.*_next$")
+        ser_sfr_surf = self.df_state_init.loc[grid_id, "sfr_surf"]
 
-        # get water balance
-        df_water = df_output.SUEWS[["Rain", "Irr", "Evap", "RO", "State"]].assign(
-            SoilStore=ser_soilstore, TotalStore=ser_soilstore + df_output.SUEWS.State
+        # Calculate weighted soilstore using .values to bypass pandas index alignment
+        ser_soilstore_weighted = df_soilstore.dot(ser_sfr_surf.values)
+
+        # Extract water balance components using consistent .loc approach
+        water_columns = ["Rain", "Irr", "Evap", "RO", "State"]
+        df_suews_water = df_output.loc[grid_id, "SUEWS"][water_columns]
+
+        # Create water balance DataFrame using .values to prevent index mismatch NaN
+        # Note: ser_soilstore_weighted has DatetimeIndex, df_suews_water has MultiIndex
+        df_water = df_suews_water.assign(
+            SoilStore=ser_soilstore_weighted.values,
+            TotalStore=ser_soilstore_weighted.values + df_suews_water["State"].values
         )
-        # ===============================
-        # check if water balance is closed
-        # ===============================
-        # change in total store
-        ser_totalstore_change = df_water.TotalStore.diff().dropna()
-        # water input
-        ser_water_in = df_water.Rain + df_water.Irr
-        # water output
-        ser_water_out = df_water.Evap + df_water.RO
-        # water balance
+
+        # Calculate water balance closure
+        ser_totalstore_change = df_water["TotalStore"].diff().dropna()
+        ser_water_in = df_water["Rain"] + df_water["Irr"]
+        ser_water_out = df_water["Evap"] + df_water["RO"]
         ser_water_balance = ser_water_in - ser_water_out
-        # test if water balance is closed
+
+        # Verify water balance closure
         try:
             max_diff = (ser_totalstore_change - ser_water_balance).abs().max()
-            test_dif = max_diff < 1e-6
+            test_passed = max_diff < tolerance
+
             print(f"Max water balance difference: {max_diff}")
-            print(f"Test result: {test_dif}")
-            if not test_dif:
-                print(f"Water balance failure: max_diff={max_diff} > 1e-6")
-                # Show some sample differences
+            print(f"Tolerance: {tolerance}")
+            print(f"Test result: {test_passed}")
+
+            if not test_passed:
+                print(f"Water balance failure: max_diff={max_diff} > {tolerance}")
+                # Debug largest differences
                 diff_series = (ser_totalstore_change - ser_water_balance).abs()
                 print("Largest differences:")
                 try:
@@ -593,9 +599,11 @@ class TestSuPy(TestCase):
                 except Exception as e:
                     print(f"Could not print largest differences: {e}")
                     print(f"Diff series dtype: {diff_series.dtype}")
+
         except Exception as e:
             print(f"Error in water balance calculation: {e}")
-            print(f"totalstore_change type: {type(ser_totalstore_change)}")
-            print(f"water_balance type: {type(ser_water_balance)}")
+            print(f"ser_totalstore_change type: {type(ser_totalstore_change)}")
+            print(f"ser_water_balance type: {type(ser_water_balance)}")
             raise
-        self.assertTrue(test_dif)
+
+        self.assertTrue(test_passed)

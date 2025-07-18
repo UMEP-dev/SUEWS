@@ -27,10 +27,9 @@ Python 3.9 requires NumPy 1.x due to f90wrap binary compatibility issues.
 Python 3.10+ can use NumPy 2.0. This is handled in pyproject.toml build requirements.
 
 Test Ordering Solution:
-This test uses @pytest.mark.order(1) to run first in the test suite, avoiding
-Fortran model state interference from other tests. If pytest-order is not installed,
-the test may fail when run as part of the full suite but will pass individually:
-    pytest test/test_sample_output.py
+This test should run first in the test suite to avoid Fortran model state 
+interference from other tests. This is handled by pytest_collection_modifyitems
+hook in conftest.py, which ensures test_sample_output.py runs before other tests.
 
 Root cause:
 - The Fortran model maintains internal state between test runs
@@ -38,15 +37,9 @@ Root cause:
 - This causes small numerical differences that accumulate over a year-long simulation
 - The force_reload parameter doesn't help as it's ignored for YAML config files
 
-CI/CD Configuration:
-- pytest-order is included in pyproject.toml[project.optional-dependencies.dev]
-- pytest-order is included in .github/requirements-ci.txt for CI environments
-- The test will run first automatically in CI/CD pipelines
-
-Install pytest-order to ensure correct test execution:
-    pip install pytest-order
-    # or with dev dependencies:
-    pip install -e ".[dev]"
+If this test fails when run as part of the full suite but passes individually:
+    pytest test/test_sample_output.py
+Check that conftest.py is present and properly configured.
 """
 
 import os
@@ -269,7 +262,6 @@ def compare_arrays_with_tolerance(actual, expected, rtol, atol, var_name=""):
 # TEST CLASS
 # ============================================================================
 
-@pytest.mark.order(1)  # Run this test first to avoid state interference
 class TestSampleOutput(TestCase):
     """Dedicated test class for validating SUEWS outputs against reference data."""
     

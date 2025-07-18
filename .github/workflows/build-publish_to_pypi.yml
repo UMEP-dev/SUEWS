@@ -11,6 +11,7 @@ on:
       - "test/**"
       - "pyproject.toml"
       - "meson.build"
+      - "Makefile"
 
   pull_request:
     paths: # PR events containing matching files
@@ -21,6 +22,7 @@ on:
       - "test/**"
       - "pyproject.toml"
       - "meson.build"
+      - "Makefile"
 jobs:
   build_wheels:
     name: Build wheel for ${{ matrix.python }}-${{ matrix.buildplat[1] }} ${{ matrix.buildplat[2] }}

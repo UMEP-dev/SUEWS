@@ -327,40 +327,6 @@ class LAIParams(BaseModel):
 
     ref: Optional[Reference] = None
 
-    @model_validator(mode="after")
-    def validate_lai_ranges(self) -> "LAIParams":
-        # Only validate if values are not None
-        if self.laimin is not None and self.laimax is not None:
-            laimin_val = (
-                self.laimin.value if isinstance(self.laimin, RefValue) else self.laimin
-            )
-            laimax_val = (
-                self.laimax.value if isinstance(self.laimax, RefValue) else self.laimax
-            )
-
-            if laimin_val > laimax_val:
-                raise ValueError(
-                    f"laimin ({laimin_val}) must be less than or equal to laimax ({laimax_val})."
-                )
-
-        # Only validate baset/gddfull if both are provided
-        if self.baset is not None and self.gddfull is not None:
-            baset_val = (
-                self.baset.value if isinstance(self.baset, RefValue) else self.baset
-            )
-            gddfull_val = (
-                self.gddfull.value
-                if isinstance(self.gddfull, RefValue)
-                else self.gddfull
-            )
-
-            if baset_val > gddfull_val:
-                raise ValueError(
-                    f"baset ({baset_val}) must be less than gddfull ({gddfull_val})."
-                )
-
-        return self
-
     def to_df_state(self, grid_id: int, surf_idx: int) -> pd.DataFrame:
         """Convert LAI parameters to DataFrame state format.
 

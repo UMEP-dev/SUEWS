@@ -20,11 +20,13 @@ cd worktrees/$FEATURE
 uv venv
 source .venv/bin/activate
 
-# Install core requirements (matches env.yml)
-uv pip install pandas scipy matplotlib-base matplotlib-inline scikit-learn scikit-image \
-    geopandas rtree openpyxl pytables psutil salem==0.3.8 floweaver==2.0.0 \
+# Install core requirements
+# Package list maintained in .claude/reference/core-requirements.txt
+# IMPORTANT: Use 'matplotlib' not 'matplotlib-base', 'tables' not 'pytables'
+uv pip install pandas scipy matplotlib matplotlib-inline scikit-learn scikit-image \
+    geopandas rtree openpyxl tables psutil salem==0.3.8 floweaver==2.0.0 \
     f90nml click pydantic ipykernel jupyter_client jupyter_core \
-    pytest pytest-cov ruff f90wrap==0.2.16 atmosp meson-python>=0.17.0
+    pytest pytest-cov ruff f90wrap==0.2.16 atmosp "meson-python>=0.17.0"
 
 # Install SUEWS in development mode
 make dev  # This will auto-detect uv and use it!
@@ -38,16 +40,8 @@ python -c "import supy; print(f'✓ SuPy {supy.__version__} ready')"
 
 ## Working Without Environment Activation
 
-With uv, you don't need to activate environments:
-
-```bash
-cd worktrees/my-feature
-
-# Run commands directly with uv
-uv run python script.py
-uv run pytest
-uv run make test
-```
+**Note**: Currently requires environment activation due to Python 3.13 compatibility.
+See `.claude/reference/uv-adoption.md` for details on UV capabilities and current limitations.
 
 ## Cleanup
 
@@ -87,7 +81,11 @@ source .venv/bin/activate
 
 # Install dependencies (slower than uv)
 pip install --upgrade pip setuptools wheel
-pip install pandas scipy matplotlib # ... (same list as above)
+# Package list maintained in .claude/reference/core-requirements.txt
+pip install pandas scipy matplotlib matplotlib-inline scikit-learn scikit-image \
+    geopandas rtree openpyxl tables psutil salem==0.3.8 floweaver==2.0.0 \
+    f90nml click pydantic ipykernel jupyter_client jupyter_core \
+    pytest pytest-cov ruff f90wrap==0.2.16 atmosp "meson-python>=0.17.0"
 
 # Install SUEWS
 make dev
@@ -132,74 +130,12 @@ chmod +x activate.sh
 
 ## Core Requirements
 
-These are the essential Python packages for SUEWS development. The complete package list is maintained in `env.yml` at the repository root. This section provides the pip-installable versions for use with uv or standard Python environments:
+The essential Python packages for SUEWS development are listed below.
+**Important**: Package names differ between conda and pip:
+- conda: `matplotlib-base` → pip: `matplotlib`
+- conda: `pytables` → pip: `tables`
 
-```
-# Build tools
-pip>=22.0
-setuptools>=65.0
-wheel
-meson-python>=0.17.0
-doxygen  # For documentation generation
-
-# Core data science
-pandas
-scipy
-matplotlib-base
-matplotlib-inline
-scikit-learn
-scikit-image
-
-# Geospatial and data handling
-geopandas
-rtree
-openpyxl
-pytables
-psutil
-salem==0.3.8
-floweaver==2.0.0
-
-# Configuration and CLI
-f90nml
-click
-pydantic
-
-# Jupyter support
-ipykernel
-jupyter_client
-jupyter_core
-
-# Testing and code quality
-pytest
-pytest-cov
-ruff
-
-# Fortran wrapper and atmospheric science
-f90wrap==0.2.16
-atmosp
-
-# Documentation system (optional for worktree development)
-# Only install if working on documentation:
-# sphinx>=4.0,<8.2
-# sphinx-autobuild
-# pybtex
-# nbsphinx
-# recommonmark
-# docutils>=0.16,<0.17
-# jinja2>=3.0,<3.1
-# urlpath
-# sphinxcontrib_programoutput
-# sphinx-jsonschema
-# sphinxcontrib.bibtex~=2.4
-# sphinx_comments
-# sphinx-rtd-theme>=0.5
-# sphinx-book-theme
-# sphinx-panels
-# sphinxcontrib.email
-# sphinx-last-updated-by-git
-# sphinx-click
-# jsonschema2rst
-```
+See the package installation commands in the Quick Start section above for the complete list.
 
 ### Full Package Installation Commands
 
@@ -209,10 +145,11 @@ For a complete development environment with uv:
 
 ```bash
 # Core packages (always needed)
-uv pip install pandas scipy matplotlib-base matplotlib-inline scikit-learn scikit-image \
-    geopandas rtree openpyxl pytables psutil salem==0.3.8 floweaver==2.0.0 \
+# Package list maintained in .claude/reference/core-requirements.txt
+uv pip install pandas scipy matplotlib matplotlib-inline scikit-learn scikit-image \
+    geopandas rtree openpyxl tables psutil salem==0.3.8 floweaver==2.0.0 \
     f90nml click pydantic ipykernel jupyter_client jupyter_core \
-    pytest pytest-cov ruff f90wrap==0.2.16 atmosp meson-python>=0.17.0
+    pytest pytest-cov ruff f90wrap==0.2.16 atmosp "meson-python>=0.17.0"
 
 # Documentation packages (optional - only if working on docs)
 uv pip install "sphinx>=4.0,<8.2" sphinx-autobuild pybtex nbsphinx recommonmark \
@@ -220,6 +157,51 @@ uv pip install "sphinx>=4.0,<8.2" sphinx-autobuild pybtex nbsphinx recommonmark 
     sphinx-jsonschema "sphinxcontrib.bibtex~=2.4" sphinx_comments \
     "sphinx-rtd-theme>=0.5" sphinx-book-theme sphinx-panels sphinxcontrib.email \
     sphinx-last-updated-by-git sphinx-click jsonschema2rst
+```
+
+## Working with Plans in Worktrees
+
+Plans are stored in the master branch at `.claude/plans/`, not in your worktree. This ensures all worktrees share the same plan.
+
+### Recommended Workflow: Launch Claude Code from Master
+
+The smoothest way to work with worktrees and plans:
+
+```bash
+# Always start Claude Code from the main repo (master branch)
+cd ~/Dropbox\ \(Personal\)/6.Repos/SUEWS
+claude .
+```
+
+Then work primarily from master:
+- Claude Code can access all files from the master location
+- Edit worktree files using full paths: `worktrees/my-feature/src/file.py`
+- Update plans directly: `.claude/plans/doing/feature-my-feature.md`
+- When specific work is needed, temporarily cd into the worktree:
+  ```bash
+  cd worktrees/my-feature  # For focused operations
+  make test               # Run tests
+  git commit             # Commit changes
+  cd ../..               # Return to master
+  ```
+
+This approach gives Claude Code full visibility while allowing focused work when needed.
+
+### Alternative: If Already in a Worktree
+
+If you've already launched Claude Code from within a worktree:
+
+**Reading plans:**
+```bash
+cat ../../.claude/plans/doing/feature-my-feature.md
+```
+
+**Updating plans:**
+Requires switching to master - see CLAUDE.md for detailed steps. This is why launching from master is recommended.
+
+**Getting plan updates:**
+```bash
+git fetch origin master  # Gets latest plans from master
 ```
 
 ## Tips
@@ -230,3 +212,4 @@ uv pip install "sphinx>=4.0,<8.2" sphinx-autobuild pybtex nbsphinx recommonmark 
 4. **Check compiler** - macOS provides gfortran, or use `brew install gcc`
 5. **Run tests** after setup with `make test`
 6. **Clean up** both worktree and plan file when done
+7. **Plans live in master** - remember to commit plan updates to master branch

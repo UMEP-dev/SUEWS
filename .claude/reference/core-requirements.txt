@@ -1,0 +1,42 @@
+# Core Python Requirements for SUEWS Development
+# This file lists the pip-installable package names (not conda names)
+# For UV or pip installation in worktrees
+
+# Build tools
+meson-python>=0.17.0
+
+# Core data science
+pandas
+scipy
+matplotlib  # Note: pip name (not matplotlib-base)
+matplotlib-inline
+scikit-learn
+scikit-image
+
+# Geospatial and data handling
+geopandas
+rtree
+openpyxl
+tables  # Note: pip name (not pytables)
+psutil
+salem==0.3.8
+floweaver==2.0.0
+
+# Configuration and CLI
+f90nml
+click
+pydantic
+
+# Jupyter support
+ipykernel
+jupyter_client
+jupyter_core
+
+# Testing and code quality
+pytest
+pytest-cov
+ruff
+
+# Fortran wrapper and atmospheric science
+f90wrap==0.2.16
+atmosp

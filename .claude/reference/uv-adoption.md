@@ -8,53 +8,25 @@
 4. **Lock files** - reproducible environments
 5. **No more mamba/conda complexity**
 
+## Current Status & Python 3.13 Compatibility
+
+**Important**: UV defaults to the latest Python (3.13), which has some compatibility considerations:
+
+1. **Package Availability**: Some packages don't yet have Python 3.13 wheels
+2. **UV Handling**: UV automatically finds compatible versions (e.g., scipy 1.16.0 instead of 1.13.1)
+3. **`uv run` Limitation**: Currently requires environment activation to avoid dependency rebuilds
+4. **Temporary Workaround**: Use `source .venv/bin/activate` instead of `uv run` for now
+
+This is a temporary limitation that will resolve as packages add Python 3.13 support.
+
 ## Quick Worktree Setup with uv
 
-Here's the complete workflow for setting up a new worktree:
+For complete worktree setup instructions, see `.claude/howto/setup-worktree.md`.
 
-```bash
-# One-time: Install uv
-brew install uv  # or: curl -LsSf https://astral.sh/uv/install.sh | sh
-
-# Create and setup worktree
-FEATURE="my-feature"
-git worktree add worktrees/$FEATURE feature/$FEATURE
-cd worktrees/$FEATURE
-
-# Setup environment (seconds, not minutes!)
-uv venv
-source .venv/bin/activate  # Optional - can use uv run instead
-
-# Install all requirements
-uv pip install pandas scipy matplotlib-base matplotlib-inline scikit-learn scikit-image \
-    geopandas rtree openpyxl pytables psutil salem==0.3.8 floweaver==2.0.0 \
-    f90nml click pydantic ipykernel jupyter_client jupyter_core \
-    pytest pytest-cov ruff f90wrap==0.2.16 atmosp meson-python>=0.17.0
-
-# Install SUEWS in development mode
-make dev  # Auto-detects uv and uses it!
-
-# Ready to work!
-uv run python         # No activation needed
-uv run pytest        # Run tests
-uv run make test     # Run full test suite
-```
-
-## Cleanup Script
-
-```bash
-# Clean up when done
-FEATURE="my-feature"
-
-# Remove worktree
-git worktree remove worktrees/$FEATURE --force
-
-# Remove plan if exists
-if [ -f ".claude/worktree-plans/feature-$FEATURE.md" ]; then
-    git rm .claude/worktree-plans/feature-$FEATURE.md
-    git commit -m "chore: remove worktree plan for $FEATURE"
-fi
-```
+Key points for UV usage:
+- Install: `brew install uv` or `curl -LsSf https://astral.sh/uv/install.sh | sh`
+- Currently requires environment activation due to Python 3.13
+- Package names: Use `matplotlib` (not `matplotlib-base`), `tables` (not `pytables`)
 
 ## Migration Path
 

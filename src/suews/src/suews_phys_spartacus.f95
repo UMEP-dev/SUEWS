@@ -37,7 +37,7 @@ MODULE SPARTACUS_MODULE
    !==============================================================================================
    USE allocateArray, ONLY: NSURF, NVegSurf, nspec, nsw, nlw, ncol, &
                             ConifSurf, DecidSurf, BldgSurf, PavSurf, GrassSurf, BSoilSurf, WaterSurf
-   USE PhysConstants, ONLY: SBConst
+   USE PhysConstants, ONLY: SBConst, eps_fp
 
    IMPLICIT NONE
 
@@ -272,15 +272,15 @@ CONTAINS
       config%do_lw = .TRUE.
       config%use_sw_direct_albedo = use_sw_direct_albedo
       ALLOCATE (i_representation(ncol))
-      IF (sfr_surf(ConifSurf) + sfr_surf(DecidSurf) > 0.0 .AND. sfr_surf(BldgSurf) > 0.0) THEN
+      IF (sfr_surf(ConifSurf) + sfr_surf(DecidSurf) > eps_fp .AND. sfr_surf(BldgSurf) > eps_fp) THEN
          config%do_vegetation = .TRUE.
          i_representation = [3]
          config%do_urban = .TRUE.
-      ELSE IF (sfr_surf(ConifSurf) + sfr_surf(DecidSurf) == 0.0 .AND. sfr_surf(BldgSurf) > 0.0) THEN
+      ELSE IF (ABS(sfr_surf(ConifSurf) + sfr_surf(DecidSurf)) <= eps_fp .AND. sfr_surf(BldgSurf) > eps_fp) THEN
          config%do_vegetation = .FALSE.
          i_representation = [2]
          config%do_urban = .TRUE.
-      ELSE IF (sfr_surf(ConifSurf) + sfr_surf(DecidSurf) > 0.0 .AND. sfr_surf(BldgSurf) == 0.0) THEN
+      ELSE IF (sfr_surf(ConifSurf) + sfr_surf(DecidSurf) > eps_fp .AND. ABS(sfr_surf(BldgSurf)) <= eps_fp) THEN
          config%do_vegetation = .TRUE.
          i_representation = [1]
          config%do_urban = .FALSE.

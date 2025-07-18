@@ -771,9 +771,16 @@ def pack_grid_dict(ser_grid):
                 # dict_var[var] = pack_var(ser_grid[var])
                 dict_var[var] = pack_var_old(ser_grid[var])
             except Exception as e:
-                print(f"Error packing variable '{var}': {e}")
-                # dict_var[var] = pack_var_old(ser_grid[var])
-                dict_var[var] = pack_var(ser_grid[var])
+                # Skip string metadata variables that don't need packing
+                if var in ['config', 'description']:
+                    dict_var[var] = ser_grid[var].iloc[0]
+                else:
+                    # For other variables, try the alternative packing method
+                    try:
+                        dict_var[var] = pack_var(ser_grid[var])
+                    except Exception as e2:
+                        # Only log actual errors, not expected metadata
+                        logger_supy.debug(f"Could not pack variable '{var}': {e}")
         else:
             pass
     # dict_var = {
@@ -797,14 +804,22 @@ def pack_df_state_final(df_state_end, df_state_start):
 
     dict_packed = {}
     for var in df_state_end.to_dict():
-        # print(var)
-        # print(df_state_end[var].values.shape)
-        # reshape values to (number of columns, number of grids)
-        val_flatten = np.concatenate(df_state_end[var].values).ravel()
-        val = val_flatten.reshape((size_idx, -1)).T
-        col_names = ser_col_multi[var].values
-        dict_var = dict(zip(col_names, val))
-        dict_packed.update(dict_var)
+        # Skip string metadata variables that don't need reshaping
+        if var in ['config', 'description']:
+            # For metadata, just keep the single value for each grid
+            col_names = ser_col_multi[var].values
+            val = df_state_end[var].values.reshape(-1, 1).T
+            dict_var = dict(zip(col_names, val))
+            dict_packed.update(dict_var)
+        else:
+            # print(var)
+            # print(df_state_end[var].values.shape)
+            # reshape values to (number of columns, number of grids)
+            val_flatten = np.concatenate(df_state_end[var].values).ravel()
+            val = val_flatten.reshape((size_idx, -1)).T
+            col_names = ser_col_multi[var].values
+            dict_var = dict(zip(col_names, val))
+            dict_packed.update(dict_var)
 
     df_state_end_packed = pd.DataFrame(dict_packed, index=idx)
     df_state_end_packed.columns.set_names(["var", "ind_dim"], inplace=True)

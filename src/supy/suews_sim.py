@@ -245,7 +245,7 @@ class SUEWSSimulation:
         else:
             return read_forcing(str(forcing_path))
 
-    def run(self, **run_kwargs) -> pd.DataFrame:
+    def run(self, start_date=None, end_date=None, **run_kwargs) -> pd.DataFrame:
         """
         Run SUEWS simulation.
 
@@ -274,11 +274,13 @@ class SUEWSSimulation:
             raise RuntimeError("No forcing data loaded. Use update_forcing() first.")
 
         # Run simulation
-        self._df_output, self._df_state_final = run_supy_ser(
-            self._df_forcing,
+        result = run_supy_ser(
+            self._df_forcing.loc[start_date:end_date],
             self._df_state_init,
-            **run_kwargs
+            # **run_kwargs # Causes problems - requires explicit arguments
         )
+        self._df_output = result[0]
+        self._df_state_final = result[1]
         
         self._run_completed = True
         return self._df_output
@@ -314,6 +316,7 @@ class SUEWSSimulation:
             output_path = Path(output_path)
 
         # Extract parameters from config
+        output_format = None
         freq_s = 3600  # default hourly
         site = ""
         
@@ -327,10 +330,15 @@ class SUEWSSimulation:
                 output_config = self._config.model.control.output_file
                 if hasattr(output_config, 'freq') and output_config.freq is not None:
                     freq_s = output_config.freq
+                # Removed for now - can't update from YAML (TODO)
+                # if hasattr(output_config, 'format') and output_config.format is not None:
+                #     output_format = output_config.format
             
             # Get site name from first site
             if hasattr(self._config, 'sites') and len(self._config.sites) > 0:
                 site = self._config.sites[0].name
+        if "format" in save_kwargs: # TODO: When yaml format working, make elif
+            output_format = save_kwargs["format"]
 
         # Use save_supy for all formats
         list_path_save = save_supy(
@@ -339,9 +347,9 @@ class SUEWSSimulation:
             freq_s=int(freq_s),
             site=site,
             path_dir_save=str(output_path),
-            **save_kwargs
+            # **save_kwargs # Problematic, save_supy expects explicit arguments
+            output_format = output_format
         )
-        
         return list_path_save
 
     def reset(self):

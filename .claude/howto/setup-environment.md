@@ -39,14 +39,17 @@ python script.py  # Works as normal
 
 ```bash
 # Core packages for SUEWS development
-uv pip install pandas scipy matplotlib-base matplotlib-inline scikit-learn scikit-image \
-    geopandas rtree openpyxl pytables psutil salem==0.3.8 floweaver==2.0.0 \
+# Full list maintained in .claude/reference/core-requirements.txt
+uv pip install pandas scipy matplotlib matplotlib-inline scikit-learn scikit-image \
+    geopandas rtree openpyxl tables psutil salem==0.3.8 floweaver==2.0.0 \
     f90nml click pydantic ipykernel jupyter_client jupyter_core \
-    pytest pytest-cov ruff f90wrap==0.2.16 atmosp meson-python>=0.17.0
+    pytest pytest-cov ruff f90wrap==0.2.16 atmosp "meson-python>=0.17.0"
 
 # Then build SUEWS
 make dev
 ```
+
+**Note**: Use correct pip names: `matplotlib` (not matplotlib-base), `tables` (not pytables)
 
 ## Compiler Requirements
 

@@ -4,7 +4,7 @@ import io
 import sys
 import warnings
 from time import time
-from unittest import TestCase, skipIf, skipUnless
+from unittest import TestCase, skipIf
 
 import numpy as np
 import pandas as pd
@@ -14,31 +14,32 @@ import platform
 
 from pathlib import Path
 
+# Import debug utilities
+try:
+    from .debug_utils import (
+        debug_on_ci, 
+        debug_dataframe_output, 
+        debug_water_balance,
+        capture_test_artifacts
+    )
+except ImportError:
+    # Fallback if decorators not available
+    def debug_on_ci(func): return func
+    def debug_dataframe_output(func): return func
+    def debug_water_balance(func): return func
+    def capture_test_artifacts(name): return lambda func: func
+
 # Get the test data directory from the environment variable
 test_data_dir = Path(__file__).parent / "data_test"
 # test_data_dir = os.environ.get('TEST_DATA_DIR', Path(__file__).parent / 'data_test')
 
-# Construct the file path for the data file
-p_df_sample = Path(test_data_dir) / "sample_output.pkl"
+# Note: sample_output.pkl testing has been moved to test_sample_output.py
 
-# if platform is macOS and python version is 3.12, set flag_full_test to True
-flag_full_test = any([
-    all([
-        sys.version_info[0] == 3,
-        sys.version_info[1] == 12,
-        platform.system() == "Darwin",
-        platform.machine() == "arm64",
-    ]),
-    all([
-        sys.version_info[0] == 3,
-        sys.version_info[1] == 13,
-        platform.system() == "Linux",
-        platform.machine() == "x86_64",
-    ]),
-])
+# Enable all tests on all platforms and Python versions
+flag_full_test = True
 
-# Load sample data once, as it will be used frequently later to save time.
-df_state_init, df_forcing_tstep = sp.load_SampleData()
+# Note: Sample data loading moved to individual test methods to avoid test interference
+# This prevents caching issues when tests run in sequence
 
 
 class TestSuPy(TestCase):
@@ -57,6 +58,9 @@ class TestSuPy(TestCase):
     def test_is_supy_running_single_step(self):
         print("\n========================================")
         print("Testing if single-tstep mode can run...")
+        
+        # Load sample data
+        df_state_init, df_forcing_tstep = sp.load_SampleData()
 
         df_forcing_part = df_forcing_tstep.iloc[: 12 * 8]
         df_output, df_state = sp.run_supy(
@@ -75,9 +79,15 @@ class TestSuPy(TestCase):
         # self.assertFalse(df_state.isnull().values.any())
 
     # test if multi-tstep mode can run
+    @debug_on_ci
+    @debug_dataframe_output
+    @capture_test_artifacts('multi_step')
     def test_is_supy_running_multi_step(self):
         print("\n========================================")
         print("Testing if multi-tstep mode can run...")
+        
+        # Load sample data
+        df_state_init, df_forcing_tstep = sp.load_SampleData()
 
         df_forcing_part = df_forcing_tstep.iloc[: 288 * 10]
         df_output, df_state = sp.run_supy(
@@ -111,6 +121,9 @@ class TestSuPy(TestCase):
         print("\n========================================")
         print("Testing if multi-grid simulation can run in parallel...")
         n_grid = 4
+        
+        # Load sample data
+        df_state_init, df_forcing_tstep = sp.load_SampleData()
 
         df_state_init_base = df_state_init.copy()
 
@@ -153,6 +166,10 @@ class TestSuPy(TestCase):
     def test_is_flag_test_working(self):
         print("\n========================================")
         print("Testing if flag_test can be set to True...")
+        
+        # Load sample data
+        df_state_init, df_forcing_tstep = sp.load_SampleData()
+        
         df_forcing_part = df_forcing_tstep.iloc[: 288 * 10]
         df_output, df_state, df_debug, res_state = sp.run_supy(
             df_forcing_part,
@@ -201,7 +218,6 @@ class TestSuPy(TestCase):
     # )
 
     # test saving output files working
-    @skipUnless(flag_full_test, "Full test is not required.")
     def test_is_supy_save_working(self):
         print("\n========================================")
         print("Testing if saving output files working...")
@@ -256,7 +272,6 @@ class TestSuPy(TestCase):
     #     self.assertTrue(test_common_all)
 
     # test ERA5 forcing generation
-    @skipUnless(flag_full_test, "Full test is not required.")
     def test_gen_forcing(self):
         print("\n========================================")
         print("Testing if forcing generation working...")
@@ -390,49 +405,10 @@ class TestSuPy(TestCase):
     #         rtol=8e-3,  # 0.8% tolerance - temporary fix to pass the CI test
     #     )
 
-    # test if the sample output is the same as the one in the repo
-    @skipUnless(flag_full_test, "Full test is not required.")
-    def test_is_sample_output_same(self):
-        print("\n========================================")
-        print("Testing if sample output is the same...")
-        df_state_init, df_forcing_tstep = sp.load_SampleData()
-        df_forcing_part = df_forcing_tstep.iloc[: 288 * 365]
-
-        # single-step results
-        df_output_s, df_state_s = sp.run_supy(df_forcing_part, df_state_init)
-
-        # only test chosen columns
-        col_test = [
-            "QN",
-            "QF",
-            "QS",
-            "QE",
-            "QH",
-            "T2",
-            "RH2",
-            "U10",
-        ]
-
-        print(f"Columns to test: {col_test}")
-
-        # load sample output
-        df_res_sample = pd.read_pickle(p_df_sample).loc[:, col_test]
-
-        # find common indices to handle potential timestamp mismatches
-        common_idx = df_output_s.SUEWS.index.intersection(df_res_sample.index)
-        
-        # choose the same columns as the testing group
-        df_res_s = df_output_s.SUEWS.loc[common_idx, df_res_sample.columns]
-        df_res_sample_common = df_res_sample.loc[common_idx]
-
-        pd.testing.assert_frame_equal(
-            left=df_res_s,
-            right=df_res_sample_common,
-            rtol=8e-3,  # 0.8% tolerance - temporary fix to pass the CI test
-        )
+    # Note: test_is_sample_output_same has been moved to test_sample_output.py
+    # for better diagnostics and platform-specific tolerance handling
 
     # test if the weighted SMD of vegetated surfaces are properly calculated
-    @skipUnless(flag_full_test, "Full test is not required.")
     def test_is_smd_veg_weighted(self):
         print("\n========================================")
         print("Testing if SMD of vegetated surfaces are properly calculated...")
@@ -459,7 +435,10 @@ class TestSuPy(TestCase):
     def test_dailystate_meaningful(self):
         print("\n========================================")
         print("Testing if dailystate are written out correctly...")
-        # df_state_init, df_forcing_tstep = sp.load_SampleData()
+        
+        # Load sample data
+        df_state_init, df_forcing_tstep = sp.load_SampleData()
+        
         n_days = 10
         df_forcing_part = df_forcing_tstep.iloc[: 288 * n_days]
 
@@ -503,9 +482,15 @@ class TestSuPy(TestCase):
                            "DailyState should have at least some data")
 
     # test if the water balance is closed
+    @debug_water_balance
+    @capture_test_artifacts('water_balance')
     def test_water_balance_closed(self):
         print("\n========================================")
         print("Testing if water balance is closed...")
+        
+        # Load sample data
+        df_state_init, df_forcing_tstep = sp.load_SampleData()
+        
         n_days = 100
         df_forcing_part = df_forcing_tstep.iloc[: 288 * n_days]
         df_output, df_state = sp.run_supy(df_forcing_part, df_state_init)

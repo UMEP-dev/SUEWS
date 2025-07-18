@@ -85,14 +85,20 @@ def format_df_save(df_save):
 
 def gen_df_year(df_save, year, grid, group, output_level):
     # retrieve dataframe of grid for `group`
-    df_grid_group = df_save.loc[grid, group].copy()
+    # First filter by grid from the index
+    df_grid = df_save.xs(grid, level='grid')
+    # Then select the group from columns
+    df_grid_group = df_grid[group].copy()
     # get temporal index
     idx_dt = df_grid_group.index
     freq = idx_dt.to_series().diff().iloc[-1]
     df_grid_group = df_grid_group.asfreq(freq)
     # select output variables in `SUEWS` based on output level
     if group == "SUEWS":
-        df_grid_group = df_grid_group[dict_level_var[output_level]]
+        # Filter to only variables that exist in the dataframe
+        vars_to_keep = [v for v in dict_level_var[output_level] if v in df_grid_group.columns]
+        if vars_to_keep:
+            df_grid_group = df_grid_group[vars_to_keep]
     # select data from year of interest and shift back to align with SUEWS convention
     df_year = df_grid_group.loc[f"{year}"]
     # Skip timestamp shift for DailyState as it contains end-of-day values
@@ -629,13 +635,15 @@ def save_df_output_parquet(
     if not save_tstep:
         # Resample output
         df_rsmp = resample_output(df_save, freq_save)
+        
+        # MP: TODO: This causes duplicate entries for DailyState. Why keep the original resolution?
         # Keep DailyState at original resolution
-        if 'DailyState' in df_save.columns.get_level_values('group'):
-            df_daily = df_save.loc[:, ["DailyState"]]
-            # Combine for saving
-            df_to_save = pd.concat([df_rsmp, df_daily], axis=1)
-        else:
-            df_to_save = df_rsmp
+        # if 'DailyState' in df_save.columns.get_level_values('group'):
+        #     df_daily = df_save.loc[:, ["DailyState"]]
+        #     # Combine for saving
+        #     df_to_save = pd.concat([df_rsmp, df_daily], axis=1)
+        # else:
+        df_to_save = df_rsmp
     else:
         df_to_save = df_save
     

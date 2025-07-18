@@ -3,6 +3,7 @@ MODULE rsl_module
    USE meteo, ONLY: RH2qa, qa2RH
    USE allocateArray, ONLY: &
       nsurf, BldgSurf, ConifSurf, DecidSurf, ncolumnsDataOutRSL
+   USE PhysConstants, ONLY: eps_fp
    IMPLICIT NONE
 
    INTEGER, PARAMETER :: nz = 30 ! number of levels 10 levels in canopy plus 20 (3 x Zh) above the canopy
@@ -309,7 +310,7 @@ CONTAINS
          UStar_heat = 1/(kappa*RA_h)*(LOG((zMeas - zd_RSL)/z0v) - psihza + psihz0)
       END IF
       TStar_RSL = -1.*(qh/(avcp*avdens))/UStar_heat
-      IF (qe == 0.0) THEN
+      IF (ABS(qe) <= eps_fp) THEN
          qStar_RSL = 10.**(-10) ! avoid the situation where qe=0, qstar_RSL=0 and the code breaks LB 21 May 2021
       ELSE
          qStar_RSL = -1.*(qe/lv_J_kg*avdens)/UStar_heat
@@ -682,7 +683,7 @@ CONTAINS
 !          UStar_heat = 1/(kappa*RA_h)*(LOG((zMeas - zd_RSL)/z0v) - psihza + psihz0)
 !       END IF
 !       TStar_RSL = -1.*(qh/(avcp*avdens))/UStar_heat
-!       IF (qe == 0.0) THEN
+!       IF (ABS(qe) <= eps_fp) THEN
 !          qStar_RSL = 10.**(-10) ! avoid the situation where qe=0, qstar_RSL=0 and the code breaks LB 21 May 2021
 !       ELSE
 !          qStar_RSL = -1.*(qe/lv_J_kg*avdens)/UStar_heat
@@ -1124,7 +1125,7 @@ CONTAINS
                UStar_heat = 1/(kappa*RA_h)*(LOG((zMeas - zd_RSL)/z0v) - psihza + psihz0)
             END IF
             TStar_RSL = -1.*(qh/(avcp*avdens))/UStar_heat
-            IF (qe == 0.0) THEN
+            IF (ABS(qe) <= eps_fp) THEN
                qStar_RSL = 10.**(-10) ! avoid the situation where qe=0, qstar_RSL=0 and the code breaks LB 21 May 2021
             ELSE
                qStar_RSL = -1.*(qe/lv_J_kg*avdens)/UStar_heat

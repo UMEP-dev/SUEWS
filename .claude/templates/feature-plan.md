@@ -1,11 +1,21 @@
 # Feature: [Feature Name]
 
+## Lead Developer
+- **GitHub**: @[username]
+- **Started**: [YYYY-MM-DD]
+
 ## Context
 Brief description of what this feature/fix addresses and why it's needed.
 
 ## GitHub Issues
 - #[issue-number] - [Issue title] (PRIMARY)
 - #[issue-number] - [Related issue]
+
+## Status
+- **Current**: todo
+- **Outcome**: [pending|completed|abandoned]
+- **Completed**: [YYYY-MM-DD]
+- **PR**: #[pr-number]
 
 ## Progress Tracking
 
@@ -42,3 +52,6 @@ Brief description of what this feature/fix addresses and why it's needed.
 - User guide sections to update
 - API documentation changes
 - Configuration examples needed
+
+## Abandonment Notes
+(Only if abandoned) Reason for abandonment and any learnings for future reference.

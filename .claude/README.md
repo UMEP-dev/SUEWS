@@ -33,35 +33,35 @@ This directory contains all Claude Code-specific documentation, plans, and confi
 ## Directory Purposes
 
 ### howto/
-**Purpose**: Step-by-step guides for common tasks  
+**Purpose**: Step-by-step guides for common tasks
 - Setting up worktrees with different tools
 - Managing Python environments
 - Running parallel Claude Code agents
 
 ### reference/
-**Purpose**: Technical documentation and analysis  
+**Purpose**: Technical documentation and analysis
 - Build system architecture and isolation
 - Environment management comparison
 - Tool adoption strategies
 
 ### plans/
-**Purpose**: Feature-specific development plans  
+**Purpose**: Feature-specific development plans
 - `doing/` - Features currently being developed
 - `todo/` - Features planned but not started
 - `done/` - Completed features for reference
 - Plans track progress, decisions, and implementation details
 
 ### templates/
-**Purpose**: Reusable templates for consistency  
+**Purpose**: Reusable templates for consistency
 - Feature plan template
 - Commit message format
 - Other common documents
 
 ## Quick Navigation
 
-**"How do I...?"** → Check `howto/`  
-**"Why does X work this way?"** → Check `reference/`  
-**"What's the status of feature Y?"** → Check `plans/`  
+**"How do I...?"** → Check `howto/`
+**"Why does X work this way?"** → Check `reference/`
+**"What's the status of feature Y?"** → Check `plans/`
 **"I need to create a new Z"** → Check `templates/`
 
 ## For Claude Code Sessions
@@ -69,6 +69,42 @@ This directory contains all Claude Code-specific documentation, plans, and confi
 1. Check current branch: `git branch --show-current`
 2. Find your plan: `ls .claude/plans/doing/`
 3. Read setup guide: `cat .claude/howto/setup-worktree.md`
+
+
+## Slash Commands
+
+Custom commands for streamlined workflows:
+
+### /worktree
+Comprehensive worktree management with four simple subcommands:
+
+- **`new`** - Start a new feature worktree
+  - Interactive setup with feature name, issue, and lead developer
+  - Creates worktree, plan, and environment automatically
+
+- **`sync`** - Synchronize with master
+  - Pull latest changes and update dependencies
+  - Show conflicts if any
+
+- **`pr`** - Create pull request
+  - Push changes and create PR via GitHub CLI
+  - Link to issue and show PR URL
+
+- **`finish`** - Complete or abandon worktree
+  - Option to finish via PR or abandon with reason
+  - Clean up and archive plan
+
+**Usage**: `/worktree [subcommand]`
+
+**Examples**:
+```bash
+/worktree new        # Start new feature
+/worktree sync       # Update from master
+/worktree pr         # Create pull request
+/worktree finish     # Complete feature
+```
+
+See `.claude/howto/worktree-workflow.md` for detailed workflow guide.
 
 ## Git Policy
 - ✅ Commit: All directories and files (except settings.local.json)

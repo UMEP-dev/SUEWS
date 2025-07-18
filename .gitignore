@@ -596,6 +596,5 @@ docs/source/inputs/yaml/schema/*.rst
 
 # Git worktrees directory for Claude Code access
 worktrees/
-.claude-plans/
 test/precheck_testcase/run_precheck_testcase.py
 test/precheck_testcase/precheck_testcase.py

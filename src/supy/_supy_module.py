@@ -539,6 +539,7 @@ def save_supy(
     output_level=1,
     debug=False,
     output_config=None,
+    output_format='txt'
 ) -> list:
     """Save SuPy run results to files
 
@@ -610,7 +611,7 @@ def save_supy(
         )
 
     # Handle output configuration if provided
-    output_format = "txt"  # default
+    # output_format = "txt"  # default - MP: Moved as argument
     output_groups = None  # default will be handled in save_df_output
     
     if output_config is not None:
@@ -672,16 +673,17 @@ def save_supy(
             output_groups=output_groups,
         )
 
-    # save df_state
-    if path_runcontrol is not None:
-        # save as nml as SUEWS binary
-        list_path_nml = save_initcond_nml(df_state_final, site, path_dir_save)
-        list_path_save = list_path_save + list_path_nml
-    else:
-        # save as supy csv for later use
-        path_state_save = save_df_state(df_state_final, site, path_dir_save)
-        # update list_path_save
-        list_path_save.append(path_state_save)
+        # MP: Parquet saves this already - breaks the parquet save check
+        # save df_state
+        if path_runcontrol is not None:
+            # save as nml as SUEWS binary
+            list_path_nml = save_initcond_nml(df_state_final, site, path_dir_save)
+            list_path_save = list_path_save + list_path_nml
+        else:
+            # save as supy csv for later use
+            path_state_save = save_df_state(df_state_final, site, path_dir_save)
+            # update list_path_save
+            list_path_save.append(path_state_save)
 
     return list_path_save
 

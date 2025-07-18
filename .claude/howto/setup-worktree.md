@@ -222,6 +222,51 @@ uv pip install "sphinx>=4.0,<8.2" sphinx-autobuild pybtex nbsphinx recommonmark 
     sphinx-last-updated-by-git sphinx-click jsonschema2rst
 ```
 
+## Working with Plans in Worktrees
+
+Plans are stored in the master branch at `.claude/plans/`, not in your worktree. This ensures all worktrees share the same plan.
+
+### Recommended Workflow: Launch Claude Code from Master
+
+The smoothest way to work with worktrees and plans:
+
+```bash
+# Always start Claude Code from the main repo (master branch)
+cd ~/Dropbox\ \(Personal\)/6.Repos/SUEWS
+claude .
+```
+
+Then work primarily from master:
+- Claude Code can access all files from the master location
+- Edit worktree files using full paths: `worktrees/my-feature/src/file.py`
+- Update plans directly: `.claude/plans/doing/feature-my-feature.md`
+- When specific work is needed, temporarily cd into the worktree:
+  ```bash
+  cd worktrees/my-feature  # For focused operations
+  make test               # Run tests
+  git commit             # Commit changes
+  cd ../..               # Return to master
+  ```
+
+This approach gives Claude Code full visibility while allowing focused work when needed.
+
+### Alternative: If Already in a Worktree
+
+If you've already launched Claude Code from within a worktree:
+
+**Reading plans:**
+```bash
+cat ../../.claude/plans/doing/feature-my-feature.md
+```
+
+**Updating plans:**
+Requires switching to master - see CLAUDE.md for detailed steps. This is why launching from master is recommended.
+
+**Getting plan updates:**
+```bash
+git fetch origin master  # Gets latest plans from master
+```
+
 ## Tips
 
 1. **Always use worktrees** under the `worktrees/` directory
@@ -230,3 +275,4 @@ uv pip install "sphinx>=4.0,<8.2" sphinx-autobuild pybtex nbsphinx recommonmark 
 4. **Check compiler** - macOS provides gfortran, or use `brew install gcc`
 5. **Run tests** after setup with `make test`
 6. **Clean up** both worktree and plan file when done
+7. **Plans live in master** - remember to commit plan updates to master branch

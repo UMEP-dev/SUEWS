@@ -73,7 +73,7 @@ CONTAINS
       REAL(KIND(1D0)), INTENT(out) :: deltaQi(nsurf) !< storage heat flux of snow surfaces
 
       INTEGER :: is, xid !< @var qn1 net all-wave radiation
-      INTEGER, SAVE :: id_save ! store index of the valid day with enough data
+      INTEGER, SAVE :: id_save ! store index of the valid day with enough data ! TODO: Remove SAVE states from the model
       REAL(KIND(1D0)), PARAMETER :: NotUsed = -55.5 !< @var qn1 net all-wave radiation
       INTEGER, PARAMETER :: notUsedI = -55 !< @var qn1 net all-wave radiation
       LOGICAL :: idQ ! whether id contains enough data

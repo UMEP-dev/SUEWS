@@ -1,5 +1,6 @@
 MODULE AtmMoistStab_module
    USE SUEWS_DEF_DTS, ONLY: atm_state, SUEWS_FORCING, SUEWS_TIMER, SUEWS_STATE
+   USE PhysConstants, ONLY: eps_fp
    IMPLICIT NONE
    REAL(KIND(1D0)), PARAMETER :: neut_limit = 1.E-4 !Limit for neutral stability
    REAL(KIND(1D0)), PARAMETER :: k = 0.4 !Von Karman's contant
@@ -240,7 +241,7 @@ CONTAINS
 !          h = H_init
 !       END IF
       H = H_init
-      IF (H == 0.) THEN
+      IF (ABS(H) <= eps_fp) THEN
          TStar = 0.
          L_MOD = 0.
          zL = 0.
@@ -285,7 +286,7 @@ CONTAINS
          UStar = MAX(0.001, UStar)
          ! under convective/unstable condition, min(UStar)==0.15 m s-1: (Schumann 1988, BLM, https://doi.org/10.1007/BF00123019)
 
-         IF (H == 0.) THEN
+         IF (ABS(H) <= eps_fp) THEN
             TStar = 0.
             L_MOD = 0.
             zL = 0.

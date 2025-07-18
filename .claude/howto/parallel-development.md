@@ -40,12 +40,29 @@ make dev
 
 ### Launch Claude Code Agents
 
+**Always launch from Master** for the smoothest workflow:
+
 #### Agent 1: First Feature
 ```bash
-# In Terminal 1
-cd worktrees/feature-a
-claude --no-chat
+# In Terminal 1 - start from main repo
+cd ~/Dropbox\ \(Personal\)/6.Repos/SUEWS  # Main repo, master branch
+claude .
+# Work directly: edit worktrees/feature-a/src/file.py
 ```
+
+#### Agent 2: Second Feature
+```bash
+# In Terminal 2 - start from main repo
+cd ~/Dropbox\ \(Personal\)/6.Repos/SUEWS  # Main repo, master branch
+claude .
+# Work directly: edit worktrees/feature-b/src/file.py
+```
+
+Each agent can:
+- Edit files in their worktree: `worktrees/feature-x/...`
+- Run tests: `cd worktrees/feature-x && make test && cd ../..`
+- Update plans directly: `.claude/plans/doing/feature-x.md`
+- All without leaving the master branch context
 
 **First prompt**: 
 ```

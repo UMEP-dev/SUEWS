@@ -635,13 +635,15 @@ def save_df_output_parquet(
     if not save_tstep:
         # Resample output
         df_rsmp = resample_output(df_save, freq_save)
+        
+        # MP: TODO: This causes duplicate entries for DailyState. Why keep the original resolution?
         # Keep DailyState at original resolution
-        if 'DailyState' in df_save.columns.get_level_values('group'):
-            df_daily = df_save.loc[:, ["DailyState"]]
-            # Combine for saving
-            df_to_save = pd.concat([df_rsmp, df_daily], axis=1)
-        else:
-            df_to_save = df_rsmp
+        # if 'DailyState' in df_save.columns.get_level_values('group'):
+        #     df_daily = df_save.loc[:, ["DailyState"]]
+        #     # Combine for saving
+        #     df_to_save = pd.concat([df_rsmp, df_daily], axis=1)
+        # else:
+        df_to_save = df_rsmp
     else:
         df_to_save = df_save
     

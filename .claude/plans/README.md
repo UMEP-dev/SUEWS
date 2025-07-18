@@ -12,6 +12,31 @@ When working on complex features across multiple Claude Code sessions or in diff
 2. **Plans are committed to master** so they're available in all worktrees after pulling
 3. **Plans track progress** and important decisions across sessions
 
+### Why Plans Live in Master Branch
+
+Plans are intentionally kept in the master branch rather than feature branches because:
+- **Single source of truth**: All worktrees and Claude sessions see the same plan
+- **No merge conflicts**: Plans don't interfere with code changes in feature branches
+- **Easy sharing**: Multiple Claude sessions can work on the same feature with shared context
+- **Clean feature branches**: Feature branches contain only code changes, not documentation
+
+### Accessing Plans from Worktrees
+
+When working in a worktree, plans are accessed via relative paths:
+```bash
+# From within worktrees/my-feature/
+cat ../../.claude/plans/doing/feature-my-feature.md
+```
+
+### Updating Plans from Worktrees
+
+Since plans live in master, updating them requires switching branches. See the detailed workflow in `CLAUDE.md` under "IMPORTANT: Updating Plans During Work". The basic flow is:
+1. Edit plan using relative path from worktree
+2. Switch to master in main repo to commit changes
+3. Return to worktree to continue development
+
+This workflow ensures all worktrees always have access to the latest plan information.
+
 ## File Naming Convention
 
 Plans should be named: `feature-{branch-name}.md`

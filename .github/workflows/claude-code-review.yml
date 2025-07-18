@@ -14,21 +14,33 @@ on:
 
 jobs:
   claude-review:
-    # Optional: Filter by PR author
-    # if: |
-    #   github.event.pull_request.user.login == 'external-contributor' ||
-    #   github.event.pull_request.user.login == 'new-developer' ||
-    #   github.event.pull_request.author_association == 'FIRST_TIME_CONTRIBUTOR'
-    
     runs-on: ubuntu-latest
     permissions:
       contents: read
       pull-requests: write  # Changed from read to write for PR comments
       issues: read
       id-token: write
-    
+
     steps:
+      - name: Check if review should be skipped
+        id: skip-check
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          # Convert title to lowercase for case-insensitive matching
+          TITLE_LOWER=$(echo "$PR_TITLE" | tr '[:upper:]' '[:lower:]')
+
+          # Check for skip keywords
+          if echo "$TITLE_LOWER" | grep -E "\b(wip|draft|skip[- ]review|no[- ]review|do not review|dnr)\b" > /dev/null; then
+            echo "Review should be skipped due to keyword in title: $PR_TITLE"
+            echo "skip=true" >> $GITHUB_OUTPUT
+          else
+            echo "Review will proceed"
+            echo "skip=false" >> $GITHUB_OUTPUT
+          fi
+
       - name: Check user authorization
+        if: steps.skip-check.outputs.skip != 'true'
         id: auth-check
         env:
           AUTHORIZED_USERS: ${{ secrets.CLAUDE_AUTHORIZED_USERS }}
@@ -54,13 +66,13 @@ jobs:
           fi
 
       - name: Checkout repository
-        if: steps.auth-check.outputs.authorized == 'true'
+        if: steps.skip-check.outputs.skip != 'true' && steps.auth-check.outputs.authorized == 'true'
         uses: actions/checkout@v4
         with:
           fetch-depth: 1
 
       - name: Run Claude Code Review
-        if: steps.auth-check.outputs.authorized == 'true'
+        if: steps.skip-check.outputs.skip != 'true' && steps.auth-check.outputs.authorized == 'true'
         id: claude-review
         uses: anthropics/claude-code-action@beta
         with:
@@ -68,76 +80,76 @@ jobs:
 
           # Use Claude Opus 4 for better code review quality
           model: claude-opus-4-20250514
-          
+
           # Direct prompt for automated review (no @claude mention needed)
           direct_prompt: |
             Please review this pull request and provide structured feedback using collapsible HTML sections for better organization.
-            
+
             Format your response using this template:
-            
+
             ## PR Review Summary
-            
+
             Brief 2-3 sentence overview of the PR and main findings.
-            
+
             <details>
             <summary>📋 <b>Code Quality & Best Practices</b></summary>
-            
+
             - Review code structure, naming conventions, and adherence to best practices
             - Check for code duplication and maintainability
             - Assess readability and documentation
-            
+
             </details>
-            
+
             <details>
             <summary>🐛 <b>Potential Bugs & Issues</b></summary>
-            
+
             - Identify any logical errors or edge cases
             - Check for null/undefined handling
             - Review error handling and validation
-            
+
             </details>
-            
+
             <details>
             <summary>⚡ <b>Performance Considerations</b></summary>
-            
+
             - Analyze algorithmic complexity
             - Check for unnecessary operations or memory usage
             - Suggest optimizations where applicable
-            
+
             </details>
-            
+
             <details>
             <summary>🔒 <b>Security Concerns</b></summary>
-            
+
             - Review for potential security vulnerabilities
             - Check input validation and sanitization
             - Assess authentication/authorization if applicable
-            
+
             </details>
-            
+
             <details>
             <summary>🧪 <b>Test Coverage</b></summary>
-            
+
             - Evaluate existing test coverage
             - Suggest additional test cases
             - Check for edge cases in tests
-            
+
             </details>
-            
+
             <details>
             <summary>💡 <b>Suggestions & Improvements</b></summary>
-            
+
             - Provide constructive suggestions for improvement
             - Recommend alternative approaches if applicable
             - Highlight particularly good practices
-            
+
             </details>
-            
+
             Be constructive and helpful in your feedback. Use checkboxes (- [ ]) for actionable items.
 
           # Use sticky comments to update the same review on subsequent pushes
           use_sticky_comment: true
-          
+
           # Optional: Customize review based on file types
           # direct_prompt: |
           #   Review this PR focusing on:
@@ -145,18 +157,13 @@ jobs:
           #   - For API endpoints: Security, input validation, and error handling
           #   - For React components: Performance, accessibility, and best practices
           #   - For tests: Coverage, edge cases, and test quality
-          
+
           # Optional: Different prompts for different authors
           # direct_prompt: |
-          #   ${{ github.event.pull_request.author_association == 'FIRST_TIME_CONTRIBUTOR' && 
+          #   ${{ github.event.pull_request.author_association == 'FIRST_TIME_CONTRIBUTOR' &&
           #   'Welcome! Please review this PR from a first-time contributor. Be encouraging and provide detailed explanations for any suggestions.' ||
           #   'Please provide a thorough code review focusing on our coding standards and best practices.' }}
-          
+
           # Optional: Add specific tools for running tests or linting
           # allowed_tools: "Bash(npm run test),Bash(npm run lint),Bash(npm run typecheck)"
-          
-          # Optional: Skip review for certain conditions
-          # if: |
-          #   !contains(github.event.pull_request.title, '[skip-review]') &&
-          #   !contains(github.event.pull_request.title, '[WIP]')
 

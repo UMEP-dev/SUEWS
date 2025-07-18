@@ -5,7 +5,9 @@ model:
     tstep: 300
     forcing_file:
       value: forcing/
-    output_file: output.txt
+    output_file:
+      format: "parquet"
+      freq: 3600
     diagnose: 0
   physics:
     netradiationmethod:

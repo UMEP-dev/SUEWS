@@ -66,7 +66,7 @@ class TestAtmosphericCalculations(TestCase):
         self.assertIsInstance(des_dta, pd.Series)
         self.assertEqual(len(des_dta), len(ta_series))
         self.assertTrue((des_dta > 0).all())  # All values should be positive
-        
+
         # Check that slope increases with temperature (Clausius-Clapeyron)
         self.assertTrue((des_dta.diff()[1:] > 0).all())
 
@@ -86,7 +86,9 @@ class TestAtmosphericCalculations(TestCase):
 
         # Convert to g/kg for display
         qa_g_kg = qa * 1000
-        print(f"✓ Specific humidity at {self.rh_pct}% RH, {self.ta_c}°C: {qa_g_kg:.2f} g/kg")
+        print(
+            f"✓ Specific humidity at {self.rh_pct}% RH, {self.ta_c}°C: {qa_g_kg:.2f} g/kg"
+        )
 
     def test_cal_dq(self):
         """Test specific humidity deficit calculation."""
@@ -98,12 +100,12 @@ class TestAtmosphericCalculations(TestCase):
         # Validate output
         self.assertIsInstance(dq, (float, np.floating))
         self.assertGreater(dq, 0)  # Should be positive for RH < 100%
-        
+
         # At 100% RH, deficit should be near zero
         dq_saturated = cal_dq(100.0, self.ta_c, self.pres_hpa)
         self.assertLess(abs(dq_saturated), 1e-6)
 
-        print(f"✓ Humidity deficit at {self.rh_pct}% RH: {dq*1000:.2f} g/kg")
+        print(f"✓ Humidity deficit at {self.rh_pct}% RH: {dq * 1000:.2f} g/kg")
 
     def test_cal_rh(self):
         """Test relative humidity calculation from specific humidity."""
@@ -122,7 +124,7 @@ class TestAtmosphericCalculations(TestCase):
 
         # Calculate qa first
         qa = cal_qa(self.rh_pct, self.ta_k, self.pres_hpa)
-        
+
         # Calculate latent heat
         lv = cal_lat_vap(qa, self.ta_k, self.pres_hpa)
 
@@ -132,7 +134,7 @@ class TestAtmosphericCalculations(TestCase):
         self.assertGreater(lv, 2.4e6)
         self.assertLess(lv, 2.6e6)
 
-        print(f"✓ Latent heat at {self.ta_c}°C: {lv/1e6:.3f} MJ/kg")
+        print(f"✓ Latent heat at {self.ta_c}°C: {lv / 1e6:.3f} MJ/kg")
 
     def test_cal_cp(self):
         """Test specific heat capacity calculation."""
@@ -141,7 +143,7 @@ class TestAtmosphericCalculations(TestCase):
 
         # Calculate qa first
         qa = cal_qa(self.rh_pct, self.ta_k, self.pres_hpa)
-        
+
         # Calculate specific heat
         cp = cal_cp(qa, self.ta_k, self.pres_hpa)
 
@@ -173,8 +175,8 @@ class TestAtmosphericCalculations(TestCase):
         self.assertGreater(qa_hot, qa_cold)  # Should be higher at hot temps
         self.assertLess(qa_hot, 0.05)
 
-        print(f"✓ qa at -20°C: {qa_cold*1000:.3f} g/kg")
-        print(f"✓ qa at +40°C: {qa_hot*1000:.3f} g/kg")
+        print(f"✓ qa at -20°C: {qa_cold * 1000:.3f} g/kg")
+        print(f"✓ qa at +40°C: {qa_hot * 1000:.3f} g/kg")
 
     def test_humidity_consistency(self):
         """Test consistency between humidity calculations."""
@@ -183,20 +185,20 @@ class TestAtmosphericCalculations(TestCase):
 
         # Calculate qa from RH
         qa = cal_qa(self.rh_pct, self.ta_k, self.pres_hpa)
-        
+
         # Calculate dq
         dq = cal_dq(self.rh_pct, self.ta_c, self.pres_hpa)
-        
+
         # Calculate saturated qa (at 100% RH)
         qa_sat = cal_qa(100.0, self.ta_k, self.pres_hpa)
-        
+
         # Check consistency: qa + dq ≈ qa_sat
         self.assertAlmostEqual(qa + dq, qa_sat, delta=1e-3)  # Relaxed tolerance
 
         print(f"✓ Humidity consistency check passed")
-        print(f"  qa = {qa*1000:.3f} g/kg")
-        print(f"  dq = {dq*1000:.3f} g/kg")
-        print(f"  qa_sat = {qa_sat*1000:.3f} g/kg")
+        print(f"  qa = {qa * 1000:.3f} g/kg")
+        print(f"  dq = {dq * 1000:.3f} g/kg")
+        print(f"  qa_sat = {qa_sat * 1000:.3f} g/kg")
 
 
 class TestAtmosphericEdgeCases(TestCase):
@@ -232,15 +234,15 @@ class TestAtmosphericEdgeCases(TestCase):
 
         # Sea level
         qa_sea = cal_qa(60.0, 293.15, 1013.25)
-        
+
         # High altitude (e.g., 3000m, ~700 hPa)
         qa_alt = cal_qa(60.0, 293.15, 700.0)
-        
+
         # qa should be different at different pressures
         self.assertNotAlmostEqual(qa_sea, qa_alt, delta=1e-5)
 
-        print(f"✓ qa at sea level: {qa_sea*1000:.3f} g/kg")
-        print(f"✓ qa at 3000m: {qa_alt*1000:.3f} g/kg")
+        print(f"✓ qa at sea level: {qa_sea * 1000:.3f} g/kg")
+        print(f"✓ qa at 3000m: {qa_alt * 1000:.3f} g/kg")
 
 
 if __name__ == "__main__":

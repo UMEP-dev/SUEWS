@@ -65,6 +65,7 @@ def read_forcing(path_suews_file: str, tstep_mod=300) -> pd.DataFrame:
     if tstep_mod is not None:
         if tstep_mod < tstep_met_in:
             from ._missing import to_nan, from_nan
+
             df_forcing = to_nan(df_forcing_raw)
             df_forcing = resample_forcing_met(
                 df_forcing, tstep_met_in, tstep_mod, kdownzen=0

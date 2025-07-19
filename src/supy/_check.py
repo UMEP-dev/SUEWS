@@ -52,6 +52,7 @@ def check_range(ser_to_check: pd.Series, rule_var: dict) -> Tuple:
 
     # if the parameter is optional and not set, it is accepted
     from .util import to_nan
+
     ser_to_check_nan = to_nan(ser_to_check)
     if flag_optional:
         ser_to_check_nan = ser_to_check_nan.dropna()

@@ -276,9 +276,7 @@ def load_SUEWS_nml(p_nml):
         parser = f90nml.Parser()
         parser.row_major = True
         df_nml = pd.DataFrame(parser.read(p_nml))
-        dict_nml_raw = {
-            name: row.dropna().values[0] for name, row in df_nml.iterrows()
-        }
+        dict_nml_raw = {name: row.dropna().values[0] for name, row in df_nml.iterrows()}
         dict_nml = {}
         for k, v in dict_nml_raw.items():
             # print(k, v, type(v))
@@ -622,6 +620,7 @@ def resample_forcing_met(
         )
 
     from .util import to_nan
+
     data_met_raw = data_met_raw.copy()
     data_met_raw = to_nan(data_met_raw)
     # this line is kept for occasional debugging:

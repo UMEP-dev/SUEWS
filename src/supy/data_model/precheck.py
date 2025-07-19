@@ -128,8 +128,8 @@ class DLSCheck(BaseModel):
 
         return start, end, utc_offset_hours
 
-def collect_yaml_differences(original: Any, updated: Any, path: str = "") -> List[dict]:
 
+def collect_yaml_differences(original: Any, updated: Any, path: str = "") -> List[dict]:
     """
     Recursively compare two YAML data structures and collect all differences.
 
@@ -195,10 +195,11 @@ def collect_yaml_differences(original: Any, updated: Any, path: str = "") -> Lis
                 "parameter": param_name,
                 "old_value": original,
                 "new_value": updated,
-                "reason": "Updated by precheck"
+                "reason": "Updated by precheck",
             })
 
     return diffs
+
 
 def save_precheck_diff_report(diffs: List[dict], original_yaml_path: str):
     """
@@ -231,7 +232,10 @@ def save_precheck_diff_report(diffs: List[dict], original_yaml_path: str):
     report_path = os.path.join(os.path.dirname(original_yaml_path), report_filename)
 
     with open(report_path, "w", newline="") as csvfile:
-        writer = csv.DictWriter(csvfile, fieldnames=["site", "parameter", "old_value", "new_value", "reason"])
+        writer = csv.DictWriter(
+            csvfile,
+            fieldnames=["site", "parameter", "old_value", "new_value", "reason"],
+        )
         writer.writeheader()
         for row in diffs:
             for key in ["old_value", "new_value"]:
@@ -241,8 +245,8 @@ def save_precheck_diff_report(diffs: List[dict], original_yaml_path: str):
 
     logger_supy.info(f"Precheck difference report saved to: {report_path}")
 
-def get_monthly_avg_temp(lat: float, month: int) -> float:
 
+def get_monthly_avg_temp(lat: float, month: int) -> float:
     """
     Estimate the average air temperature for a given latitude and month.
 
@@ -279,16 +283,68 @@ def get_monthly_avg_temp(lat: float, month: int) -> float:
         lat_band = "polar"
 
     monthly_temp = {
-        "tropics": [26.0, 26.5, 27.0, 27.5, 28.0, 28.5, 28.0, 27.5, 27.0, 26.5, 26.0, 25.5],
-        "subtropics": [15.0, 16.0, 18.0, 20.0, 24.0, 28.0, 30.0, 29.0, 26.0, 22.0, 18.0, 15.0],
-        "midlatitudes": [5.0, 6.0, 9.0, 12.0, 17.0, 21.0, 23.0, 22.0, 19.0, 14.0, 9.0, 6.0],
-        "polar": [-15.0, -13.0, -10.0, -5.0, 0.0, 5.0, 8.0, 7.0, 3.0, -2.0, -8.0, -12.0],
+        "tropics": [
+            26.0,
+            26.5,
+            27.0,
+            27.5,
+            28.0,
+            28.5,
+            28.0,
+            27.5,
+            27.0,
+            26.5,
+            26.0,
+            25.5,
+        ],
+        "subtropics": [
+            15.0,
+            16.0,
+            18.0,
+            20.0,
+            24.0,
+            28.0,
+            30.0,
+            29.0,
+            26.0,
+            22.0,
+            18.0,
+            15.0,
+        ],
+        "midlatitudes": [
+            5.0,
+            6.0,
+            9.0,
+            12.0,
+            17.0,
+            21.0,
+            23.0,
+            22.0,
+            19.0,
+            14.0,
+            9.0,
+            6.0,
+        ],
+        "polar": [
+            -15.0,
+            -13.0,
+            -10.0,
+            -5.0,
+            0.0,
+            5.0,
+            8.0,
+            7.0,
+            3.0,
+            -2.0,
+            -8.0,
+            -12.0,
+        ],
     }
 
     return monthly_temp[lat_band][month - 1]
 
-def precheck_printing(data: dict) -> dict:
 
+def precheck_printing(data: dict) -> dict:
     """
     Log the start of the precheck process.
 
@@ -305,8 +361,8 @@ def precheck_printing(data: dict) -> dict:
     logger_supy.info("Running basic precheck...")
     return data
 
-def precheck_start_end_date(data: dict) -> Tuple[dict, int, str, str]:
 
+def precheck_start_end_date(data: dict) -> Tuple[dict, int, str, str]:
     """
     Extract model year, start date, and end date from YAML dict.
 
@@ -352,8 +408,8 @@ def precheck_start_end_date(data: dict) -> Tuple[dict, int, str, str]:
 
     return data, model_year, start_date, end_date
 
-def precheck_model_physics_params(data: dict) -> dict:
 
+def precheck_model_physics_params(data: dict) -> dict:
     """
     Validate presence and non-emptiness of required model physics parameters.
 
@@ -421,8 +477,8 @@ def precheck_model_physics_params(data: dict) -> dict:
     logger_supy.debug("All model.physics required params present and non-empty.")
     return data
 
-def precheck_model_options_constraints(data: dict) -> dict:
 
+def precheck_model_options_constraints(data: dict) -> dict:
     """
     Enforce internal consistency between model physics options.
 
@@ -453,8 +509,8 @@ def precheck_model_options_constraints(data: dict) -> dict:
     logger_supy.debug("rslmethod-stabilitymethod constraint passed.")
     return data
 
-def precheck_replace_empty_strings_with_none(data: dict) -> dict:
 
+def precheck_replace_empty_strings_with_none(data: dict) -> dict:
     """
     Replace empty string values with None across the entire YAML dictionary,
     except for parameters inside 'model.control' and 'model.physics'.
@@ -497,10 +553,10 @@ def precheck_replace_empty_strings_with_none(data: dict) -> dict:
     )
     return cleaned
 
+
 def precheck_site_season_adjustments(
     data: dict, start_date: str, model_year: int
 ) -> dict:
-    
     """
     Adjust site-specific parameters based on season and geographic location.
 
@@ -617,8 +673,8 @@ def precheck_site_season_adjustments(
     data["sites"] = cleaned_sites
     return data
 
-def precheck_update_surface_temperature(data: dict, start_date: str) -> dict:
 
+def precheck_update_surface_temperature(data: dict, start_date: str) -> dict:
     """
     Set initial surface temperatures for all surface types based on latitude and start month.
 
@@ -645,15 +701,27 @@ def precheck_update_surface_temperature(data: dict, start_date: str) -> dict:
         lat_entry = props.get("lat", {})
         lat = lat_entry.get("value") if isinstance(lat_entry, dict) else lat_entry
         if lat is None:
-            logger_supy.warning(f"[site #{site_idx}] Latitude missing, skipping surface temperature update.")
+            logger_supy.warning(
+                f"[site #{site_idx}] Latitude missing, skipping surface temperature update."
+            )
             continue
 
         # Get estimated average temperature
         avg_temp = get_monthly_avg_temp(lat, month)
-        logger_supy.info(f"[site #{site_idx}] Setting surface temperatures to {avg_temp} °C for month {month} (lat={lat})")
+        logger_supy.info(
+            f"[site #{site_idx}] Setting surface temperatures to {avg_temp} °C for month {month} (lat={lat})"
+        )
 
         # Loop over all surface types
-        for surface_type in ["paved", "bldgs", "evetr", "dectr", "grass", "bsoil", "water"]:
+        for surface_type in [
+            "paved",
+            "bldgs",
+            "evetr",
+            "dectr",
+            "grass",
+            "bsoil",
+            "water",
+        ]:
             surf = initial_states.get(surface_type, {})
             if not isinstance(surf, dict):
                 continue
@@ -678,8 +746,8 @@ def precheck_update_surface_temperature(data: dict, start_date: str) -> dict:
 
     return data
 
-def precheck_land_cover_fractions(data: dict) -> dict:
 
+def precheck_land_cover_fractions(data: dict) -> dict:
     """
     Validate and adjust land cover surface fractions (`sfr`) for each site.
 
@@ -755,8 +823,8 @@ def precheck_land_cover_fractions(data: dict) -> dict:
 
     return data
 
-def precheck_nullify_zero_sfr_params(data: dict) -> dict:
 
+def precheck_nullify_zero_sfr_params(data: dict) -> dict:
     """
     Nullify all land cover parameters for surface types with zero surface fraction (sfr == 0).
 
@@ -805,6 +873,7 @@ def precheck_nullify_zero_sfr_params(data: dict) -> dict:
                         recursive_nullify(param_val)
     return data
 
+
 def precheck_warn_zero_sfr_params(data: dict) -> dict:
     """
     Log an informational warning listing all land cover parameters that were not prechecked for surfaces with zero surface fraction (sfr == 0).
@@ -851,6 +920,7 @@ def precheck_warn_zero_sfr_params(data: dict) -> dict:
                     )
 
     return data
+
 
 def precheck_nonzero_sfr_requires_nonnull_params(data: dict) -> dict:
     """
@@ -912,6 +982,7 @@ def precheck_nonzero_sfr_requires_nonnull_params(data: dict) -> dict:
         "[precheck] Nonzero sfr parameters validated (all required fields are set)."
     )
     return data
+
 
 # def precheck_model_option_rules(data: dict) -> dict:
 #     """
@@ -1009,6 +1080,7 @@ def precheck_nonzero_sfr_requires_nonnull_params(data: dict) -> dict:
 #     logger_supy.info("[precheck] Model-option-based rules completed.")
 #     return data
 
+
 def precheck_model_option_rules(data: dict) -> dict:
     """
     If a method is switched off, recursively nullify all site-level methods parameters.
@@ -1024,7 +1096,9 @@ def precheck_model_option_rules(data: dict) -> dict:
     # --- STEBBSMETHOD RULE: when stebbsmethod == 0, wipe out all stebbs params ---
     stebbsmethod = physics.get("stebbsmethod", {}).get("value")
     if stebbsmethod == 0:
-        logger_supy.info("[precheck] stebbsmethod==0 detected → nullifying all 'stebbs' values.")
+        logger_supy.info(
+            "[precheck] stebbsmethod==0 detected → nullifying all 'stebbs' values."
+        )
         for site_idx, site in enumerate(data.get("sites", [])):
             props = site.get("properties", {})
             stebbs_block = props.get("stebbs", {})
@@ -1043,8 +1117,8 @@ def precheck_model_option_rules(data: dict) -> dict:
     logger_supy.info("[precheck] STEBBS nullification complete.")
     return data
 
-def run_precheck(path: str) -> dict:
 
+def run_precheck(path: str) -> dict:
     """
     Perform full preprocessing (precheck) on a YAML configuration file.
 
@@ -1108,7 +1182,7 @@ def run_precheck(path: str) -> dict:
     data = precheck_update_surface_temperature(data, start_date=start_date)
 
     # ---- Step 8: Nullify params for surfaces with sfr == 0 ----
-    #data = precheck_nullify_zero_sfr_params(data)
+    # data = precheck_nullify_zero_sfr_params(data)
 
     # ---- Step 8: Print warnings for params related to surfaces with sfr == 0 ----
     data = precheck_warn_zero_sfr_params(data)

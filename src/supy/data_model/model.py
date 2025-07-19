@@ -659,42 +659,45 @@ class ModelPhysics(BaseModel):
 
 
 class OutputFormat(Enum):
-    '''
+    """
     Output file format options.
-    
+
     TXT: Traditional text files (one per year/grid/group)
     PARQUET: Single Parquet file containing all output data (efficient columnar format)
-    '''
+    """
+
     TXT = "txt"
     PARQUET = "parquet"
-    
+
     def __str__(self):
         return self.value
 
 
 class OutputConfig(BaseModel):
-    '''Configuration for model output files.'''
-    
+    """Configuration for model output files."""
+
     format: OutputFormat = Field(
         default=OutputFormat.TXT,
-        description="Output file format. Options: 'txt' for traditional text files (one per year/grid/group), 'parquet' for single Parquet file containing all data"
+        description="Output file format. Options: 'txt' for traditional text files (one per year/grid/group), 'parquet' for single Parquet file containing all data",
     )
     freq: Optional[int] = Field(
         default=None,
-        description="Output frequency in seconds. Must be a multiple of the model timestep (tstep). If not specified, defaults to 3600 (hourly)"
+        description="Output frequency in seconds. Must be a multiple of the model timestep (tstep). If not specified, defaults to 3600 (hourly)",
     )
     groups: Optional[List[str]] = Field(
         default=None,
-        description="List of output groups to save (only applies to txt format). Available groups: 'SUEWS', 'DailyState', 'snow', 'ESTM', 'RSL', 'BL', 'debug'. If not specified, defaults to ['SUEWS', 'DailyState']"
+        description="List of output groups to save (only applies to txt format). Available groups: 'SUEWS', 'DailyState', 'snow', 'ESTM', 'RSL', 'BL', 'debug'. If not specified, defaults to ['SUEWS', 'DailyState']",
     )
-    
-    @field_validator('groups')
+
+    @field_validator("groups")
     def validate_groups(cls, v):
         if v is not None:
-            valid_groups = {'SUEWS', 'DailyState', 'snow', 'ESTM', 'RSL', 'BL', 'debug'}
+            valid_groups = {"SUEWS", "DailyState", "snow", "ESTM", "RSL", "BL", "debug"}
             invalid = set(v) - valid_groups
             if invalid:
-                raise ValueError(f"Invalid output groups: {invalid}. Valid groups are: {valid_groups}")
+                raise ValueError(
+                    f"Invalid output groups: {invalid}. Valid groups are: {valid_groups}"
+                )
         return v
 
 
@@ -712,8 +715,8 @@ class ModelControl(BaseModel):
         json_schema_extra={"internal_only": True},
     )
     output_file: Union[str, OutputConfig] = Field(
-        default="output.txt", 
-        description="Output file configuration. DEPRECATED: String values are ignored and will issue a warning. Please use an OutputConfig object specifying format ('txt' or 'parquet'), frequency (seconds, must be multiple of tstep), and groups to save (for txt format only). Example: {'format': 'parquet', 'freq': 3600} or {'format': 'txt', 'freq': 1800, 'groups': ['SUEWS', 'DailyState', 'ESTM']}. For detailed information about output variables and file structure, see :ref:`output_files`."
+        default="output.txt",
+        description="Output file configuration. DEPRECATED: String values are ignored and will issue a warning. Please use an OutputConfig object specifying format ('txt' or 'parquet'), frequency (seconds, must be multiple of tstep), and groups to save (for txt format only). Example: {'format': 'parquet', 'freq': 3600} or {'format': 'txt', 'freq': 1800, 'groups': ['SUEWS', 'DailyState', 'ESTM']}. For detailed information about output variables and file structure, see :ref:`output_files`.",
     )
     # daylightsaving_method: int
     diagnose: int = Field(
@@ -802,7 +805,7 @@ class Model(BaseModel):
                 # TODO: This is a temporary solution. We need to provide a better way to catch this.
             )
         return self
-    
+
     @model_validator(mode="after")
     def validate_output_config(self) -> "Model":
         """Validate output configuration, especially frequency vs timestep."""
@@ -814,15 +817,19 @@ class Model(BaseModel):
                     raise ValueError(
                         f"Output frequency ({output_config.freq}s) must be a multiple of timestep ({tstep}s)"
                     )
-        elif isinstance(self.control.output_file, str) and self.control.output_file != "output.txt":
+        elif (
+            isinstance(self.control.output_file, str)
+            and self.control.output_file != "output.txt"
+        ):
             # Issue warning for non-default string values
             import warnings
+
             warnings.warn(
                 f"The 'output_file' parameter with value '{self.control.output_file}' is deprecated and was never used. "
                 "Please use the new OutputConfig format or remove this parameter. "
                 "Example: output_file: {format: 'parquet', freq: 3600}",
                 DeprecationWarning,
-                stacklevel=3
+                stacklevel=3,
             )
         return self
 

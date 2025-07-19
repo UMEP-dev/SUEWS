@@ -3,11 +3,13 @@ from types import SimpleNamespace
 
 from supy.data_model.core import SUEWSConfig
 
+
 # A tiny “site” stub that only carries exactly the properties our validators look at
 class DummySite:
     def __init__(self, properties, name="SiteX"):
         self.properties = properties
         self.name = name
+
 
 # Helper to construct a SUEWSConfig without running Pydantic on sites,
 # then inject the desired physics settings.
@@ -20,11 +22,13 @@ def make_cfg(**physics_kwargs):
     cfg.model = SimpleNamespace(physics=phys)
     return cfg
 
+
 def test_needs_stebbs_validation_true_and_false():
     cfg = make_cfg(stebbsmethod=1)
     assert cfg._needs_stebbs_validation() is True
     cfg2 = make_cfg(stebbsmethod=0)
     assert cfg2._needs_stebbs_validation() is False
+
 
 def test_validate_stebbs_missing_properties_block():
     cfg = make_cfg(stebbsmethod=1)
@@ -32,12 +36,14 @@ def test_validate_stebbs_missing_properties_block():
     msgs = SUEWSConfig._validate_stebbs(cfg, site, site_index=0)
     assert msgs == ["Missing 'properties' section (required for STEBBS validation)"]
 
+
 def test_validate_stebbs_missing_stebbs_section():
     cfg = make_cfg(stebbsmethod=1)
     props = SimpleNamespace(stebbs=None)
     site = DummySite(properties=props, name="MySite")
     msgs = SUEWSConfig._validate_stebbs(cfg, site, site_index=0)
     assert msgs == ["Missing 'stebbs' section (required when stebbsmethod=1)"]
+
 
 def test_validate_stebbs_missing_parameters():
     cfg = make_cfg(stebbsmethod=1)
@@ -48,11 +54,13 @@ def test_validate_stebbs_missing_parameters():
     # Should mention at least one of the required params
     assert msgs and msgs[0].startswith("Missing required STEBBS parameters:")
 
+
 def test_needs_rsl_validation_true_and_false():
     cfg = make_cfg(rslmethod=2)
     assert cfg._needs_rsl_validation() is True
     cfg2 = make_cfg(rslmethod=1)
     assert cfg2._needs_rsl_validation() is False
+
 
 def test_validate_rsl_no_land_cover_or_sfr():
     cfg = make_cfg(rslmethod=2)
@@ -61,6 +69,7 @@ def test_validate_rsl_no_land_cover_or_sfr():
     # land_cover without bldgs
     site2 = DummySite(properties=SimpleNamespace(land_cover=None))
     assert SUEWSConfig._validate_rsl(cfg, site2, 0) == []
+
 
 def test_validate_rsl_requires_faibldg():
     cfg = make_cfg(rslmethod=2)
@@ -73,11 +82,13 @@ def test_validate_rsl_requires_faibldg():
     assert "bldgs.faibldg must be set" in msgs[0]
     assert "SiteR" in msgs[0]
 
+
 def test_needs_storage_validation_true_and_false():
     cfg = make_cfg(storageheatmethod=6)
     assert cfg._needs_storage_validation() is True
     cfg2 = make_cfg(storageheatmethod=1)
     assert cfg2._needs_storage_validation() is False
+
 
 def test_validate_storage_requires_numeric_and_lambda():
     cfg = make_cfg(storageheatmethod=6)
@@ -90,7 +101,7 @@ def test_validate_storage_requires_numeric_and_lambda():
     wall = SimpleNamespace(thermal_layers=th)
     props = SimpleNamespace(
         vertical_layers=SimpleNamespace(walls=[wall]),
-        lambda_c=None  # missing
+        lambda_c=None,  # missing
     )
     site = DummySite(properties=props, name="SiteS")
     msgs = SUEWSConfig._validate_storage(cfg, site, 2)
@@ -116,7 +127,7 @@ def test_validate_lai_ranges_no_vegetation():
     # land_cover with no vegetation surfaces
     lc = SimpleNamespace(
         paved=SimpleNamespace(sfr=SimpleNamespace(value=0.5)),
-        bldgs=SimpleNamespace(sfr=SimpleNamespace(value=0.5))
+        bldgs=SimpleNamespace(sfr=SimpleNamespace(value=0.5)),
     )
     has_issues = cfg._check_lai_ranges(lc, "TestSite")
     assert has_issues is False
@@ -127,18 +138,19 @@ def test_validate_lai_ranges_invalid_laimin_laimax():
     cfg = SUEWSConfig.model_construct()
     # Create vegetation surface with invalid LAI range
     lai = SimpleNamespace(
-        laimin=SimpleNamespace(value=5.0),
-        laimax=SimpleNamespace(value=3.0)
+        laimin=SimpleNamespace(value=5.0), laimax=SimpleNamespace(value=3.0)
     )
     grass = SimpleNamespace(lai=lai)
     lc = SimpleNamespace(grass=grass)
-    
+
     has_issues = cfg._check_lai_ranges(lc, "TestSite")
     assert has_issues is True
     assert cfg._validation_summary["total_warnings"] >= 1
     assert "LAI range validation" in cfg._validation_summary["issue_types"]
-    assert any("laimin (5.0) must be ≤ laimax (3.0)" in msg 
-              for msg in cfg._validation_summary["detailed_messages"])
+    assert any(
+        "laimin (5.0) must be ≤ laimax (3.0)" in msg
+        for msg in cfg._validation_summary["detailed_messages"]
+    )
 
 
 def test_validate_lai_ranges_invalid_baset_gddfull():
@@ -149,17 +161,19 @@ def test_validate_lai_ranges_invalid_baset_gddfull():
         laimin=SimpleNamespace(value=1.0),
         laimax=SimpleNamespace(value=5.0),
         baset=SimpleNamespace(value=15.0),
-        gddfull=SimpleNamespace(value=10.0)
+        gddfull=SimpleNamespace(value=10.0),
     )
     dectr = SimpleNamespace(lai=lai)
     lc = SimpleNamespace(dectr=dectr)
-    
+
     has_issues = cfg._check_lai_ranges(lc, "TestSite")
     assert has_issues is True
     assert cfg._validation_summary["total_warnings"] >= 1
     assert "LAI range validation" in cfg._validation_summary["issue_types"]
-    assert any("baset (15.0) must be ≤ gddfull (10.0)" in msg 
-              for msg in cfg._validation_summary["detailed_messages"])
+    assert any(
+        "baset (15.0) must be ≤ gddfull (10.0)" in msg
+        for msg in cfg._validation_summary["detailed_messages"]
+    )
 
 
 def test_validate_lai_ranges_multiple_vegetation_surfaces():
@@ -167,20 +181,19 @@ def test_validate_lai_ranges_multiple_vegetation_surfaces():
     cfg = SUEWSConfig.model_construct()
     # Create multiple vegetation surfaces with invalid LAI ranges
     lai_invalid = SimpleNamespace(
-        laimin=SimpleNamespace(value=5.0),
-        laimax=SimpleNamespace(value=3.0)
+        laimin=SimpleNamespace(value=5.0), laimax=SimpleNamespace(value=3.0)
     )
-    
+
     grass = SimpleNamespace(lai=lai_invalid)
     dectr = SimpleNamespace(lai=lai_invalid)
     evetr = SimpleNamespace(lai=lai_invalid)
-    
+
     lc = SimpleNamespace(grass=grass, dectr=dectr, evetr=evetr)
-    
+
     has_issues = cfg._check_lai_ranges(lc, "TestSite")
     assert has_issues is True
     assert cfg._validation_summary["total_warnings"] >= 3
-    
+
     # Check that all surfaces were validated
     messages = cfg._validation_summary["detailed_messages"]
     assert any("grass" in msg for msg in messages)
@@ -196,11 +209,11 @@ def test_validate_lai_ranges_valid_ranges():
         laimin=SimpleNamespace(value=1.0),
         laimax=SimpleNamespace(value=5.0),
         baset=SimpleNamespace(value=5.0),
-        gddfull=SimpleNamespace(value=200.0)
+        gddfull=SimpleNamespace(value=200.0),
     )
     grass = SimpleNamespace(lai=lai)
     lc = SimpleNamespace(grass=grass)
-    
+
     has_issues = cfg._check_lai_ranges(lc, "TestSite")
     assert has_issues is False
     assert cfg._validation_summary["total_warnings"] == 0
@@ -212,7 +225,7 @@ def test_validate_lai_ranges_missing_lai_graceful():
     # Create vegetation surface without LAI
     grass = SimpleNamespace()  # No lai attribute
     lc = SimpleNamespace(grass=grass)
-    
+
     has_issues = cfg._check_lai_ranges(lc, "TestSite")
     assert has_issues is False
 
@@ -221,15 +234,10 @@ def test_validate_lai_ranges_none_values():
     """Test LAI validation handles None values gracefully."""
     cfg = SUEWSConfig.model_construct()
     # Create vegetation surface with None LAI values
-    lai = SimpleNamespace(
-        laimin=None,
-        laimax=None,
-        baset=None,
-        gddfull=None
-    )
+    lai = SimpleNamespace(laimin=None, laimax=None, baset=None, gddfull=None)
     grass = SimpleNamespace(lai=lai)
     lc = SimpleNamespace(grass=grass)
-    
+
     has_issues = cfg._check_lai_ranges(lc, "TestSite")
     assert has_issues is False
 
@@ -252,9 +260,9 @@ def test_validate_land_cover_fractions_sum_to_one():
         dectr=SimpleNamespace(sfr=SimpleNamespace(value=0.1)),
         evetr=SimpleNamespace(sfr=SimpleNamespace(value=0.0)),
         bsoil=SimpleNamespace(sfr=SimpleNamespace(value=0.0)),
-        water=SimpleNamespace(sfr=SimpleNamespace(value=0.0))
+        water=SimpleNamespace(sfr=SimpleNamespace(value=0.0)),
     )
-    
+
     has_issues = cfg._check_land_cover_fractions(lc, "TestSite")
     assert has_issues is False
     assert cfg._validation_summary["total_warnings"] == 0
@@ -271,15 +279,17 @@ def test_validate_land_cover_fractions_sum_too_high():
         dectr=SimpleNamespace(sfr=SimpleNamespace(value=0.1)),
         evetr=SimpleNamespace(sfr=SimpleNamespace(value=0.0)),
         bsoil=SimpleNamespace(sfr=SimpleNamespace(value=0.0)),
-        water=SimpleNamespace(sfr=SimpleNamespace(value=0.0))
+        water=SimpleNamespace(sfr=SimpleNamespace(value=0.0)),
     )
-    
+
     has_issues = cfg._check_land_cover_fractions(lc, "TestSite")
     assert has_issues is True
     assert cfg._validation_summary["total_warnings"] >= 1
     assert "Land cover fraction validation" in cfg._validation_summary["issue_types"]
-    assert any("must sum to 1.0 (got 1.400000)" in msg 
-              for msg in cfg._validation_summary["detailed_messages"])
+    assert any(
+        "must sum to 1.0 (got 1.400000)" in msg
+        for msg in cfg._validation_summary["detailed_messages"]
+    )
 
 
 def test_validate_land_cover_fractions_sum_too_low():
@@ -293,15 +303,17 @@ def test_validate_land_cover_fractions_sum_too_low():
         dectr=SimpleNamespace(sfr=SimpleNamespace(value=0.0)),
         evetr=SimpleNamespace(sfr=SimpleNamespace(value=0.0)),
         bsoil=SimpleNamespace(sfr=SimpleNamespace(value=0.0)),
-        water=SimpleNamespace(sfr=SimpleNamespace(value=0.0))
+        water=SimpleNamespace(sfr=SimpleNamespace(value=0.0)),
     )
-    
+
     has_issues = cfg._check_land_cover_fractions(lc, "TestSite")
     assert has_issues is True
     assert cfg._validation_summary["total_warnings"] >= 1
     assert "Land cover fraction validation" in cfg._validation_summary["issue_types"]
-    assert any("must sum to 1.0 (got 0.600000)" in msg 
-              for msg in cfg._validation_summary["detailed_messages"])
+    assert any(
+        "must sum to 1.0 (got 0.600000)" in msg
+        for msg in cfg._validation_summary["detailed_messages"]
+    )
 
 
 def test_validate_land_cover_fractions_handles_missing_surfaces():
@@ -310,12 +322,14 @@ def test_validate_land_cover_fractions_handles_missing_surfaces():
     # Create land cover with only some surface types
     lc = SimpleNamespace(
         paved=SimpleNamespace(sfr=SimpleNamespace(value=0.5)),
-        bldgs=SimpleNamespace(sfr=SimpleNamespace(value=0.5))
+        bldgs=SimpleNamespace(sfr=SimpleNamespace(value=0.5)),
         # Missing other surface types
     )
-    
+
     has_issues = cfg._check_land_cover_fractions(lc, "TestSite")
-    assert has_issues is False  # Sum is 1.0 (0.5 + 0.5 + 0.0 + 0.0 + 0.0 + 0.0 + 0.0 = 1.0)
+    assert (
+        has_issues is False
+    )  # Sum is 1.0 (0.5 + 0.5 + 0.0 + 0.0 + 0.0 + 0.0 + 0.0 = 1.0)
 
 
 def test_validate_land_cover_fractions_handles_none_values():
@@ -329,11 +343,13 @@ def test_validate_land_cover_fractions_handles_none_values():
         dectr=SimpleNamespace(sfr=SimpleNamespace(value=0.0)),
         evetr=SimpleNamespace(sfr=SimpleNamespace(value=0.0)),
         bsoil=SimpleNamespace(sfr=SimpleNamespace(value=0.0)),
-        water=SimpleNamespace(sfr=SimpleNamespace(value=0.0))
+        water=SimpleNamespace(sfr=SimpleNamespace(value=0.0)),
     )
-    
+
     has_issues = cfg._check_land_cover_fractions(lc, "TestSite")
-    assert has_issues is False  # Sum is 1.0 (0.0 + 1.0 + 0.0 + 0.0 + 0.0 + 0.0 + 0.0 = 1.0)
+    assert (
+        has_issues is False
+    )  # Sum is 1.0 (0.0 + 1.0 + 0.0 + 0.0 + 0.0 + 0.0 + 0.0 = 1.0)
 
 
 def test_validate_land_cover_fractions_handles_direct_values():
@@ -347,9 +363,9 @@ def test_validate_land_cover_fractions_handles_direct_values():
         dectr=SimpleNamespace(sfr=0.1),  # Direct value
         evetr=SimpleNamespace(sfr=0.0),
         bsoil=SimpleNamespace(sfr=0.0),
-        water=SimpleNamespace(sfr=0.0)
+        water=SimpleNamespace(sfr=0.0),
     )
-    
+
     has_issues = cfg._check_land_cover_fractions(lc, "TestSite")
     assert has_issues is False  # Sum is 1.0
 
@@ -365,12 +381,12 @@ def test_validate_land_cover_fractions_detailed_message():
         dectr=SimpleNamespace(sfr=SimpleNamespace(value=0.1)),
         evetr=SimpleNamespace(sfr=SimpleNamespace(value=0.1)),
         bsoil=SimpleNamespace(sfr=SimpleNamespace(value=0.1)),
-        water=SimpleNamespace(sfr=SimpleNamespace(value=0.05))
+        water=SimpleNamespace(sfr=SimpleNamespace(value=0.05)),
     )
-    
+
     has_issues = cfg._check_land_cover_fractions(lc, "TestSite")
     assert has_issues is True
-    
+
     # Check detailed message contains all surface types
     messages = cfg._validation_summary["detailed_messages"]
     assert len(messages) >= 1
@@ -382,17 +398,14 @@ def test_validate_land_cover_fractions_detailed_message():
     assert "got 0.950000" in message  # Sum is 0.95
 
 
-
-
-
 # """
 # Test cases for conditional validation system in SUEWS.
 
 # ===============================================================================
 # IMPORTANT NOTE FOR SILVIA (Issue #400):
 # ===============================================================================
-# These tests have been temporarily disabled because they expect the old 
-# component-level validation approach. They need to be updated for the new 
+# These tests have been temporarily disabled because they expect the old
+# component-level validation approach. They need to be updated for the new
 # top-down validation system.
 
 # Key changes needed:
@@ -462,7 +475,7 @@ def test_validate_land_cover_fractions_detailed_message():
 #             "timezone": {"value": 0}
 #         }
 #     }])
-    
+
 #     # Test validation method exists
 #     assert hasattr(config, 'run_conditional_validation')
 #     # Test it can be called
@@ -490,12 +503,12 @@ def test_validate_land_cover_fractions_detailed_message():
 #         }]
 #     )
 #     assert config1.model.physics.rslmethod.value == RSLMethod.CONSTANT
-    
+
 #     # Test with VARIABLE
 #     config2 = SUEWSConfig(
 #         model={"physics": {"rslmethod": {"value": RSLMethod.VARIABLE}}},
 #         sites=[{
-#             "gridiv": 1, 
+#             "gridiv": 1,
 #             "properties": {
 #                 "lat": {"value": 51.5},
 #                 "lng": {"value": -0.1},
@@ -521,11 +534,11 @@ def test_validate_land_cover_fractions_detailed_message():
 #       alt: {value: 10.0}
 #       timezone: {value: 0}
 # """
-    
+
 #     with tempfile.NamedTemporaryFile(mode='w', suffix='.yml', delete=False) as f:
 #         f.write(yaml_content)
 #         temp_path = f.name
-    
+
 #     try:
 #         config = SUEWSConfig.from_yaml(temp_path)
 #         assert config.model.physics.rslmethod.value == RSLMethod.CONSTANT
@@ -550,23 +563,23 @@ def test_validate_land_cover_fractions_detailed_message():
 #       timezone: {value: 0}
 #       # Missing variable roughness parameters
 # """
-    
+
 #     with tempfile.NamedTemporaryFile(mode='w', suffix='.yml', delete=False) as f:
 #         f.write(yaml_content)
 #         temp_path = f.name
-    
+
 #     try:
 #         with warnings.catch_warnings(record=True) as w:
 #             warnings.simplefilter("always")
 #             config = SUEWSConfig.from_yaml(temp_path)
-            
+
 #             # Run validation
 #             result = config.run_conditional_validation()
-            
+
 #             # Should have validation errors for missing variable roughness params
 #             assert not result.success
 #             assert len(result.errors) > 0
-            
+
 #             # Check for specific missing parameters
 #             error_msgs = [e.message for e in result.errors]
 #             assert any("variable roughness" in msg.lower() for msg in error_msgs)
@@ -583,19 +596,19 @@ def test_validate_land_cover_fractions_detailed_message():
 #             "gridiv": 1,
 #             "properties": {
 #                 "lat": {"value": 51.5},
-#                 "lng": {"value": -0.1}, 
+#                 "lng": {"value": -0.1},
 #                 "alt": {"value": 10.0},
 #                 "timezone": {"value": 0}
 #                 # Missing variable roughness parameters
 #             }
 #         }]
 #     )
-    
+
 #     # Should be able to run validation
 #     result = config.run_conditional_validation()
 #     assert hasattr(result, 'success')
 #     assert hasattr(result, 'errors')
-    
+
 #     # Should fail due to missing parameters
 #     assert not result.success
 
@@ -619,15 +632,15 @@ def test_validate_land_cover_fractions_detailed_message():
 #           sfr: {value: 0.5}
 #           # Missing thermal_layers
 # """
-    
+
 #     with tempfile.NamedTemporaryFile(mode='w', suffix='.yml', delete=False) as f:
 #         f.write(yaml_content)
 #         temp_path = f.name
-    
+
 #     try:
 #         config = SUEWSConfig.from_yaml(temp_path)
 #         result = config.run_conditional_validation()
-        
+
 #         # Should fail due to missing thermal parameters
 #         assert not result.success
 #         assert any("thermal" in e.message.lower() for e in result.errors)
@@ -651,15 +664,15 @@ def test_validate_land_cover_fractions_detailed_message():
 #       timezone: {value: 0}
 #       # Missing SPARTACUS parameters
 # """
-    
+
 #     with tempfile.NamedTemporaryFile(mode='w', suffix='.yml', delete=False) as f:
 #         f.write(yaml_content)
 #         temp_path = f.name
-    
+
 #     try:
 #         config = SUEWSConfig.from_yaml(temp_path)
 #         result = config.run_conditional_validation()
-        
+
 #         # Should fail due to missing SPARTACUS parameters
 #         assert not result.success
 #         assert any("spartacus" in e.message.lower() for e in result.errors)
@@ -676,7 +689,7 @@ def test_validate_land_cover_fractions_detailed_message():
 #         (RSLMethod.CONSTANT, RoughnessMethod.FIXED, 4, 1, False),  # ESTM without thermal
 #         (RSLMethod.CONSTANT, RoughnessMethod.FIXED, 1, 1003, False),  # SPARTACUS without params
 #     ]
-    
+
 #     for rsl, rough, storage, netrad, should_pass in test_cases:
 #         config = SUEWSConfig(
 #             model={
@@ -697,7 +710,7 @@ def test_validate_land_cover_fractions_detailed_message():
 #                 }
 #             }]
 #         )
-        
+
 #         result = config.run_conditional_validation()
 #         assert result.success == should_pass, (
 #             f"Test case failed: RSL={rsl}, Rough={rough}, Storage={storage}, "
@@ -727,13 +740,13 @@ def test_validate_land_cover_fractions_detailed_message():
 #             }
 #         }]
 #     )
-    
+
 #     result = config.run_conditional_validation()
-    
+
 #     # Should have multiple types of errors
 #     assert not result.success
 #     assert len(result.errors) > 1
-    
+
 #     # Check summary information
 #     assert hasattr(result, 'get_summary')
 #     summary = result.get_summary()

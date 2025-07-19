@@ -67,7 +67,7 @@ class TestSurfaceConductance(TestCase):
         rs_ipm = cal_rs_obs(
             self.qh, self.qe, self.ta, self.rh, self.pa, self.ra, method="iPM"
         )
-        
+
         # Test FG method
         rs_fg = cal_rs_obs(
             self.qh, self.qe, self.ta, self.rh, self.pa, self.ra, method="FG"
@@ -76,7 +76,7 @@ class TestSurfaceConductance(TestCase):
         # Both should give reasonable values
         self.assertGreater(rs_ipm, 0)
         self.assertGreater(rs_fg, 0)
-        
+
         # Methods may give different results
         print(f"✓ rs (iPM method): {rs_ipm:.1f} s/m")
         print(f"✓ rs (FG method): {rs_fg:.1f} s/m")
@@ -90,15 +90,13 @@ class TestSurfaceConductance(TestCase):
         # Create diurnal cycle
         hours = np.arange(0, 24)
         idx = pd.date_range("2023-07-01", periods=24, freq="h")
-        
+
         # Simple diurnal patterns
         qh_series = pd.Series(
-            200 * np.maximum(0, np.sin(np.pi * (hours - 6) / 12)), 
-            index=idx
+            200 * np.maximum(0, np.sin(np.pi * (hours - 6) / 12)), index=idx
         )
         qe_series = pd.Series(
-            150 * np.maximum(0, np.sin(np.pi * (hours - 6) / 12)), 
-            index=idx
+            150 * np.maximum(0, np.sin(np.pi * (hours - 6) / 12)), index=idx
         )
         ta_series = pd.Series(20 + 10 * np.sin(np.pi * (hours - 6) / 12), index=idx)
         rh_series = pd.Series(70 - 20 * np.sin(np.pi * (hours - 6) / 12), index=idx)
@@ -113,12 +111,12 @@ class TestSurfaceConductance(TestCase):
         # Validate output
         self.assertIsInstance(rs_series, pd.Series)
         self.assertEqual(len(rs_series), 24)
-        
+
         # During night (QE ≈ 0), rs might be negative or very high
         night_mask = qe_series < 1.0
         # Just check that we get some values
         self.assertTrue(len(rs_series[night_mask]) > 0)
-        
+
         # During day, rs should be reasonable
         day_mask = qe_series > 50.0
         valid_day = rs_series[day_mask][rs_series[day_mask] > 0]
@@ -126,7 +124,9 @@ class TestSurfaceConductance(TestCase):
             self.assertTrue((valid_day < 1000).all())
 
         print(f"✓ Calculated rs for 24-hour cycle")
-        print(f"  Daytime rs range: {rs_series[day_mask].min():.0f}-{rs_series[day_mask].max():.0f} s/m")
+        print(
+            f"  Daytime rs range: {rs_series[day_mask].min():.0f}-{rs_series[day_mask].max():.0f} s/m"
+        )
 
     def test_zero_latent_heat(self):
         """Test behaviour when latent heat flux is zero."""
@@ -147,7 +147,7 @@ class TestSurfaceConductance(TestCase):
 
         # Negative QE (condensation/dew)
         rs_dew = cal_rs_obs(10.0, -20.0, 15.0, 95.0, self.pa, 30.0)
-        
+
         # Should handle negative fluxes appropriately
         # Note: Physical interpretation may vary
         self.assertIsNotNone(rs_dew)
@@ -161,14 +161,14 @@ class TestSurfaceConductance(TestCase):
 
         # Very dry conditions
         rs_dry = cal_rs_obs(self.qh, self.qe, self.ta, 20.0, self.pa, self.ra)
-        
+
         # Very humid conditions
         rs_humid = cal_rs_obs(self.qh, self.qe, self.ta, 90.0, self.pa, self.ra)
 
         # Both should be valid
         self.assertGreater(rs_dry, 0)
         self.assertGreater(rs_humid, 0)
-        
+
         # Resistance typically higher in dry conditions
         print(f"✓ rs at 20% RH: {rs_dry:.1f} s/m")
         print(f"✓ rs at 90% RH: {rs_humid:.1f} s/m")
@@ -180,14 +180,14 @@ class TestSurfaceConductance(TestCase):
 
         temperatures = [-5, 0, 10, 20, 30, 40]
         rs_values = []
-        
+
         for temp in temperatures:
             rs = cal_rs_obs(self.qh, self.qe, temp, self.rh, self.pa, self.ra)
             rs_values.append(rs)
-            
+
         # All should be valid
         self.assertTrue(all(rs > 0 for rs in rs_values if not np.isnan(rs)))
-        
+
         print("✓ rs values across temperatures:")
         for temp, rs in zip(temperatures, rs_values):
             print(f"  {temp:3d}°C: {rs:6.1f} s/m")
@@ -199,14 +199,14 @@ class TestSurfaceConductance(TestCase):
 
         ra_values = [10, 30, 50, 100, 200]
         rs_values = []
-        
+
         for ra in ra_values:
             rs = cal_rs_obs(self.qh, self.qe, self.ta, self.rh, self.pa, ra)
             rs_values.append(rs)
-            
+
         # All should be valid
         self.assertTrue(all(rs > 0 for rs in rs_values if not np.isnan(rs)))
-        
+
         print("✓ rs sensitivity to ra:")
         for ra, rs in zip(ra_values, rs_values):
             print(f"  ra={ra:3d} s/m: rs={rs:6.1f} s/m")
@@ -223,12 +223,12 @@ class TestSurfaceConductanceEdgeCases(TestCase):
         # Very high Bowen ratio (QH >> QE)
         rs_high_bowen = cal_rs_obs(500.0, 50.0, 35.0, 30.0, 101325.0, 50.0)
         self.assertGreater(rs_high_bowen, 0)
-        
+
         # Very low Bowen ratio (QE >> QH)
         rs_low_bowen = cal_rs_obs(50.0, 500.0, 25.0, 80.0, 101325.0, 50.0)
         # Note: iPM method can give negative rs when QE >> QH
         self.assertIsNotNone(rs_low_bowen)
-        
+
         print(f"✓ rs with high Bowen ratio: {rs_high_bowen:.1f} s/m")
         print(f"✓ rs with low Bowen ratio: {rs_low_bowen:.1f} s/m")
 
@@ -243,15 +243,15 @@ class TestSurfaceConductanceEdgeCases(TestCase):
             (200, 100, 25, 50),  # High sensible
             (100, 200, 22, 70),  # High latent
         ]
-        
+
         for qh, qe, ta, rh in conditions:
             rs_ipm = cal_rs_obs(qh, qe, ta, rh, 101325.0, 50.0, method="iPM")
             rs_fg = cal_rs_obs(qh, qe, ta, rh, 101325.0, 50.0, method="FG")
-            
+
             # Both methods should give reasonable values
             self.assertGreater(rs_ipm, 0)
             self.assertGreater(rs_fg, 0)
-            
+
             print(f"✓ QH={qh}, QE={qe}: iPM={rs_ipm:.0f}, FG={rs_fg:.0f} s/m")
 
 

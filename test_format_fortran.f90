@@ -1,5 +1,6 @@
 ! TEST FILE: Fortran formatting issues for workflow testing
 ! This file intentionally has formatting issues
+! Testing workflow with permission fix
 
 module test_formatting
 implicit none

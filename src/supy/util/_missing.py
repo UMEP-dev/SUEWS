@@ -1,4 +1,5 @@
 """Utilities for handling SUEWS missing values."""
+
 import pandas as pd
 import numpy as np
 
@@ -8,12 +9,12 @@ SUEWS_MISSING = -999.0
 
 def to_nan(data):
     """Convert SUEWS missing values to NaN.
-    
+
     Parameters
     ----------
     data : pd.DataFrame or pd.Series
         Data containing SUEWS missing value indicators (-999)
-        
+
     Returns
     -------
     pd.DataFrame or pd.Series
@@ -24,12 +25,12 @@ def to_nan(data):
 
 def from_nan(data):
     """Convert NaN to SUEWS missing values.
-    
+
     Parameters
     ----------
     data : pd.DataFrame or pd.Series
         Data containing NaN values
-        
+
     Returns
     -------
     pd.DataFrame or pd.Series

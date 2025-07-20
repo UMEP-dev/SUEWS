@@ -15,7 +15,7 @@ from supy.data_model.precheck import (
     precheck_nonzero_sfr_requires_nonnull_params,
     precheck_model_option_rules,
     collect_yaml_differences,
-    precheck_update_surface_temperature, 
+    precheck_update_surface_temperature,
     get_monthly_avg_temp,
     precheck_warn_zero_sfr_params,
     SeasonCheck,
@@ -697,6 +697,7 @@ def test_land_cover_invalid_structure_raises():
     with pytest.raises(ValueError, match="Invalid land_cover"):
         precheck_land_cover_fractions(deepcopy(data))
 
+
 def test_precheck_nullify_zero_sfr_params_nullifies_correctly():
     yaml_input = {
         "sites": [
@@ -902,26 +903,15 @@ def test_nonzero_sfr_with_list_containing_none_raises():
 
 def build_minimal_yaml(stebbsmethod_value: int, stebbs_block: dict):
     return {
-        "model": {
-            "physics": {
-                "stebbsmethod": {"value": stebbsmethod_value}
-            }
-        },
-        "sites": [
-            {
-                "properties": {
-                    "stebbs": deepcopy(stebbs_block)
-                }
-            }
-        ]
+        "model": {"physics": {"stebbsmethod": {"value": stebbsmethod_value}}},
+        "sites": [{"properties": {"stebbs": deepcopy(stebbs_block)}}],
     }
+
 
 def test_stebbsmethod0_nullifies_all_stebbs_values():
     stebbs_block = {
         "WallInternalConvectionCoefficient": {"value": 5.0},
-        "nested": {
-            "WindowExternalConvectionCoefficient": {"value": 30.0}
-        }
+        "nested": {"WindowExternalConvectionCoefficient": {"value": 30.0}},
     }
     data = build_minimal_yaml(0, stebbs_block)
     result = precheck_model_option_rules(deepcopy(data))
@@ -931,6 +921,7 @@ def test_stebbsmethod0_nullifies_all_stebbs_values():
     assert out["WallInternalConvectionCoefficient"]["value"] is None
     # nested dict also nullified
     assert out["nested"]["WindowExternalConvectionCoefficient"]["value"] is None
+
 
 def test_stebbsmethod1_leaves_stebbs_untouched():
     stebbs_block = {
@@ -951,9 +942,7 @@ def test_collect_yaml_differences_simple():
                     "snowalb": {"value": 0.3},
                     "lat": {"value": 51.5},
                 },
-                "initial_states": {
-                    "dectr": {"lai_id": {"value": 2.0}}
-                }
+                "initial_states": {"dectr": {"lai_id": {"value": 2.0}}},
             }
         ]
     }
@@ -963,11 +952,11 @@ def test_collect_yaml_differences_simple():
             {
                 "properties": {
                     "snowalb": {"value": None},  # Was 0.3 → now null
-                    "lat": {"value": 51.5},      # No change
+                    "lat": {"value": 51.5},  # No change
                 },
                 "initial_states": {
                     "dectr": {"lai_id": {"value": 5.0}}  # Changed from 2.0 → 5.0
-                }
+                },
             }
         ]
     }
@@ -991,30 +980,41 @@ def test_collect_yaml_differences_simple():
             assert d["new_value"] == 5.0
             assert d["site"] == 0
 
+
 def build_minimal_yaml_for_surface_temp():
     return {
         "model": {
             "control": {
                 "start_time": "2011-07-01",  # July → month = 7
-                "end_time": "2011-12-31"
+                "end_time": "2011-12-31",
             }
         },
         "sites": [
             {
                 "properties": {
                     "lat": {"value": 45.0},  # midlatitudes
-                    "lng": {"value": 10.0}
+                    "lng": {"value": 10.0},
                 },
                 "initial_states": {
                     surf: {
                         "temperature": {"value": [0, 0, 0, 0, 0]},
                         "tsfc": {"value": 0},
-                        "tin": {"value": 0}
-                    } for surf in ["paved", "bldgs", "evetr", "dectr", "grass", "bsoil", "water"]
-                }
+                        "tin": {"value": 0},
+                    }
+                    for surf in [
+                        "paved",
+                        "bldgs",
+                        "evetr",
+                        "dectr",
+                        "grass",
+                        "bsoil",
+                        "water",
+                    ]
+                },
             }
-        ]
+        ],
     }
+
 
 def test_precheck_update_surface_temperature():
     data = build_minimal_yaml_for_surface_temp()
@@ -1027,13 +1027,18 @@ def test_precheck_update_surface_temperature():
     updated = precheck_update_surface_temperature(deepcopy(data), start_date=start_date)
 
     for surface in ["paved", "bldgs", "evetr", "dectr", "grass", "bsoil", "water"]:
-        temp_array = updated["sites"][0]["initial_states"][surface]["temperature"]["value"]
+        temp_array = updated["sites"][0]["initial_states"][surface]["temperature"][
+            "value"
+        ]
         tsfc = updated["sites"][0]["initial_states"][surface]["tsfc"]["value"]
         tin = updated["sites"][0]["initial_states"][surface]["tin"]["value"]
 
-        assert temp_array == [expected_temp] * 5, f"Mismatch in temperature array for {surface}"
+        assert temp_array == [expected_temp] * 5, (
+            f"Mismatch in temperature array for {surface}"
+        )
         assert tsfc == expected_temp, f"Mismatch in tsfc for {surface}"
         assert tin == expected_temp, f"Mismatch in tin for {surface}"
+
 
 def test_precheck_update_surface_temperature_missing_lat():
     data = build_minimal_yaml_for_surface_temp()
@@ -1045,5 +1050,9 @@ def test_precheck_update_surface_temperature_missing_lat():
     updated = precheck_update_surface_temperature(deepcopy(data), start_date=start_date)
 
     for surface in ["paved", "bldgs", "evetr", "dectr", "grass", "bsoil", "water"]:
-        temp_array = updated["sites"][0]["initial_states"][surface]["temperature"]["value"]
-        assert temp_array == [0, 0, 0, 0, 0], f"Temperature should stay unchanged for {surface} when lat is missing."
+        temp_array = updated["sites"][0]["initial_states"][surface]["temperature"][
+            "value"
+        ]
+        assert temp_array == [0, 0, 0, 0, 0], (
+            f"Temperature should stay unchanged for {surface} when lat is missing."
+        )

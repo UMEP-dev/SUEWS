@@ -3,14 +3,14 @@
 # Testing workflow with permission fix
 
 
-def poorly_formatted_function(x, y, z):
+def poorly_formatted_function(  x,y,   z ):
     """Bad spacing and indentation"""
-    result = x + y * z
-    if result > 100:
+    result=x+y*z
+    if result>100:
         print("Result is large")
     else:
-        print("Result is small")
-    return result
+            print("Result is small")
+    return    result
 
 
 class BadlyFormattedClass:

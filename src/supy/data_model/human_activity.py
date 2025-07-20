@@ -7,9 +7,9 @@ from .type import RefValue, Reference, FlexibleRefValue
 from .profile import HourlyProfile, WeeklyProfile, DayProfile
 from .type import init_df_state
 from .validation_utils import (
-    warn_missing_params, 
+    warn_missing_params,
     check_missing_params,
-    validate_only_when_complete
+    validate_only_when_complete,
 )
 
 

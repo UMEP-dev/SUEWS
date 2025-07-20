@@ -36,7 +36,13 @@ from ._load import (
     load_SUEWS_Forcing_met_df_yaml,
 )
 from ._run import run_supy_par, run_supy_ser
-from ._save import get_save_info, save_df_output, save_df_state, save_initcond_nml, save_df_output_parquet
+from ._save import (
+    get_save_info,
+    save_df_output,
+    save_df_state,
+    save_initcond_nml,
+    save_df_output_parquet,
+)
 from ._post import resample_output
 from ._version import __version__
 
@@ -539,7 +545,7 @@ def save_supy(
     output_level=1,
     debug=False,
     output_config=None,
-    output_format='txt'
+    output_format="txt",
 ) -> list:
     """Save SuPy run results to files
 
@@ -613,9 +619,10 @@ def save_supy(
     # Handle output configuration if provided
     # output_format = "txt"  # default - MP: Moved as argument
     output_groups = None  # default will be handled in save_df_output
-    
+
     if output_config is not None:
         from .data_model.model import OutputConfig, OutputFormat
+
         if isinstance(output_config, OutputConfig):
             # Override frequency if specified in config
             if output_config.freq is not None:
@@ -628,13 +635,14 @@ def save_supy(
         elif isinstance(output_config, str):
             # Legacy string format - issue deprecation warning
             import warnings
+
             warnings.warn(
                 "The 'output_file' parameter as a string is deprecated and was never used. "
                 "Please use the new OutputConfig format or remove this parameter. "
                 "Falling back to default text output. "
                 "Example: output_file: {format: 'parquet', freq: 3600}",
                 DeprecationWarning,
-                stacklevel=2
+                stacklevel=2,
             )
             # Fall back to default text format
             output_format = "txt"
@@ -642,7 +650,7 @@ def save_supy(
     # determine `save_snow` option
     snowuse = df_state_final.iloc[-1].loc["snowuse"]
     # Handle both scalar and array cases safely
-    if hasattr(snowuse, 'iloc'):
+    if hasattr(snowuse, "iloc"):
         # If it's a Series (multi-level index), get the first value
         snowuse = snowuse.iloc[0]
     save_snow = True if snowuse == 1 else False

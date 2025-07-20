@@ -78,7 +78,7 @@ class ValidationController(BaseModel):
                 roughmethod = roughmethod_val
             else:
                 roughmethod = RoughnessMethod(roughmethod_val)
-                
+
             if roughmethod == RoughnessMethod.VARIABLE:
                 self.roughness_variable_enabled = True
 
@@ -90,7 +90,7 @@ class ValidationController(BaseModel):
             # Convert to enum if it's not already
             if isinstance(netrad_val, NetRadiationMethod):
                 netrad_val = netrad_val.value
-                
+
             if netrad_val >= 1000:  # SPARTACUS methods
                 self.netradiation_spartacus_enabled = True
 
@@ -98,7 +98,7 @@ class ValidationController(BaseModel):
             emissions_val = physics.get("emissionsmethod", 0)
             if isinstance(emissions_val, dict):
                 emissions_val = emissions_val.get("value", 0)
-                
+
             # Convert to enum if it's not already
             if isinstance(emissions_val, EmissionsMethod):
                 emissions_val = emissions_val.value
@@ -110,7 +110,7 @@ class ValidationController(BaseModel):
             storage_val = physics.get("storageheatmethod", 0)
             if isinstance(storage_val, dict):
                 storage_val = storage_val.get("value", 0)
-                
+
             # Convert to enum if it's not already
             if isinstance(storage_val, StorageHeatMethod):
                 storage_val = storage_val.value

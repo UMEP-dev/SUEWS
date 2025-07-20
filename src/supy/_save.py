@@ -86,7 +86,7 @@ def format_df_save(df_save):
 def gen_df_year(df_save, year, grid, group, output_level):
     # retrieve dataframe of grid for `group`
     # First filter by grid from the index
-    df_grid = df_save.xs(grid, level='grid')
+    df_grid = df_save.xs(grid, level="grid")
     # Then select the group from columns
     df_grid_group = df_grid[group].copy()
     # get temporal index
@@ -96,7 +96,9 @@ def gen_df_year(df_save, year, grid, group, output_level):
     # select output variables in `SUEWS` based on output level
     if group == "SUEWS":
         # Filter to only variables that exist in the dataframe
-        vars_to_keep = [v for v in dict_level_var[output_level] if v in df_grid_group.columns]
+        vars_to_keep = [
+            v for v in dict_level_var[output_level] if v in df_grid_group.columns
+        ]
         if vars_to_keep:
             df_grid_group = df_grid_group[vars_to_keep]
     # select data from year of interest and shift back to align with SUEWS convention
@@ -231,33 +233,33 @@ def save_df_output(
 
     # resample output if `freq_s` is different from runtime `freq` (usually 5 min)
     freq_save = pd.Timedelta(freq_s, "s")
-    
+
     # Handle output groups filtering
     if output_groups is None:
         # Default groups
-        output_groups = ['SUEWS', 'DailyState']
-    
+        output_groups = ["SUEWS", "DailyState"]
+
     # Get all available groups
-    all_groups = df_save.columns.get_level_values('group').unique().tolist()
-    
+    all_groups = df_save.columns.get_level_values("group").unique().tolist()
+
     # Filter to only requested groups
     groups_to_drop = [g for g in all_groups if g not in output_groups]
     for group in groups_to_drop:
-        if group in df_save.columns.get_level_values('group'):
-            df_save = df_save.drop(group, axis=1, level='group')
+        if group in df_save.columns.get_level_values("group"):
+            df_save = df_save.drop(group, axis=1, level="group")
 
     # drop snow related group from output groups if not requested
-    if not save_snow and 'snow' in df_save.columns.get_level_values('group'):
-        df_save = df_save.drop("snow", axis=1, level='group')
+    if not save_snow and "snow" in df_save.columns.get_level_values("group"):
+        df_save = df_save.drop("snow", axis=1, level="group")
 
     # Extract DailyState before resampling (it contains daily variables only written at last timestep of each day)
     df_dailystate = None
-    if 'DailyState' in df_save.columns.get_level_values('group'):
+    if "DailyState" in df_save.columns.get_level_values("group"):
         df_dailystate = df_save.loc[:, ["DailyState"]].copy()
         # Remove all NaN rows from DailyState (keep only the daily values)
-        df_dailystate = df_dailystate.dropna(how='all')
+        df_dailystate = df_dailystate.dropna(how="all")
         # Drop DailyState from df_save before resampling
-        df_save_no_daily = df_save.drop("DailyState", axis=1, level='group')
+        df_save_no_daily = df_save.drop("DailyState", axis=1, level="group")
     else:
         df_save_no_daily = df_save
 
@@ -278,9 +280,10 @@ def save_df_output(
     # save output at the resampling frequency
     for i, df_save in enumerate(list_df_save):
         # Check if this is DailyState-only data
-        is_dailystate_only = (len(df_save.columns) > 0 and 
-                             all(df_save.columns.get_level_values('group') == 'DailyState'))
-        
+        is_dailystate_only = len(df_save.columns) > 0 and all(
+            df_save.columns.get_level_values("group") == "DailyState"
+        )
+
         if not is_dailystate_only:
             # For regular output data, shift temporal index to make timestamps indicating the start of periods
             idx_dt = df_save.index.get_level_values("datetime").drop_duplicates()
@@ -297,7 +300,7 @@ def save_df_output(
             # Shift timestamps for non-DailyState data
             if len(idx_dt) > 1:
                 idx_dt = idx_dt.shift(-1)
-            
+
             # Update the index
             df_save.index = df_save.index.set_levels(idx_dt, level="datetime")
         # For DailyState data, we don't need to shift the index as it already represents daily values
@@ -591,7 +594,7 @@ def save_df_output_parquet(
     save_tstep=False,
 ) -> list:
     """Save supy output to Parquet format.
-    
+
     Parameters
     ----------
     df_output : pd.DataFrame
@@ -606,7 +609,7 @@ def save_df_output_parquet(
         Directory to save Parquet file
     save_tstep : bool, optional
         Whether to save at simulation timestep resolution
-        
+
     Returns
     -------
     list
@@ -615,27 +618,29 @@ def save_df_output_parquet(
     # Check if pyarrow or fastparquet is available
     try:
         import pyarrow
-        engine = 'pyarrow'
+
+        engine = "pyarrow"
     except ImportError:
         try:
             import fastparquet
-            engine = 'fastparquet'
+
+            engine = "fastparquet"
         except ImportError:
             raise ImportError(
                 "Parquet output requires either 'pyarrow' or 'fastparquet'. "
                 "Install with: pip install pyarrow (recommended) or pip install fastparquet"
             )
-    
+
     from ._version import __version__
-    
+
     # Resample if needed
     df_save = df_output.copy()
     freq_save = pd.Timedelta(freq_s, "s")
-    
+
     if not save_tstep:
         # Resample output
         df_rsmp = resample_output(df_save, freq_save)
-        
+
         # MP: TODO: This causes duplicate entries for DailyState. Why keep the original resolution?
         # Keep DailyState at original resolution
         # if 'DailyState' in df_save.columns.get_level_values('group'):
@@ -646,49 +651,50 @@ def save_df_output_parquet(
         df_to_save = df_rsmp
     else:
         df_to_save = df_save
-    
+
     # Construct filenames
     list_path_save = []
-    
+
     # Save output data
     filename_output = f"{site}_SUEWS_output.parquet" if site else "SUEWS_output.parquet"
     path_output = path_dir_save / filename_output
-    
+
     # Save with metadata
     metadata = {
-        'site': site,
-        'output_frequency_s': freq_s,
-        'save_tstep': save_tstep,
-        'creation_time': pd.Timestamp.now().isoformat(),
-        'supy_version': __version__
+        "site": site,
+        "output_frequency_s": freq_s,
+        "save_tstep": save_tstep,
+        "creation_time": pd.Timestamp.now().isoformat(),
+        "supy_version": __version__,
     }
-    
+
     # Write output data
     df_to_save.to_parquet(
-        path_output, 
-        engine=engine, 
-        compression='snappy',
-        index=True  # Preserve multi-index
+        path_output,
+        engine=engine,
+        compression="snappy",
+        index=True,  # Preserve multi-index
     )
     list_path_save.append(path_output)
-    
+
     # Save final state separately
-    filename_state = f"{site}_SUEWS_state_final.parquet" if site else "SUEWS_state_final.parquet"
+    filename_state = (
+        f"{site}_SUEWS_state_final.parquet" if site else "SUEWS_state_final.parquet"
+    )
     path_state = path_dir_save / filename_state
     df_state_final.to_parquet(
-        path_state,
-        engine=engine,
-        compression='snappy',
-        index=True
+        path_state, engine=engine, compression="snappy", index=True
     )
     list_path_save.append(path_state)
-    
+
     # Save metadata as a separate small parquet file
-    filename_meta = f"{site}_SUEWS_metadata.parquet" if site else "SUEWS_metadata.parquet"
+    filename_meta = (
+        f"{site}_SUEWS_metadata.parquet" if site else "SUEWS_metadata.parquet"
+    )
     path_meta = path_dir_save / filename_meta
     df_meta = pd.DataFrame([metadata])
     df_meta.to_parquet(path_meta, engine=engine)
     list_path_save.append(path_meta)
-    
+
     logger_supy.info(f"Saved Parquet output to {path_output}")
     return list_path_save

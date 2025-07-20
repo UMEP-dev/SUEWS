@@ -11,10 +11,7 @@ from typing import Optional, Literal, List, Union
 import pandas as pd
 import warnings
 from .type import RefValue, Reference, FlexibleRefValue
-from .validation_utils import (
-    warn_missing_params,
-    validate_only_when_complete
-)
+from .validation_utils import warn_missing_params, validate_only_when_complete
 
 from .type import init_df_state
 

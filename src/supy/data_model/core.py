@@ -50,13 +50,16 @@ enhanced_to_df_state_validation = None
 import os
 import warnings
 
-def _is_valid_layer_array(field) -> bool:
-    return hasattr(field, "value") and isinstance(field.value, list) and len(field.value) > 0
 
+def _is_valid_layer_array(field) -> bool:
+    return (
+        hasattr(field, "value")
+        and isinstance(field.value, list)
+        and len(field.value) > 0
+    )
 
 
 class SUEWSConfig(BaseModel):
-
     name: str = Field(
         default="sample config",
         description="Name of the SUEWS configuration",
@@ -181,10 +184,10 @@ class SUEWSConfig(BaseModel):
         if cond_issues:
             ### Tally the warnings
             self._validation_summary["total_warnings"] += len(cond_issues)
-            
+
             ### Store the detailed messages for the summary
             self._validation_summary["detailed_messages"].extend(cond_issues)
-            
+
             ### No need to log each issue individually
             ## for issue_msg in cond_issues:
             ##    logger_supy.warning(f"Conditional validation issue: {issue_msg}")
@@ -194,8 +197,6 @@ class SUEWSConfig(BaseModel):
             self._show_validation_summary()
 
         return self
-
-
 
     def _show_validation_summary(self) -> None:
         """Show a concise summary of validation issues."""
@@ -225,7 +226,7 @@ class SUEWSConfig(BaseModel):
             f"Found {self._validation_summary['total_warnings']} parameter issue(s) across "
             f"{len(self._validation_summary['sites_with_issues'])} site(s).\n\n"
         )
-        
+
         ## Add issue types
         summary_message += (
             f"Issue types:\n"
@@ -233,17 +234,17 @@ class SUEWSConfig(BaseModel):
             + "\n  - ".join(sorted(self._validation_summary["issue_types"]))
             + "\n\n"
         )
-        
+
         ## Add detailed messages if available
         if self._validation_summary.get("detailed_messages"):
             summary_message += "Detailed issues:\n"
             for msg in self._validation_summary["detailed_messages"]:
                 summary_message += f"  - {msg}\n"
             summary_message += "\n"
-        
+
         ## Add fix instructions
         summary_message += f"{fix_instructions}\n{'=' * 60}"
-        
+
         ## Log the complete summary
         logger_supy.warning(summary_message)
 
@@ -427,15 +428,24 @@ class SUEWSConfig(BaseModel):
         missing_params = []
 
         def _is_valid_layer_array(field):
-            return hasattr(field, "value") and isinstance(field.value, list) and len(field.value) > 0
+            return (
+                hasattr(field, "value")
+                and isinstance(field.value, list)
+                and len(field.value) > 0
+            )
 
-        if not hasattr(thermal_layers, "dz") or not _is_valid_layer_array(thermal_layers.dz):
+        if not hasattr(thermal_layers, "dz") or not _is_valid_layer_array(
+            thermal_layers.dz
+        ):
             missing_params.append("dz (Layer thickness)")
-        if not hasattr(thermal_layers, "k") or not _is_valid_layer_array(thermal_layers.k):
+        if not hasattr(thermal_layers, "k") or not _is_valid_layer_array(
+            thermal_layers.k
+        ):
             missing_params.append("k (Thermal conductivity)")
-        if not hasattr(thermal_layers, "rho_cp") or not _is_valid_layer_array(thermal_layers.rho_cp):
+        if not hasattr(thermal_layers, "rho_cp") or not _is_valid_layer_array(
+            thermal_layers.rho_cp
+        ):
             missing_params.append("rho_cp (Volumetric heat capacity)")
-
 
         if missing_params:
             self._validation_summary["total_warnings"] += len(missing_params)
@@ -444,13 +454,13 @@ class SUEWSConfig(BaseModel):
             )
             return True
         return False
-    
+
     def _check_lai_ranges(self, land_cover, site_name: str) -> bool:
         """Check LAI range parameters for vegetation surfaces. Returns True if issues found."""
         has_issues = False
-        
+
         # Initialize validation summary if it doesn't exist (for testing)
-        if not hasattr(self, '_validation_summary'):
+        if not hasattr(self, "_validation_summary"):
             self._validation_summary = {
                 "total_warnings": 0,
                 "sites_with_issues": [],
@@ -458,14 +468,14 @@ class SUEWSConfig(BaseModel):
                 "yaml_path": getattr(self, "_yaml_path", None),
                 "detailed_messages": [],
             }
-        
+
         # Return early if no land cover
         if land_cover is None:
             return False
-        
+
         # Check vegetation surface types that have LAI parameters
         vegetation_surfaces = ["grass", "dectr", "evetr"]
-        
+
         for surface_type in vegetation_surfaces:
             if hasattr(land_cover, surface_type):
                 surface = getattr(land_cover, surface_type)
@@ -473,15 +483,23 @@ class SUEWSConfig(BaseModel):
                     lai = surface.lai
                     if lai:
                         # Check laimin vs laimax
-                        if (hasattr(lai, 'laimin') and lai.laimin is not None and 
-                            hasattr(lai, 'laimax') and lai.laimax is not None):
+                        if (
+                            hasattr(lai, "laimin")
+                            and lai.laimin is not None
+                            and hasattr(lai, "laimax")
+                            and lai.laimax is not None
+                        ):
                             laimin_val = (
-                                lai.laimin.value if hasattr(lai.laimin, 'value') else lai.laimin
+                                lai.laimin.value
+                                if hasattr(lai.laimin, "value")
+                                else lai.laimin
                             )
                             laimax_val = (
-                                lai.laimax.value if hasattr(lai.laimax, 'value') else lai.laimax
+                                lai.laimax.value
+                                if hasattr(lai.laimax, "value")
+                                else lai.laimax
                             )
-                            
+
                             if laimin_val > laimax_val:
                                 self._validation_summary["total_warnings"] += 1
                                 self._validation_summary["issue_types"].add(
@@ -491,17 +509,25 @@ class SUEWSConfig(BaseModel):
                                     f"{site_name} {surface_type}: laimin ({laimin_val}) must be ≤ laimax ({laimax_val})"
                                 )
                                 has_issues = True
-                        
+
                         # Check baset vs gddfull
-                        if (hasattr(lai, 'baset') and lai.baset is not None and 
-                            hasattr(lai, 'gddfull') and lai.gddfull is not None):
+                        if (
+                            hasattr(lai, "baset")
+                            and lai.baset is not None
+                            and hasattr(lai, "gddfull")
+                            and lai.gddfull is not None
+                        ):
                             baset_val = (
-                                lai.baset.value if hasattr(lai.baset, 'value') else lai.baset
+                                lai.baset.value
+                                if hasattr(lai.baset, "value")
+                                else lai.baset
                             )
                             gddfull_val = (
-                                lai.gddfull.value if hasattr(lai.gddfull, 'value') else lai.gddfull
+                                lai.gddfull.value
+                                if hasattr(lai.gddfull, "value")
+                                else lai.gddfull
                             )
-                            
+
                             if baset_val > gddfull_val:
                                 self._validation_summary["total_warnings"] += 1
                                 self._validation_summary["issue_types"].add(
@@ -511,15 +537,15 @@ class SUEWSConfig(BaseModel):
                                     f"{site_name} {surface_type}: baset ({baset_val}) must be ≤ gddfull ({gddfull_val})"
                                 )
                                 has_issues = True
-        
+
         return has_issues
-    
+
     def _check_land_cover_fractions(self, land_cover, site_name: str) -> bool:
         """Check that land cover fractions sum to 1.0. Returns True if issues found."""
         has_issues = False
-        
+
         # Initialize validation summary if it doesn't exist (for testing)
-        if not hasattr(self, '_validation_summary'):
+        if not hasattr(self, "_validation_summary"):
             self._validation_summary = {
                 "total_warnings": 0,
                 "sites_with_issues": [],
@@ -527,66 +553,69 @@ class SUEWSConfig(BaseModel):
                 "yaml_path": getattr(self, "_yaml_path", None),
                 "detailed_messages": [],
             }
-        
+
         # Return early if no land cover
         if land_cover is None:
             return False
-        
+
         # Get all surface types and their fractions
         surface_types = ["bldgs", "grass", "dectr", "evetr", "bsoil", "paved", "water"]
         fractions = {}
-        
+
         for surface_type in surface_types:
             if hasattr(land_cover, surface_type):
                 surface = getattr(land_cover, surface_type)
                 if surface and hasattr(surface, "sfr") and surface.sfr is not None:
                     # Extract fraction value (handle RefValue)
                     sfr_value = getattr(surface.sfr, "value", surface.sfr)
-                    fractions[surface_type] = float(sfr_value) if sfr_value is not None else 0.0
+                    fractions[surface_type] = (
+                        float(sfr_value) if sfr_value is not None else 0.0
+                    )
                 else:
                     fractions[surface_type] = 0.0
             else:
                 fractions[surface_type] = 0.0
-        
+
         # Check if fractions sum to exactly 1.0
         total_fraction = sum(fractions.values())
-        
+
         if total_fraction != 1.0:
             self._validation_summary["total_warnings"] += 1
             self._validation_summary["issue_types"].add(
                 "Land cover fraction validation"
             )
-            
+
             # Create detailed message with breakdown
             fraction_details = ", ".join([f"{k}={v:.3f}" for k, v in fractions.items()])
             self._validation_summary["detailed_messages"].append(
                 f"{site_name}: Land cover fractions must sum to 1.0 (got {total_fraction:.6f}): {fraction_details}"
             )
             has_issues = True
-        
+
         return has_issues
-    
+
     def _needs_stebbs_validation(self) -> bool:
         """
         Return True if STEBBS should be validated,
         i.e. physics.stebbsmethod == 1.
         """
 
-        if not hasattr(self.model, 'physics') or not hasattr(self.model.physics, 'stebbsmethod'):
+        if not hasattr(self.model, "physics") or not hasattr(
+            self.model.physics, "stebbsmethod"
+        ):
             return False
-            
-        stebbsmethod = self.model.physics.stebbsmethod
-        
 
-        if hasattr(stebbsmethod, 'value'):
+        stebbsmethod = self.model.physics.stebbsmethod
+
+        if hasattr(stebbsmethod, "value"):
             stebbsmethod = stebbsmethod.value
-        if hasattr(stebbsmethod, '__int__'):
+        if hasattr(stebbsmethod, "__int__"):
             stebbsmethod = int(stebbsmethod)
         if isinstance(stebbsmethod, str) and stebbsmethod == "1":
             stebbsmethod = 1
-            
-        #print(f"Final stebbsmethod value for validation: {stebbsmethod} (type: {type(stebbsmethod)})")
-        
+
+        # print(f"Final stebbsmethod value for validation: {stebbsmethod} (type: {type(stebbsmethod)})")
+
         return stebbsmethod == 1
 
     def _validate_stebbs(self, site: Site, site_index: int) -> List[str]:
@@ -596,21 +625,23 @@ class SUEWSConfig(BaseModel):
         Returns a list of issue messages.
         """
         issues: List[str] = []
-        
+
         ## First check if properties exists and is not None
-        if not hasattr(site, 'properties') or site.properties is None:
-            issues.append("Missing 'properties' section (required for STEBBS validation)")
+        if not hasattr(site, "properties") or site.properties is None:
+            issues.append(
+                "Missing 'properties' section (required for STEBBS validation)"
+            )
             return issues
-        
+
         props = site.properties
-        
+
         ## Must have a stebbs block
-        if not hasattr(props, 'stebbs') or props.stebbs is None:
+        if not hasattr(props, "stebbs") or props.stebbs is None:
             issues.append("Missing 'stebbs' section (required when stebbsmethod=1)")
             return issues
-        
+
         stebbs = props.stebbs
-        
+
         # ## Define all required STEBBS parameters
         # required_params = [
         #     "WallInternalConvectionCoefficient",
@@ -678,7 +709,7 @@ class SUEWSConfig(BaseModel):
         #     "HotWaterHeatingEfficiency",
         #     "MinimumVolumeOfDHWinUse"
         # ]
-        
+
         ## Check each parameter
         missing_params = []
         for param in self.STEBBS_REQUIRED_PARAMS:
@@ -686,26 +717,28 @@ class SUEWSConfig(BaseModel):
             if not hasattr(stebbs, param):
                 missing_params.append(param)
                 continue
-                
+
             ## Get parameter value
             param_obj = getattr(stebbs, param)
-            
+
             ## Check if the parameter has a value attribute that is None
-            if hasattr(param_obj, 'value') and param_obj.value is None:
+            if hasattr(param_obj, "value") and param_obj.value is None:
                 missing_params.append(param)
                 continue
-                
+
             ## If the parameter itself is None
             if param_obj is None:
                 missing_params.append(param)
-        
+
         ## Always list all missing parameters, regardless of count
         if missing_params:
             param_list = ", ".join(missing_params)
-            issues.append(f"Missing required STEBBS parameters: {param_list} (required when stebbsmethod=1)")
-        
+            issues.append(
+                f"Missing required STEBBS parameters: {param_list} (required when stebbsmethod=1)"
+            )
+
         return issues
-    
+
     def _needs_rsl_validation(self) -> bool:
         """
         Return True if RSL diagnostic method is enabled,
@@ -782,7 +815,12 @@ class SUEWSConfig(BaseModel):
         for arr in ("dz", "k", "rho_cp"):
             field = getattr(th, arr, None) if th else None
             vals = getattr(field, "value", None) if field else None
-            if not isinstance(vals, list) or len(vals) == 0 or any(v is None for v in vals) or any(not isinstance(v, (int, float)) for v in vals):
+            if (
+                not isinstance(vals, list)
+                or len(vals) == 0
+                or any(v is None for v in vals)
+                or any(not isinstance(v, (int, float)) for v in vals)
+            ):
                 issues.append(
                     f"{site_name}: storageheatmethod=6 → "
                     f"thermal_layers.{arr} must be a non‐empty list of numeric values (no nulls)"
@@ -804,8 +842,8 @@ class SUEWSConfig(BaseModel):
         all_issues: List[str] = []
 
         # Determine which checks to run once up front
-        needs_stebbs  = self._needs_stebbs_validation()
-        needs_rsl     = self._needs_rsl_validation()
+        needs_stebbs = self._needs_stebbs_validation()
+        needs_rsl = self._needs_rsl_validation()
         needs_storage = self._needs_storage_validation()
 
         # Nothing to do?
@@ -837,7 +875,9 @@ class SUEWSConfig(BaseModel):
             if needs_storage:
                 storage_issues = self._validate_storage(site, idx)
                 if storage_issues:
-                    self._validation_summary["issue_types"].add("StorageHeat parameters")
+                    self._validation_summary["issue_types"].add(
+                        "StorageHeat parameters"
+                    )
                     if site_name not in self._validation_summary["sites_with_issues"]:
                         self._validation_summary["sites_with_issues"].append(site_name)
                     all_issues.extend(storage_issues)
@@ -1004,32 +1044,41 @@ class SUEWSConfig(BaseModel):
                         ):
                             thermal = surface.thermal_layers
                         if (
-                            not _is_valid_layer_array(getattr(thermal, "dz", None)) or
-                            not _is_valid_layer_array(getattr(thermal, "k", None)) or
-                            not _is_valid_layer_array(getattr(thermal, "rho_cp", None))
+                            not _is_valid_layer_array(getattr(thermal, "dz", None))
+                            or not _is_valid_layer_array(getattr(thermal, "k", None))
+                            or not _is_valid_layer_array(
+                                getattr(thermal, "rho_cp", None)
+                            )
                         ):
-
-                                annotator.add_issue(
-                                    path=f"{path}/thermal_layers",
-                                    param="thermal_layers",
-                                    message="Incomplete thermal layer properties",
-                                    fix="Add dz (thickness), k (conductivity), and rho_cp (heat capacity) arrays",
-                                    level="WARNING",
-                                )
+                            annotator.add_issue(
+                                path=f"{path}/thermal_layers",
+                                param="thermal_layers",
+                                message="Incomplete thermal layer properties",
+                                fix="Add dz (thickness), k (conductivity), and rho_cp (heat capacity) arrays",
+                                level="WARNING",
+                            )
 
                         # LAI range check for vegetation surfaces
-                        if surface_type in ["grass", "dectr", "evetr"] and hasattr(surface, "lai") and surface.lai:
+                        if (
+                            surface_type in ["grass", "dectr", "evetr"]
+                            and hasattr(surface, "lai")
+                            and surface.lai
+                        ):
                             lai = surface.lai
-                            
+
                             # Check laimin vs laimax
                             if lai.laimin is not None and lai.laimax is not None:
                                 laimin_val = (
-                                    lai.laimin.value if hasattr(lai.laimin, 'value') else lai.laimin
+                                    lai.laimin.value
+                                    if hasattr(lai.laimin, "value")
+                                    else lai.laimin
                                 )
                                 laimax_val = (
-                                    lai.laimax.value if hasattr(lai.laimax, 'value') else lai.laimax
+                                    lai.laimax.value
+                                    if hasattr(lai.laimax, "value")
+                                    else lai.laimax
                                 )
-                                
+
                                 if laimin_val > laimax_val:
                                     annotator.add_issue(
                                         path=f"{path}/lai",
@@ -1038,16 +1087,20 @@ class SUEWSConfig(BaseModel):
                                         fix="Set laimin ≤ laimax (typical values: laimin=0.1-1.0, laimax=3.0-8.0)",
                                         level="WARNING",
                                     )
-                            
+
                             # Check baset vs gddfull
                             if lai.baset is not None and lai.gddfull is not None:
                                 baset_val = (
-                                    lai.baset.value if hasattr(lai.baset, 'value') else lai.baset
+                                    lai.baset.value
+                                    if hasattr(lai.baset, "value")
+                                    else lai.baset
                                 )
                                 gddfull_val = (
-                                    lai.gddfull.value if hasattr(lai.gddfull, 'value') else lai.gddfull
+                                    lai.gddfull.value
+                                    if hasattr(lai.gddfull, "value")
+                                    else lai.gddfull
                                 )
-                                
+
                                 if baset_val > gddfull_val:
                                     annotator.add_issue(
                                         path=f"{path}/lai",
@@ -1056,24 +1109,26 @@ class SUEWSConfig(BaseModel):
                                         fix="Set baset ≤ gddfull (typical values: baset=5-10°C, gddfull=200-1000°C·day)",
                                         level="WARNING",
                                     )
-        
+
         # Check land cover fractions sum to 1.0
         surface_types = ["bldgs", "grass", "dectr", "evetr", "bsoil", "paved", "water"]
         fractions = {}
-        
+
         for surface_type in surface_types:
             if hasattr(land_cover, surface_type):
                 surface = getattr(land_cover, surface_type)
                 if surface and hasattr(surface, "sfr") and surface.sfr is not None:
                     sfr_value = getattr(surface.sfr, "value", surface.sfr)
-                    fractions[surface_type] = float(sfr_value) if sfr_value is not None else 0.0
+                    fractions[surface_type] = (
+                        float(sfr_value) if sfr_value is not None else 0.0
+                    )
                 else:
                     fractions[surface_type] = 0.0
             else:
                 fractions[surface_type] = 0.0
-        
+
         total_fraction = sum(fractions.values())
-        
+
         if total_fraction != 1.0:
             fraction_details = ", ".join([f"{k}={v:.3f}" for k, v in fractions.items()])
             annotator.add_issue(
@@ -1149,12 +1204,13 @@ class SUEWSConfig(BaseModel):
         config_data["_yaml_path"] = path
 
         if use_conditional_validation:
-            logger_supy.info("Using internal validation only (SUEWSConfig.validate_parameter_completeness).")
+            logger_supy.info(
+                "Using internal validation only (SUEWSConfig.validate_parameter_completeness)."
+            )
             return cls(**config_data)
         else:
             logger_supy.info("Validation disabled by user. Loading without checks.")
             return cls.model_construct(**config_data)
-
 
     def create_multi_index_columns(self, columns_file: str) -> pd.MultiIndex:
         """Create MultiIndex from df_state_columns.txt"""

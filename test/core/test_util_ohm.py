@@ -26,26 +26,26 @@ class TestOHMCalculations(TestCase):
         self.n_days = 7
         self.n_hours = self.n_days * 24
         self.dt_hours = 1.0
-        
+
         # Time index
         self.idx = pd.date_range("2023-07-01", periods=self.n_hours, freq="h")
-        
+
         # Create realistic diurnal patterns
         hours = np.arange(self.n_hours) % 24
-        
+
         # Net radiation with diurnal cycle (W/m²)
         self.qn = pd.Series(
-            400 * np.maximum(0, np.sin(np.pi * (hours - 6) / 12)) 
+            400 * np.maximum(0, np.sin(np.pi * (hours - 6) / 12))
             + np.random.normal(0, 10, self.n_hours),
-            index=self.idx
+            index=self.idx,
         )
-        
+
         # Storage heat flux with phase lag (W/m²)
         # QS typically lags QN and has smaller amplitude
         self.qs = pd.Series(
             150 * np.maximum(0, np.sin(np.pi * (hours - 4) / 12))
             + np.random.normal(0, 5, self.n_hours),
-            index=self.idx
+            index=self.idx,
         )
 
     def test_derive_ohm_coef_basic(self):
@@ -59,16 +59,16 @@ class TestOHMCalculations(TestCase):
         self.assertIsInstance(a1, (float, np.floating))
         self.assertIsInstance(a2, (float, np.floating))
         self.assertIsInstance(a3, (float, np.floating))
-        
+
         # Check reasonable ranges for coefficients
         # a1: coefficient for QN (typically 0.1-0.5)
         self.assertGreater(a1, 0)
         self.assertLess(a1, 1.0)
-        
+
         # a2: coefficient for dQN/dt (can be positive or negative)
         self.assertGreater(abs(a2), 0)
         self.assertLess(abs(a2), 5.0)
-        
+
         # a3: intercept (typically small)
         self.assertLess(abs(a3), 50)
 
@@ -92,9 +92,11 @@ class TestOHMCalculations(TestCase):
         # Validate output
         self.assertIsInstance(qs_calc, pd.Series)
         self.assertEqual(len(qs_calc), len(qn))
-        
+
         # Check first value manually (no dQN/dt for first timestep)
-        self.assertTrue(np.isnan(qs_calc.iloc[0]) or qs_calc.iloc[0] == a1 * qn.iloc[0] + a3)
+        self.assertTrue(
+            np.isnan(qs_calc.iloc[0]) or qs_calc.iloc[0] == a1 * qn.iloc[0] + a3
+        )
 
         print(f"✓ QS calculated for {len(qn)} timesteps")
         print(f"  Second value: {qs_calc.iloc[1]:.1f} W/m²")
@@ -106,14 +108,14 @@ class TestOHMCalculations(TestCase):
 
         # Derive coefficients from data
         a1, a2, a3 = derive_ohm_coef(self.qs, self.qn)
-        
+
         # Calculate QS using OHM
         qs_calc = sim_ohm(self.qn, a1, a2, a3)
 
         # Validate output
         self.assertIsInstance(qs_calc, pd.Series)
         self.assertEqual(len(qs_calc), len(self.qn))
-        
+
         # Check that calculated values are reasonable
         valid_mask = ~(qs_calc.isna() | self.qs.isna())
         self.assertTrue((abs(qs_calc[valid_mask]) < 1000).all())
@@ -136,24 +138,19 @@ class TestOHMCalculations(TestCase):
 
         hours = np.arange(24)
         idx = pd.date_range("2023-07-01", periods=24, freq="h")
-        
+
         # Create QN pattern
-        qn = pd.Series(
-            400 * np.maximum(0, np.sin(np.pi * (hours - 6) / 12)),
-            index=idx
-        )
-        
+        qn = pd.Series(400 * np.maximum(0, np.sin(np.pi * (hours - 6) / 12)), index=idx)
+
         # Different surface responses
         # Urban: high storage, large phase lag
         qs_urban = pd.Series(
-            200 * np.maximum(0, np.sin(np.pi * (hours - 3) / 12)),
-            index=idx
+            200 * np.maximum(0, np.sin(np.pi * (hours - 3) / 12)), index=idx
         )
-        
+
         # Grass: low storage, small phase lag
         qs_grass = pd.Series(
-            50 * np.maximum(0, np.sin(np.pi * (hours - 5.5) / 12)),
-            index=idx
+            50 * np.maximum(0, np.sin(np.pi * (hours - 5.5) / 12)), index=idx
         )
 
         # Derive coefficients
@@ -174,18 +171,12 @@ class TestOHMCalculations(TestCase):
         # Create night-time only data
         hours = np.arange(0, 24)
         idx = pd.date_range("2023-07-01", periods=24, freq="h")
-        
+
         # QN negative at night
-        qn = pd.Series(
-            np.where((hours < 6) | (hours > 18), -50, 0),
-            index=idx
-        )
-        
+        qn = pd.Series(np.where((hours < 6) | (hours > 18), -50, 0), index=idx)
+
         # QS releases stored heat at night
-        qs = pd.Series(
-            np.where((hours < 6) | (hours > 18), -30, 0),
-            index=idx
-        )
+        qs = pd.Series(np.where((hours < 6) | (hours > 18), -30, 0), index=idx)
 
         # Add some data points to avoid singular matrix
         qn.iloc[6:18] = 400 * np.sin(np.pi * (hours[6:18] - 6) / 12)
@@ -195,12 +186,14 @@ class TestOHMCalculations(TestCase):
 
         # Check that model can handle negative values
         qs_calc = sim_ohm(qn, a1, a2, a3)
-        
+
         # Night-time QS should be negative (heat release)
         night_mask = (hours < 6) | (hours > 18)
         night_qs = qs_calc[night_mask].dropna()
         if len(night_qs) > 0:
-            self.assertTrue((night_qs < 20).all())  # Most should be negative or small positive
+            self.assertTrue(
+                (night_qs < 20).all()
+            )  # Most should be negative or small positive
 
         print(f"✓ Night-time QS handled correctly")
         print(f"  Mean night QS: {night_qs.mean():.1f} W/m²")
@@ -213,7 +206,7 @@ class TestOHMCalculations(TestCase):
         # Create data with gaps
         qn_gaps = self.qn.copy()
         qs_gaps = self.qs.copy()
-        
+
         # Introduce random gaps
         gap_mask = np.random.random(len(qn_gaps)) < 0.1
         qn_gaps[gap_mask] = np.nan
@@ -221,7 +214,7 @@ class TestOHMCalculations(TestCase):
 
         # Should handle missing data
         a1, a2, a3 = derive_ohm_coef(qs_gaps, qn_gaps)
-        
+
         # Coefficients should still be reasonable
         self.assertFalse(np.isnan(a1))
         self.assertFalse(np.isnan(a2))
@@ -238,18 +231,16 @@ class TestOHMCalculations(TestCase):
         # Very high radiation
         idx = pd.date_range("2023-07-01", periods=24, freq="h")
         hours = np.arange(24)
-        
+
         qn_extreme = pd.Series(
-            1000 * np.maximum(0, np.sin(np.pi * (hours - 6) / 12)),
-            index=idx
+            1000 * np.maximum(0, np.sin(np.pi * (hours - 6) / 12)), index=idx
         )
         qs_extreme = pd.Series(
-            400 * np.maximum(0, np.sin(np.pi * (hours - 4) / 12)),
-            index=idx
+            400 * np.maximum(0, np.sin(np.pi * (hours - 4) / 12)), index=idx
         )
 
         a1, a2, a3 = derive_ohm_coef(qs_extreme, qn_extreme)
-        
+
         # Should still get reasonable coefficients
         self.assertGreater(a1, 0)
         self.assertLess(a1, 1.0)
@@ -270,31 +261,22 @@ class TestOHMValidation(TestCase):
         # Create full energy balance components
         idx = pd.date_range("2023-07-01", periods=24, freq="h")
         hours = np.arange(24)
-        
+
         # Net radiation
-        qn = pd.Series(
-            500 * np.maximum(0, np.sin(np.pi * (hours - 6) / 12)),
-            index=idx
-        )
-        
+        qn = pd.Series(500 * np.maximum(0, np.sin(np.pi * (hours - 6) / 12)), index=idx)
+
         # Sensible heat (typically largest during day)
-        qh = pd.Series(
-            200 * np.maximum(0, np.sin(np.pi * (hours - 7) / 12)),
-            index=idx
-        )
-        
+        qh = pd.Series(200 * np.maximum(0, np.sin(np.pi * (hours - 7) / 12)), index=idx)
+
         # Latent heat
-        qe = pd.Series(
-            150 * np.maximum(0, np.sin(np.pi * (hours - 8) / 12)),
-            index=idx
-        )
-        
+        qe = pd.Series(150 * np.maximum(0, np.sin(np.pi * (hours - 8) / 12)), index=idx)
+
         # Storage should close the balance: QS = QN - QH - QE
         qs_balance = qn - qh - qe
 
         # Derive OHM coefficients
         a1, a2, a3 = derive_ohm_coef(qs_balance, qn)
-        
+
         # Check physical plausibility
         # During peak heating, QS should be positive (storage)
         peak_hour = qn.idxmax()

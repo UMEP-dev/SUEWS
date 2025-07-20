@@ -139,8 +139,6 @@ class RefValue(BaseModel, Generic[T]):
         return self.value < other
 
 
-
-
 def FlexibleRefValue(type_param):
     """Create a Union type that accepts both RefValue and simple values"""
     return Union[RefValue[type_param], type_param]

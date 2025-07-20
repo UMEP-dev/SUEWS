@@ -216,5 +216,6 @@ class TestSUEWSConfig(unittest.TestCase):
         self.assertTrue(a >= b)
         self.assertTrue(b >= a)
 
+
 if __name__ == "__main__":
     unittest.main()

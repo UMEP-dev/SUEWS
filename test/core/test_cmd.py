@@ -17,14 +17,17 @@ pytestmark = pytest.mark.skip(
 
 class TestSUEWSCommand:
     """Placeholder for SUEWS command line interface tests."""
+
     pass
 
 
 class TestTableConverterCommand:
     """Placeholder for table converter command line interface tests."""
+
     pass
 
 
 class TestToYamlCommand:
     """Placeholder for YAML converter command line interface tests."""
+
     pass

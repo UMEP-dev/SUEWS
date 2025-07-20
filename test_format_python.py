@@ -1,5 +1,6 @@
 # TEST FILE: Python formatting issues for workflow testing
 # This file intentionally has formatting issues
+# Testing workflow with permission fix
 
 
 def poorly_formatted_function(x, y, z):

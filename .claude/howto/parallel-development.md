@@ -20,49 +20,17 @@ This guide explains how to run multiple Claude Code instances in parallel, each 
 
 ### Setup Multiple Worktrees
 
-```bash
-# Terminal 1: Feature A
-FEATURE_A="feature-a"
-git worktree add worktrees/$FEATURE_A feature/$FEATURE_A
-cd worktrees/$FEATURE_A
-uv venv && source .venv/bin/activate
-uv pip install -r requirements.txt  # Install dependencies
-make dev
-
-# Terminal 2: Feature B
-FEATURE_B="feature-b"
-git worktree add worktrees/$FEATURE_B feature/$FEATURE_B
-cd worktrees/$FEATURE_B
-uv venv && source .venv/bin/activate
-uv pip install -r requirements.txt
-make dev
-```
+Follow the setup instructions in `.claude/howto/setup-worktree.md` for each worktree.
+Create separate worktrees for each feature you want to work on in parallel.
 
 ### Launch Claude Code Agents
 
-**Always launch from Master** for the smoothest workflow:
+For the recommended workflow of launching from master, see `.claude/howto/worktree-workflow.md`.
 
-#### Agent 1: First Feature
-```bash
-# In Terminal 1 - start from main repo
-cd ~/Dropbox\ \(Personal\)/6.Repos/SUEWS  # Main repo, master branch
-claude .
-# Work directly: edit worktrees/feature-a/src/file.py
-```
-
-#### Agent 2: Second Feature
-```bash
-# In Terminal 2 - start from main repo
-cd ~/Dropbox\ \(Personal\)/6.Repos/SUEWS  # Main repo, master branch
-claude .
-# Work directly: edit worktrees/feature-b/src/file.py
-```
-
-Each agent can:
-- Edit files in their worktree: `worktrees/feature-x/...`
-- Run tests: `cd worktrees/feature-x && make test && cd ../..`
-- Update plans directly: `.claude/plans/doing/feature-x.md`
-- All without leaving the master branch context
+Key points:
+- Launch Claude Code from the master branch
+- Edit files using full paths: `worktrees/feature-x/...`
+- Update plans directly without switching branches
 
 **First prompt**: 
 ```
@@ -85,19 +53,8 @@ Read ../../.claude/plans/doing/feature-b.md and start working on the tasks. Run 
 
 **CRITICAL**: Each worktree MUST have its own environment!
 
-### With uv (Recommended)
-```bash
-cd worktrees/my-feature
-uv venv
-source .venv/bin/activate
-# Each worktree has .venv/ directory
-```
-
-### With mamba (Legacy)
-```bash
-# Never use the base environment in worktrees
-mamba create -n suews-dev-feature-a --clone suews-dev
-mamba activate suews-dev-feature-a
+See `.claude/reference/build-isolation.md` for why this is required.
+See `.claude/howto/setup-environment.md` for environment options.
 ```
 
 ## Agent Instructions Template

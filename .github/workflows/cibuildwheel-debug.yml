@@ -1,0 +1,435 @@
+name: Debug cibuildwheel with SSH
+
+# This workflow provides an interactive debugging environment for cibuildwheel builds.
+# It allows manual triggering with specific platform/Python combinations and provides
+# SSH access at different stages of the build process for debugging.
+#
+# Features:
+# - Manual dispatch with platform and Python version selection
+# - SSH access before build, after failure, or both
+# - Claude Code CLI pre-installed for AI-assisted debugging
+# - Comprehensive logging and artifact collection
+# - All environment settings from main build workflow
+#
+# Usage:
+# 1. Go to Actions tab → Select "Debug cibuildwheel with SSH"
+# 2. Click "Run workflow" and fill in parameters:
+#    - Platform-Arch: Choose from 4 valid combinations (Linux/macOS Intel/macOS ARM/Windows)
+#    - Python: cp39, cp310, cp311, cp312, cp313
+#    - Debug mode: before-build, after-failure, always, disabled
+# 3. When SSH session starts, connect using the command shown in logs
+# 4. Use Claude Code for help: `claude -p "help me debug this cibuildwheel error"`
+#
+# Security: SSH access is restricted to the workflow actor (person who triggered it)
+#
+# Windows Note: Claude Code requires Git Bash. The workflow now automatically configures
+# the environment for proper shell support. If you encounter issues, type 'bash' at
+# the SSH prompt to enter Git Bash.
+
+on:
+  workflow_dispatch:
+    inputs:
+      platform_arch:
+        description: 'Platform and architecture'
+        required: true
+        default: 'ubuntu-latest-x86_64'
+        type: choice
+        options:
+          - ubuntu-latest-x86_64    # Linux 64-bit
+          - macos-13-x86_64         # macOS Intel
+          - macos-latest-arm64      # macOS Apple Silicon
+          - windows-2025           # Windows 64-bit
+      python_version:
+        description: 'Python version'
+        required: true
+        default: 'cp311'
+        type: choice
+        options:
+          - cp39
+          - cp310
+          - cp311
+          - cp312
+          - cp313
+      debug_mode:
+        description: 'Debug mode - when to provide SSH access'
+        required: true
+        default: 'after-failure'
+        type: choice
+        options:
+          - before-build    # SSH before cibuildwheel starts
+          - after-failure   # SSH only if build fails
+          - always          # SSH both before and after
+          - disabled        # No SSH sessions
+
+jobs:
+  debug-cibuildwheel:
+    name: Debug ${{ inputs.python_version || 'cp311' }}-${{ inputs.platform_arch || 'macos-latest-arm64' }}
+    runs-on: ${{
+      (inputs.platform_arch || 'macos-latest-arm64') == 'ubuntu-latest-x86_64' && 'ubuntu-latest' ||
+      (inputs.platform_arch || 'macos-latest-arm64') == 'macos-13-x86_64' && 'macos-13' ||
+      (inputs.platform_arch || 'macos-latest-arm64') == 'macos-latest-arm64' && 'macos-latest' ||
+      (inputs.platform_arch || 'macos-latest-arm64') == 'windows-2025' && 'windows-2025' }}
+
+    # Environment variables - matching main workflow
+    env:
+      # Extract platform and architecture from combined input
+      PLATFORM: ${{
+        (inputs.platform_arch || 'macos-latest-arm64') == 'ubuntu-latest-x86_64' && 'ubuntu-latest' ||
+        (inputs.platform_arch || 'macos-latest-arm64') == 'macos-13-x86_64' && 'macos-13' ||
+        (inputs.platform_arch || 'macos-latest-arm64') == 'macos-latest-arm64' && 'macos-latest' ||
+        (inputs.platform_arch || 'macos-latest-arm64') == 'windows-2025' && 'windows-2025' }}
+
+      ARCHITECTURE: ${{
+        (inputs.platform_arch || 'macos-latest-arm64') == 'ubuntu-latest-x86_64' && 'x86_64' ||
+        (inputs.platform_arch || 'macos-latest-arm64') == 'macos-13-x86_64' && 'x86_64' ||
+        (inputs.platform_arch || 'macos-latest-arm64') == 'macos-latest-arm64' && 'arm64' ||
+        (inputs.platform_arch || 'macos-latest-arm64') == 'windows-2025' && 'AMD64' }}
+
+      # Determine build platform identifier
+      BUILDPLAT: ${{
+        contains(inputs.platform_arch || 'macos-latest-arm64', 'ubuntu') && 'manylinux' ||
+        contains(inputs.platform_arch || 'macos-latest-arm64', 'macos') && 'macosx' ||
+        contains(inputs.platform_arch || 'macos-latest-arm64', 'windows') && 'win' }}
+
+      # Core cibuildwheel configuration
+      CIBW_BUILD: ${{ inputs.python_version || 'cp311' }}-*
+      CIBW_ARCHS: ${{
+        (inputs.platform_arch || 'macos-latest-arm64') == 'ubuntu-latest-x86_64' && 'x86_64' ||
+        (inputs.platform_arch || 'macos-latest-arm64') == 'macos-13-x86_64' && 'x86_64' ||
+        (inputs.platform_arch || 'macos-latest-arm64') == 'macos-latest-arm64' && 'arm64' ||
+        (inputs.platform_arch || 'macos-latest-arm64') == 'windows-2025' && 'AMD64' }}
+      CIBW_BUILD_VERBOSITY: 3  # Maximum verbosity for debugging
+
+      # Linux-specific settings
+      CIBW_ENVIRONMENT_PASS_LINUX: RUNNER_OS
+      CIBW_MANYLINUX_X86_64_IMAGE: manylinux_2_28
+      CIBW_MANYLINUX_AARCH64_IMAGE: manylinux_2_28
+
+      # macOS-specific settings
+      CIBW_BEFORE_ALL_MACOS: >
+        brew install gfortran &&
+        brew unlink gfortran &&
+        brew link gfortran
+
+      # Windows-specific settings
+      CIBW_BEFORE_ALL_WINDOWS: >
+        C:\msys64\usr\bin\bash.exe -lc "pacman -Syu --noconfirm" &&
+        C:\msys64\usr\bin\bash.exe -lc "pacman -S --needed --noconfirm mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-gcc-fortran mingw-w64-ucrt-x86_64-binutils mingw-w64-ucrt-x86_64-make mingw-w64-ucrt-x86_64-openblas"
+
+      CIBW_ENVIRONMENT_WINDOWS: >
+        PATH="C:\\msys64\\ucrt64\\bin;$PATH"
+        CC=gcc
+        CXX=g++
+        FC=gfortran
+        CFLAGS="-D__USE_MINGW_ANSI_STDIO=1 -mlong-double-64"
+        CXXFLAGS="-D__USE_MINGW_ANSI_STDIO=1 -mlong-double-64"
+        FCFLAGS="-fno-optimize-sibling-calls"
+        LDFLAGS="-lucrt -static-libgcc -static-libgfortran -LC:/msys64/ucrt64/lib -lsetjmp_compat"
+
+      CIBW_BEFORE_BUILD_WINDOWS: >
+        echo Creating setjmp compatibility library... &&
+        echo int _setjmpex(void* buf) { extern int __intrinsic_setjmpex(void*); return __intrinsic_setjmpex(buf); } > setjmp_compat.c &&
+        C:\msys64\ucrt64\bin\gcc.exe -c setjmp_compat.c -o setjmp_compat.o &&
+        C:\msys64\ucrt64\bin\ar.exe rcs libsetjmp_compat.a setjmp_compat.o &&
+        echo Library created, checking contents: &&
+        C:\msys64\ucrt64\bin\nm.exe libsetjmp_compat.a &&
+        echo Copying to standard locations: &&
+        copy libsetjmp_compat.a C:\msys64\ucrt64\lib\ &&
+        copy libsetjmp_compat.a C:\msys64\ucrt64\x86_64-w64-mingw32\lib\ &&
+        echo Verifying library locations: &&
+        dir C:\msys64\ucrt64\lib\libsetjmp_compat.a &&
+        dir C:\msys64\ucrt64\x86_64-w64-mingw32\lib\libsetjmp_compat.a &&
+        where python &&
+        where gcc &&
+        gcc --version &&
+        pip install delvewheel
+
+      CIBW_REPAIR_WHEEL_COMMAND_WINDOWS: "delvewheel repair -w {dest_dir} {wheel}"
+
+      # Test configuration
+      CIBW_TEST_REQUIRES: pytest
+      CIBW_TEST_COMMAND_MACOS: "python -m pytest '{project}/test'"
+      CIBW_TEST_COMMAND_LINUX: "python -m pytest '{project}/test'"
+      CIBW_TEST_COMMAND_WINDOWS: "python -m pytest {project}\\test"
+
+      # macOS deployment target
+      MACOSX_DEPLOYMENT_TARGET: ${{ contains(inputs.platform_arch || 'macos-latest-arm64', 'macos-13') && '13.0' || '14.0' }}
+
+      # Debug mode for SSH sessions
+      DEBUG_MODE: ${{ inputs.debug_mode || 'after-failure' }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: 3.12
+
+      - name: Install and Configure Claude Code CLI
+        # Install Claude Code and configure it for AI-assisted debugging
+        shell: bash
+        run: |
+          echo "Installing Claude Code CLI..."
+          npm install -g @anthropic-ai/claude-code
+          echo "Claude Code installed."
+
+          if [[ "${{ runner.os }}" == "Windows" ]]; then
+            echo "Configuring environment for Claude Code on Windows..."
+            # Your build uses MSYS2, so we will consistently use its bash shell.
+            MSYS_BASH_POSIX="C:/msys64/usr/bin/bash.exe"
+            # Use native Windows path with escaped backslashes for the Claude CLI variable, which it expects.
+            MSYS_BASH_WINDOWS="C:\\msys64\\usr\\bin\\bash.exe"
+
+            if [ -f "$MSYS_BASH_POSIX" ]; then
+              echo "✓ MSYS2 Bash found."
+              # Set SHELL for the general environment using a POSIX-style path.
+              echo "SHELL=$MSYS_BASH_POSIX" >> $GITHUB_ENV
+              # Set the variable for Claude CLI using the required native Windows path format.
+              echo "CLAUDE_CODE_GIT_BASH_PATH=$MSYS_BASH_WINDOWS" >> $GITHUB_ENV
+
+              echo "Environment variables set for tmate session:"
+              echo "  -> SHELL set to $MSYS_BASH_POSIX"
+              echo "  -> CLAUDE_CODE_GIT_BASH_PATH set to $MSYS_BASH_WINDOWS"
+            else
+              echo "::error::MSYS2 Bash not found at the expected path: $MSYS_BASH_POSIX"
+              exit 1
+            fi
+          fi
+
+      - name: Display debug information
+        run: |
+          echo "=== Debug Build Configuration ==="
+          echo "Platform-Arch: ${{ inputs.platform_arch || 'macos-latest-arm64' }}"
+          echo "Platform: ${{ env.PLATFORM }}"
+          echo "Architecture: ${{ env.ARCHITECTURE }}"
+          echo "Python Version: ${{ inputs.python_version || 'cp311' }}"
+          echo "Build Platform: ${{ env.BUILDPLAT }}"
+          echo "Debug Mode: ${{ env.DEBUG_MODE }}"
+          echo "Actor: ${{ github.actor }}"
+          echo "================================"
+
+      - name: Configure git for debugging session
+        run: |
+          # Set git user to the workflow actor
+          git config --global user.name "${{ github.actor }}"
+          git config --global user.email "${{ github.actor }}@users.noreply.github.com"
+          echo "Git configured for user: ${{ github.actor }}"
+
+      - name: SSH Debug Session (Before Build) [Non-Windows]
+        if: (env.DEBUG_MODE == 'before-build' || env.DEBUG_MODE == 'always') && runner.os != 'Windows'
+        uses: mxschmitt/action-tmate@v3
+        with:
+          limit-access-to-actor: true
+          tmate_session_name: "pre-build-${{ inputs.python_version }}-${{ inputs.platform_arch }}"
+          timeout-minutes: 60
+
+      - name: SSH Debug Session (Before Build) [Windows]
+        if: (env.DEBUG_MODE == 'before-build' || env.DEBUG_MODE == 'always') && runner.os == 'Windows'
+        uses: mxschmitt/action-tmate@v3
+        with:
+          limit-access-to-actor: true
+          tmate_session_name: "pre-build-${{ inputs.python_version }}-${{ inputs.platform_arch }}"
+          timeout-minutes: 60
+          tmate-conf: |
+            set-option -g tmate-shell "C:/msys64/usr/bin/bash.exe"
+            set-option -g default-command "bash"
+
+      - name: Install cibuildwheel
+        run: |
+          python -m pip install cibuildwheel==v3.0.0
+
+      - name: Build wheel with cibuildwheel
+        id: build
+        continue-on-error: true
+        shell: bash
+        run: |
+          # Determine cibuildwheel platform argument
+          if [[ "${{ env.PLATFORM }}" == *"ubuntu"* ]]; then
+            CIBW_PLATFORM="linux"
+          elif [[ "${{ env.PLATFORM }}" == *"macos"* ]]; then
+            CIBW_PLATFORM="macos"
+          elif [[ "${{ env.PLATFORM }}" == *"windows"* ]]; then
+            CIBW_PLATFORM="windows"
+          else
+            CIBW_PLATFORM="auto"
+          fi
+
+          # Run cibuildwheel and capture output
+          python -m cibuildwheel --platform $CIBW_PLATFORM --output-dir wheelhouse 2>&1 | tee cibuildwheel-output.log
+          # Capture exit code
+          echo "exit_code=${PIPESTATUS[0]}" >> $GITHUB_OUTPUT
+
+      - name: Check build result and capture errors
+        if: always()
+        shell: bash
+        run: |
+          # Check if build failed
+          if [ "${{ steps.build.outcome }}" == "failure" ] || [ "${{ steps.build.outputs.exit_code }}" != "0" ]; then
+            echo "::error::Build failed! Check logs for details."
+            echo "BUILD_FAILED=true" >> $GITHUB_ENV
+
+            # Create error summary file for SSH session
+            mkdir -p debug-info
+            echo "=== CIBUILDWHEEL BUILD FAILURE ===" > debug-info/build-error-summary.txt
+            echo "Build failed at: $(date)" >> debug-info/build-error-summary.txt
+            echo "Platform-Arch: ${{ inputs.platform_arch || 'macos-latest-arm64' }}" >> debug-info/build-error-summary.txt
+            echo "Python: ${{ inputs.python_version || 'cp311' }}" >> debug-info/build-error-summary.txt
+            echo "" >> debug-info/build-error-summary.txt
+
+            # Extract the last 200 lines of cibuildwheel output (usually contains the error)
+            if [ -f "cibuildwheel-output.log" ]; then
+              echo "=== LAST 200 LINES OF BUILD OUTPUT ===" >> debug-info/build-error-summary.txt
+              tail -200 cibuildwheel-output.log >> debug-info/build-error-summary.txt
+
+              echo "" >> debug-info/build-error-summary.txt
+              echo "=== ERROR EXCERPTS ===" >> debug-info/build-error-summary.txt
+              # Extract lines containing common error patterns
+              grep -i -A3 -B3 "error:\|failed\|fatal\|traceback\|exception\|undefined reference\|cannot find\|no such file\|permission denied" cibuildwheel-output.log >> debug-info/build-error-summary.txt || true
+            fi
+
+            # Also check for any other log files created during build
+            echo "" >> debug-info/build-error-summary.txt
+            echo "=== OTHER LOG FILES FOUND ===" >> debug-info/build-error-summary.txt
+            find . -name "*.log" -not -name "cibuildwheel-output.log" -type f -exec echo "Found: {}" \; >> debug-info/build-error-summary.txt
+
+            echo "" >> debug-info/build-error-summary.txt
+            echo "=== QUICK DIAGNOSIS COMMANDS ===" >> debug-info/build-error-summary.txt
+            echo "1. View full build output: less cibuildwheel-output.log" >> debug-info/build-error-summary.txt
+            echo "2. View error summary: cat debug-info/build-error-summary.txt" >> debug-info/build-error-summary.txt
+            echo "3. Search for specific error: grep -i 'error' cibuildwheel-output.log" >> debug-info/build-error-summary.txt
+            echo "4. Check environment: env | grep -E 'CIBW|PATH|PYTHON'" >> debug-info/build-error-summary.txt
+            echo "5. Use Claude for help: claude -p 'help me debug this cibuildwheel error'" >> debug-info/build-error-summary.txt
+
+          else
+            echo "::notice::Build succeeded!"
+            echo "BUILD_FAILED=false" >> $GITHUB_ENV
+          fi
+
+      - name: Prepare SSH session information
+        if: |
+          (env.DEBUG_MODE == 'after-failure' && env.BUILD_FAILED == 'true') ||
+          env.DEBUG_MODE == 'always'
+        shell: bash
+        run: |
+          echo "=== SSH DEBUG SESSION STARTING ===" > ssh-welcome.txt
+          if [ "${{ env.BUILD_FAILED }}" == "true" ]; then
+            echo "⚠️  BUILD FAILED - Error summary available!" >> ssh-welcome.txt
+            echo "" >> ssh-welcome.txt
+            echo "Quick start commands:" >> ssh-welcome.txt
+            echo "  cat debug-info/build-error-summary.txt    # View error summary" >> ssh-welcome.txt
+            echo "  claude -p 'help debug this error'         # Get AI assistance" >> ssh-welcome.txt
+            echo "  find . -name '*.log'                      # Find all log files" >> ssh-welcome.txt
+          else
+            echo "✅ BUILD SUCCEEDED" >> ssh-welcome.txt
+            echo "" >> ssh-welcome.txt
+            echo "You can explore the successful build artifacts in ./wheelhouse/" >> ssh-welcome.txt
+          fi
+          echo "" >> ssh-welcome.txt
+
+          if [[ "${{ runner.os }}" == "Windows" ]]; then
+            echo "🪟 Windows SSH Session Info:" >> ssh-welcome.txt
+            echo "  - The environment has been configured for Git Bash." >> ssh-welcome.txt
+            echo "  - If your prompt is 'C:\\...>', simply type 'bash' and press Enter." >> ssh-welcome.txt
+            echo "  - Once in bash, 'claude --help' should work correctly." >> ssh-welcome.txt
+            echo "" >> ssh-welcome.txt
+          fi
+
+          echo "Session will timeout after 60 minutes." >> ssh-welcome.txt
+          echo "================================" >> ssh-welcome.txt
+          cat ssh-welcome.txt
+
+      - name: SSH Debug Session (After Failure) [Non-Windows]
+        if: ((env.DEBUG_MODE == 'after-failure' && env.BUILD_FAILED == 'true') || env.DEBUG_MODE == 'always') && runner.os != 'Windows'
+        uses: mxschmitt/action-tmate@v3
+        with:
+          limit-access-to-actor: true
+          tmate_session_name: "post-build-${{ inputs.python_version }}-${{ inputs.platform_arch }}"
+          timeout-minutes: 60
+
+      - name: SSH Debug Session (After Failure) [Windows]
+        if: ((env.DEBUG_MODE == 'after-failure' && env.BUILD_FAILED == 'true') || env.DEBUG_MODE == 'always') && runner.os == 'Windows'
+        uses: mxschmitt/action-tmate@v3
+        with:
+          limit-access-to-actor: true
+          tmate_session_name: "post-build-${{ inputs.python_version }}-${{ inputs.platform_arch }}"
+          timeout-minutes: 60
+          tmate-conf: |
+            set-option -g tmate-shell "C:/msys64/usr/bin/bash.exe"
+            set-option -g default-command "bash"
+
+      - name: Collect debug artifacts
+        if: always()
+        shell: bash
+        run: |
+          # Create debug directory
+          mkdir -p debug-artifacts
+
+          # Copy the main cibuildwheel output
+          if [ -f "cibuildwheel-output.log" ]; then
+            cp cibuildwheel-output.log debug-artifacts/
+          fi
+
+          # Copy error summary if it exists
+          if [ -f "debug-info/build-error-summary.txt" ]; then
+            cp debug-info/build-error-summary.txt debug-artifacts/
+          fi
+
+          # Collect cibuildwheel working directory if exists
+          if [ -d "cibuildwheel" ]; then
+            cp -r cibuildwheel debug-artifacts/ || true
+          fi
+
+          # Collect all other build logs
+          find . -name "*.log" -type f -exec cp {} debug-artifacts/ \; 2>/dev/null || true
+
+          # System information
+          echo "=== System Information ===" > debug-artifacts/system-info.txt
+          echo "Date: $(date)" >> debug-artifacts/system-info.txt
+          echo "Platform: ${{ runner.os }}" >> debug-artifacts/system-info.txt
+          echo "Architecture: ${{ runner.arch }}" >> debug-artifacts/system-info.txt
+          uname -a >> debug-artifacts/system-info.txt 2>/dev/null || true
+
+          # Python information
+          echo -e "\n=== Python Information ===" >> debug-artifacts/system-info.txt
+          python --version >> debug-artifacts/system-info.txt
+          python -m pip list >> debug-artifacts/system-info.txt
+
+          # Compiler information
+          echo -e "\n=== Compiler Information ===" >> debug-artifacts/system-info.txt
+          if command -v gcc &> /dev/null; then
+            gcc --version >> debug-artifacts/system-info.txt
+          fi
+          if command -v gfortran &> /dev/null; then
+            gfortran --version >> debug-artifacts/system-info.txt
+          fi
+
+      - name: Upload debug artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: debug-${{ inputs.python_version || 'cp311' }}-${{ inputs.platform_arch || 'macos-latest-arm64' }}-${{ github.run_number }}
+          path: debug-artifacts/
+          retention-days: 7
+
+      - name: Upload built wheels
+        if: steps.build.outcome == 'success'
+        uses: actions/upload-artifact@v4
+        with:
+          name: wheel-${{ inputs.python_version || 'cp311' }}-${{ inputs.platform_arch || 'macos-latest-arm64' }}
+          path: ./wheelhouse/*.whl
+
+      - name: Final status
+        if: always()
+        shell: bash
+        run: |
+          echo "=== Build Summary ==="
+          echo "Build Status: ${{ steps.build.outcome }}"
+          echo "Debug artifacts uploaded: debug-${{ inputs.python_version || 'cp311' }}-${{ inputs.platform_arch || 'macos-latest-arm64' }}-${{ github.run_number }}"
+          if [ "${{ steps.build.outcome }}" == "success" ]; then
+            echo "Wheels uploaded: wheel-${{ inputs.python_version || 'cp311' }}-${{ inputs.platform_arch || 'macos-latest-arm64' }}"
+          fi
+          echo "===================="

@@ -6,17 +6,19 @@ description: Streamlined worktree management for SUEWS development
 # Worktree Management for SUEWS
 
 ## Current Status
-- **Location**: !`pwd`
-- **Branch**: !`git branch --show-current 2>/dev/null || echo "Not in git repo"`
-- **Worktree**: !`git worktree list | grep -E "^\$(pwd)" | head -1 || echo "Not in worktree"`
-- **Active worktrees**: !`git worktree list | wc -l | xargs -I {} echo "{} worktrees"`
-- **Environment**: !`python -c "import sys; print(sys.prefix)" 2>/dev/null | xargs basename || echo "No Python env"`
-- **Uncommitted changes**: !`git status --porcelain 2>/dev/null | wc -l | xargs -I {} echo "{} files" || echo "N/A"`
+Let me check your current development environment:
+- **Location**: Show current working directory
+- **Branch**: Display current git branch (if in a git repository)
+- **Worktree**: Check if we're in a git worktree
+- **Active worktrees**: Count total number of worktrees
+- **Environment**: Show active Python environment name
+- **Uncommitted changes**: Count files with uncommitted changes
 
 ## Available Plans
-- **Todo**: !`ls .claude/plans/todo/feature-*.md 2>/dev/null | wc -l | xargs -I {} echo "{} planned" || echo "0"`
-- **Doing**: !`ls .claude/plans/doing/feature-*.md 2>/dev/null | wc -l | xargs -I {} echo "{} active" || echo "0"`
-- **Done**: !`ls .claude/plans/done/feature-*.md 2>/dev/null | wc -l | xargs -I {} echo "{} completed" || echo "0"`
+Let me check the feature plans in .claude/plans/:
+- **Todo**: Count planned features in todo/
+- **Doing**: Count active features in doing/
+- **Done**: Count completed features in done/
 
 ## Your Command: $ARGUMENTS
 
@@ -63,10 +65,11 @@ I'll help you manage your worktrees based on what you need.
 Navigate to the worktree directory first: `cd worktrees/FEATURE_NAME`
 
 #### Enhanced Finish Flow
-- **Current worktree**: !`if git worktree list | grep -q "$(pwd)"; then basename $(pwd); else echo "Not in worktree"; fi`
-- **Branch**: !`git branch --show-current 2>/dev/null || echo "No branch"`
-- **Uncommitted**: !`git status --porcelain 2>/dev/null | wc -l | xargs -I {} echo "{} files"`
-- **PR status**: !`BRANCH=$(git branch --show-current 2>/dev/null); if [[ -n "$BRANCH" ]]; then PR_INFO=$(gh pr list --head "$BRANCH" --json number,state,merged --limit 1 2>/dev/null || echo "[]"); if [[ "$PR_INFO" != "[]" ]]; then echo "$PR_INFO" | jq -r '"PR #" + (.[0].number|tostring) + " - " + .[0].state + " (merged: " + (.[0].merged|tostring) + ")"'; else echo "No PR found"; fi; else echo "No branch"; fi`
+Let me check the current status:
+- **Current worktree**: Check if we're in a worktree and get its name
+- **Branch**: Get the current git branch name
+- **Uncommitted changes**: Count any uncommitted files
+- **PR status**: Check if there's a pull request for this branch and its status (open/merged)
 
 **Finish options:**
 1. **Merged via PR** - PR is merged on GitHub
@@ -87,7 +90,7 @@ Tell me your choice (1-4) and I'll:
 - `/worktree pr` - Create a pull request
 - `/worktree` (no args) - Show current status
 
-**Current context**: !`pwd` on branch !`git branch --show-current 2>/dev/null || echo "No branch"`
+**Current context**: Let me check your current location and git branch
 
 ## Implementation Notes:
 

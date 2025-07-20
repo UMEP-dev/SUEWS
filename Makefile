@@ -1,6 +1,6 @@
 # SUEWS Makefile - read the README file before editing
 
-.PHONY: main clean test pip supy docs dev dev-fast livehtml schema proc-csv config-ui check-dev-install mamba-dev help deactivate
+.PHONY: main clean test pip supy docs dev dev-clean dev-fast livehtml schema proc-csv config-ui check-dev-install mamba-dev help deactivate format lint
 
 # OS-specific configurations
 ifeq ($(OS),Windows_NT)
@@ -54,11 +54,15 @@ help:
 	@echo "  2. Deactivate:   make deactivate (shows command to run)"
 	@echo ""
 	@echo "Build and Development:"
-	@echo "  dev             - Build and install SUEWS in editable mode"
+	@echo "  dev             - Build and install SUEWS in editable mode (smart rebuild)"
+	@echo "  dev-clean       - Force complete rebuild (cleans Fortran artifacts first)"
 	@echo "  dev-fast        - Build and install SUEWS in editable mode (optimized/faster compilation)"
 	@echo "  install         - Install SUEWS to current Python environment (not editable)"
 	@echo "  wheel           - Build distribution wheels"
 	@echo "  clean           - Clean all build artifacts"
+	@echo ""
+	@echo "  Note: 'make dev' usually detects what needs rebuilding automatically"
+	@echo "        Use 'make dev-clean' if Fortran changes aren't being picked up"
 	@echo ""
 	@echo "Claude Code Integration:"
 	@echo "  Use ./claude-dev/claude.sh for workspace management"
@@ -73,6 +77,8 @@ help:
 	@echo ""
 	@echo "Testing and Quality:"
 	@echo "  test            - Run test suite"
+	@echo "  format          - Format Python and Fortran code locally"
+	@echo "  lint            - Check code style without modifying"
 	@echo ""
 	@echo "Documentation:"
 	@echo "  docs            - Build HTML documentation"
@@ -98,46 +104,65 @@ suews:
 # make supy and install locally
 # NOTE: `--no-build-isolation` is used to avoid dependency issues with the editable install.
 # ref: https://mesonbuild.com/meson-python/how-to-guides/editable-installs.html#editable-installs
+# Standard dev install - tries to be smart about rebuilding
 dev:
 	@echo "Building supy with development install..."
+	@# Install build dependencies first (required for --no-build-isolation)
+	@echo "Installing build dependencies..."
+	@if command -v uv >/dev/null 2>&1; then \
+		uv pip install pip wheel pytest "f90wrap==0.2.16" "numpy>=2.0" "meson-python>=0.12.0"; \
+	else \
+		$(PYTHON) -m pip install wheel pytest "f90wrap==0.2.16" "numpy>=2.0" "meson-python>=0.12.0"; \
+	fi
 	@# Check if uv is available for faster installation
 	@if command -v uv >/dev/null 2>&1; then \
-		echo "Found uv - using for ultra-fast installation!"; \
+		echo "Found uv - using for installation!"; \
 		if [ -x "/opt/homebrew/bin/gfortran" ]; then \
 			echo "Using Homebrew gfortran for better macOS compatibility"; \
-			FC=/opt/homebrew/bin/gfortran uv pip install --no-build-isolation --editable .; \
+			FC=/opt/homebrew/bin/gfortran uv pip install --no-build-isolation --editable ".[dev]"; \
 		else \
-			uv pip install --no-build-isolation --editable .; \
+			uv pip install --no-build-isolation --editable ".[dev]"; \
 		fi \
 	else \
 		if [ -x "/opt/homebrew/bin/gfortran" ]; then \
 			echo "Using Homebrew gfortran for better macOS compatibility"; \
-			FC=/opt/homebrew/bin/gfortran $(PYTHON) -m pip install --no-build-isolation --editable .; \
+			FC=/opt/homebrew/bin/gfortran $(PYTHON) -m pip install --no-build-isolation --editable ".[dev]"; \
 		else \
-			$(PYTHON) -m pip install --no-build-isolation --editable .; \
+			$(PYTHON) -m pip install --no-build-isolation --editable ".[dev]"; \
 		fi \
 	fi
 
-# make supy and install locally with fast build optimizations
-dev-fast:
-	@echo "Building supy with fast development install (optimized compiler flags)..."
+# Force complete rebuild - use when Fortran changes aren't being picked up
+dev-clean:
+	@echo "Building supy with clean development install (full Fortran rebuild)..."
+	@# Install build dependencies first (required for --no-build-isolation)
+	@echo "Installing build dependencies..."
+	@if command -v uv >/dev/null 2>&1; then \
+		uv pip install wheel pytest "f90wrap==0.2.16" "numpy>=2.0" "meson-python>=0.12.0"; \
+	else \
+		$(PYTHON) -m pip install wheel pytest "f90wrap==0.2.16" "numpy>=2.0" "meson-python>=0.12.0"; \
+	fi
+	@# Clean Fortran build artifacts to ensure fresh build
+	@echo "Cleaning SUEWS Fortran build artifacts..."
+	@$(MAKE) -C $(suews_dir) clean || true
 	@# Check if uv is available for faster installation
 	@if command -v uv >/dev/null 2>&1; then \
-		echo "Found uv - using for ultra-fast installation!"; \
+		echo "Found uv - using with force-reinstall for complete Fortran rebuild!"; \
 		if [ -x "/opt/homebrew/bin/gfortran" ]; then \
-			echo "Using Homebrew gfortran with fast build optimizations"; \
-			FC=/opt/homebrew/bin/gfortran uv pip install --no-build-isolation --editable . --config-settings=setup-args=-Dfast_build=true; \
+			echo "Using Homebrew gfortran for better macOS compatibility"; \
+			FC=/opt/homebrew/bin/gfortran uv pip install --force-reinstall --no-build-isolation --editable ".[dev]"; \
 		else \
-			uv pip install --no-build-isolation --editable . --config-settings=setup-args=-Dfast_build=true; \
+			uv pip install --force-reinstall --no-build-isolation --editable ".[dev]"; \
 		fi \
 	else \
 		if [ -x "/opt/homebrew/bin/gfortran" ]; then \
-			echo "Using Homebrew gfortran with fast build optimizations"; \
-			FC=/opt/homebrew/bin/gfortran $(PYTHON) -m pip install --no-build-isolation --editable . --config-settings=setup-args=-Dfast_build=true; \
+			echo "Using Homebrew gfortran for better macOS compatibility"; \
+			FC=/opt/homebrew/bin/gfortran $(PYTHON) -m pip install --no-build-isolation --editable ".[dev]"; \
 		else \
-			$(PYTHON) -m pip install --no-build-isolation --editable . --config-settings=setup-args=-Dfast_build=true; \
+			$(PYTHON) -m pip install --no-build-isolation --editable ".[dev]"; \
 		fi \
 	fi
+
 
 # install supy locally
 install:
@@ -259,4 +284,52 @@ deactivate:
 	echo ""; \
 	@echo "Environment deactivation commands cannot be executed from Makefiles."; \
 	echo "Please run the suggested command in your shell."
+
+# Format Python and Fortran code locally
+format:
+	@echo "Formatting Python code with ruff..."
+	@if command -v ruff >/dev/null 2>&1; then \
+		ruff format $(supy_dir) $(test_dir); \
+	else \
+		echo "WARNING: ruff not found. Install with: pip install ruff"; \
+	fi
+	@echo ""
+	@echo "Formatting Fortran code with fprettify..."
+	@if command -v fprettify >/dev/null 2>&1; then \
+		find $(suews_dir)/src -name "*.f95" -o -name "*.f90" | \
+		grep -v suews_util_datetime.f95 | \
+		xargs fprettify --config .fprettify.rc 2>/dev/null || \
+		echo "Note: Some Fortran files may have formatting issues"; \
+	else \
+		echo "WARNING: fprettify not found. Install with: pip install fprettify"; \
+	fi
+	@echo ""
+	@echo "Formatting complete!"
+
+# Check code style without modifying
+lint:
+	@echo "Checking Python code with ruff..."
+	@if command -v ruff >/dev/null 2>&1; then \
+		ruff check $(supy_dir) $(test_dir) || echo ""; \
+		echo "To fix auto-fixable issues: ruff check --fix $(supy_dir) $(test_dir)"; \
+	else \
+		echo "WARNING: ruff not found. Install with: pip install ruff"; \
+	fi
+	@echo ""
+	@echo "Checking Fortran formatting..."
+	@if command -v fprettify >/dev/null 2>&1; then \
+		FAILED=0; \
+		for file in $$(find $(suews_dir)/src -name "*.f95" -o -name "*.f90" | grep -v suews_util_datetime.f95); do \
+			if ! fprettify --diff --config .fprettify.rc "$$file" >/dev/null 2>&1; then \
+				FAILED=1; \
+			fi; \
+		done; \
+		if [ $$FAILED -eq 0 ]; then \
+			echo "✓ Fortran formatting is correct"; \
+		else \
+			echo "✗ Some Fortran files need formatting. Run 'make format' to fix."; \
+		fi \
+	else \
+		echo "WARNING: fprettify not found. Install with: pip install fprettify"; \
+	fi
 

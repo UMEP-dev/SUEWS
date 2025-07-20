@@ -3,14 +3,12 @@ name: Claude Code Review
 # Reviews are formatted with collapsible HTML sections for better readability
 
 on:
-  pull_request:
-    types: [opened, synchronize]
-    # Optional: Only run on specific file changes
-    # paths:
-    #   - "src/**/*.ts"
-    #   - "src/**/*.tsx"
-    #   - "src/**/*.js"
-    #   - "src/**/*.jsx"
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: 'Pull request number to review'
+        required: true
+        type: number
 
 jobs:
   claude-review:
@@ -22,10 +20,24 @@ jobs:
       id-token: write
 
     steps:
+      - name: Get PR details
+        id: pr-details
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const pr = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: ${{ inputs.pr_number }}
+            });
+            core.setOutput('title', pr.data.title);
+            core.setOutput('user', pr.data.user.login);
+            return pr.data;
+
       - name: Check if review should be skipped
         id: skip-check
         env:
-          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_TITLE: ${{ steps.pr-details.outputs.title }}
         run: |
           # Convert title to lowercase for case-insensitive matching
           TITLE_LOWER=$(echo "$PR_TITLE" | tr '[:upper:]' '[:lower:]')
@@ -44,7 +56,7 @@ jobs:
         id: auth-check
         env:
           AUTHORIZED_USERS: ${{ secrets.CLAUDE_AUTHORIZED_USERS }}
-          PR_USER: ${{ github.event.pull_request.user.login }}
+          WORKFLOW_USER: ${{ github.actor }}
         run: |
           # STRICT ACCESS: Require CLAUDE_AUTHORIZED_USERS to be configured
           if [ -z "$AUTHORIZED_USERS" ]; then
@@ -53,15 +65,15 @@ jobs:
             exit 0
           fi
 
-          # Check if PR author is in the authorized list (supports both comma-separated and newline-separated)
+          # Check if workflow triggerer is in the authorized list (supports both comma-separated and newline-separated)
           # Convert commas to newlines for easier matching
           USERS_LIST=$(echo "$AUTHORIZED_USERS" | tr ',' '\n' | tr -d ' ')
 
-          if echo "$USERS_LIST" | grep -q "^$PR_USER$"; then
-            echo "✓ PR author $PR_USER is authorised for Claude review"
+          if echo "$USERS_LIST" | grep -q "^$WORKFLOW_USER$"; then
+            echo "✓ User $WORKFLOW_USER is authorised to trigger Claude review"
             echo "authorized=true" >> $GITHUB_OUTPUT
           else
-            echo "PR author $PR_USER is not in the authorized list - skipping Claude review"
+            echo "User $WORKFLOW_USER is not in the authorized list - skipping Claude review"
             echo "authorized=false" >> $GITHUB_OUTPUT
           fi
 
@@ -69,7 +81,8 @@ jobs:
         if: steps.skip-check.outputs.skip != 'true' && steps.auth-check.outputs.authorized == 'true'
         uses: actions/checkout@v4
         with:
-          fetch-depth: 1
+          fetch-depth: 0
+          ref: refs/pull/${{ inputs.pr_number }}/merge
 
       - name: Run Claude Code Review
         if: steps.skip-check.outputs.skip != 'true' && steps.auth-check.outputs.authorized == 'true'
@@ -80,6 +93,17 @@ jobs:
 
           # Use Claude Opus 4 for better code review quality
           model: claude-opus-4-20250514
+
+          # Custom instructions for British English and project standards
+          custom_instructions: |
+            IMPORTANT: Always use British English spelling and grammar in all your responses, reviews, and written content.
+            This project follows British English conventions throughout its documentation and codebase.
+            Examples: use "organisation" not "organization", "colour" not "color", "centre" not "center", etc.
+            
+            Follow project standards:
+            - Coding guidelines: dev-ref/CODING_GUIDELINES.md
+            - Testing patterns: dev-ref/testing/
+            - Error handling: dev-ref/testing/ERROR_HANDLING_PATTERNS.md
 
           # Direct prompt for automated review (no @claude mention needed)
           direct_prompt: |

@@ -640,7 +640,11 @@ def save_supy(
             output_format = "txt"
 
     # determine `save_snow` option
-    snowuse = df_state_final.iloc[-1].loc["snowuse"].values.item()
+    snowuse = df_state_final.iloc[-1].loc["snowuse"]
+    # Handle both scalar and array cases safely
+    if hasattr(snowuse, 'iloc'):
+        # If it's a Series (multi-level index), get the first value
+        snowuse = snowuse.iloc[0]
     save_snow = True if snowuse == 1 else False
 
     # check if directory for saving results exists; if not, create one.

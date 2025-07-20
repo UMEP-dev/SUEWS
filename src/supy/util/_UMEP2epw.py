@@ -167,7 +167,8 @@ def convert_UMEPf2epw(path_txt, lat, lon, tz, alt=None, path_epw=None):
     # (3) Convert -999 values to NaN & remove columns with NaN
     # NOTE: The parameters that supy.util.gen_epw needs are: ['Kdown','Ldown','U10','T2','RH2',Q2].
     # NOTE: All extra data could be copied over.
-    df_data.replace(-999, np.nan, inplace=True)
+    from ._missing import to_nan
+    df_data = to_nan(df_data)
     df_data.dropna(axis=1, inplace=True)
 
     # (4) Match units with SUEWS (kPa > hPa)
@@ -232,6 +233,9 @@ def patchup_epw(df_data, df_header, path_epw, lat, lon, tz, alt):
         alt = str(alt)
 
     # DATA
+    # Create a copy to avoid fragmentation warnings
+    df_data = df_data.copy()
+    
     # Fixing roundings
     df_data.iloc[:, :5] = df_data.iloc[:, :5].astype(int)
     df_data.iloc[:, 6:8] = df_data.iloc[:, 6:8].round(1)

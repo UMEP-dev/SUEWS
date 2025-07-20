@@ -1,37 +1,43 @@
-import tempfile
-from pathlib import Path
 import io
+from pathlib import Path
+import platform
 import sys
-import warnings
+import tempfile
 from time import time
-from unittest import TestCase, skipIf
+from unittest import TestCase
+import warnings
 
 import numpy as np
 import pandas as pd
 
 import supy as sp
-import platform
-
-from pathlib import Path
 
 # Import debug utilities
 try:
     from .debug_utils import (
-        debug_on_ci, 
-        debug_dataframe_output, 
+        capture_test_artifacts,
+        debug_dataframe_output,
+        debug_on_ci,
         debug_water_balance,
-        capture_test_artifacts
     )
 except ImportError:
     # Fallback if decorators not available
-    def debug_on_ci(func): return func
-    def debug_dataframe_output(func): return func
-    def debug_water_balance(func): return func
-    def capture_test_artifacts(name): return lambda func: func
+    def debug_on_ci(func):
+        return func
+
+    def debug_dataframe_output(func):
+        return func
+
+    def debug_water_balance(func):
+        return func
+
+    def capture_test_artifacts(name):
+        return lambda func: func
+
 
 # Get the test data directory from the environment variable
-test_data_dir = Path(__file__).parent / "data_test"
-# test_data_dir = os.environ.get('TEST_DATA_DIR', Path(__file__).parent / 'data_test')
+test_data_dir = Path(__file__).parent.parent / "fixtures" / "data_test"
+# test_data_dir = os.environ.get('TEST_DATA_DIR', Path(__file__).parent.parent / 'fixtures' / 'data_test')
 
 # Note: sample_output.pkl testing has been moved to test_sample_output.py
 
@@ -58,7 +64,7 @@ class TestSuPy(TestCase):
     def test_is_supy_running_single_step(self):
         print("\n========================================")
         print("Testing if single-tstep mode can run...")
-        
+
         # Load sample data
         df_state_init, df_forcing_tstep = sp.load_SampleData()
 
@@ -81,11 +87,11 @@ class TestSuPy(TestCase):
     # test if multi-tstep mode can run
     @debug_on_ci
     @debug_dataframe_output
-    @capture_test_artifacts('multi_step')
+    @capture_test_artifacts("multi_step")
     def test_is_supy_running_multi_step(self):
         print("\n========================================")
         print("Testing if multi-tstep mode can run...")
-        
+
         # Load sample data
         df_state_init, df_forcing_tstep = sp.load_SampleData()
 
@@ -103,9 +109,9 @@ class TestSuPy(TestCase):
         #     # sys.stdout = sys.__stdout__  # Reset redirect.
         #     # Now works as before.
         #     # print("Captured:\n", capturedOutput.getvalue())
-        print(f"empty output?", df_output.empty)
-        print(f"empty state?", df_state.empty)
-        print(f"any NaN in state?", df_state.isnull().values.any())
+        print("empty output?", df_output.empty)
+        print("empty state?", df_state.empty)
+        print("any NaN in state?", df_state.isnull().values.any())
         # find the first NaN in state
         if df_state.isnull().values.any():
             print("NaN in state:")
@@ -114,14 +120,14 @@ class TestSuPy(TestCase):
             not df_output.empty,
             not df_state.empty,
         ])
-        self.assertTrue((test_non_empty and not df_state.isnull().values.any()))
+        self.assertTrue(test_non_empty and not df_state.isnull().values.any())
 
     # test if multi-grid simulation can run in parallel
     def test_is_supy_sim_save_multi_grid_par(self):
         print("\n========================================")
         print("Testing if multi-grid simulation can run in parallel...")
         n_grid = 4
-        
+
         # Load sample data
         df_state_init, df_forcing_tstep = sp.load_SampleData()
 
@@ -166,10 +172,10 @@ class TestSuPy(TestCase):
     def test_is_flag_test_working(self):
         print("\n========================================")
         print("Testing if flag_test can be set to True...")
-        
+
         # Load sample data
         df_state_init, df_forcing_tstep = sp.load_SampleData()
-        
+
         df_forcing_part = df_forcing_tstep.iloc[: 288 * 10]
         df_output, df_state, df_debug, res_state = sp.run_supy(
             df_forcing_part,
@@ -275,7 +281,6 @@ class TestSuPy(TestCase):
     def test_gen_forcing(self):
         print("\n========================================")
         print("Testing if forcing generation working...")
-        import xarray as xr
 
         # # mimic downloading
         # dict_era5_file = sp.util.download_era5(
@@ -290,7 +295,7 @@ class TestSuPy(TestCase):
         # test forcing generation
 
         # skip this test if under cibuild environment where the test data is not available
-        p_data_test = Path("./supy/test/data_test/multi-grid")
+        p_data_test = Path("test/fixtures/data_test/multi-grid")
         if not p_data_test.exists():
             self.assertTrue(True)
         else:
@@ -435,62 +440,69 @@ class TestSuPy(TestCase):
     def test_dailystate_meaningful(self):
         print("\n========================================")
         print("Testing if dailystate are written out correctly...")
-        
+
         # Load sample data
         df_state_init, df_forcing_tstep = sp.load_SampleData()
-        
+
         n_days = 10
         df_forcing_part = df_forcing_tstep.iloc[: 288 * n_days]
 
         # single-step results
         df_output, df_state = sp.run_supy(df_forcing_part, df_state_init)
-        
+
         # Check that DailyState exists in output
-        groups = df_output.columns.get_level_values('group').unique()
-        self.assertIn('DailyState', groups, "DailyState should be in output groups")
-        
+        groups = df_output.columns.get_level_values("group").unique()
+        self.assertIn("DailyState", groups, "DailyState should be in output groups")
+
         # Use xs() for robust MultiIndex column access across platforms
-        df_dailystate = df_output.xs('DailyState', level='group', axis=1)
-        
+        df_dailystate = df_output.xs("DailyState", level="group", axis=1)
+
         # More robust check: Count rows that have at least one non-NaN value
         # This avoids issues with dropna() behavior across pandas versions
         mask_has_data = df_dailystate.notna().any(axis=1)
         n_days_with_data = mask_has_data.sum()
-        
+
         # For even more robustness, also count unique days based on a key column
         # that should always have data (e.g., HDD1_h)
-        if 'HDD1_h' in df_dailystate.columns:
-            n_days_by_hdd = df_dailystate.loc[mask_has_data, 'HDD1_h'].notna().sum()
+        if "HDD1_h" in df_dailystate.columns:
+            n_days_by_hdd = df_dailystate.loc[mask_has_data, "HDD1_h"].notna().sum()
         else:
             # Fallback to first column if HDD1_h doesn't exist
             n_days_by_hdd = df_dailystate.loc[mask_has_data].iloc[:, 0].notna().sum()
-        
+
         # Debug information
         print(f"DailyState shape: {df_dailystate.shape}")
         print(f"Rows with any data: {n_days_with_data}")
         print(f"Days with valid data (by column check): {n_days_by_hdd}")
-        
+
         # Check we have the expected number of days
         # Use the count of rows with data instead of dropna().drop_duplicates()
-        self.assertGreaterEqual(n_days_with_data, n_days - 1,
-                                f"Expected at least {n_days - 1} days of DailyState data, got {n_days_with_data}")
-        self.assertLessEqual(n_days_with_data, n_days + 1,
-                             f"Expected at most {n_days + 1} days of DailyState data, got {n_days_with_data}")
-        
+        self.assertGreaterEqual(
+            n_days_with_data,
+            n_days - 1,
+            f"Expected at least {n_days - 1} days of DailyState data, got {n_days_with_data}",
+        )
+        self.assertLessEqual(
+            n_days_with_data,
+            n_days + 1,
+            f"Expected at most {n_days + 1} days of DailyState data, got {n_days_with_data}",
+        )
+
         # Additional check: ensure we have actual data
-        self.assertGreater(n_days_with_data, 0,
-                           "DailyState should have at least some data")
+        self.assertGreater(
+            n_days_with_data, 0, "DailyState should have at least some data"
+        )
 
     # test if the water balance is closed
     @debug_water_balance
-    @capture_test_artifacts('water_balance')
+    @capture_test_artifacts("water_balance")
     def test_water_balance_closed(self):
         print("\n========================================")
         print("Testing if water balance is closed...")
-        
+
         # Load sample data
         df_state_init, df_forcing_tstep = sp.load_SampleData()
-        
+
         n_days = 100
         df_forcing_part = df_forcing_tstep.iloc[: 288 * n_days]
         df_output, df_state = sp.run_supy(df_forcing_part, df_state_init)

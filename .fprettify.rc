@@ -1,0 +1,49 @@
+# fprettify configuration for SUEWS Fortran code
+# This ensures consistent formatting across the project
+
+# Indentation
+indent = 3
+
+# Line length (allow longer lines for scientific code)
+line-length = 132
+
+# Whitespace around operators
+whitespace = 2
+
+# Strict indentation enforcement
+strict-indent = True
+
+# Enable declaration formatting
+enable-decl = True
+
+# Case conventions:
+# 1 = lowercase, 2 = uppercase, 3 = capitalize, 0 = leave as is
+# Order: keywords, procedures/modules, derived types, intrinsics
+case = 1 1 1 1
+
+# Don't add whitespace before :: in declarations
+whitespace-type = 0
+
+# Alignment of :: in declarations
+whitespace-decl = 1
+
+# Don't add whitespace in relational operators (e.g., <=, >=)
+whitespace-relational = False
+
+# Add whitespace around logical operators
+whitespace-logical = True
+
+# Add whitespace around arithmetic operators
+whitespace-plusminus = True
+
+# Add whitespace around multiplication/division
+whitespace-multdiv = True
+
+# Add whitespace around print/read statements
+whitespace-print = True
+
+# Add whitespace for intrinsics
+whitespace-intrinsics = True
+
+# Don't impose whitespace for comma-separated lists
+disable-indent-mod = True

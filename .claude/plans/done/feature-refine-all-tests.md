@@ -20,11 +20,12 @@ Comprehensive test suite refinement to improve test quality, reliability, and ma
 
 This is a large refactoring that will be split into multiple smaller PRs:
 
-### Sub-PR 1: Enable All Tests (IMMEDIATE)
+### Sub-PR 1: Enable All Tests (COMPLETED)
 - **Branch**: `fix/enable-all-tests`
 - **Scope**: Remove platform restrictions from test_supy.py
-- **Size**: ~10 lines changed
-- **PR**: #[number]
+- **Size**: ~10 lines changed (3 insertions, 19 deletions)
+- **PR**: #513
+- **Commit**: 2e36d189
 
 ### Sub-PR 2: Fix Critical Warnings (HIGH PRIORITY)
 - **Branch**: `fix/numpy-pandas-warnings`
@@ -62,7 +63,10 @@ This is a large refactoring that will be split into multiple smaller PRs:
   - Found: test_gen_forcing, test_is_supy_save_working, test_is_smd_veg_weighted
   - These use @skipUnless(flag_full_test) which only runs on specific platforms
   - flag_full_test = True only for Python 3.12 macOS ARM64 or Python 3.13 Linux x86_64
-- [ ] **ACTION: Remove platform restrictions - enable all tests for all platforms**
+- [x] **ACTION: Remove platform restrictions - enable all tests for all platforms**
+  - COMPLETED: Set flag_full_test = True unconditionally
+  - Removed all @skipUnless decorators from 3 tests
+  - Tests now run on all platforms and Python versions
 - [x] Review if any tests are conditionally skipped in CI
   - CI runs on multiple platforms: Linux x86_64, macOS ARM64, Windows AMD64
   - Full tests run on: Linux x86_64 + Python 3.13, macOS ARM64 + Python 3.12

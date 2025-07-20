@@ -510,8 +510,9 @@ def run_supy_ser(
         df_state_final = pack_df_state_final(df_state_final, df_init)
 
         # save results as time-aware DataFrame
+        from .util import to_nan
         df_output0 = pd.concat(dict_df_output, names=["grid"]).sort_index()
-        df_output = df_output0.replace(-999.0, np.nan)
+        df_output = to_nan(df_output0)
 
         # drop ESTM for now as it is not supported yet
         df_output = df_output.drop("ESTM", axis=1, level="group")

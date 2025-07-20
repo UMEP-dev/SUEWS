@@ -163,7 +163,7 @@ SUEWS/
 
 SUEWS maintains consistent code style through automated formatting:
 
-* **Coding Standards**: See [`CODING_GUIDELINES.md`](CODING_GUIDELINES.md) for detailed standards
+* **Coding Standards**: See [`CODING_GUIDELINES.md`](dev-ref/CODING_GUIDELINES.md) for detailed standards
 * **Automated Formatting**: The master branch is automatically formatted after merge
 * **Zero Friction**: Contributors can focus on functionality; formatting is handled by machines
 * **Tools Used**:

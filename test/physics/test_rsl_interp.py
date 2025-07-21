@@ -24,7 +24,7 @@ def test_rsl_short_building():
     # Run the model - this should not crash with the fix
     try:
         df_output, df_state_final = sp.run_supy(
-            df_forcing.iloc[:24],  # Run for 24 hours
+            df_forcing.iloc[:288],  # Run for 24 hours (288 timesteps at 5-min intervals)
             df_state_init
         )
         
@@ -70,7 +70,7 @@ def test_rsl_very_short_building():
     # Run the model - this should not crash with the fix
     try:
         df_output, df_state_final = sp.run_supy(
-            df_forcing.iloc[:24],  # Run for 24 hours
+            df_forcing.iloc[:288],  # Run for 24 hours (288 timesteps at 5-min intervals)
             df_state_init
         )
         
@@ -100,7 +100,7 @@ def test_rsl_tall_building():
     # Run the model - this should work fine
     try:
         df_output, df_state_final = sp.run_supy(
-            df_forcing.iloc[:24],  # Run for 24 hours
+            df_forcing.iloc[:288],  # Run for 24 hours (288 timesteps at 5-min intervals)
             df_state_init
         )
         

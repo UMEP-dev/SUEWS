@@ -43,7 +43,7 @@ MODULE SUEWS_Driver
    USE ctrl_output, ONLY: varListAll
    USE lumps_module, ONLY: LUMPS_cal_QHQE_DTS
    USE evap_module, ONLY: cal_evap_multi
-   USE rsl_module, ONLY: RSLProfile, RSLProfile_DTS
+   USE rsl_module, ONLY: RSLProfile_DTS
    USE anemsn_module, ONLY: AnthropogenicEmissions
    USE CO2_module, ONLY: CO2_biogen
    USE allocateArray, ONLY: &
@@ -465,7 +465,7 @@ CONTAINS
             ! Calculate diagnostics: these variables are decoupled from the main SUEWS calculation
 
             !============ roughness sub-layer diagonostics ===============
-            IF (Diagnose == 1) WRITE (*, *) 'Calling RSLProfile...'
+            IF (Diagnose == 1) WRITE (*, *) 'Calling RSLProfile_DTS...'
             CALL RSLProfile_DTS( &
                timer, config, forcing, siteInfo, & ! input
                modState, & ! input/output:

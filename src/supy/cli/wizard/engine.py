@@ -164,9 +164,16 @@ class WizardEngine:
     
     def _validate_complete_config(self):
         """Validate the complete configuration against Pydantic models"""
-        # This will be implemented to use actual SUEWS Pydantic models
-        # For now, just a placeholder
-        pass
+        from .validators.pydantic_integration import PydanticValidator
+        
+        validator = PydanticValidator()
+        is_valid, errors = validator.validate_complete_config(self.session.configuration)
+        
+        if not is_valid:
+            console.print("\n[red]Configuration validation failed:[/red]")
+            for error in errors:
+                console.print(f"  • {error}")
+            raise ValueError("Invalid configuration")
     
     def save_draft(self):
         """Save current progress as draft"""

@@ -189,49 +189,49 @@ def resample_output(df_output, freq="60T", dict_aggm=dict_var_aggm):
     # Helper function to resample a group with specified parameters
     def _resample_group(df_group, freq, label, dict_aggm_group, group_name=None):
         """Resample a dataframe group with specified aggregation rules.
-        
+
         Args:
             df_group: DataFrame group to resample
             freq: Resampling frequency
             label: Label parameter for resample ('left' or 'right')
             dict_aggm_group: Aggregation dictionary for this group
             group_name: Name of the group (used to apply dropna only to DailyState)
-        
+
         Returns:
             Resampled DataFrame
         """
         # Only apply dropna to DailyState group
         # Other groups may have NaN values in some variables (e.g., Fcld)
-        if group_name == 'DailyState':
+        if group_name == "DailyState":
             # DailyState contains sparse data (values only at end of each day)
             # Use dropna(how='all') to preserve rows with partial data
-            df_with_data = df_group.dropna(how='all')
+            df_with_data = df_group.dropna(how="all")
 
             if df_with_data.empty:
                 # No data at all - return empty DataFrame with proper structure
-                return pd.DataFrame(index=pd.DatetimeIndex([]), columns=df_group.columns)
+                return pd.DataFrame(
+                    index=pd.DatetimeIndex([]), columns=df_group.columns
+                )
 
             # Resample the non-empty data
-            df_resampled = df_with_data.resample(
-                freq, 
-                closed="right", 
-                label=label
-            ).agg(dict_aggm_group)
+            df_resampled = df_with_data.resample(freq, closed="right", label=label).agg(
+                dict_aggm_group
+            )
 
             # Reindex to match the expected output timerange
             # This ensures we have the full time range even if data is sparse
-            full_index = df_group.resample(freq, closed="right", label=label).asfreq().index
+            full_index = (
+                df_group.resample(freq, closed="right", label=label).asfreq().index
+            )
             df_resampled = df_resampled.reindex(full_index)
             return df_resampled
         else:
             df_to_resample = df_group
-            
-        return df_to_resample.resample(
-            freq, 
-            closed="right", 
-            label=label
-        ).agg(dict_aggm_group)
-    
+
+        return df_to_resample.resample(freq, closed="right", label=label).agg(
+            dict_aggm_group
+        )
+
     # get grid and group names
     list_grid = df_output.index.get_level_values("grid").unique()
     list_group = df_output.columns.get_level_values("group").unique()
@@ -245,11 +245,13 @@ def resample_output(df_output, freq="60T", dict_aggm=dict_var_aggm):
             grid: pd.concat(
                 {
                     group: _resample_group(
-                        df_output.xs(grid, level='grid')[group],
+                        df_output.xs(grid, level="grid")[group],
                         freq,
-                        "right" if group != "DailyState" else "left",  # DailyState uses 'left' label
+                        "right"
+                        if group != "DailyState"
+                        else "left",  # DailyState uses 'left' label
                         dict_aggm[group],
-                        group_name=group
+                        group_name=group,
                     )
                     for group in list_group
                     if group in dict_aggm  # Only process groups that are in dict_aggm

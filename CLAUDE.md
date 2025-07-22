@@ -6,6 +6,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 - **Language**: Use British English for all documentation, code comments, and communication
 
+## Documentation Structure
+- **Developer reference**: `dev-ref/` - Coding guidelines, testing patterns, interfaces
+- **Testing patterns**: `dev-ref/testing/` - Test design, error handling, CI tiers
+- **User documentation**: `docs/` - Sphinx-generated user-facing documentation
+
 ## Git Worktrees for Claude Code
 
 This repository uses nested git worktrees to enable parallel development with Claude Code. All worktrees are located under `worktrees/` directory for Claude Code accessibility.

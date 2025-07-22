@@ -51,7 +51,9 @@ def check_range(ser_to_check: pd.Series, rule_var: dict) -> Tuple:
         flag_optional = True
 
     # if the parameter is optional and not set, it is accepted
-    ser_to_check_nan = ser_to_check.replace(-999.0, np.nan)
+    from .util import to_nan
+
+    ser_to_check_nan = to_nan(ser_to_check)
     if flag_optional:
         ser_to_check_nan = ser_to_check_nan.dropna()
     ser_flag = ~ser_to_check_nan.between(min_v, max_v)
@@ -183,8 +185,7 @@ def check_forcing(df_forcing: pd.DataFrame, fix=False):
                     var_check = var.lower()
                     min_v = dict_rules_indiv[var_check]["param"]["min"]
                     max_v = dict_rules_indiv[var_check]["param"]["max"]
-                    ser_var = ser_var.where(ser_var < max_v, max_v).copy()
-                    ser_var = ser_var.where(ser_var > min_v, min_v).copy()
+                    ser_var = ser_var.clip(lower=min_v, upper=max_v)
                     df_forcing_fix.loc[:, var] = ser_var.values
 
     if not flag_valid:

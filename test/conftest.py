@@ -14,7 +14,9 @@ def pytest_collection_modifyitems(items):
     other_tests = []
 
     for item in items:
-        if "test_sample_output" in str(item.fspath):
+        if "test_sample_output" in str(item.fspath) or "core/test_sample_output" in str(
+            item.fspath
+        ):
             sample_output_tests.append(item)
         else:
             other_tests.append(item)

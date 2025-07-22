@@ -15,6 +15,7 @@ import numpy as np
 from ._supy_module import save_supy
 from .util._io import read_forcing
 from ._run import run_supy_ser
+from .data_model import RefValue
 
 
 class SUEWSSimulation:
@@ -89,30 +90,32 @@ class SUEWSSimulation:
             config_path = Path(config).expanduser().resolve()
             if not config_path.exists():
                 raise FileNotFoundError(f"Configuration file not found: {config_path}")
-            
+
             # Load YAML
             from .data_model.core import SUEWSConfig
+
             self._config = SUEWSConfig.from_yaml(str(config_path))
             self._config_path = config_path
-            
+
             # Convert to initial state DataFrame
             self._df_state_init = self._config.to_df_state()
-            
+
             # Try to load forcing from config
             self._try_load_forcing_from_config()
-            
+
         elif isinstance(config, dict):
             # Update existing config with dictionary
             if self._config is None:
                 from .data_model.core import SUEWSConfig
+
                 self._config = SUEWSConfig()
-            
+
             # Deep update the configuration
             self._update_config_from_dict(config)
-            
+
             # Regenerate state DataFrame
             self._df_state_init = self._config.to_df_state()
-            
+
         else:
             # Assume it's a SUEWSConfig object
             self._config = config
@@ -123,7 +126,9 @@ class SUEWSSimulation:
         # This is a simplified version - in practice would need deep merging
         for key, value in updates.items():
             if hasattr(self._config, key):
-                if isinstance(value, dict) and hasattr(getattr(self._config, key), '__dict__'):
+                if isinstance(value, dict) and hasattr(
+                    getattr(self._config, key), "__dict__"
+                ):
                     # Recursive update for nested objects
                     for subkey, subvalue in value.items():
                         if hasattr(getattr(self._config, key), subkey):
@@ -131,7 +136,9 @@ class SUEWSSimulation:
                 else:
                     setattr(self._config, key, value)
 
-    def update_forcing(self, forcing_data: Union[str, Path, List[Union[str, Path]], pd.DataFrame]):
+    def update_forcing(
+        self, forcing_data: Union[str, Path, List[Union[str, Path]], pd.DataFrame]
+    ):
         """
         Update meteorological forcing data.
 
@@ -150,6 +157,8 @@ class SUEWSSimulation:
         >>> sim.update_forcing(["forcing_2023.txt", "forcing_2024.txt"])
         >>> sim.update_forcing(df_forcing)
         """
+        if isinstance(forcing_data, RefValue):
+            forcing_data = forcing_data.value
         if isinstance(forcing_data, pd.DataFrame):
             self._df_forcing = forcing_data.copy()
         elif isinstance(forcing_data, list):
@@ -167,53 +176,64 @@ class SUEWSSimulation:
         """Try to load forcing data from configuration if not explicitly provided."""
         if self._config is None:
             return
-        
+
         try:
-            if hasattr(self._config, 'model') and hasattr(self._config.model, 'control'):
-                forcing_file_obj = getattr(self._config.model.control, 'forcing_file', None)
-                
+            if hasattr(self._config, "model") and hasattr(
+                self._config.model, "control"
+            ):
+                forcing_file_obj = getattr(
+                    self._config.model.control, "forcing_file", None
+                )
+
                 if forcing_file_obj is not None:
                     # Handle RefValue wrapper
-                    if hasattr(forcing_file_obj, 'value'):
+                    if hasattr(forcing_file_obj, "value"):
                         forcing_value = forcing_file_obj.value
                     else:
                         forcing_value = forcing_file_obj
-                    
+
                     # Skip default placeholder value
                     if forcing_value and forcing_value != "forcing.txt":
                         # Resolve relative paths
                         if self._config_path and not Path(forcing_value).is_absolute():
                             if isinstance(forcing_value, list):
-                                forcing_value = [str(self._config_path.parent / f) for f in forcing_value]
+                                forcing_value = [
+                                    str(self._config_path.parent / f)
+                                    for f in forcing_value
+                                ]
                             else:
-                                forcing_value = str(self._config_path.parent / forcing_value)
-                        
+                                forcing_value = str(
+                                    self._config_path.parent / forcing_value
+                                )
+
                         self.update_forcing(forcing_value)
-                        
+
         except Exception as e:
             warnings.warn(f"Could not load forcing from config: {e}")
 
-    def _load_forcing_from_list(self, forcing_list: List[Union[str, Path]]) -> pd.DataFrame:
+    def _load_forcing_from_list(
+        self, forcing_list: List[Union[str, Path]]
+    ) -> pd.DataFrame:
         """Load and concatenate forcing data from a list of files."""
         if not forcing_list:
             raise ValueError("Empty forcing file list provided")
-        
+
         dfs = []
         for item in forcing_list:
             path = Path(item).expanduser().resolve()
-            
+
             if not path.exists():
                 raise FileNotFoundError(f"Forcing file not found: {path}")
-            
+
             if path.is_dir():
                 raise ValueError(
                     f"Directory '{path}' found in forcing file list. "
                     "Directories are not allowed in lists."
                 )
-            
+
             df = read_forcing(str(path))
             dfs.append(df)
-        
+
         return pd.concat(dfs, axis=0).sort_index()
 
     def _load_forcing_file(self, forcing_path: Path) -> pd.DataFrame:
@@ -224,23 +244,25 @@ class SUEWSSimulation:
                 f"Loading forcing data from directory '{forcing_path}' is deprecated. "
                 "Please specify individual files or use a list of files instead.",
                 DeprecationWarning,
-                stacklevel=3
+                stacklevel=3,
             )
-            
+
             # Find forcing files in directory
-            patterns = ['*.txt', '*.csv', '*.met']
+            patterns = ["*.txt", "*.csv", "*.met"]
             forcing_files = []
             for pattern in patterns:
                 forcing_files.extend(sorted(forcing_path.glob(pattern)))
-            
+
             if not forcing_files:
-                raise FileNotFoundError(f"No forcing files found in directory: {forcing_path}")
-            
+                raise FileNotFoundError(
+                    f"No forcing files found in directory: {forcing_path}"
+                )
+
             # Concatenate all files
             dfs = []
             for file in forcing_files:
                 dfs.append(read_forcing(str(file)))
-            
+
             return pd.concat(dfs, axis=0).sort_index()
         else:
             return read_forcing(str(forcing_path))
@@ -281,7 +303,7 @@ class SUEWSSimulation:
         )
         self._df_output = result[0]
         self._df_state_final = result[1]
-        
+
         self._run_completed = True
         return self._df_output
 
@@ -319,25 +341,26 @@ class SUEWSSimulation:
         output_format = None
         freq_s = 3600  # default hourly
         site = ""
-        
+
         if self._config:
             # Get output frequency from OutputConfig if available
-            if (hasattr(self._config, 'model') and 
-                hasattr(self._config.model, 'control') and
-                hasattr(self._config.model.control, 'output_file') and 
-                not isinstance(self._config.model.control.output_file, str)):
-                
+            if (
+                hasattr(self._config, "model")
+                and hasattr(self._config.model, "control")
+                and hasattr(self._config.model.control, "output_file")
+                and not isinstance(self._config.model.control.output_file, str)
+            ):
                 output_config = self._config.model.control.output_file
-                if hasattr(output_config, 'freq') and output_config.freq is not None:
+                if hasattr(output_config, "freq") and output_config.freq is not None:
                     freq_s = output_config.freq
                 # Removed for now - can't update from YAML (TODO)
                 # if hasattr(output_config, 'format') and output_config.format is not None:
                 #     output_format = output_config.format
-            
+
             # Get site name from first site
-            if hasattr(self._config, 'sites') and len(self._config.sites) > 0:
+            if hasattr(self._config, "sites") and len(self._config.sites) > 0:
                 site = self._config.sites[0].name
-        if "format" in save_kwargs: # TODO: When yaml format working, make elif
+        if "format" in save_kwargs:  # TODO: When yaml format working, make elif
             output_format = save_kwargs["format"]
 
         # Use save_supy for all formats
@@ -348,7 +371,7 @@ class SUEWSSimulation:
             site=site,
             path_dir_save=str(output_path),
             # **save_kwargs # Problematic, save_supy expects explicit arguments
-            output_format = output_format
+            output_format=output_format,
         )
         return list_path_save
 

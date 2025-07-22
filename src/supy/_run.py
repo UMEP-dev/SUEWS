@@ -510,8 +510,10 @@ def run_supy_ser(
         df_state_final = pack_df_state_final(df_state_final, df_init)
 
         # save results as time-aware DataFrame
+        from .util import to_nan
+
         df_output0 = pd.concat(dict_df_output, names=["grid"]).sort_index()
-        df_output = df_output0.replace(-999.0, np.nan)
+        df_output = to_nan(df_output0)
 
         # drop ESTM for now as it is not supported yet
         df_output = df_output.drop("ESTM", axis=1, level="group")
@@ -772,7 +774,7 @@ def pack_grid_dict(ser_grid):
                 dict_var[var] = pack_var_old(ser_grid[var])
             except Exception as e:
                 # Skip string metadata variables that don't need packing
-                if var in ['config', 'description']:
+                if var in ["config", "description"]:
                     dict_var[var] = ser_grid[var].iloc[0]
                 else:
                     # For other variables, try the alternative packing method
@@ -805,7 +807,7 @@ def pack_df_state_final(df_state_end, df_state_start):
     dict_packed = {}
     for var in df_state_end.to_dict():
         # Skip string metadata variables that don't need reshaping
-        if var in ['config', 'description']:
+        if var in ["config", "description"]:
             # For metadata, just keep the single value for each grid
             col_names = ser_col_multi[var].values
             val = df_state_end[var].values.reshape(-1, 1).T

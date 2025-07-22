@@ -1,0 +1,209 @@
+name: Format PR
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+    paths:
+      - '**.py'
+      - '**.f90'
+      - '**.f95'
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: 'Pull Request number to format (leave empty to create new PR from current branch)'
+        required: false
+        type: number
+      branch_name:
+        description: 'Branch name for new PR (only used if pr_number is empty)'
+        required: false
+        type: string
+        default: 'format/auto-format'
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  format:
+    # Don't run on PRs from forks (they don't have write permission)
+    # For manual triggers, we'll check this later after fetching PR info
+    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Get PR information
+      if: github.event_name == 'workflow_dispatch' && inputs.pr_number != ''
+      id: pr_info
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const pr = await github.rest.pulls.get({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            pull_number: ${{ inputs.pr_number }}
+          });
+          
+          // Check if PR is from a fork
+          if (pr.data.head.repo.full_name !== context.repo.owner + '/' + context.repo.repo) {
+            core.setFailed('Cannot format PRs from forks');
+            return;
+          }
+          
+          core.setOutput('head_ref', pr.data.head.ref);
+          core.setOutput('pr_number', pr.data.number);
+          core.setOutput('pr_user_login', pr.data.user.login);
+          core.setOutput('pr_user_id', pr.data.user.id);
+    
+    - name: Checkout for new PR
+      if: github.event_name == 'workflow_dispatch' && inputs.pr_number == ''
+      uses: actions/checkout@v4
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        ref: ${{ github.ref }}
+        fetch-depth: 0
+    
+    - name: Create new branch
+      if: github.event_name == 'workflow_dispatch' && inputs.pr_number == ''
+      run: |
+        git checkout -b ${{ inputs.branch_name }}
+        echo "FORMATTING_NEW_PR=true" >> $GITHUB_ENV
+        echo "FORMATTING_BRANCH=${{ inputs.branch_name }}" >> $GITHUB_ENV
+    
+    - name: Checkout existing PR
+      if: github.event_name != 'workflow_dispatch' || inputs.pr_number != ''
+      uses: actions/checkout@v4
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        ref: ${{ github.event_name == 'workflow_dispatch' && steps.pr_info.outputs.head_ref || github.event.pull_request.head.ref }}
+        fetch-depth: 0
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+
+    - name: Install formatting tools
+      run: |
+        python -m pip install --upgrade pip
+        pip install ruff==0.8.6 fprettify==0.3.7
+
+    - name: Format Python code
+      run: |
+        echo "::group::Formatting Python code"
+        # Find all Python files
+        PYTHON_FILES=$(find . -name "*.py" -type f | grep -v -E '(\.git|__pycache__|\.tox|\.venv|build|dist|worktrees)' || true)
+        if [ -n "$PYTHON_FILES" ]; then
+          ruff format $PYTHON_FILES || true
+        fi
+        echo "::endgroup::"
+
+    - name: Format Fortran code
+      run: |
+        echo "::group::Formatting Fortran code"
+        if [ -f .fprettify.rc ]; then
+          # Create exclude file
+          echo "suews_util_datetime.f95" > .fprettify-exclude
+          
+          # Find and format Fortran files
+          FORTRAN_FILES=$(find . \( -name "*.f90" -o -name "*.f95" \) -type f | \
+                         grep -v -E '(\.git|build|dist|worktrees)' | \
+                         grep -v -f .fprettify-exclude || true)
+          
+          if [ -n "$FORTRAN_FILES" ]; then
+            for file in $FORTRAN_FILES; do
+              fprettify --config .fprettify.rc "$file" 2>/dev/null || true
+            done
+          fi
+          
+          rm -f .fprettify-exclude
+        fi
+        echo "::endgroup::"
+
+    - name: Check for changes
+      id: verify
+      run: |
+        if git diff --quiet; then
+          echo "No formatting changes needed"
+          echo "has_changes=false" >> $GITHUB_OUTPUT
+        else
+          echo "Formatting changes detected"
+          echo "has_changes=true" >> $GITHUB_OUTPUT
+          
+          # Show what changed
+          echo "::group::Files with formatting changes"
+          git diff --name-only
+          echo "::endgroup::"
+        fi
+
+    - name: Commit changes
+      if: steps.verify.outputs.has_changes == 'true'
+      run: |
+        # Configure git
+        git config --local user.email "github-actions[bot]@users.noreply.github.com"
+        git config --local user.name "github-actions[bot]"
+        
+        # Stage and commit
+        git add -A
+        
+        # Different commit messages for new PR vs existing PR
+        if [ "$FORMATTING_NEW_PR" = "true" ]; then
+          git commit -m "style: auto-format code with ruff and fprettify
+
+        Automated formatting of Python and Fortran code using:
+        - Python: ruff v0.8.6
+        - Fortran: fprettify v0.3.7"
+        else
+          git commit -m "style: auto-format code with ruff and fprettify
+
+        Co-authored-by: ${{ github.event_name == 'workflow_dispatch' && steps.pr_info.outputs.pr_user_login || github.event.pull_request.user.login }} <${{ github.event_name == 'workflow_dispatch' && steps.pr_info.outputs.pr_user_id || github.event.pull_request.user.id }}+${{ github.event_name == 'workflow_dispatch' && steps.pr_info.outputs.pr_user_login || github.event.pull_request.user.login }}@users.noreply.github.com>"
+        fi
+        
+        # Push to branch
+        if [ "$FORMATTING_NEW_PR" = "true" ]; then
+          git push -u origin $FORMATTING_BRANCH
+        else
+          git push
+        fi
+
+    - name: Create PR
+      if: steps.verify.outputs.has_changes == 'true' && env.FORMATTING_NEW_PR == 'true'
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const pr = await github.rest.pulls.create({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            title: 'style: auto-format Python and Fortran code',
+            body: `## 🤖 Automated Code Formatting
+          
+          This PR contains automated formatting changes for Python and Fortran code using:
+          - **Python**: \`ruff\` v0.8.6
+          - **Fortran**: \`fprettify\` v0.3.7
+          
+          ### Files Changed
+          Please review the changes to ensure the formatting looks correct.
+          
+          ### How to merge
+          1. Review the changes
+          2. If everything looks good, merge this PR
+          3. Delete the branch after merging`,
+            head: '${{ inputs.branch_name }}',
+            base: context.ref.replace('refs/heads/', ''),
+            draft: false
+          });
+          
+          console.log(`Created PR #${pr.data.number}`);
+          core.setOutput('created_pr_number', pr.data.number);
+    
+    - name: Comment on existing PR
+      if: steps.verify.outputs.has_changes == 'true' && env.FORMATTING_NEW_PR != 'true'
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const pr_number = ${{ github.event_name == 'workflow_dispatch' && inputs.pr_number || 'context.issue.number' }};
+          github.rest.issues.createComment({
+            issue_number: pr_number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: '🤖 I\'ve automatically formatted the code in this PR using:\n- **Python**: `ruff` v0.8.6\n- **Fortran**: `fprettify` v0.3.7\n\nPlease pull the latest changes before making further edits.'
+          })

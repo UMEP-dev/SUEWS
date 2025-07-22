@@ -247,7 +247,7 @@ def gen_suews_arg_info_df(docstring):
 # note: infer data types for variables to avoid type conversion
 df_info_suews_cal_multitsteps = gen_suews_arg_info_df(
     _sd.f90wrap_suews_driver__suews_cal_multitsteps.__doc__
-).infer_objects()
+).infer_objects(copy=False)
 
 df_var_info = df_info_suews_cal_multitsteps.set_index("name")
 
@@ -276,9 +276,7 @@ def load_SUEWS_nml(p_nml):
         parser = f90nml.Parser()
         parser.row_major = True
         df_nml = pd.DataFrame(parser.read(p_nml))
-        dict_nml_raw = {
-            name: np.array(row.dropna().values[0]) for name, row in df_nml.iterrows()
-        }
+        dict_nml_raw = {name: row.dropna().values[0] for name, row in df_nml.iterrows()}
         dict_nml = {}
         for k, v in dict_nml_raw.items():
             # print(k, v, type(v))
@@ -334,14 +332,14 @@ def lookup_code_lib(libCode, codeKey, codeValue, path_input):
     lib = dict_libs[str_lib]
     # print(str_lib,codeKey,codeValue)
     if codeKey == ":":
-        res = lib.loc[int(np.unique(codeValue)), :].tolist()
+        res = lib.loc[int(np.unique(codeValue).item()), :].tolist()
     else:
-        res = lib.loc[int(np.unique(codeValue)), codeKey]
+        res = lib.loc[int(np.unique(codeValue).item()), codeKey]
         if isinstance(res, pd.Series):
             # drop duolicates, otherwise duplicate values
             # will be introduced with more complexity
             res = res.drop_duplicates()
-            res = res.values[0] if res.size == 1 else res.tolist()
+            res = res.iloc[0] if res.size == 1 else res.tolist()
     return res
 
 
@@ -621,8 +619,10 @@ def resample_forcing_met(
             f"`tstep_in` ({tstep_in}) is not divisible by `tstep_mod` ({tstep_mod})"
         )
 
+    from .util import to_nan
+
     data_met_raw = data_met_raw.copy()
-    data_met_raw = data_met_raw.replace(-999, np.nan)
+    data_met_raw = to_nan(data_met_raw)
     # this line is kept for occasional debugging:
     if logger_supy.level < 20:
         p_data_met_raw = "data_met_raw.pkl"

@@ -1,6 +1,6 @@
 # SUEWS Makefile - read the README file before editing
 
-.PHONY: main clean test pip supy docs dev dev-clean dev-fast livehtml schema proc-csv config-ui check-dev-install mamba-dev help deactivate
+.PHONY: main clean test pip supy docs dev dev-clean dev-fast livehtml schema proc-csv config-ui check-dev-install mamba-dev help deactivate format lint
 
 # OS-specific configurations
 ifeq ($(OS),Windows_NT)
@@ -77,6 +77,8 @@ help:
 	@echo ""
 	@echo "Testing and Quality:"
 	@echo "  test            - Run test suite"
+	@echo "  format          - Format Python and Fortran code locally"
+	@echo "  lint            - Check code style without modifying"
 	@echo ""
 	@echo "Documentation:"
 	@echo "  docs            - Build HTML documentation"
@@ -282,4 +284,52 @@ deactivate:
 	echo ""; \
 	@echo "Environment deactivation commands cannot be executed from Makefiles."; \
 	echo "Please run the suggested command in your shell."
+
+# Format Python and Fortran code locally
+format:
+	@echo "Formatting Python code with ruff..."
+	@if command -v ruff >/dev/null 2>&1; then \
+		ruff format $(supy_dir) $(test_dir); \
+	else \
+		echo "WARNING: ruff not found. Install with: pip install ruff"; \
+	fi
+	@echo ""
+	@echo "Formatting Fortran code with fprettify..."
+	@if command -v fprettify >/dev/null 2>&1; then \
+		find $(suews_dir)/src -name "*.f95" -o -name "*.f90" | \
+		grep -v suews_util_datetime.f95 | \
+		xargs fprettify --config .fprettify.rc 2>/dev/null || \
+		echo "Note: Some Fortran files may have formatting issues"; \
+	else \
+		echo "WARNING: fprettify not found. Install with: pip install fprettify"; \
+	fi
+	@echo ""
+	@echo "Formatting complete!"
+
+# Check code style without modifying
+lint:
+	@echo "Checking Python code with ruff..."
+	@if command -v ruff >/dev/null 2>&1; then \
+		ruff check $(supy_dir) $(test_dir) || echo ""; \
+		echo "To fix auto-fixable issues: ruff check --fix $(supy_dir) $(test_dir)"; \
+	else \
+		echo "WARNING: ruff not found. Install with: pip install ruff"; \
+	fi
+	@echo ""
+	@echo "Checking Fortran formatting..."
+	@if command -v fprettify >/dev/null 2>&1; then \
+		FAILED=0; \
+		for file in $$(find $(suews_dir)/src -name "*.f95" -o -name "*.f90" | grep -v suews_util_datetime.f95); do \
+			if ! fprettify --diff --config .fprettify.rc "$$file" >/dev/null 2>&1; then \
+				FAILED=1; \
+			fi; \
+		done; \
+		if [ $$FAILED -eq 0 ]; then \
+			echo "✓ Fortran formatting is correct"; \
+		else \
+			echo "✗ Some Fortran files need formatting. Run 'make format' to fix."; \
+		fi \
+	else \
+		echo "WARNING: fprettify not found. Install with: pip install fprettify"; \
+	fi
 

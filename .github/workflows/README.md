@@ -35,18 +35,31 @@ AI-powered workflow automation using Claude. Mention `@claude` to:
 - Code review capabilities integrated
 - Post-processing with reactions and PR linking
 
-### 2. Build and Publish (`build-publish_to_pypi.yml`)
+### 2. Format PR (`format-pr.yml`)
+Simplified PR-based formatting workflow that:
+- Runs on pull requests when code changes are detected
+- Can be manually triggered via Actions tab for any PR
+- Formats Python code using ruff v0.8.6
+- Formats Fortran code using fprettify v0.3.7
+- Commits directly to the PR branch
+- Posts a comment notifying about formatting changes
+- Skips forked repositories automatically
+- No permission issues or workflow chains
+
+**Manual Trigger:**
+1. Go to Actions tab → Format PR workflow
+2. Click "Run workflow"
+3. Enter the PR number to format
+4. Click "Run workflow" button
+
+### 3. Build and Publish (`build-publish_to_pypi.yml`)
 Automated build and publish workflow that:
 - Builds wheels for multiple platforms (Linux, macOS, Windows)
 - Supports Python 3.9-3.13
 - Runs tests on each platform
 - Publishes to TestPyPI on every push
 - Publishes to PyPI on tagged releases
-
-### 3. Fortran Prettify (`fprettify.yml`)
-Automatically formats Fortran code using fprettify when:
-- Changes are pushed to any branch except master
-- Fortran source files are modified
+- Skips builds for auto-format commits (via `[skip ci]`)
 
 ### 4. Debug cibuildwheel (`cibuildwheel-debug.yml`)
 Interactive debugging environment for cibuildwheel build issues with SSH access, Claude Code CLI integration, and comprehensive error capture.
@@ -62,6 +75,16 @@ Actions tab → "Debug cibuildwheel with SSH" → Run workflow → Select platfo
 
 > 📋 **Full documentation and usage examples** are available in the workflow file comments at the top of `cibuildwheel-debug.yml`
 
+## Disabled Workflows
+
+The following workflows have been disabled to prevent conflicts:
+- `auto-format.yml.disabled` - Previously formatted master branch and created PRs
+- `fprettify.yml.disabled` - Previously ran on all branches except master
+- `ruff-format.yml.disabled` - Previously ran on PRs and non-master branches
+- `check-master-files.yml.disabled` - Legacy workflow
+
+These have been replaced by the unified `auto-format.yml` workflow that runs only on master.
+
 ## Configuration
 
 ### Required Secrets
@@ -76,7 +99,6 @@ Actions tab → "Debug cibuildwheel with SSH" → Run workflow → Select platfo
     ```
 - `PYPI_API_TOKEN`: PyPI token for publishing releases
 - `TEST_PYPI_API_TOKEN`: TestPyPI token for test publishing
-- `PAT`: Personal Access Token for fprettify commits
 
 
 ## Security Configuration
@@ -122,4 +144,5 @@ Without this configuration, all Claude requests will be denied.
 
 - If Claude doesn't respond, check if you're in the authorised users list
 - For build failures, check the tmate debugging session (15 min timeout)
-- For fprettify issues, ensure your PAT has write permissions
+- For auto-formatting issues, check the workflow logs and PR creation status
+- If formatting PRs aren't created, ensure the workflow has pull-request write permissions

@@ -125,6 +125,8 @@ jobs:
             4. For Fortran changes, run 'make dev' to rebuild
             5. Check CLAUDE.md for project-specific instructions
             6. When creating PRs, reference related GitHub issues
+            7. Follow coding standards in dev-ref/CODING_GUIDELINES.md
+            8. Use testing patterns from dev-ref/testing/
           
           # Environment variables for Claude
           claude_env: |

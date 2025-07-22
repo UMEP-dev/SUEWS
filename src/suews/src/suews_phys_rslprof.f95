@@ -8,6 +8,9 @@ MODULE rsl_module
 
    INTEGER, PARAMETER :: nz = 30 ! number of levels 10 levels in canopy plus 20 (3 x Zh) above the canopy
 
+   ! Temporarily save neutral limit to allow setting it to 0 in RSL calculations
+   REAL(KIND(1D0)) :: neut_limit_
+
 CONTAINS
 
    SUBROUTINE RSLProfile( &
@@ -146,6 +149,10 @@ CONTAINS
 !          Lc, beta, zd_RSL, z0_RSL, elm, Scc, fx)
 
       ! Step 1: determine if RSL should be used
+
+      ! Temporarily set neut_limit to 0 for RSL calculations
+      neut_limit_ = neut_limit
+      neut_limit = 0.0
 
       IF (DiagMethod == 0) THEN
          ! force MOST to be used
@@ -298,7 +305,8 @@ CONTAINS
       ! under all conditions, min(UStar)==0.001 m s-1 (Jimenez et al 2012, MWR, https://doi.org/10.1175/mwr-d-11-00056.1
       UStar_RSL = MAX(0.001, UStar_RSL)
       ! under convective/unstable condition, min(UStar)==0.15 m s-1: (Schumann 1988, BLM, https://doi.org/10.1007/BF00123019)
-      IF ((ZMeas - zd_RSL)/L_MOD_RSL < -neut_limit) UStar_RSL = MAX(0.15, UStar_RSL)
+      ! Use original neutral limit at measurement height
+      IF ((ZMeas - zd_RSL)/L_MOD_RSL < -neut_limit_) UStar_RSL = MAX(0.15, UStar_RSL)
 
       ! TStar_RSL = -1.*(qh/(avcp*avdens))/UStar_RSL
       ! qStar_RSL = -1.*(qe/lv_J_kg*avdens)/UStar_RSL
@@ -385,6 +393,9 @@ CONTAINS
       END IF
       ! get relative humidity:
       RH2 = qa2RH(q2_gkg, press_hPa, T2_C)
+
+      ! Restore original neut_limit value
+      neut_limit = neut_limit_
 
    END SUBROUTINE RSLProfile
 
@@ -998,6 +1009,10 @@ CONTAINS
             ! Step 1: determine if RSL should be used
             ! sfr_surf = [pavedPrm%sfr, bldgPrm%sfr, evetrPrm%sfr, dectrPrm%sfr, grassPrm%sfr, bsoilPrm%sfr, waterPrm%sfr]
 
+            ! Temporarily set neut_limit to 0 for RSL calculations
+            neut_limit_ = neut_limit
+            neut_limit = 0.0
+
             IF (DiagMethod == 0) THEN
                ! force MOST to be used
                flag_RSL = .FALSE.
@@ -1113,7 +1128,8 @@ CONTAINS
             ! under all conditions, min(UStar)==0.001 m s-1 (Jimenez et al 2012, MWR, https://doi.org/10.1175/mwr-d-11-00056.1
             UStar_RSL = MAX(0.001, UStar_RSL)
             ! under convective/unstable condition, min(UStar)==0.15 m s-1: (Schumann 1988, BLM, https://doi.org/10.1007/BF00123019)
-            IF ((ZMeas - zd_RSL)/L_MOD_RSL < -neut_limit) UStar_RSL = MAX(0.15, UStar_RSL)
+            ! Use original neutral limit at measurement height
+            IF ((ZMeas - zd_RSL)/L_MOD_RSL < -neut_limit_) UStar_RSL = MAX(0.15, UStar_RSL)
 
             ! TStar_RSL = -1.*(qh/(avcp*avdens))/UStar_RSL
             ! qStar_RSL = -1.*(qe/lv_J_kg*avdens)/UStar_RSL
@@ -1208,6 +1224,9 @@ CONTAINS
 
          END ASSOCIATE
       END ASSOCIATE
+
+      ! Restore original neut_limit value
+      neut_limit = neut_limit_
 
    END SUBROUTINE RSLProfile_DTS
 

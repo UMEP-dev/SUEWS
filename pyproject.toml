@@ -37,6 +37,7 @@ dependencies = [
     "xarray",                                      # utility for high-dimensional datasets
     "multiprocess",                                # a better multiprocessing library
     "click",                                       # cmd tool
+    "rich",                                        # rich terminal UI for wizard
     "lmfit",                                       # optimiser
     "numdifftools",                                # required by `lmfit` for uncertainty estimation
     "pvlib",                                       # TMY-related solar radiation calculations
@@ -68,6 +69,7 @@ content-type = "text/markdown"
 [project.scripts]
 suews-run = "supy.cmd.SUEWS:SUEWS"
 suews-convert = "supy.cmd.table_converter:convert_table_cmd"
+suews-wizard = "supy.cli.wizard.cli:wizard"
 
 [project.optional-dependencies]
 dev = [

@@ -1,0 +1,45 @@
+# Urban configuration template
+# Dense urban area with high building fraction
+
+site:
+  description: "Dense urban area"
+  
+surface:
+  fractions:
+    paved: 0.45
+    buildings: 0.35
+    evergreen_tree: 0.05
+    deciduous_tree: 0.05
+    grass: 0.08
+    bare_soil: 0.01
+    water: 0.01
+    
+  # Typical urban surface properties
+  albedo:
+    paved: 0.12
+    buildings: 0.15
+    evergreen_tree: 0.10
+    deciduous_tree: 0.15
+    grass: 0.18
+    bare_soil: 0.15
+    water: 0.10
+    
+  emissivity:
+    paved: 0.95
+    buildings: 0.90
+    evergreen_tree: 0.98
+    deciduous_tree: 0.98
+    grass: 0.95
+    bare_soil: 0.95
+    water: 0.98
+
+morphology:
+  building_height: 15.0  # m
+  tree_height: 10.0      # m
+  roughness_length_momentum: 1.5  # m
+  displacement_height: 10.0  # m
+
+anthropogenic:
+  base_qf: 15.0  # W/m2 - typical for urban areas
+  qf_a: [0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.0, 0.9, 0.8, 0.7, 0.6, 0.5]  # diurnal profile
+  qf_b: [0.8, 0.9, 1.0, 1.0, 1.0, 1.0, 0.9]  # weekly profile

@@ -1,0 +1,1 @@
+# YAML Configuration Wizard for SUEWS

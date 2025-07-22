@@ -1,0 +1,45 @@
+# Suburban configuration template
+# Mixed residential area with moderate vegetation
+
+site:
+  description: "Suburban residential area"
+  
+surface:
+  fractions:
+    paved: 0.25
+    buildings: 0.20
+    evergreen_tree: 0.10
+    deciduous_tree: 0.15
+    grass: 0.25
+    bare_soil: 0.03
+    water: 0.02
+    
+  # Typical suburban surface properties
+  albedo:
+    paved: 0.15
+    buildings: 0.20
+    evergreen_tree: 0.10
+    deciduous_tree: 0.15
+    grass: 0.20
+    bare_soil: 0.15
+    water: 0.10
+    
+  emissivity:
+    paved: 0.95
+    buildings: 0.92
+    evergreen_tree: 0.98
+    deciduous_tree: 0.98
+    grass: 0.95
+    bare_soil: 0.95
+    water: 0.98
+
+morphology:
+  building_height: 8.0   # m
+  tree_height: 12.0      # m
+  roughness_length_momentum: 0.8  # m
+  displacement_height: 5.0  # m
+
+anthropogenic:
+  base_qf: 8.0  # W/m2 - typical for suburban areas
+  qf_a: [0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.9, 0.8, 0.7, 0.6, 0.5, 0.4]  # diurnal profile
+  qf_b: [0.7, 0.8, 0.9, 1.0, 1.0, 1.0, 0.8]  # weekly profile

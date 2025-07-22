@@ -108,24 +108,39 @@ def validate(config_file, verbose):
     console.print(f"\n[bold]Validating:[/bold] {config_file}\n")
     
     try:
-        from ...data_model import SUEWSConfiguration  # Import the actual model
+        from ...data_model import SUEWSConfig
+        from .validators.pydantic_integration import PydanticValidator
         import yaml
         
-        # Load and validate
+        # Load configuration
         with open(config_file, 'r') as f:
             config_data = yaml.safe_load(f)
         
-        # Validate against Pydantic model
-        config = SUEWSConfiguration(**config_data)
+        # Check if it's wizard format or SUEWS format
+        if "model" in config_data and "sites" in config_data:
+            # Direct SUEWS format
+            config = SUEWSConfig(**config_data)
+            console.print("[green]✓[/green] Configuration is valid (SUEWS format)!")
+        else:
+            # Wizard format - validate through integration
+            validator = PydanticValidator()
+            is_valid, errors = validator.validate_complete_config(config_data)
+            
+            if is_valid:
+                console.print("[green]✓[/green] Configuration is valid (wizard format)!")
+            else:
+                console.print("[red]✗[/red] Configuration has errors:")
+                for error in errors:
+                    console.print(f"  • {error}")
+                raise SystemExit(1)
         
-        console.print("[green]✓[/green] Configuration is valid!")
-        
-        if verbose:
+        if verbose and config_data:
             console.print("\n[bold]Configuration Summary:[/bold]")
-            # Show summary of key parameters
-            console.print(f"  Site: {getattr(config.site, 'name', 'N/A')}")
-            console.print(f"  Simulation period: {getattr(config.simulation, 'start_date', 'N/A')} - {getattr(config.simulation, 'end_date', 'N/A')}")
-            # Add more summary info as needed
+            if "site" in config_data:
+                console.print(f"  Site: {config_data.get('site', {}).get('name', 'N/A')}")
+            elif "sites" in config_data and config_data["sites"]:
+                console.print(f"  Sites: {len(config_data['sites'])} site(s)")
+                console.print(f"  First site: {config_data['sites'][0].get('name', 'N/A')}")
             
     except Exception as e:
         console.print(f"[red]✗[/red] Validation failed: {e}")

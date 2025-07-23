@@ -1,6 +1,7 @@
 """
 Main CLI entry point for the SUEWS YAML configuration wizard.
 """
+
 import click
 from rich.console import Console
 from rich.panel import Panel
@@ -36,10 +37,10 @@ def new(template, output):
     """Create a new SUEWS configuration file"""
     console.clear()
     console.print(create_welcome_panel())
-    
+
     # Initialize wizard engine
     engine = WizardEngine(output_path=output, template=template)
-    
+
     # Show template selection if not provided
     if not template:
         console.print("\n[bold]Choose a starting point:[/bold]\n")
@@ -47,16 +48,18 @@ def new(template, output):
         console.print("2. Urban template")
         console.print("3. Suburban template")
         console.print("4. Rural template")
-        
-        choice = Prompt.ask("\nSelect option", choices=["1", "2", "3", "4"], default="1")
-        
+
+        choice = Prompt.ask(
+            "\nSelect option", choices=["1", "2", "3", "4"], default="1"
+        )
+
         template_map = {
             "2": "urban",
             "3": "suburban",
             "4": "rural",
         }
         engine.template = template_map.get(choice, None)
-    
+
     # Run the wizard
     try:
         engine.run()
@@ -83,12 +86,12 @@ def edit(config_file, output):
     """Edit an existing SUEWS configuration file"""
     console.clear()
     console.print(create_welcome_panel())
-    
+
     output = output or config_file
-    
+
     # Initialize wizard engine with existing config
     engine = WizardEngine(output_path=output, existing_config=config_file)
-    
+
     # Run the wizard
     try:
         engine.run()
@@ -106,16 +109,16 @@ def edit(config_file, output):
 def validate(config_file, verbose):
     """Validate a SUEWS configuration file"""
     console.print(f"\n[bold]Validating:[/bold] {config_file}\n")
-    
+
     try:
         from ...data_model import SUEWSConfig
         from .validators.pydantic_integration import PydanticValidator
         import yaml
-        
+
         # Load configuration
-        with open(config_file, 'r') as f:
+        with open(config_file, "r") as f:
             config_data = yaml.safe_load(f)
-        
+
         # Check if it's wizard format or SUEWS format
         if "model" in config_data and "sites" in config_data:
             # Direct SUEWS format
@@ -125,27 +128,34 @@ def validate(config_file, verbose):
             # Wizard format - validate through integration
             validator = PydanticValidator()
             is_valid, errors = validator.validate_complete_config(config_data)
-            
+
             if is_valid:
-                console.print("[green]✓[/green] Configuration is valid (wizard format)!")
+                console.print(
+                    "[green]✓[/green] Configuration is valid (wizard format)!"
+                )
             else:
                 console.print("[red]✗[/red] Configuration has errors:")
                 for error in errors:
                     console.print(f"  • {error}")
                 raise SystemExit(1)
-        
+
         if verbose and config_data:
             console.print("\n[bold]Configuration Summary:[/bold]")
             if "site" in config_data:
-                console.print(f"  Site: {config_data.get('site', {}).get('name', 'N/A')}")
+                console.print(
+                    f"  Site: {config_data.get('site', {}).get('name', 'N/A')}"
+                )
             elif "sites" in config_data and config_data["sites"]:
                 console.print(f"  Sites: {len(config_data['sites'])} site(s)")
-                console.print(f"  First site: {config_data['sites'][0].get('name', 'N/A')}")
-            
+                console.print(
+                    f"  First site: {config_data['sites'][0].get('name', 'N/A')}"
+                )
+
     except Exception as e:
         console.print(f"[red]✗[/red] Validation failed: {e}")
         if verbose:
             import traceback
+
             console.print("\n[dim]Full error trace:[/dim]")
             console.print(traceback.format_exc())
         raise SystemExit(1)
@@ -155,16 +165,16 @@ def validate(config_file, verbose):
 def templates():
     """List available configuration templates"""
     console.print("\n[bold]Available Templates:[/bold]\n")
-    
+
     templates_info = {
         "urban": "Dense urban area with high building fraction and impervious surfaces",
         "suburban": "Mixed residential area with moderate vegetation and building coverage",
         "rural": "Open area with high vegetation fraction and low building density",
     }
-    
+
     for name, description in templates_info.items():
         console.print(f"  [cyan]{name}[/cyan]: {description}")
-    
+
     console.print("\n[dim]Use: suews-wizard new --template <name>[/dim]")
 
 

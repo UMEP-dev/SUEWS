@@ -326,32 +326,33 @@ def assign_automatic_notes(param_name: str, existing_note: str) -> str:
     if existing_note:
         return existing_note
     
+    # Collect all applicable notes
+    notes = []
+    
     # Check if parameter is temperature-related (note 1)
     temp_suffixes = ['.tin', '.temperature', '.tsfc']
     temp_names = ['tmin_id', 'tmax_id', 'tair_av']
     if (any(param_name.endswith(suffix) for suffix in temp_suffixes) or 
         any(temp_name in param_name for temp_name in temp_names)):
-        return '1'
+        notes.append('1')
     
-    # Check if parameter is snow/ice-related (note 2)
+    # Check if parameter is snow/ice-related (note 2 and 3)
     snow_ice_keywords = ['snow', 'ice']
-    if any(keyword in param_name.lower() for keyword in snow_ice_keywords):
-        return '2'
-    
-    # Check if parameter is snow/ice-related (note 3)
-    snow_ice_keywords = ['snow', 'ice']
-    if any(keyword in param_name.lower() for keyword in snow_ice_keywords):
-        return '3'
+    qn_keywords = ['dqnsdt', 'qn_s_av']
+    if (any(keyword in param_name.lower() for keyword in snow_ice_keywords) or
+       any(keyword in param_name.lower() for keyword in qn_keywords)):
+        notes.extend(['2', '3'])
     
     # Check if parameter contains 'dd' in the name (note 4)
     if 'dd' in param_name.lower():
-        return '4'
+        notes.append('4')
     
     # Check if parameter contains '.soilstore' or '.state' in the name (note 10) - precipitation-related
     if '.soilstore' in param_name.lower() or '.state' in param_name.lower():
-        return '10'
+        notes.append('10')
 
-    return ''
+    # Return comma-separated notes or empty string
+    return ','.join(notes) if notes else ''
 
 def create_analysis_dataframe(parameters: Set[str], analysis_results: Dict[str, Dict[str, Any]], 
                              existing_notes: Dict[str, str] = None) -> pd.DataFrame:
@@ -415,8 +416,20 @@ def load_existing_notes(excel_path: Path) -> Dict[str, Dict[str, str]]:
                     for _, row in df.iterrows():
                         param_name = row['parameter_name']
                         notes = row['notes'] if pd.notna(row['notes']) else ''
-                        if param_name and notes:  # Only store non-empty notes
-                            notes_by_sheet[sheet_name][param_name] = notes
+                        # Convert notes to string and handle edge cases
+                        if notes != '' and str(notes).strip() not in ['nan', 'None']:
+                            notes_str = str(notes).strip()
+                            # Clean up floating point notation if it exists (1.0 -> 1, 2.0 -> 2)
+                            if '.' in notes_str and notes_str.replace('.', '').replace(',', '').isdigit():
+                                # Handle comma-separated notes that might have been converted to float
+                                # This is a fallback - the main fix is preventing the conversion in the first place
+                                try:
+                                    float_val = float(notes_str)
+                                    if float_val.is_integer():
+                                        notes_str = str(int(float_val))
+                                except ValueError:
+                                    pass  # Keep original if conversion fails
+                            notes_by_sheet[sheet_name][param_name] = notes_str
             except (ValueError, KeyError):
                 # Sheet doesn't exist or has different structure, skip
                 continue
@@ -433,27 +446,29 @@ def create_notes_legend_file(output_path: Path):
 
 Temperature-Related Notes (1-9):
 --------------------------------
-1. Parameters that are assigned with 2m monthly mean air temperature from precheck procedure.
-Monthly mean air temperature is obtained from CRU dataset.
+1. These parameters are assigned with 2m monthly mean air temperature during precheck procedure.
+Monthly mean air temperature is obtained from CRU TS Version 4.06 dataset (reference: 
+https://crudata.uea.ac.uk/cru/data/hrg/cru_ts_4.06/).
+    1.1. Future improvements will implement a 5 days avg air temperature assignment.
 
-2. Snow and ice parameters that needs to be updated according to monthly mean air temperature.
-If monthly mean air temperature > 4C°, these should be set to 0.
+2. Snow and ice parameters that are updated according to monthly mean air temperature, lat and lng
+(see note 1). If monthly mean air temperature > 4C°, these should be set to 0.
 
-3. Snow and ice parameters that needs to be updated according to monthly mean air temperature.
-If monthly mean air temperature < 4C°, these should be set to reasonable values. 
-Ask Lena for suggestions.
+3. Snow and ice parameters that are updated according to monthly mean air temperature, lat and lng
+(see note 1). If monthly mean air temperature < 4C°, these should be set to reasonable values. 
+[SG suggested: ask Lena for suggestions].
 
 4. Parameters related to degree days.
 
-5. [Available for assignment]
+5. [Available for temperature-related note assignment]
 
-6. [Available for assignment]
+6. [Available for temperature-related note assignment]
 
-7. [Available for assignment]
+7. [Available for temperature-related note assignment]
 
-8. [Available for assignment]
+8. [Available for temperature-related note assignment]
 
-9. [Available for assignment]
+9. [Available for temperature-related note assignment]
 
 10. Parameters related to precipitations.
 
@@ -504,6 +519,13 @@ def write_excel_report(initial_states_params: Set[str], initial_states_results: 
         properties_extended_params, properties_results, existing_notes['properties_extended']
     )
     
+    # Ensure notes columns are stored as strings to preserve comma-separated values
+    for df in [initial_states_df, properties_core_df, properties_extended_df]:
+        if 'notes' in df.columns:
+            df['notes'] = df['notes'].astype(str)
+            # Replace 'nan' strings with empty strings for cleaner display
+            df['notes'] = df['notes'].replace('nan', '')
+    
     # Create or preserve stebbs sheet
     stebbs_df = create_blank_stebbs_dataframe()
     # If stebbs sheet exists with data, preserve it completely
@@ -512,6 +534,10 @@ def write_excel_report(initial_states_params: Set[str], initial_states_results: 
             existing_stebbs = pd.read_excel(output_path, sheet_name='stebbs', engine='openpyxl')
             if not existing_stebbs.empty:
                 stebbs_df = existing_stebbs
+                # Ensure stebbs notes are also strings
+                if 'notes' in stebbs_df.columns:
+                    stebbs_df['notes'] = stebbs_df['notes'].astype(str)
+                    stebbs_df['notes'] = stebbs_df['notes'].replace('nan', '')
         except (ValueError, KeyError, FileNotFoundError):
             # Sheet doesn't exist or has issues, keep blank dataframe
             pass

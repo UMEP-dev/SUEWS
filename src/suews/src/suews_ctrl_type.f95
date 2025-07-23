@@ -949,8 +949,8 @@ MODULE SUEWS_DEF_DTS
       INTEGER :: idLBM
       INTEGER :: appliance_totalnumber
 
-      REAL(KIND(1D0)) :: Qtotal_heating
-      REAL(KIND(1D0)) :: Qtotal_cooling
+      REAL(KIND(1D0)) :: Qtotal_heating_tstepFA
+      REAL(KIND(1D0)) :: Qtotal_cooling_tstepFA
       REAL(KIND(1D0)) :: Qmetabolic_sensible
       REAL(KIND(1D0)) :: Qmetabolic_latent
       REAL(KIND(1D0)) :: Qtotal_water_tank

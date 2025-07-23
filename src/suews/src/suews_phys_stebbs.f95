@@ -1830,6 +1830,8 @@ SUBROUTINE tstep( &
       QS_fabric_tstepFA = QS_fabric_tstepTotal / timestep / Afootprint
       QS_air_tstepFA = QS_air_tstepTotal / timestep / Afootprint
 
+      Qtotal_heating_tstepFA = Qtotal_heating_tstepTotal / timestep / Afootprint
+      Qtotal_cooling_tstepFA = Qtotal_cooling_tstepTotal / timestep / Afootprint
 
    ELSE !iftimestepresolution
       !  printf("Timestep: %i not equally divisible by given resolution: %i.\n", timestep, resolution)

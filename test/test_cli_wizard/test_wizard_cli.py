@@ -68,17 +68,17 @@ class TestWizardCLI:
                     "end_date": "2023-01-02",
                 },
             }
-            
+
             # Write config to file
-            with os.fdopen(fd, 'w') as f:
+            with os.fdopen(fd, "w") as f:
                 yaml.dump(config, f)
-            
+
             # Validate the file
             result = self.runner.invoke(wizard, ["validate", temp_path])
             # Note: This might fail until we implement proper Pydantic integration
             # For now, just check that the command runs
             assert result.exit_code in [0, 1]  # Allow failure for now
-            
+
         finally:
             # Cleanup - this should work on Windows
             try:
@@ -86,6 +86,7 @@ class TestWizardCLI:
             except PermissionError:
                 # On Windows, if file is still locked, try again after a small delay
                 import time
+
                 time.sleep(0.1)
                 try:
                     Path(temp_path).unlink()

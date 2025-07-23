@@ -36,10 +36,9 @@ class WizardSession:
         """Initialize with empty state in history"""
         if not self.history:
             import time
+
             initial_state = ConfigState(
-                configuration={},
-                step_index=0,
-                timestamp=time.time()
+                configuration={}, step_index=0, timestamp=time.time()
             )
             self.history.append(initial_state)
 

@@ -328,7 +328,9 @@ def assign_automatic_notes(param_name: str, existing_note: str) -> str:
     
     # Check if parameter is temperature-related (note 1)
     temp_suffixes = ['.tin', '.temperature', '.tsfc']
-    if any(param_name.endswith(suffix) for suffix in temp_suffixes):
+    temp_names = ['tmin_id', 'tmax_id', 'tair_av']
+    if (any(param_name.endswith(suffix) for suffix in temp_suffixes) or 
+        any(temp_name in param_name for temp_name in temp_names)):
         return '1'
     
     # Check if parameter is snow/ice-related (note 2)
@@ -340,6 +342,14 @@ def assign_automatic_notes(param_name: str, existing_note: str) -> str:
     snow_ice_keywords = ['snow', 'ice']
     if any(keyword in param_name.lower() for keyword in snow_ice_keywords):
         return '3'
+    
+    # Check if parameter contains 'dd' in the name (note 4)
+    if 'dd' in param_name.lower():
+        return '4'
+    
+    # Check if parameter contains '.soilstore' or '.state' in the name (note 10) - precipitation-related
+    if '.soilstore' in param_name.lower() or '.state' in param_name.lower():
+        return '10'
 
     return ''
 
@@ -429,12 +439,11 @@ Monthly mean air temperature is obtained from CRU dataset.
 2. Snow and ice parameters that needs to be updated according to monthly mean air temperature.
 If monthly mean air temperature > 4C°, these should be set to 0.
 
-
 3. Snow and ice parameters that needs to be updated according to monthly mean air temperature.
 If monthly mean air temperature < 4C°, these should be set to reasonable values. 
 Ask Lena for suggestions.
 
-4. [Available for assignment]
+4. Parameters related to degree days.
 
 5. [Available for assignment]
 
@@ -445,6 +454,8 @@ Ask Lena for suggestions.
 8. [Available for assignment]
 
 9. [Available for assignment]
+
+10. Parameters related to precipitations.
 
 Usage Instructions:
 ------------------

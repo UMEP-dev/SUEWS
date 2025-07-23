@@ -29,6 +29,17 @@ class WizardSession:
     validation_errors: Dict[str, List[str]] = field(default_factory=dict)
     template_name: Optional[str] = None
     
+    def __post_init__(self):
+        """Initialize with empty state in history"""
+        if not self.history:
+            import time
+            initial_state = ConfigState(
+                configuration={},
+                step_index=0,
+                timestamp=time.time()
+            )
+            self.history.append(initial_state)
+    
     def save_state(self):
         """Save current state to history"""
         import time
@@ -72,9 +83,6 @@ class WizardSession:
     
     def set_value(self, path: str, value: Any):
         """Set a configuration value using dot notation path"""
-        # Save state before modification
-        self.save_state()
-        
         # Navigate to the correct position in config
         keys = path.split('.')
         current = self.configuration
@@ -87,6 +95,9 @@ class WizardSession:
         
         # Set the value
         current[keys[-1]] = value
+        
+        # Save state after modification
+        self.save_state()
     
     def get_value(self, path: str, default=None) -> Any:
         """Get a configuration value using dot notation path"""

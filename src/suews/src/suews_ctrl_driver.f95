@@ -65,6 +65,9 @@ MODULE SUEWS_Driver
 
    IMPLICIT NONE
 
+   ! Module-level variable to track if snow warning has been shown
+   LOGICAL, SAVE :: snow_warning_shown = .FALSE.
+
 CONTAINS
 
 ! ===================MAIN CALCULATION WRAPPER FOR ENERGY AND WATER FLUX===========
@@ -399,7 +402,11 @@ CONTAINS
                !===================Calculate surface hydrology and related soil water=======================
                ! MP: Until Snow has been fixed this should not be used (TODO)
                IF (config%SnowUse == 1) THEN
-                  WRITE (*, *) "WARNING SNOW ON! Not recommended at the moment"
+                  ! Only show warning once per simulation run
+                  IF (.NOT. snow_warning_shown) THEN
+                     WRITE (*, *) "WARNING SNOW ON! Not recommended at the moment"
+                     snow_warning_shown = .TRUE.
+                  END IF
                   ! ===================Calculate snow related hydrology=======================
                   ! #234 the snow parts needs more work to be done
                   ! TS 18 Oct 2023: snow is temporarily turned off for easier implementation of other functionalities

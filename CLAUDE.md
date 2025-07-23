@@ -84,17 +84,23 @@ When working in a git worktree or on a specific feature branch, check for branch
    git branch --show-current
    ```
 
-2. **Then load the corresponding plan if it exists:**
-   - Check `.claude/plans/doing/feature-{branch-name}.md` for active work
-   - Check `.claude/plans/todo/feature-{branch-name}.md` for planned work
-   - Check `.claude/plans/done/feature-{branch-name}.md` for completed features
+2. **Then check for the corresponding plan:**
    
-   **Note**: When in a worktree, plans are in the parent directory:
+   Plans can be either **simple** (single file) or **complex** (directory):
+   
+   **Simple features:**
    ```bash
-   # From worktree, check all plan directories:
-   ls ../../.claude/plans/*/feature-{branch-name}.md
-   # Or read directly:
+   # Check for single file
    cat ../../.claude/plans/doing/feature-{branch-name}.md
+   ```
+   
+   **Complex features:**
+   ```bash
+   # Check for directory with multiple files
+   cat ../../.claude/plans/doing/feature-{branch-name}/README.md
+   cat ../../.claude/plans/doing/feature-{branch-name}/requirements.md
+   cat ../../.claude/plans/doing/feature-{branch-name}/design.md
+   cat ../../.claude/plans/doing/feature-{branch-name}/tasks.md
    ```
 
 3. **If no plan exists**, proceed with standard development practices.
@@ -111,9 +117,21 @@ See `.claude/reference/build-isolation.md` for complete testing and build workfl
 
 ### Plan Lifecycle Management
 
-For complete plan management guide, see:
-- `.claude/templates/feature-plan.md` - Plan template
-- `.claude/plans/README.md` - Plan lifecycle and organization
+Plans support two structures based on feature complexity:
+
+**Simple Features** (single file):
+- Use for: bug fixes, small enhancements, single-developer work
+- Created by: `/worktree new` command
+- Structure: Single `.md` file with inline progress tracking
+
+**Complex Features** (directory):
+- Use for: API changes, multi-component features, formal requirements
+- Structure: Directory with README.md + optional requirements.md, design.md, tasks.md
+- Benefits: Separation of concerns, no duplication, formal specifications
+
+For complete guide, see:
+- `.claude/plans/README.md` - Unified plan structure and lifecycle
+- `.claude/templates/feature-plan.md` - Simple plan template
 
 
 ## Git and GitHub Tips

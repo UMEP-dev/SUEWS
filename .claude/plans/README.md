@@ -1,16 +1,37 @@
 # Claude Plans Directory
 
-This directory contains branch-specific context and plans for Claude Code sessions when working with git worktrees or feature branches.
+This directory contains branch-specific documentation and plans for Claude Code sessions when working with git worktrees or feature branches.
 
 ## Purpose
 
-When working on complex features across multiple Claude Code sessions or in different git worktrees, context is lost between sessions. These plan files serve as a "context bridge" to maintain continuity.
+When working on features across multiple Claude Code sessions or in different git worktrees, context is lost between sessions. These plan files serve as a "context bridge" to maintain continuity and provide appropriate documentation depth based on feature complexity.
+
+## Unified Structure
+
+Plans can be either simple (single file) or complex (directory with multiple files):
+
+### Simple Features (Single File)
+```
+.claude/plans/doing/
+└── feature-bug-fix.md          # Just a README for simple features
+```
+
+### Complex Features (Directory)
+```
+.claude/plans/doing/
+└── feature-yaml-config/        # Directory for complex features
+    ├── README.md              # Status tracking and overview (required)
+    ├── requirements.md        # Detailed requirements (optional)
+    ├── design.md             # Technical design (optional)
+    └── tasks.md              # Task breakdown (optional)
+```
 
 ## How It Works
 
-1. **Claude Code automatically checks** for a plan file matching the current branch name
+1. **Claude Code automatically checks** for a plan matching the current branch name
 2. **Plans are committed to master** so they're available in all worktrees after pulling
-3. **Plans track progress** and important decisions across sessions
+3. **Simple features** use a single markdown file for lightweight tracking
+4. **Complex features** use a directory structure with optional specification files
 
 ### Why Plans Live in Master Branch
 
@@ -24,8 +45,12 @@ Plans are intentionally kept in the master branch rather than feature branches b
 
 When working in a worktree, plans are accessed via relative paths:
 ```bash
-# From within worktrees/my-feature/
+# For simple features
 cat ../../.claude/plans/doing/feature-my-feature.md
+
+# For complex features
+cat ../../.claude/plans/doing/feature-my-feature/README.md
+cat ../../.claude/plans/doing/feature-my-feature/requirements.md
 ```
 
 ### Updating Plans from Worktrees
@@ -35,57 +60,118 @@ Since plans live in master, updating them requires switching branches. See the d
 2. Switch to master in main repo to commit changes
 3. Return to worktree to continue development
 
-This workflow ensures all worktrees always have access to the latest plan information.
+## Naming Conventions
 
-## File Naming Convention
+### Simple Features
+- File: `feature-{branch-name}.md`
+- Example: `feature-bug-fix.md`
 
-Plans should be named: `feature-{branch-name}.md`
-
-For example:
-- Branch `feature/hide-internal-options` → `feature-hide-internal-options.md`
-- Branch `feature/rsl-physics-fixes` → `feature-rsl-physics-fixes.md`
+### Complex Features
+- Directory: `feature-{branch-name}/`
+- Files inside: `README.md`, `requirements.md`, `design.md`, `tasks.md`
+- Example: `feature-yaml-config/README.md`
 
 ## Creating a New Plan
 
-Use the template structure defined in CLAUDE.md:
+### For Simple Features
 
+Use `/worktree new` which creates a single file from the template.
+
+### For Complex Features
+
+1. Create directory structure:
+```bash
+mkdir -p .claude/plans/todo/feature-{name}
+```
+
+2. Create README.md for status tracking (use as template):
 ```markdown
 # Feature: [Feature Name]
 
+## Lead Developer
+- **GitHub**: @[username]
+- **Started**: [YYYY-MM-DD]
+
 ## Context
-Brief description of what this feature/fix addresses
+Brief overview linking to detailed docs below.
 
-## Progress Tracking
-- [ ] Task 1
-- [x] Task 2 (completed)
-- [ ] Task 3
+## Specification
+- [Requirements](requirements.md) - What we're building
+- [Design](design.md) - How we're building it
+- [Tasks](tasks.md) - Implementation steps
 
-## Key Decisions
-- Decision 1: Reasoning
-- Decision 2: Reasoning
-
-## Implementation Notes
-Specific implementation details, gotchas, or important context
-
-## Files to Modify
-- `path/to/file1.py`
-- `path/to/file2.py`
+## Current Status
+- **Phase**: Requirements gathering
+- **Blockers**: None
+- **Last Updated**: 2024-01-22
 ```
+
+3. Add specification files as needed:
+- `requirements.md` - User stories in EARS notation
+- `design.md` - Technical architecture
+- `tasks.md` - Implementation breakdown
+
+## When to Use Each Structure
+
+### Use Simple (Single File)
+- Bug fixes (< 1 day)
+- Small enhancements
+- Documentation updates
+- Simple refactoring
+- Single developer work
+
+### Use Complex (Directory)
+- New features with API changes
+- Multi-component changes
+- Features requiring formal requirements
+- Multi-developer collaboration
+- Changes spanning multiple PRs
+
+## EARS Notation (For Complex Features)
+
+When writing requirements.md, use EARS notation:
+```
+WHEN [event/condition]
+THE SYSTEM SHALL [expected behavior]
+```
+
+This ensures requirements are:
+- Clear and unambiguous
+- Testable
+- Traceable to implementation
 
 ## Lifecycle
 
-1. **Create** when starting a complex multi-session feature
-2. **Update** progress as work proceeds
-3. **Remove** when the feature branch is merged
+1. **Create** when starting a feature (simple or complex)
+2. **Update** progress in README.md regularly
+3. **Move** between todo/doing/done directories
+4. **Archive** when feature is merged
 
 ## Cleanup
 
 When a feature is complete and merged:
 ```bash
-git rm .claude-plans/feature-{branch-name}.md
-git commit -m "Remove completed plan for feature/{branch-name}"
+# For simple features
+git mv .claude/plans/doing/feature-{name}.md .claude/plans/done/
+git commit -m "Archive completed plan for feature/{name}"
+
+# For complex features
+git mv .claude/plans/doing/feature-{name}/ .claude/plans/done/
+git commit -m "Archive completed plan for feature/{name}"
+```
+
+## Migration from Old Structure
+
+If you have existing specs in `.claude/specs/`, move them:
+```bash
+# Move spec to plans directory
+mv .claude/specs/feature-name .claude/plans/doing/
+
+# Update references in worktree documentation
 ```
 
 ## Current Plans
 
-See the files in this directory for active feature plans.
+- `todo/` - Planned features not yet started
+- `doing/` - Active development
+- `done/` - Completed features (archived)

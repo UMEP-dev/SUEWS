@@ -14,7 +14,8 @@ class TestWizardSession:
         session = WizardSession()
         assert session.current_step == 0
         assert session.configuration == {}
-        assert session.history == []
+        assert len(session.history) == 1  # Initial empty state
+        assert session.history[0].configuration == {}
         assert session.validation_errors == {}
 
     def test_set_value(self):
@@ -100,21 +101,21 @@ class TestWizardSession:
         """Test history is properly maintained"""
         session = WizardSession()
 
-        # Initial state should have no history
-        assert len(session.history) == 0
+        # Initial state should have one empty state in history
+        assert len(session.history) == 1
 
         # Make changes
         session.set_value("value1", 1)
-        assert len(session.history) == 1
-
-        session.set_value("value2", 2)
         assert len(session.history) == 2
 
-        # Undo should not remove from history
+        session.set_value("value2", 2)
+        assert len(session.history) == 3
+
+        # Undo should move one state to redo stack
         session.undo()
-        assert len(session.history) == 1
+        assert len(session.history) == 2
 
         # New change after undo should clear redo stack
         session.set_value("value3", 3)
-        assert len(session.history) == 2
+        assert len(session.history) == 3
         assert len(session.redo_stack) == 0

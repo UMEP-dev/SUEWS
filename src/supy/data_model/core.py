@@ -551,11 +551,24 @@ class SUEWSConfig(BaseModel):
 
         if yaml_path:
             ## When loaded from YAML, we know the source file
-            annotated_filename = Path(yaml_path).stem + "_annotated.yml"
-            fix_instructions = (
-                f"To see detailed fixes for each parameter: please refer to inline guidance "
-                f"in '{annotated_filename}' that will shortly be generated"
+            yaml_path_obj = Path(yaml_path)
+            annotated_path = (
+                yaml_path_obj.parent / f"{yaml_path_obj.stem}_annotated.yml"
             )
+            auto_generate = getattr(self, "_auto_generate_annotated", False)
+
+            if auto_generate:
+                fix_instructions = (
+                    f"To see detailed fixes for each parameter: please refer to inline guidance "
+                    f"in '{annotated_path}' that will be generated"
+                )
+            else:
+                fix_instructions = (
+                    f"To see detailed fixes for each parameter:\n"
+                    f"   Run: config.generate_annotated_yaml('{yaml_path}')\n"
+                    f"   This will create: {annotated_path}\n"
+                    f"   with inline guidance showing exactly where to add missing parameters"
+                )
         else:
             fix_instructions = (
                 f"To see detailed fixes for each parameter:\n"
@@ -593,6 +606,15 @@ class SUEWSConfig(BaseModel):
 
         ## Log the complete summary
         logger_supy.warning(summary_message)
+
+        ## Optionally generate the annotated YAML file automatically
+        auto_generate = getattr(self, "_auto_generate_annotated", False)
+        if auto_generate and yaml_path and Path(yaml_path).exists():
+            try:
+                generated_path = self.generate_annotated_yaml(yaml_path)
+                logger_supy.info(f"Annotated YAML file generated: {generated_path}")
+            except Exception as e:
+                logger_supy.info(f"Could not generate annotated YAML: {e}")
 
     def _validate_site_parameters(self, site: Site, site_index: int) -> None:
         """Validate all parameters for a single site."""
@@ -1253,16 +1275,30 @@ class SUEWSConfig(BaseModel):
             self._collect_validation_issues(site, site_name, i, annotator)
 
         # Generate annotated file
-        input_path = Path(yaml_path)
-        if output_path:
-            output_path = Path(output_path)
-        else:
-            output_path = input_path.parent / f"{input_path.stem}_annotated.yml"
+        try:
+            input_path = Path(yaml_path)
+            if not input_path.exists():
+                logger_supy.error(f"Input file does not exist: {yaml_path}")
+                return None
 
-        annotated_path = annotator.generate_annotated_file(input_path, output_path)
+            if output_path:
+                output_path = Path(output_path)
+                # Check if output directory exists
+                if not output_path.parent.exists():
+                    logger_supy.error(
+                        f"Output directory does not exist: {output_path.parent}"
+                    )
+                    return None
+            else:
+                output_path = input_path.parent / f"{input_path.stem}_annotated.yml"
 
-        logger_supy.info(f"Generated annotated YAML file: {annotated_path}")
-        return str(annotated_path)
+            annotated_path = annotator.generate_annotated_file(input_path, output_path)
+
+            logger_supy.info(f"Generated annotated YAML file: {annotated_path}")
+            return str(annotated_path)
+        except Exception as e:
+            logger_supy.error(f"Failed to generate annotated YAML: {e}")
+            return None
 
     def _collect_validation_issues(
         self, site: Site, site_name: str, site_index: int, annotator: YAMLAnnotator
@@ -1911,7 +1947,11 @@ class SUEWSConfig(BaseModel):
 
     @classmethod
     def from_yaml(
-        cls, path: str, use_conditional_validation: bool = True, strict: bool = True
+        cls,
+        path: str,
+        use_conditional_validation: bool = True,
+        strict: bool = True,
+        auto_generate_annotated: bool = False,
     ) -> "SUEWSConfig":
         """Initialize SUEWSConfig from YAML file with conditional validation.
 
@@ -1919,6 +1959,7 @@ class SUEWSConfig(BaseModel):
             path (str): Path to YAML configuration file
             use_conditional_validation (bool): Whether to use conditional validation
             strict (bool): If True, raise errors on validation failure
+            auto_generate_annotated (bool): If True, automatically generate annotated YAML when validation issues found
 
         Returns:
             SUEWSConfig: Instance of SUEWSConfig initialized from YAML
@@ -1928,6 +1969,7 @@ class SUEWSConfig(BaseModel):
 
         # Store yaml path in config data for later use
         config_data["_yaml_path"] = path
+        config_data["_auto_generate_annotated"] = auto_generate_annotated
 
         if use_conditional_validation:
             logger_supy.info(

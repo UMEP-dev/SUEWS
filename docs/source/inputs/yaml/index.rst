@@ -42,11 +42,20 @@ Validation and Error Handling
 When loading a YAML configuration file, SUEWS performs comprehensive validation to ensure all required parameters are present and valid. If validation errors occur:
 
 1. **Clear error messages** are displayed in the log, listing all missing or invalid parameters
-2. **An annotated YAML file** is automatically generated to help you fix the issues
+2. **Instructions are provided** on how to generate an annotated YAML file to help you fix the issues
 
-The annotated YAML file includes:
+To generate an annotated YAML file, you have two options:
 
-- **Location**: ``{config_file}_annotated_{timestamp}.yml`` in the same directory as your config
+1. **Manual generation**: Call ``config.generate_annotated_yaml('path/to/config.yml')`` after loading
+2. **Automatic generation**: Pass ``auto_generate_annotated=True`` when loading:
+   
+   .. code-block:: python
+   
+       config = SUEWSConfig.from_yaml('config.yml', auto_generate_annotated=True)
+
+The annotated file includes:
+
+- **Location**: ``{config_file}_annotated.yml`` in the same directory as your config
 - **Error markers**: Missing parameters marked with ``[ERROR] MISSING:``
 - **Help tips**: Suggested fixes marked with ``[TIP] ADD HERE:``
 - **Parameter descriptions**: Each error includes the parameter description and expected type

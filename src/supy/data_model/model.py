@@ -647,7 +647,7 @@ class OutputConfig(BaseModel):
 
 
 class ModelControl(BaseModel):
-    tstep: int = Field(
+    tstep: FlexibleRefValue(int) = Field(
         default=300, description="Time step in seconds for model calculations"
     )
     forcing_file: Union[FlexibleRefValue(str), FlexibleRefValue(List[str])] = Field(
@@ -664,7 +664,7 @@ class ModelControl(BaseModel):
         description="Output file configuration. DEPRECATED: String values are ignored and will issue a warning. Please use an OutputConfig object specifying format ('txt' or 'parquet'), frequency (seconds, must be multiple of tstep), and groups to save (for txt format only). Example: {'format': 'parquet', 'freq': 3600} or {'format': 'txt', 'freq': 1800, 'groups': ['SUEWS', 'DailyState', 'ESTM']}. For detailed information about output variables and file structure, see :ref:`output_files`.",
     )
     # daylightsaving_method: int
-    diagnose: int = Field(
+    diagnose: FlexibleRefValue(int) = Field(
         default=0,
         description="Level of diagnostic output (0=none, 1=basic, 2=detailed)",
         json_schema_extra={"internal_only": True},
@@ -702,7 +702,10 @@ class ModelControl(BaseModel):
 
         list_attr = ["tstep", "diagnose"]
         for attr in list_attr:
-            set_df_value(attr, getattr(self, attr))
+            value = getattr(self, attr)
+            # Extract value from RefValue if needed
+            val = value.value if isinstance(value, RefValue) else value
+            set_df_value(attr, val)
         return df_state
 
     @classmethod

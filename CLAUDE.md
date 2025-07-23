@@ -145,6 +145,16 @@ For complete guide, see:
   # Keep only: origin -> git@github.com:UMEP-dev/SUEWS.git
   ```
 
+## Issue Triage and Labeling
+
+- For detailed issue triage process, see `dev-ref/issue-triage.md`
+- Use four-tier labeling system: Type (1-*), Area (2-*), Priority (3-*), Status (4-*)
+- Numbers enable quick filtering in GitHub web interface (e.g., type "2-" to see all areas)
+- Status labels include:
+  - `4-needs-science` - Requires scientific input/decision (flags for domain experts)
+  - `4-needs-deps` - Waiting on other issues/PRs to complete first
+- Unlabeled issues implicitly need triage - no separate triage label needed
+
 ## Style and Language Guidelines
 
 - Any human writing in this project should use British English - docs/code annotations etc
@@ -487,6 +497,25 @@ REAL(KIND(1D0)) :: rss_surf = 0.0D0 ! surface resistance [s m-1]
    - Use comprehensive test suites to catch edge cases
 
 ## Documentation & Code Maintenance Principles
+
+### Documentation Updates for Code Changes
+
+When making code changes to SUEWS/SuPy:
+- **Always update relevant documentation** in `docs/` directory when functionality changes
+- Update Sphinx documentation for user-facing changes
+- **Documentation generation scripts** (run ONLY when specific changes occur):
+  - Run `python docs/generate_datamodel_rst.py` - ONLY when Pydantic data model structure changes (adding/removing fields, changing types)
+  - Run `python docs/gen_schema.py` - ONLY when configuration schema needs regeneration for the web UI
+  - These scripts are NOT run for routine CHANGELOG updates or validator migrations
+- Ensure examples and tutorials reflect current API
+- Update parameter tables and input file documentation as needed
+- **Update CHANGELOG.md promptly** for remarkable changes using categories:
+  - [feature]: New features
+  - [bugfix]: Bug fixes (also create GitHub issue)
+  - [change]: User-facing changes
+  - [maintenance]: Codebase maintenance (including Claude Code development aspects AND updates to CLAUDE.md)
+  - [doc]: Documentation updates (user-facing documentation in docs/, NOT CLAUDE.md)
+- **IMPORTANT**: Updates to CLAUDE.md should be categorised as [maintenance], not [doc]
 
 ### Documentation Principles
 

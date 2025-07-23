@@ -7,6 +7,7 @@ from click.testing import CliRunner
 from pathlib import Path
 import yaml
 import tempfile
+import os
 
 from supy.cli.wizard.cli import wizard
 
@@ -52,7 +53,9 @@ class TestWizardCLI:
 
     def test_wizard_validate_valid_file(self):
         """Test validating a valid configuration file"""
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as f:
+        # Create temporary file
+        fd, temp_path = tempfile.mkstemp(suffix=".yaml")
+        try:
             # Write a minimal valid config
             config = {
                 "site": {
@@ -65,17 +68,29 @@ class TestWizardCLI:
                     "end_date": "2023-01-02",
                 },
             }
-            yaml.dump(config, f)
-            f.flush()
-
+            
+            # Write config to file
+            with os.fdopen(fd, 'w') as f:
+                yaml.dump(config, f)
+            
             # Validate the file
-            result = self.runner.invoke(wizard, ["validate", f.name])
+            result = self.runner.invoke(wizard, ["validate", temp_path])
             # Note: This might fail until we implement proper Pydantic integration
             # For now, just check that the command runs
             assert result.exit_code in [0, 1]  # Allow failure for now
-
-            # Cleanup
-            Path(f.name).unlink()
+            
+        finally:
+            # Cleanup - this should work on Windows
+            try:
+                Path(temp_path).unlink()
+            except PermissionError:
+                # On Windows, if file is still locked, try again after a small delay
+                import time
+                time.sleep(0.1)
+                try:
+                    Path(temp_path).unlink()
+                except:
+                    pass  # Give up if still can't delete
 
     def test_wizard_new_interrupt(self):
         """Test interrupting the wizard new command"""

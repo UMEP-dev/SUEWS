@@ -1,40 +1,40 @@
 parameter_name,notes,where_pydantic,where_precheck,prechecked,pydanted
-bldgs.icefrac,,"SurfaceInitialState (state.py, 15)",No precheck validation found,0,1
-bldgs.snowdens,,"SurfaceInitialState (state.py, 15)",No precheck validation found,0,1
-bldgs.snowfrac,,"SurfaceInitialState (state.py, 15)",No precheck validation found,0,1
-bldgs.snowpack,,"SurfaceInitialState (state.py, 15)",No precheck validation found,0,1
-bldgs.snowwater,,"SurfaceInitialState (state.py, 15)",No precheck validation found,0,1
+bldgs.icefrac,2,"SurfaceInitialState (state.py, 15)",No precheck validation found,0,1
+bldgs.snowdens,2,"SurfaceInitialState (state.py, 15)",No precheck validation found,0,1
+bldgs.snowfrac,2,"SurfaceInitialState (state.py, 15)",No precheck validation found,0,1
+bldgs.snowpack,2,"SurfaceInitialState (state.py, 15)",No precheck validation found,0,1
+bldgs.snowwater,2,"SurfaceInitialState (state.py, 15)",No precheck validation found,0,1
 bldgs.soilstore,,"WaterDistribution (hydro.py, 8); SurfaceInitialState (state.py, 15)",No precheck validation found,0,1
 bldgs.state,,No Pydantic usage found,No precheck validation found,0,0
-bldgs.temperature,,"RefValue (type.py, 33); SurfaceInitialState (state.py, 15); validate_temperature (state.py, 82)","precheck_update_surface_temperature (precheck.py, 677)",1,1
-bldgs.tin,,"SurfaceInitialState (state.py, 15)","precheck_update_surface_temperature (precheck.py, 677)",1,1
-bldgs.tsfc,,"SurfaceInitialState (state.py, 15)","precheck_update_surface_temperature (precheck.py, 677)",1,1
-bsoil.icefrac,,"SurfaceInitialState (state.py, 15)",No precheck validation found,0,1
-bsoil.snowdens,,"SurfaceInitialState (state.py, 15)",No precheck validation found,0,1
-bsoil.snowfrac,,"SurfaceInitialState (state.py, 15)",No precheck validation found,0,1
-bsoil.snowpack,,"SurfaceInitialState (state.py, 15)",No precheck validation found,0,1
-bsoil.snowwater,,"SurfaceInitialState (state.py, 15)",No precheck validation found,0,1
+bldgs.temperature,1,"RefValue (type.py, 33); SurfaceInitialState (state.py, 15); validate_temperature (state.py, 82)","precheck_update_surface_temperature (precheck.py, 677)",1,1
+bldgs.tin,1,"SurfaceInitialState (state.py, 15)","precheck_update_surface_temperature (precheck.py, 677)",1,1
+bldgs.tsfc,1,"SurfaceInitialState (state.py, 15)","precheck_update_surface_temperature (precheck.py, 677)",1,1
+bsoil.icefrac,2,"SurfaceInitialState (state.py, 15)",No precheck validation found,0,1
+bsoil.snowdens,2,"SurfaceInitialState (state.py, 15)",No precheck validation found,0,1
+bsoil.snowfrac,2,"SurfaceInitialState (state.py, 15)",No precheck validation found,0,1
+bsoil.snowpack,2,"SurfaceInitialState (state.py, 15)",No precheck validation found,0,1
+bsoil.snowwater,2,"SurfaceInitialState (state.py, 15)",No precheck validation found,0,1
 bsoil.soilstore,,"WaterDistribution (hydro.py, 8); SurfaceInitialState (state.py, 15)",No precheck validation found,0,1
 bsoil.state,,No Pydantic usage found,No precheck validation found,0,0
-bsoil.temperature,,"RefValue (type.py, 33); SurfaceInitialState (state.py, 15); validate_temperature (state.py, 82)","precheck_update_surface_temperature (precheck.py, 677)",1,1
-bsoil.tin,,"SurfaceInitialState (state.py, 15)","precheck_update_surface_temperature (precheck.py, 677)",1,1
-bsoil.tsfc,,"SurfaceInitialState (state.py, 15)","precheck_update_surface_temperature (precheck.py, 677)",1,1
+bsoil.temperature,1,"RefValue (type.py, 33); SurfaceInitialState (state.py, 15); validate_temperature (state.py, 82)","precheck_update_surface_temperature (precheck.py, 677)",1,1
+bsoil.tin,1,"SurfaceInitialState (state.py, 15)","precheck_update_surface_temperature (precheck.py, 677)",1,1
+bsoil.tsfc,1,"SurfaceInitialState (state.py, 15)","precheck_update_surface_temperature (precheck.py, 677)",1,1
 dectr.alb_id,,"InitialStateVeg (state.py, 321); InitialStateEvetr (state.py, 430); InitialStateDectr (state.py, 470); InitialStateGrass (state.py, 555)",No precheck validation found,0,1
 dectr.decidcap_id,,"InitialStateDectr (state.py, 470)",No precheck validation found,0,1
 dectr.gdd_id,,"VegetationParams (site.py, 37); InitialStateVeg (state.py, 321)",No precheck validation found,0,1
-dectr.icefrac,,"SurfaceInitialState (state.py, 15)",No precheck validation found,0,1
+dectr.icefrac,2,"SurfaceInitialState (state.py, 15)",No precheck validation found,0,1
 dectr.lai_id,,"InitialStateVeg (state.py, 321)","precheck_site_season_adjustments (precheck.py, 557)",1,1
 dectr.porosity_id,,"VegetationParams (site.py, 37); InitialStateDectr (state.py, 470)",No precheck validation found,0,1
 dectr.sdd_id,,"VegetationParams (site.py, 37); InitialStateVeg (state.py, 321)",No precheck validation found,0,1
-dectr.snowdens,,"SurfaceInitialState (state.py, 15)",No precheck validation found,0,1
-dectr.snowfrac,,"SurfaceInitialState (state.py, 15)",No precheck validation found,0,1
-dectr.snowpack,,"SurfaceInitialState (state.py, 15)",No precheck validation found,0,1
-dectr.snowwater,,"SurfaceInitialState (state.py, 15)",No precheck validation found,0,1
+dectr.snowdens,2,"SurfaceInitialState (state.py, 15)",No precheck validation found,0,1
+dectr.snowfrac,2,"SurfaceInitialState (state.py, 15)",No precheck validation found,0,1
+dectr.snowpack,2,"SurfaceInitialState (state.py, 15)",No precheck validation found,0,1
+dectr.snowwater,2,"SurfaceInitialState (state.py, 15)",No precheck validation found,0,1
 dectr.soilstore,,"WaterDistribution (hydro.py, 8); SurfaceInitialState (state.py, 15)",No precheck validation found,0,1
 dectr.state,,No Pydantic usage found,No precheck validation found,0,0
-dectr.temperature,,"RefValue (type.py, 33); SurfaceInitialState (state.py, 15); validate_temperature (state.py, 82)","precheck_update_surface_temperature (precheck.py, 677)",1,1
-dectr.tin,,"SurfaceInitialState (state.py, 15)","precheck_update_surface_temperature (precheck.py, 677)",1,1
-dectr.tsfc,,"SurfaceInitialState (state.py, 15)","precheck_update_surface_temperature (precheck.py, 677)",1,1
+dectr.temperature,1,"RefValue (type.py, 33); SurfaceInitialState (state.py, 15); validate_temperature (state.py, 82)","precheck_update_surface_temperature (precheck.py, 677)",1,1
+dectr.tin,1,"SurfaceInitialState (state.py, 15)","precheck_update_surface_temperature (precheck.py, 677)",1,1
+dectr.tsfc,1,"SurfaceInitialState (state.py, 15)","precheck_update_surface_temperature (precheck.py, 677)",1,1
 dectr.wu.wu_auto,,"WaterUse (state.py, 249)",No precheck validation found,0,1
 dectr.wu.wu_manual,,"WaterUse (state.py, 249)",No precheck validation found,0,1
 dectr.wu.wu_total,,"WaterUse (state.py, 249)",No precheck validation found,0,1
@@ -43,67 +43,67 @@ dqnsdt,,"InitialStates (state.py, 761)",No precheck validation found,0,1
 dt_since_start,,"InitialStates (state.py, 761)",No precheck validation found,0,1
 evetr.alb_id,,"InitialStateVeg (state.py, 321); InitialStateEvetr (state.py, 430); InitialStateDectr (state.py, 470); InitialStateGrass (state.py, 555)",No precheck validation found,0,1
 evetr.gdd_id,,"VegetationParams (site.py, 37); InitialStateVeg (state.py, 321)",No precheck validation found,0,1
-evetr.icefrac,,"SurfaceInitialState (state.py, 15)",No precheck validation found,0,1
+evetr.icefrac,2,"SurfaceInitialState (state.py, 15)",No precheck validation found,0,1
 evetr.lai_id,,"InitialStateVeg (state.py, 321)","precheck_site_season_adjustments (precheck.py, 557)",1,1
 evetr.sdd_id,,"VegetationParams (site.py, 37); InitialStateVeg (state.py, 321)",No precheck validation found,0,1
-evetr.snowdens,,"SurfaceInitialState (state.py, 15)",No precheck validation found,0,1
-evetr.snowfrac,,"SurfaceInitialState (state.py, 15)",No precheck validation found,0,1
-evetr.snowpack,,"SurfaceInitialState (state.py, 15)",No precheck validation found,0,1
-evetr.snowwater,,"SurfaceInitialState (state.py, 15)",No precheck validation found,0,1
+evetr.snowdens,2,"SurfaceInitialState (state.py, 15)",No precheck validation found,0,1
+evetr.snowfrac,2,"SurfaceInitialState (state.py, 15)",No precheck validation found,0,1
+evetr.snowpack,2,"SurfaceInitialState (state.py, 15)",No precheck validation found,0,1
+evetr.snowwater,2,"SurfaceInitialState (state.py, 15)",No precheck validation found,0,1
 evetr.soilstore,,"WaterDistribution (hydro.py, 8); SurfaceInitialState (state.py, 15)",No precheck validation found,0,1
 evetr.state,,No Pydantic usage found,No precheck validation found,0,0
-evetr.temperature,,"RefValue (type.py, 33); SurfaceInitialState (state.py, 15); validate_temperature (state.py, 82)","precheck_update_surface_temperature (precheck.py, 677)",1,1
-evetr.tin,,"SurfaceInitialState (state.py, 15)","precheck_update_surface_temperature (precheck.py, 677)",1,1
-evetr.tsfc,,"SurfaceInitialState (state.py, 15)","precheck_update_surface_temperature (precheck.py, 677)",1,1
+evetr.temperature,1,"RefValue (type.py, 33); SurfaceInitialState (state.py, 15); validate_temperature (state.py, 82)","precheck_update_surface_temperature (precheck.py, 677)",1,1
+evetr.tin,1,"SurfaceInitialState (state.py, 15)","precheck_update_surface_temperature (precheck.py, 677)",1,1
+evetr.tsfc,1,"SurfaceInitialState (state.py, 15)","precheck_update_surface_temperature (precheck.py, 677)",1,1
 evetr.wu.wu_auto,,"WaterUse (state.py, 249)",No precheck validation found,0,1
 evetr.wu.wu_manual,,"WaterUse (state.py, 249)",No precheck validation found,0,1
 evetr.wu.wu_total,,"WaterUse (state.py, 249)",No precheck validation found,0,1
 grass.alb_id,,"InitialStateVeg (state.py, 321); InitialStateEvetr (state.py, 430); InitialStateDectr (state.py, 470); InitialStateGrass (state.py, 555)",No precheck validation found,0,1
 grass.gdd_id,,"VegetationParams (site.py, 37); InitialStateVeg (state.py, 321)",No precheck validation found,0,1
-grass.icefrac,,"SurfaceInitialState (state.py, 15)",No precheck validation found,0,1
+grass.icefrac,2,"SurfaceInitialState (state.py, 15)",No precheck validation found,0,1
 grass.lai_id,,"InitialStateVeg (state.py, 321)","precheck_site_season_adjustments (precheck.py, 557)",1,1
 grass.sdd_id,,"VegetationParams (site.py, 37); InitialStateVeg (state.py, 321)",No precheck validation found,0,1
-grass.snowdens,,"SurfaceInitialState (state.py, 15)",No precheck validation found,0,1
-grass.snowfrac,,"SurfaceInitialState (state.py, 15)",No precheck validation found,0,1
-grass.snowpack,,"SurfaceInitialState (state.py, 15)",No precheck validation found,0,1
-grass.snowwater,,"SurfaceInitialState (state.py, 15)",No precheck validation found,0,1
+grass.snowdens,2,"SurfaceInitialState (state.py, 15)",No precheck validation found,0,1
+grass.snowfrac,2,"SurfaceInitialState (state.py, 15)",No precheck validation found,0,1
+grass.snowpack,2,"SurfaceInitialState (state.py, 15)",No precheck validation found,0,1
+grass.snowwater,2,"SurfaceInitialState (state.py, 15)",No precheck validation found,0,1
 grass.soilstore,,"WaterDistribution (hydro.py, 8); SurfaceInitialState (state.py, 15)",No precheck validation found,0,1
 grass.state,,No Pydantic usage found,No precheck validation found,0,0
-grass.temperature,,"RefValue (type.py, 33); SurfaceInitialState (state.py, 15); validate_temperature (state.py, 82)","precheck_update_surface_temperature (precheck.py, 677)",1,1
-grass.tin,,"SurfaceInitialState (state.py, 15)","precheck_update_surface_temperature (precheck.py, 677)",1,1
-grass.tsfc,,"SurfaceInitialState (state.py, 15)","precheck_update_surface_temperature (precheck.py, 677)",1,1
+grass.temperature,1,"RefValue (type.py, 33); SurfaceInitialState (state.py, 15); validate_temperature (state.py, 82)","precheck_update_surface_temperature (precheck.py, 677)",1,1
+grass.tin,1,"SurfaceInitialState (state.py, 15)","precheck_update_surface_temperature (precheck.py, 677)",1,1
+grass.tsfc,1,"SurfaceInitialState (state.py, 15)","precheck_update_surface_temperature (precheck.py, 677)",1,1
 grass.wu.wu_auto,,"WaterUse (state.py, 249)",No precheck validation found,0,1
 grass.wu.wu_manual,,"WaterUse (state.py, 249)",No precheck validation found,0,1
 grass.wu.wu_total,,"WaterUse (state.py, 249)",No precheck validation found,0,1
 hdd_id,,"InitialStates (state.py, 761)",No precheck validation found,0,1
 lenday_id,,"InitialStates (state.py, 761)",No precheck validation found,0,1
-paved.icefrac,,"SurfaceInitialState (state.py, 15)",No precheck validation found,0,1
-paved.snowdens,,"SurfaceInitialState (state.py, 15)",No precheck validation found,0,1
-paved.snowfrac,,"SurfaceInitialState (state.py, 15)",No precheck validation found,0,1
-paved.snowpack,,"SurfaceInitialState (state.py, 15)",No precheck validation found,0,1
-paved.snowwater,,"SurfaceInitialState (state.py, 15)",No precheck validation found,0,1
+paved.icefrac,2,"SurfaceInitialState (state.py, 15)",No precheck validation found,0,1
+paved.snowdens,2,"SurfaceInitialState (state.py, 15)",No precheck validation found,0,1
+paved.snowfrac,2,"SurfaceInitialState (state.py, 15)",No precheck validation found,0,1
+paved.snowpack,2,"SurfaceInitialState (state.py, 15)",No precheck validation found,0,1
+paved.snowwater,2,"SurfaceInitialState (state.py, 15)",No precheck validation found,0,1
 paved.soilstore,,"WaterDistribution (hydro.py, 8); SurfaceInitialState (state.py, 15)",No precheck validation found,0,1
 paved.state,,No Pydantic usage found,No precheck validation found,0,0
-paved.temperature,,"RefValue (type.py, 33); SurfaceInitialState (state.py, 15); validate_temperature (state.py, 82)","precheck_update_surface_temperature (precheck.py, 677)",1,1
-paved.tin,,"SurfaceInitialState (state.py, 15)","precheck_update_surface_temperature (precheck.py, 677)",1,1
-paved.tsfc,,"SurfaceInitialState (state.py, 15)","precheck_update_surface_temperature (precheck.py, 677)",1,1
+paved.temperature,1,"RefValue (type.py, 33); SurfaceInitialState (state.py, 15); validate_temperature (state.py, 82)","precheck_update_surface_temperature (precheck.py, 677)",1,1
+paved.tin,1,"SurfaceInitialState (state.py, 15)","precheck_update_surface_temperature (precheck.py, 677)",1,1
+paved.tsfc,1,"SurfaceInitialState (state.py, 15)","precheck_update_surface_temperature (precheck.py, 677)",1,1
 qn_av,,"InitialStates (state.py, 761)",No precheck validation found,0,1
 qn_s_av,,"InitialStates (state.py, 761)",No precheck validation found,0,1
 roofs,,"SUEWSConfig (core.py, 94); validate_building_layers (core.py, 1533); VerticalLayers (surface.py, 976); InitialStates (state.py, 761)",No precheck validation found,0,1
-snowalb,,"validate_snow_parameters (core.py, 372); SnowAlb (site.py, 2481); InitialStates (state.py, 761)","precheck_site_season_adjustments (precheck.py, 557)",1,1
-snowfallcum,,"InitialStates (state.py, 761)",No precheck validation found,0,1
+snowalb,2,"validate_snow_parameters (core.py, 372); SnowAlb (site.py, 2481); InitialStates (state.py, 761)","precheck_site_season_adjustments (precheck.py, 557)",1,1
+snowfallcum,2,"InitialStates (state.py, 761)",No precheck validation found,0,1
 tair_av,,"InitialStates (state.py, 761)",No precheck validation found,0,1
 tmax_id,,"InitialStates (state.py, 761)",No precheck validation found,0,1
 tmin_id,,"InitialStates (state.py, 761)",No precheck validation found,0,1
 tstep_prev,,"InitialStates (state.py, 761)",No precheck validation found,0,1
 walls,,"SUEWSConfig (core.py, 94); _validate_storage (core.py, 1144); validate_building_layers (core.py, 1533); VerticalLayers (surface.py, 976); InitialStates (state.py, 761)",No precheck validation found,0,1
-water.icefrac,,"SurfaceInitialState (state.py, 15)",No precheck validation found,0,1
-water.snowdens,,"SurfaceInitialState (state.py, 15)",No precheck validation found,0,1
-water.snowfrac,,"SurfaceInitialState (state.py, 15)",No precheck validation found,0,1
-water.snowpack,,"SurfaceInitialState (state.py, 15)",No precheck validation found,0,1
-water.snowwater,,"SurfaceInitialState (state.py, 15)",No precheck validation found,0,1
+water.icefrac,2,"SurfaceInitialState (state.py, 15)",No precheck validation found,0,1
+water.snowdens,2,"SurfaceInitialState (state.py, 15)",No precheck validation found,0,1
+water.snowfrac,2,"SurfaceInitialState (state.py, 15)",No precheck validation found,0,1
+water.snowpack,2,"SurfaceInitialState (state.py, 15)",No precheck validation found,0,1
+water.snowwater,2,"SurfaceInitialState (state.py, 15)",No precheck validation found,0,1
 water.soilstore,,"WaterDistribution (hydro.py, 8); SurfaceInitialState (state.py, 15)",No precheck validation found,0,1
 water.state,,No Pydantic usage found,No precheck validation found,0,0
-water.temperature,,"RefValue (type.py, 33); SurfaceInitialState (state.py, 15); validate_temperature (state.py, 82)","precheck_update_surface_temperature (precheck.py, 677)",1,1
-water.tin,,"SurfaceInitialState (state.py, 15)","precheck_update_surface_temperature (precheck.py, 677)",1,1
-water.tsfc,,"SurfaceInitialState (state.py, 15)","precheck_update_surface_temperature (precheck.py, 677)",1,1
+water.temperature,1,"RefValue (type.py, 33); SurfaceInitialState (state.py, 15); validate_temperature (state.py, 82)","precheck_update_surface_temperature (precheck.py, 677)",1,1
+water.tin,1,"SurfaceInitialState (state.py, 15)","precheck_update_surface_temperature (precheck.py, 677)",1,1
+water.tsfc,1,"SurfaceInitialState (state.py, 15)","precheck_update_surface_temperature (precheck.py, 677)",1,1

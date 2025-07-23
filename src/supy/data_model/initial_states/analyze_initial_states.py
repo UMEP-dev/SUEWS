@@ -307,17 +307,40 @@ def scan_data_model_directory(data_model_path: Path, parameters: Set[str]) -> Di
     
     return results
 
-def assign_temperature_notes(param_name: str, existing_note: str) -> str:
-    """Assign note number 1 to temperature-related parameters if no existing note."""
-    # If there's already a note, preserve it
-    if existing_note and existing_note.strip():
+def assign_automatic_notes(param_name: str, existing_note: str) -> str:
+    """Assign automatic note numbers based on parameter type if no existing note."""
+    # Convert to string and handle NaN values from pandas
+    existing_note = str(existing_note).strip() if existing_note is not None and str(existing_note).strip() != 'nan' else ''
+    
+    # Clean up floating point notation (1.0 -> 1, 2.0 -> 2)
+    if existing_note and '.' in existing_note:
+        try:
+            # Convert to float then to int to remove decimal if it's a whole number
+            float_val = float(existing_note)
+            if float_val.is_integer():
+                existing_note = str(int(float_val))
+        except ValueError:
+            pass  # Keep original if conversion fails
+    
+    # If there's already a note, preserve it (now cleaned)
+    if existing_note:
         return existing_note
     
-    # Check if parameter is temperature-related
+    # Check if parameter is temperature-related (note 1)
     temp_suffixes = ['.tin', '.temperature', '.tsfc']
     if any(param_name.endswith(suffix) for suffix in temp_suffixes):
         return '1'
     
+    # Check if parameter is snow/ice-related (note 2)
+    snow_ice_keywords = ['snow', 'ice']
+    if any(keyword in param_name.lower() for keyword in snow_ice_keywords):
+        return '2'
+    
+    # Check if parameter is snow/ice-related (note 3)
+    snow_ice_keywords = ['snow', 'ice']
+    if any(keyword in param_name.lower() for keyword in snow_ice_keywords):
+        return '3'
+
     return ''
 
 def create_analysis_dataframe(parameters: Set[str], analysis_results: Dict[str, Dict[str, Any]], 
@@ -345,9 +368,9 @@ def create_analysis_dataframe(parameters: Set[str], analysis_results: Dict[str, 
         precheck_val = 1 if precheck_found else 0
         pydantic_val = 1 if pydantic_found else 0
         
-        # Assign notes with temperature detection
+        # Assign notes with automatic detection (temperature, snow/ice)
         existing_note = existing_notes.get(param, '')
-        notes = assign_temperature_notes(param, existing_note)
+        notes = assign_automatic_notes(param, existing_note)
         
         data.append({
             'parameter_name': param,
@@ -400,14 +423,16 @@ def create_notes_legend_file(output_path: Path):
 
 Temperature-Related Notes (1-9):
 --------------------------------
-1. Temperature parameters (.tin, .temperature, .tsfc)
-   - Internal surface temperature, general temperature, or surface temperature
-   - These parameters are critical for energy balance calculations
-   - Validated through precheck_update_surface_temperature function
+1. Parameters that are assigned with 2m monthly mean air temperature from precheck procedure.
+Monthly mean air temperature is obtained from CRU dataset.
 
-2. [Available for assignment]
+2. Snow and ice parameters that needs to be updated according to monthly mean air temperature.
+If monthly mean air temperature > 4C°, these should be set to 0.
 
-3. [Available for assignment]
+
+3. Snow and ice parameters that needs to be updated according to monthly mean air temperature.
+If monthly mean air temperature < 4C°, these should be set to reasonable values. 
+Ask Lena for suggestions.
 
 4. [Available for assignment]
 
@@ -423,11 +448,9 @@ Temperature-Related Notes (1-9):
 
 Usage Instructions:
 ------------------
-- Numbers 1-9 are reserved for temperature-related parameter categorization
-- Note "1" is automatically assigned to .tin, .temperature, and .tsfc parameters
-- Add additional temperature subcategories to notes 2-9 as needed
-- Use letters or higher numbers for non-temperature notes
-- Edit this file to update note descriptions
+- Numbers 1-9 are reserved for temperature-related parameter categorization.
+- Use higher numbers for non-temperature notes.
+- Edit this file to update note descriptions.
 
 Generated automatically by analyze_initial_states.py
 """

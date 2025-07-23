@@ -1,0 +1,38 @@
+SUEWS Parameter Analysis - Notes Legend
+========================================
+
+Temperature-Related Notes (1-9):
+--------------------------------
+1. Parameters that are assigned with 2m monthly mean air temperature from precheck procedure.
+Monthly mean air temperature is obtained from CRU dataset.
+
+2. Snow and ice parameters that needs to be updated according to monthly mean air temperature.
+If monthly mean air temperature > 4C°, these should be set to 0.
+
+
+3. Snow and ice parameters that needs to be updated according to monthly mean air temperature.
+If monthly mean air temperature < 4C°, these should be set to reasonable values. 
+Ask Lena for suggestions.
+
+4. [Available for assignment]
+
+5. [Available for assignment]
+
+6. [Available for assignment]
+
+7. [Available for assignment]
+
+8. [Available for assignment]
+
+9. [Available for assignment]
+
+Usage Instructions:
+------------------
+- Numbers 1-9 are reserved for temperature-related parameter categorization
+- Note "1" is automatically assigned to .tin, .temperature, and .tsfc parameters
+- Note "2" is automatically assigned to parameters containing 'snow' or 'ice'
+- Add additional temperature subcategories to notes 3-9 as needed
+- Use letters or higher numbers for non-temperature notes
+- Edit this file to update note descriptions
+
+Generated automatically by analyze_initial_states.py

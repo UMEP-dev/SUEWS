@@ -1121,7 +1121,7 @@ MODULE SUEWS_DEF_DTS
       REAL(KIND(1D0)), DIMENSION(3) :: occupantData = 0.0D0 
       REAL(KIND(1D0)), DIMENSION(3) :: HTsAverage, HWTsAverage = 0.0D0 
       REAL(KIND(1D0)), DIMENSION(3) :: HWPowerAverage = 0.0D0 
-      REAL(KIND(1D0)), DIMENSION(31) :: EnergyExchanges =  = 0.0D0 
+      REAL(KIND(1D0)), DIMENSION(39) :: EnergyExchanges = 0.0D0 
 
    END TYPE
 

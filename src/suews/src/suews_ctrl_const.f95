@@ -91,7 +91,7 @@ MODULE allocateArray
                          ncolumnsDataOutRSL = 30*4 + 5 + 13 + 2, &
                          ncolumnsDataOutDebug = 1 + 5 + 103 + 14 + 5 + 4 + 3 + 1, &
                          ncolumnsDataOutSPARTACUS = 5 + 7 + 4*15 + 3 + 6*15 + 2*15 + 4, &
-                         ncolumnsDataOutSTEBBS = 5 + 69, &
+                         ncolumnsDataOutSTEBBS = 5 + 77, &
                          ncolumnsDataOutNHood = 5 + 1
 
    ! ---- Define input file headers ---------------------------------------------------------------

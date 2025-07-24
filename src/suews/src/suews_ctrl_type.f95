@@ -912,11 +912,6 @@ MODULE SUEWS_DEF_DTS
       REAL(KIND(1D0)), DIMENSION(15) :: wall_in_sw_spc ! incoming shortwave radiation on wall surface [W m-2]
       REAL(KIND(1D0)), DIMENSION(15) :: wall_in_lw_spc ! incoming longwave radiation on wall surface [W m-2]
 
-      REAL(KIND(1D0)), DIMENSION(15) :: roof_in_sw_spc ! incoming shortwave radiation on roof surface [W m-2]
-      REAL(KIND(1D0)), DIMENSION(15) :: roof_in_lw_spc ! incoming longwave radiation on roof surface [W m-2]
-      REAL(KIND(1D0)), DIMENSION(15) :: wall_in_sw_spc ! incoming shortwave radiation on wall surface [W m-2]
-      REAL(KIND(1D0)), DIMENSION(15) :: wall_in_lw_spc ! incoming longwave radiation on wall surface [W m-2]
-
       ! flag for iteration safety - YES
       ! all variables are intensive and thus can be used for iteration safety
       LOGICAL :: iter_safe = .TRUE.
@@ -1126,7 +1121,7 @@ MODULE SUEWS_DEF_DTS
       REAL(KIND(1D0)), DIMENSION(3) :: occupantData = 0.0D0 
       REAL(KIND(1D0)), DIMENSION(3) :: HTsAverage, HWTsAverage = 0.0D0 
       REAL(KIND(1D0)), DIMENSION(3) :: HWPowerAverage = 0.0D0 
-      REAL(KIND(1D0)), DIMENSION(31) :: EnergyExchanges =  = 0.0D0 
+      REAL(KIND(1D0)), DIMENSION(31) :: EnergyExchanges = 0.0D0 
 
    END TYPE
 

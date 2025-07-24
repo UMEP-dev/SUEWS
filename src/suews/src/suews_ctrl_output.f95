@@ -1261,6 +1261,14 @@ MODULE ctrl_output
       varAttr('QS_total_FA', 'W', f104, 'Storage heat flux', aA, 'STEBBS', 0), &
       varAttr('QS_fabric_FA', 'W', f104, 'Storage heat flux in fabric', aA, 'STEBBS', 0), &
       varAttr('QS_air_FA', 'W', f104, 'Storage heat flux in air', aA, 'STEBBS', 0), &
+      varAttr('Qsw_abs_wall_SA', 'W', f104, 'Shortwave absorbed by wall per surface area', aA, 'STEBBS', 0), &
+      varAttr('Qsw_abs_roof_SA', 'W', f104, 'Shortwave absorbed by roof per surface area', aA, 'STEBBS', 0), &
+      varAttr('Qsw_ref_wall_SA', 'W', f104, 'Shortwave reflected by wall per surface area', aA, 'STEBBS', 0), &
+      varAttr('Qsw_ref_roof_SA', 'W', f104, 'Shortwave reflected by roof per surface area', aA, 'STEBBS', 0), &
+      varAttr('Qlw_net_extwall_SA', 'W', f104, 'Net longwave from external wall to outdoor air per surface area', aA, 'STEBBS', 0), &
+      varAttr('Qlw_net_extroof_SA', 'W', f104, 'Net longwave from external roof to outdoor air per surface area', aA, 'STEBBS', 0), &
+      varAttr('Qlw_up_extwall_SA', 'W', f104, 'outgoing longwave from external wall to outdoor air per surface area', aA, 'STEBBS', 0), &
+      varAttr('Qlw_up_extroof_SA', 'W', f104, 'outgoing longwave from external roof to outdoor air per surface area', aA, 'STEBBS', 0), &
       varAttr('Vwall_tank', 'm3', f104, 'Volume of wall in tank', aA, 'STEBBS', 0), &
       varAttr('Vwater_tank', 'm3', f104, 'Volume of water in tank', aA, 'STEBBS', 0) &
       /

@@ -155,6 +155,17 @@ CONTAINS
       q = A*sigma*emis*(Two**4.0) - emis*lw*a ! Revised based on Yiqing's discovery
       RETURN
    END FUNCTION lwoutdoorRadiativeHeatTransfer
+
+   FUNCTION lwoutgoingradiation(A, emis, Two) RESULT(q)
+      !calculate only longwave outgoing radiation only
+      USE modulestebbsprecision
+      USE modulestebbs, ONLY: sigma
+      IMPLICIT NONE
+      REAL(KIND(1D0)), INTENT(in) :: A, emis, Two
+      REAL(KIND(1D0)) :: q
+      q = A*sigma*emis*(Two**4.0)
+      RETURN
+   END FUNCTION lwoutgoingradiation
    !-------------------------------------------------------------------
    ! Function: windowInsolation
    ! Description: Window Solar Insolation. This should be added as heat gain to internal single mass object
@@ -565,6 +576,10 @@ CONTAINS
       REAL(KIND(1D0)) :: Qsw_absorbed_window_tstepFA
       REAL(KIND(1D0)) :: Qsw_absorbed_wall_tstepFA
       REAL(KIND(1D0)) :: Qsw_absorbed_roof_tstepFA
+      REAL(KIND(1D0)) :: Qsw_absorbed_wall_tstepSA
+      REAL(KIND(1D0)) :: Qsw_absorbed_roof_tstepSA
+      REAL(KIND(1D0)) :: Qsw_reflected_wall_tstepSA
+      REAL(KIND(1D0)) :: Qsw_reflected_roof_tstepSA
       REAL(KIND(1D0)) :: Qconv_indair_to_indoormass_tstepFA
       REAL(KIND(1D0)) :: Qlw_net_intwall_to_allotherindoorsurfaces_tstepFA
       REAL(KIND(1D0)) :: Qlw_net_introof_to_allotherindoorsurfaces_tstepFA
@@ -584,6 +599,10 @@ CONTAINS
       REAL(KIND(1D0)) :: Qcond_ground_tstepFA
       REAL(KIND(1D0)) :: Qlw_net_extwall_to_outair_tstepFA
       REAL(KIND(1D0)) :: Qlw_net_extroof_to_outair_tstepFA
+      REAL(KIND(1D0)) :: Qlw_net_extwall_to_outair_tstepSA
+      REAL(KIND(1D0)) :: Qlw_net_extroof_to_outair_tstepSA
+      REAL(KIND(1D0)) :: Qlw_up_extwall_to_outair_tstepSA
+      REAL(KIND(1D0)) :: Qlw_up_extroof_to_outair_tstepSA
       REAL(KIND(1D0)) :: Qlw_net_extwindow_to_outair_tstepFA
       REAL(KIND(1D0)) :: Qconv_extwall_to_outair_tstepFA
       REAL(KIND(1D0)) :: Qconv_extroof_to_outair_tstepFA
@@ -694,7 +713,7 @@ CONTAINS
                buildings(1), datetimeLine, &
                Tair_ind, Tindoormass, Tintwall, Tintroof, Textwall, Textroof, Tintwindow, Textwindow, Tintgroundfloor, &
                Textgroundfloor, Qtotal_heating_tstepFA, Qtotal_cooling_tstepFA, Qsw_transmitted_window_tstepFA, &
-Qsw_absorbed_window_tstepFA, Qsw_absorbed_wall_tstepFA, Qsw_absorbed_roof_tstepFA, Qconv_indair_to_indoormass_tstepFA, &
+               Qsw_absorbed_window_tstepFA, Qsw_absorbed_wall_tstepFA, Qsw_absorbed_roof_tstepFA, Qconv_indair_to_indoormass_tstepFA, &
                Qlw_net_intwall_to_allotherindoorsurfaces_tstepFA, Qlw_net_introof_to_allotherindoorsurfaces_tstepFA, &
                Qlw_net_intwindow_to_allotherindoorsurfaces_tstepFA, &
                Qlw_net_intgroundfloor_to_allotherindoorsurfaces_tstepFA, Q_appliance_tstepFA, &
@@ -707,6 +726,10 @@ Qsw_absorbed_window_tstepFA, Qsw_absorbed_wall_tstepFA, Qsw_absorbed_roof_tstepF
                Twater_tank, Tintwall_tank, Textwall_tank, Twater_vessel, Tintwall_vessel, Textwall_vessel, &
                Vwater_vessel, Awater_vessel, Vwall_vessel, qsensible_tstepFA, qlatent_tstepFA, &
                QS_tstepFA, QS_fabric_tstepFA, QS_air_tstepFA, &
+               Qsw_absorbed_wall_tstepSA, Qsw_absorbed_roof_tstepSA, & 
+               Qsw_reflected_wall_tstepSA, Qsw_reflected_roof_tstepSA, &
+               Qlw_net_extwall_to_outair_tstepSA, Qlw_net_extroof_to_outair_tstepSA, &
+               Qlw_up_extwall_to_outair_tstepSA, Qlw_up_extroof_to_outair_tstepSA, &
                Vwall_tank, Vwater_tank &
                )
             ! END DO
@@ -723,7 +746,7 @@ Qsw_absorbed_window_tstepFA, Qsw_absorbed_wall_tstepFA, Qsw_absorbed_roof_tstepF
                                 Qtotal_cooling_tstepFA, Qsw_transmitted_window_tstepFA, &
                                 Qsw_absorbed_window_tstepFA, Qsw_absorbed_wall_tstepFA, Qsw_absorbed_roof_tstepFA, &
                                 Qconv_indair_to_indoormass_tstepFA, &
-                       Qlw_net_intwall_to_allotherindoorsurfaces_tstepFA, Qlw_net_introof_to_allotherindoorsurfaces_tstepFA, &
+                                Qlw_net_intwall_to_allotherindoorsurfaces_tstepFA, Qlw_net_introof_to_allotherindoorsurfaces_tstepFA, &
                                 Qlw_net_intwindow_to_allotherindoorsurfaces_tstepFA, &
                                 Qlw_net_intgroundfloor_to_allotherindoorsurfaces_tstepFA, &
                                 Q_appliance_tstepFA, &
@@ -744,6 +767,10 @@ Qsw_absorbed_window_tstepFA, Qsw_absorbed_wall_tstepFA, Qsw_absorbed_roof_tstepF
                                 Vwater_vessel, Awater_vessel, Vwall_vessel, qsensible_tstepFA, &
                                 qlatent_tstepFA, &
                                 QS_tstepFA, QS_fabric_tstepFA, QS_air_tstepFA, &
+                                Qsw_absorbed_wall_tstepSA, Qsw_absorbed_roof_tstepSA, &
+                                Qsw_reflected_wall_tstepSA, Qsw_reflected_roof_tstepSA, &
+                                Qlw_net_extwall_to_outair_tstepSA, Qlw_net_extroof_to_outair_tstepSA, &
+                                Qlw_up_extwall_to_outair_tstepSA, Qlw_up_extroof_to_outair_tstepSA, &
                                 Vwall_tank, Vwater_tank &
                                 ]
             RETURN
@@ -769,6 +796,10 @@ Qsw_absorbed_window_tstepFA, Qsw_absorbed_wall_tstepFA, Qsw_absorbed_roof_tstepF
                              Twater_tank, Tintwall_tank, Textwall_tank, Twater_vessel, Tintwall_vessel, Textwall_vessel, &
                              Vwater_vessel, Awater_vessel, Vwall_vessel, qsensible_tstepFA, qlatent_tstepFA, &
                              QS_tstepFA, QS_fabric_tstepFA, QS_air_tstepFA, &
+                             Qsw_absorbed_wall_tstepSA, Qsw_absorbed_roof_tstepSA, & 
+                             Qsw_reflected_wall_tstepSA, Qsw_reflected_roof_tstepSA, &
+                             Qlw_net_extwall_to_outair_tstepSA, Qlw_net_extroof_to_outair_tstepSA, &
+                             Qlw_up_extwall_to_outair_tstepSA, Qlw_up_extroof_to_outair_tstepSA, &
                              Vwall_tank, Vwater_tank &
                              ) ! Output
 
@@ -808,6 +839,10 @@ Qsw_absorbed_window_tstepFA, Qsw_absorbed_wall_tstepFA, Qsw_absorbed_roof_tstepF
    REAL(KIND(1D0)), INTENT(OUT) :: Qsw_absorbed_window_tstepFA
    REAL(KIND(1D0)), INTENT(OUT) :: Qsw_absorbed_wall_tstepFA
    REAL(KIND(1D0)), INTENT(OUT) :: Qsw_absorbed_roof_tstepFA
+   REAL(KIND(1D0)), INTENT(OUT) :: Qsw_absorbed_wall_tstepSA
+   REAL(KIND(1D0)), INTENT(OUT) :: Qsw_absorbed_roof_tstepSA
+   REAL(KIND(1D0)), INTENT(OUT) :: Qsw_reflected_wall_tstepSA
+   REAL(KIND(1D0)), INTENT(OUT) :: Qsw_reflected_roof_tstepSA   
    REAL(KIND(1D0)), INTENT(OUT) :: Qconv_indair_to_indoormass_tstepFA
    REAL(KIND(1D0)), INTENT(OUT) :: Qlw_net_intwall_to_allotherindoorsurfaces_tstepFA
    REAL(KIND(1D0)), INTENT(OUT) :: Qlw_net_introof_to_allotherindoorsurfaces_tstepFA
@@ -828,6 +863,10 @@ Qsw_absorbed_window_tstepFA, Qsw_absorbed_wall_tstepFA, Qsw_absorbed_roof_tstepF
    REAL(KIND(1D0)), INTENT(OUT) :: Qlw_net_extwall_to_outair_tstepFA
    REAL(KIND(1D0)), INTENT(OUT) :: Qlw_net_extroof_to_outair_tstepFA
    REAL(KIND(1D0)), INTENT(OUT) :: Qlw_net_extwindow_to_outair_tstepFA
+   REAL(KIND(1D0)), INTENT(OUT) :: Qlw_net_extwall_to_outair_tstepSA
+   REAL(KIND(1D0)), INTENT(OUT) :: Qlw_net_extroof_to_outair_tstepSA
+   REAL(KIND(1D0)), INTENT(OUT) :: Qlw_up_extwall_to_outair_tstepSA
+   REAL(KIND(1D0)), INTENT(OUT) :: Qlw_up_extroof_to_outair_tstepSA
    REAL(KIND(1D0)), INTENT(OUT) :: Qconv_extwall_to_outair_tstepFA
    REAL(KIND(1D0)), INTENT(OUT) :: Qconv_extroof_to_outair_tstepFA
    REAL(KIND(1D0)), INTENT(OUT) :: Qconv_extwindow_to_outair_tstepFA
@@ -936,6 +975,15 @@ Qsw_absorbed_window_tstepFA, Qsw_absorbed_wall_tstepFA, Qsw_absorbed_roof_tstepF
       QS_tstepFA = self%EnergyExchanges(29) !QS_tstepFA
       QS_fabric_tstepFA = self%EnergyExchanges(30) !QS_fabric_tstepFA
       QS_air_tstepFA = self%EnergyExchanges(31) !QS_air_tstepFA
+      !radiative flux (per surface area SA) for wall and roof
+      Qsw_absorbed_wall_tstepSA = self%EnergyExchanges(32)
+      Qsw_absorbed_roof_tstepSA = self%EnergyExchanges(33)
+      Qsw_reflected_wall_tstepSA = self%EnergyExchanges(34)
+      Qsw_reflected_roof_tstepSA = self%EnergyExchanges(35)
+      Qlw_net_extwall_to_outair_tstepSA = self%EnergyExchanges(36)
+      Qlw_net_extroof_to_outair_tstepSA = self%EnergyExchanges(37)
+      Qlw_up_extwall_to_outair_tstepSA = self%EnergyExchanges(38)
+      Qlw_up_extroof_to_outair_tstepSA = self%EnergyExchanges(39)   
       Qloss_drain = self%qhwtDrain !Qloss_drain
       qsensible_tstepFA = self%Qmetabolic_sensible !qsensible_tstepFA
       qlatent_tstepFA = self%Qmetabolic_latent !qlatent_tstepFA
@@ -1119,6 +1167,14 @@ SUBROUTINE timeStepCalculation(self, Tair_out, Tair_out_bh, Tair_out_hbh, Tgroun
       self%EnergyExchanges(29), & !QS_tstepFA
       self%EnergyExchanges(30), & !QS_fabric_tstepFA
       self%EnergyExchanges(31), & !QS_air_tstepFA
+      self%EnergyExchanges(32), & !Qsw_absorbed_wall_tstepSA
+      self%EnergyExchanges(33), & !Qsw_absorbed_roof_tstepSA
+      self%EnergyExchanges(34), & !Qsw_reflected_wall_tstepSA
+      self%EnergyExchanges(35), & !Qsw_reflected_roof_tstepSA 
+      self%EnergyExchanges(36), & !Qlw_net_extwall_to_outair_tstepSA
+      self%EnergyExchanges(37), & !Qlw_net_extroof_to_outair_tstepSA
+      self%EnergyExchanges(38), & !Qlw_up_extwall_to_outair_tstepSA
+      self%EnergyExchanges(39), & !Qlw_up_extroof_to_outair_tstepSA
       self%qhwtDrain, & !Qloss_drain
       self%Qmetabolic_sensible, & !qsensible_tstepFA
       self%Qmetabolic_latent) !qlatent_tstepFA
@@ -1201,6 +1257,10 @@ SUBROUTINE tstep( &
    Qconv_extwindow_to_outair_tstepFA, & !EE(27)
    q_cooling_tstepFA, & !EE(28)
    QS_tstepFA, QS_fabric_tstepFA, QS_air_tstepFA, & !EE(29，30，31)
+   Qsw_absorbed_wall_tstepSA, Qsw_absorbed_roof_tstepSA, &
+   Qsw_reflected_wall_tstepSA, Qsw_reflected_roof_tstepSA, &
+   Qlw_net_extwall_to_outair_tstepSA, Qlw_net_extroof_to_outair_tstepSA, &
+   Qlw_up_extwall_to_outair_tstepSA, Qlw_up_extroof_to_outair_tstepSA, &
    Qloss_drain, & !qhwtDrain
    qsensible_tstepFA, qlatent_tstepFA) !Qmetabolic_sensible, Qmetabolic_latent
    USE modulestebbsprecision
@@ -1339,6 +1399,7 @@ SUBROUTINE tstep( &
    REAL(KIND(1D0)) :: Qlw_net_extwall_to_outair = 0.0, Qlw_net_extroof_to_outair = 0.0, Qlw_net_extwindow_to_outair = 0.0, &
                       Qconv_extwall_to_outair = 0.0, Qconv_extroof_to_outair = 0.0, Qconv_extwindow_to_outair = 0.0
    REAL(KIND(1D0)) :: QS_total = 0.0, QS_fabric = 0.0, QS_air = 0.0
+   REAL(KIND(1D0)) :: Qsw_reflected_wall = 0.0, Qsw_reflected_roof = 0.0, Qlw_up_extwall_to_outair = 0.0, Qlw_up_extroof_to_outair = 0.0
    REAL(KIND(1D0)) :: Qsw_transmitted_window_tstepTotal, &
                                      Qsw_absorbed_window_tstepTotal, &
                                      Qsw_absorbed_wall_tstepTotal, &
@@ -1370,6 +1431,8 @@ SUBROUTINE tstep( &
                                      qsensible_tstepTotal, &
                                      qlatent_tstepTotal
    REAL(KIND(1D0)) :: QS_tstepTotal, QS_fabric_tstepTotal, QS_air_tstepTotal
+   REAL(KIND(1D0)) :: Qsw_reflected_wall_tsteptotal, Qsw_reflected_roof_tsteptotal, &
+                      Qlw_up_extwall_to_outair_tsteptotal, Qlw_up_extroof_to_outair_tsteptotal 
    !normalised output
    REAL(KIND(1D0)), INTENT(inout) :: Qsw_transmitted_window_tstepFA, &
                                      Qsw_absorbed_window_tstepFA, &
@@ -1402,6 +1465,10 @@ SUBROUTINE tstep( &
                                      qsensible_tstepFA, &
                                      qlatent_tstepFA
    REAL(KIND(1D0)), INTENT(inout) :: QS_tstepFA, QS_fabric_tstepFA, QS_air_tstepFA
+   REAL(KIND(1D0)), INTENT(inout) :: Qsw_absorbed_wall_tstepSA, Qsw_absorbed_roof_tstepSA,&
+                                     Qsw_reflected_wall_tstepSA, Qsw_reflected_roof_tstepSA, &
+                                     Qlw_net_extwall_to_outair_tstepSA, Qlw_net_extroof_to_outair_tstepSA,&
+                                     Qlw_up_extwall_to_outair_tstepSA, Qlw_up_extroof_to_outair_tstepSA 
    REAL(KIND(1D0)) :: Qmetabolic_sensible = 0.0, Qmetabolic_latent = 0.0
    REAL(KIND(1D0)) :: Qtotal_net_indoormass = 0.0, Qtotal_net_indair = 0.0, &
                       Qtotal_net_intwall = 0.0, Qtotal_net_introof = 0.0, Qtotal_net_extwall = 0.0, Qtotal_net_extroof = 0.0, &
@@ -1441,7 +1508,10 @@ SUBROUTINE tstep( &
    QS_tstepTotal = 0.0
    QS_fabric_tstepTotal = 0.0
    QS_air_tstepTotal = 0.0
-
+   Qsw_reflected_wall_tsteptotal = 0.0
+   Qsw_reflected_roof_tsteptotal = 0.0
+   Qlw_up_extwall_to_outair_tsteptotal = 0.0
+   Qlw_up_extroof_to_outair_tsteptotal =0.0
    ! Used to recalculate Area of DHW in use
    IF (Awater_vessel > 0.0) THEN
       VARatio_water_vessel = Vwater_vessel/Awater_vessel
@@ -1453,6 +1523,8 @@ SUBROUTINE tstep( &
          Qsw_absorbed_window = windowInsolation(Qsw_dn_extwall, winA, Awindow)
          Qsw_absorbed_wall = wallInsolation(Qsw_dn_extwall, walA, Awall) !//wall
          Qsw_absorbed_roof = wallInsolation(Qsw_dn_extroof, roofA, Aroof) !//roof
+         Qsw_reflected_wall = wallInsolation(Qsw_dn_extwall, walR, Awall) !//reflected SW for wall
+         Qsw_reflected_roof = wallInsolation(Qsw_dn_extroof, roofR, Aroof) !//reflected SW for roof         
          Qconv_indair_to_indoormass = internalConvectionHeatTransfer(conv_coeff_indoormass, Aindoormass, Tindoormass, Tair_ind)
          Qlw_net_intwall_to_allotherindoorsurfaces = indoorRadiativeHeatTransfer() ! //  for wall internal radiative exchange
          Qlw_net_introof_to_allotherindoorsurfaces = indoorRadiativeHeatTransfer() ! //  for roof internal radiative exchange
@@ -1499,6 +1571,8 @@ SUBROUTINE tstep( &
          Qlw_net_extroof_to_outair = &
             lwoutdoorRadiativeHeatTransfer(Aroof, emissivity_extroof, Textroof, Qlw_dn_extroof)
          Qlw_net_extwindow_to_outair = lwoutdoorRadiativeHeatTransfer(Awindow, emissivity_extwindow, Textwindow, Qlw_dn_extwall)
+         Qlw_up_extwall_to_outair = lwoutgoingradiation(Awall, emissivity_extwall, Textwall)
+         Qlw_up_extroof_to_outair = lwoutgoingradiation(Aroof, emissivity_extroof, Textroof)
          Qconv_extwall_to_outair = outdoorConvectionHeatTransfer(conv_coeff_extwall, Awall, Textwall, Tair_out_hbh)
          Qconv_extroof_to_outair = outdoorConvectionHeatTransfer(conv_coeff_extroof, Aroof, Textroof, Tair_out_bh)
          Qconv_extwindow_to_outair = outdoorConvectionHeatTransfer(conv_coeff_extwindow, Awindow, Textwindow, Tair_out_hbh)
@@ -1639,6 +1713,10 @@ SUBROUTINE tstep( &
             Qsw_absorbed_wall_tstepTotal + Qsw_absorbed_wall*resolution
          Qsw_absorbed_roof_tstepTotal = &
             Qsw_absorbed_roof_tstepTotal + Qsw_absorbed_roof*resolution
+         Qsw_reflected_wall_tstepTotal = &
+            Qsw_reflected_wall_tstepTotal + Qsw_reflected_wall*resolution
+         Qsw_reflected_roof_tstepTotal = &
+            Qsw_reflected_roof_tstepTotal + Qsw_reflected_roof*resolution
          Qconv_indair_to_indoormass_tstepTotal = &
             Qconv_indair_to_indoormass_tstepTotal + Qconv_indair_to_indoormass*resolution
          Qlw_net_intwall_to_allotherindoorsurfaces_tstepTotal = &
@@ -1686,6 +1764,12 @@ SUBROUTINE tstep( &
 
          Qlw_net_extwindow_to_outair_tstepTotal = &
             Qlw_net_extwindow_to_outair_tstepTotal + Qlw_net_extwindow_to_outair*resolution
+
+         Qlw_up_extwall_to_outair_tstepTotal = &
+            Qlw_up_extwall_to_outair_tstepTotal + Qlw_up_extwall_to_outair*resolution
+
+         Qlw_up_extroof_to_outair_tstepTotal = &
+            Qlw_up_extroof_to_outair_tstepTotal + Qlw_up_extroof_to_outair*resolution
 
          Qconv_extwall_to_outair_tstepTotal = &
             Qconv_extwall_to_outair_tstepTotal + Qconv_extwall_to_outair*resolution
@@ -1831,6 +1915,15 @@ SUBROUTINE tstep( &
       Qtotal_heating_tstepFA = Qtotal_heating_tstepTotal / timestep / Afootprint
       Qtotal_cooling_tstepFA = Qtotal_cooling_tstepTotal / timestep / Afootprint
 
+      !normalize radiative heat flux by surface area SA
+      Qsw_absorbed_wall_tstepSA = Qsw_absorbed_wall_tstepTotal / timestep / Awall
+      Qsw_absorbed_roof_tstepSA = Qsw_absorbed_roof_tstepTotal / timestep / Aroof
+      Qsw_reflected_wall_tstepSA = Qsw_reflected_wall_tstepTotal / timestep / Awall
+      Qsw_reflected_roof_tstepSA = Qsw_reflected_roof_tstepTotal / timestep / Aroof
+      Qlw_net_extwall_to_outair_tstepSA = Qlw_net_extwall_to_outair_tsteptotal / timestep / Awall
+      Qlw_net_extroof_to_outair_tstepSA = Qlw_net_extroof_to_outair_tsteptotal / timestep / Aroof
+      Qlw_up_extwall_to_outair_tstepSA = Qlw_up_extwall_to_outair_tsteptotal / timestep / Awall
+      Qlw_up_extroof_to_outair_tstepSA = Qlw_up_extroof_to_outair_tsteptotal / timestep / Aroof
    ELSE !iftimestepresolution
       !  printf("Timestep: %i not equally divisible by given resolution: %i.\n", timestep, resolution)
       WRITE (*, *) "Timestep: ", timestep, " not equally divisible by given resolution: ", resolution

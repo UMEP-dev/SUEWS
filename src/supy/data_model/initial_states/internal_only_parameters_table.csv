@@ -1,25 +1,25 @@
-param_name,file_location,in_sample_config,sample_config_location,description,unit
-cdd_accum,state.py:621,No,,Current day,degC
-cdd_daily,state.py:677,No,,Previous day,degC
-days_since_rain,state.py:713,No,,Days since rain for irrigation calculations [days],days
-days_since_rain_accum,state.py:657,No,,Days since rain counter (current) [days],days
-diagnose,model.py:667,Yes,diagnose,"Level of diagnostic output (0=none, 1=basic, 2=detailed)",
-dqndt,state.py:815,Yes,dqndt,Change in net radiation,
-dqnsdt,state.py:820,Yes,dqnsdt,Change in net shortwave radiation,
-dt_since_start,state.py:825,Yes,dt_since_start,Time since start,
-hdd_accum,state.py:612,No,,Current day,degC
-hdd_daily,state.py:668,No,,Previous day,degC
-kdownzen,model.py:657,No,,Use zenithal correction for downward shortwave radiation,
-lenday_id,state.py:830,Yes,lenday_id,Length of the day ID,
-precip_accum,state.py:648,No,,Current day,mm
-precip_daily_total,state.py:704,No,,Previous day,mm
-qn_av,state.py:835,Yes,qn_av,Average net radiation,
-qn_s_av,state.py:843,Yes,qn_s_av,Average net shortwave radiation,
-snowfallcum,state.py:877,Yes,snowfallcum,Cumulative snowfall,
-temp_5day_accum,state.py:639,No,,5-day running mean temperature accumulation [degC],degC
-temp_5day_mean,state.py:695,No,,Previous 5-day running mean temperature for QF calculations [degC],degC
-temp_accum,state.py:630,No,,Current day,degC
-temp_daily_mean,state.py:686,No,,Previous day,degC
-tmax_id,state.py:856,Yes,tmax_id,Maximum temperature ID,
-tmin_id,state.py:864,Yes,tmin_id,Minimum temperature ID,
-tstep_prev,state.py:872,Yes,tstep_prev,Previous time step,
+param_name,file_location,in_sample_config,sample_config_location,unit
+cdd_accum,state.py:621,No,,degC
+cdd_daily,state.py:677,No,,degC
+days_since_rain,state.py:713,No,,days
+days_since_rain_accum,state.py:657,No,,days
+diagnose,model.py:667,Yes,diagnose,
+dqndt,state.py:815,Yes,dqndt,
+dqnsdt,state.py:820,Yes,dqnsdt,
+dt_since_start,state.py:825,Yes,dt_since_start,
+hdd_accum,state.py:612,No,,degC
+hdd_daily,state.py:668,No,,degC
+kdownzen,model.py:657,No,,
+lenday_id,state.py:830,Yes,lenday_id,
+precip_accum,state.py:648,No,,mm
+precip_daily_total,state.py:704,No,,mm
+qn_av,state.py:835,Yes,qn_av,
+qn_s_av,state.py:843,Yes,qn_s_av,
+snowfallcum,state.py:877,Yes,snowfallcum,
+temp_5day_accum,state.py:639,No,,degC
+temp_5day_mean,state.py:695,No,,degC
+temp_accum,state.py:630,No,,degC
+temp_daily_mean,state.py:686,No,,degC
+tmax_id,state.py:856,Yes,tmax_id,
+tmin_id,state.py:864,Yes,tmin_id,
+tstep_prev,state.py:872,Yes,tstep_prev,

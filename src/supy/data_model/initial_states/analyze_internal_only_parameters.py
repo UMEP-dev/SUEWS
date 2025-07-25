@@ -201,14 +201,15 @@ class InternalOnlyAnalyzer:
                 'file_location', 
                 'in_sample_config', 
                 'sample_config_location',
-                'description', 
                 'unit'
             ]
             writer = csv.DictWriter(f, fieldnames=fieldnames)
             
             writer.writeheader()
             for param in sorted(self.internal_params, key=lambda x: x['param_name']):
-                writer.writerow(param)
+                # Create a copy without description for CSV
+                csv_param = {k: v for k, v in param.items() if k != 'description'}
+                writer.writerow(csv_param)
     
     def _generate_markdown_report(self) -> None:
         """Generate markdown report with analysis summary."""

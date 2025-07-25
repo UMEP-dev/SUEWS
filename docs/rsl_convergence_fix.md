@@ -1,48 +1,104 @@
-# RSL Convergence Fix for Issue #338
+# RSL Convergence Fix for High z0/Low FAI Cases
 
-## Summary
+This document describes the changes made to fix RSL (Roughness Sub-Layer) convergence issues in SUEWS, addressing GitHub issue #338.
 
-This fix addresses convergence issues in the Roughness Sublayer (RSL) calculations when dealing with high roughness length (z0) and low frontal area index (FAI) scenarios, as reported in GitHub issue #338.
+## Background
 
-## Changes Made
+The RSL model was experiencing convergence failures in cases with:
+- High roughness length (z0) 
+- Low frontal area index (FAI)
+- Complex urban morphologies
 
-### 1. `src/suews/src/suews_phys_atmmoiststab.f95`
+The issue was identified in PR #297 which proposed changes to improve convergence but was closed without merging.
 
-- Changed `neut_limit` from a `PARAMETER` to a `SAVE` variable to allow flexibility in RSL calculations
-- Changed all neutral stability comparisons from `<` to `<=` for better numerical stability
-- This allows the RSL module to temporarily set different neutral limits during calculations
+## Changes Implemented
 
-### 2. `src/suews/src/suews_phys_rslprof.f95`
+### 1. Thread-Safe RSL-Specific Stability Functions
 
-- Added mechanism to temporarily set `neut_limit = 0` during RSL calculations
-- This prevents premature neutral stability assumptions within the RSL profile
-- Original `neut_limit` value is preserved and used at measurement height for UStar calculations
-- Restored after RSL calculations complete
+**File: `src/suews/src/suews_phys_rslprof.f95`**
 
-## Technical Details
+Created RSL-specific wrapper functions that use `neut_limit_rsl = 0.0` instead of modifying the global `neut_limit`:
 
-### Problem Description
+```fortran
+! RSL module parameter
+REAL(KIND(1D0)), PARAMETER :: neut_limit_rsl = 0.0D0
 
-The original issue occurs when:
-- High roughness length (z0) relative to low frontal area index (FAI)
-- The RSL calculations would converge slowly or fail to converge
-- This was particularly problematic in urban areas with tall, sparse buildings
+! RSL-specific stability functions
+FUNCTION rsl_stab_psi_mom(StabilityMethod, zL) RESULT(psi)
+   ! Uses neut_limit_rsl = 0.0 for neutral condition check
+   IF (ABS(zL) <= neut_limit_rsl) THEN
+      psi = 0
+   ...
+END FUNCTION
+```
 
-### Solution Rationale
+This approach is thread-safe and compatible with WRF-SUEWS coupling where multiple threads may execute SUEWS simultaneously.
 
-1. **Flexible neutral limit**: By making `neut_limit` a variable instead of a constant, the RSL calculations can use a different threshold internally while preserving the original behaviour at measurement height.
+### 2. Inclusive Neutral Stability Comparison
 
-2. **Inclusive comparisons**: Changing from `<` to `<=` ensures that exact equality cases are handled consistently, preventing numerical instabilities at the neutral stability boundary.
+**File: `src/suews/src/suews_phys_atmmoiststab.f95`**
 
-3. **Temporary zero neutral limit in RSL**: Setting `neut_limit = 0` within RSL calculations prevents the code from assuming neutral conditions prematurely, allowing the iterative solver to converge properly.
+Changed all neutral stability comparisons from exclusive (`<`) to inclusive (`<=`):
 
-## Testing
+```fortran
+! Before:
+IF (ABS(zL) < neut_limit) THEN
 
-A comprehensive test suite has been created in `test/test_rsl_convergence.py` that:
-- Tests high z0/low FAI scenarios that previously caused convergence issues
-- Verifies neutral stability handling
-- Compares RSL and MOST approaches
-- Sweeps through various problematic parameter combinations
+! After:
+IF (ABS(zL) <= neut_limit) THEN
+```
+
+This ensures that the exact neutral case (zL = 0) is properly handled.
+
+### 3. RSL-Specific Neutral Limit Implementation
+
+**File: `src/suews/src/suews_phys_rslprof.f95`**
+
+All stability function calls within the RSL module now use the RSL-specific versions:
+
+```fortran
+! Before:
+psimz0 = stab_psi_mom(StabilityMethod, z0_RSL/L_MOD_RSL)
+
+! After:
+psimz0 = rsl_stab_psi_mom(StabilityMethod, z0_RSL/L_MOD_RSL)
+```
+
+### 4. UStar Limiting Condition
+
+**File: `src/suews/src/suews_phys_rslprof.f95`**
+
+The UStar limiting condition for convective cases continues to use the standard `neut_limit`:
+
+```fortran
+IF ((ZMeas - zd_RSL)/L_MOD_RSL < -neut_limit) UStar_RSL = MAX(0.15, UStar_RSL)
+```
+
+## Thread Safety Considerations
+
+The implementation is designed to be thread-safe for WRF-SUEWS coupling:
+
+1. **No Global State Modification**: The global `neut_limit` remains constant
+2. **Local Function Scope**: RSL-specific functions use local parameters
+3. **MPI/OpenMP Compatible**: Safe for parallel execution in WRF
+
+## Scientific Justification
+
+1. **Neutral Limit = 0 for RSL**: The RSL formulation benefits from a stricter definition of neutral conditions, preventing premature switching between stability regimes.
+
+2. **Inclusive Comparison**: Including the exact neutral case (zL = 0) in the neutral regime improves numerical stability.
+
+3. **Preserved Physics**: The changes maintain the physical basis of the model while improving numerical convergence.
+
+## Testing Recommendations
+
+1. **Convergence Tests**: Verify that RSL calculations converge for previously problematic cases (high z0, low FAI).
+
+2. **Regression Tests**: Ensure that standard cases produce results consistent with previous versions.
+
+3. **Stability Tests**: Test across a range of atmospheric stability conditions.
+
+4. **Thread Safety Tests**: Verify correct behavior in parallel execution environments.
 
 ## Expected Improvements
 
@@ -50,9 +106,11 @@ A comprehensive test suite has been created in `test/test_rsl_convergence.py` th
 - More stable calculations near neutral stability conditions
 - Consistent behaviour across different compiler optimizations
 - No impact on existing well-behaved configurations
+- Thread-safe execution in WRF-SUEWS coupled mode
 
 ## References
 
-- GitHub Issue #338: RSL problems with high z0 for low FAI cases
-- PR #297: Original attempted fix (not merged)
-- Harman & Finnigan (2007): Theoretical basis for RSL calculations
+- GitHub Issue #338: RSL issue - high z0 for low FAI cases
+- PR #297: Proposed RSL convergence improvements
+- Harman & Finnigan (2007, 2008): RSL theory and implementation
+- WRF-SUEWS coupling: Thread safety requirements for atmospheric models

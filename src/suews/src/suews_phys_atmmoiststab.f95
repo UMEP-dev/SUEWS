@@ -2,8 +2,8 @@ MODULE AtmMoistStab_module
    USE SUEWS_DEF_DTS, ONLY: atm_state, SUEWS_FORCING, SUEWS_TIMER, SUEWS_STATE
    USE PhysConstants, ONLY: eps_fp
    IMPLICIT NONE
-   ! Changed from PARAMETER to SAVE to allow flexibility in suews_phys_rslprof.f95
-   REAL(KIND(1D0)), SAVE :: neut_limit = 1.E-4 !Limit for neutral stability
+   REAL(KIND(1D0)), PARAMETER :: neut_limit = 1.E-4 !Limit for neutral stability
+   REAL(KIND(1D0)), PARAMETER :: neut_limit_rsl = 0.0D0 !Limit for neutral stability in RSL calculations
    REAL(KIND(1D0)), PARAMETER :: k = 0.4 !Von Karman's contant
    REAL(KIND(1D0)), PARAMETER :: grav = 9.80665 !g - gravity - physics today august 1987
 

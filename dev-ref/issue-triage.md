@@ -32,7 +32,7 @@ Is it reporting a problem?
 Is it requesting new functionality?
   └─> 1-feature
 
-Is it asking a question or unclear about something?
+Is it asking a question, seeking support, or a dev query?
   └─> 1-question
 ```
 
@@ -81,7 +81,7 @@ Need community help? → help-wanted
 ### Type Labels (Pick ONE)
 - `1-bug` - Something isn't working
 - `1-feature` - New functionality request
-- `1-question` - User question/support/unclear
+- `1-question` - User question/support/dev query
 
 ### Area Labels (Pick ONE)
 

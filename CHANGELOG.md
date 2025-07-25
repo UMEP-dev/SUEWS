@@ -21,7 +21,7 @@
 
 | Year | Features | Bugfixes | Changes | Maintenance | Docs | Total |
 |------|----------|----------|---------|-------------|------|-------|
-| 2025 | 26 | 12 | 3 | 26 | 12 | 79 |
+| 2025 | 26 | 13 | 3 | 26 | 12 | 80 |
 | 2024 | 12 | 17 | 1 | 12 | 1 | 43 |
 | 2023 | 11 | 14 | 3 | 9 | 1 | 38 |
 | 2022 | 15 | 18 | 0 | 7 | 0 | 40 |
@@ -35,6 +35,10 @@
 ## 2025
 
 ### 25 Jul 2025
+- [bugfix] Fixed NaN QF (anthropogenic heat flux) when population density is zero ([#240](https://github.com/UMEP-dev/SUEWS/issues/240))
+  - Added check to prevent division by zero in QF_build calculation
+  - When population density is zero, building energy flux is now correctly set to zero
+  - Added tests to verify correct behaviour with zero population density
 - [doc] Improved clarity of tstep_prev purpose for WRF-SUEWS coupling ([#551](https://github.com/UMEP-dev/SUEWS/issues/551), [#553](https://github.com/UMEP-dev/SUEWS/issues/553))
   - Added explanatory comments at all tstep_prev usage sites
   - Enhanced type definition documentation in SUEWS_TIMER

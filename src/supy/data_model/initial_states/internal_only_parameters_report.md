@@ -13,37 +13,37 @@ Generated for GitHub Issue #555: Identify complete list of internal-only paramet
 
 ### model.py (2 parameters)
 
-| Parameter | In sample_config.yml | Description | Unit |
-|-----------|---------------------|-------------|------|
-| `diagnose` | Yes | Level of diagnostic output (0=none, 1=basic, 2=detailed) |  |
-| `kdownzen` | No | Use zenithal correction for downward shortwave radiation |  |
+| Parameter | In sample_config.yml | Unit |
+|-----------|---------------------|------|
+| `diagnose` | Yes |  |
+| `kdownzen` | No |  |
 
 ### state.py (22 parameters)
 
-| Parameter | In sample_config.yml | Description | Unit |
-|-----------|---------------------|-------------|------|
-| `cdd_accum` | No | Current day | degC |
-| `cdd_daily` | No | Previous day | degC |
-| `days_since_rain` | No | Days since rain for irrigation calculations [days] | days |
-| `days_since_rain_accum` | No | Days since rain counter (current) [days] | days |
-| `dqndt` | Yes | Change in net radiation |  |
-| `dqnsdt` | Yes | Change in net shortwave radiation |  |
-| `dt_since_start` | Yes | Time since start |  |
-| `hdd_accum` | No | Current day | degC |
-| `hdd_daily` | No | Previous day | degC |
-| `lenday_id` | Yes | Length of the day ID |  |
-| `precip_accum` | No | Current day | mm |
-| `precip_daily_total` | No | Previous day | mm |
-| `qn_av` | Yes | Average net radiation |  |
-| `qn_s_av` | Yes | Average net shortwave radiation |  |
-| `snowfallcum` | Yes | Cumulative snowfall |  |
-| `temp_5day_accum` | No | 5-day running mean temperature accumulation [degC] | degC |
-| `temp_5day_mean` | No | Previous 5-day running mean temperature for QF calculations [degC] | degC |
-| `temp_accum` | No | Current day | degC |
-| `temp_daily_mean` | No | Previous day | degC |
-| `tmax_id` | Yes | Maximum temperature ID |  |
-| `tmin_id` | Yes | Minimum temperature ID |  |
-| `tstep_prev` | Yes | Previous time step |  |
+| Parameter | In sample_config.yml | Unit |
+|-----------|---------------------|------|
+| `cdd_accum` | No | degC |
+| `cdd_daily` | No | degC |
+| `days_since_rain` | No | days |
+| `days_since_rain_accum` | No | days |
+| `dqndt` | Yes |  |
+| `dqnsdt` | Yes |  |
+| `dt_since_start` | Yes |  |
+| `hdd_accum` | No | degC |
+| `hdd_daily` | No | degC |
+| `lenday_id` | Yes |  |
+| `precip_accum` | No | mm |
+| `precip_daily_total` | No | mm |
+| `qn_av` | Yes |  |
+| `qn_s_av` | Yes |  |
+| `snowfallcum` | Yes |  |
+| `temp_5day_accum` | No | degC |
+| `temp_5day_mean` | No | degC |
+| `temp_accum` | No | degC |
+| `temp_daily_mean` | No | degC |
+| `tmax_id` | Yes |  |
+| `tmin_id` | Yes |  |
+| `tstep_prev` | Yes |  |
 
 ## Parameters Present in sample_config.yml
 
@@ -68,21 +68,21 @@ These parameters are marked as internal-only but appear in the sample configurat
 
 These parameters are internal-only and do not appear in the sample configuration:
 
-| Parameter | File | Description |
-|-----------|------|-------------|
-| `cdd_accum` | state.py:621 | Current day |
-| `cdd_daily` | state.py:677 | Previous day |
-| `days_since_rain` | state.py:713 | Days since rain for irrigation calculations [days] |
-| `days_since_rain_accum` | state.py:657 | Days since rain counter (current) [days] |
-| `hdd_accum` | state.py:612 | Current day |
-| `hdd_daily` | state.py:668 | Previous day |
-| `kdownzen` | model.py:657 | Use zenithal correction for downward shortwave radiation |
-| `precip_accum` | state.py:648 | Current day |
-| `precip_daily_total` | state.py:704 | Previous day |
-| `temp_5day_accum` | state.py:639 | 5-day running mean temperature accumulation [degC] |
-| `temp_5day_mean` | state.py:695 | Previous 5-day running mean temperature for QF calculations [degC] |
-| `temp_accum` | state.py:630 | Current day |
-| `temp_daily_mean` | state.py:686 | Previous day |
+| Parameter | File | Unit |
+|-----------|------|------|
+| `cdd_accum` | state.py:621 | degC |
+| `cdd_daily` | state.py:677 | degC |
+| `days_since_rain` | state.py:713 | days |
+| `days_since_rain_accum` | state.py:657 | days |
+| `hdd_accum` | state.py:612 | degC |
+| `hdd_daily` | state.py:668 | degC |
+| `kdownzen` | model.py:657 |  |
+| `precip_accum` | state.py:648 | mm |
+| `precip_daily_total` | state.py:704 | mm |
+| `temp_5day_accum` | state.py:639 | degC |
+| `temp_5day_mean` | state.py:695 | degC |
+| `temp_accum` | state.py:630 | degC |
+| `temp_daily_mean` | state.py:686 | degC |
 
 ## Recommendations
 
@@ -97,4 +97,4 @@ This analysis was generated using:
 python analyze_internal_only_parameters.py
 ```
 
-Generated on: 2025-07-25 14:40:51
+Generated on: 2025-07-25 14:43:05

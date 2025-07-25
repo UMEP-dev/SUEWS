@@ -2349,7 +2349,7 @@ class SiteProperties(BaseModel):
         """Convert numeric timezone values to TimezoneOffset enum."""
         if isinstance(values, dict) and "timezone" in values:
             tz_value = values["timezone"]
-            
+
             # Handle different input formats
             if isinstance(tz_value, dict) and "value" in tz_value:
                 # RefValue format: {"value": 5.5}
@@ -2359,15 +2359,19 @@ class SiteProperties(BaseModel):
                     if enum_value is not None:
                         tz_value["value"] = enum_value
                     else:
-                        raise ValueError(f"Invalid timezone offset: {numeric_value}. Must be one of the standard timezone offsets.")
+                        raise ValueError(
+                            f"Invalid timezone offset: {numeric_value}. Must be one of the standard timezone offsets."
+                        )
             elif isinstance(tz_value, (int, float)):
                 # Direct numeric value
                 enum_value = TimezoneOffset._missing_(tz_value)
                 if enum_value is not None:
                     values["timezone"] = enum_value
                 else:
-                    raise ValueError(f"Invalid timezone offset: {tz_value}. Must be one of the standard timezone offsets.")
-        
+                    raise ValueError(
+                        f"Invalid timezone offset: {tz_value}. Must be one of the standard timezone offsets."
+                    )
+
         return values
 
     model_config = ConfigDict(
@@ -2399,11 +2403,11 @@ class SiteProperties(BaseModel):
         ]:
             field_val = getattr(self, var)
             val = field_val.value if isinstance(field_val, RefValue) else field_val
-            
+
             # Handle TimezoneOffset enum
             if var == "timezone" and isinstance(val, TimezoneOffset):
                 val = val.value  # Get the float value from the enum
-            
+
             df_state.loc[grid_id, (f"{var}", "0")] = val
 
         # complex attributes

@@ -1072,7 +1072,9 @@ def test_get_mean_monthly_air_temperature_with_cru_data():
         temp = get_mean_monthly_air_temperature(45.0, 7, 10.0)
         # Temperature for mid-latitudes in July should be reasonable (0-40°C range)
         assert isinstance(temp, float), "Temperature should be a float"
-        assert -50 <= temp <= 50, f"Temperature {temp}°C seems unreasonable for lat=45°, month=7"
+        assert -50 <= temp <= 50, (
+            f"Temperature {temp}°C seems unreasonable for lat=45°, month=7"
+        )
     except FileNotFoundError:
         # If CRU data is not available, we expect this error - that's fine
         pytest.skip("CRU data file not available in this environment")

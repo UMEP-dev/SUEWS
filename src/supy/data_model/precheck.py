@@ -288,9 +288,16 @@ def get_mean_monthly_air_temperature(
         # First try the normal installed location
         current_dir / "database" / "CRU_TS4.06_cell_monthly_normals_1991_2020.csv",
         # Then try the source directory (for development/testing)
-        current_dir.parent.parent.parent / "src" / "supy" / "data_model" / "database" / "CRU_TS4.06_cell_monthly_normals_1991_2020.csv",
+        current_dir.parent.parent.parent
+        / "src"
+        / "supy"
+        / "data_model"
+        / "database"
+        / "CRU_TS4.06_cell_monthly_normals_1991_2020.csv",
         # Also try relative to current working directory
-        Path("src/supy/data_model/database/CRU_TS4.06_cell_monthly_normals_1991_2020.csv"),
+        Path(
+            "src/supy/data_model/database/CRU_TS4.06_cell_monthly_normals_1991_2020.csv"
+        ),
     ]
 
     cru_path = None

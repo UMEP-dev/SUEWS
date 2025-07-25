@@ -32,7 +32,7 @@ from copy import deepcopy
 from pathlib import Path
 import warnings
 
-from .model import Model
+from .model import Model, OutputConfig
 from .site import Site, SiteProperties, InitialStates, LandCover
 from .type import SurfaceType
 
@@ -49,6 +49,38 @@ enhanced_to_df_state_validation = None
 
 import os
 import warnings
+
+
+def _unwrap_value(val):
+    """
+    Unwrap RefValue and Enum values consistently.
+
+    This helper ensures consistent handling of RefValue wrappers and Enum values
+    throughout the validation logic.
+
+    Args:
+        val: The value to unwrap (could be RefValue, Enum, or raw value)
+
+    Returns:
+        The unwrapped raw value
+    """
+    # Handle RefValue wrapper
+    if (
+        hasattr(val, "value")
+        and hasattr(val, "__class__")
+        and "RefValue" in val.__class__.__name__
+    ):
+        val = val.value
+
+    # Handle Enum values (which also have .value attribute)
+    if (
+        hasattr(val, "value")
+        and hasattr(val, "__class__")
+        and "Enum" in str(val.__class__.__bases__)
+    ):
+        val = val.value
+
+    return val
 
 
 def _is_valid_layer_array(field) -> bool:
@@ -198,6 +230,320 @@ class SUEWSConfig(BaseModel):
 
         return self
 
+    @model_validator(mode="after")
+    def validate_model_output_config(self) -> "SUEWSConfig":
+        """
+        Validate output configuration, especially frequency vs timestep.
+        Migrated from Model class to SUEWSConfig for more comprehensive validation.
+        """
+        if isinstance(self.model.control.output_file, OutputConfig):
+            output_config = self.model.control.output_file
+            if output_config.freq is not None:
+                # Validate frequency is positive
+                if output_config.freq <= 0:
+                    raise ValueError(
+                        f"Output frequency must be positive, got {output_config.freq}s"
+                    )
+
+                tstep = self.model.control.tstep
+                if output_config.freq % tstep != 0:
+                    raise ValueError(
+                        f"Output frequency ({output_config.freq}s) must be a multiple of timestep ({tstep}s)"
+                    )
+        elif (
+            isinstance(self.model.control.output_file, str)
+            and self.model.control.output_file != "output.txt"
+        ):
+            # Issue warning for non-default string values
+            import warnings
+
+            warnings.warn(
+                f"The 'output_file' parameter with value '{self.model.control.output_file}' is deprecated and was never used. "
+                "Please use the new OutputConfig format or remove this parameter. "
+                "Example: output_file: {format: 'parquet', freq: 3600}",
+                DeprecationWarning,
+                stacklevel=3,
+            )
+        return self
+
+    @model_validator(mode="after")
+    def validate_model_radiation_method(self) -> "SUEWSConfig":
+        """
+        Validate radiation method configuration compatibility with forcing file.
+        Migrated from Model class to SUEWSConfig for comprehensive validation.
+        """
+        # Use the helper for consistent unwrapping
+        netradiationmethod_val = _unwrap_value(self.model.physics.netradiationmethod)
+        forcing_file_val = _unwrap_value(self.model.control.forcing_file)
+
+        # Check for the sample forcing file - this is still based on filename
+        # TODO: Future improvement - add a flag to indicate sample forcing or check actual column presence
+        # For now, we check both common sample forcing filenames
+        sample_forcing_names = ["forcing.txt", "sample_forcing.txt", "test_forcing.txt"]
+
+        if netradiationmethod_val == 1 and any(
+            name in str(forcing_file_val).lower() for name in sample_forcing_names
+        ):
+            import warnings
+
+            warnings.warn(
+                f"NetRadiationMethod is set to 1 (using observed Ldown) with what appears to be a sample forcing file '{forcing_file_val}'. "
+                "Sample forcing files typically lack observed Ldown data. "
+                "If this is sample data, use netradiationmethod = 3. "
+                "If this is real data with Ldown, consider renaming the file to avoid this warning.",
+                UserWarning,
+                stacklevel=2,
+            )
+        return self
+
+    @model_validator(mode="after")
+    def validate_site_required_fields(self) -> "SUEWSConfig":
+        """
+        Validate that all sites have required fields with valid values.
+        Migrated from SiteProperties.validate_required_fields for centralized validation.
+
+        Checks:
+        - Presence of critical site properties like lat, lng, alt, timezone
+        - RefValue wrapper validation
+        - Physical constraint validation (z0m_in < zdm_in)
+        """
+        from .type import RefValue  # Import here to avoid circular import
+
+        errors = []
+
+        # Required fields that must be present and non-None
+        required_fields = [
+            "lat",
+            "lng",
+            "alt",
+            "timezone",
+            "surfacearea",
+            "z",
+            "z0m_in",
+            "zdm_in",
+            "pipecapacity",
+            "runofftowater",
+            "narp_trans_site",
+            "lumps",
+            "spartacus",
+            "conductance",
+            "irrigation",
+            "anthropogenic_emissions",
+            "snow",
+            "land_cover",
+            "vertical_layers",
+        ]
+
+        for i, site in enumerate(self.sites):
+            if not site.properties:
+                errors.append(
+                    f"Site {i} ({getattr(site, 'name', 'unnamed')}) is missing properties"
+                )
+                continue
+
+            site_name = getattr(site, "name", f"Site {i}")
+
+            # Check required fields
+            for field in required_fields:
+                value = getattr(site.properties, field, None)
+                if value is None:
+                    errors.append(f"{site_name}: Required field '{field}' is missing")
+                elif isinstance(value, RefValue) and value.value is None:
+                    errors.append(f"{site_name}: Required field '{field}' has no value")
+
+            # Additional physical constraint validation
+            if (
+                site.properties.z0m_in is not None
+                and site.properties.zdm_in is not None
+            ):
+                z0m_val = _unwrap_value(site.properties.z0m_in)
+                zdm_val = _unwrap_value(site.properties.zdm_in)
+                if z0m_val is not None and zdm_val is not None and z0m_val >= zdm_val:
+                    errors.append(
+                        f"{site_name}: z0m_in ({z0m_val}) must be less than zdm_in ({zdm_val})"
+                    )
+
+        if errors:
+            raise ValueError("; ".join(errors))
+
+        return self
+
+    @model_validator(mode="after")
+    def validate_snow_parameters(self) -> "SUEWSConfig":
+        """
+        Validate snow parameters for all sites in the configuration.
+        Migrated from SnowParams.validate_all for centralized validation.
+
+        Checks:
+        - crwmin < crwmax (critical water content range)
+        - snowalbmin < snowalbmax (snow albedo range)
+
+        These are critical constraints that must be satisfied for proper
+        snow modeling, so they raise ValidationError rather than warnings.
+        """
+        from .type import RefValue  # Import here to avoid circular import
+
+        errors = []
+
+        for i, site in enumerate(self.sites):
+            if not site.properties or not site.properties.snow:
+                continue
+
+            site_name = getattr(site, "name", f"Site {i}")
+            snow_params = site.properties.snow
+
+            # Extract values using helper for consistent unwrapping
+            crwmin_val = _unwrap_value(snow_params.crwmin)
+            crwmax_val = _unwrap_value(snow_params.crwmax)
+            snowalbmin_val = _unwrap_value(snow_params.snowalbmin)
+            snowalbmax_val = _unwrap_value(snow_params.snowalbmax)
+
+            # Validate critical water content range
+            if crwmin_val >= crwmax_val:
+                errors.append(
+                    f"{site_name}: crwmin ({crwmin_val}) must be less than crwmax ({crwmax_val})"
+                )
+
+            # Validate physical bounds for critical water content
+            if not (0 <= crwmin_val <= 1):
+                errors.append(
+                    f"{site_name}: crwmin ({crwmin_val}) must be in range [0, 1]"
+                )
+            if not (0 <= crwmax_val <= 1):
+                errors.append(
+                    f"{site_name}: crwmax ({crwmax_val}) must be in range [0, 1]"
+                )
+
+            # Validate physical bounds for snow albedo
+            if not (0 <= snowalbmin_val <= 1):
+                errors.append(
+                    f"{site_name}: snowalbmin ({snowalbmin_val}) must be in range [0, 1]"
+                )
+            if not (0 <= snowalbmax_val <= 1):
+                errors.append(
+                    f"{site_name}: snowalbmax ({snowalbmax_val}) must be in range [0, 1]"
+                )
+
+            # Validate snow albedo range
+            if snowalbmin_val >= snowalbmax_val:
+                errors.append(
+                    f"{site_name}: snowalbmin ({snowalbmin_val}) must be less than snowalbmax ({snowalbmax_val})"
+                )
+
+        if errors:
+            raise ValueError("; ".join(errors))
+
+        return self
+
+    @model_validator(mode="after")
+    def validate_albedo_ranges(self) -> "SUEWSConfig":
+        """
+        Validate albedo ranges for vegetated surfaces in all sites.
+        Migrated from VegetatedSurfaceProperties.validate_albedo_range for centralized validation.
+
+        Checks:
+        - alb_min <= alb_max for all vegetated surfaces (evetr, dectr, grass)
+
+        This ensures proper albedo parameter ranges for vegetation modeling.
+        """
+        from .type import RefValue  # Import here to avoid circular import
+
+        errors = []
+
+        for i, site in enumerate(self.sites):
+            if not site.properties or not site.properties.land_cover:
+                continue
+
+            site_name = getattr(site, "name", f"Site {i}")
+            land_cover = site.properties.land_cover
+
+            # Check all vegetated surface types
+            vegetated_surfaces = [
+                ("evetr", land_cover.evetr, "evergreen trees"),
+                ("dectr", land_cover.dectr, "deciduous trees"),
+                ("grass", land_cover.grass, "grass"),
+            ]
+
+            for surface_name, surface_props, surface_description in vegetated_surfaces:
+                if not surface_props:
+                    continue
+
+                # Extract albedo values using helper for consistent unwrapping
+                alb_min_val = _unwrap_value(surface_props.alb_min)
+                alb_max_val = _unwrap_value(surface_props.alb_max)
+
+                # Validate physical bounds for albedo values
+                if not (0 <= alb_min_val <= 1):
+                    errors.append(
+                        f"{site_name} {surface_description}: alb_min ({alb_min_val}) must be in range [0, 1]"
+                    )
+                if not (0 <= alb_max_val <= 1):
+                    errors.append(
+                        f"{site_name} {surface_description}: alb_max ({alb_max_val}) must be in range [0, 1]"
+                    )
+
+                # Validate albedo range - allow equality for constant albedo
+                if alb_min_val > alb_max_val:
+                    errors.append(
+                        f"{site_name} {surface_description}: alb_min ({alb_min_val}) must be less than or equal to alb_max ({alb_max_val})"
+                    )
+
+        if errors:
+            raise ValueError("; ".join(errors))
+
+        return self
+
+    @model_validator(mode="after")
+    def validate_deciduous_porosity_ranges(self) -> "SUEWSConfig":
+        """
+        Validate porosity ranges for deciduous trees in all sites.
+        Migrated from DectrProperties.validate_porosity_range for centralized validation.
+
+        Checks:
+        - pormin_dec < pormax_dec (minimum porosity < maximum porosity)
+
+        This ensures proper porosity parameter ranges for deciduous tree modeling.
+        """
+        from .type import RefValue  # Import here to avoid circular import
+
+        errors = []
+
+        for i, site in enumerate(self.sites):
+            if (
+                not site.properties
+                or not site.properties.land_cover
+                or not site.properties.land_cover.dectr
+            ):
+                continue
+
+            site_name = getattr(site, "name", f"Site {i}")
+            dectr_props = site.properties.land_cover.dectr
+
+            # Extract porosity values using helper for consistent unwrapping
+            pormin_dec_val = _unwrap_value(dectr_props.pormin_dec)
+            pormax_dec_val = _unwrap_value(dectr_props.pormax_dec)
+
+            # Validate physical bounds for porosity
+            if not (0 <= pormin_dec_val <= 1):
+                errors.append(
+                    f"{site_name} deciduous trees: pormin_dec ({pormin_dec_val}) must be in range [0, 1]"
+                )
+            if not (0 <= pormax_dec_val <= 1):
+                errors.append(
+                    f"{site_name} deciduous trees: pormax_dec ({pormax_dec_val}) must be in range [0, 1]"
+                )
+
+            # Validate porosity range
+            if pormin_dec_val >= pormax_dec_val:
+                errors.append(
+                    f"{site_name} deciduous trees: pormin_dec ({pormin_dec_val}) must be less than pormax_dec ({pormax_dec_val})"
+                )
+
+        if errors:
+            raise ValueError("; ".join(errors))
+
+        return self
+
     def _show_validation_summary(self) -> None:
         """Show a concise summary of validation issues."""
         ## Check if we have a yaml path stored
@@ -205,11 +551,24 @@ class SUEWSConfig(BaseModel):
 
         if yaml_path:
             ## When loaded from YAML, we know the source file
-            annotated_filename = Path(yaml_path).stem + "_annotated.yml"
-            fix_instructions = (
-                f"To see detailed fixes for each parameter: please refer to inline guidance "
-                f"in '{annotated_filename}' that will shortly be generated"
+            yaml_path_obj = Path(yaml_path)
+            annotated_path = (
+                yaml_path_obj.parent / f"{yaml_path_obj.stem}_annotated.yml"
             )
+            auto_generate = getattr(self, "_auto_generate_annotated", False)
+
+            if auto_generate:
+                fix_instructions = (
+                    f"To see detailed fixes for each parameter: please refer to inline guidance "
+                    f"in '{annotated_path}' that will be generated"
+                )
+            else:
+                fix_instructions = (
+                    f"To see detailed fixes for each parameter:\n"
+                    f"   Run: config.generate_annotated_yaml('{yaml_path}')\n"
+                    f"   This will create: {annotated_path}\n"
+                    f"   with inline guidance showing exactly where to add missing parameters"
+                )
         else:
             fix_instructions = (
                 f"To see detailed fixes for each parameter:\n"
@@ -247,6 +606,15 @@ class SUEWSConfig(BaseModel):
 
         ## Log the complete summary
         logger_supy.warning(summary_message)
+
+        ## Optionally generate the annotated YAML file automatically
+        auto_generate = getattr(self, "_auto_generate_annotated", False)
+        if auto_generate and yaml_path and Path(yaml_path).exists():
+            try:
+                generated_path = self.generate_annotated_yaml(yaml_path)
+                logger_supy.info(f"Annotated YAML file generated: {generated_path}")
+            except Exception as e:
+                logger_supy.info(f"Could not generate annotated YAML: {e}")
 
     def _validate_site_parameters(self, site: Site, site_index: int) -> None:
         """Validate all parameters for a single site."""
@@ -907,16 +1275,30 @@ class SUEWSConfig(BaseModel):
             self._collect_validation_issues(site, site_name, i, annotator)
 
         # Generate annotated file
-        input_path = Path(yaml_path)
-        if output_path:
-            output_path = Path(output_path)
-        else:
-            output_path = input_path.parent / f"{input_path.stem}_annotated.yml"
+        try:
+            input_path = Path(yaml_path)
+            if not input_path.exists():
+                logger_supy.error(f"Input file does not exist: {yaml_path}")
+                return None
 
-        annotated_path = annotator.generate_annotated_file(input_path, output_path)
+            if output_path:
+                output_path = Path(output_path)
+                # Check if output directory exists
+                if not output_path.parent.exists():
+                    logger_supy.error(
+                        f"Output directory does not exist: {output_path.parent}"
+                    )
+                    return None
+            else:
+                output_path = input_path.parent / f"{input_path.stem}_annotated.yml"
 
-        logger_supy.info(f"Generated annotated YAML file: {annotated_path}")
-        return str(annotated_path)
+            annotated_path = annotator.generate_annotated_file(input_path, output_path)
+
+            logger_supy.info(f"Generated annotated YAML file: {annotated_path}")
+            return str(annotated_path)
+        except Exception as e:
+            logger_supy.error(f"Failed to generate annotated YAML: {e}")
+            return None
 
     def _collect_validation_issues(
         self, site: Site, site_name: str, site_index: int, annotator: YAMLAnnotator
@@ -1183,9 +1565,393 @@ class SUEWSConfig(BaseModel):
     #                 surface_is.state.value = 0
     #     return self
 
+    @model_validator(mode="after")
+    def validate_building_layers(self) -> "SUEWSConfig":
+        """Validate building layer consistency across all sites.
+
+        Checks that building-related arrays have consistent lengths:
+        - Building heights array must have nlayer+1 elements
+        - Building fractions array must have nlayer elements
+        - Building scales array must have nlayer elements
+        - Roof layers count must match nlayer
+        - Wall layers count must match nlayer
+        """
+        from .type import RefValue  # Import here to avoid circular import
+
+        for site_index, site in enumerate(self.sites):
+            site_name = f"Site {site_index + 1}"
+
+            # Get vertical layers (building validation is on vertical layers, not bldgs)
+            if not site.properties or not site.properties.vertical_layers:
+                continue
+
+            vertical_layers = site.properties.vertical_layers
+
+            # Extract nlayer value using helper for consistent unwrapping
+            nlayer_val = _unwrap_value(vertical_layers.nlayer)
+
+            # Validate building heights array
+            if (
+                hasattr(vertical_layers, "height")
+                and vertical_layers.height is not None
+            ):
+                heights_val = _unwrap_value(vertical_layers.height)
+                expected_height_len = nlayer_val + 1
+                if len(heights_val) != expected_height_len:
+                    raise ValueError(
+                        f"{site_name}: Building heights array length ({len(heights_val)}) "
+                        f"must be nlayer+1 ({expected_height_len})"
+                    )
+
+            # Validate building fractions array
+            if (
+                hasattr(vertical_layers, "building_frac")
+                and vertical_layers.building_frac is not None
+            ):
+                fractions_val = _unwrap_value(vertical_layers.building_frac)
+                if len(fractions_val) != nlayer_val:
+                    raise ValueError(
+                        f"{site_name}: Building fractions array length ({len(fractions_val)}) "
+                        f"must match nlayer ({nlayer_val})"
+                    )
+
+            # Validate building scales array
+            if (
+                hasattr(vertical_layers, "building_scale")
+                and vertical_layers.building_scale is not None
+            ):
+                scales_val = (
+                    vertical_layers.building_scale.value
+                    if isinstance(vertical_layers.building_scale, RefValue)
+                    else vertical_layers.building_scale
+                )
+                if len(scales_val) != nlayer_val:
+                    raise ValueError(
+                        f"{site_name}: Building scales array length ({len(scales_val)}) "
+                        f"must match nlayer ({nlayer_val})"
+                    )
+
+            # Validate roof layers count
+            if hasattr(vertical_layers, "roofs") and vertical_layers.roofs is not None:
+                if len(vertical_layers.roofs) != nlayer_val:
+                    raise ValueError(
+                        f"{site_name}: Roof layers count ({len(vertical_layers.roofs)}) "
+                        f"must match nlayer ({nlayer_val})"
+                    )
+
+            # Validate wall layers count
+            if hasattr(vertical_layers, "walls") and vertical_layers.walls is not None:
+                if len(vertical_layers.walls) != nlayer_val:
+                    raise ValueError(
+                        f"{site_name}: Wall layers count ({len(vertical_layers.walls)}) "
+                        f"must match nlayer ({nlayer_val})"
+                    )
+
+        return self
+
+    @model_validator(mode="after")
+    def validate_surface_states(self) -> "SUEWSConfig":
+        """Validate surface state types match expected surface types across all sites.
+
+        Ensures that initial states have appropriate surface types:
+        - InitialStateVeg: DECTR, EVETR, or GRASS
+        - InitialStateDectr: DECTR only
+        - All surface-specific initial state classes have correct surface types
+        """
+        from .type import SurfaceType  # Import here to avoid circular import
+
+        for site_index, site in enumerate(self.sites):
+            site_name = f"Site {site_index + 1}"
+
+            # Get initial states
+            if not site.initial_states:
+                continue
+
+            initial_states = site.initial_states
+
+            # Validate vegetated surface states (evetr, dectr, grass)
+            vegetated_surfaces = ["evetr", "dectr", "grass"]
+            for surface_name in vegetated_surfaces:
+                if hasattr(initial_states, surface_name):
+                    surface_state = getattr(initial_states, surface_name)
+                    if surface_state and hasattr(surface_state, "_surface_type"):
+                        surface_type = surface_state._surface_type
+                        expected_types = [
+                            SurfaceType.DECTR,
+                            SurfaceType.EVETR,
+                            SurfaceType.GRASS,
+                        ]
+
+                        # For vegetated surfaces, check they're in valid vegetated types
+                        if (
+                            surface_name in ["evetr", "grass"]
+                            and surface_type not in expected_types
+                        ):
+                            raise ValueError(
+                                f"{site_name}: Invalid surface type {surface_type} for vegetated surface {surface_name}"
+                            )
+
+                        # For deciduous trees, check it's specifically DECTR
+                        if (
+                            surface_name == "dectr"
+                            and surface_type != SurfaceType.DECTR
+                        ):
+                            raise ValueError(
+                                f"{site_name}: {surface_name} state is only valid for deciduous trees, got {surface_type}"
+                            )
+
+        return self
+
+    @model_validator(mode="before")
+    @classmethod
+    def convert_legacy_hdd_formats(cls, data):
+        """Convert legacy HDD_ID list formats across all sites.
+
+        This handles backward compatibility for HDD_ID data that may be provided
+        as lists instead of dictionaries. Migrated from InitialStates class
+        to ensure consistent handling across all sites in configuration.
+        """
+        if isinstance(data, dict) and "sites" in data:
+            sites = data["sites"]
+            if isinstance(sites, list):
+                for site in sites:
+                    if isinstance(site, dict) and "initial_states" in site:
+                        initial_states = site["initial_states"]
+                        if (
+                            isinstance(initial_states, dict)
+                            and "hdd_id" in initial_states
+                        ):
+                            hdd_value = initial_states["hdd_id"]
+                            if isinstance(hdd_value, list):
+                                # Convert from legacy list format to HDD_ID object
+                                if len(hdd_value) >= 12:
+                                    initial_states["hdd_id"] = {
+                                        "hdd_accum": hdd_value[0],
+                                        "cdd_accum": hdd_value[1],
+                                        "temp_accum": hdd_value[2],
+                                        "temp_5day_accum": hdd_value[3],
+                                        "precip_accum": hdd_value[4],
+                                        "days_since_rain_accum": hdd_value[5],
+                                        "hdd_daily": hdd_value[6],
+                                        "cdd_daily": hdd_value[7],
+                                        "temp_daily_mean": hdd_value[8],
+                                        "temp_5day_mean": hdd_value[9],
+                                        "precip_daily_total": hdd_value[10],
+                                        "days_since_rain": hdd_value[11],
+                                    }
+                                else:
+                                    # If list is too short, create default HDD_ID
+                                    initial_states["hdd_id"] = {}
+        return data
+
+    @model_validator(mode="after")
+    def set_surface_types_validation(self) -> "SUEWSConfig":
+        """Set surface types on all land cover properties across all sites.
+
+        This validator ensures that all surface property objects have their
+        surface type identifiers properly set. This is required for internal
+        validation and processing logic. Migrated from LandCover.set_surface_types
+        to provide centralized validation across all sites.
+        """
+        from .type import SurfaceType  # Import here to avoid circular import
+
+        # Surface type mapping
+        surface_map = {
+            "paved": SurfaceType.PAVED,
+            "bldgs": SurfaceType.BLDGS,
+            "dectr": SurfaceType.DECTR,
+            "evetr": SurfaceType.EVETR,
+            "grass": SurfaceType.GRASS,
+            "bsoil": SurfaceType.BSOIL,
+            "water": SurfaceType.WATER,
+        }
+
+        for site_index, site in enumerate(self.sites):
+            if site.properties and site.properties.land_cover:
+                land_cover = site.properties.land_cover
+
+                # Set surface types for each surface property
+                for surface_name, surface_type in surface_map.items():
+                    if hasattr(land_cover, surface_name):
+                        surface_prop = getattr(land_cover, surface_name)
+                        if surface_prop and hasattr(surface_prop, "set_surface_type"):
+                            try:
+                                surface_prop.set_surface_type(surface_type)
+                            except Exception as e:
+                                # Log the error but continue processing other surfaces
+                                site_name = getattr(site, "name", f"Site {site_index}")
+                                import warnings
+
+                                warnings.warn(
+                                    f"{site_name}: Failed to set surface type for {surface_name}: {str(e)}",
+                                    UserWarning,
+                                    stacklevel=2,
+                                )
+
+        return self
+
+    @model_validator(mode="after")
+    def validate_model_physics_compatibility(self) -> "SUEWSConfig":
+        """Validate model physics parameter compatibility across all sites.
+
+        Checks for incompatible combinations of physics options that would
+        cause model errors. This includes storage heat method compatibility
+        with QF inclusion options and experimental/unsupported features.
+        Migrated from ModelPhysics.check_all to provide centralized validation.
+        """
+        from .type import RefValue  # Import here to avoid circular import
+
+        # Check global model physics (not per-site)
+        if not hasattr(self, "model") or not self.model or not self.model.physics:
+            return self
+
+        physics = self.model.physics
+        errors = []
+
+        # Use helper for consistent unwrapping - handles both RefValue and Enum
+        storageheatmethod_val = _unwrap_value(physics.storageheatmethod)
+        ohmincqf_val = _unwrap_value(physics.ohmincqf)
+        snowuse_val = _unwrap_value(physics.snowuse)
+
+        # StorageHeatMethod compatibility check
+        # Only method 1 (OHM_WITHOUT_QF) has specific compatibility requirements
+        if storageheatmethod_val == 1 and ohmincqf_val != 0:
+            errors.append(
+                f"StorageHeatMethod is set to {storageheatmethod_val} and OhmIncQf is set to {ohmincqf_val}. "
+                f"You should switch to OhmIncQf=0."
+            )
+
+        # Snow calculations check (experimental feature)
+        if snowuse_val == 1:
+            errors.append(
+                f"SnowUse is set to {snowuse_val}. "
+                f"There are no checks implemented for this case (snow calculations included in the run). "
+                f"You should switch to SnowUse=0."
+            )
+
+        if errors:
+            raise ValueError("\n".join(errors))
+
+        return self
+
+    @model_validator(mode="after")
+    def validate_hourly_profile_hours(self) -> "SUEWSConfig":
+        """Validate hourly profiles have complete and valid hour coverage.
+
+        Ensures all HourlyProfile instances across all sites have:
+        - All hour keys between 1 and 24 (inclusive)
+        - Exactly hours 1-24 with no missing hours or duplicates
+
+        This applies to profiles like snow, irrigation, anthropogenic heat,
+        population, traffic, and human activity profiles.
+        Migrated from HourlyProfile.validate_hours for centralized validation.
+        """
+        for site_index, site in enumerate(self.sites):
+            site_name = f"Site {site_index + 1}" if len(self.sites) > 1 else "Site"
+            errors = []
+
+            # Collect all HourlyProfile instances from this site
+            hourly_profiles = []
+
+            # Snow profiles
+            if site.properties and site.properties.snow:
+                hourly_profiles.append((
+                    "snow.snowprof_24hr",
+                    site.properties.snow.snowprof_24hr,
+                ))
+
+            # Irrigation profiles
+            if site.properties and site.properties.irrigation:
+                irrigation = site.properties.irrigation
+                hourly_profiles.extend([
+                    ("irrigation.wuprofa_24hr", irrigation.wuprofa_24hr),
+                    ("irrigation.wuprofm_24hr", irrigation.wuprofm_24hr),
+                ])
+
+            # Anthropogenic emissions profiles (heat)
+            if site.properties and site.properties.anthropogenic_emissions:
+                anthro_heat = site.properties.anthropogenic_emissions.heat
+                hourly_profiles.extend([
+                    (
+                        "anthropogenic_emissions.heat.ahprof_24hr",
+                        anthro_heat.ahprof_24hr,
+                    ),
+                    (
+                        "anthropogenic_emissions.heat.popprof_24hr",
+                        anthro_heat.popprof_24hr,
+                    ),
+                ])
+
+                # CO2 profiles (traffic and human activity)
+                anthro_co2 = site.properties.anthropogenic_emissions.co2
+                hourly_profiles.extend([
+                    (
+                        "anthropogenic_emissions.co2.traffprof_24hr",
+                        anthro_co2.traffprof_24hr,
+                    ),
+                    (
+                        "anthropogenic_emissions.co2.humactivity_24hr",
+                        anthro_co2.humactivity_24hr,
+                    ),
+                ])
+
+            # Validate each profile
+            for profile_name, profile in hourly_profiles:
+                if profile is None:
+                    continue
+
+                # Validate both working_day and holiday profiles
+                for day_type in ["working_day", "holiday"]:
+                    day_profile = getattr(profile, day_type, None)
+                    if day_profile is None:
+                        continue
+
+                    # Check hour keys can be converted to integers and are in valid range
+                    try:
+                        hours = [int(h) for h in day_profile.keys()]
+                    except (ValueError, TypeError):
+                        errors.append(
+                            f"{site_name}: {profile_name}.{day_type} has invalid hour keys. "
+                            f"Hour keys must be convertible to integers."
+                        )
+                        continue
+
+                    # Check hour range (1-24)
+                    if not all(1 <= h <= 24 for h in hours):
+                        errors.append(
+                            f"{site_name}: {profile_name}.{day_type} has hour values outside range 1-24. "
+                            f"Found hours: {sorted(hours)}"
+                        )
+
+                    # Check complete coverage (must have hours 1-24)
+                    if sorted(hours) != list(range(1, 25)):
+                        missing_hours = set(range(1, 25)) - set(hours)
+                        extra_hours = set(hours) - set(range(1, 25))
+                        error_parts = []
+                        if missing_hours:
+                            error_parts.append(
+                                f"missing hours: {sorted(missing_hours)}"
+                            )
+                        if extra_hours:
+                            error_parts.append(f"extra hours: {sorted(extra_hours)}")
+
+                        errors.append(
+                            f"{site_name}: {profile_name}.{day_type} must have all hours from 1 to 24. "
+                            f"Issues: {', '.join(error_parts)}"
+                        )
+
+            if errors:
+                raise ValueError("\n".join(errors))
+
+        return self
+
     @classmethod
     def from_yaml(
-        cls, path: str, use_conditional_validation: bool = True, strict: bool = True
+        cls,
+        path: str,
+        use_conditional_validation: bool = True,
+        strict: bool = True,
+        auto_generate_annotated: bool = False,
     ) -> "SUEWSConfig":
         """Initialize SUEWSConfig from YAML file with conditional validation.
 
@@ -1193,6 +1959,7 @@ class SUEWSConfig(BaseModel):
             path (str): Path to YAML configuration file
             use_conditional_validation (bool): Whether to use conditional validation
             strict (bool): If True, raise errors on validation failure
+            auto_generate_annotated (bool): If True, automatically generate annotated YAML when validation issues found
 
         Returns:
             SUEWSConfig: Instance of SUEWSConfig initialized from YAML
@@ -1202,6 +1969,7 @@ class SUEWSConfig(BaseModel):
 
         # Store yaml path in config data for later use
         config_data["_yaml_path"] = path
+        config_data["_auto_generate_annotated"] = auto_generate_annotated
 
         if use_conditional_validation:
             logger_supy.info(

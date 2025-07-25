@@ -26,6 +26,8 @@ This directory contains all Claude Code-specific documentation, plans, and confi
 │   ├── feature-plan.md
 │   ├── commit-message.md
 │   └── README.md
+├── commands/            # Custom slash commands
+│   └── log-changes.md
 ├── settings.json        # Claude Code settings (committed)
 └── settings.local.json  # Local settings (ignored)
 ```
@@ -56,6 +58,11 @@ This directory contains all Claude Code-specific documentation, plans, and confi
 - Feature plan template
 - Commit message format
 - Other common documents
+
+### commands/
+**Purpose**: Custom slash commands for automation
+- `/log-changes` - Analyse recent changes and update docs/CHANGELOG
+- Add new commands as .md files in this directory
 
 ## Quick Navigation
 
@@ -105,6 +112,19 @@ Comprehensive worktree management with four simple subcommands:
 ```
 
 See `.claude/howto/worktree-workflow.md` for detailed workflow guide.
+
+### /log-changes
+Analyses recent code changes and updates documentation:
+
+- Checks commits since last CHANGELOG.md update
+- Categorises changes by type ([feature], [bugfix], etc.)
+- Updates CHANGELOG.md with new entries
+- Identifies and updates affected documentation
+- Runs documentation generation scripts as needed
+
+**Usage**: `/log-changes`
+
+This command helps maintain up-to-date documentation by automatically detecting what has changed and where updates are needed.
 
 ## Git Policy
 - ✅ Commit: All directories and files (except settings.local.json)

@@ -8,7 +8,7 @@ No.,Use,Column Name,Description
 7,`O`,qe,Latent heat flux [W |m^-2|]
 8,`O`,qs,Storage heat flux [W |m^-2|]
 9,`O`,qf,Anthropogenic heat flux [W |m^-2|]
-10,`MU`,U,Wind speed [m s-1] (measurement height (`z`) is needed in `SUEWS_SiteSelect.txt`)
+10,`MU`,U,Wind speed [m s-1] (measurement height (`z`) is needed in `SUEWS_SiteSelect.txt`). **Minimum: 0.01 m/s** to avoid division by zero errors in atmospheric calculations.
 11,`MU`,RH,Relative Humidity [%] (measurement height (`z`) is needed in `SUEWS_SiteSelect.txt`)
 12,`MU`,Tair,Air temperature [°C] (measurement height (`z`) is needed in `SUEWS_SiteSelect.txt`)
 13,`MU`,pres,Barometric pressure [kPa] (measurement height (`z`) is needed in `SUEWS_SiteSelect.txt`)

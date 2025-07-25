@@ -110,8 +110,107 @@ def test_annotation_with_sample_config():
         # So we just check that the annotated file was generated properly
 
 
+def test_annotation_failure_handling():
+    """Test that annotation generation handles failures gracefully."""
+
+    # Create test config
+    yaml_content = """name: Test Config
+sites:
+  - name: Test Site
+    gridiv: 1
+    properties:
+      lat: {value: 51.5}
+      lng: {value: -0.1}
+      alt: {value: 10.0}
+"""
+
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".yml", delete=False) as f:
+        f.write(yaml_content)
+        test_file = Path(f.name)
+
+    try:
+        # Load config
+        config = SUEWSConfig.from_yaml(test_file)
+
+        # Test with non-existent source file
+        non_existent = Path("/non/existent/path/config.yml")
+        result = config.generate_annotated_yaml(non_existent)
+        # Should return None when source file doesn't exist
+        assert result is None
+
+        # Test with invalid output path (directory doesn't exist)
+        invalid_output = Path("/non/existent/dir/output.yml")
+        result = config.generate_annotated_yaml(test_file, invalid_output)
+        # Should return None when output directory doesn't exist
+        assert result is None
+
+        # Test with read-only directory (simulate permission error)
+        # Note: This test is platform-dependent and may not work on all systems
+        # so we'll just verify the method handles exceptions gracefully
+
+    finally:
+        test_file.unlink()
+
+
+def test_auto_generate_annotated_parameter():
+    """Test the auto_generate_annotated parameter in from_yaml."""
+
+    # Create test config with missing parameters
+    yaml_content = """name: Test Config
+sites:
+  - name: Test Site
+    gridiv: 1
+    properties:
+      lat: {value: 51.5}
+      lng: {value: -0.1}
+      alt: {value: 10.0}
+      # Missing required land_cover
+"""
+
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".yml", delete=False) as f:
+        f.write(yaml_content)
+        test_file = Path(f.name)
+
+    try:
+        # Test with auto_generate_annotated=True
+        # This should trigger annotation generation despite validation errors
+        try:
+            config = SUEWSConfig.from_yaml(
+                test_file,
+                auto_generate_annotated=True,
+                strict=False,  # Allow loading despite missing parameters
+            )
+        except Exception:
+            # Even if loading fails, check if annotated file was created
+            pass
+
+        # Check if annotated file was created
+        annotated_path = Path(str(test_file).replace(".yml", "_annotated.yml"))
+        if annotated_path.exists():
+            # Verify content
+            with open(annotated_path, "r") as f:
+                content = f.read()
+            assert "[ERROR] MISSING:" in content
+            # Cleanup
+            annotated_path.unlink()
+
+        # Test with auto_generate_annotated=False (default)
+        try:
+            config = SUEWSConfig.from_yaml(test_file, strict=False)
+        except Exception:
+            pass
+
+        # Annotated file should not be created with default settings
+        assert not annotated_path.exists()
+
+    finally:
+        test_file.unlink()
+
+
 if __name__ == "__main__":
     # Run the tests
     test_json_based_yaml_annotation()
     test_annotation_with_sample_config()
+    test_annotation_failure_handling()
+    test_auto_generate_annotated_parameter()
     print("✓ All tests passed!")

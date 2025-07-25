@@ -3,6 +3,13 @@
 ! TS 31 Aug 2017: initial version
 ! TS 02 Oct 2017: added  as the generic wrapper
 ! TS 03 Oct 2017: added
+!
+! WRF-SUEWS COUPLING NOTE:
+! This module supports both standalone SUEWS and WRF-SUEWS coupling.
+! Key differences for WRF coupling:
+! - tstep_prev: Allows adaptive timesteps (in standalone: always equals tstep)
+! - Additional atmospheric variables passed from WRF
+!========================================================================================
 MODULE SUEWS_Driver
    ! only the following immutable objects are imported:
    ! 1. functions/subroutines
@@ -64,6 +71,9 @@ MODULE SUEWS_Driver
                           SUEWS_cal_DLS_DTS
 
    IMPLICIT NONE
+
+   ! Module-level variable to track if snow warning has been shown
+   LOGICAL, SAVE :: snow_warning_shown = .FALSE.
 
 CONTAINS
 
@@ -399,7 +409,11 @@ CONTAINS
                !===================Calculate surface hydrology and related soil water=======================
                ! MP: Until Snow has been fixed this should not be used (TODO)
                IF (config%SnowUse == 1) THEN
-                  WRITE (*, *) "WARNING SNOW ON! Not recommended at the moment"
+                  ! Only show warning once per simulation run
+                  IF (.NOT. snow_warning_shown) THEN
+                     WRITE (*, *) "WARNING SNOW ON! Not recommended at the moment"
+                     snow_warning_shown = .TRUE.
+                  END IF
                   ! ===================Calculate snow related hydrology=======================
                   ! #234 the snow parts needs more work to be done
                   ! TS 18 Oct 2023: snow is temporarily turned off for easier implementation of other functionalities

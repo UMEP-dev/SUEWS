@@ -15,8 +15,8 @@ from supy.data_model.precheck import (
     precheck_nonzero_sfr_requires_nonnull_params,
     precheck_model_option_rules,
     collect_yaml_differences,
-    precheck_update_surface_temperature,
-    get_monthly_avg_temp,
+    precheck_update_temperature,
+    get_mean_monthly_air_temperature,
     precheck_warn_zero_sfr_params,
     SeasonCheck,
 )
@@ -1016,15 +1016,16 @@ def build_minimal_yaml_for_surface_temp():
     }
 
 
-def test_precheck_update_surface_temperature():
+def test_precheck_update_temperature():
     data = build_minimal_yaml_for_surface_temp()
     start_date = data["model"]["control"]["start_time"]
     month = datetime.strptime(start_date, "%Y-%m-%d").month
     lat = data["sites"][0]["properties"]["lat"]["value"]
+    lng = data["sites"][0]["properties"]["lng"]["value"]
 
-    expected_temp = get_monthly_avg_temp(lat, month)
+    expected_temp = get_mean_monthly_air_temperature(lat, month, lng)
 
-    updated = precheck_update_surface_temperature(deepcopy(data), start_date=start_date)
+    updated = precheck_update_temperature(deepcopy(data), start_date=start_date)
 
     for surface in ["paved", "bldgs", "evetr", "dectr", "grass", "bsoil", "water"]:
         temp_array = updated["sites"][0]["initial_states"][surface]["temperature"][
@@ -1040,14 +1041,14 @@ def test_precheck_update_surface_temperature():
         assert tin == expected_temp, f"Mismatch in tin for {surface}"
 
 
-def test_precheck_update_surface_temperature_missing_lat():
+def test_precheck_update_temperature_missing_lat():
     data = build_minimal_yaml_for_surface_temp()
     data["sites"][0]["properties"]["lat"] = None  # Simulate missing lat
 
     start_date = data["model"]["control"]["start_time"]
 
     # Should not raise, but skip update
-    updated = precheck_update_surface_temperature(deepcopy(data), start_date=start_date)
+    updated = precheck_update_temperature(deepcopy(data), start_date=start_date)
 
     for surface in ["paved", "bldgs", "evetr", "dectr", "grass", "bsoil", "water"]:
         temp_array = updated["sites"][0]["initial_states"][surface]["temperature"][

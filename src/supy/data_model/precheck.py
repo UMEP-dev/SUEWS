@@ -251,8 +251,8 @@ def get_mean_monthly_air_temperature(lat: float, month: int, lon: float = None, 
     Calculate mean monthly air temperature using CRU TS4.06 climatological data.
 
     This function uses the CRU TS4.06 cell monthly normals dataset (1991-2020) 
-    to provide accurate location-specific temperature estimates rather than 
-    broad latitude band approximations.
+    to provide accurate location-specific temperature estimates. CRU data is 
+    required - the function will raise an error if CRU data is not available.
 
     Args:
         lat (float): Site latitude in degrees (positive for Northern Hemisphere, negative for Southern).
@@ -264,7 +264,8 @@ def get_mean_monthly_air_temperature(lat: float, month: int, lon: float = None, 
         float: Mean monthly air temperature for the given latitude and month (°C).
 
     Raises:
-        ValueError: If the input month is not between 1 and 12, or coordinates are invalid.
+        ValueError: If the input month is not between 1 and 12, coordinates are invalid, 
+                   or no CRU data found within tolerance.
         FileNotFoundError: If CRU data file is not found.
     """
     import pandas as pd
@@ -294,123 +295,90 @@ def get_mean_monthly_air_temperature(lat: float, month: int, lon: float = None, 
             break
     
     if cru_path is None:
-        # Fallback to latitude band method with warning
-        logger_supy.warning(
-            f"CRU data file not found, falling back to latitude band estimation for lat={lat}, month={month}"
+        raise FileNotFoundError(
+            "CRU TS4.06 data file not found. Expected locations:\n" + 
+            "\n".join(f"  - {path}" for path in potential_paths) +
+            "\n\nPlease ensure the CRU data file is available for temperature calculations."
         )
-        return _get_fallback_temperature(lat, month)
     
+    # Load CRU data
     try:
-        # Load CRU data
         df = pd.read_csv(cru_path)
+    except Exception as e:
+        raise ValueError(f"Error reading CRU CSV file {cru_path}: {e}")
+    
+    # Validate required columns
+    required_cols = ['Month', 'Latitude', 'Longitude', 'NormalTemperature']
+    missing_cols = [col for col in required_cols if col not in df.columns]
+    if missing_cols:
+        raise ValueError(f"Missing required columns in CRU data: {missing_cols}")
+    
+    # Filter for the specific month
+    month_data = df[df['Month'] == month]
+    if month_data.empty:
+        raise ValueError(f"No CRU data available for month {month}")
+    
+    # Find nearest grid cell using both lat and lon if available
+    if lon is not None:
+        # Use both latitude and longitude for more precise matching
+        lat_distances = np.abs(month_data['Latitude'] - lat)
+        lon_distances = np.abs(month_data['Longitude'] - lon)
         
-        # Validate required columns
-        required_cols = ['Month', 'Latitude', 'Longitude', 'NormalTemperature']
-        missing_cols = [col for col in required_cols if col not in df.columns]
-        if missing_cols:
-            logger_supy.warning(f"Missing CRU columns {missing_cols}, using fallback method")
-            return _get_fallback_temperature(lat, month)
+        # Find points within tolerance for both coordinates
+        lat_mask = lat_distances <= tolerance
+        lon_mask = lon_distances <= tolerance
+        nearby_data = month_data[lat_mask & lon_mask]
         
-        # Filter for the specific month
-        month_data = df[df['Month'] == month]
-        if month_data.empty:
-            logger_supy.warning(f"No CRU data for month {month}, using fallback method")
-            return _get_fallback_temperature(lat, month)
-        
-        # Find nearest grid cell using both lat and lon if available
-        if lon is not None:
-            # Use both latitude and longitude for more precise matching
-            lat_distances = np.abs(month_data['Latitude'] - lat)
-            lon_distances = np.abs(month_data['Longitude'] - lon)
-            
-            # Find points within tolerance for both coordinates
-            lat_mask = lat_distances <= tolerance
-            lon_mask = lon_distances <= tolerance
+        if nearby_data.empty:
+            # Try with larger tolerance
+            tolerance_expanded = tolerance * 2
+            lat_mask = lat_distances <= tolerance_expanded
+            lon_mask = lon_distances <= tolerance_expanded
             nearby_data = month_data[lat_mask & lon_mask]
             
             if nearby_data.empty:
-                # Try with larger tolerance
-                tolerance_expanded = tolerance * 2
-                lat_mask = lat_distances <= tolerance_expanded
-                lon_mask = lon_distances <= tolerance_expanded
-                nearby_data = month_data[lat_mask & lon_mask]
-                
-                if nearby_data.empty:
-                    logger_supy.warning(
-                        f"No CRU data within {tolerance_expanded}° of coordinates ({lat}, {lon}), using fallback method"
-                    )
-                    return _get_fallback_temperature(lat, month)
-            
-            # Calculate Euclidean distance for closest point
-            if len(nearby_data) > 1:
-                distances = np.sqrt(
-                    lat_distances[nearby_data.index]**2 + 
-                    lon_distances[nearby_data.index]**2
+                raise ValueError(
+                    f"No CRU data found within {tolerance_expanded}° of coordinates "
+                    f"({lat}, {lon}) for month {month}. Try increasing tolerance or "
+                    f"check if coordinates are within CRU data coverage area."
                 )
-                closest_idx = distances.idxmin()
-                temperature = float(month_data.loc[closest_idx, 'NormalTemperature'])
-            else:
-                temperature = float(nearby_data.iloc[0]['NormalTemperature'])
+        
+        # Calculate Euclidean distance for closest point
+        if len(nearby_data) > 1:
+            distances = np.sqrt(
+                lat_distances[nearby_data.index]**2 + 
+                lon_distances[nearby_data.index]**2
+            )
+            closest_idx = distances.idxmin()
+            temperature = float(month_data.loc[closest_idx, 'NormalTemperature'])
         else:
-            # Use only latitude if longitude not provided
-            lat_distances = np.abs(month_data['Latitude'] - lat)
-            nearby_data = month_data[lat_distances <= tolerance]
+            temperature = float(nearby_data.iloc[0]['NormalTemperature'])
+    else:
+        # Use only latitude if longitude not provided
+        lat_distances = np.abs(month_data['Latitude'] - lat)
+        nearby_data = month_data[lat_distances <= tolerance]
+        
+        if nearby_data.empty:
+            # Try with larger tolerance
+            tolerance_expanded = tolerance * 2
+            nearby_data = month_data[lat_distances <= tolerance_expanded]
             
             if nearby_data.empty:
-                # Try with larger tolerance
-                tolerance_expanded = tolerance * 2
-                nearby_data = month_data[lat_distances <= tolerance_expanded]
-                
-                if nearby_data.empty:
-                    logger_supy.warning(
-                        f"No CRU data within {tolerance_expanded}° of latitude {lat}, using fallback method"
-                    )
-                    return _get_fallback_temperature(lat, month)
-            
-            # Find the closest point by latitude
-            if len(nearby_data) > 1:
-                closest_idx = lat_distances[nearby_data.index].idxmin()
-                temperature = float(month_data.loc[closest_idx, 'NormalTemperature'])
-            else:
-                temperature = float(nearby_data.iloc[0]['NormalTemperature'])
+                raise ValueError(
+                    f"No CRU data found within {tolerance_expanded}° of latitude "
+                    f"{lat} for month {month}. Try increasing tolerance or "
+                    f"check if latitude is within CRU data coverage area."
+                )
         
-        return temperature
-        
-    except Exception as e:
-        logger_supy.warning(f"Error reading CRU data: {e}, using fallback method")
-        return _get_fallback_temperature(lat, month)
-
-
-def _get_fallback_temperature(lat: float, month: int) -> float:
-    """
-    Fallback temperature estimation using latitude bands (original method).
+        # Find the closest point by latitude
+        if len(nearby_data) > 1:
+            closest_idx = lat_distances[nearby_data.index].idxmin()
+            temperature = float(month_data.loc[closest_idx, 'NormalTemperature'])
+        else:
+            temperature = float(nearby_data.iloc[0]['NormalTemperature'])
     
-    Args:
-        lat (float): Site latitude in degrees.
-        month (int): Month of the year (1 = January, 12 = December).
-        
-    Returns:
-        float: Estimated temperature for the latitude band and month.
-    """
-    abs_lat = abs(lat)
-    
-    if abs_lat < 10:
-        lat_band = "tropics"
-    elif abs_lat < 35:
-        lat_band = "subtropics"
-    elif abs_lat < 60:
-        lat_band = "midlatitudes"
-    else:
-        lat_band = "polar"
+    return temperature
 
-    monthly_temp = {
-        "tropics": [26.0, 26.5, 27.0, 27.5, 28.0, 28.5, 28.0, 27.5, 27.0, 26.5, 26.0, 25.5],
-        "subtropics": [15.0, 16.0, 18.0, 20.0, 24.0, 28.0, 30.0, 29.0, 26.0, 22.0, 18.0, 15.0],
-        "midlatitudes": [5.0, 6.0, 9.0, 12.0, 17.0, 21.0, 23.0, 22.0, 19.0, 14.0, 9.0, 6.0],
-        "polar": [-15.0, -13.0, -10.0, -5.0, 0.0, 5.0, 8.0, 7.0, 3.0, -2.0, -8.0, -12.0],
-    }
-
-    return monthly_temp[lat_band][month - 1]
 
 
 def precheck_printing(data: dict) -> dict:
@@ -743,7 +711,7 @@ def precheck_site_season_adjustments(
     return data
 
 
-def precheck_update_surface_temperature(data: dict, start_date: str) -> dict:
+def precheck_update_temperature(data: dict, start_date: str) -> dict:
     """
     Set initial surface temperatures for all surface types based on latitude and start month.
 
@@ -1252,8 +1220,8 @@ def run_precheck(path: str) -> dict:
         data, start_date=start_date, model_year=model_year
     )
 
-    # ---- Step 7: Update surface temperatures from lat/month ----
-    data = precheck_update_surface_temperature(data, start_date=start_date)
+    # ---- Step 7: Update temperatures using CRU mean monthly air temperature ----
+    data = precheck_update_temperature(data, start_date=start_date)
 
     # ---- Step 8: Nullify params for surfaces with sfr == 0 ----
     # data = precheck_nullify_zero_sfr_params(data)

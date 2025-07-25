@@ -67,6 +67,7 @@ Get started immediately with the :ref:`Getting Started with SUEWS <Workflow>` gu
 
 - **Migration guide**: :ref:`Transition from table-based inputs <inputs/transition_guide>` to modern YAML configuration
 - **Version changes**: See :ref:`new_latest` for updates in this version
+- **Development changelog**: See :ref:`changelog` for all recent changes and developments
 - **Legacy support**: The `SUEWS table converter <input_converter>` helps convert existing input files
 
 **Scientific Background:**
@@ -145,6 +146,7 @@ How to support SUEWS?
    contributing/contributing
    fortran-api
    acknowledgement
+   changelog
    version-history/version-history
    GitHub repository <https://github.com/UMEP-dev/SUEWS>
 

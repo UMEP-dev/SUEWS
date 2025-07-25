@@ -103,7 +103,7 @@ def scan_python_file_for_parameter(file_path: Path, parameter_name: str) -> Dict
     Scan a Python file for usage of a parameter, validation logic, descriptions, and metadata.
     
     Returns:
-        Dict with keys: usage_locations, pydantic_info, precheck_info, descriptions, classes, precheck_found, pydantic_found
+        Dict with keys: usage_locations, pydantic_info, precheck_info, descriptions, classes, precheck_found, pydantic_found, run_cold
     """
     results = {
         "usage_locations": [],
@@ -112,7 +112,8 @@ def scan_python_file_for_parameter(file_path: Path, parameter_name: str) -> Dict
         "descriptions": [],
         "classes": [],
         "precheck_found": False,
-        "pydantic_found": False
+        "pydantic_found": False,
+        "run_cold": None          # Hot/Cold/Remove classification
     }
     
     try:
@@ -202,6 +203,23 @@ def scan_python_file_for_parameter(file_path: Path, parameter_name: str) -> Dict
                                         if desc_match:
                                             results["descriptions"].append(f"{file_path.name}: {desc_match.group(1)}")
                                             break
+                            
+                            # Extract run_cold from json_schema_extra
+                            # Look for the field definition that spans multiple lines
+                            field_content = line
+                            # Collect the full field definition (may span multiple lines)
+                            brace_count = field_content.count('(') - field_content.count(')')
+                            offset = 1
+                            while brace_count > 0 and line_idx + offset < len(lines):
+                                next_line = lines[line_idx + offset]
+                                field_content += ' ' + next_line.strip()
+                                brace_count += next_line.count('(') - next_line.count(')')
+                                offset += 1
+                            
+                            # Extract run_cold value from json_schema_extra
+                            run_cold_match = re.search(r'"run_cold":\s*"(hot|cold)"', field_content)
+                            if run_cold_match and results["run_cold"] is None:  # Only set if not already found
+                                results["run_cold"] = run_cold_match.group(1)
             
             elif isinstance(node, ast.FunctionDef):
                 func_name = node.name
@@ -275,7 +293,8 @@ def scan_data_model_directory(data_model_path: Path, parameters: Set[str]) -> Di
             "description": [],
             "classes": [],
             "precheck_found": False,
-            "pydantic_found": False
+            "pydantic_found": False,
+            "run_cold": None
         }
         
         for py_file in python_files:
@@ -304,6 +323,9 @@ def scan_data_model_directory(data_model_path: Path, parameters: Set[str]) -> Di
                 
             if file_results["pydantic_found"]:
                 results[param]["pydantic_found"] = True
+            
+            if file_results["run_cold"] and results[param]["run_cold"] is None:
+                results[param]["run_cold"] = file_results["run_cold"]
     
     return results
 
@@ -370,6 +392,7 @@ def create_analysis_dataframe(parameters: Set[str], analysis_results: Dict[str, 
         precheck_info = param_data.get("precheck_info", [])
         precheck_found = param_data.get("precheck_found", False)
         pydantic_found = param_data.get("pydantic_found", False)
+        run_cold = param_data.get("run_cold", None)
         
         # Format the information
         pydantic_str = "; ".join(pydantic_info) if pydantic_info else "No Pydantic usage found"
@@ -379,6 +402,15 @@ def create_analysis_dataframe(parameters: Set[str], analysis_results: Dict[str, 
         precheck_val = 1 if precheck_found else 0
         pydantic_val = 1 if pydantic_found else 0
         
+        # Format hot/cold classification
+        hot_cold_str = ""
+        if run_cold == "hot":
+            hot_cold_str = "Hot"
+        elif run_cold == "cold":
+            hot_cold_str = "Cold"
+        else:
+            hot_cold_str = ""  # No classification found
+        
         # Assign notes with automatic detection (temperature, snow/ice)
         existing_note = existing_notes.get(param, '')
         notes = assign_automatic_notes(param, existing_note)
@@ -386,6 +418,7 @@ def create_analysis_dataframe(parameters: Set[str], analysis_results: Dict[str, 
         data.append({
             'parameter_name': param,
             'notes': notes,  # Preserve existing notes or assign temperature note
+            'Hot or Cold': hot_cold_str,  # New hot/cold column
             'where_pydantic': pydantic_str,
             'where_precheck': precheck_str,
             'prechecked': precheck_val,
@@ -487,7 +520,7 @@ Generated automatically by analyze_initial_states.py
 def create_blank_stebbs_dataframe() -> pd.DataFrame:
     """Create a blank stebbs dataframe with the standard columns."""
     return pd.DataFrame(columns=[
-        'parameter_name', 'notes', 'where_pydantic', 'where_precheck', 'prechecked', 'pydanted'
+        'parameter_name', 'notes', 'Hot or Cold', 'where_pydantic', 'where_precheck', 'prechecked', 'pydanted'
     ])
 
 def write_excel_report(initial_states_params: Set[str], initial_states_results: Dict[str, Dict[str, Any]], 

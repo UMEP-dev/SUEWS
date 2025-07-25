@@ -283,9 +283,7 @@ def get_mean_monthly_air_temperature(lat: float, month: int, lon: float = None, 
     # Find CRU data file
     current_dir = Path(__file__).parent
     potential_paths = [
-        current_dir / "avg_temp" / "CRU_TS4.06_cell_monthly_normals_1991_2020.csv",
-        current_dir.parent.parent.parent / "avg_temp_function" / "CRU_TS4.06_cell_monthly_normals_1991_2020.csv",
-        Path(__file__).parent.parent.parent.parent / "CRU_TS4.06_cell_monthly_normals_1991_2020.csv",
+        current_dir / "database" / "CRU_TS4.06_cell_monthly_normals_1991_2020.csv",
     ]
     
     cru_path = None

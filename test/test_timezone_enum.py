@@ -67,17 +67,19 @@ def test_timezone_boundary_values():
 
     test_values = [
         -12.0,  # Baker Island Time
-        -11.5,  # Norfolk Island Time (DST)
+        -11.0,  # Niue Time
         -9.5,  # Marquesas Islands Time
         0.0,  # UTC
         3.5,  # Iran Standard Time
         5.5,  # India Standard Time
         5.75,  # Nepal Time
         6.5,  # Myanmar Time
-        8.75,  # Australian Western Central Time (unofficial)
+        8.75,  # Australian Central Western Time (unofficial)
         9.5,  # Australian Central Standard Time
-        10.5,  # Lord Howe Island Time
-        12.0,  # International Date Line East
+        10.5,  # Lord Howe Standard Time
+        12.0,  # New Zealand Standard Time
+        12.75,  # Chatham Standard Time
+        14.0,  # Line Islands Time
     ]
 
     for tz_value in test_values:
@@ -130,12 +132,14 @@ def test_timezone_validation_errors():
 
     invalid_values = [
         -13.0,
-        13.0,
+        15.0,
         -12.1,
         12.1,
         5.25,
         7.75,
         -0.5,
+        -11.5,
+        13.5,
     ]  # Not standard timezone offsets
 
     for tz_value in invalid_values:

@@ -101,18 +101,20 @@ class TestSUEWSConfig(unittest.TestCase):
 
     def test_model_physics_validation(self):
         """Test model physics validation rules."""
-        model = Model()
-
-        # Test storageheatmethod and ohmincqf validation
+        # Test storageheatmethod and ohmincqf validation in SUEWSConfig
         with self.assertRaises(ValueError):
-            model.physics.storageheatmethod = RefValue(1)
-            model.physics.ohmincqf = RefValue(1)
-            model.physics.model_validate(model.physics)
+            SUEWSConfig(
+                sites=[{}],
+                model={
+                    "physics": {
+                        "storageheatmethod": {"value": 1},
+                        "ohmincqf": {"value": 1},
+                    }
+                },
+            )
 
         with self.assertRaises(ValueError):
-            model.physics.storageheatmethod = RefValue(2)
-            model.physics.ohmincqf = RefValue(0)
-            model.physics.model_validate(model.physics)
+            SUEWSConfig(sites=[{}], model={"physics": {"snowuse": {"value": 1}}})
 
     def test_site_properties(self):
         """Test site properties data model."""

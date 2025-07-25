@@ -468,6 +468,8 @@ CONTAINS
 
                ! get timestamps
                time_now = datetime(year=iy) + timedelta(days=id - 1, hours=it, minutes=imin, seconds=isec)
+               ! WRF-SUEWS COUPLING: tstep_prev allows for adaptive timesteps in WRF
+               ! In standalone SUEWS, tstep_prev always equals tstep
                time_prev = time_now - timedelta(seconds=tstep_prev)
                time_next = time_now + timedelta(seconds=tstep)
 

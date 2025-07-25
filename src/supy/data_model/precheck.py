@@ -246,12 +246,14 @@ def save_precheck_diff_report(diffs: List[dict], original_yaml_path: str):
     logger_supy.info(f"Precheck difference report saved to: {report_path}")
 
 
-def get_mean_monthly_air_temperature(lat: float, month: int, lon: float = None, spatial_res: float = 0.5) -> float:
+def get_mean_monthly_air_temperature(
+    lat: float, month: int, lon: float = None, spatial_res: float = 0.5
+) -> float:
     """
     Calculate mean monthly air temperature using CRU TS4.06 climatological data.
 
-    This function uses the CRU TS4.06 cell monthly normals dataset (1991-2020) 
-    to provide accurate location-specific temperature estimates. CRU data is 
+    This function uses the CRU TS4.06 cell monthly normals dataset (1991-2020)
+    to provide accurate location-specific temperature estimates. CRU data is
     required - the function will raise an error if CRU data is not available.
 
     Args:
@@ -264,14 +266,14 @@ def get_mean_monthly_air_temperature(lat: float, month: int, lon: float = None, 
         float: Mean monthly air temperature for the given latitude and month (°C).
 
     Raises:
-        ValueError: If the input month is not between 1 and 12, coordinates are invalid, 
+        ValueError: If the input month is not between 1 and 12, coordinates are invalid,
                    or no CRU data found within spatial resolution.
         FileNotFoundError: If CRU data file is not found.
     """
     import pandas as pd
     import numpy as np
     from pathlib import Path
-    
+
     # Validate inputs
     if not (1 <= month <= 12):
         raise ValueError(f"Month must be between 1 and 12, got {month}")
@@ -279,104 +281,103 @@ def get_mean_monthly_air_temperature(lat: float, month: int, lon: float = None, 
         raise ValueError(f"Latitude must be between -90 and 90, got {lat}")
     if lon is not None and not (-180 <= lon <= 180):
         raise ValueError(f"Longitude must be between -180 and 180, got {lon}")
-    
+
     # Find CRU data file
     current_dir = Path(__file__).parent
     potential_paths = [
         current_dir / "database" / "CRU_TS4.06_cell_monthly_normals_1991_2020.csv",
     ]
-    
+
     cru_path = None
     for path in potential_paths:
         if path.exists():
             cru_path = path
             break
-    
+
     if cru_path is None:
         raise FileNotFoundError(
-            "CRU TS4.06 data file not found. Expected locations:\n" + 
-            "\n".join(f"  - {path}" for path in potential_paths) +
-            "\n\nPlease ensure the CRU data file is available for temperature calculations."
+            "CRU TS4.06 data file not found. Expected locations:\n"
+            + "\n".join(f"  - {path}" for path in potential_paths)
+            + "\n\nPlease ensure the CRU data file is available for temperature calculations."
         )
-    
+
     # Load CRU data
     try:
         df = pd.read_csv(cru_path)
     except Exception as e:
         raise ValueError(f"Error reading CRU CSV file {cru_path}: {e}")
-    
+
     # Validate required columns
-    required_cols = ['Month', 'Latitude', 'Longitude', 'NormalTemperature']
+    required_cols = ["Month", "Latitude", "Longitude", "NormalTemperature"]
     missing_cols = [col for col in required_cols if col not in df.columns]
     if missing_cols:
         raise ValueError(f"Missing required columns in CRU data: {missing_cols}")
-    
+
     # Filter for the specific month
-    month_data = df[df['Month'] == month]
+    month_data = df[df["Month"] == month]
     if month_data.empty:
         raise ValueError(f"No CRU data available for month {month}")
-    
+
     # Find nearest grid cell using both lat and lon if available
     if lon is not None:
         # Use both latitude and longitude for more precise matching
-        lat_distances = np.abs(month_data['Latitude'] - lat)
-        lon_distances = np.abs(month_data['Longitude'] - lon)
-        
+        lat_distances = np.abs(month_data["Latitude"] - lat)
+        lon_distances = np.abs(month_data["Longitude"] - lon)
+
         # Find points within spatial_res for both coordinates
         lat_mask = lat_distances <= spatial_res
         lon_mask = lon_distances <= spatial_res
         nearby_data = month_data[lat_mask & lon_mask]
-        
+
         if nearby_data.empty:
             # Try with larger spatial_res
             spatial_res_expanded = spatial_res * 2
             lat_mask = lat_distances <= spatial_res_expanded
             lon_mask = lon_distances <= spatial_res_expanded
             nearby_data = month_data[lat_mask & lon_mask]
-            
+
             if nearby_data.empty:
                 raise ValueError(
                     f"No CRU data found within {spatial_res_expanded}° of coordinates "
                     f"({lat}, {lon}) for month {month}. Try increasing spatial resolution or "
                     f"check if coordinates are within CRU data coverage area."
                 )
-        
+
         # Calculate Euclidean distance for closest point
         if len(nearby_data) > 1:
             distances = np.sqrt(
-                lat_distances[nearby_data.index]**2 + 
-                lon_distances[nearby_data.index]**2
+                lat_distances[nearby_data.index] ** 2
+                + lon_distances[nearby_data.index] ** 2
             )
             closest_idx = distances.idxmin()
-            temperature = float(month_data.loc[closest_idx, 'NormalTemperature'])
+            temperature = float(month_data.loc[closest_idx, "NormalTemperature"])
         else:
-            temperature = float(nearby_data.iloc[0]['NormalTemperature'])
+            temperature = float(nearby_data.iloc[0]["NormalTemperature"])
     else:
         # Use only latitude if longitude not provided
-        lat_distances = np.abs(month_data['Latitude'] - lat)
+        lat_distances = np.abs(month_data["Latitude"] - lat)
         nearby_data = month_data[lat_distances <= spatial_res]
-        
+
         if nearby_data.empty:
             # Try with larger spatial resolution
             spatial_res_expanded = spatial_res * 2
             nearby_data = month_data[lat_distances <= spatial_res_expanded]
-            
+
             if nearby_data.empty:
                 raise ValueError(
                     f"No CRU data found within {spatial_res_expanded}° of latitude "
                     f"{lat} for month {month}. Try increasing spatial resolution or "
                     f"check if latitude is within CRU data coverage area."
                 )
-        
+
         # Find the closest point by latitude
         if len(nearby_data) > 1:
             closest_idx = lat_distances[nearby_data.index].idxmin()
-            temperature = float(month_data.loc[closest_idx, 'NormalTemperature'])
+            temperature = float(month_data.loc[closest_idx, "NormalTemperature"])
         else:
-            temperature = float(nearby_data.iloc[0]['NormalTemperature'])
-    
-    return temperature
+            temperature = float(nearby_data.iloc[0]["NormalTemperature"])
 
+    return temperature
 
 
 def precheck_printing(data: dict) -> dict:
@@ -1118,7 +1119,8 @@ def run_precheck(path: str) -> dict:
 
     # ---- Step 6: Season + LAI + DLS adjustments per site ----
     data = precheck_site_season_adjustments(
-        data, start_date=start_date, model_year=model_year)
+        data, start_date=start_date, model_year=model_year
+    )
 
     # ---- Step 7: Update temperatures using CRU mean monthly air temperature ----
     data = precheck_update_temperature(data, start_date=start_date)

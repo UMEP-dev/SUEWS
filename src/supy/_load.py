@@ -639,14 +639,18 @@ def resample_forcing_met(
         # the interpolation schemes differ between instantaneous and average values
         # instantaneous:
         list_var_inst = [
-            var for var, data_type in dict_var_type_forcing.items() if data_type == "inst"
+            var
+            for var, data_type in dict_var_type_forcing.items()
+            if data_type == "inst"
         ]
         data_met_tstep_inst = resample_linear_inst(
             data_met_raw.filter(list_var_inst), tstep_in, tstep_mod
         )
         # average:
         list_var_avg = [
-            var for var, data_type in dict_var_type_forcing.items() if data_type == "avg"
+            var
+            for var, data_type in dict_var_type_forcing.items()
+            if data_type == "avg"
         ]
         data_met_tstep_avg = resample_linear_avg(
             data_met_raw.filter(list_var_avg), tstep_in, tstep_mod
@@ -655,7 +659,9 @@ def resample_forcing_met(
         # distributing interpolation:
         # sum:
         list_var_sum = [
-            var for var, data_type in dict_var_type_forcing.items() if data_type == "sum"
+            var
+            for var, data_type in dict_var_type_forcing.items()
+            if data_type == "sum"
         ]
         data_met_tstep_sum = resample_sum(
             data_met_raw.filter(list_var_sum), tstep_in, tstep_mod
@@ -663,7 +669,9 @@ def resample_forcing_met(
 
         # combine the resampled individual dataframes
         data_met_tstep = (
-            pd.concat([data_met_tstep_inst, data_met_tstep_avg, data_met_tstep_sum], axis=1)
+            pd.concat(
+                [data_met_tstep_inst, data_met_tstep_avg, data_met_tstep_sum], axis=1
+            )
             .interpolate()
             .loc[data_met_tstep_inst.index]
         )

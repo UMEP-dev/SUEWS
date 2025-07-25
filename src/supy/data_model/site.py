@@ -3,6 +3,7 @@ from pydantic import ConfigDict, BaseModel, Field, model_validator
 from .type import RefValue, Reference, FlexibleRefValue
 from .profile import HourlyProfile
 from .type import init_df_state
+from .timezone_enum import TimezoneOffset
 from .validation_utils import (
     warn_missing_params,
     check_missing_params,
@@ -2225,12 +2226,10 @@ class SiteProperties(BaseModel):
         json_schema_extra={"unit": "m", "display_name": "Altitude"},
         default=40.0,
     )
-    timezone: FlexibleRefValue(int) = Field(
-        ge=-12,
-        le=12,
+    timezone: FlexibleRefValue(Union[TimezoneOffset, float]) = Field(
         description="Time zone offset from UTC",
         json_schema_extra={"unit": "hours", "display_name": "Time zone (UTC offset)"},
-        default=0,
+        default=TimezoneOffset.UTC,
     )
     surfacearea: FlexibleRefValue(float) = Field(
         gt=0,
@@ -2344,6 +2343,37 @@ class SiteProperties(BaseModel):
 
     ref: Optional[Reference] = None
 
+    @model_validator(mode="before")
+    @classmethod
+    def validate_timezone(cls, values):
+        """Convert numeric timezone values to TimezoneOffset enum."""
+        if isinstance(values, dict) and "timezone" in values:
+            tz_value = values["timezone"]
+
+            # Handle different input formats
+            if isinstance(tz_value, dict) and "value" in tz_value:
+                # RefValue format: {"value": 5.5}
+                numeric_value = tz_value["value"]
+                if isinstance(numeric_value, (int, float)):
+                    enum_value = TimezoneOffset._missing_(numeric_value)
+                    if enum_value is not None:
+                        tz_value["value"] = enum_value
+                    else:
+                        raise ValueError(
+                            f"Invalid timezone offset: {numeric_value}. Must be one of the standard timezone offsets."
+                        )
+            elif isinstance(tz_value, (int, float)):
+                # Direct numeric value
+                enum_value = TimezoneOffset._missing_(tz_value)
+                if enum_value is not None:
+                    values["timezone"] = enum_value
+                else:
+                    raise ValueError(
+                        f"Invalid timezone offset: {tz_value}. Must be one of the standard timezone offsets."
+                    )
+
+        return values
+
     model_config = ConfigDict(
         extra="forbid",  # This will prevent extra fields from being accepted
         validate_assignment=True,  # This will validate fields on assignment
@@ -2373,6 +2403,11 @@ class SiteProperties(BaseModel):
         ]:
             field_val = getattr(self, var)
             val = field_val.value if isinstance(field_val, RefValue) else field_val
+
+            # Handle TimezoneOffset enum
+            if var == "timezone" and isinstance(val, TimezoneOffset):
+                val = val.value  # Get the float value from the enum
+
             df_state.loc[grid_id, (f"{var}", "0")] = val
 
         # complex attributes

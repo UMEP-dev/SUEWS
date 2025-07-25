@@ -35,6 +35,13 @@
 ## 2025
 
 ### 25 Jul 2025
+- [bugfix] Fixed timezone field to use enum for valid timezone offsets ([PR #554](https://github.com/UMEP-dev/SUEWS/pull/554), fixes [#552](https://github.com/UMEP-dev/SUEWS/issues/552))
+  - Changed timezone field from `FlexibleRefValue(int)` to `FlexibleRefValue(Union[TimezoneOffset, float])`
+  - Created `TimezoneOffset` enum with all valid global timezone offsets
+  - Enables support for fractional timezone offsets (e.g., 5.5 for India, 5.75 for Nepal)
+  - Validates input against standard timezone offsets only (no arbitrary floats)
+  - Automatically converts numeric inputs to appropriate enum values
+  - Critical for accurate solar geometry calculations in regions with non-integer offsets
 - [doc] Improved clarity of tstep_prev purpose for WRF-SUEWS coupling ([#551](https://github.com/UMEP-dev/SUEWS/issues/551), [#553](https://github.com/UMEP-dev/SUEWS/issues/553))
   - Added explanatory comments at all tstep_prev usage sites
   - Enhanced type definition documentation in SUEWS_TIMER

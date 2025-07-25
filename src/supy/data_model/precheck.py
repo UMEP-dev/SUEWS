@@ -246,33 +246,154 @@ def save_precheck_diff_report(diffs: List[dict], original_yaml_path: str):
     logger_supy.info(f"Precheck difference report saved to: {report_path}")
 
 
-def get_monthly_avg_temp(lat: float, month: int) -> float:
+def get_mean_monthly_air_temperature(lat: float, month: int, lon: float = None, tolerance: float = 0.5) -> float:
     """
-    Estimate the average air temperature for a given latitude and month.
+    Calculate mean monthly air temperature using CRU TS4.06 climatological data.
 
-    This function uses predefined climatological values for four broad latitude bands:
-    - Tropics (|lat| < 10°)
-    - Subtropics (10° ≤ |lat| < 35°)
-    - Midlatitudes (35° ≤ |lat| < 60°)
-    - Polar regions (|lat| ≥ 60°)
-
-    The returned value represents a typical monthly average temperature (°C)
-    for the specified latitude band and month.
+    This function uses the CRU TS4.06 cell monthly normals dataset (1991-2020) 
+    to provide accurate location-specific temperature estimates rather than 
+    broad latitude band approximations.
 
     Args:
         lat (float): Site latitude in degrees (positive for Northern Hemisphere, negative for Southern).
         month (int): Month of the year (1 = January, 12 = December).
+        lon (float, optional): Site longitude in degrees. If provided, improves accuracy of CRU data matching.
+        tolerance (float): Search tolerance for finding nearest CRU grid cell (degrees). Default 0.5.
 
     Returns:
-        float: Estimated average air temperature for the given latitude and month.
+        float: Mean monthly air temperature for the given latitude and month (°C).
 
     Raises:
-        ValueError: If the input month is not between 1 and 12.
+        ValueError: If the input month is not between 1 and 12, or coordinates are invalid.
+        FileNotFoundError: If CRU data file is not found.
     """
+    import pandas as pd
+    import numpy as np
+    from pathlib import Path
+    
+    # Validate inputs
+    if not (1 <= month <= 12):
+        raise ValueError(f"Month must be between 1 and 12, got {month}")
+    if not (-90 <= lat <= 90):
+        raise ValueError(f"Latitude must be between -90 and 90, got {lat}")
+    if lon is not None and not (-180 <= lon <= 180):
+        raise ValueError(f"Longitude must be between -180 and 180, got {lon}")
+    
+    # Find CRU data file
+    current_dir = Path(__file__).parent
+    potential_paths = [
+        current_dir / "avg_temp" / "CRU_TS4.06_cell_monthly_normals_1991_2020.csv",
+        current_dir.parent.parent.parent / "avg_temp_function" / "CRU_TS4.06_cell_monthly_normals_1991_2020.csv",
+        Path(__file__).parent.parent.parent.parent / "CRU_TS4.06_cell_monthly_normals_1991_2020.csv",
+    ]
+    
+    cru_path = None
+    for path in potential_paths:
+        if path.exists():
+            cru_path = path
+            break
+    
+    if cru_path is None:
+        # Fallback to latitude band method with warning
+        logger_supy.warning(
+            f"CRU data file not found, falling back to latitude band estimation for lat={lat}, month={month}"
+        )
+        return _get_fallback_temperature(lat, month)
+    
+    try:
+        # Load CRU data
+        df = pd.read_csv(cru_path)
+        
+        # Validate required columns
+        required_cols = ['Month', 'Latitude', 'Longitude', 'NormalTemperature']
+        missing_cols = [col for col in required_cols if col not in df.columns]
+        if missing_cols:
+            logger_supy.warning(f"Missing CRU columns {missing_cols}, using fallback method")
+            return _get_fallback_temperature(lat, month)
+        
+        # Filter for the specific month
+        month_data = df[df['Month'] == month]
+        if month_data.empty:
+            logger_supy.warning(f"No CRU data for month {month}, using fallback method")
+            return _get_fallback_temperature(lat, month)
+        
+        # Find nearest grid cell using both lat and lon if available
+        if lon is not None:
+            # Use both latitude and longitude for more precise matching
+            lat_distances = np.abs(month_data['Latitude'] - lat)
+            lon_distances = np.abs(month_data['Longitude'] - lon)
+            
+            # Find points within tolerance for both coordinates
+            lat_mask = lat_distances <= tolerance
+            lon_mask = lon_distances <= tolerance
+            nearby_data = month_data[lat_mask & lon_mask]
+            
+            if nearby_data.empty:
+                # Try with larger tolerance
+                tolerance_expanded = tolerance * 2
+                lat_mask = lat_distances <= tolerance_expanded
+                lon_mask = lon_distances <= tolerance_expanded
+                nearby_data = month_data[lat_mask & lon_mask]
+                
+                if nearby_data.empty:
+                    logger_supy.warning(
+                        f"No CRU data within {tolerance_expanded}° of coordinates ({lat}, {lon}), using fallback method"
+                    )
+                    return _get_fallback_temperature(lat, month)
+            
+            # Calculate Euclidean distance for closest point
+            if len(nearby_data) > 1:
+                distances = np.sqrt(
+                    lat_distances[nearby_data.index]**2 + 
+                    lon_distances[nearby_data.index]**2
+                )
+                closest_idx = distances.idxmin()
+                temperature = float(month_data.loc[closest_idx, 'NormalTemperature'])
+            else:
+                temperature = float(nearby_data.iloc[0]['NormalTemperature'])
+        else:
+            # Use only latitude if longitude not provided
+            lat_distances = np.abs(month_data['Latitude'] - lat)
+            nearby_data = month_data[lat_distances <= tolerance]
+            
+            if nearby_data.empty:
+                # Try with larger tolerance
+                tolerance_expanded = tolerance * 2
+                nearby_data = month_data[lat_distances <= tolerance_expanded]
+                
+                if nearby_data.empty:
+                    logger_supy.warning(
+                        f"No CRU data within {tolerance_expanded}° of latitude {lat}, using fallback method"
+                    )
+                    return _get_fallback_temperature(lat, month)
+            
+            # Find the closest point by latitude
+            if len(nearby_data) > 1:
+                closest_idx = lat_distances[nearby_data.index].idxmin()
+                temperature = float(month_data.loc[closest_idx, 'NormalTemperature'])
+            else:
+                temperature = float(nearby_data.iloc[0]['NormalTemperature'])
+        
+        return temperature
+        
+    except Exception as e:
+        logger_supy.warning(f"Error reading CRU data: {e}, using fallback method")
+        return _get_fallback_temperature(lat, month)
 
-    lat_band = None
+
+def _get_fallback_temperature(lat: float, month: int) -> float:
+    """
+    Fallback temperature estimation using latitude bands (original method).
+    
+    Args:
+        lat (float): Site latitude in degrees.
+        month (int): Month of the year (1 = January, 12 = December).
+        
+    Returns:
+        float: Estimated temperature for the latitude band and month.
+    """
     abs_lat = abs(lat)
-
+    
     if abs_lat < 10:
         lat_band = "tropics"
     elif abs_lat < 35:
@@ -283,62 +404,10 @@ def get_monthly_avg_temp(lat: float, month: int) -> float:
         lat_band = "polar"
 
     monthly_temp = {
-        "tropics": [
-            26.0,
-            26.5,
-            27.0,
-            27.5,
-            28.0,
-            28.5,
-            28.0,
-            27.5,
-            27.0,
-            26.5,
-            26.0,
-            25.5,
-        ],
-        "subtropics": [
-            15.0,
-            16.0,
-            18.0,
-            20.0,
-            24.0,
-            28.0,
-            30.0,
-            29.0,
-            26.0,
-            22.0,
-            18.0,
-            15.0,
-        ],
-        "midlatitudes": [
-            5.0,
-            6.0,
-            9.0,
-            12.0,
-            17.0,
-            21.0,
-            23.0,
-            22.0,
-            19.0,
-            14.0,
-            9.0,
-            6.0,
-        ],
-        "polar": [
-            -15.0,
-            -13.0,
-            -10.0,
-            -5.0,
-            0.0,
-            5.0,
-            8.0,
-            7.0,
-            3.0,
-            -2.0,
-            -8.0,
-            -12.0,
-        ],
+        "tropics": [26.0, 26.5, 27.0, 27.5, 28.0, 28.5, 28.0, 27.5, 27.0, 26.5, 26.0, 25.5],
+        "subtropics": [15.0, 16.0, 18.0, 20.0, 24.0, 28.0, 30.0, 29.0, 26.0, 22.0, 18.0, 15.0],
+        "midlatitudes": [5.0, 6.0, 9.0, 12.0, 17.0, 21.0, 23.0, 22.0, 19.0, 14.0, 9.0, 6.0],
+        "polar": [-15.0, -13.0, -10.0, -5.0, 0.0, 5.0, 8.0, 7.0, 3.0, -2.0, -8.0, -12.0],
     }
 
     return monthly_temp[lat_band][month - 1]
@@ -679,7 +748,7 @@ def precheck_update_surface_temperature(data: dict, start_date: str) -> dict:
     Set initial surface temperatures for all surface types based on latitude and start month.
 
     For each site:
-    - Uses the site's latitude and the month from start_date to estimate an average temperature.
+    - Uses the site's latitude and the month from start_date to estimate mean monthly air temperature using CRU data.
     - Applies this temperature to all layers of surface temperature arrays, as well as 'tsfc' and 'tin' for each surface type (paved, bldgs, evetr, dectr, grass, bsoil, water).
     - If latitude is missing, the site is skipped with a warning.
 
@@ -706,10 +775,15 @@ def precheck_update_surface_temperature(data: dict, start_date: str) -> dict:
             )
             continue
 
+        # Get site longitude (optional for better CRU matching)
+        lng_entry = props.get("lng", {})
+        lng = lng_entry.get("value") if isinstance(lng_entry, dict) else lng_entry
+
         # Get estimated average temperature
-        avg_temp = get_monthly_avg_temp(lat, month)
+        avg_temp = get_mean_monthly_air_temperature(lat, month, lng)
+        coord_info = f"lat={lat}" + (f", lng={lng}" if lng is not None else "")
         logger_supy.info(
-            f"[site #{site_idx}] Setting surface temperatures to {avg_temp} °C for month {month} (lat={lat})"
+            f"[site #{site_idx}] Setting surface temperatures to {avg_temp} °C for month {month} ({coord_info})"
         )
 
         # Loop over all surface types

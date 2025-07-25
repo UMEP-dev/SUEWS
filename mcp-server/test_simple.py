@@ -6,11 +6,11 @@ import json
 
 # Start the server and send a test request
 proc = subprocess.Popen(
-    ['python3', 'run_server.py'],
+    ["python3", "run_server.py"],
     stdin=subprocess.PIPE,
     stdout=subprocess.PIPE,
     stderr=subprocess.PIPE,
-    text=True
+    text=True,
 )
 
 # Send initialization
@@ -18,10 +18,10 @@ request = {
     "jsonrpc": "2.0",
     "method": "initialize",
     "params": {"protocolVersion": "2024-11-05", "capabilities": {}},
-    "id": 1
+    "id": 1,
 }
 
-proc.stdin.write(json.dumps(request) + '\n')
+proc.stdin.write(json.dumps(request) + "\n")
 proc.stdin.flush()
 
 # Read response

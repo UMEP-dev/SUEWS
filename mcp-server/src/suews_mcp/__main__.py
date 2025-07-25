@@ -9,9 +9,11 @@ print(f"Python executable: {sys.executable}", file=sys.stderr)
 
 try:
     from .server import main
+
     main()
 except Exception as e:
     print(f"Error starting server: {e}", file=sys.stderr)
     import traceback
+
     traceback.print_exc(file=sys.stderr)
     sys.exit(1)

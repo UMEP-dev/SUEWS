@@ -5,18 +5,20 @@ import subprocess
 import sys
 import os
 
+
 def test_with_python(python_path):
     """Test MCP server with specific Python."""
     print(f"\n=== Testing with {python_path} ===")
-    
+
     # Check Python version
     result = subprocess.run([python_path, "--version"], capture_output=True, text=True)
     print(f"Version: {result.stdout.strip()}")
-    
+
     # Check if SuPy is installed
     result = subprocess.run(
         [python_path, "-c", "import supy; print(f'SuPy {supy.__version__} installed')"],
-        capture_output=True, text=True
+        capture_output=True,
+        text=True,
     )
     if result.returncode == 0:
         print(f"✓ {result.stdout.strip()}")
@@ -24,24 +26,25 @@ def test_with_python(python_path):
         print(f"✗ SuPy not installed: {result.stderr.strip()}")
         print(f"  Install with: {python_path} -m pip install supy==2025.6.2.dev")
         return False
-    
+
     # Test running the server
     print("\nTesting server startup...")
     env = os.environ.copy()
-    env['PYTHONPATH'] = 'src'
-    
+    env["PYTHONPATH"] = "src"
+
     process = subprocess.Popen(
         [python_path, "run_server.py"],
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         text=True,
-        env=env
+        env=env,
     )
-    
+
     # Wait a bit and check if it started
     import time
+
     time.sleep(2)
-    
+
     if process.poll() is None:
         print("✓ Server started successfully")
         process.terminate()

@@ -629,38 +629,44 @@ def resample_forcing_met(
         data_met_raw.to_pickle(p_data_met_raw)
         logger_supy.debug(f"{p_data_met_raw} has been generated!")
 
-    # linear interpolation:
-    # the interpolation schemes differ between instantaneous and average values
-    # instantaneous:
-    list_var_inst = [
-        var for var, data_type in dict_var_type_forcing.items() if data_type == "inst"
-    ]
-    data_met_tstep_inst = resample_linear_inst(
-        data_met_raw.filter(list_var_inst), tstep_in, tstep_mod
-    )
-    # average:
-    list_var_avg = [
-        var for var, data_type in dict_var_type_forcing.items() if data_type == "avg"
-    ]
-    data_met_tstep_avg = resample_linear_avg(
-        data_met_raw.filter(list_var_avg), tstep_in, tstep_mod
-    )
+    # Check if interpolation is needed
+    # When tstep_in equals tstep_mod, no interpolation is required
+    if tstep_in == tstep_mod:
+        # No interpolation needed - use data as is
+        data_met_tstep = data_met_raw.copy()
+    else:
+        # linear interpolation:
+        # the interpolation schemes differ between instantaneous and average values
+        # instantaneous:
+        list_var_inst = [
+            var for var, data_type in dict_var_type_forcing.items() if data_type == "inst"
+        ]
+        data_met_tstep_inst = resample_linear_inst(
+            data_met_raw.filter(list_var_inst), tstep_in, tstep_mod
+        )
+        # average:
+        list_var_avg = [
+            var for var, data_type in dict_var_type_forcing.items() if data_type == "avg"
+        ]
+        data_met_tstep_avg = resample_linear_avg(
+            data_met_raw.filter(list_var_avg), tstep_in, tstep_mod
+        )
 
-    # distributing interpolation:
-    # sum:
-    list_var_sum = [
-        var for var, data_type in dict_var_type_forcing.items() if data_type == "sum"
-    ]
-    data_met_tstep_sum = resample_sum(
-        data_met_raw.filter(list_var_sum), tstep_in, tstep_mod
-    )
+        # distributing interpolation:
+        # sum:
+        list_var_sum = [
+            var for var, data_type in dict_var_type_forcing.items() if data_type == "sum"
+        ]
+        data_met_tstep_sum = resample_sum(
+            data_met_raw.filter(list_var_sum), tstep_in, tstep_mod
+        )
 
-    # combine the resampled individual dataframes
-    data_met_tstep = (
-        pd.concat([data_met_tstep_inst, data_met_tstep_avg, data_met_tstep_sum], axis=1)
-        .interpolate()
-        .loc[data_met_tstep_inst.index]
-    )
+        # combine the resampled individual dataframes
+        data_met_tstep = (
+            pd.concat([data_met_tstep_inst, data_met_tstep_avg, data_met_tstep_sum], axis=1)
+            .interpolate()
+            .loc[data_met_tstep_inst.index]
+        )
 
     # adjust solar radiation by zenith correction and total amount distribution
     if kdownzen == 1:

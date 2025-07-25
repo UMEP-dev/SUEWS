@@ -282,10 +282,15 @@ def get_mean_monthly_air_temperature(
     if lon is not None and not (-180 <= lon <= 180):
         raise ValueError(f"Longitude must be between -180 and 180, got {lon}")
 
-    # Find CRU data file
+    # Find CRU data file - try multiple locations
     current_dir = Path(__file__).parent
     potential_paths = [
+        # First try the normal installed location
         current_dir / "database" / "CRU_TS4.06_cell_monthly_normals_1991_2020.csv",
+        # Then try the source directory (for development/testing)
+        current_dir.parent.parent.parent / "src" / "supy" / "data_model" / "database" / "CRU_TS4.06_cell_monthly_normals_1991_2020.csv",
+        # Also try relative to current working directory
+        Path("src/supy/data_model/database/CRU_TS4.06_cell_monthly_normals_1991_2020.csv"),
     ]
 
     cru_path = None

@@ -246,11 +246,11 @@ Generated for GitHub Issue #555: Identify complete list of internal-only paramet
             
             for file_name, params in sorted(by_file.items()):
                 f.write(f"### {file_name} ({len(params)} parameters)\n\n")
-                f.write("| Parameter | In sample_config.yml | Unit |\n")
-                f.write("|-----------|---------------------|------|\n")
+                f.write("| Parameter | In sample_config.yml |\n")
+                f.write("|-----------|---------------------|\n")
                 
                 for param in sorted(params, key=lambda x: x['param_name']):
-                    f.write(f"| `{param['param_name']}` | {param['in_sample_config']} | {param['unit']} |\n")
+                    f.write(f"| `{param['param_name']}` | {param['in_sample_config']} |\n")
                 
                 f.write("\n")
             
@@ -262,10 +262,10 @@ These parameters are marked as internal-only but appear in the sample configurat
             
             present_params = [p for p in self.internal_params if p['in_sample_config'] == 'Yes']
             if present_params:
-                f.write("| Parameter | File | Location in sample_config.yml |\n")
-                f.write("|-----------|------|-------------------------------|\n")
+                f.write("| Parameter | File |\n")
+                f.write("|-----------|------|\n")
                 for param in sorted(present_params, key=lambda x: x['param_name']):
-                    f.write(f"| `{param['param_name']}` | {param['file_location']} | {param['sample_config_location']} |\n")
+                    f.write(f"| `{param['param_name']}` | {param['file_location']} |\n")
             else:
                 f.write("*None found*\n")
             
@@ -274,10 +274,10 @@ These parameters are marked as internal-only but appear in the sample configurat
             
             absent_params = [p for p in self.internal_params if p['in_sample_config'] == 'No']
             if absent_params:
-                f.write("| Parameter | File | Unit |\n")
-                f.write("|-----------|------|------|\n")
+                f.write("| Parameter | File |\n")
+                f.write("|-----------|------|\n")
                 for param in sorted(absent_params, key=lambda x: x['param_name']):
-                    f.write(f"| `{param['param_name']}` | {param['file_location']} | {param['unit']} |\n")
+                    f.write(f"| `{param['param_name']}` | {param['file_location']} |\n")
             else:
                 f.write("*None found*\n")
 

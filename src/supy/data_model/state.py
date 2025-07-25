@@ -17,61 +17,61 @@ class SurfaceInitialState(BaseModel):
 
     state: FlexibleRefValue(float) = Field(
         description="Initial water state of the surface",
-        json_schema_extra={"unit": "mm", "display_name": "State"},
+        json_schema_extra={"unit": "mm", "display_name": "State", "run_cold": "cold"},
         default=0.0,
         ge=0,
     )  # Default set to 0.0 means dry surface.
     soilstore: FlexibleRefValue(float) = Field(
         description="Initial soil store (essential for QE)",
-        json_schema_extra={"unit": "mm", "display_name": "Soilstore"},
+        json_schema_extra={"unit": "mm", "display_name": "Soilstore", "run_cold": "cold"},
         default=150.0,
         ge=10,
     )  # Default set to 150.0 (wet soil) and ge=10 (less than 10 would be too dry) are physically reasonable for a model run.
     snowfrac: Optional[Union[FlexibleRefValue(float), None]] = Field(
         description="Snow fraction",
-        json_schema_extra={"unit": "dimensionless", "display_name": "Snow Fraction"},
+        json_schema_extra={"unit": "dimensionless", "display_name": "Snow Fraction", "run_cold": "cold"},
         default=0.0,
         ge=0,
         le=1,
     )  # Default set to 0.0 means no snow on the ground.
     snowpack: Optional[Union[FlexibleRefValue(float), None]] = Field(
         description="Snow pack",
-        json_schema_extra={"unit": "mm", "display_name": "Snow Pack"},
+        json_schema_extra={"unit": "mm", "display_name": "Snow Pack", "run_cold": "cold"},
         default=0.0,
         ge=0,
     )
     icefrac: Optional[Union[FlexibleRefValue(float), None]] = Field(
         description="Ice fraction",
-        json_schema_extra={"unit": "dimensionless", "display_name": "Ice Fraction"},
+        json_schema_extra={"unit": "dimensionless", "display_name": "Ice Fraction", "run_cold": "cold"},
         default=0.0,
         ge=0,
         le=1,
     )
     snowwater: Optional[Union[FlexibleRefValue(float), None]] = Field(
         description="Snow water",
-        json_schema_extra={"unit": "mm", "display_name": "Snow Water"},
+        json_schema_extra={"unit": "mm", "display_name": "Snow Water", "run_cold": "cold"},
         default=0.0,
         ge=0,
     )
     snowdens: Optional[Union[FlexibleRefValue(float), None]] = Field(
         description="Snow density",
-        json_schema_extra={"unit": "kg m^-3", "display_name": "Snow Density"},
+        json_schema_extra={"unit": "kg m^-3", "display_name": "Snow Density", "run_cold": "cold"},
         default=0.0,
         ge=0,
     )
     temperature: FlexibleRefValue(List[float]) = Field(
         description="Initial temperature for each thermal layer",
-        json_schema_extra={"unit": "degC", "display_name": "Temperature"},
+        json_schema_extra={"unit": "degC", "display_name": "Temperature", "run_cold": "cold"},
         default=[15.0, 15.0, 15.0, 15.0, 15.0],
     )  # We need to check/undestand what model are these temperatures related to. ESTM? What surface type (wall and roof) of building?
     tsfc: Optional[Union[FlexibleRefValue(float), None]] = Field(
         description="Initial exterior surface temperature",
-        json_schema_extra={"unit": "degC", "display_name": "Surface Temperature"},
+        json_schema_extra={"unit": "degC", "display_name": "Surface Temperature", "run_cold": "cold"},
         default=15.0,
     )
     tin: Optional[Union[FlexibleRefValue(float), None]] = Field(
         description="Initial interior surface temperature",
-        json_schema_extra={"unit": "degC", "display_name": "Interior Temperature"},
+        json_schema_extra={"unit": "degC", "display_name": "Interior Temperature", "run_cold": "cold"},
         default=20.0,
     )  # We need to know which model is using this.
     _surface_type: Optional[SurfaceType] = PrivateAttr(default=None)
@@ -323,22 +323,22 @@ class InitialStateVeg(SurfaceInitialState):
 
     alb_id: FlexibleRefValue(float) = Field(
         description="Albedo at the start of the model run.",
-        json_schema_extra={"unit": "dimensionless", "display_name": "Alb Id"},
+        json_schema_extra={"unit": "dimensionless", "display_name": "Alb Id", "run_cold": "cold"},
         default=0.25,
     )
     lai_id: FlexibleRefValue(float) = Field(
         description="Leaf area index at the start of the model run.",
-        json_schema_extra={"unit": "m^2 m^-2", "display_name": "Lai Id"},
+        json_schema_extra={"unit": "m^2 m^-2", "display_name": "Lai Id", "run_cold": "cold"},
         default=1.0,
     )
     gdd_id: FlexibleRefValue(float) = Field(
         description="Growing degree days at the start of the model run",
-        json_schema_extra={"unit": "degC d", "display_name": "Gdd Id"},
+        json_schema_extra={"unit": "degC d", "display_name": "Gdd Id", "run_cold": "cold"},
         default=0,
     )  # We need to check this and give info for setting values.
     sdd_id: FlexibleRefValue(float) = Field(
         description="Senescence degree days at the start of the model run",
-        json_schema_extra={"unit": "degC d", "display_name": "Sdd Id"},
+        json_schema_extra={"unit": "degC d", "display_name": "Sdd Id", "run_cold": "cold"},
         default=0,
     )  # This need to be consistent with GDD.
     wu: WaterUse = Field(
@@ -472,14 +472,14 @@ class InitialStateDectr(InitialStateVeg):
 
     porosity_id: FlexibleRefValue(float) = Field(
         description="Porosity for deciduous trees at the start of the model run",
-        json_schema_extra={"unit": "dimensionless", "display_name": "Porosity Id"},
+        json_schema_extra={"unit": "dimensionless", "display_name": "Porosity Id", "run_cold": "cold"},
         default=0.2,
         ge=0,
         le=1,
     )
     decidcap_id: FlexibleRefValue(float) = Field(
         description="Deciduous capacity for deciduous trees at the start of the model run",
-        json_schema_extra={"unit": "mm", "display_name": "Decidcap Id"},
+        json_schema_extra={"unit": "mm", "display_name": "Decidcap Id", "run_cold": "cold"},
         default=0.3,
         ge=0,
     )
@@ -763,7 +763,7 @@ class InitialStates(BaseModel):
 
     snowalb: FlexibleRefValue(float) = Field(
         description="Snow albedo at the start of the model run",
-        json_schema_extra={"unit": "dimensionless", "display_name": "Snow Albedo"},
+        json_schema_extra={"unit": "dimensionless", "display_name": "Snow Albedo", "run_cold": "cold"},
         default=0.5,
         ge=0,
         le=1,
@@ -815,22 +815,22 @@ class InitialStates(BaseModel):
     dqndt: float = Field(
         default=0,
         description="Change in net radiation",
-        json_schema_extra={"display_name": "dQn/dt", "internal_only": True},
+        json_schema_extra={"display_name": "dQn/dt", "internal_only": True, "run_cold": "hot"},
     )
     dqnsdt: float = Field(
         default=0,
         description="Change in net shortwave radiation",
-        json_schema_extra={"display_name": "dQns/dt", "internal_only": True},
+        json_schema_extra={"display_name": "dQns/dt", "internal_only": True, "run_cold": "hot"},
     )
     dt_since_start: float = Field(
         default=0,
         description="Time since start",
-        json_schema_extra={"display_name": "Time Since Start", "internal_only": True},
+        json_schema_extra={"display_name": "Time Since Start", "internal_only": True, "run_cold": "hot"},
     )
     lenday_id: int = Field(
         default=0,
         description="Length of the day ID",
-        json_schema_extra={"display_name": "Day Length ID", "internal_only": True},
+        json_schema_extra={"display_name": "Day Length ID", "internal_only": True, "run_cold": "hot"},
     )
     qn_av: float = Field(
         default=0,
@@ -838,6 +838,7 @@ class InitialStates(BaseModel):
         json_schema_extra={
             "display_name": "Average Net Radiation",
             "internal_only": True,
+            "run_cold": "hot",
         },
     )
     qn_s_av: float = Field(
@@ -846,12 +847,13 @@ class InitialStates(BaseModel):
         json_schema_extra={
             "display_name": "Average Net Shortwave Radiation",
             "internal_only": True,
+            "run_cold": "hot",
         },
     )
     tair_av: float = Field(
         default=0,
         description="Average air temperature",
-        json_schema_extra={"display_name": "Average Air Temperature"},
+        json_schema_extra={"display_name": "Average Air Temperature", "run_cold": "cold"},
     )
     tmax_id: float = Field(
         default=0,
@@ -859,6 +861,7 @@ class InitialStates(BaseModel):
         json_schema_extra={
             "display_name": "Maximum Temperature ID",
             "internal_only": True,
+            "run_cold": "cold",
         },
     )
     tmin_id: float = Field(
@@ -867,12 +870,13 @@ class InitialStates(BaseModel):
         json_schema_extra={
             "display_name": "Minimum Temperature ID",
             "internal_only": True,
+            "run_cold": "cold",
         },
     )
     tstep_prev: float = Field(
         default=0,
         description="Previous time step",
-        json_schema_extra={"display_name": "Previous Time Step", "internal_only": True},
+        json_schema_extra={"display_name": "Previous Time Step", "internal_only": True, "run_cold": "hot"},
     )
     snowfallcum: float = Field(
         default=0,
@@ -880,11 +884,12 @@ class InitialStates(BaseModel):
         json_schema_extra={
             "display_name": "Cumulative Snowfall",
             "internal_only": True,
+            "run_cold": "cold",
         },
     )
     hdd_id: HDD_ID = Field(
         default_factory=HDD_ID,
-        json_schema_extra={"display_name": "Heating Degree Days ID"},
+        json_schema_extra={"display_name": "Heating Degree Days ID", "run_cold": "cold"},
         description="Heating degree days and meteorological tracking parameters",
     )
 

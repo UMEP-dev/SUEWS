@@ -439,6 +439,27 @@ CONTAINS
       END IF
    END FUNCTION calculate_x1
 
+   Function find_layer(h, layer_h, nlayer) RESULT(i_layer)
+      IMPLICIT NONE
+   !calculate the location (vertical layer)of wall and roof in spartacus
+      REAL(KIND(1D0)), INTENT(in) :: h !wall or roof height
+      REAL(KIND(1D0)), INTENT(in) :: layer_h(:) !spartacus height, it start from 0, has dimensional of nlayer+1
+      integer, INTENT(in) :: nlayer !number of vertical layers in spartacus
+      ! Output
+      INTEGER :: i_layer
+
+      ! Local variable
+      INTEGER :: i
+      ! Initialize to zero (not found)
+      i_layer = 0
+      DO i = 1, nlayer
+         IF (h <= layer_h(i+1)) THEN
+            i_layer = i
+            RETURN
+         END IF
+      END DO
+   END FUNCTION find_layer
+
 END MODULE modulestebbsfunc
 MODULE modulesuewsstebbscouple
    USE modulestebbsprecision
@@ -526,6 +547,7 @@ CONTAINS
       modState, & ! Input/Output
       datetimeLine, &
       dataOutLineSTEBBS) ! Output
+      USE modulestebbsfunc, ONLY: find_layer
       USE modulestebbs, ONLY: cases, resolution
       USE modulesuewsstebbscouple, ONLY: sout ! Defines sout
       USE modulestebbsprecision, ONLY: rprc ! Defines rprc as REAL64
@@ -626,6 +648,8 @@ CONTAINS
       REAL(KIND(1D0)) :: QS_air_tstepFA
       REAL(KIND(1D0)) :: Vwall_tank
       REAL(KIND(1D0)) :: Vwater_tank
+      REAL(KIND(1D0)) :: n_layer_wall ! layers from spartacus to extract short and longwave radiation
+      REAL(KIND(1D0)) :: n_layer_roof  ! layers from spartacus to extract short and longwave radiation    
       ASSOCIATE ( &
          timestep => timer%tstep, &
          flagstate => modState%flagstate, &
@@ -634,7 +658,9 @@ CONTAINS
          roughnessState => modState%roughnessState, &
          stebbsState => modState%stebbsState, &
          building_archtype => siteInfo%building_archtype, &
-         stebbsPrm => siteInfo%stebbs &
+         stebbsPrm => siteInfo%stebbs, &
+         nlayer => siteInfo%nlayer, &
+         spartacus_Prm => siteInfo%spartacus &
          )
 
          ASSOCIATE ( &
@@ -653,8 +679,15 @@ CONTAINS
             Lnorth => stebbsState%Lnorth, &
             Lsouth => stebbsState%Lsouth, &
             Least => stebbsState%Least, &
-            Lwest => stebbsState%Lwest &
+            Lwest => stebbsState%Lwest, &
+            ss_height => spartacus_Prm%height &
             )
+            IF (stebbs_bldg_init == 0) THEN
+               resolution = 1
+               CALL gen_building(stebbsState, stebbsPrm, building_archtype, buildings(1))
+               sout%ntstep = 1
+            END IF
+
             ! only for the BEERS scheme, Todo: remove other schemes, <1000 need to be just BEERS code. 
             IF (config%NetRadiationMethod < 1000) THEN
                wallStatesK(1) = Knorth
@@ -673,17 +706,20 @@ CONTAINS
             ELSE
                ! If the NetRadiationMethod is 1000 or greater, use the values from SPARTACUS
                ! Here testing with layer 1 for walls and layer 2 for roofs (dimension up to 15)
-               ! MP TODO: Need to update for dynamic layer selection based on building type
-               Kwall_sout = heatState%wall_in_sw_spc(1)
-               Lwall_sout = heatState%wall_in_lw_spc(1)
-               Kroof_sout = heatState%roof_in_sw_spc(2)
-               Lroof_sout = heatState%roof_in_lw_spc(2)
-            END IF
 
-            IF (stebbs_bldg_init == 0) THEN
-               resolution = 1
-               CALL gen_building(stebbsState, stebbsPrm, building_archtype, buildings(1))
-               sout%ntstep = 1
+               ! select the spartacus layers for wall and roof by height
+               n_layer_wall = find_layer((buildings(1)%height_building)/2, ss_height, nlayer)
+               n_layer_roof = find_layer(buildings(1)%height_building, ss_height, nlayer)
+               IF (n_layer_roof < nlayer) THEN !assume roof is one layer above this height
+                  n_layer_roof = n_layer_roof + 1
+               ELSE 
+                  n_layer_roof = n_layer_roof
+               END IF
+
+               Kwall_sout = heatState%wall_in_sw_spc(n_layer_wall)
+               Lwall_sout = heatState%wall_in_lw_spc(n_layer_wall)
+               Kroof_sout = heatState%roof_in_sw_spc(n_layer_roof)
+               Lroof_sout = heatState%roof_in_lw_spc(n_layer_roof)
             END IF
 
             sout%Tair = Tair_sout

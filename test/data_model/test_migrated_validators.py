@@ -3333,3 +3333,147 @@ class TestHourlyProfileValidator:
         assert "missing hours: [23, 24]" in error_msg
         assert "irrigation.wuprofa_24hr.working_day" in error_msg
         assert "hour values outside range 1-24" in error_msg
+
+
+class TestThermalLayersValidator:
+    """Test cases for thermal layer validation bug fixes."""
+
+    def test_thermal_layers_valid_config_no_false_positive(self):
+        """Test that valid thermal layer config doesn't trigger false validation errors.
+        
+        Regression test for issue where valid thermal layer configurations
+        were incorrectly flagged as "Missing thermal layer parameters".
+        """
+        
+        # Configuration with valid thermal layers for bldgs and paved
+        config = SUEWSConfig(
+            name="thermal layers test",
+            description="Test thermal layer validation",
+            model={
+                "control": {
+                    "start_time": "2011-01-01", 
+                    "end_time": "2011-01-02"
+                }
+            },
+            sites=[{
+                "properties": {
+                    "lat": 51.5,
+                    "lng": -0.1, 
+                    "alt": 10,
+                    "timezone": 0,
+                    "surfacearea": 10000,
+                    "z": 10,
+                    "z0m_in": 1.0,
+                    "zdm_in": 5.0,
+                    "land_cover": {
+                        "bldgs": {
+                            "sfr": 0.4,
+                            "faibldg": 0.7,
+                            "thermal_layers": {
+                                "dz": [0.2, 0.1, 0.1, 0.2, 1.6],
+                                "k": [1.2, 1.1, 1.1, 1.5, 1.6], 
+                                "rho_cp": [1200000.0, 1100000.0, 1100000.0, 1500000.0, 1600000.0]
+                            }
+                        },
+                        "paved": {
+                            "sfr": 0.3,
+                            "thermal_layers": {
+                                "dz": [0.2, 0.1, 0.1, 0.2, 1.6],
+                                "k": [1.2, 1.1, 1.1, 1.5, 1.6],
+                                "rho_cp": [1200000.0, 1100000.0, 1100000.0, 1500000.0, 1600000.0]
+                            }
+                        },
+                        "water": {"sfr": 0.3}
+                    }
+                }
+            }]
+        )
+        
+        # Check that no thermal layer validation errors occurred
+        validation_summary = getattr(config, '_validation_summary', {})
+        issue_types = validation_summary.get('issue_types', set())
+        
+        assert "Missing thermal layer parameters" not in issue_types, \
+            "Valid thermal layer configuration should not trigger missing parameter warnings"
+        
+        # Verify the thermal layers are accessible and correct
+        bldgs = config.sites[0].properties.land_cover.bldgs
+        paved = config.sites[0].properties.land_cover.paved
+        
+        assert bldgs.thermal_layers is not None
+        assert bldgs.thermal_layers.dz == [0.2, 0.1, 0.1, 0.2, 1.6]
+        assert bldgs.thermal_layers.k == [1.2, 1.1, 1.1, 1.5, 1.6]
+        assert bldgs.thermal_layers.rho_cp == [1200000.0, 1100000.0, 1100000.0, 1500000.0, 1600000.0]
+        
+        assert paved.thermal_layers is not None
+        assert paved.thermal_layers.dz == [0.2, 0.1, 0.1, 0.2, 1.6]
+        assert paved.thermal_layers.k == [1.2, 1.1, 1.1, 1.5, 1.6]
+        assert paved.thermal_layers.rho_cp == [1200000.0, 1100000.0, 1100000.0, 1500000.0, 1600000.0]
+
+    def test_thermal_layers_validation_logic_handles_both_formats(self):
+        """Test that validation logic handles both RefValue and plain list formats.
+        
+        Ensures the _is_valid_layer_array logic works for both RefValue wrappers
+        and plain Python lists.
+        """
+        
+        config = SUEWSConfig(
+            name="format test",
+            description="Test both thermal layer formats",
+            model={"control": {"start_time": "2011-01-01", "end_time": "2011-01-02"}},
+            sites=[{
+                "properties": {
+                    "lat": 51.5, "lng": -0.1, "alt": 10, "timezone": 0,
+                    "surfacearea": 10000, "z": 10, "z0m_in": 1.0, "zdm_in": 5.0,
+                    "land_cover": {
+                        "bldgs": {
+                            "sfr": 0.4, "faibldg": 0.7,
+                            "thermal_layers": {
+                                "dz": [0.2, 0.1, 0.1, 0.2, 1.6],  # Plain list format
+                                "k": [1.2, 1.1, 1.1, 1.5, 1.6],
+                                "rho_cp": [1200000.0, 1100000.0, 1100000.0, 1500000.0, 1600000.0]
+                            }
+                        },
+                        "water": {"sfr": 0.6}
+                    }
+                }
+            }]
+        )
+        
+        # Should not trigger thermal layer validation errors
+        validation_summary = getattr(config, '_validation_summary', {})
+        issue_types = validation_summary.get('issue_types', set())
+        
+        assert "Missing thermal layer parameters" not in issue_types, \
+            "Plain list format should be properly validated"
+
+    def test_thermal_layers_only_validates_when_explicitly_provided(self):
+        """Test that thermal layer validation only occurs for surfaces with explicit thermal data.
+        
+        Surfaces like water, grass that don't have thermal layers explicitly set
+        should not trigger thermal layer validation errors.
+        """
+        
+        config = SUEWSConfig(
+            name="selective validation test",
+            description="Test thermal layer validation scope",
+            model={"control": {"start_time": "2011-01-01", "end_time": "2011-01-02"}},
+            sites=[{
+                "properties": {
+                    "lat": 51.5, "lng": -0.1, "alt": 10, "timezone": 0,
+                    "surfacearea": 10000, "z": 10, "z0m_in": 1.0, "zdm_in": 5.0,
+                    "land_cover": {
+                        "water": {"sfr": 0.5}, # No thermal layers - should not trigger validation
+                        "grass": {"sfr": 0.3}, # No thermal layers - should not trigger validation  
+                        "dectr": {"sfr": 0.2}  # No thermal layers - should not trigger validation
+                    }
+                }
+            }]
+        )
+        
+        # Should not trigger thermal layer validation errors for surfaces without explicit thermal data
+        validation_summary = getattr(config, '_validation_summary', {})
+        issue_types = validation_summary.get('issue_types', set())
+        
+        assert "Missing thermal layer parameters" not in issue_types, \
+            "Surfaces without explicit thermal layers should not trigger thermal validation"

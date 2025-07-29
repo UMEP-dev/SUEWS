@@ -780,12 +780,22 @@ class SUEWSConfig(BaseModel):
                     )
                     has_issues = True
 
-            # Check thermal layers for all surfaces
+            # Check thermal layers only for surfaces that typically need them
+            # or where user has explicitly provided non-None values
             if hasattr(surface, "thermal_layers") and surface.thermal_layers:
-                if self._check_thermal_layers(
-                    surface.thermal_layers, surface_type, site_name
-                ):
-                    has_issues = True
+                # Only validate if at least one thermal property is explicitly set
+                thermal_layers = surface.thermal_layers
+                has_thermal_data = (
+                    (hasattr(thermal_layers, 'dz') and thermal_layers.dz is not None) or
+                    (hasattr(thermal_layers, 'k') and thermal_layers.k is not None) or  
+                    (hasattr(thermal_layers, 'rho_cp') and thermal_layers.rho_cp is not None)
+                )
+                
+                if has_thermal_data:
+                    if self._check_thermal_layers(
+                        surface.thermal_layers, surface_type, site_name
+                    ):
+                        has_issues = True
 
         return has_issues
 
@@ -796,11 +806,16 @@ class SUEWSConfig(BaseModel):
         missing_params = []
 
         def _is_valid_layer_array(field):
-            return (
-                hasattr(field, "value")
-                and isinstance(field.value, list)
-                and len(field.value) > 0
-            )
+            # Handle both RefValue wrappers and plain lists
+            if hasattr(field, "value") and isinstance(field.value, list):
+                # RefValue wrapper case
+                return len(field.value) > 0
+            elif isinstance(field, list):
+                # Plain list case
+                return len(field) > 0
+            else:
+                # Neither RefValue nor list
+                return False
 
         if not hasattr(thermal_layers, "dz") or not _is_valid_layer_array(
             thermal_layers.dz

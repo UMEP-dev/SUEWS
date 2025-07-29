@@ -147,7 +147,7 @@ class DLSCheck(BaseModel):
         return start, end, utc_offset_hours
 
 
-def collect_yaml_differences(original: Any, updated: Any, path: str = "") -> List[dict]:
+def collect_yaml_differences(original: Any, updated: Any, path: str = "", function_name: str = "Updated by precheck") -> List[dict]:
     """
     Recursively compare two YAML data structures and collect all differences.
 
@@ -182,7 +182,7 @@ def collect_yaml_differences(original: Any, updated: Any, path: str = "") -> Lis
             new_path = f"{path}.{key}" if path else key
             orig_val = original.get(key, "__MISSING__")
             updated_val = updated.get(key, "__MISSING__")
-            diffs.extend(collect_yaml_differences(orig_val, updated_val, new_path))
+            diffs.extend(collect_yaml_differences(orig_val, updated_val, new_path, function_name))
 
     elif isinstance(original, list) and isinstance(updated, list):
         max_len = max(len(original), len(updated))
@@ -190,7 +190,7 @@ def collect_yaml_differences(original: Any, updated: Any, path: str = "") -> Lis
             orig_val = original[i] if i < len(original) else "__MISSING__"
             updated_val = updated[i] if i < len(updated) else "__MISSING__"
             new_path = f"{path}[{i}]"
-            diffs.extend(collect_yaml_differences(orig_val, updated_val, new_path))
+            diffs.extend(collect_yaml_differences(orig_val, updated_val, new_path, function_name))
 
     else:
         if original != updated:
@@ -213,7 +213,7 @@ def collect_yaml_differences(original: Any, updated: Any, path: str = "") -> Lis
                 "parameter": param_name,
                 "old_value": original,
                 "new_value": updated,
-                "reason": "Updated by precheck",
+                "reason": function_name,
             })
 
     return diffs
@@ -1177,6 +1177,133 @@ def precheck_model_option_rules(data: dict) -> dict:
     return data
 
 
+def add_precheck_comments_to_yaml(data: dict, diffs: List[dict]) -> str:
+    """
+    Convert YAML data to string format with inline comments for parameters updated by precheck.
+    
+    Args:
+        data (dict): The updated YAML configuration dictionary.
+        diffs (List[dict]): List of differences from collect_yaml_differences.
+        
+    Returns:
+        str: YAML string with inline comments for updated parameters.
+    """
+    import yaml
+    
+    # Create a mapping from parameter paths to change reasons
+    change_map = {}
+    for diff in diffs:
+        if diff["site"] is not None:
+            path = f"sites[{diff['site']}].{diff['parameter']}"
+        else:
+            path = diff["parameter"]
+        change_map[path] = {
+            "old_value": diff["old_value"],
+            "new_value": diff["new_value"],
+            "reason": diff["reason"]
+        }
+    
+    # Convert to YAML string
+    yaml_str = yaml.dump(data, sort_keys=False, allow_unicode=True, default_flow_style=False)
+    
+    if not change_map:
+        return yaml_str
+    
+    # Add header comment
+    header = """# SUEWS Configuration (Updated by Precheck)
+# ==========================================
+# This file has been processed by SUEWS precheck.
+# Parameters marked with "# [PRECHECK]" were automatically updated.
+# 
+# Changes made:
+"""
+    
+    # Add summary of changes
+    for path, info in change_map.items():
+        header += f"#   {path}: {info['old_value']} → {info['new_value']} ({info['reason']})\n"
+    
+    header += "#\n# ==========================================\n\n"
+    
+    # Add inline comments to YAML
+    lines = yaml_str.split('\n')
+    commented_lines = []
+    
+    # Track current path for nested structures
+    current_path = []
+    
+    for line in lines:
+        if not line.strip():
+            commented_lines.append(line)
+            continue
+            
+        # Calculate indentation level
+        indent_level = (len(line) - len(line.lstrip())) // 2
+        
+        # Update current path based on indentation
+        current_path = current_path[:indent_level]
+        
+        # Extract key from line
+        if ':' in line:
+            key = line.split(':')[0].strip()
+            if key.startswith('- '):
+                key = key[2:]
+            
+            # Handle array indices
+            if current_path and '[' in str(current_path[-1]):
+                # We're inside an array
+                pass
+            else:
+                current_path.append(key)
+            
+            # Check if this parameter was updated
+            path_str = '.'.join(str(p) for p in current_path)
+            
+            # Check various path formats
+            matching_change = None
+            for change_path, change_info in change_map.items():
+                if (path_str in change_path or 
+                    change_path.endswith(f".{key}") or
+                    change_path.endswith(key)):
+                    matching_change = change_info
+                    break
+            
+            if matching_change:
+                # Add inline comment for updated parameter
+                if line.rstrip().endswith(':'):
+                    # This is a parent key, comment will go on next value line
+                    commented_lines.append(line)
+                else:
+                    # This line has a value, add comment here
+                    comment = f"  # [PRECHECK] {matching_change['reason']}: {matching_change['old_value']} → {matching_change['new_value']}"
+                    commented_lines.append(line + comment)
+            else:
+                commented_lines.append(line)
+        else:
+            commented_lines.append(line)
+    
+    return header + '\n'.join(commented_lines)
+
+
+class PrecheckTracker:
+    """Track changes made by different precheck functions."""
+    
+    def __init__(self):
+        self.all_changes = []
+        self.original_data = None
+    
+    def track_changes(self, before_data: dict, after_data: dict, function_name: str):
+        """Track changes made by a specific function."""
+        if self.original_data is None:
+            self.original_data = before_data
+        
+        changes = collect_yaml_differences(before_data, after_data, function_name=function_name)
+        self.all_changes.extend(changes)
+    
+    def get_all_changes(self) -> List[dict]:
+        """Get all tracked changes."""
+        return self.all_changes
+
+
 def run_precheck(path: str) -> dict:
     """
     Perform full preprocessing (precheck) on a YAML configuration file.
@@ -1198,9 +1325,10 @@ def run_precheck(path: str) -> dict:
     10. Validating that parameters for surfaces with `sfr > 0` are not empty or null.
     11. Checking and auto-fixing small floating point errors in land cover surface fractions.
     12. Nullify model-option-dependent parameters if specific models are switched off
-    13. Saving the updated YAML to a new file (prefixed with `py0_`).
-    14. Writing a CSV diff report listing all changes made.
-    15. Logging completion.
+    13. Generating a diff report of all changes made during precheck.
+    14. Saving the updated YAML to a new file (prefixed with `py0_`) with inline comments showing which parameters were updated.
+    15. Writing a CSV diff report listing all changes made.
+    16. Logging completion.
 
     Args:
         path (str): Full path to the input YAML configuration file.
@@ -1213,62 +1341,93 @@ def run_precheck(path: str) -> dict:
     with open(path, "r") as file:
         data = yaml.load(file, Loader=yaml.FullLoader)
 
+    # Initialize change tracker
+    tracker = PrecheckTracker()
     original_data = deepcopy(data)
 
     # ---- Step 1: Print start message ----
+    before = deepcopy(data)
     data = precheck_printing(data)
+    tracker.track_changes(before, data, "precheck_printing")
 
     # ---- Step 2: Extract start_date, end_date, model_year ----
+    before = deepcopy(data)
     data, model_year, start_date, end_date = precheck_start_end_date(data)
+    tracker.track_changes(before, data, "precheck_start_end_date")
     logger_supy.debug(
         f"Start date: {start_date}, end date: {end_date}, year: {model_year}"
     )
 
     # ---- Step 3: Check model.physics parameters ----
+    before = deepcopy(data)
     data = precheck_model_physics_params(data)
+    tracker.track_changes(before, data, "precheck_model_physics_params")
 
     # ---- Step 4: Enforce model option constraints ----
+    before = deepcopy(data)
     data = precheck_model_options_constraints(data)
+    tracker.track_changes(before, data, "precheck_model_options_constraints")
 
     # ---- Step 5: Clean empty strings (except model.control and model.physics) ----
+    before = deepcopy(data)
     data = precheck_replace_empty_strings_with_none(data)
+    tracker.track_changes(before, data, "precheck_replace_empty_strings_with_none")
 
     # ---- Step 6: Rename legacy 'cp' to 'rho_cp' in thermal_layers ----
+    before = deepcopy(data)
     data = precheck_thermal_layer_cp_renaming(data)
+    tracker.track_changes(before, data, "precheck_thermal_layer_cp_renaming")
 
     # ---- Step 7: Season + LAI + DLS adjustments per site ----
+    before = deepcopy(data)
     data = precheck_site_season_adjustments(
         data, start_date=start_date, model_year=model_year
     )
+    tracker.track_changes(before, data, "precheck_site_season_adjustments")
 
     # ---- Step 8: Update temperatures using CRU mean monthly air temperature ----
+    before = deepcopy(data)
     data = precheck_update_temperature(data, start_date=start_date)
+    tracker.track_changes(before, data, "precheck_update_temperature")
 
     # ---- Step 9: Print warnings for params related to surfaces with sfr == 0 ----
+    before = deepcopy(data)
     data = precheck_warn_zero_sfr_params(data)
+    tracker.track_changes(before, data, "precheck_warn_zero_sfr_params")
 
     # ---- Step 10: Check existence of params for surfaces with sfr > 0 ----
+    before = deepcopy(data)
     data = precheck_nonzero_sfr_requires_nonnull_params(data)
+    tracker.track_changes(before, data, "precheck_nonzero_sfr_requires_nonnull_params")
 
     # ---- Step 11: Land Cover Fractions checks & adjustments ----
+    before = deepcopy(data)
     data = precheck_land_cover_fractions(data)
+    tracker.track_changes(before, data, "precheck_land_cover_fractions")
 
     # ---- Step 12: Rules associated to selected model options ----
+    before = deepcopy(data)
     data = precheck_model_option_rules(data)
+    tracker.track_changes(before, data, "precheck_model_option_rules")
 
-    # ---- Step 13: Save output YAML ----
+    # ---- Step 13: Get all tracked changes ----
+    diffs = tracker.get_all_changes()
+    
+    # ---- Step 14: Save output YAML with inline comments ----
     output_filename = f"py0_{os.path.basename(path)}"
     output_path = os.path.join(os.path.dirname(path), output_filename)
-
+    
+    # Generate YAML with inline comments for updated parameters
+    commented_yaml = add_precheck_comments_to_yaml(data, diffs)
+    
     with open(output_path, "w") as f:
-        yaml.dump(data, f, sort_keys=False, allow_unicode=True)
+        f.write(commented_yaml)
 
-    logger_supy.info(f"Saved updated YAML file to: {output_path}")
+    logger_supy.info(f"Saved updated YAML file with precheck comments to: {output_path}")
 
-    # ---- Step 14: Generate precheck diff report CSV ----
-    diffs = collect_yaml_differences(original_data, data)
+    # ---- Step 15: Generate precheck diff report CSV (optional) ----
     save_precheck_diff_report(diffs, path)
 
-    # ---- Step 15: Print completion ----
+    # ---- Step 16: Print completion ----
     logger_supy.info("Precheck complete.\n")
     return data

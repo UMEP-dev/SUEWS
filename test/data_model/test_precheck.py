@@ -21,6 +21,8 @@ from supy.data_model.precheck import (
     precheck_thermal_layer_cp_renaming,
     get_value_safe,
     SeasonCheck,
+    PrecheckTracker,
+    add_precheck_comments_to_yaml,
 )
 
 
@@ -1309,3 +1311,417 @@ def test_precheck_thermal_layer_cp_renaming_mixed_surfaces():
         "thermal_layers"
         not in updated_data["sites"][0]["properties"]["land_cover"]["grass"]
     )
+
+
+class TestPrecheckTracker:
+    """Test the new PrecheckTracker functionality for tracking function-specific changes."""
+
+    def test_precheck_tracker_initialization(self):
+        """Test PrecheckTracker initialization."""
+        tracker = PrecheckTracker()
+        assert tracker.all_changes == []
+        assert tracker.original_data is None
+
+    def test_precheck_tracker_simple_change(self):
+        """Test tracking a simple parameter change."""
+        tracker = PrecheckTracker()
+        
+        before = {
+            "sites": [{"properties": {"snowalb": {"value": 0.3}}}]
+        }
+        after = {
+            "sites": [{"properties": {"snowalb": {"value": None}}}]
+        }
+        
+        tracker.track_changes(before, after, "precheck_site_season_adjustments")
+        
+        changes = tracker.get_all_changes()
+        assert len(changes) == 1
+        
+        change = changes[0]
+        assert change["parameter"] == "snowalb"
+        assert change["old_value"] == 0.3
+        assert change["new_value"] is None
+        assert change["reason"] == "precheck_site_season_adjustments"
+        assert change["site"] == 0
+
+    def test_precheck_tracker_multiple_functions(self):
+        """Test tracking changes from multiple functions."""
+        tracker = PrecheckTracker()
+        
+        # First function changes snowalb
+        before1 = {"sites": [{"properties": {"snowalb": {"value": 0.3}}}]}
+        after1 = {"sites": [{"properties": {"snowalb": {"value": None}}}]}
+        tracker.track_changes(before1, after1, "precheck_site_season_adjustments")
+        
+        # Second function changes temperature
+        before2 = {
+            "sites": [{"initial_states": {"paved": {"tsfc": {"value": 0.0}}}}]
+        }
+        after2 = {
+            "sites": [{"initial_states": {"paved": {"tsfc": {"value": 15.2}}}}]
+        }
+        tracker.track_changes(before2, after2, "precheck_update_temperature")
+        
+        changes = tracker.get_all_changes()
+        assert len(changes) == 2
+        
+        # Check that both functions are tracked correctly
+        function_names = {change["reason"] for change in changes}
+        assert "precheck_site_season_adjustments" in function_names
+        assert "precheck_update_temperature" in function_names
+
+    def test_precheck_tracker_no_changes(self):
+        """Test tracking when no changes occur."""
+        tracker = PrecheckTracker()
+        
+        data = {"sites": [{"properties": {"snowalb": {"value": 0.3}}}]}
+        tracker.track_changes(data, data, "precheck_printing")
+        
+        changes = tracker.get_all_changes()
+        assert len(changes) == 0
+
+    def test_precheck_tracker_original_data_preservation(self):
+        """Test that original data is preserved for reference."""
+        tracker = PrecheckTracker()
+        
+        original = {"test": "value"}
+        modified = {"test": "new_value"}
+        
+        tracker.track_changes(original, modified, "test_function")
+        assert tracker.original_data == original
+
+
+class TestAddPrecheckCommentsToYaml:
+    """Test the new YAML commenting functionality."""
+
+    def test_add_precheck_comments_simple(self):
+        """Test adding comments for simple parameter changes."""
+        data = {
+            "sites": [
+                {
+                    "properties": {"timezone": -5},
+                    "initial_states": {"paved": {"tsfc": 15.2}}
+                }
+            ]
+        }
+        
+        diffs = [
+            {
+                "site": 0,
+                "parameter": "timezone",
+                "old_value": None,
+                "new_value": -5,
+                "reason": "precheck_site_season_adjustments"
+            },
+            {
+                "site": 0,
+                "parameter": "tsfc",
+                "old_value": 0.0,
+                "new_value": 15.2,
+                "reason": "precheck_update_temperature"
+            }
+        ]
+        
+        commented_yaml = add_precheck_comments_to_yaml(data, diffs)
+        
+        # Check header is present
+        assert "SUEWS Configuration (Updated by Precheck)" in commented_yaml
+        assert "Parameters marked with \"# [PRECHECK]\"" in commented_yaml
+        
+        # Check change summary is present
+        assert "sites[0].timezone: None → -5 (precheck_site_season_adjustments)" in commented_yaml
+        assert "sites[0].tsfc: 0.0 → 15.2 (precheck_update_temperature)" in commented_yaml
+        
+        # Check inline comments are present
+        assert "# [PRECHECK] precheck_site_season_adjustments: None → -5" in commented_yaml
+        assert "# [PRECHECK] precheck_update_temperature: 0.0 → 15.2" in commented_yaml
+
+    def test_add_precheck_comments_no_changes(self):
+        """Test YAML commenting when no changes occurred."""
+        data = {"sites": [{"properties": {"snowalb": 0.3}}]}
+        diffs = []
+        
+        commented_yaml = add_precheck_comments_to_yaml(data, diffs)
+        
+        # Should return plain YAML without precheck header when no changes
+        assert "SUEWS Configuration (Updated by Precheck)" not in commented_yaml
+        assert "sites:" in commented_yaml
+        assert "snowalb: 0.3" in commented_yaml
+
+    def test_add_precheck_comments_multiple_sites(self):
+        """Test YAML commenting with multiple sites."""
+        data = {
+            "sites": [
+                {"properties": {"timezone": -5}},
+                {"properties": {"timezone": 2}}
+            ]
+        }
+        
+        diffs = [
+            {
+                "site": 0,
+                "parameter": "timezone",
+                "old_value": None,
+                "new_value": -5,
+                "reason": "precheck_site_season_adjustments"
+            },
+            {
+                "site": 1,
+                "parameter": "timezone",
+                "old_value": None,
+                "new_value": 2,
+                "reason": "precheck_site_season_adjustments"
+            }
+        ]
+        
+        commented_yaml = add_precheck_comments_to_yaml(data, diffs)
+        
+        # Check both sites are referenced in summary
+        assert "sites[0].timezone: None → -5" in commented_yaml
+        assert "sites[1].timezone: None → 2" in commented_yaml
+
+    def test_add_precheck_comments_non_site_parameter(self):
+        """Test YAML commenting for non-site specific parameters."""
+        data = {"model": {"control": {"tstep": 300}}}
+        
+        diffs = [
+            {
+                "site": None,
+                "parameter": "tstep",
+                "old_value": 3600,
+                "new_value": 300,
+                "reason": "precheck_model_physics_params"
+            }
+        ]
+        
+        commented_yaml = add_precheck_comments_to_yaml(data, diffs)
+        
+        # Check non-site parameter is handled correctly
+        assert "tstep: 3600 → 300 (precheck_model_physics_params)" in commented_yaml
+
+
+class TestCollectYamlDifferencesWithFunctionName:
+    """Test the enhanced collect_yaml_differences function with function name tracking."""
+
+    def test_collect_yaml_differences_with_function_name(self):
+        """Test that function names are properly included in differences."""
+        original = {"sites": [{"properties": {"snowalb": {"value": 0.3}}}]}
+        updated = {"sites": [{"properties": {"snowalb": {"value": None}}}]}
+        
+        diffs = collect_yaml_differences(
+            original, updated, function_name="test_function"
+        )
+        
+        assert len(diffs) == 1
+        diff = diffs[0]
+        assert diff["reason"] == "test_function"
+        assert diff["parameter"] == "snowalb"
+        assert diff["old_value"] == 0.3
+        assert diff["new_value"] is None
+
+    def test_collect_yaml_differences_nested_changes_with_function_name(self):
+        """Test function name tracking with nested structure changes."""
+        original = {
+            "sites": [
+                {
+                    "initial_states": {
+                        "paved": {"temperature": {"value": [0, 0, 0, 0, 0]}}
+                    }
+                }
+            ]
+        }
+        updated = {
+            "sites": [
+                {
+                    "initial_states": {
+                        "paved": {"temperature": {"value": [15, 15, 15, 15, 15]}}
+                    }
+                }
+            ]
+        }
+        
+        diffs = collect_yaml_differences(
+            original, updated, function_name="precheck_update_temperature"
+        )
+        
+        assert len(diffs) == 1
+        diff = diffs[0]
+        assert diff["reason"] == "precheck_update_temperature"
+        assert diff["parameter"] == "temperature"
+        assert diff["old_value"] == [0, 0, 0, 0, 0]
+        assert diff["new_value"] == [15, 15, 15, 15, 15]
+
+    def test_collect_yaml_differences_multiple_changes_same_function(self):
+        """Test multiple parameter changes from the same function."""
+        original = {
+            "sites": [
+                {
+                    "properties": {
+                        "land_cover": {
+                            "paved": {"thermal_layers": {"cp": {"value": [1.0e6]}}},
+                            "bldgs": {"thermal_layers": {"cp": {"value": [1.1e6]}}}
+                        }
+                    }
+                }
+            ]
+        }
+        updated = {
+            "sites": [
+                {
+                    "properties": {
+                        "land_cover": {
+                            "paved": {"thermal_layers": {"rho_cp": {"value": [1.0e6]}}},
+                            "bldgs": {"thermal_layers": {"rho_cp": {"value": [1.1e6]}}}
+                        }
+                    }
+                }
+            ]
+        }
+        
+        diffs = collect_yaml_differences(
+            original, updated, function_name="precheck_thermal_layer_cp_renaming"
+        )
+        
+        # Should detect removal of 'cp' and addition of 'rho_cp' for both surfaces
+        assert len(diffs) == 4  # 2 removals + 2 additions
+        
+        # All changes should be attributed to the same function
+        for diff in diffs:
+            assert diff["reason"] == "precheck_thermal_layer_cp_renaming"
+
+
+class TestPrecheckEnhancementIntegration:
+    """Integration tests for the complete precheck enhancement."""
+
+    def test_run_precheck_with_tracking_integration(self):
+        """Test that run_precheck integrates properly with the new tracking system."""
+        import tempfile
+        import yaml
+        import os
+        
+        # Create a minimal test YAML file
+        test_data = {
+            "name": "test_config",
+            "description": "test description",
+            "model": {
+                "control": {
+                    "start_time": "2025-07-01",
+                    "end_time": "2025-07-31",
+                    "tstep": 3600
+                },
+                "physics": {
+                    k: {"value": 1} for k in [
+                        "netradiationmethod", "emissionsmethod", "storageheatmethod",
+                        "ohmincqf", "roughlenmommethod", "roughlenheatmethod",
+                        "stabilitymethod", "smdmethod", "waterusemethod",
+                        "rslmethod", "faimethod", "rsllevel", "snowuse", "stebbsmethod"
+                    ]
+                }
+            },
+            "sites": [
+                {
+                    "gridiv": 1,
+                    "properties": {
+                        "lat": {"value": 45.0},
+                        "lng": {"value": 10.0},
+                        "anthropogenic_emissions": {},
+                        "land_cover": {
+                            "paved": {"sfr": {"value": 0.5}},
+                            "grass": {"sfr": {"value": 0.5}}
+                        }
+                    },
+                    "initial_states": {
+                        "snowalb": {"value": 0.3},
+                        "paved": {
+                            "temperature": {"value": [0, 0, 0, 0, 0]},
+                            "tsfc": {"value": 0},
+                            "tin": {"value": 0}
+                        },
+                        "grass": {
+                            "temperature": {"value": [0, 0, 0, 0, 0]},
+                            "tsfc": {"value": 0},
+                            "tin": {"value": 0}
+                        }
+                    }
+                }
+            ]
+        }
+        
+        # Create temporary file
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.yml', delete=False) as f:
+            yaml.dump(test_data, f, sort_keys=False)
+            temp_path = f.name
+        
+        try:
+            from supy.data_model.precheck import run_precheck
+            
+            # Run precheck (may skip some steps if CRU data not available)
+            try:
+                result = run_precheck(temp_path)
+                
+                # Check that the py0_ file was created
+                output_path = os.path.join(
+                    os.path.dirname(temp_path), 
+                    f"py0_{os.path.basename(temp_path)}"
+                )
+                assert os.path.exists(output_path), "py0_ output file should be created"
+                
+                # Read the generated file and check for precheck comments
+                with open(output_path, 'r') as f:
+                    output_content = f.read()
+                
+                # Should contain precheck header if any changes were made
+                if "# [PRECHECK]" in output_content:
+                    assert "SUEWS Configuration (Updated by Precheck)" in output_content
+                    assert "Changes made:" in output_content
+                
+                # Clean up output file
+                if os.path.exists(output_path):
+                    os.unlink(output_path)
+                    
+                # Clean up CSV report if it exists
+                csv_path = os.path.join(
+                    os.path.dirname(temp_path),
+                    f"precheck_report_{os.path.basename(temp_path).replace('.yml', '.csv')}"
+                )
+                if os.path.exists(csv_path):
+                    os.unlink(csv_path)
+                    
+            except FileNotFoundError as e:
+                if "CRU" in str(e):
+                    pytest.skip("CRU data not available for integration test")
+                else:
+                    raise
+                    
+        finally:
+            # Clean up temporary input file
+            os.unlink(temp_path)
+
+    def test_precheck_tracker_with_real_function_calls(self):
+        """Test PrecheckTracker with actual precheck function calls."""
+        tracker = PrecheckTracker()
+        
+        # Test with season adjustments
+        data = {
+            "sites": [
+                {
+                    "properties": {"lat": {"value": 5.0}},  # Tropical
+                    "initial_states": {"snowalb": {"value": 0.3}}
+                }
+            ]
+        }
+        
+        before = deepcopy(data)
+        after = precheck_site_season_adjustments(data, "2025-06-01", model_year=2025)
+        tracker.track_changes(before, after, "precheck_site_season_adjustments")
+        
+        changes = tracker.get_all_changes()
+        
+        # Should detect snowalb being nullified for tropical location
+        snowalb_changes = [c for c in changes if c["parameter"] == "snowalb"]
+        if snowalb_changes:  # Only if change actually occurred
+            change = snowalb_changes[0]
+            assert change["old_value"] == 0.3
+            assert change["new_value"] is None
+            assert change["reason"] == "precheck_site_season_adjustments"

@@ -65,6 +65,10 @@ class SUEWSSimulation:
 
         if config is not None:
             self.update_config(config)
+            if self._config.model.control.forcing_file is not None:
+                self.update_forcing(
+                    self._config.model.control.forcing_file
+                )
 
     def update_config(self, config: Union[str, Path, Dict, Any]):
         """
@@ -371,6 +375,7 @@ class SUEWSSimulation:
             site=site,
             path_dir_save=str(output_path),
             # **save_kwargs # Problematic, save_supy expects explicit arguments
+            output_config=output_config or None,
             output_format=output_format,
         )
         return list_path_save

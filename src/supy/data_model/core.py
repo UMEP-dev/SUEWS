@@ -786,11 +786,14 @@ class SUEWSConfig(BaseModel):
                 # Only validate if at least one thermal property is explicitly set
                 thermal_layers = surface.thermal_layers
                 has_thermal_data = (
-                    (hasattr(thermal_layers, 'dz') and thermal_layers.dz is not None) or
-                    (hasattr(thermal_layers, 'k') and thermal_layers.k is not None) or  
-                    (hasattr(thermal_layers, 'rho_cp') and thermal_layers.rho_cp is not None)
+                    (hasattr(thermal_layers, "dz") and thermal_layers.dz is not None)
+                    or (hasattr(thermal_layers, "k") and thermal_layers.k is not None)
+                    or (
+                        hasattr(thermal_layers, "rho_cp")
+                        and thermal_layers.rho_cp is not None
+                    )
                 )
-                
+
                 if has_thermal_data:
                     if self._check_thermal_layers(
                         surface.thermal_layers, surface_type, site_name

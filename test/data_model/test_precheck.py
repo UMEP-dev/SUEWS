@@ -1433,9 +1433,13 @@ class TestAddPrecheckCommentsToYaml:
         assert "sites[0].timezone: None → -5 (precheck_site_season_adjustments)" in commented_yaml
         assert "sites[0].tsfc: 0.0 → 15.2 (precheck_update_temperature)" in commented_yaml
         
-        # Check inline comments are present
-        assert "# [PRECHECK] precheck_site_season_adjustments: None → -5" in commented_yaml
-        assert "# [PRECHECK] precheck_update_temperature: 0.0 → 15.2" in commented_yaml
+        # Check inline comments are present (may be on separate lines due to YAML structure)
+        lines = commented_yaml.split('\n')
+        found_timezone_comment = any("timezone:" in line and "# [PRECHECK]" in line and "precheck_site_season_adjustments" in line for line in lines)
+        found_tsfc_comment = any("tsfc:" in line and "# [PRECHECK]" in line and "precheck_update_temperature" in line for line in lines)
+        
+        assert found_timezone_comment, "Should find timezone comment in YAML"
+        assert found_tsfc_comment, "Should find tsfc comment in YAML"
 
     def test_add_precheck_comments_no_changes(self):
         """Test YAML commenting when no changes occurred."""

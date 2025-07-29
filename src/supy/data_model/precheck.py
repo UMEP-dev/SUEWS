@@ -33,6 +33,37 @@ from .._env import logger_supy
 import os
 
 
+class PrecheckTracker:
+    """Track changes made by different precheck functions."""
+    
+    def __init__(self):
+        self.all_changes = []
+        self.original_data = None
+    
+    def track_changes(self, before_data: dict, after_data: dict, function_name: str):
+        """Track changes made by a specific function."""
+        if self.original_data is None:
+            self.original_data = before_data
+        
+        changes = collect_yaml_differences(before_data, after_data, function_name=function_name)
+        self.all_changes.extend(changes)
+    
+    def track_field_rename(self, site_index: int, parameter_path: str, old_field: str, new_field: str, function_name: str):
+        """Track a field rename operation (like cp -> rho_cp) with clear messaging."""
+        self.all_changes.append({
+            "site": site_index,
+            "parameter": new_field,
+            "old_value": f"Field renamed from '{old_field}'",
+            "new_value": f"Field renamed to '{new_field}'",
+            "reason": function_name,
+            "is_rename": True
+        })
+    
+    def get_all_changes(self) -> List[dict]:
+        """Get all tracked changes."""
+        return self.all_changes
+
+
 def get_value_safe(param_dict, param_key, default=None):
     """Safely extract value from RefValue or plain format.
 
@@ -256,10 +287,18 @@ def save_precheck_diff_report(diffs: List[dict], original_yaml_path: str):
         )
         writer.writeheader()
         for row in diffs:
+            # Create a clean row without internal tracking fields
+            clean_row = {
+                "site": row["site"],
+                "parameter": row["parameter"],
+                "old_value": row["old_value"],
+                "new_value": row["new_value"],
+                "reason": row["reason"]
+            }
             for key in ["old_value", "new_value"]:
-                if row[key] is None:
-                    row[key] = "null"
-            writer.writerow(row)
+                if clean_row[key] is None:
+                    clean_row[key] = "null"
+            writer.writerow(clean_row)
 
     logger_supy.info(f"Precheck difference report saved to: {report_path}")
 
@@ -818,7 +857,7 @@ def precheck_update_temperature(data: dict, start_date: str) -> dict:
     return data
 
 
-def precheck_thermal_layer_cp_renaming(data: dict) -> dict:
+def precheck_thermal_layer_cp_renaming(data: dict, tracker: PrecheckTracker = None) -> dict:
     """
     Rename legacy 'cp' field to 'rho_cp' in thermal_layers for all surface types.
 
@@ -858,6 +897,16 @@ def precheck_thermal_layer_cp_renaming(data: dict) -> dict:
                 thermal_layers["rho_cp"] = thermal_layers.pop("cp")
                 total_renames += 1
 
+                # Track the rename specifically
+                if tracker:
+                    tracker.track_field_rename(
+                        site_index=site_idx,
+                        parameter_path=f"{surf_type}.thermal_layers",
+                        old_field="cp",
+                        new_field="rho_cp", 
+                        function_name="precheck_thermal_layer_cp_renaming"
+                    )
+
                 logger_supy.info(
                     f"[site #{site_idx}] Renamed '{surf_type}.thermal_layers.cp' → "
                     f"'{surf_type}.thermal_layers.rho_cp' (legacy field name updated)"
@@ -879,6 +928,16 @@ def precheck_thermal_layer_cp_renaming(data: dict) -> dict:
                             # Rename cp to rho_cp
                             thermal_layers["rho_cp"] = thermal_layers.pop("cp")
                             total_renames += 1
+                            
+                            # Track the rename specifically
+                            if tracker:
+                                tracker.track_field_rename(
+                                    site_index=site_idx,
+                                    parameter_path=f"vertical_layers.{structure_name}[{item_idx}].thermal_layers",
+                                    old_field="cp",
+                                    new_field="rho_cp",
+                                    function_name="precheck_thermal_layer_cp_renaming"
+                                )
                             
                             logger_supy.info(
                                 f"[site #{site_idx}] Renamed 'vertical_layers.{structure_name}[{item_idx}].thermal_layers.cp' → "
@@ -1189,25 +1248,16 @@ def add_precheck_comments_to_yaml(data: dict, diffs: List[dict]) -> str:
         str: YAML string with inline comments for updated parameters.
     """
     import yaml
+    import re
     
-    # Create a mapping from parameter paths to change reasons
-    change_map = {}
-    for diff in diffs:
-        if diff["site"] is not None:
-            path = f"sites[{diff['site']}].{diff['parameter']}"
-        else:
-            path = diff["parameter"]
-        change_map[path] = {
-            "old_value": diff["old_value"],
-            "new_value": diff["new_value"],
-            "reason": diff["reason"]
-        }
-    
-    # Convert to YAML string
+    # Convert to YAML string first  
     yaml_str = yaml.dump(data, sort_keys=False, allow_unicode=True, default_flow_style=False)
     
-    if not change_map:
+    if not diffs:
         return yaml_str
+    
+    # Create a list of changes for tracking used ones
+    remaining_changes = list(diffs)
     
     # Add header comment
     header = """# SUEWS Configuration (Updated by Precheck)
@@ -1219,89 +1269,87 @@ def add_precheck_comments_to_yaml(data: dict, diffs: List[dict]) -> str:
 """
     
     # Add summary of changes
-    for path, info in change_map.items():
-        header += f"#   {path}: {info['old_value']} → {info['new_value']} ({info['reason']})\n"
+    for diff in diffs:
+        if diff["site"] is not None:
+            path = f"sites[{diff['site']}].{diff['parameter']}"
+        else:
+            path = diff["parameter"]
+        
+        # Handle renames differently in header
+        if diff.get("is_rename", False):
+            old_field = diff['old_value'].split("'")[1] if "'" in diff['old_value'] else diff['old_value']
+            new_field = diff['new_value'].split("'")[1] if "'" in diff['new_value'] else diff['new_value']
+            header += f"#   {path}: Renamed field '{old_field}' → '{new_field}' ({diff['reason']})\n"
+        else:
+            header += f"#   {path}: {diff['old_value']} → {diff['new_value']} ({diff['reason']})\n"
     
     header += "#\n# ==========================================\n\n"
     
-    # Add inline comments to YAML
+    # Process YAML line by line to add inline comments
     lines = yaml_str.split('\n')
     commented_lines = []
     
-    # Track current path for nested structures
-    current_path = []
+    # Track our position in the YAML structure
+    in_sites_section = False
+    current_site_index = -1  # Start at -1, will be incremented when we see first site
     
-    for line in lines:
+    for i, line in enumerate(lines):
         if not line.strip():
             commented_lines.append(line)
             continue
-            
-        # Calculate indentation level
-        indent_level = (len(line) - len(line.lstrip())) // 2
         
-        # Update current path based on indentation
-        current_path = current_path[:indent_level]
+        # Track if we're in the sites section
+        if line.strip() == 'sites:':
+            in_sites_section = True
+            commented_lines.append(line)
+            continue
+        elif line.strip() and not line.startswith(' ') and not line.startswith('-'):
+            # We've left the sites section if we hit a top-level key that's not 'sites' or list item
+            if line.strip() != 'sites:' and in_sites_section:
+                in_sites_section = False
+                current_site_index = -1
         
-        # Extract key from line
+        # Track current site index - look for list items at the right indentation level under sites
+        if in_sites_section and line.startswith('- '):
+            # This is a new site item (list item directly under sites)
+            current_site_index += 1
+        
+        # Look for parameter matches
+        commented = False
         if ':' in line:
-            key = line.split(':')[0].strip()
-            if key.startswith('- '):
-                key = key[2:]
-            
-            # Handle array indices
-            if current_path and '[' in str(current_path[-1]):
-                # We're inside an array
-                pass
-            else:
-                current_path.append(key)
-            
-            # Check if this parameter was updated
-            path_str = '.'.join(str(p) for p in current_path)
-            
-            # Check various path formats
-            matching_change = None
-            for change_path, change_info in change_map.items():
-                if (path_str in change_path or 
-                    change_path.endswith(f".{key}") or
-                    change_path.endswith(key)):
-                    matching_change = change_info
-                    break
-            
-            if matching_change:
-                # Add inline comment for updated parameter
-                if line.rstrip().endswith(':'):
-                    # This is a parent key, comment will go on next value line
-                    commented_lines.append(line)
-                else:
-                    # This line has a value, add comment here
-                    comment = f"  # [PRECHECK] {matching_change['reason']}: {matching_change['old_value']} → {matching_change['new_value']}"
-                    commented_lines.append(line + comment)
-            else:
-                commented_lines.append(line)
-        else:
+            # Extract parameter name from the line
+            param_match = re.match(r'(\s*)([^:]+):\s*(.*)$', line)
+            if param_match:
+                indent, param_name, value = param_match.groups()
+                param_name = param_name.strip()
+                
+                # Find matching change (first unused one for this parameter/site combo)
+                for j, change in enumerate(remaining_changes):
+                    if (change["parameter"] == param_name and 
+                        (change["site"] is None or 
+                         (in_sites_section and change["site"] == current_site_index))):
+                        
+                        # Add inline comment with special handling for renames
+                        if change.get("is_rename", False):
+                            old_field = change['old_value'].split("'")[1] if "'" in change['old_value'] else change['old_value']
+                            new_field = change['new_value'].split("'")[1] if "'" in change['new_value'] else change['new_value']
+                            comment = f"  # [PRECHECK] {change['reason']}: Field renamed from '{old_field}' to '{new_field}'"
+                        else:
+                            comment = f"  # [PRECHECK] {change['reason']}: {change['old_value']} → {change['new_value']}"
+                        commented_lines.append(line + comment)
+                        
+                        # Remove this change from remaining list
+                        remaining_changes.pop(j)
+                        commented = True
+                        break
+        
+        # If no comment was added, append the original line
+        if not commented:
             commented_lines.append(line)
     
     return header + '\n'.join(commented_lines)
 
 
-class PrecheckTracker:
-    """Track changes made by different precheck functions."""
-    
-    def __init__(self):
-        self.all_changes = []
-        self.original_data = None
-    
-    def track_changes(self, before_data: dict, after_data: dict, function_name: str):
-        """Track changes made by a specific function."""
-        if self.original_data is None:
-            self.original_data = before_data
-        
-        changes = collect_yaml_differences(before_data, after_data, function_name=function_name)
-        self.all_changes.extend(changes)
-    
-    def get_all_changes(self) -> List[dict]:
-        """Get all tracked changes."""
-        return self.all_changes
 
 
 def run_precheck(path: str) -> dict:
@@ -1374,9 +1422,8 @@ def run_precheck(path: str) -> dict:
     tracker.track_changes(before, data, "precheck_replace_empty_strings_with_none")
 
     # ---- Step 6: Rename legacy 'cp' to 'rho_cp' in thermal_layers ----
-    before = deepcopy(data)
-    data = precheck_thermal_layer_cp_renaming(data)
-    tracker.track_changes(before, data, "precheck_thermal_layer_cp_renaming")
+    # Use specific rename tracking instead of generic difference tracking
+    data = precheck_thermal_layer_cp_renaming(data, tracker)
 
     # ---- Step 7: Season + LAI + DLS adjustments per site ----
     before = deepcopy(data)

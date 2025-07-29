@@ -637,8 +637,19 @@ class OutputConfig(BaseModel):
     @field_validator("groups")
     def validate_groups(cls, v):
         if v is not None:
-            valid_groups = {"SUEWS", "DailyState", "snow", "ESTM", "RSL", "BL", "debug"}
-            invalid = set(v) - valid_groups
+            valid_groups = {
+                "SUEWS",
+                "DailyState",
+                "snow",
+                "ESTM",
+                "RSL",
+                "BL",
+                "debug"
+            }
+            dev_groups = {
+                "SPARTACUS"
+            }
+            invalid = set(v) - valid_groups - dev_groups
             if invalid:
                 raise ValueError(
                     f"Invalid output groups: {invalid}. Valid groups are: {valid_groups}"

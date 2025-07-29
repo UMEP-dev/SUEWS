@@ -3536,3 +3536,324 @@ class TestThermalLayersValidator:
         assert "Missing thermal layer parameters" not in issue_types, (
             "Surfaces without explicit thermal layers should not trigger thermal validation"
         )
+
+    def test_cp_field_detection_in_yaml(self):
+        """Test that cp field is correctly detected in raw YAML and shows correct error message."""
+        import tempfile
+        import yaml
+        from pathlib import Path
+        
+        yaml_content = """
+name: cp detection test
+sites:
+  - name: Test Site
+    gridiv: 1
+    properties:
+      lat: {value: 51.5}
+      lng: {value: -0.1}
+      alt: {value: 10.0}
+      timezone: {value: 0}
+      z: {value: 10.0}
+      z0m_in: {value: 1.0}
+      zdm_in: {value: 5.0}
+      land_cover:
+        paved:
+          sfr: {value: 0.5}
+          thermal_layers:
+            dz: {value: [0.2, 0.1, 0.1, 0.5, 1.6]}
+            k: {value: [1.2, 1.1, 1.1, 1.5, 1.6]}
+            cp: {value: [1.2e6, 1.1e6, 1.1e6, 1.5e6, 1.6e6]}  # Wrong field name!
+"""
+        
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.yml', delete=False) as f:
+            f.write(yaml_content)
+            test_file = Path(f.name)
+
+        try:
+            # Load config - should trigger validation
+            config = SUEWSConfig.from_yaml(test_file)
+            
+            # Check validation summary
+            validation_summary = getattr(config, "_validation_summary", {})
+            issue_types = validation_summary.get("issue_types", set())
+            
+            # Should detect incorrect naming, not missing parameters
+            assert "Incorrect naming of thermal layer parameters" in issue_types
+            assert "Missing thermal layer parameters" not in issue_types
+            
+            # Generate annotated YAML to check specific error message
+            annotated_file = config.generate_annotated_yaml(test_file)
+            
+            with open(annotated_file, 'r') as f:
+                annotated_content = f.read()
+            
+            # Should contain specific cp vs rho_cp message
+            assert "Found 'cp' field - should be 'rho_cp'" in annotated_content
+            assert "Change 'cp:' to 'rho_cp:' in your YAML file" in annotated_content
+            
+            # Cleanup
+            Path(annotated_file).unlink()
+            
+        finally:
+            test_file.unlink()
+
+    def test_missing_rho_cp_without_cp_field(self):
+        """Test regular missing rho_cp parameter (no cp field in YAML) shows correct error type."""
+        import tempfile
+        from pathlib import Path
+        
+        yaml_content = """
+name: missing rho_cp test
+sites:
+  - name: Test Site
+    gridiv: 1
+    properties:
+      lat: {value: 51.5}
+      lng: {value: -0.1}
+      alt: {value: 10.0}
+      timezone: {value: 0}
+      z: {value: 10.0}
+      z0m_in: {value: 1.0}
+      zdm_in: {value: 5.0}
+      land_cover:
+        paved:
+          sfr: {value: 0.5}
+          thermal_layers:
+            dz: {value: [0.2, 0.1, 0.1, 0.5, 1.6]}
+            k: {value: [1.2, 1.1, 1.1, 1.5, 1.6]}
+            # rho_cp is missing entirely
+"""
+        
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.yml', delete=False) as f:
+            f.write(yaml_content)
+            test_file = Path(f.name)
+
+        try:
+            # Load config - should trigger validation
+            config = SUEWSConfig.from_yaml(test_file)
+            
+            # Check validation summary
+            validation_summary = getattr(config, "_validation_summary", {})
+            issue_types = validation_summary.get("issue_types", set())
+            
+            # Should detect missing parameters, not incorrect naming
+            assert "Missing thermal layer parameters" in issue_types
+            assert "Incorrect naming of thermal layer parameters" not in issue_types
+            
+        finally:
+            test_file.unlink()
+
+    def test_correct_rho_cp_field(self):
+        """Test that correct rho_cp field doesn't trigger validation errors."""
+        import tempfile
+        from pathlib import Path
+        
+        yaml_content = """
+name: correct rho_cp test
+sites:
+  - name: Test Site
+    gridiv: 1
+    properties:
+      lat: {value: 51.5}
+      lng: {value: -0.1}
+      alt: {value: 10.0}
+      timezone: {value: 0}
+      z: {value: 10.0}
+      z0m_in: {value: 1.0}
+      zdm_in: {value: 5.0}
+      land_cover:
+        paved:
+          sfr: {value: 0.5}
+          thermal_layers:
+            dz: {value: [0.2, 0.1, 0.1, 0.5, 1.6]}
+            k: {value: [1.2, 1.1, 1.1, 1.5, 1.6]}
+            rho_cp: {value: [1.2e6, 1.1e6, 1.1e6, 1.5e6, 1.6e6]}  # Correct field name
+"""
+        
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.yml', delete=False) as f:
+            f.write(yaml_content)
+            test_file = Path(f.name)
+
+        try:
+            # Load config - should not trigger thermal validation errors
+            config = SUEWSConfig.from_yaml(test_file)
+            
+            # Check validation summary
+            validation_summary = getattr(config, "_validation_summary", {})
+            issue_types = validation_summary.get("issue_types", set())
+            
+            # Should not trigger any thermal layer validation errors
+            assert "Missing thermal layer parameters" not in issue_types
+            assert "Incorrect naming of thermal layer parameters" not in issue_types
+            
+        finally:
+            test_file.unlink()
+
+    def test_cp_field_in_multiple_surfaces(self):
+        """Test cp field detection across multiple surface types."""
+        import tempfile
+        from pathlib import Path
+        
+        yaml_content = """
+name: multiple surfaces cp test
+sites:
+  - name: Test Site
+    gridiv: 1
+    properties:
+      lat: {value: 51.5}
+      lng: {value: -0.1}
+      alt: {value: 10.0}
+      timezone: {value: 0}
+      z: {value: 10.0}
+      z0m_in: {value: 1.0}
+      zdm_in: {value: 5.0}
+      land_cover:
+        paved:
+          sfr: {value: 0.3}
+          thermal_layers:
+            dz: {value: [0.2, 0.1, 0.1, 0.5, 1.6]}
+            k: {value: [1.2, 1.1, 1.1, 1.5, 1.6]}
+            cp: {value: [1.2e6, 1.1e6, 1.1e6, 1.5e6, 1.6e6]}  # Wrong field name!
+        bldgs:
+          sfr: {value: 0.4}
+          thermal_layers:
+            dz: {value: [0.3, 0.2, 0.2, 0.6, 1.7]}
+            k: {value: [1.3, 1.2, 1.2, 1.6, 1.7]}
+            cp: {value: [1.3e6, 1.2e6, 1.2e6, 1.6e6, 1.7e6]}  # Wrong field name!
+        grass:
+          sfr: {value: 0.3}
+          # No thermal layers - should not trigger validation
+"""
+        
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.yml', delete=False) as f:
+            f.write(yaml_content)
+            test_file = Path(f.name)
+
+        try:
+            # Load config - should trigger validation for surfaces with cp fields
+            config = SUEWSConfig.from_yaml(test_file)
+            
+            # Check validation summary
+            validation_summary = getattr(config, "_validation_summary", {})
+            issue_types = validation_summary.get("issue_types", set())
+            
+            # Should detect incorrect naming for multiple surfaces
+            assert "Incorrect naming of thermal layer parameters" in issue_types
+            assert "Missing thermal layer parameters" not in issue_types
+            
+            # Generate annotated YAML to check both surfaces are flagged
+            annotated_file = config.generate_annotated_yaml(test_file)
+            
+            with open(annotated_file, 'r') as f:
+                annotated_content = f.read()
+            
+            # Should contain cp vs rho_cp messages for both surfaces
+            cp_errors = annotated_content.count("Found 'cp' field - should be 'rho_cp'")
+            assert cp_errors >= 2, f"Expected at least 2 cp field errors, got {cp_errors}"
+            
+            # Cleanup
+            Path(annotated_file).unlink()
+            
+        finally:
+            test_file.unlink()
+
+    def test_mixed_errors_cp_and_missing_params(self):
+        """Test handling when some surfaces have cp issues and others have missing params."""
+        import tempfile
+        from pathlib import Path
+        
+        yaml_content = """
+name: mixed errors test
+sites:
+  - name: Test Site
+    gridiv: 1
+    properties:
+      lat: {value: 51.5}
+      lng: {value: -0.1}
+      alt: {value: 10.0}
+      timezone: {value: 0}
+      z: {value: 10.0}
+      z0m_in: {value: 1.0}
+      zdm_in: {value: 5.0}
+      land_cover:
+        paved:
+          sfr: {value: 0.5}
+          thermal_layers:
+            dz: {value: [0.2, 0.1, 0.1, 0.5, 1.6]}
+            k: {value: [1.2, 1.1, 1.1, 1.5, 1.6]}
+            cp: {value: [1.2e6, 1.1e6, 1.1e6, 1.5e6, 1.6e6]}  # Wrong field name!
+        bldgs:
+          sfr: {value: 0.5}
+          thermal_layers:
+            dz: {value: [0.3, 0.2, 0.2, 0.6, 1.7]}
+            # Missing k and rho_cp entirely
+"""
+        
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.yml', delete=False) as f:
+            f.write(yaml_content)
+            test_file = Path(f.name)
+
+        try:
+            # Load config - should trigger both types of validation errors
+            config = SUEWSConfig.from_yaml(test_file)
+            
+            # Check validation summary
+            validation_summary = getattr(config, "_validation_summary", {})
+            issue_types = validation_summary.get("issue_types", set())
+            
+            # Should detect both incorrect naming AND missing parameters
+            assert "Incorrect naming of thermal layer parameters" in issue_types
+            assert "Missing thermal layer parameters" in issue_types
+            
+        finally:
+            test_file.unlink()
+
+    def test_cp_detection_method_directly(self):
+        """Test the _check_raw_yaml_for_cp_field method directly."""
+        import tempfile
+        from pathlib import Path
+        
+        yaml_content = """
+name: direct method test
+sites:
+  - name: Test Site
+    gridiv: 1
+    properties:
+      land_cover:
+        paved:
+          thermal_layers:
+            cp: {value: [1.2e6, 1.1e6]}
+        bldgs:
+          thermal_layers:
+            rho_cp: {value: [1.3e6, 1.2e6]}
+"""
+        
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.yml', delete=False) as f:
+            f.write(yaml_content)
+            test_file = Path(f.name)
+
+        try:
+            # Create config and test the method directly
+            config = SUEWSConfig.model_construct()
+            config._yaml_path = str(test_file)
+            
+            # Test cp detection for paved surface
+            has_cp_paved = config._check_raw_yaml_for_cp_field(
+                str(test_file), "sites/0/properties/land_cover/paved"
+            )
+            assert has_cp_paved is True
+            
+            # Test cp detection for bldgs surface (should not have cp)
+            has_cp_bldgs = config._check_raw_yaml_for_cp_field(
+                str(test_file), "sites/0/properties/land_cover/bldgs"
+            )
+            assert has_cp_bldgs is False
+            
+            # Test non-existent surface
+            has_cp_grass = config._check_raw_yaml_for_cp_field(
+                str(test_file), "sites/0/properties/land_cover/grass"
+            )
+            assert has_cp_grass is False
+            
+        finally:
+            test_file.unlink()

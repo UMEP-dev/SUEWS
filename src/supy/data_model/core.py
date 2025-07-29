@@ -828,16 +828,34 @@ class SUEWSConfig(BaseModel):
             thermal_layers.k
         ):
             missing_params.append("k (Thermal conductivity)")
-        if not hasattr(thermal_layers, "rho_cp") or not _is_valid_layer_array(
+
+        missing_rho_cp = not hasattr(thermal_layers, "rho_cp") or not _is_valid_layer_array(
             thermal_layers.rho_cp
-        ):
+        )
+        if missing_rho_cp:
             missing_params.append("rho_cp (Volumetric heat capacity)")
 
         if missing_params:
-            self._validation_summary["total_warnings"] += len(missing_params)
-            self._validation_summary["issue_types"].add(
-                "Missing thermal layer parameters"
-            )
+            # Check if this is a cp naming issue (cp instead of rho_cp)
+            yaml_path = getattr(self, "_yaml_path", None)
+            surface_path = f"sites/0/properties/land_cover/{surface_type}"
+            
+            if (
+                missing_rho_cp 
+                and yaml_path 
+                and self._check_raw_yaml_for_cp_field(yaml_path, surface_path)
+            ):
+                # This is a naming issue, not a missing parameter issue
+                self._validation_summary["total_warnings"] += 1
+                self._validation_summary["issue_types"].add(
+                    "Incorrect naming of thermal layer parameters"
+                )
+            else:
+                # Regular missing parameters
+                self._validation_summary["total_warnings"] += len(missing_params)
+                self._validation_summary["issue_types"].add(
+                    "Missing thermal layer parameters"
+                )
             return True
         return False
 
@@ -955,6 +973,16 @@ class SUEWSConfig(BaseModel):
             pass
             
         return False
+
+    def _check_thermal_layers_naming_issue(self, thermal_layers, surface_type: str, site_name: str) -> bool:
+        """Check for thermal layer naming issues (cp vs rho_cp). Returns True if issues found."""
+        self._validation_summary["total_warnings"] += 1
+        self._validation_summary["issue_types"].add(
+            "Incorrect naming of thermal layer parameters"
+        )
+        if site_name not in self._validation_summary["sites_with_issues"]:
+            self._validation_summary["sites_with_issues"].append(site_name)
+        return True
 
     def _check_land_cover_fractions(self, land_cover, site_name: str) -> bool:
         """Check that land cover fractions sum to 1.0. Returns True if issues found."""
@@ -1484,6 +1512,9 @@ class SUEWSConfig(BaseModel):
                                     fix="Change 'cp:' to 'rho_cp:' in your YAML file",
                                     level="WARNING",
                                 )
+                                # This is a naming issue, not a missing parameter issue
+                                if self._check_thermal_layers_naming_issue(surface.thermal_layers, surface_type, site_name):
+                                    has_issues = True
                             elif (
                                 not _is_valid_layer_array(getattr(thermal, "dz", None))
                                 or not _is_valid_layer_array(getattr(thermal, "k", None))
@@ -1498,6 +1529,14 @@ class SUEWSConfig(BaseModel):
                                     fix="Add dz (thickness), k (conductivity), and rho_cp (heat capacity) arrays",
                                     level="WARNING",
                                 )
+                                # Add to validation summary for missing parameters
+                                self._validation_summary["total_warnings"] += 1
+                                self._validation_summary["issue_types"].add(
+                                    "Missing thermal layer parameters"
+                                )
+                                if site_name not in self._validation_summary["sites_with_issues"]:
+                                    self._validation_summary["sites_with_issues"].append(site_name)
+                                has_issues = True
 
                         # LAI range check for vegetation surfaces
                         if (

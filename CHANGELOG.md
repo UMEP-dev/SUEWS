@@ -21,7 +21,7 @@
 
 | Year | Features | Bugfixes | Changes | Maintenance | Docs | Total |
 |------|----------|----------|---------|-------------|------|-------|
-| 2025 | 25 | 12 | 3 | 24 | 10 | 74 |
+| 2025 | 26 | 12 | 3 | 26 | 12 | 79 |
 | 2024 | 12 | 17 | 1 | 12 | 1 | 43 |
 | 2023 | 11 | 14 | 3 | 9 | 1 | 38 |
 | 2022 | 15 | 18 | 0 | 7 | 0 | 40 |
@@ -33,6 +33,29 @@
 
 
 ## 2025
+
+### 25 Jul 2025
+- [doc] Improved clarity of tstep_prev purpose for WRF-SUEWS coupling ([#551](https://github.com/UMEP-dev/SUEWS/issues/551), [#553](https://github.com/UMEP-dev/SUEWS/issues/553))
+  - Added explanatory comments at all tstep_prev usage sites
+  - Enhanced type definition documentation in SUEWS_TIMER
+  - Added module-level documentation explaining WRF coupling support
+  - Clarified that tstep_prev equals tstep in standalone SUEWS but allows adaptive timesteps in WRF
+- [feature] Separated RSL and MOST height array generation ([PR #541](https://github.com/UMEP-dev/SUEWS/pull/541))
+  - Fixed interpolation errors by completely separating RSL and MOST approaches
+  - Improved height array generation for different atmospheric stability methods
+- [maintenance] Updated PyPI/TestPyPI deployment strategy
+  - PR/Push builds no longer deploy to conserve TestPyPI quota
+  - Nightly builds create YYYY.M.D.dev tags after successful builds
+  - Dev tags deploy all wheels to TestPyPI only
+  - Production tags deploy all wheels to PyPI only
+  - Fixed race condition in tag creation with single job approach
+- [maintenance] Enhanced documentation for build process and introduced new agents
+  - Added reminders in CLAUDE.md for updating meson.build files when creating new source files
+  - Created `doc-code-sync-checker` agent to ensure documentation synchronisation with code changes
+  - Created `test-coverage-mece-analyser` agent to verify comprehensive test coverage following MECE principle
+- [doc] Updated issue label system to include developer queries
+  - Extended 1-question label from 'User question/support' to 'User question/support/dev query'
+  - Updated issue triage documentation and decision tree to reflect this change
 
 ### 23 Jul 2025
 - [maintenance] Added `/log-changes` slash command for automated documentation updates

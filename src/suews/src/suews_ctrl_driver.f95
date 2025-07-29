@@ -3,6 +3,13 @@
 ! TS 31 Aug 2017: initial version
 ! TS 02 Oct 2017: added  as the generic wrapper
 ! TS 03 Oct 2017: added
+!
+! WRF-SUEWS COUPLING NOTE:
+! This module supports both standalone SUEWS and WRF-SUEWS coupling.
+! Key differences for WRF coupling:
+! - tstep_prev: Allows adaptive timesteps (in standalone: always equals tstep)
+! - Additional atmospheric variables passed from WRF
+!========================================================================================
 MODULE SUEWS_Driver
    ! only the following immutable objects are imported:
    ! 1. functions/subroutines

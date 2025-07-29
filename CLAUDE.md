@@ -242,6 +242,10 @@ The project includes an interactive web-based configuration builder located at `
 ## Development Tasks and Reminders
 
 - **Remember to include new files in meson.build appropriately**
+- **IMPORTANT**: When creating new source files that are part of the build, always update the corresponding meson.build file:
+  - Python files (.py) in src/supy/
+  - Fortran files (.f90, .f95) in src/suews/src/
+  - Any other source files that need to be compiled or installed
 
 ## Configuration Handling and Method Design Pattern
 

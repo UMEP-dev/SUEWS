@@ -33,6 +33,24 @@ from .._env import logger_supy
 import os
 
 
+def get_value_safe(param_dict, param_key, default=None):
+    """Safely extract value from RefValue or plain format.
+
+    Args:
+        param_dict: Dictionary containing the parameter
+        param_key: Key to look up
+        default: Default value if key not found
+
+    Returns:
+        The parameter value, handling both RefValue {"value": X} and plain X formats
+    """
+    param = param_dict.get(param_key, default)
+    if isinstance(param, dict) and "value" in param:
+        return param["value"]  # RefValue format: {"value": 1}
+    else:
+        return param  # Plain format: 1
+
+
 class SeasonCheck(BaseModel):
     start_date: str  # Expected format: YYYY-MM-DD
     lat: float
@@ -470,7 +488,7 @@ def precheck_model_physics_params(data: dict) -> dict:
     if missing:
         raise ValueError(f"[model.physics] Missing required params: {missing}")
 
-    empty = [k for k in required if physics.get(k, {}).get("value") in ("", None)]
+    empty = [k for k in required if get_value_safe(physics, k) in ("", None)]
     if empty:
         raise ValueError(f"[model.physics] Empty or null values for: {empty}")
 
@@ -498,8 +516,8 @@ def precheck_model_options_constraints(data: dict) -> dict:
 
     physics = data.get("model", {}).get("physics", {})
 
-    diag = physics.get("rslmethod", {}).get("value")
-    stability = physics.get("stabilitymethod", {}).get("value")
+    diag = get_value_safe(physics, "rslmethod")
+    stability = get_value_safe(physics, "stabilitymethod")
 
     if diag == 2 and stability != 3:
         raise ValueError(
@@ -589,7 +607,7 @@ def precheck_site_season_adjustments(
         # --------------------
         lat_entry = props.get("lat", {})
         lat = lat_entry.get("value") if isinstance(lat_entry, dict) else lat_entry
-        lng = props.get("lng", {}).get("value")
+        lng = get_value_safe(props, "lng")
         season = None
 
         try:
@@ -612,12 +630,12 @@ def precheck_site_season_adjustments(
         # 2. Seasonal adjustment for DecTrees LAI
         # --------------------------------------
         dectr = props.get("land_cover", {}).get("dectr", {})
-        sfr = dectr.get("sfr", {}).get("value", 0)
+        sfr = get_value_safe(dectr, "sfr", 0)
 
         if sfr > 0:
             lai = dectr.get("lai", {})
-            laimin = lai.get("laimin", {}).get("value")
-            laimax = lai.get("laimax", {}).get("value")
+            laimin = get_value_safe(lai, "laimin")
+            laimax = get_value_safe(lai, "laimax")
             lai_val = None
 
             if laimin is not None and laimax is not None:
@@ -747,6 +765,83 @@ def precheck_update_surface_temperature(data: dict, start_date: str) -> dict:
     return data
 
 
+def precheck_thermal_layer_cp_renaming(data: dict) -> dict:
+    """
+    Rename legacy 'cp' field to 'rho_cp' in thermal_layers for all surface types.
+
+    This function scans both land_cover surface types and vertical_layers for
+    thermal_layers that contain the legacy 'cp' field and automatically renames
+    it to 'rho_cp', which is the correct field name for volumetric heat capacity.
+
+    For each site:
+    - Loops through all surface types under 'land_cover'.
+    - Loops through all vertical layer items under 'vertical_layers'.
+    - If thermal_layers contain a 'cp' field:
+        - Renames 'cp' to 'rho_cp'
+        - Logs an informative message about the change
+        - Preserves all other thermal_layers data unchanged
+
+    Args:
+        data (dict): YAML configuration data loaded as a dictionary.
+
+    Returns:
+        dict: Updated YAML dictionary with cp fields renamed to rho_cp.
+    """
+
+    total_renames = 0
+
+    for site_idx, site in enumerate(data.get("sites", [])):
+        properties = site.get("properties", {})
+
+        # Process land_cover thermal_layers
+        land_cover = properties.get("land_cover", {})
+        for surf_type, props in land_cover.items():
+            if not isinstance(props, dict):
+                continue
+
+            thermal_layers = props.get("thermal_layers")
+            if isinstance(thermal_layers, dict) and "cp" in thermal_layers:
+                # Rename cp to rho_cp
+                thermal_layers["rho_cp"] = thermal_layers.pop("cp")
+                total_renames += 1
+
+                logger_supy.info(
+                    f"[site #{site_idx}] Renamed '{surf_type}.thermal_layers.cp' → "
+                    f"'{surf_type}.thermal_layers.rho_cp' (legacy field name updated)"
+                )
+
+        # Process vertical_layers thermal_layers
+        vertical_layers = properties.get("vertical_layers", {})
+        if isinstance(vertical_layers, dict):
+            # Process roofs, walls, and other array structures within vertical_layers
+            for structure_name in ["roofs", "walls"]:  # Add more as needed
+                structure_array = vertical_layers.get(structure_name, [])
+                if isinstance(structure_array, list):
+                    for item_idx, item in enumerate(structure_array):
+                        if not isinstance(item, dict):
+                            continue
+
+                        thermal_layers = item.get("thermal_layers")
+                        if isinstance(thermal_layers, dict) and "cp" in thermal_layers:
+                            # Rename cp to rho_cp
+                            thermal_layers["rho_cp"] = thermal_layers.pop("cp")
+                            total_renames += 1
+
+                            logger_supy.info(
+                                f"[site #{site_idx}] Renamed 'vertical_layers.{structure_name}[{item_idx}].thermal_layers.cp' → "
+                                f"'vertical_layers.{structure_name}[{item_idx}].thermal_layers.rho_cp' (legacy field name updated)"
+                            )
+
+    if total_renames > 0:
+        logger_supy.info(
+            f"[precheck] Automatically renamed {total_renames} legacy 'cp' field(s) to 'rho_cp' "
+            f"in thermal_layers. The 'cp' field name is deprecated - use 'rho_cp' for "
+            f"volumetric heat capacity (J/m³/K) in future configurations."
+        )
+
+    return data
+
+
 def precheck_land_cover_fractions(data: dict) -> dict:
     """
     Validate and adjust land cover surface fractions (`sfr`) for each site.
@@ -778,9 +873,9 @@ def precheck_land_cover_fractions(data: dict) -> dict:
 
         # Calculate sum of all non-null surface fractions
         sfr_sum = sum(
-            v.get("sfr", {}).get("value", 0)
+            get_value_safe(v, "sfr", 0)
             for v in land_cover.values()
-            if isinstance(v, dict) and v.get("sfr", {}).get("value") is not None
+            if isinstance(v, dict) and get_value_safe(v, "sfr") is not None
         )
 
         logger_supy.debug(f"[site #{i}] Total land_cover sfr sum: {sfr_sum:.6f}")
@@ -791,12 +886,16 @@ def precheck_land_cover_fractions(data: dict) -> dict:
                 (
                     k
                     for k, v in land_cover.items()
-                    if v.get("sfr", {}).get("value") is not None
+                    if get_value_safe(v, "sfr") is not None
                 ),
-                key=lambda k: land_cover[k]["sfr"]["value"],
+                key=lambda k: get_value_safe(land_cover[k], "sfr"),
             )
             correction = 1.0 - sfr_sum
-            land_cover[max_key]["sfr"]["value"] += correction
+            # Handle both RefValue and plain formats for writing
+            if isinstance(land_cover[max_key].get("sfr"), dict):
+                land_cover[max_key]["sfr"]["value"] += correction  # RefValue format
+            else:
+                land_cover[max_key]["sfr"] += correction  # Plain format
             logger_supy.info(
                 f"[site #{i}] Adjusted {max_key}.sfr up by {correction:.6f} to reach 1.0"
             )
@@ -806,12 +905,16 @@ def precheck_land_cover_fractions(data: dict) -> dict:
                 (
                     k
                     for k, v in land_cover.items()
-                    if v.get("sfr", {}).get("value") is not None
+                    if get_value_safe(v, "sfr") is not None
                 ),
-                key=lambda k: land_cover[k]["sfr"]["value"],
+                key=lambda k: get_value_safe(land_cover[k], "sfr"),
             )
             correction = sfr_sum - 1.0
-            land_cover[max_key]["sfr"]["value"] -= correction
+            # Handle both RefValue and plain formats for writing
+            if isinstance(land_cover[max_key].get("sfr"), dict):
+                land_cover[max_key]["sfr"]["value"] -= correction  # RefValue format
+            else:
+                land_cover[max_key]["sfr"] -= correction  # Plain format
             logger_supy.info(
                 f"[site #{i}] Adjusted {max_key}.sfr down by {correction:.6f} to reach 1.0"
             )
@@ -845,7 +948,7 @@ def precheck_nullify_zero_sfr_params(data: dict) -> dict:
     for site_idx, site in enumerate(data.get("sites", [])):
         land_cover = site.get("properties", {}).get("land_cover", {})
         for surf_type, props in land_cover.items():
-            sfr = props.get("sfr", {}).get("value", 0)
+            sfr = get_value_safe(props, "sfr", 0)
             if sfr == 0:
                 logger_supy.info(
                     f"[site #{site_idx}] Nullifying params for surface '{surf_type}' with sfr == 0"
@@ -896,7 +999,7 @@ def precheck_warn_zero_sfr_params(data: dict) -> dict:
     for site_idx, site in enumerate(data.get("sites", [])):
         land_cover = site.get("properties", {}).get("land_cover", {})
         for surf_type, props in land_cover.items():
-            sfr = props.get("sfr", {}).get("value", 0)
+            sfr = get_value_safe(props, "sfr", 0)
             if sfr == 0:
                 param_list = []
 
@@ -969,7 +1072,7 @@ def precheck_nonzero_sfr_requires_nonnull_params(data: dict) -> dict:
     for site_idx, site in enumerate(data.get("sites", [])):
         land_cover = site.get("properties", {}).get("land_cover", {})
         for surf_type, props in land_cover.items():
-            sfr = props.get("sfr", {}).get("value", 0)
+            sfr = get_value_safe(props, "sfr", 0)
             if sfr > 0:
                 for param_key, param_val in props.items():
                     if param_key == "sfr":
@@ -995,7 +1098,7 @@ def precheck_nonzero_sfr_requires_nonnull_params(data: dict) -> dict:
 
 #     - **If `storageheatmethod == 6` (DyOHM method):**
 #         - Verifies that `vertical_layers.walls` exists and contains at least one wall.
-#         - Checks that the first wall has non-empty lists for `dz`, `k`, and `cp` in `thermal_layers`.
+#         - Checks that the first wall has non-empty lists for `dz`, `k`, and `rho_cp` in `thermal_layers`.
 #         - Verifies that `lambda_c` is set and non-null.
 
 #     - **If `stebbsmethod == 0`:**
@@ -1014,7 +1117,7 @@ def precheck_nonzero_sfr_requires_nonnull_params(data: dict) -> dict:
 #     physics = data.get("model", {}).get("physics", {})
 #     rslmethod = physics.get("rslmethod", {}).get("value")
 #     storagemethod = physics.get("storageheatmethod", {}).get("value")
-#     stebbsmethod = physics.get("stebbsmethod", {}).get("value")
+#     stebbsmethod = get_value_safe(physics, "stebbsmethod")
 
 #     # --- RSLMETHOD RULES (diagnostic method logic) ---
 #     if rslmethod == 2:
@@ -1047,7 +1150,7 @@ def precheck_nonzero_sfr_requires_nonnull_params(data: dict) -> dict:
 #             wall0 = walls[0]
 #             thermal = wall0.get("thermal_layers", {})
 
-#             for param in ["dz", "k", "cp"]:
+#             for param in ["dz", "k", "rho_cp"]:
 #                 param_list = thermal.get(param, {}).get("value")
 #                 if not isinstance(param_list, list) or len(param_list) == 0:
 #                     raise ValueError(f"[site #{site_idx}] Missing wall thermal_layers.{param} for storageheatmethod == 6.")
@@ -1094,7 +1197,7 @@ def precheck_model_option_rules(data: dict) -> dict:
     physics = data.get("model", {}).get("physics", {})
 
     # --- STEBBSMETHOD RULE: when stebbsmethod == 0, wipe out all stebbs params ---
-    stebbsmethod = physics.get("stebbsmethod", {}).get("value")
+    stebbsmethod = get_value_safe(physics, "stebbsmethod")
     if stebbsmethod == 0:
         logger_supy.info(
             "[precheck] stebbsmethod==0 detected → nullifying all 'stebbs' values."
@@ -1132,15 +1235,16 @@ def run_precheck(path: str) -> dict:
     3. Validating and completing `model.physics` parameters.
     4. Enforcing constraints between model physics options.
     5. Replacing empty strings with `None` (except in `model.control` and `model.physics`).
-    6. Applying site-specific seasonal and location-based adjustments (e.g., LAI, snowalb, DLS).
-    7. Setting initial surface temperatures based on latitude and month.
-    8. Logging warnings for parameters of surfaces with `sfr == 0` that were not prechecked.
-    9. Validating that parameters for surfaces with `sfr > 0` are not empty or null.
-    10. Checking and auto-fixing small floating point errors in land cover surface fractions.
-    11. Nullify model-option-dependent parameters if specific models are switched off
-    12. Saving the updated YAML to a new file (prefixed with `py0_`).
-    13. Writing a CSV diff report listing all changes made.
-    14. Logging completion.
+    6. Renaming legacy 'cp' field to 'rho_cp' in thermal_layers for all surface types.
+    7. Applying site-specific seasonal and location-based adjustments (e.g., LAI, snowalb, DLS).
+    8. Setting initial surface temperatures based on latitude and month.
+    9. Logging warnings for parameters of surfaces with `sfr == 0` that were not prechecked.
+    10. Validating that parameters for surfaces with `sfr > 0` are not empty or null.
+    11. Checking and auto-fixing small floating point errors in land cover surface fractions.
+    12. Nullify model-option-dependent parameters if specific models are switched off
+    13. Saving the updated YAML to a new file (prefixed with `py0_`).
+    14. Writing a CSV diff report listing all changes made.
+    15. Logging completion.
 
     Args:
         path (str): Full path to the input YAML configuration file.
@@ -1173,30 +1277,33 @@ def run_precheck(path: str) -> dict:
     # ---- Step 5: Clean empty strings (except model.control and model.physics) ----
     data = precheck_replace_empty_strings_with_none(data)
 
-    # ---- Step 6: Season + LAI + DLS adjustments per site ----
+    # ---- Step 6: Rename legacy 'cp' to 'rho_cp' in thermal_layers ----
+    data = precheck_thermal_layer_cp_renaming(data)
+
+    # ---- Step 7: Season + LAI + DLS adjustments per site ----
     data = precheck_site_season_adjustments(
         data, start_date=start_date, model_year=model_year
     )
 
-    # ---- Step 7: Update surface temperatures from lat/month ----
+    # ---- Step 8: Update surface temperatures from lat/month ----
     data = precheck_update_surface_temperature(data, start_date=start_date)
 
-    # ---- Step 8: Nullify params for surfaces with sfr == 0 ----
+    # ---- Step 9: Nullify params for surfaces with sfr == 0 ----
     # data = precheck_nullify_zero_sfr_params(data)
 
-    # ---- Step 8: Print warnings for params related to surfaces with sfr == 0 ----
+    # ---- Step 9: Print warnings for params related to surfaces with sfr == 0 ----
     data = precheck_warn_zero_sfr_params(data)
 
-    # ---- Step 9: Check existence of params for surfaces with sfr > 0 ----
+    # ---- Step 10: Check existence of params for surfaces with sfr > 0 ----
     data = precheck_nonzero_sfr_requires_nonnull_params(data)
 
-    # ---- Step 10: Land Cover Fractions checks & adjustments ----
+    # ---- Step 11: Land Cover Fractions checks & adjustments ----
     data = precheck_land_cover_fractions(data)
 
-    # ---- Step 11: Rules associated to selected model options ----
+    # ---- Step 12: Rules associated to selected model options ----
     data = precheck_model_option_rules(data)
 
-    # ---- Step 12: Save output YAML ----
+    # ---- Step 13: Save output YAML ----
     output_filename = f"py0_{os.path.basename(path)}"
     output_path = os.path.join(os.path.dirname(path), output_filename)
 
@@ -1205,10 +1312,10 @@ def run_precheck(path: str) -> dict:
 
     logger_supy.info(f"Saved updated YAML file to: {output_path}")
 
-    # ---- Step 13: Generate precheck diff report CSV ----
+    # ---- Step 14: Generate precheck diff report CSV ----
     diffs = collect_yaml_differences(original_data, data)
     save_precheck_diff_report(diffs, path)
 
-    # ---- Step 14: Print completion ----
+    # ---- Step 15: Print completion ----
     logger_supy.info("Precheck complete.\n")
     return data

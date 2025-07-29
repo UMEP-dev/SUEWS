@@ -829,9 +829,9 @@ class SUEWSConfig(BaseModel):
         ):
             missing_params.append("k (Thermal conductivity)")
 
-        missing_rho_cp = not hasattr(thermal_layers, "rho_cp") or not _is_valid_layer_array(
-            thermal_layers.rho_cp
-        )
+        missing_rho_cp = not hasattr(
+            thermal_layers, "rho_cp"
+        ) or not _is_valid_layer_array(thermal_layers.rho_cp)
         if missing_rho_cp:
             missing_params.append("rho_cp (Volumetric heat capacity)")
 
@@ -839,10 +839,10 @@ class SUEWSConfig(BaseModel):
             # Check if this is a cp naming issue (cp instead of rho_cp)
             yaml_path = getattr(self, "_yaml_path", None)
             surface_path = f"sites/0/properties/land_cover/{surface_type}"
-            
+
             if (
-                missing_rho_cp 
-                and yaml_path 
+                missing_rho_cp
+                and yaml_path
                 and self._check_raw_yaml_for_cp_field(yaml_path, surface_path)
             ):
                 # This is a naming issue, not a missing parameter issue
@@ -975,7 +975,9 @@ class SUEWSConfig(BaseModel):
 
         return False
 
-    def _check_thermal_layers_naming_issue(self, thermal_layers, surface_type: str, site_name: str) -> bool:
+    def _check_thermal_layers_naming_issue(
+        self, thermal_layers, surface_type: str, site_name: str
+    ) -> bool:
         """Check for thermal layer naming issues (cp vs rho_cp). Returns True if issues found."""
         self._validation_summary["total_warnings"] += 1
         self._validation_summary["issue_types"].add(
@@ -1516,7 +1518,9 @@ class SUEWSConfig(BaseModel):
                                     level="WARNING",
                                 )
                                 # This is a naming issue, not a missing parameter issue
-                                if self._check_thermal_layers_naming_issue(surface.thermal_layers, surface_type, site_name):
+                                if self._check_thermal_layers_naming_issue(
+                                    surface.thermal_layers, surface_type, site_name
+                                ):
                                     has_issues = True
                             elif (
                                 not _is_valid_layer_array(getattr(thermal, "dz", None))
@@ -1539,8 +1543,13 @@ class SUEWSConfig(BaseModel):
                                 self._validation_summary["issue_types"].add(
                                     "Missing thermal layer parameters"
                                 )
-                                if site_name not in self._validation_summary["sites_with_issues"]:
-                                    self._validation_summary["sites_with_issues"].append(site_name)
+                                if (
+                                    site_name
+                                    not in self._validation_summary["sites_with_issues"]
+                                ):
+                                    self._validation_summary[
+                                        "sites_with_issues"
+                                    ].append(site_name)
                                 has_issues = True
 
                         # LAI range check for vegetation surfaces

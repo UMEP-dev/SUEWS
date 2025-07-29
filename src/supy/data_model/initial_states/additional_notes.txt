@@ -1,0 +1,12 @@
+Additional notes regarding parameters (rules, exceptions, important informations, etc.)
+=======================================================================================
+
+qn_av set to -100 W/m2 is an ok value  (hourly average at night)
+dqndt set to 0 not change again reasonable at midnight
+lenday_id can be set to 0
+dt_since_start is for starting from an end_state
+tstep_prev  this need to the same as Tstep
+indoor stebbs temperature parameters should follow set point temperatures 
+outdoor stebbs temperature parameters should follow monthly average mean
+tmin_id and tmax_id seem to not be used in the model, so probably can be deleted from YAML
+wuday_id seems to not be used in the model, so probably can be deleted from YAML

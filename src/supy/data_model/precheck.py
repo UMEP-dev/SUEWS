@@ -787,9 +787,9 @@ def precheck_thermal_layer_cp_renaming(data: dict) -> dict:
     Returns:
         dict: Updated YAML dictionary with cp fields renamed to rho_cp.
     """
-    
+
     total_renames = 0
-    
+
     for site_idx, site in enumerate(data.get("sites", [])):
         properties = site.get("properties", {})
         
@@ -798,13 +798,13 @@ def precheck_thermal_layer_cp_renaming(data: dict) -> dict:
         for surf_type, props in land_cover.items():
             if not isinstance(props, dict):
                 continue
-                
+
             thermal_layers = props.get("thermal_layers")
             if isinstance(thermal_layers, dict) and "cp" in thermal_layers:
                 # Rename cp to rho_cp
                 thermal_layers["rho_cp"] = thermal_layers.pop("cp")
                 total_renames += 1
-                
+
                 logger_supy.info(
                     f"[site #{site_idx}] Renamed '{surf_type}.thermal_layers.cp' → "
                     f"'{surf_type}.thermal_layers.rho_cp' (legacy field name updated)"
@@ -838,7 +838,7 @@ def precheck_thermal_layer_cp_renaming(data: dict) -> dict:
             f"in thermal_layers. The 'cp' field name is deprecated - use 'rho_cp' for "
             f"volumetric heat capacity (J/m³/K) in future configurations."
         )
-    
+
     return data
 
 

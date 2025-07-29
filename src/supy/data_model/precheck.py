@@ -33,6 +33,24 @@ from .._env import logger_supy
 import os
 
 
+def get_value_safe(param_dict, param_key, default=None):
+    """Safely extract value from RefValue or plain format.
+    
+    Args:
+        param_dict: Dictionary containing the parameter
+        param_key: Key to look up
+        default: Default value if key not found
+        
+    Returns:
+        The parameter value, handling both RefValue {"value": X} and plain X formats
+    """
+    param = param_dict.get(param_key, default)
+    if isinstance(param, dict) and "value" in param:
+        return param["value"]  # RefValue format: {"value": 1}
+    else:
+        return param  # Plain format: 1
+
+
 class SeasonCheck(BaseModel):
     start_date: str  # Expected format: YYYY-MM-DD
     lat: float
@@ -470,7 +488,7 @@ def precheck_model_physics_params(data: dict) -> dict:
     if missing:
         raise ValueError(f"[model.physics] Missing required params: {missing}")
 
-    empty = [k for k in required if physics.get(k, {}).get("value") in ("", None)]
+    empty = [k for k in required if get_value_safe(physics, k) in ("", None)]
     if empty:
         raise ValueError(f"[model.physics] Empty or null values for: {empty}")
 
@@ -498,8 +516,8 @@ def precheck_model_options_constraints(data: dict) -> dict:
 
     physics = data.get("model", {}).get("physics", {})
 
-    diag = physics.get("rslmethod", {}).get("value")
-    stability = physics.get("stabilitymethod", {}).get("value")
+    diag = get_value_safe(physics, "rslmethod")
+    stability = get_value_safe(physics, "stabilitymethod")
 
     if diag == 2 and stability != 3:
         raise ValueError(
@@ -589,7 +607,7 @@ def precheck_site_season_adjustments(
         # --------------------
         lat_entry = props.get("lat", {})
         lat = lat_entry.get("value") if isinstance(lat_entry, dict) else lat_entry
-        lng = props.get("lng", {}).get("value")
+        lng = get_value_safe(props, "lng")
         season = None
 
         try:
@@ -612,12 +630,12 @@ def precheck_site_season_adjustments(
         # 2. Seasonal adjustment for DecTrees LAI
         # --------------------------------------
         dectr = props.get("land_cover", {}).get("dectr", {})
-        sfr = dectr.get("sfr", {}).get("value", 0)
+        sfr = get_value_safe(dectr, "sfr", 0)
 
         if sfr > 0:
             lai = dectr.get("lai", {})
-            laimin = lai.get("laimin", {}).get("value")
-            laimax = lai.get("laimax", {}).get("value")
+            laimin = get_value_safe(lai, "laimin")
+            laimax = get_value_safe(lai, "laimax")
             lai_val = None
 
             if laimin is not None and laimax is not None:
@@ -778,9 +796,9 @@ def precheck_land_cover_fractions(data: dict) -> dict:
 
         # Calculate sum of all non-null surface fractions
         sfr_sum = sum(
-            v.get("sfr", {}).get("value", 0)
+            get_value_safe(v, "sfr", 0)
             for v in land_cover.values()
-            if isinstance(v, dict) and v.get("sfr", {}).get("value") is not None
+            if isinstance(v, dict) and get_value_safe(v, "sfr") is not None
         )
 
         logger_supy.debug(f"[site #{i}] Total land_cover sfr sum: {sfr_sum:.6f}")
@@ -791,12 +809,16 @@ def precheck_land_cover_fractions(data: dict) -> dict:
                 (
                     k
                     for k, v in land_cover.items()
-                    if v.get("sfr", {}).get("value") is not None
+                    if get_value_safe(v, "sfr") is not None
                 ),
-                key=lambda k: land_cover[k]["sfr"]["value"],
+                key=lambda k: get_value_safe(land_cover[k], "sfr"),
             )
             correction = 1.0 - sfr_sum
-            land_cover[max_key]["sfr"]["value"] += correction
+            # Handle both RefValue and plain formats for writing
+            if isinstance(land_cover[max_key].get("sfr"), dict):
+                land_cover[max_key]["sfr"]["value"] += correction  # RefValue format
+            else:
+                land_cover[max_key]["sfr"] += correction  # Plain format
             logger_supy.info(
                 f"[site #{i}] Adjusted {max_key}.sfr up by {correction:.6f} to reach 1.0"
             )
@@ -806,12 +828,16 @@ def precheck_land_cover_fractions(data: dict) -> dict:
                 (
                     k
                     for k, v in land_cover.items()
-                    if v.get("sfr", {}).get("value") is not None
+                    if get_value_safe(v, "sfr") is not None
                 ),
-                key=lambda k: land_cover[k]["sfr"]["value"],
+                key=lambda k: get_value_safe(land_cover[k], "sfr"),
             )
             correction = sfr_sum - 1.0
-            land_cover[max_key]["sfr"]["value"] -= correction
+            # Handle both RefValue and plain formats for writing  
+            if isinstance(land_cover[max_key].get("sfr"), dict):
+                land_cover[max_key]["sfr"]["value"] -= correction  # RefValue format
+            else:
+                land_cover[max_key]["sfr"] -= correction  # Plain format
             logger_supy.info(
                 f"[site #{i}] Adjusted {max_key}.sfr down by {correction:.6f} to reach 1.0"
             )
@@ -845,7 +871,7 @@ def precheck_nullify_zero_sfr_params(data: dict) -> dict:
     for site_idx, site in enumerate(data.get("sites", [])):
         land_cover = site.get("properties", {}).get("land_cover", {})
         for surf_type, props in land_cover.items():
-            sfr = props.get("sfr", {}).get("value", 0)
+            sfr = get_value_safe(props, "sfr", 0)
             if sfr == 0:
                 logger_supy.info(
                     f"[site #{site_idx}] Nullifying params for surface '{surf_type}' with sfr == 0"
@@ -896,7 +922,7 @@ def precheck_warn_zero_sfr_params(data: dict) -> dict:
     for site_idx, site in enumerate(data.get("sites", [])):
         land_cover = site.get("properties", {}).get("land_cover", {})
         for surf_type, props in land_cover.items():
-            sfr = props.get("sfr", {}).get("value", 0)
+            sfr = get_value_safe(props, "sfr", 0)
             if sfr == 0:
                 param_list = []
 
@@ -969,7 +995,7 @@ def precheck_nonzero_sfr_requires_nonnull_params(data: dict) -> dict:
     for site_idx, site in enumerate(data.get("sites", [])):
         land_cover = site.get("properties", {}).get("land_cover", {})
         for surf_type, props in land_cover.items():
-            sfr = props.get("sfr", {}).get("value", 0)
+            sfr = get_value_safe(props, "sfr", 0)
             if sfr > 0:
                 for param_key, param_val in props.items():
                     if param_key == "sfr":
@@ -1014,7 +1040,7 @@ def precheck_nonzero_sfr_requires_nonnull_params(data: dict) -> dict:
 #     physics = data.get("model", {}).get("physics", {})
 #     rslmethod = physics.get("rslmethod", {}).get("value")
 #     storagemethod = physics.get("storageheatmethod", {}).get("value")
-#     stebbsmethod = physics.get("stebbsmethod", {}).get("value")
+#     stebbsmethod = get_value_safe(physics, "stebbsmethod")
 
 #     # --- RSLMETHOD RULES (diagnostic method logic) ---
 #     if rslmethod == 2:
@@ -1094,7 +1120,7 @@ def precheck_model_option_rules(data: dict) -> dict:
     physics = data.get("model", {}).get("physics", {})
 
     # --- STEBBSMETHOD RULE: when stebbsmethod == 0, wipe out all stebbs params ---
-    stebbsmethod = physics.get("stebbsmethod", {}).get("value")
+    stebbsmethod = get_value_safe(physics, "stebbsmethod")
     if stebbsmethod == 0:
         logger_supy.info(
             "[precheck] stebbsmethod==0 detected → nullifying all 'stebbs' values."

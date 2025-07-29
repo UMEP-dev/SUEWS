@@ -765,6 +765,62 @@ def precheck_update_surface_temperature(data: dict, start_date: str) -> dict:
     return data
 
 
+def precheck_thermal_layer_cp_renaming(data: dict) -> dict:
+    """
+    Rename legacy 'cp' field to 'rho_cp' in thermal_layers for all surface types.
+
+    This function scans all land cover surface types for thermal_layers that contain
+    the legacy 'cp' field and automatically renames it to 'rho_cp', which is the
+    correct field name for volumetric heat capacity.
+
+    For each site:
+    - Loops through all surface types under 'land_cover'.
+    - If a surface has thermal_layers with a 'cp' field:
+        - Renames 'cp' to 'rho_cp'
+        - Logs an informative message about the change
+        - Preserves all other thermal_layers data unchanged
+
+    Args:
+        data (dict): YAML configuration data loaded as a dictionary.
+
+    Returns:
+        dict: Updated YAML dictionary with cp fields renamed to rho_cp.
+    """
+    
+    total_renames = 0
+    
+    for site_idx, site in enumerate(data.get("sites", [])):
+        land_cover = site.get("properties", {}).get("land_cover", {})
+        
+        for surf_type, props in land_cover.items():
+            if not isinstance(props, dict):
+                continue
+                
+            thermal_layers = props.get("thermal_layers")
+            if not isinstance(thermal_layers, dict):
+                continue
+                
+            # Check if legacy 'cp' field exists
+            if "cp" in thermal_layers:
+                # Rename cp to rho_cp
+                thermal_layers["rho_cp"] = thermal_layers.pop("cp")
+                total_renames += 1
+                
+                logger_supy.info(
+                    f"[site #{site_idx}] Renamed '{surf_type}.thermal_layers.cp' → "
+                    f"'{surf_type}.thermal_layers.rho_cp' (legacy field name updated)"
+                )
+    
+    if total_renames > 0:
+        logger_supy.info(
+            f"[precheck] Automatically renamed {total_renames} legacy 'cp' field(s) to 'rho_cp' "
+            f"in thermal_layers. The 'cp' field name is deprecated - use 'rho_cp' for "
+            f"volumetric heat capacity (J/m³/K) in future configurations."
+        )
+    
+    return data
+
+
 def precheck_land_cover_fractions(data: dict) -> dict:
     """
     Validate and adjust land cover surface fractions (`sfr`) for each site.
@@ -1021,7 +1077,7 @@ def precheck_nonzero_sfr_requires_nonnull_params(data: dict) -> dict:
 
 #     - **If `storageheatmethod == 6` (DyOHM method):**
 #         - Verifies that `vertical_layers.walls` exists and contains at least one wall.
-#         - Checks that the first wall has non-empty lists for `dz`, `k`, and `cp` in `thermal_layers`.
+#         - Checks that the first wall has non-empty lists for `dz`, `k`, and `rho_cp` in `thermal_layers`.
 #         - Verifies that `lambda_c` is set and non-null.
 
 #     - **If `stebbsmethod == 0`:**
@@ -1073,7 +1129,7 @@ def precheck_nonzero_sfr_requires_nonnull_params(data: dict) -> dict:
 #             wall0 = walls[0]
 #             thermal = wall0.get("thermal_layers", {})
 
-#             for param in ["dz", "k", "cp"]:
+#             for param in ["dz", "k", "rho_cp"]:
 #                 param_list = thermal.get(param, {}).get("value")
 #                 if not isinstance(param_list, list) or len(param_list) == 0:
 #                     raise ValueError(f"[site #{site_idx}] Missing wall thermal_layers.{param} for storageheatmethod == 6.")
@@ -1158,15 +1214,16 @@ def run_precheck(path: str) -> dict:
     3. Validating and completing `model.physics` parameters.
     4. Enforcing constraints between model physics options.
     5. Replacing empty strings with `None` (except in `model.control` and `model.physics`).
-    6. Applying site-specific seasonal and location-based adjustments (e.g., LAI, snowalb, DLS).
-    7. Setting initial surface temperatures based on latitude and month.
-    8. Logging warnings for parameters of surfaces with `sfr == 0` that were not prechecked.
-    9. Validating that parameters for surfaces with `sfr > 0` are not empty or null.
-    10. Checking and auto-fixing small floating point errors in land cover surface fractions.
-    11. Nullify model-option-dependent parameters if specific models are switched off
-    12. Saving the updated YAML to a new file (prefixed with `py0_`).
-    13. Writing a CSV diff report listing all changes made.
-    14. Logging completion.
+    6. Renaming legacy 'cp' field to 'rho_cp' in thermal_layers for all surface types.
+    7. Applying site-specific seasonal and location-based adjustments (e.g., LAI, snowalb, DLS).
+    8. Setting initial surface temperatures based on latitude and month.
+    9. Logging warnings for parameters of surfaces with `sfr == 0` that were not prechecked.
+    10. Validating that parameters for surfaces with `sfr > 0` are not empty or null.
+    11. Checking and auto-fixing small floating point errors in land cover surface fractions.
+    12. Nullify model-option-dependent parameters if specific models are switched off
+    13. Saving the updated YAML to a new file (prefixed with `py0_`).
+    14. Writing a CSV diff report listing all changes made.
+    15. Logging completion.
 
     Args:
         path (str): Full path to the input YAML configuration file.
@@ -1199,30 +1256,33 @@ def run_precheck(path: str) -> dict:
     # ---- Step 5: Clean empty strings (except model.control and model.physics) ----
     data = precheck_replace_empty_strings_with_none(data)
 
-    # ---- Step 6: Season + LAI + DLS adjustments per site ----
+    # ---- Step 6: Rename legacy 'cp' to 'rho_cp' in thermal_layers ----
+    data = precheck_thermal_layer_cp_renaming(data)
+
+    # ---- Step 7: Season + LAI + DLS adjustments per site ----
     data = precheck_site_season_adjustments(
         data, start_date=start_date, model_year=model_year
     )
 
-    # ---- Step 7: Update surface temperatures from lat/month ----
+    # ---- Step 8: Update surface temperatures from lat/month ----
     data = precheck_update_surface_temperature(data, start_date=start_date)
 
-    # ---- Step 8: Nullify params for surfaces with sfr == 0 ----
+    # ---- Step 9: Nullify params for surfaces with sfr == 0 ----
     # data = precheck_nullify_zero_sfr_params(data)
 
-    # ---- Step 8: Print warnings for params related to surfaces with sfr == 0 ----
+    # ---- Step 9: Print warnings for params related to surfaces with sfr == 0 ----
     data = precheck_warn_zero_sfr_params(data)
 
-    # ---- Step 9: Check existence of params for surfaces with sfr > 0 ----
+    # ---- Step 10: Check existence of params for surfaces with sfr > 0 ----
     data = precheck_nonzero_sfr_requires_nonnull_params(data)
 
-    # ---- Step 10: Land Cover Fractions checks & adjustments ----
+    # ---- Step 11: Land Cover Fractions checks & adjustments ----
     data = precheck_land_cover_fractions(data)
 
-    # ---- Step 11: Rules associated to selected model options ----
+    # ---- Step 12: Rules associated to selected model options ----
     data = precheck_model_option_rules(data)
 
-    # ---- Step 12: Save output YAML ----
+    # ---- Step 13: Save output YAML ----
     output_filename = f"py0_{os.path.basename(path)}"
     output_path = os.path.join(os.path.dirname(path), output_filename)
 
@@ -1231,10 +1291,10 @@ def run_precheck(path: str) -> dict:
 
     logger_supy.info(f"Saved updated YAML file to: {output_path}")
 
-    # ---- Step 13: Generate precheck diff report CSV ----
+    # ---- Step 14: Generate precheck diff report CSV ----
     diffs = collect_yaml_differences(original_data, data)
     save_precheck_diff_report(diffs, path)
 
-    # ---- Step 14: Print completion ----
+    # ---- Step 15: Print completion ----
     logger_supy.info("Precheck complete.\n")
     return data

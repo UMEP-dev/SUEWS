@@ -1511,18 +1511,24 @@ class SUEWSConfig(BaseModel):
                                     )
 
                         # Check vegetation parameters for biogenic CO2 calculations
-                        if surface_type in ["grass", "dectr", "evetr"] and sfr_value > 0:
+                        if (
+                            surface_type in ["grass", "dectr", "evetr"]
+                            and sfr_value > 0
+                        ):
                             from .validation_utils import check_missing_params
 
                             vegetation_params = {
                                 "beta_bioco2": "Biogenic CO2 exchange coefficient",
-                                "alpha_bioco2": "Biogenic CO2 exchange coefficient", 
+                                "alpha_bioco2": "Biogenic CO2 exchange coefficient",
                                 "resp_a": "Respiration coefficient",
                                 "resp_b": "Respiration coefficient",
                             }
 
                             missing_params = check_missing_params(
-                                vegetation_params, surface, "vegetation", "CO2 flux calculations"
+                                vegetation_params,
+                                surface,
+                                "vegetation",
+                                "CO2 flux calculations",
                             )
 
                             for param, desc in vegetation_params.items():

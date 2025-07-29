@@ -18,6 +18,8 @@ from supy.data_model.precheck import (
     precheck_update_temperature,
     get_mean_monthly_air_temperature,
     precheck_warn_zero_sfr_params,
+    precheck_thermal_layer_cp_renaming,
+    get_value_safe,
     SeasonCheck,
 )
 
@@ -1090,3 +1092,220 @@ def test_get_mean_monthly_air_temperature_invalid_latitude():
     """Test that get_mean_monthly_air_temperature raises ValueError for invalid latitude."""
     with pytest.raises(ValueError, match="Latitude must be between -90 and 90"):
         get_mean_monthly_air_temperature(95.0, 7, 10.0)
+
+
+class TestPrecheckRefValueHandling:
+    """Test cases for precheck RefValue handling bug fixes."""
+
+    def test_get_value_safe_refvalue_format(self):
+        """Test get_value_safe with RefValue format."""
+        refvalue_dict = {"param": {"value": 42}}
+        result = get_value_safe(refvalue_dict, "param")
+        assert result == 42
+
+        # Test with None value
+        none_refvalue = {"param": {"value": None}}
+        result = get_value_safe(none_refvalue, "param")
+        assert result is None
+
+        # Test with string value
+        str_refvalue = {"param": {"value": "test"}}
+        result = get_value_safe(str_refvalue, "param")
+        assert result == "test"
+
+    def test_get_value_safe_plain_format(self):
+        """Test get_value_safe with plain format."""
+        plain_dict = {"param": 42}
+        result = get_value_safe(plain_dict, "param")
+        assert result == 42
+
+        # Test with None value
+        none_plain = {"param": None}
+        result = get_value_safe(none_plain, "param")
+        assert result is None
+
+    def test_get_value_safe_missing_key(self):
+        """Test get_value_safe with missing key."""
+        empty_dict = {}
+        result = get_value_safe(empty_dict, "missing", default="default")
+        assert result == "default"
+
+        result = get_value_safe(empty_dict, "missing")
+        assert result is None
+
+
+def test_precheck_thermal_layer_cp_renaming():
+    """Test that legacy 'cp' fields are renamed to 'rho_cp' in thermal_layers."""
+    from supy.data_model.precheck import precheck_thermal_layer_cp_renaming
+
+    # Test data with cp fields in multiple surfaces
+    data = {
+        "sites": [
+            {
+                "properties": {
+                    "land_cover": {
+                        "paved": {
+                            "sfr": {"value": 0.5},
+                            "thermal_layers": {
+                                "dz": {"value": [0.1, 0.2, 0.3, 0.4, 0.5]},
+                                "k": {"value": [1.0, 1.1, 1.2, 1.3, 1.4]},
+                                "cp": {
+                                    "value": [1.2e6, 1.1e6, 1.1e6, 1.5e6, 1.6e6]
+                                },  # Legacy field
+                            },
+                        },
+                        "bldgs": {
+                            "sfr": {"value": 0.3},
+                            "thermal_layers": {
+                                "dz": {"value": [0.05, 0.1, 0.15, 0.2, 0.25]},
+                                "k": {"value": [1.5, 1.4, 1.3, 1.2, 1.1]},
+                                "cp": {
+                                    "value": [1.5e6, 1.4e6, 1.3e6, 1.2e6, 1.1e6]
+                                },  # Legacy field
+                            },
+                        },
+                        "grass": {
+                            "sfr": {"value": 0.2},
+                            "thermal_layers": {
+                                "dz": {"value": [0.02, 0.04, 0.06, 0.08, 0.1]},
+                                "k": {"value": [0.5, 0.6, 0.7, 0.8, 0.9]},
+                                "rho_cp": {
+                                    "value": [1.0e6, 1.1e6, 1.2e6, 1.3e6, 1.4e6]
+                                },  # Already correct field
+                            },
+                        },
+                    }
+                }
+            }
+        ]
+    }
+
+    # Store references to original thermal layers for comparison
+    paved_thermal = data["sites"][0]["properties"]["land_cover"]["paved"]["thermal_layers"]
+    bldgs_thermal = data["sites"][0]["properties"]["land_cover"]["bldgs"]["thermal_layers"]
+    grass_thermal = data["sites"][0]["properties"]["land_cover"]["grass"]["thermal_layers"]
+
+    # Verify initial state
+    assert "cp" in paved_thermal
+    assert "rho_cp" not in paved_thermal
+    assert "cp" in bldgs_thermal
+    assert "rho_cp" not in bldgs_thermal
+    assert "cp" not in grass_thermal
+    assert "rho_cp" in grass_thermal
+
+    # Run the renaming function
+    updated_data = precheck_thermal_layer_cp_renaming(data)
+
+    # Verify the renaming worked
+    paved_thermal_after = updated_data["sites"][0]["properties"]["land_cover"]["paved"][
+        "thermal_layers"
+    ]
+    bldgs_thermal_after = updated_data["sites"][0]["properties"]["land_cover"]["bldgs"][
+        "thermal_layers"
+    ]
+    grass_thermal_after = updated_data["sites"][0]["properties"]["land_cover"]["grass"][
+        "thermal_layers"
+    ]
+
+    # Check that cp fields were removed and rho_cp fields were added
+    assert "cp" not in paved_thermal_after
+    assert "rho_cp" in paved_thermal_after
+    assert "cp" not in bldgs_thermal_after
+    assert "rho_cp" in bldgs_thermal_after
+    assert "rho_cp" in grass_thermal_after  # Should still be there
+
+    # Check that values were preserved
+    expected_paved_cp = [1.2e6, 1.1e6, 1.1e6, 1.5e6, 1.6e6]
+    expected_bldgs_cp = [1.5e6, 1.4e6, 1.3e6, 1.2e6, 1.1e6]
+    original_grass_rho_cp = [1.0e6, 1.1e6, 1.2e6, 1.3e6, 1.4e6]
+
+    assert paved_thermal_after["rho_cp"]["value"] == expected_paved_cp
+    assert bldgs_thermal_after["rho_cp"]["value"] == expected_bldgs_cp
+    assert grass_thermal_after["rho_cp"]["value"] == original_grass_rho_cp
+
+
+def test_precheck_thermal_layer_cp_renaming_no_changes():
+    """Test that data without cp fields is unchanged."""
+    from supy.data_model.precheck import precheck_thermal_layer_cp_renaming
+
+    # Test data without cp fields
+    data = {
+        "sites": [
+            {
+                "properties": {
+                    "land_cover": {
+                        "paved": {
+                            "sfr": {"value": 0.5},
+                            "thermal_layers": {
+                                "dz": {"value": [0.1, 0.2, 0.3, 0.4, 0.5]},
+                                "k": {"value": [1.0, 1.1, 1.2, 1.3, 1.4]},
+                                "rho_cp": {
+                                    "value": [1.2e6, 1.1e6, 1.1e6, 1.5e6, 1.6e6]
+                                },  # Correct field
+                            },
+                        }
+                    }
+                }
+            }
+        ]
+    }
+
+    import copy
+
+    original_data = copy.deepcopy(data)
+
+    # Run the renaming function
+    updated_data = precheck_thermal_layer_cp_renaming(data)
+
+    # Should be unchanged
+    assert updated_data == original_data
+
+
+def test_precheck_thermal_layer_cp_renaming_mixed_surfaces():
+    """Test renaming with surfaces that have no thermal_layers."""
+    from supy.data_model.precheck import precheck_thermal_layer_cp_renaming
+
+    data = {
+        "sites": [
+            {
+                "properties": {
+                    "land_cover": {
+                        "paved": {
+                            "sfr": {"value": 0.3},
+                            "thermal_layers": {
+                                "cp": {"value": [1.0e6, 1.1e6, 1.2e6]}  # Legacy field
+                            },
+                        },
+                        "water": {
+                            "sfr": {"value": 0.4}
+                            # No thermal_layers - should be ignored
+                        },
+                        "grass": {
+                            "sfr": {"value": 0.3}
+                            # No thermal_layers - should be ignored
+                        },
+                    }
+                }
+            }
+        ]
+    }
+
+    updated_data = precheck_thermal_layer_cp_renaming(data)
+
+    # Only paved should be affected
+    paved_thermal = updated_data["sites"][0]["properties"]["land_cover"]["paved"][
+        "thermal_layers"
+    ]
+    assert "cp" not in paved_thermal
+    assert "rho_cp" in paved_thermal
+    assert paved_thermal["rho_cp"]["value"] == [1.0e6, 1.1e6, 1.2e6]
+
+    # Other surfaces should be unchanged
+    assert (
+        "thermal_layers"
+        not in updated_data["sites"][0]["properties"]["land_cover"]["water"]
+    )
+    assert (
+        "thermal_layers"
+        not in updated_data["sites"][0]["properties"]["land_cover"]["grass"]
+    )

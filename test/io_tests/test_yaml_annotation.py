@@ -50,7 +50,7 @@ sites:
 
         # Generate annotated file
         annotated_file = config.generate_annotated_yaml(test_file)
-        
+
         # Check if annotation was successful (Windows compatibility)
         if annotated_file is not None:
             annotated_path = Path(annotated_file)

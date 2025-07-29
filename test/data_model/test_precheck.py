@@ -1067,12 +1067,12 @@ class TestPrecheckRefValueHandling:
         refvalue_dict = {"param": {"value": 42}}
         result = get_value_safe(refvalue_dict, "param")
         assert result == 42
-        
+
         # Test with None value
         none_refvalue = {"param": {"value": None}}
         result = get_value_safe(none_refvalue, "param")
         assert result is None
-        
+
         # Test with string value
         str_refvalue = {"param": {"value": "test"}}
         result = get_value_safe(str_refvalue, "param")
@@ -1083,12 +1083,12 @@ class TestPrecheckRefValueHandling:
         plain_dict = {"param": 42}
         result = get_value_safe(plain_dict, "param")
         assert result == 42
-        
+
         # Test with None value
         none_plain = {"param": None}
         result = get_value_safe(none_plain, "param")
         assert result is None
-        
+
         # Test with string value
         str_plain = {"param": "test"}
         result = get_value_safe(str_plain, "param")
@@ -1099,11 +1099,11 @@ class TestPrecheckRefValueHandling:
         empty_dict = {}
         result = get_value_safe(empty_dict, "missing_param", "default_value")
         assert result == "default_value"
-        
+
         # Test with None default
         result = get_value_safe(empty_dict, "missing_param", None)
         assert result is None
-        
+
         # Test with no default (should return None)
         result = get_value_safe(empty_dict, "missing_param")
         assert result is None
@@ -1114,12 +1114,12 @@ class TestPrecheckRefValueHandling:
         empty_refvalue = {"param": {}}
         result = get_value_safe(empty_refvalue, "param")
         assert result == {}  # Returns the dict itself if no "value" key
-        
+
         # Test with list value in RefValue
         list_refvalue = {"param": {"value": [1, 2, 3]}}
         result = get_value_safe(list_refvalue, "param")
         assert result == [1, 2, 3]
-        
+
         # Test with dict value in RefValue
         dict_refvalue = {"param": {"value": {"nested": "data"}}}
         result = get_value_safe(dict_refvalue, "param")
@@ -1127,11 +1127,11 @@ class TestPrecheckRefValueHandling:
 
     def test_physics_validation_pattern_simulation(self):
         """Test the specific pattern that was failing in physics validation.
-        
+
         This simulates the exact line that was causing AttributeError:
         'int' object has no attribute 'get'
         """
-        
+
         # Simulate physics dict with plain values (user's YAML format)
         physics_plain = {
             "netradiationmethod": 1,
@@ -1139,7 +1139,7 @@ class TestPrecheckRefValueHandling:
             "stabilitymethod": 3,
             "rslmethod": 1,
         }
-        
+
         # Simulate physics dict with RefValue format
         physics_refvalue = {
             "netradiationmethod": {"value": 1},
@@ -1147,16 +1147,27 @@ class TestPrecheckRefValueHandling:
             "stabilitymethod": {"value": 3},
             "rslmethod": {"value": 1},
         }
-        
-        required_params = ["netradiationmethod", "emissionsmethod", "stabilitymethod", "rslmethod"]
-        
+
+        required_params = [
+            "netradiationmethod",
+            "emissionsmethod",
+            "stabilitymethod",
+            "rslmethod",
+        ]
+
         # Test the fixed validation logic (line 481 in precheck.py)
-        empty_plain = [k for k in required_params if get_value_safe(physics_plain, k) in ("", None)]
+        empty_plain = [
+            k for k in required_params if get_value_safe(physics_plain, k) in ("", None)
+        ]
         assert empty_plain == [], "Plain format should have no empty params"
-        
-        empty_refvalue = [k for k in required_params if get_value_safe(physics_refvalue, k) in ("", None)]
+
+        empty_refvalue = [
+            k
+            for k in required_params
+            if get_value_safe(physics_refvalue, k) in ("", None)
+        ]
         assert empty_refvalue == [], "RefValue format should have no empty params"
-        
+
         # Test with some empty values
         physics_with_empty = {
             "netradiationmethod": 1,
@@ -1164,28 +1175,34 @@ class TestPrecheckRefValueHandling:
             "stabilitymethod": None,  # None value
             "rslmethod": {"value": 1},
         }
-        
-        empty_mixed = [k for k in required_params if get_value_safe(physics_with_empty, k) in ("", None)]
+
+        empty_mixed = [
+            k
+            for k in required_params
+            if get_value_safe(physics_with_empty, k) in ("", None)
+        ]
         expected_empty = ["emissionsmethod", "stabilitymethod"]
-        assert sorted(empty_mixed) == sorted(expected_empty), f"Expected {expected_empty}, got {empty_mixed}"
+        assert sorted(empty_mixed) == sorted(expected_empty), (
+            f"Expected {expected_empty}, got {empty_mixed}"
+        )
 
     def test_land_cover_validation_pattern_simulation(self):
         """Test the land cover fraction validation pattern."""
-        
+
         # Simulate land cover with plain values
         land_cover_plain = {
             "bldgs": {"sfr": 0.3},
             "paved": {"sfr": 0.3},
             "water": {"sfr": 0.4},
         }
-        
+
         # Simulate land cover with RefValue format
         land_cover_refvalue = {
             "bldgs": {"sfr": {"value": 0.3}},
             "paved": {"sfr": {"value": 0.3}},
             "water": {"sfr": {"value": 0.4}},
         }
-        
+
         # Test the fixed sum calculation (lines 798-802 in precheck.py)
         def calculate_sfr_sum(land_cover):
             return sum(
@@ -1193,19 +1210,21 @@ class TestPrecheckRefValueHandling:
                 for v in land_cover.values()
                 if isinstance(v, dict) and get_value_safe(v, "sfr") is not None
             )
-        
+
         sum_plain = calculate_sfr_sum(land_cover_plain)
         assert sum_plain == 1.0, f"Plain format sum should be 1.0, got {sum_plain}"
-        
+
         sum_refvalue = calculate_sfr_sum(land_cover_refvalue)
-        assert sum_refvalue == 1.0, f"RefValue format sum should be 1.0, got {sum_refvalue}"
-        
+        assert sum_refvalue == 1.0, (
+            f"RefValue format sum should be 1.0, got {sum_refvalue}"
+        )
+
         # Test with None values
         land_cover_with_none = {
             "bldgs": {"sfr": 0.5},
             "paved": {"sfr": None},  # Should be excluded from sum
             "water": {"sfr": {"value": 0.5}},
         }
-        
+
         sum_with_none = calculate_sfr_sum(land_cover_with_none)
         assert sum_with_none == 1.0, f"Sum with None should be 1.0, got {sum_with_none}"

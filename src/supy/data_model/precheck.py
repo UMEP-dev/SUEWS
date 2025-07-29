@@ -35,12 +35,12 @@ import os
 
 def get_value_safe(param_dict, param_key, default=None):
     """Safely extract value from RefValue or plain format.
-    
+
     Args:
         param_dict: Dictionary containing the parameter
         param_key: Key to look up
         default: Default value if key not found
-        
+
     Returns:
         The parameter value, handling both RefValue {"value": X} and plain X formats
     """
@@ -833,7 +833,7 @@ def precheck_land_cover_fractions(data: dict) -> dict:
                 key=lambda k: get_value_safe(land_cover[k], "sfr"),
             )
             correction = sfr_sum - 1.0
-            # Handle both RefValue and plain formats for writing  
+            # Handle both RefValue and plain formats for writing
             if isinstance(land_cover[max_key].get("sfr"), dict):
                 land_cover[max_key]["sfr"]["value"] -= correction  # RefValue format
             else:

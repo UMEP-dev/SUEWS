@@ -926,6 +926,36 @@ class SUEWSConfig(BaseModel):
 
         return has_issues
 
+    def _check_raw_yaml_for_cp_field(self, yaml_path: str, surface_path: str) -> bool:
+        """Check if the raw YAML file has 'cp' instead of 'rho_cp' in thermal_layers."""
+        try:
+            import yaml
+            with open(yaml_path, 'r') as f:
+                data = yaml.safe_load(f)
+            
+            # Navigate to the surface using path like "sites[0]/properties/land_cover/paved"
+            path_parts = surface_path.replace('[', '/').replace(']', '').split('/')
+            
+            current = data
+            for part in path_parts:
+                if part.isdigit():
+                    current = current[int(part)]
+                elif part in current:
+                    current = current[part]
+                else:
+                    return False
+            
+            # Check if thermal_layers has 'cp' field
+            if isinstance(current, dict) and 'thermal_layers' in current:
+                thermal_layers = current['thermal_layers']
+                if isinstance(thermal_layers, dict) and 'cp' in thermal_layers:
+                    return True
+                    
+        except Exception:
+            pass
+            
+        return False
+
     def _check_land_cover_fractions(self, land_cover, site_name: str) -> bool:
         """Check that land cover fractions sum to 1.0. Returns True if issues found."""
         has_issues = False
@@ -1443,20 +1473,31 @@ class SUEWSConfig(BaseModel):
                             and surface.thermal_layers
                         ):
                             thermal = surface.thermal_layers
-                        if (
-                            not _is_valid_layer_array(getattr(thermal, "dz", None))
-                            or not _is_valid_layer_array(getattr(thermal, "k", None))
-                            or not _is_valid_layer_array(
-                                getattr(thermal, "rho_cp", None)
-                            )
-                        ):
-                            annotator.add_issue(
-                                path=f"{path}/thermal_layers",
-                                param="thermal_layers",
-                                message="Incomplete thermal layer properties",
-                                fix="Add dz (thickness), k (conductivity), and rho_cp (heat capacity) arrays",
-                                level="WARNING",
-                            )
+                            
+                            # First check if the raw YAML contains 'cp' instead of 'rho_cp'
+                            yaml_path = getattr(self, "_yaml_path", None)
+                            if yaml_path and self._check_raw_yaml_for_cp_field(yaml_path, path):
+                                annotator.add_issue(
+                                    path=f"{path}/thermal_layers",
+                                    param="cp_field",
+                                    message="Found 'cp' field - should be 'rho_cp'",
+                                    fix="Change 'cp:' to 'rho_cp:' in your YAML file",
+                                    level="WARNING",
+                                )
+                            elif (
+                                not _is_valid_layer_array(getattr(thermal, "dz", None))
+                                or not _is_valid_layer_array(getattr(thermal, "k", None))
+                                or not _is_valid_layer_array(
+                                    getattr(thermal, "rho_cp", None)
+                                )
+                            ):
+                                annotator.add_issue(
+                                    path=f"{path}/thermal_layers",
+                                    param="thermal_layers",
+                                    message="Incomplete thermal layer properties",
+                                    fix="Add dz (thickness), k (conductivity), and rho_cp (heat capacity) arrays",
+                                    level="WARNING",
+                                )
 
                         # LAI range check for vegetation surfaces
                         if (

@@ -769,13 +769,14 @@ def precheck_thermal_layer_cp_renaming(data: dict) -> dict:
     """
     Rename legacy 'cp' field to 'rho_cp' in thermal_layers for all surface types.
 
-    This function scans all land cover surface types for thermal_layers that contain
-    the legacy 'cp' field and automatically renames it to 'rho_cp', which is the
-    correct field name for volumetric heat capacity.
+    This function scans both land_cover surface types and vertical_layers for 
+    thermal_layers that contain the legacy 'cp' field and automatically renames 
+    it to 'rho_cp', which is the correct field name for volumetric heat capacity.
 
     For each site:
     - Loops through all surface types under 'land_cover'.
-    - If a surface has thermal_layers with a 'cp' field:
+    - Loops through all vertical layer items under 'vertical_layers'.
+    - If thermal_layers contain a 'cp' field:
         - Renames 'cp' to 'rho_cp'
         - Logs an informative message about the change
         - Preserves all other thermal_layers data unchanged
@@ -790,18 +791,16 @@ def precheck_thermal_layer_cp_renaming(data: dict) -> dict:
     total_renames = 0
     
     for site_idx, site in enumerate(data.get("sites", [])):
-        land_cover = site.get("properties", {}).get("land_cover", {})
+        properties = site.get("properties", {})
         
+        # Process land_cover thermal_layers
+        land_cover = properties.get("land_cover", {})
         for surf_type, props in land_cover.items():
             if not isinstance(props, dict):
                 continue
                 
             thermal_layers = props.get("thermal_layers")
-            if not isinstance(thermal_layers, dict):
-                continue
-                
-            # Check if legacy 'cp' field exists
-            if "cp" in thermal_layers:
+            if isinstance(thermal_layers, dict) and "cp" in thermal_layers:
                 # Rename cp to rho_cp
                 thermal_layers["rho_cp"] = thermal_layers.pop("cp")
                 total_renames += 1
@@ -810,6 +809,28 @@ def precheck_thermal_layer_cp_renaming(data: dict) -> dict:
                     f"[site #{site_idx}] Renamed '{surf_type}.thermal_layers.cp' → "
                     f"'{surf_type}.thermal_layers.rho_cp' (legacy field name updated)"
                 )
+        
+        # Process vertical_layers thermal_layers
+        vertical_layers = properties.get("vertical_layers", {})
+        if isinstance(vertical_layers, dict):
+            # Process roofs, walls, and other array structures within vertical_layers
+            for structure_name in ["roofs", "walls"]:  # Add more as needed
+                structure_array = vertical_layers.get(structure_name, [])
+                if isinstance(structure_array, list):
+                    for item_idx, item in enumerate(structure_array):
+                        if not isinstance(item, dict):
+                            continue
+                            
+                        thermal_layers = item.get("thermal_layers")
+                        if isinstance(thermal_layers, dict) and "cp" in thermal_layers:
+                            # Rename cp to rho_cp
+                            thermal_layers["rho_cp"] = thermal_layers.pop("cp")
+                            total_renames += 1
+                            
+                            logger_supy.info(
+                                f"[site #{site_idx}] Renamed 'vertical_layers.{structure_name}[{item_idx}].thermal_layers.cp' → "
+                                f"'vertical_layers.{structure_name}[{item_idx}].thermal_layers.rho_cp' (legacy field name updated)"
+                            )
     
     if total_renames > 0:
         logger_supy.info(

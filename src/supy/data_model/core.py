@@ -2138,8 +2138,10 @@ class SUEWSConfig(BaseModel):
         # Reconstruct model
         config.model = Model.from_df_state(df, grid_ids[0])
 
-        config.name = df["config"].iloc[0]
-        config.description = df["description"].iloc[0]
+        if "config" in df:
+            config.name = df["config"].iloc[0]
+        if "description" in df:
+            config.description = df["description"].iloc[0]
 
         return config
 

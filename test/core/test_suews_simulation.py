@@ -26,7 +26,7 @@ class TestInit:
     def test_yaml_init(self):
         """Test initialization from YAML."""
         yaml_path = files("supy").joinpath("sample_run/sample_config.yml")
-        sim = SUEWSSimulation(str(yaml_path))
+        sim = SUEWSSimulation(str(yaml_path), auto_set_forcing=False)
         assert sim.config is not None
         assert sim._df_state_init is not None
 
@@ -150,7 +150,7 @@ class TestIntegration:
         yaml_path = files("supy").joinpath("sample_run/sample_config.yml")
 
         # Load from YAML
-        sim = SUEWSSimulation(str(yaml_path))
+        sim = SUEWSSimulation(str(yaml_path), auto_set_forcing=False)
 
         # Override with short forcing
         _, df_forcing = sp.load_SampleData()

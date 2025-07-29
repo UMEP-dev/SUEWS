@@ -42,7 +42,7 @@ class SUEWSSimulation:
     >>> sim.run()
     """
 
-    def __init__(self, config: Union[str, Path, Dict, Any] = None):
+    def __init__(self, config: Union[str, Path, Dict, Any] = None, auto_set_forcing=True):
         """
         Initialize SUEWS simulation.
 
@@ -65,6 +65,10 @@ class SUEWSSimulation:
 
         if config is not None:
             self.update_config(config)
+            if self._config.model.control.forcing_file is not None and auto_set_forcing:
+                self.update_forcing(
+                    self._config.model.control.forcing_file
+                )
 
     def update_config(self, config: Union[str, Path, Dict, Any]):
         """
@@ -230,7 +234,6 @@ class SUEWSSimulation:
                     f"Directory '{path}' found in forcing file list. "
                     "Directories are not allowed in lists."
                 )
-
             df = read_forcing(str(path))
             dfs.append(df)
 
@@ -339,6 +342,7 @@ class SUEWSSimulation:
 
         # Extract parameters from config
         output_format = None
+        output_config = None
         freq_s = 3600  # default hourly
         site = ""
 
@@ -371,6 +375,7 @@ class SUEWSSimulation:
             site=site,
             path_dir_save=str(output_path),
             # **save_kwargs # Problematic, save_supy expects explicit arguments
+            output_config=output_config,
             output_format=output_format,
         )
         return list_path_save

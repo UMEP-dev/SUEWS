@@ -948,12 +948,13 @@ class SUEWSConfig(BaseModel):
         """Check if the raw YAML file has 'cp' instead of 'rho_cp' in thermal_layers."""
         try:
             import yaml
-            with open(yaml_path, 'r') as f:
+
+            with open(yaml_path, "r") as f:
                 data = yaml.safe_load(f)
-            
+
             # Navigate to the surface using path like "sites[0]/properties/land_cover/paved"
-            path_parts = surface_path.replace('[', '/').replace(']', '').split('/')
-            
+            path_parts = surface_path.replace("[", "/").replace("]", "").split("/")
+
             current = data
             for part in path_parts:
                 if part.isdigit():
@@ -962,16 +963,16 @@ class SUEWSConfig(BaseModel):
                     current = current[part]
                 else:
                     return False
-            
+
             # Check if thermal_layers has 'cp' field
-            if isinstance(current, dict) and 'thermal_layers' in current:
-                thermal_layers = current['thermal_layers']
-                if isinstance(thermal_layers, dict) and 'cp' in thermal_layers:
+            if isinstance(current, dict) and "thermal_layers" in current:
+                thermal_layers = current["thermal_layers"]
+                if isinstance(thermal_layers, dict) and "cp" in thermal_layers:
                     return True
-                    
+
         except Exception:
             pass
-            
+
         return False
 
     def _check_thermal_layers_naming_issue(self, thermal_layers, surface_type: str, site_name: str) -> bool:
@@ -1501,10 +1502,12 @@ class SUEWSConfig(BaseModel):
                             and surface.thermal_layers
                         ):
                             thermal = surface.thermal_layers
-                            
+
                             # First check if the raw YAML contains 'cp' instead of 'rho_cp'
                             yaml_path = getattr(self, "_yaml_path", None)
-                            if yaml_path and self._check_raw_yaml_for_cp_field(yaml_path, path):
+                            if yaml_path and self._check_raw_yaml_for_cp_field(
+                                yaml_path, path
+                            ):
                                 annotator.add_issue(
                                     path=f"{path}/thermal_layers",
                                     param="cp_field",
@@ -1517,7 +1520,9 @@ class SUEWSConfig(BaseModel):
                                     has_issues = True
                             elif (
                                 not _is_valid_layer_array(getattr(thermal, "dz", None))
-                                or not _is_valid_layer_array(getattr(thermal, "k", None))
+                                or not _is_valid_layer_array(
+                                    getattr(thermal, "k", None)
+                                )
                                 or not _is_valid_layer_array(
                                     getattr(thermal, "rho_cp", None)
                                 )

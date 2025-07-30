@@ -647,7 +647,9 @@ class OutputConfig(BaseModel):
                 "debug"
             }
             dev_groups = {
-                "SPARTACUS"
+                "SPARTACUS",
+                "EHC",
+                "STEBBS"
             }
             invalid = set(v) - valid_groups - dev_groups
             if invalid:

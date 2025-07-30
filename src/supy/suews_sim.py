@@ -42,7 +42,9 @@ class SUEWSSimulation:
     >>> sim.run()
     """
 
-    def __init__(self, config: Union[str, Path, Dict, Any] = None, auto_set_forcing=True):
+    def __init__(
+        self, config: Union[str, Path, Dict, Any] = None, auto_set_forcing=True
+    ):
         """
         Initialize SUEWS simulation.
 
@@ -66,9 +68,7 @@ class SUEWSSimulation:
         if config is not None:
             self.update_config(config)
             if self._config.model.control.forcing_file is not None and auto_set_forcing:
-                self.update_forcing(
-                    self._config.model.control.forcing_file
-                )
+                self.update_forcing(self._config.model.control.forcing_file)
 
     def update_config(self, config: Union[str, Path, Dict, Any]):
         """

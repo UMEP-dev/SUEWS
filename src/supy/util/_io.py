@@ -51,7 +51,7 @@ def read_forcing(path_suews_file: str, tstep_mod=300) -> pd.DataFrame:
         datetime-aware DataFrame
     """
 
-    path_suews_file = Path(path_suews_file)
+    path_suews_file = Path(path_suews_file).resolve()
     path_input = path_suews_file.parent
     str_pattern = path_suews_file.name
 

@@ -66,9 +66,7 @@ class SUEWSSimulation:
         if config is not None:
             self.update_config(config)
             if self._config.model.control.forcing_file is not None:
-                self.update_forcing(
-                    self._config.model.control.forcing_file
-                )
+                self.update_forcing(self._config.model.control.forcing_file)
 
     def update_config(self, config: Union[str, Path, Dict, Any]):
         """

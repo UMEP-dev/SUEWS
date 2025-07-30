@@ -6,10 +6,10 @@ This page describes the validation workflow.
 Workflow Summary
 ----------------
 The process consists of four key steps:
-1. Convert SUEWS namelist to YAML
-2. Detect and fix common input errors
-3. Run precheck
-4. Perform conditional validation via Pydantic
+0. Convert SUEWS namelist to YAML
+1. Detect and fix common input errors
+2. Run precheck
+3. Perform conditional validation via Pydantic
 
 Step 0 — Namelist to YAML
 -------------------------
@@ -19,9 +19,11 @@ Converts the Fortran-style SUEWS namelist into a structured YAML format.
 
 Step 1 — Common Mistakes
 ------------------------
-Detects and optionally corrects:
-- Missing parameters
-- Deprecated parameter names
+Detects:
+- Missing parameters: DONE 
+- Deprecated parameter names: NEXT TO DO
+Output: a commented YAML saved as commented_<filename>.yml with inline comments for the user.
+
 .. note::
   This step is currently partially done by precheck and needs to be implemented as a Step 1 of the workflow.
 

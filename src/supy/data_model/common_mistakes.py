@@ -114,7 +114,15 @@ def flatten_missing_dict(data, current_path=""):
 def find_insertion_point(lines, path_parts):
     if len(path_parts) < 2:
         return None
+    
     parent_section = path_parts[-2]
+    
+    # Handle array indices in parent section (e.g., "walls[2]" -> "walls")
+    if '[' in parent_section and ']' in parent_section:
+        array_name = parent_section.split('[')[0]
+        array_index = int(parent_section.split('[')[1].split(']')[0])
+        return find_array_item_insertion_point(lines, path_parts, array_name, array_index)
+    
     section_indent = None
     section_start = None
     for i, line in enumerate(lines):
@@ -166,6 +174,67 @@ def find_insertion_point(lines, path_parts):
     
     return last_parameter_end + 1
 
+def find_array_item_insertion_point(lines, path_parts, array_name, array_index):
+    """Find insertion point for a parameter within a specific array item."""
+    # Find the array section
+    array_section_start = None
+    for i, line in enumerate(lines):
+        stripped = line.strip()
+        if stripped == f"{array_name}:" or stripped.endswith(f":{array_name}:"):
+            array_section_start = i
+            array_indent = len(line) - len(line.lstrip())
+            break
+    
+    if array_section_start is None:
+        return None
+    
+    # Find the specific array item (index)
+    current_item = -1
+    item_start = None
+    item_indent = None
+    
+    for i in range(array_section_start + 1, len(lines)):
+        line = lines[i]
+        if not line.strip():
+            continue
+        line_indent = len(line) - len(line.lstrip())
+        
+        # Found an array item marker "-" (should be at specific indent level and followed by key:)
+        if (line.strip().startswith('-') and 
+            line_indent == array_indent and  # Must be exactly at array indent level
+            ':' in line):  # Must contain a key (like "- alb:")
+            current_item += 1
+            if current_item == array_index:
+                item_start = i
+                item_indent = line_indent
+                break
+        
+        # End of array section (non-array-item at same or less indent)
+        elif line_indent <= array_indent and line.strip() and not line.strip().startswith('-'):
+            break
+    
+    if item_start is None:
+        return None
+    
+    # Find the end of this specific array item
+    last_parameter_end = item_start
+    for i in range(item_start + 1, len(lines)):
+        line = lines[i]
+        if not line.strip():
+            continue
+        line_indent = len(line) - len(line.lstrip())
+        
+        # If we encounter another array item or end of section
+        if line_indent <= item_indent and line.strip():
+            if line.strip().startswith('-') or line_indent <= array_indent:
+                break
+        
+        # Update end position if this line belongs to the current item
+        if line_indent > item_indent:
+            last_parameter_end = i
+    
+    return last_parameter_end + 1
+
 def get_section_indent(lines, position, target_indent_level=None):
     # If we have a target indent level, use it to find the correct parent indent
     if target_indent_level is not None:
@@ -178,23 +247,84 @@ def get_section_indent(lines, position, target_indent_level=None):
             return line[:len(line) - len(line.lstrip())]
     return ""
 
+def calculate_array_item_indent(lines, insert_position, array_name):
+    """Calculate the correct indentation for a parameter within an array item."""
+    
+    # First approach: find the commented wetthresh and use its indentation
+    # This is the most reliable method since we know exactly what we want to replace
+    for i in range(insert_position - 1, -1, -1):
+        line = lines[i]
+        if '#wetthresh:' in line:
+            return line[:len(line) - len(line.lstrip())]
+    
+    # Second approach: look for existing parameters at the same level
+    # Find parameters that are direct children of the array item, not value lines
+    for i in range(insert_position - 1, -1, -1):
+        line = lines[i]
+        stripped = line.strip()
+        
+        # Skip empty lines and comments
+        if not stripped or stripped.startswith('#'):
+            continue
+        
+        # Skip array item markers (lines starting with "-")
+        if stripped.startswith('-'):
+            continue
+        
+        line_indent = len(line) - len(line.lstrip())
+        
+        # Look for parameter lines that end with `:` and are followed by indented values
+        if stripped.endswith(':') and not stripped.startswith('value:'):
+            # Check if next non-empty line is more indented (indicating this is a parent parameter)
+            for j in range(i + 1, min(len(lines), i + 5)):
+                if j < len(lines) and lines[j].strip() and not lines[j].strip().startswith('#'):
+                    next_indent = len(lines[j]) - len(lines[j].lstrip())
+                    if next_indent > line_indent:
+                        # This is a parent parameter, use its indentation
+                        return " " * line_indent
+                    break
+    
+    # Third fallback: calculate based on array structure  
+    for i, line in enumerate(lines):
+        stripped = line.strip()
+        if stripped == f"{array_name}:" or stripped.endswith(f":{array_name}:"):
+            array_indent = len(line) - len(line.lstrip())
+            return " " * (array_indent + 2)
+    
+    return ""
+
 def create_missing_param_annotation(param_name, ref_value, base_indent, is_physics=False):
     lines = []
     if isinstance(ref_value, dict):
         lines.append(f"{base_indent}{param_name}:")
         for key, value in ref_value.items():
+            # Ensure numeric keys are properly quoted as strings
+            formatted_key = format_yaml_key(key)
             if isinstance(value, dict):
-                lines.append(f"{base_indent}  {key}:")
+                lines.append(f"{base_indent}  {formatted_key}:")
                 for subkey, subvalue in value.items():
+                    formatted_subkey = format_yaml_key(subkey)
                     comment = " #URGENT-MISSING!" if is_physics else " #MISSING!"
-                    lines.append(f"{base_indent}    {subkey}: null{comment}")
+                    lines.append(f"{base_indent}    {formatted_subkey}: null{comment}")
             else:
                 comment = " #URGENT-MISSING!" if is_physics else " #MISSING!"
-                lines.append(f"{base_indent}  {key}: null{comment}")
+                lines.append(f"{base_indent}  {formatted_key}: null{comment}")
     else:
         comment = " #URGENT-MISSING!" if is_physics else " #MISSING!"
         lines.append(f"{base_indent}{param_name}: null{comment}")
     return lines
+
+def format_yaml_key(key):
+    """Format a key for YAML output, ensuring numeric strings are properly quoted."""
+    # If the key is a string that looks like a number (like '1', '2', etc.), keep it quoted
+    if isinstance(key, str) and key.isdigit():
+        return f"'{key}'"
+    # If the key is an integer but should be a string (common with YAML parsing), quote it
+    elif isinstance(key, int):
+        return f"'{key}'"
+    # Otherwise, return as-is
+    else:
+        return str(key)
 
 def create_yaml_legend():
     legend = '''# =============================================================================
@@ -247,16 +377,22 @@ def annotate_yaml_with_missing_params(yaml_content, missing_params):
             # Calculate the correct indentation based on the parent section
             parent_section = path_parts[-2] if len(path_parts) >= 2 else None
             if parent_section:
-                # Find the parent section and calculate child indent
-                for i, line in enumerate(lines):
-                    stripped = line.strip()
-                    if stripped == f"{parent_section}:" or stripped.endswith(f":{parent_section}:"):
-                        parent_indent = len(line) - len(line.lstrip())
-                        child_indent_level = parent_indent + 2
-                        indent = get_section_indent(lines, insert_position, child_indent_level)
-                        break
+                # Handle array indices in parent section
+                if '[' in parent_section and ']' in parent_section:
+                    array_name = parent_section.split('[')[0]
+                    # For array items, find the item and calculate appropriate indent
+                    indent = calculate_array_item_indent(lines, insert_position, array_name)
                 else:
-                    indent = get_section_indent(lines, insert_position)
+                    # Find the parent section and calculate child indent
+                    for i, line in enumerate(lines):
+                        stripped = line.strip()
+                        if stripped == f"{parent_section}:" or stripped.endswith(f":{parent_section}:"):
+                            parent_indent = len(line) - len(line.lstrip())
+                            child_indent_level = parent_indent + 2
+                            indent = get_section_indent(lines, insert_position, child_indent_level)
+                            break
+                    else:
+                        indent = get_section_indent(lines, insert_position)
             else:
                 indent = get_section_indent(lines, insert_position)
             annotation_lines = create_missing_param_annotation(param_name, ref_value, indent, is_physics)

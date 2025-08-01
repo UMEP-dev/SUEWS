@@ -515,7 +515,7 @@ def create_analysis_report(missing_params, deprecated_replacements, extra_params
     if urgent_count > 0:
         report_lines.append("1. Review critical missing parameters and set appropriate values")
     else:
-        report_lines.append("1. No critical parameters require immediate attention")
+        report_lines.append("1. No critical parameters require attention")
     
     return '\n'.join(report_lines)
 

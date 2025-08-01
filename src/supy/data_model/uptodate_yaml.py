@@ -8,7 +8,7 @@ import supy as sp
 from supy.data_model import SUEWSConfig
 from yaml.representer import SafeRepresenter
 
-DEPRECATED_PARAMS = {
+RENAMED_PARAMS = {
     'cp': 'rho_cp',
     'diagmethod': 'rslmethod',
     'localclimatemethod': 'rsllevel'
@@ -40,12 +40,12 @@ def missing_comment_representer(dumper, data):
 
 CustomDumper.add_representer(type(None), missing_comment_representer)
 
-def handle_deprecated_parameters(yaml_content: str):
+def handle_renamed_parameters(yaml_content: str):
     lines = yaml_content.split('\n')
     replacements = []
     for i, line in enumerate(lines):
         stripped = line.strip()
-        for old_key, new_key in DEPRECATED_PARAMS.items():
+        for old_key, new_key in RENAMED_PARAMS.items():
             if stripped.startswith(f"{old_key}:"):
                 indent = line[:len(line) - len(stripped)]
                 value = stripped.split(":", 1)[1].strip()
@@ -578,7 +578,7 @@ def annotate_missing_parameters(user_file, standard_file, uptodate_file=None, re
     try:
         with open(user_file, 'r') as f:
             original_yaml_content = f.read()
-        original_yaml_content, deprecated_replacements = handle_deprecated_parameters(original_yaml_content)
+        original_yaml_content, deprecated_replacements = handle_renamed_parameters(original_yaml_content)
         user_data = yaml.safe_load(original_yaml_content)
         with open(standard_file, 'r') as f:
             standard_data = yaml.safe_load(f)

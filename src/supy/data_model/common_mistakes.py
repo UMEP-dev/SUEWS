@@ -8,34 +8,11 @@ import supy as sp
 from supy.data_model import SUEWSConfig
 from yaml.representer import SafeRepresenter
 
-class CustomDumper(yaml.SafeDumper):
-    pass
-
-def missing_comment_representer(dumper, data):
-    node = dumper.represent_scalar('tag:yaml.org,2002:null', 'null')
-    node.comment = ' MISSING!'
-    return node
-
-CustomDumper.add_representer(type(None), missing_comment_representer)
-
 DEPRECATED_PARAMS = {
     'cp': 'rho_cp',
     'diagmethod': 'rslmethod',
     'localclimatemethod': 'rsllevel'
 }
-
-def handle_deprecated_parameters(yaml_content: str):
-    lines = yaml_content.split('\n')
-    replacements = []
-    for i, line in enumerate(lines):
-        stripped = line.strip()
-        for old_key, new_key in DEPRECATED_PARAMS.items():
-            if stripped.startswith(f"{old_key}:"):
-                indent = line[:len(line) - len(stripped)]
-                value = stripped.split(":", 1)[1].strip()
-                lines[i] = f"{indent}{new_key}: {value}  #DEPRECATED! - Found \"{old_key}\" and changed into \"{new_key}\""
-                replacements.append((old_key, new_key))
-    return '\n'.join(lines), replacements
 
 PHYSICS_OPTIONS = {
     'netradiationmethod',
@@ -52,6 +29,29 @@ PHYSICS_OPTIONS = {
     'snowuse',
     'stebbsmethod'
 }
+
+class CustomDumper(yaml.SafeDumper):
+    pass
+
+def missing_comment_representer(dumper, data):
+    node = dumper.represent_scalar('tag:yaml.org,2002:null', 'null')
+    node.comment = ' MISSING!'
+    return node
+
+CustomDumper.add_representer(type(None), missing_comment_representer)
+
+def handle_deprecated_parameters(yaml_content: str):
+    lines = yaml_content.split('\n')
+    replacements = []
+    for i, line in enumerate(lines):
+        stripped = line.strip()
+        for old_key, new_key in DEPRECATED_PARAMS.items():
+            if stripped.startswith(f"{old_key}:"):
+                indent = line[:len(line) - len(stripped)]
+                value = stripped.split(":", 1)[1].strip()
+                lines[i] = f"{indent}{new_key}: {value}  #DEPRECATED! - Found \"{old_key}\" and changed into \"{new_key}\""
+                replacements.append((old_key, new_key))
+    return '\n'.join(lines), replacements
 
 def is_physics_option(param_path):
     param_name = param_path.split('.')[-1]
@@ -281,27 +281,36 @@ def annotate_missing_parameters(user_file, reference_file, output_file):
 def main():
     print(" SUEWS Configuration Analysis")
     print("=" * 50)
-    reference_file = "./src/supy/sample_run/sample_config.yml"
-    user_file = "./src/supy/data_model/sample2.yml"
+
+    reference_file = "src/supy/sample_run/sample_config.yml"
+    user_file = "src/supy/data_model/sample2.yml"
+
     print(f"Reference file: {reference_file}")
     print(f"User file: {user_file}")
     print()
+
+    basename = os.path.basename(user_file)
+    dirname = os.path.dirname(user_file)
+    commented_filename = f"commented_{basename}"
+    output_file = os.path.join(dirname, commented_filename)
+
     print(" Step 2: Creating commented user file...")
     annotate_missing_parameters(
         user_file=user_file,
         reference_file=reference_file,
-        output_file="./commented_user.yml"
+        output_file=output_file
     )
     print()
     print(" Analysis complete!")
     print(" Output file:")
-    print("   - commented_user.yml: User file with missing parameters and legend")
+    print(f"   - {output_file}: User file with missing parameters and legend")
     print("\n Usage Guide:")
-    print("   1. Open commented_user.yml and read the legend at the top")
+    print("   1. Open the file and read the legend at the top")
     print("   2. Search for '#URGENT-MISSING!' and set valid values")
     print("   3. Review '#MISSING!' parameters and set if needed")
     print("   4. Review '#DEPRECATED!' parameters")
     print("   5. Run precheck validation after making changes")
+
 
 if __name__ == "__main__":
     main()

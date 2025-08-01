@@ -127,35 +127,51 @@ def find_insertion_point(lines, path_parts):
         return None
     child_indent = section_indent + 2
     last_parameter_end = section_start
-    current_param_start = None
+    
+    # Find the last line that belongs to this section at the child indent level
     for i in range(section_start + 1, len(lines)):
         line = lines[i]
         if not line.strip():
             continue
         line_indent = len(line) - len(line.lstrip())
+        
+        # If we encounter a line at the same level or less indented than the parent section,
+        # we've reached the end of this section
         if line_indent <= section_indent and line.strip():
             break
+            
+        # If this line is at the correct child indent level and not a comment
         if line_indent == child_indent and not line.strip().startswith('#'):
-            if current_param_start is not None:
-                last_parameter_end = i - 1
-            current_param_start = i
-        elif line_indent > child_indent and current_param_start is not None:
+            # Update our potential insertion point to after this parameter
             last_parameter_end = i
-    if current_param_start is not None:
-        for i in range(last_parameter_end, len(lines)):
-            line = lines[i]
-            if not line.strip():
-                continue
-            line_indent = len(line) - len(line.lstrip())
-            if line_indent <= section_indent and line.strip():
-                break
-            if line_indent == child_indent and not line.strip().startswith('#'):
-                break
-            else:
-                last_parameter_end = i
+            
+            # Look ahead to find the end of this parameter (including any nested content)
+            for j in range(i + 1, len(lines)):
+                next_line = lines[j]
+                if not next_line.strip():
+                    continue
+                next_indent = len(next_line) - len(next_line.lstrip())
+                
+                # If we find another parameter at the same level or a section end, stop
+                if next_indent <= child_indent and next_line.strip():
+                    if next_indent == child_indent and not next_line.strip().startswith('#'):
+                        # This is another parameter at the same level
+                        break
+                    elif next_indent <= section_indent:
+                        # This is the end of the section
+                        break
+                else:
+                    # This line belongs to the current parameter, update end position
+                    last_parameter_end = j
+    
     return last_parameter_end + 1
 
-def get_section_indent(lines, position):
+def get_section_indent(lines, position, target_indent_level=None):
+    # If we have a target indent level, use it to find the correct parent indent
+    if target_indent_level is not None:
+        return " " * target_indent_level
+    
+    # Otherwise fall back to the old behavior
     for i in range(position - 1, -1, -1):
         line = lines[i]
         if line.strip() and not line.strip().startswith('#'):
@@ -228,7 +244,21 @@ def annotate_yaml_with_missing_params(yaml_content, missing_params):
         param_name = path_parts[-1]
         insert_position = find_insertion_point(lines, path_parts)
         if insert_position is not None:
-            indent = get_section_indent(lines, insert_position)
+            # Calculate the correct indentation based on the parent section
+            parent_section = path_parts[-2] if len(path_parts) >= 2 else None
+            if parent_section:
+                # Find the parent section and calculate child indent
+                for i, line in enumerate(lines):
+                    stripped = line.strip()
+                    if stripped == f"{parent_section}:" or stripped.endswith(f":{parent_section}:"):
+                        parent_indent = len(line) - len(line.lstrip())
+                        child_indent_level = parent_indent + 2
+                        indent = get_section_indent(lines, insert_position, child_indent_level)
+                        break
+                else:
+                    indent = get_section_indent(lines, insert_position)
+            else:
+                indent = get_section_indent(lines, insert_position)
             annotation_lines = create_missing_param_annotation(param_name, ref_value, indent, is_physics)
             for i, annotation_line in enumerate(reversed(annotation_lines)):
                 lines.insert(insert_position, annotation_line)

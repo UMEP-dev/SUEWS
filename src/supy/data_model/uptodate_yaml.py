@@ -333,9 +333,9 @@ def create_uptodate_yaml_header():
 # =============================================================================
 #
 # This file has been automatically updated by uptodate_yaml.py with all necessary changes:
-# - Missing in standard parameters have been added with appropriate default values
+# - Missing in standard parameters have been added with null values
 # - Renamed in standard parameters have been updated to current naming conventions
-# - All changes applied without inline comments for clean usage
+# - All changes are reported in report_<yourfilename>.txt
 #
 # =============================================================================
 
@@ -354,22 +354,24 @@ def create_clean_missing_param_annotation(param_name, standard_value):
                 for subkey, subvalue in value.items():
                     formatted_subkey = format_yaml_key(subkey)
                     # All missing parameters get null values
-                    default_value = get_default_value(subvalue)
+                    default_value = get_null_placeholder()
                     lines.append(f"    {formatted_subkey}: {default_value}")
             else:
                 # All missing parameters get null values
-                default_value = get_default_value(value)
+                default_value = get_null_placeholder()
                 lines.append(f"  {formatted_key}: {default_value}")
     else:
         # All missing parameters get null values
-        default_value = get_default_value(standard_value)
+        default_value = get_null_placeholder()
         lines.append(f"{param_name}: {default_value}")
     return lines
 
-def get_default_value(standard_value):
-    """Get appropriate default value based on standard value."""
-    # All missing parameters (both physics and non-physics) get null values
-    # Users will set the appropriate values themselves
+def get_null_placeholder():
+    """Return null placeholder for missing parameters.
+    
+    All missing parameters get null values regardless of type.
+    Users are expected to replace null with appropriate values.
+    """
     return "null"
 
 
@@ -523,13 +525,12 @@ def create_analysis_report(missing_params, deprecated_replacements, extra_params
     
     # Usage instructions
     report_lines.append("## Next Steps")
+    report_lines.append("Info about parameters can be found in the manual: https://suews.readthedocs.io/latest/")
     if urgent_count > 0:
-        report_lines.append("1. Review URGENT-MISSING IN STANDARD parameters and set appropriate values")
-        report_lines.append("2. These are required for SUEWS physics calculations")
+        report_lines.append("- Review URGENT-MISSING IN STANDARD parameters and set appropriate values")
     if optional_count > 0:
-        report_lines.append("3. Review MISSING IN STANDARD parameters and set values based on your study requirements")
-        report_lines.append("4. These have default behavior but may affect model results")
-    report_lines.append("5. Use the uptodate_user.yml file as your updated configuration")
+        report_lines.append("- Review MISSING IN STANDARD parameters and set values based on your study requirements")
+    report_lines.append("- Use the uptodate_user.yml file as your updated configuration")
     
     return '\n'.join(report_lines)
 
@@ -590,12 +591,12 @@ def annotate_missing_parameters(user_file, standard_file, uptodate_file=None, re
     if uptodate_file:
         with open(uptodate_file, 'w') as f:
             f.write(uptodate_content)
-        print(f"\n Clean YAML written to: {uptodate_file}")
+        #print(f"\n Clean YAML written to: {uptodate_file}")
     
     if report_file:
         with open(report_file, 'w') as f:
             f.write(report_content)
-        print(f" Analysis report written to: {report_file}")
+        #print(f" Analysis report written to: {report_file}")
 
 def main():
     print(" SUEWS YAML Configuration Analysis")
@@ -635,7 +636,7 @@ def main():
     print(f"   - {report_file}: Analysis report with summary of changes")
     print("\n Usage Guide:")
     print(f"  1. Use {uptodate_file} as your YAML configuration file")
-    print(f"  2. Review {report_file} for details about changes made")
+    print(f"  2. Review {report_file} for details about changes made. Info about parameters can be found in the manual: https://suews.readthedocs.io/latest/")
     print(f"  3. Optionally run precheck validation with the uptodate file")
 
 

@@ -465,72 +465,55 @@ def create_analysis_report(missing_params, deprecated_replacements, extra_params
     deprecated_count = len(deprecated_replacements)
     extra_count = len(extra_params) if extra_params else 0
     
-    report_lines.append(f"## Summary")
-    report_lines.append(f"- Found {len(missing_params)} MISSING IN STANDARD parameters")
+    # ACTION NEEDED section - only critical/urgent parameters
     if urgent_count > 0:
-        report_lines.append(f"-- URGENT: {urgent_count} physics options require immediate attention")
-    if optional_count > 0:
-        report_lines.append(f"-- {optional_count} optional parameters found")
-    if deprecated_count > 0:
-        report_lines.append(f"- Found {deprecated_count} RENAMED IN STANDARD parameters")
-    if extra_count > 0:
-        report_lines.append(f"- Found {extra_count} NOT IN STANDARD parameters")
-    report_lines.append("")
-    
-    # Detailed breakdown - combined MISSING IN STANDARD section with urgent ones first
-    if missing_params:
-        report_lines.append("## MISSING IN STANDARD Parameters")
-        report_lines.append("Missing in standard parameters found (urgent ones listed first):")
-        report_lines.append("")
-        
-        # First, list all URGENT-MISSING parameters (physics options)
-        urgent_found = False
+        report_lines.append("## ACTION NEEDED")
+        report_lines.append(f"- Found ({urgent_count}) critical missing parameter(s):")
         for param_path, standard_value, is_physics in missing_params:
             if is_physics:
-                if not urgent_found:
-                    report_lines.append("**URGENT - Physics options (MUST be set or precheck will fail):**")
-                    urgent_found = True
                 param_name = param_path.split('.')[-1]
-                report_lines.append(f"- {param_name} at level {param_path}")
+                report_lines.append(f"-- {param_name} has been added and set to null. Needs value.")
+        report_lines.append("")
+    
+    # NO ACTION NEEDED section - optional and informational items
+    has_no_action_items = optional_count > 0 or extra_count > 0 or deprecated_count > 0
+    if has_no_action_items:
+        report_lines.append("## NO ACTION NEEDED")
         
-        if urgent_found:
+        # Optional missing parameters
+        if optional_count > 0:
+            report_lines.append(f"- Found ({optional_count}) optional missing parameter(s):")
+            for param_path, standard_value, is_physics in missing_params:
+                if not is_physics:
+                    param_name = param_path.split('.')[-1]
+                    report_lines.append(f"-- {param_name} at level {param_path}")
             report_lines.append("")
         
-        # Then, list all optional MISSING parameters
-        optional_found = False
-        for param_path, standard_value, is_physics in missing_params:
-            if not is_physics:
-                if not optional_found:
-                    report_lines.append("**Optional parameters (may affect model behavior):**")
-                    optional_found = True
+        # NOT IN STANDARD parameters
+        if extra_count > 0:
+            report_lines.append(f"- Found ({extra_count}) parameter(s) not in standard:")
+            for param_path in extra_params:
                 param_name = param_path.split('.')[-1]
-                report_lines.append(f"- {param_name} at level {param_path}")
+                report_lines.append(f"-- {param_name} at level {param_path}")
+            report_lines.append("")
         
-        report_lines.append("")
+        # Renamed parameters
+        if deprecated_count > 0:
+            report_lines.append(f"- Renamed ({deprecated_count}) parameters:")
+            for old_name, new_name in deprecated_replacements:
+                report_lines.append(f"-- {old_name} changed to {new_name}")
+            report_lines.append("")
     
-    if extra_count > 0:
-        report_lines.append("## NOT IN STANDARD Parameters")
-        report_lines.append("These parameters exist in your configuration but are not in the standard:")
-        for param_path in extra_params:
-            param_name = param_path.split('.')[-1]
-            report_lines.append(f"- {param_name} at level {param_path}")
-        report_lines.append("")
+    # Footer separator
+    report_lines.append("# " + "="*50)
+    report_lines.append("")
     
-    if deprecated_count > 0:
-        report_lines.append("## RENAMED IN STANDARD Parameters")
-        report_lines.append("These parameters were renamed to current conventions:")
-        for old_name, new_name in deprecated_replacements:
-            report_lines.append(f"- {old_name} -> {new_name}")
-        report_lines.append("")
-    
-    # Usage instructions
-    report_lines.append("## Next Steps")
-    report_lines.append("Info about parameters can be found in the manual: https://suews.readthedocs.io/latest/")
+    # Next steps
+    report_lines.append("## NEXT STEPS")
     if urgent_count > 0:
-        report_lines.append("- Review URGENT-MISSING IN STANDARD parameters and set appropriate values")
-    if optional_count > 0:
-        report_lines.append("- Review MISSING IN STANDARD parameters and set values based on your study requirements")
-    report_lines.append("- Use the uptodate_user.yml file as your updated configuration")
+        report_lines.append("1. Review critical missing parameters and set appropriate values")
+    else:
+        report_lines.append("1. No critical parameters require immediate attention")
     
     return '\n'.join(report_lines)
 

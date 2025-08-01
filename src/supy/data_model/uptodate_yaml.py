@@ -452,7 +452,7 @@ def create_uptodate_yaml_with_missing_params(yaml_content, missing_params, extra
     clean_content = header + content_with_lines
     return clean_content
 
-def create_analysis_report(missing_params, deprecated_replacements, extra_params=None):
+def create_analysis_report(missing_params, deprecated_replacements, extra_params=None, uptodate_filename=None):
     """Create analysis report with summary of changes."""
     report_lines = []
     report_lines.append("# SUEWS Configuration Analysis Report")
@@ -472,13 +472,15 @@ def create_analysis_report(missing_params, deprecated_replacements, extra_params
         for param_path, standard_value, is_physics in missing_params:
             if is_physics:
                 param_name = param_path.split('.')[-1]
-                report_lines.append(f"-- {param_name} has been added and set to null. Needs value.")
+                uptodate_file_ref = uptodate_filename if uptodate_filename else "uptodate YAML file"
+                report_lines.append(f"-- {param_name} has been added to {uptodate_file_ref} and set to null. ***Needs value.*** -- https://suews.readthedocs.io/latest/")
         report_lines.append("")
     
     # NO ACTION NEEDED section - optional and informational items
     has_no_action_items = optional_count > 0 or extra_count > 0 or deprecated_count > 0
     if has_no_action_items:
         report_lines.append("## NO ACTION NEEDED")
+        report_lines.append("Note: Section B will check these.")
         
         # Optional missing parameters
         if optional_count > 0:
@@ -541,22 +543,27 @@ def annotate_missing_parameters(user_file, standard_file, uptodate_file=None, re
         uptodate_content = create_uptodate_yaml_with_missing_params(original_yaml_content, missing_params, extra_params)
         
         # Create analysis report
-        report_content = create_analysis_report(missing_params, deprecated_replacements, extra_params)
+        uptodate_filename = os.path.basename(uptodate_file) if uptodate_file else None
+        report_content = create_analysis_report(missing_params, deprecated_replacements, extra_params, uptodate_filename)
     else:
         print("No missing in standard or renamed in standard parameters found!")
         # Still create clean files
         uptodate_content = create_uptodate_yaml_header() + original_yaml_content
-        report_content = create_analysis_report([], [], [])
+        uptodate_filename = os.path.basename(uptodate_file) if uptodate_file else None
+        report_content = create_analysis_report([], [], [], uptodate_filename)
     
     # Print clean terminal output based on critical parameters
     critical_params = [(path, val, is_phys) for path, val, is_phys in missing_params if is_phys]
     
     if critical_params:
-        print(f"MISSING CRITICAL PARAMETERS FOUND:")
+        print(f"Action needed: CRITICAL parameters missing:")
         for param_path, standard_value, _ in critical_params:
             param_name = param_path.split('.')[-1]
             print(f"  - {param_name}")
-        print(f"\nPlease check the report file for details on what to do.")
+        print("")
+        report_filename = os.path.basename(report_file) if report_file else "report file"
+        report_location = os.path.dirname(report_file) if report_file else "current directory"
+        print(f"Next step: Check {report_filename} report file located {report_location} on what to do to resolve this")
     else:
         print("PHASE A -- PASSED")
     

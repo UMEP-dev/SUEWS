@@ -548,27 +548,17 @@ def annotate_missing_parameters(user_file, standard_file, uptodate_file=None, re
         uptodate_content = create_uptodate_yaml_header() + original_yaml_content
         report_content = create_analysis_report([], [], [])
     
-    # Print terminal output (kept for backward compatibility)
-    if missing_params:
-        physics_params = [(path, val, is_phys) for path, val, is_phys in missing_params if is_phys]
-        regular_params = [(path, val, is_phys) for path, val, is_phys in missing_params if not is_phys]
-        print(f" Found {len(missing_params)} missing in standard parameters:")
-        if physics_params:
-            print(f"\n URGENT: {len(physics_params)} physics options require immediate attention:")
-            for param_path, standard_value, _ in physics_params:
-                print(f"   - {param_path} (currently missing - precheck will fail!)")
-        if regular_params:
-            print(f"\n -  {len(regular_params)} optional parameters found:")
-            for param_path, standard_value, _ in regular_params:
-                print(f"   - {param_path}")
-    if deprecated_replacements:
-        print(f"\n RENAMED IN STANDARD parameters:")
-        for old_key, new_key in deprecated_replacements:
-            print(f"   - {old_key} -> {new_key}")
-    if extra_params:
-        print(f"\n NOT IN STANDARD parameters:")
-        for param_path in extra_params:
-            print(f"   - {param_path}")
+    # Print clean terminal output based on critical parameters
+    critical_params = [(path, val, is_phys) for path, val, is_phys in missing_params if is_phys]
+    
+    if critical_params:
+        print(f"MISSING CRITICAL PARAMETERS FOUND:")
+        for param_path, standard_value, _ in critical_params:
+            param_name = param_path.split('.')[-1]
+            print(f"  - {param_name}")
+        print(f"\nPlease check the report file for details on what to do.")
+    else:
+        print("PHASE A -- PASSED")
     
     # Write output files
     if uptodate_file:
@@ -605,22 +595,12 @@ def main():
     uptodate_file = os.path.join(dirname, uptodate_filename)
     report_file = os.path.join(dirname, report_filename)
 
-    print(" Step 2: Creating output files...")
     annotate_missing_parameters(
         user_file=user_file,
         standard_file=standard_file,
         uptodate_file=uptodate_file,
         report_file=report_file
     )
-    print()
-    print(" Analysis complete!")
-    print(" Output files:")
-    print(f"   - {uptodate_file}: Clean YAML file with all changes applied")
-    print(f"   - {report_file}: Analysis report with summary of changes")
-    print("\n Usage Guide:")
-    print(f"  1. Use {uptodate_file} as your YAML configuration file")
-    print(f"  2. Review {report_file} for details about changes made. Info about parameters can be found in the manual: https://suews.readthedocs.io/latest/")
-    print(f"  3. Optionally run precheck validation with the uptodate file")
 
 
 if __name__ == "__main__":

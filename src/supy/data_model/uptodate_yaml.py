@@ -1,12 +1,5 @@
-import pandas as pd
-import geopandas as gpd
-import numpy as np
-import f90nml as nml
 import yaml
 import os
-import supy as sp
-from supy.data_model import SUEWSConfig
-from yaml.representer import SafeRepresenter
 
 RENAMED_PARAMS = {
     'cp': 'rho_cp',
@@ -30,15 +23,6 @@ PHYSICS_OPTIONS = {
     'stebbsmethod'
 }
 
-class CustomDumper(yaml.SafeDumper):
-    pass
-
-def missing_comment_representer(dumper, data):
-    node = dumper.represent_scalar('tag:yaml.org,2002:null', 'null')
-    node.comment = ' MISSING!'
-    return node
-
-CustomDumper.add_representer(type(None), missing_comment_representer)
 
 def handle_renamed_parameters(yaml_content: str):
     lines = yaml_content.split('\n')
@@ -358,7 +342,7 @@ def create_uptodate_yaml_header():
 '''
     return header
 
-def create_clean_missing_param_annotation(param_name, standard_value, is_physics=False):
+def create_clean_missing_param_annotation(param_name, standard_value):
     """Create missing parameter annotation without inline comments for clean YAML."""
     lines = []
     if isinstance(standard_value, dict):
@@ -369,49 +353,25 @@ def create_clean_missing_param_annotation(param_name, standard_value, is_physics
                 lines.append(f"  {formatted_key}:")
                 for subkey, subvalue in value.items():
                     formatted_subkey = format_yaml_key(subkey)
-                    # Use null for physics parameters, appropriate defaults for others
-                    default_value = get_default_value(subvalue, is_physics)
+                    # All missing parameters get null values
+                    default_value = get_default_value(subvalue)
                     lines.append(f"    {formatted_subkey}: {default_value}")
             else:
-                # Use null for physics parameters, appropriate defaults for others
-                default_value = get_default_value(value, is_physics)
+                # All missing parameters get null values
+                default_value = get_default_value(value)
                 lines.append(f"  {formatted_key}: {default_value}")
     else:
-        # Use null for physics parameters, appropriate defaults for others
-        default_value = get_default_value(standard_value, is_physics)
+        # All missing parameters get null values
+        default_value = get_default_value(standard_value)
         lines.append(f"{param_name}: {default_value}")
     return lines
 
-def get_default_value(standard_value, is_physics=False):
+def get_default_value(standard_value):
     """Get appropriate default value based on standard value."""
     # All missing parameters (both physics and non-physics) get null values
     # Users will set the appropriate values themselves
     return "null"
 
-def mark_extra_parameters(yaml_content, extra_params):
-    """Mark parameters that are NOT IN STANDARD in the YAML content."""
-    if not extra_params:
-        return yaml_content
-    
-    lines = yaml_content.split('\n')
-    
-    for param_path in extra_params:
-        # Find the line containing this parameter
-        param_name = param_path.split('.')[-1]
-        
-        # Handle array indices (e.g., walls[2].wetthresh -> wetthresh)
-        if '[' in param_name and ']' in param_name:
-            param_name = param_name.split('.')[-1]  # Get the actual parameter name after array index
-        
-        for i, line in enumerate(lines):
-            stripped = line.strip()
-            # Look for lines that define this parameter (key: value format)
-            if stripped.startswith(f"{param_name}:") and not stripped.endswith("#NOT IN STANDARD"):
-                # Add the NOT IN STANDARD comment
-                lines[i] = line + "  #NOT IN STANDARD"
-                break
-    
-    return '\n'.join(lines)
 
 def cleanup_deprecated_comments(yaml_content):
     """Remove renamed in standard comments from YAML content for clean output."""
@@ -468,7 +428,7 @@ def create_uptodate_yaml_with_missing_params(yaml_content, missing_params, extra
                 indent = get_section_indent(lines, insert_position)
             
             # Create clean annotation lines (without comments)
-            annotation_lines = create_clean_missing_param_annotation(param_name, standard_value, is_physics)
+            annotation_lines = create_clean_missing_param_annotation(param_name, standard_value)
             # Apply proper indentation to each line
             indented_lines = []
             for line in annotation_lines:

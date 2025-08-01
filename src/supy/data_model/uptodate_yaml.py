@@ -57,6 +57,42 @@ def is_physics_option(param_path):
     param_name = param_path.split('.')[-1]
     return 'model.physics' in param_path and param_name in PHYSICS_OPTIONS
 
+def find_extra_parameters(user_data, reference_data, current_path=""):
+    """Find parameters that exist in user data but not in reference data."""
+    extra_params = []
+    if isinstance(user_data, dict) and isinstance(reference_data, dict):
+        for key, user_value in user_data.items():
+            full_path = f"{current_path}.{key}" if current_path else key
+            if key not in reference_data:
+                # This parameter exists in user but not in reference
+                extra_params.append(full_path)
+            elif isinstance(user_value, dict) and isinstance(reference_data.get(key), dict):
+                # Recursively check nested dictionaries
+                nested_extra = find_extra_parameters(user_value, reference_data[key], full_path)
+                extra_params.extend(nested_extra)
+            elif isinstance(user_value, list) and isinstance(reference_data.get(key), list):
+                # Handle lists/arrays
+                nested_extra = find_extra_parameters_in_lists(user_value, reference_data[key], full_path)
+                extra_params.extend(nested_extra)
+    elif isinstance(user_data, list) and isinstance(reference_data, list):
+        nested_extra = find_extra_parameters_in_lists(user_data, reference_data, current_path)
+        extra_params.extend(nested_extra)
+    return extra_params
+
+def find_extra_parameters_in_lists(user_list, reference_list, current_path=""):
+    """Find extra parameters in list structures."""
+    extra_params = []
+    for i, user_item in enumerate(user_list):
+        item_path = f"{current_path}[{i}]" if current_path else f"[{i}]"
+        if i < len(reference_list):
+            # Compare with corresponding reference item
+            ref_item = reference_list[i]
+            nested_extra = find_extra_parameters(user_item, ref_item, item_path)
+            extra_params.extend(nested_extra)
+        # Note: We don't flag entire array items as "extra" if they exceed reference length
+        # as this might be valid (user has more array items than reference)
+    return extra_params
+
 def find_missing_parameters(user_data, reference_data, current_path=""):
     missing_params = []
     if isinstance(reference_data, dict):
@@ -357,6 +393,31 @@ def get_default_value(ref_value):
     else:
         return "null"
 
+def mark_extra_parameters(yaml_content, extra_params):
+    """Mark parameters that are NOT IN STANDARD in the YAML content."""
+    if not extra_params:
+        return yaml_content
+    
+    lines = yaml_content.split('\n')
+    
+    for param_path in extra_params:
+        # Find the line containing this parameter
+        param_name = param_path.split('.')[-1]
+        
+        # Handle array indices (e.g., walls[2].wetthresh -> wetthresh)
+        if '[' in param_name and ']' in param_name:
+            param_name = param_name.split('.')[-1]  # Get the actual parameter name after array index
+        
+        for i, line in enumerate(lines):
+            stripped = line.strip()
+            # Look for lines that define this parameter (key: value format)
+            if stripped.startswith(f"{param_name}:") and not stripped.endswith("#NOT IN STANDARD"):
+                # Add the NOT IN STANDARD comment
+                lines[i] = line + "  #NOT IN STANDARD"
+                break
+    
+    return '\n'.join(lines)
+
 def cleanup_deprecated_comments(yaml_content):
     """Remove deprecated comments from YAML content for clean output."""
     lines = yaml_content.split('\n')
@@ -373,7 +434,7 @@ def cleanup_deprecated_comments(yaml_content):
     
     return '\n'.join(cleaned_lines)
 
-def create_uptodate_yaml_with_missing_params(yaml_content, missing_params):
+def create_uptodate_yaml_with_missing_params(yaml_content, missing_params, extra_params=None):
     """Create clean YAML with missing parameters added but no inline comments."""
     # First, clean up any deprecated comments from the yaml_content
     clean_yaml_content = cleanup_deprecated_comments(yaml_content)
@@ -426,10 +487,16 @@ def create_uptodate_yaml_with_missing_params(yaml_content, missing_params):
                 lines.insert(insert_position, annotation_line)
     
     header = create_uptodate_yaml_header()
-    clean_content = header + '\n'.join(lines)
+    content_with_lines = '\n'.join(lines)
+    
+    # Mark extra parameters as NOT IN STANDARD
+    if extra_params:
+        content_with_lines = mark_extra_parameters(content_with_lines, extra_params)
+    
+    clean_content = header + content_with_lines
     return clean_content
 
-def create_analysis_report(missing_params, deprecated_replacements):
+def create_analysis_report(missing_params, deprecated_replacements, extra_params=None):
     """Create analysis report with summary of changes."""
     report_lines = []
     report_lines.append("# SUEWS Configuration Analysis Report")
@@ -440,6 +507,7 @@ def create_analysis_report(missing_params, deprecated_replacements):
     urgent_count = sum(1 for _, _, is_physics in missing_params if is_physics)
     optional_count = len(missing_params) - urgent_count
     deprecated_count = len(deprecated_replacements)
+    extra_count = len(extra_params) if extra_params else 0
     
     report_lines.append(f"## Summary")
     report_lines.append(f"- Found {len(missing_params)} missing parameters")
@@ -449,6 +517,8 @@ def create_analysis_report(missing_params, deprecated_replacements):
         report_lines.append(f"- {optional_count} optional parameters found")
     if deprecated_count > 0:
         report_lines.append(f"- {deprecated_count} deprecated parameters replaced")
+    if extra_count > 0:
+        report_lines.append(f"- {extra_count} parameters NOT IN STANDARD (kept in output)")
     report_lines.append("")
     
     # Detailed breakdown - combined MISSING section with urgent ones first
@@ -480,6 +550,14 @@ def create_analysis_report(missing_params, deprecated_replacements):
                 param_name = param_path.split('.')[-1]
                 report_lines.append(f"- {param_name} at level {param_path}")
         
+        report_lines.append("")
+    
+    if extra_count > 0:
+        report_lines.append("## NOT IN STANDARD Parameters")
+        report_lines.append("These parameters exist in your configuration but are not in the standard reference:")
+        for param_path in extra_params:
+            param_name = param_path.split('.')[-1]
+            report_lines.append(f"- {param_name} at level {param_path}")
         report_lines.append("")
     
     if deprecated_count > 0:
@@ -517,19 +595,20 @@ def annotate_missing_parameters(user_file, reference_file, uptodate_file=None, r
         print(f"Error: Invalid YAML - {e}")
         return
     missing_params = find_missing_parameters(user_data, reference_data)
+    extra_params = find_extra_parameters(user_data, reference_data)
     
     # Generate content for both files
-    if missing_params or deprecated_replacements:
-        # Create uptodate YAML (clean, no comments)
-        uptodate_content = create_uptodate_yaml_with_missing_params(original_yaml_content, missing_params)
+    if missing_params or deprecated_replacements or extra_params:
+        # Create uptodate YAML (clean, with NOT IN STANDARD markers)
+        uptodate_content = create_uptodate_yaml_with_missing_params(original_yaml_content, missing_params, extra_params)
         
         # Create analysis report
-        report_content = create_analysis_report(missing_params, deprecated_replacements)
+        report_content = create_analysis_report(missing_params, deprecated_replacements, extra_params)
     else:
         print("No missing or deprecated parameters found!")
         # Still create clean files
         uptodate_content = create_uptodate_yaml_header() + original_yaml_content
-        report_content = create_analysis_report([], [])
+        report_content = create_analysis_report([], [], [])
     
     # Print terminal output (kept for backward compatibility)
     if missing_params:
@@ -548,6 +627,10 @@ def annotate_missing_parameters(user_file, reference_file, uptodate_file=None, r
         print(f"\n Deprecated parameters replaced:")
         for old_key, new_key in deprecated_replacements:
             print(f"   - {old_key} -> {new_key}")
+    if extra_params:
+        print(f"\n NOT IN STANDARD parameters found (kept in output):")
+        for param_path in extra_params:
+            print(f"   - {param_path}")
     
     # Write output files
     if uptodate_file:

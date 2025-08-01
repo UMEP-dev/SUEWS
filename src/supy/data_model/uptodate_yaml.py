@@ -293,26 +293,6 @@ def calculate_array_item_indent(lines, insert_position, array_name):
     
     return ""
 
-def create_missing_param_annotation(param_name, ref_value, base_indent, is_physics=False):
-    lines = []
-    if isinstance(ref_value, dict):
-        lines.append(f"{base_indent}{param_name}:")
-        for key, value in ref_value.items():
-            # Ensure numeric keys are properly quoted as strings
-            formatted_key = format_yaml_key(key)
-            if isinstance(value, dict):
-                lines.append(f"{base_indent}  {formatted_key}:")
-                for subkey, subvalue in value.items():
-                    formatted_subkey = format_yaml_key(subkey)
-                    comment = " #URGENT-MISSING!" if is_physics else " #MISSING!"
-                    lines.append(f"{base_indent}    {formatted_subkey}: null{comment}")
-            else:
-                comment = " #URGENT-MISSING!" if is_physics else " #MISSING!"
-                lines.append(f"{base_indent}  {formatted_key}: null{comment}")
-    else:
-        comment = " #URGENT-MISSING!" if is_physics else " #MISSING!"
-        lines.append(f"{base_indent}{param_name}: null{comment}")
-    return lines
 
 def format_yaml_key(key):
     """Format a key for YAML output, ensuring numeric strings are properly quoted."""
@@ -326,49 +306,13 @@ def format_yaml_key(key):
     else:
         return str(key)
 
-def create_yaml_legend():
-    legend = '''# =============================================================================
-# SUEWS Configuration File - Missing Parameters Guide
-# =============================================================================
-#
-# This file has been automatically processed by common_mistakes.py to highlight missing parameters.
-# Please review and update the following annotations:
-#
-# LEGEND:
-# -------
-# parameter: null #URGENT-MISSING!  <- Physics option requiring immediate attention
-#                                       You MUST set a valid value or precheck will fail!
-#
-# parameter: null #MISSING!         <- Optional parameter with default behavior
-#                                       You can leave as null or set a specific value.
-#
-# parameter: value  #DEPRECATED!    <- Found "deprecated_naming" and changed into "new_naming"
-#                                       This parameter has been renamed in SUEWS.
-#
-# HOW TO USE:
-# -----------
-# 1. Search for "#URGENT-MISSING!" - These MUST be manually updated before running SUEWS
-# 2. Search for "#MISSING!" - These are optional but may affect model behavior. 
-#                             Replace "null" with appropriate values based on your study requirements.
-# 3. Search for "#DEPRECATED!" - These are changed into new naming convention.
-# 4. Remove the comment annotations after setting values
-#
-# PHYSICS OPTIONS GUIDE:
-# ----------------------
-# Most physics methods accept integer values (0, 1, 2, 3, etc.)
-# Refer to SUEWS documentation for valid options for each parameter
-#
-# =============================================================================
-
-'''
-    return legend
 
 def create_uptodate_yaml_header():
     header = '''# =============================================================================
 # UP TO DATE YAML
 # =============================================================================
 #
-# This file has been automatically updated by common_mistakes.py with all necessary changes:
+# This file has been automatically updated by uptodate_yaml.py with all necessary changes:
 # - Missing parameters have been added with appropriate default values
 # - Deprecated parameters have been renamed to current naming conventions
 # - All changes applied without inline comments for clean usage
@@ -507,23 +451,35 @@ def create_analysis_report(missing_params, deprecated_replacements):
         report_lines.append(f"- {deprecated_count} deprecated parameters replaced")
     report_lines.append("")
     
-    # Detailed breakdown
-    if urgent_count > 0:
-        report_lines.append("## URGENT-MISSING Parameters")
-        report_lines.append("These physics options MUST be set or precheck will fail:")
+    # Detailed breakdown - combined MISSING section with urgent ones first
+    if missing_params:
+        report_lines.append("## MISSING Parameters")
+        report_lines.append("Missing parameters found (urgent ones listed first):")
+        report_lines.append("")
+        
+        # First, list all URGENT-MISSING parameters (physics options)
+        urgent_found = False
         for param_path, ref_value, is_physics in missing_params:
             if is_physics:
+                if not urgent_found:
+                    report_lines.append("**URGENT - Physics options (MUST be set or precheck will fail):**")
+                    urgent_found = True
                 param_name = param_path.split('.')[-1]
                 report_lines.append(f"- {param_name} at level {param_path}")
-        report_lines.append("")
-    
-    if optional_count > 0:
-        report_lines.append("## MISSING Parameters")
-        report_lines.append("These optional parameters were found missing:")
+        
+        if urgent_found:
+            report_lines.append("")
+        
+        # Then, list all optional MISSING parameters
+        optional_found = False
         for param_path, ref_value, is_physics in missing_params:
             if not is_physics:
+                if not optional_found:
+                    report_lines.append("**Optional parameters (may affect model behavior):**")
+                    optional_found = True
                 param_name = param_path.split('.')[-1]
                 report_lines.append(f"- {param_name} at level {param_path}")
+        
         report_lines.append("")
     
     if deprecated_count > 0:
@@ -545,46 +501,8 @@ def create_analysis_report(missing_params, deprecated_replacements):
     
     return '\n'.join(report_lines)
 
-def annotate_yaml_with_missing_params(yaml_content, missing_params):
-    if not missing_params:
-        legend = create_yaml_legend()
-        return legend + yaml_content
-    lines = yaml_content.split('\n')
-    missing_params.sort(key=lambda x: x[0].count('.'), reverse=True)
-    for param_path, ref_value, is_physics in missing_params:
-        path_parts = param_path.split('.')
-        param_name = path_parts[-1]
-        insert_position = find_insertion_point(lines, path_parts)
-        if insert_position is not None:
-            # Calculate the correct indentation based on the parent section
-            parent_section = path_parts[-2] if len(path_parts) >= 2 else None
-            if parent_section:
-                # Handle array indices in parent section
-                if '[' in parent_section and ']' in parent_section:
-                    array_name = parent_section.split('[')[0]
-                    # For array items, find the item and calculate appropriate indent
-                    indent = calculate_array_item_indent(lines, insert_position, array_name)
-                else:
-                    # Find the parent section and calculate child indent
-                    for i, line in enumerate(lines):
-                        stripped = line.strip()
-                        if stripped == f"{parent_section}:" or stripped.endswith(f":{parent_section}:"):
-                            parent_indent = len(line) - len(line.lstrip())
-                            child_indent_level = parent_indent + 2
-                            indent = get_section_indent(lines, insert_position, child_indent_level)
-                            break
-                    else:
-                        indent = get_section_indent(lines, insert_position)
-            else:
-                indent = get_section_indent(lines, insert_position)
-            annotation_lines = create_missing_param_annotation(param_name, ref_value, indent, is_physics)
-            for i, annotation_line in enumerate(reversed(annotation_lines)):
-                lines.insert(insert_position, annotation_line)
-    legend = create_yaml_legend()
-    annotated_content = legend + '\n'.join(lines)
-    return annotated_content
 
-def annotate_missing_parameters(user_file, reference_file, output_file=None, uptodate_file=None, report_file=None):
+def annotate_missing_parameters(user_file, reference_file, uptodate_file=None, report_file=None):
     try:
         with open(user_file, 'r') as f:
             original_yaml_content = f.read()
@@ -607,18 +525,11 @@ def annotate_missing_parameters(user_file, reference_file, output_file=None, upt
         
         # Create analysis report
         report_content = create_analysis_report(missing_params, deprecated_replacements)
-        
-        # Create annotated YAML (with comments) if requested
-        if output_file:
-            annotated_content = annotate_yaml_with_missing_params(original_yaml_content, missing_params)
     else:
         print("No missing or deprecated parameters found!")
         # Still create clean files
         uptodate_content = create_uptodate_yaml_header() + original_yaml_content
         report_content = create_analysis_report([], [])
-        if output_file:
-            legend = create_yaml_legend()
-            annotated_content = legend + original_yaml_content
     
     # Print terminal output (kept for backward compatibility)
     if missing_params:
@@ -648,11 +559,6 @@ def annotate_missing_parameters(user_file, reference_file, output_file=None, upt
         with open(report_file, 'w') as f:
             f.write(report_content)
         print(f" Analysis report written to: {report_file}")
-    
-    if output_file:
-        with open(output_file, 'w') as f:
-            f.write(annotated_content)
-        print(f" Annotated file written to: {output_file}")
 
 def main():
     print(" SUEWS Configuration Analysis")
@@ -672,31 +578,26 @@ def main():
     name_without_ext = os.path.splitext(basename)[0]
     uptodate_filename = f"uptodate_{basename}"
     report_filename = f"report_{name_without_ext}.yml"
-    commented_filename = f"commented_{basename}"
     
     uptodate_file = os.path.join(dirname, uptodate_filename)
     report_file = os.path.join(dirname, report_filename)
-    output_file = os.path.join(dirname, commented_filename)
 
     print(" Step 2: Creating output files...")
     annotate_missing_parameters(
         user_file=user_file,
         reference_file=reference_file,
         uptodate_file=uptodate_file,
-        report_file=report_file,
-        output_file=output_file
+        report_file=report_file
     )
     print()
     print(" Analysis complete!")
     print(" Output files:")
     print(f"   - {uptodate_file}: Clean YAML file with all changes applied")
     print(f"   - {report_file}: Analysis report with summary of changes")
-    print(f"   - {output_file}: Annotated file with inline comments and legend")
     print("\n Usage Guide:")
     print("   1. Use uptodate_user.yml as your main configuration file")
     print("   2. Review the report file for details about changes made")
-    print("   3. Check the annotated file for specific parameter guidance")
-    print("   4. Run precheck validation with the uptodate file")
+    print("   3. Run precheck validation with the uptodate file")
 
 
 if __name__ == "__main__":

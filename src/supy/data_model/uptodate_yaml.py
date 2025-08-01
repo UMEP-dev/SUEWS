@@ -358,7 +358,7 @@ def create_uptodate_yaml_header():
 '''
     return header
 
-def create_clean_missing_param_annotation(param_name, standard_value):
+def create_clean_missing_param_annotation(param_name, standard_value, is_physics=False):
     """Create missing parameter annotation without inline comments for clean YAML."""
     lines = []
     if isinstance(standard_value, dict):
@@ -369,29 +369,24 @@ def create_clean_missing_param_annotation(param_name, standard_value):
                 lines.append(f"  {formatted_key}:")
                 for subkey, subvalue in value.items():
                     formatted_subkey = format_yaml_key(subkey)
-                    # Use appropriate default values instead of null
-                    default_value = get_default_value(subvalue)
+                    # Use null for physics parameters, appropriate defaults for others
+                    default_value = get_default_value(subvalue, is_physics)
                     lines.append(f"    {formatted_subkey}: {default_value}")
             else:
-                # Use appropriate default values instead of null
-                default_value = get_default_value(value)
+                # Use null for physics parameters, appropriate defaults for others
+                default_value = get_default_value(value, is_physics)
                 lines.append(f"  {formatted_key}: {default_value}")
     else:
-        # Use appropriate default values instead of null
-        default_value = get_default_value(standard_value)
+        # Use null for physics parameters, appropriate defaults for others
+        default_value = get_default_value(standard_value, is_physics)
         lines.append(f"{param_name}: {default_value}")
     return lines
 
-def get_default_value(standard_value):
+def get_default_value(standard_value, is_physics=False):
     """Get appropriate default value based on standard value."""
-    if isinstance(standard_value, (int, float)):
-        return standard_value
-    elif isinstance(standard_value, str):
-        return standard_value
-    elif isinstance(standard_value, bool):
-        return str(standard_value).lower()
-    else:
-        return "null"
+    # All missing parameters (both physics and non-physics) get null values
+    # Users will set the appropriate values themselves
+    return "null"
 
 def mark_extra_parameters(yaml_content, extra_params):
     """Mark parameters that are NOT IN STANDARD in the YAML content."""
@@ -473,7 +468,7 @@ def create_uptodate_yaml_with_missing_params(yaml_content, missing_params, extra
                 indent = get_section_indent(lines, insert_position)
             
             # Create clean annotation lines (without comments)
-            annotation_lines = create_clean_missing_param_annotation(param_name, standard_value)
+            annotation_lines = create_clean_missing_param_annotation(param_name, standard_value, is_physics)
             # Apply proper indentation to each line
             indented_lines = []
             for line in annotation_lines:

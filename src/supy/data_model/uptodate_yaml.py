@@ -605,7 +605,7 @@ def main():
     ## MISSING LOGIC - check that standard_file is up to date!
 
     standard_file = "src/supy/sample_run/sample_config.yml"
-    user_file = "src/supy/data_model/sample2.yml"
+    user_file = "src/supy/data_model/user.yml"
 
     print(f"Standard YAML file: {standard_file}")
     print(f"User YAML file: {user_file}")

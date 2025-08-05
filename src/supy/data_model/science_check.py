@@ -46,6 +46,24 @@ class ScientificAdjustment:
     reason: str = ""
 
 
+def get_value_safe(param_dict, param_key, default=None):
+    """Safely extract value from RefValue or plain format.
+
+    Args:
+        param_dict: Dictionary containing the parameter
+        param_key: Key to look up
+        default: Default value if key not found
+
+    Returns:
+        The parameter value, handling both RefValue {"value": X} and plain X formats
+    """
+    param = param_dict.get(param_key, default)
+    if isinstance(param, dict) and "value" in param:
+        return param["value"]  # RefValue format: {"value": 1}
+    else:
+        return param  # Plain format: 1
+
+
 def validate_phase_b_inputs(uptodate_yaml_file: str, user_yaml_file: str, standard_yaml_file: str) -> Tuple[dict, dict, dict]:
     """
     Validate that Phase B has all required inputs. Can work with Phase A output or raw user YAML.
@@ -221,8 +239,8 @@ def validate_model_option_dependencies(yaml_data: dict) -> List[ValidationResult
     physics = yaml_data.get("model", {}).get("physics", {})
     
     # Check rslmethod-stabilitymethod constraints
-    rslmethod = physics.get("rslmethod", {}).get("value")
-    stabilitymethod = physics.get("stabilitymethod", {}).get("value")
+    rslmethod = get_value_safe(physics, "rslmethod")
+    stabilitymethod = get_value_safe(physics, "stabilitymethod")
     
     # Constraint 1: If rslmethod == 2, stabilitymethod must be 3
     if rslmethod == 2 and stabilitymethod != 3:
@@ -412,8 +430,7 @@ def validate_geographic_parameters(yaml_data: dict) -> List[ValidationResult]:
         props = site.get("properties", {})
         
         # Validate latitude
-        lat_entry = props.get("lat", {})
-        lat = lat_entry.get("value") if isinstance(lat_entry, dict) else lat_entry
+        lat = get_value_safe(props, "lat")
         
         if lat is None:
             results.append(ValidationResult(
@@ -444,8 +461,7 @@ def validate_geographic_parameters(yaml_data: dict) -> List[ValidationResult]:
             ))
         
         # Validate longitude
-        lng_entry = props.get("lng", {})
-        lng = lng_entry.get("value") if isinstance(lng_entry, dict) else lng_entry
+        lng = get_value_safe(props, "lng")
         
         if lng is None:
             results.append(ValidationResult(
@@ -476,8 +492,7 @@ def validate_geographic_parameters(yaml_data: dict) -> List[ValidationResult]:
             ))
         
         # Check timezone parameter exists (will be set by DLS calculation)
-        timezone_entry = props.get("timezone", {})
-        timezone = timezone_entry.get("value") if isinstance(timezone_entry, dict) else timezone_entry
+        timezone = get_value_safe(props, "timezone")
         
         if timezone is None:
             results.append(ValidationResult(
@@ -492,8 +507,8 @@ def validate_geographic_parameters(yaml_data: dict) -> List[ValidationResult]:
         # Check DLS parameters exist (will be set by DLS calculation)
         anthro_emissions = props.get("anthropogenic_emissions", {})
         if anthro_emissions:
-            startdls = anthro_emissions.get("startdls", {}).get("value")
-            enddls = anthro_emissions.get("enddls", {}).get("value")
+            startdls = get_value_safe(anthro_emissions, "startdls")
+            enddls = get_value_safe(anthro_emissions, "enddls")
             
             if startdls is None or enddls is None:
                 results.append(ValidationResult(
@@ -765,7 +780,7 @@ def adjust_model_dependent_nullification(yaml_data: dict) -> Tuple[dict, List[Sc
     physics = yaml_data.get("model", {}).get("physics", {})
     
     # STEBBSMETHOD RULE: when stebbsmethod == 0, nullify all stebbs params
-    stebbsmethod = physics.get("stebbsmethod", {}).get("value")
+    stebbsmethod = get_value_safe(physics, "stebbsmethod")
     
     if stebbsmethod == 0:
         sites = yaml_data.get("sites", [])
@@ -875,8 +890,7 @@ def adjust_seasonal_parameters(yaml_data: dict, start_date: str, model_year: int
         # Get site coordinates
         lat_entry = props.get("lat", {})
         lat = lat_entry.get("value") if isinstance(lat_entry, dict) else lat_entry
-        lng_entry = props.get("lng", {})
-        lng = lng_entry.get("value") if isinstance(lng_entry, dict) else lng_entry
+        lng = get_value_safe(props, "lng")
         
         if lat is None:
             continue  # Skip if no latitude

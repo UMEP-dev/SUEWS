@@ -252,7 +252,7 @@ When Phase A detects issues, it generates two output files:
    
    **Critical Parameters:** Parameters listed in the **ACTION NEEDED** section are critical physics options that must be set. The model may not run correctly until these null values are replaced with appropriate values.
 
-**For detailed Phase A documentation, see:** ../phase_a_detailed.rst
+**For detailed Phase A documentation, see:** `phase_a_detailed.rst <../phase_a_detailed.rst>`__
 
 
 Section B: Overview
@@ -268,7 +268,8 @@ The check are for:
 
 What is checked In B how and why
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
- - assumptions -etc
+
+- assumptions -etc
 
 
 
@@ -278,7 +279,7 @@ What is checked In B how and why
 Actions for fixing B issues
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Output: an updated YAML  saved as py0_<filename>.yml and a CSV report listing all changes.
+Output: an updated YAML saved as py0_<filename>.yml and a CSV report listing all changes.
 
 .. note::
 
@@ -303,6 +304,9 @@ Output: An annotated YAML with inline error messages
 What is checked in C how and why
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+(To be documented)
 
 Actions to fix C issues
 ~~~~~~~~~~~~~~~~~~~~~~~
+
+(To be documented)

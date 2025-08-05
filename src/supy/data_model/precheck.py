@@ -303,7 +303,7 @@ def get_mean_monthly_air_temperature(
     # Find CRU data file - try multiple locations
     current_dir = Path(__file__).parent
     potential_paths = [
-        # First try Parquet format (preferred)
+        # First try Parquet format (preferred for production)
         current_dir / "database" / "CRU_TS4.06_1991_2020.parquet",
         # Fallback to CSV if Parquet not found
         current_dir / "database" / "CRU_TS4.06_cell_monthly_normals_1991_2020.csv",
@@ -320,11 +320,18 @@ def get_mean_monthly_air_temperature(
         / "data_model"
         / "database"
         / "CRU_TS4.06_cell_monthly_normals_1991_2020.csv",
+        # Test fixtures (for verification/testing)
+        current_dir.parent.parent.parent
+        / "test"
+        / "fixtures"
+        / "cru_data"
+        / "CRU_TS4.06_cell_monthly_normals_1991_2020.csv",
         # Relative to current working directory
         Path("src/supy/data_model/database/CRU_TS4.06_1991_2020.parquet"),
         Path(
             "src/supy/data_model/database/CRU_TS4.06_cell_monthly_normals_1991_2020.csv"
         ),
+        Path("test/fixtures/cru_data/CRU_TS4.06_cell_monthly_normals_1991_2020.csv"),
     ]
 
     cru_path = None

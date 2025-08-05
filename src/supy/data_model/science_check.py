@@ -1057,45 +1057,43 @@ def create_science_report(validation_results: List[ValidationResult], adjustment
     warnings = [r for r in validation_results if r.status == 'WARNING']
     passed = [r for r in validation_results if r.status == 'PASS']
     
-    # ACTION NEEDED section (errors and warnings)
-    action_needed = errors or warnings
-    
-    if action_needed:
+    # ACTION NEEDED section (only critical errors that prevent simulation)
+    if errors:
         report_lines.append("## ACTION NEEDED")
-        
-        # Critical scientific errors
-        if errors:
-            report_lines.append(f"- Found ({len(errors)}) critical scientific parameter error(s):")
-            for error in errors:
-                site_ref = f" at site [{error.site_index}]" if error.site_index is not None else ""
-                report_lines.append(f"-- {error.parameter}{site_ref}: {error.message}")
-                if error.suggested_value is not None:
-                    report_lines.append(f"   Suggested fix: {error.suggested_value}")
-        
-        # Scientific warnings that need review
-        if warnings:
-            if errors:
-                report_lines.append("")
-            report_lines.append(f"- Found ({len(warnings)}) scientific warning(s) requiring review:")
-            for warning in warnings:
-                site_ref = f" at site [{warning.site_index}]" if warning.site_index is not None else ""
-                report_lines.append(f"-- {warning.parameter}{site_ref}: {warning.message}")
-        
+        report_lines.append(f"- Found ({len(errors)}) critical scientific parameter error(s):")
+        for error in errors:
+            site_ref = f" at site [{error.site_index}]" if error.site_index is not None else ""
+            report_lines.append(f"-- {error.parameter}{site_ref}: {error.message}")
+            if error.suggested_value is not None:
+                report_lines.append(f"   Suggested fix: {error.suggested_value}")
         report_lines.append("")
     
-    # NO ACTION NEEDED section (adjustments and clean status)
-    report_lines.append("## NO ACTION NEEDED")
+    # UPDATED VALUES section (automatic adjustments applied)
     if adjustments:
+        report_lines.append("## UPDATED VALUES")
         report_lines.append(f"- Applied ({len(adjustments)}) automatic scientific adjustment(s):")
         for adjustment in adjustments:
             site_ref = f" at site [{adjustment.site_index}]" if adjustment.site_index is not None else ""
             report_lines.append(f"-- {adjustment.parameter}{site_ref}: {adjustment.old_value} → {adjustment.new_value} ({adjustment.reason})")
-        
+        report_lines.append("")
+    
+    # NO ACTION NEEDED section (warnings and clean status)
+    report_lines.append("## NO ACTION NEEDED")
+    if warnings:
+        report_lines.append(f"- Found ({len(warnings)}) scientific warning(s) for information:")
+        for warning in warnings:
+            site_ref = f" at site [{warning.site_index}]" if warning.site_index is not None else ""
+            report_lines.append(f"-- {warning.parameter}{site_ref}: {warning.message}")
+        if not adjustments and not errors:
+            report_lines.append("- All critical validations passed")
     else:
-        # No adjustments case
-        report_lines.append("- All scientific validations passed")
-        report_lines.append("- Model physics parameters are consistent")
-        report_lines.append("- Geographic parameters are valid")
+        # No warnings case
+        if not adjustments and not errors:
+            report_lines.append("- All scientific validations passed")
+            report_lines.append("- Model physics parameters are consistent")
+            report_lines.append("- Geographic parameters are valid")
+        elif not errors:
+            report_lines.append("- All critical validations passed")
     
     report_lines.append("")
     

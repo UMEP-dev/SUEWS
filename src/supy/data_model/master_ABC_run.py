@@ -150,9 +150,8 @@ def run_phase_a(user_yaml_file: str, standard_yaml_file: str,
             
         # Phase A should halt workflow if critical parameters are missing
         if "ACTION NEEDED" in report_content and "critical missing parameter" in report_content:
-            print("✗ Phase A detected critical missing parameters")
-            print("  Workflow halted - critical parameters must be fixed first")
-            print(f"  Check {os.path.basename(report_file)} for details")
+            print("✗ Phase A halted: Critical parameters missing")
+            print(f"  Fix issues in {os.path.basename(report_file)} then re-run")
             return False
         
         print("✓ Phase A completed successfully")
@@ -265,22 +264,19 @@ def print_final_summary(success: bool, user_yaml_file: str,
         print("3. All scientific validations and parameter fixes have been applied")
         
     else:
-        print("✗ Phase A-B workflow FAILED")
+        print("✗ Workflow FAILED")
         print()
-        print("Available Files:")
+        print("Generated Files:")
         if os.path.exists(uptodate_file):
-            print(f"  📄 Phase A Output: {os.path.basename(uptodate_file)}")
+            print(f"  📄 {os.path.basename(uptodate_file)}")
         if os.path.exists(report_file):
-            print(f"  📄 Phase A Report: {os.path.basename(report_file)}")
+            print(f"  📄 {os.path.basename(report_file)}")
         if os.path.exists(science_yaml_file):
-            print(f"  📄 Phase B Output: {os.path.basename(science_yaml_file)}")
+            print(f"  📄 {os.path.basename(science_yaml_file)}")
         if os.path.exists(science_report_file):
-            print(f"  📄 Phase B Report: {os.path.basename(science_report_file)}")
+            print(f"  📄 {os.path.basename(science_report_file)}")
         print()
-        print("Troubleshooting:")
-        print("1. Check report files for specific error details")
-        print("2. Fix critical parameters identified in reports")
-        print("3. Re-run master_ABC_run.py after fixing issues")
+        print("Next: Fix issues in report files, then re-run master_ABC_run.py")
     
     print("=" * 60)
 

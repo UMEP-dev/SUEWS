@@ -82,7 +82,8 @@ py.install_sources(
             'data_model/validation_utils.py',
             'data_model/yaml_annotator.py',
             'data_model/yaml_annotator_json.py',
-            'data_model/precheck.py'
+            'data_model/precheck.py',
+            'data_model/database/CRU_TS4.06_1991_2020.parquet'
         ],
     ],
     subdir: 'supy',

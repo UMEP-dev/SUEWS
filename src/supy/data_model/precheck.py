@@ -303,16 +303,25 @@ def get_mean_monthly_air_temperature(
     # Find CRU data file - try multiple locations
     current_dir = Path(__file__).parent
     potential_paths = [
-        # First try the normal installed location
+        # First try Parquet format (preferred)
+        current_dir / "database" / "CRU_TS4.06_1991_2020.parquet",
+        # Fallback to CSV if Parquet not found
         current_dir / "database" / "CRU_TS4.06_cell_monthly_normals_1991_2020.csv",
-        # Then try the source directory (for development/testing)
+        # Development/testing locations
+        current_dir.parent.parent.parent
+        / "src"
+        / "supy"
+        / "data_model"
+        / "database"
+        / "CRU_TS4.06_1991_2020.parquet",
         current_dir.parent.parent.parent
         / "src"
         / "supy"
         / "data_model"
         / "database"
         / "CRU_TS4.06_cell_monthly_normals_1991_2020.csv",
-        # Also try relative to current working directory
+        # Relative to current working directory
+        Path("src/supy/data_model/database/CRU_TS4.06_1991_2020.parquet"),
         Path(
             "src/supy/data_model/database/CRU_TS4.06_cell_monthly_normals_1991_2020.csv"
         ),
@@ -331,11 +340,14 @@ def get_mean_monthly_air_temperature(
             + "\n\nPlease ensure the CRU data file is available for temperature calculations."
         )
 
-    # Load CRU data
+    # Load CRU data (supports both Parquet and CSV)
     try:
-        df = pd.read_csv(cru_path)
+        if cru_path.suffix == '.parquet':
+            df = pd.read_parquet(cru_path)
+        else:
+            df = pd.read_csv(cru_path)
     except Exception as e:
-        raise ValueError(f"Error reading CRU CSV file {cru_path}: {e}")
+        raise ValueError(f"Error reading CRU data file {cru_path}: {e}")
 
     # Validate required columns
     required_cols = ["Month", "Latitude", "Longitude", "NormalTemperature"]

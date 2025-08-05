@@ -264,10 +264,12 @@ def main():
         # Step 5: Final result and cleanup
         workflow_success = phase_a_success and phase_b_success
         if workflow_success:
-            # Clean up Phase A report since we have consolidated report in Phase B
+            # Clean up Phase A files since we have final files from Phase B
             try:
                 if os.path.exists(report_file):
-                    os.remove(report_file)
+                    os.remove(report_file)  # Remove Phase A report
+                if os.path.exists(uptodate_file):
+                    os.remove(uptodate_file)  # Remove Phase A YAML
             except Exception:
                 pass  # Don't fail if cleanup doesn't work
             

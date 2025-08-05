@@ -276,14 +276,12 @@ class FAIMethod(Enum):
     """
     Method for calculating frontal area index (FAI) - the ratio of frontal area to plan area.
 
-    0: ZERO - FAI set to zero (typically for non-urban areas)
-    1: FIXED - Fixed FAI from site parameters
-    2: VARIABLE - Variable FAI based on vegetation LAI changes
+    0: USE_PROVIDED - Use FAI values provided in site parameters (FAIBldg, FAIEveTree, FAIDecTree)
+    1: SIMPLE_SCHEME - Calculate FAI using simple scheme based on surface fractions and heights (see issue #192)
     """
 
-    ZERO = 0  # Not documented
-    FIXED = 1  # Fixed frontal area index
-    VARIABLE = 2  # Variable frontal area index based on vegetation state
+    USE_PROVIDED = 0  # Use FAI values from site parameters
+    SIMPLE_SCHEME = 1  # Calculate FAI using simple scheme (sqrt(fr)*h for buildings, empirical for trees)
 
     def __new__(cls, value):
         obj = object.__new__(cls)
@@ -481,8 +479,8 @@ class ModelPhysics(BaseModel):
         json_schema_extra={"unit": "dimensionless"},
     )
     faimethod: FlexibleRefValue(FAIMethod) = Field(
-        default=FAIMethod.FIXED,
-        description="Method for calculating frontal area index (FAI) - the ratio of frontal area to plan area. Options: 0 (ZERO) = FAI set to zero (non-urban areas); 1 (FIXED) = Fixed FAI from site parameters; 2 (VARIABLE) = Variable FAI based on vegetation LAI changes",
+        default=FAIMethod.USE_PROVIDED,
+        description="Method for calculating frontal area index (FAI) - the ratio of frontal area to plan area. Options: 0 (USE_PROVIDED) = Use FAI values provided in site parameters; 1 (SIMPLE_SCHEME) = Calculate FAI using simple scheme based on surface fractions and heights",
         json_schema_extra={"unit": "dimensionless"},
     )
     rsllevel: FlexibleRefValue(RSLLevel) = Field(

@@ -26,8 +26,8 @@ model:
     end_time: "2013-12-31"
     startdate: "hello"
   physics:
-    #netradiationmethod:
-    #  value: 3
+    netradiationmethod:
+      value: 3
     emissionsmethod:
       value: 2
     storageheatmethod:
@@ -58,8 +58,6 @@ model:
       value: 0
     stebbsmethod:
       value: 0
-    netradiationmethod:
-      value: null
 sites:
 - name: KCL
   gridiv: 1

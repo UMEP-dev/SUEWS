@@ -74,12 +74,13 @@ def validate_input_file(user_yaml_file: str) -> str:
     return os.path.abspath(user_yaml_file)
 
 
-def setup_output_paths(user_yaml_file: str) -> Tuple[str, str, str, str, str]:
+def setup_output_paths(user_yaml_file: str, phase: str) -> Tuple[str, str, str, str, str]:
     """
-    Generate all output file paths based on input file.
+    Generate all output file paths based on input file and phase.
     
     Args:
         user_yaml_file: Path to input user YAML file
+        phase: Phase mode ('A', 'B', or 'AB')
         
     Returns:
         Tuple of (uptodate_file, report_file, science_yaml_file, science_report_file, dirname)
@@ -88,13 +89,20 @@ def setup_output_paths(user_yaml_file: str) -> Tuple[str, str, str, str, str]:
     dirname = os.path.dirname(user_yaml_file)
     name_without_ext = os.path.splitext(basename)[0]
     
-    # Phase A outputs
-    uptodate_file = os.path.join(dirname, f"updatedA_{basename}")
-    report_file = os.path.join(dirname, f"reportA_{name_without_ext}.txt")
-    
-    # Phase B outputs  
-    science_yaml_file = os.path.join(dirname, f"updatedB_{basename}")
-    science_report_file = os.path.join(dirname, f"reportB_{name_without_ext}.txt")
+    if phase == 'AB':
+        # Complete A→B workflow - use AB naming
+        uptodate_file = os.path.join(dirname, f"updatedA_{basename}")  # Intermediate A file
+        report_file = os.path.join(dirname, f"reportA_{name_without_ext}.txt")  # Intermediate A report
+        science_yaml_file = os.path.join(dirname, f"updatedAB_{basename}")  # Final AB file
+        science_report_file = os.path.join(dirname, f"reportAB_{name_without_ext}.txt")  # Final AB report
+    else:
+        # Individual phases - use phase-specific naming
+        uptodate_file = os.path.join(dirname, f"updated{phase}_{basename}")
+        report_file = os.path.join(dirname, f"report{phase}_{name_without_ext}.txt")
+        
+        # Phase B outputs (used when phase == 'B')
+        science_yaml_file = os.path.join(dirname, f"updatedB_{basename}")
+        science_report_file = os.path.join(dirname, f"reportB_{name_without_ext}.txt")
     
     return uptodate_file, report_file, science_yaml_file, science_report_file, dirname
 
@@ -267,7 +275,7 @@ Phases:
             print("Make sure you're running from the SUEWS root directory")
             return 1
         
-        uptodate_file, report_file, science_yaml_file, science_report_file, dirname = setup_output_paths(user_yaml_file)
+        uptodate_file, report_file, science_yaml_file, science_report_file, dirname = setup_output_paths(user_yaml_file, phase)
         
         # Phase-specific execution
         if phase == 'A':

@@ -1,18 +1,24 @@
-# SUEWS Configuration Analysis Report
+# SUEWS Scientific Validation Report
 # ==================================================
 
+## ACTION NEEDED
+- Found (1) critical scientific parameter error(s):
+-- rslmethod-stabilitymethod: If rslmethod == 2, stabilitymethod must be 3 for diagnostic aerodynamic calculations
+   Suggested fix: Set stabilitymethod to 3
+
 ## NO ACTION NEEDED
+- Renamed (2) parameter(s) to current standards:
+-- diagmethod changed to rslmethod
+-- cp changed to rho_cp
 - Found (3) optional missing parameter(s):
 -- holiday at level sites[0].properties.irrigation.wuprofm_24hr.holiday
 -- wetthresh at level sites[0].properties.vertical_layers.walls[2].wetthresh
 -- DHWVesselDensity at level sites[0].properties.stebbs.DHWVesselDensity
-
 - Found (2) parameter(s) not in standard:
 -- startdate at level model.control.startdate
 -- test at level sites[0].properties.test
 
-- Renamed (2) parameters:
--- diagmethod changed to rslmethod
--- cp changed to rho_cp
+- Found (1) scientific warning(s) for information:
+-- unused_surfaces at site [0]: Surfaces with sfr=0 may have unused parameters: evetr, bsoil
 
 # ==================================================

@@ -15,8 +15,8 @@ model:
     end_time: "2013-12-31"
     startdate: "hello"
   physics:
-    #netradiationmethod:
-    #  value: 3
+    netradiationmethod:
+      value: 3
     emissionsmethod:
       value: 2
     storageheatmethod:

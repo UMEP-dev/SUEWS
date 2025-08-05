@@ -258,15 +258,18 @@ When Phase A detects issues, it generates two output files:
 Section B: Overview
 -------------------
 
-The check are for 
+The check are for:
+
 1. Initial states -- exok
 2. Grid characteristics
-a. Land cover 
-b. XXX
+
+   a. Land cover 
+   b. XXX
 
 What is checked In B how and why
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
- - assumptions -etc
+
+- assumptions -etc
 
 
 
@@ -276,7 +279,7 @@ What is checked In B how and why
 Actions for fixing B issues
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Output: an updated YAML  saved as py0_<filename>.yml and a CSV report listing all changes.
+Output: an updated YAML saved as py0_<filename>.yml and a CSV report listing all changes.
 
 .. note::
 
@@ -301,6 +304,9 @@ Output: An annotated YAML with inline error messages
 What is checked in C how and why
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+(To be documented)
 
 Actions to fix C issues
 ~~~~~~~~~~~~~~~~~~~~~~~
+
+(To be documented)

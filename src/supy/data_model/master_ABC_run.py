@@ -151,6 +151,8 @@ def run_phase_a(user_yaml_file: str, standard_yaml_file: str,
             print(f"  Fix issues in {os.path.basename(report_file)} then re-run")
             return False
         
+        # If Phase A succeeds with no critical errors, we'll let Phase B create the consolidated report
+        # Keep the Phase A report file for Phase B to read, but don't present it as final output
         print("✓ Phase A completed")
         return True
         
@@ -259,9 +261,16 @@ def main():
         phase_b_success = run_phase_b(user_yaml_file, uptodate_file, standard_yaml_file,
                                      science_yaml_file, science_report_file, report_file)
         
-        # Step 5: Final result (no redundant summary needed)
+        # Step 5: Final result and cleanup
         workflow_success = phase_a_success and phase_b_success
         if workflow_success:
+            # Clean up Phase A report since we have consolidated report in Phase B
+            try:
+                if os.path.exists(report_file):
+                    os.remove(report_file)
+            except Exception:
+                pass  # Don't fail if cleanup doesn't work
+            
             print()
             print(f"🎯 Ready for SUEWS simulation: {os.path.basename(science_yaml_file)}")
             print(f"  Parameter changes report: {os.path.basename(science_report_file)}")

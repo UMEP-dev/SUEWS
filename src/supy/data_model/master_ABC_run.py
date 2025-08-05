@@ -29,6 +29,8 @@ from pathlib import Path
 from typing import Tuple, Optional
 import tempfile
 import shutil
+import io
+from contextlib import redirect_stdout, redirect_stderr
 
 # Import Phase A and B functions
 try:
@@ -120,13 +122,14 @@ def run_phase_a(user_yaml_file: str, standard_yaml_file: str,
     print()
     
     try:
-        # Run Phase A using the imported function
-        annotate_missing_parameters(
-            user_file=user_yaml_file,
-            standard_file=standard_yaml_file,
-            uptodate_file=uptodate_file,
-            report_file=report_file
-        )
+        # Run Phase A using the imported function (suppress verbose output)
+        with redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()):
+            annotate_missing_parameters(
+                user_file=user_yaml_file,
+                standard_file=standard_yaml_file,
+                uptodate_file=uptodate_file,
+                report_file=report_file
+            )
         
         # Check if Phase A produced output files
         if not os.path.exists(uptodate_file):
@@ -191,14 +194,15 @@ def run_phase_b(user_yaml_file: str, uptodate_file: str, standard_yaml_file: str
     print()
     
     try:
-        # Run Phase B using the imported function
-        science_checked_data = run_science_check(
-            uptodate_yaml_file=uptodate_file,
-            user_yaml_file=user_yaml_file,
-            standard_yaml_file=standard_yaml_file,
-            science_yaml_file=science_yaml_file,
-            science_report_file=science_report_file
-        )
+        # Run Phase B using the imported function (suppress verbose output)
+        with redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()):
+            science_checked_data = run_science_check(
+                uptodate_yaml_file=uptodate_file,
+                user_yaml_file=user_yaml_file,
+                standard_yaml_file=standard_yaml_file,
+                science_yaml_file=science_yaml_file,
+                science_report_file=science_report_file
+            )
         
         # Check if Phase B produced output files
         if not os.path.exists(science_yaml_file):

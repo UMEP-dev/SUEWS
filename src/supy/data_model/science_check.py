@@ -1194,8 +1194,7 @@ def print_critical_halt_message(critical_errors: List[ValidationResult]):
     print(" PHASE B HALTED - CRITICAL ERRORS DETECTED")
     print("=" * 60)
     print()
-    print("Phase B detected critical scientific errors that require")
-    print("Phase A (uptodate_yaml.py) to be run first:")
+    print("Phase B detected critical scientific errors:")
     print()
     
     for error in critical_errors:
@@ -1206,13 +1205,14 @@ def print_critical_halt_message(critical_errors: List[ValidationResult]):
             print(f"    Suggested: {error.suggested_value}")
         print()
     
-    print("REQUIRED ACTION:")
-    print("1. Run Phase A first: python uptodate_yaml.py")
-    print("2. Review and fix any critical parameters in your YAML")
-    print("3. Then re-run Phase B: python science_check.py")
+    print("OPTIONS TO RESOLVE:")
+    print("1. Fix the issues manually in your YAML file, or")
+    print("2. Run Phase A first to auto-detect and fix missing parameters:")
+    print("   python master_ABC_run.py user.yml --phase A")
+    print("3. Then re-run Phase B")
     print()
-    print("Phase A will detect missing parameters and provide guidance")
-    print("for setting critical values like physics method options.")
+    print("Phase A can help detect missing parameters and provide")
+    print("appropriate defaults for critical physics options.")
     print()
     print("=" * 60)
 

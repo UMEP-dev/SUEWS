@@ -313,32 +313,6 @@ Phase A includes comprehensive test coverage:
        
        assert 'model.physics.netradiationmethod' in urgent_params
 
-Performance Considerations
--------------------------
-
-**Efficiency Features:**
-
-- **Recursive traversal**: Single-pass algorithm for parameter detection
-- **In-memory processing**: No temporary files during analysis
-- **Lazy evaluation**: Standard file loaded once and cached
-- **Git validation**: Optional branch checking (can be disabled)
-
-**Scalability:**
-
-- **Large configurations**: Handles complex multi-site configurations
-- **Deep nesting**: Recursive algorithm handles arbitrary YAML depth
-- **Memory usage**: Minimal memory footprint for standard configurations
-
-**Benchmarks:**
-
-.. code-block:: text
-
-   Configuration Size    | Processing Time | Memory Usage
-   -------------------- | --------------- | ------------
-   Small (< 100 params) | < 0.1 seconds  | < 5 MB
-   Medium (< 500 params)| < 0.5 seconds  | < 10 MB  
-   Large (> 1000 params)| < 2.0 seconds  | < 20 MB
-
 Best Practices
 --------------
 

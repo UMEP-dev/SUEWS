@@ -215,7 +215,7 @@ def run_phase_b(user_yaml_file: str, uptodate_file: str, standard_yaml_file: str
     except ValueError as e:
         if "Critical scientific errors detected" in str(e):
             print("✗ Phase B halted due to critical scientific errors")
-            print("  Suggestion: Run Phase A first to detect and fix missing parameters")
+            print("  Suggestion: Run Phase A first to detect and fix missing parameters and read report to fix issues.")
             return False
         else:
             print(f"✗ Phase B failed with validation error: {e}")

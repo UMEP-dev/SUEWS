@@ -1,6 +1,3 @@
-.. _workflow_validation:
-
-
 Model inputs check
 ===================
 
@@ -45,12 +42,15 @@ Namelist to YAML
 Background to Namelist to YAML conversion
 ------------------------------------------
 
-Code used:
-Developers:
-Required inputs:
-Outputs:
+**Code used:**
 
-Instructions:
+**Developers:**
+
+**Required inputs:**
+
+**Outputs:**
+
+**Instructions:**
 
 **Steps:**
 
@@ -89,7 +89,7 @@ Background
 1. **Phase A outputs:**
    
    a. **Success:** Console message indicating no missing parameters or critical todo actions required
-   b. **Issues found:** Updated YAML file and analysis report - see :ref:`phase_a_actions`
+   b. **Issues found:** Updated YAML file and analysis report - see `Actions to fix Phase A issues`_
 
 2. **Phase B outputs:** Scientific validation results and corrected parameters
 3. **Phase C outputs:** Pydantic validation with inline annotations
@@ -145,8 +145,6 @@ How to run
     Phase A completed: updatedA_user_config.yml
     Report: reportA_user_config.txt
 
-
-.. _phase_a_overview:
 
 Phase A: Up To Date check for YAML Consistency
 ==================================================
@@ -254,7 +252,7 @@ When Phase A detects issues, it generates two output files:
    
    **Critical Parameters:** Parameters listed in the **ACTION NEEDED** section are critical physics options that must be set. The model may not run correctly until these null values are replaced with appropriate values.
 
-**For detailed Phase A documentation, see:** :ref:`phase_a_detailed`
+**For detailed Phase A documentation, see:** ../phase_a_detailed.rst
 
 
 Section B: Overview

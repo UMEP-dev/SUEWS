@@ -241,8 +241,8 @@ Examples:
   python master_ABC_run.py user.yml --phase AB         # Run complete A→B workflow (explicit)
 
 Phases:
-  Phase A: Parameter detection, YAML structure updates, missing parameter handling
-  Phase B: Scientific validation, automatic adjustments, final simulation preparation
+  Phase A: Up to date YAML processor and missing parameter handling
+  Phase B: Scientific validation and updating
         """
     )
     
@@ -252,7 +252,7 @@ Phases:
     parser.add_argument('--phase', '-p',
                        choices=['A', 'B', 'AB'], 
                        default='AB',
-                       help='Phase to run: A (parameter detection), B (scientific validation), or AB (complete workflow, default)')
+                       help='Phase to run: A (up to date YAML processor), B (scientific check), or AB (complete workflow, default)')
     
     args = parser.parse_args()
     user_yaml_file = args.yaml_file
@@ -260,8 +260,9 @@ Phases:
     
     # Print workflow header
     phase_desc = {"A": "Phase A Only", "B": "Phase B Only", "AB": "Complete A→B Workflow"}
-    print(f"SUEWS Configuration Processor: {os.path.basename(user_yaml_file)}")
-    print(f"Mode: {phase_desc[phase]}")
+    print(f"SUEWS Configuration Processor")
+    print(f"YAML user file: {os.path.basename(user_yaml_file)}")
+    print(f"Processor Selected Mode: {phase_desc[phase]}")
     print()
     
     try:
@@ -283,8 +284,8 @@ Phases:
             phase_a_success = run_phase_a(user_yaml_file, standard_yaml_file, uptodate_file, report_file)
             if phase_a_success:
                 print()
-                print(f"🎯 Phase A completed: {os.path.basename(uptodate_file)}")
-                print(f"  Parameter detection report: {os.path.basename(report_file)}")
+                print(f" Phase A completed: {os.path.basename(uptodate_file)}")
+                print(f" Report: {os.path.basename(report_file)}")
             return 0 if phase_a_success else 1
             
         elif phase == 'B':
@@ -305,8 +306,8 @@ Phases:
                                          science_yaml_file, science_report_file, phase_a_report)
             if phase_b_success:
                 print()
-                print(f"🎯 Phase B completed: {os.path.basename(science_yaml_file)}")
-                print(f"  Scientific validation report: {os.path.basename(science_report_file)}")
+                print(f" Phase B completed: {os.path.basename(science_yaml_file)}")
+                print(f" Report: {os.path.basename(science_report_file)}")
             return 0 if phase_b_success else 1
             
         else:  # phase == 'AB'
@@ -331,8 +332,8 @@ Phases:
                     pass  # Don't fail if cleanup doesn't work
                 
                 print()
-                print(f"🎯 Ready for SUEWS simulation: {os.path.basename(science_yaml_file)}")
-                print(f"  Parameter changes report: {os.path.basename(science_report_file)}")
+                print(f" Ready for SUEWS simulation: {os.path.basename(science_yaml_file)}")
+                print(f" Report: {os.path.basename(science_report_file)}")
             
             return 0 if workflow_success else 1
         

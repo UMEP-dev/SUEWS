@@ -34,6 +34,15 @@
 
 ## 2025
 
+### 5 Aug 2025
+- [doc] Fixed FAIMethod option descriptions inconsistency ([#578](https://github.com/UMEP-dev/SUEWS/issues/578))
+  - Updated Python data model FAIMethod enum to match Fortran implementation
+  - Changed enum names from ZERO/FIXED to USE_PROVIDED/SIMPLE_SCHEME
+  - Removed VARIABLE option (value 2) as it's not implemented in Fortran code
+  - Clarified that option 0 uses provided FAI values, option 1 calculates using simple scheme
+  - Updated Field description to reflect actual implementation behaviour
+  - Aligned default value with Fortran code (FAIMethod.USE_PROVIDED = 0)
+
 ### 25 Jul 2025
 - [doc] Improved clarity of tstep_prev purpose for WRF-SUEWS coupling ([#551](https://github.com/UMEP-dev/SUEWS/issues/551), [#553](https://github.com/UMEP-dev/SUEWS/issues/553))
   - Added explanatory comments at all tstep_prev usage sites

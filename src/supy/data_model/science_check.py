@@ -1305,34 +1305,38 @@ def run_science_check(uptodate_yaml_file: str, user_yaml_file: str, standard_yam
         # Step 3: Run scientific validation pipeline
         validation_results = run_scientific_validation_pipeline(uptodate_data, start_date, model_year)
         
-        # Step 3.5: CRITICAL HALT CHECK - Stop if errors found and suggest Phase A
+        # Step 4: Run scientific adjustment pipeline (skip if critical errors)
         critical_errors = [r for r in validation_results if r.status == 'ERROR']
-        if critical_errors:
-            print_critical_halt_message(critical_errors)
-            # Don't write incomplete files - just halt
-            raise ValueError("Critical scientific errors detected - Phase B halted")
+        if not critical_errors:
+            science_checked_data, adjustments = run_scientific_adjustment_pipeline(uptodate_data, start_date, model_year)
+        else:
+            # No adjustments when critical errors exist
+            science_checked_data = deepcopy(uptodate_data)
+            adjustments = []
         
-        # Step 4: Run scientific adjustment pipeline (only if no critical errors)
-        science_checked_data, adjustments = run_scientific_adjustment_pipeline(uptodate_data, start_date, model_year)
-        
-        # Step 5: Generate science report
+        # Step 5: Generate science report (always generate, even with critical errors)
         science_yaml_filename = os.path.basename(science_yaml_file) if science_yaml_file else None
         report_content = create_science_report(validation_results, adjustments, science_yaml_filename, phase_a_report_file)
         
-        # Step 6: Print terminal results
+        # Step 6: Write science report (always write)
+        if science_report_file:
+            with open(science_report_file, 'w') as f:
+                f.write(report_content)
+        
+        # Step 7: CRITICAL HALT CHECK - Stop if errors found after report is written
+        if critical_errors:
+            print_critical_halt_message(critical_errors)
+            raise ValueError("Critical scientific errors detected - Phase B halted")
+        
+        # Step 8: Print terminal results
         print_science_check_results(validation_results, adjustments)
         
-        # Step 7: Write science-checked YAML file
-        if science_yaml_file:
+        # Step 9: Write science-checked YAML file (only if no critical errors)
+        if science_yaml_file and not critical_errors:
             header = create_science_yaml_header()
             with open(science_yaml_file, 'w') as f:
                 f.write(header)
                 yaml.dump(science_checked_data, f, default_flow_style=False, sort_keys=False)
-        
-        # Step 8: Write science report
-        if science_report_file:
-            with open(science_report_file, 'w') as f:
-                f.write(report_content)
         
         return science_checked_data
         

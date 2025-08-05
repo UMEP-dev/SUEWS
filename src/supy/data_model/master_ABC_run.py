@@ -263,6 +263,7 @@ def main():
         if workflow_success:
             print()
             print(f"🎯 Ready for SUEWS simulation: {os.path.basename(science_yaml_file)}")
+            print(f"  Parameter changes report: {os.path.basename(science_report_file)}")
         
         return 0 if workflow_success else 1
         

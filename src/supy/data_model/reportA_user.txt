@@ -7,7 +7,6 @@
    Suggested fix: Set appropriate value based on SUEWS documentation -- https://suews.readthedocs.io/latest/
 
 ## NO ACTION NEEDED
-Note: Section B will check these.
 - Found (3) optional missing parameter(s):
 -- holiday at level sites[0].properties.irrigation.wuprofm_24hr.holiday
 -- wetthresh at level sites[0].properties.vertical_layers.walls[2].wetthresh

@@ -1,5 +1,6 @@
 import yaml
 import os
+import subprocess
 
 RENAMED_PARAMS = {
     'cp': 'rho_cp',
@@ -570,18 +571,106 @@ def annotate_missing_parameters(user_file, standard_file, uptodate_file=None, re
             f.write(report_content)
         #print(f" Analysis report written to: {report_file}")
 
+
+def get_current_git_branch() -> str:
+    """
+    Get the current git branch name.
+    
+    Returns:
+        Current branch name or 'unknown' if not in a git repo
+    """
+    try:
+        result = subprocess.run(['git', 'branch', '--show-current'], 
+                              capture_output=True, text=True, check=True)
+        return result.stdout.strip()
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        return 'unknown'
+
+
+def check_file_differs_from_master(file_path: str) -> bool:
+    """
+    Check if a file differs from its version in the master branch.
+    
+    Args:
+        file_path: Path to the file to check
+        
+    Returns:
+        True if file differs from master, False if same or on error
+    """
+    try:
+        # Check if file differs from master branch version
+        result = subprocess.run(['git', 'diff', 'master', '--', file_path], 
+                              capture_output=True, text=True, check=True)
+        # If diff output is empty, files are the same
+        return len(result.stdout.strip()) > 0
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        return False
+
+
+def validate_standard_file(standard_file: str) -> bool:
+    """
+    Validate that the standard file exists and is up to date with master branch.
+    
+    Args:
+        standard_file: Path to the standard YAML file
+        
+    Returns:
+        True if validation passes, False if warnings were issued
+    """
+    print("Validating standard configuration file...")
+    
+    # Check if file exists
+    if not os.path.exists(standard_file):
+        print(f"❌ ERROR: Standard file not found: {standard_file}")
+        print(f"   Make sure you're running from the SUEWS root directory")
+        return False
+    
+    current_branch = get_current_git_branch()
+    
+    if current_branch == 'unknown':
+        print("⚠️  WARNING: Not in a git repository - cannot verify standard file is up to date")
+        return True
+    
+    if current_branch != 'master':
+        file_differs = check_file_differs_from_master(standard_file)
+        
+        if file_differs:
+            print(f"⚠️  WARNING: You are on branch '{current_branch}' and {os.path.basename(standard_file)} differs from master")
+            print(f"   This may cause inconsistent parameter detection.")
+            print(f"   RECOMMENDED:")
+            print(f"   1. Switch to master branch: git checkout master")
+            print(f"   2. OR update your {os.path.basename(standard_file)} to match master:")
+            print(f"      git checkout master -- {standard_file}")
+            print()
+            return False
+        else:
+            print(f"✓ Branch: {current_branch} (standard file matches master)")
+    else:
+        print(f"✓ Branch: {current_branch}")
+    
+    print(f"✓ Standard file: {standard_file}")
+    return True
+
+
 def main():
     print(" SUEWS YAML Configuration Analysis")
     print("=" * 50)
 
-    ## MISSING LOGIC - check that standard_file is up to date!
-
     standard_file = "src/supy/sample_run/sample_config.yml"
     user_file = "src/supy/data_model/user.yml"
-
-    print(f"Standard YAML file: {standard_file}")
+    
+    # Validate standard file is up to date with master branch
+    validation_passed = validate_standard_file(standard_file)
+    print()
+    
+    # Print user file info
     print(f"User YAML file: {user_file}")
     print()
+    
+    # If validation failed, we can still proceed but user should be aware
+    if not validation_passed:
+        print("⚠️  Proceeding with potentially outdated standard file...")
+        print()
 
     basename = os.path.basename(user_file)
     dirname = os.path.dirname(user_file)

@@ -1,3 +1,14 @@
+# =============================================================================
+# UP TO DATE YAML
+# =============================================================================
+#
+# This file has been automatically updated by uptodate_yaml.py with all necessary changes:
+# - Missing in standard parameters have been added with null values
+# - Renamed in standard parameters have been updated to current naming conventions
+# - All changes are reported in report_<yourfilename>.txt
+#
+# =============================================================================
+
 name: sample config
 description: built from benchmark 1a, based on Ward et al. (2016) model configuration
 model:
@@ -35,7 +46,7 @@ model:
       value: 0
     #rslmethod:
     #  value: 2
-    diagmethod:
+    rslmethod:
       value: 2
     faimethod:
       value: 0
@@ -47,6 +58,8 @@ model:
       value: 0
     stebbsmethod:
       value: 0
+    netradiationmethod:
+      value: null
 sites:
 - name: KCL
   gridiv: 1
@@ -242,6 +255,8 @@ sites:
         value: 0.8
       MinimumVolumeOfDHWinUse:
         value: 1.0
+      DHWVesselDensity:
+        value: null
     building_archetype:
       BuildingType: test
       BuildingName: test
@@ -451,6 +466,31 @@ sites:
           '22': -999.0
           '23': -999.0
           '24': -999.0
+        holiday:
+          '1': null
+          '2': null
+          '3': null
+          '4': null
+          '5': null
+          '6': null
+          '7': null
+          '8': null
+          '9': null
+          '10': null
+          '11': null
+          '12': null
+          '13': null
+          '14': null
+          '15': null
+          '16': null
+          '17': null
+          '18': null
+          '19': null
+          '20': null
+          '21': null
+          '22': null
+          '23': null
+          '24': null
         #holiday:
         #  '1': -999.0
         #  '2': -999.0
@@ -1987,7 +2027,7 @@ sites:
             - 1.2
             - 1.2
           #rho_cp:
-          cp:
+          rho_cp:
             value:
             - 2000000.0
             - 3000000.0
@@ -2004,6 +2044,8 @@ sites:
           value: 0.1
         wall_specular_frac:
           value: 0.0
+        wetthresh:
+          value: null
     n_buildings:
       value: 150
     h_std:

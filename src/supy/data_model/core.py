@@ -780,12 +780,25 @@ class SUEWSConfig(BaseModel):
                     )
                     has_issues = True
 
-            # Check thermal layers for all surfaces
+            # Check thermal layers only for surfaces that typically need them
+            # or where user has explicitly provided non-None values
             if hasattr(surface, "thermal_layers") and surface.thermal_layers:
-                if self._check_thermal_layers(
-                    surface.thermal_layers, surface_type, site_name
-                ):
-                    has_issues = True
+                # Only validate if at least one thermal property is explicitly set
+                thermal_layers = surface.thermal_layers
+                has_thermal_data = (
+                    (hasattr(thermal_layers, "dz") and thermal_layers.dz is not None)
+                    or (hasattr(thermal_layers, "k") and thermal_layers.k is not None)
+                    or (
+                        hasattr(thermal_layers, "rho_cp")
+                        and thermal_layers.rho_cp is not None
+                    )
+                )
+
+                if has_thermal_data:
+                    if self._check_thermal_layers(
+                        surface.thermal_layers, surface_type, site_name
+                    ):
+                        has_issues = True
 
         return has_issues
 
@@ -796,11 +809,16 @@ class SUEWSConfig(BaseModel):
         missing_params = []
 
         def _is_valid_layer_array(field):
-            return (
-                hasattr(field, "value")
-                and isinstance(field.value, list)
-                and len(field.value) > 0
-            )
+            # Handle both RefValue wrappers and plain lists
+            if hasattr(field, "value") and isinstance(field.value, list):
+                # RefValue wrapper case
+                return len(field.value) > 0
+            elif isinstance(field, list):
+                # Plain list case
+                return len(field) > 0
+            else:
+                # Neither RefValue nor list
+                return False
 
         if not hasattr(thermal_layers, "dz") or not _is_valid_layer_array(
             thermal_layers.dz
@@ -810,16 +828,34 @@ class SUEWSConfig(BaseModel):
             thermal_layers.k
         ):
             missing_params.append("k (Thermal conductivity)")
-        if not hasattr(thermal_layers, "rho_cp") or not _is_valid_layer_array(
-            thermal_layers.rho_cp
-        ):
+
+        missing_rho_cp = not hasattr(
+            thermal_layers, "rho_cp"
+        ) or not _is_valid_layer_array(thermal_layers.rho_cp)
+        if missing_rho_cp:
             missing_params.append("rho_cp (Volumetric heat capacity)")
 
         if missing_params:
-            self._validation_summary["total_warnings"] += len(missing_params)
-            self._validation_summary["issue_types"].add(
-                "Missing thermal layer parameters"
-            )
+            # Check if this is a cp naming issue (cp instead of rho_cp)
+            yaml_path = getattr(self, "_yaml_path", None)
+            surface_path = f"sites/0/properties/land_cover/{surface_type}"
+
+            if (
+                missing_rho_cp
+                and yaml_path
+                and self._check_raw_yaml_for_cp_field(yaml_path, surface_path)
+            ):
+                # This is a naming issue, not a missing parameter issue
+                self._validation_summary["total_warnings"] += 1
+                self._validation_summary["issue_types"].add(
+                    "Incorrect naming of thermal layer parameters"
+                )
+            else:
+                # Regular missing parameters
+                self._validation_summary["total_warnings"] += len(missing_params)
+                self._validation_summary["issue_types"].add(
+                    "Missing thermal layer parameters"
+                )
             return True
         return False
 
@@ -907,6 +943,49 @@ class SUEWSConfig(BaseModel):
                                 has_issues = True
 
         return has_issues
+
+    def _check_raw_yaml_for_cp_field(self, yaml_path: str, surface_path: str) -> bool:
+        """Check if the raw YAML file has 'cp' instead of 'rho_cp' in thermal_layers."""
+        try:
+            import yaml
+
+            with open(yaml_path, "r") as f:
+                data = yaml.safe_load(f)
+
+            # Navigate to the surface using path like "sites[0]/properties/land_cover/paved"
+            path_parts = surface_path.replace("[", "/").replace("]", "").split("/")
+
+            current = data
+            for part in path_parts:
+                if part.isdigit():
+                    current = current[int(part)]
+                elif part in current:
+                    current = current[part]
+                else:
+                    return False
+
+            # Check if thermal_layers has 'cp' field
+            if isinstance(current, dict) and "thermal_layers" in current:
+                thermal_layers = current["thermal_layers"]
+                if isinstance(thermal_layers, dict) and "cp" in thermal_layers:
+                    return True
+
+        except Exception:
+            pass
+
+        return False
+
+    def _check_thermal_layers_naming_issue(
+        self, thermal_layers, surface_type: str, site_name: str
+    ) -> bool:
+        """Check for thermal layer naming issues (cp vs rho_cp). Returns True if issues found."""
+        self._validation_summary["total_warnings"] += 1
+        self._validation_summary["issue_types"].add(
+            "Incorrect naming of thermal layer parameters"
+        )
+        if site_name not in self._validation_summary["sites_with_issues"]:
+            self._validation_summary["sites_with_issues"].append(site_name)
+        return True
 
     def _check_land_cover_fractions(self, land_cover, site_name: str) -> bool:
         """Check that land cover fractions sum to 1.0. Returns True if issues found."""
@@ -1425,20 +1504,53 @@ class SUEWSConfig(BaseModel):
                             and surface.thermal_layers
                         ):
                             thermal = surface.thermal_layers
-                        if (
-                            not _is_valid_layer_array(getattr(thermal, "dz", None))
-                            or not _is_valid_layer_array(getattr(thermal, "k", None))
-                            or not _is_valid_layer_array(
-                                getattr(thermal, "rho_cp", None)
-                            )
-                        ):
-                            annotator.add_issue(
-                                path=f"{path}/thermal_layers",
-                                param="thermal_layers",
-                                message="Incomplete thermal layer properties",
-                                fix="Add dz (thickness), k (conductivity), and rho_cp (heat capacity) arrays",
-                                level="WARNING",
-                            )
+
+                            # First check if the raw YAML contains 'cp' instead of 'rho_cp'
+                            yaml_path = getattr(self, "_yaml_path", None)
+                            if yaml_path and self._check_raw_yaml_for_cp_field(
+                                yaml_path, path
+                            ):
+                                annotator.add_issue(
+                                    path=f"{path}/thermal_layers",
+                                    param="cp_field",
+                                    message="Found 'cp' field - should be 'rho_cp'",
+                                    fix="Change 'cp:' to 'rho_cp:' in your YAML file",
+                                    level="WARNING",
+                                )
+                                # This is a naming issue, not a missing parameter issue
+                                if self._check_thermal_layers_naming_issue(
+                                    surface.thermal_layers, surface_type, site_name
+                                ):
+                                    has_issues = True
+                            elif (
+                                not _is_valid_layer_array(getattr(thermal, "dz", None))
+                                or not _is_valid_layer_array(
+                                    getattr(thermal, "k", None)
+                                )
+                                or not _is_valid_layer_array(
+                                    getattr(thermal, "rho_cp", None)
+                                )
+                            ):
+                                annotator.add_issue(
+                                    path=f"{path}/thermal_layers",
+                                    param="thermal_layers",
+                                    message="Incomplete thermal layer properties",
+                                    fix="Add dz (thickness), k (conductivity), and rho_cp (heat capacity) arrays",
+                                    level="WARNING",
+                                )
+                                # Add to validation summary for missing parameters
+                                self._validation_summary["total_warnings"] += 1
+                                self._validation_summary["issue_types"].add(
+                                    "Missing thermal layer parameters"
+                                )
+                                if (
+                                    site_name
+                                    not in self._validation_summary["sites_with_issues"]
+                                ):
+                                    self._validation_summary[
+                                        "sites_with_issues"
+                                    ].append(site_name)
+                                has_issues = True
 
                         # LAI range check for vegetation surfaces
                         if (
@@ -1489,6 +1601,38 @@ class SUEWSConfig(BaseModel):
                                         param="baset_gddfull",
                                         message=f"GDD range invalid: baset ({baset_val}) > gddfull ({gddfull_val})",
                                         fix="Set baset ≤ gddfull (typical values: baset=5-10°C, gddfull=200-1000°C·day)",
+                                        level="WARNING",
+                                    )
+
+                        # Check vegetation parameters for biogenic CO2 calculations
+                        if (
+                            surface_type in ["grass", "dectr", "evetr"]
+                            and sfr_value > 0
+                        ):
+                            from .validation_utils import check_missing_params
+
+                            vegetation_params = {
+                                "beta_bioco2": "Biogenic CO2 exchange coefficient",
+                                "alpha_bioco2": "Biogenic CO2 exchange coefficient",
+                                "resp_a": "Respiration coefficient",
+                                "resp_b": "Respiration coefficient",
+                            }
+
+                            missing_params = check_missing_params(
+                                vegetation_params,
+                                surface,
+                                "vegetation",
+                                "CO2 flux calculations",
+                            )
+
+                            for param, desc in vegetation_params.items():
+                                param_with_desc = f"{param} ({desc})"
+                                if param_with_desc in missing_params:
+                                    annotator.add_issue(
+                                        path=path,
+                                        param=param,
+                                        message=f"Missing {desc}",
+                                        fix=f"Add {param} value for accurate CO2 flux calculations",
                                         level="WARNING",
                                     )
 

@@ -8,6 +8,7 @@ Purpose
 -------
 
 To ensure required model inputs are: 
+
 1. all present and physically sensible within appropriate ranges
 2. consistent with other data submitted [Link: to section with order/logic checked] - e.g. assume date/latitude and longitude are correct - to determine initial state based on season etc
 3. part of SUEWS_V2025
@@ -16,31 +17,34 @@ To ensure required model inputs are:
 SUEWS v2025 Features
 ~~~~~~~~~~~~~~~~~~~~
 
-1. New input format uses  YAML  [link: to generic description website]. This has the advantage of being easier for the user to see input selected and to navigate between sections of inputs in a more logical manner [Link: manual overview of new format] and can be easily translated to JSON [link: to generic description website] which allows XXX.
-1. There are some additional inputs: [link LIST new requirements]
-1. Many model improvements [ link  list]
-1. Many BUG corrections [link: list]
+1. New input format uses YAML [link: to generic description website]. This has the advantage of being easier for the user to see input selected and to navigate between sections of inputs in a more logical manner [Link: manual overview of new format] and can be easily translated to JSON [link: to generic description website] which allows XXX.
+2. There are some additional inputs: [link LIST new requirements]
+3. Many model improvements [link list]
+4. Many BUG corrections [link: list]
 
 Workflow Summary
 ----------------
 
 Prior to using the code you may need to:
+
 1. Convert SUEWS namelist to YAML [link: instructions] - this applies to pre-SUEWS_v2025
-2. Update SUEWS version = [link: instructions] - check you are running tha latest verison of SUEWS so the YAML file checks are consistent 
+2. Update SUEWS version = [link: instructions] - check you are running the latest version of SUEWS so the YAML file checks are consistent 
 
 Within the validation workflow in master_ABC_run.py, a series of steps occur:
-1. **Phase A**: YAML file consistency to the Standard YAML version is checked :ref:`phase_a_overview`
-2. **Phase B**: Science check that parameters are present and physically reasonable :ref:`phase_b_overview` for science options chosen
-3. [STILL TO DO] **Phase C**: Conditional validation using Pydantic :ref:`phase_c_overview` 
-   
-   
+
+1. **Phase A**: YAML file consistency to the Standard YAML version is checked
+2. **Phase B**: Science check that parameters are present and physically reasonable for science options chosen
+3. [STILL TO DO] **Phase C**: Conditional validation using Pydantic
+
+
 Namelist to YAML
 ================
-1. Convert pre- SUEWS_V2025 input format [linK: manual reference of old format] to structured YAML format.
 
+1. Convert pre-SUEWS_V2025 input format [link: manual reference of old format] to structured YAML format.
 
 Background to Namelist to YAML conversion
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+------------------------------------------
+
 Code used:
 Developers:
 Required inputs:
@@ -48,8 +52,8 @@ Outputs:
 
 Instructions:
 
-Steps 
-~~~~~
+**Steps:**
+
 .. note::
 
    MP code 
@@ -61,10 +65,11 @@ YAML checks
 Overview
 --------
 
-Within the validation workflow in master_ABC_run.py, a series of steps occur:
-1. **Phase A**: YAML file consistency to the Standard YAML version is checked :ref:`phase_a_overview`
-2. **Phase B**: Science check that parameters are present and physically reasonable :ref:`phase_b_overview` for science options chosen
-3. [STILL TO DO] **Phase C**: Conditional validation using Pydantic :ref:`phase_c_overview`
+The YAML validation workflow processes user configurations through multiple phases:
+
+1. **Phase A**: YAML file consistency to the Standard YAML version is checked
+2. **Phase B**: Science check that parameters are present and physically reasonable for science options chosen
+3. [STILL TO DO] **Phase C**: Conditional validation using Pydantic
 
 Background
 ----------
@@ -74,11 +79,13 @@ Background
 **Developers:** Developed by SR, MP, TS with the help of Claude as part of SUEWS YAML configuration validation system.
 
 **Required inputs:**
+
 1. **User YAML file:** Your SUEWS YAML configuration file
 2. **Standard YAML file:** Reference configuration (typically ``sample_run/sample_config.yml`` from master branch)
 3. **Execution mode:** Phase A, Phase B, or complete A→B workflow
 
 **Outputs:**
+
 1. **Phase A outputs:**
    
    a. **Success:** Console message indicating no missing parameters or critical todo actions required
@@ -188,8 +195,6 @@ Phase A systematically compares your YAML configuration against the standard and
    - **Preserved** in output (not removed)
    - **Flagged** for user awareness
 
-.. _phase_a_actions:
-
 Actions to fix Phase A issues
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -255,11 +260,13 @@ When Phase A detects issues, it generates two output files:
 Section B: Overview
 -------------------
 
-The check are for 
+The check are for:
+
 1. Initial states -- exok
 2. Grid characteristics
-a. Land cover 
-b. XXX
+
+   a. Land cover 
+   b. XXX
 
 What is checked In B how and why
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -300,4 +307,4 @@ What is checked in C how and why
 
 
 Actions to fix C issues
-~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~

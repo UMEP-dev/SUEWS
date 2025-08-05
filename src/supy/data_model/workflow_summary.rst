@@ -1,6 +1,3 @@
-.. _workflow_validation:
-
-
 Model inputs check
 ===================
 
@@ -45,12 +42,15 @@ Namelist to YAML
 Background to Namelist to YAML conversion
 ------------------------------------------
 
-Code used:
-Developers:
-Required inputs:
-Outputs:
+**Code used:**
 
-Instructions:
+**Developers:**
+
+**Required inputs:**
+
+**Outputs:**
+
+**Instructions:**
 
 **Steps:**
 
@@ -66,6 +66,7 @@ Overview
 --------
 
 Within the validation workflow in master_ABC_run.py, a series of steps occur:
+
 1. **Phase A**: YAML file consistency to the Standard YAML version is checked
 2. **Phase B**: Science check that parameters are present and physically reasonable for science options chosen
 3. [STILL TO DO] **Phase C**: Conditional validation using Pydantic
@@ -78,15 +79,17 @@ Background
 **Developers:** Developed by SR, MP, TS with the help of Claude as part of SUEWS YAML configuration validation system.
 
 **Required inputs:**
+
 1. **User YAML file:** Your SUEWS YAML configuration file
 2. **Standard YAML file:** Reference configuration (typically ``sample_run/sample_config.yml`` from master branch)
 3. **Execution mode:** Phase A, Phase B, or complete A→B workflow
 
 **Outputs:**
+
 1. **Phase A outputs:**
    
    a. **Success:** Console message indicating no missing parameters or critical todo actions required
-   b. **Issues found:** Updated YAML file and analysis report - see :ref:`phase_a_actions`
+   b. **Issues found:** Updated YAML file and analysis report - see `Actions to fix Phase A issues`_
 
 2. **Phase B outputs:** Scientific validation results and corrected parameters
 3. **Phase C outputs:** Pydantic validation with inline annotations
@@ -143,8 +146,6 @@ How to run
     Report: reportA_user_config.txt
 
 
-.. _phase_a_overview:
-
 Phase A: Up To Date check for YAML Consistency
 ==================================================
 
@@ -191,8 +192,6 @@ Phase A systematically compares your YAML configuration against the standard and
    - **User-specific parameters** not found in standard configuration
    - **Preserved** in output (not removed)
    - **Flagged** for user awareness
-
-.. _phase_a_actions:
 
 Actions to fix Phase A issues
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -253,7 +252,7 @@ When Phase A detects issues, it generates two output files:
    
    **Critical Parameters:** Parameters listed in the **ACTION NEEDED** section are critical physics options that must be set. The model may not run correctly until these null values are replaced with appropriate values.
 
-**For detailed Phase A documentation, see:** :ref:`phase_a_detailed`
+**For detailed Phase A documentation, see:** phase_a_detailed.rst
 
 
 Section B: Overview

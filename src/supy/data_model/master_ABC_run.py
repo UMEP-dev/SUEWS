@@ -260,7 +260,7 @@ Phases:
     
     # Print workflow header
     phase_desc = {"A": "Phase A Only", "B": "Phase B Only", "AB": "Complete A→B Workflow"}
-    print(f"🚀 SUEWS Configuration Processor: {os.path.basename(user_yaml_file)}")
+    print(f"SUEWS Configuration Processor: {os.path.basename(user_yaml_file)}")
     print(f"Mode: {phase_desc[phase]}")
     print()
     

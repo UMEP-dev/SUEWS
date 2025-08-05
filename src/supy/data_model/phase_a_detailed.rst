@@ -1,12 +1,13 @@
 .. _phase_a_detailed:
 
-Phase A: Detailed Parameter Detection Guide
+Phase A: Up To Date check for YAML Consistency Guide
 ============================================
 
 Overview
 --------
 
-Phase A is the first stage of SUEWS configuration validation that ensures your YAML file contains all required parameters and handles deprecated parameter names. This comprehensive guide covers all aspects of Phase A operation.
+Phase A is the first stage of SUEWS configuration validation that ensures your YAML file contains all required parameters and handles outdated parameter names. 
+This comprehensive guide covers all aspects of Phase A operation.
 
 .. contents::
    :local:
@@ -19,9 +20,9 @@ Phase A implements a systematic comparison algorithm that:
 
 1. **Recursively traverses** both user and standard YAML structures
 2. **Identifies missing parameters** at all nesting levels
-3. **Classifies parameters** by importance (URGENT vs optional)
-4. **Handles deprecated names** with automatic renaming
-5. **Preserves user customizations** not in standard
+3. **Classifies parameters** by importance (critical vs optional)
+4. **Handles outdated names** with automatic renaming
+5. **Preserves user parameter customisations** not in standard
 
 Technical Implementation
 ------------------------
@@ -29,16 +30,16 @@ Technical Implementation
 **Core Functions:**
 
 - ``find_missing_parameters()``: Recursive parameter detection
-- ``handle_renamed_parameters()``: Deprecated parameter renaming
+- ``handle_renamed_parameters()``: Outdated parameter renaming
 - ``find_extra_parameters()``: NOT IN STANDARD detection
-- ``is_physics_option()``: URGENT classification logic
+- ``is_physics_option()``: Critical parameter classification logic
 - ``create_uptodate_yaml_with_missing_params()``: Clean YAML generation
 
 **Key Data Structures:**
 
 .. code-block:: python
 
-   # Physics options automatically classified as URGENT
+   # Physics options automatically classified as critical
    PHYSICS_OPTIONS = {
        'netradiationmethod', 'emissionsmethod', 'storageheatmethod',
        'roughlenmommethod', 'roughlenheatmethod', 'stabilitymethod',
@@ -48,40 +49,42 @@ Technical Implementation
    
    # Outdated parameter mappings
    RENAMED_PARAMS = {
-       'cp': 'rho_cp',                    # thermal heat capacity
-       'diagmethod': 'rslmethod',         # roughness sublayer method
-       'localclimatemethod': 'rsllevel'   # RSL level method
+       'cp': 'rho_cp',                    
+       'diagmethod': 'rslmethod',         
+       'localclimatemethod': 'rsllevel'   
    }
 
 Parameter Classification Logic
 ------------------------------
 
-**URGENT-MISSING! Parameters**
+**Critical Missing Parameters (ACTION NEEDED)**
 
-Parameters classified as URGENT when:
+Parameters classified as critical when:
 
 - Located under ``model.physics.*`` path
 - Parameter name exists in ``PHYSICS_OPTIONS`` set
 - Required for basic model physics calculations
+- Listed in **ACTION NEEDED** section of report
 
-**MISSING! Parameters**  
+**Optional Missing Parameters (NO ACTION NEEDED)**  
 
 Parameters classified as optional when:
 
 - Located outside ``model.physics.*`` path
-- Include site properties, initial states, forcing configurations
-- Model can run with internal defaults
+- Include site properties, initial states, etc.
+- Model can run with nulls or defaults
+- Listed in **NO ACTION NEEDED** section of report
 
 **Example Classification:**
 
 .. code-block:: text
 
-   URGENT-MISSING!:
+   ACTION NEEDED (Critical):
    ├── model.physics.netradiationmethod
    ├── model.physics.emissionsmethod
    └── model.physics.stabilitymethod
    
-   MISSING!:
+   NO ACTION NEEDED (Optional):
    ├── sites[0].properties.irrigation.wuprofm_24hr.holiday
    ├── sites[0].initial_states.soilstore_id
    └── model.control.output_file.groups
@@ -115,26 +118,24 @@ Outdated Parameter Handling
    # Before Phase A processing (user file with outdated parameter names)
    model:
      physics:
-       cp:
-         value: 1005
        diagmethod:
          value: 2
    
    # After Phase A processing (clean YAML output with updated names)
    model:
      physics:
-       rho_cp: 1005
-       rslmethod: 2
+       rslmethod: 
+         value: 2
 
-NOT IN STANDARD Parameter Handling
+Not In Standard Parameter Handling
 ----------------------------------
 
 Phase A identifies parameters that exist in your configuration but not in the standard:
 
 **Detection Criteria:**
 
-- Parameter path exists in user YAML
-- Same path does not exist in standard YAML
+- Parameter name exists in user YAML
+- Same name does not exist in standard YAML
 - Includes both custom parameters and typos
 
 **Handling Strategy:**
@@ -150,14 +151,8 @@ Phase A identifies parameters that exist in your configuration but not in the st
    # Custom parameters preserved by Phase A
    model:
      control:
-       custom_simulation_name: "My_SUEWS_Run"  # NOT IN STANDARD
-       debug_mode: true                        # NOT IN STANDARD
-   
-   sites:
-   - properties:
-       user_metadata:                          # NOT IN STANDARD
-         project_id: "URBAN_2025"
-         site_code: "LON_01"
+       custom_simulation_name: "My_SUEWS_Run"  
+       debug_mode: true                        
 
 Output Files Structure
 ----------------------
@@ -166,9 +161,16 @@ Output Files Structure
 
 .. code-block:: yaml
 
-   # UP TO DATE YAML generated by uptodate_yaml.py
-   # Based on standard: sample_run/sample_config.yml
-   # Date: 2025-01-15 14:30:22
+   # =============================================================================
+   # UP TO DATE YAML
+   # =============================================================================
+   #
+   # This file has been automatically updated by uptodate_yaml.py with all necessary changes:
+   # - Missing in standard parameters have been added with null values
+   # - Renamed in standard parameters have been updated to current naming conventions
+   # - All changes are reported in report_<yourfilename>.txt
+   #
+   # =============================================================================
    
    name: Updated User Configuration
    model:
@@ -187,80 +189,29 @@ Output Files Structure
 
 .. code-block:: text
 
-   SUEWS Configuration Analysis Report
-   Generated: 2025-01-15 14:30:22
-   User file: user_config.yml
-   Standard file: sample_run/sample_config.yml
+   # SUEWS Configuration Analysis Report
+   # ==================================================
    
-   ===================================
+   ## ACTION NEEDED
+   - Found (1) critical missing parameter(s):
+   -- netradiationmethod has been added to updatedA_user.yml and set to null
+      Suggested fix: Set appropriate value based on SUEWS documentation -- https://suews.readthedocs.io/latest/
    
-   ## Summary
-   Found 5 MISSING IN STANDARD parameters
-   Found 2 RENAMED IN STANDARD parameters  
-   Found 3 NOT IN STANDARD parameters
+   ## NO ACTION NEEDED
+   - Found (3) optional missing parameter(s):
+   -- holiday at level sites[0].properties.irrigation.wuprofm_24hr.holiday
+   -- wetthresh at level sites[0].properties.vertical_layers.walls[2].wetthresh
+   -- DHWVesselDensity at level sites[0].properties.stebbs.DHWVesselDensity
    
-   URGENT: 2 physics options require immediate attention
+   - Found (2) parameter(s) not in standard:
+   -- startdate at level model.control.startdate
+   -- test at level sites[0].properties.test
    
-   ### MISSING IN STANDARD Parameters
+   - Renamed (2) parameters:
+   -- diagmethod changed to rslmethod
+   -- cp changed to rho_cp
    
-   **URGENT-MISSING! (Physics Options)**
-   These parameters are critical for model physics and must be set:
-   
-   - model.physics.netradiationmethod
-     → Controls net radiation calculation method
-     → Suggested values: 1, 2, 3, or 4
-     
-   - model.physics.stabilitymethod  
-     → Controls atmospheric stability corrections
-     → Suggested values: 1, 2, or 3
-   
-   **MISSING! (Optional Parameters)**
-   These parameters can use defaults but explicit values recommended:
-   
-   - sites[0].properties.irrigation.wuprofm_24hr.holiday
-     → Holiday irrigation profile (default: same as working day)
-     
-   - sites[0].initial_states.soilstore_id
-     → Initial soil moisture storage (default: calculated)
-     
-   - model.control.output_file.groups
-     → Output groups to save (default: ['SUEWS'])
-   
-   ### RENAMED IN STANDARD Parameters
-   These parameters have been updated to current naming:
-   
-   - cp -> rho_cp
-     → Thermal heat capacity parameter
-     → Value preserved: 1005
-     
-   - diagmethod -> rslmethod
-     → Roughness sublayer diagnostic method
-     → Value preserved: 2
-   
-   ### NOT IN STANDARD Parameters
-   These parameters are not in the standard configuration:
-   
-   - model.control.custom_param
-     → User-defined parameter (preserved)
-     
-   - sites[0].properties.user_metadata
-     → Custom site metadata (preserved)
-     
-   - sites[0].properties.typo_parameter
-     → Possible typo? Check parameter name
-   
-   ## Suggested Actions
-   
-   1. **URGENT**: Set values for physics options marked URGENT-MISSING!
-   2. **Review**: Check outdated parameter renamings for correctness
-   3. **Consider**: Set explicit values for optional MISSING parameters
-   4. **Verify**: NOT IN STANDARD parameters for typos or intentional customizations
-   
-   ## Documentation
-   For parameter descriptions and valid ranges, see:
-   https://suews.readthedocs.io/latest/
-   
-   Updated configuration saved as: updatedA_user_config.yml
+   # ==================================================
 
 Error Handling and Edge Cases
 -----------------------------
@@ -340,7 +291,7 @@ Phase A includes comprehensive test coverage:
 
 - **Parameter Detection**: Missing, renamed, and extra parameters
 - **File Handling**: Various file formats and error conditions  
-- **Classification Logic**: URGENT vs optional parameter sorting
+- **Classification Logic**: Critical vs optional parameter sorting
 - **Output Generation**: YAML and report file creation
 - **Edge Cases**: Empty files, malformed YAML, permission errors
 
@@ -349,7 +300,7 @@ Phase A includes comprehensive test coverage:
 .. code-block:: python
 
    def test_urgent_parameter_classification():
-       """Test that physics parameters are classified as URGENT."""
+       """Test that physics parameters are classified as critical."""
        user_config = {
            'model': {
                'physics': {'emissionsmethod': {'value': 2}}
@@ -394,7 +345,7 @@ Best Practices
 **For Users:**
 
 1. **Always run Phase A** before manual YAML editing
-2. **Address URGENT parameters** immediately  
+2. **Address critical parameters** immediately  
 3. **Review renamed parameters** for correctness
 4. **Keep standard file updated** with latest SUEWS version
 5. **Use AB workflow** for complete validation
@@ -436,7 +387,7 @@ Troubleshooting
    Check: git status sample_run/sample_config.yml
    Fix: git checkout master -- sample_run/sample_config.yml
 
-**Issue**: "All parameters marked as URGENT"
+**Issue**: "All parameters marked as critical"
 
 .. code-block:: text
 

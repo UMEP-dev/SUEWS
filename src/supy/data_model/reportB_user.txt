@@ -2,20 +2,14 @@
 # ==================================================
 
 ## ACTION NEEDED
-- Found (3) critical scientific parameter error(s):
+- Found (2) critical scientific parameter error(s):
 -- model.physics.netradiationmethod: Required physics parameter missing
-   Suggested fix: Check SUEWS documentation for appropriate value
--- model.physics.rslmethod: Required physics parameter missing
-   Suggested fix: Check SUEWS documentation for appropriate value
--- stabilitymethod-rslmethod: If stabilitymethod == 1, rslmethod parameter is required for atmospheric stability calculations
-   Suggested fix: Set rslmethod to appropriate value (typically 1 or 2)
+   Suggested fix: Check SUEWS documentation for appropriate value -- https://suews.readthedocs.io/latest/
+-- rslmethod-stabilitymethod: If rslmethod == 2, stabilitymethod must be 3 for diagnostic aerodynamic calculations
+   Suggested fix: Set stabilitymethod to 3
 
 ## NO ACTION NEEDED
 - Found (1) scientific warning(s) for information:
 -- unused_surfaces at site [0]: Surfaces with sfr=0 may have unused parameters: evetr, bsoil
 
 # ==================================================
-
-## NEXT STEPS
-1. Review scientific errors and apply suggested fixes
-2. Re-run Phase B after corrections

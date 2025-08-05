@@ -174,7 +174,7 @@ def validate_physics_parameters(yaml_data: dict) -> List[ValidationResult]:
                 category='PHYSICS',
                 parameter=f'model.physics.{param}',
                 message=f'Required physics parameter missing',
-                suggested_value='Check SUEWS documentation for appropriate value'
+                suggested_value='Check SUEWS documentation for appropriate value -- https://suews.readthedocs.io/latest/'
             ))
     
     # Check for empty/null values
@@ -1171,25 +1171,6 @@ def create_science_report(validation_results: List[ValidationResult], adjustment
     
     # Footer separator
     report_lines.append("# " + "="*50)
-    report_lines.append("")
-    
-    # Next steps
-    report_lines.append("## NEXT STEPS")
-    if errors:
-        report_lines.append("1. Review scientific errors and apply suggested fixes")
-        report_lines.append("2. Re-run Phase B after corrections")
-    elif warnings:
-        report_lines.append("1. Review scientific warnings for model accuracy")
-        if science_yaml_filename:
-            report_lines.append(f"2. Proceed with SUEWS simulation using {science_yaml_filename}")
-        else:
-            report_lines.append("2. Proceed with SUEWS simulation using science-checked YAML")
-    else:
-        if science_yaml_filename:
-            report_lines.append(f"1. Proceed with SUEWS simulation using {science_yaml_filename}")
-        else:
-            report_lines.append("1. Proceed with SUEWS simulation using science-checked YAML")
-        report_lines.append("2. All scientific validations and adjustments completed successfully")
     
     return '\n'.join(report_lines)
 

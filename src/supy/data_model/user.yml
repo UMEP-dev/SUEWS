@@ -33,10 +33,10 @@ model:
       value: 0
     waterusemethod:
       value: 0
-    #rslmethod:
-    #  value: 2
-    diagmethod:
+    rslmethod:
       value: 2
+    #diagmethod:
+    #  value: 2
     faimethod:
       value: 0
     rsllevel:

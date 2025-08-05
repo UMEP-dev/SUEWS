@@ -25,6 +25,7 @@ Output: Science-checked YAML configuration + comprehensive reports
 import sys
 import os
 import subprocess
+import argparse
 from pathlib import Path
 from typing import Tuple, Optional
 import tempfile
@@ -220,22 +221,39 @@ def run_phase_b(user_yaml_file: str, uptodate_file: str, standard_yaml_file: str
 def main():
     """Main entry point for master Phase A-B-C workflow."""
     
-    # Check command line arguments
-    if len(sys.argv) != 2:
-        print("Usage: python master_ABC_run.py <user_yaml_file>")
-        print()
-        print("Example:")
-        print("  python master_ABC_run.py my_config.yml")
-        print()
-        print("This will run the complete Phase A-B workflow:")
-        print("  Phase A: Parameter detection and YAML updates")
-        print("  Phase B: Scientific validation and adjustments")
-        return 1
+    # Setup command line argument parsing
+    parser = argparse.ArgumentParser(
+        description="SUEWS Configuration Processor - Phase A and/or Phase B workflow",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  python master_ABC_run.py user.yml                    # Run complete A→B workflow (default)
+  python master_ABC_run.py user.yml --phase A          # Run Phase A only
+  python master_ABC_run.py user.yml --phase B          # Run Phase B only (requires updatedA_user.yml)
+  python master_ABC_run.py user.yml --phase AB         # Run complete A→B workflow (explicit)
+
+Phases:
+  Phase A: Parameter detection, YAML structure updates, missing parameter handling
+  Phase B: Scientific validation, automatic adjustments, final simulation preparation
+        """
+    )
     
-    user_yaml_file = sys.argv[1]
+    parser.add_argument('yaml_file', 
+                       help='Input YAML configuration file')
+    
+    parser.add_argument('--phase', '-p',
+                       choices=['A', 'B', 'AB'], 
+                       default='AB',
+                       help='Phase to run: A (parameter detection), B (scientific validation), or AB (complete workflow, default)')
+    
+    args = parser.parse_args()
+    user_yaml_file = args.yaml_file
+    phase = args.phase
     
     # Print workflow header
+    phase_desc = {"A": "Phase A Only", "B": "Phase B Only", "AB": "Complete A→B Workflow"}
     print(f"🚀 SUEWS Configuration Processor: {os.path.basename(user_yaml_file)}")
+    print(f"Mode: {phase_desc[phase]}")
     print()
     
     try:
@@ -251,33 +269,60 @@ def main():
         
         uptodate_file, report_file, science_yaml_file, science_report_file, dirname = setup_output_paths(user_yaml_file)
         
-        # Step 3: Run Phase A
-        phase_a_success = run_phase_a(user_yaml_file, standard_yaml_file, uptodate_file, report_file)
-        
-        if not phase_a_success:
-            return 1
-        
-        # Step 4: Run Phase B (only if Phase A succeeded)
-        phase_b_success = run_phase_b(user_yaml_file, uptodate_file, standard_yaml_file,
-                                     science_yaml_file, science_report_file, report_file)
-        
-        # Step 5: Final result and cleanup
-        workflow_success = phase_a_success and phase_b_success
-        if workflow_success:
-            # Clean up Phase A files since we have final files from Phase B
-            try:
-                if os.path.exists(report_file):
-                    os.remove(report_file)  # Remove Phase A report
-                if os.path.exists(uptodate_file):
-                    os.remove(uptodate_file)  # Remove Phase A YAML
-            except Exception:
-                pass  # Don't fail if cleanup doesn't work
+        # Phase-specific execution
+        if phase == 'A':
+            # Phase A only
+            phase_a_success = run_phase_a(user_yaml_file, standard_yaml_file, uptodate_file, report_file)
+            if phase_a_success:
+                print()
+                print(f"🎯 Phase A completed: {os.path.basename(uptodate_file)}")
+                print(f"  Parameter detection report: {os.path.basename(report_file)}")
+            return 0 if phase_a_success else 1
             
-            print()
-            print(f"🎯 Ready for SUEWS simulation: {os.path.basename(science_yaml_file)}")
-            print(f"  Parameter changes report: {os.path.basename(science_report_file)}")
-        
-        return 0 if workflow_success else 1
+        elif phase == 'B':
+            # Phase B only - requires Phase A output
+            if not os.path.exists(uptodate_file):
+                print(f"✗ Phase B requires Phase A output: {uptodate_file} not found")
+                print("  Run Phase A first: python master_ABC_run.py user.yml --phase A")
+                return 1
+            
+            # Check if Phase A report exists for consolidation
+            phase_a_report = report_file if os.path.exists(report_file) else None
+            
+            phase_b_success = run_phase_b(user_yaml_file, uptodate_file, standard_yaml_file,
+                                         science_yaml_file, science_report_file, phase_a_report)
+            if phase_b_success:
+                print()
+                print(f"🎯 Phase B completed: {os.path.basename(science_yaml_file)}")
+                print(f"  Scientific validation report: {os.path.basename(science_report_file)}")
+            return 0 if phase_b_success else 1
+            
+        else:  # phase == 'AB'
+            # Complete A→B workflow (existing logic)
+            phase_a_success = run_phase_a(user_yaml_file, standard_yaml_file, uptodate_file, report_file)
+            
+            if not phase_a_success:
+                return 1
+            
+            phase_b_success = run_phase_b(user_yaml_file, uptodate_file, standard_yaml_file,
+                                         science_yaml_file, science_report_file, report_file)
+            
+            # Clean up intermediate files when complete workflow succeeds
+            workflow_success = phase_a_success and phase_b_success
+            if workflow_success:
+                try:
+                    if os.path.exists(report_file):
+                        os.remove(report_file)  # Remove Phase A report
+                    if os.path.exists(uptodate_file):
+                        os.remove(uptodate_file)  # Remove Phase A YAML
+                except Exception:
+                    pass  # Don't fail if cleanup doesn't work
+                
+                print()
+                print(f"🎯 Ready for SUEWS simulation: {os.path.basename(science_yaml_file)}")
+                print(f"  Parameter changes report: {os.path.basename(science_report_file)}")
+            
+            return 0 if workflow_success else 1
         
     except FileNotFoundError as e:
         print(f"✗ File error: {e}")

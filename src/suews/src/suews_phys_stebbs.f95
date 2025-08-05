@@ -710,12 +710,6 @@ CONTAINS
                ! select the spartacus layers for wall and roof by height
                n_layer_wall = find_layer((buildings(1)%height_building)/2, ss_height, nlayer)
                n_layer_roof = find_layer(buildings(1)%height_building, ss_height, nlayer)
-               IF (n_layer_roof < nlayer) THEN !assume roof is one layer above this height
-                  n_layer_roof = n_layer_roof + 1
-               ELSE 
-                  n_layer_roof = n_layer_roof
-               END IF
-
                Kwall_sout = heatState%wall_in_sw_spc(n_layer_wall)
                Lwall_sout = heatState%wall_in_lw_spc(n_layer_wall)
                Kroof_sout = heatState%roof_in_sw_spc(n_layer_roof)

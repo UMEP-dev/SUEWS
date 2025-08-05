@@ -252,7 +252,7 @@ When Phase A detects issues, it generates two output files:
    
    **Critical Parameters:** Parameters listed in the **ACTION NEEDED** section are critical physics options that must be set. The model may not run correctly until these null values are replaced with appropriate values.
 
-**For detailed Phase A documentation, see:** phase_a_detailed.rst
+**For detailed Phase A documentation, see:** `phase_a_detailed.rst <phase_a_detailed.rst>`__
 
 
 Section B: Overview

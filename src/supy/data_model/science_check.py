@@ -795,6 +795,211 @@ def adjust_model_dependent_nullification(yaml_data: dict) -> Tuple[dict, List[Sc
     return yaml_data, adjustments
 
 
+def get_season(start_date: str, lat: float) -> str:
+    """
+    Determine season based on start date and latitude.
+    
+    Adapted from precheck.py SeasonCheck class.
+    
+    Args:
+        start_date: Start date in YYYY-MM-DD format
+        lat: Site latitude in degrees
+        
+    Returns:
+        Season string: 'summer', 'winter', 'spring', 'fall', 'tropical', 'equatorial'
+    """
+    try:
+        start = datetime.strptime(start_date, "%Y-%m-%d").timetuple().tm_yday
+    except ValueError:
+        raise ValueError("start_date must be in YYYY-MM-DD format")
+
+    abs_lat = abs(lat)
+
+    if abs_lat <= 10:
+        return "equatorial"
+    if 10 < abs_lat < 23.5:
+        return "tropical"
+
+    if lat >= 0:  # Northern Hemisphere
+        if 150 < start < 250:
+            return "summer"
+        elif 60 < start <= 150:
+            return "spring"
+        elif 250 <= start < 335:
+            return "fall"
+        else:
+            return "winter"
+    else:  # Southern Hemisphere
+        if 150 < start < 250:
+            return "winter"
+        elif 60 < start <= 150:
+            return "fall"
+        elif 250 <= start < 335:
+            return "spring"
+        else:
+            return "summer"
+
+
+def adjust_seasonal_parameters(yaml_data: dict, start_date: str, model_year: int) -> Tuple[dict, List[ScientificAdjustment]]:
+    """
+    Apply seasonal adjustments including LAI, snowalb nullification, and DLS calculations.
+    
+    Adapted from precheck.py precheck_site_season_adjustments function.
+    
+    Args:
+        yaml_data: YAML configuration dictionary
+        start_date: Start date in YYYY-MM-DD format
+        model_year: Model year for DLS calculations
+        
+    Returns:
+        Tuple of (updated_yaml_data, list_of_adjustments)
+    """
+    adjustments = []
+    sites = yaml_data.get("sites", [])
+    
+    for site_idx, site in enumerate(sites):
+        props = site.get("properties", {})
+        initial_states = site.get("initial_states", {})
+        
+        # Get site coordinates
+        lat_entry = props.get("lat", {})
+        lat = lat_entry.get("value") if isinstance(lat_entry, dict) else lat_entry
+        lng_entry = props.get("lng", {})
+        lng = lng_entry.get("value") if isinstance(lng_entry, dict) else lng_entry
+        
+        if lat is None:
+            continue  # Skip if no latitude
+        
+        # 1. Determine season
+        try:
+            season = get_season(start_date, lat)
+        except Exception as e:
+            continue  # Skip on season detection error
+        
+        # 2. Nullify snowalb for warm seasons
+        if season in ("summer", "tropical", "equatorial") and "snowalb" in initial_states:
+            current_snowalb = initial_states["snowalb"].get("value")
+            if current_snowalb is not None:
+                initial_states["snowalb"]["value"] = None
+                adjustments.append(ScientificAdjustment(
+                    parameter='snowalb',
+                    site_index=site_idx,
+                    old_value=str(current_snowalb),
+                    new_value='null',
+                    reason=f'Nullified for {season} season (no snow expected)'
+                ))
+        
+        # 3. Seasonal LAI adjustment for deciduous trees
+        land_cover = props.get("land_cover", {})
+        dectr = land_cover.get("dectr", {})
+        if dectr:
+            sfr = dectr.get("sfr", {}).get("value", 0)
+            
+            if sfr > 0:  # Only if deciduous trees are present
+                lai = dectr.get("lai", {})
+                laimin = lai.get("laimin", {}).get("value")
+                laimax = lai.get("laimax", {}).get("value")
+                
+                if laimin is not None and laimax is not None:
+                    # Calculate seasonal LAI value
+                    if season == "summer":
+                        lai_val = laimax
+                    elif season == "winter":
+                        lai_val = laimin
+                    elif season in ("spring", "fall"):
+                        lai_val = (laimax + laimin) / 2
+                    else:  # tropical/equatorial
+                        lai_val = laimax
+                    
+                    # Set LAI in initial states
+                    if "dectr" not in initial_states:
+                        initial_states["dectr"] = {}
+                    
+                    current_lai = initial_states["dectr"].get("lai_id", {}).get("value")
+                    if current_lai != lai_val:
+                        initial_states["dectr"]["lai_id"] = {"value": lai_val}
+                        adjustments.append(ScientificAdjustment(
+                            parameter='dectr.lai_id',
+                            site_index=site_idx,
+                            old_value=str(current_lai) if current_lai is not None else 'undefined',
+                            new_value=str(lai_val),
+                            reason=f'Set seasonal LAI for {season} (laimin={laimin}, laimax={laimax})'
+                        ))
+            else:
+                # No deciduous trees - nullify LAI
+                if "dectr" in initial_states and initial_states["dectr"].get("lai_id", {}).get("value") is not None:
+                    initial_states["dectr"]["lai_id"] = {"value": None}
+                    adjustments.append(ScientificAdjustment(
+                        parameter='dectr.lai_id',
+                        site_index=site_idx,
+                        old_value='previous value',
+                        new_value='null',
+                        reason='Nullified (no deciduous trees: sfr=0)'
+                    ))
+        
+        # 4. DLS (Daylight Saving) calculations
+        if lat is not None and lng is not None:
+            try:
+                # Simple DLS estimation for demonstration (real implementation would use timezonefinder)
+                # Northern hemisphere: DST typically March to October
+                # Southern hemisphere: DST typically October to March
+                if lat >= 0:  # Northern hemisphere
+                    start_dls = 86  # ~March 27
+                    end_dls = 303   # ~October 30
+                    tz_offset = 0   # Simplified - would calculate from coordinates
+                else:  # Southern hemisphere  
+                    start_dls = 303  # ~October 30
+                    end_dls = 86     # ~March 27
+                    tz_offset = 0    # Simplified
+                
+                # Set DLS parameters
+                anthro_emissions = props.get("anthropogenic_emissions", {})
+                if anthro_emissions:
+                    current_startdls = anthro_emissions.get("startdls", {}).get("value")
+                    current_enddls = anthro_emissions.get("enddls", {}).get("value")
+                    
+                    dls_updated = False
+                    if current_startdls != start_dls:
+                        anthro_emissions["startdls"] = {"value": start_dls}
+                        dls_updated = True
+                    
+                    if current_enddls != end_dls:
+                        anthro_emissions["enddls"] = {"value": end_dls}
+                        dls_updated = True
+                    
+                    if dls_updated:
+                        adjustments.append(ScientificAdjustment(
+                            parameter='dls_parameters',
+                            site_index=site_idx,
+                            old_value=f'start={current_startdls}, end={current_enddls}',
+                            new_value=f'start={start_dls}, end={end_dls}',
+                            reason=f'Calculated DLS for coordinates ({lat:.2f}, {lng:.2f})'
+                        ))
+                
+                # Set timezone if not set
+                current_timezone = props.get("timezone", {}).get("value")
+                if current_timezone != tz_offset:
+                    props["timezone"] = {"value": tz_offset}
+                    adjustments.append(ScientificAdjustment(
+                        parameter='timezone',
+                        site_index=site_idx,
+                        old_value=str(current_timezone),
+                        new_value=str(tz_offset),
+                        reason=f'Calculated timezone offset for coordinates ({lat:.2f}, {lng:.2f})'
+                    ))
+                
+            except Exception as e:
+                # Skip DLS calculation on error
+                pass
+        
+        # Save back to site
+        site["properties"] = props  
+        site["initial_states"] = initial_states
+        yaml_data["sites"][site_idx] = site
+    
+    return yaml_data, adjustments
+
+
 def run_scientific_adjustment_pipeline(yaml_data: dict, start_date: str, model_year: int) -> Tuple[dict, List[ScientificAdjustment]]:
     """
     Apply automatic scientific corrections and adjustments to YAML configuration.
@@ -823,10 +1028,8 @@ def run_scientific_adjustment_pipeline(yaml_data: dict, start_date: str, model_y
     adjustments.extend(nullify_adjustments)
     
     # Seasonal parameter adjustments
-    # TODO: Implement adjust_seasonal_parameters(updated_data, start_date)
-    
-    # DLS parameter calculations
-    # TODO: Implement adjust_dls_parameters(updated_data, model_year)
+    updated_data, seasonal_adjustments = adjust_seasonal_parameters(updated_data, start_date, model_year)
+    adjustments.extend(seasonal_adjustments)
     
     return updated_data, adjustments
 

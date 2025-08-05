@@ -1125,6 +1125,41 @@ def create_science_report(validation_results: List[ValidationResult], adjustment
     return '\n'.join(report_lines)
 
 
+def print_critical_halt_message(critical_errors: List[ValidationResult]):
+    """
+    Print critical halt message when Phase B detects errors requiring Phase A.
+    
+    Args:
+        critical_errors: List of ERROR-level validation results
+    """
+    print()
+    print("=" * 60)
+    print(" PHASE B HALTED - CRITICAL ERRORS DETECTED")
+    print("=" * 60)
+    print()
+    print("Phase B detected critical scientific errors that require")
+    print("Phase A (uptodate_yaml.py) to be run first:")
+    print()
+    
+    for error in critical_errors:
+        site_ref = f" at site [{error.site_index}]" if error.site_index is not None else ""
+        print(f"  ✗ {error.parameter}{site_ref}")
+        print(f"    {error.message}")
+        if error.suggested_value is not None:
+            print(f"    Suggested: {error.suggested_value}")
+        print()
+    
+    print("REQUIRED ACTION:")
+    print("1. Run Phase A first: python uptodate_yaml.py")
+    print("2. Review and fix any critical parameters in your YAML")
+    print("3. Then re-run Phase B: python science_check.py")
+    print()
+    print("Phase A will detect missing parameters and provide guidance")
+    print("for setting critical values like physics method options.")
+    print()
+    print("=" * 60)
+
+
 def print_science_check_results(validation_results: List[ValidationResult], adjustments: List[ScientificAdjustment]):
     """
     Print clean terminal output for Phase B results.
@@ -1204,7 +1239,14 @@ def run_science_check(uptodate_yaml_file: str, user_yaml_file: str, standard_yam
         # Step 3: Run scientific validation pipeline
         validation_results = run_scientific_validation_pipeline(uptodate_data, start_date, model_year)
         
-        # Step 4: Run scientific adjustment pipeline
+        # Step 3.5: CRITICAL HALT CHECK - Stop if errors found and suggest Phase A
+        critical_errors = [r for r in validation_results if r.status == 'ERROR']
+        if critical_errors:
+            print_critical_halt_message(critical_errors)
+            # Don't write incomplete files - just halt
+            raise ValueError("Critical scientific errors detected - Phase B halted")
+        
+        # Step 4: Run scientific adjustment pipeline (only if no critical errors)
         science_checked_data, adjustments = run_scientific_adjustment_pipeline(uptodate_data, start_date, model_year)
         
         # Step 5: Generate science report
@@ -1273,8 +1315,15 @@ def main():
         print(f"Science-checked YAML: {science_yaml_file}")
         print(f"Science report: {science_report_file}")
         
+    except ValueError as e:
+        if "Critical scientific errors detected" in str(e):
+            # Critical errors already printed by print_critical_halt_message
+            return 1
+        else:
+            print(f"\nPhase B failed: {e}")
+            return 1
     except Exception as e:
-        print(f"\nPhase B failed: {e}")
+        print(f"\nPhase B failed with unexpected error: {e}")
         return 1
     
     return 0

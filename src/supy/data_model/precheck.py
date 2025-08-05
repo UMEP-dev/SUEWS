@@ -342,7 +342,7 @@ def get_mean_monthly_air_temperature(
 
     # Load CRU data (supports both Parquet and CSV)
     try:
-        if cru_path.suffix == '.parquet':
+        if cru_path.suffix == ".parquet":
             df = pd.read_parquet(cru_path)
         else:
             df = pd.read_csv(cru_path)

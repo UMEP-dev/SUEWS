@@ -280,16 +280,20 @@ Phases:
             return 0 if phase_a_success else 1
             
         elif phase == 'B':
-            # Phase B only - requires Phase A output
-            if not os.path.exists(uptodate_file):
-                print(f"✗ Phase B requires Phase A output: {uptodate_file} not found")
-                print("  Run Phase A first: python master_ABC_run.py user.yml --phase A")
-                return 1
+            # Phase B only - can run on user YAML directly or use Phase A output if available
+            input_yaml_file = user_yaml_file
+            phase_a_report = None
             
-            # Check if Phase A report exists for consolidation
-            phase_a_report = report_file if os.path.exists(report_file) else None
+            # Check if Phase A output exists and use it, otherwise use original user YAML
+            if os.path.exists(uptodate_file):
+                print("Using existing Phase A output...")
+                input_yaml_file = uptodate_file
+                phase_a_report = report_file if os.path.exists(report_file) else None
+            else:
+                print("Running Phase B directly on user YAML...")
+                # Phase B will handle parameter detection internally
             
-            phase_b_success = run_phase_b(user_yaml_file, uptodate_file, standard_yaml_file,
+            phase_b_success = run_phase_b(user_yaml_file, input_yaml_file, standard_yaml_file,
                                          science_yaml_file, science_report_file, phase_a_report)
             if phase_b_success:
                 print()

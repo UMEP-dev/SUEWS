@@ -48,10 +48,10 @@ class ScientificAdjustment:
 
 def validate_phase_b_inputs(uptodate_yaml_file: str, user_yaml_file: str, standard_yaml_file: str) -> Tuple[dict, dict, dict]:
     """
-    Validate that Phase B has all required inputs and Phase A completed successfully.
+    Validate that Phase B has all required inputs. Can work with Phase A output or raw user YAML.
     
     Args:
-        uptodate_yaml_file: Path to Phase A output (uptodate YAML)
+        uptodate_yaml_file: Path to Phase A output (uptodate YAML) or user YAML for direct Phase B
         user_yaml_file: Path to original user YAML
         standard_yaml_file: Path to standard reference YAML
         
@@ -60,7 +60,7 @@ def validate_phase_b_inputs(uptodate_yaml_file: str, user_yaml_file: str, standa
         
     Raises:
         FileNotFoundError: If required files are missing
-        ValueError: If Phase A did not complete properly
+        ValueError: If YAML files are invalid
     """
     # Check that all required files exist
     for file_path in [uptodate_yaml_file, user_yaml_file, standard_yaml_file]:
@@ -68,14 +68,13 @@ def validate_phase_b_inputs(uptodate_yaml_file: str, user_yaml_file: str, standa
             raise FileNotFoundError(f"Required file not found: {file_path}")
     
     try:
-        # Load uptodate YAML (Phase A output)
+        # Load uptodate YAML (could be Phase A output or raw user YAML)
         with open(uptodate_yaml_file, 'r') as f:
             uptodate_content = f.read()
             uptodate_data = yaml.safe_load(uptodate_content)
             
-        # Verify Phase A completed (check for Phase A header)
-        if "UP TO DATE YAML" not in uptodate_content:
-            raise ValueError(f"Phase A did not complete properly - missing Phase A header in {uptodate_yaml_file}")
+        # Check if this is Phase A output or raw user YAML (no strict requirement)
+        is_phase_a_output = "UP TO DATE YAML" in uptodate_content
             
         # Load original user YAML
         with open(user_yaml_file, 'r') as f:

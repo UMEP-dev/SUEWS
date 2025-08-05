@@ -135,10 +135,12 @@ def run_phase_a(user_yaml_file: str, standard_yaml_file: str,
         
         # Check if Phase A produced output files
         if not os.path.exists(uptodate_file):
+            print()
             print("✗ Phase A failed: No uptodate YAML file generated")
             return False
             
         if not os.path.exists(report_file):
+            print()
             print("✗ Phase A failed: No report file generated")
             return False
         
@@ -146,6 +148,7 @@ def run_phase_a(user_yaml_file: str, standard_yaml_file: str,
         with open(uptodate_file, 'r') as f:
             content = f.read()
             if "UP TO DATE YAML" not in content:
+                print()
                 print("✗ Phase A failed: Missing Phase A completion header")
                 return False
         
@@ -167,6 +170,7 @@ def run_phase_a(user_yaml_file: str, standard_yaml_file: str,
         return True
         
     except Exception as e:
+        print()
         print(f"✗ Phase A failed with error: {e}")
         return False
 
@@ -202,10 +206,12 @@ def run_phase_b(user_yaml_file: str, uptodate_file: str, standard_yaml_file: str
         
         # Check if Phase B produced output files
         if not os.path.exists(science_yaml_file):
+            print()
             print("✗ Phase B failed: No science-checked YAML file generated")
             return False
             
         if not os.path.exists(science_report_file):
+            print()
             print("✗ Phase B failed: No science report file generated") 
             return False
         
@@ -236,6 +242,7 @@ def run_phase_b(user_yaml_file: str, uptodate_file: str, standard_yaml_file: str
             print(f"  Check reportB file for details: {science_report_file}")
             return False
     except Exception as e:
+        print()
         print(f"✗ Phase B failed with unexpected error: {e}")
         return False
 
@@ -290,6 +297,7 @@ Phases:
         # Step 2: Setup paths
         standard_yaml_file = "src/supy/sample_run/sample_config.yml"
         if not os.path.exists(standard_yaml_file):
+            print()
             print(f"✗ Standard YAML file not found: {standard_yaml_file}")
             print("Make sure you're running from the SUEWS root directory")
             return 1
@@ -359,12 +367,15 @@ Phases:
             return 0 if workflow_success else 1
         
     except FileNotFoundError as e:
+        print()
         print(f"✗ File error: {e}")
         return 1
     except ValueError as e:
+        print()
         print(f"✗ Input error: {e}")
         return 1
     except Exception as e:
+        print()
         print(f"✗ Unexpected error: {e}")
         return 1
 

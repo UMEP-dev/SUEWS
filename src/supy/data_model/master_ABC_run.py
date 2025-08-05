@@ -144,6 +144,17 @@ def run_phase_a(user_yaml_file: str, standard_yaml_file: str,
                 print("✗ Phase A failed: Missing Phase A completion header")
                 return False
         
+        # Check Phase A report for critical issues
+        with open(report_file, 'r') as f:
+            report_content = f.read()
+            
+        # Phase A should halt workflow if critical parameters are missing
+        if "ACTION NEEDED" in report_content and "critical missing parameter" in report_content:
+            print("✗ Phase A detected critical missing parameters")
+            print("  Workflow halted - critical parameters must be fixed first")
+            print(f"  Check {os.path.basename(report_file)} for details")
+            return False
+        
         print("✓ Phase A completed successfully")
         print(f"  Generated: {os.path.basename(uptodate_file)}")
         print(f"  Report:    {os.path.basename(report_file)}")

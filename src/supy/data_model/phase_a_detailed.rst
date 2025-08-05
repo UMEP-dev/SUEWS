@@ -34,6 +34,7 @@ Technical Implementation
 - ``find_extra_parameters()``: NOT IN STANDARD detection
 - ``is_physics_option()``: Critical parameter classification logic
 - ``create_uptodate_yaml_with_missing_params()``: Clean YAML generation
+- ``get_value_safe()``: **New in this PR** - Robust RefValue/plain format handling utility (migrated from precheck.py PR #569)
 
 **Key Data Structures:**
 
@@ -53,6 +54,52 @@ Technical Implementation
        'diagmethod': 'rslmethod',         
        'localclimatemethod': 'rsllevel'   
    }
+
+RefValue Format Handling
+------------------------
+
+**get_value_safe() Utility Function:**
+
+Phase A now includes robust handling of SUEWS parameter formats through the ``get_value_safe()`` utility function, migrated from precheck.py (PR #569).
+
+**Function Purpose:**
+
+.. code-block:: python
+
+   def get_value_safe(param_dict, param_key, default=None):
+       """Safely extract value from RefValue or plain format."""
+       param = param_dict.get(param_key, default)
+       if isinstance(param, dict) and "value" in param:
+           return param["value"]  # RefValue format: {"value": 1}
+       else:
+           return param  # Plain format: 1
+
+**Handles Two SUEWS Parameter Formats:**
+
+1. **RefValue Format** (standard SUEWS format):
+   
+   .. code-block:: yaml
+   
+      parameter_name:
+        value: 1.5
+        
+2. **Plain Format** (simplified user format):
+   
+   .. code-block:: yaml
+   
+      parameter_name: 1.5
+
+**Usage in Phase A:**
+
+- **Land cover fraction calculations**: Safe extraction of surface fraction values
+- **Parameter comparison**: Consistent value extraction during missing parameter detection
+- **Verbose RefValue handling patterns**: Replaced multiple ``if isinstance(param, dict) and "value" in param`` checks
+
+**Benefits:**
+
+- **Robust parameter handling**: Works with both user-simplified and standard SUEWS formats
+- **Code maintainability**: Centralised RefValue logic in single utility function
+- **Error prevention**: Safe default handling when parameters are missing
 
 Parameter Classification Logic
 ------------------------------

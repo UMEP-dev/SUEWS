@@ -76,6 +76,8 @@ Background
 
 **Code Used:** ``uptodate_yaml.py`` (Phase A), ``science_check.py`` (Phase B), ``master_ABC_run.py`` (orchestrator)
 
+**Key Enhancement:** ``get_value_safe()`` utility function for robust RefValue/plain format handling, migrated from precheck.py (PR #569)
+
 **Developers:** Developed by SR, MP, TS with the help of Claude as part of SUEWS YAML configuration validation system.
 
 **Required inputs:**

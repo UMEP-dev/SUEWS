@@ -244,6 +244,143 @@ def validate_model_option_dependencies(yaml_data: dict) -> List[ValidationResult
     return results
 
 
+def validate_land_cover_consistency(yaml_data: dict) -> List[ValidationResult]:
+    """
+    Validate land cover surface fractions and parameter consistency.
+    
+    Checks that surface fractions sum to 1.0 and validates parameters for
+    surfaces with non-zero fractions. Adapted from precheck.py land cover functions.
+    
+    Args:
+        yaml_data: YAML configuration dictionary
+        
+    Returns:
+        List of ValidationResult objects for land cover validation
+    """
+    results = []
+    sites = yaml_data.get("sites", [])
+    
+    for site_idx, site in enumerate(sites):
+        props = site.get("properties", {})
+        land_cover = props.get("land_cover")
+        
+        if not land_cover:
+            results.append(ValidationResult(
+                status='ERROR',
+                category='LAND_COVER',
+                parameter='land_cover',
+                site_index=site_idx,
+                message='Missing land_cover block',
+                suggested_value='Add land_cover configuration with surface fractions'
+            ))
+            continue
+        
+        # Calculate sum of all surface fractions
+        sfr_sum = 0.0
+        surface_types = []
+        
+        for surface_type, surface_props in land_cover.items():
+            if isinstance(surface_props, dict):
+                sfr_value = surface_props.get("sfr", {}).get("value")
+                if sfr_value is not None:
+                    sfr_sum += sfr_value
+                    surface_types.append((surface_type, sfr_value))
+        
+        # Check surface fraction sum (allow small floating point errors)
+        if abs(sfr_sum - 1.0) > 0.0001:
+            if sfr_sum == 0.0:
+                results.append(ValidationResult(
+                    status='ERROR',
+                    category='LAND_COVER',
+                    parameter='surface_fractions',
+                    site_index=site_idx,
+                    message=f'All surface fractions are zero or missing',
+                    suggested_value='Set surface fractions that sum to 1.0'
+                ))
+            else:
+                results.append(ValidationResult(
+                    status='ERROR',
+                    category='LAND_COVER',
+                    parameter='surface_fractions',
+                    site_index=site_idx,
+                    message=f'Surface fractions sum to {sfr_sum:.6f}, should equal 1.0',
+                    suggested_value='Adjust surface fractions to sum to exactly 1.0'
+                ))
+        
+        # Validate parameters for surfaces with non-zero fractions
+        for surface_type, sfr_value in surface_types:
+            if sfr_value > 0:
+                surface_props = land_cover[surface_type]
+                missing_params = _check_surface_parameters(surface_props, surface_type)
+                
+                for param_name in missing_params:
+                    results.append(ValidationResult(
+                        status='ERROR',
+                        category='LAND_COVER',
+                        parameter=f'{surface_type}.{param_name}',
+                        site_index=site_idx,
+                        message=f'Required parameter missing/empty for surface with sfr > 0',
+                        suggested_value='Set appropriate non-null value'
+                    ))
+        
+        # Check for unused surfaces (sfr == 0) with non-null parameters
+        zero_sfr_surfaces = [surf for surf, sfr in surface_types if sfr == 0]
+        if zero_sfr_surfaces:
+            results.append(ValidationResult(
+                status='WARNING',
+                category='LAND_COVER',
+                parameter='unused_surfaces',
+                site_index=site_idx,
+                message=f'Surfaces with sfr=0 may have unused parameters: {", ".join(zero_sfr_surfaces)}',
+                suggested_value='Consider setting unused surface parameters to null'
+            ))
+    
+    # If all sites passed validation
+    if not any(r.status == 'ERROR' for r in results):
+        results.append(ValidationResult(
+            status='PASS',
+            category='LAND_COVER',
+            parameter='land_cover_validation',
+            message='Land cover fractions and parameters validated successfully'
+        ))
+    
+    return results
+
+
+def _check_surface_parameters(surface_props: dict, surface_type: str) -> List[str]:
+    """
+    Check for missing/empty parameters in a surface type configuration.
+    
+    Args:
+        surface_props: Surface properties dictionary
+        surface_type: Name of surface type (for context)
+        
+    Returns:
+        List of parameter names that are missing or empty
+    """
+    missing_params = []
+    
+    def _check_recursively(props: dict, path: str = ""):
+        for key, value in props.items():
+            if key == "sfr":  # Skip surface fraction itself
+                continue
+                
+            current_path = f"{path}.{key}" if path else key
+            
+            if isinstance(value, dict):
+                if "value" in value:
+                    # This is a parameter with a value
+                    param_value = value["value"]
+                    if param_value in (None, "") or (isinstance(param_value, list) and any(v in (None, "") for v in param_value)):
+                        missing_params.append(current_path)
+                else:
+                    # This is a nested structure, recurse
+                    _check_recursively(value, current_path)
+    
+    _check_recursively(surface_props)
+    return missing_params
+
+
 def run_scientific_validation_pipeline(yaml_data: dict, start_date: str, model_year: int) -> List[ValidationResult]:
     """
     Execute all scientific validation checks on the YAML configuration.
@@ -264,14 +401,14 @@ def run_scientific_validation_pipeline(yaml_data: dict, start_date: str, model_y
     # Model option dependency validation
     validation_results.extend(validate_model_option_dependencies(yaml_data))
     
+    # Land cover consistency validation
+    validation_results.extend(validate_land_cover_consistency(yaml_data))
+    
     # Geographic coordinate validation  
     # TODO: Implement validate_geographic_parameters(yaml_data)
     
     # Seasonal parameter validation
     # TODO: Implement validate_seasonal_parameters(yaml_data, start_date)
-    
-    # Land cover consistency validation
-    # TODO: Implement validate_land_cover_consistency(yaml_data)
     
     return validation_results
 

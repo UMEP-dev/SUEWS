@@ -112,13 +112,7 @@ def run_phase_a(user_yaml_file: str, standard_yaml_file: str,
     Returns:
         True if Phase A completed successfully, False otherwise
     """
-    print("=" * 60)
-    print(" PHASE A: YAML Structure and Parameter Detection")
-    print("=" * 60)
-    print(f"Input:    {user_yaml_file}")
-    print(f"Standard: {standard_yaml_file}")
-    print(f"Output:   {uptodate_file}")
-    print(f"Report:   {report_file}")
+    print("Phase A: Parameter detection...")
     print()
     
     try:
@@ -157,9 +151,7 @@ def run_phase_a(user_yaml_file: str, standard_yaml_file: str,
             print(f"  Fix issues in {os.path.basename(report_file)} then re-run")
             return False
         
-        print("✓ Phase A completed successfully")
-        print(f"  Generated: {os.path.basename(uptodate_file)}")
-        print(f"  Report:    {os.path.basename(report_file)}")
+        print("✓ Phase A completed")
         return True
         
     except Exception as e:
@@ -182,15 +174,7 @@ def run_phase_b(user_yaml_file: str, uptodate_file: str, standard_yaml_file: str
     Returns:
         True if Phase B completed successfully, False otherwise
     """
-    print()
-    print("=" * 60)
-    print(" PHASE B: Scientific Validation and Adjustments")
-    print("=" * 60)
-    print(f"Phase A Output: {uptodate_file}")
-    print(f"Original YAML:  {user_yaml_file}")
-    print(f"Standard YAML:  {standard_yaml_file}")
-    print(f"Output:         {science_yaml_file}")
-    print(f"Report:         {science_report_file}")
+    print("Phase B: Scientific validation...")
     print()
     
     try:
@@ -213,9 +197,7 @@ def run_phase_b(user_yaml_file: str, uptodate_file: str, standard_yaml_file: str
             print("✗ Phase B failed: No science report file generated") 
             return False
         
-        print("✓ Phase B completed successfully")
-        print(f"  Generated: {os.path.basename(science_yaml_file)}")
-        print(f"  Report:    {os.path.basename(science_report_file)}")
+        print("✓ Phase B completed")
         return True
         
     except ValueError as e:
@@ -230,59 +212,6 @@ def run_phase_b(user_yaml_file: str, uptodate_file: str, standard_yaml_file: str
         print(f"✗ Phase B failed with unexpected error: {e}")
         return False
 
-
-def print_final_summary(success: bool, user_yaml_file: str, 
-                       uptodate_file: str, report_file: str,
-                       science_yaml_file: str, science_report_file: str):
-    """
-    Print final summary of the complete Phase A-B workflow.
-    
-    Args:
-        success: Whether the complete workflow succeeded
-        user_yaml_file: Path to original user YAML
-        uptodate_file: Path to Phase A output
-        report_file: Path to Phase A report
-        science_yaml_file: Path to Phase B output  
-        science_report_file: Path to Phase B report
-    """
-    print()
-    print("=" * 60)
-    print(" WORKFLOW SUMMARY")
-    print("=" * 60)
-    
-    if success:
-        print("✓ Complete Phase A-B workflow SUCCESSFUL")
-        print()
-        print("Generated Files:")
-        print(f"  📄 Phase A Output:  {os.path.basename(uptodate_file)}")
-        print(f"  📄 Phase A Report:  {os.path.basename(report_file)}")
-        print(f"  📄 Phase B Output:  {os.path.basename(science_yaml_file)}")
-        print(f"  📄 Phase B Report:  {os.path.basename(science_report_file)}")
-        print()
-        print("🎯 READY FOR SUEWS SIMULATION")
-        print(f"   Use: {os.path.basename(science_yaml_file)}")
-        print()
-        print("Next Steps:")
-        print("1. Review science report for any warnings or applied adjustments")
-        print("2. Run SUEWS simulation with the science-checked YAML")
-        print("3. All scientific validations and parameter fixes have been applied")
-        
-    else:
-        print("✗ Workflow FAILED")
-        print()
-        print("Generated Files:")
-        if os.path.exists(uptodate_file):
-            print(f"  📄 {os.path.basename(uptodate_file)}")
-        if os.path.exists(report_file):
-            print(f"  📄 {os.path.basename(report_file)}")
-        if os.path.exists(science_yaml_file):
-            print(f"  📄 {os.path.basename(science_yaml_file)}")
-        if os.path.exists(science_report_file):
-            print(f"  📄 {os.path.basename(science_report_file)}")
-        print()
-        print("Next: Fix issues in report files, then re-run master_ABC_run.py")
-    
-    print("=" * 60)
 
 
 def main():
@@ -303,9 +232,7 @@ def main():
     user_yaml_file = sys.argv[1]
     
     # Print workflow header
-    print("🚀 SUEWS Master Phase A-B Configuration Processor")
-    print("=" * 60)
-    print(f"Input YAML: {user_yaml_file}")
+    print(f"🚀 SUEWS Configuration Processor: {os.path.basename(user_yaml_file)}")
     print()
     
     try:
@@ -325,18 +252,17 @@ def main():
         phase_a_success = run_phase_a(user_yaml_file, standard_yaml_file, uptodate_file, report_file)
         
         if not phase_a_success:
-            print_final_summary(False, user_yaml_file, uptodate_file, report_file, 
-                              science_yaml_file, science_report_file)
             return 1
         
         # Step 4: Run Phase B (only if Phase A succeeded)
         phase_b_success = run_phase_b(user_yaml_file, uptodate_file, standard_yaml_file,
                                      science_yaml_file, science_report_file)
         
-        # Step 5: Print final summary
+        # Step 5: Final result (no redundant summary needed)
         workflow_success = phase_a_success and phase_b_success
-        print_final_summary(workflow_success, user_yaml_file, uptodate_file, report_file,
-                          science_yaml_file, science_report_file)
+        if workflow_success:
+            print()
+            print(f"🎯 Ready for SUEWS simulation: {os.path.basename(science_yaml_file)}")
         
         return 0 if workflow_success else 1
         

@@ -28,7 +28,7 @@ model:
     roughlenheatmethod:
       value: 2
     stabilitymethod:
-      value: 3
+      value: 1
     smdmethod:
       value: 0
     waterusemethod:

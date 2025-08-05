@@ -1450,7 +1450,7 @@ def print_science_check_results(
 
 def create_science_yaml_header(phase_a_performed: bool = True) -> str:
     """Create header for final science-checked YAML file.
-    
+
     Args:
         phase_a_performed: Whether Phase A was performed before Phase B
     """

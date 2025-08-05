@@ -564,7 +564,9 @@ def create_analysis_report(
                     uptodate_file_ref = (
                         uptodate_filename if uptodate_filename else "uptodate YAML file"
                     )
-                    report_lines.append(f"-- {param_name} added to {uptodate_file_ref} and set to null")
+                    report_lines.append(
+                        f"-- {param_name} added to {uptodate_file_ref} and set to null"
+                    )
             report_lines.append("")
 
         # Renamed parameters

@@ -160,7 +160,7 @@ def run_phase_a(user_yaml_file: str, standard_yaml_file: str,
 
 
 def run_phase_b(user_yaml_file: str, uptodate_file: str, standard_yaml_file: str,
-                science_yaml_file: str, science_report_file: str) -> bool:
+                science_yaml_file: str, science_report_file: str, phase_a_report_file: str) -> bool:
     """
     Execute Phase B: Scientific validation and automatic adjustments.
     
@@ -185,7 +185,8 @@ def run_phase_b(user_yaml_file: str, uptodate_file: str, standard_yaml_file: str
                 user_yaml_file=user_yaml_file,
                 standard_yaml_file=standard_yaml_file,
                 science_yaml_file=science_yaml_file,
-                science_report_file=science_report_file
+                science_report_file=science_report_file,
+                phase_a_report_file=phase_a_report_file
             )
         
         # Check if Phase B produced output files
@@ -256,7 +257,7 @@ def main():
         
         # Step 4: Run Phase B (only if Phase A succeeded)
         phase_b_success = run_phase_b(user_yaml_file, uptodate_file, standard_yaml_file,
-                                     science_yaml_file, science_report_file)
+                                     science_yaml_file, science_report_file, report_file)
         
         # Step 5: Final result (no redundant summary needed)
         workflow_success = phase_a_success and phase_b_success

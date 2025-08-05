@@ -1035,14 +1035,15 @@ def run_scientific_adjustment_pipeline(yaml_data: dict, start_date: str, model_y
 
 
 def create_science_report(validation_results: List[ValidationResult], adjustments: List[ScientificAdjustment], 
-                         science_yaml_filename: str = None) -> str:
+                         science_yaml_filename: str = None, phase_a_report_file: str = None) -> str:
     """
-    Generate comprehensive scientific validation report.
+    Generate comprehensive scientific validation report including Phase A information.
     
     Args:
         validation_results: List of validation results from scientific checks
         adjustments: List of automatic adjustments applied
         science_yaml_filename: Name of final science-checked YAML file
+        phase_a_report_file: Path to Phase A report file for consolidation
         
     Returns:
         String containing formatted report content
@@ -1051,6 +1052,38 @@ def create_science_report(validation_results: List[ValidationResult], adjustment
     report_lines.append("# SUEWS Scientific Validation Report")
     report_lines.append("# " + "="*50)
     report_lines.append("")
+    
+    # Extract Phase A information if available
+    phase_a_renames = []
+    phase_a_optional_missing = []
+    phase_a_not_in_standard = []
+    
+    if phase_a_report_file and os.path.exists(phase_a_report_file):
+        try:
+            with open(phase_a_report_file, 'r') as f:
+                phase_a_content = f.read()
+            
+            # Parse Phase A report for relevant information
+            lines = phase_a_content.split('\n')
+            current_section = None
+            
+            for line in lines:
+                line = line.strip()
+                if "Renamed (" in line:
+                    current_section = "renames"
+                elif "optional missing parameter" in line:
+                    current_section = "optional"
+                elif "parameter(s) not in standard" in line:
+                    current_section = "not_standard"
+                elif line.startswith("--") and current_section == "renames":
+                    phase_a_renames.append(line[2:].strip())
+                elif line.startswith("--") and current_section == "optional":
+                    phase_a_optional_missing.append(line[2:].strip())
+                elif line.startswith("--") and current_section == "not_standard":
+                    phase_a_not_in_standard.append(line[2:].strip())
+        except Exception:
+            # If we can't read Phase A report, continue without it
+            pass
     
     # Count results by status
     errors = [r for r in validation_results if r.status == 'ERROR']
@@ -1077,8 +1110,33 @@ def create_science_report(validation_results: List[ValidationResult], adjustment
             report_lines.append(f"-- {adjustment.parameter}{site_ref}: {adjustment.old_value} → {adjustment.new_value} ({adjustment.reason})")
         report_lines.append("")
     
-    # NO ACTION NEEDED section (warnings and clean status)
+    # NO ACTION NEEDED section (warnings, clean status, and Phase A information)
     report_lines.append("## NO ACTION NEEDED")
+    
+    # Phase A information (when available)
+    phase_a_items = []
+    if phase_a_renames:
+        phase_a_items.append(f"- Renamed ({len(phase_a_renames)}) parameter(s) to current standards:")
+        for rename in phase_a_renames:
+            phase_a_items.append(f"-- {rename}")
+    
+    if phase_a_optional_missing:
+        phase_a_items.append(f"- Found ({len(phase_a_optional_missing)}) optional missing parameter(s):")
+        for param in phase_a_optional_missing:
+            phase_a_items.append(f"-- {param}")
+    
+    if phase_a_not_in_standard:
+        phase_a_items.append(f"- Found ({len(phase_a_not_in_standard)}) parameter(s) not in standard:")
+        for param in phase_a_not_in_standard:
+            phase_a_items.append(f"-- {param}")
+    
+    # Add Phase A items if any exist
+    if phase_a_items:
+        report_lines.extend(phase_a_items)
+        if warnings or (not adjustments and not errors):
+            report_lines.append("")
+    
+    # Phase B warnings
     if warnings:
         report_lines.append(f"- Found ({len(warnings)}) scientific warning(s) for information:")
         for warning in warnings:
@@ -1089,9 +1147,12 @@ def create_science_report(validation_results: List[ValidationResult], adjustment
     else:
         # No warnings case
         if not adjustments and not errors:
-            report_lines.append("- All scientific validations passed")
-            report_lines.append("- Model physics parameters are consistent")
-            report_lines.append("- Geographic parameters are valid")
+            if not phase_a_items:  # Only show if no Phase A items already shown
+                report_lines.append("- All scientific validations passed")
+                report_lines.append("- Model physics parameters are consistent")
+                report_lines.append("- Geographic parameters are valid")
+            else:
+                report_lines.append("- All critical validations passed")
         elif not errors:
             report_lines.append("- All critical validations passed")
     
@@ -1206,7 +1267,8 @@ def create_science_yaml_header() -> str:
 
 
 def run_science_check(uptodate_yaml_file: str, user_yaml_file: str, standard_yaml_file: str, 
-                     science_yaml_file: str = None, science_report_file: str = None) -> dict:
+                     science_yaml_file: str = None, science_report_file: str = None, 
+                     phase_a_report_file: str = None) -> dict:
     """
     Main Phase B workflow - perform scientific validation and adjustments.
     
@@ -1248,7 +1310,7 @@ def run_science_check(uptodate_yaml_file: str, user_yaml_file: str, standard_yam
         
         # Step 5: Generate science report
         science_yaml_filename = os.path.basename(science_yaml_file) if science_yaml_file else None
-        report_content = create_science_report(validation_results, adjustments, science_yaml_filename)
+        report_content = create_science_report(validation_results, adjustments, science_yaml_filename, phase_a_report_file)
         
         # Step 6: Print terminal results
         print_science_check_results(validation_results, adjustments)

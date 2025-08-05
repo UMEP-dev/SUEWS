@@ -48,6 +48,9 @@
   - Nightly builds create YYYY.M.D.dev tags after successful builds
   - Dev tags deploy all wheels to TestPyPI only
   - Production tags deploy all wheels to PyPI only
+- [maintenance] Add workflow guidance for build and test before push
+  - Updated CLAUDE.md with workflow section requiring build and test before pushing or creating PRs
+  - Ensures Claude Code always validates code compilation and test success before remote operations
   - Fixed race condition in tag creation with single job approach
 - [maintenance] Enhanced documentation for build process and introduced new agents
   - Added reminders in CLAUDE.md for updating meson.build files when creating new source files

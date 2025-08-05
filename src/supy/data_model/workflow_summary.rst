@@ -32,9 +32,9 @@ Prior to using the code you may need to:
 
 Within the validation workflow in master_ABC_run.py, a series of steps occur:
 
-1. **Phase A**: YAML file consistency to the Standard YAML version is checked :ref:`phase_a_overview`
-2. **Phase B**: Science check that parameters are present and physically reasonable :ref:`phase_b_overview` for science options chosen
-3. [STILL TO DO] **Phase C**: Conditional validation using Pydantic :ref:`phase_c_overview` 
+1. **Phase A**: YAML file consistency to the Standard YAML version is checked
+2. **Phase B**: Science check that parameters are present and physically reasonable for science options chosen
+3. [STILL TO DO] **Phase C**: Conditional validation using Pydantic 
    
    
 Namelist to YAML
@@ -43,7 +43,7 @@ Namelist to YAML
 1. Convert pre-SUEWS_V2025 input format [link: manual reference of old format] to structured YAML format.
 
 Background to Namelist to YAML conversion
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+------------------------------------------
 
 Code used:
 Developers:
@@ -52,8 +52,8 @@ Outputs:
 
 Instructions:
 
-Steps 
-~~~~~
+**Steps:**
+
 .. note::
 
    MP code 
@@ -66,9 +66,9 @@ Overview
 --------
 
 Within the validation workflow in master_ABC_run.py, a series of steps occur:
-1. **Phase A**: YAML file consistency to the Standard YAML version is checked :ref:`phase_a_overview`
-2. **Phase B**: Science check that parameters are present and physically reasonable :ref:`phase_b_overview` for science options chosen
-3. [STILL TO DO] **Phase C**: Conditional validation using Pydantic :ref:`phase_c_overview`
+1. **Phase A**: YAML file consistency to the Standard YAML version is checked
+2. **Phase B**: Science check that parameters are present and physically reasonable for science options chosen
+3. [STILL TO DO] **Phase C**: Conditional validation using Pydantic
 
 Background
 ----------
@@ -304,4 +304,4 @@ What is checked in C how and why
 
 
 Actions to fix C issues
-~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~

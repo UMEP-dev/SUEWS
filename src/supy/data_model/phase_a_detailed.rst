@@ -1,7 +1,7 @@
 .. _phase_a_detailed:
 
 Phase A: Up To Date check for YAML Consistency Guide
-============================================
+====================================================
 
 Overview
 --------
@@ -153,6 +153,8 @@ Phase A identifies parameters that exist in your configuration but not in the st
      control:
        custom_simulation_name: "My_SUEWS_Run"  
        debug_mode: true                        
+
+.. _phase_a_actions:
 
 Output Files Structure
 ----------------------

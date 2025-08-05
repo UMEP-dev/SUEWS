@@ -473,8 +473,8 @@ def create_analysis_report(missing_params, deprecated_replacements, extra_params
             if is_physics:
                 param_name = param_path.split('.')[-1]
                 uptodate_file_ref = uptodate_filename if uptodate_filename else "uptodate YAML file"
-                report_lines.append(f"-- {param_name} has been added to {uptodate_file_ref} and set to null. ***Needs value.*** -- https://suews.readthedocs.io/latest/")
-                report_lines.append(f"   Suggested fix: Set appropriate value based on SUEWS documentation")
+                report_lines.append(f"-- {param_name} has been added to {uptodate_file_ref} and set to null")
+                report_lines.append(f"   Suggested fix: Set appropriate value based on SUEWS documentation -- https://suews.readthedocs.io/latest/")
         report_lines.append("")
     
     # NO ACTION NEEDED section - optional and informational items

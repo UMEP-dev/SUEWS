@@ -3,8 +3,8 @@
 
 ## ACTION NEEDED
 - Found (1) critical missing parameter(s):
--- netradiationmethod has been added to updatedA_user.yml and set to null. ***Needs value.*** -- https://suews.readthedocs.io/latest/
-   Suggested fix: Set appropriate value based on SUEWS documentation
+-- netradiationmethod has been added to updatedA_user.yml and set to null
+   Suggested fix: Set appropriate value based on SUEWS documentation -- https://suews.readthedocs.io/latest/
 
 ## NO ACTION NEEDED
 Note: Section B will check these.

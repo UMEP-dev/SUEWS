@@ -1247,18 +1247,26 @@ def print_science_check_results(validation_results: List[ValidationResult], adju
 
 
 def create_science_yaml_header() -> str:
-    """Create header for science-checked YAML file."""
+    """Create header for final science-checked YAML file."""
     header = '''# =============================================================================
-# SCIENCE CHECKED YAML
+# FINAL SCIENCE CHECKED YAML
 # =============================================================================
 #
-# This file has been processed by science_check.py (Phase B) with scientific validation:
+# This file has been processed through the complete SUEWS validation workflow:
+#
+# PHASE A (Parameter Detection):
+# - Missing parameters added with appropriate defaults
+# - Parameter names updated to current standards  
+# - YAML structure validated against reference configuration
+#
+# PHASE B (Scientific Validation):
 # - Physics parameters validated for consistency
 # - Geographic coordinates and timezone validated
 # - Seasonal adjustments applied (LAI, snowalb, surface temperatures)
-# - Land cover fractions validated
+# - Land cover fractions validated and corrected
 # - Model physics option dependencies checked
-# - All scientific corrections documented in science_report_<filename>.txt
+#
+# All parameter changes and scientific corrections documented in reportB_<filename>.txt
 #
 # =============================================================================
 

@@ -126,7 +126,8 @@ How to run
    Phase A: Parameter detection...
    
    ✗ Phase A halted: Critical parameters missing
-     Fix issues in reportA_user_config.txt then re-run
+     Fix issues in reportA file: /path/to/reportA_user_config.txt
+     Then re-run with the updated YAML file
 
 **Example Output (when successful):**
 
@@ -144,6 +145,7 @@ How to run
    
     Phase A completed: updatedA_user_config.yml
     Report: reportA_user_config.txt
+    File locations: /path/to/directory
 
 
 Phase A: Up To Date check for YAML Consistency
@@ -276,10 +278,68 @@ What is checked In B how and why
 
 
 
+How to run Phase B
+~~~~~~~~~~~~~~~~~~
+
+**Example Output (when Phase B issues found):**
+
+.. code-block:: text
+
+   =============================
+   SUEWS Configuration Processor
+   =============================
+   YAML user file: user_config.yml
+   Processor Selected Mode: Phase B Only
+   =============================
+   
+   Phase B: Scientific validation...
+   
+   ✗ Phase B halted: Critical scientific errors detected
+     Check reportB file for details: /path/to/reportB_user_config.txt
+     Suggestion: Fix the critical issues or run Phase A first if parameters are missing.
+
+**Example Output (when Phase B successful):**
+
+.. code-block:: text
+
+   =============================
+   SUEWS Configuration Processor
+   =============================
+   YAML user file: user_config.yml
+   Processor Selected Mode: Phase B Only
+   =============================
+   
+   Phase B: Scientific validation...
+   ✓ Phase B completed
+   
+    Phase B completed: updatedB_user_config.yml
+    Report: reportB_user_config.txt
+    File locations: /path/to/directory
+
+**Example Output (Complete A→B Workflow):**
+
+.. code-block:: text
+
+   =============================
+   SUEWS Configuration Processor
+   =============================
+   YAML user file: user_config.yml
+   Processor Selected Mode: Complete A→B Workflow
+   =============================
+   
+   Phase A: Parameter detection...
+   ✓ Phase A completed
+   Phase B: Scientific validation...
+   ✓ Phase B completed
+   
+    Ready for SUEWS simulation: updatedAB_user_config.yml
+    Report: reportAB_user_config.txt
+    File locations: /path/to/directory
+
 Actions for fixing B issues
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Output: an updated YAML saved as py0_<filename>.yml and a CSV report listing all changes.
+Output: an updated YAML saved as updatedB_<filename>.yml and a comprehensive report listing all changes.
 
 .. note::
 

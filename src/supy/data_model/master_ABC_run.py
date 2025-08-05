@@ -122,7 +122,6 @@ def run_phase_a(user_yaml_file: str, standard_yaml_file: str,
         True if Phase A completed successfully, False otherwise
     """
     print("Phase A: Parameter detection...")
-    print()
     
     try:
         # Run Phase A using the imported function (suppress verbose output)
@@ -156,8 +155,10 @@ def run_phase_a(user_yaml_file: str, standard_yaml_file: str,
             
         # Phase A should halt workflow if critical parameters are missing
         if "ACTION NEEDED" in report_content and "critical missing parameter" in report_content:
+            print()
             print("✗ Phase A halted: Critical parameters missing")
-            print(f"  Fix issues in {os.path.basename(report_file)} then re-run")
+            print(f"  Fix issues in reportA file: {report_file}")
+            print(f"  Then re-run with the updated YAML file")
             return False
         
         # If Phase A succeeds with no critical errors, we'll let Phase B create the consolidated report
@@ -186,7 +187,6 @@ def run_phase_b(user_yaml_file: str, uptodate_file: str, standard_yaml_file: str
         True if Phase B completed successfully, False otherwise
     """
     print("Phase B: Scientific validation...")
-    print()
     
     try:
         # Run Phase B using the imported function (suppress verbose output)
@@ -209,16 +209,31 @@ def run_phase_b(user_yaml_file: str, uptodate_file: str, standard_yaml_file: str
             print("✗ Phase B failed: No science report file generated") 
             return False
         
+        # Check if Phase B report indicates critical issues
+        with open(science_report_file, 'r') as f:
+            report_content = f.read()
+            
+        if "CRITICAL ISSUES DETECTED" in report_content or "URGENT" in report_content:
+            print()
+            print("✗ Phase B halted: Critical scientific issues detected")
+            print(f"  Review issues in reportB file: {science_report_file}")
+            print(f"  Fix the issues and re-run the workflow")
+            return False
+        
         print("✓ Phase B completed")
         return True
         
     except ValueError as e:
         if "Critical scientific errors detected" in str(e):
-            print("✗ Phase B halted due to critical scientific errors")
-            print("  Suggestion: Run Phase A first to detect and fix missing parameters and read report to fix issues.")
+            print()
+            print("✗ Phase B halted: Critical scientific errors detected")
+            print(f"  Check reportB file for details: {science_report_file}")
+            print("  Suggestion: Fix the critical issues or run Phase A first if parameters are missing.")
             return False
         else:
-            print(f"✗ Phase B failed with validation error: {e}")
+            print()
+            print(f"✗ Phase B failed: Validation error - {e}")
+            print(f"  Check reportB file for details: {science_report_file}")
             return False
     except Exception as e:
         print(f"✗ Phase B failed with unexpected error: {e}")
@@ -289,6 +304,7 @@ Phases:
                 print()
                 print(f" Phase A completed: {os.path.basename(uptodate_file)}")
                 print(f" Report: {os.path.basename(report_file)}")
+                print(f" File locations: {dirname}")
             return 0 if phase_a_success else 1
             
         elif phase == 'B':
@@ -311,6 +327,7 @@ Phases:
                 print()
                 print(f" Phase B completed: {os.path.basename(science_yaml_file)}")
                 print(f" Report: {os.path.basename(science_report_file)}")
+                print(f" File locations: {dirname}")
             return 0 if phase_b_success else 1
             
         else:  # phase == 'AB'
@@ -337,6 +354,7 @@ Phases:
                 print()
                 print(f" Ready for SUEWS simulation: {os.path.basename(science_yaml_file)}")
                 print(f" Report: {os.path.basename(science_report_file)}")
+                print(f" File locations: {dirname}")
             
             return 0 if workflow_success else 1
         

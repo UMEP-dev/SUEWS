@@ -657,6 +657,144 @@ def adjust_surface_temperatures(yaml_data: dict, start_date: str) -> Tuple[dict,
     return yaml_data, adjustments
 
 
+def adjust_land_cover_fractions(yaml_data: dict) -> Tuple[dict, List[ScientificAdjustment]]:
+    """
+    Auto-fix small floating point errors in land cover surface fractions.
+    
+    Allows small floating point inaccuracies (~0.0001) and automatically corrects
+    them by adjusting the largest surface fraction. Adapted from precheck.py.
+    
+    Args:
+        yaml_data: YAML configuration dictionary
+        
+    Returns:
+        Tuple of (updated_yaml_data, list_of_adjustments)
+    """
+    adjustments = []
+    sites = yaml_data.get("sites", [])
+    
+    for site_idx, site in enumerate(sites):
+        props = site.get("properties", {})
+        land_cover = props.get("land_cover")
+        
+        if not land_cover:
+            continue
+        
+        # Calculate sum of all surface fractions
+        surface_fractions = {}
+        sfr_sum = 0.0
+        
+        for surface_type, surface_props in land_cover.items():
+            if isinstance(surface_props, dict):
+                sfr_value = surface_props.get("sfr", {}).get("value")
+                if sfr_value is not None:
+                    surface_fractions[surface_type] = sfr_value
+                    sfr_sum += sfr_value
+        
+        # Auto-fix small floating point errors (epsilon ~0.0001)
+        correction_applied = False
+        
+        if 0.9999 <= sfr_sum < 1.0:
+            # Slightly below 1.0 - increase largest surface fraction
+            max_surface = max(surface_fractions.keys(), key=lambda k: surface_fractions[k])
+            correction = 1.0 - sfr_sum
+            old_value = surface_fractions[max_surface]
+            new_value = old_value + correction
+            
+            land_cover[max_surface]["sfr"]["value"] = new_value
+            correction_applied = True
+            
+            adjustments.append(ScientificAdjustment(
+                parameter=f'{max_surface}.sfr',
+                site_index=site_idx,
+                old_value=f'{old_value:.6f}',
+                new_value=f'{new_value:.6f}',
+                reason=f'Auto-corrected sum from {sfr_sum:.6f} to 1.0 (small floating point error)'
+            ))
+            
+        elif 1.0 < sfr_sum <= 1.0001:
+            # Slightly above 1.0 - decrease largest surface fraction
+            max_surface = max(surface_fractions.keys(), key=lambda k: surface_fractions[k])
+            correction = sfr_sum - 1.0
+            old_value = surface_fractions[max_surface]
+            new_value = old_value - correction
+            
+            land_cover[max_surface]["sfr"]["value"] = new_value
+            correction_applied = True
+            
+            adjustments.append(ScientificAdjustment(
+                parameter=f'{max_surface}.sfr',
+                site_index=site_idx,
+                old_value=f'{old_value:.6f}',
+                new_value=f'{new_value:.6f}',
+                reason=f'Auto-corrected sum from {sfr_sum:.6f} to 1.0 (small floating point error)'
+            ))
+        
+        if correction_applied:
+            site["properties"] = props
+            yaml_data["sites"][site_idx] = site
+    
+    return yaml_data, adjustments
+
+
+def adjust_model_dependent_nullification(yaml_data: dict) -> Tuple[dict, List[ScientificAdjustment]]:
+    """
+    Nullify parameters for disabled model options.
+    
+    Adapted from precheck.py precheck_model_option_rules function.
+    Currently implements stebbsmethod=0 nullification.
+    
+    Args:
+        yaml_data: YAML configuration dictionary
+        
+    Returns:
+        Tuple of (updated_yaml_data, list_of_adjustments)
+    """
+    adjustments = []
+    physics = yaml_data.get("model", {}).get("physics", {})
+    
+    # STEBBSMETHOD RULE: when stebbsmethod == 0, nullify all stebbs params
+    stebbsmethod = physics.get("stebbsmethod", {}).get("value")
+    
+    if stebbsmethod == 0:
+        sites = yaml_data.get("sites", [])
+        
+        for site_idx, site in enumerate(sites):
+            props = site.get("properties", {})
+            stebbs_block = props.get("stebbs", {})
+            
+            if stebbs_block:
+                nullified_params = []
+                
+                def _recursive_nullify(block: dict, path: str = ""):
+                    for key, val in block.items():
+                        current_path = f"{path}.{key}" if path else key
+                        
+                        if isinstance(val, dict):
+                            if "value" in val and val["value"] is not None:
+                                val["value"] = None
+                                nullified_params.append(current_path)
+                            else:
+                                _recursive_nullify(val, current_path)
+                
+                _recursive_nullify(stebbs_block)
+                
+                if nullified_params:
+                    adjustments.append(ScientificAdjustment(
+                        parameter='stebbs_parameters',
+                        site_index=site_idx,
+                        old_value='various values',
+                        new_value='null',
+                        reason=f'stebbsmethod=0, nullified {len(nullified_params)} parameters: {", ".join(nullified_params[:3])}{"..." if len(nullified_params) > 3 else ""}'
+                    ))
+                
+                props["stebbs"] = stebbs_block
+                site["properties"] = props
+                yaml_data["sites"][site_idx] = site
+    
+    return yaml_data, adjustments
+
+
 def run_scientific_adjustment_pipeline(yaml_data: dict, start_date: str, model_year: int) -> Tuple[dict, List[ScientificAdjustment]]:
     """
     Apply automatic scientific corrections and adjustments to YAML configuration.
@@ -676,14 +814,19 @@ def run_scientific_adjustment_pipeline(yaml_data: dict, start_date: str, model_y
     updated_data, temp_adjustments = adjust_surface_temperatures(updated_data, start_date)
     adjustments.extend(temp_adjustments)
     
+    # Land cover fraction auto-correction
+    updated_data, fraction_adjustments = adjust_land_cover_fractions(updated_data)
+    adjustments.extend(fraction_adjustments)
+    
+    # Model-dependent nullification
+    updated_data, nullify_adjustments = adjust_model_dependent_nullification(updated_data)
+    adjustments.extend(nullify_adjustments)
+    
     # Seasonal parameter adjustments
     # TODO: Implement adjust_seasonal_parameters(updated_data, start_date)
     
     # DLS parameter calculations
     # TODO: Implement adjust_dls_parameters(updated_data, model_year)
-    
-    # Model-dependent nullification
-    # TODO: Implement adjust_model_dependent_nullification(updated_data)
     
     return updated_data, adjustments
 

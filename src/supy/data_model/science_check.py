@@ -123,6 +123,127 @@ def extract_simulation_parameters(yaml_data: dict) -> Tuple[int, str, str]:
     return model_year, start_date, end_date
 
 
+def validate_physics_parameters(yaml_data: dict) -> List[ValidationResult]:
+    """
+    Validate presence and non-emptiness of required model physics parameters.
+    
+    Checks that all required physics parameters exist and have valid values.
+    Adapted from precheck.py precheck_model_physics_params function.
+    
+    Args:
+        yaml_data: YAML configuration dictionary
+        
+    Returns:
+        List of ValidationResult objects for physics parameter validation
+    """
+    results = []
+    physics = yaml_data.get("model", {}).get("physics", {})
+    
+    if not physics:
+        results.append(ValidationResult(
+            status='WARNING',
+            category='PHYSICS',
+            parameter='model.physics',
+            message='Physics section is empty - skipping physics parameter validation'
+        ))
+        return results
+    
+    # Required physics parameters from precheck.py
+    required_physics_params = [
+        "netradiationmethod",
+        "emissionsmethod", 
+        "storageheatmethod",
+        "ohmincqf",
+        "roughlenmommethod",
+        "roughlenheatmethod",
+        "stabilitymethod",
+        "smdmethod",
+        "waterusemethod",
+        "rslmethod",
+        "faimethod",
+        "rsllevel",
+        "snowuse",
+        "stebbsmethod",
+    ]
+    
+    # Check for missing parameters
+    missing_params = [param for param in required_physics_params if param not in physics]
+    if missing_params:
+        for param in missing_params:
+            results.append(ValidationResult(
+                status='ERROR',
+                category='PHYSICS',
+                parameter=f'model.physics.{param}',
+                message=f'Required physics parameter missing',
+                suggested_value='Check SUEWS documentation for appropriate value'
+            ))
+    
+    # Check for empty/null values
+    empty_params = [
+        param for param in required_physics_params 
+        if param in physics and physics.get(param, {}).get("value") in ("", None)
+    ]
+    if empty_params:
+        for param in empty_params:
+            results.append(ValidationResult(
+                status='ERROR',
+                category='PHYSICS', 
+                parameter=f'model.physics.{param}',
+                message='Physics parameter has empty or null value',
+                suggested_value='Set appropriate non-null value'
+            ))
+    
+    # If no issues found
+    if not missing_params and not empty_params:
+        results.append(ValidationResult(
+            status='PASS',
+            category='PHYSICS',
+            parameter='model.physics',
+            message='All required physics parameters present and non-empty'
+        ))
+    
+    return results
+
+
+def validate_model_option_dependencies(yaml_data: dict) -> List[ValidationResult]:
+    """
+    Validate internal consistency between model physics options.
+    
+    Checks logical dependencies between selected physics methods.
+    Adapted from precheck.py precheck_model_options_constraints function.
+    
+    Args:
+        yaml_data: YAML configuration dictionary
+        
+    Returns:
+        List of ValidationResult objects for model option dependency validation
+    """
+    results = []
+    physics = yaml_data.get("model", {}).get("physics", {})
+    
+    # Check rslmethod-stabilitymethod constraint
+    rslmethod = physics.get("rslmethod", {}).get("value")
+    stabilitymethod = physics.get("stabilitymethod", {}).get("value")
+    
+    if rslmethod == 2 and stabilitymethod != 3:
+        results.append(ValidationResult(
+            status='ERROR',
+            category='MODEL_OPTIONS',
+            parameter='rslmethod-stabilitymethod',
+            message='If rslmethod == 2, stabilitymethod must be 3 for diagnostic aerodynamic calculations',
+            suggested_value='Set stabilitymethod to 3'
+        ))
+    else:
+        results.append(ValidationResult(
+            status='PASS',
+            category='MODEL_OPTIONS', 
+            parameter='rslmethod-stabilitymethod',
+            message='rslmethod-stabilitymethod constraint satisfied'
+        ))
+    
+    return results
+
+
 def run_scientific_validation_pipeline(yaml_data: dict, start_date: str, model_year: int) -> List[ValidationResult]:
     """
     Execute all scientific validation checks on the YAML configuration.
@@ -138,7 +259,10 @@ def run_scientific_validation_pipeline(yaml_data: dict, start_date: str, model_y
     validation_results = []
     
     # Physics parameter validation
-    # TODO: Implement validate_physics_parameters(yaml_data)
+    validation_results.extend(validate_physics_parameters(yaml_data))
+    
+    # Model option dependency validation
+    validation_results.extend(validate_model_option_dependencies(yaml_data))
     
     # Geographic coordinate validation  
     # TODO: Implement validate_geographic_parameters(yaml_data)
@@ -148,17 +272,6 @@ def run_scientific_validation_pipeline(yaml_data: dict, start_date: str, model_y
     
     # Land cover consistency validation
     # TODO: Implement validate_land_cover_consistency(yaml_data)
-    
-    # Model option dependency validation
-    # TODO: Implement validate_model_option_dependencies(yaml_data)
-    
-    # Placeholder validation for initial implementation
-    validation_results.append(ValidationResult(
-        status='PASS',
-        category='FRAMEWORK',
-        parameter='phase_b_framework',
-        message='Phase B framework initialized successfully'
-    ))
     
     return validation_results
 

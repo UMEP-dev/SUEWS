@@ -381,6 +381,132 @@ def _check_surface_parameters(surface_props: dict, surface_type: str) -> List[st
     return missing_params
 
 
+def validate_geographic_parameters(yaml_data: dict) -> List[ValidationResult]:
+    """
+    Validate geographic coordinates and location-dependent parameters.
+    
+    Checks latitude, longitude ranges and validates timezone/DLS parameters.
+    Prepares for DLS calculations and seasonal adjustments.
+    
+    Args:
+        yaml_data: YAML configuration dictionary
+        
+    Returns:
+        List of ValidationResult objects for geographic validation
+    """
+    results = []
+    sites = yaml_data.get("sites", [])
+    
+    for site_idx, site in enumerate(sites):
+        props = site.get("properties", {})
+        
+        # Validate latitude
+        lat_entry = props.get("lat", {})
+        lat = lat_entry.get("value") if isinstance(lat_entry, dict) else lat_entry
+        
+        if lat is None:
+            results.append(ValidationResult(
+                status='ERROR',
+                category='GEOGRAPHY',
+                parameter='lat',
+                site_index=site_idx,
+                message='Latitude is missing or null',
+                suggested_value='Set latitude value between -90 and 90 degrees'
+            ))
+        elif not isinstance(lat, (int, float)):
+            results.append(ValidationResult(
+                status='ERROR',
+                category='GEOGRAPHY',
+                parameter='lat',
+                site_index=site_idx,
+                message='Latitude must be a numeric value',
+                suggested_value='Set latitude as a number between -90 and 90 degrees'
+            ))
+        elif not (-90 <= lat <= 90):
+            results.append(ValidationResult(
+                status='ERROR',
+                category='GEOGRAPHY',
+                parameter='lat',
+                site_index=site_idx,
+                message=f'Latitude {lat} is outside valid range [-90, 90]',
+                suggested_value='Set latitude between -90 and 90 degrees'
+            ))
+        
+        # Validate longitude
+        lng_entry = props.get("lng", {})
+        lng = lng_entry.get("value") if isinstance(lng_entry, dict) else lng_entry
+        
+        if lng is None:
+            results.append(ValidationResult(
+                status='ERROR',
+                category='GEOGRAPHY',
+                parameter='lng',
+                site_index=site_idx,
+                message='Longitude is missing or null',
+                suggested_value='Set longitude value between -180 and 180 degrees'
+            ))
+        elif not isinstance(lng, (int, float)):
+            results.append(ValidationResult(
+                status='ERROR',
+                category='GEOGRAPHY',
+                parameter='lng',
+                site_index=site_idx,
+                message='Longitude must be a numeric value',
+                suggested_value='Set longitude as a number between -180 and 180 degrees'
+            ))
+        elif not (-180 <= lng <= 180):
+            results.append(ValidationResult(
+                status='ERROR',
+                category='GEOGRAPHY',
+                parameter='lng',
+                site_index=site_idx,
+                message=f'Longitude {lng} is outside valid range [-180, 180]',
+                suggested_value='Set longitude between -180 and 180 degrees'
+            ))
+        
+        # Check timezone parameter exists (will be set by DLS calculation)
+        timezone_entry = props.get("timezone", {})
+        timezone = timezone_entry.get("value") if isinstance(timezone_entry, dict) else timezone_entry
+        
+        if timezone is None:
+            results.append(ValidationResult(
+                status='WARNING',
+                category='GEOGRAPHY',
+                parameter='timezone',
+                site_index=site_idx,
+                message='Timezone is not set - will be calculated from coordinates',
+                suggested_value='Will be automatically calculated in scientific adjustments'
+            ))
+        
+        # Check DLS parameters exist (will be set by DLS calculation)
+        anthro_emissions = props.get("anthropogenic_emissions", {})
+        if anthro_emissions:
+            startdls = anthro_emissions.get("startdls", {}).get("value")
+            enddls = anthro_emissions.get("enddls", {}).get("value")
+            
+            if startdls is None or enddls is None:
+                results.append(ValidationResult(
+                    status='WARNING',
+                    category='GEOGRAPHY',
+                    parameter='dls_parameters',
+                    site_index=site_idx,
+                    message='Daylight saving parameters not set - will be calculated from coordinates',
+                    suggested_value='Will be automatically calculated in scientific adjustments'
+                ))
+    
+    # If all required coordinates are valid
+    error_count = sum(1 for r in results if r.status == 'ERROR')
+    if error_count == 0:
+        results.append(ValidationResult(
+            status='PASS',
+            category='GEOGRAPHY',
+            parameter='geographic_coordinates',
+            message='Geographic coordinates validated successfully'
+        ))
+    
+    return results
+
+
 def run_scientific_validation_pipeline(yaml_data: dict, start_date: str, model_year: int) -> List[ValidationResult]:
     """
     Execute all scientific validation checks on the YAML configuration.
@@ -405,7 +531,7 @@ def run_scientific_validation_pipeline(yaml_data: dict, start_date: str, model_y
     validation_results.extend(validate_land_cover_consistency(yaml_data))
     
     # Geographic coordinate validation  
-    # TODO: Implement validate_geographic_parameters(yaml_data)
+    validation_results.extend(validate_geographic_parameters(yaml_data))
     
     # Seasonal parameter validation
     # TODO: Implement validate_seasonal_parameters(yaml_data, start_date)

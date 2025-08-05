@@ -234,6 +234,17 @@ Output Files Structure
        rho_cp:
          value: 1005
 
+**Analysis Report Structure**
+
+Phase A generates comprehensive reports with two main sections:
+
+- **ACTION NEEDED**: Critical physics parameters that must be set by the user (YAML contains null values)
+- **NO ACTION NEEDED**: All updates automatically applied including:
+  
+  - Optional missing parameters updated with null values
+  - Parameter renamings applied
+  - Parameters not in standard (informational)
+
 **Analysis Report** (``reportA_<filename>.txt``)
 
 .. code-block:: text
@@ -247,18 +258,18 @@ Output Files Structure
       Suggested fix: Set appropriate value based on SUEWS documentation -- https://suews.readthedocs.io/latest/
    
    ## NO ACTION NEEDED
-   - Found (3) optional missing parameter(s):
-   -- holiday at level sites[0].properties.irrigation.wuprofm_24hr.holiday
-   -- wetthresh at level sites[0].properties.vertical_layers.walls[2].wetthresh
-   -- DHWVesselDensity at level sites[0].properties.stebbs.DHWVesselDensity
+   - Updated (3) optional missing parameter(s) with null values:
+   -- holiday added to updatedA_user.yml and set to null
+   -- wetthresh added to updatedA_user.yml and set to null
+   -- DHWVesselDensity added to updatedA_user.yml and set to null
+   
+   - Updated (2) renamed parameter(s):
+   -- diagmethod changed to rslmethod
+   -- cp changed to rho_cp
    
    - Found (2) parameter(s) not in standard:
    -- startdate at level model.control.startdate
    -- test at level sites[0].properties.test
-   
-   - Renamed (2) parameters:
-   -- diagmethod changed to rslmethod
-   -- cp changed to rho_cp
    
    # ==================================================
 

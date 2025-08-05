@@ -229,18 +229,18 @@ When Phase A detects issues, it generates two output files:
       Suggested fix: Set appropriate value based on SUEWS documentation -- https://suews.readthedocs.io/latest/
    
    ## NO ACTION NEEDED
-   - Found (3) optional missing parameter(s):
-   -- holiday at level sites[0].properties.irrigation.wuprofm_24hr.holiday
-   -- wetthresh at level sites[0].properties.vertical_layers.walls[2].wetthresh
-   -- DHWVesselDensity at level sites[0].properties.stebbs.DHWVesselDensity
+   - Updated (3) optional missing parameter(s) with null values:
+   -- holiday added to updatedA_user.yml and set to null
+   -- wetthresh added to updatedA_user.yml and set to null
+   -- DHWVesselDensity added to updatedA_user.yml and set to null
+   
+   - Updated (2) renamed parameter(s):
+   -- diagmethod changed to rslmethod
+   -- cp changed to rho_cp
    
    - Found (2) parameter(s) not in standard:
    -- startdate at level model.control.startdate
    -- test at level sites[0].properties.test
-   
-   - Renamed (2) parameters:
-   -- diagmethod changed to rslmethod
-   -- cp changed to rho_cp
    
    # ==================================================
 
@@ -282,6 +282,17 @@ What is checked In B how and why
 
 How to run Phase B
 ~~~~~~~~~~~~~~~~~~
+
+**Phase B Only Mode Behavior:**
+
+When running ``--phase B``, Phase B **always validates the original user YAML file directly**, ignoring any existing Phase A output files. This ensures pure Phase B validation can detect missing critical parameters (like ``netradiationmethod``) and provide appropriate error messages.
+
+**Command:**
+
+.. code-block:: bash
+
+   # Phase B only (validates original user YAML)
+   python master_ABC_run.py user_config.yml --phase B
 
 **Example Output (when Phase B issues found):**
 
@@ -343,9 +354,55 @@ Actions for fixing B issues
 
 Output: an updated YAML saved as updatedB_<filename>.yml and a comprehensive report listing all changes.
 
+**Phase B Report Example** (``reportB_<filename>.txt``)
+
+.. code-block:: text
+
+   # SUEWS Scientific Validation Report
+   # ==================================================
+   
+   ## ACTION NEEDED
+   - Found (1) critical scientific parameter error(s):
+   -- latitude at site [0]: Latitude value -95.5 is outside valid range [-90, 90]
+      Suggested fix: Set latitude to a value between -90 and 90 degrees
+   
+   ## NO ACTION NEEDED
+   - Updated (3) parameter(s) with automatic scientific adjustments:
+   -- LAI_summer at site [0]: null → 4.5 (applied seasonal summer LAI adjustment)
+   -- T_surf_0 at site [0]: 10.0 → 15.2 (initialized surface temperature based on geographic location)
+   -- snowalb at site [0]: 0.8 → 0.7 (adjusted snow albedo for temperate climate)
+   
+   - Updated (2) optional missing parameter(s) with null values:
+   -- holiday added to updatedA_user.yml and set to null
+   -- wetthresh added to updatedA_user.yml and set to null
+   
+   - Updated (1) renamed parameter(s) to current standards:
+   -- cp changed to rho_cp
+   
+   - Found (1) scientific warning(s) for information:
+   -- emissionsmethod at site [0]: Method 2 selected but anthropogenic heat flux data not provided
+   
+   # ==================================================
+
 .. note::
 
-   The output will be changed to have a single file (the py0 updated yaml) with commented the parameters that have been updated by the precheck.
+   **YAML File Headers**: The Phase B output YAML file header correctly reflects the workflow used:
+   
+   - **Phase B only**: Header shows "SCIENCE CHECKED YAML" and notes that Phase A was NOT performed
+   - **A→B workflow**: Header shows "FINAL SCIENCE CHECKED YAML" and lists both Phase A and Phase B processes
+   
+   This ensures users understand which validation steps have been applied to their configuration.
+
+**Report Structure:**
+
+- **ACTION NEEDED**: Critical scientific errors requiring user intervention
+- **NO ACTION NEEDED**: All automatic adjustments, parameter updates, and informational items including:
+  
+  - Automatic scientific adjustments with old → new values and reasons
+  - Optional missing parameters added with null values (from Phase A)
+  - Parameter renamings (from Phase A)
+  - Parameters not in standard (informational)
+  - Scientific warnings (informational)
 
 
 

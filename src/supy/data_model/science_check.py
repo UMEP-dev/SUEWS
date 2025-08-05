@@ -1259,9 +1259,9 @@ def create_science_report(
 
             for line in lines:
                 line = line.strip()
-                if "Renamed (" in line:
+                if "Updated (" in line and "renamed parameter" in line:
                     current_section = "renames"
-                elif "optional missing parameter" in line:
+                elif "Updated (" in line and "optional missing parameter" in line:
                     current_section = "optional"
                 elif "parameter(s) not in standard" in line:
                     current_section = "not_standard"
@@ -1295,11 +1295,13 @@ def create_science_report(
                 report_lines.append(f"   Suggested fix: {error.suggested_value}")
         report_lines.append("")
 
-    # UPDATED VALUES section (automatic adjustments applied)
+    # NO ACTION NEEDED section (automatic adjustments, warnings, clean status, and Phase A information)
+    report_lines.append("## NO ACTION NEEDED")
+
+    # Updated values (automatic adjustments applied)
     if adjustments:
-        report_lines.append("## UPDATED VALUES")
         report_lines.append(
-            f"- Applied ({len(adjustments)}) automatic scientific adjustment(s):"
+            f"- Updated ({len(adjustments)}) parameter(s) with automatic scientific adjustments:"
         )
         for adjustment in adjustments:
             site_ref = (
@@ -1312,21 +1314,18 @@ def create_science_report(
             )
         report_lines.append("")
 
-    # NO ACTION NEEDED section (warnings, clean status, and Phase A information)
-    report_lines.append("## NO ACTION NEEDED")
-
     # Phase A information (when available)
     phase_a_items = []
     if phase_a_renames:
         phase_a_items.append(
-            f"- Renamed ({len(phase_a_renames)}) parameter(s) to current standards:"
+            f"- Updated ({len(phase_a_renames)}) renamed parameter(s) to current standards:"
         )
         for rename in phase_a_renames:
             phase_a_items.append(f"-- {rename}")
 
     if phase_a_optional_missing:
         phase_a_items.append(
-            f"- Found ({len(phase_a_optional_missing)}) optional missing parameter(s):"
+            f"- Updated ({len(phase_a_optional_missing)}) optional missing parameter(s) with null values:"
         )
         for param in phase_a_optional_missing:
             phase_a_items.append(f"-- {param}")
@@ -1449,16 +1448,22 @@ def print_science_check_results(
             print(f"Applied {len(adjustments)} automatic scientific adjustments")
 
 
-def create_science_yaml_header() -> str:
-    """Create header for final science-checked YAML file."""
-    header = """# =============================================================================
+def create_science_yaml_header(phase_a_performed: bool = True) -> str:
+    """Create header for final science-checked YAML file.
+    
+    Args:
+        phase_a_performed: Whether Phase A was performed before Phase B
+    """
+    if phase_a_performed:
+        # A→B workflow header
+        header = """# =============================================================================
 # FINAL SCIENCE CHECKED YAML
 # =============================================================================
 #
 # This file has been processed through the complete SUEWS validation workflow:
 #
 # PHASE A (Parameter Detection):
-# - Missing parameters added with appropriate defaults
+# - Missing parameters added with null values
 # - Parameter names updated to current standards  
 # - YAML structure validated against reference configuration
 #
@@ -1468,6 +1473,29 @@ def create_science_yaml_header() -> str:
 # - Seasonal adjustments applied (LAI, snowalb, surface temperatures)
 # - Land cover fractions validated and corrected
 # - Model physics option dependencies checked
+#
+# All parameter changes and scientific corrections documented in reportB_<filename>.txt
+#
+# =============================================================================
+
+"""
+    else:
+        # Phase B only header
+        header = """# =============================================================================
+# SCIENCE CHECKED YAML
+# =============================================================================
+#
+# This file has been processed through SUEWS Phase B scientific validation:
+#
+# PHASE B (Scientific Validation):
+# - Physics parameters validated for consistency
+# - Geographic coordinates and timezone validated
+# - Seasonal adjustments applied (LAI, snowalb, surface temperatures)
+# - Land cover fractions validated and corrected
+# - Model physics option dependencies checked
+#
+# NOTE: This file has NOT been processed through Phase A parameter detection.
+# Run Phase A first if you need missing parameter detection and naming updates.
 #
 # All parameter changes and scientific corrections documented in reportB_<filename>.txt
 #
@@ -1484,6 +1512,7 @@ def run_science_check(
     science_yaml_file: str = None,
     science_report_file: str = None,
     phase_a_report_file: str = None,
+    phase_a_performed: bool = True,
 ) -> dict:
     """
     Main Phase B workflow - perform scientific validation and adjustments.
@@ -1494,6 +1523,8 @@ def run_science_check(
         standard_yaml_file: Path to standard reference YAML
         science_yaml_file: Path for science-checked output YAML
         science_report_file: Path for scientific validation report
+        phase_a_report_file: Path to Phase A report file (if available)
+        phase_a_performed: Whether Phase A was performed before Phase B
 
     Returns:
         Final science-checked YAML configuration dictionary
@@ -1550,7 +1581,7 @@ def run_science_check(
 
         # Step 9: Write science-checked YAML file (only if no critical errors)
         if science_yaml_file and not critical_errors:
-            header = create_science_yaml_header()
+            header = create_science_yaml_header(phase_a_performed)
             with open(science_yaml_file, "w") as f:
                 f.write(header)
                 yaml.dump(
@@ -1598,6 +1629,7 @@ def main():
             standard_yaml_file=standard_file,
             science_yaml_file=science_yaml_file,
             science_report_file=science_report_file,
+            phase_a_performed=True,  # Assumes Phase A was run (looking for uptodate_file)
         )
 
         print(f"\nPhase B completed successfully!")

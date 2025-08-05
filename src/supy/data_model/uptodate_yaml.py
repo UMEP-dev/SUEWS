@@ -553,15 +553,25 @@ def create_analysis_report(
     if has_no_action_items:
         report_lines.append("## NO ACTION NEEDED")
 
-        # Optional missing parameters
+        # Updated optional missing parameters
         if optional_count > 0:
             report_lines.append(
-                f"- Found ({optional_count}) optional missing parameter(s):"
+                f"- Updated ({optional_count}) optional missing parameter(s) with null values:"
             )
             for param_path, standard_value, is_physics in missing_params:
                 if not is_physics:
                     param_name = param_path.split(".")[-1]
-                    report_lines.append(f"-- {param_name} at level {param_path}")
+                    uptodate_file_ref = (
+                        uptodate_filename if uptodate_filename else "uptodate YAML file"
+                    )
+                    report_lines.append(f"-- {param_name} added to {uptodate_file_ref} and set to null")
+            report_lines.append("")
+
+        # Renamed parameters
+        if renamed_count > 0:
+            report_lines.append(f"- Updated ({renamed_count}) renamed parameter(s):")
+            for old_name, new_name in renamed_replacements:
+                report_lines.append(f"-- {old_name} changed to {new_name}")
             report_lines.append("")
 
         # NOT IN STANDARD parameters
@@ -572,13 +582,6 @@ def create_analysis_report(
             for param_path in extra_params:
                 param_name = param_path.split(".")[-1]
                 report_lines.append(f"-- {param_name} at level {param_path}")
-            report_lines.append("")
-
-        # Renamed parameters
-        if renamed_count > 0:
-            report_lines.append(f"- Renamed ({renamed_count}) parameters:")
-            for old_name, new_name in renamed_replacements:
-                report_lines.append(f"-- {old_name} changed to {new_name}")
             report_lines.append("")
 
     # Footer separator

@@ -198,6 +198,7 @@ def run_phase_b(
     science_yaml_file: str,
     science_report_file: str,
     phase_a_report_file: str,
+    phase_a_performed: bool = True,
 ) -> bool:
     """
     Execute Phase B: Scientific validation and automatic adjustments.
@@ -208,6 +209,8 @@ def run_phase_b(
         standard_yaml_file: Path to standard reference YAML
         science_yaml_file: Path for Phase B output YAML
         science_report_file: Path for Phase B report
+        phase_a_report_file: Path to Phase A report file (if available)
+        phase_a_performed: Whether Phase A was performed before Phase B
 
     Returns:
         True if Phase B completed successfully, False otherwise
@@ -224,6 +227,7 @@ def run_phase_b(
                 science_yaml_file=science_yaml_file,
                 science_report_file=science_report_file,
                 phase_a_report_file=phase_a_report_file,
+                phase_a_performed=phase_a_performed,
             )
 
         # Check if Phase B produced output files
@@ -276,7 +280,7 @@ def main():
 
     # Setup command line argument parsing
     parser = argparse.ArgumentParser(
-        description="SUEWS Configuration Processor - Phase A and/or Phase B workflow",
+        description="SUEWS YAML Configuration Processor - Phase A and/or Phase B workflow",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
@@ -311,12 +315,12 @@ Phases:
         "B": "Phase B Only",
         "AB": "Complete A→B Workflow",
     }
-    print(f"=============================")
-    print(f"SUEWS Configuration Processor")
-    print(f"=============================")
+    print(f"==================================")
+    print(f"SUEWS YAML Configuration Processor")
+    print(f"==================================")
     print(f"YAML user file: {os.path.basename(user_yaml_file)}")
     print(f"Processor Selected Mode: {phase_desc[phase]}")
-    print(f"=============================")
+    print(f"==================================")
     print()
 
     try:
@@ -349,18 +353,13 @@ Phases:
             return 0 if phase_a_success else 1
 
         elif phase == "B":
-            # Phase B only - can run on user YAML directly or use Phase A output if available
+            # Phase B only - always run on original user YAML for pure Phase B validation
             input_yaml_file = user_yaml_file
             phase_a_report = None
 
-            # Check if Phase A output exists and use it, otherwise use original user YAML
-            if os.path.exists(uptodate_file):
-                print("Using existing Phase A output...")
-                input_yaml_file = uptodate_file
-                phase_a_report = report_file if os.path.exists(report_file) else None
-            else:
-                print("Running Phase B directly on user YAML...")
-                # Phase B will handle parameter detection internally
+            print("Running Phase B directly on user YAML...")
+            print("(Phase B only mode - ignoring any existing Phase A output files)")
+            # Phase B will validate the original user YAML and detect missing parameters
 
             phase_b_success = run_phase_b(
                 user_yaml_file,
@@ -369,6 +368,7 @@ Phases:
                 science_yaml_file,
                 science_report_file,
                 phase_a_report,
+                phase_a_performed=False,  # Phase B only mode
             )
             if phase_b_success:
                 print()
@@ -393,6 +393,7 @@ Phases:
                 science_yaml_file,
                 science_report_file,
                 report_file,
+                phase_a_performed=True,  # A→B workflow mode
             )
 
             # Clean up intermediate files when complete workflow succeeds

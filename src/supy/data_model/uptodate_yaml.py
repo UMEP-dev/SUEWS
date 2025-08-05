@@ -376,7 +376,7 @@ def get_null_placeholder():
     return "null"
 
 
-def cleanup_deprecated_comments(yaml_content):
+def cleanup_renamed_comments(yaml_content):
     """Remove renamed in standard comments from YAML content for clean output."""
     lines = yaml_content.split('\n')
     cleaned_lines = []
@@ -395,7 +395,7 @@ def cleanup_deprecated_comments(yaml_content):
 def create_uptodate_yaml_with_missing_params(yaml_content, missing_params, extra_params=None):
     """Create clean YAML with missing parameters added but no inline comments."""
     # First, clean up any renamed in standard comments from the yaml_content
-    clean_yaml_content = cleanup_deprecated_comments(yaml_content)
+    clean_yaml_content = cleanup_renamed_comments(yaml_content)
     
     if not missing_params:
         header = create_uptodate_yaml_header()
@@ -453,7 +453,7 @@ def create_uptodate_yaml_with_missing_params(yaml_content, missing_params, extra
     clean_content = header + content_with_lines
     return clean_content
 
-def create_analysis_report(missing_params, deprecated_replacements, extra_params=None, uptodate_filename=None):
+def create_analysis_report(missing_params, renamed_replacements, extra_params=None, uptodate_filename=None):
     """Create analysis report with summary of changes."""
     report_lines = []
     report_lines.append("# SUEWS Configuration Analysis Report")
@@ -463,7 +463,7 @@ def create_analysis_report(missing_params, deprecated_replacements, extra_params
     # Count parameters by type
     urgent_count = sum(1 for _, _, is_physics in missing_params if is_physics)
     optional_count = len(missing_params) - urgent_count
-    deprecated_count = len(deprecated_replacements)
+    renamed_count = len(renamed_replacements)
     extra_count = len(extra_params) if extra_params else 0
     
     # ACTION NEEDED section - only critical/urgent parameters
@@ -479,7 +479,7 @@ def create_analysis_report(missing_params, deprecated_replacements, extra_params
         report_lines.append("")
     
     # NO ACTION NEEDED section - optional and informational items
-    has_no_action_items = optional_count > 0 or extra_count > 0 or deprecated_count > 0
+    has_no_action_items = optional_count > 0 or extra_count > 0 or renamed_count > 0
     if has_no_action_items:
         report_lines.append("## NO ACTION NEEDED")
         
@@ -501,9 +501,9 @@ def create_analysis_report(missing_params, deprecated_replacements, extra_params
             report_lines.append("")
         
         # Renamed parameters
-        if deprecated_count > 0:
-            report_lines.append(f"- Renamed ({deprecated_count}) parameters:")
-            for old_name, new_name in deprecated_replacements:
+        if renamed_count > 0:
+            report_lines.append(f"- Renamed ({renamed_count}) parameters:")
+            for old_name, new_name in renamed_replacements:
                 report_lines.append(f"-- {old_name} changed to {new_name}")
             report_lines.append("")
     
@@ -517,7 +517,7 @@ def annotate_missing_parameters(user_file, standard_file, uptodate_file=None, re
     try:
         with open(user_file, 'r') as f:
             original_yaml_content = f.read()
-        original_yaml_content, deprecated_replacements = handle_renamed_parameters(original_yaml_content)
+        original_yaml_content, renamed_replacements = handle_renamed_parameters(original_yaml_content)
         user_data = yaml.safe_load(original_yaml_content)
         with open(standard_file, 'r') as f:
             standard_data = yaml.safe_load(f)
@@ -531,13 +531,13 @@ def annotate_missing_parameters(user_file, standard_file, uptodate_file=None, re
     extra_params = find_extra_parameters(user_data, standard_data)
     
     # Generate content for both files
-    if missing_params or deprecated_replacements or extra_params:
+    if missing_params or renamed_replacements or extra_params:
         # Create uptodate YAML (clean, with NOT IN STANDARD markers)
         uptodate_content = create_uptodate_yaml_with_missing_params(original_yaml_content, missing_params, extra_params)
         
         # Create analysis report
         uptodate_filename = os.path.basename(uptodate_file) if uptodate_file else None
-        report_content = create_analysis_report(missing_params, deprecated_replacements, extra_params, uptodate_filename)
+        report_content = create_analysis_report(missing_params, renamed_replacements, extra_params, uptodate_filename)
     else:
         print("No missing in standard or renamed in standard parameters found!")
         # Still create clean files

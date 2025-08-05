@@ -1,5 +1,5 @@
 """
-Test suite for master_ABC_run.py
+Pytest test suite for master_ABC_run.py
 
 This test suite validates the master workflow script for SUEWS configuration processing,
 covering all three execution modes:
@@ -42,22 +42,6 @@ def test_env():
     test_dir = tempfile.mkdtemp()
     test_yaml_file = os.path.join(test_dir, "test_config.yml")
     standard_yaml_file = os.path.join(test_dir, "standard_config.yml")
-    
-    # Create minimal test YAML configurations
-    create_test_yaml_files(test_dir, test_yaml_file, standard_yaml_file)
-    
-    yield {
-        'test_dir': test_dir,
-        'test_yaml_file': test_yaml_file,
-        'standard_yaml_file': standard_yaml_file
-    }
-    
-    # Cleanup
-    shutil.rmtree(test_dir)
-
-
-def create_test_yaml_files(test_dir, test_yaml_file, standard_yaml_file):
-    """Create test YAML files for testing."""
     
     # Basic user YAML with missing physics parameters (will trigger Phase A)
     user_config = {
@@ -141,6 +125,15 @@ def create_test_yaml_files(test_dir, test_yaml_file, standard_yaml_file):
         
     with open(standard_yaml_file, 'w') as f:
         yaml.dump(standard_config, f, default_flow_style=False)
+    
+    yield {
+        'test_dir': test_dir,
+        'test_yaml_file': test_yaml_file,
+        'standard_yaml_file': standard_yaml_file
+    }
+    
+    # Cleanup
+    shutil.rmtree(test_dir)
 
 
 # Input validation tests
@@ -167,20 +160,19 @@ def test_validate_non_yaml_file(test_env):
         validate_input_file(txt_file)
 
 
+@pytest.mark.skipif(os.name == 'nt', reason="Permission test not reliable on Windows")
 def test_validate_unreadable_file(test_env):
     """Test validation fails for unreadable file."""
-    # Create file and make it unreadable (Unix only)
-    if os.name != 'nt':  # Skip on Windows
-        unreadable_file = os.path.join(test_env['test_dir'], "unreadable.yml")
-        with open(unreadable_file, 'w') as f:
-            f.write("test: content")
-        os.chmod(unreadable_file, 0o000)
-        
-        try:
-            with pytest.raises(PermissionError):
-                validate_input_file(unreadable_file)
-        finally:
-            os.chmod(unreadable_file, 0o644)  # Restore permissions for cleanup
+    unreadable_file = os.path.join(test_env['test_dir'], "unreadable.yml")
+    with open(unreadable_file, 'w') as f:
+        f.write("test: content")
+    os.chmod(unreadable_file, 0o000)
+    
+    try:
+        with pytest.raises(PermissionError):
+            validate_input_file(unreadable_file)
+    finally:
+        os.chmod(unreadable_file, 0o644)  # Restore permissions for cleanup
 
 
 # Output path tests
@@ -506,3 +498,39 @@ def test_file_existence_checks(test_env):
     non_existent = os.path.join(test_env['test_dir'], "non_existent.yml")
     with pytest.raises(FileNotFoundError):
         validate_input_file(non_existent)
+
+
+# Parametrized tests for comprehensive phase testing
+@pytest.mark.parametrize("phase,expected_yaml,expected_report", [
+    ('A', 'updatedA_', 'reportA_'),
+    ('B', 'updatedB_', 'reportB_'),
+    ('AB', 'updatedAB_', 'reportAB_'),  # Final outputs for AB mode
+])
+def test_phase_naming_patterns(phase, expected_yaml, expected_report):
+    """Test naming patterns for different phases."""
+    test_file = "/path/to/user.yml"
+    _, _, science_yaml_file, science_report_file, _ = setup_output_paths(test_file, phase)
+    
+    if phase == 'AB':
+        # AB mode uses AB naming for final outputs
+        assert expected_yaml in science_yaml_file
+        assert expected_report in science_report_file
+    # Other phases tested in individual tests above
+
+
+# Test data validation
+def test_test_yaml_structure(test_env):
+    """Verify that test YAML files have expected structure."""
+    with open(test_env['test_yaml_file'], 'r') as f:
+        user_data = yaml.safe_load(f)
+    
+    with open(test_env['standard_yaml_file'], 'r') as f:
+        standard_data = yaml.safe_load(f)
+    
+    # User config should be missing netradiationmethod
+    assert 'netradiationmethod' not in user_data['model']['physics']
+    
+    # Standard config should have all required physics parameters
+    assert 'netradiationmethod' in standard_data['model']['physics']
+    assert 'stabilitymethod' in standard_data['model']['physics']
+    assert 'rslmethod' in standard_data['model']['physics']

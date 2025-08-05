@@ -6,7 +6,7 @@ using the standard sample_config.yml as the reference configuration.
 
 Tests cover:
 - Missing parameter detection (URGENT physics and optional parameters)  
-- Renamed parameter handling (DEPRECATED → RENAMED IN STANDARD)
+- Renamed parameter handling (OUTDATED → RENAMED IN STANDARD)
 - NOT IN STANDARD parameter detection
 - Clean YAML generation with null placeholders
 - Analysis report generation

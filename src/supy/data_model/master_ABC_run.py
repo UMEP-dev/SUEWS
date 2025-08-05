@@ -88,12 +88,12 @@ def setup_output_paths(user_yaml_file: str) -> Tuple[str, str, str, str, str]:
     name_without_ext = os.path.splitext(basename)[0]
     
     # Phase A outputs
-    uptodate_file = os.path.join(dirname, f"uptodate_{basename}")
-    report_file = os.path.join(dirname, f"report_{name_without_ext}.txt")
+    uptodate_file = os.path.join(dirname, f"updatedA_{basename}")
+    report_file = os.path.join(dirname, f"reportA_{name_without_ext}.txt")
     
     # Phase B outputs  
-    science_yaml_file = os.path.join(dirname, f"science_checked_{basename}")
-    science_report_file = os.path.join(dirname, f"science_report_{name_without_ext}.txt")
+    science_yaml_file = os.path.join(dirname, f"updatedB_{basename}")
+    science_report_file = os.path.join(dirname, f"reportB_{name_without_ext}.txt")
     
     return uptodate_file, report_file, science_yaml_file, science_report_file, dirname
 

@@ -481,7 +481,6 @@ def create_analysis_report(missing_params, deprecated_replacements, extra_params
     has_no_action_items = optional_count > 0 or extra_count > 0 or deprecated_count > 0
     if has_no_action_items:
         report_lines.append("## NO ACTION NEEDED")
-        report_lines.append("Note: Section B will check these.")
         
         # Optional missing parameters
         if optional_count > 0:

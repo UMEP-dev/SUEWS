@@ -220,10 +220,11 @@ def validate_model_option_dependencies(yaml_data: dict) -> List[ValidationResult
     results = []
     physics = yaml_data.get("model", {}).get("physics", {})
     
-    # Check rslmethod-stabilitymethod constraint
+    # Check rslmethod-stabilitymethod constraints
     rslmethod = physics.get("rslmethod", {}).get("value")
     stabilitymethod = physics.get("stabilitymethod", {}).get("value")
     
+    # Constraint 1: If rslmethod == 2, stabilitymethod must be 3
     if rslmethod == 2 and stabilitymethod != 3:
         results.append(ValidationResult(
             status='ERROR',
@@ -232,12 +233,23 @@ def validate_model_option_dependencies(yaml_data: dict) -> List[ValidationResult
             message='If rslmethod == 2, stabilitymethod must be 3 for diagnostic aerodynamic calculations',
             suggested_value='Set stabilitymethod to 3'
         ))
+    
+    # Constraint 2: If stabilitymethod == 1, rslmethod must be present
+    elif stabilitymethod == 1 and rslmethod is None:
+        results.append(ValidationResult(
+            status='ERROR',
+            category='MODEL_OPTIONS',
+            parameter='stabilitymethod-rslmethod',
+            message='If stabilitymethod == 1, rslmethod parameter is required for atmospheric stability calculations',
+            suggested_value='Set rslmethod to appropriate value (typically 1 or 2)'
+        ))
+    
     else:
         results.append(ValidationResult(
             status='PASS',
             category='MODEL_OPTIONS', 
             parameter='rslmethod-stabilitymethod',
-            message='rslmethod-stabilitymethod constraint satisfied'
+            message='rslmethod-stabilitymethod constraints satisfied'
         ))
     
     return results

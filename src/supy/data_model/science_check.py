@@ -539,6 +539,124 @@ def run_scientific_validation_pipeline(yaml_data: dict, start_date: str, model_y
     return validation_results
 
 
+def get_monthly_avg_temp(lat: float, month: int) -> float:
+    """
+    Estimate the average air temperature for a given latitude and month.
+    
+    Uses predefined climatological values for four broad latitude bands.
+    Adapted directly from precheck.py.
+    
+    Args:
+        lat: Site latitude in degrees
+        month: Month of the year (1 = January, 12 = December)
+        
+    Returns:
+        Estimated average air temperature for the given latitude and month (°C)
+    """
+    abs_lat = abs(lat)
+    
+    if abs_lat < 10:
+        lat_band = "tropics"
+    elif abs_lat < 35:
+        lat_band = "subtropics"
+    elif abs_lat < 60:
+        lat_band = "midlatitudes"
+    else:
+        lat_band = "polar"
+    
+    monthly_temp = {
+        "tropics": [26.0, 26.5, 27.0, 27.5, 28.0, 28.5, 28.0, 27.5, 27.0, 26.5, 26.0, 25.5],
+        "subtropics": [15.0, 16.0, 18.0, 20.0, 24.0, 28.0, 30.0, 29.0, 26.0, 22.0, 18.0, 15.0],
+        "midlatitudes": [5.0, 6.0, 9.0, 12.0, 17.0, 21.0, 23.0, 22.0, 19.0, 14.0, 9.0, 6.0],
+        "polar": [-15.0, -13.0, -10.0, -5.0, 0.0, 5.0, 8.0, 7.0, 3.0, -2.0, -8.0, -12.0],
+    }
+    
+    return monthly_temp[lat_band][month - 1]
+
+
+def adjust_surface_temperatures(yaml_data: dict, start_date: str) -> Tuple[dict, List[ScientificAdjustment]]:
+    """
+    Set initial surface temperatures for all surface types based on latitude and start month.
+    
+    Adapted from precheck.py precheck_update_surface_temperature function.
+    
+    Args:
+        yaml_data: YAML configuration dictionary
+        start_date: Start date in YYYY-MM-DD format
+        
+    Returns:
+        Tuple of (updated_yaml_data, list_of_adjustments)
+    """
+    adjustments = []
+    month = datetime.strptime(start_date, "%Y-%m-%d").month
+    
+    sites = yaml_data.get("sites", [])
+    for site_idx, site in enumerate(sites):
+        props = site.get("properties", {})
+        initial_states = site.get("initial_states", {})
+        
+        # Get site latitude
+        lat_entry = props.get("lat", {})
+        lat = lat_entry.get("value") if isinstance(lat_entry, dict) else lat_entry
+        
+        if lat is None:
+            continue  # Skip if no latitude (will be caught by validation)
+        
+        # Get estimated average temperature
+        avg_temp = get_monthly_avg_temp(lat, month)
+        
+        # Loop over all surface types
+        surface_types = ["paved", "bldgs", "evetr", "dectr", "grass", "bsoil", "water"]
+        
+        for surface_type in surface_types:
+            surf = initial_states.get(surface_type, {})
+            if not isinstance(surf, dict):
+                continue
+            
+            temperature_updated = False
+            tsfc_updated = False
+            tin_updated = False
+            
+            # Set 5-layer temperature array
+            if "temperature" in surf and isinstance(surf["temperature"], dict):
+                current_temp = surf["temperature"].get("value")
+                if current_temp != [avg_temp] * 5:
+                    surf["temperature"]["value"] = [avg_temp] * 5
+                    temperature_updated = True
+            
+            # Set tsfc
+            if "tsfc" in surf and isinstance(surf["tsfc"], dict):
+                current_tsfc = surf["tsfc"].get("value")
+                if current_tsfc != avg_temp:
+                    surf["tsfc"]["value"] = avg_temp
+                    tsfc_updated = True
+            
+            # Set tin
+            if "tin" in surf and isinstance(surf["tin"], dict):
+                current_tin = surf["tin"].get("value")
+                if current_tin != avg_temp:
+                    surf["tin"]["value"] = avg_temp
+                    tin_updated = True
+            
+            # Record adjustments made
+            if temperature_updated or tsfc_updated or tin_updated:
+                adjustments.append(ScientificAdjustment(
+                    parameter=f'{surface_type}_surface_temperatures',
+                    site_index=site_idx,
+                    old_value=f'various temperatures',
+                    new_value=f'{avg_temp}°C',
+                    reason=f'Set from latitude {lat}° for month {month}'
+                ))
+            
+            initial_states[surface_type] = surf
+        
+        # Save back to site
+        site["initial_states"] = initial_states
+        yaml_data["sites"][site_idx] = site
+    
+    return yaml_data, adjustments
+
+
 def run_scientific_adjustment_pipeline(yaml_data: dict, start_date: str, model_year: int) -> Tuple[dict, List[ScientificAdjustment]]:
     """
     Apply automatic scientific corrections and adjustments to YAML configuration.
@@ -555,7 +673,8 @@ def run_scientific_adjustment_pipeline(yaml_data: dict, start_date: str, model_y
     updated_data = deepcopy(yaml_data)
     
     # Surface temperature initialization
-    # TODO: Implement adjust_surface_temperatures(updated_data, start_date)
+    updated_data, temp_adjustments = adjust_surface_temperatures(updated_data, start_date)
+    adjustments.extend(temp_adjustments)
     
     # Seasonal parameter adjustments
     # TODO: Implement adjust_seasonal_parameters(updated_data, start_date)

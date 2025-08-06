@@ -130,7 +130,9 @@ def generate_fallback_report(
         input_yaml_file: Path to input YAML file
         output_report_file: Path for output report file
     """
-    output_yaml_file = output_report_file.replace('reportC_', 'updatedC_').replace('.txt', '.yml')
+    output_yaml_file = output_report_file.replace("reportC_", "updatedC_").replace(
+        ".txt", ".yml"
+    )
     error_report = f"""# SUEWS Phase C (Pydantic Validation) Report  
 # ============================================
 

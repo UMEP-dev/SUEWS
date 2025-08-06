@@ -381,6 +381,7 @@ def run_phase_c(
 
                 # Pydantic validation passed - create updatedC YAML (copy of original user file)
                 import shutil
+
                 shutil.copy2(input_yaml_file, pydantic_yaml_file)
 
                 # Generate success report
@@ -411,8 +412,9 @@ No further action required.
             except Exception as validation_error:
                 # Pydantic validation failed - still create updatedC YAML (copy of original for user to modify)
                 import shutil
+
                 shutil.copy2(input_yaml_file, pydantic_yaml_file)
-                
+
                 # Generate structured ACTION NEEDED report
                 try:
                     from phase_c_reports import generate_phase_c_report
@@ -424,8 +426,11 @@ No further action required.
                 except Exception as report_error:
                     # Fallback to simple error report if structured report generation fails
                     from phase_c_reports import generate_fallback_report
-                    generate_fallback_report(validation_error, input_yaml_file, pydantic_report_file)
-                
+
+                    generate_fallback_report(
+                        validation_error, input_yaml_file, pydantic_report_file
+                    )
+
                 print("✗ Phase C failed - Pydantic validation errors detected")
                 print(f"  Report generated: {os.path.basename(pydantic_report_file)}")
                 print(f"  YAML file generated: {os.path.basename(pydantic_yaml_file)}")

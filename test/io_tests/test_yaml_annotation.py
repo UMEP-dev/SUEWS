@@ -94,7 +94,7 @@ sites:
 def test_annotation_with_sample_config():
     """Test annotation with the sample config file."""
 
-    sample_config = Path("src/supy/sample_run/sample_config.yml")
+    sample_config = Path("src/supy/sample_data/sample_config.yml")
     if not sample_config.exists():
         pytest.skip("Sample config not found")
 

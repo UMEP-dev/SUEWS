@@ -17,7 +17,7 @@ class TestSUEWSConfig(unittest.TestCase):
     def setUp(self):
         """Set up test fixtures."""
         self.path_sample_config = (
-            Path(sp.__file__).parent / "sample_run" / "sample_config.yml"
+            Path(sp.__file__).parent / "sample_data" / "sample_config.yml"
         )
         self.config = SUEWSConfig.from_yaml(self.path_sample_config)
 

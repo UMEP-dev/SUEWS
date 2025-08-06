@@ -198,7 +198,7 @@ When your YAML configuration has missing or invalid parameters, SUEWS will:
 
 The annotated YAML file features:
    
-   - File location: ``{config_file}_annotated_{timestamp}.yml``
+   - File location: ``{config_file}_annotated.yml``
    - Missing parameters are marked with ``[ERROR] MISSING:``
    - Helpful tips are marked with ``[TIP] ADD HERE:``
    - Each error includes the expected type and description
@@ -223,10 +223,15 @@ Example of annotated output::
 
 To fix validation errors:
 
-1. Look for the generated annotated YAML file in the same directory as your config
-2. Search for ``[ERROR]`` markers to find missing parameters
-3. Add the missing parameters with appropriate values
-4. Re-run your simulation with the corrected configuration
+1. Generate an annotated YAML file using one of these methods:
+   
+   - **Manual**: Call ``config.generate_annotated_yaml('config.yml')``
+   - **Automatic**: Load with ``SUEWSConfig.from_yaml('config.yml', auto_generate_annotated=True)``
+
+2. Look for the annotated YAML file (``{config}_annotated.yml``) in the same directory
+3. Search for ``[ERROR]`` markers to find missing parameters
+4. Add the missing parameters with appropriate values
+5. Re-run your simulation with the corrected configuration
 
 Common validation errors:
 

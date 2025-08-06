@@ -8,6 +8,7 @@ from supy.data_model.model import (
     Model,
     ModelPhysics,
 )
+from supy.data_model.core import SUEWSConfig
 from pathlib import Path
 import yaml
 
@@ -55,18 +56,25 @@ def test_model_control_with_output_config():
 
 def test_frequency_validation():
     """Test output frequency validation against timestep"""
-    # Valid: freq is multiple of tstep
-    model = Model(control=ModelControl(tstep=300, output_file=OutputConfig(freq=3600)))
-    assert model.control.tstep == 300
-    assert model.control.output_file.freq == 3600
+    # Valid: freq is multiple of tstep - should work with SUEWSConfig
+    config = SUEWSConfig(
+        sites=[{}], model={"control": {"tstep": 300, "output_file": {"freq": 3600}}}
+    )
+    assert config.model.control.tstep == 300
+    assert config.model.control.output_file.freq == 3600
 
-    # Invalid: freq not multiple of tstep
+    # Invalid: freq not multiple of tstep - should raise ValueError in SUEWSConfig
     with pytest.raises(ValueError, match="must be a multiple of timestep"):
-        Model(
-            control=ModelControl(
-                tstep=300,
-                output_file=OutputConfig(freq=1000),  # Not multiple of 300
-            )
+        SUEWSConfig(
+            sites=[{}],
+            model={
+                "control": {
+                    "tstep": 300,
+                    "output_file": {
+                        "freq": 1000  # Not multiple of 300
+                    },
+                }
+            },
         )
 
 
@@ -117,10 +125,12 @@ def test_deprecation_warning():
     """Test deprecation warning for non-default string output_file"""
     import warnings
 
-    # Test that non-default string triggers warning
+    # Test that non-default string triggers warning in SUEWSConfig
     with warnings.catch_warnings(record=True) as w:
         warnings.simplefilter("always")
-        model = Model(control=ModelControl(output_file="custom_output.txt"))
+        config = SUEWSConfig(
+            sites=[{}], model={"control": {"output_file": "custom_output.txt"}}
+        )
         assert len(w) == 1
         assert issubclass(w[-1].category, DeprecationWarning)
         assert "deprecated" in str(w[-1].message)
@@ -128,9 +138,12 @@ def test_deprecation_warning():
     # Test that default string doesn't trigger warning
     with warnings.catch_warnings(record=True) as w:
         warnings.simplefilter("always")
-        model = Model(
-            control=ModelControl(
-                output_file="output.txt"  # default value
-            )
+        config = SUEWSConfig(
+            sites=[{}],
+            model={
+                "control": {
+                    "output_file": "output.txt"  # default value
+                }
+            },
         )
         assert len(w) == 0  # No warning for default value

@@ -22,7 +22,7 @@ All enum fields should be rendered as dropdown menus with descriptive labels:
 | **smdmethod** | 0-2 | 0 | All options visible |
 | **waterusemethod** | 0-1 | 0 | Simple binary choice |
 | **rslmethod** | 0-2 | 2 | All options visible |
-| **faimethod** | 0-2 | 1 | Mark 0 as internal |
+| **faimethod** | 0-1 | 0 | Both options are user-configurable |
 | **rsllevel** | 0-2 | 0 | All options visible |
 | **gsmodel** | 1-2 | 2 | Simple choice |
 | **snowuse** | 0-1 | 0 | Simple binary choice |

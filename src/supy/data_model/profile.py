@@ -178,17 +178,6 @@ class HourlyProfile(BaseModel):
             return {str(k): float(v) for k, v in v.items()}
         return v
 
-    @model_validator(mode="after")
-    def validate_hours(self) -> "HourlyProfile":
-        for profile in [self.working_day, self.holiday]:
-            hours = [int(h) for h in profile.keys()]
-            if not all(1 <= h <= 24 for h in hours):
-                raise ValueError("Hour values must be between 1 and 24")
-            if sorted(hours) != list(range(1, 25)):
-                error_message = ValueError("Must have all hours from 1 to 24")
-                raise ValueError("Must have all hours from 1 to 24")
-        return self
-
     def to_df_state(self, grid_id: int, param_name: str) -> pd.DataFrame:
         """Convert hourly profile to DataFrame state format.
 

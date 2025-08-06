@@ -1023,63 +1023,6 @@ class VerticalLayers(BaseModel):
 
     ref: Optional[Reference] = None
 
-    @model_validator(mode="after")
-    def validate_building(self) -> "VerticalLayers":
-        # Validate building heights
-        # Handle FlexibleRefValue fields (Union of RefValue and simple values)
-        height_val = (
-            self.height.value if isinstance(self.height, RefValue) else self.height
-        )
-        nlayer_val = (
-            self.nlayer.value if isinstance(self.nlayer, RefValue) else self.nlayer
-        )
-
-        if len(height_val) != nlayer_val + 1:
-            raise ValueError(
-                f"Number of building heights ({len(height_val)}) must match nlayer+1 = ({nlayer_val + 1})"
-            )
-
-        # Validate building fractions
-        building_frac_val = (
-            self.building_frac.value
-            if isinstance(self.building_frac, RefValue)
-            else self.building_frac
-        )
-        if len(building_frac_val) != nlayer_val:
-            raise ValueError(
-                f"Number of building fractions ({len(building_frac_val)}) must match nlayer ({nlayer_val})"
-            )
-        # This rule is not correct, we just need building_frac to be in range [0,1]
-        # if not math.isclose(sum(self.building_frac), 1.0, rel_tol=1e-9):
-        #    raise ValueError(
-        #        f"Building fractions must sum to 1.0, got {sum(self.building_frac)}"
-        #    )
-
-        # Validate building scales
-        building_scale_val = (
-            self.building_scale.value
-            if isinstance(self.building_scale, RefValue)
-            else self.building_scale
-        )
-        if len(building_scale_val) != nlayer_val:
-            raise ValueError(
-                f"Number of building scales ({len(building_scale_val)}) must match nlayer ({nlayer_val})"
-            )
-
-        # Validate number of roof layers matches nlayer
-        if len(self.roofs) != nlayer_val:
-            raise ValueError(
-                f"Number of roof layers ({len(self.roofs)}) must match nlayer ({nlayer_val})"
-            )
-
-        # Validate number of wall layers matches nlayer
-        if len(self.walls) != nlayer_val:
-            raise ValueError(
-                f"Number of wall layers ({len(self.walls)}) must match nlayer ({nlayer_val})"
-            )
-
-        return self
-
     def to_df_state(self, grid_id: int) -> pd.DataFrame:
         """Convert vertical layers to DataFrame state format."""
         # Initialize empty DataFrame with grid_id index

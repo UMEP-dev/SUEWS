@@ -513,21 +513,6 @@ class VegetatedSurfaceProperties(SurfaceProperties):
 
     ref: Optional[Reference] = None
 
-    @model_validator(mode="after")
-    def validate_albedo_range(self) -> "VegetatedSurfaceProperties":
-        alb_min_val = (
-            self.alb_min.value if isinstance(self.alb_min, RefValue) else self.alb_min
-        )
-        alb_max_val = (
-            self.alb_max.value if isinstance(self.alb_max, RefValue) else self.alb_max
-        )
-
-        if alb_min_val > alb_max_val:
-            raise ValueError(
-                f"alb_min (input {alb_min_val}) must be less than or equal to alb_max (entered {alb_max_val})."
-            )
-        return self
-
     def to_df_state(self, grid_id: int) -> pd.DataFrame:
         """Convert vegetated surface properties to DataFrame state format."""
         # Get base properties
@@ -748,25 +733,6 @@ class DectrProperties(VegetatedSurfaceProperties):
 
     ref: Optional[Reference] = None
 
-    @model_validator(mode="after")
-    def validate_porosity_range(self) -> "DectrProperties":
-        pormin_dec_val = (
-            self.pormin_dec.value
-            if isinstance(self.pormin_dec, RefValue)
-            else self.pormin_dec
-        )
-        pormax_dec_val = (
-            self.pormax_dec.value
-            if isinstance(self.pormax_dec, RefValue)
-            else self.pormax_dec
-        )
-
-        if pormin_dec_val >= pormax_dec_val:
-            raise ValueError(
-                f"pormin_dec ({pormin_dec_val}) must be less than pormax_dec ({pormax_dec_val})."
-            )
-        return self
-
     def to_df_state(self, grid_id: int) -> pd.DataFrame:
         """Convert deciduous tree properties to DataFrame state format."""
         # Get base properties from parent
@@ -960,43 +926,6 @@ class SnowParams(BaseModel):
 
     ref: Optional[Reference] = None
 
-    @model_validator(mode="after")
-    def validate_all(self) -> "SnowParams":
-        """
-        Aggregate all validation checks for SnowParams,
-        so multiple errors (if any) can be raised together
-        """
-        errors = []
-        crwmin_val = (
-            self.crwmin.value if isinstance(self.crwmin, RefValue) else self.crwmin
-        )
-        crwmax_val = (
-            self.crwmax.value if isinstance(self.crwmax, RefValue) else self.crwmax
-        )
-        snowalbmin_val = (
-            self.snowalbmin.value
-            if isinstance(self.snowalbmin, RefValue)
-            else self.snowalbmin
-        )
-        snowalbmax_val = (
-            self.snowalbmax.value
-            if isinstance(self.snowalbmax, RefValue)
-            else self.snowalbmax
-        )
-
-        if crwmin_val >= crwmax_val:
-            errors.append(
-                f"crwmin ({crwmin_val}) must be less than crwmax ({crwmax_val})."
-            )
-        if snowalbmin_val >= snowalbmax_val:
-            errors.append(
-                f"snowalbmin ({snowalbmin_val}) must be less than snowalbmax ({snowalbmax_val})."
-            )
-        if errors:
-            raise ValueError("\n".join(errors))
-
-        return self
-
     def to_df_state(self, grid_id: int) -> pd.DataFrame:
         """
         Convert snow parameters to DataFrame state format.
@@ -1117,24 +1046,6 @@ class LandCover(BaseModel):
     )
 
     ref: Optional[Reference] = None
-
-    @model_validator(mode="after")
-    def set_surface_types(self) -> "LandCover":
-        # Set surface types and validate
-        surface_map = {
-            "paved": (self.paved, SurfaceType.PAVED),
-            "bldgs": (self.bldgs, SurfaceType.BLDGS),
-            "dectr": (self.dectr, SurfaceType.DECTR),
-            "evetr": (self.evetr, SurfaceType.EVETR),
-            "grass": (self.grass, SurfaceType.GRASS),
-            "bsoil": (self.bsoil, SurfaceType.BSOIL),
-            "water": (self.water, SurfaceType.WATER),
-        }
-
-        for prop, surface_type in surface_map.values():
-            prop.set_surface_type(surface_type)
-
-        return self
 
     # @model_validator(mode="after")
     # def validate_land_cover_fractions(self) -> "LandCover":
@@ -2438,59 +2349,6 @@ class SiteProperties(BaseModel):
         validate_assignment=True,  # This will validate fields on assignment
         validate_default=True,  # This will validate default values
     )
-
-    @model_validator(mode="after")
-    def validate_required_fields(self) -> "SiteProperties":
-        """Validate that all required fields are present and have valid values."""
-        errors = []
-
-        # List of required fields that must be present and non-None
-        required_fields = [
-            "lat",
-            "lng",
-            "alt",
-            "timezone",
-            "surfacearea",
-            "z",
-            "z0m_in",
-            "zdm_in",
-            "pipecapacity",
-            "runofftowater",
-            "narp_trans_site",
-            "lumps",
-            "spartacus",
-            "conductance",
-            "irrigation",
-            "anthropogenic_emissions",
-            "snow",
-            "land_cover",
-            "vertical_layers",
-        ]
-
-        for field in required_fields:
-            value = getattr(self, field, None)
-            if value is None:
-                errors.append(f"Required field '{field}' is missing")
-            elif (
-                isinstance(value, RefValue)
-                and (value.value if isinstance(value, RefValue) else value) is None
-            ):
-                errors.append(f"Required field '{field}' has no value")
-
-        # Additional validation rules
-        z0m_val = (
-            self.z0m_in.value if isinstance(self.z0m_in, RefValue) else self.z0m_in
-        )
-        zdm_val = (
-            self.zdm_in.value if isinstance(self.zdm_in, RefValue) else self.zdm_in
-        )
-        if z0m_val >= zdm_val:
-            errors.append(f"z0m_in ({z0m_val}) must be less than zdm_in ({zdm_val})")
-
-        if errors:
-            raise ValueError("\n".join(errors))
-
-        return self
 
     def to_df_state(self, grid_id: int) -> pd.DataFrame:
         """Convert site properties to DataFrame state format"""

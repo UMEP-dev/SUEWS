@@ -127,6 +127,17 @@ jobs:
             6. When creating PRs, reference related GitHub issues
             7. Follow coding standards in dev-ref/CODING_GUIDELINES.md
             8. Use testing patterns from dev-ref/testing/
+            
+            DOCUMENTATION UPDATES:
+            - When making code changes, ALWAYS update documentation in docs/ directory
+            - Run 'python docs/generate_datamodel_rst.py' after data model changes
+            - Run 'python docs/gen_schema.py' after configuration schema changes
+            - Update parameter tables and examples to reflect code changes
+            - Ensure tutorials and API documentation stay current with changes
+            - Update CHANGELOG.md PROMPTLY for remarkable changes using categories:
+              [feature] for new features, [bugfix] for bug fixes (create GitHub issue too),
+              [change] for user-facing changes, [maintenance] for codebase updates,
+              [doc] for documentation updates
           
           # Environment variables for Claude
           claude_env: |

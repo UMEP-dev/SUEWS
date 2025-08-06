@@ -35,6 +35,11 @@
 ## 2025
 
 ### 6 Aug 2025
+- [bugfix] Fixed potential CSV delimiter conflict in table converter (#581)
+  - Removed commented code that had conflicting delimiter settings (quotechar=" " with sep=" ")
+  - Ensured all active CSV writing uses consistent settings (sep=" ", quoting=QUOTE_NONE)
+  - Prevents potential parsing errors during table version conversions
+
 - [maintenance] Moved legacy configuration files from sample_run to test fixtures
   - **Moved to test/fixtures/legacy_format/** for conversion tool testing:
     - 14 txt configuration files (SUEWS tables): ~85 KB

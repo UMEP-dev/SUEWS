@@ -158,22 +158,8 @@ def add_var(toFile, toVar, toCol, toVal):
     # # toFile missing
     # if not (os.path.isfile(toFile)):
     #     print(toFile, "is a new file")
-    #     # create toFile
-    #     dataX = np.array([1, -9, -9]).reshape(3, -1)
-    #     df_base = pd.DataFrame(
-    #         dataX, columns=pd.MultiIndex.from_product(([1], ["Code"]))
-    #     )
-    #     print(df_base)
-    #     df_base.to_csv(
-    #         toFile,
-    #         sep=" ",
-    #         float_format="%10.4f",
-    #         quotechar=" ",
-    #         # index=False,
-    #     )
-
-    #     print(df_base)
-    #     print(Path(toFile).read_text())
+    # Note: Removed problematic commented code that had conflicting delimiter settings
+    # (quotechar=" " with sep=" " would cause CSV parsing issues)
 
     # if namelist:
     if toFile.endswith(".nml"):

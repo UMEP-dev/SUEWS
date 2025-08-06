@@ -2024,7 +2024,7 @@
         "optional": false,
         "param": {
             "max": 60,
-            "min": 0.0001
+            "min": 0.01
         },
         "unit": "m s-1"
     },

@@ -1,4 +1,5 @@
 # Feature: [Feature Name]
+<!-- This template is for SIMPLE features. For complex features requiring detailed specs, create a directory instead. -->
 
 ## Lead Developer
 - **GitHub**: @[username]

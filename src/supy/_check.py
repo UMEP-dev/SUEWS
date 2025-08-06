@@ -62,11 +62,17 @@ def check_range(ser_to_check: pd.Series, rule_var: dict) -> Tuple:
         is_accepted_flag = False
         ind = ser_flag.index[ser_flag]
         ind = [ser_flag.index.get_loc(x) for x in ind]
-        description = f"`{var}` should be between [{min_v}, {max_v}] but {n_flag} outliers are found at:\n {ind}"
+        # Special message for wind speed
+        if var == "u":
+            description = f"Wind speed (`U`) must be >= {min_v} m/s to avoid division by zero errors in atmospheric calculations. {n_flag} values below {min_v} m/s found at:\n {ind}"
+            suggestion = f"Set all wind speed values < {min_v} m/s to {min_v} m/s. This is required for numerical stability in SUEWS."
+        else:
+            description = f"`{var}` should be between [{min_v}, {max_v}] but {n_flag} outliers are found at:\n {ind}"
 
     if not is_accepted_flag:
         is_accepted = is_accepted_flag
-        suggestion = "change the parameter to fall into the acceptable range"
+        if var != "u":
+            suggestion = "change the parameter to fall into the acceptable range"
     else:
         is_accepted = is_accepted_flag
         suggestion = ""

@@ -104,6 +104,15 @@ jobs:
             - Coding guidelines: dev-ref/CODING_GUIDELINES.md
             - Testing patterns: dev-ref/testing/
             - Error handling: dev-ref/testing/ERROR_HANDLING_PATTERNS.md
+            
+            DOCUMENTATION REQUIREMENTS:
+            - Check if code changes have corresponding documentation updates in docs/
+            - Verify data model changes are reflected in docs/generate_datamodel_rst.py
+            - Ensure configuration schema changes update docs/gen_schema.py
+            - Check that examples and tutorials are updated for API changes
+            - Flag missing documentation updates as action items
+            - Verify CHANGELOG.md is updated for remarkable changes with appropriate category:
+              [feature], [bugfix], [change], [maintenance], or [doc]
 
           # Direct prompt for automated review (no @claude mention needed)
           direct_prompt: |
@@ -157,6 +166,18 @@ jobs:
             - Evaluate existing test coverage
             - Suggest additional test cases
             - Check for edge cases in tests
+
+            </details>
+
+            <details>
+            <summary>📚 <b>Documentation Updates</b></summary>
+
+            - Check if code changes have corresponding docs/ updates
+            - Verify data model changes update generate_datamodel_rst.py
+            - Ensure configuration changes update gen_schema.py
+            - Review if examples/tutorials reflect API changes
+            - Verify CHANGELOG.md updated for remarkable changes
+            - List any missing documentation updates
 
             </details>
 

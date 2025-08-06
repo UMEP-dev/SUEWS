@@ -32,6 +32,12 @@ import pytz
 from .._env import logger_supy
 import os
 
+try:
+    from importlib.resources import files
+except ImportError:
+    # backport for python < 3.9
+    from importlib_resources import files
+
 
 def get_value_safe(param_dict, param_key, default=None):
     """Safely extract value from RefValue or plain format.
@@ -300,61 +306,38 @@ def get_mean_monthly_air_temperature(
     if lon is not None and not (-180 <= lon <= 180):
         raise ValueError(f"Longitude must be between -180 and 180, got {lon}")
 
-    # Find CRU data file - try multiple locations
-    current_dir = Path(__file__).parent
-    potential_paths = [
-        # First try Parquet format (preferred for production)
-        current_dir / "database" / "CRU_TS4.06_1991_2020.parquet",
-        # Fallback to CSV if Parquet not found
-        current_dir / "database" / "CRU_TS4.06_cell_monthly_normals_1991_2020.csv",
-        # Development/testing locations
-        current_dir.parent.parent.parent
-        / "src"
-        / "supy"
-        / "data_model"
-        / "database"
-        / "CRU_TS4.06_1991_2020.parquet",
-        current_dir.parent.parent.parent
-        / "src"
-        / "supy"
-        / "data_model"
-        / "database"
-        / "CRU_TS4.06_cell_monthly_normals_1991_2020.csv",
-        # Test fixtures (for verification/testing)
-        current_dir.parent.parent.parent
-        / "test"
-        / "fixtures"
-        / "cru_data"
-        / "CRU_TS4.06_cell_monthly_normals_1991_2020.csv",
-        # Relative to current working directory
-        Path("src/supy/data_model/database/CRU_TS4.06_1991_2020.parquet"),
-        Path(
-            "src/supy/data_model/database/CRU_TS4.06_cell_monthly_normals_1991_2020.csv"
-        ),
-        Path("test/fixtures/cru_data/CRU_TS4.06_cell_monthly_normals_1991_2020.csv"),
-    ]
-
-    cru_path = None
-    for path in potential_paths:
-        if path.exists():
-            cru_path = path
-            break
-
-    if cru_path is None:
-        raise FileNotFoundError(
-            "CRU TS4.06 data file not found. Expected locations:\n"
-            + "\n".join(f"  - {path}" for path in potential_paths)
-            + "\n\nPlease ensure the CRU data file is available for temperature calculations."
-        )
-
-    # Load CRU data (supports both Parquet and CSV)
+    # Load CRU data from package resources using importlib.resources
     try:
-        if cru_path.suffix == ".parquet":
-            df = pd.read_parquet(cru_path)
-        else:
-            df = pd.read_csv(cru_path)
+        # Access the Parquet file in the ext_data directory
+        cru_resource = files("supy.ext_data").joinpath(
+            "CRU_TS4.06_1991_2020.parquet"
+        )
+        
+        # Read the Parquet file - this works even when package is installed
+        with cru_resource.open("rb") as f:
+            df = pd.read_parquet(f)
+            
     except Exception as e:
-        raise ValueError(f"Error reading CRU data file {cru_path}: {e}")
+        # Fallback for development/testing when running from source
+        dev_paths = [
+            Path("src/supy/ext_data/CRU_TS4.06_1991_2020.parquet"),
+            Path("test/fixtures/cru_data/CRU_TS4.06_cell_monthly_normals_1991_2020.csv"),
+        ]
+        
+        df = None
+        for path in dev_paths:
+            if path.exists():
+                if path.suffix == ".parquet":
+                    df = pd.read_parquet(path)
+                else:
+                    df = pd.read_csv(path)
+                break
+        
+        if df is None:
+            raise FileNotFoundError(
+                f"Unable to load CRU data. Package resource error: {e}\n"
+                "Please ensure the CRU data file is available in the package."
+            )
 
     # Validate required columns
     required_cols = ["Month", "Latitude", "Longitude", "NormalTemperature"]

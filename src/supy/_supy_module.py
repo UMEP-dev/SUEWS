@@ -341,7 +341,7 @@ def load_sample_data() -> Tuple[pandas.DataFrame, pandas.DataFrame]:
 
     """
 
-    trv_sample_data = trv_supy_module / "sample_run"
+    trv_sample_data = trv_supy_module / "sample_data"
     path_config_default = trv_sample_data / "sample_config.yml"
     # path_config_default = trv_sample_data / "RunControl.nml" # TODO: to be deprecated - but keep for now to pass tests
     df_state_init = init_supy(path_config_default, force_reload=False)

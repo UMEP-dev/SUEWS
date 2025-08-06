@@ -439,7 +439,7 @@ class TestSampleOutput(TestCase):
 
         import supy as sp
 
-        trv_sample_data = Path(sp.__file__).parent / "sample_run"
+        trv_sample_data = Path(sp.__file__).parent / "sample_data"
         path_config_default = trv_sample_data / "sample_config.yml"
 
         # Force reload to clear any cached state

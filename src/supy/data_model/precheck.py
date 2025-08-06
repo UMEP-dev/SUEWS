@@ -265,7 +265,7 @@ def save_precheck_diff_report(diffs: List[dict], original_yaml_path: str):
 
 
 def get_mean_monthly_air_temperature(
-    lat: float, month: int, lon: float = None, spatial_res: float = 0.5
+    lat: float, month: int, lon: float, spatial_res: float = 0.5
 ) -> float:
     """
     Calculate mean monthly air temperature using CRU TS4.06 climatological data.
@@ -277,11 +277,11 @@ def get_mean_monthly_air_temperature(
     Args:
         lat (float): Site latitude in degrees (positive for Northern Hemisphere, negative for Southern).
         month (int): Month of the year (1 = January, 12 = December).
-        lon (float, optional): Site longitude in degrees. If provided, improves accuracy of CRU data matching.
-        spatial resolution (float): Search spatial resolution for finding nearest CRU grid cell (degrees). Default 0.5.
+        lon (float): Site longitude in degrees (-180 to 180).
+        spatial_res (float): Search spatial resolution for finding nearest CRU grid cell (degrees). Default 0.5.
 
     Returns:
-        float: Mean monthly air temperature for the given latitude and month (°C).
+        float: Mean monthly air temperature for the given location and month (°C).
 
     Raises:
         ValueError: If the input month is not between 1 and 12, coordinates are invalid,
@@ -297,7 +297,7 @@ def get_mean_monthly_air_temperature(
         raise ValueError(f"Month must be between 1 and 12, got {month}")
     if not (-90 <= lat <= 90):
         raise ValueError(f"Latitude must be between -90 and 90, got {lat}")
-    if lon is not None and not (-180 <= lon <= 180):
+    if not (-180 <= lon <= 180):
         raise ValueError(f"Longitude must be between -180 and 180, got {lon}")
 
     # Load CRU data from package resources using importlib.resources
@@ -325,64 +325,40 @@ def get_mean_monthly_air_temperature(
     if month_data.empty:
         raise ValueError(f"No CRU data available for month {month}")
 
-    # Find nearest grid cell using both lat and lon if available
-    if lon is not None:
-        # Use both latitude and longitude for more precise matching
-        lat_distances = np.abs(month_data["Latitude"] - lat)
-        lon_distances = np.abs(month_data["Longitude"] - lon)
+    # Find nearest grid cell using both lat and lon
+    # Use both latitude and longitude for precise matching
+    lat_distances = np.abs(month_data["Latitude"] - lat)
+    lon_distances = np.abs(month_data["Longitude"] - lon)
 
-        # Find points within spatial_res for both coordinates
-        lat_mask = lat_distances <= spatial_res
-        lon_mask = lon_distances <= spatial_res
+    # Find points within spatial_res for both coordinates
+    lat_mask = lat_distances <= spatial_res
+    lon_mask = lon_distances <= spatial_res
+    nearby_data = month_data[lat_mask & lon_mask]
+
+    if nearby_data.empty:
+        # Try with larger spatial_res
+        spatial_res_expanded = spatial_res * 2
+        lat_mask = lat_distances <= spatial_res_expanded
+        lon_mask = lon_distances <= spatial_res_expanded
         nearby_data = month_data[lat_mask & lon_mask]
 
         if nearby_data.empty:
-            # Try with larger spatial_res
-            spatial_res_expanded = spatial_res * 2
-            lat_mask = lat_distances <= spatial_res_expanded
-            lon_mask = lon_distances <= spatial_res_expanded
-            nearby_data = month_data[lat_mask & lon_mask]
-
-            if nearby_data.empty:
-                raise ValueError(
-                    f"No CRU data found within {spatial_res_expanded}° of coordinates "
-                    f"({lat}, {lon}) for month {month}. Try increasing spatial resolution or "
-                    f"check if coordinates are within CRU data coverage area."
-                )
-
-        # Calculate Euclidean distance for closest point
-        if len(nearby_data) > 1:
-            distances = np.sqrt(
-                lat_distances[nearby_data.index] ** 2
-                + lon_distances[nearby_data.index] ** 2
+            raise ValueError(
+                f"No CRU data found within {spatial_res_expanded}° of coordinates "
+                f"({lat}, {lon}) for month {month}. Try increasing spatial resolution or "
+                f"check if coordinates are within CRU data coverage area."
             )
-            closest_idx = distances.idxmin()
-            temperature = float(month_data.loc[closest_idx, "NormalTemperature"])
-        else:
-            temperature = float(nearby_data.iloc[0]["NormalTemperature"])
+
+    # Calculate Euclidean distance for closest point
+    if len(nearby_data) > 1:
+        distances = np.sqrt(
+            lat_distances[nearby_data.index] ** 2
+            + lon_distances[nearby_data.index] ** 2
+        )
+        closest_idx = distances.idxmin()
+        temperature = float(month_data.loc[closest_idx, "NormalTemperature"])
     else:
-        # Use only latitude if longitude not provided
-        lat_distances = np.abs(month_data["Latitude"] - lat)
-        nearby_data = month_data[lat_distances <= spatial_res]
-
-        if nearby_data.empty:
-            # Try with larger spatial resolution
-            spatial_res_expanded = spatial_res * 2
-            nearby_data = month_data[lat_distances <= spatial_res_expanded]
-
-            if nearby_data.empty:
-                raise ValueError(
-                    f"No CRU data found within {spatial_res_expanded}° of latitude "
-                    f"{lat} for month {month}. Try increasing spatial resolution or "
-                    f"check if latitude is within CRU data coverage area."
-                )
-
-        # Find the closest point by latitude
-        if len(nearby_data) > 1:
-            closest_idx = lat_distances[nearby_data.index].idxmin()
-            temperature = float(month_data.loc[closest_idx, "NormalTemperature"])
-        else:
-            temperature = float(nearby_data.iloc[0]["NormalTemperature"])
+        temperature = float(nearby_data.iloc[0]["NormalTemperature"])
 
     return temperature
 
@@ -749,13 +725,20 @@ def precheck_update_temperature(data: dict, start_date: str) -> dict:
             )
             continue
 
-        # Get site longitude (optional for better CRU matching)
+        # Get site longitude (required for CRU matching)
         lng_entry = props.get("lng", {})
         lng = lng_entry.get("value") if isinstance(lng_entry, dict) else lng_entry
+        
+        # If longitude is missing, skip this site (should not happen with valid config)
+        if lng is None:
+            logger_supy.warning(
+                f"[site #{site_idx}] Longitude not found in configuration, skipping temperature initialization"
+            )
+            continue
 
         # Get estimated average temperature
         avg_temp = get_mean_monthly_air_temperature(lat, month, lng)
-        coord_info = f"lat={lat}" + (f", lng={lng}" if lng is not None else "")
+        coord_info = f"lat={lat}, lng={lng}"
         logger_supy.info(
             f"[site #{site_idx}] Setting surface temperatures to {avg_temp} °C for month {month} ({coord_info})"
         )

@@ -39,6 +39,7 @@
   - Modified main CI workflow to dynamically adjust build matrix based on draft status
   - Draft PRs: Only test Linux + Python 3.9 and 3.13 (2 configurations)
   - Ready PRs: Full testing across all platforms and Python versions (20 configurations)
+  - Added auto-cancellation of in-progress CI runs when new commits are pushed
   - Provides 10x faster feedback during development while ensuring full coverage when ready
 
 ### 5 Aug 2025

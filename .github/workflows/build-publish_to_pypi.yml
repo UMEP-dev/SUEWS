@@ -108,7 +108,7 @@ jobs:
         gcc --version &&
         pip install delvewheel
       CIBW_REPAIR_WHEEL_COMMAND_WINDOWS: "delvewheel repair -w {dest_dir} {wheel}"
-      CIBW_TEST_REQUIRES: pytest pyarrow
+      CIBW_TEST_REQUIRES: pytest
       CIBW_TEST_COMMAND_MACOS: "python -m pytest '{project}/test'"
       CIBW_TEST_COMMAND_LINUX: "python -m pytest '{project}/test'"
       CIBW_TEST_COMMAND_WINDOWS: "python -m pytest {project}\\test"

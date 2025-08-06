@@ -2117,7 +2117,7 @@ class SUEWSConfig(BaseModel):
 
         if use_conditional_validation:
             logger_supy.info(
-                "Using internal validation only (SUEWSConfig.validate_parameter_completeness)."
+                "Running comprehensive Pydantic validation with conditional checks."
             )
             return cls(**config_data)
         else:

@@ -283,7 +283,7 @@ def validate_model_option_dependencies(yaml_data: dict) -> List[ValidationResult
                 category="MODEL_OPTIONS",
                 parameter="stabilitymethod-rslmethod",
                 message="If stabilitymethod == 1, rslmethod parameter is required for atmospheric stability calculations",
-                suggested_value="Set rslmethod to appropriate value (typically 1 or 2)",
+                suggested_value="Set rslmethod to appropriate value",
             )
         )
 

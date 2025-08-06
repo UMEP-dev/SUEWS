@@ -12,6 +12,7 @@ Usage:
 Examples:
     python master_ABC_run.py my_config.yml                    # A→B workflow (default)
     python master_ABC_run.py my_config.yml --phase C          # Phase C only
+    python master_ABC_run.py my_config.yml --phase BC         # B→C workflow
     python master_ABC_run.py my_config.yml --phase ABC        # Complete A→B→C workflow
 
 The script supports individual phases (A, B, C) or combined workflows (AB, AC, BC, ABC):
@@ -535,6 +536,7 @@ Examples:
   python master_ABC_run.py user.yml                        # Run complete A→B workflow (default, user mode)
   python master_ABC_run.py user.yml --phase A              # Run Phase A only
   python master_ABC_run.py user.yml --phase C              # Run Phase C only (Pydantic validation)
+  python master_ABC_run.py user.yml --phase BC             # Run complete B→C workflow
   python master_ABC_run.py user.yml --phase ABC            # Run complete A→B→C workflow
   python master_ABC_run.py user.yml --mode dev             # Run A→B workflow in dev mode (coming soon)
   python master_ABC_run.py user.yml --phase A --mode user  # Run Phase A in user mode (explicit)
@@ -760,11 +762,62 @@ Modes:
 
             return 0 if workflow_success else 1
 
-        else:
-            # Placeholder for other phase combinations: BC, ABC
+        elif phase == "BC":
+            # Complete B→C workflow (following AC pattern)
+            phase_b_success = run_phase_b(
+                user_yaml_file,
+                user_yaml_file,  # Phase B runs directly on user YAML
+                standard_yaml_file,
+                science_yaml_file,
+                science_report_file,
+                None,  # No Phase A report available
+                phase_a_performed=False,  # B→C workflow mode
+                mode=mode,
+            )
+
+            if not phase_b_success:
+                return 1
+
+            phase_c_success = run_phase_c(
+                science_yaml_file,  # Use Phase B output as input to Phase C
+                pydantic_yaml_file,
+                pydantic_report_file,
+                mode,
+                phase_a_report_file=science_report_file,  # Pass Phase B report for consolidation
+            )
+
+            # Clean up intermediate files when complete workflow succeeds
+            workflow_success = phase_b_success and phase_c_success
+            if workflow_success:
+                try:
+                    if os.path.exists(science_report_file):
+                        os.remove(science_report_file)  # Remove Phase B report
+                    if os.path.exists(science_yaml_file):
+                        os.remove(science_yaml_file)  # Remove Phase B YAML
+                except Exception:
+                    pass  # Don't fail if cleanup doesn't work
+
+                print()
+                print(
+                    f" Ready for SUEWS simulation: {os.path.basename(pydantic_yaml_file)}"
+                )
+                print(f" Report: {os.path.basename(pydantic_report_file)}")
+                print(f" File locations: {dirname}")
+
+            return 0 if workflow_success else 1
+
+        elif phase == "ABC":
+            # Placeholder for ABC workflow (complete A→B→C)
             print(f"✗ Phase combination '{phase}' not yet implemented")
-            print("Available phases: A, B, C, AB, AC")
-            print("Coming soon: BC, ABC workflows")
+            print("Available phases: A, B, C, AB, AC, BC")
+            print("Coming soon: ABC workflows")
+            return 1
+
+        else:
+            # Fallback for unknown phase combinations
+            print(f"✗ Unknown phase combination '{phase}'")
+            print("Available phases: A, B, C, AB, AC, BC")
+            print("Coming soon: ABC workflows")
             return 1
 
     except FileNotFoundError as e:

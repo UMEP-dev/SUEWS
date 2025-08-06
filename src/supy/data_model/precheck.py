@@ -303,13 +303,13 @@ def get_mean_monthly_air_temperature(
     # Load CRU data from package resources using importlib.resources
     # Access the Parquet file in the ext_data directory
     cru_resource = trv_supy_module / "ext_data" / "CRU_TS4.06_1991_2020.parquet"
-    
+
     if not cru_resource.exists():
         raise FileNotFoundError(
             f"CRU data file not found at {cru_resource}. "
             "Please ensure the CRU Parquet file is available in the package."
         )
-    
+
     # Read the Parquet file - this works even when package is installed
     with cru_resource.open("rb") as f:
         df = pd.read_parquet(f)

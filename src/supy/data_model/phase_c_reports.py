@@ -5,44 +5,65 @@ Standalone module for generating Phase C validation reports in ACTION NEEDED for
 This module is separate from core.py to minimize merge conflicts with master branch.
 """
 
+import os
+
 
 def generate_phase_c_report(
-    validation_error: Exception, input_yaml_file: str, output_report_file: str, mode: str = "user"
+    validation_error: Exception, input_yaml_file: str, output_report_file: str, mode: str = "user", phase_a_report_file: str = None
 ) -> None:
     """
-    Generate Phase C validation report in ACTION NEEDED format.
+    Generate Phase C validation report following Phase B consolidation pattern.
 
     Args:
         validation_error: The Pydantic validation exception
         input_yaml_file: Path to input YAML file
         output_report_file: Path for output report file
+        mode: Processing mode ('user' or 'dev')
+        phase_a_report_file: Path to Phase A report file for consolidation (optional)
     """
     report_lines = []
 
-    # Header
+    # Header (matching Phase B format)
     report_lines.append("# SUEWS Phase C (Pydantic Validation) Report")
     report_lines.append("# " + "=" * 50)
     report_lines.append(f"# Mode: {mode.title()}")
     report_lines.append("# " + "=" * 50)
     report_lines.append("")
 
+    # Extract Phase A information if available (following Phase B pattern)
+    phase_a_renames = []
+    phase_a_optional_missing = []
+    phase_a_not_in_standard = []
+
+    if phase_a_report_file and os.path.exists(phase_a_report_file):
+        try:
+            with open(phase_a_report_file, "r") as f:
+                phase_a_content = f.read()
+
+            # Parse Phase A report for relevant information (same logic as Phase B)
+            lines = phase_a_content.split("\n")
+            current_section = None
+
+            for line in lines:
+                line = line.strip()
+                if "Updated (" in line and "renamed parameter" in line:
+                    current_section = "renames"
+                elif "Updated (" in line and "optional missing parameter" in line:
+                    current_section = "optional"
+                elif "parameter(s) not in standard" in line:
+                    current_section = "not_standard"
+                elif line.startswith("--") and current_section == "renames":
+                    phase_a_renames.append(line[2:].strip())
+                elif line.startswith("--") and current_section == "optional":
+                    phase_a_optional_missing.append(line[2:].strip())
+                elif line.startswith("--") and current_section == "not_standard":
+                    phase_a_not_in_standard.append(line[2:].strip())
+        except Exception:
+            # If we can't read Phase A report, continue without it
+            pass
+
     # Parse validation errors from Pydantic ValidationError
     action_needed_items = []
-
-    # Debug: Print validation error details (disabled)
-    # print(f"DEBUG: validation_error type: {type(validation_error)}")
-    # print(f"DEBUG: validation_error has errors attr: {hasattr(validation_error, 'errors')}")
-    # if hasattr(validation_error, 'errors'):
-    #     print(f"DEBUG: validation_error.errors is callable: {callable(validation_error.errors)}")
-    #     if callable(validation_error.errors):
-    #         errors_result = validation_error.errors()
-    #         print(f"DEBUG: validation_error.errors(): {errors_result}")
-    #         print(f"DEBUG: errors() length: {len(errors_result) if errors_result else 'None'}")
-    #     else:
-    #         print(f"DEBUG: validation_error.errors: {validation_error.errors}")
-    #         print(f"DEBUG: validation_error.errors length: {len(validation_error.errors) if validation_error.errors else 'None'}")
-
-    # Improved Pydantic ValidationError detection
     pydantic_errors = None
 
     # Try multiple ways to detect and extract Pydantic errors
@@ -101,7 +122,7 @@ def generate_phase_c_report(
             action_needed_items.append({
                 "field": field_name,
                 "path": field_path,
-                "error": complete_error_msg,  # Use complete Pydantic error message
+                "error": complete_error_msg,
             })
     else:
         # Fallback for non-Pydantic errors
@@ -111,7 +132,7 @@ def generate_phase_c_report(
             "error": str(validation_error),
         })
 
-    # ACTION NEEDED section (critical errors)
+    # ACTION NEEDED section (following Phase B pattern)
     if action_needed_items:
         report_lines.append("## ACTION NEEDED")
         report_lines.append(
@@ -125,13 +146,49 @@ def generate_phase_c_report(
 
         report_lines.append("")
 
-    # Add context information
-    if not action_needed_items:
-        report_lines.append("## NO ACTION NEEDED")
-        report_lines.append("- No validation errors found")
+    # NO ACTION NEEDED section (following Phase B pattern)
+    report_lines.append("## NO ACTION NEEDED")
+
+    # Phase A information (when available) - following Phase B pattern exactly
+    phase_a_items = []
+    if phase_a_renames:
+        phase_a_items.append(
+            f"- Updated ({len(phase_a_renames)}) renamed parameter(s) to current standards:"
+        )
+        for rename in phase_a_renames:
+            phase_a_items.append(f"-- {rename}")
+
+    if phase_a_optional_missing:
+        phase_a_items.append(
+            f"- Updated ({len(phase_a_optional_missing)}) optional missing parameter(s) with null values:"
+        )
+        for param in phase_a_optional_missing:
+            phase_a_items.append(f"-- {param}")
+
+    if phase_a_not_in_standard:
+        phase_a_items.append(
+            f"- Found ({len(phase_a_not_in_standard)}) parameter(s) not in standard:"
+        )
+        for param in phase_a_not_in_standard:
+            phase_a_items.append(f"-- {param}")
+
+    # Add Phase A items if any exist
+    if phase_a_items:
+        report_lines.extend(phase_a_items)
+        # Add spacing before Pydantic validation status
         report_lines.append("")
 
+    # Add Pydantic validation status
+    if not action_needed_items:
+        if not phase_a_items:  # Only show if no Phase A items already shown
+            report_lines.append("- All Pydantic validation checks passed")
+            report_lines.append("- Model physics method compatibility validated")
+            report_lines.append("- Conditional parameter requirements satisfied")
+        else:
+            report_lines.append("- Pydantic validation completed successfully")
+    
     # Footer
+    report_lines.append("")
     report_lines.append("# " + "=" * 50)
 
     # Write report file
@@ -141,7 +198,7 @@ def generate_phase_c_report(
 
 
 def generate_fallback_report(
-    validation_error: Exception, input_yaml_file: str, output_report_file: str, mode: str = "user"
+    validation_error: Exception, input_yaml_file: str, output_report_file: str, mode: str = "user", phase_a_report_file: str = None
 ) -> None:
     """
     Generate a simple fallback report when structured report generation fails.
@@ -150,7 +207,68 @@ def generate_fallback_report(
         validation_error: The validation exception
         input_yaml_file: Path to input YAML file
         output_report_file: Path for output report file
+        mode: Processing mode ('user' or 'dev')
+        phase_a_report_file: Path to Phase A report file for consolidation (optional)
     """
+    # Extract Phase A information if available (same logic as main report)
+    phase_a_renames = []
+    phase_a_optional_missing = []
+    phase_a_not_in_standard = []
+
+    if phase_a_report_file and os.path.exists(phase_a_report_file):
+        try:
+            with open(phase_a_report_file, "r") as f:
+                phase_a_content = f.read()
+
+            # Parse Phase A report for relevant information
+            lines = phase_a_content.split("\n")
+            current_section = None
+
+            for line in lines:
+                line = line.strip()
+                if "Updated (" in line and "renamed parameter" in line:
+                    current_section = "renames"
+                elif "Updated (" in line and "optional missing parameter" in line:
+                    current_section = "optional"
+                elif "parameter(s) not in standard" in line:
+                    current_section = "not_standard"
+                elif line.startswith("--") and current_section == "renames":
+                    phase_a_renames.append(line[2:].strip())
+                elif line.startswith("--") and current_section == "optional":
+                    phase_a_optional_missing.append(line[2:].strip())
+                elif line.startswith("--") and current_section == "not_standard":
+                    phase_a_not_in_standard.append(line[2:].strip())
+        except Exception:
+            pass
+    
+    # Build Phase A consolidation section (following Phase B pattern)
+    phase_a_consolidation = ""
+    phase_a_items = []
+    
+    if phase_a_renames:
+        phase_a_items.append(
+            f"- Updated ({len(phase_a_renames)}) renamed parameter(s) to current standards:"
+        )
+        for rename in phase_a_renames:
+            phase_a_items.append(f"-- {rename}")
+
+    if phase_a_optional_missing:
+        phase_a_items.append(
+            f"- Updated ({len(phase_a_optional_missing)}) optional missing parameter(s) with null values:"
+        )
+        for param in phase_a_optional_missing:
+            phase_a_items.append(f"-- {param}")
+
+    if phase_a_not_in_standard:
+        phase_a_items.append(
+            f"- Found ({len(phase_a_not_in_standard)}) parameter(s) not in standard:"
+        )
+        for param in phase_a_not_in_standard:
+            phase_a_items.append(f"-- {param}")
+    
+    if phase_a_items:
+        phase_a_consolidation = "\n\n## NO ACTION NEEDED\n" + "\n".join(phase_a_items)
+    
     error_report = f"""# SUEWS Phase C (Pydantic Validation) Report  
 # ============================================
 # Mode: {mode.title()}
@@ -160,7 +278,7 @@ def generate_fallback_report(
 - Found (1) critical Pydantic validation error(s):
 -- validation_error: {str(validation_error)}
    Suggested fix: Review and fix validation errors above
-   Location: {input_yaml_file}
+   Location: {input_yaml_file}{phase_a_consolidation}
 
 # ==================================================
 """

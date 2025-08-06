@@ -240,13 +240,10 @@ def run_phase_a(
         with open(report_file, "r") as f:
             report_content = f.read()
 
-        # Phase A should halt workflow if critical parameters are missing
-        if (
-            "ACTION NEEDED" in report_content
-            and "critical missing parameter" in report_content
-        ):
+        # Phase A should halt workflow if there are any ACTION NEEDED items
+        if "## ACTION NEEDED" in report_content:
             print()
-            print("✗ Phase A halted: Critical parameters missing")
+            print("✗ Phase A halted: ACTION NEEDED items must be resolved first")
             print(f"  Fix issues in reportA file: {report_file}")
             print(f"  Then re-run with the updated YAML file")
             return False
@@ -353,6 +350,7 @@ def run_phase_c(
     pydantic_yaml_file: str,
     pydantic_report_file: str,
     mode: str = "user",
+    phase_a_report_file: str = None,
 ) -> bool:
     """
     Execute Phase C: Conditional Pydantic validation based on model physics options.
@@ -389,7 +387,18 @@ def run_phase_c(
 
                 shutil.copy2(input_yaml_file, pydantic_yaml_file)
 
-                # Generate success report
+                # Generate success report with Phase A consolidation if applicable
+                phase_a_info = ""
+                if phase_a_report_file and os.path.exists(phase_a_report_file):
+                    phase_a_info = "\n\n## PHASE A INFORMATION CONSOLIDATED\nSee below for Phase A parameter detection results.\n"
+                    try:
+                        with open(phase_a_report_file, "r") as f:
+                            phase_a_content = f.read()
+                        # Extract sections from Phase A report for consolidation
+                        phase_a_info += f"\n{phase_a_content}"
+                    except Exception:
+                        phase_a_info = ""
+                
                 success_report = f"""# SUEWS Phase C (Pydantic Validation) Report
 # ============================================
 # Mode: {mode.title()}
@@ -407,8 +416,7 @@ Input file: {input_yaml_file}
 Output file: {pydantic_yaml_file}
 Validation result: Pydantic validation completed successfully
 
-No further action required.
-"""
+No further action required.{phase_a_info}"""
 
                 with open(pydantic_report_file, "w") as f:
                     f.write(success_report)
@@ -427,7 +435,7 @@ No further action required.
                     from phase_c_reports import generate_phase_c_report
 
                     generate_phase_c_report(
-                        validation_error, input_yaml_file, pydantic_report_file, mode
+                        validation_error, input_yaml_file, pydantic_report_file, mode, phase_a_report_file
                     )
 
                 except Exception as report_error:
@@ -435,7 +443,7 @@ No further action required.
                     from phase_c_reports import generate_fallback_report
 
                     generate_fallback_report(
-                        validation_error, input_yaml_file, pydantic_report_file, mode
+                        validation_error, input_yaml_file, pydantic_report_file, mode, phase_a_report_file
                     )
 
                 print("✗ Phase C failed - Pydantic validation errors detected")
@@ -715,11 +723,48 @@ Modes:
 
             return 0 if workflow_success else 1
 
+        elif phase == "AC":
+            # Complete A→C workflow (similar to AB)
+            phase_a_success = run_phase_a(
+                user_yaml_file, standard_yaml_file, uptodate_file, report_file, mode
+            )
+
+            if not phase_a_success:
+                return 1
+
+            phase_c_success = run_phase_c(
+                uptodate_file,  # Use Phase A output as input to Phase C
+                pydantic_yaml_file,
+                pydantic_report_file,
+                mode,
+                phase_a_report_file=report_file,  # Pass Phase A report for consolidation
+            )
+
+            # Clean up intermediate files when complete workflow succeeds
+            workflow_success = phase_a_success and phase_c_success
+            if workflow_success:
+                try:
+                    if os.path.exists(report_file):
+                        os.remove(report_file)  # Remove Phase A report
+                    if os.path.exists(uptodate_file):
+                        os.remove(uptodate_file)  # Remove Phase A YAML
+                except Exception:
+                    pass  # Don't fail if cleanup doesn't work
+
+                print()
+                print(
+                    f" Ready for SUEWS simulation: {os.path.basename(pydantic_yaml_file)}"
+                )
+                print(f" Report: {os.path.basename(pydantic_report_file)}")
+                print(f" File locations: {dirname}")
+
+            return 0 if workflow_success else 1
+
         else:
-            # Placeholder for other phase combinations: AC, BC, ABC
+            # Placeholder for other phase combinations: BC, ABC
             print(f"✗ Phase combination '{phase}' not yet implemented")
-            print("Available phases: A, B, C, AB")
-            print("Coming soon: AC, BC, ABC workflows")
+            print("Available phases: A, B, C, AB, AC")
+            print("Coming soon: BC, ABC workflows")
             return 1
 
     except FileNotFoundError as e:

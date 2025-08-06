@@ -6,6 +6,7 @@ from typing import Any, Dict
 
 class EmissionsMethod(Enum):
     """Method for calculating anthropogenic heat flux (QF)."""
+
     NO_EMISSIONS = 0
     L11 = 1
     J11 = 2
@@ -14,6 +15,7 @@ class EmissionsMethod(Enum):
 
 class NetRadiationMethod(Enum):
     """Method for calculating net all-wave radiation (Q*)."""
+
     OBSERVED = 0
     LDOWN_OBSERVED = 1
     LDOWN_CLOUD = 2
@@ -22,6 +24,7 @@ class NetRadiationMethod(Enum):
 
 class StorageHeatMethod(Enum):
     """Method for calculating storage heat flux (ΔQS)."""
+
     OBSERVED = 0
     OHM_WITHOUT_QF = 1
     OHM_WITH_QF = 2
@@ -30,12 +33,14 @@ class StorageHeatMethod(Enum):
 
 class OhmIncQF(Enum):
     """Whether to include QF in OHM calculations."""
+
     EXCLUDE_QF = 0
     INCLUDE_QF = 1
 
 
 class StabilityMethod(Enum):
     """Atmospheric stability calculation method."""
+
     NEUTRAL = 0
     BUSINGER_DYER = 1
     SG2000 = 2
@@ -43,24 +48,28 @@ class StabilityMethod(Enum):
 
 class RoughnessMethod(Enum):
     """Roughness length calculation method."""
+
     FIXED = 0
     VARIABLE = 1
 
 
 class FAIMethod(Enum):
     """Frontal area index method."""
+
     FIXED = 0
     VARIABLE = 1
 
 
 class StebbsMethod(Enum):
     """Stebbs method for radiation."""
+
     FIXED = 0
     VARIABLE = 1
 
 
 class SnowUse(Enum):
     """Whether to use snow module."""
+
     NO = 0
     YES = 1
 
@@ -68,18 +77,21 @@ class SnowUse(Enum):
 # Placeholder classes for newer methods
 class RSLMethod(Enum):
     """Roughness sublayer method."""
+
     NONE = 0
     VARIABLE = 1
 
 
 class RSLLevel(Enum):
     """RSL reference level."""
+
     Z = 0
     ZD = 1
 
 
 class GSModel(Enum):
     """Surface conductance model."""
+
     J11 = 0
     W16 = 1
 
@@ -87,16 +99,16 @@ class GSModel(Enum):
 # Mock SUEWSConfig for basic validation
 class SUEWSConfig:
     """Minimal SUEWS configuration model."""
-    
+
     def __init__(self, **kwargs):
         self.data = kwargs
         self._validate()
-    
+
     @classmethod
     def model_validate(cls, data: Dict[str, Any], context: Dict[str, Any] = None):
         """Mimic pydantic's model_validate."""
         return cls(**data)
-    
+
     def _validate(self):
         """Basic validation logic."""
         # Check required sections
@@ -104,7 +116,7 @@ class SUEWSConfig:
         for section in required:
             if section not in self.data:
                 raise ValueError(f"Missing required section: {section}")
-        
+
         # Check surface fractions
         if "grid" in self.data:
             grid = self.data["grid"]

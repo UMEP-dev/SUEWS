@@ -30,11 +30,11 @@ try:
         class RSLMethod:
             NONE = 0
             VARIABLE = 1
-        
+
         class RSLLevel:
             Z = 0
             ZD = 1
-        
+
         class GSModel:
             J11 = 0
             W16 = 1
@@ -45,9 +45,7 @@ try:
     except ImportError:
         ValidationController = None
 except ImportError as e:
-    raise ImportError(
-        f"Failed to import SUEWS data models. Ensure SuPy is properly installed: {e}"
-    )
+    raise ImportError(f"Failed to import SUEWS data models. Ensure SuPy is properly installed: {e}")
 
 
 class SUEWSBridge:

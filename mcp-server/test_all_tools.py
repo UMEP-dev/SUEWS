@@ -10,7 +10,7 @@ from mcp.client.stdio import stdio_client
 
 async def test_all_tools():
     """Test all available SUEWS MCP tools."""
-    
+
     # Create test files
     test_config = Path("test_config.yml")
     test_config.write_text("""
@@ -36,42 +36,41 @@ runcontrol:
 initial_conditions:
   soil_moisture: 0.5
 """)
-    
+
     # Set up server parameters
-    server_params = StdioServerParameters(
-        command="python",
-        args=["run_server.py"],
-        env={}
-    )
-    
+    server_params = StdioServerParameters(command="python", args=["run_server.py"], env={})
+
     try:
         async with stdio_client(server_params) as (read, write):
             async with ClientSession(read, write) as session:
                 await session.initialize()
                 print("✓ Connected to SUEWS MCP server\n")
-                
+
                 # Test 1: validate_suews_config
                 print("1. Testing validate_suews_config:")
                 try:
                     result = await session.call_tool(
                         "validate_suews_config",
-                        arguments={"config_path": str(test_config), "strict": False}
+                        arguments={"config_path": str(test_config), "strict": False},
                     )
                     print(f"   ✓ Validation result: {result.content[0].text[:100]}...")
                 except Exception as e:
                     print(f"   ✗ Error: {e}")
-                
+
                 # Test 2: explain_suews_parameter
                 print("\n2. Testing explain_suews_parameter:")
                 try:
                     result = await session.call_tool(
                         "explain_suews_parameter",
-                        arguments={"parameter_name": "albedo_deciduous_summer", "include_examples": True}
+                        arguments={
+                            "parameter_name": "albedo_deciduous_summer",
+                            "include_examples": True,
+                        },
                     )
                     print(f"   ✓ Explanation: {result.content[0].text[:100]}...")
                 except Exception as e:
                     print(f"   ✗ Error: {e}")
-                
+
                 # Test 3: generate_suews_template
                 print("\n3. Testing generate_suews_template:")
                 try:
@@ -80,13 +79,13 @@ initial_conditions:
                         arguments={
                             "site_type": "city_centre",
                             "research_focus": "heat_island",
-                            "include_comments": True
-                        }
+                            "include_comments": True,
+                        },
                     )
                     print(f"   ✓ Generated template: {len(result.content[0].text)} characters")
                 except Exception as e:
                     print(f"   ✗ Error: {e}")
-                
+
                 # Test 4: check_suews_physics_compatibility
                 print("\n4. Testing check_suews_physics_compatibility:")
                 try:
@@ -96,14 +95,14 @@ initial_conditions:
                             "methods": {
                                 "NetRadiationMethod": "LDOWN_AIR",
                                 "EmissionsMethod": "J19",
-                                "StorageHeatMethod": "OHM_WITH_QF"
+                                "StorageHeatMethod": "OHM_WITH_QF",
                             }
-                        }
+                        },
                     )
                     print(f"   ✓ Compatibility check: {result.content[0].text[:100]}...")
                 except Exception as e:
                     print(f"   ✗ Error: {e}")
-                
+
                 # Test 5: suggest_suews_parameters
                 print("\n5. Testing suggest_suews_parameters:")
                 try:
@@ -112,19 +111,20 @@ initial_conditions:
                         arguments={
                             "partial_config": str(test_config),
                             "context": "suburban",
-                            "climate_zone": "temperate"
-                        }
+                            "climate_zone": "temperate",
+                        },
                     )
                     print(f"   ✓ Suggestions: {result.content[0].text[:100]}...")
                 except Exception as e:
                     print(f"   ✗ Error: {e}")
-                
+
                 # Summary
                 print("\n✓ All basic tool tests completed!")
-                
+
     except Exception as e:
         print(f"\n❌ Server Error: {type(e).__name__}: {e}")
         import traceback
+
         traceback.print_exc()
     finally:
         # Clean up test files

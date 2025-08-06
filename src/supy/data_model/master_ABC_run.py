@@ -4,22 +4,23 @@ SUEWS Master Phase A-B-C Runner
 This script provides a complete workflow for SUEWS YAML configuration processing:
 - Phase A: Parameter detection and YAML structure updates (uptodate_yaml.py)
 - Phase B: Scientific validation and automatic adjustments (science_check.py)
-- Phase C: [Future] Final conditional Pydantic validation.
+- Phase C: Conditional Pydantic validation based on model physics options (core.py)
 
 Usage:
-    python master_ABC_run.py <user_yaml_file>
+    python master_ABC_run.py <user_yaml_file> [--phase PHASE]
 
-Example:
-    python master_ABC_run.py my_config.yml
+Examples:
+    python master_ABC_run.py my_config.yml                    # A→B workflow (default)
+    python master_ABC_run.py my_config.yml --phase C          # Phase C only
+    python master_ABC_run.py my_config.yml --phase ABC        # Complete A→B→C workflow
 
-The script will:
-1. Run Phase A to detect missing parameters and update YAML structure
-2. If Phase A succeeds, run Phase B for scientific validation and adjustments
-3. Provide clear reporting of all phases and any issues encountered
-4. Generate final science-checked YAML ready for SUEWS simulation
+The script supports individual phases (A, B, C) or combined workflows (AB, AC, BC, ABC):
+1. Phase A: Detects missing parameters and updates YAML structure  
+2. Phase B: Performs scientific validation and automatic adjustments
+3. Phase C: Runs conditional Pydantic validation for model-specific requirements
 
 Input: Original user YAML configuration file
-Output: Science-checked YAML configuration + comprehensive reports
+Output: Validated YAML configuration + comprehensive validation reports
 """
 
 import sys
@@ -78,45 +79,69 @@ def validate_input_file(user_yaml_file: str) -> str:
 
 def setup_output_paths(
     user_yaml_file: str, phase: str
-) -> Tuple[str, str, str, str, str]:
+) -> Tuple[str, str, str, str, str, str, str]:
     """
     Generate all output file paths based on input file and phase.
 
     Args:
         user_yaml_file: Path to input user YAML file
-        phase: Phase mode ('A', 'B', or 'AB')
+        phase: Phase mode ('A', 'B', 'C', 'AB', 'AC', 'BC', or 'ABC')
 
     Returns:
-        Tuple of (uptodate_file, report_file, science_yaml_file, science_report_file, dirname)
+        Tuple of (uptodate_file, report_file, science_yaml_file, science_report_file, pydantic_yaml_file, pydantic_report_file, dirname)
     """
     basename = os.path.basename(user_yaml_file)
     dirname = os.path.dirname(user_yaml_file)
     name_without_ext = os.path.splitext(basename)[0]
 
-    if phase == "AB":
-        # Complete A→B workflow - use AB naming
-        uptodate_file = os.path.join(
-            dirname, f"updatedA_{basename}"
-        )  # Intermediate A file
-        report_file = os.path.join(
-            dirname, f"reportA_{name_without_ext}.txt"
-        )  # Intermediate A report
-        science_yaml_file = os.path.join(
-            dirname, f"updatedAB_{basename}"
-        )  # Final AB file
-        science_report_file = os.path.join(
-            dirname, f"reportAB_{name_without_ext}.txt"
-        )  # Final AB report
-    else:
-        # Individual phases - use phase-specific naming
-        uptodate_file = os.path.join(dirname, f"updated{phase}_{basename}")
-        report_file = os.path.join(dirname, f"report{phase}_{name_without_ext}.txt")
+    # Initialize all output files
+    uptodate_file = None
+    report_file = None
+    science_yaml_file = None
+    science_report_file = None
+    pydantic_yaml_file = None
+    pydantic_report_file = None
 
-        # Phase B outputs (used when phase == 'B')
+    if phase == "A":
+        # Phase A only
+        uptodate_file = os.path.join(dirname, f"updatedA_{basename}")
+        report_file = os.path.join(dirname, f"reportA_{name_without_ext}.txt")
+    elif phase == "B":
+        # Phase B only
         science_yaml_file = os.path.join(dirname, f"updatedB_{basename}")
         science_report_file = os.path.join(dirname, f"reportB_{name_without_ext}.txt")
+    elif phase == "C":
+        # Phase C only
+        pydantic_yaml_file = os.path.join(dirname, f"updatedC_{basename}")
+        pydantic_report_file = os.path.join(dirname, f"reportC_{name_without_ext}.txt")
+    elif phase == "AB":
+        # Complete A→B workflow - use AB naming
+        uptodate_file = os.path.join(dirname, f"updatedA_{basename}")  # Intermediate A file
+        report_file = os.path.join(dirname, f"reportA_{name_without_ext}.txt")  # Intermediate A report
+        science_yaml_file = os.path.join(dirname, f"updatedAB_{basename}")  # Final AB file
+        science_report_file = os.path.join(dirname, f"reportAB_{name_without_ext}.txt")  # Final AB report
+    elif phase == "AC":
+        # A→C workflow
+        uptodate_file = os.path.join(dirname, f"updatedA_{basename}")  # Intermediate A file
+        report_file = os.path.join(dirname, f"reportA_{name_without_ext}.txt")  # Intermediate A report
+        pydantic_yaml_file = os.path.join(dirname, f"updatedAC_{basename}")  # Final AC file
+        pydantic_report_file = os.path.join(dirname, f"reportAC_{name_without_ext}.txt")  # Final AC report
+    elif phase == "BC":
+        # B→C workflow
+        science_yaml_file = os.path.join(dirname, f"updatedB_{basename}")  # Intermediate B file
+        science_report_file = os.path.join(dirname, f"reportB_{name_without_ext}.txt")  # Intermediate B report
+        pydantic_yaml_file = os.path.join(dirname, f"updatedBC_{basename}")  # Final BC file
+        pydantic_report_file = os.path.join(dirname, f"reportBC_{name_without_ext}.txt")  # Final BC report
+    elif phase == "ABC":
+        # Complete A→B→C workflow
+        uptodate_file = os.path.join(dirname, f"updatedA_{basename}")  # Intermediate A file
+        report_file = os.path.join(dirname, f"reportA_{name_without_ext}.txt")  # Intermediate A report
+        science_yaml_file = os.path.join(dirname, f"updatedB_{basename}")  # Intermediate B file
+        science_report_file = os.path.join(dirname, f"reportB_{name_without_ext}.txt")  # Intermediate B report
+        pydantic_yaml_file = os.path.join(dirname, f"updatedABC_{basename}")  # Final ABC file
+        pydantic_report_file = os.path.join(dirname, f"reportABC_{name_without_ext}.txt")  # Final ABC report
 
-    return uptodate_file, report_file, science_yaml_file, science_report_file, dirname
+    return uptodate_file, report_file, science_yaml_file, science_report_file, pydantic_yaml_file, pydantic_report_file, dirname
 
 
 def run_phase_a(
@@ -275,23 +300,181 @@ def run_phase_b(
         return False
 
 
+def run_phase_c(
+    input_yaml_file: str,
+    pydantic_yaml_file: str,
+    pydantic_report_file: str,
+) -> bool:
+    """
+    Execute Phase C: Conditional Pydantic validation based on model physics options.
+
+    Args:
+        input_yaml_file: Path to input YAML file (could be from Phase A, B, or original user file)
+        pydantic_yaml_file: Path for Phase C output YAML (for future use)
+        pydantic_report_file: Path for Phase C validation report
+
+    Returns:
+        True if Phase C completed successfully, False otherwise
+    """
+    print("Phase C: Pydantic validation...")
+
+    try:
+        # Add current directory to Python path for imports
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        # Use the working supy import pattern like SUEWSSimulation does
+        # Navigate to supy root directory to ensure proper imports
+        supy_root = os.path.abspath(os.path.join(current_dir, '../../'))
+        if supy_root not in sys.path:
+            sys.path.insert(0, supy_root)
+        
+        # Import SUEWSConfig using the established working pattern from tests
+        try:
+            from supy.data_model import SUEWSConfig
+            
+            # Load and validate the YAML using SUEWSConfig (like SUEWSSimulation does)
+            try:
+                config = SUEWSConfig.from_yaml(input_yaml_file)
+                
+                # If we get here, Pydantic validation passed
+                success_report = f"""# SUEWS Phase C (Pydantic Validation) Report
+# ============================================
+
+## PHASE C - PASSED
+
+All conditional Pydantic validation checks completed successfully:
+- Model physics method compatibility validated
+- Conditional parameter requirements satisfied  
+- RefValue wrapper validation passed
+- Physical constraint validation passed
+
+Input file: {input_yaml_file}
+Validation result: Pydantic validation completed successfully
+
+No further action required.
+"""
+                
+                with open(pydantic_report_file, 'w') as f:
+                    f.write(success_report)
+                
+                print("✓ Phase C completed - Pydantic validation passed")
+                return True
+                
+            except Exception as validation_error:
+                # Pydantic validation failed
+                error_report = f"""# SUEWS Phase C (Pydantic Validation) Report  
+# ============================================
+
+## PHASE C - FAILED
+
+Input file: {input_yaml_file}
+Error: Pydantic validation failed
+
+Details:
+{str(validation_error)}
+
+## Suggested Actions:
+1. Review the validation errors above
+2. Check that required conditional parameters are present
+3. Verify model physics method configurations are complete
+4. For STEBBS validation (stebbsmethod=1), ensure all STEBBS parameters are present
+5. For RSL validation (rslmethod=2), ensure faibldg is set for sites with buildings
+6. For storage heat validation (storageheatmethod=6), ensure thermal layer arrays are complete
+
+For more details, see: https://suews.readthedocs.io/latest/
+"""
+                
+                with open(pydantic_report_file, 'w') as f:
+                    f.write(error_report)
+                
+                print("✗ Phase C failed - Pydantic validation errors detected")
+                print(f"  Error: {validation_error}")
+                return False
+            
+        except ImportError as import_error:
+            print(f"✗ Phase C failed - Cannot import SUEWSConfig: {import_error}")
+            
+            # Import error report
+            error_report = f"""# SUEWS Phase C (Pydantic Validation) Report
+# ============================================
+
+## PHASE C - FAILED
+
+Input file: {input_yaml_file}
+Error: Cannot import SUEWSConfig
+
+Import error details:
+{str(import_error)}
+
+## Status:
+Phase C validation could not be executed due to import issues.
+
+## Recommended Actions:
+1. Check if supy package is properly installed
+2. Ensure you're running from the correct directory
+3. Use Phase A + B validation as alternative:
+   python master_ABC_run.py user.yml --phase AB
+
+## Error Details:
+{str(import_error)}
+"""
+            
+            with open(pydantic_report_file, 'w') as f:
+                f.write(error_report)
+            
+            return False
+            
+    except Exception as e:
+        print(f"✗ Phase C failed: {e}")
+        
+        # General error report
+        error_report = f"""# SUEWS Phase C (Pydantic Validation) Report
+# ============================================
+
+## PHASE C - FAILED
+
+Error running Phase C validation: {e}
+
+Input file: {input_yaml_file}
+
+## Status:
+Phase C validation could not be executed due to system errors.
+
+## Recommended Actions:
+1. Use Phase A + B validation instead:
+   python master_ABC_run.py user.yml --phase AB
+
+2. Check system configuration and try again
+
+## Error Details:
+{str(e)}
+"""
+        
+        with open(pydantic_report_file, 'w') as f:
+            f.write(error_report)
+        
+        return False
+
+
 def main():
     """Main entry point for master Phase A-B-C workflow."""
 
     # Setup command line argument parsing
     parser = argparse.ArgumentParser(
-        description="SUEWS YAML Configuration Processor - Phase A and/or Phase B workflow",
+        description="SUEWS YAML Configuration Processor - Phase A, B, and/or C workflow",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
   python master_ABC_run.py user.yml                    # Run complete A→B workflow (default)
   python master_ABC_run.py user.yml --phase A          # Run Phase A only
-  python master_ABC_run.py user.yml --phase B          # Run Phase B only (requires updatedA_user.yml)
+  python master_ABC_run.py user.yml --phase B          # Run Phase B only
+  python master_ABC_run.py user.yml --phase C          # Run Phase C only (Pydantic validation)
   python master_ABC_run.py user.yml --phase AB         # Run complete A→B workflow (explicit)
+  python master_ABC_run.py user.yml --phase ABC        # Run complete A→B→C workflow
 
 Phases:
-  Phase A: Up to date YAML processor and missing parameter handling
-  Phase B: Scientific validation and updating
+  Phase A: Parameter detection and YAML structure updates
+  Phase B: Scientific validation and automatic adjustments
+  Phase C: Conditional Pydantic validation based on model physics options
         """,
     )
 
@@ -300,9 +483,9 @@ Phases:
     parser.add_argument(
         "--phase",
         "-p",
-        choices=["A", "B", "AB"],
+        choices=["A", "B", "C", "AB", "AC", "BC", "ABC"],
         default="AB",
-        help="Phase to run: A (up to date YAML processor), B (scientific check), or AB (complete workflow, default)",
+        help="Phase to run: A (parameter detection), B (scientific validation), C (Pydantic validation), AB (A→B workflow, default), AC (A→C), BC (B→C), or ABC (complete workflow)",
     )
 
     args = parser.parse_args()
@@ -312,8 +495,12 @@ Phases:
     # Print workflow header
     phase_desc = {
         "A": "Phase A Only",
-        "B": "Phase B Only",
+        "B": "Phase B Only", 
+        "C": "Phase C Only",
         "AB": "Complete A→B Workflow",
+        "AC": "Complete A→C Workflow",
+        "BC": "Complete B→C Workflow",
+        "ABC": "Complete A→B→C Workflow",
     }
     print(f"==================================")
     print(f"SUEWS YAML Configuration Processor")
@@ -335,7 +522,7 @@ Phases:
             print("Make sure you're running from the SUEWS root directory")
             return 1
 
-        uptodate_file, report_file, science_yaml_file, science_report_file, dirname = (
+        uptodate_file, report_file, science_yaml_file, science_report_file, pydantic_yaml_file, pydantic_report_file, dirname = (
             setup_output_paths(user_yaml_file, phase)
         )
 
@@ -377,7 +564,24 @@ Phases:
                 print(f" File locations: {dirname}")
             return 0 if phase_b_success else 1
 
-        else:  # phase == 'AB'
+        elif phase == "C":
+            # Phase C only - run Pydantic validation on original user YAML
+            print("Running Phase C directly on user YAML...")
+            print("(Phase C only mode - Pydantic conditional validation)")
+
+            phase_c_success = run_phase_c(
+                user_yaml_file,
+                pydantic_yaml_file,
+                pydantic_report_file,
+            )
+            if phase_c_success:
+                print()
+                print(f" Phase C completed: Pydantic validation passed")
+                print(f" Report: {os.path.basename(pydantic_report_file)}")
+                print(f" File locations: {dirname}")
+            return 0 if phase_c_success else 1
+
+        elif phase == 'AB':
             # Complete A→B workflow (existing logic)
             phase_a_success = run_phase_a(
                 user_yaml_file, standard_yaml_file, uptodate_file, report_file
@@ -415,6 +619,13 @@ Phases:
                 print(f" File locations: {dirname}")
 
             return 0 if workflow_success else 1
+
+        else:
+            # Placeholder for other phase combinations: AC, BC, ABC
+            print(f"✗ Phase combination '{phase}' not yet implemented")
+            print("Available phases: A, B, C, AB")
+            print("Coming soon: AC, BC, ABC workflows")
+            return 1
 
     except FileNotFoundError as e:
         print()

@@ -44,6 +44,7 @@ dependencies = [
     "timezonefinder==6.5.9",                       # timezone detection from coordinates (pinned due to issue #516)
     "pytz",                                        # timezone handling
     "scikit-learn",                                # OHM coefficient derivation
+    "pyarrow",                                     # Parquet support for CRU data and efficient data storage
 ]
 classifiers = [
     "Programming Language :: Python :: 3 :: Only",
@@ -76,7 +77,6 @@ dev = [
     "pytest",
     "pytest-cov",
     "ruff",
-    "pyarrow",  # Parquet support for pandas (recommended for output format)
     # Personal analysis tools
     "geopandas",
     "jupyter",

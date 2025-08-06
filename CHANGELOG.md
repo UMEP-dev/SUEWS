@@ -21,7 +21,7 @@
 
 | Year | Features | Bugfixes | Changes | Maintenance | Docs | Total |
 |------|----------|----------|---------|-------------|------|-------|
-| 2025 | 27 | 17 | 3 | 29 | 12 | 88 |
+| 2025 | 27 | 17 | 3 | 30 | 12 | 89 |
 | 2024 | 12 | 17 | 1 | 12 | 1 | 43 |
 | 2023 | 11 | 14 | 3 | 9 | 1 | 38 |
 | 2022 | 15 | 18 | 0 | 7 | 0 | 40 |
@@ -37,6 +37,17 @@
 ### 6 Aug 2025
 - [maintenance] Cleaned up problematic commented code in table converter (#581)
   - Removed commented code that had conflicting delimiter settings (quotechar=" " with sep=" ")
+
+- [feature] Added CRU TS4.06 climatological temperature data integration for precheck initialisation
+  - Integrated CRU TS4.06 monthly temperature normals (1991-2020) for automatic temperature initialisation
+  - Added `get_mean_monthly_air_temperature()` function using 0.5° global grid data
+  - Optimised data storage using Parquet format (2.3MB vs 19MB CSV)
+  - Provides location-specific temperature estimates for any global urban site
+  - Includes spatial interpolation for nearest grid cell matching
+  - Added comprehensive test coverage for temperature lookup functionality
+
+- [maintenance] Integrated limited CI testing for draft PRs to speed up development feedback
+  - Modified main CI workflow to dynamically adjust build matrix based on draft status
 
 - [maintenance] Moved legacy configuration files from sample_run to test fixtures
   - **Moved to test/fixtures/legacy_format/** for conversion tool testing:
@@ -80,9 +91,14 @@
   - Default description: "Configuration converted from legacy SUEWS table format"
   - Added to_yaml.py to meson.build for package installation
   - Created test suite using legacy format fixtures
+
 - [bugfix] Fixed STEBBS loading logic in _load.py
   - Fixed incorrect dict access (was using path_runcontrol["fileinputpath"] instead of dict_runconfig["fileinputpath"])
   - Skip STEBBS file loading when stebbsmethod=0 (disabled) to avoid missing test file dependencies
+  - Draft PRs: Only test Linux + Python 3.9 and 3.13 (2 configurations)
+  - Ready PRs: Full testing across all platforms and Python versions (20 configurations)
+  - Added auto-cancellation of in-progress CI runs when new commits are pushed
+  - Provides 10x faster feedback during development while ensuring full coverage when ready
 
 ### 5 Aug 2025
 - [doc] Fixed FAIMethod option descriptions inconsistency ([#578](https://github.com/UMEP-dev/SUEWS/issues/578))

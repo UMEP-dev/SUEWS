@@ -43,8 +43,12 @@ py.install_sources(
             'util/rules.csv',
         ],
         [
-            'sample_run/sample_config.yml',
-            'sample_run/Input/Kc_2012_data_60.txt'
+            'sample_data/sample_config.yml',
+            'sample_data/Kc_2012_data_60.txt'
+        ],
+        [
+            'ext_data/CRU_TS4.06_1991_2020.parquet',
+            'ext_data/README.md'
         ],
         [
             'data_model/__init__.py',
@@ -62,7 +66,10 @@ py.install_sources(
             'data_model/validation_utils.py',
             'data_model/yaml_annotator.py',
             'data_model/yaml_annotator_json.py',
-            'data_model/precheck.py'
+            'data_model/precheck.py',
+        ],
+        [
+            'ext_data/CRU_TS4.06_1991_2020.parquet',
         ],
     ],
     subdir: 'supy',

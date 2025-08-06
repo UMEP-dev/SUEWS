@@ -44,10 +44,10 @@ py.install_sources(
         [
             'sample_data/sample_config.yml',
             'sample_data/RunControl.nml',
+            'sample_data/Kc_2012_data_60.txt',
             'sample_data/Input/ESTMinput.nml',
             'sample_data/Input/GridLayoutKc.nml',
             'sample_data/Input/InitialConditionsKc_2011.nml',
-            'sample_data/Input/Kc_2012_data_60.txt',
             'sample_data/Input/SUEWS_AnthropogenicEmission.txt',
             'sample_data/Input/SUEWS_BiogenCO2.txt',
             'sample_data/Input/SUEWS_Conductance.txt',

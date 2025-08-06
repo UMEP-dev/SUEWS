@@ -18,7 +18,7 @@ class TestCRUDataLoading:
         """Test that the CRU Parquet file exists and is properly formatted."""
         # Use the same method as get_mean_monthly_air_temperature to access the data
         from supy._env import trv_supy_module
-        
+
         cru_resource = trv_supy_module / "ext_data" / "CRU_TS4.06_1991_2020.parquet"
         assert cru_resource.exists(), f"CRU data file not found at {cru_resource}"
 

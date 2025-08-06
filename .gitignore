@@ -599,3 +599,8 @@ worktrees/
 test/precheck_testcase/run_precheck_testcase.py
 test/precheck_testcase/precheck_testcase.py
 src/supy/data_model/avg_temp/cru_ts4.06.1901.2021.tmp.dat.nc.gz
+
+# Test files from CRU data development
+temp_test.feather
+temp_test.npz
+PR561_logic_analysis.md

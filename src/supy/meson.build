@@ -21,6 +21,7 @@ py.install_sources(
             'cmd/__init__.py',
             'cmd/SUEWS.py',
             'cmd/table_converter.py',
+            'cmd/to_yaml.py',
         ],
         [
             'util/_UMEP2epw.py',
@@ -43,28 +44,7 @@ py.install_sources(
         ],
         [
             'sample_run/sample_config.yml',
-            'sample_run/RunControl.nml',
-            'sample_run/Input/ESTMinput.nml',
-            'sample_run/Input/GridLayoutKc.nml',
-            'sample_run/Input/InitialConditionsKc_2011.nml',
-            'sample_run/Input/Kc_2012_data_60.txt',
-            'sample_run/Input/SUEWS_AnthropogenicEmission.txt',
-            'sample_run/Input/SUEWS_BiogenCO2.txt',
-            'sample_run/Input/SUEWS_Conductance.txt',
-            'sample_run/Input/SUEWS_ESTMCoefficients.txt',
-            'sample_run/Input/SUEWS_Irrigation.txt',
-            'sample_run/Input/SUEWS_NonVeg.txt',
-            'sample_run/Input/SUEWS_OHMCoefficients.txt',
-            'sample_run/Input/SUEWS_Profiles.txt',
-            'sample_run/Input/SUEWS_SPARTACUS.nml',
-            'sample_run/Input/SUEWS_SiteSelect.txt',
-            'sample_run/Input/SUEWS_Snow.txt',
-            'sample_run/Input/SUEWS_Soil.txt',
-            'sample_run/Input/SUEWS_Veg.txt',
-            'sample_run/Input/SUEWS_Water.txt',
-            'sample_run/Input/SUEWS_WithinGridWaterDist.txt',
-            'sample_run/Input/test_stebbs_building_typologies.nml',
-            'sample_run/Input/test_stebbs_general_params.nml'
+            'sample_run/Input/Kc_2012_data_60.txt'
         ],
         [
             'data_model/__init__.py',

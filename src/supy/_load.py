@@ -1384,33 +1384,27 @@ def load_SUEWS_dict_ModConfig(path_runcontrol, dict_default=dict_RunControl_defa
 def load_SUEWS_dict_Stebbs(path_runcontrol, dict_runconfig):
     # load STEBBS-specific variables:
     stebbs_dict = {}
+    
+    # Only load STEBBS files if STEBBS is enabled (stebbsmethod == 2)
     if dict_runconfig["stebbsmethod"] == 2:
         path_stebbs_typologies = (
             path_runcontrol.parent
-            / path_runcontrol["fileinputpath"]
+            / dict_runconfig["fileinputpath"]
             / "stebbs_building_typologies.nml"
         )
         path_stebbs_general = (
             path_runcontrol.parent
-            / path_runcontrol["fileinputpath"]
+            / dict_runconfig["fileinputpath"]
             / "stebbs_general_params.nml"
         )
-    else:
-        path_stebbs_typologies = (
-            trv_supy_module
-            / "sample_run"
-            / "Input"
-            / "test_stebbs_building_typologies.nml"
-        )
-        path_stebbs_general = (
-            trv_supy_module / "sample_run" / "Input" / "test_stebbs_general_params.nml"
-        )
+        
+        stebbs_dict_y = {k[0]: v for k, v in load_SUEWS_nml(path_stebbs_typologies).items()}
+        stebbs_dict.update(stebbs_dict_y)
 
-    stebbs_dict_y = {k[0]: v for k, v in load_SUEWS_nml(path_stebbs_typologies).items()}
-    stebbs_dict.update(stebbs_dict_y)
-
-    stebbs_dict_z = {k[0]: v for k, v in load_SUEWS_nml(path_stebbs_general).items()}
-    stebbs_dict.update(stebbs_dict_z)
+        stebbs_dict_z = {k[0]: v for k, v in load_SUEWS_nml(path_stebbs_general).items()}
+        stebbs_dict.update(stebbs_dict_z)
+    # For stebbsmethod == 0 or 1, return empty dict (STEBBS disabled)
+    # Previously this tried to load test files which are now in test fixtures
 
     return stebbs_dict
 
@@ -1634,13 +1628,16 @@ def modify_df_init(df_init, list_var_dim):
                 dict_col_new[(var, ind)] = df_init_mod[val].values.reshape(len_df)
             else:
                 dict_col_new[(var, ind)] = np.repeat(val, len_df)
-    df_col_new = pd.DataFrame(dict_col_new, index=df_init_mod.index)
-
-    # Update column names to match df_init
-    df_col_new.columns.names = df_init.columns.names
-
-    # 2. merge new columns into original dataframe
-    df_init_mod = df_init_mod.merge(df_col_new, left_index=True, right_index=True)
+    
+    # Only proceed if we have new columns to add
+    if dict_col_new:
+        df_col_new = pd.DataFrame(dict_col_new, index=df_init_mod.index)
+        
+        # Update column names to match df_init
+        df_col_new.columns.names = df_init.columns.names
+        
+        # 2. merge new columns into original dataframe
+        df_init_mod = df_init_mod.merge(df_col_new, left_index=True, right_index=True)
 
     return df_init_mod
 

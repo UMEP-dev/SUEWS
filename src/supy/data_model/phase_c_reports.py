@@ -9,7 +9,11 @@ import os
 
 
 def generate_phase_c_report(
-    validation_error: Exception, input_yaml_file: str, output_report_file: str, mode: str = "user", phase_a_report_file: str = None
+    validation_error: Exception,
+    input_yaml_file: str,
+    output_report_file: str,
+    mode: str = "user",
+    phase_a_report_file: str = None,
 ) -> None:
     """
     Generate Phase C validation report following Phase B consolidation pattern.
@@ -217,13 +221,15 @@ def generate_phase_c_report(
 
     # Add Pydantic validation status
     if not action_needed_items:
-        if not previous_phase_items:  # Only show if no previous phase items already shown
+        if (
+            not previous_phase_items
+        ):  # Only show if no previous phase items already shown
             report_lines.append("- All Pydantic validation checks passed")
             report_lines.append("- Model physics method compatibility validated")
             report_lines.append("- Conditional parameter requirements satisfied")
         else:
             report_lines.append("- Pydantic validation completed successfully")
-    
+
     # Footer
     report_lines.append("")
     report_lines.append("# " + "=" * 50)
@@ -235,7 +241,11 @@ def generate_phase_c_report(
 
 
 def generate_fallback_report(
-    validation_error: Exception, input_yaml_file: str, output_report_file: str, mode: str = "user", phase_a_report_file: str = None
+    validation_error: Exception,
+    input_yaml_file: str,
+    output_report_file: str,
+    mode: str = "user",
+    phase_a_report_file: str = None,
 ) -> None:
     """
     Generate a simple fallback report when structured report generation fails.
@@ -305,11 +315,11 @@ def generate_fallback_report(
                         phase_b_science_warnings.append(line[2:].strip())
         except Exception:
             pass
-    
+
     # Build previous phase consolidation section (following Phase B pattern)
     previous_phase_consolidation = ""
     previous_phase_items = []
-    
+
     if phase_a_renames:
         previous_phase_items.append(
             f"- Updated ({len(phase_a_renames)}) renamed parameter(s) to current standards:"
@@ -338,10 +348,12 @@ def generate_fallback_report(
         )
         for warning in phase_b_science_warnings:
             previous_phase_items.append(f"-- {warning}")
-    
+
     if previous_phase_items:
-        previous_phase_consolidation = "\n\n## NO ACTION NEEDED\n" + "\n".join(previous_phase_items)
-    
+        previous_phase_consolidation = "\n\n## NO ACTION NEEDED\n" + "\n".join(
+            previous_phase_items
+        )
+
     error_report = f"""# SUEWS Phase C (Pydantic Validation) Report  
 # ============================================
 # Mode: {mode.title()}

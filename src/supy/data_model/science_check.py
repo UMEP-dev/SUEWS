@@ -1567,7 +1567,11 @@ def run_science_check(
             os.path.basename(science_yaml_file) if science_yaml_file else None
         )
         report_content = create_science_report(
-            validation_results, adjustments, science_yaml_filename, phase_a_report_file, mode
+            validation_results,
+            adjustments,
+            science_yaml_filename,
+            phase_a_report_file,
+            mode,
         )
 
         # Step 6: Write science report (always write)

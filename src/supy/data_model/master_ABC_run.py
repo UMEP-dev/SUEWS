@@ -190,7 +190,11 @@ def setup_output_paths(
 
 
 def run_phase_a(
-    user_yaml_file: str, standard_yaml_file: str, uptodate_file: str, report_file: str, mode: str = "user"
+    user_yaml_file: str,
+    standard_yaml_file: str,
+    uptodate_file: str,
+    report_file: str,
+    mode: str = "user",
 ) -> bool:
     """
     Execute Phase A: Parameter detection and YAML structure updates.
@@ -399,7 +403,7 @@ def run_phase_c(
                         phase_a_info += f"\n{phase_a_content}"
                     except Exception:
                         phase_a_info = ""
-                
+
                 success_report = f"""# SUEWS Phase C (Pydantic Validation) Report
 # ============================================
 # Mode: {mode.title()}
@@ -436,7 +440,11 @@ No further action required.{phase_a_info}"""
                     from phase_c_reports import generate_phase_c_report
 
                     generate_phase_c_report(
-                        validation_error, input_yaml_file, pydantic_report_file, mode, phase_a_report_file
+                        validation_error,
+                        input_yaml_file,
+                        pydantic_report_file,
+                        mode,
+                        phase_a_report_file,
                     )
 
                 except Exception as report_error:
@@ -444,7 +452,11 @@ No further action required.{phase_a_info}"""
                     from phase_c_reports import generate_fallback_report
 
                     generate_fallback_report(
-                        validation_error, input_yaml_file, pydantic_report_file, mode, phase_a_report_file
+                        validation_error,
+                        input_yaml_file,
+                        pydantic_report_file,
+                        mode,
+                        phase_a_report_file,
                     )
 
                 print("✗ Phase C failed - Pydantic validation errors detected")

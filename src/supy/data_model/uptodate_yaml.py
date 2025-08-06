@@ -49,38 +49,38 @@ def is_physics_option(param_path):
 def get_allowed_nested_sections_in_properties():
     """
     Get list of nested sections within SiteProperties that allow extra parameters.
-    
-    This centralizes the configuration to make it easy to extend when new nested 
+
+    This centralizes the configuration to make it easy to extend when new nested
     sections are added to the SiteProperties class in the future.
-    
+
     Returns:
         List of section names that allow extra parameters within SiteProperties
     """
-    return ['stebbs', 'lai', 'irrigation', 'snow']
+    return ["stebbs", "lai", "irrigation", "snow"]
 
 
 def is_path_in_forbidden_location(field_path: str) -> bool:
     """
     Check if a field path corresponds to a Pydantic model location that forbids extra parameters.
-    
+
     Based on analysis of SUEWS data model:
-    - Only SiteProperties class has extra="forbid" (sites[].properties path)  
+    - Only SiteProperties class has extra="forbid" (sites[].properties path)
     - All other classes allow extra parameters by default
     - Within SiteProperties, some nested sections allow extra parameters
-    
+
     Args:
         field_path: Dot-separated field path (e.g., 'sites.0.properties.test')
-        
+
     Returns:
         True if the field is in a location that forbids extra parameters
     """
     # Check if path contains properties under sites
-    if 'properties' in field_path and 'sites' in field_path:
+    if "properties" in field_path and "sites" in field_path:
         # Make sure it's directly under properties, not in a nested allowed section
-        path_parts = field_path.split('.')
-        
+        path_parts = field_path.split(".")
+
         try:
-            properties_index = path_parts.index('properties')
+            properties_index = path_parts.index("properties")
             # If there's another level after properties, check if it's an allowed nested section
             if properties_index + 1 < len(path_parts):
                 next_part = path_parts[properties_index + 1]
@@ -88,36 +88,33 @@ def is_path_in_forbidden_location(field_path: str) -> bool:
                 allowed_nested_sections = get_allowed_nested_sections_in_properties()
                 if next_part in allowed_nested_sections:
                     return False  # This is in an allowed nested section
-            
+
             return True  # This is directly in properties (forbidden)
         except ValueError:
             # No 'properties' in path
             pass
-    
+
     return False
 
 
 def categorize_extra_parameters(extra_params: list) -> dict:
     """
     Categorize extra parameters into ACTION_NEEDED vs NO_ACTION_NEEDED based on their locations.
-    
+
     Args:
         extra_params: List of extra parameter field paths
-        
+
     Returns:
         Dict with 'ACTION_NEEDED' and 'NO_ACTION_NEEDED' lists
     """
-    categorized = {
-        'ACTION_NEEDED': [],
-        'NO_ACTION_NEEDED': []
-    }
-    
+    categorized = {"ACTION_NEEDED": [], "NO_ACTION_NEEDED": []}
+
     for param_path in extra_params:
         if is_path_in_forbidden_location(param_path):
-            categorized['ACTION_NEEDED'].append(param_path)
+            categorized["ACTION_NEEDED"].append(param_path)
         else:
-            categorized['NO_ACTION_NEEDED'].append(param_path)
-    
+            categorized["NO_ACTION_NEEDED"].append(param_path)
+
     return categorized
 
 
@@ -591,7 +588,11 @@ def create_uptodate_yaml_with_missing_params(
 
 
 def create_analysis_report(
-    missing_params, renamed_replacements, extra_params=None, uptodate_filename=None, mode="user"
+    missing_params,
+    renamed_replacements,
+    extra_params=None,
+    uptodate_filename=None,
+    mode="user",
 ):
     """Create analysis report with summary of changes."""
     report_lines = []
@@ -612,16 +613,18 @@ def create_analysis_report(
     forbidden_extras = []
     if extra_count > 0:
         categorized = categorize_extra_parameters(extra_params)
-        forbidden_extras = categorized['ACTION_NEEDED']
-    
+        forbidden_extras = categorized["ACTION_NEEDED"]
+
     total_action_needed = urgent_count + len(forbidden_extras)
-    
+
     if total_action_needed > 0:
         report_lines.append("## ACTION NEEDED")
-        
+
         # Critical missing parameters
         if urgent_count > 0:
-            report_lines.append(f"- Found ({urgent_count}) critical missing parameter(s):")
+            report_lines.append(
+                f"- Found ({urgent_count}) critical missing parameter(s):"
+            )
             for param_path, standard_value, is_physics in missing_params:
                 if is_physics:
                     param_name = param_path.split(".")[-1]
@@ -636,30 +639,42 @@ def create_analysis_report(
                     )
             if forbidden_extras:
                 report_lines.append("")  # Add spacing if both sections present
-        
+
         # Forbidden extra parameters
         if forbidden_extras:
-            report_lines.append(f"- Found ({len(forbidden_extras)}) parameter(s) in forbidden locations:")
+            report_lines.append(
+                f"- Found ({len(forbidden_extras)}) parameter(s) in forbidden locations:"
+            )
             allowed_sections = ", ".join(get_allowed_nested_sections_in_properties())
             for param_path in forbidden_extras:
                 param_name = param_path.split(".")[-1]
                 report_lines.append(f"-- {param_name} at level {param_path}")
-                report_lines.append(f"   Reason: Extra parameters not allowed in SiteProperties")
-                
+                report_lines.append(
+                    f"   Reason: Extra parameters not allowed in SiteProperties"
+                )
+
                 # Add mode-specific messaging
                 if mode.lower() == "user":
-                    report_lines.append(f"   Suggested fix: This param name is not allowed in Phase C and will raise a validation error.")
-                    report_lines.append(f"   You selected --mode user. Consider to either remove these names or switch to --mode dev")
+                    report_lines.append(
+                        f"   Suggested fix: This param name is not allowed in Phase C and will raise a validation error."
+                    )
+                    report_lines.append(
+                        f"   You selected --mode user. Consider to either remove these names or switch to --mode dev"
+                    )
                 else:
-                    report_lines.append(f"   Suggested fix: Remove parameter or move to an allowed nested section ({allowed_sections})")
-        
+                    report_lines.append(
+                        f"   Suggested fix: Remove parameter or move to an allowed nested section ({allowed_sections})"
+                    )
+
         report_lines.append("")
 
     # NO ACTION NEEDED section - optional and informational items
     # Calculate allowed extra parameters (those not in forbidden locations)
     allowed_extras_count = extra_count - len(forbidden_extras) if extra_count > 0 else 0
-    has_no_action_items = optional_count > 0 or allowed_extras_count > 0 or renamed_count > 0
-    
+    has_no_action_items = (
+        optional_count > 0 or allowed_extras_count > 0 or renamed_count > 0
+    )
+
     if has_no_action_items:
         report_lines.append("## NO ACTION NEEDED")
 
@@ -690,9 +705,9 @@ def create_analysis_report(
         if extra_count > 0:
             # Categorize extra parameters by whether they're in forbidden locations
             categorized = categorize_extra_parameters(extra_params)
-            no_action_extras = categorized['NO_ACTION_NEEDED']
-            action_needed_extras = categorized['ACTION_NEEDED']
-            
+            no_action_extras = categorized["NO_ACTION_NEEDED"]
+            action_needed_extras = categorized["ACTION_NEEDED"]
+
             # Show allowed location extra parameters first (NO ACTION NEEDED)
             if no_action_extras:
                 report_lines.append(
@@ -702,7 +717,7 @@ def create_analysis_report(
                     param_name = param_path.split(".")[-1]
                     report_lines.append(f"-- {param_name} at level {param_path}")
                 report_lines.append("")
-            
+
             # Show forbidden location extra parameters as ACTION NEEDED
             # (These will be moved to the ACTION NEEDED section below)
             # We'll handle this below when updating that section

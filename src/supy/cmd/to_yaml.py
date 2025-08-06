@@ -70,10 +70,16 @@ def to_yaml(input_dir: str, output_file: str, from_ver: str):
             raise click.ClickException(f"RunControl.nml not found in {processing_dir}")
 
         click.echo("Step 2: Loading SUEWS input tables into data model...")
-        df_state = load_InitialCond_grid_df(path_runcontrol)
+        try:
+            df_state = load_InitialCond_grid_df(path_runcontrol)
+        except Exception as e:
+            raise click.ClickException(f"Failed to load SUEWS tables: {e}")
 
         click.echo("Step 3: Creating Pydantic configuration object...")
-        config = SUEWSConfig.from_df_state(df_state)
+        try:
+            config = SUEWSConfig.from_df_state(df_state)
+        except Exception as e:
+            raise click.ClickException(f"Failed to create configuration: {e}")
 
         click.echo(f"Step 4: Saving configuration to YAML file: {output_path}...")
         config.to_yaml(output_path)

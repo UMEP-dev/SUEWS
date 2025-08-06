@@ -21,7 +21,7 @@
 
 | Year | Features | Bugfixes | Changes | Maintenance | Docs | Total |
 |------|----------|----------|---------|-------------|------|-------|
-| 2025 | 26 | 13 | 3 | 26 | 12 | 80 |
+| 2025 | 27 | 17 | 3 | 29 | 12 | 88 |
 | 2024 | 12 | 17 | 1 | 12 | 1 | 43 |
 | 2023 | 11 | 14 | 3 | 9 | 1 | 38 |
 | 2022 | 15 | 18 | 0 | 7 | 0 | 40 |
@@ -33,6 +33,53 @@
 
 
 ## 2025
+
+### 6 Aug 2025
+- [maintenance] Moved legacy configuration files from sample_run to test fixtures
+  - **Moved to test/fixtures/legacy_format/** for conversion tool testing:
+    - 14 txt configuration files (SUEWS tables): ~85 KB
+    - 8 namelist (.nml) files: ~9 KB
+    - Total: 22 files, ~94 KB moved out of main package
+  - **Purpose**: These files are now test fixtures for:
+    - `supy-convert` command (table version converter)
+    - `supy-to-yaml` command (legacy to YAML converter)
+  - **Impact**:
+    - Reduces distributed package size by ~94 KB
+    - Maintains backward compatibility testing capability
+    - All runtime configuration now exclusively uses YAML (sample_config.yml)
+    - SPARTACUS, STEBBS, and ESTM configs fully integrated in YAML
+
+- [change] Simplified `suews-convert` command interface with automatic conversion type detection
+  - Automatically determines conversion type based on target version:
+    - Versions before 2025 (e.g., 2024a): Table-to-table conversion
+    - Version 2025a or later: Convert to YAML format
+  - No subcommands needed - single unified interface
+  - Examples:
+    - `suews-convert -f 2020a -t 2024a -i input_dir -o output_dir` (table conversion)
+    - `suews-convert -f 2024a -t 2025a -i input_dir -o config.yml` (YAML conversion)
+  - Added missing cmd/to_yaml.py to meson.build sources (#566, #582)
+
+- [bugfix] Fixed empty list handling in modify_df_init when STEBBS disabled
+  - Prevented DataFrame column name mismatch when no new columns to add
+
+- [bugfix] Fixed missing column handling in from_df_state methods
+  - Added graceful handling of missing columns in legacy format conversion
+  - Affected classes: SiteProperties, ArchetypeProperties, StebbsProperties
+  - Missing columns now use default values from field definitions
+
+- [bugfix] Fixed water surface soilstore validation constraint
+  - Water surfaces can now have soilstore=0 (physically correct)
+  - Override constraint in InitialStateWater class
+
+- [bugfix] Fixed missing config/description columns in legacy conversion
+  - Added default values when converting from legacy format
+  - Default name: "Converted from legacy format"
+  - Default description: "Configuration converted from legacy SUEWS table format"
+  - Added to_yaml.py to meson.build for package installation
+  - Created test suite using legacy format fixtures
+- [bugfix] Fixed STEBBS loading logic in _load.py
+  - Fixed incorrect dict access (was using path_runcontrol["fileinputpath"] instead of dict_runconfig["fileinputpath"])
+  - Skip STEBBS file loading when stebbsmethod=0 (disabled) to avoid missing test file dependencies
 
 ### 5 Aug 2025
 - [doc] Fixed FAIMethod option descriptions inconsistency ([#578](https://github.com/UMEP-dev/SUEWS/issues/578))

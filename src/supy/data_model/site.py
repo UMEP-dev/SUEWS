@@ -1441,12 +1441,22 @@ class ArchetypeProperties(BaseModel):
     @classmethod
     def from_df_state(cls, df: pd.DataFrame, grid_id: int) -> "ArchetypeProperties":
         """Reconstruct ArchetypeProperties from DataFrame state format."""
-        # Extract the values from the DataFrame
-        params = {
-            field_name: df.loc[grid_id, (field_name.lower(), "0")]
-            for field_name in cls.model_fields.keys()
-            if field_name != "ref"
-        }
+        # Extract the values from the DataFrame, using defaults for missing columns
+        params = {}
+        for field_name in cls.model_fields.keys():
+            if field_name == "ref":
+                continue
+
+            col = (field_name.lower(), "0")
+            if col in df.columns:
+                params[field_name] = df.loc[grid_id, col]
+            else:
+                # Use default value from field definition for missing columns
+                field_info = cls.model_fields[field_name]
+                if field_info.default is not None:
+                    params[field_name] = field_info.default
+                elif field_info.default_factory is not None:
+                    params[field_name] = field_info.default_factory()
 
         # Convert params to RefValue
         non_value_with_doi = ["BuildingType", "BuildingName"]
@@ -1949,12 +1959,22 @@ class StebbsProperties(BaseModel):
     @classmethod
     def from_df_state(cls, df: pd.DataFrame, grid_id: int) -> "StebbsProperties":
         """Reconstruct StebbsProperties from DataFrame state format."""
-        # Extract the values from the DataFrame
-        params = {
-            field_name: df.loc[grid_id, (field_name.lower(), "0")]
-            for field_name in cls.model_fields.keys()
-            if field_name != "ref"
-        }
+        # Extract the values from the DataFrame, using defaults for missing columns
+        params = {}
+        for field_name in cls.model_fields.keys():
+            if field_name == "ref":
+                continue
+
+            col = (field_name.lower(), "0")
+            if col in df.columns:
+                params[field_name] = df.loc[grid_id, col]
+            else:
+                # Use default value from field definition for missing columns
+                field_info = cls.model_fields[field_name]
+                if field_info.default is not None:
+                    params[field_name] = field_info.default
+                elif field_info.default_factory is not None:
+                    params[field_name] = field_info.default_factory()
 
         # Convert params to RefValue
         params = {key: RefValue(value) for key, value in params.items()}
@@ -2434,7 +2454,18 @@ class SiteProperties(BaseModel):
             "h_std",
             "lambda_c",
         ]:
-            params[var] = RefValue(df.loc[grid_id, (var, "0")])
+            # Check if column exists in dataframe
+            if (var, "0") in df.columns:
+                params[var] = RefValue(df.loc[grid_id, (var, "0")])
+            else:
+                # Use default value from the field definition if column is missing
+                # This handles backward compatibility with legacy formats
+                field_info = cls.model_fields.get(var)
+                if field_info and field_info.default is not None:
+                    params[var] = field_info.default
+                # lambda_c has a default of 0
+                elif var == "lambda_c":
+                    params[var] = 0
 
         # Extract complex attributes
         params["lumps"] = LUMPSParams.from_df_state(df, grid_id)

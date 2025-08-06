@@ -183,7 +183,7 @@ def add_var(toFile, toVar, toCol, toVal):
         dataX = pd.read_csv(
             toFile,
             header=1,
-            delim_whitespace=True,
+            sep=r"\s+",
             comment="!",
         )
         # construct new column
@@ -205,7 +205,7 @@ def add_var(toFile, toVar, toCol, toVal):
             toFile,
             sep=" ",
             float_format="%10.4f",
-            quotechar=" ",
+            quoting=3,  # QUOTE_NONE
             index=False,
         )
 

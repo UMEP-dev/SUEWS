@@ -82,7 +82,7 @@ class TestSUEWSSimulationRefValue:
         # Get sample forcing file from installed package
         supy_resources = files("supy")
         sample_forcing = (
-            supy_resources / "sample_data" / "Input" / "Kc_2012_data_60.txt"
+            supy_resources / "sample_data" / "Kc_2012_data_60.txt"
         )
         sample_config_resource = supy_resources / "sample_data" / "sample_config.yml"
 
@@ -117,7 +117,7 @@ class TestSUEWSSimulationRefValue:
         # Get sample forcing file from installed package
         supy_resources = files("supy")
         sample_forcing = (
-            supy_resources / "sample_data" / "Input" / "Kc_2012_data_60.txt"
+            supy_resources / "sample_data" / "Kc_2012_data_60.txt"
         )
         sample_config_resource = supy_resources / "sample_data" / "sample_config.yml"
 

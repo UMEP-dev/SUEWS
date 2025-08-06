@@ -21,7 +21,7 @@
 
 | Year | Features | Bugfixes | Changes | Maintenance | Docs | Total |
 |------|----------|----------|---------|-------------|------|-------|
-| 2025 | 26 | 12 | 3 | 27 | 12 | 80 |
+| 2025 | 27 | 12 | 3 | 27 | 12 | 81 |
 | 2024 | 12 | 17 | 1 | 12 | 1 | 43 |
 | 2023 | 11 | 14 | 3 | 9 | 1 | 38 |
 | 2022 | 15 | 18 | 0 | 7 | 0 | 40 |
@@ -35,6 +35,13 @@
 ## 2025
 
 ### 6 Aug 2025
+- [feature] Added CRU TS4.06 climatological temperature data integration for precheck initialisation
+  - Integrated CRU TS4.06 monthly temperature normals (1991-2020) for automatic temperature initialisation
+  - Added `get_mean_monthly_air_temperature()` function using 0.5° global grid data
+  - Optimised data storage using Parquet format (2.3MB vs 19MB CSV)
+  - Provides location-specific temperature estimates for any global urban site
+  - Includes spatial interpolation for nearest grid cell matching
+  - Added comprehensive test coverage for temperature lookup functionality
 - [maintenance] Integrated limited CI testing for draft PRs to speed up development feedback
   - Modified main CI workflow to dynamically adjust build matrix based on draft status
   - Draft PRs: Only test Linux + Python 3.9 and 3.13 (2 configurations)

@@ -3,9 +3,9 @@ from pathlib import Path
 import tempfile
 import shutil
 
-from supy.util._converter import convert_table, list_ver_to
-from supy._load import load_InitialCond_grid_df
-from supy.data_model.core import SUEWSConfig
+from ..util._converter import convert_table, list_ver_to
+from .._load import load_InitialCond_grid_df
+from ..data_model.core import SUEWSConfig
 
 
 @click.command(

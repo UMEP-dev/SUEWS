@@ -1008,13 +1008,15 @@ MODULE SUEWS_DEF_DTS
    END TYPE SUEWS_FORCING
 
    TYPE, PUBLIC :: SUEWS_TIMER
+      ! Timer type containing temporal information for SUEWS calculations
+      ! Note: tstep_prev is retained for WRF-SUEWS coupling where adaptive timesteps are used
       INTEGER :: id = 0 !
       INTEGER :: imin = 0 !
       INTEGER :: isec = 0 !
       INTEGER :: it = 0 ! Hour of day
       INTEGER :: iy = 0 !
-      INTEGER :: tstep = 0 !
-      INTEGER :: tstep_prev = 0 !
+      INTEGER :: tstep = 0 ! Current timestep [s]
+      INTEGER :: tstep_prev = 0 ! Previous timestep [s] - for WRF adaptive stepping (equals tstep in standalone)
       INTEGER :: dt_since_start = 0 !
       INTEGER :: dt_since_start_prev = 0 !
 

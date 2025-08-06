@@ -195,6 +195,9 @@ Essential checks before using forcing data:
        if (df['RH'] < 0).any() or (df['RH'] > 100).any():
            issues.append("Relative humidity outside 0-100% range")
        
+       if (df['U'] < 0.01).any():
+           issues.append("Wind speed below minimum threshold (0.01 m/s) - causes division by zero errors")
+       
        if (df['kdown'] < 0).any():
            issues.append("Negative incoming shortwave radiation")
        

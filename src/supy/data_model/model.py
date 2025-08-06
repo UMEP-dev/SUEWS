@@ -276,14 +276,12 @@ class FAIMethod(Enum):
     """
     Method for calculating frontal area index (FAI) - the ratio of frontal area to plan area.
 
-    0: ZERO - FAI set to zero (typically for non-urban areas)
-    1: FIXED - Fixed FAI from site parameters
-    2: VARIABLE - Variable FAI based on vegetation LAI changes
+    0: USE_PROVIDED - Use FAI values provided in site parameters (FAIBldg, FAIEveTree, FAIDecTree)
+    1: SIMPLE_SCHEME - Calculate FAI using simple scheme based on surface fractions and heights (see issue #192)
     """
 
-    ZERO = 0  # Not documented
-    FIXED = 1  # Fixed frontal area index
-    VARIABLE = 2  # Variable frontal area index based on vegetation state
+    USE_PROVIDED = 0  # Use FAI values from site parameters
+    SIMPLE_SCHEME = 1  # Calculate FAI using simple scheme (sqrt(fr)*h for buildings, empirical for trees)
 
     def __new__(cls, value):
         obj = object.__new__(cls)
@@ -481,8 +479,8 @@ class ModelPhysics(BaseModel):
         json_schema_extra={"unit": "dimensionless"},
     )
     faimethod: FlexibleRefValue(FAIMethod) = Field(
-        default=FAIMethod.FIXED,
-        description="Method for calculating frontal area index (FAI) - the ratio of frontal area to plan area. Options: 0 (ZERO) = FAI set to zero (non-urban areas); 1 (FIXED) = Fixed FAI from site parameters; 2 (VARIABLE) = Variable FAI based on vegetation LAI changes",
+        default=FAIMethod.USE_PROVIDED,
+        description="Method for calculating frontal area index (FAI) - the ratio of frontal area to plan area. Options: 0 (USE_PROVIDED) = Use FAI values provided in site parameters; 1 (SIMPLE_SCHEME) = Calculate FAI using simple scheme based on surface fractions and heights",
         json_schema_extra={"unit": "dimensionless"},
     )
     rsllevel: FlexibleRefValue(RSLLevel) = Field(
@@ -507,61 +505,6 @@ class ModelPhysics(BaseModel):
     )
 
     ref: Optional[Reference] = None
-
-    @model_validator(mode="after")
-    def check_all(self) -> "ModelPhysics":
-        """
-        Collect and aggregate all validation checks for ModelPhysics,
-        so multiple errors (if any) can be raised together
-        """
-        errors = []
-        # Get values for comparison
-        storageheatmethod_val = (
-            self.storageheatmethod.value
-            if isinstance(self.storageheatmethod, RefValue)
-            else self.storageheatmethod
-        )
-        ohmincqf_val = (
-            self.ohmincqf.value
-            if isinstance(self.ohmincqf, RefValue)
-            else self.ohmincqf
-        )
-        snowuse_val = (
-            self.snowuse.value if isinstance(self.snowuse, RefValue) else self.snowuse
-        )
-
-        # storageheatmethod check
-        if storageheatmethod_val == 1 and ohmincqf_val != 0:
-            errors.append(
-                f"\nStorageHeatMethod is set to {storageheatmethod_val} and OhmIncQf is set to {ohmincqf_val}.\n"
-                f"You should switch to OhmIncQf=0.\n"
-            )
-        elif storageheatmethod_val == 2 and ohmincqf_val != 1:
-            errors.append(
-                f"\nStorageHeatMethod is set to {storageheatmethod_val} and OhmIncQf is set to {ohmincqf_val}.\n"
-                f"You should switch to OhmIncQf=1.\n"
-            )
-
-        # snowusemethod check
-        if snowuse_val == 1:
-            errors.append(
-                f"\nSnowUse is set to {snowuse_val}.\n"
-                f"There are no checks implemented for this case (snow calculations included in the run).\n"
-                f"You should switch to SnowUse=0.\n"
-            )
-
-        # emissionsmethod check
-        # if self.emissionsmethod == 45:
-        #     errors.append(
-        #         f"\nEmissionsMethod is set to {self.emissionsmethod}.\n"
-        #         f"There are no checks implemented for this case (CO2 calculations included in the run).\n"
-        #         f"You should switch to EmissionsMethod=0, 1, 2, 3, or 4.\n"
-        #     )
-
-        if errors:
-            raise ValueError("\n".join(errors))
-
-        return self
 
     # We then need to set to 0 (or None) all the CO2-related parameters or rules
     # in the code and return them accordingly in the yml file.
@@ -702,10 +645,10 @@ class OutputConfig(BaseModel):
 
 
 class ModelControl(BaseModel):
-    tstep: int = Field(
+    tstep: FlexibleRefValue(int) = Field(
         default=300, description="Time step in seconds for model calculations"
     )
-    forcing_file: Union[FlexibleRefValue(str), List[str]] = Field(
+    forcing_file: Union[FlexibleRefValue(str), FlexibleRefValue(List[str])] = Field(
         default="forcing.txt",
         description="Path(s) to meteorological forcing data file(s). This can be either: (1) A single file path as a string (e.g., 'forcing.txt'), or (2) A list of file paths (e.g., ['forcing_2020.txt', 'forcing_2021.txt', 'forcing_2022.txt']). When multiple files are provided, they will be automatically concatenated in chronological order. The forcing data contains time-series meteorological measurements that drive SUEWS simulations. For detailed information about required variables, file format, and data preparation guidelines, see :ref:`met_input`.",
     )
@@ -719,7 +662,7 @@ class ModelControl(BaseModel):
         description="Output file configuration. DEPRECATED: String values are ignored and will issue a warning. Please use an OutputConfig object specifying format ('txt' or 'parquet'), frequency (seconds, must be multiple of tstep), and groups to save (for txt format only). Example: {'format': 'parquet', 'freq': 3600} or {'format': 'txt', 'freq': 1800, 'groups': ['SUEWS', 'DailyState', 'ESTM']}. For detailed information about output variables and file structure, see :ref:`output_files`.",
     )
     # daylightsaving_method: int
-    diagnose: int = Field(
+    diagnose: FlexibleRefValue(int) = Field(
         default=0,
         description="Level of diagnostic output (0=none, 1=basic, 2=detailed)",
         json_schema_extra={"internal_only": True},
@@ -757,7 +700,10 @@ class ModelControl(BaseModel):
 
         list_attr = ["tstep", "diagnose"]
         for attr in list_attr:
-            set_df_value(attr, getattr(self, attr))
+            value = getattr(self, attr)
+            # Extract value from RefValue if needed
+            val = value.value if isinstance(value, RefValue) else value
+            set_df_value(attr, val)
         return df_state
 
     @classmethod
@@ -783,55 +729,6 @@ class Model(BaseModel):
         default_factory=ModelPhysics,
         description="Model physics parameters including surface properties, coefficients, etc.",
     )
-
-    @model_validator(mode="after")
-    def validate_radiation_method(self) -> "Model":
-        netradiationmethod_val = (
-            self.physics.netradiationmethod.value
-            if isinstance(self.physics.netradiationmethod, RefValue)
-            else self.physics.netradiationmethod
-        )
-        forcing_file_val = (
-            self.control.forcing_file.value
-            if isinstance(self.control.forcing_file, RefValue)
-            else self.control.forcing_file
-        )
-
-        if netradiationmethod_val == 1 and forcing_file_val == "forcing.txt":
-            raise ValueError(
-                "NetRadiationMethod is set to 1 (using observed Ldown). "
-                "The sample forcing file lacks observed Ldown. Use netradiation = 3 for sample forcing. "
-                "If not using sample forcing, ensure that the forcing file contains Ldown and rename from forcing.txt."
-                # TODO: This is a temporary solution. We need to provide a better way to catch this.
-            )
-        return self
-
-    @model_validator(mode="after")
-    def validate_output_config(self) -> "Model":
-        """Validate output configuration, especially frequency vs timestep."""
-        if isinstance(self.control.output_file, OutputConfig):
-            output_config = self.control.output_file
-            if output_config.freq is not None:
-                tstep = self.control.tstep
-                if output_config.freq % tstep != 0:
-                    raise ValueError(
-                        f"Output frequency ({output_config.freq}s) must be a multiple of timestep ({tstep}s)"
-                    )
-        elif (
-            isinstance(self.control.output_file, str)
-            and self.control.output_file != "output.txt"
-        ):
-            # Issue warning for non-default string values
-            import warnings
-
-            warnings.warn(
-                f"The 'output_file' parameter with value '{self.control.output_file}' is deprecated and was never used. "
-                "Please use the new OutputConfig format or remove this parameter. "
-                "Example: output_file: {format: 'parquet', freq: 3600}",
-                DeprecationWarning,
-                stacklevel=3,
-            )
-        return self
 
     def to_df_state(self, grid_id: int) -> pd.DataFrame:
         """Convert model to DataFrame state format"""

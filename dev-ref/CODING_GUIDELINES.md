@@ -406,7 +406,12 @@ Use descriptive branch names:
 1. Update relevant documentation
 2. Add/update tests
 3. Run full test suite
-4. Update CHANGELOG if applicable
+4. Update CHANGELOG if applicable:
+   - [feature]: New user-facing functionality
+   - [bugfix]: Bug fixes (create GitHub issue)
+   - [change]: User-facing behaviour changes
+   - [maintenance]: Internal/dev tooling (including Claude Code aspects)
+   - [doc]: Documentation updates
 5. Request review from appropriate team members
 
 ## Configuration and Data Model Guidelines

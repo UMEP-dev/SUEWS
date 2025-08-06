@@ -44,14 +44,16 @@ The SUEWS review panel consists of domain experts responsible for validating cha
 When a PR is opened, maintainers perform initial triage:
 - Assess if changes affect model physics or scientific calculations
 - Determine which modules are impacted
-- Apply appropriate module labels (e.g., `module:stebbs`, `module:rslprof`, `module:biogenco2`)
+- Apply appropriate labels:
+  - Module labels (e.g., `module:stebbs`, `module:rslprof`, `module:biogenco2`)
+  - Note: Physics impact is documented in PR description instead of labels
 
 ### 2. Scientific Review Request
 
 For PRs requiring scientific validation:
-1. Apply the `review:needs-science` label
-2. Tag relevant domain expert(s) based on module labels
-3. Provide context about what specifically needs review
+1. Tag relevant domain expert(s) based on module labels
+2. Provide context about what specifically needs review
+3. Track review status in PR comments
 
 Example comment:
 ```
@@ -86,16 +88,18 @@ Domain experts should:
 
 When satisfied with scientific validity:
 1. Domain expert approves the PR
-2. Apply `review:approved` label
-3. Remove `review:needs-science` label
+2. Comment with approval rationale
+3. PR can proceed to merge
 
 ### 5. Merge Criteria
 
 PRs can be merged when:
 - All CI tests pass
 - Code review is approved
-- Scientific review is approved (if required)
+- Scientific review is approved (if physics changes)
 - Documentation is updated
+- For physics changes: Scientific rationale is documented in PR
+- For benchmark impacts: Changes are assessed and documented
 
 ## Guidelines for AI-Assisted Changes
 
@@ -108,6 +112,7 @@ Special attention for PRs using AI tools (e.g., Claude Code):
 ## Label Reference
 
 ### Module Labels (Physics - suews_phys_*)
+Module labels remain unchanged and are used to identify which physics components are affected:
 - `module:ohm` - Objective Hysteresis Model
 - `module:anohm` - Analytical OHM
 - `module:ehc` - Explicit Heat Conduction
@@ -129,25 +134,17 @@ Special attention for PRs using AI tools (e.g., Claude Code):
 - `module:biogenco2` - Biogenic CO2
 - `module:dailystate` - Daily state updates
 
-### Control Labels (Infrastructure - suews_ctrl_*)
-- `ctrl:input` - Input handling (Fortran & Python)
-- `ctrl:output` - Output handling (Fortran & Python)
-- `ctrl:driver` - Main driver and execution flow
-- `ctrl:type` - Data types and structures
-- `ctrl:error` - Error handling and validation
-
-### Review Process Labels
-- `review:needs-science` - Awaiting scientific validation
-- `review:needs-code` - Awaiting code review
-- `review:approved` - Passed all reviews
-- `review:discuss` - Needs panel discussion
-- `needs-more-info` - Requires clarification
+### Simplified Label System
+Following the simplified labeling approach, PRs use:
+- Module labels (as above) to identify affected components
+- Review status is tracked in PR comments and GitHub's review system
+- Physics impacts are documented in PR descriptions rather than labels
 
 ## Escalation
 
 For complex or controversial changes:
-1. Use `review:discuss` label
-2. Schedule review panel discussion
+1. Add comment requesting discussion
+2. Schedule review panel discussion at steering dev meeting
 3. Document decision rationale
 4. Update relevant documentation
 

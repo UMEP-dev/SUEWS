@@ -58,9 +58,11 @@ What happens:
 1. Creates worktree at `worktrees/user-authentication`
 2. Creates feature branch `feature/user-authentication`
 3. Sets up Python environment with uv
-4. Creates plan file with your info as lead developer
+4. Creates simple plan file at `.claude/plans/doing/feature-user-authentication.md`
 5. Moves plan to "doing" state
 6. Runs initial build
+
+**Note**: `/worktree new` always creates a simple plan. For complex features requiring detailed specifications, manually create the directory structure as described in `.claude/plans/README.md`
 
 ### 2. Development Workflow
 
@@ -146,20 +148,69 @@ This helps with:
 - Experimental features
 - Anything linked to a GitHub issue
 
+### Choosing Plan Complexity
+
+**Simple Plan** (single file):
+- Bug fixes (< 1 day)
+- Small enhancements
+- Documentation updates
+- Single developer work
+- No API changes
+
+**Complex Plan** (directory):
+- New features with user-facing changes
+- API or breaking changes
+- Multi-component modifications
+- Features requiring formal requirements
+- Multi-developer collaboration
+
+### Complex Feature Workflow
+
+For features requiring detailed specifications:
+
+1. **Manually create complex plan structure**:
+   ```bash
+   # Create directory in todo
+   mkdir -p .claude/plans/todo/feature-{name}
+   
+   # Create README.md, requirements.md, design.md, tasks.md
+   # See .claude/plans/README.md for templates
+   ```
+
+2. **Move to doing when ready**:
+   ```bash
+   # When starting implementation
+   mv .claude/plans/todo/feature-{name} .claude/plans/doing/
+   ```
+
+3. **Create worktree for implementation**:
+   ```bash
+   /worktree new
+   # Use same feature name
+   ```
+
+4. **Update progress during implementation**:
+   ```bash
+   # From worktree, update status
+   cd worktrees/feature-name
+   $EDITOR ../../.claude/plans/doing/feature-name/README.md
+   ```
+
 ### Worktree Naming
 - Use descriptive names: `user-auth` not `feature1`
 - Match GitHub issue titles when applicable
 - Keep names short but meaningful
 
 ### Plan Management
-- Update progress regularly
-- Document key decisions
-- Note blocking issues
-- Keep "Implementation Notes" current
+- Update progress regularly in README.md
+- For complex features, keep requirements/design/tasks stable
+- Document key decisions in design.md
+- Note blocking issues in README.md
 
 ### Collaboration
 - One lead developer per feature
 - Others can contribute via PRs to feature branch
+- For complex features, share requirements.md for review
 - Handover by updating lead developer in plan
 
 ## Common Scenarios

@@ -84,17 +84,23 @@ When working in a git worktree or on a specific feature branch, check for branch
    git branch --show-current
    ```
 
-2. **Then load the corresponding plan if it exists:**
-   - Check `.claude/plans/doing/feature-{branch-name}.md` for active work
-   - Check `.claude/plans/todo/feature-{branch-name}.md` for planned work
-   - Check `.claude/plans/done/feature-{branch-name}.md` for completed features
+2. **Then check for the corresponding plan:**
    
-   **Note**: When in a worktree, plans are in the parent directory:
+   Plans can be either **simple** (single file) or **complex** (directory):
+   
+   **Simple features:**
    ```bash
-   # From worktree, check all plan directories:
-   ls ../../.claude/plans/*/feature-{branch-name}.md
-   # Or read directly:
+   # Check for single file
    cat ../../.claude/plans/doing/feature-{branch-name}.md
+   ```
+   
+   **Complex features:**
+   ```bash
+   # Check for directory with multiple files
+   cat ../../.claude/plans/doing/feature-{branch-name}/README.md
+   cat ../../.claude/plans/doing/feature-{branch-name}/requirements.md
+   cat ../../.claude/plans/doing/feature-{branch-name}/design.md
+   cat ../../.claude/plans/doing/feature-{branch-name}/tasks.md
    ```
 
 3. **If no plan exists**, proceed with standard development practices.
@@ -111,9 +117,21 @@ See `.claude/reference/build-isolation.md` for complete testing and build workfl
 
 ### Plan Lifecycle Management
 
-For complete plan management guide, see:
-- `.claude/templates/feature-plan.md` - Plan template
-- `.claude/plans/README.md` - Plan lifecycle and organization
+Plans support two structures based on feature complexity:
+
+**Simple Features** (single file):
+- Use for: bug fixes, small enhancements, single-developer work
+- Created by: `/worktree new` command
+- Structure: Single `.md` file with inline progress tracking
+
+**Complex Features** (directory):
+- Use for: API changes, multi-component features, formal requirements
+- Structure: Directory with README.md + optional requirements.md, design.md, tasks.md
+- Benefits: Separation of concerns, no duplication, formal specifications
+
+For complete guide, see:
+- `.claude/plans/README.md` - Unified plan structure and lifecycle
+- `.claude/templates/feature-plan.md` - Simple plan template
 
 
 ## Git and GitHub Tips
@@ -126,6 +144,16 @@ For complete plan management guide, see:
   git remote remove Urban-Meteorology-Reading
   # Keep only: origin -> git@github.com:UMEP-dev/SUEWS.git
   ```
+
+## Issue Triage and Labeling
+
+- For detailed issue triage process, see `dev-ref/issue-triage.md`
+- Use four-tier labeling system: Type (1-*), Area (2-*), Priority (3-*), Status (4-*)
+- Numbers enable quick filtering in GitHub web interface (e.g., type "2-" to see all areas)
+- Status labels include:
+  - `4-needs-science` - Requires scientific input/decision (flags for domain experts)
+  - `4-needs-deps` - Waiting on other issues/PRs to complete first
+- Unlabeled issues implicitly need triage - no separate triage label needed
 
 ## Style and Language Guidelines
 
@@ -146,6 +174,27 @@ For complete plan management guide, see:
 make test
 # This executes: python -m pytest test -v --tb=short
 ```
+
+### Workflow Before Push or PR
+
+**CRITICAL**: When coding is complete, Claude Code should ALWAYS build and test before pushing to remote or creating a PR:
+
+```bash
+# 1. Build the project
+python -m pip install -e . --no-build-isolation
+
+# 2. Run the full test suite
+make test
+
+# 3. Only proceed with push/PR if all tests pass
+# If tests fail, fix issues before pushing
+```
+
+This ensures:
+- Code compiles successfully
+- All tests pass in the current environment
+- No breaking changes are introduced
+- PR reviews focus on functionality rather than build failures
 
 The test suite includes several critical tests:
 - **Benchmark Test** (`test_benchmark1_same`): Validates SUEWS model outputs against known good results
@@ -214,6 +263,10 @@ The project includes an interactive web-based configuration builder located at `
 ## Development Tasks and Reminders
 
 - **Remember to include new files in meson.build appropriately**
+- **IMPORTANT**: When creating new source files that are part of the build, always update the corresponding meson.build file:
+  - Python files (.py) in src/supy/
+  - Fortran files (.f90, .f95) in src/suews/src/
+  - Any other source files that need to be compiled or installed
 
 ## Configuration Handling and Method Design Pattern
 
@@ -469,6 +522,25 @@ REAL(KIND(1D0)) :: rss_surf = 0.0D0 ! surface resistance [s m-1]
    - Use comprehensive test suites to catch edge cases
 
 ## Documentation & Code Maintenance Principles
+
+### Documentation Updates for Code Changes
+
+When making code changes to SUEWS/SuPy:
+- **Always update relevant documentation** in `docs/` directory when functionality changes
+- Update Sphinx documentation for user-facing changes
+- **Documentation generation scripts** (run ONLY when specific changes occur):
+  - Run `python docs/generate_datamodel_rst.py` - ONLY when Pydantic data model structure changes (adding/removing fields, changing types)
+  - Run `python docs/gen_schema.py` - ONLY when configuration schema needs regeneration for the web UI
+  - These scripts are NOT run for routine CHANGELOG updates or validator migrations
+- Ensure examples and tutorials reflect current API
+- Update parameter tables and input file documentation as needed
+- **Update CHANGELOG.md promptly** for remarkable changes using categories:
+  - [feature]: New features
+  - [bugfix]: Bug fixes (also create GitHub issue)
+  - [change]: User-facing changes
+  - [maintenance]: Codebase maintenance (including Claude Code development aspects AND updates to CLAUDE.md)
+  - [doc]: Documentation updates (user-facing documentation in docs/, NOT CLAUDE.md)
+- **IMPORTANT**: Updates to CLAUDE.md should be categorised as [maintenance], not [doc]
 
 ### Documentation Principles
 

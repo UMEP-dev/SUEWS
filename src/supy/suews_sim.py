@@ -15,6 +15,7 @@ import numpy as np
 from ._supy_module import save_supy
 from .util._io import read_forcing
 from ._run import run_supy_ser
+from .data_model import RefValue
 
 
 class SUEWSSimulation:
@@ -156,6 +157,8 @@ class SUEWSSimulation:
         >>> sim.update_forcing(["forcing_2023.txt", "forcing_2024.txt"])
         >>> sim.update_forcing(df_forcing)
         """
+        if isinstance(forcing_data, RefValue):
+            forcing_data = forcing_data.value
         if isinstance(forcing_data, pd.DataFrame):
             self._df_forcing = forcing_data.copy()
         elif isinstance(forcing_data, list):

@@ -94,6 +94,10 @@ class RefValue(BaseModel, Generic[T]):
         """Representation showing just the value"""
         return f"{self.value}"
 
+    def __iter__(self):
+        """Allow iteration over lists"""
+        return iter(self.value)
+
     def __eq__(self, other):
         """Equal comparison operator"""
         if isinstance(other, RefValue):

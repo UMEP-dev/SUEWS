@@ -26,53 +26,87 @@ def generate_phase_c_report(
 
     # Parse validation errors from Pydantic ValidationError
     action_needed_items = []
-    no_action_items = []
 
-    if hasattr(validation_error, "errors") and validation_error.errors:
-        for error in validation_error.errors:
+    # Debug: Print validation error details (disabled)
+    # print(f"DEBUG: validation_error type: {type(validation_error)}")
+    # print(f"DEBUG: validation_error has errors attr: {hasattr(validation_error, 'errors')}")
+    # if hasattr(validation_error, 'errors'):
+    #     print(f"DEBUG: validation_error.errors is callable: {callable(validation_error.errors)}")
+    #     if callable(validation_error.errors):
+    #         errors_result = validation_error.errors()
+    #         print(f"DEBUG: validation_error.errors(): {errors_result}")
+    #         print(f"DEBUG: errors() length: {len(errors_result) if errors_result else 'None'}")
+    #     else:
+    #         print(f"DEBUG: validation_error.errors: {validation_error.errors}")
+    #         print(f"DEBUG: validation_error.errors length: {len(validation_error.errors) if validation_error.errors else 'None'}")
+    
+    # Improved Pydantic ValidationError detection
+    pydantic_errors = None
+    
+    # Try multiple ways to detect and extract Pydantic errors
+    if hasattr(validation_error, "errors"):
+        # Check if errors is a method (pydantic_core) or property (older pydantic)
+        if callable(validation_error.errors):
+            # pydantic_core ValidationError - errors is a method
+            pydantic_errors = validation_error.errors()
+        else:
+            # Older pydantic - errors is a property
+            pydantic_errors = validation_error.errors
+    elif "ValidationError" in str(type(validation_error)):
+        # Sometimes the errors attribute might exist but be empty initially
+        if hasattr(validation_error, "errors"):
+            errors_attr = getattr(validation_error, "errors", None)
+            if callable(errors_attr):
+                pydantic_errors = errors_attr()
+            else:
+                pydantic_errors = errors_attr
+    
+    if pydantic_errors:
+        for error in pydantic_errors:
             error_type = error.get("type", "unknown")
             field_path = ".".join(str(loc) for loc in error.get("loc", []))
             error_msg = error.get("msg", "Unknown error")
+            
+            # Build complete Pydantic error message with all available details
+            full_error_parts = [error_msg]
+            
+            # Add type information
+            if error_type != "unknown":
+                full_error_parts.append(f"[type={error_type}")
+                
+                # Add input_value if available
+                if "input" in error:
+                    input_value = str(error.get("input", ""))
+                    if len(input_value) > 100:  # Truncate very long inputs
+                        input_value = input_value[:97] + "..."
+                    full_error_parts.append(f"input_value={input_value}")
+                
+                # Add input_type if available  
+                if "input_type" in error:
+                    full_error_parts.append(f"input_type={error.get('input_type')}")
+                
+                full_error_parts.append("]")
+            
+            # Add Pydantic docs URL if available
+            if "url" in error:
+                full_error_parts.append(f"For further information visit {error.get('url')}")
+            
+            complete_error_msg = " ".join(full_error_parts)
 
-            # Create readable error description
-            if error_type == "missing":
-                field_name = (
-                    field_path.split(".")[-1] if "." in field_path else field_path
-                )
-                action_needed_items.append({
-                    "field": field_name,
-                    "path": field_path,
-                    "error": f"Required field '{field_name}' is missing",
-                    "fix": f"Add {field_name} parameter as required for current model physics configuration",
-                })
-            elif error_type == "extra_forbidden":
-                field_name = (
-                    field_path.split(".")[-1] if "." in field_path else field_path
-                )
-                no_action_items.append({
-                    "field": field_name,
-                    "path": field_path,
-                    "error": f"Parameter '{field_name}' is not allowed",
-                    "fix": f"Remove {field_name} parameter or check spelling",
-                })
-            else:
-                # Other validation errors (type mismatches, constraint violations, etc.)
-                field_name = (
-                    field_path.split(".")[-1] if "." in field_path else field_path
-                )
-                action_needed_items.append({
-                    "field": field_name,
-                    "path": field_path,
-                    "error": error_msg,
-                    "fix": f"Fix {field_name} parameter according to validation requirements",
-                })
+            field_name = (
+                field_path.split(".")[-1] if "." in field_path else field_path
+            )
+            action_needed_items.append({
+                "field": field_name,
+                "path": field_path,
+                "error": complete_error_msg,  # Use complete Pydantic error message
+            })
     else:
         # Fallback for non-Pydantic errors
         action_needed_items.append({
             "field": "general",
-            "path": "configuration",
+            "path": "configuration", 
             "error": str(validation_error),
-            "fix": "Review configuration structure and parameter values",
         })
 
     # ACTION NEEDED section (critical errors)
@@ -84,30 +118,16 @@ def generate_phase_c_report(
 
         for item in action_needed_items:
             report_lines.append(f"-- {item['field']}: {item['error']}")
-            report_lines.append(f"   Suggested fix: {item['fix']}")
             if item["path"] != "configuration":
                 report_lines.append(f"   Location: {item['path']}")
 
         report_lines.append("")
 
-    # NO ACTION NEEDED section (informational items)
-    if no_action_items:
-        report_lines.append("## NO ACTION NEEDED")
-        report_lines.append(
-            f"- Found ({len(no_action_items)}) informational parameter issue(s):"
-        )
-
-        for item in no_action_items:
-            report_lines.append(f"-- {item['field']}: {item['error']}")
-            report_lines.append(f"   Suggestion: {item['fix']}")
-            report_lines.append(f"   Location: {item['path']}")
-
-        report_lines.append("")
 
     # Add context information
-    if not no_action_items and not action_needed_items:
+    if not action_needed_items:
         report_lines.append("## NO ACTION NEEDED")
-        report_lines.append("- No specific validation errors to categorize")
+        report_lines.append("- No validation errors found")
         report_lines.append("")
 
     # Footer
@@ -130,9 +150,6 @@ def generate_fallback_report(
         input_yaml_file: Path to input YAML file
         output_report_file: Path for output report file
     """
-    output_yaml_file = output_report_file.replace("reportC_", "updatedC_").replace(
-        ".txt", ".yml"
-    )
     error_report = f"""# SUEWS Phase C (Pydantic Validation) Report  
 # ============================================
 

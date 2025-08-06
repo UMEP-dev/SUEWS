@@ -265,7 +265,7 @@ def save_precheck_diff_report(diffs: List[dict], original_yaml_path: str):
 
 
 def get_mean_monthly_air_temperature(
-    lat: float, month: int, lon: float, spatial_res: float = 0.5
+    lat: float, lon: float, month: int, spatial_res: float = 0.5
 ) -> float:
     """
     Calculate mean monthly air temperature using CRU TS4.06 climatological data.
@@ -276,8 +276,8 @@ def get_mean_monthly_air_temperature(
 
     Args:
         lat (float): Site latitude in degrees (positive for Northern Hemisphere, negative for Southern).
-        month (int): Month of the year (1 = January, 12 = December).
         lon (float): Site longitude in degrees (-180 to 180).
+        month (int): Month of the year (1 = January, 12 = December).
         spatial_res (float): Search spatial resolution for finding nearest CRU grid cell (degrees). Default 0.5.
 
     Returns:
@@ -737,7 +737,7 @@ def precheck_update_temperature(data: dict, start_date: str) -> dict:
             continue
 
         # Get estimated average temperature
-        avg_temp = get_mean_monthly_air_temperature(lat, month, lng)
+        avg_temp = get_mean_monthly_air_temperature(lat, lng, month)
         coord_info = f"lat={lat}, lng={lng}"
         logger_supy.info(
             f"[site #{site_idx}] Setting surface temperatures to {avg_temp} °C for month {month} ({coord_info})"

@@ -1026,7 +1026,7 @@ def test_precheck_update_temperature():
 
     # Get the expected temperature value from the function
     try:
-        expected_temp = get_mean_monthly_air_temperature(lat, month, lng)
+        expected_temp = get_mean_monthly_air_temperature(lat, lng, month)
     except FileNotFoundError:
         # If CRU data is not available, skip this test
         pytest.skip("CRU data file not available for temperature calculation")
@@ -1070,7 +1070,7 @@ def test_get_mean_monthly_air_temperature_with_cru_data():
     # This test verifies the function returns a reasonable temperature value
     # when CRU data is available (development/test environments)
     try:
-        temp = get_mean_monthly_air_temperature(45.0, 7, 10.0)
+        temp = get_mean_monthly_air_temperature(45.0, 10.0, 7)
         # Temperature for mid-latitudes in July should be reasonable (0-40°C range)
         assert isinstance(temp, float), "Temperature should be a float"
         assert -50 <= temp <= 50, (
@@ -1084,13 +1084,13 @@ def test_get_mean_monthly_air_temperature_with_cru_data():
 def test_get_mean_monthly_air_temperature_invalid_month():
     """Test that get_mean_monthly_air_temperature raises ValueError for invalid month."""
     with pytest.raises(ValueError, match="Month must be between 1 and 12"):
-        get_mean_monthly_air_temperature(45.0, 13, 10.0)
+        get_mean_monthly_air_temperature(45.0, 10.0, 13)
 
 
 def test_get_mean_monthly_air_temperature_invalid_latitude():
     """Test that get_mean_monthly_air_temperature raises ValueError for invalid latitude."""
     with pytest.raises(ValueError, match="Latitude must be between -90 and 90"):
-        get_mean_monthly_air_temperature(95.0, 7, 10.0)
+        get_mean_monthly_air_temperature(95.0, 10.0, 7)
 
 
 class TestPrecheckRefValueHandling:

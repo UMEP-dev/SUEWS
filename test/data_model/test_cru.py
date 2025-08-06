@@ -58,7 +58,7 @@ class TestCRUDataLoading:
 
         for lat, month, lon in test_cases:
             # This should not raise an exception for major cities
-            temp = get_mean_monthly_air_temperature(lat, month, lon)
+            temp = get_mean_monthly_air_temperature(lat, lon, month)
 
             # Basic sanity checks
             assert isinstance(temp, float), (
@@ -83,18 +83,18 @@ class TestCRUDataLoading:
     def test_cru_seasonal_pattern(self):
         """Test that seasonal temperature patterns are correct."""
         # London - clear seasonal pattern
-        london_winter = get_mean_monthly_air_temperature(51.5, 1, -0.1)
-        london_summer = get_mean_monthly_air_temperature(51.5, 7, -0.1)
+        london_winter = get_mean_monthly_air_temperature(51.5, -0.1, 1)
+        london_summer = get_mean_monthly_air_temperature(51.5, -0.1, 7)
         assert london_summer > london_winter, (
             f"London summer ({london_summer}°C) should be warmer than winter ({london_winter}°C)"
         )
 
         # Sydney - opposite seasonal pattern (Southern Hemisphere)
         sydney_summer = get_mean_monthly_air_temperature(
-            -33.9, 1, 151.2
+            -33.9, 151.2, 1
         )  # Jan is summer
         sydney_winter = get_mean_monthly_air_temperature(
-            -33.9, 7, 151.2
+            -33.9, 151.2, 7
         )  # Jul is winter
         assert sydney_summer > sydney_winter, (
             f"Sydney summer/Jan ({sydney_summer}°C) should be warmer than winter/Jul ({sydney_winter}°C)"
@@ -104,17 +104,17 @@ class TestCRUDataLoading:
         """Test that invalid inputs are properly rejected."""
         # Invalid latitude
         with pytest.raises(ValueError, match="Latitude must be between"):
-            get_mean_monthly_air_temperature(91.0, 7, 0.0)
+            get_mean_monthly_air_temperature(91.0, 0.0, 7)
 
         with pytest.raises(ValueError, match="Latitude must be between"):
-            get_mean_monthly_air_temperature(-91.0, 7, 0.0)
+            get_mean_monthly_air_temperature(-91.0, 0.0, 7)
 
         # Invalid month
         with pytest.raises(ValueError, match="Month must be between"):
-            get_mean_monthly_air_temperature(45.0, 0, 0.0)
+            get_mean_monthly_air_temperature(45.0, 0.0, 0)
 
         with pytest.raises(ValueError, match="Month must be between"):
-            get_mean_monthly_air_temperature(45.0, 13, 0.0)
+            get_mean_monthly_air_temperature(45.0, 0.0, 13)
 
     def test_cru_data_coverage_gaps_should_fail(self):
         """Test that locations without CRU data raise appropriate errors.
@@ -131,7 +131,7 @@ class TestCRUDataLoading:
 
         for lat, month, lon in no_data_locations:
             with pytest.raises(ValueError, match="No CRU data found"):
-                get_mean_monthly_air_temperature(lat, month, lon)
+                get_mean_monthly_air_temperature(lat, lon, month)
 
 
 class TestCRUIntegrationWithPrecheck:
@@ -177,7 +177,7 @@ class TestCRUIntegrationWithPrecheck:
         }
 
         # Get expected temperature from CRU
-        expected_temp = get_mean_monthly_air_temperature(51.5, 7, -0.1)  # London, July
+        expected_temp = get_mean_monthly_air_temperature(51.5, -0.1, 7)  # London, July
 
         # Run precheck temperature update
         updated = precheck_update_temperature(deepcopy(data), start_date="2011-07-01")

@@ -29,14 +29,8 @@ from copy import deepcopy
 from datetime import datetime
 from timezonefinder import TimezoneFinder
 import pytz
-from .._env import logger_supy
+from .._env import logger_supy, trv_supy_module
 import os
-
-try:
-    from importlib.resources import files
-except ImportError:
-    # backport for python < 3.9
-    from importlib_resources import files
 
 
 def get_value_safe(param_dict, param_key, default=None):
@@ -309,9 +303,7 @@ def get_mean_monthly_air_temperature(
     # Load CRU data from package resources using importlib.resources
     try:
         # Access the Parquet file in the ext_data directory
-        cru_resource = files("supy.ext_data").joinpath(
-            "CRU_TS4.06_1991_2020.parquet"
-        )
+        cru_resource = trv_supy_module / "ext_data" / "CRU_TS4.06_1991_2020.parquet"
         
         # Read the Parquet file - this works even when package is installed
         with cru_resource.open("rb") as f:

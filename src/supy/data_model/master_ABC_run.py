@@ -379,7 +379,11 @@ def run_phase_c(
             try:
                 config = SUEWSConfig.from_yaml(input_yaml_file)
 
-                # If we get here, Pydantic validation passed
+                # Pydantic validation passed - create updatedC YAML (copy of original user file)
+                import shutil
+                shutil.copy2(input_yaml_file, pydantic_yaml_file)
+
+                # Generate success report
                 success_report = f"""# SUEWS Phase C (Pydantic Validation) Report
 # ============================================
 
@@ -392,6 +396,7 @@ All conditional Pydantic validation checks completed successfully:
 - Physical constraint validation passed
 
 Input file: {input_yaml_file}
+Output file: {pydantic_yaml_file}
 Validation result: Pydantic validation completed successfully
 
 No further action required.
@@ -404,7 +409,11 @@ No further action required.
                 return True
 
             except Exception as validation_error:
-                # Pydantic validation failed - generate structured ACTION NEEDED report
+                # Pydantic validation failed - still create updatedC YAML (copy of original for user to modify)
+                import shutil
+                shutil.copy2(input_yaml_file, pydantic_yaml_file)
+                
+                # Generate structured ACTION NEEDED report
                 try:
                     from phase_c_reports import generate_phase_c_report
                     generate_phase_c_report(validation_error, input_yaml_file, pydantic_report_file)
@@ -414,9 +423,9 @@ No further action required.
                     from phase_c_reports import generate_fallback_report
                     generate_fallback_report(validation_error, input_yaml_file, pydantic_report_file)
                 
-                print("✗ Phase C failed - Pydantic validation errors detected: \n")
-                print(f"  Error: {validation_error}")
-                print(f"  \nReport generated: {os.path.basename(pydantic_report_file)}")
+                print("✗ Phase C failed - Pydantic validation errors detected")
+                print(f"  Report generated: {os.path.basename(pydantic_report_file)}")
+                print(f"  YAML file generated: {os.path.basename(pydantic_yaml_file)}")
                 print(f"  Check ACTION NEEDED section in report for required fixes")
                 return False
 
@@ -614,7 +623,12 @@ Phases:
             )
             if phase_c_success:
                 print()
-                print(f" Phase C completed: Pydantic validation passed")
+                print(f" Phase C completed: {os.path.basename(pydantic_yaml_file)}")
+                print(f" Report: {os.path.basename(pydantic_report_file)}")
+                print(f" File locations: {dirname}")
+            else:
+                print()
+                print(f" Phase C failed: {os.path.basename(pydantic_yaml_file)}")
                 print(f" Report: {os.path.basename(pydantic_report_file)}")
                 print(f" File locations: {dirname}")
             return 0 if phase_c_success else 1

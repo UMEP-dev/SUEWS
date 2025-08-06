@@ -416,8 +416,11 @@ No further action required.
                 # Generate structured ACTION NEEDED report
                 try:
                     from phase_c_reports import generate_phase_c_report
-                    generate_phase_c_report(validation_error, input_yaml_file, pydantic_report_file)
-                    
+
+                    generate_phase_c_report(
+                        validation_error, input_yaml_file, pydantic_report_file
+                    )
+
                 except Exception as report_error:
                     # Fallback to simple error report if structured report generation fails
                     from phase_c_reports import generate_fallback_report
@@ -459,7 +462,7 @@ Phase C validation could not be executed due to import issues.
 
             with open(pydantic_report_file, "w") as f:
                 f.write(error_report)
-            
+
             print(f"  Report generated: {os.path.basename(pydantic_report_file)}")
             return False
 
@@ -491,7 +494,7 @@ Phase C validation could not be executed due to system errors.
 
         with open(pydantic_report_file, "w") as f:
             f.write(error_report)
-        
+
         print(f"  Report generated: {os.path.basename(pydantic_report_file)}")
         return False
 

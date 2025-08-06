@@ -360,34 +360,20 @@ No further action required.
                 return True
                 
             except Exception as validation_error:
-                # Pydantic validation failed
-                error_report = f"""# SUEWS Phase C (Pydantic Validation) Report  
-# ============================================
-
-## PHASE C - FAILED
-
-Input file: {input_yaml_file}
-Error: Pydantic validation failed
-
-Details:
-{str(validation_error)}
-
-## Suggested Actions:
-1. Review the validation errors above
-2. Check that required conditional parameters are present
-3. Verify model physics method configurations are complete
-4. For STEBBS validation (stebbsmethod=1), ensure all STEBBS parameters are present
-5. For RSL validation (rslmethod=2), ensure faibldg is set for sites with buildings
-6. For storage heat validation (storageheatmethod=6), ensure thermal layer arrays are complete
-
-For more details, see: https://suews.readthedocs.io/latest/
-"""
+                # Pydantic validation failed - generate structured ACTION NEEDED report
+                try:
+                    from phase_c_reports import generate_phase_c_report
+                    generate_phase_c_report(validation_error, input_yaml_file, pydantic_report_file)
+                    
+                except Exception as report_error:
+                    # Fallback to simple error report if structured report generation fails
+                    from phase_c_reports import generate_fallback_report
+                    generate_fallback_report(validation_error, input_yaml_file, pydantic_report_file)
                 
-                with open(pydantic_report_file, 'w') as f:
-                    f.write(error_report)
-                
-                print("✗ Phase C failed - Pydantic validation errors detected")
+                print("✗ Phase C failed - Pydantic validation errors detected: \n")
                 print(f"  Error: {validation_error}")
+                print(f"  \nReport generated: {os.path.basename(pydantic_report_file)}")
+                print(f"  Check ACTION NEEDED section in report for required fixes")
                 return False
             
         except ImportError as import_error:
@@ -421,6 +407,7 @@ Phase C validation could not be executed due to import issues.
             with open(pydantic_report_file, 'w') as f:
                 f.write(error_report)
             
+            print(f"  Report generated: {os.path.basename(pydantic_report_file)}")
             return False
             
     except Exception as e:
@@ -452,6 +439,7 @@ Phase C validation could not be executed due to system errors.
         with open(pydantic_report_file, 'w') as f:
             f.write(error_report)
         
+        print(f"  Report generated: {os.path.basename(pydantic_report_file)}")
         return False
 
 

@@ -350,28 +350,7 @@ def get_mean_monthly_air_temperature(
     # Load CRU data (supports both Parquet and CSV)
     try:
         if cru_path.suffix == ".parquet":
-            try:
-                df = pd.read_parquet(cru_path)
-            except ImportError:
-                # If pyarrow is not available, try to find CSV fallback
-                csv_fallback = cru_path.with_suffix(".csv")
-                if csv_fallback.exists():
-                    df = pd.read_csv(csv_fallback)
-                else:
-                    # Check test fixtures location for CSV
-                    csv_test_path = (
-                        Path(__file__).parent.parent.parent.parent
-                        / "test"
-                        / "fixtures"
-                        / "cru_data"
-                        / "CRU_TS4.06_cell_monthly_normals_1991_2020.csv"
-                    )
-                    if csv_test_path.exists():
-                        df = pd.read_csv(csv_test_path)
-                    else:
-                        raise ImportError(
-                            "Unable to read Parquet file. Please install pyarrow: pip install pyarrow"
-                        )
+            df = pd.read_parquet(cru_path)
         else:
             df = pd.read_csv(cru_path)
     except Exception as e:

@@ -598,3 +598,4 @@ docs/source/inputs/yaml/schema/*.rst
 worktrees/
 test/precheck_testcase/run_precheck_testcase.py
 test/precheck_testcase/precheck_testcase.py
+CLAUDE_SESSION_ENHANCED_PHASE_A_AND_MODE_IMPLEMENTATION.md

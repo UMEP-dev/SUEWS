@@ -189,7 +189,7 @@ def setup_output_paths(
 
 
 def run_phase_a(
-    user_yaml_file: str, standard_yaml_file: str, uptodate_file: str, report_file: str
+    user_yaml_file: str, standard_yaml_file: str, uptodate_file: str, report_file: str, mode: str = "user"
 ) -> bool:
     """
     Execute Phase A: Parameter detection and YAML structure updates.
@@ -199,6 +199,7 @@ def run_phase_a(
         standard_yaml_file: Path to standard reference YAML
         uptodate_file: Path for Phase A output YAML
         report_file: Path for Phase A report
+        mode: Processing mode ('user' or 'dev')
 
     Returns:
         True if Phase A completed successfully, False otherwise
@@ -213,6 +214,7 @@ def run_phase_a(
                 standard_file=standard_yaml_file,
                 uptodate_file=uptodate_file,
                 report_file=report_file,
+                mode=mode,
             )
 
         # Check if Phase A produced output files
@@ -268,6 +270,7 @@ def run_phase_b(
     science_report_file: str,
     phase_a_report_file: str,
     phase_a_performed: bool = True,
+    mode: str = "user",
 ) -> bool:
     """
     Execute Phase B: Scientific validation and automatic adjustments.
@@ -297,6 +300,7 @@ def run_phase_b(
                 science_report_file=science_report_file,
                 phase_a_report_file=phase_a_report_file,
                 phase_a_performed=phase_a_performed,
+                mode=mode,
             )
 
         # Check if Phase B produced output files
@@ -348,6 +352,7 @@ def run_phase_c(
     input_yaml_file: str,
     pydantic_yaml_file: str,
     pydantic_report_file: str,
+    mode: str = "user",
 ) -> bool:
     """
     Execute Phase C: Conditional Pydantic validation based on model physics options.
@@ -387,6 +392,8 @@ def run_phase_c(
                 # Generate success report
                 success_report = f"""# SUEWS Phase C (Pydantic Validation) Report
 # ============================================
+# Mode: {mode.title()}
+# ============================================
 
 ## PHASE C - PASSED
 
@@ -420,7 +427,7 @@ No further action required.
                     from phase_c_reports import generate_phase_c_report
 
                     generate_phase_c_report(
-                        validation_error, input_yaml_file, pydantic_report_file
+                        validation_error, input_yaml_file, pydantic_report_file, mode
                     )
 
                 except Exception as report_error:
@@ -428,7 +435,7 @@ No further action required.
                     from phase_c_reports import generate_fallback_report
 
                     generate_fallback_report(
-                        validation_error, input_yaml_file, pydantic_report_file
+                        validation_error, input_yaml_file, pydantic_report_file, mode
                     )
 
                 print("✗ Phase C failed - Pydantic validation errors detected")
@@ -442,6 +449,8 @@ No further action required.
 
             # Import error report
             error_report = f"""# SUEWS Phase C (Pydantic Validation) Report
+# ============================================
+# Mode: {mode.title()}
 # ============================================
 
 ## PHASE C - FAILED
@@ -476,6 +485,8 @@ Phase C validation could not be executed due to import issues.
 
         # General error report
         error_report = f"""# SUEWS Phase C (Pydantic Validation) Report
+# ============================================
+# Mode: {mode.title()}
 # ============================================
 
 ## PHASE C - FAILED
@@ -513,17 +524,21 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  python master_ABC_run.py user.yml                    # Run complete A→B workflow (default)
-  python master_ABC_run.py user.yml --phase A          # Run Phase A only
-  python master_ABC_run.py user.yml --phase B          # Run Phase B only
-  python master_ABC_run.py user.yml --phase C          # Run Phase C only (Pydantic validation)
-  python master_ABC_run.py user.yml --phase AB         # Run complete A→B workflow (explicit)
-  python master_ABC_run.py user.yml --phase ABC        # Run complete A→B→C workflow
+  python master_ABC_run.py user.yml                        # Run complete A→B workflow (default, user mode)
+  python master_ABC_run.py user.yml --phase A              # Run Phase A only
+  python master_ABC_run.py user.yml --phase C              # Run Phase C only (Pydantic validation)
+  python master_ABC_run.py user.yml --phase ABC            # Run complete A→B→C workflow
+  python master_ABC_run.py user.yml --mode dev             # Run A→B workflow in dev mode (coming soon)
+  python master_ABC_run.py user.yml --phase A --mode user  # Run Phase A in user mode (explicit)
 
 Phases:
   Phase A: Parameter detection and YAML structure updates
-  Phase B: Scientific validation and automatic adjustments
+  Phase B: Scientific validation and automatic adjustments  
   Phase C: Conditional Pydantic validation based on model physics options
+
+Modes:
+  user: Standard validation mode with user-friendly messaging (default)
+  dev:  Developer mode with extended options (coming soon)
         """,
     )
 
@@ -537,9 +552,18 @@ Phases:
         help="Phase to run: A (parameter detection), B (scientific validation), C (Pydantic validation), AB (A→B workflow, default), AC (A→C), BC (B→C), or ABC (complete workflow)",
     )
 
+    parser.add_argument(
+        "--mode",
+        "-m",
+        choices=["user", "dev"],
+        default="user",
+        help="Processing mode: user (standard validation mode, default) or dev (developer mode with extended options - coming soon)",
+    )
+
     args = parser.parse_args()
     user_yaml_file = args.yaml_file
     phase = args.phase
+    mode = args.mode
 
     # Print workflow header
     phase_desc = {
@@ -556,8 +580,16 @@ Phases:
     print(f"==================================")
     print(f"YAML user file: {os.path.basename(user_yaml_file)}")
     print(f"Processor Selected Mode: {phase_desc[phase]}")
+    print(f"Processing Mode: {mode.title()}")
     print(f"==================================")
     print()
+
+    # Check if dev mode is requested (not yet implemented)
+    if mode.lower() == "dev":
+        print("✗ Developer mode is not yet implemented")
+        print("  Available mode: user (default)")
+        print("  Coming soon: dev mode with extended validation options")
+        return 1
 
     try:
         # Step 1: Validate input file
@@ -585,7 +617,7 @@ Phases:
         if phase == "A":
             # Phase A only
             phase_a_success = run_phase_a(
-                user_yaml_file, standard_yaml_file, uptodate_file, report_file
+                user_yaml_file, standard_yaml_file, uptodate_file, report_file, mode
             )
             if phase_a_success:
                 print()
@@ -611,6 +643,7 @@ Phases:
                 science_report_file,
                 phase_a_report,
                 phase_a_performed=False,  # Phase B only mode
+                mode=mode,
             )
             if phase_b_success:
                 print()
@@ -628,6 +661,7 @@ Phases:
                 user_yaml_file,
                 pydantic_yaml_file,
                 pydantic_report_file,
+                mode,
             )
             if phase_c_success:
                 print()
@@ -644,7 +678,7 @@ Phases:
         elif phase == "AB":
             # Complete A→B workflow (existing logic)
             phase_a_success = run_phase_a(
-                user_yaml_file, standard_yaml_file, uptodate_file, report_file
+                user_yaml_file, standard_yaml_file, uptodate_file, report_file, mode
             )
 
             if not phase_a_success:
@@ -658,6 +692,7 @@ Phases:
                 science_report_file,
                 report_file,
                 phase_a_performed=True,  # A→B workflow mode
+                mode=mode,
             )
 
             # Clean up intermediate files when complete workflow succeeds

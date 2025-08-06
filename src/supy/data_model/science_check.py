@@ -1225,6 +1225,7 @@ def create_science_report(
     adjustments: List[ScientificAdjustment],
     science_yaml_filename: str = None,
     phase_a_report_file: str = None,
+    mode: str = "user",
 ) -> str:
     """
     Generate comprehensive scientific validation report including Phase A information.
@@ -1240,6 +1241,8 @@ def create_science_report(
     """
     report_lines = []
     report_lines.append("# SUEWS Scientific Validation Report")
+    report_lines.append("# " + "=" * 50)
+    report_lines.append(f"# Mode: {mode.title()}")
     report_lines.append("# " + "=" * 50)
     report_lines.append("")
 
@@ -1513,6 +1516,7 @@ def run_science_check(
     science_report_file: str = None,
     phase_a_report_file: str = None,
     phase_a_performed: bool = True,
+    mode: str = "user",
 ) -> dict:
     """
     Main Phase B workflow - perform scientific validation and adjustments.
@@ -1563,7 +1567,7 @@ def run_science_check(
             os.path.basename(science_yaml_file) if science_yaml_file else None
         )
         report_content = create_science_report(
-            validation_results, adjustments, science_yaml_filename, phase_a_report_file
+            validation_results, adjustments, science_yaml_filename, phase_a_report_file, mode
         )
 
         # Step 6: Write science report (always write)

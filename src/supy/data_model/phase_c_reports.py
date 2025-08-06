@@ -7,7 +7,7 @@ This module is separate from core.py to minimize merge conflicts with master bra
 
 
 def generate_phase_c_report(
-    validation_error: Exception, input_yaml_file: str, output_report_file: str
+    validation_error: Exception, input_yaml_file: str, output_report_file: str, mode: str = "user"
 ) -> None:
     """
     Generate Phase C validation report in ACTION NEEDED format.
@@ -21,6 +21,8 @@ def generate_phase_c_report(
 
     # Header
     report_lines.append("# SUEWS Phase C (Pydantic Validation) Report")
+    report_lines.append("# " + "=" * 50)
+    report_lines.append(f"# Mode: {mode.title()}")
     report_lines.append("# " + "=" * 50)
     report_lines.append("")
 
@@ -139,7 +141,7 @@ def generate_phase_c_report(
 
 
 def generate_fallback_report(
-    validation_error: Exception, input_yaml_file: str, output_report_file: str
+    validation_error: Exception, input_yaml_file: str, output_report_file: str, mode: str = "user"
 ) -> None:
     """
     Generate a simple fallback report when structured report generation fails.
@@ -150,6 +152,8 @@ def generate_fallback_report(
         output_report_file: Path for output report file
     """
     error_report = f"""# SUEWS Phase C (Pydantic Validation) Report  
+# ============================================
+# Mode: {mode.title()}
 # ============================================
 
 ## ACTION NEEDED

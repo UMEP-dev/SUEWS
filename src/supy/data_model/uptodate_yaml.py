@@ -46,6 +46,81 @@ def is_physics_option(param_path):
     return "model.physics" in param_path and param_name in PHYSICS_OPTIONS
 
 
+def get_allowed_nested_sections_in_properties():
+    """
+    Get list of nested sections within SiteProperties that allow extra parameters.
+    
+    This centralizes the configuration to make it easy to extend when new nested 
+    sections are added to the SiteProperties class in the future.
+    
+    Returns:
+        List of section names that allow extra parameters within SiteProperties
+    """
+    return ['stebbs', 'lai', 'irrigation', 'snow']
+
+
+def is_path_in_forbidden_location(field_path: str) -> bool:
+    """
+    Check if a field path corresponds to a Pydantic model location that forbids extra parameters.
+    
+    Based on analysis of SUEWS data model:
+    - Only SiteProperties class has extra="forbid" (sites[].properties path)  
+    - All other classes allow extra parameters by default
+    - Within SiteProperties, some nested sections allow extra parameters
+    
+    Args:
+        field_path: Dot-separated field path (e.g., 'sites.0.properties.test')
+        
+    Returns:
+        True if the field is in a location that forbids extra parameters
+    """
+    # Check if path contains properties under sites
+    if 'properties' in field_path and 'sites' in field_path:
+        # Make sure it's directly under properties, not in a nested allowed section
+        path_parts = field_path.split('.')
+        
+        try:
+            properties_index = path_parts.index('properties')
+            # If there's another level after properties, check if it's an allowed nested section
+            if properties_index + 1 < len(path_parts):
+                next_part = path_parts[properties_index + 1]
+                # Check against the centralized list of allowed nested sections
+                allowed_nested_sections = get_allowed_nested_sections_in_properties()
+                if next_part in allowed_nested_sections:
+                    return False  # This is in an allowed nested section
+            
+            return True  # This is directly in properties (forbidden)
+        except ValueError:
+            # No 'properties' in path
+            pass
+    
+    return False
+
+
+def categorize_extra_parameters(extra_params: list) -> dict:
+    """
+    Categorize extra parameters into ACTION_NEEDED vs NO_ACTION_NEEDED based on their locations.
+    
+    Args:
+        extra_params: List of extra parameter field paths
+        
+    Returns:
+        Dict with 'ACTION_NEEDED' and 'NO_ACTION_NEEDED' lists
+    """
+    categorized = {
+        'ACTION_NEEDED': [],
+        'NO_ACTION_NEEDED': []
+    }
+    
+    for param_path in extra_params:
+        if is_path_in_forbidden_location(param_path):
+            categorized['ACTION_NEEDED'].append(param_path)
+        else:
+            categorized['NO_ACTION_NEEDED'].append(param_path)
+    
+    return categorized
+
+
 def find_extra_parameters(user_data, standard_data, current_path=""):
     """Find parameters that exist in user data but not in standard data."""
     extra_params = []
@@ -516,11 +591,13 @@ def create_uptodate_yaml_with_missing_params(
 
 
 def create_analysis_report(
-    missing_params, renamed_replacements, extra_params=None, uptodate_filename=None
+    missing_params, renamed_replacements, extra_params=None, uptodate_filename=None, mode="user"
 ):
     """Create analysis report with summary of changes."""
     report_lines = []
     report_lines.append("# SUEWS Configuration Analysis Report")
+    report_lines.append("# " + "=" * 50)
+    report_lines.append(f"# Mode: {mode.title()}")
     report_lines.append("# " + "=" * 50)
     report_lines.append("")
 
@@ -530,26 +607,59 @@ def create_analysis_report(
     renamed_count = len(renamed_replacements)
     extra_count = len(extra_params) if extra_params else 0
 
-    # ACTION NEEDED section - only critical/urgent parameters
-    if urgent_count > 0:
+    # ACTION NEEDED section - critical/urgent parameters AND forbidden extra parameters
+    # Categorize extra parameters to find forbidden ones
+    forbidden_extras = []
+    if extra_count > 0:
+        categorized = categorize_extra_parameters(extra_params)
+        forbidden_extras = categorized['ACTION_NEEDED']
+    
+    total_action_needed = urgent_count + len(forbidden_extras)
+    
+    if total_action_needed > 0:
         report_lines.append("## ACTION NEEDED")
-        report_lines.append(f"- Found ({urgent_count}) critical missing parameter(s):")
-        for param_path, standard_value, is_physics in missing_params:
-            if is_physics:
+        
+        # Critical missing parameters
+        if urgent_count > 0:
+            report_lines.append(f"- Found ({urgent_count}) critical missing parameter(s):")
+            for param_path, standard_value, is_physics in missing_params:
+                if is_physics:
+                    param_name = param_path.split(".")[-1]
+                    uptodate_file_ref = (
+                        uptodate_filename if uptodate_filename else "uptodate YAML file"
+                    )
+                    report_lines.append(
+                        f"-- {param_name} has been added to {uptodate_file_ref} and set to null"
+                    )
+                    report_lines.append(
+                        f"   Suggested fix: Set appropriate value based on SUEWS documentation -- https://suews.readthedocs.io/latest/"
+                    )
+            if forbidden_extras:
+                report_lines.append("")  # Add spacing if both sections present
+        
+        # Forbidden extra parameters
+        if forbidden_extras:
+            report_lines.append(f"- Found ({len(forbidden_extras)}) parameter(s) in forbidden locations:")
+            allowed_sections = ", ".join(get_allowed_nested_sections_in_properties())
+            for param_path in forbidden_extras:
                 param_name = param_path.split(".")[-1]
-                uptodate_file_ref = (
-                    uptodate_filename if uptodate_filename else "uptodate YAML file"
-                )
-                report_lines.append(
-                    f"-- {param_name} has been added to {uptodate_file_ref} and set to null"
-                )
-                report_lines.append(
-                    f"   Suggested fix: Set appropriate value based on SUEWS documentation -- https://suews.readthedocs.io/latest/"
-                )
+                report_lines.append(f"-- {param_name} at level {param_path}")
+                report_lines.append(f"   Reason: Extra parameters not allowed in SiteProperties")
+                
+                # Add mode-specific messaging
+                if mode.lower() == "user":
+                    report_lines.append(f"   Suggested fix: This param name is not allowed in Phase C and will raise a validation error.")
+                    report_lines.append(f"   You selected --mode user. Consider to either remove these names or switch to --mode dev")
+                else:
+                    report_lines.append(f"   Suggested fix: Remove parameter or move to an allowed nested section ({allowed_sections})")
+        
         report_lines.append("")
 
     # NO ACTION NEEDED section - optional and informational items
-    has_no_action_items = optional_count > 0 or extra_count > 0 or renamed_count > 0
+    # Calculate allowed extra parameters (those not in forbidden locations)
+    allowed_extras_count = extra_count - len(forbidden_extras) if extra_count > 0 else 0
+    has_no_action_items = optional_count > 0 or allowed_extras_count > 0 or renamed_count > 0
+    
     if has_no_action_items:
         report_lines.append("## NO ACTION NEEDED")
 
@@ -576,15 +686,26 @@ def create_analysis_report(
                 report_lines.append(f"-- {old_name} changed to {new_name}")
             report_lines.append("")
 
-        # NOT IN STANDARD parameters
+        # NOT IN STANDARD parameters - Enhanced categorization
         if extra_count > 0:
-            report_lines.append(
-                f"- Found ({extra_count}) parameter(s) not in standard:"
-            )
-            for param_path in extra_params:
-                param_name = param_path.split(".")[-1]
-                report_lines.append(f"-- {param_name} at level {param_path}")
-            report_lines.append("")
+            # Categorize extra parameters by whether they're in forbidden locations
+            categorized = categorize_extra_parameters(extra_params)
+            no_action_extras = categorized['NO_ACTION_NEEDED']
+            action_needed_extras = categorized['ACTION_NEEDED']
+            
+            # Show allowed location extra parameters first (NO ACTION NEEDED)
+            if no_action_extras:
+                report_lines.append(
+                    f"- Found ({len(no_action_extras)}) parameter(s) not in standard:"
+                )
+                for param_path in no_action_extras:
+                    param_name = param_path.split(".")[-1]
+                    report_lines.append(f"-- {param_name} at level {param_path}")
+                report_lines.append("")
+            
+            # Show forbidden location extra parameters as ACTION NEEDED
+            # (These will be moved to the ACTION NEEDED section below)
+            # We'll handle this below when updating that section
 
     # Footer separator
     report_lines.append("# " + "=" * 50)
@@ -593,7 +714,7 @@ def create_analysis_report(
 
 
 def annotate_missing_parameters(
-    user_file, standard_file, uptodate_file=None, report_file=None
+    user_file, standard_file, uptodate_file=None, report_file=None, mode="user"
 ):
     try:
         with open(user_file, "r") as f:
@@ -623,14 +744,14 @@ def annotate_missing_parameters(
         # Create analysis report
         uptodate_filename = os.path.basename(uptodate_file) if uptodate_file else None
         report_content = create_analysis_report(
-            missing_params, renamed_replacements, extra_params, uptodate_filename
+            missing_params, renamed_replacements, extra_params, uptodate_filename, mode
         )
     else:
         print("No missing in standard or renamed in standard parameters found!")
         # Still create clean files
         uptodate_content = create_uptodate_yaml_header() + original_yaml_content
         uptodate_filename = os.path.basename(uptodate_file) if uptodate_file else None
-        report_content = create_analysis_report([], [], [], uptodate_filename)
+        report_content = create_analysis_report([], [], [], uptodate_filename, mode)
 
     # Print clean terminal output based on critical parameters
     critical_params = [

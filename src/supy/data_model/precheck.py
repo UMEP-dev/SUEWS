@@ -728,7 +728,7 @@ def precheck_update_temperature(data: dict, start_date: str) -> dict:
         # Get site longitude (required for CRU matching)
         lng_entry = props.get("lng", {})
         lng = lng_entry.get("value") if isinstance(lng_entry, dict) else lng_entry
-        
+
         # If longitude is missing, skip this site (should not happen with valid config)
         if lng is None:
             logger_supy.warning(

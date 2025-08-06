@@ -68,6 +68,7 @@ content-type = "text/markdown"
 [project.scripts]
 suews-run = "supy.cmd.SUEWS:SUEWS"
 suews-convert = "supy.cmd.table_converter:convert_table_cmd"
+suews-to-yaml = "supy.cmd.to_yaml:to_yaml"
 
 [project.optional-dependencies]
 dev = [

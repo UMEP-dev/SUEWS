@@ -21,7 +21,7 @@
 
 | Year | Features | Bugfixes | Changes | Maintenance | Docs | Total |
 |------|----------|----------|---------|-------------|------|-------|
-| 2025 | 26 | 12 | 3 | 26 | 12 | 79 |
+| 2025 | 26 | 13 | 3 | 26 | 12 | 80 |
 | 2024 | 12 | 17 | 1 | 12 | 1 | 43 |
 | 2023 | 11 | 14 | 3 | 9 | 1 | 38 |
 | 2022 | 15 | 18 | 0 | 7 | 0 | 40 |
@@ -42,6 +42,11 @@
   - Clarified that option 0 uses provided FAI values, option 1 calculates using simple scheme
   - Updated Field description to reflect actual implementation behaviour
   - Aligned default value with Fortran code (FAIMethod.USE_PROVIDED = 0)
+- [bugfix] Fixed missing to_yaml module ([#566](https://github.com/UMEP-dev/SUEWS/issues/566))
+  - Added missing import of `to_yaml` function in `supy.cmd.__init__.py`
+  - Added `suews-to-yaml` console script entry point in pyproject.toml
+  - Moved supy imports to be lazy-loaded inside the function to avoid circular import issues
+  - Note: `python -m supy.cmd.to_yaml` requires supy to be fully installed first
 
 ### 25 Jul 2025
 - [doc] Improved clarity of tstep_prev purpose for WRF-SUEWS coupling ([#551](https://github.com/UMEP-dev/SUEWS/issues/551), [#553](https://github.com/UMEP-dev/SUEWS/issues/553))

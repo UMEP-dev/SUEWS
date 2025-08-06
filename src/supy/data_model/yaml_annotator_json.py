@@ -67,6 +67,22 @@ class ValidationIssue:
                 "value": 0.7,
                 "_comment": "fossil fuel fraction for non-heating",
             },
+            "beta_bioco2": {
+                "value": "TODO",
+                "_comment": "biogenic CO2 exchange coefficient (μmol/m2/s) - consult literature for appropriate values",
+            },
+            "alpha_bioco2": {
+                "value": "TODO",
+                "_comment": "biogenic CO2 exchange coefficient - consult literature for appropriate values",
+            },
+            "resp_a": {
+                "value": "TODO",
+                "_comment": "respiration coefficient - consult literature for appropriate values",
+            },
+            "resp_b": {
+                "value": "TODO",
+                "_comment": "respiration coefficient - consult literature for appropriate values",
+            },
         }
 
         return examples.get(self.param, {"value": "TODO", "_comment": self.fix})

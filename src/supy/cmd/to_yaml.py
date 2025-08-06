@@ -44,7 +44,7 @@ def to_yaml(input_dir: str, output_file: str, from_ver: str):
     from supy.util._converter import convert_table, list_ver_to
     from supy._load import load_InitialCond_grid_df
     from supy.data_model.core import SUEWSConfig
-    
+
     input_path = Path(input_dir)
     output_path = Path(output_file)
 

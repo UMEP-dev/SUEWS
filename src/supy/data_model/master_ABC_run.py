@@ -15,7 +15,7 @@ Examples:
     python master_ABC_run.py my_config.yml --phase ABC        # Complete A→B→C workflow
 
 The script supports individual phases (A, B, C) or combined workflows (AB, AC, BC, ABC):
-1. Phase A: Detects missing parameters and updates YAML structure  
+1. Phase A: Detects missing parameters and updates YAML structure
 2. Phase B: Performs scientific validation and automatic adjustments
 3. Phase C: Runs conditional Pydantic validation for model-specific requirements
 
@@ -116,32 +116,76 @@ def setup_output_paths(
         pydantic_report_file = os.path.join(dirname, f"reportC_{name_without_ext}.txt")
     elif phase == "AB":
         # Complete A→B workflow - use AB naming
-        uptodate_file = os.path.join(dirname, f"updatedA_{basename}")  # Intermediate A file
-        report_file = os.path.join(dirname, f"reportA_{name_without_ext}.txt")  # Intermediate A report
-        science_yaml_file = os.path.join(dirname, f"updatedAB_{basename}")  # Final AB file
-        science_report_file = os.path.join(dirname, f"reportAB_{name_without_ext}.txt")  # Final AB report
+        uptodate_file = os.path.join(
+            dirname, f"updatedA_{basename}"
+        )  # Intermediate A file
+        report_file = os.path.join(
+            dirname, f"reportA_{name_without_ext}.txt"
+        )  # Intermediate A report
+        science_yaml_file = os.path.join(
+            dirname, f"updatedAB_{basename}"
+        )  # Final AB file
+        science_report_file = os.path.join(
+            dirname, f"reportAB_{name_without_ext}.txt"
+        )  # Final AB report
     elif phase == "AC":
         # A→C workflow
-        uptodate_file = os.path.join(dirname, f"updatedA_{basename}")  # Intermediate A file
-        report_file = os.path.join(dirname, f"reportA_{name_without_ext}.txt")  # Intermediate A report
-        pydantic_yaml_file = os.path.join(dirname, f"updatedAC_{basename}")  # Final AC file
-        pydantic_report_file = os.path.join(dirname, f"reportAC_{name_without_ext}.txt")  # Final AC report
+        uptodate_file = os.path.join(
+            dirname, f"updatedA_{basename}"
+        )  # Intermediate A file
+        report_file = os.path.join(
+            dirname, f"reportA_{name_without_ext}.txt"
+        )  # Intermediate A report
+        pydantic_yaml_file = os.path.join(
+            dirname, f"updatedAC_{basename}"
+        )  # Final AC file
+        pydantic_report_file = os.path.join(
+            dirname, f"reportAC_{name_without_ext}.txt"
+        )  # Final AC report
     elif phase == "BC":
         # B→C workflow
-        science_yaml_file = os.path.join(dirname, f"updatedB_{basename}")  # Intermediate B file
-        science_report_file = os.path.join(dirname, f"reportB_{name_without_ext}.txt")  # Intermediate B report
-        pydantic_yaml_file = os.path.join(dirname, f"updatedBC_{basename}")  # Final BC file
-        pydantic_report_file = os.path.join(dirname, f"reportBC_{name_without_ext}.txt")  # Final BC report
+        science_yaml_file = os.path.join(
+            dirname, f"updatedB_{basename}"
+        )  # Intermediate B file
+        science_report_file = os.path.join(
+            dirname, f"reportB_{name_without_ext}.txt"
+        )  # Intermediate B report
+        pydantic_yaml_file = os.path.join(
+            dirname, f"updatedBC_{basename}"
+        )  # Final BC file
+        pydantic_report_file = os.path.join(
+            dirname, f"reportBC_{name_without_ext}.txt"
+        )  # Final BC report
     elif phase == "ABC":
         # Complete A→B→C workflow
-        uptodate_file = os.path.join(dirname, f"updatedA_{basename}")  # Intermediate A file
-        report_file = os.path.join(dirname, f"reportA_{name_without_ext}.txt")  # Intermediate A report
-        science_yaml_file = os.path.join(dirname, f"updatedB_{basename}")  # Intermediate B file
-        science_report_file = os.path.join(dirname, f"reportB_{name_without_ext}.txt")  # Intermediate B report
-        pydantic_yaml_file = os.path.join(dirname, f"updatedABC_{basename}")  # Final ABC file
-        pydantic_report_file = os.path.join(dirname, f"reportABC_{name_without_ext}.txt")  # Final ABC report
+        uptodate_file = os.path.join(
+            dirname, f"updatedA_{basename}"
+        )  # Intermediate A file
+        report_file = os.path.join(
+            dirname, f"reportA_{name_without_ext}.txt"
+        )  # Intermediate A report
+        science_yaml_file = os.path.join(
+            dirname, f"updatedB_{basename}"
+        )  # Intermediate B file
+        science_report_file = os.path.join(
+            dirname, f"reportB_{name_without_ext}.txt"
+        )  # Intermediate B report
+        pydantic_yaml_file = os.path.join(
+            dirname, f"updatedABC_{basename}"
+        )  # Final ABC file
+        pydantic_report_file = os.path.join(
+            dirname, f"reportABC_{name_without_ext}.txt"
+        )  # Final ABC report
 
-    return uptodate_file, report_file, science_yaml_file, science_report_file, pydantic_yaml_file, pydantic_report_file, dirname
+    return (
+        uptodate_file,
+        report_file,
+        science_yaml_file,
+        science_report_file,
+        pydantic_yaml_file,
+        pydantic_report_file,
+        dirname,
+    )
 
 
 def run_phase_a(
@@ -323,18 +367,18 @@ def run_phase_c(
         current_dir = os.path.dirname(os.path.abspath(__file__))
         # Use the working supy import pattern like SUEWSSimulation does
         # Navigate to supy root directory to ensure proper imports
-        supy_root = os.path.abspath(os.path.join(current_dir, '../../'))
+        supy_root = os.path.abspath(os.path.join(current_dir, "../../"))
         if supy_root not in sys.path:
             sys.path.insert(0, supy_root)
-        
+
         # Import SUEWSConfig using the established working pattern from tests
         try:
             from supy.data_model import SUEWSConfig
-            
+
             # Load and validate the YAML using SUEWSConfig (like SUEWSSimulation does)
             try:
                 config = SUEWSConfig.from_yaml(input_yaml_file)
-                
+
                 # If we get here, Pydantic validation passed
                 success_report = f"""# SUEWS Phase C (Pydantic Validation) Report
 # ============================================
@@ -352,13 +396,13 @@ Validation result: Pydantic validation completed successfully
 
 No further action required.
 """
-                
-                with open(pydantic_report_file, 'w') as f:
+
+                with open(pydantic_report_file, "w") as f:
                     f.write(success_report)
-                
+
                 print("✓ Phase C completed - Pydantic validation passed")
                 return True
-                
+
             except Exception as validation_error:
                 # Pydantic validation failed - generate structured ACTION NEEDED report
                 try:
@@ -375,10 +419,10 @@ No further action required.
                 print(f"  \nReport generated: {os.path.basename(pydantic_report_file)}")
                 print(f"  Check ACTION NEEDED section in report for required fixes")
                 return False
-            
+
         except ImportError as import_error:
             print(f"✗ Phase C failed - Cannot import SUEWSConfig: {import_error}")
-            
+
             # Import error report
             error_report = f"""# SUEWS Phase C (Pydantic Validation) Report
 # ============================================
@@ -403,16 +447,16 @@ Phase C validation could not be executed due to import issues.
 ## Error Details:
 {str(import_error)}
 """
-            
-            with open(pydantic_report_file, 'w') as f:
+
+            with open(pydantic_report_file, "w") as f:
                 f.write(error_report)
             
             print(f"  Report generated: {os.path.basename(pydantic_report_file)}")
             return False
-            
+
     except Exception as e:
         print(f"✗ Phase C failed: {e}")
-        
+
         # General error report
         error_report = f"""# SUEWS Phase C (Pydantic Validation) Report
 # ============================================
@@ -435,8 +479,8 @@ Phase C validation could not be executed due to system errors.
 ## Error Details:
 {str(e)}
 """
-        
-        with open(pydantic_report_file, 'w') as f:
+
+        with open(pydantic_report_file, "w") as f:
             f.write(error_report)
         
         print(f"  Report generated: {os.path.basename(pydantic_report_file)}")
@@ -483,7 +527,7 @@ Phases:
     # Print workflow header
     phase_desc = {
         "A": "Phase A Only",
-        "B": "Phase B Only", 
+        "B": "Phase B Only",
         "C": "Phase C Only",
         "AB": "Complete A→B Workflow",
         "AC": "Complete A→C Workflow",
@@ -510,9 +554,15 @@ Phases:
             print("Make sure you're running from the SUEWS root directory")
             return 1
 
-        uptodate_file, report_file, science_yaml_file, science_report_file, pydantic_yaml_file, pydantic_report_file, dirname = (
-            setup_output_paths(user_yaml_file, phase)
-        )
+        (
+            uptodate_file,
+            report_file,
+            science_yaml_file,
+            science_report_file,
+            pydantic_yaml_file,
+            pydantic_report_file,
+            dirname,
+        ) = setup_output_paths(user_yaml_file, phase)
 
         # Phase-specific execution
         if phase == "A":
@@ -569,7 +619,7 @@ Phases:
                 print(f" File locations: {dirname}")
             return 0 if phase_c_success else 1
 
-        elif phase == 'AB':
+        elif phase == "AB":
             # Complete A→B workflow (existing logic)
             phase_a_success = run_phase_a(
                 user_yaml_file, standard_yaml_file, uptodate_file, report_file

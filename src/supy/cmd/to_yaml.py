@@ -3,10 +3,6 @@ from pathlib import Path
 import tempfile
 import shutil
 
-from supy.util._converter import convert_table, list_ver_to
-from supy._load import load_InitialCond_grid_df
-from supy.data_model.core import SUEWSConfig
-
 
 @click.command(
     short_help="Convert SUEWS table-based input to a YAML configuration file."
@@ -44,6 +40,11 @@ def to_yaml(input_dir: str, output_file: str, from_ver: str):
     1.  Optionally converts older versions of input tables to the latest available version.
     2.  Reads the complete set of table-based inputs and converts them into a single, comprehensive YAML file.
     """
+    # Lazy imports to avoid circular import issues
+    from supy.util._converter import convert_table, list_ver_to
+    from supy._load import load_InitialCond_grid_df
+    from supy.data_model.core import SUEWSConfig
+
     input_path = Path(input_dir)
     output_path = Path(output_file)
 

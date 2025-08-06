@@ -13,7 +13,7 @@ class TestCRUDataFormats:
     def test_parquet_csv_data_equivalence(self):
         """Verify that Parquet and CSV files contain identical data."""
         # Load both files
-        parquet_path = Path("src/supy/data_model/database/CRU_TS4.06_1991_2020.parquet")
+        parquet_path = Path("src/supy/ext_data/CRU_TS4.06_1991_2020.parquet")
         csv_path = Path(
             "test/fixtures/cru_data/CRU_TS4.06_cell_monthly_normals_1991_2020.csv"
         )
@@ -98,7 +98,7 @@ class TestCRUDataFormats:
         """Verify that Parquet format provides expected size reduction."""
         import os
 
-        parquet_path = Path("src/supy/data_model/database/CRU_TS4.06_1991_2020.parquet")
+        parquet_path = Path("src/supy/ext_data/CRU_TS4.06_1991_2020.parquet")
         csv_path = Path(
             "test/fixtures/cru_data/CRU_TS4.06_cell_monthly_normals_1991_2020.csv"
         )
@@ -126,7 +126,7 @@ class TestCRUDataFormats:
 
     def test_parquet_data_types_optimized(self):
         """Verify that Parquet file uses optimized data types."""
-        parquet_path = Path("src/supy/data_model/database/CRU_TS4.06_1991_2020.parquet")
+        parquet_path = Path("src/supy/ext_data/CRU_TS4.06_1991_2020.parquet")
 
         if not parquet_path.exists():
             pytest.skip("Parquet file not found")

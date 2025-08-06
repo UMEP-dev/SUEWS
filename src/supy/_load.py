@@ -1412,12 +1412,12 @@ def load_SUEWS_dict_Stebbs(path_runcontrol, dict_runconfig):
     else:
         path_stebbs_typologies = (
             trv_supy_module
-            / "sample_run"
+            / "sample_data"
             / "Input"
             / "test_stebbs_building_typologies.nml"
         )
         path_stebbs_general = (
-            trv_supy_module / "sample_run" / "Input" / "test_stebbs_general_params.nml"
+            trv_supy_module / "sample_data" / "Input" / "test_stebbs_general_params.nml"
         )
 
     stebbs_dict_y = {k[0]: v for k, v in load_SUEWS_nml(path_stebbs_typologies).items()}

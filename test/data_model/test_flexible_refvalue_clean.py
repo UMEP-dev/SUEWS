@@ -51,7 +51,7 @@ def test_flexible_refvalue_with_cleaning():
 
     # Get the supy package resource traversable
     supy_resources = files("supy")
-    sample_config_resource = supy_resources / "sample_run" / "sample_config.yml"
+    sample_config_resource = supy_resources / "sample_data" / "sample_config.yml"
 
     # Load the config data
     original_data = yaml.safe_load(sample_config_resource.read_text())

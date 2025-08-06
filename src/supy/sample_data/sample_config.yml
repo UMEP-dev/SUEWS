@@ -4,7 +4,7 @@ model:
   control:
     tstep: 300
     forcing_file:
-      value: Input/Kc_2012_data_60.txt
+      value: Kc_2012_data_60.txt
     output_file:
       format: txt
       freq: 3600

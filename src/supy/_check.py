@@ -392,7 +392,7 @@ def upgrade_df_state(df_state: pd.DataFrame) -> pd.DataFrame:
         from ._supy_module import init_supy
 
         # load base df_state
-        path_SampleData = trv_supy_module.joinpath("sample_run")
+        path_SampleData = trv_supy_module.joinpath("sample_data")
         path_runcontrol = path_SampleData / "RunControl.nml"
         df_state_base = init_supy(path_runcontrol, force_reload=False)
 

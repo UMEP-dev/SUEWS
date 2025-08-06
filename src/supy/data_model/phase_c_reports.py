@@ -39,10 +39,10 @@ def generate_phase_c_report(
     #     else:
     #         print(f"DEBUG: validation_error.errors: {validation_error.errors}")
     #         print(f"DEBUG: validation_error.errors length: {len(validation_error.errors) if validation_error.errors else 'None'}")
-    
+
     # Improved Pydantic ValidationError detection
     pydantic_errors = None
-    
+
     # Try multiple ways to detect and extract Pydantic errors
     if hasattr(validation_error, "errors"):
         # Check if errors is a method (pydantic_core) or property (older pydantic)
@@ -60,42 +60,42 @@ def generate_phase_c_report(
                 pydantic_errors = errors_attr()
             else:
                 pydantic_errors = errors_attr
-    
+
     if pydantic_errors:
         for error in pydantic_errors:
             error_type = error.get("type", "unknown")
             field_path = ".".join(str(loc) for loc in error.get("loc", []))
             error_msg = error.get("msg", "Unknown error")
-            
+
             # Build complete Pydantic error message with all available details
             full_error_parts = [error_msg]
-            
+
             # Add type information
             if error_type != "unknown":
                 full_error_parts.append(f"[type={error_type}")
-                
+
                 # Add input_value if available
                 if "input" in error:
                     input_value = str(error.get("input", ""))
                     if len(input_value) > 100:  # Truncate very long inputs
                         input_value = input_value[:97] + "..."
                     full_error_parts.append(f"input_value={input_value}")
-                
-                # Add input_type if available  
+
+                # Add input_type if available
                 if "input_type" in error:
                     full_error_parts.append(f"input_type={error.get('input_type')}")
-                
+
                 full_error_parts.append("]")
-            
+
             # Add Pydantic docs URL if available
             if "url" in error:
-                full_error_parts.append(f"For further information visit {error.get('url')}")
-            
+                full_error_parts.append(
+                    f"For further information visit {error.get('url')}"
+                )
+
             complete_error_msg = " ".join(full_error_parts)
 
-            field_name = (
-                field_path.split(".")[-1] if "." in field_path else field_path
-            )
+            field_name = field_path.split(".")[-1] if "." in field_path else field_path
             action_needed_items.append({
                 "field": field_name,
                 "path": field_path,
@@ -105,7 +105,7 @@ def generate_phase_c_report(
         # Fallback for non-Pydantic errors
         action_needed_items.append({
             "field": "general",
-            "path": "configuration", 
+            "path": "configuration",
             "error": str(validation_error),
         })
 
@@ -122,7 +122,6 @@ def generate_phase_c_report(
                 report_lines.append(f"   Location: {item['path']}")
 
         report_lines.append("")
-
 
     # Add context information
     if not action_needed_items:

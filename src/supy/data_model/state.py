@@ -598,7 +598,7 @@ class InitialStateBsoil(SurfaceInitialState):
 
 class InitialStateWater(SurfaceInitialState):
     _surface_type: Literal[SurfaceType.WATER] = SurfaceType.WATER
-    
+
     # Override soilstore for water surfaces to allow 0 (water doesn't have soil)
     soilstore: FlexibleRefValue(float) = Field(
         description="Initial soil store (not applicable for water surfaces)",

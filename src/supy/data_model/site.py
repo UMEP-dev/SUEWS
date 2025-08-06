@@ -1446,7 +1446,7 @@ class ArchetypeProperties(BaseModel):
         for field_name in cls.model_fields.keys():
             if field_name == "ref":
                 continue
-            
+
             col = (field_name.lower(), "0")
             if col in df.columns:
                 params[field_name] = df.loc[grid_id, col]
@@ -1964,7 +1964,7 @@ class StebbsProperties(BaseModel):
         for field_name in cls.model_fields.keys():
             if field_name == "ref":
                 continue
-            
+
             col = (field_name.lower(), "0")
             if col in df.columns:
                 params[field_name] = df.loc[grid_id, col]

@@ -1607,7 +1607,7 @@ def main():
     # Define file paths
     user_file = "src/supy/data_model/user.yml"
     uptodate_file = "src/supy/data_model/uptodate_user.yml"
-    standard_file = "src/supy/sample_run/sample_config.yml"
+    standard_file = "src/supy/sample_data/sample_config.yml"
 
     print(f"Phase A output (uptodate): {uptodate_file}")
     print(f"Original user YAML: {user_file}")

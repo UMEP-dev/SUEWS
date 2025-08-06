@@ -606,7 +606,7 @@ Modes:
         user_yaml_file = validate_input_file(user_yaml_file)
 
         # Step 2: Setup paths
-        standard_yaml_file = "src/supy/sample_run/sample_config.yml"
+        standard_yaml_file = "src/supy/sample_data/sample_config.yml"
         if not os.path.exists(standard_yaml_file):
             print()
             print(f"✗ Standard YAML file not found: {standard_yaml_file}")

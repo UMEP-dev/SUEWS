@@ -83,7 +83,7 @@ Background
 **Required inputs:**
 
 1. **User YAML file:** Your SUEWS YAML configuration file
-2. **Standard YAML file:** Reference configuration (typically ``sample_run/sample_config.yml`` from master branch)
+2. **Standard YAML file:** Reference configuration (typically ``sample_data/sample_config.yml`` from master branch)
 3. **Execution mode:** Phase A, Phase B, or complete A→B workflow
 
 **Outputs:**
@@ -112,7 +112,7 @@ How to run
    python master_ABC_run.py user_config.yml --phase A
    
    # Direct Phase A execution (legacy)
-   python uptodate_yaml.py user_config.yml sample_run/sample_config.yml
+   python uptodate_yaml.py user_config.yml sample_data/sample_config.yml
 
 **Example Output (when issues found):**
 
@@ -160,7 +160,7 @@ Standard Configuration File
 
 The standard configuration file serves as the reference for all required SUEWS parameters:
 
-**File:** ``sample_run/sample_config.yml`` from latest version of master branch
+**File:** ``sample_data/sample_config.yml`` from latest version of master branch
 
 **Purpose:** Contains the complete set of SUEWS parameters with proper structure
 

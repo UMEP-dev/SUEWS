@@ -401,8 +401,8 @@ Troubleshooting
 
 .. code-block:: text
 
-   Solution: Ensure sample_run/sample_config.yml exists
-   Check: ls sample_run/sample_config.yml
+   Solution: Ensure sample_data/sample_config.yml exists
+   Check: ls sample_data/sample_config.yml
    Fix: Update SUEWS installation or specify correct path
 
 **Issue**: "YAML syntax error in user file"
@@ -418,8 +418,8 @@ Troubleshooting
 .. code-block:: text
 
    Solution: Update standard file from master branch
-   Check: git status sample_run/sample_config.yml
-   Fix: git checkout master -- sample_run/sample_config.yml
+   Check: git status sample_data/sample_config.yml
+   Fix: git checkout master -- sample_data/sample_config.yml
 
 **Issue**: "All parameters marked as critical"
 
@@ -438,7 +438,7 @@ Troubleshooting
    
    result = annotate_missing_parameters(
        user_file="my_config.yml",
-       standard_file="sample_run/sample_config.yml", 
+       standard_file="sample_data/sample_config.yml", 
        uptodate_file="updated_my_config.yml",
        report_file="analysis_report.txt"
    )

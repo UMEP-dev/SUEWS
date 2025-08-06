@@ -886,7 +886,7 @@ def main():
     print(" SUEWS YAML Configuration Analysis")
     print("=" * 50)
 
-    standard_file = "src/supy/sample_run/sample_config.yml"
+    standard_file = "src/supy/sample_data/sample_config.yml"
     user_file = "src/supy/data_model/user.yml"
 
     # Validate standard file is up to date with master branch

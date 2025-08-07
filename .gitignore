@@ -612,3 +612,5 @@ PR561_logic_analysis.md
 # Debug files from suews-convert
 debug_conversion/
 df_code0.pkl
+# Benchmark repository for testing
+test/benchmark_repo/

@@ -106,6 +106,21 @@ def detect_table_version(input_dir):
         "2018c": {
             "required_files": ["RunControl.nml", "SUEWS_AnthropogenicHeat.txt"],
             "file_exists": ["SUEWS_AnthropogenicHeat.txt"],  # Old name before 2019a
+            "check_columns": {
+                "SUEWS_AnthropogenicHeat.txt": ["FcEF_v_kgkmWE", "FcEF_v_kgkmWD"]  # Added in 2018c
+            },
+        },
+        "2018b": {
+            "required_files": ["RunControl.nml", "SUEWS_AnthropogenicHeat.txt"],
+            "file_exists": ["SUEWS_AnthropogenicHeat.txt"],  # Old name before 2019a
+            # 2018b is same as 2018a in structure
+        },
+        "2018a": {
+            "required_files": ["RunControl.nml", "SUEWS_AnthropogenicHeat.txt"],
+            "file_exists": ["SUEWS_AnthropogenicHeat.txt"],  # Old name before 2019a
+            "check_nml": {
+                "RunControl.nml": ["EmissionsMethod"]  # Added in 2018a (renamed from AnthropHeatMethod)
+            },
         },
         "2016a": {
             "required_files": ["RunControl.nml"],
@@ -124,6 +139,8 @@ def detect_table_version(input_dir):
         "2019b",
         "2019a",
         "2018c",
+        "2018b",
+        "2018a",
         "2016a",
     ]:
         indicators = version_indicators.get(version, {})
@@ -134,16 +151,25 @@ def detect_table_version(input_dir):
             continue
 
         # Check for specific file existence (version-specific files)
+        # Check both root and Input/ subdirectory
         specific_files = indicators.get("file_exists", [])
         if specific_files:
-            if not all((input_path / f).exists() for f in specific_files):
+            files_found = True
+            for f in specific_files:
+                if not ((input_path / f).exists() or (input_path / "Input" / f).exists()):
+                    files_found = False
+                    break
+            if not files_found:
                 continue
 
         # Check columns in text files
         check_columns = indicators.get("check_columns", {})
         columns_match = True
         for file, columns in check_columns.items():
+            # Check both root and Input/ subdirectory
             file_path = input_path / file
+            if not file_path.exists():
+                file_path = input_path / "Input" / file
             if file_path.exists():
                 try:
                     # Read the header line

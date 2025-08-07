@@ -559,8 +559,8 @@ def SUEWS_Converter_single(fromDir, toDir, fromVer, toVer):
                 logger_supy.debug(f"Sanitizing 2016a file: {fileX}")
                 sanitize_legacy_suews_file(file_path)
 
-    # Special handling: Create SPARTACUS.nml when converting to 2024a or later
-    # This file doesn't exist in earlier versions but is expected in 2024a+
+    # Special handling: Create SPARTACUS.nml and GridLayoutKc.nml when converting to 2024a or later
+    # These files don't exist in earlier versions but are expected in 2024a+
     if fromVer in ["2023a", "2021a", "2020a", "2019b", "2019a", "2018c", "2018b", "2018a", "2017a", "2016a"] and toVer in ["2024a", "2025a"]:
         spartacus_path = os.path.join(toDir, "SUEWS_SPARTACUS.nml")
         if not os.path.exists(spartacus_path):
@@ -591,6 +591,47 @@ ground_albedo_dir_mult_fact = 1.
             with open(spartacus_path, 'w') as f:
                 f.write(spartacus_content)
             logger_supy.info(f"Created placeholder SUEWS_SPARTACUS.nml for {toVer}")
+        
+        # Also create GridLayoutKc.nml for 2024a+
+        gridlayout_path = os.path.join(toDir, "GridLayoutKc.nml")
+        if not os.path.exists(gridlayout_path):
+            # Create a minimal GridLayoutKc.nml file with default values
+            gridlayout_content = """&dim
+nlayer = 3
+/
+&geom
+height = 0., 11., 15., 22.
+building_frac = 0.43, 0.38, .2
+veg_frac = 0.01, 0.02, .01
+building_scale = 50., 50., 50
+veg_scale = 10., 10., 10
+/
+&roof
+sfr_roof = .3, .3, .4
+tin_roof = 5, 5, 6
+alb_roof = .5, .5, .2
+emis_roof = .95, .95, .95
+state_roof = .0, .0, .0
+statelimit_roof = 5, 5, 5
+wetthresh_roof = 5, 5, 5
+soildepth_roof = .1, .1, .1
+ohmcode_roof = 200, 200, 200
+/
+&wall
+sfr_wall = .3, .3, .4
+tin_wall = 4, 4, 5
+alb_wall = .4, .4, .15
+emis_wall = .95, .95, .95
+state_wall = .0, .0, .0
+statelimit_wall = 5, 5, 5
+wetthresh_wall = 5, 5, 5
+soildepth_wall = .1, .1, .1
+ohmcode_wall = 200, 200, 200
+/
+"""
+            with open(gridlayout_path, 'w') as f:
+                f.write(gridlayout_content)
+            logger_supy.info(f"Created placeholder GridLayoutKc.nml for {toVer}")
 
     # list all files involved in the given conversion
     posRules = np.unique(
@@ -620,6 +661,13 @@ ground_albedo_dir_mult_fact = 1.
 
     for fileX in filesToConvert:
         logger_supy.info(f"working on file: {fileX}")
+        
+        # Special debugging for ESTM file
+        if 'ESTM' in fileX:
+            full_path = os.path.join(toDir, fileX)
+            if Path(full_path).exists():
+                logger_supy.warning(f"ESTM file already exists at start of processing: {full_path}, size={Path(full_path).stat().st_size}")
+        
         try:
             actionList = rules.values[posRules].compress(
                 rules["File"].values[posRules] == fileX, axis=0
@@ -666,19 +714,31 @@ def SUEWS_Converter_file(fileX, actionList):
     # sort by Column number, then by Action order in actionList; also expand
     # dtype size
     todoList = todoList[np.lexsort((todoList[:, 4].astype(int), todoList[:, 0]))][:, 1:]
+    
+    # Check if file exists before processing
+    if 'ESTM' in fileX and Path(fileX).exists():
+        file_size = Path(fileX).stat().st_size
+        logger_supy.warning(f"ESTM file already exists before placeholder creation: {fileX}, size={file_size} bytes")
+        # Read first few lines to see what's in it
+        with open(fileX, 'r') as f:
+            first_lines = f.readlines()[:3]
+            logger_supy.warning(f"ESTM file first lines: {first_lines}")
+    
     if not Path(fileX).exists():
         # Only create placeholder for .txt files, not .nml files
         if fileX.endswith('.txt'):
             # Create appropriate placeholder based on file type
             if 'BiogenCO2' in fileX:
-                # Create BiogenCO2 file with code 31 (commonly referenced)
-                placeholder = "1 2 3 4 5 6 7 8 9\n"
-                placeholder += "Code alpha beta theta alpha_enh beta_enh resp_a resp_b min_respi\n"
-                placeholder += "31 0.004 8.747 0.96 0.016 33.353 2.43 0 0.6\n"
-            elif 'ESTMCoefficients' in fileX:
-                # Create ESTM file with common codes
+                # Create minimal BiogenCO2 file - columns will be added by conversion rules
+                # Just create the basic structure with Code column only
                 placeholder = "1\nCode\n"
-                placeholder += "800\n801\n802\n803\n804\n805\n806\n807\n808\n"
+                placeholder += "31\n"  # Code 31 is commonly referenced
+            elif 'ESTMCoefficients' in fileX:
+                # Create minimal ESTM file - columns will be added by conversion rules
+                # Just create the basic structure with Code column only
+                placeholder = "1\nCode\n"
+                placeholder += "800\n801\n802\n803\n804\n805\n806\n807\n808\n60\n61\n200\n"
+                logger_supy.warning(f"Creating ESTM placeholder with minimal structure: {len(placeholder)} bytes")
             else:
                 # Default placeholder
                 placeholder = "1\nCode\n800\n"
@@ -818,6 +878,8 @@ def convert_table(fromDir, toDir, fromVer, toVer, debug_dir=None, validate_profi
             copyfile(fileX.resolve(), path_dst)
 
         # Indirect version conversion process
+        # The alternation logic needs to account for starting position
+        # Files start in tempDir_1, so first conversion should read from tempDir_1
         while i > 1:
             logger_supy.info("**************************************************")
             logger_supy.info(f"working on: {chain_ver[i + 1]} --> {chain_ver[i]}")
@@ -827,8 +889,13 @@ def convert_table(fromDir, toDir, fromVer, toVer, debug_dir=None, validate_profi
                 snapshot_dir = Path(dir_temp) / f"step_{chain_ver[i + 1]}_to_{chain_ver[i]}"
                 snapshot_dir.mkdir(exist_ok=True)
             
-            if i % 2:
-                # tempDir_2 = "temp2"
+            # Fix the alternation logic: if chain starts with even length, first step should be from temp1
+            # Original length is chain_ver[0], current step is i
+            # If (original_length - i) is even, use temp1 -> temp2, else temp2 -> temp1
+            steps_completed = chain_ver[0] - i
+            
+            if steps_completed % 2 == 0:
+                # Even number of steps completed (including 0), so temp1 -> temp2
                 SUEWS_Converter_single(
                     tempDir_1, tempDir_2, chain_ver[i + 1], chain_ver[i]
                 )
@@ -849,7 +916,6 @@ def convert_table(fromDir, toDir, fromVer, toVer, debug_dir=None, validate_profi
                         copyfile(file, snapshot_dir / file.name)
                     logger_supy.info(f"Debug: Saved snapshot of {chain_ver[i]} in {snapshot_dir}")
                 
-                # tempDir_1 = "temp1"
                 # Remove input temporary folders only if not in debug mode
                 if debug_dir is None:
                     rmtree(tempDir_1, ignore_errors=True)
@@ -858,7 +924,7 @@ def convert_table(fromDir, toDir, fromVer, toVer, debug_dir=None, validate_profi
                     logger_supy.info(f"Debug: Preserved intermediate files in {tempDir_2}")
 
             else:
-                # tempDir_1 = "temp1"
+                # Odd number of steps completed, so temp2 -> temp1
                 SUEWS_Converter_single(
                     tempDir_2, tempDir_1, chain_ver[i + 1], chain_ver[i]
                 )
@@ -879,20 +945,29 @@ def convert_table(fromDir, toDir, fromVer, toVer, debug_dir=None, validate_profi
                         copyfile(file, snapshot_dir / file.name)
                     logger_supy.info(f"Debug: Saved snapshot of {chain_ver[i]} in {snapshot_dir}")
                 
-                # tempDir_2 = "temp2"
                 # Remove input temporary folders only if not in debug mode
                 if debug_dir is None:
                     rmtree(tempDir_2, ignore_errors=True)
                 else:
                     # In debug mode, preserve intermediate results
                     logger_supy.info(f"Debug: Preserved intermediate files in {tempDir_1}")
-                # this loop always break in this part
             logger_supy.info("**************************************************")
             i -= 1
 
         logger_supy.info("**************************************************")
         logger_supy.info(f"working on: {chain_ver[i + 1]} --> {chain_ver[i]}")
-        SUEWS_Converter_single(tempDir_1, toDir, chain_ver[2], chain_ver[1])
+        
+        # Determine which temp directory has the final results
+        # After the loop, we've completed (chain_ver[0] - 1) steps
+        total_steps = chain_ver[0] - 1
+        if total_steps % 2 == 0:
+            # Even number of steps means files are in tempDir_1
+            final_source = tempDir_1
+        else:
+            # Odd number of steps means files are in tempDir_2
+            final_source = tempDir_2
+            
+        SUEWS_Converter_single(final_source, toDir, chain_ver[2], chain_ver[1])
         
         # Final profile validation
         if validate_profiles:

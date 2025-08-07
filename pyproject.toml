@@ -109,3 +109,12 @@ all = [
     # All optional dependencies
     "supy[dev,docs]",
 ]
+
+[tool.pytest.ini_options]
+# Suppress specific warnings during test runs
+filterwarnings = [
+    # Ignore all Pydantic serializer warnings
+    "ignore:Pydantic serializer warnings:UserWarning",
+    # Alternative: ignore all warnings from pydantic.main module
+    "ignore::UserWarning:pydantic.main",
+]

@@ -96,22 +96,30 @@ def to_yaml(input_dir: str, output_file: str, from_ver: str, debug_dir: str = No
         try:
             config = SUEWSConfig.from_df_state(df_state)
             
-            # Find and set the forcing file path
-            # Look for data files in the input directory
-            input_path = Path(input_dir)
-            if input_path.is_dir():
-                # Check in Input subdirectory first
-                input_subdir = input_path / "Input"
-                if input_subdir.exists():
-                    data_files = list(input_subdir.glob("*_data_*.txt"))
-                else:
-                    data_files = list(input_path.glob("*_data_*.txt"))
+            # Set the forcing file path based on RunControl settings
+            # The forcing file pattern is derived from filecode in RunControl
+            import f90nml
+            
+            runcontrol_data = f90nml.read(str(path_runcontrol))
+            if 'runcontrol' in runcontrol_data:
+                runcontrol = runcontrol_data['runcontrol']
+                filecode = runcontrol.get('filecode', 'forcing')
                 
-                if data_files:
-                    # Use the first data file found
-                    forcing_file = data_files[0].name
+                # Look for forcing files matching the pattern
+                input_path = Path(input_dir)
+                input_subdir = input_path / "Input" if (input_path / "Input").exists() else input_path
+                
+                # Pattern: {filecode}_{year}_data_{resolution}.txt
+                forcing_files = list(input_subdir.glob(f"{filecode}_*_data_*.txt"))
+                
+                if forcing_files:
+                    # Use the first matching file
+                    forcing_file = forcing_files[0].name
                     config.model.control.forcing_file = forcing_file
-                    click.echo(f"  - Set forcing file to: {forcing_file}")
+                    click.echo(f"  - Set forcing file to: {forcing_file} (from FileCode='{filecode}')")
+                else:
+                    # If no matching files found, construct expected name
+                    click.echo(f"  - Warning: No forcing file found matching pattern {filecode}_*_data_*.txt")
                     
         except Exception as e:
             raise click.ClickException(f"Failed to create configuration: {e}")

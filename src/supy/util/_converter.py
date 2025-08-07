@@ -393,6 +393,11 @@ def add_var(toFile, toVar, toCol, toVal):
             dataX = pd.DataFrame()
             headers = []
 
+        # Check if column already exists
+        if toVar in headers:
+            logger_supy.warning(f"{toVar} already exists in {toFile}, skipping add operation")
+            return
+        
         # Calculate target position (convert from 1-based to 0-based)
         target_col = int(toCol) - 1
 

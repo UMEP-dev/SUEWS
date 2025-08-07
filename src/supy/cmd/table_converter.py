@@ -3,7 +3,7 @@ import click
 import sys
 from pathlib import Path
 
-from ..util._converter import convert_table, list_ver_from, list_ver_to
+from ..util.converter import convert_table, list_ver_from, list_ver_to
 
 # Try to import the current version from the project
 try:
@@ -98,7 +98,7 @@ def convert_table_cmd(
         suews-convert -f 2024a -t latest -i input_dir -o config.yml # Explicit latest YAML
     """
     # Import here to avoid circular imports
-    from ..util._converter import convert_table, detect_table_version
+    from ..util.converter import convert_table, detect_table_version
 
     # Auto-detect source version if not provided
     if fromVer is None:
@@ -197,8 +197,8 @@ def convert_table_cmd(
         # Convert to YAML
         click.secho(f"Converting from {fromVer} tables to YAML format...", fg="cyan")
 
-        # Import the to_yaml function
-        from .to_yaml import to_yaml
+        # Import the convert_to_yaml function
+        from ..util.converter import convert_to_yaml
 
         # Ensure output path has .yml or .yaml extension
         output_file = Path(output_path)
@@ -212,15 +212,13 @@ def convert_table_cmd(
                 )
                 click.secho(f"Output will be saved to: {output_file}", fg="yellow")
 
-        # Create a context and invoke the to_yaml function
-        ctx = click.Context(click.Command("to_yaml"))
-        ctx.invoke(
-            to_yaml,
+        # Call convert_to_yaml directly
+        convert_to_yaml(
             input_dir=input_path,
             output_file=str(output_file),
             from_ver=fromVer,
             debug_dir=debug_dir,
-            no_validate_profiles=no_validate_profiles,
+            validate_profiles=not no_validate_profiles,
         )
 
         click.secho(f"Successfully converted to YAML: {output_file}", fg="green")

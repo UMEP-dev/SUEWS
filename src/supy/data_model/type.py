@@ -70,10 +70,10 @@ class RefValue(BaseModel, Generic[T]):
 
     value: Optional[T]
     ref: Optional[Reference] = None
-    
+
     model_config = ConfigDict(
         # Configure serialization to handle the value field properly
-        ser_json_inf_nan='constants',
+        ser_json_inf_nan="constants",
     )
 
     def __init__(self, value: T, ref: Optional[Reference] = None):
@@ -83,13 +83,13 @@ class RefValue(BaseModel, Generic[T]):
         elif isinstance(value, (np.int64, np.int32)):
             value = int(value)
         super().__init__(value=value, ref=ref)
-    
+
     def model_dump(self, **kwargs):
         """Override model_dump to handle JSON mode properly."""
-        if kwargs.get('mode') == 'json':
+        if kwargs.get("mode") == "json":
             # In JSON mode, return a simplified representation
             if self.ref:
-                return {'value': self.value, 'ref': self.ref}
+                return {"value": self.value, "ref": self.ref}
             else:
                 # If no reference, just return the value directly
                 return self.value

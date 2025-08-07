@@ -217,9 +217,9 @@ def delete_var_nml(toFile, toVar, toVal):
     nml.write(toFile, force=True)
 
 
-def sanitize_legacy_suews_file(file_path, output_path=None):
+def clean_legacy_table(file_path, output_path=None):
     r"""
-    Sanitize legacy SUEWS table files (particularly 2016a format) for pandas compatibility.
+    Clean legacy SUEWS table files for pandas compatibility.
 
     This function:
     - Removes inline comments (text after ! character)
@@ -231,33 +231,44 @@ def sanitize_legacy_suews_file(file_path, output_path=None):
 
     Args:
         file_path: Path to the input file
-        output_path: Optional path for sanitized output (if None, overwrites input)
+        output_path: Optional path for cleaned output (if None, overwrites input)
 
     Returns:
-        Path to the sanitized file
+        Path to the cleaned file
     """
     if output_path is None:
         output_path = file_path
 
-    logger_supy.debug(f"Sanitizing legacy file: {file_path}")
+    logger_supy.debug(f"Cleaning legacy file: {file_path}")
+    
+    # Track what was cleaned for reporting
+    cleaning_actions = []
 
     with open(file_path, encoding='utf-8', errors='replace') as f:
         lines = f.readlines()
 
     if len(lines) < 2:
-        logger_supy.warning(f"File {file_path} has less than 2 lines, skipping sanitization")
+        logger_supy.warning(f"File {file_path} has less than 2 lines, skipping cleaning")
         return file_path
 
     header_lines = []  # Store header lines (first 2 lines)
     data_lines = []  # Store data lines
     header_col_count = None
     line_count = 0  # Track non-empty lines
+    
+    # Track cleaning statistics
+    comments_removed = 0
+    tabs_replaced = 0
+    footer_removed = False
+    columns_adjusted = 0
 
     for i, line in enumerate(lines):
         # Remove carriage returns and trailing whitespace
         line = line.replace('\r', '').rstrip()
 
         # IMPORTANT: Replace all tabs with spaces for consistent parsing
+        if '\t' in line:
+            tabs_replaced += 1
         line = line.replace('\t', ' ')
 
         if not line or line.strip().startswith('#'):
@@ -266,16 +277,19 @@ def sanitize_legacy_suews_file(file_path, output_path=None):
         # Skip lines that contain triple quotes or problematic quoted comments
         # These are typically metadata lines in 2016a format that shouldn't be data
         if '"""' in line or ('"' in line and ('Vegetation (average)' in line or 'used for' in line)):
-            logger_supy.debug(f"Skipping line {i+1} with problematic quoted comments: {line[:50]}...")
+            logger_supy.debug(f"Skipping line {i + 1} with problematic quoted comments: {line[:50]}...")
+            cleaning_actions.append(f"Removed metadata line {i + 1}")
             continue
 
         # IMPORTANT: Skip ALL lines starting with -9 (legacy footers that should be removed)
         if line.strip().startswith('-9'):
-            logger_supy.debug(f"Removing legacy footer line {i+1}: {line[:50]}... Stopping read after footer.")
+            logger_supy.debug(f"Removing legacy footer line {i + 1}: {line[:50]}... Stopping read after footer.")
+            footer_removed = True
             break  # Stop processing any further lines after footer
 
         # Remove inline comments (everything after !)
         if '!' in line:
+            comments_removed += 1
             line = line[:line.index('!')].rstrip()
 
         # Split by spaces (tabs have been replaced with spaces)
@@ -289,7 +303,7 @@ def sanitize_legacy_suews_file(file_path, output_path=None):
         if line_count < 2:
             if header_col_count is None:
                 header_col_count = len(fields)
-                logger_supy.debug(f"Header column count set to {header_col_count} at line {i+1}")
+                logger_supy.debug(f"Header column count set to {header_col_count} at line {i + 1}")
             # Store header line
             header_lines.append(' '.join(fields))
             line_count += 1
@@ -302,10 +316,13 @@ def sanitize_legacy_suews_file(file_path, output_path=None):
         if header_col_count and len(fields) != header_col_count:
             if len(fields) > header_col_count:
                 # Truncate extra fields (likely comments)
-                logger_supy.debug(f"Line {i+1}: Truncating from {len(fields)} to {header_col_count} fields")
+                logger_supy.debug(f"Line {i + 1}: Truncating from {len(fields)} to {header_col_count} fields")
+                columns_adjusted += 1
                 fields = fields[:header_col_count]
             else:
                 # Pad with -999 for missing fields
+                if len(fields) < header_col_count:
+                    columns_adjusted += 1
                 while len(fields) < header_col_count:
                     fields.append('-999')
 
@@ -313,17 +330,34 @@ def sanitize_legacy_suews_file(file_path, output_path=None):
         data_lines.append(' '.join(fields))
 
     # Combine header and data lines
-    sanitized_lines = header_lines + data_lines
+    cleaned_lines = header_lines + data_lines
 
     # Note: We do NOT add footer lines - the -9 lines are removed entirely
 
-    # Write sanitized content
+    # Write cleaned content
     with open(output_path, 'w', encoding='utf-8') as f:
-        f.write('\n'.join(sanitized_lines))
-        if sanitized_lines and not sanitized_lines[-1].endswith('\n'):
+        f.write('\n'.join(cleaned_lines))
+        if cleaned_lines and not cleaned_lines[-1].endswith('\n'):
             f.write('\n')
 
-    logger_supy.debug(f"Sanitized file written to: {output_path}")
+    # Report what was cleaned
+    if comments_removed > 0 or tabs_replaced > 0 or footer_removed or columns_adjusted > 0:
+        clean_summary = []
+        if comments_removed > 0:
+            clean_summary.append(f"{comments_removed} inline comments")
+        if tabs_replaced > 0:
+            clean_summary.append(f"{tabs_replaced} tabs replaced")
+        if footer_removed:
+            clean_summary.append("legacy footer removed")
+        if columns_adjusted > 0:
+            clean_summary.append(f"{columns_adjusted} lines adjusted for column consistency")
+        if cleaning_actions:
+            clean_summary.append(f"{len(cleaning_actions)} metadata lines removed")
+        
+        logger_supy.info(f"✓ Cleaned {Path(file_path).name}: {', '.join(clean_summary)}")
+    else:
+        logger_supy.debug(f"File {Path(file_path).name} was already clean")
+    
     return output_path
 
 
@@ -470,9 +504,9 @@ def SUEWS_Converter_single(fromDir, toDir, fromVer, toVer):
         os.mkdir(toDir)
     fileList = []
 
-    # Special case: if fromVer == toVer, just copy and sanitize without conversion
+    # Special case: if fromVer == toVer, just copy and clean without conversion
     if fromVer == toVer:
-        logger_supy.info(f"Source and target versions are the same ({fromVer}). Only sanitizing files...")
+        logger_supy.info(f"Source and target versions are the same ({fromVer}). Only cleaning files...")
 
         # Determine file structure based on version
         if fromVer == "2016a":
@@ -485,8 +519,9 @@ def SUEWS_Converter_single(fromDir, toDir, fromVer, toVer):
                         file_dst = os.path.join(toDir, fileX)
                         copyfile(file_src, file_dst)
                         convert_utf8(file_dst)
+                        # Clean table files during copy when no conversion is needed
                         if fnmatch(fileX, "*.txt"):
-                            sanitize_legacy_suews_file(file_dst)
+                            clean_legacy_table(file_dst)
             # Also check root for .nml files
             for fileX in os.listdir(fromDir):
                 if fnmatch(fileX, "*.nml"):
@@ -502,8 +537,9 @@ def SUEWS_Converter_single(fromDir, toDir, fromVer, toVer):
                     file_dst = os.path.join(toDir, fileX)
                     copyfile(file_src, file_dst)
                     convert_utf8(file_dst)
+                    # Clean table files during copy when no conversion is needed
                     if fnmatch(fileX, "*.txt"):
-                        sanitize_legacy_suews_file(file_dst)
+                        clean_legacy_table(file_dst)
 
         # Create the standard directory structure
         ser_nml = load_SUEWS_nml_simple(str(Path(toDir) / "RunControl.nml")).runcontrol
@@ -519,7 +555,7 @@ def SUEWS_Converter_single(fromDir, toDir, fromVer, toVer):
         for fileX in list_table_input:
             move(fileX.resolve(), path_input / fileX.name)
 
-        logger_supy.info(f"Files sanitized and copied to {toDir}")
+        logger_supy.info(f"Files cleaned and copied to {toDir}")
         return
 
     # Normal conversion process continues below
@@ -554,15 +590,8 @@ def SUEWS_Converter_single(fromDir, toDir, fromVer, toVer):
         copyfile(file_src, file_dst)
         convert_utf8(file_dst)
 
-    # Sanitize ALL txt table files at the beginning for 2016a format
-    # This ensures all table files are properly formatted before any operations
-    if fromVer == "2016a":
-        logger_supy.info("Sanitizing all 2016a table files before conversion...")
-        for fileX in os.listdir(toDir):
-            if fnmatch(fileX, "*.txt"):  # Apply to ALL .txt files, not just SUEWS_*.txt
-                file_path = os.path.join(toDir, fileX)
-                logger_supy.debug(f"Sanitizing 2016a file: {fileX}")
-                sanitize_legacy_suews_file(file_path)
+    # Note: File cleaning is now done once in convert_table() when files are first copied
+    # This avoids redundant cleaning during chained conversions
 
     # Special handling: Create SPARTACUS.nml and GridLayoutKc.nml when converting to 2024a or later
     # These files don't exist in earlier versions but are expected in 2024a+
@@ -891,9 +920,9 @@ def version_list(fromVer, toVer):
 
 # a chained conversion across multiple versions
 def convert_table(fromDir, toDir, fromVer, toVer, debug_dir=None, validate_profiles=True):
-    # Special case: if fromVer == toVer, just sanitize without conversion
+    # Special case: if fromVer == toVer, just clean without conversion
     if fromVer == toVer:
-        logger_supy.info(f"Source and target versions are the same ({fromVer}). Only sanitizing files...")
+        logger_supy.info(f"Source and target versions are the same ({fromVer}). Only cleaning files...")
         SUEWS_Converter_single(fromDir, toDir, fromVer, toVer)
         return
 
@@ -940,6 +969,11 @@ def convert_table(fromDir, toDir, fromVer, toVer, debug_dir=None, validate_profi
             # print(fileX)
             path_dst = Path(tempDir_1) / fileX.name
             copyfile(fileX.resolve(), path_dst)
+            convert_utf8(path_dst)
+            # Clean legacy table files once at the beginning
+            if path_dst.suffix == '.txt':
+                logger_supy.debug(f"Cleaning original file: {fileX.name}")
+                clean_legacy_table(path_dst)
 
         # Indirect version conversion process
         # The alternation logic needs to account for starting position

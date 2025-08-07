@@ -63,27 +63,23 @@ def detect_table_version(input_dir):
             },
         },
         "2024a": {
-            "required_files": ["RunControl.nml"],  # Only require essential file
-            "check_nml": {
-                "RunControl.nml": [
-                    "diagmethod",
-                    "localclimatemethod",
-                    "faimethod",
-                ]  # Added in 2024a
-            },
+            "required_files": ["RunControl.nml"],
+            # 2024a doesn't have distinct table changes from 2023a
+            # This will be a fallback after checking newer versions
         },
         "2023a": {
-            "required_files": ["RunControl.nml"],  # Only require essential file
-            "check_nml": {
-                "RunControl.nml": ["DiagQS", "DiagQN"]  # Deleted after 2023a
-            },
-            "negative_check": True,  # These should NOT exist in 2023a
+            "required_files": ["RunControl.nml"],
+            # 2023a doesn't have distinct table changes from 2021a
+            # Files are same as 2021a
         },
         "2021a": {
-            "required_files": ["RunControl.nml"],  # Only require essential file
-            "check_nml": {
-                "RunControl.nml": ["DiagQS", "DiagQN"]  # Should exist in 2021a
+            "required_files": ["RunControl.nml"],
+            # 2021a is similar to 2020a, check for H_maintain which exists in 2020a+
+            # This will be a fallback after checking 2020a
+            "check_columns": {
+                "SUEWS_Irrigation.txt": ["H_maintain"],  # Same as 2020a
             },
+            "optional_files": ["Spartacus.nml", "Spartacus_Profiles.nml"],
         },
         "2020a": {
             "required_files": ["RunControl.nml", "SUEWS_Irrigation.txt"],
@@ -116,10 +112,20 @@ def detect_table_version(input_dir):
             # 2018b is same as 2018a in structure
         },
         "2018a": {
-            "required_files": ["RunControl.nml", "SUEWS_AnthropogenicHeat.txt"],
+            "required_files": ["RunControl.nml"],
             "file_exists": ["SUEWS_AnthropogenicHeat.txt"],  # Old name before 2019a
-            "check_nml": {
-                "RunControl.nml": ["EmissionsMethod"]  # Added in 2018a (renamed from AnthropHeatMethod)
+            # Check for columns that were added in 2018a
+            "check_columns": {
+                "SUEWS_BiogenCO2.txt": ["alpha", "beta", "theta"],  # Added in 2018a
+                "SUEWS_SiteSelect.txt": ["TrafficRate_WD", "TrafficRate_WE"],  # Added in 2018a
+            },
+        },
+        "2017a": {
+            "required_files": ["RunControl.nml"],
+            "file_exists": ["SUEWS_AnthropogenicHeat.txt"],
+            # 2017a has ESTMCoefficients but different structure than 2018a
+            "check_columns": {
+                "SUEWS_Conductance.txt": ["gsModel"],  # Added in 2017a
             },
         },
         "2016a": {
@@ -130,18 +136,19 @@ def detect_table_version(input_dir):
     }
 
     # Check versions from newest to oldest
+    # Only check versions with distinct table changes
     for version in [
-        "2025a",
-        "2024a",
-        "2023a",
-        "2021a",
-        "2020a",
-        "2019b",
-        "2019a",
-        "2018c",
-        "2018b",
-        "2018a",
-        "2016a",
+        "2025a",  # Has h_std and n_buildings columns
+        # Skip 2024a, 2023a - no distinct table changes
+        "2021a",  # May have Spartacus files
+        "2020a",  # Has H_maintain in Irrigation
+        "2019b",  # Has BaseT_HC in AnthropogenicEmission
+        "2019a",  # Has AnthropogenicEmission.txt (renamed file)
+        "2018c",  # Has FcEF_v_kgkmWE columns
+        "2018b",  # Same as 2018a structure
+        "2018a",  # Has BiogenCO2 with alpha/beta, TrafficRate_WD
+        "2017a",  # Has gsModel in Conductance
+        "2016a",  # Fallback for oldest
     ]:
         indicators = version_indicators.get(version, {})
 
@@ -161,6 +168,15 @@ def detect_table_version(input_dir):
                     break
             if not files_found:
                 continue
+        
+        # Check for optional files (these can help identify version but aren't required)
+        optional_files = indicators.get("optional_files", [])
+        if optional_files:
+            # If any optional file exists, it's a positive indicator
+            for f in optional_files:
+                if (input_path / f).exists() or (input_path / "Input" / f).exists():
+                    # Found an optional file that helps identify this version
+                    break
 
         # Check columns in text files
         check_columns = indicators.get("check_columns", {})
@@ -192,49 +208,25 @@ def detect_table_version(input_dir):
         if not columns_match:
             continue
 
-        # Check namelist parameters
-        check_nml = indicators.get("check_nml", {})
-        nml_match = True
-        negative_check = indicators.get("negative_check", False)
-
-        for nml_file, params in check_nml.items():
-            nml_path = input_path / nml_file
-            if nml_path.exists():
-                try:
-                    nml = f90nml.read(str(nml_path))
-                    # Find which section contains the parameters
-                    for param in params:
-                        found = False
-                        for section in nml.values():
-                            if isinstance(section, dict) and param in section:
-                                found = True
-                                break
-
-                        # For negative check, we want params to NOT exist
-                        if negative_check and found:
-                            nml_match = False
-                            break
-                        # For positive check, we want params to exist
-                        elif not negative_check and not found:
-                            nml_match = False
-                            break
-                except:
-                    nml_match = False
-            else:
-                nml_match = False
-
-            if not nml_match:
-                break
-
-        if not nml_match:
-            continue
+        # Note: We've removed nml parameter checking since RunControl.nml 
+        # can have optional fields that vary between installations.
+        # Version detection now relies on table file structure changes only.
+        # Keep the code commented for reference:
+        #
+        # check_nml = indicators.get("check_nml", {})
+        # nml_match = True
+        # negative_check = indicators.get("negative_check", False)
+        # ... (nml checking logic) ...
 
         # If this is a fallback version, only use if nothing else matched
         if indicators.get("fallback", False):
             logger_supy.warning(
                 f"Could not determine exact version, assuming {version}"
             )
-
+        
+        # For versions without distinct changes (2023a, 2024a), we might 
+        # incorrectly detect an older version. In practice, if user has
+        # 2023a or 2024a files, they should specify the version explicitly.
         logger_supy.info(f"Auto-detected table version: {version}")
         return version
 

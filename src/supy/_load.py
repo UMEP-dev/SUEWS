@@ -1680,9 +1680,9 @@ def add_file_init_df(df_init):
                     df_init_file[col] = df_init_file[col].astype(target_dtype)
                 except (ValueError, TypeError):
                     # If conversion fails, convert both to object dtype
-                    df_init[col] = df_init[col].astype('object')
-                    df_init_file[col] = df_init_file[col].astype('object')
-    
+                    df_init[col] = df_init[col].astype("object")
+                    df_init_file[col] = df_init_file[col].astype("object")
+
     df_init.update(df_init_file)
 
     return df_init

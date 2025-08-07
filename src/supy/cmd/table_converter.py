@@ -5,8 +5,16 @@ from pathlib import Path
 
 from ..util._converter import convert_table, list_ver_from, list_ver_to
 
+# Try to import the current version from the project
+try:
+    from .._version import __version__
+    CURRENT_VERSION = __version__
+except ImportError:
+    # Fallback to None if version is not available
+    CURRENT_VERSION = None
 
-@click.command()
+
+@click.command(context_settings=dict(show_default=True))
 @click.option(
     "-f",
     "--from",
@@ -19,9 +27,10 @@ from ..util._converter import convert_table, list_ver_from, list_ver_to
     "-t",
     "--to",
     "toVer",
-    help="Version to convert to (2025a+ converts to YAML format)",
-    type=str,  # Changed from Choice to allow 'yaml' or any version
-    required=True,
+    help="Version to convert to (default: latest YAML format)",
+    type=str,  # Allow any version string
+    default="latest",  # Default to latest version
+    show_default=True,
 )
 @click.option(
     "-i",
@@ -39,41 +48,83 @@ from ..util._converter import convert_table, list_ver_from, list_ver_to
     type=click.Path(),
     required=True,
 )
-def convert_table_cmd(fromVer: str, toVer: str, input_path: str, output_path: str):
+@click.option(
+    "-d",
+    "--debug-dir",
+    "debug_dir",
+    help="Optional directory to keep intermediate conversion files for debugging. If not provided, temporary directories are removed automatically.",
+    type=click.Path(),
+    required=False,
+    default=None,
+)
+def convert_table_cmd(fromVer: str, toVer: str, input_path: str, output_path: str, debug_dir: str = None):
     """Convert SUEWS input files between versions.
 
     Automatically determines conversion type based on target version:
-    - Versions before 2025 (e.g., 2024a): Table-to-table conversion
-    - Version 2025a or later: Convert to YAML format
+    - Same version (fromVer == toVer): Sanitization only
+    - Table versions (up to 2025a): Table-to-table conversion
+    - Version 2025a: Final table version, converts to YAML format
+    - 'latest' or omitted: Converts to current YAML format (aligned with project version)
 
     Examples:
+        suews-convert -f 2016a -t 2016a -i input_dir -o output_dir  # Sanitize only
         suews-convert -f 2020a -t 2024a -i input_dir -o output_dir  # Table to table
-        suews-convert -f 2024a -t 2025a -i input_dir -o config.yml  # Table to YAML (2025+)
+        suews-convert -f 2024a -t 2025a -i input_dir -o config.yml  # Table to YAML
+        suews-convert -f 2024a -i input_dir -o config.yml           # Default to latest YAML
+        suews-convert -f 2024a -t latest -i input_dir -o config.yml # Explicit latest YAML
     """
+    # Check for same-version conversion (sanitization only)
+    if fromVer == toVer and toVer != "latest":
+        click.secho(f"Same version specified ({fromVer}). Will perform sanitization only.", fg="cyan")
+
+        # Ensure output is treated as directory
+        output_dir = Path(output_path)
+
+        # Call convert_table which handles same-version conversions
+        convert_table(Path(input_path), output_dir, fromVer, toVer, debug_dir=debug_dir)
+
+        click.secho(f"Successfully sanitized {fromVer} files", fg="green")
+        return
+
+    # Determine the actual target version
+    if toVer == "latest":
+        # 'latest' means convert to current YAML format
+        # 2025a is the last table version, after which everything is YAML
+        toVer = "2025a"  # This triggers YAML conversion
+        version_display = f"latest ({CURRENT_VERSION})" if CURRENT_VERSION else "latest YAML format"
+        click.secho(f"Converting to {version_display}", fg="cyan")
+    elif toVer == "2025a":
+        # 2025a explicitly means convert to YAML
+        click.secho(f"Converting to YAML format (2025a marks transition to YAML)", fg="cyan")
+
     # Determine conversion type based on target version
+    # 2025a is the boundary: it and anything after is YAML conversion
     to_yaml = False
 
-    # Check if target is a version >= 2025
     if toVer in list_ver_to:
-        # Extract year from version (e.g., '2025a' -> 2025)
+        # Check if this is a known table version
         try:
             year = int(toVer[:4])
             if year >= 2025:
                 to_yaml = True
         except (ValueError, IndexError):
-            # If we can't parse the year, treat as table conversion
+            # If we can't parse the year, check if it's a valid table version
             pass
     else:
-        # Check if it's a future version format like '2025a+' or '2026a'
+        # Unknown version - if it looks like a year >= 2025, treat as YAML
+        # This allows forward compatibility with future versions
         try:
             year = int(toVer[:4])
             if year >= 2025:
+                # Future version, assume YAML format
                 to_yaml = True
+                click.secho(f"Note: '{toVer}' is not in table conversion rules, treating as YAML format", fg="yellow")
             else:
                 click.secho(f"Error: '{toVer}' is not a valid target version", fg="red")
+                click.secho(f"Valid table versions: {', '.join(sorted(list_ver_to))}", fg="yellow")
                 sys.exit(1)
         except (ValueError, IndexError):
-            click.secho(f"Error: '{toVer}' is not a valid target version", fg="red")
+            click.secho(f"Error: '{toVer}' is not a valid version format", fg="red")
             sys.exit(1)
 
     if to_yaml:
@@ -102,6 +153,7 @@ def convert_table_cmd(fromVer: str, toVer: str, input_path: str, output_path: st
             input_dir=input_path,
             output_file=str(output_file),
             from_ver=fromVer,
+            debug_dir=debug_dir,
         )
 
         click.secho(f"Successfully converted to YAML: {output_file}", fg="green")
@@ -119,7 +171,7 @@ def convert_table_cmd(fromVer: str, toVer: str, input_path: str, output_path: st
         # Ensure output is treated as directory for table conversion
         output_dir = Path(output_path)
 
-        convert_table(Path(input_path), output_dir, fromVer, toVer)
+        convert_table(Path(input_path), output_dir, fromVer, toVer, debug_dir=debug_dir)
 
         click.secho(
             f"Successfully converted tables from {fromVer} to {toVer}", fg="green"

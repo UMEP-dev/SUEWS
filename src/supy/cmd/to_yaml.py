@@ -120,6 +120,23 @@ def to_yaml(input_dir: str, output_file: str, from_ver: str, debug_dir: str = No
                 else:
                     # If no matching files found, construct expected name
                     click.echo(f"  - Warning: No forcing file found matching pattern {filecode}_*_data_*.txt")
+            
+            # Set proper output configuration instead of deprecated string
+            from ..data_model.model import OutputConfig, OutputFormat
+            
+            # Get output settings from RunControl if available
+            resolutionfilesout = runcontrol.get('resolutionfilesout', 3600)
+            writeoutoption = runcontrol.get('writeoutoption', 0)
+            
+            # Create OutputConfig based on RunControl settings
+            output_config = OutputConfig(
+                format='txt',  # Default to txt format for compatibility (use string value)
+                freq=resolutionfilesout if resolutionfilesout > 0 else 3600,
+                groups=['SUEWS', 'DailyState']  # Default groups
+            )
+            
+            config.model.control.output_file = output_config
+            click.echo(f"  - Set output configuration: format={output_config.format}, freq={output_config.freq}s")
                     
         except Exception as e:
             raise click.ClickException(f"Failed to create configuration: {e}")

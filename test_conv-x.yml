@@ -4,7 +4,12 @@ model:
   control:
     tstep: 300
     forcing_file: Kc_2012_data_60.txt
-    output_file: output.txt
+    output_file:
+      format: txt
+      freq: 3600
+      groups:
+      - SUEWS
+      - DailyState
     diagnose: 0
   physics:
     netradiationmethod:

@@ -2303,9 +2303,11 @@ class SUEWSConfig(BaseModel):
 
     def to_yaml(self, path: str = "./config-suews.yml"):
         """Convert config to YAML format"""
+        # Use mode='json' to serialize enums as their values
+        config_dict = self.model_dump(exclude_none=True, mode='json')
         with open(path, "w") as file:
             yaml.dump(
-                self.model_dump(exclude_none=True),
+                config_dict,
                 file,
                 sort_keys=False,
                 allow_unicode=True,

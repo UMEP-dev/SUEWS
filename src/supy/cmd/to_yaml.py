@@ -39,7 +39,14 @@ import shutil
     type=click.Path(),
     default=None,
 )
-def to_yaml(input_dir: str, output_file: str, from_ver: str, debug_dir: str = None):
+@click.option(
+    "--no-profile-validation",
+    "no_validate_profiles",
+    is_flag=True,
+    default=False,
+    help="Disable automatic profile validation and creation of missing profiles",
+)
+def to_yaml(input_dir: str, output_file: str, from_ver: str, debug_dir: str = None, no_validate_profiles: bool = False):
     """
     This tool facilitates the transition from the legacy table-based SUEWS input format
     to the new YAML-based configuration format.
@@ -67,7 +74,7 @@ def to_yaml(input_dir: str, output_file: str, from_ver: str, debug_dir: str = No
             )
             temp_dir_obj = tempfile.TemporaryDirectory()
             temp_dir_path = Path(temp_dir_obj.name)
-            convert_table(str(input_path), str(temp_dir_path), from_ver, to_ver, debug_dir=debug_dir)
+            convert_table(str(input_path), str(temp_dir_path), from_ver, to_ver, debug_dir=debug_dir, validate_profiles=not no_validate_profiles)
             processing_dir = temp_dir_path
             click.echo(
                 f"Table conversion complete. Using converted tables in: {processing_dir}"

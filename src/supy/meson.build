@@ -30,6 +30,7 @@ py.install_sources(
             'util/_converter.py',
             'util/_debug.py',
             'util/_era5.py',
+            'util/profile_manager.py',
             'util/_gap_filler.py',
             'util/_gs.py',
             'util/_io.py',

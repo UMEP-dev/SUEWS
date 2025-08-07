@@ -31,6 +31,7 @@ from chardet import detect
 
 from .._env import logger_supy, trv_supy_module
 from .._load import load_SUEWS_nml_simple
+from .profile_manager import ProfileManager
 
 warnings.filterwarnings("ignore")
 ########################################################
@@ -668,8 +669,20 @@ def SUEWS_Converter_file(fileX, actionList):
     if not Path(fileX).exists():
         # Only create placeholder for .txt files, not .nml files
         if fileX.endswith('.txt'):
-            # Create placeholder WITHOUT footer lines
-            Path(fileX).write_text("1\nCode\n800\n", encoding="UTF8")
+            # Create appropriate placeholder based on file type
+            if 'BiogenCO2' in fileX:
+                # Create BiogenCO2 file with code 31 (commonly referenced)
+                placeholder = "1 2 3 4 5 6 7 8 9\n"
+                placeholder += "Code alpha beta theta alpha_enh beta_enh resp_a resp_b min_respi\n"
+                placeholder += "31 0.004 8.747 0.96 0.016 33.353 2.43 0 0.6\n"
+            elif 'ESTMCoefficients' in fileX:
+                # Create ESTM file with common codes
+                placeholder = "1\nCode\n"
+                placeholder += "800\n801\n802\n803\n804\n805\n806\n807\n808\n"
+            else:
+                # Default placeholder
+                placeholder = "1\nCode\n800\n"
+            Path(fileX).write_text(placeholder, encoding="UTF8")
             logger_supy.debug(f"Created placeholder for missing file: {fileX}")
         elif fileX.endswith('.nml'):
             # For missing .nml files, skip processing
@@ -753,7 +766,7 @@ def version_list(fromVer, toVer):
 
 
 # a chained conversion across multiple versions
-def convert_table(fromDir, toDir, fromVer, toVer, debug_dir=None):
+def convert_table(fromDir, toDir, fromVer, toVer, debug_dir=None, validate_profiles=True):
     # Special case: if fromVer == toVer, just sanitize without conversion
     if fromVer == toVer:
         logger_supy.info(f"Source and target versions are the same ({fromVer}). Only sanitizing files...")
@@ -820,6 +833,16 @@ def convert_table(fromDir, toDir, fromVer, toVer, debug_dir=None):
                     tempDir_1, tempDir_2, chain_ver[i + 1], chain_ver[i]
                 )
                 
+                # Validate and fix profiles after conversion if enabled
+                if validate_profiles:
+                    try:
+                        profile_manager = ProfileManager(tempDir_2 / "SUEWS_Profiles.txt")
+                        profile_manager.ensure_required_profiles(tempDir_2)
+                        if profile_manager.missing_profiles:
+                            logger_supy.info(f"Fixed {len(profile_manager.missing_profiles)} missing profile references: {sorted(profile_manager.missing_profiles)}")
+                    except Exception as e:
+                        logger_supy.warning(f"Profile validation skipped: {e}")
+                
                 # Save snapshot in debug mode
                 if debug_dir is not None:
                     for file in Path(tempDir_2).glob("*"):
@@ -839,6 +862,16 @@ def convert_table(fromDir, toDir, fromVer, toVer, debug_dir=None):
                 SUEWS_Converter_single(
                     tempDir_2, tempDir_1, chain_ver[i + 1], chain_ver[i]
                 )
+                
+                # Validate and fix profiles after conversion if enabled
+                if validate_profiles:
+                    try:
+                        profile_manager = ProfileManager(tempDir_1 / "SUEWS_Profiles.txt")
+                        profile_manager.ensure_required_profiles(tempDir_1)
+                        if profile_manager.missing_profiles:
+                            logger_supy.info(f"Fixed {len(profile_manager.missing_profiles)} missing profile references: {sorted(profile_manager.missing_profiles)}")
+                    except Exception as e:
+                        logger_supy.warning(f"Profile validation skipped: {e}")
                 
                 # Save snapshot in debug mode
                 if debug_dir is not None:
@@ -860,6 +893,24 @@ def convert_table(fromDir, toDir, fromVer, toVer, debug_dir=None):
         logger_supy.info("**************************************************")
         logger_supy.info(f"working on: {chain_ver[i + 1]} --> {chain_ver[i]}")
         SUEWS_Converter_single(tempDir_1, toDir, chain_ver[2], chain_ver[1])
+        
+        # Final profile validation
+        if validate_profiles:
+            try:
+                profile_manager = ProfileManager(Path(toDir) / "input" / "SUEWS_Profiles.txt")
+                profile_manager.ensure_required_profiles(Path(toDir) / "input")
+                if profile_manager.missing_profiles:
+                    logger_supy.info(f"Final profile validation: Fixed {len(profile_manager.missing_profiles)} missing profiles")
+                    logger_supy.info(f"Missing profile codes: {sorted(profile_manager.missing_profiles)}")
+            except Exception as e:
+                # Try the toDir directly if input dir doesn't exist yet
+                try:
+                    profile_manager = ProfileManager(Path(toDir) / "SUEWS_Profiles.txt")
+                    profile_manager.ensure_required_profiles(Path(toDir))
+                    if profile_manager.missing_profiles:
+                        logger_supy.info(f"Final profile validation: Fixed {len(profile_manager.missing_profiles)} missing profiles")
+                except Exception as e2:
+                    logger_supy.warning(f"Final profile validation skipped: {e2}")
         
         # Save final snapshot in debug mode
         if debug_dir is not None:

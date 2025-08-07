@@ -57,7 +57,14 @@ except ImportError:
     required=False,
     default=None,
 )
-def convert_table_cmd(fromVer: str, toVer: str, input_path: str, output_path: str, debug_dir: str = None):
+@click.option(
+    "--no-profile-validation",
+    "no_validate_profiles",
+    is_flag=True,
+    default=False,
+    help="Disable automatic profile validation and creation of missing profiles",
+)
+def convert_table_cmd(fromVer: str, toVer: str, input_path: str, output_path: str, debug_dir: str = None, no_validate_profiles: bool = False):
     """Convert SUEWS input files between versions.
 
     Automatically determines conversion type based on target version:
@@ -81,7 +88,7 @@ def convert_table_cmd(fromVer: str, toVer: str, input_path: str, output_path: st
         output_dir = Path(output_path)
 
         # Call convert_table which handles same-version conversions
-        convert_table(Path(input_path), output_dir, fromVer, toVer, debug_dir=debug_dir)
+        convert_table(Path(input_path), output_dir, fromVer, toVer, debug_dir=debug_dir, validate_profiles=not no_validate_profiles)
 
         click.secho(f"Successfully sanitized {fromVer} files", fg="green")
         return
@@ -154,6 +161,7 @@ def convert_table_cmd(fromVer: str, toVer: str, input_path: str, output_path: st
             output_file=str(output_file),
             from_ver=fromVer,
             debug_dir=debug_dir,
+            no_validate_profiles=no_validate_profiles,
         )
 
         click.secho(f"Successfully converted to YAML: {output_file}", fg="green")
@@ -171,7 +179,7 @@ def convert_table_cmd(fromVer: str, toVer: str, input_path: str, output_path: st
         # Ensure output is treated as directory for table conversion
         output_dir = Path(output_path)
 
-        convert_table(Path(input_path), output_dir, fromVer, toVer, debug_dir=debug_dir)
+        convert_table(Path(input_path), output_dir, fromVer, toVer, debug_dir=debug_dir, validate_profiles=not no_validate_profiles)
 
         click.secho(
             f"Successfully converted tables from {fromVer} to {toVer}", fg="green"

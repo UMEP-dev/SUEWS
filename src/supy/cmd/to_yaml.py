@@ -95,6 +95,24 @@ def to_yaml(input_dir: str, output_file: str, from_ver: str, debug_dir: str = No
         click.echo("Step 3: Creating Pydantic configuration object...")
         try:
             config = SUEWSConfig.from_df_state(df_state)
+            
+            # Find and set the forcing file path
+            # Look for data files in the input directory
+            input_path = Path(input_dir)
+            if input_path.is_dir():
+                # Check in Input subdirectory first
+                input_subdir = input_path / "Input"
+                if input_subdir.exists():
+                    data_files = list(input_subdir.glob("*_data_*.txt"))
+                else:
+                    data_files = list(input_path.glob("*_data_*.txt"))
+                
+                if data_files:
+                    # Use the first data file found
+                    forcing_file = data_files[0].name
+                    config.model.control.forcing_file = forcing_file
+                    click.echo(f"  - Set forcing file to: {forcing_file}")
+                    
         except Exception as e:
             raise click.ClickException(f"Failed to create configuration: {e}")
 

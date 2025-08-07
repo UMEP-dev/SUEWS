@@ -1886,6 +1886,67 @@ def add_temp_init_df(df_init):
     return df_init
 
 
+# fix invalid default values (-999) with sensible defaults
+def fix_invalid_defaults(df_init):
+    """Replace -999 values with sensible defaults for specific parameters."""
+    # FAI_Bldgs: Frontal area index for buildings (typical value 0.3-0.5)
+    if ("fai_bldgs", "0") in df_init.columns:
+        mask = df_init[("fai_bldgs", "0")] == -999
+        df_init.loc[mask, ("fai_bldgs", "0")] = 0.3
+    
+    # Also check for faibldg (without underscore)
+    if ("faibldg", "0") in df_init.columns:
+        mask = df_init[("faibldg", "0")] == -999
+        df_init.loc[mask, ("faibldg", "0")] = 0.3
+    
+    # pormin_dec and pormax_dec: Porosity min/max for deciduous trees (typical 0.2-0.9)
+    if ("pormin_dec", "0") in df_init.columns:
+        mask = df_init[("pormin_dec", "0")] == -999
+        df_init.loc[mask, ("pormin_dec", "0")] = 0.2
+    
+    if ("pormax_dec", "0") in df_init.columns:
+        mask = df_init[("pormax_dec", "0")] == -999
+        df_init.loc[mask, ("pormax_dec", "0")] = 0.9
+    
+    # pormin_evetr and pormax_evetr: Porosity min/max for evergreen trees
+    if ("pormin_evetr", "0") in df_init.columns:
+        mask = df_init[("pormin_evetr", "0")] == -999
+        df_init.loc[mask, ("pormin_evetr", "0")] = 0.2
+    
+    if ("pormax_evetr", "0") in df_init.columns:
+        mask = df_init[("pormax_evetr", "0")] == -999
+        df_init.loc[mask, ("pormax_evetr", "0")] = 0.9
+    
+    # pormin_grass and pormax_grass: Porosity min/max for grass
+    if ("pormin_grass", "0") in df_init.columns:
+        mask = df_init[("pormin_grass", "0")] == -999
+        df_init.loc[mask, ("pormin_grass", "0")] = 0.2
+    
+    if ("pormax_grass", "0") in df_init.columns:
+        mask = df_init[("pormax_grass", "0")] == -999
+        df_init.loc[mask, ("pormax_grass", "0")] = 0.9
+    
+    # FAI_EveTr and FAI_DecTr: Frontal area index for trees (typical value 0.3-2.0)
+    if ("fai_evetr", "0") in df_init.columns:
+        mask = df_init[("fai_evetr", "0")] == -999
+        df_init.loc[mask, ("fai_evetr", "0")] = 1.0
+    
+    if ("fai_dectr", "0") in df_init.columns:
+        mask = df_init[("fai_dectr", "0")] == -999
+        df_init.loc[mask, ("fai_dectr", "0")] = 1.0
+    
+    # Also check without underscores
+    if ("faievetr", "0") in df_init.columns:
+        mask = df_init[("faievetr", "0")] == -999
+        df_init.loc[mask, ("faievetr", "0")] = 1.0
+    
+    if ("faidectree", "0") in df_init.columns:
+        mask = df_init[("faidectree", "0")] == -999
+        df_init.loc[mask, ("faidectree", "0")] = 1.0
+    
+    return df_init
+
+
 # add additional parameters to `df` produced by `load_SUEWS_InitialCond_df`
 def load_InitialCond_grid_df(path_runcontrol, force_reload=True):
     # clean all cached states
@@ -1924,6 +1985,10 @@ def load_InitialCond_grid_df(path_runcontrol, force_reload=True):
     # add surface specific info into `df_init`
     logger_supy.debug("adding surface specific conditions...")
     df_init = add_sfc_init_df(df_init)
+    
+    # Fix invalid default values (-999) with sensible defaults
+    logger_supy.debug("fixing invalid default values...")
+    df_init = fix_invalid_defaults(df_init)
     # if 'localclimatemethod' in df_init.columns:
     #     print()
     #     print('3')

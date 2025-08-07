@@ -3,7 +3,7 @@ description: Configuration converted from legacy SUEWS table format
 model:
   control:
     tstep: 300
-    forcing_file: forcing.txt
+    forcing_file: Kc_2012_data_60.txt
     output_file: output.txt
     diagnose: 0
   physics:
@@ -1032,7 +1032,7 @@ sites:
         alb:
           value: 0.12
         faibldg:
-          value: -999.0
+          value: 0.3
         bldgh:
           value: 22.0
       evetr:
@@ -1354,13 +1354,13 @@ sites:
         ie_m:
           value: 0.0
         faidectree:
-          value: -999.0
+          value: 1.0
         dectreeh:
           value: 13.1
         pormin_dec:
-          value: -999.0
+          value: 0.2
         pormax_dec:
-          value: -999.0
+          value: 0.9
         capmax_dec:
           value: 0.8
         capmin_dec:

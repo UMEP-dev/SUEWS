@@ -44,6 +44,14 @@ list_ver_to = rules["To"].unique().tolist()
 
 def detect_table_version(input_dir):
     """Auto-detect the version of SUEWS table files.
+    
+    Note: Some versions have identical table structures and will be detected
+    as the earliest matching version:
+    - 2018b, 2018c → may detect as 2018a (same conversion rules)
+    - 2021a, 2023a, 2024a → may detect as 2020a (same conversion rules)
+    
+    This is acceptable since versions with identical structures use the same
+    conversion rules.
 
     Args:
         input_dir: Path to the directory containing SUEWS table files
@@ -57,20 +65,20 @@ def detect_table_version(input_dir):
     version_indicators = {
         # Check for renamed files between versions
         "2025a": {
-            "required_files": ["RunControl.nml", "SUEWS_SiteSelect.txt"],
+            "required_files": ["RunControl.nml"],
             "check_columns": {
                 "SUEWS_SiteSelect.txt": ["h_std", "n_buildings"]  # Added in 2025a
             },
         },
+        # Note: 2024a, 2023a have identical table structure to 2021a/2020a
+        # Detection will return 2020a or 2021a, but conversion is identical
         "2024a": {
             "required_files": ["RunControl.nml"],
-            # 2024a doesn't have distinct table changes from 2023a
-            # This will be a fallback after checking newer versions
+            # Same table structure as 2020a-2023a
         },
         "2023a": {
             "required_files": ["RunControl.nml"],
-            # 2023a doesn't have distinct table changes from 2021a
-            # Files are same as 2021a
+            # Same table structure as 2020a-2021a
         },
         "2021a": {
             "required_files": ["RunControl.nml"],
@@ -94,10 +102,14 @@ def detect_table_version(input_dir):
             },
         },
         "2019a": {
-            "required_files": ["RunControl.nml", "SUEWS_AnthropogenicEmission.txt"],
+            "required_files": ["RunControl.nml"],
             "file_exists": [
                 "SUEWS_AnthropogenicEmission.txt"
             ],  # Renamed from AnthropogenicHeat
+            # Check for BaseTHDD column (renamed to BaseT_HC in 2019b/2020a)
+            "check_columns": {
+                "SUEWS_AnthropogenicEmission.txt": ["BaseTHDD"]  # Original name before 2019b
+            },
         },
         "2018c": {
             "required_files": ["RunControl.nml", "SUEWS_AnthropogenicHeat.txt"],
@@ -224,9 +236,9 @@ def detect_table_version(input_dir):
                 f"Could not determine exact version, assuming {version}"
             )
         
-        # For versions without distinct changes (2023a, 2024a), we might 
-        # incorrectly detect an older version. In practice, if user has
-        # 2023a or 2024a files, they should specify the version explicitly.
+        # For versions without distinct table changes (e.g., 2023a, 2024a have same 
+        # structure as 2021a/2020a), we may detect an earlier version. This is fine
+        # since the conversion rules are identical for these versions.
         logger_supy.info(f"Auto-detected table version: {version}")
         return version
 

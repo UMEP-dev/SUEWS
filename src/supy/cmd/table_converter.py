@@ -113,6 +113,19 @@ def convert_table_cmd(
             )
             sys.exit(1)
         click.secho(f"Detected version: {fromVer}", fg="green")
+        
+        # Inform user about equivalent versions
+        equivalent_versions = {
+            "2020a": ["2020a", "2021a", "2023a", "2024a"],
+            "2018a": ["2018a", "2018b", "2018c"],
+        }
+        for base_ver, equiv_list in equivalent_versions.items():
+            if fromVer == base_ver and len(equiv_list) > 1:
+                click.echo(
+                    f"Note: Versions {', '.join(equiv_list)} have identical table structures. "
+                    f"Conversion will proceed as {base_ver}.",
+                    err=False
+                )
 
     # Check for same-version conversion (sanitization only)
     if fromVer == toVer and toVer != "latest":

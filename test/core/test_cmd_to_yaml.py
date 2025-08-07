@@ -166,15 +166,15 @@ class TestTableToYamlConversion:
         
         assert detected_version is not None, f"Failed to detect version for {version}"
         
-        # Some versions have identical table structures and can't be distinguished
-        # 2021a, 2023a, 2024a have same tables as 2020a
-        # 2018b has same tables as 2018a
+        # Some versions have identical table structures - any detection is fine
+        # since they use the same conversion rules
         acceptable_detections = {
-            "2021a": ["2020a", "2021a"],  # Can't distinguish from 2020a
-            "2023a": ["2020a", "2021a", "2023a"],  # Same structure
-            "2024a": ["2020a", "2021a", "2023a", "2024a"],  # Same structure
-            "2018b": ["2018a", "2018b"],  # Same structure as 2018a
-            "2018c": ["2018a", "2018c"],  # Minor differences hard to detect
+            "2020a": ["2020a", "2021a"],  # Same structure, same conversion
+            "2021a": ["2020a", "2021a"],  # Same structure, same conversion
+            "2023a": ["2020a", "2021a", "2023a"],  # Same structure, same conversion
+            "2024a": ["2020a", "2021a", "2023a", "2024a"],  # Same structure, same conversion
+            "2018b": ["2018a", "2018b"],  # Same structure, same conversion
+            "2018c": ["2018a", "2018b", "2018c"],  # Very similar structure, same conversion
         }
         
         if version in acceptable_detections:

@@ -64,7 +64,14 @@ except ImportError:
     default=False,
     help="Disable automatic profile validation and creation of missing profiles",
 )
-def convert_table_cmd(fromVer: str, toVer: str, input_path: str, output_path: str, debug_dir: str = None, no_validate_profiles: bool = False):
+@click.option(
+    "--force-table",
+    "force_table",
+    is_flag=True,
+    default=False,
+    help="Force table output format even for 2025a (skip YAML conversion)",
+)
+def convert_table_cmd(fromVer: str, toVer: str, input_path: str, output_path: str, debug_dir: str = None, no_validate_profiles: bool = False, force_table: bool = False):
     """Convert SUEWS input files between versions.
 
     Automatically determines conversion type based on target version:
@@ -101,8 +108,11 @@ def convert_table_cmd(fromVer: str, toVer: str, input_path: str, output_path: st
         version_display = f"latest ({CURRENT_VERSION})" if CURRENT_VERSION else "latest YAML format"
         click.secho(f"Converting to {version_display}", fg="cyan")
     elif toVer == "2025a":
-        # 2025a explicitly means convert to YAML
-        click.secho(f"Converting to YAML format (2025a marks transition to YAML)", fg="cyan")
+        # 2025a can be either table or YAML
+        if force_table:
+            click.secho(f"Force table output: Converting to 2025a table format", fg="cyan")
+        else:
+            click.secho(f"Converting to YAML format (2025a marks transition to YAML)", fg="cyan")
 
     # Determine conversion type based on target version
     # 2025a is the boundary: it and anything after is YAML conversion
@@ -113,7 +123,7 @@ def convert_table_cmd(fromVer: str, toVer: str, input_path: str, output_path: st
         try:
             year = int(toVer[:4])
             if year >= 2025:
-                to_yaml = True
+                to_yaml = not force_table  # Respect force_table flag for 2025a
         except (ValueError, IndexError):
             # If we can't parse the year, check if it's a valid table version
             pass

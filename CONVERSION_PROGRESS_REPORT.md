@@ -1,8 +1,8 @@
 # SUEWS Conversion Progress Report
-## Date: 2025-08-07
+## Date: 2025-08-07 (Updated)
 
 ## Summary
-Successfully fixed critical issues in the SUEWS table conversion system that prevented conversion from 2016a format to 2025a (YAML) format.
+Successfully fixed critical issues in the SUEWS table conversion system. The 2024a to YAML conversion now works perfectly. The 2016a conversion has multi-year data issues that need separate handling.
 
 ## Problems Identified and Fixed
 
@@ -47,27 +47,30 @@ Successfully fixed critical issues in the SUEWS table conversion system that pre
 ### Working ✅
 ```bash
 # Table-to-table conversion (2016a to 2024a)
-suews-convert -i test/fixtures/legacy_format/2016a -f 2016a -o test_conv-x -t 2024a -d debug_conversion
+suews-convert -i test/fixtures/legacy_format/2016a -f 2016a -o test_conv-x -t 2024a
 
-# Direct YAML conversion from 2024a
+# Table-to-table conversion (2016a to 2025a table format) with new flag
+suews-convert -i test/fixtures/legacy_format/2016a -f 2016a -o test_conv-x -t 2025a --force-table
+
+# Direct YAML conversion from 2024a (FULLY WORKING!)
 suews-convert -i test/fixtures/legacy_format/2024a -f 2024a -o config.yml -t 2025a
 ```
 
-### Not Working ❌
+### Partially Working ⚠️
 ```bash
 # Full conversion from 2016a to YAML (2025a)
+# Tables convert successfully but multi-year data causes loading issues
 suews-convert -i test/fixtures/legacy_format/2016a -f 2016a -o config.yml -t 2025a
 ```
 
 ## Remaining Issue
 
-The conversion from 2016a → 2025a (YAML) fails after the table conversion steps complete successfully. The issue appears to be in the handoff between the table conversion (2016a → 2024a) and the YAML conversion (2024a → 2025a):
+The conversion from 2016a → 2025a (YAML) has a data loading issue with multi-year data:
 
-1. Table conversion completes successfully
-2. Files are properly structured in temp directories
-3. When to_yaml module tries to load the converted tables, it encounters:
-   - Case sensitivity issues (looking for lowercase filenames)
-   - Missing file references (GridLayoutKc.nml created but not found)
+1. Table conversion completes successfully (2016a → 2025a tables)
+2. Files are properly structured with correct columns (n_buildings, h_std added)
+3. InitialConditions files are correctly renamed when multipleinitfiles=0
+4. The issue is that the 2016a fixture has 3 years of data (2011, 2012, 2013) which causes a DataFrame shape mismatch in the loader
 
 ## Next Steps
 

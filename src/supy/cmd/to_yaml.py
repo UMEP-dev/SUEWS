@@ -68,9 +68,11 @@ def to_yaml(input_dir: str, output_file: str, from_ver: str, debug_dir: str = No
 
     try:
         if from_ver:
-            to_ver = sorted(list_ver_to)[-1]
+            # Convert to 2025a table format first (which includes adding n_buildings and h_std columns)
+            # Then convert those 2025a tables to YAML
+            to_ver = "2025a"
             click.echo(
-                f"Step 1: Converting tables from version {from_ver} to latest version {to_ver}..."
+                f"Step 1: Converting tables from version {from_ver} to {to_ver}..."
             )
             temp_dir_obj = tempfile.TemporaryDirectory()
             temp_dir_path = Path(temp_dir_obj.name)

@@ -595,7 +595,7 @@ ground_albedo_dir_mult_fact = 1.
         # Also create GridLayoutKc.nml for 2024a+
         gridlayout_path = os.path.join(toDir, "GridLayoutKc.nml")
         if not os.path.exists(gridlayout_path):
-            # Create a minimal GridLayoutKc.nml file with default values
+            # Create a complete GridLayoutKc.nml file with thermal layer data
             gridlayout_content = """&dim
 nlayer = 3
 /
@@ -614,19 +614,78 @@ emis_roof = .95, .95, .95
 state_roof = .0, .0, .0
 statelimit_roof = 5, 5, 5
 wetthresh_roof = 5, 5, 5
-soildepth_roof = .1, .1, .1
-ohmcode_roof = 200, 200, 200
+soilstore_roof = 20, 20, 20
+soilstorecap_roof = 120, 120, 120
+
+roof_albedo_dir_mult_fact(1,:) = 1., 1., 1.
+
+dz_roof(1,:) = .2, .1, .1, .01, .01
+k_roof(1,:) = 1.2, 1.2, 1.2, 1.2, 1.2
+cp_roof(1,:) = 2e6, 2e6, 2e6, 2e6, 2e6
+
+dz_roof(2,:) = .2, .1, .1, .01, .01
+k_roof(2,:) = 2.2, 1.2, 1.2, 1.2, 1.2
+cp_roof(2,:) = 2e6, 3e6, 2e6, 2e6, 2e6
+
+dz_roof(3,:) = .2, .1, .1, .01, .01
+k_roof(3,:) = 2.2, 1.2, 1.2, 1.2, 1.2
+cp_roof(3,:) = 2e6, 3e6, 2e6, 2e6, 2e6
 /
 &wall
 sfr_wall = .3, .3, .4
-tin_wall = 4, 4, 5
-alb_wall = .4, .4, .15
+tin_wall = 5, 5, 5
+alb_wall = .5, .5, .5
 emis_wall = .95, .95, .95
 state_wall = .0, .0, .0
 statelimit_wall = 5, 5, 5
 wetthresh_wall = 5, 5, 5
-soildepth_wall = .1, .1, .1
-ohmcode_wall = 200, 200, 200
+soilstore_wall = 20, 20, 20
+soilstorecap_wall = 120, 120, 120
+
+wall_specular_frac(1,:) = 0., 0., 0.
+
+dz_wall(1,:) = .2, .1, .1, .01, .01
+k_wall(1,:) = 1.2, 1.2, 1.2, 1.2, 1.2
+cp_wall(1,:) = 3e6, 2e6, 2e6, 2e6, 2e6
+
+dz_wall(2,:) = .2, .1, .1, .01, .01
+k_wall(2,:) = 1.2, 1.2, 1.2, 1.2, 1.2
+cp_wall(2,:) = 2e6, 3e6, 2e6, 2e6, 2e6
+
+dz_wall(3,:) = .2, .1, .1, .01, .01
+k_wall(3,:) = 1.2, 1.2, 1.2, 1.2, 1.2
+cp_wall(3,:) = 2e6, 3e6, 2e6, 2e6, 2e6
+/
+&surf
+tin_surf = 2, 2, 2, 2, 2, 2, 2
+
+dz_surf(1,:) = .2, .15, .01, .01, .01
+k_surf(1,:) = 1.1, 1.1, 1.1, 1.1, 1.1
+cp_surf(1,:) = 2.2e6, 2.2e6, 2.2e6, 2.2e6, 2.6e6
+
+dz_surf(2,:) = .2, .1, .1, .5, 1.6
+k_surf(2,:) = 1.2, 1.1, 1.1, 1.5, 1.6
+cp_surf(2,:) = 1.2e6, 1.1e6, 1.1e6, 1.5e6, 1.6e6
+
+dz_surf(3,:) = .2, .1, .1, .5, 1.6
+k_surf(3,:) = 1.2, 1.1, 1.1, 1.5, 1.6
+cp_surf(3,:) = 3.2e6, 1.1e6, 1.1e6, 1.5e6, 1.6e6
+
+dz_surf(4,:) = .2, .1, .1, .1, 2.2
+k_surf(4,:) = 1.2, 1.1, 1.1, 1.5, 1.6
+cp_surf(4,:) = 3.2e6, 1.1e6, 1.1e6, 1.5e6, 1.6e6
+
+dz_surf(5,:) = .2, .05, .1, .1, 2.2
+k_surf(5,:) = 1.2, 1.1, 1.1, 1.5, 1.6
+cp_surf(5,:) = 1.6e6, 1.1e6, 1.1e6, 1.5e6, 1.6e6
+
+dz_surf(6,:) = .2, .05, .1, .1, 2.2
+k_surf(6,:) = 1.2, 1.1, 1.1, 1.5, 1.6
+cp_surf(6,:) = 1.9e6, 1.1e6, 1.1e6, 1.5e6, 1.6e6
+
+dz_surf(7,:) = .2, .05, .1, .1, 2.2
+k_surf(7,:) = 1.2, 1.1, 1.1, 1.5, 1.6
+cp_surf(7,:) = 1.9e6, 1.1e6, 1.1e6, 1.5e6, 1.6e6
 /
 """
             with open(gridlayout_path, 'w') as f:
@@ -1015,7 +1074,20 @@ def convert_table(fromDir, toDir, fromVer, toVer, debug_dir=None, validate_profi
     ]
 
     for fileX in list_table_input:
-        move(fileX.resolve(), path_input / fileX.name)
+        # Check if we need to rename InitialConditions files when multipleinitfiles == 0
+        target_name = fileX.name
+        if ("InitialConditions" in fileX.name and 
+            ser_nml.get("multipleinitfiles", 0) == 0):
+            # Remove grid number from filename (e.g., InitialConditionsKc1_2011.nml -> InitialConditionsKc_2011.nml)
+            import re
+            # Pattern to match InitialConditionsXXX#_YYYY.nml where XXX is filecode, # is grid number, YYYY is year
+            pattern = r'(InitialConditions[A-Za-z]+)\d+(_\d{4}\.nml)'
+            new_name = re.sub(pattern, r'\1\2', fileX.name)
+            if new_name != fileX.name:
+                target_name = new_name
+                logger_supy.debug(f"Renaming {fileX.name} to {target_name} (multipleinitfiles=0)")
+        
+        move(fileX.resolve(), path_input / target_name)
 
 
 # get file encoding type

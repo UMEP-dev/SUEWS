@@ -83,7 +83,7 @@ def rename_var(toFile, toVar, toCol, toVal):
         try:
             dataX = pd.read_csv(
                 toFile,
-                delim_whitespace=True,
+                sep=r'\s+',
                 comment="!",
                 encoding="UTF8",
                 skiprows=2,  # Skip both header lines
@@ -159,7 +159,7 @@ def delete_var(toFile, toVar, toCol, toVal):
         try:
             dataX = pd.read_csv(
                 toFile,
-                delim_whitespace=True,
+                sep=r'\s+',
                 comment="!",
                 encoding="UTF8",
                 skiprows=2,  # Skip both header lines
@@ -425,7 +425,7 @@ def add_var(toFile, toVar, toCol, toVal):
             # Use pandas to read only the data lines
             dataX = pd.read_csv(
                 toFile,
-                delim_whitespace=True,  # Faster C engine
+                sep=r'\s+',  # Use regex for whitespace separation
                 comment="!",
                 encoding="UTF8",
                 skiprows=2,  # Skip both header lines

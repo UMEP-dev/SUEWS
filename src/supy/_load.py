@@ -1670,6 +1670,19 @@ def add_file_init_df(df_init):
     df_init_file.index.set_names(["Grid"], inplace=True)
 
     # merge only those appeard in base df
+    # Ensure dtypes are compatible before updating to avoid FutureWarning
+    for col in df_init_file.columns:
+        if col in df_init.columns:
+            # Convert to the target dtype if different
+            target_dtype = df_init[col].dtype
+            if df_init_file[col].dtype != target_dtype:
+                try:
+                    df_init_file[col] = df_init_file[col].astype(target_dtype)
+                except (ValueError, TypeError):
+                    # If conversion fails, convert both to object dtype
+                    df_init[col] = df_init[col].astype('object')
+                    df_init_file[col] = df_init_file[col].astype('object')
+    
     df_init.update(df_init_file)
 
     return df_init

@@ -21,7 +21,7 @@
 
 | Year | Features | Bugfixes | Changes | Maintenance | Docs | Total |
 |------|----------|----------|---------|-------------|------|-------|
-| 2025 | 27 | 13 | 3 | 27 | 12 | 82 |
+| 2025 | 27 | 13 | 3 | 28 | 12 | 83 |
 | 2024 | 12 | 17 | 1 | 12 | 1 | 43 |
 | 2023 | 11 | 14 | 3 | 9 | 1 | 38 |
 | 2022 | 15 | 18 | 0 | 7 | 0 | 40 |
@@ -33,6 +33,14 @@
 
 
 ## 2025
+
+### 7 Aug 2025
+- [maintenance] Added CLAUDE.md content preservation system to prevent AI-induced data loss
+  - Created validation script to detect placeholder text and missing critical sections
+  - Implemented automatic backup system with timestamped snapshots
+  - Added Git pre-commit hook for CLAUDE.md integrity validation
+  - Documented best practices for preventing content truncation
+  - Ensures complete file preservation during AI-assisted edits
 
 ### 6 Aug 2025
 - [feature] Added CRU TS4.06 climatological temperature data integration for precheck initialisation

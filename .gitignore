@@ -604,3 +604,7 @@ src/supy/data_model/avg_temp/cru_ts4.06.1901.2021.tmp.dat.nc.gz
 temp_test.feather
 temp_test.npz
 PR561_logic_analysis.md
+
+# CLAUDE.md protection
+CLAUDE.md.backup
+.claude/snapshots/

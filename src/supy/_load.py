@@ -1472,7 +1472,7 @@ dict_InitCond_out = {
     "snowdensgrass": nan,
     "snowdensbsoil": nan,
     "snowdenswater": nan,
-    "snowalb0": nan,
+    "snowalb0": 0.5,  # Changed from nan to valid default (0.5)
 }
 # extra items used in supy
 dict_InitCond_extra = {

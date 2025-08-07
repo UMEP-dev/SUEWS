@@ -99,7 +99,7 @@ def convert_table_cmd(
     """
     # Import here to avoid circular imports
     from ..util._converter import convert_table, detect_table_version
-    
+
     # Auto-detect source version if not provided
     if fromVer is None:
         click.echo("Auto-detecting source version...")
@@ -113,7 +113,7 @@ def convert_table_cmd(
             )
             sys.exit(1)
         click.secho(f"Detected version: {fromVer}", fg="green")
-    
+
     # Check for same-version conversion (sanitization only)
     if fromVer == toVer and toVer != "latest":
         click.secho(

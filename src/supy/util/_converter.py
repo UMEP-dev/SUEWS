@@ -44,94 +44,110 @@ list_ver_to = rules["To"].unique().tolist()
 
 def detect_table_version(input_dir):
     """Auto-detect the version of SUEWS table files.
-    
+
     Args:
         input_dir: Path to the directory containing SUEWS table files
-        
+
     Returns:
         str: Detected version (e.g., '2016a', '2024a') or None if unable to detect
     """
     input_path = Path(input_dir)
-    
+
     # Key indicators for different versions
     version_indicators = {
         # Check for renamed files between versions
-        '2025a': {
-            'required_files': ['RunControl.nml', 'SUEWS_SiteSelect.txt'],
-            'check_columns': {
-                'SUEWS_SiteSelect.txt': ['h_std', 'n_buildings']  # Added in 2025a
-            }
-        },
-        '2024a': {
-            'required_files': ['RunControl.nml'],  # Only require essential file
-            'check_nml': {
-                'RunControl.nml': ['diagmethod', 'localclimatemethod', 'faimethod']  # Added in 2024a
-            }
-        },
-        '2023a': {
-            'required_files': ['RunControl.nml'],  # Only require essential file
-            'check_nml': {
-                'RunControl.nml': ['DiagQS', 'DiagQN']  # Deleted after 2023a
+        "2025a": {
+            "required_files": ["RunControl.nml", "SUEWS_SiteSelect.txt"],
+            "check_columns": {
+                "SUEWS_SiteSelect.txt": ["h_std", "n_buildings"]  # Added in 2025a
             },
-            'negative_check': True  # These should NOT exist in 2023a
         },
-        '2021a': {
-            'required_files': ['RunControl.nml'],  # Only require essential file
-            'check_nml': {
-                'RunControl.nml': ['DiagQS', 'DiagQN']  # Should exist in 2021a
-            }
+        "2024a": {
+            "required_files": ["RunControl.nml"],  # Only require essential file
+            "check_nml": {
+                "RunControl.nml": [
+                    "diagmethod",
+                    "localclimatemethod",
+                    "faimethod",
+                ]  # Added in 2024a
+            },
         },
-        '2020a': {
-            'required_files': ['RunControl.nml', 'SUEWS_Irrigation.txt'],
-            'check_columns': {
-                'SUEWS_Irrigation.txt': ['H_maintain']  # Added in 2020a
-            }
+        "2023a": {
+            "required_files": ["RunControl.nml"],  # Only require essential file
+            "check_nml": {
+                "RunControl.nml": ["DiagQS", "DiagQN"]  # Deleted after 2023a
+            },
+            "negative_check": True,  # These should NOT exist in 2023a
         },
-        '2019b': {
-            'required_files': ['RunControl.nml', 'SUEWS_AnthropogenicEmission.txt'],
-            'check_columns': {
-                'SUEWS_AnthropogenicEmission.txt': ['BaseT_HC']  # Renamed from BaseTHDD
-            }
+        "2021a": {
+            "required_files": ["RunControl.nml"],  # Only require essential file
+            "check_nml": {
+                "RunControl.nml": ["DiagQS", "DiagQN"]  # Should exist in 2021a
+            },
         },
-        '2019a': {
-            'required_files': ['RunControl.nml', 'SUEWS_AnthropogenicEmission.txt'],
-            'file_exists': ['SUEWS_AnthropogenicEmission.txt']  # Renamed from AnthropogenicHeat
+        "2020a": {
+            "required_files": ["RunControl.nml", "SUEWS_Irrigation.txt"],
+            "check_columns": {
+                "SUEWS_Irrigation.txt": ["H_maintain"]  # Added in 2020a
+            },
         },
-        '2018c': {
-            'required_files': ['RunControl.nml', 'SUEWS_AnthropogenicHeat.txt'],
-            'file_exists': ['SUEWS_AnthropogenicHeat.txt']  # Old name before 2019a
+        "2019b": {
+            "required_files": ["RunControl.nml", "SUEWS_AnthropogenicEmission.txt"],
+            "check_columns": {
+                "SUEWS_AnthropogenicEmission.txt": ["BaseT_HC"]  # Renamed from BaseTHDD
+            },
         },
-        '2016a': {
-            'required_files': ['RunControl.nml'],
+        "2019a": {
+            "required_files": ["RunControl.nml", "SUEWS_AnthropogenicEmission.txt"],
+            "file_exists": [
+                "SUEWS_AnthropogenicEmission.txt"
+            ],  # Renamed from AnthropogenicHeat
+        },
+        "2018c": {
+            "required_files": ["RunControl.nml", "SUEWS_AnthropogenicHeat.txt"],
+            "file_exists": ["SUEWS_AnthropogenicHeat.txt"],  # Old name before 2019a
+        },
+        "2016a": {
+            "required_files": ["RunControl.nml"],
             # 2016a is the oldest, so just basic checks
-            'fallback': True
-        }
+            "fallback": True,
+        },
     }
-    
+
     # Check versions from newest to oldest
-    for version in ['2025a', '2024a', '2023a', '2021a', '2020a', '2019b', '2019a', '2018c', '2016a']:
+    for version in [
+        "2025a",
+        "2024a",
+        "2023a",
+        "2021a",
+        "2020a",
+        "2019b",
+        "2019a",
+        "2018c",
+        "2016a",
+    ]:
         indicators = version_indicators.get(version, {})
-        
+
         # Check required files exist
-        required_files = indicators.get('required_files', [])
+        required_files = indicators.get("required_files", [])
         if not all((input_path / f).exists() for f in required_files):
             continue
-            
+
         # Check for specific file existence (version-specific files)
-        specific_files = indicators.get('file_exists', [])
+        specific_files = indicators.get("file_exists", [])
         if specific_files:
             if not all((input_path / f).exists() for f in specific_files):
                 continue
-                
+
         # Check columns in text files
-        check_columns = indicators.get('check_columns', {})
+        check_columns = indicators.get("check_columns", {})
         columns_match = True
         for file, columns in check_columns.items():
             file_path = input_path / file
             if file_path.exists():
                 try:
                     # Read the header line
-                    with open(file_path, 'r') as f:
+                    with open(file_path, "r") as f:
                         lines = f.readlines()
                         if len(lines) > 1:
                             headers = lines[1].strip().split()
@@ -143,18 +159,18 @@ def detect_table_version(input_dir):
                     columns_match = False
             else:
                 columns_match = False
-                
+
             if not columns_match:
                 break
-                
+
         if not columns_match:
             continue
-            
+
         # Check namelist parameters
-        check_nml = indicators.get('check_nml', {})
+        check_nml = indicators.get("check_nml", {})
         nml_match = True
-        negative_check = indicators.get('negative_check', False)
-        
+        negative_check = indicators.get("negative_check", False)
+
         for nml_file, params in check_nml.items():
             nml_path = input_path / nml_file
             if nml_path.exists():
@@ -167,7 +183,7 @@ def detect_table_version(input_dir):
                             if isinstance(section, dict) and param in section:
                                 found = True
                                 break
-                        
+
                         # For negative check, we want params to NOT exist
                         if negative_check and found:
                             nml_match = False
@@ -180,22 +196,25 @@ def detect_table_version(input_dir):
                     nml_match = False
             else:
                 nml_match = False
-                
+
             if not nml_match:
                 break
-                
+
         if not nml_match:
             continue
-            
+
         # If this is a fallback version, only use if nothing else matched
-        if indicators.get('fallback', False):
-            logger_supy.warning(f"Could not determine exact version, assuming {version}")
-            
+        if indicators.get("fallback", False):
+            logger_supy.warning(
+                f"Could not determine exact version, assuming {version}"
+            )
+
         logger_supy.info(f"Auto-detected table version: {version}")
         return version
-    
+
     logger_supy.warning("Could not auto-detect table version")
     return None
+
 
 # %%
 ########################################################

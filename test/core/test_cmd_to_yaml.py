@@ -44,17 +44,11 @@ class TestTableToYamlConversion:
         return Path(__file__).parent.parent / "fixtures" / "legacy_format" / "2024a"
 
     @pytest.mark.skipif(not SUPY_AVAILABLE, reason="SuPy not available")
-    @pytest.mark.xfail(
-        reason="2016a fixtures incomplete - missing proper column headers"
-    )
     def test_2016a_to_latest_yaml(self, runner, legacy_2016a_dir):
         """Test that 2016a (oldest supported format) converts to latest YAML.
 
         This ensures the complete conversion chain from 2016a through all
         intermediate versions to YAML works correctly.
-
-        Note: Currently marked as expected failure due to incomplete 2016a test fixtures
-        that lack proper column headers required for the data model.
         """
         with tempfile.TemporaryDirectory() as tmpdir:
             output_file = Path(tmpdir) / "converted_2016a.yml"

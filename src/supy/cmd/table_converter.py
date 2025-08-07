@@ -8,6 +8,7 @@ from ..util._converter import convert_table, list_ver_from, list_ver_to
 # Try to import the current version from the project
 try:
     from .._version import __version__
+
     CURRENT_VERSION = __version__
 except ImportError:
     # Fallback to None if version is not available
@@ -71,7 +72,15 @@ except ImportError:
     default=False,
     help="Force table output format even for 2025a (skip YAML conversion)",
 )
-def convert_table_cmd(fromVer: str, toVer: str, input_path: str, output_path: str, debug_dir: str = None, no_validate_profiles: bool = False, force_table: bool = False):
+def convert_table_cmd(
+    fromVer: str,
+    toVer: str,
+    input_path: str,
+    output_path: str,
+    debug_dir: str = None,
+    no_validate_profiles: bool = False,
+    force_table: bool = False,
+):
     """Convert SUEWS input files between versions.
 
     Automatically determines conversion type based on target version:
@@ -89,13 +98,23 @@ def convert_table_cmd(fromVer: str, toVer: str, input_path: str, output_path: st
     """
     # Check for same-version conversion (sanitization only)
     if fromVer == toVer and toVer != "latest":
-        click.secho(f"Same version specified ({fromVer}). Will perform sanitization only.", fg="cyan")
+        click.secho(
+            f"Same version specified ({fromVer}). Will perform sanitization only.",
+            fg="cyan",
+        )
 
         # Ensure output is treated as directory
         output_dir = Path(output_path)
 
         # Call convert_table which handles same-version conversions
-        convert_table(Path(input_path), output_dir, fromVer, toVer, debug_dir=debug_dir, validate_profiles=not no_validate_profiles)
+        convert_table(
+            Path(input_path),
+            output_dir,
+            fromVer,
+            toVer,
+            debug_dir=debug_dir,
+            validate_profiles=not no_validate_profiles,
+        )
 
         click.secho(f"Successfully sanitized {fromVer} files", fg="green")
         return
@@ -105,14 +124,20 @@ def convert_table_cmd(fromVer: str, toVer: str, input_path: str, output_path: st
         # 'latest' means convert to current YAML format
         # 2025a is the last table version, after which everything is YAML
         toVer = "2025a"  # This triggers YAML conversion
-        version_display = f"latest ({CURRENT_VERSION})" if CURRENT_VERSION else "latest YAML format"
+        version_display = (
+            f"latest ({CURRENT_VERSION})" if CURRENT_VERSION else "latest YAML format"
+        )
         click.secho(f"Converting to {version_display}", fg="cyan")
     elif toVer == "2025a":
         # 2025a can be either table or YAML
         if force_table:
-            click.secho(f"Force table output: Converting to 2025a table format", fg="cyan")
+            click.secho(
+                f"Force table output: Converting to 2025a table format", fg="cyan"
+            )
         else:
-            click.secho(f"Converting to YAML format (2025a marks transition to YAML)", fg="cyan")
+            click.secho(
+                f"Converting to YAML format (2025a marks transition to YAML)", fg="cyan"
+            )
 
     # Determine conversion type based on target version
     # 2025a is the boundary: it and anything after is YAML conversion
@@ -135,10 +160,16 @@ def convert_table_cmd(fromVer: str, toVer: str, input_path: str, output_path: st
             if year >= 2025:
                 # Future version, assume YAML format
                 to_yaml = True
-                click.secho(f"Note: '{toVer}' is not in table conversion rules, treating as YAML format", fg="yellow")
+                click.secho(
+                    f"Note: '{toVer}' is not in table conversion rules, treating as YAML format",
+                    fg="yellow",
+                )
             else:
                 click.secho(f"Error: '{toVer}' is not a valid target version", fg="red")
-                click.secho(f"Valid table versions: {', '.join(sorted(list_ver_to))}", fg="yellow")
+                click.secho(
+                    f"Valid table versions: {', '.join(sorted(list_ver_to))}",
+                    fg="yellow",
+                )
                 sys.exit(1)
         except (ValueError, IndexError):
             click.secho(f"Error: '{toVer}' is not a valid version format", fg="red")
@@ -189,7 +220,14 @@ def convert_table_cmd(fromVer: str, toVer: str, input_path: str, output_path: st
         # Ensure output is treated as directory for table conversion
         output_dir = Path(output_path)
 
-        convert_table(Path(input_path), output_dir, fromVer, toVer, debug_dir=debug_dir, validate_profiles=not no_validate_profiles)
+        convert_table(
+            Path(input_path),
+            output_dir,
+            fromVer,
+            toVer,
+            debug_dir=debug_dir,
+            validate_profiles=not no_validate_profiles,
+        )
 
         click.secho(
             f"Successfully converted tables from {fromVer} to {toVer}", fg="green"

@@ -69,13 +69,13 @@ def rename_var(toFile, toVar, toCol, toVal):
         rename_var_nml(toFile, toVar, toVal)
     else:
         # First, read the file to find where data ends (before -9 lines)
-        with open(toFile, encoding='utf-8') as f:
+        with open(toFile, encoding="utf-8") as f:
             lines = f.readlines()
 
         # Find where data ends (first line starting with -9)
         data_end_idx = len(lines)
         for i, line in enumerate(lines):
-            if line.strip().startswith('-9'):
+            if line.strip().startswith("-9"):
                 data_end_idx = i
                 break
 
@@ -84,11 +84,11 @@ def rename_var(toFile, toVar, toCol, toVal):
             dataX = pd.read_csv(
                 toFile,
                 delim_whitespace=True,
-                comment='!',
-                encoding='UTF8',
+                comment="!",
+                encoding="UTF8",
                 skiprows=2,  # Skip both header lines
                 nrows=data_end_idx - 2 if data_end_idx > 2 else None,
-                header=None
+                header=None,
             )
             # Get the header from the second line
             if len(lines) > 1:
@@ -109,18 +109,16 @@ def rename_var(toFile, toVar, toCol, toVal):
 
         # Create header line
         headerLine = (
-            " ".join(str(i + 1) for i in range(len(headers)))
-            + "\n"
-            + " ".join(headers)
+            " ".join(str(i + 1) for i in range(len(headers))) + "\n" + " ".join(headers)
         )
 
         # Convert to string
         dataX = dataX.astype(str)
 
         # Write the file
-        with open(toFile, 'w', encoding='utf-8') as f:
+        with open(toFile, "w", encoding="utf-8") as f:
             f.write(headerLine + "\n")
-            dataX.to_csv(f, sep=' ', index=False, header=False)
+            dataX.to_csv(f, sep=" ", index=False, header=False)
             # NO footer lines - these are legacy and should not be added
 
         logger_supy.debug(f"Renamed {toVar} to {toVal} in {toFile}")
@@ -147,13 +145,13 @@ def delete_var(toFile, toVar, toCol, toVal):
         delete_var_nml(toFile, toVar, toVal)
     else:
         # First, read the file to find where data ends (before -9 lines)
-        with open(toFile, encoding='utf-8') as f:
+        with open(toFile, encoding="utf-8") as f:
             lines = f.readlines()
 
         # Find where data ends (first line starting with -9)
         data_end_idx = len(lines)
         for i, line in enumerate(lines):
-            if line.strip().startswith('-9'):
+            if line.strip().startswith("-9"):
                 data_end_idx = i
                 break
 
@@ -162,11 +160,11 @@ def delete_var(toFile, toVar, toCol, toVal):
             dataX = pd.read_csv(
                 toFile,
                 delim_whitespace=True,
-                comment='!',
-                encoding='UTF8',
+                comment="!",
+                encoding="UTF8",
                 skiprows=2,  # Skip both header lines
                 nrows=data_end_idx - 2 if data_end_idx > 2 else None,
-                header=None
+                header=None,
             )
             # Get the header from the second line
             if len(lines) > 1:
@@ -188,18 +186,16 @@ def delete_var(toFile, toVar, toCol, toVal):
 
         # Create header line
         headerLine = (
-            " ".join(str(i + 1) for i in range(len(headers)))
-            + "\n"
-            + " ".join(headers)
+            " ".join(str(i + 1) for i in range(len(headers))) + "\n" + " ".join(headers)
         )
 
         # Convert to string
         dataX = dataX.astype(str)
 
         # Write the file
-        with open(toFile, 'w', encoding='utf-8') as f:
+        with open(toFile, "w", encoding="utf-8") as f:
             f.write(headerLine + "\n")
-            dataX.to_csv(f, sep=' ', index=False, header=False)
+            dataX.to_csv(f, sep=" ", index=False, header=False)
             # NO footer lines - these are legacy and should not be added
 
         logger_supy.debug(f"Deleted column {toVar} from {toFile}")
@@ -240,22 +236,24 @@ def clean_legacy_table(file_path, output_path=None):
         output_path = file_path
 
     logger_supy.debug(f"Cleaning legacy file: {file_path}")
-    
+
     # Track what was cleaned for reporting
     cleaning_actions = []
 
-    with open(file_path, encoding='utf-8', errors='replace') as f:
+    with open(file_path, encoding="utf-8", errors="replace") as f:
         lines = f.readlines()
 
     if len(lines) < 2:
-        logger_supy.warning(f"File {file_path} has less than 2 lines, skipping cleaning")
+        logger_supy.warning(
+            f"File {file_path} has less than 2 lines, skipping cleaning"
+        )
         return file_path
 
     header_lines = []  # Store header lines (first 2 lines)
     data_lines = []  # Store data lines
     header_col_count = None
     line_count = 0  # Track non-empty lines
-    
+
     # Track cleaning statistics
     comments_removed = 0
     tabs_replaced = 0
@@ -264,33 +262,39 @@ def clean_legacy_table(file_path, output_path=None):
 
     for i, line in enumerate(lines):
         # Remove carriage returns and trailing whitespace
-        line = line.replace('\r', '').rstrip()
+        line = line.replace("\r", "").rstrip()
 
         # IMPORTANT: Replace all tabs with spaces for consistent parsing
-        if '\t' in line:
+        if "\t" in line:
             tabs_replaced += 1
-        line = line.replace('\t', ' ')
+        line = line.replace("\t", " ")
 
-        if not line or line.strip().startswith('#'):
+        if not line or line.strip().startswith("#"):
             continue  # Skip empty lines and full-line comments
 
         # Skip lines that contain triple quotes or problematic quoted comments
         # These are typically metadata lines in 2016a format that shouldn't be data
-        if '"""' in line or ('"' in line and ('Vegetation (average)' in line or 'used for' in line)):
-            logger_supy.debug(f"Skipping line {i + 1} with problematic quoted comments: {line[:50]}...")
+        if '"""' in line or (
+            '"' in line and ("Vegetation (average)" in line or "used for" in line)
+        ):
+            logger_supy.debug(
+                f"Skipping line {i + 1} with problematic quoted comments: {line[:50]}..."
+            )
             cleaning_actions.append(f"Removed metadata line {i + 1}")
             continue
 
         # IMPORTANT: Skip ALL lines starting with -9 (legacy footers that should be removed)
-        if line.strip().startswith('-9'):
-            logger_supy.debug(f"Removing legacy footer line {i + 1}: {line[:50]}... Stopping read after footer.")
+        if line.strip().startswith("-9"):
+            logger_supy.debug(
+                f"Removing legacy footer line {i + 1}: {line[:50]}... Stopping read after footer."
+            )
             footer_removed = True
             break  # Stop processing any further lines after footer
 
         # Remove inline comments (everything after !)
-        if '!' in line:
+        if "!" in line:
             comments_removed += 1
-            line = line[:line.index('!')].rstrip()
+            line = line[: line.index("!")].rstrip()
 
         # Split by spaces (tabs have been replaced with spaces)
         fields = line.split()
@@ -303,9 +307,11 @@ def clean_legacy_table(file_path, output_path=None):
         if line_count < 2:
             if header_col_count is None:
                 header_col_count = len(fields)
-                logger_supy.debug(f"Header column count set to {header_col_count} at line {i + 1}")
+                logger_supy.debug(
+                    f"Header column count set to {header_col_count} at line {i + 1}"
+                )
             # Store header line
-            header_lines.append(' '.join(fields))
+            header_lines.append(" ".join(fields))
             line_count += 1
             continue
 
@@ -316,7 +322,9 @@ def clean_legacy_table(file_path, output_path=None):
         if header_col_count and len(fields) != header_col_count:
             if len(fields) > header_col_count:
                 # Truncate extra fields (likely comments)
-                logger_supy.debug(f"Line {i + 1}: Truncating from {len(fields)} to {header_col_count} fields")
+                logger_supy.debug(
+                    f"Line {i + 1}: Truncating from {len(fields)} to {header_col_count} fields"
+                )
                 columns_adjusted += 1
                 fields = fields[:header_col_count]
             else:
@@ -324,10 +332,10 @@ def clean_legacy_table(file_path, output_path=None):
                 if len(fields) < header_col_count:
                     columns_adjusted += 1
                 while len(fields) < header_col_count:
-                    fields.append('-999')
+                    fields.append("-999")
 
         # Store processed data line
-        data_lines.append(' '.join(fields))
+        data_lines.append(" ".join(fields))
 
     # Combine header and data lines
     cleaned_lines = header_lines + data_lines
@@ -335,13 +343,18 @@ def clean_legacy_table(file_path, output_path=None):
     # Note: We do NOT add footer lines - the -9 lines are removed entirely
 
     # Write cleaned content
-    with open(output_path, 'w', encoding='utf-8') as f:
-        f.write('\n'.join(cleaned_lines))
-        if cleaned_lines and not cleaned_lines[-1].endswith('\n'):
-            f.write('\n')
+    with open(output_path, "w", encoding="utf-8") as f:
+        f.write("\n".join(cleaned_lines))
+        if cleaned_lines and not cleaned_lines[-1].endswith("\n"):
+            f.write("\n")
 
     # Report what was cleaned
-    if comments_removed > 0 or tabs_replaced > 0 or footer_removed or columns_adjusted > 0:
+    if (
+        comments_removed > 0
+        or tabs_replaced > 0
+        or footer_removed
+        or columns_adjusted > 0
+    ):
         clean_summary = []
         if comments_removed > 0:
             clean_summary.append(f"{comments_removed} inline comments")
@@ -350,14 +363,18 @@ def clean_legacy_table(file_path, output_path=None):
         if footer_removed:
             clean_summary.append("legacy footer removed")
         if columns_adjusted > 0:
-            clean_summary.append(f"{columns_adjusted} lines adjusted for column consistency")
+            clean_summary.append(
+                f"{columns_adjusted} lines adjusted for column consistency"
+            )
         if cleaning_actions:
             clean_summary.append(f"{len(cleaning_actions)} metadata lines removed")
-        
-        logger_supy.info(f"✓ Cleaned {Path(file_path).name}: {', '.join(clean_summary)}")
+
+        logger_supy.info(
+            f"✓ Cleaned {Path(file_path).name}: {', '.join(clean_summary)}"
+        )
     else:
         logger_supy.debug(f"File {Path(file_path).name} was already clean")
-    
+
     return output_path
 
 
@@ -384,6 +401,7 @@ def read_suews_table(toFile):
         logger_supy.error(f"Failed to read {toFile}: {str(e)}")
         raise
 
+
 # add:
 # add variable(s) to a file
 def add_var(toFile, toVar, toCol, toVal):
@@ -392,13 +410,13 @@ def add_var(toFile, toVar, toCol, toVal):
         add_var_nml(toFile, toVar, toVal)
     else:
         # First, read the file to find where data ends (before -9 lines)
-        with open(toFile, encoding='utf-8') as f:
+        with open(toFile, encoding="utf-8") as f:
             lines = f.readlines()
 
         # Find where data ends (first line starting with -9)
         data_end_idx = len(lines)
         for i, line in enumerate(lines):
-            if line.strip().startswith('-9'):
+            if line.strip().startswith("-9"):
                 data_end_idx = i
                 break
 
@@ -408,11 +426,13 @@ def add_var(toFile, toVar, toCol, toVal):
             dataX = pd.read_csv(
                 toFile,
                 delim_whitespace=True,  # Faster C engine
-                comment='!',
-                encoding='UTF8',
+                comment="!",
+                encoding="UTF8",
                 skiprows=2,  # Skip both header lines
-                nrows=data_end_idx - 2 if data_end_idx > 2 else None,  # Read only data rows
-                header=None  # No header in data
+                nrows=data_end_idx - 2
+                if data_end_idx > 2
+                else None,  # Read only data rows
+                header=None,  # No header in data
             )
 
             # Get the header from the second line
@@ -429,9 +449,11 @@ def add_var(toFile, toVar, toCol, toVal):
 
         # Check if column already exists
         if toVar in headers:
-            logger_supy.warning(f"{toVar} already exists in {toFile}, skipping add operation")
+            logger_supy.warning(
+                f"{toVar} already exists in {toFile}, skipping add operation"
+            )
             return
-        
+
         # Calculate target position (convert from 1-based to 0-based)
         target_col = int(toCol) - 1
 
@@ -448,9 +470,7 @@ def add_var(toFile, toVar, toCol, toVal):
 
         # Create header line with column indices
         headerLine = (
-            " ".join(str(i + 1) for i in range(len(headers)))
-            + "\n"
-            + " ".join(headers)
+            " ".join(str(i + 1) for i in range(len(headers))) + "\n" + " ".join(headers)
         )
 
         # Save the dataframe to file
@@ -459,12 +479,12 @@ def add_var(toFile, toVar, toCol, toVal):
             dataX = dataX.astype(str)
 
         # Write the file with headers
-        with open(toFile, 'w', encoding='utf-8') as f:
+        with open(toFile, "w", encoding="utf-8") as f:
             # Write header lines
             f.write(headerLine + "\n")
             # Write data without index (only if there's data)
             if not dataX.empty:
-                dataX.to_csv(f, sep=' ', index=False, header=False)
+                dataX.to_csv(f, sep=" ", index=False, header=False)
             # NO footer lines - these are legacy and should not be added
 
 
@@ -477,7 +497,7 @@ def add_var_nml(toFile, toVar, toVal):
         # Try to convert to int or float if possible
         try:
             # First try integer
-            if '.' not in str(toVal):
+            if "." not in str(toVal):
                 toVal = int(toVal)
             else:
                 # If it has a decimal point, use float
@@ -506,7 +526,9 @@ def SUEWS_Converter_single(fromDir, toDir, fromVer, toVer):
 
     # Special case: if fromVer == toVer, just copy and clean without conversion
     if fromVer == toVer:
-        logger_supy.info(f"Source and target versions are the same ({fromVer}). Only cleaning files...")
+        logger_supy.info(
+            f"Source and target versions are the same ({fromVer}). Only cleaning files..."
+        )
 
         # Determine file structure based on version
         if fromVer == "2016a":
@@ -566,14 +588,20 @@ def SUEWS_Converter_single(fromDir, toDir, fromVer, toVer):
         # Look for files in Input/ subdirectory for 2016a format
         input_dir = os.path.join(fromDir, "Input")
         if os.path.exists(input_dir):
-            logger_supy.debug(f"Found Input/ subdirectory for {fromVer}, scanning for SUEWS_*.txt files")
+            logger_supy.debug(
+                f"Found Input/ subdirectory for {fromVer}, scanning for SUEWS_*.txt files"
+            )
             for fileX in os.listdir(input_dir):
                 if fnmatch(fileX, "SUEWS_*.txt"):
                     fileList.append(("Input", fileX))
                     logger_supy.debug(f"Found file in Input/: {fileX}")
         # Also check root for .nml files and ALL txt files (including SUEWS_*.txt that might be in root)
         for fileX in os.listdir(fromDir):
-            if fnmatch(fileX, "*.nml") or fnmatch(fileX, "SUEWS_*.txt") or fnmatch(fileX, "*.txt"):
+            if (
+                fnmatch(fileX, "*.nml")
+                or fnmatch(fileX, "SUEWS_*.txt")
+                or fnmatch(fileX, "*.txt")
+            ):
                 fileList.append(("", fileX))
                 logger_supy.debug(f"Found file in root: {fileX}")
     else:
@@ -583,7 +611,11 @@ def SUEWS_Converter_single(fromDir, toDir, fromVer, toVer):
                 fileList.append(("", fileX))
 
     for subdir, fileX in fileList:
-        file_src = os.path.join(fromDir, subdir, fileX) if subdir else os.path.join(fromDir, fileX)
+        file_src = (
+            os.path.join(fromDir, subdir, fileX)
+            if subdir
+            else os.path.join(fromDir, fileX)
+        )
         # Always copy to root of toDir (flattening the structure)
         file_dst = os.path.join(toDir, fileX)
         logger_supy.debug(f"Copying {file_src} to {file_dst}")
@@ -595,7 +627,18 @@ def SUEWS_Converter_single(fromDir, toDir, fromVer, toVer):
 
     # Special handling: Create SPARTACUS.nml and GridLayoutKc.nml when converting to 2024a or later
     # These files don't exist in earlier versions but are expected in 2024a+
-    if fromVer in ["2023a", "2021a", "2020a", "2019b", "2019a", "2018c", "2018b", "2018a", "2017a", "2016a"] and toVer in ["2024a", "2025a"]:
+    if fromVer in [
+        "2023a",
+        "2021a",
+        "2020a",
+        "2019b",
+        "2019a",
+        "2018c",
+        "2018b",
+        "2018a",
+        "2017a",
+        "2016a",
+    ] and toVer in ["2024a", "2025a"]:
         spartacus_path = os.path.join(toDir, "SUEWS_SPARTACUS.nml")
         if not os.path.exists(spartacus_path):
             # Create a minimal SPARTACUS.nml file with default values
@@ -622,10 +665,10 @@ ground_albedo_dir_mult_fact = 1.
 &radsurf
 /
 """
-            with open(spartacus_path, 'w') as f:
+            with open(spartacus_path, "w") as f:
                 f.write(spartacus_content)
             logger_supy.info(f"Created placeholder SUEWS_SPARTACUS.nml for {toVer}")
-        
+
         # Also create GridLayoutKc.nml for 2024a+
         gridlayout_path = os.path.join(toDir, "GridLayoutKc.nml")
         if not os.path.exists(gridlayout_path):
@@ -722,7 +765,7 @@ k_surf(7,:) = 1.2, 1.1, 1.1, 1.5, 1.6
 cp_surf(7,:) = 1.9e6, 1.1e6, 1.1e6, 1.5e6, 1.6e6
 /
 """
-            with open(gridlayout_path, 'w') as f:
+            with open(gridlayout_path, "w") as f:
                 f.write(gridlayout_content)
             logger_supy.info(f"Created placeholder GridLayoutKc.nml for {toVer}")
 
@@ -745,7 +788,9 @@ cp_surf(7,:) = 1.9e6, 1.1e6, 1.1e6, 1.5e6, 1.6e6
     # These will just be copied without modifications
     files_without_rules = existing_files - filesToConvert
     if files_without_rules:
-        logger_supy.info(f"Files without rules (will be preserved): {list(files_without_rules)}")
+        logger_supy.info(
+            f"Files without rules (will be preserved): {list(files_without_rules)}"
+        )
 
     # Combine both sets
     filesToConvert = filesToConvert | files_without_rules
@@ -754,13 +799,15 @@ cp_surf(7,:) = 1.9e6, 1.1e6, 1.1e6, 1.5e6, 1.6e6
 
     for fileX in filesToConvert:
         logger_supy.info(f"working on file: {fileX}")
-        
+
         # Special debugging for ESTM file
-        if 'ESTM' in fileX:
+        if "ESTM" in fileX:
             full_path = os.path.join(toDir, fileX)
             if Path(full_path).exists():
-                logger_supy.warning(f"ESTM file already exists at start of processing: {full_path}, size={Path(full_path).stat().st_size}")
-        
+                logger_supy.warning(
+                    f"ESTM file already exists at start of processing: {full_path}, size={Path(full_path).stat().st_size}"
+                )
+
         try:
             actionList = rules.values[posRules].compress(
                 rules["File"].values[posRules] == fileX, axis=0
@@ -768,7 +815,9 @@ cp_surf(7,:) = 1.9e6, 1.1e6, 1.1e6, 1.5e6, 1.6e6
 
             # If no rules exist for this file, it will just be copied as-is (already done in SUEWS_Converter_single)
             if len(actionList) == 0:
-                logger_supy.info(f"No conversion rules for {fileX}, file preserved as-is")
+                logger_supy.info(
+                    f"No conversion rules for {fileX}, file preserved as-is"
+                )
                 continue
 
             actionList = actionList[:, 2:]
@@ -778,7 +827,9 @@ cp_surf(7,:) = 1.9e6, 1.1e6, 1.1e6, 1.5e6, 1.6e6
             # print('actionList:', actionList)
             SUEWS_Converter_file(os.path.join(toDir, fileX), actionList)
         except Exception as e:
-            logger_supy.error(f"Failed to convert {fileX} from {fromVer} to {toVer}: {str(e)}")
+            logger_supy.error(
+                f"Failed to convert {fileX} from {fromVer} to {toVer}: {str(e)}"
+            )
             # Don't continue with a broken conversion - fail fast
             raise RuntimeError(f"Conversion stopped at {fileX}: {str(e)}")
 
@@ -807,37 +858,43 @@ def SUEWS_Converter_file(fileX, actionList):
     # sort by Column number, then by Action order in actionList; also expand
     # dtype size
     todoList = todoList[np.lexsort((todoList[:, 4].astype(int), todoList[:, 0]))][:, 1:]
-    
+
     # Check if file exists before processing
-    if 'ESTM' in fileX and Path(fileX).exists():
+    if "ESTM" in fileX and Path(fileX).exists():
         file_size = Path(fileX).stat().st_size
-        logger_supy.warning(f"ESTM file already exists before placeholder creation: {fileX}, size={file_size} bytes")
+        logger_supy.warning(
+            f"ESTM file already exists before placeholder creation: {fileX}, size={file_size} bytes"
+        )
         # Read first few lines to see what's in it
-        with open(fileX, 'r') as f:
+        with open(fileX, "r") as f:
             first_lines = f.readlines()[:3]
             logger_supy.warning(f"ESTM file first lines: {first_lines}")
-    
+
     if not Path(fileX).exists():
         # Only create placeholder for .txt files, not .nml files
-        if fileX.endswith('.txt'):
+        if fileX.endswith(".txt"):
             # Create appropriate placeholder based on file type
-            if 'BiogenCO2' in fileX:
+            if "BiogenCO2" in fileX:
                 # Create minimal BiogenCO2 file - columns will be added by conversion rules
                 # Just create the basic structure with Code column only
                 placeholder = "1\nCode\n"
                 placeholder += "31\n"  # Code 31 is commonly referenced
-            elif 'ESTMCoefficients' in fileX:
+            elif "ESTMCoefficients" in fileX:
                 # Create minimal ESTM file - columns will be added by conversion rules
                 # Just create the basic structure with Code column only
                 placeholder = "1\nCode\n"
-                placeholder += "800\n801\n802\n803\n804\n805\n806\n807\n808\n60\n61\n200\n"
-                logger_supy.warning(f"Creating ESTM placeholder with minimal structure: {len(placeholder)} bytes")
+                placeholder += (
+                    "800\n801\n802\n803\n804\n805\n806\n807\n808\n60\n61\n200\n"
+                )
+                logger_supy.warning(
+                    f"Creating ESTM placeholder with minimal structure: {len(placeholder)} bytes"
+                )
             else:
                 # Default placeholder
                 placeholder = "1\nCode\n800\n"
             Path(fileX).write_text(placeholder, encoding="UTF8")
             logger_supy.debug(f"Created placeholder for missing file: {fileX}")
-        elif fileX.endswith('.nml'):
+        elif fileX.endswith(".nml"):
             # For missing .nml files, skip processing
             logger_supy.warning(f"Namelist file {fileX} does not exist, skipping")
             return  # Skip processing this file
@@ -855,8 +912,12 @@ def SUEWS_Converter_file(fileX, actionList):
         try:
             SUEWS_Converter_action(*action)
         except Exception as e:
-            logger_supy.error(f"Failed to perform action {action[0]} on {fileX}: {str(e)}")
-            raise RuntimeError(f"Conversion failed at {action[0]} for {fileX}: {str(e)}")
+            logger_supy.error(
+                f"Failed to perform action {action[0]} on {fileX}: {str(e)}"
+            )
+            raise RuntimeError(
+                f"Conversion failed at {action[0]} for {fileX}: {str(e)}"
+            )
 
 
 def keep_file(toFile, var, col, val):
@@ -919,10 +980,14 @@ def version_list(fromVer, toVer):
 
 
 # a chained conversion across multiple versions
-def convert_table(fromDir, toDir, fromVer, toVer, debug_dir=None, validate_profiles=True):
+def convert_table(
+    fromDir, toDir, fromVer, toVer, debug_dir=None, validate_profiles=True
+):
     # Special case: if fromVer == toVer, just clean without conversion
     if fromVer == toVer:
-        logger_supy.info(f"Source and target versions are the same ({fromVer}). Only cleaning files...")
+        logger_supy.info(
+            f"Source and target versions are the same ({fromVer}). Only cleaning files..."
+        )
         SUEWS_Converter_single(fromDir, toDir, fromVer, toVer)
         return
 
@@ -935,10 +1000,16 @@ def convert_table(fromDir, toDir, fromVer, toVer, debug_dir=None, validate_profi
     if debug_dir is not None:
         debug_path = Path(debug_dir)
         debug_path.mkdir(parents=True, exist_ok=True)
-        logger_supy.info(f"Debug mode: intermediate files will be saved in {debug_path}")
-    
+        logger_supy.info(
+            f"Debug mode: intermediate files will be saved in {debug_path}"
+        )
+
     # use a persistent directory when debug_dir is provided
-    temp_ctx = TemporaryDirectory() if debug_dir is None else nullcontext(str(debug_path) if debug_dir else None)
+    temp_ctx = (
+        TemporaryDirectory()
+        if debug_dir is None
+        else nullcontext(str(debug_path) if debug_dir else None)
+    )
     with temp_ctx as dir_temp:
         # dir_temp=xx
         tempDir_1 = Path(dir_temp) / "temp1"
@@ -958,10 +1029,14 @@ def convert_table(fromDir, toDir, fromVer, toVer, debug_dir=None, validate_profi
         ).runcontrol
         path_input = (Path(fromDir) / ser_nml["fileinputpath"]).resolve()
         list_table_input = (
-            [x for x in path_input.glob("SUEWS_*.txt")]  # Fixed: Added underscore to match SUEWS_*.txt files
+            [
+                x for x in path_input.glob("SUEWS_*.txt")
+            ]  # Fixed: Added underscore to match SUEWS_*.txt files
             + [x for x in path_input.glob("*.nml")]
             + [x for x in Path(fromDir).resolve().glob("*.nml")]
-            + [x for x in Path(fromDir).resolve().glob("SUEWS_*.txt")]  # Also check root for SUEWS_*.txt files
+            + [
+                x for x in Path(fromDir).resolve().glob("SUEWS_*.txt")
+            ]  # Also check root for SUEWS_*.txt files
         )
         # copy flattened files into tempDir_1 for later processing
         # also convert all files to UTF-8 encoding in case inconsistent encoding exists
@@ -971,7 +1046,7 @@ def convert_table(fromDir, toDir, fromVer, toVer, debug_dir=None, validate_profi
             copyfile(fileX.resolve(), path_dst)
             convert_utf8(path_dst)
             # Clean legacy table files once at the beginning
-            if path_dst.suffix == '.txt':
+            if path_dst.suffix == ".txt":
                 logger_supy.debug(f"Cleaning original file: {fileX.name}")
                 clean_legacy_table(path_dst)
 
@@ -981,80 +1056,98 @@ def convert_table(fromDir, toDir, fromVer, toVer, debug_dir=None, validate_profi
         while i > 1:
             logger_supy.info("**************************************************")
             logger_supy.info(f"working on: {chain_ver[i + 1]} --> {chain_ver[i]}")
-            
+
             # Create snapshot directory for this step if in debug mode
             if debug_dir is not None:
-                snapshot_dir = Path(dir_temp) / f"step_{chain_ver[i + 1]}_to_{chain_ver[i]}"
+                snapshot_dir = (
+                    Path(dir_temp) / f"step_{chain_ver[i + 1]}_to_{chain_ver[i]}"
+                )
                 snapshot_dir.mkdir(exist_ok=True)
-            
+
             # Fix the alternation logic: if chain starts with even length, first step should be from temp1
             # Original length is chain_ver[0], current step is i
             # If (original_length - i) is even, use temp1 -> temp2, else temp2 -> temp1
             steps_completed = chain_ver[0] - i
-            
+
             if steps_completed % 2 == 0:
                 # Even number of steps completed (including 0), so temp1 -> temp2
                 SUEWS_Converter_single(
                     tempDir_1, tempDir_2, chain_ver[i + 1], chain_ver[i]
                 )
-                
+
                 # Validate and fix profiles after conversion if enabled
                 if validate_profiles:
                     try:
-                        profile_manager = ProfileManager(tempDir_2 / "SUEWS_Profiles.txt")
+                        profile_manager = ProfileManager(
+                            tempDir_2 / "SUEWS_Profiles.txt"
+                        )
                         profile_manager.ensure_required_profiles(tempDir_2)
                         if profile_manager.missing_profiles:
-                            logger_supy.info(f"Fixed {len(profile_manager.missing_profiles)} missing profile references: {sorted(profile_manager.missing_profiles)}")
+                            logger_supy.info(
+                                f"Fixed {len(profile_manager.missing_profiles)} missing profile references: {sorted(profile_manager.missing_profiles)}"
+                            )
                     except Exception as e:
                         logger_supy.warning(f"Profile validation skipped: {e}")
-                
+
                 # Save snapshot in debug mode
                 if debug_dir is not None:
                     for file in Path(tempDir_2).glob("*"):
                         copyfile(file, snapshot_dir / file.name)
-                    logger_supy.info(f"Debug: Saved snapshot of {chain_ver[i]} in {snapshot_dir}")
-                
+                    logger_supy.info(
+                        f"Debug: Saved snapshot of {chain_ver[i]} in {snapshot_dir}"
+                    )
+
                 # Remove input temporary folders only if not in debug mode
                 if debug_dir is None:
                     rmtree(tempDir_1, ignore_errors=True)
                 else:
                     # In debug mode, preserve intermediate results
-                    logger_supy.info(f"Debug: Preserved intermediate files in {tempDir_2}")
+                    logger_supy.info(
+                        f"Debug: Preserved intermediate files in {tempDir_2}"
+                    )
 
             else:
                 # Odd number of steps completed, so temp2 -> temp1
                 SUEWS_Converter_single(
                     tempDir_2, tempDir_1, chain_ver[i + 1], chain_ver[i]
                 )
-                
+
                 # Validate and fix profiles after conversion if enabled
                 if validate_profiles:
                     try:
-                        profile_manager = ProfileManager(tempDir_1 / "SUEWS_Profiles.txt")
+                        profile_manager = ProfileManager(
+                            tempDir_1 / "SUEWS_Profiles.txt"
+                        )
                         profile_manager.ensure_required_profiles(tempDir_1)
                         if profile_manager.missing_profiles:
-                            logger_supy.info(f"Fixed {len(profile_manager.missing_profiles)} missing profile references: {sorted(profile_manager.missing_profiles)}")
+                            logger_supy.info(
+                                f"Fixed {len(profile_manager.missing_profiles)} missing profile references: {sorted(profile_manager.missing_profiles)}"
+                            )
                     except Exception as e:
                         logger_supy.warning(f"Profile validation skipped: {e}")
-                
+
                 # Save snapshot in debug mode
                 if debug_dir is not None:
                     for file in Path(tempDir_1).glob("*"):
                         copyfile(file, snapshot_dir / file.name)
-                    logger_supy.info(f"Debug: Saved snapshot of {chain_ver[i]} in {snapshot_dir}")
-                
+                    logger_supy.info(
+                        f"Debug: Saved snapshot of {chain_ver[i]} in {snapshot_dir}"
+                    )
+
                 # Remove input temporary folders only if not in debug mode
                 if debug_dir is None:
                     rmtree(tempDir_2, ignore_errors=True)
                 else:
                     # In debug mode, preserve intermediate results
-                    logger_supy.info(f"Debug: Preserved intermediate files in {tempDir_1}")
+                    logger_supy.info(
+                        f"Debug: Preserved intermediate files in {tempDir_1}"
+                    )
             logger_supy.info("**************************************************")
             i -= 1
 
         logger_supy.info("**************************************************")
         logger_supy.info(f"working on: {chain_ver[i + 1]} --> {chain_ver[i]}")
-        
+
         # Determine which temp directory has the final results
         # After the loop, we've completed (chain_ver[0] - 1) steps
         total_steps = chain_ver[0] - 1
@@ -1064,30 +1157,40 @@ def convert_table(fromDir, toDir, fromVer, toVer, debug_dir=None, validate_profi
         else:
             # Odd number of steps means files are in tempDir_2
             final_source = tempDir_2
-            
+
         SUEWS_Converter_single(final_source, toDir, chain_ver[2], chain_ver[1])
-        
+
         # Final profile validation
         if validate_profiles:
             try:
-                profile_manager = ProfileManager(Path(toDir) / "input" / "SUEWS_Profiles.txt")
+                profile_manager = ProfileManager(
+                    Path(toDir) / "input" / "SUEWS_Profiles.txt"
+                )
                 profile_manager.ensure_required_profiles(Path(toDir) / "input")
                 if profile_manager.missing_profiles:
-                    logger_supy.info(f"Final profile validation: Fixed {len(profile_manager.missing_profiles)} missing profiles")
-                    logger_supy.info(f"Missing profile codes: {sorted(profile_manager.missing_profiles)}")
+                    logger_supy.info(
+                        f"Final profile validation: Fixed {len(profile_manager.missing_profiles)} missing profiles"
+                    )
+                    logger_supy.info(
+                        f"Missing profile codes: {sorted(profile_manager.missing_profiles)}"
+                    )
             except Exception as e:
                 # Try the toDir directly if input dir doesn't exist yet
                 try:
                     profile_manager = ProfileManager(Path(toDir) / "SUEWS_Profiles.txt")
                     profile_manager.ensure_required_profiles(Path(toDir))
                     if profile_manager.missing_profiles:
-                        logger_supy.info(f"Final profile validation: Fixed {len(profile_manager.missing_profiles)} missing profiles")
+                        logger_supy.info(
+                            f"Final profile validation: Fixed {len(profile_manager.missing_profiles)} missing profiles"
+                        )
                 except Exception as e2:
                     logger_supy.warning(f"Final profile validation skipped: {e2}")
-        
+
         # Save final snapshot in debug mode
         if debug_dir is not None:
-            snapshot_dir = Path(dir_temp) / f"step_{chain_ver[2]}_to_{chain_ver[1]}_final"
+            snapshot_dir = (
+                Path(dir_temp) / f"step_{chain_ver[2]}_to_{chain_ver[1]}_final"
+            )
             snapshot_dir.mkdir(exist_ok=True)
             for file in Path(toDir).glob("*"):
                 if file.is_file():
@@ -1115,17 +1218,22 @@ def convert_table(fromDir, toDir, fromVer, toVer, debug_dir=None, validate_profi
     for fileX in list_table_input:
         # Check if we need to rename InitialConditions files when multipleinitfiles == 0
         target_name = fileX.name
-        if ("InitialConditions" in fileX.name and 
-            ser_nml.get("multipleinitfiles", 0) == 0):
+        if (
+            "InitialConditions" in fileX.name
+            and ser_nml.get("multipleinitfiles", 0) == 0
+        ):
             # Remove grid number from filename (e.g., InitialConditionsKc1_2011.nml -> InitialConditionsKc_2011.nml)
             import re
+
             # Pattern to match InitialConditionsXXX#_YYYY.nml where XXX is filecode, # is grid number, YYYY is year
-            pattern = r'(InitialConditions[A-Za-z]+)\d+(_\d{4}\.nml)'
-            new_name = re.sub(pattern, r'\1\2', fileX.name)
+            pattern = r"(InitialConditions[A-Za-z]+)\d+(_\d{4}\.nml)"
+            new_name = re.sub(pattern, r"\1\2", fileX.name)
             if new_name != fileX.name:
                 target_name = new_name
-                logger_supy.debug(f"Renaming {fileX.name} to {target_name} (multipleinitfiles=0)")
-        
+                logger_supy.debug(
+                    f"Renaming {fileX.name} to {target_name} (multipleinitfiles=0)"
+                )
+
         move(fileX.resolve(), path_input / target_name)
 
 

@@ -46,7 +46,13 @@ import shutil
     default=False,
     help="Disable automatic profile validation and creation of missing profiles",
 )
-def to_yaml(input_dir: str, output_file: str, from_ver: str, debug_dir: str = None, no_validate_profiles: bool = False):
+def to_yaml(
+    input_dir: str,
+    output_file: str,
+    from_ver: str,
+    debug_dir: str = None,
+    no_validate_profiles: bool = False,
+):
     """
     This tool facilitates the transition from the legacy table-based SUEWS input format
     to the new YAML-based configuration format.
@@ -76,7 +82,14 @@ def to_yaml(input_dir: str, output_file: str, from_ver: str, debug_dir: str = No
             )
             temp_dir_obj = tempfile.TemporaryDirectory()
             temp_dir_path = Path(temp_dir_obj.name)
-            convert_table(str(input_path), str(temp_dir_path), from_ver, to_ver, debug_dir=debug_dir, validate_profiles=not no_validate_profiles)
+            convert_table(
+                str(input_path),
+                str(temp_dir_path),
+                from_ver,
+                to_ver,
+                debug_dir=debug_dir,
+                validate_profiles=not no_validate_profiles,
+            )
             processing_dir = temp_dir_path
             click.echo(
                 f"Table conversion complete. Using converted tables in: {processing_dir}"
@@ -95,49 +108,59 @@ def to_yaml(input_dir: str, output_file: str, from_ver: str, debug_dir: str = No
         click.echo("Step 3: Creating Pydantic configuration object...")
         try:
             config = SUEWSConfig.from_df_state(df_state)
-            
+
             # Set the forcing file path based on RunControl settings
             # The forcing file pattern is derived from filecode in RunControl
             import f90nml
-            
+
             runcontrol_data = f90nml.read(str(path_runcontrol))
-            if 'runcontrol' in runcontrol_data:
-                runcontrol = runcontrol_data['runcontrol']
-                filecode = runcontrol.get('filecode', 'forcing')
-                
+            if "runcontrol" in runcontrol_data:
+                runcontrol = runcontrol_data["runcontrol"]
+                filecode = runcontrol.get("filecode", "forcing")
+
                 # Look for forcing files matching the pattern
                 input_path = Path(input_dir)
-                input_subdir = input_path / "Input" if (input_path / "Input").exists() else input_path
-                
+                input_subdir = (
+                    input_path / "Input"
+                    if (input_path / "Input").exists()
+                    else input_path
+                )
+
                 # Pattern: {filecode}_{year}_data_{resolution}.txt
                 forcing_files = list(input_subdir.glob(f"{filecode}_*_data_*.txt"))
-                
+
                 if forcing_files:
                     # Use the first matching file
                     forcing_file = forcing_files[0].name
                     config.model.control.forcing_file = forcing_file
-                    click.echo(f"  - Set forcing file to: {forcing_file} (from FileCode='{filecode}')")
+                    click.echo(
+                        f"  - Set forcing file to: {forcing_file} (from FileCode='{filecode}')"
+                    )
                 else:
                     # If no matching files found, construct expected name
-                    click.echo(f"  - Warning: No forcing file found matching pattern {filecode}_*_data_*.txt")
-            
+                    click.echo(
+                        f"  - Warning: No forcing file found matching pattern {filecode}_*_data_*.txt"
+                    )
+
             # Set proper output configuration instead of deprecated string
             from ..data_model.model import OutputConfig, OutputFormat
-            
+
             # Get output settings from RunControl if available
-            resolutionfilesout = runcontrol.get('resolutionfilesout', 3600)
-            writeoutoption = runcontrol.get('writeoutoption', 0)
-            
+            resolutionfilesout = runcontrol.get("resolutionfilesout", 3600)
+            writeoutoption = runcontrol.get("writeoutoption", 0)
+
             # Create OutputConfig based on RunControl settings
             output_config = OutputConfig(
-                format='txt',  # Default to txt format for compatibility (use string value)
+                format="txt",  # Default to txt format for compatibility (use string value)
                 freq=resolutionfilesout if resolutionfilesout > 0 else 3600,
-                groups=['SUEWS', 'DailyState']  # Default groups
+                groups=["SUEWS", "DailyState"],  # Default groups
             )
-            
+
             config.model.control.output_file = output_config
-            click.echo(f"  - Set output configuration: format={output_config.format}, freq={output_config.freq}s")
-                    
+            click.echo(
+                f"  - Set output configuration: format={output_config.format}, freq={output_config.freq}s"
+            )
+
         except Exception as e:
             raise click.ClickException(f"Failed to create configuration: {e}")
 

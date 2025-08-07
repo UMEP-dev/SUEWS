@@ -2,7 +2,7 @@
 Test for suews-convert yaml subcommand.
 
 This test verifies that the converter can successfully convert
-both the oldest supported format (2016a) and the most recent table 
+both the oldest supported format (2016a) and the most recent table
 format (2024a) to latest YAML format.
 """
 
@@ -19,6 +19,7 @@ from supy.cmd.table_converter import convert_table_cmd
 try:
     import supy as sp
     from supy.data_model.core import SUEWSConfig
+
     SUPY_AVAILABLE = True
 except ImportError:
     SUPY_AVAILABLE = False
@@ -43,13 +44,15 @@ class TestTableToYamlConversion:
         return Path(__file__).parent.parent / "fixtures" / "legacy_format" / "2024a"
 
     @pytest.mark.skipif(not SUPY_AVAILABLE, reason="SuPy not available")
-    @pytest.mark.xfail(reason="2016a fixtures incomplete - missing proper column headers")
+    @pytest.mark.xfail(
+        reason="2016a fixtures incomplete - missing proper column headers"
+    )
     def test_2016a_to_latest_yaml(self, runner, legacy_2016a_dir):
         """Test that 2016a (oldest supported format) converts to latest YAML.
 
         This ensures the complete conversion chain from 2016a through all
         intermediate versions to YAML works correctly.
-        
+
         Note: Currently marked as expected failure due to incomplete 2016a test fixtures
         that lack proper column headers required for the data model.
         """
@@ -60,10 +63,14 @@ class TestTableToYamlConversion:
             result = runner.invoke(
                 convert_table_cmd,
                 [
-                    "-f", "2016a",
-                    "-t", "latest",  # Should use current version
-                    "-i", str(legacy_2016a_dir),
-                    "-o", str(output_file),
+                    "-f",
+                    "2016a",
+                    "-t",
+                    "latest",  # Should use current version
+                    "-i",
+                    str(legacy_2016a_dir),
+                    "-o",
+                    str(output_file),
                 ],
             )
 
@@ -107,10 +114,14 @@ class TestTableToYamlConversion:
             result = runner.invoke(
                 convert_table_cmd,
                 [
-                    "-f", "2024a",
-                    "-t", "latest",  # Should use current version
-                    "-i", str(legacy_2024a_dir),
-                    "-o", str(output_file),
+                    "-f",
+                    "2024a",
+                    "-t",
+                    "latest",  # Should use current version
+                    "-i",
+                    str(legacy_2024a_dir),
+                    "-o",
+                    str(output_file),
                 ],
             )
 

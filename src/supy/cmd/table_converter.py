@@ -20,9 +20,10 @@ except ImportError:
     "-f",
     "--from",
     "fromVer",
-    help="Version to convert from",
+    help="Version to convert from (auto-detect if not specified)",
     type=click.Choice(list_ver_from),
-    required=True,
+    required=False,
+    default=None,
 )
 @click.option(
     "-t",
@@ -93,9 +94,26 @@ def convert_table_cmd(
         suews-convert -f 2016a -t 2016a -i input_dir -o output_dir  # Sanitize only
         suews-convert -f 2020a -t 2024a -i input_dir -o output_dir  # Table to table
         suews-convert -f 2024a -t 2025a -i input_dir -o config.yml  # Table to YAML
-        suews-convert -f 2024a -i input_dir -o config.yml           # Default to latest YAML
+        suews-convert -i input_dir -o config.yml                    # Auto-detect version, convert to latest
         suews-convert -f 2024a -t latest -i input_dir -o config.yml # Explicit latest YAML
     """
+    # Import here to avoid circular imports
+    from ..util._converter import convert_table, detect_table_version
+    
+    # Auto-detect source version if not provided
+    if fromVer is None:
+        click.echo("Auto-detecting source version...")
+        fromVer = detect_table_version(input_path)
+        if fromVer is None:
+            click.secho(
+                "Could not auto-detect the version of the input files. "
+                "Please specify the source version using -f/--from option.",
+                fg="red",
+                err=True,
+            )
+            sys.exit(1)
+        click.secho(f"Detected version: {fromVer}", fg="green")
+    
     # Check for same-version conversion (sanitization only)
     if fromVer == toVer and toVer != "latest":
         click.secho(

@@ -24,6 +24,9 @@ from datetime import datetime
 from copy import deepcopy
 import pandas as pd
 import numpy as np
+from pydantic import BaseModel
+from timezonefinder import TimezoneFinder
+import pytz
 
 # Handle imports for both direct execution and module import
 try:
@@ -58,6 +61,72 @@ class ScientificAdjustment:
     old_value: Any = None
     new_value: Any = None
     reason: str = ""
+
+
+class DLSCheck(BaseModel):
+    """Calculate daylight saving time transitions and timezone offset from coordinates."""
+    lat: float
+    lng: float
+    year: int
+    startdls: Optional[int] = None
+    enddls: Optional[int] = None
+
+    def compute_dst_transitions(self):
+        """
+        Compute DST start/end days and timezone offset for given coordinates and year.
+        
+        Returns:
+            Tuple[Optional[int], Optional[int], Optional[int]]: (start_dls, end_dls, utc_offset_hours)
+        """
+        tf = TimezoneFinder()
+        tz_name = tf.timezone_at(lat=self.lat, lng=self.lng)
+        if not tz_name:
+            logger_supy.debug(
+                f"[DLS] Cannot determine timezone for lat={self.lat}, lng={self.lng}"
+            )
+            return None, None, None
+        
+        logger_supy.debug(f"[DLS] Timezone identified as '{tz_name}'")
+        tz = pytz.timezone(tz_name)
+        
+        def find_transition(month: int) -> Optional[int]:
+            try:
+                prev_dt = tz.localize(datetime(self.year, month, 1, 12), is_dst=None)
+                prev_offset = prev_dt.utcoffset()
+                
+                for day in range(2, 32):
+                    try:
+                        curr_dt = tz.localize(
+                            datetime(self.year, month, day, 12), is_dst=None
+                        )
+                        curr_offset = curr_dt.utcoffset()
+                        if curr_offset != prev_offset:
+                            return curr_dt.timetuple().tm_yday
+                        prev_offset = curr_offset
+                    except Exception:
+                        continue
+                return None
+            except Exception:
+                return None
+
+        # Get standard UTC offset (in winter) - preserve fractional values for PR #554
+        try:
+            std_dt = tz.localize(datetime(self.year, 1, 15), is_dst=False)
+            utc_offset_hours = std_dt.utcoffset().total_seconds() / 3600
+            logger_supy.debug(f"[DLS] UTC offset in standard time: {utc_offset_hours}")
+        except Exception as e:
+            logger_supy.debug(f"[DLS] Failed to compute UTC offset: {e}")
+            utc_offset_hours = None
+
+        # Determine DST start and end days
+        if self.lat >= 0:  # Northern Hemisphere
+            start = find_transition(3) or find_transition(4)
+            end = find_transition(10) or find_transition(11)
+        else:  # Southern Hemisphere
+            start = find_transition(9) or find_transition(10)
+            end = find_transition(3) or find_transition(4)
+
+        return start, end, utc_offset_hours
 
 
 def get_value_safe(param_dict, param_key, default=None):
@@ -1139,24 +1208,15 @@ def adjust_seasonal_parameters(
         # 4. DLS (Daylight Saving) calculations
         if lat is not None and lng is not None:
             try:
-                # Simple DLS estimation for demonstration (real implementation would use timezonefinder)
-                # Northern hemisphere: DST typically March to October
-                # Southern hemisphere: DST typically October to March
-                if lat >= 0:  # Northern hemisphere
-                    start_dls = 86  # ~March 27
-                    end_dls = 303  # ~October 30
-                    tz_offset = 0  # Simplified - would calculate from coordinates
-                else:  # Southern hemisphere
-                    start_dls = 303  # ~October 30
-                    end_dls = 86  # ~March 27
-                    tz_offset = 0  # Simplified
-
+                dls = DLSCheck(lat=lat, lng=lng, year=model_year)
+                start_dls, end_dls, tz_offset = dls.compute_dst_transitions()
+                
                 # Set DLS parameters
                 anthro_emissions = props.get("anthropogenic_emissions", {})
-                if anthro_emissions:
+                if anthro_emissions and start_dls and end_dls:
                     current_startdls = anthro_emissions.get("startdls", {}).get("value")
                     current_enddls = anthro_emissions.get("enddls", {}).get("value")
-
+                    
                     dls_updated = False
                     if current_startdls != start_dls:
                         anthro_emissions["startdls"] = {"value": start_dls}
@@ -1176,23 +1236,29 @@ def adjust_seasonal_parameters(
                                 reason=f"Calculated DLS for coordinates ({lat:.2f}, {lng:.2f})",
                             )
                         )
-
-                # Set timezone if not set
-                current_timezone = props.get("timezone", {}).get("value")
-                if current_timezone != tz_offset:
-                    props["timezone"] = {"value": tz_offset}
-                    adjustments.append(
-                        ScientificAdjustment(
-                            parameter="timezone",
-                            site_index=site_idx,
-                            old_value=str(current_timezone),
-                            new_value=str(tz_offset),
-                            reason=f"Calculated timezone offset for coordinates ({lat:.2f}, {lng:.2f})",
+                        logger_supy.debug(
+                            f"[site #{site_idx}] DLS: start={start_dls}, end={end_dls}"
                         )
-                    )
-
+                
+                # Set timezone if calculated successfully
+                if tz_offset is not None:
+                    current_timezone = props.get("timezone", {}).get("value")
+                    if current_timezone != tz_offset:
+                        props["timezone"] = {"value": tz_offset}
+                        adjustments.append(
+                            ScientificAdjustment(
+                                parameter="timezone",
+                                site_index=site_idx,
+                                old_value=str(current_timezone),
+                                new_value=str(tz_offset),
+                                reason=f"Calculated timezone offset for coordinates ({lat:.2f}, {lng:.2f})",
+                            )
+                        )
+                        logger_supy.debug(f"[site #{site_idx}] Timezone set to {tz_offset}")
+                        
             except Exception as e:
                 # Skip DLS calculation on error
+                logger_supy.debug(f"[site #{site_idx}] DLS calculation failed: {e}")
                 pass
 
         # Save back to site

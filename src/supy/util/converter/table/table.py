@@ -30,15 +30,15 @@ import f90nml
 import numpy as np
 import pandas as pd
 
-from ..._env import logger_supy, trv_supy_module
-from ..._load import load_SUEWS_nml_simple
+from ...._env import logger_supy, trv_supy_module
+from ...._load import load_SUEWS_nml_simple
 from .profile_manager import ProfileManager
 
 warnings.filterwarnings("ignore")
 ########################################################
 # %%
 # load the rule file
-rules = pd.read_csv(trv_supy_module / "util" / "converter" / "rules.csv")
+rules = pd.read_csv(trv_supy_module / "util" / "converter" / "table" / "rules.csv")
 list_ver_from = rules["From"].unique().tolist()
 list_ver_to = rules["To"].unique().tolist()
 

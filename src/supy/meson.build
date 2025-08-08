@@ -42,9 +42,10 @@ py.install_sources(
             'util/_state_io.py',
             'util/_tmy.py',
             'util/converter/__init__.py',
-            'util/converter/profile_manager.py',
-            'util/converter/rules.csv',
-            'util/converter/table.py',
+            'util/converter/table/__init__.py',
+            'util/converter/table/table.py',
+            'util/converter/table/profile_manager.py',
+            'util/converter/table/rules.csv',
             'util/converter/yaml.py',
         ],
         [

@@ -10,8 +10,8 @@ from .yaml import convert_to_yaml
 
 __all__ = [
     "convert_table",
+    "convert_to_yaml",
     "detect_table_version",
     "list_ver_from",
     "list_ver_to",
-    "convert_to_yaml",
 ]

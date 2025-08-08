@@ -14,6 +14,7 @@ def generate_phase_c_report(
     output_report_file: str,
     mode: str = "user",
     phase_a_report_file: str = None,
+    phases_run: list = None,
 ) -> None:
     """
     Generate Phase C validation report following Phase B consolidation pattern.
@@ -27,8 +28,26 @@ def generate_phase_c_report(
     """
     report_lines = []
 
+    # Generate phase-specific title
+    if phases_run:
+        phase_str = "".join(phases_run)
+    else:
+        phase_str = "C"  # Default to Phase C only
+    
+    phase_titles = {
+        "A": "SUEWS - Phase A (Up-to-date YAML check) Report",
+        "B": "SUEWS - Phase B (Scientific Validation) Report", 
+        "C": "SUEWS - Phase C (Pydantic Validation) Report",
+        "AB": "SUEWS - Phase AB (Up-to-date YAML check and Scientific Validation) Report",
+        "AC": "SUEWS - Phase AC (Up-to-date YAML check and Pydantic Validation) Report", 
+        "BC": "SUEWS - Phase BC (Scientific Validation and Pydantic Validation) Report",
+        "ABC": "SUEWS - Phase ABC (Up-to-date YAML check, Scientific Validation and Pydantic Validation) Report"
+    }
+    
+    title = phase_titles.get(phase_str, "SUEWS Phase C (Pydantic Validation) Report")
+
     # Header (matching Phase B format)
-    report_lines.append("# SUEWS Phase C (Pydantic Validation) Report")
+    report_lines.append(f"# {title}")
     report_lines.append("# " + "=" * 50)
     report_lines.append(f"# Mode: {mode.title()}")
     report_lines.append("# " + "=" * 50)
@@ -246,6 +265,7 @@ def generate_fallback_report(
     output_report_file: str,
     mode: str = "user",
     phase_a_report_file: str = None,
+    phases_run: list = None,
 ) -> None:
     """
     Generate a simple fallback report when structured report generation fails.
@@ -354,7 +374,25 @@ def generate_fallback_report(
             previous_phase_items
         )
 
-    error_report = f"""# SUEWS Phase C (Pydantic Validation) Report  
+    # Generate phase-specific title (same logic as main report)
+    if phases_run:
+        phase_str = "".join(phases_run)
+    else:
+        phase_str = "C"  # Default to Phase C only
+    
+    phase_titles = {
+        "A": "SUEWS - Phase A (Up-to-date YAML check) Report",
+        "B": "SUEWS - Phase B (Scientific Validation) Report", 
+        "C": "SUEWS - Phase C (Pydantic Validation) Report",
+        "AB": "SUEWS - Phase AB (Up-to-date YAML check and Scientific Validation) Report",
+        "AC": "SUEWS - Phase AC (Up-to-date YAML check and Pydantic Validation) Report", 
+        "BC": "SUEWS - Phase BC (Scientific Validation and Pydantic Validation) Report",
+        "ABC": "SUEWS - Phase ABC (Up-to-date YAML check, Scientific Validation and Pydantic Validation) Report"
+    }
+    
+    title = phase_titles.get(phase_str, "SUEWS Phase C (Pydantic Validation) Report")
+
+    error_report = f"""# {title}
 # ============================================
 # Mode: {mode.title()}
 # ============================================

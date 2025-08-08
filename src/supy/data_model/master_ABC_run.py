@@ -405,6 +405,7 @@ def run_phase_a(
     uptodate_file: str,
     report_file: str,
     mode: str = "user",
+    phase: str = "A",
 ) -> bool:
     """
     Execute Phase A: Parameter detection and YAML structure updates.
@@ -430,6 +431,7 @@ def run_phase_a(
                 uptodate_file=uptodate_file,
                 report_file=report_file,
                 mode=mode,
+                phase=phase,
             )
 
         # Check if Phase A produced output files
@@ -483,6 +485,7 @@ def run_phase_b(
     phase_a_report_file: str,
     phase_a_performed: bool = True,
     mode: str = "user",
+    phase: str = "B",
 ) -> bool:
     """
     Execute Phase B: Scientific validation and automatic adjustments.
@@ -513,6 +516,7 @@ def run_phase_b(
                 phase_a_report_file=phase_a_report_file,
                 phase_a_performed=phase_a_performed,
                 mode=mode,
+                phase=phase,
             )
 
         # Check if Phase B produced output files
@@ -694,7 +698,25 @@ def run_phase_c(
                         )  # Default to old behavior
                         no_action_info += f"- {field_name} {status} in user YAML at level {field_path}. Pydantic will interpret that as default value: {default_value}\n"
 
-                success_report = f"""# SUEWS Phase C (Pydantic Validation) Report
+                # Generate phase-specific title for success report
+                if phases_run:
+                    phase_str = "".join(phases_run)
+                else:
+                    phase_str = "C"  # Default to Phase C only
+                
+                phase_titles = {
+                    "A": "SUEWS - Phase A (Up-to-date YAML check) Report",
+                    "B": "SUEWS - Phase B (Scientific Validation) Report", 
+                    "C": "SUEWS - Phase C (Pydantic Validation) Report",
+                    "AB": "SUEWS - Phase AB (Up-to-date YAML check and Scientific Validation) Report",
+                    "AC": "SUEWS - Phase AC (Up-to-date YAML check and Pydantic Validation) Report", 
+                    "BC": "SUEWS - Phase BC (Scientific Validation and Pydantic Validation) Report",
+                    "ABC": "SUEWS - Phase ABC (Up-to-date YAML check, Scientific Validation and Pydantic Validation) Report"
+                }
+                
+                title = phase_titles.get(phase_str, "SUEWS Phase C (Pydantic Validation) Report")
+                
+                success_report = f"""# {title}
 # ============================================
 # Mode: {mode.title()}
 # ============================================
@@ -723,6 +745,7 @@ def run_phase_c(
                         pydantic_report_file,
                         mode,
                         phase_a_report_file,
+                        phases_run,
                     )
 
                 except Exception as report_error:
@@ -735,6 +758,7 @@ def run_phase_c(
                         pydantic_report_file,
                         mode,
                         phase_a_report_file,
+                        phases_run,
                     )
 
                 print("✗ Phase C failed - Pydantic validation errors detected")
@@ -917,7 +941,7 @@ Modes:
         if phase == "A":
             # Phase A only
             phase_a_success = run_phase_a(
-                user_yaml_file, standard_yaml_file, uptodate_file, report_file, mode
+                user_yaml_file, standard_yaml_file, uptodate_file, report_file, mode, "A"
             )
             if phase_a_success:
                 print()
@@ -944,6 +968,7 @@ Modes:
                 phase_a_report,
                 phase_a_performed=False,  # Phase B only mode
                 mode=mode,
+                phase="B",
             )
             if phase_b_success:
                 print()
@@ -979,7 +1004,7 @@ Modes:
         elif phase == "AB":
             # Complete A→B workflow (existing logic)
             phase_a_success = run_phase_a(
-                user_yaml_file, standard_yaml_file, uptodate_file, report_file, mode
+                user_yaml_file, standard_yaml_file, uptodate_file, report_file, mode, "AB"
             )
 
             if not phase_a_success:
@@ -1014,6 +1039,7 @@ Modes:
                 report_file,
                 phase_a_performed=True,  # A→B workflow mode
                 mode=mode,
+                phase="AB",
             )
 
             # Clean up intermediate files when complete workflow succeeds
@@ -1039,7 +1065,7 @@ Modes:
         elif phase == "AC":
             # Complete A→C workflow (similar to AB)
             phase_a_success = run_phase_a(
-                user_yaml_file, standard_yaml_file, uptodate_file, report_file, mode
+                user_yaml_file, standard_yaml_file, uptodate_file, report_file, mode, "AC"
             )
 
             if not phase_a_success:
@@ -1105,6 +1131,7 @@ Modes:
                 None,  # No Phase A report available
                 phase_a_performed=False,  # B→C workflow mode
                 mode=mode,
+                phase="BC",
             )
 
             if not phase_b_success:
@@ -1163,7 +1190,7 @@ Modes:
             # Complete A→B→C workflow with proper halt logic
             # Step 1: Run Phase A
             phase_a_success = run_phase_a(
-                user_yaml_file, standard_yaml_file, uptodate_file, report_file, mode
+                user_yaml_file, standard_yaml_file, uptodate_file, report_file, mode, "ABC"
             )
 
             if not phase_a_success:
@@ -1199,6 +1226,7 @@ Modes:
                 report_file,
                 phase_a_performed=True,  # A→B→C workflow mode
                 mode=mode,
+                phase="ABC",
             )
 
             if not phase_b_success:

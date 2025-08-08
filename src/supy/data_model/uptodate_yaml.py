@@ -593,10 +593,25 @@ def create_analysis_report(
     extra_params=None,
     uptodate_filename=None,
     mode="user",
+    phase="A",
 ):
     """Create analysis report with summary of changes."""
     report_lines = []
-    report_lines.append("# SUEWS Configuration Analysis Report")
+    
+    # Generate phase-specific title
+    phase_titles = {
+        "A": "SUEWS - Phase A (Up-to-date YAML check) Report",
+        "B": "SUEWS - Phase B (Scientific Validation) Report", 
+        "C": "SUEWS - Phase C (Pydantic Validation) Report",
+        "AB": "SUEWS - Phase AB (Up-to-date YAML check and Scientific Validation) Report",
+        "AC": "SUEWS - Phase AC (Up-to-date YAML check and Pydantic Validation) Report", 
+        "BC": "SUEWS - Phase BC (Scientific Validation and Pydantic Validation) Report",
+        "ABC": "SUEWS - Phase ABC (Up-to-date YAML check, Scientific Validation and Pydantic Validation) Report"
+    }
+    
+    title = phase_titles.get(phase, "SUEWS Configuration Analysis Report")
+    
+    report_lines.append(f"# {title}")
     report_lines.append("# " + "=" * 50)
     report_lines.append(f"# Mode: {mode.title()}")
     report_lines.append("# " + "=" * 50)
@@ -729,7 +744,7 @@ def create_analysis_report(
 
 
 def annotate_missing_parameters(
-    user_file, standard_file, uptodate_file=None, report_file=None, mode="user"
+    user_file, standard_file, uptodate_file=None, report_file=None, mode="user", phase="A"
 ):
     try:
         with open(user_file, "r") as f:
@@ -759,14 +774,14 @@ def annotate_missing_parameters(
         # Create analysis report
         uptodate_filename = os.path.basename(uptodate_file) if uptodate_file else None
         report_content = create_analysis_report(
-            missing_params, renamed_replacements, extra_params, uptodate_filename, mode
+            missing_params, renamed_replacements, extra_params, uptodate_filename, mode, phase
         )
     else:
         print("No missing in standard or renamed in standard parameters found!")
         # Still create clean files
         uptodate_content = create_uptodate_yaml_header() + original_yaml_content
         uptodate_filename = os.path.basename(uptodate_file) if uptodate_file else None
-        report_content = create_analysis_report([], [], [], uptodate_filename, mode)
+        report_content = create_analysis_report([], [], [], uptodate_filename, mode, phase)
 
     # Print clean terminal output based on critical parameters
     critical_params = [

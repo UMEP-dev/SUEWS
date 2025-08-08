@@ -49,7 +49,29 @@ def _check_required_files(input_path, required_files):
 
 
 def _check_specific_files(input_path, specific_files):
-    """Check if specific files exist in root or Input/ subdirectory."""
+    """Check if specific files exist based on RunControl.nml paths."""
+    # Try to read RunControl.nml to get actual input path
+    runcontrol_path = input_path / "RunControl.nml"
+    
+    if runcontrol_path.exists():
+        try:
+            ser_nml = load_SUEWS_nml_simple(str(runcontrol_path)).runcontrol
+            fileinputpath = ser_nml.get("fileinputpath", "./input/")
+            
+            if os.path.isabs(fileinputpath):
+                actual_input_dir = Path(fileinputpath)
+            else:
+                actual_input_dir = (input_path / fileinputpath).resolve()
+                
+            # Check in the actual input directory
+            for f in specific_files:
+                if not ((input_path / f).exists() or (actual_input_dir / f).exists()):
+                    return False
+            return True
+        except Exception:
+            pass
+    
+    # Fallback: check root and Input/ subdirectory
     for f in specific_files:
         if not ((input_path / f).exists() or (input_path / "Input" / f).exists()):
             return False
@@ -75,9 +97,31 @@ def _check_columns_in_file(file_path, columns_to_check):
 
 def _check_columns(input_path, check_columns):
     """Check if required columns exist in specified files."""
+    # Try to read RunControl.nml to get actual input path
+    runcontrol_path = input_path / "RunControl.nml"
+    actual_input_dir = None
+    
+    if runcontrol_path.exists():
+        try:
+            ser_nml = load_SUEWS_nml_simple(str(runcontrol_path)).runcontrol
+            fileinputpath = ser_nml.get("fileinputpath", "./input/")
+            
+            if os.path.isabs(fileinputpath):
+                actual_input_dir = Path(fileinputpath)
+            else:
+                actual_input_dir = (input_path / fileinputpath).resolve()
+        except Exception:
+            pass
+    
     for file, columns in check_columns.items():
-        # Check both root and Input/ subdirectory
+        # Check root first
         file_path = input_path / file
+        
+        # Then check actual input directory from RunControl
+        if not file_path.exists() and actual_input_dir:
+            file_path = actual_input_dir / file
+        
+        # Fallback to Input/ subdirectory
         if not file_path.exists():
             file_path = input_path / "Input" / file
 
@@ -89,9 +133,31 @@ def _check_columns(input_path, check_columns):
 
 def _check_negative_columns(input_path, negative_columns):
     """Check that specified columns do NOT exist in files."""
+    # Try to read RunControl.nml to get actual input path
+    runcontrol_path = input_path / "RunControl.nml"
+    actual_input_dir = None
+    
+    if runcontrol_path.exists():
+        try:
+            ser_nml = load_SUEWS_nml_simple(str(runcontrol_path)).runcontrol
+            fileinputpath = ser_nml.get("fileinputpath", "./input/")
+            
+            if os.path.isabs(fileinputpath):
+                actual_input_dir = Path(fileinputpath)
+            else:
+                actual_input_dir = (input_path / fileinputpath).resolve()
+        except Exception:
+            pass
+    
     for file, columns in negative_columns.items():
-        # Check both root and Input/ subdirectory
+        # Check root first
         file_path = input_path / file
+        
+        # Then check actual input directory from RunControl
+        if not file_path.exists() and actual_input_dir:
+            file_path = actual_input_dir / file
+        
+        # Fallback to Input/ subdirectory
         if not file_path.exists():
             file_path = input_path / "Input" / file
 
@@ -914,21 +980,31 @@ def _handle_same_version_copy(fromDir, toDir, fromVer):
         f"Source and target versions are the same ({fromVer}). Only cleaning files..."
     )
 
-    # Determine file structure based on version
-    if fromVer == "2016a":
-        # Look for files in Input/ subdirectory for 2016a format
-        input_dir = os.path.join(fromDir, "Input")
-        if os.path.exists(input_dir):
-            _copy_and_clean_files(
-                input_dir, toDir, ["SUEWS_*.txt", "*.nml"], clean_txt=True
-            )
-        # Also check root for .nml files
-        _copy_and_clean_files(fromDir, toDir, ["*.nml"], clean_txt=False)
+    # Read RunControl.nml to determine file structure
+    runcontrol_path = Path(fromDir) / "RunControl.nml"
+    if not runcontrol_path.exists():
+        raise FileNotFoundError(f"RunControl.nml not found in {fromDir}")
+    
+    # Load RunControl to get file paths
+    ser_nml = load_SUEWS_nml_simple(str(runcontrol_path)).runcontrol
+    
+    # Resolve input path from RunControl
+    fileinputpath = ser_nml.get("fileinputpath", "./input/")
+    if os.path.isabs(fileinputpath):
+        # Absolute path
+        input_dir = Path(fileinputpath)
     else:
-        # Standard structure - all files in root
+        # Relative path from fromDir
+        input_dir = (Path(fromDir) / fileinputpath).resolve()
+    
+    # Copy files from the actual input directory
+    if input_dir.exists():
         _copy_and_clean_files(
-            fromDir, toDir, ["SUEWS*.txt", "*.nml"], clean_txt=True
+            str(input_dir), toDir, ["SUEWS_*.txt", "*.nml"], clean_txt=True
         )
+    
+    # Also copy RunControl.nml and any other .nml files from root
+    _copy_and_clean_files(fromDir, toDir, ["*.nml"], clean_txt=False)
 
     # Create the standard directory structure
     ser_nml = load_SUEWS_nml_simple(str(Path(toDir) / "RunControl.nml")).runcontrol
@@ -948,35 +1024,54 @@ def _handle_same_version_copy(fromDir, toDir, fromVer):
 
 
 def _build_file_list(fromDir, fromVer):
-    """Build list of files to process based on version structure."""
+    """Build list of files to process based on RunControl.nml structure."""
     fileList = []
-
-    if fromVer == "2016a":
-        # Look for files in Input/ subdirectory for 2016a format
-        input_dir = os.path.join(fromDir, "Input")
-        if os.path.exists(input_dir):
-            logger_supy.debug(
-                f"Found Input/ subdirectory for {fromVer}, scanning for SUEWS_*.txt files"
-            )
-            for fileX in os.listdir(input_dir):
-                if fnmatch(fileX, "SUEWS_*.txt"):
-                    fileList.append(("Input", fileX))
-                    logger_supy.debug(f"Found file in Input/: {fileX}")
-
-        # Also check root for .nml files and ALL txt files
+    
+    # Read RunControl.nml to determine file structure
+    runcontrol_path = Path(fromDir) / "RunControl.nml"
+    if not runcontrol_path.exists():
+        # If no RunControl.nml, fall back to checking root
+        logger_supy.warning(f"RunControl.nml not found in {fromDir}, checking root directory")
         for fileX in os.listdir(fromDir):
-            if (
-                fnmatch(fileX, "*.nml")
-                or fnmatch(fileX, "SUEWS_*.txt")
-                or fnmatch(fileX, "*.txt")
-            ):
+            if any(fnmatch(fileX, p) for p in ["SUEWS*.txt", "*.nml", "*.txt"]):
                 fileList.append(("", fileX))
-                logger_supy.debug(f"Found file in root: {fileX}")
+        return fileList
+    
+    # Load RunControl to get file paths
+    ser_nml = load_SUEWS_nml_simple(str(runcontrol_path)).runcontrol
+    
+    # Resolve input path from RunControl
+    fileinputpath = ser_nml.get("fileinputpath", "./input/")
+    if os.path.isabs(fileinputpath):
+        # Absolute path
+        input_dir = Path(fileinputpath)
     else:
-        # Standard structure - all files in root
-        for fileX in os.listdir(fromDir):
-            if any(fnmatch(fileX, p) for p in ["SUEWS*.txt", "*.nml"]):
-                fileList.append(("", fileX))
+        # Relative path from fromDir
+        input_dir = (Path(fromDir) / fileinputpath).resolve()
+    
+    # Check for files in the input directory specified by RunControl
+    if input_dir.exists():
+        logger_supy.debug(
+            f"Found input directory at {input_dir}, scanning for SUEWS_*.txt files"
+        )
+        # Get relative path from fromDir to input_dir for the subdir part
+        try:
+            rel_path = input_dir.relative_to(Path(fromDir).resolve())
+            subdir = str(rel_path)
+        except ValueError:
+            # If not relative, use empty string
+            subdir = ""
+            
+        for fileX in os.listdir(input_dir):
+            if fnmatch(fileX, "SUEWS_*.txt") or fnmatch(fileX, "*.nml"):
+                fileList.append((subdir, fileX))
+                logger_supy.debug(f"Found file in {subdir}: {fileX}")
+    
+    # Also check root for .nml files and txt files
+    for fileX in os.listdir(fromDir):
+        if fnmatch(fileX, "*.nml") or fnmatch(fileX, "*.txt"):
+            fileList.append(("", fileX))
+            logger_supy.debug(f"Found file in root: {fileX}")
 
     return fileList
 

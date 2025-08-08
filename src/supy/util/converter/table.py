@@ -956,20 +956,10 @@ def SUEWS_Converter_single(fromDir, toDir, fromVer, toVer):
     # Note: File cleaning is now done once in convert_table() when files are first copied
     # This avoids redundant cleaning during chained conversions
 
-    # Special handling: Create SPARTACUS.nml and GridLayoutKc.nml when converting to 2024a or later
-    # These files don't exist in earlier versions but are expected in 2024a+
-    if fromVer in [
-        "2023a",
-        "2021a",
-        "2020a",
-        "2019b",
-        "2019a",
-        "2018c",
-        "2018b",
-        "2018a",
-        "2017a",
-        "2016a",
-    ] and toVer in ["2024a", "2025a"]:
+    # Special handling: Create SPARTACUS.nml and GridLayoutKc.nml when converting 2023a→2024a
+    # These files are introduced in 2024a and should only be created at this specific step
+    # In a chained conversion, this ensures they're created at the right point
+    if fromVer == "2023a" and toVer == "2024a":
         spartacus_path = os.path.join(toDir, "SUEWS_SPARTACUS.nml")
         if not os.path.exists(spartacus_path):
             # Create a minimal SPARTACUS.nml file with default values

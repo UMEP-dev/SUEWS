@@ -703,19 +703,21 @@ def run_phase_c(
                     phase_str = "".join(phases_run)
                 else:
                     phase_str = "C"  # Default to Phase C only
-                
+
                 phase_titles = {
                     "A": "SUEWS - Phase A (Up-to-date YAML check) Report",
-                    "B": "SUEWS - Phase B (Scientific Validation) Report", 
+                    "B": "SUEWS - Phase B (Scientific Validation) Report",
                     "C": "SUEWS - Phase C (Pydantic Validation) Report",
                     "AB": "SUEWS - Phase AB (Up-to-date YAML check and Scientific Validation) Report",
-                    "AC": "SUEWS - Phase AC (Up-to-date YAML check and Pydantic Validation) Report", 
+                    "AC": "SUEWS - Phase AC (Up-to-date YAML check and Pydantic Validation) Report",
                     "BC": "SUEWS - Phase BC (Scientific Validation and Pydantic Validation) Report",
-                    "ABC": "SUEWS - Phase ABC (Up-to-date YAML check, Scientific Validation and Pydantic Validation) Report"
+                    "ABC": "SUEWS - Phase ABC (Up-to-date YAML check, Scientific Validation and Pydantic Validation) Report",
                 }
-                
-                title = phase_titles.get(phase_str, "SUEWS Phase C (Pydantic Validation) Report")
-                
+
+                title = phase_titles.get(
+                    phase_str, "SUEWS Phase C (Pydantic Validation) Report"
+                )
+
                 success_report = f"""# {title}
 # ============================================
 # Mode: {mode.title()}
@@ -941,7 +943,12 @@ Modes:
         if phase == "A":
             # Phase A only
             phase_a_success = run_phase_a(
-                user_yaml_file, standard_yaml_file, uptodate_file, report_file, mode, "A"
+                user_yaml_file,
+                standard_yaml_file,
+                uptodate_file,
+                report_file,
+                mode,
+                "A",
             )
             if phase_a_success:
                 print()
@@ -1004,7 +1011,12 @@ Modes:
         elif phase == "AB":
             # Complete A→B workflow (existing logic)
             phase_a_success = run_phase_a(
-                user_yaml_file, standard_yaml_file, uptodate_file, report_file, mode, "AB"
+                user_yaml_file,
+                standard_yaml_file,
+                uptodate_file,
+                report_file,
+                mode,
+                "AB",
             )
 
             if not phase_a_success:
@@ -1065,7 +1077,12 @@ Modes:
         elif phase == "AC":
             # Complete A→C workflow (similar to AB)
             phase_a_success = run_phase_a(
-                user_yaml_file, standard_yaml_file, uptodate_file, report_file, mode, "AC"
+                user_yaml_file,
+                standard_yaml_file,
+                uptodate_file,
+                report_file,
+                mode,
+                "AC",
             )
 
             if not phase_a_success:
@@ -1190,7 +1207,12 @@ Modes:
             # Complete A→B→C workflow with proper halt logic
             # Step 1: Run Phase A
             phase_a_success = run_phase_a(
-                user_yaml_file, standard_yaml_file, uptodate_file, report_file, mode, "ABC"
+                user_yaml_file,
+                standard_yaml_file,
+                uptodate_file,
+                report_file,
+                mode,
+                "ABC",
             )
 
             if not phase_a_success:

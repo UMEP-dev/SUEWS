@@ -33,17 +33,17 @@ def generate_phase_c_report(
         phase_str = "".join(phases_run)
     else:
         phase_str = "C"  # Default to Phase C only
-    
+
     phase_titles = {
         "A": "SUEWS - Phase A (Up-to-date YAML check) Report",
-        "B": "SUEWS - Phase B (Scientific Validation) Report", 
+        "B": "SUEWS - Phase B (Scientific Validation) Report",
         "C": "SUEWS - Phase C (Pydantic Validation) Report",
         "AB": "SUEWS - Phase AB (Up-to-date YAML check and Scientific Validation) Report",
-        "AC": "SUEWS - Phase AC (Up-to-date YAML check and Pydantic Validation) Report", 
+        "AC": "SUEWS - Phase AC (Up-to-date YAML check and Pydantic Validation) Report",
         "BC": "SUEWS - Phase BC (Scientific Validation and Pydantic Validation) Report",
-        "ABC": "SUEWS - Phase ABC (Up-to-date YAML check, Scientific Validation and Pydantic Validation) Report"
+        "ABC": "SUEWS - Phase ABC (Up-to-date YAML check, Scientific Validation and Pydantic Validation) Report",
     }
-    
+
     title = phase_titles.get(phase_str, "SUEWS Phase C (Pydantic Validation) Report")
 
     # Header (matching Phase B format)
@@ -379,17 +379,17 @@ def generate_fallback_report(
         phase_str = "".join(phases_run)
     else:
         phase_str = "C"  # Default to Phase C only
-    
+
     phase_titles = {
         "A": "SUEWS - Phase A (Up-to-date YAML check) Report",
-        "B": "SUEWS - Phase B (Scientific Validation) Report", 
+        "B": "SUEWS - Phase B (Scientific Validation) Report",
         "C": "SUEWS - Phase C (Pydantic Validation) Report",
         "AB": "SUEWS - Phase AB (Up-to-date YAML check and Scientific Validation) Report",
-        "AC": "SUEWS - Phase AC (Up-to-date YAML check and Pydantic Validation) Report", 
+        "AC": "SUEWS - Phase AC (Up-to-date YAML check and Pydantic Validation) Report",
         "BC": "SUEWS - Phase BC (Scientific Validation and Pydantic Validation) Report",
-        "ABC": "SUEWS - Phase ABC (Up-to-date YAML check, Scientific Validation and Pydantic Validation) Report"
+        "ABC": "SUEWS - Phase ABC (Up-to-date YAML check, Scientific Validation and Pydantic Validation) Report",
     }
-    
+
     title = phase_titles.get(phase_str, "SUEWS Phase C (Pydantic Validation) Report")
 
     error_report = f"""# {title}

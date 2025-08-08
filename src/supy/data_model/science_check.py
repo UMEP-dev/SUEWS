@@ -286,7 +286,7 @@ def validate_physics_parameters(yaml_data: dict) -> List[ValidationResult]:
         for param in missing_params:
             results.append(
                 ValidationResult(
-                    status="ERROR", 
+                    status="ERROR",
                     category="PHYSICS",
                     parameter=f"model.physics.{param}",
                     message=f"Physics parameter '{param}' is required but missing or null. This parameter controls critical model behavior and must be specified for the simulation to run properly.",
@@ -464,12 +464,12 @@ def validate_land_cover_consistency(yaml_data: dict) -> List[ValidationResult]:
                         f"is missing or null. Active surfaces require all their parameters to be "
                         f"properly configured for accurate simulation results."
                     )
-                    
+
                     actionable_suggestion = (
                         f"Set parameter '{param_name}' to an appropriate non-null value. "
                         f"Refer to SUEWS documentation for typical values for '{surface_type}' surfaces."
                     )
-                    
+
                     results.append(
                         ValidationResult(
                             status="ERROR",
@@ -481,14 +481,16 @@ def validate_land_cover_consistency(yaml_data: dict) -> List[ValidationResult]:
                         )
                     )
 
-        # Check for unused surfaces (sfr == 0) with potentially unused parameters  
+        # Check for unused surfaces (sfr == 0) with potentially unused parameters
         zero_sfr_surfaces = [surf for surf, sfr in surface_types if sfr == 0]
         if zero_sfr_surfaces:
             for surf_type in zero_sfr_surfaces:
                 # Collect parameter names for this surface type (following precheck.py logic)
                 param_list = []
-                surf_props = site.get("properties", {}).get("land_cover", {}).get(surf_type, {})
-                
+                surf_props = (
+                    site.get("properties", {}).get("land_cover", {}).get(surf_type, {})
+                )
+
                 def collect_param_names(d: dict, prefix: str = ""):
                     for k, v in d.items():
                         if k == "sfr":
@@ -499,12 +501,12 @@ def validate_land_cover_consistency(yaml_data: dict) -> List[ValidationResult]:
                                 param_list.append(current_path)
                             else:
                                 collect_param_names(v, current_path)
-                
+
                 collect_param_names(surf_props)
-                
+
                 if param_list:
                     message = f"As '{surf_type}' (sfr == 0) for site {site_idx}, parameters under sites.properties.land_cover.{surf_type} are not checked for this surface type."
-                    
+
                     results.append(
                         ValidationResult(
                             status="WARNING",
@@ -1370,20 +1372,20 @@ def create_science_report(
         String containing formatted report content
     """
     report_lines = []
-    
+
     # Generate phase-specific title
     phase_titles = {
         "A": "SUEWS - Phase A (Up-to-date YAML check) Report",
-        "B": "SUEWS - Phase B (Scientific Validation) Report", 
+        "B": "SUEWS - Phase B (Scientific Validation) Report",
         "C": "SUEWS - Phase C (Pydantic Validation) Report",
         "AB": "SUEWS - Phase AB (Up-to-date YAML check and Scientific Validation) Report",
-        "AC": "SUEWS - Phase AC (Up-to-date YAML check and Pydantic Validation) Report", 
+        "AC": "SUEWS - Phase AC (Up-to-date YAML check and Pydantic Validation) Report",
         "BC": "SUEWS - Phase BC (Scientific Validation and Pydantic Validation) Report",
-        "ABC": "SUEWS - Phase ABC (Up-to-date YAML check, Scientific Validation and Pydantic Validation) Report"
+        "ABC": "SUEWS - Phase ABC (Up-to-date YAML check, Scientific Validation and Pydantic Validation) Report",
     }
-    
+
     title = phase_titles.get(phase, "SUEWS Scientific Validation Report")
-    
+
     report_lines.append(f"# {title}")
     report_lines.append("# " + "=" * 50)
     report_lines.append(f"# Mode: {mode.title()}")

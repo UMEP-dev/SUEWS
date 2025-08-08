@@ -44,6 +44,9 @@
 .ipynb_checkpoints
 */.ipynb_checkpoints/*
 
+# UV package manager lock file
+uv.lock
+
 # IPython
 profile_default/
 ipython_config.py

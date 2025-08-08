@@ -103,9 +103,10 @@ class StorageHeatMethod(Enum):
     5: ESTM_EXTENDED - Extended ESTM with separate roof/wall/ground temperatures
     6: OHM_ENHANCED - OHM with enhanced parameterisation
     """
-    #EHC needs to be added
-    #What is OHM_ENHANCED? Is it DyOHM? If yes, change. If not, need to add DyOhm.  
-    #Put STEBBSoption here to turn on STEBBS storage heat flux, internal temperature, etc.
+
+    # EHC needs to be added
+    # What is OHM_ENHANCED? Is it DyOHM? If yes, change. If not, need to add DyOhm.
+    # Put STEBBSoption here to turn on STEBBS storage heat flux, internal temperature, etc.
 
     OBSERVED = 0
     OHM_WITHOUT_QF = 1

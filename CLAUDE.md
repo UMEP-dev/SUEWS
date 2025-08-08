@@ -552,6 +552,12 @@ When making code changes to SUEWS/SuPy:
   - [maintenance]: Codebase maintenance (including Claude Code development aspects AND updates to CLAUDE.md)
   - [doc]: Documentation updates (user-facing documentation in docs/, NOT CLAUDE.md)
 - **IMPORTANT**: Updates to CLAUDE.md should be categorised as [maintenance], not [doc]
+- **CRITICAL CHANGELOG.md RULES**:
+  - **DO NOT** modify or regenerate the Annual Statistics table (if present) - it causes merge conflicts
+  - **DO NOT** run `.claude/scripts/changelog_helper.py` unless explicitly requested via `/log-changes` slash command
+  - Only add new entries under the appropriate date heading
+  - Keep existing entries and structure intact
+  - Simply append new entries without restructuring
 
 ### Documentation Principles
 

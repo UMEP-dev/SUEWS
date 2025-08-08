@@ -713,38 +713,55 @@ def run_phase_c(
                     "BC": "SUEWS - Phase BC (Scientific Validation and Pydantic Validation) Report",
                     "ABC": "SUEWS - Phase ABC (Up-to-date YAML check, Scientific Validation and Pydantic Validation) Report",
                 }
-                
-                title = phase_titles.get(phase_str, "SUEWS Phase C (Pydantic Validation) Report")
-                
+
+                title = phase_titles.get(
+                    phase_str, "SUEWS Phase C (Pydantic Validation) Report"
+                )
+
                 # Extract NO ACTION NEEDED content from previous phases to consolidate properly
                 consolidated_no_action = []
-                consolidated_no_action.append("- Pydantic validation passed successfully")
-                
+                consolidated_no_action.append(
+                    "- Pydantic validation passed successfully"
+                )
+
                 # Add any default values detected
                 if no_action_info:
                     # Remove the leading newlines and parse the content
                     no_action_content = no_action_info.strip()
                     if no_action_content.startswith("\n\n## NO ACTION NEEDED\n"):
-                        no_action_content = no_action_content.replace("\n\n## NO ACTION NEEDED\n", "")
-                        consolidated_no_action.extend([line for line in no_action_content.split('\n') if line.strip()])
-                
+                        no_action_content = no_action_content.replace(
+                            "\n\n## NO ACTION NEEDED\n", ""
+                        )
+                        consolidated_no_action.extend([
+                            line
+                            for line in no_action_content.split("\n")
+                            if line.strip()
+                        ])
+
                 # Extract content from previous phase reports without duplicating headers
                 if phase_a_info:
                     # Extract only the content, not the headers
-                    phase_content = phase_a_info.replace("## PREVIOUS PHASES INFORMATION CONSOLIDATED\nSee below for prior phase results.\n", "")
+                    phase_content = phase_a_info.replace(
+                        "## PREVIOUS PHASES INFORMATION CONSOLIDATED\nSee below for prior phase results.\n",
+                        "",
+                    )
                     # Remove redundant headers and extract only NO ACTION NEEDED content
-                    lines = phase_content.split('\n')
+                    lines = phase_content.split("\n")
                     in_no_action = False
                     for line in lines:
-                        if line.strip().startswith('## NO ACTION NEEDED'):
+                        if line.strip().startswith("## NO ACTION NEEDED"):
                             in_no_action = True
                             continue
-                        elif line.strip().startswith('##'):
+                        elif line.strip().startswith("##"):
                             in_no_action = False
                             continue
-                        elif in_no_action and line.strip() and not line.strip().startswith('#'):
+                        elif (
+                            in_no_action
+                            and line.strip()
+                            and not line.strip().startswith("#")
+                        ):
                             consolidated_no_action.append(line.strip())
-                
+
                 success_report = f"""# {title}
 # ============================================
 # Mode: {mode.title()}

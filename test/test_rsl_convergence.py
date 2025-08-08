@@ -63,12 +63,12 @@ class TestRSLConvergence:
         # Check reasonable value ranges
         assert df_output.SUEWS["QH"].abs().max() < 1000, "QH values unreasonably large"
         assert df_output.SUEWS["QE"].abs().max() < 1000, "QE values unreasonably large"
-        assert (df_output.SUEWS["U10"] >= 0).all() and (df_output.SUEWS["U10"] < 50).all(), (
-            "U10 out of reasonable range"
-        )
-        assert (df_output.SUEWS["T2"] > -50).all() and (df_output.SUEWS["T2"] < 60).all(), (
-            "T2 out of reasonable range"
-        )
+        assert (df_output.SUEWS["U10"] >= 0).all() and (
+            df_output.SUEWS["U10"] < 50
+        ).all(), "U10 out of reasonable range"
+        assert (df_output.SUEWS["T2"] > -50).all() and (
+            df_output.SUEWS["T2"] < 60
+        ).all(), "T2 out of reasonable range"
 
     def test_rsl_neutral_stability_handling(self, base_config):
         """Test improved neutral stability handling in RSL calculations"""
@@ -155,8 +155,12 @@ class TestRSLConvergence:
         )
 
         # Check convergence
-        assert not df_output.SUEWS["QH"].isna().any(), f"QH NaN for FAI={fai}, z0m={z0m}"
-        assert not df_output.SUEWS["QE"].isna().any(), f"QE NaN for FAI={fai}, z0m={z0m}"
+        assert not df_output.SUEWS["QH"].isna().any(), (
+            f"QH NaN for FAI={fai}, z0m={z0m}"
+        )
+        assert not df_output.SUEWS["QE"].isna().any(), (
+            f"QE NaN for FAI={fai}, z0m={z0m}"
+        )
         assert df_output.SUEWS["QH"].abs().max() < 1000, (
             f"QH unreasonable for FAI={fai}, z0m={z0m}"
         )

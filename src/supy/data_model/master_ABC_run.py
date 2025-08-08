@@ -632,16 +632,16 @@ def run_phase_c(
                     passed_phases = [f"PHASE {phase} - PASSED" for phase in phases_run]
                 else:
                     passed_phases = ["PHASE C - PASSED"]  # Default for Phase C only
-                
+
                 phases_header = ", ".join(passed_phases)
-                
+
                 # Build consolidation info for previous phases
                 phase_a_info = ""
                 if phase_a_report_file and os.path.exists(phase_a_report_file):
                     try:
                         with open(phase_a_report_file, "r") as f:
                             phase_a_content = f.read()
-                        
+
                         # Add consolidation info
                         phase_a_info = "\n\n## PREVIOUS PHASES INFORMATION CONSOLIDATED\nSee below for prior phase results.\n"
                         phase_a_info += f"\n{phase_a_content}"
@@ -680,7 +680,7 @@ def run_phase_c(
                     )
                     print(f"  Check ACTION NEEDED section in report for required fixes")
                     return False
-                
+
                 # Build NO ACTION NEEDED section if any defaults were detected
                 no_action_info = ""
                 if normal_defaults:
@@ -689,9 +689,11 @@ def run_phase_c(
                         field_name = default_app.get("field_name", "unknown")
                         default_value = default_app.get("default_value", "unknown")
                         field_path = default_app.get("field_path", "unknown")
-                        status = default_app.get("status", "found null")  # Default to old behavior
+                        status = default_app.get(
+                            "status", "found null"
+                        )  # Default to old behavior
                         no_action_info += f"- {field_name} {status} in user YAML at level {field_path}. Pydantic will interpret that as default value: {default_value}\n"
-                
+
                 success_report = f"""# SUEWS Phase C (Pydantic Validation) Report
 # ============================================
 # Mode: {mode.title()}

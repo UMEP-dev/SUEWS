@@ -43,6 +43,97 @@ list_ver_from = rules["From"].unique().tolist()
 list_ver_to = rules["To"].unique().tolist()
 
 
+def _check_required_files(input_path, required_files):
+    """Check if all required files exist."""
+    return all((input_path / f).exists() for f in required_files)
+
+
+def _check_specific_files(input_path, specific_files):
+    """Check if specific files exist in root or Input/ subdirectory."""
+    for f in specific_files:
+        if not ((input_path / f).exists() or (input_path / "Input" / f).exists()):
+            return False
+    return True
+
+
+def _check_columns_in_file(file_path, columns_to_check):
+    """Check if specific columns exist in a file's header."""
+    if not file_path.exists():
+        return False
+
+    try:
+        with open(file_path, encoding="utf-8") as f:
+            lines = f.readlines()
+            if len(lines) > 1:
+                headers = lines[1].strip().split()
+                return all(col in headers for col in columns_to_check)
+    except Exception:
+        return False
+
+    return False
+
+
+def _check_columns(input_path, check_columns):
+    """Check if required columns exist in specified files."""
+    for file, columns in check_columns.items():
+        # Check both root and Input/ subdirectory
+        file_path = input_path / file
+        if not file_path.exists():
+            file_path = input_path / "Input" / file
+
+        if not _check_columns_in_file(file_path, columns):
+            return False
+
+    return True
+
+
+def _check_negative_columns(input_path, negative_columns):
+    """Check that specified columns do NOT exist in files."""
+    for file, columns in negative_columns.items():
+        # Check both root and Input/ subdirectory
+        file_path = input_path / file
+        if not file_path.exists():
+            file_path = input_path / "Input" / file
+
+        if not file_path.exists():
+            # If file doesn't exist, that's fine for negative check
+            continue
+
+        try:
+            with open(file_path, encoding="utf-8") as f:
+                lines = f.readlines()
+                if len(lines) > 1:
+                    headers = lines[1].strip().split()
+                    for col in columns:
+                        if col in headers:  # Should NOT be present
+                            return False
+        except Exception:
+            return False
+
+    return True
+
+
+def _check_nml_parameters(input_path, check_nml):
+    """Check if required parameters exist in .nml files."""
+    for nml_file, params in check_nml.items():
+        nml_path = input_path / nml_file
+        if not nml_path.exists():
+            return False
+
+        try:
+            nml = f90nml.read(str(nml_path))
+            # Get the first (and usually only) section
+            section = next(iter(nml.values())) if nml else {}
+            # Check if ALL required parameters exist
+            for param in params:
+                if param.lower() not in [k.lower() for k in section]:
+                    return False
+        except Exception:
+            return False
+
+    return True
+
+
 def detect_table_version(input_dir):
     """Auto-detect the version of SUEWS table files.
 
@@ -248,20 +339,13 @@ def detect_table_version(input_dir):
 
         # Check required files exist
         required_files = indicators.get("required_files", [])
-        if not all((input_path / f).exists() for f in required_files):
+        if required_files and not _check_required_files(input_path, required_files):
             continue
 
         # Check for specific file existence (version-specific files)
-        # Check both root and Input/ subdirectory
         specific_files = indicators.get("file_exists", [])
-        if specific_files:
-            files_found = True
-            for f in specific_files:
-                if not ((input_path / f).exists() or (input_path / "Input" / f).exists()):
-                    files_found = False
-                    break
-            if not files_found:
-                continue
+        if specific_files and not _check_specific_files(input_path, specific_files):
+            continue
 
         # Check for optional files (these can help identify version but aren't required)
         optional_files = indicators.get("optional_files", [])
@@ -274,87 +358,17 @@ def detect_table_version(input_dir):
 
         # Check columns in text files
         check_columns = indicators.get("check_columns", {})
-        columns_match = True
-        for file, columns in check_columns.items():
-            # Check both root and Input/ subdirectory
-            file_path = input_path / file
-            if not file_path.exists():
-                file_path = input_path / "Input" / file
-            if file_path.exists():
-                try:
-                    # Read the header line
-                    with open(file_path, encoding="utf-8") as f:
-                        lines = f.readlines()
-                        if len(lines) > 1:
-                            headers = lines[1].strip().split()
-                            for col in columns:
-                                if col not in headers:
-                                    columns_match = False
-                                    break
-                except Exception:
-                    columns_match = False
-            else:
-                columns_match = False
-
-            if not columns_match:
-                break
-
-        if not columns_match:
+        if check_columns and not _check_columns(input_path, check_columns):
             continue
 
         # Check for columns that should NOT exist (negative check)
         negative_columns = indicators.get("negative_columns", {})
-        negative_match = True
-        for file, columns in negative_columns.items():
-            # Check both root and Input/ subdirectory
-            file_path = input_path / file
-            if not file_path.exists():
-                file_path = input_path / "Input" / file
-            if file_path.exists():
-                try:
-                    with open(file_path, encoding="utf-8") as f:
-                        lines = f.readlines()
-                        if len(lines) > 1:
-                            headers = lines[1].strip().split()
-                            for col in columns:
-                                if col in headers:  # Should NOT be present
-                                    negative_match = False
-                                    break
-                except Exception:
-                    negative_match = False
-            # If file doesn't exist, that's fine for negative check
-
-            if not negative_match:
-                break
-
-        if not negative_match:
+        if negative_columns and not _check_negative_columns(input_path, negative_columns):
             continue
 
         # Check nml parameters for versions that need it (e.g., 2024a)
         check_nml = indicators.get("check_nml", {})
-        nml_match = True
-        if check_nml:
-            for nml_file, params in check_nml.items():
-                nml_path = input_path / nml_file
-                if nml_path.exists():
-                    try:
-                        nml = f90nml.read(str(nml_path))
-                        # Get the first (and usually only) section
-                        section = next(iter(nml.values())) if nml else {}
-                        # Check if ALL required parameters exist
-                        for param in params:
-                            if param.lower() not in [k.lower() for k in section]:
-                                nml_match = False
-                                break
-                    except Exception:
-                        nml_match = False
-                else:
-                    nml_match = False
-
-                if not nml_match:
-                    break
-
-        if not nml_match:
+        if check_nml and not _check_nml_parameters(input_path, check_nml):
             continue
 
         # If this is a fallback version, only use if nothing else matched
@@ -545,6 +559,51 @@ def delete_var_nml(toFile, toVar, _toVal):
     nml.write(toFile, force=True)
 
 
+def _should_skip_line(line):
+    """Check if a line should be skipped during cleaning."""
+    # Skip empty lines and full-line comments
+    if not line or line.strip().startswith("#"):
+        return True
+
+    # Skip lines that contain triple quotes or problematic quoted comments
+    if '"""' in line or (
+        '"' in line and ("Vegetation (average)" in line or "used for" in line)
+    ):
+        return True
+
+    # Skip lines starting with -9 (legacy footers)
+    return line.strip().startswith("-9")
+
+
+def _process_line(line):
+    """Process a single line: remove comments and tabs."""
+    # Replace tabs with spaces
+    line = line.replace("\t", " ")
+
+    # Remove inline comments (everything after !)
+    if "!" in line:
+        line = line[: line.index("!")].rstrip()
+
+    return line
+
+
+def _ensure_consistent_columns(fields, header_col_count):
+    """Ensure field count matches header column count."""
+    if not header_col_count:
+        return fields
+
+    if len(fields) == header_col_count:
+        return fields
+
+    # Truncate extra fields or pad with -999
+    if len(fields) > header_col_count:
+        return fields[:header_col_count]
+    else:
+        while len(fields) < header_col_count:
+            fields.append("-999")
+        return fields
+
+
 def clean_legacy_table(file_path, output_path=None):
     r"""
     Clean legacy SUEWS table files for pandas compatibility.
@@ -597,37 +656,30 @@ def clean_legacy_table(file_path, output_path=None):
         # Remove carriage returns and trailing whitespace
         line = raw_line.replace("\r", "").rstrip()
 
-        # IMPORTANT: Replace all tabs with spaces for consistent parsing
+        # Track tabs for reporting
         if "\t" in line:
             tabs_replaced += 1
-        line = line.replace("\t", " ")
 
-        if not line or line.strip().startswith("#"):
-            continue  # Skip empty lines and full-line comments
-
-        # Skip lines that contain triple quotes or problematic quoted comments
-        # These are typically metadata lines in 2016a format that shouldn't be data
-        if '"""' in line or (
-            '"' in line and ("Vegetation (average)" in line or "used for" in line)
-        ):
-            logger_supy.debug(
-                f"Skipping line {i + 1} with problematic quoted comments: {line[:50]}..."
-            )
-            cleaning_actions.append(f"Removed metadata line {i + 1}")
+        # Check if line should be skipped
+        if _should_skip_line(line):
+            if line.strip().startswith("-9"):
+                footer_removed = True
+                logger_supy.debug(
+                    f"Removing legacy footer line {i + 1}: {line[:50]}... Stopping read after footer."
+                )
+                break  # Stop processing after footer
+            elif '"""' in line or ('"' in line and ("Vegetation (average)" in line or "used for" in line)):
+                logger_supy.debug(
+                    f"Skipping line {i + 1} with problematic quoted comments: {line[:50]}..."
+                )
+                cleaning_actions.append(f"Removed metadata line {i + 1}")
             continue
 
-        # IMPORTANT: Skip ALL lines starting with -9 (legacy footers that should be removed)
-        if line.strip().startswith("-9"):
-            logger_supy.debug(
-                f"Removing legacy footer line {i + 1}: {line[:50]}... Stopping read after footer."
-            )
-            footer_removed = True
-            break  # Stop processing any further lines after footer
-
-        # Remove inline comments (everything after !)
-        if "!" in line:
+        # Process the line (remove comments and tabs)
+        original_line = line
+        line = _process_line(line)
+        if "!" in original_line:
             comments_removed += 1
-            line = line[: line.index("!")].rstrip()
 
         # Split by spaces (tabs have been replaced with spaces)
         fields = line.split()
@@ -651,21 +703,15 @@ def clean_legacy_table(file_path, output_path=None):
         # For data lines
         line_count += 1
 
-        # Ensure consistent column count (pad or truncate as needed)
-        if header_col_count and len(fields) != header_col_count:
-            if len(fields) > header_col_count:
-                # Truncate extra fields (likely comments)
+        # Ensure consistent column count
+        original_field_count = len(fields)
+        fields = _ensure_consistent_columns(fields, header_col_count)
+        if len(fields) != original_field_count:
+            columns_adjusted += 1
+            if original_field_count > header_col_count:
                 logger_supy.debug(
-                    f"Line {i + 1}: Truncating from {len(fields)} to {header_col_count} fields"
+                    f"Line {i + 1}: Truncating from {original_field_count} to {header_col_count} fields"
                 )
-                columns_adjusted += 1
-                fields = fields[:header_col_count]
-            else:
-                # Pad with -999 for missing fields
-                if len(fields) < header_col_count:
-                    columns_adjusted += 1
-                while len(fields) < header_col_count:
-                    fields.append("-999")
 
         # Store processed data line
         data_lines.append(" ".join(fields))
@@ -850,73 +896,61 @@ def change_var_nml(toFile, toVar, toVal):
     nml.write(toFile)
 
 
-# a single conversion between two versions
-def SUEWS_Converter_single(fromDir, toDir, fromVer, toVer):
-    # copy files in fromDir to toDir, only: *.nml, SUEWS_*.txt
-    if os.path.exists(toDir) is False:
-        os.mkdir(toDir)
-    fileList = []
+def _copy_and_clean_files(fromDir, toDir, file_patterns, clean_txt=True):
+    """Copy files matching patterns and optionally clean text files."""
+    for fileX in os.listdir(fromDir):
+        if any(fnmatch(fileX, p) for p in file_patterns):
+            file_src = os.path.join(fromDir, fileX)
+            file_dst = os.path.join(toDir, fileX)
+            copyfile(file_src, file_dst)
+            convert_utf8(file_dst)
+            if clean_txt and fnmatch(fileX, "*.txt"):
+                clean_legacy_table(file_dst)
 
-    # Special case: if fromVer == toVer, just copy and clean without conversion
-    if fromVer == toVer:
-        logger_supy.info(
-            f"Source and target versions are the same ({fromVer}). Only cleaning files..."
+
+def _handle_same_version_copy(fromDir, toDir, fromVer):
+    """Handle the special case where source and target versions are the same."""
+    logger_supy.info(
+        f"Source and target versions are the same ({fromVer}). Only cleaning files..."
+    )
+
+    # Determine file structure based on version
+    if fromVer == "2016a":
+        # Look for files in Input/ subdirectory for 2016a format
+        input_dir = os.path.join(fromDir, "Input")
+        if os.path.exists(input_dir):
+            _copy_and_clean_files(
+                input_dir, toDir, ["SUEWS_*.txt", "*.nml"], clean_txt=True
+            )
+        # Also check root for .nml files
+        _copy_and_clean_files(fromDir, toDir, ["*.nml"], clean_txt=False)
+    else:
+        # Standard structure - all files in root
+        _copy_and_clean_files(
+            fromDir, toDir, ["SUEWS*.txt", "*.nml"], clean_txt=True
         )
 
-        # Determine file structure based on version
-        if fromVer == "2016a":
-            # Look for files in Input/ subdirectory for 2016a format
-            input_dir = os.path.join(fromDir, "Input")
-            if os.path.exists(input_dir):
-                for fileX in os.listdir(input_dir):
-                    if fnmatch(fileX, "SUEWS_*.txt") or fnmatch(fileX, "*.nml"):
-                        file_src = os.path.join(input_dir, fileX)
-                        file_dst = os.path.join(toDir, fileX)
-                        copyfile(file_src, file_dst)
-                        convert_utf8(file_dst)
-                        # Clean table files during copy when no conversion is needed
-                        if fnmatch(fileX, "*.txt"):
-                            clean_legacy_table(file_dst)
-            # Also check root for .nml files
-            for fileX in os.listdir(fromDir):
-                if fnmatch(fileX, "*.nml"):
-                    file_src = os.path.join(fromDir, fileX)
-                    file_dst = os.path.join(toDir, fileX)
-                    copyfile(file_src, file_dst)
-                    convert_utf8(file_dst)
-        else:
-            # Standard structure - all files in root
-            for fileX in os.listdir(fromDir):
-                if fnmatch(fileX, "SUEWS*.txt") or fnmatch(fileX, "*.nml"):
-                    file_src = os.path.join(fromDir, fileX)
-                    file_dst = os.path.join(toDir, fileX)
-                    copyfile(file_src, file_dst)
-                    convert_utf8(file_dst)
-                    # Clean table files during copy when no conversion is needed
-                    if fnmatch(fileX, "*.txt"):
-                        clean_legacy_table(file_dst)
+    # Create the standard directory structure
+    ser_nml = load_SUEWS_nml_simple(str(Path(toDir) / "RunControl.nml")).runcontrol
+    path_input = (Path(toDir) / ser_nml["fileinputpath"]).resolve()
+    path_output = (Path(toDir) / ser_nml["fileoutputpath"]).resolve()
+    path_input.mkdir(exist_ok=True)
+    path_output.mkdir(exist_ok=True)
 
-        # Create the standard directory structure
-        ser_nml = load_SUEWS_nml_simple(str(Path(toDir) / "RunControl.nml")).runcontrol
-        path_input = (Path(toDir) / ser_nml["fileinputpath"]).resolve()
-        path_output = (Path(toDir) / ser_nml["fileoutputpath"]).resolve()
-        path_input.mkdir(exist_ok=True)
-        path_output.mkdir(exist_ok=True)
+    # Move table files to Input directory
+    list_table_input = list(Path(toDir).glob("SUEWS*.txt")) + [
+        x for x in Path(toDir).glob("*.nml") if "RunControl" not in str(x)
+    ]
+    for fileX in list_table_input:
+        move(fileX.resolve(), path_input / fileX.name)
 
-        # Move table files to Input directory
-        list_table_input = list(Path(toDir).glob("SUEWS*.txt")) + [
-            x for x in Path(toDir).glob("*.nml") if "RunControl" not in str(x)
-        ]
-        for fileX in list_table_input:
-            move(fileX.resolve(), path_input / fileX.name)
+    logger_supy.info(f"Files cleaned and copied to {toDir}")
 
-        logger_supy.info(f"Files cleaned and copied to {toDir}")
-        return
 
-    # Normal conversion process continues below
+def _build_file_list(fromDir, fromVer):
+    """Build list of files to process based on version structure."""
     fileList = []
 
-    # Check for 2016a structure with Input/ subdirectory
     if fromVer == "2016a":
         # Look for files in Input/ subdirectory for 2016a format
         input_dir = os.path.join(fromDir, "Input")
@@ -928,7 +962,8 @@ def SUEWS_Converter_single(fromDir, toDir, fromVer, toVer):
                 if fnmatch(fileX, "SUEWS_*.txt"):
                     fileList.append(("Input", fileX))
                     logger_supy.debug(f"Found file in Input/: {fileX}")
-        # Also check root for .nml files and ALL txt files (including SUEWS_*.txt that might be in root)
+
+        # Also check root for .nml files and ALL txt files
         for fileX in os.listdir(fromDir):
             if (
                 fnmatch(fileX, "*.nml")
@@ -942,6 +977,23 @@ def SUEWS_Converter_single(fromDir, toDir, fromVer, toVer):
         for fileX in os.listdir(fromDir):
             if any(fnmatch(fileX, p) for p in ["SUEWS*.txt", "*.nml"]):
                 fileList.append(("", fileX))
+
+    return fileList
+
+
+# a single conversion between two versions
+def SUEWS_Converter_single(fromDir, toDir, fromVer, toVer):
+    # copy files in fromDir to toDir, only: *.nml, SUEWS_*.txt
+    if os.path.exists(toDir) is False:
+        os.mkdir(toDir)
+
+    # Special case: if fromVer == toVer, just copy and clean without conversion
+    if fromVer == toVer:
+        _handle_same_version_copy(fromDir, toDir, fromVer)
+        return
+
+    # Normal conversion process continues below
+    fileList = _build_file_list(fromDir, fromVer)
 
     for subdir, fileX in fileList:
         file_src = (

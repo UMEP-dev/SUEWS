@@ -48,6 +48,25 @@ For enhanced development productivity, SUEWS includes integration with Claude Co
 * **Quick Start**:
   - **Workspace Manager** (recommended): `./claude-dev/claude.sh start myproject`
   - **Direct Setup**: `./claude-dev/setup-claude-dev.sh` from repository root
+
+#### CLAUDE.md Protection System
+
+This repository includes automatic protection for the CLAUDE.md configuration file to prevent accidental content loss:
+
+* **Automatic Features** (no setup required):
+  - GitHub Actions validation on all PRs/pushes affecting CLAUDE.md
+  - Content reduction detection (alerts if >20% content removed)
+  - Automatic snapshots on validation failures
+
+* **Local Protection** (one-time setup):
+  ```bash
+  # Run once after cloning or pulling this feature
+  bash .claude/scripts/setup-claude-protection.sh
+  ```
+  This enables:
+  - Git pre-commit validation
+  - Local backup system
+  - Manual validation: `python3 .claude/scripts/validate-claude-md.py`
 * **Features**: Intelligent code assistance, automated testing, British academic standards, multi-workspace support
 * **Benefits**: Isolated environment, reproducible development, AI-powered debugging, parallel project development
 

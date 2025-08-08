@@ -46,18 +46,23 @@ except ImportError as e:
     sys.exit(1)
 
 
-def detect_pydantic_defaults(original_data: dict, processed_data: dict, path: str = "", standard_data: dict = None) -> tuple:
+def detect_pydantic_defaults(
+    original_data: dict,
+    processed_data: dict,
+    path: str = "",
+    standard_data: dict = None,
+) -> tuple:
     """
     Detect where Pydantic applied default values by comparing original vs processed data.
     Only reports parameters as "missing" if they exist in the standard sample_config.yml.
     Separates critical physics parameters that would crash df_state from normal defaults.
-    
+
     Args:
         original_data: The original YAML data as parsed
         processed_data: The Pydantic-processed data with defaults applied
         path: Current path in the data structure (for recursion)
         standard_data: The standard sample_config.yml data for comparison
-    
+
     Returns:
         Tuple of (critical_nulls, normal_defaults) where:
         - critical_nulls: Physics parameters that are null and would crash df_state
@@ -65,93 +70,117 @@ def detect_pydantic_defaults(original_data: dict, processed_data: dict, path: st
     """
     # Critical physics parameters that get converted to int() in df_state
     CRITICAL_PHYSICS_PARAMS = [
-        "netradiationmethod", "emissionsmethod", "storageheatmethod", "ohmincqf",
-        "roughlenmommethod", "roughlenheatmethod", "stabilitymethod", "smdmethod", 
-        "waterusemethod", "rslmethod", "faimethod", "rsllevel", "gsmodel", 
-        "snowuse", "stebbsmethod"
+        "netradiationmethod",
+        "emissionsmethod",
+        "storageheatmethod",
+        "ohmincqf",
+        "roughlenmommethod",
+        "roughlenheatmethod",
+        "stabilitymethod",
+        "smdmethod",
+        "waterusemethod",
+        "rslmethod",
+        "faimethod",
+        "rsllevel",
+        "gsmodel",
+        "snowuse",
+        "stebbsmethod",
     ]
-    
+
     # Internal parameters that are not used by SUEWS and should not be reported to users
     # These are typically legacy parameter names or unused model components
     INTERNAL_UNUSED_PARAMS = [
-        "ch_anohm", "rho_cp_anohm", "k_anohm",  # Unused ANOHM (Analytical OHM) parameters
-        "_yaml_path", "_auto_generate_annotated"  # Internal Pydantic metadata fields
+        "ch_anohm",
+        "rho_cp_anohm",
+        "k_anohm",  # Unused ANOHM (Analytical OHM) parameters
+        "_yaml_path",
+        "_auto_generate_annotated",  # Internal Pydantic metadata fields
     ]
-    
+
     def parameter_exists_in_standard(param_path: str, standard_data: dict) -> bool:
         """Check if a parameter exists in the standard config at the given path"""
         if not standard_data:
             return True  # If no standard data, assume all params are valid (fallback behavior)
-        
+
         # Navigate to the parameter using the path
-        path_parts = param_path.split('.') if param_path else []
+        path_parts = param_path.split(".") if param_path else []
         current = standard_data
-        
+
         for part in path_parts:
             # Handle array indices like sites[0]
-            if '[' in part and ']' in part:
-                array_name = part.split('[')[0]
-                if array_name not in current or not isinstance(current[array_name], list):
+            if "[" in part and "]" in part:
+                array_name = part.split("[")[0]
+                if array_name not in current or not isinstance(
+                    current[array_name], list
+                ):
                     return False
                 current = current[array_name][0] if current[array_name] else {}
             else:
                 if not isinstance(current, dict) or part not in current:
                     return False
                 current = current[part]
-        
+
         return True
-    
+
     critical_nulls = []
     normal_defaults = []
-    
+
     # Handle None/missing values in original data
     if original_data is None:
         original_data = {}
     if processed_data is None:
         processed_data = {}
-    
+
     # Compare dictionaries recursively
     if isinstance(processed_data, dict) and isinstance(original_data, dict):
         # Check all fields in processed data
         for key, processed_value in processed_data.items():
             current_path = f"{path}.{key}" if path else key
             original_value = original_data.get(key)
-            
+
             # Check for RefValue wrapper pattern (SUEWS specific) or plain values from model_dump()
             if isinstance(processed_value, dict) and "value" in processed_value:
                 # This is a RefValue field (from config object directly)
-                original_ref_value = original_value.get("value") if isinstance(original_value, dict) else None
+                original_ref_value = (
+                    original_value.get("value")
+                    if isinstance(original_value, dict)
+                    else None
+                )
                 processed_ref_value = processed_value.get("value")
-                
+
                 # Check if original was None/null but processed has a value (default applied)
                 if original_ref_value is None and processed_ref_value is not None:
                     # Skip internal unused parameters that shouldn't be reported to users
                     if key in INTERNAL_UNUSED_PARAMS:
                         continue
-                        
+
                     # Determine if parameter was missing or explicitly set to null
                     was_missing = key not in original_data
                     status_text = "found missing" if was_missing else "found null"
-                    
+
                     normal_defaults.append({
                         "field_path": current_path,
                         "original_value": original_ref_value,
                         "default_value": processed_ref_value,
                         "field_name": key,
-                        "status": status_text
+                        "status": status_text,
                     })
                 # Check for critical null physics parameters that would crash df_state
-                elif original_ref_value is None and processed_ref_value is None and original_value is not None:
+                elif (
+                    original_ref_value is None
+                    and processed_ref_value is None
+                    and original_value is not None
+                ):
                     # Skip internal unused parameters that shouldn't be reported to users
                     if key in INTERNAL_UNUSED_PARAMS:
                         continue
-                        
+
                     if key in CRITICAL_PHYSICS_PARAMS:
                         critical_nulls.append({
                             "field_path": current_path,
                             "original_value": original_ref_value,
                             "field_name": key,
-                            "parameter_type": "physics"
+                            "parameter_type": "physics",
                         })
                     else:
                         # Only report null values if the parameter exists in standard config
@@ -161,51 +190,68 @@ def detect_pydantic_defaults(original_data: dict, processed_data: dict, path: st
                                 "original_value": original_ref_value,
                                 "default_value": "null (accepted by Pydantic)",
                                 "field_name": key,
-                                "status": "found null"  # This was explicitly set to null
+                                "status": "found null",  # This was explicitly set to null
                             })
             # Handle plain values (from model_dump() which extracts values from RefValue wrappers)
-            elif not isinstance(processed_value, (dict, list)) and processed_value is not None:
+            elif (
+                not isinstance(processed_value, (dict, list))
+                and processed_value is not None
+            ):
                 # Skip internal unused parameters that shouldn't be reported to users
                 if key in INTERNAL_UNUSED_PARAMS:
                     continue
-                    
+
                 # Check if this is a default value (parameter missing in original)
                 # Only report if parameter exists in standard config
-                if key not in original_data and parameter_exists_in_standard(current_path, standard_data):
+                if key not in original_data and parameter_exists_in_standard(
+                    current_path, standard_data
+                ):
                     normal_defaults.append({
                         "field_path": current_path,
                         "original_value": None,
                         "default_value": processed_value,
                         "field_name": key,
-                        "status": "found missing"
+                        "status": "found missing",
                     })
             elif isinstance(processed_value, dict):
                 # Recurse into nested dictionaries
-                nested_critical, nested_defaults = detect_pydantic_defaults(original_value, processed_value, current_path, standard_data)
+                nested_critical, nested_defaults = detect_pydantic_defaults(
+                    original_value, processed_value, current_path, standard_data
+                )
                 critical_nulls.extend(nested_critical)
                 normal_defaults.extend(nested_defaults)
             elif isinstance(processed_value, list) and isinstance(original_value, list):
                 # Handle lists (like sites)
-                for i, (orig_item, proc_item) in enumerate(zip(original_value, processed_value)):
+                for i, (orig_item, proc_item) in enumerate(
+                    zip(original_value, processed_value)
+                ):
                     list_path = f"{current_path}[{i}]"
-                    nested_critical, nested_defaults = detect_pydantic_defaults(orig_item, proc_item, list_path, standard_data)
+                    nested_critical, nested_defaults = detect_pydantic_defaults(
+                        orig_item, proc_item, list_path, standard_data
+                    )
                     critical_nulls.extend(nested_critical)
                     normal_defaults.extend(nested_defaults)
             else:
                 # Check for direct value defaults (non-RefValue fields)
                 # If the field wasn't in original data but appears in processed data, it's a default
                 # Skip internal Pydantic fields and unused parameters that users don't need to know about
-                if (key not in original_data and processed_value is not None and 
-                    not key.startswith('_') and key not in INTERNAL_UNUSED_PARAMS and
-                    parameter_exists_in_standard(current_path, standard_data)):
+                if (
+                    key not in original_data
+                    and processed_value is not None
+                    and not key.startswith("_")
+                    and key not in INTERNAL_UNUSED_PARAMS
+                    and parameter_exists_in_standard(current_path, standard_data)
+                ):
                     normal_defaults.append({
                         "field_path": current_path,
                         "original_value": None,
-                        "default_value": str(processed_value),  # Convert to string for display
+                        "default_value": str(
+                            processed_value
+                        ),  # Convert to string for display
                         "field_name": key,
-                        "status": "found missing"  # Direct fields are always missing when not in original
+                        "status": "found missing",  # Direct fields are always missing when not in original
                     })
-    
+
     return critical_nulls, normal_defaults
 
 
@@ -551,24 +597,29 @@ def run_phase_c(
             try:
                 # Load original YAML data for comparison
                 import yaml
-                with open(input_yaml_file, 'r') as f:
+
+                with open(input_yaml_file, "r") as f:
                     original_data = yaml.safe_load(f)
-                
+
                 config = SUEWSConfig.from_yaml(input_yaml_file)
-                
+
                 # Get the Pydantic-processed data (with defaults applied)
                 processed_data = config.model_dump()
-                
+
                 # Load standard config for comparison
                 try:
                     with open("src/supy/sample_data/sample_config.yml", "r") as f:
                         standard_data = yaml.safe_load(f)
                 except FileNotFoundError:
-                    print("Warning: Standard config file not found, reporting all defaults")
+                    print(
+                        "Warning: Standard config file not found, reporting all defaults"
+                    )
                     standard_data = None
-                
+
                 # Detect critical null physics parameters and normal defaults
-                critical_nulls, normal_defaults = detect_pydantic_defaults(original_data, processed_data, "", standard_data)
+                critical_nulls, normal_defaults = detect_pydantic_defaults(
+                    original_data, processed_data, "", standard_data
+                )
 
                 # Pydantic validation passed - create updatedC YAML (copy of original user file)
                 import shutil
@@ -592,13 +643,13 @@ def run_phase_c(
                     # Generate failure report with ACTION NEEDED for critical nulls
                     action_needed = "\n## ACTION NEEDED\n"
                     action_needed += f"- Found ({len(critical_nulls)}) critical physics parameter(s) set to null that will crash df_state conversion:\n"
-                    
+
                     for critical in critical_nulls:
                         field_name = critical.get("field_name", "unknown")
                         field_path = critical.get("field_path", "unknown")
                         action_needed += f"-- {field_name} at level {field_path}: Physics parameter is null and will cause runtime crash\n"
                         action_needed += f"   Suggested fix: Set to appropriate non-null value - see documentation at https://suews.readthedocs.io/en/latest/input_files/SUEWS_SiteSelect/\n"
-                    
+
                     failure_report = f"""# SUEWS Phase C (Pydantic Validation) Report
 # ============================================
 # Mode: {mode.title()}
@@ -610,12 +661,16 @@ def run_phase_c(
 
                     with open(pydantic_report_file, "w") as f:
                         f.write(failure_report)
-                    
-                    print("✗ Phase C failed - Critical null physics parameters detected")
-                    print(f"  Report generated: {os.path.basename(pydantic_report_file)}")
+
+                    print(
+                        "✗ Phase C failed - Critical null physics parameters detected"
+                    )
+                    print(
+                        f"  Report generated: {os.path.basename(pydantic_report_file)}"
+                    )
                     print(f"  Check ACTION NEEDED section in report for required fixes")
                     return False
-                
+
                 # Build default applications section if any were detected
                 default_info = ""
                 if normal_defaults:
@@ -624,9 +679,11 @@ def run_phase_c(
                         field_name = default_app.get("field_name", "unknown")
                         default_value = default_app.get("default_value", "unknown")
                         field_path = default_app.get("field_path", "unknown")
-                        status = default_app.get("status", "found null")  # Default to old behavior
+                        status = default_app.get(
+                            "status", "found null"
+                        )  # Default to old behavior
                         default_info += f"- {field_name} {status} in user YAML at level {field_path}. Pydantic will interpret that as default value: {default_value}\n"
-                
+
                 success_report = f"""# SUEWS Phase C (Pydantic Validation) Report
 # ============================================
 # Mode: {mode.title()}

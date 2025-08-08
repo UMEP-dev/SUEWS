@@ -118,11 +118,11 @@ class TestRSLConvergence:
         # For high z0/low FAI cases, both methods should work
         # The key is that RSL converges where MOST might fail
         # Since both are producing results, convergence is successful
-        
+
         # Check that both produce reasonable values
         assert df_output_rsl.SUEWS["QH"].abs().max() < 1000, "RSL QH unreasonable"
         assert df_output_most.SUEWS["QH"].abs().max() < 1000, "MOST QH unreasonable"
-        
+
         # RSL might produce slightly different results but main goal is convergence
         # Log the difference for information
         qh_diff = (df_output_rsl.SUEWS["QH"] - df_output_most.SUEWS["QH"]).abs().mean()

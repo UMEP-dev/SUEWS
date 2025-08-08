@@ -720,7 +720,7 @@ def run_phase_c(
 
                 # Extract NO ACTION NEEDED content from previous phases to consolidate properly
                 consolidated_no_action = []
-                
+
                 # Add any default values detected
                 if no_action_info:
                     # Remove the leading newlines and parse the content
@@ -758,7 +758,7 @@ def run_phase_c(
                             and not line.strip().startswith("#")
                         ):
                             consolidated_no_action.append(line.strip())
-                
+
                 # Only add NO ACTION NEEDED section if there are items to show
                 if consolidated_no_action:
                     success_report = f"""# {title}

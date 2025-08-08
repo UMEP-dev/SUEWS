@@ -146,12 +146,15 @@ def generate_phase_c_report(
             if not field_path:
                 # Try to extract field name from error message
                 import re
-                field_match = re.search(r"Required field '(\w+)' has no value", error_msg)
+
+                field_match = re.search(
+                    r"Required field '(\w+)' has no value", error_msg
+                )
                 if field_match:
                     field_name = field_match.group(1)
                     # For location, we need to determine where this field should be
                     # Common root-level required fields are usually in model or sites
-                    if field_name in ['lat', 'lon', 'alt']:
+                    if field_name in ["lat", "lon", "alt"]:
                         field_path = f"sites[0].properties.{field_name}"
                     else:
                         field_path = f"model.{field_name}"
@@ -159,7 +162,9 @@ def generate_phase_c_report(
                     field_path = "root_validation"
                     field_name = "configuration"
             else:
-                field_name = field_path.split(".")[-1] if "." in field_path else field_path
+                field_name = (
+                    field_path.split(".")[-1] if "." in field_path else field_path
+                )
 
             # Build complete Pydantic error message with all available details
             full_error_parts = [error_msg]

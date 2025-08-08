@@ -704,6 +704,21 @@ Modes:
             )
 
             if not phase_a_success:
+                # Phase A failed in AB workflow - rename output files to match selected phase (AB)
+                try:
+                    import shutil
+                    if os.path.exists(report_file):
+                        shutil.move(report_file, science_report_file)  # reportA → reportAB
+                    if os.path.exists(uptodate_file):
+                        shutil.move(uptodate_file, science_yaml_file)  # updatedA → updatedAB
+                except Exception:
+                    pass  # Don't fail if rename doesn't work
+                
+                print()
+                print(f" Phase A failed - AB workflow halted")
+                print(f" AB report: {os.path.basename(science_report_file)}")
+                print(f" AB YAML: {os.path.basename(science_yaml_file)}")
+                print(f" File locations: {dirname}")
                 return 1
 
             phase_b_success = run_phase_b(
@@ -744,6 +759,21 @@ Modes:
             )
 
             if not phase_a_success:
+                # Phase A failed in AC workflow - rename output files to match selected phase (AC)
+                try:
+                    import shutil
+                    if os.path.exists(report_file):
+                        shutil.move(report_file, pydantic_report_file)  # reportA → reportAC
+                    if os.path.exists(uptodate_file):
+                        shutil.move(uptodate_file, pydantic_yaml_file)  # updatedA → updatedAC
+                except Exception:
+                    pass  # Don't fail if rename doesn't work
+                
+                print()
+                print(f" Phase A failed - AC workflow halted")
+                print(f" AC report: {os.path.basename(pydantic_report_file)}")
+                print(f" AC YAML: {os.path.basename(pydantic_yaml_file)}")
+                print(f" File locations: {dirname}")
                 return 1
 
             phase_c_success = run_phase_c(
@@ -788,6 +818,21 @@ Modes:
             )
 
             if not phase_b_success:
+                # Phase B failed in BC workflow - rename output files to match selected phase (BC)
+                try:
+                    import shutil
+                    if os.path.exists(science_report_file):
+                        shutil.move(science_report_file, pydantic_report_file)  # reportB → reportBC
+                    if os.path.exists(science_yaml_file):
+                        shutil.move(science_yaml_file, pydantic_yaml_file)  # updatedB → updatedBC
+                except Exception:
+                    pass  # Don't fail if rename doesn't work
+                
+                print()
+                print(f" Phase B failed - BC workflow halted")
+                print(f" BC report: {os.path.basename(pydantic_report_file)}")
+                print(f" BC YAML: {os.path.basename(pydantic_yaml_file)}")
+                print(f" File locations: {dirname}")
                 return 1
 
             phase_c_success = run_phase_c(
@@ -819,17 +864,110 @@ Modes:
             return 0 if workflow_success else 1
 
         elif phase == "ABC":
-            # Placeholder for ABC workflow (complete A→B→C)
-            print(f"✗ Phase combination '{phase}' not yet implemented")
-            print("Available phases: A, B, C, AB, AC, BC")
-            print("Coming soon: ABC workflows")
-            return 1
+            # Complete A→B→C workflow with proper halt logic
+            # Step 1: Run Phase A
+            phase_a_success = run_phase_a(
+                user_yaml_file, standard_yaml_file, uptodate_file, report_file, mode
+            )
+
+            if not phase_a_success:
+                # Phase A failed in ABC workflow - rename output files to match selected phase (ABC)
+                try:
+                    import shutil
+                    if os.path.exists(report_file):
+                        shutil.move(report_file, pydantic_report_file)  # reportA → reportABC
+                    if os.path.exists(uptodate_file):
+                        shutil.move(uptodate_file, pydantic_yaml_file)  # updatedA → updatedABC
+                except Exception:
+                    pass  # Don't fail if rename doesn't work
+                
+                print()
+                print(f" Phase A failed - ABC workflow halted")
+                print(f" ABC report: {os.path.basename(pydantic_report_file)}")
+                print(f" ABC YAML: {os.path.basename(pydantic_yaml_file)}")
+                print(f" File locations: {dirname}")
+                return 1
+
+            # Step 2: Run Phase B (A passed, try B)
+            phase_b_success = run_phase_b(
+                user_yaml_file,
+                uptodate_file,
+                standard_yaml_file,
+                science_yaml_file,
+                science_report_file,
+                report_file,
+                phase_a_performed=True,  # A→B→C workflow mode
+                mode=mode,
+            )
+
+            if not phase_b_success:
+                # Phase B failed in ABC workflow - rename to ABC and clean up intermediate A files
+                try:
+                    import shutil
+                    # Rename B outputs to ABC (to match selected phase)
+                    if os.path.exists(science_report_file):
+                        shutil.move(science_report_file, pydantic_report_file)  # reportB → reportABC
+                    if os.path.exists(science_yaml_file):
+                        shutil.move(science_yaml_file, pydantic_yaml_file)  # updatedB → updatedABC
+                    # Clean up intermediate Phase A files
+                    if os.path.exists(report_file):
+                        os.remove(report_file)  # Remove Phase A report
+                    if os.path.exists(uptodate_file):
+                        os.remove(uptodate_file)  # Remove Phase A YAML
+                except Exception:
+                    pass  # Don't fail if cleanup doesn't work
+
+                print()
+                print(f" Phase B failed - ABC workflow halted")
+                print(f" ABC report: {os.path.basename(pydantic_report_file)}")
+                print(f" ABC YAML: {os.path.basename(pydantic_yaml_file)}")
+                print(f" File locations: {dirname}")
+                return 1
+
+            # Step 3: Run Phase C (both A and B passed)
+            phase_c_success = run_phase_c(
+                science_yaml_file,  # Use Phase B output as input to Phase C
+                pydantic_yaml_file,
+                pydantic_report_file,
+                mode,
+                phase_a_report_file=science_report_file,  # Pass Phase B report for consolidation
+            )
+
+            # Clean up intermediate files when complete ABC workflow completes
+            # (regardless of Phase C success - we always provide final ABC outputs)
+            try:
+                if os.path.exists(report_file):
+                    os.remove(report_file)  # Remove Phase A report
+                if os.path.exists(uptodate_file):
+                    os.remove(uptodate_file)  # Remove Phase A YAML
+                if os.path.exists(science_report_file):
+                    os.remove(science_report_file)  # Remove Phase B report
+                if os.path.exists(science_yaml_file):
+                    os.remove(science_yaml_file)  # Remove Phase B YAML
+            except Exception:
+                pass  # Don't fail if cleanup doesn't work
+
+            # Always provide ABC outputs (success or failure)
+            if phase_c_success:
+                print()
+                print(f" Ready for SUEWS simulation: {os.path.basename(pydantic_yaml_file)}")
+                print(f" ABC report: {os.path.basename(pydantic_report_file)}")
+                print(f" File locations: {dirname}")
+            else:
+                print()
+                print(f" Phase C failed - ABC workflow completed with errors")
+                print(f" ABC report: {os.path.basename(pydantic_report_file)}")
+                print(f" ABC YAML: {os.path.basename(pydantic_yaml_file)}")
+                print(f" File locations: {dirname}")
+
+            # Return success if all phases passed
+            workflow_success = phase_a_success and phase_b_success and phase_c_success
+            return 0 if workflow_success else 1
 
         else:
             # Fallback for unknown phase combinations
             print(f"✗ Unknown phase combination '{phase}'")
-            print("Available phases: A, B, C, AB, AC, BC")
-            print("Coming soon: ABC workflows")
+            print("Available phases: A, B, C, AB, AC, BC, ABC")
             return 1
 
     except FileNotFoundError as e:

@@ -198,9 +198,6 @@ def generate_phase_c_report(
 
         report_lines.append("")
 
-    # NO ACTION NEEDED section (following Phase B pattern)
-    report_lines.append("## NO ACTION NEEDED")
-
     # Previous phase information (Phase A or B) - following Phase B pattern exactly
     previous_phase_items = []
     if phase_a_renames:
@@ -232,22 +229,15 @@ def generate_phase_c_report(
         for warning in phase_b_science_warnings:
             previous_phase_items.append(f"-- {warning}")
 
-    # Add previous phase items if any exist
+    # Only add NO ACTION NEEDED section if there are previous phase items to show
     if previous_phase_items:
+        report_lines.append("## NO ACTION NEEDED")
         report_lines.extend(previous_phase_items)
-        # Add spacing before Pydantic validation status
         report_lines.append("")
 
-    # Add Pydantic validation status
-    if not action_needed_items:
-        if (
-            not previous_phase_items
-        ):  # Only show if no previous phase items already shown
-            report_lines.append("- All Pydantic validation checks passed")
-            report_lines.append("- Model physics method compatibility validated")
-            report_lines.append("- Conditional parameter requirements satisfied")
-        else:
-            report_lines.append("- Pydantic validation completed successfully")
+    # If no ACTION NEEDED and no previous phase items, show "Phase [XYZ] passed"
+    if not action_needed_items and not previous_phase_items:
+        report_lines.append(f"Phase {phase_str} passed")
 
     # Footer
     report_lines.append("")
@@ -373,6 +363,8 @@ def generate_fallback_report(
         previous_phase_consolidation = "\n\n## NO ACTION NEEDED\n" + "\n".join(
             previous_phase_items
         )
+    else:
+        previous_phase_consolidation = ""
 
     # Generate phase-specific title (same logic as main report)
     if phases_run:

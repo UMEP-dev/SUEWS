@@ -718,7 +718,6 @@ def run_phase_c(
                 
                 # Extract NO ACTION NEEDED content from previous phases to consolidate properly
                 consolidated_no_action = []
-                consolidated_no_action.append("- Pydantic validation passed successfully")
                 
                 # Add any default values detected
                 if no_action_info:
@@ -745,13 +744,24 @@ def run_phase_c(
                         elif in_no_action and line.strip() and not line.strip().startswith('#'):
                             consolidated_no_action.append(line.strip())
                 
-                success_report = f"""# {title}
+                # Only add NO ACTION NEEDED section if there are items to show
+                if consolidated_no_action:
+                    success_report = f"""# {title}
 # ============================================
 # Mode: {mode.title()}
 # ============================================
 
 ## NO ACTION NEEDED
 {chr(10).join(consolidated_no_action)}
+
+# =================================================="""
+                else:
+                    success_report = f"""# {title}
+# ============================================
+# Mode: {mode.title()}
+# ============================================
+
+Phase {phase_str} passed
 
 # =================================================="""
 

@@ -70,15 +70,15 @@ def detect_table_version(input_dir):
                 "SUEWS_SiteSelect.txt": ["h_std", "n_buildings"]  # Added in 2025a
             },
         },
-        # 2024a: Added diagnostic and climate methods to RunControl
+        # 2024a: Added diagnostic methods and SPARTACUS radiation scheme support
         "2024a": {
             "required_files": ["RunControl.nml"],
-            # Check for new parameters added in 2024a
+            # SPARTACUS files are part of 2024a specification
+            "file_exists": ["SUEWS_SPARTACUS.nml", "GridLayoutKc.nml"],
+            # Also has new parameters in RunControl
             "check_nml": {
                 "RunControl.nml": ["diagmethod", "localclimatemethod", "faimethod"]
             },
-            # Optional SPARTACUS files that may exist
-            "optional_files": ["SUEWS_SPARTACUS.nml", "GridLayoutKc.nml"],
         },
         # 2023a: Removed DiagQS/DiagQN from RunControl, removed BaseT_HC from AnthropogenicEmission
         "2023a": {

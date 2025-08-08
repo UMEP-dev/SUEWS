@@ -12,9 +12,10 @@ def test_zero_population_qf():
     df_state_init, df_forcing = sp.load_SampleData()
 
     # Set population density to zero for testing
-    # PopDensDaytime and PopDensNighttime control population density
-    df_state_init.loc[:, "PopDensDaytime"] = 0.0
-    df_state_init.loc[:, "PopDensNighttime"] = 0.0
+    # popdensdaytime and popdensnighttime control population density (lowercase with tuple columns)
+    df_state_init.loc[:, ("popdensdaytime", "(0,)")] = 0.0
+    df_state_init.loc[:, ("popdensdaytime", "(1,)")] = 0.0
+    df_state_init.loc[:, ("popdensnighttime", "0")] = 0.0
 
     # Run the model for a short period
     df_output, df_state_final = sp.run_supy(
@@ -47,8 +48,9 @@ def test_zero_population_with_traffic():
     df_state_init, df_forcing = sp.load_SampleData()
 
     # Set population density to zero but keep traffic
-    df_state_init.loc[:, "PopDensDaytime"] = 0.0
-    df_state_init.loc[:, "PopDensNighttime"] = 0.0
+    df_state_init.loc[:, ("popdensdaytime", "(0,)")] = 0.0
+    df_state_init.loc[:, ("popdensdaytime", "(1,)")] = 0.0
+    df_state_init.loc[:, ("popdensnighttime", "0")] = 0.0
     # TrafficRate should still work even with zero population
 
     # Run the model

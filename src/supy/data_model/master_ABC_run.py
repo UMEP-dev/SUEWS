@@ -520,6 +520,7 @@ def run_phase_c(
     pydantic_report_file: str,
     mode: str = "user",
     phase_a_report_file: str = None,
+    phases_run: list = None,
 ) -> bool:
     """
     Execute Phase C: Conditional Pydantic validation based on model physics options.
@@ -575,14 +576,23 @@ def run_phase_c(
 
                 shutil.copy2(input_yaml_file, pydantic_yaml_file)
 
-                # Generate success report with Phase A consolidation if applicable
+                # Build passed phases header based on which phases ran successfully
+                if phases_run:
+                    passed_phases = [f"PHASE {phase} - PASSED" for phase in phases_run]
+                else:
+                    passed_phases = ["PHASE C - PASSED"]  # Default for Phase C only
+                
+                phases_header = ", ".join(passed_phases)
+                
+                # Build consolidation info for previous phases
                 phase_a_info = ""
                 if phase_a_report_file and os.path.exists(phase_a_report_file):
-                    phase_a_info = "\n\n## PHASE A INFORMATION CONSOLIDATED\nSee below for Phase A parameter detection results.\n"
                     try:
                         with open(phase_a_report_file, "r") as f:
                             phase_a_content = f.read()
-                        # Extract sections from Phase A report for consolidation
+                        
+                        # Add consolidation info
+                        phase_a_info = "\n\n## PREVIOUS PHASES INFORMATION CONSOLIDATED\nSee below for prior phase results.\n"
                         phase_a_info += f"\n{phase_a_content}"
                     except Exception:
                         phase_a_info = ""
@@ -616,35 +626,23 @@ def run_phase_c(
                     print(f"  Check ACTION NEEDED section in report for required fixes")
                     return False
                 
-                # Build default applications section if any were detected
-                default_info = ""
+                # Build NO ACTION NEEDED section if any defaults were detected
+                no_action_info = ""
                 if normal_defaults:
-                    default_info = "\n\n## PYDANTIC DEFAULT VALUES APPLIED\n"
+                    no_action_info = "\n\n## NO ACTION NEEDED\n"
                     for default_app in normal_defaults:
                         field_name = default_app.get("field_name", "unknown")
                         default_value = default_app.get("default_value", "unknown")
                         field_path = default_app.get("field_path", "unknown")
                         status = default_app.get("status", "found null")  # Default to old behavior
-                        default_info += f"- {field_name} {status} in user YAML at level {field_path}. Pydantic will interpret that as default value: {default_value}\n"
+                        no_action_info += f"- {field_name} {status} in user YAML at level {field_path}. Pydantic will interpret that as default value: {default_value}\n"
                 
                 success_report = f"""# SUEWS Phase C (Pydantic Validation) Report
 # ============================================
 # Mode: {mode.title()}
 # ============================================
 
-## PHASE C - PASSED
-
-All conditional Pydantic validation checks completed successfully:
-- Model physics method compatibility validated
-- Conditional parameter requirements satisfied  
-- RefValue wrapper validation passed
-- Physical constraint validation passed
-
-Input file: {input_yaml_file}
-Output file: {pydantic_yaml_file}
-Validation result: Pydantic validation completed successfully
-
-No further action required.{default_info}{phase_a_info}"""
+## {phases_header}{no_action_info}{phase_a_info}"""
 
                 with open(pydantic_report_file, "w") as f:
                     f.write(success_report)
@@ -907,6 +905,7 @@ Modes:
                 pydantic_yaml_file,
                 pydantic_report_file,
                 mode,
+                phases_run=["C"],
             )
             if phase_c_success:
                 print()
@@ -1015,6 +1014,7 @@ Modes:
                 pydantic_report_file,
                 mode,
                 phase_a_report_file=report_file,  # Pass Phase A report for consolidation
+                phases_run=["A", "C"],
             )
 
             # Clean up intermediate files when complete workflow succeeds
@@ -1079,6 +1079,7 @@ Modes:
                 pydantic_report_file,
                 mode,
                 phase_a_report_file=science_report_file,  # Pass Phase B report for consolidation
+                phases_run=["B", "C"],
             )
 
             # Clean up intermediate files when complete workflow succeeds
@@ -1179,6 +1180,7 @@ Modes:
                 pydantic_report_file,
                 mode,
                 phase_a_report_file=science_report_file,  # Pass Phase B report for consolidation
+                phases_run=["A", "B", "C"],
             )
 
             # Clean up intermediate files when complete ABC workflow completes

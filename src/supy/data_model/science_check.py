@@ -35,7 +35,8 @@ except ImportError:
     # Fallback for direct execution
     import sys
     import os
-    sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
+
+    sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
     from supy._env import logger_supy, trv_supy_module
 
 
@@ -65,6 +66,7 @@ class ScientificAdjustment:
 
 class DLSCheck(BaseModel):
     """Calculate daylight saving time transitions and timezone offset from coordinates."""
+
     lat: float
     lng: float
     year: int
@@ -74,7 +76,7 @@ class DLSCheck(BaseModel):
     def compute_dst_transitions(self):
         """
         Compute DST start/end days and timezone offset for given coordinates and year.
-        
+
         Returns:
             Tuple[Optional[int], Optional[int], Optional[int]]: (start_dls, end_dls, utc_offset_hours)
         """
@@ -85,15 +87,15 @@ class DLSCheck(BaseModel):
                 f"[DLS] Cannot determine timezone for lat={self.lat}, lng={self.lng}"
             )
             return None, None, None
-        
+
         logger_supy.debug(f"[DLS] Timezone identified as '{tz_name}'")
         tz = pytz.timezone(tz_name)
-        
+
         def find_transition(month: int) -> Optional[int]:
             try:
                 prev_dt = tz.localize(datetime(self.year, month, 1, 12), is_dst=None)
                 prev_offset = prev_dt.utcoffset()
-                
+
                 for day in range(2, 32):
                     try:
                         curr_dt = tz.localize(
@@ -798,16 +800,18 @@ def get_mean_monthly_air_temperature(
 
     # Find nearest grid cell using both lat and lon
     # Use both latitude and longitude for precise matching
-    distances = np.sqrt((month_data["Latitude"] - lat) ** 2 + (month_data["Longitude"] - lon) ** 2)
-    
+    distances = np.sqrt(
+        (month_data["Latitude"] - lat) ** 2 + (month_data["Longitude"] - lon) ** 2
+    )
+
     # Try different spatial resolutions if no data is found
     for spatial_res_expanded in [spatial_res, spatial_res * 2, spatial_res * 4]:
         nearby_indices = distances <= spatial_res_expanded
         nearby_data = month_data[nearby_indices]
-        
+
         if not nearby_data.empty:
             break
-            
+
         if nearby_data.empty:
             raise ValueError(
                 f"No CRU data found within {spatial_res_expanded}° of coordinates "
@@ -818,10 +822,10 @@ def get_mean_monthly_air_temperature(
     # Calculate Euclidean distance for closest point
     nearby_distances = distances[nearby_indices]
     closest_idx = nearby_distances.idxmin()
-    
+
     # Get temperature from the closest grid cell
     temperature = month_data.loc[closest_idx, "NormalTemperature"]
-    
+
     # Log the selection for debugging
     closest_lat = month_data.loc[closest_idx, "Latitude"]
     closest_lon = month_data.loc[closest_idx, "Longitude"]
@@ -829,7 +833,7 @@ def get_mean_monthly_air_temperature(
         f"CRU temperature for ({lat:.2f}, {lon:.2f}) month {month}: "
         f"{temperature:.2f}°C from grid cell ({closest_lat:.2f}, {closest_lon:.2f})"
     )
-    
+
     return float(temperature)
 
 
@@ -1242,13 +1246,13 @@ def adjust_seasonal_parameters(
             try:
                 dls = DLSCheck(lat=lat, lng=lng, year=model_year)
                 start_dls, end_dls, tz_offset = dls.compute_dst_transitions()
-                
+
                 # Set DLS parameters
                 anthro_emissions = props.get("anthropogenic_emissions", {})
                 if anthro_emissions and start_dls and end_dls:
                     current_startdls = anthro_emissions.get("startdls", {}).get("value")
                     current_enddls = anthro_emissions.get("enddls", {}).get("value")
-                    
+
                     dls_updated = False
                     if current_startdls != start_dls:
                         anthro_emissions["startdls"] = {"value": start_dls}
@@ -1271,7 +1275,7 @@ def adjust_seasonal_parameters(
                         logger_supy.debug(
                             f"[site #{site_idx}] DLS: start={start_dls}, end={end_dls}"
                         )
-                
+
                 # Set timezone if calculated successfully
                 if tz_offset is not None:
                     current_timezone = props.get("timezone", {}).get("value")
@@ -1286,8 +1290,10 @@ def adjust_seasonal_parameters(
                                 reason=f"Calculated timezone offset for coordinates ({lat:.2f}, {lng:.2f})",
                             )
                         )
-                        logger_supy.debug(f"[site #{site_idx}] Timezone set to {tz_offset}")
-                        
+                        logger_supy.debug(
+                            f"[site #{site_idx}] Timezone set to {tz_offset}"
+                        )
+
             except Exception as e:
                 # Skip DLS calculation on error
                 logger_supy.debug(f"[site #{site_idx}] DLS calculation failed: {e}")

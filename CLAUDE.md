@@ -2,6 +2,17 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## ⚠️ CLAUDE.md Protection Active
+
+This file is protected against accidental truncation or content loss:
+- **Automatic validation** on every Git commit (pre-commit hook installed)
+- **GitHub Actions** validates on push/PR
+- **Backup system** maintains CLAUDE.md.backup
+- **Snapshots** saved when issues detected (.claude/snapshots/)
+
+**For initial setup or re-installation:** Run `bash .claude/scripts/setup-claude-protection.sh`
+**To validate manually:** Run `python3 .claude/scripts/validate-claude-md.py`
+
 ## Style Guidelines
 
 - **Language**: Use British English for all documentation, code comments, and communication
@@ -174,6 +185,27 @@ For complete guide, see:
 make test
 # This executes: python -m pytest test -v --tb=short
 ```
+
+### Workflow Before Push or PR
+
+**CRITICAL**: When coding is complete, Claude Code should ALWAYS build and test before pushing to remote or creating a PR:
+
+```bash
+# 1. Build the project
+python -m pip install -e . --no-build-isolation
+
+# 2. Run the full test suite
+make test
+
+# 3. Only proceed with push/PR if all tests pass
+# If tests fail, fix issues before pushing
+```
+
+This ensures:
+- Code compiles successfully
+- All tests pass in the current environment
+- No breaking changes are introduced
+- PR reviews focus on functionality rather than build failures
 
 The test suite includes several critical tests:
 - **Benchmark Test** (`test_benchmark1_same`): Validates SUEWS model outputs against known good results

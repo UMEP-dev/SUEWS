@@ -29,8 +29,26 @@ from copy import deepcopy
 from datetime import datetime
 from timezonefinder import TimezoneFinder
 import pytz
-from .._env import logger_supy
+from .._env import logger_supy, trv_supy_module
 import os
+
+
+def get_value_safe(param_dict, param_key, default=None):
+    """Safely extract value from RefValue or plain format.
+
+    Args:
+        param_dict: Dictionary containing the parameter
+        param_key: Key to look up
+        default: Default value if key not found
+
+    Returns:
+        The parameter value, handling both RefValue {"value": X} and plain X formats
+    """
+    param = param_dict.get(param_key, default)
+    if isinstance(param, dict) and "value" in param:
+        return param["value"]  # RefValue format: {"value": 1}
+    else:
+        return param  # Plain format: 1
 
 
 class SeasonCheck(BaseModel):
@@ -246,102 +264,103 @@ def save_precheck_diff_report(diffs: List[dict], original_yaml_path: str):
     logger_supy.info(f"Precheck difference report saved to: {report_path}")
 
 
-def get_monthly_avg_temp(lat: float, month: int) -> float:
+def get_mean_monthly_air_temperature(
+    lat: float, lon: float, month: int, spatial_res: float = 0.5
+) -> float:
     """
-    Estimate the average air temperature for a given latitude and month.
+    Calculate mean monthly air temperature using CRU TS4.06 climatological data.
 
-    This function uses predefined climatological values for four broad latitude bands:
-    - Tropics (|lat| < 10°)
-    - Subtropics (10° ≤ |lat| < 35°)
-    - Midlatitudes (35° ≤ |lat| < 60°)
-    - Polar regions (|lat| ≥ 60°)
-
-    The returned value represents a typical monthly average temperature (°C)
-    for the specified latitude band and month.
+    This function uses the CRU TS4.06 cell monthly normals dataset (1991-2020)
+    to provide accurate location-specific temperature estimates. CRU data is
+    required - the function will raise an error if CRU data is not available.
 
     Args:
         lat (float): Site latitude in degrees (positive for Northern Hemisphere, negative for Southern).
+        lon (float): Site longitude in degrees (-180 to 180).
         month (int): Month of the year (1 = January, 12 = December).
+        spatial_res (float): Search spatial resolution for finding nearest CRU grid cell (degrees). Default 0.5.
 
     Returns:
-        float: Estimated average air temperature for the given latitude and month.
+        float: Mean monthly air temperature for the given location and month (°C).
 
     Raises:
-        ValueError: If the input month is not between 1 and 12.
+        ValueError: If the input month is not between 1 and 12, coordinates are invalid,
+                   or no CRU data found within spatial resolution.
+        FileNotFoundError: If CRU data file is not found.
     """
+    import pandas as pd
+    import numpy as np
+    from pathlib import Path
 
-    lat_band = None
-    abs_lat = abs(lat)
+    # Validate inputs
+    if not (1 <= month <= 12):
+        raise ValueError(f"Month must be between 1 and 12, got {month}")
+    if not (-90 <= lat <= 90):
+        raise ValueError(f"Latitude must be between -90 and 90, got {lat}")
+    if not (-180 <= lon <= 180):
+        raise ValueError(f"Longitude must be between -180 and 180, got {lon}")
 
-    if abs_lat < 10:
-        lat_band = "tropics"
-    elif abs_lat < 35:
-        lat_band = "subtropics"
-    elif abs_lat < 60:
-        lat_band = "midlatitudes"
+    # Load CRU data from package resources using importlib.resources
+    # Access the Parquet file in the ext_data directory
+    cru_resource = trv_supy_module / "ext_data" / "CRU_TS4.06_1991_2020.parquet"
+
+    if not cru_resource.exists():
+        raise FileNotFoundError(
+            f"CRU data file not found at {cru_resource}. "
+            "Please ensure the CRU Parquet file is available in the package."
+        )
+
+    # Read the Parquet file - this works even when package is installed
+    with cru_resource.open("rb") as f:
+        df = pd.read_parquet(f)
+
+    # Validate required columns
+    required_cols = ["Month", "Latitude", "Longitude", "NormalTemperature"]
+    missing_cols = [col for col in required_cols if col not in df.columns]
+    if missing_cols:
+        raise ValueError(f"Missing required columns in CRU data: {missing_cols}")
+
+    # Filter for the specific month
+    month_data = df[df["Month"] == month]
+    if month_data.empty:
+        raise ValueError(f"No CRU data available for month {month}")
+
+    # Find nearest grid cell using both lat and lon
+    # Use both latitude and longitude for precise matching
+    lat_distances = np.abs(month_data["Latitude"] - lat)
+    lon_distances = np.abs(month_data["Longitude"] - lon)
+
+    # Find points within spatial_res for both coordinates
+    lat_mask = lat_distances <= spatial_res
+    lon_mask = lon_distances <= spatial_res
+    nearby_data = month_data[lat_mask & lon_mask]
+
+    if nearby_data.empty:
+        # Try with larger spatial_res
+        spatial_res_expanded = spatial_res * 2
+        lat_mask = lat_distances <= spatial_res_expanded
+        lon_mask = lon_distances <= spatial_res_expanded
+        nearby_data = month_data[lat_mask & lon_mask]
+
+        if nearby_data.empty:
+            raise ValueError(
+                f"No CRU data found within {spatial_res_expanded}° of coordinates "
+                f"({lat}, {lon}) for month {month}. Try increasing spatial resolution or "
+                f"check if coordinates are within CRU data coverage area."
+            )
+
+    # Calculate Euclidean distance for closest point
+    if len(nearby_data) > 1:
+        distances = np.sqrt(
+            lat_distances[nearby_data.index] ** 2
+            + lon_distances[nearby_data.index] ** 2
+        )
+        closest_idx = distances.idxmin()
+        temperature = float(month_data.loc[closest_idx, "NormalTemperature"])
     else:
-        lat_band = "polar"
+        temperature = float(nearby_data.iloc[0]["NormalTemperature"])
 
-    monthly_temp = {
-        "tropics": [
-            26.0,
-            26.5,
-            27.0,
-            27.5,
-            28.0,
-            28.5,
-            28.0,
-            27.5,
-            27.0,
-            26.5,
-            26.0,
-            25.5,
-        ],
-        "subtropics": [
-            15.0,
-            16.0,
-            18.0,
-            20.0,
-            24.0,
-            28.0,
-            30.0,
-            29.0,
-            26.0,
-            22.0,
-            18.0,
-            15.0,
-        ],
-        "midlatitudes": [
-            5.0,
-            6.0,
-            9.0,
-            12.0,
-            17.0,
-            21.0,
-            23.0,
-            22.0,
-            19.0,
-            14.0,
-            9.0,
-            6.0,
-        ],
-        "polar": [
-            -15.0,
-            -13.0,
-            -10.0,
-            -5.0,
-            0.0,
-            5.0,
-            8.0,
-            7.0,
-            3.0,
-            -2.0,
-            -8.0,
-            -12.0,
-        ],
-    }
-
-    return monthly_temp[lat_band][month - 1]
+    return temperature
 
 
 def precheck_printing(data: dict) -> dict:
@@ -470,7 +489,7 @@ def precheck_model_physics_params(data: dict) -> dict:
     if missing:
         raise ValueError(f"[model.physics] Missing required params: {missing}")
 
-    empty = [k for k in required if physics.get(k, {}).get("value") in ("", None)]
+    empty = [k for k in required if get_value_safe(physics, k) in ("", None)]
     if empty:
         raise ValueError(f"[model.physics] Empty or null values for: {empty}")
 
@@ -498,8 +517,8 @@ def precheck_model_options_constraints(data: dict) -> dict:
 
     physics = data.get("model", {}).get("physics", {})
 
-    diag = physics.get("rslmethod", {}).get("value")
-    stability = physics.get("stabilitymethod", {}).get("value")
+    diag = get_value_safe(physics, "rslmethod")
+    stability = get_value_safe(physics, "stabilitymethod")
 
     if diag == 2 and stability != 3:
         raise ValueError(
@@ -589,7 +608,7 @@ def precheck_site_season_adjustments(
         # --------------------
         lat_entry = props.get("lat", {})
         lat = lat_entry.get("value") if isinstance(lat_entry, dict) else lat_entry
-        lng = props.get("lng", {}).get("value")
+        lng = get_value_safe(props, "lng")
         season = None
 
         try:
@@ -612,12 +631,12 @@ def precheck_site_season_adjustments(
         # 2. Seasonal adjustment for DecTrees LAI
         # --------------------------------------
         dectr = props.get("land_cover", {}).get("dectr", {})
-        sfr = dectr.get("sfr", {}).get("value", 0)
+        sfr = get_value_safe(dectr, "sfr", 0)
 
         if sfr > 0:
             lai = dectr.get("lai", {})
-            laimin = lai.get("laimin", {}).get("value")
-            laimax = lai.get("laimax", {}).get("value")
+            laimin = get_value_safe(lai, "laimin")
+            laimax = get_value_safe(lai, "laimax")
             lai_val = None
 
             if laimin is not None and laimax is not None:
@@ -674,12 +693,12 @@ def precheck_site_season_adjustments(
     return data
 
 
-def precheck_update_surface_temperature(data: dict, start_date: str) -> dict:
+def precheck_update_temperature(data: dict, start_date: str) -> dict:
     """
     Set initial surface temperatures for all surface types based on latitude and start month.
 
     For each site:
-    - Uses the site's latitude and the month from start_date to estimate an average temperature.
+    - Uses the site's latitude and the month from start_date to estimate mean monthly air temperature using CRU data.
     - Applies this temperature to all layers of surface temperature arrays, as well as 'tsfc' and 'tin' for each surface type (paved, bldgs, evetr, dectr, grass, bsoil, water).
     - If latitude is missing, the site is skipped with a warning.
 
@@ -706,10 +725,22 @@ def precheck_update_surface_temperature(data: dict, start_date: str) -> dict:
             )
             continue
 
+        # Get site longitude (required for CRU matching)
+        lng_entry = props.get("lng", {})
+        lng = lng_entry.get("value") if isinstance(lng_entry, dict) else lng_entry
+
+        # If longitude is missing, skip this site (should not happen with valid config)
+        if lng is None:
+            logger_supy.warning(
+                f"[site #{site_idx}] Longitude not found in configuration, skipping temperature initialization"
+            )
+            continue
+
         # Get estimated average temperature
-        avg_temp = get_monthly_avg_temp(lat, month)
+        avg_temp = get_mean_monthly_air_temperature(lat, lng, month)
+        coord_info = f"lat={lat}, lng={lng}"
         logger_supy.info(
-            f"[site #{site_idx}] Setting surface temperatures to {avg_temp} °C for month {month} (lat={lat})"
+            f"[site #{site_idx}] Setting surface temperatures to {avg_temp} °C for month {month} ({coord_info})"
         )
 
         # Loop over all surface types
@@ -747,6 +778,83 @@ def precheck_update_surface_temperature(data: dict, start_date: str) -> dict:
     return data
 
 
+def precheck_thermal_layer_cp_renaming(data: dict) -> dict:
+    """
+    Rename legacy 'cp' field to 'rho_cp' in thermal_layers for all surface types.
+
+    This function scans both land_cover surface types and vertical_layers for
+    thermal_layers that contain the legacy 'cp' field and automatically renames
+    it to 'rho_cp', which is the correct field name for volumetric heat capacity.
+
+    For each site:
+    - Loops through all surface types under 'land_cover'.
+    - Loops through all vertical layer items under 'vertical_layers'.
+    - If thermal_layers contain a 'cp' field:
+        - Renames 'cp' to 'rho_cp'
+        - Logs an informative message about the change
+        - Preserves all other thermal_layers data unchanged
+
+    Args:
+        data (dict): YAML configuration data loaded as a dictionary.
+
+    Returns:
+        dict: Updated YAML dictionary with cp fields renamed to rho_cp.
+    """
+
+    total_renames = 0
+
+    for site_idx, site in enumerate(data.get("sites", [])):
+        properties = site.get("properties", {})
+
+        # Process land_cover thermal_layers
+        land_cover = properties.get("land_cover", {})
+        for surf_type, props in land_cover.items():
+            if not isinstance(props, dict):
+                continue
+
+            thermal_layers = props.get("thermal_layers")
+            if isinstance(thermal_layers, dict) and "cp" in thermal_layers:
+                # Rename cp to rho_cp
+                thermal_layers["rho_cp"] = thermal_layers.pop("cp")
+                total_renames += 1
+
+                logger_supy.info(
+                    f"[site #{site_idx}] Renamed '{surf_type}.thermal_layers.cp' → "
+                    f"'{surf_type}.thermal_layers.rho_cp' (legacy field name updated)"
+                )
+
+        # Process vertical_layers thermal_layers
+        vertical_layers = properties.get("vertical_layers", {})
+        if isinstance(vertical_layers, dict):
+            # Process roofs, walls, and other array structures within vertical_layers
+            for structure_name in ["roofs", "walls"]:  # Add more as needed
+                structure_array = vertical_layers.get(structure_name, [])
+                if isinstance(structure_array, list):
+                    for item_idx, item in enumerate(structure_array):
+                        if not isinstance(item, dict):
+                            continue
+
+                        thermal_layers = item.get("thermal_layers")
+                        if isinstance(thermal_layers, dict) and "cp" in thermal_layers:
+                            # Rename cp to rho_cp
+                            thermal_layers["rho_cp"] = thermal_layers.pop("cp")
+                            total_renames += 1
+
+                            logger_supy.info(
+                                f"[site #{site_idx}] Renamed 'vertical_layers.{structure_name}[{item_idx}].thermal_layers.cp' → "
+                                f"'vertical_layers.{structure_name}[{item_idx}].thermal_layers.rho_cp' (legacy field name updated)"
+                            )
+
+    if total_renames > 0:
+        logger_supy.info(
+            f"[precheck] Automatically renamed {total_renames} legacy 'cp' field(s) to 'rho_cp' "
+            f"in thermal_layers. The 'cp' field name is deprecated - use 'rho_cp' for "
+            f"volumetric heat capacity (J/m³/K) in future configurations."
+        )
+
+    return data
+
+
 def precheck_land_cover_fractions(data: dict) -> dict:
     """
     Validate and adjust land cover surface fractions (`sfr`) for each site.
@@ -778,9 +886,9 @@ def precheck_land_cover_fractions(data: dict) -> dict:
 
         # Calculate sum of all non-null surface fractions
         sfr_sum = sum(
-            v.get("sfr", {}).get("value", 0)
+            get_value_safe(v, "sfr", 0)
             for v in land_cover.values()
-            if isinstance(v, dict) and v.get("sfr", {}).get("value") is not None
+            if isinstance(v, dict) and get_value_safe(v, "sfr") is not None
         )
 
         logger_supy.debug(f"[site #{i}] Total land_cover sfr sum: {sfr_sum:.6f}")
@@ -791,12 +899,16 @@ def precheck_land_cover_fractions(data: dict) -> dict:
                 (
                     k
                     for k, v in land_cover.items()
-                    if v.get("sfr", {}).get("value") is not None
+                    if get_value_safe(v, "sfr") is not None
                 ),
-                key=lambda k: land_cover[k]["sfr"]["value"],
+                key=lambda k: get_value_safe(land_cover[k], "sfr"),
             )
             correction = 1.0 - sfr_sum
-            land_cover[max_key]["sfr"]["value"] += correction
+            # Handle both RefValue and plain formats for writing
+            if isinstance(land_cover[max_key].get("sfr"), dict):
+                land_cover[max_key]["sfr"]["value"] += correction  # RefValue format
+            else:
+                land_cover[max_key]["sfr"] += correction  # Plain format
             logger_supy.info(
                 f"[site #{i}] Adjusted {max_key}.sfr up by {correction:.6f} to reach 1.0"
             )
@@ -806,12 +918,16 @@ def precheck_land_cover_fractions(data: dict) -> dict:
                 (
                     k
                     for k, v in land_cover.items()
-                    if v.get("sfr", {}).get("value") is not None
+                    if get_value_safe(v, "sfr") is not None
                 ),
-                key=lambda k: land_cover[k]["sfr"]["value"],
+                key=lambda k: get_value_safe(land_cover[k], "sfr"),
             )
             correction = sfr_sum - 1.0
-            land_cover[max_key]["sfr"]["value"] -= correction
+            # Handle both RefValue and plain formats for writing
+            if isinstance(land_cover[max_key].get("sfr"), dict):
+                land_cover[max_key]["sfr"]["value"] -= correction  # RefValue format
+            else:
+                land_cover[max_key]["sfr"] -= correction  # Plain format
             logger_supy.info(
                 f"[site #{i}] Adjusted {max_key}.sfr down by {correction:.6f} to reach 1.0"
             )
@@ -845,7 +961,7 @@ def precheck_nullify_zero_sfr_params(data: dict) -> dict:
     for site_idx, site in enumerate(data.get("sites", [])):
         land_cover = site.get("properties", {}).get("land_cover", {})
         for surf_type, props in land_cover.items():
-            sfr = props.get("sfr", {}).get("value", 0)
+            sfr = get_value_safe(props, "sfr", 0)
             if sfr == 0:
                 logger_supy.info(
                     f"[site #{site_idx}] Nullifying params for surface '{surf_type}' with sfr == 0"
@@ -896,7 +1012,7 @@ def precheck_warn_zero_sfr_params(data: dict) -> dict:
     for site_idx, site in enumerate(data.get("sites", [])):
         land_cover = site.get("properties", {}).get("land_cover", {})
         for surf_type, props in land_cover.items():
-            sfr = props.get("sfr", {}).get("value", 0)
+            sfr = get_value_safe(props, "sfr", 0)
             if sfr == 0:
                 param_list = []
 
@@ -969,7 +1085,7 @@ def precheck_nonzero_sfr_requires_nonnull_params(data: dict) -> dict:
     for site_idx, site in enumerate(data.get("sites", [])):
         land_cover = site.get("properties", {}).get("land_cover", {})
         for surf_type, props in land_cover.items():
-            sfr = props.get("sfr", {}).get("value", 0)
+            sfr = get_value_safe(props, "sfr", 0)
             if sfr > 0:
                 for param_key, param_val in props.items():
                     if param_key == "sfr":
@@ -982,103 +1098,6 @@ def precheck_nonzero_sfr_requires_nonnull_params(data: dict) -> dict:
         "[precheck] Nonzero sfr parameters validated (all required fields are set)."
     )
     return data
-
-
-# def precheck_model_option_rules(data: dict) -> dict:
-#     """
-#     Apply model-option-dependent validation rules and parameter adjustments based on model physics settings.
-
-#     For each site, this function applies checks and actions depending on selected model options in `model.physics`:
-
-#     - **If `rslmethod == 2` (diagnostic method enabled):**
-#         - For any site where `bldgs.sfr > 0`, verifies that `faibldg` is set and non-null.
-
-#     - **If `storageheatmethod == 6` (DyOHM method):**
-#         - Verifies that `vertical_layers.walls` exists and contains at least one wall.
-#         - Checks that the first wall has non-empty lists for `dz`, `k`, and `cp` in `thermal_layers`.
-#         - Verifies that `lambda_c` is set and non-null.
-
-#     - **If `stebbsmethod == 0`:**
-#         - Recursively nullifies all parameters under the `stebbs` block at site level.
-
-#     Args:
-#         data (dict): YAML configuration data loaded as a dictionary.
-
-#     Returns:
-#         dict: The updated YAML dictionary after applying model-option rules.
-
-#     Raises:
-#         ValueError: If any required condition based on model options is violated.
-#     """
-
-#     physics = data.get("model", {}).get("physics", {})
-#     rslmethod = physics.get("rslmethod", {}).get("value")
-#     storagemethod = physics.get("storageheatmethod", {}).get("value")
-#     stebbsmethod = physics.get("stebbsmethod", {}).get("value")
-
-#     # --- RSLMETHOD RULES (diagnostic method logic) ---
-#     if rslmethod == 2:
-#         logger_supy.info("[precheck] rslmethod==2 detected → checking faibldg for bldgs with sfr > 0.")
-
-#         for site_idx, site in enumerate(data.get("sites", [])):
-#             props = site.get("properties", {})
-#             land_cover = props.get("land_cover", {})
-#             bldgs = land_cover.get("bldgs", {})
-#             sfr = bldgs.get("sfr", {}).get("value", 0)
-
-#             if sfr > 0:
-#                 faibldg = bldgs.get("faibldg", {})
-#                 faibldg_value = faibldg.get("value")
-#                 if faibldg_value in (None, "", []):
-#                     raise ValueError(f"[site #{site_idx}] For rslmethod==2 and bldgs.sfr > 0, faibldg must be set and non-null.")
-
-#     # --- STORAGEHEATMETHOD RULES (DyOHM logic) ---
-#     if storagemethod == 6:
-#         logger_supy.info("[precheck] storageheatmethod==6 detected → checking wall thermal layers and lambda_c.")
-
-#         for site_idx, site in enumerate(data.get("sites", [])):
-#             props = site.get("properties", {})
-#             vertical_layers = props.get("vertical_layers", {})
-#             walls = vertical_layers.get("walls", [])
-
-#             if not walls or not isinstance(walls, list) or len(walls) == 0:
-#                 raise ValueError(f"[site #{site_idx}] Missing vertical_layers.walls for storageheatmethod == 6.")
-
-#             wall0 = walls[0]
-#             thermal = wall0.get("thermal_layers", {})
-
-#             for param in ["dz", "k", "cp"]:
-#                 param_list = thermal.get(param, {}).get("value")
-#                 if not isinstance(param_list, list) or len(param_list) == 0:
-#                     raise ValueError(f"[site #{site_idx}] Missing wall thermal_layers.{param} for storageheatmethod == 6.")
-#                 if param_list[0] in (None, ""):
-#                     raise ValueError(f"[site #{site_idx}] wall thermal_layers.{param}[0] must be set for storageheatmethod == 6.")
-
-#             lambda_c = props.get("lambda_c", {}).get("value")
-#             if lambda_c in (None, ""):
-#                 raise ValueError(f"[site #{site_idx}] properties.lambda_c must be set for storageheatmethod == 6.")
-
-#     # --- STEBBSMETHOD RULES ---
-#     if stebbsmethod == 0:
-#         logger_supy.info("[precheck] stebbsmethod==0 detected → nullifying stebbs parameters at site level.")
-
-#         for site_idx, site in enumerate(data.get("sites", [])):
-#             props = site.get("properties", {})
-#             stebbs_block = props.get("stebbs", {})
-
-#             def recursive_nullify(d):
-#                 for k, v in d.items():
-#                     if isinstance(v, dict):
-#                         if "value" in v:
-#                             v["value"] = None
-#                         else:
-#                             recursive_nullify(v)
-
-#             recursive_nullify(stebbs_block)
-#             site["properties"]["stebbs"] = stebbs_block
-
-#     logger_supy.info("[precheck] Model-option-based rules completed.")
-#     return data
 
 
 def precheck_model_option_rules(data: dict) -> dict:
@@ -1094,7 +1113,7 @@ def precheck_model_option_rules(data: dict) -> dict:
     physics = data.get("model", {}).get("physics", {})
 
     # --- STEBBSMETHOD RULE: when stebbsmethod == 0, wipe out all stebbs params ---
-    stebbsmethod = physics.get("stebbsmethod", {}).get("value")
+    stebbsmethod = get_value_safe(physics, "stebbsmethod")
     if stebbsmethod == 0:
         logger_supy.info(
             "[precheck] stebbsmethod==0 detected → nullifying all 'stebbs' values."
@@ -1132,15 +1151,16 @@ def run_precheck(path: str) -> dict:
     3. Validating and completing `model.physics` parameters.
     4. Enforcing constraints between model physics options.
     5. Replacing empty strings with `None` (except in `model.control` and `model.physics`).
-    6. Applying site-specific seasonal and location-based adjustments (e.g., LAI, snowalb, DLS).
-    7. Setting initial surface temperatures based on latitude and month.
-    8. Logging warnings for parameters of surfaces with `sfr == 0` that were not prechecked.
-    9. Validating that parameters for surfaces with `sfr > 0` are not empty or null.
-    10. Checking and auto-fixing small floating point errors in land cover surface fractions.
-    11. Nullify model-option-dependent parameters if specific models are switched off
-    12. Saving the updated YAML to a new file (prefixed with `py0_`).
-    13. Writing a CSV diff report listing all changes made.
-    14. Logging completion.
+    6. Renaming legacy 'cp' field to 'rho_cp' in thermal_layers for all surface types.
+    7. Applying site-specific seasonal and location-based adjustments (e.g., LAI, snowalb, DLS).
+    8. Setting initial surface temperatures based on latitude and month.
+    9. Logging warnings for parameters of surfaces with `sfr == 0` that were not prechecked.
+    10. Validating that parameters for surfaces with `sfr > 0` are not empty or null.
+    11. Checking and auto-fixing small floating point errors in land cover surface fractions.
+    12. Nullify model-option-dependent parameters if specific models are switched off
+    13. Saving the updated YAML to a new file (prefixed with `py0_`).
+    14. Writing a CSV diff report listing all changes made.
+    15. Logging completion.
 
     Args:
         path (str): Full path to the input YAML configuration file.
@@ -1173,30 +1193,30 @@ def run_precheck(path: str) -> dict:
     # ---- Step 5: Clean empty strings (except model.control and model.physics) ----
     data = precheck_replace_empty_strings_with_none(data)
 
-    # ---- Step 6: Season + LAI + DLS adjustments per site ----
+    # ---- Step 6: Rename legacy 'cp' to 'rho_cp' in thermal_layers ----
+    data = precheck_thermal_layer_cp_renaming(data)
+
+    # ---- Step 7: Season + LAI + DLS adjustments per site ----
     data = precheck_site_season_adjustments(
         data, start_date=start_date, model_year=model_year
     )
 
-    # ---- Step 7: Update surface temperatures from lat/month ----
-    data = precheck_update_surface_temperature(data, start_date=start_date)
+    # ---- Step 8: Update temperatures using CRU mean monthly air temperature ----
+    data = precheck_update_temperature(data, start_date=start_date)
 
-    # ---- Step 8: Nullify params for surfaces with sfr == 0 ----
-    # data = precheck_nullify_zero_sfr_params(data)
-
-    # ---- Step 8: Print warnings for params related to surfaces with sfr == 0 ----
+    # ---- Step 9: Print warnings for params related to surfaces with sfr == 0 ----
     data = precheck_warn_zero_sfr_params(data)
 
-    # ---- Step 9: Check existence of params for surfaces with sfr > 0 ----
+    # ---- Step 10: Check existence of params for surfaces with sfr > 0 ----
     data = precheck_nonzero_sfr_requires_nonnull_params(data)
 
-    # ---- Step 10: Land Cover Fractions checks & adjustments ----
+    # ---- Step 11: Land Cover Fractions checks & adjustments ----
     data = precheck_land_cover_fractions(data)
 
-    # ---- Step 11: Rules associated to selected model options ----
+    # ---- Step 12: Rules associated to selected model options ----
     data = precheck_model_option_rules(data)
 
-    # ---- Step 12: Save output YAML ----
+    # ---- Step 13: Save output YAML ----
     output_filename = f"py0_{os.path.basename(path)}"
     output_path = os.path.join(os.path.dirname(path), output_filename)
 
@@ -1205,10 +1225,10 @@ def run_precheck(path: str) -> dict:
 
     logger_supy.info(f"Saved updated YAML file to: {output_path}")
 
-    # ---- Step 13: Generate precheck diff report CSV ----
+    # ---- Step 14: Generate precheck diff report CSV ----
     diffs = collect_yaml_differences(original_data, data)
     save_precheck_diff_report(diffs, path)
 
-    # ---- Step 14: Print completion ----
+    # ---- Step 15: Print completion ----
     logger_supy.info("Precheck complete.\n")
     return data

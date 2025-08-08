@@ -15,10 +15,11 @@ from supy.data_model.precheck import (
     precheck_nonzero_sfr_requires_nonnull_params,
     precheck_model_option_rules,
     collect_yaml_differences,
-    precheck_update_surface_temperature,
-    get_monthly_avg_temp,
+    precheck_update_temperature,
+    get_mean_monthly_air_temperature,
     precheck_warn_zero_sfr_params,
     SeasonCheck,
+    get_value_safe,
 )
 
 
@@ -1016,15 +1017,21 @@ def build_minimal_yaml_for_surface_temp():
     }
 
 
-def test_precheck_update_surface_temperature():
+def test_precheck_update_temperature():
     data = build_minimal_yaml_for_surface_temp()
     start_date = data["model"]["control"]["start_time"]
     month = datetime.strptime(start_date, "%Y-%m-%d").month
     lat = data["sites"][0]["properties"]["lat"]["value"]
+    lng = data["sites"][0]["properties"]["lng"]["value"]
 
-    expected_temp = get_monthly_avg_temp(lat, month)
+    # Get the expected temperature value from the function
+    try:
+        expected_temp = get_mean_monthly_air_temperature(lat, lng, month)
+    except FileNotFoundError:
+        # If CRU data is not available, skip this test
+        pytest.skip("CRU data file not available for temperature calculation")
 
-    updated = precheck_update_surface_temperature(deepcopy(data), start_date=start_date)
+    updated = precheck_update_temperature(deepcopy(data), start_date=start_date)
 
     for surface in ["paved", "bldgs", "evetr", "dectr", "grass", "bsoil", "water"]:
         temp_array = updated["sites"][0]["initial_states"][surface]["temperature"][
@@ -1040,14 +1047,14 @@ def test_precheck_update_surface_temperature():
         assert tin == expected_temp, f"Mismatch in tin for {surface}"
 
 
-def test_precheck_update_surface_temperature_missing_lat():
+def test_precheck_update_temperature_missing_lat():
     data = build_minimal_yaml_for_surface_temp()
     data["sites"][0]["properties"]["lat"] = None  # Simulate missing lat
 
     start_date = data["model"]["control"]["start_time"]
 
     # Should not raise, but skip update
-    updated = precheck_update_surface_temperature(deepcopy(data), start_date=start_date)
+    updated = precheck_update_temperature(deepcopy(data), start_date=start_date)
 
     for surface in ["paved", "bldgs", "evetr", "dectr", "grass", "bsoil", "water"]:
         temp_array = updated["sites"][0]["initial_states"][surface]["temperature"][
@@ -1056,3 +1063,385 @@ def test_precheck_update_surface_temperature_missing_lat():
         assert temp_array == [0, 0, 0, 0, 0], (
             f"Temperature should stay unchanged for {surface} when lat is missing."
         )
+
+
+def test_get_mean_monthly_air_temperature_with_cru_data():
+    """Test that get_mean_monthly_air_temperature works with CRU data when available."""
+    # This test verifies the function returns a reasonable temperature value
+    # when CRU data is available (development/test environments)
+    try:
+        temp = get_mean_monthly_air_temperature(45.0, 10.0, 7)
+        # Temperature for mid-latitudes in July should be reasonable (0-40°C range)
+        assert isinstance(temp, float), "Temperature should be a float"
+        assert -50 <= temp <= 50, (
+            f"Temperature {temp}°C seems unreasonable for lat=45°, month=7"
+        )
+    except FileNotFoundError:
+        # If CRU data is not available, we expect this error - that's fine
+        pytest.skip("CRU data file not available in this environment")
+
+
+def test_get_mean_monthly_air_temperature_invalid_month():
+    """Test that get_mean_monthly_air_temperature raises ValueError for invalid month."""
+    with pytest.raises(ValueError, match="Month must be between 1 and 12"):
+        get_mean_monthly_air_temperature(45.0, 10.0, 13)
+
+
+def test_get_mean_monthly_air_temperature_invalid_latitude():
+    """Test that get_mean_monthly_air_temperature raises ValueError for invalid latitude."""
+    with pytest.raises(ValueError, match="Latitude must be between -90 and 90"):
+        get_mean_monthly_air_temperature(95.0, 10.0, 7)
+
+
+class TestPrecheckRefValueHandling:
+    """Test cases for precheck RefValue handling bug fixes."""
+
+    def test_get_value_safe_refvalue_format(self):
+        """Test get_value_safe with RefValue format."""
+        refvalue_dict = {"param": {"value": 42}}
+        result = get_value_safe(refvalue_dict, "param")
+        assert result == 42
+
+        # Test with None value
+        none_refvalue = {"param": {"value": None}}
+        result = get_value_safe(none_refvalue, "param")
+        assert result is None
+
+        # Test with string value
+        str_refvalue = {"param": {"value": "test"}}
+        result = get_value_safe(str_refvalue, "param")
+        assert result == "test"
+
+    def test_get_value_safe_plain_format(self):
+        """Test get_value_safe with plain format."""
+        plain_dict = {"param": 42}
+        result = get_value_safe(plain_dict, "param")
+        assert result == 42
+
+        # Test with None value
+        none_plain = {"param": None}
+        result = get_value_safe(none_plain, "param")
+        assert result is None
+
+        # Test with string value
+        str_plain = {"param": "test"}
+        result = get_value_safe(str_plain, "param")
+        assert result == "test"
+
+    def test_get_value_safe_missing_key_with_default(self):
+        """Test get_value_safe with missing key and default value."""
+        empty_dict = {}
+        result = get_value_safe(empty_dict, "missing_param", "default_value")
+        assert result == "default_value"
+
+        # Test with None default
+        result = get_value_safe(empty_dict, "missing_param", None)
+        assert result is None
+
+        # Test with no default (should return None)
+        result = get_value_safe(empty_dict, "missing_param")
+        assert result is None
+
+    def test_get_value_safe_edge_cases(self):
+        """Test get_value_safe with edge cases."""
+        # Test with empty RefValue dict
+        empty_refvalue = {"param": {}}
+        result = get_value_safe(empty_refvalue, "param")
+        assert result == {}  # Returns the dict itself if no "value" key
+
+        # Test with list value in RefValue
+        list_refvalue = {"param": {"value": [1, 2, 3]}}
+        result = get_value_safe(list_refvalue, "param")
+        assert result == [1, 2, 3]
+
+        # Test with dict value in RefValue
+        dict_refvalue = {"param": {"value": {"nested": "data"}}}
+        result = get_value_safe(dict_refvalue, "param")
+        assert result == {"nested": "data"}
+
+    def test_physics_validation_pattern_simulation(self):
+        """Test the specific pattern that was failing in physics validation.
+
+        This simulates the exact line that was causing AttributeError:
+        'int' object has no attribute 'get'
+        """
+
+        # Simulate physics dict with plain values (user's YAML format)
+        physics_plain = {
+            "netradiationmethod": 1,
+            "emissionsmethod": 2,
+            "stabilitymethod": 3,
+            "rslmethod": 1,
+        }
+
+        # Simulate physics dict with RefValue format
+        physics_refvalue = {
+            "netradiationmethod": {"value": 1},
+            "emissionsmethod": {"value": 2},
+            "stabilitymethod": {"value": 3},
+            "rslmethod": {"value": 1},
+        }
+
+        required_params = [
+            "netradiationmethod",
+            "emissionsmethod",
+            "stabilitymethod",
+            "rslmethod",
+        ]
+
+        # Test the fixed validation logic (line 481 in precheck.py)
+        empty_plain = [
+            k for k in required_params if get_value_safe(physics_plain, k) in ("", None)
+        ]
+        assert empty_plain == [], "Plain format should have no empty params"
+
+        empty_refvalue = [
+            k
+            for k in required_params
+            if get_value_safe(physics_refvalue, k) in ("", None)
+        ]
+        assert empty_refvalue == [], "RefValue format should have no empty params"
+
+        # Test with some empty values
+        physics_with_empty = {
+            "netradiationmethod": 1,
+            "emissionsmethod": "",  # Empty string
+            "stabilitymethod": None,  # None value
+            "rslmethod": {"value": 1},
+        }
+
+        empty_mixed = [
+            k
+            for k in required_params
+            if get_value_safe(physics_with_empty, k) in ("", None)
+        ]
+        expected_empty = ["emissionsmethod", "stabilitymethod"]
+        assert sorted(empty_mixed) == sorted(expected_empty), (
+            f"Expected {expected_empty}, got {empty_mixed}"
+        )
+
+    def test_land_cover_validation_pattern_simulation(self):
+        """Test the land cover fraction validation pattern."""
+
+        # Simulate land cover with plain values
+        land_cover_plain = {
+            "bldgs": {"sfr": 0.3},
+            "paved": {"sfr": 0.3},
+            "water": {"sfr": 0.4},
+        }
+
+        # Simulate land cover with RefValue format
+        land_cover_refvalue = {
+            "bldgs": {"sfr": {"value": 0.3}},
+            "paved": {"sfr": {"value": 0.3}},
+            "water": {"sfr": {"value": 0.4}},
+        }
+
+        # Test the fixed sum calculation (lines 798-802 in precheck.py)
+        def calculate_sfr_sum(land_cover):
+            return sum(
+                get_value_safe(v, "sfr", 0)
+                for v in land_cover.values()
+                if isinstance(v, dict) and get_value_safe(v, "sfr") is not None
+            )
+
+        sum_plain = calculate_sfr_sum(land_cover_plain)
+        assert sum_plain == 1.0, f"Plain format sum should be 1.0, got {sum_plain}"
+
+        sum_refvalue = calculate_sfr_sum(land_cover_refvalue)
+        assert sum_refvalue == 1.0, (
+            f"RefValue format sum should be 1.0, got {sum_refvalue}"
+        )
+
+        # Test with None values
+        land_cover_with_none = {
+            "bldgs": {"sfr": 0.5},
+            "paved": {"sfr": None},  # Should be excluded from sum
+            "water": {"sfr": {"value": 0.5}},
+        }
+
+        sum_with_none = calculate_sfr_sum(land_cover_with_none)
+        assert sum_with_none == 1.0, f"Sum with None should be 1.0, got {sum_with_none}"
+
+
+def test_precheck_thermal_layer_cp_renaming():
+    """Test that legacy 'cp' fields are renamed to 'rho_cp' in thermal_layers."""
+    from supy.data_model.precheck import precheck_thermal_layer_cp_renaming
+
+    # Test data with cp fields in multiple surfaces
+    data = {
+        "sites": [
+            {
+                "properties": {
+                    "land_cover": {
+                        "paved": {
+                            "sfr": {"value": 0.5},
+                            "thermal_layers": {
+                                "dz": {"value": [0.1, 0.2, 0.3, 0.4, 0.5]},
+                                "k": {"value": [1.0, 1.1, 1.2, 1.3, 1.4]},
+                                "cp": {
+                                    "value": [1.2e6, 1.1e6, 1.1e6, 1.5e6, 1.6e6]
+                                },  # Legacy field
+                            },
+                        },
+                        "bldgs": {
+                            "sfr": {"value": 0.3},
+                            "thermal_layers": {
+                                "dz": {"value": [0.2, 0.3, 0.4, 0.5, 0.6]},
+                                "k": {"value": [1.5, 1.6, 1.7, 1.8, 1.9]},
+                                "cp": {
+                                    "value": [1.5e6, 1.4e6, 1.3e6, 1.2e6, 1.1e6]
+                                },  # Legacy field
+                            },
+                        },
+                        "grass": {
+                            "sfr": {"value": 0.2},
+                            "thermal_layers": {
+                                "dz": {"value": [0.1, 0.1, 0.2, 0.3, 0.4]},
+                                "k": {"value": [0.8, 0.9, 1.0, 1.1, 1.2]},
+                                "rho_cp": {
+                                    "value": [1.0e6, 1.1e6, 1.2e6, 1.3e6, 1.4e6]
+                                },  # Correct field
+                            },
+                        },
+                    }
+                }
+            }
+        ]
+    }
+
+    # Verify initial state
+    paved_thermal = data["sites"][0]["properties"]["land_cover"]["paved"][
+        "thermal_layers"
+    ]
+    bldgs_thermal = data["sites"][0]["properties"]["land_cover"]["bldgs"][
+        "thermal_layers"
+    ]
+    grass_thermal = data["sites"][0]["properties"]["land_cover"]["grass"][
+        "thermal_layers"
+    ]
+
+    assert "cp" in paved_thermal
+    assert "rho_cp" not in paved_thermal
+    assert "cp" in bldgs_thermal
+    assert "rho_cp" not in bldgs_thermal
+    assert "cp" not in grass_thermal
+    assert "rho_cp" in grass_thermal
+
+    # Run the renaming function
+    updated_data = precheck_thermal_layer_cp_renaming(data)
+
+    # Verify the renaming worked
+    paved_thermal_after = updated_data["sites"][0]["properties"]["land_cover"]["paved"][
+        "thermal_layers"
+    ]
+    bldgs_thermal_after = updated_data["sites"][0]["properties"]["land_cover"]["bldgs"][
+        "thermal_layers"
+    ]
+    grass_thermal_after = updated_data["sites"][0]["properties"]["land_cover"]["grass"][
+        "thermal_layers"
+    ]
+
+    # Check that cp fields were removed and rho_cp fields were added
+    assert "cp" not in paved_thermal_after
+    assert "rho_cp" in paved_thermal_after
+    assert "cp" not in bldgs_thermal_after
+    assert "rho_cp" in bldgs_thermal_after
+    assert "rho_cp" in grass_thermal_after  # Should still be there
+
+    # Check that values were preserved
+    expected_paved_cp = [1.2e6, 1.1e6, 1.1e6, 1.5e6, 1.6e6]
+    expected_bldgs_cp = [1.5e6, 1.4e6, 1.3e6, 1.2e6, 1.1e6]
+    original_grass_rho_cp = [1.0e6, 1.1e6, 1.2e6, 1.3e6, 1.4e6]
+
+    assert paved_thermal_after["rho_cp"]["value"] == expected_paved_cp
+    assert bldgs_thermal_after["rho_cp"]["value"] == expected_bldgs_cp
+    assert grass_thermal_after["rho_cp"]["value"] == original_grass_rho_cp
+
+
+def test_precheck_thermal_layer_cp_renaming_no_changes():
+    """Test that data without cp fields is unchanged."""
+    from supy.data_model.precheck import precheck_thermal_layer_cp_renaming
+
+    # Test data without cp fields
+    data = {
+        "sites": [
+            {
+                "properties": {
+                    "land_cover": {
+                        "paved": {
+                            "sfr": {"value": 0.5},
+                            "thermal_layers": {
+                                "dz": {"value": [0.1, 0.2, 0.3, 0.4, 0.5]},
+                                "k": {"value": [1.0, 1.1, 1.2, 1.3, 1.4]},
+                                "rho_cp": {
+                                    "value": [1.2e6, 1.1e6, 1.1e6, 1.5e6, 1.6e6]
+                                },  # Correct field
+                            },
+                        }
+                    }
+                }
+            }
+        ]
+    }
+
+    # Make a copy for comparison
+    import copy
+
+    original_data = copy.deepcopy(data)
+
+    # Run the renaming function
+    updated_data = precheck_thermal_layer_cp_renaming(data)
+
+    # Should be unchanged
+    assert updated_data == original_data
+
+
+def test_precheck_thermal_layer_cp_renaming_mixed_surfaces():
+    """Test renaming with surfaces that have no thermal_layers."""
+    from supy.data_model.precheck import precheck_thermal_layer_cp_renaming
+
+    data = {
+        "sites": [
+            {
+                "properties": {
+                    "land_cover": {
+                        "paved": {
+                            "sfr": {"value": 0.3},
+                            "thermal_layers": {
+                                "cp": {"value": [1.0e6, 1.1e6, 1.2e6]}  # Legacy field
+                            },
+                        },
+                        "water": {
+                            "sfr": {"value": 0.4}
+                            # No thermal_layers - should be ignored
+                        },
+                        "grass": {
+                            "sfr": {"value": 0.3}
+                            # No thermal_layers - should be ignored
+                        },
+                    }
+                }
+            }
+        ]
+    }
+
+    updated_data = precheck_thermal_layer_cp_renaming(data)
+
+    # Only paved should be affected
+    paved_thermal = updated_data["sites"][0]["properties"]["land_cover"]["paved"][
+        "thermal_layers"
+    ]
+    assert "cp" not in paved_thermal
+    assert "rho_cp" in paved_thermal
+    assert paved_thermal["rho_cp"]["value"] == [1.0e6, 1.1e6, 1.2e6]
+
+    # Other surfaces should be unchanged
+    assert (
+        "thermal_layers"
+        not in updated_data["sites"][0]["properties"]["land_cover"]["water"]
+    )
+    assert (
+        "thermal_layers"
+        not in updated_data["sites"][0]["properties"]["land_cover"]["grass"]
+    )

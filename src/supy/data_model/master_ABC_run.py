@@ -662,15 +662,13 @@ def run_phase_c(
                         field_name = critical.get("field_name", "unknown")
                         field_path = critical.get("field_path", "unknown")
                         action_needed += f"-- {field_name} at level {field_path}: Physics parameter is null and will cause runtime crash\n"
-                        action_needed += f"   Suggested fix: Set to appropriate non-null value - see documentation at https://suews.readthedocs.io/en/latest/input_files/SUEWS_SiteSelect/\n"
+                        action_needed += f"   Suggested fix: Set to appropriate non-null value - see documentation at https://suews.readthedocs.io/en/latest\n"
 
                     failure_report = f"""# SUEWS Phase C (Pydantic Validation) Report
 # ============================================
 # Mode: {mode.title()}
 # ============================================
 {action_needed}
-## NO ACTION NEEDED
-
 # =================================================="""
 
                     with open(pydantic_report_file, "w") as f:
@@ -696,7 +694,7 @@ def run_phase_c(
                         status = default_app.get(
                             "status", "found null"
                         )  # Default to old behavior
-                        no_action_info += f"- {field_name} {status} in user YAML at level {field_path}. Pydantic will interpret that as default value: {default_value}\n"
+                        no_action_info += f"- {field_name} {status} in user YAML at level {field_path}.\n  Pydantic will interpret that as default value: {default_value} - check doc for info on this parameter: https://suews.readthedocs.io/en/latest\n"
 
                 # Generate phase-specific title for success report
                 if phases_run:
@@ -723,17 +721,16 @@ def run_phase_c(
                 
                 # Add any default values detected
                 if no_action_info:
-                    # Remove the leading newlines and parse the content
+                    # Remove the leading newlines and header, parse the content
                     no_action_content = no_action_info.strip()
-                    if no_action_content.startswith("\n\n## NO ACTION NEEDED\n"):
-                        no_action_content = no_action_content.replace(
-                            "\n\n## NO ACTION NEEDED\n", ""
-                        )
-                        consolidated_no_action.extend([
-                            line
-                            for line in no_action_content.split("\n")
-                            if line.strip()
-                        ])
+                    if no_action_content.startswith("## NO ACTION NEEDED"):
+                        no_action_content = no_action_content.replace("## NO ACTION NEEDED", "", 1)
+                    
+                    consolidated_no_action.extend([
+                        line.strip()
+                        for line in no_action_content.split("\n")
+                        if line.strip()
+                    ])
 
                 # Extract content from previous phase reports without duplicating headers
                 if phase_a_info:

@@ -52,17 +52,17 @@ def _check_specific_files(input_path, specific_files):
     """Check if specific files exist based on RunControl.nml paths."""
     # Try to read RunControl.nml to get actual input path
     runcontrol_path = input_path / "RunControl.nml"
-    
+
     if runcontrol_path.exists():
         try:
             ser_nml = load_SUEWS_nml_simple(str(runcontrol_path)).runcontrol
             fileinputpath = ser_nml.get("fileinputpath", "./input/")
-            
+
             if os.path.isabs(fileinputpath):
                 actual_input_dir = Path(fileinputpath)
             else:
                 actual_input_dir = (input_path / fileinputpath).resolve()
-                
+
             # Check in the actual input directory
             for f in specific_files:
                 if not ((input_path / f).exists() or (actual_input_dir / f).exists()):
@@ -70,7 +70,7 @@ def _check_specific_files(input_path, specific_files):
             return True
         except Exception:
             pass
-    
+
     # Fallback: check root and Input/ subdirectory
     for f in specific_files:
         if not ((input_path / f).exists() or (input_path / "Input" / f).exists()):
@@ -100,27 +100,27 @@ def _check_columns(input_path, check_columns):
     # Try to read RunControl.nml to get actual input path
     runcontrol_path = input_path / "RunControl.nml"
     actual_input_dir = None
-    
+
     if runcontrol_path.exists():
         try:
             ser_nml = load_SUEWS_nml_simple(str(runcontrol_path)).runcontrol
             fileinputpath = ser_nml.get("fileinputpath", "./input/")
-            
+
             if os.path.isabs(fileinputpath):
                 actual_input_dir = Path(fileinputpath)
             else:
                 actual_input_dir = (input_path / fileinputpath).resolve()
         except Exception:
             pass
-    
+
     for file, columns in check_columns.items():
         # Check root first
         file_path = input_path / file
-        
+
         # Then check actual input directory from RunControl
         if not file_path.exists() and actual_input_dir:
             file_path = actual_input_dir / file
-        
+
         # Fallback to Input/ subdirectory
         if not file_path.exists():
             file_path = input_path / "Input" / file
@@ -136,27 +136,27 @@ def _check_negative_columns(input_path, negative_columns):
     # Try to read RunControl.nml to get actual input path
     runcontrol_path = input_path / "RunControl.nml"
     actual_input_dir = None
-    
+
     if runcontrol_path.exists():
         try:
             ser_nml = load_SUEWS_nml_simple(str(runcontrol_path)).runcontrol
             fileinputpath = ser_nml.get("fileinputpath", "./input/")
-            
+
             if os.path.isabs(fileinputpath):
                 actual_input_dir = Path(fileinputpath)
             else:
                 actual_input_dir = (input_path / fileinputpath).resolve()
         except Exception:
             pass
-    
+
     for file, columns in negative_columns.items():
         # Check root first
         file_path = input_path / file
-        
+
         # Then check actual input directory from RunControl
         if not file_path.exists() and actual_input_dir:
             file_path = actual_input_dir / file
-        
+
         # Fallback to Input/ subdirectory
         if not file_path.exists():
             file_path = input_path / "Input" / file
@@ -300,7 +300,9 @@ def detect_table_version(input_dir):
             # Has both H_maintain and BaseT_HC
             "check_columns": {
                 "SUEWS_Irrigation.txt": ["H_maintain"],
-                "SUEWS_AnthropogenicEmission.txt": ["BaseT_HC"],  # Still present in 2021a
+                "SUEWS_AnthropogenicEmission.txt": [
+                    "BaseT_HC"
+                ],  # Still present in 2021a
             },
         },
         # 2020a: Added H_maintain and irrigation fractions
@@ -308,7 +310,10 @@ def detect_table_version(input_dir):
             "required_files": ["RunControl.nml"],
             "check_columns": {
                 "SUEWS_Irrigation.txt": ["H_maintain"],  # Added in 2020a
-                "SUEWS_SiteSelect.txt": ["IrrFr_Paved", "IrrFr_Bldgs"],  # Added in 2020a
+                "SUEWS_SiteSelect.txt": [
+                    "IrrFr_Paved",
+                    "IrrFr_Bldgs",
+                ],  # Added in 2020a
             },
         },
         "2019b": {
@@ -324,7 +329,9 @@ def detect_table_version(input_dir):
             ],  # Renamed from AnthropogenicHeat
             # Check for BaseTHDD column (renamed to BaseT_HC in 2019b/2020a)
             "check_columns": {
-                "SUEWS_AnthropogenicEmission.txt": ["BaseTHDD"]  # Original name before 2019b
+                "SUEWS_AnthropogenicEmission.txt": [
+                    "BaseTHDD"
+                ]  # Original name before 2019b
             },
         },
         # 2018c: Added FcEF_v columns and CO2PointSource (converted to 2019a)
@@ -333,7 +340,11 @@ def detect_table_version(input_dir):
             "file_exists": ["SUEWS_AnthropogenicHeat.txt"],  # Old name before 2019a
             "check_columns": {
                 # These columns were added when converting 2018c->2019a
-                "SUEWS_AnthropogenicHeat.txt": ["FcEF_v_kgkmWE", "FcEF_v_kgkmWD", "CO2PointSource"]
+                "SUEWS_AnthropogenicHeat.txt": [
+                    "FcEF_v_kgkmWE",
+                    "FcEF_v_kgkmWD",
+                    "CO2PointSource",
+                ]
             },
         },
         # 2018b: No changes from 2018a (Keep action only)
@@ -342,7 +353,10 @@ def detect_table_version(input_dir):
             "file_exists": ["SUEWS_AnthropogenicHeat.txt"],
             # Same structure as 2018a - differentiate by NOT having 2018c columns
             "negative_columns": {
-                "SUEWS_AnthropogenicHeat.txt": ["FcEF_v_kgkmWE", "CO2PointSource"]  # Not in 2018b
+                "SUEWS_AnthropogenicHeat.txt": [
+                    "FcEF_v_kgkmWE",
+                    "CO2PointSource",
+                ]  # Not in 2018b
             },
             "check_columns": {
                 "SUEWS_BiogenCO2.txt": ["alpha", "beta", "theta"],  # Has 2018a features
@@ -354,8 +368,14 @@ def detect_table_version(input_dir):
             "file_exists": ["SUEWS_AnthropogenicHeat.txt"],
             "check_columns": {
                 "SUEWS_BiogenCO2.txt": ["alpha", "beta", "theta"],  # Added in 2018a
-                "SUEWS_SiteSelect.txt": ["TrafficRate_WD", "TrafficRate_WE"],  # Added in 2018a
-                "SUEWS_AnthropogenicHeat.txt": ["AHMin_WD", "AHMin_WE"],  # Added in 2018a
+                "SUEWS_SiteSelect.txt": [
+                    "TrafficRate_WD",
+                    "TrafficRate_WE",
+                ],  # Added in 2018a
+                "SUEWS_AnthropogenicHeat.txt": [
+                    "AHMin_WD",
+                    "AHMin_WE",
+                ],  # Added in 2018a
             },
         },
         "2017a": {
@@ -372,11 +392,17 @@ def detect_table_version(input_dir):
             "negative_columns": {
                 "SUEWS_Conductance.txt": ["gsModel"],  # Not in 2016a
                 "SUEWS_NonVeg.txt": ["OHMThresh_SW", "ESTMCode"],  # Not in 2016a
-                "SUEWS_ESTMCoefficients.txt": ["Surf_thick1", "Wall_thick1"],  # Not in 2016a
+                "SUEWS_ESTMCoefficients.txt": [
+                    "Surf_thick1",
+                    "Wall_thick1",
+                ],  # Not in 2016a
             },
             # Has old RunControl parameter names
             "check_nml": {
-                "RunControl.nml": ["AnthropHeatChoice", "QSChoice"]  # Old names in 2016a
+                "RunControl.nml": [
+                    "AnthropHeatChoice",
+                    "QSChoice",
+                ]  # Old names in 2016a
             },
             "fallback": True,  # Still use as fallback if no other matches
         },
@@ -429,7 +455,9 @@ def detect_table_version(input_dir):
 
         # Check for columns that should NOT exist (negative check)
         negative_columns = indicators.get("negative_columns", {})
-        if negative_columns and not _check_negative_columns(input_path, negative_columns):
+        if negative_columns and not _check_negative_columns(
+            input_path, negative_columns
+        ):
             continue
 
         # Check nml parameters for versions that need it (e.g., 2024a)
@@ -734,7 +762,9 @@ def clean_legacy_table(file_path, output_path=None):
                     f"Removing legacy footer line {i + 1}: {line[:50]}... Stopping read after footer."
                 )
                 break  # Stop processing after footer
-            elif '"""' in line or ('"' in line and ("Vegetation (average)" in line or "used for" in line)):
+            elif '"""' in line or (
+                '"' in line and ("Vegetation (average)" in line or "used for" in line)
+            ):
                 logger_supy.debug(
                     f"Skipping line {i + 1} with problematic quoted comments: {line[:50]}..."
                 )
@@ -984,10 +1014,10 @@ def _handle_same_version_copy(fromDir, toDir, fromVer):
     runcontrol_path = Path(fromDir) / "RunControl.nml"
     if not runcontrol_path.exists():
         raise FileNotFoundError(f"RunControl.nml not found in {fromDir}")
-    
+
     # Load RunControl to get file paths
     ser_nml = load_SUEWS_nml_simple(str(runcontrol_path)).runcontrol
-    
+
     # Resolve input path from RunControl
     fileinputpath = ser_nml.get("fileinputpath", "./input/")
     if os.path.isabs(fileinputpath):
@@ -996,13 +1026,13 @@ def _handle_same_version_copy(fromDir, toDir, fromVer):
     else:
         # Relative path from fromDir
         input_dir = (Path(fromDir) / fileinputpath).resolve()
-    
+
     # Copy files from the actual input directory
     if input_dir.exists():
         _copy_and_clean_files(
             str(input_dir), toDir, ["SUEWS_*.txt", "*.nml"], clean_txt=True
         )
-    
+
     # Also copy RunControl.nml and any other .nml files from root
     _copy_and_clean_files(fromDir, toDir, ["*.nml"], clean_txt=False)
 
@@ -1026,20 +1056,22 @@ def _handle_same_version_copy(fromDir, toDir, fromVer):
 def _build_file_list(fromDir, fromVer):
     """Build list of files to process based on RunControl.nml structure."""
     fileList = []
-    
+
     # Read RunControl.nml to determine file structure
     runcontrol_path = Path(fromDir) / "RunControl.nml"
     if not runcontrol_path.exists():
         # If no RunControl.nml, fall back to checking root
-        logger_supy.warning(f"RunControl.nml not found in {fromDir}, checking root directory")
+        logger_supy.warning(
+            f"RunControl.nml not found in {fromDir}, checking root directory"
+        )
         for fileX in os.listdir(fromDir):
             if any(fnmatch(fileX, p) for p in ["SUEWS*.txt", "*.nml", "*.txt"]):
                 fileList.append(("", fileX))
         return fileList
-    
+
     # Load RunControl to get file paths
     ser_nml = load_SUEWS_nml_simple(str(runcontrol_path)).runcontrol
-    
+
     # Resolve input path from RunControl
     fileinputpath = ser_nml.get("fileinputpath", "./input/")
     if os.path.isabs(fileinputpath):
@@ -1048,7 +1080,7 @@ def _build_file_list(fromDir, fromVer):
     else:
         # Relative path from fromDir
         input_dir = (Path(fromDir) / fileinputpath).resolve()
-    
+
     # Check for files in the input directory specified by RunControl
     if input_dir.exists():
         logger_supy.debug(
@@ -1061,12 +1093,12 @@ def _build_file_list(fromDir, fromVer):
         except ValueError:
             # If not relative, use empty string
             subdir = ""
-            
+
         for fileX in os.listdir(input_dir):
             if fnmatch(fileX, "SUEWS_*.txt") or fnmatch(fileX, "*.nml"):
                 fileList.append((subdir, fileX))
                 logger_supy.debug(f"Found file in {subdir}: {fileX}")
-    
+
     # Also check root for .nml files and txt files
     for fileX in os.listdir(fromDir):
         if fnmatch(fileX, "*.nml") or fnmatch(fileX, "*.txt"):
@@ -1382,9 +1414,7 @@ def SUEWS_Converter_file(fileX, actionList):
         try:
             SUEWS_Converter_action(*action)
         except Exception as e:
-            logger_supy.error(
-                f"Failed to perform action {action[0]} on {fileX}: {e!s}"
-            )
+            logger_supy.error(f"Failed to perform action {action[0]} on {fileX}: {e!s}")
             raise RuntimeError(
                 f"Conversion failed at {action[0]} for {fileX}: {e!s}"
             ) from e
@@ -1498,10 +1528,14 @@ def convert_table(
         ).runcontrol
         path_input = (Path(fromDir) / ser_nml["fileinputpath"]).resolve()
         list_table_input = (
-            list(path_input.glob("SUEWS_*.txt"))  # Fixed: Added underscore to match SUEWS_*.txt files
+            list(
+                path_input.glob("SUEWS_*.txt")
+            )  # Fixed: Added underscore to match SUEWS_*.txt files
             + list(path_input.glob("*.nml"))
             + list(Path(fromDir).resolve().glob("*.nml"))
-            + list(Path(fromDir).resolve().glob("SUEWS_*.txt"))  # Also check root for SUEWS_*.txt files
+            + list(
+                Path(fromDir).resolve().glob("SUEWS_*.txt")
+            )  # Also check root for SUEWS_*.txt files
         )
         # copy flattened files into tempDir_1 for later processing
         # also convert all files to UTF-8 encoding in case inconsistent encoding exists

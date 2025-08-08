@@ -34,6 +34,15 @@
 
 ## 2025
 
+### 8 Aug 2025
+- [maintenance] Improved table converter path handling to use RunControl.nml paths consistently (#566)
+  - All SUEWS versions now read file paths from RunControl.nml FileInputPath
+  - Removed special case handling for 2016a version
+  - Support both absolute and relative paths in RunControl.nml
+  - Automatic fallback to root/Input directories for backward compatibility
+  - Refactored converter functions to reduce complexity and improve maintainability
+  - Fixed ruff linting issues in yaml converter module
+
 ### 6 Aug 2025
 - [maintenance] Added 2016a to YAML conversion test to test_cmd_to_yaml.py
 - [bugfix] Fixed malformed SUEWS_Profiles.txt in 2016a test fixtures (extra value on line 21 causing parsing errors)

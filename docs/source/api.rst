@@ -111,7 +111,7 @@ Command-Line Tools
     Execute SUEWS simulations from command line with YAML configuration files.
 
 **suews-convert**
-    Convert legacy table-based input files to modern YAML configuration format.
+    Convert between SUEWS input formats and versions. See :doc:`inputs/converter` for detailed usage.
 
 For detailed command-line usage, see the :doc:`workflow` guide.
 

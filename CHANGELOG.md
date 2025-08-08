@@ -21,7 +21,7 @@
 
 | Year | Features | Bugfixes | Changes | Maintenance | Docs | Total |
 |------|----------|----------|---------|-------------|------|-------|
-| 2025 | 26 | 13 | 3 | 27 | 12 | 80 |
+| 2025 | 27 | 13 | 3 | 29 | 13 | 85 |
 | 2024 | 12 | 17 | 1 | 12 | 1 | 43 |
 | 2023 | 11 | 14 | 3 | 9 | 1 | 38 |
 | 2022 | 15 | 18 | 0 | 7 | 0 | 40 |
@@ -34,7 +34,30 @@
 
 ## 2025
 
+### 8 Aug 2025
+- [maintenance] Upgraded PyPI publishing to use Trusted Publishing (OIDC authentication)
+  - Removed dependency on long-lived API tokens for PyPI and TestPyPI
+  - Added OIDC permissions (`id-token: write`) to deployment jobs
+  - Enhanced security with short-lived tokens generated per workflow run
+  - Created documentation for configuring Trusted Publishing on PyPI
+  - Maintains backward compatibility until PyPI configuration is updated
+
+### 7 Aug 2025
+- [maintenance] Added CLAUDE.md content preservation system to prevent AI-induced data loss
+  - Created validation script to detect placeholder text and missing critical sections
+  - Implemented automatic backup system with timestamped snapshots
+  - Added Git pre-commit hook for CLAUDE.md integrity validation
+  - Documented best practices for preventing content truncation
+  - Ensures complete file preservation during AI-assisted edits
+
 ### 6 Aug 2025
+- [feature] Added CRU TS4.06 climatological temperature data integration for precheck initialisation
+  - Integrated CRU TS4.06 monthly temperature normals (1991-2020) for automatic temperature initialisation
+  - Added `get_mean_monthly_air_temperature()` function using 0.5° global grid data
+  - Optimised data storage using Parquet format (2.3MB vs 19MB CSV)
+  - Provides location-specific temperature estimates for any global urban site
+  - Includes spatial interpolation for nearest grid cell matching
+  - Added comprehensive test coverage for temperature lookup functionality
 - [maintenance] Integrated limited CI testing for draft PRs to speed up development feedback
   - Modified main CI workflow to dynamically adjust build matrix based on draft status
   - Draft PRs: Only test Linux + Python 3.9 and 3.13 (2 configurations)
@@ -56,6 +79,22 @@
   - Added check to prevent division by zero in QF_build calculation
   - When population density is zero, building energy flux is now correctly set to zero
   - Added tests to verify correct behaviour with zero population density
+- [bugfix] Fixed timezone field to use enum for valid timezone offsets ([PR #554](https://github.com/UMEP-dev/SUEWS/pull/554), fixes [#552](https://github.com/UMEP-dev/SUEWS/issues/552))
+  - Changed timezone field from `FlexibleRefValue(int)` to `FlexibleRefValue(Union[TimezoneOffset, float])`
+  - Created `TimezoneOffset` enum with all valid global timezone offsets
+  - Enables support for fractional timezone offsets (e.g., 5.5 for India, 5.75 for Nepal)
+  - Validates input against standard timezone offsets only (no arbitrary floats)
+  - Automatically converts numeric inputs to appropriate enum values
+  - Critical for accurate solar geometry calculations in regions with non-integer offsets
+- [doc] Added comprehensive documentation for runoff generation mechanisms ([#212](https://github.com/UMEP-dev/SUEWS/issues/212))
+  - Explained infiltration capacity exceedance (Hortonian runoff)
+  - Documented saturation excess runoff for different surface types
+  - Clarified timestep considerations for runoff calculations
+  - Added mathematical formulations and water routing details
+- [bugfix] Fixed unnecessary interpolation when tstep equals resolutionfilesin ([#161](https://github.com/UMEP-dev/SUEWS/issues/161))
+  - Added conditional check to skip interpolation when model timestep matches input data resolution
+  - Prevents incorrect interpolation of averaged variables like kdown
+  - Ensures forcing data passes through unchanged when no resampling is needed
 - [doc] Improved clarity of tstep_prev purpose for WRF-SUEWS coupling ([#551](https://github.com/UMEP-dev/SUEWS/issues/551), [#553](https://github.com/UMEP-dev/SUEWS/issues/553))
   - Added explanatory comments at all tstep_prev usage sites
   - Enhanced type definition documentation in SUEWS_TIMER

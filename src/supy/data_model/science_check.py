@@ -22,6 +22,18 @@ from typing import Dict, List, Optional, Union, Any, Tuple
 from dataclasses import dataclass
 from datetime import datetime
 from copy import deepcopy
+import pandas as pd
+import numpy as np
+
+# Handle imports for both direct execution and module import
+try:
+    from .._env import logger_supy, trv_supy_module
+except ImportError:
+    # Fallback for direct execution
+    import sys
+    import os
+    sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
+    from supy._env import logger_supy, trv_supy_module
 
 
 @dataclass
@@ -627,91 +639,97 @@ def run_scientific_validation_pipeline(
     return validation_results
 
 
-def get_monthly_avg_temp(lat: float, month: int) -> float:
+def get_mean_monthly_air_temperature(
+    lat: float, lon: float, month: int, spatial_res: float = 0.5
+) -> float:
     """
-    Estimate the average air temperature for a given latitude and month.
+    Calculate mean monthly air temperature using CRU TS4.06 climatological data.
 
-    Uses predefined climatological values for four broad latitude bands.
-    Adapted directly from precheck.py.
+    This function uses the CRU TS4.06 cell monthly normals dataset (1991-2020)
+    to provide accurate location-specific temperature estimates. CRU data is
+    required - the function will raise an error if CRU data is not available.
 
     Args:
-        lat: Site latitude in degrees
-        month: Month of the year (1 = January, 12 = December)
+        lat (float): Site latitude in degrees (positive for Northern Hemisphere, negative for Southern).
+        lon (float): Site longitude in degrees (-180 to 180).
+        month (int): Month of the year (1 = January, 12 = December).
+        spatial_res (float): Search spatial resolution for finding nearest CRU grid cell (degrees). Default 0.5.
 
     Returns:
-        Estimated average air temperature for the given latitude and month (°C)
+        float: Mean monthly air temperature for the given location and month (°C).
+
+    Raises:
+        ValueError: If the input month is not between 1 and 12, coordinates are invalid,
+                   or no CRU data found within spatial resolution.
+        FileNotFoundError: If CRU data file is not found.
     """
-    abs_lat = abs(lat)
+    # Validate inputs
+    if not (1 <= month <= 12):
+        raise ValueError(f"Month must be between 1 and 12, got {month}")
+    if not (-90 <= lat <= 90):
+        raise ValueError(f"Latitude must be between -90 and 90, got {lat}")
+    if not (-180 <= lon <= 180):
+        raise ValueError(f"Longitude must be between -180 and 180, got {lon}")
 
-    if abs_lat < 10:
-        lat_band = "tropics"
-    elif abs_lat < 35:
-        lat_band = "subtropics"
-    elif abs_lat < 60:
-        lat_band = "midlatitudes"
-    else:
-        lat_band = "polar"
+    # Load CRU data from package resources using importlib.resources
+    # Access the Parquet file in the ext_data directory
+    cru_resource = trv_supy_module / "ext_data" / "CRU_TS4.06_1991_2020.parquet"
 
-    monthly_temp = {
-        "tropics": [
-            26.0,
-            26.5,
-            27.0,
-            27.5,
-            28.0,
-            28.5,
-            28.0,
-            27.5,
-            27.0,
-            26.5,
-            26.0,
-            25.5,
-        ],
-        "subtropics": [
-            15.0,
-            16.0,
-            18.0,
-            20.0,
-            24.0,
-            28.0,
-            30.0,
-            29.0,
-            26.0,
-            22.0,
-            18.0,
-            15.0,
-        ],
-        "midlatitudes": [
-            5.0,
-            6.0,
-            9.0,
-            12.0,
-            17.0,
-            21.0,
-            23.0,
-            22.0,
-            19.0,
-            14.0,
-            9.0,
-            6.0,
-        ],
-        "polar": [
-            -15.0,
-            -13.0,
-            -10.0,
-            -5.0,
-            0.0,
-            5.0,
-            8.0,
-            7.0,
-            3.0,
-            -2.0,
-            -8.0,
-            -12.0,
-        ],
-    }
+    if not cru_resource.exists():
+        raise FileNotFoundError(
+            f"CRU data file not found at {cru_resource}. "
+            "Please ensure the CRU Parquet file is available in the package."
+        )
 
-    return monthly_temp[lat_band][month - 1]
+    # Read the Parquet file - this works even when package is installed
+    df = pd.read_parquet(cru_resource)
+
+    # Validate that required columns are present
+    required_cols = ["Month", "Latitude", "Longitude", "NormalTemperature"]
+    missing_cols = [col for col in required_cols if col not in df.columns]
+    if missing_cols:
+        raise ValueError(f"Missing required columns in CRU data: {missing_cols}")
+
+    # Filter for the specific month
+    month_data = df[df["Month"] == month]
+    if month_data.empty:
+        raise ValueError(f"No CRU data available for month {month}")
+
+    # Find nearest grid cell using both lat and lon
+    # Use both latitude and longitude for precise matching
+    distances = np.sqrt((month_data["Latitude"] - lat) ** 2 + (month_data["Longitude"] - lon) ** 2)
+    
+    # Try different spatial resolutions if no data is found
+    for spatial_res_expanded in [spatial_res, spatial_res * 2, spatial_res * 4]:
+        nearby_indices = distances <= spatial_res_expanded
+        nearby_data = month_data[nearby_indices]
+        
+        if not nearby_data.empty:
+            break
+            
+        if nearby_data.empty:
+            raise ValueError(
+                f"No CRU data found within {spatial_res_expanded}° of coordinates "
+                f"({lat}, {lon}) for month {month}. Try increasing spatial resolution or "
+                f"check if coordinates are within CRU data coverage area."
+            )
+
+    # Calculate Euclidean distance for closest point
+    nearby_distances = distances[nearby_indices]
+    closest_idx = nearby_distances.idxmin()
+    
+    # Get temperature from the closest grid cell
+    temperature = month_data.loc[closest_idx, "NormalTemperature"]
+    
+    # Log the selection for debugging
+    closest_lat = month_data.loc[closest_idx, "Latitude"]
+    closest_lon = month_data.loc[closest_idx, "Longitude"]
+    logger_supy.debug(
+        f"CRU temperature for ({lat:.2f}, {lon:.2f}) month {month}: "
+        f"{temperature:.2f}°C from grid cell ({closest_lat:.2f}, {closest_lon:.2f})"
+    )
+    
+    return float(temperature)
 
 
 def adjust_surface_temperatures(
@@ -744,8 +762,15 @@ def adjust_surface_temperatures(
         if lat is None:
             continue  # Skip if no latitude (will be caught by validation)
 
-        # Get estimated average temperature
-        avg_temp = get_monthly_avg_temp(lat, month)
+        # Get site longitude (required for CRU matching)
+        lng_entry = props.get("lng", {})
+        lng = lng_entry.get("value") if isinstance(lng_entry, dict) else lng_entry
+
+        if lng is None:
+            continue  # Skip if no longitude (will be caught by validation)
+
+        # Get estimated average temperature using CRU data
+        avg_temp = get_mean_monthly_air_temperature(lat, lng, month)
 
         # Loop over all surface types
         surface_types = ["paved", "bldgs", "evetr", "dectr", "grass", "bsoil", "water"]
@@ -788,7 +813,7 @@ def adjust_surface_temperatures(
                         site_index=site_idx,
                         old_value=f"various temperatures",
                         new_value=f"{avg_temp}°C",
-                        reason=f"Set from latitude {lat}° for month {month}",
+                        reason=f"Set from CRU data for coordinates ({lat:.2f}, {lng:.2f}) for month {month}",
                     )
                 )
 

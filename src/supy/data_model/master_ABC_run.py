@@ -724,8 +724,10 @@ def run_phase_c(
                     # Remove the leading newlines and header, parse the content
                     no_action_content = no_action_info.strip()
                     if no_action_content.startswith("## NO ACTION NEEDED"):
-                        no_action_content = no_action_content.replace("## NO ACTION NEEDED", "", 1)
-                    
+                        no_action_content = no_action_content.replace(
+                            "## NO ACTION NEEDED", "", 1
+                        )
+
                     consolidated_no_action.extend([
                         line.strip()
                         for line in no_action_content.split("\n")

@@ -21,7 +21,7 @@
 
 | Year | Features | Bugfixes | Changes | Maintenance | Docs | Total |
 |------|----------|----------|---------|-------------|------|-------|
-| 2025 | 28 | 18 | 3 | 31 | 12 | 92 |
+| 2025 | 28 | 18 | 3 | 32 | 12 | 93 |
 | 2024 | 12 | 17 | 1 | 12 | 1 | 43 |
 | 2023 | 11 | 14 | 3 | 9 | 1 | 38 |
 | 2022 | 15 | 18 | 0 | 7 | 0 | 40 |
@@ -42,6 +42,20 @@
   - Automatic fallback to root/Input directories for backward compatibility
   - Refactored converter functions to reduce complexity and improve maintainability
   - Fixed ruff linting issues in yaml converter module
+- [maintenance] Upgraded PyPI publishing to use Trusted Publishing (OIDC authentication)
+  - Removed dependency on long-lived API tokens for PyPI and TestPyPI
+  - Added OIDC permissions (`id-token: write`) to deployment jobs
+  - Enhanced security with short-lived tokens generated per workflow run
+  - Created documentation for configuring Trusted Publishing on PyPI
+  - Maintains backward compatibility until PyPI configuration is updated
+
+### 7 Aug 2025
+- [maintenance] Added CLAUDE.md content preservation system to prevent AI-induced data loss
+  - Created validation script to detect placeholder text and missing critical sections
+  - Implemented automatic backup system with timestamped snapshots
+  - Added Git pre-commit hook for CLAUDE.md integrity validation
+  - Documented best practices for preventing content truncation
+  - Ensures complete file preservation during AI-assisted edits
 
 ### 6 Aug 2025
 - [maintenance] Added 2016a to YAML conversion test to test_cmd_to_yaml.py

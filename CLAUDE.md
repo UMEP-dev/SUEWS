@@ -2,6 +2,17 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## ⚠️ CLAUDE.md Protection Active
+
+This file is protected against accidental truncation or content loss:
+- **Automatic validation** on every Git commit (pre-commit hook installed)
+- **GitHub Actions** validates on push/PR
+- **Backup system** maintains CLAUDE.md.backup
+- **Snapshots** saved when issues detected (.claude/snapshots/)
+
+**For initial setup or re-installation:** Run `bash .claude/scripts/setup-claude-protection.sh`
+**To validate manually:** Run `python3 .claude/scripts/validate-claude-md.py`
+
 ## Style Guidelines
 
 - **Language**: Use British English for all documentation, code comments, and communication

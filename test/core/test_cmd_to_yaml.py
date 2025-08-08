@@ -107,7 +107,9 @@ class TestTableToYamlConversion:
                 # Just verify the site loaded successfully
                 assert site is not None, "Site object not created"
 
-                print("✓ 2016a successfully converted to latest YAML and validated with SUEWSConfig")
+                print(
+                    "✓ 2016a successfully converted to latest YAML and validated with SUEWSConfig"
+                )
 
             except Exception as e:
                 pytest.fail(f"Converted YAML failed validation: {str(e)}")
@@ -170,7 +172,18 @@ class TestTableToYamlConversion:
             print(f"✓ {version}: Correctly auto-detected")
 
     @pytest.mark.parametrize(
-        "version", ["2016a", "2018a", "2018b", "2018c", "2019a", "2020a", "2021a", "2024a", "2025a"]
+        "version",
+        [
+            "2016a",
+            "2018a",
+            "2018b",
+            "2018c",
+            "2019a",
+            "2020a",
+            "2021a",
+            "2024a",
+            "2025a",
+        ],
     )
     @pytest.mark.skipif(not SUPY_AVAILABLE, reason="SuPy not available")
     def test_all_versions_to_yaml_with_auto_detection(self, runner, version):

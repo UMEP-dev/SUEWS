@@ -165,8 +165,17 @@ def detect_table_version(input_dir):
         },
         "2016a": {
             "required_files": ["RunControl.nml"],
-            # 2016a is the oldest, so just basic checks
-            "fallback": True,
+            # 2016a has old parameter names and lacks ESTM/gsModel features
+            "negative_columns": {
+                "SUEWS_Conductance.txt": ["gsModel"],  # Not in 2016a
+                "SUEWS_NonVeg.txt": ["OHMThresh_SW", "ESTMCode"],  # Not in 2016a
+                "SUEWS_ESTMCoefficients.txt": ["Surf_thick1", "Wall_thick1"],  # Not in 2016a
+            },
+            # Has old RunControl parameter names
+            "check_nml": {
+                "RunControl.nml": ["AnthropHeatChoice", "QSChoice"]  # Old names in 2016a
+            },
+            "fallback": True,  # Still use as fallback if no other matches
         },
     }
 

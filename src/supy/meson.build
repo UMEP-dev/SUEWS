@@ -77,6 +77,7 @@ py.install_sources(
             'data_model/site.py',
             'data_model/state.py',
             'data_model/surface.py',
+            'data_model/timezone_enum.py',
             'data_model/type.py',
             'data_model/validation_controller.py',
             'data_model/validation_utils.py',

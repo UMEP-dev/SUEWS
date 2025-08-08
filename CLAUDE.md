@@ -2,6 +2,17 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## ⚠️ CLAUDE.md Protection Active
+
+This file is protected against accidental truncation or content loss:
+- **Automatic validation** on every Git commit (pre-commit hook installed)
+- **GitHub Actions** validates on push/PR
+- **Backup system** maintains CLAUDE.md.backup
+- **Snapshots** saved when issues detected (.claude/snapshots/)
+
+**For initial setup or re-installation:** Run `bash .claude/scripts/setup-claude-protection.sh`
+**To validate manually:** Run `python3 .claude/scripts/validate-claude-md.py`
+
 ## Style Guidelines
 
 - **Language**: Use British English for all documentation, code comments, and communication
@@ -541,6 +552,12 @@ When making code changes to SUEWS/SuPy:
   - [maintenance]: Codebase maintenance (including Claude Code development aspects AND updates to CLAUDE.md)
   - [doc]: Documentation updates (user-facing documentation in docs/, NOT CLAUDE.md)
 - **IMPORTANT**: Updates to CLAUDE.md should be categorised as [maintenance], not [doc]
+- **CRITICAL CHANGELOG.md RULES**:
+  - **DO NOT** modify or regenerate the Annual Statistics table (if present) - it causes merge conflicts
+  - **DO NOT** run `.claude/scripts/changelog_helper.py` unless explicitly requested via `/log-changes` slash command
+  - Only add new entries under the appropriate date heading
+  - Keep existing entries and structure intact
+  - Simply append new entries without restructuring
 
 ### Documentation Principles
 

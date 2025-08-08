@@ -58,10 +58,54 @@ def detect_table_version(input_dir):
 
     Returns:
         str: Detected version (e.g., '2016a', '2024a') or None if unable to detect
+    
+    Detection Logic:
+    ================
+    The detection checks versions from NEWEST to OLDEST, using both positive 
+    and negative indicators to uniquely identify each version.
+    
+    When a feature exists in multiple versions, we use negative checks 
+    (what they DON'T have) to differentiate:
+    
+    Example - H_maintain column exists in 2020a, 2021a, 2023a, 2024a, 2025a:
+    - 2025a: Has H_maintain AND has h_std, n_buildings ✓
+    - 2024a: Has H_maintain AND has SPARTACUS files ✓  
+    - 2023a: Has H_maintain but NOT BaseT_HC ✓
+    - 2021a: Has H_maintain AND has BaseT_HC ✓
+    - 2020a: Same as 2021a (truly identical structure)
+    
+    Decision Tree:
+    -------------
+    Start → Has h_std & n_buildings? → Yes → 2025a
+         ↓ No
+         Has SPARTACUS files? → Yes → 2024a
+         ↓ No
+         Has H_maintain? → Yes → Has BaseT_HC? → No → 2023a
+         ↓ No                                   → Yes → 2020a/2021a
+         Has AnthropogenicEmission.txt? → Yes → Has BaseT_HC? → Yes → 2019b
+         ↓ No                                                   → No → 2019a
+         Has AnthropogenicHeat.txt & alpha/beta? → Yes → 2018a/b/c
+         ↓ No
+         Has gsModel? → Yes → 2017a
+         ↓ No
+         Has AnthropHeatChoice? → Yes → 2016a
+         ↓ No
+         Fallback → 2016a
+    
+    Note: Some versions (2018a/b/c, 2020a/2021a) are truly identical in 
+    structure and any detection among them is acceptable.
     """
     input_path = Path(input_dir)
 
     # Key indicators for different versions based on actual conversion rules
+    # Structure of indicators:
+    # - required_files: Must exist in root directory
+    # - file_exists: Must exist in root or Input/ subdirectory  
+    # - check_columns: Columns that MUST exist in specified files
+    # - negative_columns: Columns that must NOT exist (for differentiation)
+    # - check_nml: Parameters that MUST exist in .nml files
+    # - optional_files: Files that may exist and support identification
+    # - fallback: Use this version if no other matches
     version_indicators = {
         # 2025a: Added building statistics columns
         "2025a": {
@@ -179,21 +223,24 @@ def detect_table_version(input_dir):
         },
     }
 
-    # Check versions from newest to oldest
-    # Each version has distinct characteristics
+    # Check versions from newest to oldest - ORDER IS CRITICAL!
+    # Newer versions often contain all features of older versions plus additions.
+    # By checking newest first with negative checks, we avoid false positives.
+    # Example: 2025a has H_maintain (like 2020a) but also has h_std/n_buildings.
+    # If we checked 2020a first, it would incorrectly match 2025a files.
     for version in [
-        "2025a",  # Has h_std and n_buildings columns
-        "2024a",  # Has diagmethod, localclimatemethod, faimethod in RunControl
-        "2023a",  # Has H_maintain but NOT BaseT_HC
+        "2025a",  # Has h_std and n_buildings columns (unique to 2025a)
+        "2024a",  # Has SPARTACUS files and new RunControl parameters
+        "2023a",  # Has H_maintain but NOT BaseT_HC (removed in this version)
         "2021a",  # Has both H_maintain and BaseT_HC
-        "2020a",  # Has H_maintain and IrrFr_ columns
-        "2019b",  # Has BaseT_HC in AnthropogenicEmission
-        "2019a",  # Has BaseTHDD and AnthropogenicEmission.txt
-        "2018c",  # Has FcEF_v_kgkmWE and CO2PointSource
-        "2018b",  # Like 2018a but without 2018c additions
+        "2020a",  # Has H_maintain and IrrFr_ columns (same as 2021a)
+        "2019b",  # Has BaseT_HC in AnthropogenicEmission (renamed from BaseTHDD)
+        "2019a",  # Has BaseTHDD and AnthropogenicEmission.txt file
+        "2018c",  # Same as 2018a/b (will be added FcEF columns when converting to 2019a)
+        "2018b",  # Same as 2018a (no structural differences)
         "2018a",  # Has BiogenCO2 with alpha/beta, TrafficRate_WD
-        "2017a",  # Has gsModel in Conductance
-        "2016a",  # Fallback for oldest
+        "2017a",  # Has gsModel in Conductance, ESTM features
+        "2016a",  # Oldest version with old parameter names
     ]:
         indicators = version_indicators.get(version, {})
 

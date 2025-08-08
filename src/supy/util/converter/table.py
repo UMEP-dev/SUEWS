@@ -9,25 +9,26 @@
 # TS, 21 May 2019: integrated into supy
 ########################################################
 # %%
+from collections import defaultdict
+from contextlib import nullcontext
+from fnmatch import fnmatch
+from heapq import heappop, heappush
 import os
 import os.path
+from pathlib import Path
+import re
+import shutil
+from shutil import copyfile, move, rmtree
 import sys
+from tempfile import TemporaryDirectory
 
 # ignore warnings raised by numpy when reading-in -9 lines
 import warnings
-from collections import defaultdict
-from fnmatch import fnmatch
-from heapq import heappop, heappush
-from pathlib import Path
-from shutil import copyfile, move, rmtree
-from tempfile import TemporaryDirectory
-from contextlib import nullcontext
-import shutil
 
+from chardet import detect
 import f90nml
 import numpy as np
 import pandas as pd
-from chardet import detect
 
 from ..._env import logger_supy, trv_supy_module
 from ..._load import load_SUEWS_nml_simple
@@ -44,36 +45,37 @@ list_ver_to = rules["To"].unique().tolist()
 
 def detect_table_version(input_dir):
     """Auto-detect the version of SUEWS table files.
-    
+
     Detection is based on:
     - File existence (e.g., AnthropogenicEmission vs AnthropogenicHeat)
     - Column presence/absence in specific tables
     - Parameters in RunControl.nml (for 2024a+)
     - Optional files like SPARTACUS.nml
-    
+
     Each version has unique characteristics that allow precise identification.
 
     Args:
         input_dir: Path to the directory containing SUEWS table files
 
-    Returns:
+    Returns
+    -------
         str: Detected version (e.g., '2016a', '2024a') or None if unable to detect
-    
+
     Detection Logic:
     ================
-    The detection checks versions from NEWEST to OLDEST, using both positive 
+    The detection checks versions from NEWEST to OLDEST, using both positive
     and negative indicators to uniquely identify each version.
-    
-    When a feature exists in multiple versions, we use negative checks 
+
+    When a feature exists in multiple versions, we use negative checks
     (what they DON'T have) to differentiate:
-    
+
     Example - H_maintain column exists in 2020a, 2021a, 2023a, 2024a, 2025a:
     - 2025a: Has H_maintain AND has h_std, n_buildings ✓
-    - 2024a: Has H_maintain AND has SPARTACUS files ✓  
+    - 2024a: Has H_maintain AND has SPARTACUS files ✓
     - 2023a: Has H_maintain but NOT BaseT_HC ✓
     - 2021a: Has H_maintain AND has BaseT_HC ✓
     - 2020a: Same as 2021a (truly identical structure)
-    
+
     Decision Tree:
     -------------
     Start → Has h_std & n_buildings? → Yes → 2025a
@@ -91,8 +93,8 @@ def detect_table_version(input_dir):
          Has AnthropHeatChoice? → Yes → 2016a
          ↓ No
          Fallback → 2016a
-    
-    Note: Some versions (2018a/b/c, 2020a/2021a) are truly identical in 
+
+    Note: Some versions (2018a/b/c, 2020a/2021a) are truly identical in
     structure and any detection among them is acceptable.
     """
     input_path = Path(input_dir)
@@ -100,7 +102,7 @@ def detect_table_version(input_dir):
     # Key indicators for different versions based on actual conversion rules
     # Structure of indicators:
     # - required_files: Must exist in root directory
-    # - file_exists: Must exist in root or Input/ subdirectory  
+    # - file_exists: Must exist in root or Input/ subdirectory
     # - check_columns: Columns that MUST exist in specified files
     # - negative_columns: Columns that must NOT exist (for differentiation)
     # - check_nml: Parameters that MUST exist in .nml files
@@ -260,7 +262,7 @@ def detect_table_version(input_dir):
                     break
             if not files_found:
                 continue
-        
+
         # Check for optional files (these can help identify version but aren't required)
         optional_files = indicators.get("optional_files", [])
         if optional_files:
@@ -281,7 +283,7 @@ def detect_table_version(input_dir):
             if file_path.exists():
                 try:
                     # Read the header line
-                    with open(file_path, "r") as f:
+                    with open(file_path, encoding="utf-8") as f:
                         lines = f.readlines()
                         if len(lines) > 1:
                             headers = lines[1].strip().split()
@@ -289,7 +291,7 @@ def detect_table_version(input_dir):
                                 if col not in headers:
                                     columns_match = False
                                     break
-                except:
+                except Exception:
                     columns_match = False
             else:
                 columns_match = False
@@ -310,7 +312,7 @@ def detect_table_version(input_dir):
                 file_path = input_path / "Input" / file
             if file_path.exists():
                 try:
-                    with open(file_path, "r") as f:
+                    with open(file_path, encoding="utf-8") as f:
                         lines = f.readlines()
                         if len(lines) > 1:
                             headers = lines[1].strip().split()
@@ -318,13 +320,13 @@ def detect_table_version(input_dir):
                                 if col in headers:  # Should NOT be present
                                     negative_match = False
                                     break
-                except:
+                except Exception:
                     negative_match = False
             # If file doesn't exist, that's fine for negative check
-            
+
             if not negative_match:
                 break
-        
+
         if not negative_match:
             continue
 
@@ -332,27 +334,26 @@ def detect_table_version(input_dir):
         check_nml = indicators.get("check_nml", {})
         nml_match = True
         if check_nml:
-            import f90nml
             for nml_file, params in check_nml.items():
                 nml_path = input_path / nml_file
                 if nml_path.exists():
                     try:
                         nml = f90nml.read(str(nml_path))
                         # Get the first (and usually only) section
-                        section = list(nml.values())[0] if nml else {}
+                        section = next(iter(nml.values())) if nml else {}
                         # Check if ALL required parameters exist
                         for param in params:
-                            if param.lower() not in [k.lower() for k in section.keys()]:
+                            if param.lower() not in [k.lower() for k in section]:
                                 nml_match = False
                                 break
-                    except:
+                    except Exception:
                         nml_match = False
                 else:
                     nml_match = False
-                
+
                 if not nml_match:
                     break
-        
+
         if not nml_match:
             continue
 
@@ -361,8 +362,8 @@ def detect_table_version(input_dir):
             logger_supy.warning(
                 f"Could not determine exact version, assuming {version}"
             )
-        
-        # For versions without distinct table changes (e.g., 2023a, 2024a have same 
+
+        # For versions without distinct table changes (e.g., 2023a, 2024a have same
         # structure as 2021a/2020a), we may detect an earlier version. This is fine
         # since the conversion rules are identical for these versions.
         logger_supy.info(f"Auto-detected table version: {version}")
@@ -381,8 +382,8 @@ def detect_table_version(input_dir):
 
 # rename:
 # rename file
-def rename_file(toFile, toVar, toCol, toVal):
-    # toVar, toCol are ignored
+def rename_file(toFile, _toVar, _toCol, toVal):
+    # _toVar, _toCol are ignored
     if not Path(toFile).exists():
         logger_supy.error(f"{toFile} not existing")
         sys.exit()
@@ -393,7 +394,7 @@ def rename_file(toFile, toVar, toCol, toVal):
 
 
 # rename variable
-def rename_var(toFile, toVar, toCol, toVal):
+def rename_var(toFile, toVar, _toCol, toVal):
     # if namelist:
     if toFile.endswith(".nml"):
         logger_supy.info(f"{toFile} {toVar} {toVal}")
@@ -471,7 +472,7 @@ def rename_var_nml(to_file, to_var, to_val):
 
 # delete:
 # delete variable
-def delete_var(toFile, toVar, toCol, toVal):
+def delete_var(toFile, toVar, _toCol, toVal):
     if toFile.endswith(".nml"):
         delete_var_nml(toFile, toVar, toVal)
     else:
@@ -533,7 +534,7 @@ def delete_var(toFile, toVar, toCol, toVal):
         return
 
 
-def delete_var_nml(toFile, toVar, toVal):
+def delete_var_nml(toFile, toVar, _toVal):
     nml = f90nml.read(toFile)
     toVarX = toVar.lower()
     title = next(iter(nml.keys()))
@@ -560,7 +561,8 @@ def clean_legacy_table(file_path, output_path=None):
         file_path: Path to the input file
         output_path: Optional path for cleaned output (if None, overwrites input)
 
-    Returns:
+    Returns
+    -------
         Path to the cleaned file
     """
     if output_path is None:
@@ -591,9 +593,9 @@ def clean_legacy_table(file_path, output_path=None):
     footer_removed = False
     columns_adjusted = 0
 
-    for i, line in enumerate(lines):
+    for i, raw_line in enumerate(lines):
         # Remove carriage returns and trailing whitespace
-        line = line.replace("\r", "").rstrip()
+        line = raw_line.replace("\r", "").rstrip()
 
         # IMPORTANT: Replace all tabs with spaces for consistent parsing
         if "\t" in line:
@@ -729,7 +731,7 @@ def read_suews_table(toFile):
         else:
             return pd.DataFrame(dataX.tolist(), columns=list(dataX.dtype.names))
     except Exception as e:
-        logger_supy.error(f"Failed to read {toFile}: {str(e)}")
+        logger_supy.error(f"Failed to read {toFile}: {e!s}")
         raise
 
 
@@ -902,7 +904,7 @@ def SUEWS_Converter_single(fromDir, toDir, fromVer, toVer):
         path_output.mkdir(exist_ok=True)
 
         # Move table files to Input directory
-        list_table_input = [x for x in Path(toDir).glob("SUEWS*.txt")] + [
+        list_table_input = list(Path(toDir).glob("SUEWS*.txt")) + [
             x for x in Path(toDir).glob("*.nml") if "RunControl" not in str(x)
         ]
         for fileX in list_table_input:
@@ -986,7 +988,7 @@ ground_albedo_dir_mult_fact = 1.
 &radsurf
 /
 """
-            with open(spartacus_path, "w") as f:
+            with open(spartacus_path, "w", encoding="utf-8") as f:
                 f.write(spartacus_content)
             logger_supy.info(f"Created placeholder SUEWS_SPARTACUS.nml for {toVer}")
 
@@ -1086,7 +1088,7 @@ k_surf(7,:) = 1.2, 1.1, 1.1, 1.5, 1.6
 cp_surf(7,:) = 1.9e6, 1.1e6, 1.1e6, 1.5e6, 1.6e6
 /
 """
-            with open(gridlayout_path, "w") as f:
+            with open(gridlayout_path, "w", encoding="utf-8") as f:
                 f.write(gridlayout_content)
             logger_supy.info(f"Created placeholder GridLayoutKc.nml for {toVer}")
 
@@ -1114,7 +1116,7 @@ cp_surf(7,:) = 1.9e6, 1.1e6, 1.1e6, 1.5e6, 1.6e6
         )
 
     # Combine both sets
-    filesToConvert = filesToConvert | files_without_rules
+    filesToConvert |= files_without_rules
 
     logger_supy.info(f"filesToConvert: {list(filesToConvert)}")
 
@@ -1149,10 +1151,10 @@ cp_surf(7,:) = 1.9e6, 1.1e6, 1.1e6, 1.5e6, 1.6e6
             SUEWS_Converter_file(os.path.join(toDir, fileX), actionList)
         except Exception as e:
             logger_supy.error(
-                f"Failed to convert {fileX} from {fromVer} to {toVer}: {str(e)}"
+                f"Failed to convert {fileX} from {fromVer} to {toVer}: {e!s}"
             )
             # Don't continue with a broken conversion - fail fast
-            raise RuntimeError(f"Conversion stopped at {fileX}: {str(e)}")
+            raise RuntimeError(f"Conversion stopped at {fileX}: {e!s}") from e
 
 
 def SUEWS_Converter_file(fileX, actionList):
@@ -1187,7 +1189,7 @@ def SUEWS_Converter_file(fileX, actionList):
             f"ESTM file already exists before placeholder creation: {fileX}, size={file_size} bytes"
         )
         # Read first few lines to see what's in it
-        with open(fileX, "r") as f:
+        with open(fileX, encoding="utf-8") as f:
             first_lines = f.readlines()[:3]
             logger_supy.warning(f"ESTM file first lines: {first_lines}")
 
@@ -1234,14 +1236,14 @@ def SUEWS_Converter_file(fileX, actionList):
             SUEWS_Converter_action(*action)
         except Exception as e:
             logger_supy.error(
-                f"Failed to perform action {action[0]} on {fileX}: {str(e)}"
+                f"Failed to perform action {action[0]} on {fileX}: {e!s}"
             )
             raise RuntimeError(
-                f"Conversion failed at {action[0]} for {fileX}: {str(e)}"
-            )
+                f"Conversion failed at {action[0]} for {fileX}: {e!s}"
+            ) from e
 
 
-def keep_file(toFile, var, col, val):
+def keep_file(_toFile, _var, _col, _val):
     pass
 
 
@@ -1258,13 +1260,12 @@ def SUEWS_Converter_action(action, toFile, var, col, val):
     actionFunc[action](toFile, var, col, val)
 
     logger_supy.info(f"{action} {var} for {toFile} done!")
-    return
 
 
 def dijkstra(edges, f, t):
     g = defaultdict(list)
-    for l, r, c in edges:
-        g[l].append((c, r))
+    for src, dst, weight in edges:
+        g[src].append((weight, dst))
     q, seen = [(0, f, ())], set()
 
     while q:
@@ -1350,14 +1351,10 @@ def convert_table(
         ).runcontrol
         path_input = (Path(fromDir) / ser_nml["fileinputpath"]).resolve()
         list_table_input = (
-            [
-                x for x in path_input.glob("SUEWS_*.txt")
-            ]  # Fixed: Added underscore to match SUEWS_*.txt files
-            + [x for x in path_input.glob("*.nml")]
-            + [x for x in Path(fromDir).resolve().glob("*.nml")]
-            + [
-                x for x in Path(fromDir).resolve().glob("SUEWS_*.txt")
-            ]  # Also check root for SUEWS_*.txt files
+            list(path_input.glob("SUEWS_*.txt"))  # Fixed: Added underscore to match SUEWS_*.txt files
+            + list(path_input.glob("*.nml"))
+            + list(Path(fromDir).resolve().glob("*.nml"))
+            + list(Path(fromDir).resolve().glob("SUEWS_*.txt"))  # Also check root for SUEWS_*.txt files
         )
         # copy flattened files into tempDir_1 for later processing
         # also convert all files to UTF-8 encoding in case inconsistent encoding exists
@@ -1495,7 +1492,7 @@ def convert_table(
                     logger_supy.info(
                         f"Missing profile codes: {sorted(profile_manager.missing_profiles)}"
                     )
-            except Exception as e:
+            except Exception:
                 # Try the toDir directly if input dir doesn't exist yet
                 try:
                     profile_manager = ProfileManager(Path(toDir) / "SUEWS_Profiles.txt")
@@ -1532,7 +1529,7 @@ def convert_table(
     path_input.mkdir(exist_ok=True)
     path_output.mkdir(exist_ok=True)
 
-    list_table_input = [x for x in Path(toDir).glob("SUEWS*.txt")] + [
+    list_table_input = list(Path(toDir).glob("SUEWS*.txt")) + [
         x for x in Path(toDir).glob("*.nml") if "RunControl" not in str(x)
     ]
 
@@ -1544,8 +1541,6 @@ def convert_table(
             and ser_nml.get("multipleinitfiles", 0) == 0
         ):
             # Remove grid number from filename (e.g., InitialConditionsKc1_2011.nml -> InitialConditionsKc_2011.nml)
-            import re
-
             # Pattern to match InitialConditionsXXX#_YYYY.nml where XXX is filecode, # is grid number, YYYY is year
             pattern = r"(InitialConditions[A-Za-z]+)\d+(_\d{4}\.nml)"
             new_name = re.sub(pattern, r"\1\2", fileX.name)

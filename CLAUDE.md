@@ -488,6 +488,32 @@ REAL(KIND(1D0)) :: rss_surf = 0.0D0 ! surface resistance [s m-1]
 
 ## Documentation & Code Maintenance Principles
 
+
+### Documentation Updates for Code Changes
+
+When making code changes to SUEWS/SuPy:
+- **Always update relevant documentation** in `docs/` directory when functionality changes
+- Update Sphinx documentation for user-facing changes
+- **Documentation generation scripts** (run ONLY when specific changes occur):
+  - Run `python docs/generate_datamodel_rst.py` - ONLY when Pydantic data model structure changes (adding/removing fields, changing types)
+  - Run `python docs/gen_schema.py` - ONLY when configuration schema needs regeneration for the web UI
+  - These scripts are NOT run for routine CHANGELOG updates or validator migrations
+- Ensure examples and tutorials reflect current API
+- Update parameter tables and input file documentation as needed
+- **Update CHANGELOG.md promptly** for remarkable changes using categories:
+  - [feature]: New features
+  - [bugfix]: Bug fixes (also create GitHub issue)
+  - [change]: User-facing changes
+  - [maintenance]: Codebase maintenance (including Claude Code development aspects AND updates to CLAUDE.md)
+  - [doc]: Documentation updates (user-facing documentation in docs/, NOT CLAUDE.md)
+- **IMPORTANT**: Updates to CLAUDE.md should be categorised as [maintenance], not [doc]
+- **CRITICAL CHANGELOG.md RULES**:
+  - **DO NOT** modify or regenerate the Annual Statistics table (if present) - it causes merge conflicts
+  - **DO NOT** run `.claude/scripts/changelog_helper.py` unless explicitly requested via `/log-changes` slash command
+  - Only add new entries under the appropriate date heading
+  - Keep existing entries and structure intact
+  - Simply append new entries without restructuring
+
 ### Documentation Principles
 
 1. **Single Source of Truth (DRY)**

@@ -16,12 +16,12 @@ CONTAINS
    
    FUNCTION rsl_stab_psi_mom(StabilityMethod, zL) RESULT(psi)
       USE AtmMoistStab_module, ONLY: k, W16, K75, B71, J12
-      USE PhysConstants, ONLY: pi
       IMPLICIT NONE
       INTEGER, INTENT(in) :: StabilityMethod
       REAL(KIND(1D0)), INTENT(in) :: zL
       REAL(KIND(1D0)) :: psi
       REAL(KIND(1D0)) :: x
+      REAL(KIND(1D0)), PARAMETER :: pi = 4.*ATAN(1.0)
       
       ! Use RSL-specific neutral limit of 0.0
       IF (ABS(zL) <= neut_limit_rsl) THEN

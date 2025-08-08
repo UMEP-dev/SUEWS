@@ -707,13 +707,18 @@ Modes:
                 # Phase A failed in AB workflow - rename output files to match selected phase (AB)
                 try:
                     import shutil
+
                     if os.path.exists(report_file):
-                        shutil.move(report_file, science_report_file)  # reportA → reportAB
+                        shutil.move(
+                            report_file, science_report_file
+                        )  # reportA → reportAB
                     if os.path.exists(uptodate_file):
-                        shutil.move(uptodate_file, science_yaml_file)  # updatedA → updatedAB
+                        shutil.move(
+                            uptodate_file, science_yaml_file
+                        )  # updatedA → updatedAB
                 except Exception:
                     pass  # Don't fail if rename doesn't work
-                
+
                 print()
                 print(f" Phase A failed - AB workflow halted")
                 print(f" AB report: {os.path.basename(science_report_file)}")
@@ -762,13 +767,18 @@ Modes:
                 # Phase A failed in AC workflow - rename output files to match selected phase (AC)
                 try:
                     import shutil
+
                     if os.path.exists(report_file):
-                        shutil.move(report_file, pydantic_report_file)  # reportA → reportAC
+                        shutil.move(
+                            report_file, pydantic_report_file
+                        )  # reportA → reportAC
                     if os.path.exists(uptodate_file):
-                        shutil.move(uptodate_file, pydantic_yaml_file)  # updatedA → updatedAC
+                        shutil.move(
+                            uptodate_file, pydantic_yaml_file
+                        )  # updatedA → updatedAC
                 except Exception:
                     pass  # Don't fail if rename doesn't work
-                
+
                 print()
                 print(f" Phase A failed - AC workflow halted")
                 print(f" AC report: {os.path.basename(pydantic_report_file)}")
@@ -821,13 +831,18 @@ Modes:
                 # Phase B failed in BC workflow - rename output files to match selected phase (BC)
                 try:
                     import shutil
+
                     if os.path.exists(science_report_file):
-                        shutil.move(science_report_file, pydantic_report_file)  # reportB → reportBC
+                        shutil.move(
+                            science_report_file, pydantic_report_file
+                        )  # reportB → reportBC
                     if os.path.exists(science_yaml_file):
-                        shutil.move(science_yaml_file, pydantic_yaml_file)  # updatedB → updatedBC
+                        shutil.move(
+                            science_yaml_file, pydantic_yaml_file
+                        )  # updatedB → updatedBC
                 except Exception:
                     pass  # Don't fail if rename doesn't work
-                
+
                 print()
                 print(f" Phase B failed - BC workflow halted")
                 print(f" BC report: {os.path.basename(pydantic_report_file)}")
@@ -874,13 +889,18 @@ Modes:
                 # Phase A failed in ABC workflow - rename output files to match selected phase (ABC)
                 try:
                     import shutil
+
                     if os.path.exists(report_file):
-                        shutil.move(report_file, pydantic_report_file)  # reportA → reportABC
+                        shutil.move(
+                            report_file, pydantic_report_file
+                        )  # reportA → reportABC
                     if os.path.exists(uptodate_file):
-                        shutil.move(uptodate_file, pydantic_yaml_file)  # updatedA → updatedABC
+                        shutil.move(
+                            uptodate_file, pydantic_yaml_file
+                        )  # updatedA → updatedABC
                 except Exception:
                     pass  # Don't fail if rename doesn't work
-                
+
                 print()
                 print(f" Phase A failed - ABC workflow halted")
                 print(f" ABC report: {os.path.basename(pydantic_report_file)}")
@@ -904,11 +924,16 @@ Modes:
                 # Phase B failed in ABC workflow - rename to ABC and clean up intermediate A files
                 try:
                     import shutil
+
                     # Rename B outputs to ABC (to match selected phase)
                     if os.path.exists(science_report_file):
-                        shutil.move(science_report_file, pydantic_report_file)  # reportB → reportABC
+                        shutil.move(
+                            science_report_file, pydantic_report_file
+                        )  # reportB → reportABC
                     if os.path.exists(science_yaml_file):
-                        shutil.move(science_yaml_file, pydantic_yaml_file)  # updatedB → updatedABC
+                        shutil.move(
+                            science_yaml_file, pydantic_yaml_file
+                        )  # updatedB → updatedABC
                     # Clean up intermediate Phase A files
                     if os.path.exists(report_file):
                         os.remove(report_file)  # Remove Phase A report
@@ -950,7 +975,9 @@ Modes:
             # Always provide ABC outputs (success or failure)
             if phase_c_success:
                 print()
-                print(f" Ready for SUEWS simulation: {os.path.basename(pydantic_yaml_file)}")
+                print(
+                    f" Ready for SUEWS simulation: {os.path.basename(pydantic_yaml_file)}"
+                )
                 print(f" ABC report: {os.path.basename(pydantic_report_file)}")
                 print(f" File locations: {dirname}")
             else:

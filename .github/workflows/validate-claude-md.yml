@@ -8,48 +8,45 @@ on:
   push:
     branches:
       - master
-      - main
-      - 'feature/**'
-      - 'fix/**'
     paths:
       - 'CLAUDE.md'
 
 jobs:
   validate:
     runs-on: ubuntu-latest
-    
+
     steps:
     - uses: actions/checkout@v4
       with:
         fetch-depth: 2  # Need previous commit for comparison
-    
+
     - name: Set up Python
       uses: actions/setup-python@v5
       with:
         python-version: '3.x'
-    
+
     - name: Check CLAUDE.md integrity
       run: |
         echo "🔍 Validating CLAUDE.md integrity..."
         python .claude/scripts/validate-claude-md.py
-        
+
     - name: Check for content reduction
       run: |
         echo "📊 Checking for content reduction..."
-        
+
         # Get line counts
         CURRENT_LINES=$(wc -l < CLAUDE.md)
         git show HEAD~1:CLAUDE.md > CLAUDE.md.previous 2>/dev/null || echo "First commit" > CLAUDE.md.previous
         PREVIOUS_LINES=$(wc -l < CLAUDE.md.previous)
-        
+
         echo "Previous version: $PREVIOUS_LINES lines"
         echo "Current version: $CURRENT_LINES lines"
-        
+
         # Calculate reduction percentage
         if [ "$PREVIOUS_LINES" -gt 0 ]; then
           REDUCTION=$((PREVIOUS_LINES - CURRENT_LINES))
           PERCENT=$((REDUCTION * 100 / PREVIOUS_LINES))
-          
+
           if [ "$PERCENT" -gt 20 ]; then
             echo "⚠️ WARNING: CLAUDE.md reduced by $PERCENT% ($REDUCTION lines)"
             echo "This might indicate content loss!"
@@ -58,9 +55,9 @@ jobs:
             echo "⚠️ Notice: CLAUDE.md reduced by $PERCENT% ($REDUCTION lines)"
           fi
         fi
-        
+
         echo "✅ Content size check passed"
-        
+
     - name: Create snapshot on failure
       if: failure()
       uses: actions/upload-artifact@v4

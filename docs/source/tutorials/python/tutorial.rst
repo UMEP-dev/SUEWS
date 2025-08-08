@@ -79,7 +79,7 @@ SUEWS uses YAML configuration files for type-safe, hierarchical parameter manage
      `GitHub Issues <https://github.com/UMEP-dev/SUEWS/issues>`__.
 
 - **Sample configurations**: Available in `tutorials directory <./>`__
-- **Migration tool**: Convert legacy inputs with ``suews-convert to-yaml``
+- **Migration tool**: Convert legacy inputs with ``suews-convert -f 2024a -t 2025a``
 
 **Data Integration:**
 - **Built-in sample data**: ``sp.load_sample_data()`` for immediate use

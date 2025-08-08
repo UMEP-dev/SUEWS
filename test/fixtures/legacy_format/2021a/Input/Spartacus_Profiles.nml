@@ -1,0 +1,19 @@
+&Spartacus_Profiles
+height(1,:) = 0.,  22.
+building_frac(1,:) = 0.38
+veg_frac(1,:) = 0.02
+building_scale(1,:) = 50.
+veg_scale(1,:) = 10.
+veg_ext(1,:) = 0.25
+veg_fsd(1,:) = 0.5
+veg_contact_fraction(1,:) = 0.
+roof_albedo(1,:) = 0.167
+wall_albedo(1,:) = 0.167
+roof_albedo_dir_mult_fact(1,:) = 1.
+wall_specular_frac(1,:) = 0.
+roof_emissivity(1,:,1) = 0.91
+wall_emissivity(1,:,1) = 0.91
+/
+
+
+

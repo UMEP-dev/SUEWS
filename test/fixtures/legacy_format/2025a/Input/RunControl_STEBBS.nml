@@ -1,0 +1,8 @@
+&settings
+nbtype     = 1      ! number of building type
+resolution = 1      ! STEBBS time resolution
+/
+
+&io
+cases = 'TE_LDN'    ! case of building type, the array size should be consistent to nbtype
+/

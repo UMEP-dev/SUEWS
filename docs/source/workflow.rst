@@ -529,8 +529,8 @@ Migration Process
 
 .. code-block:: bash
 
-   # Convert legacy table inputs to modern YAML
-   suews-convert to-yaml -i legacy_input_dir/ -o modern_config.yml
+   # Convert legacy table inputs to modern YAML (2025a+)
+   suews-convert -f 2024a -t 2025a -i legacy_input_dir/ -o modern_config.yml
    
    # Validate converted configuration
    supy-validate modern_config.yml

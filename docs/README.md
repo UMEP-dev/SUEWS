@@ -31,6 +31,7 @@ This directory contains the complete documentation build system for SUEWS (Surfa
   - Meteorological data format (`met_input.rst`)
   - Control files (`RunControl/`, `Initial_Conditions/`)
   - Physics modules (`ESTM_input/`, `CBL_input/`, `SOLWEIG_input/`, `SS_input/`)
+  - Input converter documentation (`input_converter.rst`)
   - File converter utilities (`SUEWS_TableConverter.py`)
 
 - **`output_files/`**: Output file format specifications

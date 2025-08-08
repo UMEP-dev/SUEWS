@@ -21,7 +21,7 @@
 
 | Year | Features | Bugfixes | Changes | Maintenance | Docs | Total |
 |------|----------|----------|---------|-------------|------|-------|
-| 2025 | 27 | 13 | 3 | 29 | 12 | 84 |
+| 2025 | 27 | 13 | 3 | 29 | 13 | 85 |
 | 2024 | 12 | 17 | 1 | 12 | 1 | 43 |
 | 2023 | 11 | 14 | 3 | 9 | 1 | 38 |
 | 2022 | 15 | 18 | 0 | 7 | 0 | 40 |
@@ -75,6 +75,11 @@
   - Aligned default value with Fortran code (FAIMethod.USE_PROVIDED = 0)
 
 ### 25 Jul 2025
+- [doc] Added comprehensive documentation for runoff generation mechanisms ([#212](https://github.com/UMEP-dev/SUEWS/issues/212))
+  - Explained infiltration capacity exceedance (Hortonian runoff)
+  - Documented saturation excess runoff for different surface types
+  - Clarified timestep considerations for runoff calculations
+  - Added mathematical formulations and water routing details
 - [bugfix] Fixed unnecessary interpolation when tstep equals resolutionfilesin ([#161](https://github.com/UMEP-dev/SUEWS/issues/161))
   - Added conditional check to skip interpolation when model timestep matches input data resolution
   - Prevents incorrect interpolation of averaged variables like kdown

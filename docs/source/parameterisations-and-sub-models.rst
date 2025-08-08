@@ -133,6 +133,59 @@ The running water balance at each time step is based on the urban water balance 
    -  to deep soil
    -  to pipes.
 
+Runoff Generation
+^^^^^^^^^^^^^^^^^
+
+SUEWS generates surface runoff through two primary mechanisms, both calculated at each model timestep:
+
+1. **Infiltration Capacity Exceedance (Hortonian Runoff)**
+   
+   When the precipitation rate exceeds the infiltration threshold (default: 10 mm hr⁻¹), the excess precipitation becomes runoff:
+   
+   .. math::
+      
+      \text{Runoff}_{\text{Hortonian}} = P - \text{IPThreshold}
+   
+   where:
+   
+   - :math:`P` is the precipitation rate at the current timestep
+   - :math:`\text{IPThreshold}` is the infiltration threshold (adjusted for timestep duration)
+   
+   This mechanism applies to all surface types (impervious and pervious).
+
+2. **Saturation Excess Runoff**
+   
+   Runoff is generated when surface or soil storage capacities are exceeded:
+   
+   - **Impervious surfaces** (paved, buildings): When surface water storage exceeds the maximum storage capacity
+   - **Pervious surfaces** (vegetation, bare soil): When soil moisture storage exceeds the soil storage capacity
+   - **Water bodies**: When water level exceeds the defined state limit
+   
+   For pervious surfaces, the saturation excess is calculated as:
+   
+   .. math::
+      
+      \text{Runoff}_{\text{saturation}} = \max(0, \text{SoilStore} - \text{SoilStoreCap})
+
+**Timestep Considerations**
+
+All runoff calculations are performed at the model timestep (typically 5 minutes to 1 hour). The infiltration threshold is automatically adjusted based on the timestep duration to maintain consistency:
+
+.. math::
+   
+   \text{IPThreshold}_{\text{timestep}} = \frac{\text{IPThreshold}_{\text{hourly}}}{\text{timesteps per hour}}
+
+**Water Routing**
+
+After generation, runoff is routed according to the water distribution matrix (``WaterDist``), which specifies:
+
+- Fractions going directly to runoff pipes
+- Fractions redistributed between surfaces
+- Fractions directed to soil storage (for pervious surfaces)
+- Overflow routing to water bodies via the ``RunoffToWater`` parameter
+
+The total runoff from a grid cell includes contributions from all surface types, subject to pipe capacity limitations.
+
 Snowmelt
 --------
 

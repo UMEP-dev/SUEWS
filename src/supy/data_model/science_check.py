@@ -307,8 +307,8 @@ def validate_physics_parameters(yaml_data: dict) -> List[ValidationResult]:
                     status="ERROR",
                     category="PHYSICS",
                     parameter=f"model.physics.{param}",
-                    message="Physics parameter has empty or null value",
-                    suggested_value="Set appropriate non-null value",
+                    message=f"Physics parameter '{param}' has null value. This parameter controls critical model behavior and must be set for proper simulation.",
+                    suggested_value=f"Set '{param}' to an appropriate non-null value. Check documentation for parameter details: https://suews.readthedocs.io/en/latest",
                 )
             )
 
@@ -505,16 +505,18 @@ def validate_land_cover_consistency(yaml_data: dict) -> List[ValidationResult]:
                 collect_param_names(surf_props)
 
                 if param_list:
-                    message = f"As '{surf_type}' (sfr == 0) for site {site_idx}, parameters under sites.properties.land_cover.{surf_type} are not checked for this surface type."
+                    message = f"Parameters under sites.properties.land_cover.{surf_type} are not checked because '{surf_type}' surface fraction is 0."
+                    param_names = ", ".join(param_list)
+                    suggested_fix = f"Either set {surf_type} surface fraction > 0 to activate validation, or remove unused parameters: {param_names}"
 
                     results.append(
                         ValidationResult(
                             status="WARNING",
                             category="LAND_COVER",
-                            parameter=f"unused_params_{surf_type}",
+                            parameter=f"land_cover.{surf_type}",
                             site_index=site_idx,
                             message=message,
-                            suggested_value=None,
+                            suggested_value=suggested_fix,
                         )
                     )
 
@@ -672,8 +674,8 @@ def validate_geographic_parameters(yaml_data: dict) -> List[ValidationResult]:
                     category="GEOGRAPHY",
                     parameter="timezone",
                     site_index=site_idx,
-                    message="Timezone is not set - will be calculated from coordinates",
-                    suggested_value="Will be automatically calculated in scientific adjustments",
+                    message="Timezone parameter is missing - will be calculated automatically from latitude and longitude",
+                    suggested_value="Timezone will be set based on your coordinates. You can also manually set the timezone value if you prefer a specific UTC offset",
                 )
             )
 
@@ -690,8 +692,8 @@ def validate_geographic_parameters(yaml_data: dict) -> List[ValidationResult]:
                         category="GEOGRAPHY",
                         parameter="dls_parameters",
                         site_index=site_idx,
-                        message="Daylight saving parameters not set - will be calculated from coordinates",
-                        suggested_value="Will be automatically calculated in scientific adjustments",
+                        message="Daylight saving parameters (dls_to, dls_from) are missing - will be calculated automatically from geographic coordinates",
+                        suggested_value="Parameters will be set based on your location. You can also manually set dls_to and dls_from if you prefer specific values",
                     )
                 )
 
@@ -914,11 +916,22 @@ def adjust_surface_temperatures(
 
             # Record adjustments made
             if temperature_updated or tsfc_updated or tin_updated:
+                # Build list of updated parameters
+                updated_params = []
+                if temperature_updated:
+                    updated_params.append("temperature")
+                if tsfc_updated:
+                    updated_params.append("tsfc")
+                if tin_updated:
+                    updated_params.append("tin")
+                
+                param_list = ", ".join(updated_params)
+                
                 adjustments.append(
                     ScientificAdjustment(
-                        parameter=f"{surface_type}_surface_temperatures",
+                        parameter=f"initial_states.{surface_type}",
                         site_index=site_idx,
-                        old_value=f"various temperatures",
+                        old_value=param_list,
                         new_value=f"{avg_temp}°C",
                         reason=f"Set from CRU data for coordinates ({lat:.2f}, {lng:.2f}) for month {month}",
                     )
@@ -1068,13 +1081,16 @@ def adjust_model_dependent_nullification(
                 _recursive_nullify(stebbs_block)
 
                 if nullified_params:
+                    # Show clear message with complete parameter list
+                    param_list = ", ".join(nullified_params)
+                    
                     adjustments.append(
                         ScientificAdjustment(
-                            parameter="stebbs_parameters",
+                            parameter="stebbs",
                             site_index=site_idx,
-                            old_value="various values",
+                            old_value=f"stebbsmethod is switched off, nullified {len(nullified_params)} related parameters - {param_list}",
                             new_value="null",
-                            reason=f"stebbsmethod=0, nullified {len(nullified_params)} parameters: {', '.join(nullified_params[:3])}{'...' if len(nullified_params) > 3 else ''}",
+                            reason=f"stebbsmethod switched off, nullified {len(nullified_params)} related parameters",
                         )
                     )
 
@@ -1449,8 +1465,29 @@ def create_science_report(
 
     # Updated values (automatic adjustments applied)
     if adjustments:
+        # Count actual parameters changed, not just adjustment objects
+        total_params_changed = 0
+        for adjustment in adjustments:
+            if "temperature, tsfc, tin" in adjustment.old_value:
+                # Temperature adjustments: 3 parameters per surface
+                total_params_changed += 3
+            elif adjustment.parameter == "stebbs" and "nullified" in adjustment.reason:
+                # Extract number of nullified stebbs parameters from reason
+                import re
+                match = re.search(r'nullified (\d+) parameters', adjustment.reason)
+                if match:
+                    total_params_changed += int(match.group(1))
+                else:
+                    total_params_changed += 1
+            elif adjustment.parameter == "dls_parameters" and "start=" in adjustment.old_value:
+                # DLS parameters: start and end = 2 parameters
+                total_params_changed += 2
+            else:
+                # Default: assume 1 parameter per adjustment
+                total_params_changed += 1
+        
         report_lines.append(
-            f"- Updated ({len(adjustments)}) parameter(s) with automatic scientific adjustments:"
+            f"- Updated ({total_params_changed}) parameter(s):"
         )
         for adjustment in adjustments:
             site_ref = (
@@ -1494,7 +1531,7 @@ def create_science_report(
     # Phase B warnings
     if warnings:
         report_lines.append(
-            f"- Found ({len(warnings)}) scientific warning(s) for information:"
+            f"- Revise ({len(warnings)}) warnings:"
         )
         for warning in warnings:
             site_ref = (

@@ -182,16 +182,8 @@ def detect_pydantic_defaults(
                             "field_name": key,
                             "parameter_type": "physics",
                         })
-                    else:
-                        # Only report null values if the parameter exists in standard config
-                        if parameter_exists_in_standard(current_path, standard_data):
-                            normal_defaults.append({
-                                "field_path": current_path,
-                                "original_value": original_ref_value,
-                                "default_value": "null (accepted by Pydantic)",
-                                "field_name": key,
-                                "status": "found null",  # This was explicitly set to null
-                            })
+                    # Remove the else clause that reports "null (accepted by Pydantic)"
+                    # If Pydantic accepts null, there's nothing to report to the user
             # Handle plain values (from model_dump() which extracts values from RefValue wrappers)
             elif (
                 not isinstance(processed_value, (dict, list))

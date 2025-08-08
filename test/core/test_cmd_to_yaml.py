@@ -166,23 +166,27 @@ class TestTableToYamlConversion:
         
         assert detected_version is not None, f"Failed to detect version for {version}"
         
-        # Some versions have identical table structures - any detection is fine
-        # since they use the same conversion rules
-        acceptable_detections = {
-            "2020a": ["2020a", "2021a"],  # Same structure, same conversion
-            "2021a": ["2020a", "2021a"],  # Same structure, same conversion
-            "2023a": ["2020a", "2021a", "2023a"],  # Same structure, same conversion
-            "2024a": ["2020a", "2021a", "2023a", "2024a"],  # Same structure, same conversion
-            "2018b": ["2018a", "2018b"],  # Same structure, same conversion
-            "2018c": ["2018a", "2018b", "2018c"],  # Very similar structure, same conversion
+        # Some versions are truly identical in table structure
+        # According to rules.csv analysis:
+        # - 2018a, 2018b, 2018c: All identical (Keep actions only)
+        # - 2020a, 2021a: Both have BaseT_HC and H_maintain (Keep action for 2020a->2021a)
+        truly_identical = {
+            "2018a": ["2018a", "2018b", "2018c"],  # No structural differences
+            "2018b": ["2018a", "2018b", "2018c"],  # No structural differences
+            "2018c": ["2018a", "2018b", "2018c"],  # No structural differences
+            "2020a": ["2020a", "2021a"],  # Both have BaseT_HC
+            "2021a": ["2020a", "2021a"],  # Both have BaseT_HC
         }
         
-        if version in acceptable_detections:
-            assert detected_version in acceptable_detections[version], (
+        if version in truly_identical:
+            assert detected_version in truly_identical[version], (
                 f"Version mismatch for {version}: got {detected_version}, "
-                f"acceptable: {acceptable_detections[version]}"
+                f"acceptable: {truly_identical[version]}"
             )
-            print(f"✓ {version}: Detected as {detected_version} (acceptable)")
+            if detected_version != version:
+                print(f"✓ {version}: Detected as {detected_version} (truly identical structure)")
+            else:
+                print(f"✓ {version}: Correctly auto-detected")
         else:
             assert detected_version == version, (
                 f"Version mismatch: expected {version}, got {detected_version}"

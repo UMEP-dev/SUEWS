@@ -45,13 +45,13 @@ list_ver_to = rules["To"].unique().tolist()
 def detect_table_version(input_dir):
     """Auto-detect the version of SUEWS table files.
     
-    Note: Some versions have identical table structures and will be detected
-    as the earliest matching version:
-    - 2018b, 2018c → may detect as 2018a (same conversion rules)
-    - 2021a, 2023a, 2024a → may detect as 2020a (same conversion rules)
+    Detection is based on:
+    - File existence (e.g., AnthropogenicEmission vs AnthropogenicHeat)
+    - Column presence/absence in specific tables
+    - Parameters in RunControl.nml (for 2024a+)
+    - Optional files like SPARTACUS.nml
     
-    This is acceptable since versions with identical structures use the same
-    conversion rules.
+    Each version has unique characteristics that allow precise identification.
 
     Args:
         input_dir: Path to the directory containing SUEWS table files
@@ -61,38 +61,51 @@ def detect_table_version(input_dir):
     """
     input_path = Path(input_dir)
 
-    # Key indicators for different versions
+    # Key indicators for different versions based on actual conversion rules
     version_indicators = {
-        # Check for renamed files between versions
+        # 2025a: Added building statistics columns
         "2025a": {
             "required_files": ["RunControl.nml"],
             "check_columns": {
                 "SUEWS_SiteSelect.txt": ["h_std", "n_buildings"]  # Added in 2025a
             },
         },
-        # Note: 2024a, 2023a have identical table structure to 2021a/2020a
-        # Detection will return 2020a or 2021a, but conversion is identical
+        # 2024a: Added diagnostic and climate methods to RunControl
         "2024a": {
             "required_files": ["RunControl.nml"],
-            # Same table structure as 2020a-2023a
+            # Check for new parameters added in 2024a
+            "check_nml": {
+                "RunControl.nml": ["diagmethod", "localclimatemethod", "faimethod"]
+            },
+            # Optional SPARTACUS files that may exist
+            "optional_files": ["SUEWS_SPARTACUS.nml", "GridLayoutKc.nml"],
         },
+        # 2023a: Removed DiagQS/DiagQN from RunControl, removed BaseT_HC from AnthropogenicEmission
         "2023a": {
             "required_files": ["RunControl.nml"],
-            # Same table structure as 2020a-2021a
+            # 2023a has H_maintain but NOT BaseT_HC (which was deleted in 2021a->2023a)
+            "check_columns": {
+                "SUEWS_Irrigation.txt": ["H_maintain"],
+            },
+            "negative_columns": {
+                "SUEWS_AnthropogenicEmission.txt": ["BaseT_HC"]  # Removed in 2023a
+            },
         },
+        # 2021a: No changes from 2020a (Keep action only)
         "2021a": {
             "required_files": ["RunControl.nml"],
-            # 2021a is similar to 2020a, check for H_maintain which exists in 2020a+
-            # This will be a fallback after checking 2020a
+            # Has both H_maintain and BaseT_HC
             "check_columns": {
-                "SUEWS_Irrigation.txt": ["H_maintain"],  # Same as 2020a
+                "SUEWS_Irrigation.txt": ["H_maintain"],
+                "SUEWS_AnthropogenicEmission.txt": ["BaseT_HC"],  # Still present in 2021a
             },
-            "optional_files": ["Spartacus.nml", "Spartacus_Profiles.nml"],
         },
+        # 2020a: Added H_maintain and irrigation fractions
         "2020a": {
-            "required_files": ["RunControl.nml", "SUEWS_Irrigation.txt"],
+            "required_files": ["RunControl.nml"],
             "check_columns": {
-                "SUEWS_Irrigation.txt": ["H_maintain"]  # Added in 2020a
+                "SUEWS_Irrigation.txt": ["H_maintain"],  # Added in 2020a
+                "SUEWS_SiteSelect.txt": ["IrrFr_Paved", "IrrFr_Bldgs"],  # Added in 2020a
             },
         },
         "2019b": {
@@ -111,25 +124,35 @@ def detect_table_version(input_dir):
                 "SUEWS_AnthropogenicEmission.txt": ["BaseTHDD"]  # Original name before 2019b
             },
         },
+        # 2018c: Added FcEF_v columns and CO2PointSource (converted to 2019a)
         "2018c": {
-            "required_files": ["RunControl.nml", "SUEWS_AnthropogenicHeat.txt"],
-            "file_exists": ["SUEWS_AnthropogenicHeat.txt"],  # Old name before 2019a
-            "check_columns": {
-                "SUEWS_AnthropogenicHeat.txt": ["FcEF_v_kgkmWE", "FcEF_v_kgkmWD"]  # Added in 2018c
-            },
-        },
-        "2018b": {
-            "required_files": ["RunControl.nml", "SUEWS_AnthropogenicHeat.txt"],
-            "file_exists": ["SUEWS_AnthropogenicHeat.txt"],  # Old name before 2019a
-            # 2018b is same as 2018a in structure
-        },
-        "2018a": {
             "required_files": ["RunControl.nml"],
             "file_exists": ["SUEWS_AnthropogenicHeat.txt"],  # Old name before 2019a
-            # Check for columns that were added in 2018a
+            "check_columns": {
+                # These columns were added when converting 2018c->2019a
+                "SUEWS_AnthropogenicHeat.txt": ["FcEF_v_kgkmWE", "FcEF_v_kgkmWD", "CO2PointSource"]
+            },
+        },
+        # 2018b: No changes from 2018a (Keep action only)
+        "2018b": {
+            "required_files": ["RunControl.nml"],
+            "file_exists": ["SUEWS_AnthropogenicHeat.txt"],
+            # Same structure as 2018a - differentiate by NOT having 2018c columns
+            "negative_columns": {
+                "SUEWS_AnthropogenicHeat.txt": ["FcEF_v_kgkmWE", "CO2PointSource"]  # Not in 2018b
+            },
+            "check_columns": {
+                "SUEWS_BiogenCO2.txt": ["alpha", "beta", "theta"],  # Has 2018a features
+            },
+        },
+        # 2018a: Major restructuring from 2017a
+        "2018a": {
+            "required_files": ["RunControl.nml"],
+            "file_exists": ["SUEWS_AnthropogenicHeat.txt"],
             "check_columns": {
                 "SUEWS_BiogenCO2.txt": ["alpha", "beta", "theta"],  # Added in 2018a
                 "SUEWS_SiteSelect.txt": ["TrafficRate_WD", "TrafficRate_WE"],  # Added in 2018a
+                "SUEWS_AnthropogenicHeat.txt": ["AHMin_WD", "AHMin_WE"],  # Added in 2018a
             },
         },
         "2017a": {
@@ -148,16 +171,17 @@ def detect_table_version(input_dir):
     }
 
     # Check versions from newest to oldest
-    # Only check versions with distinct table changes
+    # Each version has distinct characteristics
     for version in [
         "2025a",  # Has h_std and n_buildings columns
-        # Skip 2024a, 2023a - no distinct table changes
-        "2021a",  # May have Spartacus files
-        "2020a",  # Has H_maintain in Irrigation
+        "2024a",  # Has diagmethod, localclimatemethod, faimethod in RunControl
+        "2023a",  # Has H_maintain but NOT BaseT_HC
+        "2021a",  # Has both H_maintain and BaseT_HC
+        "2020a",  # Has H_maintain and IrrFr_ columns
         "2019b",  # Has BaseT_HC in AnthropogenicEmission
-        "2019a",  # Has AnthropogenicEmission.txt (renamed file)
-        "2018c",  # Has FcEF_v_kgkmWE columns
-        "2018b",  # Same as 2018a structure
+        "2019a",  # Has BaseTHDD and AnthropogenicEmission.txt
+        "2018c",  # Has FcEF_v_kgkmWE and CO2PointSource
+        "2018b",  # Like 2018a but without 2018c additions
         "2018a",  # Has BiogenCO2 with alpha/beta, TrafficRate_WD
         "2017a",  # Has gsModel in Conductance
         "2016a",  # Fallback for oldest
@@ -220,15 +244,61 @@ def detect_table_version(input_dir):
         if not columns_match:
             continue
 
-        # Note: We've removed nml parameter checking since RunControl.nml 
-        # can have optional fields that vary between installations.
-        # Version detection now relies on table file structure changes only.
-        # Keep the code commented for reference:
-        #
-        # check_nml = indicators.get("check_nml", {})
-        # nml_match = True
-        # negative_check = indicators.get("negative_check", False)
-        # ... (nml checking logic) ...
+        # Check for columns that should NOT exist (negative check)
+        negative_columns = indicators.get("negative_columns", {})
+        negative_match = True
+        for file, columns in negative_columns.items():
+            # Check both root and Input/ subdirectory
+            file_path = input_path / file
+            if not file_path.exists():
+                file_path = input_path / "Input" / file
+            if file_path.exists():
+                try:
+                    with open(file_path, "r") as f:
+                        lines = f.readlines()
+                        if len(lines) > 1:
+                            headers = lines[1].strip().split()
+                            for col in columns:
+                                if col in headers:  # Should NOT be present
+                                    negative_match = False
+                                    break
+                except:
+                    negative_match = False
+            # If file doesn't exist, that's fine for negative check
+            
+            if not negative_match:
+                break
+        
+        if not negative_match:
+            continue
+
+        # Check nml parameters for versions that need it (e.g., 2024a)
+        check_nml = indicators.get("check_nml", {})
+        nml_match = True
+        if check_nml:
+            import f90nml
+            for nml_file, params in check_nml.items():
+                nml_path = input_path / nml_file
+                if nml_path.exists():
+                    try:
+                        nml = f90nml.read(str(nml_path))
+                        # Get the first (and usually only) section
+                        section = list(nml.values())[0] if nml else {}
+                        # Check if ALL required parameters exist
+                        for param in params:
+                            if param.lower() not in [k.lower() for k in section.keys()]:
+                                nml_match = False
+                                break
+                    except:
+                        nml_match = False
+                else:
+                    nml_match = False
+                
+                if not nml_match:
+                    break
+        
+        if not nml_match:
+            continue
 
         # If this is a fallback version, only use if nothing else matched
         if indicators.get("fallback", False):

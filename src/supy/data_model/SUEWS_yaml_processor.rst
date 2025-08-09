@@ -1,75 +1,43 @@
-Model inputs check
-===================
+SUEWS YAML Processor
+====================
 
 Purpose
 -------
 
 To ensure required model inputs are: 
 
-1. all present and physically sensible within appropriate ranges
-2. consistent with other data submitted [Link: to section with order/logic checked] - e.g. assume date/latitude and longitude are correct - to determine initial state based on season etc
-3. part of SUEWS_V2025
+1. All present and physically sensible within appropriate ranges
+2. Consistent with other data submitted [Link: to section with order/logic checked] - e.g. assume date/latitude and longitude are correct - to determine initial state based on season etc
+3. Part of SUEWS_V2025
 
 
 SUEWS v2025 Features
 ~~~~~~~~~~~~~~~~~~~~
 
-1. New input format uses YAML [link: to generic description website]. This has the advantage of being easier for the user to see input selected and to navigate between sections of inputs in a more logical manner [Link: manual overview of new format] and can be easily translated to JSON [link: to generic description website] which allows XXX.
-2. There are some additional inputs: [link LIST new requirements]
-3. Many model improvements [link list]
-4. Many BUG corrections [link: list]
+1. **New input format: YAML**  
+   Easier to read, navigate, and maintain. Sections are logically grouped, and YAML can be easily converted to JSON for downstream applications.  
+   See: *[link to YAML format documentation]*.
 
-Workflow Summary
-----------------
+2. **Additional inputs**  
+   See: *[link to full list]*.
+
+3. **Model improvements**  
+   See: *[link to list improvement]*.
+
+4. **Bug fixes**  
+   See: *[link to bugfix list]*.
+
+
+Prior Steps
+-----------
 
 Prior to using the code you may need to:
 
-1. Convert SUEWS namelist to YAML [link: instructions] - this applies to pre-SUEWS_v2025
-2. Update SUEWS version = [link: instructions] - check you are running the latest version of SUEWS so the YAML file checks are consistent 
+1. **If using an older (pre-SUEWS_v2025) SUEWS version:** Convert your namelist file to YAML format. See: *[link to conversion instructions]*.
+2. **Update SUEWS:** Ensure you have the latest SUEWS version so that YAML checks match the expected schema.
 
-Within the validation workflow in master_ABC_run.py, a series of steps occur:
-
-1. **Phase A**: YAML file consistency to the Standard YAML version is checked
-2. **Phase B**: Science check that parameters are present and physically reasonable for science options chosen
-3. [STILL TO DO] **Phase C**: Conditional validation using Pydantic 
-   
-   
-Namelist to YAML
-================
-
-1. Convert pre-SUEWS_V2025 input format [link: manual reference of old format] to structured YAML format.
-
-Background to Namelist to YAML conversion
-------------------------------------------
-
-**Code used:**
-
-**Developers:**
-
-**Required inputs:**
-
-**Outputs:**
-
-**Instructions:**
-
-**Steps:**
-
-.. note::
-
-   MP code 
-
-
-YAML checks
-===========
-
-Overview
---------
-
-Within the validation workflow in master_ABC_run.py, a series of steps occur:
-
-1. **Phase A**: YAML file consistency to the Standard YAML version is checked
-2. **Phase B**: Science check that parameters are present and physically reasonable for science options chosen
-3. [STILL TO DO] **Phase C**: Conditional validation using Pydantic
+Processor Steps
+---------------
 
 Background
 ----------
@@ -150,8 +118,49 @@ How to run
     File locations: /path/to/directory
 
 
-Phase A: Up To Date check for YAML Consistency
-==================================================
+The main orchestration script is ``master_ABC_run.py``.  
+The processor is divided into three sequential phases:
+
+1. **Phase A – Up-to-date YAML Check**  
+   Ensures the user YAML matches the standard SUEWS YAML structure.
+
+2. **Phase B – Scientific Validation Check**  
+   Checks and updates parameters to be scientifically reasonable.
+
+3. **Phase C – Pydantic Validation Check** 
+   Validates the YAML configuration using a Pydantic model, applying rules conditional on model options.   
+   
+Namelist to YAML
+================
+
+Overview
+--------
+
+Convert pre-SUEWS_V2025 input format [link: manual reference of old format] to structured YAML format.
+
+Background
+----------
+
+**Code used:**
+
+**Developers:**
+
+**Required inputs:**
+
+**Outputs:**
+
+**Instructions:**
+
+**Steps:**
+
+.. note::
+   MP code
+
+Phase A – Up-to-date YAML Check
+================================
+
+Overview
+--------
 
 Phase A performs comprehensive parameter detection by comparing your user YAML configuration against the standard SUEWS YAML configuration file.
 

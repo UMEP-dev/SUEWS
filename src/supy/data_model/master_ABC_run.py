@@ -461,7 +461,9 @@ def run_phase_a(
                 print("✗ Phase A failed!")
                 print(f"Report: {report_file}")
                 print(f"Updated YAML: {uptodate_file}")
-                print(f"Suggestion: Fix issues in updated YAML and consider to run Phase A again.")
+                print(
+                    f"Suggestion: Fix issues in updated YAML and consider to run Phase A again."
+                )
             return False
 
         # If Phase A succeeds with no critical errors, we'll let Phase B create the consolidated report
@@ -543,7 +545,9 @@ def run_phase_b(
                 print("✗ Phase B failed!")
                 print(f"Report: {science_report_file}")
                 print(f"Updated YAML: {science_yaml_file}")
-                print(f"Suggestion: Fix issues in updated YAML and consider to run phase AB.")
+                print(
+                    f"Suggestion: Fix issues in updated YAML and consider to run phase AB."
+                )
             return False
 
         if not silent:
@@ -556,14 +560,18 @@ def run_phase_b(
                 print("✗ Phase B failed!")
                 print(f"Report: {science_report_file}")
                 print(f"Updated YAML: {science_yaml_file}")
-                print(f"Suggestion: Fix issues in updated YAML and consider to run phase AB.")
+                print(
+                    f"Suggestion: Fix issues in updated YAML and consider to run phase AB."
+                )
             return False
         else:
             if not silent:
                 print("✗ Phase B failed!")
                 print(f"Report: {science_report_file}")
                 print(f"Updated YAML: {science_yaml_file}")
-                print(f"Suggestion: Fix issues in updated YAML and consider to run phase AB.")
+                print(
+                    f"Suggestion: Fix issues in updated YAML and consider to run phase AB."
+                )
             return False
     except Exception as e:
         if not silent:
@@ -689,7 +697,9 @@ def run_phase_c(
                         print("✗ Phase C failed!")
                         print(f"Report: {pydantic_report_file}")
                         print(f"Updated YAML: {pydantic_yaml_file}")
-                        print(f"Suggestion: Fix issues in updated YAML and consider to run either phase AB or complete processor ABC.")
+                        print(
+                            f"Suggestion: Fix issues in updated YAML and consider to run either phase AB or complete processor ABC."
+                        )
                     return False
 
                 # Build NO ACTION NEEDED section if any defaults were detected
@@ -833,7 +843,9 @@ Phase {phase_str} passed
                     print("✗ Phase C failed!")
                     print(f"Report: {pydantic_report_file}")
                     print(f"Updated YAML: {pydantic_yaml_file}")
-                    print(f"Suggestion: Fix issues in updated YAML and consider to run either phase AB or complete processor ABC.")
+                    print(
+                        f"Suggestion: Fix issues in updated YAML and consider to run either phase AB or complete processor ABC."
+                    )
                 return False
 
         except ImportError as import_error:
@@ -1095,7 +1107,9 @@ Modes:
                     pass  # Don't fail if removal doesn't work
                 # Phase B standalone failure: only show Report and Suggestion (no Updated YAML)
                 print("Report:", science_report_file)
-                print("Suggestion: Fix issues in report and consider to run phase B again.")
+                print(
+                    "Suggestion: Fix issues in report and consider to run phase B again."
+                )
             return 0 if phase_b_success else 1
 
         elif phase == "C":
@@ -1121,7 +1135,9 @@ Modes:
                     pass  # Don't fail if removal doesn't work
                 # Phase C standalone failure: only show Report and Suggestion (no Updated YAML)
                 print("Report:", pydantic_report_file)
-                print("Suggestion: Fix issues in report and consider to run phase C again.")
+                print(
+                    "Suggestion: Fix issues in report and consider to run phase C again."
+                )
             return 0 if phase_c_success else 1
 
         elif phase == "AB":
@@ -1156,7 +1172,9 @@ Modes:
                 print("✗ Phase A failed!")
                 print(f"Report: {science_report_file}")
                 print(f"Updated YAML: {science_yaml_file}")
-                print(f"Suggestion: Fix issues in updated YAML and consider to rerun AB.")
+                print(
+                    f"Suggestion: Fix issues in updated YAML and consider to rerun AB."
+                )
                 return 1
 
             print("✓ Phase A completed")
@@ -1193,7 +1211,9 @@ Modes:
                 print("✗ Phase B failed!")
                 print(f"Report: {science_report_file}")
                 print(f"Updated YAML: {science_yaml_file}")
-                print(f"Suggestion: Fix issues in updated YAML and consider to rerun AB.")
+                print(
+                    f"Suggestion: Fix issues in updated YAML and consider to rerun AB."
+                )
                 return 1
 
         elif phase == "AC":
@@ -1228,7 +1248,9 @@ Modes:
                 print("✗ Phase A failed!")
                 print(f"Report: {pydantic_report_file}")
                 print(f"Updated YAML: {pydantic_yaml_file}")
-                print(f"Suggestion: Fix issues in updated YAML and consider to rerun AC or complete processor ABC.")
+                print(
+                    f"Suggestion: Fix issues in updated YAML and consider to rerun AC or complete processor ABC."
+                )
                 return 1
 
             print("✓ Phase A completed")
@@ -1262,7 +1284,9 @@ Modes:
                 print("✗ Phase C failed!")
                 print(f"Report: {pydantic_report_file}")
                 print(f"Updated YAML: {pydantic_yaml_file}")
-                print(f"Suggestion: Fix issues in updated YAML and consider to rerun AC or complete processor ABC.")
+                print(
+                    f"Suggestion: Fix issues in updated YAML and consider to rerun AC or complete processor ABC."
+                )
                 return 1
 
         elif phase == "BC":
@@ -1300,7 +1324,9 @@ Modes:
                 print("✗ Phase B failed!")
                 print(f"Report: {pydantic_report_file}")
                 print(f"Updated YAML: {pydantic_yaml_file}")
-                print(f"Suggestion: Fix issues in updated YAML and consider to rerun BC.")
+                print(
+                    f"Suggestion: Fix issues in updated YAML and consider to rerun BC."
+                )
                 return 1
 
             print("✓ Phase B completed")
@@ -1334,7 +1360,9 @@ Modes:
                 print("✗ Phase C failed!")
                 print(f"Report: {pydantic_report_file}")
                 print(f"Updated YAML: {pydantic_yaml_file}")
-                print(f"Suggestion: Fix issues in updated YAML and consider to rerun BC.")
+                print(
+                    f"Suggestion: Fix issues in updated YAML and consider to rerun BC."
+                )
                 return 1
 
         elif phase == "ABC":
@@ -1370,7 +1398,9 @@ Modes:
                 print("✗ Phase A failed!")
                 print(f"Report: {pydantic_report_file}")
                 print(f"Updated YAML: {pydantic_yaml_file}")
-                print(f"Suggestion: Fix issues in updated YAML and consider to rerun complete processor ABC.")
+                print(
+                    f"Suggestion: Fix issues in updated YAML and consider to rerun complete processor ABC."
+                )
                 return 1
 
             print("✓ Phase A completed")
@@ -1400,18 +1430,18 @@ Modes:
                         shutil.move(
                             science_report_file, pydantic_report_file
                         )  # reportB → reportABC
-                    
+
                     # CRITICAL: Preserve Phase A updated YAML since that's what we have when AB halts at B
                     # Phase A passed and created uptodate_file, Phase B failed, so we preserve Phase A result
                     if os.path.exists(uptodate_file):
                         shutil.move(
                             uptodate_file, pydantic_yaml_file
                         )  # updatedA → updatedABC (preserve Phase A updated YAML)
-                    
+
                     # Remove failed Phase B YAML if it exists (failed phase output not needed)
                     if os.path.exists(science_yaml_file):
                         os.remove(science_yaml_file)  # Remove failed Phase B YAML
-                    
+
                     # Clean up intermediate Phase A report (consolidated into final report)
                     if os.path.exists(report_file):
                         os.remove(report_file)  # Remove Phase A report
@@ -1421,7 +1451,9 @@ Modes:
                 print("✗ Phase B failed!")
                 print(f"Report: {pydantic_report_file}")
                 print(f"Updated YAML: {pydantic_yaml_file}")
-                print(f"Suggestion: Fix issues in updated YAML and consider to rerun complete processor ABC.")
+                print(
+                    f"Suggestion: Fix issues in updated YAML and consider to rerun complete processor ABC."
+                )
                 return 1
 
             print("✓ Phase B completed")
@@ -1456,7 +1488,9 @@ Modes:
                 print("✗ Phase C failed!")
                 print(f"Report: {pydantic_report_file}")
                 print(f"Updated YAML: {pydantic_yaml_file}")
-                print(f"Suggestion: Fix issues in updated YAML and consider to rerun complete processor ABC.")
+                print(
+                    f"Suggestion: Fix issues in updated YAML and consider to rerun complete processor ABC."
+                )
                 return 1
 
             print("✓ Phase C completed")

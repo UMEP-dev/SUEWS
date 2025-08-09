@@ -451,10 +451,9 @@ def run_phase_a(
 
         # Phase A should halt workflow if there are any ACTION NEEDED items
         if "## ACTION NEEDED" in report_content:
-            print()
-            print("✗ Phase A halted: ACTION NEEDED items must be resolved first")
-            print(f"  Review details in reportA file: {report_file}")
-            print(f"  Suggestion: Fix issues in report and consider to run Phase A again.")
+            print("✗ Phase A failed!")
+            print(f"Review details in reportA file: {report_file}")
+            print(f"Suggestion: fix ACTION NEEDED in report and consider to run Phase A again.")
             return False
 
         # If Phase A succeeds with no critical errors, we'll let Phase B create the consolidated report
@@ -494,7 +493,7 @@ def run_phase_b(
     Returns:
         True if Phase B completed successfully, False otherwise
     """
-    print("Phase B: Scientific validation...")
+    #print("Phase B: Scientific validation...")
 
     try:
         # Run Phase B using the imported function (suppress verbose output)
@@ -527,10 +526,9 @@ def run_phase_b(
             report_content = f.read()
 
         if "CRITICAL ISSUES DETECTED" in report_content or "URGENT" in report_content:
-            print()
-            print("✗ Phase B halted: ACTION NEEDED items must be resolved first")
-            print(f"  Review details in reportB file: {science_report_file}")
-            print(f"Suggestion: Fix issues in report and/or consider to run Phase A first before running Phase B again.")
+            print("✗ Phase B failed!")
+            print(f"Review details in reportB file: {science_report_file}")
+            print(f"Suggestion: fix ACTION NEEDED in report and consider to run phase AB.")
             return False
 
         print("✓ Phase B completed")
@@ -538,16 +536,14 @@ def run_phase_b(
 
     except ValueError as e:
         if "Critical scientific errors detected" in str(e):
-            print()
-            print("✗ Phase B halted: ACTION NEEDED items must be resolved first")
-            print(f"  Check reportB file for details: {science_report_file}")
-            print("Suggestion: Fix issues in report and/or consider to run Phase A first before running Phase B again.")
+            print("✗ Phase B failed!")
+            print(f"Review details in reportB file: {science_report_file}")
+            print(f"Suggestion: fix ACTION NEEDED in report and consider to run phase AB.")
             return False
         else:
-            print()
-            print(f"✗ Phase B failed: ACTION NEEDED items must be resolved first")
-            print(f"  Check reportB file for details: {science_report_file}")
-            print("Suggestion: Fix issues in report and/or consider to run Phase A first before running Phase B again.")
+            print("✗ Phase B failed!")
+            print(f"Review details in reportB file: {science_report_file}")
+            print(f"Suggestion: fix ACTION NEEDED in report and consider to run phase AB.")
             return False
     except Exception as e:
         print()
@@ -669,13 +665,9 @@ def run_phase_c(
                     with open(pydantic_report_file, "w") as f:
                         f.write(failure_report)
 
-                    print(
-                        "✗ Phase C failed - Critical null physics parameters detected"
-                    )
-                    print(
-                        f"  Report generated: {os.path.basename(pydantic_report_file)}"
-                    )
-                    print(f"  Check ACTION NEEDED section in report for required fixes")
+                    print("✗ Phase C failed!")
+                    print(f"Review details in reportC file: {pydantic_report_file}")
+                    print(f"Suggestion: fix ACTION NEEDED in report and consider to run either phase AB or complete processor ABC.")
                     return False
 
                 # Build NO ACTION NEEDED section if any defaults were detected
@@ -816,10 +808,9 @@ Phase {phase_str} passed
                         phases_run,
                     )
 
-                print("✗ Phase C failed - Pydantic validation errors detected")
-                print(f"  Report generated: {os.path.basename(pydantic_report_file)}")
-                print(f"  YAML file generated: {os.path.basename(pydantic_yaml_file)}")
-                print(f"  Check ACTION NEEDED section in report for required fixes")
+                print("✗ Phase C failed!")
+                print(f"Review details in reportC file: {pydantic_report_file}")
+                print(f"Suggestion: fix ACTION NEEDED in report and consider to run either phase AB or complete processor ABC.")
                 return False
 
         except ImportError as import_error:
@@ -1004,7 +995,7 @@ Modes:
                 standard_yaml_file,
                 uptodate_file,
                 report_file,
-                mode,
+                internal_mode,
                 "A",
             )
             if phase_a_success:

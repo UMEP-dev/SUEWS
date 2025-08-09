@@ -924,9 +924,9 @@ def adjust_surface_temperatures(
                     updated_params.append("tsfc")
                 if tin_updated:
                     updated_params.append("tin")
-                
+
                 param_list = ", ".join(updated_params)
-                
+
                 adjustments.append(
                     ScientificAdjustment(
                         parameter=f"initial_states.{surface_type}",
@@ -1083,7 +1083,7 @@ def adjust_model_dependent_nullification(
                 if nullified_params:
                     # Show clear message with complete parameter list
                     param_list = ", ".join(nullified_params)
-                    
+
                     adjustments.append(
                         ScientificAdjustment(
                             parameter="stebbs",
@@ -1474,21 +1474,23 @@ def create_science_report(
             elif adjustment.parameter == "stebbs" and "nullified" in adjustment.reason:
                 # Extract number of nullified stebbs parameters from reason
                 import re
-                match = re.search(r'nullified (\d+) parameters', adjustment.reason)
+
+                match = re.search(r"nullified (\d+) parameters", adjustment.reason)
                 if match:
                     total_params_changed += int(match.group(1))
                 else:
                     total_params_changed += 1
-            elif adjustment.parameter == "dls_parameters" and "start=" in adjustment.old_value:
+            elif (
+                adjustment.parameter == "dls_parameters"
+                and "start=" in adjustment.old_value
+            ):
                 # DLS parameters: start and end = 2 parameters
                 total_params_changed += 2
             else:
                 # Default: assume 1 parameter per adjustment
                 total_params_changed += 1
-        
-        report_lines.append(
-            f"- Updated ({total_params_changed}) parameter(s):"
-        )
+
+        report_lines.append(f"- Updated ({total_params_changed}) parameter(s):")
         for adjustment in adjustments:
             site_ref = (
                 f" at site [{adjustment.site_index}]"
@@ -1530,9 +1532,7 @@ def create_science_report(
 
     # Phase B warnings
     if warnings:
-        report_lines.append(
-            f"- Revise ({len(warnings)}) warnings:"
-        )
+        report_lines.append(f"- Revise ({len(warnings)}) warnings:")
         for warning in warnings:
             site_ref = (
                 f" at site [{warning.site_index}]"

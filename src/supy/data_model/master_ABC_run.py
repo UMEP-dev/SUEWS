@@ -454,7 +454,9 @@ def run_phase_a(
             print()
             print("✗ Phase A halted: ACTION NEEDED items must be resolved first")
             print(f"  Review details in reportA file: {report_file}")
-            print(f"  Suggestion: Fix issues in report and consider to run Phase A again.")
+            print(
+                f"  Suggestion: Fix issues in report and consider to run Phase A again."
+            )
             return False
 
         # If Phase A succeeds with no critical errors, we'll let Phase B create the consolidated report
@@ -530,7 +532,9 @@ def run_phase_b(
             print()
             print("✗ Phase B halted: ACTION NEEDED items must be resolved first")
             print(f"  Review details in reportB file: {science_report_file}")
-            print(f"Suggestion: Fix issues in report and/or consider to run Phase A first before running Phase B again.")
+            print(
+                f"Suggestion: Fix issues in report and/or consider to run Phase A first before running Phase B again."
+            )
             return False
 
         print("✓ Phase B completed")
@@ -541,13 +545,17 @@ def run_phase_b(
             print()
             print("✗ Phase B halted: ACTION NEEDED items must be resolved first")
             print(f"  Check reportB file for details: {science_report_file}")
-            print("Suggestion: Fix issues in report and/or consider to run Phase A first before running Phase B again.")
+            print(
+                "Suggestion: Fix issues in report and/or consider to run Phase A first before running Phase B again."
+            )
             return False
         else:
             print()
             print(f"✗ Phase B failed: ACTION NEEDED items must be resolved first")
             print(f"  Check reportB file for details: {science_report_file}")
-            print("Suggestion: Fix issues in report and/or consider to run Phase A first before running Phase B again.")
+            print(
+                "Suggestion: Fix issues in report and/or consider to run Phase A first before running Phase B again."
+            )
             return False
     except Exception as e:
         print()
@@ -587,9 +595,9 @@ def run_phase_c(
         try:
             from supy.data_model import SUEWSConfig
             import logging
-            
+
             # Temporarily suppress SuPy logging during validation
-            supy_logger = logging.getLogger('SuPy')
+            supy_logger = logging.getLogger("SuPy")
             original_level = supy_logger.level
             supy_logger.setLevel(logging.WARNING)
 
@@ -661,7 +669,7 @@ def run_phase_c(
 
                     failure_report = f"""# SUEWS Phase C (Pydantic Validation) Report
 # ============================================
-# Mode: {'Public' if mode.lower() in ['user', 'public'] else mode.title()}
+# Mode: {"Public" if mode.lower() in ["user", "public"] else mode.title()}
 # ============================================
 {action_needed}
 # =================================================="""
@@ -757,7 +765,7 @@ def run_phase_c(
                 if consolidated_no_action:
                     success_report = f"""# {title}
 # ============================================
-# Mode: {'Public' if mode.lower() in ['user', 'public'] else mode.title()}
+# Mode: {"Public" if mode.lower() in ["user", "public"] else mode.title()}
 # ============================================
 
 ## NO ACTION NEEDED
@@ -767,7 +775,7 @@ def run_phase_c(
                 else:
                     success_report = f"""# {title}
 # ============================================
-# Mode: {'Public' if mode.lower() in ['user', 'public'] else mode.title()}
+# Mode: {"Public" if mode.lower() in ["user", "public"] else mode.title()}
 # ============================================
 
 Phase {phase_str} passed
@@ -828,7 +836,7 @@ Phase {phase_str} passed
             # Import error report
             error_report = f"""# SUEWS Phase C (Pydantic Validation) Report
 # ============================================
-# Mode: {'Public' if mode.lower() in ['user', 'public'] else mode.title()}
+# Mode: {"Public" if mode.lower() in ["user", "public"] else mode.title()}
 # ============================================
 
 ## PHASE C - FAILED
@@ -864,7 +872,7 @@ Phase C validation could not be executed due to import issues.
         # General error report
         error_report = f"""# SUEWS Phase C (Pydantic Validation) Report
 # ============================================
-# Mode: {'Public' if mode.lower() in ['user', 'public'] else mode.title()}
+# Mode: {"Public" if mode.lower() in ["user", "public"] else mode.title()}
 # ============================================
 
 ## PHASE C - FAILED
@@ -943,7 +951,7 @@ Modes:
     user_yaml_file = args.yaml_file
     phase = args.phase
     mode = args.mode
-    
+
     # Handle mode mapping: 'public' maps to 'user' internally for compatibility
     internal_mode = "user" if mode == "public" else mode
 
@@ -960,11 +968,11 @@ Modes:
 
         # Step 2: Setup paths
         standard_yaml_file = "src/supy/sample_data/sample_config.yml"
-        
+
         # Print workflow header (after variables are defined)
         phase_desc = {
             "A": "Phase A",
-            "B": "Phase B", 
+            "B": "Phase B",
             "C": "Phase C",
             "AB": "Phase AB",
             "AC": "Phase AC",

@@ -49,7 +49,9 @@ def generate_phase_c_report(
     # Header (matching Phase B format)
     report_lines.append(f"# {title}")
     report_lines.append("# " + "=" * 50)
-    report_lines.append(f"# Mode: {'Public' if mode.lower() in ['user', 'public'] else mode.title()}")
+    report_lines.append(
+        f"# Mode: {'Public' if mode.lower() in ['user', 'public'] else mode.title()}"
+    )
     report_lines.append("# " + "=" * 50)
     report_lines.append("")
 
@@ -408,7 +410,7 @@ def generate_fallback_report(
 
     error_report = f"""# {title}
 # ============================================
-# Mode: {'Public' if mode.lower() in ['user', 'public'] else mode.title()}
+# Mode: {"Public" if mode.lower() in ["user", "public"] else mode.title()}
 # ============================================
 
 ## ACTION NEEDED

@@ -7,8 +7,138 @@ MODULE rsl_module
    IMPLICIT NONE
 
    INTEGER, PARAMETER :: nz = 30 ! number of levels 10 levels in canopy plus 20 (3 x Zh) above the canopy
+   REAL(KIND(1D0)), PARAMETER :: neut_limit_rsl = 0.0D0 ! RSL uses neutral limit of 0
 
 CONTAINS
+
+   ! RSL-specific wrapper functions that use neut_limit_rsl = 0.0
+   ! These are thread-safe alternatives to modifying the global neut_limit
+   
+   FUNCTION rsl_stab_psi_mom(StabilityMethod, zL) RESULT(psi)
+      USE AtmMoistStab_module, ONLY: k, W16, K75, B71, J12
+      IMPLICIT NONE
+      INTEGER, INTENT(in) :: StabilityMethod
+      REAL(KIND(1D0)), INTENT(in) :: zL
+      REAL(KIND(1D0)) :: psi
+      REAL(KIND(1D0)) :: x
+      REAL(KIND(1D0)), PARAMETER :: pi = 4.*ATAN(1.0)
+      
+      ! Use RSL-specific neutral limit of 0.0
+      IF (ABS(zL) <= neut_limit_rsl) THEN
+         psi = 0
+      ELSEIF (zL > 0) THEN  ! Stable
+         SELECT CASE (StabilityMethod)
+         CASE (W16, K75)
+            psi = -5*zL
+         CASE (B71)
+            psi = -4.7*zL
+         CASE (J12)
+            psi = -6*LOG(1 + zL)
+         END SELECT
+      ELSE  ! Unstable
+         SELECT CASE (StabilityMethod)
+         CASE (W16, B71)
+            x = (1 - 16*zL)**0.25
+            psi = 2*LOG((1 + x)/2) + LOG((1 + x**2)/2) - 2*ATAN(x) + pi/2
+         CASE (K75)
+            x = (1 - 16*zL)**(1./3.)
+            psi = 1.5*LOG((x**2 + x + 1)/3) - SQRT(3.0)*ATAN((2*x + 1)/SQRT(3.0)) + pi/SQRT(3.0)
+         CASE (J12)
+            x = (1 - 16*zL)**0.25
+            psi = 2*LOG((1 + x)/2) + LOG((1 + x**2)/2) - 2*ATAN(x) + pi/2
+         END SELECT
+      END IF
+   END FUNCTION rsl_stab_psi_mom
+   
+   FUNCTION rsl_stab_psi_heat(StabilityMethod, zL) RESULT(psi)
+      USE AtmMoistStab_module, ONLY: W16, K75, B71, J12
+      IMPLICIT NONE
+      INTEGER, INTENT(in) :: StabilityMethod
+      REAL(KIND(1D0)), INTENT(in) :: zL
+      REAL(KIND(1D0)) :: psi
+      REAL(KIND(1D0)) :: x
+      
+      ! Use RSL-specific neutral limit of 0.0
+      IF (ABS(zL) <= neut_limit_rsl) THEN
+         psi = 0
+      ELSEIF (zL > 0) THEN  ! Stable
+         SELECT CASE (StabilityMethod)
+         CASE (W16, K75)
+            psi = -5*zL
+         CASE (B71)
+            psi = -4.7*zL
+         CASE (J12)
+            psi = -6*LOG(1 + zL)
+         END SELECT
+      ELSE  ! Unstable
+         SELECT CASE (StabilityMethod)
+         CASE (W16, B71, K75)
+            x = (1 - 16*zL)**0.5
+            psi = 2*LOG((1 + x)/2)
+         CASE (J12)
+            x = (1 - 16*zL)**0.5
+            psi = 2*LOG((1 + x)/2)
+         END SELECT
+      END IF
+   END FUNCTION rsl_stab_psi_heat
+   
+   FUNCTION rsl_stab_phi_mom(StabilityMethod, zL) RESULT(phi)
+      USE AtmMoistStab_module, ONLY: W16, K75, B71, J12
+      IMPLICIT NONE
+      INTEGER, INTENT(in) :: StabilityMethod
+      REAL(KIND(1D0)), INTENT(in) :: zL
+      REAL(KIND(1D0)) :: phi
+      
+      ! Use RSL-specific neutral limit of 0.0
+      IF (ABS(zL) <= neut_limit_rsl) THEN
+         phi = 1
+      ELSEIF (zL > 0) THEN  ! Stable
+         SELECT CASE (StabilityMethod)
+         CASE (W16, K75)
+            phi = 1 + 5*zL
+         CASE (B71)
+            phi = 1 + 4.7*zL
+         CASE (J12)
+            phi = 1 + 6*zL/(1 + zL)
+         END SELECT
+      ELSE  ! Unstable
+         SELECT CASE (StabilityMethod)
+         CASE (W16, B71, K75)
+            phi = (1 - 16*zL)**(-0.25)
+         CASE (J12)
+            phi = (1 - 16*zL)**(-0.25)
+         END SELECT
+      END IF
+   END FUNCTION rsl_stab_phi_mom
+   
+   FUNCTION rsl_stab_phi_heat(StabilityMethod, zL) RESULT(phi)
+      USE AtmMoistStab_module, ONLY: W16, K75, B71, J12
+      IMPLICIT NONE
+      INTEGER, INTENT(in) :: StabilityMethod
+      REAL(KIND(1D0)), INTENT(in) :: zL
+      REAL(KIND(1D0)) :: phi
+      
+      ! Use RSL-specific neutral limit of 0.0
+      IF (ABS(zL) <= neut_limit_rsl) THEN
+         phi = 1
+      ELSEIF (zL > 0) THEN  ! Stable
+         SELECT CASE (StabilityMethod)
+         CASE (W16, K75)
+            phi = 1 + 5*zL
+         CASE (B71)
+            phi = 1 + 4.7*zL
+         CASE (J12)
+            phi = 1 + 6*zL/(1 + zL)
+         END SELECT
+      ELSE  ! Unstable
+         SELECT CASE (StabilityMethod)
+         CASE (W16, B71, K75)
+            phi = 0.95*(1 - 16*zL)**(-0.5)
+         CASE (J12)
+            phi = 0.95*(1 - 16*zL)**(-0.5)
+         END SELECT
+      END IF
+   END FUNCTION rsl_stab_phi_heat
 
    SUBROUTINE RSLProfile( &
       DiagMethod, &
@@ -197,9 +327,9 @@ CONTAINS
             Lc, beta, zd_RSL, z0_RSL, elm, Scc, fx)
             
          ! Calculate UStar and TStar for RSL
-         psimz0 = stab_psi_mom(StabilityMethod, z0_RSL/L_MOD_RSL)
-         psimza = stab_psi_mom(StabilityMethod, (zMeas - zd_RSL)/L_MOD_RSL)
-         psihza = stab_psi_heat(StabilityMethod, (zMeas - zd_RSL)/L_MOD_RSL)
+         psimz0 = rsl_stab_psi_mom(StabilityMethod, z0_RSL/L_MOD_RSL)
+         psimza = rsl_stab_psi_mom(StabilityMethod, (zMeas - zd_RSL)/L_MOD_RSL)
+         psihza = rsl_stab_psi_heat(StabilityMethod, (zMeas - zd_RSL)/L_MOD_RSL)
          
          UStar_RSL = avU1*kappa/(LOG((zMeas - zd_RSL)/z0_RSL) - psimza + psimz0 + psihatm_z(nz))
          UStar_RSL = MAX(0.001, UStar_RSL)
@@ -396,15 +526,15 @@ CONTAINS
       CALL setup_RSL_heights(nz, nz_can, zH_RSL, zMeas, zarray)
 
       ! Step 2: Calculate stability functions
-      psimz0 = stab_psi_mom(StabilityMethod, z0_RSL/L_MOD_RSL)
-      psimza = stab_psi_mom(StabilityMethod, (zMeas - zd_RSL)/L_MOD_RSL)
-      psihz0 = stab_psi_heat(StabilityMethod, z0_RSL/L_MOD_RSL)
-      psihza = stab_psi_heat(StabilityMethod, (zMeas - zd_RSL)/L_MOD_RSL)
+      psimz0 = rsl_stab_psi_mom(StabilityMethod, z0_RSL/L_MOD_RSL)
+      psimza = rsl_stab_psi_mom(StabilityMethod, (zMeas - zd_RSL)/L_MOD_RSL)
+      psihz0 = rsl_stab_psi_heat(StabilityMethod, z0_RSL/L_MOD_RSL)
+      psihza = rsl_stab_psi_heat(StabilityMethod, (zMeas - zd_RSL)/L_MOD_RSL)
 
       ! Step 3: Above canopy profiles (RSL correction)
       DO z = nz_can, nz
-         psimz = stab_psi_mom(StabilityMethod, (zarray(z) - zd_RSL)/L_MOD_RSL)
-         psihz = stab_psi_heat(StabilityMethod, (zarray(z) - zd_RSL)/L_MOD_RSL)
+         psimz = rsl_stab_psi_mom(StabilityMethod, (zarray(z) - zd_RSL)/L_MOD_RSL)
+         psihz = rsl_stab_psi_heat(StabilityMethod, (zarray(z) - zd_RSL)/L_MOD_RSL)
          dataoutLineURSL(z) = UStar_RSL/kappa * (LOG((zarray(z) - zd_RSL)/z0_RSL) - psimz + psimz0 + psihatm_z(z))
          dataoutLineTRSL(z) = TStar_RSL/kappa * (LOG((zarray(z) - zd_RSL)/(zMeas - zd_RSL)) - psihz + psihza + psihath_z(z) - psihath_z(nz))
          dataoutLineqRSL(z) = qStar_RSL/kappa * (LOG((zarray(z) - zd_RSL)/(zMeas - zd_RSL)) - psihz + psihza + psihath_z(z) - psihath_z(nz))
@@ -1234,7 +1364,7 @@ CONTAINS
                UStar_heat = MAX(0.15, UStar_RSL)
             ELSE
                ! use UStar_heat implied by RA_h using MOST
-               psihz0 = stab_psi_heat(StabilityMethod, z0v/L_MOD_RSL)
+               psihz0 = rsl_stab_psi_heat(StabilityMethod, z0v/L_MOD_RSL)
                UStar_heat = 1/(kappa*RA_h)*(LOG((zMeas - zd_RSL)/z0v) - psihza + psihz0)
             END IF
             TStar_RSL = -1.*(qh/(avcp*avdens))/UStar_heat
@@ -1274,8 +1404,8 @@ CONTAINS
                   ! when using MOST, all vertical levels should larger than zd_RSL
                   ! REMOVED: This line creates non-monotonic arrays
                   ! IF (zarray(z) <= zd_RSL) zarray(z) = 1.01*(zd_RSL + z0_RSL)
-                  psimz = stab_psi_mom(StabilityMethod, (zarray(z) - zd_RSL)/L_MOD_RSL)
-                  psihz = stab_psi_heat(StabilityMethod, (zarray(z) - zd_RSL)/L_MOD_RSL)
+                  psimz = rsl_stab_psi_mom(StabilityMethod, (zarray(z) - zd_RSL)/L_MOD_RSL)
+                  psihz = rsl_stab_psi_heat(StabilityMethod, (zarray(z) - zd_RSL)/L_MOD_RSL)
                   dataoutLineURSL(z) = (LOG((zarray(z) - zd_RSL)/z0_RSL) - psimz + psimz0)/kappa
                   dataoutLineTRSL(z) = (LOG((zarray(z) - zd_RSL)/(zMeas - zd_RSL)) - psihz + psihza)/kappa
                   dataoutLineqRSL(z) = dataoutLineTRSL(z)
@@ -1417,8 +1547,8 @@ CONTAINS
 
       dz_above = z_mid - z_btm
       ! single step calculation
-      phim_mid = stab_phi_mom(StabilityMethod, (z_mid - zd_RSL)/L_MOD)
-      phim_btm = stab_phi_mom(StabilityMethod, (z_btm - zd_RSL)/L_MOD)
+      phim_mid = rsl_stab_phi_mom(StabilityMethod, (z_mid - zd_RSL)/L_MOD)
+      phim_btm = rsl_stab_phi_mom(StabilityMethod, (z_btm - zd_RSL)/L_MOD)
 
       psihatm_btm = psihatm_mid + dz_above/2.*phim_mid*(cm*EXP(-1.*c2*beta*(z_mid - zd_RSL)/elm)) & !Taylor's approximation for integral
                     /(z_mid - zd_RSL)
@@ -1493,8 +1623,8 @@ CONTAINS
 
       dz_above = z_mid - z_btm
       ! single step calculation
-      phih_mid = stab_phi_heat(StabilityMethod, (z_mid - zd_RSL)/L_MOD)
-      phih_btm = stab_phi_heat(StabilityMethod, (z_btm - zd_RSL)/L_MOD)
+      phih_mid = rsl_stab_phi_heat(StabilityMethod, (z_mid - zd_RSL)/L_MOD)
+      phih_btm = rsl_stab_phi_heat(StabilityMethod, (z_btm - zd_RSL)/L_MOD)
 
       psihath_btm = psihath_mid + dz_above/2.*phih_mid*(ch*EXP(-1.*c2h*beta*(z_mid - zd_RSL)/elm)) & !Taylor's approximation for integral
                     /(z_mid - zd_RSL)
@@ -1578,8 +1708,8 @@ CONTAINS
       REAL(KIND(1D0)), PARAMETER :: kappa = 0.40
       REAL(KIND(1D0)), PARAMETER :: dz = 0.1 !height step
 
-      phim_zh = stab_phi_mom(StabilityMethod, (Zh_RSL - zd_RSL)/L_MOD)
-      phim_zhdz = stab_phi_mom(StabilityMethod, (Zh_RSL - zd_RSL + dz)/L_MOD)
+      phim_zh = rsl_stab_phi_mom(StabilityMethod, (Zh_RSL - zd_RSL)/L_MOD)
+      phim_zhdz = rsl_stab_phi_mom(StabilityMethod, (Zh_RSL - zd_RSL + dz)/L_MOD)
 
       dphi = (phim_zhdz - phim_zh)/dz
       IF (phim_zh /= 0.) THEN
@@ -1631,8 +1761,8 @@ CONTAINS
       REAL(KIND(1D0)), PARAMETER :: kappa = 0.40
       REAL(KIND(1D0)), PARAMETER :: dz = 0.1 !height step
 
-      phih_zh = stab_phi_heat(StabilityMethod, (Zh_RSL - zd_RSL)/L_MOD)
-      phih_zhdz = stab_phi_heat(StabilityMethod, (Zh_RSL - zd_RSL + 1.)/L_MOD)
+      phih_zh = rsl_stab_phi_heat(StabilityMethod, (Zh_RSL - zd_RSL)/L_MOD)
+      phih_zhdz = rsl_stab_phi_heat(StabilityMethod, (Zh_RSL - zd_RSL + 1.)/L_MOD)
 
       dphih = phih_zhdz - phih_zh
       IF (phih_zh /= 0.) THEN
@@ -1852,7 +1982,7 @@ CONTAINS
       ! REAL(KIND(1d0)), PARAMETER::r = 0.1
       ! REAL(KIND(1d0)), PARAMETER::a1 = 4., a2 = -0.1, a3 = 1.5, a4 = -1.
 
-      psimZh = stab_psi_mom(StabilityMethod, (Zh_RSL - zd_RSL)/L_MOD_RSL)
+      psimZh = rsl_stab_psi_mom(StabilityMethod, (Zh_RSL - zd_RSL)/L_MOD_RSL)
       ! psihatm_Zh = cal_psim_hat(StabilityMethod, Zh_RSL, zh_RSL, L_MOD_RSL, beta, Lc)
 
       !first guess
@@ -1862,7 +1992,7 @@ CONTAINS
       it = 1
       DO WHILE ((err > 0.001) .AND. (it < 10))
          z0_RSL_x = z0_RSL
-         psimz0 = stab_psi_mom(StabilityMethod, z0_RSL_x/L_MOD_RSL)
+         psimz0 = rsl_stab_psi_mom(StabilityMethod, z0_RSL_x/L_MOD_RSL)
          z0_RSL = (Zh_RSL - zd_RSL)*EXP(-1.*kappa/beta)*EXP(-1.*psimZh + psimz0)*EXP(psihatm_Zh)
          err = ABS(z0_RSL_x - z0_RSL)
          it = it + 1
@@ -2156,7 +2286,7 @@ CONTAINS
       ! print *, 'Lc/L_MOD:', lc_over_l
       DO WHILE ((err > 0.001) .AND. (it < 20))
          beta_x0 = beta0/phim
-         phim = stab_phi_heat(StabilityMethod, (beta_x0**2)*lc_over_l)
+         phim = rsl_stab_phi_heat(StabilityMethod, (beta_x0**2)*lc_over_l)
          ! TODO: how to deal with neutral condition when phim=0? TS 05 Feb 2021
          ! here we use beta=0.35 as a temporary workaround but a better solution is still neded.
          beta_x = beta0/phim

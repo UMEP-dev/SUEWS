@@ -20,16 +20,10 @@ cd worktrees/$FEATURE
 uv venv
 source .venv/bin/activate
 
-# Install core requirements
-# Package list maintained in .claude/reference/core-requirements.txt
-# IMPORTANT: Use 'matplotlib' not 'matplotlib-base', 'tables' not 'pytables'
-uv pip install pandas scipy matplotlib matplotlib-inline scikit-learn scikit-image \
-    geopandas rtree openpyxl tables psutil salem==0.3.8 floweaver==2.0.0 \
-    f90nml click pydantic ipykernel jupyter_client jupyter_core \
-    pytest pytest-cov ruff f90wrap==0.2.16 atmosp "meson-python>=0.17.0"
+# Install SUEWS with development + documentation dependencies (aligned with pyproject.toml)
+uv pip install -e ".[dev,docs]"
 
-# Install SUEWS in development mode
-make dev  # This will auto-detect uv and use it!
+# Alternative: If pyproject.toml method fails, see setup-uv-environment.md
 
 # Create a marker file
 echo "$FEATURE" > .worktree-name
@@ -37,6 +31,8 @@ echo "$FEATURE" > .worktree-name
 # Test your setup
 python -c "import supy; print(f'✓ SuPy {supy.__version__} ready')"
 ```
+
+**Note**: For detailed uv setup options and alignment with `env.yml`, see `.claude/howto/setup-uv-environment.md`
 
 ## Working Without Environment Activation
 

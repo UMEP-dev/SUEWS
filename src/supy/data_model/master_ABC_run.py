@@ -1085,6 +1085,7 @@ Modes:
                 silent=True,  # Suppress phase function output, main function handles terminal output
             )
             if phase_b_success:
+                print("✓ Phase B completed")
                 print("Report:", science_report_file)
                 print("Updated YAML:", science_yaml_file)
             else:
@@ -1095,6 +1096,7 @@ Modes:
                 except Exception:
                     pass  # Don't fail if removal doesn't work
                 # Phase B standalone failure: only show Report and Suggestion (no Updated YAML)
+                print("✗ Phase B failed!")
                 print("Report:", science_report_file)
                 print("Suggestion: Fix issues in report and consider to run phase B again.")
             return 0 if phase_b_success else 1
@@ -1112,6 +1114,7 @@ Modes:
                 silent=True,  # Suppress phase function output, main function handles terminal output
             )
             if phase_c_success:
+                print("✓ Phase C completed")
                 print("Report:", pydantic_report_file)
                 print("Updated YAML:", pydantic_yaml_file)
             else:
@@ -1122,6 +1125,7 @@ Modes:
                 except Exception:
                     pass  # Don't fail if removal doesn't work
                 # Phase C standalone failure: only show Report and Suggestion (no Updated YAML)
+                print("✗ Phase C failed!")
                 print("Report:", pydantic_report_file)
                 print("Suggestion: Fix issues in report and consider to run phase C again.")
             return 0 if phase_c_success else 1

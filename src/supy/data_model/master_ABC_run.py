@@ -1107,7 +1107,9 @@ Modes:
 
                 print("✗ Phase A failed!")
                 print(f"Review details in reportAB file: {science_report_file}")
-                print(f"Suggestion: fix ACTION NEEDED in report and consider to rerun AB.")
+                print(
+                    f"Suggestion: fix ACTION NEEDED in report and consider to rerun AB."
+                )
                 return 1
 
             print("✓ Phase A completed")
@@ -1143,7 +1145,9 @@ Modes:
             else:
                 print("✗ Phase B failed!")
                 print(f"Review details in reportAB file: {science_report_file}")
-                print(f"Suggestion: fix ACTION NEEDED in report and consider to rerun AB.")
+                print(
+                    f"Suggestion: fix ACTION NEEDED in report and consider to rerun AB."
+                )
                 return 1
 
         elif phase == "AC":
@@ -1177,7 +1181,9 @@ Modes:
 
                 print("✗ Phase A failed!")
                 print(f"Review details in reportAC file: {pydantic_report_file}")
-                print(f"Suggestion: fix ACTION NEEDED in report and consider to rerun AC or complete processor ABC.")
+                print(
+                    f"Suggestion: fix ACTION NEEDED in report and consider to rerun AC or complete processor ABC."
+                )
                 return 1
 
             print("✓ Phase A completed")
@@ -1210,7 +1216,9 @@ Modes:
             else:
                 print("✗ Phase C failed!")
                 print(f"Review details in reportAC file: {pydantic_report_file}")
-                print(f"Suggestion: fix ACTION NEEDED in report and consider to rerun AC or complete processor ABC.")
+                print(
+                    f"Suggestion: fix ACTION NEEDED in report and consider to rerun AC or complete processor ABC."
+                )
                 return 1
 
         elif phase == "BC":
@@ -1247,7 +1255,9 @@ Modes:
 
                 print("✗ Phase B failed!")
                 print(f"Review details in reportBC file: {pydantic_report_file}")
-                print(f"Suggestion: fix ACTION NEEDED in report and consider to rerun BC.")
+                print(
+                    f"Suggestion: fix ACTION NEEDED in report and consider to rerun BC."
+                )
                 return 1
 
             print("✓ Phase B completed")
@@ -1280,7 +1290,9 @@ Modes:
             else:
                 print("✗ Phase C failed!")
                 print(f"Review details in reportBC file: {pydantic_report_file}")
-                print(f"Suggestion: fix ACTION NEEDED in report and consider to rerun BC.")
+                print(
+                    f"Suggestion: fix ACTION NEEDED in report and consider to rerun BC."
+                )
                 return 1
 
         elif phase == "ABC":
@@ -1315,7 +1327,9 @@ Modes:
 
                 print("✗ Phase A failed!")
                 print(f"Review details in reportABC file: {pydantic_report_file}")
-                print(f"Suggestion: fix ACTION NEEDED in report and consider to rerun complete processor ABC.")
+                print(
+                    f"Suggestion: fix ACTION NEEDED in report and consider to rerun complete processor ABC."
+                )
                 return 1
 
             print("✓ Phase A completed")
@@ -1359,7 +1373,9 @@ Modes:
 
                 print("✗ Phase B failed!")
                 print(f"Review details in reportABC file: {pydantic_report_file}")
-                print(f"Suggestion: fix ACTION NEEDED in report and consider to rerun complete processor ABC.")
+                print(
+                    f"Suggestion: fix ACTION NEEDED in report and consider to rerun complete processor ABC."
+                )
                 return 1
 
             print("✓ Phase B completed")
@@ -1393,7 +1409,9 @@ Modes:
             if not phase_c_success:
                 print("✗ Phase C failed!")
                 print(f"Review details in reportABC file: {pydantic_report_file}")
-                print(f"Suggestion: fix ACTION NEEDED in report and consider to rerun complete processor ABC.")
+                print(
+                    f"Suggestion: fix ACTION NEEDED in report and consider to rerun complete processor ABC."
+                )
                 return 1
 
             print("✓ Phase C completed")

@@ -1,35 +1,44 @@
 SUEWS YAML Processor
 ====================
 
-The SUEWS YAML Processor is a comprehensive validation system that ensures SUEWS configuration files are complete, scientifically valid, and properly structured for successful model runs.
+The SUEWS YAML Processor is a comprehensive validation and updating system that ensures SUEWS configuration YAML files are complete, scientifically reasonable, and properly structured for successful model runs.
 
 Overview
 --------
 
+The SUEWS YAML Processor validates and corrects SUEWS configuration YAML files through a three-phase validation system. It ensures your model inputs are complete, scientifically reasonable, and properly structured before running SUEWS simulations.
+
 Purpose
 ~~~~~~~
 
-To ensure required model inputs are: 
+The processor ensures model inputs are:
 
-1. All present and physically sensible within appropriate ranges
-2. Consistent with other data submitted [Link: to section with order/logic checked] - e.g. assume date/latitude and longitude are correct - to determine initial state based on season etc
-3. Part of SUEWS_V2025
+1. **Complete**: All required parameters are present with appropriate values
+2. **Scientifically valid**: Parameters fall within physically reasonable ranges and are consistent with each other
+3. **Properly structured**: Configuration follows the SUEWS v2025 YAML format specification
+4. **Model-compatible**: Configuration matches the physics options and model capabilities selected
 
-SUEWS v2025 Features
-~~~~~~~~~~~~~~~~~~~~
+Key Features
+~~~~~~~~~~~~
 
-1. **New input format: YAML**  
-   Easier to read, navigate, and maintain. Sections are logically grouped, and YAML can be easily converted to JSON for downstream applications.  
-   See: *[link to YAML format documentation]*.
+**Three-Phase Validation System**
+   - **Phase A**: Up-to-date YAML check, with parameter detection and YAML structure validation
+   - **Phase B**: Scientific validation, with automatic corrections
+   - **Phase C**: Model-specific validation, with Pydantic models
 
-2. **Additional inputs**  
-   See: *[link to full list]*.
+**Flexible Workflow Options**
+   - Run individual phases (A, B, or C) for targeted validation
+   - Combine phases (AB, AC, BC, ABC) for comprehensive validation
+   - Automatic file management and intermediate result preservation
 
-3. **Model improvements**  
-   See: *[link to list improvement]*.
+**Comprehensive Reporting**
+   - Detailed reports explaining all detected issues and corrections
+   - Actionable suggestions for resolving validation failures
 
-4. **Bug fixes**  
-   See: *[link to bugfix list]*.
+**Modern YAML Format**
+   - Human-readable configuration files with logical grouping
+   - Easy conversion to JSON for downstream applications
+   - Backward compatibility with legacy namelist format
 
 Getting Started
 ---------------
@@ -37,17 +46,47 @@ Getting Started
 Prerequisites
 ~~~~~~~~~~~~~
 
-Prior to using the code you may need to:
+Before using the YAML processor:
 
-1. **If using an older (pre-SUEWS_v2025) SUEWS version:** Convert your namelist file to YAML format. See: *[link to conversion instructions]*.
-2. **Update SUEWS:** Ensure you have the latest SUEWS version so that YAML checks match the expected schema.
+1. **SUEWS v2025 or later**: Ensure you have the latest SUEWS version installed
+2. **Python environment**: The processor requires the SUEWS Python environment with all dependencies
+3. **YAML configuration file**: Your SUEWS configuration in YAML format
 
-Required Inputs
+   - **If migrating from pre-v2025**: Convert your namelist files using the conversion tools (see `Namelist to YAML Conversion`_)
+   - **If starting fresh**: Use the sample configuration (``src/supy/sample_data/sample_config.yml``) as a template
+
+4. **Working directory**: Run the processor from the SUEWS root directory to ensure proper file access
+
+Required Files
+~~~~~~~~~~~~~~
+
+The processor needs these files to operate:
+
+**User YAML File**
+   Your SUEWS configuration file (e.g., ``user_config.yml``)
+
+**Standard Reference File**  
+   The reference configuration file (``src/supy/sample_data/sample_config.yml``) 
+   
+   - Contains the complete parameter set for the current SUEWS version
+   - Must be from the same SUEWS version you are using
+   - Automatically validated for consistency across development branches
+
+Execution Modes
 ~~~~~~~~~~~~~~~
 
-1. **User YAML file:** Your SUEWS YAML configuration file
-2. **Standard YAML file:** Reference configuration (typically ``sample_data/sample_config.yml`` from master branch)
-3. **Execution mode:** Phase A, Phase B, Phase C, or combined workflows (AB, AC, BC, ABC)
+Choose your validation approach:
+
+**Individual Phases**
+   - ``--phase A``: Up-to-date YAML check only
+   - ``--phase B``: Scientific validation only  
+   - ``--phase C``: Pydantic validation only
+
+**Combined Workflows** (recommended)
+   - ``--phase AB``: Up-to-date YAML check + scientific validation 
+   - ``--phase AC``: Up-to-date YAML check + Pydantic validation
+   - ``--phase BC``: Scientific + Pydantic validation
+   - ``--phase ABC``: Full validation pipeline
 
 Quick Start Guide
 -----------------
@@ -55,35 +94,78 @@ Quick Start Guide
 Basic Usage
 ~~~~~~~~~~~
 
-**Command Line Usage:**
+The processor is run from the SUEWS root directory using the master script:
 
 .. code-block:: bash
 
-   # Complete A→B workflow (recommended)
-   python master_ABC_run.py user_config.yml --phase AB
+   # Navigate to SUEWS directory
+   cd /path/to/SUEWS
    
-   # Phase A only (parameter detection)
-   python master_ABC_run.py user_config.yml --phase A
-   
-   # Phase B only (scientific validation)
-   python master_ABC_run.py user_config.yml --phase B
-   
-   # Phase C only (Pydantic validation)
-   python master_ABC_run.py user_config.yml --phase C
-   
-   # Complete A→B→C workflow
-   python master_ABC_run.py user_config.yml --phase ABC
+   # Run validation (recommended for most users)
+   python src/supy/data_model/master_ABC_run.py your_config.yml --phase AB
 
-Common Workflows
-~~~~~~~~~~~~~~~~
+**Common Commands:**
 
-- **Phase A**: Parameter detection and structure validation
-- **Phase B**: Scientific validation and parameter correction
-- **Phase C**: Pydantic validation with model-specific rules
-- **AB**: Complete parameter detection + scientific validation (recommended)
-- **AC**: Parameter detection + Pydantic validation
-- **BC**: Scientific validation + Pydantic validation  
-- **ABC**: Complete validation pipeline
+.. code-block:: bash
+   
+   # Individual phases for targeted validation
+   python src/supy/data_model/master_ABC_run.py user_config.yml --phase A    # Up-to-date YAML check only
+   python src/supy/data_model/master_ABC_run.py user_config.yml --phase B    # Scientific validation only
+   python src/supy/data_model/master_ABC_run.py user_config.yml --phase C    # Pydantic validation only
+   
+   # Mixed scenarios for more complex targeted validation
+   python src/supy/data_model/master_ABC_run.py user_config.yml --phase AB # Up-to-date YAML check followed by Scientific validation
+   python src/supy/data_model/master_ABC_run.py user_config.yml --phase AC # Up-to-date YAML check followed by Pydantic validation
+   python src/supy/data_model/master_ABC_run.py user_config.yml --phase BC # Scientific validation followed by Pydantic validation
+
+   # Complete validation pipeline
+   python src/supy/data_model/master_ABC_run.py user_config.yml --phase ABC # Up-to-date YAML check followed by Scientific validation followed by Pydantic validation
+
+Recommended Workflows
+~~~~~~~~~~~~~~~~~~~~~
+
+**For Most Users: Complete ABC Workflow**  
+   Full validation pipeline including model-specific Pydantic validation for comprehensive checking.
+
+**For Troubleshooting: Individual and Mixed Phases**
+   Run phases individually or mixed to isolate and fix specific types of issues.
+
+**Workflow Comparison:**
+
+.. list-table:: 
+   :widths: 10 25 25 25 15
+   :header-rows: 1
+
+   * - Phase
+     - What it checks
+     - When to use
+     - Output files
+     - Time
+   * - A
+     - Missing/outdated parameters
+     - New configurations, parameter updates
+     - updatedA_*.yml, reportA_*.txt
+     - Fast
+   * - B  
+     - Scientific validity, ranges
+     - Before production runs
+     - updatedB_*.yml, reportB_*.txt
+     - Medium
+   * - C
+     - Model-specific validation
+     - Complex configurations
+     - updatedC_*.yml, reportC_*.txt
+     - Slow
+   * - AB
+     - Complete parameter + science check
+     - **Recommended for most users**
+     - updatedAB_*.yml, reportAB_*.txt
+     - Medium
+   * - ABC
+     - Full validation pipeline  
+     - Advanced/complex configurations
+     - updatedABC_*.yml, reportABC_*.txt
+     - Slow
 
 **Example Output (when successful):**
 

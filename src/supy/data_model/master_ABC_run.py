@@ -412,7 +412,7 @@ def run_phase_a(
     Returns:
         True if Phase A completed successfully, False otherwise
     """
-    print("Phase A: Parameter detection...")
+    print("Phase A: Up-to-date YAML check...")
 
     try:
         # Run Phase A using the imported function (suppress verbose output)
@@ -429,12 +429,12 @@ def run_phase_a(
         # Check if Phase A produced output files
         if not os.path.exists(uptodate_file):
             print()
-            print("✗ Phase A failed: No uptodate YAML file generated")
+            print("✗ Phase A failed: No YAML file generated!")
             return False
 
         if not os.path.exists(report_file):
             print()
-            print("✗ Phase A failed: No report file generated")
+            print("✗ Phase A failed: No report file generated!")
             return False
 
         # Check if uptodate file has Phase A header
@@ -442,7 +442,7 @@ def run_phase_a(
             content = f.read()
             if "UP TO DATE YAML" not in content:
                 print()
-                print("✗ Phase A failed: Missing Phase A completion header")
+                print("✗ Phase A failed: Missing Phase A completion header!")
                 return False
 
         # Check Phase A report for critical issues
@@ -453,8 +453,8 @@ def run_phase_a(
         if "## ACTION NEEDED" in report_content:
             print()
             print("✗ Phase A halted: ACTION NEEDED items must be resolved first")
-            print(f"  Fix issues in reportA file: {report_file}")
-            print(f"  Then re-run with the updated YAML file")
+            print(f"  Review details in reportA file: {report_file}")
+            print(f"  Suggestion: Fix issues in report and consider to run Phase A again.")
             return False
 
         # If Phase A succeeds with no critical errors, we'll let Phase B create the consolidated report
@@ -514,12 +514,12 @@ def run_phase_b(
         # Check if Phase B produced output files
         if not os.path.exists(science_yaml_file):
             print()
-            print("✗ Phase B failed: No science-checked YAML file generated")
+            print("✗ Phase B failed: No YAML file generated!")
             return False
 
         if not os.path.exists(science_report_file):
             print()
-            print("✗ Phase B failed: No science report file generated")
+            print("✗ Phase B failed: No report file generated!")
             return False
 
         # Check if Phase B report indicates critical issues
@@ -528,9 +528,9 @@ def run_phase_b(
 
         if "CRITICAL ISSUES DETECTED" in report_content or "URGENT" in report_content:
             print()
-            print("✗ Phase B halted: Critical scientific issues detected")
-            print(f"  Review issues in reportB file: {science_report_file}")
-            print(f"  Fix the issues and re-run the workflow")
+            print("✗ Phase B halted: ACTION NEEDED items must be resolved first")
+            print(f"  Review details in reportB file: {science_report_file}")
+            print(f"Suggestion: Fix issues in report and/or consider to run Phase A first before running Phase B again.")
             return False
 
         print("✓ Phase B completed")
@@ -539,16 +539,15 @@ def run_phase_b(
     except ValueError as e:
         if "Critical scientific errors detected" in str(e):
             print()
-            print("✗ Phase B halted: Critical scientific errors detected")
+            print("✗ Phase B halted: ACTION NEEDED items must be resolved first")
             print(f"  Check reportB file for details: {science_report_file}")
-            print(
-                "  Suggestion: Fix the critical issues or run Phase A first if parameters are missing."
-            )
+            print("Suggestion: Fix issues in report and/or consider to run Phase A first before running Phase B again.")
             return False
         else:
             print()
-            print(f"✗ Phase B failed: Validation error - {e}")
+            print(f"✗ Phase B failed: ACTION NEEDED items must be resolved first")
             print(f"  Check reportB file for details: {science_report_file}")
+            print("Suggestion: Fix issues in report and/or consider to run Phase A first before running Phase B again.")
             return False
     except Exception as e:
         print()
@@ -575,8 +574,6 @@ def run_phase_c(
     Returns:
         True if Phase C completed successfully, False otherwise
     """
-    print("Phase C: Pydantic validation...")
-
     try:
         # Add current directory to Python path for imports
         current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -589,6 +586,12 @@ def run_phase_c(
         # Import SUEWSConfig using the established working pattern from tests
         try:
             from supy.data_model import SUEWSConfig
+            import logging
+            
+            # Temporarily suppress SuPy logging during validation
+            supy_logger = logging.getLogger('SuPy')
+            original_level = supy_logger.level
+            supy_logger.setLevel(logging.WARNING)
 
             # Load and validate the YAML using SUEWSConfig (like SUEWSSimulation does)
             try:
@@ -658,7 +661,7 @@ def run_phase_c(
 
                     failure_report = f"""# SUEWS Phase C (Pydantic Validation) Report
 # ============================================
-# Mode: {mode.title()}
+# Mode: {'Public' if mode.lower() in ['user', 'public'] else mode.title()}
 # ============================================
 {action_needed}
 # =================================================="""
@@ -754,7 +757,7 @@ def run_phase_c(
                 if consolidated_no_action:
                     success_report = f"""# {title}
 # ============================================
-# Mode: {mode.title()}
+# Mode: {'Public' if mode.lower() in ['user', 'public'] else mode.title()}
 # ============================================
 
 ## NO ACTION NEEDED
@@ -764,7 +767,7 @@ def run_phase_c(
                 else:
                     success_report = f"""# {title}
 # ============================================
-# Mode: {mode.title()}
+# Mode: {'Public' if mode.lower() in ['user', 'public'] else mode.title()}
 # ============================================
 
 Phase {phase_str} passed
@@ -774,10 +777,14 @@ Phase {phase_str} passed
                 with open(pydantic_report_file, "w") as f:
                     f.write(success_report)
 
-                print("✓ Phase C completed - Pydantic validation passed")
+                # Restore logging level before return
+                supy_logger.setLevel(original_level)
+                print("✓ Phase C completed")
                 return True
 
             except Exception as validation_error:
+                # Restore logging level on validation error
+                supy_logger.setLevel(original_level)
                 # Pydantic validation failed - still create updatedC YAML (copy of original for user to modify)
                 import shutil
 
@@ -821,7 +828,7 @@ Phase {phase_str} passed
             # Import error report
             error_report = f"""# SUEWS Phase C (Pydantic Validation) Report
 # ============================================
-# Mode: {mode.title()}
+# Mode: {'Public' if mode.lower() in ['user', 'public'] else mode.title()}
 # ============================================
 
 ## PHASE C - FAILED
@@ -857,7 +864,7 @@ Phase C validation could not be executed due to import issues.
         # General error report
         error_report = f"""# SUEWS Phase C (Pydantic Validation) Report
 # ============================================
-# Mode: {mode.title()}
+# Mode: {'Public' if mode.lower() in ['user', 'public'] else mode.title()}
 # ============================================
 
 ## PHASE C - FAILED
@@ -927,39 +934,23 @@ Modes:
     parser.add_argument(
         "--mode",
         "-m",
-        choices=["user", "dev"],
-        default="user",
-        help="Processing mode: user (standard validation mode, default) or dev (developer mode with extended options - coming soon)",
+        choices=["public", "dev"],
+        default="public",
+        help="Processing mode: public (standard validation mode, default) or dev (developer mode with extended options - coming soon)",
     )
 
     args = parser.parse_args()
     user_yaml_file = args.yaml_file
     phase = args.phase
     mode = args.mode
-
-    # Print workflow header
-    phase_desc = {
-        "A": "Phase A Only",
-        "B": "Phase B Only",
-        "C": "Phase C Only",
-        "AB": "Complete A→B Workflow",
-        "AC": "Complete A→C Workflow",
-        "BC": "Complete B→C Workflow",
-        "ABC": "Complete A→B→C Workflow",
-    }
-    print(f"==================================")
-    print(f"SUEWS YAML Configuration Processor")
-    print(f"==================================")
-    print(f"YAML user file: {os.path.basename(user_yaml_file)}")
-    print(f"Processor Selected Mode: {phase_desc[phase]}")
-    print(f"Processing Mode: {mode.title()}")
-    print(f"==================================")
-    print()
+    
+    # Handle mode mapping: 'public' maps to 'user' internally for compatibility
+    internal_mode = "user" if mode == "public" else mode
 
     # Check if dev mode is requested (not yet implemented)
-    if mode.lower() == "dev":
+    if internal_mode.lower() == "dev":
         print("✗ Developer mode is not yet implemented")
-        print("  Available mode: user (default)")
+        print("  Available mode: public (default)")
         print("  Coming soon: dev mode with extended validation options")
         return 1
 
@@ -969,6 +960,26 @@ Modes:
 
         # Step 2: Setup paths
         standard_yaml_file = "src/supy/sample_data/sample_config.yml"
+        
+        # Print workflow header (after variables are defined)
+        phase_desc = {
+            "A": "Phase A",
+            "B": "Phase B", 
+            "C": "Phase C",
+            "AB": "Phase AB",
+            "AC": "Phase AC",
+            "BC": "Phase BC",
+            "ABC": "Phase ABC",
+        }
+        print(f"==================================")
+        print(f"SUEWS YAML Configuration Processor")
+        print(f"==================================")
+        print(f"YAML user file: {user_yaml_file}")
+        print(f"Standard file: {standard_yaml_file}")
+        print(f"Processor Selected Mode: {phase_desc[phase]}")
+        print(f"User Mode: Public")
+        print(f"==================================")
+        print()
         if not os.path.exists(standard_yaml_file):
             print()
             print(f"✗ Standard YAML file not found: {standard_yaml_file}")
@@ -997,10 +1008,8 @@ Modes:
                 "A",
             )
             if phase_a_success:
-                print()
-                print(f" Phase A completed: {os.path.basename(uptodate_file)}")
-                print(f" Report: {os.path.basename(report_file)}")
-                print(f" File locations: {dirname}")
+                print(" Updated YAML file:", uptodate_file)
+                print(" Report:", report_file)
             return 0 if phase_a_success else 1
 
         elif phase == "B":
@@ -1008,10 +1017,7 @@ Modes:
             input_yaml_file = user_yaml_file
             phase_a_report = None
 
-            print("Running Phase B directly on user YAML...")
-            print("(Phase B only mode - ignoring any existing Phase A output files)")
-            # Phase B will validate the original user YAML and detect missing parameters
-
+            print("Phase B: Scientific validation check...")
             phase_b_success = run_phase_b(
                 user_yaml_file,
                 input_yaml_file,
@@ -1024,16 +1030,13 @@ Modes:
                 phase="B",
             )
             if phase_b_success:
-                print()
-                print(f" Phase B completed: {os.path.basename(science_yaml_file)}")
-                print(f" Report: {os.path.basename(science_report_file)}")
-                print(f" File locations: {dirname}")
+                print(" Updated YAML file:", science_yaml_file)
+                print(" Report:", science_report_file)
             return 0 if phase_b_success else 1
 
         elif phase == "C":
             # Phase C only - run Pydantic validation on original user YAML
-            print("Running Phase C directly on user YAML...")
-            print("(Phase C only mode - Pydantic conditional validation)")
+            print("Phase C: Pydantic validation check...")
 
             phase_c_success = run_phase_c(
                 user_yaml_file,
@@ -1043,15 +1046,11 @@ Modes:
                 phases_run=["C"],
             )
             if phase_c_success:
-                print()
-                print(f" Phase C completed: {os.path.basename(pydantic_yaml_file)}")
-                print(f" Report: {os.path.basename(pydantic_report_file)}")
-                print(f" File locations: {dirname}")
+                print(" Updated YAML file:", pydantic_yaml_file)
+                print(" Report:", pydantic_report_file)
             else:
-                print()
-                print(f" Phase C failed: {os.path.basename(pydantic_yaml_file)}")
-                print(f" Report: {os.path.basename(pydantic_report_file)}")
-                print(f" File locations: {dirname}")
+                print(" Updated YAML file:", pydantic_yaml_file)
+                print(" Report:", pydantic_report_file)
             return 0 if phase_c_success else 1
 
         elif phase == "AB":
@@ -1088,6 +1087,7 @@ Modes:
                 print(f" File locations: {dirname}")
                 return 1
 
+            print("Phase B: Scientific validation check...")
             phase_b_success = run_phase_b(
                 user_yaml_file,
                 uptodate_file,
@@ -1111,12 +1111,8 @@ Modes:
                 except Exception:
                     pass  # Don't fail if cleanup doesn't work
 
-                print()
-                print(
-                    f" Ready for SUEWS simulation: {os.path.basename(science_yaml_file)}"
-                )
-                print(f" Report: {os.path.basename(science_report_file)}")
-                print(f" File locations: {dirname}")
+                print(" Updated YAML file:", science_yaml_file)
+                print(" Report:", science_report_file)
 
             return 0 if workflow_success else 1
 
@@ -1154,6 +1150,7 @@ Modes:
                 print(f" File locations: {dirname}")
                 return 1
 
+            print("Phase C: Pydantic validation check...")
             phase_c_success = run_phase_c(
                 uptodate_file,  # Use Phase A output as input to Phase C
                 pydantic_yaml_file,
@@ -1174,17 +1171,14 @@ Modes:
                 except Exception:
                     pass  # Don't fail if cleanup doesn't work
 
-                print()
-                print(
-                    f" Ready for SUEWS simulation: {os.path.basename(pydantic_yaml_file)}"
-                )
-                print(f" Report: {os.path.basename(pydantic_report_file)}")
-                print(f" File locations: {dirname}")
+                print(" Updated YAML file:", pydantic_yaml_file)
+                print(" Report:", pydantic_report_file)
 
             return 0 if workflow_success else 1
 
         elif phase == "BC":
             # Complete B→C workflow (following AC pattern)
+            print("Phase B: Scientific validation check...")
             phase_b_success = run_phase_b(
                 user_yaml_file,
                 user_yaml_file,  # Phase B runs directly on user YAML
@@ -1220,6 +1214,7 @@ Modes:
                 print(f" File locations: {dirname}")
                 return 1
 
+            print("Phase C: Pydantic validation check...")
             phase_c_success = run_phase_c(
                 science_yaml_file,  # Use Phase B output as input to Phase C
                 pydantic_yaml_file,
@@ -1240,12 +1235,8 @@ Modes:
                 except Exception:
                     pass  # Don't fail if cleanup doesn't work
 
-                print()
-                print(
-                    f" Ready for SUEWS simulation: {os.path.basename(pydantic_yaml_file)}"
-                )
-                print(f" Report: {os.path.basename(pydantic_report_file)}")
-                print(f" File locations: {dirname}")
+                print(" Updated YAML file:", pydantic_yaml_file)
+                print(" Report:", pydantic_report_file)
 
             return 0 if workflow_success else 1
 
@@ -1285,6 +1276,7 @@ Modes:
                 return 1
 
             # Step 2: Run Phase B (A passed, try B)
+            print("Phase B: Scientific validation check...")
             phase_b_success = run_phase_b(
                 user_yaml_file,
                 uptodate_file,
@@ -1327,6 +1319,7 @@ Modes:
                 return 1
 
             # Step 3: Run Phase C (both A and B passed)
+            print("Phase C: Pydantic validation check...")
             phase_c_success = run_phase_c(
                 science_yaml_file,  # Use Phase B output as input to Phase C
                 pydantic_yaml_file,
@@ -1351,19 +1344,8 @@ Modes:
                 pass  # Don't fail if cleanup doesn't work
 
             # Always provide ABC outputs (success or failure)
-            if phase_c_success:
-                print()
-                print(
-                    f" Ready for SUEWS simulation: {os.path.basename(pydantic_yaml_file)}"
-                )
-                print(f" ABC report: {os.path.basename(pydantic_report_file)}")
-                print(f" File locations: {dirname}")
-            else:
-                print()
-                print(f" Phase C failed - ABC workflow completed with errors")
-                print(f" ABC report: {os.path.basename(pydantic_report_file)}")
-                print(f" ABC YAML: {os.path.basename(pydantic_yaml_file)}")
-                print(f" File locations: {dirname}")
+            print(" Updated YAML file:", pydantic_yaml_file)
+            print(" Report:", pydantic_report_file)
 
             # Return success if all phases passed
             workflow_success = phase_a_success and phase_b_success and phase_c_success

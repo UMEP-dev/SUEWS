@@ -613,7 +613,7 @@ def create_analysis_report(
 
     report_lines.append(f"# {title}")
     report_lines.append("# " + "=" * 50)
-    report_lines.append(f"# Mode: {mode.title()}")
+    report_lines.append(f"# Mode: {'Public' if mode.lower() in ['user', 'public'] else mode.title()}")
     report_lines.append("# " + "=" * 50)
     report_lines.append("")
 

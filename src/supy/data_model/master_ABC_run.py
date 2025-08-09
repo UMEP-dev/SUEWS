@@ -459,10 +459,9 @@ def run_phase_a(
         if "## ACTION NEEDED" in report_content:
             if not silent:
                 print("✗ Phase A failed!")
-                print(f"Review details in reportA file: {report_file}")
-                print(
-                    f"Suggestion: fix ACTION NEEDED in report and consider to run Phase A again."
-                )
+                print(f"Report: {report_file}")
+                print(f"Updated YAML: {uptodate_file}")
+                print(f"Suggestion: Fix issues in updated YAML and consider to run Phase A again.")
             return False
 
         # If Phase A succeeds with no critical errors, we'll let Phase B create the consolidated report
@@ -542,10 +541,9 @@ def run_phase_b(
         if "CRITICAL ISSUES DETECTED" in report_content or "URGENT" in report_content:
             if not silent:
                 print("✗ Phase B failed!")
-                print(f"Review details in reportB file: {science_report_file}")
-                print(
-                    f"Suggestion: fix ACTION NEEDED in report and consider to run phase AB."
-                )
+                print(f"Report: {science_report_file}")
+                print(f"Updated YAML: {science_yaml_file}")
+                print(f"Suggestion: Fix issues in updated YAML and consider to run phase AB.")
             return False
 
         if not silent:
@@ -556,18 +554,16 @@ def run_phase_b(
         if "Critical scientific errors detected" in str(e):
             if not silent:
                 print("✗ Phase B failed!")
-                print(f"Review details in reportB file: {science_report_file}")
-                print(
-                    f"Suggestion: fix ACTION NEEDED in report and consider to run phase AB."
-                )
+                print(f"Report: {science_report_file}")
+                print(f"Updated YAML: {science_yaml_file}")
+                print(f"Suggestion: Fix issues in updated YAML and consider to run phase AB.")
             return False
         else:
             if not silent:
                 print("✗ Phase B failed!")
-                print(f"Review details in reportB file: {science_report_file}")
-                print(
-                    f"Suggestion: fix ACTION NEEDED in report and consider to run phase AB."
-                )
+                print(f"Report: {science_report_file}")
+                print(f"Updated YAML: {science_yaml_file}")
+                print(f"Suggestion: Fix issues in updated YAML and consider to run phase AB.")
             return False
     except Exception as e:
         if not silent:
@@ -691,10 +687,9 @@ def run_phase_c(
 
                     if not silent:
                         print("✗ Phase C failed!")
-                        print(f"Review details in reportC file: {pydantic_report_file}")
-                        print(
-                            f"Suggestion: fix ACTION NEEDED in report and consider to run either phase AB or complete processor ABC."
-                        )
+                        print(f"Report: {pydantic_report_file}")
+                        print(f"Updated YAML: {pydantic_yaml_file}")
+                        print(f"Suggestion: Fix issues in updated YAML and consider to run either phase AB or complete processor ABC.")
                     return False
 
                 # Build NO ACTION NEEDED section if any defaults were detected
@@ -836,10 +831,9 @@ Phase {phase_str} passed
 
                 if not silent:
                     print("✗ Phase C failed!")
-                    print(f"Review details in reportC file: {pydantic_report_file}")
-                    print(
-                        f"Suggestion: fix ACTION NEEDED in report and consider to run either phase AB or complete processor ABC."
-                    )
+                    print(f"Report: {pydantic_report_file}")
+                    print(f"Updated YAML: {pydantic_yaml_file}")
+                    print(f"Suggestion: Fix issues in updated YAML and consider to run either phase AB or complete processor ABC.")
                 return False
 
         except ImportError as import_error:
@@ -1068,8 +1062,8 @@ Modes:
                 phase="A",
             )
             if phase_a_success:
-                print(" Updated YAML file:", uptodate_file)
-                print(" Report:", report_file)
+                print("Report:", report_file)
+                print("Updated YAML:", uptodate_file)
             return 0 if phase_a_success else 1
 
         elif phase == "B":
@@ -1090,8 +1084,8 @@ Modes:
                 phase="B",
             )
             if phase_b_success:
-                print(" Updated YAML file:", science_yaml_file)
-                print(" Report:", science_report_file)
+                print("Report:", science_report_file)
+                print("Updated YAML:", science_yaml_file)
             return 0 if phase_b_success else 1
 
         elif phase == "C":
@@ -1106,8 +1100,8 @@ Modes:
                 phases_run=["C"],
             )
             if phase_c_success:
-                print(" Updated YAML file:", pydantic_yaml_file)
-                print(" Report:", pydantic_report_file)
+                print("Report:", pydantic_report_file)
+                print("Updated YAML:", pydantic_yaml_file)
             return 0 if phase_c_success else 1
 
         elif phase == "AB":
@@ -1140,10 +1134,9 @@ Modes:
                     pass  # Don't fail if rename doesn't work
 
                 print("✗ Phase A failed!")
-                print(f"Review details in reportAB file: {science_report_file}")
-                print(
-                    f"Suggestion: fix ACTION NEEDED in report and consider to rerun AB."
-                )
+                print(f"Report: {science_report_file}")
+                print(f"Updated YAML: {science_yaml_file}")
+                print(f"Suggestion: Fix issues in updated YAML and consider to rerun AB.")
                 return 1
 
             print("✓ Phase A completed")
@@ -1173,15 +1166,14 @@ Modes:
                     pass  # Don't fail if cleanup doesn't work
 
                 print("✓ Phase B completed")
-                print(" Updated YAML file:", science_yaml_file)
-                print(" Report:", science_report_file)
+                print("Report:", science_report_file)
+                print("Updated YAML:", science_yaml_file)
                 return 0
             else:
                 print("✗ Phase B failed!")
-                print(f"Review details in reportAB file: {science_report_file}")
-                print(
-                    f"Suggestion: fix ACTION NEEDED in report and consider to rerun AB."
-                )
+                print(f"Report: {science_report_file}")
+                print(f"Updated YAML: {science_yaml_file}")
+                print(f"Suggestion: Fix issues in updated YAML and consider to rerun AB.")
                 return 1
 
         elif phase == "AC":
@@ -1214,10 +1206,9 @@ Modes:
                     pass  # Don't fail if rename doesn't work
 
                 print("✗ Phase A failed!")
-                print(f"Review details in reportAC file: {pydantic_report_file}")
-                print(
-                    f"Suggestion: fix ACTION NEEDED in report and consider to rerun AC or complete processor ABC."
-                )
+                print(f"Report: {pydantic_report_file}")
+                print(f"Updated YAML: {pydantic_yaml_file}")
+                print(f"Suggestion: Fix issues in updated YAML and consider to rerun AC or complete processor ABC.")
                 return 1
 
             print("✓ Phase A completed")
@@ -1244,15 +1235,14 @@ Modes:
                     pass  # Don't fail if cleanup doesn't work
 
                 print("✓ Phase C completed")
-                print(" Updated YAML file:", pydantic_yaml_file)
-                print(" Report:", pydantic_report_file)
+                print("Report:", pydantic_report_file)
+                print("Updated YAML:", pydantic_yaml_file)
                 return 0
             else:
                 print("✗ Phase C failed!")
-                print(f"Review details in reportAC file: {pydantic_report_file}")
-                print(
-                    f"Suggestion: fix ACTION NEEDED in report and consider to rerun AC or complete processor ABC."
-                )
+                print(f"Report: {pydantic_report_file}")
+                print(f"Updated YAML: {pydantic_yaml_file}")
+                print(f"Suggestion: Fix issues in updated YAML and consider to rerun AC or complete processor ABC.")
                 return 1
 
         elif phase == "BC":
@@ -1288,10 +1278,9 @@ Modes:
                     pass  # Don't fail if rename doesn't work
 
                 print("✗ Phase B failed!")
-                print(f"Review details in reportBC file: {pydantic_report_file}")
-                print(
-                    f"Suggestion: fix ACTION NEEDED in report and consider to rerun BC."
-                )
+                print(f"Report: {pydantic_report_file}")
+                print(f"Updated YAML: {pydantic_yaml_file}")
+                print(f"Suggestion: Fix issues in updated YAML and consider to rerun BC.")
                 return 1
 
             print("✓ Phase B completed")
@@ -1318,15 +1307,14 @@ Modes:
                     pass  # Don't fail if cleanup doesn't work
 
                 print("✓ Phase C completed")
-                print(" Updated YAML file:", pydantic_yaml_file)
-                print(" Report:", pydantic_report_file)
+                print("Report:", pydantic_report_file)
+                print("Updated YAML:", pydantic_yaml_file)
                 return 0
             else:
                 print("✗ Phase C failed!")
-                print(f"Review details in reportBC file: {pydantic_report_file}")
-                print(
-                    f"Suggestion: fix ACTION NEEDED in report and consider to rerun BC."
-                )
+                print(f"Report: {pydantic_report_file}")
+                print(f"Updated YAML: {pydantic_yaml_file}")
+                print(f"Suggestion: Fix issues in updated YAML and consider to rerun BC.")
                 return 1
 
         elif phase == "ABC":
@@ -1360,10 +1348,9 @@ Modes:
                     pass  # Don't fail if rename doesn't work
 
                 print("✗ Phase A failed!")
-                print(f"Review details in reportABC file: {pydantic_report_file}")
-                print(
-                    f"Suggestion: fix ACTION NEEDED in report and consider to rerun complete processor ABC."
-                )
+                print(f"Report: {pydantic_report_file}")
+                print(f"Updated YAML: {pydantic_yaml_file}")
+                print(f"Suggestion: Fix issues in updated YAML and consider to rerun complete processor ABC.")
                 return 1
 
             print("✓ Phase A completed")
@@ -1412,10 +1399,9 @@ Modes:
                     pass  # Don't fail if cleanup doesn't work
 
                 print("✗ Phase B failed!")
-                print(f"Review details in reportABC file: {pydantic_report_file}")
-                print(
-                    f"Suggestion: fix ACTION NEEDED in report and consider to rerun complete processor ABC."
-                )
+                print(f"Report: {pydantic_report_file}")
+                print(f"Updated YAML: {pydantic_yaml_file}")
+                print(f"Suggestion: Fix issues in updated YAML and consider to rerun complete processor ABC.")
                 return 1
 
             print("✓ Phase B completed")
@@ -1448,15 +1434,14 @@ Modes:
 
             if not phase_c_success:
                 print("✗ Phase C failed!")
-                print(f"Review details in reportABC file: {pydantic_report_file}")
-                print(
-                    f"Suggestion: fix ACTION NEEDED in report and consider to rerun complete processor ABC."
-                )
+                print(f"Report: {pydantic_report_file}")
+                print(f"Updated YAML: {pydantic_yaml_file}")
+                print(f"Suggestion: Fix issues in updated YAML and consider to rerun complete processor ABC.")
                 return 1
 
             print("✓ Phase C completed")
-            print(" Updated YAML file:", pydantic_yaml_file)
-            print(" Report:", pydantic_report_file)
+            print("Report:", pydantic_report_file)
+            print("Updated YAML:", pydantic_yaml_file)
             return 0
 
         else:

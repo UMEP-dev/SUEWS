@@ -35,6 +35,15 @@
 ## 2025
 
 ### 8 Aug 2025
+- [feature] Formalised release management plan for SUEWS ([#592](https://github.com/UMEP-dev/SUEWS/issues/592))
+  - Established semantic versioning strategy with year-based major versions
+  - Defined three release channels: Stable, Preview (beta/rc), and Development
+  - Created quarterly release cadence aligned with academic calendar
+  - Documented quality assurance process with testing tiers
+  - Established documentation synchronisation with code releases
+  - Created communication templates and notification strategies
+  - Defined roles, responsibilities, and success metrics
+  - Addresses needs of academic users, non-academic partners, and developers
 - [maintenance] Upgraded PyPI publishing to use Trusted Publishing (OIDC authentication)
   - Removed dependency on long-lived API tokens for PyPI and TestPyPI
   - Added OIDC permissions (`id-token: write`) to deployment jobs

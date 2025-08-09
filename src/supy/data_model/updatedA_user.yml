@@ -1,10 +1,21 @@
-name: sample config FURTHER MODIFIED to trigger warning
+# =============================================================================
+# UP TO DATE YAML
+# =============================================================================
+#
+# This file has been automatically updated by uptodate_yaml.py with all necessary changes:
+# - Missing in standard parameters have been added with null values
+# - Renamed in standard parameters have been updated to current naming conventions
+# - All changes are reported in report_<yourfilename>.txt
+#
+# =============================================================================
+
+name: sample config
 description: built from benchmark 1a, based on Ward et al. (2016) model configuration
 model:
   control:
     tstep: 300
     forcing_file:
-      value: Kc_2012_data_60.txt
+      value: Input/Kc_2012_data_60.txt
     output_file:
       format: txt
       freq: 3600
@@ -13,6 +24,7 @@ model:
     diagnose: 0
     start_time: "2011-01-01"
     end_time: "2013-12-31"
+    startdate: "hello"
   physics:
     netradiationmethod:
       value: 3
@@ -27,11 +39,13 @@ model:
     roughlenheatmethod:
       value: 2
     stabilitymethod:
-      value: 3
+      value: 1
     smdmethod:
       value: 0
     waterusemethod:
       value: 0
+    #rslmethod:
+    #  value: 2
     rslmethod:
       value: 2
     faimethod:
@@ -48,6 +62,8 @@ sites:
 - name: KCL
   gridiv: 1
   properties:
+    test:
+      value: hello!
     lat:
       value: 51.51
     lng:
@@ -213,8 +229,8 @@ sites:
         value: 1000.0
       HotWaterTankWallDensity:
         value: 1000.0
-      DHWVesselDensity:
-        value: 1500.0
+      #DHWVesselDensity:
+      #  value: 1500.0
       HotWaterTankBuildingWallViewFactor:
         value: 0.1
       HotWaterTankInternalMassViewFactor:
@@ -237,6 +253,8 @@ sites:
         value: 0.8
       MinimumVolumeOfDHWinUse:
         value: 1.0
+      DHWVesselDensity:
+        value: null
     building_archetype:
       BuildingType: test
       BuildingName: test
@@ -447,30 +465,55 @@ sites:
           '23': -999.0
           '24': -999.0
         holiday:
-          '1': -999.0
-          '2': -999.0
-          '3': -999.0
-          '4': -999.0
-          '5': -999.0
-          '6': -999.0
-          '7': -999.0
-          '8': -999.0
-          '9': -999.0
-          '10': -999.0
-          '11': -999.0
-          '12': -999.0
-          '13': -999.0
-          '14': -999.0
-          '15': -999.0
-          '16': -999.0
-          '17': -999.0
-          '18': -999.0
-          '19': -999.0
-          '20': -999.0
-          '21': -999.0
-          '22': -999.0
-          '23': -999.0
-          '24': -999.0
+          '1': null
+          '2': null
+          '3': null
+          '4': null
+          '5': null
+          '6': null
+          '7': null
+          '8': null
+          '9': null
+          '10': null
+          '11': null
+          '12': null
+          '13': null
+          '14': null
+          '15': null
+          '16': null
+          '17': null
+          '18': null
+          '19': null
+          '20': null
+          '21': null
+          '22': null
+          '23': null
+          '24': null
+        #holiday:
+        #  '1': -999.0
+        #  '2': -999.0
+        #  '3': -999.0
+        #  '4': -999.0
+        #  '5': -999.0
+        #  '6': -999.0
+        #  '7': -999.0
+        #  '8': -999.0
+        #  '9': -999.0
+        #  '10': -999.0
+        #  '11': -999.0
+        #  '12': -999.0
+        #  '13': -999.0
+        #  '14': -999.0
+        #  '15': -999.0
+        #  '16': -999.0
+        #  '17': -999.0
+        #  '18': -999.0
+        #  '19': -999.0
+        #  '20': -999.0
+        #  '21': -999.0
+        #  '22': -999.0
+        #  '23': -999.0
+        #  '24': -999.0
     anthropogenic_emissions:
       startdls:
         value: 86.0
@@ -1981,6 +2024,7 @@ sites:
             - 1.2
             - 1.2
             - 1.2
+          #rho_cp:
           rho_cp:
             value:
             - 2000000.0
@@ -1992,12 +2036,14 @@ sites:
           value: 5.0
         soilstorecap:
           value: 120.0
-        wetthresh:
-          value: 5.0
+        #wetthresh:
+        #  value: 5.0
         roof_albedo_dir_mult_fact:
           value: 0.1
         wall_specular_frac:
           value: 0.0
+        wetthresh:
+          value: null
     n_buildings:
       value: 150
     h_std:

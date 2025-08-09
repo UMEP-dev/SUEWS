@@ -1039,9 +1039,6 @@ Modes:
             if phase_c_success:
                 print(" Updated YAML file:", pydantic_yaml_file)
                 print(" Report:", pydantic_report_file)
-            else:
-                print(" Updated YAML file:", pydantic_yaml_file)
-                print(" Report:", pydantic_report_file)
             return 0 if phase_c_success else 1
 
         elif phase == "AB":

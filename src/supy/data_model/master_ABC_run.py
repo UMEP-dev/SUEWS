@@ -445,7 +445,7 @@ def run_phase_a(
         # Check if uptodate file has Phase A header
         with open(uptodate_file, "r") as f:
             content = f.read()
-            if "UP TO DATE YAML" not in content:
+            if "Updated YAML" not in content:
                 if not silent:
                     print()
                     print("✗ Phase A failed: Missing Phase A completion header!")
@@ -643,10 +643,8 @@ def run_phase_c(
                     original_data, processed_data, "", standard_data
                 )
 
-                # Pydantic validation passed - create updatedC YAML (copy of original user file)
-                import shutil
-
-                shutil.copy2(input_yaml_file, pydantic_yaml_file)
+                # Pydantic validation passed - create updatedC YAML with standardized header
+                copy_yaml_with_standard_header(input_yaml_file, pydantic_yaml_file)
 
                 # Build passed phases header based on which phases ran successfully
                 if phases_run:
@@ -807,10 +805,8 @@ Phase {phase_str} passed
             except Exception as validation_error:
                 # Restore logging level on validation error
                 supy_logger.setLevel(original_level)
-                # Pydantic validation failed - still create updatedC YAML (copy of original for user to modify)
-                import shutil
-
-                shutil.copy2(input_yaml_file, pydantic_yaml_file)
+                # Pydantic validation failed - still create updatedC YAML with standardized header
+                copy_yaml_with_standard_header(input_yaml_file, pydantic_yaml_file)
 
                 # Generate structured ACTION NEEDED report
                 try:
@@ -917,6 +913,44 @@ Phase C validation could not be executed due to system errors.
 
         print(f"  Report generated: {os.path.basename(pydantic_report_file)}")
         return False
+
+
+def copy_yaml_with_standard_header(source_file: str, dest_file: str) -> None:
+    """Copy a YAML file and add the standardized header."""
+    # Read the source file content
+    with open(source_file, 'r') as f:
+        original_content = f.read()
+    
+    # Remove any existing headers (lines starting with # at the beginning)
+    lines = original_content.split('\n')
+    content_start_idx = 0
+    
+    # Skip initial comment lines (headers)
+    for i, line in enumerate(lines):
+        if line.strip() == '' or line.strip().startswith('#'):
+            continue
+        else:
+            content_start_idx = i
+            break
+    
+    # Get the clean content without old headers
+    clean_content = '\n'.join(lines[content_start_idx:])
+    
+    # Create the standardized header
+    standard_header = """# ==============================================================================
+# Updated YAML
+# ==============================================================================
+#
+# This file has been updated by the SUEWS processor and is the updated version of the user provided YAML.
+# Details of changes are in the generated report.
+#
+# ==============================================================================
+
+"""
+    
+    # Write the new file with standard header + clean content
+    with open(dest_file, 'w') as f:
+        f.write(standard_header + clean_content)
 
 
 def main():

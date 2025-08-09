@@ -1641,52 +1641,15 @@ def create_science_yaml_header(phase_a_performed: bool = True) -> str:
     Args:
         phase_a_performed: Whether Phase A was performed before Phase B
     """
-    if phase_a_performed:
-        # A→B workflow header
-        header = """# =============================================================================
-# FINAL SCIENCE CHECKED YAML
-# =============================================================================
+    # Use the standardized header format for all Phase B outputs
+    header = """# ==============================================================================
+# Updated YAML
+# ==============================================================================
 #
-# This file has been processed through the complete SUEWS validation workflow:
+# This file has been updated by the SUEWS processor and is the updated version of the user provided YAML.
+# Details of changes are in the generated report.
 #
-# PHASE A (Parameter Detection):
-# - Missing parameters added with null values
-# - Parameter names updated to current standards  
-# - YAML structure validated against reference configuration
-#
-# PHASE B (Scientific Validation):
-# - Physics parameters validated for consistency
-# - Geographic coordinates and timezone validated
-# - Seasonal adjustments applied (LAI, snowalb, surface temperatures)
-# - Land cover fractions validated and corrected
-# - Model physics option dependencies checked
-#
-# All parameter changes and scientific corrections documented in reportB_<filename>.txt
-#
-# =============================================================================
-
-"""
-    else:
-        # Phase B only header
-        header = """# =============================================================================
-# SCIENCE CHECKED YAML
-# =============================================================================
-#
-# This file has been processed through SUEWS Phase B scientific validation:
-#
-# PHASE B (Scientific Validation):
-# - Physics parameters validated for consistency
-# - Geographic coordinates and timezone validated
-# - Seasonal adjustments applied (LAI, snowalb, surface temperatures)
-# - Land cover fractions validated and corrected
-# - Model physics option dependencies checked
-#
-# NOTE: This file has NOT been processed through Phase A parameter detection.
-# Run Phase A first if you need missing parameter detection and naming updates.
-#
-# All parameter changes and scientific corrections documented in reportB_<filename>.txt
-#
-# =============================================================================
+# ==============================================================================
 
 """
     return header

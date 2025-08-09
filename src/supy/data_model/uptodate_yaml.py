@@ -449,16 +449,14 @@ def format_yaml_key(key):
 
 
 def create_uptodate_yaml_header():
-    header = """# =============================================================================
-# UP TO DATE YAML
-# =============================================================================
+    header = """# ==============================================================================
+# Updated YAML
+# ==============================================================================
 #
-# This file has been automatically updated by uptodate_yaml.py with all necessary changes:
-# - Missing in standard parameters have been added with null values
-# - Renamed in standard parameters have been updated to current naming conventions
-# - All changes are reported in report_<yourfilename>.txt
+# This file has been updated by the SUEWS processor and is the updated version of the user provided YAML.
+# Details of changes are in the generated report.
 #
-# =============================================================================
+# ==============================================================================
 
 """
     return header

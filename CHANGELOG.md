@@ -75,7 +75,10 @@
   - Aligned default value with Fortran code (FAIMethod.USE_PROVIDED = 0)
 
 ### 25 Jul 2025
-
+- [bugfix] Fixed NaN QF (anthropogenic heat flux) when population density is zero ([#240](https://github.com/UMEP-dev/SUEWS/issues/240))
+  - Added check to prevent division by zero in QF_build calculation
+  - When population density is zero, building energy flux is now correctly set to zero
+  - Added tests to verify correct behaviour with zero population density
 - [bugfix] Fixed timezone field to use enum for valid timezone offsets ([PR #554](https://github.com/UMEP-dev/SUEWS/pull/554), fixes [#552](https://github.com/UMEP-dev/SUEWS/issues/552))
   - Changed timezone field from `FlexibleRefValue(int)` to `FlexibleRefValue(Union[TimezoneOffset, float])`
   - Created `TimezoneOffset` enum with all valid global timezone offsets

@@ -453,7 +453,9 @@ def run_phase_a(
         if "## ACTION NEEDED" in report_content:
             print("✗ Phase A failed!")
             print(f"Review details in reportA file: {report_file}")
-            print(f"Suggestion: fix ACTION NEEDED in report and consider to run Phase A again.")
+            print(
+                f"Suggestion: fix ACTION NEEDED in report and consider to run Phase A again."
+            )
             return False
 
         # If Phase A succeeds with no critical errors, we'll let Phase B create the consolidated report
@@ -493,7 +495,7 @@ def run_phase_b(
     Returns:
         True if Phase B completed successfully, False otherwise
     """
-    #print("Phase B: Scientific validation...")
+    # print("Phase B: Scientific validation...")
 
     try:
         # Run Phase B using the imported function (suppress verbose output)
@@ -528,7 +530,9 @@ def run_phase_b(
         if "CRITICAL ISSUES DETECTED" in report_content or "URGENT" in report_content:
             print("✗ Phase B failed!")
             print(f"Review details in reportB file: {science_report_file}")
-            print(f"Suggestion: fix ACTION NEEDED in report and consider to run phase AB.")
+            print(
+                f"Suggestion: fix ACTION NEEDED in report and consider to run phase AB."
+            )
             return False
 
         print("✓ Phase B completed")
@@ -538,12 +542,16 @@ def run_phase_b(
         if "Critical scientific errors detected" in str(e):
             print("✗ Phase B failed!")
             print(f"Review details in reportB file: {science_report_file}")
-            print(f"Suggestion: fix ACTION NEEDED in report and consider to run phase AB.")
+            print(
+                f"Suggestion: fix ACTION NEEDED in report and consider to run phase AB."
+            )
             return False
         else:
             print("✗ Phase B failed!")
             print(f"Review details in reportB file: {science_report_file}")
-            print(f"Suggestion: fix ACTION NEEDED in report and consider to run phase AB.")
+            print(
+                f"Suggestion: fix ACTION NEEDED in report and consider to run phase AB."
+            )
             return False
     except Exception as e:
         print()
@@ -667,7 +675,9 @@ def run_phase_c(
 
                     print("✗ Phase C failed!")
                     print(f"Review details in reportC file: {pydantic_report_file}")
-                    print(f"Suggestion: fix ACTION NEEDED in report and consider to run either phase AB or complete processor ABC.")
+                    print(
+                        f"Suggestion: fix ACTION NEEDED in report and consider to run either phase AB or complete processor ABC."
+                    )
                     return False
 
                 # Build NO ACTION NEEDED section if any defaults were detected
@@ -810,7 +820,9 @@ Phase {phase_str} passed
 
                 print("✗ Phase C failed!")
                 print(f"Review details in reportC file: {pydantic_report_file}")
-                print(f"Suggestion: fix ACTION NEEDED in report and consider to run either phase AB or complete processor ABC.")
+                print(
+                    f"Suggestion: fix ACTION NEEDED in report and consider to run either phase AB or complete processor ABC."
+                )
                 return False
 
         except ImportError as import_error:

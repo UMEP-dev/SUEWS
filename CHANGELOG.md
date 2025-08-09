@@ -117,6 +117,19 @@
   - Extended 1-question label from 'User question/support' to 'User question/support/dev query'
   - Updated issue triage documentation and decision tree to reflect this change
 
+### 24 Jul 2025
+- [maintenance] Enhanced uv environment setup documentation and best practices
+  - Created comprehensive `.claude/howto/setup-uv-environment.md` guide aligned with `pyproject.toml` and `env.yml`
+  - Updated worktree setup guide to use `uv pip install -e ".[dev]"` for proper dependency management
+  - Documented package name differences between conda and pip (e.g., `matplotlib-base` → `matplotlib`, `pytables` → `tables`)
+  - Emphasised uv's 10-100x speed improvement over pip/conda for package installation
+- [feature] Added minimal Makefile recipes for uv environment management
+  - Added `make uv-dev` - one-stop setup with both dev and docs dependencies
+  - Added `make uv-clean` - remove virtual environment
+  - Streamlined recipes to avoid Makefile bloat while maintaining essential functionality
+  - Includes documentation dependencies by default for complete development environment
+  - Properly aligned with `pyproject.toml` dependency groups
+
 ### 23 Jul 2025
 - [maintenance] Added `/log-changes` slash command for automated documentation updates
   - Created custom slash command in `.claude/commands/log-changes.md`

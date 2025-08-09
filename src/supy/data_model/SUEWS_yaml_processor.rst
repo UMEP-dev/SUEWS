@@ -1,15 +1,19 @@
 SUEWS YAML Processor
 ====================
 
+The SUEWS YAML Processor is a comprehensive validation system that ensures SUEWS configuration files are complete, scientifically valid, and properly structured for successful model runs.
+
+Overview
+--------
+
 Purpose
--------
+~~~~~~~
 
 To ensure required model inputs are: 
 
 1. All present and physically sensible within appropriate ranges
 2. Consistent with other data submitted [Link: to section with order/logic checked] - e.g. assume date/latitude and longitude are correct - to determine initial state based on season etc
 3. Part of SUEWS_V2025
-
 
 SUEWS v2025 Features
 ~~~~~~~~~~~~~~~~~~~~
@@ -27,47 +31,29 @@ SUEWS v2025 Features
 4. **Bug fixes**  
    See: *[link to bugfix list]*.
 
+Getting Started
+---------------
 
-Prior Steps
------------
+Prerequisites
+~~~~~~~~~~~~~
 
 Prior to using the code you may need to:
 
 1. **If using an older (pre-SUEWS_v2025) SUEWS version:** Convert your namelist file to YAML format. See: *[link to conversion instructions]*.
 2. **Update SUEWS:** Ensure you have the latest SUEWS version so that YAML checks match the expected schema.
 
-Processor Steps
----------------
-
-Background
-----------
-
-**Code Used:** ``uptodate_yaml.py`` (Phase A), ``science_check.py`` (Phase B), ``master_ABC_run.py`` (orchestrator)
-
-**Key Enhancement:** ``get_value_safe()`` utility function for robust RefValue/plain format handling, migrated from precheck.py (PR #569)
-
-**Developers:** Developed by SR, MP, TS with the help of Claude as part of SUEWS YAML configuration validation system.
-
-**Required inputs:**
+Required Inputs
+~~~~~~~~~~~~~~~
 
 1. **User YAML file:** Your SUEWS YAML configuration file
 2. **Standard YAML file:** Reference configuration (typically ``sample_data/sample_config.yml`` from master branch)
-3. **Execution mode:** Phase A, Phase B, or complete A→B workflow
+3. **Execution mode:** Phase A, Phase B, Phase C, or combined workflows (AB, AC, BC, ABC)
 
-**Outputs:**
+Quick Start Guide
+-----------------
 
-1. **Phase A outputs:**
-   
-   a. **Success:** Console message indicating no missing parameters or critical todo actions required
-   b. **Issues found:** Updated YAML file and analysis report - see `Actions to fix Phase A issues`_
-
-2. **Phase B outputs:** Scientific validation results and corrected parameters
-3. **Phase C outputs:** Pydantic validation with inline annotations
-   
-
-
-How to run 
-~~~~~~~~~~
+Basic Usage
+~~~~~~~~~~~
 
 **Command Line Usage:**
 
@@ -79,25 +65,25 @@ How to run
    # Phase A only (parameter detection)
    python master_ABC_run.py user_config.yml --phase A
    
-   # Direct Phase A execution (legacy)
-   python uptodate_yaml.py user_config.yml sample_data/sample_config.yml
-
-**Example Output (when issues found):**
-
-.. code-block:: text
-
-   =============================
-   SUEWS Configuration Processor
-   =============================
-   YAML user file: user_config.yml
-   Processor Selected Mode: Phase A Only
-   =============================
+   # Phase B only (scientific validation)
+   python master_ABC_run.py user_config.yml --phase B
    
-   Phase A: Parameter detection...
+   # Phase C only (Pydantic validation)
+   python master_ABC_run.py user_config.yml --phase C
    
-   ✗ Phase A halted: Critical parameters missing
-     Fix issues in reportA file: /path/to/reportA_user_config.txt
-     Then re-run with the updated YAML file
+   # Complete A→B→C workflow
+   python master_ABC_run.py user_config.yml --phase ABC
+
+Common Workflows
+~~~~~~~~~~~~~~~~
+
+- **Phase A**: Parameter detection and structure validation
+- **Phase B**: Scientific validation and parameter correction
+- **Phase C**: Pydantic validation with model-specific rules
+- **AB**: Complete parameter detection + scientific validation (recommended)
+- **AC**: Parameter detection + Pydantic validation
+- **BC**: Scientific validation + Pydantic validation  
+- **ABC**: Complete validation pipeline
 
 **Example Output (when successful):**
 
@@ -113,12 +99,30 @@ How to run
    Phase A: Parameter detection...
    ✓ Phase A completed
    
-    Phase A completed: updatedA_user_config.yml
-    Report: reportA_user_config.txt
-    File locations: /path/to/directory
+   Report: reportA_user_config.txt
+   Updated YAML: updatedA_user_config.yml
 
+**Example Output (when issues found):**
 
-The main orchestration script is ``master_ABC_run.py``.  
+.. code-block:: text
+
+   =============================
+   SUEWS Configuration Processor
+   =============================
+   YAML user file: user_config.yml
+   Processor Selected Mode: Phase A Only
+   =============================
+   
+   Phase A: Parameter detection...
+   
+   ✗ Phase A failed!
+   Report: /path/to/reportA_user_config.txt
+   Updated YAML: /path/to/updatedA_user_config.yml
+   Suggestion: Fix issues in updated YAML and consider to run Phase A again.
+
+Processor Phases
+----------------
+
 The processor is divided into three sequential phases:
 
 1. **Phase A – Up-to-date YAML Check**  
@@ -129,32 +133,6 @@ The processor is divided into three sequential phases:
 
 3. **Phase C – Pydantic Validation Check** 
    Validates the YAML configuration using a Pydantic model, applying rules conditional on model options.   
-   
-Namelist to YAML
-================
-
-Overview
---------
-
-Convert pre-SUEWS_V2025 input format [link: manual reference of old format] to structured YAML format.
-
-Background
-----------
-
-**Code used:**
-
-**Developers:**
-
-**Required inputs:**
-
-**Outputs:**
-
-**Instructions:**
-
-**Steps:**
-
-.. note::
-   MP code
 
 Phase A – Up-to-date YAML Check
 ================================
@@ -205,6 +183,25 @@ Phase A systematically compares your YAML configuration against the standard and
    - **User-specific parameters** not found in standard configuration
    - **Preserved** in output (not removed)
    - **Flagged** for user awareness
+
+How to Run Phase A
+~~~~~~~~~~~~~~~~~~
+
+.. code-block:: bash
+
+   # Phase A only
+   python master_ABC_run.py user_config.yml --phase A
+   
+   # Direct Phase A execution (legacy)
+   python uptodate_yaml.py user_config.yml sample_data/sample_config.yml
+
+Outputs
+~~~~~~~
+
+**1. Phase A outputs:**
+   
+   a. **Success:** Console message indicating no missing parameters or critical todo actions required
+   b. **Issues found:** Updated YAML file and analysis report - see `Actions to fix Phase A issues`_
 
 Actions to fix Phase A issues
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -267,9 +264,11 @@ When Phase A detects issues, it generates two output files:
 
 **For detailed Phase A documentation, see:** `phase_a_detailed.rst <phase_a_detailed.rst>`__
 
+Phase B – Scientific Validation
+================================
 
-Section B: Overview
--------------------
+Overview
+--------
 
 The check are for:
 
@@ -283,11 +282,6 @@ What is checked In B how and why
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 - assumptions -etc
-
-
-
-
-
 
 How to run Phase B
 ~~~~~~~~~~~~~~~~~~
@@ -316,9 +310,9 @@ When running ``--phase B``, Phase B **always validates the original user YAML fi
    
    Phase B: Scientific validation...
    
-   ✗ Phase B halted: Critical scientific errors detected
-     Check reportB file for details: /path/to/reportB_user_config.txt
-     Suggestion: Fix the critical issues or run Phase A first if parameters are missing.
+   ✗ Phase B failed!
+   Report: /path/to/reportB_user_config.txt
+   Suggestion: Fix issues in report and consider to run phase B again.
 
 **Example Output (when Phase B successful):**
 
@@ -334,9 +328,8 @@ When running ``--phase B``, Phase B **always validates the original user YAML fi
    Phase B: Scientific validation...
    ✓ Phase B completed
    
-    Phase B completed: updatedB_user_config.yml
-    Report: reportB_user_config.txt
-    File locations: /path/to/directory
+   Report: reportB_user_config.txt
+   Updated YAML: updatedB_user_config.yml
 
 **Example Output (Complete A→B Workflow):**
 
@@ -354,9 +347,8 @@ When running ``--phase B``, Phase B **always validates the original user YAML fi
    Phase B: Scientific validation...
    ✓ Phase B completed
    
-    Ready for SUEWS simulation: updatedAB_user_config.yml
-    Report: reportAB_user_config.txt
-    File locations: /path/to/directory
+   Report: reportAB_user_config.txt
+   Updated YAML: updatedAB_user_config.yml
 
 Actions for fixing B issues
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -413,12 +405,11 @@ Output: an updated YAML saved as updatedB_<filename>.yml and a comprehensive rep
   - Parameters not in standard (informational)
   - Scientific warnings (informational)
 
+Phase C – Pydantic Validation
+==============================
 
-
-
-Section C: Overview
--------------------
-
+Overview
+--------
 
 Pydantic performs validation of a YAML file according to selected model options.
 
@@ -438,3 +429,54 @@ Actions to fix C issues
 ~~~~~~~~~~~~~~~~~~~~~~~
 
 (To be documented)
+
+Advanced Usage and Workflows
+=============================
+
+Multi-Phase Workflows
+---------------------
+
+The processor supports various workflow combinations:
+
+- **AB**: Complete parameter detection + scientific validation (recommended for most users)
+- **AC**: Parameter detection + Pydantic validation
+- **BC**: Scientific validation + Pydantic validation  
+- **ABC**: Complete validation pipeline
+
+Background and Technical Details
+================================
+
+**Code Used:** ``uptodate_yaml.py`` (Phase A), ``science_check.py`` (Phase B), ``master_ABC_run.py`` (orchestrator)
+
+**Key Enhancement:** ``get_value_safe()`` utility function for robust RefValue/plain format handling, migrated from precheck.py (PR #569)
+
+**Developers:** Developed by SR, MP, TS with the help of Claude as part of SUEWS YAML configuration validation system.
+
+Reference
+=========
+
+Namelist to YAML Conversion
+---------------------------
+
+Overview
+~~~~~~~~
+
+Convert pre-SUEWS_V2025 input format [link: manual reference of old format] to structured YAML format.
+
+Background
+~~~~~~~~~~
+
+**Code used:**
+
+**Developers:**
+
+**Required inputs:**
+
+**Outputs:**
+
+**Instructions:**
+
+**Steps:**
+
+.. note::
+   MP code

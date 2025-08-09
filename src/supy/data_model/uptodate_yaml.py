@@ -643,11 +643,8 @@ def create_analysis_report(
             for param_path, standard_value, is_physics in missing_params:
                 if is_physics:
                     param_name = param_path.split(".")[-1]
-                    uptodate_file_ref = (
-                        uptodate_filename if uptodate_filename else "uptodate YAML file"
-                    )
                     report_lines.append(
-                        f"-- {param_name} has been added to {uptodate_file_ref} and set to null"
+                        f"-- {param_name} has been added to the updated YAML and set to null"
                     )
                     report_lines.append(
                         f"   Suggested fix: Set appropriate value based on SUEWS documentation -- https://suews.readthedocs.io/latest/"
@@ -701,11 +698,8 @@ def create_analysis_report(
             for param_path, standard_value, is_physics in missing_params:
                 if not is_physics:
                     param_name = param_path.split(".")[-1]
-                    uptodate_file_ref = (
-                        uptodate_filename if uptodate_filename else "uptodate YAML file"
-                    )
                     report_lines.append(
-                        f"-- {param_name} added to {uptodate_file_ref} and set to null"
+                        f"-- {param_name} added to the updated YAML and set to null"
                     )
             report_lines.append("")
 

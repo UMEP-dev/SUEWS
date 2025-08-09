@@ -918,24 +918,24 @@ Phase C validation could not be executed due to system errors.
 def copy_yaml_with_standard_header(source_file: str, dest_file: str) -> None:
     """Copy a YAML file and add the standardized header."""
     # Read the source file content
-    with open(source_file, 'r') as f:
+    with open(source_file, "r") as f:
         original_content = f.read()
-    
+
     # Remove any existing headers (lines starting with # at the beginning)
-    lines = original_content.split('\n')
+    lines = original_content.split("\n")
     content_start_idx = 0
-    
+
     # Skip initial comment lines (headers)
     for i, line in enumerate(lines):
-        if line.strip() == '' or line.strip().startswith('#'):
+        if line.strip() == "" or line.strip().startswith("#"):
             continue
         else:
             content_start_idx = i
             break
-    
+
     # Get the clean content without old headers
-    clean_content = '\n'.join(lines[content_start_idx:])
-    
+    clean_content = "\n".join(lines[content_start_idx:])
+
     # Create the standardized header
     standard_header = """# ==============================================================================
 # Updated YAML
@@ -947,9 +947,9 @@ def copy_yaml_with_standard_header(source_file: str, dest_file: str) -> None:
 # ==============================================================================
 
 """
-    
+
     # Write the new file with standard header + clean content
-    with open(dest_file, 'w') as f:
+    with open(dest_file, "w") as f:
         f.write(standard_header + clean_content)
 
 

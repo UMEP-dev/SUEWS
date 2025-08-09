@@ -29,7 +29,7 @@ from copy import deepcopy
 from datetime import datetime
 from timezonefinder import TimezoneFinder
 import pytz
-from .._env import logger_supy
+from .._env import logger_supy, trv_supy_module
 import os
 
 
@@ -264,102 +264,103 @@ def save_precheck_diff_report(diffs: List[dict], original_yaml_path: str):
     logger_supy.info(f"Precheck difference report saved to: {report_path}")
 
 
-def get_monthly_avg_temp(lat: float, month: int) -> float:
+def get_mean_monthly_air_temperature(
+    lat: float, lon: float, month: int, spatial_res: float = 0.5
+) -> float:
     """
-    Estimate the average air temperature for a given latitude and month.
+    Calculate mean monthly air temperature using CRU TS4.06 climatological data.
 
-    This function uses predefined climatological values for four broad latitude bands:
-    - Tropics (|lat| < 10°)
-    - Subtropics (10° ≤ |lat| < 35°)
-    - Midlatitudes (35° ≤ |lat| < 60°)
-    - Polar regions (|lat| ≥ 60°)
-
-    The returned value represents a typical monthly average temperature (°C)
-    for the specified latitude band and month.
+    This function uses the CRU TS4.06 cell monthly normals dataset (1991-2020)
+    to provide accurate location-specific temperature estimates. CRU data is
+    required - the function will raise an error if CRU data is not available.
 
     Args:
         lat (float): Site latitude in degrees (positive for Northern Hemisphere, negative for Southern).
+        lon (float): Site longitude in degrees (-180 to 180).
         month (int): Month of the year (1 = January, 12 = December).
+        spatial_res (float): Search spatial resolution for finding nearest CRU grid cell (degrees). Default 0.5.
 
     Returns:
-        float: Estimated average air temperature for the given latitude and month.
+        float: Mean monthly air temperature for the given location and month (°C).
 
     Raises:
-        ValueError: If the input month is not between 1 and 12.
+        ValueError: If the input month is not between 1 and 12, coordinates are invalid,
+                   or no CRU data found within spatial resolution.
+        FileNotFoundError: If CRU data file is not found.
     """
+    import pandas as pd
+    import numpy as np
+    from pathlib import Path
 
-    lat_band = None
-    abs_lat = abs(lat)
+    # Validate inputs
+    if not (1 <= month <= 12):
+        raise ValueError(f"Month must be between 1 and 12, got {month}")
+    if not (-90 <= lat <= 90):
+        raise ValueError(f"Latitude must be between -90 and 90, got {lat}")
+    if not (-180 <= lon <= 180):
+        raise ValueError(f"Longitude must be between -180 and 180, got {lon}")
 
-    if abs_lat < 10:
-        lat_band = "tropics"
-    elif abs_lat < 35:
-        lat_band = "subtropics"
-    elif abs_lat < 60:
-        lat_band = "midlatitudes"
+    # Load CRU data from package resources using importlib.resources
+    # Access the Parquet file in the ext_data directory
+    cru_resource = trv_supy_module / "ext_data" / "CRU_TS4.06_1991_2020.parquet"
+
+    if not cru_resource.exists():
+        raise FileNotFoundError(
+            f"CRU data file not found at {cru_resource}. "
+            "Please ensure the CRU Parquet file is available in the package."
+        )
+
+    # Read the Parquet file - this works even when package is installed
+    with cru_resource.open("rb") as f:
+        df = pd.read_parquet(f)
+
+    # Validate required columns
+    required_cols = ["Month", "Latitude", "Longitude", "NormalTemperature"]
+    missing_cols = [col for col in required_cols if col not in df.columns]
+    if missing_cols:
+        raise ValueError(f"Missing required columns in CRU data: {missing_cols}")
+
+    # Filter for the specific month
+    month_data = df[df["Month"] == month]
+    if month_data.empty:
+        raise ValueError(f"No CRU data available for month {month}")
+
+    # Find nearest grid cell using both lat and lon
+    # Use both latitude and longitude for precise matching
+    lat_distances = np.abs(month_data["Latitude"] - lat)
+    lon_distances = np.abs(month_data["Longitude"] - lon)
+
+    # Find points within spatial_res for both coordinates
+    lat_mask = lat_distances <= spatial_res
+    lon_mask = lon_distances <= spatial_res
+    nearby_data = month_data[lat_mask & lon_mask]
+
+    if nearby_data.empty:
+        # Try with larger spatial_res
+        spatial_res_expanded = spatial_res * 2
+        lat_mask = lat_distances <= spatial_res_expanded
+        lon_mask = lon_distances <= spatial_res_expanded
+        nearby_data = month_data[lat_mask & lon_mask]
+
+        if nearby_data.empty:
+            raise ValueError(
+                f"No CRU data found within {spatial_res_expanded}° of coordinates "
+                f"({lat}, {lon}) for month {month}. Try increasing spatial resolution or "
+                f"check if coordinates are within CRU data coverage area."
+            )
+
+    # Calculate Euclidean distance for closest point
+    if len(nearby_data) > 1:
+        distances = np.sqrt(
+            lat_distances[nearby_data.index] ** 2
+            + lon_distances[nearby_data.index] ** 2
+        )
+        closest_idx = distances.idxmin()
+        temperature = float(month_data.loc[closest_idx, "NormalTemperature"])
     else:
-        lat_band = "polar"
+        temperature = float(nearby_data.iloc[0]["NormalTemperature"])
 
-    monthly_temp = {
-        "tropics": [
-            26.0,
-            26.5,
-            27.0,
-            27.5,
-            28.0,
-            28.5,
-            28.0,
-            27.5,
-            27.0,
-            26.5,
-            26.0,
-            25.5,
-        ],
-        "subtropics": [
-            15.0,
-            16.0,
-            18.0,
-            20.0,
-            24.0,
-            28.0,
-            30.0,
-            29.0,
-            26.0,
-            22.0,
-            18.0,
-            15.0,
-        ],
-        "midlatitudes": [
-            5.0,
-            6.0,
-            9.0,
-            12.0,
-            17.0,
-            21.0,
-            23.0,
-            22.0,
-            19.0,
-            14.0,
-            9.0,
-            6.0,
-        ],
-        "polar": [
-            -15.0,
-            -13.0,
-            -10.0,
-            -5.0,
-            0.0,
-            5.0,
-            8.0,
-            7.0,
-            3.0,
-            -2.0,
-            -8.0,
-            -12.0,
-        ],
-    }
-
-    return monthly_temp[lat_band][month - 1]
+    return temperature
 
 
 def precheck_printing(data: dict) -> dict:
@@ -692,12 +693,12 @@ def precheck_site_season_adjustments(
     return data
 
 
-def precheck_update_surface_temperature(data: dict, start_date: str) -> dict:
+def precheck_update_temperature(data: dict, start_date: str) -> dict:
     """
     Set initial surface temperatures for all surface types based on latitude and start month.
 
     For each site:
-    - Uses the site's latitude and the month from start_date to estimate an average temperature.
+    - Uses the site's latitude and the month from start_date to estimate mean monthly air temperature using CRU data.
     - Applies this temperature to all layers of surface temperature arrays, as well as 'tsfc' and 'tin' for each surface type (paved, bldgs, evetr, dectr, grass, bsoil, water).
     - If latitude is missing, the site is skipped with a warning.
 
@@ -724,10 +725,22 @@ def precheck_update_surface_temperature(data: dict, start_date: str) -> dict:
             )
             continue
 
+        # Get site longitude (required for CRU matching)
+        lng_entry = props.get("lng", {})
+        lng = lng_entry.get("value") if isinstance(lng_entry, dict) else lng_entry
+
+        # If longitude is missing, skip this site (should not happen with valid config)
+        if lng is None:
+            logger_supy.warning(
+                f"[site #{site_idx}] Longitude not found in configuration, skipping temperature initialization"
+            )
+            continue
+
         # Get estimated average temperature
-        avg_temp = get_monthly_avg_temp(lat, month)
+        avg_temp = get_mean_monthly_air_temperature(lat, lng, month)
+        coord_info = f"lat={lat}, lng={lng}"
         logger_supy.info(
-            f"[site #{site_idx}] Setting surface temperatures to {avg_temp} °C for month {month} (lat={lat})"
+            f"[site #{site_idx}] Setting surface temperatures to {avg_temp} °C for month {month} ({coord_info})"
         )
 
         # Loop over all surface types
@@ -1087,103 +1100,6 @@ def precheck_nonzero_sfr_requires_nonnull_params(data: dict) -> dict:
     return data
 
 
-# def precheck_model_option_rules(data: dict) -> dict:
-#     """
-#     Apply model-option-dependent validation rules and parameter adjustments based on model physics settings.
-
-#     For each site, this function applies checks and actions depending on selected model options in `model.physics`:
-
-#     - **If `rslmethod == 2` (diagnostic method enabled):**
-#         - For any site where `bldgs.sfr > 0`, verifies that `faibldg` is set and non-null.
-
-#     - **If `storageheatmethod == 6` (DyOHM method):**
-#         - Verifies that `vertical_layers.walls` exists and contains at least one wall.
-#         - Checks that the first wall has non-empty lists for `dz`, `k`, and `rho_cp` in `thermal_layers`.
-#         - Verifies that `lambda_c` is set and non-null.
-
-#     - **If `stebbsmethod == 0`:**
-#         - Recursively nullifies all parameters under the `stebbs` block at site level.
-
-#     Args:
-#         data (dict): YAML configuration data loaded as a dictionary.
-
-#     Returns:
-#         dict: The updated YAML dictionary after applying model-option rules.
-
-#     Raises:
-#         ValueError: If any required condition based on model options is violated.
-#     """
-
-#     physics = data.get("model", {}).get("physics", {})
-#     rslmethod = physics.get("rslmethod", {}).get("value")
-#     storagemethod = physics.get("storageheatmethod", {}).get("value")
-#     stebbsmethod = get_value_safe(physics, "stebbsmethod")
-
-#     # --- RSLMETHOD RULES (diagnostic method logic) ---
-#     if rslmethod == 2:
-#         logger_supy.info("[precheck] rslmethod==2 detected → checking faibldg for bldgs with sfr > 0.")
-
-#         for site_idx, site in enumerate(data.get("sites", [])):
-#             props = site.get("properties", {})
-#             land_cover = props.get("land_cover", {})
-#             bldgs = land_cover.get("bldgs", {})
-#             sfr = bldgs.get("sfr", {}).get("value", 0)
-
-#             if sfr > 0:
-#                 faibldg = bldgs.get("faibldg", {})
-#                 faibldg_value = faibldg.get("value")
-#                 if faibldg_value in (None, "", []):
-#                     raise ValueError(f"[site #{site_idx}] For rslmethod==2 and bldgs.sfr > 0, faibldg must be set and non-null.")
-
-#     # --- STORAGEHEATMETHOD RULES (DyOHM logic) ---
-#     if storagemethod == 6:
-#         logger_supy.info("[precheck] storageheatmethod==6 detected → checking wall thermal layers and lambda_c.")
-
-#         for site_idx, site in enumerate(data.get("sites", [])):
-#             props = site.get("properties", {})
-#             vertical_layers = props.get("vertical_layers", {})
-#             walls = vertical_layers.get("walls", [])
-
-#             if not walls or not isinstance(walls, list) or len(walls) == 0:
-#                 raise ValueError(f"[site #{site_idx}] Missing vertical_layers.walls for storageheatmethod == 6.")
-
-#             wall0 = walls[0]
-#             thermal = wall0.get("thermal_layers", {})
-
-#             for param in ["dz", "k", "rho_cp"]:
-#                 param_list = thermal.get(param, {}).get("value")
-#                 if not isinstance(param_list, list) or len(param_list) == 0:
-#                     raise ValueError(f"[site #{site_idx}] Missing wall thermal_layers.{param} for storageheatmethod == 6.")
-#                 if param_list[0] in (None, ""):
-#                     raise ValueError(f"[site #{site_idx}] wall thermal_layers.{param}[0] must be set for storageheatmethod == 6.")
-
-#             lambda_c = props.get("lambda_c", {}).get("value")
-#             if lambda_c in (None, ""):
-#                 raise ValueError(f"[site #{site_idx}] properties.lambda_c must be set for storageheatmethod == 6.")
-
-#     # --- STEBBSMETHOD RULES ---
-#     if stebbsmethod == 0:
-#         logger_supy.info("[precheck] stebbsmethod==0 detected → nullifying stebbs parameters at site level.")
-
-#         for site_idx, site in enumerate(data.get("sites", [])):
-#             props = site.get("properties", {})
-#             stebbs_block = props.get("stebbs", {})
-
-#             def recursive_nullify(d):
-#                 for k, v in d.items():
-#                     if isinstance(v, dict):
-#                         if "value" in v:
-#                             v["value"] = None
-#                         else:
-#                             recursive_nullify(v)
-
-#             recursive_nullify(stebbs_block)
-#             site["properties"]["stebbs"] = stebbs_block
-
-#     logger_supy.info("[precheck] Model-option-based rules completed.")
-#     return data
-
-
 def precheck_model_option_rules(data: dict) -> dict:
     """
     If a method is switched off, recursively nullify all site-level methods parameters.
@@ -1285,11 +1201,8 @@ def run_precheck(path: str) -> dict:
         data, start_date=start_date, model_year=model_year
     )
 
-    # ---- Step 8: Update surface temperatures from lat/month ----
-    data = precheck_update_surface_temperature(data, start_date=start_date)
-
-    # ---- Step 9: Nullify params for surfaces with sfr == 0 ----
-    # data = precheck_nullify_zero_sfr_params(data)
+    # ---- Step 8: Update temperatures using CRU mean monthly air temperature ----
+    data = precheck_update_temperature(data, start_date=start_date)
 
     # ---- Step 9: Print warnings for params related to surfaces with sfr == 0 ----
     data = precheck_warn_zero_sfr_params(data)

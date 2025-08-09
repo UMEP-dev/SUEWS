@@ -309,8 +309,14 @@ CONTAINS
 
          ! Energy released from buildings only
          ! Should buildings have their own profile? Now using population profile
-         QF_build = ((QF_SAHP_base*QF0_BEU(iu) + QF_SAHP_heating + QF_SAHP_cooling)/DP_x_RhoPop)* &
-                    (PopDensNighttime*(2 - PopDorNorT) + PopDensDaytime(iu)*(PopDorNorT - 1))
+         ! Check for zero population density to avoid division by zero
+         IF (DP_x_RhoPop > 0.0D0) THEN
+            QF_build = ((QF_SAHP_base*QF0_BEU(iu) + QF_SAHP_heating + QF_SAHP_cooling)/DP_x_RhoPop)* &
+                       (PopDensNighttime*(2 - PopDorNorT) + PopDensDaytime(iu)*(PopDorNorT - 1))
+         ELSE
+            ! If population density is zero, building energy flux should also be zero
+            QF_build = 0.0D0
+         END IF
 
          ! Consider the various components of QF_build to calculate Fc_build
          Fc_build = QF_SAHP_heating*FrFossilFuel_Heat*EF_umolCO2perJ

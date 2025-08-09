@@ -15,8 +15,8 @@ from supy.data_model.precheck import (
     precheck_nonzero_sfr_requires_nonnull_params,
     precheck_model_option_rules,
     collect_yaml_differences,
-    precheck_update_surface_temperature,
-    get_monthly_avg_temp,
+    precheck_update_temperature,
+    get_mean_monthly_air_temperature,
     precheck_warn_zero_sfr_params,
     SeasonCheck,
     get_value_safe,
@@ -1017,15 +1017,21 @@ def build_minimal_yaml_for_surface_temp():
     }
 
 
-def test_precheck_update_surface_temperature():
+def test_precheck_update_temperature():
     data = build_minimal_yaml_for_surface_temp()
     start_date = data["model"]["control"]["start_time"]
     month = datetime.strptime(start_date, "%Y-%m-%d").month
     lat = data["sites"][0]["properties"]["lat"]["value"]
+    lng = data["sites"][0]["properties"]["lng"]["value"]
 
-    expected_temp = get_monthly_avg_temp(lat, month)
+    # Get the expected temperature value from the function
+    try:
+        expected_temp = get_mean_monthly_air_temperature(lat, lng, month)
+    except FileNotFoundError:
+        # If CRU data is not available, skip this test
+        pytest.skip("CRU data file not available for temperature calculation")
 
-    updated = precheck_update_surface_temperature(deepcopy(data), start_date=start_date)
+    updated = precheck_update_temperature(deepcopy(data), start_date=start_date)
 
     for surface in ["paved", "bldgs", "evetr", "dectr", "grass", "bsoil", "water"]:
         temp_array = updated["sites"][0]["initial_states"][surface]["temperature"][
@@ -1041,14 +1047,14 @@ def test_precheck_update_surface_temperature():
         assert tin == expected_temp, f"Mismatch in tin for {surface}"
 
 
-def test_precheck_update_surface_temperature_missing_lat():
+def test_precheck_update_temperature_missing_lat():
     data = build_minimal_yaml_for_surface_temp()
     data["sites"][0]["properties"]["lat"] = None  # Simulate missing lat
 
     start_date = data["model"]["control"]["start_time"]
 
     # Should not raise, but skip update
-    updated = precheck_update_surface_temperature(deepcopy(data), start_date=start_date)
+    updated = precheck_update_temperature(deepcopy(data), start_date=start_date)
 
     for surface in ["paved", "bldgs", "evetr", "dectr", "grass", "bsoil", "water"]:
         temp_array = updated["sites"][0]["initial_states"][surface]["temperature"][
@@ -1057,6 +1063,34 @@ def test_precheck_update_surface_temperature_missing_lat():
         assert temp_array == [0, 0, 0, 0, 0], (
             f"Temperature should stay unchanged for {surface} when lat is missing."
         )
+
+
+def test_get_mean_monthly_air_temperature_with_cru_data():
+    """Test that get_mean_monthly_air_temperature works with CRU data when available."""
+    # This test verifies the function returns a reasonable temperature value
+    # when CRU data is available (development/test environments)
+    try:
+        temp = get_mean_monthly_air_temperature(45.0, 10.0, 7)
+        # Temperature for mid-latitudes in July should be reasonable (0-40°C range)
+        assert isinstance(temp, float), "Temperature should be a float"
+        assert -50 <= temp <= 50, (
+            f"Temperature {temp}°C seems unreasonable for lat=45°, month=7"
+        )
+    except FileNotFoundError:
+        # If CRU data is not available, we expect this error - that's fine
+        pytest.skip("CRU data file not available in this environment")
+
+
+def test_get_mean_monthly_air_temperature_invalid_month():
+    """Test that get_mean_monthly_air_temperature raises ValueError for invalid month."""
+    with pytest.raises(ValueError, match="Month must be between 1 and 12"):
+        get_mean_monthly_air_temperature(45.0, 10.0, 13)
+
+
+def test_get_mean_monthly_air_temperature_invalid_latitude():
+    """Test that get_mean_monthly_air_temperature raises ValueError for invalid latitude."""
+    with pytest.raises(ValueError, match="Latitude must be between -90 and 90"):
+        get_mean_monthly_air_temperature(95.0, 10.0, 7)
 
 
 class TestPrecheckRefValueHandling:

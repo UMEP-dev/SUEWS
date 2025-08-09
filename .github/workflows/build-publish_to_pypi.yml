@@ -213,6 +213,10 @@ jobs:
         github.event_name == 'schedule' ||
         (startsWith(github.ref, 'refs/tags/') && contains(github.ref, 'dev'))
       )
+    
+    # Set up permissions for OIDC authentication
+    permissions:
+      id-token: write  # Required for Trusted Publishing
 
     steps:
       - name: Download all wheels for TestPyPI
@@ -227,7 +231,6 @@ jobs:
           packages-dir: dist/
           verbose: true
           skip-existing: true
-          password: ${{ secrets.TEST_PYPI_API_TOKEN }}
           repository-url: https://test.pypi.org/legacy/
 
   deploy_pypi:
@@ -244,6 +247,10 @@ jobs:
       !contains(github.ref, 'dev') &&
       needs.build_wheels.result == 'success' &&
       (needs.create_nightly_tag.result == 'success' || needs.create_nightly_tag.result == 'skipped')
+    
+    # Set up permissions for OIDC authentication
+    permissions:
+      id-token: write  # Required for Trusted Publishing
 
     steps:
       - name: Download all the built wheels
@@ -258,4 +265,3 @@ jobs:
           packages-dir: dist/
           verbose: true
           skip-existing: true
-          password: ${{ secrets.PYPI_API_TOKEN }}

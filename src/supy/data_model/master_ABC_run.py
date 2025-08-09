@@ -1086,6 +1086,16 @@ Modes:
             if phase_b_success:
                 print("Report:", science_report_file)
                 print("Updated YAML:", science_yaml_file)
+            else:
+                # Phase B failed - remove YAML file if it was created during failure (COMMIT 3 requirement)
+                try:
+                    if os.path.exists(science_yaml_file):
+                        os.remove(science_yaml_file)
+                except Exception:
+                    pass  # Don't fail if removal doesn't work
+                # Phase B standalone failure: only show Report and Suggestion (no Updated YAML)
+                print("Report:", science_report_file)
+                print("Suggestion: Fix issues in report and consider to run phase B again.")
             return 0 if phase_b_success else 1
 
         elif phase == "C":
@@ -1102,6 +1112,16 @@ Modes:
             if phase_c_success:
                 print("Report:", pydantic_report_file)
                 print("Updated YAML:", pydantic_yaml_file)
+            else:
+                # Phase C failed - remove YAML file if it was created during failure (COMMIT 3 requirement)
+                try:
+                    if os.path.exists(pydantic_yaml_file):
+                        os.remove(pydantic_yaml_file)
+                except Exception:
+                    pass  # Don't fail if removal doesn't work
+                # Phase C standalone failure: only show Report and Suggestion (no Updated YAML)
+                print("Report:", pydantic_report_file)
+                print("Suggestion: Fix issues in report and consider to run phase C again.")
             return 0 if phase_c_success else 1
 
         elif phase == "AB":

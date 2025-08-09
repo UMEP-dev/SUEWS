@@ -157,133 +157,205 @@ Recommended Workflows
      - updatedC_*.yml, reportC_*.txt
      - Slow
    * - AB
-     - Complete parameter + science check
+     - Parameter + science check
      - **Recommended for most users**
      - updatedAB_*.yml, reportAB_*.txt
      - Medium
+   * - AC
+     - Parameter + model validation
+     - Skip science, focus on structure + Pydantic
+     - updatedAC_*.yml, reportAC_*.txt
+     - Medium
+   * - BC
+     - Science + model validation
+     - Skip parameter check, focus on validation
+     - updatedBC_*.yml, reportBC_*.txt
+     - Slow
    * - ABC
      - Full validation pipeline  
-     - Advanced/complex configurations
+     - **Complete validation (recommended)**
      - updatedABC_*.yml, reportABC_*.txt
      - Slow
 
-**Example Output (when successful):**
+Expected Output
+~~~~~~~~~~~~~~~
+
+**Successful Validation Example (ABC workflow):**
 
 .. code-block:: text
 
-   =============================
-   SUEWS Configuration Processor
-   =============================
-   YAML user file: user_config.yml
-   Processor Selected Mode: Phase A Only
-   =============================
-   
-   Phase A: Parameter detection...
+   ==================================
+   SUEWS YAML Configuration Processor
+   ==================================
+   YAML user file: /path/to/user_config.yml
+   Standard file: src/supy/sample_data/sample_config.yml
+   Processor Selected Mode: Phase ABC
+   User Mode: Public
+   ==================================
+
+   Phase A: Up-to-date YAML check...
    ✓ Phase A completed
+   Phase B: Scientific validation check...
+   ✓ Phase B completed
+   Phase C: Pydantic validation check...
+   ✓ Phase C completed
    
-   Report: reportA_user_config.txt
-   Updated YAML: updatedA_user_config.yml
+   Report: reportABC_user_config.txt
+   Updated YAML: updatedABC_user_config.yml
 
-**Example Output (when issues found):**
+**Validation Issues Example (Phase A failure):**
 
 .. code-block:: text
 
-   =============================
-   SUEWS Configuration Processor
-   =============================
-   YAML user file: user_config.yml
-   Processor Selected Mode: Phase A Only
-   =============================
-   
-   Phase A: Parameter detection...
-   
+   ==================================
+   SUEWS YAML Configuration Processor
+   ==================================
+   YAML user file: /path/to/user_config.yml
+   Standard file: src/supy/sample_data/sample_config.yml
+   Processor Selected Mode: Phase A
+   User Mode: Public
+   ==================================
+
+   Phase A: Up-to-date YAML check...
    ✗ Phase A failed!
    Report: /path/to/reportA_user_config.txt
    Updated YAML: /path/to/updatedA_user_config.yml
    Suggestion: Fix issues in updated YAML and consider to run Phase A again.
 
-Processor Phases
-----------------
+Understanding the Validation Pipeline
+--------------------------------------
 
-The processor is divided into three sequential phases:
+The SUEWS YAML Processor uses a three-phase approach that builds upon each phase:
+
+**Sequential Validation Design**
+   Each phase addresses different aspects of configuration validation, from basic structure to complex model-specific rules.
+
+**Phase Dependencies**
+   Later phases assume earlier phases have been completed - Phase B expects Phase A corrections, Phase C expects scientific validity.
+
+**Progressive Refinement**  
+   Each phase refines the configuration further, with the final output being a fully validated, model-ready YAML file.
+
+**The Three Phases:**
 
 1. **Phase A – Up-to-date YAML Check**  
-   Ensures the user YAML matches the standard SUEWS YAML structure.
+   Compares your configuration against the current SUEWS parameter set, identifying missing parameters, renamed parameters, and structural issues.
 
-2. **Phase B – Scientific Validation Check**  
-   Checks and updates parameters to be scientifically reasonable.
+2. **Phase B – Scientific Validation**  
+   Validates parameter values for physical reasonableness, applies scientific corrections, and ensures parameter consistency.
 
-3. **Phase C – Pydantic Validation Check** 
-   Validates the YAML configuration using a Pydantic model, applying rules conditional on model options.   
+3. **Phase C – Pydantic Validation** 
+   Applies model-specific validation rules based on selected physics options, ensuring configuration compatibility with chosen model features.   
 
 Phase A – Up-to-date YAML Check
 ================================
 
-Overview
---------
+Purpose and Scope
+-----------------
 
-Phase A performs comprehensive parameter detection by comparing your user YAML configuration against the standard SUEWS YAML configuration file.
+Phase A ensures your YAML configuration contains all required SUEWS parameters in the current format. It acts as a structural validator and parameter update service, bridging the gap between your configuration and the latest SUEWS requirements.
 
-Standard Configuration File
----------------------------
+**Primary Functions:**
+- Detect missing parameters required by current SUEWS version
+- Update outdated parameter names to current standards  
+- Identify user-specific parameters not in the standard set
+- Ensure YAML structure matches expected format
 
-The standard configuration file serves as the reference for all required SUEWS parameters:
+**When to Use Phase A:**
+- Starting with a new SUEWS configuration
+- Migrating from older SUEWS versions
+- After SUEWS updates that may introduce new parameters
+- Before running scientific validation (Phase B)
 
-**File:** ``sample_data/sample_config.yml`` from latest version of master branch
+What Phase A Validates
+~~~~~~~~~~~~~~~~~~~~~~
 
-**Purpose:** Contains the complete set of SUEWS parameters with proper structure
+**Standard Reference**
+   Phase A compares your configuration against ``src/supy/sample_data/sample_config.yml``, which contains the complete, current SUEWS parameter set with proper structure and data types.
 
-**Git Integration:** Phase A validates that the standard file is consistent across development branches
+**Validation Categories:**
 
-What is checked in Phase A
-~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-Phase A systematically compares your YAML configuration against the standard and identifies:
-
-1. **Critical Missing Parameters**
+1. **Missing Critical Parameters (ACTION NEEDED)**
    
-   - **Physics options** (``model.physics.*``) that are missing from user configuration
-   - Critical for model execution: ``netradiationmethod``, ``emissionsmethod``, ``storageheatmethod``, etc.
-   - Model will not run without these parameters.
-
-2. **Optional Missing Parameters**
+   **Physics Options**: Essential model physics selections
+      - ``netradiationmethod``: Net radiation calculation method
+      - ``emissionsmethod``: Anthropogenic heat flux method  
+      - ``storageheatmethod``: Storage heat flux calculation
+      - ``stabilitymethod``: Atmospheric stability functions
+      - And other ``model.physics.*`` parameters
    
-   - **Parameters missing from user configuration** but not critical for model execution
-   - Model can run with these parameters set to null values or using internal defaults.
-
-3. **Outdated Parameter Renaming**
+   **Impact**: Model execution will fail without these parameters
    
-   - **Automatic detection** and renaming of outdated parameter names
-   - Common renamings:
-     - ``cp`` → ``rho_cp`` (thermal heat capacity)
-     - ``diagmethod`` → ``rslmethod`` (roughness sublayer method)  
-     - ``localclimatemethod`` → ``rsllevel`` (RSL level method)
-   - **Values preserved** during renaming process
+   **Resolution**: Set to appropriate values (not null) based on model requirements
 
-4. **NOT IN STANDARD Parameters**
+2. **Missing Optional Parameters (NO ACTION NEEDED)**
    
-   - **User-specific parameters** not found in standard configuration
-   - **Preserved** in output (not removed)
-   - **Flagged** for user awareness
+   **Non-critical Parameters**: Model can operate with defaults
+      - Site-specific adjustments (e.g., ``wetthresh``, ``holiday``)
+      - Optional model features (e.g., advanced anthropogenic heat settings)
+      - Diagnostic outputs and reporting options
+   
+   **Impact**: Model uses internal defaults or null values
+   
+   **Resolution**: No immediate action required, but review for completeness
 
-How to Run Phase A
-~~~~~~~~~~~~~~~~~~
+3. **Outdated Parameter Names (NO ACTION NEEDED)**
+   
+   **Automatic Renaming**: Legacy parameter names updated to current standards
+      - ``cp`` → ``rho_cp`` (thermal heat capacity of air)
+      - ``diagmethod`` → ``rslmethod`` (roughness sublayer method)
+      - ``localclimatemethod`` → ``rsllevel`` (RSL level specification)
+   
+   **Impact**: Ensures compatibility with current SUEWS version
+   
+   **Resolution**: Automatic - values preserved, names updated
+
+4. **Parameters Not in Standard (NO ACTION NEEDED)**
+   
+   **User-Specific Parameters**: Additional parameters in your configuration
+      - Custom site identifiers or metadata
+      - Experimental parameters for development versions
+      - User-defined calculation flags
+   
+   **Impact**: Preserved in output, flagged for awareness
+   
+   **Resolution**: Review relevance, keep or remove as needed
+
+Running Phase A
+~~~~~~~~~~~~~~~
+
+**Standalone Execution:**
 
 .. code-block:: bash
 
-   # Phase A only
-   python master_ABC_run.py user_config.yml --phase A
-   
-   # Direct Phase A execution (legacy)
-   python uptodate_yaml.py user_config.yml sample_data/sample_config.yml
+   # Phase A only - creates updatedA_*.yml 
+   python src/supy/data_model/master_ABC_run.py user_config.yml --phase A
 
-Outputs
-~~~~~~~
+**As Part of Workflows:**
 
-**1. Phase A outputs:**
+.. code-block:: bash
+
+   # Recommended: A + B validation
+   python src/supy/data_model/master_ABC_run.py user_config.yml --phase AB
    
-   a. **Success:** Console message indicating no missing parameters or critical todo actions required
-   b. **Issues found:** Updated YAML file and analysis report - see `Actions to fix Phase A issues`_
+   # Complete pipeline: A + B + C validation  
+   python src/supy/data_model/master_ABC_run.py user_config.yml --phase ABC
+
+Phase A Outputs
+~~~~~~~~~~~~~~~~
+
+**Success Case:**
+   - Console confirms completion
+   - ``updatedA_*.yml``: Cleaned configuration with any corrections applied
+   - ``reportA_*.txt``: Summary of changes made (if any)
+
+**Issues Detected:**
+   - Console shows failure with file locations
+   - ``updatedA_*.yml``: Configuration with missing parameters added as null
+   - ``reportA_*.txt``: Detailed report categorizing all issues found
+
+**Always Produces Updated YAML:**
+   Unlike Phases B and C, Phase A always generates an updated YAML file, even when critical issues are found. This allows you to see exactly what parameters need attention.
 
 Actions to fix Phase A issues
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

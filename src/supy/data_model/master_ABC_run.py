@@ -1082,6 +1082,7 @@ Modes:
                 phase_a_performed=False,  # Phase B only mode
                 mode=internal_mode,
                 phase="B",
+                silent=True,  # Suppress phase function output, main function handles terminal output
             )
             if phase_b_success:
                 print("Report:", science_report_file)
@@ -1108,6 +1109,7 @@ Modes:
                 pydantic_report_file,
                 mode=internal_mode,
                 phases_run=["C"],
+                silent=True,  # Suppress phase function output, main function handles terminal output
             )
             if phase_c_success:
                 print("Report:", pydantic_report_file)

@@ -32,9 +32,10 @@ Technical Implementation
 - ``find_missing_parameters()``: Recursive parameter detection
 - ``handle_renamed_parameters()``: Outdated parameter renaming
 - ``find_extra_parameters()``: NOT IN STANDARD detection
+- ``categorize_extra_parameters()``: Classify extra parameters by Pydantic location constraints
+- ``remove_extra_parameters_from_yaml()``: Remove extra parameters in public mode
 - ``is_physics_option()``: Critical parameter classification logic
-- ``create_uptodate_yaml_with_missing_params()``: Clean YAML generation
-- ``get_value_safe()``: **New in this PR** - Robust RefValue/plain format handling utility (migrated from precheck.py PR #569)
+- ``create_uptodate_yaml_with_missing_params()``: Mode-dependent clean YAML generation
 
 **Key Data Structures:**
 
@@ -55,51 +56,47 @@ Technical Implementation
        'localclimatemethod': 'rsllevel'   
    }
 
-RefValue Format Handling
-------------------------
+Processing Modes and Extra Parameter Handling
+---------------------------------------------
 
-**get_value_safe() Utility Function:**
+**Mode-Dependent Behavior:**
 
-Phase A now includes robust handling of SUEWS parameter formats through the ``get_value_safe()`` utility function, migrated from precheck.py (PR #569).
+Phase A implements different strategies for handling extra parameters (NOT IN STANDARD) based on the selected processing mode:
 
-**Function Purpose:**
+**Public Mode (``--mode public``):**
+
+- **Strategy**: Remove extra parameters from output YAML
+- **Purpose**: Ensure clean, standard-compliant configuration files
+- **Reporting**: Lists removed parameters as "Removed (X) parameters from YAML: consider to switch to dev mode option"
+- **Target Users**: General users requiring stable, validated configurations
+
+**Developer Mode (``--mode dev``):**
+
+- **Strategy**: Preserve extra parameters in Pydantic-allowed locations
+- **Purpose**: Allow experimental features and custom parameter extensions
+- **Reporting**: Lists found parameters as "Found (X) parameter(s) not in standard"
+- **Target Users**: Developers and researchers using experimental features
+
+**Extra Parameter Classification:**
 
 .. code-block:: python
 
-   def get_value_safe(param_dict, param_key, default=None):
-       """Safely extract value from RefValue or plain format."""
-       param = param_dict.get(param_key, default)
-       if isinstance(param, dict) and "value" in param:
-           return param["value"]  # RefValue format: {"value": 1}
-       else:
-           return param  # Plain format: 1
+   def categorize_extra_parameters(extra_params: list) -> dict:
+       """Categorize extra parameters by Pydantic location constraints."""
+       # ACTION_NEEDED: Parameters in forbidden locations (sites[].properties)
+       # NO_ACTION_NEEDED: Parameters in allowed locations
+       
+   # Allowed nested sections within SiteProperties:
+   ALLOWED_SECTIONS = ["stebbs", "lai", "irrigation", "snow"]
 
-**Handles Two SUEWS Parameter Formats:**
+**Parameter Removal Logic (Public Mode):**
 
-1. **RefValue Format** (standard SUEWS format):
-   
-   .. code-block:: yaml
-   
-      parameter_name:
-        value: 1.5
-        
-2. **Plain Format** (simplified user format):
-   
-   .. code-block:: yaml
-   
-      parameter_name: 1.5
+.. code-block:: python
 
-**Usage in Phase A:**
-
-- **Land cover fraction calculations**: Safe extraction of surface fraction values
-- **Parameter comparison**: Consistent value extraction during missing parameter detection
-- **Verbose RefValue handling patterns**: Replaced multiple ``if isinstance(param, dict) and "value" in param`` checks
-
-**Benefits:**
-
-- **Robust parameter handling**: Works with both user-simplified and standard SUEWS formats
-- **Code maintainability**: Centralised RefValue logic in single utility function
-- **Error prevention**: Safe default handling when parameters are missing
+   def remove_extra_parameters_from_yaml(yaml_content, extra_params):
+       """Remove extra parameters from YAML content for public mode."""
+       # Removes parameters by name from YAML text
+       # Maintains proper YAML structure and indentation
 
 Parameter Classification Logic
 ------------------------------
@@ -177,7 +174,7 @@ Outdated Parameter Handling
 Not In Standard Parameter Handling
 ----------------------------------
 
-Phase A identifies parameters that exist in your configuration but not in the standard:
+Phase A identifies parameters that exist in your configuration but not in the standard and handles them based on processing mode:
 
 **Detection Criteria:**
 
@@ -185,21 +182,44 @@ Phase A identifies parameters that exist in your configuration but not in the st
 - Same name does not exist in standard YAML
 - Includes both custom parameters and typos
 
-**Handling Strategy:**
+**Mode-Dependent Handling:**
 
-- **Preserved** in output YAML (not removed)
-- **Documented** in analysis report
-- **User decision** required for retention
+**Public Mode Strategy:**
 
-**Common Examples:**
+- **Removed** from output YAML (clean standard-compliant files)
+- **Documented** as "Removed (X) parameters from YAML" in NO_ACTION_NEEDED section
+- **Suggestion** provided to switch to dev mode if parameters are intentional
+
+**Developer Mode Strategy:**
+
+- **Preserved** in output YAML (allows experimental features)
+- **Categorized** by Pydantic location constraints:
+  
+  - **NO_ACTION_NEEDED**: Parameters in allowed locations (preserved)
+  - **ACTION_NEEDED**: Parameters in forbidden locations (SiteProperties)
+
+**Examples by Mode:**
 
 .. code-block:: yaml
 
-   # Custom parameters preserved by Phase A
+   # Public mode: These parameters would be REMOVED
    model:
      control:
-       custom_simulation_name: "My_SUEWS_Run"  
-       debug_mode: true                        
+       custom_simulation_name: "My_SUEWS_Run"  # → Removed
+       debug_mode: true                        # → Removed
+   sites:
+   - properties:
+       custom_param: 1.5                       # → Removed
+   
+   # Dev mode: Location-dependent handling
+   model:
+     control:
+       custom_simulation_name: "My_SUEWS_Run"  # → Preserved (allowed location)
+   sites:
+   - properties:
+       custom_param: 1.5                       # → ACTION_NEEDED (forbidden location)
+       stebbs:
+         experimental_param: 2.0               # → Preserved (allowed nested section)                        
 
 .. _phase_a_actions:
 
@@ -236,40 +256,83 @@ Output Files Structure
 
 **Analysis Report Structure**
 
-Phase A generates comprehensive reports with two main sections:
+Phase A generates mode-dependent comprehensive reports with two main sections:
 
 - **ACTION NEEDED**: Critical physics parameters that must be set by the user (YAML contains null values)
+  
+  - In **Dev Mode**: Also includes extra parameters in forbidden locations
+  - In **Public Mode**: Only critical missing parameters (extra parameters are removed)
+
 - **NO ACTION NEEDED**: All updates automatically applied including:
   
   - Optional missing parameters updated with null values
   - Parameter renamings applied
-  - Parameters not in standard (informational)
+  - Mode-dependent extra parameter handling:
+    
+    - **Public Mode**: "Removed (X) parameters from YAML: consider to switch to dev mode option"
+    - **Dev Mode**: "Found (X) parameter(s) not in standard" (for allowed locations)
 
-**Analysis Report** (``reportA_<filename>.txt``)
+**Analysis Report Examples**
+
+**Public Mode Report** (``reportA_<filename>.txt``):
 
 .. code-block:: text
 
-   # SUEWS Configuration Analysis Report
+   # SUEWS - Phase A (Up-to-date YAML check) Report  
+   # Generated: 2024-01-15 14:30:00
+   # Mode: Public
    # ==================================================
    
    ## ACTION NEEDED
    - Found (1) critical missing parameter(s):
    -- netradiationmethod has been added to updatedA_user.yml and set to null
-      Suggested fix: Set appropriate value based on SUEWS documentation -- https://suews.readthedocs.io/latest/
+      Suggested fix: Set appropriate value based on SUEWS documentation
    
    ## NO ACTION NEEDED
    - Updated (3) optional missing parameter(s) with null values:
    -- holiday added to updatedA_user.yml and set to null
    -- wetthresh added to updatedA_user.yml and set to null
-   -- DHWVesselDensity added to updatedA_user.yml and set to null
    
    - Updated (2) renamed parameter(s):
    -- diagmethod changed to rslmethod
    -- cp changed to rho_cp
    
-   - Found (2) parameter(s) not in standard:
-   -- startdate at level model.control.startdate
+   - Removed (2) parameter(s) from YAML: consider to switch to dev mode option
+   -- startdate from level model.control.startdate
+   -- test from level sites[0].properties.test
+   
+   # ==================================================
+
+**Developer Mode Report** (``reportA_<filename>.txt``):
+
+.. code-block:: text
+
+   # SUEWS - Phase A (Up-to-date YAML check) Report  
+   # Generated: 2024-01-15 14:30:00
+   # Mode: Developer
+   # ==================================================
+   
+   ## ACTION NEEDED
+   - Found (1) critical missing parameter(s):
+   -- netradiationmethod has been added to updatedA_user.yml and set to null
+      Suggested fix: Set appropriate value based on SUEWS documentation
+   
+   - Found (1) parameter(s) in forbidden locations:
    -- test at level sites[0].properties.test
+      Reason: Extra parameters not allowed in SiteProperties
+      Suggested fix: Remove parameter or move to allowed nested section (stebbs, lai, irrigation, snow)
+   
+   ## NO ACTION NEEDED
+   - Updated (3) optional missing parameter(s) with null values:
+   -- holiday added to updatedA_user.yml and set to null
+   -- wetthresh added to updatedA_user.yml and set to null
+   
+   - Updated (2) renamed parameter(s):
+   -- diagmethod changed to rslmethod
+   -- cp changed to rho_cp
+   
+   - Found (1) parameter(s) not in standard:
+   -- startdate at level model.control.startdate
    
    # ==================================================
 
@@ -317,30 +380,37 @@ Phase A validates the standard file before processing:
            
        return True
 
-Integration with Phase B
-------------------------
+Integration with Other Phases
+-----------------------------
 
-Phase A output serves as input to Phase B scientific validation:
+Phase A output serves as input to subsequent phases in the validation pipeline:
 
 **File Handoff:**
 
 .. code-block:: bash
 
    # Phase A generates
-   updatedA_user_config.yml    # → Input to Phase B
+   updatedA_user_config.yml    # → Input to Phase B/C
    reportA_user_config.txt     # → Phase A analysis
    
-   # Phase B processes  
+   # Workflow combinations process Phase A output:
    updatedA_user_config.yml    # ← Phase A output
    ↓
-   updatedAB_user_config.yml   # → Final AB output (if using AB workflow)
-   reportAB_user_config.txt    # → Combined AB report
+   updatedAB_user_config.yml   # → AB workflow final output
+   updatedAC_user_config.yml   # → AC workflow final output  
+   updatedABC_user_config.yml  # → Complete pipeline output
+
+**Mode Integration:**
+
+- **Public Mode**: Produces clean, standard-compliant files for subsequent phases
+- **Dev Mode**: Preserves experimental parameters for advanced validation
+- **Pre-validation**: Mode restrictions enforced before Phase A execution
 
 **Workflow Integration:**
 
-1. **AB Mode**: Phase A intermediate files cleaned up after successful Phase B
-2. **A-only Mode**: Phase A files retained as final outputs
-3. **Error Handling**: Phase A files preserved if Phase B fails
+1. **Multi-phase workflows** (AB, AC, ABC): Phase A intermediate files cleaned up after successful completion
+2. **A-only workflow**: Phase A files retained as final outputs
+3. **Error Handling**: Phase A files preserved if subsequent phases fail
 
 Testing and Validation
 ----------------------
@@ -373,24 +443,55 @@ Phase A includes comprehensive test coverage:
        
        assert 'model.physics.netradiationmethod' in urgent_params
 
+Mode Selection Guidelines
+-------------------------
+
+**When to Use Public Mode:**
+
+- **General users** requiring stable, validated configurations
+- **Production runs** with standard SUEWS features only
+- **Clean output files** needed for sharing or archival
+- **Standard compliance** is important for your use case
+
+**When to Use Developer Mode:**
+
+- **Experimental features** like STEBBS method are required
+- **Custom parameters** need to be preserved during validation
+- **Research applications** using non-standard configurations
+- **Development work** on new SUEWS features
+
+**Mode Restrictions:**
+
+.. code-block:: text
+
+   Public Mode Restrictions:
+   ├── stebbsmethod != 0        # Triggers pre-validation error
+   ├── Extra parameters         # Automatically removed from YAML
+   └── Future: SPARTACUS method # Will be restricted
+
+   Developer Mode Allowances:
+   ├── All experimental features # No pre-validation restrictions
+   ├── Extra parameters         # Preserved in allowed locations  
+   └── Enhanced diagnostics     # Additional reporting information
+
 Best Practices
 --------------
 
 **For Users:**
 
-1. **Always run Phase A** before manual YAML editing
-2. **Address critical parameters** immediately  
-3. **Review renamed parameters** for correctness
-4. **Keep standard file updated** with latest SUEWS version
-5. **Use AB workflow** for complete validation
+1. **Start with public mode** for standard validation needs
+2. **Switch to dev mode** only when experimental features are required
+3. **Address critical parameters** immediately in ACTION NEEDED section
+4. **Review mode-specific messaging** in reports for guidance
+5. **Use complete ABC workflow** for thorough validation
 
 **For Developers:**
 
-1. **Update PHYSICS_OPTIONS** when adding new physics parameters
-2. **Add RENAMED_PARAMS entries** when deprecating parameters
-3. **Test edge cases** with malformed YAML files
-4. **Document parameter changes** in standard configuration
-5. **Maintain git consistency** across development branches
+1. **Use dev mode** when working with experimental features
+2. **Update PHYSICS_OPTIONS** when adding new physics parameters
+3. **Add RENAMED_PARAMS entries** when deprecating parameters
+4. **Test both modes** to ensure consistent behavior
+5. **Update allowed nested sections** when extending Pydantic model
 
 Troubleshooting
 ---------------
@@ -436,14 +537,37 @@ Troubleshooting
    # Direct Python usage
    from uptodate_yaml import annotate_missing_parameters
    
+   # Public mode usage (default)
    result = annotate_missing_parameters(
        user_file="my_config.yml",
        standard_file="sample_data/sample_config.yml", 
        uptodate_file="updated_my_config.yml",
-       report_file="analysis_report.txt"
+       report_file="analysis_report.txt",
+       mode="user",  # "user" is internal representation of "public" mode
+       phase="A"
+   )
+   
+   # Developer mode usage  
+   result = annotate_missing_parameters(
+       user_file="my_config.yml",
+       standard_file="sample_data/sample_config.yml", 
+       uptodate_file="updated_my_config.yml",
+       report_file="analysis_report.txt",
+       mode="dev",    # Developer mode preserves extra parameters
+       phase="A"
    )
    
    if result:
        print("✅ Phase A completed successfully")
    else:
        print("❌ Phase A encountered errors")
+
+**Command Line Usage:**
+
+.. code-block:: bash
+
+   # Public mode (default) - removes extra parameters
+   python src/supy/data_model/suews_yaml_processor.py user_config.yml --phase A --mode public
+   
+   # Developer mode - preserves extra parameters  
+   python src/supy/data_model/suews_yaml_processor.py user_config.yml --phase A --mode dev

@@ -102,13 +102,36 @@ Choose your processing mode:
 
 **Developer Mode**
    - ``--mode dev``: Extended validation options for developers
-   - **Status**: Coming soon - not yet implemented
-   - Will include additional diagnostic information and development features
-   - **Access**: Allows experimental features (STEBBS method, etc.)
+   - **Status**: Available - allows experimental features and extended parameter handling
+   - Includes additional diagnostic information and development features
+   - **Access**: Allows experimental features (STEBBS method, advanced physics options)
+   - **Phase A behavior**: Preserves extra parameters in Pydantic-allowed locations
+   - **Future expansion**: Will include additional validation rules and developer tools
 
 .. note::
 
    **Mode Restriction Enforcement**: The processor performs a pre-validation check before running any phases. If you select public mode but your YAML contains experimental features (e.g., ``stebbsmethod != 0``), execution will halt with specific guidance on how to resolve the restriction.
+
+Mode-Specific Behavior
+~~~~~~~~~~~~~~~~~~~~~~
+
+**Phase A Differences:**
+
+- **Public Mode**: Extra parameters (not in standard YAML) are removed from the output YAML and reported as "Removed (X) parameters from YAML: consider to switch to dev mode option" in the NO_ACTION_NEEDED section
+- **Developer Mode**: Extra parameters in Pydantic-allowed locations are preserved in the output YAML and reported as "Found (X) parameter(s) not in standard" in the NO_ACTION_NEEDED section
+
+**Experimental Features:**
+
+- **Public Mode**: Experimental features like ``stebbsmethod != 0`` trigger a pre-validation error that halts execution
+- **Developer Mode**: All experimental features are permitted and processed normally
+
+**Future Expansion:**
+
+The developer mode will be expanded with additional features including:
+- Additional validation rules for experimental parameters
+- Enhanced diagnostic reporting
+- Access to unstable features like SPARTACUS method
+- Developer-specific warnings and recommendations
 
 Quick Start Guide
 -----------------
@@ -146,7 +169,7 @@ The processor is run from the SUEWS root directory using the master script:
    
    # Processing modes (optional)
    python src/supy/data_model/suews_yaml_processor.py user_config.yml --mode public  # Public mode (default)
-   python src/supy/data_model/suews_yaml_processor.py user_config.yml --mode dev     # Developer mode (coming soon)
+   python src/supy/data_model/suews_yaml_processor.py user_config.yml --mode dev     # Developer mode (available)
 
 Recommended Workflows
 ~~~~~~~~~~~~~~~~~~~~~

@@ -141,7 +141,9 @@ class TestRSLMOSTSeparation:
             # This is physically correct as MOST theory doesn't apply below displacement height
             # Only check 2m coverage if the building is short enough
             if bldgh <= 5.0:  # For short buildings, we should capture 2m
-                assert heights[0] <= 2.0, f"First height {heights[0]} > 2m diagnostic for {bldgh}m building"
+                assert heights[0] <= 2.0, (
+                    f"First height {heights[0]} > 2m diagnostic for {bldgh}m building"
+                )
             assert heights[-1] >= 10.0, f"Last height {heights[-1]} < 10m diagnostic"
 
     @pytest.mark.essential

@@ -722,26 +722,19 @@ Output: an updated YAML saved as updatedB_<filename>.yml and a comprehensive rep
    
    # ==================================================
 
+**Next Steps:**
+
+1. **Review the updated YAML file** (``updatedB_<filename>.yml``)
+2. **Address critical scientific issues** identified in ACTION NEEDED section
+3. **Review automatic corrections** applied by Phase B (NO ACTION NEEDED section)
+4. **Verify geographic parameters** (coordinates, timezone) are correct
+5. **Re-run Phase B** (or full workflow) after fixing any critical issues
+
 .. note::
-
-   **YAML File Headers**: All Phase B output YAML files use the standardized header format:
    
-   - **All workflows**: Header shows "Updated YAML" with consistent formatting
-   - **Harmonized format**: Same header structure used across all phases (A, B, C, AB, AC, BC, ABC)
-   - **Report reference**: Header directs users to check the corresponding report file for details of changes
-   
-   This ensures consistent user experience across all validation workflows.
+   **Critical Issues:** Parameters listed in the **ACTION NEEDED** section represent scientific inconsistencies or invalid values that should be corrected for reliable model results.
 
-**Report Structure:**
-
-- **ACTION NEEDED**: Critical scientific errors requiring user intervention
-- **NO ACTION NEEDED**: All automatic adjustments, parameter updates, and informational items including:
-  
-  - Automatic scientific adjustments with old → new values and reasons
-  - Optional missing parameters added with null values (from Phase A)
-  - Parameter renamings (from Phase A)
-  - Parameters not in standard (informational)
-  - Scientific warnings (informational)
+**For detailed Phase B documentation, see:** `phase_b_detailed.rst <phase_b_detailed.rst>`__
 
 Phase C – Pydantic Validation
 ==============================
@@ -934,6 +927,43 @@ The processor generates files with descriptive names that indicate which phases 
    reportAC_user_config.txt    # AC workflow report
    reportBC_user_config.txt    # BC workflow report
    reportABC_user_config.txt   # Complete pipeline report
+
+**YAML File Headers:**
+
+All processor output YAML files use standardized headers for consistency:
+
+.. code-block:: yaml
+
+   # =============================================================================
+   # UPDATED YAML  
+   # =============================================================================
+   #
+   # This file has been automatically updated with validation changes:
+   # - [Phase-specific corrections and additions listed here]
+   # - All changes are documented in the corresponding report file
+   #
+   # =============================================================================
+
+**Header Features:**
+
+- **Consistent Format**: Same header structure across all phases (A, B, C, AB, AC, BC, ABC)
+- **Change Documentation**: Headers reference the corresponding report file for details
+- **Phase Identification**: Clear indication of which validation phases were applied
+- **User Guidance**: Direct users to check reports for understanding changes made
+
+**Report Structure:**
+
+All validation reports follow a consistent two-section structure:
+
+- **ACTION NEEDED**: Critical issues requiring user intervention before model runs
+- **NO ACTION NEEDED**: Automatic corrections, optional updates, and informational items
+
+**Report Content by Phase:**
+
+- **Phase A Reports**: Missing parameters, renamed parameters, extra parameters
+- **Phase B Reports**: Scientific corrections, automatic adjustments, CRU integration results  
+- **Phase C Reports**: Pydantic validation errors, conditional validation details
+- **Multi-phase Reports**: Consolidated information from all executed phases
 
 **File Preservation Logic:**
 

@@ -44,7 +44,7 @@ class TestRSLMOSTSeparation:
     def test_no_parameter_mixing(self, sample_data):
         """Test that MOST and RSL methods can both run without parameter mixing."""
         df_state_init, df_forcing = sample_data
-        
+
         df_state_init.loc[:, "bldgh"] = 10.0
 
         # Test MOST
@@ -68,12 +68,12 @@ class TestRSLMOSTSeparation:
         df_state_init.loc[:, "diagmethod"] = 0  # MOST
 
         df_output, _ = sp.run_supy(df_forcing, df_state_init)
-        
+
         # Check wind profile exists and has valid values
         u_cols = [col for col in df_output.columns if col[1].startswith("U_")]
         if u_cols:
             wind_speeds = df_output[u_cols].iloc[0].values
             valid_winds = wind_speeds[~np.isnan(wind_speeds)]
-            
+
             # No negative wind speeds
             assert np.all(valid_winds >= 0), "Negative wind speeds detected"

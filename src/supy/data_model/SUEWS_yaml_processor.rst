@@ -675,12 +675,13 @@ Output: an updated YAML saved as updatedB_<filename>.yml and a comprehensive rep
 
 .. note::
 
-   **YAML File Headers**: The Phase B output YAML file header correctly reflects the workflow used:
+   **YAML File Headers**: All Phase B output YAML files use the standardized header format:
    
-   - **Phase B only**: Header shows "SCIENCE CHECKED YAML" and notes that Phase A was NOT performed #Check our headers again, I thought we harmonised this?#
-   - **A→B workflow**: Header shows "FINAL SCIENCE CHECKED YAML" and lists both Phase A and Phase B processes #Check our headers again, I thought we harmonised this?#
+   - **All workflows**: Header shows "Updated YAML" with consistent formatting
+   - **Harmonized format**: Same header structure used across all phases (A, B, C, AB, AC, BC, ABC)
+   - **Report reference**: Header directs users to check the corresponding report file for details of changes
    
-   This ensures users understand which validation steps have been applied to their configuration.
+   This ensures consistent user experience across all validation workflows.
 
 **Report Structure:**
 

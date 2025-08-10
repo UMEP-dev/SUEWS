@@ -98,12 +98,17 @@ Choose your processing mode:
    - Provides comprehensive validation with user-friendly output
    - Default mode when no ``--mode`` is specified
    - **Restrictions**: Only stable, production-ready features are allowed
+   - **Pre-validation check**: Processor halts if experimental features are detected
 
 **Developer Mode**
    - ``--mode dev``: Extended validation options for developers
    - **Status**: Coming soon - not yet implemented
    - Will include additional diagnostic information and development features
    - **Access**: Allows experimental features (STEBBS method, etc.)
+
+.. note::
+
+   **Mode Restriction Enforcement**: The processor performs a pre-validation check before running any phases. If you select public mode but your YAML contains experimental features (e.g., ``stebbsmethod != 0``), execution will halt with specific guidance on how to resolve the restriction.
 
 Quick Start Guide
 -----------------

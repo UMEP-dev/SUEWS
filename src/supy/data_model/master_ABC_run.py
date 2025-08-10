@@ -977,7 +977,7 @@ Examples:
   python master_ABC_run.py user.yml --phase A --mode public  # Run Phase A in public mode (explicit)
 
 Phases:
-  Phase A: Parameter detection and YAML structure updates
+  Phase A: Up-to-date YAML check and structure updates
   Phase B: Scientific validation and automatic adjustments  
   Phase C: Conditional Pydantic validation based on model physics options
 
@@ -994,7 +994,7 @@ Modes:
         "-p",
         choices=["A", "B", "C", "AB", "AC", "BC", "ABC"],
         default="ABC",
-        help="Phase to run: A (parameter detection), B (scientific validation), C (Pydantic validation), AB (A→B workflow), AC (A→C), BC (B→C), or ABC (complete workflow, default)",
+        help="Phase to run: A (Up-to-date YAML check), B (scientific validation), C (Pydantic validation), AB (A→B workflow), AC (A→C), BC (B→C), or ABC (complete workflow, default)",
     )
 
     parser.add_argument(

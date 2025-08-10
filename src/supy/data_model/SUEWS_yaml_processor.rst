@@ -627,7 +627,7 @@ When running ``--phase B``, Phase B **always validates the original user YAML fi
    SUEWS Configuration Processor
    =============================
    YAML user file: user_config.yml
-   Processor Selected Mode: A→B Workflow # please ensure that we do not call this A->B differently from B->C or A->C in the terminal printing!#
+   Processor Selected Mode: Phase AB
    =============================
    
    Phase A: Parameter detection...

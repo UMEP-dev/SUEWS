@@ -158,18 +158,18 @@ Recommended Workflows
      - updatedC_*.yml, reportC_*.txt
      - Slow
    * - AB
-     - Parameter + science check
-     - **Recommended for most users**
+     - Up-to-date YAML + science check
+     - Skip Pydantic, focus on structure + science
      - updatedAB_*.yml, reportAB_*.txt
      - Medium
    * - AC
-     - Parameter + model validation
+     - Up-to-date YAML + model validation
      - Skip science, focus on structure + Pydantic
      - updatedAC_*.yml, reportAC_*.txt
      - Medium
    * - BC
      - Science + model validation
-     - Skip parameter check, focus on validation
+     - Skip Up-to-date YAML check, focus on validation
      - updatedBC_*.yml, reportBC_*.txt
      - Slow
    * - ABC
@@ -336,7 +336,7 @@ Running Phase A
 
 .. code-block:: bash
 
-   # Recommended: A + B validation
+   # A + B validation
    python src/supy/data_model/master_ABC_run.py user_config.yml --phase AB
    
    # Complete pipeline: A + B + C validation  
@@ -356,7 +356,7 @@ Phase A Outputs
    - ``reportA_*.txt``: Detailed report categorizing all issues found
 
 **Always Produces Updated YAML:**
-   Unlike Phases B and C, Phase A always generates an updated YAML file, even when critical issues are found. This allows you to see exactly what parameters need attention.
+   Unlike standalone Phases B and C, Phase A always generates an updated YAML file, even when critical issues are found. This allows you to see exactly what parameters need attention.
 
 Actions to fix Phase A issues
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -422,24 +422,157 @@ When Phase A detects issues, it generates two output files:
 Phase B – Scientific Validation
 ================================
 
-Overview
---------
+Purpose and Scope
+-----------------
 
-The check are for:
+Phase B validates parameter values for scientific reasonableness and physical consistency. It assumes Phase A structural issues have been resolved and focuses on ensuring parameters fall within acceptable ranges and are logically consistent with each other.
 
-1. Initial states -- exok
-2. Grid characteristics
+**Primary Functions:**
+- Validate parameter ranges against physical bounds
+- Check consistency between related parameters
+- Apply automatic scientific corrections where appropriate
+- Detect conflicts between physics options and parameter values
 
-   a. Land cover 
-   b. XXX
+**When to Use Phase B:**
+- After Phase A has resolved structural issues
+- Before production model runs to ensure scientific validity
+- When parameters have been manually edited and need validation
+- As part of comprehensive validation workflows (AB, BC, ABC)
 
-What is checked In B how and why
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+What Phase B Validates
+~~~~~~~~~~~~~~~~~~~~~~
 
-- assumptions -etc
+Based on our current implementation, Phase B performs these specific validations:
 
-How to run Phase B
-~~~~~~~~~~~~~~~~~~
+1. **Physics Parameters Validation**
+   
+   **Required Physics Parameters**: Checks for presence and non-null values of critical physics options
+      - ``netradiationmethod``: Net radiation calculation method
+      - ``emissionsmethod``: Anthropogenic heat flux method
+      - ``storageheatmethod``: Storage heat flux calculation
+      - ``stabilitymethod``: Atmospheric stability functions
+      - ``roughlenmommethod``, ``roughlenheatmethod``: Roughness length methods
+      - ``smdmethod``: Soil moisture deficit method
+      - ``waterusemethod``: Water use calculation method
+      - ``rslmethod``: Roughness sublayer method
+      - ``faimethod``, ``rsllevel``: Additional physics methods
+      - ``snowuse``, ``stebbsmethod``: Snow and STEBBS methods
+   
+   **Impact**: Model execution will fail without these parameters set to valid (non-null) values
+
+2. **Model Option Dependencies**
+   
+   **Physics Method Compatibility**: Validates logical consistency between selected methods
+      - ``rslmethod == 2`` requires ``stabilitymethod == 3`` for diagnostic aerodynamic calculations
+      - ``stabilitymethod == 1`` requires ``rslmethod`` parameter to be present
+   
+   **Impact**: Prevents incompatible physics method combinations that cause model failures
+
+3. **Land Cover Consistency**
+   
+   **Surface Fraction Validation**: Ensures land cover fractions are physically valid
+      - All surface fractions must sum to exactly 1.0 (allowing small floating-point tolerance of ±0.0001)
+      - Surfaces with fraction > 0 must have all required parameters set to non-null values
+      - Surfaces with fraction = 0 generate warnings about unused parameters
+   
+   **Parameter Completeness**: For active surfaces (sfr > 0), validates all required parameters are present
+
+4. **Geographic Coordinates**
+   
+   **Coordinate Range Validation**: Ensures geographic coordinates are physically valid
+      - Latitude: Must be between -90 and +90 degrees
+      - Longitude: Must be between -180 and +180 degrees
+      - Coordinates must be numeric values (not null or text)
+   
+   **Timezone and DLS Parameters**: Checks for timezone and daylight saving parameters (warns if missing, will be calculated automatically)
+
+What Phase B Automatically Corrects
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Based on our current implementation, Phase B applies these automatic scientific corrections:
+
+1. **Surface Temperature Initialization**
+   
+   **CRU-Based Temperature Setting**: Uses CRU TS4.06 climatological data (1991-2020, new normals) to set realistic initial temperatures
+      - Sets ``temperature`` (5-layer array), ``tsfc``, and ``tin`` parameters for all surface types
+      - Calculated from site coordinates (lat, lng) and simulation start month
+      - Applied to: paved, bldgs, evetr, dectr, grass, bsoil, water surfaces
+   
+   **Example**: For London (51.5°N, -0.1°W) starting in July, sets temperatures to ~19.2°C based on CRU data
+
+2. **Land Cover Fraction Auto-Correction**
+   
+   **Floating-Point Error Correction**: Automatically fixes small numerical errors in surface fractions
+      - If sum is 0.9999-1.0000: Increases largest surface fraction to make sum = 1.0
+      - If sum is 1.0000-1.0001: Decreases largest surface fraction to make sum = 1.0
+      - Only corrects small floating-point errors (tolerance ±0.0001)
+   
+   **Example**: Surface fractions summing to 0.99999 are automatically adjusted to exactly 1.0
+
+3. **Model-Dependent Parameter Nullification**
+   
+   **STEBBS Method Rule**: When ``stebbsmethod = 0``, automatically nullifies all related STEBBS parameters
+      - Prevents conflicts when STEBBS module is disabled
+      - Nullifies all parameters under ``sites.properties.stebbs`` block
+      - Applied recursively to all nested STEBBS parameters
+
+4. **Seasonal Parameter Adjustments**
+   
+   **Snow Albedo Nullification**: Removes snow albedo for warm seasons
+      - Nullifies ``snowalb`` for summer, tropical, and equatorial seasons
+      - Based on latitude and simulation start date
+   
+   **Deciduous Tree LAI**: Sets seasonal Leaf Area Index (``lai_id``) for deciduous trees
+      - Summer: Uses ``laimax`` value 
+      - Winter: Uses ``laimin`` value  
+      - Spring/Fall: Uses average of ``laimax`` and ``laimin``
+      - Applied only when deciduous tree fraction > 0
+
+5. **Daylight Saving Time (DLS) Calculations**
+   
+   **Automatic DLS and Timezone Setting**: Calculates location-specific DLS transitions and timezone
+      - Uses geographic coordinates to determine timezone automatically
+      - Calculates DLS start/end days for the simulation year
+      - Sets ``startdls``, ``enddls`` in anthropogenic emissions
+      - Sets ``timezone`` parameter with UTC offset (preserves fractional hours)
+   
+   **Example**: For coordinates in Europe, automatically sets appropriate DLS transitions and GMT+1/GMT+2 offsets
+
+Running Phase B
+~~~~~~~~~~~~~~~
+
+**Standalone Execution:**
+
+.. code-block:: bash
+
+   # Phase B only - validates original user YAML directly
+   python src/supy/data_model/master_ABC_run.py user_config.yml --phase B
+
+**As Part of Workflows:**
+
+.. code-block:: bash
+
+   # A + B validation (skip Pydantic checking)
+   python src/supy/data_model/master_ABC_run.py user_config.yml --phase AB
+   
+   # B + C validation (skip up-to-date YAML checking)
+   python src/supy/data_model/master_ABC_run.py user_config.yml --phase BC
+   
+   # Complete pipeline: A + B + C validation  
+   python src/supy/data_model/master_ABC_run.py user_config.yml --phase ABC
+
+Phase B Behavior
+~~~~~~~~~~~~~~~~~
+
+**Input Source**: Phase B behavior depends on execution mode:
+   - **Standalone B**: Always validates the original user YAML directly
+   - **AB/BC/ABC workflows**: Uses the output from the previous phase
+
+**Output Generation**: 
+   - **Success**: Produces updated YAML with scientific corrections applied
+   - **Failure**: No updated YAML generated and ask user to fix critical issues
+
+**Scientific Corrections**: Phase B can make automatic adjustments that improve model realism without changing user intent.
 
 **Phase B Only Mode Behavior:**
 
@@ -486,7 +619,7 @@ When running ``--phase B``, Phase B **always validates the original user YAML fi
    Report: reportB_user_config.txt
    Updated YAML: updatedB_user_config.yml
 
-**Example Output (Complete A→B Workflow):**
+**Example Output (A→B Workflow):**
 
 .. code-block:: text
 
@@ -494,7 +627,7 @@ When running ``--phase B``, Phase B **always validates the original user YAML fi
    SUEWS Configuration Processor
    =============================
    YAML user file: user_config.yml
-   Processor Selected Mode: Complete A→B Workflow
+   Processor Selected Mode: A→B Workflow # please ensure that we do not call this A->B differently from B->C or A->C in the terminal printing!#
    =============================
    
    Phase A: Parameter detection...
@@ -524,8 +657,8 @@ Output: an updated YAML saved as updatedB_<filename>.yml and a comprehensive rep
    
    ## NO ACTION NEEDED
    - Updated (3) parameter(s) with automatic scientific adjustments:
-   -- LAI_summer at site [0]: null → 4.5 (applied seasonal summer LAI adjustment)
-   -- T_surf_0 at site [0]: 10.0 → 15.2 (initialized surface temperature based on geographic location)
+   -- LAI_summer at site [0]: null → 4.5 (applied seasonal summer LAI adjustment) # what is LAI_summer? please use correct name of param here and in the code that generates the report#
+   -- T_surf_0 at site [0]: 10.0 → 15.2 (initialized surface temperature based on geographic location) # what is T_surf_0? please use correct name of param here and in the code that generates the report#
    -- snowalb at site [0]: 0.8 → 0.7 (adjusted snow albedo for temperate climate)
    
    - Updated (2) optional missing parameter(s) with null values:
@@ -544,8 +677,8 @@ Output: an updated YAML saved as updatedB_<filename>.yml and a comprehensive rep
 
    **YAML File Headers**: The Phase B output YAML file header correctly reflects the workflow used:
    
-   - **Phase B only**: Header shows "SCIENCE CHECKED YAML" and notes that Phase A was NOT performed
-   - **A→B workflow**: Header shows "FINAL SCIENCE CHECKED YAML" and lists both Phase A and Phase B processes
+   - **Phase B only**: Header shows "SCIENCE CHECKED YAML" and notes that Phase A was NOT performed #Check our headers again, I thought we harmonised this?#
+   - **A→B workflow**: Header shows "FINAL SCIENCE CHECKED YAML" and lists both Phase A and Phase B processes #Check our headers again, I thought we harmonised this?#
    
    This ensures users understand which validation steps have been applied to their configuration.
 
@@ -563,40 +696,331 @@ Output: an updated YAML saved as updatedB_<filename>.yml and a comprehensive rep
 Phase C – Pydantic Validation
 ==============================
 
-Overview
---------
+Purpose and Scope
+-----------------
 
-Pydantic performs validation of a YAML file according to selected model options.
+Phase C applies model-specific validation using Pydantic data models to ensure configuration compatibility with selected physics options and model capabilities. It assumes earlier phases have resolved structural and scientific issues, focusing on conditional validation rules and model-specific requirements.
 
-Output: An annotated YAML with inline error messages
+**Primary Functions:**
+- Validate physics option compatibility and required parameters
+- Apply conditional validation based on selected model methods
+- Ensure model configuration consistency for chosen physics options
+- Generate model-ready configuration that passes Pydantic schema validation
+
+**When to Use Phase C:**
+- After Phases A and B have resolved structural and scientific issues
+- Before final model execution to ensure physics compatibility
+- When using complex or advanced physics options
+- As the final step in comprehensive validation workflows (AC, BC, ABC)
+
+What Phase C Validates
+~~~~~~~~~~~~~~~~~~~~~~
+
+**Model-Specific Validation Categories:**
+
+1. **Physics Method Requirements**
+   
+   **Required Parameters for Selected Methods**: Each physics method requires specific parameters
+      - Net radiation methods: Parameters required vary by method (0-5)
+      - Anthropogenic heat methods: QF calculation requirements
+      - Storage heat methods: Building parameter dependencies
+      - Stability methods: Atmospheric calculation parameter needs
+   
+   **Method Compatibility Checks**: Ensure selected methods work together
+      - Physics option combinations that are supported
+      - Parameter availability for selected method combinations
+      - Model capability boundaries for chosen options
+
+2. **Conditional Parameter Validation**
+   
+   **Context-Dependent Requirements**: Parameters required only under specific conditions
+      - LAI values required when vegetation fraction > 0
+      - Building parameters required when building fraction > 0
+      - Anthropogenic heat parameters required for certain QF methods
+   
+   **Data Type and Format Validation**: Strict Pydantic schema compliance
+      - Parameter data types match expected formats
+      - Array dimensions and structures are correct
+      - Enum values match allowed options
+
+3. **Advanced Physics Validation**
+   
+   **Complex Model Features**: Validation for advanced capabilities
+      - Multi-layer physics options and their requirements
+      - Coupled model components and their dependencies
+      - Time-varying parameter specifications
+   
+   **Boundary Condition Consistency**: Advanced consistency checks
+      - Initial conditions match selected physics methods
+      - Boundary conditions compatible with model domain
+      - Temporal specifications align with forcing data
+
+Running Phase C
+~~~~~~~~~~~~~~~
+
+**Standalone Execution:**
+
+.. code-block:: bash
+
+   # Phase C only - validates original user YAML directly
+   python src/supy/data_model/master_ABC_run.py user_config.yml --phase C
+
+**As Part of Workflows:**
+
+.. code-block:: bash
+
+   # A + C validation (skip scientific validation)
+   python src/supy/data_model/master_ABC_run.py user_config.yml --phase AC
+   
+   # B + C validation (skip parameter checking)
+   python src/supy/data_model/master_ABC_run.py user_config.yml --phase BC
+   
+   # Complete pipeline: A + B + C validation  
+   python src/supy/data_model/master_ABC_run.py user_config.yml --phase ABC
+
+Phase C Behavior
+~~~~~~~~~~~~~~~~
+
+**Input Source**: Phase C behavior depends on execution mode:
+   - **Standalone C**: Always validates the original user YAML directly
+   - **AC/BC/ABC workflows**: Uses the output from the previous phase
+
+**Output Generation**: 
+   - **Success**: Produces updated YAML with Pydantic-compliant configuration
+   - **Failure**: No updated YAML generated - reports validation errors for fixing
+
+**Validation Approach**: Phase C uses the comprehensive Pydantic data models that power the SUEWS configuration system, ensuring your configuration will load successfully in SUEWS simulations.
+
+Phase C Outputs
+~~~~~~~~~~~~~~~
+
+**Success Case:**
+   - Console confirms completion
+   - ``updatedC_*.yml``: Pydantic-validated configuration ready for model execution
+   - ``reportC_*.txt``: Summary of any conditional validation adjustments
+
+**Issues Detected:**
+   - Console shows failure with detailed error information
+   - ``reportC_*.txt``: Comprehensive Pydantic validation report
+   - **No updated YAML produced** - validation must pass before generating output
+
+**Validation Errors**: Phase C provides precise error messages indicating exactly which parameters fail validation and why, using the same validation system that SUEWS uses internally.
+
+Actions to fix Phase C Issues
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+When Phase C detects validation errors, it generates a detailed report:
+
+**Phase C Report Example** (``reportC_<filename>.txt``)
+
+.. code-block:: text
+
+   # SUEWS Pydantic Validation Report
+   # ==================================================
+   
+   ## ACTION NEEDED
+   - Found (2) critical Pydantic validation error(s):
+   -- netradiationmethod at model.physics: Field required for selected physics options
+      Suggested fix: Set netradiationmethod to a valid option (0-5) based on available data
+   -- LAI_summer at site [0]: Required when grass fraction > 0 (current: 0.25)
+      Suggested fix: Provide LAI_summer value or set grass fraction to 0
+   
+   ## CONDITIONAL VALIDATION DETAILS
+   - Physics method 3 requires additional parameters:
+   -- emissionsmethod: Currently null, required for net radiation method 3
+   -- storageheatmethod: Currently null, required for complete energy balance
+   
+   - Site configuration issues:
+   -- Building fraction 0.4 requires building height parameters
+   -- Vegetation LAI values missing for non-zero vegetation fractions
+   
+   # ==================================================
+
+**Next Steps:**
+
+1. **Review Pydantic validation errors** in the report
+2. **Set required physics method parameters** identified in ACTION NEEDED section
+3. **Resolve conditional validation issues** based on your land cover fractions
+4. **Ensure data availability** matches selected physics methods
+5. **Re-run Phase C** (or full workflow) after fixing the issues
 
 .. note::
-
-   The output will be changed to produce also an updated YAML file (py1_<filename>.yml) with comments at the level of the parameters that have been updated according to conditional validation. On top of that, the annotated YAML will be revised to work correctly.
- 
-
-What is checked in C how and why
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-(To be documented)
-
-Actions to fix C issues
-~~~~~~~~~~~~~~~~~~~~~~~
-
-(To be documented)
+   
+   **Model-Ready Configuration**: Once Phase C passes, your configuration is fully validated and ready for SUEWS model execution. The updated YAML file will load successfully in SUEWS without further validation errors.
 
 Advanced Usage and Workflows
 =============================
 
-Multi-Phase Workflows
----------------------
+Workflow Selection Strategy
+---------------------------
 
-The processor supports various workflow combinations:
+Choose your validation workflow based on your specific needs and configuration status:
 
-- **AB**: Complete parameter detection + scientific validation (recommended for most users)
-- **AC**: Parameter detection + Pydantic validation
-- **BC**: Scientific validation + Pydantic validation  
-- **ABC**: Complete validation pipeline
+**Complete Validation (Recommended)**
+
+.. code-block:: bash
+
+   # ABC workflow - comprehensive validation pipeline
+   python src/supy/data_model/master_ABC_run.py user_config.yml --phase ABC
+
+**Use when**: Starting with new configurations, migrating from old SUEWS versions, or before critical production runs.
+
+**Targeted Validation Approaches**
+
+.. code-block:: bash
+
+   # AB workflow - parameter + scientific validation (skip Pydantic)
+   python src/supy/data_model/master_ABC_run.py user_config.yml --phase AB
+   
+   # AC workflow - parameter + Pydantic validation (skip scientific)
+   python src/supy/data_model/master_ABC_run.py user_config.yml --phase AC
+   
+   # BC workflow - scientific + Pydantic validation (skip parameter checking)
+   python src/supy/data_model/master_ABC_run.py user_config.yml --phase BC
+
+**AB Workflow**: Ideal for users who want thorough parameter and scientific validation but need to bypass Pydantic validation temporarily.
+
+**AC Workflow**: Useful when you trust your parameter values scientifically but want to ensure structural completeness and model compatibility.
+
+**BC Workflow**: Best when you know your parameters are complete and current, but want to validate scientific reasonableness and model compatibility.
+
+File Management and Output Organization
+---------------------------------------
+
+**Output File Naming Convention:**
+
+The processor generates files with descriptive names that indicate which phases were run:
+
+.. code-block:: text
+
+   # Individual phases
+   updatedA_user_config.yml    # Phase A only output
+   updatedB_user_config.yml    # Phase B only output  
+   updatedC_user_config.yml    # Phase C only output
+   
+   # Workflow combinations
+   updatedAB_user_config.yml   # AB workflow output
+   updatedAC_user_config.yml   # AC workflow output
+   updatedBC_user_config.yml   # BC workflow output
+   updatedABC_user_config.yml  # Complete pipeline output
+   
+   # Corresponding reports
+   reportA_user_config.txt     # Phase A report
+   reportAB_user_config.txt    # AB workflow report
+   reportABC_user_config.txt   # Complete pipeline report
+
+**File Preservation Logic:**
+
+The processor preserves files from successful phases even when later phases fail:
+
+- **Workflow Success**: Only final workflow files are kept (e.g., ``updatedABC_*.yml``)
+- **Workflow Failure**: Intermediate successful phase files are preserved
+  
+  Example: If ABC workflow fails at Phase C, you'll have:
+  - ``updatedAB_*.yml`` (successful A→B output)
+  - ``reportABC_*.txt`` (failure report showing C issues)
+
+Troubleshooting Common Issues
+-----------------------------
+
+**Issue 1: Phase A Missing Parameters**
+
+.. code-block:: text
+
+   ✗ Phase A failed!
+   Report: reportA_user_config.txt
+   Suggestion: Fix issues in updated YAML and consider to run Phase A again.
+
+**Solution**:
+1. Open ``updatedA_user_config.yml`` (always generated by Phase A)
+2. Find parameters set to ``null`` in the ACTION NEEDED section
+3. Set appropriate values based on your model requirements
+4. Re-run validation
+
+**Issue 2: Phase B Scientific Validation Errors**
+
+.. code-block:: text
+
+   ✗ Phase B failed!
+   Report: reportB_user_config.txt
+   Suggestion: Fix issues in report and consider to run phase B again.
+
+**Solution**:
+1. Review ``reportB_user_config.txt`` for scientific errors
+2. Fix parameter values that are outside physical ranges
+3. Resolve parameter consistency issues
+4. Re-run from Phase B or full workflow
+
+**Issue 3: Phase C Pydantic Validation Failures**
+
+.. code-block:: text
+
+   ✗ Phase C failed!
+   Report: reportC_user_config.txt
+   Suggestion: Fix issues in report and consider to run phase C again.
+
+**Solution**:
+1. Review conditional validation requirements in report
+2. Ensure physics method parameters are set correctly
+3. Verify required parameters for selected methods are provided
+4. Re-run Phase C or full workflow
+
+**Best Practice for Issue Resolution**:
+
+1. **Always read the report files** - they contain specific guidance for each issue
+2. **Fix issues systematically** - start with ACTION NEEDED items
+3. **Re-run the same workflow** - ensures all phases are validated together
+4. **Use individual phases for debugging** - isolate specific validation issues
+
+Batch Processing and Automation
+-------------------------------
+
+**Processing Multiple Configuration Files:**
+
+The processor can be integrated into batch workflows:
+
+.. code-block:: bash
+
+   # Example batch processing script
+   for config_file in *.yml; do
+       echo "Validating $config_file..."
+       python src/supy/data_model/master_ABC_run.py "$config_file" --phase ABC
+       if [ $? -eq 0 ]; then
+           echo "✓ $config_file validation successful"
+       else
+           echo "✗ $config_file validation failed - check report"
+       fi
+   done
+
+**Integration with Model Workflows:**
+
+Use validation as a pre-processing step in your modeling pipeline:
+
+.. code-block:: bash
+
+   #!/bin/bash
+   # Model execution pipeline
+   
+   CONFIG_FILE="user_config.yml"
+   
+   # Step 1: Validate configuration
+   python src/supy/data_model/master_ABC_run.py "$CONFIG_FILE" --phase ABC
+   
+   if [ $? -eq 0 ]; then
+       # Step 2: Use validated configuration for model run
+       VALIDATED_CONFIG="updatedABC_${CONFIG_FILE}"
+       echo "Running SUEWS with validated configuration: $VALIDATED_CONFIG"
+       # Add your SUEWS execution command here
+   else
+       echo "Configuration validation failed. Please fix issues before running model."
+       exit 1
+   fi
+
+**Return Codes for Automation:**
+
+- **Exit Code 0**: All selected phases completed successfully
+- **Exit Code 1**: At least one phase failed
+- **Check console output** for specific phase failure information
 
 Background and Technical Details
 ================================

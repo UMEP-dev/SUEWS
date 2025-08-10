@@ -1046,6 +1046,51 @@ Modes:
         print(f"User Mode: Public")
         print(f"==================================")
         print()
+        
+        # Step 3: Pre-validation check for public mode restrictions
+        if internal_mode.lower() == "user":  # "user" is internal representation of "public"
+            try:
+                import yaml
+                
+                with open(user_yaml_file, "r") as f:
+                    user_yaml_data = yaml.safe_load(f)
+                
+                # Check if STEBBS method is enabled in public mode
+                stebbs_method = None
+                if (
+                    user_yaml_data 
+                    and isinstance(user_yaml_data, dict)
+                    and "model" in user_yaml_data
+                    and isinstance(user_yaml_data["model"], dict)
+                    and "physics" in user_yaml_data["model"]
+                    and isinstance(user_yaml_data["model"]["physics"], dict)
+                    and "stebbsmethod" in user_yaml_data["model"]["physics"]
+                ):
+                    stebbs_entry = user_yaml_data["model"]["physics"]["stebbsmethod"]
+                    # Handle both direct values and RefValue format
+                    if isinstance(stebbs_entry, dict) and "value" in stebbs_entry:
+                        stebbs_method = stebbs_entry["value"]
+                    else:
+                        stebbs_method = stebbs_entry
+                
+                # Check if STEBBS is enabled (non-zero value)
+                if stebbs_method is not None and stebbs_method != 0:
+                    print("⚠️  Warning: You selected mode 'public' but you have STEBBS method switched on.")
+                    print("   STEBBS is currently only available in developer mode.")
+                    print()
+                    print("   Options to resolve:")
+                    print("   1. Switch to dev mode: --mode dev (when available)")
+                    print("   2. Set stebbsmethod to 0 in your YAML file and rerun processor")
+                    print()
+                    print("✗ Processor halted due to mode restriction")
+                    return 1
+                    
+            except Exception as e:
+                # If we can't read the YAML, let the normal phases handle the error
+                print(f"⚠️  Warning: Could not pre-validate YAML file for mode restrictions: {e}")
+                print("   Continuing with normal validation...")
+                print()
+        
         if not os.path.exists(standard_yaml_file):
             print()
             print(f"✗ Standard YAML file not found: {standard_yaml_file}")

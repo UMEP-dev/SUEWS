@@ -38,9 +38,9 @@ class TestRSLMOSTSeparation:
             heights = heights[~np.isnan(heights)]  # Remove NaN values
 
             # Check monotonicity
-            assert np.all(
-                np.diff(heights) > 0
-            ), f"Height array not monotonic for {bldgh}m building"
+            assert np.all(np.diff(heights) > 0), (
+                f"Height array not monotonic for {bldgh}m building"
+            )
 
     def test_no_parameter_mixing(self, sample_data):  # noqa: PLR6301
         """Test that MOST and RSL methods can both run without parameter mixing."""

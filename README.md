@@ -35,9 +35,6 @@ For developers, see the [Developer Note](#developer-note) section below.
 
 ## Developer Note
 
-> [!NOTE]
-> **the following is deprecated and will be updated**
-
 ### Development Environment
 
 #### Claude Code Integration

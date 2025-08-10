@@ -34,6 +34,12 @@
 
 ## 2025
 
+### 10 Aug 2025
+- [maintenance] Removed web UI configuration builder from documentation
+  - Deleted all web UI files from `docs/source/_static/`
+  - Removed references to the interactive configuration builder
+  - Will be replaced by a forthcoming command-line wizard tool
+
 ### 8 Aug 2025
 - [maintenance] Upgraded PyPI publishing to use Trusted Publishing (OIDC authentication)
   - Removed dependency on long-lived API tokens for PyPI and TestPyPI

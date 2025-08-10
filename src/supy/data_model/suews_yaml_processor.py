@@ -1055,7 +1055,10 @@ Modes:
                 with open(user_yaml_file, "r") as f:
                     user_yaml_data = yaml.safe_load(f)
                 
-                # Check if STEBBS method is enabled in public mode
+                # Check public mode restrictions
+                restrictions_violated = []
+                
+                # Check STEBBS method restriction
                 stebbs_method = None
                 if (
                     user_yaml_data 
@@ -1073,22 +1076,30 @@ Modes:
                     else:
                         stebbs_method = stebbs_entry
                 
-                # Check if STEBBS is enabled (non-zero value)
                 if stebbs_method is not None and stebbs_method != 0:
-                    print("⚠️  Warning: You selected mode 'public' but you have STEBBS method switched on.")
-                    print("   STEBBS is currently only available in developer mode.")
+                    restrictions_violated.append("STEBBS method is enabled (stebbsmethod != 0)")
+                
+                # Add more restriction checks here as needed
+                # if other_dev_feature_enabled:
+                #     restrictions_violated.append("Other developer feature is enabled")
+                
+                # If any restrictions are violated, halt execution
+                if restrictions_violated:
+                    print("Warning: You selected mode 'public' but your configuration contains developer-only features:")
+                    for restriction in restrictions_violated:
+                        print(f"  - {restriction}")
                     print()
-                    print("   Options to resolve:")
-                    print("   1. Switch to dev mode: --mode dev (when available)")
-                    print("   2. Set stebbsmethod to 0 in your YAML file and rerun processor")
+                    print("Options to resolve:")
+                    print("  1. Switch to dev mode: --mode dev (when available)")
+                    print("  2. Disable developer features in your YAML file and rerun processor")
                     print()
-                    print("✗ Processor halted due to mode restriction")
+                    print("Processor halted due to mode restrictions")
                     return 1
                     
             except Exception as e:
                 # If we can't read the YAML, let the normal phases handle the error
-                print(f"⚠️  Warning: Could not pre-validate YAML file for mode restrictions: {e}")
-                print("   Continuing with normal validation...")
+                print(f"Warning: Could not pre-validate YAML file for mode restrictions: {e}")
+                print("Continuing with normal validation...")
                 print()
         
         if not os.path.exists(standard_yaml_file):

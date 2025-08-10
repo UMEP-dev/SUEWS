@@ -97,11 +97,13 @@ Choose your processing mode:
    - ``--mode public``: Standard validation mode for general users
    - Provides comprehensive validation with user-friendly output
    - Default mode when no ``--mode`` is specified
+   - **Restrictions**: Only stable, production-ready features are allowed
 
 **Developer Mode**
    - ``--mode dev``: Extended validation options for developers
    - **Status**: Coming soon - not yet implemented
    - Will include additional diagnostic information and development features
+   - **Access**: Allows experimental features (STEBBS method, etc.)
 
 Quick Start Guide
 -----------------

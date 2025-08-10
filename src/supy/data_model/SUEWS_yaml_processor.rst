@@ -102,25 +102,25 @@ The processor is run from the SUEWS root directory using the master script:
    cd /path/to/SUEWS
    
    # Run validation (complete pipeline - default)
-   python src/supy/data_model/master_ABC_run.py your_config.yml
+   python src/supy/data_model/suews_yaml_processor.py your_config.yml
 
 **Common Commands:**
 
 .. code-block:: bash
    
    # Complete validation pipeline (default - recommended)
-   python src/supy/data_model/master_ABC_run.py user_config.yml             # ABC workflow (default)
-   python src/supy/data_model/master_ABC_run.py user_config.yml --phase ABC # ABC workflow (explicit)
+   python src/supy/data_model/suews_yaml_processor.py user_config.yml             # ABC workflow (default)
+   python src/supy/data_model/suews_yaml_processor.py user_config.yml --phase ABC # ABC workflow (explicit)
    
    # Individual phases for targeted validation
-   python src/supy/data_model/master_ABC_run.py user_config.yml --phase A   # Up-to-date YAML check only
-   python src/supy/data_model/master_ABC_run.py user_config.yml --phase B   # Scientific validation only
-   python src/supy/data_model/master_ABC_run.py user_config.yml --phase C   # Pydantic validation only
+   python src/supy/data_model/suews_yaml_processor.py user_config.yml --phase A   # Up-to-date YAML check only
+   python src/supy/data_model/suews_yaml_processor.py user_config.yml --phase B   # Scientific validation only
+   python src/supy/data_model/suews_yaml_processor.py user_config.yml --phase C   # Pydantic validation only
    
    # Mixed workflows for specific use cases
-   python src/supy/data_model/master_ABC_run.py user_config.yml --phase AB  # Up-to-date YAML check + Scientific validation
-   python src/supy/data_model/master_ABC_run.py user_config.yml --phase AC  # Up-to-date YAML check + Pydantic validation
-   python src/supy/data_model/master_ABC_run.py user_config.yml --phase BC  # Scientific validation + Pydantic validation
+   python src/supy/data_model/suews_yaml_processor.py user_config.yml --phase AB  # Up-to-date YAML check + Scientific validation
+   python src/supy/data_model/suews_yaml_processor.py user_config.yml --phase AC  # Up-to-date YAML check + Pydantic validation
+   python src/supy/data_model/suews_yaml_processor.py user_config.yml --phase BC  # Scientific validation + Pydantic validation
 
 Recommended Workflows
 ~~~~~~~~~~~~~~~~~~~~~
@@ -330,17 +330,17 @@ Running Phase A
 .. code-block:: bash
 
    # Phase A only - creates updatedA_*.yml 
-   python src/supy/data_model/master_ABC_run.py user_config.yml --phase A
+   python src/supy/data_model/suews_yaml_processor.py user_config.yml --phase A
 
 **As Part of Workflows:**
 
 .. code-block:: bash
 
    # A + B validation
-   python src/supy/data_model/master_ABC_run.py user_config.yml --phase AB
+   python src/supy/data_model/suews_yaml_processor.py user_config.yml --phase AB
    
    # Complete pipeline: A + B + C validation  
-   python src/supy/data_model/master_ABC_run.py user_config.yml --phase ABC
+   python src/supy/data_model/suews_yaml_processor.py user_config.yml --phase ABC
 
 Phase A Outputs
 ~~~~~~~~~~~~~~~~
@@ -546,20 +546,20 @@ Running Phase B
 .. code-block:: bash
 
    # Phase B only - validates original user YAML directly
-   python src/supy/data_model/master_ABC_run.py user_config.yml --phase B
+   python src/supy/data_model/suews_yaml_processor.py user_config.yml --phase B
 
 **As Part of Workflows:**
 
 .. code-block:: bash
 
    # A + B validation (skip Pydantic checking)
-   python src/supy/data_model/master_ABC_run.py user_config.yml --phase AB
+   python src/supy/data_model/suews_yaml_processor.py user_config.yml --phase AB
    
    # B + C validation (skip up-to-date YAML checking)
-   python src/supy/data_model/master_ABC_run.py user_config.yml --phase BC
+   python src/supy/data_model/suews_yaml_processor.py user_config.yml --phase BC
    
    # Complete pipeline: A + B + C validation  
-   python src/supy/data_model/master_ABC_run.py user_config.yml --phase ABC
+   python src/supy/data_model/suews_yaml_processor.py user_config.yml --phase ABC
 
 Phase B Behavior
 ~~~~~~~~~~~~~~~~~
@@ -583,7 +583,7 @@ When running ``--phase B``, Phase B **always validates the original user YAML fi
 .. code-block:: bash
 
    # Phase B only (validates original user YAML)
-   python master_ABC_run.py user_config.yml --phase B
+   python suews_yaml_processor.py user_config.yml --phase B
 
 **Example Output (when Phase B issues found):**
 
@@ -738,20 +738,20 @@ Running Phase C
 .. code-block:: bash
 
    # Phase C only - validates original user YAML directly
-   python src/supy/data_model/master_ABC_run.py user_config.yml --phase C
+   python src/supy/data_model/suews_yaml_processor.py user_config.yml --phase C
 
 **As Part of Workflows:**
 
 .. code-block:: bash
 
    # A + C validation (skip scientific validation)
-   python src/supy/data_model/master_ABC_run.py user_config.yml --phase AC
+   python src/supy/data_model/suews_yaml_processor.py user_config.yml --phase AC
    
    # B + C validation (skip parameter checking)
-   python src/supy/data_model/master_ABC_run.py user_config.yml --phase BC
+   python src/supy/data_model/suews_yaml_processor.py user_config.yml --phase BC
    
    # Complete pipeline: A + B + C validation  
-   python src/supy/data_model/master_ABC_run.py user_config.yml --phase ABC
+   python src/supy/data_model/suews_yaml_processor.py user_config.yml --phase ABC
 
 Phase C Behavior
 ~~~~~~~~~~~~~~~~
@@ -836,7 +836,7 @@ Choose your validation workflow based on your specific needs and configuration s
 .. code-block:: bash
 
    # ABC workflow - comprehensive validation pipeline
-   python src/supy/data_model/master_ABC_run.py user_config.yml --phase ABC
+   python src/supy/data_model/suews_yaml_processor.py user_config.yml --phase ABC
 
 **Use when**: Starting with new configurations, migrating from old SUEWS versions, or before critical production runs.
 
@@ -845,13 +845,13 @@ Choose your validation workflow based on your specific needs and configuration s
 .. code-block:: bash
 
    # AB workflow - parameter + scientific validation (skip Pydantic)
-   python src/supy/data_model/master_ABC_run.py user_config.yml --phase AB
+   python src/supy/data_model/suews_yaml_processor.py user_config.yml --phase AB
    
    # AC workflow - parameter + Pydantic validation (skip scientific)
-   python src/supy/data_model/master_ABC_run.py user_config.yml --phase AC
+   python src/supy/data_model/suews_yaml_processor.py user_config.yml --phase AC
    
    # BC workflow - scientific + Pydantic validation (skip parameter checking)
-   python src/supy/data_model/master_ABC_run.py user_config.yml --phase BC
+   python src/supy/data_model/suews_yaml_processor.py user_config.yml --phase BC
 
 **AB Workflow**: Ideal for users who want thorough parameter and scientific validation but need to bypass Pydantic validation temporarily.
 
@@ -959,7 +959,7 @@ The processor can be integrated into batch workflows:
    # Example batch processing script
    for config_file in *.yml; do
        echo "Validating $config_file..."
-       python src/supy/data_model/master_ABC_run.py "$config_file" --phase ABC
+       python src/supy/data_model/suews_yaml_processor.py "$config_file" --phase ABC
        if [ $? -eq 0 ]; then
            echo "✓ $config_file validation successful"
        else
@@ -979,7 +979,7 @@ Use validation as a pre-processing step in your modeling pipeline:
    CONFIG_FILE="user_config.yml"
    
    # Step 1: Validate configuration
-   python src/supy/data_model/master_ABC_run.py "$CONFIG_FILE" --phase ABC
+   python src/supy/data_model/suews_yaml_processor.py "$CONFIG_FILE" --phase ABC
    
    if [ $? -eq 0 ]; then
        # Step 2: Use validated configuration for model run
@@ -1000,7 +1000,7 @@ Use validation as a pre-processing step in your modeling pipeline:
 Background and Technical Details
 ================================
 
-**Code Used:** ``uptodate_yaml.py`` (Phase A), ``science_check.py`` (Phase B), ``master_ABC_run.py`` (orchestrator)
+**Code Used:** ``uptodate_yaml.py`` (Phase A), ``science_check.py`` (Phase B), ``suews_yaml_processor.py`` (orchestrator)
 
 **Key Enhancement:** ``get_value_safe()`` utility function for robust RefValue/plain format handling, migrated from precheck.py (PR #569)
 

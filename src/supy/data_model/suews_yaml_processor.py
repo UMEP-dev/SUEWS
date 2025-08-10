@@ -1,19 +1,19 @@
 """
-SUEWS Master Phase A-B-C Runner
+SUEWS YAML Configuration Processor
 
 This script provides a complete workflow for SUEWS YAML configuration processing:
-- Phase A: Parameter detection and YAML structure updates (uptodate_yaml.py)
+- Phase A: Up-to-date YAML check and parameter detection (uptodate_yaml.py)
 - Phase B: Scientific validation and automatic adjustments (science_check.py)
 - Phase C: Conditional Pydantic validation based on model physics options (core.py)
 
 Usage:
-    python master_ABC_run.py <user_yaml_file> [--phase PHASE]
+    python suews_yaml_processor.py <user_yaml_file> [--phase PHASE]
 
 Examples:
-    python master_ABC_run.py my_config.yml                    # A→B workflow (default)
-    python master_ABC_run.py my_config.yml --phase C          # Phase C only
-    python master_ABC_run.py my_config.yml --phase BC         # B→C workflow
-    python master_ABC_run.py my_config.yml --phase ABC        # Complete A→B→C workflow
+    python suews_yaml_processor.py my_config.yml                    # ABC workflow (default)
+    python suews_yaml_processor.py my_config.yml --phase C          # Phase C only
+    python suews_yaml_processor.py my_config.yml --phase BC         # B→C workflow
+    python suews_yaml_processor.py my_config.yml --phase ABC        # Complete A→B→C workflow
 
 The script supports individual phases (A, B, C) or combined workflows (AB, AC, BC, ABC):
 1. Phase A: Detects missing parameters and updates YAML structure
@@ -873,7 +873,7 @@ Phase C validation could not be executed due to import issues.
 1. Check if supy package is properly installed
 2. Ensure you're running from the correct directory
 3. Use Phase A + B validation as alternative:
-   python master_ABC_run.py user.yml --phase AB
+   python suews_yaml_processor.py user.yml --phase AB
 
 ## Error Details:
 {str(import_error)}
@@ -906,7 +906,7 @@ Phase C validation could not be executed due to system errors.
 
 ## Recommended Actions:
 1. Use Phase A + B validation instead:
-   python master_ABC_run.py user.yml --phase AB
+   python suews_yaml_processor.py user.yml --phase AB
 
 2. Check system configuration and try again
 
@@ -968,13 +968,13 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  python master_ABC_run.py user.yml                        # Run complete A→B→C workflow (default, public mode)
-  python master_ABC_run.py user.yml --phase A              # Run Phase A only
-  python master_ABC_run.py user.yml --phase AB             # Run A→B workflow
-  python master_ABC_run.py user.yml --phase C              # Run Phase C only (Pydantic validation)
-  python master_ABC_run.py user.yml --phase BC             # Run complete B→C workflow
-  python master_ABC_run.py user.yml --mode dev             # Run ABC workflow in dev mode (coming soon)
-  python master_ABC_run.py user.yml --phase A --mode public  # Run Phase A in public mode (explicit)
+  python suews_yaml_processor.py user.yml                        # Run complete A→B→C workflow (default, public mode)
+  python suews_yaml_processor.py user.yml --phase A              # Run Phase A only
+  python suews_yaml_processor.py user.yml --phase AB             # Run A→B workflow
+  python suews_yaml_processor.py user.yml --phase C              # Run Phase C only (Pydantic validation)
+  python suews_yaml_processor.py user.yml --phase BC             # Run complete B→C workflow
+  python suews_yaml_processor.py user.yml --mode dev             # Run ABC workflow in dev mode (coming soon)
+  python suews_yaml_processor.py user.yml --phase A --mode public  # Run Phase A in public mode (explicit)
 
 Phases:
   Phase A: Up-to-date YAML check and structure updates

@@ -1592,7 +1592,7 @@ def print_critical_halt_message(critical_errors: List[ValidationResult]):
     print("OPTIONS TO RESOLVE:")
     print("1. Fix the issues manually in your YAML file, or")
     print("2. Run Phase A first to auto-detect and fix missing parameters:")
-    print("   python master_ABC_run.py user.yml --phase A")
+    print("   python suews_yaml_processor.py user.yml --phase A")
     print("3. Then re-run Phase B")
     print()
     print("Phase A can help detect missing parameters and provide")

@@ -1,10 +1,10 @@
-name: sample config
+name: sample config FURTHER MODIFIED to trigger warning
 description: built from benchmark 1a, based on Ward et al. (2016) model configuration
 model:
   control:
     tstep: 300
     forcing_file:
-      value: Input/Kc_2012_data_60.txt
+      value: Kc_2012_data_60.txt
     output_file:
       format: txt
       freq: 3600
@@ -13,10 +13,9 @@ model:
     diagnose: 0
     start_time: "2011-01-01"
     end_time: "2013-12-31"
-    startdate: "hello"
   physics:
-    netradiationmethod:
-      value: 3
+    #netradiationmethod:
+    #  value: #3
     emissionsmethod:
       value: 2
     storageheatmethod:
@@ -28,14 +27,12 @@ model:
     roughlenheatmethod:
       value: 2
     stabilitymethod:
-      value: 1
+      value: 3
     smdmethod:
       value: 0
     waterusemethod:
       value: 0
-    #rslmethod:
-    #  value: 2
-    diagmethod:
+    rslmethod:
       value: 2
     faimethod:
       value: 0
@@ -51,8 +48,6 @@ sites:
 - name: KCL
   gridiv: 1
   properties:
-    test:
-      value: hello!
     lat:
       value: 51.51
     lng:
@@ -218,8 +213,8 @@ sites:
         value: 1000.0
       HotWaterTankWallDensity:
         value: 1000.0
-      #DHWVesselDensity:
-      #  value: 1500.0
+      DHWVesselDensity:
+        value: 1500.0
       HotWaterTankBuildingWallViewFactor:
         value: 0.1
       HotWaterTankInternalMassViewFactor:
@@ -451,34 +446,34 @@ sites:
           '22': -999.0
           '23': -999.0
           '24': -999.0
-        #holiday:
-        #  '1': -999.0
-        #  '2': -999.0
-        #  '3': -999.0
-        #  '4': -999.0
-        #  '5': -999.0
-        #  '6': -999.0
-        #  '7': -999.0
-        #  '8': -999.0
-        #  '9': -999.0
-        #  '10': -999.0
-        #  '11': -999.0
-        #  '12': -999.0
-        #  '13': -999.0
-        #  '14': -999.0
-        #  '15': -999.0
-        #  '16': -999.0
-        #  '17': -999.0
-        #  '18': -999.0
-        #  '19': -999.0
-        #  '20': -999.0
-        #  '21': -999.0
-        #  '22': -999.0
-        #  '23': -999.0
-        #  '24': -999.0
+        holiday:
+          '1': -999.0
+          '2': -999.0
+          '3': -999.0
+          '4': -999.0
+          '5': -999.0
+          '6': -999.0
+          '7': -999.0
+          '8': -999.0
+          '9': -999.0
+          '10': -999.0
+          '11': -999.0
+          '12': -999.0
+          '13': -999.0
+          '14': -999.0
+          '15': -999.0
+          '16': -999.0
+          '17': -999.0
+          '18': -999.0
+          '19': -999.0
+          '20': -999.0
+          '21': -999.0
+          '22': -999.0
+          '23': -999.0
+          '24': -999.0
     anthropogenic_emissions:
       startdls:
-        value: 86.0
+        value: 71 #86.0
       enddls:
         value: 303.0
       heat:
@@ -1986,8 +1981,7 @@ sites:
             - 1.2
             - 1.2
             - 1.2
-          #rho_cp:
-          cp:
+          rho_cp:
             value:
             - 2000000.0
             - 3000000.0
@@ -1998,8 +1992,8 @@ sites:
           value: 5.0
         soilstorecap:
           value: 120.0
-        #wetthresh:
-        #  value: 5.0
+        wetthresh:
+          value: 5.0
         roof_albedo_dir_mult_fact:
           value: 0.1
         wall_specular_frac:

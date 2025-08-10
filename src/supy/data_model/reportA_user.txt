@@ -1,18 +1,11 @@
-# SUEWS Configuration Analysis Report
+# SUEWS - Phase A (Up-to-date YAML check) Report
+# ==================================================
+# Mode: Public
 # ==================================================
 
-## NO ACTION NEEDED
-- Found (3) optional missing parameter(s):
--- holiday at level sites[0].properties.irrigation.wuprofm_24hr.holiday
--- wetthresh at level sites[0].properties.vertical_layers.walls[2].wetthresh
--- DHWVesselDensity at level sites[0].properties.stebbs.DHWVesselDensity
-
-- Found (2) parameter(s) not in standard:
--- startdate at level model.control.startdate
--- test at level sites[0].properties.test
-
-- Renamed (2) parameters:
--- diagmethod changed to rslmethod
--- cp changed to rho_cp
+## ACTION NEEDED
+- Found (1) critical missing parameter(s):
+-- netradiationmethod has been added to the updated YAML and set to null
+   Suggested fix: Set appropriate value based on SUEWS documentation -- https://suews.readthedocs.io/latest/
 
 # ==================================================

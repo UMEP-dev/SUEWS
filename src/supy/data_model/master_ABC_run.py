@@ -968,13 +968,13 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  python master_ABC_run.py user.yml                        # Run complete A→B workflow (default, user mode)
+  python master_ABC_run.py user.yml                        # Run complete A→B→C workflow (default, public mode)
   python master_ABC_run.py user.yml --phase A              # Run Phase A only
+  python master_ABC_run.py user.yml --phase AB             # Run A→B workflow
   python master_ABC_run.py user.yml --phase C              # Run Phase C only (Pydantic validation)
   python master_ABC_run.py user.yml --phase BC             # Run complete B→C workflow
-  python master_ABC_run.py user.yml --phase ABC            # Run complete A→B→C workflow
-  python master_ABC_run.py user.yml --mode dev             # Run A→B workflow in dev mode (coming soon)
-  python master_ABC_run.py user.yml --phase A --mode user  # Run Phase A in user mode (explicit)
+  python master_ABC_run.py user.yml --mode dev             # Run ABC workflow in dev mode (coming soon)
+  python master_ABC_run.py user.yml --phase A --mode public  # Run Phase A in public mode (explicit)
 
 Phases:
   Phase A: Parameter detection and YAML structure updates
@@ -993,8 +993,8 @@ Modes:
         "--phase",
         "-p",
         choices=["A", "B", "C", "AB", "AC", "BC", "ABC"],
-        default="AB",
-        help="Phase to run: A (parameter detection), B (scientific validation), C (Pydantic validation), AB (A→B workflow, default), AC (A→C), BC (B→C), or ABC (complete workflow)",
+        default="ABC",
+        help="Phase to run: A (parameter detection), B (scientific validation), C (Pydantic validation), AB (A→B workflow), AC (A→C), BC (B→C), or ABC (complete workflow, default)",
     )
 
     parser.add_argument(

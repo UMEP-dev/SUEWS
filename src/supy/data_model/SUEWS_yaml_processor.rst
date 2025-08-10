@@ -101,25 +101,26 @@ The processor is run from the SUEWS root directory using the master script:
    # Navigate to SUEWS directory
    cd /path/to/SUEWS
    
-   # Run validation (recommended for most users)
-   python src/supy/data_model/master_ABC_run.py your_config.yml --phase AB
+   # Run validation (complete pipeline - default)
+   python src/supy/data_model/master_ABC_run.py your_config.yml
 
 **Common Commands:**
 
 .. code-block:: bash
    
-   # Individual phases for targeted validation
-   python src/supy/data_model/master_ABC_run.py user_config.yml --phase A    # Up-to-date YAML check only
-   python src/supy/data_model/master_ABC_run.py user_config.yml --phase B    # Scientific validation only
-   python src/supy/data_model/master_ABC_run.py user_config.yml --phase C    # Pydantic validation only
+   # Complete validation pipeline (default - recommended)
+   python src/supy/data_model/master_ABC_run.py user_config.yml             # ABC workflow (default)
+   python src/supy/data_model/master_ABC_run.py user_config.yml --phase ABC # ABC workflow (explicit)
    
-   # Mixed scenarios for more complex targeted validation
-   python src/supy/data_model/master_ABC_run.py user_config.yml --phase AB # Up-to-date YAML check followed by Scientific validation
-   python src/supy/data_model/master_ABC_run.py user_config.yml --phase AC # Up-to-date YAML check followed by Pydantic validation
-   python src/supy/data_model/master_ABC_run.py user_config.yml --phase BC # Scientific validation followed by Pydantic validation
-
-   # Complete validation pipeline
-   python src/supy/data_model/master_ABC_run.py user_config.yml --phase ABC # Up-to-date YAML check followed by Scientific validation followed by Pydantic validation
+   # Individual phases for targeted validation
+   python src/supy/data_model/master_ABC_run.py user_config.yml --phase A   # Up-to-date YAML check only
+   python src/supy/data_model/master_ABC_run.py user_config.yml --phase B   # Scientific validation only
+   python src/supy/data_model/master_ABC_run.py user_config.yml --phase C   # Pydantic validation only
+   
+   # Mixed workflows for specific use cases
+   python src/supy/data_model/master_ABC_run.py user_config.yml --phase AB  # Up-to-date YAML check + Scientific validation
+   python src/supy/data_model/master_ABC_run.py user_config.yml --phase AC  # Up-to-date YAML check + Pydantic validation
+   python src/supy/data_model/master_ABC_run.py user_config.yml --phase BC  # Scientific validation + Pydantic validation
 
 Recommended Workflows
 ~~~~~~~~~~~~~~~~~~~~~

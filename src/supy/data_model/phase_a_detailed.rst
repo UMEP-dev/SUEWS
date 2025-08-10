@@ -44,8 +44,9 @@ Technical Implementation
    # Physics options automatically classified as critical
    PHYSICS_OPTIONS = {
        'netradiationmethod', 'emissionsmethod', 'storageheatmethod',
-       'roughlenmommethod', 'roughlenheatmethod', 'stabilitymethod',
-       'smdmethod', 'waterusemethod', 'rslmethod', 'faimethod',
+       'ohmincqf', 'roughlenmommethod', 'roughlenheatmethod',
+       'stabilitymethod', 'smdmethod', 'waterusemethod',
+       'rslmethod', 'faimethod', 'rsllevel',
        'gsmodel', 'snowuse', 'stebbsmethod'
    }
    

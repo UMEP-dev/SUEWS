@@ -329,9 +329,10 @@ What Phase A Validates
    
    **Physics Options**: Essential model physics selections
       - ``netradiationmethod``, ``emissionsmethod``, ``storageheatmethod``
-      - ``stabilitymethod``, ``roughlenmommethod``, ``roughlenheatmethod``  
-      - ``smdmethod``, ``waterusemethod``, ``rslmethod``
-      - ``faimethod``, ``gsmodel``, ``snowuse``, ``stebbsmethod``
+      - ``ohmincqf``, ``roughlenmommethod``, ``roughlenheatmethod``
+      - ``stabilitymethod``, ``smdmethod``, ``waterusemethod``
+      - ``rslmethod``, ``faimethod``, ``rsllevel``
+      - ``gsmodel``, ``snowuse``, ``stebbsmethod``
    
    **Impact**: Model execution will fail without these parameters
    
@@ -496,9 +497,10 @@ Based on our current implementation, Phase B performs these specific validations
    
    **Required Physics Parameters**: Checks for presence and non-null values of critical physics options
       - ``netradiationmethod``, ``emissionsmethod``, ``storageheatmethod``
-      - ``stabilitymethod``, ``roughlenmommethod``, ``roughlenheatmethod``
-      - ``smdmethod``, ``waterusemethod``, ``rslmethod``
-      - ``faimethod``, ``gsmodel``, ``snowuse``, ``stebbsmethod``
+      - ``ohmincqf``, ``roughlenmommethod``, ``roughlenheatmethod``
+      - ``stabilitymethod``, ``smdmethod``, ``waterusemethod``
+      - ``rslmethod``, ``faimethod``, ``rsllevel``
+      - ``gsmodel``, ``snowuse``, ``stebbsmethod``
    
    **Impact**: Model execution will fail without these parameters set to valid (non-null) values
 

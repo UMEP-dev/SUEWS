@@ -274,6 +274,7 @@ def validate_physics_parameters(yaml_data: dict) -> List[ValidationResult]:
         "rslmethod",
         "faimethod",
         "rsllevel",
+        "gsmodel",
         "snowuse",
         "stebbsmethod",
     ]

@@ -5,7 +5,7 @@
 ### Build Configuration
 - **Build Tool**: Meson (modern Python build system)
 - **Build Directory**: `build/` in the project root
-- **Development Install**: `make dev` or `make dev-fast` (editable install)
+- **Development Install**: `make uv-dev` (recommended), `make dev` or `make dev-fast` (editable install)
 - **Testing**: `make test` runs pytest
 
 ### Potential Conflicts Between Worktrees
@@ -40,7 +40,7 @@ Create a unique conda/mamba environment for each worktree:
 mamba create -n suews-dev-{feature-name} --clone suews-dev
 mamba activate suews-dev-{feature-name}
 cd worktrees/{feature-name}
-make dev
+make uv-dev  # Or: make dev
 ```
 
 **Pros**: Complete isolation, no conflicts
@@ -63,7 +63,7 @@ Work on one worktree at a time:
 # Before switching worktrees
 make clean
 # In new worktree
-make dev
+make uv-dev  # Or: make dev
 ```
 
 **Pros**: Simple, no changes needed
@@ -96,7 +96,7 @@ make dev
 
 4. Build development version:
    ```bash
-   make dev  # or make dev-fast for faster builds
+   make uv-dev  # Or: make dev, make dev-fast for faster builds
    ```
 
 ### During Development
@@ -162,13 +162,13 @@ make dev
 mamba create -n suews-core-fixes --clone suews-dev
 mamba activate suews-core-fixes
 cd worktrees/core-bugs
-make dev
+make uv-dev  # Or: make dev
 
 # Agent 2 (different terminal)
 mamba create -n suews-defaults --clone suews-dev
 mamba activate suews-defaults
 cd worktrees/default-values
-make dev
+make uv-dev  # Or: make dev
 ```
 
 ### Option B: Sequential Work (Simpler Setup)
@@ -178,7 +178,7 @@ Each agent works in sequence, cleaning before switching:
 make clean
 # Next agent starts
 cd ../other-worktree
-make dev
+make uv-dev  # Or: make dev
 ```
 
 ## Testing Strategy
@@ -198,4 +198,4 @@ make dev
 - **Primary Issue**: Python editable installs conflict between worktrees
 - **Recommended Solution**: Use separate conda environments per worktree
 - **Testing**: Run `make test` frequently, especially before commits
-- **Build Commands**: `make dev` → `make test` → commit → push
+- **Build Commands**: `make uv-dev` (or `make dev`) → `make test` → commit → push

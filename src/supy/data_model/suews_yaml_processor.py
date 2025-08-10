@@ -1091,7 +1091,7 @@ Modes:
                     print()
                     print("Options to resolve:")
                     print("  1. Switch to dev mode: --mode dev (when available)")
-                    print("  2. Disable developer features in your YAML file and rerun processor")
+                    print("  2. Disable stebbsmethod in your YAML file (stebbsmethod = 0) and rerun processor")
                     print()
                     print("Processor halted due to mode restrictions")
                     return 1

@@ -280,8 +280,8 @@ Once you have a YAML configuration file, you can use either the traditional func
 
    import supy as sp
    
-   # Note: Direct YAML loading in functional API is in development
-   # For now, use sample data or legacy table-based inputs
+   # The functional API uses DataFrames for configuration
+   # YAML loading is available through the SUEWSSimulation class (see above)
    df_state_init, df_forcing = sp.load_sample_data()  # Start with sample data
    # Then modify parameters as needed using pandas operations
    
@@ -506,11 +506,11 @@ Migration Process
 
 .. code-block:: bash
 
-   # Convert legacy table inputs to modern YAML
+   # Convert legacy table inputs to modern YAML (pending issue #581)
    suews-convert to-yaml -i legacy_input_dir/ -o modern_config.yml
    
-   # Validate converted configuration
-   supy-validate modern_config.yml
+   # Note: This feature is under development (see issue #581)
+   # For now, use the SUEWSSimulation class with existing table inputs or YAML files
 
 **Testing Your Migration:**
 

@@ -1372,7 +1372,7 @@ def create_science_report(
     adjustments: List[ScientificAdjustment],
     science_yaml_filename: str = None,
     phase_a_report_file: str = None,
-    mode: str = "user",
+    mode: str = "public",
     phase: str = "B",
 ) -> str:
     """
@@ -1405,7 +1405,7 @@ def create_science_report(
     report_lines.append(f"# {title}")
     report_lines.append("# " + "=" * 50)
     report_lines.append(
-        f"# Mode: {'Public' if mode.lower() in ['user', 'public'] else mode.title()}"
+        f"# Mode: {'Public' if mode.lower() == 'public' else mode.title()}"
     )
     report_lines.append("# " + "=" * 50)
     report_lines.append("")
@@ -1663,7 +1663,7 @@ def run_science_check(
     science_report_file: str = None,
     phase_a_report_file: str = None,
     phase_a_performed: bool = True,
-    mode: str = "user",
+    mode: str = "public",
     phase: str = "B",
 ) -> dict:
     """

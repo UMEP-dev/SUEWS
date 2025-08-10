@@ -12,7 +12,7 @@ def generate_phase_c_report(
     validation_error: Exception,
     input_yaml_file: str,
     output_report_file: str,
-    mode: str = "user",
+    mode: str = "public",
     phase_a_report_file: str = None,
     phases_run: list = None,
 ) -> None:
@@ -23,7 +23,7 @@ def generate_phase_c_report(
         validation_error: The Pydantic validation exception
         input_yaml_file: Path to input YAML file
         output_report_file: Path for output report file
-        mode: Processing mode ('user' or 'dev')
+        mode: Processing mode ('public' or 'dev')
         phase_a_report_file: Path to Phase A or Phase B report file for consolidation (optional)
     """
     report_lines = []
@@ -50,7 +50,7 @@ def generate_phase_c_report(
     report_lines.append(f"# {title}")
     report_lines.append("# " + "=" * 50)
     report_lines.append(
-        f"# Mode: {'Public' if mode.lower() in ['user', 'public'] else mode.title()}"
+        f"# Mode: {'Public' if mode.lower() == 'public' else mode.title()}"
     )
     report_lines.append("# " + "=" * 50)
     report_lines.append("")
@@ -277,7 +277,7 @@ def generate_fallback_report(
     validation_error: Exception,
     input_yaml_file: str,
     output_report_file: str,
-    mode: str = "user",
+    mode: str = "public",
     phase_a_report_file: str = None,
     phases_run: list = None,
 ) -> None:
@@ -288,7 +288,7 @@ def generate_fallback_report(
         validation_error: The validation exception
         input_yaml_file: Path to input YAML file
         output_report_file: Path for output report file
-        mode: Processing mode ('user' or 'dev')
+        mode: Processing mode ('public' or 'dev')
         phase_a_report_file: Path to Phase A or Phase B report file for consolidation (optional)
     """
     # Extract Phase A/B information if available (same logic as main report)
@@ -410,7 +410,7 @@ def generate_fallback_report(
 
     error_report = f"""# {title}
 # ============================================
-# Mode: {"Public" if mode.lower() in ["user", "public"] else mode.title()}
+# Mode: {"Public" if mode.lower() == "public" else mode.title()}
 # ============================================
 
 ## ACTION NEEDED

@@ -685,7 +685,7 @@ def run_phase_c(
 
                     failure_report = f"""# SUEWS Phase C (Pydantic Validation) Report
 # ============================================
-# Mode: {"Public" if mode.lower() in ["user", "public"] else mode.title()}
+# Mode: {"Public" if mode.lower() == "public" else mode.title()}
 # ============================================
 {action_needed}
 # =================================================="""
@@ -781,7 +781,7 @@ def run_phase_c(
                 if consolidated_no_action:
                     success_report = f"""# {title}
 # ============================================
-# Mode: {"Public" if mode.lower() in ["user", "public"] else mode.title()}
+# Mode: {"Public" if mode.lower() == "public" else mode.title()}
 # ============================================
 
 ## NO ACTION NEEDED
@@ -791,7 +791,7 @@ def run_phase_c(
                 else:
                     success_report = f"""# {title}
 # ============================================
-# Mode: {"Public" if mode.lower() in ["user", "public"] else mode.title()}
+# Mode: {"Public" if mode.lower() == "public" else mode.title()}
 # ============================================
 
 Phase {phase_str} passed
@@ -855,7 +855,7 @@ Phase {phase_str} passed
             # Import error report
             error_report = f"""# SUEWS Phase C (Pydantic Validation) Report
 # ============================================
-# Mode: {"Public" if mode.lower() in ["user", "public"] else mode.title()}
+# Mode: {"Public" if mode.lower() == "public" else mode.title()}
 # ============================================
 
 ## PHASE C - FAILED
@@ -892,7 +892,7 @@ Phase C validation could not be executed due to import issues.
         # General error report
         error_report = f"""# SUEWS Phase C (Pydantic Validation) Report
 # ============================================
-# Mode: {"Public" if mode.lower() in ["user", "public"] else mode.title()}
+# Mode: {"Public" if mode.lower() == "public" else mode.title()}
 # ============================================
 
 ## PHASE C - FAILED
@@ -973,7 +973,7 @@ Examples:
   python suews_yaml_processor.py user.yml --phase AB             # Run A→B workflow
   python suews_yaml_processor.py user.yml --phase C              # Run Phase C only (Pydantic validation)
   python suews_yaml_processor.py user.yml --phase BC             # Run complete B→C workflow
-  python suews_yaml_processor.py user.yml --mode dev             # Run ABC workflow in dev mode (coming soon)
+  python suews_yaml_processor.py user.yml --mode dev             # Run ABC workflow in dev mode (available)
   python suews_yaml_processor.py user.yml --phase A --mode public  # Run Phase A in public mode (explicit)
 
 Phases:

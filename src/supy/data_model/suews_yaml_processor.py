@@ -1038,7 +1038,9 @@ Modes:
         print(f"YAML user file: {user_yaml_file}")
         print(f"Standard file: {standard_yaml_file}")
         print(f"Processor Selected Mode: {phase_desc[phase]}")
-        print(f"User Mode: {'Developer' if internal_mode.lower() == 'dev' else 'Public'}")
+        print(
+            f"User Mode: {'Developer' if internal_mode.lower() == 'dev' else 'Public'}"
+        )
         print(f"==================================")
         print()
 

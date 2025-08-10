@@ -1013,12 +1013,7 @@ Modes:
     # Handle mode mapping: 'public' maps to 'user' internally for compatibility
     internal_mode = "user" if mode == "public" else mode
 
-    # Check if dev mode is requested (not yet implemented)
-    if internal_mode.lower() == "dev":
-        print("✗ Developer mode is not yet implemented")
-        print("  Available mode: public (default)")
-        print("  Coming soon: dev mode with extended validation options")
-        return 1
+    # Dev mode is now available
 
     try:
         # Step 1: Validate input file
@@ -1043,7 +1038,7 @@ Modes:
         print(f"YAML user file: {user_yaml_file}")
         print(f"Standard file: {standard_yaml_file}")
         print(f"Processor Selected Mode: {phase_desc[phase]}")
-        print(f"User Mode: Public")
+        print(f"User Mode: {'Developer' if internal_mode.lower() == 'dev' else 'Public'}")
         print(f"==================================")
         print()
 

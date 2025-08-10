@@ -5,8 +5,9 @@ Tests the fix for Issue #572 where the MIN constraint on height arrays
 caused negative LOG arguments for tall buildings.
 """
 
-import pytest
 import numpy as np
+import pytest
+
 import supy as sp
 
 
@@ -14,13 +15,13 @@ class TestRSLMOSTSeparation:
     """Test suite for RSL/MOST separation in atmospheric profiles."""
 
     @pytest.fixture
-    def sample_data(self):
+    def sample_data(self):  # noqa: PLR6301
         """Load sample data for testing."""
         df_state_init, df_forcing = sp.load_SampleData()
         df_forcing_short = df_forcing.iloc[:1]  # Single timestep for speed
         return df_state_init, df_forcing_short
 
-    def test_most_height_array_monotonic(self, sample_data):
+    def test_most_height_array_monotonic(self, sample_data):  # noqa: PLR6301
         """Test that MOST generates monotonic height arrays for various building heights."""
         df_state_init, df_forcing = sample_data
 
@@ -37,11 +38,11 @@ class TestRSLMOSTSeparation:
             heights = heights[~np.isnan(heights)]  # Remove NaN values
 
             # Check monotonicity
-            assert np.all(np.diff(heights) > 0), (
-                f"Height array not monotonic for {bldgh}m building"
-            )
+            assert np.all(
+                np.diff(heights) > 0
+            ), f"Height array not monotonic for {bldgh}m building"
 
-    def test_no_parameter_mixing(self, sample_data):
+    def test_no_parameter_mixing(self, sample_data):  # noqa: PLR6301
         """Test that MOST and RSL methods can both run without parameter mixing."""
         df_state_init, df_forcing = sample_data
 
@@ -57,7 +58,7 @@ class TestRSLMOSTSeparation:
         df_output_rsl, _ = sp.run_supy(df_forcing, df_state_init)
         assert not df_output_rsl.empty, "RSL failed to run"
 
-    def test_tall_building_profiles(self, sample_data):
+    def test_tall_building_profiles(self, sample_data):  # noqa: PLR6301
         """Test that tall buildings don't cause negative wind speeds or NaN issues."""
         df_state_init, df_forcing = sample_data
 

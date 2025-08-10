@@ -52,7 +52,7 @@ Before using the YAML processor:
 2. **Python environment**: The processor requires the SUEWS Python environment with all dependencies
 3. **YAML configuration file**: Your SUEWS configuration in YAML format
 
-   - **If migrating from pre-v2025**: Convert your namelist files using the conversion tools (see `Namelist to YAML Conversion`_)
+   - **If migrating from pre-v2025**: Convert your namelist files using the conversion tools (see `namelist_to_yaml_conversion.rst <namelist_to_yaml_conversion.rst>`__)
    - **If starting fresh**: Use the sample configuration (``src/supy/sample_data/sample_config.yml``) as a template
 
 4. **Working directory**: Run the processor from the SUEWS root directory to ensure proper file access
@@ -1009,28 +1009,16 @@ Background and Technical Details
 Reference
 =========
 
-Namelist to YAML Conversion
----------------------------
+Related Documentation
+---------------------
 
-Overview
-~~~~~~~~
+**Namelist to YAML Conversion**
+   For users migrating from pre-SUEWS_V2025 namelist format, see: `namelist_to_yaml_conversion.rst <namelist_to_yaml_conversion.rst>`__
 
-Convert pre-SUEWS_V2025 input format [link: manual reference of old format] to structured YAML format.
+**Detailed Phase Documentation**
+   - **Phase A Details**: See `phase_a_detailed.rst <phase_a_detailed.rst>`__ for comprehensive parameter detection rules
+   - **Phase B Details**: See `phase_b_detailed.rst <phase_b_detailed.rst>`__ for scientific validation specifications
+   - **Phase C Details**: See `phase_c_detailed.rst <phase_c_detailed.rst>`__ for complete Pydantic validation rules
 
-Background
-~~~~~~~~~~
-
-**Code used:**
-
-**Developers:**
-
-**Required inputs:**
-
-**Outputs:**
-
-**Instructions:**
-
-**Steps:**
-
-.. note::
-   MP code
+**SUEWS Configuration Schema**
+   For parameter specifications and validation details, see: `YAML Configuration Documentation <../../../inputs/yaml/index.html>`_

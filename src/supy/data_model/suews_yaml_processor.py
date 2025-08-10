@@ -1046,22 +1046,24 @@ Modes:
         print(f"User Mode: Public")
         print(f"==================================")
         print()
-        
+
         # Step 3: Pre-validation check for public mode restrictions
-        if internal_mode.lower() == "user":  # "user" is internal representation of "public"
+        if (
+            internal_mode.lower() == "user"
+        ):  # "user" is internal representation of "public"
             try:
                 import yaml
-                
+
                 with open(user_yaml_file, "r") as f:
                     user_yaml_data = yaml.safe_load(f)
-                
+
                 # Check public mode restrictions
                 restrictions_violated = []
-                
+
                 # Check STEBBS method restriction
                 stebbs_method = None
                 if (
-                    user_yaml_data 
+                    user_yaml_data
                     and isinstance(user_yaml_data, dict)
                     and "model" in user_yaml_data
                     and isinstance(user_yaml_data["model"], dict)
@@ -1075,17 +1077,21 @@ Modes:
                         stebbs_method = stebbs_entry["value"]
                     else:
                         stebbs_method = stebbs_entry
-                
+
                 if stebbs_method is not None and stebbs_method != 0:
-                    restrictions_violated.append("STEBBS method is enabled (stebbsmethod != 0)")
-                
+                    restrictions_violated.append(
+                        "STEBBS method is enabled (stebbsmethod != 0)"
+                    )
+
                 # Add more restriction checks here as needed
                 # if other_dev_feature_enabled:
                 #     restrictions_violated.append("Other developer feature is enabled")
-                
+
                 # If any restrictions are violated, halt execution
                 if restrictions_violated:
-                    print("Warning: You selected mode 'public' but your configuration contains developer-only features:")
+                    print(
+                        "Warning: You selected mode 'public' but your configuration contains developer-only features:"
+                    )
                     for restriction in restrictions_violated:
                         print(f"  - {restriction}")
                     print()
@@ -1095,13 +1101,15 @@ Modes:
                     print()
                     print("Processor halted due to mode restrictions")
                     return 1
-                    
+
             except Exception as e:
                 # If we can't read the YAML, let the normal phases handle the error
-                print(f"Warning: Could not pre-validate YAML file for mode restrictions: {e}")
+                print(
+                    f"Warning: Could not pre-validate YAML file for mode restrictions: {e}"
+                )
                 print("Continuing with normal validation...")
                 print()
-        
+
         if not os.path.exists(standard_yaml_file):
             print()
             print(f"✗ Standard YAML file not found: {standard_yaml_file}")

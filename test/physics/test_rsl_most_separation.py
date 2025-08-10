@@ -140,11 +140,13 @@ class TestRSLMOSTSeparation:
             # In MOST theory, diagnostic heights (2m, 10m) are measured from the displaced surface
             # i.e., from zd + z0m, not from ground level
             # So we just need to ensure the array covers a reasonable range above zd + z0m
-            
+
             # The first height should be just above zd + z0m
             # The last height should reach the measurement height (typically much higher)
             assert heights[0] > 0, f"First height {heights[0]} should be positive"
-            assert heights[-1] >= heights[0], f"Height array should span from {heights[0]} to {heights[-1]}"
+            assert heights[-1] >= heights[0], (
+                f"Height array should span from {heights[0]} to {heights[-1]}"
+            )
 
     @pytest.mark.essential
     def test_rsl_height_array_properties(self, sample_data):

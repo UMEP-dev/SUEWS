@@ -855,9 +855,9 @@ Choose your validation workflow based on your specific needs and configuration s
 
 **AB Workflow**: Ideal for users who want thorough parameter and scientific validation but need to bypass Pydantic validation temporarily.
 
-**AC Workflow**: Useful when you trust your parameter values scientifically but want to ensure structural completeness and model compatibility.
+**AC Workflow**: Useful when you trust your parameter values scientifically but want to ensure structural completeness and check for conditional validation.
 
-**BC Workflow**: Best when you know your parameters are complete and current, but want to validate scientific reasonableness and model compatibility.
+**BC Workflow**: Best when you know your parameters are complete and current, but want to validate scientific reasonableness and check for conditional validation.
 
 File Management and Output Organization
 ---------------------------------------
@@ -889,11 +889,18 @@ The processor generates files with descriptive names that indicate which phases 
 The processor preserves files from successful phases even when later phases fail:
 
 - **Workflow Success**: Only final workflow files are kept (e.g., ``updatedABC_*.yml``)
-- **Workflow Failure**: Intermediate successful phase files are preserved
+- **Workflow Failure**: File preservation depends on the specific workflow
   
-  Example: If ABC workflow fails at Phase C, you'll have:
-  - ``updatedAB_*.yml`` (successful A→B output)
-  - ``reportABC_*.txt`` (failure report showing C issues)
+  **Individual Phase Failures (A, B, C)**: Preserve output files from the failed phase
+  
+  **Multi-Phase Workflow Failures**: 
+  
+  - **AB workflow fails at B**: Preserve Phase A files (``updatedA_*.yml``, ``reportA_*.txt``)
+  - **AC workflow fails at C**: Preserve Phase A files (``updatedA_*.yml``, ``reportA_*.txt``)  
+  - **BC workflow fails at C**: Preserve Phase B files (``updatedB_*.yml``, ``reportB_*.txt``)
+  - **ABC workflow fails at any phase**: Only preserve the final workflow report (``reportABC_*.txt``)
+    
+    *Note: ABC workflow cleanup removes intermediate files regardless of where it fails*
 
 Troubleshooting Common Issues
 -----------------------------

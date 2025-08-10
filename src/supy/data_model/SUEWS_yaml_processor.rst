@@ -328,11 +328,10 @@ What Phase A Validates
 1. **Missing Critical Parameters (ACTION NEEDED)**
    
    **Physics Options**: Essential model physics selections
-      - ``netradiationmethod``: Net radiation calculation method
-      - ``emissionsmethod``: Anthropogenic heat flux method  
-      - ``storageheatmethod``: Storage heat flux calculation
-      - ``stabilitymethod``: Atmospheric stability functions
-      - And other ``model.physics.*`` parameters
+      - ``netradiationmethod``, ``emissionsmethod``, ``storageheatmethod``
+      - ``stabilitymethod``, ``roughlenmommethod``, ``roughlenheatmethod``  
+      - ``smdmethod``, ``waterusemethod``, ``rslmethod``
+      - ``faimethod``, ``gsmodel``, ``snowuse``, ``stebbsmethod``
    
    **Impact**: Model execution will fail without these parameters
    
@@ -496,16 +495,10 @@ Based on our current implementation, Phase B performs these specific validations
 1. **Physics Parameters Validation**
    
    **Required Physics Parameters**: Checks for presence and non-null values of critical physics options
-      - ``netradiationmethod``: Net radiation calculation method
-      - ``emissionsmethod``: Anthropogenic heat flux method
-      - ``storageheatmethod``: Storage heat flux calculation
-      - ``stabilitymethod``: Atmospheric stability functions
-      - ``roughlenmommethod``, ``roughlenheatmethod``: Roughness length methods
-      - ``smdmethod``: Soil moisture deficit method
-      - ``waterusemethod``: Water use calculation method
-      - ``rslmethod``: Roughness sublayer method
-      - ``faimethod``, ``rsllevel``: Additional physics methods
-      - ``snowuse``, ``stebbsmethod``: Snow and STEBBS methods
+      - ``netradiationmethod``, ``emissionsmethod``, ``storageheatmethod``
+      - ``stabilitymethod``, ``roughlenmommethod``, ``roughlenheatmethod``
+      - ``smdmethod``, ``waterusemethod``, ``rslmethod``
+      - ``faimethod``, ``gsmodel``, ``snowuse``, ``stebbsmethod``
    
    **Impact**: Model execution will fail without these parameters set to valid (non-null) values
 

@@ -1480,11 +1480,13 @@ Modes:
                 # Phase C failed in ABC workflow - preserve Phase A+B outputs as ABC outputs
                 try:
                     import shutil
-                    
+
                     # Preserve the A+B combined YAML (science_yaml_file contains both A and B updates)
                     if os.path.exists(science_yaml_file):
-                        shutil.move(science_yaml_file, pydantic_yaml_file)  # updatedAB → updatedABC
-                    
+                        shutil.move(
+                            science_yaml_file, pydantic_yaml_file
+                        )  # updatedAB → updatedABC
+
                     # Clean up intermediate files (A and B reports/YAML already consolidated into C outputs)
                     if os.path.exists(report_file):
                         os.remove(report_file)  # Remove Phase A report
@@ -1494,7 +1496,7 @@ Modes:
                         os.remove(science_report_file)  # Remove Phase B report
                 except Exception:
                     pass  # Don't fail if cleanup doesn't work
-                
+
                 print("✗ Phase C failed!")
                 print(f"Report: {pydantic_report_file}")
                 print(f"Updated YAML: {pydantic_yaml_file}")
@@ -1503,7 +1505,7 @@ Modes:
                 )
                 return 1
 
-            # Phase C succeeded - clean up intermediate files 
+            # Phase C succeeded - clean up intermediate files
             try:
                 if os.path.exists(report_file):
                     os.remove(report_file)  # Remove Phase A report

@@ -797,8 +797,8 @@ When Phase C detects validation errors, it generates a detailed report:
    - Found (2) critical Pydantic validation error(s):
    -- netradiationmethod at model.physics: Field required for selected physics options
       Suggested fix: Set netradiationmethod to a valid option (0-5) based on available data
-   -- LAI_summer at site [0]: Required when grass fraction > 0 (current: 0.25)
-      Suggested fix: Provide LAI_summer value or set grass fraction to 0
+   -- grass.lai_id at site [0]: Required when grass fraction > 0 (current: 0.25)
+      Suggested fix: Provide grass.lai_id value or set grass fraction to 0
    
    ## CONDITIONAL VALIDATION DETAILS
    - Physics method 3 requires additional parameters:
@@ -806,8 +806,8 @@ When Phase C detects validation errors, it generates a detailed report:
    -- storageheatmethod: Currently null, required for complete energy balance
    
    - Site configuration issues:
-   -- Building fraction 0.4 requires building height parameters
-   -- Vegetation LAI values missing for non-zero vegetation fractions
+   -- Building fraction 0.4 requires vertical_layers.height parameters
+   -- Vegetation lai_id values missing for non-zero vegetation fractions
    
    # ==================================================
 

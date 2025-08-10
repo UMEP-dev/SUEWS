@@ -882,6 +882,8 @@ The processor generates files with descriptive names that indicate which phases 
    # Corresponding reports
    reportA_user_config.txt     # Phase A report
    reportAB_user_config.txt    # AB workflow report
+   reportAC_user_config.txt    # AC workflow report
+   reportBC_user_config.txt    # BC workflow report
    reportABC_user_config.txt   # Complete pipeline report
 
 **File Preservation Logic:**
@@ -948,8 +950,8 @@ Troubleshooting Common Issues
 
 **Solution**:
 1. Review conditional validation requirements in report
-2. Ensure physics method parameters are set correctly
-3. Verify required parameters for selected methods are provided
+2. Ensure physics model options are set correctly
+3. Verify required parameters for selected model options are provided
 4. Re-run Phase C or full workflow
 
 **Best Practice for Issue Resolution**:
@@ -1012,9 +1014,9 @@ Use validation as a pre-processing step in your modeling pipeline:
 Background and Technical Details
 ================================
 
-**Code Used:** ``uptodate_yaml.py`` (Phase A), ``science_check.py`` (Phase B), ``suews_yaml_processor.py`` (orchestrator)
+**Code Used:** ``uptodate_yaml.py`` (Phase A), ``science_check.py`` (Phase B), ``suews_yaml_processor.py`` (orchestrator) #we are missing here reference to phase c pydantic!#
 
-**Key Enhancement:** ``get_value_safe()`` utility function for robust RefValue/plain format handling, migrated from precheck.py (PR #569)
+**Key Enhancement:** ``get_value_safe()`` utility function for robust RefValue/plain format handling, migrated from precheck.py (PR #569) #is this the only key enhancement?#
 
 **Developers:** Developed by SR, MP, TS with the help of Claude as part of SUEWS YAML configuration validation system.
 

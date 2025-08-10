@@ -88,6 +88,21 @@ Choose your validation approach:
    - ``--phase BC``: Scientific + Pydantic validation
    - ``--phase ABC``: Full validation pipeline
 
+Processing Modes
+~~~~~~~~~~~~~~~~
+
+Choose your processing mode:
+
+**Public Mode** (default)
+   - ``--mode public``: Standard validation mode for general users
+   - Provides comprehensive validation with user-friendly output
+   - Default mode when no ``--mode`` is specified
+
+**Developer Mode**
+   - ``--mode dev``: Extended validation options for developers
+   - **Status**: Coming soon - not yet implemented
+   - Will include additional diagnostic information and development features
+
 Quick Start Guide
 -----------------
 
@@ -121,6 +136,10 @@ The processor is run from the SUEWS root directory using the master script:
    python src/supy/data_model/suews_yaml_processor.py user_config.yml --phase AB  # Up-to-date YAML check + Scientific validation
    python src/supy/data_model/suews_yaml_processor.py user_config.yml --phase AC  # Up-to-date YAML check + Pydantic validation
    python src/supy/data_model/suews_yaml_processor.py user_config.yml --phase BC  # Scientific validation + Pydantic validation
+   
+   # Processing modes (optional)
+   python src/supy/data_model/suews_yaml_processor.py user_config.yml --mode public  # Public mode (default)
+   python src/supy/data_model/suews_yaml_processor.py user_config.yml --mode dev     # Developer mode (coming soon)
 
 Recommended Workflows
 ~~~~~~~~~~~~~~~~~~~~~

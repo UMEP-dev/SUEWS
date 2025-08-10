@@ -517,25 +517,25 @@ def remove_extra_parameters_from_yaml(yaml_content, extra_params):
     """Remove extra parameters from YAML content for public mode."""
     if not extra_params:
         return yaml_content
-    
+
     lines = yaml_content.split("\n")
     lines_to_remove = set()
-    
+
     # Convert extra_params paths to line numbers to remove
     for param_path in extra_params:
         param_name = param_path.split(".")[-1]
-        
+
         # Find lines containing this parameter
         for i, line in enumerate(lines):
             stripped = line.strip()
             if stripped.startswith(f"{param_name}:"):
                 lines_to_remove.add(i)
                 break
-    
+
     # Remove lines in reverse order to maintain indices
     for line_num in sorted(lines_to_remove, reverse=True):
         lines.pop(line_num)
-    
+
     return "\n".join(lines)
 
 
@@ -545,10 +545,12 @@ def create_uptodate_yaml_with_missing_params(
     """Create clean YAML with missing parameters added but no inline comments."""
     # First, clean up any renamed in standard comments from the yaml_content
     clean_yaml_content = cleanup_renamed_comments(yaml_content)
-    
+
     # For public mode, remove extra parameters from YAML
     if mode == "user" and extra_params:
-        clean_yaml_content = remove_extra_parameters_from_yaml(clean_yaml_content, extra_params)
+        clean_yaml_content = remove_extra_parameters_from_yaml(
+            clean_yaml_content, extra_params
+        )
 
     if not missing_params:
         header = create_uptodate_yaml_header()
@@ -717,8 +719,10 @@ def create_analysis_report(
     if mode == "user":  # Public mode
         allowed_extras_count = extra_count if extra_count > 0 else 0
     else:  # Dev mode
-        allowed_extras_count = extra_count - len(forbidden_extras) if extra_count > 0 else 0
-    
+        allowed_extras_count = (
+            extra_count - len(forbidden_extras) if extra_count > 0 else 0
+        )
+
     has_no_action_items = (
         optional_count > 0 or allowed_extras_count > 0 or renamed_count > 0
     )

@@ -1086,7 +1086,7 @@ Use validation as a pre-processing step in your modeling pipeline:
 Background and Technical Details
 ================================
 
-**Code Used:** ``uptodate_yaml.py`` (Phase A), ``science_check.py`` (Phase B), ``core.py`` (Phase C Pydantic validation), ``suews_yaml_processor.py`` (orchestrator)
+**Code Used:** ``uptodate_yaml.py`` (Phase A), ``science_check.py`` (Phase B), ``core.py`` (Phase C Pydantic validation), ``phase_c_reports.py`` (Phase C reporting), ``suews_yaml_processor.py`` (orchestrator)
 
 **Key Enhancements:** 
 - ``get_value_safe()`` utility function for robust RefValue/plain format handling, migrated from precheck.py (PR #569)

@@ -657,8 +657,8 @@ Output: an updated YAML saved as updatedB_<filename>.yml and a comprehensive rep
    
    ## NO ACTION NEEDED
    - Updated (3) parameter(s) with automatic scientific adjustments:
-   -- LAI_summer at site [0]: null → 4.5 (applied seasonal summer LAI adjustment) # what is LAI_summer? please use correct name of param here and in the code that generates the report#
-   -- T_surf_0 at site [0]: 10.0 → 15.2 (initialized surface temperature based on geographic location) # what is T_surf_0? please use correct name of param here and in the code that generates the report#
+   -- dectr.lai_id at site [0]: null → 4.5 (applied seasonal summer LAI adjustment)
+   -- initial_states.paved at site [0]: temperature, tsfc, tin → 15.2°C (Set from CRU data for coordinates (51.51, -0.12) for month 7)
    -- snowalb at site [0]: 0.8 → 0.7 (adjusted snow albedo for temperate climate)
    
    - Updated (2) optional missing parameter(s) with null values:

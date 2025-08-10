@@ -543,7 +543,7 @@ Troubleshooting
        standard_file="sample_data/sample_config.yml", 
        uptodate_file="updated_my_config.yml",
        report_file="analysis_report.txt",
-       mode="user",  # "user" is internal representation of "public" mode
+       mode="public",  # Public mode - removes extra parameters
        phase="A"
    )
    

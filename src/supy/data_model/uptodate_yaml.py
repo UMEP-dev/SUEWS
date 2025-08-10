@@ -540,14 +540,14 @@ def remove_extra_parameters_from_yaml(yaml_content, extra_params):
 
 
 def create_uptodate_yaml_with_missing_params(
-    yaml_content, missing_params, extra_params=None, mode="user"
+    yaml_content, missing_params, extra_params=None, mode="public"
 ):
     """Create clean YAML with missing parameters added but no inline comments."""
     # First, clean up any renamed in standard comments from the yaml_content
     clean_yaml_content = cleanup_renamed_comments(yaml_content)
 
     # For public mode, remove extra parameters from YAML
-    if mode == "user" and extra_params:
+    if mode == "public" and extra_params:
         clean_yaml_content = remove_extra_parameters_from_yaml(
             clean_yaml_content, extra_params
         )
@@ -622,7 +622,7 @@ def create_analysis_report(
     renamed_replacements,
     extra_params=None,
     uptodate_filename=None,
-    mode="user",
+    mode="public",
     phase="A",
 ):
     """Create analysis report with summary of changes."""
@@ -644,7 +644,7 @@ def create_analysis_report(
     report_lines.append(f"# {title}")
     report_lines.append("# " + "=" * 50)
     report_lines.append(
-        f"# Mode: {'Public' if mode.lower() in ['user', 'public'] else mode.title()}"
+        f"# Mode: {'Public' if mode.lower() == 'public' else mode.title()}"
     )
     report_lines.append("# " + "=" * 50)
     report_lines.append("")
@@ -658,7 +658,7 @@ def create_analysis_report(
     # ACTION NEEDED section - critical/urgent parameters AND forbidden extra parameters
     # Categorize extra parameters to find forbidden ones
     forbidden_extras = []
-    if extra_count > 0 and mode != "user":  # Only show forbidden extras in dev mode
+    if extra_count > 0 and mode != "public":  # Only show forbidden extras in dev mode
         categorized = categorize_extra_parameters(extra_params)
         forbidden_extras = categorized["ACTION_NEEDED"]
 
@@ -698,12 +698,12 @@ def create_analysis_report(
                 )
 
                 # Add mode-specific messaging
-                if mode.lower() == "user":
+                if mode.lower() == "public":
                     report_lines.append(
                         f"   Suggested fix: This param name is not allowed in Phase C and will raise a validation error."
                     )
                     report_lines.append(
-                        f"   You selected --mode user. Consider to either remove these names or switch to --mode dev"
+                        f"   You selected --mode public. Consider to either remove these names or switch to --mode dev"
                     )
                 else:
                     report_lines.append(
@@ -716,7 +716,7 @@ def create_analysis_report(
     # Calculate allowed extra parameters (those not in forbidden locations)
     # In public mode, all extra parameters are handled as "removed", so count them
     # In dev mode, only allowed extra parameters are counted
-    if mode == "user":  # Public mode
+    if mode == "public":  # Public mode
         allowed_extras_count = extra_count if extra_count > 0 else 0
     else:  # Dev mode
         allowed_extras_count = (
@@ -757,7 +757,7 @@ def create_analysis_report(
             no_action_extras = categorized["NO_ACTION_NEEDED"]
             action_needed_extras = categorized["ACTION_NEEDED"]
 
-            if mode == "user":  # Public mode - show removed parameters
+            if mode == "public":  # Public mode - show removed parameters
                 # All extra parameters are removed in public mode
                 if extra_params:
                     report_lines.append(
@@ -793,7 +793,7 @@ def annotate_missing_parameters(
     standard_file,
     uptodate_file=None,
     report_file=None,
-    mode="user",
+    mode="public",
     phase="A",
 ):
     try:

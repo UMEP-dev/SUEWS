@@ -396,7 +396,7 @@ def run_phase_a(
     standard_yaml_file: str,
     uptodate_file: str,
     report_file: str,
-    mode: str = "user",
+    mode: str = "public",
     phase: str = "A",
     silent: bool = False,
 ) -> bool:
@@ -408,7 +408,7 @@ def run_phase_a(
         standard_yaml_file: Path to standard reference YAML
         uptodate_file: Path for Phase A output YAML
         report_file: Path for Phase A report
-        mode: Processing mode ('user' or 'dev')
+        mode: Processing mode ('public' or 'dev')
         silent: If True, suppress phase progress messages
 
     Returns:
@@ -487,7 +487,7 @@ def run_phase_b(
     science_report_file: str,
     phase_a_report_file: str,
     phase_a_performed: bool = True,
-    mode: str = "user",
+    mode: str = "public",
     phase: str = "B",
     silent: bool = False,
 ) -> bool:
@@ -584,7 +584,7 @@ def run_phase_c(
     input_yaml_file: str,
     pydantic_yaml_file: str,
     pydantic_report_file: str,
-    mode: str = "user",
+    mode: str = "public",
     phase_a_report_file: str = None,
     phases_run: list = None,
     silent: bool = False,
@@ -982,8 +982,8 @@ Phases:
   Phase C: Conditional Pydantic validation based on model physics options
 
 Modes:
-  user: Standard validation mode with user-friendly messaging (default)
-  dev:  Developer mode with extended options (coming soon)
+  public: Standard validation mode with user-friendly messaging (default)
+  dev:    Developer mode with extended options (available)
         """,
     )
 
@@ -1002,7 +1002,7 @@ Modes:
         "-m",
         choices=["public", "dev"],
         default="public",
-        help="Processing mode: public (standard validation mode, default) or dev (developer mode with extended options - coming soon)",
+        help="Processing mode: public (standard validation mode, default) or dev (developer mode with extended options - available)",
     )
 
     args = parser.parse_args()
@@ -1010,8 +1010,8 @@ Modes:
     phase = args.phase
     mode = args.mode
 
-    # Handle mode mapping: 'public' maps to 'user' internally for compatibility
-    internal_mode = "user" if mode == "public" else mode
+    # Use mode directly - no mapping needed
+    internal_mode = mode
 
     # Dev mode is now available
 
@@ -1045,9 +1045,7 @@ Modes:
         print()
 
         # Step 3: Pre-validation check for public mode restrictions
-        if (
-            internal_mode.lower() == "user"
-        ):  # "user" is internal representation of "public"
+        if internal_mode.lower() == "public":
             try:
                 import yaml
 

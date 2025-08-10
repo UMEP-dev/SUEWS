@@ -889,18 +889,24 @@ The processor generates files with descriptive names that indicate which phases 
 The processor preserves files from successful phases even when later phases fail:
 
 - **Workflow Success**: Only final workflow files are kept (e.g., ``updatedABC_*.yml``)
-- **Workflow Failure**: File preservation depends on the specific workflow
+- **Workflow Failure**: Preserves the most recent successful validation output
   
-  **Individual Phase Failures (A, B, C)**: Preserve output files from the failed phase
+  **Individual Phase Failures (A, B, C)**: 
+  - **Phase A fails**: Preserves ``updatedA_*.yml`` (Phase A always produces output)
+  - **Phase B fails**: No ``updatedB_*.yml`` (Phase B only produces output on success)
+  - **Phase C fails**: No ``updatedC_*.yml`` (Phase C only produces output on success)
   
   **Multi-Phase Workflow Failures**: 
   
-  - **AB workflow fails at B**: Preserve Phase A files (``updatedA_*.yml``, ``reportA_*.txt``)
-  - **AC workflow fails at C**: Preserve Phase A files (``updatedA_*.yml``, ``reportA_*.txt``)  
-  - **BC workflow fails at C**: Preserve Phase B files (``updatedB_*.yml``, ``reportB_*.txt``)
-  - **ABC workflow fails at any phase**: Only preserve the final workflow report (``reportABC_*.txt``)
-    
-    *Note: ABC workflow cleanup removes intermediate files regardless of where it fails*
+  - **AB workflow fails at B**: Preserve Phase A output (``updatedA_*.yml`` → ``updatedAB_*.yml``)
+  - **AC workflow fails at C**: Preserve Phase A output (``updatedA_*.yml`` → ``updatedAC_*.yml``)  
+  - **BC workflow fails at C**: Preserve Phase B output (``updatedB_*.yml`` → ``updatedBC_*.yml``)
+  - **ABC workflow failures**: 
+    - **Fails at A**: Preserve Phase A output (``updatedA_*.yml`` → ``updatedABC_*.yml``)
+    - **Fails at B**: Preserve Phase A output (``updatedA_*.yml`` → ``updatedABC_*.yml``)
+    - **Fails at C**: Preserve A+B combined output (``science_yaml_file`` → ``updatedABC_*.yml``)
+  
+  All failures produce the corresponding workflow report (e.g., ``reportABC_*.txt``)
 
 Troubleshooting Common Issues
 -----------------------------
@@ -929,9 +935,8 @@ Troubleshooting Common Issues
 
 **Solution**:
 1. Review ``reportB_user_config.txt`` for scientific errors
-2. Fix parameter values that are outside physical ranges
-3. Resolve parameter consistency issues
-4. Re-run from Phase B or full workflow
+2. Fix parameters that need action
+3. Re-run from Phase B or full workflow
 
 **Issue 3: Phase C Pydantic Validation Failures**
 

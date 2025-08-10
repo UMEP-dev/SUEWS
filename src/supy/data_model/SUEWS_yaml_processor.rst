@@ -717,44 +717,18 @@ Phase C applies model-specific validation using Pydantic data models to ensure c
 What Phase C Validates
 ~~~~~~~~~~~~~~~~~~~~~~
 
-**Model-Specific Validation Categories:**
+Phase C runs the same comprehensive Pydantic validation system used by `SUEWSConfig.from_yaml()` when loading YAML configurations in SUEWS.
 
-1. **Physics Method Requirements**
-   
-   **Required Parameters for Selected Methods**: Each physics method requires specific parameters
-      - Net radiation methods: Parameters required vary by method (0-5)
-      - Anthropogenic heat methods: QF calculation requirements
-      - Storage heat methods: Building parameter dependencies
-      - Stability methods: Atmospheric calculation parameter needs
-   
-   **Method Compatibility Checks**: Ensure selected methods work together
-      - Physics option combinations that are supported
-      - Parameter availability for selected method combinations
-      - Model capability boundaries for chosen options
+**Validation Coverage:**
+- All model configuration constraints and physics compatibility checks
+- Site-level parameter completeness and physical parameter ranges  
+- Building structure, surface types, and hourly profile consistency
+- The same validations that ensure your configuration loads successfully in SUEWS
 
-2. **Conditional Parameter Validation**
-   
-   **Context-Dependent Requirements**: Parameters required only under specific conditions
-      - LAI values required when vegetation fraction > 0
-      - Building parameters required when building fraction > 0
-      - Anthropogenic heat parameters required for certain QF methods
-   
-   **Data Type and Format Validation**: Strict Pydantic schema compliance
-      - Parameter data types match expected formats
-      - Array dimensions and structures are correct
-      - Enum values match allowed options
+**For detailed validation specifications and error handling, see:**
+`YAML Configuration Documentation - Validation and Error Handling <../../../inputs/yaml/index.html#validation-and-error-handling>`_
 
-3. **Advanced Physics Validation**
-   
-   **Complex Model Features**: Validation for advanced capabilities
-      - Multi-layer physics options and their requirements
-      - Coupled model components and their dependencies
-      - Time-varying parameter specifications
-   
-   **Boundary Condition Consistency**: Advanced consistency checks
-      - Initial conditions match selected physics methods
-      - Boundary conditions compatible with model domain
-      - Temporal specifications align with forcing data
+**For comprehensive Phase C validation rules, see:** `phase_c_detailed.rst <phase_c_detailed.rst>`__
 
 Running Phase C
 ~~~~~~~~~~~~~~~

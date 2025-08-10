@@ -1476,8 +1476,34 @@ Modes:
                 silent=True,
             )
 
-            # Clean up intermediate files when complete ABC workflow completes
-            # (regardless of Phase C success - we always provide final ABC outputs)
+            if not phase_c_success:
+                # Phase C failed in ABC workflow - preserve Phase A+B outputs as ABC outputs
+                try:
+                    import shutil
+                    
+                    # Preserve the A+B combined YAML (science_yaml_file contains both A and B updates)
+                    if os.path.exists(science_yaml_file):
+                        shutil.move(science_yaml_file, pydantic_yaml_file)  # updatedAB → updatedABC
+                    
+                    # Clean up intermediate files (A and B reports/YAML already consolidated into C outputs)
+                    if os.path.exists(report_file):
+                        os.remove(report_file)  # Remove Phase A report
+                    if os.path.exists(uptodate_file):
+                        os.remove(uptodate_file)  # Remove Phase A YAML
+                    if os.path.exists(science_report_file):
+                        os.remove(science_report_file)  # Remove Phase B report
+                except Exception:
+                    pass  # Don't fail if cleanup doesn't work
+                
+                print("✗ Phase C failed!")
+                print(f"Report: {pydantic_report_file}")
+                print(f"Updated YAML: {pydantic_yaml_file}")
+                print(
+                    f"Suggestion: Fix issues in updated YAML and consider to rerun complete processor ABC."
+                )
+                return 1
+
+            # Phase C succeeded - clean up intermediate files 
             try:
                 if os.path.exists(report_file):
                     os.remove(report_file)  # Remove Phase A report
@@ -1489,15 +1515,6 @@ Modes:
                     os.remove(science_yaml_file)  # Remove Phase B YAML
             except Exception:
                 pass  # Don't fail if cleanup doesn't work
-
-            if not phase_c_success:
-                print("✗ Phase C failed!")
-                print(f"Report: {pydantic_report_file}")
-                print(f"Updated YAML: {pydantic_yaml_file}")
-                print(
-                    f"Suggestion: Fix issues in updated YAML and consider to rerun complete processor ABC."
-                )
-                return 1
 
             print("✓ Phase C completed")
             print("Report:", pydantic_report_file)

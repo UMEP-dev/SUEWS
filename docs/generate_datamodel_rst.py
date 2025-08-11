@@ -30,17 +30,21 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 SRC_PATH = PROJECT_ROOT / "src"
 sys.path.insert(0, str(SRC_PATH))
 
-# Try to import the data models from supy
-# This relies on supy.data_model being an importable path
-# and __init__.py files being set up correctly.
-try:
-    import supy.data_model
-except ImportError as e:
-    print(f"Error importing supy.data_model: {e}")
-    print(
-        "Please ensure that 'src' is in the Python path and supy.data_model is accessible."
-    )
+# Import data models - work directly with source files to avoid build issues
+data_model_path = SRC_PATH / "supy" / "data_model"
+if not data_model_path.exists():
+    print(f"Error: data_model directory not found at {data_model_path}")
     sys.exit(1)
+
+# Add data_model parent to path so we can import
+sys.path.insert(0, str(SRC_PATH / "supy"))
+
+# Create a mock supy module structure
+class MockDataModel:
+    __file__ = str(data_model_path / "__init__.py")
+
+supy = type('supy', (), {})()
+supy.data_model = MockDataModel()
 
 
 # --- Helper function to format units with proper typography ---
@@ -709,10 +713,12 @@ def main():
     # Discover models in supy.data_model and its submodules
     data_model_module_root = Path(supy.data_model.__file__).parent
     for py_file in data_model_module_root.glob("*.py"):
-        if py_file.name == "__init__.py":
-            module_name_to_import = "supy.data_model"
-        else:
-            module_name_to_import = f"supy.data_model.{py_file.stem}"
+        if py_file.name in ["__init__.py", "validation_controller.py", "validation_feedback.py",
+                             "validation_utils.py", "yaml_annotator.py", "yaml_annotator_json.py",
+                             "timezone_enum.py", "precheck.py"]:
+            continue  # Skip non-model files
+        
+        module_name_to_import = f"data_model.{py_file.stem}"
 
         try:
             module = importlib.import_module(module_name_to_import)

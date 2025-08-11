@@ -188,6 +188,11 @@ The following pages provide a detailed reference for every component of the YAML
 - **Hierarchical Organization**: The schema is organized hierarchically, with top-level components (model, site) linking to detailed sub-components
 - **Cross-References**: Related parameters and methods are cross-referenced for easier navigation
 
+.. note::
+   
+   For a comprehensive, searchable list of all parameters, see the :ref:`parameter_reference`. 
+   The :ref:`parameter_index` provides an alphabetical index for quick parameter lookup.
+
 .. toctree::
    :maxdepth: 2
    :caption: Schema Reference

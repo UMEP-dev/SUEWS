@@ -241,10 +241,73 @@ Phase C implements **specialized model validators** in the SUEWSConfig class.
        """If rslmethod==2, then for any site where bldgs.sfr > 0,
        bldgs.faibldg must be set and non-null."""
 
-**Conditional Validation Logic:** #please expand on this conditional validation logic - and list all functions implemented#
-- **RSL Method 2**: Requires ``bldgs.faibldg`` when ``bldgs.sfr > 0``
-- **Storage Heat Method 6**: Requires DyOHM-specific parameters
-- **STEBBS Method**: Validates building energy balance parameters
+**Conditional Validation Logic:**
+
+Phase C implements **three conditional validation systems** with associated checker and validator functions:
+
+**1. RSL Method Validation (Method 2 - Diagnostic Aerodynamic)**
+- **Checker**: ``_needs_rsl_validation() -> bool``
+  
+  .. code-block:: python
+  
+     def _needs_rsl_validation(self) -> bool:
+         """Return True if rslmethod == 2."""
+         rm = self.model.physics.rslmethod
+         method = getattr(rm, "value", rm)
+         return int(method) == 2
+  
+- **Validator**: ``_validate_rsl(site, site_index) -> List[str]``
+- **Logic**: When ``rslmethod == 2`` and ``bldgs.sfr > 0``, requires ``bldgs.faibldg`` to be set and non-null
+- **Error Example**: ``"Site KCL: for rslmethod=2 and bldgs.sfr=0.38, bldgs.faibldg must be set"``
+
+**2. Storage Heat Method Validation (Method 6 - DyOHM)**
+- **Checker**: ``_needs_storage_validation() -> bool``
+  
+  .. code-block:: python
+  
+     def _needs_storage_validation(self) -> bool:
+         """Return True if storageheatmethod == 6."""
+         shm = getattr(self.model.physics.storageheatmethod, "value", None)
+         return int(shm) == 6
+  
+- **Validator**: ``_validate_storage(site, site_index) -> List[str]``
+- **Logic**: When ``storageheatmethod == 6``, requires DyOHM-specific parameters:
+  - ``vertical_layers.walls`` must exist
+  - ``thermal_layers.dz``, ``thermal_layers.k``, ``thermal_layers.rho_cp`` must be non-empty numeric arrays
+  - ``properties.lambda_c`` must be set and non-null
+
+**3. STEBBS Method Validation (Method 1 - Building Energy Balance)**
+- **Checker**: ``_needs_stebbs_validation() -> bool``
+  
+  .. code-block:: python
+  
+     def _needs_stebbs_validation(self) -> bool:
+         """Return True if stebbsmethod == 1."""
+         stebbsmethod = self.model.physics.stebbsmethod
+         stebbsmethod = getattr(stebbsmethod, "value", stebbsmethod)
+         return int(stebbsmethod) == 1
+  
+- **Validator**: ``_validate_stebbs(site, site_index) -> List[str]``
+- **Logic**: When ``stebbsmethod == 1``, validates all required STEBBS building energy parameters are present and non-null
+- **Parameters**: Uses ``STEBBS_REQUIRED_PARAMS`` list for comprehensive parameter checking
+
+**Conditional Validation Orchestration:**
+
+.. code-block:: python
+
+   def _validate_conditional_parameters(self) -> List[str]:
+       """Run method-specific validations in one site loop."""
+       needs_stebbs = self._needs_stebbs_validation()
+       needs_rsl = self._needs_rsl_validation()
+       needs_storage = self._needs_storage_validation()
+       
+       for idx, site in enumerate(self.sites):
+           if needs_stebbs:
+               stebbs_issues = self._validate_stebbs(site, idx)
+           if needs_rsl:
+               rsl_issues = self._validate_rsl(site, idx)
+           if needs_storage:
+               storage_issues = self._validate_storage(site, idx)
 
 SUEWS-Specific Field Validators
 -------------------------------

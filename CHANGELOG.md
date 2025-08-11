@@ -41,6 +41,15 @@
   - Will be replaced by a forthcoming command-line wizard tool
 
 ### 8 Aug 2025
+- [maintenance] Formalised release management plan for SUEWS ([#592](https://github.com/UMEP-dev/SUEWS/issues/592))
+  - Established semantic versioning strategy with year-based major versions
+  - Defined three release channels: Stable, Preview (beta/rc), and Development
+  - Created quarterly release cadence aligned with academic calendar
+  - Documented quality assurance process with testing tiers
+  - Established documentation synchronisation with code releases
+  - Created communication templates and notification strategies
+  - Defined roles, responsibilities, and success metrics
+  - Addresses needs of academic users, non-academic partners, and developers
 - [maintenance] Improved table converter path handling to use RunControl.nml paths consistently (#566)
   - All SUEWS versions now read file paths from RunControl.nml FileInputPath
   - Removed special case handling for 2016a version

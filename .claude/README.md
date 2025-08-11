@@ -36,9 +36,10 @@ This directory contains all Claude Code-specific documentation, plans, and confi
 
 ### howto/
 **Purpose**: Step-by-step guides for common tasks
-- Setting up worktrees with different tools
-- Managing Python environments
+- Setting up worktrees with different tools (includes `make uv-dev` recipe)
+- Managing Python environments (uv, venv, mamba)
 - Running parallel Claude Code agents
+- **Quick start**: `make uv-dev` for fastest development setup
 
 ### reference/
 **Purpose**: Technical documentation and analysis

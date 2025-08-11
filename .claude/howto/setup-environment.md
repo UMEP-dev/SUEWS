@@ -37,6 +37,14 @@ python script.py  # Works as normal
 
 ### Installing SUEWS Dependencies
 
+**Recommended: Use the Makefile recipe**
+```bash
+# One-stop setup with all dependencies
+make uv-dev
+source .venv/bin/activate
+```
+
+**Alternative: Manual installation**
 ```bash
 # Core packages for SUEWS development
 # Full list maintained in .claude/reference/core-requirements.txt
@@ -78,6 +86,8 @@ which gfortran
 
 1. **One environment per worktree** - Avoid conflicts
 2. **Always use uv when available** - It's dramatically faster
+3. **Use `make uv-dev`** - Simplest setup for SUEWS development
+4. **Clean with `make uv-clean`** - Remove environment when done
 3. **Run tests after setup** - `make test` to verify
 
 ## Quick Reference

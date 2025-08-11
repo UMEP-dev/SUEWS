@@ -484,7 +484,17 @@ Conditional Validation Rules
 - **Requirements**: Building structure parameters must be consistent
 - **Validation**: Array length consistency, building layer configurations
 
-#check that this list is complete#
+**STEBBS Building Energy Dependencies:**
+- **Condition**: ``stebbsmethod == 1``
+- **Requirement**: All STEBBS building energy balance parameters must be present and non-null
+- **Validation**: Applied per-site using ``STEBBS_REQUIRED_PARAMS`` validation list
+
+**Hourly Profile Dependencies:**
+- **Condition**: Any hourly profile defined (snow, irrigation, anthropogenic heat, etc.)
+- **Requirement**: Complete 24-hour coverage (hours 1-24) with no missing or duplicate hours
+- **Validation**: Applied to all ``HourlyProfile`` instances across all sites via ``validate_hourly_profile_hours()``
+
+**Note**: This list covers all **conditional validation rules** currently implemented in Phase C. Standard field validation and model validator constraints (like albedo ranges, snow parameters, etc.) are applied unconditionally to all configurations.
 
 Best Practices and Troubleshooting
 -----------------------------------

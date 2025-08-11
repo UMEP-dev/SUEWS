@@ -57,8 +57,8 @@ Technical Implementation
        'localclimatemethod': 'rsllevel'   
    }
 
-Processing Modes and Extra Parameter Handling
----------------------------------------------
+Processing Modes and Behavior
+-----------------------------
 
 **Mode-Dependent Behavior:**
 

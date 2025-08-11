@@ -210,8 +210,8 @@ Phase B includes enhanced validation logic from PR #569:
 - **Fraction Normalization**: Adjusts surface fractions to sum to 1.0
 - **Seasonal LAI Adjustments**: Calculates LAI for deciduous trees based on seasonal parameters (laimin, laimax)
 
-Processing Modes and Validation Behavior
------------------------------------------
+Processing Modes and Behavior
+-----------------------------
 
 **Mode-Dependent Behavior:**
 
@@ -389,8 +389,8 @@ Phase B includes comprehensive test coverage:
        assert 0 <= temp <= 20, f"Unrealistic temperature: {temp}°C"
        assert temp is not None, "CRU lookup should return valid temperature"
 
-Mode Selection Guidelines for Phase B
-------------------------------------
+Mode Selection Guidelines
+-------------------------
 
 **Actual Mode Behavior:**
 

@@ -439,9 +439,21 @@ Phase C uses the **same validation system** that ``SUEWSConfig.from_yaml()`` use
 
 When Phase C passes, the configuration is **guaranteed** to load successfully in SUEWS simulations without further validation errors.
 
+Mode Selection Guidelines
+-------------------------
 
-Best Practices and Troubleshooting
------------------------------------
+**Actual Mode Behavior:**
+
+Phase C validation is **identical** in both public and developer modes. The mode parameter only affects report formatting.
+
+**Mode Selection:**
+
+- **Public Mode**: Default mode - standard Pydantic validation with user-friendly error reporting
+- **Developer Mode**: Identical functionality with different report header
+- **Recommendation**: Use public mode unless you specifically need the "Developer" label in reports
+
+Best Practices
+---------------
 
 **For Users:**
 
@@ -456,6 +468,9 @@ Best Practices and Troubleshooting
 2. **Centralize complex validation** - Put cross-site validation in SUEWSConfig class
 3. **Use conditional validation helpers** - Like ``_needs_rsl_validation()`` for physics dependencies
 4. **Handle RefValue wrappers** - Use ``_unwrap_value()`` helper for consistent value extraction
+
+Troubleshooting
+---------------
 
 **Common Phase C Issues:**
 

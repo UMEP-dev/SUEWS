@@ -16,3 +16,10 @@ SUEWS supports two formats for providing input parameters:
 
    yaml/index
    tables/index
+
+.. toctree::
+   :maxdepth: 2
+   :caption: Tools and Utilities
+   
+   converter
+   transition_guide

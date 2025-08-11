@@ -31,6 +31,7 @@ This directory contains the complete documentation build system for SUEWS (Surfa
   - Meteorological data format (`met_input.rst`)
   - Control files (`RunControl/`, `Initial_Conditions/`)
   - Physics modules (`ESTM_input/`, `CBL_input/`, `SOLWEIG_input/`, `SS_input/`)
+  - Input converter documentation (`input_converter.rst`)
   - File converter utilities (`SUEWS_TableConverter.py`)
 
 - **`output_files/`**: Output file format specifications
@@ -82,36 +83,8 @@ This directory contains the complete documentation build system for SUEWS (Surfa
 #### Styling and Configuration
 - **`_static/`**: Custom CSS, JavaScript, and theme overrides
   - `theme_overrides.css`: RTD theme customizations
-  - **Configuration UI system**: Interactive YAML config builder
-    - `config-builder.html`: Main configuration interface
-    - `config-builder.js`: Configuration logic and validation
-    - `config-builder.css`: UI styling
-    - `suews-config-schema.json`: JSON Schema from Pydantic models
-    - `index.html`: Landing page for configuration tools
 
 - **`_ext/`**: Custom Sphinx extensions
-
-## Configuration UI System
-
-### Schema-Driven Configuration Builder
-
-The documentation includes a sophisticated web-based configuration builder that helps users create SUEWS YAML configurations:
-
-- **Schema Generation**: `gen_schema.py` extracts JSON Schema from SUEWSConfig Pydantic model
-- **Interactive Forms**: Bootstrap-based UI with real-time validation
-- **Export Capability**: Generate YAML/JSON files ready for SUEWS
-- **Validation**: Live validation against the canonical schema
-
-### Usage
-1. Generate schema: `make schema`
-2. Start local server: `make config-ui`
-3. Open browser to: `http://localhost:8080/index.html`
-4. For production: Access via deployed documentation at `_static/index.html`
-
-### Integration
-- Schema auto-generated from `src/supy/data_model/core.py:SUEWSConfig`
-- UI integrated into Sphinx documentation build
-- Single source of truth: Pydantic models → JSON Schema → Web UI
 
 ## Special Features
 
@@ -121,7 +94,6 @@ The documentation includes a sophisticated web-based configuration builder that 
 - **API docs**: Doxygen-generated Fortran/C API reference
 
 ### Interactive Elements
-- **Configuration Builder**: Schema-driven YAML generator
 - **Jupyter integration**: Via `nbsphinx` for notebook documentation
 - **Live preview**: `make livehtml` with auto-rebuild
 

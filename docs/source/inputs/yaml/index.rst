@@ -167,29 +167,14 @@ For detailed information about:
 - **Output configuration options**: see the `Output Data`_ section above
 - **Parquet output format**: see :ref:`parquet_note`
 
-Configuration Builder (Experimental)
---------------------------------------
+Creating Configuration Files
+-----------------------------
+
+You can create YAML configuration files using the schema documentation below or by adapting the `sample configuration files <https://github.com/UMEP-dev/SUEWS/blob/master/src/supy/sample_run/sample_config.yml>`_ provided with SuPy.
 
 .. note::
 
-   **Interactive Configuration Builder**: An experimental web-based tool for creating YAML configuration files with guided forms.
-
-   📝 **Access the builder**: `SUEWS Configuration Builder <../../_static/index.html>`__
-
-   .. warning::
-
-      **Beta Status**: This configuration builder is currently in development and has not been fully tested. Please verify generated configurations carefully before use.
-
-   Features:
-
-   - Interactive forms for parameter input
-   - Real-time YAML preview
-   - Parameter search functionality
-   - Import/Export capabilities
-   - Automatic array synchronisation
-   - Built-in validation
-
-   **Alternative**: You can also create YAML files manually using the schema documentation below or by adapting the `sample configuration files <https://github.com/UMEP-dev/SUEWS/blob/master/src/supy/sample_run/sample_config.yml>`_ provided with SuPy.
+   A command-line configuration wizard tool is currently in development and will provide an interactive way to create valid YAML configuration files.
 
 Data Model Schema
 -----------------

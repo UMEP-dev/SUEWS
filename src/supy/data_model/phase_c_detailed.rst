@@ -243,71 +243,51 @@ Phase C implements **specialized model validators** in the SUEWSConfig class.
 
 **Conditional Validation Logic:**
 
-Phase C implements **physics-dependent conditional validation systems** with associated checker and validator functions:
+Phase C implements **conditional validation systems** that apply based on physics options and configuration content:
 
 **1. RSL Method Validation (Method 2 - Diagnostic Aerodynamic)**
 - **Checker**: ``_needs_rsl_validation() -> bool``
-  
-  .. code-block:: python
-  
-     def _needs_rsl_validation(self) -> bool:
-         """Return True if rslmethod == 2."""
-         rm = self.model.physics.rslmethod
-         method = getattr(rm, "value", rm)
-         return int(method) == 2
-  
 - **Validator**: ``_validate_rsl(site, site_index) -> List[str]``
 - **Logic**: When ``rslmethod == 2`` and ``bldgs.sfr > 0``, requires ``bldgs.faibldg`` to be set and non-null
-- **Error Example**: ``"Site KCL: for rslmethod=2 and bldgs.sfr=0.38, bldgs.faibldg must be set"``
 
 **2. Storage Heat Method Validation (Method 6 - DyOHM)**
 - **Checker**: ``_needs_storage_validation() -> bool``
-  
-  .. code-block:: python
-  
-     def _needs_storage_validation(self) -> bool:
-         """Return True if storageheatmethod == 6."""
-         shm = getattr(self.model.physics.storageheatmethod, "value", None)
-         return int(shm) == 6
-  
 - **Validator**: ``_validate_storage(site, site_index) -> List[str]``
-- **Logic**: When ``storageheatmethod == 6``, requires DyOHM-specific parameters:
-  - ``vertical_layers.walls`` must exist
-  - ``thermal_layers.dz``, ``thermal_layers.k``, ``thermal_layers.rho_cp`` must be non-empty numeric arrays
-  - ``properties.lambda_c`` must be set and non-null
+- **Logic**: When ``storageheatmethod == 6``, requires ``vertical_layers.walls``, ``thermal_layers`` arrays, and ``lambda_c``
 
 **3. STEBBS Method Validation (Method 1 - Building Energy Balance)**
 - **Checker**: ``_needs_stebbs_validation() -> bool``
-  
-  .. code-block:: python
-  
-     def _needs_stebbs_validation(self) -> bool:
-         """Return True if stebbsmethod == 1."""
-         stebbsmethod = self.model.physics.stebbsmethod
-         stebbsmethod = getattr(stebbsmethod, "value", stebbsmethod)
-         return int(stebbsmethod) == 1
-  
 - **Validator**: ``_validate_stebbs(site, site_index) -> List[str]``
 - **Logic**: When ``stebbsmethod == 1``, validates all required STEBBS building energy parameters are present and non-null
-- **Parameters**: Uses ``STEBBS_REQUIRED_PARAMS`` list for comprehensive parameter checking
 
-**Conditional Validation Orchestration:**
+**4. Hourly Profile Validation**
+- **Function**: ``validate_hourly_profile_hours()`` model validator
+- **Logic**: Any hourly profile defined must have complete 24-hour coverage (hours 1-24)
+
+**5. Thermal Layers Validation**
+- **Function**: ``_check_thermal_layers()`` with ``_is_valid_layer_array()`` helper
+- **Logic**: When thermal_layers explicitly provided, ``dz``, ``k``, ``rho_cp`` arrays must be non-empty and numeric
+- **Special Case**: Detects ``cp`` vs ``rho_cp`` naming errors
+
+**6. Land Cover Surface Validation**
+- **Functions**: ``_collect_land_cover_issues()``, ``_check_land_cover_fractions()``
+- **Logic**: When surface fraction ``> 0``, validates surface-specific parameters and fraction totals
+- **Building-specific**: ``bldgs.sfr > 0.05`` requires ``bldgh``, ``faibldg``
+
+**Orchestration Pattern:**
 
 .. code-block:: python
 
    def _validate_conditional_parameters(self) -> List[str]:
-       """Run method-specific validations in one site loop."""
+       """Run physics-method validations in one site loop."""
        needs_stebbs = self._needs_stebbs_validation()
        needs_rsl = self._needs_rsl_validation()
        needs_storage = self._needs_storage_validation()
        
        for idx, site in enumerate(self.sites):
-           if needs_stebbs:
-               stebbs_issues = self._validate_stebbs(site, idx)
-           if needs_rsl:
-               rsl_issues = self._validate_rsl(site, idx)
-           if needs_storage:
-               storage_issues = self._validate_storage(site, idx)
+           if needs_stebbs: stebbs_issues = self._validate_stebbs(site, idx)
+           if needs_rsl: rsl_issues = self._validate_rsl(site, idx)
+           if needs_storage: storage_issues = self._validate_storage(site, idx)
 
 SUEWS-Specific Field Validators
 -------------------------------
@@ -459,26 +439,6 @@ Phase C uses the **same validation system** that ``SUEWSConfig.from_yaml()`` use
 
 When Phase C passes, the configuration is **guaranteed** to load successfully in SUEWS simulations without further validation errors.
 
-**Additional Conditional Validations:**
-
-Beyond the three physics-method validations above, Phase C includes:
-
-**4. Hourly Profile Validation:**
-- **Function**: ``validate_hourly_profile_hours()`` model validator
-- **Condition**: Any hourly profile defined (snow, irrigation, anthropogenic heat, etc.)
-- **Requirement**: Complete 24-hour coverage (hours 1-24) with no missing or duplicate hours
-
-**5. Thermal Layers Validation:**
-- **Function**: ``_check_thermal_layers()`` with ``_is_valid_layer_array()`` helper
-- **Condition**: Any surface with thermal_layers explicitly provided
-- **Requirements**: ``dz``, ``k``, ``rho_cp`` arrays must be non-empty and numeric
-- **Special Case**: Detects ``cp`` vs ``rho_cp`` naming errors
-
-**6. Land Cover Surface Validation:**
-- **Functions**: ``_collect_land_cover_issues()``, ``_check_land_cover_fractions()``
-- **Condition**: Surface fraction ``> 0`` for any land cover type
-- **Requirements**: Surface-specific parameters; land cover fractions sum to ~1.0
-- **Building-specific**: ``bldgs.sfr > 0.05`` requires ``bldgh``, ``faibldg``
 
 Best Practices and Troubleshooting
 -----------------------------------

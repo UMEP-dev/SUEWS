@@ -170,7 +170,11 @@ For detailed information about:
 Creating Configuration Files
 -----------------------------
 
-You can create YAML configuration files using the schema documentation below or by adapting the `sample configuration files <https://github.com/UMEP-dev/SUEWS/blob/master/src/supy/sample_run/sample_config.yml>`_ provided with SuPy.
+To get started with SUEWS configuration:
+
+1. **Start with the Parameter Guide**: See :doc:`parameter_guide` for practical guidance on configuring parameters for your specific use case
+2. **Use sample configurations**: Adapt the `sample configuration files <https://github.com/UMEP-dev/SUEWS/blob/master/src/supy/sample_run/sample_config.yml>`_ provided with SuPy
+3. **Reference the schema**: Use the detailed schema documentation below for complete parameter specifications
 
 .. note::
 
@@ -188,10 +192,11 @@ The following pages provide a detailed reference for every component of the YAML
 - **Hierarchical Organization**: The schema is organized hierarchically, with top-level components (model, site) linking to detailed sub-components
 - **Cross-References**: Related parameters and methods are cross-referenced for easier navigation
 
-.. note::
+.. toctree::
+   :maxdepth: 2
+   :caption: Configuration Guides
    
-   For a comprehensive, searchable list of all parameters, see the :ref:`parameter_reference`. 
-   The :ref:`parameter_index` provides an alphabetical index for quick parameter lookup.
+   parameter_guide
 
 .. toctree::
    :maxdepth: 2
@@ -199,3 +204,10 @@ The following pages provide a detailed reference for every component of the YAML
 
    schema/model
    schema/site
+
+.. toctree::
+   :maxdepth: 1
+   :caption: Complete Parameter Index
+   
+   parameter_reference
+   parameter_index

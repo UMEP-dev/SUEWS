@@ -35,12 +35,13 @@
 ## 2025
 
 ### 11 Aug 2025
-- [doc] Added comprehensive parameter reference documentation from Pydantic models ([#577](https://github.com/UMEP-dev/SUEWS/issues/577))
-  - Created `generate_parameter_reference.py` script to extract all parameters from data models
+- [doc] Added comprehensive parameter documentation for YAML configuration ([#577](https://github.com/UMEP-dev/SUEWS/issues/577))
+  - Created user-friendly Parameter Configuration Guide organized by use cases
+  - Added practical guidance for essential parameters, physics methods, and urban morphology
+  - Included common configuration examples for urban, suburban, and park sites
   - Generated searchable parameter reference with 697 documented parameters
   - Added alphabetical parameter index for quick lookup
-  - Each parameter includes description, type, unit, default value, and configuration path
-  - Updated documentation index to include new parameter reference pages
+  - Properly integrated documentation under YAML configuration section
 
 ### 10 Aug 2025
 - [maintenance] Removed web UI configuration builder from documentation

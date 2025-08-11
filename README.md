@@ -1,19 +1,16 @@
-# SUEWS
+# SUEWS - Surface Urban Energy and Water Balance Scheme
 
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.5721639.svg)](https://doi.org/10.5281/zenodo.5721639)
+This is the SUEWS urban climate model repository.
 
-This is a public repo for SUEWS source code and documentation.
+## Installation
 
----
-
-
+```bash
+pip install supy
+```
 
 ## Documentation
 
-* Documentation site: <https://suews.readthedocs.io/>
-
-* Documentation source: `docs` folder in this repo
-
+See the full documentation at: https://suews.readthedocs.io
 
 ## Quick Start
 
@@ -30,8 +27,6 @@ For users who want to run SUEWS simulations:
    ```
 
 For developers, see the [Developer Note](#developer-note) section below.
-
-
 
 ## Developer Note
 
@@ -189,61 +184,7 @@ SUEWS maintains consistent code style through automated formatting:
 **For Contributors**: Just write working code! Formatting will be applied automatically after merge.
 
 **For Local Development** (optional):
+>>>>>>> origin/master
 ```bash
-make format  # Format code locally
-make lint    # Check code style
+pip install -e . --no-build-isolation
 ```
-
-
-### Debugging with GDB
-
-GDB is a generic debugging tool used along with gfortran.
-Here are some tips to debug SUEWS code:
-
-#### GDB on macOS
-
-Recent macOS (since High Sierra) introduces extra security procedures for system level operations that makes installation GDB more tedious than before.
-The best practice, in TS's opinion, to avoid hacking your macOS, is to use Linux docker images with gfortran & gdb installations: e.g., [alpine-gfortran](https://github.com/cmplopes/alpine-gfortran)
-(otherwise, [this guide](https://dev.to/jasonelwood/setup-gdb-on-macos-in-2020-489k#generate-cert) might be useful for installation of GDB on macOS; also run `set startup-with-shell off` *inside GDB* before `run` the debuggng process)
-
-Once the docker image is installed, simply run this from the SUEWS root folder for debugging:
-
-```bash
- docker run --rm -it -v $(pwd):/source sunt05/alpine-gfortran /bin/bash
-
-```
- which will mount the current `SUEWS` directory to docker's path `/source` and enter the interactive mode for debugging.
-
-
-#### debugging with GDB
-
-1. enable the debugging related flags in `Makefile` under `SUEWS-SourceCode` by removing the `#` after the equal sign `=`:
-
-```makefile
-FCNOOPT = -O0
-FFLAGS = -O3 $(STATIC) $(FCDEBUG) -Wall -Wtabs -fbounds-check -cpp \
-					-Wno-unused-dummy-argument -Wno-unused-variable
-```
-
-2. fully clean and recompile `SUEWS`:
-```
-make clean; make
-```
-
-3. copy the recompiled `SUEWS` binary into your SUEWS testing folder (e.g., `Test/BaseRun/2019a`) and load it into GDB:
-
-```
-gdb SUEWS
-
-run
-
-```
-then you should have stack info printed out by GDB if any runtime error occurs.
-
-More detailed GDB tutorial can be found [here](https://github.com/jackrosenthal/gdb-tutorial/blob/master/notes.pdf).
-
-
-
-### Questions
-
-* Please [raise issues](https://github.com/UMEP-dev/SUEWS/issues/new) for questions in the development so our progress can be well managed.

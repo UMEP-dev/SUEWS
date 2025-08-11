@@ -71,15 +71,9 @@ SUEWS uses YAML configuration files for type-safe, hierarchical parameter manage
            Buildings: {value: 0.38}
 
 **Configuration Tools:**
-- **Interactive Builder**: Use the `Configuration Builder <../../_static/index.html>`__ for guided setup 
-  
-  .. warning::
-     The Configuration Builder is **experimental** and **NOT recommended for production use**. 
-     Please use YAML editing for critical work. Submit feedback to 
-     `GitHub Issues <https://github.com/UMEP-dev/SUEWS/issues>`__.
-
 - **Sample configurations**: Available in `tutorials directory <./>`__
-- **Migration tool**: Convert legacy inputs with ``suews-convert -f 2024a -t 2025a``
+- **Migration tool**: Convert legacy inputs with ``suews-convert to-yaml``
+- **Command-line wizard**: A configuration wizard tool is in development
 
 **Data Integration:**
 - **Built-in sample data**: ``sp.load_sample_data()`` for immediate use

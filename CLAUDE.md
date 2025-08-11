@@ -197,31 +197,6 @@ Common locations to debug benchmark failures:
 
 - Remember the yaml rst files are generated - so modify the `generate_datamodel_rst.py` script rather than the rst files if edits are needed
 
-## SUEWS Configuration Builder Web Interface
-
-The project includes an interactive web-based configuration builder located at `docs/source/_static/`:
-
-### Key Files:
-- **index.html** - Main HTML interface with Bootstrap styling
-- **config-builder.js** - JavaScript logic for form generation and validation
-- **config-builder.css** - Custom styling for the interface
-- **suews-config-schema.json** - JSON Schema generated from the Pydantic data model
-
-### Features:
-- Interactive form generation from JSON Schema
-- Real-time YAML preview of configuration
-- Import/Export functionality (YAML format)
-- Client-side validation using AJV
-- Responsive design with collapsible sections
-- Array handling with add/remove/copy functionality
-- Support for complex nested structures
-
-### Maintenance:
-- **Schema Updates**: Run `python docs/gen_schema.py` to regenerate the schema when data model changes
-- **Testing**: Open `docs/source/_static/index.html` directly in a browser to test
-- **Array Initialization**: Arrays start empty - users add items via "Add Item" buttons
-- **Object Display**: Empty objects in arrays are not pre-populated to avoid "[object Object]" display issues
-
 ## Development Tasks and Reminders
 
 - **Remember to check if a .venv with editable supy has already been up - if so, dont rebuild but carry on with using/fixing/debugging**
@@ -496,8 +471,7 @@ When making code changes to SUEWS/SuPy:
 - Update Sphinx documentation for user-facing changes
 - **Documentation generation scripts** (run ONLY when specific changes occur):
   - Run `python docs/generate_datamodel_rst.py` - ONLY when Pydantic data model structure changes (adding/removing fields, changing types)
-  - Run `python docs/gen_schema.py` - ONLY when configuration schema needs regeneration for the web UI
-  - These scripts are NOT run for routine CHANGELOG updates or validator migrations
+  - This script is NOT run for routine CHANGELOG updates or validator migrations
 - Ensure examples and tutorials reflect current API
 - Update parameter tables and input file documentation as needed
 - **Update CHANGELOG.md promptly** for remarkable changes using categories:

@@ -233,29 +233,6 @@ Modern SUEWS uses YAML configuration files that organise all model parameters in
              bldgh:
                value: 12.0  # Average building height (m)
 
-Interactive Configuration Builder (Experimental)
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-**For guided configuration setup:**
-
-.. warning::
-   The SUEWS Configuration Builder is **highly experimental** and under active development. 
-   It is **NOT recommended for production use**. Please use the traditional YAML editing 
-   approach for critical work. We welcome feedback - please submit issues to our 
-   `GitHub Issues page <https://github.com/UMEP-dev/SUEWS/issues>`__.
-
-The `SUEWS Configuration Builder <_static/index.html>`__ provides a web-based interface to create YAML configurations:
-
-1. **Launch the Builder** in your browser
-2. **Enter site details**: coordinates, land cover fractions, measurement heights
-3. **Configure parameters**: surface properties, anthropogenic heat, vegetation
-4. **Validate and export**: download your complete ``config_suews.yml`` file
-
-This approach is ideal for:
-- First-time users learning the parameter structure
-- Quick configuration for standard urban sites
-- Validation of parameter ranges and relationships
-
 Setup Your Site Tutorial
 ^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -303,8 +280,8 @@ Once you have a YAML configuration file, you can use either the traditional func
 
    import supy as sp
    
-   # Note: Direct YAML loading in functional API is in development
-   # For now, use sample data or legacy table-based inputs
+   # The functional API uses DataFrames for configuration
+   # YAML loading is available through the SUEWSSimulation class (see above)
    df_state_init, df_forcing = sp.load_sample_data()  # Start with sample data
    # Then modify parameters as needed using pandas operations
    
@@ -529,11 +506,11 @@ Migration Process
 
 .. code-block:: bash
 
-   # Convert legacy table inputs to modern YAML (2025a+)
-   suews-convert -f 2024a -t 2025a -i legacy_input_dir/ -o modern_config.yml
+   # Convert legacy table inputs to modern YAML (pending issue #581)
+   suews-convert to-yaml -i legacy_input_dir/ -o modern_config.yml
    
-   # Validate converted configuration
-   supy-validate modern_config.yml
+   # Note: This feature is under development (see issue #581)
+   # For now, use the SUEWSSimulation class with existing table inputs or YAML files
 
 **Testing Your Migration:**
 

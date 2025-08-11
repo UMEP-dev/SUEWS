@@ -34,6 +34,12 @@
 
 ## 2025
 
+### 10 Aug 2025
+- [maintenance] Removed web UI configuration builder from documentation
+  - Deleted all web UI files from `docs/source/_static/`
+  - Removed references to the interactive configuration builder
+  - Will be replaced by a forthcoming command-line wizard tool
+
 ### 8 Aug 2025
 - [maintenance] Improved table converter path handling to use RunControl.nml paths consistently (#566)
   - All SUEWS versions now read file paths from RunControl.nml FileInputPath
@@ -185,7 +191,10 @@
   - Note: `python -m supy.cmd.to_yaml` requires supy to be fully installed first
 
 ### 25 Jul 2025
-
+- [bugfix] Fixed NaN QF (anthropogenic heat flux) when population density is zero ([#240](https://github.com/UMEP-dev/SUEWS/issues/240))
+  - Added check to prevent division by zero in QF_build calculation
+  - When population density is zero, building energy flux is now correctly set to zero
+  - Added tests to verify correct behaviour with zero population density
 - [bugfix] Fixed timezone field to use enum for valid timezone offsets ([PR #554](https://github.com/UMEP-dev/SUEWS/pull/554), fixes [#552](https://github.com/UMEP-dev/SUEWS/issues/552))
   - Changed timezone field from `FlexibleRefValue(int)` to `FlexibleRefValue(Union[TimezoneOffset, float])`
   - Created `TimezoneOffset` enum with all valid global timezone offsets
@@ -226,6 +235,19 @@
 - [doc] Updated issue label system to include developer queries
   - Extended 1-question label from 'User question/support' to 'User question/support/dev query'
   - Updated issue triage documentation and decision tree to reflect this change
+
+### 24 Jul 2025
+- [maintenance] Enhanced uv environment setup documentation and best practices
+  - Created comprehensive `.claude/howto/setup-uv-environment.md` guide aligned with `pyproject.toml` and `env.yml`
+  - Updated worktree setup guide to use `uv pip install -e ".[dev]"` for proper dependency management
+  - Documented package name differences between conda and pip (e.g., `matplotlib-base` → `matplotlib`, `pytables` → `tables`)
+  - Emphasised uv's 10-100x speed improvement over pip/conda for package installation
+- [feature] Added minimal Makefile recipes for uv environment management
+  - Added `make uv-dev` - one-stop setup with both dev and docs dependencies
+  - Added `make uv-clean` - remove virtual environment
+  - Streamlined recipes to avoid Makefile bloat while maintaining essential functionality
+  - Includes documentation dependencies by default for complete development environment
+  - Properly aligned with `pyproject.toml` dependency groups
 
 ### 23 Jul 2025
 - [maintenance] Added `/log-changes` slash command for automated documentation updates

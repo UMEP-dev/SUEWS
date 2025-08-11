@@ -243,7 +243,7 @@ Phase C implements **specialized model validators** in the SUEWSConfig class.
 
 **Conditional Validation Logic:**
 
-Phase C implements **three conditional validation systems** with associated checker and validator functions:
+Phase C implements **physics-dependent conditional validation systems** with associated checker and validator functions:
 
 **1. RSL Method Validation (Method 2 - Diagnostic Aerodynamic)**
 - **Checker**: ``_needs_rsl_validation() -> bool``
@@ -459,59 +459,26 @@ Phase C uses the **same validation system** that ``SUEWSConfig.from_yaml()`` use
 
 When Phase C passes, the configuration is **guaranteed** to load successfully in SUEWS simulations without further validation errors.
 
-Conditional Validation Rules
------------------------------
+**Additional Conditional Validations:**
 
-**Physics-Dependent Validation:**
+Beyond the three physics-method validations above, Phase C includes:
 
-**RSL Method Dependencies:**
-- **Condition**: ``rslmethod == 2``
-- **Requirement**: ``bldgs.faibldg`` must be set when ``bldgs.sfr > 0``
-- **Validation**: Applied per-site across all sites
-
-**Storage Heat Method Dependencies:**  
-- **Condition**: ``storageheatmethod == 6`` (DyOHM)
-- **Requirement**: DyOHM-specific parameters must be configured
-- **Validation**: Cross-site validation for storage parameters
-
-**Land Cover Dependencies:**
-- **Condition**: Surface fraction ``> 0``
-- **Requirement**: All surface-specific parameters must be non-null
-- **Validation**: Applied per surface type per site
-
-**Building-Related Dependencies:**
-- **Condition**: ``bldgs.sfr > 0``
-- **Requirements**: Building structure parameters must be consistent
-- **Validation**: Array length consistency, building layer configurations
-
-**STEBBS Building Energy Dependencies:**
-- **Condition**: ``stebbsmethod == 1``
-- **Requirement**: All STEBBS building energy balance parameters must be present and non-null
-- **Validation**: Applied per-site using ``STEBBS_REQUIRED_PARAMS`` validation list
-
-**Hourly Profile Dependencies:**
+**4. Hourly Profile Validation:**
+- **Function**: ``validate_hourly_profile_hours()`` model validator
 - **Condition**: Any hourly profile defined (snow, irrigation, anthropogenic heat, etc.)
 - **Requirement**: Complete 24-hour coverage (hours 1-24) with no missing or duplicate hours
-- **Validation**: Applied to all ``HourlyProfile`` instances across all sites via ``validate_hourly_profile_hours()``
 
-**Thermal Layers Dependencies:**
-- **Condition**: Any surface with thermal_layers defined (thermal data explicitly provided)
-- **Requirements**: 
-  - ``dz`` (layer thickness): Non-empty array of numeric values
-  - ``k`` (thermal conductivity): Non-empty array of numeric values  
-  - ``rho_cp`` (volumetric heat capacity): Non-empty array of numeric values
-- **Validation**: Applied via ``_check_thermal_layers()`` with ``_is_valid_layer_array()`` helper
-- **Special Cases**: Detects common naming error (``cp`` vs ``rho_cp``) via ``_check_thermal_layers_naming_issue()``
+**5. Thermal Layers Validation:**
+- **Function**: ``_check_thermal_layers()`` with ``_is_valid_layer_array()`` helper
+- **Condition**: Any surface with thermal_layers explicitly provided
+- **Requirements**: ``dz``, ``k``, ``rho_cp`` arrays must be non-empty and numeric
+- **Special Case**: Detects ``cp`` vs ``rho_cp`` naming errors
 
-**Land Cover Surface Dependencies:**
+**6. Land Cover Surface Validation:**
+- **Functions**: ``_collect_land_cover_issues()``, ``_check_land_cover_fractions()``
 - **Condition**: Surface fraction ``> 0`` for any land cover type
-- **Requirements**: Surface-specific parameters based on fraction thresholds
-  - **Buildings** (``bldgs.sfr > 0.05``): Requires ``bldgh`` (building height), ``faibldg`` (frontal area index)
-  - **All surfaces**: Surface-specific thermal, optical, and physical parameters
-- **Validation**: Applied via ``_collect_land_cover_issues()`` and ``_check_land_cover_fractions()``
-- **Fraction Validation**: Land cover fractions must sum to approximately 1.0 across all surface types
-
-**Note**: This list covers all **conditional validation rules** currently implemented in Phase C. Standard field validation and model validator constraints (like albedo ranges, snow parameters, etc.) are applied unconditionally to all configurations.
+- **Requirements**: Surface-specific parameters; land cover fractions sum to ~1.0
+- **Building-specific**: ``bldgs.sfr > 0.05`` requires ``bldgh``, ``faibldg``
 
 Best Practices and Troubleshooting
 -----------------------------------

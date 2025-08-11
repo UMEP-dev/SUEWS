@@ -494,6 +494,23 @@ Conditional Validation Rules
 - **Requirement**: Complete 24-hour coverage (hours 1-24) with no missing or duplicate hours
 - **Validation**: Applied to all ``HourlyProfile`` instances across all sites via ``validate_hourly_profile_hours()``
 
+**Thermal Layers Dependencies:**
+- **Condition**: Any surface with thermal_layers defined (thermal data explicitly provided)
+- **Requirements**: 
+  - ``dz`` (layer thickness): Non-empty array of numeric values
+  - ``k`` (thermal conductivity): Non-empty array of numeric values  
+  - ``rho_cp`` (volumetric heat capacity): Non-empty array of numeric values
+- **Validation**: Applied via ``_check_thermal_layers()`` with ``_is_valid_layer_array()`` helper
+- **Special Cases**: Detects common naming error (``cp`` vs ``rho_cp``) via ``_check_thermal_layers_naming_issue()``
+
+**Land Cover Surface Dependencies:**
+- **Condition**: Surface fraction ``> 0`` for any land cover type
+- **Requirements**: Surface-specific parameters based on fraction thresholds
+  - **Buildings** (``bldgs.sfr > 0.05``): Requires ``bldgh`` (building height), ``faibldg`` (frontal area index)
+  - **All surfaces**: Surface-specific thermal, optical, and physical parameters
+- **Validation**: Applied via ``_collect_land_cover_issues()`` and ``_check_land_cover_fractions()``
+- **Fraction Validation**: Land cover fractions must sum to approximately 1.0 across all surface types
+
 **Note**: This list covers all **conditional validation rules** currently implemented in Phase C. Standard field validation and model validator constraints (like albedo ranges, snow parameters, etc.) are applied unconditionally to all configurations.
 
 Best Practices and Troubleshooting

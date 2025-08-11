@@ -181,9 +181,9 @@ install:
 test:
 	@if command -v uv >/dev/null 2>&1 && [ -n "$${UV_RUN:-}" ]; then \
 		echo "Running tests with uv..."; \
-		uv run pytest test -v --tb=short; \
+		uv run pytest test -v --tb=short --durations=10; \
 	else \
-		$(PYTHON) -m pytest test -v --tb=short; \
+		$(PYTHON) -m pytest test -v --tb=short --durations=10; \
 	fi
 
 # make supy wheels using cibuild

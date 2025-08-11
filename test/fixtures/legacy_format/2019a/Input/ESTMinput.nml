@@ -1,0 +1,9 @@
+&ESTMinput
+TsurfChoice= 0
+evolveTibld= 0
+ibldCHmod  = 0
+LBC_soil   = 8.5
+THEAT_ON   = 18.
+THEAT_OFF  = 22.
+THEAT_FIX  = 19.
+/

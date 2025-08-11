@@ -2282,16 +2282,32 @@ class SUEWSConfig(BaseModel):
         # Reconstruct model
         config.model = Model.from_df_state(df, grid_ids[0])
 
-        config.name = df["config"].iloc[0]
-        config.description = df["description"].iloc[0]
+        # Set name and description, using defaults if columns don't exist
+        if ("config", "0") in df.columns:
+            config.name = df.loc[grid_ids[0], ("config", "0")]
+        elif "config" in df.columns:
+            config.name = df["config"].iloc[0]
+        else:
+            config.name = "Converted from legacy format"
+
+        if ("description", "0") in df.columns:
+            config.description = df.loc[grid_ids[0], ("description", "0")]
+        elif "description" in df.columns:
+            config.description = df["description"].iloc[0]
+        else:
+            config.description = (
+                "Configuration converted from legacy SUEWS table format"
+            )
 
         return config
 
     def to_yaml(self, path: str = "./config-suews.yml"):
         """Convert config to YAML format"""
+        # Use mode='json' to serialize enums as their values
+        config_dict = self.model_dump(exclude_none=True, mode="json")
         with open(path, "w") as file:
             yaml.dump(
-                self.model_dump(exclude_none=True),
+                config_dict,
                 file,
                 sort_keys=False,
                 allow_unicode=True,

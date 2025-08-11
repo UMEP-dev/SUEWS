@@ -1108,7 +1108,8 @@ Related Documentation
 **Namelist to YAML Conversion**
    For users migrating from pre-SUEWS_V2025 namelist format, see: `namelist_to_yaml_conversion.rst <namelist_to_yaml_conversion.rst>`__
 
-**Detailed Phase Documentation**
+**Detailed Documentation**
+   - **Orchestrator Implementation**: See `suews_yaml_processor_detailed.rst <suews_yaml_processor_detailed.rst>`__ for complete orchestrator functions and workflow coordination
    - **Phase A Details**: See `phase_a_detailed.rst <phase_a_detailed.rst>`__ for comprehensive parameter detection rules
    - **Phase B Details**: See `phase_b_detailed.rst <phase_b_detailed.rst>`__ for scientific validation specifications
    - **Phase C Details**: See `phase_c_detailed.rst <phase_c_detailed.rst>`__ for complete Pydantic validation rules

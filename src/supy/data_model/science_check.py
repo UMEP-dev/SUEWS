@@ -355,10 +355,16 @@ def validate_land_cover_consistency(yaml_data: dict) -> List[ValidationResult]:
                     )
                 )
             else:
-                surface_list = ", ".join([f"{surf}={val:.3f}" for surf, val in surface_types])
+                surface_list = ", ".join([
+                    f"{surf}={val:.3f}" for surf, val in surface_types
+                ])
                 # Identify the surface with the largest fraction (same as auto-correction logic)
                 surface_dict = dict(surface_types)
-                max_surface = max(surface_dict.keys(), key=lambda k: surface_dict[k]) if surface_dict else "surface"
+                max_surface = (
+                    max(surface_dict.keys(), key=lambda k: surface_dict[k])
+                    if surface_dict
+                    else "surface"
+                )
                 results.append(
                     ValidationResult(
                         status="ERROR",

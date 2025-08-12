@@ -2,7 +2,7 @@
 
 Three-phase validation workflow:
 - Phase A: Parameter detection and YAML structure updates
-- Phase B: Scientific validation and automatic adjustments  
+- Phase B: Scientific validation and automatic adjustments
 - Phase C: Conditional Pydantic validation based on physics options
 
 Supports individual phases (A, B, C) or combined workflows (AB, AC, BC, ABC).
@@ -76,7 +76,9 @@ def detect_pydantic_defaults(
         for part in path_parts:
             if "[" in part and "]" in part:
                 array_name = part.split("[")[0]
-                if array_name not in current or not isinstance(current[array_name], list):
+                if array_name not in current or not isinstance(
+                    current[array_name], list
+                ):
                     return False
                 current = current[array_name][0] if current[array_name] else {}
             else:
@@ -194,7 +196,9 @@ def validate_input_file(user_yaml_file: str) -> str:
         raise FileNotFoundError(f"Input file not found: {user_yaml_file}")
 
     if not user_yaml_file.lower().endswith((".yml", ".yaml")):
-        raise ValueError(f"Input file must be a YAML file (.yml or .yaml): {user_yaml_file}")
+        raise ValueError(
+            f"Input file must be a YAML file (.yml or .yaml): {user_yaml_file}"
+        )
 
     try:
         with open(user_yaml_file, "r") as f:
@@ -250,7 +254,9 @@ def setup_output_paths(
         science_yaml_file = os.path.join(dirname, f"updatedB_{basename}")
         science_report_file = os.path.join(dirname, f"reportB_{name_without_ext}.txt")
         pydantic_yaml_file = os.path.join(dirname, f"updatedABC_{basename}")
-        pydantic_report_file = os.path.join(dirname, f"reportABC_{name_without_ext}.txt")
+        pydantic_report_file = os.path.join(
+            dirname, f"reportABC_{name_without_ext}.txt"
+        )
 
     return (
         uptodate_file,
@@ -315,7 +321,9 @@ def run_phase_a(
                 print("✗ Phase A failed!")
                 print(f"Report: {report_file}")
                 print(f"Updated YAML: {uptodate_file}")
-                print(f"Suggestion: Fix issues in updated YAML and consider to run Phase A again.")
+                print(
+                    f"Suggestion: Fix issues in updated YAML and consider to run Phase A again."
+                )
             return False
 
         if not silent:

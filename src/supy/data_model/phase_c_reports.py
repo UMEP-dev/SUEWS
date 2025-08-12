@@ -1,11 +1,56 @@
-"""
-Phase C Report Generation
-
-Standalone module for generating Phase C validation reports in ACTION NEEDED format.
-This module is separate from core.py to minimize merge conflicts with master branch.
-"""
+"""Phase C report generation for Pydantic validation errors."""
 
 import os
+import re
+
+PHASE_TITLES = {
+    "A": "SUEWS - Phase A (Up-to-date YAML check) Report",
+    "B": "SUEWS - Phase B (Scientific Validation) Report", 
+    "C": "SUEWS - Phase C (Pydantic Validation) Report",
+    "AB": "SUEWS - Phase AB (Up-to-date YAML check and Scientific Validation) Report",
+    "AC": "SUEWS - Phase AC (Up-to-date YAML check and Pydantic Validation) Report",
+    "BC": "SUEWS - Phase BC (Scientific Validation and Pydantic Validation) Report",
+    "ABC": "SUEWS - Phase ABC (Up-to-date YAML check, Scientific Validation and Pydantic Validation) Report",
+}
+
+
+def _parse_previous_phase_report(report_content: str):
+    """Parse previous phase report content to extract relevant information."""
+    phase_a_renames = []
+    phase_a_optional_missing = []
+    phase_a_not_in_standard = []
+    phase_b_science_warnings = []
+    
+    report_type = "unknown"
+    if "SUEWS Scientific Validation Report" in report_content:
+        report_type = "phase_b"
+    elif "SUEWS Configuration Analysis Report" in report_content:
+        report_type = "phase_a"
+    
+    lines = report_content.split("\n")
+    current_section = None
+    
+    for line in lines:
+        line = line.strip()
+        if "Updated (" in line and "renamed parameter" in line:
+            current_section = "renames"
+        elif "Updated (" in line and "optional missing parameter" in line:
+            current_section = "optional"
+        elif "parameter(s) not in standard" in line:
+            current_section = "not_standard"
+        elif report_type == "phase_b" and "scientific warning" in line:
+            current_section = "warnings"
+        elif line.startswith("--"):
+            if current_section == "renames":
+                phase_a_renames.append(line[2:].strip())
+            elif current_section == "optional":
+                phase_a_optional_missing.append(line[2:].strip())
+            elif current_section == "not_standard":
+                phase_a_not_in_standard.append(line[2:].strip())
+            elif current_section == "warnings":
+                phase_b_science_warnings.append(line[2:].strip())
+    
+    return phase_a_renames, phase_a_optional_missing, phase_a_not_in_standard, phase_b_science_warnings
 
 
 def generate_phase_c_report(
@@ -16,127 +61,37 @@ def generate_phase_c_report(
     phase_a_report_file: str = None,
     phases_run: list = None,
 ) -> None:
-    """
-    Generate Phase C validation report following Phase B consolidation pattern.
-
-    Args:
-        validation_error: The Pydantic validation exception
-        input_yaml_file: Path to input YAML file
-        output_report_file: Path for output report file
-        mode: Processing mode ('public' or 'dev')
-        phase_a_report_file: Path to Phase A or Phase B report file for consolidation (optional)
-    """
+    """Generate Phase C validation report with previous phase consolidation."""
     report_lines = []
 
-    # Generate phase-specific title
-    if phases_run:
-        phase_str = "".join(phases_run)
-    else:
-        phase_str = "C"  # Default to Phase C only
+    phase_str = "".join(phases_run) if phases_run else "C"
+    title = PHASE_TITLES.get(phase_str, "SUEWS Phase C (Pydantic Validation) Report")
 
-    phase_titles = {
-        "A": "SUEWS - Phase A (Up-to-date YAML check) Report",
-        "B": "SUEWS - Phase B (Scientific Validation) Report",
-        "C": "SUEWS - Phase C (Pydantic Validation) Report",
-        "AB": "SUEWS - Phase AB (Up-to-date YAML check and Scientific Validation) Report",
-        "AC": "SUEWS - Phase AC (Up-to-date YAML check and Pydantic Validation) Report",
-        "BC": "SUEWS - Phase BC (Scientific Validation and Pydantic Validation) Report",
-        "ABC": "SUEWS - Phase ABC (Up-to-date YAML check, Scientific Validation and Pydantic Validation) Report",
-    }
-
-    title = phase_titles.get(phase_str, "SUEWS Phase C (Pydantic Validation) Report")
-
-    # Header (matching Phase B format)
     report_lines.append(f"# {title}")
     report_lines.append("# " + "=" * 50)
-    report_lines.append(
-        f"# Mode: {'Public' if mode.lower() == 'public' else mode.title()}"
-    )
+    report_lines.append(f"# Mode: {'Public' if mode.lower() == 'public' else mode.title()}")
     report_lines.append("# " + "=" * 50)
     report_lines.append("")
 
-    # Extract Phase A/B information if available (following Phase B pattern)
     phase_a_renames = []
     phase_a_optional_missing = []
     phase_a_not_in_standard = []
     phase_b_science_warnings = []
-    phase_b_adjustments = []
-    report_type = "unknown"
 
     if phase_a_report_file and os.path.exists(phase_a_report_file):
         try:
             with open(phase_a_report_file, "r") as f:
                 report_content = f.read()
-
-            # Detect report type
-            if "SUEWS Scientific Validation Report" in report_content:
-                report_type = "phase_b"
-            elif "SUEWS Configuration Analysis Report" in report_content:
-                report_type = "phase_a"
-
-            # Parse Phase A or Phase B report for relevant information
-            lines = report_content.split("\n")
-            current_section = None
-
-            for line in lines:
-                line = line.strip()
-                if report_type == "phase_a":
-                    # Parse Phase A content
-                    if "Updated (" in line and "renamed parameter" in line:
-                        current_section = "renames"
-                    elif "Updated (" in line and "optional missing parameter" in line:
-                        current_section = "optional"
-                    elif "parameter(s) not in standard" in line:
-                        current_section = "not_standard"
-                    elif line.startswith("--") and current_section == "renames":
-                        phase_a_renames.append(line[2:].strip())
-                    elif line.startswith("--") and current_section == "optional":
-                        phase_a_optional_missing.append(line[2:].strip())
-                    elif line.startswith("--") and current_section == "not_standard":
-                        phase_a_not_in_standard.append(line[2:].strip())
-                elif report_type == "phase_b":
-                    # Parse Phase B content (scientific validation)
-                    if "Updated (" in line and "renamed parameter" in line:
-                        current_section = "renames"
-                    elif "Updated (" in line and "optional missing parameter" in line:
-                        current_section = "optional"
-                    elif "parameter(s) not in standard" in line:
-                        current_section = "not_standard"
-                    elif "scientific warning" in line:
-                        current_section = "warnings"
-                    elif line.startswith("--") and current_section == "renames":
-                        phase_a_renames.append(line[2:].strip())
-                    elif line.startswith("--") and current_section == "optional":
-                        phase_a_optional_missing.append(line[2:].strip())
-                    elif line.startswith("--") and current_section == "not_standard":
-                        phase_a_not_in_standard.append(line[2:].strip())
-                    elif line.startswith("--") and current_section == "warnings":
-                        phase_b_science_warnings.append(line[2:].strip())
+            phase_a_renames, phase_a_optional_missing, phase_a_not_in_standard, phase_b_science_warnings = _parse_previous_phase_report(report_content)
         except Exception:
-            # If we can't read previous phase report, continue without it
             pass
 
-    # Parse validation errors from Pydantic ValidationError
     action_needed_items = []
     pydantic_errors = None
 
-    # Try multiple ways to detect and extract Pydantic errors
     if hasattr(validation_error, "errors"):
-        # Check if errors is a method (pydantic_core) or property (older pydantic)
-        if callable(validation_error.errors):
-            # pydantic_core ValidationError - errors is a method
-            pydantic_errors = validation_error.errors()
-        else:
-            # Older pydantic - errors is a property
-            pydantic_errors = validation_error.errors
-    elif "ValidationError" in str(type(validation_error)):
-        # Sometimes the errors attribute might exist but be empty initially
-        if hasattr(validation_error, "errors"):
-            errors_attr = getattr(validation_error, "errors", None)
-            if callable(errors_attr):
-                pydantic_errors = errors_attr()
-            else:
-                pydantic_errors = errors_attr
+        errors_attr = validation_error.errors
+        pydantic_errors = errors_attr() if callable(errors_attr) else errors_attr
 
     if pydantic_errors:
         for error in pydantic_errors:
@@ -144,18 +99,10 @@ def generate_phase_c_report(
             field_path = ".".join(str(loc) for loc in error.get("loc", []))
             error_msg = error.get("msg", "Unknown error")
 
-            # Handle empty field_path case
             if not field_path:
-                # Try to extract field name from error message
-                import re
-
-                field_match = re.search(
-                    r"Required field '(\w+)' has no value", error_msg
-                )
+                field_match = re.search(r"Required field '(\w+)' has no value", error_msg)
                 if field_match:
                     field_name = field_match.group(1)
-                    # For location, we need to determine where this field should be
-                    # Common root-level required fields are usually in model or sites
                     if field_name in ["lat", "lon", "alt"]:
                         field_path = f"sites[0].properties.{field_name}"
                     else:
@@ -164,35 +111,23 @@ def generate_phase_c_report(
                     field_path = "root_validation"
                     field_name = "configuration"
             else:
-                field_name = (
-                    field_path.split(".")[-1] if "." in field_path else field_path
-                )
+                field_name = field_path.split(".")[-1] if "." in field_path else field_path
 
-            # Build complete Pydantic error message with all available details
             full_error_parts = [error_msg]
 
-            # Add type information
             if error_type != "unknown":
-                full_error_parts.append(f"[type={error_type}")
-
-                # Add input_value if available
+                type_parts = [f"type={error_type}"]
                 if "input" in error:
                     input_value = str(error.get("input", ""))
-                    if len(input_value) > 100:  # Truncate very long inputs
+                    if len(input_value) > 100:
                         input_value = input_value[:97] + "..."
-                    full_error_parts.append(f"input_value={input_value}")
-
-                # Add input_type if available
+                    type_parts.append(f"input_value={input_value}")
                 if "input_type" in error:
-                    full_error_parts.append(f"input_type={error.get('input_type')}")
+                    type_parts.append(f"input_type={error.get('input_type')}")
+                full_error_parts.append(f"[{', '.join(type_parts)}]")
 
-                full_error_parts.append("]")
-
-            # Add Pydantic docs URL if available
             if "url" in error:
-                full_error_parts.append(
-                    f"For further information visit {error.get('url')}"
-                )
+                full_error_parts.append(f"For further information visit {error.get('url')}")
 
             complete_error_msg = " ".join(full_error_parts)
             action_needed_items.append({
@@ -201,19 +136,15 @@ def generate_phase_c_report(
                 "error": complete_error_msg,
             })
     else:
-        # Fallback for non-Pydantic errors
         action_needed_items.append({
             "field": "general",
             "path": "configuration",
             "error": str(validation_error),
         })
 
-    # ACTION NEEDED section (following Phase B pattern)
     if action_needed_items:
         report_lines.append("## ACTION NEEDED")
-        report_lines.append(
-            f"- Found ({len(action_needed_items)}) critical Pydantic validation error(s):"
-        )
+        report_lines.append(f"- Found ({len(action_needed_items)}) critical Pydantic validation error(s):")
 
         for item in action_needed_items:
             report_lines.append(f"-- {item['field']}: {item['error']}")
@@ -222,55 +153,33 @@ def generate_phase_c_report(
 
         report_lines.append("")
 
-    # Previous phase information (Phase A or B) - following Phase B pattern exactly
     previous_phase_items = []
-    if phase_a_renames:
-        previous_phase_items.append(
-            f"- Updated ({len(phase_a_renames)}) renamed parameter(s) to current standards:"
-        )
-        for rename in phase_a_renames:
-            previous_phase_items.append(f"-- {rename}")
+    
+    phase_sections = [
+        (phase_a_renames, "renamed parameter(s) to current standards"),
+        (phase_a_optional_missing, "optional missing parameter(s) with null values"),
+        (phase_a_not_in_standard, "parameter(s) not in standard"),
+        (phase_b_science_warnings, "scientific warning(s) for information")
+    ]
+    
+    for items, description in phase_sections:
+        if items:
+            action = "Updated" if "renamed" in description or "optional" in description else "Found"
+            previous_phase_items.append(f"- {action} ({len(items)}) {description}:")
+            previous_phase_items.extend(f"-- {item}" for item in items)
 
-    if phase_a_optional_missing:
-        previous_phase_items.append(
-            f"- Updated ({len(phase_a_optional_missing)}) optional missing parameter(s) with null values:"
-        )
-        for param in phase_a_optional_missing:
-            previous_phase_items.append(f"-- {param}")
-
-    if phase_a_not_in_standard:
-        previous_phase_items.append(
-            f"- Found ({len(phase_a_not_in_standard)}) parameter(s) not in standard:"
-        )
-        for param in phase_a_not_in_standard:
-            previous_phase_items.append(f"-- {param}")
-
-    # Add Phase B specific information if available
-    if phase_b_science_warnings:
-        previous_phase_items.append(
-            f"- Found ({len(phase_b_science_warnings)}) scientific warning(s) for information:"
-        )
-        for warning in phase_b_science_warnings:
-            previous_phase_items.append(f"-- {warning}")
-
-    # Only add NO ACTION NEEDED section if there are previous phase items to show
     if previous_phase_items:
         report_lines.append("## NO ACTION NEEDED")
         report_lines.extend(previous_phase_items)
         report_lines.append("")
 
-    # If no ACTION NEEDED and no previous phase items, show "Phase [XYZ] passed"
     if not action_needed_items and not previous_phase_items:
         report_lines.append(f"Phase {phase_str} passed")
 
-    # Footer
-    report_lines.append("")
-    report_lines.append("# " + "=" * 50)
+    report_lines.extend(["", "# " + "=" * 50])
 
-    # Write report file
-    report_content = "\n".join(report_lines)
     with open(output_report_file, "w") as f:
-        f.write(report_content)
+        f.write("\n".join(report_lines))
 
 
 def generate_fallback_report(
@@ -281,17 +190,7 @@ def generate_fallback_report(
     phase_a_report_file: str = None,
     phases_run: list = None,
 ) -> None:
-    """
-    Generate a simple fallback report when structured report generation fails.
-
-    Args:
-        validation_error: The validation exception
-        input_yaml_file: Path to input YAML file
-        output_report_file: Path for output report file
-        mode: Processing mode ('public' or 'dev')
-        phase_a_report_file: Path to Phase A or Phase B report file for consolidation (optional)
-    """
-    # Extract Phase A/B information if available (same logic as main report)
+    """Generate simple fallback report when structured report generation fails."""
     phase_a_renames = []
     phase_a_optional_missing = []
     phase_a_not_in_standard = []
@@ -301,116 +200,34 @@ def generate_fallback_report(
         try:
             with open(phase_a_report_file, "r") as f:
                 report_content = f.read()
-
-            # Detect report type
-            report_type = "unknown"
-            if "SUEWS Scientific Validation Report" in report_content:
-                report_type = "phase_b"
-            elif "SUEWS Configuration Analysis Report" in report_content:
-                report_type = "phase_a"
-
-            # Parse Phase A or Phase B report for relevant information
-            lines = report_content.split("\n")
-            current_section = None
-
-            for line in lines:
-                line = line.strip()
-                if report_type == "phase_a":
-                    # Parse Phase A content
-                    if "Updated (" in line and "renamed parameter" in line:
-                        current_section = "renames"
-                    elif "Updated (" in line and "optional missing parameter" in line:
-                        current_section = "optional"
-                    elif "parameter(s) not in standard" in line:
-                        current_section = "not_standard"
-                    elif line.startswith("--") and current_section == "renames":
-                        phase_a_renames.append(line[2:].strip())
-                    elif line.startswith("--") and current_section == "optional":
-                        phase_a_optional_missing.append(line[2:].strip())
-                    elif line.startswith("--") and current_section == "not_standard":
-                        phase_a_not_in_standard.append(line[2:].strip())
-                elif report_type == "phase_b":
-                    # Parse Phase B content (scientific validation)
-                    if "Updated (" in line and "renamed parameter" in line:
-                        current_section = "renames"
-                    elif "Updated (" in line and "optional missing parameter" in line:
-                        current_section = "optional"
-                    elif "parameter(s) not in standard" in line:
-                        current_section = "not_standard"
-                    elif "scientific warning" in line:
-                        current_section = "warnings"
-                    elif line.startswith("--") and current_section == "renames":
-                        phase_a_renames.append(line[2:].strip())
-                    elif line.startswith("--") and current_section == "optional":
-                        phase_a_optional_missing.append(line[2:].strip())
-                    elif line.startswith("--") and current_section == "not_standard":
-                        phase_a_not_in_standard.append(line[2:].strip())
-                    elif line.startswith("--") and current_section == "warnings":
-                        phase_b_science_warnings.append(line[2:].strip())
+            phase_a_renames, phase_a_optional_missing, phase_a_not_in_standard, phase_b_science_warnings = _parse_previous_phase_report(report_content)
         except Exception:
             pass
 
-    # Build previous phase consolidation section (following Phase B pattern)
-    previous_phase_consolidation = ""
     previous_phase_items = []
+    
+    phase_sections = [
+        (phase_a_renames, "renamed parameter(s) to current standards"),
+        (phase_a_optional_missing, "optional missing parameter(s) with null values"),
+        (phase_a_not_in_standard, "parameter(s) not in standard"),
+        (phase_b_science_warnings, "scientific warning(s) for information")
+    ]
+    
+    for items, description in phase_sections:
+        if items:
+            action = "Updated" if "renamed" in description or "optional" in description else "Found"
+            previous_phase_items.append(f"- {action} ({len(items)}) {description}:")
+            previous_phase_items.extend(f"-- {item}" for item in items)
 
-    if phase_a_renames:
-        previous_phase_items.append(
-            f"- Updated ({len(phase_a_renames)}) renamed parameter(s) to current standards:"
-        )
-        for rename in phase_a_renames:
-            previous_phase_items.append(f"-- {rename}")
+    previous_phase_consolidation = f"\n\n## NO ACTION NEEDED\n{chr(10).join(previous_phase_items)}" if previous_phase_items else ""
 
-    if phase_a_optional_missing:
-        previous_phase_items.append(
-            f"- Updated ({len(phase_a_optional_missing)}) optional missing parameter(s) with null values:"
-        )
-        for param in phase_a_optional_missing:
-            previous_phase_items.append(f"-- {param}")
-
-    if phase_a_not_in_standard:
-        previous_phase_items.append(
-            f"- Found ({len(phase_a_not_in_standard)}) parameter(s) not in standard:"
-        )
-        for param in phase_a_not_in_standard:
-            previous_phase_items.append(f"-- {param}")
-
-    # Add Phase B specific information if available
-    if phase_b_science_warnings:
-        previous_phase_items.append(
-            f"- Found ({len(phase_b_science_warnings)}) scientific warning(s) for information:"
-        )
-        for warning in phase_b_science_warnings:
-            previous_phase_items.append(f"-- {warning}")
-
-    if previous_phase_items:
-        previous_phase_consolidation = "\n\n## NO ACTION NEEDED\n" + "\n".join(
-            previous_phase_items
-        )
-    else:
-        previous_phase_consolidation = ""
-
-    # Generate phase-specific title (same logic as main report)
-    if phases_run:
-        phase_str = "".join(phases_run)
-    else:
-        phase_str = "C"  # Default to Phase C only
-
-    phase_titles = {
-        "A": "SUEWS - Phase A (Up-to-date YAML check) Report",
-        "B": "SUEWS - Phase B (Scientific Validation) Report",
-        "C": "SUEWS - Phase C (Pydantic Validation) Report",
-        "AB": "SUEWS - Phase AB (Up-to-date YAML check and Scientific Validation) Report",
-        "AC": "SUEWS - Phase AC (Up-to-date YAML check and Pydantic Validation) Report",
-        "BC": "SUEWS - Phase BC (Scientific Validation and Pydantic Validation) Report",
-        "ABC": "SUEWS - Phase ABC (Up-to-date YAML check, Scientific Validation and Pydantic Validation) Report",
-    }
-
-    title = phase_titles.get(phase_str, "SUEWS Phase C (Pydantic Validation) Report")
+    phase_str = "".join(phases_run) if phases_run else "C"
+    title = PHASE_TITLES.get(phase_str, "SUEWS Phase C (Pydantic Validation) Report")
+    mode_title = "Public" if mode.lower() == "public" else mode.title()
 
     error_report = f"""# {title}
 # ============================================
-# Mode: {"Public" if mode.lower() == "public" else mode.title()}
+# Mode: {mode_title}
 # ============================================
 
 ## ACTION NEEDED

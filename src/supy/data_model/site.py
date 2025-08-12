@@ -67,9 +67,7 @@ class VegetationParams(BaseModel):
 
 
 class Conductance(BaseModel):
-    model_config = ConfigDict(
-        title="Conductance Parameters"
-    )
+    model_config = ConfigDict(title="Conductance Parameters")
 
     g_max: Optional[FlexibleRefValue(float)] = Field(
         default=None,
@@ -845,9 +843,7 @@ class GrassProperties(VegetatedSurfaceProperties):
 
 
 class SnowParams(BaseModel):
-    model_config = ConfigDict(
-        title="Snow Parameters"
-    )
+    model_config = ConfigDict(title="Snow Parameters")
 
     crwmax: FlexibleRefValue(float) = Field(
         default=0.1,
@@ -1027,9 +1023,7 @@ class SnowParams(BaseModel):
 
 
 class LandCover(BaseModel):
-    model_config = ConfigDict(
-        title="Land Cover Properties"
-    )
+    model_config = ConfigDict(title="Land Cover Properties")
 
     paved: PavedProperties = Field(
         default_factory=PavedProperties,
@@ -2238,9 +2232,7 @@ class LUMPSParams(BaseModel):
 
 
 class SiteProperties(BaseModel):
-    model_config = ConfigDict(
-        title="Site Properties"
-    )
+    model_config = ConfigDict(title="Site Properties")
 
     lat: FlexibleRefValue(float) = Field(
         ge=-90,
@@ -2537,9 +2529,7 @@ class SiteProperties(BaseModel):
 
 
 class Site(BaseModel):
-    model_config = ConfigDict(
-        title="Site Configuration"
-    )
+    model_config = ConfigDict(title="Site Configuration")
 
     name: str = Field(description="Name of the site", default="test site")
     gridiv: int = Field(

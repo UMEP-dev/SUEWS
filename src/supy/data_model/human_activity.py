@@ -576,9 +576,7 @@ class CO2Params(BaseModel):  # TODO: May need to add the RefValue to the profile
 
 
 class AnthropogenicEmissions(BaseModel):
-    model_config = ConfigDict(
-        title="Anthropogenic Emissions Configuration"
-    )
+    model_config = ConfigDict(title="Anthropogenic Emissions Configuration")
 
     startdls: Optional[FlexibleRefValue(float)] = Field(
         default=None,

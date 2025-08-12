@@ -32,7 +32,7 @@ Here's a minimal configuration example showing all required sections:
    # Minimal SUEWS configuration with all required sections
    name: "My Simulation"
    description: "Urban climate simulation for central London"
-   
+
    model:
      control:                         # Time and file settings
        tstep: 3600                    # Hourly timestep [s]
@@ -55,14 +55,21 @@ Here's a minimal configuration example showing all required sections:
          timezone: 0                  # UTC offset
          surfacearea: 1000000.0       # Area [m²]
          z: 10.0                      # Measurement height [m]
-       land_cover:                    # Fractions (must sum to 1.0)
-         paved: 0.30
-         bldgs: 0.35
-         grass: 0.20
-         evetr: 0.10
-         dectr: 0.05
-         bsoil: 0.00
-         water: 0.00
+         land_cover:                  # Fractions (must sum to 1.0)
+           paved:
+             sfr: 0.30
+           bldgs:
+             sfr: 0.35
+           grass:
+             sfr: 0.20
+           evetr:
+             sfr: 0.10
+           dectr:
+             sfr: 0.05
+           bsoil:
+             sfr: 0.00
+           water:
+             sfr: 0.00
        initial_states:                # Initial conditions
          # Default values will be used if not specified
 
@@ -220,70 +227,6 @@ Site Properties (``site.properties``)
 - ``grass`` - Grass/lawn
 - ``bsoil`` - Bare soil
 - ``water`` - Water bodies
-
-Common Use Cases
-----------------
-
-Dense Urban
-~~~~~~~~~~~
-
-.. code-block:: yaml
-
-   land_cover:
-     paved: 0.45
-     bldgs: 0.40
-     grass: 0.10
-     evetr: 0.03
-     dectr: 0.02
-   properties:
-     bldgs:
-       height: 25.0      # Tall buildings
-       fai: 0.5          # High frontal area
-
-   # Recommended physics
-   model:
-     physics:
-       emissions_method: 4        # Full QF model
-       storage_heat_method: 2     # OHM with QF
-
-Suburban
-~~~~~~~~
-
-.. code-block:: yaml
-
-   land_cover:
-     paved: 0.25
-     bldgs: 0.25
-     grass: 0.30
-     evetr: 0.10
-     dectr: 0.10
-   properties:
-     bldgs:
-       height: 8.0       # Lower buildings
-
-   # Recommended physics
-   model:
-     physics:
-       emissions_method: 2        # Temperature-dependent QF
-       water_use_method: 1        # Include irrigation
-
-Parks/Green Spaces
-~~~~~~~~~~~~~~~~~~
-
-.. code-block:: yaml
-
-   land_cover:
-     paved: 0.10
-     bldgs: 0.05
-     grass: 0.50
-     evetr: 0.15
-     dectr: 0.15
-     bsoil: 0.05
-   properties:
-     grass:
-       lai_max: 3.0      # Healthy grass
-     irrigation:
-       auto_irr_grass: 1 # Automatic irrigation
 
 Advanced Features
 -----------------

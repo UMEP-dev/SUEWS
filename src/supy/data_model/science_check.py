@@ -1297,18 +1297,15 @@ def create_science_report(
                 else ""
             )
             report_lines.append(f"-- {warning.parameter}{site_ref}: {warning.message}")
-        if not adjustments and not errors:
-            report_lines.append("- All critical validations passed")
+        # Skip adding generic "passed" message when there are warnings
     else:
         if not adjustments and not errors:
             if not phase_a_items:
                 report_lines.append("- All scientific validations passed")
                 report_lines.append("- Model physics parameters are consistent")
                 report_lines.append("- Geographic parameters are valid")
-            else:
-                report_lines.append("- All critical validations passed")
-        elif not errors:
-            report_lines.append("- All critical validations passed")
+            # Skip generic messages when phase A items exist
+        # Skip generic messages when there are no errors
 
     report_lines.append("")
 

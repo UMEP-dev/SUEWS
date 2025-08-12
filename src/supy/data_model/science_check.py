@@ -74,12 +74,7 @@ class DLSCheck(BaseModel):
     enddls: Optional[int] = None
 
     def compute_dst_transitions(self):
-        """
-        Compute DST start/end days and timezone offset for given coordinates and year.
-
-        Returns:
-            Tuple[Optional[int], Optional[int], Optional[int]]: (start_dls, end_dls, utc_offset_hours)
-        """
+        """Compute DST start/end days and timezone offset for coordinates and year."""
         tf = TimezoneFinder()
         tz_name = tf.timezone_at(lat=self.lat, lng=self.lng)
         if not tz_name:
@@ -111,7 +106,6 @@ class DLSCheck(BaseModel):
             except Exception:
                 return None
 
-        # Get standard UTC offset (in winter) - preserve fractional values for PR #554
         try:
             std_dt = tz.localize(datetime(self.year, 1, 15), is_dst=False)
             utc_offset_hours = std_dt.utcoffset().total_seconds() / 3600
@@ -120,7 +114,6 @@ class DLSCheck(BaseModel):
             logger_supy.debug(f"[DLS] Failed to compute UTC offset: {e}")
             utc_offset_hours = None
 
-        # Determine DST start and end days
         if self.lat >= 0:  # Northern Hemisphere
             start = find_transition(3) or find_transition(4)
             end = find_transition(10) or find_transition(11)
@@ -132,60 +125,32 @@ class DLSCheck(BaseModel):
 
 
 def get_value_safe(param_dict, param_key, default=None):
-    """Safely extract value from RefValue or plain format.
-
-    Args:
-        param_dict: Dictionary containing the parameter
-        param_key: Key to look up
-        default: Default value if key not found
-
-    Returns:
-        The parameter value, handling both RefValue {"value": X} and plain X formats
-    """
+    """Safely extract value from RefValue or plain format."""
     param = param_dict.get(param_key, default)
     if isinstance(param, dict) and "value" in param:
-        return param["value"]  # RefValue format: {"value": 1}
+        return param["value"]
     else:
-        return param  # Plain format: 1
+        return param
 
 
 def validate_phase_b_inputs(
     uptodate_yaml_file: str, user_yaml_file: str, standard_yaml_file: str
 ) -> Tuple[dict, dict, dict]:
-    """
-    Validate that Phase B has all required inputs. Can work with Phase A output or raw user YAML.
-
-    Args:
-        uptodate_yaml_file: Path to Phase A output (uptodate YAML) or user YAML for direct Phase B
-        user_yaml_file: Path to original user YAML
-        standard_yaml_file: Path to standard reference YAML
-
-    Returns:
-        Tuple of (uptodate_data, user_data, standard_data) dictionaries
-
-    Raises:
-        FileNotFoundError: If required files are missing
-        ValueError: If YAML files are invalid
-    """
-    # Check that all required files exist
+    """Validate Phase B inputs and load YAML files."""
     for file_path in [uptodate_yaml_file, user_yaml_file, standard_yaml_file]:
         if not os.path.exists(file_path):
             raise FileNotFoundError(f"Required file not found: {file_path}")
 
     try:
-        # Load uptodate YAML (could be Phase A output or raw user YAML)
         with open(uptodate_yaml_file, "r") as f:
             uptodate_content = f.read()
             uptodate_data = yaml.safe_load(uptodate_content)
 
-        # Check if this is Phase A output or raw user YAML (no strict requirement)
         is_phase_a_output = "UP TO DATE YAML" in uptodate_content
 
-        # Load original user YAML
         with open(user_yaml_file, "r") as f:
             user_data = yaml.safe_load(f)
 
-        # Load standard YAML
         with open(standard_yaml_file, "r") as f:
             standard_data = yaml.safe_load(f)
 
@@ -196,18 +161,7 @@ def validate_phase_b_inputs(
 
 
 def extract_simulation_parameters(yaml_data: dict) -> Tuple[int, str, str]:
-    """
-    Extract key simulation parameters needed for scientific validation.
-
-    Args:
-        yaml_data: YAML configuration dictionary
-
-    Returns:
-        Tuple of (model_year, start_date, end_date)
-
-    Raises:
-        ValueError: If required simulation parameters are missing
-    """
+    """Extract simulation parameters for validation."""
     control = yaml_data.get("model", {}).get("control", {})
 
     start_date = control.get("start_time")
@@ -234,18 +188,7 @@ def extract_simulation_parameters(yaml_data: dict) -> Tuple[int, str, str]:
 
 
 def validate_physics_parameters(yaml_data: dict) -> List[ValidationResult]:
-    """
-    Validate presence and non-emptiness of required model physics parameters.
-
-    Checks that all required physics parameters exist and have valid values.
-    Adapted from precheck.py precheck_model_physics_params function.
-
-    Args:
-        yaml_data: YAML configuration dictionary
-
-    Returns:
-        List of ValidationResult objects for physics parameter validation
-    """
+    """Validate required physics parameters."""
     results = []
     physics = yaml_data.get("model", {}).get("physics", {})
 
@@ -260,7 +203,6 @@ def validate_physics_parameters(yaml_data: dict) -> List[ValidationResult]:
         )
         return results
 
-    # Required physics parameters from precheck.py
     required_physics_params = [
         "netradiationmethod",
         "emissionsmethod",
@@ -279,7 +221,6 @@ def validate_physics_parameters(yaml_data: dict) -> List[ValidationResult]:
         "stebbsmethod",
     ]
 
-    # Check for missing parameters
     missing_params = [
         param for param in required_physics_params if param not in physics
     ]
@@ -290,12 +231,11 @@ def validate_physics_parameters(yaml_data: dict) -> List[ValidationResult]:
                     status="ERROR",
                     category="PHYSICS",
                     parameter=f"model.physics.{param}",
-                    message=f"Physics parameter '{param}' is required but missing or null. This parameter controls critical model behavior and must be specified for the simulation to run properly.",
+                    message=f"Physics parameter '{param}' is required but missing or null. This parameter controls critical model behaviour and must be specified for the simulation to run properly.",
                     suggested_value=f"Set '{param}' to an appropriate value. Consult the SUEWS documentation for parameter descriptions and typical values: https://suews.readthedocs.io/latest/",
                 )
             )
 
-    # Check for empty/null values
     empty_params = [
         param
         for param in required_physics_params
@@ -308,12 +248,11 @@ def validate_physics_parameters(yaml_data: dict) -> List[ValidationResult]:
                     status="ERROR",
                     category="PHYSICS",
                     parameter=f"model.physics.{param}",
-                    message=f"Physics parameter '{param}' has null value. This parameter controls critical model behavior and must be set for proper simulation.",
+                    message=f"Physics parameter '{param}' has null value. This parameter controls critical model behaviour and must be set for proper simulation.",
                     suggested_value=f"Set '{param}' to an appropriate non-null value. Check documentation for parameter details: https://suews.readthedocs.io/en/latest",
                 )
             )
 
-    # If no issues found
     if not missing_params and not empty_params:
         results.append(
             ValidationResult(
@@ -328,26 +267,13 @@ def validate_physics_parameters(yaml_data: dict) -> List[ValidationResult]:
 
 
 def validate_model_option_dependencies(yaml_data: dict) -> List[ValidationResult]:
-    """
-    Validate internal consistency between model physics options.
-
-    Checks logical dependencies between selected physics methods.
-    Adapted from precheck.py precheck_model_options_constraints function.
-
-    Args:
-        yaml_data: YAML configuration dictionary
-
-    Returns:
-        List of ValidationResult objects for model option dependency validation
-    """
+    """Validate consistency between model physics options."""
     results = []
     physics = yaml_data.get("model", {}).get("physics", {})
 
-    # Check rslmethod-stabilitymethod constraints
     rslmethod = get_value_safe(physics, "rslmethod")
     stabilitymethod = get_value_safe(physics, "stabilitymethod")
 
-    # Constraint 1: If rslmethod == 2, stabilitymethod must be 3
     if rslmethod == 2 and stabilitymethod != 3:
         results.append(
             ValidationResult(
@@ -359,7 +285,6 @@ def validate_model_option_dependencies(yaml_data: dict) -> List[ValidationResult
             )
         )
 
-    # Constraint 2: If stabilitymethod == 1, rslmethod must be present
     elif stabilitymethod == 1 and rslmethod is None:
         results.append(
             ValidationResult(
@@ -385,18 +310,7 @@ def validate_model_option_dependencies(yaml_data: dict) -> List[ValidationResult
 
 
 def validate_land_cover_consistency(yaml_data: dict) -> List[ValidationResult]:
-    """
-    Validate land cover surface fractions and parameter consistency.
-
-    Checks that surface fractions sum to 1.0 and validates parameters for
-    surfaces with non-zero fractions. Adapted from precheck.py land cover functions.
-
-    Args:
-        yaml_data: YAML configuration dictionary
-
-    Returns:
-        List of ValidationResult objects for land cover validation
-    """
+    """Validate land cover fractions and parameters."""
     results = []
     sites = yaml_data.get("sites", [])
 
@@ -428,7 +342,6 @@ def validate_land_cover_consistency(yaml_data: dict) -> List[ValidationResult]:
                     sfr_sum += sfr_value
                     surface_types.append((surface_type, sfr_value))
 
-        # Check surface fraction sum (allow small floating point errors)
         if abs(sfr_sum - 1.0) > 0.0001:
             if sfr_sum == 0.0:
                 results.append(
@@ -453,7 +366,6 @@ def validate_land_cover_consistency(yaml_data: dict) -> List[ValidationResult]:
                     )
                 )
 
-        # Validate parameters for surfaces with non-zero fractions
         for surface_type, sfr_value in surface_types:
             if sfr_value > 0:
                 surface_props = land_cover[surface_type]
@@ -482,11 +394,9 @@ def validate_land_cover_consistency(yaml_data: dict) -> List[ValidationResult]:
                         )
                     )
 
-        # Check for unused surfaces (sfr == 0) with potentially unused parameters
         zero_sfr_surfaces = [surf for surf, sfr in surface_types if sfr == 0]
         if zero_sfr_surfaces:
             for surf_type in zero_sfr_surfaces:
-                # Collect parameter names for this surface type (following precheck.py logic)
                 param_list = []
                 surf_props = (
                     site.get("properties", {}).get("land_cover", {}).get(surf_type, {})
@@ -521,7 +431,6 @@ def validate_land_cover_consistency(yaml_data: dict) -> List[ValidationResult]:
                         )
                     )
 
-    # If all sites passed validation
     if not any(r.status == "ERROR" for r in results):
         results.append(
             ValidationResult(
@@ -536,28 +445,18 @@ def validate_land_cover_consistency(yaml_data: dict) -> List[ValidationResult]:
 
 
 def _check_surface_parameters(surface_props: dict, surface_type: str) -> List[str]:
-    """
-    Check for missing/empty parameters in a surface type configuration.
-
-    Args:
-        surface_props: Surface properties dictionary
-        surface_type: Name of surface type (for context)
-
-    Returns:
-        List of parameter names that are missing or empty
-    """
+    """Check for missing/empty parameters in surface configuration."""
     missing_params = []
 
     def _check_recursively(props: dict, path: str = ""):
         for key, value in props.items():
-            if key == "sfr":  # Skip surface fraction itself
+            if key == "sfr":
                 continue
 
             current_path = f"{path}.{key}" if path else key
 
             if isinstance(value, dict):
                 if "value" in value:
-                    # This is a parameter with a value
                     param_value = value["value"]
                     if param_value in (None, "") or (
                         isinstance(param_value, list)
@@ -565,7 +464,6 @@ def _check_surface_parameters(surface_props: dict, surface_type: str) -> List[st
                     ):
                         missing_params.append(current_path)
                 else:
-                    # This is a nested structure, recurse
                     _check_recursively(value, current_path)
 
     _check_recursively(surface_props)
@@ -573,25 +471,13 @@ def _check_surface_parameters(surface_props: dict, surface_type: str) -> List[st
 
 
 def validate_geographic_parameters(yaml_data: dict) -> List[ValidationResult]:
-    """
-    Validate geographic coordinates and location-dependent parameters.
-
-    Checks latitude, longitude ranges and validates timezone/DLS parameters.
-    Prepares for DLS calculations and seasonal adjustments.
-
-    Args:
-        yaml_data: YAML configuration dictionary
-
-    Returns:
-        List of ValidationResult objects for geographic validation
-    """
+    """Validate geographic coordinates and location parameters."""
     results = []
     sites = yaml_data.get("sites", [])
 
     for site_idx, site in enumerate(sites):
         props = site.get("properties", {})
 
-        # Validate latitude
         lat = get_value_safe(props, "lat")
 
         if lat is None:
@@ -628,7 +514,6 @@ def validate_geographic_parameters(yaml_data: dict) -> List[ValidationResult]:
                 )
             )
 
-        # Validate longitude
         lng = get_value_safe(props, "lng")
 
         if lng is None:
@@ -665,7 +550,6 @@ def validate_geographic_parameters(yaml_data: dict) -> List[ValidationResult]:
                 )
             )
 
-        # Check timezone parameter exists (will be set by DLS calculation)
         timezone = get_value_safe(props, "timezone")
 
         if timezone is None:
@@ -680,7 +564,6 @@ def validate_geographic_parameters(yaml_data: dict) -> List[ValidationResult]:
                 )
             )
 
-        # Check DLS parameters exist (will be set by DLS calculation)
         anthro_emissions = props.get("anthropogenic_emissions", {})
         if anthro_emissions:
             startdls = get_value_safe(anthro_emissions, "startdls")
@@ -698,7 +581,6 @@ def validate_geographic_parameters(yaml_data: dict) -> List[ValidationResult]:
                     )
                 )
 
-    # If all required coordinates are valid
     error_count = sum(1 for r in results if r.status == "ERROR")
     if error_count == 0:
         results.append(
@@ -716,33 +598,17 @@ def validate_geographic_parameters(yaml_data: dict) -> List[ValidationResult]:
 def run_scientific_validation_pipeline(
     yaml_data: dict, start_date: str, model_year: int
 ) -> List[ValidationResult]:
-    """
-    Execute all scientific validation checks on the YAML configuration.
-
-    Args:
-        yaml_data: YAML configuration dictionary
-        start_date: Simulation start date in YYYY-MM-DD format
-        model_year: Model year extracted from start_date
-
-    Returns:
-        List of ValidationResult objects from all validation checks
-    """
+    """Execute all scientific validation checks."""
     validation_results = []
 
-    # Physics parameter validation
     validation_results.extend(validate_physics_parameters(yaml_data))
 
-    # Model option dependency validation
     validation_results.extend(validate_model_option_dependencies(yaml_data))
 
-    # Land cover consistency validation
     validation_results.extend(validate_land_cover_consistency(yaml_data))
 
-    # Geographic coordinate validation
     validation_results.extend(validate_geographic_parameters(yaml_data))
 
-    # Seasonal parameter validation
-    # TODO: Implement validate_seasonal_parameters(yaml_data, start_date)
 
     return validation_results
 
@@ -750,28 +616,7 @@ def run_scientific_validation_pipeline(
 def get_mean_monthly_air_temperature(
     lat: float, lon: float, month: int, spatial_res: float = 0.5
 ) -> float:
-    """
-    Calculate mean monthly air temperature using CRU TS4.06 climatological data.
-
-    This function uses the CRU TS4.06 cell monthly normals dataset (1991-2020)
-    to provide accurate location-specific temperature estimates. CRU data is
-    required - the function will raise an error if CRU data is not available.
-
-    Args:
-        lat (float): Site latitude in degrees (positive for Northern Hemisphere, negative for Southern).
-        lon (float): Site longitude in degrees (-180 to 180).
-        month (int): Month of the year (1 = January, 12 = December).
-        spatial_res (float): Search spatial resolution for finding nearest CRU grid cell (degrees). Default 0.5.
-
-    Returns:
-        float: Mean monthly air temperature for the given location and month (°C).
-
-    Raises:
-        ValueError: If the input month is not between 1 and 12, coordinates are invalid,
-                   or no CRU data found within spatial resolution.
-        FileNotFoundError: If CRU data file is not found.
-    """
-    # Validate inputs
+    """Calculate monthly air temperature using CRU TS4.06 data."""
     if not (1 <= month <= 12):
         raise ValueError(f"Month must be between 1 and 12, got {month}")
     if not (-90 <= lat <= 90):
@@ -779,8 +624,6 @@ def get_mean_monthly_air_temperature(
     if not (-180 <= lon <= 180):
         raise ValueError(f"Longitude must be between -180 and 180, got {lon}")
 
-    # Load CRU data from package resources using importlib.resources
-    # Access the Parquet file in the ext_data directory
     cru_resource = trv_supy_module / "ext_data" / "CRU_TS4.06_1991_2020.parquet"
 
     if not cru_resource.exists():
@@ -789,27 +632,21 @@ def get_mean_monthly_air_temperature(
             "Please ensure the CRU Parquet file is available in the package."
         )
 
-    # Read the Parquet file - this works even when package is installed
     df = pd.read_parquet(cru_resource)
 
-    # Validate that required columns are present
     required_cols = ["Month", "Latitude", "Longitude", "NormalTemperature"]
     missing_cols = [col for col in required_cols if col not in df.columns]
     if missing_cols:
         raise ValueError(f"Missing required columns in CRU data: {missing_cols}")
 
-    # Filter for the specific month
     month_data = df[df["Month"] == month]
     if month_data.empty:
         raise ValueError(f"No CRU data available for month {month}")
 
-    # Find nearest grid cell using both lat and lon
-    # Use both latitude and longitude for precise matching
     distances = np.sqrt(
         (month_data["Latitude"] - lat) ** 2 + (month_data["Longitude"] - lon) ** 2
     )
 
-    # Try different spatial resolutions if no data is found
     for spatial_res_expanded in [spatial_res, spatial_res * 2, spatial_res * 4]:
         nearby_indices = distances <= spatial_res_expanded
         nearby_data = month_data[nearby_indices]
@@ -824,14 +661,11 @@ def get_mean_monthly_air_temperature(
                 f"check if coordinates are within CRU data coverage area."
             )
 
-    # Calculate Euclidean distance for closest point
     nearby_distances = distances[nearby_indices]
     closest_idx = nearby_distances.idxmin()
 
-    # Get temperature from the closest grid cell
     temperature = month_data.loc[closest_idx, "NormalTemperature"]
 
-    # Log the selection for debugging
     closest_lat = month_data.loc[closest_idx, "Latitude"]
     closest_lon = month_data.loc[closest_idx, "Longitude"]
     logger_supy.debug(
@@ -845,18 +679,7 @@ def get_mean_monthly_air_temperature(
 def adjust_surface_temperatures(
     yaml_data: dict, start_date: str
 ) -> Tuple[dict, List[ScientificAdjustment]]:
-    """
-    Set initial surface temperatures for all surface types based on latitude and start month.
-
-    Adapted from precheck.py precheck_update_surface_temperature function.
-
-    Args:
-        yaml_data: YAML configuration dictionary
-        start_date: Start date in YYYY-MM-DD format
-
-    Returns:
-        Tuple of (updated_yaml_data, list_of_adjustments)
-    """
+    """Set initial surface temperatures based on location and season."""
     adjustments = []
     month = datetime.strptime(start_date, "%Y-%m-%d").month
 
@@ -865,24 +688,20 @@ def adjust_surface_temperatures(
         props = site.get("properties", {})
         initial_states = site.get("initial_states", {})
 
-        # Get site latitude
         lat_entry = props.get("lat", {})
         lat = lat_entry.get("value") if isinstance(lat_entry, dict) else lat_entry
 
         if lat is None:
             continue  # Skip if no latitude (will be caught by validation)
 
-        # Get site longitude (required for CRU matching)
         lng_entry = props.get("lng", {})
         lng = lng_entry.get("value") if isinstance(lng_entry, dict) else lng_entry
 
         if lng is None:
             continue  # Skip if no longitude (will be caught by validation)
 
-        # Get estimated average temperature using CRU data
         avg_temp = get_mean_monthly_air_temperature(lat, lng, month)
 
-        # Loop over all surface types
         surface_types = ["paved", "bldgs", "evetr", "dectr", "grass", "bsoil", "water"]
 
         for surface_type in surface_types:
@@ -894,30 +713,25 @@ def adjust_surface_temperatures(
             tsfc_updated = False
             tin_updated = False
 
-            # Set 5-layer temperature array
             if "temperature" in surf and isinstance(surf["temperature"], dict):
                 current_temp = surf["temperature"].get("value")
                 if current_temp != [avg_temp] * 5:
                     surf["temperature"]["value"] = [avg_temp] * 5
                     temperature_updated = True
 
-            # Set tsfc
             if "tsfc" in surf and isinstance(surf["tsfc"], dict):
                 current_tsfc = surf["tsfc"].get("value")
                 if current_tsfc != avg_temp:
                     surf["tsfc"]["value"] = avg_temp
                     tsfc_updated = True
 
-            # Set tin
             if "tin" in surf and isinstance(surf["tin"], dict):
                 current_tin = surf["tin"].get("value")
                 if current_tin != avg_temp:
                     surf["tin"]["value"] = avg_temp
                     tin_updated = True
 
-            # Record adjustments made
             if temperature_updated or tsfc_updated or tin_updated:
-                # Build list of updated parameters
                 updated_params = []
                 if temperature_updated:
                     updated_params.append("temperature")
@@ -950,18 +764,7 @@ def adjust_surface_temperatures(
 def adjust_land_cover_fractions(
     yaml_data: dict,
 ) -> Tuple[dict, List[ScientificAdjustment]]:
-    """
-    Auto-fix small floating point errors in land cover surface fractions.
-
-    Allows small floating point inaccuracies (~0.0001) and automatically corrects
-    them by adjusting the largest surface fraction. Adapted from precheck.py.
-
-    Args:
-        yaml_data: YAML configuration dictionary
-
-    Returns:
-        Tuple of (updated_yaml_data, list_of_adjustments)
-    """
+    """Auto-fix small floating point errors in surface fractions."""
     adjustments = []
     sites = yaml_data.get("sites", [])
 
@@ -983,11 +786,9 @@ def adjust_land_cover_fractions(
                     surface_fractions[surface_type] = sfr_value
                     sfr_sum += sfr_value
 
-        # Auto-fix small floating point errors (epsilon ~0.0001)
         correction_applied = False
 
         if 0.9999 <= sfr_sum < 1.0:
-            # Slightly below 1.0 - increase largest surface fraction
             max_surface = max(
                 surface_fractions.keys(), key=lambda k: surface_fractions[k]
             )
@@ -1009,7 +810,6 @@ def adjust_land_cover_fractions(
             )
 
         elif 1.0 < sfr_sum <= 1.0001:
-            # Slightly above 1.0 - decrease largest surface fraction
             max_surface = max(
                 surface_fractions.keys(), key=lambda k: surface_fractions[k]
             )
@@ -1040,22 +840,10 @@ def adjust_land_cover_fractions(
 def adjust_model_dependent_nullification(
     yaml_data: dict,
 ) -> Tuple[dict, List[ScientificAdjustment]]:
-    """
-    Nullify parameters for disabled model options.
-
-    Adapted from precheck.py precheck_model_option_rules function.
-    Currently implements stebbsmethod=0 nullification.
-
-    Args:
-        yaml_data: YAML configuration dictionary
-
-    Returns:
-        Tuple of (updated_yaml_data, list_of_adjustments)
-    """
+    """Nullify parameters for disabled model options."""
     adjustments = []
     physics = yaml_data.get("model", {}).get("physics", {})
 
-    # STEBBSMETHOD RULE: when stebbsmethod == 0, nullify all stebbs params
     stebbsmethod = get_value_safe(physics, "stebbsmethod")
 
     if stebbsmethod == 0:
@@ -1082,7 +870,6 @@ def adjust_model_dependent_nullification(
                 _recursive_nullify(stebbs_block)
 
                 if nullified_params:
-                    # Show clear message with complete parameter list
                     param_list = ", ".join(nullified_params)
 
                     adjustments.append(
@@ -1103,18 +890,7 @@ def adjust_model_dependent_nullification(
 
 
 def get_season(start_date: str, lat: float) -> str:
-    """
-    Determine season based on start date and latitude.
-
-    Adapted from precheck.py SeasonCheck class.
-
-    Args:
-        start_date: Start date in YYYY-MM-DD format
-        lat: Site latitude in degrees
-
-    Returns:
-        Season string: 'summer', 'winter', 'spring', 'fall', 'tropical', 'equatorial'
-    """
+    """Determine season based on start date and latitude."""
     try:
         start = datetime.strptime(start_date, "%Y-%m-%d").timetuple().tm_yday
     except ValueError:
@@ -1150,19 +926,7 @@ def get_season(start_date: str, lat: float) -> str:
 def adjust_seasonal_parameters(
     yaml_data: dict, start_date: str, model_year: int
 ) -> Tuple[dict, List[ScientificAdjustment]]:
-    """
-    Apply seasonal adjustments including LAI, snowalb nullification, and DLS calculations.
-
-    Adapted from precheck.py precheck_site_season_adjustments function.
-
-    Args:
-        yaml_data: YAML configuration dictionary
-        start_date: Start date in YYYY-MM-DD format
-        model_year: Model year for DLS calculations
-
-    Returns:
-        Tuple of (updated_yaml_data, list_of_adjustments)
-    """
+    """Apply seasonal adjustments including LAI, snowalb, and DLS calculations."""
     adjustments = []
     sites = yaml_data.get("sites", [])
 
@@ -1178,13 +942,11 @@ def adjust_seasonal_parameters(
         if lat is None:
             continue  # Skip if no latitude
 
-        # 1. Determine season
         try:
             season = get_season(start_date, lat)
         except Exception as e:
             continue  # Skip on season detection error
 
-        # 2. Nullify snowalb for warm seasons
         if (
             season in ("summer", "tropical", "equatorial")
             and "snowalb" in initial_states
@@ -1202,19 +964,17 @@ def adjust_seasonal_parameters(
                     )
                 )
 
-        # 3. Seasonal LAI adjustment for deciduous trees
         land_cover = props.get("land_cover", {})
         dectr = land_cover.get("dectr", {})
         if dectr:
             sfr = dectr.get("sfr", {}).get("value", 0)
 
-            if sfr > 0:  # Only if deciduous trees are present
+            if sfr > 0:
                 lai = dectr.get("lai", {})
                 laimin = lai.get("laimin", {}).get("value")
                 laimax = lai.get("laimax", {}).get("value")
 
                 if laimin is not None and laimax is not None:
-                    # Calculate seasonal LAI value
                     if season == "summer":
                         lai_val = laimax
                     elif season == "winter":
@@ -1224,7 +984,6 @@ def adjust_seasonal_parameters(
                     else:  # tropical/equatorial
                         lai_val = laimax
 
-                    # Set LAI in initial states
                     if "dectr" not in initial_states:
                         initial_states["dectr"] = {}
 
@@ -1243,7 +1002,6 @@ def adjust_seasonal_parameters(
                             )
                         )
             else:
-                # No deciduous trees - nullify LAI
                 if (
                     "dectr" in initial_states
                     and initial_states["dectr"].get("lai_id", {}).get("value")
@@ -1260,13 +1018,11 @@ def adjust_seasonal_parameters(
                         )
                     )
 
-        # 4. DLS (Daylight Saving) calculations
         if lat is not None and lng is not None:
             try:
                 dls = DLSCheck(lat=lat, lng=lng, year=model_year)
                 start_dls, end_dls, tz_offset = dls.compute_dst_transitions()
 
-                # Set DLS parameters
                 anthro_emissions = props.get("anthropogenic_emissions", {})
                 if anthro_emissions and start_dls and end_dls:
                     current_startdls = anthro_emissions.get("startdls", {}).get("value")
@@ -1295,7 +1051,6 @@ def adjust_seasonal_parameters(
                             f"[site #{site_idx}] DLS: start={start_dls}, end={end_dls}"
                         )
 
-                # Set timezone if calculated successfully
                 if tz_offset is not None:
                     current_timezone = props.get("timezone", {}).get("value")
                     if current_timezone != tz_offset:
@@ -1314,7 +1069,6 @@ def adjust_seasonal_parameters(
                         )
 
             except Exception as e:
-                # Skip DLS calculation on error
                 logger_supy.debug(f"[site #{site_idx}] DLS calculation failed: {e}")
                 pass
 
@@ -1329,37 +1083,23 @@ def adjust_seasonal_parameters(
 def run_scientific_adjustment_pipeline(
     yaml_data: dict, start_date: str, model_year: int
 ) -> Tuple[dict, List[ScientificAdjustment]]:
-    """
-    Apply automatic scientific corrections and adjustments to YAML configuration.
-
-    Args:
-        yaml_data: YAML configuration dictionary
-        start_date: Simulation start date in YYYY-MM-DD format
-        model_year: Model year extracted from start_date
-
-    Returns:
-        Tuple of (updated_yaml_data, list_of_adjustments)
-    """
+    """Apply automatic scientific corrections and adjustments."""
     adjustments = []
     updated_data = deepcopy(yaml_data)
 
-    # Surface temperature initialization
     updated_data, temp_adjustments = adjust_surface_temperatures(
         updated_data, start_date
     )
     adjustments.extend(temp_adjustments)
 
-    # Land cover fraction auto-correction
     updated_data, fraction_adjustments = adjust_land_cover_fractions(updated_data)
     adjustments.extend(fraction_adjustments)
 
-    # Model-dependent nullification
     updated_data, nullify_adjustments = adjust_model_dependent_nullification(
         updated_data
     )
     adjustments.extend(nullify_adjustments)
 
-    # Seasonal parameter adjustments
     updated_data, seasonal_adjustments = adjust_seasonal_parameters(
         updated_data, start_date, model_year
     )
@@ -1376,21 +1116,9 @@ def create_science_report(
     mode: str = "public",
     phase: str = "B",
 ) -> str:
-    """
-    Generate comprehensive scientific validation report including Phase A information.
-
-    Args:
-        validation_results: List of validation results from scientific checks
-        adjustments: List of automatic adjustments applied
-        science_yaml_filename: Name of final science-checked YAML file
-        phase_a_report_file: Path to Phase A report file for consolidation
-
-    Returns:
-        String containing formatted report content
-    """
+    """Generate comprehensive scientific validation report."""
     report_lines = []
 
-    # Generate phase-specific title
     phase_titles = {
         "A": "SUEWS - Phase A (Up-to-date YAML check) Report",
         "B": "SUEWS - Phase B (Scientific Validation) Report",
@@ -1411,7 +1139,6 @@ def create_science_report(
     report_lines.append("# " + "=" * 50)
     report_lines.append("")
 
-    # Extract Phase A information if available
     phase_a_renames = []
     phase_a_optional_missing = []
     phase_a_not_in_standard = []
@@ -1421,7 +1148,6 @@ def create_science_report(
             with open(phase_a_report_file, "r") as f:
                 phase_a_content = f.read()
 
-            # Parse Phase A report for relevant information
             lines = phase_a_content.split("\n")
             current_section = None
 
@@ -1443,12 +1169,10 @@ def create_science_report(
             # If we can't read Phase A report, continue without it
             pass
 
-    # Count results by status
     errors = [r for r in validation_results if r.status == "ERROR"]
     warnings = [r for r in validation_results if r.status == "WARNING"]
     passed = [r for r in validation_results if r.status == "PASS"]
 
-    # ACTION NEEDED section (only critical errors that prevent simulation)
     if errors:
         report_lines.append("## ACTION NEEDED")
         report_lines.append(
@@ -1463,19 +1187,14 @@ def create_science_report(
                 report_lines.append(f"   Suggested fix: {error.suggested_value}")
         report_lines.append("")
 
-    # NO ACTION NEEDED section (automatic adjustments, warnings, clean status, and Phase A information)
     report_lines.append("## NO ACTION NEEDED")
 
-    # Updated values (automatic adjustments applied)
     if adjustments:
-        # Count actual parameters changed, not just adjustment objects
         total_params_changed = 0
         for adjustment in adjustments:
             if "temperature, tsfc, tin" in adjustment.old_value:
-                # Temperature adjustments: 3 parameters per surface
                 total_params_changed += 3
             elif adjustment.parameter == "stebbs" and "nullified" in adjustment.reason:
-                # Extract number of nullified stebbs parameters from reason
                 import re
 
                 match = re.search(r"nullified (\d+) parameters", adjustment.reason)
@@ -1487,10 +1206,8 @@ def create_science_report(
                 adjustment.parameter == "dls_parameters"
                 and "start=" in adjustment.old_value
             ):
-                # DLS parameters: start and end = 2 parameters
                 total_params_changed += 2
             else:
-                # Default: assume 1 parameter per adjustment
                 total_params_changed += 1
 
         report_lines.append(f"- Updated ({total_params_changed}) parameter(s):")
@@ -1504,7 +1221,6 @@ def create_science_report(
                 f"-- {adjustment.parameter}{site_ref}: {adjustment.old_value} → {adjustment.new_value} ({adjustment.reason})"
             )
 
-    # Phase A information (when available)
     phase_a_items = []
     if phase_a_renames:
         phase_a_items.append(
@@ -1527,13 +1243,11 @@ def create_science_report(
         for param in phase_a_not_in_standard:
             phase_a_items.append(f"-- {param}")
 
-    # Add Phase A items if any exist
     if phase_a_items:
         report_lines.extend(phase_a_items)
         if warnings or (not adjustments and not errors):
             report_lines.append("")
 
-    # Phase B warnings
     if warnings:
         report_lines.append(f"- Revise ({len(warnings)}) warnings:")
         for warning in warnings:
@@ -1546,9 +1260,8 @@ def create_science_report(
         if not adjustments and not errors:
             report_lines.append("- All critical validations passed")
     else:
-        # No warnings case
         if not adjustments and not errors:
-            if not phase_a_items:  # Only show if no Phase A items already shown
+            if not phase_a_items:
                 report_lines.append("- All scientific validations passed")
                 report_lines.append("- Model physics parameters are consistent")
                 report_lines.append("- Geographic parameters are valid")
@@ -1559,7 +1272,6 @@ def create_science_report(
 
     report_lines.append("")
 
-    # Footer separator
     report_lines.append("# " + "=" * 50)
 
     return "\n".join(report_lines)
@@ -1687,31 +1399,25 @@ def run_science_check(
         ValueError: If Phase A did not complete or YAML is invalid
     """
     try:
-        # Step 1: Validate inputs and load YAML files
         uptodate_data, user_data, standard_data = validate_phase_b_inputs(
             uptodate_yaml_file, user_yaml_file, standard_yaml_file
         )
 
-        # Step 2: Extract simulation parameters
         model_year, start_date, end_date = extract_simulation_parameters(uptodate_data)
 
-        # Step 3: Run scientific validation pipeline
         validation_results = run_scientific_validation_pipeline(
             uptodate_data, start_date, model_year
         )
 
-        # Step 4: Run scientific adjustment pipeline (skip if critical errors)
         critical_errors = [r for r in validation_results if r.status == "ERROR"]
         if not critical_errors:
             science_checked_data, adjustments = run_scientific_adjustment_pipeline(
                 uptodate_data, start_date, model_year
             )
         else:
-            # No adjustments when critical errors exist
             science_checked_data = deepcopy(uptodate_data)
             adjustments = []
 
-        # Step 5: Generate science report (always generate, even with critical errors)
         science_yaml_filename = (
             os.path.basename(science_yaml_file) if science_yaml_file else None
         )
@@ -1724,20 +1430,16 @@ def run_science_check(
             phase,
         )
 
-        # Step 6: Write science report (always write)
         if science_report_file:
             with open(science_report_file, "w") as f:
                 f.write(report_content)
 
-        # Step 7: CRITICAL HALT CHECK - Stop if errors found after report is written
         if critical_errors:
             print_critical_halt_message(critical_errors)
             raise ValueError("Critical scientific errors detected - Phase B halted")
 
-        # Step 8: Print terminal results
         print_science_check_results(validation_results, adjustments)
 
-        # Step 9: Write science-checked YAML file (only if no critical errors)
         if science_yaml_file and not critical_errors:
             header = create_science_yaml_header(phase_a_performed)
             with open(science_yaml_file, "w") as f:
@@ -1758,7 +1460,6 @@ def main():
     print(" SUEWS Scientific Validation (Phase B)")
     print("=" * 50)
 
-    # Define file paths
     user_file = "src/supy/data_model/user.yml"
     uptodate_file = "src/supy/data_model/uptodate_user.yml"
     standard_file = "src/supy/sample_data/sample_config.yml"
@@ -1768,7 +1469,6 @@ def main():
     print(f"Standard YAML: {standard_file}")
     print()
 
-    # Generate output file paths
     basename = os.path.basename(user_file)
     dirname = os.path.dirname(user_file)
     name_without_ext = os.path.splitext(basename)[0]
@@ -1779,7 +1479,6 @@ def main():
     science_yaml_file = os.path.join(dirname, science_yaml_filename)
     science_report_file = os.path.join(dirname, science_report_filename)
 
-    # Run Phase B
     try:
         science_checked_data = run_science_check(
             uptodate_yaml_file=uptodate_file,

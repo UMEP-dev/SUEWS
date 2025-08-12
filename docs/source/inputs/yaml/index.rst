@@ -55,23 +55,47 @@ Here's a minimal configuration example showing all required sections:
          timezone: 0                  # UTC offset
          surfacearea: 1000000.0       # Area [m²]
          z: 10.0                      # Measurement height [m]
-         land_cover:                  # Fractions (must sum to 1.0)
+         z0m_in: 1.0                  # Roughness length [m]
+         zdm_in: 10.0                 # Displacement height [m]
+         ...                          # Additional site properties
+         land_cover:                  # Surface fractions and properties
            paved:
-             sfr: 0.30
+             sfr: 0.30                # Surface fraction (must sum to 1.0)
+             alb: 0.10                # Albedo
+             emis: 0.95               # Emissivity
+             ...                      # OHM coefficients, drainage, etc.
            bldgs:
              sfr: 0.35
+             alb: 0.12
+             emis: 0.91
+             bldgh: 15.0              # Building height [m]
+             faibldg: 0.15            # Frontal area index
+             ...
            grass:
              sfr: 0.20
+             alb: 0.21
+             lai:                     # LAI parameters
+               laimax: 5.9
+               laimin: 1.6
+               ...
+             ...
            evetr:
              sfr: 0.10
+             ...
            dectr:
              sfr: 0.05
+             ...
            bsoil:
              sfr: 0.00
+             ...
            water:
              sfr: 0.00
+             ...
        initial_states:                # Initial conditions
-         # Default values will be used if not specified
+         paved:
+           soilstore: 120.0
+           ...
+         # ... initial states for each surface
 
 For a complete working example, see the `sample configuration <https://github.com/UMEP-dev/SUEWS/blob/master/src/supy/sample_run/sample_config.yml>`_.
 

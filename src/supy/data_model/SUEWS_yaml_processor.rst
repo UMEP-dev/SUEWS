@@ -741,7 +741,8 @@ Phase C applies model-specific validation using Pydantic data models to ensure c
 
 **Primary Functions:**
 - Validate physics option compatibility and required parameters
-- Apply conditional validation based on selected model methods
+- Apply conditional validation based on selected model methods  
+- Detect critical null physics parameters that would cause runtime crashes
 - Ensure model configuration consistency for chosen physics options
 - Generate model-ready configuration that passes Pydantic schema validation
 
@@ -754,13 +755,47 @@ Phase C applies model-specific validation using Pydantic data models to ensure c
 What Phase C Validates
 ~~~~~~~~~~~~~~~~~~~~~~
 
-Phase C runs the same comprehensive Pydantic validation system used by `SUEWSConfig.from_yaml()` when loading YAML configurations in SUEWS.
+Phase C runs comprehensive validation using Pydantic data models, ensuring your configuration is fully compatible with SUEWS model execution.
 
 **Validation Coverage:**
-- All model configuration constraints and physics compatibility checks
-- Site-level parameter completeness and physical parameter ranges  
-- Building structure, surface types, and hourly profile consistency
-- The same validations that ensure your configuration loads successfully in SUEWS
+
+1. **Critical Null Physics Parameter Detection**
+   
+   **Runtime-Critical Parameters**: Detects physics parameters set to null that would cause model crashes:
+      - ``netradiationmethod``, ``emissionsmethod``, ``storageheatmethod``
+      - ``ohmincqf``, ``roughlenmommethod``, ``roughlenheatmethod``  
+      - ``stabilitymethod``, ``smdmethod``, ``waterusemethod``
+      - ``rslmethod``, ``faimethod``, ``rsllevel``
+      - ``gsmodel``, ``snowuse``, ``stebbsmethod``
+   
+   **Impact**: These parameters are converted to integers during model execution - null values cause fatal crashes
+   
+   **Resolution**: Set to appropriate non-null values based on your model requirements
+
+2. **Conditional Validation Rules**
+   
+   **Method-Specific Requirements**: Validates that selected physics methods have required parameters:
+      - **RSL Method**: ``rslmethod=2`` requires ``bldgs.faibldg`` parameter when building fraction > 0
+      - **Storage Heat Method**: ``storageheatmethod=6`` requires ``properties.lambda_c`` to be set and non-null
+      - **STEBBS Method**: ``stebbsmethod≠0`` requires complete STEBBS parameter configuration
+   
+   **Impact**: Model will fail or produce incorrect results if method requirements aren't met
+   
+   **Resolution**: Either change physics method or provide required parameters
+
+3. **Model Configuration Constraints**
+   
+   **Physics Compatibility**: Ensures physics method combinations are valid and mutually compatible
+   
+   **Parameter Completeness**: Validates all required parameters for selected model features are present
+   
+   **Data Consistency**: Checks that configuration matches expected data structures and value ranges
+
+4. **Pydantic Schema Validation**
+   
+   **Same validation system** used by ``SUEWSConfig.from_yaml()`` when loading configurations in SUEWS
+   
+   **Comprehensive coverage** of all model constraints and physics compatibility requirements
 
 **For detailed validation specifications and error handling, see:**
 `YAML Configuration Documentation - Validation and Error Handling <../../../inputs/yaml/index.html#validation-and-error-handling>`_
@@ -827,36 +862,36 @@ When Phase C detects validation errors, it generates a detailed report:
 
 .. code-block:: text
 
-   # SUEWS Pydantic Validation Report
+   # SUEWS - Phase C (Pydantic Validation) Report
+   # ==================================================
+   # Mode: Public
    # ==================================================
    
    ## ACTION NEEDED
-   - Found (2) critical Pydantic validation error(s):
-   -- netradiationmethod at model.physics: Field required for selected physics options
-      Suggested fix: Set netradiationmethod to a valid option (0-5) based on available data
-   -- grass.lai_id at site [0]: Required when grass fraction > 0 (current: 0.25)
-      Suggested fix: Provide grass.lai_id value or set grass fraction to 0
+   - Found (3) critical Pydantic validation error(s):
+   -- bldgs.faibldg: KCL: for rslmethod=2 and bldgs.sfr=0.38, bldgs.faibldg must be set
+      Location: sites[KCL].properties.land_cover.bldgs.faibldg
+   -- properties.lambda_c: KCL: storageheatmethod=6 → properties.lambda_c must be set and non-null
+      Location: sites[KCL].properties.lambda_c
+   -- netradiationmethod: netradiationmethod is set to null and will cause runtime crash - must be set to appropriate non-null value
+      Location: model.physics.netradiationmethod
    
-   ## CONDITIONAL VALIDATION DETAILS
-   - Physics method 3 requires additional parameters:
-   -- emissionsmethod: Currently null, required for net radiation method 3
-   -- storageheatmethod: Currently null, required for complete energy balance
-   
-   - Site configuration issues:
-   -- Building fraction 0.4 requires vertical_layers.height parameters
-   -- Vegetation lai_id values missing for non-zero vegetation fractions
    
    # ==================================================
 
 **Next Steps:**
 
-1. **Review Pydantic validation errors** in the report
-2. **Set required physics method parameters** identified in ACTION NEEDED section
-3. **Resolve conditional validation issues** based on your land cover fractions
-4. **Ensure data availability** matches selected physics methods
+1. **Review each validation error** in the ACTION NEEDED section - each error is now reported separately with specific field names and locations
+2. **Fix critical null physics parameters**: Set parameters like ``netradiationmethod`` to appropriate non-null values  
+3. **Resolve conditional validation requirements**: 
+   - For RSL method issues, either set required parameters (e.g., ``bldgs.faibldg``) or change physics method
+   - For storage heat issues, provide required parameters (e.g., ``properties.lambda_c``) or select different method
+4. **Use location information** provided in each error to find the exact parameter in your YAML configuration
 5. **Re-run Phase C** (or full workflow) after fixing the issues
 
 .. note::
+   
+   **Enhanced Error Reporting**: Phase C now provides detailed, separated validation errors with specific field names and locations, making it easier to identify and fix configuration issues. Each validation error is reported individually rather than as a single combined message.
    
    **Model-Ready Configuration**: Once Phase C passes, your configuration is fully validated and ready for SUEWS model execution. The updated YAML file will load successfully in SUEWS without further validation errors.
 

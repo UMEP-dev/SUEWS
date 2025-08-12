@@ -34,6 +34,21 @@
 
 ## 2025
 
+### 12 Aug 2025
+- [feature] Enhanced YAML processor Phase C validation error reporting 
+  - Converted conditional validation warnings to actionable validation errors
+  - Added critical null physics parameter detection for runtime-critical parameters
+  - Improved error reporting with individual, separated validation issues
+  - Each validation error now shows specific field names and precise locations in YAML structure
+  - Suppressed verbose validation summary warnings for cleaner user experience
+  - Updated documentation to reflect new validation error handling and enhanced reporting
+- [maintenance] Replaced hardcoded nested sections list with dynamic introspection in YAML processor
+  - Implemented `get_allowed_nested_sections_in_properties()` with Pydantic model introspection
+  - Automatically discovers nested BaseModel fields that allow extra parameters across all data model modules  
+  - Eliminates maintenance burden - no manual updates needed when data model evolves
+  - Added comprehensive test suite covering dynamic introspection, type extraction, and error handling
+  - Enhanced technical documentation in `phase_a_detailed.rst` with implementation details
+
 ### 10 Aug 2025
 - [maintenance] Removed web UI configuration builder from documentation
   - Deleted all web UI files from `docs/source/_static/`

@@ -2304,7 +2304,10 @@ class LUMPSParams(BaseModel):
 
 class SiteProperties(BaseModel):
     model_config = ConfigDict(
-        title="Site Properties"
+        title="Site Properties",
+        extra="forbid",  # This will prevent extra fields from being accepted
+        validate_assignment=True,  # This will validate fields on assignment
+        validate_default=True,  # This will validate default values
     )
 
     lat: FlexibleRefValue(float) = Field(
@@ -2474,12 +2477,6 @@ class SiteProperties(BaseModel):
                     )
 
         return values
-
-    model_config = ConfigDict(
-        extra="forbid",  # This will prevent extra fields from being accepted
-        validate_assignment=True,  # This will validate fields on assignment
-        validate_default=True,  # This will validate default values
-    )
 
     def to_df_state(self, grid_id: int) -> pd.DataFrame:
         """Convert site properties to DataFrame state format"""

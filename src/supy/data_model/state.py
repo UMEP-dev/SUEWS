@@ -868,8 +868,11 @@ class InitialStates(BaseModel):
     )
     tair_av: float = Field(
         default=0,
-        description="Average air temperature",
-        json_schema_extra={"display_name": "Average Air Temperature"},
+        description="Average air temperature (internal use only)",
+        json_schema_extra={
+            "display_name": "Average Air Temperature",
+            "internal_only": True,
+        },
     )
     tmax_id: float = Field(
         default=0,

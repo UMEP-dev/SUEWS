@@ -51,12 +51,12 @@ Technical Implementation
        'rslmethod', 'faimethod', 'rsllevel',
        'gsmodel', 'snowuse', 'stebbsmethod'
    }
-   
+
    # Outdated parameter mappings
    RENAMED_PARAMS = {
-       'cp': 'rho_cp',                    
-       'diagmethod': 'rslmethod',         
-       'localclimatemethod': 'rsllevel'   
+       'cp': 'rho_cp',
+       'diagmethod': 'rslmethod',
+       'localclimatemethod': 'rsllevel'
    }
 
 Processing Modes and Behaviour
@@ -88,14 +88,14 @@ Phase A implements different strategies for handling extra parameters (NOT IN ST
        """Categorise extra parameters by Pydantic location constraints."""
        # ACTION_NEEDED: Parameters in forbidden locations (sites[].properties)
        # NO_ACTION_NEEDED: Parameters in allowed locations
-       
+
    def get_allowed_nested_sections_in_properties():
        """Dynamically discover nested sections that allow extra parameters.
-       
-       Uses introspection to find BaseModel fields within classes that have 
-       extra="forbid" configuration. Automatically discovers new nested 
+
+       Uses introspection to find BaseModel fields within classes that have
+       extra="forbid" configuration. Automatically discovers new nested
        sections as data model evolves.
-       
+
        Returns: Sorted list of field names (e.g., ["irrigation", "snow", "stebbs"])
        """
 
@@ -108,21 +108,21 @@ The system automatically discovers which nested sections allow extra parameters 
    def get_allowed_nested_sections_in_properties():
        """Dynamic introspection across all data model modules."""
        # 1. Import all data model modules (hydro, site, model, etc.)
-       # 2. Find BaseModel classes with extra="forbid" configuration  
+       # 2. Find BaseModel classes with extra="forbid" configuration
        # 3. Inspect their nested BaseModel fields
        # 4. Check if nested models allow extra parameters
        # 5. Return sorted list of allowed section names
-       
+
    # Automatically discovers sections like:
-   # ["anthropogenic_emissions", "building_archetype", "irrigation", 
+   # ["anthropogenic_emissions", "building_archetype", "irrigation",
    #  "snow", "stebbs", "conductance", ...]
-   
+
    # Replaces hardcoded lists - stays in sync with data model changes
 
 **Benefits of Dynamic Introspection:**
 
 - **Automatic Discovery**: New nested sections are found automatically
-- **Maintenance-Free**: No manual updates needed when data model evolves  
+- **Maintenance-Free**: No manual updates needed when data model evolves
 - **Type Safety**: Uses actual Pydantic introspection, not assumptions
 - **Robust Fallback**: Falls back to validated static sections if needed
 - **Comprehensive Coverage**: Scans all data model modules systematically
@@ -140,12 +140,12 @@ The dynamic introspection system operates through several key components:
            'hydro', 'human_activity', 'model', 'state', 'site', 'core',
            'ohm', 'profile', 'surface', 'timezone_enum', 'type'
        ]
-       
-       # 2. Class Scanning Phase  
+
+       # 2. Class Scanning Phase
        for module_name in data_model_modules:
-           module = importlib.import_module(f'.{module_name}', 
+           module = importlib.import_module(f'.{module_name}',
                                           package='supy.data_model')
-           
+
            # Find BaseModel classes with extra="forbid"
            for attr_name in dir(module):
                if is_forbidden_model(attr):
@@ -154,12 +154,12 @@ The dynamic introspection system operates through several key components:
                        nested_model = _extract_nested_model_type(field_info.annotation)
                        if nested_model and _allows_extra_parameters(nested_model):
                            allowed_sections.add(field_name)
-       
+
        # 4. Validation & Fallback Phase
        if not allowed_sections:
            # Use validated static sections as fallback
            return validate_against_actual_model(static_sections)
-       
+
        return sorted(allowed_sections)
 
 **Helper Functions:**
@@ -168,11 +168,11 @@ The dynamic introspection system operates through several key components:
 
    def _extract_nested_model_type(annotation):
        """Extract BaseModel types from complex annotations."""
-       # Handles: Dict[str, BaseModel], List[BaseModel], 
+       # Handles: Dict[str, BaseModel], List[BaseModel],
        #          Union[BaseModel, str], Optional[BaseModel]
-       
+
    def _allows_extra_parameters(model_class):
-       """Check if model allows extra parameters."""  
+       """Check if model allows extra parameters."""
        # Returns: True if extra != "forbid"
 
 **Discovery Results:**
@@ -180,7 +180,7 @@ The dynamic introspection system operates through several key components:
 Currently discovers these nested sections automatically:
 
 - **anthropogenic_emissions**: AnthropogenicEmissions model
-- **building_archetype**: ArchetypeProperties model  
+- **building_archetype**: ArchetypeProperties model
 - **conductance**: ConductanceParams model
 - **irrigation**: IrrigationParams model
 - **snow**: SnowParams model
@@ -192,7 +192,7 @@ Currently discovers these nested sections automatically:
 The system includes comprehensive error handling:
 
 - **Import Failures**: Gracefully skips modules that can't be imported
-- **Missing Attributes**: Handles classes without model_config safely  
+- **Missing Attributes**: Handles classes without model_config safely
 - **Type Extraction Errors**: Falls back to None for unrecognisable types
 - **Complete Failure**: Uses validated static sections as ultimate fallback
 
@@ -217,7 +217,7 @@ Parameters classified as critical when:
 - Required for basic model physics calculations
 - Listed in **ACTION NEEDED** section of report
 
-**Optional Missing Parameters (NO ACTION NEEDED)**  
+**Optional Missing Parameters (NO ACTION NEEDED)**
 
 Parameters classified as optional when:
 
@@ -234,7 +234,7 @@ Parameters classified as optional when:
    ├── model.physics.netradiationmethod
    ├── model.physics.emissionsmethod
    └── model.physics.stabilitymethod
-   
+
    NO ACTION NEEDED (Optional):
    ├── sites[0].properties.irrigation.wuprofm_24hr.holiday
    ├── sites[0].initial_states.soilstore_id
@@ -276,11 +276,11 @@ Outdated Parameter Handling
      physics:
        diagmethod:
          value: 2
-   
+
    # After Phase A processing (clean YAML output with updated names)
    model:
      physics:
-       rslmethod: 
+       rslmethod:
          value: 2
 
 Not In Standard Parameter Handling
@@ -306,7 +306,7 @@ Phase A identifies parameters that exist in your configuration but not in the st
 
 - **Preserved** in output YAML (allows experimental features)
 - **Categorised** by Pydantic location constraints:
-  
+
   - **NO_ACTION_NEEDED**: Parameters in allowed locations (preserved)
   - **ACTION_NEEDED**: Parameters in forbidden locations (SiteProperties)
 
@@ -322,7 +322,7 @@ Phase A identifies parameters that exist in your configuration but not in the st
    sites:
    - properties:
        custom_param: 1.5                       # → Removed
-   
+
    # Dev mode: Location-dependent handling
    model:
      control:
@@ -331,7 +331,7 @@ Phase A identifies parameters that exist in your configuration but not in the st
    - properties:
        custom_param: 1.5                       # → ACTION_NEEDED (forbidden location)
        stebbs:
-         experimental_param: 2.0               # → Preserved (allowed nested section)                        
+         experimental_param: 2.0               # → Preserved (allowed nested section)
 
 .. _phase_a_actions:
 
@@ -352,7 +352,7 @@ Output Files Structure
    # - All changes are reported in reportA_<yourfilename>.txt
    #
    # =============================================================================
-   
+
    name: Updated User Configuration
    model:
      control:
@@ -371,16 +371,16 @@ Output Files Structure
 Phase A generates mode-dependent comprehensive reports with two main sections:
 
 - **ACTION NEEDED**: Critical physics parameters that must be set by the user (YAML contains null values)
-  
+
   - In **Dev Mode**: Also includes extra parameters in forbidden locations
   - In **Public Mode**: Only critical missing parameters (extra parameters are removed)
 
 - **NO ACTION NEEDED**: All updates automatically applied including:
-  
+
   - Optional missing parameters updated with null values
   - Parameter renamings applied
   - Mode-dependent extra parameter handling:
-    
+
     - **Public Mode**: "Removed (X) parameter(s) from YAML: consider switching to dev mode option"
     - **Dev Mode**: "Found (X) parameter(s) not in standard" (for allowed locations)
 
@@ -390,62 +390,62 @@ Phase A generates mode-dependent comprehensive reports with two main sections:
 
 .. code-block:: text
 
-   # SUEWS - Phase A (Up-to-date YAML check) Report  
+   # SUEWS - Phase A (Up-to-date YAML check) Report
    # Generated: 2024-01-15 14:30:00
    # Mode: Public
    # ==================================================
-   
+
    ## ACTION NEEDED
    - Found (1) critical missing parameter(s):
    -- netradiationmethod has been added to updatedA_user.yml and set to null
       Suggested fix: Set appropriate value based on SUEWS documentation
-   
+
    ## NO ACTION NEEDED
    - Updated (3) optional missing parameter(s) with null values:
    -- holiday added to updatedA_user.yml and set to null
    -- wetthresh added to updatedA_user.yml and set to null
-   
+
    - Updated (2) renamed parameter(s):
    -- diagmethod changed to rslmethod
    -- cp changed to rho_cp
-   
+
    - Removed (2) parameter(s) from YAML: consider switching to dev mode option
    -- startdate from level model.control.startdate
    -- test from level sites[0].properties.test
-   
+
    # ==================================================
 
 **Developer Mode Report** (``reportA_<filename>.txt``):
 
 .. code-block:: text
 
-   # SUEWS - Phase A (Up-to-date YAML check) Report  
+   # SUEWS - Phase A (Up-to-date YAML check) Report
    # Generated: 2024-01-15 14:30:00
    # Mode: Developer
    # ==================================================
-   
+
    ## ACTION NEEDED
    - Found (1) critical missing parameter(s):
    -- netradiationmethod has been added to updatedA_user.yml and set to null
       Suggested fix: Set appropriate value based on SUEWS documentation
-   
+
    - Found (1) parameter(s) in forbidden locations:
    -- test at level sites[0].properties.test
       Reason: Extra parameters not allowed in SiteProperties
       Suggested fix: Remove parameter or move to allowed nested section (stebbs, irrigation, snow)
-   
+
    ## NO ACTION NEEDED
    - Updated (3) optional missing parameter(s) with null values:
    -- holiday added to updatedA_user.yml and set to null
    -- wetthresh added to updatedA_user.yml and set to null
-   
+
    - Updated (2) renamed parameter(s):
    -- diagmethod changed to rslmethod
    -- cp changed to rho_cp
-   
+
    - Found (1) parameter(s) not in standard:
    -- startdate at level model.control.startdate
-   
+
    # ==================================================
 
 Error Handling and Edge Cases
@@ -484,12 +484,12 @@ Phase A output serves as input to subsequent phases in the validation pipeline:
    # Phase A generates
    updatedA_user_config.yml    # → Input to Phase B/C
    reportA_user_config.txt     # → Phase A analysis
-   
+
    # Workflow combinations process Phase A output:
    updatedA_user_config.yml    # ← Phase A output
    ↓
    updatedAB_user_config.yml   # → AB workflow final output
-   updatedAC_user_config.yml   # → AC workflow final output  
+   updatedAC_user_config.yml   # → AC workflow final output
    updatedABC_user_config.yml  # → Complete pipeline output
 
 **Mode Integration:**
@@ -512,7 +512,7 @@ Phase A includes comprehensive test coverage:
 **Test Categories:**
 
 - **Parameter Detection**: Missing, renamed, and extra parameters
-- **File Handling**: Various file formats and error conditions  
+- **File Handling**: Various file formats and error conditions
 - **Classification Logic**: Critical vs optional parameter sorting
 - **Output Generation**: YAML and report file creation
 - **Edge Cases**: Empty files, malformed YAML, permission errors
@@ -529,10 +529,10 @@ Phase A includes comprehensive test coverage:
                # netradiationmethod missing
            }
        }
-       
+
        missing_params = find_missing_parameters(user_config, standard_config)
        urgent_params = [path for path, val, is_urgent in missing_params if is_urgent]
-       
+
        assert 'model.physics.netradiationmethod' in urgent_params
 
 Mode Selection Guidelines
@@ -563,7 +563,7 @@ Mode Selection Guidelines
 
    Developer Mode Allowances:
    ├── All experimental features # No pre-validation restrictions
-   ├── Extra parameters         # Preserved in allowed locations  
+   ├── Extra parameters         # Preserved in allowed locations
    └── Enhanced diagnostics     # Additional reporting information
 
 Best Practices
@@ -620,27 +620,27 @@ Troubleshooting
 
    # Direct Python usage
    from supy.data_model.uptodate_yaml import annotate_missing_parameters
-   
+
    # Public mode usage (default)
    result = annotate_missing_parameters(
        user_file="my_config.yml",
-       standard_file="sample_data/sample_config.yml", 
+       standard_file="sample_data/sample_config.yml",
        uptodate_file="updatedA_my_config.yml",
        report_file="reportA_my_config.txt",
        mode="public",  # Public mode - removes extra parameters
        phase="A"
    )
-   
-   # Developer mode usage  
+
+   # Developer mode usage
    result = annotate_missing_parameters(
        user_file="my_config.yml",
-       standard_file="sample_data/sample_config.yml", 
+       standard_file="sample_data/sample_config.yml",
        uptodate_file="updatedA_my_config.yml",
        report_file="reportA_my_config.txt",
        mode="dev",    # Developer mode preserves extra parameters
        phase="A"
    )
-   
+
    if result:
        print("✅ Phase A completed successfully")
    else:
@@ -652,8 +652,8 @@ Troubleshooting
 
    # Public mode (default) - removes extra parameters
    python src/supy/data_model/suews_yaml_processor.py user_config.yml --phase A --mode public
-   
-   # Developer mode - preserves extra parameters  
+
+   # Developer mode - preserves extra parameters
    python src/supy/data_model/suews_yaml_processor.py user_config.yml --phase A --mode dev
 
 Related Documentation

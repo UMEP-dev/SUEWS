@@ -30,7 +30,7 @@ The SUEWS YAML processor serves as the **orchestrator** that coordinates Phase A
 .. code-block:: python
 
    from uptodate_yaml import annotate_missing_parameters      # Phase A
-   from science_check import run_science_check               # Phase B 
+   from science_check import run_science_check               # Phase B
    from core import SUEWSConfig                             # Phase C (Pydantic)
    from phase_c_reports import generate_phase_c_report      # Phase C reporting
 
@@ -82,7 +82,7 @@ Orchestrator Functions
 
 .. code-block:: python
 
-   def run_phase_a(user_yaml_file: str, standard_yaml_file: str, uptodate_file: str, 
+   def run_phase_a(user_yaml_file: str, standard_yaml_file: str, uptodate_file: str,
                    report_file: str, mode: str) -> bool:
        """Execute Phase A: Up-to-date YAML check and parameter detection."""
 
@@ -99,7 +99,7 @@ Orchestrator Functions
 
 .. code-block:: python
 
-   def run_phase_b(user_yaml_file: str, uptodate_file: str, science_file: str, 
+   def run_phase_b(user_yaml_file: str, uptodate_file: str, science_file: str,
                    report_file: str, mode: str) -> bool:
        """Execute Phase B: Scientific validation and automatic adjustments."""
 
@@ -116,8 +116,8 @@ Orchestrator Functions
 
 .. code-block:: python
 
-   def run_phase_c(input_yaml_file: str, pydantic_yaml_file: str, 
-                   report_file: str, mode: str, phases_run: list, 
+   def run_phase_c(input_yaml_file: str, pydantic_yaml_file: str,
+                   report_file: str, mode: str, phases_run: list,
                    phase_a_report_file: str = None) -> bool:
        """Execute Phase C: Conditional Pydantic validation."""
 
@@ -130,7 +130,7 @@ Orchestrator Functions
 
 .. code-block:: python
 
-   def detect_pydantic_defaults(original_data: dict, processed_data: dict, 
+   def detect_pydantic_defaults(original_data: dict, processed_data: dict,
                                path: str = "", standard_data: dict = None):
        """Detect where Pydantic applied defaults and separate critical nulls from normal defaults."""
 
@@ -157,7 +157,7 @@ Orchestrator Functions
 - Ensures consistent formatting across phases
 
 Workflow Execution Patterns
-----------------------------
+---------------------------
 
 **1. Single Phase Execution**
 
@@ -165,7 +165,7 @@ Workflow Execution Patterns
 
    # Individual phase execution
    python suews_yaml_processor.py user.yml --phase A    # Phase A only
-   python suews_yaml_processor.py user.yml --phase B    # Phase B only  
+   python suews_yaml_processor.py user.yml --phase B    # Phase B only
    python suews_yaml_processor.py user.yml --phase C    # Phase C only
 
 **Execution Pattern**: Direct phase execution with targeted validation
@@ -189,11 +189,11 @@ Workflow Execution Patterns
    # Workflow execution example (ABC)
    if 'A' in phase:
        phase_a_success = run_phase_a(user_yaml_file, standard_file, uptodate_file, reportA_file, mode)
-       
+
    if 'B' in phase:
        input_for_b = uptodate_file if 'A' in phase else user_yaml_file
        phase_b_success = run_phase_b(input_for_b, science_file, reportB_file, mode)
-       
+
    if 'C' in phase:
        input_for_c = science_file if phase_b_success else (uptodate_file if 'A' in phase else user_yaml_file)
        phase_c_success = run_phase_c(input_for_c, pydantic_file, reportC_file, mode, phases_run)
@@ -323,13 +323,13 @@ Command-Line Interface
 
    # Complete validation workflow (default)
    python suews_yaml_processor.py my_config.yml
-   
+
    # Parameter checking only
    python suews_yaml_processor.py my_config.yml --phase A
-   
+
    # Skip scientific validation
    python suews_yaml_processor.py my_config.yml --phase AC
-   
+
    # Developer mode with extended diagnostics
    python suews_yaml_processor.py my_config.yml --mode dev
 
@@ -347,7 +347,7 @@ The orchestrator implements **systematic file naming** based on workflow and pha
 
 **Combined Workflow Outputs:**
 - ``updatedAB_<filename>.yml`` - A→B workflow result
-- ``updatedAC_<filename>.yml`` - A→C workflow result  
+- ``updatedAC_<filename>.yml`` - A→C workflow result
 - ``updatedBC_<filename>.yml`` - B→C workflow result
 - ``updatedABC_<filename>.yml`` - Complete A→B→C workflow result
 
@@ -366,7 +366,7 @@ The orchestrator implements **systematic file naming** based on workflow and pha
 - **Complete failure**: Original file remains unchanged, error reports generated
 
 Integration with SUEWS Ecosystem
----------------------------------
+--------------------------------
 
 **1. Core SUEWS Integration**
 
@@ -376,7 +376,7 @@ The processor integrates seamlessly with the SUEWS configuration system:
 
    # Direct integration with SUEWS configuration loading
    config = SUEWSConfig.from_yaml(validated_file)  # Uses Phase C validated output
-   
+
    # Guaranteed compatibility with SUEWS simulation workflow
    df_output, df_state = run_supy(config)  # No additional validation required
 
@@ -406,11 +406,11 @@ The orchestrator design supports **automated batch processing** workflows:
    done
 
 Performance and Scalability
-----------------------------
+---------------------------
 
 **Execution Performance:**
 - **Phase A**: Fast parameter detection and structure validation
-- **Phase B**: Moderate - scientific constraint checking across all sites  
+- **Phase B**: Moderate - scientific constraint checking across all sites
 - **Phase C**: Comprehensive - full Pydantic model validation with conditional rules
 
 **Memory Management:**
@@ -424,12 +424,12 @@ Performance and Scalability
 - **Disk usage**: Systematic intermediate file management
 
 Best Practices and Troubleshooting
------------------------------------
+----------------------------------
 
 **For Users:**
 
 1. **Start with complete workflow** (``--phase ABC``) for comprehensive validation
-2. **Use individual phases for debugging** specific validation issues  
+2. **Use individual phases for debugging** specific validation issues
 3. **Check reports carefully** for actionable recommendations
 4. **Preserve intermediate files** during development for analysis
 
@@ -446,12 +446,12 @@ Best Practices and Troubleshooting
 - **Cause**: Phase expects different file format than provided
 - **Fix**: Check file chaining logic in workflow execution
 
-**Issue 2: Report consolidation failures**  
+**Issue 2: Report consolidation failures**
 - **Cause**: Missing or malformed intermediate reports
 - **Fix**: Verify report file generation in individual phases
 
 **Issue 3: File permission errors**
-- **Cause**: Insufficient permissions for output directory  
+- **Cause**: Insufficient permissions for output directory
 - **Fix**: Ensure write permissions for output location
 
 Technical Implementation Details
@@ -464,7 +464,7 @@ Technical Implementation Details
    # Clean phase separation with error handling
    try:
        from uptodate_yaml import annotate_missing_parameters
-       from science_check import run_science_check  
+       from science_check import run_science_check
    except ImportError as e:
        print(f"Error importing required modules: {e}")
        sys.exit(1)
@@ -493,7 +493,7 @@ Technical Implementation Details
        base_path = Path(user_yaml_file)
        stem = base_path.stem
        directory = base_path.parent
-       
+
        # Generate phase-specific paths systematically
        paths = {
            'updatedA': directory / f"updatedA_{stem}.yml",
@@ -507,7 +507,7 @@ Related Documentation
 
 **Phase-Specific Documentation:**
 - `phase_a_detailed.rst <phase_a_detailed.rst>`_ - Comprehensive Phase A parameter detection and structure validation
-- `phase_b_detailed.rst <phase_b_detailed.rst>`_ - Complete Phase B scientific validation and automatic corrections  
+- `phase_b_detailed.rst <phase_b_detailed.rst>`_ - Complete Phase B scientific validation and automatic corrections
 - `phase_c_detailed.rst <phase_c_detailed.rst>`_ - Detailed Phase C Pydantic validation and conditional rules
 
 **Core Integration Documentation:**
@@ -518,7 +518,7 @@ Related Documentation
 
 **Implementation Files:**
 - ``suews_yaml_processor.py`` - Main orchestrator implementation (**this file's focus**)
-- ``uptodate_yaml.py`` - Phase A implementation  
+- ``uptodate_yaml.py`` - Phase A implementation
 - ``science_check.py`` - Phase B implementation
 - ``core.py`` - Phase C Pydantic validation implementation
 - ``phase_c_reports.py`` - Phase C specialized report generation

@@ -92,21 +92,21 @@ Validates internal consistency between different physics options using actual im
        """Validate internal consistency between model physics options."""
        results = []
        physics = yaml_data.get("model", {}).get("physics", {})
-       
+
        # Check rslmethod-stabilitymethod constraints
        rslmethod = get_value_safe(physics, "rslmethod")
        stabilitymethod = get_value_safe(physics, "stabilitymethod")
-       
+
        # Constraint: If rslmethod == 2, stabilitymethod must be 3
        if rslmethod == 2 and stabilitymethod != 3:
            results.append(ValidationResult(
                status="ERROR",
-               category="MODEL_OPTIONS", 
+               category="MODEL_OPTIONS",
                parameter="rslmethod-stabilitymethod",
                message="If rslmethod == 2, stabilitymethod must be 3",
                suggested_value="Set stabilitymethod to 3"
            ))
-       
+
        return results
 
 **Land Cover Consistency**
@@ -136,9 +136,9 @@ Phase B integrates CRU TS4.06 monthly climatological data (1991-2020) for accura
 .. code-block:: python
 
    def get_mean_monthly_air_temperature(
-       lat: float, 
-       lon: float, 
-       month: int, 
+       lat: float,
+       lon: float,
+       month: int,
        spatial_res: float = 0.5
    ) -> float:
        """Calculate mean monthly air temperature using CRU TS4.06 data."""
@@ -163,23 +163,23 @@ Phase B integrates CRU TS4.06 monthly climatological data (1991-2020) for accura
    - properties:
        initial_states:
          paved:
-           tsfc: 
+           tsfc:
              value: null    # Uninitialised surface temperature
            temperature:
              value: null    # Uninitialised 5-layer temperatures
-   
+
    # After Phase B processing with CRU integration
-   sites:  
+   sites:
    - properties:
        initial_states:
          paved:
-           tsfc: 
+           tsfc:
              value: 15.8    # CRU-derived temperature for January at coordinates
            temperature:
              value: [15.8, 15.8, 15.8, 15.8, 15.8]    # 5-layer temperatures
 
 Scientific Corrections and Adjustments
----------------------------------------
+--------------------------------------
 
 **Intelligent Automatic Corrections:**
 
@@ -216,7 +216,7 @@ Phase B includes enhanced validation logic with improved parameter handling:
 - **Timezone Integration**: Uses timezonefinder and pytz libraries for accurate calculations
 
 Processing Modes and Behaviour
--------------------------------
+------------------------------
 
 **Mode-Dependent Behaviour:**
 
@@ -255,7 +255,7 @@ Output Files Structure
    # Details of changes are in the generated report.
    #
    # ==============================================================================
-   
+
    name: Scientifically Validated Configuration
    model:
      physics:
@@ -286,12 +286,12 @@ Phase B generates comprehensive reports with two main sections:
    # ==================================================
    # Mode: Public
    # ==================================================
-   
+
    ## ACTION NEEDED
    - Found (1) critical scientific parameter error(s):
    -- rslmethod-stabilitymethod: If rslmethod == 2, stabilitymethod must be 3 for diagnostic aerodynamic calculations
       Suggested value: Set stabilitymethod to 3
-   
+
    ## NO ACTION NEEDED
    - Updated (9) parameter(s):
    -- initial_states.paved: temperature, tsfc, tin → 12.4°C (Set from CRU data for coordinates (51.51, -0.13) for month 1)
@@ -299,7 +299,7 @@ Phase B generates comprehensive reports with two main sections:
    -- anthropogenic_emissions.startdls: 15.0 → 86 (Calculated DLS start for coordinates (51.51, -0.13))
    -- anthropogenic_emissions.enddls: 12.0 → 303 (Calculated DLS end for coordinates (51.51, -0.13))
    -- paved.sfr at site [0]: rounded to achieve sum of land cover fractions equal to 1.0 → tolerance level: 1.00e-08
-   
+
    # ==================================================
 
 Error Handling and Edge Cases
@@ -346,9 +346,9 @@ Phase B output serves as input to subsequent phases in the validation pipeline:
    user_config.yml              # ← Direct user input
    ↓
    updatedB_user_config.yml     # → Phase B output
-   ↓  
+   ↓
    updatedAB_user_config.yml    # → AB workflow final output
-   updatedBC_user_config.yml    # → BC workflow final output  
+   updatedBC_user_config.yml    # → BC workflow final output
    updatedABC_user_config.yml   # → Complete pipeline output
 
 **Mode Integration:**
@@ -385,7 +385,7 @@ Phase B includes comprehensive test coverage:
        # Test known coordinates (London)
        lat, lng, month = 51.5074, -0.1278, 1
        temp = get_mean_monthly_air_temperature(lat, lng, month)
-       
+
        # London January temperature should be reasonable
        assert 0 <= temp <= 20, f"Unrealistic temperature: {temp}°C"
        assert temp is not None, "CRU lookup should return valid temperature"
@@ -435,7 +435,7 @@ Troubleshooting
 .. code-block:: text
 
    Solution: Ensure CRU Parquet file is available in package
-   Check: Import should include ext_data/CRU_TS4.06_1991_2020.parquet  
+   Check: Import should include ext_data/CRU_TS4.06_1991_2020.parquet
    Fix: Reinstall SUEWS package or check data file integrity
 
 **Issue**: "No CRU data found within spatial resolution"
@@ -469,18 +469,18 @@ Troubleshooting
 
    # Direct Python usage for Phase B
    from supy.data_model.science_check import run_science_check
-   
+
    # Function returns updated YAML data as dict
    updated_data = run_science_check(
        uptodate_yaml_file="updatedA_my_config.yml",
-       user_yaml_file="my_config.yml", 
+       user_yaml_file="my_config.yml",
        standard_yaml_file="src/supy/sample_data/sample_config.yml",
        science_yaml_file="updatedB_my_config.yml",
        science_report_file="reportB_my_config.txt",
        mode="public",  # Mode only affects report header
        phase="B"
    )
-   
+
    if updated_data:
        print("✅ Phase B scientific validation completed successfully")
    else:
@@ -492,7 +492,7 @@ Troubleshooting
 
    # Public mode (default) - standard scientific validation
    python src/supy/data_model/suews_yaml_processor.py user_config.yml --phase B --mode public
-   
+
    # Developer mode - identical validation with different report header
    python src/supy/data_model/suews_yaml_processor.py user_config.yml --phase B --mode dev
 
@@ -502,10 +502,10 @@ Troubleshooting
 
    # Phase B after Phase A (AB workflow)
    python src/supy/data_model/suews_yaml_processor.py user_config.yml --phase AB
-   
-   # Phase B before Phase C (BC workflow)  
+
+   # Phase B before Phase C (BC workflow)
    python src/supy/data_model/suews_yaml_processor.py user_config.yml --phase BC
-   
+
    # Complete pipeline including Phase B (ABC workflow)
    python src/supy/data_model/suews_yaml_processor.py user_config.yml --phase ABC
 

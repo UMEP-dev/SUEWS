@@ -159,10 +159,17 @@ def get_enum_class_from_field(
     origin = get_origin(field_type_hint) or field_type_hint
     args = get_args(field_type_hint)
 
-    if hasattr(origin, "__name__") and origin.__name__ in {
-        "RefValue",
-        "FlexibleRefValue",
-    } and args and hasattr(args[0], "__bases__") and Enum in args[0].__bases__:
+    if (
+        hasattr(origin, "__name__")
+        and origin.__name__
+        in {
+            "RefValue",
+            "FlexibleRefValue",
+        }
+        and args
+        and hasattr(args[0], "__bases__")
+        and Enum in args[0].__bases__
+    ):
         return args[0]
 
     # Direct enum type
@@ -216,7 +223,9 @@ def parse_method_options(
             if opt_text_stripped:
                 # Format: "0 (NAME) = Description" or similar
                 # Extract number, name in parentheses, and description
-                match = re.match(r"^(\d+(?:-\d+)?)\s*\(([^)]+)\)\s*=\s*(.+)$", opt_text_stripped)
+                match = re.match(
+                    r"^(\d+(?:-\d+)?)\s*\(([^)]+)\)\s*=\s*(.+)$", opt_text_stripped
+                )
                 if match:
                     num, name, desc = match.groups()
 
@@ -345,15 +354,21 @@ def generate_rst_for_model(
                         "- stabilitymethod:",
                         "- :ref:`stabilitymethod <stabilitymethod>`:",
                     )
-                    processed_line = processed_line.replace("BY diagmethod", "**BY** ``diagmethod``")
+                    processed_line = processed_line.replace(
+                        "BY diagmethod", "**BY** ``diagmethod``"
+                    )
                 elif "- localclimatemethod:" in line:
                     processed_line = processed_line.replace(
                         "- localclimatemethod:",
                         "- :ref:`localclimatemethod <localclimatemethod>`:",
                     )
-                    processed_line = processed_line.replace("FROM diagmethod", "**FROM** ``diagmethod``")
+                    processed_line = processed_line.replace(
+                        "FROM diagmethod", "**FROM** ``diagmethod``"
+                    )
                 elif "- gsmodel:" in line:
-                    processed_line = processed_line.replace("- gsmodel:", "- :ref:`gsmodel <gsmodel>`:")
+                    processed_line = processed_line.replace(
+                        "- gsmodel:", "- :ref:`gsmodel <gsmodel>`:"
+                    )
                     processed_line = processed_line.replace(
                         "localclimatemethod adjustments",
                         "``localclimatemethod`` adjustments",
@@ -379,7 +394,11 @@ def generate_rst_for_model(
 
     for field_name, field_info in model_class.model_fields.items():
         # Check if field is marked as internal
-        if not include_internal and isinstance(field_info.json_schema_extra, dict) and field_info.json_schema_extra.get("internal_only", False):
+        if (
+            not include_internal
+            and isinstance(field_info.json_schema_extra, dict)
+            and field_info.json_schema_extra.get("internal_only", False)
+        ):
             continue  # Skip internal fields in user docs
         field_type_hint = field_info.annotation
 
@@ -677,7 +696,9 @@ def generate_rst_for_model(
         type_name = getattr(origin_type, "__name__", "")
 
         # Check if it's a RefValue or FlexibleRefValue
-        if type_name in {"RefValue", "FlexibleRefValue"} or "RefValue" in str(field_type_hint):
+        if type_name in {"RefValue", "FlexibleRefValue"} or "RefValue" in str(
+            field_type_hint
+        ):
             rst_content.append(
                 "   :Reference: Optional - see :doc:`reference` for DOI/citation format"
             )

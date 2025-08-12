@@ -348,21 +348,25 @@ def validate_land_cover_consistency(yaml_data: dict) -> List[ValidationResult]:
                     ValidationResult(
                         status="ERROR",
                         category="LAND_COVER",
-                        parameter="surface_fractions",
+                        parameter="land_cover.surface_fractions",
                         site_index=site_idx,
                         message=f"All surface fractions are zero or missing",
-                        suggested_value="Set surface fractions that sum to 1.0",
+                        suggested_value="Set surface fractions (paved.sfr, bldgs.sfr, evetr.sfr, dectr.sfr, grass.sfr, bsoil.sfr, water.sfr) that sum to 1.0",
                     )
                 )
             else:
+                surface_list = ", ".join([f"{surf}={val:.3f}" for surf, val in surface_types])
+                # Identify the surface with the largest fraction (same as auto-correction logic)
+                surface_dict = dict(surface_types)
+                max_surface = max(surface_dict.keys(), key=lambda k: surface_dict[k]) if surface_dict else "surface"
                 results.append(
                     ValidationResult(
                         status="ERROR",
                         category="LAND_COVER",
-                        parameter="surface_fractions",
+                        parameter=f"{max_surface}.sfr",
                         site_index=site_idx,
-                        message=f"Surface fractions sum to {sfr_sum:.6f}, should equal 1.0",
-                        suggested_value="Adjust surface fractions to sum to exactly 1.0",
+                        message=f"Surface fractions sum to {sfr_sum:.6f}, should equal 1.0 (auto-correction range: 0.9999-1.0001, current: {surface_list})",
+                        suggested_value=f"Adjust {max_surface}.sfr or other surface fractions so they sum to exactly 1.0",
                     )
                 )
 
@@ -787,6 +791,7 @@ def adjust_land_cover_fractions(
 
         correction_applied = False
 
+        # Auto-correct only small floating point errors (same as precheck logic)
         if 0.9999 <= sfr_sum < 1.0:
             max_surface = max(
                 surface_fractions.keys(), key=lambda k: surface_fractions[k]
@@ -798,15 +803,27 @@ def adjust_land_cover_fractions(
             land_cover[max_surface]["sfr"]["value"] = new_value
             correction_applied = True
 
-            adjustments.append(
-                ScientificAdjustment(
-                    parameter=f"{max_surface}.sfr",
-                    site_index=site_idx,
-                    old_value=f"{old_value:.6f}",
-                    new_value=f"{new_value:.6f}",
-                    reason=f"Auto-corrected sum from {sfr_sum:.6f} to 1.0 (small floating point error)",
+            # Always report adjustments, but use appropriate format based on visibility
+            if abs(correction) >= 1e-6:  # If change is visible at 6 decimal places
+                adjustments.append(
+                    ScientificAdjustment(
+                        parameter=f"{max_surface}.sfr",
+                        site_index=site_idx,
+                        old_value=f"{old_value:.6f}",
+                        new_value=f"{new_value:.6f}",
+                        reason=f"Auto-corrected sum from {sfr_sum:.6f} to 1.0 (small floating point error)",
+                    )
                 )
-            )
+            else:  # Tiny correction not visible at display precision
+                adjustments.append(
+                    ScientificAdjustment(
+                        parameter=f"{max_surface}.sfr",
+                        site_index=site_idx,
+                        old_value="rounded to achieve sum of land cover fractions equal to 1.0",
+                        new_value=f"tolerance level: {abs(correction):.2e}",
+                        reason="Small floating point rounding applied to surface with max surface fraction value",
+                    )
+                )
 
         elif 1.0 < sfr_sum <= 1.0001:
             max_surface = max(
@@ -819,15 +836,27 @@ def adjust_land_cover_fractions(
             land_cover[max_surface]["sfr"]["value"] = new_value
             correction_applied = True
 
-            adjustments.append(
-                ScientificAdjustment(
-                    parameter=f"{max_surface}.sfr",
-                    site_index=site_idx,
-                    old_value=f"{old_value:.6f}",
-                    new_value=f"{new_value:.6f}",
-                    reason=f"Auto-corrected sum from {sfr_sum:.6f} to 1.0 (small floating point error)",
+            # Always report adjustments, but use appropriate format based on visibility
+            if abs(correction) >= 1e-6:  # If change is visible at 6 decimal places
+                adjustments.append(
+                    ScientificAdjustment(
+                        parameter=f"{max_surface}.sfr",
+                        site_index=site_idx,
+                        old_value=f"{old_value:.6f}",
+                        new_value=f"{new_value:.6f}",
+                        reason=f"Auto-corrected sum from {sfr_sum:.6f} to 1.0 (small floating point error)",
+                    )
                 )
-            )
+            else:  # Tiny correction not visible at display precision
+                adjustments.append(
+                    ScientificAdjustment(
+                        parameter=f"{max_surface}.sfr",
+                        site_index=site_idx,
+                        old_value="rounded to achieve sum of land cover fractions equal to 1.0",
+                        new_value=f"tolerance level: {abs(correction):.2e}",
+                        reason="Small floating point rounding applied to surface with max surface fraction value",
+                    )
+                )
 
         if correction_applied:
             site["properties"] = props

@@ -288,11 +288,12 @@ Phase B generates comprehensive reports with two main sections:
       Suggested value: Set stabilitymethod to 3
    
    ## NO ACTION NEEDED
-   - Updated (8) parameter(s):
+   - Updated (9) parameter(s):
    -- initial_states.paved: temperature, tsfc, tin → 12.4°C (Set from CRU data for coordinates (51.51, -0.13) for month 1)
    -- initial_states.bldgs: temperature, tsfc, tin → 12.4°C (Set from CRU data for coordinates (51.51, -0.13) for month 1)
    -- anthropogenic_emissions.startdls: 15.0 → 86 (Calculated DLS start for coordinates (51.51, -0.13))
    -- anthropogenic_emissions.enddls: 12.0 → 303 (Calculated DLS end for coordinates (51.51, -0.13))
+   -- paved.sfr at site [0]: rounded to achieve sum of land cover fractions equal to 1.0 → tolerance level: 1.00e-08 (Small floating point rounding applied to surface with max surface fraction value)
    
    # ==================================================
 
@@ -455,13 +456,14 @@ Troubleshooting
    Check: Review physics option combinations in SUEWS documentation
    Fix: Adjust physics options to compatible combination
 
-**Issue**: "Surface fractions do not sum to 1.0"
+**Issue**: "Surface fractions sum to 1.020000, should equal 1.0 (auto-correction range: 0.9999-1.0001, current: paved=0.450, bldgs=0.300, grass=0.270)"
 
 .. code-block:: text
 
    Solution: Land cover fractions are incomplete or incorrect
-   Check: Verify all surface types have appropriate fractions
-   Fix: Adjust fractions so total equals 1.0, or allow Phase B to normalise
+   Check: Verify surface fractions - error shows which parameter to adjust and actual values
+   Fix: Adjust the specified surface fraction (paved.sfr in this example) so total equals 1.0
+   Note: Only tiny floating-point errors (range 0.9999-1.0001) are automatically corrected
 
 **Advanced Usage:**
 

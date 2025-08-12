@@ -741,7 +741,7 @@ def create_analysis_report(
                     )
                 else:
                     report_lines.append(
-                        f"   Suggested fix: Remove parameter or move to an allowed nested section ({allowed_sections})"
+                        f"   Suggested fix: Remove parameter, change code in data_model to allow extra parameters in this location, \n or move to an allowed nested section ({allowed_sections})"
                     )
 
         report_lines.append("")

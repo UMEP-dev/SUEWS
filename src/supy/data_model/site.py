@@ -71,6 +71,12 @@ class VegetationParams(BaseModel):
 
 
 class Conductance(BaseModel):
+    """Surface conductance parameters for water vapour and heat exchange.
+    
+    These parameters control the resistance to water vapour transfer from surfaces,
+    which is critical for calculating evapotranspiration rates.
+    """
+    
     model_config = ConfigDict(
         title="Conductance"
     )
@@ -1536,6 +1542,12 @@ class ArchetypeProperties(BaseModel):
 
 
 class StebbsProperties(BaseModel):
+    """STEBBS (Surface Temperature Energy Balance for Building Surfaces) model parameters.
+    
+    Controls the building energy balance calculations including internal heating/cooling,
+    building materials properties, and thermal behaviour.
+    """
+    
     model_config = ConfigDict(
         title="STEBBS"
     )
@@ -2054,6 +2066,12 @@ class StebbsProperties(BaseModel):
 
 
 class SPARTACUSParams(BaseModel):
+    """SPARTACUS radiation model parameters.
+    
+    Controls the SPARTACUS-Surface radiation scheme for detailed
+    3D radiation interactions in urban environments.
+    """
+    
     model_config = ConfigDict(
         title="SPARTACUS"
     )
@@ -2303,6 +2321,12 @@ class LUMPSParams(BaseModel):
 
 
 class SiteProperties(BaseModel):
+    """Physical and geographical characteristics of the simulation site.
+    
+    Defines the location, dimensions, surface characteristics, and environmental
+    parameters for a specific urban site being modelled in SUEWS.
+    """
+    
     model_config = ConfigDict(
         title="Site Properties",
         extra="forbid",  # This will prevent extra fields from being accepted
@@ -2599,6 +2623,12 @@ class SiteProperties(BaseModel):
 
 
 class Site(BaseModel):
+    """Site configuration for SUEWS simulations.
+    
+    Represents the complete configuration for a single SUEWS simulation site,
+    including all physical properties, initial states, and model parameters.
+    """
+    
     model_config = ConfigDict(
         title="Site Configuration"
     )

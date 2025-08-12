@@ -281,11 +281,7 @@ def find_array_item_insertion_point(lines, path_parts, array_name, array_index):
             continue
         line_indent = len(line) - len(line.lstrip())
 
-        if (
-            line.strip().startswith("-")
-            and line_indent == array_indent
-            and ":" in line
-        ):
+        if line.strip().startswith("-") and line_indent == array_indent and ":" in line:
             current_item += 1
             if current_item == array_index:
                 item_start = i
@@ -521,7 +517,6 @@ def create_uptodate_yaml_with_missing_params(
 
     header = create_uptodate_yaml_header()
     content_with_lines = "\n".join(lines)
-
 
     clean_content = header + content_with_lines
     return clean_content

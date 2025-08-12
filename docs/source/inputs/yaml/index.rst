@@ -1,5 +1,9 @@
 .. _yaml_input:
 
+.. meta::
+   :description: SUEWS YAML configuration format documentation for site parameters, model control, and surface properties
+   :keywords: SUEWS, YAML, configuration, parameters, latitude, longitude, lat, lng, site properties, model control, forcing file
+
 YAML Configuration Format
 =========================
 
@@ -207,7 +211,7 @@ The following pages provide a detailed reference for every component of the YAML
 
 .. toctree::
    :maxdepth: 1
-   :caption: Complete Parameter Index
+   :caption: Parameter References
    
-   parameter_reference
+   parameter_quick_reference
    parameter_index

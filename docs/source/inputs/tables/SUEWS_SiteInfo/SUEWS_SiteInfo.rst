@@ -1,4 +1,6 @@
 
+:nosearch:
+
 SUEWS Site Information
 -----------------------
 

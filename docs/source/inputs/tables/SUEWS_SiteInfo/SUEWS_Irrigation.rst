@@ -1,5 +1,7 @@
 .. _SUEWS_Irrigation:
 
+:nosearch:
+
 SUEWS_Irrigation.txt
 ~~~~~~~~~~~~~~~~~~~~
 

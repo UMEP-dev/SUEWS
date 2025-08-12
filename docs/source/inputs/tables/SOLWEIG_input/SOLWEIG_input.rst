@@ -1,3 +1,5 @@
+:nosearch:
+
 SOLWEIG input files
 -------------------
 

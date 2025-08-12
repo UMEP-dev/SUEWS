@@ -1,3 +1,5 @@
+:nosearch:
+
 SUEWS-SPARTACUS input options
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 

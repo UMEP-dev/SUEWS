@@ -202,6 +202,20 @@ author = "SUEWS dev team led by Prof Sue Grimmond"
 #
 # needs_sphinx = '1.0'
 
+# Python 3.13 compatibility: imghdr module was removed in Python 3.13
+# This affects Sphinx < 6.0 which tries to import imghdr for image handling
+# Both local dev (uv with Python 3.13) and ReadTheDocs (conda with Python 3.13) need this
+import sys
+if sys.version_info >= (3, 13):
+    # Create a more complete dummy imghdr module for Python 3.13+
+    import types
+    imghdr_module = types.ModuleType('imghdr')
+    # Add the 'tests' attribute that Sphinx expects
+    imghdr_module.tests = []
+    # Add what_file function that returns None
+    imghdr_module.what = lambda file, h=None: None
+    sys.modules['imghdr'] = imghdr_module
+
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
@@ -364,6 +378,13 @@ rst_prolog = r"""
 #
 # html_theme = "sphinx_rtd_theme"
 html_theme = "sphinx_book_theme"
+
+# Search configuration
+html_search_language = 'en'
+html_search_options = {
+    'type': 'default',
+    'includehidden': True,
+}
 # html_theme_path = ["_themes"]
 html_context = {
     "repository_url": "https://github.com/{your-docs-url}",
@@ -515,24 +536,26 @@ texinfo_documents = [
 
 
 # -- Options for Epub output -------------------------------------------------
+# DISABLED: epub3 builder is incompatible with Python 3.13 (imghdr module removed)
+# See: https://github.com/sphinx-doc/sphinx/issues/11780
 
-# Bibliographic Dublin Core info.
-epub_title = project
-epub_author = author
-epub_publisher = author
-epub_copyright = copyright
+# # Bibliographic Dublin Core info.
+# epub_title = project
+# epub_author = author
+# epub_publisher = author
+# epub_copyright = copyright
 
-# The unique identifier of the text. This can be a ISBN number
-# or the project homepage.
-#
-# epub_identifier = ''
+# # The unique identifier of the text. This can be a ISBN number
+# # or the project homepage.
+# #
+# # epub_identifier = ''
 
-# A unique identification for the text.
-#
-# epub_uid = ''
+# # A unique identification for the text.
+# #
+# # epub_uid = ''
 
-# A list of files that should not be packed into the epub file.
-epub_exclude_files = ["search.html"]
+# # A list of files that should not be packed into the epub file.
+# epub_exclude_files = ["search.html"]
 
 
 # -- Extension configuration -------------------------------------------------

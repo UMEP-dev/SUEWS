@@ -1,5 +1,7 @@
 .. _SUEWS_OHMCoefficients:
 
+:nosearch:
+
 SUEWS_OHMCoefficients.txt
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 

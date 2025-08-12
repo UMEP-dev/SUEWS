@@ -1,7 +1,18 @@
 .. _parameter_reference:
 
+.. meta::
+   :description: Complete searchable reference of all SUEWS YAML parameters including latitude, longitude, site properties, model control settings
+   :keywords: SUEWS parameters, YAML reference, lat, latitude, lng, longitude, site.properties.lat, model.control, forcing_file
+
 Parameter Reference
 ===================
+
+.. index::
+   single: parameters; YAML
+   single: latitude
+   single: longitude
+   single: site properties
+   single: model control
 
 This page provides a comprehensive, searchable reference of all SUEWS parameters 
 available in the YAML configuration format. Parameters are organized alphabetically 

@@ -1,5 +1,7 @@
 .. _SUEWS_WithinGridWaterDist:
 
+:nosearch:
+
 SUEWS_WithinGridWaterDist.txt
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 

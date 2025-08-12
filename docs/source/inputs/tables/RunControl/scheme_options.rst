@@ -1,5 +1,7 @@
 .. _scheme_options:
 
+:nosearch:
+
 Scheme options
 ~~~~~~~~~~~~~~~~~
 

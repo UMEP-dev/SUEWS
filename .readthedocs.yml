@@ -23,8 +23,9 @@ conda:
 sphinx:
   configuration: docs/source/conf.py
 
-# Optionally build your docs in additional formats such as PDF and ePub
-formats: all
+# Build documentation formats
+# Only HTML format (no PDF or ePub to avoid compatibility issues)
+formats: []
 
 # install the package in the docs/ directory
 python:

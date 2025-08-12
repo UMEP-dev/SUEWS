@@ -169,7 +169,10 @@ For complete site structure, see :doc:`schema/site`.
 Properties Subsection
 ~~~~~~~~~~~~~~~~~~~~~
 
-The ``properties`` section contains all static site characteristics. These parameters don't change during the simulation:
+The ``properties`` section contains all static--not varying during the simulation--site characteristics, which include `general site information <schema/siteproperties>`__ and `land cover parameters <schema/landcover>`__.
+
+General Site Information
++++++++++++++++++++++++++
 
 .. list-table::
    :header-rows: 1
@@ -198,8 +201,8 @@ The ``properties`` section contains all static site characteristics. These param
 
 For complete properties documentation, see :doc:`schema/siteproperties`.
 
-Land Cover Structure
-~~~~~~~~~~~~~~~~~~~~
+Land Cover Parameters
+~~~~~~~~~~~~~~~~~~~~~
 
 The ``land_cover`` section under ``properties`` defines parameters for seven surface types. The surface fractions (``sfr``) must sum to 1.0:
 

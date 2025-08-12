@@ -428,7 +428,7 @@ class ModelPhysics(BaseModel):
     - gsmodel: Stomatal conductance model that may be influenced by localclimatemethod adjustments
     """
 
-    model_config = ConfigDict(title="Physics Methods Configuration")
+    model_config = ConfigDict(title="Physics Methods")
 
     netradiationmethod: FlexibleRefValue(NetRadiationMethod) = Field(
         default=NetRadiationMethod.LDOWN_AIR,
@@ -647,7 +647,7 @@ class OutputConfig(BaseModel):
 
 
 class ModelControl(BaseModel):
-    model_config = ConfigDict(title="Model Control Configuration")
+    model_config = ConfigDict(title="Model Control")
 
     tstep: FlexibleRefValue(int) = Field(
         default=300, description="Time step in seconds for model calculations"

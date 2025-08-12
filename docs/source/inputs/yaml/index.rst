@@ -116,18 +116,18 @@ Top-Level Components
    * - Component
      - Description
    * - ``name``
-     - **Optional** - A descriptive name for your simulation
+     - A descriptive name for your simulation
    * - ``description``
-     - **Optional** - Detailed description of the simulation purpose
+     - Detailed description of the simulation purpose
    * - ``model``
-     - **Required** - Global settings that apply to all sites
+     - Global settings that apply to all sites
    * - ``sites``
-     - **Required** - List of sites to simulate with their specific parameters
+     - List of sites to simulate with their specific parameters
 
 Model Section
 ~~~~~~~~~~~~~
 
-The ``model`` section contains global simulation settings:
+The ``model`` section contains global simulation settings that apply to all sites in your simulation. It has two main subsections:
 
 .. list-table::
    :header-rows: 1
@@ -136,117 +136,201 @@ The ``model`` section contains global simulation settings:
    * - Subsection
      - Purpose
    * - ``model.control``
-     - Time stepping, file paths, simulation period
+     - Time stepping, file paths, simulation period, output configuration
    * - ``model.physics``
-     - Physics scheme selections and methods
+     - Physics scheme selections, calculation methods, model options
 
-**Key control parameters:**
+**Model Control** (``model.control``)
 
-- ``tstep`` - Model timestep in seconds
-- ``forcing_file`` - Path to meteorological input data
-- ``output_file`` - Output configuration (format, frequency)
-- ``start_time`` / ``end_time`` - Simulation period
+Controls the simulation execution and input/output handling:
 
-**Key physics methods:**
+- **Time control**: ``tstep`` (timestep in seconds), ``start_time``, ``end_time``
+- **Input data**: ``forcing_file`` (meteorological data path, can be single file or list)
+- **Output control**: ``output_file`` (format, frequency, variable groups)
+- **Diagnostics**: ``diagnose`` (debug level), ``save_state`` (checkpoint frequency)
 
-- ``netradiationmethod`` - How to calculate net radiation
-- ``emissionsmethod`` - Anthropogenic heat flux method
-- ``storageheatmethod`` - Storage heat flux calculation
-- ``stabilitymethod`` - Atmospheric stability scheme
+For complete parameter descriptions, see :doc:`schema/modelcontrol`.
+
+**Model Physics** (``model.physics``)
+
+Selects which physics schemes and calculation methods to use:
+
+- **Radiation**: ``netradiationmethod`` (0=observed, 3=modelled LW, 4=SPARTACUS)
+- **Energy balance**: ``storageheatmethod`` (OHM variants), ``emissionsmethod`` (QF calculation)
+- **Surface-atmosphere exchange**: ``stabilitymethod``, ``roughlenmommethod``, ``roughlenheatmethod``
+- **Water balance**: ``waterusemethod``, ``snowuse``, ``smdmethod`` (soil moisture)
+- **Vegetation**: ``gsmodel`` (stomatal conductance), ``laimethod`` (LAI calculation)
+- **Urban schemes**: ``stebbsmethod`` (building energy), ``rslmethod`` (roughness sublayer)
+
+For complete parameter descriptions and method options, see :doc:`schema/modelphysics`.
 
 Sites Section
 ~~~~~~~~~~~~~
 
-The ``sites`` section is a list where each site contains:
+The ``sites`` section is a list of one or more sites to simulate. Each site represents a specific location with its own characteristics:
 
 .. list-table::
    :header-rows: 1
    :widths: 25 75
 
-   * - Subsection
-     - Contents
+   * - Field
+     - Purpose
    * - ``name``
-     - Site identifier
+     - Unique site identifier (used in output file names)
    * - ``gridiv``
-     - Grid ID number
+     - Grid ID number for multi-site simulations
    * - ``properties``
      - Static site characteristics and surface parameters
    * - ``initial_states``
-     - Initial conditions for state variables
+     - Initial conditions for prognostic variables
+
+For complete site structure, see :doc:`schema/site`.
 
 Properties Subsection
 ~~~~~~~~~~~~~~~~~~~~~
 
-Within each site's ``properties``:
+The ``properties`` section contains all static site characteristics. These parameters don't change during the simulation:
 
 .. list-table::
    :header-rows: 1
    :widths: 30 70
 
    * - Category
-     - Key Parameters
+     - Key Parameters & Purpose
    * - **Location**
-     - ``lat``, ``lng``, ``alt``, ``timezone``
-   * - **Morphology**
-     - ``surfacearea``, ``z`` (measurement height), ``z0m_in``, ``zdm_in``
+     - | ``lat``, ``lng`` (coordinates in decimal degrees)
+       | ``alt`` (altitude in metres), ``timezone`` (UTC offset)
+   * - **Morphometry**
+     - | ``surfacearea`` (grid cell area in m²)
+       | ``z`` (measurement height), ``z0m_in``, ``zdm_in`` (roughness parameters)
    * - **Population**
-     - ``pop_dens_daytime``, ``pop_dens_nighttime``
+     - | ``pop_dens_daytime``, ``pop_dens_nighttime`` (people per hectare)
+       | Used for anthropogenic heat and CO₂ calculations
    * - **Land Cover**
-     - Nested section with surface-specific parameters
+     - | Nested section with parameters for each surface type
+       | See detailed structure below
    * - **Special Models**
-     - ``spartacus``, ``stebbs``, ``conductance``, ``irrigation``, etc.
+     - | ``spartacus`` (3D radiation parameters)
+       | ``stebbs`` (building energy model parameters)
+       | ``conductance`` (vegetation conductance parameters)
+       | ``irrigation`` (water use and irrigation settings)
+       | ``anthropogenic_emissions`` (heat and CO₂ emission parameters)
+
+For complete properties documentation, see :doc:`schema/siteproperties`.
 
 Land Cover Structure
 ~~~~~~~~~~~~~~~~~~~~
 
-The ``land_cover`` section under ``properties`` contains parameters for each surface type:
+The ``land_cover`` section under ``properties`` defines parameters for seven surface types. The surface fractions (``sfr``) must sum to 1.0:
 
-.. code-block:: yaml
+.. list-table::
+   :header-rows: 1
+   :widths: 20 30 50
 
-   land_cover:
-     paved:       # Roads, pavements
-       sfr: 0.30  # Surface fraction
-       alb: 0.10  # Albedo
-       emis: 0.95 # Emissivity
-       # ... many more surface-specific parameters
-     bldgs:       # Buildings
-       sfr: 0.35
-       bldgh: 15.0  # Building height
-       faibldg: 0.15  # Frontal area index
-       # ...
-     # ... other surfaces (grass, evetr, dectr, bsoil, water)
+   * - Surface Type
+     - Common Examples
+     - Key Parameters
+   * - ``paved``
+     - Roads, car parks, pavements
+     - | ``sfr`` (fraction), ``alb`` (albedo)
+       | Storage/drainage parameters
+   * - ``bldgs``
+     - Buildings, structures
+     - | ``bldgh`` (height), ``faibldg`` (frontal area)
+       | Wall/roof properties, thermal mass
+   * - ``evetr``
+     - Coniferous trees, evergreen shrubs
+     - | ``evetreeh`` (height), LAI parameters
+       | Stays green year-round
+   * - ``dectr``
+     - Broadleaf trees, deciduous shrubs
+     - | ``dectreeh`` (height), phenology parameters
+       | Seasonal LAI variation
+   * - ``grass``
+     - Lawns, parks, playing fields
+     - | LAI range, irrigation settings
+       | Conductance parameters
+   * - ``bsoil``
+     - Exposed soil, construction sites
+     - | Soil hydraulic properties
+       | Usually minimal fraction
+   * - ``water``
+     - Rivers, ponds, fountains
+     - | Flow parameters
+       | Special storage treatment
 
-Each surface type has:
+Each surface type contains these parameter groups:
 
-- **Radiative properties**: albedo, emissivity
-- **Hydrological properties**: drainage, soil storage, infiltration
-- **Thermal properties**: heat capacity, thermal conductivity layers
-- **Vegetation properties** (if applicable): LAI parameters, conductance
-- **Urban properties** (if applicable): building height, frontal area
+- **Radiative**: ``alb`` (albedo), ``emis`` (emissivity)
+- **Hydrological**: ``soilstorecap``, ``statelimit``, ``storedrainprm`` (drainage parameters)
+- **Thermal**: ``thermal_layers`` (depth, conductivity, heat capacity for each layer)
+- **Vegetation** (grass/trees): ``lai`` (LAI parameters), ``maxconductance``, phenology settings
+- **Urban** (buildings/paved): morphology parameters, anthropogenic properties
+
+For complete land cover parameters, see :doc:`schema/landcover`.
 
 Initial States Structure
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
-The ``initial_states`` section provides starting values for prognostic variables:
+The ``initial_states`` section sets starting values for prognostic (time-evolving) variables. Each surface type needs initial conditions:
 
-.. code-block:: yaml
+.. list-table::
+   :header-rows: 1
+   :widths: 30 70
 
-   initial_states:
-     paved:
-       soilstore: 120.0    # Soil moisture [mm]
-       state: 0.0          # Surface wetness [mm]
-       temperature: [...]  # Temperature profile
-       # ...
-     # ... initial states for each surface type
+   * - State Variable
+     - Description & Units
+   * - ``soilstore``
+     - Soil moisture storage [mm]
+   * - ``state``
+     - Surface wetness [mm]
+   * - ``temperature``
+     - Temperature profile through layers [°C]
+   * - ``snowpack``
+     - Snow water equivalent [mm]
+   * - ``lai_id``
+     - Initial LAI for vegetation [m²/m²]
+   * - ``gdd_id``
+     - Growing degree days for phenology
+
+Special initial states:
+
+- **Vegetation surfaces** (grass, dectr, evetr): Need ``lai_id``, ``gdd_id``, ``sdd_id``
+- **Water surfaces**: Use ``state`` for water level
+- **All surfaces**: Can specify ``snowpack``, ``snowfrac`` for winter starts
+
+For complete initial states documentation, see :doc:`schema/initialstates`.
 
 
 Schema Reference
 ----------------
 
-For complete parameter documentation:
+The following reference pages provide complete documentation for all parameters:
 
-- :doc:`schema/model` - All model-level configuration parameters
-- :doc:`schema/site` - All site-specific parameters
+**Top-Level Configuration:**
+
+- :doc:`schema/model` - Model section structure and global settings
+- :doc:`schema/site` - Site section structure and site-specific settings
+
+**Model Configuration:**
+
+- :doc:`schema/modelcontrol` - Time control, input/output, diagnostics
+- :doc:`schema/modelphysics` - Physics methods and scheme selections
+
+**Site Configuration:**
+
+- :doc:`schema/siteproperties` - Location, morphometry, and site characteristics
+- :doc:`schema/landcover` - Surface type parameters (paved, buildings, vegetation, etc.)
+- :doc:`schema/initialstates` - Initial conditions for prognostic variables
+
+**Special Models:**
+
+- :doc:`schema/spartacus` - 3D radiation model parameters
+- :doc:`schema/stebbs` - Building energy model parameters
+- :doc:`schema/conductance` - Vegetation conductance parameters
+- :doc:`schema/irrigation` - Water use and irrigation settings
+- :doc:`schema/anthropogenicemissions` - Heat and CO₂ emission parameters
+- :doc:`schema/snow` - Snow model parameters
 
 
 Validation and Error Handling

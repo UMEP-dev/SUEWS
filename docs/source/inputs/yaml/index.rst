@@ -7,205 +7,335 @@
 YAML Configuration Format
 =========================
 
-The YAML configuration format is the recommended method for providing inputs to SUEWS. It uses a single, structured `config_suews.yml` file to define all model parameters, making simulations easier to manage and reproduce.
+The YAML configuration format is the recommended method for providing inputs to SUEWS. It uses a single, structured ``config_suews.yml`` file to define all model parameters.
+
+.. toctree::
+   :maxdepth: 2
+   :hidden:
+
+   schema/model
+   schema/site
+
 
 Overview
 --------
 
 A SUEWS YAML configuration file is organized into two main sections:
 
-1. :ref:`model <model>`: Contains global settings that control the simulation, such as physics options, time stepping, and file paths.
-2. :ref:`sites <site>`: A list of one or more sites to be simulated. Each site has its own set of properties, initial conditions, and land cover characteristics.
+- **model**: Global settings that control the simulation (physics options, time stepping, file paths)
+- **sites**: List of sites to simulate, each with properties, initial conditions, and land cover
 
-Here's a minimal example of the YAML structure:
+Here's a minimal configuration example:
 
 .. code-block:: yaml
 
-   # SUEWS configuration file
+   # Minimal SUEWS configuration
    model:
      control:
-       tstep: 3600
-       forcing_file: "forcing.txt"
-     physics:
-       net_radiation_method: 3
-   
-   sites:
-     - name: "London_KCL"
-       latitude: 51.5115
-       longitude: -0.1160
-       land_cover:
-         paved: 0.38
-         bldgs: 0.37
-         grass: 0.14
+       tstep: 3600                    # Hourly timestep
+       forcing_file: "forcing.txt"    # Meteorological data
+       start_date: "2020-01-01"       # Start date
+       end_date: "2020-12-31"         # End date
 
-For a complete working example, please refer to the `sample configuration file <https://github.com/UMEP-dev/SUEWS/blob/master/src/supy/sample_run/sample_config.yml>`_ provided with SuPy.
+   sites:
+     - name: "My_Site"
+       latitude: 51.5                 # Site location
+       longitude: -0.1
+       land_cover:                    # Must sum to 1.0
+         paved: 0.30
+         bldgs: 0.35
+         grass: 0.20
+         evetr: 0.10
+         dectr: 0.05
+         bsoil: 0.00
+         water: 0.00
+        [...]
+
+For a complete working example, see the `sample configuration <https://github.com/UMEP-dev/SUEWS/blob/master/src/supy/sample_run/sample_config.yml>`_.
 
 Validation and Error Handling
------------------------------
+------------------------------
 
-When loading a YAML configuration file, SUEWS performs comprehensive validation to ensure all required parameters are present and valid. If validation errors occur:
+SUEWS validates your configuration when loading. If errors occur:
 
-1. **Clear error messages** are displayed in the log, listing all missing or invalid parameters
-2. **Instructions are provided** on how to generate an annotated YAML file to help you fix the issues
+- **Clear error messages** list all missing or invalid parameters
+- **Annotated YAML** can be generated to help fix issues
 
-To generate an annotated YAML file, you have two options:
+To generate an annotated file with error markers:
 
-1. **Manual generation**: Call ``config.generate_annotated_yaml('path/to/config.yml')`` after loading
-2. **Automatic generation**: Pass ``auto_generate_annotated=True`` when loading:
-   
+.. code-block:: python
+
+   # Automatic generation when errors found
+   config = SUEWSConfig.from_yaml('config.yml', auto_generate_annotated=True)
+
+The annotated file (``config.yml_annotated.yml``) includes:
+
+- Missing parameters marked with ``[ERROR] MISSING:``
+- Suggested fixes marked with ``[TIP] ADD HERE:``
+- Parameter descriptions and expected types
+
+Essential Parameters
+--------------------
+
+Time Configuration (``model.control``)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. list-table::
+   :header-rows: 1
+   :widths: 30 20 50
+
+   * - Parameter
+     - Type
+     - Description
+   * - ``tstep``
+     - integer
+     - Model timestep [s]
+   * - ``start_date``
+     - string
+     - Simulation start (YYYY-MM-DD)
+   * - ``end_date``
+     - string
+     - Simulation end (YYYY-MM-DD)
+
+Input/Output Files (``model.control``)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. list-table::
+   :header-rows: 1
+   :widths: 30 20 50
+
+   * - Parameter
+     - Type
+     - Description
+   * - ``forcing_file``
+     - string/list
+     - Meteorological data file(s)
+   * - ``output_file``
+     - string/dict
+     - Output configuration
+
+**Multiple Forcing Files:**
+
+.. code-block:: yaml
+
+   forcing_file:
+     - "forcing_2020.txt"
+     - "forcing_2021.txt"
+     - "forcing_2022.txt"
+
+Files are automatically concatenated in chronological order.
+
+**Output Configuration:**
+
+.. code-block:: yaml
+
+   # Simple text output (backward compatible)
+   output_file: "output.txt"
+
+   # Advanced configuration
+   output_file:
+     format: parquet              # or 'txt'
+     freq: 1800                   # Output every 30 min
+     groups: ["SUEWS", "RSL"]     # Output groups (txt only)
+
+.. note:: **Parquet Output Format**
+
+   Parquet is an efficient columnar format that produces files 70-80% smaller than text:
+
+   - **Single file** per site (vs multiple text files)
+   - **Fast loading** especially for specific columns
+   - **Requires PyArrow**: ``pip install pyarrow``
+
+   Reading Parquet files:
+
    .. code-block:: python
-   
-       config = SUEWSConfig.from_yaml('config.yml', auto_generate_annotated=True)
 
-The annotated file includes:
+      import pandas as pd
+      df = pd.read_parquet('TestSite_SUEWS_output.parquet')
+      qh = df[('SUEWS', 'QH')]  # Access specific variable
 
-- **Location**: ``{config_file}_annotated.yml`` in the same directory as your config
-- **Error markers**: Missing parameters marked with ``[ERROR] MISSING:``
-- **Help tips**: Suggested fixes marked with ``[TIP] ADD HERE:``
-- **Parameter descriptions**: Each error includes the parameter description and expected type
+Physics Methods (``model.physics``)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-This feature significantly simplifies the process of creating valid configuration files, especially for new users or when using advanced physics options that require additional parameters.
+.. list-table::
+   :header-rows: 1
+   :widths: 30 15 55
 
+   * - Parameter
+     - Options
+     - Description
+   * - ``net_radiation_method``
+     - 0, 1, 3
+     - | 0: Observed Q*
+       | 1: Observed LW↓
+       | 3: Model LW↓ (recommended)
+   * - ``emissions_method``
+     - 0, 1, 2, 4
+     - | 0: No QF
+       | 1: Simple daily profile
+       | 2: Temperature-dependent
+       | 4: Full model (buildings+traffic)
+   * - ``storage_heat_method``
+     - 1, 2, 3
+     - | 1: OHM without QF
+       | 2: OHM with QF
+       | 3: AnOHM
+   * - ``stability_method``
+     - 0, 2, 3
+     - | 0: Neutral
+       | 2: Least stable
+       | 3: Campbell & Norman (recommended)
 
-Data Files
-----------
+Site Properties (``site.properties``)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-In addition to the YAML configuration file, SUEWS works with input and output data files:
+**Essential Parameters:**
 
-**Input Data:**
-- **Forcing data**: Meteorological time-series data specified by :ref:`model.control.forcing_file <modelcontrol>`
+- **Location**: ``lat``, ``lng``, ``alt``, ``timezone``
+- **Morphology**: ``surfacearea``, ``z`` (measurement height)
+- **Population**: ``pop_dens_daytime``, ``pop_dens_nighttime``
+- **Roughness**: ``z0m_summer``, ``z0m_winter``
 
-  The ``forcing_file`` parameter supports two modes:
-  
-  1. **Single file**: Specify a path to a single forcing file
-     
-     .. code-block:: yaml
-     
-        model:
-          control:
-            forcing_file: "forcing_2020.txt"
-     
-  2. **Multiple files**: Specify a list of file paths
-     
-     .. code-block:: yaml
-     
-        model:
-          control:
-            forcing_file: 
-              - "forcing_2020.txt"
-              - "forcing_2021.txt"
-              - "forcing_2022.txt"
-     
-     When multiple files are provided, they will be automatically loaded and concatenated in chronological order.
+**Land Cover Fractions** (must sum to 1.0):
 
-**Output Data:**
-- **Model results**: Time-series output files configured by :ref:`model.control.output_file <modelcontrol>`
+- ``paved`` - Paved surfaces
+- ``bldgs`` - Buildings
+- ``evetr`` - Evergreen trees
+- ``dectr`` - Deciduous trees
+- ``grass`` - Grass/lawn
+- ``bsoil`` - Bare soil
+- ``water`` - Water bodies
 
-  The ``output_file`` parameter now supports advanced configuration:
-  
-  1. **Output format**: Choose between 'txt' (traditional text files) or 'parquet' (efficient columnar format)
-  2. **Output frequency**: Specify custom output frequency in seconds
-     - Single value: e.g., ``freq: 3600`` for hourly output
-     - Must be a multiple of the model timestep
-  3. **Output groups**: Select which groups to save (txt format only)
-  
-  .. note::
-     **Backward Compatibility**: When using a simple string value for ``output_file`` (e.g., ``output_file: "output.txt"``), 
-     SUEWS will use default settings: txt format, hourly output (3600s), and save only the SUEWS and DailyState groups. 
-     This ensures compatibility with existing configuration files.
-  
-  Example configurations:
-  
-  .. code-block:: yaml
-  
-     # Simple backward-compatible configuration (saves only SUEWS and DailyState)
-     output_file: "output.txt"
-  
-     # Parquet output with hourly data
-     output_file:
-       format: parquet
-       freq: 3600
-       
-     # Text output with selected groups at 30-minute intervals
-     output_file:
-       format: txt
-       freq: 1800
-       groups: ["SUEWS", "DailyState", "debug"]
+Common Use Cases
+----------------
 
-  **Output File Naming Convention**:
-  
-  - **Text format**: 
-    
-    - Regular groups: ``{site_name}_{year}_{group}_{freq_min}.txt``
-      
-      - ``site_name``: Name from site configuration  
-      - ``year``: Year of simulation
-      - ``group``: Output group name (SUEWS, RSL, BL, debug, etc.)
-      - ``freq_min``: Output frequency in minutes
-      - Example: ``London_KCL_2020_SUEWS_60.txt``
-    
-    - DailyState: ``{site_name}_{year}_DailyState.txt``
-      
-      - No frequency suffix as it always contains daily data
-      - Example: ``London_KCL_2020_DailyState.txt``
-  
-  - **Parquet format**: 
-    
-    - Output data: ``{site_name}_SUEWS_output.parquet``
-      
-      - All groups and frequencies saved in a single file
-      - Contains all years of simulation data
-      - Example: ``London_KCL_SUEWS_output.parquet``
-    
-    - Final state: ``{site_name}_SUEWS_state_final.parquet``
-      
-      - Final model state for restart runs
-      - Example: ``London_KCL_SUEWS_state_final.parquet``
-    
-    Note: Parquet format does not split by year - all simulation data is in one file
+Dense Urban
+~~~~~~~~~~~
 
-For detailed information about:
+.. code-block:: yaml
 
-- **Input data format and variables**: see :ref:`met_input`
-- **Output file formats and variables**: see :ref:`output_files`
-- **Output configuration options**: see the `Output Data`_ section above
-- **Parquet output format**: see :ref:`parquet_note`
+   land_cover:
+     paved: 0.45
+     bldgs: 0.40
+     grass: 0.10
+     evetr: 0.03
+     dectr: 0.02
+   properties:
+     bldgs:
+       height: 25.0      # Tall buildings
+       fai: 0.5          # High frontal area
 
-Getting Started
+   # Recommended physics
+   model:
+     physics:
+       emissions_method: 4        # Full QF model
+       storage_heat_method: 2     # OHM with QF
+
+Suburban
+~~~~~~~~
+
+.. code-block:: yaml
+
+   land_cover:
+     paved: 0.25
+     bldgs: 0.25
+     grass: 0.30
+     evetr: 0.10
+     dectr: 0.10
+   properties:
+     bldgs:
+       height: 8.0       # Lower buildings
+
+   # Recommended physics
+   model:
+     physics:
+       emissions_method: 2        # Temperature-dependent QF
+       water_use_method: 1        # Include irrigation
+
+Parks/Green Spaces
+~~~~~~~~~~~~~~~~~~
+
+.. code-block:: yaml
+
+   land_cover:
+     paved: 0.10
+     bldgs: 0.05
+     grass: 0.50
+     evetr: 0.15
+     dectr: 0.15
+     bsoil: 0.05
+   properties:
+     grass:
+       lai_max: 3.0      # Healthy grass
+     irrigation:
+       auto_irr_grass: 1 # Automatic irrigation
+
+Advanced Features
+-----------------
+
+SPARTACUS 3D Radiation
+~~~~~~~~~~~~~~~~~~~~~~
+
+.. code-block:: yaml
+
+   model:
+     physics:
+       net_radiation_method: 4    # Enable SPARTACUS
+
+   site:
+     properties:
+       spartacus:
+         building_frac: 0.4
+         building_scale: 20.0      # Building width [m]
+         veg_frac: 0.3
+         veg_scale: 5.0           # Tree crown width [m]
+
+Building Energy (STEBBS)
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. code-block:: yaml
+
+   model:
+     physics:
+       emissions_method: 5         # Enable STEBBS
+
+   site:
+     properties:
+       stebbs:
+         cooling_setpoint: 24.0    # °C
+         heating_setpoint: 20.0    # °C
+         cop_cooling: 3.0          # Cooling efficiency
+
+Troubleshooting
 ---------------
 
-.. toctree::
-   :maxdepth: 1
-   
-   configuration_guide
+**Land cover doesn't sum to 1.0**
+   Check your fractions add up exactly to 1.0
 
-The :doc:`configuration_guide` provides everything you need to configure SUEWS:
+**Missing required parameters**
+   Enable annotated YAML generation (see Validation section above)
 
-- Quick start examples for common use cases
-- Parameter categories with clear explanations
-- Troubleshooting tips and best practices
-- Advanced features and options
+**Energy balance not closing**
+   - Verify albedo values are realistic
+   - Check OHM coefficients
+   - Ensure radiation method matches data availability
+
+**No evapotranspiration**
+   - Check LAI values > 0 for vegetation
+   - Verify soil moisture is adequate
+   - Ensure surface conductance parameters are set
 
 Schema Reference
 ----------------
 
-Detailed documentation for every parameter in the YAML configuration:
+For complete parameter documentation:
 
-.. toctree::
-   :maxdepth: 2
-   
-   schema/model
-   schema/site
-
-**Model Configuration** (:doc:`schema/model`)
-   Global simulation settings including physics methods, time control, and output options.
-
-**Site Configuration** (:doc:`schema/site`)
-   Site-specific parameters including location, land cover, surface properties, and initial conditions.
+- :doc:`schema/model` - All model-level configuration parameters
+- :doc:`schema/site` - All site-specific parameters
 
 Additional Resources
 --------------------
 
-- `Sample configuration file <https://github.com/UMEP-dev/SUEWS/blob/master/src/supy/sample_run/sample_config.yml>`_ - Complete working example
-- :doc:`parquet_note` - Information about the efficient Parquet output format
-- Example configurations in ``docs/source/inputs/yaml/examples/``
+- `Sample configuration <https://github.com/UMEP-dev/SUEWS/blob/master/src/supy/sample_run/sample_config.yml>`_ - Complete working example
+- :ref:`met_input` - Forcing data format
+- :ref:`output_files` - Output file descriptions

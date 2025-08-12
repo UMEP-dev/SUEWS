@@ -19,7 +19,7 @@ Phase C implements the same comprehensive Pydantic validation system used by ``S
 
 **Core Design Principle:**
 - Uses Pydantic v2 with ``@model_validator`` and ``@field_validator`` decorators
-- Centralized validation in ``SUEWSConfig`` class for cross-site validation
+- Centralised validation in ``SUEWSConfig`` class for cross-site validation
 - Conditional validation based on physics options and land cover configurations
 
 Technical Implementation
@@ -27,9 +27,9 @@ Technical Implementation
 
 **Core Files and Structure:**
 
-- ``core.py``: Main SUEWSConfig class 
-- ``phase_c_reports.py``: Specialized report generation for Pydantic validation errors
-- ``model.py``, ``site.py``, ``surface.py``: Individual field validators for specific data types
+- ``core.py``: Main SUEWSConfig class with all model validators
+- ``phase_c_reports.py``: Specialised report generation for Pydantic validation errors
+- ``model.py``, ``site.py``, ``surface.py``, ``state.py``, ``profile.py``: Individual field validators for specific data types
 - Integration with ``suews_yaml_processor.py`` for Phase C execution
 
 **Key Pydantic Components:**
@@ -51,7 +51,7 @@ Technical Implementation
 SUEWS-Specific Model Validators
 -------------------------------
 
-Phase C implements **specialized model validators** in the SUEWSConfig class.
+Phase C implements **specialised model validators** in the SUEWSConfig class.
 
 **1. Parameter Completeness Validation**
 
@@ -133,7 +133,7 @@ Phase C implements **specialized model validators** in the SUEWSConfig class.
 **Validates**:
 - ``alb_min <= alb_max`` for vegetated surfaces (evetr, dectr, grass)
 - Applied per surface type across all sites
-- Ensures valid albedo parameter ranges for vegetation modeling
+- Ensures valid albedo parameter ranges for vegetation modelling
 
 **7. Deciduous Porosity Validation**
 
@@ -228,51 +228,96 @@ Phase C implements **specialized model validators** in the SUEWSConfig class.
   
 - **Physics Method Consistency**: Validates compatibility between storage heat calculations and QF (anthropogenic heat) inclusion options
 
-**Implementation Details:**
+**13. Hourly Profile Validation**
 
 .. code-block:: python
 
-   def _needs_rsl_validation(self) -> bool:
-       """Return True if rslmethod == 2."""
-       rsl = getattr(self.model.physics.rslmethod, "value", None)
-       return rsl == 2
+   @model_validator(mode="after")
+   def validate_hourly_profile_hours(self) -> "SUEWSConfig":
+       """Validate hourly profiles have complete and valid hour coverage."""
 
-   def _validate_rsl(self, site: Site, site_index: int) -> List[str]:
-       """If rslmethod==2, then for any site where bldgs.sfr > 0,
-       bldgs.faibldg must be set and non-null."""
+**Function**: Hourly profile completeness validation
+**Validates**:
+- Any hourly profile defined must have complete 24-hour coverage (hours 1-24)
+- Applied to all profile types across all sites
+
+**Supporting Validation Functions**
+
+Phase C includes specialised helper functions used by the main model validators:
+
+**Thermal Layers Validation:**
+
+.. code-block:: python
+
+   def _check_thermal_layers(self, thermal_layers, surface_type: str, site_name: str) -> bool:
+       """Check thermal layer parameters with _is_valid_layer_array() helper."""
+
+- **Function**: When thermal_layers explicitly provided, ``dz``, ``k``, ``rho_cp`` arrays must be non-empty and numeric
+- **Special Case**: Detects ``cp`` vs ``rho_cp`` naming errors with ``_check_thermal_layers_naming_issue()``
+- **Helper Function**: ``_is_valid_layer_array()`` validates RefValue wrappers and plain arrays
+
+**Land Cover Surface Validation:**
+
+.. code-block:: python
+
+   def _collect_land_cover_issues(self, land_cover, site_name: str, site_index: int, annotator) -> None:
+       """Collect land cover validation issues."""
+       
+   def _check_land_cover_fractions(self, land_cover, site_name: str) -> bool:
+       """Check that land cover fractions sum to 1.0."""
+
+- **Functions**: ``_collect_land_cover_issues()``, ``_check_land_cover_fractions()``
+- **Logic**: When surface fraction ``> 0``, validates surface-specific parameters and fraction totals
+- **Building-specific**: ``bldgs.sfr > 0.05`` requires ``bldgh``, ``faibldg``
 
 **Conditional Validation Logic:**
 
 Phase C implements **conditional validation systems** that apply based on physics options and configuration content:
 
 **1. RSL Method Validation (Method 2 - Diagnostic Aerodynamic)**
-- **Checker**: ``_needs_rsl_validation() -> bool``
-- **Validator**: ``_validate_rsl(site, site_index) -> List[str]``
+
+.. code-block:: python
+
+   def _needs_rsl_validation(self) -> bool:
+       """Return True if RSL diagnostic method is enabled."""
+       rm = self.model.physics.rslmethod
+       return int(rm.value) == 2 if rm and hasattr(rm, 'value') else False
+
+   def _validate_rsl(self, site: Site, site_index: int) -> List[str]:
+       """If rslmethod==2, then for any site where bldgs.sfr > 0,
+       bldgs.faibldg must be set and non-null."""
+
 - **Logic**: When ``rslmethod == 2`` and ``bldgs.sfr > 0``, requires ``bldgs.faibldg`` to be set and non-null
 
 **2. Storage Heat Method Validation (Method 6 - DyOHM)**
-- **Checker**: ``_needs_storage_validation() -> bool``
-- **Validator**: ``_validate_storage(site, site_index) -> List[str]``
-- **Logic**: When ``storageheatmethod == 6``, requires ``vertical_layers.walls``, ``thermal_layers`` arrays, and ``lambda_c``
+
+.. code-block:: python
+
+   def _needs_storage_validation(self) -> bool:
+       """Return True if DyOHM storage-heat method is enabled."""
+       shm = getattr(self.model.physics.storageheatmethod, "value", None)
+       return shm == 6
+
+   def _validate_storage(self, site: Site, site_index: int) -> List[str]:
+       """Validate DyOHM storage heat method parameters."""
+
+- **Logic**: When ``storageheatmethod == 6``, requires ``properties.lambda_c`` to be set and non-null
 
 **3. STEBBS Method Validation (Method 1 - Building Energy Balance)**
-- **Checker**: ``_needs_stebbs_validation() -> bool``
-- **Validator**: ``_validate_stebbs(site, site_index) -> List[str]``
+
+.. code-block:: python
+
+   def _needs_stebbs_validation(self) -> bool:
+       """Return True if STEBBS should be validated."""
+       stebbs_method = self.model.physics.stebbsmethod
+       return int(stebbs_method.value) == 1 if stebbs_method and hasattr(stebbs_method, 'value') else False
+
+   def _validate_stebbs(self, site: Site, site_index: int) -> List[str]:
+       """If stebbsmethod==1, enforce that site.properties.stebbs
+       has all required parameters with non-null values."""
+
 - **Logic**: When ``stebbsmethod == 1``, validates all required STEBBS building energy parameters are present and non-null
-
-**4. Hourly Profile Validation**
-- **Function**: ``validate_hourly_profile_hours()`` model validator
-- **Logic**: Any hourly profile defined must have complete 24-hour coverage (hours 1-24)
-
-**5. Thermal Layers Validation**
-- **Function**: ``_check_thermal_layers()`` with ``_is_valid_layer_array()`` helper
-- **Logic**: When thermal_layers explicitly provided, ``dz``, ``k``, ``rho_cp`` arrays must be non-empty and numeric
-- **Special Case**: Detects ``cp`` vs ``rho_cp`` naming errors
-
-**6. Land Cover Surface Validation**
-- **Functions**: ``_collect_land_cover_issues()``, ``_check_land_cover_fractions()``
-- **Logic**: When surface fraction ``> 0``, validates surface-specific parameters and fraction totals
-- **Building-specific**: ``bldgs.sfr > 0.05`` requires ``bldgh``, ``faibldg``
+- **Required Parameters**: Defined in ``STEBBS_REQUIRED_PARAMS`` constant
 
 **Orchestration Pattern:**
 
@@ -280,14 +325,24 @@ Phase C implements **conditional validation systems** that apply based on physic
 
    def _validate_conditional_parameters(self) -> List[str]:
        """Run physics-method validations in one site loop."""
+       all_issues: List[str] = []
+       
        needs_stebbs = self._needs_stebbs_validation()
        needs_rsl = self._needs_rsl_validation()
        needs_storage = self._needs_storage_validation()
        
        for idx, site in enumerate(self.sites):
-           if needs_stebbs: stebbs_issues = self._validate_stebbs(site, idx)
-           if needs_rsl: rsl_issues = self._validate_rsl(site, idx)
-           if needs_storage: storage_issues = self._validate_storage(site, idx)
+           if needs_stebbs:
+               stebbs_issues = self._validate_stebbs(site, idx)
+               all_issues.extend(stebbs_issues)
+           if needs_rsl:
+               rsl_issues = self._validate_rsl(site, idx)  
+               all_issues.extend(rsl_issues)
+           if needs_storage:
+               storage_issues = self._validate_storage(site, idx)
+               all_issues.extend(storage_issues)
+               
+       return all_issues
 
 SUEWS-Specific Field Validators
 -------------------------------
@@ -337,8 +392,21 @@ SUEWS-Specific Field Validators
        """Convert hourly profile keys to strings."""
 
 **Location**: ``profile.py``  
-**Function**: Hourly profile key standardization
+**Function**: Hourly profile key standardisation
 **Validates**: Ensures consistent string keys for 24-hour profiles
+
+**Timezone Validation:**
+
+.. code-block:: python
+
+   @model_validator(mode="before")
+   @classmethod
+   def validate_timezone(cls, values):
+       """Convert numeric timezone values to TimezoneOffset enum."""
+
+**Location**: ``site.py``  
+**Function**: Timezone format standardisation
+**Validates**: Converts numeric timezone values to proper enum format
 
 Phase C Error Handling and Reporting
 -------------------------------------
@@ -390,28 +458,28 @@ Phase C reports include information from previous phases (A/B) when available:
 - **Phase B Information**: Scientific warnings, automatic adjustments
 - **Phase C Information**: Pydantic validation errors, conditional validation details
 
-Processing Modes and Behavior
-------------------------------
+Processing Modes and Behaviour
+-------------------------------
 
 **Mode-Independent Validation:**
 
-At the moment, phase C validation is **identical** in both public and developer modes. The mode parameter only affects report formatting.
+Phase C validation is **identical** in both public and developer modes. The mode parameter only affects report formatting.
 
-**Actual Mode Behavior:**
+**Actual Mode Behaviour:**
 
 - **Public Mode**: Standard Pydantic validation with user-friendly error reporting
-- **Developer Mode**: Identical validation
+- **Developer Mode**: Identical validation with different report header
 - **No Functional Difference**: Same validation rules, same error detection
 
-**Input Source Behavior:**
+**Input Source Behaviour:**
 
 - **Standalone C**: Always validates original user YAML directly
 - **AC/BC/ABC workflows**: Uses output from previous phase (A or B)
 
-**Output Generation Behavior:**
+**Output Generation Behaviour:**
 
-- **Success**: Produces updated YAML with Pydantic-compliant configuration
-- **Failure**: No updated YAML generated, comprehensive error report produced
+- **Success**: Produces ``updatedC_<filename>.yml`` with Pydantic-compliant configuration
+- **Failure**: No updated YAML generated, comprehensive error report produced as ``reportC_<filename>.txt``
 
 Integration with SUEWS Configuration System
 --------------------------------------------
@@ -442,7 +510,7 @@ When Phase C passes, the configuration is **guaranteed** to load successfully in
 Mode Selection Guidelines
 -------------------------
 
-**Actual Mode Behavior:**
+**Actual Mode Behaviour:**
 
 Phase C validation is **identical** in both public and developer modes. The mode parameter only affects report formatting.
 
@@ -465,9 +533,9 @@ Best Practices
 **For Developers:**
 
 1. **Follow Pydantic v2 patterns** - Use ``@model_validator`` and ``@field_validator`` decorators
-2. **Centralize complex validation** - Put cross-site validation in SUEWSConfig class
+2. **Centralise complex validation** - Put cross-site validation in SUEWSConfig class
 3. **Use conditional validation helpers** - Like ``_needs_rsl_validation()`` for physics dependencies
-4. **Handle RefValue wrappers** - Use ``_unwrap_value()`` helper for consistent value extraction
+4. **Handle RefValue wrappers** - Use ``getattr()`` and ``hasattr()`` for consistent value extraction
 
 Troubleshooting
 ---------------
@@ -486,9 +554,9 @@ Troubleshooting
 
 .. code-block:: text
 
-   Error: Required when grass fraction > 0 (current: 0.25)  
-   Location: sites[0].properties.land_cover.grass.lai_id
-   Fix: Provide lai_id value or set grass fraction to 0
+   Error: Missing required STEBBS parameters: InternalMassConvectionCoefficient (required when stebbsmethod=1)
+   Location: sites[0].properties.stebbs
+   Fix: Provide InternalMassConvectionCoefficient value or set stebbsmethod to 0
 
 **Issue 3: Physical constraint violations**
 
@@ -506,12 +574,29 @@ Troubleshooting
    Location: sites[0].properties.building_layers
    Fix: Ensure building layer arrays match nlayer configuration
 
+**Issue 5: RSL method requirements**
+
+.. code-block:: text
+
+   Error: for rslmethod=2 and bldgs.sfr=0.38, bldgs.faibldg must be set
+   Location: sites[0].properties.land_cover.bldgs
+   Fix: Set faibldg parameter when using RSL method with building fractions
+
+**Issue 6: Storage heat method requirements**
+
+.. code-block:: text
+
+   Error: storageheatmethod=6 → properties.lambda_c must be set and non-null
+   Location: sites[0].properties
+   Fix: Set lambda_c parameter when using DyOHM storage heat method
+
 **Advanced Validation Features:**
 
 **RefValue Wrapper Handling:**
 
 .. code-block:: python
 
+   # Safe value extraction pattern used throughout validators
    def _unwrap_value(value):
        """Safely extract value from RefValue wrapper or return direct value."""
        if hasattr(value, 'value'):
@@ -568,8 +653,129 @@ Technical Details and Implementation Notes
 
 - **Legacy data conversion**: ``@model_validator(mode="before")`` for format updates
 - **NumPy type handling**: Automatic conversion to native Python types
-- **Profile data normalization**: Consistent key formatting for hourly data
+- **Profile data normalisation**: Consistent key formatting for hourly data
 - **HDD_ID format conversion**: Automatic list-to-dictionary conversion
+
+Output Files Structure
+----------------------
+
+**Updated YAML File** (``updatedC_<filename>.yml``)
+
+.. code-block:: yaml
+
+   # ==============================================================================
+   # Updated YAML
+   # ==============================================================================
+   #
+   # This file has been updated by the SUEWS processor and is the updated version of the user provided YAML.
+   # Details of changes are in the generated report.
+   #
+   # ==============================================================================
+   
+   name: Pydantic Validated Configuration
+   model:
+     physics:
+       netradiationmethod: 2
+       emissionsmethod: 2
+       stebbsmethod: 1
+   sites:
+   - properties:
+       lat: 51.5074
+       lng: -0.1278
+       stebbs:
+         InternalMassConvectionCoefficient: 5.0
+
+**Validation Report** (``reportC_<filename>.txt``)
+
+**When Phase C Fails (Conditional Validation Error):**
+
+.. code-block:: text
+
+   # SUEWS - Phase C (Pydantic Validation) Report
+   # ==================================================
+   # Mode: Public
+   # ==================================================
+   
+   ## ACTION NEEDED
+   - Found (1) critical Pydantic validation error(s):
+   -- validation issue: Missing required STEBBS parameters: InternalMassConvectionCoefficient (required when stebbsmethod=1)
+      Location: configuration
+   
+   # ==================================================
+
+**When Phase C Fails (Standard Pydantic Error):**
+
+.. code-block:: text
+
+   # SUEWS - Phase C (Pydantic Validation) Report
+   # ==================================================
+   # Mode: Public
+   # ==================================================
+   
+   ## ACTION NEEDED
+   - Found (1) critical Pydantic validation error(s):
+   -- netradiationmethod: Field required [type=missing, input_value=None] For further information visit https://errors.pydantic.dev/2.5/v/missing
+      Location: model.physics.netradiationmethod
+   
+   # ==================================================
+
+**When Phase C Passes (Standalone):**
+
+.. code-block:: text
+
+   # SUEWS - Phase C (Pydantic Validation) Report
+   # ==================================================
+   # Mode: Public
+   # ==================================================
+   
+   Phase C passed
+   
+   # ==================================================
+
+**When Phase C Passes (with Previous Phase Information):**
+
+.. code-block:: text
+
+   # SUEWS - Phase ABC (Up-to-date YAML check, Scientific Validation and Pydantic Validation) Report
+   # ==================================================
+   # Mode: Public
+   # ==================================================
+   
+   ## NO ACTION NEEDED
+   - Updated (2) renamed parameter(s) to current standards:
+   -- diagmethod changed to rslmethod
+   -- cp changed to rho_cp
+   - Updated (3) optional missing parameter(s) with null values:
+   -- holiday added to updatedA_user.yml and set to null
+   -- wetthresh added to updatedA_user.yml and set to null
+   -- lai_id added to updatedA_user.yml and set to null
+   - Found (1) scientific warning(s) for information:
+   -- Surface fractions adjusted to sum to 1.0
+   
+   # ==================================================
+
+**Command Line Usage:**
+
+.. code-block:: bash
+
+   # Public mode (default) - standard Pydantic validation
+   python src/supy/data_model/suews_yaml_processor.py user_config.yml --phase C --mode public
+   
+   # Developer mode - identical validation with different report header
+   python src/supy/data_model/suews_yaml_processor.py user_config.yml --phase C --mode dev
+
+**Integration Examples:**
+
+.. code-block:: bash
+
+   # Phase C after Phase A (AC workflow)
+   python src/supy/data_model/suews_yaml_processor.py user_config.yml --phase AC
+   
+   # Phase C after Phase B (BC workflow)  
+   python src/supy/data_model/suews_yaml_processor.py user_config.yml --phase BC
+   
+   # Complete pipeline including Phase C (ABC workflow)
+   python src/supy/data_model/suews_yaml_processor.py user_config.yml --phase ABC
 
 Related Documentation
 ---------------------

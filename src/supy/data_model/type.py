@@ -19,7 +19,7 @@ T = TypeVar("T")
 
 
 class Reference(BaseModel):
-    """Literature reference information."""
+    """Evidence supporting parameter choices (literature, data sources, expert knowledge, etc.)."""
     
     model_config = ConfigDict(title="Reference Info")
     

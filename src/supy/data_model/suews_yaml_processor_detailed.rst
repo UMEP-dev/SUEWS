@@ -279,7 +279,7 @@ The orchestrator implements **sophisticated report consolidation** that combines
 - **Public Mode**: User-friendly messaging, standard validation reporting
 - **Developer Mode**: Extended error details, debugging information, additional diagnostics
 
-**Implementation**: Mode parameter propagated to all phases for consistent behavior
+**Implementation**: Mode parameter propagated to all phases for consistent behaviour
 
 **3. Standard Configuration Integration**
 
@@ -333,7 +333,7 @@ Command-Line Interface
    # Developer mode with extended diagnostics
    python suews_yaml_processor.py my_config.yml --mode dev
 
-Output File Organization
+Output File Organisation
 ------------------------
 
 **File Naming Convention:**

@@ -325,7 +325,7 @@ SUEWS-Specific Field Validators
        """Convert numpy types to native Python types."""
 
 **Location**: ``model.py``  
-**Function**: NumPy type normalization
+**Function**: NumPy type normalisation
 **Validates**: Converts numpy int/float types to native Python types
 
 **Profile Data Validation:**
@@ -561,7 +561,7 @@ Technical Details and Implementation Notes
 
 - **Lazy validation**: Model validators run only after successful field validation
 - **Conditional checks**: Physics-dependent validation runs only when required
-- **Cross-site efficiency**: Validation optimized for multi-site configurations
+- **Cross-site efficiency**: Validation optimised for multi-site configurations
 - **RefValue caching**: Consistent value unwrapping with minimal overhead
 
 **Backward Compatibility:**

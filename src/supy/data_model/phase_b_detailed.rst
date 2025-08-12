@@ -21,7 +21,7 @@ Phase B implements a multi-layered scientific validation system that:
 2. **Checks Model Dependencies**: Validates internal consistency between physics options
 3. **Validates Land Cover**: Checks surface fraction totals and parameter consistency
 4. **Validates Geographic Parameters**: Ensures coordinates and location-dependent parameters are realistic
-5. **Applies CRU Integration**: Uses CRU TS4.06 climatological data for temperature initialization
+5. **Applies CRU Integration**: Uses CRU TS4.06 climatological data for temperature initialisation
 6. **Makes Scientific Corrections**: Automatic adjustments that improve model realism
 
 Technical Implementation
@@ -127,9 +127,9 @@ Location-dependent parameter validation (actual implemented checks):
 CRU TS4.06 Climatological Integration
 -------------------------------------
 
-**CRU Temperature Initialization System:**
+**CRU Temperature Initialisation System:**
 
-Phase B integrates CRU TS4.06 monthly climatological data (1991-2020) for accurate temperature initialization:
+Phase B integrates CRU TS4.06 monthly climatological data (1991-2020) for accurate temperature initialisation:
 
 **Function Purpose:**
 
@@ -164,9 +164,9 @@ Phase B integrates CRU TS4.06 monthly climatological data (1991-2020) for accura
        initial_states:
          paved:
            tsfc: 
-             value: null    # Uninitialized surface temperature
+             value: null    # Uninitialised surface temperature
            temperature:
-             value: null    # Uninitialized 5-layer temperatures
+             value: null    # Uninitialised 5-layer temperatures
    
    # After Phase B processing with CRU integration
    sites:  
@@ -289,8 +289,8 @@ Phase B generates comprehensive reports with two main sections:
    
    ## NO ACTION NEEDED
    - Updated (6) parameter(s):
-   -- temperature, tsfc, tin for paved surface: null → 12.4 (CRU temperature initialization for coordinates (51.51, -0.13) for month 1)
-   -- temperature, tsfc, tin for bldgs surface: null → 12.4 (CRU temperature initialization for coordinates (51.51, -0.13) for month 1)
+   -- initial_states.paved: temperature, tsfc, tin → 12.4°C (Set from CRU data for coordinates (51.51, -0.13) for month 1)
+   -- initial_states.bldgs: temperature, tsfc, tin → 12.4°C (Set from CRU data for coordinates (51.51, -0.13) for month 1)
    
    # ==================================================
 
@@ -459,7 +459,7 @@ Troubleshooting
 
    Solution: Land cover fractions are incomplete or incorrect
    Check: Verify all surface types have appropriate fractions
-   Fix: Adjust fractions so total equals 1.0, or allow Phase B to normalize
+   Fix: Adjust fractions so total equals 1.0, or allow Phase B to normalise
 
 **Advanced Usage:**
 

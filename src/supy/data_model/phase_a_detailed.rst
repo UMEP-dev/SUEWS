@@ -596,7 +596,7 @@ Best Practices
 1. **Use dev mode** when working with experimental features
 2. **Update PHYSICS_OPTIONS** when adding new physics parameters
 3. **Add RENAMED_PARAMS entries** when deprecating parameters
-4. **Test both modes** to ensure consistent behavior
+4. **Test both modes** to ensure consistent behaviour
 5. **Update allowed nested sections** when extending Pydantic model
 
 Troubleshooting

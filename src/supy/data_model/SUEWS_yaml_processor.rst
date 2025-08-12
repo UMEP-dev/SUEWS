@@ -105,14 +105,14 @@ Choose your processing mode:
    - **Status**: Available - allows experimental features and extended parameter handling
    - Includes additional diagnostic information and development features
    - **Access**: Allows experimental features (STEBBS method, advanced physics options)
-   - **Phase A behavior**: Preserves extra parameters in Pydantic-allowed locations
+   - **Phase A behaviour**: Preserves extra parameters in Pydantic-allowed locations
    - **Future expansion**: Will include additional validation rules and developer tools
 
 .. note::
 
    **Mode Restriction Enforcement**: The processor performs a pre-validation check before running any phases. If you select public mode but your YAML contains experimental features (e.g., ``stebbsmethod != 0``), execution will halt with specific guidance on how to resolve the restriction.
 
-Mode-Specific Behavior
+Mode-Specific Behaviour
 ~~~~~~~~~~~~~~~~~~~~~~
 
 **Phase A Differences:**
@@ -605,10 +605,10 @@ Running Phase B
    # Complete pipeline: A + B + C validation  
    python src/supy/data_model/suews_yaml_processor.py user_config.yml --phase ABC
 
-Phase B Behavior
+Phase B Behaviour
 ~~~~~~~~~~~~~~~~~
 
-**Input Source**: Phase B behavior depends on execution mode:
+**Input Source**: Phase B behaviour depends on execution mode:
    - **Standalone B**: Always validates the original user YAML directly
    - **AB/BC/ABC workflows**: Uses the output from the previous phase
 
@@ -618,7 +618,7 @@ Phase B Behavior
 
 **Scientific Corrections**: Phase B can make automatic adjustments that improve model realism without changing user intent.
 
-**Phase B Only Mode Behavior:**
+**Phase B Only Mode Behaviour:**
 
 When running ``--phase B``, Phase B **always validates the original user YAML file directly**, ignoring any existing Phase A output files. This ensures pure Phase B validation can detect missing critical parameters (like ``netradiationmethod``) and provide appropriate error messages.
 
@@ -790,10 +790,10 @@ Running Phase C
    # Complete pipeline: A + B + C validation  
    python src/supy/data_model/suews_yaml_processor.py user_config.yml --phase ABC
 
-Phase C Behavior
+Phase C Behaviour
 ~~~~~~~~~~~~~~~~
 
-**Input Source**: Phase C behavior depends on execution mode:
+**Input Source**: Phase C behaviour depends on execution mode:
    - **Standalone C**: Always validates the original user YAML directly
    - **AC/BC/ABC workflows**: Uses the output from the previous phase
 
@@ -896,7 +896,7 @@ Choose your validation workflow based on your specific needs and configuration s
 
 **BC Workflow**: Best when you know your parameters are complete and current, but want to validate scientific reasonableness and check for conditional validation.
 
-File Management and Output Organization
+File Management and Output Organisation
 ---------------------------------------
 
 **Output File Naming Convention:**
@@ -925,7 +925,7 @@ The processor generates files with descriptive names that indicate which phases 
 
 **YAML File Headers:**
 
-All processor output YAML files use standardized headers for consistency:
+All processor output YAML files use standardised headers for consistency:
 
 .. code-block:: yaml
 
@@ -1095,7 +1095,7 @@ Background and Technical Details
 - Three-phase progressive validation system with flexible workflow combinations (A, B, C, AB, AC, BC, ABC)
 - Standardized YAML headers and consistent terminal output formatting across all phases  
 - Comprehensive file preservation logic that maintains validated output from successful phases
-- CRU-based automatic surface temperature initialization and scientific parameter corrections
+- CRU-based automatic surface temperature initialisation and scientific parameter corrections
 
 **Developers:** Developed by SR, MP, TS with the help of Claude as part of SUEWS YAML configuration validation system.
 

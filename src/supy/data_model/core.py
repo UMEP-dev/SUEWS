@@ -1198,23 +1198,25 @@ class SUEWSConfig(BaseModel):
         Only triggers validation if rslmethod == 2 AND the value was explicitly set
         (not just the default value).
         """
-        if not hasattr(self.model, "physics") or not hasattr(self.model.physics, "rslmethod"):
+        if not hasattr(self.model, "physics") or not hasattr(
+            self.model.physics, "rslmethod"
+        ):
             return False
-            
+
         rm = self.model.physics.rslmethod
         method = getattr(rm, "value", rm)
         try:
             method = int(method)
         except (TypeError, ValueError):
             pass
-            
+
         # Only validate if method == 2 AND it was explicitly set
         if method == 2:
-            # Check if this is likely a default value by checking if other physics 
+            # Check if this is likely a default value by checking if other physics
             # parameters are also at their defaults, suggesting the entire physics
             # section was auto-generated rather than user-specified
             return self._is_physics_explicitly_configured()
-        
+
         return False
 
     def _validate_rsl(self, site: Site, site_index: int) -> List[str]:
@@ -1254,38 +1256,40 @@ class SUEWSConfig(BaseModel):
         Only triggers validation if storageheatmethod == 6 AND the value was explicitly set
         (not just the default value).
         """
-        if not hasattr(self.model, "physics") or not hasattr(self.model.physics, "storageheatmethod"):
+        if not hasattr(self.model, "physics") or not hasattr(
+            self.model.physics, "storageheatmethod"
+        ):
             return False
-            
+
         shm = getattr(self.model.physics.storageheatmethod, "value", None)
         try:
             shm = int(shm)
         except (TypeError, ValueError):
             pass
-            
+
         # Only validate if method == 6 AND it was explicitly set
         if shm == 6:
             return self._is_physics_explicitly_configured()
-        
+
         return False
 
     def _is_physics_explicitly_configured(self) -> bool:
         """
         Heuristic to determine if physics parameters were explicitly set by the user
         rather than using all default values.
-        
-        For now, we'll be conservative and assume that if no model section was 
+
+        For now, we'll be conservative and assume that if no model section was
         provided by the user, then conditional validation should not apply.
-        
+
         Returns True if physics appears to be explicitly configured.
         """
         # For now, disable conditional validation entirely for configs that
         # don't explicitly set the problematic physics methods
         # This is a conservative approach that avoids breaking existing tests
-        
+
         # The real solution would be to track whether fields were explicitly set
         # vs using defaults, but that requires more complex Pydantic handling
-        
+
         # For now, return False to disable conditional validation unless
         # explicitly enabled during testing
         return False

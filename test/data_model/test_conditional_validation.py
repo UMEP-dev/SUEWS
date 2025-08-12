@@ -87,7 +87,7 @@ def test_validate_rsl_requires_faibldg():
 
 def test_needs_storage_validation_true_and_false():
     # After conditional validation fix, validation is disabled by default
-    # unless physics parameters are explicitly configured  
+    # unless physics parameters are explicitly configured
     cfg = make_cfg(storageheatmethod=6)
     assert cfg._needs_storage_validation() is False  # Disabled by default now
     cfg2 = make_cfg(storageheatmethod=1)

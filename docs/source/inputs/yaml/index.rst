@@ -25,23 +25,37 @@ A SUEWS YAML configuration file is organized into two main sections:
 - **model**: Global settings that control the simulation (physics options, time stepping, file paths)
 - **sites**: List of sites to simulate, each with properties, initial conditions, and land cover
 
-Here's a minimal configuration example:
+Here's a minimal configuration example showing all required sections:
 
 .. code-block:: yaml
 
-   # Minimal SUEWS configuration
+   # Minimal SUEWS configuration with all required sections
+   name: "My Simulation"
+   description: "Urban climate simulation for central London"
+   
    model:
-     control:
-       tstep: 3600                    # Hourly timestep
+     control:                         # Time and file settings
+       tstep: 3600                    # Hourly timestep [s]
        forcing_file: "forcing.txt"    # Meteorological data
-       start_date: "2020-01-01"       # Start date
-       end_date: "2020-12-31"         # End date
+       start_time: "2020-01-01"       # Start date (YYYY-MM-DD)
+       end_time: "2020-12-31"         # End date
+     physics:                         # Physics options
+       netradiationmethod: 3          # Model LW radiation
+       emissionsmethod: 2             # Temperature-dependent QF
+       storageheatmethod: 1           # OHM without QF
+       stabilitymethod: 3             # Campbell & Norman
 
    sites:
      - name: "My_Site"
-       latitude: 51.5                 # Site location
-       longitude: -0.1
-       land_cover:                    # Must sum to 1.0
+       gridiv: 1                      # Grid ID
+       properties:                    # Site characteristics
+         lat: 51.5                    # Latitude
+         lng: -0.1                    # Longitude
+         alt: 10.0                    # Altitude [m]
+         timezone: 0                  # UTC offset
+         surfacearea: 1000000.0       # Area [m²]
+         z: 10.0                      # Measurement height [m]
+       land_cover:                    # Fractions (must sum to 1.0)
          paved: 0.30
          bldgs: 0.35
          grass: 0.20
@@ -49,7 +63,8 @@ Here's a minimal configuration example:
          dectr: 0.05
          bsoil: 0.00
          water: 0.00
-        [...]
+       initial_states:                # Initial conditions
+         # Default values will be used if not specified
 
 For a complete working example, see the `sample configuration <https://github.com/UMEP-dev/SUEWS/blob/master/src/supy/sample_run/sample_config.yml>`_.
 

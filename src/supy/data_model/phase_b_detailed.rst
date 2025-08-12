@@ -29,6 +29,7 @@ Technical Implementation
 
 **Core Functions:**
 
+- ``validate_phase_b_inputs()``: Input file validation and loading
 - ``validate_physics_parameters()``: Required physics parameter validation
 - ``validate_model_option_dependencies()``: Physics option consistency checking
 - ``validate_land_cover_consistency()``: Surface fraction and parameter validation
@@ -44,12 +45,13 @@ Technical Implementation
    @dataclass
    class ValidationResult:
        """Structured result from scientific validation checks."""
-       level: ValidationLevel
-       category: str
-       message: str
-       parameter_path: str = None
-       suggested_value: str = None
-       rule_reference: str = None
+       status: str  # 'PASS', 'WARNING', 'ERROR'
+       category: str  # 'PHYSICS', 'GEOGRAPHY', 'SEASONAL', 'LAND_COVER', 'MODEL_OPTIONS'
+       parameter: str
+       site_index: Optional[int] = None
+       message: str = ""
+       suggested_value: Any = None
+       applied_fix: bool = False
 
    @dataclass
    class ScientificAdjustment:
@@ -59,6 +61,14 @@ Technical Implementation
        old_value: Any = None
        new_value: Any = None
        reason: str = ""
+
+   class DLSCheck(BaseModel):
+       """Calculate daylight saving time transitions and timezone offset from coordinates."""
+       lat: float
+       lng: float
+       year: int
+       startdls: Optional[int] = None
+       enddls: Optional[int] = None
 
 Scientific Validation Categories
 --------------------------------
@@ -87,7 +97,7 @@ Validates internal consistency between different physics options using actual im
        rslmethod = get_value_safe(physics, "rslmethod")
        stabilitymethod = get_value_safe(physics, "stabilitymethod")
        
-       # Constraint 1: If rslmethod == 2, stabilitymethod must be 3
+       # Constraint: If rslmethod == 2, stabilitymethod must be 3
        if rslmethod == 2 and stabilitymethod != 3:
            results.append(ValidationResult(
                status="ERROR",
@@ -95,16 +105,6 @@ Validates internal consistency between different physics options using actual im
                parameter="rslmethod-stabilitymethod",
                message="If rslmethod == 2, stabilitymethod must be 3",
                suggested_value="Set stabilitymethod to 3"
-           ))
-       
-       # Constraint 2: If stabilitymethod == 1, rslmethod must be present
-       elif stabilitymethod == 1 and rslmethod is None:
-           results.append(ValidationResult(
-               status="ERROR",
-               category="MODEL_OPTIONS",
-               parameter="stabilitymethod-rslmethod", 
-               message="If stabilitymethod == 1, rslmethod parameter is required for atmospheric stability calculations",
-               suggested_value="Set rslmethod to appropriate value"
            ))
        
        return results
@@ -154,7 +154,7 @@ Phase B integrates CRU TS4.06 monthly climatological data (1991-2020) for accura
 - **Accuracy**: Location-specific estimates within 0.5° spatial resolution
 - **Validation**: Ensures coordinates are within CRU coverage area
 
-**Automatic Temperature Initialization:**
+**Automatic Temperature Initialisation:**
 
 .. code-block:: yaml
 
@@ -185,11 +185,16 @@ Scientific Corrections and Adjustments
 
 Phase B makes scientific adjustments that improve model realism without changing user intent:
 
-**Temperature Initialization:**
+**Temperature Initialisation:**
 
-- **CRU Integration**: Initializes temperatures using climatological data
+- **CRU Integration**: Initialises temperatures using climatological data
 - **Month-Aware**: Uses correct month from simulation start date
 - **Coordinate-Based**: Location-specific temperature from CRU grid
+
+**Land Cover Adjustments:**
+
+- **Fraction Normalisation**: Adjusts surface fractions to sum to 1.0
+- **Seasonal LAI Adjustments**: Calculates LAI for deciduous trees based on seasonal parameters (laimin, laimax)
 
 **STEBBS Method Integration:**
 
@@ -199,21 +204,21 @@ Phase B makes scientific adjustments that improve model realism without changing
 
 **Parameter Validation Improvements:**
 
-Phase B includes enhanced validation logic from PR #569:
+Phase B includes enhanced validation logic with improved parameter handling:
 
 - **Improved get_value_safe Function**: Better handling of nested parameter extraction
 - **Reduced False Positives**: More accurate validation with safer parameter access
 - **Enhanced Error Handling**: Better detection of actual configuration issues
 
-**Land Cover Adjustments:**
+**DLS Parameter Calculation:**
 
-- **Fraction Normalization**: Adjusts surface fractions to sum to 1.0
-- **Seasonal LAI Adjustments**: Calculates LAI for deciduous trees based on seasonal parameters (laimin, laimax)
+- **Automatic DLS Calculation**: Computes daylight saving start/end days from coordinates
+- **Timezone Integration**: Uses timezonefinder and pytz libraries for accurate calculations
 
-Processing Modes and Behavior
------------------------------
+Processing Modes and Behaviour
+-------------------------------
 
-**Mode-Dependent Behavior:**
+**Mode-Dependent Behaviour:**
 
 Phase B uses the mode parameter for report formatting but applies the same validation to all modes:
 
@@ -221,7 +226,7 @@ Phase B uses the mode parameter for report formatting but applies the same valid
 
 - **Same Validation**: Both public and developer modes run identical validation checks
 - **Same Corrections**: Both modes apply the same automatic adjustments
-- **Mode Difference**: Only affects report header formatting ("Public" vs "Dev" in report title)
+- **Mode Difference**: Only affects report header formatting ("Public" vs "Developer" in report title)
 
 **Validation Status Values:**
 
@@ -293,7 +298,7 @@ Phase B generates comprehensive reports with two main sections:
    -- initial_states.bldgs: temperature, tsfc, tin → 12.4°C (Set from CRU data for coordinates (51.51, -0.13) for month 1)
    -- anthropogenic_emissions.startdls: 15.0 → 86 (Calculated DLS start for coordinates (51.51, -0.13))
    -- anthropogenic_emissions.enddls: 12.0 → 303 (Calculated DLS end for coordinates (51.51, -0.13))
-   -- paved.sfr at site [0]: rounded to achieve sum of land cover fractions equal to 1.0 → tolerance level: 1.00e-08 (Small floating point rounding applied to surface with max surface fraction value)
+   -- paved.sfr at site [0]: rounded to achieve sum of land cover fractions equal to 1.0 → tolerance level: 1.00e-08
    
    # ==================================================
 
@@ -313,13 +318,6 @@ Error Handling and Edge Cases
            raise ValueError(f"Latitude must be between -90 and 90, got {lat}")
        if not (-180 <= lon <= 180):
            raise ValueError(f"Longitude must be between -180 and 180, got {lon}")
-       
-       # Check for CRU data file availability
-       if not os.path.exists(cru_resource):
-           raise FileNotFoundError(
-               f"CRU data file not found at {cru_resource}. "
-               "Please ensure the CRU Parquet file is available in the package."
-           )
 
 **Geographic Validation (Actual Implementation):**
 
@@ -395,7 +393,7 @@ Phase B includes comprehensive test coverage:
 Mode Selection Guidelines
 -------------------------
 
-**Actual Mode Behavior:**
+**Actual Mode Behaviour:**
 
 Phase B validation and corrections are **identical** in both public and developer modes. The mode parameter only affects:
 
@@ -456,29 +454,29 @@ Troubleshooting
    Check: Review physics option combinations in SUEWS documentation
    Fix: Adjust physics options to compatible combination
 
-**Issue**: "Surface fractions sum to 1.020000, should equal 1.0 (auto-correction range: 0.9999-1.0001, current: paved=0.450, bldgs=0.300, grass=0.270)"
+**Issue**: "Surface fractions sum to 1.020000, should equal 1.0"
 
 .. code-block:: text
 
    Solution: Land cover fractions are incomplete or incorrect
-   Check: Verify surface fractions - error shows which parameter to adjust and actual values
-   Fix: Adjust the specified surface fraction (paved.sfr in this example) so total equals 1.0
-   Note: Only tiny floating-point errors (range 0.9999-1.0001) are automatically corrected
+   Check: Verify surface fractions in your configuration
+   Fix: Adjust surface fractions so total equals 1.0
+   Note: Only tiny floating-point errors are automatically corrected
 
 **Advanced Usage:**
 
 .. code-block:: python
 
    # Direct Python usage for Phase B
-   from science_check import run_science_check
+   from supy.data_model.science_check import run_science_check
    
    # Function returns updated YAML data as dict
    updated_data = run_science_check(
-       uptodate_yaml_file="updated_my_config.yml",
+       uptodate_yaml_file="updatedA_my_config.yml",
        user_yaml_file="my_config.yml", 
        standard_yaml_file="src/supy/sample_data/sample_config.yml",
-       science_yaml_file="updated_science_my_config.yml",
-       science_report_file="science_report.txt",
+       science_yaml_file="updatedB_my_config.yml",
+       science_report_file="reportB_my_config.txt",
        mode="public",  # Mode only affects report header
        phase="B"
    )
@@ -495,7 +493,7 @@ Troubleshooting
    # Public mode (default) - standard scientific validation
    python src/supy/data_model/suews_yaml_processor.py user_config.yml --phase B --mode public
    
-   # Developer mode - extended validation with experimental features
+   # Developer mode - identical validation with different report header
    python src/supy/data_model/suews_yaml_processor.py user_config.yml --phase B --mode dev
 
 **Integration Examples:**
@@ -512,7 +510,7 @@ Troubleshooting
    python src/supy/data_model/suews_yaml_processor.py user_config.yml --phase ABC
 
 Related Documentation
-----------------------
+---------------------
 
 **Three-Phase Validation System:**
 - `SUEWS_yaml_processor.rst <SUEWS_yaml_processor.rst>`_ - User guide for the complete three-phase validation system

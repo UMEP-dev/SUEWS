@@ -148,17 +148,128 @@ def generate_phase_c_report(
                 )
 
             complete_error_msg = " ".join(full_error_parts)
-            action_needed_items.append({
-                "field": field_name,
-                "path": field_path,
-                "error": complete_error_msg,
-            })
+            
+            # Check if this is our combined critical validation error
+            if "Critical validation failed: " in error_msg:
+                # Split the combined error message into individual issues
+                # Extract the part after "Critical validation failed: "
+                split_parts = error_msg.split("Critical validation failed: ", 1)
+                combined_message = split_parts[1] if len(split_parts) > 1 else error_msg
+                individual_issues = [issue.strip() for issue in combined_message.split(";")]
+                
+                for issue in individual_issues:
+                    if issue:  # Skip empty issues
+                        # Determine the field name and path based on the issue content
+                        if "is set to null and will cause runtime crash" in issue:
+                            param_name = issue.split(" is set to null")[0]
+                            issue_field_name = param_name
+                            issue_path = f"model.physics.{param_name}"
+                        elif " → " in issue:
+                            # StorageHeat parameter format: "site: storageheatmethod=6 → properties.lambda_c must be set"
+                            parts = issue.split(" → ", 1)
+                            if len(parts) == 2:
+                                site_part = parts[0].strip()
+                                param_part = parts[1].strip()
+                                # Extract site name (before the colon)
+                                site_name = site_part.split(":")[0].strip() if ":" in site_part else "Unknown"
+                                issue_field_name = param_part.split(" must be")[0].strip()
+                                issue_path = f"sites[{site_name}].properties.{issue_field_name}"
+                            else:
+                                issue_field_name = "StorageHeat parameter"
+                                issue_path = "configuration"
+                        elif "must be set" in issue and ":" in issue:
+                            # RSL parameter format: "site: for rslmethod=2 and bldgs.sfr=0.38, bldgs.faibldg must be set"
+                            parts = issue.split(":", 1)
+                            if len(parts) == 2:
+                                site_name = parts[0].strip()
+                                param_desc = parts[1].strip()
+                                if "faibldg" in param_desc:
+                                    issue_field_name = "bldgs.faibldg"
+                                    issue_path = f"sites[{site_name}].properties.land_cover.bldgs.faibldg"
+                                else:
+                                    issue_field_name = "RSL parameter"
+                                    issue_path = f"sites[{site_name}]"
+                            else:
+                                issue_field_name = "RSL parameter"
+                                issue_path = "configuration"
+                        else:
+                            # Generic issue
+                            issue_field_name = "validation issue"
+                            issue_path = "configuration"
+                        
+                        action_needed_items.append({
+                            "field": issue_field_name,
+                            "path": issue_path,
+                            "error": issue,
+                        })
+            else:
+                # Original single error handling
+                action_needed_items.append({
+                    "field": field_name,
+                    "path": field_path,
+                    "error": complete_error_msg,
+                })
     else:
-        action_needed_items.append({
-            "field": "general",
-            "path": "configuration",
-            "error": str(validation_error),
-        })
+        error_str = str(validation_error)
+        
+        # Check if this is our combined critical validation error
+        if error_str.startswith("Critical validation failed: "):
+            # Split the combined error message into individual issues
+            combined_message = error_str.replace("Critical validation failed: ", "")
+            individual_issues = [issue.strip() for issue in combined_message.split(";")]
+            
+            for issue in individual_issues:
+                if issue:  # Skip empty issues
+                    # Determine the field name and path based on the issue content
+                    if "is set to null and will cause runtime crash" in issue:
+                        param_name = issue.split(" is set to null")[0]
+                        field_name = param_name
+                        path = f"model.physics.{param_name}"
+                    elif " → " in issue:
+                        # StorageHeat parameter format: "site: storageheatmethod=6 → properties.lambda_c must be set"
+                        parts = issue.split(" → ", 1)
+                        if len(parts) == 2:
+                            site_part = parts[0].strip()
+                            param_part = parts[1].strip()
+                            # Extract site name (before the colon)
+                            site_name = site_part.split(":")[0].strip() if ":" in site_part else "Unknown"
+                            field_name = param_part.split(" must be")[0].strip()
+                            path = f"sites[{site_name}].properties.{field_name}"
+                        else:
+                            field_name = "StorageHeat parameter"
+                            path = "configuration"
+                    elif "must be set" in issue and ":" in issue:
+                        # RSL parameter format: "site: for rslmethod=2 and bldgs.sfr=0.38, bldgs.faibldg must be set"
+                        parts = issue.split(":", 1)
+                        if len(parts) == 2:
+                            site_name = parts[0].strip()
+                            param_desc = parts[1].strip()
+                            if "faibldg" in param_desc:
+                                field_name = "bldgs.faibldg"
+                                path = f"sites[{site_name}].properties.land_cover.bldgs.faibldg"
+                            else:
+                                field_name = "RSL parameter"
+                                path = f"sites[{site_name}]"
+                        else:
+                            field_name = "RSL parameter"
+                            path = "configuration"
+                    else:
+                        # Generic issue
+                        field_name = "validation issue"
+                        path = "configuration"
+                    
+                    action_needed_items.append({
+                        "field": field_name,
+                        "path": path,
+                        "error": issue,
+                    })
+        else:
+            # Original single error handling
+            action_needed_items.append({
+                "field": "general",
+                "path": "configuration", 
+                "error": error_str,
+            })
 
     if action_needed_items:
         report_lines.append("## ACTION NEEDED")

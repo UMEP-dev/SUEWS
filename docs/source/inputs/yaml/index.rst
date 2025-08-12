@@ -106,26 +106,6 @@ Here's a minimal configuration example showing all required sections:
 
 For a complete working example, see the `sample configuration <https://github.com/UMEP-dev/SUEWS/blob/master/src/supy/sample_run/sample_config.yml>`_.
 
-Validation and Error Handling
-------------------------------
-
-SUEWS validates your configuration when loading. If errors occur:
-
-- **Clear error messages** list all missing or invalid parameters
-- **Annotated YAML** can be generated to help fix issues
-
-To generate an annotated file with error markers:
-
-.. code-block:: python
-
-   # Automatic generation when errors found
-   config = SUEWSConfig.from_yaml('config.yml', auto_generate_annotated=True)
-
-The annotated file (``config.yml_annotated.yml``) includes:
-
-- Missing parameters marked with ``[ERROR] MISSING:``
-- Suggested fixes marked with ``[TIP] ADD HERE:``
-- Parameter descriptions and expected types
 
 Essential Parameters
 --------------------
@@ -321,6 +301,39 @@ For complete parameter documentation:
 
 - :doc:`schema/model` - All model-level configuration parameters
 - :doc:`schema/site` - All site-specific parameters
+
+
+Validation and Error Handling
+------------------------------
+
+.. note:: **Configuration Wizard Coming Soon**
+
+   A dedicated configuration wizard tool will be shipped with future SuPy releases to help you:
+   
+   - Interactively create YAML configuration files
+   - Select appropriate parameter values for your site
+   - Validate configurations before running
+   - Convert legacy input formats to YAML
+   
+   This tool will simplify the configuration process, especially for the complex parameter sections shown above.
+
+SUEWS validates your configuration when loading. If errors occur:
+
+- **Clear error messages** list all missing or invalid parameters
+- **Annotated YAML** can be generated to help fix issues
+
+To generate an annotated file with error markers:
+
+.. code-block:: python
+
+   # Automatic generation when errors found
+   config = SUEWSConfig.from_yaml('config.yml', auto_generate_annotated=True)
+
+The annotated file (``config.yml_annotated.yml``) includes:
+
+- Missing parameters marked with ``[ERROR] MISSING:``
+- Suggested fixes marked with ``[TIP] ADD HERE:``
+- Parameter descriptions and expected types
 
 Additional Resources
 --------------------

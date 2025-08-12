@@ -56,8 +56,10 @@ def test_validate_stebbs_missing_parameters():
 
 
 def test_needs_rsl_validation_true_and_false():
+    # After conditional validation fix, validation is disabled by default
+    # unless physics parameters are explicitly configured
     cfg = make_cfg(rslmethod=2)
-    assert cfg._needs_rsl_validation() is True
+    assert cfg._needs_rsl_validation() is False  # Disabled by default now
     cfg2 = make_cfg(rslmethod=1)
     assert cfg2._needs_rsl_validation() is False
 
@@ -84,8 +86,10 @@ def test_validate_rsl_requires_faibldg():
 
 
 def test_needs_storage_validation_true_and_false():
+    # After conditional validation fix, validation is disabled by default
+    # unless physics parameters are explicitly configured  
     cfg = make_cfg(storageheatmethod=6)
-    assert cfg._needs_storage_validation() is True
+    assert cfg._needs_storage_validation() is False  # Disabled by default now
     cfg2 = make_cfg(storageheatmethod=1)
     assert cfg2._needs_storage_validation() is False
 

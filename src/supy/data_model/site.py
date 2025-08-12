@@ -36,6 +36,10 @@ import warnings
 
 
 class VegetationParams(BaseModel):
+    """Vegetation phenology parameters."""
+    
+    model_config = ConfigDict(title="Vegetation Parameters")
+    
     porosity_id: FlexibleRefValue(int) = Field(
         description="Initial porosity for deciduous trees",
         json_schema_extra={"unit": "dimensionless", "display_name": "Porosity Id"},
@@ -198,6 +202,10 @@ class Conductance(BaseModel):
 
 
 class LAIPowerCoefficients(BaseModel):
+    """Power law coefficients for LAI calculation."""
+    
+    model_config = ConfigDict(title="LAI Power Coefficients")
+    
     growth_lai: Optional[FlexibleRefValue(float)] = Field(
         default=None,
         description="Power coefficient for LAI in growth equation (LAIPower[1])",
@@ -1161,6 +1169,10 @@ class LandCover(BaseModel):
 
 
 class ArchetypeProperties(BaseModel):
+    """Urban morphology and archetype properties."""
+    
+    model_config = ConfigDict(title="Archetype Properties")
+    
     # Not used in STEBBS - DAVE only
     # BuildingCode='1'
     # BuildingClass='SampleClass'
@@ -2216,6 +2228,10 @@ class SPARTACUSParams(BaseModel):
 
 
 class LUMPSParams(BaseModel):
+    """LUMPS model parameters for surface moisture."""
+    
+    model_config = ConfigDict(title="LUMPS Parameters")
+    
     raincover: FlexibleRefValue(float) = Field(
         ge=0,
         le=1,
@@ -2614,6 +2630,10 @@ class Site(BaseModel):
 
 
 class SnowAlb(BaseModel):
+    """Snow albedo parameters."""
+    
+    model_config = ConfigDict(title="Snow Albedo")
+    
     snowalb: FlexibleRefValue(float) = Field(
         description="Snow albedo",
         json_schema_extra={"unit": "dimensionless", "display_name": "Snow Albedo"},

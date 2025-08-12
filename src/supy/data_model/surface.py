@@ -23,7 +23,9 @@ from .hydro import WaterDistribution, StorageDrainParams
 
 
 class ThermalLayers(BaseModel):
-    model_config = ConfigDict(populate_by_name=True)
+    """Thermal properties of surface layers."""
+    
+    model_config = ConfigDict(populate_by_name=True, title="Thermal Layers")
     dz: Optional[FlexibleRefValue(List[Optional[float]])] = Field(
         default=None,
         description="Thickness of thermal layers from surface to depth",
@@ -159,6 +161,8 @@ class ThermalLayers(BaseModel):
 class SurfaceProperties(BaseModel):
     """Base properties for all surface types"""
 
+    model_config = ConfigDict(title="Surface Properties")
+    
     sfr: FlexibleRefValue(float) = Field(
         ge=0,
         le=1,
@@ -1014,6 +1018,10 @@ class WallLayer(BuildingLayer):
 
 
 class VerticalLayers(BaseModel):
+    """Vertical structure of surface layers."""
+    
+    model_config = ConfigDict(title="Vertical Layers")
+    
     nlayer: FlexibleRefValue(int) = Field(
         default=3,
         description="Number of vertical layers in the urban canopy",

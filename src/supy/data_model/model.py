@@ -621,6 +621,8 @@ class OutputFormat(Enum):
 class OutputConfig(BaseModel):
     """Configuration for model output files."""
 
+    model_config = ConfigDict(title="Output Configuration")
+    
     format: OutputFormat = Field(
         default=OutputFormat.TXT,
         description="Output file format. Options: 'txt' for traditional text files (one per year/grid/group), 'parquet' for single Parquet file containing all data",

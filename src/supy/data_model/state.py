@@ -15,6 +15,8 @@ from .type import RefValue, Reference, FlexibleRefValue, init_df_state, SurfaceT
 class SurfaceInitialState(BaseModel):
     """Base initial state parameters for all surface types"""
 
+    model_config = ConfigDict(title="Surface Initial State")
+    
     state: FlexibleRefValue(float) = Field(
         description="Initial water state of the surface",
         json_schema_extra={"unit": "mm", "display_name": "State"},
@@ -247,6 +249,10 @@ class SurfaceInitialState(BaseModel):
 
 
 class WaterUse(BaseModel):
+    """Water use data and parameters."""
+    
+    model_config = ConfigDict(title="Water Use")
+    
     wu_total: FlexibleRefValue(float) = Field(
         description="Total water use",
         json_schema_extra={"unit": "mm", "display_name": "Wu Total"},
@@ -616,6 +622,8 @@ class HDD_ID(BaseModel):
     used in anthropogenic heat and water use calculations.
     """
 
+    model_config = ConfigDict(title="Heating Degree Days")
+    
     # Current day accumulations (updated throughout the day)
     hdd_accum: float = Field(
         default=0.0,

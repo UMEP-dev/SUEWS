@@ -168,8 +168,7 @@ For complete site structure, see :doc:`schema/site`.
 
 Properties Subsection
 ~~~~~~~~~~~~~~~~~~~~~
-
-The ``properties`` section contains all static--not varying during the simulation--site characteristics, which include `general site information <schema/siteproperties>`__ and `land cover parameters <schema/landcover>`__.
+The ``properties`` section contains all static--not varying during the simulation--site characteristics, which include :doc:`general site information <schema/siteproperties>` and :doc:`land cover parameters <schema/landcover>`.
 
 General Site Information
 +++++++++++++++++++++++++

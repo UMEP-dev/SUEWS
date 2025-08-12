@@ -19,6 +19,10 @@ T = TypeVar("T")
 
 
 class Reference(BaseModel):
+    """Literature reference information."""
+    
+    model_config = ConfigDict(title="Reference Info")
+    
     desc: Optional[str] = Field(
         default=None, description="Description of the reference source"
     )

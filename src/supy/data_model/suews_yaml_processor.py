@@ -1,37 +1,19 @@
-"""
-SUEWS YAML Configuration Processor
+"""SUEWS YAML Configuration Processor
 
-This script provides a complete workflow for SUEWS YAML configuration processing:
-- Phase A: Up-to-date YAML check and parameter detection (uptodate_yaml.py)
-- Phase B: Scientific validation and automatic adjustments (science_check.py)
-- Phase C: Conditional Pydantic validation based on model physics options (core.py)
+Three-phase validation workflow:
+- Phase A: Parameter detection and YAML structure updates
+- Phase B: Scientific validation and automatic adjustments  
+- Phase C: Conditional Pydantic validation based on physics options
 
-Usage:
-    python suews_yaml_processor.py <user_yaml_file> [--phase PHASE]
-
-Examples:
-    python suews_yaml_processor.py my_config.yml                    # ABC workflow (default)
-    python suews_yaml_processor.py my_config.yml --phase C          # Phase C only
-    python suews_yaml_processor.py my_config.yml --phase BC         # B→C workflow
-    python suews_yaml_processor.py my_config.yml --phase ABC        # Complete A→B→C workflow
-
-The script supports individual phases (A, B, C) or combined workflows (AB, AC, BC, ABC):
-1. Phase A: Detects missing parameters and updates YAML structure
-2. Phase B: Performs scientific validation and automatic adjustments
-3. Phase C: Runs conditional Pydantic validation for model-specific requirements
-
-Input: Original user YAML configuration file
-Output: Validated YAML configuration + comprehensive validation reports
+Supports individual phases (A, B, C) or combined workflows (AB, AC, BC, ABC).
 """
 
 import sys
 import os
-import subprocess
 import argparse
 import yaml
 from pathlib import Path
 from typing import Tuple, Optional
-import tempfile
 import shutil
 import io
 from contextlib import redirect_stdout, redirect_stderr
@@ -52,22 +34,7 @@ def detect_pydantic_defaults(
     path: str = "",
     standard_data: dict = None,
 ) -> tuple:
-    """
-    Detect where Pydantic applied default values by comparing original vs processed data.
-    Only reports parameters as "missing" if they exist in the standard sample_config.yml.
-    Separates critical physics parameters that would crash df_state from normal defaults.
-
-    Args:
-        original_data: The original YAML data as parsed
-        processed_data: The Pydantic-processed data with defaults applied
-        path: Current path in the data structure (for recursion)
-        standard_data: The standard sample_config.yml data for comparison
-
-    Returns:
-        Tuple of (critical_nulls, normal_defaults) where:
-        - critical_nulls: Physics parameters that are null and would crash df_state
-        - normal_defaults: Normal Pydantic default applications for parameters in standard config
-    """
+    """Detect where Pydantic applied defaults and separate critical nulls from normal defaults."""
     # Critical physics parameters that get converted to int() in df_state
     CRITICAL_PHYSICS_PARAMS = [
         "netradiationmethod",
@@ -98,21 +65,18 @@ def detect_pydantic_defaults(
     ]
 
     def parameter_exists_in_standard(param_path: str, standard_data: dict) -> bool:
-        """Check if a parameter exists in the standard config at the given path"""
+        """Check if parameter exists in standard config at given path."""
         if not standard_data:
-            return True  # If no standard data, assume all params are valid (fallback behavior)
+            return True
 
         # Navigate to the parameter using the path
         path_parts = param_path.split(".") if param_path else []
         current = standard_data
 
         for part in path_parts:
-            # Handle array indices like sites[0]
             if "[" in part and "]" in part:
                 array_name = part.split("[")[0]
-                if array_name not in current or not isinstance(
-                    current[array_name], list
-                ):
+                if array_name not in current or not isinstance(current[array_name], list):
                     return False
                 current = current[array_name][0] if current[array_name] else {}
             else:
@@ -125,22 +89,17 @@ def detect_pydantic_defaults(
     critical_nulls = []
     normal_defaults = []
 
-    # Handle None/missing values in original data
     if original_data is None:
         original_data = {}
     if processed_data is None:
         processed_data = {}
 
-    # Compare dictionaries recursively
     if isinstance(processed_data, dict) and isinstance(original_data, dict):
-        # Check all fields in processed data
         for key, processed_value in processed_data.items():
             current_path = f"{path}.{key}" if path else key
             original_value = original_data.get(key)
 
-            # Check for RefValue wrapper pattern (SUEWS specific) or plain values from model_dump()
             if isinstance(processed_value, dict) and "value" in processed_value:
-                # This is a RefValue field (from config object directly)
                 original_ref_value = (
                     original_value.get("value")
                     if isinstance(original_value, dict)
@@ -148,13 +107,10 @@ def detect_pydantic_defaults(
                 )
                 processed_ref_value = processed_value.get("value")
 
-                # Check if original was None/null but processed has a value (default applied)
                 if original_ref_value is None and processed_ref_value is not None:
-                    # Skip internal unused parameters that shouldn't be reported to users
                     if key in INTERNAL_UNUSED_PARAMS:
                         continue
 
-                    # Determine if parameter was missing or explicitly set to null
                     was_missing = key not in original_data
                     status_text = "found missing" if was_missing else "found null"
 
@@ -165,13 +121,11 @@ def detect_pydantic_defaults(
                         "field_name": key,
                         "status": status_text,
                     })
-                # Check for critical null physics parameters that would crash df_state
                 elif (
                     original_ref_value is None
                     and processed_ref_value is None
                     and original_value is not None
                 ):
-                    # Skip internal unused parameters that shouldn't be reported to users
                     if key in INTERNAL_UNUSED_PARAMS:
                         continue
 
@@ -182,19 +136,13 @@ def detect_pydantic_defaults(
                             "field_name": key,
                             "parameter_type": "physics",
                         })
-                    # Remove the else clause that reports "null (accepted by Pydantic)"
-                    # If Pydantic accepts null, there's nothing to report to the user
-            # Handle plain values (from model_dump() which extracts values from RefValue wrappers)
             elif (
                 not isinstance(processed_value, (dict, list))
                 and processed_value is not None
             ):
-                # Skip internal unused parameters that shouldn't be reported to users
                 if key in INTERNAL_UNUSED_PARAMS:
                     continue
 
-                # Check if this is a default value (parameter missing in original)
-                # Only report if parameter exists in standard config
                 if key not in original_data and parameter_exists_in_standard(
                     current_path, standard_data
                 ):
@@ -206,14 +154,12 @@ def detect_pydantic_defaults(
                         "status": "found missing",
                     })
             elif isinstance(processed_value, dict):
-                # Recurse into nested dictionaries
                 nested_critical, nested_defaults = detect_pydantic_defaults(
                     original_value, processed_value, current_path, standard_data
                 )
                 critical_nulls.extend(nested_critical)
                 normal_defaults.extend(nested_defaults)
             elif isinstance(processed_value, list) and isinstance(original_value, list):
-                # Handle lists (like sites)
                 for i, (orig_item, proc_item) in enumerate(
                     zip(original_value, processed_value)
                 ):
@@ -224,9 +170,6 @@ def detect_pydantic_defaults(
                     critical_nulls.extend(nested_critical)
                     normal_defaults.extend(nested_defaults)
             else:
-                # Check for direct value defaults (non-RefValue fields)
-                # If the field wasn't in original data but appears in processed data, it's a default
-                # Skip internal Pydantic fields and unused parameters that users don't need to know about
                 if (
                     key not in original_data
                     and processed_value is not None
@@ -237,43 +180,25 @@ def detect_pydantic_defaults(
                     normal_defaults.append({
                         "field_path": current_path,
                         "original_value": None,
-                        "default_value": str(
-                            processed_value
-                        ),  # Convert to string for display
+                        "default_value": str(processed_value),
                         "field_name": key,
-                        "status": "found missing",  # Direct fields are always missing when not in original
+                        "status": "found missing",
                     })
 
     return critical_nulls, normal_defaults
 
 
 def validate_input_file(user_yaml_file: str) -> str:
-    """
-    Validate that the input YAML file exists and is readable.
-
-    Args:
-        user_yaml_file: Path to user YAML file
-
-    Returns:
-        Absolute path to the validated file
-
-    Raises:
-        FileNotFoundError: If file doesn't exist
-        ValueError: If file is not a YAML file
-    """
+    """Validate input YAML file exists and is readable."""
     if not os.path.exists(user_yaml_file):
         raise FileNotFoundError(f"Input file not found: {user_yaml_file}")
 
-    # Check file extension
     if not user_yaml_file.lower().endswith((".yml", ".yaml")):
-        raise ValueError(
-            f"Input file must be a YAML file (.yml or .yaml): {user_yaml_file}"
-        )
+        raise ValueError(f"Input file must be a YAML file (.yml or .yaml): {user_yaml_file}")
 
-    # Check if file is readable
     try:
         with open(user_yaml_file, "r") as f:
-            f.read(1)  # Try to read first character
+            f.read(1)
     except PermissionError:
         raise PermissionError(f"Cannot read input file: {user_yaml_file}")
 
@@ -283,21 +208,11 @@ def validate_input_file(user_yaml_file: str) -> str:
 def setup_output_paths(
     user_yaml_file: str, phase: str
 ) -> Tuple[str, str, str, str, str, str, str]:
-    """
-    Generate all output file paths based on input file and phase.
-
-    Args:
-        user_yaml_file: Path to input user YAML file
-        phase: Phase mode ('A', 'B', 'C', 'AB', 'AC', 'BC', or 'ABC')
-
-    Returns:
-        Tuple of (uptodate_file, report_file, science_yaml_file, science_report_file, pydantic_yaml_file, pydantic_report_file, dirname)
-    """
+    """Generate output file paths based on input file and phase."""
     basename = os.path.basename(user_yaml_file)
     dirname = os.path.dirname(user_yaml_file)
     name_without_ext = os.path.splitext(basename)[0]
 
-    # Initialize all output files
     uptodate_file = None
     report_file = None
     science_yaml_file = None
@@ -306,79 +221,36 @@ def setup_output_paths(
     pydantic_report_file = None
 
     if phase == "A":
-        # Phase A only
         uptodate_file = os.path.join(dirname, f"updatedA_{basename}")
         report_file = os.path.join(dirname, f"reportA_{name_without_ext}.txt")
     elif phase == "B":
-        # Phase B only
         science_yaml_file = os.path.join(dirname, f"updatedB_{basename}")
         science_report_file = os.path.join(dirname, f"reportB_{name_without_ext}.txt")
     elif phase == "C":
-        # Phase C only
         pydantic_yaml_file = os.path.join(dirname, f"updatedC_{basename}")
         pydantic_report_file = os.path.join(dirname, f"reportC_{name_without_ext}.txt")
     elif phase == "AB":
-        # Complete A→B workflow - use AB naming
-        uptodate_file = os.path.join(
-            dirname, f"updatedA_{basename}"
-        )  # Intermediate A file
-        report_file = os.path.join(
-            dirname, f"reportA_{name_without_ext}.txt"
-        )  # Intermediate A report
-        science_yaml_file = os.path.join(
-            dirname, f"updatedAB_{basename}"
-        )  # Final AB file
-        science_report_file = os.path.join(
-            dirname, f"reportAB_{name_without_ext}.txt"
-        )  # Final AB report
+        uptodate_file = os.path.join(dirname, f"updatedA_{basename}")
+        report_file = os.path.join(dirname, f"reportA_{name_without_ext}.txt")
+        science_yaml_file = os.path.join(dirname, f"updatedAB_{basename}")
+        science_report_file = os.path.join(dirname, f"reportAB_{name_without_ext}.txt")
     elif phase == "AC":
-        # A→C workflow
-        uptodate_file = os.path.join(
-            dirname, f"updatedA_{basename}"
-        )  # Intermediate A file
-        report_file = os.path.join(
-            dirname, f"reportA_{name_without_ext}.txt"
-        )  # Intermediate A report
-        pydantic_yaml_file = os.path.join(
-            dirname, f"updatedAC_{basename}"
-        )  # Final AC file
-        pydantic_report_file = os.path.join(
-            dirname, f"reportAC_{name_without_ext}.txt"
-        )  # Final AC report
+        uptodate_file = os.path.join(dirname, f"updatedA_{basename}")
+        report_file = os.path.join(dirname, f"reportA_{name_without_ext}.txt")
+        pydantic_yaml_file = os.path.join(dirname, f"updatedAC_{basename}")
+        pydantic_report_file = os.path.join(dirname, f"reportAC_{name_without_ext}.txt")
     elif phase == "BC":
-        # B→C workflow
-        science_yaml_file = os.path.join(
-            dirname, f"updatedB_{basename}"
-        )  # Intermediate B file
-        science_report_file = os.path.join(
-            dirname, f"reportB_{name_without_ext}.txt"
-        )  # Intermediate B report
-        pydantic_yaml_file = os.path.join(
-            dirname, f"updatedBC_{basename}"
-        )  # Final BC file
-        pydantic_report_file = os.path.join(
-            dirname, f"reportBC_{name_without_ext}.txt"
-        )  # Final BC report
+        science_yaml_file = os.path.join(dirname, f"updatedB_{basename}")
+        science_report_file = os.path.join(dirname, f"reportB_{name_without_ext}.txt")
+        pydantic_yaml_file = os.path.join(dirname, f"updatedBC_{basename}")
+        pydantic_report_file = os.path.join(dirname, f"reportBC_{name_without_ext}.txt")
     elif phase == "ABC":
-        # Complete A→B→C workflow
-        uptodate_file = os.path.join(
-            dirname, f"updatedA_{basename}"
-        )  # Intermediate A file
-        report_file = os.path.join(
-            dirname, f"reportA_{name_without_ext}.txt"
-        )  # Intermediate A report
-        science_yaml_file = os.path.join(
-            dirname, f"updatedB_{basename}"
-        )  # Intermediate B file
-        science_report_file = os.path.join(
-            dirname, f"reportB_{name_without_ext}.txt"
-        )  # Intermediate B report
-        pydantic_yaml_file = os.path.join(
-            dirname, f"updatedABC_{basename}"
-        )  # Final ABC file
-        pydantic_report_file = os.path.join(
-            dirname, f"reportABC_{name_without_ext}.txt"
-        )  # Final ABC report
+        uptodate_file = os.path.join(dirname, f"updatedA_{basename}")
+        report_file = os.path.join(dirname, f"reportA_{name_without_ext}.txt")
+        science_yaml_file = os.path.join(dirname, f"updatedB_{basename}")
+        science_report_file = os.path.join(dirname, f"reportB_{name_without_ext}.txt")
+        pydantic_yaml_file = os.path.join(dirname, f"updatedABC_{basename}")
+        pydantic_report_file = os.path.join(dirname, f"reportABC_{name_without_ext}.txt")
 
     return (
         uptodate_file,
@@ -400,25 +272,11 @@ def run_phase_a(
     phase: str = "A",
     silent: bool = False,
 ) -> bool:
-    """
-    Execute Phase A: Parameter detection and YAML structure updates.
-
-    Args:
-        user_yaml_file: Path to original user YAML
-        standard_yaml_file: Path to standard reference YAML
-        uptodate_file: Path for Phase A output YAML
-        report_file: Path for Phase A report
-        mode: Processing mode ('public' or 'dev')
-        silent: If True, suppress phase progress messages
-
-    Returns:
-        True if Phase A completed successfully, False otherwise
-    """
+    """Execute Phase A: Parameter detection and YAML structure updates."""
     if not silent:
         print("Phase A: Up-to-date YAML check...")
 
     try:
-        # Run Phase A using the imported function (suppress verbose output)
         with redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()):
             annotate_missing_parameters(
                 user_file=user_yaml_file,
@@ -429,7 +287,6 @@ def run_phase_a(
                 phase=phase,
             )
 
-        # Check if Phase A produced output files
         if not os.path.exists(uptodate_file):
             if not silent:
                 print()
@@ -442,7 +299,6 @@ def run_phase_a(
                 print("✗ Phase A failed: No report file generated!")
             return False
 
-        # Check if uptodate file has Phase A header
         with open(uptodate_file, "r") as f:
             content = f.read()
             if "Updated YAML" not in content:
@@ -451,23 +307,17 @@ def run_phase_a(
                     print("✗ Phase A failed: Missing Phase A completion header!")
                 return False
 
-        # Check Phase A report for critical issues
         with open(report_file, "r") as f:
             report_content = f.read()
 
-        # Phase A should halt workflow if there are any ACTION NEEDED items
         if "## ACTION NEEDED" in report_content:
             if not silent:
                 print("✗ Phase A failed!")
                 print(f"Report: {report_file}")
                 print(f"Updated YAML: {uptodate_file}")
-                print(
-                    f"Suggestion: Fix issues in updated YAML and consider to run Phase A again."
-                )
+                print(f"Suggestion: Fix issues in updated YAML and consider to run Phase A again.")
             return False
 
-        # If Phase A succeeds with no critical errors, we'll let Phase B create the consolidated report
-        # Keep the Phase A report file for Phase B to read, but don't present it as final output
         if not silent:
             print("✓ Phase A completed")
         return True
@@ -491,25 +341,8 @@ def run_phase_b(
     phase: str = "B",
     silent: bool = False,
 ) -> bool:
-    """
-    Execute Phase B: Scientific validation and automatic adjustments.
-
-    Args:
-        user_yaml_file: Path to original user YAML
-        uptodate_file: Path to Phase A output YAML
-        standard_yaml_file: Path to standard reference YAML
-        science_yaml_file: Path for Phase B output YAML
-        science_report_file: Path for Phase B report
-        phase_a_report_file: Path to Phase A report file (if available)
-        phase_a_performed: Whether Phase A was performed before Phase B
-
-    Returns:
-        True if Phase B completed successfully, False otherwise
-    """
-    # print("Phase B: Scientific validation...")
-
+    """Execute Phase B: Scientific validation and automatic adjustments."""
     try:
-        # Run Phase B using the imported function (suppress verbose output)
         with redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()):
             science_checked_data = run_science_check(
                 uptodate_yaml_file=uptodate_file,
@@ -589,32 +422,17 @@ def run_phase_c(
     phases_run: list = None,
     silent: bool = False,
 ) -> bool:
-    """
-    Execute Phase C: Conditional Pydantic validation based on model physics options.
-
-    Args:
-        input_yaml_file: Path to input YAML file (could be from Phase A, B, or original user file)
-        pydantic_yaml_file: Path for Phase C output YAML (for future use)
-        pydantic_report_file: Path for Phase C validation report
-
-    Returns:
-        True if Phase C completed successfully, False otherwise
-    """
+    """Execute Phase C: Conditional Pydantic validation based on physics options."""
     try:
-        # Add current directory to Python path for imports
         current_dir = os.path.dirname(os.path.abspath(__file__))
-        # Use the working supy import pattern like SUEWSSimulation does
-        # Navigate to supy root directory to ensure proper imports
         supy_root = os.path.abspath(os.path.join(current_dir, "../../"))
         if supy_root not in sys.path:
             sys.path.insert(0, supy_root)
 
-        # Import SUEWSConfig using the established working pattern from tests
         try:
             from supy.data_model import SUEWSConfig
             import logging
 
-            # Temporarily suppress SuPy logging during validation
             supy_logger = logging.getLogger("SuPy")
             original_level = supy_logger.level
             supy_logger.setLevel(logging.WARNING)
@@ -712,7 +530,7 @@ def run_phase_c(
                         field_path = default_app.get("field_path", "unknown")
                         status = default_app.get(
                             "status", "found null"
-                        )  # Default to old behavior
+                        )  # Default to old behaviour
                         no_action_info += f"- {field_name} {status} in user YAML at level {field_path}.\n  Pydantic will interpret that as default value: {default_value} - check doc for info on this parameter: https://suews.readthedocs.io/en/latest\n"
 
                 # Generate phase-specific title for success report
@@ -922,16 +740,13 @@ Phase C validation could not be executed due to system errors.
 
 
 def copy_yaml_with_standard_header(source_file: str, dest_file: str) -> None:
-    """Copy a YAML file and add the standardized header."""
-    # Read the source file content
+    """Copy YAML file and add standardised header."""
     with open(source_file, "r") as f:
         original_content = f.read()
 
-    # Remove any existing headers (lines starting with # at the beginning)
     lines = original_content.split("\n")
     content_start_idx = 0
 
-    # Skip initial comment lines (headers)
     for i, line in enumerate(lines):
         if line.strip() == "" or line.strip().startswith("#"):
             continue
@@ -939,10 +754,8 @@ def copy_yaml_with_standard_header(source_file: str, dest_file: str) -> None:
             content_start_idx = i
             break
 
-    # Get the clean content without old headers
     clean_content = "\n".join(lines[content_start_idx:])
 
-    # Create the standardized header
     standard_header = """# ==============================================================================
 # Updated YAML
 # ==============================================================================
@@ -954,15 +767,12 @@ def copy_yaml_with_standard_header(source_file: str, dest_file: str) -> None:
 
 """
 
-    # Write the new file with standard header + clean content
     with open(dest_file, "w") as f:
         f.write(standard_header + clean_content)
 
 
 def main():
-    """Main entry point for master Phase A-B-C workflow."""
-
-    # Setup command line argument parsing
+    """Main entry point for Phase A-B-C workflow."""
     parser = argparse.ArgumentParser(
         description="SUEWS YAML Configuration Processor - Phase A, B, and/or C workflow",
         formatter_class=argparse.RawDescriptionHelpFormatter,

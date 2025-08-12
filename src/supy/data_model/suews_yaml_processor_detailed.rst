@@ -132,7 +132,7 @@ Orchestrator Functions
 
    def detect_pydantic_defaults(original_data: dict, processed_data: dict, 
                                path: str = "", standard_data: dict = None):
-       """Detect where Pydantic applied default values by comparing original vs processed data."""
+       """Detect where Pydantic applied defaults and separate critical nulls from normal defaults."""
 
 **Function**: Sophisticated default value detection system
 **Logic**:
@@ -148,11 +148,11 @@ Orchestrator Functions
 .. code-block:: python
 
    def copy_yaml_with_standard_header(source_file: str, dest_file: str) -> None:
-       """Copy a YAML file and add the standardized header."""
+       """Copy YAML file and add standardised header."""
 
 **Function**: Consistent YAML file formatting
 **Features**:
-- Adds standardized headers to all output files
+- Adds standardised headers to all output files
 - Preserves file metadata and structure
 - Ensures consistent formatting across phases
 

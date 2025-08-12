@@ -769,6 +769,11 @@ class HDD_ID(BaseModel):
 class InitialStates(BaseModel):
     """Initial conditions for the SUEWS model"""
 
+    model_config = ConfigDict(
+        title="Initial States Configuration",
+        json_schema_extra={"display_name": "Initial States Configuration"}
+    )
+
     snowalb: FlexibleRefValue(float) = Field(
         description="Snow albedo at the start of the model run",
         json_schema_extra={"unit": "dimensionless", "display_name": "Snow Albedo"},

@@ -1,7 +1,7 @@
 
 .. _Input_Options:
 
-:nosearch:
+
 
 Input Options
 ~~~~~~~~~~~~~

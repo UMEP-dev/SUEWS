@@ -13,12 +13,12 @@ To run this script, navigate to the `docs/` directory and execute:
 """
 
 import argparse
+from enum import Enum
 import importlib
 import inspect
 from pathlib import Path
 import re
 import sys
-from enum import Enum
 from typing import Any, Literal, Optional, Union, get_args, get_origin
 
 from pydantic import BaseModel
@@ -195,6 +195,36 @@ def is_internal_enum_value(enum_class: type, value: int) -> bool:
     return False
 
 
+def _should_skip_option(num: str, enum_class: Optional[type], include_internal: bool) -> bool:
+    """Check if an option should be skipped based on internal flags."""
+    if include_internal or not enum_class:
+        return False
+
+    # Handle ranges like "11-13" or "100-300"
+    if "-" in num:
+        start, end = map(int, num.split("-"))
+        # If any value in range is internal, skip the whole range
+        return any(
+            is_internal_enum_value(enum_class, v)
+            for v in range(start, end + 1)
+        )
+    # Single value
+    return is_internal_enum_value(enum_class, int(num))
+
+
+def _format_option_description(desc: str) -> str:
+    """Format option description with appropriate markdown."""
+    replacements = [
+        ("(recommended)", "**(recommended)**"),
+        ("(not recommended)", "**(not recommended)**"),
+        ("(experimental)", "**(experimental)**")
+    ]
+    for old, new in replacements:
+        if old in desc:
+            desc = desc.replace(old, new)
+    return desc
+
+
 def parse_method_options(
     description: str, enum_class: Optional[type] = None, include_internal: bool = True
 ) -> tuple[str, list[str]]:
@@ -210,57 +240,41 @@ def parse_method_options(
     -------
         tuple: (main_description, list_of_option_strings)
     """
-    # Check if description contains "Options:" pattern
-    if "Options:" in description:
-        parts = description.split("Options:", 1)
-        main_desc = parts[0].strip()
-        options_text = parts[1].strip()
-
-        # Parse individual options (semicolon separated)
-        options = []
-        for opt_text in options_text.split(";"):
-            opt_text_stripped = opt_text.strip()
-            if opt_text_stripped:
-                # Format: "0 (NAME) = Description" or similar
-                # Extract number, name in parentheses, and description
-                match = re.match(
-                    r"^(\d+(?:-\d+)?)\s*\(([^)]+)\)\s*=\s*(.+)$", opt_text_stripped
-                )
-                if match:
-                    num, name, desc = match.groups()
-
-                    # Check if this option should be filtered out
-                    if not include_internal and enum_class:
-                        # Handle ranges like "11-13" or "100-300"
-                        if "-" in num:
-                            start, end = map(int, num.split("-"))
-                            # If any value in range is internal, skip the whole range
-                            if any(
-                                is_internal_enum_value(enum_class, v)
-                                for v in range(start, end + 1)
-                            ):
-                                continue
-                        # Single value
-                        elif is_internal_enum_value(enum_class, int(num)):
-                            continue
-
-                    # Check for recommendations in description
-                    if "(recommended)" in desc:
-                        desc = desc.replace("(recommended)", "**(recommended)**")
-                    elif "(not recommended)" in desc:
-                        desc = desc.replace(
-                            "(not recommended)", "**(not recommended)**"
-                        )
-                    elif "(experimental)" in desc:
-                        desc = desc.replace("(experimental)", "**(experimental)**")
-                    options.append(f"``{num}`` ({name}) = {desc}")
-                else:
-                    # Fallback for other formats
-                    options.append(opt_text_stripped)
-
-        return main_desc, options
-    else:
+    if "Options:" not in description:
         return description, []
+
+    parts = description.split("Options:", 1)
+    main_desc = parts[0].strip()
+    options_text = parts[1].strip()
+
+    # Parse individual options (semicolon separated)
+    options = []
+    for opt_text in options_text.split(";"):
+        opt_text_stripped = opt_text.strip()
+        if not opt_text_stripped:
+            continue
+
+        # Format: "0 (NAME) = Description" or similar
+        # Extract number, name in parentheses, and description
+        match = re.match(
+            r"^(\d+(?:-\d+)?)\s*\(([^)]+)\)\s*=\s*(.+)$", opt_text_stripped
+        )
+        if not match:
+            # Fallback for other formats
+            options.append(opt_text_stripped)
+            continue
+
+        num, name, desc = match.groups()
+
+        # Check if this option should be filtered out
+        if _should_skip_option(num, enum_class, include_internal):
+            continue
+
+        # Format description with markdown
+        desc = _format_option_description(desc)
+        options.append(f"``{num}`` ({name}) = {desc}")
+
+    return main_desc, options
 
 
 # --- Helper function to get user-friendly type names ---
@@ -275,18 +289,170 @@ def get_user_friendly_type_name(type_hint: Any) -> str:
             non_none_arg = next(arg for arg in args if arg is not type(None))
             return f"{get_user_friendly_type_name(non_none_arg)} (Optional)"
         return " | ".join(get_user_friendly_type_name(arg) for arg in args)
-    if origin is list or origin is list:
+
+    if origin in {list, list}:
         return f"List of {get_user_friendly_type_name(args[0])}" if args else "List"
-    if origin is dict or origin is dict:
+
+    if origin in {dict, dict}:
         if args and len(args) == 2:
             return f"Mapping from {get_user_friendly_type_name(args[0])} to {get_user_friendly_type_name(args[1])}"
         return "Mapping"
+
     if hasattr(type_hint, "__name__"):
         # Check if it's a RefValue wrapper
         if type_hint.__name__ == "RefValue" and args:
             return f"Value (type: {get_user_friendly_type_name(args[0])}) with DOI/Reference"
         return type_hint.__name__
+
     return str(type_hint)
+
+
+# --- Helper functions for RST generation ---
+def _add_rst_header(rst_content: list, model_name: str, model_class: type[BaseModel]) -> None:
+    """Add RST header including meta tags, references, and title."""
+    # Get display name from model config if available
+    display_name = model_name.replace("_", " ").title()  # Default
+    if hasattr(model_class, 'model_config'):
+        config = model_class.model_config
+        # model_config is a dict, not a ConfigDict instance
+        if isinstance(config, dict):
+            # Try to get display_name from json_schema_extra
+            if 'json_schema_extra' in config and isinstance(config['json_schema_extra'], dict):
+                display_name = config['json_schema_extra'].get('display_name', display_name)
+            # Fall back to title if no display_name
+            elif 'title' in config:
+                display_name = config['title']
+    
+    # Add meta tags for search optimization
+    rst_content.append(".. meta::")
+    rst_content.append(
+        f"   :description: SUEWS YAML configuration for {display_name.lower()} parameters"
+    )
+    rst_content.append(
+        f"   :keywords: SUEWS, YAML, {model_name.lower()}, parameters, configuration"
+    )
+    rst_content.append("")
+
+    # Add reference label for cross-referencing
+    rst_content.append(f".. _{model_name.lower()}:")
+    rst_content.append("")
+
+    # Add index entries for search
+    rst_content.append(".. index::")
+    rst_content.append(f"   single: {model_name} (YAML parameter)")
+    rst_content.append(f"   single: YAML; {model_name}")
+    rst_content.append("")
+
+    # Title
+    rst_content.append(display_name)
+    rst_content.append("=" * len(rst_content[-1]))
+    rst_content.append("")
+
+
+def _process_model_physics_docstring(docstring: str) -> str:
+    """Add cross-references to ModelPhysics docstring."""
+    lines = docstring.split("\n")
+    processed_lines = []
+
+    for line in lines:
+        # Add cross-references to method names in the key interactions section
+        processed_line = line
+        if "- diagmethod:" in line:
+            processed_line = processed_line.replace(
+                "- diagmethod:", "- :ref:`diagmethod <diagmethod>`:"
+            )
+            processed_line = processed_line.replace(
+                "diagmethod calculations", "``diagmethod`` calculations"
+            )
+        elif "- stabilitymethod:" in line:
+            processed_line = processed_line.replace(
+                "- stabilitymethod:",
+                "- :ref:`stabilitymethod <stabilitymethod>`:",
+            )
+            processed_line = processed_line.replace(
+                "BY diagmethod", "**BY** ``diagmethod``"
+            )
+        elif "- localclimatemethod:" in line:
+            processed_line = processed_line.replace(
+                "- localclimatemethod:",
+                "- :ref:`localclimatemethod <localclimatemethod>`:",
+            )
+            processed_line = processed_line.replace(
+                "FROM diagmethod", "**FROM** ``diagmethod``"
+            )
+        elif "- gsmodel:" in line:
+            processed_line = processed_line.replace(
+                "- gsmodel:", "- :ref:`gsmodel <gsmodel>`:"
+            )
+            processed_line = processed_line.replace(
+                "localclimatemethod adjustments",
+                "``localclimatemethod`` adjustments",
+            )
+
+        # Add bold for emphasis words
+        processed_line = processed_line.replace(" HOW ", " **HOW** ")
+
+        processed_lines.append(processed_line)
+
+    docstring = "\n".join(processed_lines)
+
+    # Add bold to Key method interactions and ensure proper list formatting
+    docstring = docstring.replace(
+        "Key method interactions:", "**Key method interactions:**\n"
+    )
+
+    return docstring
+
+
+def _is_site_specific_field(field_name: str, model_name: str) -> bool:
+    """Check if a field is site-specific (requires user input)."""
+    site_specific_patterns = [
+        # Geographic and site location
+        "lat", "lng", "longitude", "latitude", "alt", "altitude", "timezone",
+        # Site dimensions and areas
+        "area", "height", "width", "depth", "surfacearea", "z", "z_meas",
+        # Model control parameters (typically user-specified)
+        "tstep", "forcing_file", "output_file", "start_time", "end_time",
+        # Population and traffic
+        "population", "traffic", "popdens", "trafficrate",
+        # Surface properties (material-specific)
+        "albedo", "emissivity", "reflectance", "transmittance",
+        # Roughness parameters
+        "z0m_in", "zdm_in", "z0", "zd", "roughness",
+        # Temperature initializations
+        "temp_c", "temp_s", "tsurf", "tair", "soiltemp",
+        # State variables
+        "state_", "initial", "soilstore", "soil_moisture", "snow_water",
+        "snow_albedo", "snowpack", "swe",
+        # Land cover and vegetation
+        "fraction", "frac", "lai_max", "lai_min", "lai", "veg_frac",
+        "bldg_frac", "paved_frac",
+        # Surface fluxes and conductance
+        "conductance", "resistance", "g_max", "g_min", "runoff",
+        "drainage", "infiltration",
+        # OHM and energy balance
+        "ohm", "qf", "qh", "qe", "qs", "qn",
+        # Building parameters
+        "bldg_height", "wall_area", "roof_area",
+        # Water balance
+        "precipitation", "irrigation", "water_use",
+        # SPARTACUS specific
+        "ground_albedo_dir_mult_fact", "use_sw_direct_albedo",
+    ]
+
+    # Also check parent model name for context
+    model_context_samples = [
+        "initialstate",  # All initial states are site-specific
+        "properties",  # Surface properties are material/site specific
+        "landcover",  # Land cover fractions are site-specific
+        "modelcontrol",  # Model control parameters are typically user-specified
+        "site",  # Site-level parameters are location-specific
+        "spartacus",  # SPARTACUS parameters often need tuning
+    ]
+
+    return any(
+        pattern in field_name.lower() for pattern in site_specific_patterns
+    ) or any(context in model_name.lower() for context in model_context_samples)
 
 
 # --- Main RST Generation Logic ---
@@ -305,30 +471,8 @@ def generate_rst_for_model(
     model_name = model_class.__name__
     rst_content = []
 
-    # Add meta tags for search optimization
-    rst_content.append(".. meta::")
-    rst_content.append(
-        f"   :description: SUEWS YAML configuration for {model_name.replace('_', ' ').lower()} parameters"
-    )
-    rst_content.append(
-        f"   :keywords: SUEWS, YAML, {model_name.lower()}, parameters, configuration"
-    )
-    rst_content.append("")
-
-    # Add reference label for cross-referencing
-    rst_content.append(f".. _{model_name.lower()}:")
-    rst_content.append("")
-
-    # Add index entries for search
-    rst_content.append(".. index::")
-    rst_content.append(f"   single: {model_name} (YAML parameter)")
-    rst_content.append(f"   single: YAML; {model_name}")
-    rst_content.append("")
-
-    # Title
-    rst_content.append(model_name.replace("_", " ").title())
-    rst_content.append("=" * len(rst_content[-1]))
-    rst_content.append("")
+    # Add header elements
+    _add_rst_header(rst_content, model_name, model_class)
 
     # Model Docstring (if any)
     if model_class.__doc__:
@@ -336,55 +480,7 @@ def generate_rst_for_model(
 
         # Special handling for ModelPhysics to add cross-references
         if model_name == "ModelPhysics" and "Key method interactions:" in docstring:
-            lines = docstring.split("\n")
-            processed_lines = []
-
-            for line in lines:
-                # Add cross-references to method names in the key interactions section
-                processed_line = line
-                if "- diagmethod:" in line:
-                    processed_line = processed_line.replace(
-                        "- diagmethod:", "- :ref:`diagmethod <diagmethod>`:"
-                    )
-                    processed_line = processed_line.replace(
-                        "diagmethod calculations", "``diagmethod`` calculations"
-                    )
-                elif "- stabilitymethod:" in line:
-                    processed_line = processed_line.replace(
-                        "- stabilitymethod:",
-                        "- :ref:`stabilitymethod <stabilitymethod>`:",
-                    )
-                    processed_line = processed_line.replace(
-                        "BY diagmethod", "**BY** ``diagmethod``"
-                    )
-                elif "- localclimatemethod:" in line:
-                    processed_line = processed_line.replace(
-                        "- localclimatemethod:",
-                        "- :ref:`localclimatemethod <localclimatemethod>`:",
-                    )
-                    processed_line = processed_line.replace(
-                        "FROM diagmethod", "**FROM** ``diagmethod``"
-                    )
-                elif "- gsmodel:" in line:
-                    processed_line = processed_line.replace(
-                        "- gsmodel:", "- :ref:`gsmodel <gsmodel>`:"
-                    )
-                    processed_line = processed_line.replace(
-                        "localclimatemethod adjustments",
-                        "``localclimatemethod`` adjustments",
-                    )
-
-                # Add bold for emphasis words
-                processed_line = processed_line.replace(" HOW ", " **HOW** ")
-
-                processed_lines.append(processed_line)
-
-            docstring = "\n".join(processed_lines)
-
-            # Add bold to Key method interactions and ensure proper list formatting
-            docstring = docstring.replace(
-                "Key method interactions:", "**Key method interactions:**\n"
-            )
+            docstring = _process_model_physics_docstring(docstring)
 
         rst_content.append(docstring)
         rst_content.append("")
@@ -558,111 +654,7 @@ def generate_rst_for_model(
                 has_default = False
 
         # For physical/site-specific parameters, even numeric defaults might be samples
-        # Check field name patterns that typically need site-specific values
-        site_specific_patterns = [
-            # Geographic and site location
-            "lat",
-            "lng",
-            "longitude",
-            "latitude",
-            "alt",
-            "altitude",
-            "timezone",
-            # Site dimensions and areas
-            "area",
-            "height",
-            "width",
-            "depth",
-            "surfacearea",
-            "z",
-            "z_meas",
-            # Model control parameters (typically user-specified)
-            "tstep",
-            "forcing_file",
-            "output_file",
-            "start_time",
-            "end_time",
-            # Population and traffic
-            "population",
-            "traffic",
-            "popdens",
-            "trafficrate",
-            # Surface properties (material-specific)
-            "albedo",
-            "emissivity",
-            "reflectance",
-            "transmittance",
-            # Roughness parameters
-            "z0m_in",
-            "zdm_in",
-            "z0",
-            "zd",
-            "roughness",
-            # Temperature initializations
-            "temp_c",
-            "temp_s",
-            "tsurf",
-            "tair",
-            "soiltemp",
-            # State variables
-            "state_",
-            "initial",
-            "soilstore",
-            "soil_moisture",
-            "snow_water",
-            "snow_albedo",
-            "snowpack",
-            "swe",
-            # Land cover and vegetation
-            "fraction",
-            "frac",
-            "lai_max",
-            "lai_min",
-            "lai",
-            "veg_frac",
-            "bldg_frac",
-            "paved_frac",
-            # Surface fluxes and conductance
-            "conductance",
-            "resistance",
-            "g_max",
-            "g_min",
-            "runoff",
-            "drainage",
-            "infiltration",
-            # OHM and energy balance
-            "ohm",
-            "qf",
-            "qh",
-            "qe",
-            "qs",
-            "qn",
-            # Building parameters
-            "bldg_height",
-            "wall_area",
-            "roof_area",
-            # Water balance
-            "precipitation",
-            "irrigation",
-            "water_use",
-            # SPARTACUS specific
-            "ground_albedo_dir_mult_fact",
-            "use_sw_direct_albedo",
-        ]
-
-        # Also check parent model name for context
-        model_context_samples = [
-            "initialstate",  # All initial states are site-specific
-            "properties",  # Surface properties are material/site specific
-            "landcover",  # Land cover fractions are site-specific
-            "modelcontrol",  # Model control parameters are typically user-specified
-            "site",  # Site-level parameters are location-specific
-            "spartacus",  # SPARTACUS parameters often need tuning
-        ]
-
-        is_site_specific = any(
-            pattern in field_name.lower() for pattern in site_specific_patterns
-        ) or any(context in model_name.lower() for context in model_context_samples)
+        is_site_specific = _is_site_specific_field(field_name, model_name)
 
         # Format the value for display
         if not has_default:

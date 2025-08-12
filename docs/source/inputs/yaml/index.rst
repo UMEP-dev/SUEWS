@@ -106,52 +106,32 @@ Configuration Structure
 
 The YAML configuration file has a hierarchical structure with four main top-level components:
 
-Top-Level Components
-~~~~~~~~~~~~~~~~~~~~
-
-.. list-table::
-   :header-rows: 1
-   :widths: 20 80
-
-   * - Component
-     - Description
-   * - ``name``
-     - A descriptive name for your simulation
-   * - ``description``
-     - Detailed description of the simulation purpose
-   * - ``model``
-     - Global settings that apply to all sites
-   * - ``sites``
-     - List of sites to simulate with their specific parameters
+- **name**: A descriptive name for your simulation
+- **description**: Detailed description of the simulation purpose
+- **model**: Global settings that apply to all sites
+- **sites**: List of sites to simulate with their specific parameters
 
 Model Section
 ~~~~~~~~~~~~~
 
 The ``model`` section contains global simulation settings that apply to all sites in your simulation. It has two main subsections:
 
-.. list-table::
-   :header-rows: 1
-   :widths: 25 75
-
-   * - Subsection
-     - Purpose
-   * - ``model.control``
-     - Time stepping, file paths, simulation period, output configuration
-   * - ``model.physics``
-     - Physics scheme selections, calculation methods, model options
+- **Control**: Time step, simulation period, input/output configuration
+- **Physics**: Physics scheme selections, calculation methods, model options
 
 **Model Control** (``model.control``)
++++++++++++++++++++++++++++++++++++++
 
 Controls the simulation execution and input/output handling:
 
 - **Time control**: ``tstep`` (timestep in seconds), ``start_time``, ``end_time``
-- **Input data**: ``forcing_file`` (meteorological data path, can be single file or list)
-- **Output control**: ``output_file`` (format, frequency, variable groups)
-- **Diagnostics**: ``diagnose`` (debug level), ``save_state`` (checkpoint frequency)
+- **Forcing configuration**: ``forcing_file`` (meteorological data path, can be single file or list) - detailed description in :ref:`met_input`
+- **Output configuration**: ``output_file`` (format, frequency, variable groups) - detailed description in :ref:`output_files`
 
 For complete parameter descriptions, see :doc:`schema/modelcontrol`.
 
 **Model Physics** (``model.physics``)
++++++++++++++++++++++++++++++++++++++
 
 Selects which physics schemes and calculation methods to use:
 
@@ -167,7 +147,7 @@ For complete parameter descriptions and method options, see :doc:`schema/modelph
 Sites Section
 ~~~~~~~~~~~~~
 
-The ``sites`` section is a list of one or more sites to simulate. Each site represents a specific location with its own characteristics:
+The ``sites`` section is a list of one or more `site <schema/site>` to simulate. Each site represents a specific location with its own characteristics:
 
 .. list-table::
    :header-rows: 1
@@ -322,15 +302,6 @@ The following reference pages provide complete documentation for all parameters:
 - :doc:`schema/siteproperties` - Location, morphometry, and site characteristics
 - :doc:`schema/landcover` - Surface type parameters (paved, buildings, vegetation, etc.)
 - :doc:`schema/initialstates` - Initial conditions for prognostic variables
-
-**Special Models:**
-
-- :doc:`schema/spartacus` - 3D radiation model parameters
-- :doc:`schema/stebbs` - Building energy model parameters
-- :doc:`schema/conductance` - Vegetation conductance parameters
-- :doc:`schema/irrigation` - Water use and irrigation settings
-- :doc:`schema/anthropogenicemissions` - Heat and CO₂ emission parameters
-- :doc:`schema/snow` - Snow model parameters
 
 
 Validation and Error Handling

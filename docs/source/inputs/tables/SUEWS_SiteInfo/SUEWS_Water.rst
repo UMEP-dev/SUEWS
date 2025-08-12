@@ -1,6 +1,6 @@
 .. _SUEWS_Water:
 
-:nosearch:
+
 
 SUEWS_Water.txt
 ~~~~~~~~~~~~~~~

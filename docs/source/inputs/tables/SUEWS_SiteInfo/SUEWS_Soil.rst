@@ -1,6 +1,6 @@
 .. _SUEWS_Soil:
 
-:nosearch:
+
 
 SUEWS_Soil.txt
 ~~~~~~~~~~~~~~

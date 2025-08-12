@@ -1,6 +1,6 @@
 .. _Recent_meteorology:
 
-:nosearch:
+
 
 Recent meteorology
 ~~~~~~~~~~~~~~~~~~

@@ -1,6 +1,6 @@
 .. _RunControl:
 
-:nosearch:
+
 
 RunControl.nml
 --------------

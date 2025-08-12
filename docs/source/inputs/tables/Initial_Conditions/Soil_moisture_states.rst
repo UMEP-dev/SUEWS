@@ -1,6 +1,6 @@
 .. _Soil_moisture_states:
 
-:nosearch:
+
 
 Soil moisture states
 ~~~~~~~~~~~~~~~~~~~~

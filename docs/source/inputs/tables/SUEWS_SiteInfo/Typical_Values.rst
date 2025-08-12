@@ -1,6 +1,6 @@
 .. _typical_values:
 
-:nosearch:
+
 
 Typical Values
 ##############

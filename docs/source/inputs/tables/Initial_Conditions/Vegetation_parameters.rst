@@ -1,6 +1,6 @@
 .. _Vegetation_parameters:
 
-:nosearch:
+
 
 Vegetation parameters
 ~~~~~~~~~~~~~~~~~~~~~

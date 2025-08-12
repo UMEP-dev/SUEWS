@@ -206,15 +206,17 @@ author = "SUEWS dev team led by Prof Sue Grimmond"
 # This affects Sphinx < 6.0 which tries to import imghdr for image handling
 # Both local dev (uv with Python 3.13) and ReadTheDocs (conda with Python 3.13) need this
 import sys
+
 if sys.version_info >= (3, 13):
     # Create a more complete dummy imghdr module for Python 3.13+
     import types
-    imghdr_module = types.ModuleType('imghdr')
+
+    imghdr_module = types.ModuleType("imghdr")
     # Add the 'tests' attribute that Sphinx expects
     imghdr_module.tests = []
     # Add what_file function that returns None
     imghdr_module.what = lambda file, h=None: None
-    sys.modules['imghdr'] = imghdr_module
+    sys.modules["imghdr"] = imghdr_module
 
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
@@ -380,10 +382,10 @@ rst_prolog = r"""
 html_theme = "sphinx_book_theme"
 
 # Search configuration
-html_search_language = 'en'
+html_search_language = "en"
 html_search_options = {
-    'type': 'default',
-    'includehidden': True,
+    "type": "default",
+    "includehidden": True,
 }
 # html_theme_path = ["_themes"]
 html_context = {

@@ -39,11 +39,13 @@ if not data_model_path.exists():
 # Add data_model parent to path so we can import
 sys.path.insert(0, str(SRC_PATH / "supy"))
 
+
 # Create a mock supy module structure
 class MockDataModel:
     __file__ = str(data_model_path / "__init__.py")
 
-supy = type('supy', (), {})()
+
+supy = type("supy", (), {})()
 supy.data_model = MockDataModel()
 
 
@@ -300,17 +302,21 @@ def generate_rst_for_model(
 
     model_name = model_class.__name__
     rst_content = []
-    
+
     # Add meta tags for search optimization
     rst_content.append(".. meta::")
-    rst_content.append(f"   :description: SUEWS YAML configuration for {model_name.replace('_', ' ').lower()} parameters")
-    rst_content.append(f"   :keywords: SUEWS, YAML, {model_name.lower()}, parameters, configuration")
+    rst_content.append(
+        f"   :description: SUEWS YAML configuration for {model_name.replace('_', ' ').lower()} parameters"
+    )
+    rst_content.append(
+        f"   :keywords: SUEWS, YAML, {model_name.lower()}, parameters, configuration"
+    )
     rst_content.append("")
 
     # Add reference label for cross-referencing
     rst_content.append(f".. _{model_name.lower()}:")
     rst_content.append("")
-    
+
     # Add index entries for search
     rst_content.append(f".. index::")
     rst_content.append(f"   single: {model_name} (YAML parameter)")
@@ -390,7 +396,7 @@ def generate_rst_for_model(
         rst_content.append(f"   single: {field_name} (YAML parameter)")
         rst_content.append(f"   single: {model_name}; {field_name}")
         rst_content.append("")
-        
+
         # Add reference label for cross-referencing specific fields (for method fields)
         if field_name in [
             "diagmethod",
@@ -517,7 +523,7 @@ def generate_rst_for_model(
         # Determine if this is a true default or just a sample value
         default_value = None
         has_default = False
-        
+
         if (
             field_info.default is not None
             and field_info.default != inspect.Parameter.empty
@@ -531,7 +537,7 @@ def generate_rst_for_model(
             except Exception:
                 default_value = "Dynamically generated"
                 has_default = True
-        
+
         # Check if this is actually a required field (no real default)
         # PydanticUndefined or similar indicates no default
         is_required = False
@@ -543,74 +549,114 @@ def generate_rst_for_model(
                 has_default = False
         else:
             is_required = True
-        
+
         # For physical/site-specific parameters, even numeric defaults might be samples
         # Check field name patterns that typically need site-specific values
         site_specific_patterns = [
             # Geographic and site location
-            'lat', 'lng', 'longitude', 'latitude', 'alt', 'altitude', 'timezone',
-            
+            "lat",
+            "lng",
+            "longitude",
+            "latitude",
+            "alt",
+            "altitude",
+            "timezone",
             # Site dimensions and areas
-            'area', 'height', 'width', 'depth', 'surfacearea', 'z', 'z_meas',
-            
+            "area",
+            "height",
+            "width",
+            "depth",
+            "surfacearea",
+            "z",
+            "z_meas",
             # Model control parameters (typically user-specified)
-            'tstep', 'forcing_file', 'output_file', 'start_time', 'end_time',
-            
+            "tstep",
+            "forcing_file",
+            "output_file",
+            "start_time",
+            "end_time",
             # Population and traffic
-            'population', 'traffic', 'popdens', 'trafficrate',
-            
+            "population",
+            "traffic",
+            "popdens",
+            "trafficrate",
             # Surface properties (material-specific)
-            'albedo', 'emissivity', 'reflectance', 'transmittance',
-            
-            # Roughness parameters  
-            'z0m_in', 'zdm_in', 'z0', 'zd', 'roughness',
-            
+            "albedo",
+            "emissivity",
+            "reflectance",
+            "transmittance",
+            # Roughness parameters
+            "z0m_in",
+            "zdm_in",
+            "z0",
+            "zd",
+            "roughness",
             # Temperature initializations
-            'temp_c', 'temp_s', 'tsurf', 'tair', 'soiltemp',
-            
+            "temp_c",
+            "temp_s",
+            "tsurf",
+            "tair",
+            "soiltemp",
             # State variables
-            'state_', 'initial', 'soilstore', 'soil_moisture', 
-            'snow_water', 'snow_albedo', 'snowpack', 'swe',
-            
+            "state_",
+            "initial",
+            "soilstore",
+            "soil_moisture",
+            "snow_water",
+            "snow_albedo",
+            "snowpack",
+            "swe",
             # Land cover and vegetation
-            'fraction', 'frac', 'lai_max', 'lai_min', 'lai',
-            'veg_frac', 'bldg_frac', 'paved_frac',
-            
+            "fraction",
+            "frac",
+            "lai_max",
+            "lai_min",
+            "lai",
+            "veg_frac",
+            "bldg_frac",
+            "paved_frac",
             # Surface fluxes and conductance
-            'conductance', 'resistance', 'g_max', 'g_min',
-            'runoff', 'drainage', 'infiltration',
-            
+            "conductance",
+            "resistance",
+            "g_max",
+            "g_min",
+            "runoff",
+            "drainage",
+            "infiltration",
             # OHM and energy balance
-            'ohm', 'qf', 'qh', 'qe', 'qs', 'qn',
-            
+            "ohm",
+            "qf",
+            "qh",
+            "qe",
+            "qs",
+            "qn",
             # Building parameters
-            'bldg_height', 'wall_area', 'roof_area',
-            
+            "bldg_height",
+            "wall_area",
+            "roof_area",
             # Water balance
-            'precipitation', 'irrigation', 'water_use',
-            
+            "precipitation",
+            "irrigation",
+            "water_use",
             # SPARTACUS specific
-            'ground_albedo_dir_mult_fact', 'use_sw_direct_albedo',
+            "ground_albedo_dir_mult_fact",
+            "use_sw_direct_albedo",
         ]
-        
+
         # Also check parent model name for context
         model_context_samples = [
-            'initialstate',  # All initial states are site-specific
-            'properties',  # Surface properties are material/site specific
-            'landcover',  # Land cover fractions are site-specific
-            'modelcontrol',  # Model control parameters are typically user-specified
-            'site',  # Site-level parameters are location-specific
-            'spartacus',  # SPARTACUS parameters often need tuning
+            "initialstate",  # All initial states are site-specific
+            "properties",  # Surface properties are material/site specific
+            "landcover",  # Land cover fractions are site-specific
+            "modelcontrol",  # Model control parameters are typically user-specified
+            "site",  # Site-level parameters are location-specific
+            "spartacus",  # SPARTACUS parameters often need tuning
         ]
-        
+
         is_site_specific = any(
-            pattern in field_name.lower() 
-            for pattern in site_specific_patterns
-        ) or any(
-            context in model_name.lower()
-            for context in model_context_samples
-        )
-        
+            pattern in field_name.lower() for pattern in site_specific_patterns
+        ) or any(context in model_name.lower() for context in model_context_samples)
+
         # Format the value for display
         if not has_default:
             display_value = "Not specified"
@@ -621,12 +667,15 @@ def generate_rst_for_model(
             label = "Sample value"
         else:
             # True defaults
-            if isinstance(default_value, str) and default_value == "Dynamically generated":
+            if (
+                isinstance(default_value, str)
+                and default_value == "Dynamically generated"
+            ):
                 display_value = default_value
             else:
                 display_value = f"``{default_value!r}``"
             label = "Default"
-        
+
         rst_content.append(f"   :{label}: {display_value}")
 
         # Add Reference field for RefValue types
@@ -832,11 +881,18 @@ def main():
     # Discover models in supy.data_model and its submodules
     data_model_module_root = Path(supy.data_model.__file__).parent
     for py_file in data_model_module_root.glob("*.py"):
-        if py_file.name in ["__init__.py", "validation_controller.py", "validation_feedback.py",
-                             "validation_utils.py", "yaml_annotator.py", "yaml_annotator_json.py",
-                             "timezone_enum.py", "precheck.py"]:
+        if py_file.name in [
+            "__init__.py",
+            "validation_controller.py",
+            "validation_feedback.py",
+            "validation_utils.py",
+            "yaml_annotator.py",
+            "yaml_annotator_json.py",
+            "timezone_enum.py",
+            "precheck.py",
+        ]:
             continue  # Skip non-model files
-        
+
         module_name_to_import = f"data_model.{py_file.stem}"
 
         try:

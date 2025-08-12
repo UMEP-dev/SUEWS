@@ -33,6 +33,7 @@ Technical Implementation
 - ``handle_renamed_parameters()``: Outdated parameter renaming
 - ``find_extra_parameters()``: NOT IN STANDARD detection
 - ``categorise_extra_parameters()``: Classify extra parameters by Pydantic location constraints
+- ``get_allowed_nested_sections_in_properties()``: **Dynamic introspection** for nested sections that allow extra parameters
 - ``remove_extra_parameters_from_yaml()``: Remove extra parameters in public mode
 - ``is_physics_option()``: Critical parameter classification logic
 - ``create_uptodate_yaml_with_missing_params()``: Mode-dependent clean YAML generation
@@ -87,8 +88,112 @@ Phase A implements different strategies for handling extra parameters (NOT IN ST
        # ACTION_NEEDED: Parameters in forbidden locations (sites[].properties)
        # NO_ACTION_NEEDED: Parameters in allowed locations
        
-   # Allowed nested sections within SiteProperties:
-   ALLOWED_SECTIONS = ["stebbs", "lai", "irrigation", "snow"]
+   def get_allowed_nested_sections_in_properties():
+       """Dynamically discover nested sections that allow extra parameters.
+       
+       Uses introspection to find BaseModel fields within classes that have 
+       extra="forbid" configuration. Automatically discovers new nested 
+       sections as data model evolves.
+       
+       Returns: Sorted list of field names (e.g., ["irrigation", "snow", "stebbs"])
+       """
+
+**Dynamic Nested Section Discovery:**
+
+The system automatically discovers which nested sections allow extra parameters using introspection:
+
+.. code-block:: python
+
+   def get_allowed_nested_sections_in_properties():
+       """Dynamic introspection across all data model modules."""
+       # 1. Import all data model modules (hydro, site, model, etc.)
+       # 2. Find BaseModel classes with extra="forbid" configuration  
+       # 3. Inspect their nested BaseModel fields
+       # 4. Check if nested models allow extra parameters
+       # 5. Return sorted list of allowed section names
+       
+   # Automatically discovers sections like:
+   # ["anthropogenic_emissions", "building_archetype", "irrigation", 
+   #  "snow", "stebbs", "conductance", ...]
+   
+   # Replaces hardcoded lists - stays in sync with data model changes
+
+**Benefits of Dynamic Introspection:**
+
+- **Automatic Discovery**: New nested sections are found automatically
+- **Maintenance-Free**: No manual updates needed when data model evolves  
+- **Type Safety**: Uses actual Pydantic introspection, not assumptions
+- **Robust Fallback**: Falls back to validated static sections if needed
+- **Comprehensive Coverage**: Scans all data model modules systematically
+
+**Technical Implementation Details:**
+
+The dynamic introspection system operates through several key components:
+
+.. code-block:: python
+
+   def get_allowed_nested_sections_in_properties():
+       """Main introspection function with robust fallback mechanism."""
+       # 1. Module Discovery Phase
+       data_model_modules = [
+           'hydro', 'human_activity', 'model', 'state', 'site', 'core',
+           'ohm', 'profile', 'surface', 'timezone_enum', 'type'
+       ]
+       
+       # 2. Class Scanning Phase  
+       for module_name in data_model_modules:
+           module = importlib.import_module(f'.{module_name}', 
+                                          package='supy.data_model')
+           
+           # Find BaseModel classes with extra="forbid"
+           for attr_name in dir(module):
+               if is_forbidden_model(attr):
+                   # 3. Field Analysis Phase
+                   for field_name, field_info in attr.model_fields.items():
+                       nested_model = _extract_nested_model_type(field_info.annotation)
+                       if nested_model and _allows_extra_parameters(nested_model):
+                           allowed_sections.add(field_name)
+       
+       # 4. Validation & Fallback Phase
+       if not allowed_sections:
+           # Use validated static sections as fallback
+           return validate_against_actual_model(static_sections)
+       
+       return sorted(allowed_sections)
+
+**Helper Functions:**
+
+.. code-block:: python
+
+   def _extract_nested_model_type(annotation):
+       """Extract BaseModel types from complex annotations."""
+       # Handles: Dict[str, BaseModel], List[BaseModel], 
+       #          Union[BaseModel, str], Optional[BaseModel]
+       
+   def _allows_extra_parameters(model_class):
+       """Check if model allows extra parameters."""  
+       # Returns: True if extra != "forbid"
+
+**Discovery Results:**
+
+Currently discovers these nested sections automatically:
+
+- **anthropogenic_emissions**: AnthropogenicEmissions model
+- **building_archetype**: ArchetypeProperties model  
+- **conductance**: ConductanceParams model
+- **irrigation**: IrrigationParams model
+- **snow**: SnowParams model
+- **stebbs**: StebbsProperties model
+- Additional sections as data model evolves
+
+**Error Handling:**
+
+The system includes comprehensive error handling:
+
+- **Import Failures**: Gracefully skips modules that can't be imported
+- **Missing Attributes**: Handles classes without model_config safely  
+- **Type Extraction Errors**: Falls back to None for unrecognisable types
+- **Complete Failure**: Uses validated static sections as ultimate fallback
 
 **Parameter Removal Logic (Public Mode):**
 

@@ -290,6 +290,10 @@ class LAIPowerCoefficients(BaseModel):
 
 
 class LAIParams(BaseModel):
+    model_config = ConfigDict(
+        title="LAI Parameters"
+    )
+
     baset: Optional[FlexibleRefValue(float)] = Field(
         default=None,
         description="Base temperature for initiating growing degree days (GDD) for leaf growth",
@@ -603,6 +607,16 @@ class VegetatedSurfaceProperties(SurfaceProperties):
 
 
 class EvetrProperties(VegetatedSurfaceProperties):  # TODO: Move waterdist VWD here?
+    """Properties for evergreen trees and shrubs.
+    
+    Evergreen vegetation maintains foliage year-round, providing consistent
+    evapotranspiration and shading. Common in urban parks and residential areas,
+    these surfaces have relatively low albedo and high roughness lengths.
+    """
+    
+    model_config = ConfigDict(
+        title="Evergreen Tree Properties"
+    )
     alb: FlexibleRefValue(float) = Field(
         ge=0,
         le=1,
@@ -688,6 +702,16 @@ class EvetrProperties(VegetatedSurfaceProperties):  # TODO: Move waterdist VWD h
 
 
 class DectrProperties(VegetatedSurfaceProperties):
+    """Properties for deciduous trees and shrubs.
+    
+    Deciduous vegetation undergoes seasonal changes with leaf growth and fall,
+    significantly affecting surface energy balance throughout the year. These
+    surfaces provide seasonal shading and have variable evapotranspiration rates.
+    """
+    
+    model_config = ConfigDict(
+        title="Deciduous Tree Properties"
+    )
     alb: FlexibleRefValue(float) = Field(
         ge=0,
         le=1,
@@ -799,6 +823,16 @@ class DectrProperties(VegetatedSurfaceProperties):
 
 
 class GrassProperties(VegetatedSurfaceProperties):
+    """Properties for grass and lawn surfaces.
+    
+    Grass surfaces include managed lawns, parks, and playing fields. They provide
+    cooling through evapotranspiration and have moderate albedo values. Irrigation
+    and maintenance significantly affect their water use and energy balance.
+    """
+    
+    model_config = ConfigDict(
+        title="Grass Surface Properties"
+    )
     alb: FlexibleRefValue(float) = Field(
         ge=0,
         le=1,
@@ -1027,6 +1061,13 @@ class SnowParams(BaseModel):
 
 
 class LandCover(BaseModel):
+    """Surface properties for the seven SUEWS land cover types.
+    
+    SUEWS divides the urban surface into seven distinct surface types, each with
+    unique thermal, radiative, and hydrological properties. The surface fractions
+    (sfr) for all seven types must sum to 1.0 for each site.
+    """
+    
     model_config = ConfigDict(
         title="Land Cover Properties"
     )
@@ -1483,6 +1524,10 @@ class ArchetypeProperties(BaseModel):
 
 
 class StebbsProperties(BaseModel):
+    model_config = ConfigDict(
+        title="STEBBS Properties"
+    )
+
     WallInternalConvectionCoefficient: Optional[FlexibleRefValue(float)] = Field(
         default=0.0,
         description="Internal convection coefficient of walls and roof [W m-2 K-1]",
@@ -1997,6 +2042,10 @@ class StebbsProperties(BaseModel):
 
 
 class SPARTACUSParams(BaseModel):
+    model_config = ConfigDict(
+        title="SPARTACUS Parameters"
+    )
+
     air_ext_lw: FlexibleRefValue(float) = Field(
         default=0.0,
         description="Air extinction coefficient for longwave radiation",

@@ -288,19 +288,23 @@ class TestPhaseAUptoDateYaml(TestProcessorFixtures):
     def test_get_allowed_nested_sections_dynamic_introspection(self):
         """Test that dynamic introspection correctly identifies allowed nested sections."""
         allowed_sections = uptodate_yaml.get_allowed_nested_sections_in_properties()
-        
+
         # Should return a list of strings
         assert isinstance(allowed_sections, list)
         assert all(isinstance(section, str) for section in allowed_sections)
-        
+
         # Should be sorted for consistency
         assert allowed_sections == sorted(allowed_sections)
-        
+
         # Should include known sections that allow extra parameters (actual BaseModel fields)
-        expected_sections = ["stebbs", "irrigation", "snow"]  # lai is a Dict, not a BaseModel
+        expected_sections = [
+            "stebbs",
+            "irrigation",
+            "snow",
+        ]  # lai is a Dict, not a BaseModel
         for section in expected_sections:
             assert section in allowed_sections, f"Missing expected section: {section}"
-        
+
         # Should not be empty (there are known nested sections)
         assert len(allowed_sections) > 0
 
@@ -308,11 +312,11 @@ class TestPhaseAUptoDateYaml(TestProcessorFixtures):
         """Test extraction of nested BaseModel types from field annotations."""
         from pydantic import BaseModel, Field
         from typing import Dict, List, Union, Optional
-        
+
         # Create test model classes
         class TestNestedModel(BaseModel):
             value: int = 42
-        
+
         class TestParentModel(BaseModel):
             direct_nested: TestNestedModel = Field(default_factory=TestNestedModel)
             dict_nested: Dict[str, TestNestedModel] = Field(default_factory=dict)
@@ -320,67 +324,71 @@ class TestPhaseAUptoDateYaml(TestProcessorFixtures):
             optional_nested: Optional[TestNestedModel] = None
             union_nested: Union[TestNestedModel, str] = "default"
             primitive_field: str = "not_nested"
-        
+
         # Test direct BaseModel subclass
         direct_result = uptodate_yaml._extract_nested_model_type(TestNestedModel)
         assert direct_result == TestNestedModel
-        
+
         # Test extraction from Dict type
-        dict_annotation = TestParentModel.model_fields['dict_nested'].annotation
+        dict_annotation = TestParentModel.model_fields["dict_nested"].annotation
         dict_result = uptodate_yaml._extract_nested_model_type(dict_annotation)
         assert dict_result == TestNestedModel
-        
+
         # Test extraction from List type
-        list_annotation = TestParentModel.model_fields['list_nested'].annotation
+        list_annotation = TestParentModel.model_fields["list_nested"].annotation
         list_result = uptodate_yaml._extract_nested_model_type(list_annotation)
         assert list_result == TestNestedModel
-        
+
         # Test extraction from Optional type
-        optional_annotation = TestParentModel.model_fields['optional_nested'].annotation
+        optional_annotation = TestParentModel.model_fields["optional_nested"].annotation
         optional_result = uptodate_yaml._extract_nested_model_type(optional_annotation)
         assert optional_result == TestNestedModel
-        
+
         # Test extraction from Union type
-        union_annotation = TestParentModel.model_fields['union_nested'].annotation
+        union_annotation = TestParentModel.model_fields["union_nested"].annotation
         union_result = uptodate_yaml._extract_nested_model_type(union_annotation)
         assert union_result == TestNestedModel
-        
+
         # Test primitive type returns None
-        primitive_annotation = TestParentModel.model_fields['primitive_field'].annotation
-        primitive_result = uptodate_yaml._extract_nested_model_type(primitive_annotation)
+        primitive_annotation = TestParentModel.model_fields[
+            "primitive_field"
+        ].annotation
+        primitive_result = uptodate_yaml._extract_nested_model_type(
+            primitive_annotation
+        )
         assert primitive_result is None
 
     def test_allows_extra_parameters(self):
         """Test detection of models that allow extra parameters."""
         from pydantic import BaseModel, ConfigDict
-        
+
         # Model with default configuration (allows extra)
         class DefaultModel(BaseModel):
             field: str = "value"
-        
+
         # Model with explicit forbid
         class ForbidModel(BaseModel):
             model_config = ConfigDict(extra="forbid")
             field: str = "value"
-        
+
         # Model with explicit allow
         class AllowModel(BaseModel):
             model_config = ConfigDict(extra="allow")
             field: str = "value"
-        
+
         # Model with no model_config
         class NoConfigModel(BaseModel):
             field: str = "value"
-        
+
         # Test default behavior allows extra
         assert uptodate_yaml._allows_extra_parameters(DefaultModel) == True
-        
+
         # Test explicit forbid
         assert uptodate_yaml._allows_extra_parameters(ForbidModel) == False
-        
+
         # Test explicit allow
         assert uptodate_yaml._allows_extra_parameters(AllowModel) == True
-        
+
         # Test no config (default behavior)
         assert uptodate_yaml._allows_extra_parameters(NoConfigModel) == True
 
@@ -388,70 +396,89 @@ class TestPhaseAUptoDateYaml(TestProcessorFixtures):
         """Test that dynamic introspection finds at least the known static sections."""
         # Get dynamic result
         dynamic_sections = uptodate_yaml.get_allowed_nested_sections_in_properties()
-        
+
         # Known sections that are actual BaseModel fields (not Dict types)
-        known_static_sections = ["stebbs", "irrigation", "snow"]  # lai is a Dict, not a BaseModel
-        
+        known_static_sections = [
+            "stebbs",
+            "irrigation",
+            "snow",
+        ]  # lai is a Dict, not a BaseModel
+
         # Dynamic should include all static sections
         for section in known_static_sections:
-            assert section in dynamic_sections, f"Dynamic introspection missing known section: {section}"
-        
+            assert section in dynamic_sections, (
+                f"Dynamic introspection missing known section: {section}"
+            )
+
         # Dynamic should find additional sections (based on our investigation)
-        assert len(dynamic_sections) >= len(known_static_sections), \
+        assert len(dynamic_sections) >= len(known_static_sections), (
             "Dynamic introspection should find at least as many sections as the static list"
+        )
 
     def test_nested_sections_are_valid_model_fields(self):
         """Test that all returned nested sections correspond to actual model fields."""
         allowed_sections = uptodate_yaml.get_allowed_nested_sections_in_properties()
-        
+
         # Import the data model modules to verify field names exist
         import importlib
         from pydantic import BaseModel
-        
+
         data_model_modules = [
-            'hydro', 'human_activity', 'model', 'state', 'site', 'core', 
-            'ohm', 'profile', 'surface', 'timezone_enum', 'type'
+            "hydro",
+            "human_activity",
+            "model",
+            "state",
+            "site",
+            "core",
+            "ohm",
+            "profile",
+            "surface",
+            "timezone_enum",
+            "type",
         ]
-        
+
         found_fields = set()
-        
+
         for module_name in data_model_modules:
             try:
-                module = importlib.import_module(f'supy.data_model.{module_name}')
-                
+                module = importlib.import_module(f"supy.data_model.{module_name}")
+
                 # Find models with extra="forbid"
                 for attr_name in dir(module):
                     attr = getattr(module, attr_name)
-                    if (isinstance(attr, type) and 
-                        issubclass(attr, BaseModel) and 
-                        attr is not BaseModel and
-                        hasattr(attr, 'model_config')):
-                        
+                    if (
+                        isinstance(attr, type)
+                        and issubclass(attr, BaseModel)
+                        and attr is not BaseModel
+                        and hasattr(attr, "model_config")
+                    ):
                         config = attr.model_config
                         # Handle both ConfigDict and dict cases
                         if isinstance(config, dict):
-                            extra_setting = config.get('extra', None)
+                            extra_setting = config.get("extra", None)
                         else:
-                            extra_setting = getattr(config, 'extra', None)
-                        
-                        if extra_setting == 'forbid':
+                            extra_setting = getattr(config, "extra", None)
+
+                        if extra_setting == "forbid":
                             # Collect field names
                             for field_name in attr.model_fields.keys():
                                 found_fields.add(field_name)
-                            
+
             except ImportError:
                 continue
-        
+
         # All allowed sections should correspond to actual model fields
         for section in allowed_sections:
-            assert section in found_fields, f"Allowed section '{section}' not found in any model fields"
+            assert section in found_fields, (
+                f"Allowed section '{section}' not found in any model fields"
+            )
 
     def test_introspection_handles_import_errors_gracefully(self):
         """Test that introspection handles missing or problematic modules gracefully."""
         # This test ensures the function doesn't crash on import errors
         # We can't easily simulate import errors in a test, but we can verify
         # the function completes successfully even with potential issues
-        
+
         try:
             result = uptodate_yaml.get_allowed_nested_sections_in_properties()
             assert isinstance(result, list)

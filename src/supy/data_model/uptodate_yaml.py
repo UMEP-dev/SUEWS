@@ -50,67 +50,91 @@ def is_physics_option(param_path):
 
 def get_allowed_nested_sections_in_properties():
     """Get list of nested sections within models that allow extra parameters.
-    
+
     This function dynamically introspects all data model classes to find nested
     BaseModel fields that do not have extra="forbid" configuration.
     """
     import importlib
     from pydantic import BaseModel
     from typing import get_origin, get_args
-    
+
     # Data model modules to introspect
     data_model_modules = [
-        'hydro', 'human_activity', 'model', 'state', 'site', 'core', 
-        'ohm', 'profile', 'surface', 'timezone_enum', 'type'
+        "hydro",
+        "human_activity",
+        "model",
+        "state",
+        "site",
+        "core",
+        "ohm",
+        "profile",
+        "surface",
+        "timezone_enum",
+        "type",
     ]
-    
+
     allowed_sections = set()
-    
+
     for module_name in data_model_modules:
         try:
             # Import the module dynamically
-            module = importlib.import_module(f'.{module_name}', package='supy.data_model')
-            
+            module = importlib.import_module(
+                f".{module_name}", package="supy.data_model"
+            )
+
             # Find all classes in the module that are BaseModel subclasses
             for attr_name in dir(module):
                 attr = getattr(module, attr_name)
-                if (isinstance(attr, type) and 
-                    issubclass(attr, BaseModel) and 
-                    attr is not BaseModel and
-                    hasattr(attr, 'model_config')):
-                    
+                if (
+                    isinstance(attr, type)
+                    and issubclass(attr, BaseModel)
+                    and attr is not BaseModel
+                    and hasattr(attr, "model_config")
+                ):
                     # Check if this model has extra="forbid"
                     config = attr.model_config
                     # Handle both ConfigDict and dict cases
                     if isinstance(config, dict):
-                        extra_setting = config.get('extra', None)
+                        extra_setting = config.get("extra", None)
                     else:
-                        extra_setting = getattr(config, 'extra', None)
-                    if extra_setting == 'forbid':
+                        extra_setting = getattr(config, "extra", None)
+                    if extra_setting == "forbid":
                         # This is a model with extra="forbid" - check its nested fields
                         for field_name, field_info in attr.model_fields.items():
-                            nested_model = _extract_nested_model_type(field_info.annotation)
+                            nested_model = _extract_nested_model_type(
+                                field_info.annotation
+                            )
                             if nested_model and _allows_extra_parameters(nested_model):
                                 allowed_sections.add(field_name)
-                            
+
         except (ImportError, AttributeError) as e:
             # Skip modules that can't be imported or don't have expected structure
             continue
-    
+
     # If dynamic introspection found nothing, use known static sections with validation
     if not allowed_sections:
         # Known sections from manual analysis - only actual BaseModel fields
-        static_sections = {"stebbs", "irrigation", "snow", "lumps", "spartacus", "building_archetype"}
-        
+        static_sections = {
+            "stebbs",
+            "irrigation",
+            "snow",
+            "lumps",
+            "spartacus",
+            "building_archetype",
+        }
+
         # Validate these exist in the actual models (best effort)
         try:
             from .site import SiteProperties
+
             actual_fields = set(SiteProperties.model_fields.keys())
             validated_sections = static_sections.intersection(actual_fields)
-            allowed_sections = validated_sections if validated_sections else static_sections
+            allowed_sections = (
+                validated_sections if validated_sections else static_sections
+            )
         except ImportError:
             allowed_sections = static_sections
-    
+
     return sorted(allowed_sections)
 
 
@@ -119,45 +143,43 @@ def _extract_nested_model_type(annotation):
     from pydantic import BaseModel
     from typing import get_origin, get_args
     import types
-    
+
     # Handle direct BaseModel subclasses
-    if (isinstance(annotation, type) and 
-        issubclass(annotation, BaseModel)):
+    if isinstance(annotation, type) and issubclass(annotation, BaseModel):
         return annotation
-    
+
     # Handle generic types like Dict, List, Union, Optional
     origin = get_origin(annotation)
     if origin is not None:
         args = get_args(annotation)
         for arg in args:
-            if (isinstance(arg, type) and 
-                issubclass(arg, BaseModel)):
+            if isinstance(arg, type) and issubclass(arg, BaseModel):
                 return arg
             # Handle nested generic types
             nested = _extract_nested_model_type(arg)
             if nested:
                 return nested
-    
+
     # Handle special cases like ForwardRef
-    if hasattr(annotation, '__forward_arg__'):
+    if hasattr(annotation, "__forward_arg__"):
         # This is a forward reference, we can't easily resolve it here
         return None
-    
+
     return None
 
 
 def _allows_extra_parameters(model_class):
     """Check if a model class allows extra parameters."""
-    if not hasattr(model_class, 'model_config'):
+    if not hasattr(model_class, "model_config"):
         return True  # Default Pydantic behavior allows extra parameters
-    
+
     config = model_class.model_config
     # Handle both ConfigDict and dict cases
     if isinstance(config, dict):
-        extra_setting = config.get('extra', None)
+        extra_setting = config.get("extra", None)
     else:
-        extra_setting = getattr(config, 'extra', None)
-    return extra_setting != 'forbid'
+        extra_setting = getattr(config, "extra", None)
+    return extra_setting != "forbid"
 
 
 def is_path_in_forbidden_location(field_path: str) -> bool:

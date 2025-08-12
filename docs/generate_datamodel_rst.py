@@ -899,12 +899,20 @@ def generate_rst_for_model(
 
 def get_all_models_in_module(module) -> dict[str, type[BaseModel]]:
     """Inspects a module and returns a dictionary of Pydantic models."""
+    # Classes that are internal and should not be documented
+    INTERNAL_CLASSES = {
+        "HDD_ID",  # Internal heating/cooling degree days tracking
+        "WaterUse",  # Internal water use tracking
+        "SurfaceInitialState",  # Base class, not directly used
+    }
+    
     models = {}
     for name, obj in inspect.getmembers(module):
         if (
             inspect.isclass(obj)
             and issubclass(obj, BaseModel)
             and obj.__module__ == module.__name__
+            and name not in INTERNAL_CLASSES  # Skip internal classes
         ):
             models[name] = obj
     return models

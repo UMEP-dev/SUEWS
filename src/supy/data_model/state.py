@@ -906,8 +906,11 @@ class InitialStates(BaseModel):
     )
     hdd_id: HDD_ID = Field(
         default_factory=HDD_ID,
-        json_schema_extra={"display_name": "Heating Degree Days ID"},
-        description="Heating degree days and meteorological tracking parameters",
+        json_schema_extra={
+            "display_name": "Heating Degree Days ID",
+            "internal_only": True
+        },
+        description="Heating degree days and meteorological tracking parameters (internal use only)",
     )
 
     def to_df_state(self, grid_id: int) -> pd.DataFrame:

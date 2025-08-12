@@ -315,13 +315,8 @@ def _add_rst_header(rst_content: list, model_name: str, model_class: type[BaseMo
     if hasattr(model_class, 'model_config'):
         config = model_class.model_config
         # model_config is a dict, not a ConfigDict instance
-        if isinstance(config, dict):
-            # Try to get display_name from json_schema_extra
-            if 'json_schema_extra' in config and isinstance(config['json_schema_extra'], dict):
-                display_name = config['json_schema_extra'].get('display_name', display_name)
-            # Fall back to title if no display_name
-            elif 'title' in config:
-                display_name = config['title']
+        if isinstance(config, dict) and 'title' in config:
+            display_name = config['title']
     
     # Add meta tags for search optimization
     rst_content.append(".. meta::")

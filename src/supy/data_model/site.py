@@ -68,8 +68,7 @@ class VegetationParams(BaseModel):
 
 class Conductance(BaseModel):
     model_config = ConfigDict(
-        title="Conductance Parameters",
-        json_schema_extra={"display_name": "Conductance Parameters"}
+        title="Conductance Parameters"
     )
 
     g_max: Optional[FlexibleRefValue(float)] = Field(
@@ -847,8 +846,7 @@ class GrassProperties(VegetatedSurfaceProperties):
 
 class SnowParams(BaseModel):
     model_config = ConfigDict(
-        title="Snow Parameters",
-        json_schema_extra={"display_name": "Snow Parameters"}
+        title="Snow Parameters"
     )
 
     crwmax: FlexibleRefValue(float) = Field(
@@ -1030,8 +1028,7 @@ class SnowParams(BaseModel):
 
 class LandCover(BaseModel):
     model_config = ConfigDict(
-        title="Land Cover Properties",
-        json_schema_extra={"display_name": "Land Cover Properties"}
+        title="Land Cover Properties"
     )
 
     paved: PavedProperties = Field(
@@ -2242,8 +2239,7 @@ class LUMPSParams(BaseModel):
 
 class SiteProperties(BaseModel):
     model_config = ConfigDict(
-        title="Site Properties",
-        json_schema_extra={"display_name": "Site Properties"}
+        title="Site Properties"
     )
 
     lat: FlexibleRefValue(float) = Field(
@@ -2542,8 +2538,7 @@ class SiteProperties(BaseModel):
 
 class Site(BaseModel):
     model_config = ConfigDict(
-        title="Site Configuration",
-        json_schema_extra={"display_name": "Site Configuration"}
+        title="Site Configuration"
     )
 
     name: str = Field(description="Name of the site", default="test site")

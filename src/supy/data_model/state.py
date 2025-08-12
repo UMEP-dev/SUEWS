@@ -770,8 +770,7 @@ class InitialStates(BaseModel):
     """Initial conditions for the SUEWS model"""
 
     model_config = ConfigDict(
-        title="Initial States Configuration",
-        json_schema_extra={"display_name": "Initial States Configuration"}
+        title="Initial States Configuration"
     )
 
     snowalb: FlexibleRefValue(float) = Field(

@@ -577,8 +577,7 @@ class CO2Params(BaseModel):  # TODO: May need to add the RefValue to the profile
 
 class AnthropogenicEmissions(BaseModel):
     model_config = ConfigDict(
-        title="Anthropogenic Emissions Configuration",
-        json_schema_extra={"display_name": "Anthropogenic Emissions Configuration"}
+        title="Anthropogenic Emissions Configuration"
     )
 
     startdls: Optional[FlexibleRefValue(float)] = Field(

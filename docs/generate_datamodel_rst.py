@@ -1,5 +1,5 @@
 """
-SUEWS Data Model RST Generator
+SUEWS Data Model RST Generator.
 
 This script generates reStructuredText (.rst) files for the SUEWS Pydantic data models.
 It should be run manually by developers whenever the data model definitions in
@@ -12,16 +12,17 @@ To run this script, navigate to the `docs/` directory and execute:
     python generate_datamodel_rst.py
 """
 
-import inspect
-import importlib
-from pathlib import Path
-import sys
-from typing import Any, Dict, List, Optional, Type, Union, get_args, get_origin, Literal
 import argparse
+import importlib
+import inspect
+from pathlib import Path
+import re
+import sys
+from enum import Enum
+from typing import Any, Literal, Optional, Union, get_args, get_origin
 
 from pydantic import BaseModel
 from pydantic.fields import FieldInfo
-import re
 
 # Add the project root to sys.path to allow importing supy
 # Assuming this script is in 'docs/generate_datamodel_rst.py'
@@ -57,7 +58,8 @@ def format_unit(unit: str) -> str:
     The conversion transforms units like "m^2" to "|m^2|" so that the
     rst_prolog substitutions in conf.py will render them properly.
 
-    Examples:
+    Examples
+    --------
         m^2 -> |m^2|
         m^-1 -> |m^-1|
         W/m^2 -> W |m^-2|
@@ -141,10 +143,8 @@ def process_unit_part(part: str) -> str:
 # --- Helper function to parse and format method options ---
 def get_enum_class_from_field(
     field_info: FieldInfo, field_type_hint: Any
-) -> Optional[Type]:
+) -> Optional[type]:
     """Extract the enum class from a field's type hint."""
-    from enum import Enum
-
     # Handle Union types
     origin = get_origin(field_type_hint)
     if origin is Union:
@@ -159,24 +159,20 @@ def get_enum_class_from_field(
     origin = get_origin(field_type_hint) or field_type_hint
     args = get_args(field_type_hint)
 
-    if hasattr(origin, "__name__") and origin.__name__ in [
+    if hasattr(origin, "__name__") and origin.__name__ in {
         "RefValue",
         "FlexibleRefValue",
-    ]:
-        if args and hasattr(args[0], "__bases__"):
-            # Check if it's an Enum
-            if Enum in args[0].__bases__:
-                return args[0]
+    } and args and hasattr(args[0], "__bases__") and Enum in args[0].__bases__:
+        return args[0]
 
     # Direct enum type
-    if hasattr(field_type_hint, "__bases__"):
-        if Enum in field_type_hint.__bases__:
-            return field_type_hint
+    if hasattr(field_type_hint, "__bases__") and Enum in field_type_hint.__bases__:
+        return field_type_hint
 
     return None
 
 
-def is_internal_enum_value(enum_class: Type, value: int) -> bool:
+def is_internal_enum_value(enum_class: type, value: int) -> bool:
     """Check if an enum value is marked as internal."""
     if not enum_class:
         return False
@@ -186,14 +182,14 @@ def is_internal_enum_value(enum_class: Type, value: int) -> bool:
         for member in enum_class:
             if member.value == value:
                 return getattr(member, "_internal", False)
-    except:
+    except Exception:
         pass
 
     return False
 
 
 def parse_method_options(
-    description: str, enum_class: Optional[Type] = None, include_internal: bool = True
+    description: str, enum_class: Optional[type] = None, include_internal: bool = True
 ) -> tuple[str, list[str]]:
     """
     Parse method options from description string.
@@ -203,10 +199,10 @@ def parse_method_options(
         enum_class: The enum class if this field uses one
         include_internal: Whether to include internal options
 
-    Returns:
+    Returns
+    -------
         tuple: (main_description, list_of_option_strings)
     """
-
     # Check if description contains "Options:" pattern
     if "Options:" in description:
         parts = description.split("Options:", 1)
@@ -215,12 +211,12 @@ def parse_method_options(
 
         # Parse individual options (semicolon separated)
         options = []
-        for opt in options_text.split(";"):
-            opt = opt.strip()
-            if opt:
+        for opt_text in options_text.split(";"):
+            opt_text_stripped = opt_text.strip()
+            if opt_text_stripped:
                 # Format: "0 (NAME) = Description" or similar
                 # Extract number, name in parentheses, and description
-                match = re.match(r"^(\d+(?:-\d+)?)\s*\(([^)]+)\)\s*=\s*(.+)$", opt)
+                match = re.match(r"^(\d+(?:-\d+)?)\s*\(([^)]+)\)\s*=\s*(.+)$", opt_text_stripped)
                 if match:
                     num, name, desc = match.groups()
 
@@ -235,10 +231,9 @@ def parse_method_options(
                                 for v in range(start, end + 1)
                             ):
                                 continue
-                        else:
-                            # Single value
-                            if is_internal_enum_value(enum_class, int(num)):
-                                continue
+                        # Single value
+                        elif is_internal_enum_value(enum_class, int(num)):
+                            continue
 
                     # Check for recommendations in description
                     if "(recommended)" in desc:
@@ -252,7 +247,7 @@ def parse_method_options(
                     options.append(f"``{num}`` ({name}) = {desc}")
                 else:
                     # Fallback for other formats
-                    options.append(opt)
+                    options.append(opt_text_stripped)
 
         return main_desc, options
     else:
@@ -261,7 +256,7 @@ def parse_method_options(
 
 # --- Helper function to get user-friendly type names ---
 def get_user_friendly_type_name(type_hint: Any) -> str:
-    """Generates a user-friendly string representation of a type hint."""
+    """Generate a user-friendly string representation of a type hint."""
     origin = get_origin(type_hint)
     args = get_args(type_hint)
 
@@ -271,9 +266,9 @@ def get_user_friendly_type_name(type_hint: Any) -> str:
             non_none_arg = next(arg for arg in args if arg is not type(None))
             return f"{get_user_friendly_type_name(non_none_arg)} (Optional)"
         return " | ".join(get_user_friendly_type_name(arg) for arg in args)
-    if origin is list or origin is List:
+    if origin is list or origin is list:
         return f"List of {get_user_friendly_type_name(args[0])}" if args else "List"
-    if origin is dict or origin is Dict:
+    if origin is dict or origin is dict:
         if args and len(args) == 2:
             return f"Mapping from {get_user_friendly_type_name(args[0])} to {get_user_friendly_type_name(args[1])}"
         return "Mapping"
@@ -287,15 +282,13 @@ def get_user_friendly_type_name(type_hint: Any) -> str:
 
 # --- Main RST Generation Logic ---
 def generate_rst_for_model(
-    model_class: Type[BaseModel],
+    model_class: type[BaseModel],
     output_dir: Path,
-    processed_models: set[Type[BaseModel]],
-    all_supy_models: Dict[str, Type[BaseModel]],
+    processed_models: set[type[BaseModel]],
+    all_supy_models: dict[str, type[BaseModel]],
     include_internal: bool = True,
 ) -> None:
-    """
-    Generates an .rst file for a given Pydantic model, focusing on user configuration.
-    """
+    """Generate an .rst file for a given Pydantic model, focusing on user configuration."""
     if model_class in processed_models:
         return
     processed_models.add(model_class)
@@ -318,7 +311,7 @@ def generate_rst_for_model(
     rst_content.append("")
 
     # Add index entries for search
-    rst_content.append(f".. index::")
+    rst_content.append(".. index::")
     rst_content.append(f"   single: {model_name} (YAML parameter)")
     rst_content.append(f"   single: YAML; {model_name}")
     rst_content.append("")
@@ -339,36 +332,37 @@ def generate_rst_for_model(
 
             for line in lines:
                 # Add cross-references to method names in the key interactions section
+                processed_line = line
                 if "- diagmethod:" in line:
-                    line = line.replace(
+                    processed_line = processed_line.replace(
                         "- diagmethod:", "- :ref:`diagmethod <diagmethod>`:"
                     )
-                    line = line.replace(
+                    processed_line = processed_line.replace(
                         "diagmethod calculations", "``diagmethod`` calculations"
                     )
                 elif "- stabilitymethod:" in line:
-                    line = line.replace(
+                    processed_line = processed_line.replace(
                         "- stabilitymethod:",
                         "- :ref:`stabilitymethod <stabilitymethod>`:",
                     )
-                    line = line.replace("BY diagmethod", "**BY** ``diagmethod``")
+                    processed_line = processed_line.replace("BY diagmethod", "**BY** ``diagmethod``")
                 elif "- localclimatemethod:" in line:
-                    line = line.replace(
+                    processed_line = processed_line.replace(
                         "- localclimatemethod:",
                         "- :ref:`localclimatemethod <localclimatemethod>`:",
                     )
-                    line = line.replace("FROM diagmethod", "**FROM** ``diagmethod``")
+                    processed_line = processed_line.replace("FROM diagmethod", "**FROM** ``diagmethod``")
                 elif "- gsmodel:" in line:
-                    line = line.replace("- gsmodel:", "- :ref:`gsmodel <gsmodel>`:")
-                    line = line.replace(
+                    processed_line = processed_line.replace("- gsmodel:", "- :ref:`gsmodel <gsmodel>`:")
+                    processed_line = processed_line.replace(
                         "localclimatemethod adjustments",
                         "``localclimatemethod`` adjustments",
                     )
 
                 # Add bold for emphasis words
-                line = line.replace(" HOW ", " **HOW** ")
+                processed_line = processed_line.replace(" HOW ", " **HOW** ")
 
-                processed_lines.append(line)
+                processed_lines.append(processed_line)
 
             docstring = "\n".join(processed_lines)
 
@@ -385,25 +379,23 @@ def generate_rst_for_model(
 
     for field_name, field_info in model_class.model_fields.items():
         # Check if field is marked as internal
-        if not include_internal and isinstance(field_info.json_schema_extra, dict):
-            if field_info.json_schema_extra.get("internal_only", False):
-                continue  # Skip internal fields in user docs
+        if not include_internal and isinstance(field_info.json_schema_extra, dict) and field_info.json_schema_extra.get("internal_only", False):
+            continue  # Skip internal fields in user docs
         field_type_hint = field_info.annotation
-        user_type_name = get_user_friendly_type_name(field_type_hint)
 
         # Add index entry for this parameter
-        rst_content.append(f".. index::")
+        rst_content.append(".. index::")
         rst_content.append(f"   single: {field_name} (YAML parameter)")
         rst_content.append(f"   single: {model_name}; {field_name}")
         rst_content.append("")
 
         # Add reference label for cross-referencing specific fields (for method fields)
-        if field_name in [
+        if field_name in {
             "diagmethod",
             "stabilitymethod",
             "localclimatemethod",
             "gsmodel",
-        ]:
+        }:
             rst_content.append(f".. _{field_name}:")
             rst_content.append("")
 
@@ -516,7 +508,7 @@ def generate_rst_for_model(
                     ):  # Basic sanity check
                         formatted_unit = format_unit(parsed_unit)
                         rst_content.append(f"   :Unit: {formatted_unit}")
-                except:
+                except Exception:
                     pass  # Ignore parsing errors
 
         # Default or Sample value
@@ -540,15 +532,11 @@ def generate_rst_for_model(
 
         # Check if this is actually a required field (no real default)
         # PydanticUndefined or similar indicates no default
-        is_required = False
         if has_default:
             # Check if it's PydanticUndefined or similar sentinel values
             default_str = str(default_value)
             if "PydanticUndefined" in default_str or "undefined" in default_str.lower():
-                is_required = True
                 has_default = False
-        else:
-            is_required = True
 
         # For physical/site-specific parameters, even numeric defaults might be samples
         # Check field name patterns that typically need site-specific values
@@ -661,9 +649,15 @@ def generate_rst_for_model(
         if not has_default:
             display_value = "Not specified"
             label = "Sample value"  # Required fields show sample
-        elif is_site_specific and isinstance(default_value, (int, float)):
-            # Numeric "defaults" for site-specific params are really samples
-            display_value = f"``{default_value!r}``"
+        elif is_site_specific:
+            # Site-specific params are really samples, regardless of type
+            if (
+                isinstance(default_value, str)
+                and default_value == "Dynamically generated"
+            ):
+                display_value = default_value
+            else:
+                display_value = f"``{default_value!r}``"
             label = "Sample value"
         else:
             # True defaults
@@ -683,14 +677,9 @@ def generate_rst_for_model(
         type_name = getattr(origin_type, "__name__", "")
 
         # Check if it's a RefValue or FlexibleRefValue
-        if type_name in ["RefValue", "FlexibleRefValue"]:
+        if type_name in {"RefValue", "FlexibleRefValue"} or "RefValue" in str(field_type_hint):
             rst_content.append(
-                f"   :Reference: Optional - see :doc:`reference` for DOI/citation format"
-            )
-        # Also check if the type hint string contains RefValue
-        elif "RefValue" in str(field_type_hint):
-            rst_content.append(
-                f"   :Reference: Optional - see :doc:`reference` for DOI/citation format"
+                "   :Reference: Optional - see :doc:`reference` for DOI/citation format"
             )
 
         # Constraints
@@ -736,7 +725,7 @@ def generate_rst_for_model(
 
         # Link to nested models
         # Check if the raw type or any type argument is a Pydantic model we know
-        possible_model_types = [field_type_hint] + list(get_args(field_type_hint))
+        possible_model_types = [field_type_hint, *list(get_args(field_type_hint))]
         nested_model_to_document = None
         for pt in possible_model_types:
             origin_pt = get_origin(pt) or pt  # get actual type if it's a generic alias
@@ -750,7 +739,7 @@ def generate_rst_for_model(
                 if (
                     field_type_hint == origin_pt
                     or (
-                        get_origin(field_type_hint) in [list, List, dict, Dict]
+                        get_origin(field_type_hint) in {list, list, dict, dict}
                         and get_args(field_type_hint)
                         and (
                             get_origin(get_args(field_type_hint)[0])
@@ -798,12 +787,12 @@ def generate_rst_for_model(
                     f"   The structure for the ``value`` key of ``{field_name}`` is detailed in "
                     f":doc:`{nested_model_name_lower}`."
                 )
-            elif origin_of_field is list or origin_of_field is List:
+            elif origin_of_field is list or origin_of_field is list:
                 link_message = (
                     f"   Each item in the ``{field_name}`` list must conform to the "
                     f":doc:`{nested_model_name_lower}` structure."
                 )
-            elif origin_of_field is dict or origin_of_field is Dict:
+            elif origin_of_field is dict or origin_of_field is dict:
                 link_message = (
                     f"   Each value in the ``{field_name}`` mapping (dictionary) must conform to the "
                     f":doc:`{nested_model_name_lower}` structure."
@@ -837,15 +826,13 @@ def generate_rst_for_model(
 
     # Write to file
     rst_file_path = output_dir / f"{model_name.lower()}.rst"
-    with open(rst_file_path, "w") as f:
+    with open(rst_file_path, "w", encoding="utf-8") as f:
         f.write("\n".join(rst_content))
     print(f"Generated: {rst_file_path}")
 
 
-def get_all_models_in_module(module) -> Dict[str, Type[BaseModel]]:
-    """
-    Inspects a module and returns a dictionary of Pydantic models.
-    """
+def get_all_models_in_module(module) -> dict[str, type[BaseModel]]:
+    """Inspects a module and returns a dictionary of Pydantic models."""
     models = {}
     for name, obj in inspect.getmembers(module):
         if (
@@ -881,7 +868,7 @@ def main():
     # Discover models in supy.data_model and its submodules
     data_model_module_root = Path(supy.data_model.__file__).parent
     for py_file in data_model_module_root.glob("*.py"):
-        if py_file.name in [
+        if py_file.name in {
             "__init__.py",
             "validation_controller.py",
             "validation_feedback.py",
@@ -890,7 +877,7 @@ def main():
             "yaml_annotator_json.py",
             "timezone_enum.py",
             "precheck.py",
-        ]:
+        }:
             continue  # Skip non-model files
 
         module_name_to_import = f"data_model.{py_file.stem}"

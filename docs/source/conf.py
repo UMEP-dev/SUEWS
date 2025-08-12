@@ -52,15 +52,16 @@ import supy
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 try:
     from get_ver_git import get_version_from_git, get_commit_info
+
     git_version_string = get_version_from_git()
-    is_dev_version = '.dev' in git_version_string
+    is_dev_version = ".dev" in git_version_string
     git_commit_short, git_commit_full = get_commit_info()
 except ImportError:
     # Fallback if functions not available
-    git_version_string = 'unknown'
+    git_version_string = "unknown"
     is_dev_version = False
-    git_commit_short = 'unknown'
-    git_commit_full = 'unknown'
+    git_commit_short = "unknown"
+    git_commit_full = "unknown"
 
 # Use short version for display
 git_commit = git_commit_short

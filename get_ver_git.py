@@ -85,19 +85,25 @@ __version_tuple__ = version_tuple = {version_tuple}
 def get_commit_info():
     """Get both short and full commit hashes."""
     try:
-        commit_short = subprocess.check_output(
-            ['git', 'rev-parse', '--short=7', 'HEAD'],
-            stderr=subprocess.DEVNULL
-        ).decode('utf-8').strip()
-        
-        commit_full = subprocess.check_output(
-            ['git', 'rev-parse', 'HEAD'],
-            stderr=subprocess.DEVNULL
-        ).decode('utf-8').strip()
-        
+        commit_short = (
+            subprocess.check_output(
+                ["git", "rev-parse", "--short=7", "HEAD"], stderr=subprocess.DEVNULL
+            )
+            .decode("utf-8")
+            .strip()
+        )
+
+        commit_full = (
+            subprocess.check_output(
+                ["git", "rev-parse", "HEAD"], stderr=subprocess.DEVNULL
+            )
+            .decode("utf-8")
+            .strip()
+        )
+
         return commit_short, commit_full
     except:
-        return 'unknown', 'unknown'
+        return "unknown", "unknown"
 
 
 def parse_version_tuple(version_str):

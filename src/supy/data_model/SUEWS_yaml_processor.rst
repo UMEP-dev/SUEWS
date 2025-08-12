@@ -775,9 +775,11 @@ Phase C runs comprehensive validation using Pydantic data models, ensuring your 
 2. **Conditional Validation Rules**
    
    **Method-Specific Requirements**: Validates that selected physics methods have required parameters:
-      - **RSL Method**: ``rslmethod=2`` requires ``bldgs.faibldg`` parameter when building fraction > 0
-      - **Storage Heat Method**: ``storageheatmethod=6`` requires ``properties.lambda_c`` to be set and non-null
-      - **STEBBS Method**: ``stebbsmethod≠0`` requires complete STEBBS parameter configuration
+      - **RSL Method**: When explicitly set to ``rslmethod=2``, requires ``bldgs.faibldg`` parameter when building fraction > 0
+      - **Storage Heat Method**: When explicitly set to ``storageheatmethod=6``, requires ``properties.lambda_c`` to be set and non-null
+      - **STEBBS Method**: When explicitly set to ``stebbsmethod=1``, requires complete STEBBS parameter configuration
+      
+   **Important**: Conditional validation is now **disabled by default** unless physics parameters are explicitly configured by the user. This prevents unexpected validation failures from default physics values (e.g., ``rslmethod`` defaults to 2, which would otherwise trigger RSL validation). Conditional validation only applies when users explicitly set physics methods that require additional parameters.
    
    **Impact**: Model will fail or produce incorrect results if method requirements aren't met
    

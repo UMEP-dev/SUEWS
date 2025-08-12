@@ -272,16 +272,22 @@ Phase C includes specialised helper functions used by the main model validators:
 
 **Conditional Validation Logic:**
 
-Phase C implements **conditional validation systems** that apply based on physics options and configuration content:
+Phase C implements **conditional validation systems** that apply based on physics options and configuration content.
+
+.. note::
+   
+   **Important Behavior Change**: Conditional validation is now **disabled by default** unless physics parameters are explicitly configured by the user. This prevents unexpected validation failures from default physics values (e.g., ``rslmethod`` defaults to 2, which would otherwise trigger RSL validation). Conditional validation only applies when users explicitly set physics methods that require additional parameters.
 
 **1. RSL Method Validation (Method 2 - Diagnostic Aerodynamic)**
 
 .. code-block:: python
 
    def _needs_rsl_validation(self) -> bool:
-       """Return True if RSL diagnostic method is enabled."""
-       rm = self.model.physics.rslmethod
-       return int(rm.value) == 2 if rm and hasattr(rm, 'value') else False
+       """Return True if RSL diagnostic method is explicitly enabled.
+       Only triggers validation if rslmethod == 2 AND the value was explicitly set
+       (not just the default value)."""
+       # Implementation checks both method value and explicit configuration
+       # Returns False by default to avoid triggering on default physics values
 
    def _validate_rsl(self, site: Site, site_index: int) -> List[str]:
        """If rslmethod==2, then for any site where bldgs.sfr > 0,
@@ -294,9 +300,11 @@ Phase C implements **conditional validation systems** that apply based on physic
 .. code-block:: python
 
    def _needs_storage_validation(self) -> bool:
-       """Return True if DyOHM storage-heat method is enabled."""
-       shm = getattr(self.model.physics.storageheatmethod, "value", None)
-       return shm == 6
+       """Return True if DyOHM storage-heat method is explicitly enabled.
+       Only triggers validation if storageheatmethod == 6 AND the value was explicitly set
+       (not just the default value)."""
+       # Implementation checks both method value and explicit configuration
+       # Returns False by default to avoid triggering on default physics values
 
    def _validate_storage(self, site: Site, site_index: int) -> List[str]:
        """Validate DyOHM storage heat method parameters."""
@@ -308,9 +316,11 @@ Phase C implements **conditional validation systems** that apply based on physic
 .. code-block:: python
 
    def _needs_stebbs_validation(self) -> bool:
-       """Return True if STEBBS should be validated."""
-       stebbs_method = self.model.physics.stebbsmethod
-       return int(stebbs_method.value) == 1 if stebbs_method and hasattr(stebbs_method, 'value') else False
+       """Return True if STEBBS should be validated.
+       Only triggers validation if stebbsmethod == 1 AND the value was explicitly set
+       (not just the default value)."""
+       # Implementation checks both method value and explicit configuration
+       # Returns False by default to avoid triggering on default physics values
 
    def _validate_stebbs(self, site: Site, site_index: int) -> List[str]:
        """If stebbsmethod==1, enforce that site.properties.stebbs

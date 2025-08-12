@@ -279,7 +279,7 @@ class TestPhaseAUptoDateYaml(TestProcessorFixtures):
             ("sites[0].properties.stebbs.custom_stebbs", "test_value"),
         ]
 
-        categorized = uptodate_yaml.categorize_extra_parameters(extra_params)
+        categorized = uptodate_yaml.categorise_extra_parameters(extra_params)
 
         # Should categorize based on Pydantic constraints
         assert "NO_ACTION_NEEDED" in categorized

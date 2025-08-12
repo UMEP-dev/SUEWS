@@ -32,7 +32,7 @@ Technical Implementation
 - ``find_missing_parameters()``: Recursive parameter detection
 - ``handle_renamed_parameters()``: Outdated parameter renaming
 - ``find_extra_parameters()``: NOT IN STANDARD detection
-- ``categorize_extra_parameters()``: Classify extra parameters by Pydantic location constraints
+- ``categorise_extra_parameters()``: Classify extra parameters by Pydantic location constraints
 - ``remove_extra_parameters_from_yaml()``: Remove extra parameters in public mode
 - ``is_physics_option()``: Critical parameter classification logic
 - ``create_uptodate_yaml_with_missing_params()``: Mode-dependent clean YAML generation
@@ -82,8 +82,8 @@ Phase A implements different strategies for handling extra parameters (NOT IN ST
 
 .. code-block:: python
 
-   def categorize_extra_parameters(extra_params: list) -> dict:
-       """Categorize extra parameters by Pydantic location constraints."""
+   def categorise_extra_parameters(extra_params: list) -> dict:
+       """Categorise extra parameters by Pydantic location constraints."""
        # ACTION_NEEDED: Parameters in forbidden locations (sites[].properties)
        # NO_ACTION_NEEDED: Parameters in allowed locations
        

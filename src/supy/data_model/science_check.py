@@ -1244,7 +1244,7 @@ def create_science_report(
                     total_params_changed += 1
             elif adjustment.parameter in [
                 "anthropogenic_emissions.startdls",
-                "anthropogenic_emissions.enddls"
+                "anthropogenic_emissions.enddls",
             ]:
                 total_params_changed += 1
             else:

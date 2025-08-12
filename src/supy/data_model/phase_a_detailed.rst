@@ -1,13 +1,12 @@
 .. _phase_a_detailed:
 
-Phase A: Up To Date check for YAML Consistency Guide
-====================================================
+Phase A: Up-to-Date YAML Consistency Guide
+==========================================
 
 Overview
 --------
 
-Phase A is the first stage of SUEWS configuration validation that ensures your YAML file contains all required parameters and handles outdated parameter names. 
-This comprehensive guide covers all aspects of Phase A operation.
+Phase A is the first stage of SUEWS configuration validation that ensures your YAML file contains all required parameters and handles outdated parameter names. This comprehensive guide covers all aspects of Phase A operation.
 
 .. contents::
    :local:
@@ -30,8 +29,10 @@ Technical Implementation
 **Core Functions:**
 
 - ``find_missing_parameters()``: Recursive parameter detection
+- ``find_missing_parameters_in_lists()``: Missing parameter detection in list structures
 - ``handle_renamed_parameters()``: Outdated parameter renaming
 - ``find_extra_parameters()``: NOT IN STANDARD detection
+- ``find_extra_parameters_in_lists()``: Extra parameter detection in list structures
 - ``categorise_extra_parameters()``: Classify extra parameters by Pydantic location constraints
 - ``get_allowed_nested_sections_in_properties()``: **Dynamic introspection** for nested sections that allow extra parameters
 - ``remove_extra_parameters_from_yaml()``: Remove extra parameters in public mode
@@ -58,10 +59,10 @@ Technical Implementation
        'localclimatemethod': 'rsllevel'   
    }
 
-Processing Modes and Behavior
------------------------------
+Processing Modes and Behaviour
+------------------------------
 
-**Mode-Dependent Behavior:**
+**Mode-Dependent Behaviour:**
 
 Phase A implements different strategies for handling extra parameters (NOT IN STANDARD) based on the selected processing mode:
 
@@ -69,7 +70,7 @@ Phase A implements different strategies for handling extra parameters (NOT IN ST
 
 - **Strategy**: Remove extra parameters from output YAML
 - **Purpose**: Ensure clean, standard-compliant configuration files
-- **Reporting**: Lists removed parameters as "Removed (X) parameters from YAML: consider to switch to dev mode option"
+- **Reporting**: Lists removed parameters as "Removed (X) parameter(s) from YAML: consider switching to dev mode option"
 - **Target Users**: General users requiring stable, validated configurations
 
 **Developer Mode (``--mode dev``):**
@@ -240,7 +241,7 @@ Parameters classified as optional when:
    └── model.control.output_file.groups
 
 Outdated Parameter Handling
------------------------------
+---------------------------
 
 **Automatic Renaming Process:**
 
@@ -253,10 +254,15 @@ Outdated Parameter Handling
 2. **Renaming Phase:**
 
    - Replaces old parameter name with new name
-   - Adds inline comment documenting the change
+   - Adds temporary inline comment during processing
    - Maintains original parameter value
 
-3. **Documentation Phase:**
+3. **Clean-up Phase:**
+
+   - Removes temporary inline comments for clean output
+   - Final YAML contains no processing markers
+
+4. **Documentation Phase:**
 
    - Records all renamings in analysis report
    - Provides old→new mapping for user verification
@@ -293,13 +299,13 @@ Phase A identifies parameters that exist in your configuration but not in the st
 **Public Mode Strategy:**
 
 - **Removed** from output YAML (clean standard-compliant files)
-- **Documented** as "Removed (X) parameters from YAML" in NO_ACTION_NEEDED section
+- **Documented** as "Removed (X) parameter(s) from YAML" in NO_ACTION_NEEDED section
 - **Suggestion** provided to switch to dev mode if parameters are intentional
 
 **Developer Mode Strategy:**
 
 - **Preserved** in output YAML (allows experimental features)
-- **Categorized** by Pydantic location constraints:
+- **Categorised** by Pydantic location constraints:
   
   - **NO_ACTION_NEEDED**: Parameters in allowed locations (preserved)
   - **ACTION_NEEDED**: Parameters in forbidden locations (SiteProperties)
@@ -341,9 +347,9 @@ Output Files Structure
    # =============================================================================
    #
    # This file has been automatically updated by uptodate_yaml.py with all necessary changes:
-   # - Missing in standard parameters have been added with null values
-   # - Renamed in standard parameters have been updated to current naming conventions
-   # - All changes are reported in report_<yourfilename>.txt
+   # - Missing parameters have been added with null values
+   # - Renamed parameters have been updated to current naming conventions
+   # - All changes are reported in reportA_<yourfilename>.txt
    #
    # =============================================================================
    
@@ -375,7 +381,7 @@ Phase A generates mode-dependent comprehensive reports with two main sections:
   - Parameter renamings applied
   - Mode-dependent extra parameter handling:
     
-    - **Public Mode**: "Removed (X) parameters from YAML: consider to switch to dev mode option"
+    - **Public Mode**: "Removed (X) parameter(s) from YAML: consider switching to dev mode option"
     - **Dev Mode**: "Found (X) parameter(s) not in standard" (for allowed locations)
 
 **Analysis Report Examples**
@@ -403,7 +409,7 @@ Phase A generates mode-dependent comprehensive reports with two main sections:
    -- diagmethod changed to rslmethod
    -- cp changed to rho_cp
    
-   - Removed (2) parameter(s) from YAML: consider to switch to dev mode option
+   - Removed (2) parameter(s) from YAML: consider switching to dev mode option
    -- startdate from level model.control.startdate
    -- test from level sites[0].properties.test
    
@@ -426,7 +432,7 @@ Phase A generates mode-dependent comprehensive reports with two main sections:
    - Found (1) parameter(s) in forbidden locations:
    -- test at level sites[0].properties.test
       Reason: Extra parameters not allowed in SiteProperties
-      Suggested fix: Remove parameter or move to allowed nested section (stebbs, lai, irrigation, snow)
+      Suggested fix: Remove parameter or move to allowed nested section (stebbs, irrigation, snow)
    
    ## NO ACTION NEEDED
    - Updated (3) optional missing parameter(s) with null values:
@@ -453,11 +459,11 @@ Error Handling and Edge Cases
    try:
        with open(user_file, 'r') as f:
            user_data = yaml.safe_load(f)
-   except FileNotFoundError:
-       print(f"❌ Error: User file '{user_file}' not found")
+   except FileNotFoundError as e:
+       print(f"Error: File not found - {e}")
        return None
    except yaml.YAMLError as e:
-       print(f"❌ Error: Invalid YAML syntax in '{user_file}': {e}")
+       print(f"Error: Invalid YAML syntax in '{user_file}': {e}")
        return None
 
 **Malformed YAML Structures:**
@@ -465,26 +471,6 @@ Error Handling and Edge Cases
 - **Empty files**: Handled with appropriate error messages
 - **Invalid syntax**: YAML parsing errors caught and reported
 - **Missing sections**: Detected and documented in missing parameters
-
-**Standard File Validation:**
-
-Phase A validates the standard file before processing:
-
-.. code-block:: python
-
-   def validate_standard_file(standard_file: str) -> bool:
-       """Validate that the standard file exists and is up to date."""
-       if not os.path.exists(standard_file):
-           print(f"❌ Standard file not found: {standard_file}")
-           return False
-           
-       # Git branch consistency check
-       result = subprocess.run(['git', 'status', '--porcelain', standard_file], 
-                              capture_output=True, text=True)
-       if result.returncode != 0:
-           print("⚠️  Warning: Could not verify git status of standard file")
-           
-       return True
 
 Integration with Other Phases
 -----------------------------
@@ -620,14 +606,6 @@ Troubleshooting
    Check: python -c "import yaml; yaml.safe_load(open('user.yml'))"
    Fix: Correct indentation, quotes, or structure
 
-**Issue**: "Git branch inconsistency warning"
-
-.. code-block:: text
-
-   Solution: Update standard file from master branch
-   Check: git status sample_data/sample_config.yml
-   Fix: git checkout master -- sample_data/sample_config.yml
-
 **Issue**: "All parameters marked as critical"
 
 .. code-block:: text
@@ -641,14 +619,14 @@ Troubleshooting
 .. code-block:: python
 
    # Direct Python usage
-   from uptodate_yaml import annotate_missing_parameters
+   from supy.data_model.uptodate_yaml import annotate_missing_parameters
    
    # Public mode usage (default)
    result = annotate_missing_parameters(
        user_file="my_config.yml",
        standard_file="sample_data/sample_config.yml", 
-       uptodate_file="updated_my_config.yml",
-       report_file="analysis_report.txt",
+       uptodate_file="updatedA_my_config.yml",
+       report_file="reportA_my_config.txt",
        mode="public",  # Public mode - removes extra parameters
        phase="A"
    )
@@ -657,8 +635,8 @@ Troubleshooting
    result = annotate_missing_parameters(
        user_file="my_config.yml",
        standard_file="sample_data/sample_config.yml", 
-       uptodate_file="updated_my_config.yml",
-       report_file="analysis_report.txt",
+       uptodate_file="updatedA_my_config.yml",
+       report_file="reportA_my_config.txt",
        mode="dev",    # Developer mode preserves extra parameters
        phase="A"
    )
@@ -679,7 +657,7 @@ Troubleshooting
    python src/supy/data_model/suews_yaml_processor.py user_config.yml --phase A --mode dev
 
 Related Documentation
-----------------------
+---------------------
 
 **Three-Phase Validation System:**
 - `SUEWS_yaml_processor.rst <SUEWS_yaml_processor.rst>`_ - User guide for the complete three-phase validation system

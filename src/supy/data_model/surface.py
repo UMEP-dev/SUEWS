@@ -560,15 +560,13 @@ class PavedProperties(
     NonVegetatedSurfaceProperties
 ):  # May need to move VWD for waterdist to here for referencing
     """Properties for paved surfaces including roads, pavements, and parking areas.
-    
+
     Paved surfaces are impervious areas that prevent water infiltration and contribute
     to urban runoff. They typically have high thermal mass and low albedo, contributing
     significantly to the urban heat island effect.
     """
-    
-    model_config = ConfigDict(
-        title="Paved Surface Properties"
-    )
+
+    model_config = ConfigDict(title="Paved Surface Properties")
     _surface_type: Literal[SurfaceType.PAVED] = SurfaceType.PAVED
     waterdist: WaterDistribution = Field(
         default_factory=lambda: WaterDistribution(SurfaceType.PAVED),
@@ -829,15 +827,13 @@ class BldgsProperties(
     NonVegetatedSurfaceProperties
 ):  # May need to move VWD for waterdist to here for referencing
     """Properties for building surfaces including roofs and walls.
-    
+
     Building surfaces are complex urban elements that interact with radiation,
     store heat, and influence local wind patterns. They include both roof and
     wall components with distinct thermal and radiative properties.
     """
-    
-    model_config = ConfigDict(
-        title="Building Surface Properties"
-    )
+
+    model_config = ConfigDict(title="Building Surface Properties")
     _surface_type: Literal[SurfaceType.BLDGS] = SurfaceType.BLDGS
     faibldg: Optional[FlexibleRefValue(float)] = Field(
         ge=0,
@@ -924,15 +920,13 @@ class BsoilProperties(
     NonVegetatedSurfaceProperties
 ):  # May need to move VWD for waterdist to here for referencing
     """Properties for bare soil surfaces.
-    
+
     Bare soil surfaces are exposed earth areas without vegetation cover,
     commonly found in construction sites, unpaved areas, or drought-affected
     regions. They can absorb water and have moderate albedo values.
     """
-    
-    model_config = ConfigDict(
-        title="Bare Soil Properties"
-    )
+
+    model_config = ConfigDict(title="Bare Soil Properties")
     _surface_type: Literal[SurfaceType.BSOIL] = SurfaceType.BSOIL
     waterdist: WaterDistribution = Field(
         default_factory=lambda: WaterDistribution(SurfaceType.BSOIL),
@@ -956,15 +950,13 @@ class BsoilProperties(
 
 class WaterProperties(NonVegetatedSurfaceProperties):
     """Properties for water surfaces including rivers, lakes, and fountains.
-    
+
     Water surfaces have unique thermal properties with high heat capacity
     and evaporative cooling effects. They moderate local temperatures but
     have very low albedo values.
     """
-    
-    model_config = ConfigDict(
-        title="Water Surface Properties"
-    )
+
+    model_config = ConfigDict(title="Water Surface Properties")
     _surface_type: Literal[SurfaceType.WATER] = SurfaceType.WATER
     flowchange: FlexibleRefValue(float) = Field(
         default=0.0,

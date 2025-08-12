@@ -67,9 +67,7 @@ class VegetationParams(BaseModel):
 
 
 class Conductance(BaseModel):
-    model_config = ConfigDict(
-        title="Conductance Parameters"
-    )
+    model_config = ConfigDict(title="Conductance Parameters")
 
     g_max: Optional[FlexibleRefValue(float)] = Field(
         default=None,
@@ -290,9 +288,7 @@ class LAIPowerCoefficients(BaseModel):
 
 
 class LAIParams(BaseModel):
-    model_config = ConfigDict(
-        title="LAI Parameters"
-    )
+    model_config = ConfigDict(title="LAI Parameters")
 
     baset: Optional[FlexibleRefValue(float)] = Field(
         default=None,
@@ -608,15 +604,13 @@ class VegetatedSurfaceProperties(SurfaceProperties):
 
 class EvetrProperties(VegetatedSurfaceProperties):  # TODO: Move waterdist VWD here?
     """Properties for evergreen trees and shrubs.
-    
+
     Evergreen vegetation maintains foliage year-round, providing consistent
     evapotranspiration and shading. Common in urban parks and residential areas,
     these surfaces have relatively low albedo and high roughness lengths.
     """
-    
-    model_config = ConfigDict(
-        title="Evergreen Tree Properties"
-    )
+
+    model_config = ConfigDict(title="Evergreen Tree Properties")
     alb: FlexibleRefValue(float) = Field(
         ge=0,
         le=1,
@@ -703,15 +697,13 @@ class EvetrProperties(VegetatedSurfaceProperties):  # TODO: Move waterdist VWD h
 
 class DectrProperties(VegetatedSurfaceProperties):
     """Properties for deciduous trees and shrubs.
-    
+
     Deciduous vegetation undergoes seasonal changes with leaf growth and fall,
     significantly affecting surface energy balance throughout the year. These
     surfaces provide seasonal shading and have variable evapotranspiration rates.
     """
-    
-    model_config = ConfigDict(
-        title="Deciduous Tree Properties"
-    )
+
+    model_config = ConfigDict(title="Deciduous Tree Properties")
     alb: FlexibleRefValue(float) = Field(
         ge=0,
         le=1,
@@ -824,15 +816,13 @@ class DectrProperties(VegetatedSurfaceProperties):
 
 class GrassProperties(VegetatedSurfaceProperties):
     """Properties for grass and lawn surfaces.
-    
+
     Grass surfaces include managed lawns, parks, and playing fields. They provide
     cooling through evapotranspiration and have moderate albedo values. Irrigation
     and maintenance significantly affect their water use and energy balance.
     """
-    
-    model_config = ConfigDict(
-        title="Grass Surface Properties"
-    )
+
+    model_config = ConfigDict(title="Grass Surface Properties")
     alb: FlexibleRefValue(float) = Field(
         ge=0,
         le=1,
@@ -879,9 +869,7 @@ class GrassProperties(VegetatedSurfaceProperties):
 
 
 class SnowParams(BaseModel):
-    model_config = ConfigDict(
-        title="Snow Parameters"
-    )
+    model_config = ConfigDict(title="Snow Parameters")
 
     crwmax: FlexibleRefValue(float) = Field(
         default=0.1,
@@ -1062,15 +1050,13 @@ class SnowParams(BaseModel):
 
 class LandCover(BaseModel):
     """Surface properties for the seven SUEWS land cover types.
-    
+
     SUEWS divides the urban surface into seven distinct surface types, each with
     unique thermal, radiative, and hydrological properties. The surface fractions
     (sfr) for all seven types must sum to 1.0 for each site.
     """
-    
-    model_config = ConfigDict(
-        title="Land Cover Properties"
-    )
+
+    model_config = ConfigDict(title="Land Cover Properties")
 
     paved: PavedProperties = Field(
         default_factory=PavedProperties,
@@ -1524,9 +1510,7 @@ class ArchetypeProperties(BaseModel):
 
 
 class StebbsProperties(BaseModel):
-    model_config = ConfigDict(
-        title="STEBBS Properties"
-    )
+    model_config = ConfigDict(title="STEBBS Properties")
 
     WallInternalConvectionCoefficient: Optional[FlexibleRefValue(float)] = Field(
         default=0.0,
@@ -2042,9 +2026,7 @@ class StebbsProperties(BaseModel):
 
 
 class SPARTACUSParams(BaseModel):
-    model_config = ConfigDict(
-        title="SPARTACUS Parameters"
-    )
+    model_config = ConfigDict(title="SPARTACUS Parameters")
 
     air_ext_lw: FlexibleRefValue(float) = Field(
         default=0.0,
@@ -2287,9 +2269,7 @@ class LUMPSParams(BaseModel):
 
 
 class SiteProperties(BaseModel):
-    model_config = ConfigDict(
-        title="Site Properties"
-    )
+    model_config = ConfigDict(title="Site Properties")
 
     lat: FlexibleRefValue(float) = Field(
         ge=-90,
@@ -2586,9 +2566,7 @@ class SiteProperties(BaseModel):
 
 
 class Site(BaseModel):
-    model_config = ConfigDict(
-        title="Site Configuration"
-    )
+    model_config = ConfigDict(title="Site Configuration")
 
     name: str = Field(description="Name of the site", default="test site")
     gridiv: int = Field(

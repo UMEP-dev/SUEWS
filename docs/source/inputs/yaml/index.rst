@@ -7,20 +7,14 @@
 YAML Configuration Format
 =========================
 
-The YAML configuration format is the recommended method for providing inputs to SUEWS. It uses a single, structured ``config_suews.yml`` file to define all model parameters.
+SUEWS uses `YAML (Yet Another Markup Language) <https://yaml.org/spec/1.2.2/>`_ configuration files to define all model parameters in a single, human-readable format. YAML is a data serialisation standard that's easy to read and write, making it ideal for complex scientific model configurations. Unlike traditional tabular input formats, YAML allows you to organise parameters hierarchically and include documentation directly in your configuration files.
 
-.. toctree::
-   :maxdepth: 2
-   :hidden:
-
-   schema/model
-   schema/site
 
 
 Overview
 --------
 
-A SUEWS YAML configuration file is organized into two main sections:
+A SUEWS YAML configuration file is organized into two main sections in addition to the `name` and `description` fields:
 
 - **model**: Global settings that control the simulation (physics options, time stepping, file paths)
 - **sites**: List of sites to simulate, each with properties, initial conditions, and land cover
@@ -30,10 +24,10 @@ Here's a minimal configuration example showing all required sections:
 .. code-block:: yaml
 
    # Minimal SUEWS configuration with all required sections
-   name: "My Simulation"
-   description: "Urban climate simulation for central London"
+   name: "My Simulation" # custom name for the simulation
+   description: "Urban climate simulation for central London" # custom description for the simulation
 
-   model:
+   model: # global settings that control the simulation
      control:                         # Time and file settings
        tstep: 3600                    # Hourly timestep [s]
        forcing_file: "forcing.txt"    # Meteorological data
@@ -45,7 +39,7 @@ Here's a minimal configuration example showing all required sections:
        storageheatmethod: 1           # OHM without QF
        stabilitymethod: 3             # Campbell & Norman
 
-   sites:
+   sites: # list of sites to simulate, each with static properties and initial conditions
      - name: "My_Site"
        gridiv: 1                      # Grid ID
        properties:                    # Site characteristics
@@ -104,195 +98,147 @@ Here's a minimal configuration example showing all required sections:
            ...                        # Temperature profile, snow
          # ... initial states for each surface type
 
-For a complete working example, see the `sample configuration <https://github.com/UMEP-dev/SUEWS/blob/master/src/supy/sample_run/sample_config.yml>`_.
+For a complete working example, see the `sample configuration <https://github.com/UMEP-dev/SUEWS/blob/master/src/supy/sample_data/sample_config.yml>`_.
 
 
-Essential Parameters
---------------------
+Configuration Structure
+-----------------------
 
-Time Configuration (``model.control``)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+The YAML configuration file has a hierarchical structure with four main top-level components:
 
-.. list-table::
-   :header-rows: 1
-   :widths: 30 20 50
-
-   * - Parameter
-     - Type
-     - Description
-   * - ``tstep``
-     - integer
-     - Model timestep [s]
-   * - ``start_date``
-     - string
-     - Simulation start (YYYY-MM-DD)
-   * - ``end_date``
-     - string
-     - Simulation end (YYYY-MM-DD)
-
-Input/Output Files (``model.control``)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Top-Level Components
+~~~~~~~~~~~~~~~~~~~~
 
 .. list-table::
    :header-rows: 1
-   :widths: 30 20 50
+   :widths: 20 80
 
-   * - Parameter
-     - Type
+   * - Component
      - Description
-   * - ``forcing_file``
-     - string/list
-     - Meteorological data file(s)
-   * - ``output_file``
-     - string/dict
-     - Output configuration
+   * - ``name``
+     - **Optional** - A descriptive name for your simulation
+   * - ``description``
+     - **Optional** - Detailed description of the simulation purpose
+   * - ``model``
+     - **Required** - Global settings that apply to all sites
+   * - ``sites``
+     - **Required** - List of sites to simulate with their specific parameters
 
-**Multiple Forcing Files:**
+Model Section
+~~~~~~~~~~~~~
 
-.. code-block:: yaml
-
-   forcing_file:
-     - "forcing_2020.txt"
-     - "forcing_2021.txt"
-     - "forcing_2022.txt"
-
-Files are automatically concatenated in chronological order.
-
-**Output Configuration:**
-
-.. code-block:: yaml
-
-   # Simple text output (backward compatible)
-   output_file: "output.txt"
-
-   # Advanced configuration
-   output_file:
-     format: parquet              # or 'txt'
-     freq: 1800                   # Output every 30 min
-     groups: ["SUEWS", "RSL"]     # Output groups (txt only)
-
-.. note:: **Parquet Output Format**
-
-   Parquet is an efficient columnar format that produces files 70-80% smaller than text:
-
-   - **Single file** per site (vs multiple text files)
-   - **Fast loading** especially for specific columns
-   - **Requires PyArrow**: ``pip install pyarrow``
-
-   Reading Parquet files:
-
-   .. code-block:: python
-
-      import pandas as pd
-      df = pd.read_parquet('TestSite_SUEWS_output.parquet')
-      qh = df[('SUEWS', 'QH')]  # Access specific variable
-
-Physics Methods (``model.physics``)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+The ``model`` section contains global simulation settings:
 
 .. list-table::
    :header-rows: 1
-   :widths: 30 15 55
+   :widths: 25 75
 
-   * - Parameter
-     - Options
-     - Description
-   * - ``net_radiation_method``
-     - 0, 1, 3
-     - | 0: Observed Q*
-       | 1: Observed LW↓
-       | 3: Model LW↓ (recommended)
-   * - ``emissions_method``
-     - 0, 1, 2, 4
-     - | 0: No QF
-       | 1: Simple daily profile
-       | 2: Temperature-dependent
-       | 4: Full model (buildings+traffic)
-   * - ``storage_heat_method``
-     - 1, 2, 3
-     - | 1: OHM without QF
-       | 2: OHM with QF
-       | 3: AnOHM
-   * - ``stability_method``
-     - 0, 2, 3
-     - | 0: Neutral
-       | 2: Least stable
-       | 3: Campbell & Norman (recommended)
+   * - Subsection
+     - Purpose
+   * - ``model.control``
+     - Time stepping, file paths, simulation period
+   * - ``model.physics``
+     - Physics scheme selections and methods
 
-Site Properties (``site.properties``)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+**Key control parameters:**
 
-**Essential Parameters:**
+- ``tstep`` - Model timestep in seconds
+- ``forcing_file`` - Path to meteorological input data
+- ``output_file`` - Output configuration (format, frequency)
+- ``start_time`` / ``end_time`` - Simulation period
 
-- **Location**: ``lat``, ``lng``, ``alt``, ``timezone``
-- **Morphology**: ``surfacearea``, ``z`` (measurement height)
-- **Population**: ``pop_dens_daytime``, ``pop_dens_nighttime``
-- **Roughness**: ``z0m_summer``, ``z0m_winter``
+**Key physics methods:**
 
-**Land Cover Fractions** (must sum to 1.0):
+- ``netradiationmethod`` - How to calculate net radiation
+- ``emissionsmethod`` - Anthropogenic heat flux method
+- ``storageheatmethod`` - Storage heat flux calculation
+- ``stabilitymethod`` - Atmospheric stability scheme
 
-- ``paved`` - Paved surfaces
-- ``bldgs`` - Buildings
-- ``evetr`` - Evergreen trees
-- ``dectr`` - Deciduous trees
-- ``grass`` - Grass/lawn
-- ``bsoil`` - Bare soil
-- ``water`` - Water bodies
+Sites Section
+~~~~~~~~~~~~~
 
-Advanced Features
------------------
+The ``sites`` section is a list where each site contains:
 
-SPARTACUS 3D Radiation
-~~~~~~~~~~~~~~~~~~~~~~
+.. list-table::
+   :header-rows: 1
+   :widths: 25 75
+
+   * - Subsection
+     - Contents
+   * - ``name``
+     - Site identifier
+   * - ``gridiv``
+     - Grid ID number
+   * - ``properties``
+     - Static site characteristics and surface parameters
+   * - ``initial_states``
+     - Initial conditions for state variables
+
+Properties Subsection
+~~~~~~~~~~~~~~~~~~~~~
+
+Within each site's ``properties``:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 30 70
+
+   * - Category
+     - Key Parameters
+   * - **Location**
+     - ``lat``, ``lng``, ``alt``, ``timezone``
+   * - **Morphology**
+     - ``surfacearea``, ``z`` (measurement height), ``z0m_in``, ``zdm_in``
+   * - **Population**
+     - ``pop_dens_daytime``, ``pop_dens_nighttime``
+   * - **Land Cover**
+     - Nested section with surface-specific parameters
+   * - **Special Models**
+     - ``spartacus``, ``stebbs``, ``conductance``, ``irrigation``, etc.
+
+Land Cover Structure
+~~~~~~~~~~~~~~~~~~~~
+
+The ``land_cover`` section under ``properties`` contains parameters for each surface type:
 
 .. code-block:: yaml
 
-   model:
-     physics:
-       net_radiation_method: 4    # Enable SPARTACUS
+   land_cover:
+     paved:       # Roads, pavements
+       sfr: 0.30  # Surface fraction
+       alb: 0.10  # Albedo
+       emis: 0.95 # Emissivity
+       # ... many more surface-specific parameters
+     bldgs:       # Buildings
+       sfr: 0.35
+       bldgh: 15.0  # Building height
+       faibldg: 0.15  # Frontal area index
+       # ...
+     # ... other surfaces (grass, evetr, dectr, bsoil, water)
 
-   site:
-     properties:
-       spartacus:
-         building_frac: 0.4
-         building_scale: 20.0      # Building width [m]
-         veg_frac: 0.3
-         veg_scale: 5.0           # Tree crown width [m]
+Each surface type has:
 
-Building Energy (STEBBS)
+- **Radiative properties**: albedo, emissivity
+- **Hydrological properties**: drainage, soil storage, infiltration
+- **Thermal properties**: heat capacity, thermal conductivity layers
+- **Vegetation properties** (if applicable): LAI parameters, conductance
+- **Urban properties** (if applicable): building height, frontal area
+
+Initial States Structure
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
+The ``initial_states`` section provides starting values for prognostic variables:
+
 .. code-block:: yaml
 
-   model:
-     physics:
-       emissions_method: 5         # Enable STEBBS
+   initial_states:
+     paved:
+       soilstore: 120.0    # Soil moisture [mm]
+       state: 0.0          # Surface wetness [mm]
+       temperature: [...]  # Temperature profile
+       # ...
+     # ... initial states for each surface type
 
-   site:
-     properties:
-       stebbs:
-         cooling_setpoint: 24.0    # °C
-         heating_setpoint: 20.0    # °C
-         cop_cooling: 3.0          # Cooling efficiency
-
-Troubleshooting
----------------
-
-**Land cover doesn't sum to 1.0**
-   Check your fractions add up exactly to 1.0
-
-**Missing required parameters**
-   Enable annotated YAML generation (see Validation section above)
-
-**Energy balance not closing**
-   - Verify albedo values are realistic
-   - Check OHM coefficients
-   - Ensure radiation method matches data availability
-
-**No evapotranspiration**
-   - Check LAI values > 0 for vegetation
-   - Verify soil moisture is adequate
-   - Ensure surface conductance parameters are set
 
 Schema Reference
 ----------------
@@ -309,12 +255,12 @@ Validation and Error Handling
 .. note:: **Configuration Wizard Coming Soon**
 
    A dedicated configuration wizard tool will be shipped with future SuPy releases to help you:
-   
+
    - Interactively create YAML configuration files
    - Select appropriate parameter values for your site
    - Validate configurations before running
    - Convert legacy input formats to YAML
-   
+
    This tool will simplify the configuration process, especially for the complex parameter sections shown above.
 
 SUEWS validates your configuration when loading. If errors occur:

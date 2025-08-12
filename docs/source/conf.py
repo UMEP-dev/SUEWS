@@ -283,14 +283,15 @@ git_last_updated_metatags = True
 
 # sphinx comments
 # https://sphinx-comments.readthedocs.io/
-comments_config = {
-    "hypothesis": True,
-    "utterances": {
-        "repo": "UMEP-dev/SUEWS",
-        "issue-term": "title",
-        #   "optional": "config",
-    },
-}
+# Commenting system disabled
+# comments_config = {
+#     "hypothesis": True,
+#     "utterances": {
+#         "repo": "UMEP-dev/SUEWS",
+#         "issue-term": "title",
+#         #   "optional": "config",
+#     },
+# }
 
 
 # exhale_args = {

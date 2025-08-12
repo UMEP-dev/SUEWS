@@ -213,17 +213,17 @@ class SUEWSConfig(BaseModel):
 
         ### 3) Run any conditional validations (e.g. STEBBS when stebbsmethod==1)
         cond_issues = self._validate_conditional_parameters()
-        
+
         ### 4) Check for critical null physics parameters
         critical_nulls = self._check_critical_null_physics_params()
-        
+
         ### 5) If we have either conditional issues or critical nulls, raise validation error
         all_critical_issues = []
         if cond_issues:
             all_critical_issues.extend(cond_issues)
         if critical_nulls:
             all_critical_issues.extend(critical_nulls)
-            
+
         if all_critical_issues:
             ### Convert all critical validation issues to validation errors
             ### This will be caught by the YAML processor and shown as ACTION NEEDED
@@ -1345,7 +1345,7 @@ class SUEWSConfig(BaseModel):
         # Critical physics parameters that get converted to int() in df_state
         CRITICAL_PHYSICS_PARAMS = [
             "netradiationmethod",
-            "emissionsmethod", 
+            "emissionsmethod",
             "storageheatmethod",
             "ohmincqf",
             "roughlenmommethod",
@@ -1360,14 +1360,14 @@ class SUEWSConfig(BaseModel):
             "snowuse",
             "stebbsmethod",
         ]
-        
+
         critical_issues = []
-        
+
         if not hasattr(self, "model") or not self.model or not self.model.physics:
             return critical_issues
-            
+
         physics = self.model.physics
-        
+
         for param_name in CRITICAL_PHYSICS_PARAMS:
             if hasattr(physics, param_name):
                 param_value = getattr(physics, param_name)
@@ -1376,11 +1376,13 @@ class SUEWSConfig(BaseModel):
                     actual_value = param_value.value
                 else:
                     actual_value = param_value
-                    
+
                 # Check if the parameter is null
                 if actual_value is None:
-                    critical_issues.append(f"{param_name} is set to null and will cause runtime crash - must be set to appropriate non-null value")
-                    
+                    critical_issues.append(
+                        f"{param_name} is set to null and will cause runtime crash - must be set to appropriate non-null value"
+                    )
+
         return critical_issues
 
     def generate_annotated_yaml(

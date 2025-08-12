@@ -148,15 +148,17 @@ def generate_phase_c_report(
                 )
 
             complete_error_msg = " ".join(full_error_parts)
-            
+
             # Check if this is our combined critical validation error
             if "Critical validation failed: " in error_msg:
                 # Split the combined error message into individual issues
                 # Extract the part after "Critical validation failed: "
                 split_parts = error_msg.split("Critical validation failed: ", 1)
                 combined_message = split_parts[1] if len(split_parts) > 1 else error_msg
-                individual_issues = [issue.strip() for issue in combined_message.split(";")]
-                
+                individual_issues = [
+                    issue.strip() for issue in combined_message.split(";")
+                ]
+
                 for issue in individual_issues:
                     if issue:  # Skip empty issues
                         # Determine the field name and path based on the issue content
@@ -171,9 +173,17 @@ def generate_phase_c_report(
                                 site_part = parts[0].strip()
                                 param_part = parts[1].strip()
                                 # Extract site name (before the colon)
-                                site_name = site_part.split(":")[0].strip() if ":" in site_part else "Unknown"
-                                issue_field_name = param_part.split(" must be")[0].strip()
-                                issue_path = f"sites[{site_name}].properties.{issue_field_name}"
+                                site_name = (
+                                    site_part.split(":")[0].strip()
+                                    if ":" in site_part
+                                    else "Unknown"
+                                )
+                                issue_field_name = param_part.split(" must be")[
+                                    0
+                                ].strip()
+                                issue_path = (
+                                    f"sites[{site_name}].properties.{issue_field_name}"
+                                )
                             else:
                                 issue_field_name = "StorageHeat parameter"
                                 issue_path = "configuration"
@@ -196,7 +206,7 @@ def generate_phase_c_report(
                             # Generic issue
                             issue_field_name = "validation issue"
                             issue_path = "configuration"
-                        
+
                         action_needed_items.append({
                             "field": issue_field_name,
                             "path": issue_path,
@@ -211,13 +221,13 @@ def generate_phase_c_report(
                 })
     else:
         error_str = str(validation_error)
-        
+
         # Check if this is our combined critical validation error
         if error_str.startswith("Critical validation failed: "):
             # Split the combined error message into individual issues
             combined_message = error_str.replace("Critical validation failed: ", "")
             individual_issues = [issue.strip() for issue in combined_message.split(";")]
-            
+
             for issue in individual_issues:
                 if issue:  # Skip empty issues
                     # Determine the field name and path based on the issue content
@@ -232,7 +242,11 @@ def generate_phase_c_report(
                             site_part = parts[0].strip()
                             param_part = parts[1].strip()
                             # Extract site name (before the colon)
-                            site_name = site_part.split(":")[0].strip() if ":" in site_part else "Unknown"
+                            site_name = (
+                                site_part.split(":")[0].strip()
+                                if ":" in site_part
+                                else "Unknown"
+                            )
                             field_name = param_part.split(" must be")[0].strip()
                             path = f"sites[{site_name}].properties.{field_name}"
                         else:
@@ -257,7 +271,7 @@ def generate_phase_c_report(
                         # Generic issue
                         field_name = "validation issue"
                         path = "configuration"
-                    
+
                     action_needed_items.append({
                         "field": field_name,
                         "path": path,
@@ -267,7 +281,7 @@ def generate_phase_c_report(
             # Original single error handling
             action_needed_items.append({
                 "field": "general",
-                "path": "configuration", 
+                "path": "configuration",
                 "error": error_str,
             })
 

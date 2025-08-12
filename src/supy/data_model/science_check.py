@@ -574,10 +574,10 @@ def validate_geographic_parameters(yaml_data: dict) -> List[ValidationResult]:
                     ValidationResult(
                         status="WARNING",
                         category="GEOGRAPHY",
-                        parameter="dls_parameters",
+                        parameter="anthropogenic_emissions.startdls,enddls",
                         site_index=site_idx,
-                        message="Daylight saving parameters (dls_to, dls_from) are missing - will be calculated automatically from geographic coordinates",
-                        suggested_value="Parameters will be set based on your location. You can also manually set dls_to and dls_from if you prefer specific values",
+                        message="Daylight saving parameters (startdls, enddls) are missing - will be calculated automatically from geographic coordinates",
+                        suggested_value="Parameters will be set based on your location. You can also manually set startdls and enddls if you prefer specific values",
                     )
                 )
 
@@ -1037,15 +1037,27 @@ def adjust_seasonal_parameters(
                         dls_updated = True
 
                     if dls_updated:
-                        adjustments.append(
-                            ScientificAdjustment(
-                                parameter="dls_parameters",
-                                site_index=site_idx,
-                                old_value=f"start={current_startdls}, end={current_enddls}",
-                                new_value=f"start={start_dls}, end={end_dls}",
-                                reason=f"Calculated DLS for coordinates ({lat:.2f}, {lng:.2f})",
+                        # Add separate adjustments for each parameter
+                        if current_startdls != start_dls:
+                            adjustments.append(
+                                ScientificAdjustment(
+                                    parameter="anthropogenic_emissions.startdls",
+                                    site_index=site_idx,
+                                    old_value=str(current_startdls),
+                                    new_value=str(start_dls),
+                                    reason=f"Calculated DLS start for coordinates ({lat:.2f}, {lng:.2f})",
+                                )
                             )
-                        )
+                        if current_enddls != end_dls:
+                            adjustments.append(
+                                ScientificAdjustment(
+                                    parameter="anthropogenic_emissions.enddls",
+                                    site_index=site_idx,
+                                    old_value=str(current_enddls),
+                                    new_value=str(end_dls),
+                                    reason=f"Calculated DLS end for coordinates ({lat:.2f}, {lng:.2f})",
+                                )
+                            )
                         logger_supy.debug(
                             f"[site #{site_idx}] DLS: start={start_dls}, end={end_dls}"
                         )
@@ -1201,11 +1213,11 @@ def create_science_report(
                     total_params_changed += int(match.group(1))
                 else:
                     total_params_changed += 1
-            elif (
-                adjustment.parameter == "dls_parameters"
-                and "start=" in adjustment.old_value
-            ):
-                total_params_changed += 2
+            elif adjustment.parameter in [
+                "anthropogenic_emissions.startdls",
+                "anthropogenic_emissions.enddls"
+            ]:
+                total_params_changed += 1
             else:
                 total_params_changed += 1
 

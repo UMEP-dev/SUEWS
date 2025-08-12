@@ -288,9 +288,11 @@ Phase B generates comprehensive reports with two main sections:
       Suggested value: Set stabilitymethod to 3
    
    ## NO ACTION NEEDED
-   - Updated (6) parameter(s):
+   - Updated (8) parameter(s):
    -- initial_states.paved: temperature, tsfc, tin → 12.4°C (Set from CRU data for coordinates (51.51, -0.13) for month 1)
    -- initial_states.bldgs: temperature, tsfc, tin → 12.4°C (Set from CRU data for coordinates (51.51, -0.13) for month 1)
+   -- anthropogenic_emissions.startdls: 15.0 → 86 (Calculated DLS start for coordinates (51.51, -0.13))
+   -- anthropogenic_emissions.enddls: 12.0 → 303 (Calculated DLS end for coordinates (51.51, -0.13))
    
    # ==================================================
 

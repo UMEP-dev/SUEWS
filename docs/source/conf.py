@@ -361,8 +361,8 @@ if is_dev_version:
 .. warning::
 
    **Development Version**: This documentation was built from a development version
-   ({git_version_string}, commit: {git_commit}). Features described here may be
-   unstable or subject to change. For stable documentation, please visit the
+   ({git_version_string}, commit: `{git_commit_short} <https://github.com/UMEP-dev/SUEWS/commit/{git_commit_full}>`_).
+   Features described here may be unstable or subject to change. For stable documentation, please visit the
    `latest release <https://suews.readthedocs.io/stable/>`_.
 
 """

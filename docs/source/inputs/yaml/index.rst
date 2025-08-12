@@ -171,46 +171,41 @@ For detailed information about:
 - **Output configuration options**: see the `Output Data`_ section above
 - **Parquet output format**: see :ref:`parquet_note`
 
-Creating Configuration Files
------------------------------
-
-To get started with SUEWS configuration:
-
-1. **Start with the Parameter Guide**: See :doc:`parameter_guide` for practical guidance on configuring parameters for your specific use case
-2. **Use sample configurations**: Adapt the `sample configuration files <https://github.com/UMEP-dev/SUEWS/blob/master/src/supy/sample_run/sample_config.yml>`_ provided with SuPy
-3. **Reference the schema**: Use the detailed schema documentation below for complete parameter specifications
-
-.. note::
-
-   A command-line configuration wizard tool is currently in development and will provide an interactive way to create valid YAML configuration files.
-
-Data Model Schema
------------------
-
-The following pages provide a detailed reference for every component of the YAML data model. Each page corresponds to a specific parameter group and details its available keys, expected data types, units, and default values.
-
-**Key Features of the Schema Documentation:**
-
-- **Clear Method Descriptions**: All model physics methods now include explicit explanations of what each numeric option represents (e.g., 0=MOST, 1=RST, 2=VARIABLE for diagnostic methods)
-- **Comprehensive Parameter Documentation**: Every parameter includes its purpose, units, default values, and constraints
-- **Hierarchical Organization**: The schema is organized hierarchically, with top-level components (model, site) linking to detailed sub-components
-- **Cross-References**: Related parameters and methods are cross-referenced for easier navigation
-
-.. toctree::
-   :maxdepth: 2
-   :caption: Configuration Guides
-   
-   parameter_guide
-
-.. toctree::
-   :maxdepth: 2
-   :caption: Schema Reference
-
-   schema/model
-   schema/site
+Getting Started
+---------------
 
 .. toctree::
    :maxdepth: 1
-   :caption: Parameter References
    
-   parameter_quick_reference
+   configuration_guide
+
+The :doc:`configuration_guide` provides everything you need to configure SUEWS:
+
+- Quick start examples for common use cases
+- Parameter categories with clear explanations
+- Troubleshooting tips and best practices
+- Advanced features and options
+
+Schema Reference
+----------------
+
+Detailed documentation for every parameter in the YAML configuration:
+
+.. toctree::
+   :maxdepth: 2
+   
+   schema/model
+   schema/site
+
+**Model Configuration** (:doc:`schema/model`)
+   Global simulation settings including physics methods, time control, and output options.
+
+**Site Configuration** (:doc:`schema/site`)
+   Site-specific parameters including location, land cover, surface properties, and initial conditions.
+
+Additional Resources
+--------------------
+
+- `Sample configuration file <https://github.com/UMEP-dev/SUEWS/blob/master/src/supy/sample_run/sample_config.yml>`_ - Complete working example
+- :doc:`parquet_note` - Information about the efficient Parquet output format
+- Example configurations in ``docs/source/inputs/yaml/examples/``

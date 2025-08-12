@@ -214,4 +214,3 @@ The following pages provide a detailed reference for every component of the YAML
    :caption: Parameter References
    
    parameter_quick_reference
-   parameter_index

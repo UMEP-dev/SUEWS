@@ -46,6 +46,28 @@ from pybtex.style.template import (
 
 import supy
 
+# -- Git version information --------------------------------------------------------
+
+# Import get_ver_git module
+sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+try:
+    from get_ver_git import get_version_from_git, get_commit_info
+    git_version_string = get_version_from_git()
+    is_dev_version = '.dev' in git_version_string
+    git_commit_short, git_commit_full = get_commit_info()
+except ImportError:
+    # Fallback if functions not available
+    git_version_string = 'unknown'
+    is_dev_version = False
+    git_commit_short = 'unknown'
+    git_commit_full = 'unknown'
+
+# Use short version for display
+git_commit = git_commit_short
+
+print(f"Building docs for version: {git_version_string} (commit: {git_commit})")
+print(f"Development version: {is_dev_version}")
+
 # -- processing code --------------------------------------------------------
 
 
@@ -185,7 +207,7 @@ if read_the_docs_build:
     # update `today`
     dt_today = datetime.today()
 else:
-    dt_today = datetime(2021, 11, 11)
+    dt_today = datetime.today()  # Use current date for local builds too
     # subprocess.call("doxygen", shell=True)
     pass
 
@@ -331,29 +353,45 @@ pygments_style = "sphinx"
 # default interpretation of `role` markups
 default_role = "any"
 
-# some text replacement defintions
-rst_prolog = r"""
-.. |km^-1| replace:: km\ :sup:`-1`
-.. |mm^-1| replace:: mm\ :sup:`-1`
-.. |m^-1| replace:: m\ :sup:`-1`
-.. |m^-2| replace:: m\ :sup:`-2`
-.. |m^-3| replace:: m\ :sup:`-3`
-.. |m^2| replace:: m\ :sup:`2`
-.. |m^3| replace:: m\ :sup:`3`
-.. |s^-1| replace:: s\ :sup:`-1`
-.. |kg^-1| replace:: kg\ :sup:`-1`
-.. |K^-1| replace:: K\ :sup:`-1`
-.. |J^-1| replace:: J\ :sup:`-1`
-.. |W^-1| replace:: W\ :sup:`-1`
-.. |h^-1| replace:: h\ :sup:`-1`
-.. |day^-1| replace:: day\ :sup:`-1`
-.. |cap^-1| replace:: cap\ :sup:`-1`
-.. |ha^-1| replace:: ha\ :sup:`-1`
-.. |QF| replace:: Q\ :sub:`F`
-.. |Qstar| replace:: Q\ :sup:`*`
-.. |d^-1| replace:: d\ :sup:`-1`
-.. |d^-2| replace:: d\ :sup:`-2`
-.. |)^-1| replace:: )\ :sup:`-1`
+# some text replacement defintions and version info
+dev_banner = ""
+if is_dev_version:
+    dev_banner = f"""
+.. warning::
+
+   **Development Version**: This documentation was built from a development version
+   ({git_version_string}, commit: {git_commit}). Features described here may be
+   unstable or subject to change. For stable documentation, please visit the
+   `latest release <https://suews.readthedocs.io/stable/>`_.
+
+"""
+
+rst_prolog = f"""
+.. |git_version| replace:: {git_version_string}
+.. |git_commit| replace:: {git_commit}
+
+{dev_banner}
+.. |km^-1| replace:: km\\ :sup:`-1`
+.. |mm^-1| replace:: mm\\ :sup:`-1`
+.. |m^-1| replace:: m\\ :sup:`-1`
+.. |m^-2| replace:: m\\ :sup:`-2`
+.. |m^-3| replace:: m\\ :sup:`-3`
+.. |m^2| replace:: m\\ :sup:`2`
+.. |m^3| replace:: m\\ :sup:`3`
+.. |s^-1| replace:: s\\ :sup:`-1`
+.. |kg^-1| replace:: kg\\ :sup:`-1`
+.. |K^-1| replace:: K\\ :sup:`-1`
+.. |J^-1| replace:: J\\ :sup:`-1`
+.. |W^-1| replace:: W\\ :sup:`-1`
+.. |h^-1| replace:: h\\ :sup:`-1`
+.. |day^-1| replace:: day\\ :sup:`-1`
+.. |cap^-1| replace:: cap\\ :sup:`-1`
+.. |ha^-1| replace:: ha\\ :sup:`-1`
+.. |QF| replace:: Q\\ :sub:`F`
+.. |Qstar| replace:: Q\\ :sup:`*`
+.. |d^-1| replace:: d\\ :sup:`-1`
+.. |d^-2| replace:: d\\ :sup:`-2`
+.. |)^-1| replace:: )\\ :sup:`-1`
 .. |Recmd| replace:: **Recommended in this version.**
 .. |EXP| replace:: **Experimental in this version.**
 .. |NotRecmd| replace:: **Not recommended in this version.**
@@ -374,6 +412,9 @@ rst_prolog = r"""
 .. _SUEWS download page: https://forms.office.com/r/4qGfYu8LaR
 
 """
+
+# Version info will be added to HTML footer below
+
 # -- Options for HTML output -------------------------------------------------
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
@@ -395,6 +436,9 @@ html_context = {
     "github_repo": "SUEWS",  # Repo name
     "github_version": "master",  # Version
     "conf_py_path": "/source/",  # Path in the checkout to the docs root
+    "git_version": git_version_string,  # Add version info
+    "git_commit": git_commit,  # Add commit hash
+    "is_dev_version": is_dev_version,  # Add dev flag
 }
 
 # check every link in this project is working
@@ -426,6 +470,8 @@ html_theme_options = dict(
     extra_navbar="",
     navbar_footer_text="",
     logo_only=True,
+    extra_footer=f"""<p>Version: {git_version_string} | 
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/{git_commit_full}">{git_commit_short}</a></p>""",
     # twitter_url="https://twitter.com/xarray_devs",
 )
 
@@ -586,8 +632,8 @@ def source_read_handler(app, docname, source):
         deprecation_warning = """
 .. warning::
 
-   **DEPRECATED**: This table-based input format is deprecated as of 2025. 
-   Please use the modern :ref:`YAML format <yaml_input>` instead. 
+   **DEPRECATED**: This table-based input format is deprecated as of 2025.
+   Please use the modern :ref:`YAML format <yaml_input>` instead.
    See our :doc:`transition guide </inputs/transition_guide>` for migration help.
 
 """

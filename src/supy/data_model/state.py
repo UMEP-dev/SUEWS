@@ -771,7 +771,7 @@ class InitialStates(BaseModel):
 
     model_config = ConfigDict(
         title="Initial States Configuration",
-        json_schema_extra={"display_name": "Initial States Configuration"}
+        json_schema_extra={"display_name": "Initial States Configuration"},
     )
 
     snowalb: FlexibleRefValue(float) = Field(

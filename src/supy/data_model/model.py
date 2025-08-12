@@ -430,7 +430,7 @@ class ModelPhysics(BaseModel):
 
     model_config = ConfigDict(
         title="Physics Methods Configuration",
-        json_schema_extra={"display_name": "Physics Methods Configuration"}
+        json_schema_extra={"display_name": "Physics Methods Configuration"},
     )
 
     netradiationmethod: FlexibleRefValue(NetRadiationMethod) = Field(
@@ -652,7 +652,7 @@ class OutputConfig(BaseModel):
 class ModelControl(BaseModel):
     model_config = ConfigDict(
         title="Model Control Configuration",
-        json_schema_extra={"display_name": "Model Control Configuration"}
+        json_schema_extra={"display_name": "Model Control Configuration"},
     )
 
     tstep: FlexibleRefValue(int) = Field(
@@ -733,7 +733,7 @@ class ModelControl(BaseModel):
 class Model(BaseModel):
     model_config = ConfigDict(
         title="Model Configuration",
-        json_schema_extra={"display_name": "Model Configuration"}
+        json_schema_extra={"display_name": "Model Configuration"},
     )
 
     control: ModelControl = Field(

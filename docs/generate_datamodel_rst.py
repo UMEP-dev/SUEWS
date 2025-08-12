@@ -195,7 +195,9 @@ def is_internal_enum_value(enum_class: type, value: int) -> bool:
     return False
 
 
-def _should_skip_option(num: str, enum_class: Optional[type], include_internal: bool) -> bool:
+def _should_skip_option(
+    num: str, enum_class: Optional[type], include_internal: bool
+) -> bool:
     """Check if an option should be skipped based on internal flags."""
     if include_internal or not enum_class:
         return False
@@ -204,10 +206,7 @@ def _should_skip_option(num: str, enum_class: Optional[type], include_internal: 
     if "-" in num:
         start, end = map(int, num.split("-"))
         # If any value in range is internal, skip the whole range
-        return any(
-            is_internal_enum_value(enum_class, v)
-            for v in range(start, end + 1)
-        )
+        return any(is_internal_enum_value(enum_class, v) for v in range(start, end + 1))
     # Single value
     return is_internal_enum_value(enum_class, int(num))
 
@@ -217,7 +216,7 @@ def _format_option_description(desc: str) -> str:
     replacements = [
         ("(recommended)", "**(recommended)**"),
         ("(not recommended)", "**(not recommended)**"),
-        ("(experimental)", "**(experimental)**")
+        ("(experimental)", "**(experimental)**"),
     ]
     for old, new in replacements:
         if old in desc:
@@ -308,21 +307,27 @@ def get_user_friendly_type_name(type_hint: Any) -> str:
 
 
 # --- Helper functions for RST generation ---
-def _add_rst_header(rst_content: list, model_name: str, model_class: type[BaseModel]) -> None:
+def _add_rst_header(
+    rst_content: list, model_name: str, model_class: type[BaseModel]
+) -> None:
     """Add RST header including meta tags, references, and title."""
     # Get display name from model config if available
     display_name = model_name.replace("_", " ").title()  # Default
-    if hasattr(model_class, 'model_config'):
+    if hasattr(model_class, "model_config"):
         config = model_class.model_config
         # model_config is a dict, not a ConfigDict instance
         if isinstance(config, dict):
             # Try to get display_name from json_schema_extra
-            if 'json_schema_extra' in config and isinstance(config['json_schema_extra'], dict):
-                display_name = config['json_schema_extra'].get('display_name', display_name)
+            if "json_schema_extra" in config and isinstance(
+                config["json_schema_extra"], dict
+            ):
+                display_name = config["json_schema_extra"].get(
+                    "display_name", display_name
+                )
             # Fall back to title if no display_name
-            elif 'title' in config:
-                display_name = config['title']
-    
+            elif "title" in config:
+                display_name = config["title"]
+
     # Add meta tags for search optimization
     rst_content.append(".. meta::")
     rst_content.append(
@@ -408,36 +413,93 @@ def _is_site_specific_field(field_name: str, model_name: str) -> bool:
     """Check if a field is site-specific (requires user input)."""
     site_specific_patterns = [
         # Geographic and site location
-        "lat", "lng", "longitude", "latitude", "alt", "altitude", "timezone",
+        "lat",
+        "lng",
+        "longitude",
+        "latitude",
+        "alt",
+        "altitude",
+        "timezone",
         # Site dimensions and areas
-        "area", "height", "width", "depth", "surfacearea", "z", "z_meas",
+        "area",
+        "height",
+        "width",
+        "depth",
+        "surfacearea",
+        "z",
+        "z_meas",
         # Model control parameters (typically user-specified)
-        "tstep", "forcing_file", "output_file", "start_time", "end_time",
+        "tstep",
+        "forcing_file",
+        "output_file",
+        "start_time",
+        "end_time",
         # Population and traffic
-        "population", "traffic", "popdens", "trafficrate",
+        "population",
+        "traffic",
+        "popdens",
+        "trafficrate",
         # Surface properties (material-specific)
-        "albedo", "emissivity", "reflectance", "transmittance",
+        "albedo",
+        "emissivity",
+        "reflectance",
+        "transmittance",
         # Roughness parameters
-        "z0m_in", "zdm_in", "z0", "zd", "roughness",
+        "z0m_in",
+        "zdm_in",
+        "z0",
+        "zd",
+        "roughness",
         # Temperature initializations
-        "temp_c", "temp_s", "tsurf", "tair", "soiltemp",
+        "temp_c",
+        "temp_s",
+        "tsurf",
+        "tair",
+        "soiltemp",
         # State variables
-        "state_", "initial", "soilstore", "soil_moisture", "snow_water",
-        "snow_albedo", "snowpack", "swe",
+        "state_",
+        "initial",
+        "soilstore",
+        "soil_moisture",
+        "snow_water",
+        "snow_albedo",
+        "snowpack",
+        "swe",
         # Land cover and vegetation
-        "fraction", "frac", "lai_max", "lai_min", "lai", "veg_frac",
-        "bldg_frac", "paved_frac",
+        "fraction",
+        "frac",
+        "lai_max",
+        "lai_min",
+        "lai",
+        "veg_frac",
+        "bldg_frac",
+        "paved_frac",
         # Surface fluxes and conductance
-        "conductance", "resistance", "g_max", "g_min", "runoff",
-        "drainage", "infiltration",
+        "conductance",
+        "resistance",
+        "g_max",
+        "g_min",
+        "runoff",
+        "drainage",
+        "infiltration",
         # OHM and energy balance
-        "ohm", "qf", "qh", "qe", "qs", "qn",
+        "ohm",
+        "qf",
+        "qh",
+        "qe",
+        "qs",
+        "qn",
         # Building parameters
-        "bldg_height", "wall_area", "roof_area",
+        "bldg_height",
+        "wall_area",
+        "roof_area",
         # Water balance
-        "precipitation", "irrigation", "water_use",
+        "precipitation",
+        "irrigation",
+        "water_use",
         # SPARTACUS specific
-        "ground_albedo_dir_mult_fact", "use_sw_direct_albedo",
+        "ground_albedo_dir_mult_fact",
+        "use_sw_direct_albedo",
     ]
 
     # Also check parent model name for context

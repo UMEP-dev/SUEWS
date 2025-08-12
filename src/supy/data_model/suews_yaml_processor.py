@@ -443,7 +443,7 @@ def run_phase_c(
 
             supy_logger = logging.getLogger("SuPy")
             original_level = supy_logger.level
-            supy_logger.setLevel(logging.WARNING)
+            supy_logger.setLevel(logging.CRITICAL)
 
             # Load and validate the YAML using SUEWSConfig (like SUEWSSimulation does)
             try:

@@ -280,7 +280,7 @@ def validate_model_option_dependencies(yaml_data: dict) -> List[ValidationResult
                 status="ERROR",
                 category="MODEL_OPTIONS",
                 parameter="rslmethod-stabilitymethod",
-                message="If rslmethod == 2, stabilitymethod must be 3 for diagnostic aerodynamic calculations",
+                message="If rslmethod == 2, stabilitymethod must be 3",
                 suggested_value="Set stabilitymethod to 3",
             )
         )

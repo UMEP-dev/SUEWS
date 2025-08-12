@@ -93,7 +93,7 @@ Validates internal consistency between different physics options using actual im
                status="ERROR",
                category="MODEL_OPTIONS", 
                parameter="rslmethod-stabilitymethod",
-               message="If rslmethod == 2, stabilitymethod must be 3 for diagnostic aerodynamic calculations",
+               message="If rslmethod == 2, stabilitymethod must be 3",
                suggested_value="Set stabilitymethod to 3"
            ))
        

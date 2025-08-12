@@ -1,5 +1,7 @@
 .. _netCDF_related_options:
 
+:nosearch:
+
 netCDF related options
 ~~~~~~~~~~~~~~~~~~~~~~
 

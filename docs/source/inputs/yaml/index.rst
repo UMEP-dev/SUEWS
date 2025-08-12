@@ -1,5 +1,9 @@
 .. _yaml_input:
 
+.. meta::
+   :description: SUEWS YAML configuration format documentation for site parameters, model control, and surface properties
+   :keywords: SUEWS, YAML, configuration, parameters, latitude, longitude, lat, lng, site properties, model control, forcing file
+
 YAML Configuration Format
 =========================
 
@@ -170,7 +174,11 @@ For detailed information about:
 Creating Configuration Files
 -----------------------------
 
-You can create YAML configuration files using the schema documentation below or by adapting the `sample configuration files <https://github.com/UMEP-dev/SUEWS/blob/master/src/supy/sample_run/sample_config.yml>`_ provided with SuPy.
+To get started with SUEWS configuration:
+
+1. **Start with the Parameter Guide**: See :doc:`parameter_guide` for practical guidance on configuring parameters for your specific use case
+2. **Use sample configurations**: Adapt the `sample configuration files <https://github.com/UMEP-dev/SUEWS/blob/master/src/supy/sample_run/sample_config.yml>`_ provided with SuPy
+3. **Reference the schema**: Use the detailed schema documentation below for complete parameter specifications
 
 .. note::
 
@@ -190,7 +198,20 @@ The following pages provide a detailed reference for every component of the YAML
 
 .. toctree::
    :maxdepth: 2
+   :caption: Configuration Guides
+   
+   parameter_guide
+
+.. toctree::
+   :maxdepth: 2
    :caption: Schema Reference
 
    schema/model
    schema/site
+
+.. toctree::
+   :maxdepth: 1
+   :caption: Parameter References
+   
+   parameter_quick_reference
+   parameter_index

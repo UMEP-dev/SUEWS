@@ -1,5 +1,7 @@
 .. _Time_related_options:
 
+:nosearch:
+
 Time related options
 ~~~~~~~~~~~~~~~~~~~~
 

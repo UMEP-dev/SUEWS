@@ -1,5 +1,7 @@
 .. _SUEWS_SiteSelect:
 
+:nosearch:
+
 SUEWS_SiteSelect.txt
 ~~~~~~~~~~~~~~~~~~~~
 

@@ -1,5 +1,7 @@
 .. _Above_ground_state:
 
+:nosearch:
+
 Above ground state
 ~~~~~~~~~~~~~~~~~~
 

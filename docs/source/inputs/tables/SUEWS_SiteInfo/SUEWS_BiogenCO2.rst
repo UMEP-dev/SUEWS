@@ -1,5 +1,7 @@
 .. _SUEWS_BiogenCO2:
 
+:nosearch:
+
 SUEWS_BiogenCO2.txt
 ~~~~~~~~~~~~~~~~~~~
 

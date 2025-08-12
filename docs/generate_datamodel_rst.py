@@ -30,17 +30,21 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 SRC_PATH = PROJECT_ROOT / "src"
 sys.path.insert(0, str(SRC_PATH))
 
-# Try to import the data models from supy
-# This relies on supy.data_model being an importable path
-# and __init__.py files being set up correctly.
-try:
-    import supy.data_model
-except ImportError as e:
-    print(f"Error importing supy.data_model: {e}")
-    print(
-        "Please ensure that 'src' is in the Python path and supy.data_model is accessible."
-    )
+# Import data models - work directly with source files to avoid build issues
+data_model_path = SRC_PATH / "supy" / "data_model"
+if not data_model_path.exists():
+    print(f"Error: data_model directory not found at {data_model_path}")
     sys.exit(1)
+
+# Add data_model parent to path so we can import
+sys.path.insert(0, str(SRC_PATH / "supy"))
+
+# Create a mock supy module structure
+class MockDataModel:
+    __file__ = str(data_model_path / "__init__.py")
+
+supy = type('supy', (), {})()
+supy.data_model = MockDataModel()
 
 
 # --- Helper function to format units with proper typography ---
@@ -296,9 +300,21 @@ def generate_rst_for_model(
 
     model_name = model_class.__name__
     rst_content = []
+    
+    # Add meta tags for search optimization
+    rst_content.append(".. meta::")
+    rst_content.append(f"   :description: SUEWS YAML configuration for {model_name.replace('_', ' ').lower()} parameters")
+    rst_content.append(f"   :keywords: SUEWS, YAML, {model_name.lower()}, parameters, configuration")
+    rst_content.append("")
 
     # Add reference label for cross-referencing
     rst_content.append(f".. _{model_name.lower()}:")
+    rst_content.append("")
+    
+    # Add index entries for search
+    rst_content.append(f".. index::")
+    rst_content.append(f"   single: {model_name} (YAML parameter)")
+    rst_content.append(f"   single: YAML; {model_name}")
     rst_content.append("")
 
     # Title
@@ -369,6 +385,12 @@ def generate_rst_for_model(
         field_type_hint = field_info.annotation
         user_type_name = get_user_friendly_type_name(field_type_hint)
 
+        # Add index entry for this parameter
+        rst_content.append(f".. index::")
+        rst_content.append(f"   single: {field_name} (YAML parameter)")
+        rst_content.append(f"   single: {model_name}; {field_name}")
+        rst_content.append("")
+        
         # Add reference label for cross-referencing specific fields (for method fields)
         if field_name in [
             "diagmethod",
@@ -491,20 +513,121 @@ def generate_rst_for_model(
                 except:
                     pass  # Ignore parsing errors
 
-        # Default value
-        default_value = "Not specified"
+        # Default or Sample value
+        # Determine if this is a true default or just a sample value
+        default_value = None
+        has_default = False
+        
         if (
             field_info.default is not None
             and field_info.default != inspect.Parameter.empty
         ):
-            default_value = f"``{field_info.default!r}``"
+            default_value = field_info.default
+            has_default = True
         elif field_info.default_factory is not None:
             try:
-                default_value = f"``{field_info.default_factory()!r}`` (generated)"
+                default_value = field_info.default_factory()
+                has_default = True
             except Exception:
                 default_value = "Dynamically generated"
-
-        rst_content.append(f"   :Default: {default_value}")
+                has_default = True
+        
+        # Check if this is actually a required field (no real default)
+        # PydanticUndefined or similar indicates no default
+        is_required = False
+        if has_default:
+            # Check if it's PydanticUndefined or similar sentinel values
+            default_str = str(default_value)
+            if "PydanticUndefined" in default_str or "undefined" in default_str.lower():
+                is_required = True
+                has_default = False
+        else:
+            is_required = True
+        
+        # For physical/site-specific parameters, even numeric defaults might be samples
+        # Check field name patterns that typically need site-specific values
+        site_specific_patterns = [
+            # Geographic and site location
+            'lat', 'lng', 'longitude', 'latitude', 'alt', 'altitude', 'timezone',
+            
+            # Site dimensions and areas
+            'area', 'height', 'width', 'depth', 'surfacearea', 'z', 'z_meas',
+            
+            # Model control parameters (typically user-specified)
+            'tstep', 'forcing_file', 'output_file', 'start_time', 'end_time',
+            
+            # Population and traffic
+            'population', 'traffic', 'popdens', 'trafficrate',
+            
+            # Surface properties (material-specific)
+            'albedo', 'emissivity', 'reflectance', 'transmittance',
+            
+            # Roughness parameters  
+            'z0m_in', 'zdm_in', 'z0', 'zd', 'roughness',
+            
+            # Temperature initializations
+            'temp_c', 'temp_s', 'tsurf', 'tair', 'soiltemp',
+            
+            # State variables
+            'state_', 'initial', 'soilstore', 'soil_moisture', 
+            'snow_water', 'snow_albedo', 'snowpack', 'swe',
+            
+            # Land cover and vegetation
+            'fraction', 'frac', 'lai_max', 'lai_min', 'lai',
+            'veg_frac', 'bldg_frac', 'paved_frac',
+            
+            # Surface fluxes and conductance
+            'conductance', 'resistance', 'g_max', 'g_min',
+            'runoff', 'drainage', 'infiltration',
+            
+            # OHM and energy balance
+            'ohm', 'qf', 'qh', 'qe', 'qs', 'qn',
+            
+            # Building parameters
+            'bldg_height', 'wall_area', 'roof_area',
+            
+            # Water balance
+            'precipitation', 'irrigation', 'water_use',
+            
+            # SPARTACUS specific
+            'ground_albedo_dir_mult_fact', 'use_sw_direct_albedo',
+        ]
+        
+        # Also check parent model name for context
+        model_context_samples = [
+            'initialstate',  # All initial states are site-specific
+            'properties',  # Surface properties are material/site specific
+            'landcover',  # Land cover fractions are site-specific
+            'modelcontrol',  # Model control parameters are typically user-specified
+            'site',  # Site-level parameters are location-specific
+            'spartacus',  # SPARTACUS parameters often need tuning
+        ]
+        
+        is_site_specific = any(
+            pattern in field_name.lower() 
+            for pattern in site_specific_patterns
+        ) or any(
+            context in model_name.lower()
+            for context in model_context_samples
+        )
+        
+        # Format the value for display
+        if not has_default:
+            display_value = "Not specified"
+            label = "Sample value"  # Required fields show sample
+        elif is_site_specific and isinstance(default_value, (int, float)):
+            # Numeric "defaults" for site-specific params are really samples
+            display_value = f"``{default_value!r}``"
+            label = "Sample value"
+        else:
+            # True defaults
+            if isinstance(default_value, str) and default_value == "Dynamically generated":
+                display_value = default_value
+            else:
+                display_value = f"``{default_value!r}``"
+            label = "Default"
+        
+        rst_content.append(f"   :{label}: {display_value}")
 
         # Add Reference field for RefValue types
         origin_type = get_origin(field_type_hint) or field_type_hint
@@ -709,10 +832,12 @@ def main():
     # Discover models in supy.data_model and its submodules
     data_model_module_root = Path(supy.data_model.__file__).parent
     for py_file in data_model_module_root.glob("*.py"):
-        if py_file.name == "__init__.py":
-            module_name_to_import = "supy.data_model"
-        else:
-            module_name_to_import = f"supy.data_model.{py_file.stem}"
+        if py_file.name in ["__init__.py", "validation_controller.py", "validation_feedback.py",
+                             "validation_utils.py", "yaml_annotator.py", "yaml_annotator_json.py",
+                             "timezone_enum.py", "precheck.py"]:
+            continue  # Skip non-model files
+        
+        module_name_to_import = f"data_model.{py_file.stem}"
 
         try:
             module = importlib.import_module(module_name_to_import)

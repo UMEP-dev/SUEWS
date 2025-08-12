@@ -1,5 +1,7 @@
 .. _SUEWS_Snow:
 
+:nosearch:
+
 SUEWS_Snow.txt
 ~~~~~~~~~~~~~~
 

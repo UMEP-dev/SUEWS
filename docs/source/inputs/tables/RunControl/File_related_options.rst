@@ -1,5 +1,7 @@
 .. _File_related_options:
 
+:nosearch:
+
 File related options
 ~~~~~~~~~~~~~~~~~~~~
 

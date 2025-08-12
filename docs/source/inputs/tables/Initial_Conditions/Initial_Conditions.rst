@@ -1,5 +1,7 @@
 .. _Initial_Conditions:
 
+:nosearch:
+
 Initial Conditions file
 -----------------------
 

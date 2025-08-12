@@ -1,5 +1,7 @@
 .. _Snow_related_parameters:
 
+:nosearch:
+
 Snow related parameters
 ~~~~~~~~~~~~~~~~~~~~~~~
 

@@ -1,5 +1,7 @@
 .. _met_input:
 
+:nosearch:
+
 Meteorological Input File
 -------------------------
 

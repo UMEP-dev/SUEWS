@@ -1,5 +1,7 @@
 .. _SUEWS_Veg:
 
+:nosearch:
+
 SUEWS_Veg.txt
 ~~~~~~~~~~~~~
 

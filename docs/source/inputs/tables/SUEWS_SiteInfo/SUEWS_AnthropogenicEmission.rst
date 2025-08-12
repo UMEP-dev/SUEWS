@@ -1,4 +1,6 @@
 
+:nosearch:
+
 SUEWS_AnthropogenicEmission.txt
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 .. note::

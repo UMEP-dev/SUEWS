@@ -609,7 +609,6 @@ def run_scientific_validation_pipeline(
 
     validation_results.extend(validate_geographic_parameters(yaml_data))
 
-
     return validation_results
 
 

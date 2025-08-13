@@ -767,84 +767,148 @@ def _is_refvalue_of_model(field_type_hint: Any, origin_pt: Any) -> bool:
     return first_arg == origin_pt
 
 
+def _format_initial_state_message(field_name: str, nested_model_name: str, is_basic: bool) -> str:
+    """Format message for initial state fields."""
+    if is_basic:
+        return (
+            f"   For ``{field_name}``, one generic SurfaceInitialState object is used to specify initial conditions - "
+            f"see :doc:`surfaceinitialstate` for details."
+        )
+    return (
+        f"   For ``{field_name}``, one vegetation-specific initial state with additional parameters is used - "
+        f"see :doc:`{nested_model_name.lower()}` for details."
+    )
+
+
 def _generate_nested_model_link_message(
     field_name: str,
     field_type_hint: Any,
     nested_model_to_document: type[BaseModel],
 ) -> str:
     """Generate appropriate link message for nested model documentation."""
-    nested_model_name_lower = nested_model_to_document.__name__.lower()
+    nested_model_name = nested_model_to_document.__name__
+    nested_model_name_lower = nested_model_name.lower()
     origin_of_field = get_origin(field_type_hint)
     args_of_field = get_args(field_type_hint)
 
-    # Check if RefValue wraps the model
-    is_ref_value_wrapping = _is_refvalue_of_model(field_type_hint, nested_model_to_document)
+    # Build the message based on type
+    message = None
 
-    if is_ref_value_wrapping:
-        return (
+    # Check RefValue wrapping
+    if _is_refvalue_of_model(field_type_hint, nested_model_to_document):
+        message = (
             f"   The structure for the ``value`` key of ``{field_name}`` is detailed in "
             f":doc:`{nested_model_name_lower}`."
         )
-
-    if origin_of_field is list or origin_of_field is list:
-        # Special handling for lists of SurfaceInitialState
-        if nested_model_to_document.__name__ == "SurfaceInitialState":
-            return (
+    # Check list types
+    elif origin_of_field is list or origin_of_field is list:
+        if nested_model_name == "SurfaceInitialState":
+            message = (
                 f"   For ``{field_name}``, a list of generic SurfaceInitialState objects is used to specify initial conditions for each layer - "
                 f"see :doc:`surfaceinitialstate` for details."
             )
-        return (
-            f"   Each item in the ``{field_name}`` list must conform to the "
-            f":doc:`{nested_model_name_lower}` structure."
-        )
-
-    if origin_of_field is dict or origin_of_field is dict:
-        return (
+        else:
+            message = (
+                f"   Each item in the ``{field_name}`` list must conform to the "
+                f":doc:`{nested_model_name_lower}` structure."
+            )
+    # Check dict types
+    elif origin_of_field is dict or origin_of_field is dict:
+        message = (
             f"   Each value in the ``{field_name}`` mapping (dictionary) must conform to the "
             f":doc:`{nested_model_name_lower}` structure."
         )
-
-    # Direct nesting
-    if (get_origin(field_type_hint) or field_type_hint) == nested_model_to_document:
-        # Special handling for InitialStateXXX classes
-        if (
-            nested_model_to_document.__name__.startswith("InitialState")
-            and nested_model_to_document.__name__ != "InitialStates"
-        ):
-            basic_surface_states = {
-                "InitialStatePaved", "InitialStateBldgs",
-                "InitialStateBsoil", "InitialStateWater"
-            }
-            if nested_model_to_document.__name__ in basic_surface_states:
-                return (
-                    f"   For ``{field_name}``, one generic SurfaceInitialState object is used to specify initial conditions - "
-                    f"see :doc:`surfaceinitialstate` for details."
-                )
-            else:
-                return (
-                    f"   For ``{field_name}``, one vegetation-specific initial state with additional parameters is used - "
-                    f"see :doc:`{nested_model_name_lower}` for details."
-                )
-        return (
-            f"   The ``{field_name}`` parameter group is defined by the "
-            f":doc:`{nested_model_name_lower}` structure."
-        )
-
-    # Check for Optional[List[X]] where X is SurfaceInitialState
-    if origin_of_field is Union:
+    # Check direct nesting
+    elif (get_origin(field_type_hint) or field_type_hint) == nested_model_to_document:
+        if nested_model_name.startswith("InitialState") and nested_model_name != "InitialStates":
+            basic_states = {"InitialStatePaved", "InitialStateBldgs", "InitialStateBsoil", "InitialStateWater"}
+            is_basic = nested_model_name in basic_states
+            message = _format_initial_state_message(field_name, nested_model_name, is_basic)
+        else:
+            message = (
+                f"   The ``{field_name}`` parameter group is defined by the "
+                f":doc:`{nested_model_name_lower}` structure."
+            )
+    # Check Optional[List[X]]
+    elif origin_of_field is Union:
         for union_arg in args_of_field:
             if get_origin(union_arg) is list:
                 list_args = get_args(union_arg)
                 if list_args and list_args[0].__name__ == "SurfaceInitialState":
-                    return (
+                    message = (
                         f"   For ``{field_name}``, a list of generic SurfaceInitialState objects is used to specify initial conditions for each layer - "
                         f"see :doc:`surfaceinitialstate` for details."
                     )
+                    break
 
     # Fallback
-    return (
-        f"   For ``{field_name}``, if using the {nested_model_to_document.__name__} structure, "
-        f"see :doc:`{nested_model_name_lower}` for details."
+    if message is None:
+        message = (
+            f"   For ``{field_name}``, if using the {nested_model_name} structure, "
+            f"see :doc:`{nested_model_name_lower}` for details."
+        )
+
+    return message
+
+
+def _find_nested_model(
+    field_type_hint: Any,
+    all_supy_models: dict[str, type[BaseModel]],
+    model_class: type[BaseModel],
+) -> Optional[type[BaseModel]]:
+    """Find nested model in field type hint."""
+    possible_model_types = [field_type_hint, *list(get_args(field_type_hint))]
+
+    # Also check for models nested inside List/Dict types
+    for arg in get_args(field_type_hint):
+        if get_origin(arg) in {list, dict}:
+            possible_model_types.extend(get_args(arg))
+
+    for pt in possible_model_types:
+        origin_pt = get_origin(pt) or pt
+        if (
+            hasattr(origin_pt, "__name__")
+            and origin_pt.__name__ in all_supy_models
+            and issubclass(origin_pt, BaseModel)
+            and origin_pt != model_class
+        ):
+            # Prioritize direct matches
+            if (
+                _is_direct_model_match(field_type_hint, origin_pt)
+                or _is_list_or_dict_of_model(field_type_hint, origin_pt)
+                or _is_refvalue_of_model(field_type_hint, origin_pt)
+            ):
+                return origin_pt
+            # Return as fallback if no better match found
+            return origin_pt
+
+    return None
+
+
+def _process_nested_model(
+    nested_model: type[BaseModel],
+    field_name: str,
+    field_type_hint: Any,
+    rst_content: list,
+    output_dir: Path,
+    processed_models: set[type[BaseModel]],
+    all_supy_models: dict[str, type[BaseModel]],
+    include_internal: bool,
+) -> None:
+    """Process and document a nested model."""
+    rst_content.append("")  # Blank line before link text
+    link_message = _generate_nested_model_link_message(
+        field_name, field_type_hint, nested_model
+    )
+    rst_content.append(link_message)
+
+    # Recursively generate documentation for the nested model
+    generate_rst_for_model(
+        nested_model,
+        output_dir,
+        processed_models,
+        all_supy_models,
+        include_internal,
     )
 
 
@@ -994,49 +1058,15 @@ def generate_rst_for_model(
         # Add constraints
         _add_field_constraints(rst_content, field_info, field_type_hint)
 
-        # Link to nested models
-        # Check if the raw type or any type argument is a Pydantic model we know
-        possible_model_types = [field_type_hint, *list(get_args(field_type_hint))]
+        # Find and process nested models
+        nested_model = _find_nested_model(
+            field_type_hint, all_supy_models, model_class
+        )
 
-        # Also check for models nested inside List/Dict types
-        for arg in get_args(field_type_hint):
-            if get_origin(arg) in {list, dict}:
-                # Add the inner types of List[X] or Dict[K, V]
-                possible_model_types.extend(get_args(arg))
-
-        nested_model_to_document = None
-        for pt in possible_model_types:
-            origin_pt = get_origin(pt) or pt  # get actual type if it's a generic alias
-            if (
-                hasattr(origin_pt, "__name__")
-                and origin_pt.__name__ in all_supy_models
-                and issubclass(origin_pt, BaseModel)
-                and origin_pt != model_class  # Do not link to self
-            ):
-                # Prioritize the model that is directly the field's type or the first arg of RefValue/List/Dict
-                if (
-                    _is_direct_model_match(field_type_hint, origin_pt)
-                    or _is_list_or_dict_of_model(field_type_hint, origin_pt)
-                    or _is_refvalue_of_model(field_type_hint, origin_pt)
-                ):
-                    nested_model_to_document = origin_pt
-                    break
-                if not nested_model_to_document:  # Fallback if no direct match yet
-                    nested_model_to_document = origin_pt
-
-        if nested_model_to_document:
-            rst_content.append("")  # Blank line before link text
-            link_message = _generate_nested_model_link_message(
-                field_name, field_type_hint, nested_model_to_document
-            )
-            rst_content.append(link_message)
-            # The recursive call was here, it should remain to generate the linked doc.
-            generate_rst_for_model(
-                nested_model_to_document,
-                output_dir,
-                processed_models,
-                all_supy_models,
-                include_internal,
+        if nested_model:
+            _process_nested_model(
+                nested_model, field_name, field_type_hint, rst_content,
+                output_dir, processed_models, all_supy_models, include_internal
             )
 
         rst_content.append("")  # Blank line after each option

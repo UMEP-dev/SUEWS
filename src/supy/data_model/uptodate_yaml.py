@@ -343,7 +343,7 @@ def find_array_section_position(lines, array_name, array_index, start_pos=0):
     """Find the position of a specific array item, starting from start_pos."""
     array_section_start = None
     array_indent = None
-    
+
     # Find the array section
     for i, line in enumerate(lines[start_pos:], start_pos):
         stripped = line.strip()
@@ -395,19 +395,21 @@ def find_insertion_point(lines, path_parts):
     section_indent = None
     section_start = None
     current_position = 0
-    
+
     # Navigate through the path parts to find the exact section
     for path_part in path_parts[:-2]:  # Exclude the parameter name and immediate parent
         if "[" in path_part and "]" in path_part:
             array_name = path_part.split("[")[0]
             array_index = int(path_part.split("[")[1].split("]")[0])
-            current_position = find_array_section_position(lines, array_name, array_index, current_position)
+            current_position = find_array_section_position(
+                lines, array_name, array_index, current_position
+            )
         else:
             current_position = find_section_position(lines, path_part, current_position)
-        
+
         if current_position is None:
             return None
-    
+
     # Now find the immediate parent section from the current position
     for i, line in enumerate(lines[current_position:], current_position):
         stripped = line.strip()

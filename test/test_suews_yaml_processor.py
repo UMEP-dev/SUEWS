@@ -289,7 +289,7 @@ class TestPhaseAUptoDateYaml(TestProcessorFixtures):
         """Test that missing parameters are inserted in the correct path location."""
         if not has_uptodate_yaml:
             pytest.skip("uptodate_yaml module not available")
-        
+
         # Create a YAML with multiple summer_wet sections to test path resolution
         yaml_content = """sites:
 - name: TestSite
@@ -312,55 +312,63 @@ class TestPhaseAUptoDateYaml(TestProcessorFixtures):
             a2:
               value: 0.337
             # a3 is missing here - should be inserted in this section"""
-        
-        lines = yaml_content.strip().split('\n')
-        
+
+        lines = yaml_content.strip().split("\n")
+
         # Test path resolution for bldgs.ohm_coef.summer_wet.a3
         # Path should match how it's split from "sites[0].properties.land_cover.bldgs.ohm_coef.summer_wet.a3"
-        path_parts = ['sites[0]', 'properties', 'land_cover', 'bldgs', 'ohm_coef', 'summer_wet', 'a3']
+        path_parts = [
+            "sites[0]",
+            "properties",
+            "land_cover",
+            "bldgs",
+            "ohm_coef",
+            "summer_wet",
+            "a3",
+        ]
         insertion_point = uptodate_yaml.find_insertion_point(lines, path_parts)
-        
+
         # Should find insertion point in bldgs section, not paved section
         assert insertion_point is not None
-        
+
         # Verify it's in the correct section by checking nearby lines
         # The insertion point should be after the bldgs.summer_wet.a2 parameter
         # With the properties layer, bldgs section is around line 15 and insertion should be after line 19
         assert insertion_point > 18  # Should be after the bldgs section content
-        
+
         found_in_bldgs_section = False
         if insertion_point is not None:
             # Look backwards to find context - should find bldgs section
             for i in range(max(0, insertion_point - 15), insertion_point):
-                if 'bldgs:' in lines[i]:
+                if "bldgs:" in lines[i]:
                     found_in_bldgs_section = True
                     break
-            
+
             assert found_in_bldgs_section, "Should insert in bldgs section"
-    
+
     def test_find_section_position_helper(self):
         """Test the find_section_position helper function."""
         if not has_uptodate_yaml:
             pytest.skip("uptodate_yaml module not available")
-        
+
         yaml_lines = [
             "root:",
             "  section1:",
             "    value: 1",
-            "  section2:", 
+            "  section2:",
             "    value: 2",
             "  section1:",  # Duplicate name - should find first by default
-            "    value: 3"
+            "    value: 3",
         ]
-        
+
         # Test finding first occurrence
         pos = uptodate_yaml.find_section_position(yaml_lines, "section1")
         assert pos == 1  # First section1
-        
+
         # Test finding from specific start position
         pos = uptodate_yaml.find_section_position(yaml_lines, "section1", start_pos=3)
         assert pos == 5  # Second section1
-        
+
         # Test non-existent section
         pos = uptodate_yaml.find_section_position(yaml_lines, "nonexistent")
         assert pos is None
@@ -369,31 +377,31 @@ class TestPhaseAUptoDateYaml(TestProcessorFixtures):
         """Test the find_array_section_position helper function."""
         if not has_uptodate_yaml:
             pytest.skip("uptodate_yaml module not available")
-        
+
         yaml_lines = [
             "sites:",
             "- name: Site1",
             "  value: 1",
-            "- name: Site2", 
+            "- name: Site2",
             "  value: 2",
             "- name: Site3",
-            "  value: 3"
+            "  value: 3",
         ]
-        
+
         # Test finding specific array items
         pos = uptodate_yaml.find_array_section_position(yaml_lines, "sites", 0)
         assert pos == 1  # First item
-        
-        pos = uptodate_yaml.find_array_section_position(yaml_lines, "sites", 1) 
+
+        pos = uptodate_yaml.find_array_section_position(yaml_lines, "sites", 1)
         assert pos == 3  # Second item
-        
+
         pos = uptodate_yaml.find_array_section_position(yaml_lines, "sites", 2)
         assert pos == 5  # Third item
-        
+
         # Test non-existent array
         pos = uptodate_yaml.find_array_section_position(yaml_lines, "nonexistent", 0)
         assert pos is None
-        
+
         # Test out of bounds index
         pos = uptodate_yaml.find_array_section_position(yaml_lines, "sites", 5)
         assert pos is None

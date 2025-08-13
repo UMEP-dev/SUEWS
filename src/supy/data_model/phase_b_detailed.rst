@@ -17,7 +17,7 @@ Architecture and Design
 
 Phase B implements a multi-layered scientific validation system that:
 
-1. **Validates Physics Parameters**: Ensures required model physics parameters are present and non-empty
+1. **Validates Physics Parameters**: Ensures required model physics options parameters are present and non-empty
 2. **Checks Model Dependencies**: Validates internal consistency between physics options
 3. **Validates Land Cover**: Checks surface fraction totals and parameter consistency
 4. **Validates Geographic Parameters**: Ensures coordinates and location-dependent parameters are realistic
@@ -75,12 +75,13 @@ Scientific Validation Categories
 
 **Physics Parameters Validation**
 
-Ensures all required model physics parameters are present and properly configured:
+Validates specific critical model physics parameters that are essential for model operation:
 
-- **Required Parameters**: All physics options must have valid values
-- **Non-Empty Values**: Parameters cannot be null, empty, or zero when required
-- **Range Validation**: Values must be within scientifically valid ranges
+- **Selected Required Parameters**: Key physics options validated for presence and valid values
+- **Non-Empty Values**: Critical parameters cannot be null, empty, or zero when required
+- **Dependency Validation**: Validates interdependencies between physics options (e.g., rslmethod-stabilitymethod)
 - **Type Validation**: Parameters must have correct data types
+- **Note**: Currently focuses on essential parameters rather than comprehensive validation of all physics options
 
 **Model Option Dependencies**
 
@@ -193,7 +194,7 @@ Phase B makes scientific adjustments that improve model realism without changing
 
 **Land Cover Adjustments:**
 
-- **Fraction Normalisation**: Adjusts surface fractions to sum to 1.0
+- **Fraction Normalisation**: Adjusts surface fractions to sum to 1.0 by rounding the surface with maximum fraction value
 - **Seasonal LAI Adjustments**: Calculates LAI for deciduous trees based on seasonal parameters (laimin, laimax)
 
 **STEBBS Method Integration:**
@@ -289,8 +290,8 @@ Phase B generates comprehensive reports with two main sections:
 
    ## ACTION NEEDED
    - Found (1) critical scientific parameter error(s):
-   -- rslmethod-stabilitymethod: If rslmethod == 2, stabilitymethod must be 3 for diagnostic aerodynamic calculations
-      Suggested value: Set stabilitymethod to 3
+   -- rslmethod-stabilitymethod: If rslmethod == 2, stabilitymethod must be 3
+      Suggested fix: Set stabilitymethod to 3
 
    ## NO ACTION NEEDED
    - Updated (9) parameter(s):
@@ -353,7 +354,7 @@ Phase B output serves as input to subsequent phases in the validation pipeline:
 
 **Mode Integration:**
 
-- **Both Modes**: Provide identical scientific validation - mode only affects report header
+- **Both Modes Public and Dev**: Provide identical scientific validation - mode only affects report header
 - **Phase Consolidation**: Integrates Phase A reports when available
 
 **Workflow Integration:**
@@ -366,15 +367,7 @@ Phase B output serves as input to subsequent phases in the validation pipeline:
 Testing and Validation
 ----------------------
 
-Phase B includes comprehensive test coverage:
-
-**Test Categories:**
-
-- **Physics Validation**: Required parameters, dependencies, option conflicts
-- **CRU Integration**: Temperature lookup, coordinate validation, data availability
-- **Scientific Corrections**: Automatic adjustments, value ranges, consistency
-- **Geographic Validation**: Coordinate systems, timezone handling
-- **Land Cover Validation**: Surface fractions, parameter completeness
+Phase B includes comprehensive test coverage.
 
 **Example Test:**
 
@@ -390,21 +383,6 @@ Phase B includes comprehensive test coverage:
        assert 0 <= temp <= 20, f"Unrealistic temperature: {temp}°C"
        assert temp is not None, "CRU lookup should return valid temperature"
 
-Mode Selection Guidelines
--------------------------
-
-**Actual Mode Behaviour:**
-
-Phase B validation and corrections are **identical** in both public and developer modes. The mode parameter only affects:
-
-- **Report Header**: Shows "Public" vs "Developer" in report title
-- **No Functional Difference**: Same validation checks, same corrections, same output files
-
-**Mode Selection:**
-
-- **Public Mode**: Default mode - identical functionality
-- **Developer Mode**: Identical functionality with different report header
-- **Recommendation**: Use public mode unless you specifically need the "Developer" label in reports
 
 Best Practices
 --------------

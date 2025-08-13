@@ -95,43 +95,20 @@ Choose your processing mode:
 
 **Public Mode** (default)
    - ``--mode public``: Standard validation mode for general users
-   - Provides comprehensive validation with user-friendly output
    - Default mode when no ``--mode`` is specified
-   - **Restrictions**: Only stable, production-ready features are allowed
-   - **Pre-validation check**: Processor halts if experimental features are detected
+   - **Restrictions**: Only stable, production-ready features are allowed. Processor halts if experimental features are detected.
+   - **Phase A behaviour**:  Extra parameters (not in standard YAML) are preserved in the output YAML but reported as "Found (X) not allowed extra parameter name(s)" in the ACTION_NEEDED section with suggestions to switch to Dev mode or remove the parameters
+   - **Future expansion**: Will include restriction related to other dev experimental features (SPARTACUS; EHC; DyOhm, etc.).
 
 **Developer Mode**
    - ``--mode dev``: Extended validation options for developers
    - **Status**: Available - allows experimental features and extended parameter handling
-   - Includes additional diagnostic information and development features
-   - **Access**: Allows experimental features (STEBBS method, advanced physics options)
-   - **Phase A behaviour**: Preserves extra parameters in Pydantic-allowed locations
-   - **Future expansion**: Will include additional validation rules and developer tools
-
+   - **Access**: Allows experimental features (STEBBS method)
+   - **Phase A behaviour**: Extra parameters in Pydantic-allowed locations are preserved in the output YAML and reported as "Found (X) parameter(s) not in standard" in the NO_ACTION_NEEDED section
+   - **Future expansion**: Will include additional validation rules, access to unstable features like SPARTACUS method, and developer-specific warnings and recommendations
 .. note::
 
    **Mode Restriction Enforcement**: The processor performs a pre-validation check before running any phases. If you select public mode but your YAML contains experimental features (e.g., ``stebbsmethod != 0``), execution will halt with specific guidance on how to resolve the restriction.
-
-Mode-Specific Behaviour
-~~~~~~~~~~~~~~~~~~~~~~~
-
-**Phase A Differences:**
-
-- **Public Mode**: Extra parameters (not in standard YAML) are preserved in the output YAML but reported as "Found (X) not allowed extra parameter name(s)" in the ACTION_NEEDED section with suggestions to switch to Dev mode or remove the parameters
-- **Developer Mode**: Extra parameters in Pydantic-allowed locations are preserved in the output YAML and reported as "Found (X) parameter(s) not in standard" in the NO_ACTION_NEEDED section
-
-**Experimental Features:**
-
-- **Public Mode**: Experimental features like ``stebbsmethod != 0`` trigger a pre-validation error that halts execution
-- **Developer Mode**: All experimental features are permitted and processed normally
-
-**Future Expansion:**
-
-The developer mode will be expanded with additional features including:
-- Additional validation rules for experimental parameters
-- Enhanced diagnostic reporting
-- Access to unstable features like SPARTACUS method
-- Developer-specific warnings and recommendations
 
 Quick Start Guide
 -----------------
@@ -168,8 +145,8 @@ The processor is run from the SUEWS root directory using the master script:
    python src/supy/data_model/suews_yaml_processor.py user_config.yml --phase BC  # Scientific validation + Pydantic validation
 
    # Processing modes (optional)
-   python src/supy/data_model/suews_yaml_processor.py user_config.yml --mode public  # Public mode (default)
-   python src/supy/data_model/suews_yaml_processor.py user_config.yml --mode dev     # Developer mode (available)
+   python src/supy/data_model/suews_yaml_processor.py user_config.yml --phase ABC --mode public  # Public mode (default)
+   python src/supy/data_model/suews_yaml_processor.py user_config.yml --phase ABC --mode dev     # Developer mode
 
 Recommended Workflows
 ~~~~~~~~~~~~~~~~~~~~~
@@ -275,21 +252,12 @@ Expected Output
 Understanding the Validation Pipeline
 -------------------------------------
 
-The SUEWS YAML Processor uses a three-phase approach that builds upon each phase:
-
-**Sequential Validation Design**
-   Each phase addresses different aspects of configuration validation, from basic structure to complex model-specific rules.
-
-**Phase Dependencies**
-   Later phases assume earlier phases have been completed - Phase B expects Phase A corrections, Phase C expects scientific validity.
-
-**Progressive Refinement**
-   Each phase refines the configuration further, with the final output being a fully validated, model-ready YAML file.
+The SUEWS YAML Processor uses a three-phase approach that builds upon each phase. Each phase addresses different aspects of configuration validation, from basic structure to complex model-specific rules. Later phases assume earlier phases have been completed - Phase B expects Phase A corrections, Phase C expects scientific validity. Each phase refines the configuration further, with the final output being a fully validated, model-ready YAML file.
 
 **The Three Phases:**
 
 1. **Phase A – Up-to-date YAML Check**
-   Compares your configuration against the current SUEWS parameter set, identifying missing parameters, renamed parameters, and structural issues.
+   Compares your configuration against the standard parameter set, identifying missing parameters, renamed parameters, and structural issues.
 
 2. **Phase B – Scientific Validation**
    Validates parameter values for physical reasonableness, applies scientific corrections, and ensures parameter consistency.
@@ -297,7 +265,7 @@ The SUEWS YAML Processor uses a three-phase approach that builds upon each phase
 3. **Phase C – Pydantic Validation**
    Applies model-specific validation rules based on selected physics options, ensuring configuration compatibility with chosen model features.
 
-Phase A – Up-to-date YAML Check
+Phase A – Up-to-date YAML Check 
 ===============================
 
 Purpose and Scope
@@ -484,7 +452,7 @@ Phase B validates parameter values for scientific reasonableness and physical co
 
 **When to Use Phase B:**
 - After Phase A has resolved structural issues
-- Before production model runs to ensure scientific validity
+- Before Pydantic conditional validation
 - When parameters have been manually edited and need validation
 - As part of comprehensive validation workflows (AB, BC, ABC)
 
@@ -562,11 +530,11 @@ Based on our current implementation, Phase B applies these automatic scientific 
 
 4. **Seasonal Parameter Adjustments**
 
-   **Snow Albedo Nullification**: Removes snow albedo for warm seasons
+   **Snow Albedo Nullification**: Nullifies snow albedo for warm seasons
       - Nullifies ``snowalb`` for summer, tropical, and equatorial seasons
       - Based on latitude and simulation start date
 
-   **Deciduous Tree LAI**: Sets seasonal Leaf Area Index (``lai_id``) for deciduous trees
+   **Deciduous Tree LAI**: Sets ``lai_id`` for deciduous trees according to season
       - Summer: Uses ``laimax`` value
       - Winter: Uses ``laimin`` value
       - Spring/Fall: Uses average of ``laimax`` and ``laimin``
@@ -703,7 +671,7 @@ Output: an updated YAML saved as updatedB_<filename>.yml and a comprehensive rep
    - Updated (3) parameter(s) with automatic scientific adjustments:
    -- dectr.lai_id at site [0]: null → 4.5 (Set seasonal LAI for summer (laimin=2.0, laimax=4.5))
    -- initial_states.paved at site [0]: temperature, tsfc, tin → 15.2°C (Set from CRU data for coordinates (51.51, -0.12) for month 7)
-   -- snowalb at site [0]: 0.8 → 0.7 (adjusted snow albedo for temperate climate)
+   -- Surface fractions adjusted from sum=0.9999 to sum=1.0 (Auto-corrected small floating point error)
 
    - Updated (2) optional missing parameter(s) with null values:
    -- holiday added to updatedA_user.yml and set to null
@@ -712,8 +680,8 @@ Output: an updated YAML saved as updatedB_<filename>.yml and a comprehensive rep
    - Updated (1) renamed parameter(s) to current standards:
    -- cp changed to rho_cp
 
-   - Found (1) scientific warning(s) for information:
-   -- emissionsmethod at site [0]: Method 2 selected but anthropogenic heat flux data not provided
+   - Revise (1) warnings:
+   -- timezone at site [0]: Timezone parameter is missing - will be calculated automatically from latitude and longitude
 
    # ==================================================
 
@@ -740,7 +708,6 @@ Purpose and Scope
 Phase C applies model-specific validation using Pydantic data models to ensure configuration compatibility with selected physics options and model capabilities. It assumes earlier phases have resolved structural and scientific issues, focusing on conditional validation rules and model-specific requirements.
 
 **Primary Functions:**
-- Validate physics option compatibility and required parameters
 - Apply conditional validation based on selected model methods
 - Detect critical null physics parameters that would cause runtime crashes
 - Ensure model configuration consistency for chosen physics options
@@ -749,7 +716,6 @@ Phase C applies model-specific validation using Pydantic data models to ensure c
 **When to Use Phase C:**
 - After Phases A and B have resolved structural and scientific issues
 - Before final model execution to ensure physics compatibility
-- When using complex or advanced physics options
 - As the final step in comprehensive validation workflows (AC, BC, ABC)
 
 What Phase C Validates
@@ -779,7 +745,7 @@ Phase C runs comprehensive validation using Pydantic data models, ensuring your 
       - **Storage Heat Method**: When explicitly set to ``storageheatmethod=6``, requires ``properties.lambda_c`` to be set and non-null
       - **STEBBS Method**: When explicitly set to ``stebbsmethod=1``, requires complete STEBBS parameter configuration
 
-   **Important**: Conditional validation is now **disabled by default** unless physics parameters are explicitly configured by the user. This prevents unexpected validation failures from default physics values (e.g., ``rslmethod`` defaults to 2, which would otherwise trigger RSL validation). Conditional validation only applies when users explicitly set physics methods that require additional parameters.
+   **Important**: Conditional validation is now **disabled by default** unless physics parameters are explicitly configured by the user. This prevents unexpected validation failures from default physics values (e.g., ``rslmethod`` defaults to 2, which would otherwise trigger RSL validation). Conditional validation only applies when users explicitly set physics methods that require additional parameters - this behaviour is expected when user follows ABC complete workflow.
 
    **Impact**: Model will fail or produce incorrect results if method requirements aren't met
 
@@ -970,9 +936,8 @@ All processor output YAML files use standardised headers for consistency:
    # UPDATED YAML
    # =============================================================================
    #
-   # This file has been automatically updated with validation changes:
-   # - [Phase-specific corrections and additions listed here]
-   # - All changes are documented in the corresponding report file
+   # This file has been updated by the SUEWS processor and is the updated version of the user provided YAML.
+   # Details of changes are in the generated report.
    #
    # =============================================================================
 
@@ -1036,7 +1001,7 @@ Troubleshooting Common Issues
 1. Open ``updatedA_user_config.yml`` (always generated by Phase A)
 2. Find parameters set to ``null`` in the ACTION NEEDED section
 3. Set appropriate values based on your model requirements
-4. Re-run validation
+4. Re-run validation using the ``updatedA_user_config.yml``
 
 **Issue 2: Phase B Scientific Validation Errors**
 
@@ -1130,7 +1095,7 @@ Background and Technical Details
 **Key Enhancements:**
 - ``get_value_safe()`` utility function for robust RefValue/plain format handling, migrated from precheck.py (PR #569)
 - Three-phase progressive validation system with flexible workflow combinations (A, B, C, AB, AC, BC, ABC)
-- Standardized YAML headers and consistent terminal output formatting across all phases
+- Standardised YAML headers and consistent terminal output formatting across all phases
 - Comprehensive file preservation logic that maintains validated output from successful phases
 - CRU-based automatic surface temperature initialisation and scientific parameter corrections
 

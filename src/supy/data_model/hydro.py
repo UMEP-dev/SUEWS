@@ -7,9 +7,9 @@ import math
 
 class WaterDistribution(BaseModel):
     """Water routing between surface types."""
-    
+
     model_config = ConfigDict(title="Water Distribution")
-    
+
     # Optional fields for all possible distributions
     to_paved: Optional[FlexibleRefValue(float)] = Field(
         None,
@@ -371,9 +371,9 @@ class WaterDistribution(BaseModel):
 
 class StorageDrainParams(BaseModel):
     """Parameters for surface water storage drainage."""
-    
+
     model_config = ConfigDict(title="Drainage Parameters")
-    
+
     store_min: FlexibleRefValue(float) = Field(
         ge=0,
         default=0.0,

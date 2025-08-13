@@ -1,12 +1,13 @@
 from pydantic import BaseModel, ConfigDict
 
+
 class TestModel1(BaseModel):
     model_config = ConfigDict(title="Test Title")
 
+
 class TestModel2(BaseModel):
-    model_config = ConfigDict(
-        title="Test Title 2"
-    )
+    model_config = ConfigDict(title="Test Title 2")
+
 
 print("TestModel1 config:", TestModel1.model_config)
 print("TestModel2 config:", TestModel2.model_config)

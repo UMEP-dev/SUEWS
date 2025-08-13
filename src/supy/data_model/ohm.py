@@ -7,9 +7,9 @@ from .type import init_df_state
 
 class OHMCoefficients(BaseModel):
     """Objective Hysteresis Model coefficients."""
-    
+
     model_config = ConfigDict(title="OHM Coefficients")
-    
+
     a1: Optional[FlexibleRefValue(float)] = Field(
         description="OHM coefficient a1: dimensionless coefficient relating storage heat flux to net radiation",
         json_schema_extra={
@@ -94,9 +94,9 @@ class OHMCoefficients(BaseModel):
 
 class OHM_Coefficient_season_wetness(BaseModel):
     """OHM coefficients for different seasonal and wetness conditions."""
-    
+
     model_config = ConfigDict(title="Seasonal/Wetness OHM Coefficients")
-    
+
     summer_dry: OHMCoefficients = Field(
         description="OHM coefficient for summer dry conditions",
         default_factory=OHMCoefficients,

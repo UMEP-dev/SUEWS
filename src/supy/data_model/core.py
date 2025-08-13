@@ -93,9 +93,9 @@ def _is_valid_layer_array(field) -> bool:
 
 class SUEWSConfig(BaseModel):
     """Main SUEWS configuration."""
-    
+
     model_config = ConfigDict(title="SUEWS Configuration")
-    
+
     name: str = Field(
         default="sample config",
         description="Name of the SUEWS configuration",

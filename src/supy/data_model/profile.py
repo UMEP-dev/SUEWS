@@ -7,9 +7,9 @@ from .type import init_df_state
 
 class DayProfile(BaseModel):
     """Daily values that can vary by day of year."""
-    
+
     model_config = ConfigDict(title="Daily Profile")
-    
+
     working_day: float = Field(
         default=1.0, json_schema_extra={"display_name": "Working Day"}
     )
@@ -76,9 +76,9 @@ class DayProfile(BaseModel):
 
 class WeeklyProfile(BaseModel):
     """Weekly pattern for 7-day variations."""
-    
+
     model_config = ConfigDict(title="Weekly Profile")
-    
+
     monday: float = 0.0
     tuesday: float = 0.0
     wednesday: float = 0.0
@@ -154,9 +154,9 @@ class WeeklyProfile(BaseModel):
 
 class HourlyProfile(BaseModel):
     """24-hour profile for diurnal variations."""
-    
+
     model_config = ConfigDict(title="Hourly Profile")
-    
+
     working_day: Dict[str, float]
     holiday: Dict[str, float]
 

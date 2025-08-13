@@ -16,7 +16,7 @@ class SurfaceInitialState(BaseModel):
     """Generic initial state parameters for all surface types"""
 
     model_config = ConfigDict(title="Generic Surface Initial State")
-    
+
     state: FlexibleRefValue(float) = Field(
         description="Initial water state of the surface",
         json_schema_extra={"unit": "mm", "display_name": "State"},
@@ -250,9 +250,9 @@ class SurfaceInitialState(BaseModel):
 
 class WaterUse(BaseModel):
     """Water use data and parameters."""
-    
+
     model_config = ConfigDict(title="Water Use")
-    
+
     wu_total: FlexibleRefValue(float) = Field(
         description="Total water use",
         json_schema_extra={"unit": "mm", "display_name": "Wu Total"},
@@ -326,7 +326,7 @@ class InitialStateBldgs(SurfaceInitialState):
 
 class InitialStateVeg(SurfaceInitialState):
     """Extended initial state parameters for vegetated surfaces with LAI and phenology"""
-    
+
     model_config = ConfigDict(title="Vegetation Initial State")
 
     alb_id: FlexibleRefValue(float) = Field(
@@ -437,9 +437,9 @@ class InitialStateVeg(SurfaceInitialState):
 
 class InitialStateEvetr(InitialStateVeg):
     """Initial state for evergreen trees with vegetation parameters."""
-    
+
     model_config = ConfigDict(title="Evergreen Tree Initial State")
-    
+
     _surface_type: Literal[SurfaceType.EVETR] = SurfaceType.EVETR
 
     def to_df_state(self, grid_id: int) -> pd.DataFrame:
@@ -481,7 +481,7 @@ class InitialStateEvetr(InitialStateVeg):
 
 class InitialStateDectr(InitialStateVeg):
     """Initial state for deciduous trees with vegetation parameters plus porosity."""
-    
+
     model_config = ConfigDict(title="Deciduous Tree Initial State")
 
     porosity_id: FlexibleRefValue(float) = Field(
@@ -568,9 +568,9 @@ class InitialStateDectr(InitialStateVeg):
 
 class InitialStateGrass(InitialStateVeg):
     """Initial state for grass surfaces with vegetation parameters."""
-    
+
     model_config = ConfigDict(title="Grass Initial State")
-    
+
     _surface_type: Literal[SurfaceType.GRASS] = SurfaceType.GRASS
 
     def to_df_state(self, grid_id: int) -> pd.DataFrame:
@@ -635,7 +635,7 @@ class HDD_ID(BaseModel):
     """
 
     model_config = ConfigDict(title="Heating Degree Days")
-    
+
     # Current day accumulations (updated throughout the day)
     hdd_accum: float = Field(
         default=0.0,
@@ -801,7 +801,7 @@ class InitialStates(BaseModel):
     paved: InitialStatePaved = Field(
         default_factory=InitialStatePaved,
         description="Initial states for paved surfaces",
-        json_schema_extra={"display_name": "Paved"}
+        json_schema_extra={"display_name": "Paved"},
     )
     bldgs: InitialStateBldgs = Field(
         default_factory=InitialStateBldgs,
@@ -821,7 +821,7 @@ class InitialStates(BaseModel):
     grass: InitialStateGrass = Field(
         default_factory=InitialStateGrass,
         description="Initial states for grass surfaces",
-        json_schema_extra={"display_name": "Grass"}
+        json_schema_extra={"display_name": "Grass"},
     )
     bsoil: InitialStateBsoil = Field(
         default_factory=InitialStateBsoil,
@@ -831,7 +831,7 @@ class InitialStates(BaseModel):
     water: InitialStateWater = Field(
         default_factory=InitialStateWater,
         description="Initial states for water surfaces",
-        json_schema_extra={"display_name": "Water"}
+        json_schema_extra={"display_name": "Water"},
     )
     roofs: Optional[List[SurfaceInitialState]] = Field(
         default=[
@@ -933,7 +933,7 @@ class InitialStates(BaseModel):
         default_factory=HDD_ID,
         json_schema_extra={
             "display_name": "Heating Degree Days ID",
-            "internal_only": True
+            "internal_only": True,
         },
         description="Heating degree days and meteorological tracking parameters (internal use only)",
     )

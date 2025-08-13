@@ -204,6 +204,15 @@ Phase C implements **specialised model validators** in the SUEWSConfig class.
 
 **12. Model Physics Compatibility**
 
+.. note::
+   
+   **Phase B/C Physics Validation Difference**: Phase C and Phase B implement **different sets of physics compatibility checks**:
+   
+   - **Phase B**: Validates `rslmethod-stabilitymethod` dependencies only
+   - **Phase C**: Validates `StorageHeatMethod-OhmIncQf` compatibility and `SnowUse` experimental warnings
+   
+   This creates a **gap in validation coverage** where physics issues could be missed if only one phase is run.
+
 .. code-block:: python
 
    @model_validator(mode="after")
@@ -278,7 +287,7 @@ Phase C implements **conditional validation systems** that apply based on physic
 
    **Important Behavior Change**: Conditional validation is now **disabled by default** unless physics parameters are explicitly configured by the user. This prevents unexpected validation failures from default physics values (e.g., ``rslmethod`` defaults to 2, which would otherwise trigger RSL validation). Conditional validation only applies when users explicitly set physics methods that require additional parameters.
 
-**1. RSL Method Validation (Method 2 - Diagnostic Aerodynamic)**
+**1. RSL Method Validation **
 
 .. code-block:: python
 
@@ -295,7 +304,7 @@ Phase C implements **conditional validation systems** that apply based on physic
 
 - **Logic**: When ``rslmethod == 2`` and ``bldgs.sfr > 0``, requires ``bldgs.faibldg`` to be set and non-null
 
-**2. Storage Heat Method Validation (Method 6 - DyOHM)**
+**2. Storage Heat Method Validation **
 
 .. code-block:: python
 
@@ -311,7 +320,7 @@ Phase C implements **conditional validation systems** that apply based on physic
 
 - **Logic**: When ``storageheatmethod == 6``, requires ``properties.lambda_c`` to be set and non-null
 
-**3. STEBBS Method Validation (Method 1 - Building Energy Balance)**
+**3. STEBBS Method Validation **
 
 .. code-block:: python
 
@@ -517,36 +526,6 @@ Phase C uses the **same validation system** that ``SUEWSConfig.from_yaml()`` use
 
 When Phase C passes, the configuration is **guaranteed** to load successfully in SUEWS simulations without further validation errors.
 
-Mode Selection Guidelines
--------------------------
-
-**Actual Mode Behaviour:**
-
-Phase C validation is **identical** in both public and developer modes. The mode parameter only affects report formatting.
-
-**Mode Selection:**
-
-- **Public Mode**: Default mode - standard Pydantic validation with user-friendly error reporting
-- **Developer Mode**: Identical functionality with different report header
-- **Recommendation**: Use public mode unless you specifically need the "Developer" label in reports
-
-Best Practices
---------------
-
-**For Users:**
-
-1. **Run Phase C last** - After Phases A and B have resolved structural/scientific issues
-2. **Review Pydantic errors carefully** - They indicate specific model configuration problems
-3. **Check conditional requirements** - Physics options may require additional parameters
-4. **Use AC or ABC workflows** - For comprehensive validation including Phase C
-
-**For Developers:**
-
-1. **Follow Pydantic v2 patterns** - Use ``@model_validator`` and ``@field_validator`` decorators
-2. **Centralise complex validation** - Put cross-site validation in SUEWSConfig class
-3. **Use conditional validation helpers** - Like ``_needs_rsl_validation()`` for physics dependencies
-4. **Handle RefValue wrappers** - Use ``getattr()`` and ``hasattr()`` for consistent value extraction
-
 Troubleshooting
 ---------------
 
@@ -644,27 +623,6 @@ Technical Details and Implementation Notes
        arbitrary_types_allowed=True # Allow NumPy arrays and custom types
    )
 
-**Error Processing Pipeline:**
-
-1. **Pydantic ValidationError** raised during ``SUEWSConfig`` construction
-2. **Error extraction** via ``phase_c_reports.py`` error processing
-3. **Field path resolution** using Pydantic error location information
-4. **Report consolidation** with previous phase information (if available)
-5. **Detailed error reporting** with Pydantic documentation URLs
-
-**Performance Considerations:**
-
-- **Lazy validation**: Model validators run only after successful field validation
-- **Conditional checks**: Physics-dependent validation runs only when required
-- **Cross-site efficiency**: Validation optimised for multi-site configurations
-- **RefValue caching**: Consistent value unwrapping with minimal overhead
-
-**Backward Compatibility:**
-
-- **Legacy data conversion**: ``@model_validator(mode="before")`` for format updates
-- **NumPy type handling**: Automatic conversion to native Python types
-- **Profile data normalisation**: Consistent key formatting for hourly data
-- **HDD_ID format conversion**: Automatic list-to-dictionary conversion
 
 Output Files Structure
 ----------------------

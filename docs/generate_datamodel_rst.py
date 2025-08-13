@@ -412,15 +412,11 @@ def _is_complex_default(value) -> bool:
         if len(repr(value)) > 200:
             return True
     # Check for other complex types that have long reprs
-    if hasattr(value, "__dict__") and len(repr(value)) > 200:
-        return True
-    return False
+    return hasattr(value, "__dict__") and len(repr(value)) > 200
 
 
 def _format_complex_default(value) -> str:
     """Format complex default values in a user-friendly way."""
-    from pydantic import BaseModel
-
     # Handle lists of objects
     if isinstance(value, list) and value:
         first_elem = value[0]
@@ -769,12 +765,11 @@ def generate_rst_for_model(
                 and default_value == "Dynamically generated"
             ):
                 display_value = default_value
+            # Check if it's a complex object that shouldn't be fully displayed
+            elif _is_complex_default(default_value):
+                display_value = _format_complex_default(default_value)
             else:
-                # Check if it's a complex object that shouldn't be fully displayed
-                if _is_complex_default(default_value):
-                    display_value = _format_complex_default(default_value)
-                else:
-                    display_value = f"``{default_value!r}``"
+                display_value = f"``{default_value!r}``"
             label = "Sample value"
         else:
             # True defaults
@@ -783,12 +778,11 @@ def generate_rst_for_model(
                 and default_value == "Dynamically generated"
             ):
                 display_value = default_value
+            # Check if it's a complex object that shouldn't be fully displayed
+            elif _is_complex_default(default_value):
+                display_value = _format_complex_default(default_value)
             else:
-                # Check if it's a complex object that shouldn't be fully displayed
-                if _is_complex_default(default_value):
-                    display_value = _format_complex_default(default_value)
-                else:
-                    display_value = f"``{default_value!r}``"
+                display_value = f"``{default_value!r}``"
             label = "Default"
 
         rst_content.append(f"   :{label}: {display_value}")

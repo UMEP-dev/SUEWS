@@ -282,28 +282,31 @@ def get_user_friendly_type_name(type_hint: Any) -> str:
     origin = get_origin(type_hint)
     args = get_args(type_hint)
 
+    # Handle special cases with a single return point
+    result = None
+
     if origin is Union:
         # Handle Optional[X] as X (Optional)
         if len(args) == 2 and type(None) in args:
             non_none_arg = next(arg for arg in args if arg is not type(None))
-            return f"{get_user_friendly_type_name(non_none_arg)} (Optional)"
-        return " | ".join(get_user_friendly_type_name(arg) for arg in args)
-
-    if origin in {list, list}:
-        return f"List of {get_user_friendly_type_name(args[0])}" if args else "List"
-
-    if origin in {dict, dict}:
+            result = f"{get_user_friendly_type_name(non_none_arg)} (Optional)"
+        else:
+            result = " | ".join(get_user_friendly_type_name(arg) for arg in args)
+    elif origin in {list, list}:
+        result = f"List of {get_user_friendly_type_name(args[0])}" if args else "List"
+    elif origin in {dict, dict}:
         if args and len(args) == 2:
-            return f"Mapping from {get_user_friendly_type_name(args[0])} to {get_user_friendly_type_name(args[1])}"
-        return "Mapping"
-
-    if hasattr(type_hint, "__name__"):
+            result = f"Mapping from {get_user_friendly_type_name(args[0])} to {get_user_friendly_type_name(args[1])}"
+        else:
+            result = "Mapping"
+    elif hasattr(type_hint, "__name__"):
         # Check if it's a RefValue wrapper
         if type_hint.__name__ == "RefValue" and args:
-            return f"Value (type: {get_user_friendly_type_name(args[0])}) with DOI/Reference"
-        return type_hint.__name__
+            result = f"Value (type: {get_user_friendly_type_name(args[0])}) with DOI/Reference"
+        else:
+            result = type_hint.__name__
 
-    return str(type_hint)
+    return result if result is not None else str(type_hint)
 
 
 # --- Helper functions for RST generation ---
@@ -553,6 +556,362 @@ def _is_site_specific_field(field_name: str, model_name: str) -> bool:
     ) or any(context in model_name.lower() for context in model_context_samples)
 
 
+# --- Helper functions for field processing ---
+def _should_skip_field(field_info: FieldInfo, include_internal: bool) -> bool:
+    """Check if a field should be skipped in documentation."""
+    return (
+        not include_internal
+        and isinstance(field_info.json_schema_extra, dict)
+        and field_info.json_schema_extra.get("internal_only", False)
+    )
+
+
+def _add_field_index_entries(rst_content: list, field_name: str, model_name: str) -> None:
+    """Add index entries for a field."""
+    rst_content.append(".. index::")
+    rst_content.append(f"   single: {field_name} (YAML parameter)")
+    rst_content.append(f"   single: {model_name}; {field_name}")
+    rst_content.append("")
+
+
+def _add_field_reference_label(rst_content: list, field_name: str) -> None:
+    """Add reference label for cross-referencing specific fields."""
+    method_fields = {"diagmethod", "stabilitymethod", "localclimatemethod", "gsmodel"}
+    if field_name in method_fields:
+        rst_content.append(f".. _{field_name}:")
+        rst_content.append("")
+
+
+def _process_field_description(
+    field_info: FieldInfo,
+    field_name: str,
+    field_type_hint: Any,
+    model_name: str,
+    all_supy_models: dict[str, type[BaseModel]],
+    include_internal: bool,
+) -> tuple[list[str], list[str]]:
+    """Process field description and extract method options."""
+    description_parts = []
+    options_list = []
+    base_description = getattr(field_info, "description", None)
+
+    if base_description:
+        # Get enum class if this field uses one
+        enum_class = get_enum_class_from_field(field_info, field_type_hint)
+
+        # Parse method options if present
+        main_desc, options = parse_method_options(
+            base_description, enum_class, include_internal
+        )
+
+        if options:
+            description_parts.append(f"   {main_desc}")
+            options_list = options
+        else:
+            description_parts.append(f"   {base_description.strip()}")
+
+    # Special handling for 'ref' field at model level
+    if field_name == "ref" and not base_description:
+        ref_contexts = {
+            "ModelPhysics": "Reference/citation for the physics configuration methods used",
+            "ModelControl": "Reference/citation for the control parameters configuration",
+            "Site": "Reference/citation for this site's data and configuration",
+            "SiteProperties": "Reference/citation for the site properties data",
+            "InitialStates": "Reference/citation for the initial state values",
+            "LandCover": "Reference/citation for the land cover fractions",
+            "AnthropogenicEmissions": "Reference/citation for the emissions data and methods",
+            "Conductance": "Reference/citation for the conductance parameters",
+            "SnowParams": "Reference/citation for the snow model parameters",
+        }
+        ref_desc = ref_contexts.get(
+            model_name,
+            f"Reference/citation for this {model_name.lower()} configuration",
+        )
+        description_parts.append(f"   {ref_desc}")
+
+    # YAML structure hint for RefValue fields
+    origin_type = get_origin(field_type_hint) or field_type_hint
+    if hasattr(origin_type, "__name__") and origin_type.__name__ == "RefValue":
+        doi_args = get_args(field_type_hint)
+        val_type_name = "..."  # Default placeholder
+        is_complex = False
+
+        if doi_args:
+            inner_type = get_origin(doi_args[0]) or doi_args[0]
+            if (
+                hasattr(inner_type, "__name__")
+                and inner_type.__name__ in all_supy_models
+                and issubclass(inner_type, BaseModel)
+            ):
+                is_complex = True
+            else:
+                val_type_name = get_user_friendly_type_name(doi_args[0])
+
+        hint = f"   In YAML, this is typically specified using a ``value`` key, e.g.: ``{field_name}: {{value: {val_type_name}}}``."
+        if is_complex:
+            hint += " The structure of this ``value`` is detailed in the linked section below."
+        description_parts.append(hint)
+
+    return description_parts, options_list
+
+
+def _add_field_unit(
+    rst_content: list,
+    field_info: FieldInfo,
+    base_description: Optional[str],
+    options_list: list,
+) -> None:
+    """Add unit information for a field."""
+    unit = None
+    if isinstance(field_info.json_schema_extra, dict):
+        unit = field_info.json_schema_extra.get("unit")
+
+    # Check if this is a method/enum parameter
+    is_method_param = options_list or (base_description and "Options:" in base_description)
+
+    if unit and not is_method_param:
+        formatted_unit = format_unit(unit)
+        rst_content.append(f"   :Unit: {formatted_unit}")
+    elif not is_method_param and base_description:
+        # Try to parse from description
+        if "[" in base_description and "]" in base_description:
+            try:
+                parsed_unit = base_description[
+                    base_description.rfind("[") + 1 : base_description.rfind("]")
+                ]
+                if len(parsed_unit) < 20 and " " not in parsed_unit:
+                    formatted_unit = format_unit(parsed_unit)
+                    rst_content.append(f"   :Unit: {formatted_unit}")
+            except Exception:
+                pass
+
+
+def _add_field_constraints(
+    rst_content: list,
+    field_info: FieldInfo,
+    field_type_hint: Any,
+) -> None:
+    """Add constraint information for a field."""
+    constraints_desc = []
+
+    # Standard Pydantic v2 constraint attributes
+    constraint_attrs_map = {
+        "gt": ">",
+        "ge": ">=",
+        "lt": "<",
+        "le": "<=",
+        "min_length": "Minimum length",
+        "max_length": "Maximum length",
+        "multiple_of": "Must be a multiple of",
+        "pattern": "Must match regex pattern",
+    }
+
+    for attr, desc_prefix in constraint_attrs_map.items():
+        if hasattr(field_info, attr):
+            value = getattr(field_info, attr)
+            if value is not None:
+                constraints_desc.append(f"{desc_prefix}: ``{value!r}``")
+
+    # Check for enum/Literal constraints
+    origin_type = get_origin(field_type_hint)
+    args = get_args(field_type_hint)
+    if origin_type is Literal:
+        constraints_desc.append(
+            f"Allowed values: {', '.join(f'``{arg!r}``' for arg in args)}"
+        )
+    elif origin_type is Union and any(get_origin(arg) is Literal for arg in args):
+        literal_args_combined = []
+        for union_arg in args:
+            if get_origin(union_arg) is Literal:
+                literal_args_combined.extend(get_args(union_arg))
+        if literal_args_combined:
+            constraints_desc.append(
+                f"Allowed values: {', '.join(f'``{arg!r}``' for arg in set(literal_args_combined))}"
+            )
+
+    if constraints_desc:
+        rst_content.append(f"   :Constraints: {'; '.join(constraints_desc)}")
+
+
+def _is_direct_model_match(field_type_hint: Any, origin_pt: Any) -> bool:
+    """Check if the model directly matches the field type."""
+    return field_type_hint == origin_pt
+
+
+def _is_list_or_dict_of_model(field_type_hint: Any, origin_pt: Any) -> bool:
+    """Check if field is a list/dict containing the model."""
+    origin = get_origin(field_type_hint)
+    if origin not in {list, list, dict, dict}:
+        return False
+
+    args = get_args(field_type_hint)
+    if not args:
+        return False
+
+    first_arg = get_origin(args[0]) or args[0]
+    return first_arg == origin_pt
+
+
+def _is_refvalue_of_model(field_type_hint: Any, origin_pt: Any) -> bool:
+    """Check if field is a RefValue wrapping the model."""
+    origin = get_origin(field_type_hint) or field_type_hint
+
+    if not hasattr(origin, "__name__") or origin.__name__ != "RefValue":
+        return False
+
+    args = get_args(field_type_hint)
+    if not args:
+        return False
+
+    first_arg = get_origin(args[0]) or args[0]
+    return first_arg == origin_pt
+
+
+def _generate_nested_model_link_message(
+    field_name: str,
+    field_type_hint: Any,
+    nested_model_to_document: type[BaseModel],
+) -> str:
+    """Generate appropriate link message for nested model documentation."""
+    nested_model_name_lower = nested_model_to_document.__name__.lower()
+    origin_of_field = get_origin(field_type_hint)
+    args_of_field = get_args(field_type_hint)
+
+    # Check if RefValue wraps the model
+    is_ref_value_wrapping = _is_refvalue_of_model(field_type_hint, nested_model_to_document)
+
+    if is_ref_value_wrapping:
+        return (
+            f"   The structure for the ``value`` key of ``{field_name}`` is detailed in "
+            f":doc:`{nested_model_name_lower}`."
+        )
+
+    if origin_of_field is list or origin_of_field is list:
+        # Special handling for lists of SurfaceInitialState
+        if nested_model_to_document.__name__ == "SurfaceInitialState":
+            return (
+                f"   For ``{field_name}``, a list of generic SurfaceInitialState objects is used to specify initial conditions for each layer - "
+                f"see :doc:`surfaceinitialstate` for details."
+            )
+        return (
+            f"   Each item in the ``{field_name}`` list must conform to the "
+            f":doc:`{nested_model_name_lower}` structure."
+        )
+
+    if origin_of_field is dict or origin_of_field is dict:
+        return (
+            f"   Each value in the ``{field_name}`` mapping (dictionary) must conform to the "
+            f":doc:`{nested_model_name_lower}` structure."
+        )
+
+    # Direct nesting
+    if (get_origin(field_type_hint) or field_type_hint) == nested_model_to_document:
+        # Special handling for InitialStateXXX classes
+        if (
+            nested_model_to_document.__name__.startswith("InitialState")
+            and nested_model_to_document.__name__ != "InitialStates"
+        ):
+            basic_surface_states = {
+                "InitialStatePaved", "InitialStateBldgs",
+                "InitialStateBsoil", "InitialStateWater"
+            }
+            if nested_model_to_document.__name__ in basic_surface_states:
+                return (
+                    f"   For ``{field_name}``, one generic SurfaceInitialState object is used to specify initial conditions - "
+                    f"see :doc:`surfaceinitialstate` for details."
+                )
+            else:
+                return (
+                    f"   For ``{field_name}``, one vegetation-specific initial state with additional parameters is used - "
+                    f"see :doc:`{nested_model_name_lower}` for details."
+                )
+        return (
+            f"   The ``{field_name}`` parameter group is defined by the "
+            f":doc:`{nested_model_name_lower}` structure."
+        )
+
+    # Check for Optional[List[X]] where X is SurfaceInitialState
+    if origin_of_field is Union:
+        for union_arg in args_of_field:
+            if get_origin(union_arg) is list:
+                list_args = get_args(union_arg)
+                if list_args and list_args[0].__name__ == "SurfaceInitialState":
+                    return (
+                        f"   For ``{field_name}``, a list of generic SurfaceInitialState objects is used to specify initial conditions for each layer - "
+                        f"see :doc:`surfaceinitialstate` for details."
+                    )
+
+    # Fallback
+    return (
+        f"   For ``{field_name}``, if using the {nested_model_to_document.__name__} structure, "
+        f"see :doc:`{nested_model_name_lower}` for details."
+    )
+
+
+def _add_reference_field(rst_content: list, field_type_hint: Any) -> None:
+    """Add reference field for RefValue types."""
+    origin_type = get_origin(field_type_hint) or field_type_hint
+    type_name = getattr(origin_type, "__name__", "")
+
+    if type_name in {"RefValue", "FlexibleRefValue"} or "RefValue" in str(field_type_hint):
+        rst_content.append(
+            "   :Reference: Optional - see :doc:`reference` for DOI/citation format"
+        )
+
+
+def _process_field_default(
+    field_info: FieldInfo,
+    field_name: str,
+    model_name: str,
+) -> tuple[str, str]:
+    """Process default value for a field."""
+    default_value = None
+    has_default = False
+
+    if field_info.default is not None and field_info.default != inspect.Parameter.empty:
+        default_value = field_info.default
+        has_default = True
+    elif field_info.default_factory is not None:
+        try:
+            default_value = field_info.default_factory()
+            has_default = True
+        except Exception:
+            default_value = "Dynamically generated"
+            has_default = True
+
+    # Check if this is actually a required field
+    if has_default:
+        default_str = str(default_value)
+        if "PydanticUndefined" in default_str or "undefined" in default_str.lower():
+            has_default = False
+
+    # Check if field is site-specific
+    is_site_specific = _is_site_specific_field(field_name, model_name)
+
+    # Format the value for display
+    if not has_default:
+        display_value = "Not specified"
+        label = "Sample value"
+    elif is_site_specific:
+        if isinstance(default_value, str) and default_value == "Dynamically generated":
+            display_value = default_value
+        elif _is_complex_default(default_value):
+            display_value = _format_complex_default(default_value)
+        else:
+            display_value = f"``{default_value!r}``"
+        label = "Sample value"
+    else:
+        if isinstance(default_value, str) and default_value == "Dynamically generated":
+            display_value = default_value
+        elif _is_complex_default(default_value):
+            display_value = _format_complex_default(default_value)
+        else:
+            display_value = f"``{default_value!r}``"
+        label = "Default"
+
+    return label, display_value
+
+
 # --- Main RST Generation Logic ---
 def generate_rst_for_model(
     model_class: type[BaseModel],
@@ -587,101 +946,29 @@ def generate_rst_for_model(
     rst_content.append("")
 
     for field_name, field_info in model_class.model_fields.items():
-        # Check if field is marked as internal
-        if (
-            not include_internal
-            and isinstance(field_info.json_schema_extra, dict)
-            and field_info.json_schema_extra.get("internal_only", False)
-        ):
-            continue  # Skip internal fields in user docs
+        # Check if field should be skipped
+        if _should_skip_field(field_info, include_internal):
+            continue
+
         field_type_hint = field_info.annotation
 
-        # Add index entry for this parameter
-        rst_content.append(".. index::")
-        rst_content.append(f"   single: {field_name} (YAML parameter)")
-        rst_content.append(f"   single: {model_name}; {field_name}")
-        rst_content.append("")
+        # Add index entries
+        _add_field_index_entries(rst_content, field_name, model_name)
 
-        # Add reference label for cross-referencing specific fields (for method fields)
-        if field_name in {
-            "diagmethod",
-            "stabilitymethod",
-            "localclimatemethod",
-            "gsmodel",
-        }:
-            rst_content.append(f".. _{field_name}:")
-            rst_content.append("")
+        # Add reference label for method fields
+        _add_field_reference_label(rst_content, field_name)
 
-        # Start option block - no type notation for cleaner user docs
+        # Start option block
         rst_content.append(f".. option:: {field_name}")
         rst_content.append("")
 
-        # Description
-        description_parts = []
+        # Process description and options
+        description_parts, options_list = _process_field_description(
+            field_info, field_name, field_type_hint, model_name,
+            all_supy_models, include_internal
+        )
+
         base_description = getattr(field_info, "description", None)
-        options_list = []
-
-        if base_description:
-            # Get enum class if this field uses one
-            enum_class = get_enum_class_from_field(field_info, field_type_hint)
-
-            # Parse method options if present
-            main_desc, options = parse_method_options(
-                base_description, enum_class, include_internal
-            )
-
-            if options:
-                # Store options for later, just add main description here
-                description_parts.append(f"   {main_desc}")
-                options_list = options
-            else:
-                # No options to parse, use description as-is
-                description_parts.append(f"   {base_description.strip()}")
-
-        # Special handling for 'ref' field at model level
-        if field_name == "ref" and not base_description:
-            # Add a contextual description based on the model
-            model_context = {
-                "ModelPhysics": "Reference/citation for the physics configuration methods used",
-                "ModelControl": "Reference/citation for the control parameters configuration",
-                "Site": "Reference/citation for this site's data and configuration",
-                "SiteProperties": "Reference/citation for the site properties data",
-                "InitialStates": "Reference/citation for the initial state values",
-                "LandCover": "Reference/citation for the land cover fractions",
-                "AnthropogenicEmissions": "Reference/citation for the emissions data and methods",
-                "Conductance": "Reference/citation for the conductance parameters",
-                "SnowParams": "Reference/citation for the snow model parameters",
-            }
-            ref_desc = model_context.get(
-                model_name,
-                f"Reference/citation for this {model_name.lower()} configuration",
-            )
-            description_parts.append(f"   {ref_desc}")
-
-        # YAML structure hint for RefValue fields
-        origin_type_for_doi_check = get_origin(field_type_hint) or field_type_hint
-        if (
-            hasattr(origin_type_for_doi_check, "__name__")
-            and origin_type_for_doi_check.__name__ == "RefValue"
-        ):
-            doi_args = get_args(field_type_hint)
-            val_type_name_for_yaml = "..."  # Default placeholder
-            is_complex_value = False
-            if doi_args:
-                inner_arg_type = get_origin(doi_args[0]) or doi_args[0]
-                if (
-                    hasattr(inner_arg_type, "__name__")
-                    and inner_arg_type.__name__ in all_supy_models
-                    and issubclass(inner_arg_type, BaseModel)
-                ):
-                    is_complex_value = True  # The value itself is a documented model
-                else:
-                    val_type_name_for_yaml = get_user_friendly_type_name(doi_args[0])
-
-            hint = f"   In YAML, this is typically specified using a ``value`` key, e.g.: ``{field_name}: {{value: {val_type_name_for_yaml}}}``."
-            if is_complex_value:
-                hint += " The structure of this ``value`` is detailed in the linked section below."
-            description_parts.append(hint)
 
         if description_parts:
             rst_content.extend(description_parts)
@@ -694,151 +981,18 @@ def generate_rst_for_model(
                 rst_content.append(f"      | {opt}")
             rst_content.append("")  # Blank line after options
 
-        # Unit - skip for method/enum parameters
-        unit = None
-        # Extract unit from the `unit` kwarg in `Field`
-        if isinstance(field_info.json_schema_extra, dict):
-            unit = field_info.json_schema_extra.get("unit")
+        # Add unit information
+        _add_field_unit(rst_content, field_info, base_description, options_list)
 
-        # Check if this is a method/enum parameter by looking for Options in description
-        is_method_param = options_list or (
-            base_description and "Options:" in base_description
-        )
-
-        if unit and not is_method_param:
-            # Format units with proper typography
-            formatted_unit = format_unit(unit)
-            rst_content.append(f"   :Unit: {formatted_unit}")
-        elif not is_method_param:
-            # Fallback: Try to parse from description, e.g., "Some value [unit]"
-            if base_description and "[" in base_description and "]" in base_description:
-                try:
-                    parsed_unit = base_description[
-                        base_description.rfind("[") + 1 : base_description.rfind("]")
-                    ]
-                    if (
-                        len(parsed_unit) < 20 and " " not in parsed_unit
-                    ):  # Basic sanity check
-                        formatted_unit = format_unit(parsed_unit)
-                        rst_content.append(f"   :Unit: {formatted_unit}")
-                except Exception:
-                    pass  # Ignore parsing errors
-
-        # Default or Sample value
-        # Determine if this is a true default or just a sample value
-        default_value = None
-        has_default = False
-
-        if (
-            field_info.default is not None
-            and field_info.default != inspect.Parameter.empty
-        ):
-            default_value = field_info.default
-            has_default = True
-        elif field_info.default_factory is not None:
-            try:
-                default_value = field_info.default_factory()
-                has_default = True
-            except Exception:
-                default_value = "Dynamically generated"
-                has_default = True
-
-        # Check if this is actually a required field (no real default)
-        # PydanticUndefined or similar indicates no default
-        if has_default:
-            # Check if it's PydanticUndefined or similar sentinel values
-            default_str = str(default_value)
-            if "PydanticUndefined" in default_str or "undefined" in default_str.lower():
-                has_default = False
-
-        # For physical/site-specific parameters, even numeric defaults might be samples
-        is_site_specific = _is_site_specific_field(field_name, model_name)
-
-        # Format the value for display
-        if not has_default:
-            display_value = "Not specified"
-            label = "Sample value"  # Required fields show sample
-        elif is_site_specific:
-            # Site-specific params are really samples, regardless of type
-            if (
-                isinstance(default_value, str)
-                and default_value == "Dynamically generated"
-            ):
-                display_value = default_value
-            # Check if it's a complex object that shouldn't be fully displayed
-            elif _is_complex_default(default_value):
-                display_value = _format_complex_default(default_value)
-            else:
-                display_value = f"``{default_value!r}``"
-            label = "Sample value"
-        else:
-            # True defaults
-            if (
-                isinstance(default_value, str)
-                and default_value == "Dynamically generated"
-            ):
-                display_value = default_value
-            # Check if it's a complex object that shouldn't be fully displayed
-            elif _is_complex_default(default_value):
-                display_value = _format_complex_default(default_value)
-            else:
-                display_value = f"``{default_value!r}``"
-            label = "Default"
-
+        # Process and add default value
+        label, display_value = _process_field_default(field_info, field_name, model_name)
         rst_content.append(f"   :{label}: {display_value}")
 
-        # Add Reference field for RefValue types
-        origin_type = get_origin(field_type_hint) or field_type_hint
-        type_name = getattr(origin_type, "__name__", "")
+        # Add reference field for RefValue types
+        _add_reference_field(rst_content, field_type_hint)
 
-        # Check if it's a RefValue or FlexibleRefValue
-        if type_name in {"RefValue", "FlexibleRefValue"} or "RefValue" in str(
-            field_type_hint
-        ):
-            rst_content.append(
-                "   :Reference: Optional - see :doc:`reference` for DOI/citation format"
-            )
-
-        # Constraints
-        constraints_desc = []
-        # Standard Pydantic v2 constraint attributes
-        constraint_attrs_map = {
-            "gt": ">",
-            "ge": ">=",
-            "lt": "<",
-            "le": "<=",
-            "min_length": "Minimum length",
-            "max_length": "Maximum length",
-            "multiple_of": "Must be a multiple of",
-            "pattern": "Must match regex pattern",
-        }
-
-        for attr, desc_prefix in constraint_attrs_map.items():
-            if hasattr(field_info, attr):
-                value = getattr(field_info, attr)
-                if value is not None:  # Ensure the constraint is actually set
-                    constraints_desc.append(f"{desc_prefix}: ``{value!r}``")
-
-        # Check for enum/Literal constraints from the type hint itself
-        origin_type = get_origin(field_type_hint)
-        args = get_args(field_type_hint)
-        if origin_type is Literal:
-            constraints_desc.append(
-                f"Allowed values: {', '.join(f'``{arg!r}``' for arg in args)}"
-            )
-        elif origin_type is Union and any(get_origin(arg) is Literal for arg in args):
-            # Handle Union of Literals, e.g. Optional[Literal['a', 'b']]
-            literal_args_combined = []
-            for union_arg in args:
-                if get_origin(union_arg) is Literal:
-                    literal_args_combined.extend(get_args(union_arg))
-            if literal_args_combined:
-                constraints_desc.append(
-                    f"Allowed values: {', '.join(f'``{arg!r}``' for arg in set(literal_args_combined))}"
-                )
-
-        if constraints_desc:
-            rst_content.append(f"   :Constraints: {'; '.join(constraints_desc)}")
+        # Add constraints
+        _add_field_constraints(rst_content, field_info, field_type_hint)
 
         # Link to nested models
         # Check if the raw type or any type argument is a Pydantic model we know
@@ -861,29 +1015,9 @@ def generate_rst_for_model(
             ):
                 # Prioritize the model that is directly the field's type or the first arg of RefValue/List/Dict
                 if (
-                    field_type_hint == origin_pt
-                    or (
-                        get_origin(field_type_hint) in {list, list, dict, dict}
-                        and get_args(field_type_hint)
-                        and (
-                            get_origin(get_args(field_type_hint)[0])
-                            or get_args(field_type_hint)[0]
-                        )
-                        == origin_pt
-                    )
-                    or (
-                        hasattr(
-                            get_origin(field_type_hint) or field_type_hint, "__name__"
-                        )
-                        and (get_origin(field_type_hint) or field_type_hint).__name__
-                        == "RefValue"
-                        and get_args(field_type_hint)
-                        and (
-                            get_origin(get_args(field_type_hint)[0])
-                            or get_args(field_type_hint)[0]
-                        )
-                        == origin_pt
-                    )
+                    _is_direct_model_match(field_type_hint, origin_pt)
+                    or _is_list_or_dict_of_model(field_type_hint, origin_pt)
+                    or _is_refvalue_of_model(field_type_hint, origin_pt)
                 ):
                     nested_model_to_document = origin_pt
                     break
@@ -891,101 +1025,10 @@ def generate_rst_for_model(
                     nested_model_to_document = origin_pt
 
         if nested_model_to_document:
-            nested_model_name_lower = nested_model_to_document.__name__.lower()
             rst_content.append("")  # Blank line before link text
-
-            origin_of_field = get_origin(field_type_hint)
-            args_of_field = get_args(field_type_hint)
-            link_message = ""
-
-            is_ref_value_wrapping_model = (
-                hasattr(origin_of_field or field_type_hint, "__name__")
-                and (origin_of_field or field_type_hint).__name__ == "RefValue"
-                and args_of_field
-                and (get_origin(args_of_field[0]) or args_of_field[0])
-                == nested_model_to_document
+            link_message = _generate_nested_model_link_message(
+                field_name, field_type_hint, nested_model_to_document
             )
-
-            if is_ref_value_wrapping_model:
-                link_message = (
-                    f"   The structure for the ``value`` key of ``{field_name}`` is detailed in "
-                    f":doc:`{nested_model_name_lower}`."
-                )
-            elif origin_of_field is list or origin_of_field is list:
-                # Special handling for lists of SurfaceInitialState (roofs/walls)
-                if nested_model_to_document.__name__ == "SurfaceInitialState":
-                    link_message = (
-                        f"   For ``{field_name}``, a list of generic SurfaceInitialState objects is used to specify initial conditions for each layer - "
-                        f"see :doc:`surfaceinitialstate` for details."
-                    )
-                else:
-                    link_message = (
-                        f"   Each item in the ``{field_name}`` list must conform to the "
-                        f":doc:`{nested_model_name_lower}` structure."
-                    )
-            elif origin_of_field is dict or origin_of_field is dict:
-                link_message = (
-                    f"   Each value in the ``{field_name}`` mapping (dictionary) must conform to the "
-                    f":doc:`{nested_model_name_lower}` structure."
-                )
-            elif (
-                get_origin(field_type_hint) or field_type_hint
-            ) == nested_model_to_document:
-                # Direct nesting: my_field: NestedModelType
-                # Special handling for InitialStateXXX classes
-                if (
-                    nested_model_to_document.__name__.startswith("InitialState")
-                    and nested_model_to_document.__name__ != "InitialStates"
-                ):
-                    # Check if this is a basic surface initial state (no extra fields) or vegetation-specific
-                    basic_surface_states = {
-                        "InitialStatePaved",
-                        "InitialStateBldgs",
-                        "InitialStateBsoil",
-                        "InitialStateWater",
-                    }
-                    if nested_model_to_document.__name__ in basic_surface_states:
-                        # These use the generic SurfaceInitialState
-                        link_message = (
-                            f"   For ``{field_name}``, one generic SurfaceInitialState object is used to specify initial conditions - "
-                            f"see :doc:`surfaceinitialstate` for details."
-                        )
-                    else:
-                        # Vegetation states have additional fields, link to their specific documentation
-                        link_message = (
-                            f"   For ``{field_name}``, one vegetation-specific initial state with additional parameters is used - "
-                            f"see :doc:`{nested_model_name_lower}` for details."
-                        )
-                else:
-                    link_message = (
-                        f"   The ``{field_name}`` parameter group is defined by the "
-                        f":doc:`{nested_model_name_lower}` structure."
-                    )
-            else:
-                # Check if this is Optional[List[X]] where X is SurfaceInitialState
-                is_optional_list = False
-                if origin_of_field is Union:
-                    for union_arg in args_of_field:
-                        if get_origin(union_arg) is list:
-                            list_args = get_args(union_arg)
-                            if (
-                                list_args
-                                and list_args[0].__name__ == "SurfaceInitialState"
-                            ):
-                                is_optional_list = True
-                                link_message = (
-                                    f"   For ``{field_name}``, a list of generic SurfaceInitialState objects is used to specify initial conditions for each layer - "
-                                    f"see :doc:`surfaceinitialstate` for details."
-                                )
-                                break
-
-                if not is_optional_list:
-                    # Fallback if the exact relationship isn't matched by above
-                    link_message = (
-                        f"   For ``{field_name}``, if using the {nested_model_to_document.__name__} structure, "
-                        f"see :doc:`{nested_model_name_lower}` for details."
-                    )
-
             rst_content.append(link_message)
             # The recursive call was here, it should remain to generate the linked doc.
             generate_rst_for_model(

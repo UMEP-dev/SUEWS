@@ -70,7 +70,11 @@ The processor needs these files to operate:
 
    - Contains the complete parameter set for the current SUEWS version
    - Must be from the same SUEWS version you are using
-   - Automatically validated for consistency across development branches
+   - **Automatically validated**: Processor verifies file existence before execution
+   - **Working directory check**: Must run processor from SUEWS root directory
+   - **Early failure detection**: Execution stops immediately if file not found
+   - **Git branch validation**: Phase A warns if ``sample_config.yml`` differs from master branch
+   - **Development safety**: Prevents inconsistent validation when working on feature branches
 
 Execution Modes
 ~~~~~~~~~~~~~~~
@@ -989,7 +993,37 @@ The processor preserves files from successful phases even when later phases fail
 Troubleshooting Common Issues
 -----------------------------
 
-**Issue 1: Phase A Missing Parameters**
+**Issue 1: Standard YAML File Not Found**
+
+.. code-block:: text
+
+   ✗ Standard YAML file not found: src/supy/sample_data/sample_config.yml
+   Make sure you're running from the SUEWS root directory
+
+**Solution**:
+1. **Check working directory**: Ensure you're running the processor from the SUEWS root directory
+2. **Verify installation**: Confirm ``src/supy/sample_data/sample_config.yml`` exists in your SUEWS installation
+3. **Check file permissions**: Ensure the standard file is readable
+4. **Version compatibility**: Verify you're using the correct SUEWS version
+
+**Issue 1B: Git Branch Validation Warning (Phase A)**
+
+.. code-block:: text
+
+   ⚠️  WARNING: You are on branch 'feature-branch' and sample_config.yml differs from master
+   This may cause inconsistent parameter detection.
+   RECOMMENDED:
+   1. Switch to master branch: git checkout master
+   2. OR update your sample_config.yml to match master:
+      git checkout master -- src/supy/sample_data/sample_config.yml
+
+**Solution**:
+1. **For stable validation**: Switch to master branch before running processor
+2. **For development work**: Update your ``sample_config.yml`` to match master version
+3. **Git commands**: Use the exact commands provided in the warning message
+4. **Continue anyway**: Processor continues with warning, but results may be inconsistent
+
+**Issue 2: Phase A Missing Parameters**
 
 .. code-block:: text
 
@@ -1003,7 +1037,7 @@ Troubleshooting Common Issues
 3. Set appropriate values based on your model requirements
 4. Re-run validation using the ``updatedA_user_config.yml``
 
-**Issue 2: Phase B Scientific Validation Errors**
+**Issue 3: Phase B Scientific Validation Errors**
 
 .. code-block:: text
 
@@ -1016,7 +1050,7 @@ Troubleshooting Common Issues
 2. Fix parameters that need action
 3. Re-run from Phase B or full workflow
 
-**Issue 3: Phase C Pydantic Validation Failures**
+**Issue 4: Phase C Pydantic Validation Failures**
 
 .. code-block:: text
 

@@ -38,6 +38,9 @@ Technical Implementation
 - ``remove_extra_parameters_from_yaml()``: Remove extra parameters in public mode
 - ``is_physics_option()``: Critical parameter classification logic
 - ``create_uptodate_yaml_with_missing_params()``: Mode-dependent clean YAML generation
+- ``validate_standard_file()``: **Git branch validation** and standard file consistency checks
+- ``get_current_git_branch()``: Git branch detection for development workflow safety
+- ``check_file_differs_from_master()``: File comparison against master branch version
 
 **Key Data Structures:**
 
@@ -567,6 +570,63 @@ Mode Selection Guidelines
    ├── All experimental features # No pre-validation restrictions
    ├── Extra parameters         # Preserved in allowed locations
    └── Enhanced diagnostics     # Additional reporting information
+
+Git Branch Validation and Development Workflow Safety
+------------------------------------------------------
+
+Phase A includes **sophisticated git-based validation** to ensure configuration consistency across development branches and prevent validation against modified standard files.
+
+**Git Validation System:**
+
+.. code-block:: python
+
+   def validate_standard_file(standard_file: str) -> bool:
+       """Validate standard file exists and matches master branch."""
+       print("Validating standard configuration file...")
+       
+       # Check file exists
+       if not os.path.exists(standard_file):
+           print(f"❌ ERROR: Standard file not found: {standard_file}")
+           return False
+       
+       current_branch = get_current_git_branch()
+       
+       if current_branch != "master":
+           file_differs = check_file_differs_from_master(standard_file)
+           if file_differs:
+               print(f"⚠️  WARNING: You are on branch '{current_branch}' and sample_config.yml differs from master")
+               print("   RECOMMENDED:")
+               print("   1. Switch to master branch: git checkout master") 
+               print("   2. OR update your sample_config.yml to match master:")
+               print(f"      git checkout master -- {standard_file}")
+
+**Core Git Functions:**
+
+.. code-block:: python
+
+   def get_current_git_branch() -> str:
+       """Get current git branch using git branch --show-current."""
+       result = subprocess.run(["git", "branch", "--show-current"], 
+                              capture_output=True, text=True, check=True)
+       return result.stdout.strip() or "unknown"
+   
+   def check_file_differs_from_master(file_path: str) -> bool:
+       """Check if file differs from master branch version using git diff master."""
+       result = subprocess.run(["git", "diff", "master", "--", file_path],
+                              capture_output=True, text=True, check=True)
+       return len(result.stdout.strip()) > 0
+
+**Warning Message Format:**
+
+.. code-block:: text
+
+   ⚠️  WARNING: You are on branch 'feature-new-physics' and sample_config.yml differs from master
+      This may cause inconsistent parameter detection.
+      RECOMMENDED:
+      1. Switch to master branch: git checkout master
+      2. OR update your sample_config.yml to match master:
+         git checkout master -- src/supy/sample_data/sample_config.yml
+
 
 Best Practices
 --------------

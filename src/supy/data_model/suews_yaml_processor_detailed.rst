@@ -69,6 +69,29 @@ Orchestrator Functions
 - YAML file format and basic readability
 - Path resolution to absolute paths
 
+**Standard Configuration Validation:**
+
+.. code-block:: python
+
+   # Automatic standard file detection and validation
+   standard_yaml_file = "src/supy/sample_data/sample_config.yml"
+   
+   if not os.path.exists(standard_yaml_file):
+       print("✗ Standard YAML file not found: {standard_yaml_file}")
+       print("Make sure you're running from the SUEWS root directory")
+       return 1
+
+**Function**: Standard reference configuration validation
+**Critical Checks**:
+- **File existence**: Ensures ``src/supy/sample_data/sample_config.yml`` is accessible
+- **Working directory**: Verifies processor is run from SUEWS root directory
+- **Early termination**: Stops execution immediately if standard file missing
+- **Git branch validation**: Phase A includes sophisticated git-based consistency checks
+
+**Advanced Features**: See `phase_a_detailed.rst <phase_a_detailed.rst#git-branch-validation-and-development-workflow-safety>`_ for complete git branch validation system including branch detection, master file comparison, and development workflow safety features.
+
+**Importance**: The standard configuration file is the **reference baseline** for all validation phases. Without it, the processor cannot determine missing parameters, outdated names, or default values.
+
 .. code-block:: python
 
    def setup_output_paths(user_yaml_file: str, phase: str) -> Tuple[str, str, str, str, str, str, str]:
@@ -223,26 +246,26 @@ Error Handling and Recovery
 - **Report consolidation**: Includes information from previous successful phases
 - **Error categorization**: Distinguishes between validation errors and configuration issues
 
-**2. Workflow-Level Error Recovery**
+**2. Workflow-Level Error Handling**
+
+The orchestrator implements **fail-fast behavior** for multi-phase workflows:
 
 .. code-block:: python
 
    # Example: ABC workflow with B failure
-   # A succeeds → B fails → C receives A output
-   if phase_b_success:
-       input_for_c = science_file  # Use B output
-   elif 'A' in phase and phase_a_success:
-       input_for_c = uptodate_file  # Fall back to A output
-   else:
-       input_for_c = user_yaml_file  # Use original file
+   if not phase_b_success:
+       # ABC workflow stops at Phase B failure - Phase C does NOT run
+       print("✗ Phase B failed!")
+       # Preserve Phase A output as final ABC output
+       return 1  # Exit workflow - no Phase C execution
 
-**Recovery Strategy**: **Progressive fallback** to most recent successful validation
+**Error Handling Strategy**: **Fail-fast with output preservation** - workflows stop at first failure but preserve the most recent successful validation output
 
 **3. File Preservation Logic**
 
 **Success Scenarios**: Preserves only final workflow output
 **Failure Scenarios**: Preserves most recent successful output + error reports
-**Debugging Support**: Intermediate files available for analysis when workflows fail
+**Error Recovery**: Final output files renamed to match requested workflow (e.g., Phase A output becomes ``updatedABC_*.yml`` when ABC workflow fails at Phase B)
 
 Advanced Integration Features
 -----------------------------
@@ -266,7 +289,6 @@ The orchestrator implements **sophisticated report consolidation** that combines
 **Features**:
 - **Cross-phase information**: Phase C reports include Phase A parameter updates and Phase B scientific adjustments
 - **Unified presentation**: Single report format covering all executed phases
-- **Action prioritization**: Clear distinction between critical issues and informational updates
 
 **2. Mode-Dependent Execution**
 
@@ -404,103 +426,6 @@ The orchestrator design supports **automated batch processing** workflows:
            echo "✗ $config_file validation failed - see report"
        fi
    done
-
-Performance and Scalability
----------------------------
-
-**Execution Performance:**
-- **Phase A**: Fast parameter detection and structure validation
-- **Phase B**: Moderate - scientific constraint checking across all sites
-- **Phase C**: Comprehensive - full Pydantic model validation with conditional rules
-
-**Memory Management:**
-- **Streaming approach**: Processes files without loading entire datasets into memory
-- **Intermediate cleanup**: Automatic cleanup of temporary files and validation artifacts
-- **Scalable validation**: Handles multi-site configurations efficiently
-
-**File Size Considerations:**
-- **Large configurations**: Optimized for multi-site SUEWS configurations
-- **Memory efficiency**: Minimal memory footprint during processing
-- **Disk usage**: Systematic intermediate file management
-
-Best Practices and Troubleshooting
-----------------------------------
-
-**For Users:**
-
-1. **Start with complete workflow** (``--phase ABC``) for comprehensive validation
-2. **Use individual phases for debugging** specific validation issues
-3. **Check reports carefully** for actionable recommendations
-4. **Preserve intermediate files** during development for analysis
-
-**For Developers:**
-
-1. **Maintain phase independence** - each phase should work standalone
-2. **Handle error propagation carefully** - preserve information across phase boundaries
-3. **Update report consolidation** when adding new validation features
-4. **Test workflow combinations** - ensure all phase combinations work correctly
-
-**Common Integration Issues:**
-
-**Issue 1: Phase input/output mismatch**
-- **Cause**: Phase expects different file format than provided
-- **Fix**: Check file chaining logic in workflow execution
-
-**Issue 2: Report consolidation failures**
-- **Cause**: Missing or malformed intermediate reports
-- **Fix**: Verify report file generation in individual phases
-
-**Issue 3: File permission errors**
-- **Cause**: Insufficient permissions for output directory
-- **Fix**: Ensure write permissions for output location
-
-Technical Implementation Details
---------------------------------
-
-**Import Strategy:**
-
-.. code-block:: python
-
-   # Clean phase separation with error handling
-   try:
-       from uptodate_yaml import annotate_missing_parameters
-       from science_check import run_science_check
-   except ImportError as e:
-       print(f"Error importing required modules: {e}")
-       sys.exit(1)
-
-**Error Handling Pattern:**
-
-.. code-block:: python
-
-   # Consistent error handling across all phases
-   try:
-       phase_result = run_phase_x(...)
-       if phase_result:
-           print(f"✓ Phase X completed successfully")
-       else:
-           print(f"✗ Phase X failed - see report for details")
-   except Exception as e:
-       print(f"✗ Phase X error: {e}")
-       return False
-
-**File Management Pattern:**
-
-.. code-block:: python
-
-   # Systematic file path management
-   def setup_output_paths(user_yaml_file: str, phase: str):
-       base_path = Path(user_yaml_file)
-       stem = base_path.stem
-       directory = base_path.parent
-
-       # Generate phase-specific paths systematically
-       paths = {
-           'updatedA': directory / f"updatedA_{stem}.yml",
-           'reportA': directory / f"reportA_{stem}.txt",
-           # ... additional phase paths
-       }
-       return paths
 
 Related Documentation
 ---------------------

@@ -500,3 +500,6 @@ Related Documentation
 
 **SUEWS Configuration:**
 - `YAML Configuration Documentation <../../../inputs/yaml/index.html>`_ - Complete parameter specifications and validation details
+
+**CRU Dataset **
+- All CRU data are from `<https://crudata.uea.ac.uk/cru/data/hrg/cru_ts_4.06/>`

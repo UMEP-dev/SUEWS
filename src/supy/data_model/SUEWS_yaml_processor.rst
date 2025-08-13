@@ -1152,3 +1152,6 @@ Related Documentation
 
 **SUEWS Configuration Schema**
    For parameter specifications and validation details, see: `YAML Configuration Documentation <../../../inputs/yaml/index.html>`_
+
+**CRU Dataset **
+- All CRU data are from `<https://crudata.uea.ac.uk/cru/data/hrg/cru_ts_4.06/>`

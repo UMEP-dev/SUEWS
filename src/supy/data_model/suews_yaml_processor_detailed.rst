@@ -441,6 +441,9 @@ Related Documentation
 **SUEWS Configuration Documentation:**
 - `YAML Configuration Documentation <../../../inputs/yaml/index.html>`_ - Complete parameter specifications and validation details
 
+**CRU Dataset **
+- All CRU data are from `<https://crudata.uea.ac.uk/cru/data/hrg/cru_ts_4.06/>`
+
 **Implementation Files:**
 - ``suews_yaml_processor.py`` - Main orchestrator implementation (**this file's focus**)
 - ``uptodate_yaml.py`` - Phase A implementation

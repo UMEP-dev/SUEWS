@@ -751,7 +751,7 @@ def create_analysis_report(
         if not has_action_items:
             report_lines.append("## ACTION NEEDED")
             has_action_items = True
-        
+
         report_lines.append(
             f"- Found ({extra_count}) not allowed extra parameter name(s):"
         )
@@ -768,7 +768,9 @@ def create_analysis_report(
     # In public mode, extra parameters are now handled as ACTION NEEDED items
     # In dev mode, only allowed extra parameters are counted
     if mode == "public":  # Public mode
-        allowed_extras_count = 0  # No extra parameters in NO ACTION NEEDED for public mode
+        allowed_extras_count = (
+            0  # No extra parameters in NO ACTION NEEDED for public mode
+        )
     else:  # Dev mode
         allowed_extras_count = (
             extra_count - len(forbidden_extras) if extra_count > 0 else 0
@@ -807,7 +809,7 @@ def create_analysis_report(
             # In dev mode, show found parameters (current behavior)
             categorised = categorise_extra_parameters(extra_params)
             no_action_extras = categorised["NO_ACTION_NEEDED"]
-            
+
             # Show allowed location extra parameters first (NO ACTION NEEDED)
             if no_action_extras:
                 report_lines.append(

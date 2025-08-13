@@ -298,9 +298,9 @@ Phase A identifies parameters that exist in your configuration but not in the st
 
 **Public Mode Strategy:**
 
-- **Removed** from output YAML (clean standard-compliant files)
-- **Documented** as "Removed (X) parameter(s) from YAML" in NO_ACTION_NEEDED section
-- **Suggestion** provided to switch to dev mode if parameters are intentional
+- **Preserved** in output YAML (parameters remain in the file)
+- **Documented** as "Found (X) not allowed extra parameter name(s)" in ACTION_NEEDED section
+- **Suggestion** provided to switch to dev mode or remove the extra parameters
 
 **Developer Mode Strategy:**
 
@@ -314,14 +314,14 @@ Phase A identifies parameters that exist in your configuration but not in the st
 
 .. code-block:: yaml
 
-   # Public mode: These parameters would be REMOVED
+   # Public mode: These parameters would be PRESERVED but reported as ACTION_NEEDED
    model:
      control:
-       custom_simulation_name: "My_SUEWS_Run"  # → Removed
-       debug_mode: true                        # → Removed
+       custom_simulation_name: "My_SUEWS_Run"  # → Preserved (but ACTION_NEEDED in report)
+       debug_mode: true                        # → Preserved (but ACTION_NEEDED in report)
    sites:
    - properties:
-       custom_param: 1.5                       # → Removed
+       custom_param: 1.5                       # → Preserved (but ACTION_NEEDED in report)
 
    # Dev mode: Location-dependent handling
    model:
@@ -373,7 +373,7 @@ Phase A generates mode-dependent comprehensive reports with two main sections:
 - **ACTION NEEDED**: Critical physics parameters that must be set by the user (YAML contains null values)
 
   - In **Dev Mode**: Also includes extra parameters in forbidden locations
-  - In **Public Mode**: Only critical missing parameters (extra parameters are removed)
+  - In **Public Mode**: Critical missing parameters AND extra parameters (extra parameters now reported as ACTION_NEEDED)
 
 - **NO ACTION NEEDED**: All updates automatically applied including:
 
@@ -399,6 +399,12 @@ Phase A generates mode-dependent comprehensive reports with two main sections:
    - Found (1) critical missing parameter(s):
    -- netradiationmethod has been added to updatedA_user.yml and set to null
       Suggested fix: Set appropriate value based on SUEWS documentation
+   
+   - Found (2) not allowed extra parameter name(s):
+   -- startdate at level model.control.startdate
+      Suggested fix: You selected Public mode. Consider either to switch to Dev mode, or remove this extra parameter since this is not in the standard yaml.
+   -- test at level sites[0].properties.test
+      Suggested fix: You selected Public mode. Consider either to switch to Dev mode, or remove this extra parameter since this is not in the standard yaml.
 
    ## NO ACTION NEEDED
    - Updated (3) optional missing parameter(s) with null values:
@@ -408,10 +414,6 @@ Phase A generates mode-dependent comprehensive reports with two main sections:
    - Updated (2) renamed parameter(s):
    -- diagmethod changed to rslmethod
    -- cp changed to rho_cp
-
-   - Removed (2) parameter(s) from YAML: consider switching to dev mode option
-   -- startdate from level model.control.startdate
-   -- test from level sites[0].properties.test
 
    # ==================================================
 
@@ -627,7 +629,7 @@ Troubleshooting
        standard_file="sample_data/sample_config.yml",
        uptodate_file="updatedA_my_config.yml",
        report_file="reportA_my_config.txt",
-       mode="public",  # Public mode - removes extra parameters
+       mode="public",  # Public mode - preserves extra parameters but reports as ACTION NEEDED
        phase="A"
    )
 
@@ -650,7 +652,7 @@ Troubleshooting
 
 .. code-block:: bash
 
-   # Public mode (default) - removes extra parameters
+   # Public mode (default) - preserves extra parameters but reports as ACTION NEEDED
    python src/supy/data_model/suews_yaml_processor.py user_config.yml --phase A --mode public
 
    # Developer mode - preserves extra parameters

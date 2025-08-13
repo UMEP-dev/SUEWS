@@ -117,7 +117,7 @@ Mode-Specific Behaviour
 
 **Phase A Differences:**
 
-- **Public Mode**: Extra parameters (not in standard YAML) are removed from the output YAML and reported as "Removed (X) parameters from YAML: consider to switch to dev mode option" in the NO_ACTION_NEEDED section
+- **Public Mode**: Extra parameters (not in standard YAML) are preserved in the output YAML but reported as "Found (X) not allowed extra parameter name(s)" in the ACTION_NEEDED section with suggestions to switch to Dev mode or remove the parameters
 - **Developer Mode**: Extra parameters in Pydantic-allowed locations are preserved in the output YAML and reported as "Found (X) parameter(s) not in standard" in the NO_ACTION_NEEDED section
 
 **Experimental Features:**

@@ -590,10 +590,8 @@ def create_uptodate_yaml_with_missing_params(
 ):
     """Create clean YAML with missing parameters added but no inline comments."""
     clean_yaml_content = cleanup_renamed_comments(yaml_content)
-    if mode == "public" and extra_params:
-        clean_yaml_content = remove_extra_parameters_from_yaml(
-            clean_yaml_content, extra_params
-        )
+    # Note: Extra parameters are now preserved in both public and dev mode
+    # In public mode, they will be reported as ACTION NEEDED items in the report
 
     if not missing_params:
         header = create_uptodate_yaml_header()
@@ -697,8 +695,9 @@ def create_analysis_report(
         forbidden_extras = categorised["ACTION_NEEDED"]
 
     total_action_needed = urgent_count + len(forbidden_extras)
+    has_action_items = total_action_needed > 0
 
-    if total_action_needed > 0:
+    if has_action_items:
         report_lines.append("## ACTION NEEDED")
 
         # Critical missing parameters
@@ -746,12 +745,30 @@ def create_analysis_report(
 
         report_lines.append("")
 
+    # Handle extra parameters in ACTION NEEDED section for public mode
+    if mode == "public" and extra_count > 0:
+        # In public mode, show ALL extra parameters as ACTION NEEDED items
+        if not has_action_items:
+            report_lines.append("## ACTION NEEDED")
+            has_action_items = True
+        
+        report_lines.append(
+            f"- Found ({extra_count}) not allowed extra parameter name(s):"
+        )
+        for param_path in extra_params:
+            param_name = param_path.split(".")[-1]
+            report_lines.append(f"-- {param_name} at level {param_path}")
+            report_lines.append(
+                f"   Suggested fix: You selected Public mode. Consider either to switch to Dev mode, or remove this extra parameter since this is not in the standard yaml."
+            )
+        report_lines.append("")
+
     # NO ACTION NEEDED section - optional and informational items
     # Calculate allowed extra parameters (those not in forbidden locations)
-    # In public mode, all extra parameters are handled as "removed", so count them
+    # In public mode, extra parameters are now handled as ACTION NEEDED items
     # In dev mode, only allowed extra parameters are counted
     if mode == "public":  # Public mode
-        allowed_extras_count = extra_count if extra_count > 0 else 0
+        allowed_extras_count = 0  # No extra parameters in NO ACTION NEEDED for public mode
     else:  # Dev mode
         allowed_extras_count = (
             extra_count - len(forbidden_extras) if extra_count > 0 else 0
@@ -784,33 +801,22 @@ def create_analysis_report(
                 report_lines.append(f"-- {old_name} changed to {new_name}")
             report_lines.append("")
 
-        # NOT IN STANDARD parameters - Mode-dependent handling
-        if extra_count > 0:
-            # Categorise extra parameters by whether they're in forbidden locations
+        # NOT IN STANDARD parameters - Dev mode handling only
+        if extra_count > 0 and mode != "public":
+            # In public mode, extra parameters are handled in ACTION NEEDED section above
+            # In dev mode, show found parameters (current behavior)
             categorised = categorise_extra_parameters(extra_params)
             no_action_extras = categorised["NO_ACTION_NEEDED"]
-            action_needed_extras = categorised["ACTION_NEEDED"]
-
-            if mode == "public":  # Public mode - show removed parameters
-                # All extra parameters are removed in public mode
-                if extra_params:
-                    report_lines.append(
-                        f"- Removed ({len(extra_params)}) parameter(s) from YAML: consider to switch to dev mode option"
-                    )
-                    for param_path in extra_params:
-                        param_name = param_path.split(".")[-1]
-                        report_lines.append(f"-- {param_name} from level {param_path}")
-                    report_lines.append("")
-            else:  # Dev mode - show found parameters (current behavior)
-                # Show allowed location extra parameters first (NO ACTION NEEDED)
-                if no_action_extras:
-                    report_lines.append(
-                        f"- Found ({len(no_action_extras)}) parameter(s) not in standard:"
-                    )
-                    for param_path in no_action_extras:
-                        param_name = param_path.split(".")[-1]
-                        report_lines.append(f"-- {param_name} at level {param_path}")
-                    report_lines.append("")
+            
+            # Show allowed location extra parameters first (NO ACTION NEEDED)
+            if no_action_extras:
+                report_lines.append(
+                    f"- Found ({len(no_action_extras)}) parameter(s) not in standard:"
+                )
+                for param_path in no_action_extras:
+                    param_name = param_path.split(".")[-1]
+                    report_lines.append(f"-- {param_name} at level {param_path}")
+                report_lines.append("")
 
                 # Show forbidden location extra parameters as ACTION NEEDED
                 # (These will be moved to the ACTION NEEDED section below)

@@ -488,7 +488,7 @@ class TestPhaseAUptoDateYaml(TestProcessorFixtures):
 
     @pytest.mark.parametrize(
         "mode,expected_behavior",
-        [("public", "removes_extra_params"), ("dev", "preserves_extra_params")],
+        [("public", "preserves_but_warns_extra_params"), ("dev", "preserves_extra_params")],
     )
     def test_mode_dependent_processing(self, temp_yaml_files, mode, expected_behavior):
         """Test mode-dependent extra parameter handling."""
@@ -526,12 +526,20 @@ class TestPhaseAUptoDateYaml(TestProcessorFixtures):
         with open(output_file, "r") as f:
             output_data = yaml.safe_load(f)
 
-        if expected_behavior == "removes_extra_params":
-            # In public mode, extra parameters should be removed
-            assert "custom_param" not in output_data.get("model", {}).get(
+        if expected_behavior in ["preserves_but_warns_extra_params", "removes_extra_params"]:
+            # Both old and new public mode behavior: extra parameters are PRESERVED 
+            # (behavior was changed from removing to preserving but warning)
+            assert "custom_param" in output_data.get("model", {}).get(
                 "control", {}
-            ), "Custom param should be removed in public mode"
-        else:  # preserves_extra_params
+            ), "Custom param should be preserved in public mode (but reported as ACTION NEEDED)"
+            
+            # Check that the report contains ACTION NEEDED section with extra parameter warning
+            with open(report_file, "r") as f:
+                report_content = f.read()
+            assert "## ACTION NEEDED" in report_content, "Report should have ACTION NEEDED section in public mode"
+            assert "not allowed extra parameter name(s)" in report_content, "Report should warn about extra parameters"
+            assert "You selected Public mode" in report_content, "Report should mention public mode suggestion"
+        else:  # preserves_extra_params (dev mode)
             # In dev mode, extra parameters should be preserved
             assert "custom_param" in output_data.get("model", {}).get("control", {}), (
                 "Custom param should be preserved in dev mode"

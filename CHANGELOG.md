@@ -34,8 +34,15 @@
 
 ## 2025
 
+### 13 Aug 2025
+- [maintenance] Marked ANOHM-specific fields as internal to exclude from user documentation ([#598](https://github.com/UMEP-dev/SUEWS/pull/598))
+  - Added `internal_only` flag to ANOHM-specific fields (ch_anohm, rho_cp_anohm, k_anohm)
+  - These fields are only used by the deprecated ANOHM method (StorageHeatMethod=3)
+  - OHM fields remain visible as OHM methods (1, 6) are still valid user options
+  - Documentation generation script excludes internal options when run without --include-internal flag
+
 ### 11 Aug 2025
-- [doc] Added comprehensive parameter documentation for YAML configuration ([#577](https://github.com/UMEP-dev/SUEWS/issues/577))
+- [doc] Added comprehensive parameter documentation for YAML configuration ([#577](https://github.com/UMEP-dev/SUEWS/issues/577), [#598](https://github.com/UMEP-dev/SUEWS/pull/598))
   - Created user-friendly Parameter Configuration Guide organized by use cases
   - Added practical guidance for essential parameters, physics methods, and urban morphology
   - Included common configuration examples for urban, suburban, and park sites

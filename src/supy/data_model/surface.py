@@ -183,6 +183,7 @@ class SurfaceProperties(BaseModel):
         json_schema_extra={
             "unit": "J m^-3 K^-1",
             "display_name": "ANOHM Bulk Transfer Coefficient",
+            "internal_only": True,
         },
     )
     rho_cp_anohm: Optional[FlexibleRefValue(float)] = Field(
@@ -191,6 +192,7 @@ class SurfaceProperties(BaseModel):
         json_schema_extra={
             "unit": "J m^-3 K^-1",
             "display_name": "ANOHM Volumetric Heat Capacity",
+            "internal_only": True,
         },
     )
     k_anohm: Optional[FlexibleRefValue(float)] = Field(
@@ -199,6 +201,7 @@ class SurfaceProperties(BaseModel):
         json_schema_extra={
             "unit": "W m^-1 K^-1",
             "display_name": "ANOHM Thermal Conductivity",
+            "internal_only": True,
         },
     )
     ohm_threshsw: Optional[FlexibleRefValue(float)] = Field(

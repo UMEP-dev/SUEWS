@@ -71,9 +71,9 @@ Phase A implements different strategies for handling extra parameters (NOT IN ST
 
 **Public Mode (``--mode public``):**
 
-- **Strategy**: Remove extra parameters from output YAML
-- **Purpose**: Ensure clean, standard-compliant configuration files
-- **Reporting**: Lists removed parameters as "Removed (X) parameter(s) from YAML: consider switching to dev mode option"
+- **Strategy**: Preserve extra parameters in output YAML but report as ACTION_NEEDED
+- **Purpose**: Keep user data intact while highlighting non-standard parameters
+- **Reporting**: Lists extra parameters as "Found (X) not allowed extra parameter name(s)" in ACTION_NEEDED section with guidance to switch to dev mode or remove parameters
 - **Target Users**: General users requiring stable, validated configurations
 
 **Developer Mode (``--mode dev``):**
@@ -122,13 +122,6 @@ The system automatically discovers which nested sections allow extra parameters 
 
    # Replaces hardcoded lists - stays in sync with data model changes
 
-**Benefits of Dynamic Introspection:**
-
-- **Automatic Discovery**: New nested sections are found automatically
-- **Maintenance-Free**: No manual updates needed when data model evolves
-- **Type Safety**: Uses actual Pydantic introspection, not assumptions
-- **Robust Fallback**: Falls back to validated static sections if needed
-- **Comprehensive Coverage**: Scans all data model modules systematically
 
 **Technical Implementation Details:**
 
@@ -199,14 +192,19 @@ The system includes comprehensive error handling:
 - **Type Extraction Errors**: Falls back to None for unrecognisable types
 - **Complete Failure**: Uses validated static sections as ultimate fallback
 
-**Parameter Removal Logic (Public Mode):**
+**Public Mode Extra Parameter Handling:**
+
+In public mode, extra parameters are now **preserved** in the output YAML but reported differently:
 
 .. code-block:: python
 
-   def remove_extra_parameters_from_yaml(yaml_content, extra_params):
-       """Remove extra parameters from YAML content for public mode."""
-       # Removes parameters by name from YAML text
-       # Maintains proper YAML structure and indentation
+   # In public mode, ALL extra parameters are reported as ACTION_NEEDED
+   if mode == "public" and extra_count > 0:
+       report_lines.append(f"- Found ({extra_count}) not allowed extra parameter name(s):")
+       for param_path in extra_params:
+           param_name = param_path.split(".")[-1]
+           report_lines.append(f"-- {param_name} at level {param_path}")
+           report_lines.append("   Suggested fix: You selected Public mode. Consider either to switch to Dev mode, or remove this extra parameter since this is not in the standard yaml.")
 
 Parameter Classification Logic
 ------------------------------
@@ -345,16 +343,14 @@ Output Files Structure
 
 .. code-block:: yaml
 
-   # =============================================================================
-   # UP TO DATE YAML
-   # =============================================================================
+   # ==============================================================================
+   # Updated YAML
+   # ==============================================================================
    #
-   # This file has been automatically updated by uptodate_yaml.py with all necessary changes:
-   # - Missing parameters have been added with null values
-   # - Renamed parameters have been updated to current naming conventions
-   # - All changes are reported in reportA_<yourfilename>.txt
+   # This file has been updated by the SUEWS processor and is the updated version of the user provided YAML.
+   # Details of changes are in the generated report.
    #
-   # =============================================================================
+   # ==============================================================================
 
    name: Updated User Configuration
    model:
@@ -384,7 +380,7 @@ Phase A generates mode-dependent comprehensive reports with two main sections:
   - Parameter renamings applied
   - Mode-dependent extra parameter handling:
 
-    - **Public Mode**: "Removed (X) parameter(s) from YAML: consider switching to dev mode option"
+    - **Public Mode**: No extra parameters in NO ACTION NEEDED section (all moved to ACTION_NEEDED)
     - **Dev Mode**: "Found (X) parameter(s) not in standard" (for allowed locations)
 
 **Analysis Report Examples**
@@ -497,18 +493,6 @@ Phase A output serves as input to subsequent phases in the validation pipeline:
    updatedAC_user_config.yml   # → AC workflow final output
    updatedABC_user_config.yml  # → Complete pipeline output
 
-**Mode Integration:**
-
-- **Public Mode**: Produces clean, standard-compliant files for subsequent phases
-- **Dev Mode**: Preserves experimental parameters for advanced validation
-- **Pre-validation**: Mode restrictions enforced before Phase A execution
-
-**Workflow Integration:**
-
-1. **Multi-phase workflows** (AB, AC, ABC): Phase A intermediate files cleaned up after successful completion
-2. **A-only workflow**: Phase A files retained as final outputs
-3. **Error Handling**: Phase A files preserved if subsequent phases fail
-
 Testing and Validation
 ----------------------
 
@@ -563,7 +547,7 @@ Mode Selection Guidelines
 
    Public Mode Restrictions:
    ├── stebbsmethod != 0        # Triggers pre-validation error
-   ├── Extra parameters         # Automatically removed from YAML
+   ├── Extra parameters         # Preserved but reported as ACTION_NEEDED
    └── Future: SPARTACUS method # Will be restricted
 
    Developer Mode Allowances:

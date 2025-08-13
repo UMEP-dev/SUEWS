@@ -330,6 +330,54 @@ def flatten_missing_dict(data, current_path=""):
     return missing_params
 
 
+def find_section_position(lines, section_name, start_pos=0):
+    """Find the position of a section in the YAML lines, starting from start_pos."""
+    for i, line in enumerate(lines[start_pos:], start_pos):
+        stripped = line.strip()
+        if stripped == f"{section_name}:" or stripped.endswith(f":{section_name}:"):
+            return i
+    return None
+
+
+def find_array_section_position(lines, array_name, array_index, start_pos=0):
+    """Find the position of a specific array item, starting from start_pos."""
+    array_section_start = None
+    array_indent = None
+    
+    # Find the array section
+    for i, line in enumerate(lines[start_pos:], start_pos):
+        stripped = line.strip()
+        if stripped == f"{array_name}:" or stripped.endswith(f":{array_name}:"):
+            array_section_start = i
+            array_indent = len(line) - len(line.lstrip())
+            break
+
+    if array_section_start is None:
+        return None
+
+    # Find the specific array item
+    current_item = -1
+    for i in range(array_section_start + 1, len(lines)):
+        line = lines[i]
+        if not line.strip():
+            continue
+        line_indent = len(line) - len(line.lstrip())
+
+        if line.strip().startswith("-") and line_indent == array_indent and ":" in line:
+            current_item += 1
+            if current_item == array_index:
+                return i
+
+        elif (
+            line_indent <= array_indent
+            and line.strip()
+            and not line.strip().startswith("-")
+        ):
+            break
+
+    return None
+
+
 def find_insertion_point(lines, path_parts):
     if len(path_parts) < 2:
         return None
@@ -343,9 +391,25 @@ def find_insertion_point(lines, path_parts):
             lines, path_parts, array_name, array_index
         )
 
+    # Find the correct parent section by following the full path
     section_indent = None
     section_start = None
-    for i, line in enumerate(lines):
+    current_position = 0
+    
+    # Navigate through the path parts to find the exact section
+    for path_part in path_parts[:-2]:  # Exclude the parameter name and immediate parent
+        if "[" in path_part and "]" in path_part:
+            array_name = path_part.split("[")[0]
+            array_index = int(path_part.split("[")[1].split("]")[0])
+            current_position = find_array_section_position(lines, array_name, array_index, current_position)
+        else:
+            current_position = find_section_position(lines, path_part, current_position)
+        
+        if current_position is None:
+            return None
+    
+    # Now find the immediate parent section from the current position
+    for i, line in enumerate(lines[current_position:], current_position):
         stripped = line.strip()
         if stripped == f"{parent_section}:" or stripped.endswith(f":{parent_section}:"):
             section_indent = len(line) - len(line.lstrip())

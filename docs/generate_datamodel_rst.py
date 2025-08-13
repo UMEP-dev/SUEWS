@@ -566,7 +566,9 @@ def _should_skip_field(field_info: FieldInfo, include_internal: bool) -> bool:
     )
 
 
-def _add_field_index_entries(rst_content: list, field_name: str, model_name: str) -> None:
+def _add_field_index_entries(
+    rst_content: list, field_name: str, model_name: str
+) -> None:
     """Add index entries for a field."""
     rst_content.append(".. index::")
     rst_content.append(f"   single: {field_name} (YAML parameter)")
@@ -667,7 +669,9 @@ def _add_field_unit(
         unit = field_info.json_schema_extra.get("unit")
 
     # Check if this is a method/enum parameter
-    is_method_param = options_list or (base_description and "Options:" in base_description)
+    is_method_param = options_list or (
+        base_description and "Options:" in base_description
+    )
 
     if unit and not is_method_param:
         formatted_unit = format_unit(unit)
@@ -767,7 +771,9 @@ def _is_refvalue_of_model(field_type_hint: Any, origin_pt: Any) -> bool:
     return first_arg == origin_pt
 
 
-def _format_initial_state_message(field_name: str, nested_model_name: str, is_basic: bool) -> str:
+def _format_initial_state_message(
+    field_name: str, nested_model_name: str, is_basic: bool
+) -> str:
     """Format message for initial state fields."""
     if is_basic:
         return (
@@ -820,10 +826,20 @@ def _generate_nested_model_link_message(
         )
     # Check direct nesting
     elif (get_origin(field_type_hint) or field_type_hint) == nested_model_to_document:
-        if nested_model_name.startswith("InitialState") and nested_model_name != "InitialStates":
-            basic_states = {"InitialStatePaved", "InitialStateBldgs", "InitialStateBsoil", "InitialStateWater"}
+        if (
+            nested_model_name.startswith("InitialState")
+            and nested_model_name != "InitialStates"
+        ):
+            basic_states = {
+                "InitialStatePaved",
+                "InitialStateBldgs",
+                "InitialStateBsoil",
+                "InitialStateWater",
+            }
             is_basic = nested_model_name in basic_states
-            message = _format_initial_state_message(field_name, nested_model_name, is_basic)
+            message = _format_initial_state_message(
+                field_name, nested_model_name, is_basic
+            )
         else:
             message = (
                 f"   The ``{field_name}`` parameter group is defined by the "
@@ -917,7 +933,9 @@ def _add_reference_field(rst_content: list, field_type_hint: Any) -> None:
     origin_type = get_origin(field_type_hint) or field_type_hint
     type_name = getattr(origin_type, "__name__", "")
 
-    if type_name in {"RefValue", "FlexibleRefValue"} or "RefValue" in str(field_type_hint):
+    if type_name in {"RefValue", "FlexibleRefValue"} or "RefValue" in str(
+        field_type_hint
+    ):
         rst_content.append(
             "   :Reference: Optional - see :doc:`reference` for DOI/citation format"
         )
@@ -1028,8 +1046,12 @@ def generate_rst_for_model(
 
         # Process description and options
         description_parts, options_list = _process_field_description(
-            field_info, field_name, field_type_hint, model_name,
-            all_supy_models, include_internal
+            field_info,
+            field_name,
+            field_type_hint,
+            model_name,
+            all_supy_models,
+            include_internal,
         )
 
         base_description = getattr(field_info, "description", None)
@@ -1049,7 +1071,9 @@ def generate_rst_for_model(
         _add_field_unit(rst_content, field_info, base_description, options_list)
 
         # Process and add default value
-        label, display_value = _process_field_default(field_info, field_name, model_name)
+        label, display_value = _process_field_default(
+            field_info, field_name, model_name
+        )
         rst_content.append(f"   :{label}: {display_value}")
 
         # Add reference field for RefValue types
@@ -1059,14 +1083,18 @@ def generate_rst_for_model(
         _add_field_constraints(rst_content, field_info, field_type_hint)
 
         # Find and process nested models
-        nested_model = _find_nested_model(
-            field_type_hint, all_supy_models, model_class
-        )
+        nested_model = _find_nested_model(field_type_hint, all_supy_models, model_class)
 
         if nested_model:
             _process_nested_model(
-                nested_model, field_name, field_type_hint, rst_content,
-                output_dir, processed_models, all_supy_models, include_internal
+                nested_model,
+                field_name,
+                field_type_hint,
+                rst_content,
+                output_dir,
+                processed_models,
+                all_supy_models,
+                include_internal,
             )
 
         rst_content.append("")  # Blank line after each option

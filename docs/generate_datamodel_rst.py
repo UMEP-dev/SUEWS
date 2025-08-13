@@ -400,6 +400,55 @@ def _process_model_physics_docstring(docstring: str) -> str:
     return docstring
 
 
+def _is_complex_default(value) -> bool:
+    """Check if a default value is too complex to display in full."""
+    # Check if it's a list of objects (not simple types)
+    if isinstance(value, list) and value:
+        # If the first element has attributes (is an object), it's complex
+        first_elem = value[0]
+        if hasattr(first_elem, '__dict__'):
+            return True
+        # Also check if the repr is too long
+        if len(repr(value)) > 200:
+            return True
+    # Check for other complex types that have long reprs
+    if hasattr(value, '__dict__') and len(repr(value)) > 200:
+        return True
+    return False
+
+
+def _format_complex_default(value) -> str:
+    """Format complex default values in a user-friendly way."""
+    from pydantic import BaseModel
+    
+    # Handle lists of objects
+    if isinstance(value, list) and value:
+        first_elem = value[0]
+        # If it's a list of Pydantic models
+        if isinstance(first_elem, BaseModel):
+            class_name = first_elem.__class__.__name__
+            # Convert class name to lowercase for RST reference
+            # SurfaceInitialState -> surfaceinitialstate
+            doc_name = class_name.lower()
+            return f"List of {len(value)} {class_name} objects - see :doc:`{doc_name}`"
+        # Generic list of objects
+        elif hasattr(first_elem, '__dict__'):
+            class_name = first_elem.__class__.__name__
+            return f"List of {len(value)} {class_name} objects"
+        else:
+            # Truncate long lists
+            return f"List with {len(value)} items"
+    
+    # Handle single complex objects
+    if isinstance(value, BaseModel):
+        class_name = value.__class__.__name__
+        doc_name = class_name.lower()
+        return f"{class_name} object - see :doc:`{doc_name}`"
+    
+    # Fallback for other complex types
+    return "Complex object - see related documentation"
+
+
 def _is_site_specific_field(field_name: str, model_name: str) -> bool:
     """Check if a field is site-specific (requires user input)."""
     site_specific_patterns = [
@@ -721,7 +770,11 @@ def generate_rst_for_model(
             ):
                 display_value = default_value
             else:
-                display_value = f"``{default_value!r}``"
+                # Check if it's a complex object that shouldn't be fully displayed
+                if _is_complex_default(default_value):
+                    display_value = _format_complex_default(default_value)
+                else:
+                    display_value = f"``{default_value!r}``"
             label = "Sample value"
         else:
             # True defaults
@@ -731,7 +784,11 @@ def generate_rst_for_model(
             ):
                 display_value = default_value
             else:
-                display_value = f"``{default_value!r}``"
+                # Check if it's a complex object that shouldn't be fully displayed
+                if _is_complex_default(default_value):
+                    display_value = _format_complex_default(default_value)
+                else:
+                    display_value = f"``{default_value!r}``"
             label = "Default"
 
         rst_content.append(f"   :{label}: {display_value}")
@@ -792,6 +849,13 @@ def generate_rst_for_model(
         # Link to nested models
         # Check if the raw type or any type argument is a Pydantic model we know
         possible_model_types = [field_type_hint, *list(get_args(field_type_hint))]
+        
+        # Also check for models nested inside List/Dict types
+        for arg in get_args(field_type_hint):
+            if get_origin(arg) in {list, dict}:
+                # Add the inner types of List[X] or Dict[K, V]
+                possible_model_types.extend(get_args(arg))
+        
         nested_model_to_document = None
         for pt in possible_model_types:
             origin_pt = get_origin(pt) or pt  # get actual type if it's a generic alias
@@ -854,10 +918,17 @@ def generate_rst_for_model(
                     f":doc:`{nested_model_name_lower}`."
                 )
             elif origin_of_field is list or origin_of_field is list:
-                link_message = (
-                    f"   Each item in the ``{field_name}`` list must conform to the "
-                    f":doc:`{nested_model_name_lower}` structure."
-                )
+                # Special handling for lists of SurfaceInitialState (roofs/walls)
+                if nested_model_to_document.__name__ == "SurfaceInitialState":
+                    link_message = (
+                        f"   For ``{field_name}``, a list of generic SurfaceInitialState objects is used to specify initial conditions for each layer - "
+                        f"see :doc:`surfaceinitialstate` for details."
+                    )
+                else:
+                    link_message = (
+                        f"   Each item in the ``{field_name}`` list must conform to the "
+                        f":doc:`{nested_model_name_lower}` structure."
+                    )
             elif origin_of_field is dict or origin_of_field is dict:
                 link_message = (
                     f"   Each value in the ``{field_name}`` mapping (dictionary) must conform to the "
@@ -867,16 +938,48 @@ def generate_rst_for_model(
                 get_origin(field_type_hint) or field_type_hint
             ) == nested_model_to_document:
                 # Direct nesting: my_field: NestedModelType
-                link_message = (
-                    f"   The ``{field_name}`` parameter group is defined by the "
-                    f":doc:`{nested_model_name_lower}` structure."
-                )
+                # Special handling for InitialStateXXX classes
+                if nested_model_to_document.__name__.startswith("InitialState") and nested_model_to_document.__name__ != "InitialStates":
+                    # Check if this is a basic surface initial state (no extra fields) or vegetation-specific
+                    basic_surface_states = {"InitialStatePaved", "InitialStateBldgs", "InitialStateBsoil", "InitialStateWater"}
+                    if nested_model_to_document.__name__ in basic_surface_states:
+                        # These use the generic SurfaceInitialState
+                        link_message = (
+                            f"   For ``{field_name}``, one generic SurfaceInitialState object is used to specify initial conditions - "
+                            f"see :doc:`surfaceinitialstate` for details."
+                        )
+                    else:
+                        # Vegetation states have additional fields, link to their specific documentation
+                        link_message = (
+                            f"   For ``{field_name}``, one vegetation-specific initial state with additional parameters is used - "
+                            f"see :doc:`{nested_model_name_lower}` for details."
+                        )
+                else:
+                    link_message = (
+                        f"   The ``{field_name}`` parameter group is defined by the "
+                        f":doc:`{nested_model_name_lower}` structure."
+                    )
             else:
-                # Fallback if the exact relationship isn't matched by above (e.g. Union types)
-                link_message = (
-                    f"   For ``{field_name}``, if using the {nested_model_to_document.__name__} structure, "
-                    f"see :doc:`{nested_model_name_lower}` for details."
-                )
+                # Check if this is Optional[List[X]] where X is SurfaceInitialState
+                is_optional_list = False
+                if origin_of_field is Union:
+                    for union_arg in args_of_field:
+                        if get_origin(union_arg) is list:
+                            list_args = get_args(union_arg)
+                            if list_args and list_args[0].__name__ == "SurfaceInitialState":
+                                is_optional_list = True
+                                link_message = (
+                                    f"   For ``{field_name}``, a list of generic SurfaceInitialState objects is used to specify initial conditions for each layer - "
+                                    f"see :doc:`surfaceinitialstate` for details."
+                                )
+                                break
+                
+                if not is_optional_list:
+                    # Fallback if the exact relationship isn't matched by above
+                    link_message = (
+                        f"   For ``{field_name}``, if using the {nested_model_to_document.__name__} structure, "
+                        f"see :doc:`{nested_model_name_lower}` for details."
+                    )
 
             rst_content.append(link_message)
             # The recursive call was here, it should remain to generate the linked doc.
@@ -903,7 +1006,7 @@ def get_all_models_in_module(module) -> dict[str, type[BaseModel]]:
     INTERNAL_CLASSES = {
         "HDD_ID",  # Internal heating/cooling degree days tracking
         "WaterUse",  # Internal water use tracking
-        "SurfaceInitialState",  # Base class, not directly used
+        # Note: SurfaceInitialState is used in roofs/walls fields so needs documentation
     }
     
     models = {}

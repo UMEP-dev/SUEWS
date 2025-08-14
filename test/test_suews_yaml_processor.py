@@ -36,39 +36,35 @@ from unittest.mock import patch, MagicMock, mock_open
 from datetime import datetime
 import subprocess
 
-# Add the data_model directory to Python path for imports
-data_model_path = Path(__file__).parent.parent / "src" / "supy" / "data_model"
-sys.path.insert(0, str(data_model_path))
-
-# Import modules under test - test what's actually available
+# Import modules under test - use proper package imports
 uptodate_yaml = None
 science_check = None
 phase_c_reports = None
 suews_yaml_processor = None
 
 try:
-    import uptodate_yaml
+    from supy.data_model import uptodate_yaml
 
     has_uptodate_yaml = True
 except ImportError:
     has_uptodate_yaml = False
 
 try:
-    import science_check
+    from supy.data_model import science_check
 
     has_science_check = True
 except ImportError:
     has_science_check = False
 
 try:
-    import phase_c_reports
+    from supy.data_model import phase_c_reports
 
     has_phase_c_reports = True
 except ImportError:
     has_phase_c_reports = False
 
 try:
-    import suews_yaml_processor
+    from supy.data_model import suews_yaml_processor
 
     has_suews_yaml_processor = True
 except ImportError:
@@ -847,7 +843,7 @@ class TestPhaseBScienceCheck(TestProcessorFixtures):
         assert len(results) > 0
         assert any("rslmethod" in result.message for result in results)
 
-    @patch("science_check.get_mean_monthly_air_temperature")
+    @patch("supy.data_model.science_check.get_mean_monthly_air_temperature")
     def test_cru_temperature_integration(self, mock_cru):
         """Test CRU temperature data integration."""
         mock_cru.return_value = 15.2  # Mock temperature value

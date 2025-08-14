@@ -19,11 +19,11 @@ from contextlib import redirect_stdout, redirect_stderr
 
 # Import Phase A and B functions
 try:
-    from uptodate_yaml import annotate_missing_parameters
-    from science_check import run_science_check
+    from .phase_a_parameter_update import annotate_missing_parameters
+    from .phase_b_science_check import run_science_check
 except ImportError as e:
     print(f"Error importing required modules: {e}")
-    print("Make sure uptodate_yaml.py and science_check.py are in the same directory")
+    print("Make sure phase modules are in the same directory")
     sys.exit(1)
 
 
@@ -640,7 +640,7 @@ Phase {phase_str} passed
 
                 # Generate structured ACTION NEEDED report
                 try:
-                    from phase_c_reports import generate_phase_c_report
+                    from .phase_c_pydantic_report import generate_phase_c_report
 
                     generate_phase_c_report(
                         validation_error,
@@ -653,7 +653,7 @@ Phase {phase_str} passed
 
                 except Exception as report_error:
                     # Fallback to simple error report if structured report generation fails
-                    from phase_c_reports import generate_fallback_report
+                    from .phase_c_pydantic_report import generate_fallback_report
 
                     generate_fallback_report(
                         validation_error,

@@ -8,7 +8,7 @@ import pytest
 
 def test_wind_speeds_always_positive_most_profile():
     """Test that MOST profile calculations always produce positive wind speeds.
-    
+
     This test verifies that wind speeds remain positive across various building
     configurations when using MOST diagnostics (diagmethod=0), particularly for
     cases that previously caused negative values due to the MIN constraint issue.

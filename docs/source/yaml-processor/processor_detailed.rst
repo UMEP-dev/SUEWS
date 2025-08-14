@@ -88,7 +88,7 @@ Orchestrator Functions
 - **Early termination**: Stops execution immediately if standard file missing
 - **Git branch validation**: Phase A includes sophisticated git-based consistency checks
 
-**Advanced Features**: See `phase_a_detailed.rst <phase_a_detailed.rst#git-branch-validation-and-development-workflow-safety>`_ for complete git branch validation system including branch detection, master file comparison, and development workflow safety features.
+**Advanced Features**: For complete git branch validation system including branch detection, master file comparison, and development workflow safety features, see PHASE_A_DETAILED.md in src/supy/data_model/yaml_processor/.
 
 **Importance**: The standard configuration file is the **reference baseline** for all validation phases. Without it, the processor cannot determine missing parameters, outdated names, or default values.
 
@@ -430,10 +430,13 @@ The orchestrator design supports **automated batch processing** workflows:
 Related Documentation
 ---------------------
 
-**Phase-Specific Documentation:**
-- `phase_a_detailed.rst <phase_a_detailed.rst>`_ - Comprehensive Phase A parameter detection and structure validation
-- `phase_b_detailed.rst <phase_b_detailed.rst>`_ - Complete Phase B scientific validation and automatic corrections
-- `phase_c_detailed.rst <phase_c_detailed.rst>`_ - Detailed Phase C Pydantic validation and conditional rules
+**Developer Documentation:**
+- PHASE_A_DETAILED.md - Comprehensive Phase A parameter detection and structure validation
+- PHASE_B_DETAILED.md - Complete Phase B scientific validation and automatic corrections
+- PHASE_C_DETAILED.md - Detailed Phase C Pydantic validation and conditional rules
+- ORCHESTRATOR.md - Orchestrator implementation and workflow coordination
+
+These files are located in src/supy/data_model/yaml_processor/
 
 **Core Integration Documentation:**
 - `SUEWS_yaml_processor.rst <SUEWS_yaml_processor.rst>`_ - User guide for the three-phase validation system

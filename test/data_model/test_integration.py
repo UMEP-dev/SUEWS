@@ -12,11 +12,14 @@ This test file ensures CRU data loads properly for initial temperature checking
 as designed by Silvia. Tests fail (not skip) when data cannot be loaded.
 """
 
-import pytest
-import pandas as pd
+
 import numpy as np
-from pathlib import Path
-from supy.data_model.yaml_processor.validation_helpers import get_mean_monthly_air_temperature
+import pandas as pd
+import pytest
+
+from supy.data_model.yaml_processor.validation_helpers import (
+    get_mean_monthly_air_temperature,
+)
 
 
 class TestCRUDataLoading:
@@ -270,5 +273,5 @@ class TestCRUDataLoading:
                 missing_coverage.append(f"{city}: {e}")
 
         assert len(missing_coverage) == 0, (
-            f"Major cities without CRU coverage:\n" + "\n".join(missing_coverage)
+            "Major cities without CRU coverage:\n" + "\n".join(missing_coverage)
         )

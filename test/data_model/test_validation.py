@@ -8,17 +8,16 @@ This file combines:
 - Essential migrated validators (from test_migrated_validators.py)
 - Validator improvements from test_validator_improvements.py
 """
-import pytest
+import io
+import logging
+from pathlib import Path
+import tempfile
 from types import SimpleNamespace
 import warnings
-import tempfile
-from pathlib import Path
-import logging
-import io
 
 from supy.data_model.core import SUEWSConfig
-from supy.data_model.validation_utils import check_missing_params
 from supy.data_model.type import RefValue
+from supy.data_model.validation_utils import check_missing_params
 
 
 # A tiny “site” stub that only carries exactly the properties our validators look at
@@ -785,6 +784,7 @@ class TestTopDownValidation:
         with warnings.catch_warnings(record=True) as w:
             warnings.simplefilter("always")
             import importlib
+
             import supy.data_model
 
             importlib.reload(supy.data_model)

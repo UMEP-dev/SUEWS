@@ -27,25 +27,26 @@ Tests cover:
 - Edge cases and error handling
 """
 
-import unittest
-import tempfile
 import os
-import yaml
 from pathlib import Path
+import tempfile
+import unittest
+
+import yaml
 
 # Import the functions we want to test
 from supy.data_model.yaml_processor.phase_a_parameter_update import (
-    find_missing_parameters,
-    find_extra_parameters,
-    handle_renamed_parameters,
-    is_physics_option,
-    get_null_placeholder,
+    PHYSICS_OPTIONS,
+    RENAMED_PARAMS,
+    annotate_missing_parameters,
+    create_analysis_report,
     create_clean_missing_param_annotation,
     create_uptodate_yaml_with_missing_params,
-    create_analysis_report,
-    annotate_missing_parameters,
-    RENAMED_PARAMS,
-    PHYSICS_OPTIONS,
+    find_extra_parameters,
+    find_missing_parameters,
+    get_null_placeholder,
+    handle_renamed_parameters,
+    is_physics_option,
 )
 
 
@@ -59,7 +60,7 @@ class TestUptodateYaml(unittest.TestCase):
         cls.standard_file = "src/supy/sample_data/sample_config.yml"
 
         # Load the standard configuration
-        with open(cls.standard_file, "r") as f:
+        with open(cls.standard_file) as f:
             cls.standard_data = yaml.safe_load(f)
 
         # Create test data scenarios
@@ -371,7 +372,7 @@ sites:
             self.assertTrue(os.path.exists(report_file))
 
             # Verify uptodate file content
-            with open(uptodate_file, "r") as f:
+            with open(uptodate_file) as f:
                 uptodate_content = f.read()
 
             self.assertIn("Updated YAML", uptodate_content)
@@ -379,7 +380,7 @@ sites:
             self.assertIn("value: null", uptodate_content)
 
             # Verify report file content
-            with open(report_file, "r") as f:
+            with open(report_file) as f:
                 report_content = f.read()
 
             self.assertIn("SUEWS - Phase A", report_content)
@@ -483,7 +484,7 @@ class TestRealWorldScenarios(unittest.TestCase):
     def setUp(self):
         """Set up with real standard configuration."""
         self.standard_file = "src/supy/sample_data/sample_config.yml"
-        with open(self.standard_file, "r") as f:
+        with open(self.standard_file) as f:
             self.standard_data = yaml.safe_load(f)
 
     def test_benchmark_configuration_compatibility(self):
@@ -654,7 +655,7 @@ sites:
             )
 
             # === VERIFY UPTODATE YAML CONTENT ===
-            with open(uptodate_file, "r") as f:
+            with open(uptodate_file) as f:
                 uptodate_content = f.read()
 
             # Should contain header
@@ -723,7 +724,7 @@ sites:
             )
 
             # === VERIFY REPORT CONTENT ===
-            with open(report_file, "r") as f:
+            with open(report_file) as f:
                 report_content = f.read()
 
             # Should contain all sections
@@ -794,7 +795,7 @@ sites:
 
             # === VERIFY DATA COMPLETENESS ===
             # Load both original and updated YAML for comparison
-            with open(user_file, "r") as f:
+            with open(user_file) as f:
                 original_data = yaml.safe_load(f.read())
 
             updated_data = yaml.safe_load(uptodate_content)
@@ -858,7 +859,7 @@ sites:
             # The new report format doesn't have a "## Summary" section
             # Instead it lists counts directly in the ACTION NEEDED and NO ACTION NEEDED sections
             # e.g. "Found (12) critical missing parameter(s):"
-            
+
             # Should report correct counts in the report
             self.assertIn(
                 "critical missing parameter",
@@ -900,12 +901,12 @@ sites:
                 len(updated_data["sites"]), 0, "Should have at least one site"
             )
 
-            print(f"\n✅ End-to-end test completed successfully!")
+            print("\n✅ End-to-end test completed successfully!")
             print(
                 f"   - Generated uptodate YAML: {os.path.getsize(uptodate_file)} bytes"
             )
             print(f"   - Generated report: {os.path.getsize(report_file)} bytes")
-            print(f"   - All scenarios tested: MISSING, RENAMED, NOT IN STANDARD")
+            print("   - All scenarios tested: MISSING, RENAMED, NOT IN STANDARD")
 
     def test_workflow_performance_and_scalability(self):
         """Test workflow performance with larger configurations."""
@@ -966,7 +967,7 @@ sites:
             self.assertTrue(os.path.exists(report_file))
 
             # Verify content correctness even with larger scale
-            with open(uptodate_file, "r") as f:
+            with open(uptodate_file) as f:
                 uptodate_content = f.read()
 
             # Should handle all sites correctly
@@ -981,9 +982,9 @@ sites:
             # Should still add missing URGENT parameter
             self.assertIn("netradiationmethod:", uptodate_content)
 
-            print(f"\n✅ Performance test completed!")
+            print("\n✅ Performance test completed!")
             print(f"   - Processing time: {processing_time:.3f} seconds")
-            print(f"   - Sites processed: 10")
+            print("   - Sites processed: 10")
             print(f"   - Output file size: {os.path.getsize(uptodate_file)} bytes")
 
             # Performance should be reasonable (less than 10 seconds for this scale)
@@ -1001,28 +1002,27 @@ if __name__ == "__main__":
 # ============================================================================
 # From test_precheck.py - Phase B Scientific Validation Tests
 # ============================================================================
-import pytest
 import copy
-import logging
-from supy._env import logger_supy
 from copy import deepcopy
 from datetime import datetime
+
+import pytest
+
 from supy.data_model.yaml_processor.validation_helpers import (
-    precheck_model_physics_params,
-    precheck_start_end_date,
-    precheck_site_season_adjustments,
-    precheck_model_options_constraints,
-    precheck_replace_empty_strings_with_none,
-    precheck_land_cover_fractions,
-    precheck_nullify_zero_sfr_params,
-    precheck_nonzero_sfr_requires_nonnull_params,
-    precheck_model_option_rules,
-    collect_yaml_differences,
-    precheck_update_temperature,
-    get_mean_monthly_air_temperature,
-    precheck_warn_zero_sfr_params,
     SeasonCheck,
+    collect_yaml_differences,
+    get_mean_monthly_air_temperature,
     get_value_safe,
+    precheck_land_cover_fractions,
+    precheck_model_option_rules,
+    precheck_model_options_constraints,
+    precheck_model_physics_params,
+    precheck_nonzero_sfr_requires_nonnull_params,
+    precheck_nullify_zero_sfr_params,
+    precheck_replace_empty_strings_with_none,
+    precheck_site_season_adjustments,
+    precheck_start_end_date,
+    precheck_update_temperature,
 )
 
 
@@ -2269,7 +2269,9 @@ class TestPrecheckRefValueHandling:
 
 def test_precheck_thermal_layer_cp_renaming():
     """Test that legacy 'cp' fields are renamed to 'rho_cp' in thermal_layers."""
-    from supy.data_model.yaml_processor.validation_helpers import precheck_thermal_layer_cp_renaming
+    from supy.data_model.yaml_processor.validation_helpers import (
+        precheck_thermal_layer_cp_renaming,
+    )
 
     # Test data with cp fields in multiple surfaces
     data = {
@@ -2364,7 +2366,9 @@ def test_precheck_thermal_layer_cp_renaming():
 
 def test_precheck_thermal_layer_cp_renaming_no_changes():
     """Test that data without cp fields is unchanged."""
-    from supy.data_model.yaml_processor.validation_helpers import precheck_thermal_layer_cp_renaming
+    from supy.data_model.yaml_processor.validation_helpers import (
+        precheck_thermal_layer_cp_renaming,
+    )
 
     # Test data without cp fields
     data = {
@@ -2389,7 +2393,6 @@ def test_precheck_thermal_layer_cp_renaming_no_changes():
     }
 
     # Make a copy for comparison
-    import copy
 
     original_data = copy.deepcopy(data)
 
@@ -2402,7 +2405,9 @@ def test_precheck_thermal_layer_cp_renaming_no_changes():
 
 def test_precheck_thermal_layer_cp_renaming_mixed_surfaces():
     """Test renaming with surfaces that have no thermal_layers."""
-    from supy.data_model.yaml_processor.validation_helpers import precheck_thermal_layer_cp_renaming
+    from supy.data_model.yaml_processor.validation_helpers import (
+        precheck_thermal_layer_cp_renaming,
+    )
 
     data = {
         "sites": [
@@ -2452,6 +2457,8 @@ def test_precheck_thermal_layer_cp_renaming_mixed_surfaces():
 # ============================================================================
 # From test_suews_yaml_processor.py - Orchestrator Integration Tests
 # ============================================================================
+
+
 """
 Comprehensive Test Suite for SUEWS YAML Processor
 
@@ -2478,17 +2485,8 @@ Robust design principles:
 - Clear test naming following existing SUEWS patterns
 """
 
-import pytest
-import tempfile
-import os
-import sys
 import shutil
-import yaml
-from pathlib import Path
-from copy import deepcopy
-from unittest.mock import patch, MagicMock, mock_open
-from datetime import datetime
-import subprocess
+from unittest.mock import MagicMock, patch
 
 # Import modules under test - use proper package imports
 uptodate_yaml = None
@@ -2511,7 +2509,9 @@ except ImportError:
     has_science_check = False
 
 try:
-    from supy.data_model.yaml_processor import phase_c_pydantic_report as phase_c_reports
+    from supy.data_model.yaml_processor import (
+        phase_c_pydantic_report as phase_c_reports,
+    )
 
     has_phase_c_reports = True
 except ImportError:
@@ -2881,8 +2881,9 @@ class TestPhaseAUptoDateYaml(TestProcessorFixtures):
 
     def test_extract_nested_model_type(self):
         """Test extraction of nested BaseModel types from field annotations."""
+        from typing import Dict, List, Optional, Union
+
         from pydantic import BaseModel, Field
-        from typing import Dict, List, Union, Optional
 
         # Create test model classes
         class TestNestedModel(BaseModel):
@@ -2992,6 +2993,7 @@ class TestPhaseAUptoDateYaml(TestProcessorFixtures):
 
         # Import the data model modules to verify field names exist
         import importlib
+
         from pydantic import BaseModel
 
         data_model_modules = [
@@ -3068,7 +3070,7 @@ class TestPhaseAUptoDateYaml(TestProcessorFixtures):
         """Test mode-dependent extra parameter handling."""
         # Add extra parameter to user config
         user_file = temp_yaml_files["user_file"]
-        with open(user_file, "r") as f:
+        with open(user_file) as f:
             data = yaml.safe_load(f)
 
         data["model"]["control"]["custom_param"] = "test_value"
@@ -3097,7 +3099,7 @@ class TestPhaseAUptoDateYaml(TestProcessorFixtures):
         assert os.path.exists(report_file), "Report file should be created"
 
         # Check output file content for mode-dependent behavior
-        with open(output_file, "r") as f:
+        with open(output_file) as f:
             output_data = yaml.safe_load(f)
 
         if expected_behavior in [
@@ -3111,7 +3113,7 @@ class TestPhaseAUptoDateYaml(TestProcessorFixtures):
             )
 
             # Check that the report contains ACTION NEEDED section with extra parameter warning
-            with open(report_file, "r") as f:
+            with open(report_file) as f:
                 report_content = f.read()
             assert "## ACTION NEEDED" in report_content, (
                 "Report should have ACTION NEEDED section in public mode"
@@ -3473,8 +3475,9 @@ class TestPhaseCPydanticValidation(TestProcessorFixtures):
         }
 
         try:
-            from supy.data_model.core import SUEWSConfig
             from pydantic_core import ValidationError
+
+            from supy.data_model.core import SUEWSConfig
 
             # Test that validation occurs - might be warnings instead of errors
             try:
@@ -3554,8 +3557,9 @@ class TestPhaseCPydanticValidation(TestProcessorFixtures):
         }
 
         try:
-            from supy.data_model.core import SUEWSConfig
             from pydantic_core import ValidationError
+
+            from supy.data_model.core import SUEWSConfig
 
             # Test that validation occurs - may not specifically mention faibldg
             # but should have some validation behavior
@@ -3609,7 +3613,7 @@ class TestPhaseCReporting(TestProcessorFixtures):
             # Check that report file was created and has expected content
             assert os.path.exists(output_file), "Report file should be created"
 
-            with open(output_file, "r") as f:
+            with open(output_file) as f:
                 report_content = f.read()
 
             assert "Phase C (Pydantic Validation) Report" in report_content
@@ -3652,7 +3656,7 @@ class TestPhaseCReporting(TestProcessorFixtures):
             assert result is None  # Function returns None
 
             # Check the generated report content
-            with open(output_file, "r") as f:
+            with open(output_file) as f:
                 report_content = f.read()
 
             assert "Phase C (Pydantic Validation) Report" in report_content
@@ -3822,9 +3826,6 @@ class TestCodeQualityAndCleanup(TestProcessorFixtures):
         if not has_suews_yaml_processor:
             pytest.skip("suews_yaml_processor module not available")
 
-        import ast
-        import inspect
-
         # Get the source file path
         processor_file = (
             Path(__file__).parent.parent.parent.parent  # Go up to repo root
@@ -3839,7 +3840,7 @@ class TestCodeQualityAndCleanup(TestProcessorFixtures):
             pytest.skip("orchestrator.py source file not found")
 
         # Read and parse the source code
-        with open(processor_file, "r") as f:
+        with open(processor_file) as f:
             source = f.read()
 
         # Check for specific unused imports mentioned in CODE_CLEANUP_REVIEW.md
@@ -3918,7 +3919,7 @@ class TestCodeQualityAndCleanup(TestProcessorFixtures):
         if not processor_file.exists():
             pytest.skip("orchestrator.py source file not found")
 
-        with open(processor_file, "r") as f:
+        with open(processor_file) as f:
             lines = f.readlines()
 
         outdated_comments = []
@@ -3943,7 +3944,7 @@ class TestCodeQualityAndCleanup(TestProcessorFixtures):
                 )
 
         if outdated_comments:
-            print(f"\nFound outdated comments mentioned in CODE_CLEANUP_REVIEW.md:")
+            print("\nFound outdated comments mentioned in CODE_CLEANUP_REVIEW.md:")
             for comment in outdated_comments:
                 print(f"  - {comment}")
 
@@ -3967,7 +3968,7 @@ class TestCodeQualityAndCleanup(TestProcessorFixtures):
         if not processor_file.exists():
             pytest.skip("orchestrator.py source file not found")
 
-        with open(processor_file, "r") as f:
+        with open(processor_file) as f:
             content = f.read()
 
         # Count shutil imports as mentioned in CODE_CLEANUP_REVIEW.md

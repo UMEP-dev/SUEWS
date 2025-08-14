@@ -8,19 +8,19 @@ This file combines:
 """
 
 # Import section will be combined from all relevant files
-import unittest
-import pandas as pd
-import supy as sp
 from pathlib import Path
-import numpy as np
+import unittest
+
+import pandas as pd
 import pytest
+
+import supy as sp
 from supy.data_model import (
-    SUEWSConfig,
-    Model,
-    Site,
-    SiteProperties,
     InitialStates,
     RefValue,
+    Site,
+    SiteProperties,
+    SUEWSConfig,
 )
 from supy.data_model.model import ModelControl
 
@@ -95,11 +95,11 @@ class TestSUEWSConfig(unittest.TestCase):
                     ("ohm_coef", f"(7, {x}, {y})")
                 ]
 
-        df_state_reconst[("ohm_threshsw", f"(7,)")] = df_state_init[
-            ("ohm_threshsw", f"(7,)")
+        df_state_reconst[("ohm_threshsw", "(7,)")] = df_state_init[
+            ("ohm_threshsw", "(7,)")
         ]
-        df_state_reconst[("ohm_threshwd", f"(7,)")] = df_state_init[
-            ("ohm_threshwd", f"(7,)")
+        df_state_reconst[("ohm_threshwd", "(7,)")] = df_state_init[
+            ("ohm_threshwd", "(7,)")
         ]
 
         for i in range(1, 7):
@@ -236,13 +236,12 @@ if __name__ == "__main__":
 
 
 # From test_flexible_refvalue_clean.py
-#!/usr/bin/env python
+# !/usr/bin/env python
 """Test FlexibleRefValue by programmatically removing 'value' keys from sample config"""
 
-import sys
-from pathlib import Path
-import yaml
 import copy
+
+import yaml
 
 try:
     from importlib.resources import files

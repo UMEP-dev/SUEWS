@@ -34,6 +34,13 @@
 
 ## 2025
 
+### 13 Aug 2025
+- [maintenance] Marked ANOHM-specific fields as internal to exclude from user documentation ([#598](https://github.com/UMEP-dev/SUEWS/pull/598))
+  - Added `internal_only` flag to ANOHM-specific fields (ch_anohm, rho_cp_anohm, k_anohm)
+  - These fields are only used by the deprecated ANOHM method (StorageHeatMethod=3)
+  - OHM fields remain visible as OHM methods (1, 6) are still valid user options
+  - Documentation generation script excludes internal options when run without --include-internal flag
+
 ### 12 Aug 2025
 - [feature] Enhanced YAML processor Phase C validation error reporting 
   - Converted conditional validation warnings to actionable validation errors
@@ -48,6 +55,15 @@
   - Eliminates maintenance burden - no manual updates needed when data model evolves
   - Added comprehensive test suite covering dynamic introspection, type extraction, and error handling
   - Enhanced technical documentation in `phase_a_detailed.rst` with implementation details
+
+### 11 Aug 2025
+- [doc] Added comprehensive parameter documentation for YAML configuration ([#577](https://github.com/UMEP-dev/SUEWS/issues/577), [#598](https://github.com/UMEP-dev/SUEWS/pull/598))
+  - Created user-friendly Parameter Configuration Guide organized by use cases
+  - Added practical guidance for essential parameters, physics methods, and urban morphology
+  - Included common configuration examples for urban, suburban, and park sites
+  - Generated searchable parameter reference with 697 documented parameters
+  - Added alphabetical parameter index for quick lookup
+  - Properly integrated documentation under YAML configuration section
 
 ### 10 Aug 2025
 - [maintenance] Removed web UI configuration builder from documentation

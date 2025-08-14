@@ -3,6 +3,8 @@ description: built from benchmark 1a, based on Ward et al. (2016) model configur
 model:
   control:
     tstep: 300
+    start_time: "2011-01-01"
+    end_time: "2013-12-31"
     forcing_file:
       value: Kc_2012_data_60.txt
     output_file:
@@ -11,8 +13,6 @@ model:
       groups:
         - "SUEWS"
     diagnose: 0
-    start_time: "2011-01-01"
-    end_time: "2013-12-31"
   physics:
     netradiationmethod:
       value: 3

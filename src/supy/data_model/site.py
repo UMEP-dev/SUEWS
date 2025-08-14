@@ -36,6 +36,10 @@ import warnings
 
 
 class VegetationParams(BaseModel):
+    """Vegetation phenology parameters."""
+
+    model_config = ConfigDict(title="Vegetation Parameters")
+
     porosity_id: FlexibleRefValue(int) = Field(
         description="Initial porosity for deciduous trees",
         json_schema_extra={"unit": "dimensionless", "display_name": "Porosity Id"},
@@ -67,6 +71,14 @@ class VegetationParams(BaseModel):
 
 
 class Conductance(BaseModel):
+    """Surface conductance parameters for water vapour and heat exchange.
+
+    These parameters control the resistance to water vapour transfer from surfaces,
+    which is critical for calculating evapotranspiration rates.
+    """
+
+    model_config = ConfigDict(title="Conductance")
+
     g_max: Optional[FlexibleRefValue(float)] = Field(
         default=None,
         description="Maximum surface conductance for photosynthesis",
@@ -194,6 +206,10 @@ class Conductance(BaseModel):
 
 
 class LAIPowerCoefficients(BaseModel):
+    """Power law coefficients for LAI calculation."""
+
+    model_config = ConfigDict(title="LAI Power Coefficients")
+
     growth_lai: Optional[FlexibleRefValue(float)] = Field(
         default=None,
         description="Power coefficient for LAI in growth equation (LAIPower[1])",
@@ -286,6 +302,8 @@ class LAIPowerCoefficients(BaseModel):
 
 
 class LAIParams(BaseModel):
+    model_config = ConfigDict(title="LAI")
+
     baset: Optional[FlexibleRefValue(float)] = Field(
         default=None,
         description="Base temperature for initiating growing degree days (GDD) for leaf growth",
@@ -599,6 +617,14 @@ class VegetatedSurfaceProperties(SurfaceProperties):
 
 
 class EvetrProperties(VegetatedSurfaceProperties):  # TODO: Move waterdist VWD here?
+    """Properties for evergreen trees and shrubs.
+
+    Evergreen vegetation maintains foliage year-round, providing consistent
+    evapotranspiration and shading. Common in urban parks and residential areas,
+    these surfaces have relatively low albedo and high roughness lengths.
+    """
+
+    model_config = ConfigDict(title="Evergreen Trees")
     alb: FlexibleRefValue(float) = Field(
         ge=0,
         le=1,
@@ -684,6 +710,14 @@ class EvetrProperties(VegetatedSurfaceProperties):  # TODO: Move waterdist VWD h
 
 
 class DectrProperties(VegetatedSurfaceProperties):
+    """Properties for deciduous trees and shrubs.
+
+    Deciduous vegetation undergoes seasonal changes with leaf growth and fall,
+    significantly affecting surface energy balance throughout the year. These
+    surfaces provide seasonal shading and have variable evapotranspiration rates.
+    """
+
+    model_config = ConfigDict(title="Deciduous Trees")
     alb: FlexibleRefValue(float) = Field(
         ge=0,
         le=1,
@@ -795,6 +829,14 @@ class DectrProperties(VegetatedSurfaceProperties):
 
 
 class GrassProperties(VegetatedSurfaceProperties):
+    """Properties for grass and lawn surfaces.
+
+    Grass surfaces include managed lawns, parks, and playing fields. They provide
+    cooling through evapotranspiration and have moderate albedo values. Irrigation
+    and maintenance significantly affect their water use and energy balance.
+    """
+
+    model_config = ConfigDict(title="Grass")
     alb: FlexibleRefValue(float) = Field(
         ge=0,
         le=1,
@@ -841,6 +883,8 @@ class GrassProperties(VegetatedSurfaceProperties):
 
 
 class SnowParams(BaseModel):
+    model_config = ConfigDict(title="Snow")
+
     crwmax: FlexibleRefValue(float) = Field(
         default=0.1,
         description="Maximum water holding capacity of snow",
@@ -1019,6 +1063,15 @@ class SnowParams(BaseModel):
 
 
 class LandCover(BaseModel):
+    """Surface properties for the seven SUEWS land cover types.
+
+    SUEWS divides the urban surface into seven distinct surface types, each with
+    unique thermal, radiative, and hydrological properties. The surface fractions
+    (sfr) for all seven types must sum to 1.0 for each site.
+    """
+
+    model_config = ConfigDict(title="Land Cover")
+
     paved: PavedProperties = Field(
         default_factory=PavedProperties,
         description="Properties for paved surfaces like roads and pavements",
@@ -1108,6 +1161,10 @@ class LandCover(BaseModel):
 
 
 class ArchetypeProperties(BaseModel):
+    """Urban morphology and archetype properties."""
+
+    model_config = ConfigDict(title="Archetype Properties")
+
     # Not used in STEBBS - DAVE only
     # BuildingCode='1'
     # BuildingClass='SampleClass'
@@ -1471,6 +1528,14 @@ class ArchetypeProperties(BaseModel):
 
 
 class StebbsProperties(BaseModel):
+    """STEBBS (Surface Temperature Energy Balance for Building Surfaces) model parameters.
+
+    Controls the building energy balance calculations including internal heating/cooling,
+    building materials properties, and thermal behaviour.
+    """
+
+    model_config = ConfigDict(title="STEBBS")
+
     WallInternalConvectionCoefficient: Optional[FlexibleRefValue(float)] = Field(
         default=0.0,
         description="Internal convection coefficient of walls and roof [W m-2 K-1]",
@@ -1985,6 +2050,14 @@ class StebbsProperties(BaseModel):
 
 
 class SPARTACUSParams(BaseModel):
+    """SPARTACUS radiation model parameters.
+
+    Controls the SPARTACUS-Surface radiation scheme for detailed
+    3D radiation interactions in urban environments.
+    """
+
+    model_config = ConfigDict(title="SPARTACUS")
+
     air_ext_lw: FlexibleRefValue(float) = Field(
         default=0.0,
         description="Air extinction coefficient for longwave radiation",
@@ -2155,6 +2228,10 @@ class SPARTACUSParams(BaseModel):
 
 
 class LUMPSParams(BaseModel):
+    """LUMPS model parameters for surface moisture."""
+
+    model_config = ConfigDict(title="LUMPS Parameters")
+
     raincover: FlexibleRefValue(float) = Field(
         ge=0,
         le=1,
@@ -2226,6 +2303,19 @@ class LUMPSParams(BaseModel):
 
 
 class SiteProperties(BaseModel):
+    """Physical and geographical characteristics of the simulation site.
+
+    Defines the location, dimensions, surface characteristics, and environmental
+    parameters for a specific urban site being modelled in SUEWS.
+    """
+
+    model_config = ConfigDict(
+        title="Site Properties",
+        extra="forbid",  # This will prevent extra fields from being accepted
+        validate_assignment=True,  # This will validate fields on assignment
+        validate_default=True,  # This will validate default values
+    )
+
     lat: FlexibleRefValue(float) = Field(
         ge=-90,
         le=90,
@@ -2394,12 +2484,6 @@ class SiteProperties(BaseModel):
 
         return values
 
-    model_config = ConfigDict(
-        extra="forbid",  # This will prevent extra fields from being accepted
-        validate_assignment=True,  # This will validate fields on assignment
-        validate_default=True,  # This will validate default values
-    )
-
     def to_df_state(self, grid_id: int) -> pd.DataFrame:
         """Convert site properties to DataFrame state format"""
         df_state = init_df_state(grid_id)
@@ -2521,6 +2605,14 @@ class SiteProperties(BaseModel):
 
 
 class Site(BaseModel):
+    """Site configuration for SUEWS simulations.
+
+    Represents the complete configuration for a single SUEWS simulation site,
+    including all physical properties, initial states, and model parameters.
+    """
+
+    model_config = ConfigDict(title="Site Configuration")
+
     name: str = Field(description="Name of the site", default="test site")
     gridiv: int = Field(
         description="Grid ID for identifying this site in multi-site simulations",
@@ -2545,6 +2637,10 @@ class Site(BaseModel):
 
 
 class SnowAlb(BaseModel):
+    """Snow albedo parameters."""
+
+    model_config = ConfigDict(title="Snow Albedo")
+
     snowalb: FlexibleRefValue(float) = Field(
         description="Snow albedo",
         json_schema_extra={"unit": "dimensionless", "display_name": "Snow Albedo"},

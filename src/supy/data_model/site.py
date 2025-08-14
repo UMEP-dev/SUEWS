@@ -691,6 +691,9 @@ class EvetrProperties(VegetatedSurfaceProperties):  # TODO: Move waterdist VWD h
             self.alb_max.value if isinstance(self.alb_max, RefValue) else self.alb_max
         )
 
+        # Sort the MultiIndex columns to avoid performance warnings
+        df_state = df_state.sort_index(axis=1)
+        
         return df_state
 
     @classmethod
@@ -805,6 +808,9 @@ class DectrProperties(VegetatedSurfaceProperties):
         df_state.loc[grid_id, ("albmax_dectr", "0")] = (
             self.alb_max.value if isinstance(self.alb_max, RefValue) else self.alb_max
         )
+        
+        # Sort the MultiIndex columns to avoid performance warnings
+        df_state = df_state.sort_index(axis=1)
 
         return df_state
 
@@ -867,6 +873,9 @@ class GrassProperties(VegetatedSurfaceProperties):
             self.alb_max.value if isinstance(self.alb_max, RefValue) else self.alb_max
         )
 
+        # Sort the MultiIndex columns to avoid performance warnings
+        df_state = df_state.sort_index(axis=1)
+        
         return df_state
 
     @classmethod

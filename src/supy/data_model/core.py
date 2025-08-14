@@ -2276,8 +2276,16 @@ class SUEWSConfig(BaseModel):
                 list_df_site.append(df_site)
 
             df = pd.concat(list_df_site, axis=0)
-            df["config"] = self.name
-            df["description"] = self.description
+            
+            # Create metadata columns as a separate DataFrame to avoid fragmentation
+            metadata_df = pd.DataFrame({
+                "config": self.name,
+                "description": self.description
+            }, index=df.index)
+            
+            # Concatenate instead of inserting columns
+            df = pd.concat([df, metadata_df], axis=1)
+            
             # remove duplicate columns
             df = df.loc[:, ~df.columns.duplicated()]
         except Exception as e:

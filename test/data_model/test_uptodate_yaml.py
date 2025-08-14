@@ -20,7 +20,7 @@ import yaml
 from pathlib import Path
 
 # Import the functions we want to test
-from src.supy.data_model.uptodate_yaml import (
+from supy.data_model.uptodate_yaml import (
     find_missing_parameters,
     find_extra_parameters,
     handle_renamed_parameters,
@@ -42,7 +42,7 @@ class TestUptodateYaml(unittest.TestCase):
     def setUpClass(cls):
         """Set up test fixtures using real sample_config.yml."""
         # Path to the standard configuration file (relative to project root)
-        cls.standard_file = "../sample_run/sample_config.yml"
+        cls.standard_file = "src/supy/sample_data/sample_config.yml"
 
         # Load the standard configuration
         with open(cls.standard_file, "r") as f:
@@ -463,7 +463,7 @@ class TestRealWorldScenarios(unittest.TestCase):
 
     def setUp(self):
         """Set up with real standard configuration."""
-        self.standard_file = "../sample_run/sample_config.yml"
+        self.standard_file = "src/supy/sample_data/sample_config.yml"
         with open(self.standard_file, "r") as f:
             self.standard_data = yaml.safe_load(f)
 
@@ -618,7 +618,7 @@ sites:
             report_file = os.path.join(temp_dir, "report_comprehensive_user.txt")
 
             # Run the complete workflow
-            standard_file = "../sample_run/sample_config.yml"
+            standard_file = "src/supy/sample_data/sample_config.yml"
             annotate_missing_parameters(
                 user_file=user_file,
                 standard_file=standard_file,
@@ -936,7 +936,7 @@ sites:
 
             annotate_missing_parameters(
                 user_file=user_file,
-                standard_file="../sample_run/sample_config.yml",
+                standard_file="src/supy/sample_data/sample_config.yml",
                 uptodate_file=uptodate_file,
                 report_file=report_file,
             )

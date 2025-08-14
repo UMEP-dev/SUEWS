@@ -74,6 +74,10 @@ py.install_sources(
             'data_model/yaml_annotator.py',
             'data_model/yaml_annotator_json.py',
             'data_model/precheck.py',
+            'data_model/uptodate_yaml.py',
+            'data_model/science_check.py',
+            'data_model/suews_yaml_processor.py',
+            'data_model/phase_c_reports.py',
         ],
         [
             'ext_data/CRU_TS4.06_1991_2020.parquet',

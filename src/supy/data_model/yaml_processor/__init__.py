@@ -10,7 +10,7 @@ Pipeline Phases:
 
 Components:
 - phase_a_parameter_update: Phase A implementation
-- phase_b_science_check: Phase B implementation  
+- phase_b_science_check: Phase B implementation
 - phase_c_pydantic_report: Phase C implementation
 - orchestrator: Pipeline orchestrator for running phases
 - validation_helpers: Shared validation utilities

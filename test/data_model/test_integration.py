@@ -174,7 +174,9 @@ class TestCRUDataLoading:
         # Valid coordinates - use a location with known CRU coverage
         # Note: (0.0, 0.0) doesn't have CRU data, so we use a nearby land location
         try:
-            temp = get_mean_monthly_air_temperature(5.0, 10.0, 6)  # West Africa (has coverage)
+            temp = get_mean_monthly_air_temperature(
+                5.0, 10.0, 6
+            )  # West Africa (has coverage)
             assert isinstance(temp, float)
         except ValueError:
             # If no coverage at this point, that's acceptable

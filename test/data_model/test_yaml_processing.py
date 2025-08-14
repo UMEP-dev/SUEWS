@@ -667,7 +667,9 @@ sites:
             # So we check for the specific old parameter in the physics section
             uptodate_yaml = yaml.safe_load(uptodate_content)
             # Old parameters should not exist in their original locations
-            self.assertNotIn("diagmethod", uptodate_yaml.get("model", {}).get("physics", {}))
+            self.assertNotIn(
+                "diagmethod", uptodate_yaml.get("model", {}).get("physics", {})
+            )
             self.assertNotIn("cp", uptodate_yaml.get("model", {}).get("physics", {}))
             self.assertIn(
                 "rslmethod:", uptodate_content, "New parameter name should be present"
@@ -741,7 +743,9 @@ sites:
 
             # Should properly identify URGENT vs optional missing parameters
             self.assertIn(
-                "critical", report_content, "Should identify critical physics parameters"
+                "critical",
+                report_content,
+                "Should identify critical physics parameters",
             )
             self.assertIn(
                 "netradiationmethod",
@@ -877,7 +881,9 @@ sites:
                 "Should count extra parameters",
             )
             # The report uses "critical" not "URGENT" in public mode
-            self.assertIn("critical", report_content, "Should identify critical parameters")
+            self.assertIn(
+                "critical", report_content, "Should identify critical parameters"
+            )
 
             # === VERIFY YAML VALIDITY ===
             # Final verification that the output YAML is valid and parseable
@@ -2454,6 +2460,7 @@ def test_precheck_thermal_layer_cp_renaming_mixed_surfaces():
         not in updated_data["sites"][0]["properties"]["land_cover"]["grass"]
     )
 
+
 # ============================================================================
 # From test_suews_yaml_processor.py - Orchestrator Integration Tests
 # ============================================================================
@@ -3299,7 +3306,9 @@ class TestPhaseBScienceCheck(TestProcessorFixtures):
         assert len(results) > 0
         assert any("rslmethod" in result.message for result in results)
 
-    @patch("supy.data_model.yaml_processor.phase_b_science_check.get_mean_monthly_air_temperature")
+    @patch(
+        "supy.data_model.yaml_processor.phase_b_science_check.get_mean_monthly_air_temperature"
+    )
     def test_cru_temperature_integration(self, mock_cru):
         """Test CRU temperature data integration."""
         mock_cru.return_value = 15.2  # Mock temperature value

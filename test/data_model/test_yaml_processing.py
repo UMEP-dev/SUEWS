@@ -33,6 +33,12 @@ import tempfile
 import unittest
 
 import yaml
+from supy._env import trv_supy_module
+try:
+    from importlib.resources import as_file
+except ImportError:
+    # backport for python < 3.9
+    from importlib_resources import as_file
 
 # Import the functions we want to test
 from supy.data_model.yaml_processor.phase_a_parameter_update import (
@@ -56,11 +62,11 @@ class TestUptodateYaml(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         """Set up test fixtures using real sample_config.yml."""
-        # Path to the standard configuration file (relative to project root)
-        cls.standard_file = "src/supy/sample_data/sample_config.yml"
+        # Path to the standard configuration file - use package resources
+        cls.standard_file = trv_supy_module / "sample_data" / "sample_config.yml"
 
         # Load the standard configuration
-        with open(cls.standard_file) as f:
+        with cls.standard_file.open() as f:
             cls.standard_data = yaml.safe_load(f)
 
         # Create test data scenarios
@@ -483,8 +489,8 @@ class TestRealWorldScenarios(unittest.TestCase):
 
     def setUp(self):
         """Set up with real standard configuration."""
-        self.standard_file = "src/supy/sample_data/sample_config.yml"
-        with open(self.standard_file) as f:
+        self.standard_file = trv_supy_module / "sample_data" / "sample_config.yml"
+        with self.standard_file.open() as f:
             self.standard_data = yaml.safe_load(f)
 
     def test_benchmark_configuration_compatibility(self):
@@ -638,13 +644,15 @@ sites:
             report_file = os.path.join(temp_dir, "report_comprehensive_user.txt")
 
             # Run the complete workflow
-            standard_file = "src/supy/sample_data/sample_config.yml"
-            annotate_missing_parameters(
-                user_file=user_file,
-                standard_file=standard_file,
-                uptodate_file=uptodate_file,
-                report_file=report_file,
-            )
+            # annotate_missing_parameters expects a file path string
+            # Extract resource to a temporary file
+            with as_file(trv_supy_module / "sample_data" / "sample_config.yml") as standard_path:
+                annotate_missing_parameters(
+                    user_file=user_file,
+                    standard_file=str(standard_path),
+                    uptodate_file=uptodate_file,
+                    report_file=report_file,
+                )
 
             # === VERIFY OUTPUT FILES EXIST ===
             self.assertTrue(
@@ -958,12 +966,14 @@ sites:
 
             start_time = time.time()
 
-            annotate_missing_parameters(
-                user_file=user_file,
-                standard_file="src/supy/sample_data/sample_config.yml",
-                uptodate_file=uptodate_file,
-                report_file=report_file,
-            )
+            # Extract resource to a temporary file
+            with as_file(trv_supy_module / "sample_data" / "sample_config.yml") as standard_path:
+                annotate_missing_parameters(
+                    user_file=user_file,
+                    standard_file=str(standard_path),
+                    uptodate_file=uptodate_file,
+                    report_file=report_file,
+                )
 
             end_time = time.time()
             processing_time = end_time - start_time

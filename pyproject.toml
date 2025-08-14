@@ -117,3 +117,9 @@ filterwarnings = [
     # Alternative: ignore all warnings from pydantic.main module
     "ignore::UserWarning:pydantic.main",
 ]
+# Test markers for tiered testing
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "nightly: marks tests for nightly/complete validation runs",
+    "quick: marks tests suitable for quick CI runs",
+]

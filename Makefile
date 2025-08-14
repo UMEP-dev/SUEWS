@@ -1,6 +1,6 @@
 # SUEWS Makefile - read the README file before editing
 
-.PHONY: main clean test pip supy docs dev dev-clean dev-fast livehtml schema proc-csv config-ui check-dev-install mamba-dev help deactivate format lint uv-dev uv-clean
+.PHONY: main clean test test-quick test-full test-nightly pip supy docs dev dev-clean dev-fast livehtml schema proc-csv config-ui check-dev-install mamba-dev help deactivate format lint uv-dev uv-clean
 
 # OS-specific configurations
 ifeq ($(OS),Windows_NT)
@@ -67,6 +67,12 @@ help:
 	@echo "Claude Code Integration:"
 	@echo "  Use ./claude-dev/claude.sh for workspace management"
 	@echo "  See claude-dev/README.md for complete documentation"
+	@echo ""
+	@echo "Testing:"
+	@echo "  test            - Run full test suite (default)"
+	@echo "  test-quick      - Run quick tests only (excludes slow/nightly) - for CI"
+	@echo "  test-full       - Run all tests including slow ones - for release"
+	@echo "  test-nightly    - Run only slow/nightly tests - for complete validation"
 	@echo ""
 	@echo "Legacy/Manual Commands:"
 	@echo "  mamba-dev       - Build SUEWS with mamba environment check (legacy - use 'make dev')"
@@ -184,6 +190,33 @@ test:
 		uv run pytest test -v --tb=short --durations=10; \
 	else \
 		$(PYTHON) -m pytest test -v --tb=short --durations=10; \
+	fi
+
+# Quick tests for CI (excludes slow/nightly tests)
+test-quick:
+	@if command -v uv >/dev/null 2>&1 && [ -n "$${UV_RUN:-}" ]; then \
+		echo "Running quick tests with uv (excluding slow/nightly)..."; \
+		uv run pytest test -m "not slow and not nightly" -v --tb=short --durations=10; \
+	else \
+		$(PYTHON) -m pytest test -m "not slow and not nightly" -v --tb=short --durations=10; \
+	fi
+
+# Full test suite including slow tests (for nightly/release)
+test-full:
+	@if command -v uv >/dev/null 2>&1 && [ -n "$${UV_RUN:-}" ]; then \
+		echo "Running full test suite with uv (including slow tests)..."; \
+		uv run pytest test -v --tb=short --durations=20; \
+	else \
+		$(PYTHON) -m pytest test -v --tb=short --durations=20; \
+	fi
+
+# Nightly tests only (very slow tests)
+test-nightly:
+	@if command -v uv >/dev/null 2>&1 && [ -n "$${UV_RUN:-}" ]; then \
+		echo "Running nightly tests with uv (slow tests only)..."; \
+		uv run pytest test -m "slow or nightly" -v --tb=short; \
+	else \
+		$(PYTHON) -m pytest test -m "slow or nightly" -v --tb=short; \
 	fi
 
 # make supy wheels using cibuild

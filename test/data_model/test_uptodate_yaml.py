@@ -20,7 +20,7 @@ import yaml
 from pathlib import Path
 
 # Import the functions we want to test
-from uptodate_yaml import (
+from src.supy.data_model.uptodate_yaml import (
     find_missing_parameters,
     find_extra_parameters,
     handle_renamed_parameters,

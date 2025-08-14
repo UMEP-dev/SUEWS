@@ -1141,17 +1141,19 @@ Reference
 Related Documentation
 ---------------------
 
-**Namelist to YAML Conversion**
-   For users migrating from pre-SUEWS_V2025 namelist format, see: `namelist_to_yaml_conversion.rst <namelist_to_yaml_conversion.rst>`__
-
-**Detailed Documentation**
-   - **Orchestrator Implementation**: See `suews_yaml_processor_detailed.rst <suews_yaml_processor_detailed.rst>`__ for complete orchestrator functions and workflow coordination
-   - **Phase A Details**: See `phase_a_detailed.rst <phase_a_detailed.rst>`__ for comprehensive parameter detection rules
-   - **Phase B Details**: See `phase_b_detailed.rst <phase_b_detailed.rst>`__ for scientific validation specifications
-   - **Phase C Details**: See `phase_c_detailed.rst <phase_c_detailed.rst>`__ for complete Pydantic validation rules
-
 **SUEWS Configuration Schema**
    For parameter specifications and validation details, see: `YAML Configuration Documentation <../../../inputs/yaml/index.html>`_
 
-**CRU Dataset **
-- All CRU data are from `<https://crudata.uea.ac.uk/cru/data/hrg/cru_ts_4.06/>`
+**CRU Dataset**
+   All CRU data are from `<https://crudata.uea.ac.uk/cru/data/hrg/cru_ts_4.06/>`
+
+.. toctree::
+   :maxdepth: 2
+   :caption: Detailed Documentation
+   :hidden:
+
+   processor_detailed
+   phase_a_detailed
+   phase_b_detailed
+   phase_c_detailed
+   namelist_to_yaml_conversion

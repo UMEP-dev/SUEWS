@@ -2276,11 +2276,11 @@ class SUEWSConfig(BaseModel):
                 list_df_site.append(df_site)
 
             df = pd.concat(list_df_site, axis=0)
-            
+
             # Add metadata columns directly to maintain MultiIndex structure
             df[("config", "0")] = self.name
             df[("description", "0")] = self.description
-            
+
             # remove duplicate columns
             df = df.loc[:, ~df.columns.duplicated()]
         except Exception as e:

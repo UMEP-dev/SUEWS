@@ -869,7 +869,7 @@ class GrassProperties(VegetatedSurfaceProperties):
 
         # Sort the MultiIndex columns to avoid performance warnings
         df_state = df_state.sort_index(axis=1)
-        
+
         return df_state
 
     @classmethod

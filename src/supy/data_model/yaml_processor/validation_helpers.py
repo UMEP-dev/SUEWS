@@ -29,7 +29,7 @@ from copy import deepcopy
 from datetime import datetime
 from timezonefinder import TimezoneFinder
 import pytz
-from supy._env import logger_supy, trv_supy_module
+from ..._env import logger_supy, trv_supy_module
 import os
 
 

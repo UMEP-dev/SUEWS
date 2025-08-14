@@ -8,7 +8,7 @@ import pytest
 import pandas as pd
 import numpy as np
 from pathlib import Path
-from supy.data_model.precheck import get_mean_monthly_air_temperature
+from supy.data_model.yaml_processor.validation_helpers import get_mean_monthly_air_temperature
 
 
 class TestCRUDataLoading:
@@ -143,7 +143,7 @@ class TestCRUIntegrationWithPrecheck:
     def test_precheck_uses_cru_temperature(self):
         """Test that precheck properly uses CRU data for temperature initialization."""
         from copy import deepcopy
-        from supy.data_model.precheck import precheck_update_temperature
+        from supy.data_model.yaml_processor.validation_helpers import precheck_update_temperature
 
         # Build minimal configuration
         data = {

@@ -112,10 +112,17 @@ class TestAtmosphericCalculations(TestCase):
         print("\n========================================")
         print("Testing cal_rh (relative humidity)...")
 
-        # Note: cal_rh function appears to have an issue with atmosp library
-        # The 'av' parameter should be 'qv' in the atmosp call
-        # Skip this test for now
-        self.skipTest("cal_rh has incompatible parameter name 'av' vs 'qv'")
+        # Calculate qa first from known RH
+        qa = cal_qa(self.rh_pct, self.ta_k, self.pres_hpa)
+        
+        # Now calculate RH back from qa
+        rh_calc = cal_rh(qa, self.ta_k, self.pres_hpa)
+        
+        # Should get back approximately the same RH
+        self.assertIsInstance(rh_calc, (float, np.floating))
+        self.assertAlmostEqual(rh_calc, self.rh_pct, delta=1.0)  # Within 1% tolerance
+        
+        print(f"✓ Calculated RH: {rh_calc:.1f}% (expected: {self.rh_pct}%)")
 
     def test_cal_lat_vap(self):
         """Test latent heat of vaporisation calculation."""

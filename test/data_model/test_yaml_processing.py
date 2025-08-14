@@ -302,8 +302,9 @@ sites:
         result = create_uptodate_yaml_with_missing_params(yaml_content, missing_params)
 
         # Should contain header
-        self.assertIn("UP TO DATE YAML", result)
-        self.assertIn("uptodate_yaml.py", result)
+        self.assertIn("Updated YAML", result)
+        # Header mentions "updated by the SUEWS processor", not "uptodate_yaml.py"
+        self.assertIn("SUEWS processor", result)
 
         # Should contain null value for missing parameter
         self.assertIn("netradiationmethod:", result)
@@ -324,20 +325,23 @@ sites:
         report = create_analysis_report(missing_params, renamed_params, extra_params)
 
         # Should contain all sections
-        self.assertIn("SUEWS Configuration Analysis Report", report)
-        self.assertIn("## Summary", report)
-        self.assertIn("MISSING IN STANDARD Parameters", report)
-        self.assertIn("RENAMED IN STANDARD Parameters", report)
-        self.assertIn("NOT IN STANDARD Parameters", report)
-        self.assertIn("## Next Steps", report)
+        self.assertIn("SUEWS - Phase A", report)
+        self.assertIn("## ACTION NEEDED", report)
+        self.assertIn("critical missing parameter", report)
+        # The report uses "Updated (1) renamed parameter(s):" format
+        self.assertIn("renamed parameter", report)
+        # The report uses "not allowed extra parameter name(s):" format
+        self.assertIn("not allowed extra parameter", report)
+        # Report uses ## ACTION NEEDED and ## NO ACTION NEEDED sections
+        self.assertIn("## ACTION NEEDED", report)
 
         # Should properly categorize URGENT vs optional
-        self.assertIn("URGENT", report)
-        self.assertIn("physics options", report)
+        # In public mode uses "critical" not "URGENT"
+        self.assertIn("critical", report)
         self.assertIn("netradiationmethod", report)
 
         # Should contain renamed parameter info
-        self.assertIn("diagmethod -> rslmethod", report)
+        self.assertIn("diagmethod changed to rslmethod", report)
 
         # Should contain extra parameter info
         self.assertIn("custom_param", report)
@@ -370,7 +374,7 @@ sites:
             with open(uptodate_file, "r") as f:
                 uptodate_content = f.read()
 
-            self.assertIn("UP TO DATE YAML", uptodate_content)
+            self.assertIn("Updated YAML", uptodate_content)
             self.assertIn("netradiationmethod:", uptodate_content)
             self.assertIn("value: null", uptodate_content)
 
@@ -378,8 +382,9 @@ sites:
             with open(report_file, "r") as f:
                 report_content = f.read()
 
-            self.assertIn("SUEWS Configuration Analysis Report", report_content)
-            self.assertIn("URGENT", report_content)
+            self.assertIn("SUEWS - Phase A", report_content)
+            # In public mode, uses "critical" not "URGENT"
+            self.assertIn("critical", report_content)
             self.assertIn("netradiationmethod", report_content)
 
     def test_no_missing_parameters_scenario(self):
@@ -653,16 +658,16 @@ sites:
                 uptodate_content = f.read()
 
             # Should contain header
-            self.assertIn("UP TO DATE YAML", uptodate_content)
-            self.assertIn("uptodate_yaml.py", uptodate_content)
+            self.assertIn("Updated YAML", uptodate_content)
+            self.assertIn("Updated YAML", uptodate_content)
 
             # Should have RENAMED parameters updated (no old names)
-            self.assertNotIn(
-                "diagmethod:", uptodate_content, "Old parameter name should be replaced"
-            )
-            self.assertNotIn(
-                "cp:", uptodate_content, "Old parameter name should be replaced"
-            )
+            # Note: The YAML may contain "cp:" in other contexts like "rho_cp:"
+            # So we check for the specific old parameter in the physics section
+            uptodate_yaml = yaml.safe_load(uptodate_content)
+            # Old parameters should not exist in their original locations
+            self.assertNotIn("diagmethod", uptodate_yaml.get("model", {}).get("physics", {}))
+            self.assertNotIn("cp", uptodate_yaml.get("model", {}).get("physics", {}))
             self.assertIn(
                 "rslmethod:", uptodate_content, "New parameter name should be present"
             )
@@ -722,34 +727,40 @@ sites:
                 report_content = f.read()
 
             # Should contain all sections
-            self.assertIn("SUEWS Configuration Analysis Report", report_content)
-            self.assertIn("## Summary", report_content)
-            self.assertIn("MISSING IN STANDARD Parameters", report_content)
-            self.assertIn("RENAMED IN STANDARD Parameters", report_content)
-            self.assertIn("NOT IN STANDARD Parameters", report_content)
-            self.assertIn("## Next Steps", report_content)
+            self.assertIn("SUEWS - Phase A", report_content)
+            self.assertIn("## ACTION NEEDED", report_content)
+            # The report uses "critical missing parameter(s):" format
+            self.assertIn("critical missing parameter", report_content)
+            # The report uses "Updated (X) renamed parameter(s):" format
+            self.assertIn("renamed parameter", report_content)
+            # The report uses "not allowed extra parameter name(s):" format
+            self.assertIn("not allowed extra parameter", report_content)
+            # Report uses ## ACTION NEEDED and ## NO ACTION NEEDED sections
+            self.assertIn("## ACTION NEEDED", report_content)
 
             # Should properly identify URGENT vs optional missing parameters
             self.assertIn(
-                "URGENT", report_content, "Should identify URGENT physics parameters"
+                "critical", report_content, "Should identify critical physics parameters"
             )
             self.assertIn(
                 "netradiationmethod",
                 report_content,
                 "Should list missing physics parameter",
             )
+            # Report doesn't use "physics options" phrasing, just lists parameters
             self.assertIn(
-                "physics options", report_content, "Should categorize physics options"
+                "Suggested fix:", report_content, "Should provide fix suggestions"
             )
 
             # Should list renamed parameters with old -> new mapping
+            # Report uses "diagmethod changed to rslmethod" format
             self.assertIn(
-                "diagmethod -> rslmethod",
+                "diagmethod changed to rslmethod",
                 report_content,
                 "Should show parameter renaming",
             )
             self.assertIn(
-                "cp -> rho_cp", report_content, "Should show parameter renaming"
+                "cp changed to rho_cp", report_content, "Should show parameter renaming"
             )
 
             # Should list NOT IN STANDARD parameters
@@ -775,8 +786,10 @@ sites:
                 report_content,
                 "Should contain manual link",
             )
+            # Report no longer references the specific filename in the new format
+            # It just says things were "added to the updated YAML"
             self.assertIn(
-                "uptodate_user.yml", report_content, "Should reference output file"
+                "updated YAML", report_content, "Should reference updated YAML"
             )
 
             # === VERIFY DATA COMPLETENESS ===
@@ -842,38 +855,28 @@ sites:
             )
 
             # === VERIFY COUNTS AND STATISTICS ===
-            # Parse the report to verify statistics
-            lines = report_content.split("\n")
-            summary_section = []
-            in_summary = False
-            for line in lines:
-                if "## Summary" in line:
-                    in_summary = True
-                    continue
-                elif line.startswith("##") and in_summary:
-                    break
-                elif in_summary:
-                    summary_section.append(line)
-
-            summary_text = "\n".join(summary_section)
-
-            # Should report correct counts
+            # The new report format doesn't have a "## Summary" section
+            # Instead it lists counts directly in the ACTION NEEDED and NO ACTION NEEDED sections
+            # e.g. "Found (12) critical missing parameter(s):"
+            
+            # Should report correct counts in the report
             self.assertIn(
-                "MISSING IN STANDARD parameters",
-                summary_text,
+                "critical missing parameter",
+                report_content,
                 "Should count missing parameters",
             )
             self.assertIn(
-                "RENAMED IN STANDARD parameters",
-                summary_text,
+                "renamed parameter",
+                report_content,
                 "Should count renamed parameters",
             )
             self.assertIn(
-                "NOT IN STANDARD parameters",
-                summary_text,
+                "not allowed extra parameter",
+                report_content,
                 "Should count extra parameters",
             )
-            self.assertIn("URGENT:", summary_text, "Should count urgent parameters")
+            # The report uses "critical" not "URGENT" in public mode
+            self.assertIn("critical", report_content, "Should identify critical parameters")
 
             # === VERIFY YAML VALIDITY ===
             # Final verification that the output YAML is valid and parseable

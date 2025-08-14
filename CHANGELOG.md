@@ -34,6 +34,12 @@
 
 ## 2025
 
+### 14 Aug 2025
+- [bugfix] Fix test failures in CI by using package resources for sample_config.yml access
+  - Use importlib.resources for proper package resource handling in tests
+  - Replace hardcoded paths with trv_supy_module from supy._env
+  - Ensures tests work correctly in different directory structures (local vs CI)
+
 ### 13 Aug 2025
 - [maintenance] Marked ANOHM-specific fields as internal to exclude from user documentation ([#598](https://github.com/UMEP-dev/SUEWS/pull/598))
   - Added `internal_only` flag to ANOHM-specific fields (ch_anohm, rho_cp_anohm, k_anohm)

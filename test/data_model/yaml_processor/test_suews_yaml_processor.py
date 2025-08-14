@@ -2,11 +2,11 @@
 Comprehensive Test Suite for SUEWS YAML Processor
 
 This test suite covers all five components of the SUEWS YAML processor:
-1. uptodate_yaml.py (Phase A functions)
-2. science_check.py (Phase B functions)
+1. phase_a_parameter_update.py (Phase A functions)
+2. phase_b_science_check.py (Phase B functions)
 3. core.py (Phase C Pydantic validation)
-4. phase_c_reports.py (Phase C reporting)
-5. suews_yaml_processor.py (orchestrator functions)
+4. phase_c_pydantic_report.py (Phase C reporting)
+5. orchestrator.py (orchestrator functions)
 
 Testing strategy:
 - Unit tests for individual functions in each module
@@ -197,7 +197,7 @@ class TestProcessorFixtures:
 
 
 class TestPhaseAUptoDateYaml(TestProcessorFixtures):
-    """Test suite for Phase A (uptodate_yaml.py) functionality."""
+    """Test suite for Phase A (parameter update) functionality."""
 
     def test_find_missing_parameters_basic(
         self, minimal_user_config, sample_standard_config
@@ -711,7 +711,7 @@ class TestPhaseAUptoDateYaml(TestProcessorFixtures):
 
 
 class TestPhaseBScienceCheck(TestProcessorFixtures):
-    """Test suite for Phase B (science_check.py) functionality."""
+    """Test suite for Phase B (science check) functionality."""
 
     def test_physics_parameters_validation_success(self):
         """Test successful physics parameter validation."""
@@ -1119,7 +1119,7 @@ class TestPhaseCPydanticValidation(TestProcessorFixtures):
 
 
 class TestPhaseCReporting(TestProcessorFixtures):
-    """Test suite for Phase C reporting (phase_c_reports.py) functionality."""
+    """Test suite for Phase C (Pydantic reporting) functionality."""
 
     def test_pydantic_error_report_generation(self, temp_directory):
         """Test generation of Pydantic validation error reports."""
@@ -1210,7 +1210,7 @@ class TestPhaseCReporting(TestProcessorFixtures):
 
 
 class TestSuewsYamlProcessorOrchestrator(TestProcessorFixtures):
-    """Test suite for orchestrator (suews_yaml_processor.py) functionality."""
+    """Test suite for orchestrator functionality."""
 
     def test_individual_phase_execution(self, temp_yaml_files):
         """Test individual phase execution (A, B, C)."""
@@ -1364,7 +1364,7 @@ class TestCodeQualityAndCleanup(TestProcessorFixtures):
     """Test suite for code quality issues identified in CODE_CLEANUP_REVIEW.md."""
 
     def test_no_unused_imports_in_processor(self):
-        """Test that suews_yaml_processor.py doesn't have unused imports from CODE_CLEANUP_REVIEW.md."""
+        """Test that orchestrator.py doesn't have unused imports from CODE_CLEANUP_REVIEW.md."""
         if not has_suews_yaml_processor:
             pytest.skip("suews_yaml_processor module not available")
 
@@ -1373,15 +1373,16 @@ class TestCodeQualityAndCleanup(TestProcessorFixtures):
 
         # Get the source file path
         processor_file = (
-            Path(__file__).parent.parent
+            Path(__file__).parent.parent.parent.parent  # Go up to repo root
             / "src"
             / "supy"
             / "data_model"
-            / "suews_yaml_processor.py"
+            / "yaml_processor"
+            / "orchestrator.py"
         )
 
         if not processor_file.exists():
-            pytest.skip("suews_yaml_processor.py source file not found")
+            pytest.skip("orchestrator.py source file not found")
 
         # Read and parse the source code
         with open(processor_file, "r") as f:
@@ -1452,15 +1453,16 @@ class TestCodeQualityAndCleanup(TestProcessorFixtures):
             pytest.skip("suews_yaml_processor module not available")
 
         processor_file = (
-            Path(__file__).parent.parent
+            Path(__file__).parent.parent.parent.parent  # Go up to repo root
             / "src"
             / "supy"
             / "data_model"
-            / "suews_yaml_processor.py"
+            / "yaml_processor"
+            / "orchestrator.py"
         )
 
         if not processor_file.exists():
-            pytest.skip("suews_yaml_processor.py source file not found")
+            pytest.skip("orchestrator.py source file not found")
 
         with open(processor_file, "r") as f:
             lines = f.readlines()
@@ -1500,15 +1502,16 @@ class TestCodeQualityAndCleanup(TestProcessorFixtures):
             pytest.skip("suews_yaml_processor module not available")
 
         processor_file = (
-            Path(__file__).parent.parent
+            Path(__file__).parent.parent.parent.parent  # Go up to repo root
             / "src"
             / "supy"
             / "data_model"
-            / "suews_yaml_processor.py"
+            / "yaml_processor"
+            / "orchestrator.py"
         )
 
         if not processor_file.exists():
-            pytest.skip("suews_yaml_processor.py source file not found")
+            pytest.skip("orchestrator.py source file not found")
 
         with open(processor_file, "r") as f:
             content = f.read()

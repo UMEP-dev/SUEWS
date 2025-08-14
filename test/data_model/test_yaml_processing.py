@@ -2535,8 +2535,8 @@ except ImportError:
     has_phase_c_reports = False
 
 try:
-    from supy.data_model.yaml_processor import orchestrator as suews_yaml_processor
-
+    from supy.data_model.yaml_processor import orchestrator
+    suews_yaml_processor = orchestrator  # Keep the alias for compatibility
     has_suews_yaml_processor = True
 except ImportError:
     has_suews_yaml_processor = False
@@ -3845,9 +3845,9 @@ class TestCodeQualityAndCleanup(TestProcessorFixtures):
         if not has_suews_yaml_processor:
             pytest.skip("suews_yaml_processor module not available")
 
-        # Get the source file path
+        # Get the source file path - use resolve() to get absolute path
         processor_file = (
-            Path(__file__).parent.parent.parent.parent  # Go up to repo root
+            Path(__file__).resolve().parent.parent.parent  # Go up to repo root
             / "src"
             / "supy"
             / "data_model"
@@ -3856,7 +3856,7 @@ class TestCodeQualityAndCleanup(TestProcessorFixtures):
         )
 
         if not processor_file.exists():
-            pytest.skip("orchestrator.py source file not found")
+            pytest.skip(f"orchestrator.py source file not found at {processor_file}")
 
         # Read and parse the source code
         with open(processor_file) as f:
@@ -3927,7 +3927,7 @@ class TestCodeQualityAndCleanup(TestProcessorFixtures):
             pytest.skip("suews_yaml_processor module not available")
 
         processor_file = (
-            Path(__file__).parent.parent.parent.parent  # Go up to repo root
+            Path(__file__).resolve().parent.parent.parent  # Go up to repo root
             / "src"
             / "supy"
             / "data_model"
@@ -3976,7 +3976,7 @@ class TestCodeQualityAndCleanup(TestProcessorFixtures):
             pytest.skip("suews_yaml_processor module not available")
 
         processor_file = (
-            Path(__file__).parent.parent.parent.parent  # Go up to repo root
+            Path(__file__).resolve().parent.parent.parent  # Go up to repo root
             / "src"
             / "supy"
             / "data_model"

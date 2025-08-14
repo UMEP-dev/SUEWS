@@ -23,7 +23,9 @@ from .hydro import WaterDistribution, StorageDrainParams
 
 
 class ThermalLayers(BaseModel):
-    model_config = ConfigDict(populate_by_name=True)
+    """Thermal properties of surface layers."""
+
+    model_config = ConfigDict(populate_by_name=True, title="Thermal Layers")
     dz: Optional[FlexibleRefValue(List[Optional[float]])] = Field(
         default=None,
         description="Thickness of thermal layers from surface to depth",
@@ -159,6 +161,8 @@ class ThermalLayers(BaseModel):
 class SurfaceProperties(BaseModel):
     """Base properties for all surface types"""
 
+    model_config = ConfigDict(title="Surface Properties")
+
     sfr: FlexibleRefValue(float) = Field(
         ge=0,
         le=1,
@@ -179,6 +183,7 @@ class SurfaceProperties(BaseModel):
         json_schema_extra={
             "unit": "J m^-3 K^-1",
             "display_name": "ANOHM Bulk Transfer Coefficient",
+            "internal_only": True,
         },
     )
     rho_cp_anohm: Optional[FlexibleRefValue(float)] = Field(
@@ -187,6 +192,7 @@ class SurfaceProperties(BaseModel):
         json_schema_extra={
             "unit": "J m^-3 K^-1",
             "display_name": "ANOHM Volumetric Heat Capacity",
+            "internal_only": True,
         },
     )
     k_anohm: Optional[FlexibleRefValue(float)] = Field(
@@ -195,6 +201,7 @@ class SurfaceProperties(BaseModel):
         json_schema_extra={
             "unit": "W m^-1 K^-1",
             "display_name": "ANOHM Thermal Conductivity",
+            "internal_only": True,
         },
     )
     ohm_threshsw: Optional[FlexibleRefValue(float)] = Field(
@@ -559,6 +566,14 @@ class NonVegetatedSurfaceProperties(SurfaceProperties):
 class PavedProperties(
     NonVegetatedSurfaceProperties
 ):  # May need to move VWD for waterdist to here for referencing
+    """Properties for paved surfaces including roads, pavements, and parking areas.
+
+    Paved surfaces are impervious areas that prevent water infiltration and contribute
+    to urban runoff. They typically have high thermal mass and low albedo, contributing
+    significantly to the urban heat island effect.
+    """
+
+    model_config = ConfigDict(title="Paved Surfaces")
     _surface_type: Literal[SurfaceType.PAVED] = SurfaceType.PAVED
     waterdist: WaterDistribution = Field(
         default_factory=lambda: WaterDistribution(SurfaceType.PAVED),
@@ -818,6 +833,14 @@ class BuildingLayer(
 class BldgsProperties(
     NonVegetatedSurfaceProperties
 ):  # May need to move VWD for waterdist to here for referencing
+    """Properties for building surfaces including roofs and walls.
+
+    Building surfaces are complex urban elements that interact with radiation,
+    store heat, and influence local wind patterns. They include both roof and
+    wall components with distinct thermal and radiative properties.
+    """
+
+    model_config = ConfigDict(title="Buildings")
     _surface_type: Literal[SurfaceType.BLDGS] = SurfaceType.BLDGS
     faibldg: Optional[FlexibleRefValue(float)] = Field(
         ge=0,
@@ -903,6 +926,14 @@ class BldgsProperties(
 class BsoilProperties(
     NonVegetatedSurfaceProperties
 ):  # May need to move VWD for waterdist to here for referencing
+    """Properties for bare soil surfaces.
+
+    Bare soil surfaces are exposed earth areas without vegetation cover,
+    commonly found in construction sites, unpaved areas, or drought-affected
+    regions. They can absorb water and have moderate albedo values.
+    """
+
+    model_config = ConfigDict(title="Bare Soil")
     _surface_type: Literal[SurfaceType.BSOIL] = SurfaceType.BSOIL
     waterdist: WaterDistribution = Field(
         default_factory=lambda: WaterDistribution(SurfaceType.BSOIL),
@@ -925,6 +956,14 @@ class BsoilProperties(
 
 
 class WaterProperties(NonVegetatedSurfaceProperties):
+    """Properties for water surfaces including rivers, lakes, and fountains.
+
+    Water surfaces have unique thermal properties with high heat capacity
+    and evaporative cooling effects. They moderate local temperatures but
+    have very low albedo values.
+    """
+
+    model_config = ConfigDict(title="Water Surfaces")
     _surface_type: Literal[SurfaceType.WATER] = SurfaceType.WATER
     flowchange: FlexibleRefValue(float) = Field(
         default=0.0,
@@ -974,6 +1013,10 @@ class WallLayer(BuildingLayer):
 
 
 class VerticalLayers(BaseModel):
+    """Vertical structure of surface layers."""
+
+    model_config = ConfigDict(title="Vertical Layers")
+
     nlayer: FlexibleRefValue(int) = Field(
         default=3,
         description="Number of vertical layers in the urban canopy",

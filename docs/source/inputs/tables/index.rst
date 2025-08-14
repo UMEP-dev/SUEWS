@@ -1,5 +1,7 @@
 .. _input_files:
 
+:nosearch:
+
 Table-based Input Files (Legacy Format)
 ========================================
 

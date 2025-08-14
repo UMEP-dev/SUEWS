@@ -22,13 +22,14 @@ def get_version_from_git():
 
         # Match against the pattern including optional 'dev' part
         match = re.match(
-            r"^(v?\d+\.\d+\.\d+(?:\.\w+)?)-(\d+)-g[0-9a-f]+$", describe_output
+            r"^(v?\d+\.\d+\.\d+(?:\.\w+)?)-(\d+)-g([0-9a-f]+)$", describe_output
         )
         # print(match.groups())
 
         if match:
             base_version = match.group(1)
             distance = int(match.group(2))
+            commit_hash = match.group(3)
 
             # Clean up version to be valid Python packaging version
             if base_version.startswith("v"):
@@ -79,6 +80,30 @@ __version_tuple__ = version_tuple = {version_tuple}
         file.write(content)
 
     # print(f"Generated {version_file} with version {version_str}")
+
+
+def get_commit_info():
+    """Get both short and full commit hashes."""
+    try:
+        commit_short = (
+            subprocess.check_output(
+                ["git", "rev-parse", "--short=7", "HEAD"], stderr=subprocess.DEVNULL
+            )
+            .decode("utf-8")
+            .strip()
+        )
+
+        commit_full = (
+            subprocess.check_output(
+                ["git", "rev-parse", "HEAD"], stderr=subprocess.DEVNULL
+            )
+            .decode("utf-8")
+            .strip()
+        )
+
+        return commit_short, commit_full
+    except:
+        return "unknown", "unknown"
 
 
 def parse_version_tuple(version_str):

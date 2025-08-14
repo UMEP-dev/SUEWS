@@ -290,4 +290,3 @@ Example Python code to read parquet output::
    # Access specific variable
    qh = df_output[('SUEWS', 'QH')]
 
-For more information about working with parquet files, see :ref:`parquet_note`.

@@ -23,16 +23,36 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 
 ## Best Practice Setup Method
 
-### Recommended: Using pyproject.toml
+### Recommended: Using the Makefile Recipe
 
-This method uses the project's existing `pyproject.toml` which already defines all dependencies:
+The easiest way is to use the provided Makefile recipe which handles everything:
+
+```bash
+# One command to set up everything
+make uv-dev
+
+# Then activate the environment
+source .venv/bin/activate  # Required due to Python 3.13 compatibility
+
+# Verify installation
+python -c "import supy; print(f'✓ SuPy {supy.__version__} ready')"
+```
+
+This recipe:
+- Creates a uv virtual environment if it doesn't exist
+- Installs SUEWS with development + documentation dependencies
+- Uses the project's `pyproject.toml` configuration
+
+### Alternative: Manual Setup with pyproject.toml
+
+If you prefer manual control:
 
 ```bash
 # 1. Create and activate virtual environment
 uv venv
-source .venv/bin/activate  # Required due to Python 3.13 compatibility
+source .venv/bin/activate
 
-# 2. Install SUEWS with development + documentation dependencies (recommended)
+# 2. Install SUEWS with development + documentation dependencies
 uv pip install -e ".[dev,docs]"
 
 # Or install everything including all optional dependencies
@@ -77,13 +97,14 @@ git worktree add worktrees/$FEATURE feature/$FEATURE
 # Navigate to the worktree
 cd worktrees/$FEATURE
 
-# Set up uv environment using Method 1 (recommended)
-uv venv
+# Set up uv environment using the Makefile recipe (recommended)
+make uv-dev
 source .venv/bin/activate
-uv pip install -e ".[dev]"
 
-# Or for full development including docs
-uv pip install -e ".[all]"
+# Or manually if you prefer:
+# uv venv
+# source .venv/bin/activate
+# uv pip install -e ".[dev,docs]"
 
 # Test your setup
 make test
@@ -103,9 +124,11 @@ Currently, you need to activate the environment (`source .venv/bin/activate`) ra
 
 ### Build System Integration
 
-The Makefile automatically detects and uses uv:
-- `make dev` - Builds SUEWS using uv if available
-- `make test` - Runs tests in the uv environment
+The Makefile provides convenient recipes for uv:
+- `make uv-dev` - One-stop setup of uv environment with all dependencies
+- `make uv-clean` - Clean the uv virtual environment
+- `make dev` - Builds SUEWS using uv if available (auto-detects environment)
+- `make test` - Runs tests in the active environment
 
 ## Verification
 
@@ -163,8 +186,9 @@ If you encounter issues:
 
 The recommended approach for SUEWS development with uv:
 
-1. Use `uv pip install -e ".[dev]"` for development work
-2. Use `uv pip install -e ".[all]"` for full setup including documentation
+1. Use `make uv-dev` for the simplest setup experience
+2. Alternatively, use `uv pip install -e ".[dev,docs]"` for manual control
 3. Always activate the environment with `source .venv/bin/activate`
 4. The setup takes seconds compared to minutes with conda/mamba
 5. All dependencies are properly aligned with `pyproject.toml` and `env.yml`
+6. Use `make uv-clean` to remove the environment when needed

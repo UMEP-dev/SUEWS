@@ -16,12 +16,14 @@ git worktree add worktrees/$FEATURE feature/$FEATURE || exit 1
 # Navigate to the worktree
 cd worktrees/$FEATURE
 
-# Create virtual environment with uv (ultra-fast!)
-uv venv
+# Option 1: Use the convenient make recipe (RECOMMENDED)
+make uv-dev
 source .venv/bin/activate
 
-# Install SUEWS with development + documentation dependencies (aligned with pyproject.toml)
-uv pip install -e ".[dev,docs]"
+# Option 2: Manual setup with uv
+# uv venv
+# source .venv/bin/activate
+# uv pip install -e ".[dev,docs]"
 
 # Alternative: If pyproject.toml method fails, see setup-uv-environment.md
 
@@ -62,7 +64,9 @@ git worktree list
 
 ## Alternative: Standard Python venv
 
-If uv is not available, use Python's built-in venv:
+If uv is not available, use Python's built-in venv.
+
+**Note**: You can also use `make dev` which automatically detects your environment:
 
 ```bash
 FEATURE="my-feature"

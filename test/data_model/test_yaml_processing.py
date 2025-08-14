@@ -34,6 +34,7 @@ import unittest
 
 import yaml
 from supy._env import trv_supy_module
+
 try:
     from importlib.resources import as_file
 except ImportError:
@@ -646,7 +647,9 @@ sites:
             # Run the complete workflow
             # annotate_missing_parameters expects a file path string
             # Extract resource to a temporary file
-            with as_file(trv_supy_module / "sample_data" / "sample_config.yml") as standard_path:
+            with as_file(
+                trv_supy_module / "sample_data" / "sample_config.yml"
+            ) as standard_path:
                 annotate_missing_parameters(
                     user_file=user_file,
                     standard_file=str(standard_path),
@@ -967,7 +970,9 @@ sites:
             start_time = time.time()
 
             # Extract resource to a temporary file
-            with as_file(trv_supy_module / "sample_data" / "sample_config.yml") as standard_path:
+            with as_file(
+                trv_supy_module / "sample_data" / "sample_config.yml"
+            ) as standard_path:
                 annotate_missing_parameters(
                     user_file=user_file,
                     standard_file=str(standard_path),

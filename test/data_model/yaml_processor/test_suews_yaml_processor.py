@@ -43,28 +43,28 @@ phase_c_reports = None
 suews_yaml_processor = None
 
 try:
-    from supy.data_model import uptodate_yaml
+    from supy.data_model.yaml_processor import phase_a_parameter_update as uptodate_yaml
 
     has_uptodate_yaml = True
 except ImportError:
     has_uptodate_yaml = False
 
 try:
-    from supy.data_model import science_check
+    from supy.data_model.yaml_processor import phase_b_science_check as science_check
 
     has_science_check = True
 except ImportError:
     has_science_check = False
 
 try:
-    from supy.data_model import phase_c_reports
+    from supy.data_model.yaml_processor import phase_c_pydantic_report as phase_c_reports
 
     has_phase_c_reports = True
 except ImportError:
     has_phase_c_reports = False
 
 try:
-    from supy.data_model import suews_yaml_processor
+    from supy.data_model.yaml_processor import orchestrator as suews_yaml_processor
 
     has_suews_yaml_processor = True
 except ImportError:
@@ -843,7 +843,7 @@ class TestPhaseBScienceCheck(TestProcessorFixtures):
         assert len(results) > 0
         assert any("rslmethod" in result.message for result in results)
 
-    @patch("supy.data_model.science_check.get_mean_monthly_air_temperature")
+    @patch("supy.data_model.yaml_processor.phase_b_science_check.get_mean_monthly_air_temperature")
     def test_cru_temperature_integration(self, mock_cru):
         """Test CRU temperature data integration."""
         mock_cru.return_value = 15.2  # Mock temperature value

@@ -4,7 +4,7 @@ import logging
 from supy._env import logger_supy
 from copy import deepcopy
 from datetime import datetime
-from supy.data_model.precheck import (
+from supy.data_model.yaml_processor.validation_helpers import (
     precheck_model_physics_params,
     precheck_start_end_date,
     precheck_site_season_adjustments,
@@ -1266,7 +1266,7 @@ class TestPrecheckRefValueHandling:
 
 def test_precheck_thermal_layer_cp_renaming():
     """Test that legacy 'cp' fields are renamed to 'rho_cp' in thermal_layers."""
-    from supy.data_model.precheck import precheck_thermal_layer_cp_renaming
+    from supy.data_model.yaml_processor.validation_helpers import precheck_thermal_layer_cp_renaming
 
     # Test data with cp fields in multiple surfaces
     data = {
@@ -1361,7 +1361,7 @@ def test_precheck_thermal_layer_cp_renaming():
 
 def test_precheck_thermal_layer_cp_renaming_no_changes():
     """Test that data without cp fields is unchanged."""
-    from supy.data_model.precheck import precheck_thermal_layer_cp_renaming
+    from supy.data_model.yaml_processor.validation_helpers import precheck_thermal_layer_cp_renaming
 
     # Test data without cp fields
     data = {
@@ -1399,7 +1399,7 @@ def test_precheck_thermal_layer_cp_renaming_no_changes():
 
 def test_precheck_thermal_layer_cp_renaming_mixed_surfaces():
     """Test renaming with surfaces that have no thermal_layers."""
-    from supy.data_model.precheck import precheck_thermal_layer_cp_renaming
+    from supy.data_model.yaml_processor.validation_helpers import precheck_thermal_layer_cp_renaming
 
     data = {
         "sites": [

@@ -16,6 +16,10 @@ from .validation_utils import (
 class IrrigationParams(
     BaseModel
 ):  # TODO: May need to add RefValue to the profiles here
+    """Parameters for irrigation and water use management."""
+
+    model_config = ConfigDict(title="Irrigation")
+
     h_maintain: Optional[FlexibleRefValue(float)] = Field(
         default=None,
         description="Water depth to maintain through irrigation",
@@ -175,6 +179,10 @@ class IrrigationParams(
 class AnthropogenicHeat(
     BaseModel
 ):  # TODO: May need to add the RefValue to the profiles here
+    """Anthropogenic heat flux parameters and profiles."""
+
+    model_config = ConfigDict(title="Anthropogenic Heat")
+
     qf0_beu: DayProfile = Field(
         description="Base anthropogenic heat flux for buildings, equipment and urban metabolism",
         default_factory=DayProfile,
@@ -337,6 +345,10 @@ class AnthropogenicHeat(
 
 
 class CO2Params(BaseModel):  # TODO: May need to add the RefValue to the profiles here
+    """CO2 emission parameters and profiles."""
+
+    model_config = ConfigDict(title="CO2 Emissions")
+
     co2pointsource: Optional[FlexibleRefValue(float)] = Field(
         default=None,
         description="CO2 point source emission factor",
@@ -576,6 +588,8 @@ class CO2Params(BaseModel):  # TODO: May need to add the RefValue to the profile
 
 
 class AnthropogenicEmissions(BaseModel):
+    model_config = ConfigDict(title="Anthropogenic Emissions")
+
     startdls: Optional[FlexibleRefValue(float)] = Field(
         default=None,
         description="Start of daylight savings time in decimal day of year",

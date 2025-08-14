@@ -428,6 +428,8 @@ class ModelPhysics(BaseModel):
     - gsmodel: Stomatal conductance model that may be influenced by localclimatemethod adjustments
     """
 
+    model_config = ConfigDict(title="Physics Methods")
+
     netradiationmethod: FlexibleRefValue(NetRadiationMethod) = Field(
         default=NetRadiationMethod.LDOWN_AIR,
         description="Method for calculating net all-wave radiation (Q*). Options: 0 (OBSERVED) = Uses observed Q* from forcing file; 1 (LDOWN_OBSERVED) = Models Q* using observed L↓; 2 (LDOWN_CLOUD) = Models Q* with L↓ from cloud cover; 3 (LDOWN_AIR) = Models Q* with L↓ from air temp and RH (recommended); 11 (LDOWN_SURFACE) = Surface temp variant of method 1 (not recommended); 12 (LDOWN_CLOUD_SURFACE) = Surface temp variant of method 2 (not recommended); 13 (LDOWN_AIR_SURFACE) = Surface temp variant of method 3 (not recommended); 100 (LDOWN_ZENITH) = Zenith angle variant of method 1; 200 (LDOWN_CLOUD_ZENITH) = Zenith angle variant of method 2; 300 (LDOWN_AIR_ZENITH) = Zenith angle variant of method 3; 1001 (LDOWN_SS_OBSERVED) = SPARTACUS-Surface variant of method 1 (experimental); 1002 (LDOWN_SS_CLOUD) = SPARTACUS-Surface variant of method 2 (experimental); 1003 (LDOWN_SS_AIR) = SPARTACUS-Surface variant of method 3 (experimental)",
@@ -619,6 +621,8 @@ class OutputFormat(Enum):
 class OutputConfig(BaseModel):
     """Configuration for model output files."""
 
+    model_config = ConfigDict(title="Output Configuration")
+
     format: OutputFormat = Field(
         default=OutputFormat.TXT,
         description="Output file format. Options: 'txt' for traditional text files (one per year/grid/group), 'parquet' for single Parquet file containing all data",
@@ -645,6 +649,8 @@ class OutputConfig(BaseModel):
 
 
 class ModelControl(BaseModel):
+    model_config = ConfigDict(title="Model Control")
+
     tstep: FlexibleRefValue(int) = Field(
         default=300, description="Time step in seconds for model calculations"
     )
@@ -721,6 +727,8 @@ class ModelControl(BaseModel):
 
 
 class Model(BaseModel):
+    model_config = ConfigDict(title="Model Configuration")
+
     control: ModelControl = Field(
         default_factory=ModelControl,
         description="Model control parameters including timestep, output options, etc.",

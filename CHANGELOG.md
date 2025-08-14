@@ -21,7 +21,7 @@
 
 | Year | Features | Bugfixes | Changes | Maintenance | Docs | Total |
 |------|----------|----------|---------|-------------|------|-------|
-| 2025 | 27 | 13 | 3 | 27 | 12 | 82 |
+| 2025 | 27 | 13 | 3 | 29 | 13 | 85 |
 | 2024 | 12 | 17 | 1 | 12 | 1 | 43 |
 | 2023 | 11 | 14 | 3 | 9 | 1 | 38 |
 | 2022 | 15 | 18 | 0 | 7 | 0 | 40 |
@@ -34,7 +34,111 @@
 
 ## 2025
 
+### 13 Aug 2025
+- [maintenance] Marked ANOHM-specific fields as internal to exclude from user documentation ([#598](https://github.com/UMEP-dev/SUEWS/pull/598))
+  - Added `internal_only` flag to ANOHM-specific fields (ch_anohm, rho_cp_anohm, k_anohm)
+  - These fields are only used by the deprecated ANOHM method (StorageHeatMethod=3)
+  - OHM fields remain visible as OHM methods (1, 6) are still valid user options
+  - Documentation generation script excludes internal options when run without --include-internal flag
+
+### 11 Aug 2025
+- [doc] Added comprehensive parameter documentation for YAML configuration ([#577](https://github.com/UMEP-dev/SUEWS/issues/577), [#598](https://github.com/UMEP-dev/SUEWS/pull/598))
+  - Created user-friendly Parameter Configuration Guide organized by use cases
+  - Added practical guidance for essential parameters, physics methods, and urban morphology
+  - Included common configuration examples for urban, suburban, and park sites
+  - Generated searchable parameter reference with 697 documented parameters
+  - Added alphabetical parameter index for quick lookup
+  - Properly integrated documentation under YAML configuration section
+
+### 10 Aug 2025
+- [maintenance] Removed web UI configuration builder from documentation
+  - Deleted all web UI files from `docs/source/_static/`
+  - Removed references to the interactive configuration builder
+  - Will be replaced by a forthcoming command-line wizard tool
+
+### 8 Aug 2025
+- [maintenance] Formalised release management plan for SUEWS ([#592](https://github.com/UMEP-dev/SUEWS/issues/592))
+  - Established semantic versioning strategy with year-based major versions
+  - Defined three release channels: Stable, Preview (beta/rc), and Development
+  - Created quarterly release cadence aligned with academic calendar
+  - Documented quality assurance process with testing tiers
+  - Established documentation synchronisation with code releases
+  - Created communication templates and notification strategies
+  - Defined roles, responsibilities, and success metrics
+  - Addresses needs of academic users, non-academic partners, and developers
+- [maintenance] Improved table converter path handling to use RunControl.nml paths consistently (#566)
+  - All SUEWS versions now read file paths from RunControl.nml FileInputPath
+  - Removed special case handling for 2016a version
+  - Support both absolute and relative paths in RunControl.nml
+  - Automatic fallback to root/Input directories for backward compatibility
+  - Refactored converter functions to reduce complexity and improve maintainability
+  - Fixed ruff linting issues in yaml converter module
+- [maintenance] Upgraded PyPI publishing to use Trusted Publishing (OIDC authentication)
+  - Removed dependency on long-lived API tokens for PyPI and TestPyPI
+  - Added OIDC permissions (`id-token: write`) to deployment jobs
+  - Enhanced security with short-lived tokens generated per workflow run
+  - Created documentation for configuring Trusted Publishing on PyPI
+  - Maintains backward compatibility until PyPI configuration is updated
+
+### 7 Aug 2025
+- [maintenance] Added CLAUDE.md content preservation system to prevent AI-induced data loss
+  - Created validation script to detect placeholder text and missing critical sections
+  - Implemented automatic backup system with timestamped snapshots
+  - Added Git pre-commit hook for CLAUDE.md integrity validation
+  - Documented best practices for preventing content truncation
+  - Ensures complete file preservation during AI-assisted edits
+
 ### 6 Aug 2025
+- [maintenance] Added 2016a to YAML conversion test to test_cmd_to_yaml.py
+- [bugfix] Fixed malformed SUEWS_Profiles.txt in 2016a test fixtures (extra value on line 21 causing parsing errors)
+- [bugfix] Improved 2016a conversion robustness in table converter (#566)
+  - Fixed `add_var` function to handle columns beyond current DataFrame width
+  - Added placeholder columns when target position exceeds existing columns
+  - Fixed `delete_var` and `rename_var` functions to handle edge cases with empty or reshaped DataFrames
+  - Made SPARTACUS.nml loading optional for older format conversions
+  - Added automatic creation of SPARTACUS.nml during conversion to 2024a or later
+  - Added robust file reading that handles both tab and space-separated formats
+  - Fixed NaN to integer conversion error in first column processing
+  - Added comprehensive error logging for debugging conversion failures
+  - Made conversion fail explicitly when a step fails rather than silently continuing
+  - Fixed file preservation for SUEWS_OHMCoefficients.txt, SUEWS_Profiles.txt, SUEWS_Soil.txt, and SUEWS_WithinGridWaterDist.txt
+  - Addressed formatting issues in `add_var` that caused quoted column names and malformed data values
+  - Implemented `sanitize_legacy_suews_file` function to handle Fortran-era formatting:
+    - Removes inline comments (text after ! character)
+    - Standardizes line endings (removes carriage returns)
+    - Ensures consistent column counts across all rows
+    - Handles tab-separated values properly
+    - Removes data after footer lines (-9)
+  - Applied automatic sanitization to 2016a files during conversion
+  - Fixed handling of -999 placeholder values in `build_code_df` to prevent KeyError during data model loading
+  - Note: 2016a conversion now progresses through all table format conversions and partial YAML data model loading, with remaining issues in profile column handling
+  - Fixed profile column processing in `build_code_df` to handle 24-hour data columns correctly
+  - Fixed NaN to integer conversion by using fillna(-999) before astype(int) 
+  - Fixed multi-column DataFrame creation for profile data to properly handle shape mismatches
+  - Updated conversion rules to use existing profile codes (41) instead of non-existent ones (701, 702, 801, 802, 44, 45, etc.)
+  - Implemented graceful handling of missing codes in `build_code_df` with warnings instead of failures
+  - Added support for 2016a directory structure with files in both root and Input/ subdirectory
+  - Fixed glob pattern to properly match SUEWS_*.txt files (was missing underscore)
+  - Added automatic preservation of files not mentioned in conversion rules
+- [bugfix] Fixed CSV quoting issue in table converter causing "need to escape" error (#581)
+  - Changed from `quoting=3` (QUOTE_NONE) to `quoting=0` (QUOTE_MINIMAL) to handle special characters properly
+  - Added proper version-specific test fixtures (2016a, 2024a, 2025a) for comprehensive testing
+  - Added end-to-end test to verify converted YAML can be loaded and validated by SUEWSConfig
+  - Made `-t/--to` option default to 'latest' when omitted, which automatically selects the most recent version
+  - Added 'latest' keyword support to always use the most recent converter version
+  - Renamed test function from `test_unified_interface_2025_conversion` to `test_table_to_yaml_conversion` for clarity
+- [feature] Aligned converter versioning with project versioning semantics
+  - `suews-convert` now uses 2025a as the last table-based version marker
+  - 'latest' now dynamically references the current project version (e.g., 2025.8.6.dev81)
+  - Future YAML format changes will follow semantic versioning from `get_ver_git.py`
+  - Improved forward compatibility for future versions beyond 2025a
+- [maintenance] Simplified converter tests to focus on essential scenario
+  - Single focused test: 2024a (last table format) to latest YAML conversion
+  - Test verifies conversion success and YAML validation with SUEWSConfig
+  - Removed redundant tests and problematic 2016a fixtures for maintainability
+- [maintenance] Cleaned up problematic commented code in table converter (#581)
+  - Removed commented code that had conflicting delimiter settings (quotechar=" " with sep=" ")
+
 - [feature] Added CRU TS4.06 climatological temperature data integration for precheck initialisation
   - Integrated CRU TS4.06 monthly temperature normals (1991-2020) for automatic temperature initialisation
   - Added `get_mean_monthly_air_temperature()` function using 0.5° global grid data
@@ -42,8 +146,56 @@
   - Provides location-specific temperature estimates for any global urban site
   - Includes spatial interpolation for nearest grid cell matching
   - Added comprehensive test coverage for temperature lookup functionality
+
 - [maintenance] Integrated limited CI testing for draft PRs to speed up development feedback
   - Modified main CI workflow to dynamically adjust build matrix based on draft status
+
+- [maintenance] Moved legacy configuration files from sample_run to test fixtures
+  - **Moved to test/fixtures/legacy_format/** for conversion tool testing:
+    - 14 txt configuration files (SUEWS tables): ~85 KB
+    - 8 namelist (.nml) files: ~9 KB
+    - Total: 22 files, ~94 KB moved out of main package
+  - **Purpose**: These files are now test fixtures for:
+    - `supy-convert` command (table version converter)
+    - `supy-to-yaml` command (legacy to YAML converter)
+  - **Impact**:
+    - Reduces distributed package size by ~94 KB
+    - Maintains backward compatibility testing capability
+    - All runtime configuration now exclusively uses YAML (sample_config.yml)
+    - SPARTACUS, STEBBS, and ESTM configs fully integrated in YAML
+
+- [change] Simplified `suews-convert` command interface with automatic conversion type detection
+  - Automatically determines conversion type based on target version:
+    - Versions before 2025 (e.g., 2024a): Table-to-table conversion
+    - Version 2025a or later: Convert to YAML format
+  - No subcommands needed - single unified interface
+  - Examples:
+    - `suews-convert -f 2020a -t 2024a -i input_dir -o output_dir` (table conversion)
+    - `suews-convert -f 2024a -t 2025a -i input_dir -o config.yml` (YAML conversion)
+  - Added missing cmd/to_yaml.py to meson.build sources (#566, #582)
+
+- [bugfix] Fixed empty list handling in modify_df_init when STEBBS disabled
+  - Prevented DataFrame column name mismatch when no new columns to add
+
+- [bugfix] Fixed missing column handling in from_df_state methods
+  - Added graceful handling of missing columns in legacy format conversion
+  - Affected classes: SiteProperties, ArchetypeProperties, StebbsProperties
+  - Missing columns now use default values from field definitions
+
+- [bugfix] Fixed water surface soilstore validation constraint
+  - Water surfaces can now have soilstore=0 (physically correct)
+  - Override constraint in InitialStateWater class
+
+- [bugfix] Fixed missing config/description columns in legacy conversion
+  - Added default values when converting from legacy format
+  - Default name: "Converted from legacy format"
+  - Default description: "Configuration converted from legacy SUEWS table format"
+  - Added to_yaml.py to meson.build for package installation
+  - Created test suite using legacy format fixtures
+
+- [bugfix] Fixed STEBBS loading logic in _load.py
+  - Fixed incorrect dict access (was using path_runcontrol["fileinputpath"] instead of dict_runconfig["fileinputpath"])
+  - Skip STEBBS file loading when stebbsmethod=0 (disabled) to avoid missing test file dependencies
   - Draft PRs: Only test Linux + Python 3.9 and 3.13 (2 configurations)
   - Ready PRs: Full testing across all platforms and Python versions (20 configurations)
   - Added auto-cancellation of in-progress CI runs when new commits are pushed
@@ -57,8 +209,29 @@
   - Clarified that option 0 uses provided FAI values, option 1 calculates using simple scheme
   - Updated Field description to reflect actual implementation behaviour
   - Aligned default value with Fortran code (FAIMethod.USE_PROVIDED = 0)
+- [bugfix] Fixed missing to_yaml module ([#566](https://github.com/UMEP-dev/SUEWS/issues/566))
+  - Added missing import of `to_yaml` function in `supy.cmd.__init__.py`
+  - Added `suews-to-yaml` console script entry point in pyproject.toml
+  - Moved supy imports to be lazy-loaded inside the function to avoid circular import issues
+  - Note: `python -m supy.cmd.to_yaml` requires supy to be fully installed first
 
 ### 25 Jul 2025
+- [bugfix] Fixed NaN QF (anthropogenic heat flux) when population density is zero ([#240](https://github.com/UMEP-dev/SUEWS/issues/240))
+  - Added check to prevent division by zero in QF_build calculation
+  - When population density is zero, building energy flux is now correctly set to zero
+  - Added tests to verify correct behaviour with zero population density
+- [bugfix] Fixed timezone field to use enum for valid timezone offsets ([PR #554](https://github.com/UMEP-dev/SUEWS/pull/554), fixes [#552](https://github.com/UMEP-dev/SUEWS/issues/552))
+  - Changed timezone field from `FlexibleRefValue(int)` to `FlexibleRefValue(Union[TimezoneOffset, float])`
+  - Created `TimezoneOffset` enum with all valid global timezone offsets
+  - Enables support for fractional timezone offsets (e.g., 5.5 for India, 5.75 for Nepal)
+  - Validates input against standard timezone offsets only (no arbitrary floats)
+  - Automatically converts numeric inputs to appropriate enum values
+  - Critical for accurate solar geometry calculations in regions with non-integer offsets
+- [doc] Added comprehensive documentation for runoff generation mechanisms ([#212](https://github.com/UMEP-dev/SUEWS/issues/212))
+  - Explained infiltration capacity exceedance (Hortonian runoff)
+  - Documented saturation excess runoff for different surface types
+  - Clarified timestep considerations for runoff calculations
+  - Added mathematical formulations and water routing details
 - [bugfix] Fixed unnecessary interpolation when tstep equals resolutionfilesin ([#161](https://github.com/UMEP-dev/SUEWS/issues/161))
   - Added conditional check to skip interpolation when model timestep matches input data resolution
   - Prevents incorrect interpolation of averaged variables like kdown
@@ -87,6 +260,19 @@
 - [doc] Updated issue label system to include developer queries
   - Extended 1-question label from 'User question/support' to 'User question/support/dev query'
   - Updated issue triage documentation and decision tree to reflect this change
+
+### 24 Jul 2025
+- [maintenance] Enhanced uv environment setup documentation and best practices
+  - Created comprehensive `.claude/howto/setup-uv-environment.md` guide aligned with `pyproject.toml` and `env.yml`
+  - Updated worktree setup guide to use `uv pip install -e ".[dev]"` for proper dependency management
+  - Documented package name differences between conda and pip (e.g., `matplotlib-base` → `matplotlib`, `pytables` → `tables`)
+  - Emphasised uv's 10-100x speed improvement over pip/conda for package installation
+- [feature] Added minimal Makefile recipes for uv environment management
+  - Added `make uv-dev` - one-stop setup with both dev and docs dependencies
+  - Added `make uv-clean` - remove virtual environment
+  - Streamlined recipes to avoid Makefile bloat while maintaining essential functionality
+  - Includes documentation dependencies by default for complete development environment
+  - Properly aligned with `pyproject.toml` dependency groups
 
 ### 23 Jul 2025
 - [maintenance] Added `/log-changes` slash command for automated documentation updates

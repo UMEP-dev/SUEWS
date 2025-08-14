@@ -1,7 +1,7 @@
 """SUEWS YAML Configuration Processor
 
 Three-phase validation workflow:
-- Phase A: Parameter detection and YAML structure updates
+- Phase A: Up-to-date YAML check and parameter detection
 - Phase B: Scientific validation and automatic adjustments
 - Phase C: Conditional Pydantic validation based on physics options
 
@@ -12,7 +12,6 @@ import sys
 import os
 import argparse
 import yaml
-from pathlib import Path
 from typing import Tuple, Optional
 import shutil
 import io
@@ -1041,8 +1040,6 @@ Modes:
             if not phase_a_success:
                 # Phase A failed in AB workflow - preserve Phase A outputs as AB outputs (when Phase A passes, we have updated from A)
                 try:
-                    import shutil
-
                     if os.path.exists(report_file):
                         shutil.move(
                             report_file, science_report_file
@@ -1117,8 +1114,6 @@ Modes:
             if not phase_a_success:
                 # Phase A failed in AC workflow - preserve Phase A outputs as AC outputs (when Phase A passes, we have updated from A)
                 try:
-                    import shutil
-
                     if os.path.exists(report_file):
                         shutil.move(
                             report_file, pydantic_report_file
@@ -1193,8 +1188,6 @@ Modes:
             if not phase_b_success:
                 # Phase B failed in BC workflow - preserve Phase B outputs as BC outputs (when Phase B passes, we have updated from B)
                 try:
-                    import shutil
-
                     if os.path.exists(science_report_file):
                         shutil.move(
                             science_report_file, pydantic_report_file
@@ -1267,8 +1260,6 @@ Modes:
             if not phase_a_success:
                 # Phase A failed in ABC workflow - preserve Phase A outputs as ABC outputs (when Phase A passes, we have updated from A)
                 try:
-                    import shutil
-
                     if os.path.exists(report_file):
                         shutil.move(
                             report_file, pydantic_report_file
@@ -1308,8 +1299,6 @@ Modes:
             if not phase_b_success:
                 # Phase B failed in ABC workflow - preserve Phase AB outputs as ABC outputs (if ABC halts at B, we have updated from A)
                 try:
-                    import shutil
-
                     # Rename B outputs to ABC (to match selected phase)
                     if os.path.exists(science_report_file):
                         shutil.move(
@@ -1358,8 +1347,6 @@ Modes:
             if not phase_c_success:
                 # Phase C failed in ABC workflow - preserve Phase A+B outputs as ABC outputs
                 try:
-                    import shutil
-
                     # Preserve the A+B combined YAML (science_yaml_file contains both A and B updates)
                     if os.path.exists(science_yaml_file):
                         shutil.move(

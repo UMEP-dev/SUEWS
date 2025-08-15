@@ -30,6 +30,7 @@ import pytz
 
 from supy._env import logger_supy, trv_supy_module
 
+
 @dataclass
 class ValidationResult:
     """Structured result from scientific validation checks."""

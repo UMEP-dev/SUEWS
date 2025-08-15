@@ -173,19 +173,117 @@ class WizardEngine:
             raise
 
     def _validate_complete_config(self):
-        """Validate the complete configuration against Pydantic models"""
+        """Validate the complete configuration using the YAML processor"""
         from .validators.pydantic_integration import PydanticValidator
-
-        validator = PydanticValidator()
-        is_valid, errors = validator.validate_complete_config(
+        from .validators.yaml_processor_integration import YAMLProcessorValidator
+        
+        console.print("\n[bold]Running comprehensive validation...[/bold]")
+        
+        # First, use the original Pydantic validator for basic structure
+        pydantic_validator = PydanticValidator()
+        is_valid, errors = pydantic_validator.validate_complete_config(
             self.session.configuration
         )
-
+        
         if not is_valid:
-            console.print("\n[red]Configuration validation failed:[/red]")
+            console.print("\n[red]Basic configuration validation failed:[/red]")
             for error in errors:
                 console.print(f"  • {error}")
-            raise ValueError("Invalid configuration")
+            
+            # Ask if user wants to try the YAML processor to fix issues
+            if Confirm.ask("\nWould you like to run the YAML processor to fix issues?"):
+                self._run_yaml_processor_validation()
+            else:
+                raise ValueError("Invalid configuration")
+        else:
+            # Run the comprehensive YAML processor validation
+            self._run_yaml_processor_validation()
+    
+    def _run_yaml_processor_validation(self):
+        """Run the three-phase YAML processor validation"""
+        from .validators.yaml_processor_integration import YAMLProcessorValidator
+        
+        processor = YAMLProcessorValidator(mode="public")
+        
+        # Convert wizard config to SUEWS format
+        from .validators.pydantic_integration import PydanticValidator
+        pydantic_validator = PydanticValidator()
+        structured_config = pydantic_validator._structure_config(self.session.configuration)
+        
+        # Run all three phases
+        is_valid, messages, updated_config = processor.validate_all_phases(structured_config)
+        
+        # Display results
+        console.print("\n[bold]Validation Results:[/bold]")
+        for message in messages:
+            console.print(message)
+        
+        if not is_valid:
+            # Show suggestions
+            suggestions = processor.suggest_fixes(messages)
+            if suggestions:
+                console.print("\n[bold yellow]Suggestions:[/bold yellow]")
+                for suggestion in suggestions:
+                    console.print(suggestion)
+            
+            # Ask if user wants to use the updated config anyway
+            if Confirm.ask("\nThe processor has suggested fixes. Use the updated configuration?"):
+                # Update session with fixed config
+                self.session.configuration = self._unstructure_config(updated_config)
+                console.print("[green]Configuration updated with fixes[/green]")
+            else:
+                raise ValueError("Configuration validation failed")
+        else:
+            console.print("\n[green]✅ Configuration passed all validation phases![/green]")
+            
+            # Update with any automatic fixes from the processor
+            if updated_config != structured_config:
+                if Confirm.ask("\nThe processor made some automatic improvements. Apply them?"):
+                    self.session.configuration = self._unstructure_config(updated_config)
+                    console.print("[green]Configuration optimized[/green]")
+    
+    def _unstructure_config(self, structured_config: Dict[str, Any]) -> Dict[str, Any]:
+        """Convert structured SUEWS config back to wizard format"""
+        wizard_config = {}
+        
+        # Extract site info
+        if 'sites' in structured_config and structured_config['sites']:
+            site = structured_config['sites'][0]
+            wizard_config['site'] = {
+                'name': site.get('name', 'Site1'),
+                'latitude': site.get('properties', {}).get('lat', {}).get('value', 0),
+                'longitude': site.get('properties', {}).get('lng', {}).get('value', 0),
+                'altitude': site.get('properties', {}).get('alt', {}).get('value', 0),
+                'timezone': site.get('properties', {}).get('timezone', 0),
+            }
+        
+        # Extract simulation settings
+        if 'model' in structured_config:
+            control = structured_config['model'].get('control', {})
+            wizard_config['simulation'] = {
+                'timestep': control.get('tstep', 300),
+            }
+            
+            # Extract dates if present
+            if 'start_time' in control:
+                wizard_config['simulation']['start_date'] = control['start_time'].get('value', '').split()[0]
+            if 'end_time' in control:
+                wizard_config['simulation']['end_date'] = control['end_time'].get('value', '').split()[0]
+        
+        # Extract physics options
+        if 'model' in structured_config and 'physics' in structured_config['model']:
+            physics = structured_config['model']['physics']
+            wizard_config['advanced_options'] = {
+                k: v.get('value', 0) if isinstance(v, dict) else v
+                for k, v in physics.items()
+            }
+        
+        # Preserve other wizard-specific sections
+        for key in ['forcing', 'surface', 'initial_conditions']:
+            if key in self.session.configuration:
+                wizard_config[key] = self.session.configuration[key]
+        
+        return wizard_config
 
     def save_draft(self):
         """Save current progress as draft"""

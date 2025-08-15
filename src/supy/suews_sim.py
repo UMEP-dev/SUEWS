@@ -197,20 +197,22 @@ class SUEWSSimulation:
                         # Resolve paths relative to config file if needed
                         if self._config_path:
                             forcing_value = self._resolve_forcing_paths(forcing_value)
-                        
+
                         self.update_forcing(forcing_value)
 
         except Exception as e:
             warnings.warn(f"Could not load forcing from config: {e}")
-    
-    def _resolve_forcing_paths(self, paths: Union[str, List[str]]) -> Union[str, List[str]]:
+
+    def _resolve_forcing_paths(
+        self, paths: Union[str, List[str]]
+    ) -> Union[str, List[str]]:
         """Resolve forcing paths relative to config file location.
-        
+
         Parameters
         ----------
         paths : str or list of str
             Path(s) to resolve. Relative paths are resolved relative to config file.
-            
+
         Returns
         -------
         str or list of str
@@ -220,15 +222,15 @@ class SUEWSSimulation:
             return [self._resolve_single_path(p) for p in paths]
         else:
             return self._resolve_single_path(paths)
-    
+
     def _resolve_single_path(self, path: str) -> str:
         """Resolve a single path relative to config file if it's relative.
-        
+
         Parameters
         ----------
         path : str
             Path to resolve
-            
+
         Returns
         -------
         str

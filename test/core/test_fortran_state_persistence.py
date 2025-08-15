@@ -140,7 +140,7 @@ class TestFortranStatePersistence(TestCase):
     def test_multiple_consecutive_runs(self):
         """
         Test multiple consecutive runs to see if pollution accumulates.
-        
+
         Runtime: ~109 seconds
         """
         print("\n" + "=" * 70)
@@ -202,7 +202,7 @@ class TestFortranStatePersistence(TestCase):
     def test_minimal_reproduction(self):
         """
         Create minimal reproduction case.
-        
+
         Runtime: ~42 seconds
         """
         print("\n" + "=" * 70)

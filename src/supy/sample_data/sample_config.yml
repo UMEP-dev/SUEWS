@@ -1,4 +1,4 @@
-name: sample config
+name: sample config FURTHER MODIFIED to trigger warning
 description: built from benchmark 1a, based on Ward et al. (2016) model configuration
 model:
   control:

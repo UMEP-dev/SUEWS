@@ -186,6 +186,7 @@ class SurfaceProperties(BaseModel):
             "internal_only": True,
         },
     )
+    # ch_anohm is named as chanohm in sample_data/sample_config.yml, version 08/08/2025 - consider renaming to avoid issues
     rho_cp_anohm: Optional[FlexibleRefValue(float)] = Field(
         default=1200.0,
         description="Volumetric heat capacity for this surface to use in AnOHM",
@@ -195,6 +196,7 @@ class SurfaceProperties(BaseModel):
             "internal_only": True,
         },
     )
+    # rho_cp_anohm is named as cpanohm in sample_data/sample_config.yml, version 08/08/2025 - consider renaming to avoid issues
     k_anohm: Optional[FlexibleRefValue(float)] = Field(
         default=0.4,
         description="Thermal conductivity for this surface to use in AnOHM",
@@ -204,6 +206,7 @@ class SurfaceProperties(BaseModel):
             "internal_only": True,
         },
     )
+    # k_anohm is named as kkanohm in sample_data/sample_config.yml, version 08/08/2025 - consider renaming to avoid issues
     ohm_threshsw: Optional[FlexibleRefValue(float)] = Field(
         default=0.0,
         description="Summer/winter threshold based on temperature for OHM calculation",

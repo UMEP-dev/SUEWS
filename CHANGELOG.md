@@ -34,12 +34,33 @@
 
 ## 2025
 
+### 14 Aug 2025
+- [bugfix] Fix test failures in CI by using package resources for sample_config.yml access
+  - Use importlib.resources for proper package resource handling in tests
+  - Replace hardcoded paths with trv_supy_module from supy._env
+  - Ensures tests work correctly in different directory structures (local vs CI)
+
 ### 13 Aug 2025
 - [maintenance] Marked ANOHM-specific fields as internal to exclude from user documentation ([#598](https://github.com/UMEP-dev/SUEWS/pull/598))
   - Added `internal_only` flag to ANOHM-specific fields (ch_anohm, rho_cp_anohm, k_anohm)
   - These fields are only used by the deprecated ANOHM method (StorageHeatMethod=3)
   - OHM fields remain visible as OHM methods (1, 6) are still valid user options
   - Documentation generation script excludes internal options when run without --include-internal flag
+
+### 12 Aug 2025
+- [feature] Enhanced YAML processor Phase C validation error reporting 
+  - Converted conditional validation warnings to actionable validation errors
+  - Added critical null physics parameter detection for runtime-critical parameters
+  - Improved error reporting with individual, separated validation issues
+  - Each validation error now shows specific field names and precise locations in YAML structure
+  - Suppressed verbose validation summary warnings for cleaner user experience
+  - Updated documentation to reflect new validation error handling and enhanced reporting
+- [maintenance] Replaced hardcoded nested sections list with dynamic introspection in YAML processor
+  - Implemented `get_allowed_nested_sections_in_properties()` with Pydantic model introspection
+  - Automatically discovers nested BaseModel fields that allow extra parameters across all data model modules  
+  - Eliminates maintenance burden - no manual updates needed when data model evolves
+  - Added comprehensive test suite covering dynamic introspection, type extraction, and error handling
+  - Enhanced technical documentation in `phase_a_detailed.rst` with implementation details
 
 ### 11 Aug 2025
 - [doc] Added comprehensive parameter documentation for YAML configuration ([#577](https://github.com/UMEP-dev/SUEWS/issues/577), [#598](https://github.com/UMEP-dev/SUEWS/pull/598))

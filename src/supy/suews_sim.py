@@ -194,17 +194,28 @@ class SUEWSSimulation:
 
                     # Skip default placeholder value
                     if forcing_value and forcing_value != "forcing.txt":
-                        # Resolve relative paths
-                        if self._config_path and not Path(forcing_value).is_absolute():
+                        # Resolve relative paths relative to config file location
+                        if self._config_path:
                             if isinstance(forcing_value, list):
-                                forcing_value = [
-                                    str(self._config_path.parent / f)
-                                    for f in forcing_value
-                                ]
+                                # Handle list of forcing files
+                                resolved_paths = []
+                                for f in forcing_value:
+                                    if not Path(f).is_absolute():
+                                        # Relative path - resolve relative to config file
+                                        resolved_paths.append(
+                                            str(self._config_path.parent / f)
+                                        )
+                                    else:
+                                        # Absolute path - use as is
+                                        resolved_paths.append(f)
+                                forcing_value = resolved_paths
                             else:
-                                forcing_value = str(
-                                    self._config_path.parent / forcing_value
-                                )
+                                # Single forcing file
+                                if not Path(forcing_value).is_absolute():
+                                    # Relative path - resolve relative to config file
+                                    forcing_value = str(
+                                        self._config_path.parent / forcing_value
+                                    )
 
                         self.update_forcing(forcing_value)
 

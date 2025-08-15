@@ -34,6 +34,12 @@
 
 ## 2025
 
+### 15 Aug 2025
+- [bugfix] Fix forcing path resolution to be relative to config file location (#573)
+  - SUEWSSimulation now correctly resolves relative forcing paths relative to the config file
+  - Previously, relative paths were resolved relative to the current working directory
+  - Added comprehensive tests to ensure forcing paths work correctly in all scenarios
+
 ### 14 Aug 2025
 - [bugfix] Fix test failures in CI by using package resources for sample_config.yml access
   - Use importlib.resources for proper package resource handling in tests

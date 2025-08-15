@@ -867,6 +867,9 @@ class GrassProperties(VegetatedSurfaceProperties):
             self.alb_max.value if isinstance(self.alb_max, RefValue) else self.alb_max
         )
 
+        # Sort the MultiIndex columns to avoid performance warnings
+        df_state = df_state.sort_index(axis=1)
+
         return df_state
 
     @classmethod

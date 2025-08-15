@@ -1,4 +1,6 @@
 
+
+
 SUEWS Site Information
 -----------------------
 
@@ -88,7 +90,7 @@ The above text files (used to be stored as worksheets in **SUEWS_SiteInfo.xlsm**
 Please be aware of using the correct copy of this worksheet that are always shipped with the SUEWS public release.
 
 .. tip::
-  1. See `input_converter` for conversion of input file between different versions.
+  1. See :doc:`../../converter` for conversion of input file between different versions.
   2. Typical values for various properties `can be found here <Typical Values>`.
 
 

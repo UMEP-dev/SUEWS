@@ -55,7 +55,7 @@ class TestFortranStatePersistence(TestCase):
 
     def run_sample_year(self):
         """Run the sample year simulation that shows pollution effects."""
-        trv_sample_data = Path(sp.__file__).parent / "sample_run"
+        trv_sample_data = Path(sp.__file__).parent / "sample_data"
         path_config_default = trv_sample_data / "sample_config.yml"
 
         df_state_init = sp.init_supy(path_config_default, force_reload=True)

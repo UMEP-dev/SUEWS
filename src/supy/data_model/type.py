@@ -1,5 +1,5 @@
 from typing import TypeVar, Optional, Generic, Union, Any
-from pydantic import ConfigDict, BaseModel, Field, model_validator
+from pydantic import ConfigDict, BaseModel, Field, model_validator, field_serializer
 import numpy as np
 import pandas as pd
 from enum import Enum
@@ -19,6 +19,10 @@ T = TypeVar("T")
 
 
 class Reference(BaseModel):
+    """Evidence supporting parameter choices (literature, data sources, expert knowledge, etc.)."""
+
+    model_config = ConfigDict(title="Reference Info")
+
     desc: Optional[str] = Field(
         default=None, description="Description of the reference source"
     )
@@ -71,6 +75,11 @@ class RefValue(BaseModel, Generic[T]):
     value: Optional[T]
     ref: Optional[Reference] = None
 
+    model_config = ConfigDict(
+        # Configure serialization to handle the value field properly
+        ser_json_inf_nan="constants",
+    )
+
     def __init__(self, value: T, ref: Optional[Reference] = None):
         # Convert numpy numeric types to Python native types
         if isinstance(value, (np.float64, np.float32)):
@@ -78,6 +87,18 @@ class RefValue(BaseModel, Generic[T]):
         elif isinstance(value, (np.int64, np.int32)):
             value = int(value)
         super().__init__(value=value, ref=ref)
+
+    def model_dump(self, **kwargs):
+        """Override model_dump to handle JSON mode properly."""
+        if kwargs.get("mode") == "json":
+            # In JSON mode, return a simplified representation
+            if self.ref:
+                return {"value": self.value, "ref": self.ref}
+            else:
+                # If no reference, just return the value directly
+                return self.value
+        # For other modes, use default behavior
+        return super().model_dump(**kwargs)
 
     @classmethod
     def wrap(cls, value: Union[T, "RefValue[T]"]) -> "RefValue[T]":

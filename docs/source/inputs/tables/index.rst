@@ -1,5 +1,7 @@
 .. _input_files:
 
+:nosearch:
+
 Table-based Input Files (Legacy Format)
 ========================================
 
@@ -9,10 +11,7 @@ Table-based Input Files (Legacy Format)
 
    **For new users**: Please use the modern :doc:`YAML format <../yaml/index>` instead.
 
-   **For existing users**: Please migrate to the YAML format using:
-
-   - 🌐 **Interactive builder**: `SUEWS Configuration Builder <../../_static/index.html>`__ (**experimental** - not for production use)
-   - 📖 **Migration guide**: :doc:`Transition Guide <../transition_guide>`
+   **For existing users**: Please migrate to the YAML format using the :doc:`Transition Guide <../transition_guide>`
 
 
 

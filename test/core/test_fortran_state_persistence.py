@@ -6,8 +6,7 @@ This test suite verifies that Fortran state does not persist between multiple
 calls to sp.run_supy() within the same Python process. State persistence would
 indicate uninitialized variables or improper state reset mechanisms.
 
-These tests are marked as @pytest.mark.slow for nightly/complete validation runs.
-They take ~3.6 minutes total but provide comprehensive state isolation validation.
+These tests take ~3.6 minutes total but provide comprehensive state isolation validation.
 
 Based on user correction: "you need to test running the fortran multiple times
 within the same python script. Not calling the test 3 separate times. A new
@@ -26,8 +25,6 @@ import supy as sp
 logging.getLogger("SuPy").setLevel(logging.CRITICAL)
 
 
-@pytest.mark.slow
-@pytest.mark.nightly
 class TestFortranStatePersistence(TestCase):
     """Test suite for Fortran state persistence issues."""
 
@@ -61,7 +58,7 @@ class TestFortranStatePersistence(TestCase):
 
     def run_sample_year(self):
         """Run the sample year simulation that shows pollution effects."""
-        trv_sample_data = Path(sp.__file__).parent / "sample_run"
+        trv_sample_data = Path(sp.__file__).parent / "sample_data"
         path_config_default = trv_sample_data / "sample_config.yml"
 
         df_state_init = sp.init_supy(path_config_default, force_reload=True)
@@ -101,7 +98,6 @@ class TestFortranStatePersistence(TestCase):
             return True
         return False
 
-    @pytest.mark.slow
     def test_fortran_state_persistence(self):
         """
         Test if Fortran state persists between multiple calls in the same Python process.
@@ -141,7 +137,6 @@ class TestFortranStatePersistence(TestCase):
             print("The problem does not occur within the same Python process.")
             print("Test PASSED: No state pollution detected.")
 
-    @pytest.mark.slow
     def test_multiple_consecutive_runs(self):
         """
         Test multiple consecutive runs to see if pollution accumulates.
@@ -204,7 +199,6 @@ class TestFortranStatePersistence(TestCase):
             print("*** NO POLLUTION DETECTED ***")
             print("Test PASSED: No pollution in consecutive runs.")
 
-    @pytest.mark.slow
     def test_minimal_reproduction(self):
         """
         Create minimal reproduction case.

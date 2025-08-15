@@ -351,7 +351,6 @@ class TestRSLMOSTSeparation:
         assert np.all(np.diff(heights) > 0), "Auto method produced non-monotonic array"
 
     @pytest.mark.extended
-    @pytest.mark.slow
     def test_timestep_stability(self):
         """
         Test multiple timesteps to ensure stability across conditions.

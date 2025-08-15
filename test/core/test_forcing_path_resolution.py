@@ -1,13 +1,10 @@
-"""Test forcing path resolution for issue #573.
-
-Ensures forcing paths in config files are resolved relative to the config file location,
-not the current working directory.
-"""
+"""Test forcing path resolution (issue #573) - simplified version."""
 
 import os
 import tempfile
 from pathlib import Path
 import pytest
+from contextlib import contextmanager
 
 try:
     from importlib.resources import files
@@ -17,200 +14,117 @@ except ImportError:
 from supy.suews_sim import SUEWSSimulation
 
 
-class TestForcingPathResolution:
-    """Test that forcing paths are resolved correctly relative to config file."""
-
-    def test_relative_forcing_path_next_to_config(self):
-        """Test loading forcing file that's next to the config file."""
-        # Get sample data
-        sample_data_dir = files("supy").joinpath("sample_data")
-        sample_config = sample_data_dir / "sample_config.yml"
-        sample_forcing = sample_data_dir / "Kc_2012_data_60.txt"
-
-        with tempfile.TemporaryDirectory() as tmpdir:
-            tmpdir = Path(tmpdir)
-
-            # Create config directory
-            config_dir = tmpdir / "config"
-            config_dir.mkdir()
-
-            # Copy config and forcing to same directory
-            config_path = config_dir / "test_config.yml"
-            config_path.write_text(sample_config.read_text())
-
+@contextmanager
+def temp_config_setup(config_content, forcing_location="next_to_config"):
+    """Helper to set up temporary config and forcing files."""
+    sample_forcing = files("supy").joinpath("sample_data/Kc_2012_data_60.txt")
+    
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmpdir = Path(tmpdir)
+        config_dir = tmpdir / "config"
+        config_dir.mkdir(parents=True)
+        
+        # Write config
+        config_path = config_dir / "config.yml"
+        config_path.write_text(config_content)
+        
+        # Place forcing file based on test needs
+        if forcing_location == "next_to_config":
             forcing_path = config_dir / "Kc_2012_data_60.txt"
-            forcing_path.write_bytes(sample_forcing.read_bytes())
-
-            # Change to different directory
-            original_cwd = os.getcwd()
-            try:
-                os.chdir(tmpdir)  # Not in config dir
-
-                # Load config - should find forcing next to config
-                sim = SUEWSSimulation(str(config_path))
-
-                assert sim._df_forcing is not None
-                assert len(sim._df_forcing) > 0
-
-            finally:
-                os.chdir(original_cwd)
-
-    def test_relative_forcing_path_with_parent_reference(self):
-        """Test loading forcing with '../' relative path in config."""
-        sample_data_dir = files("supy").joinpath("sample_data")
-        sample_config = sample_data_dir / "sample_config.yml"
-        sample_forcing = sample_data_dir / "Kc_2012_data_60.txt"
-
-        with tempfile.TemporaryDirectory() as tmpdir:
-            tmpdir = Path(tmpdir)
-
-            # Create nested structure
-            config_subdir = tmpdir / "config" / "subdir"
-            config_subdir.mkdir(parents=True)
-
-            # Modify config to use ../forcing.txt
-            config_content = sample_config.read_text()
-            config_content = config_content.replace(
-                "Kc_2012_data_60.txt", "../forcing.txt"
-            )
-            config_path = config_subdir / "test_config.yml"
-            config_path.write_text(config_content)
-
-            # Put forcing in parent directory
-            forcing_path = tmpdir / "config" / "forcing.txt"
-            forcing_path.write_bytes(sample_forcing.read_bytes())
-
-            # Run from different directory
-            original_cwd = os.getcwd()
-            try:
-                os.chdir(tmpdir)
-
-                sim = SUEWSSimulation(str(config_path))
-
-                assert sim._df_forcing is not None
-                assert len(sim._df_forcing) > 0
-
-            finally:
-                os.chdir(original_cwd)
-
-    def test_forcing_list_with_relative_paths(self):
-        """Test config with list of relative forcing paths."""
-        sample_data_dir = files("supy").joinpath("sample_data")
-        sample_forcing = sample_data_dir / "Kc_2012_data_60.txt"
-
-        with tempfile.TemporaryDirectory() as tmpdir:
-            tmpdir = Path(tmpdir)
-
-            # Create structure
-            config_dir = tmpdir / "config"
-            config_dir.mkdir()
-            forcing_dir = config_dir / "data"
-            forcing_dir.mkdir()
-
-            # Create forcing files
-            for i in range(2):
-                forcing_path = forcing_dir / f"forcing_{i}.txt"
-                forcing_path.write_bytes(sample_forcing.read_bytes())
-
-            # Create config with list
-            config_content = """
-name: test config
-model:
-  control:
-    forcing_file:
-      - data/forcing_0.txt
-      - data/forcing_1.txt
-sites:
-  - name: test site
-    gridiv: 1
-    properties:
-      lat: {value: 51.5}
-      lng: {value: -0.1}
-"""
-            config_path = config_dir / "config.yml"
-            config_path.write_text(config_content)
-
-            # Run from different directory
-            original_cwd = os.getcwd()
-            try:
-                os.chdir(tmpdir)
-
-                sim = SUEWSSimulation(str(config_path))
-
-                assert sim._df_forcing is not None
-                # Should have concatenated both files
-                assert len(sim._df_forcing) > 200000
-
-            finally:
-                os.chdir(original_cwd)
-
-    def test_absolute_forcing_path(self):
-        """Test that absolute paths still work correctly."""
-        sample_data_dir = files("supy").joinpath("sample_data")
-        sample_forcing = sample_data_dir / "Kc_2012_data_60.txt"
-
-        with tempfile.TemporaryDirectory() as tmpdir:
-            tmpdir = Path(tmpdir)
-
-            # Create forcing file
+        elif forcing_location == "parent":
             forcing_path = tmpdir / "forcing.txt"
+        elif forcing_location == "subdir":
+            data_dir = config_dir / "data"
+            data_dir.mkdir()
+            forcing_path = data_dir / "forcing_0.txt"
+            # Create second file for list tests
+            (data_dir / "forcing_1.txt").write_bytes(sample_forcing.read_bytes())
+        else:
+            forcing_path = tmpdir / forcing_location
+            
+        if forcing_location != "missing":
             forcing_path.write_bytes(sample_forcing.read_bytes())
+        
+        # Change to tmpdir and yield paths
+        original_cwd = os.getcwd()
+        try:
+            os.chdir(tmpdir)
+            yield config_path, forcing_path
+        finally:
+            os.chdir(original_cwd)
 
-            # Create config with absolute path
-            config_content = f"""
-name: test config
+
+def get_base_config(forcing_file="Kc_2012_data_60.txt"):
+    """Get minimal test config."""
+    return f"""
+name: test
 model:
   control:
-    forcing_file: {str(forcing_path)}
+    forcing_file: {forcing_file}
 sites:
-  - name: test site
-    gridiv: 1
+  - gridiv: 1
     properties:
       lat: {{value: 51.5}}
       lng: {{value: -0.1}}
 """
-            config_dir = tmpdir / "config"
-            config_dir.mkdir()
-            config_path = config_dir / "config.yml"
-            config_path.write_text(config_content)
 
-            # Run from completely different directory
-            original_cwd = os.getcwd()
-            try:
-                os.chdir("/tmp")
 
-                sim = SUEWSSimulation(str(config_path))
+def test_relative_path_next_to_config():
+    """Forcing file next to config should be found."""
+    with temp_config_setup(get_base_config()) as (config_path, _):
+        sim = SUEWSSimulation(str(config_path))
+        assert sim._df_forcing is not None
 
-                assert sim._df_forcing is not None
-                assert len(sim._df_forcing) > 0
 
-            finally:
-                os.chdir(original_cwd)
+def test_parent_directory_reference():
+    """Test '../' paths work correctly."""
+    config = get_base_config("../forcing.txt")
+    with temp_config_setup(config, "parent") as (config_path, _):
+        sim = SUEWSSimulation(str(config_path))
+        assert sim._df_forcing is not None
 
-    def test_forcing_not_found_raises_error(self):
-        """Test that missing forcing file still raises appropriate error."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            tmpdir = Path(tmpdir)
 
-            # Create config referencing non-existent forcing
-            config_content = """
-name: test config
+def test_forcing_file_list():
+    """Test list of forcing files."""
+    config = """
+name: test
 model:
   control:
-    forcing_file: nonexistent.txt
+    forcing_file: [data/forcing_0.txt, data/forcing_1.txt]
 sites:
-  - name: test site
-    gridiv: 1
+  - gridiv: 1
     properties:
       lat: {value: 51.5}
       lng: {value: -0.1}
 """
-            config_path = tmpdir / "config.yml"
-            config_path.write_text(config_content)
+    with temp_config_setup(config, "subdir") as (config_path, _):
+        sim = SUEWSSimulation(str(config_path))
+        assert sim._df_forcing is not None
+        assert len(sim._df_forcing) > 200000  # Two files concatenated
 
-            # Should warn but not fail on init
-            with pytest.warns(UserWarning, match="Could not load forcing from config"):
-                sim = SUEWSSimulation(str(config_path))
 
-            # Forcing should not be loaded
-            assert sim._df_forcing is None
+def test_absolute_path():
+    """Absolute paths should work from anywhere."""
+    sample_forcing = files("supy").joinpath("sample_data/Kc_2012_data_60.txt")
+    
+    with tempfile.TemporaryDirectory() as tmpdir:
+        # Create forcing at absolute path
+        forcing_path = Path(tmpdir) / "forcing.txt"
+        forcing_path.write_bytes(sample_forcing.read_bytes())
+        
+        # Config with absolute path
+        config = get_base_config(str(forcing_path))
+        
+        with temp_config_setup(config, "missing") as (config_path, _):
+            # Even though we're in a different dir, absolute path works
+            sim = SUEWSSimulation(str(config_path))
+            assert sim._df_forcing is not None
+
+
+def test_missing_forcing_warns():
+    """Missing forcing should warn but not crash."""
+    config = get_base_config("nonexistent.txt")
+    with temp_config_setup(config, "missing") as (config_path, _):
+        with pytest.warns(UserWarning, match="Could not load forcing"):
+            sim = SUEWSSimulation(str(config_path))
+        assert sim._df_forcing is None

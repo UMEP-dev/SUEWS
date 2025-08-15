@@ -1,0 +1,45 @@
+# Rural configuration template
+# Open area with high vegetation fraction
+
+site:
+  description: "Rural/agricultural area"
+  
+surface:
+  fractions:
+    paved: 0.05
+    buildings: 0.05
+    evergreen_tree: 0.15
+    deciduous_tree: 0.20
+    grass: 0.40
+    bare_soil: 0.10
+    water: 0.05
+    
+  # Typical rural surface properties
+  albedo:
+    paved: 0.15
+    buildings: 0.25
+    evergreen_tree: 0.10
+    deciduous_tree: 0.15
+    grass: 0.22
+    bare_soil: 0.20
+    water: 0.10
+    
+  emissivity:
+    paved: 0.95
+    buildings: 0.92
+    evergreen_tree: 0.98
+    deciduous_tree: 0.98
+    grass: 0.95
+    bare_soil: 0.95
+    water: 0.98
+
+morphology:
+  building_height: 5.0   # m
+  tree_height: 15.0      # m
+  roughness_length_momentum: 0.3  # m
+  displacement_height: 2.0  # m
+
+anthropogenic:
+  base_qf: 2.0  # W/m2 - minimal for rural areas
+  qf_a: [0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.7, 0.6, 0.5, 0.4, 0.3, 0.2]  # diurnal profile
+  qf_b: [0.5, 0.6, 0.8, 1.0, 1.0, 1.0, 0.6]  # weekly profile

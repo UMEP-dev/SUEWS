@@ -34,6 +34,16 @@
 
 ## 2025
 
+### 15 Aug 2025
+- [feature] Added YAML configuration version tracking for better compatibility management ([#576](https://github.com/UMEP-dev/SUEWS/issues/576))
+  - Added `version` field to track target model version (e.g., '2025.8.15.dev325')
+  - Added `config_version` field to track configuration schema version (e.g., 'v1.0', 'v1.1')
+  - Automatic version compatibility checking with warnings for mismatches
+  - Version information logging when loading YAML files
+  - Created utility script `update_config_version.py` for managing versions in config files
+  - Updated sample_config.yml with version tracking fields
+  - Helps with debugging configuration compatibility issues across different model versions
+
 ### 14 Aug 2025
 - [bugfix] Fix test failures in CI by using package resources for sample_config.yml access
   - Use importlib.resources for proper package resource handling in tests

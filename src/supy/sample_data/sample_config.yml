@@ -1,5 +1,7 @@
-name: sample config FURTHER MODIFIED to trigger warning
-description: built from benchmark 1a, based on Ward et al. (2016) model configuration
+name: sample_config_v1.0
+version: 2025.8.15.dev325
+config_version: v1.0
+description: Sample config v1.0 designed for supy version 2025.8.15.dev325, built from benchmark 1a (Ward et al. 2016)
 model:
   control:
     tstep: 300

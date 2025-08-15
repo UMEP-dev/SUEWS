@@ -306,6 +306,16 @@ The following reference pages provide complete documentation for all parameters:
 - :doc:`schema/initialstates` - Initial conditions for prognostic variables
 
 
+Version Tracking
+----------------
+
+SUEWS YAML configurations support version tracking to help manage compatibility across different model versions. 
+See :doc:`version_tracking` for details on:
+
+- Adding version fields to your configurations
+- Automatic compatibility checking
+- Managing configuration versions across projects
+
 Validation and Error Handling
 ------------------------------
 

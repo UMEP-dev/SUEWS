@@ -28,17 +28,7 @@ from pydantic import BaseModel
 from timezonefinder import TimezoneFinder
 import pytz
 
-# Handle imports for both direct execution and module import
-try:
-    from .._env import logger_supy, trv_supy_module
-except ImportError:
-    # Fallback for direct execution
-    import sys
-    import os
-
-    sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
-    from supy._env import logger_supy, trv_supy_module
-
+from supy._env import logger_supy, trv_supy_module
 
 @dataclass
 class ValidationResult:

@@ -194,33 +194,51 @@ class SUEWSSimulation:
 
                     # Skip default placeholder value
                     if forcing_value and forcing_value != "forcing.txt":
-                        # Resolve relative paths relative to config file location
+                        # Resolve paths relative to config file if needed
                         if self._config_path:
-                            if isinstance(forcing_value, list):
-                                # Handle list of forcing files
-                                resolved_paths = []
-                                for f in forcing_value:
-                                    if not Path(f).is_absolute():
-                                        # Relative path - resolve relative to config file
-                                        resolved_paths.append(
-                                            str(self._config_path.parent / f)
-                                        )
-                                    else:
-                                        # Absolute path - use as is
-                                        resolved_paths.append(f)
-                                forcing_value = resolved_paths
-                            else:
-                                # Single forcing file
-                                if not Path(forcing_value).is_absolute():
-                                    # Relative path - resolve relative to config file
-                                    forcing_value = str(
-                                        self._config_path.parent / forcing_value
-                                    )
-
+                            forcing_value = self._resolve_forcing_paths(forcing_value)
+                        
                         self.update_forcing(forcing_value)
 
         except Exception as e:
             warnings.warn(f"Could not load forcing from config: {e}")
+    
+    def _resolve_forcing_paths(self, paths: Union[str, List[str]]) -> Union[str, List[str]]:
+        """Resolve forcing paths relative to config file location.
+        
+        Parameters
+        ----------
+        paths : str or list of str
+            Path(s) to resolve. Relative paths are resolved relative to config file.
+            
+        Returns
+        -------
+        str or list of str
+            Resolved path(s). Absolute paths are returned unchanged.
+        """
+        if isinstance(paths, list):
+            return [self._resolve_single_path(p) for p in paths]
+        else:
+            return self._resolve_single_path(paths)
+    
+    def _resolve_single_path(self, path: str) -> str:
+        """Resolve a single path relative to config file if it's relative.
+        
+        Parameters
+        ----------
+        path : str
+            Path to resolve
+            
+        Returns
+        -------
+        str
+            Resolved path. Absolute paths are returned unchanged.
+        """
+        if Path(path).is_absolute():
+            return path
+        else:
+            # Relative path - resolve relative to config file location
+            return str(self._config_path.parent / path)
 
     def _load_forcing_from_list(
         self, forcing_list: List[Union[str, Path]]

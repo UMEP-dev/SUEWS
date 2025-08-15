@@ -114,14 +114,14 @@ class TestAtmosphericCalculations(TestCase):
 
         # Calculate qa first from known RH
         qa = cal_qa(self.rh_pct, self.ta_k, self.pres_hpa)
-        
+
         # Now calculate RH back from qa
         rh_calc = cal_rh(qa, self.ta_k, self.pres_hpa)
-        
+
         # Should get back approximately the same RH
         self.assertIsInstance(rh_calc, (float, np.floating))
         self.assertAlmostEqual(rh_calc, self.rh_pct, delta=1.0)  # Within 1% tolerance
-        
+
         print(f"✓ Calculated RH: {rh_calc:.1f}% (expected: {self.rh_pct}%)")
 
     def test_cal_lat_vap(self):

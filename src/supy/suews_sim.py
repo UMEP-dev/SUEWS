@@ -339,6 +339,7 @@ class SUEWSSimulation:
 
         # Extract parameters from config
         output_format = None
+        output_config = None
         freq_s = 3600  # default hourly
         site = ""
 
@@ -371,6 +372,7 @@ class SUEWSSimulation:
             site=site,
             path_dir_save=str(output_path),
             # **save_kwargs # Problematic, save_supy expects explicit arguments
+            output_config=output_config,
             output_format=output_format,
         )
         return list_path_save

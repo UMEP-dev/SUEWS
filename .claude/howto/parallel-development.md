@@ -34,7 +34,7 @@ Key points:
 
 **First prompt**: 
 ```
-Read ../../.claude/plans/doing/feature-a.md and start working on the first uncompleted task. Run make dev first if not already done.
+Read ../../.claude/plans/doing/feature-a.md and start working on the first uncompleted task. Run `make uv-dev` (or `make dev`) first if not already done.
 ```
 
 #### Agent 2: Second Feature
@@ -46,7 +46,7 @@ claude --no-chat
 
 **First prompt**:
 ```
-Read ../../.claude/plans/doing/feature-b.md and start working on the tasks. Run make dev first if not already done.
+Read ../../.claude/plans/doing/feature-b.md and start working on the tasks. Run `make uv-dev` (or `make dev`) first if not already done.
 ```
 
 ## Environment Isolation
@@ -64,7 +64,7 @@ When launching each agent, provide clear instructions:
 ```
 1. Check current branch: git branch --show-current
 2. Read the feature plan: cat ../../.claude/plans/doing/[feature-name].md
-3. Ensure environment is set up: make dev
+3. Ensure environment is set up: `make uv-dev` (or `make dev`)
 4. Start with the first uncompleted task
 5. Run tests after each change: make test
 6. Update the plan progress as you work
@@ -156,7 +156,7 @@ git push origin --delete feature/$FEATURE
 - Don't share environments between agents
 
 ### Import errors
-- Run `make dev` in each worktree
+- Run `make uv-dev` (or `make dev`) in each worktree
 - Ensure environment is activated
 
 ### Git conflicts

@@ -73,19 +73,19 @@ Weather stations provide the most accurate local measurements but may require pr
 
    import pandas as pd
    import numpy as np
-   
+
    # Load weather station data
    df = pd.read_csv('weather_station.csv', parse_dates=['datetime'])
    df.set_index('datetime', inplace=True)
-   
+
    # Ensure hourly frequency and fill gaps
    df = df.resample('H').mean()  # or .interpolate() for linear interpolation
    df = df.interpolate(method='linear', limit=3)  # Fill short gaps
-   
+
    # Calculate derived variables if not measured
    # Atmospheric pressure (if only station pressure available)
    df['pres'] = df['station_pres'] * (1 - 0.0065 * elevation / 288.15)**5.257
-   
+
    # Specific humidity from relative humidity and temperature
    es = 6.112 * np.exp(17.67 * df['Tair'] / (df['Tair'] + 243.5))  # Saturation vapour pressure
    e = df['RH'] / 100 * es  # Actual vapour pressure
@@ -98,23 +98,23 @@ Reanalysis datasets (MERRA-2, JRA-55, NCEP) require spatial and temporal process
 .. code-block:: python
 
    import xarray as xr
-   
+
    # Load reanalysis data (example with netCDF)
    ds = xr.open_dataset('reanalysis_data.nc')
-   
+
    # Extract data for specific location
    lat_target, lon_target = 51.5074, -0.1278  # London coordinates
    point_data = ds.sel(lat=lat_target, lon=lon_target, method='nearest')
-   
+
    # Convert to DataFrame and ensure proper time formatting
    df = point_data.to_dataframe().reset_index()
    df['datetime'] = pd.to_datetime(df['time'])
    df.set_index('datetime', inplace=True)
-   
+
    # Unit conversions (example: K to °C, m/s to specific humidity)
    df['Tair'] = df['temperature'] - 273.15  # K to °C
    df['RH'] = df['relative_humidity'] * 100  # fraction to percentage
-   
+
    # Resample to required frequency if needed
    df = df.resample('H').interpolate()
 
@@ -127,20 +127,20 @@ For research datasets or specialized sensors:
    # Custom processing function
    def process_custom_data(file_path, site_elevation=50):
        df = pd.read_csv(file_path, skiprows=3)  # Skip header rows
-       
+
        # Create proper datetime index
        df['datetime'] = pd.to_datetime(df[['year', 'month', 'day', 'hour']])
        df.set_index('datetime', inplace=True)
-       
+
        # Calculate missing variables
        if 'kdown' not in df.columns and 'global_rad' in df.columns:
            df['kdown'] = df['global_rad']  # Rename if needed
-       
+
        # Quality control
        df.loc[df['Tair'] < -50, 'Tair'] = np.nan  # Remove impossible temperatures
        df.loc[df['RH'] > 100, 'RH'] = 100  # Cap relative humidity
        df.loc[df['kdown'] < 0, 'kdown'] = 0  # Remove negative radiation
-       
+
        return df
 
 **SUEWS Format Conversion**
@@ -155,19 +155,19 @@ Convert processed data to SUEWS input format:
        df['id'] = df.index.dayofyear
        df['it'] = df.index.hour
        df['imin'] = df.index.minute
-       
+
        # Select and order required columns (adjust based on available data)
-       suews_cols = ['iy', 'id', 'it', 'imin', 'kdown', 'ldown', 'Tair', 'RH', 
+       suews_cols = ['iy', 'id', 'it', 'imin', 'kdown', 'ldown', 'Tair', 'RH',
                      'pres', 'rain', 'U', 'qh', 'snow', 'lup', 'xsmd', 'lai']
-       
+
        # Fill missing optional variables with -999
        for col in suews_cols:
            if col not in df.columns:
                df[col] = -999
-       
+
        # Write to file with SUEWS naming convention
        df_out = df[suews_cols]
-       df_out.to_csv(f'{output_file}_{year}_data_60.txt', 
+       df_out.to_csv(f'{output_file}_{year}_data_60.txt',
                      sep='\t', index=False, float_format='%.2f')
 
 **Quality Control and Validation**
@@ -179,7 +179,7 @@ Essential checks before using forcing data:
    def validate_forcing_data(df):
        """Perform quality control on forcing data."""
        issues = []
-       
+
        # Check for missing critical variables
        critical_vars = ['kdown', 'Tair', 'RH', 'pres', 'rain', 'U']
        for var in critical_vars:
@@ -187,28 +187,28 @@ Essential checks before using forcing data:
                issues.append(f"Missing critical variable: {var}")
            elif df[var].isna().sum() > 0:
                issues.append(f"{var} has {df[var].isna().sum()} missing values")
-       
+
        # Physical range checks
        if (df['Tair'] < -50).any() or (df['Tair'] > 60).any():
            issues.append("Temperature outside reasonable range (-50 to 60°C)")
-       
+
        if (df['RH'] < 0).any() or (df['RH'] > 100).any():
            issues.append("Relative humidity outside 0-100% range")
-       
+
        if (df['U'] < 0.01).any():
            issues.append("Wind speed below minimum threshold (0.01 m/s) - causes division by zero errors")
-       
+
        if (df['kdown'] < 0).any():
            issues.append("Negative incoming shortwave radiation")
-       
+
        if (df['rain'] < 0).any():
            issues.append("Negative precipitation")
-       
+
        # Temporal consistency
        time_diff = df.index.to_series().diff().dropna()
        if not (time_diff == time_diff.iloc[0]).all():
            issues.append("Irregular time intervals detected")
-       
+
        return issues
 
 **Example Workflow**
@@ -220,27 +220,27 @@ Complete example for processing weather station data:
    # 1. Load and process raw data
    df_raw = pd.read_csv('station_data.csv', parse_dates=['timestamp'])
    df_raw.set_index('timestamp', inplace=True)
-   
+
    # 2. Resample to hourly and fill gaps
    df = df_raw.resample('H').mean()
    df = df.interpolate(method='linear', limit=6)  # Fill gaps up to 6 hours
-   
+
    # 3. Calculate derived variables
    df = calculate_specific_humidity(df)  # Custom function
    df = calculate_pressure_adjustment(df, site_elevation=120)
-   
+
    # 4. Quality control
    issues = validate_forcing_data(df)
    if issues:
        print("Data quality issues found:")
        for issue in issues:
            print(f"  - {issue}")
-   
+
    # 5. Convert to SUEWS format
    for year in df.index.year.unique():
        year_data = df[df.index.year == year]
        to_suews_format(year_data, 'MyCity', year)
-   
+
    print(f"Generated forcing files for {len(df.index.year.unique())} years")
 
 **Best Practices**

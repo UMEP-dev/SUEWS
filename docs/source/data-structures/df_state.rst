@@ -4,7 +4,13 @@
 ``df_state`` variables
 ============================
 
+.. warning::
 
+   **DEVELOPER REFERENCE ONLY**: This page documents internal ``df_state`` variables used by the SuPy Python API for developers.
+   
+   **For SUEWS users**: Please refer to the :doc:`YAML Configuration Format </inputs/yaml/index>` for user-facing parameter documentation.
+   
+   These variables are automatically managed by SuPy and should not be modified directly unless you are developing or debugging the model internals.
 
 .. note:: Data structure of ``df_state`` is explained :ref:`here </data-structure/supy-io.ipynb#df_state_init:-model-initial-states>`.
 

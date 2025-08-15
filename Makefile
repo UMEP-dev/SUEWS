@@ -68,6 +68,9 @@ help:
 	@echo "  Use ./claude-dev/claude.sh for workspace management"
 	@echo "  See claude-dev/README.md for complete documentation"
 	@echo ""
+	@echo "Testing:"
+	@echo "  test            - Run full test suite"
+	@echo ""
 	@echo "Legacy/Manual Commands:"
 	@echo "  mamba-dev       - Build SUEWS with mamba environment check (legacy - use 'make dev')"
 	@echo "  install-and-test - Install SUEWS to current Python environment + run tests (old 'make all')"
@@ -181,9 +184,9 @@ install:
 test:
 	@if command -v uv >/dev/null 2>&1 && [ -n "$${UV_RUN:-}" ]; then \
 		echo "Running tests with uv..."; \
-		uv run pytest test -v --tb=short; \
+		uv run pytest test -v --tb=short --durations=10; \
 	else \
-		$(PYTHON) -m pytest test -v --tb=short; \
+		$(PYTHON) -m pytest test -v --tb=short --durations=10; \
 	fi
 
 # make supy wheels using cibuild

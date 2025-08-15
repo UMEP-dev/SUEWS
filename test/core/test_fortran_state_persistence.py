@@ -6,6 +6,8 @@ This test suite verifies that Fortran state does not persist between multiple
 calls to sp.run_supy() within the same Python process. State persistence would
 indicate uninitialized variables or improper state reset mechanisms.
 
+These tests take ~3.6 minutes total but provide comprehensive state isolation validation.
+
 Based on user correction: "you need to test running the fortran multiple times
 within the same python script. Not calling the test 3 separate times. A new
 python kernel will reset both python and fortran states."
@@ -16,6 +18,7 @@ from pathlib import Path
 from unittest import TestCase
 import warnings
 
+import pytest
 import supy as sp
 
 # Suppress logging to get clean output
@@ -100,6 +103,7 @@ class TestFortranStatePersistence(TestCase):
         Test if Fortran state persists between multiple calls in the same Python process.
 
         This test passes if no difference is found between runs, fails if pollution is detected.
+        Runtime: ~68 seconds
         """
         print("\n" + "=" * 70)
         print("FORTRAN STATE PERSISTENCE TEST")
@@ -134,7 +138,11 @@ class TestFortranStatePersistence(TestCase):
             print("Test PASSED: No state pollution detected.")
 
     def test_multiple_consecutive_runs(self):
-        """Test multiple consecutive runs to see if pollution accumulates."""
+        """
+        Test multiple consecutive runs to see if pollution accumulates.
+        
+        Runtime: ~109 seconds
+        """
         print("\n" + "=" * 70)
         print("MULTIPLE CONSECUTIVE RUNS TEST")
         print("=" * 70)
@@ -192,7 +200,11 @@ class TestFortranStatePersistence(TestCase):
             print("Test PASSED: No pollution in consecutive runs.")
 
     def test_minimal_reproduction(self):
-        """Create minimal reproduction case."""
+        """
+        Create minimal reproduction case.
+        
+        Runtime: ~42 seconds
+        """
         print("\n" + "=" * 70)
         print("MINIMAL REPRODUCTION TEST")
         print("=" * 70)

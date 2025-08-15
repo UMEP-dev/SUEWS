@@ -259,29 +259,31 @@ class SUEWSConfig(BaseModel):
         if self.version is not None:
             try:
                 from .._version import __version__ as current_version
+
                 # Compare major.minor.patch parts only (ignore dev suffixes for comparison)
-                config_version_parts = self.version.split('.')[:3]
-                current_version_parts = current_version.split('.')[:3]
-                
+                config_version_parts = self.version.split(".")[:3]
+                current_version_parts = current_version.split(".")[:3]
+
                 if config_version_parts != current_version_parts:
                     import warnings
+
                     warnings.warn(
                         f"Configuration version mismatch: Config designed for version {self.version}, "
                         f"but running with version {current_version}. "
                         f"This may cause compatibility issues.",
                         UserWarning,
-                        stacklevel=3
+                        stacklevel=3,
                     )
                     # Log to detailed messages for validation summary
-                    if hasattr(self, '_validation_summary'):
-                        self._validation_summary['detailed_messages'].append(
+                    if hasattr(self, "_validation_summary"):
+                        self._validation_summary["detailed_messages"].append(
                             f"Version mismatch: Config for {self.version}, running {current_version}"
                         )
             except ImportError:
                 pass  # Version module not available
-        
+
         return self
-    
+
     @model_validator(mode="after")
     def validate_model_output_config(self) -> "SUEWSConfig":
         """
@@ -2260,22 +2262,25 @@ class SUEWSConfig(BaseModel):
         # Store yaml path in config data for later use
         config_data["_yaml_path"] = path
         config_data["_auto_generate_annotated"] = auto_generate_annotated
-        
+
         # Log version information if present
         if "version" in config_data:
-            logger_supy.info(f"Loading config designed for model version: {config_data['version']}")
+            logger_supy.info(
+                f"Loading config designed for model version: {config_data['version']}"
+            )
         if "config_version" in config_data:
             logger_supy.info(f"Config schema version: {config_data['config_version']}")
-        
+
         # Check version compatibility
         if "version" in config_data:
             try:
                 from .._version import __version__ as current_version
+
                 config_ver = config_data["version"]
                 # Compare major.minor.patch parts
-                config_parts = str(config_ver).split('.')[:3]
-                current_parts = current_version.split('.')[:3]
-                
+                config_parts = str(config_ver).split(".")[:3]
+                current_parts = current_version.split(".")[:3]
+
                 if config_parts != current_parts:
                     logger_supy.warning(
                         f"Version mismatch: Config designed for {config_ver}, "
@@ -2488,7 +2493,7 @@ class SUEWSConfig(BaseModel):
 
 def init_config_from_yaml(path: str = "./config-suews.yml") -> SUEWSConfig:
     """Initialize SUEWSConfig from YAML file.
-    
+
     This is a convenience function that delegates to SUEWSConfig.from_yaml
     for consistency in version checking and validation.
     """

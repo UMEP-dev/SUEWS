@@ -18,16 +18,16 @@ from supy.suews_sim import SUEWSSimulation
 def temp_config_setup(config_content, forcing_location="next_to_config"):
     """Helper to set up temporary config and forcing files."""
     sample_forcing = files("supy").joinpath("sample_data/Kc_2012_data_60.txt")
-    
+
     with tempfile.TemporaryDirectory() as tmpdir:
         tmpdir = Path(tmpdir)
         config_dir = tmpdir / "config"
         config_dir.mkdir(parents=True)
-        
+
         # Write config
         config_path = config_dir / "config.yml"
         config_path.write_text(config_content)
-        
+
         # Place forcing file based on test needs
         if forcing_location == "next_to_config":
             forcing_path = config_dir / "Kc_2012_data_60.txt"
@@ -41,10 +41,10 @@ def temp_config_setup(config_content, forcing_location="next_to_config"):
             (data_dir / "forcing_1.txt").write_bytes(sample_forcing.read_bytes())
         else:
             forcing_path = tmpdir / forcing_location
-            
+
         if forcing_location != "missing":
             forcing_path.write_bytes(sample_forcing.read_bytes())
-        
+
         # Change to tmpdir and yield paths
         original_cwd = os.getcwd()
         try:
@@ -106,15 +106,15 @@ sites:
 def test_absolute_path():
     """Absolute paths should work from anywhere."""
     sample_forcing = files("supy").joinpath("sample_data/Kc_2012_data_60.txt")
-    
+
     with tempfile.TemporaryDirectory() as tmpdir:
         # Create forcing at absolute path
         forcing_path = Path(tmpdir) / "forcing.txt"
         forcing_path.write_bytes(sample_forcing.read_bytes())
-        
+
         # Config with absolute path
         config = get_base_config(str(forcing_path))
-        
+
         with temp_config_setup(config, "missing") as (config_path, _):
             # Even though we're in a different dir, absolute path works
             sim = SUEWSSimulation(str(config_path))

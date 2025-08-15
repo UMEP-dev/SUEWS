@@ -61,7 +61,7 @@
   - Established semantic versioning strategy with year-based major versions
   - Defined three release channels: Stable, Preview (beta/rc), and Development
   - Created quarterly release cadence aligned with academic calendar
-  - Documented quality assurance process with testing tiers
+  - Documented quality assurance process
   - Established documentation synchronisation with code releases
   - Created communication templates and notification strategies
   - Defined roles, responsibilities, and success metrics

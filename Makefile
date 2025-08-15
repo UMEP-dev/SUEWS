@@ -1,6 +1,6 @@
 # SUEWS Makefile - read the README file before editing
 
-.PHONY: main clean test pip supy docs dev dev-clean dev-fast livehtml schema proc-csv config-ui check-dev-install mamba-dev help deactivate format lint
+.PHONY: main clean test pip supy docs dev dev-clean dev-fast livehtml schema proc-csv config-ui check-dev-install mamba-dev help deactivate format lint uv-dev uv-clean
 
 # OS-specific configurations
 ifeq ($(OS),Windows_NT)
@@ -74,6 +74,10 @@ help:
 	@echo ""
 	@echo "Environment Management:"
 	@echo "  deactivate      - Show command to deactivate current environment"
+	@echo ""
+	@echo "UV Environment Setup (Ultra-fast):"
+	@echo "  uv-dev          - Setup uv environment with dev + docs dependencies (recommended)"
+	@echo "  uv-clean        - Remove uv virtual environment"
 	@echo ""
 	@echo "Testing and Quality:"
 	@echo "  test            - Run test suite"
@@ -177,9 +181,9 @@ install:
 test:
 	@if command -v uv >/dev/null 2>&1 && [ -n "$${UV_RUN:-}" ]; then \
 		echo "Running tests with uv..."; \
-		uv run pytest test -v --tb=short; \
+		uv run pytest test -v --tb=short --durations=10; \
 	else \
-		$(PYTHON) -m pytest test -v --tb=short; \
+		$(PYTHON) -m pytest test -v --tb=short --durations=10; \
 	fi
 
 # make supy wheels using cibuild
@@ -331,5 +335,32 @@ lint:
 		fi \
 	else \
 		echo "WARNING: fprettify not found. Install with: pip install fprettify"; \
+	fi
+
+# UV Environment Setup - Minimal and Essential
+
+# Setup uv environment with dev + docs dependencies (one-stop recipe)
+uv-dev:
+	@if ! command -v uv >/dev/null 2>&1; then \
+		echo "ERROR: uv not installed. Install with: brew install uv"; \
+		exit 1; \
+	fi
+	@if [ ! -d ".venv" ]; then \
+		echo "Creating uv environment..."; \
+		uv venv; \
+	fi
+	@echo "Installing SUEWS with dev + docs dependencies..."
+	@. .venv/bin/activate 2>/dev/null || source .venv/Scripts/activate 2>/dev/null || true; \
+	uv pip install -e ".[dev,docs]"
+	@echo ""
+	@echo "✓ Ready! Activate with: source .venv/bin/activate"
+
+# Clean uv virtual environment
+uv-clean:
+	@if [ -d ".venv" ]; then \
+		rm -rf .venv; \
+		echo "✓ Virtual environment removed"; \
+	else \
+		echo "No .venv found"; \
 	fi
 

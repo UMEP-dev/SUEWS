@@ -52,7 +52,7 @@ def cal_dq(rh_pct, ta_c, pres_hPa):
 def cal_rh(qa_kgkg, theta_K, pres_hPa):
     from atmosp import calculate as ac
 
-    RH = ac("RH", av=qa_kgkg, p=pres_hPa * 100, theta=theta_K)
+    RH = ac("RH", qv=qa_kgkg, p=pres_hPa * 100, theta=theta_K)
     return RH
 
 

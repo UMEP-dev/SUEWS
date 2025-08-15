@@ -1,11 +1,4 @@
 import click
-from pathlib import Path
-import tempfile
-import shutil
-
-from supy.util._converter import convert_table, list_ver_to
-from supy._load import load_InitialCond_grid_df
-from supy.data_model.core import SUEWSConfig
 
 
 @click.command(
@@ -35,7 +28,28 @@ from supy.data_model.core import SUEWSConfig
     type=str,
     default=None,
 )
-def to_yaml(input_dir: str, output_file: str, from_ver: str):
+@click.option(
+    "-d",
+    "--debug-dir",
+    "debug_dir",
+    help="[Optional] Directory to save intermediate conversion files for debugging.",
+    type=click.Path(),
+    default=None,
+)
+@click.option(
+    "--no-profile-validation",
+    "no_validate_profiles",
+    is_flag=True,
+    default=False,
+    help="Disable automatic profile validation and creation of missing profiles",
+)
+def to_yaml(
+    input_dir: str,
+    output_file: str,
+    from_ver: str,
+    debug_dir: str = None,
+    no_validate_profiles: bool = False,
+):
     """
     This tool facilitates the transition from the legacy table-based SUEWS input format
     to the new YAML-based configuration format.
@@ -44,44 +58,17 @@ def to_yaml(input_dir: str, output_file: str, from_ver: str):
     1.  Optionally converts older versions of input tables to the latest available version.
     2.  Reads the complete set of table-based inputs and converts them into a single, comprehensive YAML file.
     """
-    input_path = Path(input_dir)
-    output_path = Path(output_file)
+    # Import the converter function
+    from ..util.converter import convert_to_yaml
 
-    processing_dir = input_path
-    temp_dir_obj = None
-
-    try:
-        if from_ver:
-            to_ver = sorted(list_ver_to)[-1]
-            click.echo(
-                f"Step 1: Converting tables from version {from_ver} to latest version {to_ver}..."
-            )
-            temp_dir_obj = tempfile.TemporaryDirectory()
-            temp_dir_path = Path(temp_dir_obj.name)
-            convert_table(str(input_path), str(temp_dir_path), from_ver, to_ver)
-            processing_dir = temp_dir_path
-            click.echo(
-                f"Table conversion complete. Using converted tables in: {processing_dir}"
-            )
-
-        path_runcontrol = processing_dir / "RunControl.nml"
-        if not path_runcontrol.exists():
-            raise click.ClickException(f"RunControl.nml not found in {processing_dir}")
-
-        click.echo("Step 2: Loading SUEWS input tables into data model...")
-        df_state = load_InitialCond_grid_df(path_runcontrol)
-
-        click.echo("Step 3: Creating Pydantic configuration object...")
-        config = SUEWSConfig.from_df_state(df_state)
-
-        click.echo(f"Step 4: Saving configuration to YAML file: {output_path}...")
-        config.to_yaml(output_path)
-
-        click.secho(f"Successfully converted to {output_path}", fg="green")
-
-    finally:
-        if temp_dir_obj:
-            temp_dir_obj.cleanup()
+    # Call the converter
+    convert_to_yaml(
+        input_dir=input_dir,
+        output_file=output_file,
+        from_ver=from_ver,
+        debug_dir=debug_dir,
+        validate_profiles=not no_validate_profiles,
+    )
 
 
 if __name__ == "__main__":

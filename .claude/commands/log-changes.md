@@ -19,6 +19,7 @@ Analyse code changes and fill the gap in CHANGELOG.md from the last documented d
 
 2. **Group commits by date**:
    - Use `git log --format="%ad||%h||%s||%an" --date=format:"%d %b %Y"` to get commits with dates
+   - Check if commits are part of merged PRs: `git log --merges --format="%h %s"`
    - Group commits that happened on the same day
    - Only include dates where significant changes occurred
 
@@ -29,8 +30,15 @@ Analyse code changes and fill the gap in CHANGELOG.md from the last documented d
    - [maintenance]: Codebase maintenance (including Claude Code/dev tooling AND CLAUDE.md updates)
    - [doc]: Documentation updates (user-facing documentation in docs/, NOT CLAUDE.md)
 
-4. **Update CHANGELOG.md**:
+4. **Update CHANGELOG.md with links (GitHub auto-linking)**:
    - Add entries for each date with significant changes
+   - **IMPORTANT**: Each change item must include a reference that GitHub will auto-link:
+     - For PR-related changes: `#123` - GitHub auto-links to PR
+     - For direct commits: Use 7-character SHA like `abc1234` - GitHub auto-links to commit
+   - Format examples:
+     - `[feature]: Add new validation system (#123)`
+     - `[bugfix]: Fix memory leak in parser (abc1234)`
+     - `[maintenance]: Update CLAUDE.md with new guidelines (#456, def5678)`
    - Use the actual commit date, not today's date
    - Only use today's date if you're documenting changes made today
    - Maintain chronological order (newest dates first)

@@ -1,5 +1,7 @@
 .. _Above_ground_state:
 
+
+
 Above ground state
 ~~~~~~~~~~~~~~~~~~
 

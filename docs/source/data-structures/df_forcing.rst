@@ -4,26 +4,30 @@
 ``df_forcing`` variables
 ============================
 
+.. note:: 
 
-
-.. note:: Data structure of ``df_forcing`` is explained :ref:`here </data-structure/supy-io.ipynb#df_forcing:-forcing-data>`.
+   **For SUEWS users**: These are the meteorological forcing variables required to run SUEWS. 
+   
+   For the modern YAML configuration, specify your forcing file path using ``model.control.forcing_file`` in your configuration.
+   
+   Data structure of ``df_forcing`` is explained :ref:`here </data-structure/supy-io.ipynb#df_forcing:-forcing-data>`.
 
 .. option:: RH
 
     :Description:
-        Relative Humidity [%] (measurement height (`z`) is needed in `SUEWS_SiteSelect.txt`)
+        Relative Humidity [%] (measurement height ``z`` is specified in site properties)
 
 
 .. option:: Tair
 
     :Description:
-        Air temperature [°C] (measurement height (`z`) is needed in `SUEWS_SiteSelect.txt`)
+        Air temperature [°C] (measurement height ``z`` is specified in site properties)
 
 
 .. option:: U
 
     :Description:
-        Wind speed [m s-1] (measurement height (`z`) is needed in `SUEWS_SiteSelect.txt`)
+        Wind speed [m s-1] (measurement height ``z`` is specified in site properties)
 
 
 .. option:: Wuh

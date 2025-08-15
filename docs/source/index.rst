@@ -67,7 +67,7 @@ Get started immediately with the :ref:`Getting Started with SUEWS <Workflow>` gu
 
 - **Migration guide**: :ref:`Transition from table-based inputs <inputs/transition_guide>` to modern YAML configuration
 - **Version changes**: See :ref:`new_latest` for updates in this version
-- **Legacy support**: The `SUEWS table converter <input_converter>` helps convert existing input files
+- **Legacy support**: The :doc:`SUEWS Format Converter <inputs/converter>` helps convert existing input files
 
 **Scientific Background:**
 
@@ -127,6 +127,7 @@ How to support SUEWS?
    workflow
    sub-tutorials/tutorials
    inputs/index
+   yaml-processor/index
    output_files/output_files
    api
    data-structures/supy-io

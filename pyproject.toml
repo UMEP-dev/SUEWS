@@ -44,6 +44,7 @@ dependencies = [
     "timezonefinder==6.5.9",                       # timezone detection from coordinates (pinned due to issue #516)
     "pytz",                                        # timezone handling
     "scikit-learn",                                # OHM coefficient derivation
+    "pyarrow",                                     # Parquet support for CRU data and efficient data storage
 ]
 classifiers = [
     "Programming Language :: Python :: 3 :: Only",
@@ -75,7 +76,6 @@ dev = [
     "pytest",
     "pytest-cov",
     "ruff",
-    "pyarrow",  # Parquet support for pandas (recommended for output format)
     # Personal analysis tools
     "geopandas",
     "jupyter",
@@ -107,4 +107,13 @@ docs = [
 all = [
     # All optional dependencies
     "supy[dev,docs]",
+]
+
+[tool.pytest.ini_options]
+# Suppress specific warnings during test runs
+filterwarnings = [
+    # Ignore all Pydantic serializer warnings
+    "ignore:Pydantic serializer warnings:UserWarning",
+    # Alternative: ignore all warnings from pydantic.main module
+    "ignore::UserWarning:pydantic.main",
 ]

@@ -1,5 +1,7 @@
 .. _Vegetation_parameters:
 
+
+
 Vegetation parameters
 ~~~~~~~~~~~~~~~~~~~~~
 

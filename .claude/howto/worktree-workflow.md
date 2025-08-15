@@ -276,7 +276,7 @@ claude -p "/worktree finish"
 ### "Environment issues"
 - Ensure you're in the worktree directory
 - Check `.venv` exists
-- Rebuild with `make clean && make dev`
+- Rebuild with `make clean && make dev` (or `make uv-dev` for fresh setup)
 
 ## Manual Commands Reference
 
@@ -294,6 +294,10 @@ cp .claude/templates/feature-plan.md .claude/plans/todo/feature-my-feature.md
 cd worktrees/my-feature
 uv venv
 source .venv/bin/activate
+# Option 1: Use the convenient recipe
+make uv-dev
+
+# Option 2: Manual setup
 uv pip install -r requirements-dev.txt
 make dev
 

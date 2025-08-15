@@ -629,38 +629,52 @@ def resample_forcing_met(
         data_met_raw.to_pickle(p_data_met_raw)
         logger_supy.debug(f"{p_data_met_raw} has been generated!")
 
-    # linear interpolation:
-    # the interpolation schemes differ between instantaneous and average values
-    # instantaneous:
-    list_var_inst = [
-        var for var, data_type in dict_var_type_forcing.items() if data_type == "inst"
-    ]
-    data_met_tstep_inst = resample_linear_inst(
-        data_met_raw.filter(list_var_inst), tstep_in, tstep_mod
-    )
-    # average:
-    list_var_avg = [
-        var for var, data_type in dict_var_type_forcing.items() if data_type == "avg"
-    ]
-    data_met_tstep_avg = resample_linear_avg(
-        data_met_raw.filter(list_var_avg), tstep_in, tstep_mod
-    )
+    # Check if interpolation is needed
+    # When tstep_in equals tstep_mod, no interpolation is required
+    if tstep_in == tstep_mod:
+        # No interpolation needed - use data as is
+        data_met_tstep = data_met_raw.copy()
+    else:
+        # linear interpolation:
+        # the interpolation schemes differ between instantaneous and average values
+        # instantaneous:
+        list_var_inst = [
+            var
+            for var, data_type in dict_var_type_forcing.items()
+            if data_type == "inst"
+        ]
+        data_met_tstep_inst = resample_linear_inst(
+            data_met_raw.filter(list_var_inst), tstep_in, tstep_mod
+        )
+        # average:
+        list_var_avg = [
+            var
+            for var, data_type in dict_var_type_forcing.items()
+            if data_type == "avg"
+        ]
+        data_met_tstep_avg = resample_linear_avg(
+            data_met_raw.filter(list_var_avg), tstep_in, tstep_mod
+        )
 
-    # distributing interpolation:
-    # sum:
-    list_var_sum = [
-        var for var, data_type in dict_var_type_forcing.items() if data_type == "sum"
-    ]
-    data_met_tstep_sum = resample_sum(
-        data_met_raw.filter(list_var_sum), tstep_in, tstep_mod
-    )
+        # distributing interpolation:
+        # sum:
+        list_var_sum = [
+            var
+            for var, data_type in dict_var_type_forcing.items()
+            if data_type == "sum"
+        ]
+        data_met_tstep_sum = resample_sum(
+            data_met_raw.filter(list_var_sum), tstep_in, tstep_mod
+        )
 
-    # combine the resampled individual dataframes
-    data_met_tstep = (
-        pd.concat([data_met_tstep_inst, data_met_tstep_avg, data_met_tstep_sum], axis=1)
-        .interpolate()
-        .loc[data_met_tstep_inst.index]
-    )
+        # combine the resampled individual dataframes
+        data_met_tstep = (
+            pd.concat(
+                [data_met_tstep_inst, data_met_tstep_avg, data_met_tstep_sum], axis=1
+            )
+            .interpolate()
+            .loc[data_met_tstep_inst.index]
+        )
 
     # adjust solar radiation by zenith correction and total amount distribution
     if kdownzen == 1:
@@ -1384,33 +1398,31 @@ def load_SUEWS_dict_ModConfig(path_runcontrol, dict_default=dict_RunControl_defa
 def load_SUEWS_dict_Stebbs(path_runcontrol, dict_runconfig):
     # load STEBBS-specific variables:
     stebbs_dict = {}
+
+    # Only load STEBBS files if STEBBS is enabled (stebbsmethod == 2)
     if dict_runconfig["stebbsmethod"] == 2:
         path_stebbs_typologies = (
             path_runcontrol.parent
-            / path_runcontrol["fileinputpath"]
+            / dict_runconfig["fileinputpath"]
             / "stebbs_building_typologies.nml"
         )
         path_stebbs_general = (
             path_runcontrol.parent
-            / path_runcontrol["fileinputpath"]
+            / dict_runconfig["fileinputpath"]
             / "stebbs_general_params.nml"
         )
-    else:
-        path_stebbs_typologies = (
-            trv_supy_module
-            / "sample_run"
-            / "Input"
-            / "test_stebbs_building_typologies.nml"
-        )
-        path_stebbs_general = (
-            trv_supy_module / "sample_run" / "Input" / "test_stebbs_general_params.nml"
-        )
 
-    stebbs_dict_y = {k[0]: v for k, v in load_SUEWS_nml(path_stebbs_typologies).items()}
-    stebbs_dict.update(stebbs_dict_y)
+        stebbs_dict_y = {
+            k[0]: v for k, v in load_SUEWS_nml(path_stebbs_typologies).items()
+        }
+        stebbs_dict.update(stebbs_dict_y)
 
-    stebbs_dict_z = {k[0]: v for k, v in load_SUEWS_nml(path_stebbs_general).items()}
-    stebbs_dict.update(stebbs_dict_z)
+        stebbs_dict_z = {
+            k[0]: v for k, v in load_SUEWS_nml(path_stebbs_general).items()
+        }
+        stebbs_dict.update(stebbs_dict_z)
+    # For stebbsmethod == 0 or 1, return empty dict (STEBBS disabled)
+    # Previously this tried to load test files which are now in test fixtures
 
     return stebbs_dict
 
@@ -1474,7 +1486,7 @@ dict_InitCond_out = {
     "snowdensgrass": nan,
     "snowdensbsoil": nan,
     "snowdenswater": nan,
-    "snowalb0": nan,
+    "snowalb0": 0.5,  # Changed from nan to valid default (0.5)
 }
 # extra items used in supy
 dict_InitCond_extra = {
@@ -1634,13 +1646,16 @@ def modify_df_init(df_init, list_var_dim):
                 dict_col_new[(var, ind)] = df_init_mod[val].values.reshape(len_df)
             else:
                 dict_col_new[(var, ind)] = np.repeat(val, len_df)
-    df_col_new = pd.DataFrame(dict_col_new, index=df_init_mod.index)
 
-    # Update column names to match df_init
-    df_col_new.columns.names = df_init.columns.names
+    # Only proceed if we have new columns to add
+    if dict_col_new:
+        df_col_new = pd.DataFrame(dict_col_new, index=df_init_mod.index)
 
-    # 2. merge new columns into original dataframe
-    df_init_mod = df_init_mod.merge(df_col_new, left_index=True, right_index=True)
+        # Update column names to match df_init
+        df_col_new.columns.names = df_init.columns.names
+
+        # 2. merge new columns into original dataframe
+        df_init_mod = df_init_mod.merge(df_col_new, left_index=True, right_index=True)
 
     return df_init_mod
 
@@ -1655,6 +1670,19 @@ def add_file_init_df(df_init):
     df_init_file.index.set_names(["Grid"], inplace=True)
 
     # merge only those appeard in base df
+    # Ensure dtypes are compatible before updating to avoid FutureWarning
+    for col in df_init_file.columns:
+        if col in df_init.columns:
+            # Convert to the target dtype if different
+            target_dtype = df_init[col].dtype
+            if df_init_file[col].dtype != target_dtype:
+                try:
+                    df_init_file[col] = df_init_file[col].astype(target_dtype)
+                except (ValueError, TypeError):
+                    # If conversion fails, convert both to object dtype
+                    df_init[col] = df_init[col].astype("object")
+                    df_init_file[col] = df_init_file[col].astype("object")
+
     df_init.update(df_init_file)
 
     return df_init
@@ -1885,6 +1913,67 @@ def add_temp_init_df(df_init):
     return df_init
 
 
+# fix invalid default values (-999) with sensible defaults
+def fix_invalid_defaults(df_init):
+    """Replace -999 values with sensible defaults for specific parameters."""
+    # FAI_Bldgs: Frontal area index for buildings (typical value 0.3-0.5)
+    if ("fai_bldgs", "0") in df_init.columns:
+        mask = df_init[("fai_bldgs", "0")] == -999
+        df_init.loc[mask, ("fai_bldgs", "0")] = 0.3
+
+    # Also check for faibldg (without underscore)
+    if ("faibldg", "0") in df_init.columns:
+        mask = df_init[("faibldg", "0")] == -999
+        df_init.loc[mask, ("faibldg", "0")] = 0.3
+
+    # pormin_dec and pormax_dec: Porosity min/max for deciduous trees (typical 0.2-0.9)
+    if ("pormin_dec", "0") in df_init.columns:
+        mask = df_init[("pormin_dec", "0")] == -999
+        df_init.loc[mask, ("pormin_dec", "0")] = 0.2
+
+    if ("pormax_dec", "0") in df_init.columns:
+        mask = df_init[("pormax_dec", "0")] == -999
+        df_init.loc[mask, ("pormax_dec", "0")] = 0.9
+
+    # pormin_evetr and pormax_evetr: Porosity min/max for evergreen trees
+    if ("pormin_evetr", "0") in df_init.columns:
+        mask = df_init[("pormin_evetr", "0")] == -999
+        df_init.loc[mask, ("pormin_evetr", "0")] = 0.2
+
+    if ("pormax_evetr", "0") in df_init.columns:
+        mask = df_init[("pormax_evetr", "0")] == -999
+        df_init.loc[mask, ("pormax_evetr", "0")] = 0.9
+
+    # pormin_grass and pormax_grass: Porosity min/max for grass
+    if ("pormin_grass", "0") in df_init.columns:
+        mask = df_init[("pormin_grass", "0")] == -999
+        df_init.loc[mask, ("pormin_grass", "0")] = 0.2
+
+    if ("pormax_grass", "0") in df_init.columns:
+        mask = df_init[("pormax_grass", "0")] == -999
+        df_init.loc[mask, ("pormax_grass", "0")] = 0.9
+
+    # FAI_EveTr and FAI_DecTr: Frontal area index for trees (typical value 0.3-2.0)
+    if ("fai_evetr", "0") in df_init.columns:
+        mask = df_init[("fai_evetr", "0")] == -999
+        df_init.loc[mask, ("fai_evetr", "0")] = 1.0
+
+    if ("fai_dectr", "0") in df_init.columns:
+        mask = df_init[("fai_dectr", "0")] == -999
+        df_init.loc[mask, ("fai_dectr", "0")] = 1.0
+
+    # Also check without underscores
+    if ("faievetr", "0") in df_init.columns:
+        mask = df_init[("faievetr", "0")] == -999
+        df_init.loc[mask, ("faievetr", "0")] = 1.0
+
+    if ("faidectree", "0") in df_init.columns:
+        mask = df_init[("faidectree", "0")] == -999
+        df_init.loc[mask, ("faidectree", "0")] = 1.0
+
+    return df_init
+
+
 # add additional parameters to `df` produced by `load_SUEWS_InitialCond_df`
 def load_InitialCond_grid_df(path_runcontrol, force_reload=True):
     # clean all cached states
@@ -1923,6 +2012,10 @@ def load_InitialCond_grid_df(path_runcontrol, force_reload=True):
     # add surface specific info into `df_init`
     logger_supy.debug("adding surface specific conditions...")
     df_init = add_sfc_init_df(df_init)
+
+    # Fix invalid default values (-999) with sensible defaults
+    logger_supy.debug("fixing invalid default values...")
+    df_init = fix_invalid_defaults(df_init)
     # if 'localclimatemethod' in df_init.columns:
     #     print()
     #     print('3')

@@ -2,6 +2,17 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## ⚠️ CLAUDE.md Protection Active
+
+This file is protected against accidental truncation or content loss:
+- **Automatic validation** on every Git commit (pre-commit hook installed)
+- **GitHub Actions** validates on push/PR
+- **Backup system** maintains CLAUDE.md.backup
+- **Snapshots** saved when issues detected (.claude/snapshots/)
+
+**For initial setup or re-installation:** Run `bash .claude/scripts/setup-claude-protection.sh`
+**To validate manually:** Run `python3 .claude/scripts/validate-claude-md.py`
+
 ## Style Guidelines
 
 - **Language**: Use British English for all documentation, code comments, and communication
@@ -35,10 +46,11 @@ SUEWS/
 **Quick Start:** See `.claude/howto/setup-worktree.md` for complete worktree setup instructions.
 
 **Key Resources:**
-- `.claude/howto/setup-worktree.md` - Complete setup guide (uv, venv, mamba)
+- `.claude/howto/setup-worktree.md` - Complete setup guide (includes `make uv-dev` recipe)
 - `.claude/howto/setup-environment.md` - Environment options comparison
 - `.claude/reference/uv-adoption.md` - UV details and Python 3.13 notes
 - `.claude/reference/core-requirements.txt` - Package list
+- **Quick setup**: `make uv-dev` then `source .venv/bin/activate`
 
 #### Legacy Mamba Setup
 
@@ -58,9 +70,11 @@ For mamba-based setup, see `.claude/reference/environment-types.md`.
 
 **CRITICAL**: Each worktree MUST use a separate Python environment.
 
+**Recommended quick setup**: `make uv-dev` (creates uv environment with all dependencies)
+
 For complete build and testing information, see:
 - `.claude/reference/build-isolation.md` - Why isolation is required
-- `.claude/howto/setup-worktree.md` - Setup instructions
+- `.claude/howto/setup-worktree.md` - Setup instructions (includes `make uv-dev`)
 - `.claude/howto/setup-environment.md` - Environment options
 
 ### Current Development Status
@@ -84,23 +98,17 @@ When working in a git worktree or on a specific feature branch, check for branch
    git branch --show-current
    ```
 
-2. **Then check for the corresponding plan:**
+2. **Then load the corresponding plan if it exists:**
+   - Check `.claude/plans/doing/feature-{branch-name}.md` for active work
+   - Check `.claude/plans/todo/feature-{branch-name}.md` for planned work
+   - Check `.claude/plans/done/feature-{branch-name}.md` for completed features
    
-   Plans can be either **simple** (single file) or **complex** (directory):
-   
-   **Simple features:**
+   **Note**: When in a worktree, plans are in the parent directory:
    ```bash
-   # Check for single file
+   # From worktree, check all plan directories:
+   ls ../../.claude/plans/*/feature-{branch-name}.md
+   # Or read directly:
    cat ../../.claude/plans/doing/feature-{branch-name}.md
-   ```
-   
-   **Complex features:**
-   ```bash
-   # Check for directory with multiple files
-   cat ../../.claude/plans/doing/feature-{branch-name}/README.md
-   cat ../../.claude/plans/doing/feature-{branch-name}/requirements.md
-   cat ../../.claude/plans/doing/feature-{branch-name}/design.md
-   cat ../../.claude/plans/doing/feature-{branch-name}/tasks.md
    ```
 
 3. **If no plan exists**, proceed with standard development practices.
@@ -117,21 +125,9 @@ See `.claude/reference/build-isolation.md` for complete testing and build workfl
 
 ### Plan Lifecycle Management
 
-Plans support two structures based on feature complexity:
-
-**Simple Features** (single file):
-- Use for: bug fixes, small enhancements, single-developer work
-- Created by: `/worktree new` command
-- Structure: Single `.md` file with inline progress tracking
-
-**Complex Features** (directory):
-- Use for: API changes, multi-component features, formal requirements
-- Structure: Directory with README.md + optional requirements.md, design.md, tasks.md
-- Benefits: Separation of concerns, no duplication, formal specifications
-
-For complete guide, see:
-- `.claude/plans/README.md` - Unified plan structure and lifecycle
-- `.claude/templates/feature-plan.md` - Simple plan template
+For complete plan management guide, see:
+- `.claude/templates/feature-plan.md` - Plan template
+- `.claude/plans/README.md` - Plan lifecycle and organization
 
 
 ## Git and GitHub Tips
@@ -144,16 +140,6 @@ For complete guide, see:
   git remote remove Urban-Meteorology-Reading
   # Keep only: origin -> git@github.com:UMEP-dev/SUEWS.git
   ```
-
-## Issue Triage and Labeling
-
-- For detailed issue triage process, see `dev-ref/issue-triage.md`
-- Use four-tier labeling system: Type (1-*), Area (2-*), Priority (3-*), Status (4-*)
-- Numbers enable quick filtering in GitHub web interface (e.g., type "2-" to see all areas)
-- Status labels include:
-  - `4-needs-science` - Requires scientific input/decision (flags for domain experts)
-  - `4-needs-deps` - Waiting on other issues/PRs to complete first
-- Unlabeled issues implicitly need triage - no separate triage label needed
 
 ## Style and Language Guidelines
 
@@ -214,38 +200,16 @@ Common locations to debug benchmark failures:
 
 - Remember the yaml rst files are generated - so modify the `generate_datamodel_rst.py` script rather than the rst files if edits are needed
 
-## SUEWS Configuration Builder Web Interface
-
-The project includes an interactive web-based configuration builder located at `docs/source/_static/`:
-
-### Key Files:
-- **index.html** - Main HTML interface with Bootstrap styling
-- **config-builder.js** - JavaScript logic for form generation and validation
-- **config-builder.css** - Custom styling for the interface
-- **suews-config-schema.json** - JSON Schema generated from the Pydantic data model
-
-### Features:
-- Interactive form generation from JSON Schema
-- Real-time YAML preview of configuration
-- Import/Export functionality (YAML format)
-- Client-side validation using AJV
-- Responsive design with collapsible sections
-- Array handling with add/remove/copy functionality
-- Support for complex nested structures
-
-### Maintenance:
-- **Schema Updates**: Run `python docs/gen_schema.py` to regenerate the schema when data model changes
-- **Testing**: Open `docs/source/_static/index.html` directly in a browser to test
-- **Array Initialization**: Arrays start empty - users add items via "Add Item" buttons
-- **Object Display**: Empty objects in arrays are not pre-populated to avoid "[object Object]" display issues
-
 ## Development Tasks and Reminders
 
+- **Remember to check if a .venv with editable supy has already been up - if so, dont rebuild but carry on with using/fixing/debugging**
 - **Remember to include new files in meson.build appropriately**
 - **IMPORTANT**: When creating new source files that are part of the build, always update the corresponding meson.build file:
   - Python files (.py) in src/supy/
   - Fortran files (.f90, .f95) in src/suews/src/
   - Any other source files that need to be compiled or installed
+- **Every time after conversation compaction, remember to source .venv to use python if such venv exists**
+- **Every time after new conversion, remember to source .venv to use python if such venv exists**
 
 ## Configuration Handling and Method Design Pattern
 
@@ -502,6 +466,7 @@ REAL(KIND(1D0)) :: rss_surf = 0.0D0 ! surface resistance [s m-1]
 
 ## Documentation & Code Maintenance Principles
 
+
 ### Documentation Updates for Code Changes
 
 When making code changes to SUEWS/SuPy:
@@ -509,8 +474,7 @@ When making code changes to SUEWS/SuPy:
 - Update Sphinx documentation for user-facing changes
 - **Documentation generation scripts** (run ONLY when specific changes occur):
   - Run `python docs/generate_datamodel_rst.py` - ONLY when Pydantic data model structure changes (adding/removing fields, changing types)
-  - Run `python docs/gen_schema.py` - ONLY when configuration schema needs regeneration for the web UI
-  - These scripts are NOT run for routine CHANGELOG updates or validator migrations
+  - This script is NOT run for routine CHANGELOG updates or validator migrations
 - Ensure examples and tutorials reflect current API
 - Update parameter tables and input file documentation as needed
 - **Update CHANGELOG.md promptly** for remarkable changes using categories:
@@ -520,6 +484,12 @@ When making code changes to SUEWS/SuPy:
   - [maintenance]: Codebase maintenance (including Claude Code development aspects AND updates to CLAUDE.md)
   - [doc]: Documentation updates (user-facing documentation in docs/, NOT CLAUDE.md)
 - **IMPORTANT**: Updates to CLAUDE.md should be categorised as [maintenance], not [doc]
+- **CRITICAL CHANGELOG.md RULES**:
+  - **DO NOT** modify or regenerate the Annual Statistics table (if present) - it causes merge conflicts
+  - **DO NOT** run `.claude/scripts/changelog_helper.py` unless explicitly requested via `/log-changes` slash command
+  - Only add new entries under the appropriate date heading
+  - Keep existing entries and structure intact
+  - Simply append new entries without restructuring
 
 ### Documentation Principles
 

@@ -16,20 +16,16 @@ git worktree add worktrees/$FEATURE feature/$FEATURE || exit 1
 # Navigate to the worktree
 cd worktrees/$FEATURE
 
-# Create virtual environment with uv (ultra-fast!)
-uv venv
+# Option 1: Use the convenient make recipe (RECOMMENDED)
+make uv-dev
 source .venv/bin/activate
 
-# Install core requirements
-# Package list maintained in .claude/reference/core-requirements.txt
-# IMPORTANT: Use 'matplotlib' not 'matplotlib-base', 'tables' not 'pytables'
-uv pip install pandas scipy matplotlib matplotlib-inline scikit-learn scikit-image \
-    geopandas rtree openpyxl tables psutil salem==0.3.8 floweaver==2.0.0 \
-    f90nml click pydantic ipykernel jupyter_client jupyter_core \
-    pytest pytest-cov ruff f90wrap==0.2.16 atmosp "meson-python>=0.17.0"
+# Option 2: Manual setup with uv
+# uv venv
+# source .venv/bin/activate
+# uv pip install -e ".[dev,docs]"
 
-# Install SUEWS in development mode
-make dev  # This will auto-detect uv and use it!
+# Alternative: If pyproject.toml method fails, see setup-uv-environment.md
 
 # Create a marker file
 echo "$FEATURE" > .worktree-name
@@ -37,6 +33,8 @@ echo "$FEATURE" > .worktree-name
 # Test your setup
 python -c "import supy; print(f'✓ SuPy {supy.__version__} ready')"
 ```
+
+**Note**: For detailed uv setup options and alignment with `env.yml`, see `.claude/howto/setup-uv-environment.md`
 
 ## Working Without Environment Activation
 
@@ -66,7 +64,9 @@ git worktree list
 
 ## Alternative: Standard Python venv
 
-If uv is not available, use Python's built-in venv:
+If uv is not available, use Python's built-in venv.
+
+**Note**: You can also use `make dev` which automatically detects your environment:
 
 ```bash
 FEATURE="my-feature"

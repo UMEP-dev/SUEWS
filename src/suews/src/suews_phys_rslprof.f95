@@ -439,11 +439,9 @@ CONTAINS
       INTEGER :: i, idx_2m, idx_10m
       REAL(KIND(1D0)) :: z_temp
       
-      ! Start from above the roughness sublayer
-      z_start = 1.01D0 * (zdm + z0m)  ! 1% above to avoid singularity
-      
-      ! Ensure we capture diagnostic heights
-      z_start = MIN(z_start, 1.5D0)  ! Don't start too high to miss 2m diagnostic
+      ! Start just above displacement height plus roughness length
+      ! This ensures (z - zdm)/z0m > 1, keeping the LOG argument positive
+      z_start = 1.01D0 * (zdm + z0m)  ! 1% above to avoid LOG singularity
       
       ! Calculate ratio for logarithmic spacing
       z_ratio = (zMeas/z_start)**(1.0D0/(nz-1))

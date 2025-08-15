@@ -84,7 +84,10 @@ The developers and other users are willing to help you.
 How has SUEWS been used?
 ------------------------------
 
-The scientific details and application examples of SUEWS can be found in `Recent_publications`.
+The scientific details and application examples of SUEWS can be found in:
+
+- `Recent_publications` - Core SUEWS publications from the development team
+- :ref:`community_publications` - Publications from the SUEWS user community
 
 .. _cite_suews:
 
@@ -168,4 +171,5 @@ How to support SUEWS?
    :numbered:
    :hidden:
 
+   community_publications
    GitHub discussion <https://github.com/UMEP-dev/UMEP/discussions>

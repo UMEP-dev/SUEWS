@@ -83,7 +83,12 @@ jobs:
           python -m venv .venv
           source .venv/bin/activate
           python -m pip install --upgrade pip setuptools wheel meson-python
-          python -m pip install --editable '.[dev]'
+          
+          # Use fast build mode which has less strict compiler flags
+          # This avoids the Fortran line truncation errors
+          python -m pip install --no-build-isolation --editable '.[dev]' \
+            --config-settings=setup-args="-Dfast_build=true" \
+            --config-settings=compile-args="-j2"
           echo "✓ SUEWS installed in editable mode"
           
       - name: Get schema version

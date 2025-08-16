@@ -257,7 +257,10 @@ class TestSchemaVersionUtility:
             assert updated["name"] == "test_config"
 
             # Description should be kept as-is (cleaning only happens with specific patterns)
-            assert updated["description"] == "Sample config v1.0 designed for supy version 2025.8.1"
+            assert (
+                updated["description"]
+                == "Sample config v1.0 designed for supy version 2025.8.1"
+            )
         finally:
             yaml_path.unlink()
 
@@ -268,7 +271,8 @@ class TestSampleConfig:
     def test_sample_config_has_schema_version(self):
         """Test that sample_config.yml has schema_version field."""
         sample_path = (
-            Path(__file__).parent.parent.parent / "src/supy/sample_data/sample_config.yml"
+            Path(__file__).parent.parent.parent
+            / "src/supy/sample_data/sample_config.yml"
         )
 
         with open(sample_path, "r") as f:

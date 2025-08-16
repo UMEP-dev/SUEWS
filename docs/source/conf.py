@@ -56,8 +56,21 @@ try:
     git_version_string = get_version_from_git()
     is_dev_version = ".dev" in git_version_string
     git_commit_short, git_commit_full = get_commit_info()
-except ImportError:
+
+    # Debug output for ReadTheDocs
+    print(f"DEBUG: git_version_string = {git_version_string}")
+    print(f"DEBUG: is_dev_version = {is_dev_version}")
+
+except ImportError as e:
     # Fallback if functions not available
+    print(f"WARNING: Failed to import get_ver_git: {e}")
+    git_version_string = "unknown"
+    is_dev_version = False
+    git_commit_short = "unknown"
+    git_commit_full = "unknown"
+except Exception as e:
+    # Catch any other errors
+    print(f"ERROR: Failed to get version info: {e}")
     git_version_string = "unknown"
     is_dev_version = False
     git_commit_short = "unknown"
@@ -81,6 +94,18 @@ sys.path.insert(0, os.path.abspath("_ext"))
 print(r"this build is made by:", "\n", sys.version)
 # determine if in RTD environment
 read_the_docs_build = os.environ.get("READTHEDOCS", None) == "True"
+rtd_version = os.environ.get("READTHEDOCS_VERSION", "unknown")
+rtd_version_type = os.environ.get("READTHEDOCS_VERSION_TYPE", "unknown")
+
+if read_the_docs_build:
+    print(f"DEBUG: RTD Version = {rtd_version}")
+    print(f"DEBUG: RTD Version Type = {rtd_version_type}")
+
+    # If we're on RTD and building 'latest', assume it's development
+    if rtd_version == "latest" and not is_dev_version:
+        print("DEBUG: Forcing dev version for RTD 'latest' build")
+        is_dev_version = True
+
 if read_the_docs_build:
     # update `today`
     dt_today = datetime.today()

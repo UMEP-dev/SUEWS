@@ -100,11 +100,12 @@ rtd_version_type = os.environ.get("READTHEDOCS_VERSION_TYPE", "unknown")
 if read_the_docs_build:
     print(f"DEBUG: RTD Version = {rtd_version}")
     print(f"DEBUG: RTD Version Type = {rtd_version_type}")
+    print(f"DEBUG: git_version_string = {git_version_string}")
+    print(f"DEBUG: is_dev_version = {is_dev_version}")
 
-    # If we're on RTD and building 'latest', assume it's development
-    if rtd_version == "latest" and not is_dev_version:
-        print("DEBUG: Forcing dev version for RTD 'latest' build")
-        is_dev_version = True
+    # Only show dev banner if version actually indicates development
+    # The version detection should work correctly on RTD
+    # We rely on the git version string to determine if this is a dev build
 
 if read_the_docs_build:
     # update `today`
@@ -382,23 +383,13 @@ pygments_style = "sphinx"
 default_role = "any"
 
 # some text replacement defintions and version info
-dev_banner = ""
-if is_dev_version:
-    dev_banner = f"""
-.. warning::
-
-   **Development Version**: This documentation was built from a development version
-   ({git_version_string}, commit: `{git_commit_short} <https://github.com/UMEP-dev/SUEWS/commit/{git_commit_full}>`_).
-   Features described here may be unstable or subject to change. For stable documentation, please visit the
-   `latest release <https://suews.readthedocs.io/stable/>`_.
-
-"""
+# Note: Development banner is now handled via html_theme_options["announcement"]
+# instead of rst_prolog to ensure proper display with sphinx_book_theme
 
 rst_prolog = f"""
 .. |git_version| replace:: {git_version_string}
 .. |git_commit| replace:: {git_commit}
 
-{dev_banner}
 .. |km^-1| replace:: km\\ :sup:`-1`
 .. |mm^-1| replace:: mm\\ :sup:`-1`
 .. |m^-1| replace:: m\\ :sup:`-1`
@@ -485,6 +476,7 @@ html_last_updated_fmt = today_fmt
 # further.  For a list of options available for each theme, see the
 # documentation.
 #
+# Create html_theme_options with announcement if in development mode
 html_theme_options = dict(
     # analytics_id=''  this is configured in rtfd.io
     # canonical_url="",
@@ -502,6 +494,22 @@ html_theme_options = dict(
     Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/{git_commit_full}">{git_commit_short}</a></p>""",
     # twitter_url="https://twitter.com/xarray_devs",
 )
+
+# Add announcement banner if this is a development version
+if is_dev_version:
+    print(f"DEBUG: Adding announcement banner for dev version: {git_version_string}")
+    html_theme_options["announcement"] = f"""
+    <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
+        <strong>⚠️ Development Version:</strong> This documentation was built from a development version 
+        ({git_version_string}, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/{git_commit_full}" style="color: #31708f;">{git_commit_short}</a>).
+        Features described here may be unstable or subject to change. For stable documentation, please visit the 
+        <a href="https://suews.readthedocs.io/stable/" style="color: #31708f;">latest release</a>.
+    </div>
+    """
+else:
+    print(
+        f"DEBUG: Not adding announcement banner, is_dev_version={is_dev_version}, version={git_version_string}"
+    )
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,

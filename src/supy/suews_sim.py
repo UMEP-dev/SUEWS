@@ -1,21 +1,23 @@
 """
-SUEWS Simulation Class
+SUEWS Simulation Class.
 
 Modern, object-oriented interface for SUEWS urban climate model simulations.
 Provides a user-friendly wrapper around the existing SuPy infrastructure.
 """
 
 from pathlib import Path
-from typing import Union, Optional, Dict, Any, List
+from typing import Any, Optional, Union
 import warnings
+
 import pandas as pd
-import numpy as np
+
+from ._run import run_supy_ser
 
 # Import SuPy components directly
 from ._supy_module import save_supy
-from .util._io import read_forcing
-from ._run import run_supy_ser
 from .data_model import RefValue
+from .data_model.core import SUEWSConfig
+from .util._io import read_forcing
 
 
 class SUEWSSimulation:
@@ -42,7 +44,7 @@ class SUEWSSimulation:
     >>> sim.run()
     """
 
-    def __init__(self, config: Union[str, Path, Dict, Any] = None):
+    def __init__(self, config: Union[str, Path, dict, Any] = None):
         """
         Initialize SUEWS simulation.
 
@@ -66,7 +68,7 @@ class SUEWSSimulation:
         if config is not None:
             self.update_config(config)
 
-    def update_config(self, config: Union[str, Path, Dict, Any]):
+    def update_config(self, config: Union[str, Path, dict, Any]):
         """
         Update simulation configuration.
 
@@ -92,8 +94,6 @@ class SUEWSSimulation:
                 raise FileNotFoundError(f"Configuration file not found: {config_path}")
 
             # Load YAML
-            from .data_model.core import SUEWSConfig
-
             self._config = SUEWSConfig.from_yaml(str(config_path))
             self._config_path = config_path
 
@@ -106,8 +106,6 @@ class SUEWSSimulation:
         elif isinstance(config, dict):
             # Update existing config with dictionary
             if self._config is None:
-                from .data_model.core import SUEWSConfig
-
                 self._config = SUEWSConfig()
 
             # Deep update the configuration
@@ -121,7 +119,7 @@ class SUEWSSimulation:
             self._config = config
             self._df_state_init = self._config.to_df_state()
 
-    def _update_config_from_dict(self, updates: Dict):
+    def _update_config_from_dict(self, updates: dict):
         """Apply dictionary updates to configuration."""
         # This is a simplified version - in practice would need deep merging
         for key, value in updates.items():
@@ -137,7 +135,7 @@ class SUEWSSimulation:
                     setattr(self._config, key, value)
 
     def update_forcing(
-        self, forcing_data: Union[str, Path, List[Union[str, Path]], pd.DataFrame]
+        self, forcing_data: Union[str, Path, list[Union[str, Path]], pd.DataFrame]
     ):
         """
         Update meteorological forcing data.
@@ -163,12 +161,12 @@ class SUEWSSimulation:
             self._df_forcing = forcing_data.copy()
         elif isinstance(forcing_data, list):
             # Handle list of files
-            self._df_forcing = self._load_forcing_from_list(forcing_data)
+            self._df_forcing = SUEWSSimulation._load_forcing_from_list(forcing_data)
         elif isinstance(forcing_data, (str, Path)):
             forcing_path = Path(forcing_data).expanduser().resolve()
             if not forcing_path.exists():
                 raise FileNotFoundError(f"Forcing path not found: {forcing_path}")
-            self._df_forcing = self._load_forcing_file(forcing_path)
+            self._df_forcing = SUEWSSimulation._load_forcing_file(forcing_path)
         else:
             raise ValueError(f"Unsupported forcing data type: {type(forcing_data)}")
 
@@ -201,11 +199,11 @@ class SUEWSSimulation:
                         self.update_forcing(forcing_value)
 
         except Exception as e:
-            warnings.warn(f"Could not load forcing from config: {e}")
+            warnings.warn(f"Could not load forcing from config: {e}", stacklevel=2)
 
     def _resolve_forcing_paths(
-        self, paths: Union[str, List[str]]
-    ) -> Union[str, List[str]]:
+        self, paths: Union[str, list[str]]
+    ) -> Union[str, list[str]]:
         """Resolve forcing paths relative to config file location.
 
         Parameters
@@ -242,9 +240,8 @@ class SUEWSSimulation:
             # Relative path - resolve relative to config file location
             return str(self._config_path.parent / path)
 
-    def _load_forcing_from_list(
-        self, forcing_list: List[Union[str, Path]]
-    ) -> pd.DataFrame:
+    @staticmethod
+    def _load_forcing_from_list(forcing_list: list[Union[str, Path]]) -> pd.DataFrame:
         """Load and concatenate forcing data from a list of files."""
         if not forcing_list:
             raise ValueError("Empty forcing file list provided")
@@ -267,7 +264,8 @@ class SUEWSSimulation:
 
         return pd.concat(dfs, axis=0).sort_index()
 
-    def _load_forcing_file(self, forcing_path: Path) -> pd.DataFrame:
+    @staticmethod
+    def _load_forcing_file(forcing_path: Path) -> pd.DataFrame:
         """Load forcing data from file or directory."""
         if forcing_path.is_dir():
             # Issue deprecation warning for directory usage
@@ -338,7 +336,9 @@ class SUEWSSimulation:
         self._run_completed = True
         return self._df_output
 
-    def save(self, output_path: Union[str, Path] = None, **save_kwargs) -> List[Path]:
+    def save(
+        self, output_path: Optional[Union[str, Path]] = None, **save_kwargs
+    ) -> list[Path]:
         """
         Save simulation results according to OutputConfig settings.
 

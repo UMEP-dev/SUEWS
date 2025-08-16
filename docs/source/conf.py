@@ -710,6 +710,7 @@ intersphinx_mapping = {
 bibtex_bibfiles = [
     "assets/refs/refs-SUEWS.bib",
     "assets/refs/refs-others.bib",
+    "assets/refs/refs-community.bib",
 ]
 bibtex_default_style = "refs"
 bibtex_reference_style = "author_year_round"

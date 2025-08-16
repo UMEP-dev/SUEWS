@@ -73,21 +73,34 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           check-name: 'Build wheel for cp313-manylinux x86_64'
           repo-token: ${{ github.token }}
-          wait-interval: 10
+          wait-interval: 10  # Check every 10 seconds
+          allowed-conclusions: success,skipped  # Allow success or skipped
+        timeout-minutes: 5  # Maximum 5 minutes wait time
         continue-on-error: true  # Don't fail if build workflow hasn't started
           
-      - name: Try to download pre-built wheel artifact from current PR/commit
-        id: download_wheel
+      - name: Try to download pre-built wheel artifact from PR
+        if: github.event_name == 'pull_request'
+        id: download_wheel_pr
         uses: dawidd6/action-download-artifact@v3
         with:
           workflow: build-publish_to_pypi.yml
           workflow_conclusion: success
           name: cp313-manylinux-x86_64
           path: dist
-          # Use the current commit SHA to get the right wheel
-          commit: ${{ github.event.pull_request.head.sha || github.sha }}
-          # For PRs, look in the PR's workflow runs
           pr: ${{ github.event.pull_request.number }}
+          if_no_artifact_found: warn
+        continue-on-error: true
+      
+      - name: Try to download pre-built wheel artifact from commit
+        if: github.event_name != 'pull_request'
+        id: download_wheel_commit
+        uses: dawidd6/action-download-artifact@v3
+        with:
+          workflow: build-publish_to_pypi.yml
+          workflow_conclusion: success
+          name: cp313-manylinux-x86_64
+          path: dist
+          commit: ${{ github.sha }}
           if_no_artifact_found: warn
         continue-on-error: true
           
@@ -105,8 +118,8 @@ jobs:
             echo "No wheel found, building SUEWS from source..."
             # Install gfortran for building
             sudo apt-get update && sudo apt-get install -y gfortran
-            # Install build dependencies
-            python -m pip install build meson-python meson ninja
+            # Install build dependencies including f90wrap
+            python -m pip install build meson-python meson ninja f90wrap
             # Build with fast mode to avoid strict compiler flags
             python -m pip install --no-build-isolation --editable '.[dev]' \
               --config-settings=setup-args="-Dfast_build=true" \

@@ -252,22 +252,25 @@ class SUEWSConfig(BaseModel):
         Issues warnings when there's a compatibility concern.
         """
         from ..schema import validate_schema_version, CURRENT_SCHEMA_VERSION
-        
+
         # If no schema version specified, set to current
         if self.schema_version is None:
             self.schema_version = CURRENT_SCHEMA_VERSION
-        
+
         # Validate compatibility (will warn if incompatible)
         validate_schema_version(self.schema_version, strict=False)
-        
+
         # Log to detailed messages for validation summary if needed
-        if hasattr(self, '_validation_summary') and self.schema_version != CURRENT_SCHEMA_VERSION:
-            self._validation_summary['detailed_messages'].append(
+        if (
+            hasattr(self, "_validation_summary")
+            and self.schema_version != CURRENT_SCHEMA_VERSION
+        ):
+            self._validation_summary["detailed_messages"].append(
                 f"Schema version: Config uses {self.schema_version}, current is {CURRENT_SCHEMA_VERSION}"
             )
-        
+
         return self
-    
+
     @model_validator(mode="after")
     def validate_model_output_config(self) -> "SUEWSConfig":
         """
@@ -2246,18 +2249,22 @@ class SUEWSConfig(BaseModel):
         # Store yaml path in config data for later use
         config_data["_yaml_path"] = path
         config_data["_auto_generate_annotated"] = auto_generate_annotated
-        
+
         # Log schema version information if present
         from ..schema import CURRENT_SCHEMA_VERSION, get_schema_compatibility_message
-        
+
         if "schema_version" in config_data:
-            logger_supy.info(f"Loading config with schema version: {config_data['schema_version']}")
+            logger_supy.info(
+                f"Loading config with schema version: {config_data['schema_version']}"
+            )
             # Check compatibility and log any concerns
-            message = get_schema_compatibility_message(config_data['schema_version'])
+            message = get_schema_compatibility_message(config_data["schema_version"])
             if message:
                 logger_supy.info(message)
         else:
-            logger_supy.info(f"No schema version specified, assuming current ({CURRENT_SCHEMA_VERSION})")
+            logger_supy.info(
+                f"No schema version specified, assuming current ({CURRENT_SCHEMA_VERSION})"
+            )
             # Set default schema version
             config_data["schema_version"] = CURRENT_SCHEMA_VERSION
 
@@ -2465,7 +2472,7 @@ class SUEWSConfig(BaseModel):
 
 def init_config_from_yaml(path: str = "./config-suews.yml") -> SUEWSConfig:
     """Initialize SUEWSConfig from YAML file.
-    
+
     This is a convenience function that delegates to SUEWSConfig.from_yaml
     for consistency in version checking and validation.
     """

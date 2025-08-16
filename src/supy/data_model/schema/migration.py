@@ -60,9 +60,12 @@ class SchemaMigrator:
         # Default to current version if no indicators found
         return CURRENT_SCHEMA_VERSION
 
-    def migrate(self, config_dict: Dict[str, Any],
-                from_version: Optional[str] = None,
-                to_version: str = CURRENT_SCHEMA_VERSION) -> Dict[str, Any]:
+    def migrate(
+        self,
+        config_dict: Dict[str, Any],
+        from_version: Optional[str] = None,
+        to_version: str = CURRENT_SCHEMA_VERSION,
+    ) -> Dict[str, Any]:
         """
         Migrate a configuration from one schema version to another.
 
@@ -106,7 +109,9 @@ class SchemaMigrator:
                 current_version = next_version
             else:
                 # Provide generic migration for compatible versions
-                logger.info(f"Using generic migration from {current_version} to {next_version}")
+                logger.info(
+                    f"Using generic migration from {current_version} to {next_version}"
+                )
                 config = self._generic_migration(config, current_version, next_version)
                 current_version = next_version
 
@@ -115,7 +120,9 @@ class SchemaMigrator:
 
         return config
 
-    def _find_migration_path(self, from_version: str, to_version: str) -> Optional[list]:
+    def _find_migration_path(
+        self, from_version: str, to_version: str
+    ) -> Optional[list]:
         """
         Find the migration path between two schema versions.
 
@@ -160,13 +167,14 @@ class SchemaMigrator:
         if version == "0.9":  # Special case for pre-release
             return (0, 9)
 
-        parts = version.split('.')
+        parts = version.split(".")
         major = int(parts[0])
         minor = int(parts[1]) if len(parts) > 1 else 0
         return (major, minor)
 
-    def _generic_migration(self, config: Dict[str, Any],
-                          from_version: str, to_version: str) -> Dict[str, Any]:
+    def _generic_migration(
+        self, config: Dict[str, Any], from_version: str, to_version: str
+    ) -> Dict[str, Any]:
         """
         Generic migration for compatible versions.
 
@@ -214,8 +222,11 @@ class SchemaMigrator:
     #     return config
 
 
-def migrate_config_file(input_path: str, output_path: Optional[str] = None,
-                        to_version: str = CURRENT_SCHEMA_VERSION) -> None:
+def migrate_config_file(
+    input_path: str,
+    output_path: Optional[str] = None,
+    to_version: str = CURRENT_SCHEMA_VERSION,
+) -> None:
     """
     Migrate a YAML configuration file to a different schema version.
 
@@ -229,7 +240,7 @@ def migrate_config_file(input_path: str, output_path: Optional[str] = None,
         raise FileNotFoundError(f"Input file not found: {input_path}")
 
     # Load configuration
-    with open(input_file, 'r') as f:
+    with open(input_file, "r") as f:
         config = yaml.safe_load(f)
 
     # Migrate
@@ -238,7 +249,7 @@ def migrate_config_file(input_path: str, output_path: Optional[str] = None,
 
     # Save
     output_file = Path(output_path) if output_path else input_file
-    with open(output_file, 'w') as f:
+    with open(output_file, "w") as f:
         yaml.dump(migrated, f, default_flow_style=False, sort_keys=False)
 
     logger.info(f"Migrated configuration saved to {output_file}")
@@ -254,7 +265,7 @@ def check_migration_needed(config_path: str) -> bool:
     Returns:
         True if migration is needed, False otherwise
     """
-    with open(config_path, 'r') as f:
+    with open(config_path, "r") as f:
         config = yaml.safe_load(f)
 
     migrator = SchemaMigrator()

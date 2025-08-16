@@ -17,27 +17,27 @@ from ..core import SUEWSConfig
 def export_schema(output_dir: Optional[Path] = None) -> None:
     """
     Export JSON Schema to the specified directory.
-    
+
     Args:
         output_dir: Directory to write schema files (default: public/schema/suews-config)
     """
     # Default output directory for GitHub Pages
     if output_dir is None:
         output_dir = Path("public/schema/suews-config")
-    
+
     # Create output directory
     output_dir.mkdir(parents=True, exist_ok=True)
-    
+
     # Base URL for GitHub Pages
     BASE_URL = "https://umep-dev.github.io/SUEWS"
-    
+
     # Generate schema from Pydantic model
     schema = SUEWSConfig.model_json_schema()
-    
+
     # Add JSON Schema metadata
     schema["$schema"] = "https://json-schema.org/draft/2020-12/schema"
     schema["$id"] = f"{BASE_URL}/schema/suews-config/{CURRENT_SCHEMA_VERSION}.json"
-    
+
     # Add versioning and documentation
     schema["title"] = f"SUEWS Configuration Schema v{CURRENT_SCHEMA_VERSION}"
     schema["description"] = (
@@ -45,18 +45,18 @@ def export_schema(output_dir: Optional[Path] = None) -> None:
         f"Schema version {CURRENT_SCHEMA_VERSION}. "
         "See https://suews.readthedocs.io for documentation."
     )
-    
+
     # Write schema file
     schema_file = output_dir / f"{CURRENT_SCHEMA_VERSION}.json"
     schema_file.write_text(json.dumps(schema, indent=2))
     print(f"✓ Exported schema v{CURRENT_SCHEMA_VERSION} to {schema_file}")
-    
+
     # Create .nojekyll file to prevent Jekyll processing
     nojekyll = Path("public") / ".nojekyll"
     nojekyll.parent.mkdir(parents=True, exist_ok=True)
     nojekyll.write_text("")
     print(f"✓ Created {nojekyll}")
-    
+
     # Create index.html for schema directory listing
     index_html = output_dir / "index.html"
     index_content = f"""<!DOCTYPE html>
@@ -103,23 +103,23 @@ $schema: "{BASE_URL}/schema/suews-config/{CURRENT_SCHEMA_VERSION}.json"</code></
 def main():
     """Main entry point for command-line usage."""
     import argparse
-    
+
     parser = argparse.ArgumentParser(
         description="Export SUEWS JSON Schema for GitHub Pages publication"
     )
     parser.add_argument(
         "--output",
         type=Path,
-        help="Output directory (default: public/schema/suews-config)"
+        help="Output directory (default: public/schema/suews-config)",
     )
     parser.add_argument(
         "--version",
         action="version",
-        version=f"Schema version: {CURRENT_SCHEMA_VERSION}"
+        version=f"Schema version: {CURRENT_SCHEMA_VERSION}",
     )
-    
+
     args = parser.parse_args()
-    
+
     try:
         export_schema(args.output)
         print(f"\n✅ Schema export complete!")

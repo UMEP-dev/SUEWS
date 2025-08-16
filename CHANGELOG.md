@@ -35,6 +35,10 @@
 ## 2025
 
 ### 15 Aug 2025
+- [bugfix] Fix forcing path resolution to be relative to config file location (#573)
+  - SUEWSSimulation now correctly resolves relative forcing paths relative to the config file
+  - Previously, relative paths were resolved relative to the current working directory
+  - Added comprehensive tests to ensure forcing paths work correctly in all scenarios
 - [feature] Added community publications section for user-submitted SUEWS-related work (#80)
   - Created new community BibTeX file (refs-community.bib) for community submissions
   - Added Community Publications page with simple PR submission workflow

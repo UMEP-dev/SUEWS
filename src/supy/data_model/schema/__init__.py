@@ -40,6 +40,9 @@ from .publisher import (
     validate_config_against_schema,
 )
 
+# Export functionality
+from .exporter import export_schema
+
 __all__ = [
     # Version management
     'CURRENT_SCHEMA_VERSION',
@@ -59,4 +62,6 @@ __all__ = [
     'save_schema',
     'create_schema_bundle',
     'validate_config_against_schema',
+    # Export
+    'export_schema',
 ]

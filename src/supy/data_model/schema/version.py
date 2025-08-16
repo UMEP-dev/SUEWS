@@ -15,20 +15,22 @@ from typing import Optional
 import warnings
 
 # Current supported schema version
-CURRENT_SCHEMA_VERSION = "1.0"
+CURRENT_SCHEMA_VERSION = "0.1"
 
 # Schema version history and descriptions
 SCHEMA_VERSIONS: dict[str, str] = {
-    "1.0": "Initial YAML schema with full Pydantic data model (2025.8)"
+    "0.1": "Pre-release YAML schema with initial Pydantic data model (2025.8)"
     # Future examples:
+    # "1.0": "First stable release of YAML schema (2025.9)"
     # "1.1": "Added optional field X for feature Y (2025.10)"
     # "2.0": "Breaking change: Renamed field A to B, restructured C (2026.1)"
 }
 
 # Compatibility matrix: which schema versions are compatible
 COMPATIBLE_VERSIONS = {
-    "1.0": ["1.0"],  # 1.0 only compatible with itself for now
-    # Future: "1.1": ["1.0", "1.1"],  # 1.1 backward compatible with 1.0
+    "0.1": ["0.1"],  # 0.1 only compatible with itself (pre-release)
+    # Future: "1.0": ["0.1", "1.0"],  # 1.0 backward compatible with 0.1
+    # Future: "1.1": ["0.1", "1.0", "1.1"],  # 1.1 backward compatible with earlier versions
 }
 
 

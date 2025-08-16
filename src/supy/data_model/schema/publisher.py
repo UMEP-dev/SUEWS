@@ -40,7 +40,7 @@ def generate_json_schema(
     
     # Add schema metadata
     schema["$schema"] = "https://json-schema.org/draft/2020-12/schema"
-    schema["$id"] = f"https://suews.urban-meteorology.com/schemas/{version or CURRENT_SCHEMA_VERSION}/config.json"
+    schema["$id"] = f"https://umep-dev.github.io/SUEWS/schema/suews-config/{version or CURRENT_SCHEMA_VERSION}.json"
     
     # Add versioning information
     schema["version"] = version or CURRENT_SCHEMA_VERSION

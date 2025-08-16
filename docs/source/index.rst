@@ -107,10 +107,6 @@ When using SUEWS in your research, please cite it appropriately:
 - See :ref:`Recent_publications` for core SUEWS papers describing the model's development and validation
 - Check :ref:`community_publications` to see how others have cited and used SUEWS in their work
 
-.. tip::
-
-    The GitHub CITATION.cff file provides citation metadata in multiple formats (APA, BibTeX, etc.) that can be directly imported into reference managers.
-
 
 
 

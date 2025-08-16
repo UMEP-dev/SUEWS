@@ -21,11 +21,6 @@ Step-by-step guides for common SUEWS development tasks.
 - Package name differences (mamba vs pip)
 - Troubleshooting guide
 
-### migrate-specs-to-plans.md
-**Transitioning from spec system to plan system**
-- Understanding the migration
-- Converting existing specs
-- Using the new plan structure
 
 ## Quick Decision Tree
 
@@ -34,9 +29,6 @@ Step-by-step guides for common SUEWS development tasks.
 
 **"I'm having environment/package issues"**
 → See `setup-environment.md`
-
-**"I have old specs to convert"**
-→ See `migrate-specs-to-plans.md`
 
 ## Best Practices Summary
 
@@ -52,7 +44,7 @@ Step-by-step guides for common SUEWS development tasks.
 
 4. **Use `/worktree` commands** - Streamlined workflow for feature development
 
-5. **Keep plans updated** - Document progress in `.claude/plans/`
+5. **Keep issues updated** - Document progress in GitHub issues/PRs
 
 ## Common Command Reference
 

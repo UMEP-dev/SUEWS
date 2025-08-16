@@ -49,10 +49,10 @@ What happens automatically:
 1. Creates worktree at `worktrees/user-authentication`
 2. Creates feature branch `feature/user-authentication`
 3. Sets up Python environment with uv
-4. Creates plan file at `.claude/plans/doing/feature-user-authentication.md`
+4. Links to GitHub issue for tracking
 5. Runs initial build
 
-**Note**: `/worktree new` creates a simple plan. For complex features requiring detailed specifications, manually create the structure as described in `.claude/plans/README.md`
+**Note**: Feature tracking and specifications are managed through GitHub issues and PRs
 
 ### 2. Development Workflow
 
@@ -102,7 +102,7 @@ claude .  # Launch from master
 Benefits of launching from master:
 - Full visibility of all files and plans
 - Edit any file using paths: `worktrees/feature-name/src/file.py`
-- Update plans directly: `.claude/plans/doing/feature-name.md`
+- Update GitHub issue with progress and notes
 - No need to switch branches for plan updates
 
 When specific operations are needed:
@@ -126,7 +126,7 @@ FEATURE="my-feature"
 git worktree add worktrees/$FEATURE feature/$FEATURE
 
 # Create plan from template
-cp .claude/templates/feature-plan.md .claude/plans/todo/feature-$FEATURE.md
+# Create GitHub issue for tracking the feature
 # Edit plan with your information
 
 # Navigate to worktree
@@ -163,21 +163,18 @@ mamba activate suews-dev-$FEATURE
 make dev
 ```
 
-## Working with Plans
+## Working with Issues and PRs
 
-Plans are stored in the master branch at `.claude/plans/`, ensuring all worktrees share the same plan.
+Feature tracking and context are managed through GitHub issues and pull requests.
 
-### Reading Plans from Worktree
+### Checking Related Issue
 ```bash
-cat ../../.claude/plans/doing/feature-my-feature.md
+gh issue view <issue-number>
 ```
 
-### Updating Plans
-Requires switching to master branch or launching Claude Code from master (recommended).
-
-### Getting Plan Updates
+### Updating Issue
 ```bash
-git fetch origin master  # Gets latest plans from master
+gh issue comment <issue-number> --body "Progress update..."
 ```
 
 ## Cleanup
@@ -191,12 +188,8 @@ FEATURE="my-feature"
 # Remove worktree
 git worktree remove worktrees/$FEATURE --force
 
-# Remove plan (if exists)
-if [ -f ".claude/plans/doing/feature-$FEATURE.md" ]; then
-    mv .claude/plans/doing/feature-$FEATURE.md .claude/plans/done/
-    git add .claude/plans/
-    git commit -m "chore: archive plan for $FEATURE"
-fi
+# Close related GitHub issue (if applicable)
+# gh issue close <issue-number>
 
 # List remaining worktrees
 git worktree list
@@ -236,7 +229,7 @@ chmod +x activate.sh
 - Rebuild: `make clean && make dev`
 
 ### "Plan not found"
-- Plans are in master branch: `../../.claude/plans/`
+- Track progress via GitHub issues and PRs
 - Fetch latest: `git fetch origin master`
 
 ### Build Conflicts Between Worktrees
@@ -271,9 +264,7 @@ make test                                      # Run tests
 make clean                                     # Clean build
 
 # Plan management
-cp .claude/templates/feature-plan.md .claude/plans/todo/feature-NAME.md
-mv .claude/plans/todo/feature-NAME.md .claude/plans/doing/
-mv .claude/plans/doing/feature-NAME.md .claude/plans/done/
+# Create GitHub issue → Work on feature → Create PR → Merge
 ```
 
 ## Complete Example

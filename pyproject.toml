@@ -97,6 +97,10 @@ suews-convert = "supy.cmd.table_converter:convert_table_cmd"
 filterwarnings = [
     "ignore::UserWarning:pydantic.main",
 ]
+# Test markers
+markers = [
+    "slow: marks tests as slow (e.g., Fortran state persistence tests taking ~3-4 minutes)",
+]
 
 [tool.ruff]
 line-length = 120

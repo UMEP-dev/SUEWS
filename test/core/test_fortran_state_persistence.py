@@ -25,6 +25,7 @@ import supy as sp
 logging.getLogger("SuPy").setLevel(logging.CRITICAL)
 
 
+@pytest.mark.slow
 class TestFortranStatePersistence(TestCase):
     """Test suite for Fortran state persistence issues."""
 

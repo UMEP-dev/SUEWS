@@ -7,17 +7,18 @@ name: Publish JSON Schema
 #    - Push to master: Build and validate schema generation works
 #    - Manual workflow_dispatch: Build and validate (unless dry_run=false)
 #
-# 2. DEVELOPMENT SCHEMAS (deploy to GitHub Pages with 'dev' tag):
-#    - Nightly builds (2:30 AM UTC): Auto-deploy schema with dev timestamp
-#    - Tags containing 'dev': Deploy development schema version
+# 2. DEVELOPMENT SCHEMAS (deploy to GitHub Pages):
+#    - Nightly builds (2:30 AM UTC): Deploy schema from scheduled run
+#    - Tags containing 'dev': Deploy development schema version (created by main workflow)
 #
 # 3. PRODUCTION SCHEMAS (deploy to GitHub Pages as stable):
 #    - Tags without 'dev': Deploy as stable schema version
 #    - Also update 'latest' symlink to point to new stable version
 #
 # This mirrors the PyPI deployment strategy where:
-# - Nightly/dev tags → TestPyPI (development)
+# - Nightly/dev tags → TestPyPI (development) - tags created by main workflow
 # - Regular tags → PyPI (production)
+# Note: This workflow does NOT create tags, it only deploys schemas when triggered
 #
 on:
   push:
@@ -169,59 +170,16 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  create_nightly_tag:
-    name: Create nightly schema tag
-    runs-on: ubuntu-latest
-    needs: build
-    # Only create tag for scheduled nightly builds
-    if: github.event_name == 'schedule' && success()
-    permissions:
-      contents: write
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          
-      - name: Create and push nightly tag
-        run: |
-          set -e
-          
-          # Get the current date in YYYY.M.D format (without leading zeros)
-          YEAR=$(date -u +%Y)
-          MONTH=$(date -u +%-m)  # Without leading zero
-          DAY=$(date -u +%-d)    # Without leading zero
-          
-          # Create a dev tag for the nightly schema build
-          DEV_TAG="schema-${YEAR}.${MONTH}.${DAY}.dev"
-          echo "Creating schema dev tag: ${DEV_TAG}"
-          
-          # Configure git
-          git config user.name github-actions
-          git config user.email github-actions@github.com
-          
-          # Check if tag already exists
-          if git ls-remote --tags origin | grep -q "refs/tags/${DEV_TAG}"; then
-            echo "Tag ${DEV_TAG} already exists on remote, skipping tag creation"
-          else
-            # Create and push the tag
-            git tag -a "${DEV_TAG}" -m "Nightly schema build ${YEAR}-${MONTH}-${DAY}"
-            git push origin "${DEV_TAG}"
-            echo "Successfully created and pushed tag ${DEV_TAG}"
-          fi
-
   deploy:
     name: Deploy Schema to GitHub Pages
-    needs: 
-      - build
-      - create_nightly_tag  # Will be skipped for non-nightly builds
+    needs: build
     # Deploy schema for:
     # 1. Production releases (tags without 'dev')
-    # 2. Development releases (tags with 'dev' or nightly builds)
-    # 3. Never deploy for PRs or regular pushes to master
+    # 2. Development releases (tags with 'dev')
+    # 3. Nightly builds (scheduled runs)
+    # 4. Never deploy for PRs or regular pushes to master
     if: |
-      always() &&
       needs.build.result == 'success' &&
-      (needs.create_nightly_tag.result == 'success' || needs.create_nightly_tag.result == 'skipped') &&
       github.event.inputs.dry_run != 'true' && (
         (github.event_name == 'schedule') ||
         (startsWith(github.ref, 'refs/tags/'))

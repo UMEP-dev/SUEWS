@@ -29,7 +29,7 @@ livehtml:
 # Generate RST from data models (run manually when needed)
 generate-rst:
 	@echo "Generating RST files for data models..."
-	@python generate_datamodel_rst.py
+	@python3 generate_datamodel_rst.py
 
 # Catch remaining sphinx targets without auto-generation
 %:

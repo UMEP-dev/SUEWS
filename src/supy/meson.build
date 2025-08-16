@@ -22,6 +22,7 @@ py.install_sources(
             'cmd/SUEWS.py',
             'cmd/table_converter.py',
             'cmd/to_yaml.py',
+            'cmd/validate_config.py',
         ],
         [
             'util/_UMEP2epw.py',

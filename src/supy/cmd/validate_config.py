@@ -20,19 +20,19 @@ from rich.progress import track
 
 # Import from supy modules
 try:
-    from ..data_model.core import SUEWSConfig
-    from ..data_model._schema_version import CURRENT_SCHEMA_VERSION
-    from ..util.schema_publisher import generate_json_schema
-    from ..util.schema_migration import SchemaMigrator, check_migration_needed
+    from ..data_model.core.config import SUEWSConfig
+    from ..data_model.schema.version import CURRENT_SCHEMA_VERSION
+    from ..data_model.schema.publisher import generate_json_schema
+    from ..data_model.schema.migration import SchemaMigrator, check_migration_needed
 except ImportError:
     # Fallback for direct script execution
     import sys
 
     sys.path.append(str(Path(__file__).parent.parent.parent))
-    from supy.data_model.core import SUEWSConfig
-    from supy.data_model._schema_version import CURRENT_SCHEMA_VERSION
-    from supy.util.schema_publisher import generate_json_schema
-    from supy.util.schema_migration import SchemaMigrator, check_migration_needed
+    from supy.data_model.core.config import SUEWSConfig
+    from supy.data_model.schema.version import CURRENT_SCHEMA_VERSION
+    from supy.data_model.schema.publisher import generate_json_schema
+    from supy.data_model.schema.migration import SchemaMigrator, check_migration_needed
 
 console = Console()
 

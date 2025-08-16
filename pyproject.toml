@@ -45,6 +45,8 @@ dependencies = [
     "pytz",                                        # timezone handling
     "scikit-learn",                                # OHM coefficient derivation
     "pyarrow",                                     # Parquet support for CRU data and efficient data storage
+    "jsonschema",                                  # JSON Schema validation for YAML configs
+    "rich",                                        # Rich terminal output for validation CLI
 ]
 classifiers = [
     "Programming Language :: Python :: 3 :: Only",
@@ -69,6 +71,8 @@ content-type = "text/markdown"
 [project.scripts]
 suews-run = "supy.cmd.SUEWS:SUEWS"
 suews-convert = "supy.cmd.table_converter:convert_table_cmd"
+suews-validate = "supy.cmd.validate_config:main"
+suews-schema = "supy.util.schema_publisher:main"
 
 [project.optional-dependencies]
 dev = [

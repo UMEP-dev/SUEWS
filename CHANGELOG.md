@@ -34,6 +34,26 @@
 
 ## 2025
 
+### 15 Aug 2025
+- [feature] Added YAML configuration schema versioning for structure evolution tracking ([#576](https://github.com/UMEP-dev/SUEWS/issues/576))
+  - Single `schema_version` field tracks configuration structure changes (e.g., '1.0', '1.1', '2.0')
+  - Schema versions are independent of SUEWS model versions for cleaner separation of concerns
+  - Automatic compatibility checking with clear warnings for version mismatches
+  - Migration framework for updating configurations between schema versions
+  - Created `update_schema_version.py` utility for managing schema versions
+  - Updated sample_config.yml with schema_version field
+  - Comprehensive documentation explaining schema vs model versioning
+  - Follows industry patterns (Docker Compose, Kubernetes) for configuration versioning
+- [feature] Added JSON Schema publishing system for external validation and IDE support
+  - Export Pydantic models to JSON Schema format for universal validation
+  - Versioned schema storage in `schemas/` directory
+  - User-friendly validation CLI: `suews-validate` command
+  - Schema generation tool: `suews-schema` command
+  - GitHub Actions workflow for automatic schema publishing on releases
+  - IDE integration support (VS Code, PyCharm, Vim, etc.)
+  - Enables autocomplete, inline validation, and documentation in editors
+  - Comprehensive documentation for schema usage and integration
+
 ### 14 Aug 2025
 - [bugfix] Fix test failures in CI by using package resources for sample_config.yml access
   - Use importlib.resources for proper package resource handling in tests

@@ -102,7 +102,7 @@ if read_the_docs_build:
     print(f"DEBUG: RTD Version Type = {rtd_version_type}")
     print(f"DEBUG: git_version_string = {git_version_string}")
     print(f"DEBUG: is_dev_version = {is_dev_version}")
-    
+
     # Only show dev banner if version actually indicates development
     # The version detection should work correctly on RTD
     # We rely on the git version string to determine if this is a dev build
@@ -507,7 +507,9 @@ if is_dev_version:
     </div>
     """
 else:
-    print(f"DEBUG: Not adding announcement banner, is_dev_version={is_dev_version}, version={git_version_string}")
+    print(
+        f"DEBUG: Not adding announcement banner, is_dev_version={is_dev_version}, version={git_version_string}"
+    )
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,

@@ -283,7 +283,10 @@ class TestSchemaVersionUtility:
             assert updated["name"] == "test_config"
 
             # Description should be kept as-is (cleaning only happens with specific patterns)
-            assert updated["description"] == "Sample config v1.0 designed for supy version 2025.8.1"
+            assert (
+                updated["description"]
+                == "Sample config v1.0 designed for supy version 2025.8.1"
+            )
         finally:
             yaml_path.unlink()
 

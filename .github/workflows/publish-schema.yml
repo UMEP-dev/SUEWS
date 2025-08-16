@@ -82,12 +82,29 @@ jobs:
         run: |
           python -m pip install --upgrade pip setuptools wheel
           
-          # Check if wheel was downloaded successfully
+          # Check if wheel was downloaded successfully and if it's from current branch
+          # Note: Wheels from master branch won't have the schema module yet
           if [ -d "dist" ] && [ -n "$(ls -A dist/*.whl 2>/dev/null)" ]; then
-            echo "Installing SUEWS from pre-built wheel..."
+            echo "Found pre-built wheel, checking if it has schema module..."
             python -m pip install dist/*.whl
             python -m pip install pytest pyyaml  # Add test dependencies
-            echo "✓ SUEWS installed from wheel"
+            
+            # Test if schema module exists in the installed wheel
+            if python -c "from supy.data_model.schema.version import CURRENT_SCHEMA_VERSION" 2>/dev/null; then
+              echo "✓ SUEWS installed from wheel with schema module"
+            else
+              echo "Wheel doesn't have schema module (likely from master branch), building from source..."
+              python -m pip uninstall -y supy
+              # Install gfortran for building
+              sudo apt-get update && sudo apt-get install -y gfortran
+              # Install build dependencies
+              python -m pip install build meson-python meson ninja
+              # Build with fast mode to avoid strict compiler flags
+              python -m pip install --no-build-isolation --editable '.[dev]' \
+                --config-settings=setup-args="-Dfast_build=true" \
+                --config-settings=compile-args="-j2"
+              echo "✓ SUEWS built from source with schema module"
+            fi
           else
             echo "No wheel found, building SUEWS from source..."
             # Install gfortran for building

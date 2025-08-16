@@ -65,7 +65,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: 3.12  # Use 3.12 as in main workflow for consistency
+          python-version: 3.13  # Use latest Python 3.13
       
       - name: Try to download pre-built wheel artifact
         id: download_wheel
@@ -73,16 +73,13 @@ jobs:
         with:
           workflow: build-publish_to_pypi.yml
           workflow_conclusion: success
-          name: cp312-manylinux-x86_64
+          name: cp313-manylinux-x86_64
           path: dist
           if_no_artifact_found: warn
         continue-on-error: true
           
       - name: Install SUEWS from wheel or build from source
         run: |
-          # Create virtual environment
-          python -m venv .venv
-          source .venv/bin/activate
           python -m pip install --upgrade pip setuptools wheel
           
           # Check if wheel was downloaded successfully
@@ -107,8 +104,7 @@ jobs:
       - name: Get schema version
         id: schema_version
         run: |
-          # Activate venv and extract the current schema version
-          source .venv/bin/activate
+          # Extract the current schema version from the code
           SCHEMA_VERSION=$(python -c "from supy.data_model.schema.version import CURRENT_SCHEMA_VERSION; print(CURRENT_SCHEMA_VERSION)")
           echo "SCHEMA_VERSION=$SCHEMA_VERSION" >> $GITHUB_ENV
           echo "schema_version=$SCHEMA_VERSION" >> $GITHUB_OUTPUT
@@ -116,18 +112,12 @@ jobs:
           
       - name: Validate schema functionality
         run: |
-          # Activate venv and run schema tests
-          source .venv/bin/activate
-          
           echo "🧪 Running schema validation tests..."
           python -m pytest test/data_model/test_schema_versioning.py -v --tb=short || true
           echo "✓ Schema test run completed"
           
       - name: Export schema for GitHub Pages
         run: |
-          # Activate venv for schema export
-          source .venv/bin/activate
-          
           # Determine if this is a dev build and set appropriate flags
           if [[ "${{ github.event_name }}" == "schedule" ]] || [[ "${{ github.ref }}" == *dev* ]]; then
             echo "📝 Exporting development schema version ${{ env.SCHEMA_VERSION }}"

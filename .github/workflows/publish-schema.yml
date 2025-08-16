@@ -67,29 +67,42 @@ jobs:
         with:
           python-version: 3.12  # Use 3.12 as in main workflow for consistency
       
-      - name: Install gfortran
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y gfortran
+      - name: Try to download pre-built wheel artifact
+        id: download_wheel
+        uses: dawidd6/action-download-artifact@v3
+        with:
+          workflow: build-publish_to_pypi.yml
+          workflow_conclusion: success
+          name: cp312-manylinux-x86_64
+          path: dist
+          if_no_artifact_found: warn
+        continue-on-error: true
           
-      - name: Install build dependencies
+      - name: Install SUEWS from wheel or build from source
         run: |
-          python -m pip install --upgrade pip setuptools wheel
-          python -m pip install build meson-python meson ninja
-          
-      - name: Install SUEWS in editable mode
-        run: |
-          # Create virtual environment and install SUEWS
+          # Create virtual environment
           python -m venv .venv
           source .venv/bin/activate
-          python -m pip install --upgrade pip setuptools wheel meson-python
+          python -m pip install --upgrade pip setuptools wheel
           
-          # Use fast build mode which has less strict compiler flags
-          # This avoids the Fortran line truncation errors
-          python -m pip install --no-build-isolation --editable '.[dev]' \
-            --config-settings=setup-args="-Dfast_build=true" \
-            --config-settings=compile-args="-j2"
-          echo "✓ SUEWS installed in editable mode"
+          # Check if wheel was downloaded successfully
+          if [ -d "dist" ] && [ -n "$(ls -A dist/*.whl 2>/dev/null)" ]; then
+            echo "Installing SUEWS from pre-built wheel..."
+            python -m pip install dist/*.whl
+            python -m pip install pytest pyyaml  # Add test dependencies
+            echo "✓ SUEWS installed from wheel"
+          else
+            echo "No wheel found, building SUEWS from source..."
+            # Install gfortran for building
+            sudo apt-get update && sudo apt-get install -y gfortran
+            # Install build dependencies
+            python -m pip install build meson-python meson ninja
+            # Build with fast mode to avoid strict compiler flags
+            python -m pip install --no-build-isolation --editable '.[dev]' \
+              --config-settings=setup-args="-Dfast_build=true" \
+              --config-settings=compile-args="-j2"
+            echo "✓ SUEWS built and installed from source"
+          fi
           
       - name: Get schema version
         id: schema_version

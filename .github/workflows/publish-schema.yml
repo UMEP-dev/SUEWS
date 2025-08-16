@@ -67,6 +67,15 @@ jobs:
         with:
           python-version: 3.13  # Use latest Python 3.13
       
+      - name: Wait for build workflow to complete
+        uses: lewagon/wait-on-check-action@v1.3.4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          check-name: 'Build wheel for cp313-manylinux x86_64'
+          repo-token: ${{ github.token }}
+          wait-interval: 10
+        continue-on-error: true  # Don't fail if build workflow hasn't started
+          
       - name: Try to download pre-built wheel artifact from current PR/commit
         id: download_wheel
         uses: dawidd6/action-download-artifact@v3

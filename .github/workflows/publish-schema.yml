@@ -53,7 +53,7 @@ concurrency:
 
 jobs:
   build:
-    name: Build Schema
+    name: Build and Export Schema
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -63,27 +63,50 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.13'
+      
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+          cache-dependency-glob: "**/pyproject.toml"
           
       - name: Install gfortran
         run: |
           sudo apt-get update
           sudo apt-get install -y gfortran
           
-      - name: Install SUEWS in editable mode
+      - name: Install SUEWS with uv
         run: |
-          make dev
+          # Use uv for fast installation
+          uv venv .venv
+          source .venv/bin/activate
+          uv pip install --editable '.[dev]'
+          echo "✓ SUEWS installed with uv"
           
       - name: Get schema version
         id: schema_version
         run: |
-          # Extract the current schema version from the code
+          # Activate venv and extract the current schema version
+          source .venv/bin/activate
           SCHEMA_VERSION=$(python -c "from supy.data_model.schema.version import CURRENT_SCHEMA_VERSION; print(CURRENT_SCHEMA_VERSION)")
           echo "SCHEMA_VERSION=$SCHEMA_VERSION" >> $GITHUB_ENV
           echo "schema_version=$SCHEMA_VERSION" >> $GITHUB_OUTPUT
           echo "✓ Detected schema version: $SCHEMA_VERSION"
           
+      - name: Validate schema functionality
+        run: |
+          # Activate venv and run schema tests
+          source .venv/bin/activate
+          
+          echo "🧪 Running schema validation tests..."
+          python -m pytest test/data_model/test_schema_versioning.py -v --tb=short
+          echo "✓ Schema tests passed"
+          
       - name: Export schema for GitHub Pages
         run: |
+          # Activate venv for schema export
+          source .venv/bin/activate
+          
           # Determine if this is a dev build and set appropriate flags
           if [[ "${{ github.event_name }}" == "schedule" ]] || [[ "${{ github.ref }}" == *dev* ]]; then
             echo "📝 Exporting development schema version ${{ env.SCHEMA_VERSION }}"

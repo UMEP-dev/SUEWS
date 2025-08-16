@@ -3,10 +3,10 @@
 ## Benefits of Full uv Adoption
 
 1. **Single tool** for all Python needs
-2. **10-100x faster** than pip/conda
+2. **10-100x faster** than pip/mamba
 3. **Built-in workspace support** - perfect for worktrees
 4. **Lock files** - reproducible environments
-5. **No more mamba/conda complexity**
+5. **No more mamba environment complexity**
 
 ## Current Status & Python 3.13 Compatibility
 

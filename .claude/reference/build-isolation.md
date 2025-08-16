@@ -5,7 +5,7 @@
 ### Build Configuration
 - **Build Tool**: Meson (modern Python build system)
 - **Build Directory**: `build/` in the project root
-- **Development Install**: `make uv-dev` (recommended), `make dev` or `make dev-fast` (editable install)
+- **Development Install**: `make dev` (editable install with automatic dependency handling)
 - **Testing**: `make test` runs pytest
 
 ### Potential Conflicts Between Worktrees
@@ -27,20 +27,20 @@
    - Each worktree has its own copy - NO CONFLICT
 
 4. **Shared Python Environment**
-   - If using the same conda/mamba environment across worktrees
+   - If using the same mamba environment across worktrees
    - **MAJOR CONFLICT**: Can only have one version of supy installed
 
 ## Solutions for Build Isolation
 
 ### Solution 1: Separate Python Environments (RECOMMENDED)
-Create a unique conda/mamba environment for each worktree:
+Create a unique mamba environment for each worktree:
 
 ```bash
 # For each worktree
 mamba create -n suews-dev-{feature-name} --clone suews-dev
 mamba activate suews-dev-{feature-name}
 cd worktrees/{feature-name}
-make uv-dev  # Or: make dev
+make setup && source .venv/bin/activate && make dev
 ```
 
 **Pros**: Complete isolation, no conflicts
@@ -63,7 +63,7 @@ Work on one worktree at a time:
 # Before switching worktrees
 make clean
 # In new worktree
-make uv-dev  # Or: make dev
+make setup && source .venv/bin/activate && make dev
 ```
 
 **Pros**: Simple, no changes needed
@@ -96,7 +96,7 @@ make uv-dev  # Or: make dev
 
 4. Build development version:
    ```bash
-   make uv-dev  # Or: make dev, make dev-fast for faster builds
+   make setup && source .venv/bin/activate && make dev
    ```
 
 ### During Development
@@ -162,13 +162,13 @@ make uv-dev  # Or: make dev
 mamba create -n suews-core-fixes --clone suews-dev
 mamba activate suews-core-fixes
 cd worktrees/core-bugs
-make uv-dev  # Or: make dev
+make setup && source .venv/bin/activate && make dev
 
 # Agent 2 (different terminal)
 mamba create -n suews-defaults --clone suews-dev
 mamba activate suews-defaults
 cd worktrees/default-values
-make uv-dev  # Or: make dev
+make setup && source .venv/bin/activate && make dev
 ```
 
 ### Option B: Sequential Work (Simpler Setup)
@@ -178,7 +178,7 @@ Each agent works in sequence, cleaning before switching:
 make clean
 # Next agent starts
 cd ../other-worktree
-make uv-dev  # Or: make dev
+make setup && source .venv/bin/activate && make dev
 ```
 
 ## Testing Strategy
@@ -190,12 +190,12 @@ make uv-dev  # Or: make dev
 4. **Benchmark test**: `pytest test/test_suews_simulation.py::test_benchmark -v`
 
 ### Performance Considerations:
-- `make dev-fast` - Faster compilation for development
+- `make dev` - Editable install with automatic dependency handling
 - Run specific tests during development
 - Full test suite before committing
 
 ## Summary
 - **Primary Issue**: Python editable installs conflict between worktrees
-- **Recommended Solution**: Use separate conda environments per worktree
+- **Recommended Solution**: Use separate mamba environments per worktree
 - **Testing**: Run `make test` frequently, especially before commits
-- **Build Commands**: `make uv-dev` (or `make dev`) → `make test` → commit → push
+- **Build Commands**: `make setup` → `source .venv/bin/activate` → `make dev` → `make test` → commit → push

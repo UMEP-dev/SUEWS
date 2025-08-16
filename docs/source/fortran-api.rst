@@ -130,13 +130,9 @@ Computational Workflow
 Detailed API Documentation
 ---------------------------
 
-`Fortran API Documentation <_static/html/index.html>`_ provides comprehensive, automatically generated documentation of all SUEWS source code using `Doxygen <http://www.doxygen.nl>`_.
+.. note::
 
-**Key Features:**
-- **Function signatures**: Complete parameter lists and return types
-- **Module dependencies**: Cross-references between modules
-- **Source code**: Direct links to implementation
-- **Call graphs**: Visual representation of function relationships
+   **Doxygen Documentation Disabled**: Automatic Fortran API documentation generation has been disabled to reduce build output verbosity. For detailed function signatures and module dependencies, please refer to the source code directly in ``src/suews/src/``.
 
 Development Guidelines
 -----------------------

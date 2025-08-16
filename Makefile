@@ -60,7 +60,11 @@ dev:
 
 # Run tests
 test:
-	$(PYTHON) -m pytest test -v --tb=short
+	@echo "Running tests (excluding slow tests)..."
+	@echo "NOTE: Slow tests (e.g., Fortran state persistence ~3-4 min) are skipped."
+	@echo "      These run automatically in CI. To run manually: pytest test -m slow -v"
+	@echo ""
+	$(PYTHON) -m pytest test -m "not slow" -v --tb=short --durations=10
 
 # Build documentation
 docs:

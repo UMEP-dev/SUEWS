@@ -117,6 +117,10 @@ suews-schema = "supy.util.schema_publisher:main"
 filterwarnings = [
     "ignore::UserWarning:pydantic.main",
 ]
+# Test markers
+markers = [
+    "slow: marks tests as slow (e.g., Fortran state persistence tests taking ~3-4 minutes)",
+]
 
 [tool.ruff]
 line-length = 120

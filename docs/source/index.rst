@@ -86,8 +86,8 @@ How has SUEWS been used?
 
 The scientific details and application examples of SUEWS can be found in:
 
-- `Recent_publications` - Core SUEWS publications from the development team
-- :ref:`community_publications` - Publications from the SUEWS user community
+- :ref:`Recent_publications` - Core SUEWS publications from the development team describing model physics and validation
+- :ref:`community_publications` - Publications from the SUEWS user community showcasing diverse applications
 
 .. _cite_suews:
 
@@ -95,11 +95,21 @@ The scientific details and application examples of SUEWS can be found in:
 How to cite SUEWS?
 -----------------------------
 
-Please go to `our Zenodo repository`_ for a proper citation of SUEWS.
+When using SUEWS in your research, please cite it appropriately:
+
+**For the software/model:**
+
+- Use the `CITATION.cff file in our GitHub repository <https://github.com/UMEP-dev/SUEWS/blob/master/CITATION.cff>`_ for software citations
+- Visit `our Zenodo repository`_ for DOI-based citations with version tracking
+
+**For scientific background:**
+
+- See :ref:`Recent_publications` for core SUEWS papers describing the model's development and validation
+- Check :ref:`community_publications` to see how others have cited and used SUEWS in their work
 
 .. tip::
 
-    Visit the repositories below for different citation styles.
+    The GitHub CITATION.cff file provides citation metadata in multiple formats (APA, BibTeX, etc.) that can be directly imported into reference managers.
 
 
 

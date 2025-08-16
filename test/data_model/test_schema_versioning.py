@@ -22,10 +22,10 @@ except ImportError:
 def load_supy_resource(resource_path: str) -> str:
     """
     Load a resource file from the supy package.
-    
+
     Args:
         resource_path: Path relative to supy package root (e.g., "sample_data/sample_config.yml")
-    
+
     Returns:
         Content of the resource file as string
     """

@@ -56,11 +56,11 @@ try:
     git_version_string = get_version_from_git()
     is_dev_version = ".dev" in git_version_string
     git_commit_short, git_commit_full = get_commit_info()
-    
+
     # Debug output for ReadTheDocs
     print(f"DEBUG: git_version_string = {git_version_string}")
     print(f"DEBUG: is_dev_version = {is_dev_version}")
-    
+
 except ImportError as e:
     # Fallback if functions not available
     print(f"WARNING: Failed to import get_ver_git: {e}")
@@ -100,7 +100,7 @@ rtd_version_type = os.environ.get("READTHEDOCS_VERSION_TYPE", "unknown")
 if read_the_docs_build:
     print(f"DEBUG: RTD Version = {rtd_version}")
     print(f"DEBUG: RTD Version Type = {rtd_version_type}")
-    
+
     # If we're on RTD and building 'latest', assume it's development
     if rtd_version == "latest" and not is_dev_version:
         print("DEBUG: Forcing dev version for RTD 'latest' build")

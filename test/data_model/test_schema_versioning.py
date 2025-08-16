@@ -11,6 +11,32 @@ import sys
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
+# Import package resource handling
+try:
+    from importlib.resources import files
+except ImportError:
+    # backport for python < 3.9
+    from importlib_resources import files
+
+
+def load_supy_resource(resource_path: str) -> str:
+    """
+    Load a resource file from the supy package.
+    
+    Args:
+        resource_path: Path relative to supy package root (e.g., "sample_data/sample_config.yml")
+    
+    Returns:
+        Content of the resource file as string
+    """
+    supy_resources = files("supy")
+    parts = resource_path.split("/")
+    resource = supy_resources
+    for part in parts:
+        resource = resource / part
+    return resource.read_text()
+
+
 from supy.data_model.core import SUEWSConfig
 from supy.data_model.schema import (
     CURRENT_SCHEMA_VERSION,
@@ -267,12 +293,10 @@ class TestSampleConfig:
 
     def test_sample_config_has_schema_version(self):
         """Test that sample_config.yml has schema_version field."""
-        sample_path = (
-            Path(__file__).parent.parent.parent / "src/supy/sample_data/sample_config.yml"
-        )
-
-        with open(sample_path, "r") as f:
-            config = yaml.safe_load(f)
+        # Use package resources to load sample_config.yml
+        # This works regardless of installation method (editable, wheel, etc.)
+        config_content = load_supy_resource("sample_data/sample_config.yml")
+        config = yaml.safe_load(config_content)
 
         assert "schema_version" in config, (
             "sample_config.yml should have 'schema_version' field"

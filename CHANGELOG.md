@@ -53,6 +53,11 @@
   - IDE integration support (VS Code, PyCharm, Vim, etc.)
   - Enables autocomplete, inline validation, and documentation in editors
   - Comprehensive documentation for schema usage and integration
+- [feature] Added community publications section for user-submitted SUEWS-related work (#80)
+  - Created new community BibTeX file (refs-community.bib) for community submissions
+  - Added Community Publications page with simple PR submission workflow
+  - Updated main documentation to link to both core and community publications
+  - Included example submission from issue #80
 
 ### 14 Aug 2025
 - [bugfix] Fix test failures in CI by using package resources for sample_config.yml access

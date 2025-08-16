@@ -1029,7 +1029,7 @@ from datetime import datetime
 
 import pytest
 
-from supy.data_model.yaml_processor.validation_helpers import (
+from supy.data_model.validation.yaml_helpers import (
     SeasonCheck,
     collect_yaml_differences,
     get_mean_monthly_air_temperature,
@@ -2290,7 +2290,7 @@ class TestPrecheckRefValueHandling:
 
 def test_precheck_thermal_layer_cp_renaming():
     """Test that legacy 'cp' fields are renamed to 'rho_cp' in thermal_layers."""
-    from supy.data_model.yaml_processor.validation_helpers import (
+    from supy.data_model.validation.yaml_helpers import (
         precheck_thermal_layer_cp_renaming,
     )
 
@@ -2387,7 +2387,7 @@ def test_precheck_thermal_layer_cp_renaming():
 
 def test_precheck_thermal_layer_cp_renaming_no_changes():
     """Test that data without cp fields is unchanged."""
-    from supy.data_model.yaml_processor.validation_helpers import (
+    from supy.data_model.validation.yaml_helpers import (
         precheck_thermal_layer_cp_renaming,
     )
 
@@ -2426,7 +2426,7 @@ def test_precheck_thermal_layer_cp_renaming_no_changes():
 
 def test_precheck_thermal_layer_cp_renaming_mixed_surfaces():
     """Test renaming with surfaces that have no thermal_layers."""
-    from supy.data_model.yaml_processor.validation_helpers import (
+    from supy.data_model.validation.yaml_helpers import (
         precheck_thermal_layer_cp_renaming,
     )
 

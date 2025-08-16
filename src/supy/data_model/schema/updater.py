@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import Optional, List
 import argparse
 import re
-from ..data_model._schema_version import CURRENT_SCHEMA_VERSION, SCHEMA_VERSIONS
+from .version import CURRENT_SCHEMA_VERSION, SCHEMA_VERSIONS
 
 
 def increment_schema_version(current_version: str, increment_type: str = "minor") -> str:

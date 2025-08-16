@@ -6,7 +6,7 @@ import tempfile
 import yaml
 
 import supy as sp
-from supy.data_model.timezone_enum import TimezoneOffset
+from supy.data_model.core.timezone_enum import TimezoneOffset
 
 
 def test_timezone_enum_support():

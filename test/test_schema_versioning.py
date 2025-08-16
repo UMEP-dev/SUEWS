@@ -11,14 +11,16 @@ import sys
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 from supy.data_model.core import SUEWSConfig
-from supy.data_model._schema_version import (
+from supy.data_model.schema import (
     CURRENT_SCHEMA_VERSION,
     is_schema_compatible,
     get_schema_compatibility_message,
-    validate_schema_version
+    validate_schema_version,
+    SchemaMigrator,
+    migrate_config_file,
+    increment_schema_version,
+    update_yaml_schema_version,
 )
-from supy.util.schema_migration import SchemaMigrator, migrate_config_file
-from supy.util.update_schema_version import increment_schema_version, update_yaml_schema_version
 
 
 class TestSchemaVersioning:

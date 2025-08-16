@@ -244,6 +244,64 @@ The data model includes comprehensive conditional validation that validates only
 
 Popular validators like JSONSchemaValidator.net, AJV Online, and Hyperjump support JSON Schema Draft 2019-09 with conditional validation, providing significantly better coverage than basic schemas but still missing complex SUEWS-specific logic.
 
+## Future Work
+
+### High Priority Improvements
+
+1. **Enforce Strict Pydantic Validation**
+   - Migrate from `extra="allow"` to `extra="forbid"` to catch typos and invalid fields
+   - Create `StrictBaseModel` with frozen configuration
+   - Breaking change requiring major version bump
+
+2. **Surface Fraction Validation** 
+   - Enforce sum-to-one constraint for physical consistency
+   - Add tolerance for floating-point (0.999-1.001)
+   - Critical physics invariant currently not validated
+
+3. **Type Aliases for Constrained Fields**
+   - Create standardised type definitions (Frac, Albedo, Emissivity, etc.)
+   - Move validation from model validators to field level
+   - Improve code consistency and error messages
+
+### Medium Priority Enhancements
+
+4. **Property-Based Testing with Hypothesis**
+   - Test edge cases and invariants systematically
+   - Validate surface fractions, array lengths, physical ranges
+   - Improve robustness of validation logic
+
+5. **Deprecation Framework**
+   - Systematic handling of field deprecation
+   - Clear migration paths with warnings
+   - Track deprecation timelines
+
+6. **Migration Documentation**
+   - Create cookbook with examples
+   - Document breaking changes
+   - Provide automated migration scripts
+
+### Lower Priority Features
+
+7. **CF Convention Metadata**
+   - Add Climate and Forecast standard names
+   - Enhance interoperability with climate tools
+   - Use json_schema_extra for metadata
+
+8. **Physics Sanity Checks**
+   - Configurable warnings for unusual configurations
+   - Energy balance constraints
+   - Document typical parameter ranges
+
+9. **Pint Integration for Units**
+   - Optional unit-aware validation
+   - Automatic SI conversion on input
+   - Help users with unit conversions
+
+10. **MECE Model Restructuring**
+    - Reorganise into clear domain partitions
+    - Separate concerns more clearly
+    - Major refactoring effort
+
 ### References
 - Järvi, L., et al. (2011). Development of the Surface Urban Energy and Water Balance Scheme (SUEWS) for cold climate conditions. *Geoscientific Model Development*, 4(4), 845-869.
 - Ward, H. C., et al. (2016). Surface Urban Energy and Water Balance Scheme (SUEWS): Development and evaluation at two UK sites. *Urban Climate*, 18, 1-32.

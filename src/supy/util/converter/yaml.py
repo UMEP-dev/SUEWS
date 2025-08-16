@@ -9,7 +9,7 @@ import f90nml
 
 from ..._load import load_InitialCond_grid_df
 from ...data_model.core import SUEWSConfig
-from ...data_model.model import OutputConfig
+from ...data_model.core.model import OutputConfig
 from .table import convert_table
 
 

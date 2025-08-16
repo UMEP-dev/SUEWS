@@ -17,8 +17,8 @@ import argparse
 import sys
 from datetime import datetime
 
-from ..data_model.core import SUEWSConfig
-from ..data_model._schema_version import CURRENT_SCHEMA_VERSION, SCHEMA_VERSIONS
+from ..core import SUEWSConfig
+from .version import CURRENT_SCHEMA_VERSION, SCHEMA_VERSIONS
 
 
 def generate_json_schema(

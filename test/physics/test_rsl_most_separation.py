@@ -63,9 +63,12 @@ class TestRSLMOSTSeparation:
         df_state_init, df_forcing = sample_data
 
         # Tall building case that previously caused issues
+        # Measurement height must be ABOVE buildings for physical realism
+        # Also need to ensure z - zdm > z0m to avoid stability errors
         df_state_init.loc[:, "bldgh"] = 50.0
         df_state_init.loc[:, "z0m_in"] = 5.0
         df_state_init.loc[:, "zdm_in"] = 35.0
+        df_state_init.loc[:, "z"] = 60.0  # Measurement height ABOVE building height
         df_state_init.loc[:, "diagmethod"] = 0  # MOST
 
         df_output, _ = sp.run_supy(df_forcing, df_state_init)

@@ -176,17 +176,17 @@ CONTAINS
       nz_above = nz - nz_can
 
       qa_gkg = RH2qa(avRH/100, Press_hPa, Temp_c)  ! Calculate specific humidity
-      
+
       IF (flag_RSL) THEN
          ! ========== RSL APPROACH ==========
          ! First generate RSL height array
          zH_RSL = MAX(Zh, 2.) ! minimum canyon height
          CALL setup_RSL_heights(nz, nz_can, zH_RSL, zMeas, zarray)
-         
+
          ! Initialize RSL correction arrays
          psihatm_z = 0.*zarray
          psihath_z = 0.*zarray
-         
+
          ! Calculate grid-cell dependent constants and Beta (crucial for H&F method)
          CALL RSL_cal_prms( &
             StabilityMethod, & !input
@@ -195,16 +195,16 @@ CONTAINS
             psihatm_z(nz_can:nz), psihath_z(nz_can:nz), & ! Calculate psihatm_z at zH
             zH_RSL, L_MOD_RSL, & ! output
             Lc, beta, zd_RSL, z0_RSL, elm, Scc, fx)
-            
+
          ! Calculate UStar and TStar for RSL
          psimz0 = stab_psi_mom(StabilityMethod, z0_RSL/L_MOD_RSL)
          psimza = stab_psi_mom(StabilityMethod, (zMeas - zd_RSL)/L_MOD_RSL)
          psihza = stab_psi_heat(StabilityMethod, (zMeas - zd_RSL)/L_MOD_RSL)
-         
+
          UStar_RSL = avU1*kappa/(LOG((zMeas - zd_RSL)/z0_RSL) - psimza + psimz0 + psihatm_z(nz))
          UStar_RSL = MAX(0.001, UStar_RSL)
          IF ((ZMeas - zd_RSL)/L_MOD_RSL < -neut_limit) UStar_RSL = MAX(0.15, UStar_RSL)
-         
+
          UStar_heat = MAX(0.15, UStar_RSL)
          TStar_RSL = -1.*(qh/(avcp*avdens))/UStar_heat
          IF (ABS(qe) <= eps_fp) THEN
@@ -239,14 +239,14 @@ CONTAINS
       ELSE
          ! ========== MOST APPROACH ==========
          ! Use standard Monin-Obukhov Similarity Theory
-         
+
          ! --- MOST parameters (use standard SUEWS values) ---
          L_MOD_RSL = L_MOD
          zH_RSL = Zh
          UStar_heat = 1/(kappa*RA_h)*(LOG((zMeas - zdm)/z0v) - &
                       stab_psi_heat(StabilityMethod, (zMeas - zdm)/L_MOD) + &
                       stab_psi_heat(StabilityMethod, z0v/L_MOD))
-         
+
          TStar_RSL = -1.*(qh/(avcp*avdens))/UStar_heat
          IF (ABS(qe) <= eps_fp) THEN
             qStar_RSL = 10.**(-10)
@@ -254,7 +254,7 @@ CONTAINS
             qStar_RSL = -1.*(qe/lv_J_kg*avdens)/UStar_heat
          END IF
          UStar_RSL = UStar_heat  ! For consistency in output
-         
+
          ! --- RSL-specific parameters not used in MOST ---
          psihatm_z = 0.0D0  ! Initialize array to zeros
          psihath_z = 0.0D0  ! Initialize array to zeros
@@ -265,7 +265,7 @@ CONTAINS
          elm = -999
          zd_RSL = -999
          z0_RSL = -999
-         
+
          ! Call dedicated MOST profile calculation
          CALL cal_profile_MOST( &
                   StabilityMethod, nz, zMeas, zdm, z0m, z0v, L_MOD, &
@@ -429,28 +429,28 @@ CONTAINS
 
    SUBROUTINE setup_MOST_heights(nz, zdm, z0m, zMeas, zarray)
       IMPLICIT NONE
-      
+
       INTEGER, INTENT(in) :: nz
       REAL(KIND(1D0)), INTENT(in) :: zdm, z0m, zMeas
       REAL(KIND(1D0)), DIMENSION(nz), INTENT(out) :: zarray
-      
+
       ! Local variables
       REAL(KIND(1D0)) :: z_start, z_ratio
       INTEGER :: i, idx_2m, idx_10m
       REAL(KIND(1D0)) :: z_temp
-      
+
       ! Start just above displacement height plus roughness length
       ! This ensures (z - zdm)/z0m > 1, keeping the LOG argument positive
       z_start = 1.01D0 * (zdm + z0m)  ! 1% above to avoid LOG singularity
-      
+
       ! Calculate ratio for logarithmic spacing
       z_ratio = (zMeas/z_start)**(1.0D0/(nz-1))
-      
+
       ! Generate logarithmic height array
       DO i = 1, nz
          zarray(i) = z_start * z_ratio**(i-1)
       END DO
-      
+
       ! Ensure 2m and 10m are included
       idx_2m = 0
       idx_10m = 0
@@ -458,7 +458,7 @@ CONTAINS
          IF (zarray(i) <= 2.0D0 .AND. zarray(i+1) > 2.0D0) idx_2m = i
          IF (zarray(i) <= 10.0D0 .AND. zarray(i+1) > 10.0D0) idx_10m = i
       END DO
-      
+
       ! Add exact heights if needed
       IF (idx_2m > 0 .AND. idx_2m < nz) THEN
          ! Adjust nearest point to exactly 2m
@@ -468,7 +468,7 @@ CONTAINS
             zarray(idx_2m+1) = 2.0D0
          END IF
       END IF
-      
+
       IF (idx_10m > 0 .AND. idx_10m < nz) THEN
          ! Adjust nearest point to exactly 10m
          IF (ABS(zarray(idx_10m) - 10.0D0) < ABS(zarray(idx_10m+1) - 10.0D0)) THEN
@@ -477,58 +477,58 @@ CONTAINS
             zarray(idx_10m+1) = 10.0D0
          END IF
       END IF
-      
+
       ! Ensure monotonicity
       DO i = 2, nz
          IF (zarray(i) <= zarray(i-1)) THEN
             zarray(i) = zarray(i-1) * 1.01D0
          END IF
       END DO
-      
+
    END SUBROUTINE setup_MOST_heights
 
    SUBROUTINE setup_RSL_heights(nz, nz_can, zH_RSL, zMeas, zarray)
       IMPLICIT NONE
-      
+
       INTEGER, INTENT(in) :: nz, nz_can
       REAL(KIND(1D0)), INTENT(in) :: zH_RSL, zMeas
       REAL(KIND(1D0)), DIMENSION(nz), INTENT(out) :: zarray
-      
+
       ! Local variables
       REAL(KIND(1D0)) :: dz_can, dz_above
       INTEGER :: i
-      
+
       ! Within canopy: levels 1 to nz_can
       ! Split into two parts for better resolution
-      
+
       ! Lower half: surface to half canyon height
       zarray(1) = MIN(zH_RSL*.01, 1.999D0)  ! Guarantee 2m is within array
       zarray(10) = zH_RSL*.5
-      
+
       ! Densify near the surface
       DO i = 2, 9
          dz_can = zarray(10) - zarray(i - 1)
          zarray(i) = zarray(i - 1) + dz_can*.1
          dz_can = zH_RSL - zarray(i)
       END DO
-      
+
       ! Upper half: half canyon to canyon top
       dz_can = zH_RSL - zarray(10)
       DO i = 11, nz_can
          zarray(i) = zarray(i - 1) + dz_can*.5
          dz_can = zH_RSL - zarray(i)
       END DO
-      
+
       ! Above canopy: levels nz_can+1 to nz
       zarray(nz) = zMeas
       dz_above = zMeas - zH_RSL
-      
+
       ! Densify near the canyon top
       DO i = nz - 1, nz_can + 1, -1
          zarray(i) = zarray(i + 1) - dz_above*.3
          dz_above = zarray(i) - zH_RSL
       END DO
-      
+
    END SUBROUTINE setup_RSL_heights
 
 !    SUBROUTINE RSLProfile_DTS( &
@@ -1174,11 +1174,11 @@ CONTAINS
                ! First generate RSL height array
                zH_RSL = MAX(Zh, 2.) ! minimum canyon height
                CALL setup_RSL_heights(nz, nz_can, zH_RSL, zMeas, zarray)
-               
+
                ! Initialize RSL correction arrays
                psihatm_z = 0.*zarray
                psihath_z = 0.*zarray
-               
+
                ! Calculate grid-cell dependent constants and Beta (crucial for H&F method)
                CALL RSL_cal_prms( &
                   StabilityMethod, & !input
@@ -1192,7 +1192,7 @@ CONTAINS
                ! ========== MOST APPROACH ==========
                ! Generate MOST height array
                CALL setup_MOST_heights(nz, zdm, z0m, zMeas, zarray)
-               
+
                ! Initialize arrays
                psihatm_z = 0.0D0
                psihath_z = 0.0D0
@@ -1349,6 +1349,23 @@ CONTAINS
       idx_x = MAXLOC(dif, 1, ABS(dif) < 1.D-6)
       idx_low = MAXLOC(dif, 1, dif < 0.)
       idx_high = MINLOC(dif, 1, dif > 0.)
+
+      ! Add error reporting for debugging
+      IF (idx_low == 0 .OR. idx_high == 0) THEN
+         PRINT *, "ERROR in interp_z: Interpolation bounds issue"
+         PRINT *, "  z_x (target height) = ", z_x
+         PRINT *, "  z array min = ", MINVAL(z), " max = ", MAXVAL(z)
+         PRINT *, "  idx_low = ", idx_low, " (should find z < z_x)"
+         PRINT *, "  idx_high = ", idx_high, " (should find z > z_x)"
+         IF (idx_low == 0) THEN
+            PRINT *, "  WARNING: z_x is below or at minimum height in array"
+         END IF
+         IF (idx_high == 0) THEN
+            PRINT *, "  WARNING: z_x is above or at maximum height in array"
+         END IF
+         PRINT *, "  First 5 z values: ", z(1:MIN(5,nz))
+         PRINT *, "  Last 5 z values: ", z(MAX(1,nz-4):nz)
+      END IF
 
       IF (idx_x > 0) THEN
          ! z_x is one of zarray elements

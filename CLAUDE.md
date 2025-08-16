@@ -35,10 +35,6 @@ SUEWS/
 │   ├── fast-dev-build/    # feature/fast-dev-build
 │   └── ...
 └── .claude/              # Claude Code workspace
-    └── worktree-plans/   # Branch-specific context (in master)
-        ├── README.md
-        ├── feature-core-runtime-fixes.md
-        └── ...
 ```
 
 ### Working with Worktrees
@@ -63,9 +59,7 @@ For mamba-based setup, see `.claude/reference/environment-types.md`.
 - **Use uv for speed** - setup takes seconds, not minutes
 - **Currently: activate environment** due to Python 3.13 compatibility
 - See cleanup commands in `.claude/howto/setup-worktree.md`
-- **IMPORTANT**: Also remove `.claude/plans/*/feature-{branch-name}.md` when cleaning up merged worktrees
 - Use correct pip package names: `matplotlib` (not matplotlib-base), `tables` (not pytables)
-- Pull master in each worktree to access latest `.claude/plans/`
 
 ### Build System and Testing
 
@@ -81,40 +75,28 @@ For complete build and testing information, see:
 - `.claude/howto/setup-environment.md` - Environment options
 
 ### Current Development Status
-- For an overview of all active branches and their associated GitHub issues, see `.claude/plans/claude-dev-notes.md`
+- Active branches and development work are tracked via GitHub issues and pull requests
 - For parallel development instructions, see `.claude/howto/parallel-development.md`
 
 ### Claude Code Resources
 - `.claude/README.md` - Overview of the .claude directory structure and purpose
 - `.claude/howto/` - Step-by-step guides for common tasks
 - `.claude/reference/` - Technical documentation and analysis
-- `.claude/plans/` - Feature-specific development plans
 - `.claude/templates/` - Reusable templates for consistency
 
 ## Worktree Context Management
 
-### Branch-Specific Plans
-When working in a git worktree or on a specific feature branch, check for branch-specific context and plans:
+### Branch-Specific Development
+When working in a git worktree or on a specific feature branch:
 
 1. **First, identify current branch:**
    ```bash
    git branch --show-current
    ```
 
-2. **Then load the corresponding plan if it exists:**
-   - Check `.claude/plans/doing/feature-{branch-name}.md` for active work
-   - Check `.claude/plans/todo/feature-{branch-name}.md` for planned work
-   - Check `.claude/plans/done/feature-{branch-name}.md` for completed features
-   
-   **Note**: When in a worktree, plans are in the parent directory:
-   ```bash
-   # From worktree, check all plan directories:
-   ls ../../.claude/plans/*/feature-{branch-name}.md
-   # Or read directly:
-   cat ../../.claude/plans/doing/feature-{branch-name}.md
-   ```
+2. **Check the corresponding GitHub issue or PR** for context and requirements
 
-3. **If no plan exists**, proceed with standard development practices.
+3. **Follow standard development practices** as outlined in the documentation
 
 ### IMPORTANT: Updating Plans During Work
 
@@ -126,11 +108,6 @@ For detailed instructions on working with plans in worktrees, see:
 
 See `.claude/reference/build-isolation.md` for complete testing and build workflow.
 
-### Plan Lifecycle Management
-
-For complete plan management guide, see:
-- `.claude/templates/feature-plan.md` - Plan template
-- `.claude/plans/README.md` - Plan lifecycle and organization
 
 
 ## Git and GitHub Tips
@@ -510,7 +487,6 @@ When making code changes to SUEWS/SuPy:
    ├── howto/          # Step-by-step guides (practical)
    ├── reference/      # Technical details & specifications
    ├── templates/      # Reusable templates
-   └── plans/          # Feature-specific work tracking
    ```
 
 4. **Focused Documents**

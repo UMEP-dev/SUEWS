@@ -14,11 +14,11 @@ Let me check your current development environment:
 - **Environment**: Show active Python environment name
 - **Uncommitted changes**: Count files with uncommitted changes
 
-## Available Plans
-Let me check the feature plans in .claude/plans/:
-- **Todo**: Count planned features in todo/
-- **Doing**: Count active features in doing/
-- **Done**: Count completed features in done/
+## GitHub Issues & PRs
+Let me check the current development status via GitHub:
+- **Open Issues**: Check GitHub issues for active work
+- **Open PRs**: Check pull requests in progress
+- **Recent Activity**: Show recent commits and merges
 
 ## Your Command: $ARGUMENTS
 

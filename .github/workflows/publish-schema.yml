@@ -1,17 +1,55 @@
 name: Publish JSON Schema
 
-# Publish schema to GitHub Pages on version tags
-# Schemas are NOT committed to main branch, only published at release time
+# Schema publication strategy aligned with build-publish_to_pypi.yml:
+#
+# 1. VALIDATION ONLY (no deployment):
+#    - Pull requests: Build and validate schema generation works
+#    - Push to master: Build and validate schema generation works
+#    - Manual workflow_dispatch: Build and validate (unless dry_run=false)
+#
+# 2. DEVELOPMENT SCHEMAS (deploy to GitHub Pages with 'dev' tag):
+#    - Nightly builds (2:30 AM UTC): Auto-deploy schema with dev timestamp
+#    - Tags containing 'dev': Deploy development schema version
+#
+# 3. PRODUCTION SCHEMAS (deploy to GitHub Pages as stable):
+#    - Tags without 'dev': Deploy as stable schema version
+#    - Also update 'latest' symlink to point to new stable version
+#
+# This mirrors the PyPI deployment strategy where:
+# - Nightly/dev tags → TestPyPI (development)
+# - Regular tags → PyPI (production)
+#
 on:
   push:
+    branches: [master]
     tags:
-      - 'v*'  # Trigger on version tags
+      - '*'  # Trigger on any tag push
+    paths:
+      - "src/supy/data_model/**"
+      - ".github/workflows/publish-schema.yml"
+      - "pyproject.toml"
+      
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths:
+      - "src/supy/data_model/**"
+      - ".github/workflows/publish-schema.yml"
+      
+  schedule:
+    # Run nightly builds at 2:30 AM UTC (30 min after main build)
+    - cron: '30 2 * * *'
+    
   workflow_dispatch:  # Manual trigger for testing
     inputs:
       dry_run:
         description: 'Dry run (skip deployment)'
         type: boolean
         default: false
+
+# Cancel in-progress runs when new commits are pushed to the same PR/branch
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 jobs:
   build:
@@ -35,15 +73,34 @@ jobs:
         run: |
           make dev
           
+      - name: Get schema version
+        id: schema_version
+        run: |
+          # Extract the current schema version from the code
+          SCHEMA_VERSION=$(python -c "from supy.data_model.schema.version import CURRENT_SCHEMA_VERSION; print(CURRENT_SCHEMA_VERSION)")
+          echo "SCHEMA_VERSION=$SCHEMA_VERSION" >> $GITHUB_ENV
+          echo "schema_version=$SCHEMA_VERSION" >> $GITHUB_OUTPUT
+          echo "✓ Detected schema version: $SCHEMA_VERSION"
+          
       - name: Export schema for GitHub Pages
         run: |
+          # Determine if this is a dev build and set appropriate flags
+          if [[ "${{ github.event_name }}" == "schedule" ]] || [[ "${{ github.ref }}" == *dev* ]]; then
+            echo "📝 Exporting development schema version ${{ env.SCHEMA_VERSION }}"
+          else
+            echo "📝 Exporting production schema version ${{ env.SCHEMA_VERSION }}"
+          fi
+          
           python -m supy.data_model.schema.exporter
-          echo "✓ Schema export complete"
+          echo "✓ Schema export complete for version ${{ env.SCHEMA_VERSION }}"
           
       - name: List generated files
         run: |
           echo "Generated files:"
           find public -type f | head -20
+          echo ""
+          echo "Schema versions:"
+          ls -la public/schema/suews-config/ 2>/dev/null || echo "No schema files found"
           
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
@@ -51,31 +108,99 @@ jobs:
           path: public
           
       - name: Attach schema to release
-        if: startsWith(github.ref, 'refs/tags/v')
+        # Only attach schema files to actual GitHub releases (not dev tags)
+        if: startsWith(github.ref, 'refs/tags/') && !contains(github.ref, 'dev')
         uses: softprops/action-gh-release@v1
         with:
           files: |
             public/schema/suews-config/*.json
           body: |
-            ## Schema Publication
+            ## Configuration Schema
             
-            Configuration schema has been published to GitHub Pages:
-            - Schema URL: https://umep-dev.github.io/SUEWS/schema/suews-config/${{ env.SCHEMA_VERSION }}.json
+            ### 📋 Schema Information
+            - **Schema Version**: `${{ env.SCHEMA_VERSION }}`
+            - **Schema URL**: https://umep-dev.github.io/SUEWS/schema/suews-config/${{ env.SCHEMA_VERSION }}.json
+            - **Latest Schema**: https://umep-dev.github.io/SUEWS/schema/suews-config/latest.json
             
-            ### Usage in YAML:
+            ### 🔧 Usage in YAML Configuration:
             ```yaml
+            # Specify the schema version for compatibility checking
             schema_version: "${{ env.SCHEMA_VERSION }}"
+            
+            # Optional: Enable IDE validation and auto-completion
             $schema: "https://umep-dev.github.io/SUEWS/schema/suews-config/${{ env.SCHEMA_VERSION }}.json"
+            
+            # Your configuration continues...
+            model:
+              ...
+            sites:
+              ...
             ```
+            
+            ### 🔄 Schema Compatibility
+            This version of SUEWS supports schema version ${{ env.SCHEMA_VERSION }}.
+            For migration from older schemas, see the [migration guide](https://suews.readthedocs.io/schema-migration).
           fail_on_unmatched_files: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          SCHEMA_VERSION: "0.1"  # Will be dynamically determined in future
+
+  create_nightly_tag:
+    name: Create nightly schema tag
+    runs-on: ubuntu-latest
+    needs: build
+    # Only create tag for scheduled nightly builds
+    if: github.event_name == 'schedule' && success()
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          
+      - name: Create and push nightly tag
+        run: |
+          set -e
+          
+          # Get the current date in YYYY.M.D format (without leading zeros)
+          YEAR=$(date -u +%Y)
+          MONTH=$(date -u +%-m)  # Without leading zero
+          DAY=$(date -u +%-d)    # Without leading zero
+          
+          # Create a dev tag for the nightly schema build
+          DEV_TAG="schema-${YEAR}.${MONTH}.${DAY}.dev"
+          echo "Creating schema dev tag: ${DEV_TAG}"
+          
+          # Configure git
+          git config user.name github-actions
+          git config user.email github-actions@github.com
+          
+          # Check if tag already exists
+          if git ls-remote --tags origin | grep -q "refs/tags/${DEV_TAG}"; then
+            echo "Tag ${DEV_TAG} already exists on remote, skipping tag creation"
+          else
+            # Create and push the tag
+            git tag -a "${DEV_TAG}" -m "Nightly schema build ${YEAR}-${MONTH}-${DAY}"
+            git push origin "${DEV_TAG}"
+            echo "Successfully created and pushed tag ${DEV_TAG}"
+          fi
 
   deploy:
-    name: Deploy to GitHub Pages
-    needs: build
-    if: github.event.inputs.dry_run != 'true'
+    name: Deploy Schema to GitHub Pages
+    needs: 
+      - build
+      - create_nightly_tag  # Will be skipped for non-nightly builds
+    # Deploy schema for:
+    # 1. Production releases (tags without 'dev')
+    # 2. Development releases (tags with 'dev' or nightly builds)
+    # 3. Never deploy for PRs or regular pushes to master
+    if: |
+      always() &&
+      needs.build.result == 'success' &&
+      (needs.create_nightly_tag.result == 'success' || needs.create_nightly_tag.result == 'skipped') &&
+      github.event.inputs.dry_run != 'true' && (
+        (github.event_name == 'schedule') ||
+        (startsWith(github.ref, 'refs/tags/'))
+      )
     
     # Grant permissions for Pages deployment
     permissions:
@@ -88,6 +213,24 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
       
     steps:
+      - name: Determine deployment type
+        id: deployment_type
+        run: |
+          if [[ "${{ github.event_name }}" == "schedule" ]]; then
+            echo "type=nightly" >> $GITHUB_OUTPUT
+            echo "📅 Nightly schema deployment"
+          elif [[ "${{ github.ref }}" == refs/tags/* ]] && [[ "${{ github.ref }}" == *dev* ]]; then
+            echo "type=development" >> $GITHUB_OUTPUT
+            echo "🧪 Development schema deployment"
+          elif [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            echo "type=production" >> $GITHUB_OUTPUT
+            echo "🚀 Production schema deployment"
+          else
+            echo "type=skip" >> $GITHUB_OUTPUT
+            echo "⏭️ Skipping deployment"
+          fi
+      
       - name: Deploy to GitHub Pages
         id: deployment
+        if: steps.deployment_type.outputs.type != 'skip'
         uses: actions/deploy-pages@v4

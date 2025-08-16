@@ -20,9 +20,6 @@ Publications and projects using SUEWS from the community.
    - Technical reports
    - Educational materials
 
-Community Contributions
------------------------
-
 The following publications have been submitted by the SUEWS community:
 
 .. bibliography:: assets/refs/refs-community.bib

@@ -223,8 +223,8 @@ html_last_updated_fmt = today_fmt
 read_the_docs_build = os.environ.get("READTHEDOCS", None) == "True"
 
 if read_the_docs_build:
-    # run doxygen
-    subprocess.call("doxygen", shell=True)
+    # Doxygen disabled to avoid Fortran documentation generation logs
+    # subprocess.call("doxygen", shell=True)
 
     # generate summary tables using info in `Input_Options.rst`
     path_csv = path_source / "inputs/tables/SUEWS_SiteInfo/csv-table"
@@ -288,7 +288,7 @@ extensions = [
     "recommonmark",
     "nbsphinx",
     "sphinx.ext.mathjax",
-    # "breathe",
+    # "breathe",  # Disabled along with Doxygen to avoid Fortran documentation logs
     "sphinx_panels",
     "sphinx_last_updated_by_git",
     "sphinx_click.ext",
@@ -300,8 +300,9 @@ extensions = [
 
 # email_automode = True
 
-breathe_projects = {"SUEWS": "./doxygenoutput/xml"}
-breathe_default_project = "SUEWS"
+# Breathe configuration disabled along with Doxygen
+# breathe_projects = {"SUEWS": "./doxygenoutput/xml"}
+# breathe_default_project = "SUEWS"
 
 # sphinx_last_updated_by_git options
 git_last_updated_metatags = True
@@ -506,7 +507,7 @@ html_theme_options = dict(
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
 #
-html_static_path = ["_static", "doxygenoutput"]
+html_static_path = ["_static"]  # Removed "doxygenoutput" since Doxygen is disabled
 # html_context = {
 #     'css_files': [
 #         '_static/theme_overrides.css',  # override wide tables in RTD theme
@@ -709,6 +710,7 @@ intersphinx_mapping = {
 bibtex_bibfiles = [
     "assets/refs/refs-SUEWS.bib",
     "assets/refs/refs-others.bib",
+    "assets/refs/refs-community.bib",
 ]
 bibtex_default_style = "refs"
 bibtex_reference_style = "author_year_round"

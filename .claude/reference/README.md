@@ -14,7 +14,7 @@ Technical analysis of the build system and isolation strategies:
 ### environment-types.md
 Detailed comparison of different environment management approaches:
 - Visual overview of environment structure
-- mamba/conda setup details
+- mamba setup details
 - Environment isolation patterns
 - Legacy reference for complex setups
 

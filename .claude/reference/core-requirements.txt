@@ -1,5 +1,5 @@
 # Core Python Requirements for SUEWS Development
-# This file lists the pip-installable package names (not conda names)
+# This file lists the pip-installable package names (not mamba names)
 # For UV or pip installation in worktrees
 
 # Build tools

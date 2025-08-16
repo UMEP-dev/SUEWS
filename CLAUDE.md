@@ -46,11 +46,12 @@ SUEWS/
 **Quick Start:** See `.claude/howto/setup-worktree.md` for complete worktree setup instructions.
 
 **Key Resources:**
-- `.claude/howto/setup-worktree.md` - Complete setup guide (includes `make uv-dev` recipe)
+- `.claude/howto/setup-worktree.md` - Complete setup guide
 - `.claude/howto/setup-environment.md` - Environment options comparison
 - `.claude/reference/uv-adoption.md` - UV details and Python 3.13 notes
 - `.claude/reference/core-requirements.txt` - Package list
-- **Quick setup**: `make uv-dev` then `source .venv/bin/activate`
+- **Quick setup with uv**: `make setup && source .venv/bin/activate && make dev`
+- **Quick setup with mamba**: `mamba activate suews-dev && make dev`
 
 #### Legacy Mamba Setup
 
@@ -70,11 +71,13 @@ For mamba-based setup, see `.claude/reference/environment-types.md`.
 
 **CRITICAL**: Each worktree MUST use a separate Python environment.
 
-**Recommended quick setup**: `make uv-dev` (creates uv environment with all dependencies)
+**Recommended quick setup**: 
+- With uv: `make setup && source .venv/bin/activate && make dev`
+- With mamba: `mamba activate suews-dev && make dev`
 
 For complete build and testing information, see:
 - `.claude/reference/build-isolation.md` - Why isolation is required
-- `.claude/howto/setup-worktree.md` - Setup instructions (includes `make uv-dev`)
+- `.claude/howto/setup-worktree.md` - Setup instructions
 - `.claude/howto/setup-environment.md` - Environment options
 
 ### Current Development Status
@@ -545,7 +548,7 @@ When making code changes to SUEWS/SuPy:
     ```python
     # Define once, use everywhere
     PACKAGE_MAPPING = {
-        'matplotlib-base': 'matplotlib',  # conda → pip name
+        'matplotlib-base': 'matplotlib',  # mamba → pip name
         'pytables': 'tables'
     }
     ```

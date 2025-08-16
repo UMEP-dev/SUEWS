@@ -1,369 +1,90 @@
-# SUEWS Makefile - read the README file before editing
+# SUEWS Simplified Makefile - Essential recipes only
+.PHONY: help setup dev test docs clean format
 
-.PHONY: main clean test pip supy docs dev dev-clean dev-fast livehtml schema proc-csv config-ui check-dev-install mamba-dev help deactivate format lint uv-dev uv-clean
+# Default Python
+PYTHON := python
 
-# OS-specific configurations
-ifeq ($(OS),Windows_NT)
-	PYTHON_exe = python.exe
-	# F2PY_PY= /c/Users/sunt05/Anaconda2/Scripts/f2py.py
-	# F2PY_EXE = $(PYTHON) $(F2PY_PY)
-	TARGET=$(MODULE).pyd
-else
-	UNAME_S := $(shell uname -s)
-	TARGET=$(MODULE).so
-
-	ifeq ($(UNAME_S),Linux) # Linux
-		PYTHON_exe=python
-		# F2PY_EXE = f2py
-	endif
-
-	ifeq ($(UNAME_S),Darwin) # macOS
-		PYTHON_exe=python
-		# F2PY_EXE = f2py
-	endif
-
-endif
-
-MODULE=SUEWS_driver
-
-suews_dir = src/suews
-
-docs_dir = docs
-
-test_dir= test
-
-release_dir = Release
-
-makefile = Makefile.gfortran
-
-supy_dir = src/supy
-
-PYTHON := $(if $(PYTHON_exe),$(PYTHON_exe),python)
-
-all: help
-
-# Legacy targets for backwards compatibility
-install-and-test: install test
-
-# Display help information
 help:
-	@echo "SUEWS Makefile - Available targets:"
+	@echo "SUEWS Development - Essential Commands"
 	@echo ""
-	@echo "Quick Start:"
-	@echo "  1. mamba/conda:  mamba activate suews-dev && make dev"
-	@echo "  2. Deactivate:   make deactivate (shows command to run)"
+	@echo "  setup   - Create virtual environment (if using uv)"
+	@echo "  dev     - Install in editable mode"
+	@echo "  test    - Run test suite"
+	@echo "  docs    - Build documentation"  
+	@echo "  clean   - Smart clean (keeps .venv if active)"
+	@echo "  format  - Format Python and Fortran code"
 	@echo ""
-	@echo "Build and Development:"
-	@echo "  dev             - Build and install SUEWS in editable mode (smart rebuild)"
-	@echo "  dev-clean       - Force complete rebuild (cleans Fortran artifacts first)"
-	@echo "  dev-fast        - Build and install SUEWS in editable mode (optimized/faster compilation)"
-	@echo "  install         - Install SUEWS to current Python environment (not editable)"
-	@echo "  wheel           - Build distribution wheels"
-	@echo "  clean           - Clean all build artifacts"
-	@echo ""
-	@echo "  Note: 'make dev' usually detects what needs rebuilding automatically"
-	@echo "        Use 'make dev-clean' if Fortran changes aren't being picked up"
-	@echo ""
-	@echo "Claude Code Integration:"
-	@echo "  Use ./claude-dev/claude.sh for workspace management"
-	@echo "  See claude-dev/README.md for complete documentation"
-	@echo ""
-	@echo "Testing:"
-	@echo "  test            - Run full test suite"
-	@echo ""
-	@echo "Legacy/Manual Commands:"
-	@echo "  mamba-dev       - Build SUEWS with mamba environment check (legacy - use 'make dev')"
-	@echo "  install-and-test - Install SUEWS to current Python environment + run tests (old 'make all')"
-	@echo ""
-	@echo "Environment Management:"
-	@echo "  deactivate      - Show command to deactivate current environment"
-	@echo ""
-	@echo "UV Environment Setup (Ultra-fast):"
-	@echo "  uv-dev          - Setup uv environment with dev + docs dependencies (recommended)"
-	@echo "  uv-clean        - Remove uv virtual environment"
-	@echo ""
-	@echo "Testing and Quality:"
-	@echo "  test            - Run test suite"
-	@echo "  format          - Format Python and Fortran code locally"
-	@echo "  lint            - Check code style without modifying"
-	@echo ""
-	@echo "Documentation:"
-	@echo "  docs            - Build HTML documentation"
-	@echo "  livehtml        - Start live documentation server with auto-rebuild"
-	@echo "  livehtml-fast   - Start live docs server (skip supy build check)"
-	@echo "  schema          - Generate JSON schema from Pydantic models"
-	@echo "  proc-csv        - Process CSV files for documentation"
-	@echo "  config-ui       - Start SUEWS Configuration UI server (http://localhost:8080)"
-	@echo ""
-	@echo "Notes:"
-	@echo "  * Designed for conda/mamba environments"
-	@echo "  * Automatically uses Homebrew gfortran on macOS when available"
-	@echo "  * Activation commands:"
-	@echo "    - mamba/conda: mamba activate suews-dev"
-	@echo "  * To deactivate: use 'make deactivate' for environment-specific commands"
-	@echo "  * Use 'make help' to see this help again"
+	@echo "Quick start:"
+	@echo "  With uv:    make setup && source .venv/bin/activate && make dev"
+	@echo "  With conda: conda activate suews-dev && make dev"
 
-# make suews driver library
-suews:
-	$(MAKE) -C $(suews_dir) libdriver; # make SUEWS library
-	# -rm -rf *.o *.mod *.f95 *.a *.dSYM
+# Setup virtual environment (for uv users)
+setup:
+	@if command -v uv >/dev/null 2>&1; then \
+		if [ ! -d ".venv" ]; then \
+			echo "Creating uv virtual environment..."; \
+			uv venv; \
+			echo "✓ Created .venv"; \
+			echo "→ Now run: source .venv/bin/activate"; \
+		else \
+			echo "Virtual environment already exists at .venv"; \
+		fi \
+	else \
+		echo "uv not found. Install with: brew install uv"; \
+		echo "Or use conda/mamba instead"; \
+		exit 1; \
+	fi
 
-# make supy and install locally
-# NOTE: `--no-build-isolation` is used to avoid dependency issues with the editable install.
-# ref: https://mesonbuild.com/meson-python/how-to-guides/editable-installs.html#editable-installs
-# Standard dev install - tries to be smart about rebuilding
+# Install in editable mode
 dev:
-	@echo "Building supy with development install..."
+	@echo "Installing SUEWS in editable mode..."
 	@# Install build dependencies first (required for --no-build-isolation)
-	@echo "Installing build dependencies..."
 	@if command -v uv >/dev/null 2>&1; then \
-		uv pip install pip wheel pytest "f90wrap==0.2.16" "numpy>=2.0" "meson-python>=0.12.0"; \
-	else \
-		$(PYTHON) -m pip install wheel pytest "f90wrap==0.2.16" "numpy>=2.0" "meson-python>=0.12.0"; \
-	fi
-	@# Check if uv is available for faster installation
-	@if command -v uv >/dev/null 2>&1; then \
-		echo "Found uv - using for installation!"; \
-		if [ -x "/opt/homebrew/bin/gfortran" ]; then \
-			echo "Using Homebrew gfortran for better macOS compatibility"; \
-			FC=/opt/homebrew/bin/gfortran uv pip install --no-build-isolation --editable ".[dev]"; \
-		else \
-			uv pip install --no-build-isolation --editable ".[dev]"; \
-		fi \
-	else \
-		if [ -x "/opt/homebrew/bin/gfortran" ]; then \
-			echo "Using Homebrew gfortran for better macOS compatibility"; \
-			FC=/opt/homebrew/bin/gfortran $(PYTHON) -m pip install --no-build-isolation --editable ".[dev]"; \
-		else \
-			$(PYTHON) -m pip install --no-build-isolation --editable ".[dev]"; \
-		fi \
-	fi
-
-# Force complete rebuild - use when Fortran changes aren't being picked up
-dev-clean:
-	@echo "Building supy with clean development install (full Fortran rebuild)..."
-	@# Install build dependencies first (required for --no-build-isolation)
-	@echo "Installing build dependencies..."
-	@if command -v uv >/dev/null 2>&1; then \
+		echo "Using uv for fast installation..."; \
 		uv pip install wheel pytest "f90wrap==0.2.16" "numpy>=2.0" "meson-python>=0.12.0"; \
+		if [ -x "/opt/homebrew/bin/gfortran" ]; then \
+			echo "Using Homebrew gfortran for macOS compatibility"; \
+			FC=/opt/homebrew/bin/gfortran uv pip install --no-build-isolation -e ".[dev]"; \
+		else \
+			uv pip install --no-build-isolation -e ".[dev]"; \
+		fi \
 	else \
 		$(PYTHON) -m pip install wheel pytest "f90wrap==0.2.16" "numpy>=2.0" "meson-python>=0.12.0"; \
-	fi
-	@# Clean Fortran build artifacts to ensure fresh build
-	@echo "Cleaning SUEWS Fortran build artifacts..."
-	@$(MAKE) -C $(suews_dir) clean || true
-	@# Check if uv is available for faster installation
-	@if command -v uv >/dev/null 2>&1; then \
-		echo "Found uv - using with force-reinstall for complete Fortran rebuild!"; \
 		if [ -x "/opt/homebrew/bin/gfortran" ]; then \
-			echo "Using Homebrew gfortran for better macOS compatibility"; \
-			FC=/opt/homebrew/bin/gfortran uv pip install --force-reinstall --no-build-isolation --editable ".[dev]"; \
+			FC=/opt/homebrew/bin/gfortran $(PYTHON) -m pip install --no-build-isolation -e ".[dev]"; \
 		else \
-			uv pip install --force-reinstall --no-build-isolation --editable ".[dev]"; \
-		fi \
-	else \
-		if [ -x "/opt/homebrew/bin/gfortran" ]; then \
-			echo "Using Homebrew gfortran for better macOS compatibility"; \
-			FC=/opt/homebrew/bin/gfortran $(PYTHON) -m pip install --no-build-isolation --editable ".[dev]"; \
-		else \
-			$(PYTHON) -m pip install --no-build-isolation --editable ".[dev]"; \
+			$(PYTHON) -m pip install --no-build-isolation -e ".[dev]"; \
 		fi \
 	fi
+	@echo "✓ Installation complete"
 
-
-# install supy locally
-install:
-	@if command -v uv >/dev/null 2>&1; then \
-		echo "Using uv for installation..."; \
-		uv pip install .; \
-	else \
-		$(PYTHON) -m pip install .; \
-	fi
-
-# make supy dist and test
+# Run tests
 test:
-	@if command -v uv >/dev/null 2>&1 && [ -n "$${UV_RUN:-}" ]; then \
-		echo "Running tests with uv..."; \
-		uv run pytest test -v --tb=short --durations=10; \
-	else \
-		$(PYTHON) -m pytest test -v --tb=short --durations=10; \
-	fi
+	$(PYTHON) -m pytest test -v --tb=short
 
-# make supy wheels using cibuild
-wheel:
-	$(PYTHON) -m pip wheel --no-deps . -w wheelhouse
+# Build documentation
+docs:
+	$(MAKE) -C docs html
 
-# Helper target to check for local supy installation
-check-dev-install:
-	@if ! $(PYTHON) -c "import supy" >/dev/null 2>&1; then \
-		echo "ERROR: 'supy' not found. Please install it in editable mode first by running:"; \
-		echo "  make dev"; \
-		exit 1; \
-	fi
-
-# documentation (requires built package)
-docs: check-dev-install
-	@echo "Building documentation..."
-	$(MAKE) -B -C $(docs_dir) html
-
-# live html documentation (requires built package)
-livehtml: check-dev-install
-	@echo "Starting live documentation server..."
-	$(MAKE) -B -C $(docs_dir) livehtml
-
-# live html documentation without build check (faster for doc-only changes)
-livehtml-fast:
-	@echo "Starting live documentation server (skipping supy build check)..."
-	$(MAKE) -B -C $(docs_dir) livehtml
-
-# Generate JSON schema from SUEWSConfig Pydantic model
-schema: check-dev-install
-	@echo "Generating JSON schema from SUEWSConfig Pydantic model..."
-	cd $(docs_dir) && $(PYTHON) gen_schema.py
-
-# Process CSV files for documentation
-proc-csv: check-dev-install
-	@echo "Processing CSV files for documentation..."
-	cd $(docs_dir) && $(PYTHON) source/related-softwares/supy/proc_var_info/gen_rst.py
-
-# Start SUEWS Configuration UI server
-config-ui:
-	@echo "Starting SUEWS Configuration UI server..."
-	@echo "This will serve the config UI at http://localhost:8080"
-	@echo "Press Ctrl+C to stop the server"
-	@echo ""
-	cd $(docs_dir)/source/_static && $(PYTHON) run_server.py
-
-# Clean all build artifacts
+# Smart clean - preserves .venv if you're in it
 clean:
-	@echo "Cleaning SUEWS build artifacts..."
-	$(MAKE) -C $(suews_dir) clean || true
-	@echo "Cleaning documentation build..."
-	-cd $(docs_dir) && rm -rf build/ || true
-	@echo "Cleaning Python build artifacts..."
-	rm -rf build/ dist/ *.egg-info/ wheelhouse/
-	@echo "Cleaning temporary files..."
-	find . -name "*.pyc" -delete || true
-	find . -name "__pycache__" -type d -exec rm -rf {} + || true
-	find . -name "*.log" -delete || true
-	@echo "Clean complete."
-
-# this is to test cibuildwheel locally
-cibw:
-	CIBW_BUILD=cp312-macosx* \
-	CIBW_ARCH=arm64 \
-	CIBW_TEST_REQUIRES=pytest \
-	CIBW_TEST_COMMAND="python -m pytest '{project}/test'" \
-	pipx run cibuildwheel==2.16.5 --platform macos
-
-
-# Manual mamba development (legacy target - use 'make dev' instead)
-mamba-dev:
-	@echo "Building supy with mamba environment..."
-	@if [ -z "$$CONDA_DEFAULT_ENV" ] && [ -z "$$MAMBA_DEFAULT_ENV" ]; then \
-		echo "ERROR: No mamba/conda environment detected."; \
-		echo "Please activate mamba environment first:"; \
-		echo "  mamba activate suews-dev"; \
-		echo "Then run 'make mamba-dev' or just use 'make dev'"; \
-		exit 1; \
-	fi
-	@if [ -x "/opt/homebrew/bin/gfortran" ]; then \
-		echo "Using Homebrew gfortran for better macOS compatibility"; \
-		FC=/opt/homebrew/bin/gfortran $(PYTHON) -m pip install --no-build-isolation --editable .; \
-	else \
-		$(PYTHON) -m pip install --no-build-isolation --editable .; \
-	fi
-
-# Deactivate current environment
-deactivate:
-	@echo "Attempting to deactivate current environment..."
-	@if [ -n "$$CONDA_DEFAULT_ENV" ] || [ -n "$$MAMBA_DEFAULT_ENV" ]; then \
-		echo "Detected conda/mamba environment: $$CONDA_DEFAULT_ENV$$MAMBA_DEFAULT_ENV"; \
-		echo "Run: conda deactivate"; \
-		echo "Note: You need to run 'conda deactivate' manually in your shell"; \
-	elif [ -n "$$VIRTUAL_ENV" ]; then \
-		echo "Detected virtual environment: $$VIRTUAL_ENV"; \
-		echo "Run: deactivate"; \
-		echo "Note: You need to run 'deactivate' manually in your shell"; \
-	else \
-		echo "No conda/mamba/virtual environment detected"; \
-	fi; \
-	echo ""; \
-	@echo "Environment deactivation commands cannot be executed from Makefiles."; \
-	echo "Please run the suggested command in your shell."
-
-# Format Python and Fortran code locally
-format:
-	@echo "Formatting Python code with ruff..."
-	@if command -v ruff >/dev/null 2>&1; then \
-		ruff format $(supy_dir) $(test_dir); \
-	else \
-		echo "WARNING: ruff not found. Install with: pip install ruff"; \
-	fi
-	@echo ""
-	@echo "Formatting Fortran code with fprettify..."
-	@if command -v fprettify >/dev/null 2>&1; then \
-		find $(suews_dir)/src -name "*.f95" -o -name "*.f90" | \
-		grep -v suews_util_datetime.f95 | \
-		xargs fprettify --config .fprettify.rc 2>/dev/null || \
-		echo "Note: Some Fortran files may have formatting issues"; \
-	else \
-		echo "WARNING: fprettify not found. Install with: pip install fprettify"; \
-	fi
-	@echo ""
-	@echo "Formatting complete!"
-
-# Check code style without modifying
-lint:
-	@echo "Checking Python code with ruff..."
-	@if command -v ruff >/dev/null 2>&1; then \
-		ruff check $(supy_dir) $(test_dir) || echo ""; \
-		echo "To fix auto-fixable issues: ruff check --fix $(supy_dir) $(test_dir)"; \
-	else \
-		echo "WARNING: ruff not found. Install with: pip install ruff"; \
-	fi
-	@echo ""
-	@echo "Checking Fortran formatting..."
-	@if command -v fprettify >/dev/null 2>&1; then \
-		FAILED=0; \
-		for file in $$(find $(suews_dir)/src -name "*.f95" -o -name "*.f90" | grep -v suews_util_datetime.f95); do \
-			if ! fprettify --diff --config .fprettify.rc "$$file" >/dev/null 2>&1; then \
-				FAILED=1; \
-			fi; \
-		done; \
-		if [ $$FAILED -eq 0 ]; then \
-			echo "✓ Fortran formatting is correct"; \
-		else \
-			echo "✗ Some Fortran files need formatting. Run 'make format' to fix."; \
-		fi \
-	else \
-		echo "WARNING: fprettify not found. Install with: pip install fprettify"; \
-	fi
-
-# UV Environment Setup - Minimal and Essential
-
-# Setup uv environment with dev + docs dependencies (one-stop recipe)
-uv-dev:
-	@if ! command -v uv >/dev/null 2>&1; then \
-		echo "ERROR: uv not installed. Install with: brew install uv"; \
-		exit 1; \
-	fi
-	@if [ ! -d ".venv" ]; then \
-		echo "Creating uv environment..."; \
-		uv venv; \
-	fi
-	@echo "Installing SUEWS with dev + docs dependencies..."
-	@. .venv/bin/activate 2>/dev/null || source .venv/Scripts/activate 2>/dev/null || true; \
-	uv pip install -e ".[dev,docs]"
-	@echo ""
-	@echo "✓ Ready! Activate with: source .venv/bin/activate"
-
-# Clean uv virtual environment
-uv-clean:
-	@if [ -d ".venv" ]; then \
+	@echo "Cleaning build artifacts..."
+	@rm -rf build dist *.egg-info .pytest_cache
+	@find . -name "*.pyc" -delete
+	@find . -name "__pycache__" -type d -exec rm -rf {} +
+	@$(MAKE) -C src/suews clean 2>/dev/null || true
+	@$(MAKE) -C docs clean 2>/dev/null || true
+	@if [ -n "$$VIRTUAL_ENV" ] && [ -d ".venv" ]; then \
+		echo "✓ Cleaned (keeping .venv - you're using it)"; \
+	elif [ -d ".venv" ]; then \
+		echo "Removing .venv (not active)..."; \
 		rm -rf .venv; \
-		echo "✓ Virtual environment removed"; \
+		echo "✓ Cleaned everything including .venv"; \
 	else \
-		echo "No .venv found"; \
+		echo "✓ Cleaned"; \
 	fi
 
+# Format code
+format:
+	ruff format src test
+	fprettify --config .fprettify.rc src/suews/src/*.f95 2>/dev/null || true

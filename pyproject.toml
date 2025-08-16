@@ -1,119 +1,107 @@
 [build-system]
 requires = [
     "wheel",
-    "pytest",
     "f90wrap==0.2.16",
     "numpy>=2.0",
     "meson-python>=0.12.0",
 ]
 build-backend = 'mesonpy'
 
-
 [project]
 name = "supy"
-description = "The SUEWS model that speaks Python."
+description = "The SUEWS model that speaks Python"
 authors = [
     { name = "Dr Ting Sun", email = "ting.sun@ucl.ac.uk" },
-    { name = "Dr Hamidreza Omidvar", email = "h.omidvar@reading.ac.uk" },
-    { name = "Prof Sue Grimmond", email = "c.s.grimmond@reading.ac.uk" },
 ]
 dynamic = ["version"]
 requires-python = ">=3.9"
-
 license = { text = "GPL-V3.0" }
 
+# Core runtime dependencies only
 dependencies = [
+    # Data processing
     "pandas",
-    "matplotlib",
-    "chardet",
+    "numpy>=2.0",
     "scipy",
+    "xarray",
+    "dask",
+    
+    # Model requirements
+    "f90wrap==0.2.16",
     "pydantic",
-    "f90wrap==0.2.16",                             # f90wrap is required for f2py-based supy driver
-    "dask",                                        # needs dask for parallel tasks
-    "f90nml",                                      # utility for namelist files
-    "seaborn",                                     # stat plotting
-    "atmosp",                                      # my own `atmosp` module forked from `atmos-python`
-    "cdsapi",                                      # ERA5 data
-    "xarray",                                      # utility for high-dimensional datasets
-    "multiprocess",                                # a better multiprocessing library
-    "click",                                       # cmd tool
-    "lmfit",                                       # optimiser
-    "numdifftools",                                # required by `lmfit` for uncertainty estimation
-    "pvlib",                                       # TMY-related solar radiation calculations
-    "platypus-opt==1.0.4",                         # a multi-objective optimiser
-    "timezonefinder==6.5.9",                       # timezone detection from coordinates (pinned due to issue #516)
-    "pytz",                                        # timezone handling
-    "scikit-learn",                                # OHM coefficient derivation
-    "pyarrow",                                     # Parquet support for CRU data and efficient data storage
-]
-classifiers = [
-    "Programming Language :: Python :: 3 :: Only",
-    "Programming Language :: Python :: 3.9",
-    "Programming Language :: Python :: 3.10",
-    "Programming Language :: Python :: 3.11",
-    "Programming Language :: Python :: 3.12",
-    "Programming Language :: Python :: 3.13",
-    "Intended Audience :: Science/Research",
-    "Intended Audience :: Education",
-    "Operating System :: MacOS :: MacOS X",
-    "Operating System :: Microsoft :: Windows",
-    "Operating System :: POSIX :: Linux",
+    "f90nml",
+    
+    # Utilities
+    "matplotlib",
+    "seaborn",
+    "chardet",
+    "click",
+    "pyarrow",
+    
+    # Scientific packages
+    "atmosp",
+    "pvlib",
+    "scikit-learn",
+    
+    # Optimization
+    "lmfit",
+    "numdifftools",
+    "platypus-opt==1.0.4",
+    
+    # Data access
+    "cdsapi",
+    
+    # Time/location
+    "timezonefinder==6.5.9",
+    "pytz",
+    
+    # Parallel processing
+    "multiprocess",
 ]
 
-
-[project.readme]
-file = "README.md"
-content-type = "text/markdown"
-
+[project.optional-dependencies]
+# Single dev group combining test + development tools
+dev = [
+    # Testing
+    "pytest",
+    "pytest-cov",
+    
+    # Code formatting
+    "ruff",
+    "fprettify",
+    
+    # Development
+    "ipykernel",
+    
+    # Documentation - Essential only (based on conf.py usage)
+    "sphinx>=4.0,<8.2",
+    "sphinx-autobuild",
+    "sphinx-book-theme",        # Active theme in conf.py
+    "nbsphinx",                 # Jupyter notebook support
+    "recommonmark",             # Markdown support
+    "pybtex",                   # Bibliography processing
+    "sphinxcontrib.bibtex~=2.4", # Bibliography support (heavily customised)
+    "sphinx-panels",            # Panel layouts
+    "sphinx-last-updated-by-git", # Git info in docs
+    "sphinx-click",             # CLI documentation
+    "sphinx_comments",          # Comments (may be re-enabled)
+    "docutils>=0.16,<0.17",     # Version pinned for compatibility
+    "jinja2>=3.0,<3.1",         # Version pinned for compatibility
+]
 
 [project.scripts]
 suews-run = "supy.cmd.SUEWS:SUEWS"
 suews-convert = "supy.cmd.table_converter:convert_table_cmd"
 
-[project.optional-dependencies]
-dev = [
-    # Development and testing
-    "pytest",
-    "pytest-cov",
-    "ruff",
-    # Personal analysis tools
-    "geopandas",
-    "jupyter",
-    "ipykernel",
-]
-docs = [
-    # Core Sphinx
-    "sphinx>=4.0,<8.2",
-    "sphinx-autobuild",
-    "pybtex",
-    "nbsphinx",
-    "recommonmark",
-    "docutils>=0.16,<0.17",
-    "jinja2>=3.0,<3.1",
-    "urlpath",
-    # Sphinx extensions
-    "sphinxcontrib.bibtex~=2.4",
-    "sphinxcontrib_programoutput",
-    "sphinx-jsonschema",
-    "sphinx_comments",
-    "sphinx-rtd-theme>=0.5",
-    "sphinx-book-theme",
-    "sphinx-panels",
-    "sphinxcontrib.email",
-    "sphinx-last-updated-by-git",
-    "sphinx-click",
-    "jsonschema2rst",
-]
-all = [
-    # All optional dependencies
-    "supy[dev,docs]",
-]
-
 [tool.pytest.ini_options]
-# Suppress specific warnings during test runs
 filterwarnings = [
-    # Ignore all Pydantic serializer warnings
-    "ignore:Pydantic serializer warnings:UserWarning",
-    # Alternative: ignore all warnings from pydantic.main module
     "ignore::UserWarning:pydantic.main",
 ]
+
+[tool.ruff]
+line-length = 120
+target-version = "py39"
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"

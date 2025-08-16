@@ -132,7 +132,9 @@ def test_deprecation_warning():
             sites=[{}], model={"control": {"output_file": "custom_output.txt"}}
         )
         # Filter for deprecation warnings only (ignore validation warnings)
-        deprecation_warnings = [warning for warning in w if issubclass(warning.category, DeprecationWarning)]
+        deprecation_warnings = [
+            warning for warning in w if issubclass(warning.category, DeprecationWarning)
+        ]
         assert len(deprecation_warnings) == 1
         assert "deprecated" in str(deprecation_warnings[0].message)
 
@@ -148,5 +150,9 @@ def test_deprecation_warning():
             },
         )
         # Filter for deprecation warnings only (ignore validation warnings)
-        deprecation_warnings = [warning for warning in w if issubclass(warning.category, DeprecationWarning)]
-        assert len(deprecation_warnings) == 0  # No deprecation warning for default value
+        deprecation_warnings = [
+            warning for warning in w if issubclass(warning.category, DeprecationWarning)
+        ]
+        assert (
+            len(deprecation_warnings) == 0
+        )  # No deprecation warning for default value

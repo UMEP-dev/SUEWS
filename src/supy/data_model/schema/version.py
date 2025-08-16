@@ -34,7 +34,9 @@ COMPATIBLE_VERSIONS = {
 }
 
 
-def is_schema_compatible(config_version: str, current_version: str = CURRENT_SCHEMA_VERSION) -> bool:
+def is_schema_compatible(
+    config_version: str, current_version: str = CURRENT_SCHEMA_VERSION
+) -> bool:
     """
     Check if a configuration schema version is compatible with the current version.
 
@@ -77,35 +79,53 @@ def get_schema_compatibility_message(config_version: Optional[str]) -> Optional[
 
     # Parse versions for comparison
     try:
-        config_major = float(config_version.split('.')[0])
-        current_major = float(CURRENT_SCHEMA_VERSION.split('.')[0])
+        config_major = float(config_version.split(".")[0])
+        current_major = float(CURRENT_SCHEMA_VERSION.split(".")[0])
 
         if config_major < current_major:
-            return (f"Configuration uses older schema {config_version}, "
-                   f"current is {CURRENT_SCHEMA_VERSION}. "
-                   f"Consider updating your configuration.")
+            return (
+                f"Configuration uses older schema {config_version}, "
+                f"current is {CURRENT_SCHEMA_VERSION}. "
+                f"Consider updating your configuration."
+            )
         elif config_major > current_major:
-            return (f"Configuration uses newer schema {config_version}, "
-                   f"this version supports {CURRENT_SCHEMA_VERSION}. "
-                   f"Please update SUEWS or use an older configuration.")
+            return (
+                f"Configuration uses newer schema {config_version}, "
+                f"this version supports {CURRENT_SCHEMA_VERSION}. "
+                f"Please update SUEWS or use an older configuration."
+            )
         else:
             # Same major, different minor
-            config_minor = float(config_version.split('.')[1]) if '.' in config_version else 0
-            current_minor = float(CURRENT_SCHEMA_VERSION.split('.')[1]) if '.' in CURRENT_SCHEMA_VERSION else 0
+            config_minor = (
+                float(config_version.split(".")[1]) if "." in config_version else 0
+            )
+            current_minor = (
+                float(CURRENT_SCHEMA_VERSION.split(".")[1])
+                if "." in CURRENT_SCHEMA_VERSION
+                else 0
+            )
 
             if config_minor < current_minor:
-                return (f"Configuration uses schema {config_version}, "
-                       f"current is {CURRENT_SCHEMA_VERSION} (backward compatible)")
+                return (
+                    f"Configuration uses schema {config_version}, "
+                    f"current is {CURRENT_SCHEMA_VERSION} (backward compatible)"
+                )
             else:
-                return (f"Configuration uses newer schema {config_version}, "
-                       f"this version supports {CURRENT_SCHEMA_VERSION}")
+                return (
+                    f"Configuration uses newer schema {config_version}, "
+                    f"this version supports {CURRENT_SCHEMA_VERSION}"
+                )
     except (ValueError, IndexError):
         # Can't parse versions - generic message
-        return (f"Configuration schema {config_version} may not be compatible "
-               f"with current schema {CURRENT_SCHEMA_VERSION}")
+        return (
+            f"Configuration schema {config_version} may not be compatible "
+            f"with current schema {CURRENT_SCHEMA_VERSION}"
+        )
 
 
-def validate_schema_version(config_version: Optional[str], strict: bool = False) -> None:
+def validate_schema_version(
+    config_version: Optional[str], strict: bool = False
+) -> None:
     """
     Validate schema version compatibility.
 
@@ -120,7 +140,9 @@ def validate_schema_version(config_version: Optional[str], strict: bool = False)
     message = get_schema_compatibility_message(config_version)
 
     if message:
-        if strict and not is_schema_compatible(config_version or CURRENT_SCHEMA_VERSION):
+        if strict and not is_schema_compatible(
+            config_version or CURRENT_SCHEMA_VERSION
+        ):
             raise ValueError(f"Schema version incompatible: {message}")
         else:
             warnings.warn(message, UserWarning, stacklevel=3)

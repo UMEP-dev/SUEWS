@@ -17,8 +17,8 @@ from types import SimpleNamespace
 import warnings
 
 from supy.data_model.core import SUEWSConfig
-from supy.data_model.type import RefValue
-from supy.data_model.validation_utils import check_missing_params
+from supy.data_model.core.type import RefValue
+from supy.data_model.validation.utils import check_missing_params
 
 
 # A tiny “site” stub that only carries exactly the properties our validators look at
@@ -454,7 +454,7 @@ def test_validate_land_cover_fractions_detailed_message():
 # # Basic imports that should always work
 # from supy.data_model import SUEWSConfig
 # from supy.data_model.model import RSLMethod, RoughnessMethod
-# from supy.data_model.type import RefValue
+# from supy.data_model.core.type import RefValue
 
 # # Skip all tests in this module until updated for new validation approach
 # pytestmark = pytest.mark.skip(
@@ -798,9 +798,9 @@ class TestTopDownValidation:
             warnings.simplefilter("always")
 
             # Create various components that used to warn
-            from supy.data_model.human_activity import CO2Params
-            from supy.data_model.site import Conductance
-            from supy.data_model.surface import BldgsProperties
+            from supy.data_model.core.human_activity import CO2Params
+            from supy.data_model.core.site import Conductance
+            from supy.data_model.core.surface import BldgsProperties
 
             co2 = CO2Params()
             cond = Conductance()

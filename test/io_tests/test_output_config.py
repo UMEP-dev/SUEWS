@@ -1,14 +1,14 @@
 """Test output configuration functionality"""
 
 import pytest
-from supy.data_model.model import (
+from supy.data_model.core.model import (
     ModelControl,
     OutputConfig,
     OutputFormat,
     Model,
     ModelPhysics,
 )
-from supy.data_model.core import SUEWSConfig
+from supy.data_model.core.config import SUEWSConfig
 from pathlib import Path
 import yaml
 

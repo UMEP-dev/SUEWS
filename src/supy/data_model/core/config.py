@@ -40,8 +40,8 @@ from datetime import datetime
 from timezonefinder import TimezoneFinder
 import pytz
 
-from .._env import logger_supy
-from .yaml_annotator_json import JsonYamlAnnotator as YAMLAnnotator
+from ..._env import logger_supy
+from ..yaml_processor.yaml_annotator import YAMLAnnotator
 
 _validation_available = False
 enhanced_from_yaml_validation = None
@@ -251,7 +251,7 @@ class SUEWSConfig(BaseModel):
         Check if the configuration schema version is compatible.
         Issues warnings when there's a compatibility concern.
         """
-        from ._schema_version import validate_schema_version, CURRENT_SCHEMA_VERSION
+        from ..schema import validate_schema_version, CURRENT_SCHEMA_VERSION
         
         # If no schema version specified, set to current
         if self.schema_version is None:
@@ -704,7 +704,7 @@ class SUEWSConfig(BaseModel):
 
     def _check_conductance(self, conductance, site_name: str) -> bool:
         """Check for missing conductance parameters. Returns True if issues found."""
-        from .validation_utils import check_missing_params
+        from ..validation.utils import check_missing_params
 
         critical_params = {
             "g_max": "Maximum surface conductance",
@@ -731,7 +731,7 @@ class SUEWSConfig(BaseModel):
 
     def _check_co2_params(self, co2, site_name: str) -> bool:
         """Check for missing CO2 parameters. Returns True if issues found."""
-        from .validation_utils import check_missing_params
+        from ..validation.utils import check_missing_params
 
         critical_params = {
             "co2pointsource": "CO2 point source emission factor",
@@ -771,7 +771,7 @@ class SUEWSConfig(BaseModel):
         self, surface, surface_type: str, site_name: str
     ) -> bool:
         """Check parameters for a specific surface type. Returns True if issues found."""
-        from .validation_utils import check_missing_params
+        from ..validation.utils import check_missing_params
 
         has_issues = False
 
@@ -1521,7 +1521,7 @@ class SUEWSConfig(BaseModel):
 
         # Check conductance
         if hasattr(site.properties, "conductance") and site.properties.conductance:
-            from .validation_utils import check_missing_params
+            from ..validation.utils import check_missing_params
 
             critical_params = {
                 "g_max": "Maximum surface conductance",
@@ -1555,7 +1555,7 @@ class SUEWSConfig(BaseModel):
             and hasattr(site.properties.anthropogenic_emissions, "co2")
             and site.properties.anthropogenic_emissions.co2
         ):
-            from .validation_utils import check_missing_params
+            from ..validation.utils import check_missing_params
 
             critical_params = {
                 "co2pointsource": "CO2 point source emission factor",
@@ -1741,7 +1741,7 @@ class SUEWSConfig(BaseModel):
                             surface_type in ["grass", "dectr", "evetr"]
                             and sfr_value > 0
                         ):
-                            from .validation_utils import check_missing_params
+                            from ..validation.utils import check_missing_params
 
                             vegetation_params = {
                                 "beta_bioco2": "Biogenic CO2 exchange coefficient",
@@ -2248,7 +2248,7 @@ class SUEWSConfig(BaseModel):
         config_data["_auto_generate_annotated"] = auto_generate_annotated
         
         # Log schema version information if present
-        from ._schema_version import CURRENT_SCHEMA_VERSION, get_schema_compatibility_message
+        from ..schema import CURRENT_SCHEMA_VERSION, get_schema_compatibility_message
         
         if "schema_version" in config_data:
             logger_supy.info(f"Loading config with schema version: {config_data['schema_version']}")

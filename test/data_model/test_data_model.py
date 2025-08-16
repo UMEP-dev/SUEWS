@@ -22,7 +22,7 @@ from supy.data_model import (
     SiteProperties,
     SUEWSConfig,
 )
-from supy.data_model.model import ModelControl
+from supy.data_model.core.model import ModelControl
 
 
 class TestSUEWSConfig(unittest.TestCase):

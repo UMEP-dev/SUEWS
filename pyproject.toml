@@ -16,6 +16,7 @@ authors = [
 dynamic = ["version"]
 requires-python = ">=3.9"
 license = { text = "GPL-V3.0" }
+readme = "README.md"
 
 # Core runtime dependencies only
 dependencies = [

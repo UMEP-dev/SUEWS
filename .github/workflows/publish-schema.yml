@@ -84,11 +84,13 @@ jobs:
         uses: dawidd6/action-download-artifact@v3
         with:
           workflow: build-publish_to_pypi.yml
-          workflow_conclusion: success
+          # Don't require success - the build job may succeed while deployment jobs are skipped
+          workflow_conclusion: ""
           name: cp313-manylinux-x86_64
           path: dist
           pr: ${{ github.event.pull_request.number }}
           if_no_artifact_found: warn
+          check_artifacts: true  # Check artifacts even if workflow is still running
         continue-on-error: true
       
       - name: Try to download pre-built wheel artifact from commit
@@ -97,11 +99,13 @@ jobs:
         uses: dawidd6/action-download-artifact@v3
         with:
           workflow: build-publish_to_pypi.yml
-          workflow_conclusion: success
+          # Don't require success - the build job may succeed while deployment jobs are skipped
+          workflow_conclusion: ""
           name: cp313-manylinux-x86_64
           path: dist
           commit: ${{ github.sha }}
           if_no_artifact_found: warn
+          check_artifacts: true  # Check artifacts even if workflow is still running
         continue-on-error: true
           
       - name: Install SUEWS from wheel or build from source

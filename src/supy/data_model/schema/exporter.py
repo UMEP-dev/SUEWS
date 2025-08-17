@@ -14,16 +14,25 @@ from .version import CURRENT_SCHEMA_VERSION
 from ..core import SUEWSConfig
 
 
-def export_schema(output_dir: Optional[Path] = None) -> None:
+def export_schema(
+    output_dir: Optional[Path] = None,
+    is_preview: bool = False,
+    pr_number: Optional[int] = None
+) -> None:
     """
     Export JSON Schema to the specified directory.
 
     Args:
         output_dir: Directory to write schema files (default: public/schema/suews-config)
+        is_preview: Whether this is a PR preview build
+        pr_number: PR number if this is a preview build
     """
     # Default output directory for GitHub Pages
     if output_dir is None:
-        output_dir = Path("public/schema/suews-config")
+        if is_preview and pr_number:
+            output_dir = Path(f"public/preview/pr-{pr_number}/schema/suews-config")
+        else:
+            output_dir = Path("public/schema/suews-config")
 
     # Create output directory
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -36,15 +45,25 @@ def export_schema(output_dir: Optional[Path] = None) -> None:
 
     # Add JSON Schema metadata
     schema["$schema"] = "https://json-schema.org/draft/2020-12/schema"
-    schema["$id"] = f"{BASE_URL}/schema/suews-config/{CURRENT_SCHEMA_VERSION}.json"
-
-    # Add versioning and documentation
-    schema["title"] = f"SUEWS Configuration Schema v{CURRENT_SCHEMA_VERSION}"
-    schema["description"] = (
-        f"JSON Schema for SUEWS YAML configuration files. "
-        f"Schema version {CURRENT_SCHEMA_VERSION}. "
-        "See https://suews.readthedocs.io for documentation."
-    )
+    
+    # Adjust schema ID for preview builds
+    if is_preview and pr_number:
+        schema["$id"] = f"{BASE_URL}/preview/pr-{pr_number}/schema/suews-config/{CURRENT_SCHEMA_VERSION}.json"
+        schema["title"] = f"SUEWS Configuration Schema v{CURRENT_SCHEMA_VERSION} (PR #{pr_number} Preview)"
+        schema["description"] = (
+            f"⚠️ PREVIEW VERSION - PR #{pr_number} - DO NOT USE IN PRODUCTION. "
+            f"JSON Schema for SUEWS YAML configuration files. "
+            f"Schema version {CURRENT_SCHEMA_VERSION}. "
+            "See https://suews.readthedocs.io for documentation."
+        )
+    else:
+        schema["$id"] = f"{BASE_URL}/schema/suews-config/{CURRENT_SCHEMA_VERSION}.json"
+        schema["title"] = f"SUEWS Configuration Schema v{CURRENT_SCHEMA_VERSION}"
+        schema["description"] = (
+            f"JSON Schema for SUEWS YAML configuration files. "
+            f"Schema version {CURRENT_SCHEMA_VERSION}. "
+            "See https://suews.readthedocs.io for documentation."
+        )
 
     # Write schema file
     schema_file = output_dir / f"{CURRENT_SCHEMA_VERSION}.json"
@@ -59,36 +78,57 @@ def export_schema(output_dir: Optional[Path] = None) -> None:
 
     # Create index.html for schema directory listing
     index_html = output_dir / "index.html"
+    
+    # Add preview warning banner if this is a PR preview
+    preview_banner = ""
+    if is_preview and pr_number:
+        preview_banner = f"""
+    <div style="background: #fff3cd; border: 2px solid #ffc107; padding: 1em; margin-bottom: 2em; border-radius: 5px;">
+        <h2 style="color: #856404; margin-top: 0;">⚠️ PREVIEW VERSION - PR #{pr_number}</h2>
+        <p style="color: #856404; margin-bottom: 0;">
+            This is a preview schema from an unmerged pull request. 
+            <strong>DO NOT use this schema URL in production configurations.</strong>
+            <br>
+            <a href="{BASE_URL}/schema/suews-config/" style="color: #0066cc;">View stable schemas →</a>
+        </p>
+    </div>"""
+        schema_url = f"{BASE_URL}/preview/pr-{pr_number}/schema/suews-config/{CURRENT_SCHEMA_VERSION}.json"
+    else:
+        schema_url = f"{BASE_URL}/schema/suews-config/{CURRENT_SCHEMA_VERSION}.json"
+    
     index_content = f"""<!DOCTYPE html>
 <html>
 <head>
-    <title>SUEWS Schema Versions</title>
+    <title>SUEWS Schema {'Preview - PR #' + str(pr_number) if is_preview else 'Versions'}</title>
     <style>
         body {{ font-family: system-ui, -apple-system, sans-serif; margin: 2em; }}
         h1 {{ color: #333; }}
         .version {{ margin: 1em 0; padding: 1em; background: #f5f5f5; border-radius: 5px; }}
         .current {{ background: #e8f4f8; border: 1px solid #0066cc; }}
+        .preview {{ background: #fff8e8; border: 2px dashed #ff9800; }}
         a {{ color: #0066cc; text-decoration: none; }}
         a:hover {{ text-decoration: underline; }}
         code {{ background: #f0f0f0; padding: 2px 5px; border-radius: 3px; }}
     </style>
 </head>
 <body>
-    <h1>SUEWS Configuration Schema</h1>
+    <h1>SUEWS Configuration Schema{' Preview' if is_preview else ''}</h1>
+    {preview_banner}
     <p>JSON Schema definitions for SUEWS YAML configuration files.</p>
     
-    <div class="version current">
-        <h2>Current Version: {CURRENT_SCHEMA_VERSION}</h2>
+    <div class="version {'preview' if is_preview else 'current'}">
+        <h2>{'Preview' if is_preview else 'Current'} Version: {CURRENT_SCHEMA_VERSION}</h2>
         <p>
-            Schema URL: <code>{BASE_URL}/schema/suews-config/{CURRENT_SCHEMA_VERSION}.json</code><br>
+            Schema URL: <code>{schema_url}</code><br>
             <a href="{CURRENT_SCHEMA_VERSION}.json">View Schema</a> | 
             <a href="https://suews.readthedocs.io">Documentation</a>
+            {f' | <a href="https://github.com/UMEP-dev/SUEWS/pull/{pr_number}">View PR</a>' if is_preview else ''}
         </p>
     </div>
     
     <h2>Usage in YAML</h2>
     <pre><code>schema_version: "{CURRENT_SCHEMA_VERSION}"
-$schema: "{BASE_URL}/schema/suews-config/{CURRENT_SCHEMA_VERSION}.json"</code></pre>
+$schema: "{schema_url}"</code></pre>
     
     <p>
         <a href="https://github.com/UMEP-dev/SUEWS">GitHub Repository</a> | 
@@ -108,9 +148,19 @@ def main():
         description="Export SUEWS JSON Schema for GitHub Pages publication"
     )
     parser.add_argument(
-        "--output",
+        "--output-dir",
         type=Path,
         help="Output directory (default: public/schema/suews-config)",
+    )
+    parser.add_argument(
+        "--preview",
+        action="store_true",
+        help="Mark as preview build (adds warning banner)",
+    )
+    parser.add_argument(
+        "--pr-number",
+        type=int,
+        help="PR number for preview builds",
     )
     parser.add_argument(
         "--version",
@@ -121,10 +171,18 @@ def main():
     args = parser.parse_args()
 
     try:
-        export_schema(args.output)
+        export_schema(
+            output_dir=args.output_dir,
+            is_preview=args.preview,
+            pr_number=args.pr_number
+        )
         print(f"\n✅ Schema export complete!")
         print(f"   Version: {CURRENT_SCHEMA_VERSION}")
-        print(f"   Ready for GitHub Pages deployment")
+        if args.preview and args.pr_number:
+            print(f"   Type: PR #{args.pr_number} Preview")
+            print(f"   ⚠️  Preview URL: https://umep-dev.github.io/SUEWS/preview/pr-{args.pr_number}/schema/suews-config/")
+        else:
+            print(f"   Ready for GitHub Pages deployment")
     except Exception as e:
         print(f"❌ Error: {e}", file=sys.stderr)
         sys.exit(1)

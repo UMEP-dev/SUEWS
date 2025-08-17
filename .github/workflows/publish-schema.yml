@@ -148,14 +148,31 @@ jobs:
           
       - name: Export schema for GitHub Pages
         run: |
-          # Determine if this is a dev build and set appropriate flags
-          if [[ "${{ github.event_name }}" == "schedule" ]] || [[ "${{ github.ref }}" == *dev* ]]; then
+          # Determine build type and set environment variables
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            echo "📝 Exporting PR preview schema version ${{ env.SCHEMA_VERSION }}"
+            echo "IS_PREVIEW=true" >> $GITHUB_ENV
+            echo "PREVIEW_PR=${{ github.event.pull_request.number }}" >> $GITHUB_ENV
+            # For PRs, export to a preview subdirectory
+            export SCHEMA_OUTPUT_DIR="public/preview/pr-${{ github.event.pull_request.number }}"
+          elif [[ "${{ github.event_name }}" == "schedule" ]] || [[ "${{ github.ref }}" == *dev* ]]; then
             echo "📝 Exporting development schema version ${{ env.SCHEMA_VERSION }}"
+            echo "IS_PREVIEW=false" >> $GITHUB_ENV
+            export SCHEMA_OUTPUT_DIR="public"
           else
             echo "📝 Exporting production schema version ${{ env.SCHEMA_VERSION }}"
+            echo "IS_PREVIEW=false" >> $GITHUB_ENV
+            export SCHEMA_OUTPUT_DIR="public"
           fi
           
-          python -m supy.data_model.schema.exporter
+          # Export schema with appropriate settings
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            # For PR previews, add warning banner
+            python -m supy.data_model.schema.exporter --output-dir "$SCHEMA_OUTPUT_DIR" --preview --pr-number "${{ github.event.pull_request.number }}"
+          else
+            python -m supy.data_model.schema.exporter --output-dir "$SCHEMA_OUTPUT_DIR"
+          fi
+          
           echo "✓ Schema export complete for version ${{ env.SCHEMA_VERSION }}"
           
       - name: List generated files
@@ -163,8 +180,14 @@ jobs:
           echo "Generated files:"
           find public -type f | head -20
           echo ""
-          echo "Schema versions:"
-          ls -la public/schema/suews-config/ 2>/dev/null || echo "No schema files found"
+          echo "Schema locations:"
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            ls -la public/preview/pr-${{ github.event.pull_request.number }}/schema/suews-config/ 2>/dev/null || echo "No preview schema files found"
+            echo "Preview URL: https://umep-dev.github.io/SUEWS/preview/pr-${{ github.event.pull_request.number }}/schema/suews-config/"
+          else
+            ls -la public/schema/suews-config/ 2>/dev/null || echo "No schema files found"
+            echo "Schema URL: https://umep-dev.github.io/SUEWS/schema/suews-config/"
+          fi
           
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
@@ -215,12 +238,15 @@ jobs:
     # 1. Production releases (tags without 'dev')
     # 2. Development releases (tags with 'dev')
     # 3. Nightly builds (scheduled runs)
-    # 4. Never deploy for PRs or regular pushes to master
+    # 4. Master branch pushes (merged PRs)
+    # 5. PR preview deployments (with warning banner)
     if: |
       needs.build.result == 'success' &&
       github.event.inputs.dry_run != 'true' && (
+        (github.event_name == 'push' && github.ref == 'refs/heads/master') ||
         (github.event_name == 'schedule') ||
-        (startsWith(github.ref, 'refs/tags/'))
+        (startsWith(github.ref, 'refs/tags/')) ||
+        (github.event_name == 'pull_request')
       )
     
     # Grant permissions for Pages deployment
@@ -237,7 +263,13 @@ jobs:
       - name: Determine deployment type
         id: deployment_type
         run: |
-          if [[ "${{ github.event_name }}" == "schedule" ]]; then
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            echo "type=preview" >> $GITHUB_OUTPUT
+            echo "👁️ PR #${{ github.event.pull_request.number }} preview schema deployment"
+          elif [[ "${{ github.event_name }}" == "push" ]] && [[ "${{ github.ref }}" == "refs/heads/master" ]]; then
+            echo "type=master" >> $GITHUB_OUTPUT
+            echo "🔄 Master branch schema deployment"
+          elif [[ "${{ github.event_name }}" == "schedule" ]]; then
             echo "type=nightly" >> $GITHUB_OUTPUT
             echo "📅 Nightly schema deployment"
           elif [[ "${{ github.ref }}" == refs/tags/* ]] && [[ "${{ github.ref }}" == *dev* ]]; then

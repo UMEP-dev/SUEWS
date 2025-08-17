@@ -17,7 +17,7 @@ from ..core import SUEWSConfig
 def export_schema(
     output_dir: Optional[Path] = None,
     is_preview: bool = False,
-    pr_number: Optional[int] = None
+    pr_number: Optional[int] = None,
 ) -> None:
     """
     Export JSON Schema to the specified directory.
@@ -45,11 +45,15 @@ def export_schema(
 
     # Add JSON Schema metadata
     schema["$schema"] = "https://json-schema.org/draft/2020-12/schema"
-    
+
     # Adjust schema ID for preview builds
     if is_preview and pr_number:
-        schema["$id"] = f"{BASE_URL}/preview/pr-{pr_number}/schema/suews-config/{CURRENT_SCHEMA_VERSION}.json"
-        schema["title"] = f"SUEWS Configuration Schema v{CURRENT_SCHEMA_VERSION} (PR #{pr_number} Preview)"
+        schema["$id"] = (
+            f"{BASE_URL}/preview/pr-{pr_number}/schema/suews-config/{CURRENT_SCHEMA_VERSION}.json"
+        )
+        schema["title"] = (
+            f"SUEWS Configuration Schema v{CURRENT_SCHEMA_VERSION} (PR #{pr_number} Preview)"
+        )
         schema["description"] = (
             f"⚠️ PREVIEW VERSION - PR #{pr_number} - DO NOT USE IN PRODUCTION. "
             f"JSON Schema for SUEWS YAML configuration files. "
@@ -78,7 +82,7 @@ def export_schema(
 
     # Create index.html for schema directory listing
     index_html = output_dir / "index.html"
-    
+
     # Add preview warning banner if this is a PR preview
     preview_banner = ""
     if is_preview and pr_number:
@@ -95,11 +99,11 @@ def export_schema(
         schema_url = f"{BASE_URL}/preview/pr-{pr_number}/schema/suews-config/{CURRENT_SCHEMA_VERSION}.json"
     else:
         schema_url = f"{BASE_URL}/schema/suews-config/{CURRENT_SCHEMA_VERSION}.json"
-    
+
     index_content = f"""<!DOCTYPE html>
 <html>
 <head>
-    <title>SUEWS Schema {'Preview - PR #' + str(pr_number) if is_preview else 'Versions'}</title>
+    <title>SUEWS Schema {"Preview - PR #" + str(pr_number) if is_preview else "Versions"}</title>
     <style>
         body {{ font-family: system-ui, -apple-system, sans-serif; margin: 2em; }}
         h1 {{ color: #333; }}
@@ -112,17 +116,17 @@ def export_schema(
     </style>
 </head>
 <body>
-    <h1>SUEWS Configuration Schema{' Preview' if is_preview else ''}</h1>
+    <h1>SUEWS Configuration Schema{" Preview" if is_preview else ""}</h1>
     {preview_banner}
     <p>JSON Schema definitions for SUEWS YAML configuration files.</p>
     
-    <div class="version {'preview' if is_preview else 'current'}">
-        <h2>{'Preview' if is_preview else 'Current'} Version: {CURRENT_SCHEMA_VERSION}</h2>
+    <div class="version {"preview" if is_preview else "current"}">
+        <h2>{"Preview" if is_preview else "Current"} Version: {CURRENT_SCHEMA_VERSION}</h2>
         <p>
             Schema URL: <code>{schema_url}</code><br>
             <a href="{CURRENT_SCHEMA_VERSION}.json">View Schema</a> | 
             <a href="https://suews.readthedocs.io">Documentation</a>
-            {f' | <a href="https://github.com/UMEP-dev/SUEWS/pull/{pr_number}">View PR</a>' if is_preview else ''}
+            {f' | <a href="https://github.com/UMEP-dev/SUEWS/pull/{pr_number}">View PR</a>' if is_preview else ""}
         </p>
     </div>
     
@@ -174,13 +178,15 @@ def main():
         export_schema(
             output_dir=args.output_dir,
             is_preview=args.preview,
-            pr_number=args.pr_number
+            pr_number=args.pr_number,
         )
         print(f"\n✅ Schema export complete!")
         print(f"   Version: {CURRENT_SCHEMA_VERSION}")
         if args.preview and args.pr_number:
             print(f"   Type: PR #{args.pr_number} Preview")
-            print(f"   ⚠️  Preview URL: https://umep-dev.github.io/SUEWS/preview/pr-{args.pr_number}/schema/suews-config/")
+            print(
+                f"   ⚠️  Preview URL: https://umep-dev.github.io/SUEWS/preview/pr-{args.pr_number}/schema/suews-config/"
+            )
         else:
             print(f"   Ready for GitHub Pages deployment")
     except Exception as e:

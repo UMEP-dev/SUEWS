@@ -75,7 +75,7 @@ jobs:
           repo-token: ${{ github.token }}
           wait-interval: 10  # Check every 10 seconds
           allowed-conclusions: success,skipped  # Allow success or skipped
-        timeout-minutes: 5  # Maximum 5 minutes wait time
+        timeout-minutes: 20  # Maximum 20 minutes wait time
         continue-on-error: true  # Don't fail if build workflow hasn't started
           
       - name: Try to download pre-built wheel artifact from PR

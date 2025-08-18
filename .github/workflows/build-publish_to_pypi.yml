@@ -242,9 +242,12 @@ jobs:
             echo "SCHEMA_PATH=preview/pr-${{ github.event.pull_request.number }}/schema/suews-config" >> $GITHUB_ENV
           else
             echo "📝 Exporting schema version ${{ env.SCHEMA_VERSION }}"
-            # For master/tags/schedule, export to standard location
+            # For master/tags/schedule, export to BOTH locations:
+            # 1. Repository permanent storage
             python -m supy.data_model.schema.exporter \
-              --output-dir "public/schema/suews-config"
+              --output-dir "schemas/suews-config"
+            # 2. Public directory for deployment
+            cp -r schemas/suews-config/* public/schema/suews-config/
             echo "SCHEMA_PATH=schema/suews-config" >> $GITHUB_ENV
           fi
           
@@ -396,33 +399,19 @@ jobs:
       )
     
     permissions:
+      contents: write  # Required for peaceiris/actions-gh-pages
       pages: write
       id-token: write
-      contents: read
     
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     
     steps:
-      - name: Checkout gh-pages branch (if exists) to preserve schemas
-        run: |
-          # Try to fetch existing schemas from gh-pages branch
-          if git ls-remote --heads origin gh-pages | grep -q gh-pages; then
-            echo "📦 Fetching existing schemas from gh-pages branch"
-            git clone --depth 1 --branch gh-pages https://github.com/${{ github.repository }}.git existing-pages || true
-            
-            # Preserve existing schema versions
-            if [ -d "existing-pages/schema/suews-config" ]; then
-              echo "🔄 Found existing schema versions, preserving them"
-              mkdir -p public/schema/suews-config
-              cp -n existing-pages/schema/suews-config/*.json public/schema/suews-config/ 2>/dev/null || true
-              echo "Preserved schemas:"
-              ls -la public/schema/suews-config/*.json 2>/dev/null || echo "No existing schemas found"
-            fi
-          else
-            echo "ℹ️ No gh-pages branch found, starting fresh"
-          fi
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       
       - name: Download schema artifact
         uses: actions/download-artifact@v4
@@ -431,22 +420,32 @@ jobs:
           path: .
           merge-multiple: true
       
-      - name: Setup Pages
-        uses: actions/configure-pages@v5
-      
-      - name: List deployment structure
+      - name: Prepare deployment directory
         run: |
+          echo "📦 Preparing schema deployment"
+          # Copy permanent schemas from repository
+          if [ -d "schemas/suews-config" ]; then
+            echo "Copying permanent schemas from repository"
+            mkdir -p public/schema/suews-config
+            cp -r schemas/suews-config/* public/schema/suews-config/
+          fi
+          
+          # List what we're deploying
+          echo ""
           echo "📁 Deployment structure:"
           find public -type f -name "*.html" -o -name "*.json" | head -20
           echo ""
           echo "📦 Schema versions:"
           ls -la public/schema/suews-config/*.json 2>/dev/null || echo "No schemas found"
-          
-      - name: Upload to GitHub Pages
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: public
       
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
+      - name: Deploy to GitHub Pages (with keep_files)
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_branch: gh-pages
+          publish_dir: public
+          destination_dir: .  # Deploy to root of gh-pages
+          keep_files: true    # CRITICAL: Preserve existing files
+          user_name: 'github-actions[bot]'
+          user_email: 'github-actions[bot]@users.noreply.github.com'
+          commit_message: 'Deploy SUEWS schema ${{ needs.export_schema.outputs.schema_version || "update" }}'

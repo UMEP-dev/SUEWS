@@ -1,0 +1,12 @@
+{
+  "versions": {
+    "0.1": {
+      "path": "0.1.json",
+      "description": "Initial YAML schema with full Pydantic data model (2025.8)",
+      "added": "2025-08-18T06:59:49.482784",
+      "is_current": true
+    }
+  },
+  "current": "0.1",
+  "updated": "2025-08-18T06:59:49.482791"
+}

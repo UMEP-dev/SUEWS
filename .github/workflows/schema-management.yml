@@ -282,8 +282,8 @@ jobs:
           python .github/scripts/generate_schema.py --preview --pr-number ${{ github.event.pull_request.number }}
 
           echo "📝 Preview schema generated"
-          echo "Preview URL will be available at:"
-          echo "https://umep-dev.github.io/SUEWS/preview/pr-${{ github.event.pull_request.number }}/schema/suews-config/"
+          echo "Preview artifacts created (download from workflow run)"
+          echo "Schema will be deployed to production when PR is merged"
 
       - name: Upload preview artifact
         uses: actions/upload-artifact@v4
@@ -301,8 +301,8 @@ jobs:
 
             A preview of the schema changes has been generated for this PR.
 
-            - Preview will be available at: https://umep-dev.github.io/SUEWS/preview/pr-${prNumber}/schema/suews-config/
-            - This preview is temporary and will be removed when the PR is merged.
+            - Preview artifacts have been created and can be downloaded from the workflow run
+            - Schema will be deployed to https://umep-dev.github.io/SUEWS/schemas/suews-config/ when merged to master
 
             ⚠️ **Note**: Schemas are auto-generated. Manual edits to schema files will be rejected.`;
 

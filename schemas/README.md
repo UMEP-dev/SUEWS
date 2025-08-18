@@ -59,21 +59,42 @@ $schema: "https://umep-dev.github.io/SUEWS/schema/suews-config/latest.json"
 
 ## Workflow
 
-1. **Schema Generation**: When SUEWS model changes require schema updates:
-   - Update Pydantic models in `src/supy/data_model/`
-   - Bump version in `src/supy/data_model/schema/version.py`
-   - Run `python scripts/extract_schema_fixed.py` to generate new schema
-   - **No build required**: Schema generation works without compiling SUEWS
+### Automatic Schema Management
 
-2. **Deployment**: GitHub Actions workflow automatically:
-   - Generates schemas without building (using standalone script)
-   - Copies all schemas from this directory
-   - Deploys to GitHub Pages with `keep_files: true`
-   - Preserves all historical versions
+Schemas are managed by the **Schema Management and Protection** workflow (`.github/workflows/schema-management.yml`):
+
+1. **Automatic Generation**: Triggered when:
+   - Pydantic models in `src/supy/data_model/` are modified
+   - Schema version is bumped in `src/supy/data_model/schema/version.py`
+   - Push to master branch with relevant changes
+
+2. **Protection**: The workflow:
+   - Validates all PR changes to schemas
+   - Prevents manual edits (only auto-generated changes allowed)
+   - Adds headers marking files as auto-generated
+   - Uses CODEOWNERS for additional review protection
+
+3. **Deployment**: Automatically:
+   - Commits generated schemas to repository
+   - Deploys to GitHub Pages with version preservation
+   - Creates PR previews for testing
+
+### Manual Testing
+
+For local testing only (changes won't be accepted in PRs):
+```bash
+python .github/scripts/generate_schema.py
+```
 
 ## Important Notes
 
+- **DO NOT MANUALLY EDIT** schema files - they are auto-generated
 - **Never delete schema files** from this directory
 - **Never modify published schema files** - create new versions instead
-- **Always test** schema changes with example YAML files before release
+- **All changes must come through** the automated workflow
+- **Protected by**:
+  - GitHub Actions validation on every PR
+  - CODEOWNERS requiring bot/admin approval
+  - Auto-generated headers in files
+  - Workflow validation checks
 - **Document breaking changes** in CHANGELOG.md

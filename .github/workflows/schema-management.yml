@@ -1,0 +1,307 @@
+name: Schema Management and Protection
+
+# This workflow manages JSON schema generation, validation, and deployment
+# It ensures schemas are only auto-generated and prevents manual edits
+
+on:
+  # Trigger on data model changes
+  push:
+    branches: [master]
+    paths:
+      - 'src/supy/data_model/**'
+      - '.github/scripts/generate_schema.py'
+      - '.github/workflows/schema-management.yml'
+  
+  # Validate on PRs
+  pull_request:
+    paths:
+      - 'schemas/**'  # Check for manual edits
+      - 'src/supy/data_model/**'  # Check for model changes
+      - '.github/scripts/generate_schema.py'
+  
+  # Manual trigger for forced regeneration
+  workflow_dispatch:
+    inputs:
+      force_regenerate:
+        description: 'Force regenerate schemas even if unchanged'
+        required: false
+        default: false
+        type: boolean
+  
+  # Weekly validation to ensure integrity
+  schedule:
+    - cron: '0 0 * * 0'  # Sunday at midnight UTC
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+  pull-requests: write
+
+jobs:
+  # Job 1: Validate schemas (runs on every PR)
+  validate_schemas:
+    name: Validate Schema Integrity
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    
+    steps:
+      - name: Checkout PR
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Check for manual schema edits
+        id: check_manual
+        run: |
+          # Get changed schema files
+          SCHEMA_CHANGES=$(git diff --name-only origin/${{ github.base_ref }}...HEAD | grep '^schemas/' || true)
+          
+          if [ -n "$SCHEMA_CHANGES" ]; then
+            echo "Schema files changed:"
+            echo "$SCHEMA_CHANGES"
+            
+            # Check if the change is from a data model update
+            MODEL_CHANGES=$(git diff --name-only origin/${{ github.base_ref }}...HEAD | grep '^src/supy/data_model/' || true)
+            
+            if [ -z "$MODEL_CHANGES" ]; then
+              echo "❌ ERROR: Schema files modified without corresponding data model changes!"
+              echo "Schemas must be auto-generated from data model changes."
+              echo ""
+              echo "To update schemas:"
+              echo "1. Modify files in src/supy/data_model/"
+              echo "2. Update version in src/supy/data_model/schema/version.py"
+              echo "3. Let this workflow regenerate schemas automatically"
+              exit 1
+            else
+              echo "✓ Schema changes detected alongside data model changes"
+            fi
+          else
+            echo "✓ No schema files modified"
+          fi
+      
+      - name: Validate JSON structure
+        if: always()
+        run: |
+          # Validate all JSON files in schemas directory
+          for file in schemas/**/*.json; do
+            if [ -f "$file" ]; then
+              python -m json.tool "$file" > /dev/null 2>&1
+              if [ $? -ne 0 ]; then
+                echo "❌ Invalid JSON in $file"
+                exit 1
+              else
+                echo "✓ Valid JSON: $file"
+              fi
+            fi
+          done
+      
+      - name: Check auto-generated headers
+        run: |
+          # Check that schema files have auto-generated markers
+          for file in schemas/suews-config/*.json; do
+            if [ -f "$file" ] && [ "$(basename $file)" != "registry.json" ]; then
+              if ! grep -q "_generated_by" "$file" 2>/dev/null; then
+                echo "⚠️  Warning: $file missing auto-generated header"
+              fi
+            fi
+          done
+
+  # Job 2: Generate schemas (runs on master push or workflow_dispatch)
+  generate_schemas:
+    name: Generate Schemas
+    runs-on: ubuntu-latest
+    if: |
+      github.event_name == 'push' || 
+      github.event_name == 'workflow_dispatch' ||
+      github.event_name == 'schedule'
+    
+    outputs:
+      schema_version: ${{ steps.version.outputs.version }}
+      schemas_changed: ${{ steps.check_changes.outputs.changed }}
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pydantic pyyaml numpy pandas pytz timezonefinder
+          echo "✓ Installed dependencies"
+      
+      - name: Get schema version
+        id: version
+        run: |
+          VERSION=$(python -c "import sys; sys.path.insert(0, 'src'); from supy.data_model.schema.version import CURRENT_SCHEMA_VERSION; print(CURRENT_SCHEMA_VERSION)")
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "📌 Schema version: $VERSION"
+      
+      - name: Generate schemas
+        run: |
+          echo "🔧 Generating schemas..."
+          python .github/scripts/generate_schema.py
+          echo "✓ Schema generation complete"
+      
+      - name: Check for changes
+        id: check_changes
+        run: |
+          if git diff --quiet schemas/; then
+            echo "changed=false" >> $GITHUB_OUTPUT
+            echo "ℹ️ No schema changes detected"
+          else
+            echo "changed=true" >> $GITHUB_OUTPUT
+            echo "✓ Schema changes detected"
+            git diff --stat schemas/
+          fi
+      
+      - name: Commit schema changes
+        if: steps.check_changes.outputs.changed == 'true' || github.event.inputs.force_regenerate == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          
+          git add schemas/
+          
+          # Create detailed commit message
+          COMMIT_MSG="chore: Update auto-generated schemas
+          
+          Schema version: ${{ steps.version.outputs.version }}
+          Triggered by: ${{ github.event_name }}
+          Workflow run: #${{ github.run_number }}
+          
+          AUTO-GENERATED - DO NOT EDIT MANUALLY"
+          
+          git commit -m "$COMMIT_MSG"
+          git push
+          
+          echo "✅ Committed schema changes"
+      
+      - name: Upload schema artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: schema-${{ steps.version.outputs.version }}
+          path: schemas/
+          retention-days: 30
+
+  # Job 3: Deploy to GitHub Pages
+  deploy_schemas:
+    name: Deploy Schemas to GitHub Pages
+    runs-on: ubuntu-latest
+    needs: generate_schemas
+    if: |
+      github.event_name == 'push' && 
+      github.ref == 'refs/heads/master' &&
+      needs.generate_schemas.outputs.schemas_changed == 'true'
+    
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: master  # Get latest including just-committed schemas
+      
+      - name: Prepare deployment
+        run: |
+          mkdir -p public/schema
+          cp -r schemas/* public/schema/
+          
+          # Create root index.html redirect
+          cat > public/index.html << 'EOF'
+          <!DOCTYPE html>
+          <html>
+          <head>
+              <title>SUEWS Schema</title>
+              <meta charset="utf-8">
+              <meta http-equiv="refresh" content="0; url=schema/suews-config/">
+          </head>
+          <body>
+              <h1>SUEWS Configuration Schema</h1>
+              <p>Redirecting to <a href="schema/suews-config/">schema documentation</a>...</p>
+          </body>
+          </html>
+          EOF
+          
+          # Create .nojekyll
+          touch public/.nojekyll
+          
+          echo "📦 Prepared deployment:"
+          find public -type f -name "*.json" -o -name "*.html" | head -20
+      
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_branch: gh-pages
+          publish_dir: public
+          keep_files: true  # Preserve existing files
+          user_name: 'github-actions[bot]'
+          user_email: 'github-actions[bot]@users.noreply.github.com'
+          commit_message: 'Deploy schema v${{ needs.generate_schemas.outputs.schema_version }}'
+
+  # Job 4: PR Preview (optional)
+  preview_schema:
+    name: Generate PR Preview
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    
+    steps:
+      - name: Checkout PR
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pydantic pyyaml numpy pandas pytz timezonefinder
+      
+      - name: Generate preview schema
+        run: |
+          python .github/scripts/generate_schema.py --preview --pr-number ${{ github.event.pull_request.number }}
+          
+          echo "📝 Preview schema generated"
+          echo "Preview URL will be available at:"
+          echo "https://umep-dev.github.io/SUEWS/preview/pr-${{ github.event.pull_request.number }}/schema/suews-config/"
+      
+      - name: Upload preview artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: schema-preview-pr-${{ github.event.pull_request.number }}
+          path: schemas/
+          retention-days: 7
+      
+      - name: Comment on PR
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const prNumber = context.issue.number;
+            const comment = `🔍 **Schema Preview Generated**
+            
+            A preview of the schema changes has been generated for this PR.
+            
+            - Preview will be available at: https://umep-dev.github.io/SUEWS/preview/pr-${prNumber}/schema/suews-config/
+            - This preview is temporary and will be removed when the PR is merged.
+            
+            ⚠️ **Note**: Schemas are auto-generated. Manual edits to schema files will be rejected.`;
+            
+            github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: prNumber,
+              body: comment
+            });

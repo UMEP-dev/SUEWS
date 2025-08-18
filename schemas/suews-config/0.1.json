@@ -1,4 +1,9 @@
 {
+  "_comment": "AUTO-GENERATED FILE - DO NOT EDIT MANUALLY",
+  "_generated_by": "github-actions[bot]",
+  "_generated_at": "2025-08-18T07:51:42.483111Z",
+  "_source": ".github/scripts/generate_schema.py",
+  "_schema_version": "0.1",
   "$defs": {
     "AnthropogenicEmissions": {
       "properties": {

@@ -15,6 +15,7 @@ import re
 import shutil
 import sys
 import tempfile
+from datetime import datetime
 from pathlib import Path
 from typing import Dict, Any, Optional
 
@@ -134,16 +135,26 @@ def generate_schema(
             output_dir = project_root / "schemas" / "suews-config"
             output_dir.mkdir(parents=True, exist_ok=True)
             
+            # Add auto-generated headers
+            schema_with_headers = {
+                "_comment": "AUTO-GENERATED FILE - DO NOT EDIT MANUALLY",
+                "_generated_by": "github-actions[bot]",
+                "_generated_at": datetime.utcnow().isoformat() + "Z",
+                "_source": ".github/scripts/generate_schema.py",
+                "_schema_version": CURRENT_SCHEMA_VERSION,
+                **schema
+            }
+            
             # Save versioned schema
             schema_file = output_dir / f"{CURRENT_SCHEMA_VERSION}.json"
             with open(schema_file, 'w') as f:
-                json.dump(schema, f, indent=2)
+                json.dump(schema_with_headers, f, indent=2)
             print(f"✓ Saved: {schema_file}")
             
-            # Save as latest
+            # Save as latest (with headers)
             latest_file = output_dir / "latest.json"
             with open(latest_file, 'w') as f:
-                json.dump(schema, f, indent=2)
+                json.dump(schema_with_headers, f, indent=2)
             
             # Update registry
             registry = SchemaRegistry(output_dir / "registry.json")

@@ -214,24 +214,31 @@ jobs:
 
       - name: Prepare deployment
         run: |
-          mkdir -p public/schema
-          cp -r schemas/* public/schema/
+          mkdir -p public/schemas
+          cp -r schemas/* public/schemas/
 
-          # Create root index.html redirect
-          cat > public/index.html << 'EOF'
+          # Copy landing page if it exists, otherwise create redirect
+          if [ -f docs/index.html ]; then
+            cp docs/index.html public/index.html
+            echo "✓ Using custom landing page"
+          else
+            # Fallback: Create root index.html redirect
+            cat > public/index.html << 'EOF'
           <!DOCTYPE html>
           <html>
           <head>
               <title>SUEWS Schema</title>
               <meta charset="utf-8">
-              <meta http-equiv="refresh" content="0; url=schema/suews-config/">
+              <meta http-equiv="refresh" content="0; url=schemas/suews-config/">
           </head>
           <body>
               <h1>SUEWS Configuration Schema</h1>
-              <p>Redirecting to <a href="schema/suews-config/">schema documentation</a>...</p>
+              <p>Redirecting to <a href="schemas/suews-config/">schema documentation</a>...</p>
           </body>
           </html>
           EOF
+            echo "✓ Using fallback redirect page"
+          fi
 
           # Create .nojekyll
           touch public/.nojekyll

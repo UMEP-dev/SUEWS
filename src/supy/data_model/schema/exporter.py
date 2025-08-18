@@ -124,25 +124,23 @@ def export_schema(
     # Initialize or load the schema registry
     registry_path = output_dir / "registry.json"
     registry = SchemaRegistry(registry_path)
-    
+
     # Register the current version
     registry.register_version(
         version=CURRENT_SCHEMA_VERSION,
         schema_path=f"{CURRENT_SCHEMA_VERSION}.json",
-        description=SCHEMA_VERSIONS.get(CURRENT_SCHEMA_VERSION, "")
+        description=SCHEMA_VERSIONS.get(CURRENT_SCHEMA_VERSION, ""),
     )
-    
+
     # Create a copy for 'latest' pointing to current version
     latest_file = output_dir / "latest.json"
     latest_file.write_text(schema_file.read_text())
     print(f"✓ Created latest.json pointing to v{CURRENT_SCHEMA_VERSION}")
-    
+
     # Generate index.html using the registry
     index_html = output_dir / "index.html"
     index_content = registry.generate_index_html(
-        base_url=BASE_URL,
-        is_preview=is_preview,
-        pr_number=pr_number
+        base_url=BASE_URL, is_preview=is_preview, pr_number=pr_number
     )
     index_html.write_text(index_content)
     print(f"✓ Created {index_html}")

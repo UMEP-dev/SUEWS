@@ -11,17 +11,16 @@ SUEWS publishes machine-readable JSON Schema files that enable:
 Schema Files
 ------------
 
-Published schemas are available in the ``schemas/`` directory:
+Published schemas are available in the ``schemas/suews-config/`` directory and via GitHub Pages:
 
 .. code-block:: text
 
    schemas/
-   ├── latest/              # Always points to current version
-   │   ├── schema.json     # JSON Schema format
-   │   ├── schema.yaml     # YAML format (human-readable)
-   │   └── README.md       # Usage instructions
-   └── v1.0/               # Versioned schemas
-       └── ...
+   └── suews-config/
+       ├── 0.1.json        # Version 0.1 schema
+       ├── latest.json     # Always points to current version
+       ├── registry.json   # Version registry metadata
+       └── index.html      # Web interface for schema browsing
 
 Access Methods
 --------------
@@ -29,10 +28,16 @@ Access Methods
 Online Access
 ~~~~~~~~~~~~~
 
-Schemas are available via GitHub:
+Schemas are available via GitHub Pages:
 
-- Latest: ``https://raw.githubusercontent.com/UMEP-dev/SUEWS/master/schemas/latest/schema.json``
-- Specific: ``https://raw.githubusercontent.com/UMEP-dev/SUEWS/master/schemas/v1.0/schema.json``
+- **Schema Registry**: ``https://umep-dev.github.io/SUEWS/schemas/suews-config/``
+- **Latest Version**: ``https://umep-dev.github.io/SUEWS/schemas/suews-config/latest.json``
+- **Version 0.1**: ``https://umep-dev.github.io/SUEWS/schemas/suews-config/0.1.json``
+
+Or via raw GitHub:
+
+- Latest: ``https://raw.githubusercontent.com/UMEP-dev/SUEWS/master/schemas/suews-config/latest.json``
+- Version 0.1: ``https://raw.githubusercontent.com/UMEP-dev/SUEWS/master/schemas/suews-config/0.1.json``
 
 Local Access
 ~~~~~~~~~~~~
@@ -41,11 +46,11 @@ After installing SUEWS:
 
 .. code-block:: bash
 
-   # Generate schema locally
-   python -m supy.util.schema_publisher generate schema.json
+   # Generate schema locally (standalone, no build required)
+   python .github/scripts/generate_schema.py
    
-   # Create full schema bundle
-   python -m supy.util.schema_publisher bundle ./my-schemas/
+   # Or using the data model directly
+   python -m supy.data_model.schema.publisher generate schema.json
 
 Validation Tools
 ----------------
@@ -79,7 +84,7 @@ Python API
    # Or with specific schema version
    is_valid = validate_config_against_schema(
        'my_config.yml',
-       version='1.0'
+       version='0.1'
    )
 
 External Tools
@@ -90,14 +95,14 @@ Using ``jsonschema`` CLI:
 .. code-block:: bash
 
    pip install jsonschema
-   jsonschema -i config.yml schemas/latest/schema.json
+   jsonschema -i config.yml schemas/suews-config/latest.json
 
 Using ``yajsv`` (Yet Another JSON Schema Validator):
 
 .. code-block:: bash
 
    # Install: https://github.com/neilpa/yajsv
-   yajsv -s schemas/latest/schema.json config.yml
+   yajsv -s schemas/suews-config/latest.json config.yml
 
 IDE Integration
 ---------------
@@ -112,8 +117,9 @@ Visual Studio Code
 
    {
      "yaml.schemas": {
-       "./schemas/latest/schema.json": ["*.yml", "*.yaml"],
-       "https://raw.githubusercontent.com/UMEP-dev/SUEWS/master/schemas/latest/schema.json": ["suews-*.yml"]
+       "./schemas/suews-config/latest.json": ["*.yml", "*.yaml"],
+       "https://umep-dev.github.io/SUEWS/schemas/suews-config/latest.json": ["suews-*.yml"],
+       "$schema": "https://umep-dev.github.io/SUEWS/schemas/suews-config/0.1.json"
      }
    }
 
@@ -130,7 +136,7 @@ PyCharm / IntelliJ IDEA
 2. Click **+** to add new mapping:
    
    - Name: ``SUEWS Configuration``
-   - Schema file: ``schemas/latest/schema.json``
+   - Schema file: ``schemas/suews-config/latest.json``
    - File path pattern: ``*.yml``
 
 Sublime Text
@@ -146,7 +152,7 @@ Using the LSP-yaml package:
    {
      "settings": {
        "yaml.schemas": {
-         "./schemas/latest/schema.json": "*.yml"
+         "./schemas/suews-config/latest.json": "*.yml"
        }
      }
    }
@@ -163,7 +169,7 @@ Using coc-yaml:
 
    {
      "yaml.schemas": {
-       "./schemas/latest/schema.json": "*.yml"
+       "./schemas/suews-config/latest.json": "*.yml"
      }
    }
 
@@ -254,13 +260,13 @@ Generate schemas locally:
    # Save to file
    save_schema(
        'my-schema.json',
-       version='1.0',
+       version='0.1',
        include_internal=False  # Exclude internal fields
    )
    
    # Create complete bundle
-   from supy.util.schema_publisher import create_schema_bundle
-   create_schema_bundle('./my-schemas/', version='1.0')
+   from supy.data_model.schema.publisher import create_schema_bundle
+   create_schema_bundle('./my-schemas/', version='0.1')
 
 Schema Contents
 ~~~~~~~~~~~~~~~
@@ -330,7 +336,7 @@ Programmatic Validation
        config = yaml.safe_load(f)
    
    # Generate schema for specific version
-   schema = generate_json_schema(version='1.0')
+   schema = generate_json_schema(version='0.1')
    
    # Create validator with format checking
    validator = jsonschema.Draft7Validator(
@@ -362,7 +368,7 @@ Common Issues
 ~~~~~~~~~~~~~
 
 **"No schema version specified"**
-   Add ``schema_version: "1.0"`` to your configuration
+   Add ``schema_version: "0.1"`` to your configuration
 
 **"Additional properties are not allowed"**
    Remove fields not defined in the schema or check for typos

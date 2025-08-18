@@ -161,12 +161,12 @@ class TestSchemaMigration:
         migrator = SchemaMigrator()
 
         # Explicit schema_version
-        config = {"schema_version": "1.0"}
-        assert migrator.auto_detect_version(config) == "1.0"
+        config = {"schema_version": "0.1"}
+        assert migrator.auto_detect_version(config) == "0.1"
 
         # Old dual-version system
         config = {"version": "2025.8.1", "config_version": "v1.0"}
-        assert migrator.auto_detect_version(config) == "0.9"
+        assert migrator.auto_detect_version(config) == "0.0"
 
         # No version - defaults to current
         config = {"name": "test"}
@@ -175,10 +175,10 @@ class TestSchemaMigration:
     def test_migrate_same_version(self):
         """Test migration when versions are the same."""
         migrator = SchemaMigrator()
-        config = {"schema_version": "1.0", "name": "test"}
+        config = {"schema_version": "0.1", "name": "test"}
 
-        result = migrator.migrate(config, from_version="1.0", to_version="1.0")
-        assert result["schema_version"] == "1.0"
+        result = migrator.migrate(config, from_version="0.1", to_version="0.1")
+        assert result["schema_version"] == "0.1"
         assert result["name"] == "test"
 
     def test_version_parsing(self):
@@ -193,12 +193,12 @@ class TestSchemaMigration:
         """Test finding migration paths between versions."""
         migrator = SchemaMigrator()
 
-        # Direct path from 0.9 to 1.0
-        path = migrator._find_migration_path("0.9", "1.0")
-        assert path == ["1.0"]
+        # Direct path from 0.0 to 0.1
+        path = migrator._find_migration_path("0.0", "0.1")
+        assert path == ["0.1"]
 
         # No path needed for same version
-        path = migrator._find_migration_path("1.0", "1.0")
+        path = migrator._find_migration_path("0.1", "0.1")
         assert path is None or path == []
 
 
@@ -208,15 +208,15 @@ class TestSchemaVersionUtility:
     def test_increment_schema_version(self):
         """Test schema version incrementing."""
         # Minor increments
-        assert increment_schema_version("1.0", "minor") == "1.1"
-        assert increment_schema_version("1.9", "minor") == "1.10"
+        assert increment_schema_version("0.1", "minor") == "0.2"
+        assert increment_schema_version("0.9", "minor") == "0.10"
 
         # Major increments
-        assert increment_schema_version("1.5", "major") == "2.0"
-        assert increment_schema_version("2.3", "major") == "3.0"
+        assert increment_schema_version("0.5", "major") == "1.0"
+        assert increment_schema_version("1.3", "major") == "2.0"
 
         # Invalid format returns default
-        assert increment_schema_version("invalid", "minor") == "1.0"
+        assert increment_schema_version("invalid", "minor") == "0.1"
 
     def test_update_yaml_schema_version(self):
         """Test updating schema version in YAML file."""

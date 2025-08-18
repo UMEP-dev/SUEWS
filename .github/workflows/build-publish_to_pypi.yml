@@ -155,6 +155,85 @@ jobs:
           name: ${{ env.WHEEL_NAME }}
           path: ./wheelhouse/*.whl
 
+  export_schema:
+    name: Export JSON Schema
+    runs-on: ubuntu-latest
+    needs: [determine_matrix, build_wheels]
+    # Run schema export whenever builds succeed (for all event types)
+    if: |
+      always() &&
+      needs.build_wheels.result == 'success'
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Need tags for version detection
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      
+      - name: Download cp313-manylinux wheel
+        uses: actions/download-artifact@v4
+        with:
+          name: cp313-manylinux-x86_64
+          path: dist
+      
+      - name: Install SUEWS from wheel
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install dist/*.whl
+          echo "✓ SUEWS installed from wheel"
+      
+      - name: Get schema version
+        id: schema_version
+        run: |
+          SCHEMA_VERSION=$(python -c "from supy.data_model.schema.version import CURRENT_SCHEMA_VERSION; print(CURRENT_SCHEMA_VERSION)")
+          echo "SCHEMA_VERSION=$SCHEMA_VERSION" >> $GITHUB_ENV
+          echo "schema_version=$SCHEMA_VERSION" >> $GITHUB_OUTPUT
+          echo "✓ Detected schema version: $SCHEMA_VERSION"
+      
+      - name: Export schema
+        run: |
+          # Determine build type and export accordingly
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            echo "📝 Exporting PR preview schema version ${{ env.SCHEMA_VERSION }}"
+            # For PRs, export to preview subdirectory with warning banner
+            python -m supy.data_model.schema.exporter \
+              --output-dir "public/preview/pr-${{ github.event.pull_request.number }}/schema/suews-config" \
+              --preview \
+              --pr-number "${{ github.event.pull_request.number }}"
+            echo "SCHEMA_PATH=preview/pr-${{ github.event.pull_request.number }}/schema/suews-config" >> $GITHUB_ENV
+          else
+            echo "📝 Exporting schema version ${{ env.SCHEMA_VERSION }}"
+            # For master/tags/schedule, export to standard location
+            python -m supy.data_model.schema.exporter \
+              --output-dir "public/schema/suews-config"
+            echo "SCHEMA_PATH=schema/suews-config" >> $GITHUB_ENV
+          fi
+          
+          echo "✓ Schema export complete"
+      
+      - name: List generated files
+        run: |
+          echo "Generated schema files:"
+          find public -type f -name "*.json" -o -name "*.html" | head -20
+          echo ""
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            echo "Preview URL: https://umep-dev.github.io/SUEWS/preview/pr-${{ github.event.pull_request.number }}/schema/suews-config/"
+          else
+            echo "Schema URL: https://umep-dev.github.io/SUEWS/schema/suews-config/"
+          fi
+      
+      - name: Upload schema artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: schema-${{ env.SCHEMA_VERSION }}
+          path: public/
+          retention-days: 30
+
   create_nightly_tag:
     name: Create nightly tag after successful builds
     runs-on: ubuntu-latest
@@ -263,3 +342,52 @@ jobs:
           packages-dir: dist/
           verbose: true
           skip-existing: true
+
+  deploy_schema:
+    name: Deploy Schema to GitHub Pages
+    runs-on: ubuntu-latest
+    needs: [export_schema]
+    # Deploy schema for:
+    # - PRs (preview)
+    # - Push to master
+    # - Tags (releases)
+    # - Scheduled runs (nightly)
+    if: |
+      always() &&
+      needs.export_schema.result == 'success' &&
+      (
+        github.event_name == 'pull_request' ||
+        (github.event_name == 'push' && github.ref == 'refs/heads/master') ||
+        startsWith(github.ref, 'refs/tags/') ||
+        github.event_name == 'schedule'
+      )
+    
+    permissions:
+      pages: write
+      id-token: write
+    
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    
+    steps:
+      - name: Download schema artifact
+        uses: actions/download-artifact@v4
+        with:
+          pattern: schema-*
+          path: public
+          merge-multiple: true
+      
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+      
+      - name: Upload to GitHub Pages
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: public
+      
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+        with:
+          preview: ${{ github.event_name == 'pull_request' }}

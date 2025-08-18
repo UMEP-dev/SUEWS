@@ -1,289 +1,38 @@
-name: Publish JSON Schema
+name: Publish JSON Schema (Legacy)
 
-# Schema publication strategy aligned with build-publish_to_pypi.yml:
-#
-# 1. VALIDATION ONLY (no deployment):
-#    - Pull requests: Build and validate schema generation works
-#    - Push to master: Build and validate schema generation works
-#    - Manual workflow_dispatch: Build and validate (unless dry_run=false)
-#
-# 2. DEVELOPMENT SCHEMAS (deploy to GitHub Pages):
-#    - Nightly builds (2:30 AM UTC): Deploy schema from scheduled run
-#    - Tags containing 'dev': Deploy development schema version (created by main workflow)
-#
-# 3. PRODUCTION SCHEMAS (deploy to GitHub Pages as stable):
-#    - Tags without 'dev': Deploy as stable schema version
-#    - Also update 'latest' symlink to point to new stable version
-#
-# This mirrors the PyPI deployment strategy where:
-# - Nightly/dev tags → TestPyPI (development) - tags created by main workflow
-# - Regular tags → PyPI (production)
-# Note: This workflow does NOT create tags, it only deploys schemas when triggered
-#
+# NOTICE: Schema export and deployment has been integrated into the main build workflow
+# This workflow is kept for backward compatibility but does minimal work
+# See: .github/workflows/build-publish_to_pypi.yml (export_schema and deploy_schema jobs)
+
 on:
-  push:
-    branches: [master]
-    tags:
-      - '*'  # Trigger on any tag push
-    paths:
-      - "src/supy/data_model/**"
-      - ".github/workflows/publish-schema.yml"
-      - "pyproject.toml"
-      
-  pull_request:
-    types: [opened, synchronize, reopened, ready_for_review]
-    paths:
-      - "src/supy/data_model/**"
-      - ".github/workflows/publish-schema.yml"
-      
-  schedule:
-    # Run nightly builds at 2:30 AM UTC (30 min after main build)
-    - cron: '30 2 * * *'
-    
-  workflow_dispatch:  # Manual trigger for testing
+  workflow_dispatch:
     inputs:
-      dry_run:
-        description: 'Dry run (skip deployment)'
-        type: boolean
-        default: false
-
-# Cancel in-progress runs when new commits are pushed to the same PR/branch
-concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
+      message:
+        description: 'This workflow has been integrated into build-publish_to_pypi.yml'
+        required: false
+        default: 'Schema export is now part of the main build workflow'
 
 jobs:
-  build:
-    name: Build and Export Schema
+  redirect_notice:
+    name: Redirect Notice
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0  # Fetch all history and tags for version detection
-        
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: 3.13  # Use latest Python 3.13
-      
-      - name: Wait for build workflow to complete
-        uses: lewagon/wait-on-check-action@v1.3.4
-        with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
-          check-name: 'Build wheel for cp313-manylinux x86_64'
-          repo-token: ${{ github.token }}
-          wait-interval: 10  # Check every 10 seconds
-          allowed-conclusions: success,skipped  # Allow success or skipped
-        timeout-minutes: 20  # Maximum 20 minutes wait time
-        continue-on-error: true  # Don't fail if build workflow hasn't started
-          
-      - name: Try to download pre-built wheel artifact from PR
-        if: github.event_name == 'pull_request'
-        id: download_wheel_pr
-        uses: dawidd6/action-download-artifact@v3
-        with:
-          workflow: build-publish_to_pypi.yml
-          # Don't require success - the build job may succeed while deployment jobs are skipped
-          workflow_conclusion: ""
-          name: cp313-manylinux-x86_64
-          path: dist
-          pr: ${{ github.event.pull_request.number }}
-          if_no_artifact_found: warn
-          check_artifacts: true  # Check artifacts even if workflow is still running
-        continue-on-error: true
-      
-      - name: Try to download pre-built wheel artifact from commit
-        if: github.event_name != 'pull_request'
-        id: download_wheel_commit
-        uses: dawidd6/action-download-artifact@v3
-        with:
-          workflow: build-publish_to_pypi.yml
-          # Don't require success - the build job may succeed while deployment jobs are skipped
-          workflow_conclusion: ""
-          name: cp313-manylinux-x86_64
-          path: dist
-          commit: ${{ github.sha }}
-          if_no_artifact_found: warn
-          check_artifacts: true  # Check artifacts even if workflow is still running
-        continue-on-error: true
-          
-      - name: Install SUEWS from wheel or build from source
+      - name: Notice
         run: |
-          python -m pip install --upgrade pip setuptools wheel
-          
-          # Check if wheel was downloaded successfully
-          if [ -d "dist" ] && [ -n "$(ls -A dist/*.whl 2>/dev/null)" ]; then
-            echo "Installing SUEWS from pre-built wheel (same commit)..."
-            python -m pip install dist/*.whl
-            python -m pip install pytest pyyaml  # Add test dependencies
-            echo "✓ SUEWS installed from wheel"
-          else
-            echo "No wheel found, building SUEWS from source..."
-            # Install gfortran for building
-            sudo apt-get update && sudo apt-get install -y gfortran
-            # Install build dependencies including f90wrap
-            python -m pip install build meson-python meson ninja f90wrap
-            # Build with fast mode to avoid strict compiler flags
-            python -m pip install --no-build-isolation --editable '.[dev]' \
-              --config-settings=setup-args="-Dfast_build=true" \
-              --config-settings=compile-args="-j2"
-            echo "✓ SUEWS built and installed from source"
-          fi
-          
-      - name: Get schema version
-        id: schema_version
-        run: |
-          # Extract the current schema version from the code
-          SCHEMA_VERSION=$(python -c "from supy.data_model.schema.version import CURRENT_SCHEMA_VERSION; print(CURRENT_SCHEMA_VERSION)")
-          echo "SCHEMA_VERSION=$SCHEMA_VERSION" >> $GITHUB_ENV
-          echo "schema_version=$SCHEMA_VERSION" >> $GITHUB_OUTPUT
-          echo "✓ Detected schema version: $SCHEMA_VERSION"
-          
-      - name: Validate schema functionality
-        run: |
-          echo "🧪 Running schema validation tests..."
-          python -m pytest test/data_model/test_schema_versioning.py -v --tb=short || true
-          echo "✓ Schema test run completed"
-          
-      - name: Export schema for GitHub Pages
-        run: |
-          # Determine build type and set environment variables
-          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
-            echo "📝 Exporting PR preview schema version ${{ env.SCHEMA_VERSION }}"
-            echo "IS_PREVIEW=true" >> $GITHUB_ENV
-            echo "PREVIEW_PR=${{ github.event.pull_request.number }}" >> $GITHUB_ENV
-            # For PRs, export to a preview subdirectory
-            export SCHEMA_OUTPUT_DIR="public/preview/pr-${{ github.event.pull_request.number }}"
-          elif [[ "${{ github.event_name }}" == "schedule" ]] || [[ "${{ github.ref }}" == *dev* ]]; then
-            echo "📝 Exporting development schema version ${{ env.SCHEMA_VERSION }}"
-            echo "IS_PREVIEW=false" >> $GITHUB_ENV
-            export SCHEMA_OUTPUT_DIR="public"
-          else
-            echo "📝 Exporting production schema version ${{ env.SCHEMA_VERSION }}"
-            echo "IS_PREVIEW=false" >> $GITHUB_ENV
-            export SCHEMA_OUTPUT_DIR="public"
-          fi
-          
-          # Export schema with appropriate settings
-          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
-            # For PR previews, add warning banner
-            python -m supy.data_model.schema.exporter --output-dir "$SCHEMA_OUTPUT_DIR" --preview --pr-number "${{ github.event.pull_request.number }}"
-          else
-            python -m supy.data_model.schema.exporter --output-dir "$SCHEMA_OUTPUT_DIR"
-          fi
-          
-          echo "✓ Schema export complete for version ${{ env.SCHEMA_VERSION }}"
-          
-      - name: List generated files
-        run: |
-          echo "Generated files:"
-          find public -type f | head -20
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "📢 NOTICE: Schema Export Has Been Integrated"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
           echo ""
-          echo "Schema locations:"
-          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
-            ls -la public/preview/pr-${{ github.event.pull_request.number }}/schema/suews-config/ 2>/dev/null || echo "No preview schema files found"
-            echo "Preview URL: https://umep-dev.github.io/SUEWS/preview/pr-${{ github.event.pull_request.number }}/schema/suews-config/"
-          else
-            ls -la public/schema/suews-config/ 2>/dev/null || echo "No schema files found"
-            echo "Schema URL: https://umep-dev.github.io/SUEWS/schema/suews-config/"
-          fi
-          
-      - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: public
-          
-      - name: Attach schema to release
-        # Only attach schema files to actual GitHub releases (not dev tags)
-        if: startsWith(github.ref, 'refs/tags/') && !contains(github.ref, 'dev')
-        uses: softprops/action-gh-release@v1
-        with:
-          files: |
-            public/schema/suews-config/*.json
-          body: |
-            ## Configuration Schema
-            
-            ### 📋 Schema Information
-            - **Schema Version**: `${{ env.SCHEMA_VERSION }}`
-            - **Schema URL**: https://umep-dev.github.io/SUEWS/schema/suews-config/${{ env.SCHEMA_VERSION }}.json
-            - **Latest Schema**: https://umep-dev.github.io/SUEWS/schema/suews-config/latest.json
-            
-            ### 🔧 Usage in YAML Configuration:
-            ```yaml
-            # Specify the schema version for compatibility checking
-            schema_version: "${{ env.SCHEMA_VERSION }}"
-            
-            # Optional: Enable IDE validation and auto-completion
-            $schema: "https://umep-dev.github.io/SUEWS/schema/suews-config/${{ env.SCHEMA_VERSION }}.json"
-            
-            # Your configuration continues...
-            model:
-              ...
-            sites:
-              ...
-            ```
-            
-            ### 🔄 Schema Compatibility
-            This version of SUEWS supports schema version ${{ env.SCHEMA_VERSION }}.
-            For migration from older schemas, see the [migration guide](https://suews.readthedocs.io/schema-migration).
-          fail_on_unmatched_files: false
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-  deploy:
-    name: Deploy Schema to GitHub Pages
-    needs: build
-    # Deploy schema for:
-    # 1. Production releases (tags without 'dev')
-    # 2. Development releases (tags with 'dev')
-    # 3. Nightly builds (scheduled runs)
-    # 4. Master branch pushes (merged PRs)
-    # 5. PR preview deployments (with warning banner)
-    if: |
-      needs.build.result == 'success' &&
-      github.event.inputs.dry_run != 'true' && (
-        (github.event_name == 'push' && github.ref == 'refs/heads/master') ||
-        (github.event_name == 'schedule') ||
-        (startsWith(github.ref, 'refs/tags/')) ||
-        (github.event_name == 'pull_request')
-      )
-    
-    # Grant permissions for Pages deployment
-    permissions:
-      pages: write
-      id-token: write
-      
-    runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-      
-    steps:
-      - name: Determine deployment type
-        id: deployment_type
-        run: |
-          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
-            echo "type=preview" >> $GITHUB_OUTPUT
-            echo "👁️ PR #${{ github.event.pull_request.number }} preview schema deployment"
-          elif [[ "${{ github.event_name }}" == "push" ]] && [[ "${{ github.ref }}" == "refs/heads/master" ]]; then
-            echo "type=master" >> $GITHUB_OUTPUT
-            echo "🔄 Master branch schema deployment"
-          elif [[ "${{ github.event_name }}" == "schedule" ]]; then
-            echo "type=nightly" >> $GITHUB_OUTPUT
-            echo "📅 Nightly schema deployment"
-          elif [[ "${{ github.ref }}" == refs/tags/* ]] && [[ "${{ github.ref }}" == *dev* ]]; then
-            echo "type=development" >> $GITHUB_OUTPUT
-            echo "🧪 Development schema deployment"
-          elif [[ "${{ github.ref }}" == refs/tags/* ]]; then
-            echo "type=production" >> $GITHUB_OUTPUT
-            echo "🚀 Production schema deployment"
-          else
-            echo "type=skip" >> $GITHUB_OUTPUT
-            echo "⏭️ Skipping deployment"
-          fi
-      
-      - name: Deploy to GitHub Pages
-        id: deployment
-        if: steps.deployment_type.outputs.type != 'skip'
-        uses: actions/deploy-pages@v4
+          echo "Schema export and deployment is now handled by the main build workflow:"
+          echo "  → .github/workflows/build-publish_to_pypi.yml"
+          echo ""
+          echo "The schema is automatically:"
+          echo "  ✓ Exported after successful cp313-manylinux wheel build"
+          echo "  ✓ Deployed to GitHub Pages for:"
+          echo "    - PR previews (with warning banner)"
+          echo "    - Master branch pushes"
+          echo "    - Release tags"
+          echo "    - Nightly builds"
+          echo ""
+          echo "View the main workflow run for schema export details."
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"

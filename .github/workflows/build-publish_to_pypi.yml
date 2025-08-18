@@ -155,48 +155,12 @@ jobs:
           name: ${{ env.WHEEL_NAME }}
           path: ./wheelhouse/*.whl
 
-  # Wait specifically for cp313-manylinux build to complete
-  wait_for_cp313_linux:
-    name: Wait for cp313-manylinux
-    runs-on: ubuntu-latest
-    needs: build_wheels
-    if: always()
-    outputs:
-      artifact_ready: ${{ steps.check.outputs.ready }}
-    steps:
-      - name: Wait for cp313-manylinux artifact
-        id: check
-        run: |
-          # Poll for the specific artifact we need (max 20 minutes)
-          for i in {1..120}; do
-            echo "Checking for cp313-manylinux-x86_64 artifact (attempt $i/120)..."
-            
-            # Check if artifact exists
-            if gh api repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts \
-               --jq '.artifacts[] | select(.name=="cp313-manylinux-x86_64")' 2>/dev/null | grep -q "cp313"; then
-              echo "✓ Found cp313-manylinux-x86_64 artifact!"
-              echo "ready=true" >> $GITHUB_OUTPUT
-              exit 0
-            fi
-            
-            # Wait 10 seconds before next check
-            sleep 10
-          done
-          
-          echo "❌ Timeout waiting for cp313-manylinux-x86_64 artifact"
-          echo "ready=false" >> $GITHUB_OUTPUT
-          exit 1
-        env:
-          GH_TOKEN: ${{ github.token }}
-
   export_schema:
-    name: Export JSON Schema
+    name: Export JSON Schema (No Build Required)
     runs-on: ubuntu-latest
-    needs: [determine_matrix, wait_for_cp313_linux]
-    # Only run if cp313-manylinux artifact is ready
-    if: |
-      always() &&
-      needs.wait_for_cp313_linux.outputs.artifact_ready == 'true'
+    needs: [determine_matrix]
+    # Run immediately without waiting for builds
+    if: always()
     
     steps:
       - name: Checkout repository
@@ -207,51 +171,46 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.13'
+          python-version: '3.11'  # Use stable Python, no need for 3.13
       
-      - name: Download cp313-manylinux wheel
-        uses: actions/download-artifact@v4
-        with:
-          name: cp313-manylinux-x86_64
-          path: dist
-      
-      - name: Install SUEWS from wheel
+      - name: Install minimal dependencies
         run: |
           python -m pip install --upgrade pip
-          python -m pip install dist/*.whl
-          echo "✓ SUEWS installed from wheel"
+          # Only install Pydantic and other pure Python dependencies
+          pip install pydantic pyyaml numpy pandas pytz timezonefinder
+          echo "✓ Installed minimal dependencies for schema generation"
       
       - name: Get schema version
         id: schema_version
         run: |
-          SCHEMA_VERSION=$(python -c "from supy.data_model.schema.version import CURRENT_SCHEMA_VERSION; print(CURRENT_SCHEMA_VERSION)")
+          # Extract version without importing supy
+          SCHEMA_VERSION=$(python -c "import sys; sys.path.insert(0, 'src'); from supy.data_model.schema.version import CURRENT_SCHEMA_VERSION; print(CURRENT_SCHEMA_VERSION)")
           echo "SCHEMA_VERSION=$SCHEMA_VERSION" >> $GITHUB_ENV
           echo "schema_version=$SCHEMA_VERSION" >> $GITHUB_OUTPUT
           echo "✓ Detected schema version: $SCHEMA_VERSION"
       
-      - name: Export schema
+      - name: Export schema (without building SUPY)
         run: |
-          # Determine build type and export accordingly
+          # Use standalone script that doesn't require building SUPY
           if [[ "${{ github.event_name }}" == "pull_request" ]]; then
             echo "📝 Exporting PR preview schema version ${{ env.SCHEMA_VERSION }}"
-            # For PRs, export to preview subdirectory with warning banner
-            python -m supy.data_model.schema.exporter \
-              --output-dir "public/preview/pr-${{ github.event.pull_request.number }}/schema/suews-config" \
-              --preview \
-              --pr-number "${{ github.event.pull_request.number }}"
+            # For PRs, modify the script to export to preview location
+            python scripts/extract_schema_fixed.py
+            # Copy to preview location
+            mkdir -p "public/preview/pr-${{ github.event.pull_request.number }}/schema/suews-config"
+            cp -r schemas/suews-config/* "public/preview/pr-${{ github.event.pull_request.number }}/schema/suews-config/"
             echo "SCHEMA_PATH=preview/pr-${{ github.event.pull_request.number }}/schema/suews-config" >> $GITHUB_ENV
           else
             echo "📝 Exporting schema version ${{ env.SCHEMA_VERSION }}"
-            # For master/tags/schedule, export to BOTH locations:
-            # 1. Repository permanent storage
-            python -m supy.data_model.schema.exporter \
-              --output-dir "schemas/suews-config"
-            # 2. Public directory for deployment
+            # Run standalone extraction
+            python scripts/extract_schema_fixed.py
+            # Copy to public for deployment
+            mkdir -p public/schema/suews-config
             cp -r schemas/suews-config/* public/schema/suews-config/
             echo "SCHEMA_PATH=schema/suews-config" >> $GITHUB_ENV
           fi
           
-          echo "✓ Schema export complete"
+          echo "✓ Schema export complete (no build required!)"
       
       - name: List generated files
         run: |

@@ -23,9 +23,20 @@ schemas/
 
 ## Schema Versioning Policy
 
+SUEWS uses **semantic versioning (major.minor)** for configuration schemas:
+
 - **Major version (1.0 → 2.0)**: Breaking changes requiring migration
+  - Removing required fields
+  - Changing field types or structure
+  - Renaming fields without backward compatibility
+  
 - **Minor version (1.0 → 1.1)**: Backward compatible additions
-- **Patch version (1.0.0 → 1.0.1)**: Documentation or metadata fixes only
+  - Adding new optional fields
+  - Adding new validation rules that don't break existing configs
+  - Extending enumerations with new values
+  
+**Note**: We use only major.minor versioning (e.g., 1.0, 1.1, 2.0), not patch versions.
+Schema versions are independent of SUEWS release versions.
 
 ## URLs
 
@@ -51,9 +62,11 @@ $schema: "https://umep-dev.github.io/SUEWS/schema/suews-config/latest.json"
 1. **Schema Generation**: When SUEWS model changes require schema updates:
    - Update Pydantic models in `src/supy/data_model/`
    - Bump version in `src/supy/data_model/schema/version.py`
-   - Run schema export to generate new schema file here
+   - Run `python scripts/extract_schema_fixed.py` to generate new schema
+   - **No build required**: Schema generation works without compiling SUEWS
 
-2. **Deployment**: GitHub Actions workflow:
+2. **Deployment**: GitHub Actions workflow automatically:
+   - Generates schemas without building (using standalone script)
    - Copies all schemas from this directory
    - Deploys to GitHub Pages with `keep_files: true`
    - Preserves all historical versions

@@ -10,7 +10,7 @@ name: Build and Publish Python wheels to PyPI and TestPyPI
 # 2. DEVELOPMENT RELEASES (TestPyPI only):
 #    - Nightly cron (2 AM UTC): Creates YYYY.M.D.dev tag → TestPyPI
 #    - Any tag containing 'dev': Deploy to TestPyPI
-#    Installation: 
+#    Installation:
 #      Latest dev: pip install -i https://test.pypi.org/simple/ supy
 #      Specific version: pip install -i https://test.pypi.org/simple/ supy==YYYY.M.D.dev
 #
@@ -161,25 +161,25 @@ jobs:
     needs: [determine_matrix]
     # Run immediately without waiting for builds
     if: always()
-    
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0  # Need tags for version detection
-      
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'  # Use stable Python, no need for 3.13
-      
+          python-version: '3.13'  # Use stable Python, no need for 3.13
+
       - name: Install minimal dependencies
         run: |
           python -m pip install --upgrade pip
           # Only install Pydantic and other pure Python dependencies
           pip install pydantic pyyaml numpy pandas pytz timezonefinder
           echo "✓ Installed minimal dependencies for schema generation"
-      
+
       - name: Get schema version
         id: schema_version
         run: |
@@ -188,7 +188,7 @@ jobs:
           echo "SCHEMA_VERSION=$SCHEMA_VERSION" >> $GITHUB_ENV
           echo "schema_version=$SCHEMA_VERSION" >> $GITHUB_OUTPUT
           echo "✓ Detected schema version: $SCHEMA_VERSION"
-      
+
       - name: Export schema (without building SUPY)
         run: |
           # Use standalone script that doesn't require building SUPY
@@ -209,9 +209,9 @@ jobs:
             cp -r schemas/suews-config/* public/schema/suews-config/
             echo "SCHEMA_PATH=schema/suews-config" >> $GITHUB_ENV
           fi
-          
+
           echo "✓ Schema export complete (no build required!)"
-      
+
       - name: List generated files
         run: |
           echo "Generated schema files:"
@@ -222,7 +222,7 @@ jobs:
           else
             echo "Schema URL: https://umep-dev.github.io/SUEWS/schema/suews-config/"
           fi
-      
+
       - name: Upload schema artifact
         uses: actions/upload-artifact@v4
         with:
@@ -286,7 +286,7 @@ jobs:
         github.event_name == 'schedule' ||
         (startsWith(github.ref, 'refs/tags/') && contains(github.ref, 'dev'))
       )
-    
+
     # Set up permissions for OIDC authentication
     permissions:
       id-token: write  # Required for Trusted Publishing
@@ -320,7 +320,7 @@ jobs:
       !contains(github.ref, 'dev') &&
       needs.build_wheels.result == 'success' &&
       (needs.create_nightly_tag.result == 'success' || needs.create_nightly_tag.result == 'skipped')
-    
+
     # Set up permissions for OIDC authentication
     permissions:
       id-token: write  # Required for Trusted Publishing
@@ -356,29 +356,29 @@ jobs:
         startsWith(github.ref, 'refs/tags/') ||
         github.event_name == 'schedule'
       )
-    
+
     permissions:
       contents: write  # Required for peaceiris/actions-gh-pages
       pages: write
       id-token: write
-    
+
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
-    
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      
+
       - name: Download schema artifact
         uses: actions/download-artifact@v4
         with:
           pattern: schema-*
           path: .
           merge-multiple: true
-      
+
       - name: Prepare deployment directory
         run: |
           echo "📦 Preparing schema deployment"
@@ -388,7 +388,7 @@ jobs:
             mkdir -p public/schema/suews-config
             cp -r schemas/suews-config/* public/schema/suews-config/
           fi
-          
+
           # List what we're deploying
           echo ""
           echo "📁 Deployment structure:"
@@ -396,7 +396,7 @@ jobs:
           echo ""
           echo "📦 Schema versions:"
           ls -la public/schema/suews-config/*.json 2>/dev/null || echo "No schemas found"
-      
+
       - name: Deploy to GitHub Pages (with keep_files)
         uses: peaceiris/actions-gh-pages@v4
         with:

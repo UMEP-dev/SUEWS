@@ -10,7 +10,7 @@ For nightly builds (tags ending in .dev):
   - Tag: 2025.8.17.dev
   - At tag: generates 2025.8.17.dev0
   - After 2 commits: generates 2025.8.17.dev2
-  
+
 For production releases:
   - Tag: 2025.1.0
   - At tag: generates 2025.1.0
@@ -19,7 +19,7 @@ For production releases:
 CRITICAL FOR NIGHTLY BUILDS:
 The GitHub Actions workflow MUST create the tag BEFORE building wheels.
 This ensures the version number matches the intended date. Previously,
-creating tags after builds caused version mismatches (e.g., Aug 16 
+creating tags after builds caused version mismatches (e.g., Aug 16
 builds using Aug 15 tag + commits = wrong version on TestPyPI).
 
 USAGE:

@@ -218,9 +218,9 @@ jobs:
           cp -r schemas/* public/schemas/
 
           # Copy landing page if it exists, otherwise create redirect
-          if [ -f docs/index.html ]; then
-            cp docs/index.html public/index.html
-            echo "✓ Using custom landing page"
+          if [ -f .github/pages/index.html ]; then
+            cp .github/pages/index.html public/index.html
+            echo "✓ Using custom landing page from .github/pages/"
           else
             # Fallback: Create root index.html redirect
             cat > public/index.html << 'EOF'

@@ -263,6 +263,10 @@ jobs:
     runs-on: ubuntu-latest
     if: github.event_name == 'pull_request'
 
+    permissions:
+      contents: write  # Needed to push to gh-pages branch
+      pull-requests: write  # Needed to comment on PR
+
     steps:
       - name: Checkout PR
         uses: actions/checkout@v4
@@ -292,6 +296,31 @@ jobs:
           path: schemas/
           retention-days: 7
 
+      - name: Prepare preview deployment
+        run: |
+          # Create deployment structure for PR preview
+          mkdir -p public/preview/pr-${{ github.event.pull_request.number }}/schema
+          cp -r schemas/* public/preview/pr-${{ github.event.pull_request.number }}/schema/
+          
+          # Create .nojekyll to prevent Jekyll processing
+          touch public/.nojekyll
+          
+          echo "📦 Prepared preview deployment:"
+          echo "Preview path: /preview/pr-${{ github.event.pull_request.number }}/schema/suews-config/"
+          find public/preview -name "*.json" -o -name "*.html" | head -10
+
+      - name: Deploy preview to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_branch: gh-pages
+          publish_dir: public
+          destination_dir: .  # Deploy to root of gh-pages
+          keep_files: true    # IMPORTANT: Preserve existing content
+          user_name: 'github-actions[bot]'
+          user_email: 'github-actions[bot]@users.noreply.github.com'
+          commit_message: 'Deploy preview for PR #${{ github.event.pull_request.number }}'
+
       - name: Comment on PR
         uses: actions/github-script@v7
         with:
@@ -299,10 +328,11 @@ jobs:
             const prNumber = context.issue.number;
             const comment = `🔍 **Schema Preview Generated**
 
-            A preview of the schema changes has been generated for this PR.
+            A preview of the schema changes has been generated and deployed for this PR.
 
-            - Preview will be available at: https://umep-dev.github.io/SUEWS/preview/pr-${prNumber}/schema/suews-config/
-            - This preview is temporary and will be removed when the PR is merged.
+            - 🌐 Preview URL: https://umep-dev.github.io/SUEWS/preview/pr-${prNumber}/schema/suews-config/
+            - ⏱️ The preview should be available in 1-2 minutes (GitHub Pages deployment)
+            - 🗑️ This preview will be automatically removed when the PR is merged
 
             ⚠️ **Note**: Schemas are auto-generated. Manual edits to schema files will be rejected.`;
 
@@ -312,3 +342,35 @@ jobs:
               issue_number: prNumber,
               body: comment
             });
+
+  # Job 5: Clean up PR previews after merge
+  cleanup_preview:
+    name: Clean Up PR Preview
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request' && github.event.pull_request.merged == true
+
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout gh-pages branch
+        uses: actions/checkout@v4
+        with:
+          ref: gh-pages
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Remove PR preview
+        run: |
+          PR_NUM="${{ github.event.pull_request.number }}"
+          if [ -d "preview/pr-${PR_NUM}" ]; then
+            rm -rf "preview/pr-${PR_NUM}"
+            echo "✓ Removed preview for PR #${PR_NUM}"
+            
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git add .
+            git commit -m "Clean up preview for merged PR #${PR_NUM}"
+            git push
+          else
+            echo "No preview found for PR #${PR_NUM}"
+          fi

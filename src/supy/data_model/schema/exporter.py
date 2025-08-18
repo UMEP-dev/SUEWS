@@ -83,7 +83,7 @@ def export_schema(
     # Create root index.html to prevent 404 errors
     root_index = Path("public") / "index.html"
     root_index.parent.mkdir(parents=True, exist_ok=True)
-    
+
     # Determine the correct redirect path based on build type
     if is_preview and pr_number:
         redirect_path = f"preview/pr-{pr_number}/schema/suews-config/"
@@ -91,7 +91,7 @@ def export_schema(
     else:
         redirect_path = "schema/suews-config/"
         page_title = "SUEWS Schema"
-    
+
     root_index_content = f"""<!DOCTYPE html>
 <html>
 <head>

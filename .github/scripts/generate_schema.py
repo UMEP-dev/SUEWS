@@ -52,6 +52,9 @@ def fix_imports_in_file(file_path: Path) -> None:
         (r'from \.\.schema import', 'from data_model.schema import'),
         (r'from \.\.validation import', 'from data_model.validation import'),
         (r'from \.\.yaml_processor import', 'from data_model.yaml_processor import'),
+        # Fix absolute imports from supy
+        (r'from supy\._env import', 'from _env import'),
+        (r'import supy\._env', 'import _env'),
     ]
     
     for pattern, replacement in replacements:

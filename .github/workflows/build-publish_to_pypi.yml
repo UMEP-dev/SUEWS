@@ -155,15 +155,48 @@ jobs:
           name: ${{ env.WHEEL_NAME }}
           path: ./wheelhouse/*.whl
 
+  # Wait specifically for cp313-manylinux build to complete
+  wait_for_cp313_linux:
+    name: Wait for cp313-manylinux
+    runs-on: ubuntu-latest
+    needs: build_wheels
+    if: always()
+    outputs:
+      artifact_ready: ${{ steps.check.outputs.ready }}
+    steps:
+      - name: Wait for cp313-manylinux artifact
+        id: check
+        run: |
+          # Poll for the specific artifact we need (max 20 minutes)
+          for i in {1..120}; do
+            echo "Checking for cp313-manylinux-x86_64 artifact (attempt $i/120)..."
+            
+            # Check if artifact exists
+            if gh api repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts \
+               --jq '.artifacts[] | select(.name=="cp313-manylinux-x86_64")' 2>/dev/null | grep -q "cp313"; then
+              echo "✓ Found cp313-manylinux-x86_64 artifact!"
+              echo "ready=true" >> $GITHUB_OUTPUT
+              exit 0
+            fi
+            
+            # Wait 10 seconds before next check
+            sleep 10
+          done
+          
+          echo "❌ Timeout waiting for cp313-manylinux-x86_64 artifact"
+          echo "ready=false" >> $GITHUB_OUTPUT
+          exit 1
+        env:
+          GH_TOKEN: ${{ github.token }}
+
   export_schema:
     name: Export JSON Schema
     runs-on: ubuntu-latest
-    needs: [determine_matrix, build_wheels]
-    # Run schema export when any build succeeds (cp313-manylinux will finish first in draft PRs)
-    # The download step will wait for the specific cp313-manylinux artifact
+    needs: [determine_matrix, wait_for_cp313_linux]
+    # Only run if cp313-manylinux artifact is ready
     if: |
       always() &&
-      contains(needs.*.result, 'success')
+      needs.wait_for_cp313_linux.outputs.artifact_ready == 'true'
     
     steps:
       - name: Checkout repository
@@ -181,7 +214,6 @@ jobs:
         with:
           name: cp313-manylinux-x86_64
           path: dist
-        continue-on-error: false  # This will wait/fail if artifact doesn't exist yet
       
       - name: Install SUEWS from wheel
         run: |

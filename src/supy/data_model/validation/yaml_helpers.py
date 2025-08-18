@@ -29,29 +29,34 @@ from copy import deepcopy
 from datetime import datetime
 from timezonefinder import TimezoneFinder
 import pytz
+
 # Optional import - use standalone if supy not available
 try:
     from ..._env import logger_supy, trv_supy_module
 except ImportError:
     import logging
     from pathlib import Path
-    
+
     logger_supy = logging.getLogger("supy.data_model")
     if not logger_supy.handlers:
         handler = logging.StreamHandler()
-        handler.setFormatter(logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s"))
+        handler.setFormatter(
+            logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+        )
         logger_supy.addHandler(handler)
         logger_supy.setLevel(logging.INFO)
-    
+
     # Mock traversable for standalone mode
     class MockTraversable:
         def __init__(self):
             self.base = Path(__file__).parent.parent.parent
+
         def __truediv__(self, other):
             return self.base / other
+
         def exists(self):
             return False
-    
+
     trv_supy_module = MockTraversable()
 import os
 

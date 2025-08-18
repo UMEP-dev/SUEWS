@@ -45,10 +45,13 @@ try:
     from ..._env import logger_supy
 except ImportError:
     import logging
+
     logger_supy = logging.getLogger("supy.data_model")
     if not logger_supy.handlers:
         handler = logging.StreamHandler()
-        handler.setFormatter(logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s"))
+        handler.setFormatter(
+            logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+        )
         logger_supy.addHandler(handler)
         logger_supy.setLevel(logging.INFO)
 from ..yaml_processor.yaml_annotator import YAMLAnnotator

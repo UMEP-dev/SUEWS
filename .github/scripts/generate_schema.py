@@ -15,27 +15,40 @@ import re
 import shutil
 import sys
 import tempfile
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, Any, Optional
 
 
 def create_minimal_env(temp_dir: Path) -> None:
-    """Create minimal _env.py for schema generation."""
+    """Create minimal _env.py for standalone schema generation.
+    
+    This is only needed for phase_b_science_check.py which imports from supy._env.
+    The schema itself doesn't require this, but we keep it for compatibility.
+    """
     env_content = '''
 import logging
 import sys
+from pathlib import Path
 
-# Minimal logger
-logger_supy = logging.getLogger("supy")
+# Minimal logger for standalone use
+logger_supy = logging.getLogger("supy.data_model")
 logger_supy.addHandler(logging.StreamHandler(sys.stdout))
 logger_supy.setLevel(logging.WARNING)
 
-# Mock traversable for resources
+# Mock traversable for resource access (only used in science checks, not schema)
 class MockTraversable:
-    def joinpath(self, *args): return self
-    def read_text(self): return ""
-    def __truediv__(self, other): return self
+    def __init__(self):
+        self.base = Path(__file__).parent
+    def __truediv__(self, other):
+        # Return a Path object for file operations
+        return self.base / other
+    def joinpath(self, *args):
+        return self
+    def read_text(self):
+        return ""
+    def exists(self):
+        return False  # CRU data won't exist in standalone mode
 
 trv_supy_module = MockTraversable()
 '''
@@ -142,7 +155,7 @@ def generate_schema(
             schema_with_headers = {
                 "_comment": "AUTO-GENERATED FILE - DO NOT EDIT MANUALLY",
                 "_generated_by": "github-actions[bot]",
-                "_generated_at": datetime.utcnow().isoformat() + "Z",
+                "_generated_at": datetime.now(timezone.utc).isoformat(),
                 "_source": ".github/scripts/generate_schema.py",
                 "_schema_version": CURRENT_SCHEMA_VERSION,
                 **schema

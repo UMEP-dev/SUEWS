@@ -26,6 +26,7 @@ def export_schema(
 
     Args:
         output_dir: Directory to write schema files (default: public/schema/suews-config)
+                   Can be a string or Path object
         is_preview: Whether this is a PR preview build
         pr_number: PR number if this is a preview build
         export_all_versions: If True, export all known schema versions (for archival)
@@ -36,6 +37,9 @@ def export_schema(
             output_dir = Path(f"public/preview/pr-{pr_number}/schema/suews-config")
         else:
             output_dir = Path("public/schema/suews-config")
+    else:
+        # Convert string to Path if needed
+        output_dir = Path(output_dir)
 
     # Create output directory
     output_dir.mkdir(parents=True, exist_ok=True)

@@ -24,12 +24,13 @@ Example:
 
 ### Nightly Build Process (2 AM UTC)
 1. GitHub Actions workflow triggers via cron schedule
-2. Builds wheels for all supported Python versions (3.9-3.13) and platforms
-3. Creates a git tag with format `YYYY.M.D.dev`
+2. **Creates a git tag FIRST** with format `YYYY.M.D.dev` (ensures correct version)
+3. Builds wheels for all supported Python versions (3.9-3.13) and platforms
 4. Publishes to TestPyPI with version `YYYY.M.D.dev0`
 
 ### Resilience Features
 As of August 2025, the workflow has been updated to be more resilient:
+- **Tag creation BEFORE build**: Tags are created before wheels are built to ensure version consistency
 - **Tag creation**: Creates tags even if some platform builds fail (but not if cancelled)
 - **TestPyPI deployment**: Proceeds with available wheels even if some platforms fail
 - **Consecutive tags**: Ensures daily tags are created to maintain consistency
@@ -54,11 +55,15 @@ If you notice gaps in nightly build tags (e.g., `2025.8.2.dev` is missing):
 - Prior to August 2025, tags were only created after fully successful builds
 - After the update, tags are created even with partial build failures
 
-### Version Number Inconsistencies
-The version numbers on TestPyPI may appear inconsistent due to:
-1. **Commit count suffix**: Numbers after `.dev` indicate commits since the tag
-2. **Multiple uploads**: If builds are retriggered, multiple versions may exist for the same day
-3. **Build failures**: Some days may be missing if the workflow was cancelled
+### Version Number Inconsistencies (Fixed August 2025)
+Prior to August 2025, version numbers on TestPyPI were inconsistent because:
+1. **Tag timing issue**: Tags were created AFTER builds, causing version mismatches
+2. **Example**: Aug 16 build used Aug 15 tag + 327 commits = `2025.8.15.dev327`
+
+After the fix:
+1. **Tags created BEFORE builds**: Ensures correct version numbering
+2. **Commit count suffix**: Numbers after `.dev` indicate commits since the tag
+3. **Build failures**: Tags are still created to maintain consecutive daily versions
 
 ### Checking Available Versions
 ```bash

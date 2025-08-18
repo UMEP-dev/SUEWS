@@ -10,14 +10,16 @@ import json
 import sys
 from typing import Optional
 
-from .version import CURRENT_SCHEMA_VERSION
+from .version import CURRENT_SCHEMA_VERSION, SCHEMA_VERSIONS
 from ..core import SUEWSConfig
+from .registry import SchemaRegistry
 
 
 def export_schema(
     output_dir: Optional[Path] = None,
     is_preview: bool = False,
     pr_number: Optional[int] = None,
+    export_all_versions: bool = False,
 ) -> None:
     """
     Export JSON Schema to the specified directory.
@@ -26,6 +28,7 @@ def export_schema(
         output_dir: Directory to write schema files (default: public/schema/suews-config)
         is_preview: Whether this is a PR preview build
         pr_number: PR number if this is a preview build
+        export_all_versions: If True, export all known schema versions (for archival)
     """
     # Default output directory for GitHub Pages
     if output_dir is None:
@@ -118,66 +121,29 @@ def export_schema(
     root_index.write_text(root_index_content)
     print(f"✓ Created root {root_index} with redirect to {redirect_path}")
 
-    # Create index.html for schema directory listing
+    # Initialize or load the schema registry
+    registry_path = output_dir / "registry.json"
+    registry = SchemaRegistry(registry_path)
+    
+    # Register the current version
+    registry.register_version(
+        version=CURRENT_SCHEMA_VERSION,
+        schema_path=f"{CURRENT_SCHEMA_VERSION}.json",
+        description=SCHEMA_VERSIONS.get(CURRENT_SCHEMA_VERSION, "")
+    )
+    
+    # Create a copy for 'latest' pointing to current version
+    latest_file = output_dir / "latest.json"
+    latest_file.write_text(schema_file.read_text())
+    print(f"✓ Created latest.json pointing to v{CURRENT_SCHEMA_VERSION}")
+    
+    # Generate index.html using the registry
     index_html = output_dir / "index.html"
-
-    # Add preview warning banner if this is a PR preview
-    preview_banner = ""
-    if is_preview and pr_number:
-        preview_banner = f"""
-    <div style="background: #fff3cd; border: 2px solid #ffc107; padding: 1em; margin-bottom: 2em; border-radius: 5px;">
-        <h2 style="color: #856404; margin-top: 0;">⚠️ PREVIEW VERSION - PR #{pr_number}</h2>
-        <p style="color: #856404; margin-bottom: 0;">
-            This is a preview schema from an unmerged pull request. 
-            <strong>DO NOT use this schema URL in production configurations.</strong>
-            <br>
-            <a href="{BASE_URL}/schema/suews-config/" style="color: #0066cc;">View stable schemas →</a>
-        </p>
-    </div>"""
-        schema_url = f"{BASE_URL}/preview/pr-{pr_number}/schema/suews-config/{CURRENT_SCHEMA_VERSION}.json"
-    else:
-        schema_url = f"{BASE_URL}/schema/suews-config/{CURRENT_SCHEMA_VERSION}.json"
-
-    index_content = f"""<!DOCTYPE html>
-<html>
-<head>
-    <title>SUEWS Schema {"Preview - PR #" + str(pr_number) if is_preview else "Versions"}</title>
-    <style>
-        body {{ font-family: system-ui, -apple-system, sans-serif; margin: 2em; }}
-        h1 {{ color: #333; }}
-        .version {{ margin: 1em 0; padding: 1em; background: #f5f5f5; border-radius: 5px; }}
-        .current {{ background: #e8f4f8; border: 1px solid #0066cc; }}
-        .preview {{ background: #fff8e8; border: 2px dashed #ff9800; }}
-        a {{ color: #0066cc; text-decoration: none; }}
-        a:hover {{ text-decoration: underline; }}
-        code {{ background: #f0f0f0; padding: 2px 5px; border-radius: 3px; }}
-    </style>
-</head>
-<body>
-    <h1>SUEWS Configuration Schema{" Preview" if is_preview else ""}</h1>
-    {preview_banner}
-    <p>JSON Schema definitions for SUEWS YAML configuration files.</p>
-    
-    <div class="version {"preview" if is_preview else "current"}">
-        <h2>{"Preview" if is_preview else "Current"} Version: {CURRENT_SCHEMA_VERSION}</h2>
-        <p>
-            Schema URL: <code>{schema_url}</code><br>
-            <a href="{CURRENT_SCHEMA_VERSION}.json">View Schema</a> | 
-            <a href="https://suews.readthedocs.io">Documentation</a>
-            {f' | <a href="https://github.com/UMEP-dev/SUEWS/pull/{pr_number}">View PR</a>' if is_preview else ""}
-        </p>
-    </div>
-    
-    <h2>Usage in YAML</h2>
-    <pre><code>schema_version: "{CURRENT_SCHEMA_VERSION}"
-$schema: "{schema_url}"</code></pre>
-    
-    <p>
-        <a href="https://github.com/UMEP-dev/SUEWS">GitHub Repository</a> | 
-        <a href="https://suews.readthedocs.io/en/latest/inputs/yaml/schema_versioning.html">Schema Documentation</a>
-    </p>
-</body>
-</html>"""
+    index_content = registry.generate_index_html(
+        base_url=BASE_URL,
+        is_preview=is_preview,
+        pr_number=pr_number
+    )
     index_html.write_text(index_content)
     print(f"✓ Created {index_html}")
 

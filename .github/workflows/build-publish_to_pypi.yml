@@ -398,12 +398,32 @@ jobs:
     permissions:
       pages: write
       id-token: write
+      contents: read
     
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     
     steps:
+      - name: Checkout gh-pages branch (if exists) to preserve schemas
+        run: |
+          # Try to fetch existing schemas from gh-pages branch
+          if git ls-remote --heads origin gh-pages | grep -q gh-pages; then
+            echo "📦 Fetching existing schemas from gh-pages branch"
+            git clone --depth 1 --branch gh-pages https://github.com/${{ github.repository }}.git existing-pages || true
+            
+            # Preserve existing schema versions
+            if [ -d "existing-pages/schema/suews-config" ]; then
+              echo "🔄 Found existing schema versions, preserving them"
+              mkdir -p public/schema/suews-config
+              cp -n existing-pages/schema/suews-config/*.json public/schema/suews-config/ 2>/dev/null || true
+              echo "Preserved schemas:"
+              ls -la public/schema/suews-config/*.json 2>/dev/null || echo "No existing schemas found"
+            fi
+          else
+            echo "ℹ️ No gh-pages branch found, starting fresh"
+          fi
+      
       - name: Download schema artifact
         uses: actions/download-artifact@v4
         with:
@@ -418,6 +438,9 @@ jobs:
         run: |
           echo "📁 Deployment structure:"
           find public -type f -name "*.html" -o -name "*.json" | head -20
+          echo ""
+          echo "📦 Schema versions:"
+          ls -la public/schema/suews-config/*.json 2>/dev/null || echo "No schemas found"
           
       - name: Upload to GitHub Pages
         uses: actions/upload-pages-artifact@v3

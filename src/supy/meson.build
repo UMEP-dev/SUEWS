@@ -83,6 +83,7 @@ py.install_sources(
             'data_model/schema/updater.py',
             'data_model/schema/publisher.py',
             'data_model/schema/exporter.py',
+            'data_model/schema/registry.py',
             'data_model/yaml_processor/__init__.py',
             'data_model/yaml_processor/orchestrator.py',
             'data_model/yaml_processor/phase_a_parameter_update.py',

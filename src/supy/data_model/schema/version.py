@@ -19,15 +19,17 @@ CURRENT_SCHEMA_VERSION = "0.1"
 
 # Schema version history and descriptions
 SCHEMA_VERSIONS: dict[str, str] = {
-    "1.0": "Initial YAML schema with full Pydantic data model (2025.8)"
+    "0.1": "Initial YAML schema with full Pydantic data model (2025.8)"
     # Future examples:
+    # "1.0": "First stable release with complete validation"
     # "1.1": "Added optional field X for feature Y (2025.10)"
     # "2.0": "Breaking change: Renamed field A to B, restructured C (2026.1)"
 }
 
 # Compatibility matrix: which schema versions are compatible
 COMPATIBLE_VERSIONS = {
-    "1.0": ["1.0"],  # 1.0 only compatible with itself (initial release)
+    "0.1": ["0.1"],  # 0.1 only compatible with itself (initial release)
+    # Future: "1.0": ["0.1", "1.0"],  # 1.0 backward compatible with 0.1
     # Future: "1.1": ["1.0", "1.1"],  # 1.1 backward compatible with 1.0
     # Future: "2.0": ["2.0"],  # Major version breaks compatibility
 }

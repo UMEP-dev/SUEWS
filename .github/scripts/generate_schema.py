@@ -5,75 +5,19 @@ Generate JSON Schema for SUEWS without building.
 This script generates JSON schemas from Pydantic models without requiring
 SUEWS to be built. It's used by CI/CD workflows for schema deployment.
 
+The script imports data_model directly to avoid triggering supy's __init__.py
+which would try to import the compiled Fortran module.
+
 Usage:
     python .github/scripts/generate_schema.py [--preview --pr-number N]
 """
 
 import argparse
 import json
-import re
-import shutil
 import sys
-import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, Any, Optional
-
-
-def create_minimal_env(temp_dir: Path) -> None:
-    """Create minimal _env.py for standalone schema generation.
-    
-    This is only needed for phase_b_science_check.py which imports from supy._env.
-    The schema itself doesn't require this, but we keep it for compatibility.
-    """
-    env_content = '''
-import logging
-import sys
-from pathlib import Path
-
-# Minimal logger for standalone use
-logger_supy = logging.getLogger("supy.data_model")
-logger_supy.addHandler(logging.StreamHandler(sys.stdout))
-logger_supy.setLevel(logging.WARNING)
-
-# Mock traversable for resource access (only used in science checks, not schema)
-class MockTraversable:
-    def __init__(self):
-        self.base = Path(__file__).parent
-    def __truediv__(self, other):
-        # Return a Path object for file operations
-        return self.base / other
-    def joinpath(self, *args):
-        return self
-    def read_text(self):
-        return ""
-    def exists(self):
-        return False  # CRU data won't exist in standalone mode
-
-trv_supy_module = MockTraversable()
-'''
-    (temp_dir / "_env.py").write_text(env_content)
-
-
-def fix_imports_in_file(file_path: Path) -> None:
-    """Fix relative imports in isolated data_model."""
-    content = file_path.read_text()
-    
-    # Fix imports that reference parent packages
-    replacements = [
-        (r'from \.\.\._env import', 'from _env import'),
-        (r'from \.\.schema import', 'from data_model.schema import'),
-        (r'from \.\.validation import', 'from data_model.validation import'),
-        (r'from \.\.yaml_processor import', 'from data_model.yaml_processor import'),
-        # Fix absolute imports from supy
-        (r'from supy\._env import', 'from _env import'),
-        (r'import supy\._env', 'import _env'),
-    ]
-    
-    for pattern, replacement in replacements:
-        content = re.sub(pattern, replacement, content)
-    
-    file_path.write_text(content)
 
 
 def generate_schema(
@@ -81,7 +25,10 @@ def generate_schema(
     pr_number: Optional[int] = None
 ) -> Dict[str, Any]:
     """
-    Generate schema in isolated environment.
+    Generate schema directly from data_model.
+    
+    We modify sys.modules to prevent supy.__init__ from loading,
+    allowing us to import data_model directly.
     
     Args:
         is_preview: Whether this is a PR preview build
@@ -94,108 +41,122 @@ def generate_schema(
     project_root = Path(__file__).parent.parent.parent
     src_dir = project_root / "src"
     
-    # Create temporary directory for isolated execution
-    with tempfile.TemporaryDirectory() as temp_dir:
-        temp_path = Path(temp_dir)
+    # Add src directory to path
+    sys.path.insert(0, str(src_dir))
+    
+    # Create minimal mock for supy._env to avoid importing the real one
+    # which would trigger resource loading issues
+    import types
+    import logging
+    
+    # Create mock _env module
+    env_module = types.ModuleType('supy._env')
+    env_module.logger_supy = logging.getLogger('supy.data_model')
+    if not env_module.logger_supy.handlers:
+        handler = logging.StreamHandler()
+        handler.setFormatter(logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s"))
+        env_module.logger_supy.addHandler(handler)
+        env_module.logger_supy.setLevel(logging.WARNING)
+    
+    # Mock traversable for resources (not needed for schema generation)
+    class MockTraversable:
+        def __truediv__(self, other): return Path("/nonexistent")
+        def exists(self): return False
+    env_module.trv_supy_module = MockTraversable()
+    
+    # Install the mock
+    sys.modules['supy'] = types.ModuleType('supy')
+    sys.modules['supy'].__path__ = [str(src_dir / 'supy')]
+    sys.modules['supy._env'] = env_module
+    
+    try:
+        # Now import data_model - it will use our mock _env
+        from supy.data_model.core.config import SUEWSConfig
+        from supy.data_model.schema.version import CURRENT_SCHEMA_VERSION, SCHEMA_VERSIONS
+        from supy.data_model.schema.registry import SchemaRegistry
         
-        # Copy data_model to temp location
-        src_data_model = src_dir / "supy" / "data_model"
-        dst_data_model = temp_path / "data_model"
-        shutil.copytree(src_data_model, dst_data_model)
+        print(f"✓ Schema version: {CURRENT_SCHEMA_VERSION}")
         
-        # Fix imports in all Python files
-        for py_file in dst_data_model.rglob("*.py"):
-            fix_imports_in_file(py_file)
+        # Generate schema from Pydantic model
+        schema = SUEWSConfig.model_json_schema()
         
-        # Create minimal environment
-        create_minimal_env(temp_path)
+        # Add metadata
+        base_url = "https://umep-dev.github.io/SUEWS"
+        schema["$schema"] = "https://json-schema.org/draft/2020-12/schema"
         
-        # Add temp dir to path
-        sys.path.insert(0, str(temp_path))
-        
-        try:
-            # Import from isolated data_model
-            from data_model.core.config import SUEWSConfig
-            from data_model.schema.version import CURRENT_SCHEMA_VERSION, SCHEMA_VERSIONS
-            from data_model.schema.registry import SchemaRegistry
-            
-            print(f"✓ Schema version: {CURRENT_SCHEMA_VERSION}")
-            
-            # Generate schema
-            schema = SUEWSConfig.model_json_schema()
-            
-            # Add metadata
-            base_url = "https://umep-dev.github.io/SUEWS"
-            schema["$schema"] = "https://json-schema.org/draft/2020-12/schema"
-            
-            if is_preview and pr_number:
-                schema["$id"] = f"{base_url}/preview/pr-{pr_number}/schema/suews-config/{CURRENT_SCHEMA_VERSION}.json"
-                schema["title"] = f"SUEWS Configuration Schema v{CURRENT_SCHEMA_VERSION} (PR #{pr_number} Preview)"
-                schema["description"] = (
-                    f"⚠️ PREVIEW VERSION - PR #{pr_number} - DO NOT USE IN PRODUCTION. "
-                    f"Schema version {CURRENT_SCHEMA_VERSION}."
-                )
-            else:
-                schema["$id"] = f"{base_url}/schema/suews-config/{CURRENT_SCHEMA_VERSION}.json"
-                schema["title"] = f"SUEWS Configuration Schema v{CURRENT_SCHEMA_VERSION}"
-                schema["description"] = (
-                    f"JSON Schema for SUEWS YAML configuration files. "
-                    f"Schema version {CURRENT_SCHEMA_VERSION}. "
-                    "See https://suews.readthedocs.io for documentation."
-                )
-            
-            print(f"✓ Generated schema: {len(schema.get('properties', {}))} properties, "
-                  f"{len(schema.get('$defs', {}))} definitions")
-            
-            # Save to permanent storage
-            output_dir = project_root / "schemas" / "suews-config"
-            output_dir.mkdir(parents=True, exist_ok=True)
-            
-            # Add auto-generated headers
-            schema_with_headers = {
-                "_comment": "AUTO-GENERATED FILE - DO NOT EDIT MANUALLY",
-                "_generated_by": "github-actions[bot]",
-                "_generated_at": datetime.now(timezone.utc).isoformat(),
-                "_source": ".github/scripts/generate_schema.py",
-                "_schema_version": CURRENT_SCHEMA_VERSION,
-                **schema
-            }
-            
-            # Save versioned schema
-            schema_file = output_dir / f"{CURRENT_SCHEMA_VERSION}.json"
-            with open(schema_file, 'w') as f:
-                json.dump(schema_with_headers, f, indent=2)
-            print(f"✓ Saved: {schema_file}")
-            
-            # Save as latest (with headers)
-            latest_file = output_dir / "latest.json"
-            with open(latest_file, 'w') as f:
-                json.dump(schema_with_headers, f, indent=2)
-            
-            # Update registry
-            registry = SchemaRegistry(output_dir / "registry.json")
-            registry.register_version(
-                version=CURRENT_SCHEMA_VERSION,
-                schema_path=f"{CURRENT_SCHEMA_VERSION}.json",
-                description=SCHEMA_VERSIONS.get(CURRENT_SCHEMA_VERSION, "")
+        if is_preview and pr_number:
+            schema["$id"] = f"{base_url}/preview/pr-{pr_number}/schema/suews-config/{CURRENT_SCHEMA_VERSION}.json"
+            schema["title"] = f"SUEWS Configuration Schema v{CURRENT_SCHEMA_VERSION} (PR #{pr_number} Preview)"
+            schema["description"] = (
+                f"⚠️ PREVIEW VERSION - PR #{pr_number} - DO NOT USE IN PRODUCTION. "
+                f"Schema version {CURRENT_SCHEMA_VERSION}."
             )
-            print(f"✓ Updated registry")
-            
-            # Generate index.html
-            index_content = registry.generate_index_html(
-                base_url=base_url,
-                is_preview=is_preview,
-                pr_number=pr_number
+        else:
+            schema["$id"] = f"{base_url}/schema/suews-config/{CURRENT_SCHEMA_VERSION}.json"
+            schema["title"] = f"SUEWS Configuration Schema v{CURRENT_SCHEMA_VERSION}"
+            schema["description"] = (
+                f"JSON Schema for SUEWS YAML configuration files. "
+                f"Schema version {CURRENT_SCHEMA_VERSION}. "
+                "See https://suews.readthedocs.io for documentation."
             )
-            (output_dir / "index.html").write_text(index_content)
-            print(f"✓ Generated index.html")
-            
-            return schema
-            
-        finally:
-            # Clean up sys.path
-            if str(temp_path) in sys.path:
-                sys.path.remove(str(temp_path))
+        
+        print(f"✓ Generated schema: {len(schema.get('properties', {}))} properties, "
+              f"{len(schema.get('$defs', {}))} definitions")
+        
+        # Save to permanent storage
+        output_dir = project_root / "schemas" / "suews-config"
+        output_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Add auto-generated headers
+        schema_with_headers = {
+            "_comment": "AUTO-GENERATED FILE - DO NOT EDIT MANUALLY",
+            "_generated_by": "github-actions[bot]",
+            "_generated_at": datetime.now(timezone.utc).isoformat(),
+            "_source": ".github/scripts/generate_schema.py",
+            "_schema_version": CURRENT_SCHEMA_VERSION,
+            **schema
+        }
+        
+        # Save versioned schema
+        schema_file = output_dir / f"{CURRENT_SCHEMA_VERSION}.json"
+        with open(schema_file, 'w') as f:
+            json.dump(schema_with_headers, f, indent=2)
+        print(f"✓ Saved: {schema_file}")
+        
+        # Save as latest (with headers)
+        latest_file = output_dir / "latest.json"
+        with open(latest_file, 'w') as f:
+            json.dump(schema_with_headers, f, indent=2)
+        
+        # Update registry
+        registry = SchemaRegistry(output_dir / "registry.json")
+        registry.register_version(
+            version=CURRENT_SCHEMA_VERSION,
+            schema_path=f"{CURRENT_SCHEMA_VERSION}.json",
+            description=SCHEMA_VERSIONS.get(CURRENT_SCHEMA_VERSION, "")
+        )
+        print(f"✓ Updated registry")
+        
+        # Generate index.html
+        index_content = registry.generate_index_html(
+            base_url=base_url,
+            is_preview=is_preview,
+            pr_number=pr_number
+        )
+        (output_dir / "index.html").write_text(index_content)
+        print(f"✓ Generated index.html")
+        
+        return schema
+        
+    finally:
+        # Clean up sys.modules and sys.path
+        for module_name in ['supy._env', 'supy']:
+            if module_name in sys.modules:
+                # Only remove if it's our mock module
+                if not hasattr(sys.modules[module_name], '__file__'):
+                    del sys.modules[module_name]
+        if str(src_dir) in sys.path:
+            sys.path.remove(str(src_dir))
 
 
 def main():

@@ -39,16 +39,19 @@ def get_version_from_git():
             # Only add .devN suffix if there are commits after the tag
             has_dev_suffix = ".dev" in base_version
 
-            if distance == 0:
-                # Keep the tag as-is (including .dev if present)
+            # For nightly .dev tags, always append a number for consistency
+            # This ensures TestPyPI versions are predictable
+            if has_dev_suffix:
+                # Extract base version without .dev suffix
+                base_without_dev = base_version.rsplit('.dev', 1)[0]
+                # Always append .devN where N is the commit count (0 for the tag itself)
+                version = f"{base_without_dev}.dev{distance}"
+            elif distance == 0:
+                # For regular tags without .dev, keep as-is
                 version = base_version
             else:
-                # If tag already has .dev, append the commit count
-                # Otherwise add .dev with commit count
-                if has_dev_suffix:
-                    version = f"{base_version}{distance}"
-                else:
-                    version = f"{base_version}.dev{distance}"
+                # For regular tags with commits after, add .dev with commit count
+                version = f"{base_version}.dev{distance}"
         else:
             raise ValueError(
                 f"Output '{describe_output}' does not match the expected pattern."

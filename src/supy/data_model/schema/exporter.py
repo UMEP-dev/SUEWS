@@ -80,6 +80,44 @@ def export_schema(
     nojekyll.write_text("")
     print(f"✓ Created {nojekyll}")
 
+    # Create root index.html to prevent 404 errors
+    root_index = Path("public") / "index.html"
+    root_index.parent.mkdir(parents=True, exist_ok=True)
+    
+    # Determine the correct redirect path based on build type
+    if is_preview and pr_number:
+        redirect_path = f"preview/pr-{pr_number}/schema/suews-config/"
+        page_title = f"SUEWS Schema - PR #{pr_number} Preview"
+    else:
+        redirect_path = "schema/suews-config/"
+        page_title = "SUEWS Schema"
+    
+    root_index_content = f"""<!DOCTYPE html>
+<html>
+<head>
+    <title>{page_title}</title>
+    <meta charset="utf-8">
+    <meta http-equiv="refresh" content="0; url={redirect_path}">
+    <style>
+        body {{ 
+            font-family: system-ui, -apple-system, sans-serif; 
+            margin: 2em; 
+            text-align: center;
+            padding-top: 3em;
+        }}
+        a {{ color: #0066cc; text-decoration: none; }}
+        a:hover {{ text-decoration: underline; }}
+    </style>
+</head>
+<body>
+    <h1>SUEWS Configuration Schema</h1>
+    <p>Redirecting to schema documentation...</p>
+    <p>If you are not redirected automatically, <a href="{redirect_path}">click here</a>.</p>
+</body>
+</html>"""
+    root_index.write_text(root_index_content)
+    print(f"✓ Created root {root_index} with redirect to {redirect_path}")
+
     # Create index.html for schema directory listing
     index_html = output_dir / "index.html"
 

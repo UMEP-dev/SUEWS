@@ -15,7 +15,7 @@ from typing import Optional
 import warnings
 
 # Current supported schema version
-CURRENT_SCHEMA_VERSION = "1.0"
+CURRENT_SCHEMA_VERSION = "0.1"
 
 # Schema version history and descriptions
 SCHEMA_VERSIONS: dict[str, str] = {

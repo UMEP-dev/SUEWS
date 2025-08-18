@@ -45,7 +45,7 @@ class SUEWSSimulation:
     """
 
     def __init__(
-        self, config: Union[str, Path, Dict, Any] = None, auto_set_forcing=True
+        self, config: Union[str, Path, dict, Any] = None, auto_set_forcing=True
     ):
         """
         Initialize SUEWS simulation.

@@ -30,7 +30,7 @@ class SchemaMigrator:
         # Map of migration paths: {(from_version, to_version): handler_function}
         self.migration_handlers: Dict[tuple, Callable] = {
             # Example future migrations:
-            # ("0.9", "1.0"): self._migrate_0_9_to_1_0,
+            ("0.9", "0.1"): self._migrate_0_9_to_0_1,
             # ("1.0", "1.1"): self._migrate_1_0_to_1_1,
             # ("1.1", "2.0"): self._migrate_1_1_to_2_0,
         }
@@ -145,10 +145,10 @@ class SchemaMigrator:
 
         path = []
 
-        # Handle special case of pre-1.0 versions
+        # Handle special case of pre-0.1 versions
         if from_version == "0.9":
-            path.append("1.0")
-            from_major, from_minor = 1, 0
+            path.append("0.1")
+            from_major, from_minor = 0, 1
 
         # If major versions differ, need breaking change migration
         if from_major < to_major:
@@ -186,9 +186,9 @@ class SchemaMigrator:
 
     # Example migration handlers (to be implemented as schema evolves)
 
-    def _migrate_0_9_to_1_0(self, config: Dict[str, Any]) -> Dict[str, Any]:
+    def _migrate_0_9_to_0_1(self, config: Dict[str, Any]) -> Dict[str, Any]:
         """
-        Migrate from dual-version system (0.9) to single schema_version (1.0).
+        Migrate from dual-version system (0.9) to single schema_version (0.1).
 
         This handles configurations from the previous implementation that had
         both 'version' and 'config_version' fields.
@@ -198,14 +198,14 @@ class SchemaMigrator:
         config.pop("config_version", None)
 
         # Add new schema_version field
-        config["schema_version"] = "1.0"
+        config["schema_version"] = "0.1"
 
-        logger.info("Migrated from dual-version system to schema version 1.0")
+        logger.info("Migrated from dual-version system to schema version 0.1")
         return config
 
     # Future migration examples:
-    # def _migrate_1_0_to_1_1(self, config: Dict[str, Any]) -> Dict[str, Any]:
-    #     """Migrate from schema 1.0 to 1.1 (example)."""
+    # def _migrate_0_1_to_1_0(self, config: Dict[str, Any]) -> Dict[str, Any]:
+    #     """Migrate from schema 0.1 to 1.0 (example)."""
     #     # Add new optional field with default value
     #     if "model" in config and "new_field" not in config["model"]:
     #         config["model"]["new_field"] = "default_value"

@@ -30,7 +30,7 @@ def increment_schema_version(
     """
     match = re.match(r"(\d+)\.(\d+)", current_version)
     if not match:
-        return "1.0"
+        return "0.1"
 
     major = int(match.group(1))
     minor = int(match.group(2))

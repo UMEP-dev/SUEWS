@@ -5,14 +5,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SUEWS - Surface Urban Energy and Water Balance Scheme</title>
     <meta name="description" content="SUEWS is an urban land surface model for simulating energy and water balance in urban environments">
-    
+
     <style>
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
         }
-        
+
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
             line-height: 1.6;
@@ -24,7 +24,7 @@
             justify-content: center;
             padding: 20px;
         }
-        
+
         .container {
             background: white;
             border-radius: 20px;
@@ -34,17 +34,17 @@
             width: 100%;
             animation: fadeIn 0.6s ease-out;
         }
-        
+
         @keyframes fadeIn {
             from { opacity: 0; transform: translateY(20px); }
             to { opacity: 1; transform: translateY(0); }
         }
-        
+
         .header {
             text-align: center;
             margin-bottom: 50px;
         }
-        
+
         .logo {
             font-size: 4em;
             margin-bottom: 20px;
@@ -55,27 +55,27 @@
             font-weight: bold;
             letter-spacing: -2px;
         }
-        
+
         .tagline {
             font-size: 1.2em;
             color: #666;
             margin-bottom: 10px;
         }
-        
+
         .description {
             color: #888;
             max-width: 600px;
             margin: 0 auto 40px;
             line-height: 1.8;
         }
-        
+
         .nav-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
             gap: 20px;
             margin-top: 40px;
         }
-        
+
         .nav-card {
             background: #f8f9fa;
             border-radius: 12px;
@@ -88,7 +88,7 @@
             position: relative;
             overflow: hidden;
         }
-        
+
         .nav-card::before {
             content: '';
             position: absolute;
@@ -100,36 +100,36 @@
             transform: scaleX(0);
             transition: transform 0.3s ease;
         }
-        
+
         .nav-card:hover {
             transform: translateY(-5px);
             box-shadow: 0 10px 30px rgba(0,0,0,0.1);
             background: white;
         }
-        
+
         .nav-card:hover::before {
             transform: scaleX(1);
         }
-        
+
         .nav-icon {
             font-size: 2.5em;
             margin-bottom: 15px;
             display: block;
         }
-        
+
         .nav-title {
             font-size: 1.3em;
             font-weight: 600;
             margin-bottom: 10px;
             color: #333;
         }
-        
+
         .nav-description {
             font-size: 0.95em;
             color: #666;
             line-height: 1.5;
         }
-        
+
         .footer {
             text-align: center;
             margin-top: 50px;
@@ -138,16 +138,16 @@
             color: #888;
             font-size: 0.9em;
         }
-        
+
         .footer a {
             color: #667eea;
             text-decoration: none;
         }
-        
+
         .footer a:hover {
             text-decoration: underline;
         }
-        
+
         .badges {
             display: flex;
             justify-content: center;
@@ -155,20 +155,20 @@
             margin-bottom: 30px;
             flex-wrap: wrap;
         }
-        
+
         .badge {
             height: 20px;
         }
-        
+
         @media (max-width: 600px) {
             .container {
                 padding: 40px 30px;
             }
-            
+
             .logo {
                 font-size: 3em;
             }
-            
+
             .nav-grid {
                 grid-template-columns: 1fr;
             }
@@ -181,11 +181,11 @@
             <div class="logo">SUEWS</div>
             <div class="tagline">Surface Urban Energy and Water Balance Scheme</div>
             <div class="description">
-                An urban land surface model designed for simulating energy, water, and carbon dioxide fluxes 
-                in urban environments. SUEWS provides critical insights for urban climate research, 
+                An urban land surface model designed for simulating energy, water, and carbon dioxide fluxes
+                in urban environments. SUEWS provides critical insights for urban climate research,
                 city planning, and environmental assessment.
             </div>
-            
+
             <div class="badges">
                 <img class="badge" src="https://img.shields.io/github/v/release/UMEP-dev/SUEWS" alt="Latest Release">
                 <img class="badge" src="https://img.shields.io/pypi/v/supy" alt="PyPI version">
@@ -193,7 +193,7 @@
                 <img class="badge" src="https://img.shields.io/github/stars/UMEP-dev/SUEWS?style=social" alt="GitHub stars">
             </div>
         </div>
-        
+
         <nav class="nav-grid">
             <a href="https://github.com/UMEP-dev/SUEWS" class="nav-card">
                 <span class="nav-icon">📦</span>
@@ -202,7 +202,7 @@
                     Source code, issues, and development
                 </div>
             </a>
-            
+
             <a href="https://suews.readthedocs.io" class="nav-card">
                 <span class="nav-icon">📚</span>
                 <div class="nav-title">Documentation</div>
@@ -210,7 +210,7 @@
                     User guide, tutorials, and API reference
                 </div>
             </a>
-            
+
             <a href="schemas/suews-config/" class="nav-card">
                 <span class="nav-icon">📋</span>
                 <div class="nav-title">Schema Registry</div>
@@ -218,7 +218,7 @@
                     YAML configuration schemas and versions
                 </div>
             </a>
-            
+
             <a href="https://pypi.org/project/supy/" class="nav-card">
                 <span class="nav-icon">🐍</span>
                 <div class="nav-title">Python Package</div>
@@ -226,15 +226,15 @@
                     Install via pip: <code>pip install supy</code>
                 </div>
             </a>
-            
-            <a href="https://umep-dev.github.io/UMEP-Docs/" class="nav-card">
+
+            <a href="https://umep-docs.readthedocs.io" class="nav-card">
                 <span class="nav-icon">🌆</span>
                 <div class="nav-title">UMEP</div>
                 <div class="nav-description">
                     Urban Multi-scale Environmental Predictor
                 </div>
             </a>
-            
+
             <a href="https://github.com/UMEP-dev/SUEWS/discussions" class="nav-card">
                 <span class="nav-icon">💬</span>
                 <div class="nav-title">Community</div>
@@ -243,18 +243,18 @@
                 </div>
             </a>
         </nav>
-        
+
         <div class="footer">
             <p>
-                SUEWS is developed and maintained by the 
+                SUEWS is developed and maintained by the
                 <a href="https://github.com/UMEP-dev">UMEP Development Team</a>
             </p>
             <p style="margin-top: 10px;">
-                Contributors from University of Reading, University of Gothenburg, 
+                Contributors from University of Reading, University of Gothenburg,
                 and institutions worldwide
             </p>
             <p style="margin-top: 20px; font-size: 0.85em; color: #aaa;">
-                © 2025 SUEWS Development Team · 
+                © 2025 SUEWS Development Team ·
                 <a href="https://github.com/UMEP-dev/SUEWS/blob/master/LICENSE">GPL-3.0 License</a>
             </p>
         </div>

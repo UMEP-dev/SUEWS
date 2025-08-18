@@ -448,4 +448,4 @@ jobs:
           keep_files: true    # CRITICAL: Preserve existing files
           user_name: 'github-actions[bot]'
           user_email: 'github-actions[bot]@users.noreply.github.com'
-          commit_message: 'Deploy SUEWS schema ${{ needs.export_schema.outputs.schema_version || "update" }}'
+          commit_message: 'Deploy SUEWS schema update'

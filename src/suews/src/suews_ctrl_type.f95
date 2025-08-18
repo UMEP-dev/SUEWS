@@ -477,6 +477,8 @@ MODULE SUEWS_DEF_DTS
       REAL(KIND(1D0)) :: MaximumHotWaterHeatingPower = 0.0D0 ! Maximum power demand of water heating system [W]
       REAL(KIND(1D0)) :: HeatingSetpointTemperature = 0.0D0 ! Heating setpoint temperature [degC]
       REAL(KIND(1D0)) :: CoolingSetpointTemperature = 0.0D0 ! Cooling setpoint temperature [degC]
+      ! flag for iteration safety - YES - as we this should be updated every iteration
+      LOGICAL :: iter_safe = .TRUE.
    END TYPE BUILDING_ARCHETYPE_PRM
 
    TYPE, PUBLIC :: STEBBS_PRM
@@ -535,7 +537,8 @@ MODULE SUEWS_DEF_DTS
       REAL(KIND(1D0)) :: DHWVesselWallEmissivity = 0.0D0 ! Effective external wall emissivity of hot water being used within building [-]
       REAL(KIND(1D0)) :: HotWaterHeatingEfficiency = 0.0D0 ! Efficiency of hot water system [-]
       REAL(KIND(1D0)) :: MinimumVolumeOfDHWinUse = 0.0D0 ! Minimum volume of hot water in use [m3]
-
+      ! flag for iteration safety - YES - as we this should be updated every iteration
+      LOGICAL :: iter_safe = .TRUE.
    END TYPE STEBBS_PRM
 
    TYPE, PUBLIC :: SUEWS_SITE
@@ -1121,8 +1124,10 @@ MODULE SUEWS_DEF_DTS
       REAL(KIND(1D0)), DIMENSION(3) :: occupantData = 0.0D0 
       REAL(KIND(1D0)), DIMENSION(3) :: HTsAverage, HWTsAverage = 0.0D0 
       REAL(KIND(1D0)), DIMENSION(3) :: HWPowerAverage = 0.0D0 
-      REAL(KIND(1D0)), DIMENSION(39) :: EnergyExchanges = 0.0D0 
-
+      REAL(KIND(1D0)), DIMENSION(40) :: EnergyExchanges = 0.0D0 
+      ! flag for iteration safety - YES
+      ! all variables are intensive and thus can be used for iteration safety
+      LOGICAL :: iter_safe = .FALSE.
    END TYPE
 
    TYPE, PUBLIC :: STEBBS_STATE
@@ -1140,7 +1145,10 @@ MODULE SUEWS_DEF_DTS
       REAL(KIND(1D0)) :: Lsouth = 0.0D0 ! incoming longwave radiation from south [W m-2]
       REAL(KIND(1D0)) :: Lnorth = 0.0D0 ! incoming longwave radiation from north [W m-2]
       REAL(KIND(1D0)) :: Least = 0.0D0 ! incoming longwave radiation from east [W m-2]
-
+      REAL(KIND(1D0)), DIMENSION(30) :: zarray = -999 !RSL layer heights
+      REAL(KIND(1D0)), DIMENSION(30) :: dataoutLineURSL = -999 ! wind speed array from RSL [m s-1]
+      REAL(KIND(1D0)), DIMENSION(30) :: dataoutLineTRSL = -999 ! Temperature array from RSL[C]
+      REAL(KIND(1D0)), DIMENSION(30) :: dataoutLineqRSL = -999 ! Specific humidity array from RSL[g kg-1]
       ! Initial conditions that are updated during runtime
       REAL(KIND(1D0)) :: IndoorAirStartTemperature = 0.0D0 ! Initial indoor air temperature [degC]
       REAL(KIND(1D0)) :: IndoorMassStartTemperature = 0.0D0 ! Initial indoor mass temperature [degC]
@@ -1284,10 +1292,7 @@ MODULE SUEWS_DEF_DTS
       REAL(KIND(1D0)), DIMENSION(ncolumnsDataOutDailyState) :: dataOutLineDailyState = -999
       REAL(KIND(1D0)), DIMENSION(ncolumnsDataOutSTEBBS) :: dataOutLineSTEBBS = -999
       REAL(KIND(1D0)), DIMENSION(ncolumnsDataOutNHood) :: dataOutLineNHood = -999
-      REAL(KIND(1D0)), DIMENSION(30) :: zarray = -999 !RSL layer heights
-      REAL(KIND(1D0)), DIMENSION(30) :: dataoutLineURSL = -999 ! wind speed array [m s-1]
-      REAL(KIND(1D0)), DIMENSION(30) :: dataoutLineTRSL = -999 ! Temperature array [C]
-      REAL(KIND(1D0)), DIMENSION(30) :: dataoutLineqRSL = -999 ! Specific humidity array [g kg-1]
+
    CONTAINS
       ! Procedures
       PROCEDURE :: init => output_line_init
@@ -1382,12 +1387,6 @@ CONTAINS
       self%dataOutLineESTM = -999.0
       self%dataOutLineEHC = -999.0
       self%dataOutLineRSL = -999.0
-      ! Assign dataOutLineURSL, TRSL, qRSL
-      self%zarray = -999.0
-      self%dataOutLineURSL = -999.0
-      self%dataOutLineTRSL = -999.0
-      self%dataOutLineqRSL = -999.0
-
       self%dataOutLineBEERS = -999.0
       self%dataOutLineDebug = -999.0
       self%dataOutLineSPARTACUS = -999.0

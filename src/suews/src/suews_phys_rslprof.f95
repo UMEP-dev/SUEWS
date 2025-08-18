@@ -764,7 +764,6 @@ CONTAINS
    SUBROUTINE RSLProfile_DTS( &
       timer, config, forcing, siteInfo, & ! input
       modState, & ! input/output:
-      zarray, dataoutLineURSL, dataoutLineTRSL, dataoutLineqRSL, &
       dataoutLineRSL) ! output
       !-----------------------------------------------------
       ! calculates windprofiles using MOST with a RSL-correction
@@ -917,7 +916,8 @@ CONTAINS
       ASSOCIATE ( &
          heatState => modState%heatState, &
          atmState => modState%atmState, &
-         roughnessState => modState%roughnessState &
+         roughnessState => modState%roughnessState, &
+         stebbsState => modState%stebbsState &
          )
 
          ASSOCIATE ( &
@@ -982,7 +982,11 @@ CONTAINS
             storageheatmethod => config%StorageHeatMethod, &
             DiagMethod => config%DiagMethod, &
             StabilityMethod => config%StabilityMethod, &
-            Diagnose => config%Diagnose &
+            Diagnose => config%Diagnose, &
+            zarray => stebbsState%zarray, &
+            dataoutLineURSL => stebbsState%dataoutLineURSL, &
+            dataoutLineTRSL => stebbsState%dataoutLineTRSL, &
+            dataoutLineqRSL => stebbsState%dataoutLineqRSL &
             )
 
             ! DiagMethod = config%DiagMethod

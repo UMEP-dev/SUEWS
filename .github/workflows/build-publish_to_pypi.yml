@@ -159,10 +159,11 @@ jobs:
     name: Export JSON Schema
     runs-on: ubuntu-latest
     needs: [determine_matrix, build_wheels]
-    # Run schema export whenever builds succeed (for all event types)
+    # Run schema export when any build succeeds (cp313-manylinux will finish first in draft PRs)
+    # The download step will wait for the specific cp313-manylinux artifact
     if: |
       always() &&
-      needs.build_wheels.result == 'success'
+      contains(needs.*.result, 'success')
     
     steps:
       - name: Checkout repository
@@ -180,6 +181,7 @@ jobs:
         with:
           name: cp313-manylinux-x86_64
           path: dist
+        continue-on-error: false  # This will wait/fail if artifact doesn't exist yet
       
       - name: Install SUEWS from wheel
         run: |

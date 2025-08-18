@@ -52,7 +52,7 @@ def is_schema_compatible(
     # Same version is always compatible
     if config_version == current_version:
         return True
-    
+
     # Check compatibility matrix
     if current_version not in COMPATIBLE_VERSIONS:
         return False
@@ -89,11 +89,11 @@ def get_schema_compatibility_message(config_version: Optional[str]) -> Optional[
         # e.g., "0.9" -> 0.9, "0.1" -> 0.1, "2.0" -> 2.0
         config_parts = config_version.split(".")
         current_parts = CURRENT_SCHEMA_VERSION.split(".")
-        
+
         config_value = float(config_parts[0])
         if len(config_parts) > 1:
             config_value += float(config_parts[1]) / 100  # minor as decimal
-            
+
         current_value = float(current_parts[0])
         if len(current_parts) > 1:
             current_value += float(current_parts[1]) / 100  # minor as decimal

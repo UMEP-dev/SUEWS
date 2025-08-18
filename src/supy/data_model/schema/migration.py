@@ -30,7 +30,7 @@ class SchemaMigrator:
         # Map of migration paths: {(from_version, to_version): handler_function}
         self.migration_handlers: Dict[tuple, Callable] = {
             # Example future migrations:
-            ("0.9", "0.1"): self._migrate_0_9_to_0_1,
+            ("0.0", "0.1"): self._migrate_0_0_to_0_1,
             # ("1.0", "1.1"): self._migrate_1_0_to_1_1,
             # ("1.1", "2.0"): self._migrate_1_1_to_2_0,
         }
@@ -52,7 +52,7 @@ class SchemaMigrator:
         # Check for old dual-version fields (from previous implementation)
         if "version" in config_dict or "config_version" in config_dict:
             # This is from the old dual-version implementation
-            return "0.9"  # Pre-schema version
+            return "0.0"  # Pre-schema version
 
         # Heuristics for detecting version from structure
         # Add more heuristics as schema evolves
@@ -186,9 +186,9 @@ class SchemaMigrator:
 
     # Example migration handlers (to be implemented as schema evolves)
 
-    def _migrate_0_9_to_0_1(self, config: Dict[str, Any]) -> Dict[str, Any]:
+    def _migrate_0_0_to_0_1(self, config: Dict[str, Any]) -> Dict[str, Any]:
         """
-        Migrate from dual-version system (0.9) to single schema_version (0.1).
+        Migrate from dual-version system (0.0) to single schema_version (0.1).
 
         This handles configurations from the previous implementation that had
         both 'version' and 'config_version' fields.

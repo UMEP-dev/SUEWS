@@ -102,8 +102,8 @@ class SUEWSConfig(BaseModel):
         json_schema_extra={"display_name": "Configuration Name"},
     )
     schema_version: Optional[str] = Field(
-        default="1.0",
-        description="Configuration schema version (e.g., '1.0', '1.1', '2.0'). Only changes when configuration structure changes.",
+        default="0.1",
+        description="Configuration schema version (e.g., '0.1', '1.0', '1.1'). Only changes when configuration structure changes.",
         json_schema_extra={"display_name": "Schema Version"},
     )
     description: str = Field(

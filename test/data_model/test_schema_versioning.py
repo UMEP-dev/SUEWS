@@ -94,12 +94,12 @@ class TestSchemaVersioning:
         # No message for None (assumes current)
         assert get_schema_compatibility_message(None) is None
 
-        # Message for older version
+        # Message for newer version (0.9 > 0.1)
         msg = get_schema_compatibility_message("0.9")
         assert msg is not None
-        assert "older schema" in msg
+        assert "newer schema" in msg
 
-        # Message for newer version
+        # Message for much newer version
         msg = get_schema_compatibility_message("2.0")
         assert msg is not None
         assert "newer schema" in msg

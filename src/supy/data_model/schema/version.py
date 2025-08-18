@@ -49,6 +49,11 @@ def is_schema_compatible(
     -------
         True if versions are compatible, False otherwise
     """
+    # Same version is always compatible
+    if config_version == current_version:
+        return True
+    
+    # Check compatibility matrix
     if current_version not in COMPATIBLE_VERSIONS:
         return False
 
@@ -80,42 +85,34 @@ def get_schema_compatibility_message(config_version: Optional[str]) -> Optional[
 
     # Parse versions for comparison
     try:
-        config_major = float(config_version.split(".")[0])
-        current_major = float(CURRENT_SCHEMA_VERSION.split(".")[0])
+        # Parse as major.minor floats for proper comparison
+        # e.g., "0.9" -> 0.9, "0.1" -> 0.1, "2.0" -> 2.0
+        config_parts = config_version.split(".")
+        current_parts = CURRENT_SCHEMA_VERSION.split(".")
+        
+        config_value = float(config_parts[0])
+        if len(config_parts) > 1:
+            config_value += float(config_parts[1]) / 100  # minor as decimal
+            
+        current_value = float(current_parts[0])
+        if len(current_parts) > 1:
+            current_value += float(current_parts[1]) / 100  # minor as decimal
 
-        if config_major < current_major:
+        if config_value < current_value:
             return (
                 f"Configuration uses older schema {config_version}, "
                 f"current is {CURRENT_SCHEMA_VERSION}. "
                 f"Consider updating your configuration."
             )
-        elif config_major > current_major:
+        elif config_value > current_value:
             return (
                 f"Configuration uses newer schema {config_version}, "
                 f"this version supports {CURRENT_SCHEMA_VERSION}. "
                 f"Please update SUEWS or use an older configuration."
             )
         else:
-            # Same major, different minor
-            config_minor = (
-                float(config_version.split(".")[1]) if "." in config_version else 0
-            )
-            current_minor = (
-                float(CURRENT_SCHEMA_VERSION.split(".")[1])
-                if "." in CURRENT_SCHEMA_VERSION
-                else 0
-            )
-
-            if config_minor < current_minor:
-                return (
-                    f"Configuration uses schema {config_version}, "
-                    f"current is {CURRENT_SCHEMA_VERSION} (backward compatible)"
-                )
-            else:
-                return (
-                    f"Configuration uses newer schema {config_version}, "
-                    f"this version supports {CURRENT_SCHEMA_VERSION}"
-                )
+            # Versions are equal - shouldn't reach here due to earlier check
+            return None
     except (ValueError, IndexError):
         # Can't parse versions - generic message
         return (

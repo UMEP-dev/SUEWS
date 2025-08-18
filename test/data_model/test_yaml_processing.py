@@ -3407,8 +3407,10 @@ class TestPhaseBScienceCheck(TestProcessorFixtures):
             mock_ext_data.__truediv__.return_value = mock_cru_resource
             mock_trv_module.__truediv__.return_value = mock_ext_data
 
-            with pytest.raises(FileNotFoundError, match="CRU data file not found"):
-                science_check.get_mean_monthly_air_temperature(51.5, -0.12, 7)
+            # When CRU data is not available, the function should return None
+            # (for standalone mode compatibility) and log a warning
+            result = science_check.get_mean_monthly_air_temperature(51.5, -0.12, 7)
+            assert result is None  # Should return None when CRU data unavailable
 
     def test_cru_parameter_validation(self):
         """Test CRU function parameter validation."""

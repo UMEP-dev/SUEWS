@@ -1259,7 +1259,8 @@ MODULE ctrl_output
       varAttr('QH_metabolism_FA', 'W', f104, 'Sensible heat', aA, 'STEBBS', 0), &
       varAttr('QE_metabolism_FA', 'W', f104, 'Latent heat', aA, 'STEBBS', 0), &
       varAttr('QS_total_FA', 'W', f104, 'Storage heat flux', aA, 'STEBBS', 0), &
-      varAttr('QS_fabric_FA', 'W', f104, 'Storage heat flux in fabric', aA, 'STEBBS', 0), &
+      varAttr('QS_wall_FA', 'W', f104, 'Storage heat flux in wall', aA, 'STEBBS', 0), &
+      varAttr('QS_roof_FA', 'W', f104, 'Storage heat flux in roof', aA, 'STEBBS', 0), &
       varAttr('QS_air_FA', 'W', f104, 'Storage heat flux in air', aA, 'STEBBS', 0), &
       varAttr('Qsw_abs_wall_SA', 'W', f104, 'Shortwave absorbed by wall per surface area', aA, 'STEBBS', 0), &
       varAttr('Qsw_abs_roof_SA', 'W', f104, 'Shortwave absorbed by roof per surface area', aA, 'STEBBS', 0), &

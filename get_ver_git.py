@@ -43,7 +43,7 @@ def get_version_from_git():
             # This ensures TestPyPI versions are predictable
             if has_dev_suffix:
                 # Extract base version without .dev suffix
-                base_without_dev = base_version.rsplit('.dev', 1)[0]
+                base_without_dev = base_version.rsplit(".dev", 1)[0]
                 # Always append .devN where N is the commit count (0 for the tag itself)
                 version = f"{base_without_dev}.dev{distance}"
             elif distance == 0:

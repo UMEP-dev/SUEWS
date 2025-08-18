@@ -227,6 +227,59 @@ When writing tests for SUEWS:
 5. Prioritise clarity over cleverness
 6. Include physics references where applicable
 7. Ensure tests are deterministic and reproducible
+8. Treat supy as an external package - use proper package data access methods
+
+## 9. Package Data Access Standards
+
+### Accessing supy Package Data in Tests
+
+Tests should treat supy as an external package. When accessing package data (e.g., sample configurations, test data), use the standard Python approach:
+
+#### Recommended Approach: `importlib.resources` (Python 3.9+)
+```python
+from importlib.resources import files, as_file
+import supy as sp
+import yaml
+
+# Method 1: Direct reading
+sample_config = files("supy") / "sample_data" / "sample_config.yml"
+with sample_config.open() as f:
+    config_data = yaml.safe_load(f)
+
+# Method 2: Extract to temporary path for functions expecting file paths
+with as_file(files("supy") / "sample_data" / "sample_config.yml") as config_path:
+    df_state_init = sp.init_supy(config_path)
+```
+
+#### Why This Approach?
+- **Works in all environments**: zipfiles, eggs, wheels, frozen applications
+- **Package-agnostic**: Doesn't assume filesystem layout
+- **Future-proof**: Standard Python way to access package data
+- **Type-safe**: Modern typing support
+- **Portable**: No assumptions about installation method
+
+#### Acceptable Alternative (with limitations)
+```python
+from pathlib import Path
+import supy as sp
+
+# This works but is less portable
+config_path = Path(sp.__file__).parent / "sample_data" / "sample_config.yml"
+```
+
+#### Use supy's API When Available
+```python
+# Preferred: Use supy's built-in functions
+df_state_init, df_forcing = sp.load_sample_data()
+
+# Instead of manually accessing files
+```
+
+### Best Practices
+1. **Use supy's API first**: If supy provides a function, use it
+2. **Use importlib.resources for package data**: When you need direct file access
+3. **Never use relative paths from repo root**: Don't assume repo structure
+4. **Don't traverse to `src/`**: Treat supy as installed package
 
 ## For Human Developers
 
@@ -237,3 +290,4 @@ When writing tests for SUEWS:
 5. Use meaningful test names that describe the scenario
 6. Ensure tests work across all supported platforms
 7. Review coverage reports to identify gaps
+8. Use `importlib.resources` for accessing package data

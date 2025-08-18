@@ -16,39 +16,38 @@
 
 import logging
 import os
+from pathlib import Path
 import sys
 import time
-import pandas
-from pathlib import Path
-from typing import Tuple
+from typing import Optional
 
 import numpy as np
+import pandas
 import pandas as pd
 
 from ._check import check_forcing, check_state
 from ._env import logger_supy, trv_supy_module
 from ._load import (
-    load_InitialCond_grid_df,
-    load_SUEWS_Forcing_met_df_raw,
-    load_SUEWS_dict_ModConfig,
     load_df_state,
-    resample_forcing_met,
+    load_InitialCond_grid_df,
+    load_SUEWS_dict_ModConfig,
+    load_SUEWS_Forcing_met_df_raw,
     load_SUEWS_Forcing_met_df_yaml,
+    resample_forcing_met,
 )
 from ._run import run_supy_par, run_supy_ser
+from ._post import resample_output
 from ._save import (
     get_save_info,
     save_df_output,
+    save_df_output_parquet,
     save_df_state,
     save_initcond_nml,
-    save_df_output_parquet,
 )
-from ._post import resample_output
 from ._version import __version__
 
 # from .util._config import init_config_from_yaml
 from .data_model import init_config_from_yaml
-
 
 # set up logging module
 logger_supy.setLevel(logging.INFO)
@@ -104,7 +103,6 @@ def init_supy(
     >>> df_state_init = supy.init_supy(path_init)
 
     """
-
     try:
         path_init_x = Path(path_init).expanduser().resolve()
     except FileNotFoundError:
@@ -133,7 +131,7 @@ def init_supy(
                     f"{path_init_x} is NOT a valid file to initialise SuPy!"
                 )
                 raise RuntimeError(
-                    "{path_init_x} is NOT a valid file to initialise SuPy!"
+                    f"{path_init_x} is NOT a valid file to initialise SuPy!"
                 )
         if check_input:
             try:
@@ -144,7 +142,7 @@ def init_supy(
                     )
             except:
                 raise RuntimeError(
-                    "{path_init_x} is NOT a valid file to initialise SuPy!"
+                    f"{path_init_x} is NOT a valid file to initialise SuPy!"
                 )
 
         return df_state_init
@@ -169,7 +167,6 @@ def load_forcing_grid(
 
     Parameters
     ----------
-
     path_runcontrol : str
         Path to SUEWS :ref:`RunControl.nml <suews:RunControl.nml>`
     grid : int
@@ -201,7 +198,6 @@ def load_forcing_grid(
 
 
     """
-
     try:
         path_init = Path(path_init).expanduser().resolve()
     except FileNotFoundError:
@@ -317,7 +313,7 @@ def load_forcing_grid(
 
 # load sample data for quickly starting a demo run
 # TODO: to deprecate this by renaming for case consistency: load_SampleData-->load_sample_data
-def load_SampleData() -> Tuple[pandas.DataFrame, pandas.DataFrame]:
+def load_SampleData() -> tuple[pandas.DataFrame, pandas.DataFrame]:
     logger_supy.warning(
         "This function name will be deprecated. Please use `load_sample_data()` instead.",
         stacklevel=2,
@@ -325,7 +321,7 @@ def load_SampleData() -> Tuple[pandas.DataFrame, pandas.DataFrame]:
     return load_sample_data()
 
 
-def load_sample_data() -> Tuple[pandas.DataFrame, pandas.DataFrame]:
+def load_sample_data() -> tuple[pandas.DataFrame, pandas.DataFrame]:
     """Load sample data for quickly starting a demo run.
 
     Returns
@@ -336,12 +332,10 @@ def load_sample_data() -> Tuple[pandas.DataFrame, pandas.DataFrame]:
 
     Examples
     --------
-
     >>> df_state_init, df_forcing = supy.load_sample_data()
 
     """
-
-    trv_sample_data = trv_supy_module / "sample_run"
+    trv_sample_data = trv_supy_module / "sample_data"
     path_config_default = trv_sample_data / "sample_config.yml"
     # path_config_default = trv_sample_data / "RunControl.nml" # TODO: to be deprecated - but keep for now to pass tests
     df_state_init = init_supy(path_config_default, force_reload=False)
@@ -370,7 +364,6 @@ def load_config_from_df(df_state: pd.DataFrame):
     >>> config = supy.load_config_from_df(df_state_init)
 
     """
-
     from .util._config import SUEWSConfig
 
     config = SUEWSConfig.from_df_state(df_state)
@@ -379,10 +372,7 @@ def load_config_from_df(df_state: pd.DataFrame):
 
 
 def init_config(df_state: pd.DataFrame = None):
-    """
-    Initialise SUEWS configuration object either from existing df_state dataframe or as the default configuration.
-    """
-
+    """Initialise SUEWS configuration object either from existing df_state dataframe or as the default configuration."""
     if df_state is None:
         from .util._config import SUEWSConfig
 
@@ -408,7 +398,7 @@ def run_supy(
     check_input=False,
     serial_mode=False,
     debug_mode=False,
-) -> Tuple[pandas.DataFrame, pandas.DataFrame]:
+) -> tuple[pandas.DataFrame, pandas.DataFrame]:
     """Perform supy simulation.
 
     Parameters
@@ -449,7 +439,6 @@ def run_supy(
 
     Examples
     --------
-
     >>> df_output, df_state_final = supy.run_supy(df_forcing, df_state_init)
 
 
@@ -459,19 +448,19 @@ def run_supy(
         # forcing:
         list_issues_forcing = check_forcing(df_forcing)
         if isinstance(list_issues_forcing, list):
-            logger_supy.critical(f"`df_forcing` is NOT valid to drive SuPy!")
+            logger_supy.critical("`df_forcing` is NOT valid to drive SuPy!")
             raise RuntimeError(
                 "SuPy stopped entering simulation due to invalid forcing!"
             )
         # initial model states:
         res_check_state = check_state(df_state_init)
         if isinstance(res_check_state, list):
-            logger_supy.critical(f"`df_state_init` is NOT valid to initialise SuPy!")
+            logger_supy.critical("`df_state_init` is NOT valid to initialise SuPy!")
             raise RuntimeError(
                 "SuPy stopped entering simulation due to invalid initial states!"
             )
         else:
-            logger_supy.info(f"SuPy simulation is starting ...")
+            logger_supy.info("SuPy simulation is starting ...")
             if isinstance(res_check_state, pd.DataFrame):
                 df_state_init = res_check_state
 
@@ -491,9 +480,9 @@ def run_supy(
     # df_init = df_state_init.copy()
 
     # print some diagnostic info
-    logger_supy.info(f"====================")
+    logger_supy.info("====================")
     logger_supy.info(f"SUEWS version: {__version__}")
-    logger_supy.info(f"Simulation period:")
+    logger_supy.info("Simulation period:")
     logger_supy.info(f"  Start: {df_forcing.index[0]}")
     logger_supy.info(f"  End: {df_forcing.index[-1]}")
     logger_supy.info("")
@@ -502,12 +491,12 @@ def run_supy(
     logger_supy.info(f"No. of grids: {n_grid}")
 
     if n_grid > 1 and os.name != "nt" and (not serial_mode):
-        logger_supy.info(f"SUEWS is running in parallel mode")
+        logger_supy.info("SUEWS is running in parallel mode")
         res_supy = run_supy_par(
             df_forcing, df_state_init, save_state, chunk_day, debug_mode
         )
     else:
-        logger_supy.info(f"SUEWS is running in serial mode")
+        logger_supy.info("SUEWS is running in serial mode")
         res_supy = run_supy_ser(
             df_forcing, df_state_init, save_state, chunk_day, debug_mode
         )
@@ -519,7 +508,7 @@ def run_supy(
     # show simulation time
     end = time.time()
     logger_supy.info(f"Execution time: {(end - start):.1f} s")
-    logger_supy.info(f"====================\n")
+    logger_supy.info("====================\n")
 
     # unpack results
     df_output, df_state_final, res_debug, res_state = res_supy
@@ -539,7 +528,7 @@ def save_supy(
     freq_s: int = 3600,
     site: str = "",
     path_dir_save: str = Path("."),
-    path_runcontrol: str = None,
+    path_runcontrol: Optional[str] = None,
     save_tstep=False,
     logging_level=50,
     output_level=1,
@@ -547,7 +536,7 @@ def save_supy(
     output_config=None,
     output_format="txt",
 ) -> list:
-    """Save SuPy run results to files
+    """Save SuPy run results to files.
 
     Parameters
     ----------
@@ -621,7 +610,7 @@ def save_supy(
     output_groups = None  # default will be handled in save_df_output
 
     if output_config is not None:
-        from .data_model.model import OutputConfig, OutputFormat
+        from .data_model.model import OutputConfig
 
         if isinstance(output_config, OutputConfig):
             # Override frequency if specified in config
@@ -690,7 +679,7 @@ def save_supy(
         if path_runcontrol is not None:
             # save as nml as SUEWS binary
             list_path_nml = save_initcond_nml(df_state_final, site, path_dir_save)
-            list_path_save = list_path_save + list_path_nml
+            list_path_save += list_path_nml
         else:
             # save as supy csv for later use
             path_state_save = save_df_state(df_state_final, site, path_dir_save)
@@ -709,7 +698,7 @@ def run_supy_sample(
     check_input=False,
     serial_mode=False,
     debug_mode=False,
-) -> Tuple[pandas.DataFrame, pandas.DataFrame, pandas.DataFrame]:
+) -> tuple[pandas.DataFrame, pandas.DataFrame, pandas.DataFrame]:
     """Quickly run SuPy with sample data and return output dataframes.
 
     This function loads sample data and runs SuPy simulation in one step,

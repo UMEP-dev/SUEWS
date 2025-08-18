@@ -16,12 +16,6 @@ This directory contains all Claude Code-specific documentation, plans, and confi
 │   ├── environment-types.md
 │   ├── uv-adoption.md
 │   └── README.md
-├── plans/               # Feature development plans
-│   ├── doing/          # Currently active
-│   ├── todo/           # Planned features
-│   ├── done/           # Completed features
-│   ├── claude-dev-notes.md
-│   └── README.md
 ├── templates/           # Reusable templates
 │   ├── feature-plan.md
 │   ├── commit-message.md
@@ -37,21 +31,16 @@ This directory contains all Claude Code-specific documentation, plans, and confi
 ### howto/
 **Purpose**: Step-by-step guides for common tasks
 - Setting up worktrees with different tools
-- Managing Python environments
+- Managing Python environments (uv, venv, mamba)
 - Running parallel Claude Code agents
+- **Quick start with uv**: `make setup && source .venv/bin/activate && make dev`
+- **Quick start with mamba**: `mamba activate suews-dev && make dev`
 
 ### reference/
 **Purpose**: Technical documentation and analysis
 - Build system architecture and isolation
 - Environment management comparison
 - Tool adoption strategies
-
-### plans/
-**Purpose**: Feature-specific development plans
-- `doing/` - Features currently being developed
-- `todo/` - Features planned but not started
-- `done/` - Completed features for reference
-- Plans track progress, decisions, and implementation details
 
 ### templates/
 **Purpose**: Reusable templates for consistency
@@ -68,13 +57,13 @@ This directory contains all Claude Code-specific documentation, plans, and confi
 
 **"How do I...?"** → Check `howto/`
 **"Why does X work this way?"** → Check `reference/`
-**"What's the status of feature Y?"** → Check `plans/`
+**"What's the status of feature Y?"** → Check GitHub issues and PRs
 **"I need to create a new Z"** → Check `templates/`
 
 ## For Claude Code Sessions
 
 1. Check current branch: `git branch --show-current`
-2. Find your plan: `ls .claude/plans/doing/`
+2. Check related GitHub issue or PR for context
 3. Read setup guide: `cat .claude/howto/setup-worktree.md`
 
 

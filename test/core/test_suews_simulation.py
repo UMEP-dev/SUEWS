@@ -25,7 +25,7 @@ class TestInit:
 
     def test_yaml_init(self):
         """Test initialization from YAML."""
-        yaml_path = files("supy").joinpath("sample_run/sample_config.yml")
+        yaml_path = files("supy").joinpath("sample_data/sample_config.yml")
         sim = SUEWSSimulation(str(yaml_path), auto_set_forcing=False)
         assert sim.config is not None
         assert sim._df_state_init is not None
@@ -41,7 +41,7 @@ class TestConfig:
         assert sim.config is None
 
         # Update with YAML config
-        yaml_path = files("supy").joinpath("sample_run/sample_config.yml")
+        yaml_path = files("supy").joinpath("sample_data/sample_config.yml")
         sim.update_config(str(yaml_path))
 
         assert sim.config is not None
@@ -147,7 +147,7 @@ class TestIntegration:
 
     def test_yaml_workflow(self, tmp_path):
         """Test YAML config → run → save workflow."""
-        yaml_path = files("supy").joinpath("sample_run/sample_config.yml")
+        yaml_path = files("supy").joinpath("sample_data/sample_config.yml")
 
         # Load from YAML
         sim = SUEWSSimulation(str(yaml_path), auto_set_forcing=False)

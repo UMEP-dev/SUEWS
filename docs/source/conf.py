@@ -46,6 +46,42 @@ from pybtex.style.template import (
 
 import supy
 
+# -- Git version information --------------------------------------------------------
+
+# Import get_ver_git module
+sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+try:
+    from get_ver_git import get_version_from_git, get_commit_info
+
+    git_version_string = get_version_from_git()
+    is_dev_version = ".dev" in git_version_string
+    git_commit_short, git_commit_full = get_commit_info()
+
+    # Debug output for ReadTheDocs
+    print(f"DEBUG: git_version_string = {git_version_string}")
+    print(f"DEBUG: is_dev_version = {is_dev_version}")
+
+except ImportError as e:
+    # Fallback if functions not available
+    print(f"WARNING: Failed to import get_ver_git: {e}")
+    git_version_string = "unknown"
+    is_dev_version = False
+    git_commit_short = "unknown"
+    git_commit_full = "unknown"
+except Exception as e:
+    # Catch any other errors
+    print(f"ERROR: Failed to get version info: {e}")
+    git_version_string = "unknown"
+    is_dev_version = False
+    git_commit_short = "unknown"
+    git_commit_full = "unknown"
+
+# Use short version for display
+git_commit = git_commit_short
+
+print(f"Building docs for version: {git_version_string} (commit: {git_commit})")
+print(f"Development version: {is_dev_version}")
+
 # -- processing code --------------------------------------------------------
 
 
@@ -58,6 +94,19 @@ sys.path.insert(0, os.path.abspath("_ext"))
 print(r"this build is made by:", "\n", sys.version)
 # determine if in RTD environment
 read_the_docs_build = os.environ.get("READTHEDOCS", None) == "True"
+rtd_version = os.environ.get("READTHEDOCS_VERSION", "unknown")
+rtd_version_type = os.environ.get("READTHEDOCS_VERSION_TYPE", "unknown")
+
+if read_the_docs_build:
+    print(f"DEBUG: RTD Version = {rtd_version}")
+    print(f"DEBUG: RTD Version Type = {rtd_version_type}")
+    print(f"DEBUG: git_version_string = {git_version_string}")
+    print(f"DEBUG: is_dev_version = {is_dev_version}")
+
+    # Only show dev banner if version actually indicates development
+    # The version detection should work correctly on RTD
+    # We rely on the git version string to determine if this is a dev build
+
 if read_the_docs_build:
     # update `today`
     dt_today = datetime.today()
@@ -175,8 +224,8 @@ html_last_updated_fmt = today_fmt
 read_the_docs_build = os.environ.get("READTHEDOCS", None) == "True"
 
 if read_the_docs_build:
-    # run doxygen
-    subprocess.call("doxygen", shell=True)
+    # Doxygen disabled to avoid Fortran documentation generation logs
+    # subprocess.call("doxygen", shell=True)
 
     # generate summary tables using info in `Input_Options.rst`
     path_csv = path_source / "inputs/tables/SUEWS_SiteInfo/csv-table"
@@ -185,7 +234,7 @@ if read_the_docs_build:
     # update `today`
     dt_today = datetime.today()
 else:
-    dt_today = datetime(2021, 11, 11)
+    dt_today = datetime.today()  # Use current date for local builds too
     # subprocess.call("doxygen", shell=True)
     pass
 
@@ -201,6 +250,22 @@ author = "SUEWS dev team led by Prof Sue Grimmond"
 # If your documentation needs a minimal Sphinx version, state it here.
 #
 # needs_sphinx = '1.0'
+
+# Python 3.13 compatibility: imghdr module was removed in Python 3.13
+# This affects Sphinx < 6.0 which tries to import imghdr for image handling
+# Both local dev (uv with Python 3.13) and ReadTheDocs (conda with Python 3.13) need this
+import sys
+
+if sys.version_info >= (3, 13):
+    # Create a more complete dummy imghdr module for Python 3.13+
+    import types
+
+    imghdr_module = types.ModuleType("imghdr")
+    # Add the 'tests' attribute that Sphinx expects
+    imghdr_module.tests = []
+    # Add what_file function that returns None
+    imghdr_module.what = lambda file, h=None: None
+    sys.modules["imghdr"] = imghdr_module
 
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
@@ -224,7 +289,7 @@ extensions = [
     "recommonmark",
     "nbsphinx",
     "sphinx.ext.mathjax",
-    # "breathe",
+    # "breathe",  # Disabled along with Doxygen to avoid Fortran documentation logs
     "sphinx_panels",
     "sphinx_last_updated_by_git",
     "sphinx_click.ext",
@@ -236,22 +301,24 @@ extensions = [
 
 # email_automode = True
 
-breathe_projects = {"SUEWS": "./doxygenoutput/xml"}
-breathe_default_project = "SUEWS"
+# Breathe configuration disabled along with Doxygen
+# breathe_projects = {"SUEWS": "./doxygenoutput/xml"}
+# breathe_default_project = "SUEWS"
 
 # sphinx_last_updated_by_git options
 git_last_updated_metatags = True
 
 # sphinx comments
 # https://sphinx-comments.readthedocs.io/
-comments_config = {
-    "hypothesis": True,
-    "utterances": {
-        "repo": "UMEP-dev/SUEWS",
-        "issue-term": "title",
-        #   "optional": "config",
-    },
-}
+# Commenting system disabled
+# comments_config = {
+#     "hypothesis": True,
+#     "utterances": {
+#         "repo": "UMEP-dev/SUEWS",
+#         "issue-term": "title",
+#         #   "optional": "config",
+#     },
+# }
 
 
 # exhale_args = {
@@ -315,29 +382,35 @@ pygments_style = "sphinx"
 # default interpretation of `role` markups
 default_role = "any"
 
-# some text replacement defintions
-rst_prolog = r"""
-.. |km^-1| replace:: km\ :sup:`-1`
-.. |mm^-1| replace:: mm\ :sup:`-1`
-.. |m^-1| replace:: m\ :sup:`-1`
-.. |m^-2| replace:: m\ :sup:`-2`
-.. |m^-3| replace:: m\ :sup:`-3`
-.. |m^2| replace:: m\ :sup:`2`
-.. |m^3| replace:: m\ :sup:`3`
-.. |s^-1| replace:: s\ :sup:`-1`
-.. |kg^-1| replace:: kg\ :sup:`-1`
-.. |K^-1| replace:: K\ :sup:`-1`
-.. |J^-1| replace:: J\ :sup:`-1`
-.. |W^-1| replace:: W\ :sup:`-1`
-.. |h^-1| replace:: h\ :sup:`-1`
-.. |day^-1| replace:: day\ :sup:`-1`
-.. |cap^-1| replace:: cap\ :sup:`-1`
-.. |ha^-1| replace:: ha\ :sup:`-1`
-.. |QF| replace:: Q\ :sub:`F`
-.. |Qstar| replace:: Q\ :sup:`*`
-.. |d^-1| replace:: d\ :sup:`-1`
-.. |d^-2| replace:: d\ :sup:`-2`
-.. |)^-1| replace:: )\ :sup:`-1`
+# some text replacement defintions and version info
+# Note: Development banner is now handled via html_theme_options["announcement"]
+# instead of rst_prolog to ensure proper display with sphinx_book_theme
+
+rst_prolog = f"""
+.. |git_version| replace:: {git_version_string}
+.. |git_commit| replace:: {git_commit}
+
+.. |km^-1| replace:: km\\ :sup:`-1`
+.. |mm^-1| replace:: mm\\ :sup:`-1`
+.. |m^-1| replace:: m\\ :sup:`-1`
+.. |m^-2| replace:: m\\ :sup:`-2`
+.. |m^-3| replace:: m\\ :sup:`-3`
+.. |m^2| replace:: m\\ :sup:`2`
+.. |m^3| replace:: m\\ :sup:`3`
+.. |s^-1| replace:: s\\ :sup:`-1`
+.. |kg^-1| replace:: kg\\ :sup:`-1`
+.. |K^-1| replace:: K\\ :sup:`-1`
+.. |J^-1| replace:: J\\ :sup:`-1`
+.. |W^-1| replace:: W\\ :sup:`-1`
+.. |h^-1| replace:: h\\ :sup:`-1`
+.. |day^-1| replace:: day\\ :sup:`-1`
+.. |cap^-1| replace:: cap\\ :sup:`-1`
+.. |ha^-1| replace:: ha\\ :sup:`-1`
+.. |QF| replace:: Q\\ :sub:`F`
+.. |Qstar| replace:: Q\\ :sup:`*`
+.. |d^-1| replace:: d\\ :sup:`-1`
+.. |d^-2| replace:: d\\ :sup:`-2`
+.. |)^-1| replace:: )\\ :sup:`-1`
 .. |Recmd| replace:: **Recommended in this version.**
 .. |EXP| replace:: **Experimental in this version.**
 .. |NotRecmd| replace:: **Not recommended in this version.**
@@ -358,12 +431,22 @@ rst_prolog = r"""
 .. _SUEWS download page: https://forms.office.com/r/4qGfYu8LaR
 
 """
+
+# Version info will be added to HTML footer below
+
 # -- Options for HTML output -------------------------------------------------
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
 #
 # html_theme = "sphinx_rtd_theme"
 html_theme = "sphinx_book_theme"
+
+# Search configuration
+html_search_language = "en"
+html_search_options = {
+    "type": "default",
+    "includehidden": True,
+}
 # html_theme_path = ["_themes"]
 html_context = {
     "repository_url": "https://github.com/{your-docs-url}",
@@ -372,6 +455,9 @@ html_context = {
     "github_repo": "SUEWS",  # Repo name
     "github_version": "master",  # Version
     "conf_py_path": "/source/",  # Path in the checkout to the docs root
+    "git_version": git_version_string,  # Add version info
+    "git_commit": git_commit,  # Add commit hash
+    "is_dev_version": is_dev_version,  # Add dev flag
 }
 
 # check every link in this project is working
@@ -390,6 +476,7 @@ html_last_updated_fmt = today_fmt
 # further.  For a list of options available for each theme, see the
 # documentation.
 #
+# Create html_theme_options with announcement if in development mode
 html_theme_options = dict(
     # analytics_id=''  this is configured in rtfd.io
     # canonical_url="",
@@ -403,14 +490,32 @@ html_theme_options = dict(
     extra_navbar="",
     navbar_footer_text="",
     logo_only=True,
+    extra_footer=f"""<p>Version: {git_version_string} | 
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/{git_commit_full}">{git_commit_short}</a></p>""",
     # twitter_url="https://twitter.com/xarray_devs",
 )
+
+# Add announcement banner if this is a development version
+if is_dev_version:
+    print(f"DEBUG: Adding announcement banner for dev version: {git_version_string}")
+    html_theme_options["announcement"] = f"""
+    <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
+        <strong>⚠️ Development Version:</strong> This documentation was built from a development version 
+        ({git_version_string}, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/{git_commit_full}" style="color: #31708f;">{git_commit_short}</a>).
+        Features described here may be unstable or subject to change. For stable documentation, please visit the 
+        <a href="https://suews.readthedocs.io/stable/" style="color: #31708f;">latest release</a>.
+    </div>
+    """
+else:
+    print(
+        f"DEBUG: Not adding announcement banner, is_dev_version={is_dev_version}, version={git_version_string}"
+    )
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
 #
-html_static_path = ["_static", "doxygenoutput"]
+html_static_path = ["_static"]  # Removed "doxygenoutput" since Doxygen is disabled
 # html_context = {
 #     'css_files': [
 #         '_static/theme_overrides.css',  # override wide tables in RTD theme
@@ -515,24 +620,26 @@ texinfo_documents = [
 
 
 # -- Options for Epub output -------------------------------------------------
+# DISABLED: epub3 builder is incompatible with Python 3.13 (imghdr module removed)
+# See: https://github.com/sphinx-doc/sphinx/issues/11780
 
-# Bibliographic Dublin Core info.
-epub_title = project
-epub_author = author
-epub_publisher = author
-epub_copyright = copyright
+# # Bibliographic Dublin Core info.
+# epub_title = project
+# epub_author = author
+# epub_publisher = author
+# epub_copyright = copyright
 
-# The unique identifier of the text. This can be a ISBN number
-# or the project homepage.
-#
-# epub_identifier = ''
+# # The unique identifier of the text. This can be a ISBN number
+# # or the project homepage.
+# #
+# # epub_identifier = ''
 
-# A unique identification for the text.
-#
-# epub_uid = ''
+# # A unique identification for the text.
+# #
+# # epub_uid = ''
 
-# A list of files that should not be packed into the epub file.
-epub_exclude_files = ["search.html"]
+# # A list of files that should not be packed into the epub file.
+# epub_exclude_files = ["search.html"]
 
 
 # -- Extension configuration -------------------------------------------------
@@ -561,8 +668,8 @@ def source_read_handler(app, docname, source):
         deprecation_warning = """
 .. warning::
 
-   **DEPRECATED**: This table-based input format is deprecated as of 2025. 
-   Please use the modern :ref:`YAML format <yaml_input>` instead. 
+   **DEPRECATED**: This table-based input format is deprecated as of 2025.
+   Please use the modern :ref:`YAML format <yaml_input>` instead.
    See our :doc:`transition guide </inputs/transition_guide>` for migration help.
 
 """
@@ -611,6 +718,7 @@ intersphinx_mapping = {
 bibtex_bibfiles = [
     "assets/refs/refs-SUEWS.bib",
     "assets/refs/refs-others.bib",
+    "assets/refs/refs-community.bib",
 ]
 bibtex_default_style = "refs"
 bibtex_reference_style = "author_year_round"

@@ -26,36 +26,28 @@ from typing import Any, Optional
 def _setup_mock_environment(src_dir: Path) -> None:
     """Set up mock environment to avoid importing the real supy._env."""
     # Create mock _env module
-    env_module = types.ModuleType("supy._env")
-    env_module.logger_supy = logging.getLogger("supy.data_model")
+    env_module = types.ModuleType('supy._env')
+    env_module.logger_supy = logging.getLogger('supy.data_model')
     if not env_module.logger_supy.handlers:
         handler = logging.StreamHandler()
-        handler.setFormatter(
-            logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
-        )
+        handler.setFormatter(logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s"))
         env_module.logger_supy.addHandler(handler)
         env_module.logger_supy.setLevel(logging.WARNING)
 
     # Mock traversable for resources (not needed for schema generation)
     class MockTraversable:
-        def __truediv__(self, other):
-            return Path("/nonexistent")
-
+        def __truediv__(self, other): return Path("/nonexistent")
         @staticmethod
-        def exists():
-            return False
-
+        def exists(): return False
     env_module.trv_supy_module = MockTraversable()
 
     # Install the mock
-    sys.modules["supy"] = types.ModuleType("supy")
-    sys.modules["supy"].__path__ = [str(src_dir / "supy")]
-    sys.modules["supy._env"] = env_module
+    sys.modules['supy'] = types.ModuleType('supy')
+    sys.modules['supy'].__path__ = [str(src_dir / 'supy')]
+    sys.modules['supy._env'] = env_module
 
 
-def _add_schema_metadata(
-    schema: dict[str, Any], is_preview: bool, pr_number: Optional[int]
-) -> None:
+def _add_schema_metadata(schema: dict[str, Any], is_preview: bool, pr_number: Optional[int]) -> None:
     """Add metadata to the schema."""
     base_url = "https://umep-dev.github.io/SUEWS"
     schema["$schema"] = "https://json-schema.org/draft/2020-12/schema"
@@ -64,12 +56,8 @@ def _add_schema_metadata(
     from supy.data_model.schema.version import CURRENT_SCHEMA_VERSION  # noqa: PLC0415
 
     if is_preview and pr_number:
-        schema["$id"] = (
-            f"{base_url}/preview/pr-{pr_number}/schema/suews-config/{CURRENT_SCHEMA_VERSION}.json"
-        )
-        schema["title"] = (
-            f"SUEWS Configuration Schema v{CURRENT_SCHEMA_VERSION} (PR #{pr_number} Preview)"
-        )
+        schema["$id"] = f"{base_url}/preview/pr-{pr_number}/schema/suews-config/{CURRENT_SCHEMA_VERSION}.json"
+        schema["title"] = f"SUEWS Configuration Schema v{CURRENT_SCHEMA_VERSION} (PR #{pr_number} Preview)"
         schema["description"] = (
             f"⚠️ PREVIEW VERSION - PR #{pr_number} - DO NOT USE IN PRODUCTION. "
             f"Schema version {CURRENT_SCHEMA_VERSION}."
@@ -85,7 +73,8 @@ def _add_schema_metadata(
 
 
 def generate_schema(
-    is_preview: bool = False, pr_number: Optional[int] = None
+    is_preview: bool = False,
+    pr_number: Optional[int] = None
 ) -> dict[str, Any]:
     """
     Generate schema directly from data_model.
@@ -129,10 +118,8 @@ def generate_schema(
         # Add metadata
         _add_schema_metadata(schema, is_preview, pr_number)
 
-        print(
-            f"✓ Generated schema: {len(schema.get('properties', {}))} properties, "
-            f"{len(schema.get('$defs', {}))} definitions"
-        )
+        print(f"✓ Generated schema: {len(schema.get('properties', {}))} properties, "
+              f"{len(schema.get('$defs', {}))} definitions")
 
         # Save to permanent storage
         output_dir = project_root / "schemas" / "suews-config"
@@ -145,18 +132,18 @@ def generate_schema(
             "_generated_at": datetime.now(timezone.utc).isoformat(),
             "_source": ".github/scripts/generate_schema.py",
             "_schema_version": CURRENT_SCHEMA_VERSION,
-            **schema,
+            **schema
         }
 
         # Save versioned schema
         schema_file = output_dir / f"{CURRENT_SCHEMA_VERSION}.json"
-        with open(schema_file, "w", encoding="utf-8") as f:
+        with open(schema_file, 'w', encoding="utf-8") as f:
             json.dump(schema_with_headers, f, indent=2)
         print(f"✓ Saved: {schema_file}")
 
         # Save as latest (with headers)
         latest_file = output_dir / "latest.json"
-        with open(latest_file, "w", encoding="utf-8") as f:
+        with open(latest_file, 'w', encoding="utf-8") as f:
             json.dump(schema_with_headers, f, indent=2)
 
         # Update registry
@@ -164,14 +151,16 @@ def generate_schema(
         registry.register_version(
             version=CURRENT_SCHEMA_VERSION,
             schema_path=f"{CURRENT_SCHEMA_VERSION}.json",
-            description=SCHEMA_VERSIONS.get(CURRENT_SCHEMA_VERSION, ""),
+            description=SCHEMA_VERSIONS.get(CURRENT_SCHEMA_VERSION, "")
         )
         print("✓ Updated registry")
 
         # Generate index.html
         base_url = "https://umep-dev.github.io/SUEWS"
         index_content = registry.generate_index_html(
-            base_url=base_url, is_preview=is_preview, pr_number=pr_number
+            base_url=base_url,
+            is_preview=is_preview,
+            pr_number=pr_number,
         )
         (output_dir / "index.html").write_text(index_content)
         print("✓ Generated index.html")
@@ -180,10 +169,8 @@ def generate_schema(
 
     finally:
         # Clean up sys.modules and sys.path
-        for module_name in ["supy._env", "supy"]:
-            if module_name in sys.modules and not hasattr(
-                sys.modules[module_name], "__file__"
-            ):
+        for module_name in ['supy._env', 'supy']:
+            if module_name in sys.modules and not hasattr(sys.modules[module_name], '__file__'):
                 # Only remove if it's our mock module
                 del sys.modules[module_name]
         if str(src_dir) in sys.path:
@@ -196,14 +183,23 @@ def main():
         description="Generate SUEWS JSON Schema without building"
     )
     parser.add_argument(
-        "--preview", action="store_true", help="Generate preview schema for PR"
+        "--preview",
+        action="store_true",
+        help="Generate preview schema for PR"
     )
-    parser.add_argument("--pr-number", type=int, help="PR number for preview builds")
+    parser.add_argument(
+        "--pr-number",
+        type=int,
+        help="PR number for preview builds"
+    )
 
     args = parser.parse_args()
 
     try:
-        generate_schema(is_preview=args.preview, pr_number=args.pr_number)
+        generate_schema(
+            is_preview=args.preview,
+            pr_number=args.pr_number
+        )
 
         print("\n✅ Schema generation complete (no build required)")
 

@@ -30,7 +30,7 @@ on:
 
   # Weekly validation to ensure integrity
   schedule:
-    - cron: '0 3 * * *'  # Every day at 03:00 UTC
+    - cron: '0 3 * * 1'  # Every Monday at 03:00 UTC
 
 permissions:
   contents: write

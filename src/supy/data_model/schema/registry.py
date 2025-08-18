@@ -88,7 +88,10 @@ class SchemaRegistry:
         return self._registry["versions"].get(version)
 
     def generate_index_html(
-        self, base_url: str, is_preview: bool = False, pr_number: Optional[int] = None
+        self,
+        base_url: str,
+        is_preview: bool = False,
+        pr_number: Optional[int] = None,
     ) -> str:
         """
         Generate an index.html listing all schema versions.
@@ -124,7 +127,7 @@ class SchemaRegistry:
         <p>{info.get("description", "")}</p>
         <p class="meta">Added: {info.get("added", "Unknown")[:10]}</p>
         <p>
-            <a href="{version}.json">View Schema</a> | 
+            <a href="{version}.json">View Schema</a> |
             <a href="latest.json">Latest</a> |
             <code class="url">{schema_url}</code>
         </p>
@@ -136,7 +139,7 @@ class SchemaRegistry:
     <div class="warning-banner">
         <h2>⚠️ PREVIEW VERSION - PR #{pr_number}</h2>
         <p>
-            This is a preview schema from an unmerged pull request. 
+            This is a preview schema from an unmerged pull request.
             <strong>DO NOT use this schema URL in production configurations.</strong>
             <br>
             <a href="{base_url}/schema/suews-config/">View stable schemas →</a>
@@ -149,24 +152,24 @@ class SchemaRegistry:
     <title>SUEWS Schema {"Preview" if is_preview else "Registry"}</title>
     <meta charset="utf-8">
     <style>
-        body {{ 
-            font-family: system-ui, -apple-system, sans-serif; 
+        body {{
+            font-family: system-ui, -apple-system, sans-serif;
             margin: 2em;
             max-width: 1200px;
             margin: 0 auto;
             padding: 2em;
         }}
         h1 {{ color: #333; }}
-        .version {{ 
-            margin: 1em 0; 
-            padding: 1em; 
-            background: #f5f5f5; 
+        .version {{
+            margin: 1em 0;
+            padding: 1em;
+            background: #f5f5f5;
             border-radius: 5px;
             border: 1px solid #ddd;
         }}
-        .current {{ 
-            background: #e8f4f8; 
-            border: 2px solid #0066cc; 
+        .current {{
+            background: #e8f4f8;
+            border: 2px solid #0066cc;
         }}
         .warning-banner {{
             background: #fff3cd;
@@ -185,10 +188,10 @@ class SchemaRegistry:
         }}
         a {{ color: #0066cc; text-decoration: none; }}
         a:hover {{ text-decoration: underline; }}
-        code {{ 
-            background: #f0f0f0; 
-            padding: 2px 5px; 
-            border-radius: 3px; 
+        code {{
+            background: #f0f0f0;
+            padding: 2px 5px;
+            border-radius: 3px;
             font-size: 0.9em;
         }}
         code.url {{
@@ -198,9 +201,9 @@ class SchemaRegistry:
             margin-top: 0.5em;
         }}
         h3 {{ margin-top: 0; }}
-        .meta {{ 
-            color: #666; 
-            font-size: 0.9em; 
+        .meta {{
+            color: #666;
+            font-size: 0.9em;
         }}
         pre {{
             background: #f5f5f5;
@@ -214,13 +217,13 @@ class SchemaRegistry:
     <h1>SUEWS Configuration Schema Registry</h1>
     {preview_banner}
     <p>
-        JSON Schema definitions for SUEWS YAML configuration files. 
+        JSON Schema definitions for SUEWS YAML configuration files.
         All schema versions are preserved and accessible.
     </p>
-    
+
     <h2>Available Schema Versions ({len(versions)})</h2>
     {"".join(version_cards)}
-    
+
     <h2>Usage in YAML Configuration</h2>
     <pre><code># Use specific version:
 schema_version: "{self._registry.get("current", CURRENT_SCHEMA_VERSION)}"
@@ -232,17 +235,17 @@ $schema: "{base_url}/schema/suews-config/latest.json"
 # For older versions (if needed for compatibility):
 schema_version: "0.1"
 $schema: "{base_url}/schema/suews-config/0.1.json"</code></pre>
-    
+
     <h2>Version Policy</h2>
     <ul>
         <li><strong>Major version (1.0 → 2.0):</strong> Breaking changes requiring migration</li>
         <li><strong>Minor version (1.0 → 1.1):</strong> Backward compatible additions</li>
         <li>Schema versions are independent of SUEWS release versions</li>
     </ul>
-    
+
     <hr>
     <p>
-        <a href="https://github.com/UMEP-dev/SUEWS">GitHub Repository</a> | 
+        <a href="https://github.com/UMEP-dev/SUEWS">GitHub Repository</a> |
         <a href="https://suews.readthedocs.io/en/latest/inputs/yaml/schema_versioning.html">Documentation</a> |
         <a href="registry.json">Registry JSON</a>
     </p>

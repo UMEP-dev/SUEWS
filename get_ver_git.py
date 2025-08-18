@@ -1,4 +1,30 @@
 #!/usr/bin/env python3
+"""
+Version generation script for SUEWS/SuPy using git tags.
+
+VERSIONING SYSTEM:
+==================
+This script generates version numbers based on git tags and commit distance.
+
+For nightly builds (tags ending in .dev):
+  - Tag: 2025.8.17.dev
+  - At tag: generates 2025.8.17.dev0
+  - After 2 commits: generates 2025.8.17.dev2
+  
+For production releases:
+  - Tag: 2025.1.0
+  - At tag: generates 2025.1.0
+  - After commits: generates 2025.1.0.dev5 (5 commits after)
+
+CRITICAL FOR NIGHTLY BUILDS:
+The GitHub Actions workflow MUST create the tag BEFORE building wheels.
+This ensures the version number matches the intended date. Previously,
+creating tags after builds caused version mismatches (e.g., Aug 16 
+builds using Aug 15 tag + commits = wrong version on TestPyPI).
+
+USAGE:
+Called by meson.build during the build process to set the package version.
+"""
 
 import subprocess
 import re
@@ -35,22 +61,22 @@ def get_version_from_git():
             if base_version.startswith("v"):
                 base_version = base_version[1:]
 
-            # Keep .dev suffix if it's part of the tag (intentional development release)
-            # Only add .devN suffix if there are commits after the tag
             has_dev_suffix = ".dev" in base_version
 
-            # For nightly .dev tags, always append a number for consistency
-            # This ensures TestPyPI versions are predictable
+            # IMPORTANT: For nightly .dev tags, we ALWAYS append a number
+            # This ensures consistent versioning on TestPyPI:
+            #   - Tag 2025.8.17.dev becomes version 2025.8.17.dev0
+            #   - This prevents version mismatches between git tags and PyPI
             if has_dev_suffix:
                 # Extract base version without .dev suffix
                 base_without_dev = base_version.rsplit(".dev", 1)[0]
                 # Always append .devN where N is the commit count (0 for the tag itself)
                 version = f"{base_without_dev}.dev{distance}"
             elif distance == 0:
-                # For regular tags without .dev, keep as-is
+                # For production tags without .dev, keep as-is
                 version = base_version
             else:
-                # For regular tags with commits after, add .dev with commit count
+                # For production tags with commits after, add .dev with commit count
                 version = f"{base_version}.dev{distance}"
         else:
             raise ValueError(

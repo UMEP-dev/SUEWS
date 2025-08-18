@@ -1,7 +1,17 @@
 name: Build and Publish Python wheels to PyPI and TestPyPI
 
-# Workflow triggers and deployment strategy:
+# ============================================================================
+# WORKFLOW OVERVIEW
+# ============================================================================
+# This workflow handles all Python package builds and deployments for SUEWS/SuPy.
 #
+# TRIGGERS:
+# - Nightly: 2 AM UTC daily for development releases
+# - Push: To master branch or any tag
+# - PR: On pull requests for validation
+# - Manual: Via workflow_dispatch
+#
+# DEPLOYMENT STRATEGY:
 # 1. VALIDATION ONLY (no deployment):
 #    - Pull requests: Build and test all Python versions
 #    - Push to master: Build and test all Python versions
@@ -12,11 +22,33 @@ name: Build and Publish Python wheels to PyPI and TestPyPI
 #    - Any tag containing 'dev': Deploy to TestPyPI
 #    Installation: 
 #      Latest dev: pip install -i https://test.pypi.org/simple/ supy
-#      Specific version: pip install -i https://test.pypi.org/simple/ supy==YYYY.M.D.dev
+#      Specific version: pip install -i https://test.pypi.org/simple/ supy==YYYY.M.D.dev0
 #
 # 3. PRODUCTION RELEASES (PyPI only):
 #    - Tags without 'dev': Deploy to PyPI
 #    Installation: pip install supy
+#
+# ============================================================================
+# VERSIONING SYSTEM FOR NIGHTLY BUILDS
+# ============================================================================
+# Tag Format: YYYY.M.D.dev (e.g., 2025.8.17.dev)
+# Published Version: YYYY.M.D.devN where N is commit count since tag
+#   - At tag: 2025.8.17.dev0
+#   - After 2 commits: 2025.8.17.dev2
+#
+# CRITICAL: Tag MUST be created BEFORE building wheels to ensure version consistency.
+# Previously, creating tags after builds caused version mismatches where Aug 16 builds
+# would use Aug 15 tag + commits, resulting in wrong version numbers on TestPyPI.
+#
+# WORKFLOW ORDER (for nightly builds):
+# 1. create_nightly_tag: Creates today's tag (e.g., 2025.8.17.dev)
+# 2. build_wheels: Builds using the new tag (produces 2025.8.17.dev0)
+# 3. deploy_testpypi: Publishes correct version to TestPyPI
+#
+# RESILIENCE FEATURES:
+# - Tags created even if some platform builds fail (maintains consecutive dates)
+# - TestPyPI deployment proceeds with available wheels
+# - Prevents gaps in nightly build sequence
 #
 # Build matrix: Always builds all Python versions (3.9-3.13) on all platforms
 

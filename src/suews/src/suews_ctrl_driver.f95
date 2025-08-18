@@ -109,10 +109,6 @@ CONTAINS
       REAL(KIND(1D0)), DIMENSION(ncolumnsDataOutESTM - 5) :: dataOutLineESTM
       REAL(KIND(1D0)), DIMENSION(ncolumnsDataOutEHC - 5) :: dataOutLineEHC
       REAL(KIND(1D0)), DIMENSION(ncolumnsDataOutRSL - 5) :: dataoutLineRSL
-      REAL(KIND(1D0)), DIMENSION(30) :: zarray ! RSL layer height
-      REAL(KIND(1D0)), DIMENSION(30) :: dataoutLineURSL ! wind speed array [m s-1]
-      REAL(KIND(1D0)), DIMENSION(30) :: dataoutLineTRSL ! Temperature array [C]
-      REAL(KIND(1D0)), DIMENSION(30) :: dataoutLineqRSL ! Specific humidity array [g kg-1]
       REAL(KIND(1D0)), DIMENSION(ncolumnsDataOutBEERS - 5) :: dataOutLineBEERS
       REAL(KIND(1D0)), DIMENSION(ncolumnsDataOutDebug - 5) :: dataOutLineDebug
       REAL(KIND(1D0)), DIMENSION(ncolumnsDataOutSPARTACUS - 5) :: dataOutLineSPARTACUS
@@ -220,10 +216,6 @@ CONTAINS
             dataOutLineESTM = -999.
             dataOutLineEHC = -999.
             dataoutLineRSL = -999.
-            zarray = -999.
-            dataoutLineURSL = -999.
-            dataoutLineTRSL = -999.
-            dataoutLineqRSL = -999.
             dataOutLineBEERS = -999.
             dataOutLineDebug = -999.
             dataOutLineSPARTACUS = -999.
@@ -454,6 +446,16 @@ CONTAINS
                IF (config%flag_test .AND. PRESENT(debugState)) THEN
                   debugState%state_12_tsurf = modState
                END IF
+               !==============use STEBBS to get localised surface temperature==================
+               ! MP 12 Sep 2024: STEBBS is a simplified BEM
+               IF (config%stebbsmethod == 1 .OR. config%stebbsmethod == 2) THEN
+                  IF (Diagnose == 1) WRITE (*, *) 'Calling STEBBS...'
+                  CALL stebbsonlinecouple( &
+                     timer, config, forcing, siteInfo, & ! input
+                     modState, & ! input/output:
+                     datetimeLine, & ! input
+                     dataOutLineSTEBBS) ! output
+               END IF
 
                ! IF (i_iter == 1) THEN
                !    modState_tstepstart = modState
@@ -485,7 +487,6 @@ CONTAINS
             CALL RSLProfile_DTS( &
                timer, config, forcing, siteInfo, & ! input
                modState, & ! input/output:
-               zarray, dataoutLineURSL, dataoutLineTRSL, dataoutLineqRSL, &
                dataoutLineRSL) ! output
             IF (config%flag_test .AND. PRESENT(debugState)) THEN
                debugState%state_13_rsl = modState
@@ -520,17 +521,6 @@ CONTAINS
                debugState%state_15_beers = modState
             END IF
 
-            !==============use STEBBS to get localised radiation flux==================
-            ! MP 12 Sep 2024: STEBBS is a simplified BEM
-            IF (config%stebbsmethod == 1 .OR. config%stebbsmethod == 2) THEN
-               IF (Diagnose == 1) WRITE (*, *) 'Calling STEBBS...'
-               CALL stebbsonlinecouple( &
-                  zarray, dataoutLineURSL, dataoutLineTRSL, &
-                  timer, config, forcing, siteInfo, & ! input
-                  modState, & ! input/output:
-                  datetimeLine, & ! input
-                  dataOutLineSTEBBS) ! output
-            END IF
 
             !==============translation of  output variables into output array===========
             IF (Diagnose == 1) WRITE (*, *) 'Calling BEERS_cal_main_DTS...'

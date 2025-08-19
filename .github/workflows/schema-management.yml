@@ -18,6 +18,7 @@ on:
       - 'schemas/**'  # Check for manual edits
       - 'src/supy/data_model/**'  # Check for model changes
       - '.github/scripts/generate_schema.py'
+      - '.github/workflows/schema-management.yml'  # Test workflow changes
 
   # Manual trigger for forced regeneration
   workflow_dispatch:

@@ -232,14 +232,18 @@ jobs:
           EOF
           
           # Create the pull request using GitHub CLI
-          gh pr create \
+          # Note: Labels might not exist, so we create without them and add them separately if available
+          if gh pr create \
             --base master \
             --head "$BRANCH_NAME" \
             --title "🤖 Auto-update: Schemas v${{ steps.version.outputs.version }}" \
-            --body-file pr-body.md \
-            --label "auto-update" \
-            --label "schemas" \
-            --label "documentation" || echo "PR already exists or creation failed"
+            --body-file pr-body.md; then
+            echo "✅ Pull request created successfully"
+            # Try to add labels if they exist (ignore errors)
+            gh pr edit "$BRANCH_NAME" --add-label "documentation" 2>/dev/null || true
+          else
+            echo "⚠️ PR already exists or creation failed"
+          fi
 
       - name: PR Test Summary
         # Show what would happen during PR tests

@@ -145,7 +145,9 @@ def cli(ctx, files, pipeline, mode, dry_run, out_format, schema_version):
         if dry_run:
             # Only support C and ABC for now
             if pipeline not in ("C", "ABC"):
-                console.print("[red]✗ --dry-run is supported for pipeline C or ABC only[/red]")
+                console.print(
+                    "[red]✗ --dry-run is supported for pipeline C or ABC only[/red]"
+                )
                 ctx.exit(2)
 
             target_version = schema_version
@@ -154,23 +156,27 @@ def cli(ctx, files, pipeline, mode, dry_run, out_format, schema_version):
             # Pipeline C: allow multiple files; ABC: single file
             if pipeline == "C":
                 if not files:
-                    console.print("[red]✗ Provide one or more YAML files for -p C --dry-run[/red]")
+                    console.print(
+                        "[red]✗ Provide one or more YAML files for -p C --dry-run[/red]"
+                    )
                     ctx.exit(2)
                 results = []
                 all_valid = True
                 for file_path in files:
                     path = Path(file_path)
-                    is_valid, errors = validate_single_file(path, schema, show_details=True)
+                    is_valid, errors = validate_single_file(
+                        path, schema, show_details=True
+                    )
                     if not is_valid:
                         all_valid = False
                     results.append({
-                        'file': str(path),
-                        'valid': is_valid,
-                        'errors': errors if not is_valid else [],
-                        'error_count': len(errors) if not is_valid else 0,
+                        "file": str(path),
+                        "valid": is_valid,
+                        "errors": errors if not is_valid else [],
+                        "error_count": len(errors) if not is_valid else 0,
                     })
 
-                if out_format == 'json':
+                if out_format == "json":
                     console.print(json.dumps(results, indent=2))
                 else:
                     table = Table(title="Validation Results")
@@ -178,47 +184,67 @@ def cli(ctx, files, pipeline, mode, dry_run, out_format, schema_version):
                     table.add_column("Status", justify="center")
                     table.add_column("Issues", style="yellow")
                     for r in results:
-                        status = "[green]✓ Valid[/green]" if r['valid'] else "[red]✗ Invalid[/red]"
-                        issues = "" if r['valid'] else ("\n".join(r['errors'][:3]) if r['errors'] else "")
-                        if not r['valid'] and len(r['errors']) > 3:
+                        status = (
+                            "[green]✓ Valid[/green]"
+                            if r["valid"]
+                            else "[red]✗ Invalid[/red]"
+                        )
+                        issues = (
+                            ""
+                            if r["valid"]
+                            else ("\n".join(r["errors"][:3]) if r["errors"] else "")
+                        )
+                        if not r["valid"] and len(r["errors"]) > 3:
                             issues += f"\n... and {len(r['errors']) - 3} more"
-                        table.add_row(Path(r['file']).name, status, issues)
+                        table.add_row(Path(r["file"]).name, status, issues)
                     console.print(table)
-                    console.print(f"\n[bold]Summary:[/bold] {sum(1 for r in results if r['valid'])}/{len(results)} files valid")
+                    console.print(
+                        f"\n[bold]Summary:[/bold] {sum(1 for r in results if r['valid'])}/{len(results)} files valid"
+                    )
 
                 ctx.exit(0 if all_valid else 1)
 
             # pipeline == ABC dry-run
             if len(files) != 1:
-                console.print("[red]✗ Provide exactly one YAML file for -p ABC --dry-run[/red]")
+                console.print(
+                    "[red]✗ Provide exactly one YAML file for -p ABC --dry-run[/red]"
+                )
                 ctx.exit(2)
             path = Path(files[0])
             is_valid, errors = validate_single_file(path, schema, show_details=True)
-            result = [{
-                'file': str(path),
-                'valid': is_valid,
-                'errors': errors if not is_valid else [],
-                'error_count': len(errors) if not is_valid else 0,
-            }]
-            if out_format == 'json':
+            result = [
+                {
+                    "file": str(path),
+                    "valid": is_valid,
+                    "errors": errors if not is_valid else [],
+                    "error_count": len(errors) if not is_valid else 0,
+                }
+            ]
+            if out_format == "json":
                 console.print(json.dumps(result, indent=2))
             else:
                 table = Table(title="Validation Results")
                 table.add_column("File", style="cyan")
                 table.add_column("Status", justify="center")
                 table.add_column("Issues", style="yellow")
-                status = "[green]✓ Valid[/green]" if is_valid else "[red]✗ Invalid[/red]"
+                status = (
+                    "[green]✓ Valid[/green]" if is_valid else "[red]✗ Invalid[/red]"
+                )
                 issues = "" if is_valid else ("\n".join(errors[:3]) if errors else "")
                 if not is_valid and len(errors) > 3:
                     issues += f"\n... and {len(errors) - 3} more"
                 table.add_row(path.name, status, issues)
                 console.print(table)
-                console.print(f"\n[bold]Summary:[/bold] {1 if is_valid else 0}/1 files valid")
+                console.print(
+                    f"\n[bold]Summary:[/bold] {1 if is_valid else 0}/1 files valid"
+                )
             ctx.exit(0 if is_valid else 1)
 
         # Non-dry-run: execute pipeline with file writes
         if len(files) != 1:
-            console.print("[red]✗ Provide exactly one YAML FILE for pipeline execution[/red]")
+            console.print(
+                "[red]✗ Provide exactly one YAML FILE for pipeline execution[/red]"
+            )
             ctx.exit(2)
         code = _execute_pipeline(file=files[0], pipeline=pipeline, mode=mode)
         ctx.exit(code)
@@ -229,7 +255,12 @@ def cli(ctx, files, pipeline, mode, dry_run, out_format, schema_version):
 @click.option("--schema-version", help="Schema version to validate against")
 @click.option("--verbose", "-v", is_flag=True, help="Show detailed error messages")
 @click.option("--quiet", "-q", is_flag=True, help="Only show summary")
-@click.option("--format", type=click.Choice(["table", "json"]), default="table", help="Output format")
+@click.option(
+    "--format",
+    type=click.Choice(["table", "json"]),
+    default="table",
+    help="Output format",
+)
 def validate(files, schema_version, verbose, quiet, format):
     """Validate SUEWS YAML configuration files (schema + Pydantic)."""
 
@@ -238,13 +269,17 @@ def validate(files, schema_version, verbose, quiet, format):
     version = schema_version or CURRENT_SCHEMA_VERSION
 
     if not quiet and format == "table":
-        console.print(f"\n[bold blue]Validating against schema v{version}[/bold blue]\n")
+        console.print(
+            f"\n[bold blue]Validating against schema v{version}[/bold blue]\n"
+        )
 
     total_files = len(files)
     valid_files = 0
     results = []
 
-    for file_path in track(files, description="Validating...", disable=(quiet or format == "json")):
+    for file_path in track(
+        files, description="Validating...", disable=(quiet or format == "json")
+    ):
         path = Path(file_path)
         is_valid, errors = validate_single_file(path, schema, show_details=verbose)
         results.append({
@@ -265,7 +300,9 @@ def validate(files, schema_version, verbose, quiet, format):
             table.add_column("Status", justify="center")
             table.add_column("Issues", style="yellow")
             for r in results:
-                status = "[green]✓ Valid[/green]" if r["valid"] else "[red]✗ Invalid[/red]"
+                status = (
+                    "[green]✓ Valid[/green]" if r["valid"] else "[red]✗ Invalid[/red]"
+                )
                 if r["valid"]:
                     issues = ""
                 else:
@@ -277,7 +314,9 @@ def validate(files, schema_version, verbose, quiet, format):
                         issues = f"{r['error_count']} issue(s)"
                 table.add_row(Path(r["file"]).name, status, issues)
             console.print(table)
-            console.print(f"\n[bold]Summary:[/bold] {valid_files}/{total_files} files valid")
+            console.print(
+                f"\n[bold]Summary:[/bold] {valid_files}/{total_files} files valid"
+            )
 
     # Exit with error if any files invalid
     if valid_files < total_files:
@@ -367,15 +406,21 @@ def _print_schema_info():
 
     console.print("\n[bold]Validation Commands:[/bold]")
     console.print("  • Pipeline run: suews-validate -p ABC config.yml")
-    console.print("  • Read-only check: suews-validate -p C --dry-run configs/*.yml --format json")
+    console.print(
+        "  • Read-only check: suews-validate -p C --dry-run configs/*.yml --format json"
+    )
     console.print("  • Migrate: suews-validate schema migrate old_config.yml")
 
 
 @cli.command()
-@click.argument('files', nargs=-1, type=click.Path(exists=True), required=True)
-@click.option('--update', '-u', is_flag=True, help='Update schema_version field in files')
-@click.option('--target-version', help='Target schema version to set when updating')
-@click.option('--backup', '-b', is_flag=True, default=True, help='Create backup before updating')
+@click.argument("files", nargs=-1, type=click.Path(exists=True), required=True)
+@click.option(
+    "--update", "-u", is_flag=True, help="Update schema_version field in files"
+)
+@click.option("--target-version", help="Target schema version to set when updating")
+@click.option(
+    "--backup", "-b", is_flag=True, default=True, help="Create backup before updating"
+)
 def version(files, update, target_version, backup):
     """Check or update schema_version in YAML files (alias to schema status/update)."""
     # Reuse common logic
@@ -393,7 +438,10 @@ def version(files, update, target_version, backup):
         table.add_column("Action", style="yellow")
 
     try:
-        from ..data_model.schema.version import CURRENT_SCHEMA_VERSION, is_schema_compatible
+        from ..data_model.schema.version import (
+            CURRENT_SCHEMA_VERSION,
+            is_schema_compatible,
+        )
     except Exception as e:
         console.print(f"[red]✗ Unable to load schema version module: {e}[/red]")
         sys.exit(1)
@@ -401,11 +449,11 @@ def version(files, update, target_version, backup):
     for file_path in files:
         path = Path(file_path)
         try:
-            with open(path, 'r') as f:
+            with open(path, "r") as f:
                 cfg = yaml.safe_load(f) or {}
-            current = cfg.get('schema_version') or 'not specified'
+            current = cfg.get("schema_version") or "not specified"
 
-            if current == 'not specified':
+            if current == "not specified":
                 status = "[yellow]⚠ Missing[/yellow]"
             elif is_schema_compatible(current):
                 status = "[green]✓ Compatible[/green]"
@@ -417,10 +465,10 @@ def version(files, update, target_version, backup):
                 new_version = target_version or CURRENT_SCHEMA_VERSION
                 if current != new_version:
                     if backup:
-                        backup_path = path.with_suffix('.backup.yml')
+                        backup_path = path.with_suffix(".backup.yml")
                         path.rename(backup_path)
-                    cfg['schema_version'] = new_version
-                    with open(path, 'w') as f:
+                    cfg["schema_version"] = new_version
+                    with open(path, "w") as f:
                         yaml.dump(cfg, f, default_flow_style=False, sort_keys=False)
                     action = f"Updated → {new_version}"
                 else:
@@ -440,9 +488,20 @@ def version(files, update, target_version, backup):
 
 
 @cli.command()
-@click.option('--output', '-o', type=click.Path(), help='Output file for schema (if omitted, prints to console)')
-@click.option('--version', help='Schema version to export (defaults to current)')
-@click.option('--format', 'fmt', type=click.Choice(['json', 'yaml']), default='json', help='Output format')
+@click.option(
+    "--output",
+    "-o",
+    type=click.Path(),
+    help="Output file for schema (if omitted, prints to console)",
+)
+@click.option("--version", help="Schema version to export (defaults to current)")
+@click.option(
+    "--format",
+    "fmt",
+    type=click.Choice(["json", "yaml"]),
+    default="json",
+    help="Output format",
+)
 def export(output, version, fmt):
     """Export the configuration JSON Schema as JSON or YAML."""
     try:
@@ -456,7 +515,7 @@ def export(output, version, fmt):
 
     try:
         schema = generate_json_schema(version=schema_version)
-        if fmt == 'yaml':
+        if fmt == "yaml":
             content = yaml.dump(schema, default_flow_style=False, sort_keys=False)
             default_name = f"suews-schema-v{schema_version}.yaml"
         else:
@@ -467,7 +526,13 @@ def export(output, version, fmt):
             Path(output).write_text(content)
             console.print(f"[green]✓ Schema exported to {output}[/green]")
         else:
-            console.print(Panel(Syntax(content, fmt, theme="monokai"), title=f"Schema v{schema_version}", subtitle=f"Save as: {default_name}"))
+            console.print(
+                Panel(
+                    Syntax(content, fmt, theme="monokai"),
+                    title=f"Schema v{schema_version}",
+                    subtitle=f"Save as: {default_name}",
+                )
+            )
     except Exception as e:
         console.print(f"[red]✗ Export failed: {e}[/red]")
         sys.exit(1)
@@ -481,16 +546,16 @@ def _execute_pipeline(file, pipeline, mode):
     Phase C: Pydantic validation with physics conditionals
     """
     # Ensure processor is importable
-    if not all(
-        [
-            _processor_validate_input_file,
-            _processor_setup_output_paths,
-            _processor_run_phase_a,
-            _processor_run_phase_b,
-            _processor_run_phase_c,
-        ]
-    ):
-        console.print("[red]✗ YAML processor is unavailable. Ensure supy.data_model.yaml_processor is present.[/red]")
+    if not all([
+        _processor_validate_input_file,
+        _processor_setup_output_paths,
+        _processor_run_phase_a,
+        _processor_run_phase_b,
+        _processor_run_phase_c,
+    ]):
+        console.print(
+            "[red]✗ YAML processor is unavailable. Ensure supy.data_model.yaml_processor is present.[/red]"
+        )
         return 1
 
     # Validate input and prepare paths
@@ -523,7 +588,11 @@ def _execute_pipeline(file, pipeline, mode):
             phase="A",
             silent=True,
         )
-        console.print("[green]✓ Phase A completed[/green]" if ok else "[red]✗ Phase A failed[/red]")
+        console.print(
+            "[green]✓ Phase A completed[/green]"
+            if ok
+            else "[red]✗ Phase A failed[/red]"
+        )
         if ok:
             console.print(f"Report: {report_file}")
             console.print(f"Updated YAML: {uptodate_file}")
@@ -542,7 +611,11 @@ def _execute_pipeline(file, pipeline, mode):
             phase="B",
             silent=True,
         )
-        console.print("[green]✓ Phase B completed[/green]" if ok else "[red]✗ Phase B failed[/red]")
+        console.print(
+            "[green]✓ Phase B completed[/green]"
+            if ok
+            else "[red]✗ Phase B failed[/red]"
+        )
         if ok:
             console.print(f"Report: {science_report_file}")
             console.print(f"Updated YAML: {science_yaml_file}")
@@ -557,7 +630,11 @@ def _execute_pipeline(file, pipeline, mode):
             phases_run=["C"],
             silent=True,
         )
-        console.print("[green]✓ Phase C completed[/green]" if ok else "[red]✗ Phase C failed[/red]")
+        console.print(
+            "[green]✓ Phase C completed[/green]"
+            if ok
+            else "[red]✗ Phase C failed[/red]"
+        )
         if ok:
             console.print(f"Report: {pydantic_report_file}")
             console.print(f"Updated YAML: {pydantic_yaml_file}")
@@ -595,7 +672,11 @@ def _execute_pipeline(file, pipeline, mode):
             silent=True,
         )
         ok = a_ok and b_ok
-        console.print("[green]✓ Phase AB completed[/green]" if ok else "[red]✗ Phase AB failed[/red]")
+        console.print(
+            "[green]✓ Phase AB completed[/green]"
+            if ok
+            else "[red]✗ Phase AB failed[/red]"
+        )
         if ok:
             console.print(f"Report: {science_report_file}")
             console.print(f"Updated YAML: {science_yaml_file}")
@@ -627,7 +708,11 @@ def _execute_pipeline(file, pipeline, mode):
             silent=True,
         )
         ok = a_ok and c_ok
-        console.print("[green]✓ Phase AC completed[/green]" if ok else "[red]✗ Phase AC failed[/red]")
+        console.print(
+            "[green]✓ Phase AC completed[/green]"
+            if ok
+            else "[red]✗ Phase AC failed[/red]"
+        )
         if ok:
             console.print(f"Report: {pydantic_report_file}")
             console.print(f"Updated YAML: {pydantic_yaml_file}")
@@ -661,7 +746,11 @@ def _execute_pipeline(file, pipeline, mode):
             silent=True,
         )
         ok = b_ok and c_ok
-        console.print("[green]✓ Phase BC completed[/green]" if ok else "[red]✗ Phase BC failed[/red]")
+        console.print(
+            "[green]✓ Phase BC completed[/green]"
+            if ok
+            else "[red]✗ Phase BC failed[/red]"
+        )
         if ok:
             console.print(f"Report: {pydantic_report_file}")
             console.print(f"Updated YAML: {pydantic_yaml_file}")
@@ -711,7 +800,11 @@ def _execute_pipeline(file, pipeline, mode):
         silent=True,
     )
     ok = a_ok and b_ok and c_ok
-    console.print("[green]✓ Phase ABC completed[/green]" if ok else "[red]✗ Phase ABC failed[/red]")
+    console.print(
+        "[green]✓ Phase ABC completed[/green]"
+        if ok
+        else "[red]✗ Phase ABC failed[/red]"
+    )
     if ok:
         console.print(f"Report: {pydantic_report_file}")
         console.print(f"Updated YAML: {pydantic_yaml_file}")
@@ -725,6 +818,8 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
 @cli.group(name="schema", invoke_without_command=True)
 @click.pass_context
 def schema_group(ctx):
@@ -737,16 +832,16 @@ def schema_group(ctx):
 
 
 @schema_group.command("status")
-@click.argument('files', nargs=-1, type=click.Path(exists=True), required=True)
+@click.argument("files", nargs=-1, type=click.Path(exists=True), required=True)
 def schema_status(files):
     """Show schema_version status and compatibility for files."""
     version(files, update=False, target_version=None, backup=True)
 
 
 @schema_group.command("update")
-@click.argument('files', nargs=-1, type=click.Path(exists=True), required=True)
-@click.option('--target', help='Target schema version to set')
-@click.option('--no-backup', is_flag=True, help='Do not create backup before updating')
+@click.argument("files", nargs=-1, type=click.Path(exists=True), required=True)
+@click.option("--target", help="Target schema version to set")
+@click.option("--no-backup", is_flag=True, help="Do not create backup before updating")
 def schema_update(files, target, no_backup):
     """Update schema_version for files to target (or current)."""
     version(files, update=True, target_version=target, backup=(not no_backup))
@@ -762,9 +857,20 @@ def schema_migrate(file, output, to_version):
 
 
 @schema_group.command("export")
-@click.option('--output', '-o', type=click.Path(), help='Output file for schema (if omitted, prints to console)')
-@click.option('--version', help='Schema version to export (defaults to current)')
-@click.option('--format', 'fmt', type=click.Choice(['json', 'yaml']), default='json', help='Output format')
+@click.option(
+    "--output",
+    "-o",
+    type=click.Path(),
+    help="Output file for schema (if omitted, prints to console)",
+)
+@click.option("--version", help="Schema version to export (defaults to current)")
+@click.option(
+    "--format",
+    "fmt",
+    type=click.Choice(["json", "yaml"]),
+    default="json",
+    help="Output format",
+)
 def schema_export(output, version, fmt):
     """Export the configuration JSON Schema as JSON or YAML."""
     export(output, version, fmt)

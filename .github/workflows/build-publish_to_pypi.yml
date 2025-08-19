@@ -211,7 +211,7 @@ jobs:
       CIBW_REPAIR_WHEEL_COMMAND_WINDOWS: "delvewheel repair -w {dest_dir} {wheel}"
       CIBW_TEST_REQUIRES: pytest
       CIBW_TEST_COMMAND: "python -m pytest {project}/test -v --tb=short --durations=10"
-      MACOSX_DEPLOYMENT_TARGET: ${{ matrix.buildplat[0] == 'macos-13' && '13.0' || '14.0' }}
+      MACOSX_DEPLOYMENT_TARGET: ${{ matrix.buildplat[0] == 'macos-13' && '13.0' || '15.0' }}
 
     steps:
       - uses: actions/checkout@v4

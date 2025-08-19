@@ -153,7 +153,7 @@ jobs:
       CIBW_TEST_COMMAND_WINDOWS: "python -m pytest {project}\\test"
 
       # macOS deployment target
-      MACOSX_DEPLOYMENT_TARGET: ${{ contains(inputs.platform_arch || 'macos-latest-arm64', 'macos-13') && '13.0' || '14.0' }}
+      MACOSX_DEPLOYMENT_TARGET: ${{ contains(inputs.platform_arch || 'macos-latest-arm64', 'macos-13') && '13.0' || '15.0' }}
 
       # Debug mode for SSH sessions
       DEBUG_MODE: ${{ inputs.debug_mode || 'after-failure' }}

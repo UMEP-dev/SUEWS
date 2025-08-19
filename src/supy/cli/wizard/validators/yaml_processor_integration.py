@@ -21,7 +21,7 @@ from ....data_model.yaml_processor.phase_b_science_check import run_science_chec
 from ....data_model.yaml_processor.phase_c_pydantic_report import (
     generate_phase_c_report,
 )
-from ....data_model import SUEWSConfig
+from ....data_model.core.config import SUEWSConfig
 
 
 class YAMLProcessorValidator:

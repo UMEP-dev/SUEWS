@@ -219,7 +219,7 @@ jobs:
 
           Schema version: ${{ steps.version.outputs.version }}
           Triggered by: ${{ github.event_name }}
-          Workflow run: #${{ github.run_number }}
+          Workflow run: ${{ github.run_id }}
 
           AUTO-GENERATED - DO NOT EDIT MANUALLY"
 
@@ -235,7 +235,7 @@ jobs:
           ### 📋 Details
           - **Schema version**: `${{ steps.version.outputs.version }}`
           - **Triggered by**: ${{ github.event_name }}${{ github.event_name == 'push' && ' (data model changes in master)' || '' }}${{ github.event_name == 'workflow_dispatch' && ' (manual trigger)' || '' }}${{ github.event_name == 'schedule' && ' (weekly validation)' || '' }}
-          - **Workflow run**: [#${{ github.run_number }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
+          - **Workflow run**: [${{ github.run_id }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
 
           ### 📝 Changes
           - Updated `schemas/suews-config/${{ steps.version.outputs.version }}.json`

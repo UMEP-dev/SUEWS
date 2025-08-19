@@ -1172,7 +1172,7 @@ MODULE SUEWS_DEF_DTS
 
       ! flag for iteration safety - YES
       ! all variables are intensive and thus can be used for iteration safety
-      LOGICAL :: iter_safe = .TRUE.
+      LOGICAL :: iter_safe = .FALSE.
 
    CONTAINS
       PROCEDURE :: ALLOCATE => allocSTEBBS_bldg

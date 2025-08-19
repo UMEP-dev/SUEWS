@@ -12,9 +12,9 @@ on:
       - '.github/scripts/generate_schema.py'
       - '.github/workflows/schema-management.yml'
 
-  # Validate on PRs and handle cleanup
+  # Validate on PRs
   pull_request:
-    types: [opened, synchronize, reopened, closed]
+    types: [opened, synchronize, reopened]
     paths:
       - 'schemas/**'  # Check for manual edits
       - 'src/supy/data_model/**'  # Check for model changes
@@ -403,66 +403,36 @@ jobs:
 
       - name: Build site with PR preview
         run: |
-          # Create site structure
-          mkdir -p _site
-
-          # Download current site content to preserve it (handle first deployment gracefully)
-          echo "📥 Attempting to download current site..."
-          SITE_EXISTS=false
+          # Create site structure for PR preview
+          mkdir -p _site/preview/pr-${{ github.event.pull_request.number }}/schema
           
-          # Check if GitHub Pages exists with timeout and retry
-          if curl -fsSL --max-time 10 --retry 2 https://umep-dev.github.io/SUEWS/index.html -o _site/index.html 2>/dev/null; then
-            echo "✅ Downloaded existing index.html"
-            SITE_EXISTS=true
-
-            # Try to preserve main schemas
-            if curl -fsSL --max-time 10 https://umep-dev.github.io/SUEWS/schemas/suews-config/latest.json -o /tmp/main-schema.json 2>/dev/null; then
-              mkdir -p _site/schemas/suews-config
-              cp /tmp/main-schema.json _site/schemas/suews-config/latest.json
-              echo "✅ Preserved main schemas"
-            fi
-
-            # Try to preserve recent PR previews (last 10 PRs)
-            for pr in $(seq $(({{ github.event.pull_request.number }} - 10)) $(({{ github.event.pull_request.number }} - 1))); do
-              if [ $pr -gt 0 ]; then
-                if curl -fsSL --max-time 5 https://umep-dev.github.io/SUEWS/preview/pr-$pr/schema/suews-config/latest.json \
-                     -o /tmp/pr-$pr.json 2>/dev/null; then
-                  mkdir -p _site/preview/pr-$pr/schema/suews-config
-                  cp /tmp/pr-$pr.json _site/preview/pr-$pr/schema/suews-config/latest.json
-                  echo "✅ Preserved preview for PR #$pr"
-                fi
-              fi
-            done
-          else
-            echo "ℹ️ No existing site found (this is normal for first deployment)"
-            # Create a simple index
-            cat > _site/index.html << 'EOF'
+          # Copy PR's schemas to preview location
+          echo "📦 Preparing PR #${{ github.event.pull_request.number }} preview..."
+          cp -r schemas/* _site/preview/pr-${{ github.event.pull_request.number }}/schema/
+          
+          # Create a simple index page for the preview
+          cat > _site/preview/pr-${{ github.event.pull_request.number }}/index.html << 'EOF'
           <!DOCTYPE html>
           <html>
           <head>
-              <title>SUEWS Schema</title>
+              <title>SUEWS Schema PR Preview #${{ github.event.pull_request.number }}</title>
               <meta charset="utf-8">
           </head>
           <body>
-              <h1>SUEWS Schema Documentation</h1>
+              <h1>SUEWS Schema - PR #${{ github.event.pull_request.number }} Preview</h1>
+              <p>This is a preview of the schema changes in PR #${{ github.event.pull_request.number }}</p>
               <ul>
-                <li><a href="schemas/suews-config/">Current Schema</a></li>
-                <li><a href="preview/">PR Previews</a></li>
+                <li><a href="schema/suews-config/">Schema Files</a></li>
+                <li><a href="${{ github.server_url }}/${{ github.repository }}/pull/${{ github.event.pull_request.number }}">View Pull Request</a></li>
               </ul>
           </body>
           </html>
           EOF
-          fi
-
-          # Add this PR's preview
-          echo "📦 Adding PR #${{ github.event.pull_request.number }} preview..."
-          mkdir -p _site/preview/pr-${{ github.event.pull_request.number }}/schema
-          cp -r schemas/* _site/preview/pr-${{ github.event.pull_request.number }}/schema/
-
-          # Create .nojekyll
+          
+          # Create .nojekyll to preserve directory structure
           touch _site/.nojekyll
-
-          echo "✅ Site prepared with PR preview"
+          
+          echo "✅ PR preview prepared"
           find _site -type f -name "*.json" -o -name "*.html" | head -10
 
       - name: Upload Pages artifact
@@ -503,35 +473,3 @@ jobs:
               body: comment
             });
 
-  # Job 5: Clean up PR previews after merge
-  cleanup_preview:
-    name: Clean Up PR Preview
-    runs-on: ubuntu-latest
-    # Trigger on closed PRs that were merged
-    if: github.event.pull_request.merged == true
-
-    permissions:
-      contents: write
-
-    steps:
-      - name: Checkout gh-pages branch
-        uses: actions/checkout@v4
-        with:
-          ref: gh-pages
-          token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Remove PR preview
-        run: |
-          PR_NUM="${{ github.event.pull_request.number }}"
-          if [ -d "preview/pr-${PR_NUM}" ]; then
-            rm -rf "preview/pr-${PR_NUM}"
-            echo "✓ Removed preview for PR #${PR_NUM}"
-
-            git config user.name "github-actions[bot]"
-            git config user.email "github-actions[bot]@users.noreply.github.com"
-            git add .
-            git commit -m "Clean up preview for merged PR #${PR_NUM}"
-            git push
-          else
-            echo "No preview found for PR #${PR_NUM}"
-          fi

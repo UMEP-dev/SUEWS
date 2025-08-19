@@ -25,6 +25,7 @@ py.install_sources(
             'cmd/table_converter.py',
             'cmd/to_yaml.py',
             'cmd/validate_config.py',
+            'cmd/schema_cli.py',
         ],
         [
             'util/_UMEP2epw.py',

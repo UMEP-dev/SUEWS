@@ -467,7 +467,7 @@ def export(output, version, fmt):
             Path(output).write_text(content)
             console.print(f"[green]✓ Schema exported to {output}[/green]")
         else:
-    console.print(Panel(Syntax(content, fmt, theme="monokai"), title=f"Schema v{schema_version}", subtitle=f"Save as: {default_name}"))
+            console.print(Panel(Syntax(content, fmt, theme="monokai"), title=f"Schema v{schema_version}", subtitle=f"Save as: {default_name}"))
     except Exception as e:
         console.print(f"[red]✗ Export failed: {e}[/red]")
         sys.exit(1)

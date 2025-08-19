@@ -1,0 +1,177 @@
+name: Schema Management (Hybrid)
+
+# Hybrid approach: Generate schemas as artifacts and deploy without committing
+# Works with branch protection - no direct commits to master needed
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - 'src/supy/data_model/**'
+      - '.github/scripts/generate_schema.py'
+      - '.github/workflows/schema-management-hybrid.yml'
+  
+  pull_request:
+    paths:
+      - 'src/supy/data_model/**'
+
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+  pull-requests: write
+
+jobs:
+  # Generate and deploy schemas without committing
+  generate-and-deploy:
+    name: Generate and Deploy Schemas
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+    
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pydantic pyyaml numpy pandas pytz timezonefinder f90nml packaging
+      
+      # Generate schemas fresh every time
+      - name: Generate schemas
+        run: |
+          echo "🔧 Generating schemas..."
+          python .github/scripts/generate_schema.py
+          echo "✅ Schemas generated"
+          ls -la schemas/
+      
+      # Prepare deployment with generated schemas
+      - name: Prepare deployment
+        run: |
+          mkdir -p _site
+          
+          # Copy freshly generated schemas
+          cp -r schemas _site/
+          
+          # Copy landing page
+          if [ -f .github/pages/index.html ]; then
+            cp .github/pages/index.html _site/index.html
+          else
+            cat > _site/index.html << 'EOF'
+          <!DOCTYPE html>
+          <html>
+          <head>
+              <title>SUEWS Schema</title>
+              <meta charset="utf-8">
+              <meta http-equiv="refresh" content="0; url=schemas/suews-config/">
+              <style>
+                body { font-family: system-ui; max-width: 800px; margin: 50px auto; padding: 20px; }
+              </style>
+          </head>
+          <body>
+              <h1>SUEWS Configuration Schema</h1>
+              <p>Redirecting to <a href="schemas/suews-config/">schema documentation</a>...</p>
+              <p style="margin-top: 40px;">Community: <a href="https://github.com/UMEP-dev/umep/discussions">UMEP Discussions</a></p>
+          </body>
+          </html>
+          EOF
+          fi
+          
+          touch _site/.nojekyll
+          echo "✅ Site prepared for deployment"
+      
+      - uses: actions/configure-pages@v5
+      
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+      
+      - uses: actions/deploy-pages@v4
+        id: deployment
+      
+      # Optional: Create PR to commit schemas for version control
+      - name: Create PR for schema updates
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Check if schemas changed from what's in master
+          if ! git diff --quiet schemas/; then
+            BRANCH="auto-update/schemas-$(date +%Y%m%d-%H%M%S)"
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            
+            git checkout -b "$BRANCH"
+            git add schemas/
+            git commit -m "chore: Update auto-generated schemas
+            
+            AUTO-GENERATED - DO NOT EDIT"
+            git push origin "$BRANCH"
+            
+            # Create PR with auto-merge label if available
+            gh pr create \
+              --base master \
+              --head "$BRANCH" \
+              --title "🤖 Update schemas" \
+              --body "Auto-generated schema update.
+              
+              The schemas have already been deployed to GitHub Pages.
+              This PR is for version control only.
+              
+              ✅ Safe to merge" \
+              --label "automerge,documentation" 2>/dev/null || \
+            gh pr create \
+              --base master \
+              --head "$BRANCH" \
+              --title "🤖 Update schemas" \
+              --body "Auto-generated schema update.
+              
+              The schemas have already been deployed to GitHub Pages.
+              This PR is for version control only.
+              
+              ✅ Safe to merge"
+            
+            echo "📝 PR created for version control"
+          else
+            echo "ℹ️ No schema changes to commit"
+          fi
+
+  # Validate PRs for schema changes
+  validate-pr:
+    name: Validate PR Schemas
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pydantic pyyaml numpy pandas pytz timezonefinder f90nml packaging
+      
+      - name: Generate and validate schemas
+        run: |
+          echo "🔧 Generating schemas for validation..."
+          python .github/scripts/generate_schema.py
+          echo "✅ Schema generation successful"
+          
+          # Show what would be updated
+          if ! git diff --quiet schemas/; then
+            echo "📝 Schema changes detected in this PR:"
+            git diff --stat schemas/
+          else
+            echo "ℹ️ No schema changes from this PR"
+          fi

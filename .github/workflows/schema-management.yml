@@ -183,47 +183,63 @@ jobs:
         if: |
           github.event_name != 'pull_request' && 
           (steps.check_changes.outputs.changed == 'true' || github.event.inputs.force_regenerate == 'true')
-        uses: peter-evans/create-pull-request@v6
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          commit-message: |
-            chore: Update auto-generated schemas
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Configure git
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          
+          # Create a new branch for the changes
+          BRANCH_NAME="auto-update/schemas-${{ steps.version.outputs.version }}-${{ github.run_number }}"
+          git checkout -b "$BRANCH_NAME"
+          
+          # Commit the changes
+          git add schemas/
+          git commit -m "chore: Update auto-generated schemas
 
-            Schema version: ${{ steps.version.outputs.version }}
-            Triggered by: ${{ github.event_name }}
-            Workflow run: #${{ github.run_number }}
+          Schema version: ${{ steps.version.outputs.version }}
+          Triggered by: ${{ github.event_name }}
+          Workflow run: #${{ github.run_number }}
 
-            AUTO-GENERATED - DO NOT EDIT MANUALLY
-          branch: auto-update/schemas-${{ steps.version.outputs.version }}-${{ github.run_number }}
-          delete-branch: true
-          title: "🤖 Auto-update: Schemas v${{ steps.version.outputs.version }}"
-          body: |
-            ## 🤖 Automated Schema Update
-            
-            This PR was automatically generated to update the JSON schemas based on changes to the data model.
-            
-            ### 📋 Details
-            - **Schema version**: `${{ steps.version.outputs.version }}`
-            - **Triggered by**: ${{ github.event_name }}${{ github.event_name == 'push' && ' (data model changes in master)' || '' }}${{ github.event_name == 'workflow_dispatch' && ' (manual trigger)' || '' }}${{ github.event_name == 'schedule' && ' (weekly validation)' || '' }}
-            - **Workflow run**: [#${{ github.run_number }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
-            
-            ### 📝 Changes
-            - Updated `schemas/suews-config/${{ steps.version.outputs.version }}.json`
-            - Updated `schemas/suews-config/latest.json`
-            - Updated schema registry
-            - Regenerated index.html
-            
-            ### ⚠️ Important
-            This is an auto-generated update. The schemas are generated from the Pydantic models in `src/supy/data_model/`.
-            
-            ### ✅ Auto-merge
-            This PR can be safely merged once all checks pass.
-          labels: |
-            auto-update
-            schemas
-            documentation
-          add-paths: |
-            schemas/**
+          AUTO-GENERATED - DO NOT EDIT MANUALLY"
+          
+          # Push the branch
+          git push origin "$BRANCH_NAME"
+          
+          # Create PR body
+          cat > pr-body.md << 'EOF'
+          ## 🤖 Automated Schema Update
+          
+          This PR was automatically generated to update the JSON schemas based on changes to the data model.
+          
+          ### 📋 Details
+          - **Schema version**: `${{ steps.version.outputs.version }}`
+          - **Triggered by**: ${{ github.event_name }}${{ github.event_name == 'push' && ' (data model changes in master)' || '' }}${{ github.event_name == 'workflow_dispatch' && ' (manual trigger)' || '' }}${{ github.event_name == 'schedule' && ' (weekly validation)' || '' }}
+          - **Workflow run**: [#${{ github.run_number }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
+          
+          ### 📝 Changes
+          - Updated `schemas/suews-config/${{ steps.version.outputs.version }}.json`
+          - Updated `schemas/suews-config/latest.json`
+          - Updated schema registry
+          - Regenerated index.html
+          
+          ### ⚠️ Important
+          This is an auto-generated update. The schemas are generated from the Pydantic models in `src/supy/data_model/`.
+          
+          ### ✅ Auto-merge
+          This PR can be safely merged once all checks pass.
+          EOF
+          
+          # Create the pull request using GitHub CLI
+          gh pr create \
+            --base master \
+            --head "$BRANCH_NAME" \
+            --title "🤖 Auto-update: Schemas v${{ steps.version.outputs.version }}" \
+            --body-file pr-body.md \
+            --label "auto-update" \
+            --label "schemas" \
+            --label "documentation" || echo "PR already exists or creation failed"
 
       - name: PR Test Summary
         # Show what would happen during PR tests

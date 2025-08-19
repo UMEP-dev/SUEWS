@@ -264,8 +264,12 @@ jobs:
             --title "🤖 Auto-update: Schemas v${{ steps.version.outputs.version }}" \
             --body-file pr-body.md; then
             echo "✅ Pull request created successfully"
+            # Get the PR number that was just created
+            NEW_PR=$(gh pr list --head "$BRANCH_NAME" --json number --jq '.[0].number')
             # Try to add labels if they exist (ignore errors)
-            gh pr edit "$BRANCH_NAME" --add-label "documentation" 2>/dev/null || true
+            if [ -n "$NEW_PR" ]; then
+              gh pr edit "$NEW_PR" --add-label "documentation" 2>/dev/null || true
+            fi
           else
             echo "⚠️ PR already exists or creation failed"
           fi
@@ -386,7 +390,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: '3.13'
 
       - name: Install dependencies
         run: |
@@ -411,7 +415,7 @@ jobs:
           cp -r schemas/* _site/preview/pr-${{ github.event.pull_request.number }}/schema/
           
           # Create a simple index page for the preview
-          cat > _site/preview/pr-${{ github.event.pull_request.number }}/index.html << 'EOF'
+          cat > _site/preview/pr-${{ github.event.pull_request.number }}/index.html << EOF
           <!DOCTYPE html>
           <html>
           <head>

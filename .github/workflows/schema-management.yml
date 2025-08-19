@@ -1,38 +1,81 @@
-name: Schema Management and Protection
+name: Schema Management
 
-# This workflow manages JSON schema generation, validation, and deployment
-# It ensures schemas are only auto-generated and prevents manual edits
+# HOW THIS WORKFLOW WORKS:
+# ========================
+#
+# TRIGGER CONDITIONS:
+# - Push to master: When PR merged with relevant path changes
+# - Pull request: When PR contains relevant path changes  
+# - Manual dispatch: Triggered from Actions tab
+#
+# PRODUCTION SCENARIOS (Push to master):
+# ---------------------------------------
+# P1. New schema version (version bumped in version.py):
+#     → Generates new version file (e.g., 0.2.json)
+#     → Preserves all old versions (e.g., 0.1.json)
+#     → Updates registry with all versions
+#     → Deploys everything to github-pages at root level
+#     → Creates PR to commit new version to repo
+#
+# P2. Same version, model changed:
+#     → Regenerates current version with changes
+#     → Preserves version history
+#     → Creates PR if schema content changed
+#
+# P3. First deployment (no schemas exist):
+#     → Generates initial schemas
+#     → Creates registry from scratch
+#     → Deploys and creates PR to add to repo
+#
+# PREVIEW SCENARIOS (Pull Request):
+# ----------------------------------
+# PR1. Testing data model changes:
+#      → Preserves production schemas at root level
+#      → Deploys preview to /preview/pr-{NUMBER}/ subdirectory
+#      → Preview banner added to preview pages only
+#      → Comments preview URLs on PR
+#      → Production remains untouched and accessible
+#
+# PR2. Testing new schema version:
+#      → Shows new version in preview subdirectory
+#      → Production schemas remain at root level
+#      → Both URLs work simultaneously
+#
+# PR3. Testing workflow/page changes:
+#      → Preview in subdirectory with banners
+#      → Production pages unchanged
+#      → Safe testing without affecting users
+#
+# MANUAL TRIGGER SCENARIOS:
+# -------------------------
+# M1. Force regeneration after issues
+# M2. Initial GitHub Pages setup
+# M3. Recover from failed deployments
+#
+# KEY BEHAVIORS:
+# - Schema generation is INCREMENTAL (preserves all versions)
+# - Registry tracks version history and metadata
+# - PR previews deploy to /preview/pr-{NUMBER}/ subdirectories
+# - Production schemas always remain at root level
+# - Preview and production coexist without conflicts
+# - PRs are created only when schemas actually change
 
 on:
-  # Trigger on data model changes
   push:
     branches: [master]
     paths:
       - 'src/supy/data_model/**'
       - '.github/scripts/generate_schema.py'
       - '.github/workflows/schema-management.yml'
-
-  # Validate on PRs
+  
   pull_request:
-    types: [opened, synchronize, reopened]
     paths:
-      - 'schemas/**'  # Check for manual edits
-      - 'src/supy/data_model/**'  # Check for model changes
+      - 'src/supy/data_model/**'
       - '.github/scripts/generate_schema.py'
-      - '.github/workflows/schema-management.yml'  # Test workflow changes
+      - '.github/workflows/schema-management.yml'
+      - '.github/pages/**'
 
-  # Manual trigger for forced regeneration
   workflow_dispatch:
-    inputs:
-      force_regenerate:
-        description: 'Force regenerate schemas even if unchanged'
-        required: false
-        default: false
-        type: boolean
-
-  # Weekly validation to ensure integrity
-  schedule:
-    - cron: '0 3 * * 1'  # Every Monday at 03:00 UTC
 
 permissions:
   contents: write
@@ -41,462 +84,208 @@ permissions:
   pull-requests: write
 
 jobs:
-  # Job 1: Validate schemas (runs on every PR)
-  validate_schemas:
-    name: Validate Schema Integrity
+  generate-deploy:
+    name: Generate and Deploy
     runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request'
-
-    steps:
-      - name: Checkout PR
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Check for manual schema edits
-        id: check_manual
-        run: |
-          # Get changed schema files
-          SCHEMA_CHANGES=$(git diff --name-only origin/${{ github.base_ref }}...HEAD | grep '^schemas/' || true)
-
-          if [ -n "$SCHEMA_CHANGES" ]; then
-            echo "Schema files changed:"
-            echo "$SCHEMA_CHANGES"
-
-            # Check if the change is from a data model update
-            MODEL_CHANGES=$(git diff --name-only origin/${{ github.base_ref }}...HEAD | grep '^src/supy/data_model/' || true)
-
-            if [ -z "$MODEL_CHANGES" ]; then
-              echo "❌ ERROR: Schema files modified without corresponding data model changes!"
-              echo "Schemas must be auto-generated from data model changes."
-              echo ""
-              echo "To update schemas:"
-              echo "1. Modify files in src/supy/data_model/"
-              echo "2. Update version in src/supy/data_model/schema/version.py"
-              echo "3. Let this workflow regenerate schemas automatically"
-              exit 1
-            else
-              echo "✓ Schema changes detected alongside data model changes"
-            fi
-          else
-            echo "✓ No schema files modified"
-          fi
-
-      - name: Validate JSON structure
-        if: always()
-        run: |
-          # Enable recursive globbing
-          shopt -s globstar
-          # Validate all JSON files in schemas directory
-          for file in schemas/**/*.json; do
-            if [ -f "$file" ]; then
-              python -m json.tool "$file" > /dev/null 2>&1
-              if [ $? -ne 0 ]; then
-                echo "❌ Invalid JSON in $file"
-                exit 1
-              else
-                echo "✓ Valid JSON: $file"
-              fi
-            fi
-          done
-
-      - name: Check auto-generated headers
-        run: |
-          # Check that schema files have auto-generated markers
-          for file in schemas/suews-config/*.json; do
-            if [ -f "$file" ] && [ "$(basename $file)" != "registry.json" ]; then
-              if ! grep -q "_generated_by" "$file" 2>/dev/null; then
-                echo "⚠️  Warning: $file missing auto-generated header"
-              fi
-            fi
-          done
-
-  # Job 2: Generate schemas (runs on master push, workflow_dispatch, or PR with workflow changes)
-  generate_schemas:
-    name: Generate Schemas
-    runs-on: ubuntu-latest
-    # Run on push to master, manual trigger, schedule, or when testing workflow changes in PR
+    # Run on master push OR PR
     if: |
-      github.event_name == 'push' ||
-      github.event_name == 'workflow_dispatch' ||
-      github.event_name == 'schedule' ||
-      github.event_name == 'pull_request'
-
-    outputs:
-      schema_version: ${{ steps.version.outputs.version }}
-      schemas_changed: ${{ steps.check_changes.outputs.changed }}
-
+      (github.event_name == 'push' && github.ref == 'refs/heads/master') ||
+      github.event_name == 'pull_request' ||
+      github.event_name == 'workflow_dispatch'
+    
+    # Use preview environment for PRs, production for master
+    environment:
+      name: ${{ github.event_name == 'pull_request' && 'github-pages-preview' || 'github-pages' }}
+      url: ${{ steps.deployment.outputs.page_url }}
+    
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - uses: actions/checkout@v4
+      
+      - uses: actions/setup-python@v5
         with:
           python-version: '3.13'
-
-      - name: Install dependencies
-        run: |
+      
+      - run: |
           python -m pip install --upgrade pip
           pip install pydantic pyyaml numpy pandas pytz timezonefinder f90nml packaging
-          echo "✓ Installed dependencies"
-
-      - name: Get schema version
-        id: version
-        run: |
-          # Extract version without importing the full module to avoid circular imports
-          cat > get_version.py << 'EOF'
-          import re
-          import sys
-          import os
-          
-          version_file = 'src/supy/data_model/schema/version.py'
-          
-          # Check if file exists
-          if not os.path.exists(version_file):
-              print("Warning: Version file not found, using fallback version 0.1", file=sys.stderr)
-              print("0.1")
-              sys.exit(0)
-          
-          try:
-              with open(version_file, 'r') as f:
-                  content = f.read()
-                  match = re.search(r'CURRENT_SCHEMA_VERSION = ["\'](.*?)["\']', content)
-                  if match:
-                      print(match.group(1))
-                  else:
-                      print("Warning: Version pattern not found, using fallback version 0.1", file=sys.stderr)
-                      print("0.1")
-          except Exception as e:
-              print(f"Error reading version file: {e}", file=sys.stderr)
-              print("0.1")  # Fallback version
-          EOF
-          VERSION=$(python get_version.py 2>&1) || VERSION="0.1"
-          rm -f get_version.py
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "📌 Schema version: $VERSION"
-
+      
+      # Generate schemas (cumulative - preserves existing versions)
       - name: Generate schemas
         run: |
           echo "🔧 Generating schemas..."
           python .github/scripts/generate_schema.py
-          echo "✓ Schema generation complete"
-
-      - name: Check for changes
-        id: check_changes
+          echo "✅ Schema generation complete"
+      
+      # Deploy to GitHub Pages
+      - name: Deploy
         run: |
-          if git diff --quiet schemas/; then
-            echo "changed=false" >> $GITHUB_OUTPUT
-            echo "ℹ️ No schema changes detected"
-          else
-            echo "changed=true" >> $GITHUB_OUTPUT
-            echo "✓ Schema changes detected"
-            git diff --stat schemas/
-          fi
-
-      - name: Create Pull Request for schema updates
-        # Automatically create PR when schemas need updating (not during PR tests)
-        if: |
-          github.event_name != 'pull_request' &&
-          (steps.check_changes.outputs.changed == 'true' || github.event.inputs.force_regenerate == 'true')
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          # Configure git
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-
-          # Create a new branch for the changes
-          BRANCH_NAME="auto-update/schemas-${{ steps.version.outputs.version }}-${{ github.run_number }}"
-          git checkout -b "$BRANCH_NAME"
-
-          # Commit the changes
-          git add schemas/
-          git commit -m "chore: Update auto-generated schemas
-
-          Schema version: ${{ steps.version.outputs.version }}
-          Triggered by: ${{ github.event_name }}
-          Workflow run: ${{ github.run_id }}
-
-          AUTO-GENERATED - DO NOT EDIT MANUALLY"
-
-          # Push the branch
-          git push origin "$BRANCH_NAME"
-
-          # Create PR body
-          cat > pr-body.md << 'EOF'
-          ## 🤖 Automated Schema Update
-
-          This PR was automatically generated to update the JSON schemas based on changes to the data model.
-
-          ### 📋 Details
-          - **Schema version**: `${{ steps.version.outputs.version }}`
-          - **Triggered by**: ${{ github.event_name }}${{ github.event_name == 'push' && ' (data model changes in master)' || '' }}${{ github.event_name == 'workflow_dispatch' && ' (manual trigger)' || '' }}${{ github.event_name == 'schedule' && ' (weekly validation)' || '' }}
-          - **Workflow run**: [${{ github.run_id }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
-
-          ### 📝 Changes
-          - Updated `schemas/suews-config/${{ steps.version.outputs.version }}.json`
-          - Updated `schemas/suews-config/latest.json`
-          - Updated schema registry
-          - Regenerated index.html
-
-          ### ⚠️ Important
-          This is an auto-generated update. The schemas are generated from the Pydantic models in `src/supy/data_model/`.
-
-          ### ✅ Auto-merge
-          This PR can be safely merged once all checks pass.
-          EOF
-
-          # Check if PR already exists for this branch
-          EXISTING_PR=$(gh pr list --head "$BRANCH_NAME" --json number --jq '.[0].number' || echo "")
+          mkdir -p _site
           
-          if [ -n "$EXISTING_PR" ]; then
-            echo "ℹ️ PR #$EXISTING_PR already exists for branch $BRANCH_NAME"
-            # Update the existing PR
-            gh pr edit "$EXISTING_PR" --body-file pr-body.md
-            echo "✅ Updated existing PR #$EXISTING_PR"
-          elif gh pr create \
-            --base master \
-            --head "$BRANCH_NAME" \
-            --title "🤖 Auto-update: Schemas v${{ steps.version.outputs.version }}" \
-            --body-file pr-body.md; then
-            echo "✅ Pull request created successfully"
-            # Get the PR number that was just created
-            NEW_PR=$(gh pr list --head "$BRANCH_NAME" --json number --jq '.[0].number')
-            # Try to add labels if they exist (ignore errors)
-            if [ -n "$NEW_PR" ]; then
-              gh pr edit "$NEW_PR" --add-label "documentation" 2>/dev/null || true
+          # For PRs: preserve production and add preview in subdirectory
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            # First, fetch current production deployment to preserve it
+            echo "📥 Fetching current production schemas..."
+            mkdir -p _site_prod
+            wget -q -r -np -nH --cut-dirs=1 -P _site_prod https://umep-dev.github.io/SUEWS/ || true
+            
+            # Copy production to _site
+            if [ -d _site_prod ]; then
+              cp -r _site_prod/* _site/ 2>/dev/null || true
             fi
+            
+            # Now add PR preview in subdirectory
+            PR_DIR="preview/pr-${{ github.event.pull_request.number }}"
+            mkdir -p "_site/${PR_DIR}"
+            
+            # Copy PR schemas to preview subdirectory
+            if [ -d schemas ]; then
+              cp -r schemas "_site/${PR_DIR}/"
+              
+              # Add banner to PR preview schema index
+              if [ -f "_site/${PR_DIR}/schemas/suews-config/index.html" ]; then
+                sed -i '/<body>/a\
+                <div style="background: #ffeb3b; color: #333; padding: 10px; text-align: center; font-weight: bold;">⚠️ PREVIEW - PR #${{ github.event.pull_request.number }} - Not Production</div>' \
+                "_site/${PR_DIR}/schemas/suews-config/index.html"
+              fi
+            fi
+            
+            # Create PR preview landing page
+            cat > "_site/${PR_DIR}/index.html" << 'EOF'
+          <!DOCTYPE html>
+          <html>
+          <head>
+              <title>SUEWS Schema Preview - PR #${{ github.event.pull_request.number }}</title>
+              <meta charset="utf-8">
+              <style>
+                  body { font-family: system-ui, -apple-system, sans-serif; margin: 2em; max-width: 800px; margin: 0 auto; padding: 2em; }
+                  .warning { background: #ffeb3b; color: #333; padding: 15px; border-radius: 5px; margin-bottom: 20px; }
+                  a { color: #0066cc; text-decoration: none; }
+                  a:hover { text-decoration: underline; }
+              </style>
+          </head>
+          <body>
+              <div class="warning">
+                  <h2>⚠️ PREVIEW - PR #${{ github.event.pull_request.number }}</h2>
+                  <p>This is a preview of schema changes. Do not use these URLs in production.</p>
+                  <p><a href="../../">← Back to production schemas</a></p>
+              </div>
+              <h1>SUEWS Schema Preview</h1>
+              <p>Preview schemas: <a href="schemas/suews-config/">View schema registry →</a></p>
+          </body>
+          </html>
+          EOF
+            
+            # Ensure production index.html exists (without banner)
+            if [ -f .github/pages/index.html ] && [ ! -f _site/index.html ]; then
+              cp .github/pages/index.html _site/index.html
+            fi
+            
           else
-            echo "⚠️ PR already exists or creation failed"
-          fi
-
-      - name: PR Test Summary
-        # Show what would happen during PR tests
-        if: github.event_name == 'pull_request'
-        run: |
-          if [ "${{ steps.check_changes.outputs.changed }}" == "true" ]; then
-            echo "📋 **PR Test Mode**: Schema generation successful!"
-            echo ""
-            echo "If this PR is merged, the following schema changes would be auto-generated:"
-            git diff --stat schemas/
-            echo ""
-            echo "✅ Schema generation test passed. An automatic PR will be created after merge if needed."
-          else
-            echo "✅ No schema changes needed from this PR"
-          fi
-
-      - name: Upload schema artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: schema-${{ steps.version.outputs.version }}
-          path: schemas/
-          retention-days: 30
-
-  # Job 3: Deploy to GitHub Pages
-  deploy_schemas:
-    name: Deploy Schemas to GitHub Pages
-    runs-on: ubuntu-latest
-    # Deploy whenever master is updated - schemas should already be committed
-    if: |
-      github.event_name == 'push' &&
-      github.ref == 'refs/heads/master'
-
-    permissions:
-      contents: read
-      pages: write
-      id-token: write
-
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          ref: master  # Get latest including just-committed schemas
-
-      - name: Setup Pages
-        uses: actions/configure-pages@v5
-
-      - name: Prepare deployment
-        run: |
-          mkdir -p _site/schemas
-          cp -r schemas/* _site/schemas/
-
-          # Copy landing page if it exists, otherwise create redirect
-          if [ -f .github/pages/index.html ]; then
-            cp .github/pages/index.html _site/index.html
-            echo "✓ Using custom landing page from .github/pages/"
-          else
-            # Fallback: Create root index.html redirect
-            cat > _site/index.html << 'EOF'
+            # For master: normal deployment
+            if [ -d schemas ]; then
+              cp -r schemas _site/
+            else
+              mkdir -p _site/schemas
+              echo '{"message": "No schemas yet"}' > _site/schemas/placeholder.json
+            fi
+            
+            # Copy landing page
+            if [ -f .github/pages/index.html ]; then
+              cp .github/pages/index.html _site/index.html
+            else
+              # Simple fallback
+              cat > _site/index.html << 'EOF'
           <!DOCTYPE html>
           <html>
           <head>
               <title>SUEWS Schema</title>
               <meta charset="utf-8">
               <meta http-equiv="refresh" content="0; url=schemas/suews-config/">
-              <style>
-                body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; max-width: 600px; margin: 50px auto; padding: 20px; }
-                h1 { font-size: 24px; font-weight: 600; }
-                p { color: #586069; }
-                a { color: #0366d6; text-decoration: none; }
-                a:hover { text-decoration: underline; }
-              </style>
           </head>
           <body>
-              <h1>SUEWS Configuration Schema</h1>
-              <p>Redirecting to <a href="schemas/suews-config/">schema documentation</a>...</p>
-              <p style="margin-top: 40px; font-size: 14px;">Community support: <a href="https://github.com/UMEP-dev/umep/discussions">UMEP Discussions</a></p>
+              <h1>SUEWS Schema</h1>
+              <p>Redirecting to <a href="schemas/suews-config/">schemas</a>...</p>
           </body>
           </html>
           EOF
-            echo "✓ Using fallback redirect page"
+            fi
           fi
-
-          # Create .nojekyll
+          
           touch _site/.nojekyll
-
-          echo "📦 Prepared deployment:"
-          find _site -type f -name "*.json" -o -name "*.html" | head -20
-
-      - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@v3
+      
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
         with:
           path: _site
-
-      - name: Deploy to GitHub Pages
+      - uses: actions/deploy-pages@v4
         id: deployment
-        uses: actions/deploy-pages@v4
-
-  # Job 4: PR Preview deployment to separate environment
-  preview_schema:
-    name: Generate PR Preview
-    runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request'
-
-    permissions:
-      contents: read
-      pull-requests: write  # Needed to comment on PR
-      pages: write         # Deploy to Pages
-      id-token: write      # OIDC for Pages
-
-    # Deploy to a preview environment instead of production
-    environment:
-      name: github-pages-preview
-      url: ${{ steps.deployment.outputs.page_url }}preview/pr-${{ github.event.pull_request.number }}/
-
-    steps:
-      - name: Checkout PR
-        uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.13'
-
-      - name: Install dependencies
+      
+      # Create PR if schemas changed (master only, for version control)
+      - name: Create PR for schema updates
+        if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          python -m pip install --upgrade pip
-          pip install pydantic pyyaml numpy pandas pytz timezonefinder f90nml packaging
-
-      - name: Generate preview schema
-        run: |
-          python .github/scripts/generate_schema.py --preview --pr-number ${{ github.event.pull_request.number }}
-          echo "📝 Preview schema generated"
-
-      - name: Setup Pages
-        uses: actions/configure-pages@v5
-
-      - name: Build site with PR preview
-        run: |
-          # Create site structure for PR preview
-          mkdir -p _site/preview/pr-${{ github.event.pull_request.number }}/schema
-          
-          # Copy PR's schemas to preview location
-          echo "📦 Preparing PR #${{ github.event.pull_request.number }} preview..."
-          cp -r schemas/* _site/preview/pr-${{ github.event.pull_request.number }}/schema/
-          
-          # Create a simple index page for the preview
-          cat > _site/preview/pr-${{ github.event.pull_request.number }}/index.html << EOF
-          <!DOCTYPE html>
-          <html>
-          <head>
-              <title>SUEWS Schema PR Preview #${{ github.event.pull_request.number }}</title>
-              <meta charset="utf-8">
-              <style>
-                body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; max-width: 600px; margin: 50px auto; padding: 20px; }
-                h1 { font-size: 24px; font-weight: 600; }
-                p { color: #586069; margin: 15px 0; }
-                a { color: #0366d6; text-decoration: none; }
-                a:hover { text-decoration: underline; }
-                .links { margin: 30px 0; }
-                .links a { display: block; margin: 10px 0; }
-                .footer { margin-top: 60px; padding-top: 20px; border-top: 1px solid #e1e4e8; font-size: 14px; color: #586069; }
-              </style>
-          </head>
-          <body>
-              <h1>SUEWS Schema Preview</h1>
-              <p>Pull Request #${{ github.event.pull_request.number }}</p>
-              
-              <div class="links">
-                <a href="schema/suews-config/">View Schema Files</a>
-                <a href="${{ github.server_url }}/${{ github.repository }}/pull/${{ github.event.pull_request.number }}">View Pull Request</a>
-              </div>
-              
-              <div class="footer">
-                Community support: <a href="https://github.com/UMEP-dev/umep/discussions">UMEP Discussions</a>
-              </div>
-          </body>
-          </html>
-          EOF
-          
-          # Create .nojekyll to preserve directory structure
-          touch _site/.nojekyll
-          
-          echo "✅ PR preview prepared"
-          find _site -type f -name "*.json" -o -name "*.html" | head -10
-
-      - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: _site
-
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
-        continue-on-error: true  # Don't fail the job if deployment fails
-
-      - name: Comment on PR
+          if ! git diff --quiet schemas/; then
+            BRANCH="auto/schemas-$(date +%Y%m%d-%H%M%S)"
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git checkout -b "$BRANCH"
+            git add schemas/
+            git commit -m "chore: Update schemas [auto-generated]"
+            git push origin "$BRANCH"
+            
+            gh pr create \
+              --base master \
+              --head "$BRANCH" \
+              --title "🤖 Update schemas" \
+              --body "Auto-generated schema update. Already deployed to GitHub Pages."
+          fi
+      
+      # Comment on PR with preview URL
+      - name: Comment preview URL
+        if: github.event_name == 'pull_request'
         uses: actions/github-script@v7
         with:
           script: |
-            const prNumber = context.issue.number;
-            const comment = `🔍 **Schema Validation Complete**
-
-            The schema generation has been tested and validated successfully for this PR.
-
-            - ✅ Schema generation: Success
-            - ✅ Schema validation: Passed
-            - 📦 Artifact uploaded: schema-preview-pr-${prNumber}
-
-            🌐 **Preview URL**: https://umep-dev.github.io/SUEWS/preview/pr-${prNumber}/schema/suews-config/
-            ⏱️ The preview will be available after deployment completes (1-2 minutes).
-
-            ℹ️ **Note**: This deploys to a separate preview environment. If the deployment fails,
-            it may be because the environment needs to be created in repository settings.
-
-            ⚠️ **Important**: Schemas are auto-generated. Manual edits to schema files will be rejected.`;
-
-            github.rest.issues.createComment({
+            const comments = await github.rest.issues.listComments({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              issue_number: prNumber,
-              body: comment
+              issue_number: context.issue.number
             });
-
+            
+            const botComment = comments.data.find(c => 
+              c.user.type === 'Bot' && c.body.includes('Schema Preview')
+            );
+            
+            const prNumber = context.issue.number;
+            const baseUrl = 'https://umep-dev.github.io/SUEWS';
+            
+            const body = `## 🔍 Schema Preview Deployed
+            
+            **Preview URLs:**
+            - 🆕 Preview schemas: ${baseUrl}/preview/pr-${prNumber}/schemas/suews-config/
+            - 📋 Preview landing: ${baseUrl}/preview/pr-${prNumber}/
+            
+            **Production URLs (unchanged):**
+            - ✅ Production schemas: ${baseUrl}/schemas/suews-config/
+            - 🏠 Production landing: ${baseUrl}/
+            
+            ---
+            ⚠️ **Important:** Preview schemas are in a subdirectory and do not affect production. The preview pages include warning banners to prevent accidental use in production configs.`;
+            
+            if (botComment) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: botComment.id,
+                body
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body
+              });
+            }

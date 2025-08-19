@@ -12,8 +12,9 @@ on:
       - '.github/scripts/generate_schema.py'
       - '.github/workflows/schema-management.yml'
 
-  # Validate on PRs
+  # Validate on PRs and handle cleanup
   pull_request:
+    types: [opened, synchronize, reopened, closed]
     paths:
       - 'schemas/**'  # Check for manual edits
       - 'src/supy/data_model/**'  # Check for model changes
@@ -84,6 +85,8 @@ jobs:
       - name: Validate JSON structure
         if: always()
         run: |
+          # Enable recursive globbing
+          shopt -s globstar
           # Validate all JSON files in schemas directory
           for file in schemas/**/*.json; do
             if [ -f "$file" ]; then
@@ -110,7 +113,7 @@ jobs:
 
   # Job 2: Generate schemas (runs on master push, workflow_dispatch, or PR with workflow changes)
   generate_schemas:
-    name: Generate Schemas  
+    name: Generate Schemas
     runs-on: ubuntu-latest
     # Run on push to master, manual trigger, schedule, or when testing workflow changes in PR
     if: |
@@ -133,7 +136,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: '3.13'
 
       - name: Install dependencies
         run: |
@@ -147,16 +150,32 @@ jobs:
           # Extract version without importing the full module to avoid circular imports
           cat > get_version.py << 'EOF'
           import re
-          with open('src/supy/data_model/schema/version.py', 'r') as f:
-              content = f.read()
-              match = re.search(r'CURRENT_SCHEMA_VERSION = ["\'](.*?)["\']', content)
-              if match:
-                  print(match.group(1))
-              else:
-                  print('0.1')  # Fallback version
+          import sys
+          import os
+          
+          version_file = 'src/supy/data_model/schema/version.py'
+          
+          # Check if file exists
+          if not os.path.exists(version_file):
+              print("Warning: Version file not found, using fallback version 0.1", file=sys.stderr)
+              print("0.1")
+              sys.exit(0)
+          
+          try:
+              with open(version_file, 'r') as f:
+                  content = f.read()
+                  match = re.search(r'CURRENT_SCHEMA_VERSION = ["\'](.*?)["\']', content)
+                  if match:
+                      print(match.group(1))
+                  else:
+                      print("Warning: Version pattern not found, using fallback version 0.1", file=sys.stderr)
+                      print("0.1")
+          except Exception as e:
+              print(f"Error reading version file: {e}", file=sys.stderr)
+              print("0.1")  # Fallback version
           EOF
-          VERSION=$(python get_version.py)
-          rm get_version.py
+          VERSION=$(python get_version.py 2>&1) || VERSION="0.1"
+          rm -f get_version.py
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "📌 Schema version: $VERSION"
 
@@ -181,7 +200,7 @@ jobs:
       - name: Create Pull Request for schema updates
         # Automatically create PR when schemas need updating (not during PR tests)
         if: |
-          github.event_name != 'pull_request' && 
+          github.event_name != 'pull_request' &&
           (steps.check_changes.outputs.changed == 'true' || github.event.inputs.force_regenerate == 'true')
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -189,11 +208,11 @@ jobs:
           # Configure git
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          
+
           # Create a new branch for the changes
           BRANCH_NAME="auto-update/schemas-${{ steps.version.outputs.version }}-${{ github.run_number }}"
           git checkout -b "$BRANCH_NAME"
-          
+
           # Commit the changes
           git add schemas/
           git commit -m "chore: Update auto-generated schemas
@@ -203,37 +222,43 @@ jobs:
           Workflow run: #${{ github.run_number }}
 
           AUTO-GENERATED - DO NOT EDIT MANUALLY"
-          
+
           # Push the branch
           git push origin "$BRANCH_NAME"
-          
+
           # Create PR body
           cat > pr-body.md << 'EOF'
           ## 🤖 Automated Schema Update
-          
+
           This PR was automatically generated to update the JSON schemas based on changes to the data model.
-          
+
           ### 📋 Details
           - **Schema version**: `${{ steps.version.outputs.version }}`
           - **Triggered by**: ${{ github.event_name }}${{ github.event_name == 'push' && ' (data model changes in master)' || '' }}${{ github.event_name == 'workflow_dispatch' && ' (manual trigger)' || '' }}${{ github.event_name == 'schedule' && ' (weekly validation)' || '' }}
           - **Workflow run**: [#${{ github.run_number }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
-          
+
           ### 📝 Changes
           - Updated `schemas/suews-config/${{ steps.version.outputs.version }}.json`
           - Updated `schemas/suews-config/latest.json`
           - Updated schema registry
           - Regenerated index.html
-          
+
           ### ⚠️ Important
           This is an auto-generated update. The schemas are generated from the Pydantic models in `src/supy/data_model/`.
-          
+
           ### ✅ Auto-merge
           This PR can be safely merged once all checks pass.
           EOF
+
+          # Check if PR already exists for this branch
+          EXISTING_PR=$(gh pr list --head "$BRANCH_NAME" --json number --jq '.[0].number' || echo "")
           
-          # Create the pull request using GitHub CLI
-          # Note: Labels might not exist, so we create without them and add them separately if available
-          if gh pr create \
+          if [ -n "$EXISTING_PR" ]; then
+            echo "ℹ️ PR #$EXISTING_PR already exists for branch $BRANCH_NAME"
+            # Update the existing PR
+            gh pr edit "$EXISTING_PR" --body-file pr-body.md
+            echo "✅ Updated existing PR #$EXISTING_PR"
+          elif gh pr create \
             --base master \
             --head "$BRANCH_NAME" \
             --title "🤖 Auto-update: Schemas v${{ steps.version.outputs.version }}" \
@@ -339,7 +364,7 @@ jobs:
 
   # Job 4: PR Preview deployment to separate environment
   preview_schema:
-    name: Generate PR Preview  
+    name: Generate PR Preview
     runs-on: ubuntu-latest
     if: github.event_name == 'pull_request'
 
@@ -380,23 +405,27 @@ jobs:
         run: |
           # Create site structure
           mkdir -p _site
-          
-          # Download current site content to preserve it
+
+          # Download current site content to preserve it (handle first deployment gracefully)
           echo "📥 Attempting to download current site..."
-          if curl -fsSL https://umep-dev.github.io/SUEWS/index.html -o _site/index.html 2>/dev/null; then
+          SITE_EXISTS=false
+          
+          # Check if GitHub Pages exists with timeout and retry
+          if curl -fsSL --max-time 10 --retry 2 https://umep-dev.github.io/SUEWS/index.html -o _site/index.html 2>/dev/null; then
             echo "✅ Downloaded existing index.html"
-            
+            SITE_EXISTS=true
+
             # Try to preserve main schemas
-            if curl -fsSL https://umep-dev.github.io/SUEWS/schemas/suews-config/latest.json -o /tmp/main-schema.json 2>/dev/null; then
+            if curl -fsSL --max-time 10 https://umep-dev.github.io/SUEWS/schemas/suews-config/latest.json -o /tmp/main-schema.json 2>/dev/null; then
               mkdir -p _site/schemas/suews-config
               cp /tmp/main-schema.json _site/schemas/suews-config/latest.json
               echo "✅ Preserved main schemas"
             fi
-            
+
             # Try to preserve recent PR previews (last 10 PRs)
             for pr in $(seq $(({{ github.event.pull_request.number }} - 10)) $(({{ github.event.pull_request.number }} - 1))); do
               if [ $pr -gt 0 ]; then
-                if curl -fsSL https://umep-dev.github.io/SUEWS/preview/pr-$pr/schema/suews-config/latest.json \
+                if curl -fsSL --max-time 5 https://umep-dev.github.io/SUEWS/preview/pr-$pr/schema/suews-config/latest.json \
                      -o /tmp/pr-$pr.json 2>/dev/null; then
                   mkdir -p _site/preview/pr-$pr/schema/suews-config
                   cp /tmp/pr-$pr.json _site/preview/pr-$pr/schema/suews-config/latest.json
@@ -405,7 +434,7 @@ jobs:
               fi
             done
           else
-            echo "⚠️ No existing site found, creating new structure"
+            echo "ℹ️ No existing site found (this is normal for first deployment)"
             # Create a simple index
             cat > _site/index.html << 'EOF'
           <!DOCTYPE html>
@@ -424,15 +453,15 @@ jobs:
           </html>
           EOF
           fi
-          
+
           # Add this PR's preview
           echo "📦 Adding PR #${{ github.event.pull_request.number }} preview..."
           mkdir -p _site/preview/pr-${{ github.event.pull_request.number }}/schema
           cp -r schemas/* _site/preview/pr-${{ github.event.pull_request.number }}/schema/
-          
+
           # Create .nojekyll
           touch _site/.nojekyll
-          
+
           echo "✅ Site prepared with PR preview"
           find _site -type f -name "*.json" -o -name "*.html" | head -10
 
@@ -461,7 +490,7 @@ jobs:
 
             🌐 **Preview URL**: https://umep-dev.github.io/SUEWS/preview/pr-${prNumber}/schema/suews-config/
             ⏱️ The preview will be available after deployment completes (1-2 minutes).
-            
+
             ℹ️ **Note**: This deploys to a separate preview environment. If the deployment fails,
             it may be because the environment needs to be created in repository settings.
 
@@ -478,7 +507,8 @@ jobs:
   cleanup_preview:
     name: Clean Up PR Preview
     runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request' && github.event.pull_request.merged == true
+    # Trigger on closed PRs that were merged
+    if: github.event.pull_request.merged == true
 
     permissions:
       contents: write
@@ -496,7 +526,7 @@ jobs:
           if [ -d "preview/pr-${PR_NUM}" ]; then
             rm -rf "preview/pr-${PR_NUM}"
             echo "✓ Removed preview for PR #${PR_NUM}"
-            
+
             git config user.name "github-actions[bot]"
             git config user.email "github-actions[bot]@users.noreply.github.com"
             git add .

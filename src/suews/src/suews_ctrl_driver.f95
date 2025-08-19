@@ -5109,6 +5109,12 @@ CONTAINS
       building_archtype%HeatingSetpointTemperature = HeatingSetpointTemperature
       building_archtype%CoolingSetpointTemperature = CoolingSetpointTemperature
       siteInfo%building_archtype = building_archtype
+
+      IF (mod_state%flagState%stebbs_bldg_init == 0) THEN
+         CALL gen_building(mod_state%stebbsState, siteInfo%stebbs, siteInfo%building_archtype, mod_state%stebbsState%buildings(1))
+         mod_state%flagState%stebbs_bldg_init = 1
+      END IF 
+
       !   allocate output arrays
 
       Diagnose = 0

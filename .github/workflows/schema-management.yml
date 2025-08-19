@@ -345,6 +345,8 @@ jobs:
           <body>
               <h1>SUEWS Configuration Schema</h1>
               <p>Redirecting to <a href="schemas/suews-config/">schema documentation</a>...</p>
+              <hr>
+              <p>For questions and community support, visit <a href="https://github.com/UMEP-dev/umep/discussions">UMEP Discussions</a></p>
           </body>
           </html>
           EOF
@@ -429,6 +431,8 @@ jobs:
                 <li><a href="schema/suews-config/">Schema Files</a></li>
                 <li><a href="${{ github.server_url }}/${{ github.repository }}/pull/${{ github.event.pull_request.number }}">View Pull Request</a></li>
               </ul>
+              <hr>
+              <p>For questions and community support, visit <a href="https://github.com/UMEP-dev/umep/discussions">UMEP Discussions</a></p>
           </body>
           </html>
           EOF

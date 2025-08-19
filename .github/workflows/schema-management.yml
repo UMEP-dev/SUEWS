@@ -152,15 +152,15 @@ jobs:
           import re
           import sys
           import os
-          
+
           version_file = 'src/supy/data_model/schema/version.py'
-          
+
           # Check if file exists
           if not os.path.exists(version_file):
               print("Warning: Version file not found, using fallback version 0.1", file=sys.stderr)
               print("0.1")
               sys.exit(0)
-          
+
           try:
               with open(version_file, 'r') as f:
                   content = f.read()
@@ -252,7 +252,7 @@ jobs:
 
           # Check if PR already exists for this branch
           EXISTING_PR=$(gh pr list --head "$BRANCH_NAME" --json number --jq '.[0].number' || echo "")
-          
+
           if [ -n "$EXISTING_PR" ]; then
             echo "ℹ️ PR #$EXISTING_PR already exists for branch $BRANCH_NAME"
             # Update the existing PR
@@ -261,7 +261,7 @@ jobs:
           elif gh pr create \
             --base master \
             --head "$BRANCH_NAME" \
-            --title "🤖 Auto-update: Schemas v${{ steps.version.outputs.version }}" \
+            --title "🤖 Auto-update: SUEWS Config Schema v${{ steps.version.outputs.version }}" \
             --body-file pr-body.md; then
             echo "✅ Pull request created successfully"
             # Get the PR number that was just created
@@ -326,7 +326,15 @@ jobs:
       - name: Prepare deployment
         run: |
           mkdir -p _site/schemas
-          cp -r schemas/* _site/schemas/
+          
+          # Check if schemas directory exists
+          if [ -d schemas ]; then
+            cp -r schemas/* _site/schemas/
+            echo "✓ Copied schemas to deployment"
+          else
+            echo "⚠️ No schemas directory found - creating placeholder"
+            echo '{"message": "Schemas will be available after the auto-generated PR is merged"}' > _site/schemas/placeholder.json
+          fi
 
           # Copy landing page if it exists, otherwise create redirect
           if [ -f .github/pages/index.html ]; then
@@ -417,11 +425,11 @@ jobs:
         run: |
           # Create site structure for PR preview
           mkdir -p _site/preview/pr-${{ github.event.pull_request.number }}/schema
-          
+
           # Copy PR's schemas to preview location
           echo "📦 Preparing PR #${{ github.event.pull_request.number }} preview..."
           cp -r schemas/* _site/preview/pr-${{ github.event.pull_request.number }}/schema/
-          
+
           # Create a simple index page for the preview
           cat > _site/preview/pr-${{ github.event.pull_request.number }}/index.html << EOF
           <!DOCTYPE html>
@@ -443,22 +451,22 @@ jobs:
           <body>
               <h1>SUEWS Schema Preview</h1>
               <p>Pull Request #${{ github.event.pull_request.number }}</p>
-              
+
               <div class="links">
                 <a href="schema/suews-config/">View Schema Files</a>
                 <a href="${{ github.server_url }}/${{ github.repository }}/pull/${{ github.event.pull_request.number }}">View Pull Request</a>
               </div>
-              
+
               <div class="footer">
                 Community support: <a href="https://github.com/UMEP-dev/umep/discussions">UMEP Discussions</a>
               </div>
           </body>
           </html>
           EOF
-          
+
           # Create .nojekyll to preserve directory structure
           touch _site/.nojekyll
-          
+
           echo "✅ PR preview prepared"
           find _site -type f -name "*.json" -o -name "*.html" | head -10
 

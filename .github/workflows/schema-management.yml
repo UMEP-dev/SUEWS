@@ -144,14 +144,14 @@ jobs:
         run: |
           # Extract version without importing the full module to avoid circular imports
           VERSION=$(python -c "
-import re
-with open('src/supy/data_model/schema/version.py', 'r') as f:
-    content = f.read()
-    match = re.search(r'CURRENT_SCHEMA_VERSION = [\"\\']([^\"\\']*)[\"\\'']', content)
-    if match:
-        print(match.group(1))
-    else:
-        print('0.1')  # Fallback version
+          import re
+          with open('src/supy/data_model/schema/version.py', 'r') as f:
+              content = f.read()
+              match = re.search(r'CURRENT_SCHEMA_VERSION = [\"\\']([^\"\\']*)[\"\\'']', content)
+              if match:
+                  print(match.group(1))
+              else:
+                  print('0.1')  # Fallback version
           ")
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "📌 Schema version: $VERSION"

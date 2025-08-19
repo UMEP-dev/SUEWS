@@ -108,14 +108,16 @@ jobs:
             fi
           done
 
-  # Job 2: Generate schemas (runs on master push or workflow_dispatch)
+  # Job 2: Generate schemas (runs on master push, workflow_dispatch, or PR with workflow changes)
   generate_schemas:
-    name: Generate Schemas
+    name: Generate Schemas  
     runs-on: ubuntu-latest
+    # Run on push to master, manual trigger, schedule, or when testing workflow changes in PR
     if: |
       github.event_name == 'push' ||
       github.event_name == 'workflow_dispatch' ||
-      github.event_name == 'schedule'
+      github.event_name == 'schedule' ||
+      github.event_name == 'pull_request'
 
     outputs:
       schema_version: ${{ steps.version.outputs.version }}
@@ -175,7 +177,10 @@ jobs:
           fi
 
       - name: Commit schema changes
-        if: steps.check_changes.outputs.changed == 'true' || github.event.inputs.force_regenerate == 'true'
+        # Only commit on push to master, not during PR tests
+        if: |
+          github.event_name != 'pull_request' && 
+          (steps.check_changes.outputs.changed == 'true' || github.event.inputs.force_regenerate == 'true')
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
@@ -195,6 +200,17 @@ jobs:
           git push
 
           echo "✅ Committed schema changes"
+
+      - name: PR Test Summary
+        # Show what would be committed during PR tests
+        if: github.event_name == 'pull_request' && steps.check_changes.outputs.changed == 'true'
+        run: |
+          echo "📋 **PR Test Mode**: Schema generation successful!"
+          echo ""
+          echo "Changes that would be committed to master:"
+          git diff --stat schemas/
+          echo ""
+          echo "✅ Schema generation test passed. These changes will be auto-generated when merged."
 
       - name: Upload schema artifact
         uses: actions/upload-artifact@v4

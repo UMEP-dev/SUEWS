@@ -178,41 +178,83 @@ jobs:
             git diff --stat schemas/
           fi
 
-      - name: Commit schema changes
-        # Only commit on push to master, not during PR tests
+      - name: Create Pull Request for schema updates
+        # Automatically create PR when schemas need updating (not during PR tests)
         if: |
           github.event_name != 'pull_request' && 
           (steps.check_changes.outputs.changed == 'true' || github.event.inputs.force_regenerate == 'true')
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          # Configure git
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-
+          
+          # Create a new branch for the changes
+          BRANCH_NAME="auto-update/schemas-${{ steps.version.outputs.version }}-${{ github.run_number }}"
+          git checkout -b "$BRANCH_NAME"
+          
+          # Commit the changes
           git add schemas/
-
-          # Create detailed commit message
-          COMMIT_MSG="chore: Update auto-generated schemas
+          git commit -m "chore: Update auto-generated schemas
 
           Schema version: ${{ steps.version.outputs.version }}
           Triggered by: ${{ github.event_name }}
           Workflow run: #${{ github.run_number }}
 
           AUTO-GENERATED - DO NOT EDIT MANUALLY"
-
-          git commit -m "$COMMIT_MSG"
-          git push
-
-          echo "✅ Committed schema changes"
+          
+          # Push the branch
+          git push origin "$BRANCH_NAME"
+          
+          # Create PR body
+          cat > pr-body.md << 'EOF'
+          ## 🤖 Automated Schema Update
+          
+          This PR was automatically generated to update the JSON schemas based on changes to the data model.
+          
+          ### 📋 Details
+          - **Schema version**: `${{ steps.version.outputs.version }}`
+          - **Triggered by**: ${{ github.event_name }}${{ github.event_name == 'push' && ' (data model changes in master)' || '' }}${{ github.event_name == 'workflow_dispatch' && ' (manual trigger)' || '' }}${{ github.event_name == 'schedule' && ' (weekly validation)' || '' }}
+          - **Workflow run**: [#${{ github.run_number }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
+          
+          ### 📝 Changes
+          - Updated `schemas/suews-config/${{ steps.version.outputs.version }}.json`
+          - Updated `schemas/suews-config/latest.json`
+          - Updated schema registry
+          - Regenerated index.html
+          
+          ### ⚠️ Important
+          This is an auto-generated update. The schemas are generated from the Pydantic models in `src/supy/data_model/`.
+          
+          ### ✅ Auto-merge
+          This PR can be safely merged once all checks pass.
+          EOF
+          
+          # Create the pull request using GitHub CLI
+          gh pr create \
+            --base master \
+            --head "$BRANCH_NAME" \
+            --title "🤖 Auto-update: Schemas v${{ steps.version.outputs.version }}" \
+            --body-file pr-body.md \
+            --label "auto-update" \
+            --label "schemas" \
+            --label "documentation" || echo "PR already exists or creation failed"
 
       - name: PR Test Summary
-        # Show what would be committed during PR tests
-        if: github.event_name == 'pull_request' && steps.check_changes.outputs.changed == 'true'
+        # Show what would happen during PR tests
+        if: github.event_name == 'pull_request'
         run: |
-          echo "📋 **PR Test Mode**: Schema generation successful!"
-          echo ""
-          echo "Changes that would be committed to master:"
-          git diff --stat schemas/
-          echo ""
-          echo "✅ Schema generation test passed. These changes will be auto-generated when merged."
+          if [ "${{ steps.check_changes.outputs.changed }}" == "true" ]; then
+            echo "📋 **PR Test Mode**: Schema generation successful!"
+            echo ""
+            echo "If this PR is merged, the following schema changes would be auto-generated:"
+            git diff --stat schemas/
+            echo ""
+            echo "✅ Schema generation test passed. An automatic PR will be created after merge if needed."
+          else
+            echo "✅ No schema changes needed from this PR"
+          fi
 
       - name: Upload schema artifact
         uses: actions/upload-artifact@v4
@@ -225,11 +267,10 @@ jobs:
   deploy_schemas:
     name: Deploy Schemas to GitHub Pages
     runs-on: ubuntu-latest
-    needs: generate_schemas
+    # Deploy whenever master is updated - schemas should already be committed
     if: |
       github.event_name == 'push' &&
-      github.ref == 'refs/heads/master' &&
-      needs.generate_schemas.outputs.schemas_changed == 'true'
+      github.ref == 'refs/heads/master'
 
     permissions:
       contents: read

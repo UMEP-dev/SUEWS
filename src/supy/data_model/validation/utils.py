@@ -6,7 +6,7 @@ import inspect
 from typing import List, Dict, TypeVar, Callable, TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from .type import RefValue
+    from ..core.type import RefValue
 
 T = TypeVar("T")
 

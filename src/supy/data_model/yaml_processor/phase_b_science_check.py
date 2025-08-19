@@ -28,7 +28,50 @@ from pydantic import BaseModel
 from timezonefinder import TimezoneFinder
 import pytz
 
-from supy._env import logger_supy, trv_supy_module
+# Try to import from supy if available, otherwise use standalone mode
+try:
+    from supy._env import logger_supy, trv_supy_module
+
+    HAS_SUPY = True
+except ImportError:
+    # Standalone mode - create minimal dependencies
+    import logging
+    from pathlib import Path
+
+    # Create standalone logger
+    logger_supy = logging.getLogger("supy.data_model")
+    if not logger_supy.handlers:
+        handler = logging.StreamHandler()
+        handler.setFormatter(
+            logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+        )
+        logger_supy.addHandler(handler)
+        logger_supy.setLevel(logging.INFO)
+
+    # Create mock traversable for resource access
+    class MockTraversable:
+        """Mock for accessing package resources in standalone mode."""
+
+        def __init__(self):
+            # Try to find the package root
+            current = Path(__file__).parent
+            while current.parent != current:
+                if (current / "ext_data").exists():
+                    self.base = current
+                    break
+                current = current.parent
+            else:
+                self.base = Path(__file__).parent.parent.parent
+
+        def __truediv__(self, other):
+            return self.base / other
+
+        def exists(self):
+            # In standalone mode, CRU data might not be available
+            return False
+
+    trv_supy_module = MockTraversable()
+    HAS_SUPY = False
 
 
 @dataclass
@@ -615,8 +658,11 @@ def run_scientific_validation_pipeline(
 
 def get_mean_monthly_air_temperature(
     lat: float, lon: float, month: int, spatial_res: float = 0.5
-) -> float:
-    """Calculate monthly air temperature using CRU TS4.06 data."""
+) -> Optional[float]:
+    """Calculate monthly air temperature using CRU TS4.06 data.
+
+    Returns None if CRU data is not available (e.g., in standalone mode).
+    """
     if not (1 <= month <= 12):
         raise ValueError(f"Month must be between 1 and 12, got {month}")
     if not (-90 <= lat <= 90):
@@ -626,13 +672,28 @@ def get_mean_monthly_air_temperature(
 
     cru_resource = trv_supy_module / "ext_data" / "CRU_TS4.06_1991_2020.parquet"
 
-    if not cru_resource.exists():
-        raise FileNotFoundError(
-            f"CRU data file not found at {cru_resource}. "
-            "Please ensure the CRU Parquet file is available in the package."
+    # In standalone mode, CRU data might not be available
+    if not HAS_SUPY:
+        logger_supy.warning(
+            "Running in standalone mode - CRU climate data not available. "
+            "Skipping temperature validation."
         )
+        return None
 
-    df = pd.read_parquet(cru_resource)
+    if not cru_resource.exists():
+        logger_supy.warning(
+            f"CRU data file not found at {cru_resource}. "
+            "Temperature validation will be skipped."
+        )
+        return None
+
+    try:
+        df = pd.read_parquet(cru_resource)
+    except Exception as e:
+        logger_supy.warning(
+            f"Could not read CRU data: {e}. Temperature validation skipped."
+        )
+        return None
 
     required_cols = ["Month", "Latitude", "Longitude", "NormalTemperature"]
     missing_cols = [col for col in required_cols if col not in df.columns]
@@ -701,6 +762,13 @@ def adjust_surface_temperatures(
             continue  # Skip if no longitude (will be caught by validation)
 
         avg_temp = get_mean_monthly_air_temperature(lat, lng, month)
+
+        # Skip temperature validation if CRU data not available
+        if avg_temp is None:
+            logger_supy.debug(
+                "Skipping temperature validation - CRU data not available"
+            )
+            continue
 
         surface_types = ["paved", "bldgs", "evetr", "dectr", "grass", "bsoil", "water"]
 

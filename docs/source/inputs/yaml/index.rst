@@ -306,6 +306,19 @@ The following reference pages provide complete documentation for all parameters:
 - :doc:`schema/initialstates` - Initial conditions for prognostic variables
 
 
+Schema Versioning
+-----------------
+
+SUEWS YAML configurations use schema versioning to track configuration structure changes. 
+See :doc:`schema_versioning` for details on:
+
+- Understanding schema versions vs model versions  
+- Automatic compatibility checking
+- Migration tools for updating configurations
+
+For validation tools and IDE integration, see :doc:`schema_publishing`.
+
+
 Validation and Error Handling
 ------------------------------
 

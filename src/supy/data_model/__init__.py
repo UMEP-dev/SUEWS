@@ -11,22 +11,108 @@ All physical parameters use RefValue wrappers with explicit units:
 See README.md for detailed unit conventions and usage examples.
 """
 
-from .core import SUEWSConfig, init_config_from_yaml
-from .yaml_processor.validation_helpers import run_precheck
-from .model import Model
-from .site import Site, SiteProperties
-from .state import InitialStates
-from .human_activity import AnthropogenicEmissions, AnthropogenicHeat, CO2Params
-from .type import RefValue, Reference
+# Import everything from core module
+from .core import (
+    # Configuration
+    SUEWSConfig,
+    init_config_from_yaml,
+    # Core models
+    Site,
+    SiteProperties,
+    Model,
+    ModelPhysics,
+    ModelControl,
+    # Surface
+    SurfaceProperties,
+    PavedProperties,
+    BldgsProperties,
+    EvetrProperties,
+    DectrProperties,
+    GrassProperties,
+    BsoilProperties,
+    WaterProperties,
+    VerticalLayers,
+    ThermalLayers,
+    # State
+    InitialStates,
+    # Parameters
+    AnthropogenicEmissions,
+    AnthropogenicHeat,
+    CO2Params,
+    IrrigationParams,
+    WaterDistribution,
+    StorageDrainParams,
+    OHM_Coefficient_season_wetness,
+    # Profiles
+    DayProfile,
+    WeeklyProfile,
+    HourlyProfile,
+    # Types
+    RefValue,
+    Reference,
+    SurfaceType,
+    TimezoneOffset,
+)
 
+# Import from new validation module
 try:
-    from .validation_controller import (
+    from .validation import (
         ValidationController,
         ValidationResult,
         validate_suews_config_conditional,
+        run_precheck,
     )
 except ImportError:
-    # Fallback if validation controller not available
+    # Fallback if validation module not available
     ValidationController = None
     ValidationResult = None
     validate_suews_config_conditional = None
+    run_precheck = None
+
+# Export everything
+__all__ = [
+    # Configuration
+    "SUEWSConfig",
+    "init_config_from_yaml",
+    # Core models
+    "Site",
+    "SiteProperties",
+    "Model",
+    "ModelPhysics",
+    "ModelControl",
+    # Surface
+    "SurfaceProperties",
+    "PavedProperties",
+    "BldgsProperties",
+    "EvetrProperties",
+    "DectrProperties",
+    "GrassProperties",
+    "BsoilProperties",
+    "WaterProperties",
+    "VerticalLayers",
+    "ThermalLayers",
+    # State
+    "InitialStates",
+    # Parameters
+    "AnthropogenicEmissions",
+    "AnthropogenicHeat",
+    "CO2Params",
+    "IrrigationParams",
+    "WaterDistribution",
+    "StorageDrainParams",
+    "OHM_Coefficient_season_wetness",
+    # Profiles
+    "DayProfile",
+    "WeeklyProfile",
+    "HourlyProfile",
+    # Types
+    "RefValue",
+    "Reference",
+    "SurfaceType",
+    "TimezoneOffset",
+    # Validation
+    "ValidationController",
+    "ValidationResult",
+    "validate_suews_config_conditional",
+    "run_precheck",
+]

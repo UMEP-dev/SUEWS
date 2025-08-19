@@ -58,6 +58,24 @@ dependencies = [
     
     # Parallel processing
     "multiprocess",
+    
+    # Schema validation (for YAML configs)
+    "jsonschema",
+    "rich",
+]
+
+classifiers = [
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Intended Audience :: Science/Research",
+    "Intended Audience :: Education",
+    "Operating System :: MacOS :: MacOS X",
+    "Operating System :: Microsoft :: Windows",
+    "Operating System :: POSIX :: Linux",
 ]
 
 [project.optional-dependencies]
@@ -93,6 +111,8 @@ dev = [
 [project.scripts]
 suews-run = "supy.cmd.SUEWS:SUEWS"
 suews-convert = "supy.cmd.table_converter:convert_table_cmd"
+suews-validate = "supy.cmd.validate_config:main"
+suews-schema = "supy.util.schema_publisher:main"
 
 [tool.pytest.ini_options]
 filterwarnings = [

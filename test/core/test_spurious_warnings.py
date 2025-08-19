@@ -28,10 +28,10 @@ class TestNoSpuriousWarnings:
             warnings.simplefilter("always")
 
             # Import and create various components
-            from supy.data_model.human_activity import CO2Params
-            from supy.data_model.site import Conductance
-            from supy.data_model.surface import BldgsProperties, ThermalLayers
-            from supy.data_model.type import RefValue
+            from supy.data_model.core.human_activity import CO2Params
+            from supy.data_model.core.site import Conductance
+            from supy.data_model.core.surface import BldgsProperties, ThermalLayers
+            from supy.data_model.core.type import RefValue
 
             # Create components with missing parameters
             co2 = CO2Params()

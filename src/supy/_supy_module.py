@@ -610,7 +610,7 @@ def save_supy(
     output_groups = None  # default will be handled in save_df_output
 
     if output_config is not None:
-        from .data_model.model import OutputConfig
+        from .data_model.core.model import OutputConfig
 
         if isinstance(output_config, OutputConfig):
             # Override frequency if specified in config

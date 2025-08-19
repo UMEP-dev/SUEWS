@@ -623,3 +623,15 @@ temp_test.npz
 # CLAUDE.md protection
 CLAUDE.md.backup
 .claude/snapshots/
+
+# Generated JSON Schemas (published to GitHub Pages, not stored in repo)
+schemas/v*/
+schemas/latest
+public/
+local-schema/
+
+# Temporary schema exports
+*.schema.json
+
+# Temporary schema export directory
+public/

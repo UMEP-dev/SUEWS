@@ -17,7 +17,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from supy.data_model.yaml_processor.validation_helpers import (
+from supy.data_model.validation.yaml_helpers import (
     get_mean_monthly_air_temperature,
 )
 

@@ -40,8 +40,21 @@ from datetime import datetime
 from timezonefinder import TimezoneFinder
 import pytz
 
-from .._env import logger_supy
-from .yaml_annotator_json import JsonYamlAnnotator as YAMLAnnotator
+# Optional import of logger - use standalone if supy not available
+try:
+    from ..._env import logger_supy
+except ImportError:
+    import logging
+
+    logger_supy = logging.getLogger("supy.data_model")
+    if not logger_supy.handlers:
+        handler = logging.StreamHandler()
+        handler.setFormatter(
+            logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+        )
+        logger_supy.addHandler(handler)
+        logger_supy.setLevel(logging.INFO)
+from ..yaml_processor.yaml_annotator import YAMLAnnotator
 
 _validation_available = False
 enhanced_from_yaml_validation = None
@@ -100,6 +113,11 @@ class SUEWSConfig(BaseModel):
         default="sample config",
         description="Name of the SUEWS configuration",
         json_schema_extra={"display_name": "Configuration Name"},
+    )
+    schema_version: Optional[str] = Field(
+        default="0.1",
+        description="Configuration schema version (e.g., '0.1', '1.0', '1.1'). Only changes when configuration structure changes.",
+        json_schema_extra={"display_name": "Schema Version"},
     )
     description: str = Field(
         default="this is a sample config for testing purposes ONLY - values are not realistic",
@@ -237,6 +255,32 @@ class SUEWSConfig(BaseModel):
         ### 4) If there were any warnings, show the summary (only for non-conditional issues)
         if self._validation_summary["total_warnings"] > 0:
             self._show_validation_summary()
+
+        return self
+
+    @model_validator(mode="after")
+    def validate_schema_compatibility(self) -> "SUEWSConfig":
+        """
+        Check if the configuration schema version is compatible.
+        Issues warnings when there's a compatibility concern.
+        """
+        from ..schema import validate_schema_version, CURRENT_SCHEMA_VERSION
+
+        # If no schema version specified, set to current
+        if self.schema_version is None:
+            self.schema_version = CURRENT_SCHEMA_VERSION
+
+        # Validate compatibility (will warn if incompatible)
+        validate_schema_version(self.schema_version, strict=False)
+
+        # Log to detailed messages for validation summary if needed
+        if (
+            hasattr(self, "_validation_summary")
+            and self.schema_version != CURRENT_SCHEMA_VERSION
+        ):
+            self._validation_summary["detailed_messages"].append(
+                f"Schema version: Config uses {self.schema_version}, current is {CURRENT_SCHEMA_VERSION}"
+            )
 
         return self
 
@@ -676,7 +720,7 @@ class SUEWSConfig(BaseModel):
 
     def _check_conductance(self, conductance, site_name: str) -> bool:
         """Check for missing conductance parameters. Returns True if issues found."""
-        from .validation_utils import check_missing_params
+        from ..validation.utils import check_missing_params
 
         critical_params = {
             "g_max": "Maximum surface conductance",
@@ -703,7 +747,7 @@ class SUEWSConfig(BaseModel):
 
     def _check_co2_params(self, co2, site_name: str) -> bool:
         """Check for missing CO2 parameters. Returns True if issues found."""
-        from .validation_utils import check_missing_params
+        from ..validation.utils import check_missing_params
 
         critical_params = {
             "co2pointsource": "CO2 point source emission factor",
@@ -743,7 +787,7 @@ class SUEWSConfig(BaseModel):
         self, surface, surface_type: str, site_name: str
     ) -> bool:
         """Check parameters for a specific surface type. Returns True if issues found."""
-        from .validation_utils import check_missing_params
+        from ..validation.utils import check_missing_params
 
         has_issues = False
 
@@ -1493,7 +1537,7 @@ class SUEWSConfig(BaseModel):
 
         # Check conductance
         if hasattr(site.properties, "conductance") and site.properties.conductance:
-            from .validation_utils import check_missing_params
+            from ..validation.utils import check_missing_params
 
             critical_params = {
                 "g_max": "Maximum surface conductance",
@@ -1527,7 +1571,7 @@ class SUEWSConfig(BaseModel):
             and hasattr(site.properties.anthropogenic_emissions, "co2")
             and site.properties.anthropogenic_emissions.co2
         ):
-            from .validation_utils import check_missing_params
+            from ..validation.utils import check_missing_params
 
             critical_params = {
                 "co2pointsource": "CO2 point source emission factor",
@@ -1713,7 +1757,7 @@ class SUEWSConfig(BaseModel):
                             surface_type in ["grass", "dectr", "evetr"]
                             and sfr_value > 0
                         ):
-                            from .validation_utils import check_missing_params
+                            from ..validation.utils import check_missing_params
 
                             vegetation_params = {
                                 "beta_bioco2": "Biogenic CO2 exchange coefficient",
@@ -2219,6 +2263,24 @@ class SUEWSConfig(BaseModel):
         config_data["_yaml_path"] = path
         config_data["_auto_generate_annotated"] = auto_generate_annotated
 
+        # Log schema version information if present
+        from ..schema import CURRENT_SCHEMA_VERSION, get_schema_compatibility_message
+
+        if "schema_version" in config_data:
+            logger_supy.info(
+                f"Loading config with schema version: {config_data['schema_version']}"
+            )
+            # Check compatibility and log any concerns
+            message = get_schema_compatibility_message(config_data["schema_version"])
+            if message:
+                logger_supy.info(message)
+        else:
+            logger_supy.info(
+                f"No schema version specified, assuming current ({CURRENT_SCHEMA_VERSION})"
+            )
+            # Set default schema version
+            config_data["schema_version"] = CURRENT_SCHEMA_VERSION
+
         if use_conditional_validation:
             logger_supy.info(
                 "Running comprehensive Pydantic validation with conditional checks."
@@ -2422,7 +2484,9 @@ class SUEWSConfig(BaseModel):
 
 
 def init_config_from_yaml(path: str = "./config-suews.yml") -> SUEWSConfig:
-    """Initialize SUEWSConfig from YAML file"""
-    with open(path, "r") as file:
-        config = yaml.load(file, Loader=yaml.FullLoader)
-    return SUEWSConfig(**config)
+    """Initialize SUEWSConfig from YAML file.
+
+    This is a convenience function that delegates to SUEWSConfig.from_yaml
+    for consistency in version checking and validation.
+    """
+    return SUEWSConfig.from_yaml(path)

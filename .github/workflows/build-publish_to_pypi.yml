@@ -20,7 +20,7 @@ name: Build and Publish Python wheels to PyPI and TestPyPI
 # 2. DEVELOPMENT RELEASES (TestPyPI only):
 #    - Nightly cron (2 AM UTC): Creates YYYY.M.D.dev tag → TestPyPI
 #    - Any tag containing 'dev': Deploy to TestPyPI
-#    Installation: 
+#    Installation:
 #      Latest dev: pip install -i https://test.pypi.org/simple/ supy
 #      Specific version: pip install -i https://test.pypi.org/simple/ supy==YYYY.M.D.dev0
 #
@@ -249,7 +249,7 @@ jobs:
         github.event_name == 'schedule' ||
         (startsWith(github.ref, 'refs/tags/') && contains(github.ref, 'dev'))
       )
-    
+
     # Set up permissions for OIDC authentication
     permissions:
       id-token: write  # Required for Trusted Publishing
@@ -283,7 +283,7 @@ jobs:
       !contains(github.ref, 'dev') &&
       needs.build_wheels.result == 'success' &&
       (needs.create_nightly_tag.result == 'success' || needs.create_nightly_tag.result == 'skipped')
-    
+
     # Set up permissions for OIDC authentication
     permissions:
       id-token: write  # Required for Trusted Publishing
@@ -301,3 +301,4 @@ jobs:
           packages-dir: dist/
           verbose: true
           skip-existing: true
+

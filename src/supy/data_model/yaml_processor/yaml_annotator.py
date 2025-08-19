@@ -368,5 +368,5 @@ class JsonYamlAnnotator:
             return str(value)
 
 
-# For backward compatibility
+# Alias for clarity
 YAMLAnnotator = JsonYamlAnnotator

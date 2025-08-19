@@ -458,7 +458,10 @@ def run_supy_ser(
                 list_dts_state.append(dts_state_chunk)
         # re-organise results of each year
         df_output = pd.concat(list_df_output).sort_index()
-        df_state_final = pd.concat(list_df_state).sort_index().drop_duplicates()
+        # Note: We don't call drop_duplicates() on df_state_final because:
+        # 1. Each chunk produces a unique final state for its time period
+        # 2. Some columns contain numpy arrays which cannot be hashed
+        df_state_final = pd.concat(list_df_state).sort_index()
         if debug_mode:
             df_debug = pd.concat(list_df_debug).sort_index()
         else:

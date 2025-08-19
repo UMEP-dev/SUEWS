@@ -1,14 +1,14 @@
 """Test output configuration functionality"""
 
 import pytest
-from supy.data_model.model import (
+from supy.data_model.core.model import (
     ModelControl,
     OutputConfig,
     OutputFormat,
     Model,
     ModelPhysics,
 )
-from supy.data_model.core import SUEWSConfig
+from supy.data_model.core.config import SUEWSConfig
 from pathlib import Path
 import yaml
 
@@ -131,9 +131,12 @@ def test_deprecation_warning():
         config = SUEWSConfig(
             sites=[{}], model={"control": {"output_file": "custom_output.txt"}}
         )
-        assert len(w) == 1
-        assert issubclass(w[-1].category, DeprecationWarning)
-        assert "deprecated" in str(w[-1].message)
+        # Filter for deprecation warnings only (ignore validation warnings)
+        deprecation_warnings = [
+            warning for warning in w if issubclass(warning.category, DeprecationWarning)
+        ]
+        assert len(deprecation_warnings) == 1
+        assert "deprecated" in str(deprecation_warnings[0].message)
 
     # Test that default string doesn't trigger warning
     with warnings.catch_warnings(record=True) as w:
@@ -146,4 +149,10 @@ def test_deprecation_warning():
                 }
             },
         )
-        assert len(w) == 0  # No warning for default value
+        # Filter for deprecation warnings only (ignore validation warnings)
+        deprecation_warnings = [
+            warning for warning in w if issubclass(warning.category, DeprecationWarning)
+        ]
+        assert (
+            len(deprecation_warnings) == 0
+        )  # No deprecation warning for default value

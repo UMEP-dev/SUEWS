@@ -15,7 +15,7 @@ Version 2018a (released on 2 August 2018)
 
 
   #. New ``readthedocs.org``-based documentation system
-  #. Added `input_converter` for conversion of input files between versions
+  #. Added :doc:`../inputs/converter` for conversion of input files between versions
   #. Added `benchmark_report` for recent releases.
 
 - **Improvement**

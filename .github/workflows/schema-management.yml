@@ -1,0 +1,291 @@
+name: Schema Management
+
+# HOW THIS WORKFLOW WORKS:
+# ========================
+#
+# TRIGGER CONDITIONS:
+# - Push to master: When PR merged with relevant path changes
+# - Pull request: When PR contains relevant path changes  
+# - Manual dispatch: Triggered from Actions tab
+#
+# PRODUCTION SCENARIOS (Push to master):
+# ---------------------------------------
+# P1. New schema version (version bumped in version.py):
+#     → Generates new version file (e.g., 0.2.json)
+#     → Preserves all old versions (e.g., 0.1.json)
+#     → Updates registry with all versions
+#     → Deploys everything to github-pages at root level
+#     → Creates PR to commit new version to repo
+#
+# P2. Same version, model changed:
+#     → Regenerates current version with changes
+#     → Preserves version history
+#     → Creates PR if schema content changed
+#
+# P3. First deployment (no schemas exist):
+#     → Generates initial schemas
+#     → Creates registry from scratch
+#     → Deploys and creates PR to add to repo
+#
+# PREVIEW SCENARIOS (Pull Request):
+# ----------------------------------
+# PR1. Testing data model changes:
+#      → Preserves production schemas at root level
+#      → Deploys preview to /preview/pr-{NUMBER}/ subdirectory
+#      → Preview banner added to preview pages only
+#      → Comments preview URLs on PR
+#      → Production remains untouched and accessible
+#
+# PR2. Testing new schema version:
+#      → Shows new version in preview subdirectory
+#      → Production schemas remain at root level
+#      → Both URLs work simultaneously
+#
+# PR3. Testing workflow/page changes:
+#      → Preview in subdirectory with banners
+#      → Production pages unchanged
+#      → Safe testing without affecting users
+#
+# MANUAL TRIGGER SCENARIOS:
+# -------------------------
+# M1. Force regeneration after issues
+# M2. Initial GitHub Pages setup
+# M3. Recover from failed deployments
+#
+# KEY BEHAVIORS:
+# - Schema generation is INCREMENTAL (preserves all versions)
+# - Registry tracks version history and metadata
+# - PR previews deploy to /preview/pr-{NUMBER}/ subdirectories
+# - Production schemas always remain at root level
+# - Preview and production coexist without conflicts
+# - PRs are created only when schemas actually change
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - 'src/supy/data_model/**'
+      - '.github/scripts/generate_schema.py'
+      - '.github/workflows/schema-management.yml'
+  
+  pull_request:
+    paths:
+      - 'src/supy/data_model/**'
+      - '.github/scripts/generate_schema.py'
+      - '.github/workflows/schema-management.yml'
+      - '.github/pages/**'
+
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+  pull-requests: write
+
+jobs:
+  generate-deploy:
+    name: Generate and Deploy
+    runs-on: ubuntu-latest
+    # Run on master push OR PR
+    if: |
+      (github.event_name == 'push' && github.ref == 'refs/heads/master') ||
+      github.event_name == 'pull_request' ||
+      github.event_name == 'workflow_dispatch'
+    
+    # Use preview environment for PRs, production for master
+    environment:
+      name: ${{ github.event_name == 'pull_request' && 'github-pages-preview' || 'github-pages' }}
+      url: ${{ steps.deployment.outputs.page_url }}
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      
+      - run: |
+          python -m pip install --upgrade pip
+          pip install pydantic pyyaml numpy pandas pytz timezonefinder f90nml packaging
+      
+      # Generate schemas (cumulative - preserves existing versions)
+      - name: Generate schemas
+        run: |
+          echo "🔧 Generating schemas..."
+          python .github/scripts/generate_schema.py
+          echo "✅ Schema generation complete"
+      
+      # Deploy to GitHub Pages
+      - name: Deploy
+        run: |
+          mkdir -p _site
+          
+          # For PRs: preserve production and add preview in subdirectory
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            # First, fetch current production deployment to preserve it
+            echo "📥 Fetching current production schemas..."
+            mkdir -p _site_prod
+            wget -q -r -np -nH --cut-dirs=1 -P _site_prod https://umep-dev.github.io/SUEWS/ || true
+            
+            # Copy production to _site
+            if [ -d _site_prod ]; then
+              cp -r _site_prod/* _site/ 2>/dev/null || true
+            fi
+            
+            # Now add PR preview in subdirectory
+            PR_DIR="preview/pr-${{ github.event.pull_request.number }}"
+            mkdir -p "_site/${PR_DIR}"
+            
+            # Copy PR schemas to preview subdirectory
+            if [ -d schemas ]; then
+              cp -r schemas "_site/${PR_DIR}/"
+              
+              # Add banner to PR preview schema index
+              if [ -f "_site/${PR_DIR}/schemas/suews-config/index.html" ]; then
+                sed -i '/<body>/a\
+                <div style="background: #ffeb3b; color: #333; padding: 10px; text-align: center; font-weight: bold;">⚠️ PREVIEW - PR #${{ github.event.pull_request.number }} - Not Production</div>' \
+                "_site/${PR_DIR}/schemas/suews-config/index.html"
+              fi
+            fi
+            
+            # Create PR preview landing page
+            cat > "_site/${PR_DIR}/index.html" << 'EOF'
+          <!DOCTYPE html>
+          <html>
+          <head>
+              <title>SUEWS Schema Preview - PR #${{ github.event.pull_request.number }}</title>
+              <meta charset="utf-8">
+              <style>
+                  body { font-family: system-ui, -apple-system, sans-serif; margin: 2em; max-width: 800px; margin: 0 auto; padding: 2em; }
+                  .warning { background: #ffeb3b; color: #333; padding: 15px; border-radius: 5px; margin-bottom: 20px; }
+                  a { color: #0066cc; text-decoration: none; }
+                  a:hover { text-decoration: underline; }
+              </style>
+          </head>
+          <body>
+              <div class="warning">
+                  <h2>⚠️ PREVIEW - PR #${{ github.event.pull_request.number }}</h2>
+                  <p>This is a preview of schema changes. Do not use these URLs in production.</p>
+                  <p><a href="../../">← Back to production schemas</a></p>
+              </div>
+              <h1>SUEWS Schema Preview</h1>
+              <p>Preview schemas: <a href="schemas/suews-config/">View schema registry →</a></p>
+          </body>
+          </html>
+          EOF
+            
+            # Ensure production index.html exists (without banner)
+            if [ -f .github/pages/index.html ] && [ ! -f _site/index.html ]; then
+              cp .github/pages/index.html _site/index.html
+            fi
+            
+          else
+            # For master: normal deployment
+            if [ -d schemas ]; then
+              cp -r schemas _site/
+            else
+              mkdir -p _site/schemas
+              echo '{"message": "No schemas yet"}' > _site/schemas/placeholder.json
+            fi
+            
+            # Copy landing page
+            if [ -f .github/pages/index.html ]; then
+              cp .github/pages/index.html _site/index.html
+            else
+              # Simple fallback
+              cat > _site/index.html << 'EOF'
+          <!DOCTYPE html>
+          <html>
+          <head>
+              <title>SUEWS Schema</title>
+              <meta charset="utf-8">
+              <meta http-equiv="refresh" content="0; url=schemas/suews-config/">
+          </head>
+          <body>
+              <h1>SUEWS Schema</h1>
+              <p>Redirecting to <a href="schemas/suews-config/">schemas</a>...</p>
+          </body>
+          </html>
+          EOF
+            fi
+          fi
+          
+          touch _site/.nojekyll
+      
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+      - uses: actions/deploy-pages@v4
+        id: deployment
+      
+      # Create PR if schemas changed (master only, for version control)
+      - name: Create PR for schema updates
+        if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if ! git diff --quiet schemas/; then
+            BRANCH="auto/schemas-$(date +%Y%m%d-%H%M%S)"
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git checkout -b "$BRANCH"
+            git add schemas/
+            git commit -m "chore: Update schemas [auto-generated]"
+            git push origin "$BRANCH"
+            
+            gh pr create \
+              --base master \
+              --head "$BRANCH" \
+              --title "🤖 Update schemas" \
+              --body "Auto-generated schema update. Already deployed to GitHub Pages."
+          fi
+      
+      # Comment on PR with preview URL
+      - name: Comment preview URL
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const comments = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number
+            });
+            
+            const botComment = comments.data.find(c => 
+              c.user.type === 'Bot' && c.body.includes('Schema Preview')
+            );
+            
+            const prNumber = context.issue.number;
+            const baseUrl = 'https://umep-dev.github.io/SUEWS';
+            
+            const body = `## 🔍 Schema Preview Deployed
+            
+            **Preview URLs:**
+            - 🆕 Preview schemas: ${baseUrl}/preview/pr-${prNumber}/schemas/suews-config/
+            - 📋 Preview landing: ${baseUrl}/preview/pr-${prNumber}/
+            
+            **Production URLs (unchanged):**
+            - ✅ Production schemas: ${baseUrl}/schemas/suews-config/
+            - 🏠 Production landing: ${baseUrl}/
+            
+            ---
+            ⚠️ **Important:** Preview schemas are in a subdirectory and do not affect production. The preview pages include warning banners to prevent accidental use in production configs.`;
+            
+            if (botComment) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: botComment.id,
+                body
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body
+              });
+            }

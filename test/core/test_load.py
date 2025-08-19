@@ -24,7 +24,7 @@ class TestInitSuPy(TestCase):
         warnings.simplefilter("ignore", category=ImportWarning)
         # Get the sample config path
         self.sample_config = (
-            Path(sp.__file__).parent / "sample_run" / "sample_config.yml"
+            Path(sp.__file__).parent / "sample_data" / "sample_config.yml"
         )
         self.benchmark_config = (
             Path(__file__).parent.parent / "fixtures" / "benchmark1" / "benchmark1.yml"
@@ -100,7 +100,7 @@ class TestLoadForcing(TestCase):
         """Set up test environment."""
         warnings.simplefilter("ignore", category=ImportWarning)
         self.sample_config = (
-            Path(sp.__file__).parent / "sample_run" / "sample_config.yml"
+            Path(sp.__file__).parent / "sample_data" / "sample_config.yml"
         )
         self.benchmark_config = (
             Path(__file__).parent.parent / "fixtures" / "benchmark1" / "benchmark1.yml"
@@ -207,7 +207,7 @@ class TestConfigLoading(TestCase):
         """Set up test environment."""
         warnings.simplefilter("ignore", category=ImportWarning)
         self.sample_config = (
-            Path(sp.__file__).parent / "sample_run" / "sample_config.yml"
+            Path(sp.__file__).parent / "sample_data" / "sample_config.yml"
         )
 
     def test_init_config_from_yaml(self):

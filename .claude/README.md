@@ -16,16 +16,12 @@ This directory contains all Claude Code-specific documentation, plans, and confi
 │   ├── environment-types.md
 │   ├── uv-adoption.md
 │   └── README.md
-├── plans/               # Feature development plans
-│   ├── doing/          # Currently active
-│   ├── todo/           # Planned features
-│   ├── done/           # Completed features
-│   ├── claude-dev-notes.md
-│   └── README.md
 ├── templates/           # Reusable templates
 │   ├── feature-plan.md
 │   ├── commit-message.md
 │   └── README.md
+├── commands/            # Custom slash commands
+│   └── log-changes.md
 ├── settings.json        # Claude Code settings (committed)
 └── settings.local.json  # Local settings (ignored)
 ```
@@ -35,8 +31,10 @@ This directory contains all Claude Code-specific documentation, plans, and confi
 ### howto/
 **Purpose**: Step-by-step guides for common tasks
 - Setting up worktrees with different tools
-- Managing Python environments
+- Managing Python environments (uv, venv, mamba)
 - Running parallel Claude Code agents
+- **Quick start with uv**: `make setup && source .venv/bin/activate && make dev`
+- **Quick start with mamba**: `mamba activate suews-dev && make dev`
 
 ### reference/
 **Purpose**: Technical documentation and analysis
@@ -44,30 +42,28 @@ This directory contains all Claude Code-specific documentation, plans, and confi
 - Environment management comparison
 - Tool adoption strategies
 
-### plans/
-**Purpose**: Feature-specific development plans
-- `doing/` - Features currently being developed
-- `todo/` - Features planned but not started
-- `done/` - Completed features for reference
-- Plans track progress, decisions, and implementation details
-
 ### templates/
 **Purpose**: Reusable templates for consistency
 - Feature plan template
 - Commit message format
 - Other common documents
 
+### commands/
+**Purpose**: Custom slash commands for automation
+- `/log-changes` - Analyse recent changes and update docs/CHANGELOG
+- Add new commands as .md files in this directory
+
 ## Quick Navigation
 
 **"How do I...?"** → Check `howto/`
 **"Why does X work this way?"** → Check `reference/`
-**"What's the status of feature Y?"** → Check `plans/`
+**"What's the status of feature Y?"** → Check GitHub issues and PRs
 **"I need to create a new Z"** → Check `templates/`
 
 ## For Claude Code Sessions
 
 1. Check current branch: `git branch --show-current`
-2. Find your plan: `ls .claude/plans/doing/`
+2. Check related GitHub issue or PR for context
 3. Read setup guide: `cat .claude/howto/setup-worktree.md`
 
 
@@ -105,6 +101,19 @@ Comprehensive worktree management with four simple subcommands:
 ```
 
 See `.claude/howto/worktree-workflow.md` for detailed workflow guide.
+
+### /log-changes
+Analyses recent code changes and updates documentation:
+
+- Checks commits since last CHANGELOG.md update
+- Categorises changes by type ([feature], [bugfix], etc.)
+- Updates CHANGELOG.md with new entries
+- Identifies and updates affected documentation
+- Runs documentation generation scripts as needed
+
+**Usage**: `/log-changes`
+
+This command helps maintain up-to-date documentation by automatically detecting what has changed and where updates are needed.
 
 ## Git Policy
 - ✅ Commit: All directories and files (except settings.local.json)

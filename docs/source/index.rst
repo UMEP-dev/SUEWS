@@ -67,7 +67,7 @@ Get started immediately with the :ref:`Getting Started with SUEWS <Workflow>` gu
 
 - **Migration guide**: :ref:`Transition from table-based inputs <inputs/transition_guide>` to modern YAML configuration
 - **Version changes**: See :ref:`new_latest` for updates in this version
-- **Legacy support**: The `SUEWS table converter <input_converter>` helps convert existing input files
+- **Legacy support**: The :doc:`SUEWS Format Converter <inputs/converter>` helps convert existing input files
 
 **Scientific Background:**
 
@@ -84,7 +84,10 @@ The developers and other users are willing to help you.
 How has SUEWS been used?
 ------------------------------
 
-The scientific details and application examples of SUEWS can be found in `Recent_publications`.
+The scientific details and application examples of SUEWS can be found in:
+
+- :ref:`Recent_publications` - Core SUEWS publications from the development team describing model physics and validation
+- :ref:`community_publications` - Publications from the SUEWS user community showcasing diverse applications
 
 .. _cite_suews:
 
@@ -92,11 +95,17 @@ The scientific details and application examples of SUEWS can be found in `Recent
 How to cite SUEWS?
 -----------------------------
 
-Please go to `our Zenodo repository`_ for a proper citation of SUEWS.
+When using SUEWS in your research, please cite it appropriately:
 
-.. tip::
+**For the software/model:**
 
-    Visit the repositories below for different citation styles.
+- Use the `CITATION.cff file in our GitHub repository <https://github.com/UMEP-dev/SUEWS/blob/master/CITATION.cff>`_ for software citations
+- Visit `our Zenodo repository`_ for DOI-based citations with version tracking
+
+**For scientific background:**
+
+- See :ref:`Recent_publications` for core SUEWS papers describing the model's development and validation
+- Check :ref:`community_publications` to see how others have cited and used SUEWS in their work
 
 
 
@@ -127,6 +136,7 @@ How to support SUEWS?
    workflow
    sub-tutorials/tutorials
    inputs/index
+   yaml-processor/index
    output_files/output_files
    api
    data-structures/supy-io
@@ -167,4 +177,5 @@ How to support SUEWS?
    :numbered:
    :hidden:
 
+   community_publications
    GitHub discussion <https://github.com/UMEP-dev/UMEP/discussions>

@@ -1,7 +1,7 @@
 """Test that forcing_file parameter accepts both string and list of strings"""
 
 import pytest
-from supy.data_model.model import ModelControl
+from supy.data_model.core.model import ModelControl
 
 
 def test_forcing_file_single_string():
@@ -21,7 +21,7 @@ def test_forcing_file_list_of_strings():
 
 def test_forcing_file_with_ref_value():
     """Test that forcing_file works with RefValue wrapper"""
-    from supy.data_model.type import RefValue
+    from supy.data_model.core.type import RefValue
 
     # Single file with RefValue
     control = ModelControl(forcing_file=RefValue("forcing_with_ref.txt"))

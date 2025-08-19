@@ -1,0 +1,12 @@
+# CODEOWNERS file for SUEWS
+# This file defines who should review changes to specific parts of the codebase
+
+# Schema files are auto-generated and should not be manually edited
+# Only the github-actions bot and repository admins can approve changes
+/schemas/ @github-actions[bot] @sunt05
+
+# Workflow files require admin review
+/.github/workflows/ @sunt05
+
+# Schema generation script requires careful review
+/.github/scripts/generate_schema.py @sunt05

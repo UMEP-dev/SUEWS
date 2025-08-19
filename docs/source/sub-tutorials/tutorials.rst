@@ -95,6 +95,6 @@ Migration from Legacy SUEWS
 
 If you're transitioning from table-based SUEWS to modern SuPy:
 
-1. **Use the conversion tool**: ``suews-convert to-yaml -i legacy_input_dir/ -o config.yml``
+1. **Use the conversion tool**: ``suews-convert -f 2024a -t 2025a -i legacy_input_dir/ -o config.yml``
 2. **Follow the migration guide**: :doc:`../inputs/transition_guide`
 3. **Start with sample data**: The :doc:`../tutorials/python/quick-start` tutorial shows modern approaches

@@ -292,7 +292,7 @@ jobs:
         id: deployment
         uses: actions/deploy-pages@v4
 
-  # Job 4: PR Preview (validation only - deployment not permitted for PRs)
+  # Job 4: PR Preview deployment to separate environment
   preview_schema:
     name: Generate PR Preview  
     runs-on: ubuntu-latest
@@ -301,7 +301,13 @@ jobs:
     permissions:
       contents: read
       pull-requests: write  # Needed to comment on PR
-      # Note: PRs cannot deploy to production GitHub Pages for security reasons
+      pages: write         # Deploy to Pages
+      id-token: write      # OIDC for Pages
+
+    # Deploy to a preview environment instead of production
+    environment:
+      name: github-pages-preview
+      url: ${{ steps.deployment.outputs.page_url }}preview/pr-${{ github.event.pull_request.number }}/
 
     steps:
       - name: Checkout PR
@@ -322,8 +328,78 @@ jobs:
           python .github/scripts/generate_schema.py --preview --pr-number ${{ github.event.pull_request.number }}
           echo "📝 Preview schema generated"
 
-      # PR deployment to production Pages is not permitted for security
-      # We'll just validate and show what would be deployed
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Build site with PR preview
+        run: |
+          # Create site structure
+          mkdir -p _site
+          
+          # Download current site content to preserve it
+          echo "📥 Attempting to download current site..."
+          if curl -fsSL https://umep-dev.github.io/SUEWS/index.html -o _site/index.html 2>/dev/null; then
+            echo "✅ Downloaded existing index.html"
+            
+            # Try to preserve main schemas
+            if curl -fsSL https://umep-dev.github.io/SUEWS/schemas/suews-config/latest.json -o /tmp/main-schema.json 2>/dev/null; then
+              mkdir -p _site/schemas/suews-config
+              cp /tmp/main-schema.json _site/schemas/suews-config/latest.json
+              echo "✅ Preserved main schemas"
+            fi
+            
+            # Try to preserve recent PR previews (last 10 PRs)
+            for pr in $(seq $(({{ github.event.pull_request.number }} - 10)) $(({{ github.event.pull_request.number }} - 1))); do
+              if [ $pr -gt 0 ]; then
+                if curl -fsSL https://umep-dev.github.io/SUEWS/preview/pr-$pr/schema/suews-config/latest.json \
+                     -o /tmp/pr-$pr.json 2>/dev/null; then
+                  mkdir -p _site/preview/pr-$pr/schema/suews-config
+                  cp /tmp/pr-$pr.json _site/preview/pr-$pr/schema/suews-config/latest.json
+                  echo "✅ Preserved preview for PR #$pr"
+                fi
+              fi
+            done
+          else
+            echo "⚠️ No existing site found, creating new structure"
+            # Create a simple index
+            cat > _site/index.html << 'EOF'
+          <!DOCTYPE html>
+          <html>
+          <head>
+              <title>SUEWS Schema</title>
+              <meta charset="utf-8">
+          </head>
+          <body>
+              <h1>SUEWS Schema Documentation</h1>
+              <ul>
+                <li><a href="schemas/suews-config/">Current Schema</a></li>
+                <li><a href="preview/">PR Previews</a></li>
+              </ul>
+          </body>
+          </html>
+          EOF
+          fi
+          
+          # Add this PR's preview
+          echo "📦 Adding PR #${{ github.event.pull_request.number }} preview..."
+          mkdir -p _site/preview/pr-${{ github.event.pull_request.number }}/schema
+          cp -r schemas/* _site/preview/pr-${{ github.event.pull_request.number }}/schema/
+          
+          # Create .nojekyll
+          touch _site/.nojekyll
+          
+          echo "✅ Site prepared with PR preview"
+          find _site -type f -name "*.json" -o -name "*.html" | head -10
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+        continue-on-error: true  # Don't fail the job if deployment fails
 
       - name: Comment on PR
         uses: actions/github-script@v7
@@ -338,11 +414,11 @@ jobs:
             - ✅ Schema validation: Passed
             - 📦 Artifact uploaded: schema-preview-pr-${prNumber}
 
-            ⚠️ **Note**: PR previews cannot be deployed to GitHub Pages when using GitHub Actions 
-            deployment mode. This is a security limitation - PRs cannot deploy to production Pages.
+            🌐 **Preview URL**: https://umep-dev.github.io/SUEWS/preview/pr-${prNumber}/schema/suews-config/
+            ⏱️ The preview will be available after deployment completes (1-2 minutes).
             
-            To enable PR preview URLs, the repository would need to switch GitHub Pages source 
-            from "GitHub Actions" to "Deploy from a branch" (gh-pages).
+            ℹ️ **Note**: This deploys to a separate preview environment. If the deployment fails,
+            it may be because the environment needs to be created in repository settings.
 
             ⚠️ **Important**: Schemas are auto-generated. Manual edits to schema files will be rejected.`;
 

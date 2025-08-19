@@ -17,6 +17,8 @@ py.install_sources(
         'checker_rules_indiv.json',
         'checker_rules_joint.json',
         'var2siteselect.json',
+        'schema/__init__.py',
+        'validation/__init__.py',
         [
             'cmd/__init__.py',
             'cmd/SUEWS.py',

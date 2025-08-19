@@ -133,6 +133,13 @@ jobs:
               sed '/<body>/a\
               <div style="background: #ffeb3b; color: #333; padding: 10px; text-align: center; font-weight: bold; position: fixed; top: 0; left: 0; right: 0; z-index: 9999;">⚠️ PREVIEW - PR #${{ github.event.pull_request.number }} - Not Production</div>\
               <div style="height: 40px;"></div>' .github/pages/index.html > _site/index.html
+              
+              # Also add banner to schema index page
+              if [ -f _site/schemas/suews-config/index.html ]; then
+                sed -i '/<body>/a\
+                <div style="background: #ffeb3b; color: #333; padding: 10px; text-align: center; font-weight: bold;">⚠️ PREVIEW - PR #${{ github.event.pull_request.number }} - Not Production</div>' \
+                _site/schemas/suews-config/index.html
+              fi
             else
               cp .github/pages/index.html _site/index.html
             fi

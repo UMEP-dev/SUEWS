@@ -697,10 +697,11 @@ CONTAINS
             Lwest => stebbsState%Lwest, &
             ss_height => spartacus_Prm%height &
             )
+            sout%ntstep = 1
+            resolution = 1
             IF (stebbs_bldg_init == 0) THEN
-               resolution = 1
                CALL gen_building(stebbsState, stebbsPrm, building_archtype, buildings(1))
-               sout%ntstep = 1
+               stebbs_bldg_init = 1
             END IF
 
             ! only for the BEERS scheme, Todo: remove other schemes, <1000 need to be just BEERS code. 
@@ -786,7 +787,6 @@ CONTAINS
                Vwall_tank, Vwater_tank &
                )
             ! END DO
-            stebbs_bldg_init = 1
 
             dataOutLineSTEBBS = [ &
                                 ! Forcing

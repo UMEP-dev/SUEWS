@@ -1,5 +1,46 @@
 name: Schema Management
 
+# HOW THIS WORKFLOW WORKS:
+# ========================
+#
+# SCENARIO 1: Developer modifies data models in a PR
+# ---------------------------------------------------
+# 1. PR is opened with changes to src/supy/data_model/
+# 2. Workflow runs with github-pages-preview environment
+# 3. Generates schemas from PR branch code
+# 4. Deploys to GitHub Pages WITH yellow preview banner
+# 5. Comments preview URL on the PR
+# 6. Developer can see how schemas look before merge
+#
+# SCENARIO 2: PR is merged to master (data model changes)
+# --------------------------------------------------------
+# 1. Merge triggers push event to master
+# 2. Workflow runs with github-pages environment (production)
+# 3. Generates schemas from master branch code
+# 4. Deploys to GitHub Pages WITHOUT banner (production)
+# 5. If schemas differ from what's committed, creates PR for version control
+#    (This PR is just for tracking - schemas are already deployed)
+#
+# SCENARIO 3: Testing workflow or page styling changes
+# -----------------------------------------------------
+# 1. PR modifies .github/workflows/schema-management.yml or .github/pages/
+# 2. Workflow runs in preview mode
+# 3. Uses same index.html but with preview banner
+# 4. Developer can test visual changes before merge
+#
+# SCENARIO 4: Manual trigger (workflow_dispatch)
+# -----------------------------------------------
+# 1. Someone manually triggers workflow from Actions tab
+# 2. Runs like a master push (production deployment)
+# 3. Useful for forcing regeneration or fixing issues
+#
+# KEY POINTS:
+# - Schemas are GENERATED fresh each time (not read from repo)
+# - Preview deployments go to github-pages-preview environment
+# - Production deployments go to github-pages environment
+# - PRs created are optional (just for Git history)
+# - All schema versions are preserved (cumulative generation)
+
 on:
   push:
     branches: [master]

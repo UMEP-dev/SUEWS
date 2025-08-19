@@ -1,8 +1,5 @@
 name: Schema Management
 
-# Generates and deploys schemas when data models change
-# Creates PRs for version control (required due to branch protection)
-
 on:
   push:
     branches: [master]
@@ -15,6 +12,8 @@ on:
     paths:
       - 'src/supy/data_model/**'
       - '.github/scripts/generate_schema.py'
+      - '.github/workflows/schema-management.yml'
+      - '.github/pages/**'
 
   workflow_dispatch:
 
@@ -25,14 +24,18 @@ permissions:
   pull-requests: write
 
 jobs:
-  # Generate schemas and deploy immediately
   generate-deploy:
     name: Generate and Deploy
-    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
     runs-on: ubuntu-latest
+    # Run on master push OR PR
+    if: |
+      (github.event_name == 'push' && github.ref == 'refs/heads/master') ||
+      github.event_name == 'pull_request' ||
+      github.event_name == 'workflow_dispatch'
     
+    # Use preview environment for PRs, production for master
     environment:
-      name: github-pages
+      name: ${{ github.event_name == 'pull_request' && 'github-pages-preview' || 'github-pages' }}
       url: ${{ steps.deployment.outputs.page_url }}
     
     steps:
@@ -46,16 +49,54 @@ jobs:
           python -m pip install --upgrade pip
           pip install pydantic pyyaml numpy pandas pytz timezonefinder f90nml packaging
       
-      # Generate schemas
+      # Generate schemas (cumulative - preserves existing versions)
       - name: Generate schemas
-        run: python .github/scripts/generate_schema.py
+        run: |
+          echo "🔧 Generating schemas..."
+          python .github/scripts/generate_schema.py
+          echo "✅ Schema generation complete"
       
-      # Deploy to GitHub Pages immediately
-      - name: Deploy to Pages
+      # Deploy to GitHub Pages
+      - name: Deploy
         run: |
           mkdir -p _site
-          cp -r schemas _site/
-          [ -f .github/pages/index.html ] && cp .github/pages/index.html _site/index.html
+          
+          # Copy all schemas (old + new)
+          if [ -d schemas ]; then
+            cp -r schemas _site/
+          else
+            mkdir -p _site/schemas
+            echo '{"message": "No schemas yet"}' > _site/schemas/placeholder.json
+          fi
+          
+          # Prepare index.html with conditional preview banner
+          if [ -f .github/pages/index.html ]; then
+            if [ "${{ github.event_name }}" = "pull_request" ]; then
+              # Add preview banner after <body> tag
+              sed '/<body>/a\
+              <div style="background: #ffeb3b; color: #333; padding: 10px; text-align: center; font-weight: bold; position: fixed; top: 0; left: 0; right: 0; z-index: 9999;">⚠️ PREVIEW - PR #${{ github.event.pull_request.number }} - Not Production</div>\
+              <div style="height: 40px;"></div>' .github/pages/index.html > _site/index.html
+            else
+              cp .github/pages/index.html _site/index.html
+            fi
+          else
+            # Simple fallback
+            cat > _site/index.html << 'EOF'
+          <!DOCTYPE html>
+          <html>
+          <head>
+              <title>SUEWS Schema</title>
+              <meta charset="utf-8">
+              <meta http-equiv="refresh" content="0; url=schemas/suews-config/">
+          </head>
+          <body>
+              <h1>SUEWS Schema</h1>
+              <p>Redirecting to <a href="schemas/suews-config/">schemas</a>...</p>
+          </body>
+          </html>
+          EOF
+          fi
+          
           touch _site/.nojekyll
       
       - uses: actions/configure-pages@v5
@@ -65,8 +106,9 @@ jobs:
       - uses: actions/deploy-pages@v4
         id: deployment
       
-      # Create PR for version control (due to branch protection)
-      - name: Create PR if schemas changed
+      # Create PR if schemas changed (master only, for version control)
+      - name: Create PR for schema updates
+        if: github.event_name == 'push' && github.ref == 'refs/heads/master'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -85,106 +127,37 @@ jobs:
               --title "🤖 Update schemas" \
               --body "Auto-generated schema update. Already deployed to GitHub Pages."
           fi
-
-  # Validate PRs
-  validate:
-    name: Validate
-    if: github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
-    
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.13'
       
-      - run: |
-          python -m pip install --upgrade pip
-          pip install pydantic pyyaml numpy pandas pytz timezonefinder f90nml packaging
-      
-      - name: Test schema generation
-        run: |
-          python .github/scripts/generate_schema.py
-          echo "✅ Schema generation successful"
-
-  # Preview deployment for PRs (especially workflow changes)
-  preview:
-    name: Deploy Preview
-    if: github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
-    needs: validate
-    
-    environment:
-      name: github-pages-preview
-      url: ${{ steps.deployment.outputs.page_url }}
-    
-    permissions:
-      pages: write
-      id-token: write
-      pull-requests: write
-    
-    steps:
-      - uses: actions/checkout@v4
-      
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.13'
-      
-      - run: |
-          python -m pip install --upgrade pip
-          pip install pydantic pyyaml numpy pandas pytz timezonefinder f90nml packaging
-      
-      - name: Generate schemas
-        run: python .github/scripts/generate_schema.py
-      
-      - name: Prepare preview deployment
-        run: |
-          mkdir -p _site
-          cp -r schemas _site/
-          
-          # Add preview banner to index
-          if [ -f .github/pages/index.html ]; then
-            # Insert preview banner into existing index
-            cat .github/pages/index.html | sed '/<body>/a\
-          <div style="background: #ffeb3b; color: #333; padding: 10px; text-align: center; font-weight: bold;">⚠️ PREVIEW - PR #${{ github.event.pull_request.number }} - Not Production</div>' > _site/index.html
-          else
-            cat > _site/index.html << 'EOF'
-          <!DOCTYPE html>
-          <html>
-          <head>
-              <title>SUEWS Schema - PREVIEW</title>
-              <meta charset="utf-8">
-              <style>
-                body { font-family: system-ui; max-width: 800px; margin: 0 auto; padding: 20px; }
-                .preview-banner { background: #ffeb3b; color: #333; padding: 15px; text-align: center; font-weight: bold; margin: -20px -20px 20px -20px; }
-              </style>
-          </head>
-          <body>
-              <div class="preview-banner">⚠️ PREVIEW - PR #${{ github.event.pull_request.number }} - Not Production</div>
-              <h1>SUEWS Configuration Schema</h1>
-              <p><a href="schemas/suews-config/">View Schemas</a></p>
-              <p>Community: <a href="https://github.com/UMEP-dev/umep/discussions">UMEP Discussions</a></p>
-          </body>
-          </html>
-          EOF
-          fi
-          
-          touch _site/.nojekyll
-      
-      - uses: actions/configure-pages@v5
-      - uses: actions/upload-pages-artifact@v3
-        with:
-          path: _site
-      - uses: actions/deploy-pages@v4
-        id: deployment
-      
+      # Comment on PR with preview URL
       - name: Comment preview URL
+        if: github.event_name == 'pull_request'
         uses: actions/github-script@v7
         with:
           script: |
-            github.rest.issues.createComment({
+            const comments = await github.rest.issues.listComments({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              issue_number: context.issue.number,
-              body: `🔍 **Preview Deployed**\n\nPreview URL: ${{ steps.deployment.outputs.page_url }}\n\n⚠️ This is a preview deployment for testing changes.`
-            })
+              issue_number: context.issue.number
+            });
+            
+            const botComment = comments.data.find(c => 
+              c.user.type === 'Bot' && c.body.includes('Preview URL:')
+            );
+            
+            const body = `🔍 **Preview Deployed**\n\nPreview URL: ${{ steps.deployment.outputs.page_url }}\n\n⚠️ This is a preview deployment. The yellow banner indicates non-production status.`;
+            
+            if (botComment) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: botComment.id,
+                body
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body
+              });
+            }

@@ -135,7 +135,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install pydantic pyyaml numpy pandas pytz timezonefinder
+          pip install pydantic pyyaml numpy pandas pytz timezonefinder f90nml packaging
           echo "✓ Installed dependencies"
 
       - name: Get schema version
@@ -279,7 +279,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install pydantic pyyaml numpy pandas pytz timezonefinder
+          pip install pydantic pyyaml numpy pandas pytz timezonefinder f90nml packaging
 
       - name: Generate preview schema
         run: |

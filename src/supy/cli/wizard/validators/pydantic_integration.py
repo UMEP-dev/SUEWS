@@ -6,8 +6,8 @@ from typing import Dict, Any, List, Optional, Tuple
 from pathlib import Path
 import yaml
 
-from ....data_model import SUEWSConfig
-from ....data_model.type import RefValue
+from ....data_model.core.config import SUEWSConfig
+from ....data_model.core.type import RefValue
 
 
 class PydanticValidator:

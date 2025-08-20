@@ -438,7 +438,7 @@ When Phase A detects issues, it generates two output files:
 
    **Critical Parameters:** Parameters listed in the **ACTION NEEDED** section are critical physics options that must be set. The model may not run correctly until these null values are replaced with appropriate values.
 
-**For developer documentation on Phase A internals:** See PHASE_A_DETAILED.md in src/supy/data_model/yaml_processor/
+**For developer documentation on Phase A internals:** See PHASE_A_DETAILED.md in src/supy/data_model/validation/pipeline/
 
 Phase B – Scientific Validation
 ===============================
@@ -701,7 +701,7 @@ Output: an updated YAML saved as updatedB_<filename>.yml and a comprehensive rep
 
    **Critical Issues:** Parameters listed in the **ACTION NEEDED** section represent scientific inconsistencies or invalid values that should be corrected for reliable model results.
 
-**For developer documentation on Phase B internals:** See PHASE_B_DETAILED.md in src/supy/data_model/yaml_processor/
+**For developer documentation on Phase B internals:** See PHASE_B_DETAILED.md in src/supy/data_model/validation/pipeline/
 
 Phase C – Pydantic Validation
 =============================
@@ -772,7 +772,7 @@ Phase C runs comprehensive validation using Pydantic data models, ensuring your 
 **For detailed validation specifications and error handling, see:**
 `YAML Configuration Documentation - Validation and Error Handling <../../../inputs/yaml/index.html#validation-and-error-handling>`_
 
-**For developer documentation on Phase C internals:** See PHASE_C_DETAILED.md in src/supy/data_model/yaml_processor/
+**For developer documentation on Phase C internals:** See PHASE_C_DETAILED.md in src/supy/data_model/validation/pipeline/
 
 Running Phase C
 ~~~~~~~~~~~~~~~
@@ -1153,5 +1153,6 @@ Related Documentation
    :hidden:
 
    processor_detailed
+   module_structure
    namelist_to_yaml_conversion
    ../cli/json-output

@@ -28,16 +28,6 @@ Class Reference
     :undoc-members:
     :show-inheritance:
 
-    .. automethod:: __init__
-    .. automethod:: update_config
-    .. automethod:: update_forcing
-    .. automethod:: run
-    .. automethod:: save
-    .. automethod:: reset
-    .. autoproperty:: config
-    .. autoproperty:: forcing
-    .. autoproperty:: results
-
 Quick Example
 -------------
 

@@ -1167,9 +1167,11 @@ MODULE SUEWS_DEF_DTS
       REAL(KIND(1D0)) :: DomesticHotWaterTemperatureInUseInBuilding = 0.0D0 ! Initial water temperature of water held in use in building [degC]
       REAL(KIND(1D0)) :: InternalWallDHWVesselTemperature = 0.0D0 ! Initial hot water vessel internal wall temperature [degC]
       REAL(KIND(1D0)) :: ExternalWallDHWVesselTemperature = 0.0D0 ! Initial hot water vessel external wall temperature [degC]
-
       TYPE(STEBBS_BLDG), ALLOCATABLE, DIMENSION(:) :: buildings ! Array holding all buildings states for STEBBS [-]
-
+      REAL(KIND(1D0)), ALLOCATABLE, DIMENSION(:) :: Textwall_C  ! Wall external surface temperature from STEBBS[K]
+      REAL(KIND(1D0)), ALLOCATABLE, DIMENSION(:) :: Textroof_C ! Roof external surface temperature from STEBBS[K]
+      !REAL(KIND(1D0)), DIMENSION(6) :: Textwall_C = 0.0D0 ! Wall external surface temperature from STEBBS[K]
+      !REAL(KIND(1D0)), DIMENSION(6) :: Textroof_C = 0.0D0! Roof external surface temperature from STEBBS[K]      
       ! flag for iteration safety - YES
       ! all variables are intensive and thus can be used for iteration safety
       LOGICAL :: iter_safe = .FALSE.
@@ -1682,14 +1684,16 @@ CONTAINS
 
    END SUBROUTINE deallocate_site_prm_c
 
-   SUBROUTINE allocSTEBBS_bldg(self, ntypes)
+   SUBROUTINE allocSTEBBS_bldg(self, ntypes, num_layer)
       IMPLICIT NONE
 
       CLASS(STEBBS_STATE), INTENT(INOUT) :: self
-      INTEGER, INTENT(IN) :: ntypes
+      INTEGER, INTENT(IN) :: ntypes, num_layer
 
       CALL self%DEALLOCATE()
       ALLOCATE (self%buildings(ntypes))
+      ALLOCATE (self%Textroof_C(num_layer))
+      ALLOCATE (self%Textwall_C(num_layer))
 
    END SUBROUTINE allocSTEBBS_bldg
 
@@ -1698,6 +1702,8 @@ CONTAINS
 
       CLASS(STEBBS_STATE), INTENT(INOUT) :: self
       IF (ALLOCATED(self%buildings)) DEALLOCATE (self%buildings)
+      IF (ALLOCATED(self%Textroof_C)) DEALLOCATE (self%Textroof_C)
+      IF (ALLOCATED(self%Textwall_C)) DEALLOCATE (self%Textwall_C)
 
    END SUBROUTINE deallocSTEBBS_bldg
 

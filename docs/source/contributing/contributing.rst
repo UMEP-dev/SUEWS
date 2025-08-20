@@ -16,6 +16,7 @@ We welcome all contributions – bug reports/fixes, documentation corrctions/imp
    report_guide
    doc_guide
    dev_guide
+   schema/index
 
 
 

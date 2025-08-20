@@ -22,7 +22,7 @@ incoming shortwave radiation to be provided.
    based on incoming shortwave radiation, temperature, relative humidity
    and surface characteristics (albedo, emissivity).
 #. `SPARTACUS-Surface (SS)` computes the 3D interaction of shortwave and longwave radiation with complex surface canopies, including vegetated and urban canopies (with or without vegetation). More details can be found in the `SPARTACUS-Surface (SS)` section.
-#. **BEERS** (Building Envelope Energy Radiation Scheme) calculates detailed radiation components for urban surfaces including point-specific radiation analysis. More details can be found in the `BEERS` section.
+#. **BEERS** (Building Envelope Energy Radiation Scheme) calculates detailed radiation components for urban surfaces including point-specific radiation analysis. More details can be found in the ``BEERS`` section.
 
 BEERS (Building Envelope Energy Radiation Scheme)
 --------------------------------------------------
@@ -115,7 +115,7 @@ Turbulent heat fluxes, Q\ :sub:`H` and Q\ :sub:`E`
 Sensible and latent heat fluxes from both LUMPS and SUEWS are provided in the `output_files`.
 Whether the turbulent heat fluxes are calculated using LUMPS or SUEWS can have a major impact on the results.
 For SUEWS, an appropriate surface conductance parameterisation is also critical :cite:`J11` :cite:`W16`.
-For more details see `Differences_between_SUEWS_LUMPS_and_FRAISE` .
+For more details see ``Differences_between_SUEWS_LUMPS_and_FRAISE``.
 
 Water balance
 -------------
@@ -354,7 +354,7 @@ SUEWS-SS Implementation
 
 -  Ground albedo and emissivity are an area weighted average of SUEWS paved, grass, bare soil and water values.
 
--  Inputs from SUEWS: `sfr`, `zenith_deg`, `TSfc_C`, `avKdn`, `ldown`, `temp_c`, `alb_next`, `emis`, `LAI_id`.
+-  Inputs from SUEWS: ``sfr``, ``zenith_deg``, ``TSfc_C``, ``avKdn``, ``ldown``, ``temp_c``, ``alb_next``, ``emis``, ``LAI_id``.
 
 -  SS specific input parameters: read in from `SUEWS_SPARTACUS.nml`.
 
@@ -367,7 +367,7 @@ SUEWS-SS Implementation
   .. [#ss_output] this will be updated but requires other updates first as of December 2021
 
 
-- Output variables (including multi-layer ones) are in SUEWS-SS output file `SSss_YYYY_SPARTACUS.txt`. [#ss_output]_
+- Output variables (including multi-layer ones) are in SUEWS-SS output file ``SSss_YYYY_SPARTACUS.txt``. [#ss_output]_
 
 
 
@@ -387,7 +387,7 @@ RSL and SS Canopy Representation Comparison
    SUEWS-RSL module assumes the RSL has 30 layers that are spread between the canopy and within the atmosphere above
 
 
-A maximum of 15 layers are used by SS (:numref:`vertial_layers_SS-RSL`), with the top of the highest layer at the tallest building height.
+A maximum of 15 layers are used by SS (:numref:`vertial_layers_SS`), with the top of the highest layer at the tallest building height.
 The layer heights are user defined and there is no limit on maximum building height.
 The buildings are allowed to vary in height.
 

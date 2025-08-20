@@ -702,12 +702,12 @@ def set_index_dt(df_raw: pd.DataFrame) -> pd.DataFrame:
 
     Parameters
     ----------
-    df_raw : pd.DataFrame
+    df_raw : pandas.DataFrame
         raw SUEWS DataFrame
 
     Returns
     -------
-    pd.DataFrame
+    pandas.DataFrame
         datetime-aware DataFrame
     """
 

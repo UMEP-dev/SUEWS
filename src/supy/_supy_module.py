@@ -350,7 +350,7 @@ def load_config_from_df(df_state: pd.DataFrame):
 
     Parameters
     ----------
-    df_state : pd.DataFrame
+    df_state : pandas.DataFrame
         DataFrame of model states.
 
     Returns

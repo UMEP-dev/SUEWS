@@ -146,6 +146,8 @@ JSON Output Format
       }]
     }
 
+For detailed JSON output documentation including error codes and CI/CD examples, see :doc:`/contributing/json-output-integration`.
+
 Troubleshooting
 ---------------
 

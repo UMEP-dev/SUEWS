@@ -17,6 +17,7 @@ We welcome all contributions – bug reports/fixes, documentation corrctions/imp
    doc_guide
    dev_guide
    schema/index
+   json-output-integration
 
 
 

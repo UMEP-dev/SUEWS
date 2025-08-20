@@ -611,7 +611,7 @@ class RSTGenerator:
         return description
 
     def _generate_index_collapsible(self) -> str:
-        """Generate index.rst with collapsible sections (mixed approach)."""
+        """Generate index.rst with collapsible dropdown sections (mixed approach)."""
         lines = [
             ".. _yaml_config_reference:",
             "",
@@ -619,6 +619,10 @@ class RSTGenerator:
             "============================",
             "",
             "This documentation follows the hierarchical structure of SUEWS YAML configuration files.",
+            "",
+            ".. note::",
+            "   Parameter groups with many fields are shown in collapsible dropdowns.",
+            "   Click on the dropdown to expand and see the parameters.",
             "",
         ]
 
@@ -741,12 +745,12 @@ class RSTGenerator:
             "      All configuration fields visible in a nested list format.",
             "      Best for quick scanning and searching.",
             "",
-            "   .. grid-item-card:: Collapsible Layout",
+            "   .. grid-item-card:: Dropdown Layout",
             "      :link: index-collapsible",
             "      :link-type: doc",
             "",
-            "      Mixed approach with collapsible sections for long groups.",
-            "      **Recommended** - balances readability and compactness.",
+            "      Mixed approach with dropdown sections for long parameter groups.",
+            "      **Recommended** - balances readability and compactness with interactive dropdowns.",
             "",
             "   .. grid-item-card:: Compact Layout",
             "      :link: index-aggressive",
@@ -986,7 +990,7 @@ class RSTGenerator:
     def _format_collapsible_fields(
         fields: list, indent: str
     ) -> list[str]:
-        """Format fields as a collapsible section.
+        """Format fields as a collapsible section using dropdown.
 
         Args:
             fields: List of field dictionaries
@@ -999,17 +1003,18 @@ class RSTGenerator:
         lines = []
         field_count = len([f for f in fields if f["name"] != "ref"])
 
-        lines.append(f"{indent}.. collapse:: {field_count} parameters")
-        lines.append(f"{indent}   :class: collapse-sm")
+        lines.append(f"{indent}.. dropdown:: {field_count} parameters")
+        lines.append(f"{indent}   :class-container: sd-shadow-sm")
+        lines.append(f"{indent}   :chevron: down-up")
         lines.append("")
 
-        # Add fields inside collapse
-        collapse_indent = indent + "   "
+        # Add fields inside dropdown
+        dropdown_indent = indent + "   "
         for field in fields:
             field_name = field["name"]
             if field_name == "ref":
                 continue
-            lines.append(f"{collapse_indent}- :option:`{field_name}`")
+            lines.append(f"{dropdown_indent}- :option:`{field_name}`")
         lines.append("")
 
         return lines

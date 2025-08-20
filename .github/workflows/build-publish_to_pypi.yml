@@ -18,7 +18,7 @@ name: Build and Publish Python wheels to PyPI and TestPyPI
 #    - Manual workflow_dispatch: Build and test all Python versions
 #
 # 2. DEVELOPMENT RELEASES (TestPyPI only):
-#    - Nightly cron (2 AM UTC): Creates YYYY.M.D.dev tag → TestPyPI
+#    - Nightly cron (2 AM UTC, master branch only): Creates YYYY.M.D.dev tag → TestPyPI
 #    - Any tag containing 'dev': Deploy to TestPyPI
 #    Installation:
 #      Latest dev: pip install -i https://test.pypi.org/simple/ supy

@@ -79,7 +79,7 @@ SUEWS supports two output formats:
 
 The output format is configured in the YAML file. See :doc:`../inputs/yaml/index` for configuration details.
 
-.. note:: Temporal information in output files (i.e., ``iy``, ``id``, ``it`` and ``imin`` if existing) are in **local time** (i.e. consistent with :ref:`met_input`) and indicate the ending timestamp of corresponding periods: e.g. for hourly data, ``2021-09-12 13:00`` indicates a record for the period between ``2021-09-12 12:00`` (inclusive) and ``2021-09-12 13:00`` (exclusive).
+.. note:: Temporal information in output files (i.e., ``iy``, ``id``, ``it`` and ``imin`` if existing) are in **local time** (i.e. consistent with :ref:`met_forcing`) and indicate the ending timestamp of corresponding periods: e.g. for hourly data, ``2021-09-12 13:00`` indicates a record for the period between ``2021-09-12 12:00`` (inclusive) and ``2021-09-12 13:00`` (exclusive).
 
 
 Text Format Output Files

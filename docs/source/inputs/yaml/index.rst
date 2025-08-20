@@ -158,7 +158,7 @@ Meteorological forcing data drives the SUEWS simulation. You specify the forcing
 
 **Forcing File Format**
 
-The forcing file must be a text file with specific columns in the correct order. See :doc:`/inputs/tables/met_input` for the complete format specification.
+The forcing file must be a text file with specific columns in the correct order. See :doc:`/inputs/forcing-data` for the complete format specification.
 
 **Essential columns** (tab or space separated):
 
@@ -178,7 +178,7 @@ The forcing file must be a text file with specific columns in the correct order.
 - Use local time (not UTC)
 - Use -999 for missing optional variables
 
-For detailed format specifications, column order, and optional variables, see :doc:`/inputs/tables/met_input`.
+For detailed format specifications, column order, and optional variables, see :doc:`/inputs/forcing-data`.
 
 Validation and Troubleshooting
 -------------------------------

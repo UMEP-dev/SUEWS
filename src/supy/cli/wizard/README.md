@@ -1,6 +1,6 @@
 # SUEWS Configuration Wizard
 
-An interactive CLI wizard for creating SUEWS YAML configuration files with integrated validation.
+An interactive CLI wizard for creating SUEWS YAML configuration files with comprehensive validation and intelligent error correction.
 
 ## Features
 
@@ -11,8 +11,8 @@ An interactive CLI wizard for creating SUEWS YAML configuration files with integ
 - **Initial Conditions**: Air temperature, humidity, soil moisture, surface temperatures, snow conditions
 - **Advanced Options**: Full physics method selection with compatibility checking
 
-### 🔬 Integrated Validation
-The wizard now integrates the three-phase YAML processor from PR #580:
+### 🔬 Enhanced Validation System
+The wizard now features a comprehensive validation system that combines multiple approaches:
 
 #### Phase A - Parameter Detection
 - Identifies missing critical and optional parameters
@@ -78,7 +78,8 @@ wizard/
 │   └── advanced.py          # Advanced options (IMPLEMENTED)
 ├── validators/               # Validation modules
 │   ├── pydantic_integration.py        # Original Pydantic validation
-│   └── yaml_processor_integration.py  # NEW: Three-phase processor
+│   ├── yaml_processor_integration.py  # Three-phase processor
+│   └── enhanced_validator.py          # NEW: Comprehensive validation system
 ├── templates/                # Configuration templates
 └── utils/                    # Utility modules
 ```
@@ -94,11 +95,26 @@ wizard/
    Phase C → Pydantic Validation → Full model validation
    ```
 
-## Integration with YAML Processor
+## Enhanced Validation Features
 
-The wizard now fully integrates with the YAML processor from PR #580:
+### 🚀 New EnhancedWizardValidator
+The wizard now includes an enhanced validator that combines all validation capabilities:
 
-### YAMLProcessorValidator Class
+#### Features
+- **Conditional Validation**: Only validates relevant parameters based on enabled physics methods
+- **Structured Error Reporting**: Three levels - ERROR, WARNING, INFO
+- **Machine-readable Error Codes**: For CI/CD integration
+- **Automatic Corrections**: Fixes common issues automatically
+- **JSON Export**: Export detailed validation reports for analysis
+- **Re-validation**: Automatic re-validation after fixes are applied
+
+#### Validation Components
+1. **Schema Validation**: Checks structure against JSON schema
+2. **Conditional Validation**: Physics method compatibility checks
+3. **Three-phase Pipeline**: Complete A/B/C validation
+4. **Fix Suggestions**: Intelligent suggestions based on errors
+
+### Original YAMLProcessorValidator Class
 ```python
 validator = YAMLProcessorValidator(mode="public")
 

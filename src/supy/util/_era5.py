@@ -714,9 +714,9 @@ def gen_forcing_era5(
     Note
     ----
         1. This function uses CDS API to download ERA5 data; follow this for configuration first: https://cds.climate.copernicus.eu/api-how-to
-        2. The generated forcing files can be imported using `supy.util.read_forcing` to get simulation-ready `pandas.DataFrame`s.
+        2. The generated forcing files can be imported using ``supy.util.read_forcing`` to get simulation-ready ``pandas.DataFrame`` s.
         3. See Section 3.10.2 and 3.10.3 in the reference for details of diagnostics calculation.
-        4. For `start`/`end`, it is recommended to use the format `YYYY-MM-DD` to avoid confusion in day/month-first convensions (`an upstream known issue <https://pandas.pydata.org/docs/reference/api/pandas.to_datetime.html#pandas.to_datetime>`_ due to the `dateutil` behavior)
+        4. For ``start``/``end``, it is recommended to use the format ``YYYY-MM-DD`` to avoid confusion in day/month-first convensions (`an upstream known issue <https://pandas.pydata.org/docs/reference/api/pandas.to_datetime.html#pandas.to_datetime>`_ due to the ``dateutil`` behavior)
 
     Reference
     ---------

@@ -702,12 +702,12 @@ def set_index_dt(df_raw: pd.DataFrame) -> pd.DataFrame:
 
     Parameters
     ----------
-    df_raw : pd.DataFrame
+    df_raw : pandas.DataFrame
         raw SUEWS DataFrame
 
     Returns
     -------
-    pd.DataFrame
+    pandas.DataFrame
         datetime-aware DataFrame
     """
 
@@ -2090,12 +2090,12 @@ def load_df_state(path_csv: Path) -> pd.DataFrame:
 
     Parameters
     ----------
-    path_csv : Path
+    path_csv : pathlib.Path
         path to the csv file that stores `df_state` produced by a supy run
 
     Returns
     -------
-    pd.DataFrame
+    pandas.DataFrame
         `df_state` produced by a supy run
     """
 

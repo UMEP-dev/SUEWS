@@ -32,7 +32,7 @@ import pytz
 
 # Optional import - use standalone if supy not available
 try:
-    from ..._env import logger_supy, trv_supy_module
+    from ...._env import logger_supy, trv_supy_module
 except ImportError:
     import logging
     from pathlib import Path
@@ -49,7 +49,10 @@ except ImportError:
     # Mock traversable for standalone mode
     class MockTraversable:
         def __init__(self):
-            self.base = Path(__file__).parent.parent.parent
+            # Go up to the supy module root from yaml_helpers.py location
+            # yaml_helpers.py is in src/supy/data_model/validation/core/
+            # So we need to go up 4 levels to get to src/supy/
+            self.base = Path(__file__).parent.parent.parent.parent
 
         def __truediv__(self, other):
             return self.base / other

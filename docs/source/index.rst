@@ -136,7 +136,6 @@ How to support SUEWS?
    workflow
    sub-tutorials/tutorials
    inputs/index
-   yaml-processor/index
    output_files/output_files
    api
    data-structures/supy-io

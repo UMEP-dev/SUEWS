@@ -68,7 +68,7 @@ class SUEWSSimulation:
         if config is not None:
             self.update_config(config)
 
-    def update_config(self, config: Union[str, Path, dict, Any]):
+    def update_config(self, config):
         """
         Update simulation configuration.
 
@@ -134,15 +134,13 @@ class SUEWSSimulation:
                 else:
                     setattr(self._config, key, value)
 
-    def update_forcing(
-        self, forcing_data: Union[str, Path, list[Union[str, Path]], pd.DataFrame]
-    ):
+    def update_forcing(self, forcing_data):
         """
         Update meteorological forcing data.
 
         Parameters
         ----------
-        forcing_data : str, Path, list of paths, or DataFrame
+        forcing_data : str, Path, list of paths, or pandas.DataFrame
             Forcing data source:
             - Path to a single forcing file
             - List of paths to forcing files (concatenated in order)
@@ -302,7 +300,11 @@ class SUEWSSimulation:
 
         Parameters
         ----------
-        **run_kwargs
+        start_date : str, optional
+            Start date for simulation.
+        end_date : str, optional
+            End date for simulation.
+        run_kwargs : dict
             Additional keyword arguments passed to run_supy.
             Common options:
             - save_state: Save state at each timestep (default False)
@@ -310,7 +312,7 @@ class SUEWSSimulation:
 
         Returns
         -------
-        pd.DataFrame
+        pandas.DataFrame
             Simulation results with MultiIndex columns (group, variable).
 
         Raises
@@ -336,9 +338,7 @@ class SUEWSSimulation:
         self._run_completed = True
         return self._df_output
 
-    def save(
-        self, output_path: Optional[Union[str, Path]] = None, **save_kwargs
-    ) -> list[Path]:
+    def save(self, output_path=None, **save_kwargs):
         """
         Save simulation results according to OutputConfig settings.
 
@@ -346,12 +346,12 @@ class SUEWSSimulation:
         ----------
         output_path : str or Path, optional
             Output directory path. If None, uses current directory.
-        **save_kwargs
-            Additional arguments passed to save_supy.
+        save_kwargs : dict
+            Additional keyword arguments passed to save_supy.
 
         Returns
         -------
-        List[Path]
+        list
             List of paths to saved files.
 
         Raises

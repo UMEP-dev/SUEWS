@@ -345,27 +345,27 @@ def gen_epw(
     tz=0,
     path_epw=Path("./uTMY.epw"),
 ) -> Tuple[pd.DataFrame, str, Path]:
-    """Generate an `epw` file of uTMY (urbanised Typical Meteorological Year) using SUEWS simulation results
+    """Generate an ``epw`` file of uTMY (urbanised Typical Meteorological Year) using SUEWS simulation results
 
     Parameters
     ----------
-    df_output : pd.DataFrame
+    df_output : pandas.DataFrame
         SUEWS simulation results.
-    path_epw : Path, optional
-        Path to store generated epw file, by default Path('./uTMY.epw').
-    lat: float
+    lat : float
         Latitude of the site, used for calculating solar angle.
-    lon: float
+    lon : float
         Longitude of the site, used for calculating solar angle.
-    tz: float
+    tz : float, optional
         time zone represented by time difference from UTC+0 (e.g., 8 for UTC+8), by default 0 (i.e., UTC+0)
+    path_epw : pathlib.Path, optional
+        Path to store generated epw file, by default Path('./uTMY.epw').
 
     Returns
     -------
-    df_epw, text_meta, path_epw: Tuple[pd.DataFrame, str, Path]
-        - df_epw: uTMY result
-        - text_meta: meta-info text
-        - path_epw: path to generated `epw` file
+    tuple
+        - df_epw: pandas.DataFrame - uTMY result
+        - text_meta: str - meta-info text
+        - path_epw: pathlib.Path - path to generated ``epw`` file
 
     """
     import atmosp

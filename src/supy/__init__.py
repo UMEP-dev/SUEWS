@@ -44,8 +44,12 @@ from . import data_model
 
 # validation functionality
 try:
-    from .validation import validate_suews_config_conditional
-    from .data_model import ValidationController, ValidationResult
+    # Use data_model.validation as the authoritative validation module
+    from .data_model.validation import (
+        validate_suews_config_conditional,
+        ValidationController,
+        ValidationResult,
+    )
 except ImportError:
     # Validation functionality not available
     validate_suews_config_conditional = None

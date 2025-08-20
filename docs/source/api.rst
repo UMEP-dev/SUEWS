@@ -29,14 +29,7 @@ Core Functions
 Object-Oriented Interface
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
-.. currentmodule:: supy
-
-.. autosummary::
-    :toctree: _autosummary
-
-    SUEWSSimulation
-
-The :class:`SUEWSSimulation` class provides a modern, object-oriented interface for running SUEWS simulations. For detailed documentation and examples, see :doc:`api/simulation`.
+The :class:`~supy.SUEWSSimulation` class provides a modern, object-oriented interface for running SUEWS simulations. For detailed documentation and examples, see :doc:`api/simulation`.
 
 Utility Functions
 ~~~~~~~~~~~~~~~~~
@@ -86,15 +79,6 @@ Utility Functions
     plot_day_clm
     plot_rsl
 
-**WRF Integration:**
-
-.. autosummary::
-    :toctree: _autosummary
-
-    extract_reclassification
-    plot_reclassification
-
-For comprehensive WRF-SUEWS coupling, see :doc:`integration/wrf-suews`.
 
 **Roughness Calculations:**
 

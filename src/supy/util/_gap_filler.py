@@ -194,17 +194,19 @@ def fill_gap_all(
 
     Parameters
     ----------
-    ser_to_fill : pd.Series
+    ser_to_fill : pandas.Series
         Time series to gap-fill
     freq : str, optional
         Frequency to identify gapped divisions, by default '1D'
-    limit_fill: int, optional
+    limit_fill : int, optional
         Maximum number of consecutive NaNs to fill.
         Any number less than one means no pre-gap-filling interpolation will be done.
+    thresh_ratio : float, optional
+        Threshold ratio for gap filling, by default 0.8
 
     Returns
     -------
-    ser_test_filled: pd.Series
+    pandas.Series
         Gap-filled time series.
 
     Patterns

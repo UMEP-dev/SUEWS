@@ -82,13 +82,17 @@ def validate_single_file(
         # Check if migration needed
         if check_migration_needed(str(file_path)):
             if ValidationError:
-                errors.append(ValidationError(
-                    code=ErrorCode.SCHEMA_VERSION_MISMATCH,
-                    message="Configuration uses old schema version and may need migration",
-                    location=str(file_path)
-                ))
+                errors.append(
+                    ValidationError(
+                        code=ErrorCode.SCHEMA_VERSION_MISMATCH,
+                        message="Configuration uses old schema version and may need migration",
+                        location=str(file_path),
+                    )
+                )
             else:
-                errors.append("Configuration uses old schema version and may need migration")
+                errors.append(
+                    "Configuration uses old schema version and may need migration"
+                )
 
         # Validate against schema
         validator = jsonschema.Draft7Validator(schema)
@@ -105,13 +109,15 @@ def validate_single_file(
                         code = ErrorCode.TYPE_ERROR
                     else:
                         code = ErrorCode.INVALID_VALUE
-                    
-                    errors.append(ValidationError(
-                        code=code,
-                        message=error.message,
-                        field=path,
-                        location=str(file_path)
-                    ))
+
+                    errors.append(
+                        ValidationError(
+                            code=code,
+                            message=error.message,
+                            field=path,
+                            location=str(file_path),
+                        )
+                    )
                 else:
                     errors.append(f"{path}: {error.message}")
 
@@ -120,12 +126,14 @@ def validate_single_file(
             SUEWSConfig(**config)
         except Exception as e:
             if ValidationError:
-                errors.append(ValidationError(
-                    code=ErrorCode.VALIDATION_FAILED,
-                    message=str(e),
-                    location=str(file_path),
-                    details={"validation_type": "pydantic"}
-                ))
+                errors.append(
+                    ValidationError(
+                        code=ErrorCode.VALIDATION_FAILED,
+                        message=str(e),
+                        location=str(file_path),
+                        details={"validation_type": "pydantic"},
+                    )
+                )
             else:
                 errors.append(f"Pydantic validation: {str(e)}")
 
@@ -133,27 +141,42 @@ def validate_single_file(
 
     except yaml.YAMLError as e:
         if ValidationError:
-            return (False, [ValidationError(
-                code=ErrorCode.INVALID_YAML,
-                message=str(e),
-                location=str(file_path)
-            )])
+            return (
+                False,
+                [
+                    ValidationError(
+                        code=ErrorCode.INVALID_YAML,
+                        message=str(e),
+                        location=str(file_path),
+                    )
+                ],
+            )
         return (False, [f"YAML parsing error: {e}"])
     except FileNotFoundError:
         if ValidationError:
-            return (False, [ValidationError(
-                code=ErrorCode.FILE_NOT_FOUND,
-                message=f"File not found: {file_path}",
-                location=str(file_path)
-            )])
+            return (
+                False,
+                [
+                    ValidationError(
+                        code=ErrorCode.FILE_NOT_FOUND,
+                        message=f"File not found: {file_path}",
+                        location=str(file_path),
+                    )
+                ],
+            )
         return (False, [f"File not found: {file_path}"])
     except Exception as e:
         if ValidationError:
-            return (False, [ValidationError(
-                code=ErrorCode.VALIDATION_FAILED,
-                message=str(e),
-                location=str(file_path)
-            )])
+            return (
+                False,
+                [
+                    ValidationError(
+                        code=ErrorCode.VALIDATION_FAILED,
+                        message=str(e),
+                        location=str(file_path),
+                    )
+                ],
+            )
         return (False, [f"Unexpected error: {e}"])
 
 
@@ -226,15 +249,15 @@ def cli(ctx, files, pipeline, mode, dry_run, out_format, schema_version):
                     )
                     if not is_valid:
                         all_valid = False
-                    
+
                     # Convert ValidationError objects to dicts for JSON serialization
                     error_list = []
                     for error in errors:
-                        if hasattr(error, 'to_dict'):
+                        if hasattr(error, "to_dict"):
                             error_list.append(error.to_dict())
                         else:
                             error_list.append(str(error))
-                    
+
                     results.append({
                         "file": str(path),
                         "valid": is_valid,
@@ -247,9 +270,7 @@ def cli(ctx, files, pipeline, mode, dry_run, out_format, schema_version):
                         # Use the new structured JSON output
                         json_formatter = JSONOutput(command="suews-validate")
                         output = json_formatter.validation_result(
-                            files=results,
-                            schema_version=target_version,
-                            dry_run=True
+                            files=results, schema_version=target_version, dry_run=True
                         )
                         JSONOutput.output(output)
                     else:
@@ -289,15 +310,15 @@ def cli(ctx, files, pipeline, mode, dry_run, out_format, schema_version):
                 ctx.exit(2)
             path = Path(files[0])
             is_valid, errors = validate_single_file(path, schema, show_details=True)
-            
+
             # Convert ValidationError objects to dicts for JSON serialization
             error_list = []
             for error in errors:
-                if hasattr(error, 'to_dict'):
+                if hasattr(error, "to_dict"):
                     error_list.append(error.to_dict())
                 else:
                     error_list.append(str(error))
-            
+
             result = [
                 {
                     "file": str(path),
@@ -311,9 +332,7 @@ def cli(ctx, files, pipeline, mode, dry_run, out_format, schema_version):
                     # Use the new structured JSON output
                     json_formatter = JSONOutput(command="suews-validate")
                     output = json_formatter.validation_result(
-                        files=result,
-                        schema_version=target_version,
-                        dry_run=True
+                        files=result, schema_version=target_version, dry_run=True
                     )
                     JSONOutput.output(output)
                 else:
@@ -379,15 +398,15 @@ def validate(files, schema_version, verbose, quiet, format):
     ):
         path = Path(file_path)
         is_valid, errors = validate_single_file(path, schema, show_details=verbose)
-        
+
         # Convert ValidationError objects to dicts for JSON serialization
         error_list = []
         for error in errors:
-            if hasattr(error, 'to_dict'):
+            if hasattr(error, "to_dict"):
                 error_list.append(error.to_dict())
             else:
                 error_list.append(str(error))
-        
+
         results.append({
             "file": str(path),
             "valid": is_valid,
@@ -402,9 +421,7 @@ def validate(files, schema_version, verbose, quiet, format):
             # Use the new structured JSON output
             json_formatter = JSONOutput(command="suews-validate")
             output = json_formatter.validation_result(
-                files=results,
-                schema_version=version,
-                dry_run=False
+                files=results, schema_version=version, dry_run=False
             )
             JSONOutput.output(output)
         else:
@@ -655,7 +672,9 @@ def export(output, version, fmt):
         sys.exit(1)
 
 
-def _format_phase_output(phase, success, input_file, output_file=None, report_file=None, errors=None):
+def _format_phase_output(
+    phase, success, input_file, output_file=None, report_file=None, errors=None
+):
     """Format phase execution output based on format preference."""
     if JSONOutput:
         json_formatter = JSONOutput(command="suews-validate")
@@ -665,7 +684,7 @@ def _format_phase_output(phase, success, input_file, output_file=None, report_fi
             input_file=str(input_file),
             output_file=str(output_file) if output_file else None,
             report_file=str(report_file) if report_file else None,
-            errors=errors if errors else None
+            errors=errors if errors else None,
         )
         return output
     return None

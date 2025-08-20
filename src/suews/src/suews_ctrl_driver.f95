@@ -1170,6 +1170,10 @@ CONTAINS
 
       REAL(KIND(1D0)), DIMENSION(ncolumnsDataOutSPARTACUS - 5), INTENT(OUT) :: dataOutLineSPARTACUS
 
+      REAL(KIND(1D0)), DIMENSION(siteInfo%nlayer) :: tsfc_roof ! Wall external surface temperature from STEBBS[K]
+      REAL(KIND(1D0)), DIMENSION(siteInfo%nlayer) :: tsfc_wall ! Roof external surface temperature from STEBBS[K]
+      
+
       INTEGER, PARAMETER :: DiagQN = 0 ! flag for printing diagnostic info for QN module during runtime [N/A] ! not used and will be removed
 
       ASSOCIATE ( &
@@ -1223,10 +1227,11 @@ CONTAINS
             qn_wall => heatState%qn_wall, &
             Tsurf_ind => heatState%Tsurf_ind, &
             tsfc_surf => heatState%tsfc_surf, &
-            !tsfc_roof => heatState%tsfc_roof, &
-            !tsfc_wall => heatState%tsfc_wall, &   
-            tsfc_roof => stebbsState%Textroof_C, &
-            tsfc_wall => stebbsState%Textwall_C, &                  
+            buildings => stebbsState%buildings, &
+            ! tsfc_roof => heatState%tsfc_roof, &
+            ! tsfc_wall => heatState%tsfc_wall, &   
+            ! tsfc_roof => stebbsState%building(1)%Textroof_C, &
+            ! tsfc_wall => stebbsState%building(1)%Textwall_C, &                  
             spartacusPrm => siteInfo%spartacus, &
             spartacusLayerPrm => siteInfo%spartacus_layer, &
             NARP_TRANS_SITE => siteInfo%NARP_TRANS_SITE, &
@@ -1278,6 +1283,8 @@ CONTAINS
                wall_in_sw_spc => heatState%wall_in_sw_spc, &
                wall_in_lw_spc => heatState%wall_in_lw_spc &
                )
+               tsfc_roof = buildings(1)%Textroof_C
+               tsfc_wall = buildings(1)%Textwall_C
 
                emis = [pavedPrm%emis, bldgPrm%emis, evetrPrm%emis, dectrPrm%emis, &
                        grassPrm%emis, bsoilPrm%emis, waterPrm%emis]
@@ -4145,8 +4152,8 @@ CONTAINS
       REAL(KIND(1D0)) :: DHWVesselWallEmissivity
       REAL(KIND(1D0)) :: HotWaterHeatingEfficiency
       REAL(KIND(1D0)) :: MinimumVolumeOfDHWinUse
-      REAL(KIND(1D0)), DIMENSION(nlayer) :: Textroof_C !roof surface temperature from STEBBS[degC]
-      REAL(KIND(1D0)), DIMENSION(nlayer) :: Textwall_C !wall surface temperature from STEBBS[degC]
+      ! REAL(KIND(1D0)), DIMENSION(nlayer) :: textroof_c !roof surface temperature from STEBBS[degC]
+      ! REAL(KIND(1D0)), DIMENSION(nlayer) :: textwall_c !wall surface temperature from STEBBS[degC]
 
       ! ---stebbs building related states
       TYPE(BUILDING_ARCHETYPE_PRM) :: building_archtype
@@ -5024,8 +5031,9 @@ CONTAINS
       stebbsState%DomesticHotWaterTemperatureInUseInBuilding = DomesticHotWaterTemperatureInUseInBuilding
       stebbsState%InternalWallDHWVesselTemperature = InternalWallDHWVesselTemperature
       stebbsState%ExternalWallDHWVesselTemperature = ExternalWallDHWVesselTemperature
-      stebbsState%Textroof_C(:) =  RoofOutdoorSurfaceTemperature
-      stebbsState%Textwall_C(:) =  WallOutdoorSurfaceTemperature
+      ! stebbsState%textroof_c(:) =  RoofOutdoorSurfaceTemperature
+      ! stebbsState%textwall_c(:) =  WallOutdoorSurfaceTemperature
+
       ! ! transfer states into modState
       mod_State%anthroemisState = anthroEmisState
       mod_State%hydroState = hydroState
@@ -5117,7 +5125,7 @@ CONTAINS
       siteInfo%building_archtype = building_archtype
 
       IF (mod_state%flagState%stebbs_bldg_init == 0) THEN
-         CALL gen_building(mod_state%stebbsState, siteInfo%stebbs, siteInfo%building_archtype, mod_state%stebbsState%buildings(1))
+         CALL gen_building(mod_state%stebbsState, siteInfo%stebbs, siteInfo%building_archtype, mod_state%stebbsState%buildings(1), nlayer)
          mod_state%flagState%stebbs_bldg_init = 1
       END IF 
 

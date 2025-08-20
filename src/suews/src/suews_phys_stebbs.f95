@@ -586,8 +586,8 @@ CONTAINS
       REAL(KIND(1D0)) :: Tintroof
       REAL(KIND(1D0)) :: Textwall
       REAL(KIND(1D0)) :: Textroof
-      REAL(KIND(1D0)), DIMENSION(nlayer) :: Textwall_C ! Wall external surface temperature from STEBBS[K]
-      REAL(KIND(1D0)), DIMENSION(nlayer) :: Textroof_C ! Roof external surface temperature from STEBBS[K]
+      ! REAL(KIND(1D0)), DIMENSION(nlayer) :: textwall_c ! Wall external surface temperature from STEBBS[K]
+      ! REAL(KIND(1D0)), DIMENSION(nlayer) :: textroof_c ! Roof external surface temperature from STEBBS[K]
       REAL(KIND(1D0)) :: Tintwindow
       REAL(KIND(1D0)) :: Textwindow
       REAL(KIND(1D0)) :: Tintgroundfloor
@@ -696,14 +696,14 @@ CONTAINS
             Lsouth => stebbsState%Lsouth, &
             Least => stebbsState%Least, &
             Lwest => stebbsState%Lwest, &
-            ss_height => spartacus_Prm%height, &
-            Textwall_C =>stebbsState%Textwall_C, &
-            Textroof_C =>stebbsState%Textroof_C &
+            ss_height => spartacus_Prm%height &
+            ! textwall_c =>stebbsState%buildings(1)%textwall_c, &
+            ! textroof_c =>stebbsState%buildings(1)%textroof_c &
             )
             sout%ntstep = 1
             resolution = 1
             IF (stebbs_bldg_init == 0) THEN
-               CALL gen_building(stebbsState, stebbsPrm, building_archtype, buildings(1))
+               CALL gen_building(stebbsState, stebbsPrm, building_archtype, buildings(1), nlayer)
                stebbs_bldg_init = 1
             END IF
 
@@ -792,8 +792,8 @@ CONTAINS
             ! END DO
 
             DO i_layer = 1, nlayer
-               Textwall_C(i_layer) = Textwall - 273.15
-               Textroof_C(i_layer) = Textroof - 273.15
+               buildings(1)%textwall_c(i_layer) = Textwall - 273.15
+               buildings(1)%textroof_c(i_layer) = Textroof - 273.15
             END DO
             dataOutLineSTEBBS = [ &
                                 ! Forcing
@@ -2001,7 +2001,7 @@ END SUBROUTINE tstep
 SUBROUTINE reinitialiseTemperatures
 END SUBROUTINE reinitialiseTemperatures
 
-SUBROUTINE gen_building(stebbsState, stebbsPrm, building_archtype, self)
+SUBROUTINE gen_building(stebbsState, stebbsPrm, building_archtype, self, num_layer)
 
    USE SUEWS_DEF_DTS, ONLY: BUILDING_ARCHETYPE_PRM, STEBBS_STATE, STEBBS_PRM, STEBBS_BLDG
    USE modulestebbsfunc, ONLY: calculate_x1
@@ -2013,6 +2013,13 @@ SUBROUTINE gen_building(stebbsState, stebbsPrm, building_archtype, self)
    TYPE(BUILDING_ARCHETYPE_PRM), INTENT(IN) :: building_archtype
    TYPE(STEBBS_PRM), INTENT(IN) :: stebbsPrm
    ! self%idLBM = bldgState%BuildingName
+
+   INTEGER, INTENT(IN) :: num_layer
+
+   CALL self%ALLOCATE(num_layer)
+
+   self%Textwall_C = stebbsState%WallOutdoorSurfaceTemperature
+   self%Textroof_C = stebbsState%RoofOutdoorSurfaceTemperature
 
    self%QHload_heating_tstepFA = 0.0 ! currently only sensible but this needs to be  split into sensible and latent heat components
    self%QHload_cooling_tstepFA = 0.0 ! currently only sensible but this needs to be  split into sensible and latent heat components

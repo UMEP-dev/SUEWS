@@ -89,7 +89,10 @@ class RSTGenerator:
         description = model_doc.get("description", "")
         if description:
             # Special handling for ModelPhysics
-            if model_name == "ModelPhysics" and "Key method interactions:" in description:
+            if (
+                model_name == "ModelPhysics"
+                and "Key method interactions:" in description
+            ):
                 description = self._process_model_physics_description(description)
             lines.append(description)
             lines.append("")
@@ -106,14 +109,16 @@ class RSTGenerator:
 
         return "\n".join(lines)
 
-    def _format_meta_tags(self, model_name: str, model_doc: Dict[str, Any]) -> List[str]:
+    def _format_meta_tags(
+        self, model_name: str, model_doc: Dict[str, Any]
+    ) -> List[str]:
         """Format meta tags for SEO."""
         title = model_doc.get("title", model_name)
         return [
             ".. meta::",
             f"   :description: SUEWS YAML configuration for {title.lower()} parameters",
             f"   :keywords: SUEWS, YAML, {model_name.lower()}, parameters, configuration",
-            ""
+            "",
         ]
 
     def _format_reference_and_index(self, model_name: str) -> List[str]:
@@ -124,7 +129,7 @@ class RSTGenerator:
             ".. index::",
             f"   single: {model_name} (YAML parameter)",
             f"   single: YAML; {model_name}",
-            ""
+            "",
         ]
 
     def _format_field(self, field_doc: Dict[str, Any], model_name: str) -> List[str]:
@@ -137,11 +142,16 @@ class RSTGenerator:
             ".. index::",
             f"   single: {field_name} (YAML parameter)",
             f"   single: {model_name}; {field_name}",
-            ""
+            "",
         ])
 
         # Add reference label for special method fields
-        if field_name in {"diagmethod", "stabilitymethod", "localclimatemethod", "gsmodel"}:
+        if field_name in {
+            "diagmethod",
+            "stabilitymethod",
+            "localclimatemethod",
+            "gsmodel",
+        }:
             lines.append(f".. _{field_name}:")
             lines.append("")
 
@@ -169,12 +179,18 @@ class RSTGenerator:
         if type_info.get("is_ref_value"):
             nested_model = field_doc.get("nested_model")
             if nested_model:
-                lines.append(f"   In YAML, this is typically specified using a ``value`` key, e.g.: ")
+                lines.append(
+                    f"   In YAML, this is typically specified using a ``value`` key, e.g.: "
+                )
                 lines.append(f"   ``{field_name}: {{value: ...}}``.")
-                lines.append(f"   The structure of this ``value`` is detailed in the linked section below.")
+                lines.append(
+                    f"   The structure of this ``value`` is detailed in the linked section below."
+                )
             else:
                 type_str = field_doc.get("type", "...")
-                lines.append(f"   In YAML, this is typically specified using a ``value`` key, e.g.: ")
+                lines.append(
+                    f"   In YAML, this is typically specified using a ``value`` key, e.g.: "
+                )
                 lines.append(f"   ``{field_name}: {{value: {type_str}}}``.")
             lines.append("")
 
@@ -198,7 +214,9 @@ class RSTGenerator:
 
         # Add reference field for RefValue types
         if type_info.get("is_ref_value"):
-            lines.append("   :Reference: Optional - provide DOI/citation in standard format")
+            lines.append(
+                "   :Reference: Optional - provide DOI/citation in standard format"
+            )
 
         # Add constraints
         constraints = field_doc.get("constraints")
@@ -211,7 +229,9 @@ class RSTGenerator:
         nested_model = field_doc.get("nested_model")
         if nested_model:
             lines.append("")
-            lines.append(self._format_nested_model_link(field_name, nested_model, type_info))
+            lines.append(
+                self._format_nested_model_link(field_name, nested_model, type_info)
+            )
 
         return lines
 
@@ -269,10 +289,24 @@ class RSTGenerator:
     def _process_unit_part(self, part: str) -> str:
         """Process a single unit part."""
         known_patterns = [
-            "km^-1", "mm^-1", "m^-1", "m^-2", "m^-3",
-            "m^2", "m^3", "s^-1", "kg^-1", "K^-1",
-            "J^-1", "W^-1", "h^-1", "day^-1", "cap^-1",
-            "ha^-1", "d^-1", "d^-2",
+            "km^-1",
+            "mm^-1",
+            "m^-1",
+            "m^-2",
+            "m^-3",
+            "m^2",
+            "m^3",
+            "s^-1",
+            "kg^-1",
+            "K^-1",
+            "J^-1",
+            "W^-1",
+            "h^-1",
+            "day^-1",
+            "cap^-1",
+            "ha^-1",
+            "d^-1",
+            "d^-2",
         ]
 
         if part in known_patterns:
@@ -284,7 +318,9 @@ class RSTGenerator:
         for word in words:
             if word in known_patterns:
                 formatted.append(f"|{word}|")
-            elif "^" in word and any(word.startswith(b) for b in ["m", "s", "kg", "K", "W", "h", "d"]):
+            elif "^" in word and any(
+                word.startswith(b) for b in ["m", "s", "kg", "K", "W", "h", "d"]
+            ):
                 formatted.append(f"|{word}|")
             else:
                 formatted.append(word)
@@ -349,44 +385,64 @@ class RSTGenerator:
 
         return "; ".join(parts)
 
-    def _format_nested_model_link(self, field_name: str, nested_model: str,
-                                  type_info: Dict[str, Any]) -> str:
+    def _format_nested_model_link(
+        self, field_name: str, nested_model: str, type_info: Dict[str, Any]
+    ) -> str:
         """Format link to nested model documentation."""
         nested_lower = nested_model.lower()
 
         # Different messages based on type
         if type_info.get("is_ref_value"):
-            return (f"   The structure for the ``value`` key of ``{field_name}`` "
-                   f"is detailed in :doc:`{nested_lower}`.")
+            return (
+                f"   The structure for the ``value`` key of ``{field_name}`` "
+                f"is detailed in :doc:`{nested_lower}`."
+            )
         elif type_info.get("is_list"):
             if nested_model == "SurfaceInitialState":
-                return (f"   For ``{field_name}``, a list of generic SurfaceInitialState "
-                       f"objects is used to specify initial conditions for each layer - "
-                       f"see :doc:`surfaceinitialstate` for details.")
+                return (
+                    f"   For ``{field_name}``, a list of generic SurfaceInitialState "
+                    f"objects is used to specify initial conditions for each layer - "
+                    f"see :doc:`surfaceinitialstate` for details."
+                )
             else:
-                return (f"   Each item in the ``{field_name}`` list must conform to the "
-                       f":doc:`{nested_lower}` structure.")
+                return (
+                    f"   Each item in the ``{field_name}`` list must conform to the "
+                    f":doc:`{nested_lower}` structure."
+                )
         elif type_info.get("is_dict"):
-            return (f"   Each value in the ``{field_name}`` mapping must conform to the "
-                   f":doc:`{nested_lower}` structure.")
+            return (
+                f"   Each value in the ``{field_name}`` mapping must conform to the "
+                f":doc:`{nested_lower}` structure."
+            )
         else:
             # Direct nesting
-            if nested_model.startswith("InitialState") and nested_model != "InitialStates":
+            if (
+                nested_model.startswith("InitialState")
+                and nested_model != "InitialStates"
+            ):
                 basic_states = {
-                    "InitialStatePaved", "InitialStateBldgs",
-                    "InitialStateBsoil", "InitialStateWater"
+                    "InitialStatePaved",
+                    "InitialStateBldgs",
+                    "InitialStateBsoil",
+                    "InitialStateWater",
                 }
                 if nested_model in basic_states:
-                    return (f"   For ``{field_name}``, one generic SurfaceInitialState object "
-                           f"is used to specify initial conditions - "
-                           f"see :doc:`surfaceinitialstate` for details.")
+                    return (
+                        f"   For ``{field_name}``, one generic SurfaceInitialState object "
+                        f"is used to specify initial conditions - "
+                        f"see :doc:`surfaceinitialstate` for details."
+                    )
                 else:
-                    return (f"   For ``{field_name}``, one vegetation-specific initial state "
-                           f"with additional parameters is used - "
-                           f"see :doc:`{nested_lower}` for details.")
+                    return (
+                        f"   For ``{field_name}``, one vegetation-specific initial state "
+                        f"with additional parameters is used - "
+                        f"see :doc:`{nested_lower}` for details."
+                    )
             else:
-                return (f"   The ``{field_name}`` parameter group is defined by the "
-                       f":doc:`{nested_lower}` structure.")
+                return (
+                    f"   The ``{field_name}`` parameter group is defined by the "
+                    f":doc:`{nested_lower}` structure."
+                )
 
     def _process_model_physics_description(self, description: str) -> str:
         """Add cross-references to ModelPhysics description."""
@@ -396,17 +452,29 @@ class RSTGenerator:
         for line in lines:
             # Add cross-references to method names
             if "- diagmethod:" in line:
-                line = line.replace("- diagmethod:", "- :ref:`diagmethod <diagmethod>`:")
-                line = line.replace("diagmethod calculations", "``diagmethod`` calculations")
+                line = line.replace(
+                    "- diagmethod:", "- :ref:`diagmethod <diagmethod>`:"
+                )
+                line = line.replace(
+                    "diagmethod calculations", "``diagmethod`` calculations"
+                )
             elif "- stabilitymethod:" in line:
-                line = line.replace("- stabilitymethod:", "- :ref:`stabilitymethod <stabilitymethod>`:")
+                line = line.replace(
+                    "- stabilitymethod:", "- :ref:`stabilitymethod <stabilitymethod>`:"
+                )
                 line = line.replace("BY diagmethod", "**BY** ``diagmethod``")
             elif "- localclimatemethod:" in line:
-                line = line.replace("- localclimatemethod:", "- :ref:`localclimatemethod <localclimatemethod>`:")
+                line = line.replace(
+                    "- localclimatemethod:",
+                    "- :ref:`localclimatemethod <localclimatemethod>`:",
+                )
                 line = line.replace("FROM diagmethod", "**FROM** ``diagmethod``")
             elif "- gsmodel:" in line:
                 line = line.replace("- gsmodel:", "- :ref:`gsmodel <gsmodel>`:")
-                line = line.replace("localclimatemethod adjustments", "``localclimatemethod`` adjustments")
+                line = line.replace(
+                    "localclimatemethod adjustments",
+                    "``localclimatemethod`` adjustments",
+                )
 
             # Add bold for emphasis
             line = line.replace(" HOW ", " **HOW** ")
@@ -416,7 +484,9 @@ class RSTGenerator:
         description = "\n".join(processed)
 
         # Ensure proper formatting
-        description = description.replace("Key method interactions:", "**Key method interactions:**\n")
+        description = description.replace(
+            "Key method interactions:", "**Key method interactions:**\n"
+        )
 
         return description
 
@@ -431,22 +501,24 @@ class RSTGenerator:
             "This documentation follows the hierarchical structure of SUEWS YAML configuration files.",
             "",
         ]
-        
+
         # Check if sphinx-design is available
         sphinx_design_available = self._check_sphinx_design()
-        
+
         # Build the hierarchical structure from the models
         hierarchy = self._build_hierarchy()
-        
+
         # Generate RST from hierarchy (with or without dropdowns)
         if sphinx_design_available:
             lines.append(".. note::")
-            lines.append("   Click on any section below to expand and see its parameters.")
+            lines.append(
+                "   Click on any section below to expand and see its parameters."
+            )
             lines.append("")
             self._generate_hierarchy_rst_dropdown(hierarchy, lines, level=0)
         else:
             self._generate_hierarchy_rst(hierarchy, lines, level=0)
-        
+
         # Add toctree at the end with all documents (hidden)
         lines.extend([
             "",
@@ -455,76 +527,82 @@ class RSTGenerator:
             "   :maxdepth: 3",
             "",
         ])
-        
+
         # Add all model files to toctree (excluding RefValue and Reference)
         for model_name in sorted(self.models.keys()):
             if model_name not in {"RefValue", "Reference"}:
                 lines.append(f"   {model_name.lower()}")
-        
+
         return "\n".join(lines)
-    
+
     def _check_sphinx_design(self) -> bool:
         """Check if sphinx-design extension is available."""
         try:
             import sphinx_design
+
             return True
         except ImportError:
             return False
-    
+
     def _build_hierarchy(self) -> dict:
         """Build hierarchical structure from model relationships."""
         hierarchy = {}
-        
+
         # Start with SUEWSConfig as root
         if "SUEWSConfig" in self.models:
             suews_fields = self.models["SUEWSConfig"].get("fields", [])
             hierarchy["SUEWSConfig"] = {
                 "title": self.models["SUEWSConfig"].get("title", "SUEWS Config"),
-                "children": {}
+                "children": {},
             }
-            
+
             # Find model and sites fields
             for field in suews_fields:
                 if field["name"] == "model" and field.get("nested_model") == "Model":
-                    hierarchy["SUEWSConfig"]["children"]["Model"] = self._get_model_children("Model", depth=1)
+                    hierarchy["SUEWSConfig"]["children"]["Model"] = (
+                        self._get_model_children("Model", depth=1)
+                    )
                 elif field["name"] == "sites":
                     # Sites is a list of Site objects
                     hierarchy["SUEWSConfig"]["children"]["Sites"] = {
                         "title": "Sites",
                         "model": "Site",
-                        "children": self._get_model_children("Site", depth=1)["children"]
+                        "children": self._get_model_children("Site", depth=1)[
+                            "children"
+                        ],
                     }
-        
+
         return hierarchy
-    
+
     def _get_model_children(self, model_name: str, depth: int = 0) -> dict:
         """Get children of a model based on its fields."""
         if model_name not in self.models:
             return {"title": model_name, "children": {}}
-        
+
         model_data = self.models[model_name]
         result = {
             "title": model_data.get("title", model_name),
             "model": model_name,
-            "children": {}
+            "children": {},
         }
-        
+
         # Stop expanding at certain depth or for profile/utility types
         profile_types = {"DayProfile", "HourlyProfile", "WeeklyProfile"}
         utility_types = {"Reference", "RefValue"}
-        
+
         # Don't expand profile types or utility types or if we're too deep
         if model_name in profile_types or model_name in utility_types or depth > 3:
             return result
-        
+
         # Look for nested models in fields
         for field in model_data.get("fields", []):
             nested_model = field.get("nested_model")
             # Skip Reference and RefValue as they're utility types
-            if (nested_model and 
-                nested_model in self.models and 
-                nested_model not in utility_types):
-                
+            if (
+                nested_model
+                and nested_model in self.models
+                and nested_model not in utility_types
+            ):
                 # For profile types, just note the field name without expanding
                 if nested_model in profile_types:
                     # Don't expand profiles, just show field exists
@@ -532,43 +610,47 @@ class RSTGenerator:
                 else:
                     # Use field name as key, get nested model structure
                     field_key = field["name"]
-                    result["children"][field_key] = self._get_model_children(nested_model, depth + 1)
-        
+                    result["children"][field_key] = self._get_model_children(
+                        nested_model, depth + 1
+                    )
+
         return result
-    
+
     def _generate_hierarchy_rst(self, hierarchy: dict, lines: list, level: int = 0):
         """Generate RST from hierarchy with proper heading levels."""
         # RST heading characters for different levels
-        heading_chars = ['=', '-', '~', '^', '"', "'"]
-        
+        heading_chars = ["=", "-", "~", "^", '"', "'"]
+
         for model_name, model_info in hierarchy.items():
             title = model_info.get("title", model_name)
             model_ref = model_info.get("model", model_name)
             children = model_info.get("children", {})
-            
+
             # Add heading
             if level < len(heading_chars):
                 lines.append("")
                 lines.append(title)
                 lines.append(heading_chars[level] * len(title))
-                
+
                 # Add link to detail page
                 lines.append(f":doc:`{model_ref.lower()}`")
-                
+
                 # Process children
                 if children:
                     self._generate_hierarchy_rst(children, lines, level + 1)
-    
-    def _generate_hierarchy_rst_dropdown(self, hierarchy: dict, lines: list, level: int = 0):
+
+    def _generate_hierarchy_rst_dropdown(
+        self, hierarchy: dict, lines: list, level: int = 0
+    ):
         """Generate RST from hierarchy using sphinx-design dropdowns."""
         for model_name, model_info in hierarchy.items():
             title = model_info.get("title", model_name)
             model_ref = model_info.get("model", model_name)
             children = model_info.get("children", {})
-            
+
             # Indent for nested dropdowns
             indent = "   " * level
-            
+
             # Create dropdown for items with children
             if children:
                 lines.append(f"{indent}.. dropdown:: {title}")
@@ -577,7 +659,7 @@ class RSTGenerator:
                 lines.append("")
                 lines.append(f"{indent}   :doc:`{model_ref.lower()}`")
                 lines.append("")
-                
+
                 # Process children with increased indentation
                 self._generate_hierarchy_rst_dropdown(children, lines, level + 1)
             else:
@@ -612,7 +694,10 @@ class RSTGenerator:
             elif model_name in {"SiteProperties", "LandCover", "InitialStates"}:
                 categories["site_structure"].append(model_name)
             # Surface properties (nested under land_cover)
-            elif "properties" in model_lower and model_name not in {"SiteProperties", "StEBBSProperties"}:
+            elif "properties" in model_lower and model_name not in {
+                "SiteProperties",
+                "StEBBSProperties",
+            }:
                 categories["surfaces"].append(model_name)
             # Initial states (for surfaces)
             elif "initialstate" in model_lower:
@@ -624,9 +709,24 @@ class RSTGenerator:
             elif model_name in {"RefValue", "Reference"}:
                 categories["utility"].append(model_name)
             # Site properties parameters (nested under site.properties like conductance, irrigation, etc.)
-            elif any(x in model_lower for x in {"conductance", "irrigation", "anthropogenic", "lumps",
-                                                 "spartacus", "stebbs", "snow", "water", "storage",
-                                                 "lai", "co2", "ohm", "emissions"}):
+            elif any(
+                x in model_lower
+                for x in {
+                    "conductance",
+                    "irrigation",
+                    "anthropogenic",
+                    "lumps",
+                    "spartacus",
+                    "stebbs",
+                    "snow",
+                    "water",
+                    "storage",
+                    "lai",
+                    "co2",
+                    "ohm",
+                    "emissions",
+                }
+            ):
                 categories["site_properties_params"].append(model_name)
             # Building/thermal layers (also under site.properties)
             elif any(x in model_lower for x in {"layer", "thermal", "vertical"}):
@@ -651,22 +751,20 @@ def main():
     parser.add_argument(
         "--include-internal",
         action="store_true",
-        help="Include internal/developer options in documentation"
+        help="Include internal/developer options in documentation",
     )
     parser.add_argument(
         "--output-dir",
         type=Path,
-        help="Output directory for RST files (default: docs/source/inputs/yaml/config-reference)"
+        help="Output directory for RST files (default: docs/source/inputs/yaml/config-reference)",
     )
     parser.add_argument(
-        "--save-json",
-        type=Path,
-        help="Save intermediate JSON to file for debugging"
+        "--save-json", type=Path, help="Save intermediate JSON to file for debugging"
     )
     parser.add_argument(
         "--load-json",
         type=Path,
-        help="Load documentation from saved JSON file instead of extracting"
+        help="Load documentation from saved JSON file instead of extracting",
     )
 
     args = parser.parse_args()
@@ -682,6 +780,7 @@ def main():
     if args.load_json:
         print(f"Loading documentation from {args.load_json}")
         import json
+
         with open(args.load_json, "r") as f:
             doc_data = json.load(f)
     else:
@@ -701,7 +800,9 @@ def main():
 
     print("\nRST generation complete!")
     print(f"Files written to: {output_dir}")
-    print("\nNote: Remember to update any references from 'schema' to 'config-reference' in other documentation files.")
+    print(
+        "\nNote: Remember to update any references from 'schema' to 'config-reference' in other documentation files."
+    )
 
 
 if __name__ == "__main__":

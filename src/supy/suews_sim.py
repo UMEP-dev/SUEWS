@@ -300,7 +300,11 @@ class SUEWSSimulation:
 
         Parameters
         ----------
-        **run_kwargs
+        start_date : str, optional
+            Start date for simulation.
+        end_date : str, optional
+            End date for simulation.
+        run_kwargs : dict
             Additional keyword arguments passed to run_supy.
             Common options:
             - save_state: Save state at each timestep (default False)
@@ -342,8 +346,8 @@ class SUEWSSimulation:
         ----------
         output_path : str or Path, optional
             Output directory path. If None, uses current directory.
-        **save_kwargs
-            Additional arguments passed to save_supy.
+        save_kwargs : dict
+            Additional keyword arguments passed to save_supy.
 
         Returns
         -------

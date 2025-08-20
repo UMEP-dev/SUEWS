@@ -1148,8 +1148,12 @@ def main():
     processed_models = set()
     all_supy_data_models = {}
 
-    # Discover models in supy.data_model and its submodules
-    data_model_module_root = Path(supy.data_model.__file__).parent
+    # Discover models in supy.data_model.core submodule
+    data_model_module_root = Path(supy.data_model.__file__).parent / "core"
+    if not data_model_module_root.exists():
+        print(f"Error: core directory not found at {data_model_module_root}")
+        return
+        
     for py_file in data_model_module_root.glob("*.py"):
         if py_file.name in {
             "__init__.py",
@@ -1160,10 +1164,11 @@ def main():
             "yaml_annotator_json.py",
             "timezone_enum.py",
             "precheck.py",
+            "type.py",  # Skip internal type definitions
         }:
             continue  # Skip non-model files
 
-        module_name_to_import = f"data_model.{py_file.stem}"
+        module_name_to_import = f"data_model.core.{py_file.stem}"
 
         try:
             module = importlib.import_module(module_name_to_import)

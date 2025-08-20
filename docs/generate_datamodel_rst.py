@@ -38,12 +38,14 @@ class RSTGenerator:
         self.hierarchy = doc_data.get("hierarchy", {})
         self.metadata = doc_data.get("metadata", {})
 
-    def generate_all_rst(self, output_dir: Path) -> None:
+    def generate_all_rst(self, output_dir: Path, mode: str = "production", style: str = "collapsible") -> None:
         """
         Generate RST files for all models.
 
         Args:
             output_dir: Directory to write RST files to
+            mode: "preview" or "production" mode
+            style: Style to use in production mode ("simple", "collapsible", "aggressive", "tabbed")
         """
         output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -60,19 +62,38 @@ class RSTGenerator:
 
             print(f"Generated: {rst_file}")
 
-        # Generate index.rst
-        index_content = self._generate_index()
-        index_file = output_dir / "index.rst"
-        with open(index_file, "w", encoding="utf-8") as f:
-            f.write(index_content)
-        print(f"Generated: {index_file}")
+        # Define style generators mapping
+        style_generators = {
+            "simple": self._generate_index_simple,
+            "collapsible": self._generate_index_collapsible,
+            "aggressive": self._generate_index_aggressive,
+            "tabbed": self._generate_index_tabs,
+        }
 
-        # Also generate a tabbed version for comparison
-        index_tabs_content = self._generate_index_tabs()
-        index_tabs_file = output_dir / "index-tabs.rst"
-        with open(index_tabs_file, "w", encoding="utf-8") as f:
-            f.write(index_tabs_content)
-        print(f"Generated: {index_tabs_file}")
+        if mode == "preview":
+            # Preview mode: Generate navigation page with links to all styles
+            index_content = self._generate_preview_index()
+            index_file = output_dir / "index.rst"
+            with open(index_file, "w", encoding="utf-8") as f:
+                f.write(index_content)
+            print(f"Generated: {index_file} (preview navigation)")
+
+            # Generate all style variations
+            for style_name, generator_func in style_generators.items():
+                style_content = generator_func()
+                style_file = output_dir / f"index-{style_name}.rst"
+                with open(style_file, "w", encoding="utf-8") as f:
+                    f.write(style_content)
+                print(f"Generated: {style_file}")
+
+        else:
+            # Production mode: Generate only the chosen style as main index
+
+            index_content = style_generators[style]()
+            index_file = output_dir / "index.rst"
+            with open(index_file, "w", encoding="utf-8") as f:
+                f.write(index_content)
+            print(f"Generated: {index_file} (production, style: {style})")
 
         print(f"\nGenerated {len(self.models)} RST files + index in {output_dir}")
         print(f"Total fields documented: {self.metadata.get('total_fields', 0)}")
@@ -589,8 +610,8 @@ class RSTGenerator:
 
         return description
 
-    def _generate_index(self) -> str:
-        """Generate index.rst with hierarchical structure from JSON."""
+    def _generate_index_collapsible(self) -> str:
+        """Generate index.rst with collapsible sections (mixed approach)."""
         lines = [
             ".. _yaml_config_reference:",
             "",
@@ -624,6 +645,138 @@ class RSTGenerator:
         ])
 
         # Add all model files to toctree (excluding RefValue and Reference)
+        for model_name in sorted(self.models.keys()):
+            if model_name not in {"RefValue", "Reference"}:
+                lines.append(f"   {model_name.lower()}")
+
+        return "\n".join(lines)
+
+    def _generate_index_simple(self) -> str:
+        """Generate index.rst with simple nested list (all fields visible)."""
+        lines = [
+            ".. _yaml_config_reference:",
+            "",
+            "YAML Configuration Reference (Simple Layout)",
+            "=============================================",
+            "",
+            "This documentation follows the hierarchical structure of SUEWS YAML configuration files.",
+            "",
+        ]
+
+        # Build the hierarchical structure from the models
+        hierarchy = self._build_hierarchy()
+
+        # Simple nested list style
+        self._generate_hierarchy_rst_simple(hierarchy, lines, level=0, max_level=5)
+
+        # Add toctree at the end with all documents (hidden)
+        lines.extend([
+            "",
+            ".. toctree::",
+            "   :hidden:",
+            "   :maxdepth: 3",
+            "",
+        ])
+
+        # Add all model files to toctree (excluding RefValue and Reference)
+        for model_name in sorted(self.models.keys()):
+            if model_name not in {"RefValue", "Reference"}:
+                lines.append(f"   {model_name.lower()}")
+
+        return "\n".join(lines)
+
+    def _generate_index_aggressive(self) -> str:
+        """Generate index.rst with aggressive collapsing (most compact)."""
+        lines = [
+            ".. _yaml_config_reference:",
+            "",
+            "YAML Configuration Reference (Compact Layout)",
+            "==============================================",
+            "",
+            "This documentation follows the hierarchical structure of SUEWS YAML configuration files.",
+            "",
+        ]
+
+        # Build the hierarchical structure from the models
+        hierarchy = self._build_hierarchy()
+
+        # Aggressive collapse style
+        self._generate_hierarchy_rst_aggressive_collapse(hierarchy, lines, level=0, max_level=5)
+
+        # Add toctree at the end with all documents (hidden)
+        lines.extend([
+            "",
+            ".. toctree::",
+            "   :hidden:",
+            "   :maxdepth: 3",
+            "",
+        ])
+
+        # Add all model files to toctree (excluding RefValue and Reference)
+        for model_name in sorted(self.models.keys()):
+            if model_name not in {"RefValue", "Reference"}:
+                lines.append(f"   {model_name.lower()}")
+
+        return "\n".join(lines)
+
+    def _generate_preview_index(self) -> str:
+        """Generate preview navigation page with links to all style demos."""
+        lines = [
+            ".. _yaml_config_reference_preview:",
+            "",
+            "YAML Configuration Reference - Style Preview",
+            "=============================================",
+            "",
+            "This preview page allows you to compare different documentation styles for the YAML configuration reference.",
+            "",
+            "Choose a style to preview:",
+            "",
+            ".. grid:: 2",
+            "   :gutter: 3",
+            "",
+            "   .. grid-item-card:: Simple Layout",
+            "      :link: index-simple",
+            "      :link-type: doc",
+            "",
+            "      All configuration fields visible in a nested list format.",
+            "      Best for quick scanning and searching.",
+            "",
+            "   .. grid-item-card:: Collapsible Layout",
+            "      :link: index-collapsible",
+            "      :link-type: doc",
+            "",
+            "      Mixed approach with collapsible sections for long groups.",
+            "      **Recommended** - balances readability and compactness.",
+            "",
+            "   .. grid-item-card:: Compact Layout",
+            "      :link: index-aggressive",
+            "      :link-type: doc",
+            "",
+            "      Aggressive collapsing for maximum compactness.",
+            "      Everything with >5 fields is collapsed.",
+            "",
+            "   .. grid-item-card:: Tabbed Layout",
+            "      :link: index-tabbed",
+            "      :link-type: doc",
+            "",
+            "      Interactive tabbed interface for navigation.",
+            "      Modern UI but requires JavaScript.",
+            "",
+            ".. note::",
+            "   This is a preview mode. In production, only one style will be used.",
+            "",
+            ".. toctree::",
+            "   :hidden:",
+            "   :maxdepth: 1",
+            "",
+            "   index-simple",
+            "   index-collapsible",
+            "   index-aggressive",
+            "   index-tabbed",
+            "",
+        ]
+
+        # Add all model files to hidden toctree
         for model_name in sorted(self.models.keys()):
             if model_name not in {"RefValue", "Reference"}:
                 lines.append(f"   {model_name.lower()}")
@@ -1370,6 +1523,18 @@ def main():
         "--save-json", type=Path, help="Save intermediate JSON to file for debugging"
     )
     parser.add_argument(
+        "--mode",
+        choices=["preview", "production"],
+        default="production",
+        help="Generation mode: preview (multiple styles) or production (single style)",
+    )
+    parser.add_argument(
+        "--style",
+        choices=["simple", "collapsible", "aggressive", "tabbed"],
+        default="collapsible",
+        help="Style to use in production mode (default: collapsible)",
+    )
+    parser.add_argument(
         "--load-json",
         type=Path,
         help="Load documentation from saved JSON file instead of extracting",
@@ -1401,11 +1566,20 @@ def main():
 
     # Generate RST files
     print(f"Generating RST files in {output_dir}...")
+    print(f"Mode: {args.mode}, Style: {args.style if args.mode == 'production' else 'all styles'}")
     generator = RSTGenerator(doc_data)
-    generator.generate_all_rst(output_dir)
+    generator.generate_all_rst(output_dir, mode=args.mode, style=args.style)
 
     print("\nRST generation complete!")
     print(f"Files written to: {output_dir}")
+
+    if args.mode == "preview":
+        print("\nPreview mode generated:")
+        print("  - index.rst: Navigation page with style selection")
+        print("  - index-simple.rst: Simple nested list style")
+        print("  - index-collapsible.rst: Mixed collapsible style (recommended)")
+        print("  - index-aggressive.rst: Compact style with aggressive collapsing")
+        print("  - index-tabbed.rst: Tabbed layout style")
     print(
         "\nNote: Remember to update any references from 'schema' to 'config-reference' in other documentation files."
     )

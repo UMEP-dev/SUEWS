@@ -123,6 +123,13 @@ The full documentation for all YAML parameters is available in the :doc:`config-
 - Default values
 - Cross-references between related parameters
 
+.. note::
+   
+   **🎨 Multiple documentation styles available!** 
+   
+   - **Standard view with collapsible sections**: :doc:`config-reference/index`
+   - **Tabbed navigation view**: :doc:`config-reference/index-tabs`
+
 **Key Parameter Groups:**
 
 - :doc:`config-reference/model` - Top-level model configuration structure

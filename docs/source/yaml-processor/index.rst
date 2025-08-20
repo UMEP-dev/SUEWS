@@ -1154,3 +1154,4 @@ Related Documentation
 
    processor_detailed
    namelist_to_yaml_conversion
+   ../cli/json-output

@@ -137,7 +137,6 @@ How to support SUEWS?
    sub-tutorials/tutorials
    cli/validation-guide
    inputs/index
-   yaml-processor/index
    output_files/output_files
    api
    data-structures/supy-io

@@ -1,5 +1,5 @@
-SUEWS Configuration Validator
-==============================
+SUEWS Configuration Validation
+===============================
 
 The ``suews-validate`` command helps you check and fix your SUEWS configuration files before running simulations.
 

@@ -63,10 +63,10 @@ A SUEWS YAML file has two main sections:
 Essential Parameters
 --------------------
 
-Minimum Required Configuration
+Minimum Configuration Structure
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Every configuration must include:
+A valid SUEWS configuration requires many parameters beyond this minimal example. The validator will add missing required parameters with appropriate defaults:
 
 .. code-block:: yaml
 
@@ -92,52 +92,55 @@ Every configuration must include:
            grass: 0.2
            dectr: 0.1
 
-Site Properties
-~~~~~~~~~~~~~~~
+.. important::
+   
+   This is a **minimal example** showing the basic structure. A complete configuration requires many additional parameters for:
+   
+   - Physics options and methods
+   - Initial conditions
+   - Surface properties (albedo, emissivity, roughness)
+   - Vegetation parameters (LAI, conductance)
+   - Soil properties
+   - Anthropogenic heat flux
+   - Water use and irrigation
+   - Building morphology
+   
+   **To explore all parameters:**
+   
+   1. Run ``suews-validate`` on your configuration to generate a complete file with all defaults
+   2. Review the generated ``updatedABC_*.yml`` file to see all parameters
+   3. Consult the :doc:`schema/index` for comprehensive parameter documentation
 
-**Location and geometry:**
+Parameter Documentation
+-----------------------
 
-.. code-block:: yaml
+**Complete Parameter Reference:**
 
-   properties:
-     lat: 51.5074              # Latitude (decimal degrees)
-     lng: -0.1278              # Longitude (decimal degrees)
-     alt: 10.0                 # Altitude above sea level [m]
-     timezone: 0               # UTC offset [hours]
-     surfacearea: 1000000.0    # Model domain area [m²]
-     z: 10.0                   # Measurement height [m]
-     z0m: 1.0                  # Roughness length for momentum [m]
-     zdm: 2.0                  # Zero-plane displacement [m]
+The full documentation for all YAML parameters is available in the :doc:`schema/index`. This reference includes:
 
-Land Cover Configuration
-~~~~~~~~~~~~~~~~~~~~~~~~
+- Detailed descriptions for every parameter
+- Units and valid ranges
+- Default values
+- Cross-references between related parameters
 
-**Surface fractions (must sum to 1.0):**
+**Key Parameter Groups:**
 
-.. code-block:: yaml
+- :doc:`schema/model` - Top-level model configuration structure
+- :doc:`schema/site` - Site-specific configuration structure
+- :doc:`schema/modelcontrol` - Simulation control (time steps, files, etc.)
+- :doc:`schema/modelphysics` - Physics methods and options
+- :doc:`schema/siteproperties` - Geographic and geometric properties
+- :doc:`schema/landcover` - Surface fractions and parameters
 
-   land_cover:
-     fractions:
-       paved: 0.25      # Roads, parking lots
-       bldgs: 0.35      # Buildings
-       evetr: 0.05      # Evergreen trees/shrubs
-       dectr: 0.10      # Deciduous trees/shrubs
-       grass: 0.20      # Grass
-       bsoil: 0.05      # Bare soil
-       water: 0.00      # Water bodies
+**Surface-Specific Parameters:**
 
-**Surface properties:**
-
-.. code-block:: yaml
-
-   land_cover_params:
-     bldgs:
-       alb: 0.15        # Albedo
-       emis: 0.90       # Emissivity
-       bldgh: 15.0      # Building height [m]
-     paved:
-       alb: 0.10
-       emis: 0.95
+- :doc:`schema/pavedproperties` - Roads and paved surfaces
+- :doc:`schema/bldgsproperties` - Buildings
+- :doc:`schema/evetrproperties` - Evergreen vegetation
+- :doc:`schema/dectrproperties` - Deciduous vegetation
+- :doc:`schema/grassproperties` - Grass surfaces
+- :doc:`schema/bsoilproperties` - Bare soil
+- :doc:`schema/waterproperties` - Water bodies
 
 Forcing Data
 ------------
@@ -293,3 +296,4 @@ Getting Help
    :hidden:
 
    validation
+   schema/index

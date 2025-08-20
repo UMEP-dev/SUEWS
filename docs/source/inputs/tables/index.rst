@@ -27,12 +27,7 @@ the overall control is done via :doc:`RunControl/RunControl`.
 Migration to YAML Format
 -------------------------
 
-For existing users of table-based inputs, we provide comprehensive migration support:
-
-.. toctree::
-   :maxdepth: 2
-
-   ../transition_guide
+For existing users of table-based inputs, see the :doc:`Transition Guide <../transition_guide>` for comprehensive migration support.
 
 Legacy Format Reference
 -----------------------

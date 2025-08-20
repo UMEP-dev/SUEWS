@@ -49,8 +49,8 @@ Quick Example
     sim.reset()
     sim.run()
 
-See Also
---------
+Related Documentation
+---------------------
 
 - :doc:`/sub-tutorials/suews-simulation-tutorial` - Comprehensive tutorial with examples
 - :doc:`/inputs/yaml/index` - YAML configuration guide

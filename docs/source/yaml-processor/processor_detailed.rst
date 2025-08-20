@@ -88,7 +88,7 @@ Orchestrator Functions
 - **Early termination**: Stops execution immediately if standard file missing
 - **Git branch validation**: Phase A includes sophisticated git-based consistency checks
 
-**Advanced Features**: For complete git branch validation system including branch detection, master file comparison, and development workflow safety features, see PHASE_A_DETAILED.md in src/supy/data_model/yaml_processor/.
+**Advanced Features**: For complete git branch validation system including branch detection, master file comparison, and development workflow safety features, see PHASE_A_DETAILED.md in src/supy/data_model/validation/pipeline/.
 
 **Importance**: The standard configuration file is the **reference baseline** for all validation phases. Without it, the processor cannot determine missing parameters, outdated names, or default values.
 
@@ -436,7 +436,7 @@ Related Documentation
 - PHASE_C_DETAILED.md - Detailed Phase C Pydantic validation and conditional rules
 - ORCHESTRATOR.md - Orchestrator implementation and workflow coordination
 
-These files are located in src/supy/data_model/yaml_processor/
+These files are located in src/supy/data_model/validation/pipeline/
 
 **Core Integration Documentation:**
 - `SUEWS_yaml_processor.rst <SUEWS_yaml_processor.rst>`_ - User guide for the three-phase validation system

@@ -1,7 +1,7 @@
-SUEWS Configuration Validation
-===============================
+Configuration Validation
+========================
 
-The ``suews-validate`` command helps you check and fix your SUEWS configuration files before running simulations.
+The ``suews-validate`` command helps you check and fix your YAML configuration files before running simulations.
 
 Quick Start
 -----------

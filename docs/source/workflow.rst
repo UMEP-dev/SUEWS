@@ -233,6 +233,29 @@ Modern SUEWS uses YAML configuration files that organise all model parameters in
              bldgh:
                value: 12.0  # Average building height (m)
 
+Validate Your Configuration
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Before running simulations, validate your configuration to catch and fix common issues:
+
+.. code-block:: bash
+
+   # Validate and automatically fix your configuration
+   suews-validate config.yml
+   
+   # This creates:
+   # - updatedABC_config.yml (corrected configuration)
+   # - reportABC_config.txt (what was changed)
+
+The validator automatically:
+
+- Adds missing parameters with sensible defaults
+- Normalizes surface fractions to sum to 1.0
+- Sets initial temperatures based on location and season
+- Ensures physics options are compatible
+
+For more details, see :doc:`/inputs/yaml/validation`.
+
 Setup Your Site Tutorial
 ^^^^^^^^^^^^^^^^^^^^^^^^^
 

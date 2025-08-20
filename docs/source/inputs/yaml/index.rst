@@ -350,3 +350,20 @@ The annotated file (``config.yml_annotated.yml``) includes:
 - Missing parameters marked with ``[ERROR] MISSING:``
 - Suggested fixes marked with ``[TIP] ADD HERE:``
 - Parameter descriptions and expected types
+
+Validation Tool
+---------------
+
+Before running simulations, use the ``suews-validate`` command to check and automatically fix common configuration issues. See :doc:`validation` for details.
+
+Additional Resources
+--------------------
+
+.. toctree::
+   :maxdepth: 1
+   :hidden:
+
+   validation
+   schema_versioning
+   schema_cli
+   schema_publishing

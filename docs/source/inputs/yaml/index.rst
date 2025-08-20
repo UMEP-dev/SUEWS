@@ -210,6 +210,8 @@ The validator automatically corrects these issues:
 - **Physics options** - Ensures compatible model settings
 - **Parameter names** - Corrects common typos and outdated names
 
+For complete validation documentation, see :doc:`validation`.
+
 Common Issues and Solutions
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 

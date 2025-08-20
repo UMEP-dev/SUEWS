@@ -18,6 +18,15 @@ from rich.panel import Panel
 from rich.syntax import Syntax
 from rich.progress import track
 
+# Import the new JSON output formatter
+try:
+    from .json_output import JSONOutput, ErrorCode, ValidationError
+except ImportError:
+    # Fallback if module not available
+    JSONOutput = None
+    ErrorCode = None
+    ValidationError = None
+
 # Orchestrated YAML processor phases (A/B/C)
 try:
     from ..data_model.validation.pipeline.orchestrator import (
@@ -55,12 +64,13 @@ console = Console()
 
 def validate_single_file(
     file_path: Path, schema: dict, show_details: bool = True
-) -> tuple[bool, List[str]]:
+) -> tuple[bool, List]:
     """
     Validate a single configuration file.
 
     Returns:
         Tuple of (is_valid, list_of_errors)
+        Errors can be strings or ValidationError objects
     """
     errors = []
 
@@ -71,9 +81,14 @@ def validate_single_file(
 
         # Check if migration needed
         if check_migration_needed(str(file_path)):
-            errors.append(
-                f"Configuration uses old schema version and may need migration"
-            )
+            if ValidationError:
+                errors.append(ValidationError(
+                    code=ErrorCode.SCHEMA_VERSION_MISMATCH,
+                    message="Configuration uses old schema version and may need migration",
+                    location=str(file_path)
+                ))
+            else:
+                errors.append("Configuration uses old schema version and may need migration")
 
         # Validate against schema
         validator = jsonschema.Draft7Validator(schema)
@@ -82,21 +97,63 @@ def validate_single_file(
         if validation_errors:
             for error in validation_errors:
                 path = " → ".join(str(p) for p in error.path) if error.path else "root"
-                errors.append(f"{path}: {error.message}")
+                if ValidationError and ErrorCode:
+                    # Categorize the error based on its content
+                    if "required" in error.message.lower():
+                        code = ErrorCode.MISSING_REQUIRED_FIELD
+                    elif "type" in error.message.lower():
+                        code = ErrorCode.TYPE_ERROR
+                    else:
+                        code = ErrorCode.INVALID_VALUE
+                    
+                    errors.append(ValidationError(
+                        code=code,
+                        message=error.message,
+                        field=path,
+                        location=str(file_path)
+                    ))
+                else:
+                    errors.append(f"{path}: {error.message}")
 
         # Try Pydantic validation for additional checks
         try:
             SUEWSConfig(**config)
         except Exception as e:
-            errors.append(f"Pydantic validation: {str(e)}")
+            if ValidationError:
+                errors.append(ValidationError(
+                    code=ErrorCode.VALIDATION_FAILED,
+                    message=str(e),
+                    location=str(file_path),
+                    details={"validation_type": "pydantic"}
+                ))
+            else:
+                errors.append(f"Pydantic validation: {str(e)}")
 
         return (len(errors) == 0, errors)
 
     except yaml.YAMLError as e:
+        if ValidationError:
+            return (False, [ValidationError(
+                code=ErrorCode.INVALID_YAML,
+                message=str(e),
+                location=str(file_path)
+            )])
         return (False, [f"YAML parsing error: {e}"])
     except FileNotFoundError:
+        if ValidationError:
+            return (False, [ValidationError(
+                code=ErrorCode.FILE_NOT_FOUND,
+                message=f"File not found: {file_path}",
+                location=str(file_path)
+            )])
         return (False, [f"File not found: {file_path}"])
     except Exception as e:
+        if ValidationError:
+            return (False, [ValidationError(
+                code=ErrorCode.VALIDATION_FAILED,
+                message=str(e),
+                location=str(file_path)
+            )])
         return (False, [f"Unexpected error: {e}"])
 
 
@@ -169,15 +226,35 @@ def cli(ctx, files, pipeline, mode, dry_run, out_format, schema_version):
                     )
                     if not is_valid:
                         all_valid = False
+                    
+                    # Convert ValidationError objects to dicts for JSON serialization
+                    error_list = []
+                    for error in errors:
+                        if hasattr(error, 'to_dict'):
+                            error_list.append(error.to_dict())
+                        else:
+                            error_list.append(str(error))
+                    
                     results.append({
                         "file": str(path),
                         "valid": is_valid,
-                        "errors": errors if not is_valid else [],
+                        "errors": error_list if not is_valid else [],
                         "error_count": len(errors) if not is_valid else 0,
                     })
 
                 if out_format == "json":
-                    console.print(json.dumps(results, indent=2))
+                    if JSONOutput:
+                        # Use the new structured JSON output
+                        json_formatter = JSONOutput(command="suews-validate")
+                        output = json_formatter.validation_result(
+                            files=results,
+                            schema_version=target_version,
+                            dry_run=True
+                        )
+                        JSONOutput.output(output)
+                    else:
+                        # Fallback to simple JSON
+                        console.print(json.dumps(results, indent=2))
                 else:
                     table = Table(title="Validation Results")
                     table.add_column("File", style="cyan")
@@ -212,16 +289,36 @@ def cli(ctx, files, pipeline, mode, dry_run, out_format, schema_version):
                 ctx.exit(2)
             path = Path(files[0])
             is_valid, errors = validate_single_file(path, schema, show_details=True)
+            
+            # Convert ValidationError objects to dicts for JSON serialization
+            error_list = []
+            for error in errors:
+                if hasattr(error, 'to_dict'):
+                    error_list.append(error.to_dict())
+                else:
+                    error_list.append(str(error))
+            
             result = [
                 {
                     "file": str(path),
                     "valid": is_valid,
-                    "errors": errors if not is_valid else [],
+                    "errors": error_list if not is_valid else [],
                     "error_count": len(errors) if not is_valid else 0,
                 }
             ]
             if out_format == "json":
-                console.print(json.dumps(result, indent=2))
+                if JSONOutput:
+                    # Use the new structured JSON output
+                    json_formatter = JSONOutput(command="suews-validate")
+                    output = json_formatter.validation_result(
+                        files=result,
+                        schema_version=target_version,
+                        dry_run=True
+                    )
+                    JSONOutput.output(output)
+                else:
+                    # Fallback to simple JSON
+                    console.print(json.dumps(result, indent=2))
             else:
                 table = Table(title="Validation Results")
                 table.add_column("File", style="cyan")
@@ -282,17 +379,37 @@ def validate(files, schema_version, verbose, quiet, format):
     ):
         path = Path(file_path)
         is_valid, errors = validate_single_file(path, schema, show_details=verbose)
+        
+        # Convert ValidationError objects to dicts for JSON serialization
+        error_list = []
+        for error in errors:
+            if hasattr(error, 'to_dict'):
+                error_list.append(error.to_dict())
+            else:
+                error_list.append(str(error))
+        
         results.append({
             "file": str(path),
             "valid": is_valid,
-            "errors": errors if not is_valid else [],
+            "errors": error_list if not is_valid else [],
             "error_count": len(errors) if not is_valid else 0,
         })
         if is_valid:
             valid_files += 1
 
     if format == "json":
-        console.print(json.dumps(results, indent=2))
+        if JSONOutput:
+            # Use the new structured JSON output
+            json_formatter = JSONOutput(command="suews-validate")
+            output = json_formatter.validation_result(
+                files=results,
+                schema_version=version,
+                dry_run=False
+            )
+            JSONOutput.output(output)
+        else:
+            # Fallback to simple JSON
+            console.print(json.dumps(results, indent=2))
     else:
         if not quiet:
             table = Table(title="Validation Results")
@@ -536,6 +653,22 @@ def export(output, version, fmt):
     except Exception as e:
         console.print(f"[red]✗ Export failed: {e}[/red]")
         sys.exit(1)
+
+
+def _format_phase_output(phase, success, input_file, output_file=None, report_file=None, errors=None):
+    """Format phase execution output based on format preference."""
+    if JSONOutput:
+        json_formatter = JSONOutput(command="suews-validate")
+        output = json_formatter.phase_result(
+            phase=phase,
+            success=success,
+            input_file=str(input_file),
+            output_file=str(output_file) if output_file else None,
+            report_file=str(report_file) if report_file else None,
+            errors=errors if errors else None
+        )
+        return output
+    return None
 
 
 def _execute_pipeline(file, pipeline, mode):

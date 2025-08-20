@@ -28,16 +28,6 @@ Class Reference
     :undoc-members:
     :show-inheritance:
 
-    .. automethod:: __init__
-    .. automethod:: update_config
-    .. automethod:: update_forcing
-    .. automethod:: run
-    .. automethod:: save
-    .. automethod:: reset
-    .. autoproperty:: config
-    .. autoproperty:: forcing
-    .. autoproperty:: results
-
 Quick Example
 -------------
 
@@ -59,8 +49,8 @@ Quick Example
     sim.reset()
     sim.run()
 
-See Also
---------
+Related Documentation
+---------------------
 
 - :doc:`/sub-tutorials/suews-simulation-tutorial` - Comprehensive tutorial with examples
 - :doc:`/inputs/yaml/index` - YAML configuration guide

@@ -42,7 +42,7 @@ except ImportError:
     from importlib_resources import as_file
 
 # Import the functions we want to test
-from supy.data_model.yaml_processor.phase_a_parameter_update import (
+from supy.data_model.validation.pipeline.phase_a_parameter_update import (
     PHYSICS_OPTIONS,
     RENAMED_PARAMS,
     annotate_missing_parameters,
@@ -1029,7 +1029,7 @@ from datetime import datetime
 
 import pytest
 
-from supy.data_model.validation.yaml_helpers import (
+from supy.data_model.validation.core.yaml_helpers import (
     SeasonCheck,
     collect_yaml_differences,
     get_mean_monthly_air_temperature,
@@ -2290,7 +2290,7 @@ class TestPrecheckRefValueHandling:
 
 def test_precheck_thermal_layer_cp_renaming():
     """Test that legacy 'cp' fields are renamed to 'rho_cp' in thermal_layers."""
-    from supy.data_model.validation.yaml_helpers import (
+    from supy.data_model.validation.core.yaml_helpers import (
         precheck_thermal_layer_cp_renaming,
     )
 
@@ -2387,7 +2387,7 @@ def test_precheck_thermal_layer_cp_renaming():
 
 def test_precheck_thermal_layer_cp_renaming_no_changes():
     """Test that data without cp fields is unchanged."""
-    from supy.data_model.validation.yaml_helpers import (
+    from supy.data_model.validation.core.yaml_helpers import (
         precheck_thermal_layer_cp_renaming,
     )
 
@@ -2426,7 +2426,7 @@ def test_precheck_thermal_layer_cp_renaming_no_changes():
 
 def test_precheck_thermal_layer_cp_renaming_mixed_surfaces():
     """Test renaming with surfaces that have no thermal_layers."""
-    from supy.data_model.validation.yaml_helpers import (
+    from supy.data_model.validation.core.yaml_helpers import (
         precheck_thermal_layer_cp_renaming,
     )
 
@@ -2517,21 +2517,25 @@ phase_c_reports = None
 suews_yaml_processor = None
 
 try:
-    from supy.data_model.yaml_processor import phase_a_parameter_update as uptodate_yaml
+    from supy.data_model.validation.pipeline import (
+        phase_a_parameter_update as uptodate_yaml,
+    )
 
     has_uptodate_yaml = True
 except ImportError:
     has_uptodate_yaml = False
 
 try:
-    from supy.data_model.yaml_processor import phase_b_science_check as science_check
+    from supy.data_model.validation.pipeline import (
+        phase_b_science_check as science_check,
+    )
 
     has_science_check = True
 except ImportError:
     has_science_check = False
 
 try:
-    from supy.data_model.yaml_processor import (
+    from supy.data_model.validation.pipeline import (
         phase_c_pydantic_report as phase_c_reports,
     )
 
@@ -2540,7 +2544,7 @@ except ImportError:
     has_phase_c_reports = False
 
 try:
-    from supy.data_model.yaml_processor import orchestrator
+    from supy.data_model.validation.pipeline import orchestrator
 
     suews_yaml_processor = orchestrator  # Keep the alias for compatibility
     has_suews_yaml_processor = True
@@ -3323,7 +3327,7 @@ class TestPhaseBScienceCheck(TestProcessorFixtures):
         assert any("rslmethod" in result.message for result in results)
 
     @patch(
-        "supy.data_model.yaml_processor.phase_b_science_check.get_mean_monthly_air_temperature"
+        "supy.data_model.validation.pipeline.phase_b_science_check.get_mean_monthly_air_temperature"
     )
     def test_cru_temperature_integration(self, mock_cru):
         """Test CRU temperature data integration."""

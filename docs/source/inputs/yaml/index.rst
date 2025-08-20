@@ -1,352 +1,292 @@
 .. _yaml_input:
 
-.. meta::
-   :description: SUEWS YAML configuration format documentation for site parameters, model control, and surface properties
-   :keywords: SUEWS, YAML, configuration, parameters, latitude, longitude, lat, lng, site properties, model control, forcing file
-
 YAML Configuration Format
 =========================
 
-SUEWS uses `YAML (Yet Another Markup Language) <https://yaml.org/spec/1.2.2/>`_ configuration files to define all model parameters in a single, human-readable format. YAML is a data serialisation standard that's easy to read and write, making it ideal for complex scientific model configurations. Unlike traditional tabular input formats, YAML allows you to organise parameters hierarchically and include documentation directly in your configuration files.
+SUEWS uses YAML configuration files to define all model parameters in a single, human-readable format. This guide shows you how to create and validate your configuration.
 
+Quick Start
+-----------
 
+**1. Start with the sample configuration:**
 
-Overview
---------
+.. code-block:: bash
 
-A SUEWS YAML configuration file is organized into two main sections in addition to the `name` and `description` fields:
+   # Copy the sample configuration
+   cp sample_config.yml my_config.yml
 
-- **model**: Global settings that control the simulation (physics options, time stepping, file paths)
-- **sites**: List of sites to simulate, each with properties, initial conditions, and land cover
+   # Edit for your site
+   nano my_config.yml
 
-Here's a minimal configuration example showing all required sections:
+**2. Validate and fix your configuration:**
+
+.. code-block:: bash
+
+   # Automatically fix common issues
+   suews-validate my_config.yml
+
+   # Creates: updatedABC_my_config.yml (ready to use)
+
+**3. Run your simulation:**
+
+.. code-block:: python
+
+   import supy as sp
+
+   # Load your validated configuration
+   config = sp.SUEWSConfig.from_yaml('updatedABC_my_config.yml')
+
+   # Run simulation
+   output = config.run()
+
+Configuration Structure
+-----------------------
+
+A SUEWS YAML file has two main sections:
 
 .. code-block:: yaml
 
-   # Minimal SUEWS configuration with all required sections
-   name: "My Simulation" # custom name for the simulation
-   description: "Urban climate simulation for central London" # custom description for the simulation
+   name: "My Simulation"
+   description: "Urban climate simulation for my city"
 
-   model: # global settings that control the simulation
-     control:                         # Time and file settings
-       tstep: 3600                    # Hourly timestep [s]
+   model:          # Global simulation settings
+     control:      # Time and file settings
+     physics:      # Physics options
+     output:       # Output control
+
+   sites:          # List of sites to simulate
+     - name: "Site1"
+       properties: # Site characteristics
+       land_cover: # Surface fractions
+       initial:    # Initial conditions
+
+Essential Parameters
+--------------------
+
+Minimum Configuration Structure
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+A valid SUEWS configuration requires many parameters beyond this minimal example. The validator will add missing required parameters with appropriate defaults:
+
+.. code-block:: yaml
+
+   model:
+     control:
+       tstep: 3600                    # Time step [s]
        forcing_file: "forcing.txt"    # Meteorological data
-       start_time: "2020-01-01"       # Start date (YYYY-MM-DD)
+       start_time: "2020-01-01"       # Start date
        end_time: "2020-12-31"         # End date
-     physics:                         # Physics options
-       netradiationmethod: 3          # Model LW radiation
-       emissionsmethod: 2             # Temperature-dependent QF
-       storageheatmethod: 1           # OHM without QF
-       stabilitymethod: 3             # Campbell & Norman
 
-   sites: # list of sites to simulate, each with static properties and initial conditions
-     - name: "My_Site"
-       gridiv: 1                      # Grid ID
-       properties:                    # Site characteristics
+   sites:
+     - name: "MySite"
+       properties:
          lat: 51.5                    # Latitude
          lng: -0.1                    # Longitude
          alt: 10.0                    # Altitude [m]
          timezone: 0                  # UTC offset
          surfacearea: 1000000.0       # Area [m²]
-         z: 10.0                      # Measurement height [m]
-         z0m_in: 1.0                  # Roughness length [m]
-         zdm_in: 10.0                 # Displacement height [m]
-         ...                          # Additional site properties
-         land_cover:                  # Surface fractions and properties
-           paved:                     # Roads, pavements, parking lots
-             sfr: 0.30                # Surface fraction (must sum to 1.0)
-             alb: 0.10                # Albedo (0-1)
-             emis: 0.95               # Emissivity (0-1)
-             ...                      # OHM coefficients, drainage, thermal properties
-           bldgs:                     # Buildings and structures
-             sfr: 0.35                # Surface fraction
-             alb: 0.12                # Albedo
-             emis: 0.91               # Emissivity
-             bldgh: 15.0              # Mean building height [m]
-             faibldg: 0.15            # Frontal area index [-]
-             ...                      # Wall/roof properties, thermal mass
-           evetr:                     # Evergreen trees/shrubs
-             sfr: 0.10                # Surface fraction
-             alb: 0.10                # Albedo (darker than deciduous)
-             evetreeh: 10.0           # Mean tree height [m]
-             ...                      # LAI, conductance, phenology
-           dectr:                     # Deciduous trees/shrubs
-             sfr: 0.05                # Surface fraction
-             alb: 0.18                # Albedo (seasonal variation)
-             dectreeh: 12.0           # Mean tree height [m]
-             ...                      # LAI, conductance, phenology
-           grass:                     # Grass, lawns, low vegetation
-             sfr: 0.20                # Surface fraction
-             alb: 0.21                # Albedo
-             lai:                     # Leaf Area Index parameters
-               laimax: 5.9            # Maximum LAI [m²/m²]
-               laimin: 1.6            # Minimum LAI [m²/m²]
-               ...                    # Growth degree days, senescence
-             ...                      # Irrigation, conductance
-           bsoil:                     # Bare soil
-             sfr: 0.00                # Surface fraction
-             alb: 0.18                # Albedo
-             ...                      # Soil hydraulic properties
-           water:                     # Open water, fountains
-             sfr: 0.00                # Surface fraction
-             alb: 0.10                # Albedo (low)
-             ...                      # Flow rate, water temperature
-       initial_states:                # Initial conditions for each surface
-         paved:
-           soilstore: 120.0           # Soil moisture store [mm]
-           state: 0.0                 # Surface wetness [mm]
-           ...                        # Temperature profile, snow
-         # ... initial states for each surface type
+       land_cover:
+         fractions:
+           paved: 0.4                 # Must sum to 1.0
+           bldgs: 0.3
+           grass: 0.2
+           dectr: 0.1
 
-For a complete working example, see the `sample configuration <https://github.com/UMEP-dev/SUEWS/blob/master/src/supy/sample_data/sample_config.yml>`_.
+.. important::
 
+   This is a **minimal example** showing the basic structure. A complete configuration requires many additional parameters for:
 
-Configuration Structure
+   - Physics options and methods
+   - Initial conditions
+   - Surface properties (albedo, emissivity, roughness)
+   - Vegetation parameters (LAI, conductance)
+   - Soil properties
+   - Anthropogenic heat flux
+   - Water use and irrigation
+   - Building morphology
+
+   **To explore all parameters:**
+
+   1. Run ``suews-validate`` on your configuration to generate a complete file with all defaults
+   2. Review the generated ``updatedABC_*.yml`` file to see all parameters
+   3. Consult the :doc:`config-reference/index` for comprehensive parameter documentation
+
+Parameter Documentation
 -----------------------
 
-The YAML configuration file has a hierarchical structure with four main top-level components:
+**Complete Parameter Reference:**
 
-- **name**: A descriptive name for your simulation
-- **description**: Detailed description of the simulation purpose
-- **model**: Global settings that apply to all sites
-- **sites**: List of sites to simulate with their specific parameters
+The full documentation for all YAML parameters is available in the :doc:`config-reference/index`. This reference includes:
 
-Model Section
-~~~~~~~~~~~~~
+- Detailed descriptions for every parameter
+- Units and valid ranges
+- Default values
+- Cross-references between related parameters
 
-The ``model`` section contains global simulation settings that apply to all sites in your simulation. It has two main subsections:
+**Key Parameter Groups:**
 
-- **Control**: Time step, simulation period, input/output configuration
-- **Physics**: Physics scheme selections, calculation methods, model options
+- :doc:`config-reference/model` - Top-level model configuration structure
+- :doc:`config-reference/site` - Site-specific configuration structure
+- :doc:`config-reference/modelcontrol` - Simulation control (time steps, files, etc.)
+- :doc:`config-reference/modelphysics` - Physics methods and options
+- :doc:`config-reference/siteproperties` - Geographic and geometric properties
+- :doc:`config-reference/landcover` - Surface fractions and parameters
 
-**Model Control** (``model.control``)
-+++++++++++++++++++++++++++++++++++++
+**Surface-Specific Parameters:**
 
-Controls the simulation execution and input/output handling:
+- :doc:`config-reference/pavedproperties` - Roads and paved surfaces
+- :doc:`config-reference/bldgsproperties` - Buildings
+- :doc:`config-reference/evetrproperties` - Evergreen vegetation
+- :doc:`config-reference/dectrproperties` - Deciduous vegetation
+- :doc:`config-reference/grassproperties` - Grass surfaces
+- :doc:`config-reference/bsoilproperties` - Bare soil
+- :doc:`config-reference/waterproperties` - Water bodies
 
-- **Time control**: ``tstep`` (timestep in seconds), ``start_time``, ``end_time``
-- **Forcing configuration**: ``forcing_file`` (meteorological data path, can be single file or list) - detailed description in :ref:`met_input`
-- **Output configuration**: ``output_file`` (format, frequency, variable groups) - detailed description in :ref:`output_files`
+Forcing Data
+------------
 
-For complete parameter descriptions, see :doc:`schema/modelcontrol`.
+Meteorological forcing data drives the SUEWS simulation. You specify the forcing file(s) in your configuration:
 
-**Model Physics** (``model.physics``)
-+++++++++++++++++++++++++++++++++++++
+.. code-block:: yaml
 
-Selects which physics schemes and calculation methods to use:
+   model:
+     control:
+       forcing_file: "forcing/met_data_2020.txt"
+       # Or use multiple files:
+       forcing_file:
+         - "forcing/met_data_2020_Q1.txt"
+         - "forcing/met_data_2020_Q2.txt"
+         - "forcing/met_data_2020_Q3.txt"
+         - "forcing/met_data_2020_Q4.txt"
 
-- **Radiation**: ``netradiationmethod`` (0=observed, 3=modelled LW, 4=SPARTACUS)
-- **Energy balance**: ``storageheatmethod`` (OHM variants), ``emissionsmethod`` (QF calculation)
-- **Surface-atmosphere exchange**: ``stabilitymethod``, ``roughlenmommethod``, ``roughlenheatmethod``
-- **Water balance**: ``waterusemethod``, ``snowuse``, ``smdmethod`` (soil moisture)
-- **Vegetation**: ``gsmodel`` (stomatal conductance), ``laimethod`` (LAI calculation)
-- **Urban schemes**: ``stebbsmethod`` (building energy), ``rslmethod`` (roughness sublayer)
+**Forcing File Format**
 
-For complete parameter descriptions and method options, see :doc:`schema/modelphysics`.
+The forcing file must be a text file with specific columns in the correct order. See :doc:`/inputs/forcing-data` for the complete format specification.
 
-Sites Section
-~~~~~~~~~~~~~
+**Essential columns** (tab or space separated):
 
-The ``sites`` section is a list of one or more `site <schema/site>` to simulate. Each site represents a specific location with its own characteristics:
+1. **Time columns**: ``iy`` (year), ``id`` (day of year), ``it`` (hour), ``imin`` (minute)
+2. **Wind speed** [m/s] - minimum 0.01 m/s
+3. **Relative humidity** [%]
+4. **Air temperature** [°C]
+5. **Pressure** [kPa]
+6. **Rainfall** [mm]
+7. **Incoming shortwave radiation** [W/m²] - must be > 0
+8. **Incoming longwave radiation** [W/m²] - optional, will be modeled if missing (use -999)
 
-.. list-table::
-   :header-rows: 1
-   :widths: 25 75
+**Important requirements**:
 
-   * - Field
-     - Purpose
-   * - ``name``
-     - Unique site identifier (used in output file names)
-   * - ``gridiv``
-     - Grid ID number for multi-site simulations
-   * - ``properties``
-     - Static site characteristics and surface parameters
-   * - ``initial_states``
-     - Initial conditions for prognostic variables
+- Data must be continuous (no gaps)
+- Time stamps indicate the **end** of each period
+- Use local time (not UTC)
+- Use -999 for missing optional variables
 
-For complete site structure, see :doc:`schema/site`.
+For detailed format specifications, column order, and optional variables, see :doc:`/inputs/forcing-data`.
 
-Properties Subsection
-~~~~~~~~~~~~~~~~~~~~~
-The ``properties`` section contains all static--not varying during the simulation--site characteristics, which include :doc:`general site information <schema/siteproperties>` and :doc:`land cover parameters <schema/landcover>`.
+Validation and Troubleshooting
+-------------------------------
 
-General Site Information
-+++++++++++++++++++++++++
+Using the Validation Tool
+~~~~~~~~~~~~~~~~~~~~~~~~~
 
-.. list-table::
-   :header-rows: 1
-   :widths: 30 70
+The ``suews-validate`` command checks your configuration and fixes common issues:
 
-   * - Category
-     - Key Parameters & Purpose
-   * - **Location**
-     - | ``lat``, ``lng`` (coordinates in decimal degrees)
-       | ``alt`` (altitude in metres), ``timezone`` (UTC offset)
-   * - **Morphometry**
-     - | ``surfacearea`` (grid cell area in m²)
-       | ``z`` (measurement height), ``z0m_in``, ``zdm_in`` (roughness parameters)
-   * - **Population**
-     - | ``pop_dens_daytime``, ``pop_dens_nighttime`` (people per hectare)
-       | Used for anthropogenic heat and CO₂ calculations
-   * - **Land Cover**
-     - | Nested section with parameters for each surface type
-       | See detailed structure below
-   * - **Special Models**
-     - | ``spartacus`` (3D radiation parameters)
-       | ``stebbs`` (building energy model parameters)
-       | ``conductance`` (vegetation conductance parameters)
-       | ``irrigation`` (water use and irrigation settings)
-       | ``anthropogenic_emissions`` (heat and CO₂ emission parameters)
+.. code-block:: bash
 
-For complete properties documentation, see :doc:`schema/siteproperties`.
+   # Basic validation with automatic fixes
+   suews-validate config.yml
 
-Land Cover Parameters
-~~~~~~~~~~~~~~~~~~~~~
+   # Check without making changes
+   suews-validate validate config.yml
 
-The ``land_cover`` section under ``properties`` defines parameters for seven surface types. The surface fractions (``sfr``) must sum to 1.0:
+   # Get JSON output for scripts
+   suews-validate validate config.yml --format json
 
-.. list-table::
-   :header-rows: 1
-   :widths: 20 30 50
+What Gets Fixed Automatically
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-   * - Surface Type
-     - Common Examples
-     - Key Parameters
-   * - ``paved``
-     - Roads, car parks, pavements
-     - | ``sfr`` (fraction), ``alb`` (albedo)
-       | Storage/drainage parameters
-   * - ``bldgs``
-     - Buildings, structures
-     - | ``bldgh`` (height), ``faibldg`` (frontal area)
-       | Wall/roof properties, thermal mass
-   * - ``evetr``
-     - Coniferous trees, evergreen shrubs
-     - | ``evetreeh`` (height), LAI parameters
-       | Stays green year-round
-   * - ``dectr``
-     - Broadleaf trees, deciduous shrubs
-     - | ``dectreeh`` (height), phenology parameters
-       | Seasonal LAI variation
-   * - ``grass``
-     - Lawns, parks, playing fields
-     - | LAI range, irrigation settings
-       | Conductance parameters
-   * - ``bsoil``
-     - Exposed soil, construction sites
-     - | Soil hydraulic properties
-       | Usually minimal fraction
-   * - ``water``
-     - Rivers, ponds, fountains
-     - | Flow parameters
-       | Special storage treatment
+The validator automatically corrects these issues:
 
-Each surface type contains these parameter groups:
+- **Missing parameters** - Adds required fields with sensible defaults
+- **Surface fractions** - Normalizes to sum to exactly 1.0
+- **Initial temperatures** - Sets based on location and season using climate data
+- **Physics options** - Ensures compatible model settings
+- **Parameter names** - Corrects common typos and outdated names
 
-- **Radiative**: ``alb`` (albedo), ``emis`` (emissivity)
-- **Hydrological**: ``soilstorecap``, ``statelimit``, ``storedrainprm`` (drainage parameters)
-- **Thermal**: ``thermal_layers`` (depth, conductivity, heat capacity for each layer)
-- **Vegetation** (grass/trees): ``lai`` (LAI parameters), ``maxconductance``, phenology settings
-- **Urban** (buildings/paved): morphology parameters, anthropogenic properties
+For complete validation documentation, see :doc:`validation`.
 
-For complete land cover parameters, see :doc:`schema/landcover`.
+Common Issues and Solutions
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Initial States Structure
+**"Missing required parameter"**
+   The validator will add it with a default value. Check the report to see what was added.
+
+**"Surface fractions don't sum to 1.0"**
+   Automatically normalized. Original values are proportionally adjusted.
+
+**"Invalid physics option combination"**
+   The validator suggests compatible options. Manual selection may be needed.
+
+**"Unknown parameter name"**
+   Check for typos. The validator will suggest the correct name.
+
+Examples
+--------
+
+Urban Site Configuration
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
-The ``initial_states`` section sets starting values for prognostic (time-evolving) variables. Each surface type needs initial conditions:
+.. code-block:: yaml
 
-.. list-table::
-   :header-rows: 1
-   :widths: 30 70
+   name: "London Urban"
+   description: "Central London urban climate"
 
-   * - State Variable
-     - Description & Units
-   * - ``soilstore``
-     - Soil moisture storage [mm]
-   * - ``state``
-     - Surface wetness [mm]
-   * - ``temperature``
-     - Temperature profile through layers [°C]
-   * - ``snowpack``
-     - Snow water equivalent [mm]
-   * - ``lai_id``
-     - Initial LAI for vegetation [m²/m²]
-   * - ``gdd_id``
-     - Growing degree days for phenology
+   model:
+     control:
+       tstep: 3600
+       forcing_file: "london_met_2020.txt"
+       start_time: "2020-01-01"
+       end_time: "2020-12-31"
+     physics:
+       netradiationmethod: 3
+       emissionsmethod: 2
+       storageheatmethod: 1
 
-Special initial states:
+   sites:
+     - name: "CentralLondon"
+       properties:
+         lat: 51.5074
+         lng: -0.1278
+         alt: 10.0
+         timezone: 0
+         surfacearea: 1000000.0
+         popdens: 5500.0
+       land_cover:
+         fractions:
+           paved: 0.35
+           bldgs: 0.40
+           grass: 0.15
+           dectr: 0.10
+       land_cover_params:
+         bldgs:
+           bldgh: 20.0
+           faibldg: 3.5
+         dectr:
+           lai_id: 4.5
 
-- **Vegetation surfaces** (grass, dectr, evetr): Need ``lai_id``, ``gdd_id``, ``sdd_id``
-- **Water surfaces**: Use ``state`` for water level
-- **All surfaces**: Can specify ``snowpack``, ``snowfrac`` for winter starts
-
-For complete initial states documentation, see :doc:`schema/initialstates`.
-
-
-Schema Reference
+Tips for Success
 ----------------
 
-The following reference pages provide complete documentation for all parameters:
+1. **Start with the sample**: Always begin with ``sample_config.yml`` and modify it
+2. **Validate early**: Run validation before long simulations
+3. **Check the report**: Understand what the validator changed
+4. **Use meaningful names**: Help yourself remember what each simulation is for
+5. **Keep originals**: The validator creates new files, preserving your originals
 
-**Top-Level Configuration:**
+Getting Help
+------------
 
-- :doc:`schema/model` - Model section structure and global settings
-- :doc:`schema/site` - Site section structure and site-specific settings
-
-**Model Configuration:**
-
-- :doc:`schema/modelcontrol` - Time control, input/output, diagnostics
-- :doc:`schema/modelphysics` - Physics methods and scheme selections
-
-**Site Configuration:**
-
-- :doc:`schema/siteproperties` - Location, morphometry, and site characteristics
-- :doc:`schema/landcover` - Surface type parameters (paved, buildings, vegetation, etc.)
-- :doc:`schema/initialstates` - Initial conditions for prognostic variables
-
-
-Schema Versioning
------------------
-
-SUEWS YAML configurations use schema versioning to track configuration structure changes. 
-See :doc:`schema_versioning` for details on:
-
-- Understanding schema versions vs model versions  
-- Automatic compatibility checking
-- Migration tools for updating configurations
-
-For validation tools and IDE integration, see :doc:`schema_publishing`.
-
-
-Validation and Error Handling
-------------------------------
-
-.. note:: **Configuration Wizard Coming Soon**
-
-   A dedicated configuration wizard tool will be shipped with future SuPy releases to help you:
-
-   - Interactively create YAML configuration files
-   - Select appropriate parameter values for your site
-   - Validate configurations before running
-   - Convert legacy input formats to YAML
-
-   This tool will simplify the configuration process, especially for the complex parameter sections shown above.
-
-SUEWS validates your configuration when loading. If errors occur:
-
-- **Clear error messages** list all missing or invalid parameters
-- **Annotated YAML** can be generated to help fix issues
-
-To generate an annotated file with error markers:
-
-.. code-block:: python
-
-   # Automatic generation when errors found
-   config = SUEWSConfig.from_yaml('config.yml', auto_generate_annotated=True)
-
-The annotated file (``config.yml_annotated.yml``) includes:
-
-- Missing parameters marked with ``[ERROR] MISSING:``
-- Suggested fixes marked with ``[TIP] ADD HERE:``
-- Parameter descriptions and expected types
+- **Validation issues**: Check the report file (``reportABC_*.txt``)
+- **Parameter documentation**: See the error messages from validation
+- **Examples**: Look in ``sample_data/`` directory
+- **Community support**: `UMEP Community Forum <https://github.com/UMEP-dev/UMEP/discussions>`_

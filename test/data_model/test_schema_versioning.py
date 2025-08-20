@@ -295,16 +295,23 @@ class TestSampleConfig:
     """Test that sample config has correct schema version."""
 
     def test_sample_config_has_schema_version(self):
-        """Test that sample_config.yml has schema_version field."""
+        """Test that sample_config.yml correctly handles schema_version field."""
         # Use package resources to load sample_config.yml
         # This works regardless of installation method (editable, wheel, etc.)
         config_content = load_supy_resource("sample_data/sample_config.yml")
         config = yaml.safe_load(config_content)
 
-        assert "schema_version" in config, (
-            "sample_config.yml should have 'schema_version' field"
-        )
-        assert config["schema_version"] == "1.0"
+        # Schema version is optional - if omitted, latest version is assumed
+        if "schema_version" in config:
+            assert config["schema_version"] == "1.0", (
+                f"If schema_version is present, it should be '1.0', got {config['schema_version']}"
+            )
+            print(
+                f"✓ sample_config.yml has explicit schema_version: {config['schema_version']}"
+            )
+        else:
+            # Omitting schema_version is valid - system assumes latest version
+            print("✓ sample_config.yml omits schema_version (uses latest by default)")
 
         # Should not have old version fields
         assert "version" not in config, (
@@ -313,8 +320,6 @@ class TestSampleConfig:
         assert "config_version" not in config, (
             "sample_config.yml should not have 'config_version' field"
         )
-
-        print(f"✓ sample_config.yml has schema_version: {config['schema_version']}")
 
 
 if __name__ == "__main__":

@@ -4,8 +4,8 @@ YAML Configuration Schema Versioning
 .. note::
    Schema versioning was introduced in SUEWS v2025.8 to track configuration structure changes independently of model versions.
 
-Overview
---------
+Schema Versioning Overview
+--------------------------
 
 SUEWS YAML configurations use a **schema version** to track the structure and format of configuration files. This versioning system:
 
@@ -38,8 +38,8 @@ Add the ``schema_version`` field to your configuration:
 
 If no schema version is specified, SUEWS assumes the current schema version.
 
-Version Policy
---------------
+Schema Version Policy
+---------------------
 
 Schema versions follow a simple **major.minor** format:
 
@@ -94,8 +94,8 @@ Command-Line Migration
    # Migrate to specific version
    python -m supy.util.schema_migration config.yml --to-version 1.0
 
-Python API
-~~~~~~~~~~
+Versioning Python API
+~~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: python
 
@@ -131,8 +131,8 @@ Version History
 **Schema 1.0** (2025.8)
    Initial YAML schema with full Pydantic data model. Includes all parameters from the table-based format in a hierarchical structure.
 
-Best Practices
---------------
+Versioning Best Practices
+-------------------------
 
 1. **Let SUEWS handle it**: If you don't specify a schema version, SUEWS assumes the current version
 2. **Check compatibility**: Use migration tools when updating old configurations

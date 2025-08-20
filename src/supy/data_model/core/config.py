@@ -54,7 +54,7 @@ except ImportError:
         )
         logger_supy.addHandler(handler)
         logger_supy.setLevel(logging.INFO)
-from ..yaml_processor.yaml_annotator import YAMLAnnotator
+from ..validation.pipeline.yaml_annotator import YAMLAnnotator
 
 _validation_available = False
 enhanced_from_yaml_validation = None
@@ -720,7 +720,7 @@ class SUEWSConfig(BaseModel):
 
     def _check_conductance(self, conductance, site_name: str) -> bool:
         """Check for missing conductance parameters. Returns True if issues found."""
-        from ..validation.utils import check_missing_params
+        from ..validation.core.utils import check_missing_params
 
         critical_params = {
             "g_max": "Maximum surface conductance",
@@ -747,7 +747,7 @@ class SUEWSConfig(BaseModel):
 
     def _check_co2_params(self, co2, site_name: str) -> bool:
         """Check for missing CO2 parameters. Returns True if issues found."""
-        from ..validation.utils import check_missing_params
+        from ..validation.core.utils import check_missing_params
 
         critical_params = {
             "co2pointsource": "CO2 point source emission factor",
@@ -787,7 +787,7 @@ class SUEWSConfig(BaseModel):
         self, surface, surface_type: str, site_name: str
     ) -> bool:
         """Check parameters for a specific surface type. Returns True if issues found."""
-        from ..validation.utils import check_missing_params
+        from ..validation.core.utils import check_missing_params
 
         has_issues = False
 
@@ -1537,7 +1537,7 @@ class SUEWSConfig(BaseModel):
 
         # Check conductance
         if hasattr(site.properties, "conductance") and site.properties.conductance:
-            from ..validation.utils import check_missing_params
+            from ..validation.core.utils import check_missing_params
 
             critical_params = {
                 "g_max": "Maximum surface conductance",
@@ -1571,7 +1571,7 @@ class SUEWSConfig(BaseModel):
             and hasattr(site.properties.anthropogenic_emissions, "co2")
             and site.properties.anthropogenic_emissions.co2
         ):
-            from ..validation.utils import check_missing_params
+            from ..validation.core.utils import check_missing_params
 
             critical_params = {
                 "co2pointsource": "CO2 point source emission factor",
@@ -1757,7 +1757,7 @@ class SUEWSConfig(BaseModel):
                             surface_type in ["grass", "dectr", "evetr"]
                             and sfr_value > 0
                         ):
-                            from ..validation.utils import check_missing_params
+                            from ..validation.core.utils import check_missing_params
 
                             vegetation_params = {
                                 "beta_bioco2": "Biogenic CO2 exchange coefficient",

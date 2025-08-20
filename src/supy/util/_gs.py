@@ -10,17 +10,17 @@ def cal_rs_obs(qh, qe, ta, rh, pa, ra, method="iPM"):
 
     Parameters
     ----------
-    qh : numeric
+    qh : float
         sensible heat flux [W m-2]
-    qe : numeric
+    qe : float
         latent heat flux [W m-2]
-    ta : numeric
+    ta : float
         air temperature [degC]
-    rh : numeric
+    rh : float
         relative humidity [%]
-    pa : numeric
+    pa : float
         air pressure [Pa]
-    ra : numeric
+    ra : float
         aerodynamic resistance [m s-1]
     method: str
         method used to calculate rs, can be one of {'iPM','FG'}, by default 'iPM'
@@ -29,7 +29,7 @@ def cal_rs_obs(qh, qe, ta, rh, pa, ra, method="iPM"):
 
     Returns
     -------
-    numeric
+    float
         Surface resistance based on observations [s m-1]
     """
     from atmosp import calculate as ac
@@ -52,22 +52,22 @@ def cal_rs_iPM(qh, qe, ta, rh, pa, ra):
 
     Parameters
     ----------
-    qh : numeric
+    qh : float
         sensible heat flux [W m-2]
-    qe : numeric
+    qe : float
         latent heat flux [W m-2]
-    ta : numeric
+    ta : float
         air temperature [degC]
-    rh : numeric
+    rh : float
         relative humidity [%]
-    pa : numeric
+    pa : float
         air pressure [Pa]
-    ra : numeric
+    ra : float
         aerodynamic resistance [m s-1]
 
     Returns
     -------
-    numeric
+    float
         Surface resistance based on observations [s m-1]
     """
     from atmosp import calculate as ac
@@ -110,22 +110,22 @@ def cal_rs_FG(qh, qe, ta, rh, pa, ra):
 
     Parameters
     ----------
-    qh : numeric
+    qh : float
         sensible heat flux [W m-2]
-    qe : numeric
+    qe : float
         latent heat flux [W m-2]
-    ta : numeric
+    ta : float
         air temperature [degC]
-    rh : numeric
+    rh : float
         relative humidity [%]
-    pa : numeric
+    pa : float
         air pressure [Pa]
-    ra : numeric
+    ra : float
         aerodynamic resistance [m s-1]
 
     Returns
     -------
-    numeric
+    float
         Surface resistance based on observations [s m-1]
     """
     from atmosp import calculate as ac
@@ -190,20 +190,20 @@ def cal_gs_obs(qh, qe, ta, rh, pa, ra):
 
     Parameters
     ----------
-    qh : numeric
+    qh : float
         Sensible heat flux [W m-2]
-    qe : numeric
+    qe : float
         Latent heat flux [W m-2]
-    ta : numeric
+    ta : float
         Air temperature [degC]
-    rh : numeric
+    rh : float
         Relative humidity [%]
-    pa : numeric
+    pa : float
         Air pressure [Pa]
 
     Returns
     -------
-    numeric
+    float
         Surface conductance based on observations [mm s-1]
     """
     rs_obs = cal_rs_obs(qh, qe, ta, rh, pa, ra)
@@ -216,16 +216,16 @@ def cal_g_lai(lai, g_lai, lai_max):
 
     Parameters
     ----------
-    lai : numeric
+    lai : float
         Leaf area index [m2 m-2]
-    g_lai : numeric
+    g_lai : float
         LAI-related correction parameter [-]
-    lai_max : numeric
+    lai_max : float
         Maximum LAI [m2 m-2]
 
     Returns
     -------
-    numeric
+    float
         LAI-related correction coefficient [-]
     """
     g_lai = lai / lai_max * g_lai
@@ -237,16 +237,16 @@ def cal_g_kd(kd, g_kd, kd_max=1200.0):
 
     Parameters
     ----------
-    kd : numeric
+    kd : float
         Incoming solar radiation [W m-2]
-    g2 : numeric
+    g2 : float
         Solar radiation-related correction parameter [-]
-    kd_max : numeric, optional
+    kd_max : float, optional
         Maximum incoming solar radiation [W m-2], by default 1200.
 
     Returns
     -------
-    numeric
+    float
         Solar radiation-related correction coefficient [-]
     """
     g_kd_nom = kd / (g_kd + kd)
@@ -260,16 +260,16 @@ def cal_g_dq(dq, g_dq_base, g_dq_shape):
 
     Parameters
     ----------
-    dq : numeric
+    dq : float
         Specific humidity deficit [g kg-1]
-    g_dq_base : numeric
+    g_dq_base : float
         Specific humidity-related correction parameter [-]
-    g_dq_shape : numeric
+    g_dq_shape : float
         Specific humidity-related correction parameter [-]
 
     Returns
     -------
-    numeric
+    float
         Air humidity-related correction coefficient
     """
     g_dq = g_dq_base + (1 - g_dq_base) * g_dq_shape**dq
@@ -281,18 +281,18 @@ def cal_g_ta(ta_c, g_ta, tl=-10.0, th=55.0):
 
     Parameters
     ----------
-    ta_c : numeric
+    ta_c : float
         Air temperature [degC]
-    g_ta : numeric
+    g_ta : float
         Air temperature-related correction parameter
-    tl : numeric, optional
+    tl : float, optional
         Low temperature limit [degC], by default -10.
-    th : numeric, optional
+    th : float, optional
         High temperature limit [degC], by default 55.
 
     Returns
     -------
-    numeric
+    float
         Air temperature-related correction coefficient
     """
 
@@ -312,16 +312,16 @@ def cal_g_smd(smd, g_smd, wp_smd):
 
     Parameters
     ----------
-    smd : numeric
+    smd : float
         Soil moisture deficit [mm].
-    g_smd : numeric
+    g_smd : float
         Soil moisture-related correction parameter.
-    wp_smd : numeric, optional
+    wp_smd : float, optional
         Wilting point indicated by soil moisture deficit [mm]
 
     Returns
     -------
-    numeric
+    float
         Soil moisture-related correction coefficient
     """
     # Wilting point calculated following SUEWS
@@ -340,34 +340,36 @@ def cal_gs_suews(
 
     Parameters
     ----------
-    kd : numeric
+    kd : float
         Incoming solar radiation [W m-2]
-    ta_c : numeric
+    ta_c : float
         Air temperature [degC]
-    rh : numeric
+    rh : float
         Relative humidity [%]
-    pa : numeric
+    pa : float
         Air pressure [Pa]
-    smd : numeric
+    smd : float
         Soil moisture deficit [mm]
-    lai : numeric
+    lai : float
         Leaf area index [m2 m-2]
-    g_cst : size-6 array
-        Parameters to determine surface conductance/resistance:
+    g_cst : array-like
+        Size-6 array of parameters to determine surface conductance/resistance:
         g_lai (LAI related), g_kd (solar radiation related),
         g_dq_base (humidity related), g_dq_shape (humidity related),
         g_ta (air temperature related),
         g_smd (soil moisture related)
-    g_max : numeric
+    g_max : float
         Maximum surface conductance [mm s-1]
-    lai_max : numeric
+    lai_max : float
         Maximum LAI [m2 m-2]
-    wp_smd : numeric
+    wp_smd : float
         Wilting point indicated as soil moisture deficit [mm]
+    debug : bool, optional
+        Debug flag, by default False
 
     Returns
     -------
-    numeric
+    float
         Modelled surface conductance [mm s-1]
     """
     from atmosp import calculate as ac
@@ -437,11 +439,11 @@ def calib_g(
         DataFrame in `SuPy forcing <https://supy.readthedocs.io/en/latest/data-structure/df_forcing.html>`_ format
     ser_ra: pandas.Series
         Series with RA, aerodynamic resistance, [s m-1]
-    g_max : numeric
+    g_max : float
         Maximum surface conductance [mm s-1]
-    lai_max : numeric
+    lai_max : float
         Maximum LAI [m2 m-2]
-    wp_smd : numeric
+    wp_smd : float
         Wilting point indicated as soil moisture deficit [mm]
     method: str, optional
         Method used in minimisation by `lmfit.minimize`: details refer to its `method<lmfit:minimize>`.
@@ -646,14 +648,14 @@ def cal_g_dq_noah(dq, hs=31):
 
     Parameters
     ----------
-    dq : numeric
+    dq : float
         Specific humidity deficit [g kg-1]
-    hs : numeric
+    hs : float
         Specific humidity-related correction parameter [kg g-1]
 
     Returns
     -------
-    numeric
+    float
         Air humidity-related correction coefficient
     """
     g_dq = 1 / (1 + hs * (dq))
@@ -666,16 +668,16 @@ def cal_g_swc_noah(swc, q_wilt, q_ref):
 
     Parameters
     ----------
-    swc : numeric
+    swc : float
         Soil water content (volumetric) [m3 m-3].
-    q_wilt : numeric
+    q_wilt : float
         wilting point [m3 m-3].
-    q_ref : numeric
+    q_ref : float
         reference point [m3 m-3].
 
     Returns
     -------
-    numeric
+    float
         Soil moisture-related correction coefficient
     """
     # Wilting point calculated following SUEWS
@@ -690,16 +692,16 @@ def cal_g_ta_noah(ta_c, b1=0.0016, tref=298 - 273.15):
 
     Parameters
     ----------
-    ta_c : numeric
+    ta_c : float
         Air temperature [degC]
-    b1 : numeric
+    b1 : float
         Air temperature-related correction parameter
-    tref : numeric, optional
+    tref : float, optional
         Low temperature limit [K]
 
     Returns
     -------
-    numeric
+    float
         Air temperature-related correction coefficient
     """
 
@@ -737,11 +739,11 @@ def deriv_g_smd_noah(dsoil, q_wilt, q_ref):
 
     Parameters
     ----------
-    dsoil : numeric
+    dsoil : float
         soil depth [mm].
-    q_wilt : numeric
+    q_wilt : float
         wilting point [m3 m-3].
-    q_ref : numeric
+    q_ref : float
         reference point [m3 m-3].
 
     Returns

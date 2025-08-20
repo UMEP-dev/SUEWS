@@ -21,5 +21,5 @@ from .phase_b_science_check import *
 from .phase_c_pydantic_report import *
 from .orchestrator import *
 
-# validation_helpers moved to ../validation/yaml_helpers.py
-from ..validation.yaml_helpers import *
+# validation_helpers moved to ../core/yaml_helpers.py
+from ..core.yaml_helpers import *

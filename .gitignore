@@ -591,7 +591,7 @@ docs/source/tutorials/python/df_state.csv
 docs/source/_autosummary/
 
 # Auto-generated RST files from data model
-docs/source/inputs/yaml/schema/*.rst
+docs/source/inputs/yaml/config-reference/*.rst
 
 
 # Git worktrees directory for Claude Code access

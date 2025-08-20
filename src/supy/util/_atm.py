@@ -9,9 +9,9 @@ def cal_des_dta(ta, pa, dta=1.0):
 
     Parameters
     ----------
-    ta : numeric
+    ta : float
         Air temperature [K]
-    pa : numeric
+    pa : float
         Air pressure [Pa]
     dta : float, optional
         change in ta for calculating that in es, by default 1.0 K
@@ -299,22 +299,22 @@ def cal_ra_obs(zm, zd, z0m, z0v, ws, Lob):
 
     Parameters
     ----------
-    zm : numeric
+    zm : float
         measurement height
-    zd : numeric
+    zd : float
         displacement height
-    z0m : numeric
+    z0m : float
         roughness length for momumtum
-    z0v : numeric
+    z0v : float
         roughness length for vapour
-    ws : numeric
+    ws : float
         wind speed
-    Lob : numeric
+    Lob : float
         Obukhov length
 
     Returns
     -------
-    numeric
+    float
         aerodynamic resistance
     """
     # von Karman constant

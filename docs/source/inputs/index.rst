@@ -12,14 +12,22 @@ SUEWS supports two formats for providing input parameters:
 
 .. toctree::
    :maxdepth: 2
-   :caption: Input Formats
+   :caption: YAML-based Input Format
 
    yaml/index
-   tables/index
+   forcing-data
+   yaml/config-reference/index
 
 .. toctree::
    :maxdepth: 2
    :caption: Tools and Utilities
-   
+
    converter
    transition_guide
+   validation
+
+.. toctree::
+   :maxdepth: 2
+   :caption: Table-based Input Format (Legacy - Deprecated)
+
+   tables/index

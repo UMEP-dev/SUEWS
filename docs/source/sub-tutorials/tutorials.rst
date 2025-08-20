@@ -44,19 +44,19 @@ For experienced users working with custom parameterisations and model modificati
 - :ref:`Preparing input forcing data <prepare_forcing_data>` - How to format meteorological data for SUEWS simulations from weather stations, reanalysis datasets, and custom sources
 
 **Physics Customisation:**
-- :ref:`Adding custom OHM coefficients <ohm_custom_coefficients>` - How to derive and implement surface-specific storage heat flux coefficients
-- :ref:`Custom surface properties <custom_surface_properties>` - Modifying land cover parameters for specialised urban surfaces
-- :ref:`Multi-site parameter sensitivity <parameter_sensitivity>` - Systematic parameter variation across multiple locations
+- :ref:`Adding custom OHM coefficients <SUEWS_OHMCoefficients>` - How to derive and implement surface-specific storage heat flux coefficients
+- Custom surface properties - Modifying land cover parameters for specialised urban surfaces
+- Multi-site parameter sensitivity - Systematic parameter variation across multiple locations
 
 **Model Development:**
-- :ref:`Fortran module development <fortran_development>` - Adding new physics modules to the SUEWS core
-- :ref:`Output variable customisation <custom_output>` - Creating custom diagnostic variables and output groups
+- Fortran module development - Adding new physics modules to the SUEWS core
+- Output variable customisation - Creating custom diagnostic variables and output groups
 
 Additional Data Analysis Tools
 ------------------------------
 
 - **Data structures**: :doc:`../data-structures/supy-io` - Understanding SuPy's pandas-based data organisation
-- **API reference**: :doc:`../api/supy` - Complete function documentation
+- **API reference**: :doc:`../api` - Complete function documentation
 
 Legacy UMEP/QGIS Tutorials
 ---------------------------

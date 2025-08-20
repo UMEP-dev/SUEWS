@@ -4,7 +4,7 @@ from .type import RefValue, Reference, FlexibleRefValue
 from .profile import HourlyProfile
 from .type import init_df_state
 from .timezone_enum import TimezoneOffset
-from ..validation.utils import (
+from ..validation.core.utils import (
     warn_missing_params,
     check_missing_params,
     validate_only_when_complete,

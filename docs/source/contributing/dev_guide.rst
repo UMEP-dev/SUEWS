@@ -199,7 +199,6 @@ Build Commands Reference
    make test         # Run test suite only
    make clean        # Clean build artifacts
    make docs         # Build documentation
-   make livehtml     # Live documentation preview
 
 SUEWS-Specific Patterns
 -----------------------
@@ -253,4 +252,3 @@ Troubleshooting Common Issues
 **Permission Errors (Windows)**
    Right-click project folder → Properties → Security → Edit → Everyone → Allow
 
-.. _UMEP Community: https://github.com/UMEP-dev/UMEP/discussions

@@ -19,29 +19,28 @@ def cal_neutral(
 
     Parameters
     ----------
-    ser_qh: pd.DataFrame
+    ser_qh : pandas.DataFrame
         sensible heat flux [W/m^2]
-    ser_ustar: pd.Series
+    ser_ustar : pandas.Series
         friction velocity [m/s]
-    ser_ta_c: pd.Series
+    ser_ta_c : pandas.Series
         air temperature [°C]
-    ser_rh_pct: pd.Series
+    ser_rh_pct : pandas.Series
         relative humidity [%]
-    ser_pres_hpa: pd.Series
+    ser_pres_hpa : pandas.Series
         air pressure [hPa]
-    ser_ws: pd.Series
+    ser_ws : pandas.Series
         wind speed [m/s]
-    z_meas
+    z_meas : float
         measurement height [m]
-    h_sfc
+    h_sfc : float
         vegetation height [m]
 
     Returns
     -------
-    ser_ws_neutral: pd.Series
-        observation time series of WS (Neutral conditions)
-    ser_ustar_neutral: pd.Series
-        observation time series of u* (Neutral conditions)
+    tuple
+        - ser_ws_neutral: pandas.Series - observation time series of WS (Neutral conditions)
+        - ser_ustar_neutral: pandas.Series - observation time series of u* (Neutral conditions)
     """
 
     # calculate Obukhov length

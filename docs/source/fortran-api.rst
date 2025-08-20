@@ -34,7 +34,7 @@ Main Driver Subroutine
 
 2. **Physics Calculation Loop**:
    - Surface energy balance iteration
-   - Evapotranspiration calculations 
+   - Evapotranspiration calculations
    - Snow physics (if enabled)
    - Storage heat flux (OHM)
    - Anthropogenic emissions
@@ -48,7 +48,7 @@ Main Driver Subroutine
 **Key Driver Components**:
 
 - **Iteration Control**: Convergence checking for surface temperature and energy balance
-- **Multi-Surface Calculations**: Parallel processing of different urban surface types  
+- **Multi-Surface Calculations**: Parallel processing of different urban surface types
 - **Model Integration**: Coordination between physics modules (LUMPS, ESTM, SPARTACUS)
 - **Debug Information**: Comprehensive state tracking for model validation
 
@@ -162,7 +162,7 @@ The Fortran core is accessed through f90wrap-generated Python bindings:
 
    # Low-level access (for developers)
    from supy._run import suews_cal_tstep
-   
+
    # High-level interface (for users)
    import supy as sp
    df_output, df_state = sp.run_supy(df_forcing, df_state)
@@ -182,19 +182,3 @@ See the :doc:`contributing/dev_guide` for detailed guidelines on:
 - Code review process
 - Physics validation requirements
 - Documentation standards
-
-.. note::
-
-   **Enhanced Documentation**: The Fortran API documentation has been significantly improved with:
-   
-   - Detailed driver subroutine workflow description
-   - Comprehensive module organisation and functionality
-   - Clear computational sequence and data flow
-   - Better cross-references between components
-   
-   **Future Enhancements**: Planned improvements include:
-   
-   - Performance profiling integration
-   - Code examples for common development tasks
-   - Modern Fortran best practices implementation
-   - Interactive examples for physics module development

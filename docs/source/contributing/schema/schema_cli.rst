@@ -299,8 +299,8 @@ The ``suews-schema`` CLI is designed to integrate seamlessly with the upcoming `
 - Schema version checking will be embedded in the wizard workflow
 - The export functionality will provide schema documentation within the wizard
 
-Best Practices
---------------
+CLI Best Practices
+------------------
 
 1. **Always specify schema version**: Include ``schema_version`` in your YAML files
 2. **Validate before running**: Use ``suews-schema validate`` before running simulations
@@ -308,8 +308,8 @@ Best Practices
 4. **Use CI/CD validation**: Integrate validation into your automated workflows
 5. **Document versions**: Keep track of which schema version your configs use
 
-Troubleshooting
----------------
+CLI Troubleshooting
+-------------------
 
 **Issue: Command not found**
 

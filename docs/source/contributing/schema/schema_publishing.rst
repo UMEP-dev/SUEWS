@@ -71,8 +71,8 @@ SUEWS provides a user-friendly validation tool:
    # Check if migration needed
    suews-validate migrate old_config.yml --output new_config.yml
 
-Python API
-~~~~~~~~~~
+Publishing Python API
+~~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: python
 
@@ -173,8 +173,8 @@ Using coc-yaml:
      }
    }
 
-CI/CD Integration
------------------
+Schema CI/CD Integration
+------------------------
 
 GitHub Actions
 ~~~~~~~~~~~~~~
@@ -351,8 +351,8 @@ Programmatic Validation
        print(f"Path: {' > '.join(str(p) for p in error.path)}")
        print(f"Error: {error.message}")
 
-Best Practices
---------------
+Publishing Best Practices
+-------------------------
 
 1. **Version Control**: Always specify ``schema_version`` in configurations
 2. **CI/CD Validation**: Validate all configs in CI pipelines
@@ -361,8 +361,8 @@ Best Practices
 5. **Documentation**: Document any custom validation rules
 6. **Migration Path**: Plan for schema evolution and migrations
 
-Troubleshooting
----------------
+Publishing Troubleshooting
+--------------------------
 
 Common Issues
 ~~~~~~~~~~~~~
@@ -379,8 +379,8 @@ Common Issues
 **IDE not showing autocomplete**
    Ensure schema file path is correct in IDE settings
 
-Getting Help
-~~~~~~~~~~~~
+Schema Publishing Help
+~~~~~~~~~~~~~~~~~~~~~~
 
 - Schema documentation: :doc:`schema_versioning`
 - GitHub issues: https://github.com/UMEP-dev/SUEWS/issues

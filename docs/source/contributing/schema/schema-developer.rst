@@ -27,8 +27,8 @@ Version Policy
    - Requires migration
    - Clear migration path provided
 
-Schema Management CLI
----------------------
+Schema Management Commands
+--------------------------
 
 For developers, the ``suews-schema`` command provides schema management:
 

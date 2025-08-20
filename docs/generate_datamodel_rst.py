@@ -421,58 +421,170 @@ class RSTGenerator:
         return description
 
     def _generate_index(self) -> str:
-        """Generate index.rst with data-driven hierarchy."""
+        """Generate index.rst with hierarchical structure from JSON."""
         lines = [
             ".. _yaml_config_reference:",
             "",
             "YAML Configuration Reference",
             "============================",
             "",
-            "Complete documentation for all SUEWS YAML configuration parameters.",
+            "This documentation follows the hierarchical structure of SUEWS YAML configuration files.",
             "",
         ]
-
-        # Get categorized models
-        categories = self._categorize_models()
-
-        # Define toctree sections with their configurations
-        sections = [
-            ("root", "Configuration Structure", 2),
-            ("model_config", "Model Configuration", 1),
-            ("site_structure", "Site Components", 1),
-            ("site_properties_params", "Site Parameters", 1),
-            ("surfaces", "Surface Properties", 1),
-            ("initial_states", "Initial States", 1),
-            ("profiles", "Temporal Profiles", 1),
-            ("utility", "Reference Types", 1),
-        ]
-
-        # Generate toctree for each category
-        for category_key, caption, maxdepth in sections:
-            if category_key in categories and categories[category_key]:
-                lines.extend([
-                    ".. toctree::",
-                    f"   :maxdepth: {maxdepth}",
-                    f"   :caption: {caption}",
-                    "",
-                ])
-                # Special ordering for root category - SUEWSConfig first
-                if category_key == "root":
-                    models = categories[category_key]
-                    # Put SUEWSConfig first if it exists
-                    if "SUEWSConfig" in models:
-                        lines.append("   suewsconfig")
-                        for model in sorted(m for m in models if m != "SUEWSConfig"):
-                            lines.append(f"   {model.lower()}")
-                    else:
-                        for model in sorted(models):
-                            lines.append(f"   {model.lower()}")
-                else:
-                    for model in sorted(categories[category_key]):
-                        lines.append(f"   {model.lower()}")
-                lines.append("")
-
+        
+        # Check if sphinx-design is available
+        sphinx_design_available = self._check_sphinx_design()
+        
+        # Build the hierarchical structure from the models
+        hierarchy = self._build_hierarchy()
+        
+        # Generate RST from hierarchy (with or without dropdowns)
+        if sphinx_design_available:
+            lines.append(".. note::")
+            lines.append("   Click on any section below to expand and see its parameters.")
+            lines.append("")
+            self._generate_hierarchy_rst_dropdown(hierarchy, lines, level=0)
+        else:
+            self._generate_hierarchy_rst(hierarchy, lines, level=0)
+        
+        # Add toctree at the end with all documents (hidden)
+        lines.extend([
+            "",
+            ".. toctree::",
+            "   :hidden:",
+            "   :maxdepth: 3",
+            "",
+        ])
+        
+        # Add all model files to toctree (excluding RefValue and Reference)
+        for model_name in sorted(self.models.keys()):
+            if model_name not in {"RefValue", "Reference"}:
+                lines.append(f"   {model_name.lower()}")
+        
         return "\n".join(lines)
+    
+    def _check_sphinx_design(self) -> bool:
+        """Check if sphinx-design extension is available."""
+        try:
+            import sphinx_design
+            return True
+        except ImportError:
+            return False
+    
+    def _build_hierarchy(self) -> dict:
+        """Build hierarchical structure from model relationships."""
+        hierarchy = {}
+        
+        # Start with SUEWSConfig as root
+        if "SUEWSConfig" in self.models:
+            suews_fields = self.models["SUEWSConfig"].get("fields", [])
+            hierarchy["SUEWSConfig"] = {
+                "title": self.models["SUEWSConfig"].get("title", "SUEWS Config"),
+                "children": {}
+            }
+            
+            # Find model and sites fields
+            for field in suews_fields:
+                if field["name"] == "model" and field.get("nested_model") == "Model":
+                    hierarchy["SUEWSConfig"]["children"]["Model"] = self._get_model_children("Model", depth=1)
+                elif field["name"] == "sites":
+                    # Sites is a list of Site objects
+                    hierarchy["SUEWSConfig"]["children"]["Sites"] = {
+                        "title": "Sites",
+                        "model": "Site",
+                        "children": self._get_model_children("Site", depth=1)["children"]
+                    }
+        
+        return hierarchy
+    
+    def _get_model_children(self, model_name: str, depth: int = 0) -> dict:
+        """Get children of a model based on its fields."""
+        if model_name not in self.models:
+            return {"title": model_name, "children": {}}
+        
+        model_data = self.models[model_name]
+        result = {
+            "title": model_data.get("title", model_name),
+            "model": model_name,
+            "children": {}
+        }
+        
+        # Stop expanding at certain depth or for profile/utility types
+        profile_types = {"DayProfile", "HourlyProfile", "WeeklyProfile"}
+        utility_types = {"Reference", "RefValue"}
+        
+        # Don't expand profile types or utility types or if we're too deep
+        if model_name in profile_types or model_name in utility_types or depth > 3:
+            return result
+        
+        # Look for nested models in fields
+        for field in model_data.get("fields", []):
+            nested_model = field.get("nested_model")
+            # Skip Reference and RefValue as they're utility types
+            if (nested_model and 
+                nested_model in self.models and 
+                nested_model not in utility_types):
+                
+                # For profile types, just note the field name without expanding
+                if nested_model in profile_types:
+                    # Don't expand profiles, just show field exists
+                    continue
+                else:
+                    # Use field name as key, get nested model structure
+                    field_key = field["name"]
+                    result["children"][field_key] = self._get_model_children(nested_model, depth + 1)
+        
+        return result
+    
+    def _generate_hierarchy_rst(self, hierarchy: dict, lines: list, level: int = 0):
+        """Generate RST from hierarchy with proper heading levels."""
+        # RST heading characters for different levels
+        heading_chars = ['=', '-', '~', '^', '"', "'"]
+        
+        for model_name, model_info in hierarchy.items():
+            title = model_info.get("title", model_name)
+            model_ref = model_info.get("model", model_name)
+            children = model_info.get("children", {})
+            
+            # Add heading
+            if level < len(heading_chars):
+                lines.append("")
+                lines.append(title)
+                lines.append(heading_chars[level] * len(title))
+                
+                # Add link to detail page
+                lines.append(f":doc:`{model_ref.lower()}`")
+                
+                # Process children
+                if children:
+                    self._generate_hierarchy_rst(children, lines, level + 1)
+    
+    def _generate_hierarchy_rst_dropdown(self, hierarchy: dict, lines: list, level: int = 0):
+        """Generate RST from hierarchy using sphinx-design dropdowns."""
+        for model_name, model_info in hierarchy.items():
+            title = model_info.get("title", model_name)
+            model_ref = model_info.get("model", model_name)
+            children = model_info.get("children", {})
+            
+            # Indent for nested dropdowns
+            indent = "   " * level
+            
+            # Create dropdown for items with children
+            if children:
+                lines.append(f"{indent}.. dropdown:: {title}")
+                lines.append(f"{indent}   :open:")
+                lines.append(f"{indent}   :animate: fade-in")
+                lines.append("")
+                lines.append(f"{indent}   :doc:`{model_ref.lower()}`")
+                lines.append("")
+                
+                # Process children with increased indentation
+                self._generate_hierarchy_rst_dropdown(children, lines, level + 1)
+            else:
+                # Leaf node - just show title and link
+                lines.append(f"{indent}**{title}**")
+                lines.append(f"{indent}:doc:`{model_ref.lower()}`")
+                lines.append("")
 
     def _categorize_models(self) -> dict[str, list[str]]:
         """Categorize models based on their names and relationships matching the YAML hierarchy."""

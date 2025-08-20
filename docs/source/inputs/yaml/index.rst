@@ -14,7 +14,7 @@ Quick Start
 
    # Copy the sample configuration
    cp sample_config.yml my_config.yml
-   
+
    # Edit for your site
    nano my_config.yml
 
@@ -24,7 +24,7 @@ Quick Start
 
    # Automatically fix common issues
    suews-validate my_config.yml
-   
+
    # Creates: updatedABC_my_config.yml (ready to use)
 
 **3. Run your simulation:**
@@ -32,10 +32,10 @@ Quick Start
 .. code-block:: python
 
    import supy as sp
-   
+
    # Load your validated configuration
    config = sp.SUEWSConfig.from_yaml('updatedABC_my_config.yml')
-   
+
    # Run simulation
    output = config.run()
 
@@ -48,12 +48,12 @@ A SUEWS YAML file has two main sections:
 
    name: "My Simulation"
    description: "Urban climate simulation for my city"
-   
+
    model:          # Global simulation settings
      control:      # Time and file settings
      physics:      # Physics options
      output:       # Output control
-   
+
    sites:          # List of sites to simulate
      - name: "Site1"
        properties: # Site characteristics
@@ -76,7 +76,7 @@ A valid SUEWS configuration requires many parameters beyond this minimal example
        forcing_file: "forcing.txt"    # Meteorological data
        start_time: "2020-01-01"       # Start date
        end_time: "2020-12-31"         # End date
-   
+
    sites:
      - name: "MySite"
        properties:
@@ -93,9 +93,9 @@ A valid SUEWS configuration requires many parameters beyond this minimal example
            dectr: 0.1
 
 .. important::
-   
+
    This is a **minimal example** showing the basic structure. A complete configuration requires many additional parameters for:
-   
+
    - Physics options and methods
    - Initial conditions
    - Surface properties (albedo, emissivity, roughness)
@@ -104,19 +104,19 @@ A valid SUEWS configuration requires many parameters beyond this minimal example
    - Anthropogenic heat flux
    - Water use and irrigation
    - Building morphology
-   
+
    **To explore all parameters:**
-   
+
    1. Run ``suews-validate`` on your configuration to generate a complete file with all defaults
    2. Review the generated ``updatedABC_*.yml`` file to see all parameters
-   3. Consult the :doc:`schema/index` for comprehensive parameter documentation
+   3. Consult the :doc:`config-reference/index` for comprehensive parameter documentation
 
 Parameter Documentation
 -----------------------
 
 **Complete Parameter Reference:**
 
-The full documentation for all YAML parameters is available in the :doc:`schema/index`. This reference includes:
+The full documentation for all YAML parameters is available in the :doc:`config-reference/index`. This reference includes:
 
 - Detailed descriptions for every parameter
 - Units and valid ranges
@@ -125,22 +125,22 @@ The full documentation for all YAML parameters is available in the :doc:`schema/
 
 **Key Parameter Groups:**
 
-- :doc:`schema/model` - Top-level model configuration structure
-- :doc:`schema/site` - Site-specific configuration structure
-- :doc:`schema/modelcontrol` - Simulation control (time steps, files, etc.)
-- :doc:`schema/modelphysics` - Physics methods and options
-- :doc:`schema/siteproperties` - Geographic and geometric properties
-- :doc:`schema/landcover` - Surface fractions and parameters
+- :doc:`config-reference/model` - Top-level model configuration structure
+- :doc:`config-reference/site` - Site-specific configuration structure
+- :doc:`config-reference/modelcontrol` - Simulation control (time steps, files, etc.)
+- :doc:`config-reference/modelphysics` - Physics methods and options
+- :doc:`config-reference/siteproperties` - Geographic and geometric properties
+- :doc:`config-reference/landcover` - Surface fractions and parameters
 
 **Surface-Specific Parameters:**
 
-- :doc:`schema/pavedproperties` - Roads and paved surfaces
-- :doc:`schema/bldgsproperties` - Buildings
-- :doc:`schema/evetrproperties` - Evergreen vegetation
-- :doc:`schema/dectrproperties` - Deciduous vegetation
-- :doc:`schema/grassproperties` - Grass surfaces
-- :doc:`schema/bsoilproperties` - Bare soil
-- :doc:`schema/waterproperties` - Water bodies
+- :doc:`config-reference/pavedproperties` - Roads and paved surfaces
+- :doc:`config-reference/bldgsproperties` - Buildings
+- :doc:`config-reference/evetrproperties` - Evergreen vegetation
+- :doc:`config-reference/dectrproperties` - Deciduous vegetation
+- :doc:`config-reference/grassproperties` - Grass surfaces
+- :doc:`config-reference/bsoilproperties` - Bare soil
+- :doc:`config-reference/waterproperties` - Water bodies
 
 Forcing Data
 ------------
@@ -195,10 +195,10 @@ The ``suews-validate`` command checks your configuration and fixes common issues
 
    # Basic validation with automatic fixes
    suews-validate config.yml
-   
+
    # Check without making changes
    suews-validate validate config.yml
-   
+
    # Get JSON output for scripts
    suews-validate validate config.yml --format json
 
@@ -240,7 +240,7 @@ Urban Site Configuration
 
    name: "London Urban"
    description: "Central London urban climate"
-   
+
    model:
      control:
        tstep: 3600
@@ -251,7 +251,7 @@ Urban Site Configuration
        netradiationmethod: 3
        emissionsmethod: 2
        storageheatmethod: 1
-   
+
    sites:
      - name: "CentralLondon"
        properties:
@@ -290,10 +290,3 @@ Getting Help
 - **Parameter documentation**: See the error messages from validation
 - **Examples**: Look in ``sample_data/`` directory
 - **Community support**: `UMEP Community Forum <https://github.com/UMEP-dev/UMEP/discussions>`_
-
-.. toctree::
-   :maxdepth: 1
-   :hidden:
-
-   validation
-   schema/index

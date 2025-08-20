@@ -317,10 +317,12 @@ class WaterUse(BaseModel):
 
 
 class InitialStatePaved(SurfaceInitialState):
+    model_config = ConfigDict(title="Paved Surface Initial State")
     _surface_type: Literal[SurfaceType.PAVED] = SurfaceType.PAVED
 
 
 class InitialStateBldgs(SurfaceInitialState):
+    model_config = ConfigDict(title="Buildings Surface Initial State")
     _surface_type: Literal[SurfaceType.BLDGS] = SurfaceType.BLDGS
 
 
@@ -611,10 +613,12 @@ class InitialStateGrass(InitialStateVeg):
 
 
 class InitialStateBsoil(SurfaceInitialState):
+    model_config = ConfigDict(title="Bare Soil Surface Initial State")
     _surface_type: Literal[SurfaceType.BSOIL] = SurfaceType.BSOIL
 
 
 class InitialStateWater(SurfaceInitialState):
+    model_config = ConfigDict(title="Water Surface Initial State")
     _surface_type: Literal[SurfaceType.WATER] = SurfaceType.WATER
 
     # Override soilstore for water surfaces to allow 0 (water doesn't have soil)

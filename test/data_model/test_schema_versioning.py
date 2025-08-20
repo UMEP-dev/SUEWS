@@ -306,7 +306,9 @@ class TestSampleConfig:
             assert config["schema_version"] == "1.0", (
                 f"If schema_version is present, it should be '1.0', got {config['schema_version']}"
             )
-            print(f"✓ sample_config.yml has explicit schema_version: {config['schema_version']}")
+            print(
+                f"✓ sample_config.yml has explicit schema_version: {config['schema_version']}"
+            )
         else:
             # Omitting schema_version is valid - system assumes latest version
             print("✓ sample_config.yml omits schema_version (uses latest by default)")

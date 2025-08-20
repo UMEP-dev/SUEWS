@@ -202,13 +202,13 @@ The ``suews-validate`` command checks your configuration and fixes common issues
 What Gets Fixed Automatically
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The validator will:
+The validator automatically corrects these issues:
 
-✅ **Add missing parameters** with sensible defaults
-✅ **Normalize fractions** to sum to exactly 1.0
-✅ **Set initial temperatures** based on location and season
-✅ **Add required physics options** with compatible settings
-✅ **Fix common typos** in parameter names
+- **Missing parameters** - Adds required fields with sensible defaults
+- **Surface fractions** - Normalizes to sum to exactly 1.0
+- **Initial temperatures** - Sets based on location and season using climate data
+- **Physics options** - Ensures compatible model settings
+- **Parameter names** - Corrects common typos and outdated names
 
 Common Issues and Solutions
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~

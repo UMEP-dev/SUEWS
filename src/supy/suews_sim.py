@@ -76,7 +76,7 @@ class SUEWSSimulation:
 
         Parameters
         ----------
-        config : str, Path, dict, or SUEWSConfig
+        config : str, pathlib.Path, dict, or SUEWSConfig
             Configuration source:
             - Path to YAML file
             - Dictionary with parameters (can be partial)
@@ -142,7 +142,7 @@ class SUEWSSimulation:
 
         Parameters
         ----------
-        forcing_data : str, Path, list of paths, or DataFrame
+        forcing_data : str, pathlib.Path, list of paths, or pandas.DataFrame
             Forcing data source:
             - Path to a single forcing file
             - List of paths to forcing files (concatenated in order)
@@ -310,7 +310,7 @@ class SUEWSSimulation:
 
         Returns
         -------
-        pd.DataFrame
+        pandas.DataFrame
             Simulation results with MultiIndex columns (group, variable).
 
         Raises
@@ -344,14 +344,14 @@ class SUEWSSimulation:
 
         Parameters
         ----------
-        output_path : str or Path, optional
+        output_path : str or pathlib.Path, optional
             Output directory path. If None, uses current directory.
         **save_kwargs
             Additional arguments passed to save_supy.
 
         Returns
         -------
-        List[Path]
+        list of pathlib.Path
             List of paths to saved files.
 
         Raises

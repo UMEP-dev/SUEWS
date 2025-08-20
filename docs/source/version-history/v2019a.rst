@@ -23,7 +23,7 @@ Version 2019a (released on 15 November 2019)
 
     - SOLWEIG: fully removed from code.
     - netCDF: fully removed as this is very infrequently used;
-      users who need this are suggested to use `SuPy` with help from `pandas` and `xarray <https://xarray.pydata.org>`_ to save results in netCDF more elegantly.
+      users who need this are suggested to use ``SuPy`` with help from ``pandas`` and `xarray <https://xarray.pydata.org>`_ to save results in netCDF more elegantly.
 
 
 - **Fix**

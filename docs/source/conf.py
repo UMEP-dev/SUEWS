@@ -524,9 +524,6 @@ html_static_path = ["_static"]  # Removed "doxygenoutput" since Doxygen is disab
 
 # html_extra_path = ['doxygenoutput']
 
-# Copy React build output to _static
-html_extra_path = ["../suews-config-ui/dist"]
-
 # Custom sidebar templates, must be a dictionary that maps document names
 # to template names.
 #

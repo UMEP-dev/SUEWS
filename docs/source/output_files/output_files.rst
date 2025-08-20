@@ -77,7 +77,7 @@ SUEWS supports two output formats:
    - Much faster to read in Python/R/MATLAB
    - Requires specific libraries to read
 
-The output format is configured in the YAML file. See :ref:`yaml_input` for configuration details.
+The output format is configured in the YAML file. See :doc:`../inputs/yaml/index` for configuration details.
 
 .. note:: Temporal information in output files (i.e., ``iy``, ``id``, ``it`` and ``imin`` if existing) are in **local time** (i.e. consistent with :ref:`met_input`) and indicate the ending timestamp of corresponding periods: e.g. for hourly data, ``2021-09-12 13:00`` indicates a record for the period between ``2021-09-12 12:00`` (inclusive) and ``2021-09-12 13:00`` (exclusive).
 
@@ -102,7 +102,7 @@ The variables included in the main output file are determined according to :opti
 - **Ts_[Surface]**: Surface temperatures (°C) for specific surface types (e.g., Ts_Paved, Ts_Bldgs, Ts_Grass) available in both EHC and debug output groups
 
 .. note::
-   **Consistent Naming**: All surface temperature variables now use the `Ts` prefix consistently across all output groups. The same `Ts_[Surface]` variables appear in both EHC and debug output. For detailed surface temperatures by urban facet (walls, roofs, ground layers), see the :ref:`ESTM output file <SSss_YYYY_ESTM_TT.txt>` which provides 5-layer temperature profiles for different surface elements.
+   **Consistent Naming**: All surface temperature variables now use the ``Ts`` prefix consistently across all output groups. The same ``Ts_[Surface]`` variables appear in both EHC and debug output. For detailed surface temperatures by urban facet (walls, roofs, ground layers), see the :ref:`ESTM output file <SSss_YYYY_ESTM_TT.txt>` which provides 5-layer temperature profiles for different surface elements.
 
 .. csv-table::
   :file: SSss_YYYY_SUEWS_TT.csv

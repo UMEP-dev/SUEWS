@@ -678,30 +678,30 @@ def gen_forcing_era5(
     lon_x : float
         Longitude of centre at the area of interest.
     start : str
-        Any datetime-like string that can be parsed by `pandas.daterange()`.
+        Any datetime-like string that can be parsed by ``pandas.date_range()``.
     end : str
-        Any datetime-like string that can be parsed by `pandas.daterange()`.
-    dir_save: Path or path-like string
-        path to directory for saving downloaded ERA5 netCDF files.
+        Any datetime-like string that can be parsed by ``pandas.date_range()``.
+    dir_save : pathlib.Path or str, optional
+        path to directory for saving downloaded ERA5 netCDF files, by default Path(".").
     grid : list, optional
         grid size used in CDS request API, by default [0.125, 0.125].
-    hgt_agl_diag: float
+    hgt_agl_diag : float, optional
         height above ground level to diagnose forcing variables, by default 100; the ground level is taken from ERA5 grid altitude.
     scale : int, optional
-        scaling factor that determines the area of interest (i.e., `area=grid[0]*scale`),
+        scaling factor that determines the area of interest (i.e., ``area=grid[0]*scale``),
         by default 0
-    force_download: boolean, optional
-        flag to determine whether to download required ERA5 netCDF files; if `False`, all ERA5-related nc files in `dir_save` will be picked up for generation.
+    force_download : bool, optional
+        flag to determine whether to download required ERA5 netCDF files; if ``False``, all ERA5-related nc files in ``dir_save`` will be picked up for generation.
         by default True.
-    simple_mode: boolean
-        if use the *simple* mode for diagnosing the forcing variables, by default `True`.
+    simple_mode : bool, optional
+        if use the *simple* mode for diagnosing the forcing variables, by default ``True``.
         In the simple mode, temperature is diagnosed using environmental lapse rate 6.5 K/km and wind speed using MOST under neutral condition.
-        If `False`, MOST with consideration of stability conditions will be used to diagnose forcing variables.
-    pressure_level: float
+        If ``False``, MOST with consideration of stability conditions will be used to diagnose forcing variables.
+    pressure_level : float, optional
         pressure level to retrieve ERA5 atmospheric data, by default None.
-        If `None`, this option is ignored.
-        If not `None`, calculations implied by `simple_mode` will be skipped: the data at specified pressure level will be used as forcing data and the mean altitude of the pressure level between specified `start` and `end` will be assumed to be the forcing height (i.e., `hgt_agl_diag` will be ignored if set).
-    logging_level: logging level
+        If ``None``, this option is ignored.
+        If not ``None``, calculations implied by ``simple_mode`` will be skipped: the data at specified pressure level will be used as forcing data and the mean altitude of the pressure level between specified ``start`` and ``end`` will be assumed to be the forcing height (i.e., ``hgt_agl_diag`` will be ignored if set).
+    logging_level : int, optional
         one of these values [50 (CRITICAL), 40 (ERROR), 30 (WARNING), 20 (INFO), 10 (DEBUG)].
         A lower value informs SuPy for more verbose logging info.
 

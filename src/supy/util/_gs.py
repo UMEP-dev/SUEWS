@@ -340,34 +340,36 @@ def cal_gs_suews(
 
     Parameters
     ----------
-    kd : numeric
+    kd : float
         Incoming solar radiation [W m-2]
-    ta_c : numeric
+    ta_c : float
         Air temperature [degC]
-    rh : numeric
+    rh : float
         Relative humidity [%]
-    pa : numeric
+    pa : float
         Air pressure [Pa]
-    smd : numeric
+    smd : float
         Soil moisture deficit [mm]
-    lai : numeric
+    lai : float
         Leaf area index [m2 m-2]
-    g_cst : size-6 array
-        Parameters to determine surface conductance/resistance:
+    g_cst : array-like
+        Size-6 array of parameters to determine surface conductance/resistance:
         g_lai (LAI related), g_kd (solar radiation related),
         g_dq_base (humidity related), g_dq_shape (humidity related),
         g_ta (air temperature related),
         g_smd (soil moisture related)
-    g_max : numeric
+    g_max : float
         Maximum surface conductance [mm s-1]
-    lai_max : numeric
+    lai_max : float
         Maximum LAI [m2 m-2]
-    wp_smd : numeric
+    wp_smd : float
         Wilting point indicated as soil moisture deficit [mm]
+    debug : bool, optional
+        Debug flag, by default False
 
     Returns
     -------
-    numeric
+    float
         Modelled surface conductance [mm s-1]
     """
     from atmosp import calculate as ac

@@ -204,7 +204,7 @@ def save_df_output(
         output dataframe of supy simulation
     freq_s : int, optional
         output frequency in second (the default is 3600, which indicates the a txt with hourly values)
-    path_dir_save : Path, optional
+    path_dir_save : pathlib.Path, optional
         directory to save txt files (the default is '.', which the current working directory)
     site : str, optional
         site code used for filename (the default is '', which indicates no site name prepended to the filename)
@@ -420,7 +420,7 @@ def save_df_state(
         a dataframe of model states produced by a supy run
     site : str, optional
         site identifier (the default is '', which indicates an empty site code)
-    path_dir_save : Path, optional
+    path_dir_save : pathlib.Path, optional
         path to directory to save results (the default is Path('.'), which the current working directory)
 
     Returns
@@ -444,7 +444,7 @@ def get_save_info(path_runcontrol: str) -> Tuple[int, Path, str]:
 
     Parameters
     ----------
-    path_runcontrol : Path
+    path_runcontrol : pathlib.Path
         Path to SUEWS :ref:`RunControl.nml <suews:RunControl.nml>`
 
     Returns
@@ -605,7 +605,7 @@ def save_df_output_parquet(
         Output frequency in seconds (default 3600)
     site : str, optional
         Site identifier for filename
-    path_dir_save : Path, optional
+    path_dir_save : pathlib.Path, optional
         Directory to save Parquet file
     save_tstep : bool, optional
         Whether to save at simulation timestep resolution

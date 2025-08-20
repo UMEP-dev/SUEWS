@@ -15,6 +15,7 @@ SUEWS supports two formats for providing input parameters:
    :caption: Input Formats
 
    yaml/index
+   forcing-data
    tables/index
 
 .. toctree::

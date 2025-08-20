@@ -70,11 +70,11 @@ def init_supy(
             * SUEWS :ref:`RunControl.nml<suews:RunControl.nml>`: a namelist file for SUEWS configurations
             * SuPy `df_state.csv`: a CSV file including model states produced by a SuPy run via :py:func:`supy.save_supy`
 
-    force_reload: boolean, optional
+    force_reload: bool, optional
         Flag to force reload all initialisation files by clearing all cached states, with default value `True` (i.e., force reload all files).
         Note: If the number of simulation grids is large (e.g., > 100), `force_reload=False` is strongly recommended for better performance.
 
-    check_input: boolean, optional
+    check_input: bool, optional
         flag for checking validity of input: `df_forcing` and `df_state_init`.
         If set to `True`, any detected invalid input will stop SuPy simulation;
         a `False` flag will bypass such validation and may incur kernel error if any invalid input.

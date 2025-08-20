@@ -44,7 +44,7 @@ def plot_day_clm(df_var, fig=None, ax=None, show_dif=False, col_ref="Obs"):
     ----------
     df_var : pd.DataFrame
         DataFrame containing variables to plot with datetime as index.
-    show_dif: boolean
+    show_dif: bool
         flag to determine if differences against `col_ref` should be plotted.
     col_ref: str
         name of column that is used as reference to show differences instead of original values.
@@ -144,7 +144,7 @@ def plot_comp(
         Two columns, 'Obs' and 'Sim' for observations and simulation results, respectively, must exist.
     scatter_kws: dict
         keyword arguments passed to `sns.regplot`. By default, `{"alpha": 0.1, "s": 0.3, "color": "k"}`.
-    show_pdf: boolean
+    show_pdf: bool
         if a PDF overlay should be added. By default, `False`.
     kde_kws: dict
         `kde_kws` passed to `sns.kdeplot` when `show_pdf=True`

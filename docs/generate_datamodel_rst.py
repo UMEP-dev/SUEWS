@@ -937,7 +937,7 @@ def _add_reference_field(rst_content: list, field_type_hint: Any) -> None:
         field_type_hint
     ):
         rst_content.append(
-            "   :Reference: Optional - see :doc:`reference` for DOI/citation format"
+            "   :Reference: Optional - provide DOI/citation in standard format"
         )
 
 

@@ -3323,7 +3323,7 @@ class TestPhaseBScienceCheck(TestProcessorFixtures):
         assert any("rslmethod" in result.message for result in results)
 
     @patch(
-        "supy.data_model.yaml_processor.phase_b_science_check.get_mean_monthly_air_temperature"
+        "supy.data_model.validation.pipeline.phase_b_science_check.get_mean_monthly_air_temperature"
     )
     def test_cru_temperature_integration(self, mock_cru):
         """Test CRU temperature data integration."""

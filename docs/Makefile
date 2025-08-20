@@ -23,7 +23,7 @@ livehtml:
 	sphinx-autobuild -j auto \
 		--re-ignore 'supy\.util\..*' \
 		--ignore "source/SuPy.log" \
-		-b html -a "$(SOURCEDIR)" "$(BUILDDIR)" \
+		-b html "$(SOURCEDIR)" "$(BUILDDIR)" \
 		$(SPHINXOPTS)
 
 # Generate RST from data models (run manually when needed)

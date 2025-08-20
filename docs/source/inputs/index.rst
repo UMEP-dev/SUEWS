@@ -11,15 +11,32 @@ SUEWS supports two formats for providing input parameters:
 2.  **Table-based format**: The legacy format, which will be deprecated in future versions but is still supported for backward compatibility.
 
 .. toctree::
+<<<<<<< Updated upstream
    :maxdepth: 2
    :caption: Input Formats
+=======
+   :maxdepth: 1
+   :caption: YAML-based Input Format
+>>>>>>> Stashed changes
 
    yaml/index
    tables/index
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 1
    :caption: Tools and Utilities
    
    converter
+<<<<<<< Updated upstream
    transition_guide
+=======
+   transition_guide
+   validation
+
+.. toctree::
+   :maxdepth: 1
+   :caption: Table-based Input Format (Legacy - Deprecated)
+
+   tables/index
+
+>>>>>>> Stashed changes

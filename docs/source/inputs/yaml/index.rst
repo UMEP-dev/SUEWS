@@ -114,7 +114,15 @@ The YAML configuration file has a hierarchical structure with four main top-leve
 Model Section
 ~~~~~~~~~~~~~
 
+<<<<<<< Updated upstream
 The ``model`` section contains global simulation settings that apply to all sites in your simulation. It has two main subsections:
+=======
+.. note::
+   
+   **🎨 Multiple documentation styles available!** View the :doc:`config-reference/index-showcase` to choose your preferred layout (cards, tabs, accordion, etc.)
+
+**Key Parameter Groups:**
+>>>>>>> Stashed changes
 
 - **Control**: Time step, simulation period, input/output configuration
 - **Physics**: Physics scheme selections, calculation methods, model options

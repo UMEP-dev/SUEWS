@@ -1,0 +1,113 @@
+.. meta::
+   :description: SUEWS YAML configuration for roof layer parameters
+   :keywords: SUEWS, YAML, rooflayer, parameters, configuration
+
+.. _rooflayer:
+
+.. index::
+   single: RoofLayer (YAML parameter)
+   single: YAML; RoofLayer
+
+Roof Layer
+==========
+
+**Parameters:**
+
+.. index::
+   single: alb (YAML parameter)
+   single: RoofLayer; alb
+
+.. option:: alb
+
+   Surface albedo
+
+   :Unit: dimensionless
+   :Default: ``0.1``
+
+.. index::
+   single: emis (YAML parameter)
+   single: RoofLayer; emis
+
+.. option:: emis
+
+   Surface emissivity
+
+   :Unit: dimensionless
+   :Default: ``0.95``
+
+.. index::
+   single: thermal_layers (YAML parameter)
+   single: RoofLayer; thermal_layers
+
+.. option:: thermal_layers
+
+   Thermal layers for the surface
+
+   :Default: ``PydanticUndefined``
+
+   The ``thermal_layers`` parameter group is defined by the :doc:`thermallayers` structure.
+
+.. index::
+   single: statelimit (YAML parameter)
+   single: RoofLayer; statelimit
+
+.. option:: statelimit
+
+   Minimum water storage capacity for state change
+
+   :Unit: mm
+   :Default: ``10.0``
+
+.. index::
+   single: soilstorecap (YAML parameter)
+   single: RoofLayer; soilstorecap
+
+.. option:: soilstorecap
+
+   Maximum water storage capacity of soil
+
+   :Unit: mm
+   :Default: Required - must be specified
+
+.. index::
+   single: wetthresh (YAML parameter)
+   single: RoofLayer; wetthresh
+
+.. option:: wetthresh
+
+   Surface wetness threshold for OHM calculations
+
+   :Unit: dimensionless
+   :Default: ``0.5``
+
+.. index::
+   single: roof_albedo_dir_mult_fact (YAML parameter)
+   single: RoofLayer; roof_albedo_dir_mult_fact
+
+.. option:: roof_albedo_dir_mult_fact
+
+   Directional albedo multiplication factor for roofs
+
+   :Unit: dimensionless
+   :Sample value: ``0.1``
+
+.. index::
+   single: wall_specular_frac (YAML parameter)
+   single: RoofLayer; wall_specular_frac
+
+.. option:: wall_specular_frac
+
+   Specular reflection fraction for walls
+
+   :Unit: dimensionless
+   :Sample value: ``0.1``
+
+.. index::
+   single: ref (YAML parameter)
+   single: RoofLayer; ref
+
+.. option:: ref
+
+   :Default: Required - must be specified
+
+   The ``ref`` parameter group is defined by the :doc:`reference` structure.

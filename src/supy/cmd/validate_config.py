@@ -20,7 +20,7 @@ from rich.progress import track
 
 # Orchestrated YAML processor phases (A/B/C)
 try:
-    from ..data_model.yaml_processor.orchestrator import (
+    from ..data_model.validation.pipeline.orchestrator import (
         validate_input_file as _processor_validate_input_file,
         setup_output_paths as _processor_setup_output_paths,
         run_phase_a as _processor_run_phase_a,
@@ -554,7 +554,7 @@ def _execute_pipeline(file, pipeline, mode):
         _processor_run_phase_c,
     ]):
         console.print(
-            "[red]✗ YAML processor is unavailable. Ensure supy.data_model.yaml_processor is present.[/red]"
+            "[red]✗ YAML processor is unavailable. Ensure supy.data_model.validation.pipeline is present.[/red]"
         )
         return 1
 

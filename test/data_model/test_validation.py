@@ -18,7 +18,7 @@ import warnings
 
 from supy.data_model.core import SUEWSConfig
 from supy.data_model.core.type import RefValue
-from supy.data_model.validation.utils import check_missing_params
+from supy.data_model.validation.core.utils import check_missing_params
 
 
 # A tiny “site” stub that only carries exactly the properties our validators look at

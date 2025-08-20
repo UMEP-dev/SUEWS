@@ -34,6 +34,13 @@
 
 ## 2025
 
+### 20 Aug 2025
+- [maintenance] Refactored validation module structure for better organization
+  - Moved `yaml_processor` into `validation/pipeline` subdirectory
+  - Moved existing validation files into `validation/core` subdirectory
+  - Removed redundant top-level `validation` and `schema` facade modules
+  - Updated all imports and meson.build to reflect new structure
+
 ### 19 Aug 2025
 - [feature] Added unified `suews-schema` CLI for comprehensive schema management ([#612](https://github.com/UMEP-dev/SUEWS/issues/612), [#613](https://github.com/UMEP-dev/SUEWS/issues/613))
   - Consolidated schema version checking, validation, and migration into single command

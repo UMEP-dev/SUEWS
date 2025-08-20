@@ -13,7 +13,7 @@ from pydantic import BaseModel, ValidationError
 import warnings
 import logging
 
-from ..core.model import (
+from ...core.model import (
     RoughnessMethod,
     NetRadiationMethod,
     EmissionsMethod,

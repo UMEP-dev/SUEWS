@@ -200,45 +200,67 @@ class WizardEngine:
             self._run_yaml_processor_validation()
     
     def _run_yaml_processor_validation(self):
-        """Run the three-phase YAML processor validation"""
-        from .validators.yaml_processor_integration import YAMLProcessorValidator
+        """Run enhanced validation with all features"""
+        from .validators.enhanced_validator import EnhancedWizardValidator
+        from .validators.pydantic_integration import PydanticValidator
         
-        processor = YAMLProcessorValidator(mode="public")
+        # Initialize enhanced validator
+        validator = EnhancedWizardValidator(mode="public")
         
         # Convert wizard config to SUEWS format
-        from .validators.pydantic_integration import PydanticValidator
         pydantic_validator = PydanticValidator()
         structured_config = pydantic_validator._structure_config(self.session.configuration)
         
-        # Run all three phases
-        is_valid, messages, updated_config = processor.validate_all_phases(structured_config)
+        # Run complete validation with all phases
+        is_valid, report, updated_config = validator.validate_complete_config(
+            structured_config, 
+            show_progress=True
+        )
         
-        # Display results
-        console.print("\n[bold]Validation Results:[/bold]")
-        for message in messages:
-            console.print(message)
+        # Get fix suggestions
+        suggestions = validator.get_fix_suggestions()
+        if suggestions:
+            console.print("\n[bold]💡 Suggestions:[/bold]")
+            for suggestion in suggestions:
+                console.print(suggestion)
         
+        # Handle validation results
         if not is_valid:
-            # Show suggestions
-            suggestions = processor.suggest_fixes(messages)
-            if suggestions:
-                console.print("\n[bold yellow]Suggestions:[/bold yellow]")
-                for suggestion in suggestions:
-                    console.print(suggestion)
+            # Option to export detailed report
+            if Confirm.ask("\nWould you like to save a detailed validation report?"):
+                report_path = self.output_path.with_suffix('.validation.json')
+                validator.export_json_report(report_path)
+                console.print(f"[green]Report saved to: {report_path}[/green]")
             
             # Ask if user wants to use the updated config anyway
-            if Confirm.ask("\nThe processor has suggested fixes. Use the updated configuration?"):
-                # Update session with fixed config
-                self.session.configuration = self._unstructure_config(updated_config)
-                console.print("[green]Configuration updated with fixes[/green]")
+            if updated_config and updated_config != structured_config:
+                if Confirm.ask("\n✨ Automatic fixes are available. Apply them?"):
+                    # Update session with fixed config
+                    self.session.configuration = self._unstructure_config(updated_config)
+                    console.print("[green]Configuration updated with fixes[/green]")
+                    
+                    # Re-validate after fixes
+                    console.print("\n[cyan]Re-validating after fixes...[/cyan]")
+                    structured_config = pydantic_validator._structure_config(self.session.configuration)
+                    is_valid, report, _ = validator.validate_complete_config(
+                        structured_config,
+                        show_progress=False
+                    )
+                    
+                    if is_valid:
+                        console.print("[green]✅ Configuration now valid![/green]")
+                    else:
+                        console.print("[yellow]⚠️ Some issues remain - review the configuration[/yellow]")
+                else:
+                    raise ValueError("Configuration validation failed")
             else:
-                raise ValueError("Configuration validation failed")
+                raise ValueError("Configuration validation failed - no automatic fixes available")
         else:
-            console.print("\n[green]✅ Configuration passed all validation phases![/green]")
+            console.print("\n[green]✅ Configuration passed all validation checks![/green]")
             
-            # Update with any automatic fixes from the processor
-            if updated_config != structured_config:
-                if Confirm.ask("\nThe processor made some automatic improvements. Apply them?"):
+            # Update with any automatic improvements
+            if updated_config and updated_config != structured_config:
+                if Confirm.ask("\n✨ Optional improvements available. Apply them?"):
                     self.session.configuration = self._unstructure_config(updated_config)
                     console.print("[green]Configuration optimized[/green]")
     

@@ -142,26 +142,43 @@ Land Cover Configuration
 Forcing Data
 ------------
 
-Specify your meteorological input:
+Meteorological forcing data drives the SUEWS simulation. You specify the forcing file(s) in your configuration:
 
 .. code-block:: yaml
 
    model:
      control:
        forcing_file: "forcing/met_data_2020.txt"
-       # Or multiple files:
+       # Or use multiple files:
        forcing_file:
          - "forcing/met_data_2020_Q1.txt"
          - "forcing/met_data_2020_Q2.txt"
+         - "forcing/met_data_2020_Q3.txt"
+         - "forcing/met_data_2020_Q4.txt"
 
-Required forcing variables:
-- Air temperature [°C]
-- Relative humidity [%]
-- Air pressure [kPa]
-- Wind speed [m/s]
-- Incoming shortwave radiation [W/m²]
-- Incoming longwave radiation [W/m²] (or will be modeled)
-- Precipitation [mm/h]
+**Forcing File Format**
+
+The forcing file must be a text file with specific columns in the correct order. See :doc:`/inputs/tables/met_input` for the complete format specification.
+
+**Essential columns** (tab or space separated):
+
+1. **Time columns**: ``iy`` (year), ``id`` (day of year), ``it`` (hour), ``imin`` (minute)
+2. **Wind speed** [m/s] - minimum 0.01 m/s
+3. **Relative humidity** [%]
+4. **Air temperature** [°C]
+5. **Pressure** [kPa]
+6. **Rainfall** [mm]
+7. **Incoming shortwave radiation** [W/m²] - must be > 0
+8. **Incoming longwave radiation** [W/m²] - optional, will be modeled if missing (use -999)
+
+**Important requirements**:
+
+- Data must be continuous (no gaps)
+- Time stamps indicate the **end** of each period
+- Use local time (not UTC)
+- Use -999 for missing optional variables
+
+For detailed format specifications, column order, and optional variables, see :doc:`/inputs/tables/met_input`.
 
 Validation and Troubleshooting
 -------------------------------

@@ -453,7 +453,7 @@ CONTAINS
                   CALL stebbsonlinecouple( &
                      timer, config, forcing, siteInfo, & ! input
                      modState, & ! input/output:
-                     datetimeLine, & ! input
+                     datetimeLine, nlayer, & ! input
                      dataOutLineSTEBBS) ! output
                END IF
 
@@ -1185,7 +1185,8 @@ CONTAINS
          phenState => modState%phenState, &
          snowState => modState%snowState, &
          heatState => modState%heatState, &
-         ohmState => modState%ohmState &
+         ohmState => modState%ohmState, &
+         stebbsState => modState%stebbsState &
          )
          ASSOCIATE ( &
             alb_prev => phenState%alb, &
@@ -1229,8 +1230,10 @@ CONTAINS
             qn_wall => heatState%qn_wall, &
             Tsurf_ind => heatState%Tsurf_ind, &
             tsfc_surf => heatState%tsfc_surf, &
-            tsfc_roof => heatState%tsfc_roof, &
-            tsfc_wall => heatState%tsfc_wall, &
+            !tsfc_roof => heatState%tsfc_roof, &
+            !tsfc_wall => heatState%tsfc_wall, &   
+            tsfc_roof => stebbsState%Textroof_C, &
+            tsfc_wall => stebbsState%Textwall_C, &                  
             spartacusPrm => siteInfo%spartacus, &
             spartacusLayerPrm => siteInfo%spartacus_layer, &
             NARP_TRANS_SITE => siteInfo%NARP_TRANS_SITE, &
@@ -4149,6 +4152,8 @@ CONTAINS
       REAL(KIND(1D0)) :: DHWVesselWallEmissivity
       REAL(KIND(1D0)) :: HotWaterHeatingEfficiency
       REAL(KIND(1D0)) :: MinimumVolumeOfDHWinUse
+      REAL(KIND(1D0)), DIMENSION(nlayer) :: Textroof_C !roof surface temperature from STEBBS[degC]
+      REAL(KIND(1D0)), DIMENSION(nlayer) :: Textwall_C !wall surface temperature from STEBBS[degC]
 
       ! ---stebbs building related states
       TYPE(BUILDING_ARCHETYPE_PRM) :: building_archtype
@@ -5008,7 +5013,7 @@ CONTAINS
 
       ! states - updated during the simulation
       ! TODO: STEBBS States act as parameters for building generation (move all but allocation?)
-      CALL stebbsState%ALLOCATE(nbtypes)
+      CALL stebbsState%ALLOCATE(nbtypes, nlayer)
       stebbsState%IndoorAirStartTemperature = IndoorAirStartTemperature
       stebbsState%IndoorMassStartTemperature = IndoorMassStartTemperature
       stebbsState%WallIndoorSurfaceTemperature = WallIndoorSurfaceTemperature
@@ -5026,7 +5031,8 @@ CONTAINS
       stebbsState%DomesticHotWaterTemperatureInUseInBuilding = DomesticHotWaterTemperatureInUseInBuilding
       stebbsState%InternalWallDHWVesselTemperature = InternalWallDHWVesselTemperature
       stebbsState%ExternalWallDHWVesselTemperature = ExternalWallDHWVesselTemperature
-
+      stebbsState%Textroof_C(:) =  RoofOutdoorSurfaceTemperature
+      stebbsState%Textwall_C(:) =  WallOutdoorSurfaceTemperature
       ! ! transfer states into modState
       mod_State%anthroemisState = anthroEmisState
       mod_State%hydroState = hydroState

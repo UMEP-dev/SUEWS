@@ -544,7 +544,7 @@ CONTAINS
    SUBROUTINE stebbsonlinecouple( &
       timer, config, forcing, siteInfo, &
       modState, & ! Input/Output
-      datetimeLine, &
+      datetimeLine, nlayer, &
       dataOutLineSTEBBS) ! Output
       USE modulestebbsfunc, ONLY: find_layer
       USE modulestebbs, ONLY: cases, resolution
@@ -564,7 +564,7 @@ CONTAINS
       TYPE(SUEWS_FORCING), INTENT(IN) :: forcing
       TYPE(SUEWS_SITE), INTENT(IN) :: siteInfo
       TYPE(SUEWS_STATE), INTENT(INOUT) :: modState
-
+      INTEGER :: i_layer, nlayer
       REAL(KIND(1D0)), INTENT(OUT), DIMENSION(ncolumnsDataOutSTEBBS - 5) :: dataOutLineSTEBBS
       REAL(KIND(1D0)), DIMENSION(5), INTENT(in) :: datetimeLine
       REAL(KIND(1D0)), DIMENSION(4) :: wallStatesK, wallStatesL
@@ -586,6 +586,8 @@ CONTAINS
       REAL(KIND(1D0)) :: Tintroof
       REAL(KIND(1D0)) :: Textwall
       REAL(KIND(1D0)) :: Textroof
+      REAL(KIND(1D0)), DIMENSION(nlayer) :: Textwall_C ! Wall external surface temperature from STEBBS[K]
+      REAL(KIND(1D0)), DIMENSION(nlayer) :: Textroof_C ! Roof external surface temperature from STEBBS[K]
       REAL(KIND(1D0)) :: Tintwindow
       REAL(KIND(1D0)) :: Textwindow
       REAL(KIND(1D0)) :: Tintgroundfloor
@@ -659,7 +661,6 @@ CONTAINS
          stebbsState => modState%stebbsState, &
          building_archtype => siteInfo%building_archtype, &
          stebbsPrm => siteInfo%stebbs, &
-         nlayer => siteInfo%nlayer, &
          spartacus_Prm => siteInfo%spartacus &
          )
 
@@ -695,7 +696,9 @@ CONTAINS
             Lsouth => stebbsState%Lsouth, &
             Least => stebbsState%Least, &
             Lwest => stebbsState%Lwest, &
-            ss_height => spartacus_Prm%height &
+            ss_height => spartacus_Prm%height, &
+            Textwall_C =>stebbsState%Textwall_C, &
+            Textroof_C =>stebbsState%Textroof_C &
             )
             sout%ntstep = 1
             resolution = 1
@@ -788,6 +791,10 @@ CONTAINS
                )
             ! END DO
 
+            DO i_layer = 1, nlayer
+               Textwall_C(i_layer) = Textwall - 273.15
+               Textroof_C(i_layer) = Textroof - 273.15
+            END DO
             dataOutLineSTEBBS = [ &
                                 ! Forcing
                                 ws, ws_bh, ws_hbh, Tair_sout, Tair_bh, Tair_hbh, Tsurf_sout, &

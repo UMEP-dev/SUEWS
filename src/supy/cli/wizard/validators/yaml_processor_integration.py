@@ -10,15 +10,15 @@ import yaml
 import io
 from contextlib import redirect_stdout, redirect_stderr
 
-from ....data_model.yaml_processor.orchestrator import (
+from ....data_model.validation.pipeline.orchestrator import (
     detect_pydantic_defaults,
     run_phase_abc_workflow,
 )
-from ....data_model.yaml_processor.phase_a_parameter_update import (
+from ....data_model.validation.pipeline.phase_a_parameter_update import (
     annotate_missing_parameters,
 )
-from ....data_model.yaml_processor.phase_b_science_check import run_science_check
-from ....data_model.yaml_processor.phase_c_pydantic_report import (
+from ....data_model.validation.pipeline.phase_b_science_check import run_science_check
+from ....data_model.validation.pipeline.phase_c_pydantic_report import (
     generate_phase_c_report,
 )
 from ....data_model.core.config import SUEWSConfig

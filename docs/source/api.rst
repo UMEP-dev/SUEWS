@@ -86,15 +86,6 @@ Utility Functions
     plot_day_clm
     plot_rsl
 
-**WRF Integration:**
-
-.. autosummary::
-    :toctree: _autosummary
-
-    extract_reclassification
-    plot_reclassification
-
-For comprehensive WRF-SUEWS coupling, see :doc:`integration/wrf-suews`.
 
 **Roughness Calculations:**
 

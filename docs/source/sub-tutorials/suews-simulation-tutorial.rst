@@ -234,7 +234,7 @@ Best Practices
 1. **Always check results**: Verify simulation completed successfully
 2. **Use relative paths in config**: Makes projects portable
 3. **Save frequently**: Use OutputConfig to control format and frequency
-4. **Reset between runs**: Use `sim.reset()` when changing parameters
+4. **Reset between runs**: Use ``sim.reset()`` when changing parameters
 5. **Check forcing data**: Ensure forcing covers simulation period
 
 Error Handling

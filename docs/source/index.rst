@@ -135,7 +135,6 @@ How to support SUEWS?
    installation
    workflow
    sub-tutorials/tutorials
-   cli/validation-guide
    inputs/index
    output_files/output_files
    api

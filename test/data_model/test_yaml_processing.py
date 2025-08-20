@@ -2517,14 +2517,18 @@ phase_c_reports = None
 suews_yaml_processor = None
 
 try:
-    from supy.data_model.validation.pipeline import phase_a_parameter_update as uptodate_yaml
+    from supy.data_model.validation.pipeline import (
+        phase_a_parameter_update as uptodate_yaml,
+    )
 
     has_uptodate_yaml = True
 except ImportError:
     has_uptodate_yaml = False
 
 try:
-    from supy.data_model.validation.pipeline import phase_b_science_check as science_check
+    from supy.data_model.validation.pipeline import (
+        phase_b_science_check as science_check,
+    )
 
     has_science_check = True
 except ImportError:

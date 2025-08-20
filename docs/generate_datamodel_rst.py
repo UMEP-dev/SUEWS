@@ -38,7 +38,9 @@ class RSTGenerator:
         self.hierarchy = doc_data.get("hierarchy", {})
         self.metadata = doc_data.get("metadata", {})
 
-    def generate_all_rst(self, output_dir: Path, mode: str = "production", style: str = "collapsible") -> None:
+    def generate_all_rst(
+        self, output_dir: Path, mode: str = "production", style: str = "collapsible"
+    ) -> None:
         """
         Generate RST files for all models.
 
@@ -139,9 +141,7 @@ class RSTGenerator:
         return "\n".join(lines)
 
     @staticmethod
-    def _format_meta_tags(
-        model_name: str, model_doc: dict[str, Any]
-    ) -> list[str]:
+    def _format_meta_tags(model_name: str, model_doc: dict[str, Any]) -> list[str]:
         """Format meta tags for SEO."""
         title = model_doc.get("title", model_name)
         return [
@@ -421,7 +421,8 @@ class RSTGenerator:
         formatted = []
         for word in words:
             if word in known_patterns or (
-                "^" in word and any(
+                "^" in word
+                and any(
                     word.startswith(b) for b in ["m", "s", "kg", "K", "W", "h", "d"]
                 )
             ):
@@ -492,7 +493,9 @@ class RSTGenerator:
         return "; ".join(parts)
 
     @staticmethod
-    def _get_initial_state_message(field_name: str, nested_model: str, nested_lower: str) -> str:
+    def _get_initial_state_message(
+        field_name: str, nested_model: str, nested_lower: str
+    ) -> str:
         """Get message for initial state models."""
         basic_states = {
             "InitialStatePaved",
@@ -546,8 +549,12 @@ class RSTGenerator:
                 f"   Each value in the ``{field_name}`` mapping must conform to the "
                 f":doc:`{nested_lower}` structure."
             )
-        elif nested_model.startswith("InitialState") and nested_model != "InitialStates":
-            message = RSTGenerator._get_initial_state_message(field_name, nested_model, nested_lower)
+        elif (
+            nested_model.startswith("InitialState") and nested_model != "InitialStates"
+        ):
+            message = RSTGenerator._get_initial_state_message(
+                field_name, nested_model, nested_lower
+            )
         else:
             message = (
                 f"   The ``{field_name}`` parameter group is defined by the "
@@ -701,7 +708,9 @@ class RSTGenerator:
         hierarchy = self._build_hierarchy()
 
         # Aggressive collapse style
-        self._generate_hierarchy_rst_aggressive_collapse(hierarchy, lines, level=0, max_level=5)
+        self._generate_hierarchy_rst_aggressive_collapse(
+            hierarchy, lines, level=0, max_level=5
+        )
 
         # Add toctree at the end with all documents (hidden)
         lines.extend([
@@ -983,9 +992,7 @@ class RSTGenerator:
                     )
 
     @staticmethod
-    def _format_collapsible_fields(
-        fields: list, indent: str
-    ) -> list[str]:
+    def _format_collapsible_fields(fields: list, indent: str) -> list[str]:
         """Format fields as a collapsible section.
 
         Args:
@@ -1015,8 +1022,12 @@ class RSTGenerator:
         return lines
 
     def _format_fields_by_count(
-        self, fields: list, indent: str, field_count: int,
-        collapse_threshold: int = 15, horizontal_threshold: int = 8
+        self,
+        fields: list,
+        indent: str,
+        field_count: int,
+        collapse_threshold: int = 15,
+        horizontal_threshold: int = 8,
     ) -> list[str]:
         """Format fields based on their count using appropriate display style.
 
@@ -1089,8 +1100,11 @@ class RSTGenerator:
                 # Handle simple fields based on count
                 if field_count > 0:
                     field_lines = self._format_fields_by_count(
-                        simple_fields, next_indent, field_count,
-                        COLLAPSE_THRESHOLD, HORIZONTAL_THRESHOLD
+                        simple_fields,
+                        next_indent,
+                        field_count,
+                        COLLAPSE_THRESHOLD,
+                        HORIZONTAL_THRESHOLD,
                     )
                     lines.extend(field_lines)
 
@@ -1101,9 +1115,7 @@ class RSTGenerator:
                     )
 
     @staticmethod
-    def _format_dropdown_fields(
-        fields: list, indent: str
-    ) -> list[str]:
+    def _format_dropdown_fields(fields: list, indent: str) -> list[str]:
         """Format fields as a dropdown section.
 
         Args:
@@ -1172,16 +1184,22 @@ class RSTGenerator:
                 if field_count > 0:
                     if field_count > COLLAPSE_THRESHOLD:
                         # Use dropdown for many fields
-                        lines.extend(self._format_dropdown_fields(simple_fields, next_indent))
+                        lines.extend(
+                            self._format_dropdown_fields(simple_fields, next_indent)
+                        )
                     elif field_count > HORIZONTAL_THRESHOLD:
                         # Use columns for medium number of fields
                         columns = 3
-                        field_lines = self._format_field_list(simple_fields, next_indent, columns)
+                        field_lines = self._format_field_list(
+                            simple_fields, next_indent, columns
+                        )
                         lines.extend(field_lines)
                         lines.append("")
                     else:
                         # Normal list for few fields
-                        field_lines = self._format_field_list(simple_fields, next_indent, 0)
+                        field_lines = self._format_field_list(
+                            simple_fields, next_indent, 0
+                        )
                         lines.extend(field_lines)
                         lines.append("")
 
@@ -1192,9 +1210,7 @@ class RSTGenerator:
                     )
 
     @staticmethod
-    def _format_field_list(
-        fields: list, indent: str, columns: int = 0
-    ) -> list[str]:
+    def _format_field_list(fields: list, indent: str, columns: int = 0) -> list[str]:
         """Format a list of fields as RST with optional columns.
 
         Args:
@@ -1566,7 +1582,9 @@ def main():
 
     # Generate RST files
     print(f"Generating RST files in {output_dir}...")
-    print(f"Mode: {args.mode}, Style: {args.style if args.mode == 'production' else 'all styles'}")
+    print(
+        f"Mode: {args.mode}, Style: {args.style if args.mode == 'production' else 'all styles'}"
+    )
     generator = RSTGenerator(doc_data)
     generator.generate_all_rst(output_dir, mode=args.mode, style=args.style)
 

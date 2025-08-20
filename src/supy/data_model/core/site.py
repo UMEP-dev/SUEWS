@@ -2637,4 +2637,3 @@ class Site(BaseModel):
         df_initial_states = self.initial_states.to_df_state(grid_id)
         df_state = pd.concat([df_state, df_site_properties, df_initial_states], axis=1)
         return df_state
-

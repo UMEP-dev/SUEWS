@@ -435,41 +435,80 @@ class RSTGenerator:
 
     @staticmethod
     def _format_default(field_doc: dict[str, Any]) -> tuple[str, str]:
-        """Format default value for display."""
-        is_required = field_doc.get("is_required", False)
-        is_site_specific = field_doc.get("is_site_specific", False)
+        """Format default value for display with consistent labeling.
+        
+        Returns appropriate label-value pair based on field characteristics:
+        - Required fields: ("Status", "Required")
+        - Optional with defaults: ("Default", "value") or ("Example", "value") 
+        - Optional without defaults: ("Default", "None (optional)")
+        - Nested models: (None, None) to skip display
+        """
         nested_model = field_doc.get("nested_model")
-
+        
+        # Skip nested models entirely - structure link is sufficient
+        if nested_model:
+            return None, None
+        
+        # Get the field type to check if it's Optional
+        type_str = str(field_doc.get("type", ""))
+        is_optional = "Optional" in type_str or ("Union[" in type_str and "None" in type_str)
+        
         # Check for default value
-        if "default" in field_doc:
-            default = field_doc["default"]
-            is_complex = field_doc.get("is_complex", False)
-            
-            # Check if this is PydanticUndefined or a nested model
-            if str(default) == "PydanticUndefined" or nested_model:
-                # Don't show PydanticUndefined for nested models
-                return None, None  # Return None to skip showing this field
-            elif is_complex:
-                # Complex default already formatted as string
-                display_value = default
-            elif isinstance(default, dict) and "value" in default:
-                # Enum default
-                display_value = f"``{default['value']}`` ({default.get('name', '')})"
+        default = field_doc.get("default")
+        
+        # Check if this is PydanticUndefined - means it's required
+        if str(default) == "PydanticUndefined":
+            return "Status", "Required"
+        
+        # Handle None defaults explicitly
+        if default is None:
+            # If the field is Optional (like Reference fields), show as optional
+            if is_optional:
+                return "Default", "None (optional)"
             else:
+                # If not Optional but has None default, still show as optional
+                # (this handles cases where the model has default=None)
+                return "Default", "None (optional)"
+        
+        # We have a non-None default value - format it
+        # Determine if this is a site-specific field
+        field_name = field_doc.get("name", "")
+        site_specific_fields = {
+            "sfr", "lat", "lon", "alt", "gridiv", "name",
+            "coord_x", "coord_y", "coord_z", "emis", "alb",
+            "soildepth", "soilstorecap", "sathydraulicconduct"
+        }
+        is_site_specific = field_name in site_specific_fields
+        
+        # Format the value for display
+        if isinstance(default, (str, int, float, bool)):
+            if isinstance(default, str):
+                display_value = f"``'{default}'``" if default else "``''`` (empty string)"
+            else:
+                display_value = f"``{default}``"
+        elif isinstance(default, dict) and "value" in default:
+            # Enum default with name
+            display_value = f"``{default['value']}`` ({default.get('name', '')})"
+        elif isinstance(default, list):
+            # Format lists more readably
+            if len(default) <= 5:
                 display_value = f"``{default!r}``"
-
-            label = "Sample value" if is_site_specific else "Default"
-        elif is_required:
-            display_value = "Required - must be specified"
-            label = "Default"
-        elif nested_model:
-            # For optional nested models without defaults
-            return None, None  # Skip showing default for nested models
+            else:
+                # Truncate long lists
+                display_value = f"``[{default[0]!r}, {default[1]!r}, ..., {default[-1]!r}]``"
         else:
-            display_value = "Not specified"
-            label = "Sample value" if is_site_specific else "Default"
-
-        return label, display_value
+            # For complex defaults, try to represent them nicely
+            try:
+                import json
+                display_value = f"``{json.dumps(default)}``"
+            except:
+                display_value = f"``{default}``"
+        
+        # Choose appropriate label based on field type
+        if is_site_specific:
+            return "Example", display_value
+        else:
+            return "Default", display_value
 
     @staticmethod
     def _format_constraints(constraints: dict[str, Any]) -> str:

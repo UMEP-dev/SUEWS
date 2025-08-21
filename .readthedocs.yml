@@ -18,7 +18,7 @@ build:
       - make dev
     pre_build:
       # Generate RST files for data model documentation
-      - cd docs && python generate_datamodel_rst.py --output-dir source/inputs/yaml/config-reference
+      - cd docs && make generate-rst
 
 conda:
   environment: env.yml

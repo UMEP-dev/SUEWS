@@ -16,8 +16,9 @@ build:
       - git fetch --tags || true
       - git update-index --assume-unchanged env.yml docs/source/conf.py
       - make dev
-    # pre_build:
-    #  - python docs/source/related-softwares/supy/proc_var_info/gen_rst.py
+    pre_build:
+      # Generate RST files for data model documentation
+      - cd docs && make generate-rst
 
 conda:
   environment: env.yml

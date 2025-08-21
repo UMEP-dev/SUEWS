@@ -3,6 +3,8 @@
 Development Guide
 =================
 
+.. note:: **New to SUEWS development?** Start with our comprehensive `Developer Onboarding Guide <https://github.com/UMEP-dev/SUEWS/blob/master/dev-ref/onboarding-guide.md>`_ which covers team workflows, best practices, and your first contribution.
+
 .. note:: If you are interested in contributing to the code please open a new discussion in the `UMEP Community`_ to illustrate your proposal: we are happy to collaborate in an open development mode.
 
 Quick Start - Get Coding in 5 Minutes

@@ -34,6 +34,20 @@
 
 ## 2025
 
+### 21 Aug 2025
+- [doc] Added comprehensive developer onboarding guide (`dev-ref/onboarding-guide.md`)
+  - Combined structured workflow documentation with practical insights from team onboarding sessions
+  - Covers user perspective, development workflow, technical setup, and general development areas
+  - Includes detailed PR workflow, testing strategies, and team collaboration practices
+  - Provides onboarding checklist and resources for new developers
+- [doc] Created README index for development reference directory (`dev-ref/README.md`)
+  - Provides overview of all development guides with quick navigation
+  - Organises guides by category: Getting Started, Development Process, Testing
+  - Includes quick links to key resources
+- [doc] Added references to onboarding guide in Sphinx documentation
+  - Linked from both `contributing.rst` and `dev_guide.rst` for better discoverability
+  - Maintains separation between user docs (Sphinx) and developer reference (markdown)
+
 ### 20 Aug 2025
 - [maintenance] Refactored validation module structure for better organization
   - Moved `yaml_processor` into `validation/pipeline` subdirectory

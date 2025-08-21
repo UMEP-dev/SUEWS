@@ -437,30 +437,32 @@ class RSTGenerator:
     @staticmethod
     def _format_default(field_doc: dict[str, Any]) -> tuple[str, str]:
         """Format default value for display with consistent labeling.
-        
+
         Returns appropriate label-value pair based on field characteristics:
         - Required fields: ("Status", "Required")
-        - Optional with defaults: ("Default", "value") or ("Example", "value") 
+        - Optional with defaults: ("Default", "value") or ("Example", "value")
         - Optional without defaults: ("Default", "None (optional)")
         - Nested models: (None, None) to skip display
         """
         nested_model = field_doc.get("nested_model")
-        
+
         # Skip nested models entirely - structure link is sufficient
         if nested_model:
             return None, None
-        
+
         # Get the field type to check if it's Optional
         type_str = str(field_doc.get("type", ""))
-        is_optional = "Optional" in type_str or ("Union[" in type_str and "None" in type_str)
-        
+        is_optional = "Optional" in type_str or (
+            "Union[" in type_str and "None" in type_str
+        )
+
         # Check for default value
         default = field_doc.get("default")
-        
+
         # Check if this is PydanticUndefined - means it's required
         if str(default) == "PydanticUndefined":
             return "Status", "Required"
-        
+
         # Handle None defaults explicitly
         if default is None:
             # If the field is Optional (like Reference fields), show as optional
@@ -470,21 +472,34 @@ class RSTGenerator:
                 # If not Optional but has None default, still show as optional
                 # (this handles cases where the model has default=None)
                 return "Default", "None (optional)"
-        
+
         # We have a non-None default value - format it
         # Determine if this is a site-specific field
         field_name = field_doc.get("name", "")
         site_specific_fields = {
-            "sfr", "lat", "lon", "alt", "gridiv", "name",
-            "coord_x", "coord_y", "coord_z", "emis", "alb",
-            "soildepth", "soilstorecap", "sathydraulicconduct"
+            "sfr",
+            "lat",
+            "lon",
+            "alt",
+            "gridiv",
+            "name",
+            "coord_x",
+            "coord_y",
+            "coord_z",
+            "emis",
+            "alb",
+            "soildepth",
+            "soilstorecap",
+            "sathydraulicconduct",
         }
         is_site_specific = field_name in site_specific_fields
-        
+
         # Format the value for display
         if isinstance(default, (str, int, float, bool)):
             if isinstance(default, str):
-                display_value = f"``'{default}'``" if default else "``''`` (empty string)"
+                display_value = (
+                    f"``'{default}'``" if default else "``''`` (empty string)"
+                )
             else:
                 display_value = f"``{default}``"
         elif isinstance(default, dict) and "value" in default:
@@ -496,15 +511,18 @@ class RSTGenerator:
                 display_value = f"``{default!r}``"
             else:
                 # Truncate long lists
-                display_value = f"``[{default[0]!r}, {default[1]!r}, ..., {default[-1]!r}]``"
+                display_value = (
+                    f"``[{default[0]!r}, {default[1]!r}, ..., {default[-1]!r}]``"
+                )
         else:
             # For complex defaults, try to represent them nicely
             try:
                 import json
+
                 display_value = f"``{json.dumps(default)}``"
             except:
                 display_value = f"``{default}``"
-        
+
         # Choose appropriate label based on field type
         if is_site_specific:
             return "Example", display_value
@@ -908,7 +926,9 @@ class RSTGenerator:
         hierarchy = self._build_hierarchy()
 
         # Use the hybrid layout style - tabs for top 2 levels, dropdowns for rest
-        self._generate_hierarchy_rst_hybrid(hierarchy, lines, level=0, tab_levels=3, max_level=6)
+        self._generate_hierarchy_rst_hybrid(
+            hierarchy, lines, level=0, tab_levels=3, max_level=6
+        )
 
         # Add toctree at the end with all documents (hidden)
         lines.extend([
@@ -1090,9 +1110,7 @@ class RSTGenerator:
                     )
 
     @staticmethod
-    def _format_collapsible_fields(
-        fields: list, indent: str
-    ) -> list[str]:
+    def _format_collapsible_fields(fields: list, indent: str) -> list[str]:
         """Format fields as a collapsible section using dropdown.
 
         Args:
@@ -1310,7 +1328,6 @@ class RSTGenerator:
                         children, lines, level + 1, max_level
                     )
 
-    
     @staticmethod
     def _format_field_list(fields: list, indent: str, columns: int = 0) -> list[str]:
         """Format a list of fields as RST with optional columns.
@@ -1548,8 +1565,12 @@ class RSTGenerator:
                     )
 
     def _generate_hierarchy_rst_hybrid(
-        self, hierarchy: dict, lines: list, level: int = 0,
-        tab_levels: int = 2, max_level: int = 5
+        self,
+        hierarchy: dict,
+        lines: list,
+        level: int = 0,
+        tab_levels: int = 2,
+        max_level: int = 5,
     ):
         """Generate RST with hybrid layout - tabs for top levels, dropdowns for deeper levels.
 
@@ -1561,17 +1582,25 @@ class RSTGenerator:
             max_level: Maximum nesting level
         """
         # Use a modified tabbed generation that switches to dropdowns after tab_levels
-        self._generate_hierarchy_rst_tabbed_hybrid(hierarchy, lines, level, tab_levels, max_level)
+        self._generate_hierarchy_rst_tabbed_hybrid(
+            hierarchy, lines, level, tab_levels, max_level
+        )
 
     def _generate_hierarchy_rst_tabbed_hybrid(
-        self, hierarchy: dict, lines: list, level: int = 0,
-        tab_levels: int = 2, max_level: int = 5
+        self,
+        hierarchy: dict,
+        lines: list,
+        level: int = 0,
+        tab_levels: int = 2,
+        max_level: int = 5,
     ):
         """Generate RST with tabs up to tab_levels, then switch to dropdowns."""
         # Check if we should use tabs or dropdowns
         if level >= tab_levels:
             # Switch to dropdown style for deeper levels
-            self._generate_hierarchy_rst_with_dropdowns(hierarchy, lines, level, max_level)
+            self._generate_hierarchy_rst_with_dropdowns(
+                hierarchy, lines, level, max_level
+            )
             return
 
         # Otherwise continue with tabbed style
@@ -1617,16 +1646,22 @@ class RSTGenerator:
                                 lines.append("")
                                 for field in tab_content:
                                     if field["name"] != "ref":
-                                        lines.append(f"{indent}         * :yaml:option:`{field['name']}`")
+                                        lines.append(
+                                            f"{indent}         * :yaml:option:`{field['name']}`"
+                                        )
                             else:
                                 for field in tab_content:
                                     if field["name"] != "ref":
-                                        lines.append(f"{indent}      * :yaml:option:`{field['name']}`")
+                                        lines.append(
+                                            f"{indent}      * :yaml:option:`{field['name']}`"
+                                        )
                             lines.append("")
                         else:
                             # Nested model tab
                             child_model = tab_content.get("model", tab_name)
-                            lines.append(f"{indent}      :doc:`{tab_name} <{child_model.lower()}>`")
+                            lines.append(
+                                f"{indent}      :doc:`{tab_name} <{child_model.lower()}>`"
+                            )
                             lines.append("")
 
                             # Recurse with hybrid logic - need to ensure proper indentation
@@ -1634,7 +1669,11 @@ class RSTGenerator:
                                 # Still in tab territory - add content with proper tab indentation
                                 temp_lines = []
                                 self._generate_hierarchy_rst_tabbed_hybrid(
-                                    {tab_name: tab_content}, temp_lines, level + 1, tab_levels, max_level
+                                    {tab_name: tab_content},
+                                    temp_lines,
+                                    level + 1,
+                                    tab_levels,
+                                    max_level,
                                 )
                                 # Add the generated lines with proper indentation for tab content
                                 for line in temp_lines:
@@ -1649,48 +1688,89 @@ class RSTGenerator:
 
                                 if child_children or child_fields:
                                     # Generate dropdown-style content inline
-                                    next_level_indent = "      "  # Tab content indentation
+                                    next_level_indent = (
+                                        "      "  # Tab content indentation
+                                    )
 
                                     # Handle simple fields with dropdowns
-                                    field_count_child = len([f for f in child_fields if f.get("name") != "ref"])
+                                    field_count_child = len([
+                                        f
+                                        for f in child_fields
+                                        if f.get("name") != "ref"
+                                    ])
                                     if field_count_child > 0:
                                         if field_count_child > 8:
-                                            lines.append(f"{indent}{next_level_indent}.. dropdown:: {field_count_child} parameters")
-                                            lines.append(f"{indent}{next_level_indent}   :class-container: sd-shadow-sm")
-                                            lines.append(f"{indent}{next_level_indent}   :chevron: down-up")
+                                            lines.append(
+                                                f"{indent}{next_level_indent}.. dropdown:: {field_count_child} parameters"
+                                            )
+                                            lines.append(
+                                                f"{indent}{next_level_indent}   :class-container: sd-shadow-sm"
+                                            )
+                                            lines.append(
+                                                f"{indent}{next_level_indent}   :chevron: down-up"
+                                            )
                                             lines.append("")
                                             for field in child_fields:
                                                 if field.get("name") != "ref":
-                                                    lines.append(f"{indent}{next_level_indent}   - :yaml:option:`{field['name']}`")
+                                                    lines.append(
+                                                        f"{indent}{next_level_indent}   - :yaml:option:`{field['name']}`"
+                                                    )
                                         else:
                                             for field in child_fields:
                                                 if field.get("name") != "ref":
-                                                    lines.append(f"{indent}{next_level_indent}* :yaml:option:`{field['name']}`")
+                                                    lines.append(
+                                                        f"{indent}{next_level_indent}* :yaml:option:`{field['name']}`"
+                                                    )
                                         lines.append("")
 
                                     # Handle nested children
-                                    for nested_name, nested_info in child_children.items():
-                                        nested_title = nested_info.get("title", nested_name)
-                                        nested_model = nested_info.get("model", nested_name)
-                                        lines.append(f"{indent}{next_level_indent}* :doc:`{nested_title} <{nested_model.lower()}>`")
+                                    for (
+                                        nested_name,
+                                        nested_info,
+                                    ) in child_children.items():
+                                        nested_title = nested_info.get(
+                                            "title", nested_name
+                                        )
+                                        nested_model = nested_info.get(
+                                            "model", nested_name
+                                        )
+                                        lines.append(
+                                            f"{indent}{next_level_indent}* :doc:`{nested_title} <{nested_model.lower()}>`"
+                                        )
                                         lines.append("")
 
                                         # Add their fields as dropdowns if they have many
-                                        nested_fields = nested_info.get("simple_fields", [])
-                                        nested_field_count = len([f for f in nested_fields if f.get("name") != "ref"])
+                                        nested_fields = nested_info.get(
+                                            "simple_fields", []
+                                        )
+                                        nested_field_count = len([
+                                            f
+                                            for f in nested_fields
+                                            if f.get("name") != "ref"
+                                        ])
                                         if nested_field_count > 8:
-                                            lines.append(f"{indent}{next_level_indent}  .. dropdown:: {nested_field_count} parameters")
-                                            lines.append(f"{indent}{next_level_indent}     :class-container: sd-shadow-sm")
-                                            lines.append(f"{indent}{next_level_indent}     :chevron: down-up")
+                                            lines.append(
+                                                f"{indent}{next_level_indent}  .. dropdown:: {nested_field_count} parameters"
+                                            )
+                                            lines.append(
+                                                f"{indent}{next_level_indent}     :class-container: sd-shadow-sm"
+                                            )
+                                            lines.append(
+                                                f"{indent}{next_level_indent}     :chevron: down-up"
+                                            )
                                             lines.append("")
                                             for field in nested_fields:
                                                 if field.get("name") != "ref":
-                                                    lines.append(f"{indent}{next_level_indent}     - :yaml:option:`{field['name']}`")
+                                                    lines.append(
+                                                        f"{indent}{next_level_indent}     - :yaml:option:`{field['name']}`"
+                                                    )
                                             lines.append("")
                                         elif nested_field_count > 0:
                                             for field in nested_fields:
                                                 if field.get("name") != "ref":
-                                                    lines.append(f"{indent}{next_level_indent}  - :yaml:option:`{field['name']}`")
+                                                    lines.append(
+                                                        f"{indent}{next_level_indent}  - :yaml:option:`{field['name']}`"
+                                                    )
                                             lines.append("")
 
                 elif field_count > 0:
@@ -1698,7 +1778,9 @@ class RSTGenerator:
                     lines.append(f"{indent}**Parameters:**")
                     lines.append("")
                     columns = self._get_field_display_format(field_count)
-                    field_lines = self._format_field_list(simple_fields, indent, columns)
+                    field_lines = self._format_field_list(
+                        simple_fields, indent, columns
+                    )
                     lines.extend(field_lines)
                     lines.append("")
                 elif children:
@@ -1741,10 +1823,14 @@ class RSTGenerator:
                 # Handle simple fields with dropdowns for many fields
                 if field_count > 0:
                     if field_count > 10:  # Use dropdown for many fields
-                        lines.extend(self._format_collapsible_fields(simple_fields, next_indent))
+                        lines.extend(
+                            self._format_collapsible_fields(simple_fields, next_indent)
+                        )
                     else:
                         # Normal list for few fields
-                        field_lines = self._format_field_list(simple_fields, next_indent, 0)
+                        field_lines = self._format_field_list(
+                            simple_fields, next_indent, 0
+                        )
                         lines.extend(field_lines)
                         lines.append("")
 
@@ -1907,7 +1993,9 @@ def main():
         print("  - index-dropdown.rst: Mixed dropdown style")
         print("  - index-compact.rst: Compact style with aggressive collapsing")
         print("  - index-tabbed.rst: Tabbed layout style")
-        print("  - index-hybrid.rst: Hybrid style with tabs and dropdowns (recommended)")
+        print(
+            "  - index-hybrid.rst: Hybrid style with tabs and dropdowns (recommended)"
+        )
     print(
         "\nNote: Remember to update any references from 'schema' to 'config-reference' in other documentation files."
     )

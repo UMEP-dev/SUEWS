@@ -836,16 +836,16 @@ class RSTGenerator:
     def _generate_index_hybrid(self) -> str:
         """Generate index.rst with hybrid layout (tabs at top levels, dropdowns for deeper levels)."""
         lines = [
-            ".. _yaml_config_reference_hybrid:",
+            ".. _yaml_config_reference:",
             "",
-            "YAML Configuration Reference (Hybrid Layout)",
-            "=============================================",
+            "YAML Configuration Reference",
+            "============================",
             "",
             "This documentation follows the hierarchical structure of SUEWS YAML configuration files.",
             "",
             ".. note::",
-            "   This hybrid layout uses tabs for top-level navigation and dropdowns for detailed parameters.",
-            "   Click on tabs to navigate major sections, and expand dropdowns to see parameter details.",
+            "   Navigate through configuration sections using the tabs below. ",
+            "   Click on dropdowns to expand and see detailed parameters.",
             "",
         ]
 

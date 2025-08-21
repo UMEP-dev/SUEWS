@@ -1,35 +1,54 @@
-# SUEWS Development Reference
+# SUEWS Developer Documentation
 
-This directory contains essential development guides and references for SUEWS contributors.
+This directory contains internal documentation for SUEWS core developers.
 
-## Getting Started
+## Quick Navigation
 
-- **[Onboarding Guide](onboarding-guide.md)** - Comprehensive guide for new developers joining the SUEWS team
-  - Environment setup, workflow overview, and first contribution steps
-  - Recommended starting point for all new contributors
+### Getting Started
+- **[Onboarding Guide](onboarding-guide.md)** - Comprehensive guide for new developers
+  - Environment setup, workflow overview, first contribution checklist
+  - Start here if you're new to the team
 
-## Development Process
+### Development Guidelines
+- **[Coding Guidelines](CODING_GUIDELINES.md)** - Code style and conventions
+  - Python and Fortran standards
+  - Naming conventions and best practices
+  
+- **[Review Process](REVIEW_PROCESS.md)** - Pull request review procedures
+  - How we review code
+  - What to look for in reviews
 
-- **[Coding Guidelines](CODING_GUIDELINES.md)** - Code style, conventions, and best practices
-- **[Issue Triage](ISSUE_TRIAGE.md)** - How to manage and prioritise GitHub issues
-- **[Review Process](REVIEW_PROCESS.md)** - Pull request review guidelines and procedures
-- **[Release Manual](RELEASE_MANUAL.md)** - Instructions for creating and publishing releases
+### Testing
+- **[Testing Guidelines](testing/TESTING_GUIDELINES.md)** - Overall testing strategy
+  - Test design principles
+  - FIRST principles and AAA pattern
+  
+- **[Fortran Test Patterns](testing/FORTRAN_TEST_PATTERNS.md)** - Fortran-specific testing
+  - Available modules via f90wrap
+  - Common test patterns
+  
+- **[Error Handling](testing/ERROR_HANDLING_PATTERNS.md)** - Error handling best practices
+  - Dual-layer error strategy
+  - User vs developer error messages
 
-## Testing
+### Operations
+- **[Issue Triage](ISSUE_TRIAGE.md)** - How to manage GitHub issues
+  - Priority levels and labels
+  - Assignment and workflow
+  
+- **[Release Manual](RELEASE_MANUAL.md)** - Release procedures
+  - Version numbering
+  - Release checklist
+  - Distribution to PyPI
 
-- **[Testing Guidelines](testing/TESTING_GUIDELINES.md)** - Overall testing strategy and requirements
-- **[Error Handling Patterns](testing/ERROR_HANDLING_PATTERNS.md)** - Best practices for error handling
-- **[Fortran Test Patterns](testing/FORTRAN_TEST_PATTERNS.md)** - Testing patterns specific to Fortran code
+### Additional Resources
+- **[Documentation Reorganisation Proposal](DOCUMENTATION_REORGANISATION_PROPOSAL.md)** - Current documentation cleanup plan
 
-## Quick Links
-
+## External Links
 - [GitHub Repository](https://github.com/UMEP-dev/SUEWS)
 - [User Documentation](https://suews.readthedocs.io)
 - [GitHub Issues](https://github.com/UMEP-dev/SUEWS/issues)
 - [GitHub Discussions](https://github.com/UMEP-dev/SUEWS/discussions)
 
-## Contributing
-
-All developers should familiarise themselves with these guides. Start with the [Onboarding Guide](onboarding-guide.md) if you're new to the project, then review the relevant process documents as needed.
-
-For questions or suggestions about these guides, please open an issue or discussion on GitHub.
+## Note for AI Assistants
+AI-specific instructions and workflows are maintained separately in `.claude/`. See `.claude/CLAUDE.md` for AI assistant guidance.

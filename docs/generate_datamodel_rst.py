@@ -315,8 +315,10 @@ class RSTGenerator:
         # Add index entries
         lines.extend(self._add_field_index_entries(field_name, model_name))
 
-        # Start option block
-        lines.append(f".. option:: {field_name}")
+        # Start option block - prefix with model name to avoid collisions
+        # This creates unique option names like "Conductance__s1" instead of just "s1"
+        option_name = f"{model_name}__{field_name}"
+        lines.append(f".. option:: {option_name}")
         lines.append("")
 
         # Add description
@@ -1016,9 +1018,10 @@ class RSTGenerator:
                         # Skip ref fields
                         if field_name == "ref":
                             continue
-                        # Use :option: for field references
+                        # Use :option: with model prefix for field references
+                        option_ref = f"{model_ref}__{field_name}"
                         lines.append(
-                            f"{next_indent}{next_marker} :option:`{field_name}`"
+                            f"{next_indent}{next_marker} :option:`{option_ref}`"
                         )
                         lines.append("")
 
@@ -1035,13 +1038,14 @@ class RSTGenerator:
 
     @staticmethod
     def _format_collapsible_fields(
-        fields: list, indent: str
+        fields: list, indent: str, model_name: str = None
     ) -> list[str]:
         """Format fields as a collapsible section using dropdown.
 
         Args:
             fields: List of field dictionaries
             indent: Base indentation
+            model_name: Model name for prefixing options
 
         Returns
         -------
@@ -1061,14 +1065,20 @@ class RSTGenerator:
             field_name = field["name"]
             if field_name == "ref":
                 continue
-            lines.append(f"{dropdown_indent}- :option:`{field_name}`")
+            # Use model prefix if available
+            if model_name:
+                option_ref = f"{model_name}__{field_name}"
+            else:
+                option_ref = field_name
+            lines.append(f"{dropdown_indent}- :option:`{option_ref}`")
         lines.append("")
 
         return lines
 
     def _format_fields_by_count(
         self, fields: list, indent: str, field_count: int,
-        collapse_threshold: int = 15, horizontal_threshold: int = 8
+        collapse_threshold: int = 15, horizontal_threshold: int = 8,
+        model_name: str = None
     ) -> list[str]:
         """Format fields based on their count using appropriate display style.
 
@@ -1078,6 +1088,7 @@ class RSTGenerator:
             field_count: Pre-calculated field count
             collapse_threshold: Threshold for using collapsible sections
             horizontal_threshold: Threshold for using horizontal lists
+            model_name: Model name for prefixing options
 
         Returns
         -------
@@ -1087,16 +1098,16 @@ class RSTGenerator:
 
         if field_count > collapse_threshold:
             # Use collapsible section for many fields
-            lines.extend(self._format_collapsible_fields(fields, indent))
+            lines.extend(self._format_collapsible_fields(fields, indent, model_name))
         elif field_count > horizontal_threshold:
             # Use columns for medium number of fields
             columns = 3
-            field_lines = self._format_field_list(fields, indent, columns)
+            field_lines = self._format_field_list(fields, indent, columns, model_name)
             lines.extend(field_lines)
             lines.append("")
         else:
             # Normal list for few fields
-            field_lines = self._format_field_list(fields, indent, 0)
+            field_lines = self._format_field_list(fields, indent, 0, model_name)
             lines.extend(field_lines)
             lines.append("")
 
@@ -1142,7 +1153,7 @@ class RSTGenerator:
                 if field_count > 0:
                     field_lines = self._format_fields_by_count(
                         simple_fields, next_indent, field_count,
-                        COLLAPSE_THRESHOLD, HORIZONTAL_THRESHOLD
+                        COLLAPSE_THRESHOLD, HORIZONTAL_THRESHOLD, model_ref
                     )
                     lines.extend(field_lines)
 
@@ -1154,13 +1165,14 @@ class RSTGenerator:
 
     @staticmethod
     def _format_dropdown_fields(
-        fields: list, indent: str
+        fields: list, indent: str, model_name: str = None
     ) -> list[str]:
         """Format fields as a dropdown section.
 
         Args:
             fields: List of field dictionaries
             indent: Base indentation
+            model_name: Model name for prefixing options
 
         Returns
         -------
@@ -1179,7 +1191,12 @@ class RSTGenerator:
             field_name = field["name"]
             if field_name == "ref":
                 continue
-            lines.append(f"{dropdown_indent}- :option:`{field_name}`")
+            # Use model prefix if available
+            if model_name:
+                option_ref = f"{model_name}__{field_name}"
+            else:
+                option_ref = field_name
+            lines.append(f"{dropdown_indent}- :option:`{option_ref}`")
         lines.append("")
 
         return lines
@@ -1224,16 +1241,16 @@ class RSTGenerator:
                 if field_count > 0:
                     if field_count > COLLAPSE_THRESHOLD:
                         # Use dropdown for many fields
-                        lines.extend(self._format_dropdown_fields(simple_fields, next_indent))
+                        lines.extend(self._format_dropdown_fields(simple_fields, next_indent, model_ref))
                     elif field_count > HORIZONTAL_THRESHOLD:
                         # Use columns for medium number of fields
                         columns = 3
-                        field_lines = self._format_field_list(simple_fields, next_indent, columns)
+                        field_lines = self._format_field_list(simple_fields, next_indent, columns, model_ref)
                         lines.extend(field_lines)
                         lines.append("")
                     else:
                         # Normal list for few fields
-                        field_lines = self._format_field_list(simple_fields, next_indent, 0)
+                        field_lines = self._format_field_list(simple_fields, next_indent, 0, model_ref)
                         lines.extend(field_lines)
                         lines.append("")
 
@@ -1243,9 +1260,10 @@ class RSTGenerator:
                         children, lines, level + 1, max_level
                     )
 
+    
     @staticmethod
     def _format_field_list(
-        fields: list, indent: str, columns: int = 0
+        fields: list, indent: str, columns: int = 0, model_name: str = None
     ) -> list[str]:
         """Format a list of fields as RST with optional columns.
 
@@ -1253,6 +1271,7 @@ class RSTGenerator:
             fields: List of field dictionaries
             indent: Indentation string
             columns: Number of columns (0 for simple list, 2-3 for hlist)
+            model_name: Model name for prefixing options
 
         Returns
         -------
@@ -1270,13 +1289,23 @@ class RSTGenerator:
                 field_name = (
                     field.get("name", field) if isinstance(field, dict) else field
                 )
-                lines.append(f"{indent}   * :option:`{field_name}`")
+                # Use model prefix if available
+                if model_name:
+                    option_ref = f"{model_name}__{field_name}"
+                else:
+                    option_ref = field_name
+                lines.append(f"{indent}   * :option:`{option_ref}`")
         else:
             for field in filtered_fields:
                 field_name = (
                     field.get("name", field) if isinstance(field, dict) else field
                 )
-                lines.append(f"{indent}* :option:`{field_name}`")
+                # Use model prefix if available
+                if model_name:
+                    option_ref = f"{model_name}__{field_name}"
+                else:
+                    option_ref = field_name
+                lines.append(f"{indent}* :option:`{option_ref}`")
 
         return lines
 
@@ -1299,7 +1328,7 @@ class RSTGenerator:
             return 0
 
     def _generate_parameters_tab_content(
-        self, fields: list, indent: str, field_count: int
+        self, fields: list, indent: str, field_count: int, model_name: str
     ) -> list[str]:
         """Generate content for a Parameters tab.
 
@@ -1307,6 +1336,7 @@ class RSTGenerator:
             fields: List of simple fields
             indent: Base indentation
             field_count: Pre-calculated field count
+            model_name: Model name for prefixing options
 
         Returns
         -------
@@ -1323,13 +1353,17 @@ class RSTGenerator:
                 field_name = field["name"]
                 if field_name == "ref":
                     continue
-                lines.append(f"{indent}         * :option:`{field_name}`")
+                # Use model prefix for option reference
+                option_ref = f"{model_name}__{field_name}"
+                lines.append(f"{indent}         * :option:`{option_ref}`")
         else:
             for field in fields:
                 field_name = field["name"]
                 if field_name == "ref":
                     continue
-                lines.append(f"{indent}      * :option:`{field_name}`")
+                # Use model prefix for option reference
+                option_ref = f"{model_name}__{field_name}"
+                lines.append(f"{indent}      * :option:`{option_ref}`")
 
         lines.append("")
         return lines
@@ -1453,7 +1487,7 @@ class RSTGenerator:
                         if tab_name == "Parameters":
                             # Generate parameters tab content
                             param_lines = self._generate_parameters_tab_content(
-                                tab_content, indent, field_count
+                                tab_content, indent, field_count, model_ref
                             )
                             lines.extend(param_lines)
                         else:
@@ -1543,7 +1577,7 @@ class RSTGenerator:
                         lines.append("")
 
                         if tab_name == "Parameters":
-                            # Show parameter list
+                            # Show parameter list - use parent model_ref for these
                             columns = self._get_field_display_format(field_count)
                             if columns > 0:
                                 lines.append(f"{indent}      .. hlist::")
@@ -1551,11 +1585,15 @@ class RSTGenerator:
                                 lines.append("")
                                 for field in tab_content:
                                     if field["name"] != "ref":
-                                        lines.append(f"{indent}         * :option:`{field['name']}`")
+                                        # Use model prefix for option reference
+                                        option_ref = f"{model_ref}__{field['name']}"
+                                        lines.append(f"{indent}         * :option:`{option_ref}`")
                             else:
                                 for field in tab_content:
                                     if field["name"] != "ref":
-                                        lines.append(f"{indent}      * :option:`{field['name']}`")
+                                        # Use model prefix for option reference
+                                        option_ref = f"{model_ref}__{field['name']}"
+                                        lines.append(f"{indent}      * :option:`{option_ref}`")
                             lines.append("")
                         else:
                             # Nested model tab
@@ -1595,11 +1633,15 @@ class RSTGenerator:
                                             lines.append("")
                                             for field in child_fields:
                                                 if field.get("name") != "ref":
-                                                    lines.append(f"{indent}{next_level_indent}   - :option:`{field['name']}`")
+                                                    # Use model prefix for option reference
+                                                    option_ref = f"{child_model}__{field['name']}"
+                                                    lines.append(f"{indent}{next_level_indent}   - :option:`{option_ref}`")
                                         else:
                                             for field in child_fields:
                                                 if field.get("name") != "ref":
-                                                    lines.append(f"{indent}{next_level_indent}* :option:`{field['name']}`")
+                                                    # Use model prefix for option reference
+                                                    option_ref = f"{child_model}__{field['name']}"
+                                                    lines.append(f"{indent}{next_level_indent}* :option:`{option_ref}`")
                                         lines.append("")
 
                                     # Handle nested children
@@ -1619,12 +1661,16 @@ class RSTGenerator:
                                             lines.append("")
                                             for field in nested_fields:
                                                 if field.get("name") != "ref":
-                                                    lines.append(f"{indent}{next_level_indent}     - :option:`{field['name']}`")
+                                                    # Use model prefix for option reference
+                                                    option_ref = f"{nested_model}__{field['name']}"
+                                                    lines.append(f"{indent}{next_level_indent}     - :option:`{option_ref}`")
                                             lines.append("")
                                         elif nested_field_count > 0:
                                             for field in nested_fields:
                                                 if field.get("name") != "ref":
-                                                    lines.append(f"{indent}{next_level_indent}  - :option:`{field['name']}`")
+                                                    # Use model prefix for option reference
+                                                    option_ref = f"{nested_model}__{field['name']}"
+                                                    lines.append(f"{indent}{next_level_indent}  - :option:`{option_ref}`")
                                             lines.append("")
 
                 elif field_count > 0:
@@ -1632,7 +1678,7 @@ class RSTGenerator:
                     lines.append(f"{indent}**Parameters:**")
                     lines.append("")
                     columns = self._get_field_display_format(field_count)
-                    field_lines = self._format_field_list(simple_fields, indent, columns)
+                    field_lines = self._format_field_list(simple_fields, indent, columns, model_ref)
                     lines.extend(field_lines)
                     lines.append("")
                 elif children:
@@ -1675,10 +1721,10 @@ class RSTGenerator:
                 # Handle simple fields with dropdowns for many fields
                 if field_count > 0:
                     if field_count > 10:  # Use dropdown for many fields
-                        lines.extend(self._format_collapsible_fields(simple_fields, next_indent))
+                        lines.extend(self._format_collapsible_fields(simple_fields, next_indent, model_ref))
                     else:
                         # Normal list for few fields
-                        field_lines = self._format_field_list(simple_fields, next_indent, 0)
+                        field_lines = self._format_field_list(simple_fields, next_indent, 0, model_ref)
                         lines.extend(field_lines)
                         lines.append("")
 

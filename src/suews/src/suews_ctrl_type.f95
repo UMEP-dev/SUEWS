@@ -1125,9 +1125,18 @@ MODULE SUEWS_DEF_DTS
       REAL(KIND(1D0)), DIMENSION(3) :: HTsAverage, HWTsAverage = 0.0D0 
       REAL(KIND(1D0)), DIMENSION(3) :: HWPowerAverage = 0.0D0 
       REAL(KIND(1D0)), DIMENSION(40) :: EnergyExchanges = 0.0D0 
+
+      REAL(KIND(1D0)), DIMENSION(:), ALLOCATABLE :: Textwall_C  ! Wall external surface temperature from STEBBS[K]
+      REAL(KIND(1D0)), DIMENSION(:), ALLOCATABLE :: Textroof_C ! Roof external surface temperature from STEBBS[K]
+
       ! flag for iteration safety - YES
       ! all variables are intensive and thus can be used for iteration safety
       LOGICAL :: iter_safe = .FALSE.
+
+   CONTAINS
+   PROCEDURE :: ALLOCATE => allocSTEBBS_bldgState
+   PROCEDURE :: DEALLOCATE => deallocSTEBBS_bldgState    
+
    END TYPE
 
    TYPE, PUBLIC :: STEBBS_STATE
@@ -1168,8 +1177,7 @@ MODULE SUEWS_DEF_DTS
       REAL(KIND(1D0)) :: InternalWallDHWVesselTemperature = 0.0D0 ! Initial hot water vessel internal wall temperature [degC]
       REAL(KIND(1D0)) :: ExternalWallDHWVesselTemperature = 0.0D0 ! Initial hot water vessel external wall temperature [degC]
       TYPE(STEBBS_BLDG), ALLOCATABLE, DIMENSION(:) :: buildings ! Array holding all buildings states for STEBBS [-]
-      REAL(KIND(1D0)), ALLOCATABLE, DIMENSION(:) :: Textwall_C  ! Wall external surface temperature from STEBBS[K]
-      REAL(KIND(1D0)), ALLOCATABLE, DIMENSION(:) :: Textroof_C ! Roof external surface temperature from STEBBS[K]
+
       !REAL(KIND(1D0)), DIMENSION(6) :: Textwall_C = 0.0D0 ! Wall external surface temperature from STEBBS[K]
       !REAL(KIND(1D0)), DIMENSION(6) :: Textroof_C = 0.0D0! Roof external surface temperature from STEBBS[K]      
       ! flag for iteration safety - YES
@@ -1585,7 +1593,7 @@ CONTAINS
       ALLOCATE (self%qe_wall(num_layer))
       ALLOCATE (self%qh_wall(num_layer))
       ALLOCATE (self%qh_resist_wall(num_layer))
-      !
+
    END SUBROUTINE allocHeatState_c
 
    SUBROUTINE deallocHeatState_c(self)
@@ -1694,8 +1702,6 @@ CONTAINS
 
       CALL self%DEALLOCATE()
       ALLOCATE (self%buildings(ntypes))
-      ALLOCATE (self%Textroof_C(num_layer))
-      ALLOCATE (self%Textwall_C(num_layer))
 
    END SUBROUTINE allocSTEBBS_bldg
 
@@ -1704,10 +1710,31 @@ CONTAINS
 
       CLASS(STEBBS_STATE), INTENT(INOUT) :: self
       IF (ALLOCATED(self%buildings)) DEALLOCATE (self%buildings)
+
+   END SUBROUTINE deallocSTEBBS_bldg
+
+   SUBROUTINE allocSTEBBS_bldgState(self, num_layer)
+      IMPLICIT NONE
+
+      CLASS(STEBBS_BLDG), INTENT(INOUT) :: self
+      INTEGER, INTENT(IN) :: num_layer
+
+      CALL self%DEALLOCATE()
+      ! ALLOCATE (self%buildings(ntypes))
+      ALLOCATE (self%Textroof_C(num_layer))
+      ALLOCATE (self%Textwall_C(num_layer))
+
+   END SUBROUTINE allocSTEBBS_bldgState
+
+   SUBROUTINE deallocSTEBBS_bldgState(self)
+      IMPLICIT NONE
+
+      CLASS(STEBBS_BLDG), INTENT(INOUT) :: self
+      ! IF (ALLOCATED(self%buildings)) DEALLOCATE (self%buildings)
       IF (ALLOCATED(self%Textroof_C)) DEALLOCATE (self%Textroof_C)
       IF (ALLOCATED(self%Textwall_C)) DEALLOCATE (self%Textwall_C)
 
-   END SUBROUTINE deallocSTEBBS_bldg
+   END SUBROUTINE deallocSTEBBS_bldgState
 
    SUBROUTINE SUEWS_cal_surf_DTS( &
       self, & !inout

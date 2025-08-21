@@ -289,7 +289,8 @@ class RSTGenerator:
 
         # Add default/sample value
         default_label, default_value = self._format_default(field_doc)
-        lines.append(f"   :{default_label}: {default_value}")
+        if default_label is not None and default_value is not None:
+            lines.append(f"   :{default_label}: {default_value}")
 
         # Add reference field for RefValue types
         if type_info.get("is_ref_value"):
@@ -437,13 +438,18 @@ class RSTGenerator:
         """Format default value for display."""
         is_required = field_doc.get("is_required", False)
         is_site_specific = field_doc.get("is_site_specific", False)
+        nested_model = field_doc.get("nested_model")
 
         # Check for default value
         if "default" in field_doc:
             default = field_doc["default"]
             is_complex = field_doc.get("is_complex", False)
-
-            if is_complex:
+            
+            # Check if this is PydanticUndefined or a nested model
+            if str(default) == "PydanticUndefined" or nested_model:
+                # Don't show PydanticUndefined for nested models
+                return None, None  # Return None to skip showing this field
+            elif is_complex:
                 # Complex default already formatted as string
                 display_value = default
             elif isinstance(default, dict) and "value" in default:
@@ -456,6 +462,9 @@ class RSTGenerator:
         elif is_required:
             display_value = "Required - must be specified"
             label = "Default"
+        elif nested_model:
+            # For optional nested models without defaults
+            return None, None  # Skip showing default for nested models
         else:
             display_value = "Not specified"
             label = "Sample value" if is_site_specific else "Default"

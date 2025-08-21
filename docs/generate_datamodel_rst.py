@@ -45,7 +45,7 @@ class RSTGenerator:
         Args:
             output_dir: Directory to write RST files to
             mode: "preview" or "production" mode
-            style: Style to use in production mode ("simple", "collapsible", "aggressive", "tabbed")
+            style: Style to use in production mode ("simple", "dropdown", "compact", "tabbed", "hybrid")
         """
         output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -65,9 +65,10 @@ class RSTGenerator:
         # Define style generators mapping
         style_generators = {
             "simple": self._generate_index_simple,
-            "collapsible": self._generate_index_collapsible,
-            "aggressive": self._generate_index_aggressive,
+            "compact": self._generate_index_compact,
+            "dropdown": self._generate_index_dropdown,
             "tabbed": self._generate_index_tabs,
+            "hybrid": self._generate_index_hybrid,
         }
 
         if mode == "preview":
@@ -610,7 +611,7 @@ class RSTGenerator:
 
         return description
 
-    def _generate_index_collapsible(self) -> str:
+    def _generate_index_dropdown(self) -> str:
         """Generate index.rst with collapsible dropdown sections (mixed approach)."""
         lines = [
             ".. _yaml_config_reference:",
@@ -689,7 +690,7 @@ class RSTGenerator:
 
         return "\n".join(lines)
 
-    def _generate_index_aggressive(self) -> str:
+    def _generate_index_compact(self) -> str:
         """Generate index.rst with aggressive collapsing (most compact)."""
         lines = [
             ".. _yaml_config_reference:",
@@ -705,7 +706,7 @@ class RSTGenerator:
         hierarchy = self._build_hierarchy()
 
         # Aggressive collapse style
-        self._generate_hierarchy_rst_aggressive_collapse(hierarchy, lines, level=0, max_level=5)
+        self._generate_hierarchy_rst_compact(hierarchy, lines, level=0, max_level=5)
 
         # Add toctree at the end with all documents (hidden)
         lines.extend([
@@ -735,7 +736,7 @@ class RSTGenerator:
             "",
             "Choose a style to preview:",
             "",
-            ".. grid:: 2",
+            ".. grid:: 3",
             "   :gutter: 3",
             "",
             "   .. grid-item-card:: Simple Layout",
@@ -746,14 +747,14 @@ class RSTGenerator:
             "      Best for quick scanning and searching.",
             "",
             "   .. grid-item-card:: Dropdown Layout",
-            "      :link: index-collapsible",
+            "      :link: index-dropdown",
             "      :link-type: doc",
             "",
             "      Mixed approach with dropdown sections for long parameter groups.",
-            "      **Recommended** - balances readability and compactness with interactive dropdowns.",
+            "      Balances readability and compactness with interactive dropdowns.",
             "",
             "   .. grid-item-card:: Compact Layout",
-            "      :link: index-aggressive",
+            "      :link: index-compact",
             "      :link-type: doc",
             "",
             "      Aggressive collapsing for maximum compactness.",
@@ -766,6 +767,13 @@ class RSTGenerator:
             "      Interactive tabbed interface for navigation.",
             "      Modern UI but requires JavaScript.",
             "",
+            "   .. grid-item-card:: Hybrid Layout",
+            "      :link: index-hybrid",
+            "      :link-type: doc",
+            "",
+            "      **Recommended** - Tabs for major sections, dropdowns for details.",
+            "      Best of both worlds: intuitive navigation with compact display.",
+            "",
             ".. note::",
             "   This is a preview mode. In production, only one style will be used.",
             "",
@@ -774,9 +782,10 @@ class RSTGenerator:
             "   :maxdepth: 1",
             "",
             "   index-simple",
-            "   index-collapsible",
-            "   index-aggressive",
+            "   index-dropdown",
+            "   index-compact",
             "   index-tabbed",
+            "   index-hybrid",
             "",
         ]
 
@@ -806,7 +815,45 @@ class RSTGenerator:
         hierarchy = self._build_hierarchy()
 
         # Use the tabbed layout style
-        self._generate_hierarchy_rst_tabbed(hierarchy, lines, level=0, max_level=4)
+        self._generate_hierarchy_rst_tabbed(hierarchy, lines, level=0, max_level=6)
+
+        # Add toctree at the end with all documents (hidden)
+        lines.extend([
+            "",
+            ".. toctree::",
+            "   :hidden:",
+            "   :maxdepth: 3",
+            "",
+        ])
+
+        # Add all model files to toctree (excluding RefValue and Reference)
+        for model_name in sorted(self.models.keys()):
+            if model_name not in {"RefValue", "Reference"}:
+                lines.append(f"   {model_name.lower()}")
+
+        return "\n".join(lines)
+
+    def _generate_index_hybrid(self) -> str:
+        """Generate index.rst with hybrid layout (tabs at top levels, dropdowns for deeper levels)."""
+        lines = [
+            ".. _yaml_config_reference_hybrid:",
+            "",
+            "YAML Configuration Reference (Hybrid Layout)",
+            "=============================================",
+            "",
+            "This documentation follows the hierarchical structure of SUEWS YAML configuration files.",
+            "",
+            ".. note::",
+            "   This hybrid layout uses tabs for top-level navigation and dropdowns for detailed parameters.",
+            "   Click on tabs to navigate major sections, and expand dropdowns to see parameter details.",
+            "",
+        ]
+
+        # Build the hierarchical structure from the models
+        hierarchy = self._build_hierarchy()
+
+        # Use the hybrid layout style - tabs for top 2 levels, dropdowns for rest
+        self._generate_hierarchy_rst_hybrid(hierarchy, lines, level=0, tab_levels=3, max_level=6)
 
         # Add toctree at the end with all documents (hidden)
         lines.extend([
@@ -1137,7 +1184,7 @@ class RSTGenerator:
 
         return lines
 
-    def _generate_hierarchy_rst_aggressive_collapse(
+    def _generate_hierarchy_rst_compact(
         self, hierarchy: dict, lines: list, level: int = 0, max_level: int = 4
     ):
         """Generate RST with aggressive collapsing - most sections collapsed by default."""
@@ -1375,7 +1422,7 @@ class RSTGenerator:
             # Don't add the main doc link at level 0 since it will be in tabs
             if level > 0:
                 lines.append(
-                    f"{indent}**{title}** - :doc:`Go to documentation <{model_ref.lower()}>`"
+                    f"{indent}**{title}** - :doc:`Go to xx documentation <{model_ref.lower()}>`"
                 )
                 lines.append("")
 
@@ -1431,6 +1478,213 @@ class RSTGenerator:
                 elif children:
                     # Only children, recurse without tabs
                     self._generate_hierarchy_rst_tabbed(
+                        children, lines, level + 1, max_level
+                    )
+
+    def _generate_hierarchy_rst_hybrid(
+        self, hierarchy: dict, lines: list, level: int = 0,
+        tab_levels: int = 2, max_level: int = 5
+    ):
+        """Generate RST with hybrid layout - tabs for top levels, dropdowns for deeper levels.
+
+        Args:
+            hierarchy: The hierarchy structure to render
+            lines: List to append RST lines to
+            level: Current nesting level
+            tab_levels: Number of levels to use tabs for (default 2)
+            max_level: Maximum nesting level
+        """
+        # Use a modified tabbed generation that switches to dropdowns after tab_levels
+        self._generate_hierarchy_rst_tabbed_hybrid(hierarchy, lines, level, tab_levels, max_level)
+
+    def _generate_hierarchy_rst_tabbed_hybrid(
+        self, hierarchy: dict, lines: list, level: int = 0,
+        tab_levels: int = 2, max_level: int = 5
+    ):
+        """Generate RST with tabs up to tab_levels, then switch to dropdowns."""
+        # Check if we should use tabs or dropdowns
+        if level >= tab_levels:
+            # Switch to dropdown style for deeper levels
+            self._generate_hierarchy_rst_with_dropdowns(hierarchy, lines, level, max_level)
+            return
+
+        # Otherwise continue with tabbed style
+        for model_name, model_info in hierarchy.items():
+            title = model_info.get("title", model_name)
+            model_ref = model_info.get("model", model_name)
+            children = model_info.get("children", {})
+            simple_fields = model_info.get("simple_fields", [])
+
+            if level >= max_level:
+                return
+
+            field_count = len([f for f in simple_fields if f["name"] != "ref"])
+            indent = "  " * level
+
+            # Create tabs if we have content
+            if (field_count > 0 or children) and level + 1 < max_level:
+                tabs_needed = []
+                if field_count > 0:
+                    tabs_needed.append(("Parameters", simple_fields))
+                for child_name, child_info in children.items():
+                    child_title = child_info.get("title", child_name)
+                    tabs_needed.append((child_title, child_info))
+
+                if len(tabs_needed) > 1:
+                    lines.append(f"{indent}.. tab-set::")
+                    lines.append("")
+
+                    for tab_name, tab_content in tabs_needed:
+                        tab_label = tab_name.replace(" ", "_").replace("/", "_")
+
+                        lines.append(f"{indent}   .. tab-item:: {tab_name}")
+                        if tab_label != tab_name:
+                            lines.append(f"{indent}      :name: {tab_label}")
+                        lines.append("")
+
+                        if tab_name == "Parameters":
+                            # Show parameter list
+                            columns = self._get_field_display_format(field_count)
+                            if columns > 0:
+                                lines.append(f"{indent}      .. hlist::")
+                                lines.append(f"{indent}         :columns: {columns}")
+                                lines.append("")
+                                for field in tab_content:
+                                    if field["name"] != "ref":
+                                        lines.append(f"{indent}         * :option:`{field['name']}`")
+                            else:
+                                for field in tab_content:
+                                    if field["name"] != "ref":
+                                        lines.append(f"{indent}      * :option:`{field['name']}`")
+                            lines.append("")
+                        else:
+                            # Nested model tab
+                            child_model = tab_content.get("model", tab_name)
+                            lines.append(f"{indent}      :doc:`{tab_name} <{child_model.lower()}>`")
+                            lines.append("")
+
+                            # Recurse with hybrid logic - need to ensure proper indentation
+                            if level + 1 < tab_levels:
+                                # Still in tab territory - add content with proper tab indentation
+                                temp_lines = []
+                                self._generate_hierarchy_rst_tabbed_hybrid(
+                                    {tab_name: tab_content}, temp_lines, level + 1, tab_levels, max_level
+                                )
+                                # Add the generated lines with proper indentation for tab content
+                                for line in temp_lines:
+                                    if line:  # Non-empty lines
+                                        lines.append(f"{indent}      {line}")
+                                    else:  # Preserve empty lines
+                                        lines.append("")
+                            else:
+                                # Switch to dropdowns for deeper content
+                                child_children = tab_content.get("children", {})
+                                child_fields = tab_content.get("simple_fields", [])
+
+                                if child_children or child_fields:
+                                    # Generate dropdown-style content inline
+                                    next_level_indent = "      "  # Tab content indentation
+
+                                    # Handle simple fields with dropdowns
+                                    field_count_child = len([f for f in child_fields if f.get("name") != "ref"])
+                                    if field_count_child > 0:
+                                        if field_count_child > 8:
+                                            lines.append(f"{indent}{next_level_indent}.. dropdown:: {field_count_child} parameters")
+                                            lines.append(f"{indent}{next_level_indent}   :class-container: sd-shadow-sm")
+                                            lines.append(f"{indent}{next_level_indent}   :chevron: down-up")
+                                            lines.append("")
+                                            for field in child_fields:
+                                                if field.get("name") != "ref":
+                                                    lines.append(f"{indent}{next_level_indent}   - :option:`{field['name']}`")
+                                        else:
+                                            for field in child_fields:
+                                                if field.get("name") != "ref":
+                                                    lines.append(f"{indent}{next_level_indent}* :option:`{field['name']}`")
+                                        lines.append("")
+
+                                    # Handle nested children
+                                    for nested_name, nested_info in child_children.items():
+                                        nested_title = nested_info.get("title", nested_name)
+                                        nested_model = nested_info.get("model", nested_name)
+                                        lines.append(f"{indent}{next_level_indent}* :doc:`{nested_title} <{nested_model.lower()}>`")
+                                        lines.append("")
+
+                                        # Add their fields as dropdowns if they have many
+                                        nested_fields = nested_info.get("simple_fields", [])
+                                        nested_field_count = len([f for f in nested_fields if f.get("name") != "ref"])
+                                        if nested_field_count > 8:
+                                            lines.append(f"{indent}{next_level_indent}  .. dropdown:: {nested_field_count} parameters")
+                                            lines.append(f"{indent}{next_level_indent}     :class-container: sd-shadow-sm")
+                                            lines.append(f"{indent}{next_level_indent}     :chevron: down-up")
+                                            lines.append("")
+                                            for field in nested_fields:
+                                                if field.get("name") != "ref":
+                                                    lines.append(f"{indent}{next_level_indent}     - :option:`{field['name']}`")
+                                            lines.append("")
+                                        elif nested_field_count > 0:
+                                            for field in nested_fields:
+                                                if field.get("name") != "ref":
+                                                    lines.append(f"{indent}{next_level_indent}  - :option:`{field['name']}`")
+                                            lines.append("")
+
+                elif field_count > 0:
+                    # Only simple fields, no tabs needed
+                    lines.append(f"{indent}**Parameters:**")
+                    lines.append("")
+                    columns = self._get_field_display_format(field_count)
+                    field_lines = self._format_field_list(simple_fields, indent, columns)
+                    lines.extend(field_lines)
+                    lines.append("")
+                elif children:
+                    # Only children, recurse
+                    self._generate_hierarchy_rst_tabbed_hybrid(
+                        children, lines, level + 1, tab_levels, max_level
+                    )
+
+    def _generate_hierarchy_rst_with_dropdowns(
+        self, hierarchy: dict, lines: list, level: int = 0, max_level: int = 5
+    ):
+        """Generate RST with dropdown sections for deep nesting."""
+        # Similar to collapsible but for use within hybrid mode
+        list_markers = ["*", "-", "*", "-"]
+
+        for model_name, model_info in hierarchy.items():
+            title = model_info.get("title", model_name)
+            model_ref = model_info.get("model", model_name)
+            children = model_info.get("children", {})
+            simple_fields = model_info.get("simple_fields", [])
+
+            if level >= max_level:
+                return
+
+            # Count non-ref fields
+            field_count = len([f for f in simple_fields if f["name"] != "ref"])
+
+            # Indent for nested content
+            indent = "  " * level
+            marker = list_markers[min(level, len(list_markers) - 1)]
+
+            # Create the main entry
+            lines.append(f"{indent}{marker} :doc:`{title} <{model_ref.lower()}>`")
+            lines.append("")
+
+            # Process children and fields
+            if level + 1 < max_level:
+                next_indent = "  " * (level + 1)
+
+                # Handle simple fields with dropdowns for many fields
+                if field_count > 0:
+                    if field_count > 10:  # Use dropdown for many fields
+                        lines.extend(self._format_collapsible_fields(simple_fields, next_indent))
+                    else:
+                        # Normal list for few fields
+                        field_lines = self._format_field_list(simple_fields, next_indent, 0)
+                        lines.extend(field_lines)
+                        lines.append("")
+
+                # Recursively process nested items
+                if children:
+                    self._generate_hierarchy_rst_with_dropdowns(
                         children, lines, level + 1, max_level
                     )
 
@@ -1535,9 +1789,9 @@ def main():
     )
     parser.add_argument(
         "--style",
-        choices=["simple", "collapsible", "aggressive", "tabbed"],
-        default="collapsible",
-        help="Style to use in production mode (default: collapsible)",
+        choices=["simple", "dropdown", "compact", "tabbed", "hybrid"],
+        default="dropdown",
+        help="Style to use in production mode (default: dropdown)",
     )
     parser.add_argument(
         "--load-json",
@@ -1582,9 +1836,10 @@ def main():
         print("\nPreview mode generated:")
         print("  - index.rst: Navigation page with style selection")
         print("  - index-simple.rst: Simple nested list style")
-        print("  - index-collapsible.rst: Mixed collapsible style (recommended)")
-        print("  - index-aggressive.rst: Compact style with aggressive collapsing")
+        print("  - index-dropdown.rst: Mixed dropdown style")
+        print("  - index-compact.rst: Compact style with aggressive collapsing")
         print("  - index-tabbed.rst: Tabbed layout style")
+        print("  - index-hybrid.rst: Hybrid style with tabs and dropdowns (recommended)")
     print(
         "\nNote: Remember to update any references from 'schema' to 'config-reference' in other documentation files."
     )

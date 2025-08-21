@@ -76,7 +76,8 @@ class YAMLOptionIndex(Index):
         for letter in content:
             content[letter].sort(key=lambda x: x[0].lower())
             
-        return sorted(content.items())
+        # Return content and collapse flag (True = collapse same sub-entries)
+        return sorted(content.items()), True
 
 
 class YAMLDomain(Domain):

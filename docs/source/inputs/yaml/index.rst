@@ -123,24 +123,6 @@ The full documentation for all YAML parameters is available in the :doc:`config-
 - Default values
 - Cross-references between related parameters
 
-**Key Parameter Groups:**
-
-- :doc:`config-reference/model` - Top-level model configuration structure
-- :doc:`config-reference/site` - Site-specific configuration structure
-- :doc:`config-reference/modelcontrol` - Simulation control (time steps, files, etc.)
-- :doc:`config-reference/modelphysics` - Physics methods and options
-- :doc:`config-reference/siteproperties` - Geographic and geometric properties
-- :doc:`config-reference/landcover` - Surface fractions and parameters
-
-**Surface-Specific Parameters:**
-
-- :doc:`config-reference/pavedproperties` - Roads and paved surfaces
-- :doc:`config-reference/bldgsproperties` - Buildings
-- :doc:`config-reference/evetrproperties` - Evergreen vegetation
-- :doc:`config-reference/dectrproperties` - Deciduous vegetation
-- :doc:`config-reference/grassproperties` - Grass surfaces
-- :doc:`config-reference/bsoilproperties` - Bare soil
-- :doc:`config-reference/waterproperties` - Water bodies
 
 Forcing Data
 ------------

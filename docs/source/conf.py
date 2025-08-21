@@ -286,11 +286,13 @@ extensions = [
     "sphinx.ext.intersphinx",
     "sphinx.ext.extlinks",
     "sphinx_comments",
+    "yaml_domain",  # Custom domain for YAML configuration options
     "recommonmark",
     "nbsphinx",
     "sphinx.ext.mathjax",
     # "breathe",  # Disabled along with Doxygen to avoid Fortran documentation logs
     "sphinx_panels",
+    "sphinx_design",  # For collapsible sections in YAML config reference
     "sphinx_last_updated_by_git",
     "sphinx_click.ext",
     # 'exhale'

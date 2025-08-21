@@ -101,6 +101,7 @@ dev = [
     "pybtex",                   # Bibliography processing
     "sphinxcontrib.bibtex~=2.4", # Bibliography support (heavily customised)
     "sphinx-panels",            # Panel layouts
+    "sphinx-design",            # Collapsible sections for YAML config docs
     "sphinx-last-updated-by-git", # Git info in docs
     "sphinx-click",             # CLI documentation
     "sphinx_comments",          # Comments (may be re-enabled)

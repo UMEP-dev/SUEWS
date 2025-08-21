@@ -204,7 +204,7 @@ Understanding the YAML-based data model:
 4. Document usage and parameters
 5. Include example configurations
 
-#### Scenario 3: Performance Optimization
+#### Scenario 3: Performance Optimisation
 1. Profile existing code
 2. Identify bottlenecks
 3. Implement improvements
@@ -231,7 +231,7 @@ For work on configuration and input handling:
 - Provide migration tools for breaking changes
 - Test with various configuration scenarios
 
-### 4.3 Performance and Optimization
+### 4.3 Performance and Optimisation
 
 When optimising code:
 - Profile before optimising

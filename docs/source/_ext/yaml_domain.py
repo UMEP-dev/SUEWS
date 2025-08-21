@@ -7,7 +7,7 @@ preventing collisions with other option directives in the documentation.
 
 from sphinx import addnodes
 from sphinx.directives import ObjectDescription
-from sphinx.domains import Domain, Index
+from sphinx.domains import Domain, Index, ObjType
 from sphinx.roles import XRefRole
 from sphinx.util.nodes import make_refnode
 from sphinx.util.docutils import SphinxDirective
@@ -86,7 +86,7 @@ class YAMLDomain(Domain):
     label = 'YAML Configuration'
     
     object_types = {
-        'option': {'name': 'option', 'label': 'YAML option'},
+        'option': ObjType('option', 'option'),
     }
     
     directives = {

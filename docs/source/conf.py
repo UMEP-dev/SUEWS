@@ -286,6 +286,7 @@ extensions = [
     "sphinx.ext.intersphinx",
     "sphinx.ext.extlinks",
     "sphinx_comments",
+    "yaml_domain",  # Custom domain for YAML configuration options
     "recommonmark",
     "nbsphinx",
     "sphinx.ext.mathjax",

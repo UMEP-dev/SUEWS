@@ -109,8 +109,20 @@ class WizardEngine:
                 elif result == "previous":
                     self.session.current_step = max(0, self.session.current_step - 1)
                 elif result == "save_draft":
-                    self.save_draft()
-                    console.print("[green]Draft saved![/green]")
+                    draft_path = self.save_draft()
+                    console.print(f"[green]Draft saved to: {draft_path.name}[/green]")
+                    console.print(f"[dim](Also saved as: {self.output_path.with_suffix('.yaml.draft')} for easy resumption)[/dim]")
+                    
+                    # Ask user what to do next
+                    if hasattr(step, 'is_complete') and step.is_complete():
+                        if self.session.current_step < len(self.steps) - 1:
+                            if Confirm.ask("\nThis section is complete. Move to next section?", default=True):
+                                self.session.current_step += 1
+                    else:
+                        console.print("\n[dim]Some fields in this section are still empty.[/dim]")
+                        if self.session.current_step < len(self.steps) - 1:
+                            if Confirm.ask("Move to next section anyway?", default=False):
+                                self.session.current_step += 1
                 elif result == "exit":
                     if Confirm.ask("Are you sure you want to exit?"):
                         raise KeyboardInterrupt
@@ -309,21 +321,31 @@ class WizardEngine:
 
     def save_draft(self):
         """Save current progress as draft"""
-        draft_path = self.output_path.with_suffix(".yaml.draft")
+        from datetime import datetime
+        
+        # Create timestamped draft filename
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        draft_path = self.output_path.with_suffix(f".draft_{timestamp}.yaml")
+        
+        # Also save as latest draft for easy access
+        latest_draft_path = self.output_path.with_suffix(".yaml.draft")
 
+        # Save timestamped draft
+        draft_content = {
+            "_draft": True,
+            "_timestamp": timestamp,
+            "_progress": {
+                "current_step": self.session.current_step,
+                "total_steps": len(self.steps),
+            },
+            **self.session.configuration,
+        }
+        
         with open(draft_path, "w") as f:
-            yaml.dump(
-                {
-                    "_draft": True,
-                    "_progress": {
-                        "current_step": self.session.current_step,
-                        "total_steps": len(self.steps),
-                    },
-                    **self.session.configuration,
-                },
-                f,
-                default_flow_style=False,
-                sort_keys=False,
-            )
+            yaml.dump(draft_content, f, default_flow_style=False, sort_keys=False)
+        
+        # Also save as latest draft (for easy resumption)
+        with open(latest_draft_path, "w") as f:
+            yaml.dump(draft_content, f, default_flow_style=False, sort_keys=False)
 
         return draft_path

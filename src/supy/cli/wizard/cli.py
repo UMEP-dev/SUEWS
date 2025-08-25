@@ -89,8 +89,9 @@ def show_interactive_menu():
         except KeyboardInterrupt:
             console.print("\n[yellow]Wizard cancelled by user[/yellow]")
             if Confirm.ask("Save draft before exiting?"):
-                engine.save_draft()
-                console.print(f"[green]Draft saved to: {output}.draft[/green]")
+                draft_path = engine.save_draft()
+                console.print(f"[green]Draft saved to: {draft_path.name}[/green]")
+                console.print(f"[dim](Also saved as: {output}.draft for easy resumption)[/dim]")
         except Exception as e:
             console.print(f"\n[red]Error: {e}[/red]")
             

@@ -12,7 +12,9 @@ from contextlib import redirect_stdout, redirect_stderr
 
 from ....data_model.validation.pipeline.orchestrator import (
     detect_pydantic_defaults,
-    run_phase_abc_workflow,
+    run_phase_a,
+    run_phase_b,
+    run_phase_c,
 )
 from ....data_model.validation.pipeline.phase_a_parameter_update import (
     annotate_missing_parameters,

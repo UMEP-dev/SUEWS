@@ -39,6 +39,8 @@ py.install_sources(
             'cli/wizard/steps/advanced.py',
             'cli/wizard/validators/__init__.py',
             'cli/wizard/validators/pydantic_integration.py',
+            'cli/wizard/validators/enhanced_validator.py',
+            'cli/wizard/validators/yaml_processor_integration.py',
             'cli/wizard/utils/__init__.py',
             'cli/wizard/utils/display.py',
             'cli/wizard/utils/state.py',

@@ -859,12 +859,18 @@ class InitialStates(BaseModel):
     dqndt: float = Field(
         default=0,
         description="Change in net radiation",
-        json_schema_extra={"display_name": "dQn/dt", "internal_only": True},
+        json_schema_extra={
+            "display_name": "Net Radiation change rate",
+            "internal_only": True,
+        },
     )
     dqnsdt: float = Field(
         default=0,
-        description="Change in net shortwave radiation",
-        json_schema_extra={"display_name": "dQns/dt", "internal_only": True},
+        description="Change in net radiation over snow surface",
+        json_schema_extra={
+            "display_name": "Net Radiation change rate over Snow Surface",
+            "internal_only": True,
+        },
     )
     dt_since_start: float = Field(
         default=0,

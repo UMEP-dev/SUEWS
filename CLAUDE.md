@@ -471,6 +471,25 @@ When making code changes to SUEWS/SuPy:
   - Keep existing entries and structure intact
   - Simply append new entries without restructuring
 
+### RST (reStructuredText) Writing Rules
+
+**CRITICAL: RST markup cannot be nested or overlayed!**
+
+- **WRONG**: `**:doc:`link text <target>`**` - Cannot combine bold with doc reference
+- **WRONG**: `*:option:`parameter`*` - Cannot combine italic with option reference  
+- **CORRECT**: Use markup separately: `:doc:`link text <target>` or make text bold separately from the link
+
+Common RST pitfalls to avoid:
+1. No nested inline markup (no bold inside links, no links inside emphasis, etc.)
+2. Inline markup must be separated by whitespace or punctuation from surrounding text
+3. Use backslashes to escape special characters when needed
+4. Remember that `**text**` is bold, `*text*` is italic, and they cannot contain other markup
+
+When generating RST programmatically:
+- Keep `:doc:`, `:ref:`, `:option:` and other role references standalone
+- Apply text formatting (bold, italic) to separate text elements only
+- For emphasis, structure the document layout rather than relying on nested formatting
+
 ### Documentation Principles
 
 1. **Single Source of Truth (DRY)**

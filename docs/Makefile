@@ -23,13 +23,13 @@ livehtml:
 	sphinx-autobuild -j auto \
 		--re-ignore 'supy\.util\..*' \
 		--ignore "source/SuPy.log" \
-		-b html -a "$(SOURCEDIR)" "$(BUILDDIR)" \
+		-b html "$(SOURCEDIR)" "$(BUILDDIR)" \
 		$(SPHINXOPTS)
 
 # Generate RST from data models (run manually when needed)
 generate-rst:
 	@echo "Generating RST files for data models..."
-	@python3 generate_datamodel_rst.py
+	@python3 generate_datamodel_rst.py --output-dir source/inputs/yaml/config-reference
 
 # Catch remaining sphinx targets without auto-generation
 %:

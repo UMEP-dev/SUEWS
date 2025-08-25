@@ -11,7 +11,7 @@ SUEWS supports two formats for providing input parameters:
 2.  **Table-based format**: The legacy format, which will be deprecated in future versions but is still supported for backward compatibility.
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 1
    :caption: YAML-based Input Format
 
    yaml/index
@@ -19,7 +19,7 @@ SUEWS supports two formats for providing input parameters:
    yaml/config-reference/index
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 1
    :caption: Tools and Utilities
 
    converter
@@ -27,7 +27,8 @@ SUEWS supports two formats for providing input parameters:
    validation
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 1
    :caption: Table-based Input Format (Legacy - Deprecated)
 
    tables/index
+

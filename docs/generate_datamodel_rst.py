@@ -14,13 +14,17 @@ from pathlib import Path
 import sys
 from typing import Any
 
-# Add the project root to sys.path to allow importing supy
+# Try to import supy directly (if installed via make dev)
+# Fall back to sys.path manipulation if not installed
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
-SRC_PATH = PROJECT_ROOT / "src"
-sys.path.insert(0, str(SRC_PATH))
 
-# Import the documentation extractor through supy
-from supy.data_model.doc_utils import ModelDocExtractor  # noqa: E402
+try:
+    from supy.data_model.doc_utils import ModelDocExtractor
+except ImportError:
+    # If supy is not installed, add src to path for development
+    SRC_PATH = PROJECT_ROOT / "src"
+    sys.path.insert(0, str(SRC_PATH))
+    from supy.data_model.doc_utils import ModelDocExtractor
 
 
 class RSTGenerator:
@@ -435,7 +439,7 @@ class RSTGenerator:
         return " ".join(formatted)
 
     @staticmethod
-    def _format_default(field_doc: dict[str, Any]) -> tuple[str, str]:
+    def _format_default(field_doc: dict[str, Any]) -> tuple[str, str]:  # noqa: PLR0912
         """Format default value for display with consistent labeling.
 
         Returns appropriate label-value pair based on field characteristics:
@@ -517,10 +521,8 @@ class RSTGenerator:
         else:
             # For complex defaults, try to represent them nicely
             try:
-                import json
-
                 display_value = f"``{json.dumps(default)}``"
-            except:
+            except (TypeError, ValueError):
                 display_value = f"``{default}``"
 
         # Choose appropriate label based on field type
@@ -1586,7 +1588,7 @@ class RSTGenerator:
             hierarchy, lines, level, tab_levels, max_level
         )
 
-    def _generate_hierarchy_rst_tabbed_hybrid(
+    def _generate_hierarchy_rst_tabbed_hybrid(  # noqa: PLR0912, PLR0914, PLR0915
         self,
         hierarchy: dict,
         lines: list,
@@ -1604,9 +1606,7 @@ class RSTGenerator:
             return
 
         # Otherwise continue with tabbed style
-        for model_name, model_info in hierarchy.items():
-            title = model_info.get("title", model_name)
-            model_ref = model_info.get("model", model_name)
+        for _, model_info in hierarchy.items():  # noqa: PLR1702
             children = model_info.get("children", {})
             simple_fields = model_info.get("simple_fields", [])
 
@@ -1942,8 +1942,8 @@ def main():
     parser.add_argument(
         "--style",
         choices=["simple", "dropdown", "compact", "tabbed", "hybrid"],
-        default="dropdown",
-        help="Style to use in production mode (default: dropdown)",
+        default="hybrid",
+        help="Style to use in production mode (default: hybrid)",
     )
     parser.add_argument(
         "--load-json",

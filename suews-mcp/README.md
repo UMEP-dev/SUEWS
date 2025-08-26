@@ -1,21 +1,54 @@
 # SUEWS MCP Server
 
-A Model Context Protocol (MCP) server for the SUEWS (Surface Urban Energy and Water Balance Scheme) urban climate model.
+A Model Context Protocol (MCP) server for the SUEWS (Surface Urban Energy and Water Balance Scheme) urban climate model. This server enables AI assistants and other tools to interact with SUEWS through a standardised interface, making urban climate modelling more accessible and automated.
 
 ## Overview
 
-This MCP server provides intelligent access to SUEWS model capabilities through a standardised interface. It enables AI assistants and other tools to interact with urban climate modelling workflows, including model configuration, simulation execution, and results analysis.
+The SUEWS MCP server provides intelligent access to the SUEWS urban climate model through the Model Context Protocol. SUEWS is a physically-based model that simulates energy and water balance in urban areas, widely used for:
 
-## Features
+- Urban heat island analysis
+- Building energy assessments  
+- Stormwater management studies
+- Climate adaptation planning
+- Urban planning and design
 
-- **Model Configuration**: Generate and validate SUEWS configuration files
-- **Simulation Management**: Run SUEWS simulations with various parameters
-- **Results Analysis**: Process and interpret model outputs
-- **Data Processing**: Handle forcing data and model inputs
-- **Data Preprocessing**: Quality check and validate meteorological forcing data with comprehensive error reporting
-- **Format Conversion**: Convert between CSV, TXT, Excel, and NetCDF meteorological data formats
-- **Configuration Validation**: Comprehensive validation of SUEWS configurations with detailed diagnostics
-- **Parameter Guidance**: Provide expert knowledge on model parameterisation
+This MCP server wraps SUEWS functionality into standardised tools that can be used by AI assistants, allowing for:
+- Natural language interaction with complex urban climate models
+- Automated parameter optimisation and sensitivity analysis
+- Intelligent troubleshooting and configuration guidance
+- Streamlined workflows from data preparation to results analysis
+
+## Key Features
+
+### 🛠️ **Model Configuration & Validation**
+- Generate and validate SUEWS configuration files
+- Comprehensive parameter validation with detailed diagnostics  
+- Template-based configuration for different urban types (residential, commercial, industrial, parks)
+- Physics option compatibility checks
+
+### 🚀 **Simulation Management**
+- Execute SUEWS simulations with custom parameters
+- Progress tracking and resource management
+- Support for both quick tests and long-term simulations
+- Parallel simulation capabilities
+
+### 📊 **Results Analysis & Visualisation**
+- Process and interpret model outputs
+- Energy balance analysis and validation
+- Temporal pattern analysis (diurnal, seasonal, weekly)
+- Comparison with observational data
+
+### 🔄 **Data Processing Pipeline**
+- Quality check and validate meteorological forcing data
+- Format conversion (CSV, TXT, Excel, NetCDF)
+- Automatic detection of data issues with auto-fix capabilities  
+- Time series validation and energy balance closure checks
+
+### 🧠 **Expert Knowledge Integration**
+- Parameter guidance based on urban type and climate
+- Intelligent error diagnosis and troubleshooting
+- Best practices for model setup and calibration
+- Automated sensitivity analysis workflows
 
 ## Installation
 
@@ -24,58 +57,197 @@ This MCP server provides intelligent access to SUEWS model capabilities through 
 - Python 3.9 or higher
 - SUEWS/SuPy installed and configured
 
-### Install from Source
+### Method 1: Install from Source (Recommended)
 
 ```bash
-# Clone the repository (when available)
+# Clone the SUEWS repository
 git clone https://github.com/UMEP-dev/SUEWS.git
 cd SUEWS/suews-mcp
+
+# Create virtual environment (recommended)
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
 
 # Install in development mode
 pip install -e .
 
-# Or install with development dependencies
+# Or install with development dependencies for contributing
 pip install -e ".[dev]"
 ```
 
-### Install from PyPI
+### Method 2: Install from PyPI
 
 ```bash
-# When published to PyPI
+# When published to PyPI (coming soon)
 pip install suews-mcp
+```
+
+### Verify Installation
+
+```bash
+# Check if the server starts correctly
+suews-mcp --version
+
+# Test basic functionality
+python -c "import suews_mcp; print('✓ Installation successful')"
 ```
 
 ## Quick Start
 
-### Running the Server
+### 1. Start the MCP Server
 
 ```bash
-# Start the MCP server
+# Start the MCP server (default configuration)
 suews-mcp
 
 # Or run directly with Python
 python -m suews_mcp.server
+
+# Start with custom configuration
+suews-mcp --config /path/to/config.yaml
 ```
 
-### Configuration
+### 2. Basic Usage with MCP Client
 
-The server can be configured through environment variables or configuration files. Details on configuration options will be provided in future updates.
+```python
+# Example using the MCP client
+import asyncio
+from mcp import create_client
 
-## Usage Examples
+async def run_simulation_example():
+    async with create_client("suews-mcp") as client:
+        # List available tools
+        tools = await client.list_tools()
+        print(f"Available tools: {[t.name for t in tools.tools]}")
+        
+        # Run a basic simulation
+        result = await client.call_tool(
+            "run_simulation",
+            {
+                "forcing_path": "data/forcing.txt",
+                "config_path": "configs/residential.yml",
+                "use_sample_data": True
+            }
+        )
+        print(result.content[0].text)
 
-*Usage examples and integration guides will be provided as the project develops.*
+# Run the example
+asyncio.run(run_simulation_example())
+```
 
-### Basic Model Run
+### 3. Using Built-in Templates
 
-*Example code for running SUEWS through the MCP interface will be added.*
+```bash
+# List available configuration templates
+curl -X POST http://localhost:8000/tools/list_resources \
+  -d '{"resource_type": "config_template"}'
 
-### Parameter Optimisation
+# Get a residential template
+curl -X POST http://localhost:8000/tools/get_resource \
+  -d '{"resource_path": "templates/configs/residential.yml"}'
+```
 
-*Example of using the MCP server for parameter sensitivity analysis.*
+### 4. Complete Workflow Example
 
-### Multi-site Analysis
+```python
+# Complete workflow: data preparation → configuration → simulation → analysis
+async def complete_workflow():
+    async with create_client("suews-mcp") as client:
+        # Step 1: Preprocess meteorological data
+        preprocessing = await client.call_tool(
+            "preprocess_forcing",
+            {
+                "input_file": "raw_data/weather.csv",
+                "output_file": "processed_data/forcing.txt",
+                "validate_energy_balance": True,
+                "auto_fix_issues": True
+            }
+        )
+        
+        # Step 2: Configure simulation
+        config = await client.call_tool(
+            "configure_simulation",
+            {
+                "config_path": "templates/configs/residential.yml",
+                "site_name": "MyCity_Residential",
+                "config_updates": {
+                    "site": {
+                        "lat": 51.5074,
+                        "lon": -0.1278,
+                        "elevation": 11
+                    }
+                },
+                "save_path": "configs/my_simulation.yml"
+            }
+        )
+        
+        # Step 3: Validate configuration
+        validation = await client.call_tool(
+            "validate_config",
+            {
+                "config_file": "configs/my_simulation.yml",
+                "strict_mode": False
+            }
+        )
+        
+        # Step 4: Run simulation
+        simulation = await client.call_tool(
+            "run_simulation",
+            {
+                "config_path": "configs/my_simulation.yml",
+                "forcing_path": "processed_data/forcing.txt",
+                "start_time": "2023-01-01T00:00:00",
+                "end_time": "2023-12-31T23:00:00"
+            }
+        )
+        
+        # Step 5: Analyse results
+        analysis = await client.call_tool(
+            "analyze_results",
+            {
+                "results_path": "outputs/results.csv",
+                "analysis_type": "energy_balance",
+                "variables": ["QH", "QE", "QN", "QS"]
+            }
+        )
+        
+        return simulation, analysis
+```
 
-*Example of batch processing multiple urban sites.*
+## Configuration
+
+The server can be configured through:
+
+### Environment Variables
+```bash
+export SUEWS_MCP_HOST="localhost"
+export SUEWS_MCP_PORT="8000"
+export SUEWS_MCP_MAX_CONCURRENT_SIMS="4"
+export SUEWS_MCP_LOG_LEVEL="INFO"
+```
+
+### Configuration File
+```yaml
+# config.yaml
+server:
+  host: "localhost"
+  port: 8000
+  name: "SUEWS MCP Server"
+  version: "1.0.0"
+
+simulation:
+  max_concurrent: 4
+  timeout: 3600
+
+tools:
+  enable_simulation: true
+  enable_validation: true
+  enable_analysis: true
+
+logging:
+  level: "INFO"
+  file: "suews_mcp.log"
+```
 
 ## Current Status
 
@@ -271,9 +443,152 @@ This project is licensed under the GNU General Public License v3.0 - see the [LI
 - [SuPy](https://supy.readthedocs.io/) - Python interface for SUEWS
 - [UMEP](https://umep-docs.readthedocs.io/) - Urban Multi-scale Environmental Predictor
 
+## Documentation
+
+- **[Quick Start Guide](docs/quickstart.md)**: Step-by-step tutorial for new users
+- **[API Reference](docs/api_reference.md)**: Complete documentation of all MCP tools
+- **[Examples](docs/examples/)**: Practical examples for common use cases
+- **[FAQ & Troubleshooting](docs/faq.md)**: Solutions to common issues
+- **[Jupyter Notebooks](examples/notebooks/)**: Interactive tutorials
+
+## Performance & Scalability
+
+- **Concurrent Simulations**: Run multiple simulations in parallel
+- **Resource Management**: Automatic memory and CPU monitoring
+- **Caching**: Intelligent caching of configuration and results
+- **Error Recovery**: Robust error handling with detailed diagnostics
+
+## Troubleshooting
+
+### Common Issues
+
+**Server won't start:**
+```bash
+# Check if port is available
+lsof -i :8000
+
+# Try different port
+suews-mcp --port 8001
+```
+
+**Import errors:**
+```bash
+# Verify SUEWS/SuPy installation
+python -c "import supy; print('✓ SuPy available')"
+
+# Check Python path
+echo $PYTHONPATH
+```
+
+**Simulation failures:**
+```bash
+# Check logs
+tail -f suews_mcp.log
+
+# Validate configuration first
+curl -X POST http://localhost:8000/tools/validate_config \
+  -d '{"config_file": "config.yml"}'
+```
+
+### Getting Help
+
+1. **Check the logs**: Most issues are explained in the server logs
+2. **Use validation tools**: Always validate configurations before running
+3. **Start simple**: Use provided templates and sample data
+4. **Check documentation**: See [docs/](docs/) for detailed guides
+
+For more troubleshooting help, see [docs/faq.md](docs/faq.md)
+
+## API Overview
+
+The server provides **10+ MCP tools** organised into categories:
+
+### Data Processing Tools
+- `preprocess_forcing` - Quality check meteorological data
+- `convert_data_format` - Convert between data formats
+- `validate_config` - Comprehensive configuration validation
+
+### Simulation Tools  
+- `configure_simulation` - Load and configure SUEWS parameters
+- `run_simulation` - Execute SUEWS urban climate simulations
+- `analyze_results` - Analyse simulation outputs
+
+### Resource Tools
+- `list_resources` - Browse available templates and examples
+- `get_resource` - Retrieve specific templates or documentation
+- `health_check` - Monitor server status
+
+For complete API documentation, see [docs/api_reference.md](docs/api_reference.md)
+
+## Examples
+
+### Urban Heat Island Study
+```python
+# Compare residential vs commercial areas
+for urban_type in ["residential", "commercial"]:
+    config = await client.call_tool(
+        "configure_simulation",
+        {"config_path": f"templates/configs/{urban_type}.yml"}
+    )
+    
+    results = await client.call_tool(
+        "run_simulation", 
+        {"config_path": config, "forcing_path": "data/heatwave.txt"}
+    )
+```
+
+### Parameter Sensitivity Analysis
+```python
+# Test impact of albedo changes
+for albedo in [0.1, 0.15, 0.2, 0.25]:
+    config_updates = {"surface": {"albedo_paved": albedo}}
+    
+    result = await client.call_tool(
+        "run_simulation",
+        {
+            "config_path": "base_config.yml",
+            "config_updates": config_updates
+        }
+    )
+```
+
+More examples available in [docs/examples/](docs/examples/) and [examples/notebooks/](examples/notebooks/)
+
+## Contributing
+
+Contributions are welcome! Please see the [CONTRIBUTING.md](CONTRIBUTING.md) file for:
+- Development setup instructions
+- Code style guidelines
+- Testing requirements
+- Pull request process
+
+### Development Setup
+```bash
+# Fork and clone
+git clone https://github.com/yourusername/SUEWS.git
+cd SUEWS/suews-mcp
+
+# Install development dependencies
+pip install -e ".[dev]"
+
+# Run tests
+pytest
+
+# Run code quality checks
+black src/ tests/
+ruff check src/ tests/
+mypy src/
+```
+
 ## Support
 
 For support and questions:
-- Check the [SUEWS documentation](https://suews.readthedocs.io/)
-- Open an [issue](https://github.com/UMEP-dev/SUEWS/issues) on GitHub
-- Join the SUEWS community discussions
+- **📖 Documentation**: Check [docs/](docs/) first
+- **🐛 Issues**: Open an [issue](https://github.com/UMEP-dev/SUEWS/issues) on GitHub
+- **💬 Discussions**: Join [SUEWS community discussions](https://github.com/UMEP-dev/SUEWS/discussions)
+- **📧 Email**: Contact the SUEWS development team
+
+### Related Resources
+- **[SUEWS Documentation](https://suews.readthedocs.io/)**: Complete model documentation
+- **[SuPy Documentation](https://supy.readthedocs.io/)**: Python interface documentation
+- **[UMEP](https://umep-docs.readthedocs.io/)**: Urban Multi-scale Environmental Predictor

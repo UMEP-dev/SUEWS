@@ -113,19 +113,19 @@ class BasicConfigStep(WizardStep):
         """Check if all required basic configuration fields are filled"""
         required_fields = [
             "site.name",
-            "site.latitude", 
+            "site.latitude",
             "site.longitude",
             "site.timezone",
             "simulation.start_date",
             "simulation.end_date",
-            "simulation.timestep"
+            "simulation.timestep",
         ]
-        
+
         for field in required_fields:
             if self.session.get_value(field) is None:
                 return False
         return True
-    
+
     def validate(self, data: Dict[str, Any]) -> bool:
         """Validate basic configuration"""
         valid = True

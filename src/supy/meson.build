@@ -106,6 +106,7 @@ py.install_sources(
             'data_model/validation/core/yaml_helpers.py',
             'data_model/validation/pipeline/__init__.py',
             'data_model/validation/pipeline/orchestrator.py',
+            'data_model/validation/pipeline/orchestrator_refactored.py',
             'data_model/validation/pipeline/phase_a_parameter_update.py',
             'data_model/validation/pipeline/phase_a_refactored.py',
             'data_model/validation/pipeline/phase_b_science_check.py',

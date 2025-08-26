@@ -1,0 +1,62 @@
+# Sample SUEWS initial conditions data
+# This file shows example initial state values for different surface types
+# Values should be adjusted based on your local climate and season
+#
+# Format: Space-separated values
+# Units: See SUEWS documentation
+#
+# These values represent typical winter conditions in a temperate climate
+# For your site, adjust based on:
+# - Local climate conditions
+# - Season of simulation start
+# - Surface characteristics
+# - Previous weather conditions
+#
+# Surface types: Paved, Bldgs, EveTr, DecTr, Grass, BSoil, Water
+# State variables: Soil moisture, temperatures, LAI, etc.
+#
+# This is a simplified example - actual initial conditions file format
+# may differ based on SUEWS version and configuration options
+
+# Example initial soil moisture states (fraction of storage capacity):
+# Surface_type Initial_state
+Paved 0.3
+Bldgs 0.2  
+EveTr 0.7
+DecTr 0.6
+Grass 0.5
+BSoil 0.4
+Water 1.0
+
+# Example initial surface temperatures (Celsius):
+# Surface_type Initial_temp
+Paved 2.0
+Bldgs 5.0
+EveTr 1.0
+DecTr 1.0  
+Grass 0.5
+BSoil 0.0
+Water 4.0
+
+# Example initial LAI values:
+# Surface_type Initial_LAI
+EveTr 4.0
+DecTr 1.0
+Grass 1.5
+
+# Example initial snow conditions:
+# All surfaces start with no snow cover
+# Snow_pack Snow_fraction
+0.0 0.0
+
+# Note: Actual initial conditions file structure depends on:
+# 1. SUEWS version and selected physics options
+# 2. Number and type of surface facets
+# 3. Thermal layers configuration
+# 4. Selected sub-models (ESTM, SPARTACUS, etc.)
+#
+# For real simulations, use appropriate values for:
+# - Your geographic location and climate
+# - Season of simulation start date  
+# - Local surface characteristics
+# - Recent weather history at your site

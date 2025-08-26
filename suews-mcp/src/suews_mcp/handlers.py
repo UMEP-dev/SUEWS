@@ -47,13 +47,9 @@ from .error_handler import (
     handle_error,
     format_error_for_mcp,
     ErrorContext,
-    DiagnosedError
+    DiagnosedError,
 )
-from .validation import (
-    validate_configuration,
-    validate_forcing_data,
-    ValidationResult
-)
+from .validation import validate_configuration, validate_forcing_data, ValidationResult
 
 # Import the core SuPy MCP tools
 try:
@@ -454,17 +450,17 @@ class SUEWSMCPHandlers:
         except Exception as e:
             # Use intelligent error diagnosis
             diagnosed = handle_error(
-                e, 
+                e,
                 f"executing tool {name}",
                 operation=f"tool_{name}",
-                arguments=arguments
+                arguments=arguments,
             )
-            
+
             # Format error with suggestions
             error_text = diagnosed.format_for_user(verbose=False)
-            
+
             logger.error(f"Error calling tool {name}: {diagnosed.root_cause}")
-            
+
             return CallToolResult(
                 content=[TextContent(type="text", text=error_text)],
                 is_error=True,

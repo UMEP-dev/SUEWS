@@ -1,0 +1,103 @@
+[run]
+# Source code directories to measure coverage for
+source = src/suews_mcp
+
+# Include patterns for files to measure
+include = 
+    src/suews_mcp/*.py
+    src/suews_mcp/**/*.py
+
+# Exclude patterns for files to ignore
+omit =
+    */tests/*
+    */test_*.py
+    */__pycache__/*
+    */.*
+    */venv/*
+    */virtualenv/*
+    */site-packages/*
+    setup.py
+    conftest.py
+
+# Branch coverage measurement
+branch = True
+
+# Parallel processing support
+parallel = False
+
+# Plugin configuration
+plugins = 
+
+# Data file location
+data_file = .coverage
+
+[report]
+# Target coverage percentage
+fail_under = 80
+
+# Precision for coverage percentages
+precision = 2
+
+# Skip covered files in report
+skip_covered = False
+
+# Skip empty files
+skip_empty = True
+
+# Sort by coverage percentage
+sort = Cover
+
+# Show missing lines
+show_missing = True
+
+# Exclude lines from coverage
+exclude_lines =
+    pragma: no cover
+    def __repr__
+    if self.debug:
+    if settings.DEBUG
+    raise AssertionError
+    raise NotImplementedError
+    if 0:
+    if __name__ == .__main__.:
+    class .*\bProtocol\):
+    @(abc\.)?abstractmethod
+
+# Partial branch exclusions
+partial_branches =
+    pragma: no branch
+    pragma: no cover
+
+[html]
+# HTML report directory
+directory = coverage_html
+
+# Title for HTML report
+title = SUEWS MCP Server Coverage Report
+
+# Skip covered files in HTML report
+skip_covered = False
+
+# Skip empty files in HTML report  
+skip_empty = True
+
+# Show contexts in HTML report
+show_contexts = True
+
+[xml]
+# XML report file
+output = coverage.xml
+
+[json]
+# JSON report file
+output = coverage.json
+# Pretty print JSON
+pretty_print = True
+# Show contexts in JSON
+show_contexts = True
+
+# Path mapping for different environments
+[paths]
+source =
+    src/suews_mcp
+    */site-packages/suews_mcp

@@ -37,11 +37,11 @@ except ImportError:
 
 from .config import MCPServerConfig
 from .preprocessing import (
-    ForcingDataPreprocessor, 
-    ConfigValidator, 
+    ForcingDataPreprocessor,
+    ConfigValidator,
     DataFormatConverter,
     PreprocessingResult,
-    DataQualityIssue
+    DataQualityIssue,
 )
 
 # Import the core SuPy MCP tools
@@ -49,17 +49,17 @@ try:
     # Try to import the actual SuPy MCP tools
     import sys
     import os
-    
+
     # Add the main SUEWS src directory to path
     current_dir = os.path.dirname(os.path.abspath(__file__))
-    suews_src_path = os.path.abspath(os.path.join(current_dir, '..', '..', '..', 'src'))
+    suews_src_path = os.path.abspath(os.path.join(current_dir, "..", "..", "..", "src"))
     if suews_src_path not in sys.path:
         sys.path.insert(0, suews_src_path)
-    
+
     from supy.mcp.tools.configure import ConfigureSimulationTool
     from supy.mcp.tools.run import RunSimulationTool
     from supy.mcp.tools.analyze import AnalyzeResultsTool
-    
+
     SUPY_MCP_TOOLS_AVAILABLE = True
 except ImportError as e:
     SUPY_MCP_TOOLS_AVAILABLE = False
@@ -86,7 +86,7 @@ class SUEWSMCPHandlers:
 
         # Track active simulations for health monitoring
         self._active_simulations: Dict[str, Dict[str, Any]] = {}
-        
+
         # Initialize SuPy MCP tools if available
         if SUPY_MCP_TOOLS_AVAILABLE:
             self._configure_tool = ConfigureSimulationTool()
@@ -97,7 +97,9 @@ class SUEWSMCPHandlers:
             self._configure_tool = None
             self._run_tool = None
             self._analyze_tool = None
-            logger.warning("SuPy MCP tools not available, using fallback implementations")
+            logger.warning(
+                "SuPy MCP tools not available, using fallback implementations"
+            )
 
         logger.info(
             f"Initialized SUEWS MCP handlers with config: {config.server_name} v{config.server_version}"
@@ -126,7 +128,7 @@ class SUEWSMCPHandlers:
         logger.debug("Listing available tools")
 
         tools = []
-        
+
         # Add SuPy MCP tools if available and enabled
         if SUPY_MCP_TOOLS_AVAILABLE:
             if self.config.enable_validation_tool and self._configure_tool:
@@ -139,7 +141,7 @@ class SUEWSMCPHandlers:
                         input_schema=tool_def["inputSchema"],
                     )
                 )
-                
+
             if self.config.enable_simulation_tool and self._run_tool:
                 # Add run_simulation tool
                 tool_def = self._run_tool.get_definition()
@@ -150,7 +152,7 @@ class SUEWSMCPHandlers:
                         input_schema=tool_def["inputSchema"],
                     )
                 )
-                
+
             if self.config.enable_analysis_tool and self._analyze_tool:
                 # Add analyze_results tool
                 tool_def = self._analyze_tool.get_definition()
@@ -288,7 +290,7 @@ class SUEWSMCPHandlers:
                             "description": "Path to input forcing data file (CSV, TXT, or other formats)",
                         },
                         "output_file": {
-                            "type": "string", 
+                            "type": "string",
                             "description": "Optional path to save preprocessed data",
                         },
                         "target_timestep": {
@@ -301,7 +303,7 @@ class SUEWSMCPHandlers:
                             "default": True,
                         },
                         "auto_fix_issues": {
-                            "type": "boolean", 
+                            "type": "boolean",
                             "description": "Whether to automatically fix common data issues",
                             "default": False,
                         },
@@ -359,7 +361,7 @@ class SUEWSMCPHandlers:
                             "description": "Input file format",
                         },
                         "output_format": {
-                            "type": "string", 
+                            "type": "string",
                             "enum": ["csv", "txt", "suews_txt", "excel", "netcdf"],
                             "description": "Output file format",
                         },
@@ -368,7 +370,12 @@ class SUEWSMCPHandlers:
                             "description": "Optional mapping of column names from input to output format",
                         },
                     },
-                    "required": ["input_file", "output_file", "input_format", "output_format"],
+                    "required": [
+                        "input_file",
+                        "output_file",
+                        "input_format",
+                        "output_format",
+                    ],
                 },
             )
         )
@@ -407,7 +414,7 @@ class SUEWSMCPHandlers:
                 elif name == "analyze_results" and self._analyze_tool:
                     result = await self._analyze_tool.execute(arguments)
                     return self._format_tool_result(result)
-            
+
             # Fallback to legacy tool implementations
             if name == "run_suews_simulation":
                 return await self._run_simulation_tool(arguments)
@@ -443,13 +450,13 @@ class SUEWSMCPHandlers:
                 ],
                 is_error=True,
             )
-    
+
     def _format_tool_result(self, result: Dict[str, Any]) -> CallToolResult:
         """Format SuPy MCP tool result for MCP response."""
         # Convert structured response to MCP CallToolResult
         success = result.get("success", False)
         message = result.get("message", "")
-        
+
         if success:
             # Format successful response as readable text
             response_text = self._format_success_response(result)
@@ -465,17 +472,17 @@ class SUEWSMCPHandlers:
                 content=[TextContent(type="text", text=error_text)],
                 is_error=True,
             )
-    
+
     def _format_success_response(self, result: Dict[str, Any]) -> str:
         """Format successful tool response as readable text."""
         import json
-        
+
         message = result.get("message", "Operation completed successfully")
         data = result.get("data", {})
-        
+
         # Create a readable summary
         lines = [message, "=" * len(message), ""]
-        
+
         # Add key information from data
         if data:
             for key, value in data.items():
@@ -485,7 +492,7 @@ class SUEWSMCPHandlers:
                     lines.append(f"{key.title()}: [{len(value)} items]")
                 else:
                     lines.append(f"{key.title()}: {value}")
-        
+
         return "\n".join(lines)
 
     async def _run_simulation_tool(self, arguments: Dict[str, Any]) -> CallToolResult:
@@ -860,7 +867,9 @@ class SUEWSMCPHandlers:
 
         return CallToolResult(content=[TextContent(type="text", text=health_text)])
 
-    async def _preprocess_forcing_tool(self, arguments: Dict[str, Any]) -> CallToolResult:
+    async def _preprocess_forcing_tool(
+        self, arguments: Dict[str, Any]
+    ) -> CallToolResult:
         """Preprocess meteorological forcing data."""
         input_file = arguments.get("input_file")
         output_file = arguments.get("output_file")
@@ -870,86 +879,98 @@ class SUEWSMCPHandlers:
 
         if not input_file:
             return CallToolResult(
-                content=[TextContent(type="text", text="input_file parameter is required")],
+                content=[
+                    TextContent(type="text", text="input_file parameter is required")
+                ],
                 is_error=True,
             )
 
         try:
             # Initialize preprocessor
             preprocessor = ForcingDataPreprocessor()
-            
+
             # Run preprocessing
             result = preprocessor.preprocess_forcing_file(
                 file_path=input_file,
                 output_path=output_file,
                 target_timestep=target_timestep,
                 validate_energy_balance=validate_energy_balance,
-                auto_fix_issues=auto_fix_issues
+                auto_fix_issues=auto_fix_issues,
             )
-            
+
             # Format response
             response_text = f"Forcing Data Preprocessing Results for: {input_file}\n"
             response_text += "=" * 60 + "\n\n"
-            
+
             # Summary
             summary = result.get_summary()
-            response_text += f"Status: {'✓ SUCCESS' if summary['success'] else '✗ FAILED'}\n"
+            response_text += (
+                f"Status: {'✓ SUCCESS' if summary['success'] else '✗ FAILED'}\n"
+            )
             response_text += f"Data Shape: {summary['data_shape']}\n"
             response_text += f"Issues Found: {summary['total_issues']} (Errors: {summary['errors']}, Warnings: {summary['warnings']}, Info: {summary['info']})\n\n"
-            
+
             # Metadata
             if result.metadata:
                 response_text += "Data Summary:\n"
-                if 'detected_timestep_seconds' in result.metadata:
+                if "detected_timestep_seconds" in result.metadata:
                     response_text += f"  • Detected time step: {result.metadata['detected_timestep_seconds']} seconds\n"
-                if 'bowen_ratio_median' in result.metadata:
+                if "bowen_ratio_median" in result.metadata:
                     response_text += f"  • Median Bowen ratio (QH/QE): {result.metadata['bowen_ratio_median']:.2f}\n"
-                if 'energy_balance_stats' in result.metadata:
-                    stats = result.metadata['energy_balance_stats']
+                if "energy_balance_stats" in result.metadata:
+                    stats = result.metadata["energy_balance_stats"]
                     response_text += f"  • Energy balance residual: {stats['mean_residual']:.1f} ± {stats['std_residual']:.1f} W/m²\n"
                 response_text += "\n"
-            
+
             # Issues details
             if result.issues:
                 response_text += "Data Quality Issues:\n"
                 for issue in result.issues:
                     severity_icon = {"error": "✗", "warning": "⚠", "info": "ℹ"}
                     icon = severity_icon.get(issue.severity, "•")
-                    response_text += f"  {icon} {issue.severity.upper()}: {issue.message}\n"
+                    response_text += (
+                        f"  {icon} {issue.severity.upper()}: {issue.message}\n"
+                    )
                     if issue.location:
                         response_text += f"    Location: {issue.location}\n"
                 response_text += "\n"
-            
+
             # Processing log
             if result.processing_log:
                 response_text += "Processing Steps:\n"
                 for log_entry in result.processing_log[-10:]:  # Show last 10 entries
                     response_text += f"  • {log_entry.split(': ', 1)[-1]}\n"
-            
+
             if output_file:
                 response_text += f"\nProcessed data saved to: {output_file}\n"
-            
+
             # Recommendations
-            if summary['errors'] > 0:
+            if summary["errors"] > 0:
                 response_text += "\n⚠ CRITICAL: Please fix errors before using this data for simulations.\n"
-            elif summary['warnings'] > 5:
+            elif summary["warnings"] > 5:
                 response_text += "\n⚠ RECOMMENDATION: Consider reviewing warnings and potentially fixing issues.\n"
             elif auto_fix_issues:
                 response_text += "\n✓ Data has been automatically processed and should be ready for simulations.\n"
 
             return CallToolResult(
                 content=[TextContent(type="text", text=response_text)],
-                is_error=not result.success
+                is_error=not result.success,
             )
 
         except Exception as e:
             logger.error(f"Error preprocessing forcing data: {e}", exc_info=True)
             return CallToolResult(
-                content=[TextContent(type="text", text=f"Error preprocessing forcing data: {str(e)}")],
+                content=[
+                    TextContent(
+                        type="text", text=f"Error preprocessing forcing data: {str(e)}"
+                    )
+                ],
                 is_error=True,
             )
 
-    async def _validate_config_enhanced_tool(self, arguments: Dict[str, Any]) -> CallToolResult:
+    async def _validate_config_enhanced_tool(
+        self, arguments: Dict[str, Any]
+    ) -> CallToolResult:
         """Enhanced configuration validation tool."""
         config_file = arguments.get("config_file")
         strict_mode = arguments.get("strict_mode", False)
@@ -957,38 +978,44 @@ class SUEWSMCPHandlers:
 
         if not config_file:
             return CallToolResult(
-                content=[TextContent(type="text", text="config_file parameter is required")],
+                content=[
+                    TextContent(type="text", text="config_file parameter is required")
+                ],
                 is_error=True,
             )
 
         try:
             # Initialize validator
             validator = ConfigValidator()
-            
+
             # Run validation
             result = validator.validate_config(
                 config_path=config_file,
                 strict_mode=strict_mode,
-                check_file_paths=check_file_paths
+                check_file_paths=check_file_paths,
             )
-            
+
             # Format response
-            response_text = f"SUEWS Configuration Validation Results for: {config_file}\n"
+            response_text = (
+                f"SUEWS Configuration Validation Results for: {config_file}\n"
+            )
             response_text += "=" * 70 + "\n\n"
-            
+
             # Summary
             summary = result.get_summary()
             response_text += f"Validation Status: {'✓ PASSED' if summary['success'] else '✗ FAILED'}\n"
-            response_text += f"Mode: {'Strict' if strict_mode else 'Standard'} validation\n"
+            response_text += (
+                f"Mode: {'Strict' if strict_mode else 'Standard'} validation\n"
+            )
             response_text += f"Issues Found: {summary['total_issues']} (Errors: {summary['errors']}, Warnings: {summary['warnings']})\n\n"
-            
+
             # Issue details
             if result.issues:
                 # Group issues by severity
                 errors = [i for i in result.issues if i.severity == "error"]
                 warnings = [i for i in result.issues if i.severity == "warning"]
                 info = [i for i in result.issues if i.severity == "info"]
-                
+
                 if errors:
                     response_text += "❌ ERRORS (Must Fix):\n"
                     for issue in errors:
@@ -996,7 +1023,7 @@ class SUEWSMCPHandlers:
                         if issue.location:
                             response_text += f"    Location: {issue.location}\n"
                     response_text += "\n"
-                
+
                 if warnings:
                     response_text += "⚠️  WARNINGS (Should Review):\n"
                     for issue in warnings:
@@ -1004,60 +1031,114 @@ class SUEWSMCPHandlers:
                         if issue.location:
                             response_text += f"    Location: {issue.location}\n"
                     response_text += "\n"
-                
+
                 if info:
                     response_text += "ℹ️  INFORMATION:\n"
                     for issue in info:
                         response_text += f"  • {issue.message}\n"
                     response_text += "\n"
-            
+
             # Validation checklist
             response_text += "Validation Checklist:\n"
             checklist_items = [
-                ("Configuration structure", "✓" if summary['errors'] == 0 else "✗"),
-                ("Required fields", "✓" if not any("missing" in i.issue_type for i in result.issues if i.severity == "error") else "✗"),
-                ("Value ranges", "✓" if not any("range" in i.issue_type or "invalid" in i.issue_type for i in result.issues if i.severity == "error") else "✗"),
-                ("Surface fractions", "✓" if not any("fraction" in i.issue_type for i in result.issues if i.severity == "error") else "✗"),
-                ("File references", "✓" if not check_file_paths or not any("missing_file" in i.issue_type for i in result.issues) else "✗"),
-                ("Physics compatibility", "✓" if not any("physics" in i.issue_type for i in result.issues if i.severity == "error") else "✗")
+                ("Configuration structure", "✓" if summary["errors"] == 0 else "✗"),
+                (
+                    "Required fields",
+                    "✓"
+                    if not any(
+                        "missing" in i.issue_type
+                        for i in result.issues
+                        if i.severity == "error"
+                    )
+                    else "✗",
+                ),
+                (
+                    "Value ranges",
+                    "✓"
+                    if not any(
+                        "range" in i.issue_type or "invalid" in i.issue_type
+                        for i in result.issues
+                        if i.severity == "error"
+                    )
+                    else "✗",
+                ),
+                (
+                    "Surface fractions",
+                    "✓"
+                    if not any(
+                        "fraction" in i.issue_type
+                        for i in result.issues
+                        if i.severity == "error"
+                    )
+                    else "✗",
+                ),
+                (
+                    "File references",
+                    "✓"
+                    if not check_file_paths
+                    or not any("missing_file" in i.issue_type for i in result.issues)
+                    else "✗",
+                ),
+                (
+                    "Physics compatibility",
+                    "✓"
+                    if not any(
+                        "physics" in i.issue_type
+                        for i in result.issues
+                        if i.severity == "error"
+                    )
+                    else "✗",
+                ),
             ]
-            
+
             for item, status in checklist_items:
                 response_text += f"  {status} {item}\n"
             response_text += "\n"
-            
+
             # Processing log
             if result.processing_log:
                 response_text += "Validation Steps Completed:\n"
                 for log_entry in result.processing_log:
                     response_text += f"  ✓ {log_entry.split(': ', 1)[-1]}\n"
-            
+
             # Next steps
-            if summary['errors'] > 0:
+            if summary["errors"] > 0:
                 response_text += "\n🔧 NEXT STEPS:\n"
                 response_text += "  1. Fix all ERROR items listed above\n"
                 response_text += "  2. Re-run validation to confirm fixes\n"
-                response_text += "  3. Consider addressing WARNING items for better results\n"
-            elif summary['warnings'] > 0:
+                response_text += (
+                    "  3. Consider addressing WARNING items for better results\n"
+                )
+            elif summary["warnings"] > 0:
                 response_text += "\n✅ CONFIGURATION IS VALID\n"
-                response_text += "  • Consider reviewing WARNING items for optimal performance\n"
+                response_text += (
+                    "  • Consider reviewing WARNING items for optimal performance\n"
+                )
                 response_text += "  • Configuration is ready for simulation\n"
             else:
-                response_text += "\n🎉 EXCELLENT! Configuration passed all validation checks.\n"
+                response_text += (
+                    "\n🎉 EXCELLENT! Configuration passed all validation checks.\n"
+                )
 
             return CallToolResult(
                 content=[TextContent(type="text", text=response_text)],
-                is_error=not result.success
+                is_error=not result.success,
             )
 
         except Exception as e:
             logger.error(f"Error validating configuration: {e}", exc_info=True)
             return CallToolResult(
-                content=[TextContent(type="text", text=f"Error validating configuration: {str(e)}")],
+                content=[
+                    TextContent(
+                        type="text", text=f"Error validating configuration: {str(e)}"
+                    )
+                ],
                 is_error=True,
             )
 
-    async def _convert_data_format_tool(self, arguments: Dict[str, Any]) -> CallToolResult:
+    async def _convert_data_format_tool(
+        self, arguments: Dict[str, Any]
+    ) -> CallToolResult:
         """Convert data between different formats."""
         input_file = arguments.get("input_file")
         output_file = arguments.get("output_file")
@@ -1070,87 +1151,102 @@ class SUEWSMCPHandlers:
         missing_params = [p for p in required_params if not arguments.get(p)]
         if missing_params:
             return CallToolResult(
-                content=[TextContent(type="text", text=f"Missing required parameters: {', '.join(missing_params)}")],
+                content=[
+                    TextContent(
+                        type="text",
+                        text=f"Missing required parameters: {', '.join(missing_params)}",
+                    )
+                ],
                 is_error=True,
             )
 
         try:
             # Initialize converter
             converter = DataFormatConverter()
-            
+
             # Run conversion
             result = converter.convert_format(
                 input_path=input_file,
                 output_path=output_file,
                 input_format=input_format,
                 output_format=output_format,
-                column_mapping=column_mapping
+                column_mapping=column_mapping,
             )
-            
+
             # Format response
             response_text = f"Data Format Conversion Results\n"
             response_text += "=" * 40 + "\n\n"
-            
+
             summary = result.get_summary()
-            response_text += f"Status: {'✓ SUCCESS' if summary['success'] else '✗ FAILED'}\n"
+            response_text += (
+                f"Status: {'✓ SUCCESS' if summary['success'] else '✗ FAILED'}\n"
+            )
             response_text += f"Input: {input_file} ({input_format.upper()})\n"
             response_text += f"Output: {output_file} ({output_format.upper()})\n"
-            
-            if summary['data_shape']:
-                if result.metadata.get('input_shape') and result.metadata.get('output_shape'):
+
+            if summary["data_shape"]:
+                if result.metadata.get("input_shape") and result.metadata.get(
+                    "output_shape"
+                ):
                     response_text += f"Shape: {result.metadata['input_shape']} → {result.metadata['output_shape']}\n"
                 else:
                     response_text += f"Shape: {summary['data_shape']}\n"
-            
+
             response_text += f"Issues: {summary['total_issues']}\n\n"
-            
+
             # Column mapping applied
             if column_mapping:
                 response_text += "Column Mapping Applied:\n"
                 for old_name, new_name in column_mapping.items():
                     response_text += f"  • '{old_name}' → '{new_name}'\n"
                 response_text += "\n"
-            
+
             # Format-specific notes
             format_notes = {
-                'suews_txt': "Data formatted for direct use in SUEWS simulations (space-separated)",
-                'csv': "Data saved in CSV format with comma separation",
-                'txt': "Data saved in text format with space separation",
-                'excel': "Data saved in Excel format (.xlsx)",
-                'netcdf': "Data saved in NetCDF format for scientific applications"
+                "suews_txt": "Data formatted for direct use in SUEWS simulations (space-separated)",
+                "csv": "Data saved in CSV format with comma separation",
+                "txt": "Data saved in text format with space separation",
+                "excel": "Data saved in Excel format (.xlsx)",
+                "netcdf": "Data saved in NetCDF format for scientific applications",
             }
-            
+
             if output_format in format_notes:
                 response_text += f"Format Notes:\n  • {format_notes[output_format]}\n\n"
-            
+
             # Issues
             if result.issues:
                 response_text += "Conversion Issues:\n"
                 for issue in result.issues:
                     severity_icon = {"error": "✗", "warning": "⚠", "info": "ℹ"}
                     icon = severity_icon.get(issue.severity, "•")
-                    response_text += f"  {icon} {issue.severity.upper()}: {issue.message}\n"
+                    response_text += (
+                        f"  {icon} {issue.severity.upper()}: {issue.message}\n"
+                    )
                 response_text += "\n"
-            
+
             # Processing steps
             if result.processing_log:
                 response_text += "Conversion Steps:\n"
                 for log_entry in result.processing_log:
                     response_text += f"  ✓ {log_entry.split(': ', 1)[-1]}\n"
-            
-            if summary['success']:
+
+            if summary["success"]:
                 response_text += f"\n🎉 Conversion completed successfully!\n"
                 response_text += f"Converted data is ready for use: {output_file}\n"
 
             return CallToolResult(
                 content=[TextContent(type="text", text=response_text)],
-                is_error=not result.success
+                is_error=not result.success,
             )
 
         except Exception as e:
             logger.error(f"Error converting data format: {e}", exc_info=True)
             return CallToolResult(
-                content=[TextContent(type="text", text=f"Error converting data format: {str(e)}")],
+                content=[
+                    TextContent(
+                        type="text", text=f"Error converting data format: {str(e)}"
+                    )
+                ],
                 is_error=True,
             )
 

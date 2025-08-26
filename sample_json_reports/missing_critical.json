@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0.0",
-  "timestamp": "2025-08-26T12:54:30.096478",
+  "timestamp": "2025-08-26T13:38:25.502562",
   "phases_completed": [
     "A"
   ],
@@ -13,7 +13,7 @@
   "phases": {
     "A": {
       "completed": true,
-      "timestamp": "2025-08-26T12:54:30.096506",
+      "timestamp": "2025-08-26T13:38:25.502593",
       "errors": [
         {
           "phase": "A",
@@ -33,7 +33,7 @@
             "Add emissionsmethod to your YAML configuration",
             "Consult documentation for valid values: https://suews.readthedocs.io/en/latest"
           ],
-          "timestamp": "2025-08-26T12:54:30.096487"
+          "timestamp": "2025-08-26T13:38:25.502572"
         }
       ],
       "warnings": [],
@@ -66,7 +66,7 @@
         "Add emissionsmethod to your YAML configuration",
         "Consult documentation for valid values: https://suews.readthedocs.io/en/latest"
       ],
-      "timestamp": "2025-08-26T12:54:30.096487"
+      "timestamp": "2025-08-26T13:38:25.502572"
     }
   ],
   "warnings": [],
@@ -75,6 +75,6 @@
   "metadata": {
     "phase": "A",
     "mode": "public",
-    "report_file": "/var/folders/6r/lhkvk3m14ls587p81nfcy0k40000gp/T/tmp9q2ojp55/report.txt"
+    "report_file": "/var/folders/6r/lhkvk3m14ls587p81nfcy0k40000gp/T/tmpc2li0y_7/report.txt"
   }
 }

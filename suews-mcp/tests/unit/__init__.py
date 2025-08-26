@@ -5,5 +5,5 @@
 
 # Test categories:
 # - test_protocol_compliance.py: MCP protocol compliance tests
-# - test_individual_tools.py: Individual tool functionality tests  
+# - test_individual_tools.py: Individual tool functionality tests
 # - test_validation_rules.py: Validation and error handling tests

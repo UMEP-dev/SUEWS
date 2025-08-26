@@ -1,0 +1,347 @@
+{
+  "catalog_version": "1.0",
+  "generated": "2025-01-01",
+  "description": "SUEWS MCP Resource Catalog - Templates, examples, and guidance for urban climate modeling workflows",
+  
+  "resource_types": {
+    "config_templates": {
+      "description": "Pre-configured YAML files for common urban area types",
+      "path": "configs/",
+      "format": "YAML"
+    },
+    "workflow_guides": {
+      "description": "Step-by-step guides for common SUEWS workflows", 
+      "path": "workflows/",
+      "format": "Markdown"
+    },
+    "examples": {
+      "description": "Complete working examples for different use cases",
+      "path": "examples/",
+      "format": "Mixed (Python, Markdown, YAML)"
+    },
+    "prompt_templates": {
+      "description": "Templates for AI-assisted workflow guidance",
+      "path": "prompts/",
+      "format": "Markdown"
+    },
+    "sample_data": {
+      "description": "Sample datasets and data source information",
+      "path": "data/", 
+      "format": "Mixed (TXT, CSV, Markdown)"
+    }
+  },
+
+  "resources": {
+    "config_templates": [
+      {
+        "id": "residential",
+        "name": "Residential Area Configuration", 
+        "path": "configs/residential.yml",
+        "description": "Mixed residential areas with 25% paved, 35% buildings, 30% grass",
+        "tags": ["residential", "mixed-use", "suburban"],
+        "surface_fractions": {
+          "paved": 0.25,
+          "buildings": 0.35, 
+          "grass": 0.30,
+          "trees": 0.10
+        },
+        "typical_use_cases": [
+          "Suburban neighborhoods",
+          "Low-density housing areas", 
+          "Mixed residential-commercial zones"
+        ]
+      },
+      {
+        "id": "commercial", 
+        "name": "Commercial/Downtown Configuration",
+        "path": "configs/commercial.yml",
+        "description": "Dense downtown areas with 40% paved, 55% buildings, minimal vegetation",
+        "tags": ["commercial", "downtown", "dense-urban", "cbd"],
+        "surface_fractions": {
+          "paved": 0.40,
+          "buildings": 0.55,
+          "grass": 0.03,
+          "trees": 0.02
+        },
+        "typical_use_cases": [
+          "Central business districts",
+          "Commercial corridors",
+          "Dense urban centers"
+        ]
+      },
+      {
+        "id": "industrial",
+        "name": "Industrial Zone Configuration",
+        "path": "configs/industrial.yml", 
+        "description": "Industrial zones with 50% paved, 35% buildings, minimal vegetation",
+        "tags": ["industrial", "manufacturing", "logistics"],
+        "surface_fractions": {
+          "paved": 0.50,
+          "buildings": 0.35,
+          "grass": 0.10,
+          "trees": 0.05
+        },
+        "typical_use_cases": [
+          "Manufacturing districts",
+          "Industrial parks",
+          "Logistics centers"
+        ]
+      },
+      {
+        "id": "park",
+        "name": "Urban Park Configuration",
+        "path": "configs/park.yml",
+        "description": "Urban parks and green spaces with 45% grass, 35% trees, minimal built area", 
+        "tags": ["park", "green-space", "recreation", "vegetation"],
+        "surface_fractions": {
+          "paved": 0.05,
+          "buildings": 0.05,
+          "grass": 0.45,
+          "trees": 0.35,
+          "water": 0.05,
+          "bare_soil": 0.05
+        },
+        "typical_use_cases": [
+          "City parks",
+          "Green corridors", 
+          "Recreation areas",
+          "Urban forests"
+        ]
+      }
+    ],
+
+    "workflow_guides": [
+      {
+        "id": "quick_start",
+        "name": "Quick Start Workflow",
+        "path": "workflows/quick_start.md",
+        "description": "Your first SUEWS simulation - from template selection to results analysis",
+        "difficulty": "beginner",
+        "duration_minutes": 30,
+        "prerequisites": ["basic_python", "meteorological_data"],
+        "learning_outcomes": [
+          "Run a basic SUEWS simulation",
+          "Understand energy balance outputs", 
+          "Interpret urban climate results"
+        ]
+      },
+      {
+        "id": "sensitivity_analysis", 
+        "name": "Parameter Sensitivity Analysis",
+        "path": "workflows/sensitivity_analysis.md",
+        "description": "Test how different parameters affect model outputs",
+        "difficulty": "intermediate",
+        "duration_minutes": 60,
+        "prerequisites": ["quick_start", "parameter_knowledge"],
+        "learning_outcomes": [
+          "Design sensitivity experiments",
+          "Identify key model parameters",
+          "Quantify parameter uncertainties"
+        ]
+      },
+      {
+        "id": "validation_workflow",
+        "name": "Model Validation Workflow", 
+        "path": "workflows/validation_workflow.md",
+        "description": "Compare model results with observations to assess performance",
+        "difficulty": "advanced", 
+        "duration_minutes": 90,
+        "prerequisites": ["sensitivity_analysis", "observational_data"],
+        "learning_outcomes": [
+          "Validate model performance",
+          "Calculate statistical metrics",
+          "Improve model calibration"
+        ]
+      }
+    ],
+
+    "examples": [
+      {
+        "id": "basic_simulation",
+        "name": "Basic SUEWS Simulation",
+        "path": "examples/basic_simulation/",
+        "description": "Minimal working simulation demonstrating core SUEWS functionality",
+        "complexity": "simple",
+        "domain": "general",
+        "files": [
+          "README.md",
+          "run_simulation.py"
+        ],
+        "learning_focus": [
+          "Basic SUEWS workflow",
+          "Energy balance analysis",
+          "Result visualization"
+        ]
+      },
+      {
+        "id": "urban_park_study", 
+        "name": "Urban Park Cooling Study",
+        "path": "examples/urban_park_study/",
+        "description": "Analyze cooling benefits and ecosystem services of urban green spaces",
+        "complexity": "intermediate",
+        "domain": "green_infrastructure", 
+        "files": [
+          "README.md",
+          "park_simulation.py",
+          "cooling_analysis.py"
+        ],
+        "learning_focus": [
+          "Green infrastructure benefits",
+          "Comparative analysis methods",
+          "Ecosystem services quantification"
+        ]
+      },
+      {
+        "id": "building_energy",
+        "name": "Building Energy Analysis",
+        "path": "examples/building_energy/",
+        "description": "Integrate SUEWS with building energy modeling for urban energy studies",
+        "complexity": "advanced",
+        "domain": "building_energy",
+        "files": [
+          "README.md",
+          "energy_integration.py",
+          "demand_analysis.py"
+        ],
+        "learning_focus": [
+          "Urban-building energy coupling", 
+          "Heat island impacts on buildings",
+          "Energy demand modeling"
+        ]
+      },
+      {
+        "id": "multi_site_analysis",
+        "name": "Multi-Site Comparative Analysis",
+        "path": "examples/multi_site_analysis/",
+        "description": "Compare urban climate patterns across multiple sites or scenarios",
+        "complexity": "advanced", 
+        "domain": "comparative_studies",
+        "files": [
+          "README.md",
+          "multi_site_runner.py", 
+          "comparative_analysis.py"
+        ],
+        "learning_focus": [
+          "Batch simulation management",
+          "Statistical comparison methods",
+          "Regional urban climate patterns"
+        ]
+      }
+    ],
+
+    "prompt_templates": [
+      {
+        "id": "configure_site",
+        "name": "Site Configuration Assistant", 
+        "path": "prompts/model_setup/configure_site.md",
+        "description": "Guide users through configuring SUEWS for their specific site",
+        "category": "model_setup",
+        "interaction_type": "guided_questions",
+        "outputs": ["site_config.yml", "validation_report"]
+      },
+      {
+        "id": "meteorological_data",
+        "name": "Meteorological Data Preparation",
+        "path": "prompts/data_preparation/meteorological_data.md", 
+        "description": "Help users prepare and validate meteorological forcing data",
+        "category": "data_preparation",
+        "interaction_type": "diagnostic_assistance",
+        "outputs": ["forcing_file.txt", "quality_report.txt"]
+      },
+      {
+        "id": "energy_balance_interpretation",
+        "name": "Energy Balance Results Interpretation",
+        "path": "prompts/analysis/energy_balance_interpretation.md",
+        "description": "Guide interpretation of SUEWS energy balance simulation results", 
+        "category": "analysis",
+        "interaction_type": "results_interpretation",
+        "outputs": ["interpretation_report.md", "recommendations.txt"]
+      }
+    ],
+
+    "sample_data": [
+      {
+        "id": "sample_forcing",
+        "name": "Sample Meteorological Data",
+        "path": "data/sample_forcing.txt",
+        "description": "Example hourly meteorological forcing data for testing",
+        "format": "SUEWS_text",
+        "time_period": "2012-01-01 to 2012-12-31",
+        "resolution": "5-minute",
+        "variables": ["Tair", "RH", "U", "pres", "rain", "kdown"]
+      },
+      {
+        "id": "sample_initial", 
+        "name": "Sample Initial Conditions",
+        "path": "data/sample_initial.txt",
+        "description": "Example initial conditions and site parameters",
+        "format": "CSV",
+        "site_type": "residential",
+        "parameters_included": ["surface_fractions", "morphology", "vegetation"]
+      },
+      {
+        "id": "data_sources",
+        "name": "Data Sources Guide",
+        "path": "data/data_sources.md",
+        "description": "Links and guidance for obtaining real-world meteorological and urban data",
+        "content_type": "documentation",
+        "data_types": ["meteorological", "urban_morphology", "land_cover", "demographics"]
+      }
+    ]
+  },
+
+  "usage_patterns": {
+    "beginner_workflow": [
+      "config_templates/residential",
+      "sample_data/sample_forcing",
+      "workflow_guides/quick_start", 
+      "examples/basic_simulation",
+      "prompt_templates/energy_balance_interpretation"
+    ],
+    "research_workflow": [
+      "prompt_templates/configure_site",
+      "prompt_templates/meteorological_data",
+      "workflow_guides/validation_workflow",
+      "examples/multi_site_analysis"
+    ],
+    "green_infrastructure_study": [
+      "config_templates/park",
+      "config_templates/residential", 
+      "examples/urban_park_study",
+      "prompt_templates/energy_balance_interpretation"
+    ],
+    "building_energy_study": [
+      "config_templates/commercial",
+      "examples/building_energy",
+      "workflow_guides/sensitivity_analysis"
+    ]
+  },
+
+  "search_tags": {
+    "by_difficulty": {
+      "beginner": ["quick_start", "basic_simulation", "residential"],
+      "intermediate": ["sensitivity_analysis", "urban_park_study", "configure_site"],
+      "advanced": ["validation_workflow", "building_energy", "multi_site_analysis"]
+    },
+    "by_domain": {
+      "urban_planning": ["park", "urban_park_study", "multi_site_analysis"],
+      "building_energy": ["commercial", "building_energy", "industrial"], 
+      "green_infrastructure": ["park", "urban_park_study"],
+      "climate_adaptation": ["sensitivity_analysis", "validation_workflow"]
+    },
+    "by_surface_type": {
+      "high_vegetation": ["park", "urban_park_study"],
+      "dense_built": ["commercial", "industrial", "building_energy"],
+      "mixed_urban": ["residential", "basic_simulation"]
+    }
+  },
+
+  "documentation_links": {
+    "supy_docs": "https://supy.readthedocs.io/",
+    "suews_manual": "https://suews.readthedocs.io/", 
+    "quick_start_tutorial": "https://suews.readthedocs.io/en/latest/tutorials/python/quick-start.html",
+    "configuration_guide": "https://suews.readthedocs.io/en/latest/inputs/yaml/index.html",
+    "parameter_reference": "https://suews.readthedocs.io/en/latest/inputs/tables/index.html",
+    "troubleshooting": "https://suews.readthedocs.io/en/latest/troubleshooting.html"
+  }
+}

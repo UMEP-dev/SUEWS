@@ -71,6 +71,13 @@ from ._version import show_version, __version__
 
 from .cmd import SUEWS
 
+# MCP server (optional import for AI assistant integration)
+try:
+    from . import mcp
+except ImportError:
+    # MCP functionality not available
+    mcp = None
+
 # module docs
 __doc__ = """
 supy - SUEWS that speaks Python

@@ -97,6 +97,18 @@ py.install_sources(
         [
             'ext_data/CRU_TS4.06_1991_2020.parquet',
         ],
+        [
+            'mcp/__init__.py',
+            'mcp/server.py',
+            'mcp/example.py',
+            'mcp/tools/__init__.py',
+            'mcp/tools/base.py',
+            'mcp/tools/configure.py',
+            'mcp/tools/run.py',
+            'mcp/tools/analyze.py',
+            'mcp/utils/__init__.py',
+            'mcp/utils/translator.py',
+        ],
     ],
     subdir: 'supy',
     preserve_path: true,

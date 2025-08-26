@@ -34,6 +34,21 @@
 
 ## 2025
 
+### 26 Aug 2025
+- [feature] Added Model Context Protocol (MCP) server for SuPy tools integration ([#637](https://github.com/UMEP-dev/SUEWS/issues/637))
+  - Implemented core MCP server providing direct mappings to SuPy functions
+  - Created three essential wrapper tools:
+    - `configure_simulation`: Load and validate SUEWS configuration from YAML files
+    - `run_simulation`: Execute SUEWS simulations with forcing data or sample data
+    - `analyze_results`: Analyze simulation outputs with statistics, resampling, and energy balance calculations
+  - Added comprehensive parameter validation and type conversion for MCP requests
+  - Implemented structured, AI-friendly JSON responses for all tool operations
+  - Added error handling for common failures with detailed diagnostic information
+  - Created parameter translation utilities for converting between MCP and SuPy APIs
+  - Comprehensive test suite covering server functionality, tool integration, and error scenarios
+  - Tools support both file-based and sample data workflows
+  - Analysis tool provides energy balance, water balance, temporal pattern, and comparison capabilities
+
 ### 20 Aug 2025
 - [maintenance] Refactored validation module structure for better organization
   - Moved `yaml_processor` into `validation/pipeline` subdirectory

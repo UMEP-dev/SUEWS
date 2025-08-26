@@ -1,5 +1,5 @@
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling>=1.18.0"]
 build-backend = "hatchling.build"
 
 [project]
@@ -8,41 +8,77 @@ dynamic = ["version"]
 description = "Model Context Protocol (MCP) server for SUEWS urban climate model"
 readme = "README.md"
 requires-python = ">=3.9"
-license = {text = "GPL-3.0"}
+license = {text = "GPL-3.0-or-later"}
 authors = [
     {name = "SUEWS Development Team", email = "sunt05@gmail.com"},
 ]
-keywords = ["mcp", "suews", "urban climate", "model context protocol"]
+maintainers = [
+    {name = "Ting Sun", email = "sunt05@gmail.com"},
+]
+keywords = [
+    "mcp", 
+    "suews", 
+    "urban climate", 
+    "model context protocol",
+    "urban meteorology",
+    "energy balance",
+    "surface flux",
+    "climate modeling"
+]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
     "Intended Audience :: Science/Research",
-    "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
+    "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
-    "Programming Language :: Python :: 3.13",
     "Topic :: Scientific/Engineering :: Atmospheric Science",
+    "Topic :: Scientific/Engineering :: GIS",
+    "Topic :: Scientific/Engineering :: Physics",
     "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: Communications",
+    "Environment :: Console",
 ]
 
 dependencies = [
     "mcp>=1.0.0",
     "supy>=2024.12.16",
-    "pydantic>=2.0.0",
+    "pydantic>=2.0.0,<3.0.0",
     "typing-extensions>=4.0.0",
+    "pyyaml>=6.0.0",
+    "numpy>=1.20.0",
+    "pandas>=1.3.0",
 ]
 
 [project.optional-dependencies]
 dev = [
     "pytest>=7.0.0",
     "pytest-asyncio>=0.21.0",
+    "pytest-cov>=4.0.0",
     "black>=23.0.0",
     "ruff>=0.1.0",
     "mypy>=1.0.0",
+    "pre-commit>=3.0.0",
+    "tox>=4.0.0",
+    "build>=0.10.0",
+    "twine>=4.0.0",
+]
+test = [
+    "pytest>=7.0.0",
+    "pytest-asyncio>=0.21.0",
+    "pytest-cov>=4.0.0",
+]
+docs = [
+    "sphinx>=5.0.0",
+    "sphinx-rtd-theme>=1.0.0",
+    "myst-parser>=2.0.0",
+]
+all = [
+    "suews-mcp[dev,test,docs]",
 ]
 
 [project.urls]

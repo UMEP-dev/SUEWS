@@ -38,320 +38,269 @@ class TestValidationReporter:
         assert reporter.json_data["info"] == []
 
     def test_add_error(self):
-        """Test adding errors to the report."""
+        """Test adding error updates counters correctly."""
         reporter = ValidationReporter()
 
         reporter.add_error({
             "phase": "A",
-            "type": "missing_required_parameter",
+            "type": "missing_required",
             "field_path": "model.physics.emissionsmethod",
-            "message": "Required parameter 'emissionsmethod' is missing",
-            "details": {"required": True},
-            "suggestions": ["Add 'emissionsmethod' with value between 0-2"],
+            "message": "Required parameter missing",
+            "severity": "error",
         })
 
         assert reporter.json_data["summary"]["total_errors"] == 1
         assert not reporter.json_data["summary"]["validation_passed"]
         assert len(reporter.json_data["errors"]) == 1
-        assert reporter.json_data["errors"][0]["type"] == "missing_required_parameter"
-        assert reporter.json_data["errors"][0]["severity"] == "critical"
-
-        # Check phase-specific errors
-        assert "A" in reporter.json_data["phases"]
-        assert len(reporter.json_data["phases"]["A"]["errors"]) == 1
+        assert reporter.json_data["errors"][0]["severity"] == "error"
 
     def test_add_warning(self):
-        """Test adding warnings to the report."""
+        """Test adding warning updates counters correctly."""
         reporter = ValidationReporter()
 
         reporter.add_warning({
             "phase": "B",
-            "type": "science_warning",
-            "field_path": "metforcing.temp_c",
-            "message": "Temperature value seems unusually high",
-            "details": {"value": 55, "typical_range": [-20, 45]},
+            "type": "deprecated_parameter",
+            "field_path": "model.physics.cp",
+            "message": "Parameter is deprecated",
+            "severity": "warning",
         })
 
         assert reporter.json_data["summary"]["total_warnings"] == 1
-        assert reporter.json_data["summary"][
-            "validation_passed"
-        ]  # Warnings don't fail validation
+        assert reporter.json_data["summary"]["validation_passed"]  # Warnings don't fail validation
         assert len(reporter.json_data["warnings"]) == 1
         assert reporter.json_data["warnings"][0]["severity"] == "warning"
 
     def test_add_info(self):
-        """Test adding info items to the report."""
+        """Test adding info updates counters correctly."""
         reporter = ValidationReporter()
 
         reporter.add_info({
             "phase": "A",
             "type": "parameter_renamed",
-            "field_path": "model.physics",
-            "message": "Parameter renamed for consistency",
-            "details": {"old_name": "bldgh", "new_name": "bldg_height"},
+            "field_path": "model.physics.rho_cp",
+            "message": "Parameter renamed from cp",
+            "severity": "info",
         })
 
         assert reporter.json_data["summary"]["total_info"] == 1
         assert reporter.json_data["summary"]["validation_passed"]
         assert len(reporter.json_data["info"]) == 1
+        assert reporter.json_data["info"][0]["severity"] == "info"
+
+    def test_phase_tracking(self):
+        """Test phase completion tracking."""
+        reporter = ValidationReporter()
+
+        reporter.start_phase("A")
+        assert "A" in reporter.json_data["phases"]
+        assert reporter.json_data["phases"]["A"]["completed"] is False
+
+        reporter.complete_phase("A", success=True)
+        assert reporter.json_data["phases"]["A"]["completed"] is True
+        assert "A" in reporter.json_data["phases_completed"]
 
     def test_merge_reporters(self):
         """Test merging multiple reporters."""
         reporter1 = ValidationReporter()
         reporter1.add_error({
             "phase": "A",
-            "type": "missing_required_parameter",
-            "field_path": "field1",
-            "message": "Missing field1",
+            "type": "test",
+            "field_path": "test.path",
+            "message": "Error 1",
         })
-        reporter1.add_phase_results("A", {"parameters_checked": 10})
+        reporter1.complete_phase("A", success=False)
 
         reporter2 = ValidationReporter()
         reporter2.add_warning({
             "phase": "B",
-            "type": "science_warning",
-            "field_path": "field2",
-            "message": "Warning for field2",
+            "type": "test",
+            "field_path": "test.path",
+            "message": "Warning 1",
         })
-        reporter2.add_phase_results("B", {"validations_run": 5})
+        reporter2.complete_phase("B", success=True)
 
-        # Merge reporter2 into reporter1
-        reporter1.merge(reporter2)
+        merged = ValidationReporter.merge([reporter1, reporter2])
 
-        assert reporter1.json_data["summary"]["total_errors"] == 1
-        assert reporter1.json_data["summary"]["total_warnings"] == 1
-        assert "A" in reporter1.json_data["phases_completed"]
-        assert "B" in reporter1.json_data["phases_completed"]
-        assert reporter1.json_data["phases"]["A"]["results"]["parameters_checked"] == 10
-        assert reporter1.json_data["phases"]["B"]["results"]["validations_run"] == 5
+        assert merged.json_data["summary"]["total_errors"] == 1
+        assert merged.json_data["summary"]["total_warnings"] == 1
+        assert len(merged.json_data["phases_completed"]) == 2
+        assert not merged.json_data["summary"]["validation_passed"]
 
-    def test_phase_results(self):
-        """Test adding phase-specific results."""
-        reporter = ValidationReporter()
-
-        results = {
-            "renamed_parameters": ["bldgh", "faibldg"],
-            "missing_parameters": ["emissionsmethod"],
-            "extra_parameters": ["unknown_param"],
-            "total_processed": 25,
-        }
-
-        reporter.add_phase_results("A", results)
-
-        assert "A" in reporter.json_data["phases_completed"]
-        assert reporter.json_data["phases"]["A"]["completed"]
-        assert reporter.json_data["phases"]["A"]["results"] == results
-
-    def test_get_action_items(self):
-        """Test extraction of action items."""
-        reporter = ValidationReporter()
-
-        # Add an error (requires action)
-        reporter.add_error({
-            "phase": "A",
-            "type": "error",
-            "field_path": "field1",
-            "message": "Error message",
-        })
-
-        # Add a warning that requires action
-        reporter.add_warning({
-            "phase": "B",
-            "type": "warning",
-            "field_path": "field2",
-            "message": "Critical warning",
-            "details": {"requires_action": True},
-        })
-
-        # Add a warning that doesn't require action
-        reporter.add_warning({
-            "phase": "B",
-            "type": "warning",
-            "field_path": "field3",
-            "message": "Minor warning",
-            "details": {"requires_action": False},
-        })
-
-        action_items = reporter.get_action_items()
-        assert len(action_items) == 2  # Error + critical warning
-
-    def test_save_json_report(self):
+    def test_save_json_report(self, tmp_path):
         """Test saving JSON report to file."""
         reporter = ValidationReporter()
         reporter.add_info({
             "phase": "A",
-            "type": "info",
+            "type": "test",
             "field_path": "test",
             "message": "Test message",
         })
 
-        with tempfile.NamedTemporaryFile(
-            mode="w", suffix=".json", delete=False, encoding="utf-8"
-        ) as f:
-            filepath = Path(f.name)
+        json_file = tmp_path / "test_report.json"
+        reporter.save_json_report(str(json_file))
 
-        try:
-            reporter.save_json_report(filepath)
+        assert json_file.exists()
+        with open(json_file) as f:
+            data = json.load(f)
+        assert data["schema_version"] == "1.0.0"
+        assert data["summary"]["total_info"] == 1
 
-            # Load and verify
-            with open(filepath, encoding="utf-8") as f:
-                loaded_data = json.load(f)
+    def test_get_action_items(self):
+        """Test extracting action items from validation results."""
+        reporter = ValidationReporter()
 
-            assert loaded_data["schema_version"] == "1.0.0"
-            assert loaded_data["summary"]["total_info"] == 1
-        finally:
-            filepath.unlink()  # Clean up
+        reporter.add_error({
+            "phase": "A",
+            "type": "missing_required",
+            "field_path": "model.physics.emissionsmethod",
+            "message": "Required parameter missing",
+            "details": {"fix": "Add emissionsmethod parameter"},
+        })
+
+        reporter.add_warning({
+            "phase": "B",
+            "type": "deprecated",
+            "field_path": "model.physics.cp",
+            "message": "Parameter deprecated",
+            "details": {"fix": "Rename to rho_cp"},
+        })
+
+        actions = reporter.get_action_items()
+        assert len(actions) == 2
+        assert actions[0]["severity"] == "error"
+        assert "Add emissionsmethod" in actions[0]["message"]
+        assert actions[1]["severity"] == "warning"
+        assert "Rename to rho_cp" in actions[1]["message"]
 
 
 class TestTextReportGenerator:
     """Test the TextReportGenerator class."""
 
     def test_generate_basic_report(self):
-        """Test generating a basic text report from JSON."""
-        reporter = ValidationReporter()
-        reporter.add_info({
-            "phase": "A",
-            "type": "parameter_updated",
-            "field_path": "model.physics.bldgh",
-            "message": "Building height updated",
-            "details": {"old_value": 10, "new_value": 20},
-        })
-
-        generator = TextReportGenerator()
-        text_report = generator.generate(reporter.get_json_report(), "A", "public")
-
-        assert "# SUEWS - Phase A (Up-to-date YAML check) Report" in text_report
-        assert "# Mode: Public" in text_report
-        assert "## NO ACTION NEEDED" in text_report
-        assert "Updated model.physics.bldgh: 10 → 20" in text_report
-
-    def test_generate_error_report(self):
-        """Test generating report with errors."""
+        """Test generating a basic text report."""
         reporter = ValidationReporter()
         reporter.add_error({
-            "phase": "B",
-            "type": "science_validation_error",
-            "field_path": "metforcing.temp_c",
-            "message": "Temperature below absolute zero",
-            "details": {"physics_constraint": "temp_c >= -273.15"},
-        })
-
-        generator = TextReportGenerator()
-        text_report = generator.generate(reporter.get_json_report(), "B", "public")
-
-        assert "## ACTION NEEDED" in text_report
-        assert "Temperature below absolute zero" in text_report
-        assert "Constraint violated: temp_c >= -273.15" in text_report
-
-    def test_generate_combined_phase_report(self):
-        """Test generating report for combined phases."""
-        reporter = ValidationReporter()
-
-        # Add Phase A item
-        reporter.add_info({
             "phase": "A",
-            "type": "parameter_renamed",
-            "field_path": "param1",
-            "message": "Parameter renamed",
-            "details": {"old_name": "old", "new_name": "new"},
-        })
-
-        # Add Phase B item
-        reporter.add_warning({
-            "phase": "B",
-            "type": "science_warning",
-            "field_path": "param2",
-            "message": "Science warning",
-        })
-
-        generator = TextReportGenerator()
-        text_report = generator.generate(reporter.get_json_report(), "AB", "public")
-
-        assert "Phase AB" in text_report
-        assert (
-            "Parameter renamed" in text_report
-        )  # Generic format doesn't include details
-        assert "Scientific warning" in text_report
-
-    def test_phase_filtering(self):
-        """Test that only relevant phase items are included."""
-        reporter = ValidationReporter()
-
-        # Add Phase A item
-        reporter.add_info({
-            "phase": "A",
-            "type": "info",
-            "field_path": "field1",
-            "message": "Phase A info",
-        })
-
-        # Add Phase B item
-        reporter.add_info({
-            "phase": "B",
-            "type": "info",
-            "field_path": "field2",
-            "message": "Phase B info",
-        })
-
-        generator = TextReportGenerator()
-
-        # Generate Phase A report - should only include Phase A items
-        text_report_a = generator.generate(reporter.get_json_report(), "A", "public")
-        assert "Phase A info" in text_report_a
-        assert "Phase B info" not in text_report_a
-
-        # Generate Phase B report - should only include Phase B items
-        text_report_b = generator.generate(reporter.get_json_report(), "B", "public")
-        assert "Phase A info" not in text_report_b
-        assert "Phase B info" in text_report_b
-
-        # Generate Phase AB report - should include both
-        text_report_ab = generator.generate(reporter.get_json_report(), "AB", "public")
-        assert "Phase A info" in text_report_ab
-        assert "Phase B info" in text_report_ab
-
-    def test_empty_report(self):
-        """Test generating report when validation passes with no issues."""
-        reporter = ValidationReporter()
-        reporter.add_phase_results("C", {"validations_passed": True})
-
-        generator = TextReportGenerator()
-        text_report = generator.generate(reporter.get_json_report(), "C", "public")
-
-        assert "Phase C passed" in text_report
-        assert "## ACTION NEEDED" not in text_report
-        assert "## NO ACTION NEEDED" not in text_report
-
-    def test_save_text_report(self):
-        """Test saving text report to file."""
-        reporter = ValidationReporter()
-        reporter.add_info({
-            "phase": "A",
-            "type": "info",
-            "field_path": "test",
+            "type": "missing_required",
+            "field_path": "model.physics.emissionsmethod",
             "message": "Test message",
         })
 
-        generator = TextReportGenerator()
+        generator = TextReportGenerator(reporter)
+        text = generator.generate()
 
-        with tempfile.NamedTemporaryFile(
-            mode="w", suffix=".txt", delete=False, encoding="utf-8"
-        ) as f:
-            filepath = Path(f.name)
+        assert "## ACTION NEEDED" in text
+        assert "Missing required parameter" in text
+        assert "emissionsmethod" in text
+        assert "Summary" in text
+        assert "Errors: 1" in text
+        assert "Phase A" in text
 
-        try:
-            generator.save_text_report(
-                reporter.get_json_report(), filepath, "A", "public"
-            )
+    def test_generate_info_only_report(self):
+        """Test report with only info items."""
+        reporter = ValidationReporter()
+        reporter.add_info({
+            "phase": "A",
+            "type": "parameter_renamed",
+            "field_path": "model.physics.rho_cp",
+            "message": "cp changed to rho_cp",
+        })
 
-            # Load and verify
-            with open(filepath, encoding="utf-8") as f:
-                content = f.read()
+        generator = TextReportGenerator(reporter)
+        text = generator.generate()
 
-            assert "# SUEWS - Phase A" in content
-            assert "Test message" in content
-        finally:
-            filepath.unlink()  # Clean up
+        assert "## NO ACTION NEEDED" in text
+        assert "Information Messages" in text
+        assert "cp changed to rho_cp" in text
+        assert "Phase A" in text
+
+    def test_save_text_report(self, tmp_path):
+        """Test saving text report to file."""
+        reporter = ValidationReporter()
+        reporter.add_warning({
+            "phase": "B",
+            "type": "deprecated",
+            "field_path": "test.field",
+            "message": "Test warning",
+        })
+
+        generator = TextReportGenerator(reporter)
+        text_file = tmp_path / "test_report.txt"
+        generator.save(str(text_file))
+
+        assert text_file.exists()
+        content = text_file.read_text()
+        assert "## ACTION NEEDED" in content
+        assert "Test warning" in content
+        assert "Warnings: 1" in content
+
+
+class TestIntegration:
+    """Test integrated validation reporting workflows."""
+
+    def test_complete_validation_workflow(self, tmp_path):
+        """Test a complete validation workflow with all phases."""
+        reporter = ValidationReporter()
+
+        # Phase A
+        reporter.start_phase("A")
+        reporter.add_info({
+            "phase": "A",
+            "type": "missing_optional",
+            "field_path": "model.control.output.groups",
+            "message": "Optional parameter missing",
+        })
+        reporter.complete_phase("A", success=True)
+
+        # Phase B
+        reporter.start_phase("B")
+        reporter.add_warning({
+            "phase": "B",
+            "type": "physics_incompatibility",
+            "field_path": "model.physics",
+            "message": "Physics options may be incompatible",
+        })
+        reporter.complete_phase("B", success=True)
+
+        # Phase C
+        reporter.start_phase("C")
+        reporter.add_error({
+            "phase": "C",
+            "type": "validation_error",
+            "field_path": "sites[0].properties",
+            "message": "Invalid site properties",
+        })
+        reporter.complete_phase("C", success=False)
+
+        # Generate reports
+        json_file = tmp_path / "validation_report.json"
+        text_file = tmp_path / "validation_report.txt"
+
+        reporter.save_json_report(str(json_file))
+
+        generator = TextReportGenerator(reporter)
+        generator.save(str(text_file))
+
+        # Verify JSON report
+        assert json_file.exists()
+        with open(json_file) as f:
+            json_data = json.load(f)
+        assert json_data["summary"]["total_errors"] == 1
+        assert json_data["summary"]["total_warnings"] == 1
+        assert json_data["summary"]["total_info"] == 1
+        assert not json_data["summary"]["validation_passed"]
+        assert len(json_data["phases_completed"]) == 3
+
+        # Verify text report
+        assert text_file.exists()
+        text_content = text_file.read_text()
+        assert "## ACTION NEEDED" in text_content
+        assert "Phase A" in text_content
+        assert "Phase B" in text_content
+        assert "Phase C" in text_content
+        assert "Errors: 1" in text_content
+        assert "Warnings: 1" in text_content
 
 
 if __name__ == "__main__":

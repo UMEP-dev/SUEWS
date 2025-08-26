@@ -1,0 +1,249 @@
+name: industrial_area
+description: Template configuration for industrial urban area with large buildings, high energy use, and minimal vegetation
+
+model:
+  control:
+    tstep: 300
+    start_time: "2023-01-01"
+    end_time: "2023-12-31"
+    forcing_file:
+      value: "forcing_data.txt"
+    output_file:
+      format: txt
+      freq: 3600
+      groups:
+        - "SUEWS"
+    diagnose: 0
+
+  physics:
+    netradiationmethod:
+      value: 3
+    emissionsmethod:
+      value: 2
+    storageheatmethod:
+      value: 1
+    ohmincqf:
+      value: 0
+    roughlenmommethod:
+      value: 1
+    roughlenheatmethod:
+      value: 2
+    stabilitymethod:
+      value: 3
+    smdmethod:
+      value: 0
+    waterusemethod:
+      value: 0
+    rslmethod:
+      value: 2
+    faimethod:
+      value: 0
+    rsllevel:
+      value: 1
+    gsmodel:
+      value: 2
+    snowuse:
+      value: 0
+    stebbsmethod:
+      value: 0
+
+sites:
+- name: Industrial
+  gridiv: 1
+  properties:
+    lat:
+      value: 52.5  # Example: UK industrial area
+    lng:
+      value: -2.0
+    alt:
+      value: 100.0
+    timezone:
+      value: 0
+    surfacearea:
+      value: 2000000.0  # 2 km² - larger industrial area
+    z:
+      value: 40.0
+    z0m_in:
+      value: 2.0  # Moderate roughness
+    zdm_in:
+      value: 12.0
+    pipecapacity:
+      value: 150.0
+    runofftowater:
+      value: 0.2  # Some industrial drainage
+    narp_trans_site:
+      value: 1.0
+    
+    # Land cover fractions - industrial characteristics
+    land_cover:
+      paved:
+        sfr:
+          value: 0.50  # 50% paved (roads, parking lots, loading areas)
+        emis:
+          value: 0.95
+        alb:
+          value: 0.10  # Dark industrial surfaces
+        
+      bldgs:
+        sfr:
+          value: 0.35  # 35% buildings (warehouses, factories)
+        emis:
+          value: 0.88  # Industrial buildings (metal roofs)
+        alb:
+          value: 0.30  # Light industrial roofs
+        bldgh:
+          value: 12.0  # Lower but wide industrial buildings
+        
+      grass:
+        sfr:
+          value: 0.10  # 10% grass (limited landscaping)
+        emis:
+          value: 0.93
+        alb:
+          value: 0.18  # Stressed urban grass
+          
+      dectr:
+        sfr:
+          value: 0.03  # 3% trees (minimal landscaping)
+        emis:
+          value: 0.98
+        alb:
+          value: 0.15
+          
+      evetr:
+        sfr:
+          value: 0.0
+        
+      bsoil:
+        sfr:
+          value: 0.02  # 2% bare soil (construction areas)
+        emis:
+          value: 0.94
+        alb:
+          value: 0.20
+          
+      water:
+        sfr:
+          value: 0.0
+
+    # Very high anthropogenic heat - industrial processes
+    anthropogenic_emissions:
+      heat:
+        qf0_beu:
+          working_day: 80.0  # Very high industrial energy use (W/m²)
+          holiday: 40.0     # Reduced but still significant
+        baset_heating:
+          working_day: 16.0  # Lower heating temps for industrial
+          holiday: 14.0
+        baset_cooling:
+          working_day: 28.0  # Higher cooling temps
+          holiday: 30.0
+        
+        # Industrial shift patterns
+        ahprof_24hr:
+          working_day:
+            '1': 0.6   # Night shift activity
+            '2': 0.5
+            '3': 0.5
+            '4': 0.5
+            '5': 0.6
+            '6': 0.8   # Shift change
+            '7': 1.2   # Day shift starts
+            '8': 2.0
+            '9': 2.2   # Full production
+            '10': 2.3
+            '11': 2.3
+            '12': 2.2
+            '13': 2.3
+            '14': 2.3
+            '15': 2.2
+            '16': 2.0
+            '17': 1.8  # Shift change
+            '18': 1.5
+            '19': 1.2
+            '20': 1.0
+            '21': 0.8
+            '22': 0.7  # Evening shift
+            '23': 0.6
+            '24': 0.6
+          holiday:
+            '1': 0.4   # Reduced weekend operations
+            '2': 0.3
+            '3': 0.3
+            '4': 0.3
+            '5': 0.3
+            '6': 0.4
+            '7': 0.5
+            '8': 0.8   # Some weekend production
+            '9': 1.0
+            '10': 1.2
+            '11': 1.3
+            '12': 1.2
+            '13': 1.2
+            '14': 1.2
+            '15': 1.1
+            '16': 1.0
+            '17': 0.9
+            '18': 0.8
+            '19': 0.7
+            '20': 0.6
+            '21': 0.5
+            '22': 0.4
+            '23': 0.4
+            '24': 0.4
+
+    # Initial conditions
+    initial_states:
+      paved:
+        state:
+          value: 0.0
+        soilstore:
+          value: 25.0  # Poor drainage
+        temperature:
+          value: [12.0, 12.0, 12.0, 12.0, 12.0]
+        tsfc:
+          value: 12.0
+          
+      bldgs:
+        state:
+          value: 0.0
+        soilstore:
+          value: 15.0
+        temperature:
+          value: [18.0, 18.0, 18.0, 18.0, 18.0]  # Industrial heating
+        tsfc:
+          value: 18.0
+          
+      grass:
+        state:
+          value: 0.0
+        soilstore:
+          value: 60.0
+        temperature:
+          value: [10.0, 10.0, 10.0, 10.0, 10.0]
+        tsfc:
+          value: 10.0
+        lai_id:
+          value: 1.2  # Low LAI due to pollution stress
+          
+      dectr:
+        state:
+          value: 0.0
+        soilstore:
+          value: 50.0
+        temperature:
+          value: [10.0, 10.0, 10.0, 10.0, 10.0]
+        tsfc:
+          value: 10.0
+        lai_id:
+          value: 2.0  # Stressed trees
+          
+      bsoil:
+        state:
+          value: 0.0
+        soilstore:
+          value: 40.0
+        temperature:
+          value: [9.0, 9.0, 9.0, 9.0, 9.0]
+        tsfc:
+          value: 9.0

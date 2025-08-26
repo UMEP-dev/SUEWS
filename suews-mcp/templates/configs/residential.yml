@@ -1,0 +1,182 @@
+name: residential_area
+description: Template configuration for typical residential urban area with moderate building density and green spaces
+
+model:
+  control:
+    tstep: 300  # 5-minute time step
+    start_time: "2023-01-01"
+    end_time: "2023-12-31"
+    forcing_file:
+      value: "forcing_data.txt"  # Replace with actual forcing file
+    output_file:
+      format: txt
+      freq: 3600  # Hourly output
+      groups:
+        - "SUEWS"
+    diagnose: 0
+
+  physics:
+    netradiationmethod:
+      value: 3  # Standard net radiation calculation
+    emissionsmethod:
+      value: 2  # Heat emissions
+    storageheatmethod:
+      value: 1  # OHM storage heat
+    ohmincqf:
+      value: 0
+    roughlenmommethod:
+      value: 1
+    roughlenheatmethod:
+      value: 2
+    stabilitymethod:
+      value: 3
+    smdmethod:
+      value: 0  # No snow
+    waterusemethod:
+      value: 0
+    rslmethod:
+      value: 2
+    faimethod:
+      value: 0
+    rsllevel:
+      value: 1
+    gsmodel:
+      value: 2
+    snowuse:
+      value: 0  # No snow modelling
+    stebbsmethod:
+      value: 0
+
+sites:
+- name: Residential
+  gridiv: 1
+  properties:
+    lat:
+      value: 51.5  # Example: London latitude
+    lng:
+      value: -0.1  # Example: London longitude
+    alt:
+      value: 50.0  # Elevation in metres
+    timezone:
+      value: 0  # UTC offset
+    surfacearea:
+      value: 1000000.0  # 1 km² area
+    z:
+      value: 30.0  # Measurement height
+    z0m_in:
+      value: 1.2  # Roughness length for momentum
+    zdm_in:
+      value: 8.0   # Zero displacement height
+    pipecapacity:
+      value: 100.0
+    runofftowater:
+      value: 0.0
+    narp_trans_site:
+      value: 1.0
+    
+    # Land cover fractions (must sum to 1.0)
+    land_cover:
+      paved:
+        sfr:
+          value: 0.25  # 25% paved surfaces (roads, driveways)
+        emis:
+          value: 0.95
+        alb:
+          value: 0.15  # Typical asphalt albedo
+        
+      bldgs:
+        sfr:
+          value: 0.35  # 35% building coverage
+        emis:
+          value: 0.91
+        alb:
+          value: 0.20  # Typical residential building albedo
+        bldgh:
+          value: 8.0   # Average residential building height
+        
+      grass:
+        sfr:
+          value: 0.30  # 30% grass coverage (gardens, parks)
+        emis:
+          value: 0.93
+        alb:
+          value: 0.25  # Green grass albedo
+          
+      dectr:
+        sfr:
+          value: 0.10  # 10% deciduous trees
+        emis:
+          value: 0.98
+        alb:
+          value: 0.18
+          
+      evetr:
+        sfr:
+          value: 0.0   # No evergreen trees
+        
+      bsoil:
+        sfr:
+          value: 0.0   # No bare soil
+          
+      water:
+        sfr:
+          value: 0.0   # No water bodies
+
+    # Anthropogenic heat emissions - moderate residential levels
+    anthropogenic_emissions:
+      heat:
+        qf0_beu:
+          working_day: 15.0  # Base energy use (W/m²)
+          holiday: 12.0
+        baset_heating:
+          working_day: 18.0  # Heating base temperature
+          holiday: 16.0
+        baset_cooling:
+          working_day: 25.0  # Cooling base temperature  
+          holiday: 27.0
+        
+    # Initial conditions - typical for temperate climate
+    initial_states:
+      paved:
+        state:
+          value: 0.0
+        soilstore:
+          value: 50.0
+        temperature:
+          value: [10.0, 10.0, 10.0, 10.0, 10.0]
+        tsfc:
+          value: 10.0
+          
+      bldgs:
+        state:
+          value: 0.0
+        soilstore:
+          value: 50.0
+        temperature:
+          value: [15.0, 15.0, 15.0, 15.0, 15.0]
+        tsfc:
+          value: 15.0
+          
+      grass:
+        state:
+          value: 0.0
+        soilstore:
+          value: 100.0
+        temperature:
+          value: [8.0, 8.0, 8.0, 8.0, 8.0]
+        tsfc:
+          value: 8.0
+        lai_id:
+          value: 2.0  # Moderate LAI for grass
+          
+      dectr:
+        state:
+          value: 0.0
+        soilstore:
+          value: 120.0
+        temperature:
+          value: [8.0, 8.0, 8.0, 8.0, 8.0]
+        tsfc:
+          value: 8.0
+        lai_id:
+          value: 3.0  # Moderate LAI for trees

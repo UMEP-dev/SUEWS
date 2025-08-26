@@ -10,11 +10,11 @@ from .handlers import SUEWSMCPHandlers
 
 __all__ = [
     "main",
-    "SUEWSMCPServer", 
+    "SUEWSMCPServer",
     "run_server",
     "MCPServerConfig",
     "load_config",
     "setup_logging",
     "SUEWSMCPHandlers",
-    "__version__"
+    "__version__",
 ]

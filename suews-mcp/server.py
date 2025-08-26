@@ -9,7 +9,7 @@ import sys
 import os
 
 # Add the src directory to Python path to ensure imports work
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "src"))
 
 from suews_mcp.server import main
 

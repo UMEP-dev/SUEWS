@@ -119,14 +119,16 @@ def mock_mcp_client():
     client = Mock()
     client.read_stream = AsyncMock()
     client.write_stream = AsyncMock()
-    
+
     # Mock client methods
     client.initialize = AsyncMock(return_value={"protocol_version": "2024-11-05"})
     client.list_tools = AsyncMock(return_value={"tools": []})
-    client.call_tool = AsyncMock(return_value={"content": [{"type": "text", "text": "mock result"}]})
+    client.call_tool = AsyncMock(
+        return_value={"content": [{"type": "text", "text": "mock result"}]}
+    )
     client.list_prompts = AsyncMock(return_value={"prompts": []})
     client.get_prompt = AsyncMock(return_value={"messages": []})
-    
+
     return client
 
 
@@ -156,16 +158,16 @@ async def minimal_server(minimal_config):
 
 class MockStreamPair:
     """Mock stream pair for stdio testing."""
-    
+
     def __init__(self):
         self.read_stream = AsyncMock()
         self.write_stream = AsyncMock()
         self.read_data = []
         self.write_data = []
-    
+
     async def __aenter__(self):
         return self.read_stream, self.write_stream
-    
+
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         pass
 
@@ -180,26 +182,29 @@ def mock_stdio_server():
 def mock_supy_module():
     """Mock the supy module for testing without actual SUEWS installation."""
     mock_supy = Mock()
-    
+
     # Mock common supy functions
-    mock_supy.load_SampleData = Mock(return_value={
-        "config": {"site": {"lat": 51.5, "lon": -0.1}},
-        "forcing": Mock()
-    })
-    
-    mock_supy.run_supy = AsyncMock(return_value={
-        "output": Mock(),
-        "state": Mock(),
-        "metadata": {"simulation_time": "00:00:10"}
-    })
-    
+    mock_supy.load_SampleData = Mock(
+        return_value={"config": {"site": {"lat": 51.5, "lon": -0.1}}, "forcing": Mock()}
+    )
+
+    mock_supy.run_supy = AsyncMock(
+        return_value={
+            "output": Mock(),
+            "state": Mock(),
+            "metadata": {"simulation_time": "00:00:10"},
+        }
+    )
+
     mock_supy.validate_config = Mock(return_value={"valid": True, "errors": []})
-    
-    mock_supy.analyze_output = Mock(return_value={
-        "statistics": {"mean_QH": 45.0, "mean_QE": 35.0, "mean_QN": 95.0},
-        "time_series": {"QH": [50, 48, 45], "QE": [40, 38, 35]}
-    })
-    
+
+    mock_supy.analyze_output = Mock(
+        return_value={
+            "statistics": {"mean_QH": 45.0, "mean_QE": 35.0, "mean_QN": 95.0},
+            "time_series": {"QH": [50, 48, 45], "QE": [40, 38, 35]},
+        }
+    )
+
     return mock_supy
 
 
@@ -215,14 +220,8 @@ def sample_initialize_params():
     """Sample initialization parameters for MCP."""
     return {
         "protocol_version": "2024-11-05",
-        "capabilities": {
-            "roots": {"list_changed": False},
-            "sampling": {}
-        },
-        "client_info": {
-            "name": "test-client",
-            "version": "1.0.0"
-        }
+        "capabilities": {"roots": {"list_changed": False}, "sampling": {}},
+        "client_info": {"name": "test-client", "version": "1.0.0"},
     }
 
 
@@ -233,18 +232,15 @@ def sample_tool_arguments():
         "run_suews_simulation": {
             "config_file": "/path/to/config.yml",
             "simulation_id": "test_sim_001",
-            "output_dir": "/path/to/output"
+            "output_dir": "/path/to/output",
         },
-        "validate_suews_config": {
-            "config_file": "/path/to/config.yml",
-            "strict": True
-        },
+        "validate_suews_config": {"config_file": "/path/to/config.yml", "strict": True},
         "analyze_suews_output": {
             "output_file": "/path/to/output.csv",
             "metrics": ["QH", "QE", "QN"],
-            "time_period": "daily"
+            "time_period": "daily",
         },
-        "health_check": {}
+        "health_check": {},
     }
 
 
@@ -263,7 +259,7 @@ def invalid_tool_arguments():
         "analyze_suews_output": {
             # Missing required output_file
             "metrics": ["QH", "QE"]
-        }
+        },
     }
 
 
@@ -287,13 +283,13 @@ def event_loop():
 
 class AsyncContextManager:
     """Helper class for testing async context managers."""
-    
+
     def __init__(self, value):
         self.value = value
-    
+
     async def __aenter__(self):
         return self.value
-    
+
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         return False
 

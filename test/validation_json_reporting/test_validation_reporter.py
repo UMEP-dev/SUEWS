@@ -52,7 +52,9 @@ class TestValidationReporter:
         assert reporter.json_data["summary"]["total_errors"] == 1
         assert not reporter.json_data["summary"]["validation_passed"]
         assert len(reporter.json_data["errors"]) == 1
-        assert reporter.json_data["errors"][0]["severity"] == "critical"  # Always set to critical internally
+        assert (
+            reporter.json_data["errors"][0]["severity"] == "critical"
+        )  # Always set to critical internally
 
     def test_add_warning(self):
         """Test adding warning updates counters correctly."""
@@ -164,7 +166,10 @@ class TestValidationReporter:
             "type": "deprecated",
             "field_path": "model.physics.cp",
             "message": "Parameter deprecated",
-            "details": {"fix": "Rename to rho_cp", "requires_action": True},  # Mark as requiring action
+            "details": {
+                "fix": "Rename to rho_cp",
+                "requires_action": True,
+            },  # Mark as requiring action
         })
 
         actions = reporter.get_action_items()
@@ -230,7 +235,9 @@ class TestTextReportGenerator:
 
         assert text_file.exists()
         content = text_file.read_text()
-        assert "Test warning" in content or "## NO ACTION NEEDED" in content  # Warning might be in info section
+        assert (
+            "Test warning" in content or "## NO ACTION NEEDED" in content
+        )  # Warning might be in info section
 
 
 class TestIntegration:
@@ -290,7 +297,9 @@ class TestIntegration:
         # Verify text report
         assert text_file.exists()
         text_content = text_file.read_text()
-        assert "Invalid site properties" in text_content  # Check for actual error message
+        assert (
+            "Invalid site properties" in text_content
+        )  # Check for actual error message
         assert "Phase ABC" in text_content  # Check for phase in header
 
 

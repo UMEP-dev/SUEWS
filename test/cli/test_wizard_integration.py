@@ -8,11 +8,11 @@ from pathlib import Path
 import yaml
 from unittest.mock import patch, MagicMock
 
-from src.supy.cli.wizard.engine import WizardEngine
-from src.supy.cli.wizard.validators.yaml_processor_integration import (
+from supy.cli.wizard.engine import WizardEngine
+from supy.cli.wizard.validators.yaml_processor_integration import (
     YAMLProcessorValidator,
 )
-from src.supy.cli.wizard.validators.pydantic_integration import PydanticValidator
+from supy.cli.wizard.validators.pydantic_integration import PydanticValidator
 
 
 class TestYAMLProcessorIntegration:

@@ -206,7 +206,7 @@ def validate_single_file(
     "out_format",
     type=click.Choice(["table", "json"]),
     default="table",
-    help="Output format for --dry-run results",
+    help="Output format for results (table or JSON)",
 )
 @click.option(
     "--schema-version",
@@ -362,7 +362,7 @@ def cli(ctx, files, pipeline, mode, dry_run, out_format, schema_version):
                 "[red]✗ Provide exactly one YAML FILE for pipeline execution[/red]"
             )
             ctx.exit(2)
-        code = _execute_pipeline(file=files[0], pipeline=pipeline, mode=mode)
+        code = _execute_pipeline(file=files[0], pipeline=pipeline, mode=mode, out_format=out_format)
         ctx.exit(code)
 
 
@@ -540,6 +540,7 @@ def _print_schema_info():
 
     console.print("\n[bold]Validation Commands:[/bold]")
     console.print("  • Pipeline run: suews-validate -p ABC config.yml")
+    console.print("  • Pipeline with JSON reports: suews-validate -p ABC --use-refactored config.yml")
     console.print(
         "  • Read-only check: suews-validate -p C --dry-run configs/*.yml --format json"
     )
@@ -690,12 +691,20 @@ def _format_phase_output(
     return None
 
 
-def _execute_pipeline(file, pipeline, mode):
+def _execute_pipeline(file, pipeline, mode, out_format="table"):
     """Run YAML processor phases A/B/C to validate and generate reports/YAML.
 
     Phase A: Update YAML structure and detect parameters
     Phase B: Scientific checks and adjustments
     Phase C: Pydantic validation with physics conditionals
+    
+    Args:
+        file: Input YAML file path
+        pipeline: Phase combination (A, B, C, AB, AC, BC, ABC)
+        mode: Validation mode (public/dev)
+        out_format: Output format (table or json)
+    
+    Note: JSON reports are always generated alongside text reports.
     """
     # Ensure processor is importable
     if not all([
@@ -729,9 +738,9 @@ def _execute_pipeline(file, pipeline, mode):
         _dirname,
     ) = _processor_setup_output_paths(user_yaml_file, pipeline)
 
-    # Execute selected phases (logic mirrors orchestrator.main for consistency)
+    # Execute selected phases - always use refactored system for JSON reports
     if pipeline == "A":
-        ok = _processor_run_phase_a(
+        result = _processor_run_phase_a(
             user_yaml_file,
             standard_yaml_file,
             uptodate_file,
@@ -739,19 +748,24 @@ def _execute_pipeline(file, pipeline, mode):
             mode=mode,
             phase="A",
             silent=True,
+            use_refactored=True,  # Always generate JSON reports
         )
+        # Handle tuple return from refactored version
+        ok = result[0] if isinstance(result, tuple) else result
         console.print(
             "[green]✓ Phase A completed[/green]"
             if ok
             else "[red]✗ Phase A failed[/red]"
         )
         if ok:
-            console.print(f"Report: {report_file}")
+            console.print(f"Text Report: {report_file}")
+            json_report = report_file.replace('.txt', '.json')
+            console.print(f"JSON Report: {json_report}")
             console.print(f"Updated YAML: {uptodate_file}")
         return 0 if ok else 1
 
     if pipeline == "B":
-        ok = _processor_run_phase_b(
+        result = _processor_run_phase_b(
             user_yaml_file,
             user_yaml_file,
             standard_yaml_file,
@@ -762,38 +776,48 @@ def _execute_pipeline(file, pipeline, mode):
             mode=mode,
             phase="B",
             silent=True,
+            use_refactored=True,  # Always generate JSON reports
         )
+        # Handle tuple return from refactored version
+        ok = result[0] if isinstance(result, tuple) else result
         console.print(
             "[green]✓ Phase B completed[/green]"
             if ok
             else "[red]✗ Phase B failed[/red]"
         )
         if ok:
-            console.print(f"Report: {science_report_file}")
+            console.print(f"Text Report: {science_report_file}")
+            json_report = science_report_file.replace('.txt', '.json')
+            console.print(f"JSON Report: {json_report}")
             console.print(f"Updated YAML: {science_yaml_file}")
         return 0 if ok else 1
 
     if pipeline == "C":
-        ok = _processor_run_phase_c(
+        result = _processor_run_phase_c(
             user_yaml_file,
             pydantic_yaml_file,
             pydantic_report_file,
             mode=mode,
             phases_run=["C"],
             silent=True,
+            use_refactored=True,  # Always generate JSON reports
         )
+        # Handle tuple return from refactored version
+        ok = result[0] if isinstance(result, tuple) else result
         console.print(
             "[green]✓ Phase C completed[/green]"
             if ok
             else "[red]✗ Phase C failed[/red]"
         )
         if ok:
-            console.print(f"Report: {pydantic_report_file}")
+            console.print(f"Text Report: {pydantic_report_file}")
+            json_report = pydantic_report_file.replace('.txt', '.json')
+            console.print(f"JSON Report: {json_report}")
             console.print(f"Updated YAML: {pydantic_yaml_file}")
         return 0 if ok else 1
 
     if pipeline == "AB":
-        a_ok = _processor_run_phase_a(
+        a_result = _processor_run_phase_a(
             user_yaml_file,
             standard_yaml_file,
             uptodate_file,
@@ -801,17 +825,21 @@ def _execute_pipeline(file, pipeline, mode):
             mode=mode,
             phase="AB",
             silent=True,
+            use_refactored=True,  # Always generate JSON reports
         )
+        a_ok = a_result[0] if isinstance(a_result, tuple) else a_result
         if not a_ok:
             # Preserve Phase A outputs as AB outputs
             console.print("[red]✗ Phase A failed[/red]")
             if report_file:
-                console.print(f"Report: {science_report_file}")
+                console.print(f"Text Report: {science_report_file}")
+            json_report = science_report_file.replace('.txt', '.json')
+            console.print(f"JSON Report: {json_report}")
             if uptodate_file:
                 console.print(f"Updated YAML: {science_yaml_file}")
             return 1
 
-        b_ok = _processor_run_phase_b(
+        b_result = _processor_run_phase_b(
             user_yaml_file,
             uptodate_file,
             standard_yaml_file,
@@ -822,7 +850,9 @@ def _execute_pipeline(file, pipeline, mode):
             mode=mode,
             phase="AB",
             silent=True,
+            use_refactored=True,  # Always generate JSON reports
         )
+        b_ok = b_result[0] if isinstance(b_result, tuple) else b_result
         ok = a_ok and b_ok
         console.print(
             "[green]✓ Phase AB completed[/green]"
@@ -830,12 +860,14 @@ def _execute_pipeline(file, pipeline, mode):
             else "[red]✗ Phase AB failed[/red]"
         )
         if ok:
-            console.print(f"Report: {science_report_file}")
+            console.print(f"Text Report: {science_report_file}")
+            json_report = science_report_file.replace('.txt', '.json') 
+            console.print(f"JSON Report: {json_report}")
             console.print(f"Updated YAML: {science_yaml_file}")
         return 0 if ok else 1
 
     if pipeline == "AC":
-        a_ok = _processor_run_phase_a(
+        a_result = _processor_run_phase_a(
             user_yaml_file,
             standard_yaml_file,
             uptodate_file,
@@ -843,14 +875,18 @@ def _execute_pipeline(file, pipeline, mode):
             mode=mode,
             phase="AC",
             silent=True,
+            use_refactored=True,  # Always generate JSON reports
         )
+        a_ok = a_result[0] if isinstance(a_result, tuple) else a_result
         if not a_ok:
             console.print("[red]✗ Phase A failed[/red]")
-            console.print(f"Report: {pydantic_report_file}")
+            console.print(f"Text Report: {pydantic_report_file}")
+            json_report = pydantic_report_file.replace('.txt', '.json')
+            console.print(f"JSON Report: {json_report}")
             console.print(f"Updated YAML: {pydantic_yaml_file}")
             return 1
 
-        c_ok = _processor_run_phase_c(
+        c_result = _processor_run_phase_c(
             uptodate_file,
             pydantic_yaml_file,
             pydantic_report_file,
@@ -858,7 +894,9 @@ def _execute_pipeline(file, pipeline, mode):
             phase_a_report_file=report_file,
             phases_run=["A", "C"],
             silent=True,
+            use_refactored=True,  # Always generate JSON reports
         )
+        c_ok = c_result[0] if isinstance(c_result, tuple) else c_result
         ok = a_ok and c_ok
         console.print(
             "[green]✓ Phase AC completed[/green]"
@@ -866,7 +904,9 @@ def _execute_pipeline(file, pipeline, mode):
             else "[red]✗ Phase AC failed[/red]"
         )
         if ok:
-            console.print(f"Report: {pydantic_report_file}")
+            console.print(f"Text Report: {pydantic_report_file}")
+            json_report = pydantic_report_file.replace('.txt', '.json')
+            console.print(f"JSON Report: {json_report}")
             console.print(f"Updated YAML: {pydantic_yaml_file}")
         return 0 if ok else 1
 
@@ -885,7 +925,9 @@ def _execute_pipeline(file, pipeline, mode):
         )
         if not b_ok:
             console.print("[red]✗ Phase B failed[/red]")
-            console.print(f"Report: {pydantic_report_file}")
+            console.print(f"Text Report: {pydantic_report_file}")
+            json_report = pydantic_report_file.replace('.txt', '.json')
+            console.print(f"JSON Report: {json_report}")
             console.print(f"Updated YAML: {pydantic_yaml_file}")
             sys.exit(1)
 
@@ -904,7 +946,9 @@ def _execute_pipeline(file, pipeline, mode):
             else "[red]✗ Phase BC failed[/red]"
         )
         if ok:
-            console.print(f"Report: {pydantic_report_file}")
+            console.print(f"Text Report: {pydantic_report_file}")
+            json_report = pydantic_report_file.replace('.txt', '.json')
+            console.print(f"JSON Report: {json_report}")
             console.print(f"Updated YAML: {pydantic_yaml_file}")
         sys.exit(0 if ok else 1)
 
@@ -920,7 +964,9 @@ def _execute_pipeline(file, pipeline, mode):
     )
     if not a_ok:
         console.print("[red]✗ Phase A failed[/red]")
-        console.print(f"Report: {pydantic_report_file}")
+        console.print(f"Text Report: {pydantic_report_file}")
+        json_report = pydantic_report_file.replace('.txt', '.json')
+        console.print(f"JSON Report: {json_report}")
         console.print(f"Updated YAML: {pydantic_yaml_file}")
         return 1
 
@@ -938,7 +984,9 @@ def _execute_pipeline(file, pipeline, mode):
     )
     if not b_ok:
         console.print("[red]✗ Phase B failed[/red]")
-        console.print(f"Report: {science_report_file}")
+        console.print(f"Text Report: {science_report_file}")
+        json_report = science_report_file.replace('.txt', '.json')
+        console.print(f"JSON Report: {json_report}")
         console.print(f"Updated YAML: {science_yaml_file}")
         sys.exit(1)
 
@@ -958,7 +1006,9 @@ def _execute_pipeline(file, pipeline, mode):
         else "[red]✗ Phase ABC failed[/red]"
     )
     if ok:
-        console.print(f"Report: {pydantic_report_file}")
+        console.print(f"Text Report: {pydantic_report_file}")
+        json_report = pydantic_report_file.replace('.txt', '.json')
+        console.print(f"JSON Report: {json_report}")
         console.print(f"Updated YAML: {pydantic_yaml_file}")
     return 0 if ok else 1
 

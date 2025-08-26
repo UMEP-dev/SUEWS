@@ -111,6 +111,7 @@ py.install_sources(
             'data_model/validation/pipeline/phase_b_science_check.py',
             'data_model/validation/pipeline/phase_b_refactored.py',
             'data_model/validation/pipeline/phase_c_pydantic_report.py',
+            'data_model/validation/pipeline/phase_c_refactored.py',
             'data_model/validation/pipeline/validation_reporter.py',
             'data_model/validation/pipeline/text_report_generator.py',
             'data_model/validation/pipeline/yaml_annotator.py',

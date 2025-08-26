@@ -81,6 +81,23 @@ class PydanticValidator:
                     "value": forcing["file_path"]
                 }
 
+        # Map output configuration
+        if "output" in wizard_config:
+            output = wizard_config["output"]
+            output_config = {}
+            
+            if "format" in output:
+                output_config["format"] = output["format"]
+            
+            if "freq" in output:
+                output_config["freq"] = output["freq"]
+            
+            if "groups" in output and output.get("format") == "txt":
+                output_config["groups"] = output["groups"]
+            
+            if output_config:
+                config["model"]["control"]["output_file"] = output_config
+
         # Set default physics methods if not specified
         config["model"]["physics"] = {
             "netradiationmethod": {"value": 3},  # NARP

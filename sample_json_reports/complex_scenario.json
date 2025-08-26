@@ -1,0 +1,212 @@
+{
+  "schema_version": "1.0.0",
+  "timestamp": "2025-08-26T12:54:30.103322",
+  "phases_completed": [
+    "A"
+  ],
+  "summary": {
+    "total_errors": 2,
+    "total_warnings": 0,
+    "total_info": 3,
+    "validation_passed": false
+  },
+  "phases": {
+    "A": {
+      "completed": true,
+      "timestamp": "2025-08-26T12:54:30.103380",
+      "errors": [
+        {
+          "phase": "A",
+          "type": "missing_required_parameter",
+          "field_path": "model.physics.emissionsmethod",
+          "message": "Missing critical physics parameter: emissionsmethod",
+          "severity": "critical",
+          "details": {
+            "parameter_name": "emissionsmethod",
+            "is_physics_option": true,
+            "standard_value": {
+              "value": 2
+            },
+            "requires_action": true
+          },
+          "suggestions": [
+            "Add emissionsmethod to your YAML configuration",
+            "Consult documentation for valid values: https://suews.readthedocs.io/en/latest"
+          ],
+          "timestamp": "2025-08-26T12:54:30.103347"
+        },
+        {
+          "phase": "A",
+          "type": "missing_required_parameter",
+          "field_path": "model.physics.storageheatmethod",
+          "message": "Missing critical physics parameter: storageheatmethod",
+          "severity": "critical",
+          "details": {
+            "parameter_name": "storageheatmethod",
+            "is_physics_option": true,
+            "standard_value": {
+              "value": 1
+            },
+            "requires_action": true
+          },
+          "suggestions": [
+            "Add storageheatmethod to your YAML configuration",
+            "Consult documentation for valid values: https://suews.readthedocs.io/en/latest"
+          ],
+          "timestamp": "2025-08-26T12:54:30.103356"
+        }
+      ],
+      "warnings": [],
+      "info": [
+        {
+          "phase": "A",
+          "type": "missing_optional_parameter",
+          "field_path": "model.optional.another_field",
+          "message": "Optional parameter another_field missing, will be set to null",
+          "severity": "info",
+          "details": {
+            "parameter_name": "another_field",
+            "is_physics_option": false,
+            "standard_value": {
+              "value": 2
+            },
+            "default_value": null
+          },
+          "suggestions": [],
+          "timestamp": "2025-08-26T12:54:30.103332"
+        },
+        {
+          "phase": "A",
+          "type": "parameter_renamed",
+          "field_path": "model.physics.cp",
+          "message": "Parameter renamed: cp \u2192 rho_cp",
+          "severity": "info",
+          "details": {
+            "old_name": "cp",
+            "new_name": "rho_cp",
+            "auto_corrected": true
+          },
+          "suggestions": [],
+          "timestamp": "2025-08-26T12:54:30.103364"
+        },
+        {
+          "phase": "A",
+          "type": "extra_parameter_allowed",
+          "field_path": "model.physics.custom_param",
+          "message": "Extra parameter found (allowed in dev mode): custom_param",
+          "severity": "info",
+          "details": {
+            "parameter_name": "custom_param",
+            "location": "model.physics.custom_param",
+            "allowed_in_mode": "dev"
+          },
+          "suggestions": [],
+          "timestamp": "2025-08-26T12:54:30.103373"
+        }
+      ],
+      "results": {
+        "missing_critical": 2,
+        "missing_optional": 1,
+        "renamed_parameters": 1,
+        "extra_parameters": 1,
+        "validation_mode": "dev"
+      }
+    }
+  },
+  "errors": [
+    {
+      "phase": "A",
+      "type": "missing_required_parameter",
+      "field_path": "model.physics.emissionsmethod",
+      "message": "Missing critical physics parameter: emissionsmethod",
+      "severity": "critical",
+      "details": {
+        "parameter_name": "emissionsmethod",
+        "is_physics_option": true,
+        "standard_value": {
+          "value": 2
+        },
+        "requires_action": true
+      },
+      "suggestions": [
+        "Add emissionsmethod to your YAML configuration",
+        "Consult documentation for valid values: https://suews.readthedocs.io/en/latest"
+      ],
+      "timestamp": "2025-08-26T12:54:30.103347"
+    },
+    {
+      "phase": "A",
+      "type": "missing_required_parameter",
+      "field_path": "model.physics.storageheatmethod",
+      "message": "Missing critical physics parameter: storageheatmethod",
+      "severity": "critical",
+      "details": {
+        "parameter_name": "storageheatmethod",
+        "is_physics_option": true,
+        "standard_value": {
+          "value": 1
+        },
+        "requires_action": true
+      },
+      "suggestions": [
+        "Add storageheatmethod to your YAML configuration",
+        "Consult documentation for valid values: https://suews.readthedocs.io/en/latest"
+      ],
+      "timestamp": "2025-08-26T12:54:30.103356"
+    }
+  ],
+  "warnings": [],
+  "info": [
+    {
+      "phase": "A",
+      "type": "missing_optional_parameter",
+      "field_path": "model.optional.another_field",
+      "message": "Optional parameter another_field missing, will be set to null",
+      "severity": "info",
+      "details": {
+        "parameter_name": "another_field",
+        "is_physics_option": false,
+        "standard_value": {
+          "value": 2
+        },
+        "default_value": null
+      },
+      "suggestions": [],
+      "timestamp": "2025-08-26T12:54:30.103332"
+    },
+    {
+      "phase": "A",
+      "type": "parameter_renamed",
+      "field_path": "model.physics.cp",
+      "message": "Parameter renamed: cp \u2192 rho_cp",
+      "severity": "info",
+      "details": {
+        "old_name": "cp",
+        "new_name": "rho_cp",
+        "auto_corrected": true
+      },
+      "suggestions": [],
+      "timestamp": "2025-08-26T12:54:30.103364"
+    },
+    {
+      "phase": "A",
+      "type": "extra_parameter_allowed",
+      "field_path": "model.physics.custom_param",
+      "message": "Extra parameter found (allowed in dev mode): custom_param",
+      "severity": "info",
+      "details": {
+        "parameter_name": "custom_param",
+        "location": "model.physics.custom_param",
+        "allowed_in_mode": "dev"
+      },
+      "suggestions": [],
+      "timestamp": "2025-08-26T12:54:30.103373"
+    }
+  ],
+  "suggestions": [],
+  "metadata": {
+    "phase": "A",
+    "mode": "dev",
+    "report_file": "/var/folders/6r/lhkvk3m14ls587p81nfcy0k40000gp/T/tmph4uldw9h/report.txt"
+  }
+}

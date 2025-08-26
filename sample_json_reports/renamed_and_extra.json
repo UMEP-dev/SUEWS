@@ -1,0 +1,106 @@
+{
+  "schema_version": "1.0.0",
+  "timestamp": "2025-08-26T12:54:30.099485",
+  "phases_completed": [
+    "A"
+  ],
+  "summary": {
+    "total_errors": 1,
+    "total_warnings": 0,
+    "total_info": 1,
+    "validation_passed": false
+  },
+  "phases": {
+    "A": {
+      "completed": true,
+      "timestamp": "2025-08-26T12:54:30.099517",
+      "errors": [
+        {
+          "phase": "A",
+          "type": "extra_parameter_forbidden",
+          "field_path": "model.physics.custom_param",
+          "message": "Extra parameter not allowed in public mode: custom_param",
+          "severity": "critical",
+          "details": {
+            "parameter_name": "custom_param",
+            "location": "model.physics.custom_param",
+            "forbidden_in_mode": "public",
+            "requires_action": true
+          },
+          "suggestions": [
+            "Remove this parameter from your configuration",
+            "Switch to dev mode if this parameter is needed"
+          ],
+          "timestamp": "2025-08-26T12:54:30.099508"
+        }
+      ],
+      "warnings": [],
+      "info": [
+        {
+          "phase": "A",
+          "type": "parameter_renamed",
+          "field_path": "model.physics.cp",
+          "message": "Parameter renamed: cp \u2192 rho_cp",
+          "severity": "info",
+          "details": {
+            "old_name": "cp",
+            "new_name": "rho_cp",
+            "auto_corrected": true
+          },
+          "suggestions": [],
+          "timestamp": "2025-08-26T12:54:30.099492"
+        }
+      ],
+      "results": {
+        "missing_critical": 0,
+        "missing_optional": 0,
+        "renamed_parameters": 1,
+        "extra_parameters": 1,
+        "validation_mode": "public"
+      }
+    }
+  },
+  "errors": [
+    {
+      "phase": "A",
+      "type": "extra_parameter_forbidden",
+      "field_path": "model.physics.custom_param",
+      "message": "Extra parameter not allowed in public mode: custom_param",
+      "severity": "critical",
+      "details": {
+        "parameter_name": "custom_param",
+        "location": "model.physics.custom_param",
+        "forbidden_in_mode": "public",
+        "requires_action": true
+      },
+      "suggestions": [
+        "Remove this parameter from your configuration",
+        "Switch to dev mode if this parameter is needed"
+      ],
+      "timestamp": "2025-08-26T12:54:30.099508"
+    }
+  ],
+  "warnings": [],
+  "info": [
+    {
+      "phase": "A",
+      "type": "parameter_renamed",
+      "field_path": "model.physics.cp",
+      "message": "Parameter renamed: cp \u2192 rho_cp",
+      "severity": "info",
+      "details": {
+        "old_name": "cp",
+        "new_name": "rho_cp",
+        "auto_corrected": true
+      },
+      "suggestions": [],
+      "timestamp": "2025-08-26T12:54:30.099492"
+    }
+  ],
+  "suggestions": [],
+  "metadata": {
+    "phase": "A",
+    "mode": "public",
+    "report_file": "/var/folders/6r/lhkvk3m14ls587p81nfcy0k40000gp/T/tmp_2cs8_io/report.txt"
+  }
+}

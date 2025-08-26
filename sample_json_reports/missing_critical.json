@@ -1,0 +1,80 @@
+{
+  "schema_version": "1.0.0",
+  "timestamp": "2025-08-26T12:54:30.096478",
+  "phases_completed": [
+    "A"
+  ],
+  "summary": {
+    "total_errors": 1,
+    "total_warnings": 0,
+    "total_info": 0,
+    "validation_passed": false
+  },
+  "phases": {
+    "A": {
+      "completed": true,
+      "timestamp": "2025-08-26T12:54:30.096506",
+      "errors": [
+        {
+          "phase": "A",
+          "type": "missing_required_parameter",
+          "field_path": "model.physics.emissionsmethod",
+          "message": "Missing critical physics parameter: emissionsmethod",
+          "severity": "critical",
+          "details": {
+            "parameter_name": "emissionsmethod",
+            "is_physics_option": true,
+            "standard_value": {
+              "value": 2
+            },
+            "requires_action": true
+          },
+          "suggestions": [
+            "Add emissionsmethod to your YAML configuration",
+            "Consult documentation for valid values: https://suews.readthedocs.io/en/latest"
+          ],
+          "timestamp": "2025-08-26T12:54:30.096487"
+        }
+      ],
+      "warnings": [],
+      "info": [],
+      "results": {
+        "missing_critical": 1,
+        "missing_optional": 0,
+        "renamed_parameters": 0,
+        "extra_parameters": 0,
+        "validation_mode": "public"
+      }
+    }
+  },
+  "errors": [
+    {
+      "phase": "A",
+      "type": "missing_required_parameter",
+      "field_path": "model.physics.emissionsmethod",
+      "message": "Missing critical physics parameter: emissionsmethod",
+      "severity": "critical",
+      "details": {
+        "parameter_name": "emissionsmethod",
+        "is_physics_option": true,
+        "standard_value": {
+          "value": 2
+        },
+        "requires_action": true
+      },
+      "suggestions": [
+        "Add emissionsmethod to your YAML configuration",
+        "Consult documentation for valid values: https://suews.readthedocs.io/en/latest"
+      ],
+      "timestamp": "2025-08-26T12:54:30.096487"
+    }
+  ],
+  "warnings": [],
+  "info": [],
+  "suggestions": [],
+  "metadata": {
+    "phase": "A",
+    "mode": "public",
+    "report_file": "/var/folders/6r/lhkvk3m14ls587p81nfcy0k40000gp/T/tmp9q2ojp55/report.txt"
+  }
+}

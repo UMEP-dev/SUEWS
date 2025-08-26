@@ -169,7 +169,7 @@ class SUEWSMCPHandlers:
                         "resource_type": {
                             "type": "string",
                             "description": "Type of resource to list: 'config_template', 'workflow', 'data_sample', 'all'",
-                            "default": "all"
+                            "default": "all",
                         }
                     },
                 },
@@ -345,123 +345,143 @@ class SUEWSMCPHandlers:
         """List available SUEWS resources."""
         import os
         from pathlib import Path
-        
+
         resource_type = arguments.get("resource_type", "all")
-        
+
         # Get the template directory relative to this file
         current_dir = Path(__file__).parent.parent.parent  # Go up to suews-mcp root
         templates_dir = current_dir / "templates"
-        
+
         resources = {
             "config_templates": [],
-            "workflows": [], 
+            "workflows": [],
             "data_samples": [],
-            "documentation": []
+            "documentation": [],
         }
-        
+
         try:
             # List configuration templates
             if resource_type in ["config_template", "all"]:
                 configs_dir = templates_dir / "configs"
                 if configs_dir.exists():
                     for config_file in configs_dir.glob("*.yml"):
-                        resources["config_templates"].append({
-                            "name": config_file.stem,
-                            "path": f"templates/configs/{config_file.name}",
-                            "description": self._get_config_description(config_file)
-                        })
-            
-            # List workflow documentation  
+                        resources["config_templates"].append(
+                            {
+                                "name": config_file.stem,
+                                "path": f"templates/configs/{config_file.name}",
+                                "description": self._get_config_description(
+                                    config_file
+                                ),
+                            }
+                        )
+
+            # List workflow documentation
             if resource_type in ["workflow", "all"]:
                 workflows_dir = templates_dir / "workflows"
                 if workflows_dir.exists():
                     for workflow_file in workflows_dir.glob("*.md"):
-                        resources["workflows"].append({
-                            "name": workflow_file.stem, 
-                            "path": f"templates/workflows/{workflow_file.name}",
-                            "description": self._get_workflow_description(workflow_file)
-                        })
-            
+                        resources["workflows"].append(
+                            {
+                                "name": workflow_file.stem,
+                                "path": f"templates/workflows/{workflow_file.name}",
+                                "description": self._get_workflow_description(
+                                    workflow_file
+                                ),
+                            }
+                        )
+
             # List data samples
             if resource_type in ["data_sample", "all"]:
-                data_dir = templates_dir / "data" 
+                data_dir = templates_dir / "data"
                 if data_dir.exists():
                     for data_file in data_dir.glob("*"):
                         if data_file.is_file():
-                            resources["data_samples"].append({
-                                "name": data_file.stem,
-                                "path": f"templates/data/{data_file.name}",
-                                "description": "Sample data file"
-                            })
-                            
+                            resources["data_samples"].append(
+                                {
+                                    "name": data_file.stem,
+                                    "path": f"templates/data/{data_file.name}",
+                                    "description": "Sample data file",
+                                }
+                            )
+
             # Add documentation links
             if resource_type in ["all"]:
-                resources["documentation"].append({
-                    "name": "documentation_links",
-                    "path": "documentation.md", 
-                    "description": "Links to official SUEWS and SuPy documentation"
-                })
-            
+                resources["documentation"].append(
+                    {
+                        "name": "documentation_links",
+                        "path": "documentation.md",
+                        "description": "Links to official SUEWS and SuPy documentation",
+                    }
+                )
+
             # Format response
             result_text = "Available SUEWS MCP Resources:\n\n"
-            
+
             if resources["config_templates"]:
                 result_text += "Configuration Templates:\n"
                 for template in resources["config_templates"]:
-                    result_text += f"  - {template['name']}: {template['description']}\n"
+                    result_text += (
+                        f"  - {template['name']}: {template['description']}\n"
+                    )
                     result_text += f"    Path: {template['path']}\n"
                 result_text += "\n"
-            
+
             if resources["workflows"]:
                 result_text += "Workflow Documentation:\n"
                 for workflow in resources["workflows"]:
-                    result_text += f"  - {workflow['name']}: {workflow['description']}\n"
-                    result_text += f"    Path: {workflow['path']}\n"  
+                    result_text += (
+                        f"  - {workflow['name']}: {workflow['description']}\n"
+                    )
+                    result_text += f"    Path: {workflow['path']}\n"
                 result_text += "\n"
-                
+
             if resources["data_samples"]:
                 result_text += "Sample Data:\n"
                 for sample in resources["data_samples"]:
                     result_text += f"  - {sample['name']}: {sample['description']}\n"
                     result_text += f"    Path: {sample['path']}\n"
                 result_text += "\n"
-                
+
             if resources["documentation"]:
                 result_text += "Documentation:\n"
                 for doc in resources["documentation"]:
                     result_text += f"  - {doc['name']}: {doc['description']}\n"
                     result_text += f"    Path: {doc['path']}\n"
-            
+
             return CallToolResult(content=[TextContent(type="text", text=result_text)])
-            
+
         except Exception as e:
             return CallToolResult(
-                content=[TextContent(type="text", text=f"Error listing resources: {str(e)}")],
+                content=[
+                    TextContent(type="text", text=f"Error listing resources: {str(e)}")
+                ],
                 is_error=True,
             )
-    
+
     def _get_config_description(self, config_file):
         """Extract description from YAML config file."""
         try:
-            with open(config_file, 'r') as f:
+            with open(config_file, "r") as f:
                 # Read first few lines to find description
                 for line in f:
-                    if line.strip().startswith('description:'):
-                        return line.split('description:', 1)[1].strip().strip('"\'')
+                    if line.strip().startswith("description:"):
+                        return line.split("description:", 1)[1].strip().strip("\"'")
                 return "SUEWS configuration template"
         except:
             return "SUEWS configuration template"
-    
+
     def _get_workflow_description(self, workflow_file):
         """Extract description from markdown workflow file."""
         try:
-            with open(workflow_file, 'r') as f:
+            with open(workflow_file, "r") as f:
                 # Read first few lines to find description
                 content = f.read(500)  # Read first 500 chars
-                lines = content.split('\n')
+                lines = content.split("\n")
                 if len(lines) > 2:
                     # Usually second line after title has description
-                    return lines[2].strip() if lines[2].strip() else "SUEWS workflow guide"
+                    return (
+                        lines[2].strip() if lines[2].strip() else "SUEWS workflow guide"
+                    )
                 return "SUEWS workflow guide"
         except:
             return "SUEWS workflow guide"
@@ -470,59 +490,76 @@ class SUEWSMCPHandlers:
         """Get a specific SUEWS resource."""
         import os
         from pathlib import Path
-        
+
         resource_path = arguments.get("resource_path")
         if not resource_path:
             return CallToolResult(
-                content=[TextContent(type="text", text="resource_path parameter is required")],
+                content=[
+                    TextContent(type="text", text="resource_path parameter is required")
+                ],
                 is_error=True,
             )
-        
+
         # Get the template directory relative to this file
         current_dir = Path(__file__).parent.parent.parent  # Go up to suews-mcp root
-        
+
         # Construct full path, ensuring it's within templates directory for security
         if resource_path == "documentation.md":
             full_path = current_dir / resource_path
         else:
             full_path = current_dir / resource_path
-        
+
         try:
             # Security check - ensure path is within allowed directories
             resolved_path = full_path.resolve()
             allowed_base = current_dir.resolve()
-            
+
             if not str(resolved_path).startswith(str(allowed_base)):
                 return CallToolResult(
-                    content=[TextContent(type="text", text="Access denied: path outside allowed directories")],
+                    content=[
+                        TextContent(
+                            type="text",
+                            text="Access denied: path outside allowed directories",
+                        )
+                    ],
                     is_error=True,
                 )
-            
+
             if not full_path.exists():
                 return CallToolResult(
-                    content=[TextContent(type="text", text=f"Resource not found: {resource_path}")],
+                    content=[
+                        TextContent(
+                            type="text", text=f"Resource not found: {resource_path}"
+                        )
+                    ],
                     is_error=True,
                 )
-            
+
             if not full_path.is_file():
                 return CallToolResult(
-                    content=[TextContent(type="text", text=f"Resource is not a file: {resource_path}")],
+                    content=[
+                        TextContent(
+                            type="text", text=f"Resource is not a file: {resource_path}"
+                        )
+                    ],
                     is_error=True,
                 )
-            
+
             # Read and return file contents
-            with open(full_path, 'r', encoding='utf-8') as f:
+            with open(full_path, "r", encoding="utf-8") as f:
                 content = f.read()
-            
+
             result_text = f"Resource: {resource_path}\n"
             result_text += "=" * (len(resource_path) + 10) + "\n\n"
             result_text += content
-            
+
             return CallToolResult(content=[TextContent(type="text", text=result_text)])
-            
+
         except Exception as e:
             return CallToolResult(
-                content=[TextContent(type="text", text=f"Error reading resource: {str(e)}")],
+                content=[
+                    TextContent(type="text", text=f"Error reading resource: {str(e)}")
+                ],
                 is_error=True,
             )
 
@@ -592,30 +629,30 @@ class SUEWSMCPHandlers:
                     {
                         "name": "urban_type",
                         "description": "Type of urban area (residential, commercial, industrial, park)",
-                        "required": False
+                        "required": False,
                     },
                     {
                         "name": "location",
                         "description": "Location information (city, country)",
-                        "required": False
-                    }
-                ]
+                        "required": False,
+                    },
+                ],
             ),
             Prompt(
                 name="analyze_results",
                 description="Help analyze SUEWS simulation outputs",
                 arguments=[
                     {
-                        "name": "simulation_type", 
+                        "name": "simulation_type",
                         "description": "Type of simulation that was run",
-                        "required": False
+                        "required": False,
                     },
                     {
                         "name": "issues",
                         "description": "Specific issues or patterns observed in results",
-                        "required": False
-                    }
-                ]
+                        "required": False,
+                    },
+                ],
             ),
             Prompt(
                 name="troubleshoot_errors",
@@ -624,14 +661,14 @@ class SUEWSMCPHandlers:
                     {
                         "name": "error_message",
                         "description": "Error message or description of the problem",
-                        "required": False
+                        "required": False,
                     },
                     {
                         "name": "simulation_stage",
                         "description": "Stage where error occurred (setup, validation, runtime, analysis)",
-                        "required": False
-                    }
-                ]
+                        "required": False,
+                    },
+                ],
             ),
             Prompt(
                 name="parameter_tuning",
@@ -640,15 +677,15 @@ class SUEWSMCPHandlers:
                     {
                         "name": "target_variables",
                         "description": "Variables to optimize (QH, QE, T2, etc.)",
-                        "required": False
+                        "required": False,
                     },
                     {
                         "name": "available_observations",
                         "description": "Observational data available for comparison",
-                        "required": False
-                    }
-                ]
-            )
+                        "required": False,
+                    },
+                ],
+            ),
         ]
 
         return ListPromptsResult(prompts=prompts)
@@ -673,7 +710,9 @@ class SUEWSMCPHandlers:
                     messages=[
                         PromptMessage(
                             role="user",
-                            content=TextContent(type="text", text=f"Unknown prompt: {name}"),
+                            content=TextContent(
+                                type="text", text=f"Unknown prompt: {name}"
+                            ),
                         )
                     ]
                 )
@@ -683,12 +722,16 @@ class SUEWSMCPHandlers:
                 messages=[
                     PromptMessage(
                         role="user",
-                        content=TextContent(type="text", text=f"Error generating prompt: {str(e)}"),
+                        content=TextContent(
+                            type="text", text=f"Error generating prompt: {str(e)}"
+                        ),
                     )
                 ]
             )
 
-    async def _setup_simulation_prompt(self, arguments: Dict[str, Any]) -> GetPromptResult:
+    async def _setup_simulation_prompt(
+        self, arguments: Dict[str, Any]
+    ) -> GetPromptResult:
         """Generate prompt for setting up a SUEWS simulation."""
         urban_type = arguments.get("urban_type", "")
         location = arguments.get("location", "")
@@ -704,7 +747,7 @@ Context:
 
         if urban_type:
             prompt_text += f"Urban area type: {urban_type}\n"
-            
+
             # Add type-specific guidance
             type_guidance = {
                 "residential": """
@@ -738,9 +781,9 @@ Urban Park/Green Space Characteristics:
 - Active irrigation systems maintaining vegetation health
 - High evapotranspiration rates
 - Focus on vegetation phenology and water cycling
-"""
+""",
             }
-            
+
             if urban_type.lower() in type_guidance:
                 prompt_text += type_guidance[urban_type.lower()]
 
@@ -749,7 +792,9 @@ Urban Park/Green Space Characteristics:
             prompt_text += "Consider climate-specific factors:\n"
             prompt_text += "- Local meteorology and seasonal patterns\n"
             prompt_text += "- Typical building materials and construction practices\n"
-            prompt_text += "- Regional energy use patterns and heating/cooling demands\n"
+            prompt_text += (
+                "- Regional energy use patterns and heating/cooling demands\n"
+            )
             prompt_text += "- Local vegetation types and growing season\n"
 
         prompt_text += """
@@ -793,13 +838,14 @@ Please provide step-by-step guidance tailored to my specific urban type and loca
         return GetPromptResult(
             messages=[
                 PromptMessage(
-                    role="user",
-                    content=TextContent(type="text", text=prompt_text)
+                    role="user", content=TextContent(type="text", text=prompt_text)
                 )
             ]
         )
 
-    async def _analyze_results_prompt(self, arguments: Dict[str, Any]) -> GetPromptResult:
+    async def _analyze_results_prompt(
+        self, arguments: Dict[str, Any]
+    ) -> GetPromptResult:
         """Generate prompt for analyzing SUEWS results."""
         simulation_type = arguments.get("simulation_type", "")
         issues = arguments.get("issues", "")
@@ -875,13 +921,14 @@ Please provide specific interpretations and recommendations for improving my sim
         return GetPromptResult(
             messages=[
                 PromptMessage(
-                    role="user", 
-                    content=TextContent(type="text", text=prompt_text)
+                    role="user", content=TextContent(type="text", text=prompt_text)
                 )
             ]
         )
 
-    async def _troubleshoot_errors_prompt(self, arguments: Dict[str, Any]) -> GetPromptResult:
+    async def _troubleshoot_errors_prompt(
+        self, arguments: Dict[str, Any]
+    ) -> GetPromptResult:
         """Generate prompt for troubleshooting SUEWS errors."""
         error_message = arguments.get("error_message", "")
         simulation_stage = arguments.get("simulation_stage", "")
@@ -985,13 +1032,14 @@ I'll help you diagnose the issue systematically and provide specific solutions."
         return GetPromptResult(
             messages=[
                 PromptMessage(
-                    role="user",
-                    content=TextContent(type="text", text=prompt_text)
+                    role="user", content=TextContent(type="text", text=prompt_text)
                 )
             ]
         )
 
-    async def _parameter_tuning_prompt(self, arguments: Dict[str, Any]) -> GetPromptResult:
+    async def _parameter_tuning_prompt(
+        self, arguments: Dict[str, Any]
+    ) -> GetPromptResult:
         """Generate prompt for parameter optimization guidance."""
         target_variables = arguments.get("target_variables", "")
         available_observations = arguments.get("available_observations", "")
@@ -1039,16 +1087,16 @@ SUEWS Parameter Sensitivity Hierarchy:
 
         if target_variables:
             prompt_text += f"Target variables for optimization: {target_variables}\n\n"
-            
+
             # Add variable-specific guidance
             var_guidance = {
                 "QH": "For QH optimization: Focus on anthropogenic heat, building fraction, surface thermal properties",
                 "QE": "For QE optimization: Focus on vegetation fraction, irrigation, soil properties, conductance parameters",
                 "QN": "For QN optimization: Focus on albedo values, emissivity, surface fraction adjustments",
                 "T2": "For T2 optimization: Focus on anthropogenic heat, albedo, building morphology",
-                "QS": "For QS optimization: Focus on thermal properties, building height, surface materials"
+                "QS": "For QS optimization: Focus on thermal properties, building height, surface materials",
             }
-            
+
             for var in ["QH", "QE", "QN", "T2", "QS"]:
                 if var in target_variables.upper():
                     prompt_text += f"{var_guidance[var]}\n"
@@ -1162,8 +1210,7 @@ I'll help develop a systematic calibration strategy tailored to your specific go
         return GetPromptResult(
             messages=[
                 PromptMessage(
-                    role="user",
-                    content=TextContent(type="text", text=prompt_text)
+                    role="user", content=TextContent(type="text", text=prompt_text)
                 )
             ]
         )

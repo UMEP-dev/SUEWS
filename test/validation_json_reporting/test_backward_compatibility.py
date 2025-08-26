@@ -16,7 +16,7 @@ import yaml
 from supy.data_model.validation.pipeline.phase_a_parameter_update import (
     annotate_missing_parameters,
 )
-from supy.data_model.validation.pipeline.phase_a_refactored import (
+from supy.data_model.validation.pipeline.phase_a_reporter import (
     annotate_missing_parameters_refactored,
 )
 

@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0.0",
-  "timestamp": "2025-08-26T12:54:30.103322",
+  "timestamp": "2025-08-26T13:38:25.510667",
   "phases_completed": [
     "A"
   ],
@@ -13,7 +13,7 @@
   "phases": {
     "A": {
       "completed": true,
-      "timestamp": "2025-08-26T12:54:30.103380",
+      "timestamp": "2025-08-26T13:38:25.510761",
       "errors": [
         {
           "phase": "A",
@@ -33,7 +33,7 @@
             "Add emissionsmethod to your YAML configuration",
             "Consult documentation for valid values: https://suews.readthedocs.io/en/latest"
           ],
-          "timestamp": "2025-08-26T12:54:30.103347"
+          "timestamp": "2025-08-26T13:38:25.510713"
         },
         {
           "phase": "A",
@@ -53,7 +53,7 @@
             "Add storageheatmethod to your YAML configuration",
             "Consult documentation for valid values: https://suews.readthedocs.io/en/latest"
           ],
-          "timestamp": "2025-08-26T12:54:30.103356"
+          "timestamp": "2025-08-26T13:38:25.510734"
         }
       ],
       "warnings": [],
@@ -73,7 +73,7 @@
             "default_value": null
           },
           "suggestions": [],
-          "timestamp": "2025-08-26T12:54:30.103332"
+          "timestamp": "2025-08-26T13:38:25.510676"
         },
         {
           "phase": "A",
@@ -87,7 +87,7 @@
             "auto_corrected": true
           },
           "suggestions": [],
-          "timestamp": "2025-08-26T12:54:30.103364"
+          "timestamp": "2025-08-26T13:38:25.510744"
         },
         {
           "phase": "A",
@@ -101,7 +101,7 @@
             "allowed_in_mode": "dev"
           },
           "suggestions": [],
-          "timestamp": "2025-08-26T12:54:30.103373"
+          "timestamp": "2025-08-26T13:38:25.510754"
         }
       ],
       "results": {
@@ -132,7 +132,7 @@
         "Add emissionsmethod to your YAML configuration",
         "Consult documentation for valid values: https://suews.readthedocs.io/en/latest"
       ],
-      "timestamp": "2025-08-26T12:54:30.103347"
+      "timestamp": "2025-08-26T13:38:25.510713"
     },
     {
       "phase": "A",
@@ -152,7 +152,7 @@
         "Add storageheatmethod to your YAML configuration",
         "Consult documentation for valid values: https://suews.readthedocs.io/en/latest"
       ],
-      "timestamp": "2025-08-26T12:54:30.103356"
+      "timestamp": "2025-08-26T13:38:25.510734"
     }
   ],
   "warnings": [],
@@ -172,7 +172,7 @@
         "default_value": null
       },
       "suggestions": [],
-      "timestamp": "2025-08-26T12:54:30.103332"
+      "timestamp": "2025-08-26T13:38:25.510676"
     },
     {
       "phase": "A",
@@ -186,7 +186,7 @@
         "auto_corrected": true
       },
       "suggestions": [],
-      "timestamp": "2025-08-26T12:54:30.103364"
+      "timestamp": "2025-08-26T13:38:25.510744"
     },
     {
       "phase": "A",
@@ -200,13 +200,13 @@
         "allowed_in_mode": "dev"
       },
       "suggestions": [],
-      "timestamp": "2025-08-26T12:54:30.103373"
+      "timestamp": "2025-08-26T13:38:25.510754"
     }
   ],
   "suggestions": [],
   "metadata": {
     "phase": "A",
     "mode": "dev",
-    "report_file": "/var/folders/6r/lhkvk3m14ls587p81nfcy0k40000gp/T/tmph4uldw9h/report.txt"
+    "report_file": "/var/folders/6r/lhkvk3m14ls587p81nfcy0k40000gp/T/tmpkfbo048h/report.txt"
   }
 }

@@ -11,6 +11,7 @@ from typing import Dict, List, Optional, Any, Tuple
 from datetime import datetime
 from copy import deepcopy
 import re
+from pathlib import Path
 
 try:
     from .validation_reporter import ValidationReporter

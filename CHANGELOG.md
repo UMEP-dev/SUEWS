@@ -34,6 +34,13 @@
 
 ## 2025
 
+### 26 Aug 2025
+- [feature] Add JSON-based validation reporting system for CLI wizard ([#634](https://github.com/UMEP-dev/SUEWS/pull/634))
+  - Implement ValidationReporter using JSON as single source of truth
+  - Add TextReportGenerator to generate text reports from JSON structure
+  - Create comprehensive JSON schema for validation reports
+  - Enable structured error reporting for CLI wizard consumption
+
 ### 20 Aug 2025
 - [maintenance] Refactored validation module structure for better organization
   - Moved `yaml_processor` into `validation/pipeline` subdirectory

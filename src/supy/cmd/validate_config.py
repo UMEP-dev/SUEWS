@@ -216,9 +216,8 @@ def validate_single_file(
 def cli(ctx, files, pipeline, mode, dry_run, out_format, schema_version):
     """SUEWS Configuration Validator.
 
-    Default behavior: run the A/B/C validation pipeline on FILE.
-    Both text and JSON reports are generated for all validation phases.
-    Use subcommands for specific operations (validate, update, export, schema).
+    Default: Run validation pipeline on FILES (A/B/C phases with both text and JSON reports).
+    Use 'schema' subcommand for schema management operations.
     """
     # If invoked without a subcommand, run the pipeline workflow
     if ctx.invoked_subcommand is None:
@@ -363,160 +362,17 @@ def cli(ctx, files, pipeline, mode, dry_run, out_format, schema_version):
                 "[red]✗ Provide exactly one YAML FILE for pipeline execution[/red]"
             )
             ctx.exit(2)
-        code = _execute_pipeline(file=files[0], pipeline=pipeline, mode=mode, out_format=out_format)
+        code = _execute_pipeline(file=files[0], pipeline=pipeline, mode=mode)
         ctx.exit(code)
 
 
-@cli.command()
-@click.argument("files", nargs=-1, type=click.Path(exists=True), required=True)
-@click.option("--schema-version", help="Schema version to validate against")
-@click.option("--verbose", "-v", is_flag=True, help="Show detailed error messages")
-@click.option("--quiet", "-q", is_flag=True, help="Only show summary")
-@click.option(
-    "--format",
-    type=click.Choice(["table", "json"]),
-    default="table",
-    help="Output format",
-)
-def validate(files, schema_version, verbose, quiet, format):
-    """Validate SUEWS YAML configuration files (schema + Pydantic)."""
-
-    # Generate schema
-    schema = generate_json_schema(version=schema_version)
-    version = schema_version or CURRENT_SCHEMA_VERSION
-
-    if not quiet and format == "table":
-        console.print(
-            f"\n[bold blue]Validating against schema v{version}[/bold blue]\n"
-        )
-
-    total_files = len(files)
-    valid_files = 0
-    results = []
-
-    for file_path in track(
-        files, description="Validating...", disable=(quiet or format == "json")
-    ):
-        path = Path(file_path)
-        is_valid, errors = validate_single_file(path, schema, show_details=verbose)
-
-        # Convert ValidationError objects to dicts for JSON serialization
-        error_list = []
-        for error in errors:
-            if hasattr(error, "to_dict"):
-                error_list.append(error.to_dict())
-            else:
-                error_list.append(str(error))
-
-        results.append({
-            "file": str(path),
-            "valid": is_valid,
-            "errors": error_list if not is_valid else [],
-            "error_count": len(errors) if not is_valid else 0,
-        })
-        if is_valid:
-            valid_files += 1
-
-    if format == "json":
-        if JSONOutput:
-            # Use the new structured JSON output
-            json_formatter = JSONOutput(command="suews-validate")
-            output = json_formatter.validation_result(
-                files=results, schema_version=version, dry_run=False
-            )
-            JSONOutput.output(output)
-        else:
-            # Fallback to simple JSON
-            console.print(json.dumps(results, indent=2))
-    else:
-        if not quiet:
-            table = Table(title="Validation Results")
-            table.add_column("File", style="cyan")
-            table.add_column("Status", justify="center")
-            table.add_column("Issues", style="yellow")
-            for r in results:
-                status = (
-                    "[green]✓ Valid[/green]" if r["valid"] else "[red]✗ Invalid[/red]"
-                )
-                if r["valid"]:
-                    issues = ""
-                else:
-                    if verbose and r["errors"]:
-                        issues = "\n".join(r["errors"][:3])
-                        if len(r["errors"]) > 3:
-                            issues += f"\n... and {len(r['errors']) - 3} more"
-                    else:
-                        issues = f"{r['error_count']} issue(s)"
-                table.add_row(Path(r["file"]).name, status, issues)
-            console.print(table)
-            console.print(
-                f"\n[bold]Summary:[/bold] {valid_files}/{total_files} files valid"
-            )
-
-    # Exit with error if any files invalid
-    if valid_files < total_files:
-        sys.exit(1)
+# Removed redundant 'validate' command - default behavior handles validation
 
 
 ## Removed `check` subcommand to avoid redundancy with `validate`.
 
 
-@cli.command(name="update")
-@click.argument("file", type=click.Path(exists=True))
-@click.option("--output", "-o", help="Output file for updated configuration")
-@click.option("--to-version", help="Target schema version (default: latest)")
-def update(file, output, to_version):
-    """Update a configuration file to a newer schema version."""
-
-    path = Path(file)
-    output_path = Path(output) if output else path.with_suffix(".migrated.yml")
-    target_version = to_version or CURRENT_SCHEMA_VERSION
-
-    console.print(f"[bold]Updating {path.name} to schema v{target_version}[/bold]\n")
-
-    try:
-        # Load configuration
-        with open(path, "r") as f:
-            config = yaml.safe_load(f)
-
-        # Detect current version
-        migrator = SchemaMigrator()
-        current_version = migrator.auto_detect_version(config)
-        console.print(f"Current version: {current_version}")
-
-        if current_version == target_version:
-            console.print(
-                "[yellow]Already at target version, no update needed[/yellow]"
-            )
-            return
-
-        # Update
-        console.print(f"Updating to: {target_version}")
-        migrated = migrator.migrate(
-            config, from_version=current_version, to_version=target_version
-        )
-
-        # Save
-        with open(output_path, "w") as f:
-            yaml.dump(migrated, f, default_flow_style=False, sort_keys=False)
-
-        console.print(f"\n[green]✓ Update complete![/green]")
-        console.print(f"Output saved to: {output_path}")
-
-        # Validate migrated config
-        schema = generate_json_schema(version=target_version)
-        is_valid, _ = validate_single_file(output_path, schema, show_details=False)
-
-        if is_valid:
-            console.print("[green]✓ Updated configuration is valid[/green]")
-        else:
-            console.print(
-                "[yellow]⚠ Updated configuration may need manual adjustments[/yellow]"
-            )
-
-    except Exception as e:
-        console.print(f"[red]✗ Update failed: {e}[/red]")
-        sys.exit(1)
+# Removed 'update' command - merged into 'schema migrate'
 
 
 def _print_schema_info():
@@ -615,76 +471,10 @@ def _check_schema_versions(files, update, target_version, backup):
     console.print(table)
 
 
-@cli.command()
-@click.option(
-    "--output",
-    "-o",
-    type=click.Path(),
-    help="Output file for schema (if omitted, prints to console)",
-)
-@click.option("--version", help="Schema version to export (defaults to current)")
-@click.option(
-    "--format",
-    "fmt",
-    type=click.Choice(["json", "yaml"]),
-    default="json",
-    help="Output format",
-)
-def export(output, version, fmt):
-    """Export the configuration JSON Schema as JSON or YAML."""
-    try:
-        from ..data_model.schema.version import CURRENT_SCHEMA_VERSION
-        from ..data_model.schema.publisher import generate_json_schema
-    except Exception as e:
-        console.print(f"[red]✗ Unable to load schema publisher: {e}[/red]")
-        sys.exit(1)
-
-    schema_version = version or CURRENT_SCHEMA_VERSION
-
-    try:
-        schema = generate_json_schema(version=schema_version)
-        if fmt == "yaml":
-            content = yaml.dump(schema, default_flow_style=False, sort_keys=False)
-            default_name = f"suews-schema-v{schema_version}.yaml"
-        else:
-            content = json.dumps(schema, indent=2)
-            default_name = f"suews-schema-v{schema_version}.json"
-
-        if output:
-            Path(output).write_text(content)
-            console.print(f"[green]✓ Schema exported to {output}[/green]")
-        else:
-            console.print(
-                Panel(
-                    Syntax(content, fmt, theme="monokai"),
-                    title=f"Schema v{schema_version}",
-                    subtitle=f"Save as: {default_name}",
-                )
-            )
-    except Exception as e:
-        console.print(f"[red]✗ Export failed: {e}[/red]")
-        sys.exit(1)
+# Removed redundant top-level 'export' command - use 'schema export' instead
 
 
-def _format_phase_output(
-    phase, success, input_file, output_file=None, report_file=None, errors=None
-):
-    """Format phase execution output based on format preference."""
-    if JSONOutput:
-        json_formatter = JSONOutput(command="suews-validate")
-        output = json_formatter.phase_result(
-            phase=phase,
-            success=success,
-            input_file=str(input_file),
-            output_file=str(output_file) if output_file else None,
-            report_file=str(report_file) if report_file else None,
-            errors=errors if errors else None,
-        )
-        return output
-    return None
-
-
-def _execute_pipeline(file, pipeline, mode, out_format="table"):
+def _execute_pipeline(file, pipeline, mode):
     """Run YAML processor phases A/B/C to validate and generate reports/YAML.
 
     Phase A: Update YAML structure and detect parameters
@@ -1033,7 +823,61 @@ def schema_set(files, target, no_backup):
     _check_schema_versions(files, update=True, target_version=target, backup=(not no_backup))
 
 
-# Removed redundant 'schema migrate' - use top-level 'update' command instead
+@schema_group.command("migrate")
+@click.argument("file", type=click.Path(exists=True))
+@click.option("--output", "-o", help="Output file for migrated configuration")
+@click.option("--to-version", help="Target schema version (default: latest)")
+def schema_migrate(file, output, to_version):
+    """Migrate a configuration file to a newer schema version."""
+    path = Path(file)
+    target_version = to_version or CURRENT_SCHEMA_VERSION
+    output_path = Path(output) if output else path.with_stem(f"{path.stem}_v{target_version}")
+    
+    console.print(f"[bold]Updating {path.name} to schema v{target_version}[/bold]\n")
+
+    try:
+        # Load configuration
+        with open(path, "r") as f:
+            config = yaml.safe_load(f)
+
+        # Detect current version
+        migrator = SchemaMigrator()
+        current_version = migrator.auto_detect_version(config)
+        console.print(f"Current version: {current_version}")
+
+        if current_version == target_version:
+            console.print(
+                "[yellow]Already at target version, no update needed[/yellow]"
+            )
+            return
+
+        # Update
+        console.print(f"Updating to: {target_version}")
+        migrated = migrator.migrate(
+            config, from_version=current_version, to_version=target_version
+        )
+
+        # Save
+        with open(output_path, "w") as f:
+            yaml.dump(migrated, f, default_flow_style=False, sort_keys=False)
+
+        console.print(f"\n[green]✓ Update complete![/green]")
+        console.print(f"Output saved to: {output_path}")
+
+        # Validate migrated config
+        schema = generate_json_schema(version=target_version)
+        is_valid, _ = validate_single_file(output_path, schema, show_details=False)
+
+        if is_valid:
+            console.print("[green]✓ Updated configuration is valid[/green]")
+        else:
+            console.print(
+                "[yellow]⚠ Updated configuration may need manual adjustments[/yellow]"
+            )
+
+    except Exception as e:
+        console.print(f"[red]✗ Update failed: {e}[/red]")
+        sys.exit(1)
 
 
 @schema_group.command("export")
@@ -1053,7 +897,22 @@ def schema_set(files, target, no_backup):
 )
 def schema_export(output, version, fmt):
     """Export the configuration JSON Schema as JSON or YAML."""
-    export(output, version, fmt)
+    # Generate schema for the specified version
+    target_version = version or CURRENT_SCHEMA_VERSION
+    schema = generate_json_schema(version=target_version)
+    
+    # Convert to YAML if requested
+    if fmt == "yaml":
+        output_content = yaml.dump(schema, default_flow_style=False, sort_keys=False)
+    else:
+        output_content = json.dumps(schema, indent=2)
+    
+    # Write to file or console
+    if output:
+        Path(output).write_text(output_content)
+        console.print(f"[green]✓ Schema exported to {output}[/green]")
+    else:
+        console.print(output_content)
 
 
 @schema_group.command("info")

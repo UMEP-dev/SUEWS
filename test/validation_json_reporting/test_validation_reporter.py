@@ -67,7 +67,9 @@ class TestValidationReporter:
         })
 
         assert reporter.json_data["summary"]["total_warnings"] == 1
-        assert reporter.json_data["summary"]["validation_passed"]  # Warnings don't fail validation
+        assert reporter.json_data["summary"][
+            "validation_passed"
+        ]  # Warnings don't fail validation
         assert len(reporter.json_data["warnings"]) == 1
         assert reporter.json_data["warnings"][0]["severity"] == "warning"
 

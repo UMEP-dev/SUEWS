@@ -67,10 +67,12 @@ class TestYAMLProcessorIntegration:
         assert isinstance(is_valid, bool)
         assert isinstance(messages, list)
 
-    @pytest.mark.skip(reason="Phase C validation logic needs update after JSON reporting refactor")
+    @pytest.mark.skip(
+        reason="Phase C validation logic needs update after JSON reporting refactor"
+    )
     def test_phase_c_validation(self):
         """Test Phase C validation (Pydantic)
-        
+
         TODO: This test needs to be updated after the JSON reporting refactor.
         The validation logic has changed and this test needs to be aligned with
         the new ValidationReporter structure.
@@ -86,10 +88,12 @@ class TestYAMLProcessorIntegration:
         assert len(messages) > 0
         assert any("validation error" in msg.lower() for msg in messages)
 
-    @pytest.mark.skip(reason="Phase B file generation needs update after JSON reporting refactor")
+    @pytest.mark.skip(
+        reason="Phase B file generation needs update after JSON reporting refactor"
+    )
     def test_all_phases_validation(self):
         """Test running all three phases in sequence
-        
+
         TODO: This test fails because Phase B validation expects intermediate files
         that are not being generated correctly after the refactor. The test needs
         to be updated to work with the new ValidationReporter structure.
@@ -247,11 +251,13 @@ class TestWizardEngineIntegration:
     """Test the wizard engine with integrated validation"""
 
     @patch("rich.prompt.Confirm.ask")
-    @pytest.mark.skip(reason="Wizard validation flow needs update after JSON reporting refactor")
+    @pytest.mark.skip(
+        reason="Wizard validation flow needs update after JSON reporting refactor"
+    )
     @patch("builtins.open", create=True)
     def test_validation_flow(self, mock_open, mock_confirm):
         """Test the complete validation flow in the wizard
-        
+
         TODO: This test fails due to missing json_output module import issues
         and changes in the validation flow after the JSON reporting refactor.
         The wizard integration needs to be updated to work with the new

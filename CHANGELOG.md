@@ -35,6 +35,12 @@
 ## 2025
 
 ### 26 Aug 2025
+- [feature] Complete YAML configuration wizard implementation ([#547](https://github.com/UMEP-dev/SUEWS/pull/547))
+  - Add output configuration step for specifying format, frequency, and data groups
+  - Support both text and parquet output formats with appropriate validation
+  - Implement comprehensive integration tests for complete wizard flow
+  - All six wizard steps now fully implemented and tested
+
 - [feature] Add JSON-based validation reporting system for CLI wizard ([#634](https://github.com/UMEP-dev/SUEWS/pull/634))
   - Implement ValidationReporter using JSON as single source of truth
   - Add TextReportGenerator to generate text reports from JSON structure

@@ -133,7 +133,7 @@ This project is licensed under the GNU General Public License v3.0 - see the [LI
 ## Related Projects
 
 - [SUEWS](https://github.com/UMEP-dev/SUEWS) - The main SUEWS model
-- [SuPy](https://supy.readthedocs.io/) - Python interface for SUEWS  
+- [SuPy](https://supy.readthedocs.io/) - Python interface for SUEWS
 - [UMEP](https://umep-docs.readthedocs.io/) - Urban Multi-scale Environmental Predictor
 
 ## Support
@@ -142,7 +142,3 @@ For support and questions:
 - Check the [SUEWS documentation](https://suews.readthedocs.io/)
 - Open an [issue](https://github.com/UMEP-dev/SUEWS/issues) on GitHub
 - Join the SUEWS community discussions
-
-## Acknowledgements
-
-This MCP server builds upon the SUEWS urban climate model developed by the University of Reading, KTH Royal Institute of Technology, and the wider SUEWS community.

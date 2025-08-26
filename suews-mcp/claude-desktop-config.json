@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "suews": {
+      "command": "python",
+      "args": ["-m", "suews_mcp.server"],
+      "cwd": "${HOME}/SUEWS/suews-mcp",
+      "env": {
+        "PYTHONPATH": "${HOME}/SUEWS/suews-mcp/src"
+      }
+    }
+  }
+}

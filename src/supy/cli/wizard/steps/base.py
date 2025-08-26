@@ -37,7 +37,7 @@ class WizardStep(ABC):
     def validate(self, data: Dict[str, Any]) -> bool:
         """Validate the collected data"""
         pass
-    
+
     def is_complete(self) -> bool:
         """Check if this step has all required data filled"""
         # Default implementation - override in subclasses for specific logic
@@ -134,21 +134,18 @@ class WizardStep(ABC):
         console.print(f"{self.description}")
         console.print("\n[dim]Press Enter to continue...[/dim]")
         input()
-    
+
     def validate_field(
-        self, 
-        field_name: str, 
-        value: Any,
-        show_feedback: bool = True
+        self, field_name: str, value: Any, show_feedback: bool = True
     ) -> Tuple[bool, Optional[str]]:
         """
         Validate a single field with feedback.
-        
+
         Args:
             field_name: Name of the field
             value: Value to validate
             show_feedback: Whether to show immediate feedback
-            
+
         Returns:
             Tuple of (is_valid, error_message)
         """
@@ -157,31 +154,29 @@ class WizardStep(ABC):
         if show_feedback:
             console.print(f"  [green]✓[/green] {field_name}: Valid")
         return True, None
-    
+
     def show_field_help(self, field_name: str):
         """Show contextual help for a field."""
         help_text = self._get_field_help(field_name)
         if help_text:
-            console.print(Panel(
-                help_text,
-                title=f"Help: {field_name}",
-                border_style="blue"
-            ))
-    
+            console.print(
+                Panel(help_text, title=f"Help: {field_name}", border_style="blue")
+            )
+
     def _get_field_help(self, field_name: str) -> str:
         """Get help text for a field."""
         # Default help database - can be extended in subclasses
         help_database = {
-            'latitude': "Site latitude in decimal degrees (-90 to 90)",
-            'longitude': "Site longitude in decimal degrees (-180 to 180)",
-            'timezone': "Timezone string (e.g., 'Europe/London') or UTC offset (-12 to 14)",
-            'timestep': "Model time step in seconds (1-3600)",
-            'fr_paved': "Fraction of paved surface (0-1)",
-            'fr_bldg': "Fraction of building surface (0-1)",
-            'fr_grass': "Fraction of grass surface (0-1)",
-            'air_temperature': "Initial air temperature in °C",
-            'relative_humidity': "Initial relative humidity in % (0-100)",
-            'soil_moisture': "Volumetric soil moisture content (0-1)",
+            "latitude": "Site latitude in decimal degrees (-90 to 90)",
+            "longitude": "Site longitude in decimal degrees (-180 to 180)",
+            "timezone": "Timezone string (e.g., 'Europe/London') or UTC offset (-12 to 14)",
+            "timestep": "Model time step in seconds (1-3600)",
+            "fr_paved": "Fraction of paved surface (0-1)",
+            "fr_bldg": "Fraction of building surface (0-1)",
+            "fr_grass": "Fraction of grass surface (0-1)",
+            "air_temperature": "Initial air temperature in °C",
+            "relative_humidity": "Initial relative humidity in % (0-100)",
+            "soil_moisture": "Volumetric soil moisture content (0-1)",
         }
-        
+
         return help_database.get(field_name, "No help available for this field")

@@ -216,15 +216,15 @@ def cli(files, pipeline, mode, dry_run, out_format, schema_version):
 
     Run validation pipeline on FILES (A/B/C phases).
     JSON reports are automatically generated alongside text reports.
-    
+
     \b
     Examples:
       suews-validate config.yml                # Full ABC pipeline
       suews-validate -p A config.yml           # Only Phase A
-      suews-validate -p AB config.yml          # Phase A + B  
+      suews-validate -p AB config.yml          # Phase A + B
       suews-validate -p C --dry-run *.yml      # Check multiple files
       suews-validate --mode dev config.yml     # Developer mode
-    
+
     For schema operations, use: suews-schema
     """
     # Run the pipeline workflow
@@ -251,9 +251,7 @@ def cli(files, pipeline, mode, dry_run, out_format, schema_version):
             all_valid = True
             for file_path in files:
                 path = Path(file_path)
-                is_valid, errors = validate_single_file(
-                    path, schema, show_details=True
-                )
+                is_valid, errors = validate_single_file(path, schema, show_details=True)
                 if not is_valid:
                     all_valid = False
 
@@ -273,16 +271,16 @@ def cli(files, pipeline, mode, dry_run, out_format, schema_version):
                 })
 
             if out_format == "json":
-                    if JSONOutput:
-                        # Use the new structured JSON output
-                        json_formatter = JSONOutput(command="suews-validate")
-                        output = json_formatter.validation_result(
-                            files=results, schema_version=target_version, dry_run=True
-                        )
-                        JSONOutput.output(output)
-                    else:
-                        # Fallback to simple JSON
-                        console.print(json.dumps(results, indent=2))
+                if JSONOutput:
+                    # Use the new structured JSON output
+                    json_formatter = JSONOutput(command="suews-validate")
+                    output = json_formatter.validation_result(
+                        files=results, schema_version=target_version, dry_run=True
+                    )
+                    JSONOutput.output(output)
+                else:
+                    # Fallback to simple JSON
+                    console.print(json.dumps(results, indent=2))
             else:
                 table = Table(title="Validation Results")
                 table.add_column("File", style="cyan")
@@ -350,9 +348,7 @@ def cli(files, pipeline, mode, dry_run, out_format, schema_version):
             table.add_column("File", style="cyan")
             table.add_column("Status", justify="center")
             table.add_column("Issues", style="yellow")
-            status = (
-                    "[green]✓ Valid[/green]" if is_valid else "[red]✗ Invalid[/red]"
-            )
+            status = "[green]✓ Valid[/green]" if is_valid else "[red]✗ Invalid[/red]"
             issues = "" if is_valid else ("\n".join(errors[:3]) if errors else "")
             if not is_valid and len(errors) > 3:
                 issues += f"\n... and {len(errors) - 3} more"
@@ -404,7 +400,9 @@ def _print_schema_info():
 
     console.print("\n[bold]Validation Commands:[/bold]")
     console.print("  • Pipeline run: suews-validate -p ABC config.yml")
-    console.print("  • Pipeline with JSON reports: suews-validate -p ABC --use-refactored config.yml")
+    console.print(
+        "  • Pipeline with JSON reports: suews-validate -p ABC --use-refactored config.yml"
+    )
     console.print(
         "  • Read-only check: suews-validate -p C --dry-run configs/*.yml --format json"
     )
@@ -487,13 +485,13 @@ def _execute_pipeline(file, pipeline, mode):
     Phase A: Update YAML structure and detect parameters
     Phase B: Scientific checks and adjustments
     Phase C: Pydantic validation with physics conditionals
-    
+
     Args:
         file: Input YAML file path
         pipeline: Phase combination (A, B, C, AB, AC, BC, ABC)
         mode: Validation mode (public/dev)
         out_format: Output format (table or json)
-    
+
     Note: JSON reports are always generated alongside text reports.
     """
     # Ensure processor is importable
@@ -549,7 +547,7 @@ def _execute_pipeline(file, pipeline, mode):
         )
         if ok:
             console.print(f"Text Report: {report_file}")
-            json_report = report_file.replace('.txt', '.json')
+            json_report = report_file.replace(".txt", ".json")
             console.print(f"JSON Report: {json_report}")
             console.print(f"Updated YAML: {uptodate_file}")
         return 0 if ok else 1
@@ -577,7 +575,7 @@ def _execute_pipeline(file, pipeline, mode):
         )
         if ok:
             console.print(f"Text Report: {science_report_file}")
-            json_report = science_report_file.replace('.txt', '.json')
+            json_report = science_report_file.replace(".txt", ".json")
             console.print(f"JSON Report: {json_report}")
             console.print(f"Updated YAML: {science_yaml_file}")
         return 0 if ok else 1
@@ -601,7 +599,7 @@ def _execute_pipeline(file, pipeline, mode):
         )
         if ok:
             console.print(f"Text Report: {pydantic_report_file}")
-            json_report = pydantic_report_file.replace('.txt', '.json')
+            json_report = pydantic_report_file.replace(".txt", ".json")
             console.print(f"JSON Report: {json_report}")
             console.print(f"Updated YAML: {pydantic_yaml_file}")
         return 0 if ok else 1
@@ -623,7 +621,7 @@ def _execute_pipeline(file, pipeline, mode):
             console.print("[red]✗ Phase A failed[/red]")
             if report_file:
                 console.print(f"Text Report: {science_report_file}")
-            json_report = science_report_file.replace('.txt', '.json')
+            json_report = science_report_file.replace(".txt", ".json")
             console.print(f"JSON Report: {json_report}")
             if uptodate_file:
                 console.print(f"Updated YAML: {science_yaml_file}")
@@ -651,7 +649,7 @@ def _execute_pipeline(file, pipeline, mode):
         )
         if ok:
             console.print(f"Text Report: {science_report_file}")
-            json_report = science_report_file.replace('.txt', '.json') 
+            json_report = science_report_file.replace(".txt", ".json")
             console.print(f"JSON Report: {json_report}")
             console.print(f"Updated YAML: {science_yaml_file}")
         return 0 if ok else 1
@@ -671,7 +669,7 @@ def _execute_pipeline(file, pipeline, mode):
         if not a_ok:
             console.print("[red]✗ Phase A failed[/red]")
             console.print(f"Text Report: {pydantic_report_file}")
-            json_report = pydantic_report_file.replace('.txt', '.json')
+            json_report = pydantic_report_file.replace(".txt", ".json")
             console.print(f"JSON Report: {json_report}")
             console.print(f"Updated YAML: {pydantic_yaml_file}")
             return 1
@@ -695,7 +693,7 @@ def _execute_pipeline(file, pipeline, mode):
         )
         if ok:
             console.print(f"Text Report: {pydantic_report_file}")
-            json_report = pydantic_report_file.replace('.txt', '.json')
+            json_report = pydantic_report_file.replace(".txt", ".json")
             console.print(f"JSON Report: {json_report}")
             console.print(f"Updated YAML: {pydantic_yaml_file}")
         return 0 if ok else 1
@@ -716,7 +714,7 @@ def _execute_pipeline(file, pipeline, mode):
         if not b_ok:
             console.print("[red]✗ Phase B failed[/red]")
             console.print(f"Text Report: {pydantic_report_file}")
-            json_report = pydantic_report_file.replace('.txt', '.json')
+            json_report = pydantic_report_file.replace(".txt", ".json")
             console.print(f"JSON Report: {json_report}")
             console.print(f"Updated YAML: {pydantic_yaml_file}")
             sys.exit(1)
@@ -737,7 +735,7 @@ def _execute_pipeline(file, pipeline, mode):
         )
         if ok:
             console.print(f"Text Report: {pydantic_report_file}")
-            json_report = pydantic_report_file.replace('.txt', '.json')
+            json_report = pydantic_report_file.replace(".txt", ".json")
             console.print(f"JSON Report: {json_report}")
             console.print(f"Updated YAML: {pydantic_yaml_file}")
         sys.exit(0 if ok else 1)
@@ -755,7 +753,7 @@ def _execute_pipeline(file, pipeline, mode):
     if not a_ok:
         console.print("[red]✗ Phase A failed[/red]")
         console.print(f"Text Report: {pydantic_report_file}")
-        json_report = pydantic_report_file.replace('.txt', '.json')
+        json_report = pydantic_report_file.replace(".txt", ".json")
         console.print(f"JSON Report: {json_report}")
         console.print(f"Updated YAML: {pydantic_yaml_file}")
         return 1
@@ -775,7 +773,7 @@ def _execute_pipeline(file, pipeline, mode):
     if not b_ok:
         console.print("[red]✗ Phase B failed[/red]")
         console.print(f"Text Report: {science_report_file}")
-        json_report = science_report_file.replace('.txt', '.json')
+        json_report = science_report_file.replace(".txt", ".json")
         console.print(f"JSON Report: {json_report}")
         console.print(f"Updated YAML: {science_yaml_file}")
         sys.exit(1)
@@ -797,7 +795,7 @@ def _execute_pipeline(file, pipeline, mode):
     )
     if ok:
         console.print(f"Text Report: {pydantic_report_file}")
-        json_report = pydantic_report_file.replace('.txt', '.json')
+        json_report = pydantic_report_file.replace(".txt", ".json")
         console.print(f"JSON Report: {json_report}")
         console.print(f"Updated YAML: {pydantic_yaml_file}")
     return 0 if ok else 1

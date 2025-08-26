@@ -339,8 +339,8 @@ def generate_phase_a_text_report(json_data: Dict[str, Any], phase: str, mode: st
     """
     lines = []
     
-    # Header
-    lines.append("# SUEWS Configuration Analysis Report")
+    # Header - match original format exactly
+    lines.append("# SUEWS - Phase A (Up-to-date YAML check) Report")
     lines.append("# " + "=" * 50)
     lines.append(f"# Mode: {'Public' if mode.lower() == 'public' else mode.title()}")
     lines.append("# " + "=" * 50)
@@ -362,15 +362,12 @@ def generate_phase_a_text_report(json_data: Dict[str, Any], phase: str, mode: st
         
         # Critical missing parameters
         if critical_count > 0:
-            lines.append(f"- Found ({critical_count}) critical missing physics parameter(s):")
+            lines.append(f"- Found ({critical_count}) critical missing parameter(s):")
             for error in json_data.get("errors", []):
                 if error.get("type") == "missing_required_parameter":
                     param_name = error.get("details", {}).get("parameter_name", "unknown")
-                    field_path = error.get("field_path", "")
-                    lines.append(f"-- {param_name} at level {field_path}")
-                    suggestions = error.get("suggestions", [])
-                    if suggestions:
-                        lines.append(f"   Suggested fix: {suggestions[0]}")
+                    lines.append(f"-- {param_name} has been added to the updated YAML and set to null")
+                    lines.append(f"   Suggested fix: Set appropriate value based on SUEWS documentation -- https://suews.readthedocs.io/latest/")
             lines.append("")
         
         # Extra parameters in public mode

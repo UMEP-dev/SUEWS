@@ -31,6 +31,7 @@ py.install_sources(
             'cmd/to_yaml.py',
             'cmd/validate_config.py',
             'cmd/schema_cli.py',
+            'cmd/json_output.py',
         ],
         [
             'cli/__init__.py',

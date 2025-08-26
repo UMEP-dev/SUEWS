@@ -320,10 +320,45 @@ class EnhancedWizardValidator:
         corrected_config = config_dict.copy()
 
         try:
-            # Surface fraction normalization
+            # Fix control times if None
+            model_ctrl = corrected_config.get("model", {}).get("control", {})
+            if model_ctrl.get("start_time") is None:
+                model_ctrl["start_time"] = "2020-01-01T00:00:00"
+                errors.append("Set default start_time: 2020-01-01T00:00:00")
+            if model_ctrl.get("end_time") is None:
+                model_ctrl["end_time"] = "2020-12-31T23:59:00"
+                errors.append("Set default end_time: 2020-12-31T23:59:00")
+                
+            # Fix site properties
             sites = corrected_config.get("sites", [])
             for site in sites:
-                land_cover = site.get("properties", {}).get("land_cover", {})
+                props = site.get("properties", {})
+                
+                # Fix altitude if negative or zero
+                if props.get("alt", 0) <= 0:
+                    props["alt"] = 10.0  # Default to 10m
+                    errors.append(f"Fixed negative/zero altitude to 10m for site {site.get('name')}")
+                
+                # Fix timezone
+                tz = props.get("timezone")
+                if tz == "invalid" or not isinstance(tz, (int, float, dict)):
+                    # Use London timezone (0.0) as default
+                    props["timezone"] = {"value": 0.0}
+                    errors.append(f"Fixed invalid timezone to 0.0 (UTC) for site {site.get('name')}")
+                
+                # Add thermal layers for surfaces that need them
+                land_cover = props.get("land_cover", {})
+                surfaces_needing_layers = ["paved", "bldgs", "water"]
+                for surf_name in surfaces_needing_layers:
+                    if surf_name in land_cover:
+                        surface = land_cover[surf_name]
+                        if "thermal_layers" not in surface:
+                            # Add default thermal layers
+                            surface["thermal_layers"] = {
+                                "depths": {"value": [0.01, 0.04, 0.15, 0.6]},
+                                "thickness": {"value": [0.01, 0.04, 0.15, 0.6]}
+                            }
+                            errors.append(f"Added thermal_layers to {surf_name}")
 
                 # Calculate total surface fraction
                 total_sfr = sum(

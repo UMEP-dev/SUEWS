@@ -8,6 +8,9 @@ This directory contains internal documentation for SUEWS core developers.
 - **[Onboarding Guide](onboarding-guide.md)** - Comprehensive guide for new developers
   - Environment setup, workflow overview, first contribution checklist
   - Start here if you're new to the team
+  
+- **[Building Locally](building-locally.md)** - Quick guide to build and test SUEWS from source
+  - Prerequisites, setup with pip or conda/mamba, and test commands
 
 ### Development Guidelines
 - **[Coding Guidelines](CODING_GUIDELINES.md)** - Code style and conventions

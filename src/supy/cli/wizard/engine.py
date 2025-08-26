@@ -53,6 +53,7 @@ class WizardEngine:
         from .steps.surface import SurfaceParametersStep
         from .steps.initial import InitialConditionsStep
         from .steps.advanced import AdvancedOptionsStep
+        from .steps.output import OutputConfigStep
 
         # Return list of step instances
         return [
@@ -61,6 +62,7 @@ class WizardEngine:
             SurfaceParametersStep(self.session),
             InitialConditionsStep(self.session),
             AdvancedOptionsStep(self.session),
+            OutputConfigStep(self.session),
         ]
 
     def _load_template(self):
@@ -297,6 +299,13 @@ class WizardEngine:
                     )
                     console.print("[green]Configuration optimized[/green]")
 
+    def _structure_config(self, wizard_config: Dict[str, Any]) -> Dict[str, Any]:
+        """Convert wizard configuration to SUEWS structure"""
+        from .validators.pydantic_integration import PydanticValidator
+        
+        validator = PydanticValidator()
+        return validator._structure_config(wizard_config)
+
     def _unstructure_config(self, structured_config: Dict[str, Any]) -> Dict[str, Any]:
         """Convert structured SUEWS config back to wizard format"""
         wizard_config = {}
@@ -343,6 +352,23 @@ class WizardEngine:
                 wizard_config[key] = self.session.configuration[key]
 
         return wizard_config
+
+    def save_config(self, output_path: str = None):
+        """Save the final configuration to a YAML file"""
+        if output_path is None:
+            output_path = self.output_path
+        else:
+            output_path = Path(output_path)
+        
+        # Convert wizard config to SUEWS structure
+        structured_config = self._structure_config(self.session.configuration)
+        
+        # Save to YAML file
+        with open(output_path, "w") as f:
+            yaml.dump(structured_config, f, default_flow_style=False, sort_keys=False)
+        
+        console.print(f"[green]Configuration saved to {output_path}[/green]")
+        return output_path
 
     def save_draft(self):
         """Save current progress as draft"""

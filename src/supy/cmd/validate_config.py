@@ -217,7 +217,8 @@ def cli(ctx, files, pipeline, mode, dry_run, out_format, schema_version):
     """SUEWS Configuration Validator.
 
     Default behavior: run the A/B/C validation pipeline on FILE.
-    Use subcommands for specific operations (validate, schema, migrate, export).
+    Both text and JSON reports are generated for all validation phases.
+    Use subcommands for specific operations (validate, update, export, schema).
     """
     # If invoked without a subcommand, run the pipeline workflow
     if ctx.invoked_subcommand is None:
@@ -460,18 +461,18 @@ def validate(files, schema_version, verbose, quiet, format):
 ## Removed `check` subcommand to avoid redundancy with `validate`.
 
 
-@cli.command()
+@cli.command(name="update")
 @click.argument("file", type=click.Path(exists=True))
-@click.option("--output", "-o", help="Output file for migrated configuration")
-@click.option("--to-version", help="Target schema version")
-def migrate(file, output, to_version):
-    """Migrate a configuration to a different schema version."""
+@click.option("--output", "-o", help="Output file for updated configuration")
+@click.option("--to-version", help="Target schema version (default: latest)")
+def update(file, output, to_version):
+    """Update a configuration file to a newer schema version."""
 
     path = Path(file)
     output_path = Path(output) if output else path.with_suffix(".migrated.yml")
     target_version = to_version or CURRENT_SCHEMA_VERSION
 
-    console.print(f"[bold]Migrating {path.name} to schema v{target_version}[/bold]\n")
+    console.print(f"[bold]Updating {path.name} to schema v{target_version}[/bold]\n")
 
     try:
         # Load configuration
@@ -485,12 +486,12 @@ def migrate(file, output, to_version):
 
         if current_version == target_version:
             console.print(
-                "[yellow]Already at target version, no migration needed[/yellow]"
+                "[yellow]Already at target version, no update needed[/yellow]"
             )
             return
 
-        # Migrate
-        console.print(f"Migrating to: {target_version}")
+        # Update
+        console.print(f"Updating to: {target_version}")
         migrated = migrator.migrate(
             config, from_version=current_version, to_version=target_version
         )
@@ -499,7 +500,7 @@ def migrate(file, output, to_version):
         with open(output_path, "w") as f:
             yaml.dump(migrated, f, default_flow_style=False, sort_keys=False)
 
-        console.print(f"\n[green]✓ Migration complete![/green]")
+        console.print(f"\n[green]✓ Update complete![/green]")
         console.print(f"Output saved to: {output_path}")
 
         # Validate migrated config
@@ -507,14 +508,14 @@ def migrate(file, output, to_version):
         is_valid, _ = validate_single_file(output_path, schema, show_details=False)
 
         if is_valid:
-            console.print("[green]✓ Migrated configuration is valid[/green]")
+            console.print("[green]✓ Updated configuration is valid[/green]")
         else:
             console.print(
-                "[yellow]⚠ Migrated configuration may need manual adjustments[/yellow]"
+                "[yellow]⚠ Updated configuration may need manual adjustments[/yellow]"
             )
 
     except Exception as e:
-        console.print(f"[red]✗ Migration failed: {e}[/red]")
+        console.print(f"[red]✗ Update failed: {e}[/red]")
         sys.exit(1)
 
 
@@ -547,17 +548,9 @@ def _print_schema_info():
     console.print("  • Migrate: suews-validate schema migrate old_config.yml")
 
 
-@cli.command()
-@click.argument("files", nargs=-1, type=click.Path(exists=True), required=True)
-@click.option(
-    "--update", "-u", is_flag=True, help="Update schema_version field in files"
-)
-@click.option("--target-version", help="Target schema version to set when updating")
-@click.option(
-    "--backup", "-b", is_flag=True, default=True, help="Create backup before updating"
-)
-def version(files, update, target_version, backup):
-    """Check or update schema_version in YAML files (alias to schema status/update)."""
+# Removed redundant 'version' command - now use 'schema status' or 'schema set'
+def _check_schema_versions(files, update, target_version, backup):
+    """Internal helper: Check or update schema_version in YAML files."""
     # Reuse common logic
     try:
         # Inline import to keep CLI startup light
@@ -1013,19 +1006,10 @@ def _execute_pipeline(file, pipeline, mode, out_format="table"):
     return 0 if ok else 1
 
 
-def main():
-    """Main entry point."""
-    cli()
-
-
-if __name__ == "__main__":
-    main()
-
-
 @cli.group(name="schema", invoke_without_command=True)
 @click.pass_context
 def schema_group(ctx):
-    """Schema operations: status, update, migrate, export, info.
+    """Schema operations: status, set, export, info.
 
     Invoked without subcommand, shows schema info.
     """
@@ -1037,25 +1021,19 @@ def schema_group(ctx):
 @click.argument("files", nargs=-1, type=click.Path(exists=True), required=True)
 def schema_status(files):
     """Show schema_version status and compatibility for files."""
-    version(files, update=False, target_version=None, backup=True)
+    _check_schema_versions(files, update=False, target_version=None, backup=True)
 
 
-@schema_group.command("update")
+@schema_group.command("set")
 @click.argument("files", nargs=-1, type=click.Path(exists=True), required=True)
 @click.option("--target", help="Target schema version to set")
 @click.option("--no-backup", is_flag=True, help="Do not create backup before updating")
-def schema_update(files, target, no_backup):
-    """Update schema_version for files to target (or current)."""
-    version(files, update=True, target_version=target, backup=(not no_backup))
+def schema_set(files, target, no_backup):
+    """Set schema_version field in files (metadata only, no migration)."""
+    _check_schema_versions(files, update=True, target_version=target, backup=(not no_backup))
 
 
-@schema_group.command("migrate")
-@click.argument("file", type=click.Path(exists=True))
-@click.option("--output", "-o", help="Output file for migrated configuration")
-@click.option("--to", "to_version", help="Target schema version")
-def schema_migrate(file, output, to_version):
-    """Migrate a configuration to a different schema version."""
-    migrate(file, output, to_version)
+# Removed redundant 'schema migrate' - use top-level 'update' command instead
 
 
 @schema_group.command("export")
@@ -1082,3 +1060,12 @@ def schema_export(output, version, fmt):
 def schema_info():
     """Show schema version info and docs links."""
     _print_schema_info()
+
+
+def main():
+    """Main entry point."""
+    cli()
+
+
+if __name__ == "__main__":
+    main()

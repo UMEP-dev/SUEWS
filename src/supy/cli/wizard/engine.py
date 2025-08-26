@@ -188,20 +188,20 @@ class WizardEngine:
         """Validate the complete configuration using the YAML processor"""
         from .validators.pydantic_integration import PydanticValidator
         from .validators.yaml_processor_integration import YAMLProcessorValidator
-        
+
         console.print("\n[bold]Running comprehensive validation...[/bold]")
-        
+
         # First, use the original Pydantic validator for basic structure
         pydantic_validator = PydanticValidator()
         is_valid, errors = pydantic_validator.validate_complete_config(
             self.session.configuration
         )
-        
+
         if not is_valid:
             console.print("\n[red]Basic configuration validation failed:[/red]")
             for error in errors:
                 console.print(f"  • {error}")
-            
+
             # Ask if user wants to try the YAML processor to fix issues
             if Confirm.ask("\nWould you like to run the YAML processor to fix issues?"):
                 self._run_yaml_processor_validation()
@@ -210,113 +210,129 @@ class WizardEngine:
         else:
             # Run the comprehensive YAML processor validation
             self._run_yaml_processor_validation()
-    
+
     def _run_yaml_processor_validation(self):
         """Run enhanced validation with all features"""
         from .validators.enhanced_validator import EnhancedWizardValidator
         from .validators.pydantic_integration import PydanticValidator
-        
+
         # Initialize enhanced validator
         validator = EnhancedWizardValidator(mode="public")
-        
+
         # Convert wizard config to SUEWS format
         pydantic_validator = PydanticValidator()
-        structured_config = pydantic_validator._structure_config(self.session.configuration)
-        
+        structured_config = pydantic_validator._structure_config(
+            self.session.configuration
+        )
+
         # Run complete validation with all phases
         is_valid, report, updated_config = validator.validate_complete_config(
-            structured_config, 
-            show_progress=True
+            structured_config, show_progress=True
         )
-        
+
         # Get fix suggestions
         suggestions = validator.get_fix_suggestions()
         if suggestions:
             console.print("\n[bold]💡 Suggestions:[/bold]")
             for suggestion in suggestions:
                 console.print(suggestion)
-        
+
         # Handle validation results
         if not is_valid:
             # Option to export detailed report
             if Confirm.ask("\nWould you like to save a detailed validation report?"):
-                report_path = self.output_path.with_suffix('.validation.json')
+                report_path = self.output_path.with_suffix(".validation.json")
                 validator.export_json_report(report_path)
                 console.print(f"[green]Report saved to: {report_path}[/green]")
-            
+
             # Ask if user wants to use the updated config anyway
             if updated_config and updated_config != structured_config:
                 if Confirm.ask("\n✨ Automatic fixes are available. Apply them?"):
                     # Update session with fixed config
-                    self.session.configuration = self._unstructure_config(updated_config)
+                    self.session.configuration = self._unstructure_config(
+                        updated_config
+                    )
                     console.print("[green]Configuration updated with fixes[/green]")
-                    
+
                     # Re-validate after fixes
                     console.print("\n[cyan]Re-validating after fixes...[/cyan]")
-                    structured_config = pydantic_validator._structure_config(self.session.configuration)
-                    is_valid, report, _ = validator.validate_complete_config(
-                        structured_config,
-                        show_progress=False
+                    structured_config = pydantic_validator._structure_config(
+                        self.session.configuration
                     )
-                    
+                    is_valid, report, _ = validator.validate_complete_config(
+                        structured_config, show_progress=False
+                    )
+
                     if is_valid:
                         console.print("[green]✅ Configuration now valid![/green]")
                     else:
-                        console.print("[yellow]⚠️ Some issues remain - review the configuration[/yellow]")
+                        console.print(
+                            "[yellow]⚠️ Some issues remain - review the configuration[/yellow]"
+                        )
                 else:
                     raise ValueError("Configuration validation failed")
             else:
-                raise ValueError("Configuration validation failed - no automatic fixes available")
+                raise ValueError(
+                    "Configuration validation failed - no automatic fixes available"
+                )
         else:
-            console.print("\n[green]✅ Configuration passed all validation checks![/green]")
-            
+            console.print(
+                "\n[green]✅ Configuration passed all validation checks![/green]"
+            )
+
             # Update with any automatic improvements
             if updated_config and updated_config != structured_config:
                 if Confirm.ask("\n✨ Optional improvements available. Apply them?"):
-                    self.session.configuration = self._unstructure_config(updated_config)
+                    self.session.configuration = self._unstructure_config(
+                        updated_config
+                    )
                     console.print("[green]Configuration optimized[/green]")
-    
+
     def _unstructure_config(self, structured_config: Dict[str, Any]) -> Dict[str, Any]:
         """Convert structured SUEWS config back to wizard format"""
         wizard_config = {}
-        
+
         # Extract site info
-        if 'sites' in structured_config and structured_config['sites']:
-            site = structured_config['sites'][0]
-            wizard_config['site'] = {
-                'name': site.get('name', 'Site1'),
-                'latitude': site.get('properties', {}).get('lat', {}).get('value', 0),
-                'longitude': site.get('properties', {}).get('lng', {}).get('value', 0),
-                'altitude': site.get('properties', {}).get('alt', {}).get('value', 0),
-                'timezone': site.get('properties', {}).get('timezone', 0),
+        if "sites" in structured_config and structured_config["sites"]:
+            site = structured_config["sites"][0]
+            wizard_config["site"] = {
+                "name": site.get("name", "Site1"),
+                "latitude": site.get("properties", {}).get("lat", {}).get("value", 0),
+                "longitude": site.get("properties", {}).get("lng", {}).get("value", 0),
+                "altitude": site.get("properties", {}).get("alt", {}).get("value", 0),
+                "timezone": site.get("properties", {}).get("timezone", 0),
             }
-        
+
         # Extract simulation settings
-        if 'model' in structured_config:
-            control = structured_config['model'].get('control', {})
-            wizard_config['simulation'] = {
-                'timestep': control.get('tstep', 300),
+        if "model" in structured_config:
+            control = structured_config["model"].get("control", {})
+            wizard_config["simulation"] = {
+                "timestep": control.get("tstep", 300),
             }
-            
+
             # Extract dates if present
-            if 'start_time' in control:
-                wizard_config['simulation']['start_date'] = control['start_time'].get('value', '').split()[0]
-            if 'end_time' in control:
-                wizard_config['simulation']['end_date'] = control['end_time'].get('value', '').split()[0]
-        
+            if "start_time" in control:
+                wizard_config["simulation"]["start_date"] = (
+                    control["start_time"].get("value", "").split()[0]
+                )
+            if "end_time" in control:
+                wizard_config["simulation"]["end_date"] = (
+                    control["end_time"].get("value", "").split()[0]
+                )
+
         # Extract physics options
-        if 'model' in structured_config and 'physics' in structured_config['model']:
-            physics = structured_config['model']['physics']
-            wizard_config['advanced_options'] = {
-                k: v.get('value', 0) if isinstance(v, dict) else v
+        if "model" in structured_config and "physics" in structured_config["model"]:
+            physics = structured_config["model"]["physics"]
+            wizard_config["advanced_options"] = {
+                k: v.get("value", 0) if isinstance(v, dict) else v
                 for k, v in physics.items()
             }
-        
+
         # Preserve other wizard-specific sections
-        for key in ['forcing', 'surface', 'initial_conditions']:
+        for key in ["forcing", "surface", "initial_conditions"]:
             if key in self.session.configuration:
                 wizard_config[key] = self.session.configuration[key]
-        
+
         return wizard_config
 
     def save_draft(self):

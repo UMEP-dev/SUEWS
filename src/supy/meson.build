@@ -115,7 +115,6 @@ py.install_sources(
             'data_model/validation/pipeline/validation_reporter.py',
             'data_model/validation/pipeline/text_report_generator.py',
             'data_model/validation/pipeline/yaml_annotator.py',
-            'data_model/validation/pipeline/schemas/validation_report_v1_schema.json',
             'data_model/schema/__init__.py',
             'data_model/schema/version.py',
             'data_model/schema/migration.py',

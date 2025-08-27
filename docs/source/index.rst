@@ -143,6 +143,7 @@ How to support SUEWS?
    troubleshooting
    benchmark/benchmark_report
    notation
+   version-history/version-history
 
 
 .. toctree::
@@ -152,9 +153,7 @@ How to support SUEWS?
    :hidden:
 
    contributing/contributing
-   fortran-api
    acknowledgement
-   version-history/version-history
    GitHub repository <https://github.com/UMEP-dev/SUEWS>
 
 

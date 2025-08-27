@@ -20,39 +20,40 @@ try:
         AnalyzeResultsTool,
     )
     from supy.mcp.utils import ParameterTranslator
+
     SUPY_MCP_AVAILABLE = True
 except (ImportError, AttributeError):
     # SuPy is not installed or doesn't have MCP tools yet
     SUPY_MCP_AVAILABLE = False
-    
+
     # Create mock implementations for testing
     class MockTool:
         async def execute(self, params):
             return {"success": True, "message": "Mock execution", "data": {}}
-    
+
     class ConfigureSimulationTool(MockTool):
         pass
-    
+
     class RunSimulationTool(MockTool):
         pass
-    
+
     class AnalyzeResultsTool(MockTool):
         pass
-    
+
     class ParameterTranslator:
         def validate_file_path(self, path, must_exist=True):
             p = Path(path)
             if must_exist and not p.exists():
                 raise FileNotFoundError(f"File not found: {path}")
             return p
-        
+
         def validate_parameters(self, params, required=None):
             if required:
                 for req in required:
                     if req not in params:
                         raise ValueError(f"Missing required parameter: {req}")
             return params
-        
+
         def convert_to_supy_format(self, params):
             return params
 
@@ -77,7 +78,7 @@ class TestParameterTranslatorWithSuPy:
         """Test validation of non-existing file path."""
         translator = ParameterTranslator()
         fake_path = Path("/fake/path/that/does/not/exist.txt")
-        
+
         with pytest.raises(FileNotFoundError):
             translator.validate_file_path(str(fake_path), must_exist=True)
 
@@ -88,12 +89,12 @@ class TestParameterTranslatorMocked:
     def test_mock_validate_file_path(self):
         """Test mock file path validation."""
         translator = ParameterTranslator()
-        
+
         # Test with existing file
         with tempfile.NamedTemporaryFile() as tf:
             result = translator.validate_file_path(tf.name, must_exist=True)
             assert result == Path(tf.name)
-        
+
         # Test with non-existing file
         with pytest.raises(FileNotFoundError):
             translator.validate_file_path("/fake/path", must_exist=True)
@@ -101,11 +102,11 @@ class TestParameterTranslatorMocked:
     def test_mock_validate_parameters(self):
         """Test mock parameter validation."""
         translator = ParameterTranslator()
-        
+
         params = {"site": "test", "latitude": 51.5}
         result = translator.validate_parameters(params, required=["site"])
         assert result == params
-        
+
         with pytest.raises(ValueError):
             translator.validate_parameters({}, required=["site"])
 
@@ -123,7 +124,7 @@ class TestConfigureSimulationToolWithSuPy:
             "latitude": 51.5,
             "longitude": -0.1,
         }
-        
+
         result = await tool.execute(params)
         assert "success" in result
         assert "message" in result
@@ -141,9 +142,9 @@ class TestConfigureSimulationToolWithSuPy:
                 "paved": 0.2,
                 "vegetation": 0.4,
                 "water": 0.1,
-            }
+            },
         }
-        
+
         result = await tool.execute(params)
         assert "success" in result
 
@@ -156,7 +157,7 @@ class TestConfigureSimulationToolMocked:
         """Test mock execution."""
         tool = ConfigureSimulationTool()
         params = {"site_name": "MockSite"}
-        
+
         result = await tool.execute(params)
         assert result["success"] is True
         assert "message" in result
@@ -170,18 +171,18 @@ class TestRunSimulationToolWithSuPy:
     async def test_execute_with_config_file(self):
         """Test execution with config file."""
         tool = RunSimulationTool()
-        
+
         # Create a temporary config file
         with tempfile.NamedTemporaryFile(suffix=".yml", delete=False) as tf:
             tf.write(b"site: TestSite\n")
             config_path = tf.name
-        
+
         try:
             params = {
                 "config_file": config_path,
                 "simulation_days": 1,
             }
-            
+
             result = await tool.execute(params)
             assert "success" in result
         finally:
@@ -196,13 +197,13 @@ class TestRunSimulationToolMocked:
         """Test mock execution."""
         tool = RunSimulationTool()
         params = {"config_file": "mock_config.yml"}
-        
+
         result = await tool.execute(params)
         assert result["success"] is True
         assert "message" in result
 
 
-@pytest.mark.skipif(not SUPY_MCP_AVAILABLE, reason="SuPy MCP tools not available")  
+@pytest.mark.skipif(not SUPY_MCP_AVAILABLE, reason="SuPy MCP tools not available")
 class TestAnalyzeResultsToolWithSuPy:
     """Test AnalyzeResultsTool with actual SuPy."""
 
@@ -210,18 +211,18 @@ class TestAnalyzeResultsToolWithSuPy:
     async def test_execute_with_output_file(self):
         """Test execution with output file."""
         tool = AnalyzeResultsTool()
-        
+
         # Create a mock output file
         with tempfile.NamedTemporaryFile(suffix=".txt", delete=False) as tf:
             tf.write(b"QH,QE\n100,50\n120,60\n")
             output_path = tf.name
-        
+
         try:
             params = {
                 "output_file": output_path,
                 "metrics": ["mean", "std"],
             }
-            
+
             result = await tool.execute(params)
             assert "success" in result
         finally:
@@ -236,7 +237,7 @@ class TestAnalyzeResultsToolMocked:
         """Test mock execution."""
         tool = AnalyzeResultsTool()
         params = {"output_file": "mock_output.txt"}
-        
+
         result = await tool.execute(params)
         assert result["success"] is True
         assert "message" in result
@@ -251,7 +252,7 @@ class TestToolIntegration:
         config_tool = ConfigureSimulationTool()
         run_tool = RunSimulationTool()
         analyze_tool = AnalyzeResultsTool()
-        
+
         # Configure
         config_params = {
             "site_name": "PipelineTest",
@@ -260,14 +261,14 @@ class TestToolIntegration:
         }
         config_result = await config_tool.execute(config_params)
         assert config_result["success"]
-        
+
         # Run
         run_params = {
             "config_file": "pipeline_config.yml",
         }
         run_result = await run_tool.execute(run_params)
         assert run_result["success"]
-        
+
         # Analyze
         analyze_params = {
             "output_file": "pipeline_output.txt",
@@ -287,11 +288,11 @@ class TestToolIntegration:
         config_tool = ConfigureSimulationTool()
         run_tool = RunSimulationTool()
         analyze_tool = AnalyzeResultsTool()
-        
+
         assert hasattr(config_tool, "execute")
         assert hasattr(run_tool, "execute")
         assert hasattr(analyze_tool, "execute")
-        
+
         assert asyncio.iscoroutinefunction(config_tool.execute)
         assert asyncio.iscoroutinefunction(run_tool.execute)
         assert asyncio.iscoroutinefunction(analyze_tool.execute)

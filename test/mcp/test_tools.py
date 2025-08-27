@@ -60,7 +60,7 @@ class TestParameterTranslator:
             temp_path = Path(tf.name)
 
         try:
-            result = translator.validate_file_path(str(temp_path), must_exist=True)
+            result = translator.validate_file_path(str(temp_path))
             assert result == temp_path
         finally:
             temp_path.unlink()
@@ -71,19 +71,20 @@ class TestParameterTranslator:
         fake_path = Path("/fake/path/that/does/not/exist.txt")
         
         with pytest.raises(FileNotFoundError):
-            translator.validate_file_path(str(fake_path), must_exist=True)
+            translator.validate_file_path(str(fake_path))
 
-    def test_validate_parameters(self):
-        """Test parameter validation."""
+    def test_validate_numeric_parameter(self):
+        """Test numeric parameter validation."""
         translator = ParameterTranslator()
         
-        params = {"site": "test", "latitude": 51.5}
-        result = translator.validate_parameters(params, required=["site"])
-        assert result == params
+        # Valid numeric
+        result = translator.validate_numeric_parameter(42.5, "test_param", min_val=0, max_val=100)
+        assert result == 42.5
         
+        # Out of range
         with pytest.raises(ValueError) as exc_info:
-            translator.validate_parameters({}, required=["site"])
-        assert "site" in str(exc_info.value)
+            translator.validate_numeric_parameter(-10, "test_param", min_val=0)
+        assert "test_param" in str(exc_info.value)
 
     def test_convert_to_supy_format(self):
         """Test conversion to SuPy format."""
@@ -95,9 +96,10 @@ class TestParameterTranslator:
             "longitude": -0.1,
         }
         
-        supy_params = translator.convert_to_supy_format(mcp_params)
+        supy_params = translator.map_supy_parameters(mcp_params)
         assert supy_params is not None
         # Should produce valid SuPy parameters
+        assert "site" in supy_params
 
 
 class TestConfigureSimulationTool:

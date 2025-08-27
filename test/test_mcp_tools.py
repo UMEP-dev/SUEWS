@@ -194,7 +194,7 @@ class TestParameterTranslator:
             }
         }
         
-        supy_params = translator.convert_to_supy_format(mcp_params)
+        supy_params = translator.map_supy_parameters(mcp_params)
         assert supy_params is not None
         # Should be in actual SuPy format
         assert "site" in supy_params or "Site" in supy_params

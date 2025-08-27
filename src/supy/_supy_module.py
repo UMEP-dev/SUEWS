@@ -364,7 +364,7 @@ def load_config_from_df(df_state: pd.DataFrame):
     >>> config = supy.load_config_from_df(df_state_init)
 
     """
-    from .util._config import SUEWSConfig
+    from .data_model.core.config import SUEWSConfig
 
     config = SUEWSConfig.from_df_state(df_state)
 
@@ -374,7 +374,7 @@ def load_config_from_df(df_state: pd.DataFrame):
 def init_config(df_state: pd.DataFrame = None):
     """Initialise SUEWS configuration object either from existing df_state dataframe or as the default configuration."""
     if df_state is None:
-        from .util._config import SUEWSConfig
+        from .data_model.core.config import SUEWSConfig
 
         return SUEWSConfig()
 

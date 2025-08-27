@@ -22,7 +22,9 @@ class TestCompleteWizardFlow:
             engine = WizardEngine(str(output_path))
 
             # Check all steps are present
-            assert len(engine.steps) == 6  # Basic, Forcing, Surface, Initial, Advanced, Output
+            assert (
+                len(engine.steps) == 6
+            )  # Basic, Forcing, Surface, Initial, Advanced, Output
 
             # Check step names
             step_names = [step.name for step in engine.steps]
@@ -137,7 +139,7 @@ class TestCompleteWizardFlow:
             control = structured["model"]["control"]
             assert control["tstep"] == 300
             assert "output_file" in control
-            
+
             # Verify output configuration
             output_config = control["output_file"]
             assert output_config["format"] == "parquet"
@@ -179,7 +181,11 @@ class TestCompleteWizardFlow:
             assert output_step.validate(invalid_multiple) is False
 
             # Test valid text format with groups
-            valid_txt = {"format": "txt", "freq": 600, "groups": ["SUEWS", "DailyState"]}
+            valid_txt = {
+                "format": "txt",
+                "freq": 600,
+                "groups": ["SUEWS", "DailyState"],
+            }
             assert output_step.validate(valid_txt) is True
 
             # Test text format without groups (should add default)
@@ -207,7 +213,9 @@ class TestCompleteWizardFlow:
             suburban_path = Path(tmpdir) / "suburban_config.yaml"
             suburban_engine = WizardEngine(str(suburban_path), template="suburban")
 
-            sub_fractions = suburban_engine.session.configuration["surface"]["fractions"]
+            sub_fractions = suburban_engine.session.configuration["surface"][
+                "fractions"
+            ]
             assert sub_fractions["buildings"] == 0.20  # Lower buildings for suburban
             assert sub_fractions["grass"] == 0.25  # More grass
 

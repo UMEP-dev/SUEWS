@@ -302,7 +302,7 @@ class WizardEngine:
     def _structure_config(self, wizard_config: Dict[str, Any]) -> Dict[str, Any]:
         """Convert wizard configuration to SUEWS structure"""
         from .validators.pydantic_integration import PydanticValidator
-        
+
         validator = PydanticValidator()
         return validator._structure_config(wizard_config)
 
@@ -359,14 +359,14 @@ class WizardEngine:
             output_path = self.output_path
         else:
             output_path = Path(output_path)
-        
+
         # Convert wizard config to SUEWS structure
         structured_config = self._structure_config(self.session.configuration)
-        
+
         # Save to YAML file
         with open(output_path, "w") as f:
             yaml.dump(structured_config, f, default_flow_style=False, sort_keys=False)
-        
+
         console.print(f"[green]Configuration saved to {output_path}[/green]")
         return output_path
 

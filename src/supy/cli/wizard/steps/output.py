@@ -76,10 +76,10 @@ class OutputConfigStep(WizardStep):
 
         # Output frequency
         console.print("\n[bold]Output Frequency[/bold]")
-        
+
         # Get timestep from simulation configuration
         timestep = self.session.configuration.get("simulation", {}).get("timestep", 300)
-        
+
         console.print(f"Model timestep: {timestep} seconds")
         console.print("Output frequency must be a multiple of the timestep.")
         console.print("\nCommon choices:")
@@ -95,19 +95,22 @@ class OutputConfigStep(WizardStep):
             freq = timestep * multiple
             if freq <= 86400:  # Up to daily
                 valid_choices.append(freq)
-        
+
         # Ensure common frequencies are included if they're multiples
         for freq in [1800, 3600, 7200, 86400]:
             if freq % timestep == 0 and freq not in valid_choices:
                 valid_choices.append(freq)
-        
+
         valid_choices.sort()
 
-        default_freq = 3600 if 3600 in valid_choices else valid_choices[min(3, len(valid_choices)-1)]
-        
+        default_freq = (
+            3600
+            if 3600 in valid_choices
+            else valid_choices[min(3, len(valid_choices) - 1)]
+        )
+
         output_config["freq"] = IntPrompt.ask(
-            f"Output frequency (seconds)",
-            default=default_freq
+            f"Output frequency (seconds)", default=default_freq
         )
 
         # Validate frequency
@@ -116,8 +119,7 @@ class OutputConfigStep(WizardStep):
                 f"[red]Output frequency must be a multiple of {timestep}s[/red]"
             )
             output_config["freq"] = IntPrompt.ask(
-                f"Output frequency (seconds)",
-                default=default_freq
+                f"Output frequency (seconds)", default=default_freq
             )
 
         console.print(f"[green]Output frequency: {output_config['freq']}s[/green]")
@@ -148,7 +150,14 @@ class OutputConfigStep(WizardStep):
 
             if preset_choice <= 6:
                 # Use preset
-                preset_names = ["minimal", "standard", "full", "energy", "water", "urban"]
+                preset_names = [
+                    "minimal",
+                    "standard",
+                    "full",
+                    "energy",
+                    "water",
+                    "urban",
+                ]
                 preset_name = preset_names[preset_choice - 1]
                 output_config["groups"] = self.default_groups[preset_name]
                 console.print(
@@ -164,11 +173,11 @@ class OutputConfigStep(WizardStep):
                 for i in range(0, len(group_items), 2):
                     left = group_items[i]
                     cols = [f"[cyan]{left[0]}[/cyan]: {left[1][:40]}..."]
-                    
+
                     if i + 1 < len(group_items):
                         right = group_items[i + 1]
                         cols.append(f"[cyan]{right[0]}[/cyan]: {right[1][:40]}...")
-                    
+
                     console.print(Columns(cols, equal=True, expand=True))
 
                 console.print("\n")
@@ -220,7 +229,9 @@ class OutputConfigStep(WizardStep):
         table.add_column("Value", style="green")
 
         # Format
-        format_desc = "Parquet (efficient)" if config["format"] == "parquet" else "Text files"
+        format_desc = (
+            "Parquet (efficient)" if config["format"] == "parquet" else "Text files"
+        )
         table.add_row("Format", format_desc)
 
         # Frequency
@@ -232,16 +243,16 @@ class OutputConfigStep(WizardStep):
         elif freq == 86400:
             freq_desc = f"{freq}s (daily)"
         elif freq < 3600:
-            freq_desc = f"{freq}s ({freq/60:.0f} min)"
+            freq_desc = f"{freq}s ({freq / 60:.0f} min)"
         else:
-            freq_desc = f"{freq}s ({freq/3600:.1f} hours)"
+            freq_desc = f"{freq}s ({freq / 3600:.1f} hours)"
         table.add_row("Frequency", freq_desc)
 
         # Groups (for text format)
         if config["format"] == "txt" and config.get("groups"):
             groups_str = ", ".join(config["groups"][:3])
             if len(config["groups"]) > 3:
-                groups_str += f" (+{len(config['groups'])-3} more)"
+                groups_str += f" (+{len(config['groups']) - 3} more)"
             table.add_row("Output Groups", groups_str)
         elif config["format"] == "parquet":
             table.add_row("Output Groups", "All variables")
@@ -265,14 +276,14 @@ class OutputConfigStep(WizardStep):
                 end = datetime.fromisoformat(sim_config["end_date"])
                 days = (end - start).days + 1
                 estimated_size_mb = size_per_day_mb * days
-                
+
                 if estimated_size_mb < 1:
                     size_str = f"<1 MB"
                 elif estimated_size_mb < 1000:
                     size_str = f"~{estimated_size_mb:.0f} MB"
                 else:
-                    size_str = f"~{estimated_size_mb/1000:.1f} GB"
-                    
+                    size_str = f"~{estimated_size_mb / 1000:.1f} GB"
+
                 table.add_row("Est. Size", size_str)
             except:
                 pass

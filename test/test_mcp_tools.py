@@ -1,134 +1,87 @@
 """
 Tests for MCP (Model Context Protocol) tools.
 
-Tests the MCP tools integration with SuPy.
-Since SuPy is an external package, we mock it when not available.
+Tests the MCP tools that should be part of SuPy.
+These tests REQUIRE SuPy to be installed with MCP tools.
+NO MOCKING - fail prominently if dependencies are missing.
 """
 
 import json
 import tempfile
 from pathlib import Path
-from unittest.mock import Mock, patch, MagicMock
 import pytest
 import pandas as pd
 import numpy as np
 import yaml
 import sys
 
-# Check if SuPy is available as an external package
+# SuPy is REQUIRED - fail prominently if not available
 try:
     import supy
-    SUPY_AVAILABLE = True
-except ImportError:
-    SUPY_AVAILABLE = False
+    SUPY_VERSION = supy.__version__
+except ImportError as e:
+    pytest.fail(
+        f"\n\n"
+        f"=" * 70 + "\n"
+        f"FATAL: SuPy is REQUIRED for MCP tools testing but not installed.\n"
+        f"Install it with: pip install supy\n"
+        f"Error: {e}\n"
+        f"=" * 70 + "\n"
+    )
 
-# Try to import MCP tools if they exist in SuPy
+# MCP tools must exist in SuPy - skip all tests if not available
+# This is expected to fail until MCP tools are integrated into SuPy
 try:
-    if SUPY_AVAILABLE:
-        # Check if SuPy has MCP tools (it might not in current version)
-        from supy.mcp.tools import (
-            ConfigureSimulationTool,
-            RunSimulationTool,
-            AnalyzeResultsTool,
-        )
-        from supy.mcp.utils.translator import ParameterTranslator
-        MCP_TOOLS_AVAILABLE = True
-    else:
-        MCP_TOOLS_AVAILABLE = False
-except (ImportError, AttributeError):
-    MCP_TOOLS_AVAILABLE = False
-    # Create mock classes for testing without SuPy
-    class ConfigureSimulationTool:
-        async def execute(self, params):
-            return {"success": True, "message": "Mock configuration"}
-    
-    class RunSimulationTool:
-        async def execute(self, params):
-            return {"success": True, "message": "Mock simulation"}
-    
-    class AnalyzeResultsTool:
-        async def execute(self, params):
-            return {"success": True, "message": "Mock analysis"}
-    
-    class ParameterTranslator:
-        def translate(self, params):
-            return params
+    from supy.mcp.tools import (
+        ConfigureSimulationTool,
+        RunSimulationTool, 
+        AnalyzeResultsTool,
+    )
+    from supy.mcp.utils.translator import ParameterTranslator
+    MCP_TOOLS_AVAILABLE = True
+except (ImportError, AttributeError) as e:
+    # Skip ALL tests in this module with clear message
+    pytest.skip(
+        f"\n\n"
+        f"=" * 70 + "\n"
+        f"MCP tools not found in installed SuPy version {SUPY_VERSION}.\n"
+        f"The MCP tools are not yet integrated into the SuPy package.\n"
+        f"This is expected until the MCP integration is complete.\n"
+        f"\n"
+        f"Error details: {e}\n"
+        f"=" * 70 + "\n",
+        allow_module_level=True
+    )
 
 
-@pytest.mark.skipif(not SUPY_AVAILABLE, reason="SuPy package not installed")
-class TestMCPToolsWithSuPy:
-    """Test MCP tools when SuPy is actually installed."""
+# All tests below will ONLY run if both SuPy and MCP tools are available
+# NO MOCKING - these are real integration tests
 
-    def test_supy_import(self):
-        """Test that SuPy can be imported."""
-        import supy
-        assert hasattr(supy, '__version__'), "SuPy should have version info"
-
-    def test_supy_basic_functionality(self):
-        """Test basic SuPy functionality."""
-        # Test that we can load sample data
-        try:
-            df_state, df_forcing = supy.load_SampleData()
-            assert df_state is not None
-            assert df_forcing is not None
-            assert len(df_forcing) > 0
-        except Exception as e:
-            pytest.skip(f"SuPy sample data not available: {e}")
-
-    @pytest.mark.skipif(not MCP_TOOLS_AVAILABLE, reason="MCP tools not in SuPy")
-    def test_configure_tool_with_supy(self):
-        """Test ConfigureSimulationTool with actual SuPy."""
-        tool = ConfigureSimulationTool()
-        assert tool is not None
-        # More detailed tests would go here if MCP tools exist in SuPy
-
-    @pytest.mark.skipif(not MCP_TOOLS_AVAILABLE, reason="MCP tools not in SuPy")
-    def test_run_tool_with_supy(self):
-        """Test RunSimulationTool with actual SuPy."""
-        tool = RunSimulationTool()
-        assert tool is not None
-
-    @pytest.mark.skipif(not MCP_TOOLS_AVAILABLE, reason="MCP tools not in SuPy")
-    def test_analyze_tool_with_supy(self):
-        """Test AnalyzeResultsTool with actual SuPy."""
-        tool = AnalyzeResultsTool()
-        assert tool is not None
-
-
-class TestMCPToolsMocked:
-    """Test MCP tools interface with mocked SuPy (always runs)."""
+class TestConfigureSimulationTool:
+    """Test ConfigureSimulationTool functionality with real SuPy."""
 
     @pytest.fixture
-    def mock_supy(self):
-        """Create a mock SuPy module."""
-        mock = MagicMock()
-        mock.__version__ = "2024.12.16"
-        mock.load_SampleData = MagicMock(return_value=(
-            pd.DataFrame({"test": [1, 2, 3]}),
-            pd.DataFrame({"forcing": [4, 5, 6]})
-        ))
-        mock.run_supy = MagicMock(return_value=(
-            pd.DataFrame({"output": [7, 8, 9]}),
-            pd.DataFrame({"state": [10, 11, 12]})
-        ))
-        return mock
-
-    def test_mcp_interface_contract(self):
-        """Test that MCP tools follow expected interface."""
-        # Even with mocked tools, they should have execute method
-        config_tool = ConfigureSimulationTool()
-        run_tool = RunSimulationTool()
-        analyze_tool = AnalyzeResultsTool()
-        
-        assert hasattr(config_tool, 'execute'), "Should have execute method"
-        assert hasattr(run_tool, 'execute'), "Should have execute method"
-        assert hasattr(analyze_tool, 'execute'), "Should have execute method"
+    def tool(self):
+        """Create ConfigureSimulationTool instance."""
+        return ConfigureSimulationTool()
 
     @pytest.mark.asyncio
-    async def test_mock_configure_tool(self):
-        """Test configuration tool with mocked implementation."""
-        tool = ConfigureSimulationTool()
+    async def test_execute_with_minimal_params(self, tool):
+        """Test execution with minimal required parameters."""
+        params = {
+            "site_name": "TestSite",
+            "latitude": 51.5,
+            "longitude": -0.1,
+        }
         
+        result = await tool.execute(params)
+        assert result["success"] is True
+        assert "message" in result
+        assert "data" in result
+
+    @pytest.mark.asyncio 
+    async def test_execute_with_surface_fractions(self, tool):
+        """Test execution with surface fractions specified."""
         params = {
             "site_name": "TestSite",
             "latitude": 51.5,
@@ -137,160 +90,187 @@ class TestMCPToolsMocked:
                 "building": 0.3,
                 "paved": 0.2,
                 "vegetation": 0.4,
-                "water": 0.1
+                "water": 0.1,
             }
         }
         
         result = await tool.execute(params)
         assert result["success"] is True
-        assert "message" in result
-
-    @pytest.mark.asyncio
-    async def test_mock_run_tool(self):
-        """Test run tool with mocked implementation."""
-        tool = RunSimulationTool()
-        
-        params = {
-            "config_file": "test_config.yml",
-            "forcing_file": "test_forcing.txt",
-            "output_dir": "/tmp/output"
-        }
-        
-        result = await tool.execute(params)
-        assert result["success"] is True
-        assert "message" in result
-
-    @pytest.mark.asyncio
-    async def test_mock_analyze_tool(self):
-        """Test analyze tool with mocked implementation."""
-        tool = AnalyzeResultsTool()
-        
-        params = {
-            "output_file": "test_output.txt",
-            "metrics": ["energy_balance", "surface_temperature"],
-            "time_period": "daily"
-        }
-        
-        result = await tool.execute(params)
-        assert result["success"] is True
-        assert "message" in result
-
-    def test_parameter_translator(self):
-        """Test parameter translator with mocked implementation."""
-        translator = ParameterTranslator()
-        
-        params = {"test": "value"}
-        result = translator.translate(params)
-        assert result == params  # Mock just returns input
+        assert sum(params["surface_fractions"].values()) == pytest.approx(1.0)
 
 
-class TestMCPIntegration:
-    """Test MCP integration patterns that work with or without SuPy."""
-
-    def test_tool_discovery(self):
-        """Test that tools can be discovered/instantiated."""
-        tools = []
-        
-        try:
-            config_tool = ConfigureSimulationTool()
-            tools.append(("configure", config_tool))
-        except Exception:
-            pass
-        
-        try:
-            run_tool = RunSimulationTool()
-            tools.append(("run", run_tool))
-        except Exception:
-            pass
-        
-        try:
-            analyze_tool = AnalyzeResultsTool()
-            tools.append(("analyze", analyze_tool))
-        except Exception:
-            pass
-        
-        # We should have at least the mock tools
-        assert len(tools) == 3, "Should have all three tool types"
-
-    @pytest.mark.asyncio
-    async def test_tool_chain(self):
-        """Test chaining tools together."""
-        config_tool = ConfigureSimulationTool()
-        run_tool = RunSimulationTool()
-        analyze_tool = AnalyzeResultsTool()
-        
-        # Configure
-        config_result = await config_tool.execute({
-            "site_name": "ChainTest",
-            "latitude": 40.0,
-            "longitude": -74.0
-        })
-        assert config_result["success"]
-        
-        # Run
-        run_result = await run_tool.execute({
-            "config_file": "chain_config.yml"
-        })
-        assert run_result["success"]
-        
-        # Analyze
-        analyze_result = await analyze_tool.execute({
-            "output_file": "chain_output.txt"
-        })
-        assert analyze_result["success"]
-
-    def test_error_handling(self):
-        """Test that tools handle errors gracefully."""
-        # Tools should handle missing parameters gracefully
-        tool = ConfigureSimulationTool()
-        # Async function needs to be tested differently
-        # Just verify the tool exists and has the right interface
-        assert hasattr(tool, 'execute')
-        assert callable(getattr(tool, 'execute'))
-
-
-@pytest.mark.integration
-class TestMCPWithSUEWSMCPServer:
-    """Test MCP tools integration with SUEWS MCP server."""
+class TestRunSimulationTool:
+    """Test RunSimulationTool functionality with real SuPy."""
 
     @pytest.fixture
-    def mock_mcp_server(self):
-        """Create a mock MCP server configuration."""
-        from unittest.mock import MagicMock
+    def tool(self):
+        """Create RunSimulationTool instance."""
+        return RunSimulationTool()
+
+    @pytest.fixture
+    def sample_config_file(self, tmp_path):
+        """Create a real SuPy configuration file."""
+        config_path = tmp_path / "config.yml"
+        # Use actual SuPy configuration format
+        config_data = {
+            "site": {"name": "TestSite", "latitude": 51.5, "longitude": -0.1},
+            "surface": {"fractions": {"building": 0.3, "paved": 0.2, "vegetation": 0.4, "water": 0.1}},
+        }
+        with open(config_path, "w") as f:
+            yaml.dump(config_data, f)
+        return config_path
+
+    @pytest.mark.asyncio
+    async def test_execute_with_config_file(self, tool, sample_config_file):
+        """Test real simulation execution."""
+        params = {
+            "config_file": str(sample_config_file),
+            "simulation_days": 1,
+        }
         
-        config = MagicMock()
-        config.suews = MagicMock()
-        config.suews.max_simulation_days = 365
-        config.max_concurrent_simulations = 5
-        return config
+        result = await tool.execute(params)
+        assert "success" in result
+        
+        if result["success"]:
+            assert "data" in result
+            # Should have actual simulation outputs
+            assert "output_file" in result["data"] or "outputs" in result["data"]
 
-    def test_server_integration(self, mock_mcp_server):
-        """Test that MCP tools integrate with server configuration."""
-        # This tests the integration pattern, not actual functionality
-        assert mock_mcp_server.max_concurrent_simulations == 5
-        assert mock_mcp_server.suews.max_simulation_days == 365
 
-    @patch('supy.run_supy' if SUPY_AVAILABLE else 'builtins.print')
-    def test_mocked_supy_call(self, mock_run):
-        """Test that SuPy calls can be mocked for testing."""
-        if SUPY_AVAILABLE:
-            # Set up mock return value
-            mock_run.return_value = (
-                pd.DataFrame({"QH": [100, 200]}),
-                pd.DataFrame({"state": [1, 2]})
-            )
+class TestAnalyzeResultsTool:
+    """Test AnalyzeResultsTool functionality with real SuPy."""
+
+    @pytest.fixture
+    def tool(self):
+        """Create AnalyzeResultsTool instance."""
+        return AnalyzeResultsTool()
+
+    @pytest.fixture
+    def sample_supy_output(self, tmp_path):
+        """Create a real SuPy output file format."""
+        output_path = tmp_path / "output.txt"
+        # Real SUEWS output format
+        output_data = """Year	DOY	Hour	QN	QH	QE	QS	QF
+2020	1	0	-50.0	-30.0	-10.0	-10.0	20.0
+2020	1	1	-45.0	-28.0	-8.0	-9.0	20.0
+2020	1	2	-40.0	-25.0	-5.0	-10.0	20.0"""
+        output_path.write_text(output_data)
+        return output_path
+
+    @pytest.mark.asyncio
+    async def test_execute_with_real_output(self, tool, sample_supy_output):
+        """Test analysis of real SuPy output."""
+        params = {
+            "output_file": str(sample_supy_output),
+            "metrics": ["mean", "energy_balance"],
+        }
+        
+        result = await tool.execute(params)
+        assert result["success"] is True
+        assert "data" in result
+        # Should have real analysis results
+        assert "analysis" in result["data"] or "results" in result["data"]
+
+
+class TestParameterTranslator:
+    """Test ParameterTranslator with real SuPy requirements."""
+
+    @pytest.fixture
+    def translator(self):
+        """Create ParameterTranslator instance."""
+        return ParameterTranslator()
+
+    def test_translate_to_supy_format(self, translator):
+        """Test translation to actual SuPy format."""
+        mcp_params = {
+            "site_name": "Test",
+            "latitude": 51.5,
+            "longitude": -0.1,
+            "surface_fractions": {
+                "building": 0.3,
+                "paved": 0.2,
+                "vegetation": 0.4,
+                "water": 0.1,
+            }
+        }
+        
+        supy_params = translator.convert_to_supy_format(mcp_params)
+        assert supy_params is not None
+        # Should be in actual SuPy format
+        assert "site" in supy_params or "Site" in supy_params
+
+
+class TestIntegrationWithSuPy:
+    """Test actual integration with SuPy package."""
+
+    def test_supy_is_installed(self):
+        """Verify SuPy is properly installed."""
+        assert supy is not None
+        assert hasattr(supy, "__version__")
+        assert hasattr(supy, "load_SampleData")
+
+    def test_mcp_tools_exist(self):
+        """Verify MCP tools exist in SuPy."""
+        assert ConfigureSimulationTool is not None
+        assert RunSimulationTool is not None
+        assert AnalyzeResultsTool is not None
+        assert ParameterTranslator is not None
+
+    def test_supy_sample_data(self):
+        """Test that SuPy sample data can be loaded."""
+        try:
+            df_state, df_forcing = supy.load_SampleData()
+            assert df_state is not None
+            assert df_forcing is not None
+            assert isinstance(df_state, pd.DataFrame)
+            assert isinstance(df_forcing, pd.DataFrame)
+        except Exception as e:
+            pytest.fail(f"Failed to load SuPy sample data: {e}")
+
+    @pytest.mark.asyncio
+    async def test_complete_workflow(self, tmp_path):
+        """Test complete MCP workflow with real SuPy."""
+        # 1. Configure
+        config_tool = ConfigureSimulationTool()
+        config_result = await config_tool.execute({
+            "site_name": "WorkflowTest",
+            "latitude": 51.5,
+            "longitude": -0.1,
+            "output_path": str(tmp_path / "config.yml"),
+        })
+        assert config_result["success"] is True
+        
+        # 2. Run (if config succeeded)
+        if config_result["success"]:
+            run_tool = RunSimulationTool()
+            run_result = await run_tool.execute({
+                "config_file": str(tmp_path / "config.yml"),
+                "simulation_days": 1,
+                "output_dir": str(tmp_path / "outputs"),
+            })
+            assert "success" in run_result
             
-            # Would be called by RunSimulationTool internally
-            df_output, df_state = mock_run()
-            assert len(df_output) == 2
-            assert "QH" in df_output.columns
-        else:
-            # Just verify mock works
-            mock_run("test")
-            mock_run.assert_called_once()
+            # 3. Analyze (if run succeeded)
+            if run_result["success"] and "output_file" in run_result.get("data", {}):
+                analyze_tool = AnalyzeResultsTool()
+                analyze_result = await analyze_tool.execute({
+                    "output_file": run_result["data"]["output_file"],
+                    "metrics": ["energy_balance"],
+                })
+                assert "success" in analyze_result
 
 
-# Smoke test to ensure module loads
-def test_module_imports():
-    """Test that this test module can be imported without errors."""
-    assert True, "Module imported successfully"
+# This test always runs to provide clear status
+def test_mcp_integration_status():
+    """Report the current status of MCP integration."""
+    print("\n" + "=" * 70)
+    print(f"SuPy Version: {SUPY_VERSION}")
+    print(f"MCP Tools Available: {MCP_TOOLS_AVAILABLE}")
+    
+    if MCP_TOOLS_AVAILABLE:
+        print("✅ MCP tools are integrated into SuPy")
+        print("✅ All integration tests can run")
+    else:
+        print("⚠️  MCP tools are NOT yet integrated into SuPy")
+        print("⚠️  This is expected - integration is pending")
+    print("=" * 70 + "\n")

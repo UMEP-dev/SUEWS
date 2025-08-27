@@ -315,7 +315,10 @@ class TestMCPErrorScenarios:
                 # Check that data is truncated in response
                 data_info = result["data"]["data_info"]
                 # Accept both tuple and list formats for shape
-                assert data_info["shape"] == [10000, 10] or data_info["shape"] == (10000, 10)
+                assert data_info["shape"] == [10000, 10] or data_info["shape"] == (
+                    10000,
+                    10,
+                )
 
         finally:
             Path(temp_path).unlink()

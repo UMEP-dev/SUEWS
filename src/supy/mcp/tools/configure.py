@@ -130,15 +130,20 @@ class ConfigureSimulationTool(MCPTool):
                     # Fallback to basic config creation
                     config_obj = SUEWSConfig()
                     config_info["created_default"] = True
-                
+
                 # Ensure we have at least one site if latitude/longitude are provided
-                if hasattr(config_obj, 'sites') and (not config_obj.sites or len(config_obj.sites) == 0):
+                if hasattr(config_obj, "sites") and (
+                    not config_obj.sites or len(config_obj.sites) == 0
+                ):
                     # Create a default site with provided parameters
                     from supy.data_model.core.site import Site
-                    lat = config_updates.get('latitude', 51.5)
-                    lon = config_updates.get('longitude', -0.1)
-                    site_name = site_name or config_updates.get('site_name', 'DefaultSite')
-                    
+
+                    lat = config_updates.get("latitude", 51.5)
+                    lon = config_updates.get("longitude", -0.1)
+                    site_name = site_name or config_updates.get(
+                        "site_name", "DefaultSite"
+                    )
+
                     try:
                         default_site = Site(name=site_name, latitude=lat, longitude=lon)
                         config_obj.sites = [default_site]
@@ -190,7 +195,7 @@ class ConfigureSimulationTool(MCPTool):
 
                     # Extract key configuration details
                     config_info["config_summary"] = self._get_config_summary(config_obj)
-                    
+
                     # Include the config object itself for tests
                     config_info["config"] = config_obj
 

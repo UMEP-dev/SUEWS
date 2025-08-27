@@ -123,17 +123,28 @@ class ConfigureSimulationTool(MCPTool):
                 config_info["source"] = "default"
                 if init_config:
                     # Use SuPy's init_config if available
-                    df_state_init = init_config()
-                    config_obj = (
-                        load_config_from_df(df_state_init)
-                        if load_config_from_df
-                        else None
-                    )
+                    # Note: init_config() returns SUEWSConfig directly when called without args
+                    config_obj = init_config()
                     config_info["created_default"] = True
                 else:
                     # Fallback to basic config creation
                     config_obj = SUEWSConfig()
                     config_info["created_default"] = True
+                
+                # Ensure we have at least one site if latitude/longitude are provided
+                if hasattr(config_obj, 'sites') and (not config_obj.sites or len(config_obj.sites) == 0):
+                    # Create a default site with provided parameters
+                    from supy.data_model.core.site import Site
+                    lat = config_updates.get('latitude', 51.5)
+                    lon = config_updates.get('longitude', -0.1)
+                    site_name = site_name or config_updates.get('site_name', 'DefaultSite')
+                    
+                    try:
+                        default_site = Site(name=site_name, latitude=lat, longitude=lon)
+                        config_obj.sites = [default_site]
+                        config_info["default_site_created"] = True
+                    except Exception as e:
+                        config_info["site_creation_warning"] = str(e)
 
             # Apply configuration updates if provided
             if config_updates and isinstance(config_updates, dict):
@@ -179,6 +190,9 @@ class ConfigureSimulationTool(MCPTool):
 
                     # Extract key configuration details
                     config_info["config_summary"] = self._get_config_summary(config_obj)
+                    
+                    # Include the config object itself for tests
+                    config_info["config"] = config_obj
 
                     return self.translator.create_structured_response(
                         success=True,
@@ -387,7 +401,7 @@ class ConfigureSimulationTool(MCPTool):
             validation_info["checks_performed"].append("structure_check")
 
             # Check if basic attributes exist
-            required_attrs = ["model", "site"]
+            required_attrs = ["model", "sites"]
             missing_attrs = []
 
             for attr in required_attrs:

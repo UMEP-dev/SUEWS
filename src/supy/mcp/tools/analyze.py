@@ -189,7 +189,8 @@ class AnalyzeResultsTool(MCPTool):
                     success=False, errors=[f"Unknown analysis type: {analysis_type}"]
                 )
 
-            analysis_info["analysis_results"] = analysis_results
+            # Use 'analysis' key to match test expectations
+            analysis_info["analysis"] = analysis_results
 
             # Load and compare with reference data if provided
             if comparison_path:

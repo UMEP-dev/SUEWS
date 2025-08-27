@@ -161,8 +161,8 @@ class TestAnalyzeResultsTool:
     async def test_execute_with_real_output(self, tool, sample_supy_output):
         """Test analysis of real SuPy output."""
         params = {
-            "output_file": str(sample_supy_output),
-            "metrics": ["mean", "energy_balance"],
+            "results_path": str(sample_supy_output),
+            "analysis_type": "energy_balance",
         }
         
         result = await tool.execute(params)

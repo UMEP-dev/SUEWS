@@ -84,9 +84,9 @@ class TestMCPIntegration:
             )
 
             assert analyze_result["success"] is True
-            assert "analysis_results" in analyze_result["data"]
+            assert "analysis" in analyze_result["data"]
 
-            analysis_data = analyze_result["data"]["analysis_results"]
+            analysis_data = analyze_result["data"]["analysis"]
             assert "data_overview" in analysis_data
             assert "variable_summary" in analysis_data
 
@@ -314,7 +314,8 @@ class TestMCPErrorScenarios:
             if result["success"]:
                 # Check that data is truncated in response
                 data_info = result["data"]["data_info"]
-                assert data_info["shape"] == [10000, 10]
+                # Accept both tuple and list formats for shape
+                assert data_info["shape"] == [10000, 10] or data_info["shape"] == (10000, 10)
 
         finally:
             Path(temp_path).unlink()

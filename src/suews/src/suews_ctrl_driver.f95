@@ -361,9 +361,9 @@ CONTAINS
 
                IF (diagnose == 1) PRINT *, 'Tsfc_surf before QS', heatState%tsfc_surf
                CALL SUEWS_cal_Qs( &
-                  timer, config, forcing, siteInfo, & !input
+                  timer, config, forcing, siteInfo, datetimeLine, & !input
                   modState, & ! input/output:
-                  dataOutLineESTM)
+                  dataOutLineESTM, dataOutLineSTEBBS)
                IF (config%flag_test .AND. PRESENT(debugState)) THEN
                   debugState%state_06_qs = modState
                END IF
@@ -446,16 +446,7 @@ CONTAINS
                IF (config%flag_test .AND. PRESENT(debugState)) THEN
                   debugState%state_12_tsurf = modState
                END IF
-               !==============use STEBBS to get localised surface temperature==================
-               ! MP 12 Sep 2024: STEBBS is a simplified BEM
-               IF (config%stebbsmethod == 1 .OR. config%stebbsmethod == 2) THEN
-                  IF (Diagnose == 1) WRITE (*, *) 'Calling STEBBS...'
-                  CALL stebbsonlinecouple( &
-                     timer, config, forcing, siteInfo, & ! input
-                     modState, & ! input/output:
-                     datetimeLine, nlayer, & ! input
-                     dataOutLineSTEBBS) ! output
-               END IF
+
 
                ! IF (i_iter == 1) THEN
                !    modState_tstepstart = modState
@@ -1293,6 +1284,7 @@ CONTAINS
                tsfc_roof = buildings(1)%Textroof_C
                tsfc_wall = buildings(1)%Textwall_C
 
+               
                emis = [pavedPrm%emis, bldgPrm%emis, evetrPrm%emis, dectrPrm%emis, &
                        grassPrm%emis, bsoilPrm%emis, waterPrm%emis]
                ! translate values
@@ -1408,9 +1400,9 @@ CONTAINS
 !=============storage heat flux=========================================
 
    SUBROUTINE SUEWS_cal_Qs( &
-      timer, config, forcing, siteInfo, & ! input
+      timer, config, forcing, siteInfo, datetimeLine, & ! input
       modState, & ! input/output:
-      dataOutLineESTM)
+      dataOutLineESTM, dataOutLineSTEBBS)
 
       USE SUEWS_DEF_DTS, ONLY: SUEWS_CONFIG, SUEWS_FORCING, SUEWS_SITE, SUEWS_TIMER, &
                                SNOW_STATE, EHC_PRM, &
@@ -1418,14 +1410,14 @@ CONTAINS
                                LC_PAVED_PRM, LC_BLDG_PRM, LC_EVETR_PRM, LC_DECTR_PRM, &
                                LC_GRASS_PRM, LC_BSOIL_PRM, LC_WATER_PRM, &
                                HEAT_STATE, HYDRO_STATE, SUEWS_STATE
-
+      USE allocateArray, ONLY: ncolumnsDataOutSTEBBS
       IMPLICIT NONE
 
       TYPE(SUEWS_TIMER), INTENT(in) :: timer
       TYPE(SUEWS_CONFIG), INTENT(in) :: config
       TYPE(SUEWS_FORCING), INTENT(in) :: forcing
       TYPE(SUEWS_SITE), INTENT(in) :: siteInfo
-
+      REAL(KIND(1D0)), DIMENSION(5), INTENT(in) :: datetimeLine !date & time
       TYPE(SUEWS_STATE), INTENT(inout) :: modState
 
       REAL(KIND(1D0)) :: OHM_coef(nsurf + 1, 4, 3) ! OHM coefficients [-]
@@ -1442,6 +1434,7 @@ CONTAINS
       REAL(KIND(1D0)), DIMENSION(nsurf) :: chAnOHM ! bulk transfer coef [J m-3 K-1]
 
       REAL(KIND(1D0)), DIMENSION(27), INTENT(out) :: dataOutLineESTM !data output from ESTM
+      REAL(KIND(1D0)), DIMENSION(ncolumnsDataOutSTEBBS - 5), INTENT(out) :: dataOutLineSTEBBS !data output from STEBBS
 
       ! internal use arrays
       REAL(KIND(1D0)) :: Tair_mav_5d ! Tair_mav_5d=HDD(id-1,4) HDD at the begining of today (id-1)
@@ -1557,7 +1550,7 @@ CONTAINS
                OHM_coef(1, 3, 3) = pavedPrm%ohm%ohm_coef_lc(3)%winter_wet
                OHM_coef(1, 4, 3) = pavedPrm%ohm%ohm_coef_lc(3)%winter_dry
 
-               IF (storageheatmethod /= 6) THEN
+               IF (storageheatmethod /= 6 .AND. storageheatmethod /= 7) THEN
                   OHM_coef(2, 1, 1) = bldgPrm%ohm%ohm_coef_lc(1)%summer_wet
                   OHM_coef(2, 2, 1) = bldgPrm%ohm%ohm_coef_lc(1)%summer_dry
                   OHM_coef(2, 3, 1) = bldgPrm%ohm%ohm_coef_lc(1)%winter_wet
@@ -1572,6 +1565,22 @@ CONTAINS
                   OHM_coef(2, 2, 3) = bldgPrm%ohm%ohm_coef_lc(3)%summer_dry
                   OHM_coef(2, 3, 3) = bldgPrm%ohm%ohm_coef_lc(3)%winter_wet
                   OHM_coef(2, 4, 3) = bldgPrm%ohm%ohm_coef_lc(3)%winter_dry
+               ELSEIF (storageheatmethod == 7) THEN
+                  OHM_coef(2, 1, 1) = 0
+                  OHM_coef(2, 2, 1) = 0
+                  OHM_coef(2, 3, 1) = 0
+                  OHM_coef(2, 4, 1) = 0
+
+                  OHM_coef(2, 1, 2) = 0
+                  OHM_coef(2, 2, 2) = 0
+                  OHM_coef(2, 3, 2) = 0
+                  OHM_coef(2, 4, 2) = 0
+
+                  OHM_coef(2, 1, 3) = 0
+                  OHM_coef(2, 2, 3) = 0
+                  OHM_coef(2, 3, 3) = 0
+                  OHM_coef(2, 4, 3) = 0
+
                END IF
 
                OHM_coef(3, 1, 1) = evetrPrm%ohm%ohm_coef_lc(1)%summer_wet
@@ -1727,6 +1736,8 @@ CONTAINS
                !SnowFrac = 0
                !qn1_S = 0
                dataOutLineESTM = -999
+               dataOutLineSTEBBS = -999
+
                qs = -999
                a1 = -999
                a2 = -999
@@ -1742,7 +1753,7 @@ CONTAINS
                IF (StorageHeatMethod == 0) THEN !Use observed QS
                   qs = qs_obs
 
-               ELSEIF (StorageHeatMethod == 1 .OR. StorageHeatMethod == 6) THEN !Use OHM to calculate QS
+               ELSEIF (StorageHeatMethod == 1 .OR. StorageHeatMethod == 6 .OR. StorageHeatMethod == 7) THEN !Use OHM to calculate QS
                   Tair_mav_5d = HDD_id(10)
                   IF (Diagnose == 1) WRITE (*, *) 'Calling OHM...'
                   CALL OHM(qn_use, ohmState%qn_av, ohmState%dqndt, &
@@ -1837,6 +1848,20 @@ CONTAINS
                   ! PRINT *, ''
 
                END IF
+               !==============use STEBBS to get localised surface temperature and storage heat flux==================
+               ! MP 12 Sep 2024: STEBBS is a simplified BEM
+               IF (config%stebbsmethod == 1 .OR. config%stebbsmethod == 2) THEN
+                  IF (Diagnose == 1) WRITE (*, *) 'Calling STEBBS...'
+                  CALL stebbsonlinecouple( &
+                     timer, config, forcing, siteInfo, & ! input
+                     modState, & ! input/output:
+                     datetimeLine, nlayer, & ! input
+                     dataOutLineSTEBBS) ! output
+                  IF (StorageHeatMethod == 7) THEN
+                     qs = qs + dataOutLineSTEBBS(65) * sfr_surf(2) ! note 65 may be changed by stebbs output.can be replaced by association
+                  END IF 
+               END IF
+            
             END ASSOCIATE
          END ASSOCIATE
       END ASSOCIATE

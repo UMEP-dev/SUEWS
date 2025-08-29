@@ -57,42 +57,49 @@ def detect_df_state_version(df: pd.DataFrame) -> str:
     """
     try:
         import supy as sp
-        
+
         # Get current template
         df_template, _ = sp.load_sample_data()
-        
+
         # Compare column sets
         input_cols = set(df.columns)
         template_cols = set(df_template.columns)
-        
+
         # If columns match exactly, it's current
         if input_cols == template_cols:
             logger.info("Detected current df_state format")
             return "current"
-        
+
         # Otherwise it's old/different and needs conversion
         missing_cols = template_cols - input_cols
         extra_cols = input_cols - template_cols
         common_cols = input_cols & template_cols
-        
+
         logger.info(f"Detected old/different df_state format:")
         logger.info(f"  - {len(common_cols)} common columns")
         logger.info(f"  - {len(missing_cols)} missing columns (will add defaults)")
         logger.info(f"  - {len(extra_cols)} extra columns (will be removed)")
-        
+
         return "old"
-        
+
     except Exception as e:
         logger.warning(f"Could not load template for comparison: {e}")
         # Fall back to simple heuristic
         col_names = {col[0] if isinstance(col, tuple) else col for col in df.columns}
-        
+
         # Check for known deprecated columns
-        old_indicators = {"age_0_4", "age_5_11", "age_12_18", "age_19_64", "age_65plus", "hhs0"}
+        old_indicators = {
+            "age_0_4",
+            "age_5_11",
+            "age_12_18",
+            "age_19_64",
+            "age_65plus",
+            "hhs0",
+        }
         if any(col in col_names for col in old_indicators):
             logger.info("Detected old df_state format (has deprecated columns)")
             return "old"
-        
+
         logger.warning("Unable to determine version - assuming old format")
         return "old"
 
@@ -162,7 +169,7 @@ def convert_df_state_format(df_old: pd.DataFrame) -> pd.DataFrame:
         else:
             # Use template default
             default_val = template_value
-            
+
         # Apply to all rows
         if len(df_old) == 1:
             df_new[col] = default_val
@@ -181,7 +188,7 @@ def convert_df_state_format(df_old: pd.DataFrame) -> pd.DataFrame:
 
     # Log what was changed
     if extra_cols:
-        # Extract column names for logging  
+        # Extract column names for logging
         removed_names = []
         for col in list(extra_cols)[:10]:  # Show first 10
             if isinstance(col, tuple):

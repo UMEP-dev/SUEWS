@@ -54,6 +54,7 @@ def detect_input_type(input_file: Union[str, Path]) -> str:
             f"Supported: RunControl.nml for tables, .csv/.pkl for df_state"
         )
 
+
 __all__ = [
     "convert_table",
     "convert_to_yaml",

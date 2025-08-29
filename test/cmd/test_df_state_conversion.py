@@ -205,10 +205,8 @@ class TestCsvFileConversion:
     @pytest.fixture
     def old_csv_path(self):
         """Path to the provided old format CSV."""
-        # This is the CSV file provided by the user
-        csv_path = Path(
-            "/Users/tingsun/Library/Application Support/com.conductor.app/uploads/originals/932628f2-d84e-48d2-84b2-fd2c2d81c49b.csv"
-        )
+        # Use the fixture file in the test directory
+        csv_path = Path("test/fixtures/legacy_format/old_df_state.csv")
         if csv_path.exists():
             return csv_path
         else:

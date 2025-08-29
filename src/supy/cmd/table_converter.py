@@ -65,48 +65,54 @@ def convert_table_cmd(
     no_validate_profiles: bool = False,
 ):
     """Convert SUEWS inputs to YAML configuration.
-    
+
     Input must be a specific file:
     - RunControl.nml: Converts table-based SUEWS input
     - *.csv or *.pkl: Converts df_state format
-    
+
     Examples:
         # Convert tables to YAML
         suews-convert -i path/to/RunControl.nml -o config.yml
-        
+
         # Convert old df_state CSV to YAML
         suews-convert -i df_state.csv -o config.yml
-        
+
         # Convert df_state pickle to YAML
         suews-convert -i state.pkl -o config.yml
-        
+
         # Specify table version explicitly
         suews-convert -f 2024a -i RunControl.nml -o config.yml
     """
     # Import here to avoid circular imports
-    from ..util.converter import convert_to_yaml, detect_table_version, detect_input_type
-    
+    from ..util.converter import (
+        convert_to_yaml,
+        detect_table_version,
+        detect_input_type,
+    )
+
     input_path = Path(input_file)
     output_path = Path(output_file)
-    
+
     # Detect input type from file
     try:
         input_type = detect_input_type(input_path)
     except ValueError as e:
         click.secho(str(e), fg="red", err=True)
         sys.exit(1)
-    
+
     # Validate output has correct extension
-    if output_path.suffix not in ['.yml', '.yaml']:
-        click.echo(f"Warning: Output file should have .yml or .yaml extension", err=True)
-    
+    if output_path.suffix not in [".yml", ".yaml"]:
+        click.echo(
+            f"Warning: Output file should have .yml or .yaml extension", err=True
+        )
+
     # Handle based on input type
-    if input_type == 'nml':
+    if input_type == "nml":
         # Table conversion
         click.echo(f"Converting SUEWS tables to YAML")
         click.echo(f"  Input: {input_path}")
         click.echo(f"  Tables directory: {input_path.parent}")
-        
+
         # Auto-detect version if needed
         if not fromVer:
             click.echo("  Auto-detecting table version...")
@@ -115,31 +121,31 @@ def convert_table_cmd(
                 click.echo(f"  Detected version: {fromVer}")
             else:
                 click.secho(
-                    "Could not detect version. Use -f to specify.",
-                    fg="red", err=True
+                    "Could not detect version. Use -f to specify.", fg="red", err=True
                 )
                 sys.exit(1)
-                
-    elif input_type == 'df_state':
+
+    elif input_type == "df_state":
         # df_state conversion
         click.echo(f"Converting df_state to YAML")
         click.echo(f"  Input: {input_path}")
-        
+
         if fromVer:
-            click.echo("  Note: Version specification ignored for df_state", fg="yellow")
+            click.echo(
+                "  Note: Version specification ignored for df_state", fg="yellow"
+            )
 
     # Perform conversion
     try:
         convert_to_yaml(
             input_file=str(input_path),
             output_file=str(output_path),
-            from_ver=fromVer if input_type == 'nml' else None,
+            from_ver=fromVer if input_type == "nml" else None,
             debug_dir=debug_dir,
             validate_profiles=not no_validate_profiles,
         )
         click.secho(f"\n✓ Successfully created: {output_path}", fg="green")
-        
+
     except Exception as e:
         click.secho(f"\n✗ Conversion failed: {e}", fg="red", err=True)
         sys.exit(1)
-

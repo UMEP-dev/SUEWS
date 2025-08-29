@@ -104,7 +104,7 @@ def convert_to_yaml(
     validate_profiles: bool = True,
 ):
     """Convert SUEWS input to YAML configuration.
-    
+
     Supports both:
     1. Table-based input (RunControl.nml)
     2. df_state input (CSV or pickle files)
@@ -127,7 +127,7 @@ def convert_to_yaml(
         convert_df_state_format,
         validate_converted_df_state,
     )
-    
+
     input_path = Path(input_file)
     output_path = Path(output_file)
 
@@ -136,69 +136,75 @@ def convert_to_yaml(
     try:
         # Detect input type from file
         input_type = detect_input_type(input_path)
-        
-        if input_type == 'df_state':
+
+        if input_type == "df_state":
             # df_state conversion path
             click.echo(f"Processing df_state file: {input_path.name}")
-            
+
             # Load df_state
             df_state = load_df_state_file(input_path)
-            click.echo(f"  Loaded df_state: {df_state.shape[0]} grids, {len(df_state.columns)} columns")
-            
+            click.echo(
+                f"  Loaded df_state: {df_state.shape[0]} grids, {len(df_state.columns)} columns"
+            )
+
             # Check version and convert if needed
             version = detect_df_state_version(df_state)
             click.echo(f"  Detected format: {version}")
-            
-            if version == 'old':
+
+            if version == "old":
                 click.echo("  Converting from old format to current...")
                 df_state = convert_df_state_format(df_state)
-                
+
                 # Validate
                 is_valid, message = validate_converted_df_state(df_state)
                 if is_valid:
                     click.echo(f"  ✓ {message}")
                 else:
                     click.echo(f"  ⚠ {message}", err=True)
-            elif version == 'unknown':
+            elif version == "unknown":
                 click.echo("  Warning: Unknown format, attempting conversion anyway...")
                 df_state = convert_df_state_format(df_state)
-            
+
             # Create config from df_state
             click.echo("Creating YAML configuration...")
             config = SUEWSConfig.from_df_state(df_state)
-            
-        elif input_type == 'nml':
+
+        elif input_type == "nml":
             # Table conversion path - extract directory from nml path
             table_dir = input_path.parent
             click.echo(f"Processing table files from: {table_dir}")
-            
+
             # Prepare processing directory
             processing_dir, temp_dir_obj = _prepare_processing_dir(
                 table_dir, from_ver, debug_dir, validate_profiles
             )
-            
+
             path_runcontrol = processing_dir / "RunControl.nml"
             if not path_runcontrol.exists():
-                raise click.ClickException(f"RunControl.nml not found in {processing_dir}")
-            
+                raise click.ClickException(
+                    f"RunControl.nml not found in {processing_dir}"
+                )
+
             click.echo("Loading SUEWS input tables...")
             try:
                 df_state = load_InitialCond_grid_df(path_runcontrol)
             except Exception as e:
                 raise click.ClickException(f"Failed to load SUEWS tables: {e}") from e
-            
+
             click.echo("Creating YAML configuration...")
             try:
                 config = SUEWSConfig.from_df_state(df_state)
-                
+
                 # Configure forcing file and output settings
                 _configure_forcing_and_output(config, path_runcontrol, str(table_dir))
-                
+
             except Exception as e:
-                raise click.ClickException(f"Failed to create configuration: {e}") from e
+                raise click.ClickException(
+                    f"Failed to create configuration: {e}"
+                ) from e
         else:
             raise click.ClickException(f"Unexpected input type: {input_type}")
-        
+
         # Save to YAML
         click.echo(f"Saving to: {output_path}")
         config.to_yaml(output_path)

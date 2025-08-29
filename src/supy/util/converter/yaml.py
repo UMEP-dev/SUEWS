@@ -97,18 +97,22 @@ def _configure_forcing_and_output(
 
 
 def convert_to_yaml(
-    input_dir: str,
+    input_file: str,
     output_file: str,
     from_ver: Optional[str] = None,
     debug_dir: Optional[str] = None,
     validate_profiles: bool = True,
 ):
-    """Convert SUEWS table-based input to YAML configuration.
+    """Convert SUEWS input to YAML configuration.
+    
+    Supports both:
+    1. Table-based input (RunControl.nml)
+    2. df_state input (CSV or pickle files)
 
     Args:
-        input_dir: Directory with SUEWS table files
+        input_file: Path to input file (RunControl.nml or df_state CSV/pickle)
         output_file: Output YAML file path
-        from_ver: Source version (auto-detect if None)
+        from_ver: Source version (for table conversion, ignored for df_state)
         debug_dir: Directory for debug files (optional)
         validate_profiles: Whether to validate profiles
 
@@ -116,41 +120,89 @@ def convert_to_yaml(
     -------
         None
     """
-    input_path = Path(input_dir)
+    from .df_state import (
+        detect_input_type,
+        load_df_state_file,
+        detect_df_state_version,
+        convert_df_state_format,
+        validate_converted_df_state,
+    )
+    
+    input_path = Path(input_file)
     output_path = Path(output_file)
 
     temp_dir_obj = None
 
     try:
-        # Prepare processing directory
-        processing_dir, temp_dir_obj = _prepare_processing_dir(
-            input_path, from_ver, debug_dir, validate_profiles
-        )
-
-        path_runcontrol = processing_dir / "RunControl.nml"
-        if not path_runcontrol.exists():
-            raise click.ClickException(f"RunControl.nml not found in {processing_dir}")
-
-        click.echo("Step 2: Loading SUEWS input tables into data model...")
-        try:
-            df_state = load_InitialCond_grid_df(path_runcontrol)
-        except Exception as e:
-            raise click.ClickException(f"Failed to load SUEWS tables: {e}") from e
-
-        click.echo("Step 3: Creating Pydantic configuration object...")
-        try:
+        # Detect input type from file
+        input_type = detect_input_type(input_path)
+        
+        if input_type == 'df_state':
+            # df_state conversion path
+            click.echo(f"Processing df_state file: {input_path.name}")
+            
+            # Load df_state
+            df_state = load_df_state_file(input_path)
+            click.echo(f"  Loaded df_state: {df_state.shape[0]} grids, {len(df_state.columns)} columns")
+            
+            # Check version and convert if needed
+            version = detect_df_state_version(df_state)
+            click.echo(f"  Detected format: {version}")
+            
+            if version == 'old':
+                click.echo("  Converting from old format to current...")
+                df_state = convert_df_state_format(df_state)
+                
+                # Validate
+                is_valid, message = validate_converted_df_state(df_state)
+                if is_valid:
+                    click.echo(f"  ✓ {message}")
+                else:
+                    click.echo(f"  ⚠ {message}", err=True)
+            elif version == 'unknown':
+                click.echo("  Warning: Unknown format, attempting conversion anyway...")
+                df_state = convert_df_state_format(df_state)
+            
+            # Create config from df_state
+            click.echo("Creating YAML configuration...")
             config = SUEWSConfig.from_df_state(df_state)
-
-            # Configure forcing file and output settings
-            _configure_forcing_and_output(config, path_runcontrol, input_dir)
-
-        except Exception as e:
-            raise click.ClickException(f"Failed to create configuration: {e}") from e
-
-        click.echo(f"Step 4: Saving configuration to YAML file: {output_path}...")
+            
+        elif input_type == 'nml':
+            # Table conversion path - extract directory from nml path
+            table_dir = input_path.parent
+            click.echo(f"Processing table files from: {table_dir}")
+            
+            # Prepare processing directory
+            processing_dir, temp_dir_obj = _prepare_processing_dir(
+                table_dir, from_ver, debug_dir, validate_profiles
+            )
+            
+            path_runcontrol = processing_dir / "RunControl.nml"
+            if not path_runcontrol.exists():
+                raise click.ClickException(f"RunControl.nml not found in {processing_dir}")
+            
+            click.echo("Loading SUEWS input tables...")
+            try:
+                df_state = load_InitialCond_grid_df(path_runcontrol)
+            except Exception as e:
+                raise click.ClickException(f"Failed to load SUEWS tables: {e}") from e
+            
+            click.echo("Creating YAML configuration...")
+            try:
+                config = SUEWSConfig.from_df_state(df_state)
+                
+                # Configure forcing file and output settings
+                _configure_forcing_and_output(config, path_runcontrol, str(table_dir))
+                
+            except Exception as e:
+                raise click.ClickException(f"Failed to create configuration: {e}") from e
+        else:
+            raise click.ClickException(f"Unexpected input type: {input_type}")
+        
+        # Save to YAML
+        click.echo(f"Saving to: {output_path}")
         config.to_yaml(output_path)
-
-        click.secho(f"Successfully converted to {output_path}", fg="green")
+        click.secho(f"✓ Successfully converted to {output_path}", fg="green")
 
     finally:
         if temp_dir_obj:

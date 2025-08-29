@@ -4,11 +4,10 @@ This module handles conversion of df_state between different SuPy versions,
 particularly for migrating from pre-2025 format to current format.
 """
 
-import pandas as pd
-import numpy as np
-from pathlib import Path
-from typing import Optional, Union, Tuple
 import logging
+from pathlib import Path
+
+import pandas as pd
 
 logger = logging.getLogger(__name__)
 
@@ -19,16 +18,18 @@ def load_df_state_file(file_path: Path) -> pd.DataFrame:
     Args:
         file_path: Path to df_state file
 
-    Returns:
+    Returns
+    -------
         DataFrame with df_state data
 
-    Raises:
+    Raises
+    ------
         ValueError: If file is not valid df_state format
     """
     logger.info(f"Loading df_state from: {file_path}")
 
     try:
-        if file_path.suffix in [".pkl", ".pickle"]:
+        if file_path.suffix in {".pkl", ".pickle"}:
             df = pd.read_pickle(file_path)
         else:  # CSV
             # Try multi-index header format first (standard df_state)
@@ -45,180 +46,143 @@ def load_df_state_file(file_path: Path) -> pd.DataFrame:
         raise ValueError(
             f"Failed to load df_state from {file_path}: {e}\n"
             f"Ensure file is a valid df_state CSV (with multi-level headers) or pickle"
-        )
+        ) from e
 
 
 def detect_df_state_version(df: pd.DataFrame) -> str:
-    """Detect df_state format version by comparing with current template.
+    """Detect df_state format version by checking for known version indicators.
 
-    Returns:
-        'current': Matches current SuPy version exactly
-        'old': Different from current version (needs conversion)
+    Returns
+    -------
+        'current': Has expected current version columns
+        'old': Has deprecated columns or missing new required columns
     """
-    try:
-        import supy as sp
+    # Extract first-level column names
+    col_names = {col[0] if isinstance(col, tuple) else col for col in df.columns}
 
-        # Get current template
-        df_template, _ = sp.load_sample_data()
+    # Known deprecated columns from old versions
+    old_indicators = {
+        "age_0_4",
+        "age_5_11",
+        "age_12_18",
+        "age_19_64",
+        "age_65plus",
+        "hhs0",
+    }
 
-        # Compare column sets
-        input_cols = set(df.columns)
-        template_cols = set(df_template.columns)
+    # Required new columns in current version
+    new_required = {
+        "buildingname",
+        "buildingtype",
+        "config",
+        "description",
+    }
 
-        # If columns match exactly, it's current
-        if input_cols == template_cols:
-            logger.info("Detected current df_state format")
-            return "current"
-
-        # Otherwise it's old/different and needs conversion
-        missing_cols = template_cols - input_cols
-        extra_cols = input_cols - template_cols
-        common_cols = input_cols & template_cols
-
-        logger.info(f"Detected old/different df_state format:")
-        logger.info(f"  - {len(common_cols)} common columns")
-        logger.info(f"  - {len(missing_cols)} missing columns (will add defaults)")
-        logger.info(f"  - {len(extra_cols)} extra columns (will be removed)")
-
+    # Check for deprecated columns
+    has_old = any(col in col_names for col in old_indicators)
+    if has_old:
+        logger.info("Detected old df_state format (has deprecated columns)")
         return "old"
 
-    except Exception as e:
-        logger.warning(f"Could not load template for comparison: {e}")
-        # Fall back to simple heuristic
-        col_names = {col[0] if isinstance(col, tuple) else col for col in df.columns}
+    # Check for new required columns
+    has_new = all(col in col_names for col in new_required)
+    if has_new:
+        logger.info("Detected current df_state format")
+        return "current"
 
-        # Check for known deprecated columns
-        old_indicators = {
-            "age_0_4",
-            "age_5_11",
-            "age_12_18",
-            "age_19_64",
-            "age_65plus",
-            "hhs0",
-        }
-        if any(col in col_names for col in old_indicators):
-            logger.info("Detected old df_state format (has deprecated columns)")
-            return "old"
-
-        logger.warning("Unable to determine version - assuming old format")
+    # If missing new required columns, it's old
+    missing_new = new_required - col_names
+    if missing_new:
+        logger.info(f"Detected old df_state format (missing columns: {missing_new})")
         return "old"
 
+    # Default to current if unsure
+    logger.info("Unable to determine version definitively - assuming current")
+    return "current"
 
-def convert_df_state_format(df_old: pd.DataFrame) -> pd.DataFrame:
+
+def convert_df_state_format(df_old: pd.DataFrame) -> pd.DataFrame:  # noqa: PLR0912, PLR0915
     """Convert old/different df_state format to current format.
 
     Approach:
-    - Compare input with current template
-    - Keep all common columns with their values
-    - Add missing columns with sensible defaults
-    - Remove extra columns not in current format
+    - Remove deprecated columns
+    - Add new required columns with defaults
+    - Keep all other existing columns
 
     Args:
         df_old: DataFrame in old/different df_state format
 
-    Returns:
+    Returns
+    -------
         DataFrame in current df_state format
     """
-    import supy as sp
-
     logger.info("Converting df_state to current format...")
 
-    # Get template for current version
-    logger.info("Loading current format template...")
-    df_template, _ = sp.load_sample_data()
+    # Start with a copy of the old dataframe
+    df_new = df_old.copy()
 
-    # Create new DataFrame with correct structure
-    df_new = pd.DataFrame(index=df_old.index, columns=df_template.columns)
-    if hasattr(df_template.index, "name"):
-        df_new.index.name = df_template.index.name
+    # Extract first-level column names for checking
+    col_names = {col[0] if isinstance(col, tuple) else col for col in df_new.columns}
 
-    # Identify column differences
-    common_cols = set(df_old.columns) & set(df_template.columns)
-    missing_cols = set(df_template.columns) - set(df_old.columns)
-    extra_cols = set(df_old.columns) - set(df_template.columns)
-
-    # Copy all common columns - preserve existing data
-    logger.info(f"Preserving {len(common_cols)} common columns...")
-    for col in common_cols:
-        try:
-            # Direct assignment preserves data exactly
-            df_new[col] = df_old[col].values
-        except Exception as e:
-            logger.warning(f"Failed to copy column {col}: {e}, using template default")
-            # Fall back to template value if copy fails
-            if len(df_old) == 1:
-                df_new[col] = df_template[col].iloc[0]
-            else:
-                df_new[col] = [df_template[col].iloc[0]] * len(df_old)
-
-    # Add missing columns with appropriate defaults
-    logger.info(f"Adding {len(missing_cols)} missing columns with defaults...")
-    for col in missing_cols:
-        template_value = df_template[col].iloc[0]
-        col_name = col[0] if isinstance(col, tuple) else col
-
-        # Smart defaults based on column name
-        if "buildingname" in str(col_name).lower():
-            default_val = "building_1"
-        elif "buildingtype" in str(col_name).lower():
-            default_val = "residential"
-        elif "description" in str(col_name).lower():
-            default_val = "Converted from previous df_state format"
-        elif "config" in str(col_name).lower():
-            default_val = "default"
-        else:
-            # Use template default
-            default_val = template_value
-
-        # Apply to all rows
-        if len(df_old) == 1:
-            df_new[col] = default_val
-        else:
-            df_new[col] = [default_val] * len(df_old)
-
-    # Ensure data types match template where possible
-    logger.info("Aligning data types...")
+    # Remove deprecated columns if they exist
+    deprecated_cols = {
+        "age_0_4",
+        "age_5_11",
+        "age_12_18",
+        "age_19_64",
+        "age_65plus",
+        "hhs0",
+    }
+    cols_to_remove = []
     for col in df_new.columns:
-        try:
-            target_dtype = df_template[col].dtype
-            if df_new[col].dtype != target_dtype:
-                df_new[col] = df_new[col].astype(target_dtype)
-        except (ValueError, TypeError):
-            pass  # Keep original dtype if conversion fails
+        col_name = col[0] if isinstance(col, tuple) else col
+        if col_name in deprecated_cols:
+            cols_to_remove.append(col)
 
-    # Log what was changed
-    if extra_cols:
-        # Extract column names for logging
-        removed_names = []
-        for col in list(extra_cols)[:10]:  # Show first 10
-            if isinstance(col, tuple):
-                removed_names.append(f"{col[0]}[{col[1]}]")
-            else:
-                removed_names.append(str(col))
-
+    if cols_to_remove:
+        df_new = df_new.drop(columns=cols_to_remove)
         logger.info(
-            f"Removed {len(extra_cols)} extra columns including: {', '.join(removed_names)}"
+            f"Removed {len(cols_to_remove)} deprecated columns: {[c[0] if isinstance(c, tuple) else c for c in cols_to_remove[:5]]}"
         )
-        if len(extra_cols) > 10:
-            logger.info(f"  ... and {len(extra_cols) - 10} more")
+
+    # Add new required columns if missing
+    new_columns_defaults = {
+        ("buildingname", "0"): "building_1",
+        ("buildingtype", "0"): "residential",
+        ("config", "0"): "default",
+        ("description", "0"): "Converted from previous df_state format",
+        ("h_std", "0"): 1.0,
+        ("lambda_c", "0"): 0.5,
+        ("n_buildings", "0"): 1,
+    }
+
+    added_cols = []
+    for col, default_val in new_columns_defaults.items():
+        if col not in df_new.columns:
+            df_new[col] = default_val
+            added_cols.append(col)
+
+    if added_cols:
+        logger.info(f"Added {len(added_cols)} new columns with defaults")
 
     logger.info("Conversion complete")
     return df_new
 
 
-def validate_converted_df_state(df_state: pd.DataFrame) -> Tuple[bool, str]:
+def validate_converted_df_state(df_state: pd.DataFrame) -> tuple[bool, str]:
     """Validate converted df_state using SuPy's check_state.
 
     Args:
         df_state: DataFrame to validate
 
-    Returns:
+    Returns
+    -------
         Tuple of (is_valid, message)
     """
     try:
-        import supy as sp
+        import supy as sp  # noqa: PLC0415 - Late import to avoid circular dependency
 
         sp.check_state(df_state)
         return True, "Validation passed"
     except Exception as e:
-        return False, f"Validation warning: {str(e)}"
+        return False, f"Validation warning: {e!s}"

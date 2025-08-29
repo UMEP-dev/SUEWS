@@ -73,8 +73,8 @@ class TestDfStateVersionDetection:
         assert detect_df_state_version(df) == "old"
 
     def test_detect_new_format(self):
-        """Test detection of df_state format that differs from current."""
-        # Create mock df_state with different columns than current
+        """Test detection of df_state format with new required columns."""
+        # Create mock df_state with new required columns
         columns = pd.MultiIndex.from_tuples([
             ("buildingname", "0"),
             ("buildingtype", "0"),
@@ -89,8 +89,8 @@ class TestDfStateVersionDetection:
             [["b1", "res", "cfg", "desc", 1, 2, 3, 4]], columns=columns, index=[1]
         )
 
-        # Since it doesn't match current template exactly, it should be "old"
-        assert detect_df_state_version(df) == "old"
+        # Has all new required columns, so should be "current"
+        assert detect_df_state_version(df) == "current"
 
     def test_detect_current_format(self):
         """Test detection of current df_state format."""

@@ -8,14 +8,14 @@ import tempfile
 import shutil
 
 import supy as sp
-from supy.util._df_state_converter import (
+from supy.util.converter import (
     detect_input_type,
     load_df_state_file,
     detect_df_state_version,
     convert_df_state_format,
-    validate_converted_df_state,
+    convert_to_yaml,
 )
-from supy.util.converter import convert_to_yaml
+from supy.util.converter.df_state import validate_converted_df_state
 
 
 class TestDfStateDetection:
@@ -73,8 +73,8 @@ class TestDfStateVersionDetection:
         assert detect_df_state_version(df) == "old"
 
     def test_detect_new_format(self):
-        """Test detection of new df_state format with building columns."""
-        # Create mock new format df_state
+        """Test detection of df_state format that differs from current."""
+        # Create mock df_state with different columns than current
         columns = pd.MultiIndex.from_tuples([
             ("buildingname", "0"),
             ("buildingtype", "0"),
@@ -89,7 +89,8 @@ class TestDfStateVersionDetection:
             [["b1", "res", "cfg", "desc", 1, 2, 3, 4]], columns=columns, index=[1]
         )
 
-        assert detect_df_state_version(df) == "new"
+        # Since it doesn't match current template exactly, it should be "old"
+        assert detect_df_state_version(df) == "old"
 
     def test_detect_current_format(self):
         """Test detection of current df_state format."""

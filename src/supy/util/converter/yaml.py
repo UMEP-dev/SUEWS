@@ -120,8 +120,8 @@ def convert_to_yaml(
     -------
         None
     """
+    from . import detect_input_type
     from .df_state import (
-        detect_input_type,
         load_df_state_file,
         detect_df_state_version,
         convert_df_state_format,

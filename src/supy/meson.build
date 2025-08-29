@@ -44,6 +44,7 @@ py.install_sources(
             'util/_state_io.py',
             'util/_tmy.py',
             'util/converter/__init__.py',
+            'util/converter/df_state.py',
             'util/converter/table/__init__.py',
             'util/converter/table/table.py',
             'util/converter/table/profile_manager.py',

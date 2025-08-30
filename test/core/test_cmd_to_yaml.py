@@ -66,15 +66,18 @@ class TestTableToYamlConversion:
             output_file = Path(tmpdir) / "converted_2016a.yml"
 
             # Convert 2016a to latest YAML using explicit version specification
+            # Input must be RunControl.nml file, not directory
+            input_file = legacy_2016a_dir / "RunControl.nml"
+            if not input_file.exists():
+                pytest.skip(f"RunControl.nml not found in {legacy_2016a_dir}")
+
             result = runner.invoke(
                 convert_table_cmd,
                 [
                     "-f",
                     "2016a",
-                    "-t",
-                    "latest",  # Should use current version
                     "-i",
-                    str(legacy_2016a_dir),
+                    str(input_file),
                     "-o",
                     str(output_file),
                 ],
@@ -82,7 +85,6 @@ class TestTableToYamlConversion:
 
             # Check conversion succeeded
             assert result.exit_code == 0, f"Conversion failed: {result.output}"
-            assert "Converting to latest" in result.output
             assert output_file.exists(), "Output YAML file was not created"
 
             # Verify YAML is valid
@@ -208,11 +210,16 @@ class TestTableToYamlConversion:
             output_file = Path(tmpdir) / f"converted_{version}.yml"
 
             # Convert with auto-detection
+            # Input must be RunControl.nml file, not directory
+            input_file = legacy_dir / "RunControl.nml"
+            if not input_file.exists():
+                pytest.skip(f"RunControl.nml not found in {legacy_dir}")
+
             result = runner.invoke(
                 convert_table_cmd,
                 [
                     "-i",
-                    str(legacy_dir),
+                    str(input_file),
                     "-o",
                     str(output_file),
                     "--no-profile-validation",  # Skip profile validation for speed

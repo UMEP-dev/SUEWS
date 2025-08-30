@@ -70,7 +70,7 @@ class TestTableToYamlConversion:
             input_file = legacy_2016a_dir / "RunControl.nml"
             if not input_file.exists():
                 pytest.skip(f"RunControl.nml not found in {legacy_2016a_dir}")
-            
+
             result = runner.invoke(
                 convert_table_cmd,
                 [
@@ -214,7 +214,7 @@ class TestTableToYamlConversion:
             input_file = legacy_dir / "RunControl.nml"
             if not input_file.exists():
                 pytest.skip(f"RunControl.nml not found in {legacy_dir}")
-            
+
             result = runner.invoke(
                 convert_table_cmd,
                 [

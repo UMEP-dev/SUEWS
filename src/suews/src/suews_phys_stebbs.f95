@@ -666,8 +666,8 @@ CONTAINS
 
          IF (dt_start < timestep) THEN
             ws = 3
-            Tair_sout = 10
-            Tsurf_sout = 10
+            Tair_sout = stebbsState%OutdoorAirStartTemperature ! unit degree
+            Tsurf_sout = stebbsState%OutdoorAirStartTemperature ! unit degree
          ELSE
             ws = atmState%U10_ms
             Tair_sout = atmState%t2_C
@@ -748,10 +748,10 @@ CONTAINS
             sout%ws_exch = ws
 
             IF (dt_start < timestep) THEN !initialisation before getting RSL output
-            ws_bh = 3
-            ws_hbh = 3
-            Tair_bh = 10
-            Tair_hbh = 10
+               ws_bh = 3
+               ws_hbh = 3
+               Tair_bh = stebbsState%OutdoorAirStartTemperature ! unit degree
+               Tair_hbh = stebbsState%OutdoorAirStartTemperature ! unit degree
             ELSE
                ! air temperature and wind speed at building/half building height from RSL
                ws_bh = interp_z(buildings(1)%height_building, zarray, dataoutLineURSL)

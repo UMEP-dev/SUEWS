@@ -3728,7 +3728,7 @@ CONTAINS
       RoofBuildingViewFactor, RoofGroundViewFactor, RoofSkyViewFactor, &
       MetabolicRate, LatentSensibleRatio, ApplianceRating, &
       TotalNumberofAppliances, ApplianceUsageFactor, HeatingSystemEfficiency, &
-      MaxCoolingPower, CoolingSystemCOP, VentilationRate, IndoorAirStartTemperature, &
+      MaxCoolingPower, CoolingSystemCOP, VentilationRate, IndoorAirStartTemperature, OutdoorAirStartTemperature,&
       IndoorMassStartTemperature, WallIndoorSurfaceTemperature, RoofIndoorSurfaceTemperature, &
       WallOutdoorSurfaceTemperature, RoofOutdoorSurfaceTemperature, WindowIndoorSurfaceTemperature, &
       WindowOutdoorSurfaceTemperature, GroundFloorIndoorSurfaceTemperature, &
@@ -4141,6 +4141,7 @@ CONTAINS
       REAL(KIND(1D0)) :: CoolingSystemCOP
       REAL(KIND(1D0)) :: VentilationRate
       REAL(KIND(1D0)) :: IndoorAirStartTemperature
+      REAL(KIND(1D0)) :: OutdoorAirStartTemperature
       REAL(KIND(1D0)) :: IndoorMassStartTemperature
       REAL(KIND(1D0)) :: WallIndoorSurfaceTemperature
       REAL(KIND(1D0)) :: WallOutdoorSurfaceTemperature
@@ -5046,6 +5047,7 @@ CONTAINS
       ! states - updated during the simulation
       ! TODO: STEBBS States act as parameters for building generation (move all but allocation?)
       CALL stebbsState%ALLOCATE(nbtypes, nlayer)
+      stebbsState%OutdoorAirStartTemperature = OutdoorAirStartTemperature
       stebbsState%IndoorAirStartTemperature = IndoorAirStartTemperature
       stebbsState%IndoorMassStartTemperature = IndoorMassStartTemperature
       stebbsState%WallIndoorSurfaceTemperature = WallIndoorSurfaceTemperature

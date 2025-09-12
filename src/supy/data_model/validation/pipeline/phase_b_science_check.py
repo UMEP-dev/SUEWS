@@ -750,8 +750,6 @@ def adjust_surface_temperatures(
         initial_states = site.get("initial_states", {})
         stebbs = props.get("stebbs", {})
 
-
-
         lat_entry = props.get("lat", {})
         lat = lat_entry.get("value") if isinstance(lat_entry, dict) else lat_entry
 

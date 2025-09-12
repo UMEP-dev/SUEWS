@@ -1546,6 +1546,7 @@ class StebbsProperties(BaseModel):
             "unit": "W m^-2 K^-1",
             "display_name": "Wallinternalconvectioncoefficient",
         },
+        gt=0.0,
     )
     InternalMassConvectionCoefficient: Optional[FlexibleRefValue(float)] = Field(
         default=0.0,
@@ -1554,6 +1555,7 @@ class StebbsProperties(BaseModel):
             "unit": "W m^-2 K^-1",
             "display_name": "Internalmassconvectioncoefficient",
         },
+        gt=0.0,
     )
     FloorInternalConvectionCoefficient: Optional[FlexibleRefValue(float)] = Field(
         default=0.0,
@@ -1562,6 +1564,7 @@ class StebbsProperties(BaseModel):
             "unit": "W m^-2 K^-1",
             "display_name": "Floorinternalconvectioncoefficient",
         },
+        gt=0.0,
     )
     WindowInternalConvectionCoefficient: Optional[FlexibleRefValue(float)] = Field(
         default=0.0,
@@ -1570,6 +1573,7 @@ class StebbsProperties(BaseModel):
             "unit": "W m^-2 K^-1",
             "display_name": "Windowinternalconvectioncoefficient",
         },
+        gt=0.0,
     )
     WallExternalConvectionCoefficient: Optional[FlexibleRefValue(float)] = Field(
         default=0.0,
@@ -1578,6 +1582,7 @@ class StebbsProperties(BaseModel):
             "unit": "W m^-2 K^-1",
             "display_name": "Wallexternalconvectioncoefficient",
         },
+        gt=0.0,
     )
     WindowExternalConvectionCoefficient: Optional[FlexibleRefValue(float)] = Field(
         default=0.0,
@@ -1586,6 +1591,7 @@ class StebbsProperties(BaseModel):
             "unit": "W m^-2 K^-1",
             "display_name": "Windowexternalconvectioncoefficient",
         },
+        gt=0.0,
     )
     GroundDepth: Optional[FlexibleRefValue(float)] = Field(
         default=0.0,

@@ -661,18 +661,9 @@ CONTAINS
          stebbsState => modState%stebbsState, &
          building_archtype => siteInfo%building_archtype, &
          stebbsPrm => siteInfo%stebbs, &
-         spartacus_Prm => siteInfo%spartacus &
+         spartacus_Prm => siteInfo%spartacus, &
+         height_forcing => siteInfo%z &
          )
-
-         IF (dt_start < timestep) THEN
-            ws = 3
-            Tair_sout = stebbsState%OutdoorAirStartTemperature ! unit degree
-            Tsurf_sout = stebbsState%OutdoorAirStartTemperature ! unit degree
-         ELSE
-            ws = atmState%U10_ms
-            Tair_sout = atmState%t2_C
-            Tsurf_sout = heatState%Tsurf
-         END IF
 
          ASSOCIATE ( &
             stebbs_bldg_init => flagstate%stebbs_bldg_init, &
@@ -696,10 +687,25 @@ CONTAINS
             Lsouth => stebbsState%Lsouth, &
             Least => stebbsState%Least, &
             Lwest => stebbsState%Lwest, &
-            ss_height => spartacus_Prm%height &
+            ss_height => spartacus_Prm%height, &
             !Textwall_C =>stebbsState%Textwall_C, &
             !Textroof_C =>stebbsState%Textroof_C &
+            z0m => roughnessState%z0m, &
+            zdm => roughnessState%zdm &
             )
+
+            IF (dt_start < timestep) THEN
+               ! correct wind speed using log law; assuming neutral condition (without stability correction)
+               ws = forcing%U * (LOG((10 + z0m) / z0m) / LOG((height_forcing + z0m) / z0m)) !10m 
+               Tair_sout = stebbsState%OutdoorAirStartTemperature ! unit degree
+               Tsurf_sout = stebbsState%OutdoorAirStartTemperature ! unit degree
+            ELSE
+               ws = atmState%U10_ms
+               Tair_sout = atmState%t2_C
+               Tsurf_sout = heatState%Tsurf
+            END IF
+
+
             sout%ntstep = 1
             resolution = 1
             IF (stebbs_bldg_init == 0) THEN
@@ -748,8 +754,8 @@ CONTAINS
             sout%ws_exch = ws
 
             IF (dt_start < timestep) THEN !initialisation before getting RSL output
-               ws_bh = 3
-               ws_hbh = 3
+               ws_bh = forcing%U * (LOG((buildings(1)%height_building + z0m) / z0m) / LOG((height_forcing + z0m) / z0m)) !archetype height
+               ws_hbh = forcing%U * (LOG((buildings(1)%height_building/2 + z0m) / z0m) / LOG((height_forcing + z0m) / z0m)) !half archetype height
                Tair_bh = stebbsState%OutdoorAirStartTemperature ! unit degree
                Tair_hbh = stebbsState%OutdoorAirStartTemperature ! unit degree
             ELSE

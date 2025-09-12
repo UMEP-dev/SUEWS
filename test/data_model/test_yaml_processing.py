@@ -3450,32 +3450,42 @@ class TestPhaseBScienceCheck(TestProcessorFixtures):
                         "stebbs": {
                             "WallOutdoorSurfaceTemperature": {"value": 25.0},
                             "WindowOutdoorSurfaceTemperature": {"value": 20.0},
-                            "WallInternalConvectionCoefficient": {"value": 5.0}  # Control parameter
-                        }
+                            "WallInternalConvectionCoefficient": {
+                                "value": 5.0
+                            },  # Control parameter
+                        },
                     }
                 }
             ]
         }
 
         # Run adjust_surface_temperatures function directly
-        result, adjustments = science_check.adjust_surface_temperatures(yaml_input, "2025-01-01")
-        
+        result, adjustments = science_check.adjust_surface_temperatures(
+            yaml_input, "2025-01-01"
+        )
+
         # Check that CRU temperature function was called
         mock_cru.assert_called_with(51.5, -0.12, 1)  # lat, lng, month=1 (January)
-        
+
         # Verify that STEBBS temperature parameters were updated
         stebbs_props = result["sites"][0]["properties"]["stebbs"]
         assert stebbs_props["WallOutdoorSurfaceTemperature"]["value"] == 12.5
         assert stebbs_props["WindowOutdoorSurfaceTemperature"]["value"] == 12.5
-        
+
         # Verify control parameter unchanged
         assert stebbs_props["WallInternalConvectionCoefficient"]["value"] == 5.0
 
         # Verify adjustments recorded
         stebbs_adjustments = [adj for adj in adjustments if "stebbs" in adj.parameter]
         assert len(stebbs_adjustments) == 2
-        assert any("WallOutdoorSurfaceTemperature" in adj.parameter for adj in stebbs_adjustments)
-        assert any("WindowOutdoorSurfaceTemperature" in adj.parameter for adj in stebbs_adjustments)
+        assert any(
+            "WallOutdoorSurfaceTemperature" in adj.parameter
+            for adj in stebbs_adjustments
+        )
+        assert any(
+            "WindowOutdoorSurfaceTemperature" in adj.parameter
+            for adj in stebbs_adjustments
+        )
 
     @patch(
         "supy.data_model.validation.pipeline.phase_b_science_check.get_mean_monthly_air_temperature"
@@ -3487,10 +3497,10 @@ class TestPhaseBScienceCheck(TestProcessorFixtures):
 
         # Test different months with different temperatures
         test_cases = [
-            ("2025-01-15", 1, 2.3),   # January
-            ("2025-04-10", 4, 8.7),   # April  
+            ("2025-01-15", 1, 2.3),  # January
+            ("2025-04-10", 4, 8.7),  # April
             ("2025-07-20", 7, 18.5),  # July
-            ("2025-10-05", 10, 11.2)  # October
+            ("2025-10-05", 10, 11.2),  # October
         ]
 
         for start_date, expected_month, mock_temp in test_cases:
@@ -3505,18 +3515,20 @@ class TestPhaseBScienceCheck(TestProcessorFixtures):
                             "lng": {"value": 1.0},
                             "stebbs": {
                                 "WallOutdoorSurfaceTemperature": {"value": 999.0},
-                                "WindowOutdoorSurfaceTemperature": {"value": 888.0}
-                            }
+                                "WindowOutdoorSurfaceTemperature": {"value": 888.0},
+                            },
                         }
                     }
                 ]
             }
 
-            result, _ = science_check.adjust_surface_temperatures(yaml_input, start_date)
-            
+            result, _ = science_check.adjust_surface_temperatures(
+                yaml_input, start_date
+            )
+
             # Verify correct month extracted and CRU called
             mock_cru.assert_called_with(52.0, 1.0, expected_month)
-            
+
             # Verify temperature values updated
             stebbs_props = result["sites"][0]["properties"]["stebbs"]
             assert stebbs_props["WallOutdoorSurfaceTemperature"]["value"] == mock_temp
@@ -3535,7 +3547,7 @@ class TestPhaseBScienceCheck(TestProcessorFixtures):
             # Return different temperatures based on coordinates
             if lat == 51.5:  # London
                 return 8.2
-            elif lat == 55.8:  # Edinburgh  
+            elif lat == 55.8:  # Edinburgh
                 return 5.1
             else:
                 return 10.0
@@ -3550,8 +3562,8 @@ class TestPhaseBScienceCheck(TestProcessorFixtures):
                         "lng": {"value": -0.12},
                         "stebbs": {
                             "WallOutdoorSurfaceTemperature": {"value": 100.0},
-                            "WindowOutdoorSurfaceTemperature": {"value": 200.0}
-                        }
+                            "WindowOutdoorSurfaceTemperature": {"value": 200.0},
+                        },
                     }
                 },
                 {
@@ -3560,25 +3572,25 @@ class TestPhaseBScienceCheck(TestProcessorFixtures):
                         "lng": {"value": -4.25},
                         "stebbs": {
                             "WallOutdoorSurfaceTemperature": {"value": 300.0},
-                            "WindowOutdoorSurfaceTemperature": {"value": 400.0}
-                        }
+                            "WindowOutdoorSurfaceTemperature": {"value": 400.0},
+                        },
                     }
-                }
+                },
             ]
         }
 
         result, _ = science_check.adjust_surface_temperatures(yaml_input, "2025-03-01")
-        
+
         # Verify CRU called for each site
         assert mock_cru.call_count == 2
         mock_cru.assert_any_call(51.5, -0.12, 3)
         mock_cru.assert_any_call(55.8, -4.25, 3)
-        
+
         # Verify each site gets appropriate temperature
         site0_stebbs = result["sites"][0]["properties"]["stebbs"]
         assert site0_stebbs["WallOutdoorSurfaceTemperature"]["value"] == 8.2
         assert site0_stebbs["WindowOutdoorSurfaceTemperature"]["value"] == 8.2
-        
+
         site1_stebbs = result["sites"][1]["properties"]["stebbs"]
         assert site1_stebbs["WallOutdoorSurfaceTemperature"]["value"] == 5.1
         assert site1_stebbs["WindowOutdoorSurfaceTemperature"]["value"] == 5.1
@@ -3602,22 +3614,22 @@ class TestPhaseBScienceCheck(TestProcessorFixtures):
                         "stebbs": {
                             "WallOutdoorSurfaceTemperature": {"value": 99.0},
                             # WindowOutdoorSurfaceTemperature missing
-                            "OtherParameter": {"value": 42.0}
-                        }
+                            "OtherParameter": {"value": 42.0},
+                        },
                     }
                 }
             ]
         }
 
         result, _ = science_check.adjust_surface_temperatures(yaml_input, "2025-06-15")
-        
+
         # Verify available parameter was updated
         stebbs_props = result["sites"][0]["properties"]["stebbs"]
         assert stebbs_props["WallOutdoorSurfaceTemperature"]["value"] == 15.8
-        
+
         # Verify missing parameter wasn't added
         assert "WindowOutdoorSurfaceTemperature" not in stebbs_props
-        
+
         # Verify other parameters unchanged
         assert stebbs_props["OtherParameter"]["value"] == 42.0
 
@@ -3639,16 +3651,22 @@ class TestPhaseBScienceCheck(TestProcessorFixtures):
                         "lat": {"value": 45.0},
                         "lng": {"value": 5.0},
                         "stebbs": {
-                            "WallOutdoorSurfaceTemperature": {"value": cru_temp},  # Already correct
-                            "WindowOutdoorSurfaceTemperature": {"value": cru_temp}  # Already correct
-                        }
+                            "WallOutdoorSurfaceTemperature": {
+                                "value": cru_temp
+                            },  # Already correct
+                            "WindowOutdoorSurfaceTemperature": {
+                                "value": cru_temp
+                            },  # Already correct
+                        },
                     }
                 }
             ]
         }
 
-        result, adjustments = science_check.adjust_surface_temperatures(yaml_input, "2025-05-01")
-        
+        result, adjustments = science_check.adjust_surface_temperatures(
+            yaml_input, "2025-05-01"
+        )
+
         # Verify values remain correct (no change needed)
         stebbs_props = result["sites"][0]["properties"]["stebbs"]
         assert stebbs_props["WallOutdoorSurfaceTemperature"]["value"] == cru_temp
@@ -3668,7 +3686,7 @@ class TestPhaseBScienceCheck(TestProcessorFixtures):
                 {
                     "properties": {
                         "lat": {"value": 40.0},
-                        "lng": {"value": -74.0}
+                        "lng": {"value": -74.0},
                         # No stebbs block
                     }
                 }
@@ -3676,13 +3694,15 @@ class TestPhaseBScienceCheck(TestProcessorFixtures):
         }
 
         # Should not raise any exceptions
-        result, adjustments = science_check.adjust_surface_temperatures(yaml_input, "2025-12-01")
-        
+        result, adjustments = science_check.adjust_surface_temperatures(
+            yaml_input, "2025-12-01"
+        )
+
         # Verify result structure is intact
         assert "sites" in result
         assert len(result["sites"]) == 1
         site_props = result["sites"][0]["properties"]
-        
+
         # stebbs block should remain empty if it didn't exist originally
         assert "stebbs" not in site_props or site_props.get("stebbs") == {}
 

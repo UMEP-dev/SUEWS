@@ -1723,6 +1723,7 @@ class StebbsProperties(BaseModel):
         default=25.0, # Default value calculated from the CIBSE GUIDE A, Table 3.47, Page 176
         description="Initial external convection coefficient of roof [W m-2 K-1]",
         json_schema_extra={"unit": "W m^-2 K^-1", "display_name": "Roofexternalconvectioncoefficient"},
+        gt=0.0,
     )
     WindowExternalConvectionCoefficient: Optional[FlexibleRefValue(float)] = Field(
         default=25.0,  # Default value calculated from the CIBSE GUIDE A, Table 3.47, Page 176

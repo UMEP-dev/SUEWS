@@ -1,7 +1,7 @@
 {
   "_comment": "AUTO-GENERATED FILE - DO NOT EDIT MANUALLY",
   "_generated_by": "github-actions[bot]",
-  "_generated_at": "2025-08-21T08:52:58.772957+00:00",
+  "_generated_at": "2025-09-16T05:20:07.009290+00:00",
   "_source": ".github/scripts/generate_schema.py",
   "_schema_version": "0.1",
   "$defs": {
@@ -8987,16 +8987,21 @@
         "WallInternalConvectionCoefficient": {
           "anyOf": [
             {
-              "$ref": "#/$defs/RefValue_float_"
-            },
-            {
-              "type": "number"
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/RefValue_float_"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "gt": 0.0
             },
             {
               "type": "null"
             }
           ],
-          "default": 0.0,
+          "default": 7.69,
           "description": "Internal convection coefficient of walls and roof [W m-2 K-1]",
           "display_name": "Wallinternalconvectioncoefficient",
           "title": "Wallinternalconvectioncoefficient",
@@ -9005,16 +9010,21 @@
         "InternalMassConvectionCoefficient": {
           "anyOf": [
             {
-              "$ref": "#/$defs/RefValue_float_"
-            },
-            {
-              "type": "number"
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/RefValue_float_"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "gt": 0.0
             },
             {
               "type": "null"
             }
           ],
-          "default": 0.0,
+          "default": 7.69,
           "description": "Convection coefficient of internal mass [W m-2 K-1]",
           "display_name": "Internalmassconvectioncoefficient",
           "title": "Internalmassconvectioncoefficient",
@@ -9023,16 +9033,21 @@
         "FloorInternalConvectionCoefficient": {
           "anyOf": [
             {
-              "$ref": "#/$defs/RefValue_float_"
-            },
-            {
-              "type": "number"
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/RefValue_float_"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "gt": 0.0
             },
             {
               "type": "null"
             }
           ],
-          "default": 0.0,
+          "default": 5.88,
           "description": "Internal convection coefficient of ground floor [W m-2 K-1]",
           "display_name": "Floorinternalconvectioncoefficient",
           "title": "Floorinternalconvectioncoefficient",
@@ -9041,16 +9056,21 @@
         "WindowInternalConvectionCoefficient": {
           "anyOf": [
             {
-              "$ref": "#/$defs/RefValue_float_"
-            },
-            {
-              "type": "number"
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/RefValue_float_"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "gt": 0.0
             },
             {
               "type": "null"
             }
           ],
-          "default": 0.0,
+          "default": 7.69,
           "description": "Internal convection coefficient of windows [W m-2 K-1]",
           "display_name": "Windowinternalconvectioncoefficient",
           "title": "Windowinternalconvectioncoefficient",
@@ -9059,16 +9079,21 @@
         "WallExternalConvectionCoefficient": {
           "anyOf": [
             {
-              "$ref": "#/$defs/RefValue_float_"
-            },
-            {
-              "type": "number"
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/RefValue_float_"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "gt": 0.0
             },
             {
               "type": "null"
             }
           ],
-          "default": 0.0,
+          "default": 25.0,
           "description": "Initial external convection coefficient of walls and roof [W m-2 K-1]",
           "display_name": "Wallexternalconvectioncoefficient",
           "title": "Wallexternalconvectioncoefficient",
@@ -9077,16 +9102,21 @@
         "WindowExternalConvectionCoefficient": {
           "anyOf": [
             {
-              "$ref": "#/$defs/RefValue_float_"
-            },
-            {
-              "type": "number"
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/RefValue_float_"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "gt": 0.0
             },
             {
               "type": "null"
             }
           ],
-          "default": 0.0,
+          "default": 25.0,
           "description": "Initial external convection coefficient of windows [W m-2 K-1]",
           "display_name": "Windowexternalconvectioncoefficient",
           "title": "Windowexternalconvectioncoefficient",

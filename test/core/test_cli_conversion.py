@@ -30,12 +30,12 @@ class TestCLIConversion:
     @pytest.fixture
     def test_data_dir(self):
         """Get the path to test data fixtures."""
-        return Path(__file__).parent / "fixtures/data_test"
+        return Path(__file__).parent.parent / "fixtures/data_test"
 
     @pytest.fixture
     def legacy_format_dir(self):
         """Get the path to legacy format fixtures."""
-        return Path(__file__).parent / "fixtures/legacy_format"
+        return Path(__file__).parent.parent / "fixtures/legacy_format"
 
     def run_suews_convert(self, *args):
         """Run suews-convert command and return result.
@@ -67,7 +67,7 @@ class TestCLIConversion:
         assert "-o" in result.stdout or "--output" in result.stdout
 
     @pytest.mark.skipif(
-        not (Path(__file__).parent / "fixtures/data_test/AVL_1_LDN1").exists(),
+        not (Path(__file__).parent.parent / "fixtures/data_test/AVL_1_LDN1").exists(),
         reason="Single-layer test data not available",
     )
     def test_single_layer_conversion_via_cli(self, test_data_dir):
@@ -119,7 +119,7 @@ class TestCLIConversion:
             print("✓ Single-layer CLI conversion successful")
 
     @pytest.mark.skipif(
-        not (Path(__file__).parent / "fixtures/data_test/AVL_6_310").exists(),
+        not (Path(__file__).parent.parent / "fixtures/data_test/AVL_6_310").exists(),
         reason="Multi-layer test data not available",
     )
     def test_multi_layer_conversion_via_cli(self, test_data_dir):
@@ -198,12 +198,12 @@ class TestCLIConversion:
             print("✓ Invalid input handling via CLI successful")
 
     @pytest.mark.skipif(
-        not (Path(__file__).parent / "fixtures/legacy_format/2024a").exists(),
+        not (Path(__file__).parent.parent / "fixtures/legacy_format/2024a").exists(),
         reason="Legacy format test data not available",
     )
     def test_explicit_version_conversion_via_cli(self):
         """Test explicit version specification during conversion."""
-        legacy_dir = Path(__file__).parent / "fixtures/legacy_format/2024a"
+        legacy_dir = Path(__file__).parent.parent / "fixtures/legacy_format/2024a"
         input_file = legacy_dir / "RunControl.nml"
 
         if not input_file.exists():
@@ -233,7 +233,7 @@ class TestCLIConversion:
 
     @pytest.mark.skipif(not SUPY_AVAILABLE, reason="SuPy not available")
     @pytest.mark.skipif(
-        not (Path(__file__).parent / "fixtures/legacy_format/2016a").exists(),
+        not (Path(__file__).parent.parent / "fixtures/legacy_format/2016a").exists(),
         reason="2016a legacy format not available",
     )
     def test_oldest_to_latest_yaml_with_validation(self):
@@ -243,7 +243,7 @@ class TestCLIConversion:
         from 2016a through all intermediate versions to YAML works correctly,
         and validates the output can be loaded by SUEWSConfig.
         """
-        legacy_dir = Path(__file__).parent / "fixtures/legacy_format/2016a"
+        legacy_dir = Path(__file__).parent.parent / "fixtures/legacy_format/2016a"
         input_file = legacy_dir / "RunControl.nml"
 
         if not input_file.exists():
@@ -312,7 +312,7 @@ class TestCLIConversion:
         if not SUPY_AVAILABLE:
             pytest.skip("SuPy not available for version detection")
 
-        legacy_dir = Path(__file__).parent / "fixtures/legacy_format" / version
+        legacy_dir = Path(__file__).parent.parent / "fixtures/legacy_format" / version
 
         if not legacy_dir.exists():
             pytest.skip(f"Legacy format fixture for {version} not found")
@@ -373,7 +373,7 @@ class TestCLIConversion:
         - Complete conversion chain to YAML
         - All versions from oldest (2016a) to newest (2025a)
         """
-        legacy_dir = Path(__file__).parent / "fixtures/legacy_format" / version
+        legacy_dir = Path(__file__).parent.parent / "fixtures/legacy_format" / version
         input_file = legacy_dir / "RunControl.nml"
 
         if not input_file.exists():
@@ -409,7 +409,7 @@ class TestCLIConversion:
 
     @pytest.mark.skipif(not SUPY_AVAILABLE, reason="SuPy not available")
     @pytest.mark.skipif(
-        not (Path(__file__).parent / "fixtures/data_test/AVL_1_LDN1").exists(),
+        not (Path(__file__).parent.parent / "fixtures/data_test/AVL_1_LDN1").exists(),
         reason="Single-layer test data not available",
     )
     def test_single_layer_yaml_validation(self, test_data_dir):
@@ -470,7 +470,7 @@ class TestCLIConversion:
 
     @pytest.mark.skipif(not SUPY_AVAILABLE, reason="SuPy not available")
     @pytest.mark.skipif(
-        not (Path(__file__).parent / "fixtures/data_test/AVL_6_310").exists(),
+        not (Path(__file__).parent.parent / "fixtures/data_test/AVL_6_310").exists(),
         reason="Multi-layer test data not available",
     )
     def test_multi_layer_yaml_validation(self, test_data_dir):

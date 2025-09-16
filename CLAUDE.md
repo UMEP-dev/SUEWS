@@ -81,6 +81,7 @@ For complete build and testing information, see:
 ### Claude Code Resources
 - `.claude/README.md` - Overview of the .claude directory structure and purpose
 - `.claude/howto/` - Step-by-step guides for common tasks
+- `.claude/howto/beta-testing.md` - Guide for testing development versions
 - `.claude/reference/` - Technical documentation and analysis
 - `.claude/templates/` - Reusable templates for consistency
 

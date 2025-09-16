@@ -183,8 +183,17 @@ SUEWS maintains consistent code style through automated formatting:
 
 **For Contributors**: Just write working code! Formatting will be applied automatically after merge.
 
-**For Local Development** (optional):
->>>>>>> origin/master
+## Beta Testing
+
+For testing pre-release development versions from test.pypi.org, see the [Beta Testing Guide](https://suews.readthedocs.io/en/latest/installation/beta-testing.html) or `.claude/howto/beta-testing.md`.
+
+Quick start with `uv`:
 ```bash
-pip install -e . --no-build-isolation
+# Install uv
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Install dev version
+uv pip install --index-url https://test.pypi.org/simple/ \
+              --extra-index-url https://pypi.org/simple/ \
+              supy
 ```

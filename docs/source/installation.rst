@@ -84,3 +84,9 @@ To install the development build of SUEWS, you need to install ``supy`` in the d
     make dev
 
 
+Beta Testing
+------------
+
+For testing pre-release development versions from test.pypi.org, see :doc:`installation/beta-testing`.
+
+

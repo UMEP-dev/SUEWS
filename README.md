@@ -195,17 +195,20 @@ source .venv-dev/bin/activate  # Windows: .venv-dev\Scripts\activate
 # Install uv (a fast Python package installer)
 pip install uv
 
-# Install development version from test.pypi.org
-uv pip install --index-url https://test.pypi.org/simple/ \
-              --extra-index-url https://pypi.org/simple/ \
-              supy
+# Check available versions at https://test.pypi.org/project/supy/
+# Install latest development version (replace version as needed)
+uv pip install --extra-index-url https://test.pypi.org/simple/ \
+              --index-strategy unsafe-best-match \
+              supy==2025.9.16.dev0  # Use latest YYYY.M.D.dev0 version
 
 # Verify installation
 python -c "import supy; print(f'SuPy version: {supy.__version__}')"
-# Should show a development version like: 2025.7.6
+# Should show a development version like: 2025.9.16.dev0
 
 # Quick test to confirm it works
 python -c "import supy as sp; sp.load_sample_data(); print('✓ Installation successful')"
 ```
 
-**Why uv?** Standard `pip install` from test.pypi.org often fails due to dependency resolution issues. The `uv` tool handles multiple package indices better, making it ideal for test packages.
+**Important**: Always check https://test.pypi.org/project/supy/ for the latest development version with date format `YYYY.M.D.dev0`.
+
+**Why uv?** Standard `pip install` from test.pypi.org fails due to dependency resolution issues. The `uv` tool with `--index-strategy unsafe-best-match` correctly resolves dependencies across both PyPI and Test PyPI.

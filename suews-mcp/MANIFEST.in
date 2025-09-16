@@ -1,0 +1,41 @@
+# Include package metadata and configuration files
+include README.md
+include LICENSE*
+include CHANGELOG.md
+include pyproject.toml
+include setup.py
+include requirements*.txt
+include pytest.ini
+include tox.ini
+
+# Include documentation
+recursive-include docs *.md *.rst *.txt *.py *.toml
+recursive-include documentation *.md
+
+# Include templates and examples
+recursive-include templates *
+recursive-include examples *.py *.yml *.yaml *.txt *.md *.json
+
+# Include test data but exclude logs
+recursive-include tests *.py *.yml *.yaml *.json *.txt
+exclude tests/**/*.log
+
+# Exclude development and build artifacts
+exclude .gitignore
+exclude .pre-commit-config.yaml
+recursive-exclude * __pycache__
+recursive-exclude * *.py[co]
+recursive-exclude * *.so
+recursive-exclude * .DS_Store
+recursive-exclude * *.log
+exclude build/*
+exclude dist/*
+exclude *.egg-info/*
+
+# Include package source
+recursive-include src *.py *.pyi
+
+# Include any configuration files in the root
+include *.cfg
+include *.ini
+include *.toml

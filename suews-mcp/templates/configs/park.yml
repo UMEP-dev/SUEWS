@@ -1,0 +1,276 @@
+name: urban_park
+description: Template configuration for urban park/green space with high vegetation cover and minimal built surfaces
+
+model:
+  control:
+    tstep: 300
+    start_time: "2023-01-01"
+    end_time: "2023-12-31"
+    forcing_file:
+      value: "forcing_data.txt"
+    output_file:
+      format: txt
+      freq: 3600
+      groups:
+        - "SUEWS"
+    diagnose: 0
+
+  physics:
+    netradiationmethod:
+      value: 3
+    emissionsmethod:
+      value: 2
+    storageheatmethod:
+      value: 1
+    ohmincqf:
+      value: 0
+    roughlenmommethod:
+      value: 1
+    roughlenheatmethod:
+      value: 2
+    stabilitymethod:
+      value: 3
+    smdmethod:
+      value: 0
+    waterusemethod:
+      value: 1  # Enable irrigation for park maintenance
+    rslmethod:
+      value: 2
+    faimethod:
+      value: 0
+    rsllevel:
+      value: 1
+    gsmodel:
+      value: 2
+    snowuse:
+      value: 0
+    stebbsmethod:
+      value: 0
+
+sites:
+- name: Urban_Park
+  gridiv: 1
+  properties:
+    lat:
+      value: 48.9  # Example: Central European park
+    lng:
+      value: 2.3
+    alt:
+      value: 60.0
+    timezone:
+      value: 1  # CET
+    surfacearea:
+      value: 500000.0  # 0.5 km² park area
+    z:
+      value: 25.0  # Lower measurement height over vegetation
+    z0m_in:
+      value: 1.8  # Higher roughness due to trees
+    zdm_in:
+      value: 12.0  # Tree canopy displacement
+    pipecapacity:
+      value: 50.0  # Natural drainage
+    runofftowater:
+      value: 0.0  # Most water infiltrates
+    narp_trans_site:
+      value: 1.0
+    
+    # Land cover fractions - dominated by vegetation
+    land_cover:
+      paved:
+        sfr:
+          value: 0.05  # 5% paved (paths, facilities)
+        emis:
+          value: 0.95
+        alb:
+          value: 0.18  # Light-coloured park paths
+        
+      bldgs:
+        sfr:
+          value: 0.02  # 2% buildings (visitor centres, facilities)
+        emis:
+          value: 0.91
+        alb:
+          value: 0.35  # Light park buildings
+        bldgh:
+          value: 5.0   # Low park buildings
+        
+      grass:
+        sfr:
+          value: 0.45  # 45% grass (lawns, meadows)
+        emis:
+          value: 0.93
+        alb:
+          value: 0.25  # Healthy green grass
+          
+      dectr:
+        sfr:
+          value: 0.35  # 35% deciduous trees
+        emis:
+          value: 0.98
+        alb:
+          value: 0.18
+          
+      evetr:
+        sfr:
+          value: 0.10  # 10% evergreen trees
+        emis:
+          value: 0.98
+        alb:
+          value: 0.12
+        
+      bsoil:
+        sfr:
+          value: 0.03  # 3% bare soil (flower beds, maintenance areas)
+        emis:
+          value: 0.94
+        alb:
+          value: 0.22
+          
+      water:
+        sfr:
+          value: 0.0   # No permanent water bodies (could be added)
+
+    # Low anthropogenic heat - minimal artificial energy use
+    anthropogenic_emissions:
+      heat:
+        qf0_beu:
+          working_day: 2.0   # Very low energy use (lighting, maintenance)
+          holiday: 1.5
+        baset_heating:
+          working_day: 15.0  # Minimal heating (visitor centres only)
+          holiday: 12.0
+        baset_cooling:
+          working_day: 28.0  # Minimal cooling
+          holiday: 30.0
+        
+        # Simple daily pattern for park activities
+        ahprof_24hr:
+          working_day:
+            '1': 0.1   # Night - security lighting only
+            '2': 0.1
+            '3': 0.1
+            '4': 0.1
+            '5': 0.1
+            '6': 0.2   # Early morning maintenance
+            '7': 0.5
+            '8': 0.8   # Opening hours
+            '9': 1.0
+            '10': 1.2  # Peak visitor hours
+            '11': 1.3
+            '12': 1.4
+            '13': 1.5
+            '14': 1.4
+            '15': 1.3
+            '16': 1.2
+            '17': 1.0
+            '18': 0.8
+            '19': 0.6  # Evening activities
+            '20': 0.4
+            '21': 0.3
+            '22': 0.2  # Closing time
+            '23': 0.1
+            '24': 0.1
+          holiday:
+            '1': 0.1   # Similar but higher weekend use
+            '2': 0.1
+            '3': 0.1
+            '4': 0.1
+            '5': 0.1
+            '6': 0.1
+            '7': 0.3
+            '8': 0.6
+            '9': 1.2   # Higher weekend visitor activity
+            '10': 1.8
+            '11': 2.0
+            '12': 2.2
+            '13': 2.3
+            '14': 2.2
+            '15': 2.0
+            '16': 1.8
+            '17': 1.5
+            '18': 1.2
+            '19': 0.9
+            '20': 0.6
+            '21': 0.4
+            '22': 0.2
+            '23': 0.1
+            '24': 0.1
+
+    # Irrigation settings for park maintenance
+    irrigation:
+      h_maintain:
+        value: 10.0  # Maintain soil moisture for healthy vegetation
+      faut:
+        value: 0.5   # 50% automatic irrigation
+      ie_start:
+        value: 91   # Start irrigation in April
+      ie_end:
+        value: 273  # End irrigation in September
+
+    # Initial conditions - healthy vegetation
+    initial_states:
+      paved:
+        state:
+          value: 0.0
+        soilstore:
+          value: 40.0
+        temperature:
+          value: [8.0, 8.0, 8.0, 8.0, 8.0]
+        tsfc:
+          value: 8.0
+          
+      bldgs:
+        state:
+          value: 0.0
+        soilstore:
+          value: 30.0
+        temperature:
+          value: [12.0, 12.0, 12.0, 12.0, 12.0]
+        tsfc:
+          value: 12.0
+          
+      grass:
+        state:
+          value: 0.0
+        soilstore:
+          value: 150.0  # High water storage for healthy grass
+        temperature:
+          value: [7.0, 7.0, 7.0, 7.0, 7.0]
+        tsfc:
+          value: 7.0
+        lai_id:
+          value: 4.0   # High LAI for well-maintained grass
+        
+      dectr:
+        state:
+          value: 0.0
+        soilstore:
+          value: 180.0  # Excellent soil for trees
+        temperature:
+          value: [7.0, 7.0, 7.0, 7.0, 7.0]
+        tsfc:
+          value: 7.0
+        lai_id:
+          value: 5.0   # High LAI for healthy mature trees
+        
+      evetr:
+        state:
+          value: 0.0
+        soilstore:
+          value: 160.0
+        temperature:
+          value: [7.0, 7.0, 7.0, 7.0, 7.0]
+        tsfc:
+          value: 7.0
+        lai_id:
+          value: 4.5   # High LAI year-round
+        
+      bsoil:
+        state:
+          value: 0.0
+        soilstore:
+          value: 100.0  # Good soil conditions
+        temperature:
+          value: [6.0, 6.0, 6.0, 6.0, 6.0]
+        tsfc:
+          value: 6.0

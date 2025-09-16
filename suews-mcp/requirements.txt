@@ -1,0 +1,5 @@
+# Core dependencies for SUEWS MCP Server
+mcp>=1.0.0
+supy>=2024.12.16
+pydantic>=2.0.0
+typing-extensions>=4.0.0

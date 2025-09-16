@@ -1,0 +1,235 @@
+name: commercial_downtown
+description: Template configuration for dense commercial/downtown urban area with high building density and minimal vegetation
+
+model:
+  control:
+    tstep: 300  # 5-minute time step
+    start_time: "2023-01-01"
+    end_time: "2023-12-31"
+    forcing_file:
+      value: "forcing_data.txt"  # Replace with actual forcing file
+    output_file:
+      format: txt
+      freq: 3600  # Hourly output
+      groups:
+        - "SUEWS"
+    diagnose: 0
+
+  physics:
+    netradiationmethod:
+      value: 3
+    emissionsmethod:
+      value: 2
+    storageheatmethod:
+      value: 1
+    ohmincqf:
+      value: 0
+    roughlenmommethod:
+      value: 1
+    roughlenheatmethod:
+      value: 2
+    stabilitymethod:
+      value: 3
+    smdmethod:
+      value: 0
+    waterusemethod:
+      value: 0
+    rslmethod:
+      value: 2
+    faimethod:
+      value: 0
+    rsllevel:
+      value: 1
+    gsmodel:
+      value: 2
+    snowuse:
+      value: 0
+    stebbsmethod:
+      value: 0
+
+sites:
+- name: Commercial_Downtown
+  gridiv: 1
+  properties:
+    lat:
+      value: 40.7  # Example: New York City latitude
+    lng:
+      value: -74.0  # Example: New York City longitude
+    alt:
+      value: 20.0
+    timezone:
+      value: -5  # EST
+    surfacearea:
+      value: 1000000.0  # 1 km²
+    z:
+      value: 50.0  # Higher measurement height for tall buildings
+    z0m_in:
+      value: 3.5  # Higher roughness for urban canyon
+    zdm_in:
+      value: 25.0  # Higher displacement for tall buildings
+    pipecapacity:
+      value: 200.0  # Better drainage infrastructure
+    runofftowater:
+      value: 0.1
+    narp_trans_site:
+      value: 1.0
+    
+    # Land cover fractions - high building density
+    land_cover:
+      paved:
+        sfr:
+          value: 0.40  # 40% paved (roads, sidewalks, parking)
+        emis:
+          value: 0.95
+        alb:
+          value: 0.12  # Dark urban surfaces
+        
+      bldgs:
+        sfr:
+          value: 0.55  # 55% building coverage - very dense
+        emis:
+          value: 0.90
+        alb:
+          value: 0.25  # Mixed commercial building materials
+        bldgh:
+          value: 35.0  # Average commercial building height
+        
+      grass:
+        sfr:
+          value: 0.03  # 3% grass (small parks, planters)
+        emis:
+          value: 0.93
+        alb:
+          value: 0.20  # Urban grass (less vibrant)
+          
+      dectr:
+        sfr:
+          value: 0.02  # 2% street trees
+        emis:
+          value: 0.98
+        alb:
+          value: 0.15
+          
+      evetr:
+        sfr:
+          value: 0.0
+        
+      bsoil:
+        sfr:
+          value: 0.0
+          
+      water:
+        sfr:
+          value: 0.0
+
+    # High anthropogenic heat emissions - commercial activity
+    anthropogenic_emissions:
+      heat:
+        qf0_beu:
+          working_day: 50.0  # High energy use (W/m²)
+          holiday: 25.0      # Lower on weekends
+        baset_heating:
+          working_day: 20.0  # Office heating temperature
+          holiday: 18.0
+        baset_cooling:
+          working_day: 22.0  # Aggressive air conditioning
+          holiday: 24.0
+        
+        # Daily profiles for commercial areas
+        ahprof_24hr:
+          working_day:
+            '1': 0.3   # Night
+            '2': 0.25
+            '3': 0.25
+            '4': 0.25
+            '5': 0.3
+            '6': 0.4   # Early morning
+            '7': 0.6
+            '8': 1.2   # Morning rush/office start
+            '9': 1.8
+            '10': 1.9  # Peak business hours
+            '11': 1.9
+            '12': 2.0
+            '13': 1.8
+            '14': 1.9
+            '15': 1.9
+            '16': 1.8
+            '17': 1.7
+            '18': 1.4  # Evening activities
+            '19': 1.2
+            '20': 0.9
+            '21': 0.7
+            '22': 0.5
+            '23': 0.4
+            '24': 0.35
+          holiday:
+            '1': 0.2   # Much lower weekend activity
+            '2': 0.2
+            '3': 0.2
+            '4': 0.2
+            '5': 0.2
+            '6': 0.2
+            '7': 0.3
+            '8': 0.4
+            '9': 0.6
+            '10': 0.8  # Shopping/leisure peak
+            '11': 1.0
+            '12': 1.2
+            '13': 1.3
+            '14': 1.4
+            '15': 1.3
+            '16': 1.2
+            '17': 1.0
+            '18': 0.9
+            '19': 0.8
+            '20': 0.6
+            '21': 0.5
+            '22': 0.4
+            '23': 0.3
+            '24': 0.25
+
+    # Initial conditions
+    initial_states:
+      paved:
+        state:
+          value: 0.0
+        soilstore:
+          value: 30.0  # Less water storage
+        temperature:
+          value: [15.0, 15.0, 15.0, 15.0, 15.0]
+        tsfc:
+          value: 15.0
+          
+      bldgs:
+        state:
+          value: 0.0
+        soilstore:
+          value: 20.0
+        temperature:
+          value: [20.0, 20.0, 20.0, 20.0, 20.0]  # Warmer due to heating
+        tsfc:
+          value: 20.0
+          
+      grass:
+        state:
+          value: 0.0
+        soilstore:
+          value: 80.0
+        temperature:
+          value: [12.0, 12.0, 12.0, 12.0, 12.0]
+        tsfc:
+          value: 12.0
+        lai_id:
+          value: 1.5  # Lower LAI due to urban stress
+          
+      dectr:
+        state:
+          value: 0.0
+        soilstore:
+          value: 60.0  # Limited soil for street trees
+        temperature:
+          value: [12.0, 12.0, 12.0, 12.0, 12.0]
+        tsfc:
+          value: 12.0
+        lai_id:
+          value: 2.5

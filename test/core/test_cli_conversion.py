@@ -18,6 +18,7 @@ import sys
 try:
     from supy.data_model.core import SUEWSConfig
     from supy.util.converter import detect_table_version
+
     SUPY_AVAILABLE = True
 except ImportError:
     SUPY_AVAILABLE = False
@@ -30,7 +31,7 @@ class TestCLIConversion:
     def test_data_dir(self):
         """Get the path to test data fixtures."""
         return Path(__file__).parent / "fixtures/data_test"
-    
+
     @pytest.fixture
     def legacy_format_dir(self):
         """Get the path to legacy format fixtures."""
@@ -38,28 +39,28 @@ class TestCLIConversion:
 
     def run_suews_convert(self, *args):
         """Run suews-convert command and return result.
-        
+
         Args:
             *args: Command line arguments to pass to suews-convert
-            
+
         Returns:
             subprocess.CompletedProcess: Result of the command execution
         """
         # Use the installed suews-convert command
         cmd = ["suews-convert"] + list(args)
-        
+
         result = subprocess.run(
             cmd,
             capture_output=True,
             text=True,
-            timeout=60  # 60 second timeout for conversion
+            timeout=60,  # 60 second timeout for conversion
         )
         return result
 
     def test_cli_help(self):
         """Test that the CLI help works."""
         result = self.run_suews_convert("--help")
-        
+
         assert result.returncode == 0, f"Help command failed: {result.stderr}"
         assert "Convert SUEWS tables" in result.stdout or "Usage:" in result.stdout
         assert "-i" in result.stdout or "--input" in result.stdout
@@ -67,120 +68,117 @@ class TestCLIConversion:
 
     @pytest.mark.skipif(
         not (Path(__file__).parent / "fixtures/data_test/AVL_1_LDN1").exists(),
-        reason="Single-layer test data not available"
+        reason="Single-layer test data not available",
     )
     def test_single_layer_conversion_via_cli(self, test_data_dir):
         """Test single-layer SUEWS-SS conversion using actual CLI.
-        
-        This test addresses GitHub issue #650: Problems converting urban-only 
+
+        This test addresses GitHub issue #650: Problems converting urban-only
         SUEWS-SS simulations without vegetation.
         """
         input_file = test_data_dir / "AVL_1_LDN1/RunControl.nml"
-        
+
         with tempfile.TemporaryDirectory() as tmpdir:
             output_file = Path(tmpdir) / "single_layer.yml"
-            
+
             # Run the actual CLI command
             result = self.run_suews_convert(
-                "-i", str(input_file),
-                "-o", str(output_file)
+                "-i", str(input_file), "-o", str(output_file)
             )
-            
+
             # Check the command succeeded
             assert result.returncode == 0, (
                 f"Conversion failed with return code {result.returncode}\n"
                 f"stdout: {result.stdout}\n"
                 f"stderr: {result.stderr}"
             )
-            
+
             # Check output messages
             assert "Successfully converted" in result.stdout or "✓" in result.stdout, (
                 f"Success message not found in output:\n{result.stdout}"
             )
-            
+
             # Verify the output file was created
             assert output_file.exists(), f"Output file not created at {output_file}"
-            
+
             # Verify the YAML content
             with open(output_file, "r") as f:
                 yaml_data = yaml.safe_load(f)
-            
+
             assert yaml_data is not None, "YAML file is empty"
             assert "model" in yaml_data, "Missing model section in YAML"
             assert "sites" in yaml_data, "Missing sites section in YAML"
             assert len(yaml_data["sites"]) > 0, "No sites in converted config"
-            
+
             # Check it's a single-layer configuration
             vertical_layers = yaml_data["sites"][0]["properties"]["vertical_layers"]
             assert vertical_layers["nlayer"]["value"] == 1, (
                 f"Expected 1 layer, got {vertical_layers['nlayer']['value']}"
             )
-            
+
             print("✓ Single-layer CLI conversion successful")
 
     @pytest.mark.skipif(
         not (Path(__file__).parent / "fixtures/data_test/AVL_6_310").exists(),
-        reason="Multi-layer test data not available"
+        reason="Multi-layer test data not available",
     )
     def test_multi_layer_conversion_via_cli(self, test_data_dir):
         """Test multi-layer SUEWS-SS conversion using actual CLI."""
         input_file = test_data_dir / "AVL_6_310/RunControl.nml"
-        
+
         with tempfile.TemporaryDirectory() as tmpdir:
             output_file = Path(tmpdir) / "multi_layer.yml"
-            
+
             # Run the actual CLI command
             result = self.run_suews_convert(
-                "-i", str(input_file),
-                "-o", str(output_file)
+                "-i", str(input_file), "-o", str(output_file)
             )
-            
-            # Check the command succeeded  
+
+            # Check the command succeeded
             assert result.returncode == 0, (
                 f"Conversion failed with return code {result.returncode}\n"
                 f"stdout: {result.stdout}\n"
                 f"stderr: {result.stderr}"
             )
-            
+
             # Verify the output file was created
             assert output_file.exists(), f"Output file not created at {output_file}"
-            
+
             # Verify the YAML content
             with open(output_file, "r") as f:
                 yaml_data = yaml.safe_load(f)
-            
+
             assert yaml_data is not None, "YAML file is empty"
             assert "model" in yaml_data, "Missing model section in YAML"
             assert "sites" in yaml_data, "Missing sites section in YAML"
-            
+
             # Check it's a multi-layer configuration
             vertical_layers = yaml_data["sites"][0]["properties"]["vertical_layers"]
             assert vertical_layers["nlayer"]["value"] > 1, (
                 f"Expected multiple layers, got {vertical_layers['nlayer']['value']}"
             )
-            
+
             print("✓ Multi-layer CLI conversion successful")
 
     def test_version_detection_via_cli(self, test_data_dir):
         """Test that auto-detection works correctly via CLI."""
         input_file = test_data_dir / "AVL_1_LDN1/RunControl.nml"
-        
+
         with tempfile.TemporaryDirectory() as tmpdir:
             output_file = Path(tmpdir) / "detected_version.yml"
-            
+
             # Run without specifying version (should auto-detect)
             result = self.run_suews_convert(
-                "-i", str(input_file),
-                "-o", str(output_file)
+                "-i", str(input_file), "-o", str(output_file)
             )
-            
+
             assert result.returncode == 0, f"Auto-detection failed: {result.stderr}"
-            
+
             # Check that version detection message appears
-            assert "Detected version:" in result.stdout or "Auto-detected" in result.stdout, (
-                f"Version detection message not found in:\n{result.stdout}"
-            )
-            
+            assert (
+                "Detected version:" in result.stdout or "Auto-detected" in result.stdout
+            ), f"Version detection message not found in:\n{result.stdout}"
+
             print("✓ Version auto-detection via CLI successful")
 
     def test_invalid_input_via_cli(self):
@@ -188,43 +186,42 @@ class TestCLIConversion:
         with tempfile.TemporaryDirectory() as tmpdir:
             # Test with non-existent file
             result = self.run_suews_convert(
-                "-i", "/nonexistent/file.nml",
-                "-o", str(Path(tmpdir) / "output.yml")
+                "-i", "/nonexistent/file.nml", "-o", str(Path(tmpdir) / "output.yml")
             )
-            
+
             # Should fail with non-zero exit code
             assert result.returncode != 0, "Should fail for non-existent input"
             assert "Error" in result.stderr or "not found" in result.stderr.lower(), (
                 f"Expected error message in stderr:\n{result.stderr}"
             )
-            
+
             print("✓ Invalid input handling via CLI successful")
 
     @pytest.mark.skipif(
         not (Path(__file__).parent / "fixtures/legacy_format/2024a").exists(),
-        reason="Legacy format test data not available"
-    )  
+        reason="Legacy format test data not available",
+    )
     def test_explicit_version_conversion_via_cli(self):
         """Test explicit version specification during conversion."""
         legacy_dir = Path(__file__).parent / "fixtures/legacy_format/2024a"
         input_file = legacy_dir / "RunControl.nml"
-        
+
         if not input_file.exists():
             pytest.skip("2024a RunControl.nml not found")
-        
+
         with tempfile.TemporaryDirectory() as tmpdir:
             output_file = Path(tmpdir) / "converted_with_version.yml"
-            
+
             # Convert with explicit version specification
             result = self.run_suews_convert(
-                "-i", str(input_file),
-                "-o", str(output_file),
-                "--from", "2024a"
+                "-i", str(input_file), "-o", str(output_file), "--from", "2024a"
             )
-            
-            assert result.returncode == 0, f"Conversion with explicit version failed: {result.stderr}"
+
+            assert result.returncode == 0, (
+                f"Conversion with explicit version failed: {result.stderr}"
+            )
             assert output_file.exists(), "Output file not created"
-            
+
             # Check output mentions the specified version
             if "2024a" in result.stdout or "Converting from 2024a" in result.stdout:
                 print("✓ Explicit version conversion via CLI successful")
@@ -237,84 +234,94 @@ class TestCLIConversion:
     @pytest.mark.skipif(not SUPY_AVAILABLE, reason="SuPy not available")
     @pytest.mark.skipif(
         not (Path(__file__).parent / "fixtures/legacy_format/2016a").exists(),
-        reason="2016a legacy format not available"
+        reason="2016a legacy format not available",
     )
     def test_oldest_to_latest_yaml_with_validation(self):
         """Test complete conversion chain from oldest (2016a) to latest YAML with full validation.
-        
+
         This is the most comprehensive test - ensures the complete conversion chain
         from 2016a through all intermediate versions to YAML works correctly,
         and validates the output can be loaded by SUEWSConfig.
         """
         legacy_dir = Path(__file__).parent / "fixtures/legacy_format/2016a"
         input_file = legacy_dir / "RunControl.nml"
-        
+
         if not input_file.exists():
             pytest.skip("2016a RunControl.nml not found")
-        
+
         with tempfile.TemporaryDirectory() as tmpdir:
             output_file = Path(tmpdir) / "converted_2016a.yml"
-            
+
             # Convert 2016a to latest YAML using explicit version specification
             result = self.run_suews_convert(
-                "-f", "2016a",
-                "-i", str(input_file),
-                "-o", str(output_file)
+                "-f", "2016a", "-i", str(input_file), "-o", str(output_file)
             )
-            
+
             # Check conversion succeeded
             assert result.returncode == 0, f"Conversion failed: {result.stderr}"
             assert output_file.exists(), "Output YAML file was not created"
-            
+
             # Verify YAML is valid
             with open(output_file, "r") as f:
                 yaml_data = yaml.safe_load(f)
-            
+
             assert yaml_data is not None, "YAML file is empty"
             assert "model" in yaml_data, "Missing model section"
             assert "sites" in yaml_data, "Missing sites section"
-            
+
             # Load with SUEWSConfig to validate structure
             try:
                 config = SUEWSConfig.from_yaml(str(output_file))
-                
+
                 # Comprehensive validation
                 assert config is not None
                 assert config.model is not None
                 assert len(config.sites) > 0
-                
+
                 # Check that site has key attributes
                 site = config.sites[0]
                 assert site is not None, "Site object not created"
-                
-                print("✓ 2016a successfully converted to latest YAML and validated with SUEWSConfig")
-                
+
+                print(
+                    "✓ 2016a successfully converted to latest YAML and validated with SUEWSConfig"
+                )
+
             except Exception as e:
                 pytest.fail(f"Converted YAML failed validation: {str(e)}")
 
     @pytest.mark.parametrize(
         "version",
-        ["2016a", "2018a", "2018b", "2018c", "2019a", "2020a", "2021a", "2024a", "2025a"],
+        [
+            "2016a",
+            "2018a",
+            "2018b",
+            "2018c",
+            "2019a",
+            "2020a",
+            "2021a",
+            "2024a",
+            "2025a",
+        ],
     )
     def test_legacy_version_auto_detection(self, version):
         """Test auto-detection of all legacy versions from benchmark data.
-        
+
         Note: This tests the detect_table_version function directly,
         not via CLI, but is included for completeness.
         """
         if not SUPY_AVAILABLE:
             pytest.skip("SuPy not available for version detection")
-            
+
         legacy_dir = Path(__file__).parent / "fixtures/legacy_format" / version
-        
+
         if not legacy_dir.exists():
             pytest.skip(f"Legacy format fixture for {version} not found")
-        
+
         # Test auto-detection
         detected_version = detect_table_version(str(legacy_dir))
-        
+
         assert detected_version is not None, f"Failed to detect version for {version}"
-        
+
         # Some versions are truly identical in table structure
         truly_identical = {
             "2018a": ["2018a", "2018b", "2018c"],
@@ -323,14 +330,16 @@ class TestCLIConversion:
             "2020a": ["2020a", "2021a"],
             "2021a": ["2020a", "2021a"],
         }
-        
+
         if version in truly_identical:
             assert detected_version in truly_identical[version], (
                 f"Version mismatch for {version}: got {detected_version}, "
                 f"acceptable: {truly_identical[version]}"
             )
             if detected_version != version:
-                print(f"✓ {version}: Detected as {detected_version} (truly identical structure)")
+                print(
+                    f"✓ {version}: Detected as {detected_version} (truly identical structure)"
+                )
             else:
                 print(f"✓ {version}: Correctly auto-detected")
         else:
@@ -341,11 +350,21 @@ class TestCLIConversion:
 
     @pytest.mark.parametrize(
         "version",
-        ["2016a", "2018a", "2018b", "2018c", "2019a", "2020a", "2021a", "2024a", "2025a"],
+        [
+            "2016a",
+            "2018a",
+            "2018b",
+            "2018c",
+            "2019a",
+            "2020a",
+            "2021a",
+            "2024a",
+            "2025a",
+        ],
     )
     def test_all_versions_to_yaml_with_auto_detection(self, version):
         """Test auto-detection and conversion of all SUEWS versions to YAML via CLI.
-        
+
         These are real legacy files from the SUEWS-Benchmark repository,
         which may contain messy formatting (tabs, inline comments, etc.).
         This comprehensive test covers:
@@ -356,19 +375,18 @@ class TestCLIConversion:
         """
         legacy_dir = Path(__file__).parent / "fixtures/legacy_format" / version
         input_file = legacy_dir / "RunControl.nml"
-        
+
         if not input_file.exists():
             pytest.skip(f"RunControl.nml not found for {version}")
-        
+
         with tempfile.TemporaryDirectory() as tmpdir:
             output_file = Path(tmpdir) / f"converted_{version}.yml"
-            
+
             # Convert with auto-detection (no --from flag)
             result = self.run_suews_convert(
-                "-i", str(input_file),
-                "-o", str(output_file)
+                "-i", str(input_file), "-o", str(output_file)
             )
-            
+
             # Check conversion succeeded
             assert result.returncode == 0, (
                 f"Conversion of {version} failed: {result.stderr}"
@@ -376,11 +394,11 @@ class TestCLIConversion:
             assert output_file.exists(), (
                 f"Output YAML file was not created for {version}"
             )
-            
+
             # Verify YAML is valid
             with open(output_file, "r", encoding="utf-8") as f:
                 yaml_data = yaml.safe_load(f)
-            
+
             assert yaml_data is not None, f"YAML file for {version} is empty"
             assert "model" in yaml_data, f"Missing model section in {version} YAML"
             assert "sites" in yaml_data, f"Missing sites section in {version} YAML"

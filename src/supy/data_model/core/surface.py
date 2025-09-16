@@ -797,10 +797,10 @@ class BuildingLayer(
         """
         # Prefix for the specific layer type
         prefix = facet_type
-        
+
         # Determine the number of layers to handle index format differences
         nlayer = int(df.loc[grid_id, ("nlayer", "0")])
-        
+
         # For single layer (nlayer=1), the index format is '0' instead of '(0,)'
         def get_layer_index(idx, nlayer):
             if nlayer == 1:
@@ -814,9 +814,7 @@ class BuildingLayer(
             "alb": df.loc[grid_id, (f"alb_{prefix}", layer_idx_str)],
             "emis": df.loc[grid_id, (f"emis_{prefix}", layer_idx_str)],
             "statelimit": df.loc[grid_id, (f"statelimit_{prefix}", layer_idx_str)],
-            "soilstorecap": df.loc[
-                grid_id, (f"soilstorecap_{prefix}", layer_idx_str)
-            ],
+            "soilstorecap": df.loc[grid_id, (f"soilstorecap_{prefix}", layer_idx_str)],
             "wetthresh": df.loc[grid_id, (f"wetthresh_{prefix}", layer_idx_str)],
         }
 
@@ -1140,14 +1138,22 @@ class VerticalLayers(BaseModel):
                 return str(i)
             else:
                 return f"({i},)"
-        
-        veg_frac = [df.loc[grid_id, ("veg_frac", get_layer_index(i, nlayer))] for i in range(nlayer)]
-        veg_scale = [df.loc[grid_id, ("veg_scale", get_layer_index(i, nlayer))] for i in range(nlayer)]
+
+        veg_frac = [
+            df.loc[grid_id, ("veg_frac", get_layer_index(i, nlayer))]
+            for i in range(nlayer)
+        ]
+        veg_scale = [
+            df.loc[grid_id, ("veg_scale", get_layer_index(i, nlayer))]
+            for i in range(nlayer)
+        ]
         building_frac = [
-            df.loc[grid_id, ("building_frac", get_layer_index(i, nlayer))] for i in range(nlayer)
+            df.loc[grid_id, ("building_frac", get_layer_index(i, nlayer))]
+            for i in range(nlayer)
         ]
         building_scale = [
-            df.loc[grid_id, ("building_scale", get_layer_index(i, nlayer))] for i in range(nlayer)
+            df.loc[grid_id, ("building_scale", get_layer_index(i, nlayer))]
+            for i in range(nlayer)
         ]
 
         # Reconstruct roof and wall properties for each layer

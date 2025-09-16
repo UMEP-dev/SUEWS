@@ -35,6 +35,10 @@
 ## 2025
 
 ### 16 Sep 2025
+- [bugfix] Fixed Windows Unicode encoding error in logging output
+  - Replaced Unicode checkmark characters (✓) with ASCII alternatives ([OK])
+  - Fixes UnicodeEncodeError on Windows console that cannot handle UTF-8 characters
+  - Affects table conversion logging and CLI output messages
 - [bugfix] Replaced timezonefinder with tzfpy to fix Windows installation failure ([#681](https://github.com/UMEP-dev/SUEWS/issues/681))
   - Switched from timezonefinder to tzfpy which provides pre-built Windows wheels
   - Maintains full DST calculation functionality on all platforms

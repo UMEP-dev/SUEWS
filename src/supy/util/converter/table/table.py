@@ -845,7 +845,7 @@ def clean_legacy_table(file_path, output_path=None):
             clean_summary.append(f"{len(cleaning_actions)} metadata lines removed")
 
         logger_supy.info(
-            f"✓ Cleaned {Path(file_path).name}: {', '.join(clean_summary)}"
+            f"[OK] Cleaned {Path(file_path).name}: {', '.join(clean_summary)}"
         )
     else:
         logger_supy.debug(f"File {Path(file_path).name} was already clean")

@@ -144,8 +144,8 @@ def convert_table_cmd(
             debug_dir=debug_dir,
             validate_profiles=not no_validate_profiles,
         )
-        click.secho(f"\n✓ Successfully created: {output_path}", fg="green")
+        click.secho(f"\n[OK] Successfully created: {output_path}", fg="green")
 
     except Exception as e:
-        click.secho(f"\n✗ Conversion failed: {e}", fg="red", err=True)
+        click.secho(f"\n[ERROR] Conversion failed: {e}", fg="red", err=True)
         sys.exit(1)

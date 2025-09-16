@@ -2082,7 +2082,6 @@ class SUEWSConfig(BaseModel):
 
         return self
 
-
     @model_validator(mode="after")
     def validate_hourly_profile_hours(self) -> "SUEWSConfig":
         """Validate hourly profiles have complete and valid hour coverage.

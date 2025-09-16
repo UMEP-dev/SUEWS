@@ -123,7 +123,9 @@ class TestSUEWSConfig(unittest.TestCase):
             model={
                 "physics": {
                     "storageheatmethod": {"value": 1},
-                    "ohmincqf": {"value": 1},  # This incompatible combination is now allowed at config level
+                    "ohmincqf": {
+                        "value": 1
+                    },  # This incompatible combination is now allowed at config level
                 }
             },
         )

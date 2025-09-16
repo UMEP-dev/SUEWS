@@ -1017,14 +1017,16 @@ sites:
 
 def test_phase_b_storageheatmethod_ohmincqf_validation():
     """Test StorageHeatMethod-OhmIncQf validation in Phase B."""
-    from supy.data_model.validation.pipeline.phase_b_science_check import validate_model_option_dependencies
+    from supy.data_model.validation.pipeline.phase_b_science_check import (
+        validate_model_option_dependencies,
+    )
 
     # Test incompatible combination: StorageHeatMethod=1 requires OhmIncQf=0
     yaml_data_incompatible = {
         "model": {
             "physics": {
                 "storageheatmethod": {"value": 1},  # OHM_WITHOUT_QF
-                "ohmincqf": {"value": 1},           # INCLUDE - incompatible!
+                "ohmincqf": {"value": 1},  # INCLUDE - incompatible!
             }
         }
     }
@@ -1032,10 +1034,15 @@ def test_phase_b_storageheatmethod_ohmincqf_validation():
     results = validate_model_option_dependencies(yaml_data_incompatible)
 
     # Should find the incompatible combination
-    storage_results = [r for r in results if r.parameter == "storageheatmethod-ohmincqf"]
+    storage_results = [
+        r for r in results if r.parameter == "storageheatmethod-ohmincqf"
+    ]
     assert len(storage_results) == 1
     assert storage_results[0].status == "ERROR"
-    assert "StorageHeatMethod is set to 1 and OhmIncQf is set to 1" in storage_results[0].message
+    assert (
+        "StorageHeatMethod is set to 1 and OhmIncQf is set to 1"
+        in storage_results[0].message
+    )
     assert "You should switch to OhmIncQf=0" in storage_results[0].message
 
     # Test compatible combination: StorageHeatMethod=1 with OhmIncQf=0
@@ -1043,7 +1050,7 @@ def test_phase_b_storageheatmethod_ohmincqf_validation():
         "model": {
             "physics": {
                 "storageheatmethod": {"value": 1},  # OHM_WITHOUT_QF
-                "ohmincqf": {"value": 0},           # EXCLUDE - compatible!
+                "ohmincqf": {"value": 0},  # EXCLUDE - compatible!
             }
         }
     }
@@ -1051,15 +1058,22 @@ def test_phase_b_storageheatmethod_ohmincqf_validation():
     results = validate_model_option_dependencies(yaml_data_compatible)
 
     # Should pass validation
-    storage_results = [r for r in results if r.parameter == "storageheatmethod-ohmincqf"]
+    storage_results = [
+        r for r in results if r.parameter == "storageheatmethod-ohmincqf"
+    ]
     assert len(storage_results) == 1
     assert storage_results[0].status == "PASS"
-    assert "StorageHeatMethod-OhmIncQf compatibility validated" in storage_results[0].message
+    assert (
+        "StorageHeatMethod-OhmIncQf compatibility validated"
+        in storage_results[0].message
+    )
 
 
 def test_phase_b_rsl_stabilitymethod_validation():
     """Test that existing RSL-StabilityMethod validation still works in Phase B."""
-    from supy.data_model.validation.pipeline.phase_b_science_check import validate_model_option_dependencies
+    from supy.data_model.validation.pipeline.phase_b_science_check import (
+        validate_model_option_dependencies,
+    )
 
     # Test incompatible combination: rslmethod=2 requires stabilitymethod=3
     yaml_data_incompatible = {
@@ -1083,14 +1097,16 @@ def test_phase_b_rsl_stabilitymethod_validation():
 
 def test_phase_b_model_option_dependencies_comprehensive():
     """Test validate_model_option_dependencies function with various configurations."""
-    from supy.data_model.validation.pipeline.phase_b_science_check import validate_model_option_dependencies
+    from supy.data_model.validation.pipeline.phase_b_science_check import (
+        validate_model_option_dependencies,
+    )
 
     # Test with minimal physics configuration (should all pass)
     yaml_data_minimal = {
         "model": {
             "physics": {
                 "storageheatmethod": {"value": 0},  # OBSERVED
-                "ohmincqf": {"value": 0},           # EXCLUDE
+                "ohmincqf": {"value": 0},  # EXCLUDE
                 "rslmethod": {"value": 0},
                 "stabilitymethod": {"value": 1},
             }
@@ -1101,10 +1117,14 @@ def test_phase_b_model_option_dependencies_comprehensive():
 
     # All should pass
     error_results = [r for r in results if r.status == "ERROR"]
-    assert len(error_results) == 0, f"Unexpected errors: {[r.message for r in error_results]}"
+    assert len(error_results) == 0, (
+        f"Unexpected errors: {[r.message for r in error_results]}"
+    )
 
     # Should have validation results for key parameters
-    storage_results = [r for r in results if r.parameter == "storageheatmethod-ohmincqf"]
+    storage_results = [
+        r for r in results if r.parameter == "storageheatmethod-ohmincqf"
+    ]
     assert len(storage_results) == 1
     assert storage_results[0].status == "PASS"
 
@@ -1113,9 +1133,9 @@ def test_phase_b_model_option_dependencies_comprehensive():
         "model": {
             "physics": {
                 "storageheatmethod": {"value": 1},  # OHM_WITHOUT_QF
-                "ohmincqf": {"value": 0},           # EXCLUDE - compatible
-                "rslmethod": {"value": 2},          # Should require stabilitymethod=3
-                "stabilitymethod": {"value": 1},    # Wrong value - incompatible
+                "ohmincqf": {"value": 0},  # EXCLUDE - compatible
+                "rslmethod": {"value": 2},  # Should require stabilitymethod=3
+                "stabilitymethod": {"value": 1},  # Wrong value - incompatible
             }
         }
     }
@@ -1127,11 +1147,15 @@ def test_phase_b_model_option_dependencies_comprehensive():
     pass_results = [r for r in results if r.status == "PASS"]
 
     # Find RSL error
-    rsl_errors = [r for r in error_results if "rslmethod-stabilitymethod" in r.parameter]
+    rsl_errors = [
+        r for r in error_results if "rslmethod-stabilitymethod" in r.parameter
+    ]
     assert len(rsl_errors) == 1
 
     # Find storage heat pass
-    storage_passes = [r for r in pass_results if "storageheatmethod-ohmincqf" in r.parameter]
+    storage_passes = [
+        r for r in pass_results if "storageheatmethod-ohmincqf" in r.parameter
+    ]
     assert len(storage_passes) == 1
 
     # Test with missing physics section (should handle gracefully)

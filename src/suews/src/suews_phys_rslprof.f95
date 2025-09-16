@@ -72,7 +72,8 @@ CONTAINS
       REAL(KIND(1D0)), PARAMETER :: pi = 4.*ATAN(1.0), r = 0.1
       REAL(KIND(1D0)), PARAMETER :: a1 = 4., a2 = -0.1, a3 = 1.5, a4 = -1. ! constraints to determine beta
 
-      REAL(KIND(1D0)), PARAMETER :: porosity_evetr = 0.32 ! assumed porosity of evergreen trees, ref: Lai et al. (2022), http://dx.doi.org/10.2139/ssrn.4058842
+      REAL(KIND(1D0)), PARAMETER :: porosity_evetr = 0.32 ! assumed porosity of evergreen trees
+      ! ref: Lai et al. (2022), http://dx.doi.org/10.2139/ssrn.4058842
 
       ! Variables array [z,U,T,q, 12 debug vars]
       ! z: height array
@@ -406,8 +407,10 @@ CONTAINS
          psimz = stab_psi_mom(StabilityMethod, (zarray(z) - zd_RSL)/L_MOD_RSL)
          psihz = stab_psi_heat(StabilityMethod, (zarray(z) - zd_RSL)/L_MOD_RSL)
          dataoutLineURSL(z) = UStar_RSL/kappa * (LOG((zarray(z) - zd_RSL)/z0_RSL) - psimz + psimz0 + psihatm_z(z))
-         dataoutLineTRSL(z) = TStar_RSL/kappa * (LOG((zarray(z) - zd_RSL)/(zMeas - zd_RSL)) - psihz + psihza + psihath_z(z) - psihath_z(nz))
-         dataoutLineqRSL(z) = qStar_RSL/kappa * (LOG((zarray(z) - zd_RSL)/(zMeas - zd_RSL)) - psihz + psihza + psihath_z(z) - psihath_z(nz))
+         dataoutLineTRSL(z) = TStar_RSL/kappa * (LOG((zarray(z) - zd_RSL)/(zMeas - zd_RSL)) &
+                              - psihz + psihza + psihath_z(z) - psihath_z(nz))
+         dataoutLineqRSL(z) = qStar_RSL/kappa * (LOG((zarray(z) - zd_RSL)/(zMeas - zd_RSL)) &
+                              - psihz + psihza + psihath_z(z) - psihath_z(nz))
       END DO
 
       ! Step 4: Within canopy profiles (exponential)
@@ -603,7 +606,8 @@ CONTAINS
 !       REAL(KIND(1D0)), PARAMETER :: pi = 4.*ATAN(1.0), r = 0.1
 !       REAL(KIND(1D0)), PARAMETER :: a1 = 4., a2 = -0.1, a3 = 1.5, a4 = -1. ! constraints to determine beta
 
-!       REAL(KIND(1D0)), PARAMETER :: porosity_evetr = 0.32 ! assumed porosity of evergreen trees, ref: Lai et al. (2022), http://dx.doi.org/10.2139/ssrn.4058842
+!       REAL(KIND(1D0)), PARAMETER :: porosity_evetr = 0.32 ! assumed porosity of evergreen trees
+      ! ref: Lai et al. (2022), http://dx.doi.org/10.2139/ssrn.4058842
 
 !       ! Variables array [z,U,T,q, 12 debug vars]
 !       ! z: height array
@@ -987,7 +991,8 @@ CONTAINS
       REAL(KIND(1D0)), PARAMETER :: pi = 4.*ATAN(1.0), r = 0.1
       REAL(KIND(1D0)), PARAMETER :: a1 = 4., a2 = -0.1, a3 = 1.5, a4 = -1. ! constraints to determine beta
 
-      REAL(KIND(1D0)), PARAMETER :: porosity_evetr = 0.32 ! assumed porosity of evergreen trees, ref: Lai et al. (2022), http://dx.doi.org/10.2139/ssrn.4058842
+      REAL(KIND(1D0)), PARAMETER :: porosity_evetr = 0.32 ! assumed porosity of evergreen trees
+      ! ref: Lai et al. (2022), http://dx.doi.org/10.2139/ssrn.4058842
 
       ! Variables array [z,U,T,q, 12 debug vars]
       ! z: height array
@@ -1246,7 +1251,8 @@ CONTAINS
             DO z = nz_can, nz
                psimz = stab_psi_mom(StabilityMethod, (zarray(z) - zd_RSL)/L_MOD_RSL)
                psihz = stab_psi_heat(StabilityMethod, (zarray(z) - zd_RSL)/L_MOD_RSL)
-               dataoutLineURSL(z) = (LOG((zarray(z) - zd_RSL)/z0_RSL) - psimz + psimz0 + psihatm_z(z))/kappa ! eqn. 3 in Theeuwes et al. (2019 BLM)
+               dataoutLineURSL(z) = (LOG((zarray(z) - zd_RSL)/z0_RSL) - psimz + psimz0 + psihatm_z(z))/kappa &
+                                    ! eqn. 3 in Theeuwes et al. (2019 BLM)
                ! eqn. 4 in Theeuwes et al. (2019 BLM)
                dataoutLineTRSL(z) = (LOG((zarray(z) - zd_RSL)/(zMeas - zd_RSL)) - psihz + psihza + psihath_z(z) - psihath_z(nz)) &
                                     /kappa
@@ -1435,7 +1441,8 @@ CONTAINS
       phim_mid = stab_phi_mom(StabilityMethod, (z_mid - zd_RSL)/L_MOD)
       phim_btm = stab_phi_mom(StabilityMethod, (z_btm - zd_RSL)/L_MOD)
 
-      psihatm_btm = psihatm_mid + dz_above/2.*phim_mid*(cm*EXP(-1.*c2*beta*(z_mid - zd_RSL)/elm)) & !Taylor's approximation for integral
+      psihatm_btm = psihatm_mid + dz_above/2.*phim_mid*(cm*EXP(-1.*c2*beta*(z_mid - zd_RSL)/elm)) & 
+                    !Taylor's approximation for integral
                     /(z_mid - zd_RSL)
       psihatm_btm = psihatm_btm + dz_above/2.*phim_btm*(cm*EXP(-1.*c2*beta*(z_btm - zd_RSL)/elm)) &
                     /(z_btm - zd_RSL)
@@ -1511,7 +1518,8 @@ CONTAINS
       phih_mid = stab_phi_heat(StabilityMethod, (z_mid - zd_RSL)/L_MOD)
       phih_btm = stab_phi_heat(StabilityMethod, (z_btm - zd_RSL)/L_MOD)
 
-      psihath_btm = psihath_mid + dz_above/2.*phih_mid*(ch*EXP(-1.*c2h*beta*(z_mid - zd_RSL)/elm)) & !Taylor's approximation for integral
+      psihath_btm = psihath_mid + dz_above/2.*phih_mid*(ch*EXP(-1.*c2h*beta*(z_mid - zd_RSL)/elm)) & 
+                    !Taylor's approximation for integral
                     /(z_mid - zd_RSL)
       psihath_btm = psihath_btm + dz_above/2.*phih_btm*(ch*EXP(-1.*c2h*beta*(z_btm - zd_RSL)/elm)) &
                     /(z_btm - zd_RSL)
@@ -1955,7 +1963,8 @@ CONTAINS
       REAL(KIND(1D0)), PARAMETER :: r = 0.1
       REAL(KIND(1D0)), PARAMETER :: a1 = 4., a2 = -0.1, a3 = 1.5, a4 = -1. ! constraints to determine beta
       REAL(KIND(1D0)), PARAMETER :: Zh_min = 0.4 ! limit for minimum canyon height used in RSL module
-      REAL(KIND(1D0)), PARAMETER :: porosity_evetr = 0.32 ! assumed porosity of evergreen trees, ref: Lai et al. (2022), http://dx.doi.org/10.2139/ssrn.4058842
+      REAL(KIND(1D0)), PARAMETER :: porosity_evetr = 0.32 ! assumed porosity of evergreen trees
+      ! ref: Lai et al. (2022), http://dx.doi.org/10.2139/ssrn.4058842
 
       ! under stable conditions, set a threshold for L_MOD to avoid numerical issues. TS 28 Oct 2019
       ! L_MOD = merge(L_MOD, 300.d1, L_MOD < 300.)

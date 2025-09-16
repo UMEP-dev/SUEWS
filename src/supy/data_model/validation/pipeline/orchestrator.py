@@ -326,7 +326,7 @@ def run_phase_a(
             return False
 
         if not silent:
-            print("✓ Phase A completed")
+            print("[OK] Phase A completed")
         return True
 
     except Exception as e:
@@ -391,7 +391,7 @@ def run_phase_b(
             return False
 
         if not silent:
-            print("✓ Phase B completed")
+            print("[OK] Phase B completed")
         return True
 
     except ValueError as e:
@@ -629,7 +629,7 @@ Phase {phase_str} passed
                 # Restore logging level before return
                 supy_logger.setLevel(original_level)
                 if not silent:
-                    print("✓ Phase C completed")
+                    print("[OK] Phase C completed")
                 return True
 
             except Exception as validation_error:
@@ -975,7 +975,7 @@ Modes:
                 silent=True,  # Suppress phase function output, main function handles terminal output
             )
             if phase_b_success:
-                print("✓ Phase B completed")
+                print("[OK] Phase B completed")
                 print("Report:", science_report_file)
                 print("Updated YAML:", science_yaml_file)
             else:
@@ -1006,7 +1006,7 @@ Modes:
                 silent=True,  # Suppress phase function output, main function handles terminal output
             )
             if phase_c_success:
-                print("✓ Phase C completed")
+                print("[OK] Phase C completed")
                 print("Report:", pydantic_report_file)
                 print("Updated YAML:", pydantic_yaml_file)
             else:
@@ -1059,7 +1059,7 @@ Modes:
                 )
                 return 1
 
-            print("✓ Phase A completed")
+            print("[OK] Phase A completed")
             print("Phase B: Scientific validation check...")
             phase_b_success = run_phase_b(
                 user_yaml_file,
@@ -1085,7 +1085,7 @@ Modes:
                 except Exception:
                     pass  # Don't fail if cleanup doesn't work
 
-                print("✓ Phase B completed")
+                print("[OK] Phase B completed")
                 print("Report:", science_report_file)
                 print("Updated YAML:", science_yaml_file)
                 return 0
@@ -1133,7 +1133,7 @@ Modes:
                 )
                 return 1
 
-            print("✓ Phase A completed")
+            print("[OK] Phase A completed")
             print("Phase C: Pydantic validation check...")
             phase_c_success = run_phase_c(
                 uptodate_file,  # Use Phase A output as input to Phase C
@@ -1156,7 +1156,7 @@ Modes:
                 except Exception:
                     pass  # Don't fail if cleanup doesn't work
 
-                print("✓ Phase C completed")
+                print("[OK] Phase C completed")
                 print("Report:", pydantic_report_file)
                 print("Updated YAML:", pydantic_yaml_file)
                 return 0
@@ -1207,7 +1207,7 @@ Modes:
                 )
                 return 1
 
-            print("✓ Phase B completed")
+            print("[OK] Phase B completed")
             print("Phase C: Pydantic validation check...")
             phase_c_success = run_phase_c(
                 science_yaml_file,  # Use Phase B output as input to Phase C
@@ -1230,7 +1230,7 @@ Modes:
                 except Exception:
                     pass  # Don't fail if cleanup doesn't work
 
-                print("✓ Phase C completed")
+                print("[OK] Phase C completed")
                 print("Report:", pydantic_report_file)
                 print("Updated YAML:", pydantic_yaml_file)
                 return 0
@@ -1279,7 +1279,7 @@ Modes:
                 )
                 return 1
 
-            print("✓ Phase A completed")
+            print("[OK] Phase A completed")
 
             # Step 2: Run Phase B (A passed, try B)
             print("Phase B: Scientific validation check...")
@@ -1330,7 +1330,7 @@ Modes:
                 )
                 return 1
 
-            print("✓ Phase B completed")
+            print("[OK] Phase B completed")
 
             # Step 3: Run Phase C (both A and B passed)
             print("Phase C: Pydantic validation check...")
@@ -1384,7 +1384,7 @@ Modes:
             except Exception:
                 pass  # Don't fail if cleanup doesn't work
 
-            print("✓ Phase C completed")
+            print("[OK] Phase C completed")
             print("Report:", pydantic_report_file)
             print("Updated YAML:", pydantic_yaml_file)
             return 0

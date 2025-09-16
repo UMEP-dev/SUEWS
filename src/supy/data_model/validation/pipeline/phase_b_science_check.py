@@ -748,6 +748,7 @@ def adjust_surface_temperatures(
     for site_idx, site in enumerate(sites):
         props = site.get("properties", {})
         initial_states = site.get("initial_states", {})
+        stebbs = props.get("stebbs", {})
 
         lat_entry = props.get("lat", {})
         lat = lat_entry.get("value") if isinstance(lat_entry, dict) else lat_entry
@@ -822,8 +823,25 @@ def adjust_surface_temperatures(
 
             initial_states[surface_type] = surf
 
+        # Update STEBBS temperature parameter values to avg_temp
+        for key in ("WallOutdoorSurfaceTemperature", "WindowOutdoorSurfaceTemperature"):
+            if key in stebbs and isinstance(stebbs[key], dict):
+                old_val = stebbs[key].get("value")
+                if old_val != avg_temp:
+                    stebbs[key]["value"] = avg_temp
+                    adjustments.append(
+                        ScientificAdjustment(
+                            parameter=f"stebbs.{key}",
+                            site_index=site_idx,
+                            old_value=str(old_val),
+                            new_value=f"{avg_temp}°C",
+                            reason=f"Set from CRU data for coordinates ({lat:.2f}, {lng:.2f}) for month {month}",
+                        )
+                    )
+
         # Save back to site
         site["initial_states"] = initial_states
+        props["stebbs"] = stebbs
         yaml_data["sites"][site_idx] = site
 
     return yaml_data, adjustments

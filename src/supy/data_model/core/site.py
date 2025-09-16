@@ -1540,52 +1540,58 @@ class StebbsProperties(BaseModel):
     model_config = ConfigDict(title="STEBBS")
 
     WallInternalConvectionCoefficient: Optional[FlexibleRefValue(float)] = Field(
-        default=0.0,
+        default=7.69,  # Default value calculated from the CIBSE GUIDE A, Table 3.47, Page 176
         description="Internal convection coefficient of walls and roof [W m-2 K-1]",
         json_schema_extra={
             "unit": "W m^-2 K^-1",
             "display_name": "Wallinternalconvectioncoefficient",
         },
+        gt=0.0,
     )
     InternalMassConvectionCoefficient: Optional[FlexibleRefValue(float)] = Field(
-        default=0.0,
+        default=7.69,  # Default value calculated from the CIBSE GUIDE A, Table 3.47, Page 176
         description="Convection coefficient of internal mass [W m-2 K-1]",
         json_schema_extra={
             "unit": "W m^-2 K^-1",
             "display_name": "Internalmassconvectioncoefficient",
         },
+        gt=0.0,
     )
     FloorInternalConvectionCoefficient: Optional[FlexibleRefValue(float)] = Field(
-        default=0.0,
+        default=5.88,  # Default value calculated from the CIBSE GUIDE A, Table 3.47, Page 176
         description="Internal convection coefficient of ground floor [W m-2 K-1]",
         json_schema_extra={
             "unit": "W m^-2 K^-1",
             "display_name": "Floorinternalconvectioncoefficient",
         },
+        gt=0.0,
     )
     WindowInternalConvectionCoefficient: Optional[FlexibleRefValue(float)] = Field(
-        default=0.0,
+        default=7.69,  # Default value calculated from the CIBSE GUIDE A, Table 3.47, Page 176
         description="Internal convection coefficient of windows [W m-2 K-1]",
         json_schema_extra={
             "unit": "W m^-2 K^-1",
             "display_name": "Windowinternalconvectioncoefficient",
         },
+        gt=0.0,
     )
     WallExternalConvectionCoefficient: Optional[FlexibleRefValue(float)] = Field(
-        default=0.0,
+        default=25.0,  # Default value calculated from the CIBSE GUIDE A, Table 3.47, Page 176
         description="Initial external convection coefficient of walls and roof [W m-2 K-1]",
         json_schema_extra={
             "unit": "W m^-2 K^-1",
             "display_name": "Wallexternalconvectioncoefficient",
         },
+        gt=0.0,
     )
     WindowExternalConvectionCoefficient: Optional[FlexibleRefValue(float)] = Field(
-        default=0.0,
+        default=25.0,  # Default value calculated from the CIBSE GUIDE A, Table 3.47, Page 176
         description="Initial external convection coefficient of windows [W m-2 K-1]",
         json_schema_extra={
             "unit": "W m^-2 K^-1",
             "display_name": "Windowexternalconvectioncoefficient",
         },
+        gt=0.0,
     )
     GroundDepth: Optional[FlexibleRefValue(float)] = Field(
         default=0.0,

@@ -35,10 +35,22 @@
 ## 2025
 
 ### 16 Sep 2025
+- [bugfix] Fixed SUEWS-SS to YAML conversion failure for single-layer configurations ([#650](https://github.com/UMEP-dev/SUEWS/issues/650))
+  - Fixed index format mismatch in `VerticalLayers.from_df_state` and `BuildingLayer.from_df_state`
+  - Single-layer configurations now correctly use index format '0' instead of '(0,)'
+  - Multi-layer configurations continue to use '(0,)', '(1,)' format
+  - Enables successful conversion of urban-only SUEWS-SS simulations without vegetation
 - [doc] Added simple instructions for testing development versions ([#652](https://github.com/UMEP-dev/SUEWS/issues/652))
   - Added concise section in README.md for developers to test pre-release versions from test.pypi.org
   - Included uv-based installation method to resolve dependency issues
   - Provided clear steps for creating fresh environment and verifying installation
+- [maintenance] Refactored all conversion tests to use proper subprocess-based CLI invocation
+  - Migrated all tests from test/core/test_cmd_to_yaml.py to test/test_cli_conversion.py
+  - Tests now properly invoke suews-convert command as it would be used in a terminal
+  - Removed problematic Click test runner that mocked internal functions
+  - Added validation tests to ensure converted YAML files can be loaded by SUEWSConfig
+  - Verified that both single-layer and multi-layer conversions produce valid YAML structures
+  - All conversion tests now use subprocess.run() for authentic CLI testing
 
 ### 21 Aug 2025
 - [doc] Added comprehensive developer onboarding guide (`dev-ref/onboarding-guide.md`)

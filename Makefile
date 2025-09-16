@@ -1,5 +1,5 @@
 # SUEWS Simplified Makefile - Essential recipes only
-.PHONY: help setup dev test docs clean format
+.PHONY: help setup dev test docs clean format lint check-lines
 
 # Default Python
 PYTHON := python
@@ -13,6 +13,8 @@ help:
 	@echo "  docs    - Build documentation"  
 	@echo "  clean   - Smart clean (keeps .venv if active)"
 	@echo "  format  - Format Python and Fortran code"
+	@echo "  lint    - Check code formatting and style"
+	@echo "  check-lines - Check Fortran line lengths"
 	@echo ""
 	@echo "Quick start:"
 	@echo "  With uv:    make setup && source .venv/bin/activate && make dev"
@@ -92,3 +94,12 @@ clean:
 format:
 	ruff format src test
 	fprettify --config .fprettify.rc src/suews/src/*.f95 2>/dev/null || true
+
+# Check code formatting and line lengths
+lint: check-lines
+	ruff check src test
+	ruff format --check src test
+
+# Check Fortran line lengths (will fail if lines > 132 chars)
+check-lines:
+	@$(PYTHON) .github/scripts/check_fortran_lines.py

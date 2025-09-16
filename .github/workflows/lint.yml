@@ -1,0 +1,65 @@
+name: Lint
+
+on:
+  pull_request:
+    paths:
+      - '**.f90'
+      - '**.f95'
+      - '**.py'
+      - '.github/workflows/lint.yml'
+      - '.fprettify.rc'
+      - 'pyproject.toml'
+  push:
+    branches: [master, main]
+    paths:
+      - '**.f90'
+      - '**.f95'
+      - '**.py'
+
+jobs:
+  lint-fortran:
+    name: Lint Fortran
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Install fprettify
+        run: pip install fprettify
+      
+      - name: Check Fortran line lengths
+        run: |
+          python .github/scripts/check_fortran_lines.py
+      
+      - name: Check Fortran formatting
+        run: |
+          # Check if fprettify would make changes
+          find src -name "*.f95" -o -name "*.f90" | while read file; do
+            if ! fprettify --config .fprettify.rc --diff "$file" > /dev/null 2>&1; then
+              echo "::warning file=$file::File needs formatting with fprettify"
+            fi
+          done
+  
+  lint-python:
+    name: Lint Python
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Install ruff
+        run: pip install ruff
+      
+      - name: Run ruff check
+        run: ruff check src test
+      
+      - name: Check Python formatting
+        run: ruff format --check src test

@@ -798,27 +798,38 @@ class BuildingLayer(
         # Prefix for the specific layer type
         prefix = facet_type
 
-        # Extract scalar parameters
+        # Determine the number of layers to handle index format differences
+        nlayer = int(df.loc[grid_id, ("nlayer", "0")])
+
+        # For single layer (nlayer=1), the index format is '0' instead of '(0,)'
+        def get_layer_index(idx, nlayer):
+            if nlayer == 1:
+                return str(idx)
+            else:
+                return f"({idx},)"
+
+        # Extract scalar parameters with correct index format
+        layer_idx_str = get_layer_index(layer_idx, nlayer)
         params = {
-            "alb": df.loc[grid_id, (f"alb_{prefix}", f"({layer_idx},)")],
-            "emis": df.loc[grid_id, (f"emis_{prefix}", f"({layer_idx},)")],
-            "statelimit": df.loc[grid_id, (f"statelimit_{prefix}", f"({layer_idx},)")],
-            "soilstorecap": df.loc[
-                grid_id, (f"soilstorecap_{prefix}", f"({layer_idx},)")
-            ],
-            "wetthresh": df.loc[grid_id, (f"wetthresh_{prefix}", f"({layer_idx},)")],
+            "alb": df.loc[grid_id, (f"alb_{prefix}", layer_idx_str)],
+            "emis": df.loc[grid_id, (f"emis_{prefix}", layer_idx_str)],
+            "statelimit": df.loc[grid_id, (f"statelimit_{prefix}", layer_idx_str)],
+            "soilstorecap": df.loc[grid_id, (f"soilstorecap_{prefix}", layer_idx_str)],
+            "wetthresh": df.loc[grid_id, (f"wetthresh_{prefix}", layer_idx_str)],
         }
 
         # Extract optional parameters
         if facet_type == "roof":
-            params["roof_albedo_dir_mult_fact"] = df.loc[
-                grid_id, (f"roof_albedo_dir_mult_fact", f"(0, {layer_idx})")
-            ]
+            # For these optional parameters, check if they exist in the DataFrame
+            opt_key = (f"roof_albedo_dir_mult_fact", f"(0, {layer_idx})")
+            if opt_key in df.columns:
+                params["roof_albedo_dir_mult_fact"] = df.loc[grid_id, opt_key]
 
         elif facet_type == "wall":
-            params["wall_specular_frac"] = df.loc[
-                grid_id, (f"wall_specular_frac", f"(0, {layer_idx})")
-            ]
+            # For these optional parameters, check if they exist in the DataFrame
+            opt_key = (f"wall_specular_frac", f"(0, {layer_idx})")
+            if opt_key in df.columns:
+                params["wall_specular_frac"] = df.loc[grid_id, opt_key]
 
         # Extract ThermalLayers
         thermal_layers = ThermalLayers.from_df_state(df, grid_id, layer_idx, facet_type)
@@ -1121,13 +1132,28 @@ class VerticalLayers(BaseModel):
         height = [df.loc[grid_id, ("height", f"({i},)")] for i in range(nlayer + 1)]
 
         # Extract vegetation and building parameters for each layer
-        veg_frac = [df.loc[grid_id, ("veg_frac", f"({i},)")] for i in range(nlayer)]
-        veg_scale = [df.loc[grid_id, ("veg_scale", f"({i},)")] for i in range(nlayer)]
+        # For single layer (nlayer=1), the index format is '0' instead of '(0,)'
+        def get_layer_index(i, nlayer):
+            if nlayer == 1:
+                return str(i)
+            else:
+                return f"({i},)"
+
+        veg_frac = [
+            df.loc[grid_id, ("veg_frac", get_layer_index(i, nlayer))]
+            for i in range(nlayer)
+        ]
+        veg_scale = [
+            df.loc[grid_id, ("veg_scale", get_layer_index(i, nlayer))]
+            for i in range(nlayer)
+        ]
         building_frac = [
-            df.loc[grid_id, ("building_frac", f"({i},)")] for i in range(nlayer)
+            df.loc[grid_id, ("building_frac", get_layer_index(i, nlayer))]
+            for i in range(nlayer)
         ]
         building_scale = [
-            df.loc[grid_id, ("building_scale", f"({i},)")] for i in range(nlayer)
+            df.loc[grid_id, ("building_scale", get_layer_index(i, nlayer))]
+            for i in range(nlayer)
         ]
 
         # Reconstruct roof and wall properties for each layer

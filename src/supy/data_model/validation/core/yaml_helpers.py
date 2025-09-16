@@ -409,7 +409,7 @@ def get_mean_monthly_air_temperature(
 
         if nearby_data.empty:
             raise ValueError(
-                f"No CRU data found within {spatial_res_expanded}° of coordinates "
+                f"No CRU data found within {spatial_res_expanded} degrees of coordinates "
                 f"({lat}, {lon}) for month {month}. Try increasing spatial resolution or "
                 f"check if coordinates are within CRU data coverage area."
             )
@@ -807,7 +807,7 @@ def precheck_update_temperature(data: dict, start_date: str) -> dict:
         avg_temp = get_mean_monthly_air_temperature(lat, lng, month)
         coord_info = f"lat={lat}, lng={lng}"
         logger_supy.info(
-            f"[site #{site_idx}] Setting surface temperatures to {avg_temp} °C for month {month} ({coord_info})"
+            f"[site #{site_idx}] Setting surface temperatures to {avg_temp} C for month {month} ({coord_info})"
         )
 
         # Loop over all surface types

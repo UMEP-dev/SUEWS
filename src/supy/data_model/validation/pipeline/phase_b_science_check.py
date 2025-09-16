@@ -751,7 +751,7 @@ def get_mean_monthly_air_temperature(
 
         if nearby_data.empty:
             raise ValueError(
-                f"No CRU data found within {spatial_res_expanded}° of coordinates "
+                f"No CRU data found within {spatial_res_expanded} degrees of coordinates "
                 f"({lat}, {lon}) for month {month}. Try increasing spatial resolution or "
                 f"check if coordinates are within CRU data coverage area."
             )
@@ -765,7 +765,7 @@ def get_mean_monthly_air_temperature(
     closest_lon = month_data.loc[closest_idx, "Longitude"]
     logger_supy.debug(
         f"CRU temperature for ({lat:.2f}, {lon:.2f}) month {month}: "
-        f"{temperature:.2f}°C from grid cell ({closest_lat:.2f}, {closest_lon:.2f})"
+        f"{temperature:.2f} C from grid cell ({closest_lat:.2f}, {closest_lon:.2f})"
     )
 
     return float(temperature)
@@ -850,7 +850,7 @@ def adjust_surface_temperatures(
                         parameter=f"initial_states.{surface_type}",
                         site_index=site_idx,
                         old_value=param_list,
-                        new_value=f"{avg_temp}°C",
+                        new_value=f"{avg_temp} C",
                         reason=f"Set from CRU data for coordinates ({lat:.2f}, {lng:.2f}) for month {month}",
                     )
                 )
@@ -868,7 +868,7 @@ def adjust_surface_temperatures(
                             parameter=f"stebbs.{key}",
                             site_index=site_idx,
                             old_value=str(old_val),
-                            new_value=f"{avg_temp}°C",
+                            new_value=f"{avg_temp} C",
                             reason=f"Set from CRU data for coordinates ({lat:.2f}, {lng:.2f}) for month {month}",
                         )
                     )

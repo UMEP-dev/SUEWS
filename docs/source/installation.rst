@@ -60,6 +60,15 @@ One can install ``supy`` using ``pip``:
 
 
 
+Development Versions
+--------------------
+
+For testing pre-release versions from test.pypi.org, see :doc:`installation-dev`.
+
+.. warning::
+
+   Development versions are unstable and not recommended for production use or research publications.
+
 Development build
 -----------------
 

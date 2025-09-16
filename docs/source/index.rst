@@ -133,6 +133,7 @@ How to support SUEWS?
    :hidden:
 
    installation
+   installation-dev
    workflow
    sub-tutorials/tutorials
    inputs/index

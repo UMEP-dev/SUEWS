@@ -169,7 +169,7 @@ def test_validate_lai_ranges_invalid_laimin_laimax():
     assert cfg._validation_summary["total_warnings"] >= 1
     assert "LAI range validation" in cfg._validation_summary["issue_types"]
     assert any(
-        "laimin (5.0) must be ≤ laimax (3.0)" in msg
+        "laimin (5.0) must be <= laimax (3.0)" in msg
         for msg in cfg._validation_summary["detailed_messages"]
     )
 
@@ -192,7 +192,7 @@ def test_validate_lai_ranges_invalid_baset_gddfull():
     assert cfg._validation_summary["total_warnings"] >= 1
     assert "LAI range validation" in cfg._validation_summary["issue_types"]
     assert any(
-        "baset (15.0) must be ≤ gddfull (10.0)" in msg
+        "baset (15.0) must be <= gddfull (10.0)" in msg
         for msg in cfg._validation_summary["detailed_messages"]
     )
 

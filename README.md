@@ -187,10 +187,13 @@ SUEWS maintains consistent code style through automated formatting:
 
 For developers who need to test pre-release versions from test.pypi.org:
 
+**Note:** A virtual environment (`venv`) keeps development packages isolated from your main Python installation, preventing conflicts.
+
 **1. Create fresh environment:**
 ```bash
 python3 -m venv .venv-dev
 source .venv-dev/bin/activate  # Windows: .venv-dev\Scripts\activate
+# You'll see (.venv-dev) in your terminal prompt when activated
 ```
 
 **2. Install uv package manager:**
@@ -218,6 +221,13 @@ python -c "import supy; print(f'SuPy version: {supy.__version__}')"
 **6. Test functionality:**
 ```bash
 python -c "import supy as sp; sp.load_sample_data(); print('✓ Installation successful')"
+```
+
+**For future use:** Always activate the environment before working:
+```bash
+source .venv-dev/bin/activate  # Linux/macOS
+# or: .venv-dev\Scripts\activate  # Windows
+# Use 'deactivate' to exit the environment
 ```
 
 **Why uv?** Standard `pip install` from test.pypi.org fails due to dependency resolution issues. The `uv` tool with `--index-strategy unsafe-best-match` correctly resolves dependencies across both PyPI and Test PyPI.

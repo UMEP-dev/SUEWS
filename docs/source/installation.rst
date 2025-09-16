@@ -74,6 +74,10 @@ Testing Development Versions
 
 Development versions are published to `test.pypi.org <https://test.pypi.org/project/supy/>`_ for testing new features before official release.
 
+**What is a virtual environment?**
+
+A virtual environment (``venv``) is an isolated Python installation that keeps development packages separate from your main Python installation. This prevents version conflicts and allows you to test different versions safely.
+
 **Installation Steps:**
 
 1. **Create an isolated environment**::
@@ -81,6 +85,8 @@ Development versions are published to `test.pypi.org <https://test.pypi.org/proj
     python3 -m venv .venv-dev
     source .venv-dev/bin/activate  # Linux/macOS
     # or: .venv-dev\Scripts\activate  # Windows
+    
+    # You'll see (.venv-dev) in your terminal prompt when activated
 
 2. **Install uv package manager** (handles test.pypi dependencies better than pip)::
 
@@ -99,6 +105,17 @@ Development versions are published to `test.pypi.org <https://test.pypi.org/proj
 
     python -c "import supy; print(f'SuPy version: {supy.__version__}')"
     # Should show: 2025.9.16.dev0
+
+**For future use:**
+
+Always activate the virtual environment before working with the development version::
+
+    source .venv-dev/bin/activate  # Linux/macOS
+    # or: .venv-dev\Scripts\activate  # Windows
+
+To deactivate when finished::
+
+    deactivate
 
 .. note::
 

@@ -1190,9 +1190,12 @@ SUBROUTINE suewsstebbscouple(self, flginit, datetimeLine, &
       Qsw_absorbed_window_tstepTotal = self%EnergyExchanges(2) !Qsw_absorbed_window_tstepTotal
       Qsw_absorbed_wallroof_tstepTotal = self%EnergyExchanges(3) !Qsw_absorbed_wallroof_tstepTotal
       Qconv_indair_to_indoormass_tstepTotal = self%EnergyExchanges(4) !Qconv_indair_to_indoormass_tstepTotal
-      Qlw_net_intwallroof_to_allotherindoorsurfaces_tstepTotal = self%EnergyExchanges(5) !Qlw_net_intwallroof_to_allotherindoorsurfaces_tstepTotal
-      Qlw_net_intwindow_to_allotherindoorsurfaces_tstepTotal = self%EnergyExchanges(6) !Qlw_net_intwindow_to_allotherindoorsurfaces_tstepTotal
-      Qlw_net_intgroundfloor_to_allotherindoorsurfaces_tstepTotal = self%EnergyExchanges(7) !Qlw_net_intgroundfloor_to_allotherindoorsurfaces_tstepTotal
+      Qlw_net_intwallroof_to_allotherindoorsurfaces_tstepTotal = self%EnergyExchanges(5) !Qlw_net_intwallroof_to_allotherindoorsur &
+           faces_tstepTotal
+      Qlw_net_intwindow_to_allotherindoorsurfaces_tstepTotal = self%EnergyExchanges(6) !Qlw_net_intwindow_to_allotherindoorsurface &
+           s_tstepTotal
+      Qlw_net_intgroundfloor_to_allotherindoorsurfaces_tstepTotal = self%EnergyExchanges(7) !Qlw_net_intgroundfloor_to_allotherind &
+           oorsurfaces_tstepTotal
       Q_appliance_tstepTotal = self%EnergyExchanges(8) !Q_appliance_tstepTotal
       Q_ventilation_tstepTotal = self%EnergyExchanges(9) !Q_ventilation_tstepTotal
       Qconv_indair_to_intwallroof_tstepTotal = self%EnergyExchanges(10) !Qconv_indair_to_intwallroof_tstepTotal
@@ -1505,8 +1508,10 @@ SUBROUTINE tstep( &
                  conv_coeff_extwall_tank, & ! Effective External Wall convection coefficient of the Hot Water Tank [W m-2 K-1]
                  emissivity_extwall_tank, & ! Effective External Wall emissivity of the Hot Water Tank [-]
                  conductivity_wall_vessel, & ! Effective Conductivity of vessels containing DHW in use in Building [W m-1 K-1]
-                 conv_coeff_intwall_vessel, & ! Effective Internal Wall convection coefficient of the Vessels holding DHW in use in Building [W m-2 K-1]
-                 conv_coeff_extwall_vessel, & ! Effective Enternal Wall convection coefficient of the Vessels holding DHW in use in Building [W m-2 K-1]
+                 conv_coeff_intwall_vessel, & ! Effective Internal Wall convection coefficient of the Vessels holding DHW in &
+                      use in Building [W m-2 K-1]
+                 conv_coeff_extwall_vessel, & ! Effective Enternal Wall convection coefficient of the Vessels holding DHW in &
+                      use in Building [W m-2 K-1]
                  emissivity_extwall_vessel ! Effective External Wall emissivity of hot water being used within building [-]
    REAL(rprc) :: maxheatingpower_water, & ! [deg C]
                  heating_efficiency_water ! [-]
@@ -1560,9 +1565,11 @@ SUBROUTINE tstep( &
                  Qtotal_water_tank, & ! total heat input into water of hot water tank over simulation, hence do not equate to zero
                  Qconv_water_to_intvesselwall = 0.0, & ! heat flux to internal wall of vessels holding DHW in use in building
                  Qcond_vesselwall = 0.0, & ! heat flux through wall of vessels holding DHW in use in building
-                 Qconv_extvesselwall_to_indair = 0.0, & ! convective heat flux to external wall of vessels holding DHW in use in building
+                 Qconv_extvesselwall_to_indair = 0.0, & ! convective heat flux to external wall of vessels holding DHW in use &
+                      in building
                  Qlw_net_extvesselwall_to_wallroof = 0.0, &
-                 Qlw_net_extvesselwall_to_indoormass = 0.0, & ! radiative heat flux to external wall of vessels holding DHW in use in building
+                 Qlw_net_extvesselwall_to_indoormass = 0.0, & ! radiative heat flux to external wall of vessels holding DHW in &
+                      use in building
                  !                      Qloss_drain = 0.0,                         & ! Heat loss as water held in use in building drains to sewer
                  Qloss_efficiency_heating_water = 0.0 ! additional heat release from efficieny losses/gains of heating hot water
 
@@ -1663,8 +1670,10 @@ SUBROUTINE tstep( &
             wallInsolation(Qsw_dn_extroof, walA, Afootprint) !//separate the wall and roof
          Qconv_indair_to_indoormass = internalConvectionHeatTransfer(conv_coeff_indoormass, Aindoormass, Tindoormass, Tair_ind)
          Qlw_net_intwallroof_to_allotherindoorsurfaces = indoorRadiativeHeatTransfer() ! //  for wall internal radiative exchange
-         Qlw_net_intwindow_to_allotherindoorsurfaces = Qlw_net_intwallroof_to_allotherindoorsurfaces ! //  for window internal radiative exchange - TODO: currently no distinction in internal radiative exchanges
-         Qlw_net_intgroundfloor_to_allotherindoorsurfaces = Qlw_net_intwallroof_to_allotherindoorsurfaces ! //  for ground floor internal radiative exchange - TODO: currently no distinction in internal radiative exchanges
+         Qlw_net_intwindow_to_allotherindoorsurfaces = Qlw_net_intwallroof_to_allotherindoorsurfaces ! //  for window internal &
+              radiative exchange - TODO: currently no distinction in internal radiative exchanges
+         Qlw_net_intgroundfloor_to_allotherindoorsurfaces = Qlw_net_intwallroof_to_allotherindoorsurfaces ! //  for ground &
+              floor internal radiative exchange - TODO: currently no distinction in internal radiative exchanges
          Q_appliance = &
             internalApplianceGains(appliance_power_rating, appliance_usage_factor, appliance_totalnumber)
          Q_ventilation = &
@@ -1921,7 +1930,8 @@ SUBROUTINE tstep( &
          END IF
          Vwall_vessel = Awater_vessel*thickness_wall_vessel
          IF (Vwater_tank > 0.0) THEN
-            dTwater_tank = (Qtotal_net_water_tank/((density_water*cp_water)*Vwater_tank))*resolution !//(Q_hwt/((density_water*cp_water)*Vwater_tank))*resolution ! // resolution in seconds
+            dTwater_tank = (Qtotal_net_water_tank/((density_water*cp_water)*Vwater_tank))*resolution !//(Q_hwt/((density_water*cp_ &
+                 water)*Vwater_tank))*resolution ! // resolution in seconds
             Twater_tank = Twater_tank + dTwater_tank
          END IF
          dTintwall_tank = &
@@ -1933,13 +1943,15 @@ SUBROUTINE tstep( &
          Twater_tank = &
             (((flowrate_water_supply*resolution)*Tincomingwater_tank) + &
              ((Vwater_tank - (flowrate_water_supply*resolution))*Twater_tank))/Vwater_tank
-         dTindoormass = (Qtotal_net_indoormass/((density_indoormass*cp_indoormass)*Vindoormass))*resolution ! // resolution in seconds
+         dTindoormass = (Qtotal_net_indoormass/((density_indoormass*cp_indoormass)*Vindoormass))*resolution ! // resolution in &
+              seconds
          Tindoormass = Tindoormass + dTindoormass
          dTair_ind = (Qtotal_net_indair/((density_air_ind*cp_air_ind)*Vair_ind))*resolution ! // resolution in seconds
          Tair_ind = Tair_ind + dTair_ind
          dTintwallroof = &
             (Qtotal_net_intwallroof/((density_wallroof*cp_wallroof)* &
-                                     (Vwallroof*(1 - weighting_factor_heatcapacity_wallroof))))*resolution ! // resolution in seconds
+                                     (Vwallroof*(1 - weighting_factor_heatcapacity_wallroof))))*resolution ! // resolution in &
+                                          seconds
          Tintwallroof = Tintwallroof + dTintwallroof
          dTextwallroof = &
             (Qtotal_net_extwallroof/((density_wallroof*cp_wallroof)* &
@@ -2048,7 +2060,8 @@ SUBROUTINE gen_building(stebbsState, stebbsPrm, building_archtype, self)
    self%Vair_ind = &
       (self%Afootprint*self%height_building)* &
       (1 - self%ratioInternalVolume) ! # Multiplied by factor that accounts for internal mass
-   self%ventilation_rate = self%Vair_ind*stebbsPrm%VentilationRate/3600.0 ! Fixed at begining to have no natural ventilation. Given in units of volume of air per second
+   self%ventilation_rate = self%Vair_ind*stebbsPrm%VentilationRate/3600.0 ! Fixed at begining to have no natural ventilation. &
+        Given in units of volume of air per second
    self%Awallroof = &
       (self%wallExternalArea*(1 - self%ratio_window_wall)) + &
       self%Afootprint ! # last component accounts for the roof as not considered seperately in the model
@@ -2056,7 +2069,8 @@ SUBROUTINE gen_building(stebbsState, stebbsPrm, building_archtype, self)
    self%Vgroundfloor = self%Afootprint*self%thickness_groundfloor
    self%Awindow = self%wallExternalArea*self%ratio_window_wall
    self%Vwindow = self%Awindow*self%thickness_window
-   self%Vindoormass = self%Vair_ind*self%ratioInternalVolume ! # Multiplied by factor that accounts for internal mass as proportion of total air volume
+   self%Vindoormass = self%Vair_ind*self%ratioInternalVolume ! # Multiplied by factor that accounts for internal mass as &
+        proportion of total air volume
    self%Aindoormass = 6*(self%Vindoormass**(2./3.)) ! # Assumed internal mass as a cube
    self%h_i = (/self%conv_coeff_intwallroof, self%conv_coeff_indoormass, &
                 self%conv_coeff_intgroundfloor, self%conv_coeff_intwindow/)
@@ -2090,7 +2104,8 @@ SUBROUTINE gen_building(stebbsState, stebbsPrm, building_archtype, self)
    self%Textgroundfloor = stebbsState%GroundFloorOutdoorSurfaceTemperature + 273.15 ! # Ground floor outdoor surface temperature (K)
 
    self%Ts = (/building_archtype%HeatingSetpointTemperature + 273.15, &
-               building_archtype%CoolingSetpointTemperature + 273.15/) ! # Heating and Cooling setpoint temperatures (K), respectively
+               building_archtype%CoolingSetpointTemperature + 273.15/) ! # Heating and Cooling setpoint temperatures (K), &
+                    respectively
    self%initTs = (/building_archtype%HeatingSetpointTemperature + 273.15, &
                    building_archtype%CoolingSetpointTemperature + 273.15/)
    self%HTsAverage = (/18 + 273.15, 18 + 273.15, 18 + 273.15/) ! #
@@ -2100,13 +2115,16 @@ SUBROUTINE gen_building(stebbsState, stebbsPrm, building_archtype, self)
    self%Tintwall_tank = stebbsState%InternalWallWaterTankTemperature + 273.15 ! # Hot water tank internal wall temperature (K)
    self%Textwall_tank = stebbsState%ExternalWallWaterTankTemperature + 273.15 ! # Hot water tank external wall temperature (K)
    self%thickness_tankwall = stebbsPrm%WaterTankWallThickness ! # Hot water tank wall thickness (m)
-   self%Tincomingwater_tank = stebbsState%MainsWaterTemperature + 273.15 ! # Water temperature (K) of Water coming into the Water Tank
-   self%Vwater_tank = building_archtype%WaterTankWaterVolume ! # Volume of Water in Hot Water Tank (m^3)  h = 1.5, (2/(1.5*3.14))^0.5 = r =
+   self%Tincomingwater_tank = stebbsState%MainsWaterTemperature + 273.15 ! # Water temperature (K) &
+        of Water coming into the Water Tank
+   self%Vwater_tank = building_archtype%WaterTankWaterVolume ! # Volume of Water in Hot Water Tank (m^3)  h = 1.5, &
+        (2/(1.5*3.14))^0.5 = r =
    self%Asurf_tank = stebbsPrm%WaterTankSurfaceArea ! # Surface Area of Hot Water Tank(m^2) - cylinder h= 1.5
    self%Vwall_tank = self%Asurf_tank*self%thickness_tankwall ! # Wall volume of Hot Water Tank(m^2)
    self%setTwater_tank = stebbsPrm%HotWaterHeatingSetpointTemperature + 273.15 ! # Water Tank setpoint temperature (K)
    self%init_wtTs = stebbsPrm%HotWaterHeatingSetpointTemperature + 273.15 ! # Initial Water Tank setpoint temperature (K)
-   self%Twater_vessel = stebbsState%DomesticHotWaterTemperatureInUseInBuilding + 273.15 ! # Water temperature (K) of water held in use in Building
+   self%Twater_vessel = stebbsState%DomesticHotWaterTemperatureInUseInBuilding + 273.15 ! # Water temperature (K) &
+        of water held in use in Building
    self%Tintwall_vessel = stebbsState%InternalWallDHWVesselTemperature + 273.15 ! # Hot water vessel internal wall temperature (K)
    self%Textwall_vessel = stebbsState%ExternalWallDHWVesselTemperature + 273.15 ! # Hot water vessel external wall temperature (K)
    self%thickness_wall_vessel = stebbsPrm%DHWVesselWallThickness ! # DHW vessels wall thickness (m)
@@ -2126,7 +2144,8 @@ SUBROUTINE gen_building(stebbsState, stebbsPrm, building_archtype, self)
 
    self%cp_water = stebbsPrm%DHWSpecificHeatCapacity ! # Specific Heat Capacity of Domestic Hot Water (J/kg K)
    self%cp_wall_tank = stebbsPrm%HotWaterTankSpecificHeatCapacity ! # Specific Heat Capacity of Hot Water Tank wall
-   self%cp_wall_vessel = stebbsPrm%DHWVesselSpecificHeatCapacity ! # Specific Heat Capacity of Vessels containing DHW in use in Building (value here is based on MDPE)
+   self%cp_wall_vessel = stebbsPrm%DHWVesselSpecificHeatCapacity ! # Specific Heat Capacity of Vessels containing DHW in use &
+        in Building (value here is based on MDPE)
 
    self%density_water = stebbsPrm%DHWDensity ! # Density of water
    self%density_wall_tank = stebbsPrm%HotWaterTankWallDensity ! # Density of hot water tank wall
@@ -2136,14 +2155,18 @@ SUBROUTINE gen_building(stebbsState, stebbsPrm, building_archtype, self)
    self%MVF_tank = stebbsPrm%HotWaterTankInternalMassViewFactor ! # water tank - building internal mass view factor
 
    self%conductivity_wall_tank = stebbsPrm%HotWaterTankWallConductivity ! # Effective Wall conductivity of the Hot Water Tank
-   self%conv_coeff_intwall_tank = stebbsPrm%HotWaterTankInternalWallConvectionCoefficient ! # Effective Internal Wall convection coefficient of the Hot Water Tank
-   self%conv_coeff_extwall_tank = stebbsPrm%HotWaterTankExternalWallConvectionCoefficient ! # Effective External Wall convection coefficient of the Hot Water Tank
+   self%conv_coeff_intwall_tank = stebbsPrm%HotWaterTankInternalWallConvectionCoefficient ! # Effective Internal Wall &
+        convection coefficient of the Hot Water Tank
+   self%conv_coeff_extwall_tank = stebbsPrm%HotWaterTankExternalWallConvectionCoefficient ! # Effective External Wall &
+        convection coefficient of the Hot Water Tank
 
    self%emissivity_extwall_tank = stebbsPrm%HotWaterTankWallEmissivity
    self%conductivity_wall_vessel = stebbsPrm%DHWVesselWallConductivity
    self%conv_coeff_intwall_vessel = stebbsPrm%DHWVesselInternalWallConvectionCoefficient
-   self%conv_coeff_extwall_vessel = stebbsPrm%HotWaterTankExternalWallConvectionCoefficient ! # Effective Enternal Wall convection coefficient of the Vessels holding DHW in use in Building
-   self%emissivity_extwall_vessel = stebbsPrm%DHWVesselWallConductivity ! # Effective External Wall emissivity of hot water being used within building
+   self%conv_coeff_extwall_vessel = stebbsPrm%HotWaterTankExternalWallConvectionCoefficient ! # Effective Enternal Wall &
+        convection coefficient of the Vessels holding DHW in use in Building
+   self%emissivity_extwall_vessel = stebbsPrm%DHWVesselWallConductivity ! # Effective External Wall emissivity of hot water &
+        being used within building
 
    self%maxheatingpower_water = building_archtype%MaximumHotWaterHeatingPower ! # Watts
    self%heating_efficiency_water = stebbsPrm%HotWaterHeatingEfficiency
@@ -2242,7 +2265,8 @@ SUBROUTINE create_building(CASE, self, icase)
    self%Vgroundfloor = self%Afootprint*self%thickness_groundfloor
    self%Awindow = self%wallExternalArea*self%ratio_window_wall
    self%Vwindow = self%Awindow*self%thickness_window
-   self%Vindoormass = self%Vair_ind*self%ratioInternalVolume ! # Multiplied by factor that accounts for internal mass as proportion of total air volume
+   self%Vindoormass = self%Vair_ind*self%ratioInternalVolume ! # Multiplied by factor that accounts for internal mass as &
+        proportion of total air volume
    self%Aindoormass = 6*(self%Vindoormass**(2./3.)) ! # Assumed internal mass as a cube
    self%h_i = (/self%conv_coeff_intwallroof, self%conv_coeff_indoormass, &
                 self%conv_coeff_intgroundfloor, self%conv_coeff_intwindow/)
@@ -2314,10 +2338,15 @@ SUBROUTINE create_building(CASE, self, icase)
    self%BVF_tank = 0.2 ! # water tank - building wall view factor
    self%MVF_tank = 0.8 ! # water tank - building internal mass view factor
 
-   self%conductivity_wall_tank = 0.1 ! # Effective Wall conductivity of the Hot Water Tank (based on polyurethan foam given in https://www.lsta.lt/files/events/28_jarfelt.pdf and from https://www.sciencedirect.com/science/article/pii/S0360544214011189?via%3Dihub)
-   self%conv_coeff_intwall_tank = 243 ! # Effective Internal Wall convection coefficient of the Hot Water Tank (W/m2 . K) given in http://orbit.dtu.dk/fedora/objects/orbit:77843/datastreams/file_2640258/content
+   self%conductivity_wall_tank = 0.1 ! # Effective Wall conductivity of the Hot Water Tank (based on polyurethan foam given in &
+        https://www.lsta.lt/files/events/28_jarfelt.pdf and from https://www.sciencedirect.com/science/article/pii/S03605442140111 &
+             89?via%3Dihub)
 
-   self%conv_coeff_extwall_vessel = 4 ! # Effective Enternal Wall convection coefficient of the Vessels holding DHW in use in Building
+   self%conv_coeff_intwall_tank = 243 ! # Effective Internal Wall convection coefficient of the Hot Water Tank (W/m2 . K) &
+        given in http://orbit.dtu.dk/fedora/objects/orbit:77843/datastreams/file_2640258/content
+
+   self%conv_coeff_extwall_vessel = 4 ! # Effective Enternal Wall convection coefficient of the Vessels holding DHW in use in &
+        Building
    self%emissivity_extwall_vessel = 0.88 ! # Effective External Wall emissivity of hot water being used within building
 
    self%maxheatingpower_water = 3000 ! # Watts

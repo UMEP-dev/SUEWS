@@ -17,7 +17,8 @@ MODULE SUEWS_DEF_DTS
       INTEGER :: DiagMethod = 0 ! Defines how near surface diagnostics are calculated
       INTEGER :: EmissionsMethod = 0 ! method to calculate anthropogenic heat [-]
       INTEGER :: RoughLenHeatMethod = 0 ! method to calculate heat roughness length [-]
-      INTEGER :: RoughLenMomMethod = 0 ! Determines how aerodynamic roughness length (z0m) and zero displacement height (zdm) are calculated [-]
+      INTEGER :: RoughLenMomMethod = 0 ! Determines how aerodynamic roughness length (z0m) and zero displacement height (zdm) &
+           are calculated [-]
       INTEGER :: FAIMethod = 0 !Determines how FAI is calculated [-]
       INTEGER :: SMDMethod = 0 ! Determines method for calculating soil moisture deficit [-]
       INTEGER :: WaterUseMethod = 0 ! Defines how external water use is calculated[-]
@@ -58,8 +59,10 @@ MODULE SUEWS_DEF_DTS
 
    TYPE, PUBLIC :: bioCO2_PRM
       REAL(KIND(1D0)) :: beta_bioco2 = 0.0D0 ! The light-saturated gross photosynthesis of the canopy [umol m-2 s-1 ]
-      REAL(KIND(1D0)) :: beta_enh_bioco2 = 0.0D0 ! Part of the beta coefficient related to the fraction of vegetation [umol m-2 s-1 ]
-      REAL(KIND(1D0)) :: alpha_bioco2 = 0.0D0 ! The mean apparent ecosystem quantum. Represents the initial slope of the light-response curve [-]
+      REAL(KIND(1D0)) :: beta_enh_bioco2 = 0.0D0 ! Part of the beta coefficient related to the fraction of vegetation [umol &
+           m-2 s-1 ]
+      REAL(KIND(1D0)) :: alpha_bioco2 = 0.0D0 ! The mean apparent ecosystem quantum. Represents the initial slope of the &
+           light-response curve [-]
       REAL(KIND(1D0)) :: alpha_enh_bioco2 = 0.0D0 ! Part of the alpha coefficient related to the fraction of vegetation [-]
       REAL(KIND(1D0)) :: resp_a = 0.0D0 !Respiration coefficient a
       REAL(KIND(1D0)) :: resp_b = 0.0D0 !Respiration coefficient b - related to air temperature dependency
@@ -105,8 +108,10 @@ MODULE SUEWS_DEF_DTS
       REAL(KIND(1D0)) :: chanohm = 0.0D0 ! Bulk transfer coefficient for this surface to use in AnOHM [J m-3 K-1]
       REAL(KIND(1D0)) :: cpanohm = 0.0D0 ! Volumetric heat capacity for this surface to use in AnOHM  [J m-3 K-1]
       REAL(KIND(1D0)) :: kkanohm = 0.0D0 ! Thermal conductivity for this surface to use in AnOHM [W m-1 K-1]
-      REAL(KIND(1D0)) :: ohm_threshsw = 0.0D0 ! Temperature threshold determining whether summer/winter OHM coefficients are applied [degC]
-      REAL(KIND(1D0)) :: ohm_threshwd = 0.0D0 ! Soil moisture threshold determining whether wet/dry OHM coefficients are applied [degC]
+      REAL(KIND(1D0)) :: ohm_threshsw = 0.0D0 ! Temperature threshold determining whether summer/winter OHM coefficients are &
+           applied [degC]
+      REAL(KIND(1D0)) :: ohm_threshwd = 0.0D0 ! Soil moisture threshold determining whether wet/dry OHM coefficients are &
+           applied [degC]
       TYPE(OHM_COEF_LC), DIMENSION(3) :: ohm_coef_lc
    END TYPE OHM_PRM
 
@@ -131,17 +136,25 @@ MODULE SUEWS_DEF_DTS
       REAL(KIND(1D0)) :: baset_heating_holiday = 0.0D0 ! Base temperature for heating degree days (holiday) [degC]
       REAL(KIND(1D0)) :: ah_min_working = 0.0D0 ! minimum QF values (working day) [W m-2]
       REAL(KIND(1D0)) :: ah_min_holiday = 0.0D0 ! minimum QF values (holiday) [W m-2]
-      REAL(KIND(1D0)) :: ah_slope_cooling_working = 0.0D0 ! cooling slope for the anthropogenic heat flux calculation (working day) [W m-2 K-1]
-      REAL(KIND(1D0)) :: ah_slope_cooling_holiday = 0.0D0 ! cooling slope for the anthropogenic heat flux calculation (holiday) [W m-2 K-1]
-      REAL(KIND(1D0)) :: ah_slope_heating_working = 0.0D0 ! heating slope for the anthropogenic heat flux calculation (working day) [W m-2 K-1]
-      REAL(KIND(1D0)) :: ah_slope_heating_holiday = 0.0D0 ! heating slope for the anthropogenic heat flux calculation (holiday) [W m-2 K-1]
-      REAL(KIND(1D0)), DIMENSION(0:23) :: ahprof_24hr_working = 0.0D0 ! Hourly profile values used in energy use calculation (working day) [-]
-      REAL(KIND(1D0)), DIMENSION(0:23) :: ahprof_24hr_holiday = 0.0D0 ! Hourly profile values used in energy use calculation (holiday) [-]
+      REAL(KIND(1D0)) :: ah_slope_cooling_working = 0.0D0 ! cooling slope for the anthropogenic heat flux calculation (working &
+           day) [W m-2 K-1]
+      REAL(KIND(1D0)) :: ah_slope_cooling_holiday = 0.0D0 ! cooling slope for the anthropogenic heat flux calculation &
+           (holiday) [W m-2 K-1]
+      REAL(KIND(1D0)) :: ah_slope_heating_working = 0.0D0 ! heating slope for the anthropogenic heat flux calculation (working &
+           day) [W m-2 K-1]
+      REAL(KIND(1D0)) :: ah_slope_heating_holiday = 0.0D0 ! heating slope for the anthropogenic heat flux calculation &
+           (holiday) [W m-2 K-1]
+      REAL(KIND(1D0)), DIMENSION(0:23) :: ahprof_24hr_working = 0.0D0 ! Hourly profile values used in energy use calculation &
+           (working day) [-]
+      REAL(KIND(1D0)), DIMENSION(0:23) :: ahprof_24hr_holiday = 0.0D0 ! Hourly profile values used in energy use calculation &
+           (holiday) [-]
       REAL(KIND(1D0)) :: popdensdaytime_working = 0.0D0 ! Daytime population density [people ha-1] (working day)
       REAL(KIND(1D0)) :: popdensdaytime_holiday = 0.0D0 ! Daytime population density [people ha-1] (holiday)
       REAL(KIND(1D0)) :: popdensnighttime = 0.0D0
-      REAL(KIND(1D0)), DIMENSION(0:23) :: popprof_24hr_working = 0.0D0 !Hourly profile values used in dynamic population estimation[-] (working day)
-      REAL(KIND(1D0)), DIMENSION(0:23) :: popprof_24hr_holiday = 0.0D0 !Hourly profile values used in dynamic population estimation[-] (holiday)
+      REAL(KIND(1D0)), DIMENSION(0:23) :: popprof_24hr_working = 0.0D0 !Hourly profile values used in dynamic population &
+           estimation[-] (working day)
+      REAL(KIND(1D0)), DIMENSION(0:23) :: popprof_24hr_holiday = 0.0D0 !Hourly profile values used in dynamic population &
+           estimation[-] (holiday)
    END TYPE anthroHEAT_PRM
 
    TYPE, PUBLIC :: IRRIG_daywater
@@ -206,13 +219,16 @@ MODULE SUEWS_DEF_DTS
       REAL(KIND(1D0)) :: preciplimit = 0.0D0 ! temperature limit when precipitation falls as snow [degC]
       REAL(KIND(1D0)) :: preciplimitalb = 0.0D0 ! Limit for hourly precipitation when the ground is fully covered with snow [mm]
       REAL(KIND(1D0)) :: snowalbmax = 0.0D0 ! effective surface albedo (middle of the day value) for summertime [-]
-      REAL(KIND(1D0)) :: snowalbmin = 0.0D0 ! effective surface albedo (middle of the day value) for wintertime (not including snow) [-]
+      REAL(KIND(1D0)) :: snowalbmin = 0.0D0 ! effective surface albedo (middle of the day value) for wintertime (not including &
+           snow) [-]
       REAL(KIND(1D0)) :: snowdensmax = 0.0D0 ! maximum snow density [kg m-3]
       REAL(KIND(1D0)) :: snowdensmin = 0.0D0 ! fresh snow density [kg m-3]
       REAL(KIND(1D0)) :: snowlimbldg = 0.0D0 ! Limit of the snow water equivalent for snow removal from building roofs [mm]
       REAL(KIND(1D0)) :: snowlimpaved = 0.0D0 ! limit of the snow water equivalent for snow removal from roads[mm]
-      REAL(KIND(1D0)), DIMENSION(nsurf) :: snowpacklimit = 0.0D0 ! Limit for the snow water equivalent when snow cover starts to be patchy [mm]
-      REAL(KIND(1D0)), DIMENSION(0:23) :: snowprof_24hr_working = 0.0D0 ! Hourly profile values used in snow clearing of working day [-]
+      REAL(KIND(1D0)), DIMENSION(nsurf) :: snowpacklimit = 0.0D0 ! Limit for the snow water equivalent when snow cover starts &
+           to be patchy [mm]
+      REAL(KIND(1D0)), DIMENSION(0:23) :: snowprof_24hr_working = 0.0D0 ! Hourly profile values used in snow clearing of &
+           working day [-]
       REAL(KIND(1D0)), DIMENSION(0:23) :: snowprof_24hr_holiday = 0.0D0 ! Hourly profile values used in snow clearing of holiday [-]
       REAL(KIND(1D0)) :: tau_a = 0.0D0 ! time constant for snow albedo aging in cold snow [-]
       REAL(KIND(1D0)) :: tau_f = 0.0D0 ! time constant for snow albedo aging in melting snow [-]
@@ -248,7 +264,8 @@ MODULE SUEWS_DEF_DTS
       REAL(KIND(1D0)), DIMENSION(:), ALLOCATABLE :: emis_roof ! emissivity of roof [-]
       REAL(KIND(1D0)), DIMENSION(:), ALLOCATABLE :: alb_wall ! albedo of wall [-]
       REAL(KIND(1D0)), DIMENSION(:), ALLOCATABLE :: emis_wall ! emissivity of wall [-]
-      REAL(KIND(1D0)), DIMENSION(:, :), ALLOCATABLE :: roof_albedo_dir_mult_fact !Ratio of the direct and diffuse albedo of the roof[-]
+      REAL(KIND(1D0)), DIMENSION(:, :), ALLOCATABLE :: roof_albedo_dir_mult_fact !Ratio of the direct and diffuse albedo of &
+           the roof[-]
       REAL(KIND(1D0)), DIMENSION(:, :), ALLOCATABLE :: wall_specular_frac ! Fraction of wall reflection that is specular [-]
    CONTAINS
       PROCEDURE :: ALLOCATE => allocate_spartacus_layer_prm_c
@@ -336,7 +353,8 @@ MODULE SUEWS_DEF_DTS
       TYPE(OHM_PRM) :: ohm
       TYPE(SOIL_PRM) :: soil
       REAL(KIND(1D0)) :: statelimit = 0.0D0 ! upper limit to the surface state [mm] ! ******* dummy variable *******
-      REAL(KIND(1D0)) :: capmax_dec = 0.0D0 ! Maximum water storage capacity for upper surfaces (i.e. canopy) (absent for evergreen trees ??)
+      REAL(KIND(1D0)) :: capmax_dec = 0.0D0 ! Maximum water storage capacity for upper surfaces (i.e. canopy) &
+           (absent for evergreen trees ??)
       REAL(KIND(1D0)) :: capmin_dec = 0.0D0 ! Minimum water storage capacity for upper surfaces (i.e. canopy).
       REAL(KIND(1D0)) :: irrfracdectr = 0.0D0
       REAL(KIND(1D0)) :: wetthresh = 0.0D0
@@ -429,7 +447,8 @@ MODULE SUEWS_DEF_DTS
       REAL(KIND(1D0)) :: RatioInternalVolume = 0.0D0 ! Ratio of internal mass volume to total building volume [-]
       REAL(KIND(1D0)) :: WWR = 0.0D0 ! window to wall ratio [-]
       REAL(KIND(1D0)) :: WallThickness = 0.0D0 ! Thickness of external wall and roof (weighted) [m]
-      REAL(KIND(1D0)) :: WallEffectiveConductivity = 0.0D0 ! Effective thermal conductivity of walls and roofs (weighted) [W m-1 K-1]
+      REAL(KIND(1D0)) :: WallEffectiveConductivity = 0.0D0 ! Effective thermal conductivity of walls and roofs (weighted) &
+           [W m-1 K-1]
       REAL(KIND(1D0)) :: WallDensity = 0.0D0 ! Effective density of the walls and roof (weighted) [kg m-3]
       REAL(KIND(1D0)) :: WallCp = 0.0D0 ! Effective specific heat capacity of walls and roof (weighted) [J kg-1 K-1]
       REAL(KIND(1D0)) :: Wallx1 = 0.0D0 ! Weighting factor for heat capacity of walls and roof [-]
@@ -467,8 +486,10 @@ MODULE SUEWS_DEF_DTS
       REAL(KIND(1D0)) :: InternalMassConvectionCoefficient = 0.0D0 ! Convection coefficient of internal mass [W m-2 K-1]
       REAL(KIND(1D0)) :: FloorInternalConvectionCoefficient = 0.0D0 ! Internal convection coefficient of ground floor [W m-2 K-1]
       REAL(KIND(1D0)) :: WindowInternalConvectionCoefficient = 0.0D0 ! Internal convection coefficient of windows [W m-2 K-1]
-      REAL(KIND(1D0)) :: WallExternalConvectionCoefficient = 0.0D0 ! Initial external convection coefficient of walls and roof [W m-2 K-1]
-      REAL(KIND(1D0)) :: WindowExternalConvectionCoefficient = 0.0D0 ! Initial external convection coefficient of windows [W m-2 K-1]
+      REAL(KIND(1D0)) :: WallExternalConvectionCoefficient = 0.0D0 ! Initial external convection coefficient of walls and roof &
+           [W m-2 K-1]
+      REAL(KIND(1D0)) :: WindowExternalConvectionCoefficient = 0.0D0 ! Initial external convection coefficient of windows [W &
+           m-2 K-1]
       REAL(KIND(1D0)) :: GroundDepth = 0.0D0 ! Depth of external ground (deep soil) [m]
       REAL(KIND(1D0)) :: ExternalGroundConductivity = 0.0D0
       REAL(KIND(1D0)) :: IndoorAirDensity = 0.0D0 ! Density of indoor air [kg m-3]
@@ -497,19 +518,25 @@ MODULE SUEWS_DEF_DTS
       REAL(KIND(1D0)) :: DHWDrainFlowRate = 0.0D0 ! Flow rate of hot water held in building to drain [m3 s-1]
       REAL(KIND(1D0)) :: DHWSpecificHeatCapacity = 0.0D0 ! Specific heat capacity of hot water [J kg-1 K-1]
       REAL(KIND(1D0)) :: HotWaterTankSpecificHeatCapacity = 0.0D0 ! Specific heat capacity of hot water tank wal [J kg-1 K-1]
-      REAL(KIND(1D0)) :: DHWVesselSpecificHeatCapacity = 0.0D0 ! Specific heat capacity of vessels containing hot water in use in buildings [J kg-1 K-1]
+      REAL(KIND(1D0)) :: DHWVesselSpecificHeatCapacity = 0.0D0 ! Specific heat capacity of vessels containing hot water in use &
+           in buildings [J kg-1 K-1]
       REAL(KIND(1D0)) :: DHWDensity = 0.0D0 ! Density of hot water in use [kg m-3]
       REAL(KIND(1D0)) :: HotWaterTankWallDensity = 0.0D0 ! Density of hot water tank wall [kg m-3]
       REAL(KIND(1D0)) :: DHWVesselDensity = 0.0D0 ! Density of vessels containing hot water in use [kg m-3]
       REAL(KIND(1D0)) :: HotWaterTankBuildingWallViewFactor = 0.0D0 ! Water tank/vessel internal building wall/roof view factor [-]
       REAL(KIND(1D0)) :: HotWaterTankInternalMassViewFactor = 0.0D0 ! Water tank/vessel building internal mass view factor [-]
       REAL(KIND(1D0)) :: HotWaterTankWallConductivity = 0.0D0 ! Effective wall conductivity of the hot water tank [W m-1 K-1]
-      REAL(KIND(1D0)) :: HotWaterTankInternalWallConvectionCoefficient = 0.0D0 ! Effective internal wall convection coefficient of the hot water tank [W m-2 K-1]
-      REAL(KIND(1D0)) :: HotWaterTankExternalWallConvectionCoefficient = 0.0D0 ! Effective external wall convection coefficient of the hot water tank [W m-2 K-1]
+      REAL(KIND(1D0)) :: HotWaterTankInternalWallConvectionCoefficient = 0.0D0 ! Effective internal wall convection &
+           coefficient of the hot water tank [W m-2 K-1]
+      REAL(KIND(1D0)) :: HotWaterTankExternalWallConvectionCoefficient = 0.0D0 ! Effective external wall convection &
+           coefficient of the hot water tank [W m-2 K-1]
       REAL(KIND(1D0)) :: DHWVesselWallConductivity = 0.0D0 ! Effective wall conductivity of the hot water tank [W m-1 K-1]
-      REAL(KIND(1D0)) :: DHWVesselInternalWallConvectionCoefficient = 0.0D0 ! Effective internal wall convection coefficient of the vessels holding hot water in use in building [W m-2 K-1]
-      REAL(KIND(1D0)) :: DHWVesselExternalWallConvectionCoefficient = 0.0D0 ! Effective external wall convection coefficient of the vessels holding hot water in use in building [W m-2 K-1]
-      REAL(KIND(1D0)) :: DHWVesselWallEmissivity = 0.0D0 ! Effective external wall emissivity of hot water being used within building [-]
+      REAL(KIND(1D0)) :: DHWVesselInternalWallConvectionCoefficient = 0.0D0 ! Effective internal wall convection coefficient &
+           of the vessels holding hot water in use in building [W m-2 K-1]
+      REAL(KIND(1D0)) :: DHWVesselExternalWallConvectionCoefficient = 0.0D0 ! Effective external wall convection coefficient &
+           of the vessels holding hot water in use in building [W m-2 K-1]
+      REAL(KIND(1D0)) :: DHWVesselWallEmissivity = 0.0D0 ! Effective external wall emissivity of hot water being used within &
+           building [-]
       REAL(KIND(1D0)) :: HotWaterHeatingEfficiency = 0.0D0 ! Efficiency of hot water system [-]
       REAL(KIND(1D0)) :: MinimumVolumeOfDHWinUse = 0.0D0 ! Minimum volume of hot water in use [m3]
 
@@ -693,7 +720,8 @@ MODULE SUEWS_DEF_DTS
       REAL(KIND(1D0)), DIMENSION(nvegsurf) :: SDD_id = 0.0D0 ! Senescence Degree Days [degC](see SUEWS_DailyState.f95)
       REAL(KIND(1D0)) :: VegPhenLumps = 0.0D0 ! phenology indicator used lumps [-] - NOT USED - TO BE REMOVED
       REAL(KIND(1D0)) :: porosity_id = 0.0D0 ! porosity of each surface type [-]
-      REAL(KIND(1D0)) :: decidcap_id = 0.0D0 ! Storage capacity of deciduous surface `DecTr`; updated each day in simulaiton due to changes in LAI.
+      REAL(KIND(1D0)) :: decidcap_id = 0.0D0 ! Storage capacity of deciduous surface `DecTr`; updated each day in simulaiton &
+           due to changes in LAI.
       REAL(KIND(1D0)) :: albDecTr_id = 0.0D0 ! albedo of deciduous tree surface [-]
       REAL(KIND(1D0)) :: albEveTr_id = 0.0D0 ! albedo of evergreen tree surface [-]
       REAL(KIND(1D0)) :: albGrass_id = 0.0D0 ! albedo of grass surface [-]
@@ -795,7 +823,8 @@ MODULE SUEWS_DEF_DTS
       REAL(KIND(1D0)) :: runoffAGimpervious = 0.0D0 !Above ground runoff from impervious surface for all surface area [mm]
       REAL(KIND(1D0)) :: runoff_per_tstep = 0.0D0 !runoff water at each time step [mm]
       REAL(KIND(1D0)) :: runoffPipes = 0.0 !runoff to pipes [mm]
-      REAL(KIND(1D0)) :: runoffSoil_per_tstep = 0.0D0 !Runoff to deep soil per timestep [mm] (for whole surface, excluding water body)
+      REAL(KIND(1D0)) :: runoffSoil_per_tstep = 0.0D0 !Runoff to deep soil per timestep [mm] (for whole surface, &
+           excluding water body)
       REAL(KIND(1D0)) :: runoffwaterbody = 0.0D0 !Above ground runoff from water body for all surface area [mm]
       REAL(KIND(1D0)) :: smd = 0.0D0 !soil moisture deficit [mm]
       REAL(KIND(1D0)) :: SoilState = 0.0D0 !Area-averaged soil moisture  for whole surface [mm]
@@ -811,7 +840,8 @@ MODULE SUEWS_DEF_DTS
       ! TODO: TS 25 Oct 2017
       ! the  variables are not used currently as grid-to-grid connection is NOT set up.
       ! set these variables as zero.
-      REAL(KIND(1D0)) :: AdditionalWater = 0.0D0 !!Additional water coming from other grids [mm] (these are expressed as depths over the whole surface)
+      REAL(KIND(1D0)) :: AdditionalWater = 0.0D0 !!Additional water coming from other grids [mm] (these are expressed as &
+           depths over the whole surface)
       REAL(KIND(1D0)) :: addImpervious = 0.0D0
       REAL(KIND(1D0)) :: addPipes = 0.0D0
       REAL(KIND(1D0)) :: addVeg = 0.0D0
@@ -836,9 +866,12 @@ MODULE SUEWS_DEF_DTS
       REAL(KIND(1D0)), DIMENSION(:), ALLOCATABLE :: tsfc_surf ! surface temperature [degC]
 
       ! surface temperature saved at the beginning of the time step - not updated during the time step
-      REAL(KIND(1D0)), DIMENSION(:), ALLOCATABLE :: tsfc_roof_stepstart !surface temperature of roof saved at the beginning of the time step [degC]
-      REAL(KIND(1D0)), DIMENSION(:), ALLOCATABLE :: tsfc_wall_stepstart !surface temperature of wall saved at the beginning of the time step [degC]
-      REAL(KIND(1D0)), DIMENSION(:), ALLOCATABLE :: tsfc_surf_stepstart !surface temperature saved at the beginning of the time step [degC]
+      REAL(KIND(1D0)), DIMENSION(:), ALLOCATABLE :: tsfc_roof_stepstart !surface temperature of roof saved at the beginning of &
+           the time step [degC]
+      REAL(KIND(1D0)), DIMENSION(:), ALLOCATABLE :: tsfc_wall_stepstart !surface temperature of wall saved at the beginning of &
+           the time step [degC]
+      REAL(KIND(1D0)), DIMENSION(:), ALLOCATABLE :: tsfc_surf_stepstart !surface temperature saved at the beginning of the &
+           time step [degC]
 
       REAL(KIND(1D0)), DIMENSION(:), ALLOCATABLE :: QS_roof ! heat storage flux for roof component [W m-2]
       REAL(KIND(1D0)), DIMENSION(:), ALLOCATABLE :: QN_roof ! net all-wave radiation of roof surface [W m-2]
@@ -857,7 +890,8 @@ MODULE SUEWS_DEF_DTS
       REAL(KIND(1D0)), DIMENSION(nsurf) :: qe0_surf = 0.0D0 ! latent heat flux from PM of individual surface [W m-2]
       REAL(KIND(1D0)), DIMENSION(nsurf) :: qe_surf = 0.0D0 ! latent heat flux of individual surface [W m-2]
       REAL(KIND(1D0)), DIMENSION(nsurf) :: qh_surf = 0.0D0 ! sensinle heat flux of individual surface [W m-2]
-      REAL(KIND(1D0)), DIMENSION(nsurf) :: qh_resist_surf = 0.0D0 ! resistance based sensible heat flux of individual surface [W m-2]
+      REAL(KIND(1D0)), DIMENSION(nsurf) :: qh_resist_surf = 0.0D0 ! resistance based sensible heat flux of individual surface &
+           [W m-2]
       REAL(KIND(1D0)), DIMENSION(NSURF) :: tsurf_ind = 0.0D0 !snow-free surface temperature [degC]
 
       REAL(KIND(1D0)) :: QH_LUMPS = 0.0D0 !turbulent sensible heat flux from LUMPS model [W m-2]
@@ -942,7 +976,8 @@ MODULE SUEWS_DEF_DTS
       REAL(KIND(1D0)) :: InternalWallWaterTankTemperature = 0.0D0 ! Initial hot water tank internal wall temperature [degC]
       REAL(KIND(1D0)) :: ExternalWallWaterTankTemperature = 0.0D0 ! Initial hot water tank external wall temperature [degC]
       REAL(KIND(1D0)) :: MainsWaterTemperature = 0.0D0 ! Temperature of water coming into the water tank [degC]
-      REAL(KIND(1D0)) :: DomesticHotWaterTemperatureInUseInBuilding = 0.0D0 ! Initial water temperature of water held in use in building [degC]
+      REAL(KIND(1D0)) :: DomesticHotWaterTemperatureInUseInBuilding = 0.0D0 ! Initial water temperature of water held in use &
+           in building [degC]
       REAL(KIND(1D0)) :: InternalWallDHWVesselTemperature = 0.0D0 ! Initial hot water vessel internal wall temperature [degC]
       REAL(KIND(1D0)) :: ExternalWallDHWVesselTemperature = 0.0D0 ! Initial hot water vessel external wall temperature [degC]
 
@@ -1004,7 +1039,8 @@ MODULE SUEWS_DEF_DTS
       REAL(KIND(1D0)) :: qn1_obs = 0.0D0 !
       REAL(KIND(1D0)) :: qs_obs = 0.0D0 !
       REAL(KIND(1D0)) :: temp_c = 0.0D0 !
-      REAL(KIND(1D0)), DIMENSION(:), ALLOCATABLE :: Ts5mindata_ir !surface temperature input data[degC] used in ESTM --> may be deprecated in the future once EHC is more mature
+      REAL(KIND(1D0)), DIMENSION(:), ALLOCATABLE :: Ts5mindata_ir !surface temperature input data[degC] used in ESTM --> may &
+           be deprecated in the future once EHC is more mature
    END TYPE SUEWS_FORCING
 
    TYPE, PUBLIC :: SUEWS_TIMER

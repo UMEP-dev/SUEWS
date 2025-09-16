@@ -920,7 +920,8 @@ CONTAINS
       DecidCap_id = DecidCap_id - CapChange
       StoreDrainPrm(6, DecidSurf) = DecidCap_id !Change current storage capacity of deciduous trees
       porosity_id = porosity_id + porChange !- changed to + by HCW 20 Aug 2015 (porosity greatest when LAI smallest)
-      porosity_id = MIN(MAX(porosity_id, MAX(PorMin_dec, 0.1)), MIN(PorMax_dec, 0.9)) ! limit porosity to valid range, TS 26 Jun 2023
+      porosity_id = MIN(MAX(porosity_id, MAX(PorMin_dec, 0.1)), MIN(PorMax_dec, 0.9)) ! limit porosity to valid range, &
+           TS 26 Jun 2023
 
       ! update albedo values while limiting these to valid ranges
       albDecTr_id = MIN(MAX(albDecTr_id + albChangeDecTr, AlbMin_DecTr), AlbMax_DecTr)
@@ -1132,7 +1133,8 @@ CONTAINS
       REAL(KIND(1D0)), DIMENSION(nsurf), INTENT(in) :: SoilStoreCap_surf !Capacity of soil store for each surface [mm]
       REAL(KIND(1D0)), INTENT(IN) :: H_maintain ! ponding water depth to maintain [mm]
 
-      REAL(KIND(1D0)), DIMENSION(9), INTENT(OUT) :: WUDay_id !Daily water use for EveTr, DecTr, Grass [mm] (see SUEWS_DailyState.f95)
+      REAL(KIND(1D0)), DIMENSION(9), INTENT(OUT) :: WUDay_id !Daily water use for EveTr, DecTr, Grass [mm] (see &
+           SUEWS_DailyState.f95)
 
       REAL(KIND(1D0)), DIMENSION(3) :: h_need !water level to maintain: surface+soil [mm]
       REAL(KIND(1D0)), DIMENSION(3) :: store_total !current water level: surface+soil [mm]

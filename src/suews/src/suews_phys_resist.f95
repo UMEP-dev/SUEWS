@@ -470,7 +470,8 @@ CONTAINS
       INTEGER, PARAMETER :: GrassSurf = 5 !New surface classes: Grass = 5th/7 surfaces
       INTEGER, PARAMETER :: BSoilSurf = 6 !New surface classes: Bare soil = 6th/7 surfaces
       INTEGER, PARAMETER :: WaterSurf = 7
-      REAL(KIND(1D0)), PARAMETER :: porosity_evetr = 0.32 ! assumed porosity of evergreen trees, ref: Lai et al. (2022), http://dx.doi.org/10.2139/ssrn.4058842
+      REAL(KIND(1D0)), PARAMETER :: porosity_evetr = 0.32 ! assumed porosity of evergreen trees, ref: Lai et al. (2022), &
+           http://dx.doi.org/10.2139/ssrn.4058842
 
       TYPE(SUEWS_TIMER), INTENT(IN) :: timer
       TYPE(SUEWS_CONFIG), INTENT(IN) :: config

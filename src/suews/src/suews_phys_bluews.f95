@@ -247,7 +247,8 @@ CONTAINS
       !Output time correction
       idoy = id
       !If(it==0 .and. imin==55) idoy=id-1
-      IF (it == 0 .AND. imin == (nsh_real - 1)/nsh_real*60) idoy = id - 1 !Modified by HCW 04 Mar 2015 in case model timestep is not 5-min
+      IF (it == 0 .AND. imin == (nsh_real - 1)/nsh_real*60) idoy = id - 1 !Modified by HCW 04 Mar 2015 in case model timestep &
+           is not 5-min
 
       ! QUESTION: any difference between the two options? code looks the same in the two branches.
       IF ((qh_choice == 1) .OR. (qh_choice == 2)) THEN !BLUEWS or BLUMPS

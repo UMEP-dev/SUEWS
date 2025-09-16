@@ -1899,7 +1899,8 @@ CONTAINS
 
          ! get day of year:
          ndays_iy = daysInYear(temp_iy) ! get days of year for DOY correction when temp_dectime<0 during year-crossing
-         temp_dectime = MERGE(temp_dectime + ndays_iy, temp_dectime, temp_dectime < 0) ! correct minus temp_dectime to positive values
+         temp_dectime = MERGE(temp_dectime + ndays_iy, temp_dectime, temp_dectime < 0) ! correct minus temp_dectime to &
+              positive values
          temp_id = FLOOR(temp_dectime) + 1 !DOY
 
          temp_ihm = NINT((temp_dectime + 1 - temp_id/1.0)*60.0*24.0) !Minutes of the day (1440 max)
@@ -1934,7 +1935,8 @@ CONTAINS
       REAL(KIND(1D0)), DIMENSION(ReadLinesOrig_loc) :: Slow !Array to disaggregate
       REAL(KIND(1D0)) :: SlowPrev, SlowNext
       INTEGER, DIMENSION(Nper_loc) :: FastRows !Group of rows that are filled with each iteration
-      INTEGER, DIMENSION(FLOOR(Nper_loc/2.0)) :: FirstRows10 !Rows at the beginning that are not filled during iteration (for averages)
+      INTEGER, DIMENSION(FLOOR(Nper_loc/2.0)) :: FirstRows10 !Rows at the beginning that are not filled during iteration (for &
+           averages)
       INTEGER, DIMENSION(Nper_loc - FLOOR(Nper_loc/2.0)) :: LastRows10 !Rows at the end that are not filled during iteration
       INTEGER, DIMENSION(Nper_loc) :: FirstRows20 !Rows at the beginning that are not filled during iteration (for instantaneous)
       INTEGER, DIMENSION(Nper_loc) :: seq1Nper_loc !1 to Nper_loc
@@ -1981,7 +1983,8 @@ CONTAINS
          END IF
          ! For last few rows, use next met block
          IF (iBlock == ReadBlocksOrigMetData) THEN
-            Fast(LastRows10) = Fast(Nper_loc*(ReadLinesOrigMax_loc - 1 - 1) + FastRows(Nper_loc)) !Use repeat values at the end of the year
+            Fast(LastRows10) = Fast(Nper_loc*(ReadLinesOrigMax_loc - 1 - 1) + FastRows(Nper_loc)) !Use repeat values at the &
+                 end of the year
          ELSE
             Fast(LastRows10) = Slow(ReadLinesOrigMax_loc) - &
                                (SlowNext - Slow(ReadLinesOrigMax_loc))/(XNper_loc*Nper_loc) + &

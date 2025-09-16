@@ -229,13 +229,13 @@ CONTAINS
          ! ========== RSL APPROACH ==========
          ! Call dedicated RSL profile calculation
          CALL cal_profile_RSL( &
-                  StabilityMethod, nz, nz_can, zMeas, zH_RSL, &
-                  L_MOD_RSL, zd_RSL, z0_RSL, &
-                  beta, elm, Scc, fx, &
-                  Temp_C, &
-                  UStar_RSL, TStar_RSL, qStar_RSL, qa_gkg, &
-                  psihatm_z, psihath_z, &
-                  zarray, dataoutLineURSL, dataoutLineTRSL, dataoutLineqRSL)
+            StabilityMethod, nz, nz_can, zMeas, zH_RSL, &
+            L_MOD_RSL, zd_RSL, z0_RSL, &
+            beta, elm, Scc, fx, &
+            Temp_C, &
+            UStar_RSL, TStar_RSL, qStar_RSL, qa_gkg, &
+            psihatm_z, psihath_z, &
+            zarray, dataoutLineURSL, dataoutLineTRSL, dataoutLineqRSL)
 
       ELSE
          ! ========== MOST APPROACH ==========
@@ -245,8 +245,8 @@ CONTAINS
          L_MOD_RSL = L_MOD
          zH_RSL = Zh
          UStar_heat = 1/(kappa*RA_h)*(LOG((zMeas - zdm)/z0v) - &
-                      stab_psi_heat(StabilityMethod, (zMeas - zdm)/L_MOD) + &
-                      stab_psi_heat(StabilityMethod, z0v/L_MOD))
+                                      stab_psi_heat(StabilityMethod, (zMeas - zdm)/L_MOD) + &
+                                      stab_psi_heat(StabilityMethod, z0v/L_MOD))
 
          TStar_RSL = -1.*(qh/(avcp*avdens))/UStar_heat
          IF (ABS(qe) <= eps_fp) THEN
@@ -269,10 +269,10 @@ CONTAINS
 
          ! Call dedicated MOST profile calculation
          CALL cal_profile_MOST( &
-                  StabilityMethod, nz, zMeas, zdm, z0m, z0v, L_MOD, &
-                  avU1, Temp_C, &
-                  TStar_RSL, qStar_RSL, qa_gkg, &
-                  zarray, dataoutLineURSL, dataoutLineTRSL, dataoutLineqRSL)
+            StabilityMethod, nz, zMeas, zdm, z0m, z0v, L_MOD, &
+            avU1, Temp_C, &
+            TStar_RSL, qStar_RSL, qa_gkg, &
+            zarray, dataoutLineURSL, dataoutLineTRSL, dataoutLineqRSL)
       END IF
 
       ! construct output line for output file
@@ -352,11 +352,11 @@ CONTAINS
          psihz = stab_psi_heat(StabilityMethod, (zarray(i) - zdm)/L_MOD)
 
          ! Wind speed profile
-         dataoutLineURSL(i) = UStar_MOST/kappa * (LOG((zarray(i) - zdm)/z0m) - psimz + psimz0)
+         dataoutLineURSL(i) = UStar_MOST/kappa*(LOG((zarray(i) - zdm)/z0m) - psimz + psimz0)
 
          ! Temperature and humidity profiles
-         dataoutLineTRSL(i) = Temp_C + TStar/kappa * (LOG((zarray(i) - zdm)/z0v) - psihz + psihz0)
-         dataoutLineqRSL(i) = (qa_gkg/1000. + qStar/kappa * (LOG((zarray(i) - zdm)/z0v) - psihz + psihz0))*1000.
+         dataoutLineTRSL(i) = Temp_C + TStar/kappa*(LOG((zarray(i) - zdm)/z0v) - psihz + psihz0)
+         dataoutLineqRSL(i) = (qa_gkg/1000.+qStar/kappa*(LOG((zarray(i) - zdm)/z0v) - psihz + psihz0))*1000.
       END DO
 
    END SUBROUTINE cal_profile_MOST
@@ -406,11 +406,11 @@ CONTAINS
       DO z = nz_can, nz
          psimz = stab_psi_mom(StabilityMethod, (zarray(z) - zd_RSL)/L_MOD_RSL)
          psihz = stab_psi_heat(StabilityMethod, (zarray(z) - zd_RSL)/L_MOD_RSL)
-         dataoutLineURSL(z) = UStar_RSL/kappa * (LOG((zarray(z) - zd_RSL)/z0_RSL) - psimz + psimz0 + psihatm_z(z))
-         dataoutLineTRSL(z) = TStar_RSL/kappa * (LOG((zarray(z) - zd_RSL)/(zMeas - zd_RSL)) &
-                              - psihz + psihza + psihath_z(z) - psihath_z(nz))
-         dataoutLineqRSL(z) = qStar_RSL/kappa * (LOG((zarray(z) - zd_RSL)/(zMeas - zd_RSL)) &
-                              - psihz + psihza + psihath_z(z) - psihath_z(nz))
+         dataoutLineURSL(z) = UStar_RSL/kappa*(LOG((zarray(z) - zd_RSL)/z0_RSL) - psimz + psimz0 + psihatm_z(z))
+         dataoutLineTRSL(z) = TStar_RSL/kappa*(LOG((zarray(z) - zd_RSL)/(zMeas - zd_RSL)) &
+                                               - psihz + psihza + psihath_z(z) - psihath_z(nz))
+         dataoutLineqRSL(z) = qStar_RSL/kappa*(LOG((zarray(z) - zd_RSL)/(zMeas - zd_RSL)) &
+                                               - psihz + psihza + psihath_z(z) - psihath_z(nz))
       END DO
 
       ! Step 4: Within canopy profiles (exponential)
@@ -444,47 +444,47 @@ CONTAINS
 
       ! Start just above displacement height plus roughness length
       ! This ensures (z - zdm)/z0m > 1, keeping the LOG argument positive
-      z_start = 1.01D0 * (zdm + z0m)  ! 1% above to avoid LOG singularity
+      z_start = 1.01D0*(zdm + z0m)  ! 1% above to avoid LOG singularity
 
       ! Calculate ratio for logarithmic spacing
-      z_ratio = (zMeas/z_start)**(1.0D0/(nz-1))
+      z_ratio = (zMeas/z_start)**(1.0D0/(nz - 1))
 
       ! Generate logarithmic height array
       DO i = 1, nz
-         zarray(i) = z_start * z_ratio**(i-1)
+         zarray(i) = z_start*z_ratio**(i - 1)
       END DO
 
       ! Ensure 2m and 10m are included
       idx_2m = 0
       idx_10m = 0
-      DO i = 1, nz-1
-         IF (zarray(i) <= 2.0D0 .AND. zarray(i+1) > 2.0D0) idx_2m = i
-         IF (zarray(i) <= 10.0D0 .AND. zarray(i+1) > 10.0D0) idx_10m = i
+      DO i = 1, nz - 1
+         IF (zarray(i) <= 2.0D0 .AND. zarray(i + 1) > 2.0D0) idx_2m = i
+         IF (zarray(i) <= 10.0D0 .AND. zarray(i + 1) > 10.0D0) idx_10m = i
       END DO
 
       ! Add exact heights if needed
       IF (idx_2m > 0 .AND. idx_2m < nz) THEN
          ! Adjust nearest point to exactly 2m
-         IF (ABS(zarray(idx_2m) - 2.0D0) < ABS(zarray(idx_2m+1) - 2.0D0)) THEN
+         IF (ABS(zarray(idx_2m) - 2.0D0) < ABS(zarray(idx_2m + 1) - 2.0D0)) THEN
             zarray(idx_2m) = 2.0D0
          ELSE
-            zarray(idx_2m+1) = 2.0D0
+            zarray(idx_2m + 1) = 2.0D0
          END IF
       END IF
 
       IF (idx_10m > 0 .AND. idx_10m < nz) THEN
          ! Adjust nearest point to exactly 10m
-         IF (ABS(zarray(idx_10m) - 10.0D0) < ABS(zarray(idx_10m+1) - 10.0D0)) THEN
+         IF (ABS(zarray(idx_10m) - 10.0D0) < ABS(zarray(idx_10m + 1) - 10.0D0)) THEN
             zarray(idx_10m) = 10.0D0
          ELSE
-            zarray(idx_10m+1) = 10.0D0
+            zarray(idx_10m + 1) = 10.0D0
          END IF
       END IF
 
       ! Ensure monotonicity
       DO i = 2, nz
-         IF (zarray(i) <= zarray(i-1)) THEN
-            zarray(i) = zarray(i-1) * 1.01D0
+         IF (zarray(i) <= zarray(i - 1)) THEN
+            zarray(i) = zarray(i - 1)*1.01D0
          END IF
       END DO
 
@@ -607,7 +607,7 @@ CONTAINS
 !       REAL(KIND(1D0)), PARAMETER :: a1 = 4., a2 = -0.1, a3 = 1.5, a4 = -1. ! constraints to determine beta
 
 !       REAL(KIND(1D0)), PARAMETER :: porosity_evetr = 0.32 ! assumed porosity of evergreen trees
-      ! ref: Lai et al. (2022), http://dx.doi.org/10.2139/ssrn.4058842
+   ! ref: Lai et al. (2022), http://dx.doi.org/10.2139/ssrn.4058842
 
 !       ! Variables array [z,U,T,q, 12 debug vars]
 !       ! z: height array
@@ -1253,9 +1253,9 @@ CONTAINS
                psihz = stab_psi_heat(StabilityMethod, (zarray(z) - zd_RSL)/L_MOD_RSL)
                dataoutLineURSL(z) = (LOG((zarray(z) - zd_RSL)/z0_RSL) - psimz + psimz0 + psihatm_z(z))/kappa &
                                     ! eqn. 3 in Theeuwes et al. (2019 BLM)
-               ! eqn. 4 in Theeuwes et al. (2019 BLM)
-               dataoutLineTRSL(z) = (LOG((zarray(z) - zd_RSL)/(zMeas - zd_RSL)) - psihz + psihza + psihath_z(z) - psihath_z(nz)) &
-                                    /kappa
+                                    ! eqn. 4 in Theeuwes et al. (2019 BLM)
+                 dataoutLineTRSL(z) = (LOG((zarray(z) - zd_RSL)/(zMeas - zd_RSL)) - psihz + psihza + psihath_z(z) - psihath_z(nz)) &
+                                                         /kappa
                dataoutLineqRSL(z) = dataoutLineTRSL(z)
             END DO
             !
@@ -1369,8 +1369,8 @@ CONTAINS
          IF (idx_high == 0) THEN
             PRINT *, "  WARNING: z_x is above or at maximum height in array"
          END IF
-         PRINT *, "  First 5 z values: ", z(1:MIN(5,nz))
-         PRINT *, "  Last 5 z values: ", z(MAX(1,nz-4):nz)
+         PRINT *, "  First 5 z values: ", z(1:MIN(5, nz))
+         PRINT *, "  Last 5 z values: ", z(MAX(1, nz - 4):nz)
       END IF
 
       IF (idx_x > 0) THEN
@@ -1441,7 +1441,7 @@ CONTAINS
       phim_mid = stab_phi_mom(StabilityMethod, (z_mid - zd_RSL)/L_MOD)
       phim_btm = stab_phi_mom(StabilityMethod, (z_btm - zd_RSL)/L_MOD)
 
-      psihatm_btm = psihatm_mid + dz_above/2.*phim_mid*(cm*EXP(-1.*c2*beta*(z_mid - zd_RSL)/elm)) & 
+      psihatm_btm = psihatm_mid + dz_above/2.*phim_mid*(cm*EXP(-1.*c2*beta*(z_mid - zd_RSL)/elm)) &
                     !Taylor's approximation for integral
                     /(z_mid - zd_RSL)
       psihatm_btm = psihatm_btm + dz_above/2.*phim_btm*(cm*EXP(-1.*c2*beta*(z_btm - zd_RSL)/elm)) &
@@ -1518,7 +1518,7 @@ CONTAINS
       phih_mid = stab_phi_heat(StabilityMethod, (z_mid - zd_RSL)/L_MOD)
       phih_btm = stab_phi_heat(StabilityMethod, (z_btm - zd_RSL)/L_MOD)
 
-      psihath_btm = psihath_mid + dz_above/2.*phih_mid*(ch*EXP(-1.*c2h*beta*(z_mid - zd_RSL)/elm)) & 
+      psihath_btm = psihath_mid + dz_above/2.*phih_mid*(ch*EXP(-1.*c2h*beta*(z_mid - zd_RSL)/elm)) &
                     !Taylor's approximation for integral
                     /(z_mid - zd_RSL)
       psihath_btm = psihath_btm + dz_above/2.*phih_btm*(ch*EXP(-1.*c2h*beta*(z_btm - zd_RSL)/elm)) &

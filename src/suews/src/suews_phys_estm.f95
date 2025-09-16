@@ -164,7 +164,8 @@ MODULE ESTM_data !S.O. and FO
               HVAC = .FALSE., &
               SPINDONE = .FALSE.
 
-   REAL(KIND(1D0)), PARAMETER :: alb_wall_fix = 0.23, em_wall_fix = 0.9 ! used only when radforce = T but radforce is always set to F.
+   REAL(KIND(1D0)), PARAMETER :: alb_wall_fix = 0.23, em_wall_fix = 0.9 ! used only when radforce = T but radforce is always &
+        set to F.
    INTEGER, PARAMETER :: maxiter = 100
    REAL(KIND(1D0)), PARAMETER :: conv = 0.0001
 
@@ -1345,7 +1346,8 @@ CONTAINS
 
       ! ---- Parameters related to land surface characteristics ----
       ! QUESTION: Would Zref=z be more appropriate?
-      ZREF = 2.0*BldgH !!FO!! BldgH: mean bulding hight, zref: local scale reference height (local: ~ 10^2 x 10^2 -- 10^3 x 10^3 m^2)
+      ZREF = 2.0*BldgH !!FO!! BldgH: mean bulding hight, zref: local scale reference height (local: ~ 10^2 x 10^2 -- 10^3 x &
+           10^3 m^2)
 
       svf_ground = 1.0
       svf_roof = 1.0
@@ -1408,7 +1410,8 @@ CONTAINS
          WB = 1
          zvf_WALL = 0 !COS(ATAN(2/HW))  when HW=0                                 !!FO!! wall view factor for wall
          HW = 0
-         SVF_ground = MAX(COS(ATAN(2*HW)), 0.00001) !!FO!! sky view factor for ground ! to avoid zero-division scenario TS 21 Oct 2017
+         SVF_ground = MAX(COS(ATAN(2*HW)), 0.00001) !!FO!! sky view factor for ground ! to avoid zero-division scenario TS 21 &
+              Oct 2017
          SVF_WALL = (1 - zvf_WALL)/2 !!FO!! sky view factor for wall
          zvf_ground = 1 - svf_ground !!FO!! wall view factor for ground
          xvf_wall = svf_wall !!FO!! ground view factor
@@ -1514,7 +1517,8 @@ CONTAINS
 
       IF (ESTMStart == 1) THEN
          DO i = 1, 4
-            Tw_4(:, i) = Twall !!FO!! Tw_4 holds three differnet temp:s for each wall layer but the same set for all points of the compass
+            Tw_4(:, i) = Twall !!FO!! Tw_4 holds three differnet temp:s for each wall layer but the same set for all points of &
+                 the compass
          END DO
 
          !initialize surface temperatures
@@ -1917,7 +1921,8 @@ CONTAINS
       SELECT CASE (evolvetibld) !EvolveTiBld specifies which internal building temperature approach to use
       CASE (0)
          diagnoseTi = .FALSE.
-         HVAC = .FALSE. !use data in file                                !!FO!! use measured indoor temperature (Tref in Lodz2002HS.txt)
+         HVAC = .FALSE. !use data in file                                !!FO!! use measured indoor temperature (Tref in &
+              Lodz2002HS.txt)
       CASE (1) !!FO!! use of HVAC to counteract T changes
          diagnoseTi = .TRUE.
          IF (Tievolve > THEAT_OFF) THEN !THEAT_OFF now converted to Kelvin in ESTM_initials - HCW 15 Jun 2016
@@ -1955,7 +1960,8 @@ CONTAINS
          CH_ibld = 1.823*(ABS(T0_ibld - Tievolve))**0.293/shc_airbld
          CH_iwall = 1.823*(ABS(TN_wall - Tievolve))**0.293/shc_airbld
          CH_iroof = 2.175*(ABS(TN_roof - Tievolve))**0.308/shc_airbld
-         IF (ABS(TN_roof - Tievolve) > 0) CH_iroof = 0.704*(ABS(TN_roof - Tievolve))**0.133/shc_airbld !effect of convection is weaker downward
+         IF (ABS(TN_roof - Tievolve) > 0) CH_iroof = 0.704*(ABS(TN_roof - Tievolve))**0.133/shc_airbld !effect of convection &
+              is weaker downward
       END IF
 
       !Evolving T = (Previous Temp + dT from Sensible heat flux) mixed with outside air
@@ -2071,7 +2077,8 @@ CONTAINS
          END IF !!FO!! Tsoil in Lodz2002HS.txt NB => Lodz2002HS.txt doesn't work with onewall = TRUE
 
          CALL heatcond1d(Twall, Qswall, zwall(1:Ndepth_wall), REAL(Tstep, KIND(1D0)), &
-                         kwall(1:Ndepth_wall), rwall(1:Ndepth_wall), bc, bctype) !!FO!! new set of Twalls are calculated from heat conduction through wall
+                         kwall(1:Ndepth_wall), rwall(1:Ndepth_wall), bc, bctype) !!FO!! new set of Twalls are calculated from &
+                              heat conduction through wall
 
       ELSEIF (TsurfChoice == 2) THEN !SPECIAL FOR 4 WALLS
          T0_wall = 0.
@@ -2154,11 +2161,13 @@ CONTAINS
       LUP_VEG = SBConst*em_veg_estm*TVEG**4
       T0 = RVF_ground*T0_ground + RVF_WALL*T0_WALL + RVF_ROOF*T0_ROOF + RVF_VEG*TVEG
       LUP_net = RVF_ground*LUP_ground + RVF_WALL*LUP_WALL + RVF_ROOF*LUP_ROOF + RVF_VEG*LUP_VEG
-      EM_EQUIV = LUP_net/(SBConst*T0**4) !!FO!! apparent emissivity of the atmosphere [cloudless sky: >� Ldown from gases in the lowest 100 m] calculated from surface at T0
+      EM_EQUIV = LUP_net/(SBConst*T0**4) !!FO!! apparent emissivity of the atmosphere [cloudless sky: >� Ldown from gases in &
+           the lowest 100 m] calculated from surface at T0
       RN_ground = rs_ground + rl_ground - lup_ground
       RN_ROOF = rs_roof + rl_roof - lup_roof
       RN_WALL = rs_wall + rl_wall - lup_wall*(1 - zvf_wall*em_wall_fix)
-      RN = kdn_estm - kup_estm + ldown*EM_EQUIV - lup_net !!FO!! average net radiation (at z > zref ????) = shortwave down - shortwave up + [longwave down * apparent emissivity] - longwave up
+      RN = kdn_estm - kup_estm + ldown*EM_EQUIV - lup_net !!FO!! average net radiation (at z > zref ????) = shortwave down - &
+           shortwave up + [longwave down * apparent emissivity] - longwave up
       QHestm = (T0 - Tair1)*CHair*SHC_air*WS
       sumemis = sumemis + EM_EQUIV
       nemis = nemis + 1

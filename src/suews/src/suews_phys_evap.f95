@@ -127,7 +127,8 @@ CONTAINS
 
       REAL(KIND(1D0)), DIMENSION(:), INTENT(in) :: sfr_multi ! facet fraction of surface
       REAL(KIND(1D0)), DIMENSION(:), INTENT(in) :: state_multi ! wetness status
-      REAL(KIND(1D0)), DIMENSION(:), INTENT(in) :: WetThresh_multi !When State > WetThresh, RS=0 limit in SUEWS_evap [mm] (specified in input files)
+      REAL(KIND(1D0)), DIMENSION(:), INTENT(in) :: WetThresh_multi !When State > WetThresh, RS=0 limit in SUEWS_evap [mm] &
+           (specified in input files)
       REAL(KIND(1D0)), DIMENSION(:), INTENT(in) :: capStore_multi ! = StoreDrainPrm(6,is), current storage capacity [mm]
       REAL(KIND(1D0)), DIMENSION(:), INTENT(in) :: qn_e_multi !net available energy for evaporation [W m-2]
 

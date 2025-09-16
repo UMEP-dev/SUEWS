@@ -131,8 +131,10 @@ CONTAINS
 
       ! use average of both daytime and nighttime population values
       ! TS 20 Sep 2019: moved from  here to simplify the interface
-      IF (PopDensDaytime(1) >= 0 .AND. PopDensNighttime >= 0) NumCapita(1) = (PopDensDaytime(1) + PopDensNighttime)/2 !If both, use average
-      IF (PopDensDaytime(2) >= 0 .AND. PopDensNighttime >= 0) NumCapita(2) = (PopDensDaytime(2) + PopDensNighttime)/2 !If both, use average
+      IF (PopDensDaytime(1) >= 0 .AND. PopDensNighttime >= 0) NumCapita(1) = (PopDensDaytime(1) + PopDensNighttime)/2 !If &
+           both, use average
+      IF (PopDensDaytime(2) >= 0 .AND. PopDensNighttime >= 0) NumCapita(2) = (PopDensDaytime(2) + PopDensNighttime)/2 !If &
+           both, use average
 
       !NumCapita = (PopDensDaytime + PopDensNighttime)/2
 
@@ -155,8 +157,10 @@ CONTAINS
       ! PRINT*, 'AHDorNorT old:',AHDorNorT
       PopDorNorT = get_Prof_SpecTime_inst(ih, imin, 0, PopProf_24hr(:, iu)) ! 1=night, 2=day, 1-2=transition
       ActDorNorT = get_Prof_SpecTime_inst(ih, imin, 0, HumActivity_24hr(:, iu)) ! 1=night, 2=day, 1-2=transition
-      TraffDorNorT = get_Prof_SpecTime_mean(ih, imin, 0, TraffProf_24hr(:, iu)) ! normalise so the AVERAGE of the multipliers is equal to 1
-      AHDorNorT = get_Prof_SpecTime_mean(ih, imin, 0, AHProf_24hr(:, iu)) ! normalise so the AVERAGE of the multipliers is equal to 1
+      TraffDorNorT = get_Prof_SpecTime_mean(ih, imin, 0, TraffProf_24hr(:, iu)) ! normalise so the AVERAGE of the multipliers &
+           is equal to 1
+      AHDorNorT = get_Prof_SpecTime_mean(ih, imin, 0, AHProf_24hr(:, iu)) ! normalise so the AVERAGE of the multipliers is &
+           equal to 1
 
       ! Diurnal profile times population density [cap ha-1]
       DP_x_RhoPop = AHDorNorT*NumCapita(iu)
@@ -246,12 +250,14 @@ CONTAINS
          ! Calculate QF from buildings.
          ! First remove (if possibe) human metabolism from the total value given by SAHP.
          IF ((QF_SAHP_base - QF_metab) > 0) THEN
-            QF_build = QF_SAHP_base*QF0_BEU(iu) + QF_SAHP_heating + QF_SAHP_cooling !QF0_BEU = QF0_BuildingEnergyUse = Fraction of base value coming from buildings
+            QF_build = QF_SAHP_base*QF0_BEU(iu) + QF_SAHP_heating + QF_SAHP_cooling !QF0_BEU = QF0_BuildingEnergyUse = &
+                 Fraction of base value coming from buildings
             !relative to traffic as metabolism is separately calculated
          ELSE
             CALL ErrorHint(69, 'QF metab exceeds base QF.', QF_metab, QF_SAHP_base)
 
-            QF_build = QF_SAHP_heating + QF_SAHP_cooling + (QF_SAHP_base - QF_metab) !If human metabolism greater than Base QF, remove this from the heating/cooling contribution also
+            QF_build = QF_SAHP_heating + QF_SAHP_cooling + (QF_SAHP_base - QF_metab) !If human metabolism greater than Base &
+                 QF, remove this from the heating/cooling contribution also
          END IF
 
          ! Consider the various components of QF_build to calculate Fc_build

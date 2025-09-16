@@ -35,12 +35,10 @@
 ## 2025
 
 ### 16 Sep 2025
-- [doc] Added comprehensive beta testing documentation for development versions ([#652](https://github.com/UMEP-dev/SUEWS/issues/652))
-  - Created `.claude/howto/beta-testing.md` guide with uv-based installation instructions
-  - Added user-facing documentation at `docs/source/installation/beta-testing.rst`
-  - Included troubleshooting for common dependency resolution issues from test.pypi.org
-  - Created `scripts/setup-beta.sh` for automated beta testing environment setup
-  - Updated README.md and CLAUDE.md with references to beta testing resources
+- [doc] Added simple instructions for testing development versions ([#652](https://github.com/UMEP-dev/SUEWS/issues/652))
+  - Added concise section in README.md for developers to test pre-release versions from test.pypi.org
+  - Included uv-based installation method to resolve dependency issues
+  - Provided clear steps for creating fresh environment and verifying installation
 
 ### 21 Aug 2025
 - [doc] Added comprehensive developer onboarding guide (`dev-ref/onboarding-guide.md`)

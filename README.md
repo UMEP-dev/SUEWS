@@ -183,17 +183,23 @@ SUEWS maintains consistent code style through automated formatting:
 
 **For Contributors**: Just write working code! Formatting will be applied automatically after merge.
 
-## Beta Testing
+### Testing Development Versions
 
-For testing pre-release development versions from test.pypi.org, see the [Beta Testing Guide](https://suews.readthedocs.io/en/latest/installation/beta-testing.html) or `.claude/howto/beta-testing.md`.
+For developers who need to test pre-release versions from test.pypi.org:
 
-Quick start with `uv`:
 ```bash
-# Install uv
-curl -LsSf https://astral.sh/uv/install.sh | sh
+# Create fresh environment
+python3 -m venv .venv-dev
+source .venv-dev/bin/activate  # Windows: .venv-dev\Scripts\activate
 
-# Install dev version
+# Install using uv (handles test.pypi dependencies better than pip)
+pip install uv
 uv pip install --index-url https://test.pypi.org/simple/ \
               --extra-index-url https://pypi.org/simple/ \
               supy
+
+# Verify version
+python -c "import supy; print(supy.__version__)"  # Should show dev version
 ```
+
+**Note**: Standard `pip install` from test.pypi.org often fails due to dependency resolution issues. Using `uv` with dual indices resolves this.

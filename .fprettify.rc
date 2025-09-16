@@ -1,5 +1,9 @@
 # fprettify configuration for SUEWS Fortran code
 # This ensures consistent formatting across the project
+#
+# NOTE: fprettify can format code but CANNOT automatically break long lines.
+# Lines exceeding 132 characters must be manually split using '&' continuation.
+# Use 'make check-lines' to find lines that need manual breaking.
 
 # Indentation
 indent = 3

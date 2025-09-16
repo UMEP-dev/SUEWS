@@ -183,8 +183,59 @@ SUEWS maintains consistent code style through automated formatting:
 
 **For Contributors**: Just write working code! Formatting will be applied automatically after merge.
 
-**For Local Development** (optional):
->>>>>>> origin/master
+### Testing Development Versions
+
+For developers who need to test pre-release versions from test.pypi.org:
+
+**1. Install uv (one-time setup):**
 ```bash
-pip install -e . --no-build-isolation
+# macOS/Linux
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Windows (PowerShell)
+powershell -c "irm https://astral.sh/uv/install.ps1 | iex"
 ```
+
+**2. Create isolated environment with uv:**
+```bash
+uv venv .venv-dev
+source .venv-dev/bin/activate  # Linux/macOS
+# or: .venv-dev\Scripts\activate  # Windows
+# You'll see (.venv-dev) in your terminal prompt when activated
+```
+Note: `uv venv` is 80x faster than `python -m venv` and manages Python versions automatically.
+
+**3. Check latest version:**
+Visit https://test.pypi.org/project/supy/ to find the latest development version (format: `YYYY.M.D.dev0`)
+
+**4. Install development version:**
+```bash
+# Replace 2025.9.16.dev0 with the latest version from step 3
+uv pip install --extra-index-url https://test.pypi.org/simple/ \
+              --index-strategy unsafe-best-match \
+              supy==2025.9.16.dev0
+```
+
+**5. Verify installation:**
+```bash
+python -c "import supy; print(f'SuPy version: {supy.__version__}')"
+# Should show: 2025.9.16.dev0 (or your installed version)
+```
+
+**6. Test functionality:**
+```bash
+python -c "import supy as sp; sp.load_sample_data(); print('✓ Installation successful')"
+```
+
+**For future use:** Always activate the environment before working:
+```bash
+source .venv-dev/bin/activate  # Linux/macOS
+# or: .venv-dev\Scripts\activate  # Windows
+# Use 'deactivate' to exit the environment
+```
+
+**Why uv?** 
+- Creates virtual environments 80x faster than `python -m venv`
+- Handles test.pypi.org dependencies correctly with `--index-strategy unsafe-best-match`
+- Single tool for both environment and package management
+- No Python installation required (uv can download Python as needed)

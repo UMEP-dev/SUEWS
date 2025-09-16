@@ -34,6 +34,12 @@
 
 ## 2025
 
+### 16 Sep 2025
+- [doc] Added simple instructions for testing development versions ([#652](https://github.com/UMEP-dev/SUEWS/issues/652))
+  - Added concise section in README.md for developers to test pre-release versions from test.pypi.org
+  - Included uv-based installation method to resolve dependency issues
+  - Provided clear steps for creating fresh environment and verifying installation
+
 ### 21 Aug 2025
 - [doc] Added comprehensive developer onboarding guide (`dev-ref/onboarding-guide.md`)
   - Combined structured workflow documentation with practical insights from team onboarding sessions

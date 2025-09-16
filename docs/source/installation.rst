@@ -60,6 +60,78 @@ One can install ``supy`` using ``pip``:
 
 
 
+Testing Development Versions
+-----------------------------
+
+.. warning::
+   
+   **⚠️ CAUTION: Development versions are unstable!**
+   
+   - Development versions are **pre-release** and may contain bugs
+   - Features may change or break without notice  
+   - Not recommended for production use or research publications
+   - Only use if you need to test new features or help with development
+
+Development versions are published to `test.pypi.org <https://test.pypi.org/project/supy/>`_ for testing new features before official release.
+
+**Installation Steps:**
+
+1. **Install uv** (one-time setup)::
+
+    # macOS/Linux
+    curl -LsSf https://astral.sh/uv/install.sh | sh
+    
+    # Windows (PowerShell)
+    powershell -c "irm https://astral.sh/uv/install.ps1 | iex"
+
+.. note::
+
+   ``uv`` is a fast Python package and environment manager written in Rust. It replaces ``pip``, ``venv``, and other tools with a single, faster solution.
+
+2. **Create an isolated environment**::
+
+    uv venv .venv-dev
+    source .venv-dev/bin/activate  # Linux/macOS
+    # or: .venv-dev\Scripts\activate  # Windows
+    
+    # You'll see (.venv-dev) in your terminal prompt when activated
+
+.. tip::
+
+   ``uv venv`` is 80x faster than ``python -m venv`` and automatically manages Python versions.
+
+3. **Check latest version** at https://test.pypi.org/project/supy/ (format: ``YYYY.M.D.dev0``)
+
+4. **Install development version**::
+
+    # Replace 2025.9.16.dev0 with latest version from step 3
+    uv pip install --extra-index-url https://test.pypi.org/simple/ \
+                  --index-strategy unsafe-best-match \
+                  supy==2025.9.16.dev0
+
+5. **Verify installation**::
+
+    python -c "import supy; print(f'SuPy version: {supy.__version__}')"
+    # Should show: 2025.9.16.dev0
+
+**For future use:**
+
+Always activate the virtual environment before working with the development version::
+
+    source .venv-dev/bin/activate  # Linux/macOS
+    # or: .venv-dev\Scripts\activate  # Windows
+
+To deactivate when finished::
+
+    deactivate
+
+**Why uv?**
+
+- Creates virtual environments 80x faster than standard tools
+- Handles test.pypi.org dependencies correctly with ``--index-strategy unsafe-best-match``
+- Single tool for both environment and package management
+- Can automatically download and manage Python versions
+
 Development build
 -----------------
 

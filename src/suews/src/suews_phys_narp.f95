@@ -207,8 +207,7 @@ CONTAINS
       INTEGER, INTENT(in) :: NetRadiationMethod_use ! the one processed by RadMethod
       ! INTEGER, INTENT(in) :: storageheatmethod ! needed for separate surface temperatures
       INTEGER, INTENT(in) :: AlbedoChoice ! flag if correction to albedo of snow cover should be applied
-      INTEGER, INTENT(in) :: ldown_option ! flag for different ldown modelling options; 1 for obs; see code below for other &
-           parameterisations
+      INTEGER, INTENT(in) :: ldown_option ! flag for different ldown modelling options; 1 for obs; see code below for other parameterisations
       INTEGER, INTENT(in) :: DiagQN
 
       REAL(KIND(1D0)), INTENT(out) :: QSTARall

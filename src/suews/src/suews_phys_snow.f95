@@ -448,8 +448,7 @@ CONTAINS
             fwh = fwh + FreezMelt(is)*sfr_surf(is)*SnowFrac(is) !Freezing water
             Qm = Qm + Qm_melt(is)*sfr_surf(is)*SnowFrac(is) !Energy consumed to the melt/freezing.
             QmRain = QmRain + Qm_rain(is)*sfr_surf(is)*SnowFrac(is) !Rain on snow
-            QmFreez = QmFreez + deltaQi(is)*sfr_surf(is)*SnowFrac(is) + Qm_freezState(is)*sfr_surf(is)*(1 - SnowFrac(is)) &
-                 !Freezing water
+            QmFreez = QmFreez + deltaQi(is)*sfr_surf(is)*SnowFrac(is) + Qm_freezState(is)*sfr_surf(is)*(1 - SnowFrac(is)) !Freezing water
          END IF
 
       END DO !End surface type
@@ -860,8 +859,7 @@ CONTAINS
 
                   !----SnowPack water balance for the whole surface area. In reality snow depth = SnowPack/SnowFrac(is)
                   !(Snowfall per interval+freezing of melt water and surface state_id) - (meltwater+evaporation from SnowPack)
-                  changSnow(is) = (Precip + freezMelt(is) + freezStateVol(is)) - (mw_ind(is) + ev_snow(is)) &
-                       !Calculate change in SnowPack (in mm)
+                  changSnow(is) = (Precip + freezMelt(is) + freezStateVol(is)) - (mw_ind(is) + ev_snow(is)) !Calculate change in SnowPack (in mm)
 
                   !If rain on snow event, add this water to SnowWater
                   IF (rainOnSnow(is) > 0) THEN
@@ -883,8 +881,7 @@ CONTAINS
                      !snowFracFresh1=SnowDepletionCurve(is,SnowPack(is),SnowPackLimit(is))
                      !if (snowFracFresh1<0.001) snowFracFresh1=0.001
                   ELSEIF (FreezState(is) > 0 .AND. FreezState(is) < state_id(is)) THEN !This if not all water freezes
-                     snowFracFresh1 = 0.95 !Now this fraction set to something close to one. Should be improved in the future &
-                          at some point
+                     snowFracFresh1 = 0.95 !Now this fraction set to something close to one. Should be improved in the future at some point
                      !if (is==1)then
                      ! write(*,*) id,it,imin,SnowFrac(is),FreezState(is),state_id(is)
                      ! pause
@@ -916,8 +913,7 @@ CONTAINS
 
                      changSnow(is) = Precip + freezStateVol(is)
                      SnowPack(is) = SnowPack(is) + changSnow(is) !Update SnowPack
-                     snowFracFresh2 = 0.95 !Now this fraction set to something close to one. Should be improved in the future &
-                          at some point
+                     snowFracFresh2 = 0.95 !Now this fraction set to something close to one. Should be improved in the future at some point
 
                      !snowFracFresh2=SnowDepletionCurve(is,SnowPack(is),SnowPackLimit(is))
                      !if (snowFracFresh2<0.001) snowFracFresh2=0.001
@@ -1005,8 +1001,7 @@ CONTAINS
                   ! Check sfr_surf/=0 added HCW 08 Dec 2015
                   IF (is == PavSurf .AND. sfr_surf(PavSurf) > 0) state_id(is) = state_id(is) + (addImpervious)/sfr_surf(PavSurf)
 
-                  runoff_snowfree(is) = runoff_snowfree(is) + drain(is)*AddWaterRunoff(is) !Drainage (not flowing to other &
-                       surfaces) goes to runoff
+                  runoff_snowfree(is) = runoff_snowfree(is) + drain(is)*AddWaterRunoff(is) !Drainage (not flowing to other surfaces) goes to runoff
 
                   IF (state_id(is) < 0.0) THEN !Surface state_id cannot be negative
                      SurplusEvap(is) = ABS(state_id(is)) !take evaporation from other surfaces in mm
@@ -1020,8 +1015,7 @@ CONTAINS
 
                   !Change in water stores
                   IF (VegFraction > 0) THEN
-                     IF (Precip + addVeg*(sfr_surf(is)/VegFraction) > (IPThreshold_mmhr/nsh_real)) &
-                          THEN !if 5min precipitation is larger than 10 mm
+                     IF (Precip + addVeg*(sfr_surf(is)/VegFraction) > (IPThreshold_mmhr/nsh_real)) THEN !if 5min precipitation is larger than 10 mm
                         runoff_snowfree(is) = runoff_snowfree(is) + (Precip + addVeg*(sfr_surf(is)/VegFraction) + &
                                                                      SnowToSurf(is) + AddWater(is) - (IPThreshold_mmhr/nsh_real))
                         chang(is) = (IPThreshold_mmhr/nsh_real) - (drain(is) + ev_snowfree + freezState(is))

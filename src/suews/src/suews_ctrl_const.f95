@@ -23,8 +23,7 @@ MODULE allocateArray
 ! #ifdef nc
 !    INTEGER, PARAMETER:: MaxNumberOfGrids = 90000   !Max no. grids   !TS changed to 90000 for large-scale simulation based on netCDF IO
 ! #else
-   INTEGER, PARAMETER :: MaxNumberOfGrids = 10000 !Max no. grids   !HCW changed to 2000 from 10000 so prog can run on windows &
-        (2GB lim)
+   INTEGER, PARAMETER :: MaxNumberOfGrids = 10000 !Max no. grids   !HCW changed to 2000 from 10000 so prog can run on windows (2GB lim)
 ! #endif
    INTEGER, PARAMETER :: MaxLinesMet = 8640 !Max no. lines to read in one go (for all grids, ie MaxLinesMet/NumberOfGrids each)
 
@@ -108,10 +107,8 @@ MODULE allocateArray
    CHARACTER(len=20), DIMENSION(ncolumnsConductance) :: HeaderCond_Reqd !Expected header for conductances
    CHARACTER(len=20), DIMENSION(ncolumnsOHMCoefficients) :: HeaderOHMCoefficients_File !Header for soils
    CHARACTER(len=20), DIMENSION(ncolumnsOHMCoefficients) :: HeaderOHMCoefficients_Reqd !Expected header for soils
-   CHARACTER(len=20), DIMENSION(ncolumnsESTMCoefficients) :: HeaderESTMCoefficients_File !Header for soils            ! S.O. &
-        04 Feb 2016
-   CHARACTER(len=20), DIMENSION(ncolumnsESTMCoefficients) :: HeaderESTMCoefficients_Reqd !Expected header for soils   ! S.O. &
-        04 Feb 2016
+   CHARACTER(len=20), DIMENSION(ncolumnsESTMCoefficients) :: HeaderESTMCoefficients_File !Header for soils            ! S.O. 04 Feb 2016
+   CHARACTER(len=20), DIMENSION(ncolumnsESTMCoefficients) :: HeaderESTMCoefficients_Reqd !Expected header for soils   ! S.O. 04 Feb 2016
    CHARACTER(len=20), DIMENSION(ncolumnsAnthropogenic) :: HeaderAnthropogenic_File !Header for QF
    CHARACTER(len=20), DIMENSION(ncolumnsAnthropogenic) :: HeaderAnthropogenic_Reqd !Expected header for QF
    CHARACTER(len=20), DIMENSION(ncolumnsIrrigation) :: HeaderIrrigation_File !Header for Irrigation
@@ -153,8 +150,7 @@ MODULE allocateArray
    INTEGER, DIMENSION(:), ALLOCATABLE :: GridIDmatrix0 !Array containing GridIDs in SiteSelect in the original order
    REAL(KIND(1D0)), DIMENSION(:, :), ALLOCATABLE :: SurfaceChar !Array for surface characteristics
    REAL(KIND(1D0)), DIMENSION(:, :, :), ALLOCATABLE :: MetForcingData !Array for meteorological forcing data
-   REAL(KIND(1D0)), DIMENSION(:, :), ALLOCATABLE :: MetForcingData_grid !Array for meteorological forcing data of one grid &
-        used by AnOHM
+   REAL(KIND(1D0)), DIMENSION(:, :), ALLOCATABLE :: MetForcingData_grid !Array for meteorological forcing data of one grid used by AnOHM
    REAL(KIND(1D0)), DIMENSION(:, :, :), ALLOCATABLE :: ESTMForcingData !Array for ESTM forcing data
    REAL(KIND(1D0)), DIMENSION(:, :), ALLOCATABLE :: ModelDailyState !DailyState array
    REAL(KIND(1D0)), DIMENSION(:), ALLOCATABLE :: DailyStateFirstOpen
@@ -254,8 +250,7 @@ MODULE allocateArray
    REAL(KIND(1D0)), DIMENSION(nsurf) :: stateOld !Wetness status of each surface type from previous timestep [mm]
    REAL(KIND(1D0)), DIMENSION(nsurf) :: rss_nsurf !Surface resistance after wet/partially wet adjustment for each surface
 
-   REAL(KIND(1D0)), DIMENSION(nsurf) :: WetThresh_surf !When state_id > WetThresh, RS=0 limit in SUEWS_evap [mm] (specified in &
-        input files)
+   REAL(KIND(1D0)), DIMENSION(nsurf) :: WetThresh_surf !When state_id > WetThresh, RS=0 limit in SUEWS_evap [mm] (specified in input files)
    REAL(KIND(1D0)), DIMENSION(nsurf) :: StateLimit_surf !Limit for state_id of each surface type [mm] (specified in input files)
 
    REAL(KIND(1D0)), DIMENSION(1) :: WaterDepth !Depth of open water
@@ -266,8 +261,7 @@ MODULE allocateArray
    REAL(KIND(1D0)), DIMENSION(nsurf) :: SoilStoreCap_surf !Capacity of soil store for each surface [mm]
 
    ! ---- Within-grid water distribution matrix ---------------------------------------------------
-   REAL(KIND(1D0)), DIMENSION(nsurf + 1, nsurf - 1) :: WaterDist !Within-grid water distribution to other surfaces and &
-        runoff/soil store [-]
+   REAL(KIND(1D0)), DIMENSION(nsurf + 1, nsurf - 1) :: WaterDist !Within-grid water distribution to other surfaces and runoff/soil store [-]
 
    ! ---- Drainage characteristics ----------------------------------------------------------------
    REAL(KIND(1D0)), DIMENSION(6, nsurf) :: StoreDrainPrm !Storage capacities and drainage equation info for each surface
@@ -637,64 +631,43 @@ MODULE allocateArray
    INTEGER, DIMENSION(nsurf) :: c_AlbMin = (/(cc, cc=ccEndSI + 0*nsurf + 1, ccEndSI + 0*nsurf + nsurf, 1)/) !Min. albedo
    INTEGER, DIMENSION(nsurf) :: c_AlbMax = (/(cc, cc=ccEndSI + 1*nsurf + 1, ccEndSI + 1*nsurf + nsurf, 1)/) !Max. albedo
    INTEGER, DIMENSION(nsurf) :: c_Emis = (/(cc, cc=ccEndSI + 2*nsurf + 1, ccEndSI + 2*nsurf + nsurf, 1)/) !Emissivity
-   INTEGER, DIMENSION(nsurf) :: c_StorMin = (/(cc, cc=ccEndSI + 3*nsurf + 1, ccEndSI + 3*nsurf + nsurf, 1)/) &
-        !Min. storage capacity (canopy)
-   INTEGER, DIMENSION(nsurf) :: c_StorMax = (/(cc, cc=ccEndSI + 4*nsurf + 1, ccEndSI + 4*nsurf + nsurf, 1)/) &
-        !Max. storage capacity (canopy)
-   INTEGER, DIMENSION(nsurf) :: c_WetThresh = (/(cc, cc=ccEndSI + 5*nsurf + 1, ccEndSI + 5*nsurf + nsurf, 1)/) &
-        !Threshold for wet evaporation [mm]
-   INTEGER, DIMENSION(nsurf) :: c_StateLimit = (/(cc, cc=ccEndSI + 6*nsurf + 1, ccEndSI + 6*nsurf + nsurf, 1)/) &
-        !Limit for surface state [mm]
+   INTEGER, DIMENSION(nsurf) :: c_StorMin = (/(cc, cc=ccEndSI + 3*nsurf + 1, ccEndSI + 3*nsurf + nsurf, 1)/) !Min. storage capacity (canopy)
+   INTEGER, DIMENSION(nsurf) :: c_StorMax = (/(cc, cc=ccEndSI + 4*nsurf + 1, ccEndSI + 4*nsurf + nsurf, 1)/) !Max. storage capacity (canopy)
+   INTEGER, DIMENSION(nsurf) :: c_WetThresh = (/(cc, cc=ccEndSI + 5*nsurf + 1, ccEndSI + 5*nsurf + nsurf, 1)/) !Threshold for wet evaporation [mm]
+   INTEGER, DIMENSION(nsurf) :: c_StateLimit = (/(cc, cc=ccEndSI + 6*nsurf + 1, ccEndSI + 6*nsurf + nsurf, 1)/) !Limit for surface state [mm]
    INTEGER, DIMENSION(nsurf) :: c_DrEq = (/(cc, cc=ccEndSI + 7*nsurf + 1, ccEndSI + 7*nsurf + nsurf, 1)/) !Drainage equation
    INTEGER, DIMENSION(nsurf) :: c_DrCoef1 = (/(cc, cc=ccEndSI + 8*nsurf + 1, ccEndSI + 8*nsurf + nsurf, 1)/) !Drainage coef. 1
    INTEGER, DIMENSION(nsurf) :: c_DrCoef2 = (/(cc, cc=ccEndSI + 9*nsurf + 1, ccEndSI + 9*nsurf + nsurf, 1)/) !Drainage coef. 2
    INTEGER, DIMENSION(nsurf) :: c_SoilTCode = (/(cc, cc=ccEndSI + 10*nsurf + 1, ccEndSI + 10*nsurf + nsurf, 1)/) !Soil type code
 
    ! N.B. not included in SUEWS_Water.txt
-   INTEGER, DIMENSION(nsurf) :: c_SnowLimPat = (/(cc, cc=ccEndSI + 11*nsurf + 1, ccEndSI + 11*nsurf + nsurf, 1)/) &
-        !Snow limit for patchiness
+   INTEGER, DIMENSION(nsurf) :: c_SnowLimPat = (/(cc, cc=ccEndSI + 11*nsurf + 1, ccEndSI + 11*nsurf + nsurf, 1)/) !Snow limit for patchiness
    ! N.B. currently only in SUEWS_NonVeg.txt
-   INTEGER, DIMENSION(nsurf) :: c_SnowLimRem = (/(cc, cc=ccEndSI + 12*nsurf + 1, ccEndSI + 12*nsurf + nsurf, 1)/) &
-        !Snow limit for removal
+   INTEGER, DIMENSION(nsurf) :: c_SnowLimRem = (/(cc, cc=ccEndSI + 12*nsurf + 1, ccEndSI + 12*nsurf + nsurf, 1)/) !Snow limit for removal
    ! AnOHM TS
-   INTEGER, DIMENSION(nsurf) :: c_CpAnOHM = (/(cc, cc=ccEndSI + 13*nsurf + 1, ccEndSI + 13*nsurf + nsurf, 1)/) !heat capacity, &
-        AnOHM TS
-   INTEGER, DIMENSION(nsurf) :: c_KkAnOHM = (/(cc, cc=ccEndSI + 14*nsurf + 1, ccEndSI + 14*nsurf + nsurf, 1)/) &
-        !heat conductivity, AnOHM TS
-   INTEGER, DIMENSION(nsurf) :: c_ChAnOHM = (/(cc, cc=ccEndSI + 15*nsurf + 1, ccEndSI + 15*nsurf + nsurf, 1)/) &
-        !bulk transfer coef., AnOHM TS
+   INTEGER, DIMENSION(nsurf) :: c_CpAnOHM = (/(cc, cc=ccEndSI + 13*nsurf + 1, ccEndSI + 13*nsurf + nsurf, 1)/) !heat capacity, AnOHM TS
+   INTEGER, DIMENSION(nsurf) :: c_KkAnOHM = (/(cc, cc=ccEndSI + 14*nsurf + 1, ccEndSI + 14*nsurf + nsurf, 1)/) !heat conductivity, AnOHM TS
+   INTEGER, DIMENSION(nsurf) :: c_ChAnOHM = (/(cc, cc=ccEndSI + 15*nsurf + 1, ccEndSI + 15*nsurf + nsurf, 1)/) !bulk transfer coef., AnOHM TS
 
    ! Find current column number
    INTEGER, PARAMETER :: ccEndI = (ccEndSI + 15*nsurf + nsurf) !add columns for AnOHM, AnOHM TS
 
    ! Applicable to vegetated surfaces only
-   INTEGER, DIMENSION(NVegSurf) :: c_BaseT = (/(cc, cc=ccEndI + 0*nvegsurf + 1, ccEndI + 0*nvegsurf + nvegsurf, 1)/) &
-        !Base temp. for leaf-on
-   INTEGER, DIMENSION(NVegSurf) :: c_BaseTe = (/(cc, cc=ccEndI + 1*nvegsurf + 1, ccEndI + 1*nvegsurf + nvegsurf, 1)/) &
-        !Base temp. for leaf-off
-   INTEGER, DIMENSION(NVegSurf) :: c_GDDFull = (/(cc, cc=ccEndI + 2*nvegsurf + 1, ccEndI + 2*nvegsurf + nvegsurf, 1)/) &
-        !GDD for full LAI
-   INTEGER, DIMENSION(NVegSurf) :: c_SDDFull = (/(cc, cc=ccEndI + 3*nvegsurf + 1, ccEndI + 3*nvegsurf + nvegsurf, 1)/) &
-        !SDD for start of leaf-fall
+   INTEGER, DIMENSION(NVegSurf) :: c_BaseT = (/(cc, cc=ccEndI + 0*nvegsurf + 1, ccEndI + 0*nvegsurf + nvegsurf, 1)/) !Base temp. for leaf-on
+   INTEGER, DIMENSION(NVegSurf) :: c_BaseTe = (/(cc, cc=ccEndI + 1*nvegsurf + 1, ccEndI + 1*nvegsurf + nvegsurf, 1)/) !Base temp. for leaf-off
+   INTEGER, DIMENSION(NVegSurf) :: c_GDDFull = (/(cc, cc=ccEndI + 2*nvegsurf + 1, ccEndI + 2*nvegsurf + nvegsurf, 1)/) !GDD for full LAI
+   INTEGER, DIMENSION(NVegSurf) :: c_SDDFull = (/(cc, cc=ccEndI + 3*nvegsurf + 1, ccEndI + 3*nvegsurf + nvegsurf, 1)/) !SDD for start of leaf-fall
    INTEGER, DIMENSION(NVegSurf) :: c_LAIMin = (/(cc, cc=ccEndI + 4*nvegsurf + 1, ccEndI + 4*nvegsurf + nvegsurf, 1)/) !Min. LAI
    INTEGER, DIMENSION(NVegSurf) :: c_LAIMax = (/(cc, cc=ccEndI + 5*nvegsurf + 1, ccEndI + 5*nvegsurf + nvegsurf, 1)/) !Max. LAI
-   INTEGER, DIMENSION(NVegSurf) :: c_PorosityMin = (/(cc, cc=ccEndI + 6*nvegsurf + 1, ccEndI + 6*nvegsurf + nvegsurf, 1)/) &
-        !Min. Porosity
-   INTEGER, DIMENSION(NVegSurf) :: c_PorosityMax = (/(cc, cc=ccEndI + 7*nvegsurf + 1, ccEndI + 7*nvegsurf + nvegsurf, 1)/) &
-        !Max. Porosity
-   INTEGER, DIMENSION(NVegSurf) :: c_GsMax = (/(cc, cc=ccEndI + 8*nvegsurf + 1, ccEndI + 8*nvegsurf + nvegsurf, 1)/) &
-        !Max. conductance
+   INTEGER, DIMENSION(NVegSurf) :: c_PorosityMin = (/(cc, cc=ccEndI + 6*nvegsurf + 1, ccEndI + 6*nvegsurf + nvegsurf, 1)/) !Min. Porosity
+   INTEGER, DIMENSION(NVegSurf) :: c_PorosityMax = (/(cc, cc=ccEndI + 7*nvegsurf + 1, ccEndI + 7*nvegsurf + nvegsurf, 1)/) !Max. Porosity
+   INTEGER, DIMENSION(NVegSurf) :: c_GsMax = (/(cc, cc=ccEndI + 8*nvegsurf + 1, ccEndI + 8*nvegsurf + nvegsurf, 1)/) !Max. conductance
    INTEGER, DIMENSION(NVegSurf) :: c_LAIEq = (/(cc, cc=ccEndI + 9*nvegsurf + 1, ccEndI + 9*nvegsurf + nvegsurf, 1)/) !LAI equation
-   INTEGER, DIMENSION(NVegSurf) :: c_LeafGP1 = (/(cc, cc=ccEndI + 10*nvegsurf + 1, ccEndI + 10*nvegsurf + nvegsurf, 1)/) &
-        !Leaf growth power 1
-   INTEGER, DIMENSION(NVegSurf) :: c_LeafGP2 = (/(cc, cc=ccEndI + 11*nvegsurf + 1, ccEndI + 11*nvegsurf + nvegsurf, 1)/) &
-        !Leaf growth power 2
-   INTEGER, DIMENSION(NVegSurf) :: c_LeafOP1 = (/(cc, cc=ccEndI + 12*nvegsurf + 1, ccEndI + 12*nvegsurf + nvegsurf, 1)/) &
-        !Leaf-off power 1
-   INTEGER, DIMENSION(NVegSurf) :: c_LeafOP2 = (/(cc, cc=ccEndI + 13*nvegsurf + 1, ccEndI + 13*nvegsurf + nvegsurf, 1)/) &
-        !Leaf-off power 2
-   INTEGER, DIMENSION(NVegSurf) :: c_BiogenCO2Code = (/(cc, cc=ccEndI + 14*nvegsurf + 1, ccEndI + 14*nvegsurf + nvegsurf, 1)/) &
-        !Biogenic CO2 Code
+   INTEGER, DIMENSION(NVegSurf) :: c_LeafGP1 = (/(cc, cc=ccEndI + 10*nvegsurf + 1, ccEndI + 10*nvegsurf + nvegsurf, 1)/) !Leaf growth power 1
+   INTEGER, DIMENSION(NVegSurf) :: c_LeafGP2 = (/(cc, cc=ccEndI + 11*nvegsurf + 1, ccEndI + 11*nvegsurf + nvegsurf, 1)/) !Leaf growth power 2
+   INTEGER, DIMENSION(NVegSurf) :: c_LeafOP1 = (/(cc, cc=ccEndI + 12*nvegsurf + 1, ccEndI + 12*nvegsurf + nvegsurf, 1)/) !Leaf-off power 1
+   INTEGER, DIMENSION(NVegSurf) :: c_LeafOP2 = (/(cc, cc=ccEndI + 13*nvegsurf + 1, ccEndI + 13*nvegsurf + nvegsurf, 1)/) !Leaf-off power 2
+   INTEGER, DIMENSION(NVegSurf) :: c_BiogenCO2Code = (/(cc, cc=ccEndI + 14*nvegsurf + 1, ccEndI + 14*nvegsurf + nvegsurf, 1)/) !Biogenic CO2 Code
    ! Find current column number
    INTEGER, PARAMETER :: ccEndP = (ccEndI + 14*nvegsurf + nvegsurf)
 
@@ -725,20 +698,14 @@ MODULE allocateArray
    INTEGER, PARAMETER :: ccEndSn = (ccEndW + 15)
 
    ! Soil information
-   INTEGER, DIMENSION(nsurf) :: c_SoilDepth = (/(cc, cc=ccEndSn + 0*nsurf + 1, ccEndSn + 0*nsurf + nsurf, 1)/) &
-        ! Volumetric SM capacity
-   INTEGER, DIMENSION(nsurf) :: c_SoilStCap = (/(cc, cc=ccEndSn + 1*nsurf + 1, ccEndSn + 1*nsurf + nsurf, 1)/) &
-        ! Volumetric SM capacity
-   INTEGER, DIMENSION(nsurf) :: c_KSat = (/(cc, cc=ccEndSn + 2*nsurf + 1, ccEndSn + 2*nsurf + nsurf, 1)/) &
-        ! Saturated hydraulic conductivity
+   INTEGER, DIMENSION(nsurf) :: c_SoilDepth = (/(cc, cc=ccEndSn + 0*nsurf + 1, ccEndSn + 0*nsurf + nsurf, 1)/) ! Volumetric SM capacity
+   INTEGER, DIMENSION(nsurf) :: c_SoilStCap = (/(cc, cc=ccEndSn + 1*nsurf + 1, ccEndSn + 1*nsurf + nsurf, 1)/) ! Volumetric SM capacity
+   INTEGER, DIMENSION(nsurf) :: c_KSat = (/(cc, cc=ccEndSn + 2*nsurf + 1, ccEndSn + 2*nsurf + nsurf, 1)/) ! Saturated hydraulic conductivity
    INTEGER, DIMENSION(nsurf) :: c_SoilDens = (/(cc, cc=ccEndSn + 3*nsurf + 1, ccEndSn + 3*nsurf + nsurf, 1)/) ! Soil Density
-   INTEGER, DIMENSION(nsurf) :: c_SoilInfRate = (/(cc, cc=ccEndSn + 4*nsurf + 1, ccEndSn + 4*nsurf + nsurf, 1)/) &
-        ! Soil infiltration rate
+   INTEGER, DIMENSION(nsurf) :: c_SoilInfRate = (/(cc, cc=ccEndSn + 4*nsurf + 1, ccEndSn + 4*nsurf + nsurf, 1)/) ! Soil infiltration rate
    INTEGER, DIMENSION(nsurf) :: c_ObsSMDepth = (/(cc, cc=ccEndSn + 5*nsurf + 1, ccEndSn + 5*nsurf + nsurf, 1)/) ! Depth of SM obs
-   INTEGER, DIMENSION(nsurf) :: c_ObsSMMax = (/(cc, cc=ccEndSn + 6*nsurf + 1, ccEndSn + 6*nsurf + nsurf, 1)/) &
-        ! Obs maximum SM [kg kg-1 OR m3 m-3]
-   INTEGER, DIMENSION(nsurf) :: c_ObsSNRFrac = (/(cc, cc=ccEndSn + 7*nsurf + 1, ccEndSn + 7*nsurf + nsurf, 1)/) &
-        ! Obs fraction of soil without rocks
+   INTEGER, DIMENSION(nsurf) :: c_ObsSMMax = (/(cc, cc=ccEndSn + 6*nsurf + 1, ccEndSn + 6*nsurf + nsurf, 1)/) ! Obs maximum SM [kg kg-1 OR m3 m-3]
+   INTEGER, DIMENSION(nsurf) :: c_ObsSNRFrac = (/(cc, cc=ccEndSn + 7*nsurf + 1, ccEndSn + 7*nsurf + nsurf, 1)/) ! Obs fraction of soil without rocks
 
    ! Find current column number
    INTEGER, PARAMETER :: ccEndSo = (ccEndSn + 7*nsurf + nsurf)
@@ -795,8 +762,7 @@ MODULE allocateArray
                                                       ccEndGs + 15*nsurfIncSnow + nsurfIncSnow, 1)/) !OHM a3 (winter dry)
 
    INTEGER, DIMENSION(nsurfIncSnow) :: c_OHMThresh_SW = (/(cc, cc=ccEndGs + 16*nsurfIncSnow + 1, &
-                                                           ccEndGs + 16*nsurfIncSnow + nsurfIncSnow, 1)/) &
-                                                                !OHM Threshold (summer/winter)
+                                                           ccEndGs + 16*nsurfIncSnow + nsurfIncSnow, 1)/) !OHM Threshold (summer/winter)
    INTEGER, DIMENSION(nsurfIncSnow) :: c_OHMThresh_WD = (/(cc, cc=ccEndGs + 17*nsurfIncSnow + 1, &
                                                            ccEndGs + 17*nsurfIncSnow + nsurfIncSnow, 1)/) !OHM Threshold (wet/dry)
 
@@ -859,8 +825,7 @@ MODULE allocateArray
    INTEGER, DIMENSION(3) :: c_Ie_a = (/(cc, cc=ccEndA + 5 + 0*3 + 1, ccEndA + 5 + 0*3 + 3, 1)/) ! Automatic irrigation coeffs
    INTEGER, DIMENSION(3) :: c_Ie_m = (/(cc, cc=ccEndA + 5 + 1*3 + 1, ccEndA + 5 + 1*3 + 3, 1)/) ! Manual irrigation coeffs
    INTEGER, DIMENSION(7) :: c_DayWat = (/(cc, cc=ccEndA + 11 + 0*7 + 1, ccEndA + 11 + 0*7 + 7, 1)/) ! Irrigation allowed on each day
-   INTEGER, DIMENSION(7) :: c_DayWatPer = (/(cc, cc=ccEndA + 11 + 1*7 + 1, ccEndA + 11 + 1*7 + 7, 1)/) &
-        ! Fraction properties using irrigation allowed on each day
+   INTEGER, DIMENSION(7) :: c_DayWatPer = (/(cc, cc=ccEndA + 11 + 1*7 + 1, ccEndA + 11 + 1*7 + 7, 1)/) ! Fraction properties using irrigation allowed on each day
 
    ! Find current column number
    INTEGER, PARAMETER :: ccEndIr = (ccEndA + 11 + 1*7 + 7)
@@ -868,20 +833,14 @@ MODULE allocateArray
    ! Hourly profiles
    INTEGER, DIMENSION(24) :: c_HrProfEnUseWD = (/(cc, cc=ccEndIr + 0*24 + 1, ccEndIr + 0*24 + 24, 1)/) ! Energy use, weekdays
    INTEGER, DIMENSION(24) :: c_HrProfEnUseWE = (/(cc, cc=ccEndIr + 1*24 + 1, ccEndIr + 1*24 + 24, 1)/) ! Energy use, weekends
-   INTEGER, DIMENSION(24) :: c_HrProfWUManuWD = (/(cc, cc=ccEndIr + 2*24 + 1, ccEndIr + 2*24 + 24, 1)/) ! Water use, manual, &
-        weekdays
-   INTEGER, DIMENSION(24) :: c_HrProfWUManuWE = (/(cc, cc=ccEndIr + 3*24 + 1, ccEndIr + 3*24 + 24, 1)/) ! Water use, manual, &
-        weekends
-   INTEGER, DIMENSION(24) :: c_HrProfWUAutoWD = (/(cc, cc=ccEndIr + 4*24 + 1, ccEndIr + 4*24 + 24, 1)/) ! Water use, &
-        automatic, weekdays
-   INTEGER, DIMENSION(24) :: c_HrProfWUAutoWE = (/(cc, cc=ccEndIr + 5*24 + 1, ccEndIr + 5*24 + 24, 1)/) ! Water use, &
-        automatic, weekends
+   INTEGER, DIMENSION(24) :: c_HrProfWUManuWD = (/(cc, cc=ccEndIr + 2*24 + 1, ccEndIr + 2*24 + 24, 1)/) ! Water use, manual, weekdays
+   INTEGER, DIMENSION(24) :: c_HrProfWUManuWE = (/(cc, cc=ccEndIr + 3*24 + 1, ccEndIr + 3*24 + 24, 1)/) ! Water use, manual, weekends
+   INTEGER, DIMENSION(24) :: c_HrProfWUAutoWD = (/(cc, cc=ccEndIr + 4*24 + 1, ccEndIr + 4*24 + 24, 1)/) ! Water use, automatic, weekdays
+   INTEGER, DIMENSION(24) :: c_HrProfWUAutoWE = (/(cc, cc=ccEndIr + 5*24 + 1, ccEndIr + 5*24 + 24, 1)/) ! Water use, automatic, weekends
    INTEGER, DIMENSION(24) :: c_HrProfSnowCWD = (/(cc, cc=ccEndIr + 6*24 + 1, ccEndIr + 6*24 + 24, 1)/) ! Snow clearing, weekdays
    INTEGER, DIMENSION(24) :: c_HrProfSnowCWE = (/(cc, cc=ccEndIr + 7*24 + 1, ccEndIr + 7*24 + 24, 1)/) ! Snow clearing, weekends
-   INTEGER, DIMENSION(24) :: c_HrProfHumActivityWD = (/(cc, cc=ccEndIr + 8*24 + 1, ccEndIr + 8*24 + 24, 1)/) ! Human activity, &
-        weekdays
-   INTEGER, DIMENSION(24) :: c_HrProfHumActivityWE = (/(cc, cc=ccEndIr + 9*24 + 1, ccEndIr + 9*24 + 24, 1)/) ! Human activity, &
-        weekends
+   INTEGER, DIMENSION(24) :: c_HrProfHumActivityWD = (/(cc, cc=ccEndIr + 8*24 + 1, ccEndIr + 8*24 + 24, 1)/) ! Human activity, weekdays
+   INTEGER, DIMENSION(24) :: c_HrProfHumActivityWE = (/(cc, cc=ccEndIr + 9*24 + 1, ccEndIr + 9*24 + 24, 1)/) ! Human activity, weekends
    INTEGER, DIMENSION(24) :: c_HrProfTraffWD = (/(cc, cc=ccEndIr + 10*24 + 1, ccEndIr + 10*24 + 24, 1)/) ! Traffic, weekdays
    INTEGER, DIMENSION(24) :: c_HrProfTraffWE = (/(cc, cc=ccEndIr + 11*24 + 1, ccEndIr + 11*24 + 24, 1)/) ! Traffic, weekends
    INTEGER, DIMENSION(24) :: c_HrProfPopWD = (/(cc, cc=ccEndIr + 12*24 + 1, ccEndIr + 12*24 + 24, 1)/) ! Population, weekdays
@@ -898,10 +857,8 @@ MODULE allocateArray
    INTEGER, DIMENSION(nsurf) :: c_WGToGrass = (/(cc, cc=ccEndPr + 4*nsurf + 1, ccEndPr + 4*nsurf + nsurf, 1)/) !Water dist to Grass
    INTEGER, DIMENSION(nsurf) :: c_WGToBSoil = (/(cc, cc=ccEndPr + 5*nsurf + 1, ccEndPr + 5*nsurf + nsurf, 1)/) !Water dist to BSoil
    INTEGER, DIMENSION(nsurf) :: c_WGToWater = (/(cc, cc=ccEndPr + 6*nsurf + 1, ccEndPr + 6*nsurf + nsurf, 1)/) !Water dist to Water
-   INTEGER, DIMENSION(nsurf) :: c_WGToRunoff = (/(cc, cc=ccEndPr + 7*nsurf + 1, ccEndPr + 7*nsurf + nsurf, 1)/) &
-        !Water dist to runoff
-   INTEGER, DIMENSION(nsurf) :: c_WGToSoilStore = (/(cc, cc=ccEndPr + 8*nsurf + 1, ccEndPr + 8*nsurf + nsurf, 1)/) &
-        !Water dist to sub-surface soil
+   INTEGER, DIMENSION(nsurf) :: c_WGToRunoff = (/(cc, cc=ccEndPr + 7*nsurf + 1, ccEndPr + 7*nsurf + nsurf, 1)/) !Water dist to runoff
+   INTEGER, DIMENSION(nsurf) :: c_WGToSoilStore = (/(cc, cc=ccEndPr + 8*nsurf + 1, ccEndPr + 8*nsurf + nsurf, 1)/) !Water dist to sub-surface soil
 
    ! Find current column number
    INTEGER, PARAMETER :: cBEndWG = (ccEndPr + 8*nsurf + nsurf)
@@ -1057,10 +1014,8 @@ MODULE allocateArray
    ! Applicable to each surface
    INTEGER, PARAMETER :: ccMOD = 32
    INTEGER, DIMENSION(nsurf) :: cMOD_State = (/(cc, cc=ccMOD + 0*nsurf + 1, ccMOD + 0*nsurf + nsurf, 1)/) !Above ground state
-   INTEGER, DIMENSION(nsurf) :: cMOD_SoilState = (/(cc, cc=ccMOD + 1*nsurf + 1, ccMOD + 1*nsurf + nsurf, 1)/) &
-        !Below ground state (soil store)
-   INTEGER, DIMENSION(nsurf) :: cMOD_SnowWaterState = (/(cc, cc=ccMOD + 2*nsurf + 1, ccMOD + 2*nsurf + nsurf, 1)/) &
-        !Liquid (melted) water
+   INTEGER, DIMENSION(nsurf) :: cMOD_SoilState = (/(cc, cc=ccMOD + 1*nsurf + 1, ccMOD + 1*nsurf + nsurf, 1)/) !Below ground state (soil store)
+   INTEGER, DIMENSION(nsurf) :: cMOD_SnowWaterState = (/(cc, cc=ccMOD + 2*nsurf + 1, ccMOD + 2*nsurf + nsurf, 1)/) !Liquid (melted) water
    INTEGER, DIMENSION(nsurf) :: cMOD_SnowPack = (/(cc, cc=ccMOD + 3*nsurf + 1, ccMOD + 3*nsurf + nsurf, 1)/) !SWE
    INTEGER, DIMENSION(nsurf) :: cMOD_SnowFrac = (/(cc, cc=ccMOD + 4*nsurf + 1, ccMOD + 4*nsurf + nsurf, 1)/) !Snow fraction
    INTEGER, DIMENSION(nsurf) :: cMOD_SnowDens = (/(cc, cc=ccMOD + 5*nsurf + 1, ccMOD + 5*nsurf + nsurf, 1)/) !Snow density
@@ -1113,8 +1068,7 @@ MODULE Initial
               ReadLinesMetData, & !Number of lines of met data in each block (for each grid)
               ReadLinesOrigMetData, & !Number of lines of original met data in each block (before downscaling)
               ReadLinesOrigESTMData, & !Number of lines of original ESTM data in each block (before downscaling)
-              ReadLinesOrigMetDataMax, & !No. lines of original met data in each block (adjusts for last block (equivalent of &
-                   irMax))
+              ReadLinesOrigMetDataMax, & !No. lines of original met data in each block (adjusts for last block (equivalent of irMax))
               ReadLinesOrigESTMDataMax, & !No. lines of original ESTM data in each block
               nlinesOrigMetData, & !Number of lines in original met data file
               nlinesOrigESTMData, & !Number of lines in original ESTM data file
@@ -1178,12 +1132,9 @@ MODULE data_in
               BaseTMethod, & ! base temperature method for HDD/CDD calculations used in QF module
               CBLuse, & !CBL slab model used (1) or not used (0)
               MultipleMetFiles, & !Indicates whether a single met file is used for all grids (0) or one for each grid (1)
-              MultipleInitFiles, & !Indicates whether a single initial conditions file is used for all grids (0) &
-                   or one for each grid (1)
-              MultipleESTMFiles, & !Indicates whether a single ESTM input data file is used for all grids (0) &
-                   or one for each grid (1)
-              MultipleLayoutFiles, & !Indicates whether a single grid layout input data file is used for all grids (0) &
-                   or one for each grid (1)
+              MultipleInitFiles, & !Indicates whether a single initial conditions file is used for all grids (0) or one for each grid (1)
+              MultipleESTMFiles, & !Indicates whether a single ESTM input data file is used for all grids (0) or one for each grid (1)
+              MultipleLayoutFiles, & !Indicates whether a single grid layout input data file is used for all grids (0) or one for each grid (1)
               KeepTstepFilesIn, & !Delete (0) or keep (1) input met files at resolution of tstep (used by python, not fortran)
               KeepTstepFilesOut, & !Delete (0) or keep (1) output files at resolution of tstep (used by python, not fortran)
               ResolutionFilesIn, & !Specify resolution of input file  [s]
@@ -1449,8 +1400,7 @@ MODULE defaultNotUsed
    IMPLICIT NONE
    REAL(KIND(1D0)) :: notUsed = -55.55, reall, NAN = -999, pNAN = 999
    INTEGER :: notUsedI = -55, ios_out
-   INTEGER :: errorChoice, warningChoice !errorChoice/warningChoice defines if problems.txt/warnings.txt is opened for the &
-        first time
+   INTEGER :: errorChoice, warningChoice !errorChoice/warningChoice defines if problems.txt/warnings.txt is opened for the first time
 END MODULE defaultNotUsed
 !==================================================================================================
 
@@ -1713,8 +1663,7 @@ MODULE sues_data
                       qeph, & !Latent heat flux (W m^-2)
                       qeOut !Latent heat flux [W m-2]
 
-   REAL(KIND(1D0)), DIMENSION(:), ALLOCATABLE :: qhforCBL, qeforCBL ! Stores previous timestep qh and qe for CBL model. Added &
-        by HCW 21 Mar 2017
+   REAL(KIND(1D0)), DIMENSION(:), ALLOCATABLE :: qhforCBL, qeforCBL ! Stores previous timestep qh and qe for CBL model. Added by HCW 21 Mar 2017
    INTEGER :: qh_choice ! selection of qh use to drive CBL growth 1=Suews 2=lumps 3=obs
 
    !Water use related variables
@@ -2289,8 +2238,7 @@ MODULE PhysConstants
    REAL(KIND(1D0)), PARAMETER :: C2K = 273.15 !Celsius to Kelvin
    REAL(KIND(1D0)), PARAMETER :: SBConst = 5.67051E-8 !Stefan Boltzmann constant [W m-2 K-4]
    REAL(KIND(1D0)), PARAMETER :: JtoumolPAR = 4.6 ! Convert PAR from W m-2 to umol m-2 s-1
-   REAL(KIND(1D0)), PARAMETER :: KdntoPAR = 0.46 ! Conversion from Kdn to PAR, originally from Tsubo and Walker (2005), &
-        used in Bellucco et al. (2017)
+   REAL(KIND(1D0)), PARAMETER :: KdntoPAR = 0.46 ! Conversion from Kdn to PAR, originally from Tsubo and Walker (2005), used in Bellucco et al. (2017)
    REAL(KIND(1D0)), PARAMETER :: eps_fp = 1.0E-12 !Epsilon for floating-point near-zero comparisons
 
 END MODULE PhysConstants

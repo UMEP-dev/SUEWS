@@ -102,8 +102,7 @@ CONTAINS
       !Now this is zero always when LAI in its minimum values. This needs to vary between the summer time maximum and some minimum value
       !especially in the case of evergreen trees (i.e. in early March LAI can be in its minimum value, but air temperature and radiation
       !such that uptake can take place)
-      DO iv = ivConif, ivGrass !For vegetated surfaces. Snow included although quite often LAI will be in its minimum when &
-           snow on ground
+      DO iv = ivConif, ivGrass !For vegetated surfaces. Snow included although quite often LAI will be in its minimum when snow on ground
 
          active_veg_fr(iv) = (sfr_surf(iv + 2)*(1 - SnowFrac(iv + 2)))*(LAI_id(iv)/LAIMax(iv))
          active_veg_fr0(iv) = (sfr_surf(iv + 2)*(1 - SnowFrac(iv + 2)))*LAI_id(iv)
@@ -144,11 +143,9 @@ CONTAINS
 
             !Because different alpha, beta and theta values are same - only one vegetation type is needed.
             alpha_bioCO2_v2(ivConif) = alpha_bioCO2(ivConif) + alpha_enh_bioCO2(ivConif)* &
-                                       (sfr_surf(ConifSurf) + sfr_surf(DecidSurf) + sfr_surf(GrassSurf) + sfr_surf(BSoilSurf)) &
-                                            !umol CO2 umol photons-1
+                                       (sfr_surf(ConifSurf) + sfr_surf(DecidSurf) + sfr_surf(GrassSurf) + sfr_surf(BSoilSurf)) !umol CO2 umol photons-1
             beta_bioCO2_v2(ivConif) = -beta_bioCO2(ivConif) + beta_enh_bioCO2(ivConif)* &
-                                      (sfr_surf(ConifSurf) + sfr_surf(DecidSurf) + sfr_surf(GrassSurf) + sfr_surf(BSoilSurf)) &
-                                           !umol m^-2 s^-1
+                                      (sfr_surf(ConifSurf) + sfr_surf(DecidSurf) + sfr_surf(GrassSurf) + sfr_surf(BSoilSurf)) !umol m^-2 s^-1
 
             !Photosynthesis
             Bellucco2017_Pho = -(1/(2*theta_bioCO2(ivConif)) &
@@ -176,11 +173,9 @@ CONTAINS
 
             ! Using weighted average values to calculate alpha and beta as a function of vegetation cover fraction
             alpha_bioCO2_v2(ivConif) = alpha_bioCO2_v2(ivConif) + alpha_enh_bioCO2(ivConif)* &
-                                       (sfr_surf(ConifSurf) + sfr_surf(DecidSurf) + sfr_surf(GrassSurf) + sfr_surf(BSoilSurf)) &
-                                            !umol CO2 umol photons-1
+                                       (sfr_surf(ConifSurf) + sfr_surf(DecidSurf) + sfr_surf(GrassSurf) + sfr_surf(BSoilSurf)) !umol CO2 umol photons-1
             beta_bioCO2_v2(ivConif) = -beta_bioCO2_v2(ivConif) + beta_enh_bioCO2(ivConif)* &
-                                      (sfr_surf(ConifSurf) + sfr_surf(DecidSurf) + sfr_surf(GrassSurf) + sfr_surf(BSoilSurf)) &
-                                           !umol m^-2 s^-1
+                                      (sfr_surf(ConifSurf) + sfr_surf(DecidSurf) + sfr_surf(GrassSurf) + sfr_surf(BSoilSurf)) !umol m^-2 s^-1
 
             !Photosynthesis
             Bellucco2017_Pho = -(1/(2*theta_bioCO2_v2(ivConif))*( &

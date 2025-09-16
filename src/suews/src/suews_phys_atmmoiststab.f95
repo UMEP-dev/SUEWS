@@ -7,8 +7,7 @@ MODULE AtmMoistStab_module
    REAL(KIND(1D0)), PARAMETER :: grav = 9.80665 !g - gravity - physics today august 1987
 
    ! scheme code
-   INTEGER, PARAMETER :: W16 = 2 ! Ward et al (2016) based on {unstable: Dyer (1974) modified Hogstrom (1988); and stable: Van &
-        Ulden & Holtslag (1985)}
+   INTEGER, PARAMETER :: W16 = 2 ! Ward et al (2016) based on {unstable: Dyer (1974) modified Hogstrom (1988); and stable: Van Ulden & Holtslag (1985)}
    INTEGER, PARAMETER :: K75 = 3 ! Kondo (1975) adopted by Campbell & Norman eqn 7.26 p 97
    INTEGER, PARAMETER :: B71 = 4 ! Businger et al (1971) modifed  Hogstrom (1988)
    INTEGER, PARAMETER :: J12 = 5 ! Cheng and Brutsaert (2005)

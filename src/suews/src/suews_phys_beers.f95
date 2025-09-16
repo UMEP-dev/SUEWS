@@ -113,8 +113,7 @@ CONTAINS
       ! REAL(KIND(1d0)), PARAMETER   :: pi = 3.141592653589793
       REAL(KIND(1D0)), PARAMETER :: SBC = 5.67051E-8
 
-      INTEGER, PARAMETER :: onlyglobal = 1 !! force to calculate direct and diffuse components, TS 13 Dec 2019 !TODO: should &
-           be input parameter FL
+      INTEGER, PARAMETER :: onlyglobal = 1 !! force to calculate direct and diffuse components, TS 13 Dec 2019 !TODO: should be input parameter FL
       !INTEGER, PARAMETER:: usevegdem = 0  !! force not to use vegetation DEM based calculations, TS 13 Dec 2019
       !INTEGER, PARAMETER:: row = 1  !! force to 1, TS 13 Dec 2019
       !INTEGER, PARAMETER:: col = 1  !! force to 1, TS 13 Dec 2019
@@ -255,8 +254,7 @@ CONTAINS
          F_sh = 1
 
          !Nocturnal cloud fraction from Offerle et al. 2003
-         IF (dectime < (DOY + 0.5) .AND. dectime > DOY .AND. altitude < 1.0) THEN !TODO: THIS (STILL, 20201117) &
-              NEED SOME THOUGHT 20150211
+         IF (dectime < (DOY + 0.5) .AND. dectime > DOY .AND. altitude < 1.0) THEN !TODO: THIS (STILL, 20201117) NEED SOME THOUGHT 20150211
             !j=0
             !do while (dectime<(DOY+SNUP/24))
             !!    call ConvertMetData(ith+j) ! read data at sunrise ??
@@ -402,8 +400,7 @@ CONTAINS
       ! REAL(KIND(1d0)), PARAMETER   :: pi = 3.141592653589793
       REAL(KIND(1D0)), PARAMETER :: SBC = 5.67051E-8
 
-      INTEGER, PARAMETER :: onlyglobal = 1 !! force to calculate direct and diffuse components, TS 13 Dec 2019 !TODO: should &
-           be input parameter FL
+      INTEGER, PARAMETER :: onlyglobal = 1 !! force to calculate direct and diffuse components, TS 13 Dec 2019 !TODO: should be input parameter FL
       !INTEGER, PARAMETER:: usevegdem = 0  !! force not to use vegetation DEM based calculations, TS 13 Dec 2019
       !INTEGER, PARAMETER:: row = 1  !! force to 1, TS 13 Dec 2019
       !INTEGER, PARAMETER:: col = 1  !! force to 1, TS 13 Dec 2019
@@ -552,8 +549,7 @@ CONTAINS
                      END IF
 
                      CALL shadowGroundKusaka(HW, azimuth_deg, zen, shadowground, shadowwalls)
-                     shadowroof = 1. ! TODO: should change with time of day etc. Could be parameterizised from e.g. Lindberg &
-                          et al. 2015 SE
+                     shadowroof = 1. ! TODO: should change with time of day etc. Could be parameterizised from e.g. Lindberg et al. 2015 SE
 
                      CALL cylindric_wedge(zen, svfalfa, F_sh)
 
@@ -610,8 +606,7 @@ CONTAINS
                      F_sh = 1
 
                      !Nocturnal cloud fraction from Offerle et al. 2003
-                     IF (dectime < (DOY + 0.5) .AND. dectime > DOY .AND. altitude < 1.0) THEN !TODO: THIS (STILL, 20201117) &
-                          NEED SOME THOUGHT 20150211
+                     IF (dectime < (DOY + 0.5) .AND. dectime > DOY .AND. altitude < 1.0) THEN !TODO: THIS (STILL, 20201117) NEED SOME THOUGHT 20150211
                         !j=0
                         !do while (dectime<(DOY+SNUP/24))
                         !    call ConvertMetData(ith+j) ! read data at sunrise ??

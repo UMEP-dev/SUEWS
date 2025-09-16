@@ -39,8 +39,7 @@ CONTAINS
       alt, lat, lng, Z, timezone, SurfaceArea, sfr_surf, & ! site-specific geographical settings
       z0m_in, zdm_in, & ! roughness related settings
       alb, emis, SnowAlb, OHM_coef, WaterDist, & ! surface properties
-      AHProf_24hr, HumActivity_24hr, PopProf_24hr, TraffProf_24hr, WUProfA_24hr, WUProfM_24hr, snowProf_24hr, &
-           & ! hourly profile values
+      AHProf_24hr, HumActivity_24hr, PopProf_24hr, TraffProf_24hr, WUProfA_24hr, WUProfM_24hr, snowProf_24hr, & ! hourly profile values
       qn_av, dqndt, qn_s_av, dqnsdt, & ! OHM related Qn quantities
       surf_var_id, DecidCap_id, albDecTr_id, albEveTr_id, albGrass_id, &
       NumCapita_id, &

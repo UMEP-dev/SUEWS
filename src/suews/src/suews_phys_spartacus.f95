@@ -385,13 +385,11 @@ CONTAINS
 
       ! set building and vegetation properties
       canopy_props%i_representation = i_representation
-      canopy_props%building_scale = building_scale(:) ! diameter of buildings (m). The only L method for buildings is Eq. 19 &
-           Hogan et al. 2018.
+      canopy_props%building_scale = building_scale(:) ! diameter of buildings (m). The only L method for buildings is Eq. 19 Hogan et al. 2018.
       canopy_props%building_fraction = building_frac(:) ! building fraction
       IF (sfr_surf(ConifSurf) + sfr_surf(DecidSurf) > 0.0) THEN
          canopy_props%veg_fraction = veg_frac(:) ! evergreen + deciduous fractions
-         canopy_props%veg_scale = veg_scale(:) ! scale of tree crowns (m). Using the default use_symmetric_vegetation_scale_urban= &
-              .TRUE. so that Eq. 20 Hogan et al. 2018 is used for L.
+         canopy_props%veg_scale = veg_scale(:) ! scale of tree crowns (m). Using the default use_symmetric_vegetation_scale_urban=.TRUE. so that Eq. 20 Hogan et al. 2018 is used for L.
          canopy_props%veg_ext = veg_ext(:)
          canopy_props%veg_fsd = veg_fsd(:)
          canopy_props%veg_contact_fraction = veg_contact_fraction(:)
@@ -403,8 +401,7 @@ CONTAINS
       ALLOCATE (top_flux_dn_direct_sw(nspec, ncol))
       ALLOCATE (top_flux_dn_lw(nspec, ncol))
       top_flux_dn_sw = kdown ! diffuse + direct
-      top_flux_dn_direct_sw = sw_dn_direct_frac*kdown ! Berrizbeitia et al. 2020 say the ratio diffuse/direct is 0.55 for &
-           Berlin and Brussels on av annually
+      top_flux_dn_direct_sw = sw_dn_direct_frac*kdown ! Berrizbeitia et al. 2020 say the ratio diffuse/direct is 0.55 for Berlin and Brussels on av annually
       top_flux_dn_diffuse_sw = top_flux_dn_sw(nspec, ncol) - top_flux_dn_direct_sw(nspec, ncol)
       top_flux_dn_lw = ldown
 
@@ -438,8 +435,7 @@ CONTAINS
 
       emis_no_tree_bldg = (emis_surf(1)*sfr_surf(PavSurf) + emis_surf(5)*sfr_surf(GrassSurf) + &
                            emis_surf(6)*sfr_surf(BSoilSurf) + emis_surf(7)*sfr_surf(WaterSurf))/ &
-                          (sfr_surf(PavSurf) + sfr_surf(GrassSurf) + sfr_surf(BSoilSurf) + sfr_surf(WaterSurf)) &
-                               ! emissivity of the ground
+                          (sfr_surf(PavSurf) + sfr_surf(GrassSurf) + sfr_surf(BSoilSurf) + sfr_surf(WaterSurf)) ! emissivity of the ground
       lw_spectral_props%air_ext = air_ext_lw
       lw_spectral_props%air_ssa = air_ssa_lw
       IF (sfr_surf(ConifSurf) + sfr_surf(DecidSurf) > 0.0) THEN
@@ -520,8 +516,7 @@ CONTAINS
 
       ! albedo
       IF (top_flux_dn_diffuse_sw + top_flux_dn_direct_sw(nspec, ncol) > 0.1) THEN
-         alb_spc = ((top_flux_dn_diffuse_sw + 10.**(-10))*(bc_out%sw_albedo(nspec, ncol)) & ! the 10.**-10 stops the equation &
-              blowing up when kdwn=0
+         alb_spc = ((top_flux_dn_diffuse_sw + 10.**(-10))*(bc_out%sw_albedo(nspec, ncol)) & ! the 10.**-10 stops the equation blowing up when kdwn=0
                     + (top_flux_dn_direct_sw(nspec, ncol) + 10.**(-10))*(bc_out%sw_albedo_dir(nspec, ncol))) &
                    /(top_flux_dn_diffuse_sw + top_flux_dn_direct_sw(nspec, ncol) + 10.**(-10))
          IF (alb_spc < 0.0) alb_spc = 0

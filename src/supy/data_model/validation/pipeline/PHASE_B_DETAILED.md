@@ -100,6 +100,8 @@ def validate_model_option_dependencies(yaml_data: dict) -> List[ValidationResult
     # Check rslmethod-stabilitymethod constraints
     rslmethod = get_value_safe(physics, "rslmethod")
     stabilitymethod = get_value_safe(physics, "stabilitymethod")
+    storageheatmethod = get_value_safe(physics, "storageheatmethod")
+    ohmincqf = get_value_safe(physics, "ohmincqf")
 
     # Constraint: If rslmethod == 2, stabilitymethod must be 3
     if rslmethod == 2 and stabilitymethod != 3:
@@ -109,6 +111,16 @@ def validate_model_option_dependencies(yaml_data: dict) -> List[ValidationResult
             parameter="rslmethod-stabilitymethod",
             message="If rslmethod == 2, stabilitymethod must be 3",
             suggested_value="Set stabilitymethod to 3"
+        ))
+
+    # Constraint: StorageHeatMethod=1 (OHM_WITHOUT_QF) requires OhmIncQf=0
+    if storageheatmethod == 1 and ohmincqf != 0:
+        results.append(ValidationResult(
+            status="ERROR",
+            category="MODEL_OPTIONS",
+            parameter="storageheatmethod-ohmincqf",
+            message=f"StorageHeatMethod is set to {storageheatmethod} and OhmIncQf is set to {ohmincqf}. You should switch to OhmIncQf=0.",
+            suggested_value="Set OhmIncQf to 0"
         ))
 
     return results
@@ -288,9 +300,11 @@ Phase B generates comprehensive reports with two main sections:
 # ==================================================
 
 ## ACTION NEEDED
-- Found (1) critical scientific parameter error(s):
+- Found (2) critical scientific parameter error(s):
 -- rslmethod-stabilitymethod: If rslmethod == 2, stabilitymethod must be 3
    Suggested fix: Set stabilitymethod to 3
+-- storageheatmethod-ohmincqf: StorageHeatMethod is set to 1 and OhmIncQf is set to 1. You should switch to OhmIncQf=0.
+   Suggested fix: Set OhmIncQf to 0
 
 ## NO ACTION NEEDED
 - Updated (9) parameter(s):
@@ -329,6 +343,7 @@ def get_mean_monthly_air_temperature(lat: float, lon: float, month: int, spatial
 ### Physics Option Validation (Actual Implementation)
 
 - **rslmethod-stabilitymethod Dependency**: If rslmethod == 2, stabilitymethod must be 3
+- **storageheatmethod-ohmincqf Compatibility**: If StorageHeatMethod == 1, OhmIncQf must be 0
 - **Missing Required Parameters**: ERROR status for null physics parameters
 - **Physics Section Missing**: WARNING status if entire physics section is empty
 

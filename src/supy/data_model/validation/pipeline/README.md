@@ -20,7 +20,7 @@ User YAML → Phase A → Phase B → Phase C → Valid YAML
 
 2. **Phase B: Scientific Validation** (`phase_b_science_check.py`)
    - Validates physics parameters
-   - Checks model option dependencies
+   - Checks ALL model physics compatibility (rslmethod-stabilitymethod, StorageHeatMethod-OhmIncQf)
    - Validates land cover fractions
    - Updates initial temperatures from CRU data
 

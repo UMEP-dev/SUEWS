@@ -402,125 +402,133 @@ class TestCLIConversion:
             assert yaml_data is not None, f"YAML file for {version} is empty"
             assert "model" in yaml_data, f"Missing model section in {version} YAML"
             assert "sites" in yaml_data, f"Missing sites section in {version} YAML"
-            
-            print(f"✓ {version}: Successfully converted to YAML with auto-detection via CLI")
+
+            print(
+                f"✓ {version}: Successfully converted to YAML with auto-detection via CLI"
+            )
 
     @pytest.mark.skipif(not SUPY_AVAILABLE, reason="SuPy not available")
     @pytest.mark.skipif(
         not (Path(__file__).parent / "fixtures/data_test/AVL_1_LDN1").exists(),
-        reason="Single-layer test data not available"
+        reason="Single-layer test data not available",
     )
     def test_single_layer_yaml_validation(self, test_data_dir):
         """Test that single-layer converted YAML files are valid and loadable.
-        
+
         This test verifies the fix for issue #650 produces valid YAML that can
         be loaded by SUEWSConfig without validation errors.
         """
         input_file = test_data_dir / "AVL_1_LDN1/RunControl.nml"
-        
+
         with tempfile.TemporaryDirectory() as tmpdir:
             output_file = Path(tmpdir) / "single_layer_valid.yml"
-            
+
             # Convert the file
             result = self.run_suews_convert(
-                "-i", str(input_file),
-                "-o", str(output_file)
+                "-i", str(input_file), "-o", str(output_file)
             )
-            
+
             assert result.returncode == 0, f"Conversion failed: {result.stderr}"
             assert output_file.exists(), "Output file not created"
-            
+
             # Try to load with SUEWSConfig
             try:
                 config = SUEWSConfig.from_yaml(str(output_file))
-                
+
                 # Validate the configuration structure
                 assert config is not None, "Config is None"
                 assert config.model is not None, "Model section is None"
                 assert len(config.sites) > 0, "No sites in config"
-                
+
                 site = config.sites[0]
                 assert site.properties is not None, "Site properties is None"
-                assert site.properties.vertical_layers is not None, "Vertical layers is None"
-                
+                assert site.properties.vertical_layers is not None, (
+                    "Vertical layers is None"
+                )
+
                 # Verify it's single-layer
                 nlayer = site.properties.vertical_layers.nlayer.value
                 assert nlayer == 1, f"Expected 1 layer, got {nlayer}"
-                
+
                 # Check critical fields exist and are valid
                 assert site.initial_conditions is not None, "Initial conditions missing"
                 assert site.meteorology is not None, "Meteorology section missing"
                 assert site.output is not None, "Output section missing"
-                
+
                 print("✓ Single-layer YAML is valid and loadable by SUEWSConfig")
-                
+
             except Exception as e:
                 # Check if it's a known validation issue (like pormin_dec/pormax_dec)
                 error_str = str(e).lower()
                 if "pormin_dec" in error_str or "pormax_dec" in error_str:
                     print(f"⚠ Known validation issue with porosity values: {e}")
-                    print("  This is a data issue in the test file, not a conversion bug")
+                    print(
+                        "  This is a data issue in the test file, not a conversion bug"
+                    )
                 else:
                     pytest.fail(f"Single-layer YAML failed validation: {e}")
 
     @pytest.mark.skipif(not SUPY_AVAILABLE, reason="SuPy not available")
     @pytest.mark.skipif(
         not (Path(__file__).parent / "fixtures/data_test/AVL_6_310").exists(),
-        reason="Multi-layer test data not available"
+        reason="Multi-layer test data not available",
     )
     def test_multi_layer_yaml_validation(self, test_data_dir):
         """Test that multi-layer converted YAML files are valid and loadable.
-        
+
         This ensures the multi-layer conversion produces valid YAML configurations.
         """
         input_file = test_data_dir / "AVL_6_310/RunControl.nml"
-        
+
         with tempfile.TemporaryDirectory() as tmpdir:
             output_file = Path(tmpdir) / "multi_layer_valid.yml"
-            
+
             # Convert the file
             result = self.run_suews_convert(
-                "-i", str(input_file),
-                "-o", str(output_file)
+                "-i", str(input_file), "-o", str(output_file)
             )
-            
+
             assert result.returncode == 0, f"Conversion failed: {result.stderr}"
             assert output_file.exists(), "Output file not created"
-            
+
             # Try to load with SUEWSConfig
             try:
                 config = SUEWSConfig.from_yaml(str(output_file))
-                
+
                 # Validate the configuration structure
                 assert config is not None, "Config is None"
                 assert config.model is not None, "Model section is None"
                 assert len(config.sites) > 0, "No sites in config"
-                
+
                 site = config.sites[0]
                 assert site.properties is not None, "Site properties is None"
-                assert site.properties.vertical_layers is not None, "Vertical layers is None"
-                
+                assert site.properties.vertical_layers is not None, (
+                    "Vertical layers is None"
+                )
+
                 # Verify it's multi-layer
                 nlayer = site.properties.vertical_layers.nlayer.value
                 assert nlayer > 1, f"Expected multiple layers, got {nlayer}"
-                
+
                 # Check critical fields exist and are valid
                 assert site.initial_conditions is not None, "Initial conditions missing"
                 assert site.meteorology is not None, "Meteorology section missing"
                 assert site.output is not None, "Output section missing"
-                
+
                 # Check vertical layer structure
                 vl = site.properties.vertical_layers
-                assert hasattr(vl, 'building'), "Building layer missing"
+                assert hasattr(vl, "building"), "Building layer missing"
                 assert vl.building is not None, "Building layer is None"
-                
+
                 print("✓ Multi-layer YAML is valid and loadable by SUEWSConfig")
-                
+
             except Exception as e:
                 # Check if it's a known validation issue
                 error_str = str(e).lower()
                 if "pormin_dec" in error_str or "pormax_dec" in error_str:
                     print(f"⚠ Known validation issue with porosity values: {e}")
-                    print("  This is a data issue in the test file, not a conversion bug")
+                    print(
+                        "  This is a data issue in the test file, not a conversion bug"
+                    )
                 else:
                     pytest.fail(f"Multi-layer YAML failed validation: {e}")

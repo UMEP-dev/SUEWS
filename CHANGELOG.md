@@ -48,6 +48,8 @@
   - Migrated all tests from test/core/test_cmd_to_yaml.py to test/test_cli_conversion.py
   - Tests now properly invoke suews-convert command as it would be used in a terminal
   - Removed problematic Click test runner that mocked internal functions
+  - Added validation tests to ensure converted YAML files can be loaded by SUEWSConfig
+  - Verified that both single-layer and multi-layer conversions produce valid YAML structures
   - All conversion tests now use subprocess.run() for authentic CLI testing
 
 ### 21 Aug 2025

@@ -187,28 +187,37 @@ SUEWS maintains consistent code style through automated formatting:
 
 For developers who need to test pre-release versions from test.pypi.org:
 
+**1. Create fresh environment:**
 ```bash
-# Create fresh environment
 python3 -m venv .venv-dev
 source .venv-dev/bin/activate  # Windows: .venv-dev\Scripts\activate
-
-# Install uv (a fast Python package installer)
-pip install uv
-
-# Check available versions at https://test.pypi.org/project/supy/
-# Install latest development version (replace version as needed)
-uv pip install --extra-index-url https://test.pypi.org/simple/ \
-              --index-strategy unsafe-best-match \
-              supy==2025.9.16.dev0  # Use latest YYYY.M.D.dev0 version
-
-# Verify installation
-python -c "import supy; print(f'SuPy version: {supy.__version__}')"
-# Should show a development version like: 2025.9.16.dev0
-
-# Quick test to confirm it works
-python -c "import supy as sp; sp.load_sample_data(); print('✓ Installation successful')"
 ```
 
-**Important**: Always check https://test.pypi.org/project/supy/ for the latest development version with date format `YYYY.M.D.dev0`.
+**2. Install uv package manager:**
+```bash
+pip install uv
+```
+
+**3. Check latest version:**
+Visit https://test.pypi.org/project/supy/ to find the latest development version (format: `YYYY.M.D.dev0`)
+
+**4. Install development version:**
+```bash
+# Replace 2025.9.16.dev0 with the latest version from step 3
+uv pip install --extra-index-url https://test.pypi.org/simple/ \
+              --index-strategy unsafe-best-match \
+              supy==2025.9.16.dev0
+```
+
+**5. Verify installation:**
+```bash
+python -c "import supy; print(f'SuPy version: {supy.__version__}')"
+# Should show: 2025.9.16.dev0 (or your installed version)
+```
+
+**6. Test functionality:**
+```bash
+python -c "import supy as sp; sp.load_sample_data(); print('✓ Installation successful')"
+```
 
 **Why uv?** Standard `pip install` from test.pypi.org fails due to dependency resolution issues. The `uv` tool with `--index-strategy unsafe-best-match` correctly resolves dependencies across both PyPI and Test PyPI.

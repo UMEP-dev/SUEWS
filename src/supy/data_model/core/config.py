@@ -2082,31 +2082,6 @@ class SUEWSConfig(BaseModel):
 
         return self
 
-    @model_validator(mode="after")
-    def validate_model_physics_compatibility(self) -> "SUEWSConfig":
-        """Validate model physics parameter compatibility across all sites.
-
-        Checks for incompatible combinations of physics options that would
-        cause model errors. This includes storage heat method compatibility
-        with QF inclusion options and experimental/unsupported features.
-        Migrated from ModelPhysics.check_all to provide centralized validation.
-        """
-        from .type import RefValue  # Import here to avoid circular import
-
-        # Check global model physics (not per-site)
-        if not hasattr(self, "model") or not self.model or not self.model.physics:
-            return self
-
-        physics = self.model.physics
-        errors = []
-
-        # Physics validation moved to Phase B (phase_b_science_check.py) for consolidation
-        # Phase C now focuses only on schema/type validation and invariant guards
-
-        if errors:
-            raise ValueError("\n".join(errors))
-
-        return self
 
     @model_validator(mode="after")
     def validate_hourly_profile_hours(self) -> "SUEWSConfig":

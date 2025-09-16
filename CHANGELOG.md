@@ -35,6 +35,10 @@
 ## 2025
 
 ### 16 Sep 2025
+- [bugfix] Fixed Linux platform support by using manylinux2014 instead of manylinux_2_28 ([#679](https://github.com/UMEP-dev/SUEWS/issues/679))
+  - Changed wheel builds to use manylinux2014 (glibc 2.17) for broader Linux compatibility
+  - Fixes installation issues on older Linux distributions and HPC systems
+  - Updated both main build and debug workflows
 - [doc] Added simple instructions for testing development versions ([#652](https://github.com/UMEP-dev/SUEWS/issues/652))
   - Added concise section in README.md for developers to test pre-release versions from test.pypi.org
   - Included uv-based installation method to resolve dependency issues

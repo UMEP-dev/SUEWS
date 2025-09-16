@@ -173,8 +173,8 @@ jobs:
       CIBW_BUILD: ${{ matrix.python }}-${{ matrix.buildplat[1] }}*
       CIBW_ARCHS: ${{ matrix.buildplat[2] }}
       CIBW_ENVIRONMENT_PASS_LINUX: RUNNER_OS
-      CIBW_MANYLINUX_X86_64_IMAGE: manylinux_2_28
-      CIBW_MANYLINUX_AARCH64_IMAGE: manylinux_2_28
+      CIBW_MANYLINUX_X86_64_IMAGE: manylinux2014
+      CIBW_MANYLINUX_AARCH64_IMAGE: manylinux2014
       CIBW_BEFORE_ALL_MACOS: >
         brew install gfortran &&
         brew unlink gfortran &&

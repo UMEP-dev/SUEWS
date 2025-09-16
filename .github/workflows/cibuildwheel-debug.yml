@@ -102,8 +102,8 @@ jobs:
 
       # Linux-specific settings
       CIBW_ENVIRONMENT_PASS_LINUX: RUNNER_OS
-      CIBW_MANYLINUX_X86_64_IMAGE: manylinux_2_28
-      CIBW_MANYLINUX_AARCH64_IMAGE: manylinux_2_28
+      CIBW_MANYLINUX_X86_64_IMAGE: manylinux2014
+      CIBW_MANYLINUX_AARCH64_IMAGE: manylinux2014
 
       # macOS-specific settings
       CIBW_BEFORE_ALL_MACOS: >

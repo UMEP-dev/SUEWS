@@ -60,14 +60,50 @@ One can install ``supy`` using ``pip``:
 
 
 
-Development Versions
---------------------
-
-For testing pre-release versions from test.pypi.org, see :doc:`installation-dev`.
+Testing Development Versions
+-----------------------------
 
 .. warning::
+   
+   **⚠️ CAUTION: Development versions are unstable!**
+   
+   - Development versions are **pre-release** and may contain bugs
+   - Features may change or break without notice  
+   - Not recommended for production use or research publications
+   - Only use if you need to test new features or help with development
 
-   Development versions are unstable and not recommended for production use or research publications.
+Development versions are published to `test.pypi.org <https://test.pypi.org/project/supy/>`_ for testing new features before official release.
+
+**Installation Steps:**
+
+1. **Create an isolated environment**::
+
+    python3 -m venv .venv-dev
+    source .venv-dev/bin/activate  # Linux/macOS
+    # or: .venv-dev\Scripts\activate  # Windows
+
+2. **Install uv package manager** (handles test.pypi dependencies better than pip)::
+
+    pip install uv
+
+3. **Check latest version** at https://test.pypi.org/project/supy/ (format: ``YYYY.M.D.dev0``)
+
+4. **Install development version**::
+
+    # Replace 2025.9.16.dev0 with latest version from step 3
+    uv pip install --extra-index-url https://test.pypi.org/simple/ \
+                  --index-strategy unsafe-best-match \
+                  supy==2025.9.16.dev0
+
+5. **Verify installation**::
+
+    python -c "import supy; print(f'SuPy version: {supy.__version__}')"
+    # Should show: 2025.9.16.dev0
+
+.. note::
+
+   Standard ``pip install`` from test.pypi.org often fails due to dependency issues. 
+   The ``uv`` tool with ``--index-strategy unsafe-best-match`` correctly resolves dependencies across both PyPI and Test PyPI.
 
 Development build
 -----------------

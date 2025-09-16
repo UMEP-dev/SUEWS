@@ -37,7 +37,6 @@ from .site import Site, SiteProperties, InitialStates, LandCover
 from .type import SurfaceType
 
 from datetime import datetime
-from timezonefinder import TimezoneFinder
 import pytz
 
 # Optional import of logger - use standalone if supy not available

@@ -53,7 +53,7 @@ dependencies = [
     "cdsapi",
     
     # Time/location
-    "timezonefinder==6.5.9",
+    "tzfpy>=1.0.0",  # Faster timezone finder with Windows wheels
     "pytz",
     
     # Parallel processing

@@ -28,7 +28,6 @@ import pandas as pd
 from typing import List, Literal, Union, Dict, Tuple
 
 from datetime import datetime
-from timezonefinder import TimezoneFinder
 from pytz import timezone
 from pytz.exceptions import AmbiguousTimeError, NonExistentTimeError
 import pytz

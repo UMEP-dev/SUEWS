@@ -25,8 +25,33 @@ from copy import deepcopy
 import pandas as pd
 import numpy as np
 from pydantic import BaseModel
-from timezonefinder import TimezoneFinder
 import pytz
+
+# Use tzfpy instead of timezonefinder for Windows compatibility
+# tzfpy has pre-built Windows wheels and provides similar functionality
+try:
+    from tzfpy import get_tz
+    HAS_TIMEZONE_FINDER = True
+    
+    # Create a compatibility wrapper for timezonefinder API
+    class TimezoneFinder:
+        def timezone_at(self, lat, lng):
+            """Wrapper to match timezonefinder API."""
+            # tzfpy uses (longitude, latitude) order
+            return get_tz(lng, lat)
+            
+except ImportError:
+    # Fallback to original timezonefinder if tzfpy not available
+    try:
+        from timezonefinder import TimezoneFinder
+        HAS_TIMEZONE_FINDER = True
+    except ImportError:
+        HAS_TIMEZONE_FINDER = False
+        import warnings
+        warnings.warn(
+            "Neither tzfpy nor timezonefinder available. DST calculations will be skipped.",
+            UserWarning
+        )
 
 # Try to import from supy if available, otherwise use standalone mode
 try:
@@ -109,6 +134,12 @@ class DLSCheck(BaseModel):
 
     def compute_dst_transitions(self):
         """Compute DST start/end days and timezone offset for coordinates and year."""
+        if not HAS_TIMEZONE_FINDER:
+            logger_supy.debug(
+                "[DLS] No timezone finder available, skipping DST calculation."
+            )
+            return None, None, None
+            
         tf = TimezoneFinder()
         tz_name = tf.timezone_at(lat=self.lat, lng=self.lng)
         if not tz_name:

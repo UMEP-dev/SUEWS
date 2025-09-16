@@ -2100,26 +2100,8 @@ class SUEWSConfig(BaseModel):
         physics = self.model.physics
         errors = []
 
-        # Use helper for consistent unwrapping - handles both RefValue and Enum
-        storageheatmethod_val = _unwrap_value(physics.storageheatmethod)
-        ohmincqf_val = _unwrap_value(physics.ohmincqf)
-        snowuse_val = _unwrap_value(physics.snowuse)
-
-        # StorageHeatMethod compatibility check
-        # Only method 1 (OHM_WITHOUT_QF) has specific compatibility requirements
-        if storageheatmethod_val == 1 and ohmincqf_val != 0:
-            errors.append(
-                f"StorageHeatMethod is set to {storageheatmethod_val} and OhmIncQf is set to {ohmincqf_val}. "
-                f"You should switch to OhmIncQf=0."
-            )
-
-        # Snow calculations check (experimental feature)
-        if snowuse_val == 1:
-            errors.append(
-                f"SnowUse is set to {snowuse_val}. "
-                f"There are no checks implemented for this case (snow calculations included in the run). "
-                f"You should switch to SnowUse=0."
-            )
+        # Physics validation moved to Phase B (phase_b_science_check.py) for consolidation
+        # Phase C now focuses only on schema/type validation and invariant guards
 
         if errors:
             raise ValueError("\n".join(errors))

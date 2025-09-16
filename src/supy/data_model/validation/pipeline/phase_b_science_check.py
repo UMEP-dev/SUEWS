@@ -307,7 +307,11 @@ def validate_model_option_dependencies(yaml_data: dict) -> List[ValidationResult
 
     rslmethod = get_value_safe(physics, "rslmethod")
     stabilitymethod = get_value_safe(physics, "stabilitymethod")
+    storageheatmethod = get_value_safe(physics, "storageheatmethod")
+    ohmincqf = get_value_safe(physics, "ohmincqf")
+    snowuse = get_value_safe(physics, "snowuse")
 
+    # RSL method and stability method dependencies
     if rslmethod == 2 and stabilitymethod != 3:
         results.append(
             ValidationResult(
@@ -339,6 +343,61 @@ def validate_model_option_dependencies(yaml_data: dict) -> List[ValidationResult
                 message="rslmethod-stabilitymethod constraints satisfied",
             )
         )
+
+    # Storage heat method and OhmIncQf compatibility check
+    # Only method 1 (OHM_WITHOUT_QF) has specific compatibility requirements
+    if storageheatmethod == 1 and ohmincqf != 0:
+        results.append(
+            ValidationResult(
+                status="ERROR",
+                category="MODEL_OPTIONS",
+                parameter="storageheatmethod-ohmincqf",
+                message=f"StorageHeatMethod is set to {storageheatmethod} and OhmIncQf is set to {ohmincqf}. You should switch to OhmIncQf=0.",
+                suggested_value="Set OhmIncQf to 0",
+            )
+        )
+    else:
+        results.append(
+            ValidationResult(
+                status="PASS",
+                category="MODEL_OPTIONS",
+                parameter="storageheatmethod-ohmincqf",
+                message="StorageHeatMethod-OhmIncQf compatibility validated",
+            )
+        )
+
+    # TODO: Add SnowUse experimental feature validation in separate PR
+    # Snow calculations check (experimental feature - only blocked in public mode)
+    #     if mode.lower() == "public":
+    #         results.append(
+    #             ValidationResult(
+    #                 status="ERROR",
+    #                 category="MODEL_OPTIONS",
+    #                 parameter="snowuse",
+    #                 message=f"SnowUse is set to {snowuse}. There are no checks implemented for this case (snow calculations included in the run). You should switch to SnowUse=0 or use --mode dev.",
+    #                 suggested_value="Set SnowUse to 0 or use --mode dev to enable experimental features",
+    #             )
+    #         )
+    #     else:
+    #         # Dev mode - allow experimental feature with warning
+    #         results.append(
+    #             ValidationResult(
+    #                 status="WARNING",
+    #                 category="MODEL_OPTIONS",
+    #                 parameter="snowuse",
+    #                 message=f"SnowUse is set to {snowuse}. This is an experimental feature enabled in dev mode. Results may vary.",
+    #                 suggested_value="",
+    #             )
+    #         )
+    # else:
+    #     results.append(
+    #         ValidationResult(
+    #             status="PASS",
+    #             category="MODEL_OPTIONS",
+    #             parameter="snowuse",
+    #             message="SnowUse experimental feature check passed",
+    #         )
+    #     )
 
     return results
 

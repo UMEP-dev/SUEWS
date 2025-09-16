@@ -192,14 +192,20 @@ For developers who need to test pre-release versions from test.pypi.org:
 python3 -m venv .venv-dev
 source .venv-dev/bin/activate  # Windows: .venv-dev\Scripts\activate
 
-# Install using uv (handles test.pypi dependencies better than pip)
+# Install uv (a fast Python package installer)
 pip install uv
+
+# Install development version from test.pypi.org
 uv pip install --index-url https://test.pypi.org/simple/ \
               --extra-index-url https://pypi.org/simple/ \
               supy
 
-# Verify version
-python -c "import supy; print(supy.__version__)"  # Should show dev version
+# Verify installation
+python -c "import supy; print(f'SuPy version: {supy.__version__}')"
+# Should show a development version like: 2025.7.6
+
+# Quick test to confirm it works
+python -c "import supy as sp; sp.load_sample_data(); print('✓ Installation successful')"
 ```
 
-**Note**: Standard `pip install` from test.pypi.org often fails due to dependency resolution issues. Using `uv` with dual indices resolves this.
+**Why uv?** Standard `pip install` from test.pypi.org often fails due to dependency resolution issues. The `uv` tool handles multiple package indices better, making it ideal for test packages.

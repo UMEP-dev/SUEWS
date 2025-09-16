@@ -74,23 +74,31 @@ Testing Development Versions
 
 Development versions are published to `test.pypi.org <https://test.pypi.org/project/supy/>`_ for testing new features before official release.
 
-**What is a virtual environment?**
-
-A virtual environment (``venv``) is an isolated Python installation that keeps development packages separate from your main Python installation. This prevents version conflicts and allows you to test different versions safely.
-
 **Installation Steps:**
 
-1. **Create an isolated environment**::
+1. **Install uv** (one-time setup)::
 
-    python3 -m venv .venv-dev
+    # macOS/Linux
+    curl -LsSf https://astral.sh/uv/install.sh | sh
+    
+    # Windows (PowerShell)
+    powershell -c "irm https://astral.sh/uv/install.ps1 | iex"
+
+.. note::
+
+   ``uv`` is a fast Python package and environment manager written in Rust. It replaces ``pip``, ``venv``, and other tools with a single, faster solution.
+
+2. **Create an isolated environment**::
+
+    uv venv .venv-dev
     source .venv-dev/bin/activate  # Linux/macOS
     # or: .venv-dev\Scripts\activate  # Windows
     
     # You'll see (.venv-dev) in your terminal prompt when activated
 
-2. **Install uv package manager** (handles test.pypi dependencies better than pip)::
+.. tip::
 
-    pip install uv
+   ``uv venv`` is 80x faster than ``python -m venv`` and automatically manages Python versions.
 
 3. **Check latest version** at https://test.pypi.org/project/supy/ (format: ``YYYY.M.D.dev0``)
 
@@ -117,10 +125,12 @@ To deactivate when finished::
 
     deactivate
 
-.. note::
+**Why uv?**
 
-   Standard ``pip install`` from test.pypi.org often fails due to dependency issues. 
-   The ``uv`` tool with ``--index-strategy unsafe-best-match`` correctly resolves dependencies across both PyPI and Test PyPI.
+- Creates virtual environments 80x faster than standard tools
+- Handles test.pypi.org dependencies correctly with ``--index-strategy unsafe-best-match``
+- Single tool for both environment and package management
+- Can automatically download and manage Python versions
 
 Development build
 -----------------

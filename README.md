@@ -187,19 +187,23 @@ SUEWS maintains consistent code style through automated formatting:
 
 For developers who need to test pre-release versions from test.pypi.org:
 
-**Note:** A virtual environment (`venv`) keeps development packages isolated from your main Python installation, preventing conflicts.
-
-**1. Create fresh environment:**
+**1. Install uv (one-time setup):**
 ```bash
-python3 -m venv .venv-dev
-source .venv-dev/bin/activate  # Windows: .venv-dev\Scripts\activate
+# macOS/Linux
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Windows (PowerShell)
+powershell -c "irm https://astral.sh/uv/install.ps1 | iex"
+```
+
+**2. Create isolated environment with uv:**
+```bash
+uv venv .venv-dev
+source .venv-dev/bin/activate  # Linux/macOS
+# or: .venv-dev\Scripts\activate  # Windows
 # You'll see (.venv-dev) in your terminal prompt when activated
 ```
-
-**2. Install uv package manager:**
-```bash
-pip install uv
-```
+Note: `uv venv` is 80x faster than `python -m venv` and manages Python versions automatically.
 
 **3. Check latest version:**
 Visit https://test.pypi.org/project/supy/ to find the latest development version (format: `YYYY.M.D.dev0`)
@@ -230,4 +234,8 @@ source .venv-dev/bin/activate  # Linux/macOS
 # Use 'deactivate' to exit the environment
 ```
 
-**Why uv?** Standard `pip install` from test.pypi.org fails due to dependency resolution issues. The `uv` tool with `--index-strategy unsafe-best-match` correctly resolves dependencies across both PyPI and Test PyPI.
+**Why uv?** 
+- Creates virtual environments 80x faster than `python -m venv`
+- Handles test.pypi.org dependencies correctly with `--index-strategy unsafe-best-match`
+- Single tool for both environment and package management
+- No Python installation required (uv can download Python as needed)

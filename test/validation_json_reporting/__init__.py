@@ -1,0 +1,1 @@
+"""Tests for JSON-based validation reporting system."""

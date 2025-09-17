@@ -1845,7 +1845,7 @@ class StebbsProperties(BaseModel):
     DHWWaterVolume: Optional[FlexibleRefValue(float)] = Field(
         default=0.0,
         description="Volume of water held in use in building [m3]",
-        json_schema_extra={"unit": "m^3", "display_name": "Dhwwatervolume"},
+        json_schema_extra={"unit": "m^3", "display_name": "Dhwwatervolume", "default_description" : "Missing default explanation.", "range_description": "Missing range explanation."},
     )
     DHWSurfaceArea: Optional[FlexibleRefValue(float)] = Field(
         default=0.0,

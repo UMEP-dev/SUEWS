@@ -173,11 +173,19 @@ class ModelDocExtractor:
         if constraints:
             field_doc["constraints"] = constraints
 
-        # Extract unit
+        # Extract unit and default description
         if isinstance(field_info.json_schema_extra, dict):
             unit = field_info.json_schema_extra.get("unit")
             if unit:
                 field_doc["unit"] = unit
+
+            default_description = field_info.json_schema_extra.get("default_description")
+            if default_description:
+                field_doc["default_description"] = default_description
+
+            range_description = field_info.json_schema_extra.get("range_description")
+            if range_description:
+                field_doc["range_description"] = range_description
 
         # Extract enum options
         enum_class = self._get_enum_class(field_info, field_type)

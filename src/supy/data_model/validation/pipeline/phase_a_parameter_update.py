@@ -612,6 +612,37 @@ def get_null_placeholder():
     return "null"
 
 
+def extract_meaningful_parameter_name(param_path):
+    """Extract a meaningful parameter name from the full path for reporting.
+
+    For paths ending in '.value', use the parent component.
+    For other paths, use the last component.
+
+    Examples:
+        'model.physics.netradiationmethod.value' -> 'netradiationmethod'
+        'sites[0].properties.lat.value' -> 'lat'
+        'model.control.start_time' -> 'start_time'
+        'thermal_layers[0].dz' -> 'dz'
+    """
+    path_parts = param_path.split(".")
+
+    # If the path ends with 'value', use the parent component
+    if len(path_parts) >= 2 and path_parts[-1] == "value":
+        # Get the parent component, removing any array indices
+        parent = path_parts[-2]
+        # Remove array index if present (e.g., 'sites[0]' -> 'sites')
+        if '[' in parent and ']' in parent:
+            parent = parent.split('[')[0]
+        return parent
+
+    # Otherwise, use the last component, removing any array indices
+    last_part = path_parts[-1]
+    if '[' in last_part and ']' in last_part:
+        last_part = last_part.split('[')[0]
+
+    return last_part
+
+
 def cleanup_renamed_comments(yaml_content):
     """Remove renamed in standard comments from YAML content for clean output."""
     lines = yaml_content.split("\n")
@@ -773,7 +804,7 @@ def create_analysis_report(
             )
             for param_path, standard_value, is_physics in missing_params:
                 if is_physics:
-                    param_name = param_path.split(".")[-1]
+                    param_name = extract_meaningful_parameter_name(param_path)
                     report_lines.append(
                         f"-- {param_name} has been added to the updated YAML and set to null"
                     )
@@ -790,7 +821,7 @@ def create_analysis_report(
             )
             allowed_sections = ", ".join(get_allowed_nested_sections_in_properties())
             for param_path in forbidden_extras:
-                param_name = param_path.split(".")[-1]
+                param_name = extract_meaningful_parameter_name(param_path)
                 report_lines.append(f"-- {param_name} at level {param_path}")
                 report_lines.append(
                     f"   Reason: Extra parameters not allowed in SiteProperties"
@@ -822,7 +853,7 @@ def create_analysis_report(
             f"- Found ({extra_count}) not allowed extra parameter name(s):"
         )
         for param_path in extra_params:
-            param_name = param_path.split(".")[-1]
+            param_name = extract_meaningful_parameter_name(param_path)
             report_lines.append(f"-- {param_name} at level {param_path}")
             report_lines.append(
                 f"   Suggested fix: You selected Public mode. Consider either to switch to Dev mode, or remove this extra parameter since this is not in the standard yaml."
@@ -856,7 +887,7 @@ def create_analysis_report(
             )
             for param_path, standard_value, is_physics in missing_params:
                 if not is_physics:
-                    param_name = param_path.split(".")[-1]
+                    param_name = extract_meaningful_parameter_name(param_path)
                     report_lines.append(
                         f"-- {param_name} added to the updated YAML and set to null"
                     )
@@ -882,7 +913,7 @@ def create_analysis_report(
                     f"- Found ({len(no_action_extras)}) parameter(s) not in standard:"
                 )
                 for param_path in no_action_extras:
-                    param_name = param_path.split(".")[-1]
+                    param_name = extract_meaningful_parameter_name(param_path)
                     report_lines.append(f"-- {param_name} at level {param_path}")
                 report_lines.append("")
 
@@ -956,7 +987,7 @@ def annotate_missing_parameters(
     if critical_params:
         print(f"Action needed: CRITICAL parameters missing:")
         for param_path, standard_value, _ in critical_params:
-            param_name = param_path.split(".")[-1]
+            param_name = extract_meaningful_parameter_name(param_path)
             print(f"  - {param_name}")
         print("")
         report_filename = (

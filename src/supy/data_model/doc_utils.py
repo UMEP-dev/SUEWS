@@ -179,7 +179,9 @@ class ModelDocExtractor:
             if unit:
                 field_doc["unit"] = unit
 
-            default_description = field_info.json_schema_extra.get("default_description")
+            default_description = field_info.json_schema_extra.get(
+                "default_description"
+            )
             if default_description:
                 field_doc["default_description"] = default_description
 

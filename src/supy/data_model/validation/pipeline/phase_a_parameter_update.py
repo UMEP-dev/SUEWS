@@ -18,6 +18,7 @@ for old_name, new_name in RENAMED_PARAMS.items():
     PARAMETER_EQUIVALENCE[new_name] = old_name
     PARAMETER_EQUIVALENCE[old_name] = new_name
 
+
 def has_equivalent_parameter(param_name: str, data_dict: dict) -> bool:
     """Check if a parameter has an equivalent name in the data dictionary."""
     if param_name in data_dict:
@@ -29,6 +30,7 @@ def has_equivalent_parameter(param_name: str, data_dict: dict) -> bool:
         return True
 
     return False
+
 
 PHYSICS_OPTIONS = {
     "netradiationmethod",

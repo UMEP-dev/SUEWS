@@ -3207,11 +3207,7 @@ class TestPhaseAUptoDateYaml(TestProcessorFixtures):
 
         # Create test config with old AnOHM naming convention (from sample data)
         user_config_old_naming = {
-            "model": {
-                "physics": {
-                    "netradiationmethod": {"value": 1}
-                }
-            },
+            "model": {"physics": {"netradiationmethod": {"value": 1}}},
             "sites": [
                 {
                     "name": "TestSite",
@@ -3220,25 +3216,21 @@ class TestPhaseAUptoDateYaml(TestProcessorFixtures):
                             "paved": {
                                 "ohm_coef": {
                                     "summer_wet": {
-                                        "chanohm": {"value": 0.15},    # OLD naming
-                                        "cpanohm": {"value": 1200000}, # OLD naming
-                                        "kkanohm": {"value": 0.18}     # OLD naming
+                                        "chanohm": {"value": 0.15},  # OLD naming
+                                        "cpanohm": {"value": 1200000},  # OLD naming
+                                        "kkanohm": {"value": 0.18},  # OLD naming
                                     }
                                 }
                             }
                         }
-                    }
+                    },
                 }
-            ]
+            ],
         }
 
         # Create standard config with new AnOHM naming convention (from data model)
         standard_config_new_naming = {
-            "model": {
-                "physics": {
-                    "netradiationmethod": {"value": 1}
-                }
-            },
+            "model": {"physics": {"netradiationmethod": {"value": 1}}},
             "sites": [
                 {
                     "name": "StandardSite",
@@ -3247,16 +3239,18 @@ class TestPhaseAUptoDateYaml(TestProcessorFixtures):
                             "paved": {
                                 "ohm_coef": {
                                     "summer_wet": {
-                                        "ch_anohm": {"value": 0.15},      # NEW naming
-                                        "rho_cp_anohm": {"value": 1200000}, # NEW naming
-                                        "k_anohm": {"value": 0.18}        # NEW naming
+                                        "ch_anohm": {"value": 0.15},  # NEW naming
+                                        "rho_cp_anohm": {
+                                            "value": 1200000
+                                        },  # NEW naming
+                                        "k_anohm": {"value": 0.18},  # NEW naming
                                     }
                                 }
                             }
                         }
-                    }
+                    },
                 }
-            ]
+            ],
         }
 
         # Test 1: User has old naming, standard has new naming
@@ -3271,11 +3265,13 @@ class TestPhaseAUptoDateYaml(TestProcessorFixtures):
         anohm_new_naming_paths = [
             "sites[0].properties.land_cover.paved.ohm_coef.summer_wet.ch_anohm",
             "sites[0].properties.land_cover.paved.ohm_coef.summer_wet.rho_cp_anohm",
-            "sites[0].properties.land_cover.paved.ohm_coef.summer_wet.k_anohm"
+            "sites[0].properties.land_cover.paved.ohm_coef.summer_wet.k_anohm",
         ]
 
         for path in anohm_new_naming_paths:
-            assert path not in missing_paths, f"Parameter {path} incorrectly reported as missing when user has equivalent old naming"
+            assert path not in missing_paths, (
+                f"Parameter {path} incorrectly reported as missing when user has equivalent old naming"
+            )
 
         # Test 2: User has new naming, check that old naming is not reported as extra
         extra_params = uptodate_yaml.find_extra_parameters(
@@ -3288,11 +3284,13 @@ class TestPhaseAUptoDateYaml(TestProcessorFixtures):
         anohm_new_naming_in_extra = [
             "sites[0].properties.land_cover.paved.ohm_coef.summer_wet.ch_anohm",
             "sites[0].properties.land_cover.paved.ohm_coef.summer_wet.rho_cp_anohm",
-            "sites[0].properties.land_cover.paved.ohm_coef.summer_wet.k_anohm"
+            "sites[0].properties.land_cover.paved.ohm_coef.summer_wet.k_anohm",
         ]
 
         for path in anohm_new_naming_in_extra:
-            assert path not in extra_paths, f"Parameter {path} incorrectly reported as extra when standard has equivalent old naming"
+            assert path not in extra_paths, (
+                f"Parameter {path} incorrectly reported as extra when standard has equivalent old naming"
+            )
 
         # Test 3: Verify parameter equivalence function directly
         # Test that the has_equivalent_parameter function works correctly
@@ -3309,8 +3307,9 @@ class TestPhaseAUptoDateYaml(TestProcessorFixtures):
 
         for param1, param2, expected_equivalent in test_cases:
             actual_equivalent = uptodate_yaml.has_equivalent_parameter(param1, param2)
-            assert actual_equivalent == expected_equivalent, \
+            assert actual_equivalent == expected_equivalent, (
                 f"Expected {param1} <-> {param2} equivalence to be {expected_equivalent}, got {actual_equivalent}"
+            )
 
         # Test 4: Verify RENAMED_PARAMS contains AnOHM mappings
         expected_anohm_renames = {
@@ -3320,24 +3319,30 @@ class TestPhaseAUptoDateYaml(TestProcessorFixtures):
         }
 
         for old_name, new_name in expected_anohm_renames.items():
-            assert old_name in uptodate_yaml.RENAMED_PARAMS, \
+            assert old_name in uptodate_yaml.RENAMED_PARAMS, (
                 f"AnOHM parameter {old_name} missing from RENAMED_PARAMS"
-            assert uptodate_yaml.RENAMED_PARAMS[old_name] == new_name, \
+            )
+            assert uptodate_yaml.RENAMED_PARAMS[old_name] == new_name, (
                 f"AnOHM parameter {old_name} should map to {new_name}, got {uptodate_yaml.RENAMED_PARAMS[old_name]}"
+            )
 
         # Test 5: Verify PARAMETER_EQUIVALENCE bidirectional mapping
         for old_name, new_name in expected_anohm_renames.items():
             # Forward mapping (old -> new)
-            assert old_name in uptodate_yaml.PARAMETER_EQUIVALENCE, \
+            assert old_name in uptodate_yaml.PARAMETER_EQUIVALENCE, (
                 f"Forward equivalence mapping missing for {old_name}"
-            assert uptodate_yaml.PARAMETER_EQUIVALENCE[old_name] == new_name, \
+            )
+            assert uptodate_yaml.PARAMETER_EQUIVALENCE[old_name] == new_name, (
                 f"Forward equivalence {old_name} should map to {new_name}"
+            )
 
             # Reverse mapping (new -> old)
-            assert new_name in uptodate_yaml.PARAMETER_EQUIVALENCE, \
+            assert new_name in uptodate_yaml.PARAMETER_EQUIVALENCE, (
                 f"Reverse equivalence mapping missing for {new_name}"
-            assert uptodate_yaml.PARAMETER_EQUIVALENCE[new_name] == old_name, \
+            )
+            assert uptodate_yaml.PARAMETER_EQUIVALENCE[new_name] == old_name, (
                 f"Reverse equivalence {new_name} should map to {old_name}"
+            )
 
 
 class TestPhaseBScienceCheck(TestProcessorFixtures):

@@ -173,8 +173,25 @@ jobs:
       CIBW_BUILD: ${{ matrix.python }}-${{ matrix.buildplat[1] }}*
       CIBW_ARCHS: ${{ matrix.buildplat[2] }}
       CIBW_ENVIRONMENT_PASS_LINUX: RUNNER_OS
-      CIBW_MANYLINUX_X86_64_IMAGE: manylinux_2_28
-      CIBW_MANYLINUX_AARCH64_IMAGE: manylinux_2_28
+      # Use manylinux2014 for compatibility with older Linux systems (glibc 2.17+)
+      # This is critical for HPC clusters and older distributions
+      CIBW_MANYLINUX_X86_64_IMAGE: manylinux2014
+      CIBW_MANYLINUX_AARCH64_IMAGE: manylinux2014
+      # Configure pip to use binary wheels and avoid building from source
+      # For Python 3.13, allow building f90wrap from source since no wheels exist
+      # Also set Fortran flags for line length handling
+      CIBW_ENVIRONMENT_LINUX: >
+        PIP_PREFER_BINARY=1
+        PIP_ONLY_BINARY=${{ matrix.python == 'cp313' && 'pyarrow' || ':all:' }}
+        FCFLAGS="-fno-optimize-sibling-calls -ffree-line-length-none"
+        F90=gfortran
+      CIBW_BEFORE_ALL_LINUX: >
+        pip install --upgrade pip setuptools wheel &&
+        pip install oldest-supported-numpy &&
+        if [[ "${{ matrix.python }}" == "cp313" ]]; then
+          echo "Installing numpy for Python 3.13 f90wrap build" &&
+          pip install numpy;
+        fi
       CIBW_BEFORE_ALL_MACOS: >
         brew install gfortran &&
         brew unlink gfortran &&
@@ -189,7 +206,7 @@ jobs:
         FC=gfortran
         CFLAGS="-D__USE_MINGW_ANSI_STDIO=1 -mlong-double-64"
         CXXFLAGS="-D__USE_MINGW_ANSI_STDIO=1 -mlong-double-64"
-        FCFLAGS="-fno-optimize-sibling-calls"
+        FCFLAGS="-fno-optimize-sibling-calls -ffree-line-length-none"
         LDFLAGS="-lucrt -static-libgcc -static-libgfortran -LC:/msys64/ucrt64/lib -lsetjmp_compat"
       CIBW_BEFORE_BUILD_WINDOWS: >
         echo Creating setjmp compatibility library... &&

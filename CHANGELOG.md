@@ -34,6 +34,18 @@
 
 ## 2025
 
+### 17 Sep 2025
+- [maintenance] Fixed Linux platform support for older systems by switching to manylinux2014 for broader glibc compatibility (GitHub issue #679)
+- [maintenance] Added Fortran line length compiler flag (-ffree-line-length-none) to handle long lines without manual breaking
+- [maintenance] Added fprettify configuration for consistent Fortran code formatting
+- [maintenance] Fixed pyarrow installation on Linux CI by configuring pip to use binary wheels instead of building from source
+  - Added PIP_PREFER_BINARY=1 and PIP_ONLY_BINARY=":all:" to ensure manylinux2014 wheels are used
+  - pyarrow remains a required dependency for SUEWS output functionality
+- [maintenance] Enabled f90wrap build from source for Python 3.13 on Linux
+  - f90wrap 0.2.16 doesn't provide Python 3.13 wheels yet
+  - Modified CI to allow source builds for f90wrap while keeping binary wheels for other packages
+  - Added F90=gfortran environment variable for f90wrap compilation
+
 ### 16 Sep 2025
 - [bugfix] Fixed Windows Unicode encoding error in logging output
   - Replaced Unicode checkmark characters (✓) with ASCII alternatives ([OK])

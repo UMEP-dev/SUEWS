@@ -92,3 +92,4 @@ clean:
 format:
 	ruff format src test
 	fprettify --config .fprettify.rc src/suews/src/*.f95 2>/dev/null || true
+

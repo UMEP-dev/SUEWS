@@ -32,6 +32,7 @@ if fortran_compiler.get_id() == 'gcc'
     f90flags = [
       '-fPIC',
       '-fconvert=big-endian',
+      '-ffree-line-length-none',  # Allow unlimited line length
       '-g',
       '-O1',  # Faster than -O0
       # Remove -fcheck=all for faster compilation
@@ -40,6 +41,7 @@ if fortran_compiler.get_id() == 'gcc'
     f90flags = [
       '-fPIC',
       '-fconvert=big-endian',
+      '-ffree-line-length-none',  # Allow unlimited line length
       '-g',
       '-O0',
       '-fcheck=all',

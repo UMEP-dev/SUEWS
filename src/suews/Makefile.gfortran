@@ -9,7 +9,8 @@ CPPFLAGS = -cpp
 
 # Basic flags such as where to write module files, and an instruction
 #  to read Fortran unformatted data files as big endian
-BASICFLAGS = -J./mod -fconvert=big-endian
+# Also allow unlimited line length to avoid truncation errors
+BASICFLAGS = -J./mod -fconvert=big-endian -ffree-line-length-none
 
 # OpenMP flag
 OMPFLAG = -fopenmp

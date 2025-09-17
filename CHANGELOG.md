@@ -41,6 +41,10 @@
 - [maintenance] Fixed pyarrow installation on Linux CI by configuring pip to use binary wheels instead of building from source
   - Added PIP_PREFER_BINARY=1 and PIP_ONLY_BINARY=":all:" to ensure manylinux2014 wheels are used
   - pyarrow remains a required dependency for SUEWS output functionality
+- [maintenance] Enabled f90wrap build from source for Python 3.13 on Linux
+  - f90wrap 0.2.16 doesn't provide Python 3.13 wheels yet
+  - Modified CI to allow source builds for f90wrap while keeping binary wheels for other packages
+  - Added F90=gfortran environment variable for f90wrap compilation
 
 ### 16 Sep 2025
 - [bugfix] Fixed Windows Unicode encoding error in logging output

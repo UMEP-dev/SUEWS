@@ -1544,6 +1544,8 @@ class StebbsProperties(BaseModel):
         json_schema_extra={
             "unit": "W m^-2 K^-1",
             "display_name": "Wallinternalconvectioncoefficient",
+            "default_description": "Default value calculated from the CIBSE GUIDE A, Table 3.47, Page 176",
+            "range_description": "Vaue must be greater than zero."
         },
         gt=0.0,
     )

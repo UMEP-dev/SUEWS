@@ -37,7 +37,6 @@ from .site import Site, SiteProperties, InitialStates, LandCover
 from .type import SurfaceType
 
 from datetime import datetime
-from timezonefinder import TimezoneFinder
 import pytz
 
 # Optional import of logger - use standalone if supy not available
@@ -964,7 +963,7 @@ class SUEWSConfig(BaseModel):
                                     "LAI range validation"
                                 )
                                 self._validation_summary["detailed_messages"].append(
-                                    f"{site_name} {surface_type}: laimin ({laimin_val}) must be ≤ laimax ({laimax_val})"
+                                    f"{site_name} {surface_type}: laimin ({laimin_val}) must be <= laimax ({laimax_val})"
                                 )
                                 has_issues = True
 
@@ -992,7 +991,7 @@ class SUEWSConfig(BaseModel):
                                     "LAI range validation"
                                 )
                                 self._validation_summary["detailed_messages"].append(
-                                    f"{site_name} {surface_type}: baset ({baset_val}) must be ≤ gddfull ({gddfull_val})"
+                                    f"{site_name} {surface_type}: baset ({baset_val}) must be <= gddfull ({gddfull_val})"
                                 )
                                 has_issues = True
 
@@ -1726,7 +1725,7 @@ class SUEWSConfig(BaseModel):
                                         path=f"{path}/lai",
                                         param="laimin_laimax",
                                         message=f"LAI range invalid: laimin ({laimin_val}) > laimax ({laimax_val})",
-                                        fix="Set laimin ≤ laimax (typical values: laimin=0.1-1.0, laimax=3.0-8.0)",
+                                        fix="Set laimin <= laimax (typical values: laimin=0.1-1.0, laimax=3.0-8.0)",
                                         level="WARNING",
                                     )
 
@@ -1748,7 +1747,7 @@ class SUEWSConfig(BaseModel):
                                         path=f"{path}/lai",
                                         param="baset_gddfull",
                                         message=f"GDD range invalid: baset ({baset_val}) > gddfull ({gddfull_val})",
-                                        fix="Set baset ≤ gddfull (typical values: baset=5-10°C, gddfull=200-1000°C·day)",
+                                        fix="Set baset <= gddfull (typical values: baset=5-10 C, gddfull=200-1000 C.day)",
                                         level="WARNING",
                                     )
 

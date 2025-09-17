@@ -226,14 +226,14 @@ class ValidationController(BaseModel):
             if bldg_height is not None:
                 if bldg_height <= 0 or bldg_height > 200:
                     errors.append(
-                        f"[RST] site[{i}].building_height={bldg_height} invalid (must be 0 < height ≤ 200)"
+                        f"[RST] site[{i}].building_height={bldg_height} invalid (must be 0 < height <= 200)"
                     )
 
             bldg_std = self._extract_value(site_props.get("building_height_std"))
             if bldg_std is not None:
                 if bldg_std < 0 or bldg_std > 100:
                     errors.append(
-                        f"[RST] site[{i}].building_height_std={bldg_std} invalid (must be 0 ≤ std ≤ 100)"
+                        f"[RST] site[{i}].building_height_std={bldg_std} invalid (must be 0 <= std <= 100)"
                     )
 
         return errors
@@ -251,14 +251,14 @@ class ValidationController(BaseModel):
             if z0m is not None:
                 if z0m <= 0 or z0m > 10:
                     errors.append(
-                        f"[MOST] site[{i}].z0m_in={z0m} invalid (must be 0 < z0m ≤ 10)"
+                        f"[MOST] site[{i}].z0m_in={z0m} invalid (must be 0 < z0m <= 10)"
                     )
 
             zdm = self._extract_value(site_props.get("zdm_in"))
             if zdm is not None:
                 if zdm < 0 or zdm > 50:
                     errors.append(
-                        f"[MOST] site[{i}].zdm_in={zdm} invalid (must be 0 ≤ zdm ≤ 50)"
+                        f"[MOST] site[{i}].zdm_in={zdm} invalid (must be 0 <= zdm <= 50)"
                     )
 
         return errors
@@ -276,14 +276,14 @@ class ValidationController(BaseModel):
             if tree_h_ev is not None:
                 if tree_h_ev <= 0 or tree_h_ev > 50:
                     errors.append(
-                        f"[VAR_ROUGH] site[{i}].tree_height_evergreen={tree_h_ev} invalid (must be 0 < height ≤ 50)"
+                        f"[VAR_ROUGH] site[{i}].tree_height_evergreen={tree_h_ev} invalid (must be 0 < height <= 50)"
                     )
 
             tree_h_dec = self._extract_value(site_props.get("tree_height_deciduous"))
             if tree_h_dec is not None:
                 if tree_h_dec <= 0 or tree_h_dec > 50:
                     errors.append(
-                        f"[VAR_ROUGH] site[{i}].tree_height_deciduous={tree_h_dec} invalid (must be 0 < height ≤ 50)"
+                        f"[VAR_ROUGH] site[{i}].tree_height_deciduous={tree_h_dec} invalid (must be 0 < height <= 50)"
                     )
 
         return errors
@@ -385,19 +385,19 @@ class ValidationController(BaseModel):
         if result.errors:
             print(f"\n[FAILED] Validation FAILED: {len(result.errors)} errors found")
             for error in result.errors:
-                print(f"   • {error}")
+                print(f"   - {error}")
         else:
             print(f"\n[PASSED] Validation PASSED: All active rules satisfied")
 
         if result.warnings:
             print(f"\n[WARNING]  Warnings: {len(result.warnings)} issues")
             for warning in result.warnings:
-                print(f"   • {warning}")
+                print(f"   - {warning}")
 
         if result.skipped:
             print(f"\n[SKIPPED]  Skipped validations: {len(result.skipped)}")
             for skip in result.skipped:
-                print(f"   • {skip}")
+                print(f"   - {skip}")
 
         print(
             f"\n[SUMMARY] Summary: Validated {len(result.validated_methods)} method(s), "

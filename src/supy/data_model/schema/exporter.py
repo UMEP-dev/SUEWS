@@ -79,13 +79,13 @@ def export_schema(
     # Write schema file
     schema_file = output_dir / f"{CURRENT_SCHEMA_VERSION}.json"
     schema_file.write_text(json.dumps(schema, indent=2))
-    print(f"✓ Exported schema v{CURRENT_SCHEMA_VERSION} to {schema_file}")
+    print(f"[OK] Exported schema v{CURRENT_SCHEMA_VERSION} to {schema_file}")
 
     # Create .nojekyll file to prevent Jekyll processing
     nojekyll = Path("public") / ".nojekyll"
     nojekyll.parent.mkdir(parents=True, exist_ok=True)
     nojekyll.write_text("")
-    print(f"✓ Created {nojekyll}")
+    print(f"[OK] Created {nojekyll}")
 
     # Create root index.html to prevent 404 errors
     root_index = Path("public") / "index.html"
@@ -123,7 +123,7 @@ def export_schema(
 </body>
 </html>"""
     root_index.write_text(root_index_content)
-    print(f"✓ Created root {root_index} with redirect to {redirect_path}")
+    print(f"[OK] Created root {root_index} with redirect to {redirect_path}")
 
     # Initialize or load the schema registry
     registry_path = output_dir / "registry.json"
@@ -139,7 +139,7 @@ def export_schema(
     # Create a copy for 'latest' pointing to current version
     latest_file = output_dir / "latest.json"
     latest_file.write_text(schema_file.read_text())
-    print(f"✓ Created latest.json pointing to v{CURRENT_SCHEMA_VERSION}")
+    print(f"[OK] Created latest.json pointing to v{CURRENT_SCHEMA_VERSION}")
 
     # Generate index.html using the registry
     index_html = output_dir / "index.html"
@@ -147,7 +147,7 @@ def export_schema(
         base_url=BASE_URL, is_preview=is_preview, pr_number=pr_number
     )
     index_html.write_text(index_content)
-    print(f"✓ Created {index_html}")
+    print(f"[OK] Created {index_html}")
 
 
 def main():
@@ -186,17 +186,17 @@ def main():
             is_preview=args.preview,
             pr_number=args.pr_number,
         )
-        print(f"\n✅ Schema export complete!")
+        print(f"\n[SUCCESS] Schema export complete!")
         print(f"   Version: {CURRENT_SCHEMA_VERSION}")
         if args.preview and args.pr_number:
             print(f"   Type: PR #{args.pr_number} Preview")
             print(
-                f"   ⚠️  Preview URL: https://umep-dev.github.io/SUEWS/preview/pr-{args.pr_number}/schema/suews-config/"
+                f"   [WARNING] Preview URL: https://umep-dev.github.io/SUEWS/preview/pr-{args.pr_number}/schema/suews-config/"
             )
         else:
             print(f"   Ready for GitHub Pages deployment")
     except Exception as e:
-        print(f"❌ Error: {e}", file=sys.stderr)
+        print(f"[ERROR] {e}", file=sys.stderr)
         sys.exit(1)
 
 

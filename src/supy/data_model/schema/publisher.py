@@ -330,15 +330,15 @@ def validate_config_against_schema(
     try:
         jsonschema.validate(config, schema)
         print(
-            f"✓ Configuration is valid against schema v{version or CURRENT_SCHEMA_VERSION}"
+            f"[OK] Configuration is valid against schema v{version or CURRENT_SCHEMA_VERSION}"
         )
         return True
     except jsonschema.ValidationError as e:
-        print(f"✗ Validation error: {e.message}")
+        print(f"[ERROR] Validation error: {e.message}")
         print(f"  Path: {' -> '.join(str(p) for p in e.path)}")
         return False
     except jsonschema.SchemaError as e:
-        print(f"✗ Schema error: {e.message}")
+        print(f"[ERROR] Schema error: {e.message}")
         return False
 
 

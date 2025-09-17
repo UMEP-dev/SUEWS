@@ -78,7 +78,7 @@ SUEWS: https://suews.readthedocs.io/
             for grid, df_forcing in zip(list_grid, list_df_forcing):
                 idx_dt = df_forcing.index
                 start, end = idx_dt.min(), idx_dt.max()
-                click.echo(f"grid {grid}: {start} – {end}")
+                click.echo(f"grid {grid}: {start} - {end}")
             # daemonic processes only support `threads` method
             method_parallel = "threads"
             list_res = (
@@ -104,7 +104,7 @@ SUEWS: https://suews.readthedocs.io/
             click.echo("\nSimulation period:")
             idx_dt = df_forcing.index
             start, end = idx_dt.min(), idx_dt.max()
-            click.echo(f"{start} – {end}")
+            click.echo(f"{start} - {end}")
             # run supy
             df_output, df_state_final = run_supy(df_forcing, df_state_init)
 

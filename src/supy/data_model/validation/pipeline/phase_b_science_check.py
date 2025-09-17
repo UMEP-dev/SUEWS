@@ -25,8 +25,36 @@ from copy import deepcopy
 import pandas as pd
 import numpy as np
 from pydantic import BaseModel
-from timezonefinder import TimezoneFinder
 import pytz
+
+# Use tzfpy instead of timezonefinder for Windows compatibility
+# tzfpy has pre-built Windows wheels and provides similar functionality
+try:
+    from tzfpy import get_tz
+
+    HAS_TIMEZONE_FINDER = True
+
+    # Create a compatibility wrapper for timezonefinder API
+    class TimezoneFinder:
+        def timezone_at(self, lat, lng):
+            """Wrapper to match timezonefinder API."""
+            # tzfpy uses (longitude, latitude) order
+            return get_tz(lng, lat)
+
+except ImportError:
+    # Fallback to original timezonefinder if tzfpy not available
+    try:
+        from timezonefinder import TimezoneFinder
+
+        HAS_TIMEZONE_FINDER = True
+    except ImportError:
+        HAS_TIMEZONE_FINDER = False
+        import warnings
+
+        warnings.warn(
+            "Neither tzfpy nor timezonefinder available. DST calculations will be skipped.",
+            UserWarning,
+        )
 
 # Try to import from supy if available, otherwise use standalone mode
 try:
@@ -109,6 +137,12 @@ class DLSCheck(BaseModel):
 
     def compute_dst_transitions(self):
         """Compute DST start/end days and timezone offset for coordinates and year."""
+        if not HAS_TIMEZONE_FINDER:
+            logger_supy.debug(
+                "[DLS] No timezone finder available, skipping DST calculation."
+            )
+            return None, None, None
+
         tf = TimezoneFinder()
         tz_name = tf.timezone_at(lat=self.lat, lng=self.lng)
         if not tz_name:
@@ -776,7 +810,7 @@ def get_mean_monthly_air_temperature(
 
         if nearby_data.empty:
             raise ValueError(
-                f"No CRU data found within {spatial_res_expanded}° of coordinates "
+                f"No CRU data found within {spatial_res_expanded} degrees of coordinates "
                 f"({lat}, {lon}) for month {month}. Try increasing spatial resolution or "
                 f"check if coordinates are within CRU data coverage area."
             )
@@ -790,7 +824,7 @@ def get_mean_monthly_air_temperature(
     closest_lon = month_data.loc[closest_idx, "Longitude"]
     logger_supy.debug(
         f"CRU temperature for ({lat:.2f}, {lon:.2f}) month {month}: "
-        f"{temperature:.2f}°C from grid cell ({closest_lat:.2f}, {closest_lon:.2f})"
+        f"{temperature:.2f} C from grid cell ({closest_lat:.2f}, {closest_lon:.2f})"
     )
 
     return float(temperature)
@@ -875,7 +909,7 @@ def adjust_surface_temperatures(
                         parameter=f"initial_states.{surface_type}",
                         site_index=site_idx,
                         old_value=param_list,
-                        new_value=f"{avg_temp}°C",
+                        new_value=f"{avg_temp} C",
                         reason=f"Set from CRU data for coordinates ({lat:.2f}, {lng:.2f}) for month {month}",
                     )
                 )
@@ -893,7 +927,7 @@ def adjust_surface_temperatures(
                             parameter=f"stebbs.{key}",
                             site_index=site_idx,
                             old_value=str(old_val),
-                            new_value=f"{avg_temp}°C",
+                            new_value=f"{avg_temp} C",
                             reason=f"Set from CRU data for coordinates ({lat:.2f}, {lng:.2f}) for month {month}",
                         )
                     )

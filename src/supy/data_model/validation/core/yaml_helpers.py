@@ -27,8 +27,36 @@ import csv
 import os
 from copy import deepcopy
 from datetime import datetime
-from timezonefinder import TimezoneFinder
 import pytz
+
+# Use tzfpy instead of timezonefinder for Windows compatibility
+# tzfpy has pre-built Windows wheels and provides similar functionality
+try:
+    from tzfpy import get_tz
+
+    HAS_TIMEZONE_FINDER = True
+
+    # Create a compatibility wrapper for timezonefinder API
+    class TimezoneFinder:
+        def timezone_at(self, lat, lng):
+            """Wrapper to match timezonefinder API."""
+            # tzfpy uses (longitude, latitude) order
+            return get_tz(lng, lat)
+
+except ImportError:
+    # Fallback to original timezonefinder if tzfpy not available
+    try:
+        from timezonefinder import TimezoneFinder
+
+        HAS_TIMEZONE_FINDER = True
+    except ImportError:
+        HAS_TIMEZONE_FINDER = False
+        import warnings
+
+        warnings.warn(
+            "Neither tzfpy nor timezonefinder available. DST calculations will be skipped.",
+            UserWarning,
+        )
 
 # Optional import - use standalone if supy not available
 try:
@@ -127,6 +155,12 @@ class DLSCheck(BaseModel):
     enddls: Optional[int] = None
 
     def compute_dst_transitions(self):
+        if not HAS_TIMEZONE_FINDER:
+            logger_supy.debug(
+                "[DLS] No timezone finder available, skipping DST calculation."
+            )
+            return None, None, None
+
         tf = TimezoneFinder()
         tz_name = tf.timezone_at(lat=self.lat, lng=self.lng)
 
@@ -375,7 +409,7 @@ def get_mean_monthly_air_temperature(
 
         if nearby_data.empty:
             raise ValueError(
-                f"No CRU data found within {spatial_res_expanded}° of coordinates "
+                f"No CRU data found within {spatial_res_expanded} degrees of coordinates "
                 f"({lat}, {lon}) for month {month}. Try increasing spatial resolution or "
                 f"check if coordinates are within CRU data coverage area."
             )
@@ -713,7 +747,9 @@ def precheck_site_season_adjustments(
                     f"[site #{i}] Overwriting pre-existing startdls and enddls with computed values."
                 )
             except Exception as e:
-                raise ValueError(f"[site #{i}] DLSCheck failed: {e}")
+                logger_supy.warning(
+                    f"[site #{i}] DLSCheck failed: {e}. DST will not be configured automatically."
+                )
 
         # Final update
         site["properties"] = props
@@ -771,7 +807,7 @@ def precheck_update_temperature(data: dict, start_date: str) -> dict:
         avg_temp = get_mean_monthly_air_temperature(lat, lng, month)
         coord_info = f"lat={lat}, lng={lng}"
         logger_supy.info(
-            f"[site #{site_idx}] Setting surface temperatures to {avg_temp} °C for month {month} ({coord_info})"
+            f"[site #{site_idx}] Setting surface temperatures to {avg_temp} C for month {month} ({coord_info})"
         )
 
         # Loop over all surface types

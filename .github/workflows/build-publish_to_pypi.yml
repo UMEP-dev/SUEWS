@@ -173,11 +173,12 @@ jobs:
       CIBW_BUILD: ${{ matrix.python }}-${{ matrix.buildplat[1] }}*
       CIBW_ARCHS: ${{ matrix.buildplat[2] }}
       CIBW_ENVIRONMENT_PASS_LINUX: RUNNER_OS
-      CIBW_MANYLINUX_X86_64_IMAGE: manylinux2014
-      CIBW_MANYLINUX_AARCH64_IMAGE: manylinux2014
+      # Use manylinux_2_28 for Python 3.13 (has pyarrow wheels), manylinux2014 for older versions
+      # This provides compatibility with older Linux systems (glibc 2.17+) while supporting Python 3.13
+      CIBW_MANYLINUX_X86_64_IMAGE: ${{ matrix.python == 'cp313' && 'manylinux_2_28' || 'manylinux2014' }}
+      CIBW_MANYLINUX_AARCH64_IMAGE: ${{ matrix.python == 'cp313' && 'manylinux_2_28' || 'manylinux2014' }}
       CIBW_BEFORE_ALL_LINUX: >
-        pip install --upgrade pip setuptools wheel &&
-        pip install --only-binary :all: pyarrow
+        pip install --upgrade pip setuptools wheel
       CIBW_BEFORE_ALL_MACOS: >
         brew install gfortran &&
         brew unlink gfortran &&

@@ -23,6 +23,7 @@ User YAML → Phase A → Phase B → Phase C → Valid YAML
    - Checks ALL model physics compatibility (rslmethod-stabilitymethod, StorageHeatMethod-OhmIncQf)
    - Validates land cover fractions
    - Updates initial temperatures from CRU data
+   - Updates STEBBS outdoor surface temperatures when `stebbsmethod == 1`
 
 3. **Phase C: Pydantic Validation** (`phase_c_pydantic_report.py`)
    - Runs Pydantic data model validation

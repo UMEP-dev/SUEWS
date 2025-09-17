@@ -145,7 +145,7 @@ Location-dependent parameter validation (actual implemented checks):
 
 ### CRU Temperature Initialisation System
 
-Phase B integrates CRU TS4.06 monthly climatological data (1991-2020) for accurate temperature initialisation:
+Phase B integrates CRU TS4.06 monthly climatological data (1991-2020) for accurate temperature initialisation of surface types and STEBBS parameters:
 
 ### Function Purpose
 
@@ -216,6 +216,8 @@ Phase B makes scientific adjustments that improve model realism without changing
 - **Conditional Logic**: When `stebbsmethod == 0`, nullifies STEBBS parameters
 - **Parameter Cleanup**: Removes unused STEBBS parameters for clarity
 - **Consistency**: Ensures STEBBS configuration matches selected method
+- **Temperature Initialisation**: When `stebbsmethod == 1`, automatically updates `WallOutdoorSurfaceTemperature` and `WindowOutdoorSurfaceTemperature` using CRU climatological data
+- **CRU-Based Updates**: Uses location-specific mean monthly air temperature from CRU TS4.06 dataset
 
 ### Parameter Validation Improvements
 
@@ -307,9 +309,11 @@ Phase B generates comprehensive reports with two main sections:
    Suggested fix: Set OhmIncQf to 0
 
 ## NO ACTION NEEDED
-- Updated (9) parameter(s):
+- Updated (11) parameter(s):
 -- initial_states.paved: temperature, tsfc, tin → 12.4°C (Set from CRU data for coordinates (51.51, -0.13) for month 1)
 -- initial_states.bldgs: temperature, tsfc, tin → 12.4°C (Set from CRU data for coordinates (51.51, -0.13) for month 1)
+-- stebbs.WallOutdoorSurfaceTemperature: 20.0 → 12.4°C (Set from CRU data for coordinates (51.51, -0.13) for month 1)
+-- stebbs.WindowOutdoorSurfaceTemperature: 20.0 → 12.4°C (Set from CRU data for coordinates (51.51, -0.13) for month 1)
 -- anthropogenic_emissions.startdls: 15.0 → 86 (Calculated DLS start for coordinates (51.51, -0.13))
 -- anthropogenic_emissions.enddls: 12.0 → 303 (Calculated DLS end for coordinates (51.51, -0.13))
 -- paved.sfr at site [0]: rounded to achieve sum of land cover fractions equal to 1.0 → tolerance level: 1.00e-08

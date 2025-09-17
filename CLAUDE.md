@@ -65,7 +65,7 @@ For mamba-based setup, see `.claude/reference/environment-types.md`.
 
 **CRITICAL**: Each worktree MUST use a separate Python environment.
 
-**Recommended quick setup**: 
+**Recommended quick setup**:
 - With uv: `make setup && source .venv/bin/activate && make dev`
 - With mamba: `mamba activate suews-dev && make dev`
 
@@ -124,11 +124,12 @@ See `.claude/reference/build-isolation.md` for complete testing and build workfl
 ## Style and Language Guidelines
 
 - Any human writing in this project should use British English - docs/code annotations etc
+- **Don't use emoji-like chars in print/logging functions** - use only plain ASCII chars
 
 ## Testing Resources
 
 ### Benchmark Test Files
-- For testing: configuration file `p_config = Path("test/benchmark1/benchmark1.yml")` 
+- For testing: configuration file `p_config = Path("test/benchmark1/benchmark1.yml")`
 - For testing: forcing data file `p_forcing = Path("test/benchmark1/forcing/Kc1_2011_data_5.txt")`
 
 ### Critical Testing Requirements for SUEWS
@@ -197,7 +198,7 @@ Common locations to debug benchmark failures:
 
 When working with configuration objects and implementation methods in SUEWS/SuPy, follow this strict separation:
 
-1. **High-Level Classes (e.g., SUEWSSimulation)**: 
+1. **High-Level Classes (e.g., SUEWSSimulation)**:
    - **DO**: Parse and interpret configuration objects
    - **DO**: Extract specific values from nested config structures
    - **DO**: Handle RefValue wrappers and type conversions
@@ -230,7 +231,7 @@ def save(self, output_path, format=None):
         freq_s = 3600  # default
         if self._config and hasattr(self._config.output, 'freq'):
             freq_s = self._config.output.freq.value  # Handle RefValue
-        
+
         # Pass concrete parameters to low-level method
         save_supy(df_output, df_state, freq_s=int(freq_s), site=site_name)
 ```
@@ -256,193 +257,6 @@ When implementing a feature that uses configuration:
 
 This pattern ensures clean architecture and maintains the intended separation between configuration management and core functionality.
 
-## Current Investigations and Findings
-
-### QE/QH Discrepancy Investigation (Branch: matthewp/testing_sample_data) - ✅ **RESOLVED**
-
-**Issue**: Tests pass individually but fail when run in full test suite, specifically `test_sample_output_validation` with QE/QH mismatches.
-
-**Root Cause Identified**: Uninitialized Fortran variables in derived types cause state pollution between test runs, compounded by exact floating-point equality checks.
-
-#### Key Findings:
-1. **Critical Code Location**: `src/suews/src/suews_phys_atmmoiststab.f95` lines 243 and 288
-   ```fortran
-   IF (H == 0.) THEN
-   ```
-   These exact equality checks behave differently with compiler optimizations.
-
-2. **Compiler Testing Results**:
-   - Fast build (`-O1`): Fails sample output test in full suite without pytest-order
-   - Slow build (`-O0 -fcheck=all`): Also fails sample output test in full suite without pytest-order
-   - **Both configurations affected by state leakage, but severity varies**
-
-3. **Causal Chain**:
-   - Atmospheric stability calculations use exact floating-point equality
-   - Different compiler optimizations affect floating-point behaviour
-   - This cascades through resistance calculations into QE/QH computations
-   - Results in different model outputs depending on test execution order
-
-#### Technical Details:
-- **Affected Module**: `suews_phys_atmmoiststab.f95` - Atmospheric stability calculations
-- **Impact**: QE (Latent Heat Flux) and QH (Sensible Heat Flux) calculations
-- **Masking Factor**: pytest-order was controlling test execution order
-- **Build Configuration**: Both fast and slow builds affected when pytest-order removed
-
-#### Files Investigated:
-- `src/suews/src/suews_phys_atmmoiststab.f95` - Contains problematic exact equality checks
-- `src/suews/src/suews_phys_resist.f95` - Aerodynamic resistance calculations
-- `src/suews/src/suews_phys_evap.f95` - Evaporation calculations
-- `src/supy_driver/meson.build` - Compiler flag configuration
-- `meson_options.txt` - Fast build option definition
-- `test/test_sample_output.py` - Failing test case
-
-#### Recommendations:
-1. **Replace exact equality checks** with epsilon-based comparisons
-2. **Ensure proper Fortran variable initialization** to prevent state leakage
-3. **Add comprehensive tests** for floating-point stability
-4. **Implement state isolation** between test runs
-
-#### Status: Investigation Complete - ✅ **FULLY RESOLVED**
-- [x] Identified root cause of QE/QH discrepancies
-- [x] Tested both compiler configurations
-- [x] Confirmed state leakage affects both build types
-- [x] Documented exact code locations needing fixes
-- [x] Created comprehensive test suite for floating-point stability
-- [x] Implemented fixes for exact equality checks
-- [x] Added general floating-point epsilon constant (`eps_fp = 1.0E-12`)
-- [x] Fixed both problematic `IF (H == 0.)` checks in `suews_phys_atmmoiststab.f95`
-- [x] **COMPLETE RESOLUTION**: Initialized all atmospheric state variables in `atm_state` type
-- [x] **FULL TEST SUITE PASSES**: All tests now pass individually and in full suite
-- [x] **EXECUTION ORDER INDEPENDENCE**: Results identical regardless of test execution order
-
-#### Fix Details:
-**Location**: `/src/suews/src/suews_ctrl_const.f95` - Added to `PhysConstants` module:
-```fortran
-REAL(KIND(1D0)), PARAMETER :: eps_fp = 1.0E-12 !Epsilon for floating-point near-zero comparisons
-```
-
-**Fixes Applied**: `/src/suews/src/suews_phys_atmmoiststab.f95` - Changed exact equality checks:
-```fortran
-! Before: IF (H == 0.) THEN
-! After:  IF (ABS(H) <= eps_fp) THEN
-```
-
-**Final Solution**: `/src/suews/src/suews_ctrl_type.f95` - Initialized all atmospheric state variables:
-```fortran
-! Critical atmospheric state variables now initialized:
-REAL(KIND(1D0)) :: L_mod = 0.0D0 !Obukhov length [m]
-REAL(KIND(1D0)) :: zL = 0.0D0 ! Stability scale [-]
-REAL(KIND(1D0)) :: RA_h = 0.0D0 ! aerodynamic resistance [s m-1]
-REAL(KIND(1D0)) :: RS = 0.0D0 ! surface resistance [s m-1]
-REAL(KIND(1D0)) :: UStar = 0.0D0 !friction velocity [m s-1]
-REAL(KIND(1D0)) :: TStar = 0.0D0 !T*, temperature scale [-]
-REAL(KIND(1D0)) :: RB = 0.0D0 !boundary layer resistance shuttleworth
-REAL(KIND(1D0)) :: rss_surf = 0.0D0 ! surface resistance [s m-1]
-! ... and ALL other atmospheric variables
-```
-
-#### Results:
-- ✅ **COMPLETE SUCCESS**: Fixed all state leakage issues
-- ✅ **PERFECT RESOLUTION**: QE/QH difference reduced to 0.000000 (complete elimination)
-- ✅ Individual `test_sample_output_validation` passes
-- ✅ **FULL TEST SUITE PASSES**: All tests pass in any execution order
-- ✅ Floating-point stability tests all pass
-- ✅ **EXECUTION ORDER INDEPENDENCE**: Results identical regardless of test sequence
-- ✅ **ISSUE COMPLETELY RESOLVED**: No remaining state pollution detected
-
-#### Comparison: Before vs After Complete Fix
-**Before Fix (Original Code)**:
-- QE failures: 288 points, max relative diff: **37.87%**
-- QH failures: Similar magnitude
-- Failed at indices around 286-335 (first day of data)
-- Tests fail in full suite, pass individually
-
-**After Complete Fix (Epsilon + Variable Initialization)**:
-- QE failures: **0 points**, max relative diff: **0.000000%**
-- QH failures: **0 points**, max relative diff: **0.000000%**
-- **NO FAILURES**: All tests pass in any execution order
-- **IDENTICAL RESULTS**: First run = Second run = Nth run
-
-**Impact**: Complete elimination of QE/QH discrepancies and state pollution
-
-#### ✅ **COMPLETE SOLUTION IMPLEMENTED**:
-1. **✅ FIXED**: Exact equality checks replaced with epsilon-based comparisons
-2. **✅ RESOLVED**: All atmospheric state variables initialized in `atm_state` type
-3. **✅ SYSTEMATIC SOLUTION**: GitHub Issue #504 created for comprehensive variable initialization
-4. **✅ PREVENTION**: Coding standards established for floating-point comparisons
-5. **✅ VALIDATION**: All tests pass across both compiler configurations
-
-#### **Systematic Fix in Progress** (GitHub Issue #504):
-- **492 REAL variables** identified without initialization across 34 types
-- **59 INTEGER variables** identified without initialization  
-- **Priority types**: HEAT_STATE, HYDRO_STATE, STEBBS_STATE, ROUGHNESS_STATE
-- **Implementation plan**: 4-phase approach over 4 weeks
-- **GitHub Issue**: https://github.com/UMEP-dev/SUEWS/issues/504
-
-#### New Test Suite Added:
-1. **test_fortran_stability.py** - Comprehensive floating-point stability tests
-   - Tests atmospheric stability calculations with exact equality edge cases
-   - Validates compiler optimization consistency
-   - Tests state isolation between runs
-   - Covers atmospheric stability edge cases (stable, unstable, neutral)
-   - Tests QE/QH consistency across execution scenarios
-
-2. **test_exact_equality_fix.py** - Specific tests for the exact equality fix
-   - Tests boundary conditions around H = 0 that trigger exact equality
-   - Validates compiler independence near zero values
-   - Tests epsilon vs exact equality behaviour
-   - Regression testing against known good values
-   - Multiple execution consistency validation
-
-3. **test_execution_order_independence.py** - Tests for execution order independence
-   - Tests identical runs in different execution orders
-   - Recreates the sample_output_validation failure scenario
-   - Tests random execution order scenarios
-   - Simulates pytest execution order issues
-   - Specifically validates QE/QH order independence
-
-4. **test_floating_point_stability.py** - Working test suite for immediate use
-   - Tests repeated runs produce identical results
-   - Validates execution order independence
-   - Tests low wind conditions that trigger problematic code paths
-   - Validates compiler consistency across optimization levels
-   - Tests zero boundary conditions and atmospheric stability transitions
-   - Includes state isolation testing after simulation failures
-
-#### Test Suite Status:
-- [x] All tests use correct supy API (sp.load_SampleData(), sp.run_supy())
-- [x] Tests access QE/QH via result.SUEWS['QE'] and result.SUEWS['QH']
-- [x] Tests validated and working correctly
-- [x] Tests specifically target the identified issues in the investigation
-
-#### **Lessons Learned & Best Practices**:
-
-1. **Variable Initialization is Critical**: 
-   - Always initialize ALL Fortran variables in derived types
-   - Use `= 0.0D0` for REAL variables, `= 0` for INTEGER variables
-   - Don't rely on compiler-dependent default initialization
-
-2. **Avoid Exact Floating-Point Equality**: 
-   - Replace `IF (variable == 0.)` with `IF (ABS(variable) <= eps_fp)`
-   - Use epsilon-based comparisons for all floating-point operations
-   - Define a consistent epsilon constant (`eps_fp = 1.0E-12`)
-
-3. **Test Execution Order Independence**:
-   - Always test both individual tests AND full test suite
-   - Create specific tests for execution order independence
-   - Use floating-point stability tests to catch state pollution
-
-4. **Systematic Debugging Approach**:
-   - Start with simple reproduction cases
-   - Use manual test scripts to isolate issues
-   - Investigate compiler-dependent behavior
-   - Document findings thoroughly for future reference
-
-5. **State Pollution Prevention**:
-   - Never assume variables are initialized to zero
-   - Always provide explicit default values in type definitions
-   - Test for state leakage between function calls
-   - Use comprehensive test suites to catch edge cases
 
 ## Documentation & Code Maintenance Principles
 
@@ -476,7 +290,7 @@ When making code changes to SUEWS/SuPy:
 **CRITICAL: RST markup cannot be nested or overlayed!**
 
 - **WRONG**: `**:doc:`link text <target>`**` - Cannot combine bold with doc reference
-- **WRONG**: `*:option:`parameter`*` - Cannot combine italic with option reference  
+- **WRONG**: `*:option:`parameter`*` - Cannot combine italic with option reference
 - **CORRECT**: Use markup separately: `:doc:`link text <target>` or make text bold separately from the link
 
 Common RST pitfalls to avoid:
@@ -530,7 +344,7 @@ When generating RST programmatically:
    ```python
    # Good: Clear what parameters are needed
    save_supy(df_output, df_state, freq_s=3600, site="London")
-   
+
    # Bad: Hidden configuration dependencies
    save_supy(df_output, df_state, config_obj)
    ```

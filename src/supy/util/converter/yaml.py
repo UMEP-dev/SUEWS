@@ -158,9 +158,9 @@ def convert_to_yaml(
                 # Validate
                 is_valid, message = validate_converted_df_state(df_state)
                 if is_valid:
-                    click.echo(f"  ✓ {message}")
+                    click.echo(f"  [OK] {message}")
                 else:
-                    click.echo(f"  ⚠ {message}", err=True)
+                    click.echo(f"  [WARNING] {message}", err=True)
             elif version == "unknown":
                 click.echo("  Warning: Unknown format, attempting conversion anyway...")
                 df_state = convert_df_state_format(df_state)
@@ -208,7 +208,7 @@ def convert_to_yaml(
         # Save to YAML
         click.echo(f"Saving to: {output_path}")
         config.to_yaml(output_path)
-        click.secho(f"✓ Successfully converted to {output_path}", fg="green")
+        click.secho(f"[OK] Successfully converted to {output_path}", fg="green")
 
     finally:
         if temp_dir_obj:

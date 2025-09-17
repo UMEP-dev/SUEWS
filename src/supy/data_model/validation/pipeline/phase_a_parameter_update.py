@@ -1069,11 +1069,11 @@ def validate_standard_file(standard_file: str) -> bool:
             print()
             return False
         else:
-            print(f"✓ Branch: {current_branch} (standard file matches master)")
+            print(f"[OK] Branch: {current_branch} (standard file matches master)")
     else:
-        print(f"✓ Branch: {current_branch}")
+        print(f"[OK] Branch: {current_branch}")
 
-    print(f"✓ Standard file: {standard_file}")
+    print(f"[OK] Standard file: {standard_file}")
     return True
 
 

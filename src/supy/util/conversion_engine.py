@@ -82,7 +82,7 @@ class ConversionValidator:
             from .._load import load_InitialCond_grid_df
 
             df_state = load_InitialCond_grid_df(output_dir / "RunControl.nml")
-            issues.append("✓ Tables can be loaded successfully")
+            issues.append("[OK] Tables can be loaded successfully")
         except Exception as e:
             issues.append(f"Failed to load converted tables: {e}")
             is_valid = False

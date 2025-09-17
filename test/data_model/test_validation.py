@@ -169,7 +169,7 @@ def test_validate_lai_ranges_invalid_laimin_laimax():
     assert cfg._validation_summary["total_warnings"] >= 1
     assert "LAI range validation" in cfg._validation_summary["issue_types"]
     assert any(
-        "laimin (5.0) must be ≤ laimax (3.0)" in msg
+        "laimin (5.0) must be <= laimax (3.0)" in msg
         for msg in cfg._validation_summary["detailed_messages"]
     )
 
@@ -192,7 +192,7 @@ def test_validate_lai_ranges_invalid_baset_gddfull():
     assert cfg._validation_summary["total_warnings"] >= 1
     assert "LAI range validation" in cfg._validation_summary["issue_types"]
     assert any(
-        "baset (15.0) must be ≤ gddfull (10.0)" in msg
+        "baset (15.0) must be <= gddfull (10.0)" in msg
         for msg in cfg._validation_summary["detailed_messages"]
     )
 
@@ -1013,3 +1013,155 @@ sites:
 
     finally:
         yaml_path.unlink()
+
+
+def test_phase_b_storageheatmethod_ohmincqf_validation():
+    """Test StorageHeatMethod-OhmIncQf validation in Phase B."""
+    from supy.data_model.validation.pipeline.phase_b_science_check import (
+        validate_model_option_dependencies,
+    )
+
+    # Test incompatible combination: StorageHeatMethod=1 requires OhmIncQf=0
+    yaml_data_incompatible = {
+        "model": {
+            "physics": {
+                "storageheatmethod": {"value": 1},  # OHM_WITHOUT_QF
+                "ohmincqf": {"value": 1},  # INCLUDE - incompatible!
+            }
+        }
+    }
+
+    results = validate_model_option_dependencies(yaml_data_incompatible)
+
+    # Should find the incompatible combination
+    storage_results = [
+        r for r in results if r.parameter == "storageheatmethod-ohmincqf"
+    ]
+    assert len(storage_results) == 1
+    assert storage_results[0].status == "ERROR"
+    assert (
+        "StorageHeatMethod is set to 1 and OhmIncQf is set to 1"
+        in storage_results[0].message
+    )
+    assert "You should switch to OhmIncQf=0" in storage_results[0].message
+
+    # Test compatible combination: StorageHeatMethod=1 with OhmIncQf=0
+    yaml_data_compatible = {
+        "model": {
+            "physics": {
+                "storageheatmethod": {"value": 1},  # OHM_WITHOUT_QF
+                "ohmincqf": {"value": 0},  # EXCLUDE - compatible!
+            }
+        }
+    }
+
+    results = validate_model_option_dependencies(yaml_data_compatible)
+
+    # Should pass validation
+    storage_results = [
+        r for r in results if r.parameter == "storageheatmethod-ohmincqf"
+    ]
+    assert len(storage_results) == 1
+    assert storage_results[0].status == "PASS"
+    assert (
+        "StorageHeatMethod-OhmIncQf compatibility validated"
+        in storage_results[0].message
+    )
+
+
+def test_phase_b_rsl_stabilitymethod_validation():
+    """Test that existing RSL-StabilityMethod validation still works in Phase B."""
+    from supy.data_model.validation.pipeline.phase_b_science_check import (
+        validate_model_option_dependencies,
+    )
+
+    # Test incompatible combination: rslmethod=2 requires stabilitymethod=3
+    yaml_data_incompatible = {
+        "model": {
+            "physics": {
+                "rslmethod": {"value": 2},
+                "stabilitymethod": {"value": 1},  # Should be 3
+            }
+        }
+    }
+
+    results = validate_model_option_dependencies(yaml_data_incompatible)
+
+    # Should find the incompatible combination
+    rsl_results = [r for r in results if "rslmethod-stabilitymethod" in r.parameter]
+    assert len(rsl_results) == 1
+    assert rsl_results[0].status == "ERROR"
+    assert "rslmethod == 2" in rsl_results[0].message
+    assert "stabilitymethod must be 3" in rsl_results[0].message
+
+
+def test_phase_b_model_option_dependencies_comprehensive():
+    """Test validate_model_option_dependencies function with various configurations."""
+    from supy.data_model.validation.pipeline.phase_b_science_check import (
+        validate_model_option_dependencies,
+    )
+
+    # Test with minimal physics configuration (should all pass)
+    yaml_data_minimal = {
+        "model": {
+            "physics": {
+                "storageheatmethod": {"value": 0},  # OBSERVED
+                "ohmincqf": {"value": 0},  # EXCLUDE
+                "rslmethod": {"value": 0},
+                "stabilitymethod": {"value": 1},
+            }
+        }
+    }
+
+    results = validate_model_option_dependencies(yaml_data_minimal)
+
+    # All should pass
+    error_results = [r for r in results if r.status == "ERROR"]
+    assert len(error_results) == 0, (
+        f"Unexpected errors: {[r.message for r in error_results]}"
+    )
+
+    # Should have validation results for key parameters
+    storage_results = [
+        r for r in results if r.parameter == "storageheatmethod-ohmincqf"
+    ]
+    assert len(storage_results) == 1
+    assert storage_results[0].status == "PASS"
+
+    # Test with mixed valid/invalid combinations
+    yaml_data_mixed = {
+        "model": {
+            "physics": {
+                "storageheatmethod": {"value": 1},  # OHM_WITHOUT_QF
+                "ohmincqf": {"value": 0},  # EXCLUDE - compatible
+                "rslmethod": {"value": 2},  # Should require stabilitymethod=3
+                "stabilitymethod": {"value": 1},  # Wrong value - incompatible
+            }
+        }
+    }
+
+    results = validate_model_option_dependencies(yaml_data_mixed)
+
+    # Should have one error (RSL) and one pass (storage heat)
+    error_results = [r for r in results if r.status == "ERROR"]
+    pass_results = [r for r in results if r.status == "PASS"]
+
+    # Find RSL error
+    rsl_errors = [
+        r for r in error_results if "rslmethod-stabilitymethod" in r.parameter
+    ]
+    assert len(rsl_errors) == 1
+
+    # Find storage heat pass
+    storage_passes = [
+        r for r in pass_results if "storageheatmethod-ohmincqf" in r.parameter
+    ]
+    assert len(storage_passes) == 1
+
+    # Test with missing physics section (should handle gracefully)
+    yaml_data_no_physics = {"model": {}}
+
+    results = validate_model_option_dependencies(yaml_data_no_physics)
+
+    # Should handle gracefully - may have default values or skip validation
+    assert isinstance(results, list)  # Should return a list, not crash

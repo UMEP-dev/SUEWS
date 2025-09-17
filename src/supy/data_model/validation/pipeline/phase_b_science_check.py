@@ -25,8 +25,36 @@ from copy import deepcopy
 import pandas as pd
 import numpy as np
 from pydantic import BaseModel
-from timezonefinder import TimezoneFinder
 import pytz
+
+# Use tzfpy instead of timezonefinder for Windows compatibility
+# tzfpy has pre-built Windows wheels and provides similar functionality
+try:
+    from tzfpy import get_tz
+
+    HAS_TIMEZONE_FINDER = True
+
+    # Create a compatibility wrapper for timezonefinder API
+    class TimezoneFinder:
+        def timezone_at(self, lat, lng):
+            """Wrapper to match timezonefinder API."""
+            # tzfpy uses (longitude, latitude) order
+            return get_tz(lng, lat)
+
+except ImportError:
+    # Fallback to original timezonefinder if tzfpy not available
+    try:
+        from timezonefinder import TimezoneFinder
+
+        HAS_TIMEZONE_FINDER = True
+    except ImportError:
+        HAS_TIMEZONE_FINDER = False
+        import warnings
+
+        warnings.warn(
+            "Neither tzfpy nor timezonefinder available. DST calculations will be skipped.",
+            UserWarning,
+        )
 
 # Try to import from supy if available, otherwise use standalone mode
 try:
@@ -109,6 +137,12 @@ class DLSCheck(BaseModel):
 
     def compute_dst_transitions(self):
         """Compute DST start/end days and timezone offset for coordinates and year."""
+        if not HAS_TIMEZONE_FINDER:
+            logger_supy.debug(
+                "[DLS] No timezone finder available, skipping DST calculation."
+            )
+            return None, None, None
+
         tf = TimezoneFinder()
         tz_name = tf.timezone_at(lat=self.lat, lng=self.lng)
         if not tz_name:
@@ -307,7 +341,11 @@ def validate_model_option_dependencies(yaml_data: dict) -> List[ValidationResult
 
     rslmethod = get_value_safe(physics, "rslmethod")
     stabilitymethod = get_value_safe(physics, "stabilitymethod")
+    storageheatmethod = get_value_safe(physics, "storageheatmethod")
+    ohmincqf = get_value_safe(physics, "ohmincqf")
+    snowuse = get_value_safe(physics, "snowuse")
 
+    # RSL method and stability method dependencies
     if rslmethod == 2 and stabilitymethod != 3:
         results.append(
             ValidationResult(
@@ -339,6 +377,61 @@ def validate_model_option_dependencies(yaml_data: dict) -> List[ValidationResult
                 message="rslmethod-stabilitymethod constraints satisfied",
             )
         )
+
+    # Storage heat method and OhmIncQf compatibility check
+    # Only method 1 (OHM_WITHOUT_QF) has specific compatibility requirements
+    if storageheatmethod == 1 and ohmincqf != 0:
+        results.append(
+            ValidationResult(
+                status="ERROR",
+                category="MODEL_OPTIONS",
+                parameter="storageheatmethod-ohmincqf",
+                message=f"StorageHeatMethod is set to {storageheatmethod} and OhmIncQf is set to {ohmincqf}. You should switch to OhmIncQf=0.",
+                suggested_value="Set OhmIncQf to 0",
+            )
+        )
+    else:
+        results.append(
+            ValidationResult(
+                status="PASS",
+                category="MODEL_OPTIONS",
+                parameter="storageheatmethod-ohmincqf",
+                message="StorageHeatMethod-OhmIncQf compatibility validated",
+            )
+        )
+
+    # TODO: Add SnowUse experimental feature validation in separate PR
+    # Snow calculations check (experimental feature - only blocked in public mode)
+    #     if mode.lower() == "public":
+    #         results.append(
+    #             ValidationResult(
+    #                 status="ERROR",
+    #                 category="MODEL_OPTIONS",
+    #                 parameter="snowuse",
+    #                 message=f"SnowUse is set to {snowuse}. There are no checks implemented for this case (snow calculations included in the run). You should switch to SnowUse=0 or use --mode dev.",
+    #                 suggested_value="Set SnowUse to 0 or use --mode dev to enable experimental features",
+    #             )
+    #         )
+    #     else:
+    #         # Dev mode - allow experimental feature with warning
+    #         results.append(
+    #             ValidationResult(
+    #                 status="WARNING",
+    #                 category="MODEL_OPTIONS",
+    #                 parameter="snowuse",
+    #                 message=f"SnowUse is set to {snowuse}. This is an experimental feature enabled in dev mode. Results may vary.",
+    #                 suggested_value="",
+    #             )
+    #         )
+    # else:
+    #     results.append(
+    #         ValidationResult(
+    #             status="PASS",
+    #             category="MODEL_OPTIONS",
+    #             parameter="snowuse",
+    #             message="SnowUse experimental feature check passed",
+    #         )
+    #     )
 
     return results
 
@@ -717,7 +810,7 @@ def get_mean_monthly_air_temperature(
 
         if nearby_data.empty:
             raise ValueError(
-                f"No CRU data found within {spatial_res_expanded}° of coordinates "
+                f"No CRU data found within {spatial_res_expanded} degrees of coordinates "
                 f"({lat}, {lon}) for month {month}. Try increasing spatial resolution or "
                 f"check if coordinates are within CRU data coverage area."
             )
@@ -731,7 +824,7 @@ def get_mean_monthly_air_temperature(
     closest_lon = month_data.loc[closest_idx, "Longitude"]
     logger_supy.debug(
         f"CRU temperature for ({lat:.2f}, {lon:.2f}) month {month}: "
-        f"{temperature:.2f}°C from grid cell ({closest_lat:.2f}, {closest_lon:.2f})"
+        f"{temperature:.2f} C from grid cell ({closest_lat:.2f}, {closest_lon:.2f})"
     )
 
     return float(temperature)
@@ -816,7 +909,7 @@ def adjust_surface_temperatures(
                         parameter=f"initial_states.{surface_type}",
                         site_index=site_idx,
                         old_value=param_list,
-                        new_value=f"{avg_temp}°C",
+                        new_value=f"{avg_temp} C",
                         reason=f"Set from CRU data for coordinates ({lat:.2f}, {lng:.2f}) for month {month}",
                     )
                 )
@@ -834,7 +927,7 @@ def adjust_surface_temperatures(
                             parameter=f"stebbs.{key}",
                             site_index=site_idx,
                             old_value=str(old_val),
-                            new_value=f"{avg_temp}°C",
+                            new_value=f"{avg_temp} C",
                             reason=f"Set from CRU data for coordinates ({lat:.2f}, {lng:.2f}) for month {month}",
                         )
                     )

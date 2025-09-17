@@ -205,40 +205,7 @@ def set_surface_types_validation(self) -> "SUEWSConfig":
 **Validates**: Ensures all surface properties have correct surface type identifiers  
 **Required**: For internal validation and processing logic
 
-### 12. Model Physics Compatibility
-
-> **Note**: **Phase B/C Physics Validation Difference**: Phase C and Phase B implement **different sets of physics compatibility checks**:
-> 
-> - **Phase B**: Validates `rslmethod-stabilitymethod` dependencies only
-> - **Phase C**: Validates `StorageHeatMethod-OhmIncQf` compatibility and `SnowUse` experimental warnings
-> 
-> This creates a **gap in validation coverage** where physics issues could be missed if only one phase is run.
-
-```python
-@model_validator(mode="after")
-def validate_model_physics_compatibility(self) -> "SUEWSConfig":
-    """Validate model physics parameter compatibility across all sites."""
-```
-
-**Function**: Complex physics option interdependency validation  
-**Validates**: Checks for incompatible combinations of physics options that cause model errors
-- **Storage Heat Method 1** (OHM_WITHOUT_QF): Must have `ohmincqf = 0`
-
-  ```python
-  if storageheatmethod_val == 1 and ohmincqf_val != 0:
-      errors.append(f"StorageHeatMethod is set to {storageheatmethod_val} and OhmIncQf is set to {ohmincqf_val}. You should switch to OhmIncQf=0.")
-  ```
-
-- **Snow Use Experimental Feature**: `snowuse = 1` triggers warning for unsupported calculations
-
-  ```python
-  if snowuse_val == 1:
-      errors.append("SnowUse is set to 1. There are no checks implemented for this case (snow calculations included in the run). You should switch to SnowUse=0.")
-  ```
-
-- **Physics Method Consistency**: Validates compatibility between storage heat calculations and QF (anthropogenic heat) inclusion options
-
-### 13. Hourly Profile Validation
+### 12. Hourly Profile Validation
 
 ```python
 @model_validator(mode="after")

@@ -39,6 +39,15 @@
   - Changed wheel builds to use manylinux2014 (glibc 2.17) for broader Linux compatibility
   - Fixes installation issues on older Linux distributions and HPC systems
   - Updated both main build and debug workflows
+- [bugfix] Fixed Windows Unicode encoding error in logging output
+  - Replaced Unicode checkmark characters (✓) with ASCII alternatives ([OK])
+  - Fixes UnicodeEncodeError on Windows console that cannot handle UTF-8 characters
+  - Affects table conversion logging and CLI output messages
+- [bugfix] Replaced timezonefinder with tzfpy to fix Windows installation failure ([#681](https://github.com/UMEP-dev/SUEWS/issues/681))
+  - Switched from timezonefinder to tzfpy which provides pre-built Windows wheels
+  - Maintains full DST calculation functionality on all platforms
+  - Added compatibility wrapper to preserve existing API
+  - Falls back to timezonefinder if tzfpy not available for backward compatibility
 - [bugfix] Fixed SUEWS-SS to YAML conversion failure for single-layer configurations ([#650](https://github.com/UMEP-dev/SUEWS/issues/650))
   - Fixed index format mismatch in `VerticalLayers.from_df_state` and `BuildingLayer.from_df_state`
   - Single-layer configurations now correctly use index format '0' instead of '(0,)'

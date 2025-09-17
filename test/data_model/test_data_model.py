@@ -112,21 +112,30 @@ class TestSUEWSConfig(unittest.TestCase):
         )
 
     def test_model_physics_validation(self):
-        """Test model physics validation rules."""
-        # Test storageheatmethod and ohmincqf validation in SUEWSConfig
-        with self.assertRaises(ValueError):
-            SUEWSConfig(
-                sites=[{}],
-                model={
-                    "physics": {
-                        "storageheatmethod": {"value": 1},
-                        "ohmincqf": {"value": 1},
-                    }
-                },
-            )
+        """Test that SUEWSConfig allows physics combinations - validation moved to Phase B.
 
-        with self.assertRaises(ValueError):
-            SUEWSConfig(sites=[{}], model={"physics": {"snowuse": {"value": 1}}})
+        Physics compatibility validation has been moved from SUEWSConfig (Phase C)
+        to Phase B scientific validation. SUEWSConfig now only validates schema/types.
+        """
+        # These should now succeed at SUEWSConfig level - validation moved to Phase B
+        config1 = SUEWSConfig(
+            sites=[{}],
+            model={
+                "physics": {
+                    "storageheatmethod": {"value": 1},
+                    "ohmincqf": {
+                        "value": 1
+                    },  # This incompatible combination is now allowed at config level
+                }
+            },
+        )
+        self.assertIsInstance(config1, SUEWSConfig)
+
+        config2 = SUEWSConfig(sites=[{}], model={"physics": {"snowuse": {"value": 1}}})
+        self.assertIsInstance(config2, SUEWSConfig)
+
+        # Note: These physics compatibility checks now happen in Phase B validation
+        # See phase_b_science_check.py validate_model_option_dependencies()
 
     def test_site_properties(self):
         """Test site properties data model."""

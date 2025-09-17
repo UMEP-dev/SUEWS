@@ -37,7 +37,6 @@ from .site import Site, SiteProperties, InitialStates, LandCover
 from .type import SurfaceType
 
 from datetime import datetime
-from timezonefinder import TimezoneFinder
 import pytz
 
 # Optional import of logger - use standalone if supy not available
@@ -964,7 +963,7 @@ class SUEWSConfig(BaseModel):
                                     "LAI range validation"
                                 )
                                 self._validation_summary["detailed_messages"].append(
-                                    f"{site_name} {surface_type}: laimin ({laimin_val}) must be ≤ laimax ({laimax_val})"
+                                    f"{site_name} {surface_type}: laimin ({laimin_val}) must be <= laimax ({laimax_val})"
                                 )
                                 has_issues = True
 
@@ -992,7 +991,7 @@ class SUEWSConfig(BaseModel):
                                     "LAI range validation"
                                 )
                                 self._validation_summary["detailed_messages"].append(
-                                    f"{site_name} {surface_type}: baset ({baset_val}) must be ≤ gddfull ({gddfull_val})"
+                                    f"{site_name} {surface_type}: baset ({baset_val}) must be <= gddfull ({gddfull_val})"
                                 )
                                 has_issues = True
 
@@ -1726,7 +1725,7 @@ class SUEWSConfig(BaseModel):
                                         path=f"{path}/lai",
                                         param="laimin_laimax",
                                         message=f"LAI range invalid: laimin ({laimin_val}) > laimax ({laimax_val})",
-                                        fix="Set laimin ≤ laimax (typical values: laimin=0.1-1.0, laimax=3.0-8.0)",
+                                        fix="Set laimin <= laimax (typical values: laimin=0.1-1.0, laimax=3.0-8.0)",
                                         level="WARNING",
                                     )
 
@@ -1748,7 +1747,7 @@ class SUEWSConfig(BaseModel):
                                         path=f"{path}/lai",
                                         param="baset_gddfull",
                                         message=f"GDD range invalid: baset ({baset_val}) > gddfull ({gddfull_val})",
-                                        fix="Set baset ≤ gddfull (typical values: baset=5-10°C, gddfull=200-1000°C·day)",
+                                        fix="Set baset <= gddfull (typical values: baset=5-10 C, gddfull=200-1000 C.day)",
                                         level="WARNING",
                                     )
 
@@ -2079,50 +2078,6 @@ class SUEWSConfig(BaseModel):
                                     UserWarning,
                                     stacklevel=2,
                                 )
-
-        return self
-
-    @model_validator(mode="after")
-    def validate_model_physics_compatibility(self) -> "SUEWSConfig":
-        """Validate model physics parameter compatibility across all sites.
-
-        Checks for incompatible combinations of physics options that would
-        cause model errors. This includes storage heat method compatibility
-        with QF inclusion options and experimental/unsupported features.
-        Migrated from ModelPhysics.check_all to provide centralized validation.
-        """
-        from .type import RefValue  # Import here to avoid circular import
-
-        # Check global model physics (not per-site)
-        if not hasattr(self, "model") or not self.model or not self.model.physics:
-            return self
-
-        physics = self.model.physics
-        errors = []
-
-        # Use helper for consistent unwrapping - handles both RefValue and Enum
-        storageheatmethod_val = _unwrap_value(physics.storageheatmethod)
-        ohmincqf_val = _unwrap_value(physics.ohmincqf)
-        snowuse_val = _unwrap_value(physics.snowuse)
-
-        # StorageHeatMethod compatibility check
-        # Only method 1 (OHM_WITHOUT_QF) has specific compatibility requirements
-        if storageheatmethod_val == 1 and ohmincqf_val != 0:
-            errors.append(
-                f"StorageHeatMethod is set to {storageheatmethod_val} and OhmIncQf is set to {ohmincqf_val}. "
-                f"You should switch to OhmIncQf=0."
-            )
-
-        # Snow calculations check (experimental feature)
-        if snowuse_val == 1:
-            errors.append(
-                f"SnowUse is set to {snowuse_val}. "
-                f"There are no checks implemented for this case (snow calculations included in the run). "
-                f"You should switch to SnowUse=0."
-            )
-
-        if errors:
-            raise ValueError("\n".join(errors))
 
         return self
 

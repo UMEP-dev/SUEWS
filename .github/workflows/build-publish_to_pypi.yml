@@ -177,6 +177,12 @@ jobs:
       # This is critical for HPC clusters and older distributions
       CIBW_MANYLINUX_X86_64_IMAGE: manylinux2014
       CIBW_MANYLINUX_AARCH64_IMAGE: manylinux2014
+      # Configure pip to use binary wheels and avoid building from source
+      # Also set Fortran flags for line length handling
+      CIBW_ENVIRONMENT_LINUX: >
+        PIP_PREFER_BINARY=1
+        PIP_ONLY_BINARY=":all:"
+        FCFLAGS="-fno-optimize-sibling-calls -ffree-line-length-none"
       CIBW_BEFORE_ALL_LINUX: >
         pip install --upgrade pip setuptools wheel &&
         pip install oldest-supported-numpy

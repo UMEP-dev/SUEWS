@@ -37,6 +37,7 @@ dependencies = [
     "seaborn",
     "chardet",
     "click",
+    "pyarrow",
     
     # Scientific packages
     "atmosp",
@@ -78,14 +79,6 @@ classifiers = [
 ]
 
 [project.optional-dependencies]
-# Parquet file support (optional - choose one)
-parquet = [
-    "pyarrow",  # Recommended: faster and more feature-complete
-]
-parquet-alt = [
-    "fastparquet",  # Alternative: pure Python, works on all platforms
-]
-
 # Single dev group combining test + development tools
 dev = [
     # Testing

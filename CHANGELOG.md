@@ -38,10 +38,9 @@
 - [maintenance] Fixed Linux platform support for older systems by switching to manylinux2014 for broader glibc compatibility (GitHub issue #679)
 - [maintenance] Added Fortran line length compiler flag (-ffree-line-length-none) to handle long lines without manual breaking
 - [maintenance] Added fprettify configuration for consistent Fortran code formatting
-- [change] Made pyarrow an optional dependency to resolve build issues on Linux systems
-  - pyarrow is now installable via `pip install supy[parquet]`
-  - fastparquet available as alternative via `pip install supy[parquet-alt]`
-  - Parquet export functionality automatically uses whichever library is available
+- [maintenance] Fixed pyarrow installation on Linux CI by configuring pip to use binary wheels instead of building from source
+  - Added PIP_PREFER_BINARY=1 and PIP_ONLY_BINARY=":all:" to ensure manylinux2014 wheels are used
+  - pyarrow remains a required dependency for SUEWS output functionality
 
 ### 16 Sep 2025
 - [bugfix] Fixed Windows Unicode encoding error in logging output

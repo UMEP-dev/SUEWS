@@ -6,7 +6,29 @@ RENAMED_PARAMS = {
     "cp": "rho_cp",
     "diagmethod": "rslmethod",
     "localclimatemethod": "rsllevel",
+    # AnOHM parameter naming standardization - map from old names to new names
+    "chanohm": "ch_anohm",
+    "cpanohm": "rho_cp_anohm",
+    "kkanohm": "k_anohm",
 }
+
+# Create reverse mapping for parameter equivalence checking
+PARAMETER_EQUIVALENCE = {}
+for old_name, new_name in RENAMED_PARAMS.items():
+    PARAMETER_EQUIVALENCE[new_name] = old_name
+    PARAMETER_EQUIVALENCE[old_name] = new_name
+
+def has_equivalent_parameter(param_name: str, data_dict: dict) -> bool:
+    """Check if a parameter has an equivalent name in the data dictionary."""
+    if param_name in data_dict:
+        return True
+
+    # Check for equivalent names
+    equivalent_name = PARAMETER_EQUIVALENCE.get(param_name)
+    if equivalent_name and equivalent_name in data_dict:
+        return True
+
+    return False
 
 PHYSICS_OPTIONS = {
     "netradiationmethod",
@@ -222,7 +244,8 @@ def find_extra_parameters(user_data, standard_data, current_path=""):
     if isinstance(user_data, dict) and isinstance(standard_data, dict):
         for key, user_value in user_data.items():
             full_path = f"{current_path}.{key}" if current_path else key
-            if key not in standard_data:
+            # Check if parameter exists directly or has an equivalent name
+            if not has_equivalent_parameter(key, standard_data):
                 extra_params.append(full_path)
             elif isinstance(user_value, dict) and isinstance(
                 standard_data.get(key), dict
@@ -267,7 +290,8 @@ def find_missing_parameters(user_data, standard_data, current_path=""):
         user_dict = user_data if isinstance(user_data, dict) else {}
         for key, standard_value in standard_data.items():
             full_path = f"{current_path}.{key}" if current_path else key
-            if key not in user_dict:
+            # Check if parameter exists directly or has an equivalent name
+            if not has_equivalent_parameter(key, user_dict):
                 is_physics = is_physics_option(full_path)
                 missing_params.append((full_path, standard_value, is_physics))
             elif isinstance(standard_value, dict) and isinstance(

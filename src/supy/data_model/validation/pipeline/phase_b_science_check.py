@@ -399,7 +399,6 @@ def validate_model_option_dependencies(yaml_data: dict) -> List[ValidationResult
             )
         )
 
-
     return results
 
 

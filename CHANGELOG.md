@@ -35,6 +35,10 @@
 ## 2025
 
 ### 17 Sep 2025
+- [bugfix] Fixed parameter naming convention mismatch between sample_config.yml and data model in validation system ([PR #686](https://github.com/UMEP-dev/SUEWS/pull/686), fixes [#650](https://github.com/UMEP-dev/SUEWS/issues/650))
+- [bugfix] Added parameter name mapping in validation system to link different naming conventions between YAML and data model
+- [bugfix] Prevented parameter duplication in updated user YAML files when running Phase A validation
+- [maintenance] Added specific tests to test_yaml_processing.py to verify parameter naming convention fixes
 - [maintenance] Fixed Linux platform support for older systems by switching to manylinux2014 for broader glibc compatibility (GitHub issue #679)
 - [maintenance] Added Fortran line length compiler flag (-ffree-line-length-none) to handle long lines without manual breaking
 - [maintenance] Added fprettify configuration for consistent Fortran code formatting

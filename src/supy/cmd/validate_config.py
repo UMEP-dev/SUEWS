@@ -683,7 +683,7 @@ def _check_experimental_features_restriction(user_yaml_file, mode):
         return True  # Dev mode allows all features
 
     try:
-        with open(user_yaml_file, 'r') as f:
+        with open(user_yaml_file, "r") as f:
             user_yaml_data = yaml.safe_load(f)
     except Exception as e:
         console.print(f"[red]✗ Error reading YAML file: {e}[/red]")
@@ -710,9 +710,7 @@ def _check_experimental_features_restriction(user_yaml_file, mode):
             stebbs_method = stebbs_entry
 
     if stebbs_method is not None and stebbs_method != 0:
-        restrictions_violated.append(
-            "STEBBS method is enabled (stebbsmethod != 0)"
-        )
+        restrictions_violated.append("STEBBS method is enabled (stebbsmethod != 0)")
 
     # Add more restriction checks here as needed
     # Example for future experimental features:
@@ -721,7 +719,9 @@ def _check_experimental_features_restriction(user_yaml_file, mode):
 
     # If any restrictions are violated, halt execution
     if restrictions_violated:
-        console.print("[red]✗ Configuration contains experimental features restricted in public mode:[/red]")
+        console.print(
+            "[red]✗ Configuration contains experimental features restricted in public mode:[/red]"
+        )
         for restriction in restrictions_violated:
             console.print(f"  • {restriction}")
         console.print("\n[yellow]Options to resolve:[/yellow]")
@@ -844,8 +844,12 @@ def _execute_pipeline(file, pipeline, mode):
                 console.print(f"Updated YAML: {science_yaml_file}")
 
             # Provide helpful guidance for Phase B failures
-            console.print("[yellow]Phase B requires Phase A to be completed first.[/yellow]")
-            console.print(f"[yellow]Try running: suews-validate --pipeline AB {user_yaml_file}[/yellow]")
+            console.print(
+                "[yellow]Phase B requires Phase A to be completed first.[/yellow]"
+            )
+            console.print(
+                f"[yellow]Try running: suews-validate --pipeline AB {user_yaml_file}[/yellow]"
+            )
         return 0 if ok else 1
 
     if pipeline == "C":
@@ -1024,11 +1028,17 @@ def _execute_pipeline(file, pipeline, mode):
 
         # If no report was created, provide diagnostic help
         if not report_shown:
-            console.print("[yellow]Phase B failed during initialization. Common causes:[/yellow]")
-            console.print("[yellow]• Missing or invalid start_time/end_time values[/yellow]")
+            console.print(
+                "[yellow]Phase B failed during initialization. Common causes:[/yellow]"
+            )
+            console.print(
+                "[yellow]• Missing or invalid start_time/end_time values[/yellow]"
+            )
             console.print("[yellow]• Missing latitude/longitude coordinates[/yellow]")
             console.print("[yellow]• Invalid physics configuration[/yellow]")
-            console.print(f"[yellow]Check the Phase A output file: {uptodate_file}[/yellow]")
+            console.print(
+                f"[yellow]Check the Phase A output file: {uptodate_file}[/yellow]"
+            )
 
         sys.exit(1)
 

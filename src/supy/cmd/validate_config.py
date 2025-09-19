@@ -9,6 +9,7 @@ import click
 import yaml
 import json
 import sys
+import os
 from pathlib import Path
 from typing import Optional, List
 import jsonschema
@@ -835,6 +836,16 @@ def _execute_pipeline(file, pipeline, mode):
         if ok:
             console.print(f"Report: {science_report_file}")
             console.print(f"Updated YAML: {science_yaml_file}")
+        else:
+            # Show report file even on failure if it exists
+            if os.path.exists(science_report_file):
+                console.print(f"Report: {science_report_file}")
+            if os.path.exists(science_yaml_file):
+                console.print(f"Updated YAML: {science_yaml_file}")
+
+            # Provide helpful guidance for Phase B failures
+            console.print("[yellow]Phase B requires Phase A to be completed first.[/yellow]")
+            console.print(f"[yellow]Try running: suews-validate --pipeline AB {user_yaml_file}[/yellow]")
         return 0 if ok else 1
 
     if pipeline == "C":
@@ -1002,8 +1013,23 @@ def _execute_pipeline(file, pipeline, mode):
     )
     if not b_ok:
         console.print("[red]✗ Phase B failed[/red]")
-        console.print(f"Report: {science_report_file}")
-        console.print(f"Updated YAML: {science_yaml_file}")
+
+        # Check if report files exist and show them
+        report_shown = False
+        if os.path.exists(science_report_file):
+            console.print(f"Report: {science_report_file}")
+            report_shown = True
+        if os.path.exists(science_yaml_file):
+            console.print(f"Updated YAML: {science_yaml_file}")
+
+        # If no report was created, provide diagnostic help
+        if not report_shown:
+            console.print("[yellow]Phase B failed during initialization. Common causes:[/yellow]")
+            console.print("[yellow]• Missing or invalid start_time/end_time values[/yellow]")
+            console.print("[yellow]• Missing latitude/longitude coordinates[/yellow]")
+            console.print("[yellow]• Invalid physics configuration[/yellow]")
+            console.print(f"[yellow]Check the Phase A output file: {uptodate_file}[/yellow]")
+
         sys.exit(1)
 
     c_ok = _processor_run_phase_c(

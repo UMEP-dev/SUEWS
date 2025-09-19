@@ -34,6 +34,9 @@
 
 ## 2025
 
+### 19 Sep 2025
+- [doc] Updated technical documentation (PHASE_B_DETAILED.md, PHASE_C_DETAILED.md, README.md) to describe STEBBS convection coefficients constraints in Phase C and automatic outdoor temperature updates using CRU monthly climatological data in Phase B
+
 ### 17 Sep 2025
 
 - [change] Moved snowuse parameter validation from Phase C to orchestrator.py for early detection of restricted model options ([PR #688](https://github.com/UMEP-dev/SUEWS/pull/688))

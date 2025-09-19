@@ -156,13 +156,15 @@ except Exception as e:
 - User-friendly error messages
 - Extra parameters reported as ACTION NEEDED
 - No experimental features
+- **Pre-validation checks**: Blocks execution if experimental features are detected (stebbsmethod ≠ 0, snowuse ≠ 0)
 
 ### Developer Mode
 
 - Same validation logic
 - Extra parameters allowed in specific locations
-- Experimental features enabled (STEBBS, SPARTACUS)
+- Experimental features enabled (STEBBS, Snow calculations, SPARTACUS)
 - Enhanced diagnostic information
+- **No pre-validation restrictions**: All experimental features allowed
 
 ## Integration Points
 

@@ -895,6 +895,26 @@ Modes:
                         "STEBBS method is enabled (stebbsmethod != 0)"
                     )
 
+                # Check Snowuse restriction
+                snowuse = None
+                if (
+                    user_yaml_data
+                    and "model" in user_yaml_data
+                    and "physics" in user_yaml_data["model"]
+                    and "snowuse" in user_yaml_data["model"]["physics"]
+                ):
+                    snowuse_entry = user_yaml_data["model"]["physics"]["snowuse"]
+                    # Handle both direct values and RefValue format
+                    if isinstance(snowuse_entry, dict) and "value" in snowuse_entry:
+                        snowuse = snowuse_entry["value"]
+                    else:
+                        snowuse = snowuse_entry
+
+                if snowuse is not None and snowuse != 0:
+                    restrictions_violated.append(
+                        "Snow calculations are enabled (snowuse != 0)"
+                    )
+
                 # Add more restriction checks here as needed
                 # if other_dev_feature_enabled:
                 #     restrictions_violated.append("Other developer feature is enabled")
@@ -910,8 +930,10 @@ Modes:
                     print("Options to resolve:")
                     print("  1. Switch to dev mode: --mode dev (when available)")
                     print(
-                        "  2. Disable stebbsmethod in your YAML file (stebbsmethod = 0) and rerun processor"
+                        "  2. Disable developer features in your YAML file and rerun processor:"
                     )
+                    print("     - Set stebbsmethod = 0 (if enabled)")
+                    print("     - Set snowuse = 0 (if enabled)")
                     print()
                     print("Processor halted due to mode restrictions")
                     return 1

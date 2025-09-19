@@ -672,6 +672,66 @@ def export(output, version, fmt):
         sys.exit(1)
 
 
+def _check_experimental_features_restriction(user_yaml_file, mode):
+    """Check for experimental features that are restricted in public mode.
+
+    Returns:
+        bool: True if validation passes (can proceed), False if should halt
+    """
+    if mode != "public":
+        return True  # Dev mode allows all features
+
+    try:
+        with open(user_yaml_file, 'r') as f:
+            user_yaml_data = yaml.safe_load(f)
+    except Exception as e:
+        console.print(f"[red]✗ Error reading YAML file: {e}[/red]")
+        return False
+
+    restrictions_violated = []
+
+    # Check STEBBS method restriction
+    stebbs_method = None
+    if (
+        user_yaml_data
+        and isinstance(user_yaml_data, dict)
+        and "model" in user_yaml_data
+        and isinstance(user_yaml_data["model"], dict)
+        and "physics" in user_yaml_data["model"]
+        and isinstance(user_yaml_data["model"]["physics"], dict)
+        and "stebbsmethod" in user_yaml_data["model"]["physics"]
+    ):
+        stebbs_entry = user_yaml_data["model"]["physics"]["stebbsmethod"]
+        # Handle both direct values and RefValue format
+        if isinstance(stebbs_entry, dict) and "value" in stebbs_entry:
+            stebbs_method = stebbs_entry["value"]
+        else:
+            stebbs_method = stebbs_entry
+
+    if stebbs_method is not None and stebbs_method != 0:
+        restrictions_violated.append(
+            "STEBBS method is enabled (stebbsmethod != 0)"
+        )
+
+    # Add more restriction checks here as needed
+    # Example for future experimental features:
+    # if other_experimental_feature_enabled:
+    #     restrictions_violated.append("Other experimental feature is enabled")
+
+    # If any restrictions are violated, halt execution
+    if restrictions_violated:
+        console.print("[red]✗ Configuration contains experimental features restricted in public mode:[/red]")
+        for restriction in restrictions_violated:
+            console.print(f"  • {restriction}")
+        console.print("\n[yellow]Options to resolve:[/yellow]")
+        console.print("  1. Switch to dev mode: [cyan]--mode dev[/cyan]")
+        console.print("  2. Disable experimental features in your YAML file and rerun")
+        console.print("     Example: Set [cyan]stebbsmethod: {value: 0}[/cyan]")
+        return False
+
+    return True
+
+
 def _format_phase_output(
     phase, success, input_file, output_file=None, report_file=None, errors=None
 ):
@@ -715,6 +775,10 @@ def _execute_pipeline(file, pipeline, mode):
         user_yaml_file = _processor_validate_input_file(file)
     except Exception as e:
         console.print(f"[red]✗ {e}[/red]")
+        return 1
+
+    # Check for experimental features restrictions before proceeding
+    if not _check_experimental_features_restriction(user_yaml_file, mode):
         return 1
 
     standard_yaml_file = "src/supy/sample_data/sample_config.yml"

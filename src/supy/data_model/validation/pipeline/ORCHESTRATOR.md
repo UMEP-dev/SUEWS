@@ -214,6 +214,33 @@ python orchestrator.py config.yml --mode dev
 - `--mode`: Select mode (public, dev)
 - `--standard`: Override standard config file path
 
+### Experimental Features Validation
+
+The CLI enforces experimental features restrictions in public mode, providing clear feedback when restricted features are detected:
+
+```bash
+$ suews-validate --pipeline ABC config.yml
+✗ Configuration contains experimental features restricted in public mode:
+  • STEBBS method is enabled (stebbsmethod != 0)
+
+Options to resolve:
+  1. Switch to dev mode: --mode dev
+  2. Disable experimental features in your YAML file and rerun
+     Example: Set stebbsmethod: {value: 0}
+```
+
+### Enhanced Error Reporting
+
+When phases fail, the CLI now shows generated report files so users can find detailed error information:
+
+```bash
+$ suews-validate --pipeline ABC config.yml
+✗ Phase B failed
+Report: reportB_config.txt
+```
+
+The key improvement is that Phase B now generates comprehensive error reports even when initialization fails, with individual errors listed separately for better clarity.
+
 ## Performance Considerations
 
 ### Optimization Strategies

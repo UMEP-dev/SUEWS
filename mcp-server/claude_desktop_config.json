@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "suews-assistant": {
+      "command": "python",
+      "args": [
+        "/Users/tingsun/Dropbox (Personal)/6.Repos/SUEWS/worktrees/suews-mcp/mcp-server/run_server.py"
+      ],
+      "env": {
+        "PYTHONPATH": "/Users/tingsun/Dropbox (Personal)/6.Repos/SUEWS/worktrees/suews-mcp/mcp-server/src"
+      }
+    }
+  }
+}
+EOF < /dev/null

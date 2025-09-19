@@ -890,6 +890,15 @@ def create_analysis_report(
                 # (These will be moved to the ACTION NEEDED section below)
                 # We'll handle this below when updating that section
 
+    # If neither ACTION NEEDED nor NO ACTION NEEDED sections were added,
+    # indicate that Phase A passed without issues
+    if not has_action_items and not has_no_action_items:
+        if phase == "A":
+            report_lines.append("Phase A passed")
+        elif "A" in phase:  # Multi-phase like "AB", "AC", "ABC"
+            report_lines.append("Phase A passed")
+        report_lines.append("")
+
     # Footer separator
     report_lines.append("# " + "=" * 50)
 

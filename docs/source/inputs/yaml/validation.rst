@@ -13,11 +13,11 @@ Basic Commands
 
     # Validate and fix (creates corrected file)
     suews-validate config.yml
-    
+
     # Check only (no changes)
     suews-validate validate config.yml
-    
-    # Check without writing files
+
+    # Check without writing files (read-only validation)
     suews-validate --dry-run config.yml
 
 Output Options
@@ -43,14 +43,22 @@ Advanced Usage
 .. code-block:: bash
 
     # Run specific validation phases
-    suews-validate config.yml --phase A    # Structure only
-    suews-validate config.yml --phase B    # Science only
-    suews-validate config.yml --phase C    # Compatibility only
-    suews-validate config.yml --phase AB   # Structure + Science
-    
+    suews-validate --pipeline A config.yml     # Phase A: Structure only
+    suews-validate --pipeline B config.yml     # Phase B: Science only
+    suews-validate --pipeline C config.yml     # Phase C: Compatibility only
+    suews-validate --pipeline AB config.yml    # Phases A+B: Structure + Science
+    suews-validate --pipeline ABC config.yml   # All phases (default)
+
+    # Public mode (default)
+    suews-validate --pipeline ABC config.yml
+    suews-validate --mode public --pipeline ABC config.yml
+
+    # Developer mode (enables experimental features)
+    suews-validate --mode dev --pipeline ABC config.yml
+
     # Migrate old configuration format
     suews-validate migrate old.yml -o new.yml
-    
+
     # Check schema version
     suews-validate version config.yml
 

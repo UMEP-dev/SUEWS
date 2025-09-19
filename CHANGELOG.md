@@ -35,6 +35,10 @@
 ## 2025
 
 ### 17 Sep 2025
+- [change] Moved snowuse parameter validation from Phase C to orchestrator.py for early detection of restricted model options ([PR #688](https://github.com/UMEP-dev/SUEWS/pull/688))
+- [change] Public mode now halts execution with clear error message when snowuse values != 0, preventing use of restricted development features
+- [change] Development mode allows snowuse values != 0, maintaining same behaviour as stebbsmethod for developer access
+- [doc] Updated ORCHESTRATOR.md and PHASE_A_DETAILED.md documentation to reflect snowuse restriction changes
 - [maintenance] Fixed Linux platform support for older systems by switching to manylinux2014 for broader glibc compatibility (GitHub issue #679)
 - [maintenance] Added Fortran line length compiler flag (-ffree-line-length-none) to handle long lines without manual breaking
 - [maintenance] Added fprettify configuration for consistent Fortran code formatting

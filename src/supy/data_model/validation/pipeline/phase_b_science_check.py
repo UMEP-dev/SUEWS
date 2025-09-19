@@ -239,10 +239,14 @@ def extract_simulation_parameters(yaml_data: dict) -> Tuple[int, str, str]:
     errors = []
 
     if not isinstance(start_date, str) or "-" not in str(start_date):
-        errors.append("Missing or invalid 'start_time' in model.control - must be in 'YYYY-MM-DD' format")
+        errors.append(
+            "Missing or invalid 'start_time' in model.control - must be in 'YYYY-MM-DD' format"
+        )
 
     if not isinstance(end_date, str) or "-" not in str(end_date):
-        errors.append("Missing or invalid 'end_time' in model.control - must be in 'YYYY-MM-DD' format")
+        errors.append(
+            "Missing or invalid 'end_time' in model.control - must be in 'YYYY-MM-DD' format"
+        )
 
     # Try to extract model year if start_date looks valid
     model_year = None
@@ -250,7 +254,9 @@ def extract_simulation_parameters(yaml_data: dict) -> Tuple[int, str, str]:
         try:
             model_year = int(start_date.split("-")[0])
         except Exception:
-            errors.append("Could not extract model year from 'start_time' - ensure 'YYYY-MM-DD' format")
+            errors.append(
+                "Could not extract model year from 'start_time' - ensure 'YYYY-MM-DD' format"
+            )
 
     # If we have errors, combine them into a single error message
     if errors:
@@ -1636,22 +1642,26 @@ def run_science_check(
             # Multiple errors - split them and create separate ValidationResult objects
             individual_errors = error_message.split("; ")
             for error in individual_errors:
-                validation_results.append(ValidationResult(
+                validation_results.append(
+                    ValidationResult(
+                        status="ERROR",
+                        category="INITIALIZATION",
+                        parameter="model.control",
+                        message=f"Phase B initialization failed: {error.strip()}",
+                        suggested_value=None,
+                    )
+                )
+        else:
+            # Single error
+            validation_results = [
+                ValidationResult(
                     status="ERROR",
                     category="INITIALIZATION",
                     parameter="model.control",
-                    message=f"Phase B initialization failed: {error.strip()}",
-                    suggested_value=None
-                ))
-        else:
-            # Single error
-            validation_results = [ValidationResult(
-                status="ERROR",
-                category="INITIALIZATION",
-                parameter="model.control",
-                message=f"Phase B initialization failed: {error_message}",
-                suggested_value=None
-            )]
+                    message=f"Phase B initialization failed: {error_message}",
+                    suggested_value=None,
+                )
+            ]
 
         # Create error report
         science_yaml_filename = (

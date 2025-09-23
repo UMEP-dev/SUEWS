@@ -35,11 +35,26 @@
 ## 2025
 
 ### 23 Sep 2025
+- [change] Replaced "Phase A/B/C passed" messages with descriptive validation status messages in all user-facing outputs
+- [change] Terminal output now shows "YAML structure checks" and "Physics checks" instead of generic phase letters for better user understanding
+- [change] Validation reports now display "YAML structure check passed", "Physics checks passed", and "Validation passed" instead of phase-based terminology
+- [change] Intermediate file descriptions in terminal output use user-friendly names (e.g., "YAML structure checks report" vs "Phase A report")
+- [change] Updated CLI help message to use "complete validation pipeline" instead of technical "A/B/C validation pipeline" for better user understanding
+- [doc] Updated validation.rst with authentic examples from real SUEWS validation reports, replacing placeholder text with actual parameter names and validation scenarios
+- [doc] Enhanced validation.rst to document intermediate files (updatedA_*, reportA_*, etc.) alongside final output files for complete workflow understanding
+- [maintenance] Updated PHASE_A_DETAILED.md documentation examples to reflect new descriptive validation messages
+- [maintenance] Updated technical documentation titles and descriptions in ORCHESTRATOR.md, PHASE_A_DETAILED.md, PHASE_B_DETAILED.md, and PHASE_C_DETAILED.md to use descriptive terminology while preserving technical implementation details
+- [doc] Added detailed documentation reference section to pipeline/README.md with clear navigation to ORCHESTRATOR.md, PHASE_A_DETAILED.md, PHASE_B_DETAILED.md, and PHASE_C_DETAILED.md for developers
 - [bugfix] Fixed missing ANOHM parameter mappings in validation system (chanohm→ch_anohm, cpanohm→rho_cp_anohm, kkanohm→k_anohm)
 - [doc] Updated Phase A documentation (PHASE_A_DETAILED.md, README.md) to reflect complete ANOHM parameter mappings
 
 ### 19 Sep 2025
 - [doc] Updated technical documentation (PHASE_B_DETAILED.md, PHASE_C_DETAILED.md, README.md) to describe STEBBS convection coefficients constraints in Phase C and automatic outdoor temperature updates using CRU monthly climatological data in Phase B
+- [bugfix] Phase A reports now display "Phase A passed" when validation completes successfully with no issues, improving clarity in multi-phase workflows
+- [bugfix] Phase B now generates comprehensive error reports even when initialization fails, ensuring users always receive actionable guidance
+- [bugfix] CLI validator now properly distinguishes between --mode dev and --mode public modes
+- [doc] Enhanced ReadTheDocs validation documentation (validation.rst) with accurate command syntax, correct report structure examples, and comprehensive --mode dev/public usage examples
+- [maintenance] Updated detailed technical documentation (PHASE_A_DETAILED.md, PHASE_B_DETAILED.md, ORCHESTRATOR.md) to reflect validator improvements and report generation enhancements
 
 ### 17 Sep 2025
 

@@ -1,8 +1,8 @@
-# Phase B: Scientific Validation and Automatic Corrections Guide
+# Phase B: Physics Checks and Validation Guide
 
 ## Overview
 
-Phase B is the scientific validation stage of SUEWS configuration processing that ensures model physics consistency and provides reasonable automatic corrections. This comprehensive guide covers all aspects of Phase B operation.
+Phase B performs physics checks and validation to ensure model physics consistency and provides reasonable automatic corrections. This comprehensive guide covers all aspects of Phase B operation.
 
 ## Table of Contents
 
@@ -35,6 +35,7 @@ Phase B implements a multi-layered scientific validation system that:
 ### Core Functions
 
 - `validate_phase_b_inputs()`: Input file validation and loading
+- `extract_simulation_parameters()`: Extract and validate simulation parameters with comprehensive error collection
 - `validate_physics_parameters()`: Required physics parameter validation
 - `validate_model_option_dependencies()`: Physics option consistency checking
 - `validate_land_cover_consistency()`: Surface fraction and parameter validation
@@ -323,6 +324,30 @@ Phase B generates comprehensive reports with two main sections:
 
 ## Error Handling and Edge Cases
 
+### Initialization Error Handling (Enhanced)
+
+Phase B now provides comprehensive error collection and reporting for initialization failures:
+
+```python
+def extract_simulation_parameters(yaml_data: dict) -> Tuple[int, str, str]:
+    """Extract simulation parameters for validation."""
+    # Collect all validation errors instead of failing on first error
+    errors = []
+
+    if not isinstance(start_date, str) or "-" not in str(start_date):
+        errors.append("Missing or invalid 'start_time' in model.control - must be in 'YYYY-MM-DD' format")
+
+    if not isinstance(end_date, str) or "-" not in str(end_date):
+        errors.append("Missing or invalid 'end_time' in model.control - must be in 'YYYY-MM-DD' format")
+
+    # If we have errors, combine them into a single error message for proper handling
+    if errors:
+        error_msg = "; ".join(errors)
+        raise ValueError(error_msg)
+```
+
+When initialization fails, Phase B creates individual error reports for each issue and generates comprehensive reports even during failures, ensuring users always receive actionable guidance.
+
 ### CRU Data Availability (Actual Implementation)
 
 ```python
@@ -366,7 +391,7 @@ updatedB_user_config.yml     # → Phase B output
 ↓
 updatedAB_user_config.yml    # → AB workflow final output
 updatedBC_user_config.yml    # → BC workflow final output
-updatedABC_user_config.yml   # → Complete pipeline output
+updated_user_config.yml   # → Complete pipeline output
 ```
 
 ### Mode Integration

@@ -159,11 +159,11 @@ RENAMED_PARAMS = {
 
 The processor generates:
 
-1. **Updated YAML**: `updatedABC_<input_name>.yml`
+1. **Updated YAML**: `updated_<input_name>.yml`
    - Contains all parameters with defaults
    - Includes update annotations
 
-2. **Report**: `reportABC_<input_name>.txt`
+2. **Report**: `report_<input_name>.txt`
    - Detailed validation results
    - Action items categorised by priority
    - Fix suggestions

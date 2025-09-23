@@ -81,8 +81,8 @@ Final: updated{workflow}_config.yml, report{workflow}_config.txt
 
 ### Final Output Files
 
-- **Workflow Output**: `updated{phase}_*.yml` (e.g., `updatedABC_config.yml`)
-- **Consolidated Report**: `report{phase}_*.txt` (e.g., `reportABC_config.txt`)
+- **Workflow Output**: `updated_*.yml` for full validation (e.g., `updated_config.yml`)
+- **Consolidated Report**: `report_*.txt` for full validation (e.g., `report_config.txt`)
 
 ### Cleanup Strategy
 
@@ -282,7 +282,7 @@ def test_workflow_abc():
         mode="public"
     )
     assert result["success"]
-    assert os.path.exists("updatedABC_test_config.yml")
+    assert os.path.exists("updated_test_config.yml")
 ```
 
 ## Best Practices

@@ -252,9 +252,9 @@ def setup_output_paths(
         report_file = os.path.join(dirname, f"reportA_{name_without_ext}.txt")
         science_yaml_file = os.path.join(dirname, f"updatedB_{basename}")
         science_report_file = os.path.join(dirname, f"reportB_{name_without_ext}.txt")
-        pydantic_yaml_file = os.path.join(dirname, f"updatedABC_{basename}")
+        pydantic_yaml_file = os.path.join(dirname, f"updated_{basename}")
         pydantic_report_file = os.path.join(
-            dirname, f"reportABC_{name_without_ext}.txt"
+            dirname, f"report_{name_without_ext}.txt"
         )
 
     return (
@@ -1263,11 +1263,11 @@ Modes:
                     if os.path.exists(report_file):
                         shutil.move(
                             report_file, pydantic_report_file
-                        )  # reportA → reportABC
+                        )  # reportA → report
                     if os.path.exists(uptodate_file):
                         shutil.move(
                             uptodate_file, pydantic_yaml_file
-                        )  # updatedA → updatedABC (preserve Phase A updated YAML)
+                        )  # updatedA → updated (preserve Phase A updated YAML)
                 except Exception:
                     pass  # Don't fail if rename doesn't work
 
@@ -1297,20 +1297,20 @@ Modes:
             )
 
             if not phase_b_success:
-                # Phase B failed in ABC workflow - preserve Phase AB outputs as ABC outputs (if ABC halts at B, we have updated from A)
+                # Phase B failed in ABC workflow - preserve Phase AB outputs as final outputs (if ABC halts at B, we have updated from A)
                 try:
-                    # Rename B outputs to ABC (to match selected phase)
+                    # Rename B outputs to final names (to match selected phase)
                     if os.path.exists(science_report_file):
                         shutil.move(
                             science_report_file, pydantic_report_file
-                        )  # reportB → reportABC
+                        )  # reportB → report
 
                     # CRITICAL: Preserve Phase A updated YAML since that's what we have when AB halts at B
                     # Phase A passed and created uptodate_file, Phase B failed, so we preserve Phase A result
                     if os.path.exists(uptodate_file):
                         shutil.move(
                             uptodate_file, pydantic_yaml_file
-                        )  # updatedA → updatedABC (preserve Phase A updated YAML)
+                        )  # updatedA → updated (preserve Phase A updated YAML)
 
                     # Remove failed Phase B YAML if it exists (failed phase output not needed)
                     if os.path.exists(science_yaml_file):
@@ -1351,7 +1351,7 @@ Modes:
                     if os.path.exists(science_yaml_file):
                         shutil.move(
                             science_yaml_file, pydantic_yaml_file
-                        )  # updatedAB → updatedABC
+                        )  # updatedAB → updated
 
                     # Clean up intermediate files (A and B reports/YAML already consolidated into C outputs)
                     if os.path.exists(report_file):

@@ -499,7 +499,7 @@ updatedA_user_config.yml    # ← Phase A output
 ↓
 updatedAB_user_config.yml   # → AB workflow final output
 updatedAC_user_config.yml   # → AC workflow final output
-updatedABC_user_config.yml  # → Complete pipeline output
+updated_user_config.yml  # → Complete pipeline output
 ```
 
 ## Testing and Validation

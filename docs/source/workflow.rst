@@ -244,8 +244,8 @@ Before running simulations, validate your configuration to catch and fix common 
    suews-validate config.yml
    
    # This creates:
-   # - updatedABC_config.yml (corrected configuration)
-   # - reportABC_config.txt (what was changed)
+   # - updated_config.yml (corrected configuration)
+   # - report_config.txt (what was changed)
 
 The validator automatically:
 

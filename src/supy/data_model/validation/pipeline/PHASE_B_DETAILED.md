@@ -387,7 +387,7 @@ updatedB_user_config.yml     # → Phase B output
 ↓
 updatedAB_user_config.yml    # → AB workflow final output
 updatedBC_user_config.yml    # → BC workflow final output
-updatedABC_user_config.yml   # → Complete pipeline output
+updated_user_config.yml   # → Complete pipeline output
 ```
 
 ### Mode Integration

@@ -10,7 +10,7 @@ PHASE_TITLES = {
     "AB": "SUEWS - Phase AB (Up-to-date YAML check and Scientific Validation) Report",
     "AC": "SUEWS - Phase AC (Up-to-date YAML check and Pydantic Validation) Report",
     "BC": "SUEWS - Phase BC (Scientific Validation and Pydantic Validation) Report",
-    "ABC": "SUEWS - Phase ABC (Up-to-date YAML check, Scientific Validation and Pydantic Validation) Report",
+    "ABC": "SUEWS Validation Report",
 }
 
 
@@ -70,7 +70,7 @@ def generate_phase_c_report(
     report_lines = []
 
     phase_str = "".join(phases_run) if phases_run else "C"
-    title = PHASE_TITLES.get(phase_str, "SUEWS Phase C (Pydantic Validation) Report")
+    title = PHASE_TITLES.get(phase_str, "SUEWS Validation Report")
 
     report_lines.append(f"# {title}")
     report_lines.append("# " + "=" * 50)
@@ -384,7 +384,7 @@ def generate_fallback_report(
     )
 
     phase_str = "".join(phases_run) if phases_run else "C"
-    title = PHASE_TITLES.get(phase_str, "SUEWS Phase C (Pydantic Validation) Report")
+    title = PHASE_TITLES.get(phase_str, "SUEWS Validation Report")
     mode_title = "Public" if mode.lower() == "public" else mode.title()
 
     error_report = f"""# {title}

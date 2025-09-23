@@ -471,7 +471,7 @@ except yaml.YAMLError as e:
 When Phase A completes successfully without finding any issues, the report clearly indicates success:
 
 ```text
-# SUEWS - Phase ABC (Up-to-date YAML check, Scientific Validation and Pydantic Validation) Report
+# SUEWS Validation Report
 # ==================================================
 # Mode: Public
 # ==================================================

@@ -566,7 +566,7 @@ Phase C passed
 #### When Phase C Passes (with Previous Phase Information)
 
 ```text
-# SUEWS - Phase ABC (Up-to-date YAML check, Scientific Validation and Pydantic Validation) Report
+# SUEWS Validation Report
 # ==================================================
 # Mode: Public
 # ==================================================

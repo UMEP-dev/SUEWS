@@ -1353,7 +1353,7 @@ def create_science_report(
         "AB": "SUEWS - Phase AB (Up-to-date YAML check and Scientific Validation) Report",
         "AC": "SUEWS - Phase AC (Up-to-date YAML check and Pydantic Validation) Report",
         "BC": "SUEWS - Phase BC (Scientific Validation and Pydantic Validation) Report",
-        "ABC": "SUEWS - Phase ABC (Up-to-date YAML check, Scientific Validation and Pydantic Validation) Report",
+        "ABC": "SUEWS Validation Report",
     }
 
     title = phase_titles.get(phase, "SUEWS Scientific Validation Report")

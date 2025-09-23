@@ -508,7 +508,7 @@ def run_phase_c(
                         action_needed += f"-- {field_name} at level {field_path}: Physics parameter is null and will cause runtime crash\n"
                         action_needed += f"   Suggested fix: Set to appropriate non-null value - see documentation at https://suews.readthedocs.io/en/latest\n"
 
-                    failure_report = f"""# SUEWS Phase C (Pydantic Validation) Report
+                    failure_report = f"""# SUEWS Validation Report
 # ============================================
 # Mode: {"Public" if mode.lower() == "public" else mode.title()}
 # ============================================
@@ -553,11 +553,11 @@ def run_phase_c(
                     "AB": "SUEWS - Phase AB (Up-to-date YAML check and Scientific Validation) Report",
                     "AC": "SUEWS - Phase AC (Up-to-date YAML check and Pydantic Validation) Report",
                     "BC": "SUEWS - Phase BC (Scientific Validation and Pydantic Validation) Report",
-                    "ABC": "SUEWS - Phase ABC (Up-to-date YAML check, Scientific Validation and Pydantic Validation) Report",
+                    "ABC": "SUEWS Validation Report",
                 }
 
                 title = phase_titles.get(
-                    phase_str, "SUEWS Phase C (Pydantic Validation) Report"
+                    phase_str, "SUEWS Validation Report"
                 )
 
                 # Extract NO ACTION NEEDED content from previous phases to consolidate properly
@@ -678,7 +678,7 @@ Phase {phase_str} passed
                 print(f"✗ Phase C failed - Cannot import SUEWSConfig: {import_error}")
 
             # Import error report
-            error_report = f"""# SUEWS Phase C (Pydantic Validation) Report
+            error_report = f"""# SUEWS Validation Report
 # ============================================
 # Mode: {"Public" if mode.lower() == "public" else mode.title()}
 # ============================================
@@ -715,7 +715,7 @@ Phase C validation could not be executed due to import issues.
             print(f"✗ Phase C failed: {e}")
 
         # General error report
-        error_report = f"""# SUEWS Phase C (Pydantic Validation) Report
+        error_report = f"""# SUEWS Validation Report
 # ============================================
 # Mode: {"Public" if mode.lower() == "public" else mode.title()}
 # ============================================

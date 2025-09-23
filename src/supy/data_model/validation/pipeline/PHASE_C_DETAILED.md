@@ -303,6 +303,7 @@ def _validate_stebbs(self, site: Site, site_index: int) -> List[str]:
 
 - **Logic**: When `stebbsmethod == 1`, validates all required STEBBS building energy parameters are present and non-null
 - **Required Parameters**: Defined in `STEBBS_REQUIRED_PARAMS` constant
+- **Convection Coefficient Constraints**: Validates that STEBBS convection coefficients are greater than 0 (physically sensible)
 
 ### Orchestration Pattern
 

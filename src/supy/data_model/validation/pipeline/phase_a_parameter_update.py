@@ -7,7 +7,6 @@ RENAMED_PARAMS = {
     "diagmethod": "rslmethod",
     "localclimatemethod": "rsllevel",
 }
-
 PHYSICS_OPTIONS = {
     "netradiationmethod",
     "emissionsmethod",

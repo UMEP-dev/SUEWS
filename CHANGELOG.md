@@ -35,6 +35,7 @@
 ## 2025
 
 ### 19 Sep 2025
+- [doc] Updated technical documentation (PHASE_B_DETAILED.md, PHASE_C_DETAILED.md, README.md) to describe STEBBS convection coefficients constraints in Phase C and automatic outdoor temperature updates using CRU monthly climatological data in Phase B
 - [bugfix] Phase A reports now display "Phase A passed" when validation completes successfully with no issues, improving clarity in multi-phase workflows
 - [bugfix] Phase B now generates comprehensive error reports even when initialization fails, ensuring users always receive actionable guidance
 - [bugfix] CLI validator now properly distinguishes between --mode dev and --mode public modes
@@ -42,6 +43,16 @@
 - [maintenance] Updated detailed technical documentation (PHASE_A_DETAILED.md, PHASE_B_DETAILED.md, ORCHESTRATOR.md) to reflect validator improvements and report generation enhancements
 
 ### 17 Sep 2025
+
+- [change] Moved snowuse parameter validation from Phase C to orchestrator.py for early detection of restricted model options ([PR #688](https://github.com/UMEP-dev/SUEWS/pull/688))
+- [change] Public mode now halts execution with clear error message when snowuse values != 0, preventing use of restricted development features
+- [change] Development mode allows snowuse values != 0, maintaining same behaviour as stebbsmethod for developer access
+- [doc] Updated ORCHESTRATOR.md and PHASE_A_DETAILED.md documentation to reflect snowuse restriction changes
+- [bugfix] Fixed parameter naming convention mismatch between sample_config.yml and data model in validation system ([PR #686](https://github.com/UMEP-dev/SUEWS/pull/686), fixes [#650](https://github.com/UMEP-dev/SUEWS/issues/650))
+- [bugfix] Added parameter name mapping in validation system to link different naming conventions between YAML and data model
+- [bugfix] Prevented parameter duplication in updated user YAML files when running Phase A validation
+- [maintenance] Added specific tests to test_yaml_processing.py to verify parameter naming convention fixes
+
 - [maintenance] Fixed Linux platform support for older systems by switching to manylinux2014 for broader glibc compatibility (GitHub issue #679)
 - [maintenance] Added Fortran line length compiler flag (-ffree-line-length-none) to handle long lines without manual breaking
 - [maintenance] Added fprettify configuration for consistent Fortran code formatting

@@ -543,7 +543,7 @@ def test_urgent_parameter_classification():
 
 ### When to Use Developer Mode
 
-- **Experimental features** like STEBBS method are required
+- **Experimental features** like STEBBS method or snow calculations are required
 - **Custom parameters** need to be preserved during validation
 - **Research applications** using non-standard configurations
 - **Development work** on new SUEWS features
@@ -553,6 +553,7 @@ def test_urgent_parameter_classification():
 ```text
 Public Mode Restrictions:
 ├── stebbsmethod != 0        # Triggers pre-validation error
+├── snowuse != 0             # Triggers pre-validation error
 ├── Extra parameters         # Preserved but reported as ACTION_NEEDED
 └── Future: SPARTACUS method # Will be restricted
 

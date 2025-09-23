@@ -43,8 +43,17 @@ Output Files
 
 When you run ``suews-validate config.yml``, it creates:
 
-- ``updated_config.yml`` - Your corrected configuration (ready to use)
-- ``report_config.txt`` - Detailed report of what was changed
+**Final Files (ready to use):**
+- ``updated_config.yml`` - Your corrected configuration (ready to use with SUEWS)
+- ``report_config.txt`` - Detailed report of all changes made
+
+**Intermediate Files (for detailed analysis):**
+- ``updatedA_config.yml`` - Results after YAML structure checks
+- ``reportA_config.txt`` - Report from YAML structure validation phase
+- ``updatedB_config.yml`` - Results after physics validation checks
+- ``reportB_config.txt`` - Report from physics validation phase
+
+The validation system will inform you about these intermediate files at the end of processing, allowing you to trace exactly what happened at each validation stage.
 
 Understanding Reports
 ---------------------

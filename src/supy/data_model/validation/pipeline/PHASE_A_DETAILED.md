@@ -375,7 +375,7 @@ Phase A generates mode-dependent comprehensive reports with enhanced user-friend
     - **Public Mode**: No extra parameters in NO ACTION NEEDED section (all moved to ACTION_NEEDED)
     - **Dev Mode**: "Found (X) parameter(s) not in standard" (for allowed locations)
 
-- **Phase A Success Indication**: When Phase A completes successfully without any issues to report, the report displays "Phase A passed" to clearly indicate successful completion
+- **Phase A Success Indication**: When Phase A completes successfully without any issues to report, the report displays "YAML structure check passed" to clearly indicate successful completion
 
 ### Analysis Report Examples
 
@@ -476,7 +476,7 @@ When Phase A completes successfully without finding any issues, the report clear
 # Mode: Public
 # ==================================================
 
-Phase A passed
+YAML structure check passed
 
 # ==================================================
 ```

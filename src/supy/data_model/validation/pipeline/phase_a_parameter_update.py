@@ -893,9 +893,9 @@ def create_analysis_report(
     # indicate that Phase A passed without issues
     if not has_action_items and not has_no_action_items:
         if phase == "A":
-            report_lines.append("Phase A passed")
+            report_lines.append("YAML structure check passed")
         elif "A" in phase:  # Multi-phase like "AB", "AC", "ABC"
-            report_lines.append("Phase A passed")
+            report_lines.append("YAML structure check passed")
         report_lines.append("")
 
     # Footer separator

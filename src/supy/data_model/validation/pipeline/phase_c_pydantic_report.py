@@ -323,7 +323,23 @@ def generate_phase_c_report(
         report_lines.append("")
 
     if not action_needed_items and not previous_phase_items:
-        report_lines.append(f"Phase {phase_str} passed")
+        # Map phase strings to descriptive messages
+        if phase_str == "A":
+            phase_message = "YAML structure check passed"
+        elif phase_str == "B":
+            phase_message = "Physics checks passed"
+        elif phase_str == "C":
+            phase_message = "Validation passed"
+        elif phase_str == "AB":
+            phase_message = "YAML structure check and Physics checks passed"
+        elif phase_str == "BC":
+            phase_message = "Physics checks and Validation passed"
+        elif phase_str == "ABC" or phase_str == "AC":
+            phase_message = "Validation passed"
+        else:
+            phase_message = f"Phase {phase_str} passed"  # fallback
+
+        report_lines.append(phase_message)
 
     report_lines.extend(["", "# " + "=" * 50])
 

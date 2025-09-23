@@ -34,6 +34,15 @@
 
 ## 2025
 
+### 23 Sep 2025
+- [change] Replaced "Phase A/B/C passed" messages with descriptive validation status messages in all user-facing outputs
+- [change] Terminal output now shows "YAML structure checks" and "Physics checks" instead of generic phase letters for better user understanding
+- [change] Validation reports now display "YAML structure check passed", "Physics checks passed", and "Validation passed" instead of phase-based terminology
+- [change] Intermediate file descriptions in terminal output use user-friendly names (e.g., "YAML structure checks report" vs "Phase A report")
+- [doc] Updated validation.rst with authentic examples from real SUEWS validation reports, replacing placeholder text with actual parameter names and validation scenarios
+- [doc] Enhanced validation.rst to document intermediate files (updatedA_*, reportA_*, etc.) alongside final output files for complete workflow understanding
+- [maintenance] Updated PHASE_A_DETAILED.md documentation examples to reflect new descriptive validation messages
+
 ### 19 Sep 2025
 - [doc] Updated technical documentation (PHASE_B_DETAILED.md, PHASE_C_DETAILED.md, README.md) to describe STEBBS convection coefficients constraints in Phase C and automatic outdoor temperature updates using CRU monthly climatological data in Phase B
 - [bugfix] Phase A reports now display "Phase A passed" when validation completes successfully with no issues, improving clarity in multi-phase workflows

@@ -100,7 +100,6 @@ The validation report provides comprehensive details about every change made to 
 
 - **ACTION NEEDED**: Critical issues requiring your attention
 - **NO ACTION NEEDED**: Informational items automatically handled
-- **VALIDATION RESULTS**: Final compatibility and consistency checks
 
 Exit Codes
 ----------

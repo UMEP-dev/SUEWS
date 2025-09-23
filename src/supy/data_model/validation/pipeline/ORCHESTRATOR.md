@@ -32,12 +32,12 @@ def run_yaml_processor(
 
 The orchestrator supports seven distinct workflows:
 
-1. **A**: Up-to-date YAML check only
-2. **B**: Scientific validation only
-3. **C**: Pydantic validation only
-4. **AB**: Up-to-date check + Scientific validation
-5. **AC**: Up-to-date check + Pydantic validation
-6. **BC**: Scientific validation + Pydantic validation
+1. **A**: YAML structure checks only
+2. **B**: Physics checks only
+3. **C**: Pydantic checks only
+4. **AB**: YAML structure checks + Physics checks
+5. **AC**: YAML structure checks + Pydantic checks
+6. **BC**: Physics checks + Pydantic checks
 7. **ABC**: Complete three-phase validation
 
 ### Execution Flow
@@ -172,7 +172,7 @@ except Exception as e:
 
 ```python
 def run_phase_a(user_file, standard_file, output_file, report_file, mode):
-    """Execute Phase A: Up-to-date YAML check."""
+    """Execute Phase A: YAML structure checks and validation."""
     from phase_a_parameter_update import annotate_missing_parameters
     return annotate_missing_parameters(...)
 ```
@@ -181,7 +181,7 @@ def run_phase_a(user_file, standard_file, output_file, report_file, mode):
 
 ```python
 def run_phase_b(input_file, output_file, report_file, mode):
-    """Execute Phase B: Scientific validation."""
+    """Execute Phase B: Physics checks and validation."""
     from phase_b_science_check import run_science_check
     return run_science_check(...)
 ```
@@ -190,7 +190,7 @@ def run_phase_b(input_file, output_file, report_file, mode):
 
 ```python
 def run_phase_c(input_file, output_file, report_file, mode):
-    """Execute Phase C: Pydantic validation."""
+    """Execute Phase C: Pydantic checks and validation."""
     from phase_c_pydantic_report import run_pydantic_validation
     return run_pydantic_validation(...)
 ```
@@ -327,6 +327,6 @@ register_phase("custom", CustomValidationPhase())
 ## Related Documentation
 
 - [README](README.md) - System overview
-- [Phase A Detailed](PHASE_A_DETAILED.md) - Parameter validation
-- [Phase B Detailed](PHASE_B_DETAILED.md) - Scientific validation
-- [Phase C Detailed](PHASE_C_DETAILED.md) - Pydantic validation
+- [Phase A Detailed](PHASE_A_DETAILED.md) - YAML structure checks and validation
+- [Phase B Detailed](PHASE_B_DETAILED.md) - Physics checks and validation
+- [Phase C Detailed](PHASE_C_DETAILED.md) - Pydantic checks and validation

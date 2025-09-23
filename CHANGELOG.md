@@ -42,6 +42,7 @@
 - [doc] Updated validation.rst with authentic examples from real SUEWS validation reports, replacing placeholder text with actual parameter names and validation scenarios
 - [doc] Enhanced validation.rst to document intermediate files (updatedA_*, reportA_*, etc.) alongside final output files for complete workflow understanding
 - [maintenance] Updated PHASE_A_DETAILED.md documentation examples to reflect new descriptive validation messages
+- [maintenance] Updated technical documentation titles and descriptions in ORCHESTRATOR.md, PHASE_A_DETAILED.md, PHASE_B_DETAILED.md, and PHASE_C_DETAILED.md to use descriptive terminology while preserving technical implementation details
 
 ### 19 Sep 2025
 - [doc] Updated technical documentation (PHASE_B_DETAILED.md, PHASE_C_DETAILED.md, README.md) to describe STEBBS convection coefficients constraints in Phase C and automatic outdoor temperature updates using CRU monthly climatological data in Phase B

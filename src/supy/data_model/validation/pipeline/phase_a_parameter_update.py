@@ -6,6 +6,9 @@ RENAMED_PARAMS = {
     "cp": "rho_cp",
     "diagmethod": "rslmethod",
     "localclimatemethod": "rsllevel",
+    "chanohm": "ch_anohm",
+    "cpanohm": "rho_cp_anohm",
+    "kkanohm": "k_anohm",
 }
 PHYSICS_OPTIONS = {
     "netradiationmethod",

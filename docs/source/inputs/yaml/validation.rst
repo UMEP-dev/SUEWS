@@ -59,12 +59,31 @@ The validation report provides comprehensive details about every change made to 
     # =======================
 
     ## NO ACTION NEEDED
-    - Updated optional missing parameters with default values
-    - Applied scientific corrections based on location and season
-    - Validated physics options compatibility
+    - Updated (3) optional missing parameter(s) with null values:
+    -- holiday added to updated YAML and set to null
+    -- wetthresh added to updated YAML and set to null
+    -- roughlenmommethod added to updated YAML and set to null
 
-    ## ACTION NEEDED (if any)
-    - Critical issues requiring manual attention will be listed here
+    - Updated (2) renamed parameter(s):
+    -- diagmethod changed to rslmethod
+    -- cp changed to rho_cp
+
+    - Updated (11) parameter(s):
+    -- initial_states.paved: temperature, tsfc, tin → 12.4°C (Set from CRU data for coordinates (51.51, -0.13) for month 1)
+    -- initial_states.bldgs: temperature, tsfc, tin → 12.4°C (Set from CRU data for coordinates (51.51, -0.13) for month 1)
+    -- anthropogenic_emissions.startdls: 15.0 → 86 (Calculated DLS start for coordinates (51.51, -0.13))
+    -- paved.sfr at site [0]: rounded to achieve sum of land cover fractions equal to 1.0
+
+    ## ACTION NEEDED
+    - Found (1) critical missing parameter(s):
+    -- netradiationmethod has been added to updated YAML and set to null
+       Suggested fix: Set appropriate value based on SUEWS documentation
+
+    - Found (2) critical scientific parameter error(s):
+    -- rslmethod-stabilitymethod: If rslmethod == 2, stabilitymethod must be 3
+       Suggested fix: Set stabilitymethod to 3
+    -- storageheatmethod-ohmincqf: StorageHeatMethod is set to 1 and OhmIncQf is set to 1. You should switch to OhmIncQf=0.
+       Suggested fix: Set OhmIncQf to 0
 
     # =================================================
 

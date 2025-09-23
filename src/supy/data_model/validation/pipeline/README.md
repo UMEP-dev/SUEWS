@@ -229,6 +229,17 @@ The processor generates:
    - Action items categorised by priority
    - Fix suggestions
 
+## Detailed Documentation
+
+For comprehensive technical details about each component, see:
+
+- **[ORCHESTRATOR.md](ORCHESTRATOR.md)** - Complete orchestrator architecture, workflow coordination, file management, and integration patterns
+- **[PHASE_A_DETAILED.md](PHASE_A_DETAILED.md)** - In-depth YAML structure checks and validation: missing parameters, renamed parameters, extra parameters, mode differences
+- **[PHASE_B_DETAILED.md](PHASE_B_DETAILED.md)** - Comprehensive physics checks and validation: scientific parameter validation, CRU temperature integration, physics compatibility rules
+- **[PHASE_C_DETAILED.md](PHASE_C_DETAILED.md)** - Complete Pydantic checks and validation: data model validation, error reporting, conditional validation rules
+
+These files provide exhaustive implementation details, troubleshooting guides, testing patterns, and advanced usage scenarios for developers working on or extending the validation system.
+
 ## Future Enhancements
 
 - [ ] Add Phase D for post-processing optimisation

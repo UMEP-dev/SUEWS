@@ -39,6 +39,7 @@
 - [change] Terminal output now shows "YAML structure checks" and "Physics checks" instead of generic phase letters for better user understanding
 - [change] Validation reports now display "YAML structure check passed", "Physics checks passed", and "Validation passed" instead of phase-based terminology
 - [change] Intermediate file descriptions in terminal output use user-friendly names (e.g., "YAML structure checks report" vs "Phase A report")
+- [change] Updated CLI help message to use "complete validation pipeline" instead of technical "A/B/C validation pipeline" for better user understanding
 - [doc] Updated validation.rst with authentic examples from real SUEWS validation reports, replacing placeholder text with actual parameter names and validation scenarios
 - [doc] Enhanced validation.rst to document intermediate files (updatedA_*, reportA_*, etc.) alongside final output files for complete workflow understanding
 - [maintenance] Updated PHASE_A_DETAILED.md documentation examples to reflect new descriptive validation messages

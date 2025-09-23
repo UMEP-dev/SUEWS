@@ -1000,6 +1000,7 @@ def _execute_pipeline(file, pipeline, mode):
     if not a_ok:
         # Phase A failed in ABC - create final files from Phase A outputs
         import shutil
+
         try:
             if os.path.exists(report_file):
                 shutil.move(report_file, pydantic_report_file)  # reportA → report
@@ -1029,17 +1030,24 @@ def _execute_pipeline(file, pipeline, mode):
         # Phase B failed in ABC - create final files with mixed content
         # Final YAML: from Phase A (last successful phase), Final Report: from Phase B (contains errors)
         import shutil
+
         try:
             # Create final YAML from Phase A (last successful phase)
             if os.path.exists(uptodate_file):
-                shutil.copy2(uptodate_file, pydantic_yaml_file)  # Copy updatedA → updated (keep intermediate)
+                shutil.copy2(
+                    uptodate_file, pydantic_yaml_file
+                )  # Copy updatedA → updated (keep intermediate)
 
             # Create final Report from Phase B (contains the actual errors we need to show user)
             if os.path.exists(science_report_file):
-                shutil.move(science_report_file, pydantic_report_file)  # Move reportB → report (don't keep intermediate)
+                shutil.move(
+                    science_report_file, pydantic_report_file
+                )  # Move reportB → report (don't keep intermediate)
             elif os.path.exists(report_file):
                 # Fallback to Phase A report if Phase B report doesn't exist
-                shutil.copy2(report_file, pydantic_report_file)  # Copy reportA → report (keep intermediate)
+                shutil.copy2(
+                    report_file, pydantic_report_file
+                )  # Copy reportA → report (keep intermediate)
 
             # Remove failed Phase B YAML
             if os.path.exists(science_yaml_file):
@@ -1052,11 +1060,17 @@ def _execute_pipeline(file, pipeline, mode):
         console.print(f"Updated YAML: {pydantic_yaml_file}")
 
         # Show intermediate file information
-        console.print("\n[bold]For more details on intermediate validation and updates, check:[/bold]")
+        console.print(
+            "\n[bold]For more details on intermediate validation and updates, check:[/bold]"
+        )
         if os.path.exists(report_file):
-            console.print(f"[yellow]• YAML structure checks report: {report_file}[/yellow]")
+            console.print(
+                f"[yellow]• YAML structure checks report: {report_file}[/yellow]"
+            )
         if os.path.exists(uptodate_file):
-            console.print(f"[yellow]• YAML structure checks updated file: {uptodate_file}[/yellow]")
+            console.print(
+                f"[yellow]• YAML structure checks updated file: {uptodate_file}[/yellow]"
+            )
 
         sys.exit(1)
 
@@ -1074,15 +1088,22 @@ def _execute_pipeline(file, pipeline, mode):
         # Phase C failed in ABC - create final files with mixed content
         # Final YAML: from Phase B (last successful phase), Final Report: from Phase C (contains errors)
         import shutil
+
         try:
             # Create final YAML from Phase B (last successful phase)
             if os.path.exists(science_yaml_file):
-                shutil.copy2(science_yaml_file, pydantic_yaml_file)  # Copy updatedB → updated (keep intermediate)
+                shutil.copy2(
+                    science_yaml_file, pydantic_yaml_file
+                )  # Copy updatedB → updated (keep intermediate)
 
             # Final Report should be from Phase C (contains the actual errors), but Phase C might not create a file
             # In this case, we'll rely on Phase C having already created pydantic_report_file, or use Phase B as fallback
-            if not os.path.exists(pydantic_report_file) and os.path.exists(science_report_file):
-                shutil.copy2(science_report_file, pydantic_report_file)  # Fallback: copy reportB → report
+            if not os.path.exists(pydantic_report_file) and os.path.exists(
+                science_report_file
+            ):
+                shutil.copy2(
+                    science_report_file, pydantic_report_file
+                )  # Fallback: copy reportB → report
         except Exception:
             pass  # Don't fail if copy doesn't work
 
@@ -1091,15 +1112,25 @@ def _execute_pipeline(file, pipeline, mode):
         console.print(f"Updated YAML: {pydantic_yaml_file}")
 
         # Show intermediate file information
-        console.print("\n[bold]For more details on intermediate validation and updates, check:[/bold]")
+        console.print(
+            "\n[bold]For more details on intermediate validation and updates, check:[/bold]"
+        )
         if os.path.exists(report_file):
-            console.print(f"[yellow]• YAML structure checks report: {report_file}[/yellow]")
+            console.print(
+                f"[yellow]• YAML structure checks report: {report_file}[/yellow]"
+            )
         if os.path.exists(uptodate_file):
-            console.print(f"[yellow]• YAML structure checks updated file: {uptodate_file}[/yellow]")
+            console.print(
+                f"[yellow]• YAML structure checks updated file: {uptodate_file}[/yellow]"
+            )
         if os.path.exists(science_report_file):
-            console.print(f"[yellow]• Physics checks report: {science_report_file}[/yellow]")
+            console.print(
+                f"[yellow]• Physics checks report: {science_report_file}[/yellow]"
+            )
         if os.path.exists(science_yaml_file):
-            console.print(f"[yellow]• Physics checks updated file: {science_yaml_file}[/yellow]")
+            console.print(
+                f"[yellow]• Physics checks updated file: {science_yaml_file}[/yellow]"
+            )
 
         return 1
 
@@ -1110,15 +1141,23 @@ def _execute_pipeline(file, pipeline, mode):
     console.print(f"Updated YAML: {pydantic_yaml_file}")
 
     # Show intermediate file information
-    console.print("\n[bold]For more details on intermediate validation and updates, check:[/bold]")
+    console.print(
+        "\n[bold]For more details on intermediate validation and updates, check:[/bold]"
+    )
     if os.path.exists(report_file):
         console.print(f"[yellow]• YAML structure checks report: {report_file}[/yellow]")
     if os.path.exists(uptodate_file):
-        console.print(f"[yellow]• YAML structure checks updated file: {uptodate_file}[/yellow]")
+        console.print(
+            f"[yellow]• YAML structure checks updated file: {uptodate_file}[/yellow]"
+        )
     if os.path.exists(science_report_file):
-        console.print(f"[yellow]• Physics checks report: {science_report_file}[/yellow]")
+        console.print(
+            f"[yellow]• Physics checks report: {science_report_file}[/yellow]"
+        )
     if os.path.exists(science_yaml_file):
-        console.print(f"[yellow]• Physics checks updated file: {science_yaml_file}[/yellow]")
+        console.print(
+            f"[yellow]• Physics checks updated file: {science_yaml_file}[/yellow]"
+        )
 
     # Keep intermediate files: updatedA_*, reportA_*, updatedB_*, reportB_*
     # Final files: updated_*, report_* (created by Phase C)

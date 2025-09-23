@@ -34,6 +34,9 @@
 
 ## 2025
 
+### 23 Sep 2025
+- [bugfix] Fixed missing ANOHM parameter mappings in validation system (chanohm→ch_anohm, cpanohm→rho_cp_anohm, kkanohm→k_anohm)
+
 ### 19 Sep 2025
 - [doc] Updated technical documentation (PHASE_B_DETAILED.md, PHASE_C_DETAILED.md, README.md) to describe STEBBS convection coefficients constraints in Phase C and automatic outdoor temperature updates using CRU monthly climatological data in Phase B
 

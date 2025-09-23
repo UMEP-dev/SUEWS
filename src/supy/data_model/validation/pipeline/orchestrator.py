@@ -253,9 +253,7 @@ def setup_output_paths(
         science_yaml_file = os.path.join(dirname, f"updatedB_{basename}")
         science_report_file = os.path.join(dirname, f"reportB_{name_without_ext}.txt")
         pydantic_yaml_file = os.path.join(dirname, f"updated_{basename}")
-        pydantic_report_file = os.path.join(
-            dirname, f"report_{name_without_ext}.txt"
-        )
+        pydantic_report_file = os.path.join(dirname, f"report_{name_without_ext}.txt")
 
     return (
         uptodate_file,
@@ -556,9 +554,7 @@ def run_phase_c(
                     "ABC": "SUEWS Validation Report",
                 }
 
-                title = phase_titles.get(
-                    phase_str, "SUEWS Validation Report"
-                )
+                title = phase_titles.get(phase_str, "SUEWS Validation Report")
 
                 # Extract NO ACTION NEEDED content from previous phases to consolidate properly
                 consolidated_no_action = []
@@ -675,7 +671,9 @@ Phase {phase_str} passed
 
         except ImportError as import_error:
             if not silent:
-                print(f"✗ Validation failed - Cannot import SUEWSConfig: {import_error}")
+                print(
+                    f"✗ Validation failed - Cannot import SUEWSConfig: {import_error}"
+                )
 
             # Import error report
             error_report = f"""# SUEWS Validation Report
@@ -1150,9 +1148,7 @@ Modes:
                 print("✗ Validation failed!")
                 print(f"Report: {pydantic_report_file}")
                 print(f"Updated YAML: {pydantic_yaml_file}")
-                print(
-                    f"Suggestion: Fix issues in updated YAML and rerun validation."
-                )
+                print(f"Suggestion: Fix issues in updated YAML and rerun validation.")
                 return 1
 
             print("[OK] Validation completed")
@@ -1186,9 +1182,7 @@ Modes:
                 print("✗ Phase C failed!")
                 print(f"Report: {pydantic_report_file}")
                 print(f"Updated YAML: {pydantic_yaml_file}")
-                print(
-                    f"Suggestion: Fix issues in updated YAML and rerun validation."
-                )
+                print(f"Suggestion: Fix issues in updated YAML and rerun validation.")
                 return 1
 
         elif phase == "BC":
@@ -1296,9 +1290,7 @@ Modes:
                 print("✗ Validation failed!")
                 print(f"Report: {pydantic_report_file}")
                 print(f"Updated YAML: {pydantic_yaml_file}")
-                print(
-                    f"Suggestion: Fix issues in updated YAML and rerun validation."
-                )
+                print(f"Suggestion: Fix issues in updated YAML and rerun validation.")
                 return 1
 
             print("[OK] Validation completed")
@@ -1347,9 +1339,7 @@ Modes:
                 print("✗ Validation failed!")
                 print(f"Report: {pydantic_report_file}")
                 print(f"Updated YAML: {pydantic_yaml_file}")
-                print(
-                    f"Suggestion: Fix issues in updated YAML and rerun validation."
-                )
+                print(f"Suggestion: Fix issues in updated YAML and rerun validation.")
                 return 1
 
             print("[OK] Phase B completed")
@@ -1388,9 +1378,7 @@ Modes:
                 print("✗ Phase C failed!")
                 print(f"Report: {pydantic_report_file}")
                 print(f"Updated YAML: {pydantic_yaml_file}")
-                print(
-                    f"Suggestion: Fix issues in updated YAML and rerun validation."
-                )
+                print(f"Suggestion: Fix issues in updated YAML and rerun validation.")
                 return 1
 
             # Phase C succeeded - clean up intermediate files

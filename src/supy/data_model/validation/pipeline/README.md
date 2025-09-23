@@ -12,20 +12,20 @@ The SUEWS YAML Processor is a three-phase pipeline for validating and updating S
 User YAML → Phase A → Phase B → Phase C → Valid YAML
 ```
 
-1. **Phase A: Parameter Update** (`phase_a_parameter_update.py`)
+1. **Phase A: YAML structure checks and validation** (`phase_a_parameter_update.py`)
    - Detects missing parameters
    - Renames outdated parameters
    - Identifies non-standard parameters
    - Generates updated YAML with null placeholders
 
-2. **Phase B: Scientific Validation** (`phase_b_science_check.py`)
+2. **Phase B: Physics checks and validation** (`phase_b_science_check.py`)
    - Validates physics parameters
    - Checks ALL model physics compatibility (rslmethod-stabilitymethod, StorageHeatMethod-OhmIncQf)
    - Validates land cover fractions
    - Updates initial temperatures from CRU data
    - Updates STEBBS outdoor surface temperatures when `stebbsmethod == 1`
 
-3. **Phase C: Pydantic Validation** (`phase_c_pydantic_report.py`)
+3. **Phase C: Pydantic checks and validation** (`phase_c_pydantic_report.py`)
    - Runs Pydantic data model validation
    - Generates detailed error reports
    - Provides actionable feedback
@@ -38,11 +38,60 @@ User YAML → Phase A → Phase B → Phase C → Valid YAML
 
 ## Usage
 
-### Command Line
+### Command Line Interface
+
+The SUEWS validation system supports flexible pipeline and mode combinations:
+
+#### Basic Validation
 
 ```bash
-python -m supy.data_model.yaml_processor.orchestrator user_config.yml --phase ABC --mode public
+# Complete validation (default: all checks)
+suews-validate config.yml
+
+# Same as above, explicit syntax
+suews-validate --pipeline ABC config.yml
 ```
+
+#### Pipeline Options
+
+```bash
+# YAML structure checks only
+suews-validate --pipeline A config.yml
+
+# Physics checks only
+suews-validate --pipeline B config.yml
+
+# Pydantic checks only
+suews-validate --pipeline C config.yml
+
+# Combined workflows
+suews-validate --pipeline AB config.yml   # Structure + Physics
+suews-validate --pipeline AC config.yml   # Structure + Pydantic
+suews-validate --pipeline BC config.yml   # Physics + Pydantic
+```
+
+#### Mode Options
+
+```bash
+# Public mode (default) - restricted features disabled
+suews-validate --mode public config.yml
+
+# Developer mode - all features available including experimental options
+suews-validate --mode dev config.yml
+suews-validate --mode dev --pipeline ABC config.yml
+```
+
+#### Complete Examples
+
+```bash
+# Developer doing full validation with experimental features
+suews-validate --pipeline ABC --mode dev my_research_config.yml
+
+# Quick YAML structure check during development
+suews-validate --pipeline A --mode dev draft_config.yml
+
+# Physics validation for a specific site configuration
+suews-validate --pipeline B --mode public site_london.yml
 
 ### Python API
 
@@ -55,22 +104,33 @@ orchestrator.main([
     '--phase', 'ABC',
     '--mode', 'public'
 ])
+
+# Direct orchestrator usage (legacy)
+python -m supy.data_model.yaml_processor.orchestrator user_config.yml --phase ABC --mode public
 ```
 
-### Phase Options
+### Phase and Mode Reference
 
-- `A`: Phase A only (parameter updates)
-- `B`: Phase B only (scientific validation)
-- `C`: Phase C only (Pydantic validation)
-- `AB`: Phases A and B
-- `AC`: Phases A and C
-- `BC`: Phases B and C
-- `ABC`: Complete pipeline (default)
+#### Pipeline Options
+- `A`: YAML structure checks only
+- `B`: Physics checks only
+- `C`: Pydantic checks only
+- `AB`: YAML structure + Physics checks
+- `AC`: YAML structure + Pydantic checks
+- `BC`: Physics + Pydantic checks
+- `ABC`: Complete validation pipeline (default)
 
-### Modes
+#### Modes
+- `public`: Standard mode with restricted features disabled (default)
+- `dev`: Developer mode with all features including experimental options (STEBBS, snow models)
 
-- `public`: Standard mode with all validation checks
-- `dev`: Developer mode with relaxed constraints
+### Output Files
+
+All validation runs create:
+- **Final files**: `updated_config.yml`, `report_config.txt`
+- **Intermediate files**: `updatedA_*.yml`, `reportA_*.txt`, `updatedB_*.yml`, `reportB_*.txt`
+
+The validator shows all created files and their purposes in terminal output.
 
 ## Development Notes
 

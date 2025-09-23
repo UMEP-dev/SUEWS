@@ -540,7 +540,7 @@ def _print_schema_info():
     console.print("  • Documentation: docs/source/inputs/yaml/schema_versioning.rst")
 
     console.print("\n[bold]Validation Commands:[/bold]")
-    console.print("  • Pipeline run: suews-validate -p ABC config.yml")
+    console.print("  • Full validation: suews-validate config.yml")
     console.print(
         "  • Read-only check: suews-validate -p C --dry-run configs/*.yml --format json"
     )
@@ -1053,9 +1053,9 @@ def _execute_pipeline(file, pipeline, mode):
     )
     ok = a_ok and b_ok and c_ok
     console.print(
-        "[green]✓ Phase ABC completed[/green]"
+        "[green]✓ Validation completed[/green]"
         if ok
-        else "[red]✗ Phase ABC failed[/red]"
+        else "[red]✗ Validation failed[/red]"
     )
     if ok:
         console.print(f"Report: {pydantic_report_file}")

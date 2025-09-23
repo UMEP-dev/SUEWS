@@ -269,6 +269,7 @@ def setup_output_paths(
 def create_final_user_files(user_yaml_file: str, source_yaml: str, source_report: str):
     """Create final user-facing files with simple names from intermediate files."""
     import shutil
+
     dirname = os.path.dirname(user_yaml_file)
     basename = os.path.basename(user_yaml_file)
     name_without_ext = os.path.splitext(basename)[0]
@@ -348,9 +349,7 @@ def run_phase_a(
                 print("✗ Validation failed!")
                 print(f"Report: {report_file}")
                 print(f"Updated YAML: {uptodate_file}")
-                print(
-                    f"Suggestion: Fix issues in updated YAML and rerun validation."
-                )
+                print(f"Suggestion: Fix issues in updated YAML and rerun validation.")
             return False
 
         if not silent:
@@ -1022,7 +1021,9 @@ Modes:
             )
 
             # Always create final user files with simple names
-            final_yaml, final_report = create_final_user_files(user_yaml_file, uptodate_file, report_file)
+            final_yaml, final_report = create_final_user_files(
+                user_yaml_file, uptodate_file, report_file
+            )
 
             if phase_a_success:
                 print("[OK] Validation completed")
@@ -1055,7 +1056,9 @@ Modes:
             )
 
             # Always create final user files with simple names
-            final_yaml, final_report = create_final_user_files(user_yaml_file, science_yaml_file, science_report_file)
+            final_yaml, final_report = create_final_user_files(
+                user_yaml_file, science_yaml_file, science_report_file
+            )
 
             if phase_b_success:
                 print("[OK] Validation completed")
@@ -1074,9 +1077,7 @@ Modes:
                 # Phase B standalone failure: only show Report and Suggestion (no Updated YAML)
                 print("✗ Validation failed!")
                 print("Report:", final_report)
-                print(
-                    "Suggestion: Fix issues in report and rerun validation."
-                )
+                print("Suggestion: Fix issues in report and rerun validation.")
             return 0 if phase_b_success else 1
 
         elif phase == "C":
@@ -1093,7 +1094,9 @@ Modes:
             )
 
             # Always create final user files with simple names
-            final_yaml, final_report = create_final_user_files(user_yaml_file, pydantic_yaml_file, pydantic_report_file)
+            final_yaml, final_report = create_final_user_files(
+                user_yaml_file, pydantic_yaml_file, pydantic_report_file
+            )
 
             if phase_c_success:
                 print("[OK] Validation completed")
@@ -1112,9 +1115,7 @@ Modes:
                 # Phase C standalone failure: only show Report and Suggestion (no Updated YAML)
                 print("✗ Validation failed!")
                 print("Report:", final_report)
-                print(
-                    "Suggestion: Fix issues in report and rerun validation."
-                )
+                print("Suggestion: Fix issues in report and rerun validation.")
             return 0 if phase_c_success else 1
 
         elif phase == "AB":
@@ -1397,10 +1398,14 @@ Modes:
                 try:
                     # Create final files from Phase A outputs (last successful phase)
                     if os.path.exists(report_file):
-                        shutil.copy2(report_file, pydantic_report_file)  # Copy reportA → report (keep intermediate)
+                        shutil.copy2(
+                            report_file, pydantic_report_file
+                        )  # Copy reportA → report (keep intermediate)
 
                     if os.path.exists(uptodate_file):
-                        shutil.copy2(uptodate_file, pydantic_yaml_file)  # Copy updatedA → updated (keep intermediate)
+                        shutil.copy2(
+                            uptodate_file, pydantic_yaml_file
+                        )  # Copy updatedA → updated (keep intermediate)
 
                     # Remove failed Phase B files (failed phase output not needed)
                     if os.path.exists(science_yaml_file):
@@ -1436,10 +1441,14 @@ Modes:
                 try:
                     # Create final files from Phase B outputs (last successful phase)
                     if os.path.exists(science_yaml_file):
-                        shutil.copy2(science_yaml_file, pydantic_yaml_file)  # Copy updatedB → updated (keep intermediate)
+                        shutil.copy2(
+                            science_yaml_file, pydantic_yaml_file
+                        )  # Copy updatedB → updated (keep intermediate)
 
                     if os.path.exists(science_report_file):
-                        shutil.copy2(science_report_file, pydantic_report_file)  # Copy reportB → report (keep intermediate)
+                        shutil.copy2(
+                            science_report_file, pydantic_report_file
+                        )  # Copy reportB → report (keep intermediate)
                 except Exception:
                     pass  # Don't fail if cleanup doesn't work
 

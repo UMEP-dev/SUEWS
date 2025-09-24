@@ -35,6 +35,8 @@
 ## 2025
 
 ### 23 Sep 2025
+- [bugfix] Fixed missing ANOHM parameter mappings in validation system (chanohm→ch_anohm, cpanohm→rho_cp_anohm, kkanohm→k_anohm)
+- [doc] Updated Phase A documentation (PHASE_A_DETAILED.md, README.md) to reflect complete ANOHM parameter mappings
 - [change] Replaced "Phase A/B/C passed" messages with descriptive validation status messages in all user-facing outputs
 - [change] Terminal output now shows "YAML structure checks" and "Physics checks" instead of generic phase letters for better user understanding
 - [change] Validation reports now display "YAML structure check passed", "Physics checks passed", and "Validation passed" instead of phase-based terminology

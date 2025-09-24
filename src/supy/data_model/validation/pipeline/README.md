@@ -212,7 +212,10 @@ PHYSICS_OPTIONS = {
 RENAMED_PARAMS = {
     'cp': 'rho_cp',
     'diagmethod': 'rslmethod',
-    'localclimatemethod': 'rsllevel'
+    'localclimatemethod': 'rsllevel',
+    'chanohm': 'ch_anohm',
+    'cpanohm': 'rho_cp_anohm',
+    'kkanohm': 'k_anohm'
 }
 ```
 

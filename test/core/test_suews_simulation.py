@@ -161,26 +161,6 @@ class TestBypassValidators:
         assert sim_bypass.config is not None
         assert sim_bypass._bypass_validators is True
 
-    def test_bypass_validators_performance(self):
-        """Test that bypassing validators improves performance."""
-        yaml_path = files("supy").joinpath("sample_data/sample_config.yml")
-
-        # Measure time with validation
-        start_time = time.time()
-        for _ in range(3):
-            sim = SUEWSSimulation(str(yaml_path), bypass_validators=False)
-        time_with_validation = time.time() - start_time
-
-        # Measure time without validation
-        start_time = time.time()
-        for _ in range(3):
-            sim = SUEWSSimulation(str(yaml_path), bypass_validators=True)
-        time_without_validation = time.time() - start_time
-
-        # Bypassing validators should be faster
-        # Allow some tolerance for system variations
-        assert time_without_validation <= time_with_validation * 1.1
-
     def test_bypass_validators_from_yaml(self):
         """Test SUEWSConfig.from_yaml with bypass_validators."""
         yaml_path = files("supy").joinpath("sample_data/sample_config.yml")

@@ -9,6 +9,7 @@ import click
 import yaml
 import json
 import sys
+import os
 from pathlib import Path
 from typing import Optional, List
 import jsonschema

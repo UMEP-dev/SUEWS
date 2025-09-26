@@ -2240,10 +2240,11 @@ class SUEWSConfig(BaseModel):
             config_data["schema_version"] = CURRENT_SCHEMA_VERSION
 
         if bypass_validators:
-            logger_supy.info(
-                "Bypassing all validators for performance (already-validated config)."
-            )
-            return cls.model_construct(**config_data)
+            logger_supy.info("Bypassing validators for performance (already-validated config).")
+            # When bypassing validators, we still need nested models properly constructed
+            # For now, we use the regular constructor to ensure correctness
+            # TODO: In future, modify validators to check a context flag for true bypass
+            return cls(**config_data)
         elif use_conditional_validation:
             logger_supy.info(
                 "Running comprehensive Pydantic validation with conditional checks."
@@ -2251,6 +2252,8 @@ class SUEWSConfig(BaseModel):
             return cls(**config_data)
         else:
             logger_supy.info("Validation disabled by user. Loading without checks.")
+            # Note: model_construct skips all validation but may not construct nested models properly
+            # This is kept for backward compatibility but may have issues with complex configs
             return cls.model_construct(**config_data)
 
     def create_multi_index_columns(self, columns_file: str) -> pd.MultiIndex:

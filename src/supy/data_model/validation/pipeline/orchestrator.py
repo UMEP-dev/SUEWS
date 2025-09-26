@@ -466,8 +466,10 @@ def run_phase_c(
                 try:
                     # Use importlib.resources for robust package resource access
                     sample_data_files = importlib.resources.files(supy) / "sample_data"
-                    with importlib.resources.as_file(sample_data_files / "sample_config.yml") as standard_yaml_path:
-                        with open(standard_yaml_path, 'r') as f:
+                    with importlib.resources.as_file(
+                        sample_data_files / "sample_config.yml"
+                    ) as standard_yaml_path:
+                        with open(standard_yaml_path, "r") as f:
                             standard_data = yaml.safe_load(f)
                 except FileNotFoundError:
                     print(
@@ -847,7 +849,9 @@ Modes:
         # Step 2: Setup paths
         # Use importlib.resources for robust package resource access
         sample_data_files = importlib.resources.files(supy) / "sample_data"
-        with importlib.resources.as_file(sample_data_files / "sample_config.yml") as standard_yaml_path:
+        with importlib.resources.as_file(
+            sample_data_files / "sample_config.yml"
+        ) as standard_yaml_path:
             standard_yaml_file = str(standard_yaml_path)
 
         # Print workflow header (after variables are defined)

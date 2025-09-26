@@ -721,7 +721,9 @@ def _execute_pipeline(file, pipeline, mode):
 
     # Use importlib.resources for robust package resource access
     sample_data_files = importlib.resources.files(supy) / "sample_data"
-    with importlib.resources.as_file(sample_data_files / "sample_config.yml") as standard_yaml_path:
+    with importlib.resources.as_file(
+        sample_data_files / "sample_config.yml"
+    ) as standard_yaml_path:
         standard_yaml_file = str(standard_yaml_path)
 
     (

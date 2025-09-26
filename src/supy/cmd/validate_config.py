@@ -719,7 +719,9 @@ def _execute_pipeline(file, pipeline, mode):
         return 1
 
     # Use importlib.resources for robust package resource access
-    standard_yaml_file = str(importlib.resources.files('supy.sample_data') / 'sample_config.yml')
+    standard_yaml_file = str(
+        importlib.resources.files("supy.sample_data") / "sample_config.yml"
+    )
 
     (
         uptodate_file,

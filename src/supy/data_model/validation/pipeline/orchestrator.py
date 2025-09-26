@@ -464,7 +464,9 @@ def run_phase_c(
                 # Load standard config for comparison
                 try:
                     # Use importlib.resources for robust package resource access
-                    with importlib.resources.open_text('supy.sample_data', 'sample_config.yml') as f:
+                    with importlib.resources.open_text(
+                        "supy.sample_data", "sample_config.yml"
+                    ) as f:
                         standard_data = yaml.safe_load(f)
                 except FileNotFoundError:
                     print(
@@ -843,7 +845,9 @@ Modes:
 
         # Step 2: Setup paths
         # Use importlib.resources for robust package resource access
-        standard_yaml_file = str(importlib.resources.files('supy.sample_data') / 'sample_config.yml')
+        standard_yaml_file = str(
+            importlib.resources.files("supy.sample_data") / "sample_config.yml"
+        )
 
         # Print workflow header (after variables are defined)
         phase_desc = {

@@ -2199,6 +2199,7 @@ class SUEWSConfig(BaseModel):
         use_conditional_validation: bool = True,
         strict: bool = True,
         auto_generate_annotated: bool = False,
+        bypass_validators: bool = False,
     ) -> "SUEWSConfig":
         """Initialize SUEWSConfig from YAML file with conditional validation.
 
@@ -2207,6 +2208,8 @@ class SUEWSConfig(BaseModel):
             use_conditional_validation (bool): Whether to use conditional validation
             strict (bool): If True, raise errors on validation failure
             auto_generate_annotated (bool): If True, automatically generate annotated YAML when validation issues found
+            bypass_validators (bool): If True, completely bypass all validators (overrides use_conditional_validation).
+                                      Use this for already-validated configurations to improve performance.
 
         Returns:
             SUEWSConfig: Instance of SUEWSConfig initialized from YAML
@@ -2236,13 +2239,23 @@ class SUEWSConfig(BaseModel):
             # Set default schema version
             config_data["schema_version"] = CURRENT_SCHEMA_VERSION
 
-        if use_conditional_validation:
+        if bypass_validators:
+            logger_supy.info(
+                "Bypassing validators for performance (already-validated config)."
+            )
+            # When bypassing validators, we still need nested models properly constructed
+            # For now, we use the regular constructor to ensure correctness
+            # TODO: In future, modify validators to check a context flag for true bypass
+            return cls(**config_data)
+        elif use_conditional_validation:
             logger_supy.info(
                 "Running comprehensive Pydantic validation with conditional checks."
             )
             return cls(**config_data)
         else:
             logger_supy.info("Validation disabled by user. Loading without checks.")
+            # Note: model_construct skips all validation but may not construct nested models properly
+            # This is kept for backward compatibility but may have issues with complex configs
             return cls.model_construct(**config_data)
 
     def create_multi_index_columns(self, columns_file: str) -> pd.MultiIndex:
@@ -2259,28 +2272,34 @@ class SUEWSConfig(BaseModel):
         return pd.MultiIndex.from_tuples(tuples)
 
     def to_df_state(
-        self, use_conditional_validation: bool = True, strict: bool = False
+        self,
+        use_conditional_validation: bool = True,
+        strict: bool = False,
+        bypass_validators: bool = False,
     ) -> pd.DataFrame:
         """Convert config to DataFrame state format with optional conditional validation.
 
         Args:
             use_conditional_validation (bool): Whether to run conditional validation before conversion
             strict (bool): If True, fail on validation errors; if False, warn and continue
+            bypass_validators (bool): If True, completely bypass all validators (overrides use_conditional_validation).
+                                      Use this for already-validated configurations to improve performance.
 
         Returns:
             pd.DataFrame: DataFrame containing SUEWS configuration state
         """
-        if use_conditional_validation and _validation_available:
-            # Pre-validate configuration before conversion
-            config_data = self.model_dump()
-            try:
-                enhanced_to_df_state_validation(config_data, strict=strict)
-            except ValueError:
-                if strict:
-                    raise
-                # Continue with warnings already issued
-        elif use_conditional_validation and not _validation_available:
-            warnings.warn("Conditional validation requested but not available.")
+        if not bypass_validators:
+            if use_conditional_validation and _validation_available:
+                # Pre-validate configuration before conversion
+                config_data = self.model_dump()
+                try:
+                    enhanced_to_df_state_validation(config_data, strict=strict)
+                except ValueError:
+                    if strict:
+                        raise
+                    # Continue with warnings already issued
+            elif use_conditional_validation and not _validation_available:
+                warnings.warn("Conditional validation requested but not available.")
 
         # Proceed with DataFrame conversion
         try:

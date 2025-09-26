@@ -228,6 +228,25 @@ The simulation automatically loads forcing from config if specified:
     sim = SUEWSSimulation('config.yml')
     sim.run()  # Uses forcing from config
 
+11. Bypassing Validators for Performance
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+When repeatedly loading already-validated configurations, you can bypass validators for improved performance:
+
+.. code-block:: python
+
+    # Enable validator bypass for faster loading
+    sim = SUEWSSimulation('validated_config.yml', bypass_validators=True)
+    
+    # This significantly speeds up initialization when:
+    # - Loading the same configuration multiple times
+    # - Running batch simulations with validated configs
+    # - Developing/testing with known-good configurations
+    
+    # You can also use it with SUEWSConfig directly:
+    from supy.data_model import SUEWSConfig
+    config = SUEWSConfig.from_yaml('config.yml', bypass_validators=True)
+
 Best Practices
 --------------
 

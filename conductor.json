@@ -1,0 +1,5 @@
+{
+  "scripts": {
+    "setup": "git fetch origin\ngit merge origin/master\ngit remote | grep -v '^origin$' | xargs -r -n 1 git remote remove"
+  }
+}

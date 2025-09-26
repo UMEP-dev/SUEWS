@@ -214,6 +214,12 @@ def setup_output_paths(
     """Generate output file paths based on input file and phase."""
     basename = os.path.basename(user_yaml_file)
     dirname = os.path.dirname(user_yaml_file)
+
+    # Fix path resolution bug: handle empty dirname
+    # When user_yaml_file="config.yml", dirname="" -> use current directory
+    if not dirname:
+        dirname = "."
+
     name_without_ext = os.path.splitext(basename)[0]
 
     uptodate_file = None
@@ -273,6 +279,10 @@ def create_final_user_files(user_yaml_file: str, source_yaml: str, source_report
     dirname = os.path.dirname(user_yaml_file)
     basename = os.path.basename(user_yaml_file)
     name_without_ext = os.path.splitext(basename)[0]
+
+    # Apply same fix as setup_output_paths
+    if not dirname:
+        dirname = "."
 
     final_yaml = os.path.join(dirname, f"updated_{basename}")
     final_report = os.path.join(dirname, f"report_{name_without_ext}.txt")
@@ -881,7 +891,11 @@ Modes:
         user_yaml_file = validate_input_file(user_yaml_file)
 
         # Step 2: Setup paths
-        standard_yaml_file = "src/supy/sample_data/sample_config.yml"
+        # Fix: Make standard file path absolute to work from any directory
+        # Find SUEWS root by looking for the src/supy directory structure
+        current_file = os.path.abspath(__file__)
+        suews_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(current_file))))
+        standard_yaml_file = os.path.join(suews_root, "src/supy/sample_data/sample_config.yml")
 
         # Print workflow header (after variables are defined)
         phase_desc = {
@@ -1007,7 +1021,6 @@ Modes:
         ) = setup_output_paths(user_yaml_file, phase)
 
         # Phase-specific execution
-        print(f"DEBUG: Executing phase '{phase}'")
         if phase == "A":
             # Phase A only
             phase_a_success = run_phase_a(
@@ -1331,7 +1344,6 @@ Modes:
         elif phase == "ABC":
             # Complete A→B→C workflow with proper halt logic
             # Step 1: Run Phase A
-            print("DEBUG: Starting ABC workflow")
             print("Phase A: Up-to-date YAML check...")
             phase_a_success = run_phase_a(
                 user_yaml_file,
@@ -1345,29 +1357,17 @@ Modes:
 
             if not phase_a_success:
                 # Phase A failed in ABC workflow - preserve Phase A outputs as ABC outputs (when Phase A passes, we have updated from A)
-                print("DEBUG: Phase A failed, moving files to final names")
-                print(f"DEBUG: uptodate_file: {uptodate_file}")
-                print(f"DEBUG: report_file: {report_file}")
-                print(f"DEBUG: pydantic_yaml_file: {pydantic_yaml_file}")
-                print(f"DEBUG: pydantic_report_file: {pydantic_report_file}")
                 try:
                     if os.path.exists(report_file):
-                        print(f"DEBUG: Moving {report_file} to {pydantic_report_file}")
                         shutil.move(
                             report_file, pydantic_report_file
                         )  # reportA → report
-                    else:
-                        print(f"DEBUG: {report_file} does not exist")
-
                     if os.path.exists(uptodate_file):
-                        print(f"DEBUG: Moving {uptodate_file} to {pydantic_yaml_file}")
                         shutil.move(
                             uptodate_file, pydantic_yaml_file
                         )  # updatedA → updated (preserve Phase A updated YAML)
-                    else:
-                        print(f"DEBUG: {uptodate_file} does not exist")
                 except Exception as e:
-                    print(f"DEBUG: Exception during file move: {e}")
+                    pass  # Don't fail if move doesn't work
 
                 print("✗ Validation failed!")
                 print(f"Report: {pydantic_report_file}")

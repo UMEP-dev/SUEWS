@@ -214,6 +214,9 @@ def setup_output_paths(
     """Generate output file paths based on input file and phase."""
     basename = os.path.basename(user_yaml_file)
     dirname = os.path.dirname(user_yaml_file)
+    # Fix path resolution bug: handle empty dirname
+    if not dirname:
+        dirname = "."
     name_without_ext = os.path.splitext(basename)[0]
 
     uptodate_file = None
@@ -459,7 +462,11 @@ def run_phase_c(
 
                 # Load standard config for comparison
                 try:
-                    with open("src/supy/sample_data/sample_config.yml", "r") as f:
+                    # Fix: Make standard file path absolute to work from any directory
+                    current_file = os.path.abspath(__file__)
+                    suews_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(current_file))))
+                    standard_yaml_file = os.path.join(suews_root, "src/supy/sample_data/sample_config.yml")
+                    with open(standard_yaml_file, "r") as f:
                         standard_data = yaml.safe_load(f)
                 except FileNotFoundError:
                     print(
@@ -837,7 +844,10 @@ Modes:
         user_yaml_file = validate_input_file(user_yaml_file)
 
         # Step 2: Setup paths
-        standard_yaml_file = "src/supy/sample_data/sample_config.yml"
+        # Fix: Make standard file path absolute to work from any directory
+        current_file = os.path.abspath(__file__)
+        suews_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(current_file))))
+        standard_yaml_file = os.path.join(suews_root, "src/supy/sample_data/sample_config.yml")
 
         # Print workflow header (after variables are defined)
         phase_desc = {

@@ -2240,7 +2240,9 @@ class SUEWSConfig(BaseModel):
             config_data["schema_version"] = CURRENT_SCHEMA_VERSION
 
         if bypass_validators:
-            logger_supy.info("Bypassing all validators for performance (already-validated config).")
+            logger_supy.info(
+                "Bypassing all validators for performance (already-validated config)."
+            )
             return cls.model_construct(**config_data)
         elif use_conditional_validation:
             logger_supy.info(
@@ -2265,7 +2267,10 @@ class SUEWSConfig(BaseModel):
         return pd.MultiIndex.from_tuples(tuples)
 
     def to_df_state(
-        self, use_conditional_validation: bool = True, strict: bool = False, bypass_validators: bool = False
+        self,
+        use_conditional_validation: bool = True,
+        strict: bool = False,
+        bypass_validators: bool = False,
     ) -> pd.DataFrame:
         """Convert config to DataFrame state format with optional conditional validation.
 

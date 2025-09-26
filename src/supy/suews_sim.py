@@ -44,7 +44,11 @@ class SUEWSSimulation:
     >>> sim.run()
     """
 
-    def __init__(self, config: Union[str, Path, dict, Any] = None, bypass_validators: bool = False):
+    def __init__(
+        self,
+        config: Union[str, Path, dict, Any] = None,
+        bypass_validators: bool = False,
+    ):
         """
         Initialize SUEWS simulation.
 
@@ -100,8 +104,7 @@ class SUEWSSimulation:
 
             # Load YAML with optional validation bypass
             self._config = SUEWSConfig.from_yaml(
-                str(config_path), 
-                bypass_validators=self._bypass_validators
+                str(config_path), bypass_validators=self._bypass_validators
             )
             self._config_path = config_path
 

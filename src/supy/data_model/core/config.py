@@ -2240,7 +2240,9 @@ class SUEWSConfig(BaseModel):
             config_data["schema_version"] = CURRENT_SCHEMA_VERSION
 
         if bypass_validators:
-            logger_supy.info("Bypassing validators for performance (already-validated config).")
+            logger_supy.info(
+                "Bypassing validators for performance (already-validated config)."
+            )
             # When bypassing validators, we still need nested models properly constructed
             # For now, we use the regular constructor to ensure correctness
             # TODO: In future, modify validators to check a context flag for true bypass

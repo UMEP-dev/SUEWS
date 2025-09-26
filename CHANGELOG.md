@@ -34,6 +34,9 @@
 
 ## 2025
 
+### 26 Sep 2025
+- [feature] Added `bypass_validators` option to SUEWSSimulation and SUEWSConfig for improved performance when repeatedly loading already-validated configurations (fixes [#697](https://github.com/UMEP-dev/SUEWS/issues/697))
+
 ### 23 Sep 2025
 - [bugfix] Fixed missing ANOHM parameter mappings in validation system (chanohm→ch_anohm, cpanohm→rho_cp_anohm, kkanohm→k_anohm)
 - [doc] Updated Phase A documentation (PHASE_A_DETAILED.md, README.md) to reflect complete ANOHM parameter mappings

@@ -44,7 +44,7 @@ class SUEWSSimulation:
     >>> sim.run()
     """
 
-    def __init__(self, config: Union[str, Path, dict, Any] = None):
+    def __init__(self, config: Union[str, Path, dict, Any] = None, bypass_validators: bool = False):
         """
         Initialize SUEWS simulation.
 
@@ -56,6 +56,10 @@ class SUEWSSimulation:
             - Dictionary with configuration parameters
             - SUEWSConfig object
             - None to create empty simulation
+        bypass_validators : bool, optional
+            If True, bypass validation checks when loading configuration from YAML.
+            This speeds up repeated initialization of already-validated configs.
+            Default is False (perform validation).
         """
         self._config = None
         self._config_path = None
@@ -64,6 +68,7 @@ class SUEWSSimulation:
         self._df_output = None
         self._df_state_final = None
         self._run_completed = False
+        self._bypass_validators = bypass_validators
 
         if config is not None:
             self.update_config(config)
@@ -93,12 +98,17 @@ class SUEWSSimulation:
             if not config_path.exists():
                 raise FileNotFoundError(f"Configuration file not found: {config_path}")
 
-            # Load YAML
-            self._config = SUEWSConfig.from_yaml(str(config_path))
+            # Load YAML with optional validation bypass
+            self._config = SUEWSConfig.from_yaml(
+                str(config_path), 
+                bypass_validators=self._bypass_validators
+            )
             self._config_path = config_path
 
             # Convert to initial state DataFrame
-            self._df_state_init = self._config.to_df_state()
+            self._df_state_init = self._config.to_df_state(
+                bypass_validators=self._bypass_validators
+            )
 
             # Try to load forcing from config
             self._try_load_forcing_from_config()
@@ -112,12 +122,16 @@ class SUEWSSimulation:
             self._update_config_from_dict(config)
 
             # Regenerate state DataFrame
-            self._df_state_init = self._config.to_df_state()
+            self._df_state_init = self._config.to_df_state(
+                bypass_validators=self._bypass_validators
+            )
 
         else:
             # Assume it's a SUEWSConfig object
             self._config = config
-            self._df_state_init = self._config.to_df_state()
+            self._df_state_init = self._config.to_df_state(
+                bypass_validators=self._bypass_validators
+            )
 
     def _update_config_from_dict(self, updates: dict):
         """Apply dictionary updates to configuration."""

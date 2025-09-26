@@ -720,8 +720,12 @@ def _execute_pipeline(file, pipeline, mode):
 
     # Fix: Make standard file path absolute to work from any directory
     current_file = os.path.abspath(__file__)
-    suews_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(current_file))))
-    standard_yaml_file = os.path.join(suews_root, "src/supy/sample_data/sample_config.yml")
+    suews_root = os.path.dirname(
+        os.path.dirname(os.path.dirname(os.path.dirname(current_file)))
+    )
+    standard_yaml_file = os.path.join(
+        suews_root, "src/supy/sample_data/sample_config.yml"
+    )
 
     (
         uptodate_file,

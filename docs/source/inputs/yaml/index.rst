@@ -25,7 +25,7 @@ Quick Start
    # Automatically fix common issues
    suews-validate my_config.yml
 
-   # Creates: updatedABC_my_config.yml (ready to use)
+   # Creates: updated_my_config.yml (ready to use)
 
 **3. Run your simulation:**
 
@@ -34,7 +34,7 @@ Quick Start
    import supy as sp
 
    # Load your validated configuration
-   config = sp.SUEWSConfig.from_yaml('updatedABC_my_config.yml')
+   config = sp.SUEWSConfig.from_yaml('updated_my_config.yml')
 
    # Run simulation
    output = config.run()
@@ -108,7 +108,7 @@ A valid SUEWS configuration requires many parameters beyond this minimal example
    **To explore all parameters:**
 
    1. Run ``suews-validate`` on your configuration to generate a complete file with all defaults
-   2. Review the generated ``updatedABC_*.yml`` file to see all parameters
+   2. Review the generated ``updated_*.yml`` file to see all parameters
    3. Consult the :doc:`config-reference/index` for comprehensive parameter documentation
 
 Parameter Documentation
@@ -268,7 +268,7 @@ Tips for Success
 Getting Help
 ------------
 
-- **Validation issues**: Check the report file (``reportABC_*.txt``)
+- **Validation issues**: Check the report file (``report_*.txt``)
 - **Parameter documentation**: See the error messages from validation
 - **Examples**: Look in ``sample_data/`` directory
 - **Community support**: `UMEP Community Forum <https://github.com/UMEP-dev/UMEP/discussions>`_

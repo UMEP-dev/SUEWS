@@ -32,12 +32,12 @@ def run_yaml_processor(
 
 The orchestrator supports seven distinct workflows:
 
-1. **A**: Up-to-date YAML check only
-2. **B**: Scientific validation only
-3. **C**: Pydantic validation only
-4. **AB**: Up-to-date check + Scientific validation
-5. **AC**: Up-to-date check + Pydantic validation
-6. **BC**: Scientific validation + Pydantic validation
+1. **A**: YAML structure checks only
+2. **B**: Physics checks only
+3. **C**: Pydantic checks only
+4. **AB**: YAML structure checks + Physics checks
+5. **AC**: YAML structure checks + Pydantic checks
+6. **BC**: Physics checks + Pydantic checks
 7. **ABC**: Complete three-phase validation
 
 ### Execution Flow
@@ -81,8 +81,8 @@ Final: updated{workflow}_config.yml, report{workflow}_config.txt
 
 ### Final Output Files
 
-- **Workflow Output**: `updated{phase}_*.yml` (e.g., `updatedABC_config.yml`)
-- **Consolidated Report**: `report{phase}_*.txt` (e.g., `reportABC_config.txt`)
+- **Workflow Output**: `updated_*.yml` for full validation (e.g., `updated_config.yml`)
+- **Consolidated Report**: `report_*.txt` for full validation (e.g., `report_config.txt`)
 
 ### Cleanup Strategy
 
@@ -172,7 +172,7 @@ except Exception as e:
 
 ```python
 def run_phase_a(user_file, standard_file, output_file, report_file, mode):
-    """Execute Phase A: Up-to-date YAML check."""
+    """Execute Phase A: YAML structure checks and validation."""
     from phase_a_parameter_update import annotate_missing_parameters
     return annotate_missing_parameters(...)
 ```
@@ -181,7 +181,7 @@ def run_phase_a(user_file, standard_file, output_file, report_file, mode):
 
 ```python
 def run_phase_b(input_file, output_file, report_file, mode):
-    """Execute Phase B: Scientific validation."""
+    """Execute Phase B: Physics checks and validation."""
     from phase_b_science_check import run_science_check
     return run_science_check(...)
 ```
@@ -190,7 +190,7 @@ def run_phase_b(input_file, output_file, report_file, mode):
 
 ```python
 def run_phase_c(input_file, output_file, report_file, mode):
-    """Execute Phase C: Pydantic validation."""
+    """Execute Phase C: Pydantic checks and validation."""
     from phase_c_pydantic_report import run_pydantic_validation
     return run_pydantic_validation(...)
 ```
@@ -215,6 +215,33 @@ python orchestrator.py config.yml --mode dev
 - `--phase`: Select workflow (A, B, C, AB, AC, BC, ABC)
 - `--mode`: Select mode (public, dev)
 - `--standard`: Override standard config file path
+
+### Experimental Features Validation
+
+The CLI enforces experimental features restrictions in public mode, providing clear feedback when restricted features are detected:
+
+```bash
+$ suews-validate --pipeline ABC config.yml
+✗ Configuration contains experimental features restricted in public mode:
+  • STEBBS method is enabled (stebbsmethod != 0)
+
+Options to resolve:
+  1. Switch to dev mode: --mode dev
+  2. Disable experimental features in your YAML file and rerun
+     Example: Set stebbsmethod: {value: 0}
+```
+
+### Enhanced Error Reporting
+
+When phases fail, the CLI now shows generated report files so users can find detailed error information:
+
+```bash
+$ suews-validate --pipeline ABC config.yml
+✗ Phase B failed
+Report: reportB_config.txt
+```
+
+The key improvement is that Phase B now generates comprehensive error reports even when initialization fails, with individual errors listed separately for better clarity.
 
 ## Performance Considerations
 
@@ -257,7 +284,7 @@ def test_workflow_abc():
         mode="public"
     )
     assert result["success"]
-    assert os.path.exists("updatedABC_test_config.yml")
+    assert os.path.exists("updated_test_config.yml")
 ```
 
 ## Best Practices
@@ -300,6 +327,6 @@ register_phase("custom", CustomValidationPhase())
 ## Related Documentation
 
 - [README](README.md) - System overview
-- [Phase A Detailed](PHASE_A_DETAILED.md) - Parameter validation
-- [Phase B Detailed](PHASE_B_DETAILED.md) - Scientific validation
-- [Phase C Detailed](PHASE_C_DETAILED.md) - Pydantic validation
+- [Phase A Detailed](PHASE_A_DETAILED.md) - YAML structure checks and validation
+- [Phase B Detailed](PHASE_B_DETAILED.md) - Physics checks and validation
+- [Phase C Detailed](PHASE_C_DETAILED.md) - Pydantic checks and validation

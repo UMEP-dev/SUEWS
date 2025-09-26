@@ -10,7 +10,7 @@ PHASE_TITLES = {
     "AB": "SUEWS - Phase AB (Up-to-date YAML check and Scientific Validation) Report",
     "AC": "SUEWS - Phase AC (Up-to-date YAML check and Pydantic Validation) Report",
     "BC": "SUEWS - Phase BC (Scientific Validation and Pydantic Validation) Report",
-    "ABC": "SUEWS - Phase ABC (Up-to-date YAML check, Scientific Validation and Pydantic Validation) Report",
+    "ABC": "SUEWS Validation Report",
 }
 
 
@@ -70,7 +70,7 @@ def generate_phase_c_report(
     report_lines = []
 
     phase_str = "".join(phases_run) if phases_run else "C"
-    title = PHASE_TITLES.get(phase_str, "SUEWS Phase C (Pydantic Validation) Report")
+    title = PHASE_TITLES.get(phase_str, "SUEWS Validation Report")
 
     report_lines.append(f"# {title}")
     report_lines.append("# " + "=" * 50)
@@ -323,7 +323,23 @@ def generate_phase_c_report(
         report_lines.append("")
 
     if not action_needed_items and not previous_phase_items:
-        report_lines.append(f"Phase {phase_str} passed")
+        # Map phase strings to descriptive messages
+        if phase_str == "A":
+            phase_message = "YAML structure check passed"
+        elif phase_str == "B":
+            phase_message = "Physics checks passed"
+        elif phase_str == "C":
+            phase_message = "Validation passed"
+        elif phase_str == "AB":
+            phase_message = "YAML structure check and Physics checks passed"
+        elif phase_str == "BC":
+            phase_message = "Physics checks and Validation passed"
+        elif phase_str == "ABC" or phase_str == "AC":
+            phase_message = "Validation passed"
+        else:
+            phase_message = f"Phase {phase_str} passed"  # fallback
+
+        report_lines.append(phase_message)
 
     report_lines.extend(["", "# " + "=" * 50])
 
@@ -384,7 +400,7 @@ def generate_fallback_report(
     )
 
     phase_str = "".join(phases_run) if phases_run else "C"
-    title = PHASE_TITLES.get(phase_str, "SUEWS Phase C (Pydantic Validation) Report")
+    title = PHASE_TITLES.get(phase_str, "SUEWS Validation Report")
     mode_title = "Public" if mode.lower() == "public" else mode.title()
 
     error_report = f"""# {title}

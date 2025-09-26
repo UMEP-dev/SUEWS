@@ -736,7 +736,7 @@ def create_analysis_report(
         "AB": "SUEWS - Phase AB (Up-to-date YAML check and Scientific Validation) Report",
         "AC": "SUEWS - Phase AC (Up-to-date YAML check and Pydantic Validation) Report",
         "BC": "SUEWS - Phase BC (Scientific Validation and Pydantic Validation) Report",
-        "ABC": "SUEWS - Phase ABC (Up-to-date YAML check, Scientific Validation and Pydantic Validation) Report",
+        "ABC": "SUEWS Validation Report",
     }
 
     title = phase_titles.get(phase, "SUEWS Configuration Analysis Report")
@@ -891,6 +891,15 @@ def create_analysis_report(
                 # Show forbidden location extra parameters as ACTION NEEDED
                 # (These will be moved to the ACTION NEEDED section below)
                 # We'll handle this below when updating that section
+
+    # If neither ACTION NEEDED nor NO ACTION NEEDED sections were added,
+    # indicate that Phase A passed without issues
+    if not has_action_items and not has_no_action_items:
+        if phase == "A":
+            report_lines.append("YAML structure check passed")
+        elif "A" in phase:  # Multi-phase like "AB", "AC", "ABC"
+            report_lines.append("YAML structure check passed")
+        report_lines.append("")
 
     # Footer separator
     report_lines.append("# " + "=" * 50)

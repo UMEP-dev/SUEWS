@@ -9,6 +9,7 @@ import click
 import yaml
 import json
 import sys
+import os
 from pathlib import Path
 from typing import Optional, List
 import jsonschema
@@ -216,8 +217,8 @@ def validate_single_file(
 def cli(ctx, files, pipeline, mode, dry_run, out_format, schema_version):
     """SUEWS Configuration Validator.
 
-    Default behavior: run the A/B/C validation pipeline on FILE.
-    Use subcommands for specific operations (validate, schema, migrate, export).
+    Default behavior: run the complete validation pipeline on FILE. Use subcommands
+    for specific operations (validate, schema, migrate, export).
     """
     # If invoked without a subcommand, run the pipeline workflow
     if ctx.invoked_subcommand is None:
@@ -539,7 +540,7 @@ def _print_schema_info():
     console.print("  • Documentation: docs/source/inputs/yaml/schema_versioning.rst")
 
     console.print("\n[bold]Validation Commands:[/bold]")
-    console.print("  • Pipeline run: suews-validate -p ABC config.yml")
+    console.print("  • Full validation: suews-validate config.yml")
     console.print(
         "  • Read-only check: suews-validate -p C --dry-run configs/*.yml --format json"
     )
@@ -672,6 +673,66 @@ def export(output, version, fmt):
         sys.exit(1)
 
 
+def _check_experimental_features_restriction(user_yaml_file, mode):
+    """Check for experimental features that are restricted in public mode.
+
+    Returns:
+        bool: True if validation passes (can proceed), False if should halt
+    """
+    if mode != "public":
+        return True  # Dev mode allows all features
+
+    try:
+        with open(user_yaml_file, "r") as f:
+            user_yaml_data = yaml.safe_load(f)
+    except Exception as e:
+        console.print(f"[red]✗ Error reading YAML file: {e}[/red]")
+        return False
+
+    restrictions_violated = []
+
+    # Check STEBBS method restriction
+    stebbs_method = None
+    if (
+        user_yaml_data
+        and isinstance(user_yaml_data, dict)
+        and "model" in user_yaml_data
+        and isinstance(user_yaml_data["model"], dict)
+        and "physics" in user_yaml_data["model"]
+        and isinstance(user_yaml_data["model"]["physics"], dict)
+        and "stebbsmethod" in user_yaml_data["model"]["physics"]
+    ):
+        stebbs_entry = user_yaml_data["model"]["physics"]["stebbsmethod"]
+        # Handle both direct values and RefValue format
+        if isinstance(stebbs_entry, dict) and "value" in stebbs_entry:
+            stebbs_method = stebbs_entry["value"]
+        else:
+            stebbs_method = stebbs_entry
+
+    if stebbs_method is not None and stebbs_method != 0:
+        restrictions_violated.append("STEBBS method is enabled (stebbsmethod != 0)")
+
+    # Add more restriction checks here as needed
+    # Example for future experimental features:
+    # if other_experimental_feature_enabled:
+    #     restrictions_violated.append("Other experimental feature is enabled")
+
+    # If any restrictions are violated, halt execution
+    if restrictions_violated:
+        console.print(
+            "[red]✗ Configuration contains experimental features restricted in public mode:[/red]"
+        )
+        for restriction in restrictions_violated:
+            console.print(f"  • {restriction}")
+        console.print("\n[yellow]Options to resolve:[/yellow]")
+        console.print("  1. Switch to dev mode: [cyan]--mode dev[/cyan]")
+        console.print("  2. Disable experimental features in your YAML file and rerun")
+        console.print("     Example: Set [cyan]stebbsmethod: {value: 0}[/cyan]")
+        return False
+
+    return True
+
+
 def _format_phase_output(
     phase, success, input_file, output_file=None, report_file=None, errors=None
 ):
@@ -717,6 +778,10 @@ def _execute_pipeline(file, pipeline, mode):
         console.print(f"[red]✗ {e}[/red]")
         return 1
 
+    # Check for experimental features restrictions before proceeding
+    if not _check_experimental_features_restriction(user_yaml_file, mode):
+        return 1
+
     standard_yaml_file = "src/supy/sample_data/sample_config.yml"
 
     (
@@ -741,9 +806,9 @@ def _execute_pipeline(file, pipeline, mode):
             silent=True,
         )
         console.print(
-            "[green]✓ Phase A completed[/green]"
+            "[green]✓ Validation completed[/green]"
             if ok
-            else "[red]✗ Phase A failed[/red]"
+            else "[red]✗ Validation failed[/red]"
         )
         if ok:
             console.print(f"Report: {report_file}")
@@ -771,6 +836,20 @@ def _execute_pipeline(file, pipeline, mode):
         if ok:
             console.print(f"Report: {science_report_file}")
             console.print(f"Updated YAML: {science_yaml_file}")
+        else:
+            # Show report file even on failure if it exists
+            if os.path.exists(science_report_file):
+                console.print(f"Report: {science_report_file}")
+            if os.path.exists(science_yaml_file):
+                console.print(f"Updated YAML: {science_yaml_file}")
+
+            # Provide helpful guidance for Phase B failures
+            console.print(
+                "[yellow]Phase B requires Phase A to be completed first.[/yellow]"
+            )
+            console.print(
+                f"[yellow]Try running: suews-validate --pipeline AB {user_yaml_file}[/yellow]"
+            )
         return 0 if ok else 1
 
     if pipeline == "C":
@@ -804,7 +883,7 @@ def _execute_pipeline(file, pipeline, mode):
         )
         if not a_ok:
             # Preserve Phase A outputs as AB outputs
-            console.print("[red]✗ Phase A failed[/red]")
+            console.print("[red]✗ Validation failed[/red]")
             if report_file:
                 console.print(f"Report: {science_report_file}")
             if uptodate_file:
@@ -845,7 +924,7 @@ def _execute_pipeline(file, pipeline, mode):
             silent=True,
         )
         if not a_ok:
-            console.print("[red]✗ Phase A failed[/red]")
+            console.print("[red]✗ Validation failed[/red]")
             console.print(f"Report: {pydantic_report_file}")
             console.print(f"Updated YAML: {pydantic_yaml_file}")
             return 1
@@ -919,7 +998,18 @@ def _execute_pipeline(file, pipeline, mode):
         silent=True,
     )
     if not a_ok:
-        console.print("[red]✗ Phase A failed[/red]")
+        # Phase A failed in ABC - create final files from Phase A outputs
+        import shutil
+
+        try:
+            if os.path.exists(report_file):
+                shutil.move(report_file, pydantic_report_file)  # reportA → report
+            if os.path.exists(uptodate_file):
+                shutil.move(uptodate_file, pydantic_yaml_file)  # updatedA → updated
+        except Exception:
+            pass  # Don't fail if move doesn't work
+
+        console.print("[red]✗ Validation failed[/red]")
         console.print(f"Report: {pydantic_report_file}")
         console.print(f"Updated YAML: {pydantic_yaml_file}")
         return 1
@@ -937,9 +1027,51 @@ def _execute_pipeline(file, pipeline, mode):
         silent=True,
     )
     if not b_ok:
-        console.print("[red]✗ Phase B failed[/red]")
-        console.print(f"Report: {science_report_file}")
-        console.print(f"Updated YAML: {science_yaml_file}")
+        # Phase B failed in ABC - create final files with mixed content
+        # Final YAML: from Phase A (last successful phase), Final Report: from Phase B (contains errors)
+        import shutil
+
+        try:
+            # Create final YAML from Phase A (last successful phase)
+            if os.path.exists(uptodate_file):
+                shutil.copy2(
+                    uptodate_file, pydantic_yaml_file
+                )  # Copy updatedA → updated (keep intermediate)
+
+            # Create final Report from Phase B (contains the actual errors we need to show user)
+            if os.path.exists(science_report_file):
+                shutil.move(
+                    science_report_file, pydantic_report_file
+                )  # Move reportB → report (don't keep intermediate)
+            elif os.path.exists(report_file):
+                # Fallback to Phase A report if Phase B report doesn't exist
+                shutil.copy2(
+                    report_file, pydantic_report_file
+                )  # Copy reportA → report (keep intermediate)
+
+            # Remove failed Phase B YAML
+            if os.path.exists(science_yaml_file):
+                os.remove(science_yaml_file)  # Remove failed Phase B YAML
+        except Exception:
+            pass  # Don't fail if cleanup doesn't work
+
+        console.print("[red]✗ Validation failed[/red]")
+        console.print(f"Report: {pydantic_report_file}")
+        console.print(f"Updated YAML: {pydantic_yaml_file}")
+
+        # Show intermediate file information
+        console.print(
+            "\n[bold]For more details on intermediate validation and updates, check:[/bold]"
+        )
+        if os.path.exists(report_file):
+            console.print(
+                f"[yellow]• YAML structure checks report: {report_file}[/yellow]"
+            )
+        if os.path.exists(uptodate_file):
+            console.print(
+                f"[yellow]• YAML structure checks updated file: {uptodate_file}[/yellow]"
+            )
+
         sys.exit(1)
 
     c_ok = _processor_run_phase_c(
@@ -951,16 +1083,85 @@ def _execute_pipeline(file, pipeline, mode):
         phases_run=["A", "B", "C"],
         silent=True,
     )
-    ok = a_ok and b_ok and c_ok
-    console.print(
-        "[green]✓ Phase ABC completed[/green]"
-        if ok
-        else "[red]✗ Phase ABC failed[/red]"
-    )
-    if ok:
+
+    if not c_ok:
+        # Phase C failed in ABC - create final files with mixed content
+        # Final YAML: from Phase B (last successful phase), Final Report: from Phase C (contains errors)
+        import shutil
+
+        try:
+            # Create final YAML from Phase B (last successful phase)
+            if os.path.exists(science_yaml_file):
+                shutil.copy2(
+                    science_yaml_file, pydantic_yaml_file
+                )  # Copy updatedB → updated (keep intermediate)
+
+            # Final Report should be from Phase C (contains the actual errors), but Phase C might not create a file
+            # In this case, we'll rely on Phase C having already created pydantic_report_file, or use Phase B as fallback
+            if not os.path.exists(pydantic_report_file) and os.path.exists(
+                science_report_file
+            ):
+                shutil.copy2(
+                    science_report_file, pydantic_report_file
+                )  # Fallback: copy reportB → report
+        except Exception:
+            pass  # Don't fail if copy doesn't work
+
+        console.print("[red]✗ Validation failed[/red]")
         console.print(f"Report: {pydantic_report_file}")
         console.print(f"Updated YAML: {pydantic_yaml_file}")
-    return 0 if ok else 1
+
+        # Show intermediate file information
+        console.print(
+            "\n[bold]For more details on intermediate validation and updates, check:[/bold]"
+        )
+        if os.path.exists(report_file):
+            console.print(
+                f"[yellow]• YAML structure checks report: {report_file}[/yellow]"
+            )
+        if os.path.exists(uptodate_file):
+            console.print(
+                f"[yellow]• YAML structure checks updated file: {uptodate_file}[/yellow]"
+            )
+        if os.path.exists(science_report_file):
+            console.print(
+                f"[yellow]• Physics checks report: {science_report_file}[/yellow]"
+            )
+        if os.path.exists(science_yaml_file):
+            console.print(
+                f"[yellow]• Physics checks updated file: {science_yaml_file}[/yellow]"
+            )
+
+        return 1
+
+    # All phases succeeded
+    ok = a_ok and b_ok and c_ok
+    console.print("[green]✓ Validation completed[/green]")
+    console.print(f"Report: {pydantic_report_file}")
+    console.print(f"Updated YAML: {pydantic_yaml_file}")
+
+    # Show intermediate file information
+    console.print(
+        "\n[bold]For more details on intermediate validation and updates, check:[/bold]"
+    )
+    if os.path.exists(report_file):
+        console.print(f"[yellow]• YAML structure checks report: {report_file}[/yellow]")
+    if os.path.exists(uptodate_file):
+        console.print(
+            f"[yellow]• YAML structure checks updated file: {uptodate_file}[/yellow]"
+        )
+    if os.path.exists(science_report_file):
+        console.print(
+            f"[yellow]• Physics checks report: {science_report_file}[/yellow]"
+        )
+    if os.path.exists(science_yaml_file):
+        console.print(
+            f"[yellow]• Physics checks updated file: {science_yaml_file}[/yellow]"
+        )
+
+    # Keep intermediate files: updatedA_*, reportA_*, updatedB_*, reportB_*
+    # Final files: updated_*, report_* (created by Phase C)
+    return 0
 
 
 def main():

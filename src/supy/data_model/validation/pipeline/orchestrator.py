@@ -13,6 +13,7 @@ import os
 import argparse
 import yaml
 from typing import Tuple, Optional
+import importlib.resources
 import shutil
 import io
 from contextlib import redirect_stdout, redirect_stderr
@@ -462,15 +463,8 @@ def run_phase_c(
 
                 # Load standard config for comparison
                 try:
-                    # Fix: Make standard file path absolute to work from any directory
-                    current_file = os.path.abspath(__file__)
-                    suews_root = os.path.dirname(
-                        os.path.dirname(os.path.dirname(os.path.dirname(current_file)))
-                    )
-                    standard_yaml_file = os.path.join(
-                        suews_root, "src/supy/sample_data/sample_config.yml"
-                    )
-                    with open(standard_yaml_file, "r") as f:
+                    # Use importlib.resources for robust package resource access
+                    with importlib.resources.open_text('supy.sample_data', 'sample_config.yml') as f:
                         standard_data = yaml.safe_load(f)
                 except FileNotFoundError:
                     print(
@@ -848,14 +842,8 @@ Modes:
         user_yaml_file = validate_input_file(user_yaml_file)
 
         # Step 2: Setup paths
-        # Fix: Make standard file path absolute to work from any directory
-        current_file = os.path.abspath(__file__)
-        suews_root = os.path.dirname(
-            os.path.dirname(os.path.dirname(os.path.dirname(current_file)))
-        )
-        standard_yaml_file = os.path.join(
-            suews_root, "src/supy/sample_data/sample_config.yml"
-        )
+        # Use importlib.resources for robust package resource access
+        standard_yaml_file = str(importlib.resources.files('supy.sample_data') / 'sample_config.yml')
 
         # Print workflow header (after variables are defined)
         phase_desc = {

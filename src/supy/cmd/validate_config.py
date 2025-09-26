@@ -9,8 +9,8 @@ import click
 import yaml
 import json
 import sys
-import os
 from pathlib import Path
+import importlib.resources
 from typing import Optional, List
 import jsonschema
 from rich.console import Console
@@ -718,14 +718,8 @@ def _execute_pipeline(file, pipeline, mode):
         console.print(f"[red]✗ {e}[/red]")
         return 1
 
-    # Fix: Make standard file path absolute to work from any directory
-    current_file = os.path.abspath(__file__)
-    suews_root = os.path.dirname(
-        os.path.dirname(os.path.dirname(os.path.dirname(current_file)))
-    )
-    standard_yaml_file = os.path.join(
-        suews_root, "src/supy/sample_data/sample_config.yml"
-    )
+    # Use importlib.resources for robust package resource access
+    standard_yaml_file = str(importlib.resources.files('supy.sample_data') / 'sample_config.yml')
 
     (
         uptodate_file,

@@ -782,7 +782,11 @@ def _execute_pipeline(file, pipeline, mode):
     if not _check_experimental_features_restriction(user_yaml_file, mode):
         return 1
 
-    standard_yaml_file = "src/supy/sample_data/sample_config.yml"
+    # Fix: Make standard file path absolute to work from any directory
+    # Find SUEWS root by looking for the src/supy directory structure
+    current_file = os.path.abspath(__file__)
+    suews_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(current_file))))
+    standard_yaml_file = os.path.join(suews_root, "src/supy/sample_data/sample_config.yml")
 
     (
         uptodate_file,

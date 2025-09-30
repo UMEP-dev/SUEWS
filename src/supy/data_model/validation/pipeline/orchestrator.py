@@ -334,9 +334,13 @@ def create_consolidated_report(
     title = phase_titles.get(phase_str, "SUEWS Validation Report")
 
     # Deduplicate messages while preserving order
+    # Also filter out the generic "All validations passed" message if there are other messages
     seen = set()
     deduplicated_messages = []
     for message in no_action_messages:
+        # Skip the generic "all passed" message - it will be added later if needed
+        if message.strip() == "- All validations passed with no issues detected":
+            continue
         if message not in seen:
             seen.add(message)
             deduplicated_messages.append(message)
@@ -1511,7 +1515,7 @@ Modes:
             )
 
             if not phase_c_success:
-                # Phase C failed in BC workflow - create final user files from Phase C error report and Phase B YAML
+                # Phase C failed in BC workflow - consolidate Phase B messages into Phase C error report
                 dirname = os.path.dirname(user_yaml_file)
                 basename = os.path.basename(user_yaml_file)
                 name_without_ext = os.path.splitext(basename)[0]
@@ -1519,12 +1523,47 @@ Modes:
                 final_report = os.path.join(dirname, f"report_{name_without_ext}.txt")
 
                 try:
+                    # Extract NO ACTION NEEDED messages from Phase B
+                    phase_b_messages = []
+                    if os.path.exists(science_report_file):
+                        phase_b_messages = extract_no_action_messages_from_report(science_report_file)
+
+                    # Read Phase C error report and append Phase B messages
+                    if os.path.exists(pydantic_report_file):
+                        with open(pydantic_report_file, 'r') as f:
+                            phase_c_content = f.read()
+
+                        # Append Phase B NO ACTION NEEDED messages to Phase C report
+                        if phase_b_messages:
+                            # Remove the closing separator and any trailing separators from Phase C report
+                            lines = phase_c_content.rstrip().split('\n')
+                            while lines and lines[-1].strip() == f"# {'=' * 50}":
+                                lines.pop()
+                            phase_c_content = '\n'.join(lines)
+
+                            # Ensure proper spacing before NO ACTION NEEDED section
+                            if not phase_c_content.endswith('\n\n'):
+                                phase_c_content += '\n'
+
+                            # Add NO ACTION NEEDED section
+                            phase_c_content += "\n## NO ACTION NEEDED"
+
+                            # Add Phase B messages
+                            for msg in phase_b_messages:
+                                phase_c_content += f"\n{msg}"
+
+                            # Add closing separator
+                            phase_c_content += f"\n\n# {'=' * 50}\n"
+
+                            # Write consolidated report
+                            with open(pydantic_report_file, 'w') as f:
+                                f.write(phase_c_content)
+
                     # Use Phase B YAML as final (last successful phase)
                     if os.path.exists(science_yaml_file):
                         shutil.move(science_yaml_file, final_yaml)
 
-                    # Phase C report should already be at pydantic_report_file (final name)
-                    # Clean up intermediate Phase B report
+                    # Clean up intermediate Phase B report (now that we've extracted messages)
                     if os.path.exists(science_report_file):
                         os.remove(science_report_file)
 

@@ -1130,7 +1130,10 @@ def _execute_pipeline(file, pipeline, mode):
         )
 
         if not c_ok:
-            # Phase C failed in BC workflow - create final user files from Phase C error report and Phase B YAML
+            # Phase C failed in BC workflow - consolidate Phase B messages into Phase C error report
+            from ..data_model.validation.pipeline.orchestrator import (
+                extract_no_action_messages_from_report,
+            )
             import shutil
 
             # Determine final file paths
@@ -1141,12 +1144,47 @@ def _execute_pipeline(file, pipeline, mode):
             final_report = dirname / f"report_{name_without_ext}.txt"
 
             try:
+                # Extract NO ACTION NEEDED messages from Phase B
+                phase_b_messages = []
+                if Path(science_report_file).exists():
+                    phase_b_messages = extract_no_action_messages_from_report(science_report_file)
+
+                # Read Phase C error report and append Phase B messages
+                if Path(pydantic_report_file).exists():
+                    with open(pydantic_report_file, 'r') as f:
+                        phase_c_content = f.read()
+
+                    # Append Phase B NO ACTION NEEDED messages to Phase C report
+                    if phase_b_messages:
+                        # Remove the closing separator and any trailing separators from Phase C report
+                        lines = phase_c_content.rstrip().split('\n')
+                        while lines and lines[-1].strip() == f"# {'=' * 50}":
+                            lines.pop()
+                        phase_c_content = '\n'.join(lines)
+
+                        # Ensure proper spacing before NO ACTION NEEDED section
+                        if not phase_c_content.endswith('\n\n'):
+                            phase_c_content += '\n'
+
+                        # Add NO ACTION NEEDED section
+                        phase_c_content += "\n## NO ACTION NEEDED"
+
+                        # Add Phase B messages
+                        for msg in phase_b_messages:
+                            phase_c_content += f"\n{msg}"
+
+                        # Add closing separator
+                        phase_c_content += f"\n\n# {'=' * 50}\n"
+
+                        # Write consolidated report
+                        with open(pydantic_report_file, 'w') as f:
+                            f.write(phase_c_content)
+
                 # Use Phase B YAML as final (last successful phase)
                 if Path(science_yaml_file).exists():
                     shutil.move(str(science_yaml_file), str(final_yaml))
 
-                # Phase C report should already be at pydantic_report_file (final name)
-                # Clean up intermediate Phase B report
+                # Clean up intermediate Phase B report (now that we've extracted messages)
                 if Path(science_report_file).exists():
                     Path(science_report_file).unlink()
 

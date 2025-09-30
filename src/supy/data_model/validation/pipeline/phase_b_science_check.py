@@ -109,7 +109,8 @@ class ValidationResult:
     status: str  # 'PASS', 'WARNING', 'ERROR'
     category: str  # 'PHYSICS', 'GEOGRAPHY', 'SEASONAL', 'LAND_COVER', 'MODEL_OPTIONS'
     parameter: str
-    site_index: Optional[int] = None
+    site_index: Optional[int] = None  # Array index (for internal use)
+    site_gridid: Optional[int] = None  # GRIDID value (for display)
     message: str = ""
     suggested_value: Any = None
     applied_fix: bool = False
@@ -120,7 +121,8 @@ class ScientificAdjustment:
     """Record of automatic scientific adjustment applied."""
 
     parameter: str
-    site_index: Optional[int] = None
+    site_index: Optional[int] = None  # Array index (for internal use)
+    site_gridid: Optional[int] = None  # GRIDID value (for display)
     old_value: Any = None
     new_value: Any = None
     reason: str = ""
@@ -199,6 +201,17 @@ def get_value_safe(param_dict, param_key, default=None):
         return param["value"]
     else:
         return param
+
+
+def get_site_gridid(site_data: dict) -> int:
+    """Extract GRIDID from site data, handling both direct and RefValue formats."""
+    if isinstance(site_data, dict):
+        gridiv = site_data.get("gridiv")
+        if isinstance(gridiv, dict) and "value" in gridiv:
+            return gridiv["value"]
+        elif gridiv is not None:
+            return gridiv
+    return None
 
 
 def validate_phase_b_inputs(
@@ -410,6 +423,7 @@ def validate_land_cover_consistency(yaml_data: dict) -> List[ValidationResult]:
     for site_idx, site in enumerate(sites):
         props = site.get("properties", {})
         land_cover = props.get("land_cover")
+        site_gridid = get_site_gridid(site)
 
         if not land_cover:
             results.append(
@@ -418,6 +432,7 @@ def validate_land_cover_consistency(yaml_data: dict) -> List[ValidationResult]:
                     category="LAND_COVER",
                     parameter="land_cover",
                     site_index=site_idx,
+                    site_gridid=site_gridid,
                     message="Missing land_cover block",
                     suggested_value="Add land_cover configuration with surface fractions",
                 )
@@ -443,6 +458,7 @@ def validate_land_cover_consistency(yaml_data: dict) -> List[ValidationResult]:
                         category="LAND_COVER",
                         parameter="land_cover.surface_fractions",
                         site_index=site_idx,
+                        site_gridid=site_gridid,
                         message=f"All surface fractions are zero or missing",
                         suggested_value="Set surface fractions (paved.sfr, bldgs.sfr, evetr.sfr, dectr.sfr, grass.sfr, bsoil.sfr, water.sfr) that sum to 1.0",
                     )
@@ -464,6 +480,7 @@ def validate_land_cover_consistency(yaml_data: dict) -> List[ValidationResult]:
                         category="LAND_COVER",
                         parameter=f"{max_surface}.sfr",
                         site_index=site_idx,
+                        site_gridid=site_gridid,
                         message=f"Surface fractions sum to {sfr_sum:.6f}, should equal 1.0 (auto-correction range: 0.9999-1.0001, current: {surface_list})",
                         suggested_value=f"Adjust {max_surface}.sfr or other surface fractions so they sum to exactly 1.0",
                     )
@@ -492,6 +509,7 @@ def validate_land_cover_consistency(yaml_data: dict) -> List[ValidationResult]:
                             category="LAND_COVER",
                             parameter=f"{surface_type}.{param_name}",
                             site_index=site_idx,
+                            site_gridid=site_gridid,
                             message=readable_message,
                             suggested_value=actionable_suggestion,
                         )
@@ -529,6 +547,7 @@ def validate_land_cover_consistency(yaml_data: dict) -> List[ValidationResult]:
                             category="LAND_COVER",
                             parameter=f"land_cover.{surf_type}",
                             site_index=site_idx,
+                            site_gridid=site_gridid,
                             message=message,
                             suggested_value=suggested_fix,
                         )
@@ -580,6 +599,7 @@ def validate_geographic_parameters(yaml_data: dict) -> List[ValidationResult]:
 
     for site_idx, site in enumerate(sites):
         props = site.get("properties", {})
+        site_gridid = get_site_gridid(site)
 
         lat = get_value_safe(props, "lat")
 
@@ -590,6 +610,7 @@ def validate_geographic_parameters(yaml_data: dict) -> List[ValidationResult]:
                     category="GEOGRAPHY",
                     parameter="lat",
                     site_index=site_idx,
+                    site_gridid=site_gridid,
                     message="Latitude is missing or null",
                     suggested_value="Set latitude value between -90 and 90 degrees",
                 )
@@ -601,6 +622,7 @@ def validate_geographic_parameters(yaml_data: dict) -> List[ValidationResult]:
                     category="GEOGRAPHY",
                     parameter="lat",
                     site_index=site_idx,
+                    site_gridid=site_gridid,
                     message="Latitude must be a numeric value",
                     suggested_value="Set latitude as a number between -90 and 90 degrees",
                 )
@@ -612,6 +634,7 @@ def validate_geographic_parameters(yaml_data: dict) -> List[ValidationResult]:
                     category="GEOGRAPHY",
                     parameter="lat",
                     site_index=site_idx,
+                    site_gridid=site_gridid,
                     message=f"Latitude {lat} is outside valid range [-90, 90]",
                     suggested_value="Set latitude between -90 and 90 degrees",
                 )
@@ -626,6 +649,7 @@ def validate_geographic_parameters(yaml_data: dict) -> List[ValidationResult]:
                     category="GEOGRAPHY",
                     parameter="lng",
                     site_index=site_idx,
+                    site_gridid=site_gridid,
                     message="Longitude is missing or null",
                     suggested_value="Set longitude value between -180 and 180 degrees",
                 )
@@ -637,6 +661,7 @@ def validate_geographic_parameters(yaml_data: dict) -> List[ValidationResult]:
                     category="GEOGRAPHY",
                     parameter="lng",
                     site_index=site_idx,
+                    site_gridid=site_gridid,
                     message="Longitude must be a numeric value",
                     suggested_value="Set longitude as a number between -180 and 180 degrees",
                 )
@@ -648,6 +673,7 @@ def validate_geographic_parameters(yaml_data: dict) -> List[ValidationResult]:
                     category="GEOGRAPHY",
                     parameter="lng",
                     site_index=site_idx,
+                    site_gridid=site_gridid,
                     message=f"Longitude {lng} is outside valid range [-180, 180]",
                     suggested_value="Set longitude between -180 and 180 degrees",
                 )
@@ -662,6 +688,7 @@ def validate_geographic_parameters(yaml_data: dict) -> List[ValidationResult]:
                     category="GEOGRAPHY",
                     parameter="timezone",
                     site_index=site_idx,
+                    site_gridid=site_gridid,
                     message="Timezone parameter is missing - will be calculated automatically from latitude and longitude",
                     suggested_value="Timezone will be set based on your coordinates. You can also manually set the timezone value if you prefer a specific UTC offset",
                 )
@@ -679,6 +706,7 @@ def validate_geographic_parameters(yaml_data: dict) -> List[ValidationResult]:
                         category="GEOGRAPHY",
                         parameter="anthropogenic_emissions.startdls,enddls",
                         site_index=site_idx,
+                        site_gridid=site_gridid,
                         message="Daylight saving parameters (startdls, enddls) are missing - will be calculated automatically from geographic coordinates",
                         suggested_value="Parameters will be set based on your location. You can also manually set startdls and enddls if you prefer specific values",
                     )
@@ -808,6 +836,7 @@ def adjust_surface_temperatures(
         props = site.get("properties", {})
         initial_states = site.get("initial_states", {})
         stebbs = props.get("stebbs", {})
+        site_gridid = get_site_gridid(site)
 
         lat_entry = props.get("lat", {})
         lat = lat_entry.get("value") if isinstance(lat_entry, dict) else lat_entry
@@ -874,6 +903,7 @@ def adjust_surface_temperatures(
                     ScientificAdjustment(
                         parameter=f"initial_states.{surface_type}",
                         site_index=site_idx,
+                        site_gridid=site_gridid,
                         old_value=param_list,
                         new_value=f"{avg_temp} C",
                         reason=f"Set from CRU data for coordinates ({lat:.2f}, {lng:.2f}) for month {month}",
@@ -892,6 +922,7 @@ def adjust_surface_temperatures(
                         ScientificAdjustment(
                             parameter=f"stebbs.{key}",
                             site_index=site_idx,
+                            site_gridid=site_gridid,
                             old_value=str(old_val),
                             new_value=f"{avg_temp} C",
                             reason=f"Set from CRU data for coordinates ({lat:.2f}, {lng:.2f}) for month {month}",
@@ -916,6 +947,7 @@ def adjust_land_cover_fractions(
     for site_idx, site in enumerate(sites):
         props = site.get("properties", {})
         land_cover = props.get("land_cover")
+        site_gridid = get_site_gridid(site)
 
         if not land_cover:
             continue
@@ -951,6 +983,7 @@ def adjust_land_cover_fractions(
                     ScientificAdjustment(
                         parameter=f"{max_surface}.sfr",
                         site_index=site_idx,
+                        site_gridid=site_gridid,
                         old_value=f"{old_value:.6f}",
                         new_value=f"{new_value:.6f}",
                         reason=f"Auto-corrected sum from {sfr_sum:.6f} to 1.0 (small floating point error)",
@@ -961,6 +994,7 @@ def adjust_land_cover_fractions(
                     ScientificAdjustment(
                         parameter=f"{max_surface}.sfr",
                         site_index=site_idx,
+                        site_gridid=site_gridid,
                         old_value="rounded to achieve sum of land cover fractions equal to 1.0",
                         new_value=f"tolerance level: {abs(correction):.2e}",
                         reason="Small floating point rounding applied to surface with max surface fraction value",
@@ -984,6 +1018,7 @@ def adjust_land_cover_fractions(
                     ScientificAdjustment(
                         parameter=f"{max_surface}.sfr",
                         site_index=site_idx,
+                        site_gridid=site_gridid,
                         old_value=f"{old_value:.6f}",
                         new_value=f"{new_value:.6f}",
                         reason=f"Auto-corrected sum from {sfr_sum:.6f} to 1.0 (small floating point error)",
@@ -994,6 +1029,7 @@ def adjust_land_cover_fractions(
                     ScientificAdjustment(
                         parameter=f"{max_surface}.sfr",
                         site_index=site_idx,
+                        site_gridid=site_gridid,
                         old_value="rounded to achieve sum of land cover fractions equal to 1.0",
                         new_value=f"tolerance level: {abs(correction):.2e}",
                         reason="Small floating point rounding applied to surface with max surface fraction value",
@@ -1022,6 +1058,7 @@ def adjust_model_dependent_nullification(
         for site_idx, site in enumerate(sites):
             props = site.get("properties", {})
             stebbs_block = props.get("stebbs", {})
+            site_gridid = get_site_gridid(site)
 
             if stebbs_block:
                 nullified_params = []
@@ -1046,6 +1083,7 @@ def adjust_model_dependent_nullification(
                         ScientificAdjustment(
                             parameter="stebbs",
                             site_index=site_idx,
+                        site_gridid=site_gridid,
                             old_value=f"stebbsmethod is switched off, nullified {len(nullified_params)} related parameters - {param_list}",
                             new_value="null",
                             reason=f"stebbsmethod switched off, nullified {len(nullified_params)} related parameters",
@@ -1103,6 +1141,7 @@ def adjust_seasonal_parameters(
     for site_idx, site in enumerate(sites):
         props = site.get("properties", {})
         initial_states = site.get("initial_states", {})
+        site_gridid = get_site_gridid(site)
 
         # Get site coordinates
         lat_entry = props.get("lat", {})
@@ -1128,6 +1167,7 @@ def adjust_seasonal_parameters(
                     ScientificAdjustment(
                         parameter="snowalb",
                         site_index=site_idx,
+                        site_gridid=site_gridid,
                         old_value=str(current_snowalb),
                         new_value="null",
                         reason=f"Nullified for {season} season (no snow expected)",
@@ -1164,6 +1204,7 @@ def adjust_seasonal_parameters(
                             ScientificAdjustment(
                                 parameter="dectr.lai_id",
                                 site_index=site_idx,
+                        site_gridid=site_gridid,
                                 old_value=str(current_lai)
                                 if current_lai is not None
                                 else "undefined",
@@ -1182,6 +1223,7 @@ def adjust_seasonal_parameters(
                         ScientificAdjustment(
                             parameter="dectr.lai_id",
                             site_index=site_idx,
+                        site_gridid=site_gridid,
                             old_value="previous value",
                             new_value="null",
                             reason="Nullified (no deciduous trees: sfr=0)",
@@ -1214,6 +1256,7 @@ def adjust_seasonal_parameters(
                                 ScientificAdjustment(
                                     parameter="anthropogenic_emissions.startdls",
                                     site_index=site_idx,
+                        site_gridid=site_gridid,
                                     old_value=str(current_startdls),
                                     new_value=str(start_dls),
                                     reason=f"Calculated DLS start for coordinates ({lat:.2f}, {lng:.2f})",
@@ -1224,6 +1267,7 @@ def adjust_seasonal_parameters(
                                 ScientificAdjustment(
                                     parameter="anthropogenic_emissions.enddls",
                                     site_index=site_idx,
+                        site_gridid=site_gridid,
                                     old_value=str(current_enddls),
                                     new_value=str(end_dls),
                                     reason=f"Calculated DLS end for coordinates ({lat:.2f}, {lng:.2f})",
@@ -1241,6 +1285,7 @@ def adjust_seasonal_parameters(
                             ScientificAdjustment(
                                 parameter="timezone",
                                 site_index=site_idx,
+                        site_gridid=site_gridid,
                                 old_value=str(current_timezone),
                                 new_value=str(tz_offset),
                                 reason=f"Calculated timezone offset for coordinates ({lat:.2f}, {lng:.2f})",
@@ -1362,7 +1407,7 @@ def create_science_report(
         )
         for error in errors:
             site_ref = (
-                f" at site [{error.site_index}]" if error.site_index is not None else ""
+                f" at site [{error.site_gridid}]" if error.site_gridid is not None else ""
             )
             report_lines.append(f"-- {error.parameter}{site_ref}: {error.message}")
             if error.suggested_value is not None:
@@ -1395,8 +1440,8 @@ def create_science_report(
         report_lines.append(f"- Updated ({total_params_changed}) parameter(s):")
         for adjustment in adjustments:
             site_ref = (
-                f" at site [{adjustment.site_index}]"
-                if adjustment.site_index is not None
+                f" at site [{adjustment.site_gridid}]"
+                if adjustment.site_gridid is not None
                 else ""
             )
             report_lines.append(
@@ -1434,8 +1479,8 @@ def create_science_report(
         report_lines.append(f"- Revise ({len(warnings)}) warnings:")
         for warning in warnings:
             site_ref = (
-                f" at site [{warning.site_index}]"
-                if warning.site_index is not None
+                f" at site [{warning.site_gridid}]"
+                if warning.site_gridid is not None
                 else ""
             )
             report_lines.append(f"-- {warning.parameter}{site_ref}: {warning.message}")
@@ -1473,7 +1518,7 @@ def print_critical_halt_message(critical_errors: List[ValidationResult]):
 
     for error in critical_errors:
         site_ref = (
-            f" at site [{error.site_index}]" if error.site_index is not None else ""
+            f" at site [{error.site_gridid}]" if error.site_gridid is not None else ""
         )
         print(f"  ✗ {error.parameter}{site_ref}")
         print(f"    {error.message}")
@@ -1510,7 +1555,7 @@ def print_science_check_results(
         print("PHASE B -- SCIENTIFIC ERRORS FOUND:")
         for error in errors:
             site_ref = (
-                f" at site [{error.site_index}]" if error.site_index is not None else ""
+                f" at site [{error.site_gridid}]" if error.site_gridid is not None else ""
             )
             print(f"  - {error.parameter}{site_ref}: {error.message}")
         print(

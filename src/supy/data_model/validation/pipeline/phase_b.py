@@ -1094,7 +1094,7 @@ def adjust_model_dependent_nullification(
                         ScientificAdjustment(
                             parameter="stebbs",
                             site_index=site_idx,
-                        site_gridid=site_gridid,
+                            site_gridid=site_gridid,
                             old_value=f"stebbsmethod is switched off, nullified {len(nullified_params)} related parameters - {param_list}",
                             new_value="null",
                             reason=f"stebbsmethod switched off, nullified {len(nullified_params)} related parameters",
@@ -1215,7 +1215,7 @@ def adjust_seasonal_parameters(
                             ScientificAdjustment(
                                 parameter="dectr.lai_id",
                                 site_index=site_idx,
-                        site_gridid=site_gridid,
+                                site_gridid=site_gridid,
                                 old_value=str(current_lai)
                                 if current_lai is not None
                                 else "undefined",
@@ -1234,7 +1234,7 @@ def adjust_seasonal_parameters(
                         ScientificAdjustment(
                             parameter="dectr.lai_id",
                             site_index=site_idx,
-                        site_gridid=site_gridid,
+                            site_gridid=site_gridid,
                             old_value="previous value",
                             new_value="null",
                             reason="Nullified (no deciduous trees: sfr=0)",
@@ -1267,7 +1267,7 @@ def adjust_seasonal_parameters(
                                 ScientificAdjustment(
                                     parameter="anthropogenic_emissions.startdls",
                                     site_index=site_idx,
-                        site_gridid=site_gridid,
+                                    site_gridid=site_gridid,
                                     old_value=str(current_startdls),
                                     new_value=str(start_dls),
                                     reason=f"Calculated DLS start for coordinates ({lat:.2f}, {lng:.2f})",
@@ -1278,7 +1278,7 @@ def adjust_seasonal_parameters(
                                 ScientificAdjustment(
                                     parameter="anthropogenic_emissions.enddls",
                                     site_index=site_idx,
-                        site_gridid=site_gridid,
+                                    site_gridid=site_gridid,
                                     old_value=str(current_enddls),
                                     new_value=str(end_dls),
                                     reason=f"Calculated DLS end for coordinates ({lat:.2f}, {lng:.2f})",
@@ -1296,7 +1296,7 @@ def adjust_seasonal_parameters(
                             ScientificAdjustment(
                                 parameter="timezone",
                                 site_index=site_idx,
-                        site_gridid=site_gridid,
+                                site_gridid=site_gridid,
                                 old_value=str(current_timezone),
                                 new_value=str(tz_offset),
                                 reason=f"Calculated timezone offset for coordinates ({lat:.2f}, {lng:.2f})",
@@ -1409,7 +1409,9 @@ def create_science_report(
         )
         for error in errors:
             site_ref = (
-                f" at site [{error.site_gridid}]" if error.site_gridid is not None else ""
+                f" at site [{error.site_gridid}]"
+                if error.site_gridid is not None
+                else ""
             )
             report_lines.append(f"-- {error.parameter}{site_ref}: {error.message}")
             if error.suggested_value is not None:
@@ -1557,7 +1559,9 @@ def print_science_check_results(
         print("PHASE B -- SCIENTIFIC ERRORS FOUND:")
         for error in errors:
             site_ref = (
-                f" at site [{error.site_gridid}]" if error.site_gridid is not None else ""
+                f" at site [{error.site_gridid}]"
+                if error.site_gridid is not None
+                else ""
             )
             print(f"  - {error.parameter}{site_ref}: {error.message}")
         print(

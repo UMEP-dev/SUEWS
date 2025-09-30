@@ -168,7 +168,11 @@ def detect_pydantic_defaults(
                     zip(original_value, processed_value)
                 ):
                     # Use GRIDID for sites array instead of numeric index
-                    if current_path == "sites" and isinstance(orig_item, dict) and "gridiv" in orig_item:
+                    if (
+                        current_path == "sites"
+                        and isinstance(orig_item, dict)
+                        and "gridiv" in orig_item
+                    ):
                         gridid = orig_item["gridiv"]
                         list_path = f"{current_path}.{gridid}"
                     else:

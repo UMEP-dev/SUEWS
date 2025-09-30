@@ -2193,7 +2193,9 @@ class SUEWSConfig(BaseModel):
         return self
 
     @classmethod
-    def _transform_validation_error(cls, error: ValidationError, config_data: dict) -> ValidationError:
+    def _transform_validation_error(
+        cls, error: ValidationError, config_data: dict
+    ) -> ValidationError:
         """Transform Pydantic validation errors to use GRIDID instead of array indices in error messages."""
 
         # Extract GRIDID mapping from sites

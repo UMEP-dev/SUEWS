@@ -1038,11 +1038,19 @@ class InitialStates(BaseModel):
                     break
             return layers
 
+        # Detect the actual number of layers
+        # First try to get nlayer directly from the dataframe
+        try:
+            n_layers = int(df.loc[grid_id, ("nlayer", "0")])
+        except (KeyError, ValueError, TypeError):
+            # If nlayer not available, use default
+            n_layers = len(cls.model_fields["roofs"].default)
+
         roofs = reconstruct_layers(
-            "roof", SurfaceInitialState, len(cls.model_fields["roofs"].default)
+            "roof", SurfaceInitialState, n_layers
         )
         walls = reconstruct_layers(
-            "wall", SurfaceInitialState, len(cls.model_fields["walls"].default)
+            "wall", SurfaceInitialState, n_layers
         )
 
         dqndt = df.loc[grid_id, ("dqndt", "0")]

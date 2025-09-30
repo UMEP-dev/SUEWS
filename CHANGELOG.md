@@ -34,6 +34,12 @@
 
 ## 2025
 
+### 30 Sep 2025
+- [bugfix] Fixed SPARTACUS multi-layer configuration handling to correctly create roof/wall arrays matching nlayer value (#698, #706, #707, #708)
+  - Conversion now properly reads nlayer from GridLayoutKc.nml and creates matching number of roof/wall layers
+  - Initial states now correctly reflect the specified number of vertical layers
+  - Added defensive coding to handle missing layer data gracefully
+
 ### 26 Sep 2025
 - [bugfix] Fixed path resolution bug in `suews-validate` CLI command that prevented validation from working when run from subdirectories
 

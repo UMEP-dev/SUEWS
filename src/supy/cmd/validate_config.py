@@ -947,9 +947,29 @@ def _execute_pipeline(file, pipeline, mode):
             console.print(f"Updated YAML: {final_yaml}")
             return 1
 
-        # Both A and B succeeded - clean up intermediate files
-        ok = a_ok and b_ok
+        # Both A and B succeeded - consolidate reports and clean up intermediate files
+        from ..data_model.validation.pipeline.orchestrator import (
+            extract_no_action_messages_from_report,
+            create_consolidated_report,
+        )
+
         try:
+            # Extract NO ACTION NEEDED messages from both phases
+            all_messages = []
+            if Path(report_file).exists():
+                all_messages.extend(extract_no_action_messages_from_report(report_file))
+            if Path(science_report_file).exists():
+                all_messages.extend(extract_no_action_messages_from_report(science_report_file))
+
+            # Create consolidated final report
+            create_consolidated_report(
+                phases_run=["A", "B"],
+                no_action_messages=all_messages,
+                final_report_file=science_report_file,
+                mode=mode
+            )
+
+            # Clean up intermediate files
             if Path(report_file).exists():
                 Path(report_file).unlink()  # Remove Phase A report
             if Path(uptodate_file).exists():
@@ -973,9 +993,13 @@ def _execute_pipeline(file, pipeline, mode):
             silent=True,
         )
         if not a_ok:
+            # Phase A failed in AC workflow - create final user files from Phase A outputs
+            final_yaml, final_report = _processor_create_final_user_files(
+                user_yaml_file, uptodate_file, report_file
+            )
             console.print("[red]✗ Validation failed[/red]")
-            console.print(f"Report: {pydantic_report_file}")
-            console.print(f"Updated YAML: {pydantic_yaml_file}")
+            console.print(f"Report: {final_report}")
+            console.print(f"Updated YAML: {final_yaml}")
             return 1
 
         c_ok = _processor_run_phase_c(
@@ -987,16 +1011,73 @@ def _execute_pipeline(file, pipeline, mode):
             phases_run=["A", "C"],
             silent=True,
         )
-        ok = a_ok and c_ok
-        console.print(
-            "[green]✓ Validation completed[/green]"
-            if ok
-            else "[red]✗ Validation failed[/red]"
+
+        if not c_ok:
+            # Phase C failed in AC workflow - create final user files from Phase C error report and Phase A YAML
+            import shutil
+
+            # Determine final file paths
+            dirname = Path(user_yaml_file).parent
+            basename = Path(user_yaml_file).name
+            name_without_ext = Path(user_yaml_file).stem
+            final_yaml = dirname / f"updated_{basename}"
+            final_report = dirname / f"report_{name_without_ext}.txt"
+
+            try:
+                # Use Phase A YAML as final (last successful phase)
+                if Path(uptodate_file).exists():
+                    shutil.move(str(uptodate_file), str(final_yaml))
+
+                # Phase C report should already be at pydantic_report_file (final name)
+                # Clean up intermediate Phase A report
+                if Path(report_file).exists():
+                    Path(report_file).unlink()
+
+                # Remove failed Phase C YAML if it exists (only if different from final_yaml)
+                if Path(pydantic_yaml_file).exists() and str(pydantic_yaml_file) != str(final_yaml):
+                    Path(pydantic_yaml_file).unlink()
+            except Exception as e:
+                console.print(f"[yellow]Warning during cleanup: {e}[/yellow]")
+
+            console.print("[red]✗ Validation failed[/red]")
+            console.print(f"Report: {final_report}")
+            console.print(f"Updated YAML: {final_yaml}")
+            return 1
+
+        # Both A and C succeeded - consolidate reports and clean up intermediate files
+        from ..data_model.validation.pipeline.orchestrator import (
+            extract_no_action_messages_from_report,
+            create_consolidated_report,
         )
-        if ok:
-            console.print(f"Report: {pydantic_report_file}")
-            console.print(f"Updated YAML: {pydantic_yaml_file}")
-        return 0 if ok else 1
+
+        try:
+            # Extract NO ACTION NEEDED messages from both phases
+            all_messages = []
+            if Path(report_file).exists():
+                all_messages.extend(extract_no_action_messages_from_report(report_file))
+            if Path(pydantic_report_file).exists():
+                all_messages.extend(extract_no_action_messages_from_report(pydantic_report_file))
+
+            # Create consolidated final report
+            create_consolidated_report(
+                phases_run=["A", "C"],
+                no_action_messages=all_messages,
+                final_report_file=pydantic_report_file,
+                mode=mode
+            )
+
+            # Clean up intermediate files
+            if Path(report_file).exists():
+                Path(report_file).unlink()  # Remove Phase A report
+            if Path(uptodate_file).exists():
+                Path(uptodate_file).unlink()  # Remove Phase A YAML
+        except Exception:
+            pass
+
+        console.print("[green]✓ Validation completed[/green]")
+        console.print(f"Report: {pydantic_report_file}")
+        console.print(f"Updated YAML: {pydantic_yaml_file}")
+        return 0
 
     if pipeline == "BC":
         b_ok = _processor_run_phase_b(
@@ -1012,10 +1093,32 @@ def _execute_pipeline(file, pipeline, mode):
             silent=True,
         )
         if not b_ok:
+            # Phase B failed in BC workflow - create final user files from Phase B outputs
+            import shutil
+
+            # Determine final file paths
+            dirname = Path(user_yaml_file).parent
+            basename = Path(user_yaml_file).name
+            name_without_ext = Path(user_yaml_file).stem
+            final_yaml = dirname / f"updated_{basename}"
+            final_report = dirname / f"report_{name_without_ext}.txt"
+
+            try:
+                # Use Phase B YAML as final (if exists)
+                if Path(science_yaml_file).exists():
+                    shutil.move(str(science_yaml_file), str(final_yaml))
+
+                # Use Phase B report as final
+                if Path(science_report_file).exists():
+                    shutil.move(str(science_report_file), str(final_report))
+            except Exception as e:
+                console.print(f"[yellow]Warning during cleanup: {e}[/yellow]")
+
             console.print("[red]✗ Validation failed[/red]")
-            console.print(f"Report: {pydantic_report_file}")
-            console.print(f"Updated YAML: {pydantic_yaml_file}")
-            sys.exit(1)
+            console.print(f"Report: {final_report}")
+            if Path(final_yaml).exists():
+                console.print(f"Updated YAML: {final_yaml}")
+            return 1
 
         c_ok = _processor_run_phase_c(
             science_yaml_file,
@@ -1025,16 +1128,73 @@ def _execute_pipeline(file, pipeline, mode):
             phases_run=["B", "C"],
             silent=True,
         )
-        ok = b_ok and c_ok
-        console.print(
-            "[green]✓ Validation completed[/green]"
-            if ok
-            else "[red]✗ Validation failed[/red]"
+
+        if not c_ok:
+            # Phase C failed in BC workflow - create final user files from Phase C error report and Phase B YAML
+            import shutil
+
+            # Determine final file paths
+            dirname = Path(user_yaml_file).parent
+            basename = Path(user_yaml_file).name
+            name_without_ext = Path(user_yaml_file).stem
+            final_yaml = dirname / f"updated_{basename}"
+            final_report = dirname / f"report_{name_without_ext}.txt"
+
+            try:
+                # Use Phase B YAML as final (last successful phase)
+                if Path(science_yaml_file).exists():
+                    shutil.move(str(science_yaml_file), str(final_yaml))
+
+                # Phase C report should already be at pydantic_report_file (final name)
+                # Clean up intermediate Phase B report
+                if Path(science_report_file).exists():
+                    Path(science_report_file).unlink()
+
+                # Remove failed Phase C YAML if it exists (only if different from final_yaml)
+                if Path(pydantic_yaml_file).exists() and str(pydantic_yaml_file) != str(final_yaml):
+                    Path(pydantic_yaml_file).unlink()
+            except Exception as e:
+                console.print(f"[yellow]Warning during cleanup: {e}[/yellow]")
+
+            console.print("[red]✗ Validation failed[/red]")
+            console.print(f"Report: {final_report}")
+            console.print(f"Updated YAML: {final_yaml}")
+            return 1
+
+        # Both B and C succeeded - consolidate reports and clean up intermediate files
+        from ..data_model.validation.pipeline.orchestrator import (
+            extract_no_action_messages_from_report,
+            create_consolidated_report,
         )
-        if ok:
-            console.print(f"Report: {pydantic_report_file}")
-            console.print(f"Updated YAML: {pydantic_yaml_file}")
-        sys.exit(0 if ok else 1)
+
+        try:
+            # Extract NO ACTION NEEDED messages from both phases
+            all_messages = []
+            if Path(science_report_file).exists():
+                all_messages.extend(extract_no_action_messages_from_report(science_report_file))
+            if Path(pydantic_report_file).exists():
+                all_messages.extend(extract_no_action_messages_from_report(pydantic_report_file))
+
+            # Create consolidated final report
+            create_consolidated_report(
+                phases_run=["B", "C"],
+                no_action_messages=all_messages,
+                final_report_file=pydantic_report_file,
+                mode=mode
+            )
+
+            # Clean up intermediate files
+            if Path(science_report_file).exists():
+                Path(science_report_file).unlink()  # Remove Phase B report
+            if Path(science_yaml_file).exists():
+                Path(science_yaml_file).unlink()  # Remove Phase B YAML
+        except Exception:
+            pass
+
+        console.print("[green]✓ Validation completed[/green]")
+        console.print(f"Report: {pydantic_report_file}")
+        console.print(f"Updated YAML: {pydantic_yaml_file}")
+        return 0
 
     # Default: ABC
     a_ok = _processor_run_phase_a(

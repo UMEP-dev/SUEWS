@@ -333,6 +333,31 @@ def create_consolidated_report(
 
     title = phase_titles.get(phase_str, "SUEWS Validation Report")
 
+    # Deduplicate messages while preserving order
+    seen = set()
+    deduplicated_messages = []
+    for message in no_action_messages:
+        if message not in seen:
+            seen.add(message)
+            deduplicated_messages.append(message)
+
+    # Remove orphaned headers (headers ending with : that have no following detail lines starting with --)
+    filtered_messages = []
+    i = 0
+    while i < len(deduplicated_messages):
+        msg = deduplicated_messages[i]
+        # Check if this is a header line (starts with - but not --, ends with :)
+        if msg.strip().startswith('- ') and not msg.strip().startswith('-- ') and msg.strip().endswith(':'):
+            # Check if next line exists and is a detail line (starts with --)
+            if i + 1 < len(deduplicated_messages) and deduplicated_messages[i + 1].strip().startswith('-- '):
+                # Has following details, keep it
+                filtered_messages.append(msg)
+            # else: orphaned header, skip it
+        else:
+            # Not a header, keep it
+            filtered_messages.append(msg)
+        i += 1
+
     # Build final report content
     report_content = f"""# {title}
 # {"=" * 50}
@@ -341,8 +366,8 @@ def create_consolidated_report(
 
 ## NO ACTION NEEDED"""
 
-    if no_action_messages:
-        for message in no_action_messages:
+    if filtered_messages:
+        for message in filtered_messages:
             report_content += f"\n{message}"
     else:
         report_content += "\n- All validations passed with no issues detected"
@@ -437,7 +462,6 @@ def run_phase_a(
                 print("✗ Validation failed!")
                 print(f"Report: {report_file}")
                 print(f"Updated YAML: {uptodate_file}")
-                print(f"Suggestion: Fix issues in updated YAML and rerun validation.")
             return False
 
         if not silent:
@@ -500,9 +524,6 @@ def run_phase_b(
                 print("✗ Validation failed!")
                 print(f"Report: {science_report_file}")
                 print(f"Updated YAML: {science_yaml_file}")
-                print(
-                    f"Suggestion: Fix issues in updated YAML and consider to run phase AB."
-                )
             return False
 
         if not silent:
@@ -515,18 +536,12 @@ def run_phase_b(
                 print("✗ Validation failed!")
                 print(f"Report: {science_report_file}")
                 print(f"Updated YAML: {science_yaml_file}")
-                print(
-                    f"Suggestion: Fix issues in updated YAML and consider to run phase AB."
-                )
             return False
         else:
             if not silent:
                 print("✗ Validation failed!")
                 print(f"Report: {science_report_file}")
                 print(f"Updated YAML: {science_yaml_file}")
-                print(
-                    f"Suggestion: Fix issues in updated YAML and consider to run phase AB."
-                )
             return False
     except Exception as e:
         if not silent:
@@ -639,9 +654,6 @@ def run_phase_c(
                         print("✗ Validation failed!")
                         print(f"Report: {pydantic_report_file}")
                         print(f"Updated YAML: {pydantic_yaml_file}")
-                        print(
-                            f"Suggestion: Fix issues in updated YAML and rerun validation."
-                        )
                     return False
 
                 # Build NO ACTION NEEDED section if any defaults were detected
@@ -845,9 +857,6 @@ Validation passed
                     print("✗ Validation failed!")
                     print(f"Report: {pydantic_report_file}")
                     print(f"Updated YAML: {pydantic_yaml_file}")
-                    print(
-                        f"Suggestion: Fix issues in updated YAML and rerun validation."
-                    )
                 return False
 
         except ImportError as import_error:
@@ -1168,7 +1177,6 @@ Modes:
                 print("✗ Validation failed!")
                 print("Report:", final_report)
                 print("Updated YAML:", final_yaml)
-                print("Suggestion: Fix issues in updated YAML and rerun validation.")
             return 0 if phase_a_success else 1
 
         elif phase == "B":
@@ -1212,7 +1220,6 @@ Modes:
                 # Phase B standalone failure: only show Report and Suggestion (no Updated YAML)
                 print("✗ Validation failed!")
                 print("Report:", final_report)
-                print("Suggestion: Fix issues in report and rerun validation.")
             return 0 if phase_b_success else 1
 
         elif phase == "C":
@@ -1250,7 +1257,6 @@ Modes:
                 # Phase C standalone failure: only show Report and Suggestion (no Updated YAML)
                 print("✗ Validation failed!")
                 print("Report:", final_report)
-                print("Suggestion: Fix issues in report and rerun validation.")
             return 0 if phase_c_success else 1
 
         elif phase == "AB":
@@ -1275,9 +1281,6 @@ Modes:
                 print("✗ Validation failed!")
                 print(f"Report: {final_report}")
                 print(f"Updated YAML: {final_yaml}")
-                print(
-                    f"Suggestion: Fix issues in updated YAML and consider to rerun AB."
-                )
                 return 1
 
             print("[OK] Validation completed")
@@ -1325,13 +1328,26 @@ Modes:
                 print("✗ Validation failed!")
                 print(f"Report: {final_report}")
                 print(f"Updated YAML: {final_yaml}")
-                print(
-                    f"Suggestion: Fix issues in updated YAML and consider to rerun AB."
-                )
                 return 1
 
-            # Both A and B succeeded - clean up intermediate files
+            # Both A and B succeeded - consolidate reports and clean up intermediate files
             try:
+                # Extract NO ACTION NEEDED messages from both phases
+                all_messages = []
+                if os.path.exists(report_file):
+                    all_messages.extend(extract_no_action_messages_from_report(report_file))
+                if os.path.exists(science_report_file):
+                    all_messages.extend(extract_no_action_messages_from_report(science_report_file))
+
+                # Create consolidated final report
+                create_consolidated_report(
+                    phases_run=["A", "B"],
+                    no_action_messages=all_messages,
+                    final_report_file=science_report_file,
+                    mode=internal_mode
+                )
+
+                # Clean up intermediate files
                 if os.path.exists(report_file):
                     os.remove(report_file)  # Remove Phase A report
                 if os.path.exists(uptodate_file):
@@ -1374,7 +1390,6 @@ Modes:
                 print("✗ Validation failed!")
                 print(f"Report: {pydantic_report_file}")
                 print(f"Updated YAML: {pydantic_yaml_file}")
-                print(f"Suggestion: Fix issues in updated YAML and rerun validation.")
                 return 1
 
             print("[OK] Validation completed")
@@ -1389,27 +1404,64 @@ Modes:
                 silent=True,
             )
 
-            # Clean up intermediate files when complete workflow succeeds
-            workflow_success = phase_a_success and phase_c_success
-            if workflow_success:
-                try:
-                    if os.path.exists(report_file):
-                        os.remove(report_file)  # Remove Phase A report
-                    if os.path.exists(uptodate_file):
-                        os.remove(uptodate_file)  # Remove Phase A YAML
-                except Exception:
-                    pass  # Don't fail if cleanup doesn't work
+            if not phase_c_success:
+                # Phase C failed in AC workflow - create final user files from Phase C error report and Phase A YAML
+                dirname = os.path.dirname(user_yaml_file)
+                basename = os.path.basename(user_yaml_file)
+                name_without_ext = os.path.splitext(basename)[0]
+                final_yaml = os.path.join(dirname, f"updated_{basename}")
+                final_report = os.path.join(dirname, f"report_{name_without_ext}.txt")
 
-                print("[OK] Validation completed")
-                print("Report:", pydantic_report_file)
-                print("Updated YAML:", pydantic_yaml_file)
-                return 0
-            else:
+                try:
+                    # Use Phase A YAML as final (last successful phase)
+                    if os.path.exists(uptodate_file):
+                        shutil.move(uptodate_file, final_yaml)
+
+                    # Phase C report should already be at pydantic_report_file (final name)
+                    # Clean up intermediate Phase A report
+                    if os.path.exists(report_file):
+                        os.remove(report_file)
+
+                    # Remove failed Phase C YAML if it exists (only if different from final_yaml)
+                    if os.path.exists(pydantic_yaml_file) and pydantic_yaml_file != final_yaml:
+                        os.remove(pydantic_yaml_file)
+                except Exception:
+                    pass
+
                 print("✗ Validation failed!")
-                print(f"Report: {pydantic_report_file}")
-                print(f"Updated YAML: {pydantic_yaml_file}")
-                print(f"Suggestion: Fix issues in updated YAML and rerun validation.")
+                print(f"Report: {final_report}")
+                print(f"Updated YAML: {final_yaml}")
                 return 1
+
+            # Both A and C succeeded - consolidate reports and clean up intermediate files
+            try:
+                # Extract NO ACTION NEEDED messages from both phases
+                all_messages = []
+                if os.path.exists(report_file):
+                    all_messages.extend(extract_no_action_messages_from_report(report_file))
+                if os.path.exists(pydantic_report_file):
+                    all_messages.extend(extract_no_action_messages_from_report(pydantic_report_file))
+
+                # Create consolidated final report
+                create_consolidated_report(
+                    phases_run=["A", "C"],
+                    no_action_messages=all_messages,
+                    final_report_file=pydantic_report_file,
+                    mode=internal_mode
+                )
+
+                # Clean up intermediate files
+                if os.path.exists(report_file):
+                    os.remove(report_file)  # Remove Phase A report
+                if os.path.exists(uptodate_file):
+                    os.remove(uptodate_file)  # Remove Phase A YAML
+            except Exception:
+                pass  # Don't fail if cleanup doesn't work
+
+            print("[OK] Validation completed")
+            print("Report:", pydantic_report_file)
+            print("Updated YAML:", pydantic_yaml_file)
+            return 0
 
         elif phase == "BC":
             # Complete B→C workflow
@@ -1444,9 +1496,6 @@ Modes:
                 print("✗ Validation failed!")
                 print(f"Report: {pydantic_report_file}")
                 print(f"Updated YAML: {pydantic_yaml_file}")
-                print(
-                    f"Suggestion: Fix issues in updated YAML and consider to rerun BC."
-                )
                 return 1
 
             print("[OK] Phase B completed")
@@ -1461,24 +1510,64 @@ Modes:
                 silent=True,
             )
 
-            # Keep intermediate files for user reference when workflow succeeds
-            # Phase A: updatedA_*, reportA_* (intermediate)
-            # Phase B: updatedB_*, reportB_* (intermediate)
-            # Final: updated_*, report_* (created by Phase C)
-            workflow_success = phase_b_success and phase_c_success
-            if workflow_success:
-                print("[OK] Validation completed")
-                print("Report:", pydantic_report_file)
-                print("Updated YAML:", pydantic_yaml_file)
-                return 0
-            else:
+            if not phase_c_success:
+                # Phase C failed in BC workflow - create final user files from Phase C error report and Phase B YAML
+                dirname = os.path.dirname(user_yaml_file)
+                basename = os.path.basename(user_yaml_file)
+                name_without_ext = os.path.splitext(basename)[0]
+                final_yaml = os.path.join(dirname, f"updated_{basename}")
+                final_report = os.path.join(dirname, f"report_{name_without_ext}.txt")
+
+                try:
+                    # Use Phase B YAML as final (last successful phase)
+                    if os.path.exists(science_yaml_file):
+                        shutil.move(science_yaml_file, final_yaml)
+
+                    # Phase C report should already be at pydantic_report_file (final name)
+                    # Clean up intermediate Phase B report
+                    if os.path.exists(science_report_file):
+                        os.remove(science_report_file)
+
+                    # Remove failed Phase C YAML if it exists (only if different from final_yaml)
+                    if os.path.exists(pydantic_yaml_file) and pydantic_yaml_file != final_yaml:
+                        os.remove(pydantic_yaml_file)
+                except Exception:
+                    pass
+
                 print("✗ Validation failed!")
-                print(f"Report: {pydantic_report_file}")
-                print(f"Updated YAML: {pydantic_yaml_file}")
-                print(
-                    f"Suggestion: Fix issues in updated YAML and consider to rerun BC."
-                )
+                print(f"Report: {final_report}")
+                print(f"Updated YAML: {final_yaml}")
                 return 1
+
+            # Both B and C succeeded - consolidate reports and clean up intermediate files
+            try:
+                # Extract NO ACTION NEEDED messages from both phases
+                all_messages = []
+                if os.path.exists(science_report_file):
+                    all_messages.extend(extract_no_action_messages_from_report(science_report_file))
+                if os.path.exists(pydantic_report_file):
+                    all_messages.extend(extract_no_action_messages_from_report(pydantic_report_file))
+
+                # Create consolidated final report
+                create_consolidated_report(
+                    phases_run=["B", "C"],
+                    no_action_messages=all_messages,
+                    final_report_file=pydantic_report_file,
+                    mode=internal_mode
+                )
+
+                # Clean up intermediate files
+                if os.path.exists(science_report_file):
+                    os.remove(science_report_file)  # Remove Phase B report
+                if os.path.exists(science_yaml_file):
+                    os.remove(science_yaml_file)  # Remove Phase B YAML
+            except Exception:
+                pass
+
+            print("[OK] Validation completed")
+            print("Report:", pydantic_report_file)
+            print("Updated YAML:", pydantic_yaml_file)
+            return 0
 
         elif phase == "ABC":
             # Complete A→B→C workflow with proper halt logic
@@ -1524,7 +1613,6 @@ Modes:
                 print("✗ Validation failed!")
                 print(f"Report: {pydantic_report_file}")
                 print(f"Updated YAML: {pydantic_yaml_file}")
-                print(f"Suggestion: Fix issues in updated YAML and rerun validation.")
                 return 1
 
             print("[OK] Validation completed")
@@ -1570,7 +1658,6 @@ Modes:
                 print("✗ Validation failed!")
                 print(f"Report: {pydantic_report_file}")
                 print(f"Updated YAML: {pydantic_yaml_file}")
-                print(f"Suggestion: Fix issues in updated YAML and rerun validation.")
                 return 1
 
             print("[OK] Phase B completed")
@@ -1611,7 +1698,6 @@ Modes:
                 print("✗ Validation failed!")
                 print(f"Report: {pydantic_report_file}")
                 print(f"Updated YAML: {pydantic_yaml_file}")
-                print(f"Suggestion: Fix issues in updated YAML and rerun validation.")
                 return 1
 
             # Phase C succeeded - consolidate reports from all phases

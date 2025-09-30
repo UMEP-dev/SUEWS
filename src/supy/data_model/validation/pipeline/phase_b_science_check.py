@@ -1313,12 +1313,12 @@ def create_science_report(
     report_lines = []
 
     phase_titles = {
-        "A": "SUEWS - Phase A (Up-to-date YAML check) Report",
-        "B": "SUEWS - Phase B (Scientific Validation) Report",
-        "C": "SUEWS - Phase C (Pydantic Validation) Report",
-        "AB": "SUEWS - Phase AB (Up-to-date YAML check and Scientific Validation) Report",
-        "AC": "SUEWS - Phase AC (Up-to-date YAML check and Pydantic Validation) Report",
-        "BC": "SUEWS - Phase BC (Scientific Validation and Pydantic Validation) Report",
+        "A": "SUEWS Validation Report",
+        "B": "SUEWS Validation Report",
+        "C": "SUEWS Validation Report",
+        "AB": "SUEWS Validation Report",
+        "AC": "SUEWS Validation Report",
+        "BC": "SUEWS Validation Report",
         "ABC": "SUEWS Validation Report",
     }
 

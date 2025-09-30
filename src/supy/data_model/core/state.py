@@ -10,6 +10,7 @@ from pydantic import (
 )
 
 from .type import RefValue, Reference, FlexibleRefValue, init_df_state, SurfaceType
+from ..._env import logger_supy
 
 
 class SurfaceInitialState(BaseModel):
@@ -1043,8 +1044,13 @@ class InitialStates(BaseModel):
         try:
             n_layers = int(df.loc[grid_id, ("nlayer", "0")])
         except (KeyError, ValueError, TypeError):
-            # If nlayer not available, use default
+            # If nlayer not available, use default with warning
             n_layers = len(cls.model_fields["roofs"].default)
+            logger_supy.warning(
+                f"nlayer not found in df_state for grid {grid_id}, "
+                f"using default {n_layers} layers. "
+                f"Consider adding nlayer to your GridLayout configuration."
+            )
 
         roofs = reconstruct_layers("roof", SurfaceInitialState, n_layers)
         walls = reconstruct_layers("wall", SurfaceInitialState, n_layers)

@@ -10,7 +10,9 @@ import yaml
 import json
 import sys
 from pathlib import Path
+import importlib.resources
 from typing import Optional, List
+import supy
 import jsonschema
 from rich.console import Console
 from rich.table import Table
@@ -717,7 +719,12 @@ def _execute_pipeline(file, pipeline, mode):
         console.print(f"[red]✗ {e}[/red]")
         return 1
 
-    standard_yaml_file = "src/supy/sample_data/sample_config.yml"
+    # Use importlib.resources for robust package resource access
+    sample_data_files = importlib.resources.files(supy) / "sample_data"
+    with importlib.resources.as_file(
+        sample_data_files / "sample_config.yml"
+    ) as standard_yaml_path:
+        standard_yaml_file = str(standard_yaml_path)
 
     (
         uptodate_file,

@@ -1267,22 +1267,14 @@ Modes:
             )
 
             if not phase_a_success:
-                # Phase A failed in AB workflow - preserve Phase A outputs as AB outputs (when Phase A passes, we have updated from A)
-                try:
-                    if os.path.exists(report_file):
-                        shutil.move(
-                            report_file, science_report_file
-                        )  # reportA → reportAB
-                    if os.path.exists(uptodate_file):
-                        shutil.move(
-                            uptodate_file, science_yaml_file
-                        )  # updatedA → updatedAB (preserve Phase A updated YAML)
-                except Exception:
-                    pass  # Don't fail if rename doesn't work
+                # Phase A failed in AB workflow - create final user files from Phase A outputs
+                final_yaml, final_report = create_final_user_files(
+                    user_yaml_file, uptodate_file, report_file
+                )
 
                 print("✗ Validation failed!")
-                print(f"Report: {science_report_file}")
-                print(f"Updated YAML: {science_yaml_file}")
+                print(f"Report: {final_report}")
+                print(f"Updated YAML: {final_yaml}")
                 print(
                     f"Suggestion: Fix issues in updated YAML and consider to rerun AB."
                 )
@@ -1303,29 +1295,54 @@ Modes:
                 silent=True,
             )
 
-            # Clean up intermediate files when complete workflow succeeds
-            workflow_success = phase_a_success and phase_b_success
-            if workflow_success:
-                try:
-                    if os.path.exists(report_file):
-                        os.remove(report_file)  # Remove Phase A report
-                    if os.path.exists(uptodate_file):
-                        os.remove(uptodate_file)  # Remove Phase A YAML
-                except Exception:
-                    pass  # Don't fail if cleanup doesn't work
+            if not phase_b_success:
+                # Phase B failed in AB workflow - create final user files from Phase B error report and Phase A YAML
+                dirname = os.path.dirname(user_yaml_file)
+                basename = os.path.basename(user_yaml_file)
+                name_without_ext = os.path.splitext(basename)[0]
+                final_yaml = os.path.join(dirname, f"updated_{basename}")
+                final_report = os.path.join(dirname, f"report_{name_without_ext}.txt")
 
-                print("[OK] Validation completed")
-                print("Report:", science_report_file)
-                print("Updated YAML:", science_yaml_file)
-                return 0
-            else:
+                try:
+                    # Use Phase A YAML as final (last successful phase)
+                    if os.path.exists(uptodate_file):
+                        shutil.move(uptodate_file, final_yaml)
+
+                    # Use Phase B report as final (contains the errors)
+                    if os.path.exists(science_report_file):
+                        shutil.move(science_report_file, final_report)
+
+                    # Clean up intermediate Phase A report
+                    if os.path.exists(report_file):
+                        os.remove(report_file)
+
+                    # Remove failed Phase B YAML if it exists (only if different from final_yaml)
+                    if os.path.exists(science_yaml_file) and science_yaml_file != final_yaml:
+                        os.remove(science_yaml_file)
+                except Exception:
+                    pass
+
                 print("✗ Validation failed!")
-                print(f"Report: {science_report_file}")
-                print(f"Updated YAML: {science_yaml_file}")
+                print(f"Report: {final_report}")
+                print(f"Updated YAML: {final_yaml}")
                 print(
                     f"Suggestion: Fix issues in updated YAML and consider to rerun AB."
                 )
                 return 1
+
+            # Both A and B succeeded - clean up intermediate files
+            try:
+                if os.path.exists(report_file):
+                    os.remove(report_file)  # Remove Phase A report
+                if os.path.exists(uptodate_file):
+                    os.remove(uptodate_file)  # Remove Phase A YAML
+            except Exception:
+                pass  # Don't fail if cleanup doesn't work
+
+            print("[OK] Validation completed")
+            print("Report:", science_report_file)
+            print("Updated YAML:", science_yaml_file)
+            return 0
 
         elif phase == "AC":
             # Complete A→C workflow

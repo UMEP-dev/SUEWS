@@ -36,6 +36,7 @@ try:
         run_phase_a as _processor_run_phase_a,
         run_phase_b as _processor_run_phase_b,
         run_phase_c as _processor_run_phase_c,
+        create_final_user_files as _processor_create_final_user_files,
     )
 except Exception:
     _processor_validate_input_file = None
@@ -43,6 +44,7 @@ except Exception:
     _processor_run_phase_a = None
     _processor_run_phase_b = None
     _processor_run_phase_c = None
+    _processor_create_final_user_files = None
 
 # Import from supy modules
 try:
@@ -886,12 +888,13 @@ def _execute_pipeline(file, pipeline, mode):
             silent=True,
         )
         if not a_ok:
-            # Preserve Phase A outputs as AB outputs
+            # Phase A failed in AB workflow - create final user files from Phase A outputs
+            final_yaml, final_report = _processor_create_final_user_files(
+                user_yaml_file, uptodate_file, report_file
+            )
             console.print("[red]✗ Validation failed[/red]")
-            if report_file:
-                console.print(f"Report: {science_report_file}")
-            if uptodate_file:
-                console.print(f"Updated YAML: {science_yaml_file}")
+            console.print(f"Report: {final_report}")
+            console.print(f"Updated YAML: {final_yaml}")
             return 1
 
         b_ok = _processor_run_phase_b(
@@ -906,16 +909,58 @@ def _execute_pipeline(file, pipeline, mode):
             phase="AB",
             silent=True,
         )
+
+        if not b_ok:
+            # Phase B failed in AB workflow - create final user files from Phase B error report and Phase A YAML
+            import shutil
+
+            # Determine final file paths
+            dirname = Path(user_yaml_file).parent
+            basename = Path(user_yaml_file).name
+            name_without_ext = Path(user_yaml_file).stem
+            final_yaml = dirname / f"updated_{basename}"
+            final_report = dirname / f"report_{name_without_ext}.txt"
+
+            try:
+                # Use Phase A YAML as final (last successful phase)
+                if Path(uptodate_file).exists():
+                    shutil.move(str(uptodate_file), str(final_yaml))
+                else:
+                    console.print(f"[yellow]Warning: Phase A YAML not found: {uptodate_file}[/yellow]")
+
+                # Use Phase B report as final (contains the errors)
+                if Path(science_report_file).exists():
+                    shutil.move(str(science_report_file), str(final_report))
+
+                # Clean up intermediate Phase A report
+                if Path(report_file).exists():
+                    Path(report_file).unlink()
+
+                # Remove failed Phase B YAML if it exists (only if different from final_yaml)
+                if Path(science_yaml_file).exists() and str(science_yaml_file) != str(final_yaml):
+                    Path(science_yaml_file).unlink()
+            except Exception as e:
+                console.print(f"[yellow]Warning during cleanup: {e}[/yellow]")
+
+            console.print("[red]✗ Validation failed[/red]")
+            console.print(f"Report: {final_report}")
+            console.print(f"Updated YAML: {final_yaml}")
+            return 1
+
+        # Both A and B succeeded - clean up intermediate files
         ok = a_ok and b_ok
-        console.print(
-            "[green]✓ Validation completed[/green]"
-            if ok
-            else "[red]✗ Validation failed[/red]"
-        )
-        if ok:
-            console.print(f"Report: {science_report_file}")
-            console.print(f"Updated YAML: {science_yaml_file}")
-        return 0 if ok else 1
+        try:
+            if Path(report_file).exists():
+                Path(report_file).unlink()  # Remove Phase A report
+            if Path(uptodate_file).exists():
+                Path(uptodate_file).unlink()  # Remove Phase A YAML
+        except Exception:
+            pass
+
+        console.print("[green]✓ Validation completed[/green]")
+        console.print(f"Report: {science_report_file}")
+        console.print(f"Updated YAML: {science_yaml_file}")
+        return 0
 
     if pipeline == "AC":
         a_ok = _processor_run_phase_a(

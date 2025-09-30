@@ -1046,12 +1046,8 @@ class InitialStates(BaseModel):
             # If nlayer not available, use default
             n_layers = len(cls.model_fields["roofs"].default)
 
-        roofs = reconstruct_layers(
-            "roof", SurfaceInitialState, n_layers
-        )
-        walls = reconstruct_layers(
-            "wall", SurfaceInitialState, n_layers
-        )
+        roofs = reconstruct_layers("roof", SurfaceInitialState, n_layers)
+        walls = reconstruct_layers("wall", SurfaceInitialState, n_layers)
 
         dqndt = df.loc[grid_id, ("dqndt", "0")]
         dqnsdt = df.loc[grid_id, ("dqnsdt", "0")]

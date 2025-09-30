@@ -1,7 +1,7 @@
 Validation Tool Reference
 =========================
 
-The ``suews-validate`` command is a comprehensive validation system that automatically checks, fixes, and optimises SUEWS YAML configuration files. It ensures your configuration is complete, scientifically valid, and compatible with the SUEWS model.
+The ``suews-validate`` command is a comprehensive validation system that automatically checks and updates SUEWS YAML configuration files. It ensures your configuration is complete, scientifically valid, and compatible with the SUEWS model.
 
 What the Validator Does
 -----------------------

@@ -813,6 +813,12 @@ def _execute_pipeline(file, pipeline, mode):
         if ok:
             console.print(f"Report: {report_file}")
             console.print(f"Updated YAML: {uptodate_file}")
+        else:
+            # Show report and YAML files even on failure if they exist
+            if Path(report_file).exists():
+                console.print(f"Report: {report_file}")
+            if Path(uptodate_file).exists():
+                console.print(f"Updated YAML: {uptodate_file}")
         return 0 if ok else 1
 
     if pipeline == "B":

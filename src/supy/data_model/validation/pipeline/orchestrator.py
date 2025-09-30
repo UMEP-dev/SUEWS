@@ -167,7 +167,12 @@ def detect_pydantic_defaults(
                 for i, (orig_item, proc_item) in enumerate(
                     zip(original_value, processed_value)
                 ):
-                    list_path = f"{current_path}[{i}]"
+                    # Use GRIDID for sites array instead of numeric index
+                    if current_path == "sites" and isinstance(orig_item, dict) and "gridiv" in orig_item:
+                        gridid = orig_item["gridiv"]
+                        list_path = f"{current_path}.{gridid}"
+                    else:
+                        list_path = f"{current_path}[{i}]"
                     nested_critical, nested_defaults = detect_pydantic_defaults(
                         orig_item, proc_item, list_path, standard_data
                     )

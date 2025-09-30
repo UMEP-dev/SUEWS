@@ -835,9 +835,9 @@ def _execute_pipeline(file, pipeline, mode):
             silent=True,
         )
         console.print(
-            "[green]✓ Phase B completed[/green]"
+            "[green]✓ Validation completed[/green]"
             if ok
-            else "[red]✗ Phase B failed[/red]"
+            else "[red]✗ Validation failed[/red]"
         )
         if ok:
             console.print(f"Report: {science_report_file}")
@@ -848,14 +848,6 @@ def _execute_pipeline(file, pipeline, mode):
                 console.print(f"Report: {science_report_file}")
             if Path(science_yaml_file).exists():
                 console.print(f"Updated YAML: {science_yaml_file}")
-
-            # Provide helpful guidance for Phase B failures
-            console.print(
-                "[yellow]Phase B requires Phase A to be completed first.[/yellow]"
-            )
-            console.print(
-                f"[yellow]Try running: suews-validate --pipeline AB {user_yaml_file}[/yellow]"
-            )
         return 0 if ok else 1
 
     if pipeline == "C":
@@ -868,9 +860,9 @@ def _execute_pipeline(file, pipeline, mode):
             silent=True,
         )
         console.print(
-            "[green]✓ Phase C completed[/green]"
+            "[green]✓ Validation completed[/green]"
             if ok
-            else "[red]✗ Phase C failed[/red]"
+            else "[red]✗ Validation failed[/red]"
         )
         if ok:
             console.print(f"Report: {pydantic_report_file}")
@@ -910,9 +902,9 @@ def _execute_pipeline(file, pipeline, mode):
         )
         ok = a_ok and b_ok
         console.print(
-            "[green]✓ Phase AB completed[/green]"
+            "[green]✓ Validation completed[/green]"
             if ok
-            else "[red]✗ Phase AB failed[/red]"
+            else "[red]✗ Validation failed[/red]"
         )
         if ok:
             console.print(f"Report: {science_report_file}")
@@ -946,9 +938,9 @@ def _execute_pipeline(file, pipeline, mode):
         )
         ok = a_ok and c_ok
         console.print(
-            "[green]✓ Phase AC completed[/green]"
+            "[green]✓ Validation completed[/green]"
             if ok
-            else "[red]✗ Phase AC failed[/red]"
+            else "[red]✗ Validation failed[/red]"
         )
         if ok:
             console.print(f"Report: {pydantic_report_file}")
@@ -969,7 +961,7 @@ def _execute_pipeline(file, pipeline, mode):
             silent=True,
         )
         if not b_ok:
-            console.print("[red]✗ Phase B failed[/red]")
+            console.print("[red]✗ Validation failed[/red]")
             console.print(f"Report: {pydantic_report_file}")
             console.print(f"Updated YAML: {pydantic_yaml_file}")
             sys.exit(1)
@@ -984,9 +976,9 @@ def _execute_pipeline(file, pipeline, mode):
         )
         ok = b_ok and c_ok
         console.print(
-            "[green]✓ Phase BC completed[/green]"
+            "[green]✓ Validation completed[/green]"
             if ok
-            else "[red]✗ Phase BC failed[/red]"
+            else "[red]✗ Validation failed[/red]"
         )
         if ok:
             console.print(f"Report: {pydantic_report_file}")

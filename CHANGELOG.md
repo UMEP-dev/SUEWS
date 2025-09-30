@@ -39,6 +39,7 @@
   - Conversion now properly reads nlayer from GridLayoutKc.nml and creates matching number of roof/wall layers
   - Initial states now correctly reflect the specified number of vertical layers
   - Added defensive coding to handle missing layer data gracefully
+- [improvement] Added warning when nlayer parameter is missing from df_state, improving debugging visibility for configuration issues
 
 ### 26 Sep 2025
 - [bugfix] Fixed path resolution bug in `suews-validate` CLI command that prevented validation from working when run from subdirectories

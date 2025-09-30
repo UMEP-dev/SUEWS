@@ -838,9 +838,9 @@ def _execute_pipeline(file, pipeline, mode):
             console.print(f"Updated YAML: {science_yaml_file}")
         else:
             # Show report file even on failure if it exists
-            if os.path.exists(science_report_file):
+            if Path(science_report_file).exists():
                 console.print(f"Report: {science_report_file}")
-            if os.path.exists(science_yaml_file):
+            if Path(science_yaml_file).exists():
                 console.print(f"Updated YAML: {science_yaml_file}")
 
             # Provide helpful guidance for Phase B failures
@@ -1002,9 +1002,9 @@ def _execute_pipeline(file, pipeline, mode):
         import shutil
 
         try:
-            if os.path.exists(report_file):
+            if Path(report_file).exists():
                 shutil.move(report_file, pydantic_report_file)  # reportA → report
-            if os.path.exists(uptodate_file):
+            if Path(uptodate_file).exists():
                 shutil.move(uptodate_file, pydantic_yaml_file)  # updatedA → updated
         except Exception:
             pass  # Don't fail if move doesn't work
@@ -1026,6 +1026,7 @@ def _execute_pipeline(file, pipeline, mode):
         phase="ABC",
         silent=True,
     )
+
     if not b_ok:
         # Phase B failed in ABC - create final files with mixed content
         # Final YAML: from Phase A (last successful phase), Final Report: from Phase B (contains errors)
@@ -1033,25 +1034,25 @@ def _execute_pipeline(file, pipeline, mode):
 
         try:
             # Create final YAML from Phase A (last successful phase)
-            if os.path.exists(uptodate_file):
+            if Path(uptodate_file).exists():
                 shutil.copy2(
                     uptodate_file, pydantic_yaml_file
                 )  # Copy updatedA → updated (keep intermediate)
 
             # Create final Report from Phase B (contains the actual errors we need to show user)
-            if os.path.exists(science_report_file):
+            if Path(science_report_file).exists():
                 shutil.move(
                     science_report_file, pydantic_report_file
                 )  # Move reportB → report (don't keep intermediate)
-            elif os.path.exists(report_file):
+            elif Path(report_file).exists():
                 # Fallback to Phase A report if Phase B report doesn't exist
                 shutil.copy2(
                     report_file, pydantic_report_file
                 )  # Copy reportA → report (keep intermediate)
 
             # Remove failed Phase B YAML
-            if os.path.exists(science_yaml_file):
-                os.remove(science_yaml_file)  # Remove failed Phase B YAML
+            if Path(science_yaml_file).exists():
+                Path(science_yaml_file).unlink()  # Remove failed Phase B YAML
         except Exception:
             pass  # Don't fail if cleanup doesn't work
 
@@ -1059,28 +1060,58 @@ def _execute_pipeline(file, pipeline, mode):
         console.print(f"Report: {pydantic_report_file}")
         console.print(f"Updated YAML: {pydantic_yaml_file}")
 
-        # Show intermediate file information
-        console.print(
-            "\n[bold]For more details on intermediate validation and updates, check:[/bold]"
-        )
-        if os.path.exists(report_file):
-            console.print(
-                f"[yellow]• YAML structure checks report: {report_file}[/yellow]"
-            )
-        if os.path.exists(uptodate_file):
-            console.print(
-                f"[yellow]• YAML structure checks updated file: {uptodate_file}[/yellow]"
-            )
+        # Clean up intermediate files
+        try:
+            if Path(report_file).exists():
+                Path(report_file).unlink()
+            if Path(uptodate_file).exists():
+                Path(uptodate_file).unlink()
+        except Exception:
+            pass
 
         sys.exit(1)
+
+    # Both Phase A and B succeeded - extract and consolidate messages for Phase C
+    from ..data_model.validation.pipeline.orchestrator import extract_no_action_messages_from_report
+
+    # Extract Phase A messages and clean up immediately (minimizes I/O time)
+    phase_a_messages = []
+    report_path = Path(report_file)
+    if report_path.exists():
+        phase_a_messages = extract_no_action_messages_from_report(report_file)
+        report_path.unlink()  # Clean up immediately
+
+    # Extract Phase B messages and clean up immediately (minimizes I/O time)
+    phase_b_messages = []
+    science_report_path = Path(science_report_file)
+    if science_report_path.exists():
+        phase_b_messages = extract_no_action_messages_from_report(science_report_file)
+        science_report_path.unlink()  # Clean up immediately
+
+    # Deduplicate messages efficiently and filter out incomplete headers
+    all_no_action_messages = []
+    seen_messages = set()
+
+    for msg in phase_a_messages + phase_b_messages:
+        if msg not in seen_messages:
+            # Skip incomplete header patterns that end with "to current standards:"
+            if (msg.strip().startswith('- Updated (') and
+                msg.strip().endswith('to current standards:')):
+                # This is an incomplete header, skip it
+                continue
+
+            all_no_action_messages.append(msg)
+            seen_messages.add(msg)
 
     c_ok = _processor_run_phase_c(
         science_yaml_file,
         pydantic_yaml_file,
         pydantic_report_file,
         mode=mode,
-        phase_a_report_file=None,
+        phase_a_report_file=None,  # Files already cleaned up
+        science_report_file=None,  # Files already cleaned up
         phases_run=["A", "B", "C"],
+        no_action_messages=all_no_action_messages,
         silent=True,
     )
 
@@ -1091,16 +1122,14 @@ def _execute_pipeline(file, pipeline, mode):
 
         try:
             # Create final YAML from Phase B (last successful phase)
-            if os.path.exists(science_yaml_file):
+            if Path(science_yaml_file).exists():
                 shutil.copy2(
                     science_yaml_file, pydantic_yaml_file
                 )  # Copy updatedB → updated (keep intermediate)
 
             # Final Report should be from Phase C (contains the actual errors), but Phase C might not create a file
             # In this case, we'll rely on Phase C having already created pydantic_report_file, or use Phase B as fallback
-            if not os.path.exists(pydantic_report_file) and os.path.exists(
-                science_report_file
-            ):
+            if not Path(pydantic_report_file).exists() and Path(science_report_file).exists():
                 shutil.copy2(
                     science_report_file, pydantic_report_file
                 )  # Fallback: copy reportB → report
@@ -1111,56 +1140,39 @@ def _execute_pipeline(file, pipeline, mode):
         console.print(f"Report: {pydantic_report_file}")
         console.print(f"Updated YAML: {pydantic_yaml_file}")
 
-        # Show intermediate file information
-        console.print(
-            "\n[bold]For more details on intermediate validation and updates, check:[/bold]"
-        )
-        if os.path.exists(report_file):
-            console.print(
-                f"[yellow]• YAML structure checks report: {report_file}[/yellow]"
-            )
-        if os.path.exists(uptodate_file):
-            console.print(
-                f"[yellow]• YAML structure checks updated file: {uptodate_file}[/yellow]"
-            )
-        if os.path.exists(science_report_file):
-            console.print(
-                f"[yellow]• Physics checks report: {science_report_file}[/yellow]"
-            )
-        if os.path.exists(science_yaml_file):
-            console.print(
-                f"[yellow]• Physics checks updated file: {science_yaml_file}[/yellow]"
-            )
+        # Clean up intermediate files
+        try:
+            if Path(report_file).exists():
+                Path(report_file).unlink()
+            if Path(uptodate_file).exists():
+                Path(uptodate_file).unlink()
+            if Path(science_report_file).exists():
+                Path(science_report_file).unlink()
+            if Path(science_yaml_file).exists():
+                Path(science_yaml_file).unlink()
+        except Exception:
+            pass
 
         return 1
 
-    # All phases succeeded
+    # All phases succeeded - clean up intermediate files and don't show them
     ok = a_ok and b_ok and c_ok
     console.print("[green]✓ Validation completed[/green]")
     console.print(f"Report: {pydantic_report_file}")
     console.print(f"Updated YAML: {pydantic_yaml_file}")
 
-    # Show intermediate file information
-    console.print(
-        "\n[bold]For more details on intermediate validation and updates, check:[/bold]"
-    )
-    if os.path.exists(report_file):
-        console.print(f"[yellow]• YAML structure checks report: {report_file}[/yellow]")
-    if os.path.exists(uptodate_file):
-        console.print(
-            f"[yellow]• YAML structure checks updated file: {uptodate_file}[/yellow]"
-        )
-    if os.path.exists(science_report_file):
-        console.print(
-            f"[yellow]• Physics checks report: {science_report_file}[/yellow]"
-        )
-    if os.path.exists(science_yaml_file):
-        console.print(
-            f"[yellow]• Physics checks updated file: {science_yaml_file}[/yellow]"
-        )
+    # The intermediate files are now cleaned up by run_phase_c during consolidation
+    # Clean up any remaining intermediate YAML files that weren't cleaned up
+    try:
+        uptodate_path = Path(uptodate_file)
+        if uptodate_path.exists():
+            uptodate_path.unlink()  # Remove updatedA_*
+        science_yaml_path = Path(science_yaml_file)
+        if science_yaml_path.exists():
+            science_yaml_path.unlink()  # Remove updatedB_*
+    except Exception:
+        pass  # Don't fail if cleanup doesn't work
 
-    # Keep intermediate files: updatedA_*, reportA_*, updatedB_*, reportB_*
-    # Final files: updated_*, report_* (created by Phase C)
     return 0
 
 

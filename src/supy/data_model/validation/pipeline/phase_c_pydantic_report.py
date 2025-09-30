@@ -58,6 +58,50 @@ def _parse_previous_phase_report(report_content: str):
     )
 
 
+def _parse_consolidated_messages(messages: list):
+    """Parse consolidated messages to extract different categories."""
+    phase_a_renames = []
+    phase_a_optional_missing = []
+    phase_a_not_in_standard = []
+    phase_b_science_warnings = []
+    phase_b_updates = []
+
+    current_category = None
+    for line in messages:
+        line = line.strip()
+        if "Updated (" in line and "renamed parameter" in line:
+            current_category = "renames"
+        elif "Updated (" in line and "optional missing parameter" in line:
+            current_category = "optional"
+        elif "Updated (" in line and "parameter(s):" in line:
+            # This handles "Updated (X) parameter(s):" which are Phase B updates
+            current_category = "phase_b_updates"
+        elif "parameter(s) not in standard" in line:
+            current_category = "not_standard"
+        elif "scientific warning" in line or "Revise (" in line:
+            current_category = "warnings"
+        elif line.startswith("--"):
+            detail = line[2:].strip()
+            if current_category == "renames":
+                phase_a_renames.append(detail)
+            elif current_category == "optional":
+                phase_a_optional_missing.append(detail)
+            elif current_category == "not_standard":
+                phase_a_not_in_standard.append(detail)
+            elif current_category == "warnings":
+                phase_b_science_warnings.append(detail)
+            elif current_category == "phase_b_updates":
+                phase_b_updates.append(detail)
+
+    return (
+        phase_a_renames,
+        phase_a_optional_missing,
+        phase_a_not_in_standard,
+        phase_b_science_warnings,
+        phase_b_updates,
+    )
+
+
 def generate_phase_c_report(
     validation_error: Exception,
     input_yaml_file: str,
@@ -65,6 +109,7 @@ def generate_phase_c_report(
     mode: str = "public",
     phase_a_report_file: str = None,
     phases_run: list = None,
+    no_action_messages: list = None,
 ) -> None:
     """Generate Phase C validation report with previous phase consolidation."""
     report_lines = []
@@ -84,8 +129,13 @@ def generate_phase_c_report(
     phase_a_optional_missing = []
     phase_a_not_in_standard = []
     phase_b_science_warnings = []
+    phase_b_updates = []
 
-    if phase_a_report_file and os.path.exists(phase_a_report_file):
+    # Use passed no_action_messages if available, otherwise try to read from file
+    if no_action_messages:
+        # Parse the consolidated messages directly
+        phase_a_renames, phase_a_optional_missing, phase_a_not_in_standard, phase_b_science_warnings, phase_b_updates = _parse_consolidated_messages(no_action_messages)
+    elif phase_a_report_file and os.path.exists(phase_a_report_file):
         try:
             with open(phase_a_report_file, "r") as f:
                 report_content = f.read()
@@ -304,6 +354,7 @@ def generate_phase_c_report(
         (phase_a_renames, "renamed parameter(s) to current standards"),
         (phase_a_optional_missing, "optional missing parameter(s) with null values"),
         (phase_a_not_in_standard, "parameter(s) not in standard"),
+        (phase_b_updates, "parameter(s)"),
         (phase_b_science_warnings, "scientific warning(s) for information"),
     ]
 
@@ -311,7 +362,8 @@ def generate_phase_c_report(
         if items:
             action = (
                 "Updated"
-                if "renamed" in description or "optional" in description
+                if "renamed" in description or "optional" in description or description == "parameter(s)"
+                else "Revise" if "warning" in description
                 else "Found"
             )
             previous_phase_items.append(f"- {action} ({len(items)}) {description}:")
@@ -354,14 +406,20 @@ def generate_fallback_report(
     mode: str = "public",
     phase_a_report_file: str = None,
     phases_run: list = None,
+    no_action_messages: list = None,
 ) -> None:
     """Generate simple fallback report when structured report generation fails."""
     phase_a_renames = []
     phase_a_optional_missing = []
     phase_a_not_in_standard = []
     phase_b_science_warnings = []
+    phase_b_updates = []
 
-    if phase_a_report_file and os.path.exists(phase_a_report_file):
+    # Use passed no_action_messages if available, otherwise try to read from file
+    if no_action_messages:
+        # Parse the consolidated messages directly
+        phase_a_renames, phase_a_optional_missing, phase_a_not_in_standard, phase_b_science_warnings, phase_b_updates = _parse_consolidated_messages(no_action_messages)
+    elif phase_a_report_file and os.path.exists(phase_a_report_file):
         try:
             with open(phase_a_report_file, "r") as f:
                 report_content = f.read()
@@ -380,6 +438,7 @@ def generate_fallback_report(
         (phase_a_renames, "renamed parameter(s) to current standards"),
         (phase_a_optional_missing, "optional missing parameter(s) with null values"),
         (phase_a_not_in_standard, "parameter(s) not in standard"),
+        (phase_b_updates, "parameter(s)"),
         (phase_b_science_warnings, "scientific warning(s) for information"),
     ]
 
@@ -387,7 +446,8 @@ def generate_fallback_report(
         if items:
             action = (
                 "Updated"
-                if "renamed" in description or "optional" in description
+                if "renamed" in description or "optional" in description or description == "parameter(s)"
+                else "Revise" if "warning" in description
                 else "Found"
             )
             previous_phase_items.append(f"- {action} ({len(items)}) {description}:")

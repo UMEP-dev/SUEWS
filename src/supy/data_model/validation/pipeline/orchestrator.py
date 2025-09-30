@@ -16,6 +16,7 @@ from typing import Tuple, Optional
 import shutil
 import io
 from contextlib import redirect_stdout, redirect_stderr
+from pathlib import Path
 
 # Import Phase A and B functions
 try:
@@ -191,7 +192,8 @@ def detect_pydantic_defaults(
 
 def validate_input_file(user_yaml_file: str) -> str:
     """Validate input YAML file exists and is readable."""
-    if not os.path.exists(user_yaml_file):
+    yaml_path = Path(user_yaml_file)
+    if not yaml_path.exists():
         raise FileNotFoundError(f"Input file not found: {user_yaml_file}")
 
     if not user_yaml_file.lower().endswith((".yml", ".yaml")):
@@ -205,16 +207,17 @@ def validate_input_file(user_yaml_file: str) -> str:
     except PermissionError:
         raise PermissionError(f"Cannot read input file: {user_yaml_file}")
 
-    return os.path.abspath(user_yaml_file)
+    return str(yaml_path.resolve())
 
 
 def setup_output_paths(
     user_yaml_file: str, phase: str
 ) -> Tuple[str, str, str, str, str, str, str]:
     """Generate output file paths based on input file and phase."""
-    basename = os.path.basename(user_yaml_file)
-    dirname = os.path.dirname(user_yaml_file)
-    name_without_ext = os.path.splitext(basename)[0]
+    user_path = Path(user_yaml_file)
+    basename = user_path.name
+    dirname = user_path.parent
+    name_without_ext = user_path.stem
 
     uptodate_file = None
     report_file = None
@@ -223,37 +226,45 @@ def setup_output_paths(
     pydantic_yaml_file = None
     pydantic_report_file = None
 
+    # Final report and YAML paths
+    final_yaml = str(dirname / f"updated_{basename}")
+    final_report = str(dirname / f"report_{name_without_ext}.txt")
+
+    # Temporary intermediate files (will be consolidated and removed)
+    temp_report_a = str(dirname / f"temp_reportA_{name_without_ext}.txt")
+    temp_report_b = str(dirname / f"temp_reportB_{name_without_ext}.txt")
+
     if phase == "A":
-        uptodate_file = os.path.join(dirname, f"updatedA_{basename}")
-        report_file = os.path.join(dirname, f"reportA_{name_without_ext}.txt")
+        uptodate_file = str(dirname / f"updatedA_{basename}")
+        report_file = final_report  # Phase A only -> direct to final
     elif phase == "B":
-        science_yaml_file = os.path.join(dirname, f"updatedB_{basename}")
-        science_report_file = os.path.join(dirname, f"reportB_{name_without_ext}.txt")
+        science_yaml_file = str(dirname / f"updatedB_{basename}")
+        science_report_file = final_report  # Phase B only -> direct to final
     elif phase == "C":
-        pydantic_yaml_file = os.path.join(dirname, f"updatedC_{basename}")
-        pydantic_report_file = os.path.join(dirname, f"reportC_{name_without_ext}.txt")
+        pydantic_yaml_file = final_yaml
+        pydantic_report_file = final_report  # Phase C only -> direct to final
     elif phase == "AB":
-        uptodate_file = os.path.join(dirname, f"updatedA_{basename}")
-        report_file = os.path.join(dirname, f"reportA_{name_without_ext}.txt")
-        science_yaml_file = os.path.join(dirname, f"updatedAB_{basename}")
-        science_report_file = os.path.join(dirname, f"reportAB_{name_without_ext}.txt")
+        uptodate_file = str(dirname / f"updatedA_{basename}")
+        report_file = temp_report_a  # Temporary for consolidation
+        science_yaml_file = final_yaml
+        science_report_file = final_report  # Final report will consolidate A+B
     elif phase == "AC":
-        uptodate_file = os.path.join(dirname, f"updatedA_{basename}")
-        report_file = os.path.join(dirname, f"reportA_{name_without_ext}.txt")
-        pydantic_yaml_file = os.path.join(dirname, f"updatedAC_{basename}")
-        pydantic_report_file = os.path.join(dirname, f"reportAC_{name_without_ext}.txt")
+        uptodate_file = str(dirname / f"updatedA_{basename}")
+        report_file = temp_report_a  # Temporary for consolidation
+        pydantic_yaml_file = final_yaml
+        pydantic_report_file = final_report  # Final report will consolidate A+C
     elif phase == "BC":
-        science_yaml_file = os.path.join(dirname, f"updatedB_{basename}")
-        science_report_file = os.path.join(dirname, f"reportB_{name_without_ext}.txt")
-        pydantic_yaml_file = os.path.join(dirname, f"updatedBC_{basename}")
-        pydantic_report_file = os.path.join(dirname, f"reportBC_{name_without_ext}.txt")
+        science_yaml_file = str(dirname / f"updatedB_{basename}")
+        science_report_file = temp_report_b  # Temporary for consolidation
+        pydantic_yaml_file = final_yaml
+        pydantic_report_file = final_report  # Final report will consolidate B+C
     elif phase == "ABC":
-        uptodate_file = os.path.join(dirname, f"updatedA_{basename}")
-        report_file = os.path.join(dirname, f"reportA_{name_without_ext}.txt")
-        science_yaml_file = os.path.join(dirname, f"updatedB_{basename}")
-        science_report_file = os.path.join(dirname, f"reportB_{name_without_ext}.txt")
-        pydantic_yaml_file = os.path.join(dirname, f"updated_{basename}")
-        pydantic_report_file = os.path.join(dirname, f"report_{name_without_ext}.txt")
+        uptodate_file = str(dirname / f"updatedA_{basename}")
+        report_file = temp_report_a  # Temporary for consolidation
+        science_yaml_file = str(dirname / f"updatedB_{basename}")
+        science_report_file = temp_report_b  # Temporary for consolidation
+        pydantic_yaml_file = final_yaml
+        pydantic_report_file = final_report  # Final report will consolidate A+B+C
 
     return (
         uptodate_file,
@@ -264,6 +275,83 @@ def setup_output_paths(
         pydantic_report_file,
         dirname,
     )
+
+
+def extract_no_action_messages_from_report(report_file: str) -> list:
+    """Extract NO ACTION NEEDED messages from a report file."""
+    messages = []
+
+    if not report_file or not os.path.exists(report_file):
+        return messages
+
+    try:
+        with open(report_file, 'r') as f:
+            content = f.read()
+
+        # Extract NO ACTION NEEDED section
+        lines = content.split('\n')
+        in_no_action = False
+
+        for line in lines:
+            if line.strip().startswith('## NO ACTION NEEDED'):
+                in_no_action = True
+                continue
+            elif line.strip().startswith('##') and in_no_action:
+                # Hit another section, stop collecting
+                break
+            elif line.strip().startswith('#') and in_no_action:
+                # Skip any separator lines (like # ==================================================)
+                continue
+            elif in_no_action and line.strip():
+                messages.append(line)
+
+    except Exception:
+        pass  # Skip if can't read file
+
+    return messages
+
+
+def create_consolidated_report(
+    phases_run: list,
+    no_action_messages: list,
+    final_report_file: str,
+    mode: str = "public"
+) -> None:
+    """Create final consolidated report with all NO ACTION NEEDED messages."""
+
+    phase_str = "".join(phases_run) if phases_run else "Combined"
+
+    phase_titles = {
+        "A": "SUEWS - Phase A (Up-to-date YAML check) Report",
+        "B": "SUEWS - Phase B (Scientific Validation) Report",
+        "C": "SUEWS - Phase C (Pydantic Validation) Report",
+        "AB": "SUEWS - Phase AB (Up-to-date YAML check and Scientific Validation) Report",
+        "AC": "SUEWS - Phase AC (Up-to-date YAML check and Pydantic Validation) Report",
+        "BC": "SUEWS - Phase BC (Scientific Validation and Pydantic Validation) Report",
+        "ABC": "SUEWS Validation Report",
+    }
+
+    title = phase_titles.get(phase_str, "SUEWS Validation Report")
+
+    # Build final report content
+    report_content = f"""# {title}
+# {"=" * 50}
+# Mode: {'Public' if mode.lower() == 'public' else mode.title()}
+# {"=" * 50}
+
+## NO ACTION NEEDED"""
+
+    if no_action_messages:
+        for message in no_action_messages:
+            report_content += f"\n{message}"
+    else:
+        report_content += "\n- All validations passed with no issues detected"
+
+    report_content += f"\n\n# {'=' * 50}"
+
+    # Write final consolidated report
+    with open(final_report_file, 'w') as f:
+        f.write(report_content)
 
 
 def create_final_user_files(user_yaml_file: str, source_yaml: str, source_report: str):
@@ -279,17 +367,17 @@ def create_final_user_files(user_yaml_file: str, source_yaml: str, source_report
 
     # Move/copy intermediate files to final user-facing names
     try:
-        if os.path.exists(source_yaml):
+        if Path(source_yaml).exists():
             shutil.move(source_yaml, final_yaml)  # Move instead of copy
 
-        if os.path.exists(source_report):
+        if Path(source_report).exists():
             shutil.move(source_report, final_report)  # Move instead of copy
     except Exception as e:
         # Fallback to copy if move fails
         try:
-            if os.path.exists(source_yaml):
+            if Path(source_yaml).exists():
                 shutil.copy2(source_yaml, final_yaml)
-            if os.path.exists(source_report):
+            if Path(source_report).exists():
                 shutil.copy2(source_report, final_report)
         except Exception:
             pass  # If all fails, at least return the expected paths
@@ -453,7 +541,9 @@ def run_phase_c(
     pydantic_report_file: str,
     mode: str = "public",
     phase_a_report_file: str = None,
+    science_report_file: str = None,
     phases_run: list = None,
+    no_action_messages: list = None,
     silent: bool = False,
 ) -> bool:
     """Execute Phase C: Conditional Pydantic validation based on physics options."""
@@ -656,7 +746,36 @@ def run_phase_c(
                         else:
                             return f"Phase {phase_str} passed"  # fallback
 
-                    success_report = f"""# {title}
+                    # Check if this is a multi-phase call that needs consolidation
+                    if phases_run and len(phases_run) > 1:
+                        # Multi-phase consolidation: use passed messages or extract from files
+                        if no_action_messages is not None:
+                            # Use passed messages (variable-based approach)
+                            all_messages = no_action_messages
+                        else:
+                            # Fallback: extract from files (file-based approach)
+                            all_messages = []
+                            if phase_a_report_file and os.path.exists(phase_a_report_file):
+                                all_messages.extend(extract_no_action_messages_from_report(phase_a_report_file))
+                            if science_report_file and os.path.exists(science_report_file):
+                                all_messages.extend(extract_no_action_messages_from_report(science_report_file))
+
+                        # Create consolidated final report
+                        create_consolidated_report(
+                            phases_run=phases_run,
+                            no_action_messages=all_messages,
+                            final_report_file=pydantic_report_file,
+                            mode=mode
+                        )
+
+                        # Clean up any remaining intermediate files
+                        if phase_a_report_file and Path(phase_a_report_file).exists():
+                            Path(phase_a_report_file).unlink()
+                        if science_report_file and Path(science_report_file).exists():
+                            Path(science_report_file).unlink()
+                    else:
+                        # Single phase: use regular report
+                        success_report = f"""# {title}
 # ============================================
 # Mode: {"Public" if mode.lower() == "public" else mode.title()}
 # ============================================
@@ -665,8 +784,8 @@ def run_phase_c(
 
 # =================================================="""
 
-                with open(pydantic_report_file, "w") as f:
-                    f.write(success_report)
+                        with open(pydantic_report_file, "w") as f:
+                            f.write(success_report)
 
                 # Restore logging level before return
                 supy_logger.setLevel(original_level)
@@ -691,6 +810,7 @@ def run_phase_c(
                         mode,
                         phase_a_report_file,
                         phases_run,
+                        no_action_messages,
                     )
 
                 except Exception as report_error:
@@ -704,6 +824,7 @@ def run_phase_c(
                         mode,
                         phase_a_report_file,
                         phases_run,
+                        no_action_messages,
                     )
 
                 if not silent:
@@ -1408,10 +1529,10 @@ Modes:
                         )  # Copy updatedA → updated (keep intermediate)
 
                     # Remove failed Phase B files (failed phase output not needed)
-                    if os.path.exists(science_yaml_file):
-                        os.remove(science_yaml_file)  # Remove failed Phase B YAML
-                    if os.path.exists(science_report_file):
-                        os.remove(science_report_file)  # Remove failed Phase B report
+                    if Path(science_yaml_file).exists():
+                        Path(science_yaml_file).unlink()  # Remove failed Phase B YAML
+                    if Path(science_report_file).exists():
+                        Path(science_report_file).unlink()  # Remove failed Phase B report
                 except Exception:
                     pass  # Don't fail if cleanup doesn't work
 
@@ -1425,13 +1546,17 @@ Modes:
 
             # Step 3: Run Phase C (both A and B passed)
             print("Phase C: Pydantic validation check...")
+
+            # Create temporary file for Phase C report (will be consolidated later)
+            temp_report_c = os.path.join(dirname, f"temp_reportC_{os.path.splitext(os.path.basename(user_yaml_file))[0]}.txt")
+
             phase_c_success = run_phase_c(
                 science_yaml_file,  # Use Phase B output as input to Phase C
                 pydantic_yaml_file,
-                pydantic_report_file,
+                temp_report_c,  # Temporary Phase C report
                 mode=internal_mode,
-                phase_a_report_file=science_report_file,  # Pass Phase B report for consolidation
-                phases_run=["A", "B", "C"],
+                phase_a_report_file=None,  # No consolidation in Phase C anymore
+                phases_run=["C"],  # Only Phase C content
                 silent=True,
             )
 
@@ -1458,16 +1583,38 @@ Modes:
                 print(f"Suggestion: Fix issues in updated YAML and rerun validation.")
                 return 1
 
-            # Phase C succeeded - clean up intermediate files
+            # Phase C succeeded - consolidate reports from all phases
             try:
-                if os.path.exists(report_file):
-                    os.remove(report_file)  # Remove Phase A report
-                if os.path.exists(uptodate_file):
-                    os.remove(uptodate_file)  # Remove Phase A YAML
-                if os.path.exists(science_report_file):
-                    os.remove(science_report_file)  # Remove Phase B report
-                if os.path.exists(science_yaml_file):
-                    os.remove(science_yaml_file)  # Remove Phase B YAML
+                # Collect NO ACTION NEEDED messages from all phase reports
+                all_messages = []
+
+                # Extract messages from Phase A report
+                if phase_a_report_file and os.path.exists(phase_a_report_file):
+                    all_messages.extend(extract_no_action_messages_from_report(phase_a_report_file))
+
+                # Extract messages from Phase B report
+                if science_report_file and os.path.exists(science_report_file):
+                    all_messages.extend(extract_no_action_messages_from_report(science_report_file))
+
+                # Extract messages from Phase C report
+                if temp_report_c and os.path.exists(temp_report_c):
+                    all_messages.extend(extract_no_action_messages_from_report(temp_report_c))
+
+                # Create consolidated final report
+                create_consolidated_report(
+                    phases_run=["A", "B", "C"] if phases_run is None else phases_run,
+                    no_action_messages=all_messages,
+                    final_report_file=pydantic_report_file,
+                    mode=internal_mode
+                )
+
+                # Clean up intermediate files
+                if phase_a_report_file and Path(phase_a_report_file).exists():
+                    Path(phase_a_report_file).unlink()  # Remove Phase A report
+                if science_report_file and Path(science_report_file).exists():
+                    Path(science_report_file).unlink()  # Remove Phase B report
+                if temp_report_c and Path(temp_report_c).exists():
+                    Path(temp_report_c).unlink()  # Remove Phase C temp report
             except Exception:
                 pass  # Don't fail if cleanup doesn't work
 

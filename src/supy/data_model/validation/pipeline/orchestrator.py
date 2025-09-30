@@ -664,12 +664,12 @@ def run_phase_c(
                     phase_str = "C"  # Default to Phase C only
 
                 phase_titles = {
-                    "A": "SUEWS - Phase A (Up-to-date YAML check) Report",
-                    "B": "SUEWS - Phase B (Scientific Validation) Report",
-                    "C": "SUEWS - Phase C (Pydantic Validation) Report",
-                    "AB": "SUEWS - Phase AB (Up-to-date YAML check and Scientific Validation) Report",
-                    "AC": "SUEWS - Phase AC (Up-to-date YAML check and Pydantic Validation) Report",
-                    "BC": "SUEWS - Phase BC (Scientific Validation and Pydantic Validation) Report",
+                    "A": "SUEWS Validation Report",
+                    "B": "SUEWS Validation Report",
+                    "C": "SUEWS Validation Report",
+                    "AB": "SUEWS Validation Report",
+                    "AC": "SUEWS Validation Report",
+                    "BC": "SUEWS Validation Report",
                     "ABC": "SUEWS Validation Report",
                 }
 
@@ -786,6 +786,20 @@ def run_phase_c(
 
                         with open(pydantic_report_file, "w") as f:
                             f.write(success_report)
+
+                # Ensure report is always generated for successful validation
+                if not os.path.exists(pydantic_report_file):
+                    # Fallback: create a simple success report
+                    simple_success_report = f"""# {title}
+# ============================================
+# Mode: {"Public" if mode.lower() == "public" else mode.title()}
+# ============================================
+
+Validation passed
+
+# =================================================="""
+                    with open(pydantic_report_file, "w") as f:
+                        f.write(simple_success_report)
 
                 # Restore logging level before return
                 supy_logger.setLevel(original_level)

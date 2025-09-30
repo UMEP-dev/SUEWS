@@ -2193,6 +2193,36 @@ class SUEWSConfig(BaseModel):
         return self
 
     @classmethod
+    def _transform_validation_error(cls, error: ValidationError, config_data: dict) -> ValidationError:
+        """Transform Pydantic validation errors to use GRIDID instead of array indices in error messages."""
+
+        # Extract GRIDID mapping from sites
+        sites = config_data.get("sites", [])
+        site_gridid_map = {}
+        for idx, site in enumerate(sites):
+            if isinstance(site, dict):
+                gridiv = site.get("gridiv")
+                if isinstance(gridiv, dict) and "value" in gridiv:
+                    site_gridid_map[idx] = gridiv["value"]
+                elif gridiv is not None:
+                    site_gridid_map[idx] = gridiv
+                else:
+                    site_gridid_map[idx] = idx  # Fallback to index
+            else:
+                site_gridid_map[idx] = idx  # Fallback to index
+
+        # Transform the error message string directly
+        error_msg = str(error)
+
+        # Replace sites.INDEX with sites.GRIDID for each mapped site
+        for idx, gridid in site_gridid_map.items():
+            error_msg = error_msg.replace(f"sites.{idx}.", f"sites.{gridid}.")
+
+        # Create a simple ValueError with the transformed message
+        # This maintains compatibility while providing clear GRIDID-based error messages
+        raise ValueError(f"SUEWS Configuration Validation Error:\n{error_msg}")
+
+    @classmethod
     def from_yaml(
         cls,
         path: str,
@@ -2240,7 +2270,12 @@ class SUEWSConfig(BaseModel):
             logger_supy.info(
                 "Running comprehensive Pydantic validation with conditional checks."
             )
-            return cls(**config_data)
+            try:
+                return cls(**config_data)
+            except ValidationError as e:
+                # Transform Pydantic validation error messages to use GRIDID instead of array indices
+                transformed_error = cls._transform_validation_error(e, config_data)
+                raise transformed_error
         else:
             logger_supy.info("Validation disabled by user. Loading without checks.")
             return cls.model_construct(**config_data)

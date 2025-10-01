@@ -206,45 +206,53 @@ class SurfaceInitialState(BaseModel):
             grid_id (int): Grid ID for the DataFrame index.
             surf_idx (int): Surface index for identifying columns.
             str_type (str): Surface type prefix ("surf", "roof", or "wall").
-            nlayer (int, optional): Number of layers (needed for correct index format).
+            nlayer (int, optional): Number of layers (passed for consistency, not used in current implementation).
 
         Returns:
             SurfaceInitialState: Instance of SurfaceInitialState.
+
+        Note:
+            This method handles both column index formats:
+            - Standard array format: "(idx,)" for multi-element arrays
+            - Scalar format: "idx" for single-element arrays (e.g., when nlayer=1)
+            The method tries the standard format first and falls back to scalar format if needed.
         """
 
-        # Determine the correct index format based on nlayer
-        # For roof/wall layers with nlayer=1, indices are stored as "0" instead of "(0,)"
-        # Regular surface types always use "(idx,)" format
-        def get_layer_index(idx, nlayer_val, surface_type):
-            # Only apply special nlayer=1 format for roofs and walls
-            if surface_type in ["roof", "wall"] and nlayer_val == 1:
-                return str(idx)
-            return f"({idx},)"
+        def safe_get_value(var_name: str, idx: int) -> float:
+            """
+            Safely retrieve value from DataFrame, trying both index formats.
 
-        # Use provided nlayer or try to detect it from dataframe (only relevant for roofs/walls)
-        if nlayer is None and str_type in ["roof", "wall"]:
+            DataFrame columns can use different index formats:
+            - "(idx,)" for arrays with multiple elements
+            - "idx" for single-element arrays (scalar-like)
+
+            This occurs when nlayer=1, where roof/wall arrays have only one element
+            and may be stored with scalar indexing convention.
+            """
+            # Try standard array format first
             try:
-                nlayer = int(df.loc[grid_id, ("nlayer", "0")])
-            except (KeyError, ValueError, TypeError):
-                # Default to multi-layer format if can't determine
-                nlayer = 3
-        elif nlayer is None:
-            # For regular surfaces, always use multi-layer format
-            nlayer = 3
-
-        layer_idx = get_layer_index(surf_idx, nlayer, str_type)
+                return df.loc[grid_id, (var_name, f"({idx},)")]
+            except KeyError:
+                # Fall back to scalar format
+                try:
+                    return df.loc[grid_id, (var_name, str(idx))]
+                except KeyError:
+                    raise KeyError(
+                        f"Column ({var_name}, {idx}) not found in DataFrame. "
+                        f"Tried both '({idx},)' and '{idx}' formats."
+                    )
 
         # Base surface state parameters
-        state = RefValue(df.loc[grid_id, (f"state_{str_type}", layer_idx)])
-        soilstore = RefValue(df.loc[grid_id, (f"soilstore_{str_type}", layer_idx)])
+        state = RefValue(safe_get_value(f"state_{str_type}", surf_idx))
+        soilstore = RefValue(safe_get_value(f"soilstore_{str_type}", surf_idx))
 
         # Snow/ice parameters
         if str_type not in ["roof", "wall"]:
-            snowfrac = RefValue(df.loc[grid_id, (f"snowfrac", layer_idx)])
-            snowpack = RefValue(df.loc[grid_id, (f"snowpack", layer_idx)])
-            icefrac = RefValue(df.loc[grid_id, (f"icefrac", layer_idx)])
-            snowwater = RefValue(df.loc[grid_id, (f"snowwater", layer_idx)])
-            snowdens = RefValue(df.loc[grid_id, (f"snowdens", layer_idx)])
+            snowfrac = RefValue(safe_get_value("snowfrac", surf_idx))
+            snowpack = RefValue(safe_get_value("snowpack", surf_idx))
+            icefrac = RefValue(safe_get_value("icefrac", surf_idx))
+            snowwater = RefValue(safe_get_value("snowwater", surf_idx))
+            snowdens = RefValue(safe_get_value("snowdens", surf_idx))
         else:
             snowfrac = None
             snowpack = None
@@ -259,8 +267,8 @@ class SurfaceInitialState(BaseModel):
         ])
 
         # Exterior and interior surface temperature
-        tsfc = RefValue(df.loc[grid_id, (f"tsfc_{str_type}", layer_idx)])
-        tin = RefValue(df.loc[grid_id, (f"tin_{str_type}", layer_idx)])
+        tsfc = RefValue(safe_get_value(f"tsfc_{str_type}", surf_idx))
+        tin = RefValue(safe_get_value(f"tin_{str_type}", surf_idx))
 
         return cls(
             state=state,

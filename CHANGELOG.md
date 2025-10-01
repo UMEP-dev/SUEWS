@@ -34,6 +34,13 @@
 
 ## 2025
 
+### 1 Oct 2025
+- [improvement] Refactored SPARTACUS nlayer=1 handling in `SurfaceInitialState.from_df_state()` to use more robust try-except pattern
+  - Replaced conditional logic based on nlayer value with EAFP (Easier to Ask Forgiveness than Permission) approach
+  - Method now automatically handles both array format `"(idx,)"` and scalar format `"idx"` for DataFrame columns
+  - Improved code maintainability and self-documentation with `safe_get_value()` helper function
+  - Enhanced error messages to aid debugging when column format issues occur
+
 ### 30 Sep 2025
 - [bugfix] Fixed SPARTACUS multi-layer configuration handling to correctly create roof/wall arrays matching nlayer value (#698, #706, #707, #708)
   - Conversion now properly reads nlayer from GridLayoutKc.nml and creates matching number of roof/wall layers

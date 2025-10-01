@@ -116,7 +116,34 @@ class TestCLIConversion:
                 f"Expected 1 layer, got {vertical_layers['nlayer']['value']}"
             )
 
+            # CRITICAL: Verify roofs and walls arrays are populated (not empty)
+            # This is the core bug that was fixed in PR #710
+            initial_states = yaml_data["sites"][0]["initial_states"]
+            roofs = initial_states["roofs"]
+            walls = initial_states["walls"]
+
+            assert isinstance(roofs, list), "roofs should be a list"
+            assert isinstance(walls, list), "walls should be a list"
+            assert len(roofs) == 1, (
+                f"Expected 1 roof layer (nlayer=1), got {len(roofs)}. "
+                f"Empty array indicates bug #707 regression!"
+            )
+            assert len(walls) == 1, (
+                f"Expected 1 wall layer (nlayer=1), got {len(walls)}. "
+                f"Empty array indicates bug #707 regression!"
+            )
+
+            # Verify structure of roof/wall layers
+            assert "state" in roofs[0], "Roof layer missing 'state' field"
+            assert "soilstore" in roofs[0], "Roof layer missing 'soilstore' field"
+            assert "temperature" in roofs[0], "Roof layer missing 'temperature' field"
+            assert "state" in walls[0], "Wall layer missing 'state' field"
+            assert "soilstore" in walls[0], "Wall layer missing 'soilstore' field"
+            assert "temperature" in walls[0], "Wall layer missing 'temperature' field"
+
             print("✓ Single-layer CLI conversion successful")
+            print(f"✓ Verified: nlayer={vertical_layers['nlayer']['value']}, "
+                  f"roofs={len(roofs)}, walls={len(walls)}")
 
     @pytest.mark.skipif(
         not (Path(__file__).parent.parent / "fixtures/data_test/AVL_6_310").exists(),
@@ -154,11 +181,39 @@ class TestCLIConversion:
 
             # Check it's a multi-layer configuration
             vertical_layers = yaml_data["sites"][0]["properties"]["vertical_layers"]
-            assert vertical_layers["nlayer"]["value"] > 1, (
-                f"Expected multiple layers, got {vertical_layers['nlayer']['value']}"
+            nlayer = vertical_layers["nlayer"]["value"]
+            assert nlayer > 1, f"Expected multiple layers, got {nlayer}"
+
+            # CRITICAL: Verify roofs and walls arrays match nlayer count
+            # This is the core bug that was fixed in PR #710
+            initial_states = yaml_data["sites"][0]["initial_states"]
+            roofs = initial_states["roofs"]
+            walls = initial_states["walls"]
+
+            assert isinstance(roofs, list), "roofs should be a list"
+            assert isinstance(walls, list), "walls should be a list"
+            assert len(roofs) == nlayer, (
+                f"Expected {nlayer} roof layers, got {len(roofs)}. "
+                f"Bug #708: Only 3 layers created when nlayer=7!"
+            )
+            assert len(walls) == nlayer, (
+                f"Expected {nlayer} wall layers, got {len(walls)}. "
+                f"Bug #708: Only 3 layers created when nlayer=7!"
             )
 
+            # Verify structure of all roof/wall layers
+            for i, roof in enumerate(roofs):
+                assert "state" in roof, f"Roof layer {i} missing 'state' field"
+                assert "soilstore" in roof, f"Roof layer {i} missing 'soilstore' field"
+                assert "temperature" in roof, f"Roof layer {i} missing 'temperature' field"
+
+            for i, wall in enumerate(walls):
+                assert "state" in wall, f"Wall layer {i} missing 'state' field"
+                assert "soilstore" in wall, f"Wall layer {i} missing 'soilstore' field"
+                assert "temperature" in wall, f"Wall layer {i} missing 'temperature' field"
+
             print("✓ Multi-layer CLI conversion successful")
+            print(f"✓ Verified: nlayer={nlayer}, roofs={len(roofs)}, walls={len(walls)}")
 
     def test_version_detection_via_cli(self, test_data_dir):
         """Test that auto-detection works correctly via CLI."""
@@ -451,11 +506,24 @@ class TestCLIConversion:
                 assert nlayer == 1, f"Expected 1 layer, got {nlayer}"
 
                 # Check critical fields exist and are valid
-                assert site.initial_conditions is not None, "Initial conditions missing"
+                assert site.initial_states is not None, "Initial states missing"
                 assert site.meteorology is not None, "Meteorology section missing"
                 assert site.output is not None, "Output section missing"
 
+                # CRITICAL: Verify roofs and walls are populated
+                roofs = site.initial_states.roofs
+                walls = site.initial_states.walls
+                assert roofs is not None and len(roofs) == 1, (
+                    f"Expected 1 roof layer, got {len(roofs) if roofs else 0}. "
+                    f"Bug #707 regression!"
+                )
+                assert walls is not None and len(walls) == 1, (
+                    f"Expected 1 wall layer, got {len(walls) if walls else 0}. "
+                    f"Bug #707 regression!"
+                )
+
                 print("✓ Single-layer YAML is valid and loadable by SUEWSConfig")
+                print(f"✓ Verified: nlayer={nlayer}, roofs={len(roofs)}, walls={len(walls)}")
 
             except Exception as e:
                 # Check if it's a known validation issue (like pormin_dec/pormax_dec)
@@ -511,9 +579,21 @@ class TestCLIConversion:
                 assert nlayer > 1, f"Expected multiple layers, got {nlayer}"
 
                 # Check critical fields exist and are valid
-                assert site.initial_conditions is not None, "Initial conditions missing"
+                assert site.initial_states is not None, "Initial states missing"
                 assert site.meteorology is not None, "Meteorology section missing"
                 assert site.output is not None, "Output section missing"
+
+                # CRITICAL: Verify roofs and walls match nlayer count
+                roofs = site.initial_states.roofs
+                walls = site.initial_states.walls
+                assert roofs is not None and len(roofs) == nlayer, (
+                    f"Expected {nlayer} roof layers, got {len(roofs) if roofs else 0}. "
+                    f"Bug #708 regression!"
+                )
+                assert walls is not None and len(walls) == nlayer, (
+                    f"Expected {nlayer} wall layers, got {len(walls) if walls else 0}. "
+                    f"Bug #708 regression!"
+                )
 
                 # Check vertical layer structure
                 vl = site.properties.vertical_layers
@@ -521,6 +601,7 @@ class TestCLIConversion:
                 assert vl.building is not None, "Building layer is None"
 
                 print("✓ Multi-layer YAML is valid and loadable by SUEWSConfig")
+                print(f"✓ Verified: nlayer={nlayer}, roofs={len(roofs)}, walls={len(walls)}")
 
             except Exception as e:
                 # Check if it's a known validation issue

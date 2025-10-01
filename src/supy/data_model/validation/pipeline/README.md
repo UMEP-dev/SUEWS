@@ -126,9 +126,8 @@ python -m supy.data_model.yaml_processor.orchestrator user_config.yml --phase AB
 
 ### Output Files
 
-All validation runs create:
+All validation runs create standardised output files:
 - **Final files**: `updated_config.yml`, `report_config.txt`
-- **Intermediate files**: `updatedA_*.yml`, `reportA_*.txt`, `updatedB_*.yml`, `reportB_*.txt`
 
 The validator shows all created files and their purposes in terminal output.
 
@@ -221,16 +220,15 @@ RENAMED_PARAMS = {
 
 ## Output Files
 
-The processor generates:
+The processor generates standardised output files:
 
 1. **Updated YAML**: `updated_<input_name>.yml`
-   - Contains all parameters with defaults
-   - Includes update annotations
+   - Represents the last successful validation phase
 
-2. **Report**: `report_<input_name>.txt`
-   - Detailed validation results
-   - Action items categorised by priority
-   - Fix suggestions
+2. **Consolidated Report**: `report_<input_name>.txt`
+   - Single unified report combining all validation phases
+   - Action items categorised by priority (ACTION NEEDED / NO ACTION NEEDED)
+   - Fix suggestions with parameter locations
 
 ## Detailed Documentation
 

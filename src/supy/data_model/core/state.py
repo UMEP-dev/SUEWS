@@ -191,7 +191,12 @@ class SurfaceInitialState(BaseModel):
 
     @classmethod
     def from_df_state(
-        cls, df: pd.DataFrame, grid_id: int, surf_idx: int, str_type: str = "surf", nlayer: int = None
+        cls,
+        df: pd.DataFrame,
+        grid_id: int,
+        surf_idx: int,
+        str_type: str = "surf",
+        nlayer: int = None,
     ) -> "SurfaceInitialState":
         """
         Reconstruct SurfaceInitialState from a DataFrame state format.
@@ -206,6 +211,7 @@ class SurfaceInitialState(BaseModel):
         Returns:
             SurfaceInitialState: Instance of SurfaceInitialState.
         """
+
         # Determine the correct index format based on nlayer
         # For roof/wall layers with nlayer=1, indices are stored as "0" instead of "(0,)"
         # Regular surface types always use "(idx,)" format
@@ -230,9 +236,7 @@ class SurfaceInitialState(BaseModel):
 
         # Base surface state parameters
         state = RefValue(df.loc[grid_id, (f"state_{str_type}", layer_idx)])
-        soilstore = RefValue(
-            df.loc[grid_id, (f"soilstore_{str_type}", layer_idx)]
-        )
+        soilstore = RefValue(df.loc[grid_id, (f"soilstore_{str_type}", layer_idx)])
 
         # Snow/ice parameters
         if str_type not in ["roof", "wall"]:
@@ -1056,7 +1060,9 @@ class InitialStates(BaseModel):
             layers = []
             for idx in range(n_layers):
                 try:
-                    layer = surface_class.from_df_state(df, grid_id, idx, layer_name, nlayer=n_layers)
+                    layer = surface_class.from_df_state(
+                        df, grid_id, idx, layer_name, nlayer=n_layers
+                    )
                     layers.append(layer)
                 except KeyError:
                     break

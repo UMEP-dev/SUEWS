@@ -142,8 +142,10 @@ class TestCLIConversion:
             assert "temperature" in walls[0], "Wall layer missing 'temperature' field"
 
             print("✓ Single-layer CLI conversion successful")
-            print(f"✓ Verified: nlayer={vertical_layers['nlayer']['value']}, "
-                  f"roofs={len(roofs)}, walls={len(walls)}")
+            print(
+                f"✓ Verified: nlayer={vertical_layers['nlayer']['value']}, "
+                f"roofs={len(roofs)}, walls={len(walls)}"
+            )
 
     @pytest.mark.skipif(
         not (Path(__file__).parent.parent / "fixtures/data_test/AVL_6_310").exists(),
@@ -205,15 +207,21 @@ class TestCLIConversion:
             for i, roof in enumerate(roofs):
                 assert "state" in roof, f"Roof layer {i} missing 'state' field"
                 assert "soilstore" in roof, f"Roof layer {i} missing 'soilstore' field"
-                assert "temperature" in roof, f"Roof layer {i} missing 'temperature' field"
+                assert "temperature" in roof, (
+                    f"Roof layer {i} missing 'temperature' field"
+                )
 
             for i, wall in enumerate(walls):
                 assert "state" in wall, f"Wall layer {i} missing 'state' field"
                 assert "soilstore" in wall, f"Wall layer {i} missing 'soilstore' field"
-                assert "temperature" in wall, f"Wall layer {i} missing 'temperature' field"
+                assert "temperature" in wall, (
+                    f"Wall layer {i} missing 'temperature' field"
+                )
 
             print("✓ Multi-layer CLI conversion successful")
-            print(f"✓ Verified: nlayer={nlayer}, roofs={len(roofs)}, walls={len(walls)}")
+            print(
+                f"✓ Verified: nlayer={nlayer}, roofs={len(roofs)}, walls={len(walls)}"
+            )
 
     def test_version_detection_via_cli(self, test_data_dir):
         """Test that auto-detection works correctly via CLI."""
@@ -523,7 +531,9 @@ class TestCLIConversion:
                 )
 
                 print("✓ Single-layer YAML is valid and loadable by SUEWSConfig")
-                print(f"✓ Verified: nlayer={nlayer}, roofs={len(roofs)}, walls={len(walls)}")
+                print(
+                    f"✓ Verified: nlayer={nlayer}, roofs={len(roofs)}, walls={len(walls)}"
+                )
 
             except Exception as e:
                 # Check if it's a known validation issue (like pormin_dec/pormax_dec)
@@ -601,7 +611,9 @@ class TestCLIConversion:
                 assert vl.building is not None, "Building layer is None"
 
                 print("✓ Multi-layer YAML is valid and loadable by SUEWSConfig")
-                print(f"✓ Verified: nlayer={nlayer}, roofs={len(roofs)}, walls={len(walls)}")
+                print(
+                    f"✓ Verified: nlayer={nlayer}, roofs={len(roofs)}, walls={len(walls)}"
+                )
 
             except Exception as e:
                 # Check if it's a known validation issue

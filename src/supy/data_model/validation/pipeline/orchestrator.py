@@ -30,6 +30,68 @@ except ImportError as e:
     sys.exit(1)
 
 
+def detect_nlayer_from_user_yaml(user_yaml_file: str) -> int:
+    """Detect nlayer value from user YAML file.
+
+    Args:
+        user_yaml_file: Path to user YAML configuration file
+
+    Returns:
+        nlayer value (defaults to 3 if not found or on error)
+    """
+    try:
+        with open(user_yaml_file, "r") as f:
+            user_data = yaml.safe_load(f)
+
+        # Navigate: sites[0].properties.vertical_layers.nlayer.value
+        if not user_data or "sites" not in user_data:
+            return 3
+
+        sites = user_data.get("sites", [])
+        if not sites or not isinstance(sites, list):
+            return 3
+
+        first_site = sites[0]
+        if not isinstance(first_site, dict):
+            return 3
+
+        properties = first_site.get("properties", {})
+        if not isinstance(properties, dict):
+            return 3
+
+        vertical_layers = properties.get("vertical_layers", {})
+        if not isinstance(vertical_layers, dict):
+            return 3
+
+        nlayer = vertical_layers.get("nlayer", {})
+        if isinstance(nlayer, dict):
+            nlayer_value = nlayer.get("value", 3)
+        else:
+            nlayer_value = nlayer
+
+        return int(nlayer_value) if nlayer_value is not None else 3
+
+    except Exception as e:
+        print(f"Warning: Could not detect nlayer from user YAML, using default (3): {e}")
+        return 3
+
+
+def select_sample_config_by_nlayer(nlayer: int) -> str:
+    """Select appropriate sample_config file based on nlayer value.
+
+    Args:
+        nlayer: Number of SPARTACUS vertical layers
+
+    Returns:
+        Filename of the appropriate sample config
+    """
+    if nlayer == 1:
+        return "sample_config_1.yml"
+    else:
+        # For nlayer=3 or any other value, use sample_config_3.yml
+        return "sample_config_3.yml"
+
+
 def detect_pydantic_defaults(
     original_data: dict,
     processed_data: dict,
@@ -603,10 +665,14 @@ def run_phase_c(
 
                 # Load standard config for comparison
                 try:
+                    # Detect nlayer from input YAML to select appropriate sample config
+                    nlayer_value = detect_nlayer_from_user_yaml(input_yaml_file)
+                    sample_config_filename = select_sample_config_by_nlayer(nlayer_value)
+
                     # Use importlib.resources for robust package resource access
                     sample_data_files = importlib.resources.files(supy) / "sample_data"
                     with importlib.resources.as_file(
-                        sample_data_files / "sample_config.yml"
+                        sample_data_files / sample_config_filename
                     ) as standard_yaml_path:
                         with open(standard_yaml_path, "r") as f:
                             standard_data = yaml.safe_load(f)
@@ -1054,10 +1120,14 @@ Modes:
         user_yaml_file = validate_input_file(user_yaml_file)
 
         # Step 2: Setup paths
+        # Detect nlayer from user YAML to select appropriate sample config
+        nlayer_value = detect_nlayer_from_user_yaml(user_yaml_file)
+        sample_config_filename = select_sample_config_by_nlayer(nlayer_value)
+
         # Use importlib.resources for robust package resource access
         sample_data_files = importlib.resources.files(supy) / "sample_data"
         with importlib.resources.as_file(
-            sample_data_files / "sample_config.yml"
+            sample_data_files / sample_config_filename
         ) as standard_yaml_path:
             standard_yaml_file = str(standard_yaml_path)
 
@@ -1075,7 +1145,8 @@ Modes:
         print(f"SUEWS YAML Configuration Processor")
         print(f"==================================")
         print(f"YAML user file: {user_yaml_file}")
-        print(f"Standard file: {standard_yaml_file}")
+        print(f"Detected nlayer: {nlayer_value}")
+        print(f"Standard file: {sample_config_filename} (selected based on nlayer)")
         print(f"Processor Selected Mode: {phase_desc[phase]}")
         print(
             f"User Mode: {'Developer' if internal_mode.lower() == 'dev' else 'Public'}"

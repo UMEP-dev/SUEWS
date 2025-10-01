@@ -788,10 +788,22 @@ def _execute_pipeline(file, pipeline, mode):
     if not _check_experimental_features_restriction(user_yaml_file, mode):
         return 1
 
+    # Detect nlayer from user YAML to select appropriate sample config
+    try:
+        from ..data_model.validation.pipeline.orchestrator import (
+            detect_nlayer_from_user_yaml,
+            select_sample_config_by_nlayer,
+        )
+        nlayer_value = detect_nlayer_from_user_yaml(user_yaml_file)
+        sample_config_filename = select_sample_config_by_nlayer(nlayer_value)
+    except Exception as e:
+        # Silently fall back to default if detection fails
+        sample_config_filename = "sample_config_3.yml"
+
     # Use importlib.resources for robust package resource access
     sample_data_files = importlib.resources.files(supy) / "sample_data"
     with importlib.resources.as_file(
-        sample_data_files / "sample_config.yml"
+        sample_data_files / sample_config_filename
     ) as standard_yaml_path:
         # Check for experimental features restrictions before proceeding
         standard_yaml_file = str(standard_yaml_path)

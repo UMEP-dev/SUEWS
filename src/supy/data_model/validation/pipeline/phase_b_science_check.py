@@ -1699,7 +1699,17 @@ def main():
 
     user_file = "src/supy/data_model/user.yml"
     uptodate_file = "src/supy/data_model/uptodate_user.yml"
-    standard_file = "src/supy/sample_data/sample_config.yml"
+
+    # Detect nlayer from user YAML to select appropriate sample config
+    try:
+        from .orchestrator import detect_nlayer_from_user_yaml, select_sample_config_by_nlayer
+        nlayer_value = detect_nlayer_from_user_yaml(user_file)
+        sample_config_filename = select_sample_config_by_nlayer(nlayer_value)
+        standard_file = f"src/supy/sample_data/{sample_config_filename}"
+        print(f"Detected nlayer: {nlayer_value}, using {sample_config_filename}")
+    except Exception as e:
+        print(f"Warning: Could not detect nlayer, using default sample_config_3.yml: {e}")
+        standard_file = "src/supy/sample_data/sample_config_3.yml"
 
     print(f"Phase A output (uptodate): {uptodate_file}")
     print(f"Original user YAML: {user_file}")

@@ -72,7 +72,9 @@ def detect_nlayer_from_user_yaml(user_yaml_file: str) -> int:
         return int(nlayer_value) if nlayer_value is not None else 3
 
     except Exception as e:
-        print(f"Warning: Could not detect nlayer from user YAML, using default (3): {e}")
+        print(
+            f"Warning: Could not detect nlayer from user YAML, using default (3): {e}"
+        )
         return 3
 
 
@@ -667,7 +669,9 @@ def run_phase_c(
                 try:
                     # Detect nlayer from input YAML to select appropriate sample config
                     nlayer_value = detect_nlayer_from_user_yaml(input_yaml_file)
-                    sample_config_filename = select_sample_config_by_nlayer(nlayer_value)
+                    sample_config_filename = select_sample_config_by_nlayer(
+                        nlayer_value
+                    )
 
                     # Use importlib.resources for robust package resource access
                     sample_data_files = importlib.resources.files(supy) / "sample_data"

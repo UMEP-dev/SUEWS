@@ -1096,13 +1096,19 @@ def main():
 
     # Detect nlayer from user YAML to select appropriate sample config
     try:
-        from .orchestrator import detect_nlayer_from_user_yaml, select_sample_config_by_nlayer
+        from .orchestrator import (
+            detect_nlayer_from_user_yaml,
+            select_sample_config_by_nlayer,
+        )
+
         nlayer_value = detect_nlayer_from_user_yaml(user_file)
         sample_config_filename = select_sample_config_by_nlayer(nlayer_value)
         standard_file = f"src/supy/sample_data/{sample_config_filename}"
         print(f"Detected nlayer: {nlayer_value}, using {sample_config_filename}")
     except Exception as e:
-        print(f"Warning: Could not detect nlayer, using default sample_config_3.yml: {e}")
+        print(
+            f"Warning: Could not detect nlayer, using default sample_config_3.yml: {e}"
+        )
         standard_file = "src/supy/sample_data/sample_config_3.yml"
 
     # Validate standard file is up to date with master branch

@@ -794,6 +794,7 @@ def _execute_pipeline(file, pipeline, mode):
             detect_nlayer_from_user_yaml,
             select_sample_config_by_nlayer,
         )
+
         nlayer_value = detect_nlayer_from_user_yaml(user_yaml_file)
         sample_config_filename = select_sample_config_by_nlayer(nlayer_value)
     except Exception as e:

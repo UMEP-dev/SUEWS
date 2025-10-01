@@ -196,7 +196,6 @@ class SurfaceInitialState(BaseModel):
         grid_id: int,
         surf_idx: int,
         str_type: str = "surf",
-        nlayer: int = None,
     ) -> "SurfaceInitialState":
         """
         Reconstruct SurfaceInitialState from a DataFrame state format.
@@ -206,7 +205,6 @@ class SurfaceInitialState(BaseModel):
             grid_id (int): Grid ID for the DataFrame index.
             surf_idx (int): Surface index for identifying columns.
             str_type (str): Surface type prefix ("surf", "roof", or "wall").
-            nlayer (int, optional): Number of layers (passed for consistency, not used in current implementation).
 
         Returns:
             SurfaceInitialState: Instance of SurfaceInitialState.
@@ -1069,7 +1067,7 @@ class InitialStates(BaseModel):
             for idx in range(n_layers):
                 try:
                     layer = surface_class.from_df_state(
-                        df, grid_id, idx, layer_name, nlayer=n_layers
+                        df, grid_id, idx, layer_name
                     )
                     layers.append(layer)
                 except KeyError:

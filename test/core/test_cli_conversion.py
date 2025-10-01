@@ -86,13 +86,17 @@ class TestCLIConversion:
         Tests fix for issues #707, #708.
         """
         input_file = test_data_dir / "AVL_1_LDN1/RunControl.nml"
-        forcing_file = test_data_dir.parent / "benchmark1/forcing/Kc1_2011_data_5_tiny.txt"
+        forcing_file = (
+            test_data_dir.parent / "benchmark1/forcing/Kc1_2011_data_5_tiny.txt"
+        )
 
         with tempfile.TemporaryDirectory() as tmpdir:
             output_file = Path(tmpdir) / "single_layer.yml"
 
             # Convert NML → YAML
-            result = self.run_suews_convert("-i", str(input_file), "-o", str(output_file))
+            result = self.run_suews_convert(
+                "-i", str(input_file), "-o", str(output_file)
+            )
             assert result.returncode == 0, f"Conversion failed: {result.stderr}"
             assert output_file.exists()
 
@@ -141,13 +145,17 @@ class TestCLIConversion:
         Tests fix for issues #706, #708.
         """
         input_file = test_data_dir / "AVL_6_310/RunControl.nml"
-        forcing_file = test_data_dir.parent / "benchmark1/forcing/Kc1_2011_data_5_tiny.txt"
+        forcing_file = (
+            test_data_dir.parent / "benchmark1/forcing/Kc1_2011_data_5_tiny.txt"
+        )
 
         with tempfile.TemporaryDirectory() as tmpdir:
             output_file = Path(tmpdir) / "multi_layer.yml"
 
             # Convert NML → YAML (auto-detects version)
-            result = self.run_suews_convert("-i", str(input_file), "-o", str(output_file))
+            result = self.run_suews_convert(
+                "-i", str(input_file), "-o", str(output_file)
+            )
             assert result.returncode == 0, f"Conversion failed: {result.stderr}"
             assert output_file.exists()
 
@@ -159,8 +167,12 @@ class TestCLIConversion:
             # Verify roofs/walls match nlayer (core bug fix)
             roofs = sim.config.sites[0].initial_states.roofs
             walls = sim.config.sites[0].initial_states.walls
-            assert len(roofs) == nlayer, f"Bug #708: Expected {nlayer} roofs, got {len(roofs)}"
-            assert len(walls) == nlayer, f"Bug #708: Expected {nlayer} walls, got {len(walls)}"
+            assert len(roofs) == nlayer, (
+                f"Bug #708: Expected {nlayer} roofs, got {len(roofs)}"
+            )
+            assert len(walls) == nlayer, (
+                f"Bug #708: Expected {nlayer} walls, got {len(walls)}"
+            )
 
             # Run simulation - the ultimate test
             sim.update_forcing(str(forcing_file))

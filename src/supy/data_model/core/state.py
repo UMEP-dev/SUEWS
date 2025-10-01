@@ -1066,9 +1066,7 @@ class InitialStates(BaseModel):
             layers = []
             for idx in range(n_layers):
                 try:
-                    layer = surface_class.from_df_state(
-                        df, grid_id, idx, layer_name
-                    )
+                    layer = surface_class.from_df_state(df, grid_id, idx, layer_name)
                     layers.append(layer)
                 except KeyError:
                     break

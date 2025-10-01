@@ -191,7 +191,7 @@ class SurfaceInitialState(BaseModel):
 
     @classmethod
     def from_df_state(
-        cls, df: pd.DataFrame, grid_id: int, surf_idx: int, str_type: str = "surf"
+        cls, df: pd.DataFrame, grid_id: int, surf_idx: int, str_type: str = "surf", nlayer: int = None
     ) -> "SurfaceInitialState":
         """
         Reconstruct SurfaceInitialState from a DataFrame state format.
@@ -201,23 +201,46 @@ class SurfaceInitialState(BaseModel):
             grid_id (int): Grid ID for the DataFrame index.
             surf_idx (int): Surface index for identifying columns.
             str_type (str): Surface type prefix ("surf", "roof", or "wall").
+            nlayer (int, optional): Number of layers (needed for correct index format).
 
         Returns:
             SurfaceInitialState: Instance of SurfaceInitialState.
         """
+        # Determine the correct index format based on nlayer
+        # For roof/wall layers with nlayer=1, indices are stored as "0" instead of "(0,)"
+        # Regular surface types always use "(idx,)" format
+        def get_layer_index(idx, nlayer_val, surface_type):
+            # Only apply special nlayer=1 format for roofs and walls
+            if surface_type in ["roof", "wall"] and nlayer_val == 1:
+                return str(idx)
+            return f"({idx},)"
+
+        # Use provided nlayer or try to detect it from dataframe (only relevant for roofs/walls)
+        if nlayer is None and str_type in ["roof", "wall"]:
+            try:
+                nlayer = int(df.loc[grid_id, ("nlayer", "0")])
+            except (KeyError, ValueError, TypeError):
+                # Default to multi-layer format if can't determine
+                nlayer = 3
+        elif nlayer is None:
+            # For regular surfaces, always use multi-layer format
+            nlayer = 3
+
+        layer_idx = get_layer_index(surf_idx, nlayer, str_type)
+
         # Base surface state parameters
-        state = RefValue(df.loc[grid_id, (f"state_{str_type}", f"({surf_idx},)")])
+        state = RefValue(df.loc[grid_id, (f"state_{str_type}", layer_idx)])
         soilstore = RefValue(
-            df.loc[grid_id, (f"soilstore_{str_type}", f"({surf_idx},)")]
+            df.loc[grid_id, (f"soilstore_{str_type}", layer_idx)]
         )
 
         # Snow/ice parameters
         if str_type not in ["roof", "wall"]:
-            snowfrac = RefValue(df.loc[grid_id, (f"snowfrac", f"({surf_idx},)")])
-            snowpack = RefValue(df.loc[grid_id, (f"snowpack", f"({surf_idx},)")])
-            icefrac = RefValue(df.loc[grid_id, (f"icefrac", f"({surf_idx},)")])
-            snowwater = RefValue(df.loc[grid_id, (f"snowwater", f"({surf_idx},)")])
-            snowdens = RefValue(df.loc[grid_id, (f"snowdens", f"({surf_idx},)")])
+            snowfrac = RefValue(df.loc[grid_id, (f"snowfrac", layer_idx)])
+            snowpack = RefValue(df.loc[grid_id, (f"snowpack", layer_idx)])
+            icefrac = RefValue(df.loc[grid_id, (f"icefrac", layer_idx)])
+            snowwater = RefValue(df.loc[grid_id, (f"snowwater", layer_idx)])
+            snowdens = RefValue(df.loc[grid_id, (f"snowdens", layer_idx)])
         else:
             snowfrac = None
             snowpack = None
@@ -232,8 +255,8 @@ class SurfaceInitialState(BaseModel):
         ])
 
         # Exterior and interior surface temperature
-        tsfc = RefValue(df.loc[grid_id, (f"tsfc_{str_type}", f"({surf_idx},)")])
-        tin = RefValue(df.loc[grid_id, (f"tin_{str_type}", f"({surf_idx},)")])
+        tsfc = RefValue(df.loc[grid_id, (f"tsfc_{str_type}", layer_idx)])
+        tin = RefValue(df.loc[grid_id, (f"tin_{str_type}", layer_idx)])
 
         return cls(
             state=state,
@@ -1033,7 +1056,7 @@ class InitialStates(BaseModel):
             layers = []
             for idx in range(n_layers):
                 try:
-                    layer = surface_class.from_df_state(df, grid_id, idx, layer_name)
+                    layer = surface_class.from_df_state(df, grid_id, idx, layer_name, nlayer=n_layers)
                     layers.append(layer)
                 except KeyError:
                     break

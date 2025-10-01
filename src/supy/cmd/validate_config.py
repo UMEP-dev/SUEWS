@@ -754,11 +754,14 @@ def _format_phase_output(
 
 
 def _execute_pipeline(file, pipeline, mode):
-    """Run YAML processor phases A/B/C to validate and generate reports/YAML.
+    """Run YAML validation pipeline to validate and generate reports/YAML.
 
-    Phase A: Update YAML structure and detect parameters
-    Phase B: Scientific checks and adjustments
-    Phase C: Pydantic validation with physics conditionals
+    The validation system uses multiple internal phases:
+    - Structure validation: Update YAML structure and detect parameters
+    - Scientific validation: Apply scientific checks and adjustments
+    - Model validation: Pydantic validation with physics conditionals
+
+    All findings are consolidated into a single report and updated YAML file.
     """
     # Ensure processor is importable
     if not all([
@@ -926,7 +929,7 @@ def _execute_pipeline(file, pipeline, mode):
                 if Path(uptodate_file).exists():
                     shutil.move(str(uptodate_file), str(final_yaml))
                 else:
-                    console.print(f"[yellow]Warning: Phase A YAML not found: {uptodate_file}[/yellow]")
+                    console.print(f"[yellow]Warning: Updated YAML not found: {uptodate_file}[/yellow]")
 
                 # Use Phase B report as final (contains the errors)
                 if Path(science_report_file).exists():

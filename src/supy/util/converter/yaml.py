@@ -208,7 +208,6 @@ def convert_to_yaml(
         # Save to YAML
         click.echo(f"Saving to: {output_path}")
         config.to_yaml(output_path)
-        click.secho(f"[OK] Successfully converted to {output_path}", fg="green")
 
     finally:
         if temp_dir_obj:

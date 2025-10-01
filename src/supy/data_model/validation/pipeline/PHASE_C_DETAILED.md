@@ -414,17 +414,15 @@ def generate_phase_c_report(validation_error: Exception, ...):
 ### Report Structure
 
 ```text
-# SUEWS - Phase C (Pydantic Validation) Report
+# SUEWS Validation Report
 # ==================================================
 # Mode: Public
 # ==================================================
 
 ## ACTION NEEDED
-- Found (2) critical Pydantic validation error(s):
--- netradiationmethod at model.physics: Field required for selected physics options
-   [type=missing input_value=None] For further information visit https://errors.pydantic.dev
--- grass.lai_id at sites[0].properties.land_cover.grass: Required when grass fraction > 0 (current: 0.25)
-   [type=value_error input_value=null]
+- Found (1) critical Pydantic validation error(s):
+-- netradiationmethod: Field required [type=missing, input_value=None] For further information visit https://errors.pydantic.dev/2.11/v/missing
+   Location: model.physics.netradiationmethod
 ```
 
 ### Error Information Extraction
@@ -522,15 +520,15 @@ sites:
 #### When Phase C Fails (Conditional Validation Error)
 
 ```text
-# SUEWS - Phase C (Pydantic Validation) Report
+# SUEWS Validation Report
 # ==================================================
 # Mode: Public
 # ==================================================
 
 ## ACTION NEEDED
 - Found (1) critical Pydantic validation error(s):
--- validation issue: Missing required STEBBS parameters: InternalMassConvectionCoefficient (required when stebbsmethod=1)
-   Location: configuration
+-- bldgh: Input should be greater than or equal to 0 [type=greater_than_equal, input_value={'value': -22.0}] For further information visit https://errors.pydantic.dev/2.11/v/greater_than_equal
+   Location: sites.123.properties.land_cover.bldgs.bldgh
 
 # ==================================================
 ```
@@ -538,33 +536,20 @@ sites:
 #### When Phase C Fails (Standard Pydantic Error)
 
 ```text
-# SUEWS - Phase C (Pydantic Validation) Report
+# SUEWS Validation Report
 # ==================================================
 # Mode: Public
 # ==================================================
 
 ## ACTION NEEDED
 - Found (1) critical Pydantic validation error(s):
--- netradiationmethod: Field required [type=missing, input_value=None] For further information visit https://errors.pydantic.dev/2.5/v/missing
+-- netradiationmethod: Field required [type=missing, input_value=None] For further information visit https://errors.pydantic.dev/2.11/v/missing
    Location: model.physics.netradiationmethod
 
 # ==================================================
 ```
 
-#### When Phase C Passes (Standalone)
-
-```text
-# SUEWS - Phase C (Pydantic Validation) Report
-# ==================================================
-# Mode: Public
-# ==================================================
-
-Phase C passed
-
-# ==================================================
-```
-
-#### When Phase C Passes (with Previous Phase Information)
+#### When All Phases Pass (ABC Pipeline)
 
 ```text
 # SUEWS Validation Report
@@ -573,15 +558,18 @@ Phase C passed
 # ==================================================
 
 ## NO ACTION NEEDED
-- Updated (2) renamed parameter(s) to current standards:
+- Updated (2) renamed parameter(s):
 -- diagmethod changed to rslmethod
 -- cp changed to rho_cp
-- Updated (3) optional missing parameter(s) with null values:
--- holiday added to updatedA_user.yml and set to null
--- wetthresh added to updatedA_user.yml and set to null
--- lai_id added to updatedA_user.yml and set to null
-- Found (1) scientific warning(s) for information:
--- Surface fractions adjusted to sum to 1.0
+
+- Updated (7) parameter(s):
+-- initial_states.paved at site [123]: temperature, tsfc, tin → 4.793333530426025 C (Set from CRU data for coordinates (51.51, -0.12) for month 1)
+-- initial_states.bldgs at site [123]: temperature, tsfc, tin → 4.793333530426025 C (Set from CRU data for coordinates (51.51, -0.12) for month 1)
+-- anthropogenic_emissions.startdls at site [0]: 15.0 → 86 (Calculated DLS start for coordinates (51.51, -0.12))
+
+- Revise (2) warnings:
+-- land_cover.evetr at site [0]: Parameters under sites.properties.land_cover.evetr are not checked because 'evetr' surface fraction is 0.
+-- land_cover.bsoil at site [0]: Parameters under sites.properties.land_cover.bsoil are not checked because 'bsoil' surface fraction is 0.
 
 # ==================================================
 ```

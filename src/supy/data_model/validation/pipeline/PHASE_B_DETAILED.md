@@ -294,10 +294,10 @@ Phase B generates comprehensive reports with two main sections:
 - **ACTION NEEDED**: Critical physics issues requiring user attention (ERROR status validation results)
 - **NO ACTION NEEDED**: Automatic adjustments made by Phase B, warnings, and Phase A information
 
-### Scientific Validation Report (`reportB_<filename>.txt`)
+### Scientific Validation Report (Standalone Phase B)
 
 ```text
-# SUEWS - Phase B (Scientific Validation) Report
+# SUEWS Validation Report
 # ==================================================
 # Mode: Public
 # ==================================================
@@ -305,19 +305,19 @@ Phase B generates comprehensive reports with two main sections:
 ## ACTION NEEDED
 - Found (2) critical scientific parameter error(s):
 -- rslmethod-stabilitymethod: If rslmethod == 2, stabilitymethod must be 3
-   Suggested fix: Set stabilitymethod to 3
+   Location: model.physics.stabilitymethod
 -- storageheatmethod-ohmincqf: StorageHeatMethod is set to 1 and OhmIncQf is set to 1. You should switch to OhmIncQf=0.
-   Suggested fix: Set OhmIncQf to 0
+   Location: model.physics.ohmincqf
 
 ## NO ACTION NEEDED
 - Updated (11) parameter(s):
--- initial_states.paved: temperature, tsfc, tin → 12.4°C (Set from CRU data for coordinates (51.51, -0.13) for month 1)
--- initial_states.bldgs: temperature, tsfc, tin → 12.4°C (Set from CRU data for coordinates (51.51, -0.13) for month 1)
--- stebbs.WallOutdoorSurfaceTemperature: 20.0 → 12.4°C (Set from CRU data for coordinates (51.51, -0.13) for month 1)
--- stebbs.WindowOutdoorSurfaceTemperature: 20.0 → 12.4°C (Set from CRU data for coordinates (51.51, -0.13) for month 1)
--- anthropogenic_emissions.startdls: 15.0 → 86 (Calculated DLS start for coordinates (51.51, -0.13))
--- anthropogenic_emissions.enddls: 12.0 → 303 (Calculated DLS end for coordinates (51.51, -0.13))
--- paved.sfr at site [0]: rounded to achieve sum of land cover fractions equal to 1.0 → tolerance level: 1.00e-08
+-- initial_states.paved at site [0]: temperature, tsfc, tin → 12.4 C (Set from CRU data for coordinates (51.51, -0.13) for month 1)
+-- initial_states.bldgs at site [0]: temperature, tsfc, tin → 12.4 C (Set from CRU data for coordinates (51.51, -0.13) for month 1)
+-- stebbs.WallOutdoorSurfaceTemperature at site [0]: 20.0 → 12.4 C (Set from CRU data for coordinates (51.51, -0.13) for month 1)
+-- stebbs.WindowOutdoorSurfaceTemperature at site [0]: 20.0 → 12.4 C (Set from CRU data for coordinates (51.51, -0.13) for month 1)
+-- anthropogenic_emissions.startdls at site [0]: 15.0 → 86 (Calculated DLS start for coordinates (51.51, -0.13))
+-- anthropogenic_emissions.enddls at site [0]: 12.0 → 303 (Calculated DLS end for coordinates (51.51, -0.13))
+-- paved.sfr at site [0]: rounded to achieve sum of land cover fractions equal to 1.0
 
 # ==================================================
 ```
@@ -382,16 +382,18 @@ Phase B output serves as input to subsequent phases in the validation pipeline:
 
 ### File Handoff
 
+When Phase B runs as part of multi-phase pipelines, its output is processed internally and consolidated:
+
 ```bash
-# Phase B processes input from Phase A or user files
-updatedA_user_config.yml     # ← Phase A output OR
-user_config.yml              # ← Direct user input
-↓
-updatedB_user_config.yml     # → Phase B output
-↓
-updatedAB_user_config.yml    # → AB workflow final output
-updatedBC_user_config.yml    # → BC workflow final output
-updated_user_config.yml   # → Complete pipeline output
+# Phase B in multi-phase workflows
+User Input: config.yml
+    ↓
+Phase A (internal) → Phase B (internal) → ...
+    ↓
+Final Output: updated_config.yml, report_config.txt
+
+# The final report consolidates Phase B findings with other phases
+# File naming is standardised regardless of pipeline (AB, BC, ABC, etc.)
 ```
 
 ### Mode Integration

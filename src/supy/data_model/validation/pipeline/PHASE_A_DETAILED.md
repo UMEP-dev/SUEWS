@@ -382,29 +382,27 @@ Phase A generates mode-dependent comprehensive reports with enhanced user-friend
 
 ### Analysis Report Examples
 
-#### Public Mode Report (`reportA_<filename>.txt`)
+#### Public Mode Report (Standalone Phase A)
 
 ```text
-# SUEWS - Phase A (Up-to-date YAML check) Report
-# Generated: 2024-01-15 14:30:00
+# SUEWS Validation Report
+# ==================================================
 # Mode: Public
 # ==================================================
 
 ## ACTION NEEDED
 - Found (1) critical missing parameter(s):
--- netradiationmethod has been added to updatedA_user.yml and set to null
-   Suggested fix: Set appropriate value based on SUEWS documentation
+-- netradiationmethod has been added to updated YAML and set to null
+   Location: model.physics.netradiationmethod
 
 - Found (2) not allowed extra parameter name(s):
 -- startdate at level model.control.startdate
-   Suggested fix: You selected Public mode. Consider either to switch to Dev mode, or remove this extra parameter since this is not in the standard yaml.
 -- test at level sites[0].properties.test
-   Suggested fix: You selected Public mode. Consider either to switch to Dev mode, or remove this extra parameter since this is not in the standard yaml.
 
 ## NO ACTION NEEDED
-- Updated (3) optional missing parameter(s) with null values:
--- holiday added to updatedA_user.yml and set to null
--- wetthresh added to updatedA_user.yml and set to null
+- Updated (2)) optional missing parameter(s) with null values:
+-- holiday added to updated YAML and set to null
+-- wetthresh added to updated YAML and set to null
 
 - Updated (2) renamed parameter(s):
 -- diagmethod changed to rslmethod
@@ -413,28 +411,27 @@ Phase A generates mode-dependent comprehensive reports with enhanced user-friend
 # ==================================================
 ```
 
-#### Developer Mode Report (`reportA_<filename>.txt`)
+#### Developer Mode Report (Standalone Phase A)
 
 ```text
-# SUEWS - Phase A (Up-to-date YAML check) Report
-# Generated: 2024-01-15 14:30:00
+# SUEWS Validation Report
+# ==================================================
 # Mode: Developer
 # ==================================================
 
 ## ACTION NEEDED
 - Found (1) critical missing parameter(s):
--- netradiationmethod has been added to updatedA_user.yml and set to null
-   Suggested fix: Set appropriate value based on SUEWS documentation
+-- netradiationmethod has been added to updated YAML and set to null
+   Location: model.physics.netradiationmethod
 
 - Found (1) parameter(s) in forbidden locations:
 -- test at level sites[0].properties.test
    Reason: Extra parameters not allowed in SiteProperties
-   Suggested fix: Remove parameter or move to allowed nested section (stebbs, irrigation, snow)
 
 ## NO ACTION NEEDED
-- Updated (3) optional missing parameter(s) with null values:
--- holiday added to updatedA_user.yml and set to null
--- wetthresh added to updatedA_user.yml and set to null
+- Updated (2) optional missing parameter(s) with null values:
+-- holiday added to updated YAML and set to null
+-- wetthresh added to updated YAML and set to null
 
 - Updated (2) renamed parameter(s):
 -- diagmethod changed to rslmethod
@@ -469,40 +466,24 @@ except yaml.YAMLError as e:
 - **Invalid syntax**: YAML parsing errors caught and reported
 - **Missing sections**: Detected and documented in missing parameters
 
-#### Successful Completion with No Issues
-
-When Phase A completes successfully without finding any issues, the report clearly indicates success:
-
-```text
-# SUEWS Validation Report
-# ==================================================
-# Mode: Public
-# ==================================================
-
-YAML structure check passed
-
-# ==================================================
-```
-
-This clear success indication is particularly valuable in multi-phase workflows where Phase A succeeds but later phases fail.
-
 ## Integration with Other Phases
 
 Phase A output serves as input to subsequent phases in the validation pipeline:
 
 ### File Handoff
 
-```bash
-# Phase A generates
-updatedA_user_config.yml    # → Input to Phase B/C
-reportA_user_config.txt     # → Phase A analysis
+When Phase A runs as part of multi-phase pipelines, its output is processed internally and consolidated:
 
-# Workflow combinations process Phase A output:
-updatedA_user_config.yml    # ← Phase A output
-↓
-updatedAB_user_config.yml   # → AB workflow final output
-updatedAC_user_config.yml   # → AC workflow final output
-updated_user_config.yml  # → Complete pipeline output
+```bash
+# Phase A in multi-phase workflows
+User Input: config.yml
+    ↓
+Phase A (internal) → Phase B (internal) → ...
+    ↓
+Final Output: updated_config.yml, report_config.txt
+
+# The final report consolidates Phase A findings with subsequent phases
+# File naming is standardised regardless of pipeline (AB, AC, ABC, etc.)
 ```
 
 ## Testing and Validation

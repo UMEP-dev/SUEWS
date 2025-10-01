@@ -1,41 +1,38 @@
 # Reference Documentation
 
-This directory contains technical reference documentation for SUEWS development infrastructure.
+Technical reference documentation for SUEWS development.
 
 ## Available References
 
-### build-isolation.md
-Technical analysis of the build system and isolation strategies:
-- Build system architecture
-- Common build conflicts
-- Isolation solutions
-- Performance considerations
+### quick-start.md
+**Single source of truth** for environment setup commands:
+- uv setup (recommended)
+- venv setup
+- mamba setup
+- Essential make commands
 
-### environment-types.md
-Detailed comparison of different environment management approaches:
-- Visual overview of environment structure
-- mamba setup details
-- Environment isolation patterns
-- Legacy reference for complex setups
+### testing-guide.md
+Testing requirements and benchmark details:
+- Critical test requirements
+- Benchmark test specifications
+- Debugging guidance
 
-### uv-adoption.md
-Comprehensive guide for adopting uv throughout the project:
-- Benefits and performance comparisons
-- Migration strategies
-- Full project adoption path
-- CI/CD integration
+### config-patterns.md
+Configuration design patterns:
+- Separation of concerns principle
+- High-level vs low-level methods
+- Implementation examples and checklist
+
+### maintenance-principles.md
+Documentation and code maintenance principles:
+- CHANGELOG rules
+- RST writing rules
+- DRY principles
+- Code architecture patterns
 
 ## When to Use These References
 
-**Build failures in worktrees?**
-→ See `build-isolation.md`
-
-**Need to understand environment options?**
-→ See `environment-types.md`
-
-**Considering full uv adoption?**
-→ See `uv-adoption.md`
-
-## Note
-
-These are technical references, not how-to guides. For step-by-step instructions, see the `howto/` directory.
+**Need to set up environment?** → `quick-start.md`
+**Test failures?** → `testing-guide.md`
+**Implementing features with config objects?** → `config-patterns.md`
+**Updating docs or code?** → `maintenance-principles.md`

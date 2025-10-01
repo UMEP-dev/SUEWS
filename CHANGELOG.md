@@ -34,10 +34,22 @@
 
 ## 2025
 
-### 01 Oct 2025
+### 1 Oct 2025
+- [improvement] Refactored SPARTACUS nlayer=1 handling in `SurfaceInitialState.from_df_state()` to use more robust try-except pattern
+  - Replaced conditional logic based on nlayer value with EAFP (Easier to Ask Forgiveness than Permission) approach
+  - Method now automatically handles both array format `"(idx,)"` and scalar format `"idx"` for DataFrame columns
+  - Improved code maintainability and self-documentation with `safe_get_value()` helper function
+  - Enhanced error messages to aid debugging when column format issues occur
 - [bugfix] Fixed validation report consolidation bugs: properly merge NO ACTION NEEDED messages from all phases in multi-phase pipelines; BC pipeline now consolidates Phase B messages when Phase C fails; removed extra separator line between ACTION NEEDED and NO ACTION NEEDED sections
 - [change] Harmonised validation system output: standardised report headers without phase-specific references; all pipelines produce `updated_config.yml` and `report_config.txt`; removed "Suggestion:" messages; consistent terminal output format; phase names now descriptive (Structure/Scientific/Model validation) instead of A/B/C
 - [doc] Updated validation documentation (workflow.rst, validation.rst, README.md, ORCHESTRATOR.md, PHASE_A/B/C_DETAILED.md) to reflect consolidated reports, standardised file naming, deduplication features, and harmonised output format
+
+### 30 Sep 2025
+- [bugfix] Fixed SPARTACUS multi-layer configuration handling to correctly create roof/wall arrays matching nlayer value (#698, #706, #707, #708)
+  - Conversion now properly reads nlayer from GridLayoutKc.nml and creates matching number of roof/wall layers
+  - Initial states now correctly reflect the specified number of vertical layers
+  - Added defensive coding to handle missing layer data gracefully
+- [improvement] Added warning when nlayer parameter is missing from df_state, improving debugging visibility for configuration issues
 
 ### 26 Sep 2025
 - [bugfix] Fixed path resolution bug in `suews-validate` CLI command that prevented validation from working when run from subdirectories

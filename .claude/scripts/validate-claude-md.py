@@ -10,16 +10,26 @@ import hashlib
 import json
 from datetime import datetime
 
-# Critical sections that must be preserved
+# Critical sections that must be preserved (updated for tightened structure)
 CRITICAL_SECTIONS = [
-    "## Current Investigations and Findings",
-    "### QE/QH Discrepancy Investigation",
-    "## Configuration Handling and Method Design Pattern",
-    "## Documentation & Code Maintenance Principles",
-    "## Git Worktrees for Claude Code",
-    "## Testing Resources",
-    "### Critical Testing Requirements for SUEWS",
-    "## Development Tasks and Reminders",
+    "## ⚠️ CLAUDE.md Protection Active",
+    "## Style Guidelines",
+    "## Common Workflow",
+    "## Documentation Structure",
+    "## Git and GitHub",
+    "## Testing Requirements",
+    "## Development Reminders",
+    "## Configuration Pattern",
+    "## Documentation Principles",
+    "## Quick Reference",
+]
+
+# Required reference files that contain detailed content
+REQUIRED_REFERENCE_FILES = [
+    ".claude/reference/quick-start.md",
+    ".claude/reference/testing-guide.md",
+    ".claude/reference/config-patterns.md",
+    ".claude/reference/maintenance-principles.md",
 ]
 
 # Suspicious placeholder patterns that indicate content loss
@@ -75,6 +85,16 @@ def check_file_integrity(filepath: Path) -> dict:
     if missing_sections:
         warnings.append(f"Missing critical sections: {', '.join(missing_sections)}")
 
+    # Check that required reference files exist
+    missing_refs = []
+    for ref_file in REQUIRED_REFERENCE_FILES:
+        ref_path = filepath.parent / ref_file
+        if not ref_path.exists():
+            missing_refs.append(ref_file)
+
+    if missing_refs:
+        warnings.append(f"Missing reference files: {', '.join(missing_refs)}")
+
     # Calculate content hash for tracking changes
     content_hash = hashlib.sha256(content.encode()).hexdigest()
 
@@ -88,9 +108,10 @@ def check_file_integrity(filepath: Path) -> dict:
         "timestamp": datetime.now().isoformat(),
     }
 
-    # Check minimum content thresholds
-    MIN_LINES = 500  # CLAUDE.md should have at least this many lines
-    MIN_CHARS = 20000  # And this many characters
+    # Check minimum content thresholds (updated for intentionally tightened structure)
+    # CLAUDE.md is now a brief overview (~75 lines) with references to detailed docs
+    MIN_LINES = 60  # CLAUDE.md should have at least this many lines
+    MIN_CHARS = 2500  # And this many characters
 
     if stats["lines"] < MIN_LINES:
         warnings.append(

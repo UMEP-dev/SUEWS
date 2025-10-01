@@ -34,6 +34,11 @@
 
 ## 2025
 
+### 01 Oct 2025
+- [bugfix] Fixed validation report consolidation bugs: properly merge NO ACTION NEEDED messages from all phases in multi-phase pipelines; BC pipeline now consolidates Phase B messages when Phase C fails; removed extra separator line between ACTION NEEDED and NO ACTION NEEDED sections
+- [change] Harmonised validation system output: standardised report headers without phase-specific references; all pipelines produce `updated_config.yml` and `report_config.txt`; removed "Suggestion:" messages; consistent terminal output format; phase names now descriptive (Structure/Scientific/Model validation) instead of A/B/C
+- [doc] Updated validation documentation (workflow.rst, validation.rst, README.md, ORCHESTRATOR.md, PHASE_A/B/C_DETAILED.md) to reflect consolidated reports, standardised file naming, deduplication features, and harmonised output format
+
 ### 26 Sep 2025
 - [bugfix] Fixed path resolution bug in `suews-validate` CLI command that prevented validation from working when run from subdirectories
 

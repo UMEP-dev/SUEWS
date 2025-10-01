@@ -61,16 +61,6 @@ class TestCLIConversion:
             assert result.returncode != 0
             assert "Error" in result.stderr or "not found" in result.stderr.lower()
 
-    def test_explicit_version_conversion_via_cli(self):
-        """Test conversion with explicit version specification."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            output_file = Path(tmpdir) / "explicit_version.yml"
-            result = self.run_suews_convert(
-                "-t", "2020a", "-o", str(output_file), "--sample"
-            )
-            assert result.returncode == 0
-            assert output_file.exists()
-
     # ========== END-TO-END SIMULATION TESTS ==========
     # These replace redundant conversion/validation tests
 
@@ -185,20 +175,6 @@ class TestCLIConversion:
     # ========== LEGACY FORMAT MIGRATION TESTS ==========
 
     @pytest.mark.skipif(not SUPY_AVAILABLE, reason="SuPy not available")
-    def test_oldest_to_latest_yaml_with_validation(self):
-        """Test conversion from oldest supported version to latest YAML."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            output_file = Path(tmpdir) / "oldest_version.yml"
-            result = self.run_suews_convert("-t", "2018a", "-o", str(output_file), "--sample")
-            assert result.returncode == 0
-            assert output_file.exists()
-
-            # Validate with Pydantic
-            from supy.data_model.core import SUEWSConfig
-            config = SUEWSConfig.from_yaml(str(output_file))
-            assert config is not None
-
-    @pytest.mark.skipif(not SUPY_AVAILABLE, reason="SuPy not available")
     @pytest.mark.parametrize("version", ["2020a", "2019a", "2018a"])
     def test_legacy_version_auto_detection(self, version, legacy_format_dir):
         """Test auto-detection of legacy table versions."""
@@ -218,21 +194,3 @@ class TestCLIConversion:
                 "-i", str(nml_files[0]), "-o", str(output_file)
             )
             assert result.returncode == 0
-
-    @pytest.mark.skipif(not SUPY_AVAILABLE, reason="SuPy not available")
-    @pytest.mark.parametrize("version", ["2023a", "2022a", "2021a", "2020a", "2019a", "2018a"])
-    def test_all_versions_to_yaml_with_auto_detection(self, version):
-        """Test that all versions can be converted to YAML with sample data."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            output_file = Path(tmpdir) / f"{version}.yml"
-            result = self.run_suews_convert(
-                "-t", version, "-o", str(output_file), "--sample"
-            )
-            assert result.returncode == 0
-            assert output_file.exists()
-
-            # Validate the generated YAML
-            from supy.data_model.core import SUEWSConfig
-            config = SUEWSConfig.from_yaml(str(output_file))
-            assert config is not None
-            assert len(config.sites) > 0

@@ -57,95 +57,95 @@ phase_map = {
 
 ### File Flow Management
 
-Each phase generates specific files:
+Each phase processes the configuration internally, producing standardised final output:
 
 ```text
 User Input: config.yml
     ↓
-Phase A: updatedA_config.yml, reportA_config.txt
+Internal: Phase A → Phase B → Phase C
     ↓
-Phase B: updatedB_config.yml, reportB_config.txt
-    ↓
-Phase C: updatedC_config.yml, reportC_config.txt
-    ↓
-Final: updated{workflow}_config.yml, report{workflow}_config.txt
+Final Output: updated_config.yml, report_config.txt
 ```
 
 ## File Naming Conventions
 
-### Intermediate Files
-
-- **Phase A**: `updatedA_*.yml`, `reportA_*.txt`
-- **Phase B**: `updatedB_*.yml`, `reportB_*.txt`
-- **Phase C**: `updatedC_*.yml`, `reportC_*.txt`
-
 ### Final Output Files
 
-- **Workflow Output**: `updated_*.yml` for full validation (e.g., `updated_config.yml`)
-- **Consolidated Report**: `report_*.txt` for full validation (e.g., `report_config.txt`)
+All workflows produce standardised output files:
+
+- **Updated YAML**: `updated_config.yml` 
+- **Consolidated Report**: `report_config.txt` 
+
+The final YAML represents the output from the last successful validation phase(s). For example:
+- **AB pipeline**: If A succeeds but B fails, `updated_config.yml` contains Phase A output
+- **ABC pipeline**: If all phases succeed, `updated_config.yml` contains Phase A, B and C output
 
 ### Cleanup Strategy
 
+The orchestrator ensures only final user-facing files remain:
+
 ```python
-def cleanup_intermediate_files(base_name: str, phases_to_clean: List[str]):
-    """Remove intermediate files after successful workflow completion."""
-    # Only cleanup on success
-    # Preserve files on error for debugging
+def create_final_user_files(user_yaml_file, phase_yaml, phase_report):
+    """Move phase outputs to standardised final file names."""
+    # Standardise file names regardless of pipeline
+    # Ensure clean, consistent output for users
 ```
 
 ## Report Consolidation
 
 ### Report Merging Logic
 
-The orchestrator intelligently merges reports from multiple phases:
+The orchestrator consolidates reports from multiple phases into a single, unified document:
 
 ```python
-def consolidate_reports(reports: Dict[str, str], workflow: str) -> str:
-    """Merge multiple phase reports into single consolidated report."""
-    # Extract ACTION NEEDED from all phases
-    # Combine NO ACTION NEEDED sections
-    # Preserve phase-specific information
+def create_consolidated_report(phases_run, no_action_messages, final_report_file, mode):
+    """Create consolidated report combining findings from all validation phases."""
+    # Merge NO ACTION NEEDED messages from all successful phases
+    # Remove duplicate messages automatically
+    # Filter orphaned headers (headers with no content)
+    # Exclude generic "all passed" messages when specific changes exist
+    # Present unified view with consistent formatting
 ```
+
+**Consolidation Features:**
+
+1. **Deduplication**: Same message appearing in multiple phases is shown only once
+2. **Orphaned Header Removal**: Headers with no following content are filtered out
+3. **Generic Message Filtering**: Generic "all validations passed" messages excluded when specific changes are listed
+4. **Consistent Formatting**: Standardised header format across all pipelines
 
 ### Report Structure
 
+The consolidated report uses a harmonised format regardless of pipeline:
+
 ```text
-# SUEWS - Phase {workflow} Report
+# SUEWS Validation Report
 # ==================================================
 # Mode: {mode}
 # ==================================================
 
 ## ACTION NEEDED
-[Critical issues from all phases]
+[Critical issues requiring user attention]
 
 ## NO ACTION NEEDED
-[Automatic updates and information from all phases]
+[Automatic updates and informational items from all phases]
 
 # ==================================================
 ```
-
-## Error Handling
-
-### Phase Failure Behavior
-
-1. **Partial Success**: Earlier phase outputs preserved
-2. **Error Reporting**: Detailed error information in reports
-3. **File Retention**: Intermediate files kept for debugging
-4. **Graceful Degradation**: Best effort to complete validation
-
 ### Recovery Patterns
 
 ```python
 try:
-    result = phase_function(...)
-    if not result:
-        # Phase failed but continue with available data
-        preserve_intermediate_files()
-        generate_error_report()
+    phase_c_success = run_phase_c(...)
+    if not phase_c_success:
+        # Phase C failed - consolidate Phase B messages into Phase C error report
+        phase_b_messages = extract_no_action_messages_from_report(phase_b_report)
+        append_messages_to_report(phase_c_report, phase_b_messages)
+        create_final_user_files(user_yaml, phase_b_yaml, phase_c_report)
 except Exception as e:
-    # Unexpected error - preserve all files
+    # Unexpected error - preserve diagnostic information
     log_error(e)
-    preserve_all_files()
+    create_error_report()
 ```
 
 ## Mode-Specific Behavior
@@ -231,17 +231,27 @@ Options to resolve:
      Example: Set stebbsmethod: {value: 0}
 ```
 
-### Enhanced Error Reporting
+### Harmonised Terminal Output
 
-When phases fail, the CLI now shows generated report files so users can find detailed error information:
+Terminal output has been standardised across all pipelines for consistency:
+
+**Success Output:**
+
+```bash
+$ suews-validate --pipeline AB config.yml
+✓ Validation successful
+Report: report_config.txt
+Updated YAML: updated_config.yml
+```
+
+**Failure Output (shows final file locations regardless of which phase failed):**
 
 ```bash
 $ suews-validate --pipeline ABC config.yml
-✗ Phase B failed
-Report: reportB_config.txt
+✗ Validation failed
+Report: report_config.txt
+Updated YAML: updated_config.yml
 ```
-
-The key improvement is that Phase B now generates comprehensive error reports even when initialization fails, with individual errors listed separately for better clarity.
 
 ## Performance Considerations
 

@@ -13,9 +13,11 @@ import os
 import argparse
 import yaml
 from typing import Tuple, Optional
+import importlib.resources
 import shutil
 import io
 from contextlib import redirect_stdout, redirect_stderr
+import supy
 from pathlib import Path
 
 # Import Phase A and B functions
@@ -595,8 +597,13 @@ def run_phase_c(
 
                 # Load standard config for comparison
                 try:
-                    with open("src/supy/sample_data/sample_config.yml", "r") as f:
-                        standard_data = yaml.safe_load(f)
+                    # Use importlib.resources for robust package resource access
+                    sample_data_files = importlib.resources.files(supy) / "sample_data"
+                    with importlib.resources.as_file(
+                        sample_data_files / "sample_config.yml"
+                    ) as standard_yaml_path:
+                        with open(standard_yaml_path, "r") as f:
+                            standard_data = yaml.safe_load(f)
                 except FileNotFoundError:
                     print(
                         "Warning: Standard config file not found, reporting all defaults"
@@ -1029,7 +1036,12 @@ Modes:
         user_yaml_file = validate_input_file(user_yaml_file)
 
         # Step 2: Setup paths
-        standard_yaml_file = "src/supy/sample_data/sample_config.yml"
+        # Use importlib.resources for robust package resource access
+        sample_data_files = importlib.resources.files(supy) / "sample_data"
+        with importlib.resources.as_file(
+            sample_data_files / "sample_config.yml"
+        ) as standard_yaml_path:
+            standard_yaml_file = str(standard_yaml_path)
 
         # Print workflow header (after variables are defined)
         phase_desc = {

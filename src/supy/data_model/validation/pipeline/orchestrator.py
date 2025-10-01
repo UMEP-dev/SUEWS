@@ -287,21 +287,21 @@ def extract_no_action_messages_from_report(report_file: str) -> list:
         return messages
 
     try:
-        with open(report_file, 'r') as f:
+        with open(report_file, "r") as f:
             content = f.read()
 
         # Extract NO ACTION NEEDED section
-        lines = content.split('\n')
+        lines = content.split("\n")
         in_no_action = False
 
         for line in lines:
-            if line.strip().startswith('## NO ACTION NEEDED'):
+            if line.strip().startswith("## NO ACTION NEEDED"):
                 in_no_action = True
                 continue
-            elif line.strip().startswith('##') and in_no_action:
+            elif line.strip().startswith("##") and in_no_action:
                 # Hit another section, stop collecting
                 break
-            elif line.strip().startswith('#') and in_no_action:
+            elif line.strip().startswith("#") and in_no_action:
                 # Skip any separator lines (like # ==================================================)
                 continue
             elif in_no_action and line.strip():
@@ -317,7 +317,7 @@ def create_consolidated_report(
     phases_run: list,
     no_action_messages: list,
     final_report_file: str,
-    mode: str = "public"
+    mode: str = "public",
 ) -> None:
     """Create final consolidated report with all NO ACTION NEEDED messages."""
 
@@ -353,9 +353,15 @@ def create_consolidated_report(
     while i < len(deduplicated_messages):
         msg = deduplicated_messages[i]
         # Check if this is a header line (starts with - but not --, ends with :)
-        if msg.strip().startswith('- ') and not msg.strip().startswith('-- ') and msg.strip().endswith(':'):
+        if (
+            msg.strip().startswith("- ")
+            and not msg.strip().startswith("-- ")
+            and msg.strip().endswith(":")
+        ):
             # Check if next line exists and is a detail line (starts with --)
-            if i + 1 < len(deduplicated_messages) and deduplicated_messages[i + 1].strip().startswith('-- '):
+            if i + 1 < len(deduplicated_messages) and deduplicated_messages[
+                i + 1
+            ].strip().startswith("-- "):
                 # Has following details, keep it
                 filtered_messages.append(msg)
             # else: orphaned header, skip it
@@ -367,7 +373,7 @@ def create_consolidated_report(
     # Build final report content
     report_content = f"""# {title}
 # {"=" * 50}
-# Mode: {'Public' if mode.lower() == 'public' else mode.title()}
+# Mode: {"Public" if mode.lower() == "public" else mode.title()}
 # {"=" * 50}
 
 ## NO ACTION NEEDED"""
@@ -381,7 +387,7 @@ def create_consolidated_report(
     report_content += f"\n\n# {'=' * 50}"
 
     # Write final consolidated report
-    with open(final_report_file, 'w') as f:
+    with open(final_report_file, "w") as f:
         f.write(report_content)
 
 
@@ -778,17 +784,29 @@ def run_phase_c(
                         else:
                             # Fallback: extract from files (file-based approach)
                             all_messages = []
-                            if phase_a_report_file and os.path.exists(phase_a_report_file):
-                                all_messages.extend(extract_no_action_messages_from_report(phase_a_report_file))
-                            if science_report_file and os.path.exists(science_report_file):
-                                all_messages.extend(extract_no_action_messages_from_report(science_report_file))
+                            if phase_a_report_file and os.path.exists(
+                                phase_a_report_file
+                            ):
+                                all_messages.extend(
+                                    extract_no_action_messages_from_report(
+                                        phase_a_report_file
+                                    )
+                                )
+                            if science_report_file and os.path.exists(
+                                science_report_file
+                            ):
+                                all_messages.extend(
+                                    extract_no_action_messages_from_report(
+                                        science_report_file
+                                    )
+                                )
 
                         # Create consolidated final report
                         create_consolidated_report(
                             phases_run=phases_run,
                             no_action_messages=all_messages,
                             final_report_file=pydantic_report_file,
-                            mode=mode
+                            mode=mode,
                         )
 
                         # Clean up any remaining intermediate files
@@ -1336,7 +1354,10 @@ Modes:
                         os.remove(report_file)
 
                     # Remove failed Phase B YAML if it exists (only if different from final_yaml)
-                    if os.path.exists(science_yaml_file) and science_yaml_file != final_yaml:
+                    if (
+                        os.path.exists(science_yaml_file)
+                        and science_yaml_file != final_yaml
+                    ):
                         os.remove(science_yaml_file)
                 except Exception:
                     pass
@@ -1351,16 +1372,20 @@ Modes:
                 # Extract NO ACTION NEEDED messages from both phases
                 all_messages = []
                 if os.path.exists(report_file):
-                    all_messages.extend(extract_no_action_messages_from_report(report_file))
+                    all_messages.extend(
+                        extract_no_action_messages_from_report(report_file)
+                    )
                 if os.path.exists(science_report_file):
-                    all_messages.extend(extract_no_action_messages_from_report(science_report_file))
+                    all_messages.extend(
+                        extract_no_action_messages_from_report(science_report_file)
+                    )
 
                 # Create consolidated final report
                 create_consolidated_report(
                     phases_run=["A", "B"],
                     no_action_messages=all_messages,
                     final_report_file=science_report_file,
-                    mode=internal_mode
+                    mode=internal_mode,
                 )
 
                 # Clean up intermediate files
@@ -1439,7 +1464,10 @@ Modes:
                         os.remove(report_file)
 
                     # Remove failed Phase C YAML if it exists (only if different from final_yaml)
-                    if os.path.exists(pydantic_yaml_file) and pydantic_yaml_file != final_yaml:
+                    if (
+                        os.path.exists(pydantic_yaml_file)
+                        and pydantic_yaml_file != final_yaml
+                    ):
                         os.remove(pydantic_yaml_file)
                 except Exception:
                     pass
@@ -1454,16 +1482,20 @@ Modes:
                 # Extract NO ACTION NEEDED messages from both phases
                 all_messages = []
                 if os.path.exists(report_file):
-                    all_messages.extend(extract_no_action_messages_from_report(report_file))
+                    all_messages.extend(
+                        extract_no_action_messages_from_report(report_file)
+                    )
                 if os.path.exists(pydantic_report_file):
-                    all_messages.extend(extract_no_action_messages_from_report(pydantic_report_file))
+                    all_messages.extend(
+                        extract_no_action_messages_from_report(pydantic_report_file)
+                    )
 
                 # Create consolidated final report
                 create_consolidated_report(
                     phases_run=["A", "C"],
                     no_action_messages=all_messages,
                     final_report_file=pydantic_report_file,
-                    mode=internal_mode
+                    mode=internal_mode,
                 )
 
                 # Clean up intermediate files
@@ -1538,24 +1570,26 @@ Modes:
                     # Extract NO ACTION NEEDED messages from Phase B
                     phase_b_messages = []
                     if os.path.exists(science_report_file):
-                        phase_b_messages = extract_no_action_messages_from_report(science_report_file)
+                        phase_b_messages = extract_no_action_messages_from_report(
+                            science_report_file
+                        )
 
                     # Read Phase C error report and append Phase B messages
                     if os.path.exists(pydantic_report_file):
-                        with open(pydantic_report_file, 'r') as f:
+                        with open(pydantic_report_file, "r") as f:
                             phase_c_content = f.read()
 
                         # Append Phase B NO ACTION NEEDED messages to Phase C report
                         if phase_b_messages:
                             # Remove the closing separator and any trailing separators from Phase C report
-                            lines = phase_c_content.rstrip().split('\n')
+                            lines = phase_c_content.rstrip().split("\n")
                             while lines and lines[-1].strip() == f"# {'=' * 50}":
                                 lines.pop()
-                            phase_c_content = '\n'.join(lines)
+                            phase_c_content = "\n".join(lines)
 
                             # Ensure proper spacing before NO ACTION NEEDED section
-                            if not phase_c_content.endswith('\n\n'):
-                                phase_c_content += '\n'
+                            if not phase_c_content.endswith("\n\n"):
+                                phase_c_content += "\n"
 
                             # Add NO ACTION NEEDED section
                             phase_c_content += "\n## NO ACTION NEEDED"
@@ -1568,7 +1602,7 @@ Modes:
                             phase_c_content += f"\n\n# {'=' * 50}\n"
 
                             # Write consolidated report
-                            with open(pydantic_report_file, 'w') as f:
+                            with open(pydantic_report_file, "w") as f:
                                 f.write(phase_c_content)
 
                     # Use Phase B YAML as final (last successful phase)
@@ -1580,7 +1614,10 @@ Modes:
                         os.remove(science_report_file)
 
                     # Remove failed Phase C YAML if it exists (only if different from final_yaml)
-                    if os.path.exists(pydantic_yaml_file) and pydantic_yaml_file != final_yaml:
+                    if (
+                        os.path.exists(pydantic_yaml_file)
+                        and pydantic_yaml_file != final_yaml
+                    ):
                         os.remove(pydantic_yaml_file)
                 except Exception:
                     pass
@@ -1595,16 +1632,20 @@ Modes:
                 # Extract NO ACTION NEEDED messages from both phases
                 all_messages = []
                 if os.path.exists(science_report_file):
-                    all_messages.extend(extract_no_action_messages_from_report(science_report_file))
+                    all_messages.extend(
+                        extract_no_action_messages_from_report(science_report_file)
+                    )
                 if os.path.exists(pydantic_report_file):
-                    all_messages.extend(extract_no_action_messages_from_report(pydantic_report_file))
+                    all_messages.extend(
+                        extract_no_action_messages_from_report(pydantic_report_file)
+                    )
 
                 # Create consolidated final report
                 create_consolidated_report(
                     phases_run=["B", "C"],
                     no_action_messages=all_messages,
                     final_report_file=pydantic_report_file,
-                    mode=internal_mode
+                    mode=internal_mode,
                 )
 
                 # Clean up intermediate files
@@ -1702,7 +1743,9 @@ Modes:
                     if Path(science_yaml_file).exists():
                         Path(science_yaml_file).unlink()  # Remove failed Phase B YAML
                     if Path(science_report_file).exists():
-                        Path(science_report_file).unlink()  # Remove failed Phase B report
+                        Path(
+                            science_report_file
+                        ).unlink()  # Remove failed Phase B report
                 except Exception:
                     pass  # Don't fail if cleanup doesn't work
 
@@ -1717,7 +1760,10 @@ Modes:
             print("Phase C: Pydantic validation check...")
 
             # Create temporary file for Phase C report (will be consolidated later)
-            temp_report_c = os.path.join(dirname, f"temp_reportC_{os.path.splitext(os.path.basename(user_yaml_file))[0]}.txt")
+            temp_report_c = os.path.join(
+                dirname,
+                f"temp_reportC_{os.path.splitext(os.path.basename(user_yaml_file))[0]}.txt",
+            )
 
             phase_c_success = run_phase_c(
                 science_yaml_file,  # Use Phase B output as input to Phase C
@@ -1758,22 +1804,28 @@ Modes:
 
                 # Extract messages from Phase A report
                 if phase_a_report_file and os.path.exists(phase_a_report_file):
-                    all_messages.extend(extract_no_action_messages_from_report(phase_a_report_file))
+                    all_messages.extend(
+                        extract_no_action_messages_from_report(phase_a_report_file)
+                    )
 
                 # Extract messages from Phase B report
                 if science_report_file and os.path.exists(science_report_file):
-                    all_messages.extend(extract_no_action_messages_from_report(science_report_file))
+                    all_messages.extend(
+                        extract_no_action_messages_from_report(science_report_file)
+                    )
 
                 # Extract messages from Phase C report
                 if temp_report_c and os.path.exists(temp_report_c):
-                    all_messages.extend(extract_no_action_messages_from_report(temp_report_c))
+                    all_messages.extend(
+                        extract_no_action_messages_from_report(temp_report_c)
+                    )
 
                 # Create consolidated final report
                 create_consolidated_report(
                     phases_run=["A", "B", "C"] if phases_run is None else phases_run,
                     no_action_messages=all_messages,
                     final_report_file=pydantic_report_file,
-                    mode=internal_mode
+                    mode=internal_mode,
                 )
 
                 # Clean up intermediate files

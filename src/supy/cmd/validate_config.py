@@ -787,7 +787,7 @@ def _execute_pipeline(file, pipeline, mode):
 
     if not _check_experimental_features_restriction(user_yaml_file, mode):
         return 1
-    
+
     # Use importlib.resources for robust package resource access
     sample_data_files = importlib.resources.files(supy) / "sample_data"
     with importlib.resources.as_file(
@@ -795,7 +795,7 @@ def _execute_pipeline(file, pipeline, mode):
     ) as standard_yaml_path:
         # Check for experimental features restrictions before proceeding
         standard_yaml_file = str(standard_yaml_path)
-        
+
     (
         uptodate_file,
         report_file,
@@ -936,7 +936,9 @@ def _execute_pipeline(file, pipeline, mode):
                 if Path(uptodate_file).exists():
                     shutil.move(str(uptodate_file), str(final_yaml))
                 else:
-                    console.print(f"[yellow]Warning: Updated YAML not found: {uptodate_file}[/yellow]")
+                    console.print(
+                        f"[yellow]Warning: Updated YAML not found: {uptodate_file}[/yellow]"
+                    )
 
                 # Use Phase B report as final (contains the errors)
                 if Path(science_report_file).exists():
@@ -947,7 +949,9 @@ def _execute_pipeline(file, pipeline, mode):
                     Path(report_file).unlink()
 
                 # Remove failed Phase B YAML if it exists (only if different from final_yaml)
-                if Path(science_yaml_file).exists() and str(science_yaml_file) != str(final_yaml):
+                if Path(science_yaml_file).exists() and str(science_yaml_file) != str(
+                    final_yaml
+                ):
                     Path(science_yaml_file).unlink()
             except Exception as e:
                 console.print(f"[yellow]Warning during cleanup: {e}[/yellow]")
@@ -969,14 +973,16 @@ def _execute_pipeline(file, pipeline, mode):
             if Path(report_file).exists():
                 all_messages.extend(extract_no_action_messages_from_report(report_file))
             if Path(science_report_file).exists():
-                all_messages.extend(extract_no_action_messages_from_report(science_report_file))
+                all_messages.extend(
+                    extract_no_action_messages_from_report(science_report_file)
+                )
 
             # Create consolidated final report
             create_consolidated_report(
                 phases_run=["A", "B"],
                 no_action_messages=all_messages,
                 final_report_file=science_report_file,
-                mode=mode
+                mode=mode,
             )
 
             # Clean up intermediate files
@@ -1044,7 +1050,9 @@ def _execute_pipeline(file, pipeline, mode):
                     Path(report_file).unlink()
 
                 # Remove failed Phase C YAML if it exists (only if different from final_yaml)
-                if Path(pydantic_yaml_file).exists() and str(pydantic_yaml_file) != str(final_yaml):
+                if Path(pydantic_yaml_file).exists() and str(pydantic_yaml_file) != str(
+                    final_yaml
+                ):
                     Path(pydantic_yaml_file).unlink()
             except Exception as e:
                 console.print(f"[yellow]Warning during cleanup: {e}[/yellow]")
@@ -1066,14 +1074,16 @@ def _execute_pipeline(file, pipeline, mode):
             if Path(report_file).exists():
                 all_messages.extend(extract_no_action_messages_from_report(report_file))
             if Path(pydantic_report_file).exists():
-                all_messages.extend(extract_no_action_messages_from_report(pydantic_report_file))
+                all_messages.extend(
+                    extract_no_action_messages_from_report(pydantic_report_file)
+                )
 
             # Create consolidated final report
             create_consolidated_report(
                 phases_run=["A", "C"],
                 no_action_messages=all_messages,
                 final_report_file=pydantic_report_file,
-                mode=mode
+                mode=mode,
             )
 
             # Clean up intermediate files
@@ -1157,24 +1167,26 @@ def _execute_pipeline(file, pipeline, mode):
                 # Extract NO ACTION NEEDED messages from Phase B
                 phase_b_messages = []
                 if Path(science_report_file).exists():
-                    phase_b_messages = extract_no_action_messages_from_report(science_report_file)
+                    phase_b_messages = extract_no_action_messages_from_report(
+                        science_report_file
+                    )
 
                 # Read Phase C error report and append Phase B messages
                 if Path(pydantic_report_file).exists():
-                    with open(pydantic_report_file, 'r') as f:
+                    with open(pydantic_report_file, "r") as f:
                         phase_c_content = f.read()
 
                     # Append Phase B NO ACTION NEEDED messages to Phase C report
                     if phase_b_messages:
                         # Remove the closing separator and any trailing separators from Phase C report
-                        lines = phase_c_content.rstrip().split('\n')
+                        lines = phase_c_content.rstrip().split("\n")
                         while lines and lines[-1].strip() == f"# {'=' * 50}":
                             lines.pop()
-                        phase_c_content = '\n'.join(lines)
+                        phase_c_content = "\n".join(lines)
 
                         # Ensure proper spacing before NO ACTION NEEDED section
-                        if not phase_c_content.endswith('\n\n'):
-                            phase_c_content += '\n'
+                        if not phase_c_content.endswith("\n\n"):
+                            phase_c_content += "\n"
 
                         # Add NO ACTION NEEDED section
                         phase_c_content += "\n## NO ACTION NEEDED"
@@ -1187,7 +1199,7 @@ def _execute_pipeline(file, pipeline, mode):
                         phase_c_content += f"\n\n# {'=' * 50}\n"
 
                         # Write consolidated report
-                        with open(pydantic_report_file, 'w') as f:
+                        with open(pydantic_report_file, "w") as f:
                             f.write(phase_c_content)
 
                 # Use Phase B YAML as final (last successful phase)
@@ -1199,7 +1211,9 @@ def _execute_pipeline(file, pipeline, mode):
                     Path(science_report_file).unlink()
 
                 # Remove failed Phase C YAML if it exists (only if different from final_yaml)
-                if Path(pydantic_yaml_file).exists() and str(pydantic_yaml_file) != str(final_yaml):
+                if Path(pydantic_yaml_file).exists() and str(pydantic_yaml_file) != str(
+                    final_yaml
+                ):
                     Path(pydantic_yaml_file).unlink()
             except Exception as e:
                 console.print(f"[yellow]Warning during cleanup: {e}[/yellow]")
@@ -1219,16 +1233,20 @@ def _execute_pipeline(file, pipeline, mode):
             # Extract NO ACTION NEEDED messages from both phases
             all_messages = []
             if Path(science_report_file).exists():
-                all_messages.extend(extract_no_action_messages_from_report(science_report_file))
+                all_messages.extend(
+                    extract_no_action_messages_from_report(science_report_file)
+                )
             if Path(pydantic_report_file).exists():
-                all_messages.extend(extract_no_action_messages_from_report(pydantic_report_file))
+                all_messages.extend(
+                    extract_no_action_messages_from_report(pydantic_report_file)
+                )
 
             # Create consolidated final report
             create_consolidated_report(
                 phases_run=["B", "C"],
                 no_action_messages=all_messages,
                 final_report_file=pydantic_report_file,
-                mode=mode
+                mode=mode,
             )
 
             # Clean up intermediate files
@@ -1329,7 +1347,9 @@ def _execute_pipeline(file, pipeline, mode):
         sys.exit(1)
 
     # Both Phase A and B succeeded - extract and consolidate messages for Phase C
-    from ..data_model.validation.pipeline.orchestrator import extract_no_action_messages_from_report
+    from ..data_model.validation.pipeline.orchestrator import (
+        extract_no_action_messages_from_report,
+    )
 
     # Extract Phase A messages and clean up immediately (minimizes I/O time)
     phase_a_messages = []
@@ -1352,8 +1372,9 @@ def _execute_pipeline(file, pipeline, mode):
     for msg in phase_a_messages + phase_b_messages:
         if msg not in seen_messages:
             # Skip incomplete header patterns that end with "to current standards:"
-            if (msg.strip().startswith('- Updated (') and
-                msg.strip().endswith('to current standards:')):
+            if msg.strip().startswith("- Updated (") and msg.strip().endswith(
+                "to current standards:"
+            ):
                 # This is an incomplete header, skip it
                 continue
 
@@ -1386,7 +1407,10 @@ def _execute_pipeline(file, pipeline, mode):
 
             # Final Report should be from Phase C (contains the actual errors), but Phase C might not create a file
             # In this case, we'll rely on Phase C having already created pydantic_report_file, or use Phase B as fallback
-            if not Path(pydantic_report_file).exists() and Path(science_report_file).exists():
+            if (
+                not Path(pydantic_report_file).exists()
+                and Path(science_report_file).exists()
+            ):
                 shutil.copy2(
                     science_report_file, pydantic_report_file
                 )  # Fallback: copy reportB → report

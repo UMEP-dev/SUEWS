@@ -134,7 +134,13 @@ def generate_phase_c_report(
     # Use passed no_action_messages if available, otherwise try to read from file
     if no_action_messages:
         # Parse the consolidated messages directly
-        phase_a_renames, phase_a_optional_missing, phase_a_not_in_standard, phase_b_science_warnings, phase_b_updates = _parse_consolidated_messages(no_action_messages)
+        (
+            phase_a_renames,
+            phase_a_optional_missing,
+            phase_a_not_in_standard,
+            phase_b_science_warnings,
+            phase_b_updates,
+        ) = _parse_consolidated_messages(no_action_messages)
     elif phase_a_report_file and os.path.exists(phase_a_report_file):
         try:
             with open(phase_a_report_file, "r") as f:
@@ -362,8 +368,11 @@ def generate_phase_c_report(
         if items:
             action = (
                 "Updated"
-                if "renamed" in description or "optional" in description or description == "parameter(s)"
-                else "Revise" if "warning" in description
+                if "renamed" in description
+                or "optional" in description
+                or description == "parameter(s)"
+                else "Revise"
+                if "warning" in description
                 else "Found"
             )
             previous_phase_items.append(f"- {action} ({len(items)}) {description}:")
@@ -418,7 +427,13 @@ def generate_fallback_report(
     # Use passed no_action_messages if available, otherwise try to read from file
     if no_action_messages:
         # Parse the consolidated messages directly
-        phase_a_renames, phase_a_optional_missing, phase_a_not_in_standard, phase_b_science_warnings, phase_b_updates = _parse_consolidated_messages(no_action_messages)
+        (
+            phase_a_renames,
+            phase_a_optional_missing,
+            phase_a_not_in_standard,
+            phase_b_science_warnings,
+            phase_b_updates,
+        ) = _parse_consolidated_messages(no_action_messages)
     elif phase_a_report_file and os.path.exists(phase_a_report_file):
         try:
             with open(phase_a_report_file, "r") as f:
@@ -446,8 +461,11 @@ def generate_fallback_report(
         if items:
             action = (
                 "Updated"
-                if "renamed" in description or "optional" in description or description == "parameter(s)"
-                else "Revise" if "warning" in description
+                if "renamed" in description
+                or "optional" in description
+                or description == "parameter(s)"
+                else "Revise"
+                if "warning" in description
                 else "Found"
             )
             previous_phase_items.append(f"- {action} ({len(items)}) {description}:")

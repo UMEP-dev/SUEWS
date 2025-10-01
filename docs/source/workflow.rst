@@ -242,17 +242,20 @@ Before running simulations, validate your configuration to catch and fix common 
 
    # Validate and automatically fix your configuration
    suews-validate config.yml
-   
+
    # This creates:
    # - updated_config.yml (corrected configuration)
-   # - report_config.txt (what was changed)
+   # - report_config.txt (detailed validation report)
 
 The validator automatically:
 
 - Adds missing parameters with sensible defaults
-- Normalizes surface fractions to sum to 1.0
+- Normalises surface fractions to sum to 1.0
 - Sets initial temperatures based on location and season
 - Ensures physics options are compatible
+- Updates deprecated parameter names to current standards
+
+The validation report consolidates all changes made across multiple validation phases, providing a clear summary of what was automatically fixed and what requires your attention.
 
 For more details, see :doc:`/inputs/yaml/validation`.
 

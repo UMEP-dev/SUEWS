@@ -45,27 +45,24 @@ When you run ``suews-validate config.yml``, it creates:
 
 **Final Files (ready to use):**
 - ``updated_config.yml`` - Your corrected configuration (ready to use with SUEWS)
-- ``report_config.txt`` - Detailed report of all changes made
-
-**Intermediate Files (for detailed analysis):**
-- ``updatedA_config.yml`` - Results after YAML structure checks
-- ``reportA_config.txt`` - Report from YAML structure validation phase
-- ``updatedB_config.yml`` - Results after physics validation checks
-- ``reportB_config.txt`` - Report from physics validation phase
-
-The validation system will inform you about these intermediate files at the end of processing, allowing you to trace exactly what happened at each validation stage.
+- ``report_config.txt`` - Consolidated validation report showing all changes
 
 Understanding Reports
 ---------------------
 
-The validation report provides comprehensive details about every change made to your configuration:
+The validation report provides comprehensive details about every change made to your configuration. 
 
 .. code-block:: text
 
     # SUEWS Validation Report
-    # =======================
+    # ==================================================
     # Mode: Public
-    # =======================
+    # ==================================================
+
+    ## ACTION NEEDED
+    - Found (1) critical missing parameter(s):
+    -- netradiationmethod has been added to updated YAML and set to null
+       Location: model.physics.netradiationmethod
 
     ## NO ACTION NEEDED
     - Updated (3) optional missing parameter(s) with null values:
@@ -77,29 +74,21 @@ The validation report provides comprehensive details about every change made to 
     -- diagmethod changed to rslmethod
     -- cp changed to rho_cp
 
-    - Updated (11) parameter(s):
+    - Updated (7) parameter(s):
     -- initial_states.paved: temperature, tsfc, tin → 12.4°C (Set from CRU data for coordinates (51.51, -0.13) for month 1)
     -- initial_states.bldgs: temperature, tsfc, tin → 12.4°C (Set from CRU data for coordinates (51.51, -0.13) for month 1)
     -- anthropogenic_emissions.startdls: 15.0 → 86 (Calculated DLS start for coordinates (51.51, -0.13))
-    -- paved.sfr at site [0]: rounded to achieve sum of land cover fractions equal to 1.0
 
-    ## ACTION NEEDED
-    - Found (1) critical missing parameter(s):
-    -- netradiationmethod has been added to updated YAML and set to null
-       Suggested fix: Set appropriate value based on SUEWS documentation
+    # ==================================================
 
-    - Found (2) critical scientific parameter error(s):
-    -- rslmethod-stabilitymethod: If rslmethod == 2, stabilitymethod must be 3
-       Suggested fix: Set stabilitymethod to 3
-    -- storageheatmethod-ohmincqf: StorageHeatMethod is set to 1 and OhmIncQf is set to 1. You should switch to OhmIncQf=0.
-       Suggested fix: Set OhmIncQf to 0
+**Report Structure:**
 
-    # =================================================
+The report is organised into two main sections:
 
-**Report Categories:**
+- **NO ACTION NEEDED**: Changes that were automatically applied to your configuration and warnings. These are informational and require no further action from you. 
 
-- **ACTION NEEDED**: Critical issues requiring your attention
-- **NO ACTION NEEDED**: Informational items automatically handled
+- **ACTION NEEDED**: Critical issues that require your attention before the configuration can be used. 
+
 
 Exit Codes
 ----------
@@ -151,10 +140,10 @@ Troubleshooting
    Check the file path and ensure the file exists
 
 **"Validation failed after fixes"**
-   Some issues need manual intervention. Check the report for details.
+   Some issues need manual intervention. Check the **ACTION NEEDED** section in ``report_config.txt`` for specific issues requiring your attention.
 
 **"Unknown parameter"**
-   You may have a typo or be using an outdated configuration format.
+   You may have a typo or be using an outdated configuration format. The validator will suggest corrections for renamed parameters.
 
 For more detailed usage examples and advanced options, always refer to:
 

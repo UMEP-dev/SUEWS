@@ -22,8 +22,8 @@ from pathlib import Path
 
 # Import Phase A and B functions
 try:
-    from .phase_a_parameter_update import annotate_missing_parameters
-    from .phase_b_science_check import run_science_check
+    from .phase_a import annotate_missing_parameters
+    from .phase_b import run_science_check
 except ImportError as e:
     print(f"Error importing required modules: {e}")
     print("Make sure phase modules are in the same directory")
@@ -840,7 +840,7 @@ Validation passed
 
                 # Generate structured ACTION NEEDED report
                 try:
-                    from .phase_c_pydantic_report import generate_phase_c_report
+                    from .phase_c import generate_phase_c_report
 
                     generate_phase_c_report(
                         validation_error,
@@ -854,7 +854,7 @@ Validation passed
 
                 except Exception as report_error:
                     # Fallback to simple error report if structured report generation fails
-                    from .phase_c_pydantic_report import generate_fallback_report
+                    from .phase_c import generate_fallback_report
 
                     generate_fallback_report(
                         validation_error,

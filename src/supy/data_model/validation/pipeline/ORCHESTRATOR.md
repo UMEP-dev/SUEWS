@@ -173,7 +173,7 @@ except Exception as e:
 ```python
 def run_phase_a(user_file, standard_file, output_file, report_file, mode):
     """Execute Phase A: Configuration structure checks and validation."""
-    from phase_a_parameter_update import annotate_missing_parameters
+    from phase_a import annotate_missing_parameters
     return annotate_missing_parameters(...)
 ```
 
@@ -182,7 +182,7 @@ def run_phase_a(user_file, standard_file, output_file, report_file, mode):
 ```python
 def run_phase_b(input_file, output_file, report_file, mode):
     """Execute Phase B: Physics validation checks."""
-    from phase_b_science_check import run_science_check
+    from phase_b import run_science_check
     return run_science_check(...)
 ```
 
@@ -191,7 +191,7 @@ def run_phase_b(input_file, output_file, report_file, mode):
 ```python
 def run_phase_c(input_file, output_file, report_file, mode):
     """Execute Phase C: Configuration consistency checks and validation."""
-    from phase_c_pydantic_report import run_pydantic_validation
+    from phase_c import run_pydantic_validation
     return run_pydantic_validation(...)
 ```
 

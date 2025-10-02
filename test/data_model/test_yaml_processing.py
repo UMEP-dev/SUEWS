@@ -42,7 +42,7 @@ except ImportError:
     from importlib_resources import as_file
 
 # Import the functions we want to test
-from supy.data_model.validation.pipeline.phase_a_parameter_update import (
+from supy.data_model.validation.pipeline.phase_a import (
     PHYSICS_OPTIONS,
     RENAMED_PARAMS,
     annotate_missing_parameters,

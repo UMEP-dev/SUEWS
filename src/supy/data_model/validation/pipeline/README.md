@@ -12,20 +12,20 @@ The SUEWS YAML Processor is a three-phase pipeline for validating and updating S
 User YAML → Phase A → Phase B → Phase C → Valid YAML
 ```
 
-1. **Phase A: Configuration structure check** (`phase_a_parameter_update.py`)
+1. **Phase A: Configuration structure check** (`phase_a.py`)
    - Detects missing parameters
    - Renames outdated parameters
    - Identifies non-standard parameters
    - Generates updated YAML with null placeholders
 
-2. **Phase B: Physics validation check** (`phase_b_science_check.py`)
+2. **Phase B: Physics validation check** (`phase_b.py`)
    - Validates physics parameters
    - Checks ALL model physics compatibility (rslmethod-stabilitymethod, StorageHeatMethod-OhmIncQf)
    - Validates land cover fractions
    - Updates initial temperatures from CRU data
    - Updates STEBBS outdoor surface temperatures when `stebbsmethod == 1`
 
-3. **Phase C: Configuration consistency check** (`phase_c_pydantic_report.py`)
+3. **Phase C: Configuration consistency check** (`phase_c.py`)
    - Validates data types and value ranges
    - Checks parameter relationships and conditional rules
    - Generates detailed error reports

@@ -333,7 +333,7 @@ sites:
         report = create_analysis_report(missing_params, renamed_params, extra_params)
 
         # Should contain all sections
-        self.assertIn("SUEWS - Phase A", report)
+        self.assertIn("# SUEWS Validation Report", report)
         self.assertIn("## ACTION NEEDED", report)
         self.assertIn("critical missing parameter", report)
         # The report uses "Updated (1) renamed parameter(s):" format
@@ -390,7 +390,7 @@ sites:
             with open(report_file) as f:
                 report_content = f.read()
 
-            self.assertIn("SUEWS - Phase A", report_content)
+            self.assertIn("# SUEWS Validation Report", report_content)
             # In public mode, uses "critical" not "URGENT"
             self.assertIn("critical", report_content)
             self.assertIn("netradiationmethod", report_content)
@@ -741,7 +741,7 @@ sites:
                 report_content = f.read()
 
             # Should contain all sections
-            self.assertIn("SUEWS - Phase A", report_content)
+            self.assertIn("# SUEWS Validation Report", report_content)
             self.assertIn("## ACTION NEEDED", report_content)
             # The report uses "critical missing parameter(s):" format
             self.assertIn("critical missing parameter", report_content)
@@ -3927,7 +3927,7 @@ class TestPhaseCReporting(TestProcessorFixtures):
             with open(output_file) as f:
                 report_content = f.read()
 
-            assert "Phase C (Pydantic Validation) Report" in report_content
+            assert "# SUEWS Validation Report" in report_content
             assert "ACTION NEEDED" in report_content
             assert "netradiationmethod" in report_content
 
@@ -3970,7 +3970,7 @@ class TestPhaseCReporting(TestProcessorFixtures):
             with open(output_file) as f:
                 report_content = f.read()
 
-            assert "Phase C (Pydantic Validation) Report" in report_content
+            assert "# SUEWS Validation Report" in report_content
             # Should consolidate info from Phase A report if supported
             # (exact consolidation behavior depends on implementation)
 

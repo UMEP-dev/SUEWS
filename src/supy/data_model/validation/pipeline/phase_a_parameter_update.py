@@ -730,13 +730,13 @@ def create_analysis_report(
 
     # Generate phase-specific title
     phase_titles = {
-        "A": "SUEWS - Phase A (Up-to-date YAML check) Report",
-        "B": "SUEWS - Phase B (Scientific Validation) Report",
-        "C": "SUEWS - Phase C (Pydantic Validation) Report",
-        "AB": "SUEWS - Phase AB (Up-to-date YAML check and Scientific Validation) Report",
-        "AC": "SUEWS - Phase AC (Up-to-date YAML check and Pydantic Validation) Report",
-        "BC": "SUEWS - Phase BC (Scientific Validation and Pydantic Validation) Report",
-        "ABC": "SUEWS - Phase ABC (Up-to-date YAML check, Scientific Validation and Pydantic Validation) Report",
+        "A": "SUEWS Validation Report",
+        "B": "SUEWS Validation Report",
+        "C": "SUEWS Validation Report",
+        "AB": "SUEWS Validation Report",
+        "AC": "SUEWS Validation Report",
+        "BC": "SUEWS Validation Report",
+        "ABC": "SUEWS Validation Report",
     }
 
     title = phase_titles.get(phase, "SUEWS Configuration Analysis Report")
@@ -891,6 +891,15 @@ def create_analysis_report(
                 # Show forbidden location extra parameters as ACTION NEEDED
                 # (These will be moved to the ACTION NEEDED section below)
                 # We'll handle this below when updating that section
+
+    # If neither ACTION NEEDED nor NO ACTION NEEDED sections were added,
+    # indicate that Phase A passed without issues
+    if not has_action_items and not has_no_action_items:
+        if phase == "A":
+            report_lines.append("YAML structure check passed")
+        elif "A" in phase:  # Multi-phase like "AB", "AC", "ABC"
+            report_lines.append("YAML structure check passed")
+        report_lines.append("")
 
     # Footer separator
     report_lines.append("# " + "=" * 50)
@@ -1083,8 +1092,24 @@ def main():
     print(" SUEWS YAML Configuration Analysis")
     print("=" * 50)
 
-    standard_file = "src/supy/sample_data/sample_config.yml"
     user_file = "src/supy/data_model/user.yml"
+
+    # Detect nlayer from user YAML to select appropriate sample config
+    try:
+        from .orchestrator import (
+            detect_nlayer_from_user_yaml,
+            select_sample_config_by_nlayer,
+        )
+
+        nlayer_value = detect_nlayer_from_user_yaml(user_file)
+        sample_config_filename = select_sample_config_by_nlayer(nlayer_value)
+        standard_file = f"src/supy/sample_data/{sample_config_filename}"
+        print(f"Detected nlayer: {nlayer_value}, using {sample_config_filename}")
+    except Exception as e:
+        print(
+            f"Warning: Could not detect nlayer, using default sample_config_3.yml: {e}"
+        )
+        standard_file = "src/supy/sample_data/sample_config_3.yml"
 
     # Validate standard file is up to date with master branch
     validation_passed = validate_standard_file(standard_file)

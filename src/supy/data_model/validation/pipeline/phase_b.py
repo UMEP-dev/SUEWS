@@ -1,16 +1,16 @@
 """
-SUEWS Science Check Phase B
+SUEWS Physics Validation Check - Phase B
 
-This module performs scientific validation and consistency checks on YAML configurations
-that have already been processed by Phase A (uptodate_yaml.py).
+This module performs physics validation and consistency checks on YAML configurations
+that have already been processed by Phase A.
 
 Phase B focuses on:
-- Scientific parameter validation using Pydantic models
+- Physics parameter validation
 - Geographic coordinate and timezone validation
 - Seasonal parameter adjustments (LAI, snowalb, surface temperatures)
 - Land cover fraction validation and consistency
 - Model physics option interdependency checks
-- Automatic scientific corrections where appropriate
+- Automatic physics-based corrections where appropriate
 
 Phase B assumes Phase A has completed successfully and builds upon clean YAML output
 without duplicating parameter detection or YAML structure validation.

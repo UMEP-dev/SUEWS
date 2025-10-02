@@ -4,9 +4,9 @@ SUEWS YAML Processor Module
 This module contains a three-phase processing pipeline for SUEWS YAML configuration files.
 
 Pipeline Phases:
-- Phase A: Parameter detection and updating (missing/renamed parameters)
-- Phase B: Scientific validation (physics constraints, model dependencies)
-- Phase C: Configuration consistency checks and reporting
+- Phase A: Configuration structure checks (missing/renamed parameters)
+- Phase B: Physics validation checks (physics constraints, model dependencies)
+- Phase C: Configuration consistency checks (data types, relationships)
 
 Components:
 - phase_a: Phase A implementation (configuration structure checks)

@@ -7,23 +7,24 @@ Run this to ensure our changes to phase naming and redundant dictionaries work c
 import subprocess
 import sys
 
+
 def run_test(test_path):
     """Run a specific test and return success status."""
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print(f"Running: {test_path}")
-    print('='*60)
+    print("=" * 60)
 
     result = subprocess.run(
         [sys.executable, "-m", "pytest", test_path, "-v", "-x"],
         capture_output=True,
-        text=True
+        text=True,
     )
 
     if result.returncode == 0:
         print(f"✅ PASSED: {test_path}")
         # Show summary
-        for line in result.stdout.split('\n'):
-            if 'passed' in line or 'PASSED' in line:
+        for line in result.stdout.split("\n"):
+            if "passed" in line or "PASSED" in line:
                 print(f"  {line.strip()}")
         return True
     else:
@@ -33,6 +34,7 @@ def run_test(test_path):
         print(result.stdout[-2000:] if len(result.stdout) > 2000 else result.stdout)
         return False
 
+
 def main():
     """Run key tests for validation pipeline."""
 
@@ -40,21 +42,17 @@ def main():
         # Test Phase A (Configuration structure check)
         "test/data_model/test_yaml_processing.py::TestPhaseAUptoDateYaml::test_phase_a_basic_validation",
         "test/data_model/test_yaml_processing.py::TestPhaseAUptoDateYaml::test_phase_a_report_generation",
-
         # Test Phase B (Physics validation check)
         "test/data_model/test_yaml_processing.py::TestPhaseBScienceCheck::test_phase_b_basic_validation",
         "test/data_model/test_yaml_processing.py::TestPhaseBScienceCheck::test_phase_b_report_generation",
-
         # Test Phase C (Configuration consistency check)
         "test/data_model/test_yaml_processing.py::TestPhaseCPydanticValidation::test_phase_c_basic_validation",
         "test/data_model/test_yaml_processing.py::TestPhaseCReporting::test_phase_c_report_format",
-
         # Test Orchestrator (multi-phase workflows)
         "test/data_model/test_yaml_processing.py::TestSuewsYamlProcessorOrchestrator::test_orchestrator_phase_abc",
         "test/data_model/test_yaml_processing.py::TestSuewsYamlProcessorOrchestrator::test_consolidated_report_generation",
-
         # Test report generation
-        "test/data_model/test_yaml_processing.py::TestEndToEndWorkflow::test_complete_workflow_with_reports"
+        "test/data_model/test_yaml_processing.py::TestEndToEndWorkflow::test_complete_workflow_with_reports",
     ]
 
     print("Testing validation pipeline changes...")
@@ -70,9 +68,9 @@ def main():
             all_passed = False
             # Continue running remaining tests to see full picture
 
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("SUMMARY")
-    print("="*60)
+    print("=" * 60)
     print(f"Tests run: {len(tests)}")
     print(f"Passed: {passed_count}")
     print(f"Failed: {len(tests) - passed_count}")
@@ -83,6 +81,7 @@ def main():
     else:
         print("\n❌ SOME TESTS FAILED - Please review the changes")
         return 1
+
 
 if __name__ == "__main__":
     sys.exit(main())

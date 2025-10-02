@@ -323,17 +323,8 @@ def create_consolidated_report(
 
     phase_str = "".join(phases_run) if phases_run else "Combined"
 
-    phase_titles = {
-        "A": "SUEWS Validation Report",
-        "B": "SUEWS Validation Report",
-        "C": "SUEWS Validation Report",
-        "AB": "SUEWS Validation Report",
-        "AC": "SUEWS Validation Report",
-        "BC": "SUEWS Validation Report",
-        "ABC": "SUEWS Validation Report",
-    }
-
-    title = phase_titles.get(phase_str, "SUEWS Validation Report")
+    # Use unified report title for all validation phases
+    title = "SUEWS Validation Report"
 
     # Deduplicate messages while preserving order
     # Also filter out the generic "All validations passed" message if there are other messages
@@ -692,17 +683,8 @@ def run_phase_c(
                 else:
                     phase_str = "C"  # Default to Phase C only
 
-                phase_titles = {
-                    "A": "SUEWS Validation Report",
-                    "B": "SUEWS Validation Report",
-                    "C": "SUEWS Validation Report",
-                    "AB": "SUEWS Validation Report",
-                    "AC": "SUEWS Validation Report",
-                    "BC": "SUEWS Validation Report",
-                    "ABC": "SUEWS Validation Report",
-                }
-
-                title = phase_titles.get(phase_str, "SUEWS Validation Report")
+                # Use unified report title for all validation phases
+                title = "SUEWS Validation Report"
 
                 # Extract NO ACTION NEEDED content from previous phases to consolidate properly
                 consolidated_no_action = []

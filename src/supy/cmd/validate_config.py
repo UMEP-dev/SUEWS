@@ -126,7 +126,7 @@ def validate_single_file(
                 else:
                     errors.append(f"{path}: {error.message}")
 
-        # Try Pydantic validation for additional checks
+        # Try configuration consistency validation for additional checks
         try:
             SUEWSConfig(**config)
         except Exception as e:
@@ -140,7 +140,7 @@ def validate_single_file(
                     )
                 )
             else:
-                errors.append(f"Pydantic validation: {str(e)}")
+                errors.append(f"Configuration consistency validation: {str(e)}")
 
         return (len(errors) == 0, errors)
 
@@ -383,7 +383,7 @@ def cli(ctx, files, pipeline, mode, dry_run, out_format, schema_version):
     help="Output format",
 )
 def validate(files, schema_version, verbose, quiet, format):
-    """Validate SUEWS YAML configuration files (schema + Pydantic)."""
+    """Validate SUEWS YAML configuration files (schema + consistency checks)."""
 
     # Generate schema
     schema = generate_json_schema(version=schema_version)

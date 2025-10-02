@@ -1,4 +1,4 @@
-"""Phase C report generation for Pydantic validation errors."""
+"""Phase C report generation for configuration consistency validation errors."""
 
 import os
 import re
@@ -337,7 +337,7 @@ def generate_phase_c_report(
     if action_needed_items:
         report_lines.append("## ACTION NEEDED")
         report_lines.append(
-            f"- Found ({len(action_needed_items)}) critical Pydantic validation error(s):"
+            f"- Found ({len(action_needed_items)}) critical configuration consistency error(s):"
         )
 
         for item in action_needed_items:
@@ -480,7 +480,7 @@ def generate_fallback_report(
 # ============================================
 
 ## ACTION NEEDED
-- Found (1) critical Pydantic validation error(s):
+- Found (1) critical configuration consistency error(s):
 -- validation_error: {str(validation_error)}
    Suggested fix: Review and fix validation errors above
    Location: {input_yaml_file}{previous_phase_consolidation}

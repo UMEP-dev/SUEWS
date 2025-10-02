@@ -1,8 +1,8 @@
-# Phase B: Physics Checks and Validation Guide
+# Phase B: Physics Validation Checks Guide
 
 ## Overview
 
-Phase B performs physics checks and validation to ensure model physics consistency and provides reasonable automatic corrections. This comprehensive guide covers all aspects of Phase B operation.
+Phase B performs physics validation checks to ensure model physics consistency and provides reasonable automatic corrections. This comprehensive guide covers all aspects of Phase B operation.
 
 ## Table of Contents
 

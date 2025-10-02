@@ -1,8 +1,8 @@
-# Phase A: YAML Structure Checks and Validation Guide
+# Phase A: Configuration Structure Checks Guide
 
 ## Overview
 
-Phase A is the first stage of SUEWS configuration validation that performs YAML structure checks to ensure your YAML file contains all required parameters and handles outdated parameter names. This comprehensive guide covers all aspects of Phase A operation.
+Phase A is the first stage of SUEWS configuration validation that performs configuration structure checks to ensure your YAML file contains all required parameters and handles outdated parameter names. This comprehensive guide covers all aspects of Phase A operation.
 
 ## Table of Contents
 

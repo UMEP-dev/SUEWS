@@ -2485,10 +2485,10 @@ def test_precheck_thermal_layer_cp_renaming_mixed_surfaces():
 Comprehensive Test Suite for SUEWS YAML Processor
 
 This test suite covers all five components of the SUEWS YAML processor:
-1. phase_a_parameter_update.py (Phase A functions)
-2. phase_b_science_check.py (Phase B functions)
+1. phase_a.py (Phase A functions)
+2. phase_b.py (Phase B functions)
 3. core.py (Phase C Pydantic validation)
-4. phase_c_pydantic_report.py (Phase C reporting)
+4. phase_c.py (Phase C reporting)
 5. orchestrator.py (orchestrator functions)
 
 Testing strategy:
@@ -2518,7 +2518,7 @@ suews_yaml_processor = None
 
 try:
     from supy.data_model.validation.pipeline import (
-        phase_a_parameter_update as uptodate_yaml,
+        phase_a as uptodate_yaml,
     )
 
     has_uptodate_yaml = True
@@ -2527,7 +2527,7 @@ except ImportError:
 
 try:
     from supy.data_model.validation.pipeline import (
-        phase_b_science_check as science_check,
+        phase_b as science_check,
     )
 
     has_science_check = True
@@ -2536,7 +2536,7 @@ except ImportError:
 
 try:
     from supy.data_model.validation.pipeline import (
-        phase_c_pydantic_report as phase_c_reports,
+        phase_c as phase_c_reports,
     )
 
     has_phase_c_reports = True
@@ -3327,7 +3327,7 @@ class TestPhaseBScienceCheck(TestProcessorFixtures):
         assert any("rslmethod" in result.message for result in results)
 
     @patch(
-        "supy.data_model.validation.pipeline.phase_b_science_check.get_mean_monthly_air_temperature"
+        "supy.data_model.validation.pipeline.phase_b.get_mean_monthly_air_temperature"
     )
     def test_cru_temperature_integration(self, mock_cru):
         """Test CRU temperature data integration."""
@@ -3431,7 +3431,7 @@ class TestPhaseBScienceCheck(TestProcessorFixtures):
             science_check.get_mean_monthly_air_temperature(51.5, 185.0, 7)
 
     @patch(
-        "supy.data_model.validation.pipeline.phase_b_science_check.get_mean_monthly_air_temperature"
+        "supy.data_model.validation.pipeline.phase_b.get_mean_monthly_air_temperature"
     )
     def test_stebbs_temperature_parameter_updates(self, mock_cru):
         """Test STEBBS WallOutdoorSurfaceTemperature and WindowOutdoorSurfaceTemperature updates."""
@@ -3488,7 +3488,7 @@ class TestPhaseBScienceCheck(TestProcessorFixtures):
         )
 
     @patch(
-        "supy.data_model.validation.pipeline.phase_b_science_check.get_mean_monthly_air_temperature"
+        "supy.data_model.validation.pipeline.phase_b.get_mean_monthly_air_temperature"
     )
     def test_stebbs_temperature_updates_different_months(self, mock_cru):
         """Test STEBBS temperature updates for different months."""
@@ -3535,7 +3535,7 @@ class TestPhaseBScienceCheck(TestProcessorFixtures):
             assert stebbs_props["WindowOutdoorSurfaceTemperature"]["value"] == mock_temp
 
     @patch(
-        "supy.data_model.validation.pipeline.phase_b_science_check.get_mean_monthly_air_temperature"
+        "supy.data_model.validation.pipeline.phase_b.get_mean_monthly_air_temperature"
     )
     def test_stebbs_temperature_updates_multi_site(self, mock_cru):
         """Test STEBBS temperature updates for multiple sites with different coordinates."""
@@ -3596,7 +3596,7 @@ class TestPhaseBScienceCheck(TestProcessorFixtures):
         assert site1_stebbs["WindowOutdoorSurfaceTemperature"]["value"] == 5.1
 
     @patch(
-        "supy.data_model.validation.pipeline.phase_b_science_check.get_mean_monthly_air_temperature"
+        "supy.data_model.validation.pipeline.phase_b.get_mean_monthly_air_temperature"
     )
     def test_stebbs_temperature_updates_missing_parameters(self, mock_cru):
         """Test STEBBS temperature updates when some parameters are missing."""
@@ -3634,7 +3634,7 @@ class TestPhaseBScienceCheck(TestProcessorFixtures):
         assert stebbs_props["OtherParameter"]["value"] == 42.0
 
     @patch(
-        "supy.data_model.validation.pipeline.phase_b_science_check.get_mean_monthly_air_temperature"
+        "supy.data_model.validation.pipeline.phase_b.get_mean_monthly_air_temperature"
     )
     def test_stebbs_temperature_updates_no_change_needed(self, mock_cru):
         """Test STEBBS temperature updates when values already match CRU temperature."""

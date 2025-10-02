@@ -3,15 +3,8 @@
 import os
 import re
 
-PHASE_TITLES = {
-    "A": "SUEWS Validation Report",
-    "B": "SUEWS Validation Report",
-    "C": "SUEWS Validation Report",
-    "AB": "SUEWS Validation Report",
-    "AC": "SUEWS Validation Report",
-    "BC": "SUEWS Validation Report",
-    "ABC": "SUEWS Validation Report",
-}
+# Use unified report title for all validation phases
+REPORT_TITLE = "SUEWS Validation Report"
 
 
 def _parse_previous_phase_report(report_content: str):
@@ -115,7 +108,7 @@ def generate_phase_c_report(
     report_lines = []
 
     phase_str = "".join(phases_run) if phases_run else "C"
-    title = PHASE_TITLES.get(phase_str, "SUEWS Validation Report")
+    title = REPORT_TITLE
 
     report_lines.append(f"# {title}")
     report_lines.append("# " + "=" * 50)
@@ -478,7 +471,7 @@ def generate_fallback_report(
     )
 
     phase_str = "".join(phases_run) if phases_run else "C"
-    title = PHASE_TITLES.get(phase_str, "SUEWS Validation Report")
+    title = REPORT_TITLE
     mode_title = "Public" if mode.lower() == "public" else mode.title()
 
     error_report = f"""# {title}

@@ -1,9 +1,9 @@
 """SUEWS YAML Configuration Processor
 
 Three-phase validation workflow:
-- Phase A: Up-to-date YAML check and parameter detection
-- Phase B: Scientific validation and automatic adjustments
-- Phase C: Conditional Pydantic validation based on physics options
+- Configuration structure check and parameter detection
+- Physics validation and automatic adjustments
+- Configuration consistency validation based on physics options
 
 Supports individual phases (A, B, C) or combined workflows (AB, AC, BC, ABC).
 """
@@ -36,7 +36,7 @@ def detect_pydantic_defaults(
     path: str = "",
     standard_data: dict = None,
 ) -> tuple:
-    """Detect where Pydantic applied defaults and separate critical nulls from normal defaults."""
+    """Detect where the validation system applied defaults and separate critical nulls from normal defaults."""
     # Critical physics parameters that get converted to int() in df_state
     CRITICAL_PHYSICS_PARAMS = [
         "netradiationmethod",
@@ -433,7 +433,7 @@ def run_phase_a(
 ) -> bool:
     """Execute Phase A: Parameter detection and YAML structure updates."""
     if not silent:
-        print("Phase A: Up-to-date YAML check...")
+        print("Configuration structure check...")
 
     try:
         with redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()):
@@ -573,7 +573,7 @@ def run_phase_c(
     no_action_messages: list = None,
     silent: bool = False,
 ) -> bool:
-    """Execute Phase C: Conditional Pydantic validation based on physics options."""
+    """Execute Phase C: Configuration consistency validation based on physics options."""
     try:
         current_dir = os.path.dirname(os.path.abspath(__file__))
         supy_root = os.path.abspath(os.path.join(current_dir, "../../"))
@@ -761,17 +761,19 @@ def run_phase_c(
                     # Map phase strings to descriptive messages
                     def get_phase_message(phase_str):
                         if phase_str == "A":
-                            return "YAML structure check passed"
+                            return "Configuration structure check passed"
                         elif phase_str == "B":
-                            return "Physics checks passed"
+                            return "Physics validation check passed"
                         elif phase_str == "C":
-                            return "Validation passed"
+                            return "Configuration consistency check passed"
                         elif phase_str == "AB":
-                            return "YAML structure check and Physics checks passed"
+                            return "Configuration structure check and Physics validation check passed"
                         elif phase_str == "BC":
-                            return "Physics checks and Validation passed"
-                        elif phase_str == "ABC" or phase_str == "AC":
-                            return "Validation passed"
+                            return "Physics validation check and Configuration consistency check passed"
+                        elif phase_str == "AC":
+                            return "Configuration structure check and Configuration consistency check passed"
+                        elif phase_str == "ABC":
+                            return "All validation checks passed"
                         else:
                             return f"Phase {phase_str} passed"  # fallback
 
@@ -1218,7 +1220,7 @@ Modes:
             input_yaml_file = user_yaml_file
             phase_a_report = None
 
-            print("Phase B: Scientific validation check...")
+            print("Physics validation check...")
             phase_b_success = run_phase_b(
                 user_yaml_file,
                 input_yaml_file,
@@ -1258,7 +1260,7 @@ Modes:
 
         elif phase == "C":
             # Phase C only - run Pydantic validation on original user YAML
-            print("Phase C: Pydantic validation check...")
+            print("Configuration consistency check...")
 
             phase_c_success = run_phase_c(
                 user_yaml_file,
@@ -1295,7 +1297,7 @@ Modes:
 
         elif phase == "AB":
             # Complete A→B workflow
-            print("Phase A: Up-to-date YAML check...")
+            print("Configuration structure check...")
             phase_a_success = run_phase_a(
                 user_yaml_file,
                 standard_yaml_file,
@@ -1318,7 +1320,7 @@ Modes:
                 return 1
 
             print("[OK] Validation completed")
-            print("Phase B: Scientific validation check...")
+            print("Physics validation check...")
             phase_b_success = run_phase_b(
                 user_yaml_file,
                 uptodate_file,
@@ -1403,7 +1405,7 @@ Modes:
 
         elif phase == "AC":
             # Complete A→C workflow
-            print("Phase A: Up-to-date YAML check...")
+            print("Configuration structure check...")
             phase_a_success = run_phase_a(
                 user_yaml_file,
                 standard_yaml_file,
@@ -1434,7 +1436,7 @@ Modes:
                 return 1
 
             print("[OK] Validation completed")
-            print("Phase C: Pydantic validation check...")
+            print("Configuration consistency check...")
             phase_c_success = run_phase_c(
                 uptodate_file,  # Use Phase A output as input to Phase C
                 pydantic_yaml_file,
@@ -1513,7 +1515,7 @@ Modes:
 
         elif phase == "BC":
             # Complete B→C workflow
-            print("Phase B: Scientific validation check...")
+            print("Physics validation check...")
             phase_b_success = run_phase_b(
                 user_yaml_file,
                 user_yaml_file,  # Phase B runs directly on user YAML
@@ -1547,7 +1549,7 @@ Modes:
                 return 1
 
             print("[OK] Phase B completed")
-            print("Phase C: Pydantic validation check...")
+            print("Configuration consistency check...")
             phase_c_success = run_phase_c(
                 science_yaml_file,  # Use Phase B output as input to Phase C
                 pydantic_yaml_file,
@@ -1665,7 +1667,7 @@ Modes:
             # Complete A→B→C workflow with proper halt logic
             # Step 1: Run Phase A
             print("DEBUG: Starting ABC workflow")
-            print("Phase A: Up-to-date YAML check...")
+            print("Configuration structure check...")
             phase_a_success = run_phase_a(
                 user_yaml_file,
                 standard_yaml_file,
@@ -1710,7 +1712,7 @@ Modes:
             print("[OK] Validation completed")
 
             # Step 2: Run Phase B (A passed, try B)
-            print("Phase B: Scientific validation check...")
+            print("Physics validation check...")
             phase_b_success = run_phase_b(
                 user_yaml_file,
                 uptodate_file,
@@ -1757,7 +1759,7 @@ Modes:
             print("[OK] Phase B completed")
 
             # Step 3: Run Phase C (both A and B passed)
-            print("Phase C: Pydantic validation check...")
+            print("Configuration consistency check...")
 
             # Create temporary file for Phase C report (will be consolidated later)
             temp_report_c = os.path.join(

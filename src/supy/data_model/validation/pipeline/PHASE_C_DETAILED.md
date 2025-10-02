@@ -1,8 +1,8 @@
-# Phase C: Pydantic Checks and Validation Guide
+# Phase C: Configuration Consistency Check Guide
 
 ## Overview
 
-Phase C performs comprehensive Pydantic checks and validation to ensure configuration compatibility with selected physics options and model capabilities. This detailed guide covers the actual Pydantic validation implementation specific to SUEWS.
+Phase C performs comprehensive configuration consistency checks to ensure configuration compatibility with selected physics options and model capabilities. This detailed guide covers the validation implementation specific to SUEWS using the Pydantic framework.
 
 ## Table of Contents
 

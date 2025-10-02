@@ -378,7 +378,7 @@ Phase A generates mode-dependent comprehensive reports with enhanced user-friend
     - **Public Mode**: No extra parameters in NO ACTION NEEDED section (all moved to ACTION_NEEDED)
     - **Dev Mode**: "Found (X) parameter(s) not in standard" (for allowed locations)
 
-- **Phase A Success Indication**: When Phase A completes successfully without any issues to report, the report displays "YAML structure check passed" to clearly indicate successful completion
+- **Phase A Success Indication**: When Phase A completes successfully without any issues to report, the report displays "Configuration structure check passed" to clearly indicate successful completion
 
 ### Analysis Report Examples
 
@@ -643,7 +643,7 @@ Fix: Correct indentation, quotes, or structure
 **Issue**: "All parameters marked as critical"
 
 ```text
-Solution: Check PHYSICS_OPTIONS set in uptodate_yaml.py
+Solution: Check PHYSICS_OPTIONS set in phase_a.py
 Check: Parameter classification logic
 Fix: Update PHYSICS_OPTIONS or parameter paths
 ```
@@ -652,7 +652,7 @@ Fix: Update PHYSICS_OPTIONS or parameter paths
 
 ```python
 # Direct Python usage
-from supy.data_model.uptodate_yaml import annotate_missing_parameters
+from supy.data_model.validation.pipeline.phase_a import annotate_missing_parameters
 
 # Public mode usage (default)
 result = annotate_missing_parameters(

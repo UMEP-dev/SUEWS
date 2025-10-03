@@ -1,5 +1,5 @@
 # SUEWS Simplified Makefile - Essential recipes only
-.PHONY: help setup dev test docs clean format
+.PHONY: help setup dev reinstall test docs clean format
 
 # Default Python
 PYTHON := python
@@ -7,12 +7,13 @@ PYTHON := python
 help:
 	@echo "SUEWS Development - Essential Commands"
 	@echo ""
-	@echo "  setup   - Create virtual environment (if using uv)"
-	@echo "  dev     - Install in editable mode"
-	@echo "  test    - Run test suite"
-	@echo "  docs    - Build documentation"  
-	@echo "  clean   - Smart clean (keeps .venv if active)"
-	@echo "  format  - Format Python and Fortran code"
+	@echo "  setup     - Create virtual environment (if using uv)"
+	@echo "  dev       - Install in editable mode"
+	@echo "  reinstall - Fix stale editable install (uninstall + reinstall)"
+	@echo "  test      - Run test suite"
+	@echo "  docs      - Build documentation"
+	@echo "  clean     - Smart clean (keeps .venv if active)"
+	@echo "  format    - Format Python and Fortran code"
 	@echo ""
 	@echo "Quick start:"
 	@echo "  With uv:    make setup && source .venv/bin/activate && make dev"
@@ -57,6 +58,16 @@ dev:
 		fi \
 	fi
 	@echo "✓ Installation complete"
+
+# Fix stale editable install
+reinstall:
+	@echo "Fixing stale editable install..."
+	@if command -v uv >/dev/null 2>&1; then \
+		uv pip uninstall supy || true; \
+	else \
+		$(PYTHON) -m pip uninstall supy -y || true; \
+	fi
+	@$(MAKE) dev
 
 # Run tests
 test:

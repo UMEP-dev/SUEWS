@@ -1,6 +1,7 @@
 {
   "scripts": {
-    "setup": "git fetch origin && git merge origin/master && git remote | grep -v '^origin$' | xargs -r -n 1 git remote remove && uv venv && source .venv/bin/activate && make dev && make docs",
-    "run": "cd docs && make livehtml"
+    "setup": "git fetch origin && git merge origin/master && for remote in $(git remote | grep -v '^origin$'); do git remote remove \"$remote\"; done && uv venv && source .venv/bin/activate && make dev && make docs",
+    "run": "cd docs && make livehtml",
+    "archive": "cd $CONDUCTOR_ROOT_PATH && git fetch origin && git pull origin master"
   }
 }

@@ -1,7 +1,7 @@
 {
   "_comment": "AUTO-GENERATED FILE - DO NOT EDIT MANUALLY",
   "_generated_by": "github-actions[bot]",
-  "_generated_at": "2025-10-01T20:19:48.837191+00:00",
+  "_generated_at": "2025-10-05T17:58:19.746613+00:00",
   "_source": ".github/scripts/generate_schema.py",
   "_schema_version": "0.1",
   "$defs": {

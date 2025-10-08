@@ -12,6 +12,16 @@ The Python interface (SuPy) provides the complete API for SUEWS with comprehensi
    api/simulation
    api/converter
 
+Object-Oriented Interface
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The :class:`~supy.SUEWSSimulation` class provides a modern, object-oriented interface for running SUEWS simulations. For detailed documentation and examples, see :doc:`api/simulation`.
+
+Configuration Converter
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+The converter module provides Python functions for converting SUEWS configurations between formats and versions. This is particularly useful for tool integration (e.g., QGIS plugins). For detailed documentation, see :doc:`api/converter`.
+
 Core Functions
 ~~~~~~~~~~~~~~
 
@@ -26,16 +36,6 @@ Core Functions
     save_supy
     load_SampleData
     show_version
-
-Object-Oriented Interface
-~~~~~~~~~~~~~~~~~~~~~~~~~
-
-The :class:`~supy.SUEWSSimulation` class provides a modern, object-oriented interface for running SUEWS simulations. For detailed documentation and examples, see :doc:`api/simulation`.
-
-Configuration Converter
-~~~~~~~~~~~~~~~~~~~~~~~~
-
-The converter module provides Python functions for converting SUEWS configurations between formats and versions. This is particularly useful for tool integration (e.g., QGIS plugins). For detailed documentation, see :doc:`api/converter`.
 
 Utility Functions
 ~~~~~~~~~~~~~~~~~

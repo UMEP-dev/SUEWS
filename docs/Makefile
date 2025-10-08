@@ -24,14 +24,17 @@ html: $(RST_STAMP)
 clean:
 	@$(SPHINXBUILD) -M clean "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS)
 
-# Live-reloading server (no auto-generation for speed)
+# Live-reloading server with incremental builds
 livehtml: $(RST_STAMP)
+	@echo "Starting live-reload server with incremental builds..."
+	@echo "Tip: Edit .rst files and see changes instantly (2-5s rebuilds)"
+	@echo "     Data model RST auto-regenerates when Python sources change"
 	sphinx-autobuild -j auto \
 		--re-ignore 'supy\.util\..*' \
 		--ignore "source/SuPy.log" \
 		--watch ../src/supy/data_model \
-		--pre-build "make generate-rst" \
-		-b html "$(SOURCEDIR)" "$(BUILDDIR)" \
+		--open-browser \
+		"$(SOURCEDIR)" "$(BUILDDIR)/html" \
 		$(SPHINXOPTS)
 
 # Generate RST from data models only when sources change

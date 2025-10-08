@@ -7,13 +7,15 @@ The Python interface (SuPy) provides the complete API for SUEWS with comprehensi
 
 .. toctree::
    :maxdepth: 2
+   :numbered:
+   :hidden:
 
    api/simulation
-   api/converter
    api/core-functions
    api/utility-functions
    api/command-line
    api/data-structures
+   api/converter
 
 Overview
 --------

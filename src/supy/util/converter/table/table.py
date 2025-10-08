@@ -1482,6 +1482,55 @@ def version_list(fromVer, toVer):
 def convert_table(
     fromDir, toDir, fromVer, toVer, debug_dir=None, validate_profiles=True
 ):
+    """Convert SUEWS table files between versions.
+
+    This function performs chained conversion between SUEWS table versions,
+    automatically handling intermediate version transitions when needed.
+
+    Args:
+        fromDir: Path to directory containing source SUEWS table files
+        toDir: Path to directory where converted tables will be saved
+        fromVer: Source version (e.g., '2016a', '2020a', '2024a')
+        toVer: Target version (e.g., '2024a', '2025a')
+        debug_dir: Optional directory to save intermediate conversion files
+        validate_profiles: Whether to validate and auto-create missing profile entries
+
+    Returns
+    -------
+        None
+
+    Note
+    ----
+        If fromVer == toVer, the function only cleans/reformats files without conversion.
+
+        The conversion process:
+        1. Reads input files from fromDir (using paths in RunControl.nml)
+        2. Performs chained conversion through intermediate versions if needed
+        3. Writes converted files to toDir in the target version format
+
+        With debug_dir specified, intermediate conversion steps are preserved for inspection.
+
+    Examples
+    --------
+        >>> from supy.util.converter import convert_table
+        >>>
+        >>> # Convert from 2016a to 2024a
+        >>> convert_table(
+        ...     fromDir='path/to/old_data',
+        ...     toDir='path/to/new_data',
+        ...     fromVer='2016a',
+        ...     toVer='2024a'
+        ... )
+        >>>
+        >>> # Convert with debug output
+        >>> convert_table(
+        ...     fromDir='path/to/old_data',
+        ...     toDir='path/to/new_data',
+        ...     fromVer='2020a',
+        ...     toVer='2024a',
+        ...     debug_dir='debug_output'
+        ... )
+    """
     # Special case: if fromVer == toVer, just clean without conversion
     if fromVer == toVer:
         logger_supy.info(

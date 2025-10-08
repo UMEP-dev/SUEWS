@@ -218,41 +218,12 @@ def detect_table_version(input_dir):
     -------
         str: Detected version (e.g., '2016a', '2024a') or None if unable to detect
 
-    Detection Logic:
-    ================
-    The detection checks versions from NEWEST to OLDEST, using both positive
-    and negative indicators to uniquely identify each version.
-
-    When a feature exists in multiple versions, we use negative checks
-    (what they DON'T have) to differentiate:
-
-    Example - H_maintain column exists in 2020a, 2021a, 2023a, 2024a, 2025a:
-    - 2025a: Has H_maintain AND has h_std, n_buildings ✓
-    - 2024a: Has H_maintain AND has SPARTACUS files ✓
-    - 2023a: Has H_maintain but NOT BaseT_HC ✓
-    - 2021a: Has H_maintain AND has BaseT_HC ✓
-    - 2020a: Same as 2021a (truly identical structure)
-
-    Decision Tree:
-    -------------
-    Start → Has h_std & n_buildings? → Yes → 2025a
-         ↓ No
-         Has SPARTACUS files? → Yes → 2024a
-         ↓ No
-         Has H_maintain? → Yes → Has BaseT_HC? → No → 2023a
-         ↓ No                                   → Yes → 2020a/2021a
-         Has AnthropogenicEmission.txt? → Yes → Has BaseT_HC? → Yes → 2019b
-         ↓ No                                                   → No → 2019a
-         Has AnthropogenicHeat.txt & alpha/beta? → Yes → 2018a/b/c
-         ↓ No
-         Has gsModel? → Yes → 2017a
-         ↓ No
-         Has AnthropHeatChoice? → Yes → 2016a
-         ↓ No
-         Fallback → 2016a
-
-    Note: Some versions (2018a/b/c, 2020a/2021a) are truly identical in
-    structure and any detection among them is acceptable.
+    Note
+    ----
+        Detection checks versions from newest to oldest using unique
+        characteristics of each version. Some versions (e.g., 2018a/b/c,
+        2020a/2021a) are identical in structure; any detection among them
+        is acceptable.
     """
     input_path = Path(input_dir)
 

@@ -17,8 +17,8 @@ Key Features
 
 For CLI usage, see :doc:`/inputs/converter`.
 
-Core Functions
---------------
+Functions
+---------
 
 Table to YAML Conversion
 ~~~~~~~~~~~~~~~~~~~~~~~~~

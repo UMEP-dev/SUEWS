@@ -51,6 +51,42 @@ name: Build and Publish Python wheels to PyPI and TestPyPI
 # - Prevents gaps in nightly build sequence
 #
 # Build matrix: Always builds all Python versions (3.9-3.13) on all platforms
+#
+# ============================================================================
+# UMEP/QGIS COMPATIBILITY BUILDS (.post1 versions)
+# ============================================================================
+# Every formal release tag automatically creates TWO PyPI versions:
+#
+# 1. STANDARD BUILD (build_wheels job):
+#    - Tag: v2024.10.7
+#    - Version: 2024.10.7
+#    - NumPy: >=2.0 (build and runtime)
+#    - Target: Standalone Python users
+#    - Public facing, documented
+#
+# 2. UMEP BUILD (build_umep job):
+#    - Tag: v2024.10.7 (same tag)
+#    - Version: 2024.10.7.post1
+#    - NumPy: oldest-supported-numpy (build), >=1.22,<2.0 (runtime)
+#    - Target: QGIS 3.40 LTR (NumPy 1.26.4) / UMEP plugin users
+#    - Undocumented publicly, for UMEP requirements files only
+#
+# AUTOMATIC DUAL BUILD PROCESS:
+# - Jobs run in parallel for efficiency
+# - BUILD_UMEP_VARIANT env var triggers .post1 suffix in get_ver_git.py
+# - pyproject.toml modified for NumPy 1.x at build time
+# - Both wheel sets deployed to PyPI together
+#
+# UMEP INTEGRATION:
+# - UMEP requirements specify: supy==2024.10.7.post1
+# - UMEP users install via UMEP requirements, never see version details
+# - No coordination needed - .post1 always exists for every production release
+#
+# VERSIONING:
+# - .post1 is PEP 440 compliant post-release version
+# - Indicates distribution-level change (binary build config), not source change
+# - See get_ver_git.py for version string logic
+# ============================================================================
 
 on:
   push:
@@ -249,6 +285,153 @@ jobs:
           name: ${{ env.WHEEL_NAME }}
           path: ./wheelhouse/*.whl
 
+  build_umep:
+    name: Build UMEP wheel (.post1) for ${{ matrix.python }}-${{ matrix.buildplat[1] }} ${{ matrix.buildplat[2] }}
+    runs-on: ${{ matrix.buildplat[0] }}
+    needs: [determine_matrix, create_nightly_tag]
+    # Only run for production tags (not dev, not PRs, not nightly)
+    if: |
+      startsWith(github.ref, 'refs/tags/') &&
+      !contains(github.ref, 'dev') &&
+      needs.determine_matrix.result == 'success' &&
+      (needs.create_nightly_tag.result == 'success' || needs.create_nightly_tag.result == 'skipped')
+    strategy:
+      matrix:
+        buildplat: ${{ fromJson(needs.determine_matrix.outputs.buildplat) }}
+        python: ${{ fromJson(needs.determine_matrix.outputs.python) }}
+
+      fail-fast: false
+    env:
+      IS_32_BIT: ${{ matrix.buildplat[2] == 'x86' }}
+      WHEEL_NAME: ${{ matrix.python }}-${{ matrix.buildplat[1] }}-${{ matrix.buildplat[2] }}-umep
+      BUILD_UMEP_VARIANT: 'true'  # Triggers .post1 suffix in get_ver_git.py
+      CIBW_BUILD: ${{ matrix.python }}-${{ matrix.buildplat[1] }}*
+      CIBW_ARCHS: ${{ matrix.buildplat[2] }}
+      CIBW_ENVIRONMENT_PASS_LINUX: RUNNER_OS BUILD_UMEP_VARIANT
+      # Use manylinux2014 for compatibility with older Linux systems (glibc 2.17+)
+      CIBW_MANYLINUX_X86_64_IMAGE: manylinux2014
+      CIBW_MANYLINUX_AARCH64_IMAGE: manylinux2014
+      # Configure pip to use binary wheels and avoid building from source
+      CIBW_ENVIRONMENT_LINUX: >
+        PIP_PREFER_BINARY=1
+        PIP_ONLY_BINARY=${{ matrix.python == 'cp313' && 'pyarrow' || ':all:' }}
+        FCFLAGS="-fno-optimize-sibling-calls -ffree-line-length-none"
+        F90=gfortran
+        BUILD_UMEP_VARIANT=true
+      CIBW_BEFORE_ALL_LINUX: >
+        pip install --upgrade pip setuptools wheel &&
+        pip install oldest-supported-numpy &&
+        if [[ "${{ matrix.python }}" == "cp313" ]]; then
+          echo "Installing numpy for Python 3.13 f90wrap build" &&
+          pip install numpy;
+        fi
+      CIBW_BEFORE_ALL_MACOS: >
+        brew install gfortran &&
+        brew unlink gfortran &&
+        brew link gfortran
+      CIBW_BEFORE_ALL_WINDOWS: >
+        C:\msys64\usr\bin\bash.exe -lc "pacman -Syu --noconfirm" &&
+        C:\msys64\usr\bin\bash.exe -lc "pacman -S --needed --noconfirm mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-gcc-fortran mingw-w64-ucrt-x86_64-binutils mingw-w64-ucrt-x86_64-make mingw-w64-ucrt-x86_64-openblas"
+      CIBW_ENVIRONMENT_WINDOWS: >
+        PATH="C:\\msys64\\ucrt64\\bin;$PATH"
+        CC=gcc
+        CXX=g++
+        FC=gfortran
+        CFLAGS="-D__USE_MINGW_ANSI_STDIO=1 -mlong-double-64"
+        CXXFLAGS="-D__USE_MINGW_ANSI_STDIO=1 -mlong-double-64"
+        FCFLAGS="-fno-optimize-sibling-calls -ffree-line-length-none"
+        LDFLAGS="-lucrt -static-libgcc -static-libgfortran -LC:/msys64/ucrt64/lib -lsetjmp_compat"
+        BUILD_UMEP_VARIANT=true
+      CIBW_BEFORE_BUILD_WINDOWS: >
+        echo Creating setjmp compatibility library... &&
+        echo int _setjmpex(void* buf) { extern int __intrinsic_setjmpex(void*); return __intrinsic_setjmpex(buf); } > setjmp_compat.c &&
+        C:\msys64\ucrt64\bin\gcc.exe -c setjmp_compat.c -o setjmp_compat.o &&
+        C:\msys64\ucrt64\bin\ar.exe rcs libsetjmp_compat.a setjmp_compat.o &&
+        echo Library created, checking contents: &&
+        C:\msys64\ucrt64\bin\nm.exe libsetjmp_compat.a &&
+        echo Copying to standard locations: &&
+        copy libsetjmp_compat.a C:\msys64\ucrt64\lib\ &&
+        copy libsetjmp_compat.a C:\msys64\ucrt64\x86_64-w64-mingw32\lib\ &&
+        echo Verifying library locations: &&
+        dir C:\msys64\ucrt64\lib\libsetjmp_compat.a &&
+        dir C:\msys64\ucrt64\x86_64-w64-mingw32\lib\libsetjmp_compat.a &&
+        where python &&
+        where gcc &&
+        gcc --version &&
+        pip install delvewheel
+      CIBW_REPAIR_WHEEL_COMMAND_WINDOWS: "delvewheel repair -w {dest_dir} {wheel}"
+      CIBW_TEST_REQUIRES: pytest
+      CIBW_TEST_COMMAND: "python -m pytest {project}/test -v --tb=short --durations=10"
+      MACOSX_DEPLOYMENT_TARGET: ${{ matrix.buildplat[0] == 'macos-13' && '13.0' || '15.0' }}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Modify pyproject.toml for NumPy 1.x compatibility
+        run: |
+          echo "Building UMEP variant with NumPy 1.x compatibility"
+
+          # Build-time: Use oldest-supported-numpy for binary compatibility
+          sed -i.bak 's/"numpy>=2\.0"/"oldest-supported-numpy"/g' pyproject.toml
+
+          # Runtime: Pin to NumPy 1.x (QGIS 3.40 LTR uses 1.26.4)
+          sed -i.bak 's/"numpy>=2\.0",/"numpy>=1.22,<2.0",/g' pyproject.toml
+
+          echo "Modified pyproject.toml for UMEP build:"
+          git diff pyproject.toml || true
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+            python-version: 3.12
+
+      - name: Build wheels
+        uses: pypa/cibuildwheel@v3.0.0
+
+      - name: upload wheels
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.WHEEL_NAME }}
+          path: ./wheelhouse/*.whl
+
+  test_numpy_compat:
+    name: Test NumPy 1.x compatibility (UMEP/QGIS)
+    runs-on: ubuntu-latest
+    # Only run for production tags to validate UMEP builds
+    if: startsWith(github.ref, 'refs/tags/') && !contains(github.ref, 'dev')
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install with NumPy 1.26.4 (QGIS 3.40 LTR version)
+        run: |
+          # Install NumPy 1.26.4 first (same as QGIS 3.40 LTR)
+          pip install numpy==1.26.4
+
+          # Modify pyproject.toml as UMEP build does
+          sed -i 's/"numpy>=2\.0"/"oldest-supported-numpy"/g' pyproject.toml
+          sed -i 's/"numpy>=2\.0",/"numpy>=1.22,<2.0",/g' pyproject.toml
+
+          # Install in editable mode
+          pip install -e .
+
+          # Verify NumPy version
+          python -c "import numpy; print(f'NumPy version: {numpy.__version__}')"
+          python -c "import supy; print(f'SuPy version: {supy.__version__}')"
+
+      - name: Run test suite with NumPy 1.x
+        run: |
+          pytest test/ -v --tb=short --durations=10
+
   deploy_testpypi:
     name: Publish to TestPyPI
     runs-on: ubuntu-latest
@@ -292,13 +475,15 @@ jobs:
     needs:
       - determine_matrix
       - build_wheels
+      - build_umep  # UMEP builds (.post1 variants)
       - create_nightly_tag  # Will be skipped for non-nightly builds
     # Only run for tagged releases WITHOUT 'dev' in the tag name
+    # Deploy if either standard OR UMEP build succeeds (or both)
     if: |
       always() &&
       startsWith(github.ref, 'refs/tags') &&
       !contains(github.ref, 'dev') &&
-      needs.build_wheels.result == 'success' &&
+      (needs.build_wheels.result == 'success' || needs.build_umep.result == 'success') &&
       (needs.create_nightly_tag.result == 'success' || needs.create_nightly_tag.result == 'skipped')
 
     # Set up permissions for OIDC authentication
@@ -306,7 +491,7 @@ jobs:
       id-token: write  # Required for Trusted Publishing
 
     steps:
-      - name: Download all the built wheels
+      - name: Download all the built wheels (standard + UMEP)
         uses: actions/download-artifact@v4
         with:
           path: dist/

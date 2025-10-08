@@ -17,9 +17,6 @@ The Python interface (SuPy) provides the complete API for SUEWS with comprehensi
    api/data-structures
    api/converter
 
-Overview
---------
-
 **Object-Oriented Interface**
     The :class:`~supy.SUEWSSimulation` class provides a modern interface for running simulations. See :doc:`api/simulation`.
 

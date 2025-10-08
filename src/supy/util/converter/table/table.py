@@ -1516,19 +1516,19 @@ def convert_table(
         >>>
         >>> # Convert from 2016a to 2024a
         >>> convert_table(
-        ...     fromDir='path/to/old_data',
-        ...     toDir='path/to/new_data',
-        ...     fromVer='2016a',
-        ...     toVer='2024a'
+        ...     fromDir="path/to/old_data",
+        ...     toDir="path/to/new_data",
+        ...     fromVer="2016a",
+        ...     toVer="2024a",
         ... )
         >>>
         >>> # Convert with debug output
         >>> convert_table(
-        ...     fromDir='path/to/old_data',
-        ...     toDir='path/to/new_data',
-        ...     fromVer='2020a',
-        ...     toVer='2024a',
-        ...     debug_dir='debug_output'
+        ...     fromDir="path/to/old_data",
+        ...     toDir="path/to/new_data",
+        ...     fromVer="2020a",
+        ...     toVer="2024a",
+        ...     debug_dir="debug_output",
         ... )
     """
     # Special case: if fromVer == toVer, just clean without conversion

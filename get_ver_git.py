@@ -16,6 +16,12 @@ For production releases:
   - At tag: generates 2025.1.0
   - After commits: generates 2025.1.0.dev5 (5 commits after)
 
+For UMEP/QGIS compatible builds (.post1 suffix):
+  - When BUILD_UMEP_VARIANT=true environment variable is set
+  - Tag: 2025.1.0 generates 2025.1.0.post1
+  - These are NumPy 1.x compatible builds for QGIS 3.40 LTR
+  - See .github/workflows/build-publish_to_pypi.yml for build configuration
+
 CRITICAL FOR NIGHTLY BUILDS:
 The GitHub Actions workflow MUST create the tag BEFORE building wheels.
 This ensures the version number matches the intended date. Previously,
@@ -28,6 +34,7 @@ Called by meson.build during the build process to set the package version.
 
 import subprocess
 import re
+import os
 
 
 def get_version_from_git():
@@ -82,6 +89,11 @@ def get_version_from_git():
             raise ValueError(
                 f"Output '{describe_output}' does not match the expected pattern."
             )
+
+        # Check for UMEP build variant (NumPy 1.x compatible build)
+        # This is set by CI workflow for QGIS/UMEP compatible releases
+        if os.environ.get('BUILD_UMEP_VARIANT') == 'true':
+            version = version + '.post1'
 
         return version
 

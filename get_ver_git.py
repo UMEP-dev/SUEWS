@@ -92,8 +92,8 @@ def get_version_from_git():
 
         # Check for UMEP build variant (NumPy 1.x compatible build)
         # This is set by CI workflow for QGIS/UMEP compatible releases
-        if os.environ.get('BUILD_UMEP_VARIANT') == 'true':
-            version = version + '.post1'
+        if os.environ.get("BUILD_UMEP_VARIANT") == "true":
+            version = version + ".post1"
 
         return version
 

@@ -709,7 +709,6 @@ intersphinx_mapping = {
     "pandas": ("http://pandas.pydata.org/pandas-docs/stable/", None),
     "xarray": ("http://xarray.pydata.org/en/stable/", None),
     "numpy": ("https://docs.scipy.org/doc/numpy/", None),
-    "supy": ("https://supy.readthedocs.io/en/latest/", None),
 }
 
 

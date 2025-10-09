@@ -638,3 +638,4 @@ local-schema/
 
 # Temporary schema export directory
 public/
+docs/source/api/_autosummary/

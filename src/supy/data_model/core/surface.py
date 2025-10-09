@@ -866,7 +866,7 @@ class BldgsProperties(
         },
     )
     bldgh: Optional[FlexibleRefValue(float)] = Field(
-        ge=3,
+        ge=0,
         default=None,
         description="Building height",
         json_schema_extra={"unit": "m", "display_name": "Building Height"},

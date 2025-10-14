@@ -87,10 +87,12 @@ def select_sample_config_by_nlayer(nlayer: int) -> str:
     Returns:
         Filename of the appropriate sample config
     """
-    if nlayer == 1:
-        return "sample_config_1.yml"
+    # Map nlayer values to specific config files
+    if nlayer in [1, 2, 3, 4, 5, 6, 7]:
+        return f"sample_config_{nlayer}.yml"
     else:
-        # For nlayer=3 or any other value, use sample_config_3.yml
+        # Default to nlayer=3 for unsupported values
+        print(f"Warning: nlayer={nlayer} not supported, using sample_config_3.yml as default")
         return "sample_config_3.yml"
 
 

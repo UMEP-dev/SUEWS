@@ -54,7 +54,12 @@ py.install_sources(
         [
             'sample_data/sample_config.yml',
             'sample_data/sample_config_1.yml',
+            'sample_data/sample_config_2.yml',
             'sample_data/sample_config_3.yml',
+            'sample_data/sample_config_4.yml',
+            'sample_data/sample_config_5.yml',
+            'sample_data/sample_config_6.yml',
+            'sample_data/sample_config_7.yml',
             'sample_data/Kc_2012_data_60.txt'
         ],
         [

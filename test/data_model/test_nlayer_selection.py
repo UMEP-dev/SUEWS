@@ -38,7 +38,9 @@ class TestNlayerStructureValidation(TestCase):
         # Check array sizes
         self.assertEqual(len(vl.height.value), nlayer + 1, "height array size")
         self.assertEqual(len(vl.veg_frac.value), nlayer, "veg_frac array size")
-        self.assertEqual(len(vl.building_frac.value), nlayer, "building_frac array size")
+        self.assertEqual(
+            len(vl.building_frac.value), nlayer, "building_frac array size"
+        )
         self.assertEqual(len(vl.roofs), nlayer, "roofs array size")
         self.assertEqual(len(vl.walls), nlayer, "walls array size")
 
@@ -82,7 +84,9 @@ class TestNlayerDetectionAndSelection(TestCase):
             # Select config
             selected = select_sample_config_by_nlayer(detected)
             expected = f"sample_config_{nlayer}.yml"
-            self.assertEqual(selected, expected, f"Selection failed for nlayer={nlayer}")
+            self.assertEqual(
+                selected, expected, f"Selection failed for nlayer={nlayer}"
+            )
 
         print("✓ Detection and selection workflow successful")
 
@@ -101,7 +105,7 @@ class TestNlayerDetectionAndSelection(TestCase):
             self.assertEqual(
                 selected,
                 "sample_config_3.yml",
-                f"Should default to sample_config_3.yml for nlayer={unsupported}"
+                f"Should default to sample_config_3.yml for nlayer={unsupported}",
             )
 
         print("✓ Default behavior works correctly")

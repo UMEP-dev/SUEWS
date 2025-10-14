@@ -370,8 +370,7 @@ class TestNlayerSampleConfigs(TestCase):
 
             # Check file exists
             self.assertTrue(
-                config_path.exists(),
-                f"sample_config_{nlayer}.yml should exist"
+                config_path.exists(), f"sample_config_{nlayer}.yml should exist"
             )
 
             # Load and validate
@@ -383,7 +382,7 @@ class TestNlayerSampleConfigs(TestCase):
             self.assertEqual(
                 actual_nlayer,
                 nlayer,
-                f"sample_config_{nlayer}.yml should have nlayer={nlayer}"
+                f"sample_config_{nlayer}.yml should have nlayer={nlayer}",
             )
 
         print("✓ All nlayer sample configs (1-7) loaded successfully")

@@ -92,7 +92,9 @@ def select_sample_config_by_nlayer(nlayer: int) -> str:
         return f"sample_config_{nlayer}.yml"
     else:
         # Default to nlayer=3 for unsupported values
-        print(f"Warning: nlayer={nlayer} not supported, using sample_config_3.yml as default")
+        print(
+            f"Warning: nlayer={nlayer} not supported, using sample_config_3.yml as default"
+        )
         return "sample_config_3.yml"
 
 

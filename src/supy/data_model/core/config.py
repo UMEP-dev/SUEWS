@@ -2196,7 +2196,11 @@ class SUEWSConfig(BaseModel):
     def _transform_validation_error(
         cls, error: ValidationError, config_data: dict
     ) -> ValidationError:
-        """Transform Pydantic validation errors to use GRIDID instead of array indices in error messages."""
+        """Transform Pydantic validation errors to use GRIDID instead of array indices.
+
+        Uses structured error data to avoid string replacement collisions when
+        GRIDID values overlap with array indices (e.g., site 0 has GRIDID=1).
+        """
 
         # Extract GRIDID mapping from sites
         sites = config_data.get("sites", [])
@@ -2213,15 +2217,32 @@ class SUEWSConfig(BaseModel):
             else:
                 site_gridid_map[idx] = idx  # Fallback to index
 
-        # Transform the error message string directly
-        error_msg = str(error)
+        # Process structured errors (not string manipulation!)
+        modified_errors = []
+        for err in error.errors():
+            err_copy = err.copy()
+            loc_list = list(err_copy['loc'])
 
-        # Replace sites.INDEX with sites.GRIDID for each mapped site
-        for idx, gridid in site_gridid_map.items():
-            error_msg = error_msg.replace(f"sites.{idx}.", f"sites.{gridid}.")
+            # Replace numeric site index with GRIDID in location tuple
+            if len(loc_list) >= 2 and loc_list[0] == 'sites' and isinstance(loc_list[1], int):
+                site_idx = loc_list[1]
+                if site_idx in site_gridid_map:
+                    loc_list[1] = site_gridid_map[site_idx]
 
-        # Create a simple ValueError with the transformed message
-        # This maintains compatibility while providing clear GRIDID-based error messages
+            err_copy['loc'] = tuple(loc_list)
+            modified_errors.append(err_copy)
+
+        # Format into readable message
+        error_lines = [f"{error.error_count()} validation error{'s' if error.error_count() > 1 else ''} for SUEWSConfig"]
+
+        for err in modified_errors:
+            loc_str = '.'.join(str(x) for x in err['loc'])
+            error_lines.append(loc_str)
+            error_lines.append(f"  {err['msg']} [type={err['type']}, input_value={err['input']}, input_type={type(err['input']).__name__}]")
+            if 'url' in err:
+                error_lines.append(f"    For further information visit {err['url']}")
+
+        error_msg = '\n'.join(error_lines)
         raise ValueError(f"SUEWS Configuration Validation Error:\n{error_msg}")
 
     @classmethod

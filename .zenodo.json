@@ -1,0 +1,100 @@
+{
+  "title": "SUEWS: Surface Urban Energy and Water Balance Scheme",
+  "description": "SUEWS (Surface Urban Energy and Water balance Scheme) is a state-of-the-art urban land surface model for simulating the urban surface energy balance, water balance, and anthropogenic heat flux.",
+  "license": "GPL-3.0",
+  "upload_type": "software",
+  "creators": [
+    {
+      "name": "Grimmond, Sue",
+      "affiliation": "University of Reading",
+      "orcid": "0000-0002-3166-9415",
+      "github-id": "suegrimmond"
+    },
+    {
+      "name": "Järvi, Leena",
+      "affiliation": "University of Helsinki",
+      "orcid": "0000-0002-5224-3448",
+      "github-id": "ljarvi"
+    },
+    {
+      "name": "Ward, Helen",
+      "affiliation": "University of Reading",
+      "orcid": "0000-0001-8881-185X"
+    },
+    {
+      "name": "Sun, Ting",
+      "affiliation": "University College London",
+      "orcid": "0000-0002-2486-6146",
+      "github-id": "sunt05"
+    },
+    {
+      "name": "Omidvar, Hamidreza",
+      "affiliation": "University of Reading",
+      "orcid": "0000-0001-8124-7264",
+      "github-id": "hamidrezaomidvar"
+    },
+    {
+      "name": "Blunn, Lewis",
+      "affiliation": "Met Office",
+      "orcid": "0000-0002-3207-5002",
+      "github-id": "LewisB7"
+    },
+    {
+      "name": "Lindberg, Fredrik",
+      "affiliation": "University of Gothenburg",
+      "orcid": "0000-0002-9648-4542",
+      "github-id": "biglimp"
+    },
+    {
+      "name": "Li, Zhenkun",
+      "affiliation": "Shanghai Climate Centre, Shanghai, China",
+      "github-id": "zhenkunl"
+    },
+    {
+      "name": "Liu, Yiqing",
+      "affiliation": "University of Reading",
+      "orcid": "0000-0001-5159-9197",
+      "github-id": "yiqing1021"
+    },
+    {
+      "name": "Xie, Xiaoxiong",
+      "affiliation": "University of Plymouth",
+      "orcid": "0000-0003-2280-1768",
+      "github-id": "XiaoxiongXie"
+    },
+    {
+      "name": "Rognone, Silvia",
+      "affiliation": "University of Reading",
+      "orcid": "0000-0002-0319-8812",
+      "github-id": "dayantur"
+    },
+    {
+      "name": "Paskin, Matthew",
+      "affiliation": "University of Reading",
+      "orcid": "0009-0007-1782-7150",
+      "github-id": "MatthewPaskin"
+    }
+  ],
+  "keywords": [
+    "urban climate",
+    "energy balance",
+    "water balance",
+    "land surface model",
+    "urban meteorology",
+    "anthropogenic heat",
+    "evapotranspiration",
+    "surface temperature"
+  ],
+  "related_identifiers": [
+    {
+      "identifier": "https://github.com/UMEP-dev/SUEWS",
+      "relation": "isSupplementTo",
+      "scheme": "url"
+    },
+    {
+      "identifier": "https://suews.readthedocs.io",
+      "relation": "isDocumentedBy",
+      "scheme": "url"
+    }
+  ]
+}

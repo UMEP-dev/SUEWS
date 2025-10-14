@@ -192,9 +192,6 @@ jobs:
           echo "Installing numpy for Python 3.13 f90wrap build" &&
           pip install numpy;
         fi
-      CIBW_ENVIRONMENT_MACOS: >
-        PIP_PREFER_BINARY=1
-        PIP_ONLY_BINARY=${{ matrix.python == 'cp313' && 'h5py,pyarrow' || 'h5py' }}
       CIBW_BEFORE_ALL_MACOS: >
         brew install gfortran &&
         brew unlink gfortran &&

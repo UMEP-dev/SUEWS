@@ -43,7 +43,12 @@ def convert_pydantic_location_to_gridid_path(loc_tuple, input_yaml_file):
                     and isinstance(yaml_data["sites"][site_index], dict)
                     and "gridiv" in yaml_data["sites"][site_index]
                 ):
-                    gridid = yaml_data["sites"][site_index]["gridiv"]
+                    gridiv = yaml_data["sites"][site_index]["gridiv"]
+                    # Handle RefValue objects
+                    if isinstance(gridiv, dict) and "value" in gridiv:
+                        gridid = gridiv["value"]
+                    else:
+                        gridid = gridiv
                     path_parts.append(f"sites.{gridid}")
                     # Skip the numeric index in next iteration
                     continue
@@ -240,7 +245,12 @@ def generate_phase_c_report(
                                 and isinstance(yaml_data["sites"][0], dict)
                                 and "gridiv" in yaml_data["sites"][0]
                             ):
-                                gridid = yaml_data["sites"][0]["gridiv"]
+                                gridiv = yaml_data["sites"][0]["gridiv"]
+                                # Handle RefValue objects
+                                if isinstance(gridiv, dict) and "value" in gridiv:
+                                    gridid = gridiv["value"]
+                                else:
+                                    gridid = gridiv
                                 field_path = f"sites.{gridid}.properties.{field_name}"
                             else:
                                 field_path = f"sites.0.properties.{field_name}"

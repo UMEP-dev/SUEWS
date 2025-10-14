@@ -173,7 +173,12 @@ def detect_pydantic_defaults(
                         and isinstance(orig_item, dict)
                         and "gridiv" in orig_item
                     ):
-                        gridid = orig_item["gridiv"]
+                        gridiv = orig_item["gridiv"]
+                        # Handle RefValue objects
+                        if isinstance(gridiv, dict) and "value" in gridiv:
+                            gridid = gridiv["value"]
+                        else:
+                            gridid = gridiv
                         list_path = f"{current_path}.{gridid}"
                     else:
                         list_path = f"{current_path}[{i}]"

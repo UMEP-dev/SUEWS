@@ -2327,6 +2327,9 @@ class SUEWSConfig(BaseModel):
                 df_site = self.sites[i].to_df_state(grid_id)
                 df_model = self.model.to_df_state(grid_id)
                 df_site = pd.concat([df_site, df_model], axis=1)
+                # Remove duplicate columns immediately after combining site+model
+                # This prevents InvalidIndexError when concatenating multiple sites (axis=0)
+                df_site = df_site.loc[:, ~df_site.columns.duplicated()]
                 list_df_site.append(df_site)
 
             df = pd.concat(list_df_site, axis=0)
@@ -2334,9 +2337,6 @@ class SUEWSConfig(BaseModel):
             # Add metadata columns directly to maintain MultiIndex structure
             df[("config", "0")] = self.name
             df[("description", "0")] = self.description
-
-            # remove duplicate columns
-            df = df.loc[:, ~df.columns.duplicated()]
         except Exception as e:
             if use_conditional_validation and not strict:
                 warnings.warn(

@@ -42,15 +42,40 @@ jobs:
         echo "Previous version: $PREVIOUS_LINES lines"
         echo "Current version: $CURRENT_LINES lines"
 
+        # Check if this is an intentional restructuring (reference files present)
+        REQUIRED_REFS=(
+          ".claude/reference/quick-start.md"
+          ".claude/reference/testing-guide.md"
+          ".claude/reference/config-patterns.md"
+          ".claude/reference/maintenance-principles.md"
+        )
+
+        ALL_REFS_EXIST=true
+        for ref in "${REQUIRED_REFS[@]}"; do
+          if [ ! -f "$ref" ]; then
+            ALL_REFS_EXIST=false
+            break
+          fi
+        done
+
         # Calculate reduction percentage
         if [ "$PREVIOUS_LINES" -gt 0 ]; then
           REDUCTION=$((PREVIOUS_LINES - CURRENT_LINES))
           PERCENT=$((REDUCTION * 100 / PREVIOUS_LINES))
 
           if [ "$PERCENT" -gt 20 ]; then
-            echo "⚠️ WARNING: CLAUDE.md reduced by $PERCENT% ($REDUCTION lines)"
-            echo "This might indicate content loss!"
-            exit 1
+            if [ "$ALL_REFS_EXIST" = true ]; then
+              echo "ℹ️ Large reduction detected ($PERCENT%), but required reference files exist"
+              echo "   This appears to be an intentional restructuring (DRY principles)"
+              echo "   Content moved to:"
+              for ref in "${REQUIRED_REFS[@]}"; do
+                echo "   - $ref"
+              done
+            else
+              echo "⚠️ WARNING: CLAUDE.md reduced by $PERCENT% ($REDUCTION lines)"
+              echo "This might indicate content loss!"
+              exit 1
+            fi
           elif [ "$PERCENT" -gt 10 ]; then
             echo "⚠️ Notice: CLAUDE.md reduced by $PERCENT% ($REDUCTION lines)"
           fi

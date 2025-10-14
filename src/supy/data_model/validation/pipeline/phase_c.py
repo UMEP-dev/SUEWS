@@ -1,18 +1,11 @@
-"""Phase C report generation for Pydantic validation errors."""
+"""Phase C report generation for configuration consistency validation errors."""
 
 import os
 import re
 import yaml
 
-PHASE_TITLES = {
-    "A": "SUEWS - Phase A (Up-to-date YAML check) Report",
-    "B": "SUEWS - Phase B (Scientific Validation) Report",
-    "C": "SUEWS - Phase C (Pydantic Validation) Report",
-    "AB": "SUEWS - Phase AB (Up-to-date YAML check and Scientific Validation) Report",
-    "AC": "SUEWS - Phase AC (Up-to-date YAML check and Pydantic Validation) Report",
-    "BC": "SUEWS - Phase BC (Scientific Validation and Pydantic Validation) Report",
-    "ABC": "SUEWS - Phase ABC (Up-to-date YAML check, Scientific Validation and Pydantic Validation) Report",
-}
+# Use unified report title for all validation phases
+REPORT_TITLE = "SUEWS Validation Report"
 
 
 def convert_pydantic_location_to_gridid_path(loc_tuple, input_yaml_file):
@@ -116,6 +109,50 @@ def _parse_previous_phase_report(report_content: str):
     )
 
 
+def _parse_consolidated_messages(messages: list):
+    """Parse consolidated messages to extract different categories."""
+    phase_a_renames = []
+    phase_a_optional_missing = []
+    phase_a_not_in_standard = []
+    phase_b_science_warnings = []
+    phase_b_updates = []
+
+    current_category = None
+    for line in messages:
+        line = line.strip()
+        if "Updated (" in line and "renamed parameter" in line:
+            current_category = "renames"
+        elif "Updated (" in line and "optional missing parameter" in line:
+            current_category = "optional"
+        elif "Updated (" in line and "parameter(s):" in line:
+            # This handles "Updated (X) parameter(s):" which are Phase B updates
+            current_category = "phase_b_updates"
+        elif "parameter(s) not in standard" in line:
+            current_category = "not_standard"
+        elif "scientific warning" in line or "Revise (" in line:
+            current_category = "warnings"
+        elif line.startswith("--"):
+            detail = line[2:].strip()
+            if current_category == "renames":
+                phase_a_renames.append(detail)
+            elif current_category == "optional":
+                phase_a_optional_missing.append(detail)
+            elif current_category == "not_standard":
+                phase_a_not_in_standard.append(detail)
+            elif current_category == "warnings":
+                phase_b_science_warnings.append(detail)
+            elif current_category == "phase_b_updates":
+                phase_b_updates.append(detail)
+
+    return (
+        phase_a_renames,
+        phase_a_optional_missing,
+        phase_a_not_in_standard,
+        phase_b_science_warnings,
+        phase_b_updates,
+    )
+
+
 def generate_phase_c_report(
     validation_error: Exception,
     input_yaml_file: str,
@@ -123,12 +160,13 @@ def generate_phase_c_report(
     mode: str = "public",
     phase_a_report_file: str = None,
     phases_run: list = None,
+    no_action_messages: list = None,
 ) -> None:
     """Generate Phase C validation report with previous phase consolidation."""
     report_lines = []
 
     phase_str = "".join(phases_run) if phases_run else "C"
-    title = PHASE_TITLES.get(phase_str, "SUEWS Phase C (Pydantic Validation) Report")
+    title = REPORT_TITLE
 
     report_lines.append(f"# {title}")
     report_lines.append("# " + "=" * 50)
@@ -142,8 +180,19 @@ def generate_phase_c_report(
     phase_a_optional_missing = []
     phase_a_not_in_standard = []
     phase_b_science_warnings = []
+    phase_b_updates = []
 
-    if phase_a_report_file and os.path.exists(phase_a_report_file):
+    # Use passed no_action_messages if available, otherwise try to read from file
+    if no_action_messages:
+        # Parse the consolidated messages directly
+        (
+            phase_a_renames,
+            phase_a_optional_missing,
+            phase_a_not_in_standard,
+            phase_b_science_warnings,
+            phase_b_updates,
+        ) = _parse_consolidated_messages(no_action_messages)
+    elif phase_a_report_file and os.path.exists(phase_a_report_file):
         try:
             with open(phase_a_report_file, "r") as f:
                 report_content = f.read()
@@ -366,7 +415,7 @@ def generate_phase_c_report(
     if action_needed_items:
         report_lines.append("## ACTION NEEDED")
         report_lines.append(
-            f"- Found ({len(action_needed_items)}) critical Pydantic validation error(s):"
+            f"- Found ({len(action_needed_items)}) critical configuration consistency error(s):"
         )
 
         for item in action_needed_items:
@@ -382,6 +431,7 @@ def generate_phase_c_report(
         (phase_a_renames, "renamed parameter(s) to current standards"),
         (phase_a_optional_missing, "optional missing parameter(s) with null values"),
         (phase_a_not_in_standard, "parameter(s) not in standard"),
+        (phase_b_updates, "parameter(s)"),
         (phase_b_science_warnings, "scientific warning(s) for information"),
     ]
 
@@ -389,7 +439,11 @@ def generate_phase_c_report(
         if items:
             action = (
                 "Updated"
-                if "renamed" in description or "optional" in description
+                if "renamed" in description
+                or "optional" in description
+                or description == "parameter(s)"
+                else "Revise"
+                if "warning" in description
                 else "Found"
             )
             previous_phase_items.append(f"- {action} ({len(items)}) {description}:")
@@ -401,7 +455,23 @@ def generate_phase_c_report(
         report_lines.append("")
 
     if not action_needed_items and not previous_phase_items:
-        report_lines.append(f"Phase {phase_str} passed")
+        # Map phase strings to descriptive messages
+        if phase_str == "A":
+            phase_message = "YAML structure check passed"
+        elif phase_str == "B":
+            phase_message = "Physics checks passed"
+        elif phase_str == "C":
+            phase_message = "Validation passed"
+        elif phase_str == "AB":
+            phase_message = "YAML structure check and Physics checks passed"
+        elif phase_str == "BC":
+            phase_message = "Physics checks and Validation passed"
+        elif phase_str == "ABC" or phase_str == "AC":
+            phase_message = "Validation passed"
+        else:
+            phase_message = f"Phase {phase_str} passed"  # fallback
+
+        report_lines.append(phase_message)
 
     report_lines.extend(["", "# " + "=" * 50])
 
@@ -416,14 +486,26 @@ def generate_fallback_report(
     mode: str = "public",
     phase_a_report_file: str = None,
     phases_run: list = None,
+    no_action_messages: list = None,
 ) -> None:
     """Generate simple fallback report when structured report generation fails."""
     phase_a_renames = []
     phase_a_optional_missing = []
     phase_a_not_in_standard = []
     phase_b_science_warnings = []
+    phase_b_updates = []
 
-    if phase_a_report_file and os.path.exists(phase_a_report_file):
+    # Use passed no_action_messages if available, otherwise try to read from file
+    if no_action_messages:
+        # Parse the consolidated messages directly
+        (
+            phase_a_renames,
+            phase_a_optional_missing,
+            phase_a_not_in_standard,
+            phase_b_science_warnings,
+            phase_b_updates,
+        ) = _parse_consolidated_messages(no_action_messages)
+    elif phase_a_report_file and os.path.exists(phase_a_report_file):
         try:
             with open(phase_a_report_file, "r") as f:
                 report_content = f.read()
@@ -442,6 +524,7 @@ def generate_fallback_report(
         (phase_a_renames, "renamed parameter(s) to current standards"),
         (phase_a_optional_missing, "optional missing parameter(s) with null values"),
         (phase_a_not_in_standard, "parameter(s) not in standard"),
+        (phase_b_updates, "parameter(s)"),
         (phase_b_science_warnings, "scientific warning(s) for information"),
     ]
 
@@ -449,7 +532,11 @@ def generate_fallback_report(
         if items:
             action = (
                 "Updated"
-                if "renamed" in description or "optional" in description
+                if "renamed" in description
+                or "optional" in description
+                or description == "parameter(s)"
+                else "Revise"
+                if "warning" in description
                 else "Found"
             )
             previous_phase_items.append(f"- {action} ({len(items)}) {description}:")
@@ -462,7 +549,7 @@ def generate_fallback_report(
     )
 
     phase_str = "".join(phases_run) if phases_run else "C"
-    title = PHASE_TITLES.get(phase_str, "SUEWS Phase C (Pydantic Validation) Report")
+    title = REPORT_TITLE
     mode_title = "Public" if mode.lower() == "public" else mode.title()
 
     error_report = f"""# {title}
@@ -471,7 +558,7 @@ def generate_fallback_report(
 # ============================================
 
 ## ACTION NEEDED
-- Found (1) critical Pydantic validation error(s):
+- Found (1) critical configuration consistency error(s):
 -- validation_error: {str(validation_error)}
    Suggested fix: Review and fix validation errors above
    Location: {input_yaml_file}{previous_phase_consolidation}

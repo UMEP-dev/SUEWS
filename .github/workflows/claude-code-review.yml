@@ -91,9 +91,6 @@ jobs:
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
 
-          # Use Claude Opus 4 for better code review quality
-          model: claude-opus-4-20250514
-
           # Custom instructions for British English and project standards
           custom_instructions: |
             IMPORTANT: Always use British English spelling and grammar in all your responses, reviews, and written content.

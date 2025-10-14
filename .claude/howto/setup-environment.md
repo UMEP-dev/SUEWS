@@ -2,31 +2,9 @@
 
 This guide covers Python environment setup for SUEWS development, with uv as the recommended approach.
 
-## Quick Start (Recommended)
+## Quick Start
 
-### With uv (Ultra-fast)
-
-```bash
-# Install uv (if not already installed)
-brew install uv  # macOS
-# or
-curl -LsSf https://astral.sh/uv/install.sh | sh
-
-# Create environment and install SUEWS
-make setup  # Creates .venv with uv
-source .venv/bin/activate  # Required due to Python 3.13 compatibility
-make dev    # Install in editable mode
-
-# Verify installation
-python -c "import supy; print(f'✓ SuPy {supy.__version__} ready')"
-```
-
-### With mamba
-
-```bash
-mamba activate suews-dev  # or create new environment
-make dev  # Detects mamba and installs accordingly
-```
+**See `.claude/reference/quick-start.md` for canonical setup commands.**
 
 ## Why uv?
 
@@ -138,15 +116,7 @@ uv venv --python 3.12  # Use Python 3.12 if 3.13 causes issues
 
 ## Working with Git Worktrees
 
-Each worktree MUST have its own environment to avoid conflicts:
-
-```bash
-# In each worktree
-cd worktrees/my-feature
-make setup && source .venv/bin/activate && make dev
-```
-
-See `worktree-workflow.md` for complete worktree setup instructions.
+Each worktree MUST have its own environment to avoid conflicts. See `.claude/reference/quick-start.md` for setup commands.
 
 ## Troubleshooting
 
@@ -184,18 +154,6 @@ See `worktree-workflow.md` for complete worktree setup instructions.
 
 ## Quick Reference
 
-```bash
-# Essential commands
-make setup                  # Create environment
-source .venv/bin/activate   # Activate
-make dev                    # Install SUEWS
-make test                   # Run tests
-make clean                  # Clean build artifacts
-
-# uv-specific commands
-uv venv                     # Create environment
-uv pip install package      # Install package
-uv cache clean              # Clear cache
-```
+See `.claude/reference/quick-start.md` for essential commands.
 
 For additional details on uv capabilities and advanced usage, see the [uv documentation](https://github.com/astral-sh/uv).

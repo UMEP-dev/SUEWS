@@ -1,90 +1,94 @@
 Validation Tool Reference
 =========================
 
-The ``suews-validate`` command checks and fixes YAML configuration issues automatically.
+The ``suews-validate`` command is a comprehensive validation system that automatically checks and updates SUEWS YAML configuration files. It ensures your configuration is complete, scientifically valid, and compatible with the SUEWS model.
 
-Command Reference
------------------
+What the Validator Does
+-----------------------
 
-Basic Commands
-~~~~~~~~~~~~~~
+The validation system performs multiple checks on your configuration:
+
+- **Completeness Check**: Detects missing parameters and updates deprecated parameter names to current standards
+- **Scientific Validation**: Applies automatic scientific corrections and validates physics options compatibility
+- **Model Compatibility**: Ensures configuration compatibility with SUEWS computational engine
+
+Basic Usage
+-----------
 
 .. code-block:: bash
 
-    # Validate and fix (creates corrected file)
+    # Validate and fix configuration (creates corrected file)
     suews-validate config.yml
-    
-    # Check only (no changes)
+
+    # Check configuration without making changes
     suews-validate validate config.yml
-    
-    # Check without writing files
+
+    # Check without writing files (read-only validation)
     suews-validate --dry-run config.yml
 
-Output Options
-~~~~~~~~~~~~~~
+For complete usage options and advanced features, use:
 
 .. code-block:: bash
 
-    # Human-readable table (default)
-    suews-validate validate config.yml
-    
-    # Machine-readable JSON for CI/CD
-    suews-validate validate config.yml --format json
-    
-    # Quiet mode (summary only)
-    suews-validate validate config.yml --quiet
-    
-    # Verbose mode (detailed errors)
-    suews-validate validate config.yml --verbose
+    # View all available options and commands
+    suews-validate --help
 
-Advanced Usage
-~~~~~~~~~~~~~~
-
-.. code-block:: bash
-
-    # Run specific validation phases
-    suews-validate config.yml --phase A    # Structure only
-    suews-validate config.yml --phase B    # Science only
-    suews-validate config.yml --phase C    # Compatibility only
-    suews-validate config.yml --phase AB   # Structure + Science
-    
-    # Migrate old configuration format
-    suews-validate migrate old.yml -o new.yml
-    
-    # Check schema version
-    suews-validate version config.yml
+    # View help for specific subcommands
+    suews-validate validate --help
+    suews-validate migrate --help
+    suews-validate version --help
 
 Output Files
 ------------
 
 When you run ``suews-validate config.yml``, it creates:
 
-- ``updatedABC_config.yml`` - Your corrected configuration (ready to use)
-- ``reportABC_config.txt`` - Detailed report of what was changed
+**Final Files (ready to use):**
+- ``updated_config.yml`` - Your corrected configuration (ready to use with SUEWS)
+- ``report_config.txt`` - Consolidated validation report showing all changes
 
 Understanding Reports
 ---------------------
 
-The report shows all changes made:
+The validation report provides comprehensive details about every change made to your configuration. 
 
-::
+.. code-block:: text
 
-    PHASE A - STRUCTURE CHECK
-    ========================
-    Added missing parameters:
-    - soil.soil_depth: [0.1, 0.25, 0.5, 0.75] (default depths)
-    - bldgs.bldgh: 10.0 (default building height)
-    
-    PHASE B - SCIENTIFIC VALIDATION
-    ===============================
-    Automatic corrections:
-    - Surface fractions adjusted from 0.98 to 1.00
-    - Initial temperatures set to 15.2°C (July average for London)
-    
-    PHASE C - COMPATIBILITY CHECK
-    ============================
-    ✓ All physics options compatible
-    ✓ Configuration valid for SUEWS
+    # SUEWS Validation Report
+    # ==================================================
+    # Mode: Public
+    # ==================================================
+
+    ## ACTION NEEDED
+    - Found (1) critical missing parameter(s):
+    -- netradiationmethod has been added to updated YAML and set to null
+       Location: model.physics.netradiationmethod
+
+    ## NO ACTION NEEDED
+    - Updated (3) optional missing parameter(s) with null values:
+    -- holiday added to updated YAML and set to null
+    -- wetthresh added to updated YAML and set to null
+    -- roughlenmommethod added to updated YAML and set to null
+
+    - Updated (2) renamed parameter(s):
+    -- diagmethod changed to rslmethod
+    -- cp changed to rho_cp
+
+    - Updated (7) parameter(s):
+    -- initial_states.paved: temperature, tsfc, tin → 12.4°C (Set from CRU data for coordinates (51.51, -0.13) for month 1)
+    -- initial_states.bldgs: temperature, tsfc, tin → 12.4°C (Set from CRU data for coordinates (51.51, -0.13) for month 1)
+    -- anthropogenic_emissions.startdls: 15.0 → 86 (Calculated DLS start for coordinates (51.51, -0.13))
+
+    # ==================================================
+
+**Report Structure:**
+
+The report is organised into two main sections:
+
+- **NO ACTION NEEDED**: Changes that were automatically applied to your configuration and warnings. These are informational and require no further action from you. 
+
+- **ACTION NEEDED**: Critical issues that require your attention before the configuration can be used. 
+
 
 Exit Codes
 ----------
@@ -108,7 +112,6 @@ GitHub Actions Example
         suews-validate validate config.yml --format json > results.json
         if [ $? -ne 0 ]; then
           echo "Configuration validation failed"
-          cat results.json | jq '.results[].errors'
           exit 1
         fi
 
@@ -127,27 +130,6 @@ Batch Processing
         fi
     done
 
-JSON Output Format
-~~~~~~~~~~~~~~~~~~
-
-.. code-block:: json
-
-    {
-      "status": "success",
-      "summary": {
-        "total_files": 1,
-        "valid_files": 1,
-        "total_errors": 0
-      },
-      "results": [{
-        "file": "config.yml",
-        "valid": true,
-        "errors": []
-      }]
-    }
-
-For detailed JSON output documentation including error codes and CI/CD examples, see :doc:`/contributing/json-output-integration`.
-
 Troubleshooting
 ---------------
 
@@ -158,7 +140,13 @@ Troubleshooting
    Check the file path and ensure the file exists
 
 **"Validation failed after fixes"**
-   Some issues need manual intervention. Check the report for details.
+   Some issues need manual intervention. Check the **ACTION NEEDED** section in ``report_config.txt`` for specific issues requiring your attention.
 
 **"Unknown parameter"**
-   You may have a typo or be using an outdated configuration format.
+   You may have a typo or be using an outdated configuration format. The validator will suggest corrections for renamed parameters.
+
+For more detailed usage examples and advanced options, always refer to:
+
+.. code-block:: bash
+
+    suews-validate --help

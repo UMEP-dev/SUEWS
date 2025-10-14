@@ -1,16 +1,16 @@
 """
-SUEWS Science Check Phase B
+SUEWS Physics Validation Check - Phase B
 
-This module performs scientific validation and consistency checks on YAML configurations
-that have already been processed by Phase A (uptodate_yaml.py).
+This module performs physics validation and consistency checks on YAML configurations
+that have already been processed by Phase A.
 
 Phase B focuses on:
-- Scientific parameter validation using Pydantic models
+- Physics parameter validation
 - Geographic coordinate and timezone validation
 - Seasonal parameter adjustments (LAI, snowalb, surface temperatures)
 - Land cover fraction validation and consistency
 - Model physics option interdependency checks
-- Automatic scientific corrections where appropriate
+- Automatic physics-based corrections where appropriate
 
 Phase B assumes Phase A has completed successfully and builds upon clean YAML output
 without duplicating parameter detection or YAML structure validation.
@@ -248,22 +248,33 @@ def extract_simulation_parameters(yaml_data: dict) -> Tuple[int, str, str]:
     start_date = control.get("start_time")
     end_date = control.get("end_time")
 
-    if not isinstance(start_date, str) or "-" not in start_date:
-        raise ValueError(
+    # Collect all validation errors instead of failing on first error
+    errors = []
+
+    if not isinstance(start_date, str) or "-" not in str(start_date):
+        errors.append(
             "Missing or invalid 'start_time' in model.control - must be in 'YYYY-MM-DD' format"
         )
 
-    if not isinstance(end_date, str) or "-" not in end_date:
-        raise ValueError(
+    if not isinstance(end_date, str) or "-" not in str(end_date):
+        errors.append(
             "Missing or invalid 'end_time' in model.control - must be in 'YYYY-MM-DD' format"
         )
 
-    try:
-        model_year = int(start_date.split("-")[0])
-    except Exception:
-        raise ValueError(
-            "Could not extract model year from 'start_time' - ensure 'YYYY-MM-DD' format"
-        )
+    # Try to extract model year if start_date looks valid
+    model_year = None
+    if isinstance(start_date, str) and "-" in str(start_date):
+        try:
+            model_year = int(start_date.split("-")[0])
+        except Exception:
+            errors.append(
+                "Could not extract model year from 'start_time' - ensure 'YYYY-MM-DD' format"
+            )
+
+    # If we have errors, combine them into a single error message
+    if errors:
+        error_msg = "; ".join(errors)
+        raise ValueError(error_msg)
 
     return model_year, start_date, end_date
 
@@ -1346,17 +1357,8 @@ def create_science_report(
     """Generate comprehensive scientific validation report."""
     report_lines = []
 
-    phase_titles = {
-        "A": "SUEWS - Phase A (Up-to-date YAML check) Report",
-        "B": "SUEWS - Phase B (Scientific Validation) Report",
-        "C": "SUEWS - Phase C (Pydantic Validation) Report",
-        "AB": "SUEWS - Phase AB (Up-to-date YAML check and Scientific Validation) Report",
-        "AC": "SUEWS - Phase AC (Up-to-date YAML check and Pydantic Validation) Report",
-        "BC": "SUEWS - Phase BC (Scientific Validation and Pydantic Validation) Report",
-        "ABC": "SUEWS - Phase ABC (Up-to-date YAML check, Scientific Validation and Pydantic Validation) Report",
-    }
-
-    title = phase_titles.get(phase, "SUEWS Scientific Validation Report")
+    # Use unified report title for all validation phases
+    title = "SUEWS Validation Report"
 
     report_lines.append(f"# {title}")
     report_lines.append("# " + "=" * 50)
@@ -1636,51 +1638,98 @@ def run_science_check(
         validation_results = run_scientific_validation_pipeline(
             uptodate_data, start_date, model_year
         )
+    except (ValueError, FileNotFoundError, KeyError) as e:
+        # Handle initialization failures and create error report
+        error_message = str(e)
 
-        critical_errors = [r for r in validation_results if r.status == "ERROR"]
-        if not critical_errors:
-            science_checked_data, adjustments = run_scientific_adjustment_pipeline(
-                uptodate_data, start_date, model_year
-            )
+        # Create individual validation results for each error if multiple errors are present
+        validation_results = []
+        if ";" in error_message:
+            # Multiple errors - split them and create separate ValidationResult objects
+            individual_errors = error_message.split("; ")
+            for error in individual_errors:
+                validation_results.append(
+                    ValidationResult(
+                        status="ERROR",
+                        category="INITIALIZATION",
+                        parameter="model.control",
+                        message=f"Phase B initialization failed: {error.strip()}",
+                        suggested_value=None,
+                    )
+                )
         else:
-            science_checked_data = deepcopy(uptodate_data)
-            adjustments = []
+            # Single error
+            validation_results = [
+                ValidationResult(
+                    status="ERROR",
+                    category="INITIALIZATION",
+                    parameter="model.control",
+                    message=f"Phase B initialization failed: {error_message}",
+                    suggested_value=None,
+                )
+            ]
 
+        # Create error report
         science_yaml_filename = (
             os.path.basename(science_yaml_file) if science_yaml_file else None
         )
         report_content = create_science_report(
             validation_results,
-            adjustments,
+            [],  # No adjustments since we failed early
             science_yaml_filename,
             phase_a_report_file,
             mode,
             phase,
         )
 
+        # Write error report file
         if science_report_file:
             with open(science_report_file, "w") as f:
                 f.write(report_content)
 
-        if critical_errors:
-            print_critical_halt_message(critical_errors)
-            raise ValueError("Critical scientific errors detected - Phase B halted")
+        # Re-raise the exception so orchestrator knows it failed
+        raise e
 
-        print_science_check_results(validation_results, adjustments)
+    critical_errors = [r for r in validation_results if r.status == "ERROR"]
+    if not critical_errors:
+        science_checked_data, adjustments = run_scientific_adjustment_pipeline(
+            uptodate_data, start_date, model_year
+        )
+    else:
+        science_checked_data = deepcopy(uptodate_data)
+        adjustments = []
 
-        if science_yaml_file and not critical_errors:
-            header = create_science_yaml_header(phase_a_performed)
-            with open(science_yaml_file, "w") as f:
-                f.write(header)
-                yaml.dump(
-                    science_checked_data, f, default_flow_style=False, sort_keys=False
-                )
+    science_yaml_filename = (
+        os.path.basename(science_yaml_file) if science_yaml_file else None
+    )
+    report_content = create_science_report(
+        validation_results,
+        adjustments,
+        science_yaml_filename,
+        phase_a_report_file,
+        mode,
+        phase,
+    )
 
-        return science_checked_data
+    if science_report_file:
+        with open(science_report_file, "w") as f:
+            f.write(report_content)
 
-    except Exception as e:
-        print(f"Phase B Error: {e}")
-        raise
+    if critical_errors:
+        print_critical_halt_message(critical_errors)
+        raise ValueError("Critical scientific errors detected - Phase B halted")
+
+    print_science_check_results(validation_results, adjustments)
+
+    if science_yaml_file and not critical_errors:
+        header = create_science_yaml_header(phase_a_performed)
+        with open(science_yaml_file, "w") as f:
+            f.write(header)
+            yaml.dump(
+                science_checked_data, f, default_flow_style=False, sort_keys=False
+            )
+
+    return science_checked_data
 
 
 def main():

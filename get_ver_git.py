@@ -94,7 +94,9 @@ def get_version_from_git():
         # Check for UMEP build variant (NumPy 1.x compatible build)
         # This is set by CI workflow for QGIS/UMEP compatible releases
         # Using rc1 (pre-release) ensures pip install gets stable version by default
-        if os.environ.get("BUILD_UMEP_VARIANT") == "true":
+        # IMPORTANT: Only add rc1 for production releases (no .dev in version)
+        # PEP 440 doesn't allow mixing .dev and rc suffixes (e.g., 2025.10.14.dev13rc1 is invalid)
+        if os.environ.get("BUILD_UMEP_VARIANT") == "true" and ".dev" not in version:
             version = version + "rc1"
 
         return version

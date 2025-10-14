@@ -194,7 +194,7 @@ jobs:
         fi
       CIBW_ENVIRONMENT_MACOS: >
         PIP_PREFER_BINARY=1
-        PIP_ONLY_BINARY=${{ matrix.python == 'cp313' && 'pyarrow' || ':all:' }}
+        PIP_ONLY_BINARY=${{ matrix.python == 'cp313' && 'h5py,pyarrow' || 'h5py' }}
       CIBW_BEFORE_ALL_MACOS: >
         brew install gfortran &&
         brew unlink gfortran &&

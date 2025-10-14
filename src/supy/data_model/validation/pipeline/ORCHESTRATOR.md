@@ -32,12 +32,12 @@ def run_yaml_processor(
 
 The orchestrator supports seven distinct workflows:
 
-1. **A**: YAML structure checks only
-2. **B**: Physics checks only
-3. **C**: Pydantic checks only
-4. **AB**: YAML structure checks + Physics checks
-5. **AC**: YAML structure checks + Pydantic checks
-6. **BC**: Physics checks + Pydantic checks
+1. **A**: Configuration structure checks only
+2. **B**: Physics validation checks only
+3. **C**: Configuration consistency checks only
+4. **AB**: Configuration structure checks + Physics validation checks
+5. **AC**: Configuration structure checks + Configuration consistency checks
+6. **BC**: Physics validation checks + Configuration consistency checks
 7. **ABC**: Complete three-phase validation
 
 ### Execution Flow
@@ -172,8 +172,8 @@ except Exception as e:
 
 ```python
 def run_phase_a(user_file, standard_file, output_file, report_file, mode):
-    """Execute Phase A: YAML structure checks and validation."""
-    from phase_a_parameter_update import annotate_missing_parameters
+    """Execute Phase A: Configuration structure checks and validation."""
+    from phase_a import annotate_missing_parameters
     return annotate_missing_parameters(...)
 ```
 
@@ -181,8 +181,8 @@ def run_phase_a(user_file, standard_file, output_file, report_file, mode):
 
 ```python
 def run_phase_b(input_file, output_file, report_file, mode):
-    """Execute Phase B: Physics checks and validation."""
-    from phase_b_science_check import run_science_check
+    """Execute Phase B: Physics validation checks."""
+    from phase_b import run_science_check
     return run_science_check(...)
 ```
 
@@ -190,8 +190,8 @@ def run_phase_b(input_file, output_file, report_file, mode):
 
 ```python
 def run_phase_c(input_file, output_file, report_file, mode):
-    """Execute Phase C: Pydantic checks and validation."""
-    from phase_c_pydantic_report import run_pydantic_validation
+    """Execute Phase C: Configuration consistency checks and validation."""
+    from phase_c import run_pydantic_validation
     return run_pydantic_validation(...)
 ```
 
@@ -337,6 +337,6 @@ register_phase("custom", CustomValidationPhase())
 ## Related Documentation
 
 - [README](README.md) - System overview
-- [Phase A Detailed](PHASE_A_DETAILED.md) - YAML structure checks and validation
-- [Phase B Detailed](PHASE_B_DETAILED.md) - Physics checks and validation
-- [Phase C Detailed](PHASE_C_DETAILED.md) - Pydantic checks and validation
+- [Phase A Detailed](PHASE_A_DETAILED.md) - Configuration structure checks and validation
+- [Phase B Detailed](PHASE_B_DETAILED.md) - Physics validation checks
+- [Phase C Detailed](PHASE_C_DETAILED.md) - Configuration consistency checks and validation

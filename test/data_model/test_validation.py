@@ -1017,7 +1017,7 @@ sites:
 
 def test_phase_b_storageheatmethod_ohmincqf_validation():
     """Test StorageHeatMethod-OhmIncQf validation in Phase B."""
-    from supy.data_model.validation.pipeline.phase_b_science_check import (
+    from supy.data_model.validation.pipeline.phase_b import (
         validate_model_option_dependencies,
     )
 
@@ -1071,7 +1071,7 @@ def test_phase_b_storageheatmethod_ohmincqf_validation():
 
 def test_phase_b_rsl_stabilitymethod_validation():
     """Test that existing RSL-StabilityMethod validation still works in Phase B."""
-    from supy.data_model.validation.pipeline.phase_b_science_check import (
+    from supy.data_model.validation.pipeline.phase_b import (
         validate_model_option_dependencies,
     )
 
@@ -1097,7 +1097,7 @@ def test_phase_b_rsl_stabilitymethod_validation():
 
 def test_phase_b_model_option_dependencies_comprehensive():
     """Test validate_model_option_dependencies function with various configurations."""
-    from supy.data_model.validation.pipeline.phase_b_science_check import (
+    from supy.data_model.validation.pipeline.phase_b import (
         validate_model_option_dependencies,
     )
 

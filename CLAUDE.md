@@ -30,6 +30,30 @@ For detailed setup options, see `.claude/reference/quick-start.md`
 - **User documentation**: `docs/` - Sphinx-generated user-facing documentation
 - **Claude Code workspace**: `.claude/` - See `.claude/README.md` for structure
 
+## Documentation Building
+
+**Building documentation**:
+```bash
+make docs                    # Build HTML documentation (runs Sphinx)
+cd docs && make livehtml     # Live-reload development server
+```
+
+**Key documentation points**:
+- Documentation uses Sphinx with reStructuredText and Markdown
+- **Auto-generated files** (DO NOT edit directly):
+  - `docs/source/inputs/yaml/config-reference/` - RST files generated from Pydantic data models
+  - These are rebuilt automatically when running `make docs`
+- **Manually edited files** (safe to modify):
+  - All other files in `docs/source/` including main documentation, guides, tutorials
+  - To change auto-generation logic, modify `docs/generate_datamodel_rst.py`
+- Documentation dependencies included in main environment (`dev` extras)
+
+**When modifying documentation**:
+- Edit source files in `docs/source/`
+- Images go in `docs/source/images/` with descriptive names
+- Use cross-references and proper RST/Markdown syntax
+- Run `make docs` locally to check changes before committing
+
 ## Git and GitHub
 
 - **IMPORTANT**: Always use `origin` as the only git remote for this repository

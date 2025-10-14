@@ -1,9 +1,9 @@
 """SUEWS YAML Configuration Processor
 
 Three-phase validation workflow:
-- Phase A: Up-to-date YAML check and parameter detection
-- Phase B: Scientific validation and automatic adjustments
-- Phase C: Conditional Pydantic validation based on physics options
+- Configuration structure check and parameter detection
+- Physics validation and automatic adjustments
+- Configuration consistency validation based on physics options
 
 Supports individual phases (A, B, C) or combined workflows (AB, AC, BC, ABC).
 """
@@ -22,8 +22,8 @@ from pathlib import Path
 
 # Import Phase A and B functions
 try:
-    from .phase_a_parameter_update import annotate_missing_parameters
-    from .phase_b_science_check import run_science_check
+    from .phase_a import annotate_missing_parameters
+    from .phase_b import run_science_check
 except ImportError as e:
     print(f"Error importing required modules: {e}")
     print("Make sure phase modules are in the same directory")
@@ -100,7 +100,7 @@ def detect_pydantic_defaults(
     path: str = "",
     standard_data: dict = None,
 ) -> tuple:
-    """Detect where Pydantic applied defaults and separate critical nulls from normal defaults."""
+    """Detect where the validation system applied defaults and separate critical nulls from normal defaults."""
     # Critical physics parameters that get converted to int() in df_state
     CRITICAL_PHYSICS_PARAMS = [
         "netradiationmethod",
@@ -387,17 +387,8 @@ def create_consolidated_report(
 
     phase_str = "".join(phases_run) if phases_run else "Combined"
 
-    phase_titles = {
-        "A": "SUEWS Validation Report",
-        "B": "SUEWS Validation Report",
-        "C": "SUEWS Validation Report",
-        "AB": "SUEWS Validation Report",
-        "AC": "SUEWS Validation Report",
-        "BC": "SUEWS Validation Report",
-        "ABC": "SUEWS Validation Report",
-    }
-
-    title = phase_titles.get(phase_str, "SUEWS Validation Report")
+    # Use unified report title for all validation phases
+    title = "SUEWS Validation Report"
 
     # Deduplicate messages while preserving order
     # Also filter out the generic "All validations passed" message if there are other messages
@@ -495,9 +486,9 @@ def run_phase_a(
     phase: str = "A",
     silent: bool = False,
 ) -> bool:
-    """Execute Phase A: Parameter detection and YAML structure updates."""
+    """Execute Phase A: Configuration structure checks and parameter updates."""
     if not silent:
-        print("Phase A: Up-to-date YAML check...")
+        print("Configuration structure check...")
 
     try:
         with redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()):
@@ -563,7 +554,7 @@ def run_phase_b(
     phase: str = "B",
     silent: bool = False,
 ) -> bool:
-    """Execute Phase B: Scientific validation and automatic adjustments."""
+    """Execute Phase B: Physics validation checks and automatic adjustments."""
     try:
         with redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()):
             science_checked_data = run_science_check(
@@ -637,7 +628,7 @@ def run_phase_c(
     no_action_messages: list = None,
     silent: bool = False,
 ) -> bool:
-    """Execute Phase C: Conditional Pydantic validation based on physics options."""
+    """Execute Phase C: Configuration consistency validation based on physics options."""
     try:
         current_dir = os.path.dirname(os.path.abspath(__file__))
         supy_root = os.path.abspath(os.path.join(current_dir, "../../"))
@@ -754,7 +745,7 @@ def run_phase_c(
                         status = default_app.get(
                             "status", "found null"
                         )  # Default to old behaviour
-                        no_action_info += f"- {field_name} {status} in user YAML at level {field_path}.\n  Pydantic will interpret that as default value: {default_value} - check doc for info on this parameter: https://suews.readthedocs.io/en/latest\n"
+                        no_action_info += f"- {field_name} {status} in user YAML at level {field_path}.\n  The validation system will interpret that as default value: {default_value} - check doc for info on this parameter: https://suews.readthedocs.io/en/latest\n"
 
                 # Generate phase-specific title for success report
                 if phases_run:
@@ -762,17 +753,8 @@ def run_phase_c(
                 else:
                     phase_str = "C"  # Default to Phase C only
 
-                phase_titles = {
-                    "A": "SUEWS Validation Report",
-                    "B": "SUEWS Validation Report",
-                    "C": "SUEWS Validation Report",
-                    "AB": "SUEWS Validation Report",
-                    "AC": "SUEWS Validation Report",
-                    "BC": "SUEWS Validation Report",
-                    "ABC": "SUEWS Validation Report",
-                }
-
-                title = phase_titles.get(phase_str, "SUEWS Validation Report")
+                # Use unified report title for all validation phases
+                title = "SUEWS Validation Report"
 
                 # Extract NO ACTION NEEDED content from previous phases to consolidate properly
                 consolidated_no_action = []
@@ -831,17 +813,19 @@ def run_phase_c(
                     # Map phase strings to descriptive messages
                     def get_phase_message(phase_str):
                         if phase_str == "A":
-                            return "YAML structure check passed"
+                            return "Configuration structure check passed"
                         elif phase_str == "B":
-                            return "Physics checks passed"
+                            return "Physics validation check passed"
                         elif phase_str == "C":
-                            return "Validation passed"
+                            return "Configuration consistency check passed"
                         elif phase_str == "AB":
-                            return "YAML structure check and Physics checks passed"
+                            return "Configuration structure check and Physics validation check passed"
                         elif phase_str == "BC":
-                            return "Physics checks and Validation passed"
-                        elif phase_str == "ABC" or phase_str == "AC":
-                            return "Validation passed"
+                            return "Physics validation check and Configuration consistency check passed"
+                        elif phase_str == "AC":
+                            return "Configuration structure check and Configuration consistency check passed"
+                        elif phase_str == "ABC":
+                            return "All validation checks passed"
                         else:
                             return f"Phase {phase_str} passed"  # fallback
 
@@ -926,7 +910,7 @@ Validation passed
 
                 # Generate structured ACTION NEEDED report
                 try:
-                    from .phase_c_pydantic_report import generate_phase_c_report
+                    from .phase_c import generate_phase_c_report
 
                     generate_phase_c_report(
                         validation_error,
@@ -940,7 +924,7 @@ Validation passed
 
                 except Exception as report_error:
                     # Fallback to simple error report if structured report generation fails
-                    from .phase_c_pydantic_report import generate_fallback_report
+                    from .phase_c import generate_fallback_report
 
                     generate_fallback_report(
                         validation_error,
@@ -1075,15 +1059,15 @@ Examples:
   python suews_yaml_processor.py user.yml                        # Run complete A→B→C workflow (default, public mode)
   python suews_yaml_processor.py user.yml --phase A              # Run Phase A only
   python suews_yaml_processor.py user.yml --phase AB             # Run A→B workflow
-  python suews_yaml_processor.py user.yml --phase C              # Run Phase C only (Pydantic validation)
+  python suews_yaml_processor.py user.yml --phase C              # Run Phase C only (consistency checks)
   python suews_yaml_processor.py user.yml --phase BC             # Run complete B→C workflow
   python suews_yaml_processor.py user.yml --mode dev             # Run full validation in dev mode (available)
   python suews_yaml_processor.py user.yml --phase A --mode public  # Run Phase A in public mode (explicit)
 
 Phases:
-  Phase A: Up-to-date YAML check and structure updates
-  Phase B: Scientific validation and automatic adjustments  
-  Phase C: Conditional Pydantic validation based on model physics options
+  Phase A: Configuration structure checks and parameter updates
+  Phase B: Physics validation checks and automatic adjustments
+  Phase C: Configuration consistency checks based on model physics options
 
 Modes:
   public: Standard validation mode with user-friendly messaging (default)
@@ -1098,7 +1082,7 @@ Modes:
         "-p",
         choices=["A", "B", "C", "AB", "AC", "BC", "ABC"],
         default="ABC",
-        help="Phase to run: A (Up-to-date YAML check), B (scientific validation), C (Pydantic validation), AB (A→B workflow), AC (A→C), BC (B→C), or ABC (complete workflow, default)",
+        help="Phase to run: A (structure check), B (physics validation), C (consistency check), AB (A→B workflow), AC (A→C), BC (B→C), or ABC (complete workflow, default)",
     )
 
     parser.add_argument(
@@ -1293,7 +1277,7 @@ Modes:
             input_yaml_file = user_yaml_file
             phase_a_report = None
 
-            print("Phase B: Scientific validation check...")
+            print("Physics validation check...")
             phase_b_success = run_phase_b(
                 user_yaml_file,
                 input_yaml_file,
@@ -1333,7 +1317,7 @@ Modes:
 
         elif phase == "C":
             # Phase C only - run Pydantic validation on original user YAML
-            print("Phase C: Pydantic validation check...")
+            print("Configuration consistency check...")
 
             phase_c_success = run_phase_c(
                 user_yaml_file,
@@ -1370,7 +1354,7 @@ Modes:
 
         elif phase == "AB":
             # Complete A→B workflow
-            print("Phase A: Up-to-date YAML check...")
+            print("Configuration structure check...")
             phase_a_success = run_phase_a(
                 user_yaml_file,
                 standard_yaml_file,
@@ -1393,7 +1377,7 @@ Modes:
                 return 1
 
             print("[OK] Validation completed")
-            print("Phase B: Scientific validation check...")
+            print("Physics validation check...")
             phase_b_success = run_phase_b(
                 user_yaml_file,
                 uptodate_file,
@@ -1478,7 +1462,7 @@ Modes:
 
         elif phase == "AC":
             # Complete A→C workflow
-            print("Phase A: Up-to-date YAML check...")
+            print("Configuration structure check...")
             phase_a_success = run_phase_a(
                 user_yaml_file,
                 standard_yaml_file,
@@ -1509,7 +1493,7 @@ Modes:
                 return 1
 
             print("[OK] Validation completed")
-            print("Phase C: Pydantic validation check...")
+            print("Configuration consistency check...")
             phase_c_success = run_phase_c(
                 uptodate_file,  # Use Phase A output as input to Phase C
                 pydantic_yaml_file,
@@ -1588,7 +1572,7 @@ Modes:
 
         elif phase == "BC":
             # Complete B→C workflow
-            print("Phase B: Scientific validation check...")
+            print("Physics validation check...")
             phase_b_success = run_phase_b(
                 user_yaml_file,
                 user_yaml_file,  # Phase B runs directly on user YAML
@@ -1622,7 +1606,7 @@ Modes:
                 return 1
 
             print("[OK] Phase B completed")
-            print("Phase C: Pydantic validation check...")
+            print("Configuration consistency check...")
             phase_c_success = run_phase_c(
                 science_yaml_file,  # Use Phase B output as input to Phase C
                 pydantic_yaml_file,
@@ -1740,7 +1724,7 @@ Modes:
             # Complete A→B→C workflow with proper halt logic
             # Step 1: Run Phase A
             print("DEBUG: Starting ABC workflow")
-            print("Phase A: Up-to-date YAML check...")
+            print("Configuration structure check...")
             phase_a_success = run_phase_a(
                 user_yaml_file,
                 standard_yaml_file,
@@ -1785,7 +1769,7 @@ Modes:
             print("[OK] Validation completed")
 
             # Step 2: Run Phase B (A passed, try B)
-            print("Phase B: Scientific validation check...")
+            print("Physics validation check...")
             phase_b_success = run_phase_b(
                 user_yaml_file,
                 uptodate_file,
@@ -1832,7 +1816,7 @@ Modes:
             print("[OK] Phase B completed")
 
             # Step 3: Run Phase C (both A and B passed)
-            print("Phase C: Pydantic validation check...")
+            print("Configuration consistency check...")
 
             # Create temporary file for Phase C report (will be consolidated later)
             temp_report_c = os.path.join(

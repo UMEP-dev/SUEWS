@@ -1,17 +1,10 @@
-"""Phase C report generation for Pydantic validation errors."""
+"""Phase C report generation for configuration consistency validation errors."""
 
 import os
 import re
 
-PHASE_TITLES = {
-    "A": "SUEWS Validation Report",
-    "B": "SUEWS Validation Report",
-    "C": "SUEWS Validation Report",
-    "AB": "SUEWS Validation Report",
-    "AC": "SUEWS Validation Report",
-    "BC": "SUEWS Validation Report",
-    "ABC": "SUEWS Validation Report",
-}
+# Use unified report title for all validation phases
+REPORT_TITLE = "SUEWS Validation Report"
 
 
 def _parse_previous_phase_report(report_content: str):
@@ -115,7 +108,7 @@ def generate_phase_c_report(
     report_lines = []
 
     phase_str = "".join(phases_run) if phases_run else "C"
-    title = PHASE_TITLES.get(phase_str, "SUEWS Validation Report")
+    title = REPORT_TITLE
 
     report_lines.append(f"# {title}")
     report_lines.append("# " + "=" * 50)
@@ -344,7 +337,7 @@ def generate_phase_c_report(
     if action_needed_items:
         report_lines.append("## ACTION NEEDED")
         report_lines.append(
-            f"- Found ({len(action_needed_items)}) critical Pydantic validation error(s):"
+            f"- Found ({len(action_needed_items)}) critical configuration consistency error(s):"
         )
 
         for item in action_needed_items:
@@ -478,7 +471,7 @@ def generate_fallback_report(
     )
 
     phase_str = "".join(phases_run) if phases_run else "C"
-    title = PHASE_TITLES.get(phase_str, "SUEWS Validation Report")
+    title = REPORT_TITLE
     mode_title = "Public" if mode.lower() == "public" else mode.title()
 
     error_report = f"""# {title}
@@ -487,7 +480,7 @@ def generate_fallback_report(
 # ============================================
 
 ## ACTION NEEDED
-- Found (1) critical Pydantic validation error(s):
+- Found (1) critical configuration consistency error(s):
 -- validation_error: {str(validation_error)}
    Suggested fix: Review and fix validation errors above
    Location: {input_yaml_file}{previous_phase_consolidation}

@@ -41,7 +41,6 @@ dependencies = [
     
     # Scientific packages
     "atmosp",
-    "pvlib",
     "scikit-learn",
     
     # Optimization
@@ -79,6 +78,11 @@ classifiers = [
 ]
 
 [project.optional-dependencies]
+# TMY/EPW generation support (requires pvlib which depends on h5py)
+tmy = [
+    "pvlib",
+]
+
 # Single dev group combining test + development tools
 dev = [
     # Testing

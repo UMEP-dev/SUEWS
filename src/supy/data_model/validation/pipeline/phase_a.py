@@ -729,17 +729,8 @@ def create_analysis_report(
     report_lines = []
 
     # Generate phase-specific title
-    phase_titles = {
-        "A": "SUEWS Validation Report",
-        "B": "SUEWS Validation Report",
-        "C": "SUEWS Validation Report",
-        "AB": "SUEWS Validation Report",
-        "AC": "SUEWS Validation Report",
-        "BC": "SUEWS Validation Report",
-        "ABC": "SUEWS Validation Report",
-    }
-
-    title = phase_titles.get(phase, "SUEWS Configuration Analysis Report")
+    # Use unified report title for all validation phases
+    title = "SUEWS Validation Report"
 
     report_lines.append(f"# {title}")
     report_lines.append("# " + "=" * 50)
@@ -896,9 +887,9 @@ def create_analysis_report(
     # indicate that Phase A passed without issues
     if not has_action_items and not has_no_action_items:
         if phase == "A":
-            report_lines.append("YAML structure check passed")
+            report_lines.append("Configuration structure check passed")
         elif "A" in phase:  # Multi-phase like "AB", "AC", "ABC"
-            report_lines.append("YAML structure check passed")
+            report_lines.append("Configuration structure check passed")
         report_lines.append("")
 
     # Footer separator

@@ -12,21 +12,22 @@ The SUEWS YAML Processor is a three-phase pipeline for validating and updating S
 User YAML → Phase A → Phase B → Phase C → Valid YAML
 ```
 
-1. **Phase A: YAML structure checks and validation** (`phase_a_parameter_update.py`)
+1. **Phase A: Configuration structure check** (`phase_a.py`)
    - Detects missing parameters
    - Renames outdated parameters
    - Identifies non-standard parameters
    - Generates updated YAML with null placeholders
 
-2. **Phase B: Physics checks and validation** (`phase_b_science_check.py`)
+2. **Phase B: Physics validation check** (`phase_b.py`)
    - Validates physics parameters
    - Checks ALL model physics compatibility (rslmethod-stabilitymethod, StorageHeatMethod-OhmIncQf)
    - Validates land cover fractions
    - Updates initial temperatures from CRU data
    - Updates STEBBS outdoor surface temperatures when `stebbsmethod == 1`
 
-3. **Phase C: Pydantic checks and validation** (`phase_c_pydantic_report.py`)
-   - Runs Pydantic data model validation
+3. **Phase C: Configuration consistency check** (`phase_c.py`)
+   - Validates data types and value ranges
+   - Checks parameter relationships and conditional rules
    - Generates detailed error reports
    - Provides actionable feedback
 
@@ -55,19 +56,19 @@ suews-validate --pipeline ABC config.yml
 #### Pipeline Options
 
 ```bash
-# YAML structure checks only
+# Configuration structure check only
 suews-validate --pipeline A config.yml
 
-# Physics checks only
+# Physics validation check only
 suews-validate --pipeline B config.yml
 
-# Pydantic checks only
+# Configuration consistency check only
 suews-validate --pipeline C config.yml
 
 # Combined workflows
 suews-validate --pipeline AB config.yml   # Structure + Physics
-suews-validate --pipeline AC config.yml   # Structure + Pydantic
-suews-validate --pipeline BC config.yml   # Physics + Pydantic
+suews-validate --pipeline AC config.yml   # Structure + Consistency
+suews-validate --pipeline BC config.yml   # Physics + Consistency
 ```
 
 #### Mode Options
@@ -112,12 +113,12 @@ python -m supy.data_model.yaml_processor.orchestrator user_config.yml --phase AB
 ### Phase and Mode Reference
 
 #### Pipeline Options
-- `A`: YAML structure checks only
-- `B`: Physics checks only
-- `C`: Pydantic checks only
-- `AB`: YAML structure + Physics checks
-- `AC`: YAML structure + Pydantic checks
-- `BC`: Physics + Pydantic checks
+- `A`: Configuration structure check only
+- `B`: Physics validation check only
+- `C`: Configuration consistency check only
+- `AB`: Structure + Physics checks
+- `AC`: Structure + Consistency checks
+- `BC`: Physics + Consistency checks
 - `ABC`: Complete validation pipeline (default)
 
 #### Modes
@@ -169,11 +170,12 @@ Phase B performs scientific validation:
 
 ### Phase C Details
 
-Phase C integrates with Pydantic data models:
+Phase C performs configuration consistency validation:
 
 1. **Validation Execution**
-   - Runs SUEWSConfig.model_validate()
-   - Captures ValidationError details
+   - Validates data types and ranges
+   - Checks parameter relationships
+   - Ensures conditional rules are satisfied
 
 2. **Report Generation**
    - Formats errors by category
@@ -235,9 +237,9 @@ The processor generates standardised output files:
 For comprehensive technical details about each component, see:
 
 - **[ORCHESTRATOR.md](ORCHESTRATOR.md)** - Complete orchestrator architecture, workflow coordination, file management, and integration patterns
-- **[PHASE_A_DETAILED.md](PHASE_A_DETAILED.md)** - In-depth YAML structure checks and validation: missing parameters, renamed parameters, extra parameters, mode differences
-- **[PHASE_B_DETAILED.md](PHASE_B_DETAILED.md)** - Comprehensive physics checks and validation: scientific parameter validation, CRU temperature integration, physics compatibility rules
-- **[PHASE_C_DETAILED.md](PHASE_C_DETAILED.md)** - Complete Pydantic checks and validation: data model validation, error reporting, conditional validation rules
+- **[PHASE_A_DETAILED.md](PHASE_A_DETAILED.md)** - In-depth configuration structure check: missing parameters, renamed parameters, extra parameters, mode differences
+- **[PHASE_B_DETAILED.md](PHASE_B_DETAILED.md)** - Comprehensive physics validation check: scientific parameter validation, CRU temperature integration, physics compatibility rules
+- **[PHASE_C_DETAILED.md](PHASE_C_DETAILED.md)** - Complete configuration consistency check: data type validation, parameter relationships, conditional validation rules
 
 These files provide exhaustive implementation details, troubleshooting guides, testing patterns, and advanced usage scenarios for developers working on or extending the validation system.
 

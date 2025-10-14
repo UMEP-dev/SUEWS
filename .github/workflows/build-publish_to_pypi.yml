@@ -53,7 +53,7 @@ name: Build and Publish Python wheels to PyPI and TestPyPI
 # Build matrix: Always builds all Python versions (3.9-3.13) on all platforms
 #
 # ============================================================================
-# UMEP/QGIS COMPATIBILITY BUILDS (.post1 versions)
+# UMEP/QGIS COMPATIBILITY BUILDS (rc1 pre-release versions)
 # ============================================================================
 # Every formal release tag automatically creates TWO PyPI versions:
 #
@@ -63,28 +63,31 @@ name: Build and Publish Python wheels to PyPI and TestPyPI
 #    - NumPy: >=2.0 (build and runtime)
 #    - Target: Standalone Python users
 #    - Public facing, documented
+#    - pip install supy → gets this version
 #
 # 2. UMEP BUILD (build_umep job):
 #    - Tag: v2024.10.7 (same tag)
-#    - Version: 2024.10.7.post1
+#    - Version: 2024.10.7rc1
 #    - NumPy: oldest-supported-numpy (build), >=1.22,<2.0 (runtime)
 #    - Target: QGIS 3.40 LTR (NumPy 1.26.4) / UMEP plugin users
 #    - Undocumented publicly, for UMEP requirements files only
+#    - Pre-release tag (rc1) ensures pip skips it by default
 #
 # AUTOMATIC DUAL BUILD PROCESS:
 # - Jobs run in parallel for efficiency
-# - BUILD_UMEP_VARIANT env var triggers .post1 suffix in get_ver_git.py
+# - BUILD_UMEP_VARIANT env var triggers rc1 suffix in get_ver_git.py
 # - pyproject.toml modified for NumPy 1.x at build time
 # - Both wheel sets deployed to PyPI together
 #
 # UMEP INTEGRATION:
-# - UMEP requirements specify: supy==2024.10.7.post1
+# - UMEP requirements specify: supy==2024.10.7rc1
 # - UMEP users install via UMEP requirements, never see version details
-# - No coordination needed - .post1 always exists for every production release
+# - No coordination needed - rc1 always exists for every production release
 #
 # VERSIONING:
-# - .post1 is PEP 440 compliant post-release version
-# - Indicates distribution-level change (binary build config), not source change
+# - rc1 is PEP 440 compliant pre-release version (release candidate 1)
+# - Pre-releases are skipped by default: pip install supy → 2024.10.7 (not rc1)
+# - Indicates alternative build config (NumPy 1.x), not unstable software
 # - See get_ver_git.py for version string logic
 # ============================================================================
 
@@ -286,7 +289,7 @@ jobs:
           path: ./wheelhouse/*.whl
 
   build_umep:
-    name: Build UMEP wheel (.post1) for ${{ matrix.python }}-${{ matrix.buildplat[1] }} ${{ matrix.buildplat[2] }}
+    name: Build UMEP wheel (rc1) for ${{ matrix.python }}-${{ matrix.buildplat[1] }} ${{ matrix.buildplat[2] }}
     runs-on: ${{ matrix.buildplat[0] }}
     needs: [determine_matrix, create_nightly_tag]
     # Only run for production tags (not dev, not PRs, not nightly)
@@ -304,7 +307,7 @@ jobs:
     env:
       IS_32_BIT: ${{ matrix.buildplat[2] == 'x86' }}
       WHEEL_NAME: ${{ matrix.python }}-${{ matrix.buildplat[1] }}-${{ matrix.buildplat[2] }}-umep
-      BUILD_UMEP_VARIANT: 'true'  # Triggers .post1 suffix in get_ver_git.py
+      BUILD_UMEP_VARIANT: 'true'  # Triggers rc1 suffix in get_ver_git.py
       CIBW_BUILD: ${{ matrix.python }}-${{ matrix.buildplat[1] }}*
       CIBW_ARCHS: ${{ matrix.buildplat[2] }}
       CIBW_ENVIRONMENT_PASS_LINUX: RUNNER_OS BUILD_UMEP_VARIANT

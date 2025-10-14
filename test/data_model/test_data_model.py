@@ -247,19 +247,21 @@ class TestGrididErrorTransformation(unittest.TestCase):
         """Set up test environment."""
         import tempfile
         import shutil
+
         self.temp_dir = tempfile.mkdtemp()
         self.addCleanup(shutil.rmtree, self.temp_dir, ignore_errors=True)
 
     def _create_invalid_config(self, gridid_values):
         """Create invalid config with specified GRIDID values."""
         import yaml
+
         sites = [
-            {'gridiv': gid, 'properties': {'lat': None, 'lng': 0.0}}
+            {"gridiv": gid, "properties": {"lat": None, "lng": 0.0}}
             for gid in gridid_values
         ]
-        config_path = Path(self.temp_dir) / 'config_test.yml'
-        with open(config_path, 'w') as f:
-            yaml.dump({'name': 'Test Config', 'sites': sites}, f)
+        config_path = Path(self.temp_dir) / "config_test.yml"
+        with open(config_path, "w") as f:
+            yaml.dump({"name": "Test Config", "sites": sites}, f)
         return config_path
 
     def test_gridid_collision_case(self):
@@ -275,12 +277,12 @@ class TestGrididErrorTransformation(unittest.TestCase):
             SUEWSConfig.from_yaml(config_path)
 
         error_msg = str(cm.exception)
-        self.assertIn('sites.1', error_msg)
-        self.assertIn('sites.200', error_msg)
+        self.assertIn("sites.1", error_msg)
+        self.assertIn("sites.200", error_msg)
 
         # Verify no double-replacement
-        self.assertEqual(error_msg.count('sites.1.'), 1)
-        self.assertEqual(error_msg.count('sites.200.'), 1)
+        self.assertEqual(error_msg.count("sites.1."), 1)
+        self.assertEqual(error_msg.count("sites.200."), 1)
 
     def test_gridid_substring_collision(self):
         """Test substring collision: GRIDID=10 and GRIDID=100."""
@@ -290,23 +292,24 @@ class TestGrididErrorTransformation(unittest.TestCase):
             SUEWSConfig.from_yaml(config_path)
 
         error_msg = str(cm.exception)
-        self.assertIn('sites.10', error_msg)
-        self.assertIn('sites.100', error_msg)
-        self.assertEqual(error_msg.count('sites.10.'), 1)
-        self.assertEqual(error_msg.count('sites.100.'), 1)
+        self.assertIn("sites.10", error_msg)
+        self.assertIn("sites.100", error_msg)
+        self.assertEqual(error_msg.count("sites.10."), 1)
+        self.assertEqual(error_msg.count("sites.100."), 1)
 
     def test_gridid_refvalue_format(self):
         """Test GRIDID extraction from RefValue format."""
         import yaml
-        sites = [{'gridiv': {'value': 777}, 'properties': {'lat': None, 'lng': 0.0}}]
-        config_path = Path(self.temp_dir) / 'config_refvalue.yml'
-        with open(config_path, 'w') as f:
-            yaml.dump({'name': 'Test', 'sites': sites}, f)
+
+        sites = [{"gridiv": {"value": 777}, "properties": {"lat": None, "lng": 0.0}}]
+        config_path = Path(self.temp_dir) / "config_refvalue.yml"
+        with open(config_path, "w") as f:
+            yaml.dump({"name": "Test", "sites": sites}, f)
 
         with self.assertRaises(ValueError) as cm:
             SUEWSConfig.from_yaml(config_path)
 
-        self.assertIn('sites.777', str(cm.exception))
+        self.assertIn("sites.777", str(cm.exception))
 
 
 if __name__ == "__main__":

@@ -350,6 +350,45 @@ class TestErrorHandling(TestCase):
         print("✓ Malformed data handling works correctly")
 
 
+class TestNlayerSampleConfigs(TestCase):
+    """Test loading of nlayer-specific sample configurations."""
+
+    def setUp(self):
+        """Set up test environment."""
+        warnings.simplefilter("ignore", category=ImportWarning)
+        self.sample_data_dir = Path(sp.__file__).parent / "sample_data"
+
+    def test_load_all_nlayer_sample_configs(self):
+        """Test that all nlayer sample configs (1-7) can be loaded."""
+        print("\n========================================")
+        print("Testing loading of nlayer sample configs...")
+
+        from supy.data_model import SUEWSConfig
+
+        for nlayer in range(1, 8):
+            config_path = self.sample_data_dir / f"sample_config_{nlayer}.yml"
+
+            # Check file exists
+            self.assertTrue(
+                config_path.exists(),
+                f"sample_config_{nlayer}.yml should exist"
+            )
+
+            # Load and validate
+            config = SUEWSConfig.from_yaml(config_path)
+            self.assertIsNotNone(config)
+
+            # Check nlayer value matches
+            actual_nlayer = config.sites[0].properties.vertical_layers.nlayer.value
+            self.assertEqual(
+                actual_nlayer,
+                nlayer,
+                f"sample_config_{nlayer}.yml should have nlayer={nlayer}"
+            )
+
+        print("✓ All nlayer sample configs (1-7) loaded successfully")
+
+
 if __name__ == "__main__":
     import unittest
 

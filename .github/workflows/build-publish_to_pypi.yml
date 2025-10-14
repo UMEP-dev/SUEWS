@@ -206,87 +206,21 @@ jobs:
         python: ${{ fromJson(needs.determine_matrix.outputs.python) }}
 
       fail-fast: false
-    env:
-      IS_32_BIT: ${{ matrix.buildplat[2] == 'x86' }}
-      WHEEL_NAME: ${{ matrix.python }}-${{ matrix.buildplat[1] }}-${{ matrix.buildplat[2] }}
-      CIBW_BUILD: ${{ matrix.python }}-${{ matrix.buildplat[1] }}*
-      CIBW_ARCHS: ${{ matrix.buildplat[2] }}
-      CIBW_ENVIRONMENT_PASS_LINUX: RUNNER_OS
-      # Use manylinux2014 for compatibility with older Linux systems (glibc 2.17+)
-      # This is critical for HPC clusters and older distributions
-      CIBW_MANYLINUX_X86_64_IMAGE: manylinux2014
-      CIBW_MANYLINUX_AARCH64_IMAGE: manylinux2014
-      # Configure pip to use binary wheels and avoid building from source
-      # For Python 3.13, allow building f90wrap from source since no wheels exist
-      # Also set Fortran flags for line length handling
-      CIBW_ENVIRONMENT_LINUX: >
-        PIP_PREFER_BINARY=1
-        PIP_ONLY_BINARY=${{ matrix.python == 'cp313' && 'pyarrow' || ':all:' }}
-        FCFLAGS="-fno-optimize-sibling-calls -ffree-line-length-none"
-        F90=gfortran
-      CIBW_BEFORE_ALL_LINUX: >
-        pip install --upgrade pip setuptools wheel &&
-        pip install oldest-supported-numpy &&
-        if [[ "${{ matrix.python }}" == "cp313" ]]; then
-          echo "Installing numpy for Python 3.13 f90wrap build" &&
-          pip install numpy;
-        fi
-      CIBW_BEFORE_ALL_MACOS: >
-        brew install gfortran &&
-        brew unlink gfortran &&
-        brew link gfortran
-      CIBW_BEFORE_ALL_WINDOWS: >
-        C:\msys64\usr\bin\bash.exe -lc "pacman -Syu --noconfirm" &&
-        C:\msys64\usr\bin\bash.exe -lc "pacman -S --needed --noconfirm mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-gcc-fortran mingw-w64-ucrt-x86_64-binutils mingw-w64-ucrt-x86_64-make mingw-w64-ucrt-x86_64-openblas"
-      CIBW_ENVIRONMENT_WINDOWS: >
-        PATH="C:\\msys64\\ucrt64\\bin;$PATH"
-        CC=gcc
-        CXX=g++
-        FC=gfortran
-        CFLAGS="-D__USE_MINGW_ANSI_STDIO=1 -mlong-double-64"
-        CXXFLAGS="-D__USE_MINGW_ANSI_STDIO=1 -mlong-double-64"
-        FCFLAGS="-fno-optimize-sibling-calls -ffree-line-length-none"
-        LDFLAGS="-lucrt -static-libgcc -static-libgfortran -LC:/msys64/ucrt64/lib -lsetjmp_compat"
-      CIBW_BEFORE_BUILD_WINDOWS: >
-        echo Creating setjmp compatibility library... &&
-        echo int _setjmpex(void* buf) { extern int __intrinsic_setjmpex(void*); return __intrinsic_setjmpex(buf); } > setjmp_compat.c &&
-        C:\msys64\ucrt64\bin\gcc.exe -c setjmp_compat.c -o setjmp_compat.o &&
-        C:\msys64\ucrt64\bin\ar.exe rcs libsetjmp_compat.a setjmp_compat.o &&
-        echo Library created, checking contents: &&
-        C:\msys64\ucrt64\bin\nm.exe libsetjmp_compat.a &&
-        echo Copying to standard locations: &&
-        copy libsetjmp_compat.a C:\msys64\ucrt64\lib\ &&
-        copy libsetjmp_compat.a C:\msys64\ucrt64\x86_64-w64-mingw32\lib\ &&
-        echo Verifying library locations: &&
-        dir C:\msys64\ucrt64\lib\libsetjmp_compat.a &&
-        dir C:\msys64\ucrt64\x86_64-w64-mingw32\lib\libsetjmp_compat.a &&
-        where python &&
-        where gcc &&
-        gcc --version &&
-        pip install delvewheel
-      CIBW_REPAIR_WHEEL_COMMAND_WINDOWS: "delvewheel repair -w {dest_dir} {wheel}"
-      CIBW_TEST_REQUIRES: pytest
-      CIBW_TEST_COMMAND: "python -m pytest {project}/test -v --tb=short --durations=10"
-      MACOSX_DEPLOYMENT_TARGET: ${{ matrix.buildplat[0] == 'macos-13' && '13.0' || '15.0' }}
 
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - name: Build SUEWS wheels (standard variant)
+        uses: ./.github/actions/build-suews
         with:
-            python-version: 3.12
-
-      - name: Build wheels
-        uses: pypa/cibuildwheel@v3.0.0
-
-      - name: upload wheels
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ env.WHEEL_NAME }}
-          path: ./wheelhouse/*.whl
+          buildplat: ${{ matrix.buildplat[0] }}
+          buildplat_name: ${{ matrix.buildplat[1] }}
+          buildplat_arch: ${{ matrix.buildplat[2] }}
+          python: ${{ matrix.python }}
+          is_umep_variant: 'false'
+          wheel_name_suffix: ''
 
   build_umep:
     name: Build UMEP wheel (rc1) for ${{ matrix.python }}-${{ matrix.buildplat[1] }} ${{ matrix.buildplat[2] }}
@@ -304,100 +238,21 @@ jobs:
         python: ${{ fromJson(needs.determine_matrix.outputs.python) }}
 
       fail-fast: false
-    env:
-      IS_32_BIT: ${{ matrix.buildplat[2] == 'x86' }}
-      WHEEL_NAME: ${{ matrix.python }}-${{ matrix.buildplat[1] }}-${{ matrix.buildplat[2] }}-umep
-      BUILD_UMEP_VARIANT: 'true'  # Triggers rc1 suffix in get_ver_git.py
-      CIBW_BUILD: ${{ matrix.python }}-${{ matrix.buildplat[1] }}*
-      CIBW_ARCHS: ${{ matrix.buildplat[2] }}
-      CIBW_ENVIRONMENT_PASS_LINUX: RUNNER_OS BUILD_UMEP_VARIANT
-      # Use manylinux2014 for compatibility with older Linux systems (glibc 2.17+)
-      CIBW_MANYLINUX_X86_64_IMAGE: manylinux2014
-      CIBW_MANYLINUX_AARCH64_IMAGE: manylinux2014
-      # Configure pip to use binary wheels and avoid building from source
-      CIBW_ENVIRONMENT_LINUX: >
-        PIP_PREFER_BINARY=1
-        PIP_ONLY_BINARY=${{ matrix.python == 'cp313' && 'pyarrow' || ':all:' }}
-        FCFLAGS="-fno-optimize-sibling-calls -ffree-line-length-none"
-        F90=gfortran
-        BUILD_UMEP_VARIANT=true
-      CIBW_BEFORE_ALL_LINUX: >
-        pip install --upgrade pip setuptools wheel &&
-        pip install oldest-supported-numpy &&
-        if [[ "${{ matrix.python }}" == "cp313" ]]; then
-          echo "Installing numpy for Python 3.13 f90wrap build" &&
-          pip install numpy;
-        fi
-      CIBW_BEFORE_ALL_MACOS: >
-        brew install gfortran &&
-        brew unlink gfortran &&
-        brew link gfortran
-      CIBW_BEFORE_ALL_WINDOWS: >
-        C:\msys64\usr\bin\bash.exe -lc "pacman -Syu --noconfirm" &&
-        C:\msys64\usr\bin\bash.exe -lc "pacman -S --needed --noconfirm mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-gcc-fortran mingw-w64-ucrt-x86_64-binutils mingw-w64-ucrt-x86_64-make mingw-w64-ucrt-x86_64-openblas"
-      CIBW_ENVIRONMENT_WINDOWS: >
-        PATH="C:\\msys64\\ucrt64\\bin;$PATH"
-        CC=gcc
-        CXX=g++
-        FC=gfortran
-        CFLAGS="-D__USE_MINGW_ANSI_STDIO=1 -mlong-double-64"
-        CXXFLAGS="-D__USE_MINGW_ANSI_STDIO=1 -mlong-double-64"
-        FCFLAGS="-fno-optimize-sibling-calls -ffree-line-length-none"
-        LDFLAGS="-lucrt -static-libgcc -static-libgfortran -LC:/msys64/ucrt64/lib -lsetjmp_compat"
-        BUILD_UMEP_VARIANT=true
-      CIBW_BEFORE_BUILD_WINDOWS: >
-        echo Creating setjmp compatibility library... &&
-        echo int _setjmpex(void* buf) { extern int __intrinsic_setjmpex(void*); return __intrinsic_setjmpex(buf); } > setjmp_compat.c &&
-        C:\msys64\ucrt64\bin\gcc.exe -c setjmp_compat.c -o setjmp_compat.o &&
-        C:\msys64\ucrt64\bin\ar.exe rcs libsetjmp_compat.a setjmp_compat.o &&
-        echo Library created, checking contents: &&
-        C:\msys64\ucrt64\bin\nm.exe libsetjmp_compat.a &&
-        echo Copying to standard locations: &&
-        copy libsetjmp_compat.a C:\msys64\ucrt64\lib\ &&
-        copy libsetjmp_compat.a C:\msys64\ucrt64\x86_64-w64-mingw32\lib\ &&
-        echo Verifying library locations: &&
-        dir C:\msys64\ucrt64\lib\libsetjmp_compat.a &&
-        dir C:\msys64\ucrt64\x86_64-w64-mingw32\lib\libsetjmp_compat.a &&
-        where python &&
-        where gcc &&
-        gcc --version &&
-        pip install delvewheel
-      CIBW_REPAIR_WHEEL_COMMAND_WINDOWS: "delvewheel repair -w {dest_dir} {wheel}"
-      CIBW_TEST_REQUIRES: pytest
-      CIBW_TEST_COMMAND: "python -m pytest {project}/test -v --tb=short --durations=10"
-      MACOSX_DEPLOYMENT_TARGET: ${{ matrix.buildplat[0] == 'macos-13' && '13.0' || '15.0' }}
 
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Modify pyproject.toml for NumPy 1.x compatibility
-        run: |
-          echo "Building UMEP variant with NumPy 1.x compatibility"
-
-          # Build-time: Use oldest-supported-numpy for binary compatibility
-          sed -i.bak 's/"numpy>=2\.0"/"oldest-supported-numpy"/g' pyproject.toml
-
-          # Runtime: Pin to NumPy 1.x (QGIS 3.40 LTR uses 1.26.4)
-          sed -i.bak 's/"numpy>=2\.0",/"numpy>=1.22,<2.0",/g' pyproject.toml
-
-          echo "Modified pyproject.toml for UMEP build:"
-          git diff pyproject.toml || true
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - name: Build SUEWS wheels (UMEP variant)
+        uses: ./.github/actions/build-suews
         with:
-            python-version: 3.12
-
-      - name: Build wheels
-        uses: pypa/cibuildwheel@v3.0.0
-
-      - name: upload wheels
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ env.WHEEL_NAME }}
-          path: ./wheelhouse/*.whl
+          buildplat: ${{ matrix.buildplat[0] }}
+          buildplat_name: ${{ matrix.buildplat[1] }}
+          buildplat_arch: ${{ matrix.buildplat[2] }}
+          python: ${{ matrix.python }}
+          is_umep_variant: 'true'
+          wheel_name_suffix: '-umep'
 
   deploy_testpypi:
     name: Publish to TestPyPI

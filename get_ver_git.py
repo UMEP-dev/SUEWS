@@ -16,10 +16,11 @@ For production releases:
   - At tag: generates 2025.1.0
   - After commits: generates 2025.1.0.dev5 (5 commits after)
 
-For UMEP/QGIS compatible builds (.post1 suffix):
+For UMEP/QGIS compatible builds (rc1 suffix):
   - When BUILD_UMEP_VARIANT=true environment variable is set
-  - Tag: 2025.1.0 generates 2025.1.0.post1
+  - Tag: 2025.1.0 generates 2025.1.0rc1
   - These are NumPy 1.x compatible builds for QGIS 3.40 LTR
+  - rc1 is a pre-release tag, ensuring pip install gets the stable version by default
   - See .github/workflows/build-publish_to_pypi.yml for build configuration
 
 CRITICAL FOR NIGHTLY BUILDS:
@@ -92,8 +93,9 @@ def get_version_from_git():
 
         # Check for UMEP build variant (NumPy 1.x compatible build)
         # This is set by CI workflow for QGIS/UMEP compatible releases
+        # Using rc1 (pre-release) ensures pip install gets stable version by default
         if os.environ.get("BUILD_UMEP_VARIANT") == "true":
-            version = version + ".post1"
+            version = version + "rc1"
 
         return version
 

@@ -7,7 +7,12 @@ Every SUEWS release automatically creates **two PyPI versions** from a single gi
 | Version Type | Version | NumPy | Target Users |
 |--------------|---------|-------|--------------|
 | Standard | `2024.10.7` | ≥2.0 | Standalone Python users |
-| UMEP | `2024.10.7.post1` | 1.x | QGIS/UMEP plugin users |
+| UMEP | `2024.10.7rc1` | 1.x | QGIS/UMEP plugin users |
+
+**pip install behavior:**
+- `pip install supy` → Gets `2024.10.7` (standard, NumPy 2.0)
+- `pip install supy==2024.10.7rc1` → Gets `2024.10.7rc1` (UMEP, NumPy 1.x)
+- rc1 is a pre-release tag, automatically skipped by pip unless explicitly specified
 
 ## Creating a Release
 
@@ -20,7 +25,7 @@ git push origin v2024.10.7
 
 # CI automatically:
 # - Builds 2024.10.7 with NumPy ≥2.0 (build_wheels job)
-# - Builds 2024.10.7.post1 with NumPy 1.x (build_umep job)
+# - Builds 2024.10.7rc1 with NumPy 1.x (build_umep job)
 # - Deploys both to PyPI (deploy_pypi job)
 ```
 
@@ -45,11 +50,12 @@ git push origin v2024.10.7
 - `pyproject.toml` NumPy requirements:
   - Build: `oldest-supported-numpy` (instead of `numpy>=2.0`)
   - Runtime: `numpy>=1.22,<2.0` (instead of `numpy>=2.0`)
-- Version string: `.post1` suffix added via `BUILD_UMEP_VARIANT` env var
+- Version string: `rc1` suffix added via `BUILD_UMEP_VARIANT` env var
 
 **Result:**
-- Creates version `2024.10.7.post1`
+- Creates version `2024.10.7rc1`
 - Binary compatible with NumPy 1.26.4 (QGIS 3.40 LTR)
+- Pre-release tag ensures pip skips it by default
 - Deployed to PyPI
 
 ### 3. Deployment (`deploy_pypi` job)
@@ -65,7 +71,7 @@ git push origin v2024.10.7
 
 UMEP requirements file specifies:
 ```python
-supy==2024.10.7.post1
+supy==2024.10.7rc1
 ```
 
 UMEP users run:
@@ -75,10 +81,16 @@ pip install -r umep-requirements.txt
 
 They never see version details - it just works.
 
+**Why rc1?**
+- rc1 = "release candidate 1" (PEP 440 pre-release tag)
+- pip skips pre-releases by default
+- Ensures `pip install supy` gets the standard version (2024.10.7)
+- UMEP users get rc1 via explicit pin in requirements
+
 ### SUEWS Side
 
-- No public documentation of `.post1` versions
-- `.post1` automatically exists for every production release
+- No public documentation of `rc1` versions
+- `rc1` automatically exists for every production release
 - No coordination needed with UMEP team
 - They update their requirements file when ready
 
@@ -97,7 +109,7 @@ They never see version details - it just works.
 
 ---
 
-## 2024.10.7.post1 (2025-10-08)
+## 2024.10.7rc1 (2025-10-08)
 
 UMEP/QGIS build (NumPy 1.x). No source changes from 2024.10.7.
 ```
@@ -123,14 +135,18 @@ See UMEP documentation.
 
 ### 3. Notify UMEP Team (First Time Only)
 
-After first `.post1` release:
+After first `rc1` release:
 ```
-From version 2024.10.7, SUEWS provides .post1 builds for QGIS compatibility.
+From version 2024.10.7, SUEWS provides rc1 builds for QGIS compatibility.
 
 Please update UMEP requirements to:
-  supy==2024.10.7.post1
+  supy==2024.10.7rc1
 
-All future releases will automatically include .post1 versions.
+All future releases will automatically include rc1 versions.
+
+Note: rc1 is a pre-release tag, ensuring pip install supy gets the
+standard NumPy 2.0 version by default. UMEP users get NumPy 1.x
+compatible builds via explicit pin in requirements file.
 ```
 
 ## Technical Details
@@ -140,7 +156,7 @@ All future releases will automatically include .post1 versions.
 `get_ver_git.py` checks `BUILD_UMEP_VARIANT` environment variable:
 ```python
 if os.environ.get('BUILD_UMEP_VARIANT') == 'true':
-    version = version + '.post1'
+    version = version + 'rc1'
 ```
 
 Set by `build_umep` job in CI workflow.
@@ -163,13 +179,13 @@ Set by `build_umep` job in CI workflow.
 A: Deployment proceeds with available wheels. Independent builds mean one failure doesn't block the other.
 
 **Q: Can I skip UMEP builds?**
-A: Not recommended. Always create both for consistency. UMEP users expect `.post1` to exist.
+A: Not recommended. Always create both for consistency. UMEP users expect `rc1` to exist.
 
 **Q: How to test before production release?**
 A: Use test tag (e.g., `v2024.10.test`) to trigger builds and check TestPyPI.
 
 **Q: Version ordering on PyPI?**
-A: `2024.10.7.post1` sorts after `2024.10.7` but before `2024.10.8`. Latest non-post version preferred by pip unless exact version specified.
+A: `2024.10.7rc1` sorts after `2024.10.7` but before `2024.10.8`. Latest non-post version preferred by pip unless exact version specified.
 
 ## See Also
 

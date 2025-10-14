@@ -2221,28 +2221,36 @@ class SUEWSConfig(BaseModel):
         modified_errors = []
         for err in error.errors():
             err_copy = err.copy()
-            loc_list = list(err_copy['loc'])
+            loc_list = list(err_copy["loc"])
 
             # Replace numeric site index with GRIDID in location tuple
-            if len(loc_list) >= 2 and loc_list[0] == 'sites' and isinstance(loc_list[1], int):
+            if (
+                len(loc_list) >= 2
+                and loc_list[0] == "sites"
+                and isinstance(loc_list[1], int)
+            ):
                 site_idx = loc_list[1]
                 if site_idx in site_gridid_map:
                     loc_list[1] = site_gridid_map[site_idx]
 
-            err_copy['loc'] = tuple(loc_list)
+            err_copy["loc"] = tuple(loc_list)
             modified_errors.append(err_copy)
 
         # Format into readable message
-        error_lines = [f"{error.error_count()} validation error{'s' if error.error_count() > 1 else ''} for SUEWSConfig"]
+        error_lines = [
+            f"{error.error_count()} validation error{'s' if error.error_count() > 1 else ''} for SUEWSConfig"
+        ]
 
         for err in modified_errors:
-            loc_str = '.'.join(str(x) for x in err['loc'])
+            loc_str = ".".join(str(x) for x in err["loc"])
             error_lines.append(loc_str)
-            error_lines.append(f"  {err['msg']} [type={err['type']}, input_value={err['input']}, input_type={type(err['input']).__name__}]")
-            if 'url' in err:
+            error_lines.append(
+                f"  {err['msg']} [type={err['type']}, input_value={err['input']}, input_type={type(err['input']).__name__}]"
+            )
+            if "url" in err:
                 error_lines.append(f"    For further information visit {err['url']}")
 
-        error_msg = '\n'.join(error_lines)
+        error_msg = "\n".join(error_lines)
         raise ValueError(f"SUEWS Configuration Validation Error:\n{error_msg}")
 
     @classmethod

@@ -47,15 +47,11 @@ LIBDRIVER = $(addprefix $(DIR_LIB_SUEWS),libsuewsdriver.a)
 
 
 # version specific target name:
-# determined from source code
-path       := $(DIR_SRC_SUEWS)suews_ctrl_const.f95 # get program name form source code
-file :=  $(if $(filter $(OS),Windows_NT),$(strip $(subst /,\,${path})),${path})
-# $(info file is $(file))
-grep := $(if $(filter $(OS),Windows_NT),findstr,grep)
-variable   := $(shell $(grep) progname ${file})
-TARGET_str := $(lastword $(subst =, ,${variable})) # program name with quotes
-TARGET     := $(strip $(subst $\', ,${TARGET_str})) # program name
-VERSION    := $(lastword $(subst _V, ,${TARGET}))
+# NOTE: progname variable removed from source code (20251014)
+# Version is now managed via get_ver_git.py (see meson.build)
+# Legacy Makefile uses placeholder for standalone builds
+TARGET     := SUEWS
+VERSION    := $(shell python3 ../../get_ver_git.py 2>/dev/null || echo "dev")
 GIT_COMMIT := $(shell git describe --always --dirty=-dirty || echo unknown:non-git)
 
 timestamp := $(shell date +"%Y%m%dT%H%M")

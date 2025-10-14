@@ -1102,7 +1102,8 @@ MODULE data_in
 
    IMPLICIT NONE
 
-   CHARACTER(len=90) :: progname = 'SUEWS_V2021a'
+   ! NOTE: Version is now managed automatically via get_ver_git.py from git tags (YYYY.M.D format)
+   ! Old manual version string 'progname = SUEWS_V2021a' removed as unused (20251014)
 
    ! ---- Run information ------------------------------------------------------------------------
    CHARACTER(len=20) :: FileCode !Set in RunControl

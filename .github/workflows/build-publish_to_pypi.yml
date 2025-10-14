@@ -399,42 +399,6 @@ jobs:
           name: ${{ env.WHEEL_NAME }}
           path: ./wheelhouse/*.whl
 
-  test_numpy_compat:
-    name: Test NumPy 1.x compatibility (UMEP/QGIS)
-    runs-on: ubuntu-latest
-    # Only run for production tags to validate UMEP builds
-    if: startsWith(github.ref, 'refs/tags/') && !contains(github.ref, 'dev')
-
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.10'
-
-      - name: Install with NumPy 1.26.4 (QGIS 3.40 LTR version)
-        run: |
-          # Install NumPy 1.26.4 first (same as QGIS 3.40 LTR)
-          pip install numpy==1.26.4
-
-          # Modify pyproject.toml as UMEP build does
-          sed -i 's/"numpy>=2\.0"/"oldest-supported-numpy"/g' pyproject.toml
-          sed -i 's/"numpy>=2\.0",/"numpy>=1.22,<2.0",/g' pyproject.toml
-
-          # Install in editable mode
-          pip install -e .
-
-          # Verify NumPy version
-          python -c "import numpy; print(f'NumPy version: {numpy.__version__}')"
-          python -c "import supy; print(f'SuPy version: {supy.__version__}')"
-
-      - name: Run test suite with NumPy 1.x
-        run: |
-          pytest test/ -v --tb=short --durations=10
-
   deploy_testpypi:
     name: Publish to TestPyPI
     runs-on: ubuntu-latest

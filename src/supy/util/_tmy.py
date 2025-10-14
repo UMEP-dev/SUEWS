@@ -367,10 +367,28 @@ def gen_epw(
         - text_meta: str - meta-info text
         - path_epw: pathlib.Path - path to generated ``epw`` file
 
+    Raises
+    ------
+    ImportError
+        If pvlib is not installed. Install with: pip install pvlib
+
+    Notes
+    -----
+    This function requires pvlib for solar position and irradiance calculations.
+    pvlib is not included as a required dependency due to its h5py requirement
+    which can cause build issues on some platforms.
+
     """
     import atmosp
     from pathlib import Path
-    import pvlib
+
+    try:
+        import pvlib
+    except ImportError:
+        raise ImportError(
+            "TMY/EPW generation requires pvlib. Install it with: pip install pvlib\n"
+            "Note: pvlib requires h5py which may need compilation on some systems."
+        )
 
     # select months from representative years
     df_tmy = gen_TMY(df_output.copy())

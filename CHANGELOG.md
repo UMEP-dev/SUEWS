@@ -34,6 +34,12 @@
 
 ## 2025
 
+### 15 Oct 2025
+- [bugfix] Fixed Phase B validation to update roofs/walls temperature fields in initial_states from CRU climate data
+  - Extended `adjust_surface_temperatures()` to process `initial_states.roofs` and `initial_states.walls` arrays
+  - Updates `temperature` (5-layer array), `tsfc`, and `tin` fields to monthly averages from CRU TS4.06 dataset
+  - Ensures consistent temperature initialization across all surface types
+
 ### 1 Oct 2025
 - [improvement] Refactored SPARTACUS nlayer=1 handling in `SurfaceInitialState.from_df_state()` to use more robust try-except pattern
   - Replaced conditional logic based on nlayer value with EAFP (Easier to Ask Forgiveness than Permission) approach

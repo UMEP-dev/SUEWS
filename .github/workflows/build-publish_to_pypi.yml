@@ -19,7 +19,8 @@ name: Build and Publish Python wheels to PyPI and TestPyPI
 #
 # 2. DEVELOPMENT RELEASES (TestPyPI only):
 #    - Nightly cron (2 AM UTC, master branch only): Creates YYYY.M.D.dev tag → TestPyPI
-#    - Any tag containing 'dev': Deploy to TestPyPI (standard wheels only, no UMEP)
+#    - Any tag containing 'dev': Deploy to TestPyPI (standard wheels only)
+#    - UMEP builds skipped (get_ver_git.py doesn't add rc1 to .dev versions)
 #    Installation:
 #      Latest dev: pip install -i https://test.pypi.org/simple/ supy
 #      Specific version: pip install -i https://test.pypi.org/simple/ supy==YYYY.M.D.dev0
@@ -80,10 +81,10 @@ name: Build and Publish Python wheels to PyPI and TestPyPI
 # - Both wheel sets deployed to PyPI together (production tags only)
 # - UMEP builds use Python 3.12 only (aligned with QGIS 3.40 LTR bundled Python)
 # - UMEP build triggers:
-#   * PRs: manylinux cp312 (quick NumPy 1.x validation)
+#   * PRs: manylinux cp312 (NumPy 1.x validation before merge)
 #   * Master/manual: manylinux cp312 (continuous UMEP compatibility testing)
 #   * Production tags: all platforms cp312 (complete distribution → PyPI)
-#   * Dev tags: skipped (nightly builds don't need UMEP variants)
+#   * Nightly/dev tags: skipped (version collision issue - can't distinguish UMEP from standard)
 #
 # UMEP INTEGRATION:
 # - UMEP requirements specify: supy==2024.10.7rc1
@@ -232,16 +233,17 @@ jobs:
     name: Build UMEP wheel (rc1) for ${{ matrix.python }}-${{ matrix.buildplat[1] }} ${{ matrix.buildplat[2] }}
     runs-on: ${{ matrix.buildplat[0] }}
     needs: [determine_matrix, create_nightly_tag]
-    # Run for: PRs, master pushes, nightly, manual, and production tags
-    # Skip only for: dev tags
+    # Run for: PRs, master pushes, manual, and production tags
+    # Skip: nightly (schedule) and dev tags
     if: |
       always() &&
       needs.determine_matrix.result == 'success' &&
       (needs.create_nightly_tag.result == 'success' || needs.create_nightly_tag.result == 'skipped') &&
+      github.event_name != 'schedule' &&
       !(startsWith(github.ref, 'refs/tags/') && contains(github.ref, 'dev'))
     strategy:
       matrix:
-        # Limited matrix (manylinux cp312) for PRs/master/nightly/manual
+        # Limited matrix (manylinux cp312) for PRs/master/manual
         # Full matrix (all platforms cp312) for production tags
         buildplat: ${{ (startsWith(github.ref, 'refs/tags/') && !contains(github.ref, 'dev')) && fromJson(needs.determine_matrix.outputs.buildplat) || fromJson(needs.determine_matrix.outputs.umep_buildplat) }}
         python: ${{ (startsWith(github.ref, 'refs/tags/') && !contains(github.ref, 'dev')) && fromJson(needs.determine_matrix.outputs.python) || fromJson(needs.determine_matrix.outputs.umep_python) }}

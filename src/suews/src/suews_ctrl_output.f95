@@ -164,7 +164,14 @@ MODULE ctrl_output
       varAttr('T2', 'degC', f94, 'Air temperature at 2 m', aA, 'SUEWS', 0), &
       varAttr('Q2', 'g kg-1', f94, 'Specific humidity at 2 m', aA, 'SUEWS', 0), &
       varAttr('U10', 'm s-1', f94, 'Wind speed at 10 m', aA, 'SUEWS', 0), &
-      varAttr('RH2', '%', f94, 'Relative humidity at 2 m', aA, 'SUEWS', 0) &
+      varAttr('RH2', '%', f94, 'Relative humidity at 2 m', aA, 'SUEWS', 0), &
+      varAttr('Ts_Paved', 'degC', f104, 'surface temperature of paved surface', aA, 'SUEWS', 0), &
+      varAttr('Ts_Bldgs', 'degC', f104, 'surface temperature of building surface', aA, 'SUEWS', 0), &
+      varAttr('Ts_EveTr', 'degC', f104, 'surface temperature of evergreen tree surface', aA, 'SUEWS', 0), &
+      varAttr('Ts_DecTr', 'degC', f104, 'surface temperature of deciduous tree surface', aA, 'SUEWS', 0), &
+      varAttr('Ts_Grass', 'degC', f104, 'surface temperature of grass surface', aA, 'SUEWS', 0), &
+      varAttr('Ts_BSoil', 'degC', f104, 'surface temperature of bare soil surface', aA, 'SUEWS', 0), &
+      varAttr('Ts_Water', 'degC', f104, 'surface temperature of water surface', aA, 'SUEWS', 0) &
       /
 
    ! BEERS (successor of SOLWEIG):

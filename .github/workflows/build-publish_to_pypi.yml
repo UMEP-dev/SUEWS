@@ -182,16 +182,29 @@ jobs:
       umep_buildplat: ${{ steps.set-matrix.outputs.umep_buildplat }}
       umep_python: ${{ steps.set-matrix.outputs.umep_python }}
     steps:
-      - name: Set matrix based on draft status
+      - name: Set matrix based on trigger type
         id: set-matrix
         run: |
+          # Platform matrix
+          FULL_PLATFORMS='[["ubuntu-latest", "manylinux", "x86_64"], ["macos-13", "macosx", "x86_64"], ["macos-latest", "macosx", "arm64"], ["windows-2025", "win", "AMD64"]]'
+          MINIMAL_PLATFORMS='[["ubuntu-latest", "manylinux", "x86_64"]]'
+
+          # Python version strategies:
+          # - Draft PR: minimal (1 platform, bookend versions) for fastest feedback
+          # - PR/Master: reduced (all platforms, bookend versions) for speed with good coverage
+          # - Tags/Schedule/Manual: full (all platforms, all versions) for comprehensive testing
+
           if [[ "${{ github.event_name }}" == "pull_request" ]] && [[ "${{ github.event.pull_request.draft }}" == "true" ]]; then
-            echo "Running limited matrix for draft PR"
-            echo 'buildplat=[["ubuntu-latest", "manylinux", "x86_64"]]' >> $GITHUB_OUTPUT
+            echo "Running minimal matrix for draft PR (1 platform, bookend Python versions)"
+            echo "buildplat=$MINIMAL_PLATFORMS" >> $GITHUB_OUTPUT
+            echo 'python=["cp39", "cp313"]' >> $GITHUB_OUTPUT
+          elif [[ "${{ github.event_name }}" == "pull_request" ]] || [[ "${{ github.event_name }}" == "push" && "${{ github.ref }}" == "refs/heads/master" ]]; then
+            echo "Running reduced matrix for PR/master (all platforms, bookend Python versions)"
+            echo "buildplat=$FULL_PLATFORMS" >> $GITHUB_OUTPUT
             echo 'python=["cp39", "cp313"]' >> $GITHUB_OUTPUT
           else
-            echo "Running full matrix"
-            echo 'buildplat=[["ubuntu-latest", "manylinux", "x86_64"], ["macos-13", "macosx", "x86_64"], ["macos-latest", "macosx", "arm64"], ["windows-2025", "win", "AMD64"]]' >> $GITHUB_OUTPUT
+            echo "Running full matrix for tags/schedule/manual (all platforms, all Python versions)"
+            echo "buildplat=$FULL_PLATFORMS" >> $GITHUB_OUTPUT
             echo 'python=["cp39", "cp310", "cp311", "cp312", "cp313"]' >> $GITHUB_OUTPUT
           fi
 

@@ -1036,11 +1036,31 @@ def create_analysis_report(
             )
             for path, expected_len, actual_len, nulls_added in dimension_errors:
                 array_name = path.split(".")[-1]
+
+                # Determine the level (vertical_layers or initial_states) for roofs/walls
+                level_name = None
+                if array_name in ["roofs", "walls"]:
+                    if "vertical_layers" in path:
+                        level_name = "vertical_layers"
+                    elif "initial_states" in path:
+                        level_name = "initial_states"
+
+                # Build display name
+                if level_name:
+                    display_name = f"{array_name} at level {level_name}"
+                else:
+                    display_name = array_name
+
                 if nulls_added > 0:
                     report_lines.append(
-                        f"-- {array_name}: has {actual_len} element(s), expected {expected_len}. Added nulls."
+                        f"-- {display_name}: has {actual_len} element(s), expected {expected_len}. Added nulls."
                     )
-                    if "height" in array_name.lower():
+                    # For complex nested structures (roofs/walls), simplify the message
+                    if array_name in ["roofs", "walls"]:
+                        report_lines.append(
+                            f"   Suggested fix: Replace null values."
+                        )
+                    elif "height" in array_name.lower():
                         report_lines.append(
                             f"   Suggested fix: Replace {nulls_added} null value(s) to match nlayer+1={expected_len}"
                         )
@@ -1051,7 +1071,7 @@ def create_analysis_report(
                 else:
                     # Array was too long
                     report_lines.append(
-                        f"-- {array_name}: has {actual_len} element(s), expected {expected_len}"
+                        f"-- {display_name}: has {actual_len} element(s), expected {expected_len}"
                     )
                     if "height" in array_name.lower():
                         report_lines.append(

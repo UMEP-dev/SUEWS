@@ -940,6 +940,58 @@ def adjust_surface_temperatures(
                         )
                     )
 
+        # Update temperatures in roofs and walls arrays
+        for array_name in ["roofs", "walls"]:
+            if array_name in initial_states:
+                array = initial_states[array_name]
+                if isinstance(array, list):
+                    for element_idx, element in enumerate(array):
+                        if not isinstance(element, dict):
+                            continue
+
+                        temperature_updated = False
+                        tsfc_updated = False
+                        tin_updated = False
+
+                        if "temperature" in element and isinstance(element["temperature"], dict):
+                            current_temp = element["temperature"].get("value")
+                            if current_temp != [avg_temp] * 5:
+                                element["temperature"]["value"] = [avg_temp] * 5
+                                temperature_updated = True
+
+                        if "tsfc" in element and isinstance(element["tsfc"], dict):
+                            current_tsfc = element["tsfc"].get("value")
+                            if current_tsfc != avg_temp:
+                                element["tsfc"]["value"] = avg_temp
+                                tsfc_updated = True
+
+                        if "tin" in element and isinstance(element["tin"], dict):
+                            current_tin = element["tin"].get("value")
+                            if current_tin != avg_temp:
+                                element["tin"]["value"] = avg_temp
+                                tin_updated = True
+
+                        if temperature_updated or tsfc_updated or tin_updated:
+                            updated_params = []
+                            if temperature_updated:
+                                updated_params.append("temperature")
+                            if tsfc_updated:
+                                updated_params.append("tsfc")
+                            if tin_updated:
+                                updated_params.append("tin")
+
+                            param_list = ", ".join(updated_params)
+
+                            adjustments.append(
+                                ScientificAdjustment(
+                                    parameter=f"initial_states.{array_name}[{element_idx}]",
+                                    site_index=site_idx,
+                                    old_value=param_list,
+                                    new_value=f"{avg_temp} C",
+                                    reason=f"Set from CRU data for coordinates ({lat:.2f}, {lng:.2f}) for month {month}",
+                                )
+                            )
+
         # Save back to site
         site["initial_states"] = initial_states
         props["stebbs"] = stebbs

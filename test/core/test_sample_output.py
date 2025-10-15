@@ -399,8 +399,8 @@ class TestSampleOutput(TestCase):
             print(f"   - {file}")
 
     @pytest.mark.skipif(
-        int(np.__version__.split('.')[0]) < 2,
-        reason="Test reference data incompatible with NumPy 1.x (pickle format mismatch). See issue for long-term fix."
+        int(np.__version__.split(".")[0]) < 2,
+        reason="Test reference data incompatible with NumPy 1.x (pickle format mismatch). See issue for long-term fix.",
     )
     def test_sample_output_validation(self):
         """

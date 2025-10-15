@@ -614,6 +614,179 @@ def get_null_placeholder():
     return "null"
 
 
+def validate_nlayer_dimensions(user_data: dict, nlayer: int) -> tuple:
+    """Validate that vertical layer array dimensions match nlayer value.
+
+    Pads arrays with null values when dimensions don't match, but records errors
+    so validation fails and user is asked to replace nulls with actual values.
+
+    Args:
+        user_data: User YAML data (dict)
+        nlayer: Detected nlayer value
+
+    Returns:
+        Tuple of (modified_user_data, dimension_errors) where dimension_errors is a list of
+        (path, expected_length, actual_length, nulls_added) tuples describing validation errors.
+        User must replace the null values with actual values.
+    """
+    dimension_errors = []
+
+    # Arrays that should have nlayer elements
+    nlayer_arrays = ['veg_frac', 'veg_scale', 'building_frac', 'building_scale']
+    # Array that should have nlayer + 1 elements
+    nlayer_plus_one_arrays = ['height']
+    # Nested arrays (roofs/walls) that should have nlayer elements each
+    nested_nlayer_arrays = ['roofs', 'walls']
+
+    if not user_data or 'sites' not in user_data:
+        return user_data, dimension_errors
+
+    sites = user_data.get('sites', [])
+    if not isinstance(sites, list):
+        return user_data, dimension_errors
+
+    for site_idx, site in enumerate(sites):
+        if not isinstance(site, dict):
+            continue
+
+        # Check vertical_layers arrays in properties
+        properties = site.get('properties', {})
+        if not isinstance(properties, dict):
+            continue
+
+        vertical_layers = properties.get('vertical_layers', {})
+        if not isinstance(vertical_layers, dict):
+            continue
+
+        # Validate nlayer arrays
+        for array_name in nlayer_arrays:
+            if array_name in vertical_layers:
+                arr = vertical_layers[array_name]
+                # Handle RefValue format
+                if isinstance(arr, dict) and 'value' in arr:
+                    actual_arr = arr['value']
+                    is_refvalue = True
+                else:
+                    actual_arr = arr
+                    is_refvalue = False
+
+                if isinstance(actual_arr, list):
+                    actual_len = len(actual_arr)
+                    expected_len = nlayer
+                    if actual_len < expected_len:
+                        # Pad with null and record error
+                        nulls_added = expected_len - actual_len
+                        padding = [None] * nulls_added
+                        actual_arr.extend(padding)
+                        if is_refvalue:
+                            vertical_layers[array_name]['value'] = actual_arr
+                        else:
+                            vertical_layers[array_name] = actual_arr
+                        path = f"sites[{site_idx}].properties.vertical_layers.{array_name}"
+                        dimension_errors.append((path, expected_len, actual_len, nulls_added))
+                    elif actual_len > expected_len:
+                        # Too many elements - record error but don't modify
+                        path = f"sites[{site_idx}].properties.vertical_layers.{array_name}"
+                        dimension_errors.append((path, expected_len, actual_len, 0))
+
+        # Validate nlayer+1 arrays (height)
+        for array_name in nlayer_plus_one_arrays:
+            if array_name in vertical_layers:
+                arr = vertical_layers[array_name]
+                # Handle RefValue format
+                if isinstance(arr, dict) and 'value' in arr:
+                    actual_arr = arr['value']
+                    is_refvalue = True
+                else:
+                    actual_arr = arr
+                    is_refvalue = False
+
+                if isinstance(actual_arr, list):
+                    actual_len = len(actual_arr)
+                    expected_len = nlayer + 1
+                    if actual_len < expected_len:
+                        # Pad with null and record error
+                        nulls_added = expected_len - actual_len
+                        padding = [None] * nulls_added
+                        actual_arr.extend(padding)
+                        if is_refvalue:
+                            vertical_layers[array_name]['value'] = actual_arr
+                        else:
+                            vertical_layers[array_name] = actual_arr
+                        path = f"sites[{site_idx}].properties.vertical_layers.{array_name}"
+                        dimension_errors.append((path, expected_len, actual_len, nulls_added))
+                    elif actual_len > expected_len:
+                        # Too many elements - record error but don't modify
+                        path = f"sites[{site_idx}].properties.vertical_layers.{array_name}"
+                        dimension_errors.append((path, expected_len, actual_len, 0))
+
+        # Validate nested nlayer arrays (roofs/walls)
+        for array_name in nested_nlayer_arrays:
+            if array_name in vertical_layers:
+                arr = vertical_layers[array_name]
+                # Handle RefValue format
+                if isinstance(arr, dict) and 'value' in arr:
+                    actual_arr = arr['value']
+                    is_refvalue = True
+                else:
+                    actual_arr = arr
+                    is_refvalue = False
+
+                if isinstance(actual_arr, list):
+                    actual_len = len(actual_arr)
+                    expected_len = nlayer
+                    if actual_len < expected_len:
+                        # Pad with null and record error
+                        nulls_added = expected_len - actual_len
+                        padding = [None] * nulls_added
+                        actual_arr.extend(padding)
+                        if is_refvalue:
+                            vertical_layers[array_name]['value'] = actual_arr
+                        else:
+                            vertical_layers[array_name] = actual_arr
+                        path = f"sites[{site_idx}].properties.vertical_layers.{array_name}"
+                        dimension_errors.append((path, expected_len, actual_len, nulls_added))
+                    elif actual_len > expected_len:
+                        # Too many elements - record error but don't modify
+                        path = f"sites[{site_idx}].properties.vertical_layers.{array_name}"
+                        dimension_errors.append((path, expected_len, actual_len, 0))
+
+        # Check initial_states roofs/walls
+        initial_states = site.get('initial_states', {})
+        if isinstance(initial_states, dict):
+            for array_name in nested_nlayer_arrays:
+                if array_name in initial_states:
+                    arr = initial_states[array_name]
+                    # Handle RefValue format
+                    if isinstance(arr, dict) and 'value' in arr:
+                        actual_arr = arr['value']
+                        is_refvalue = True
+                    else:
+                        actual_arr = arr
+                        is_refvalue = False
+
+                    if isinstance(actual_arr, list):
+                        actual_len = len(actual_arr)
+                        expected_len = nlayer
+                        if actual_len < expected_len:
+                            # Pad with null and record error
+                            nulls_added = expected_len - actual_len
+                            padding = [None] * nulls_added
+                            actual_arr.extend(padding)
+                            if is_refvalue:
+                                initial_states[array_name]['value'] = actual_arr
+                            else:
+                                initial_states[array_name] = actual_arr
+                            path = f"sites[{site_idx}].initial_states.{array_name}"
+                            dimension_errors.append((path, expected_len, actual_len, nulls_added))
+                        elif actual_len > expected_len:
+                            # Too many elements - record error but don't modify
+                            path = f"sites[{site_idx}].initial_states.{array_name}"
+                            dimension_errors.append((path, expected_len, actual_len, 0))
+
+    return user_data, dimension_errors
+
+
 def cleanup_renamed_comments(yaml_content):
     """Remove renamed in standard comments from YAML content for clean output."""
     lines = yaml_content.split("\n")
@@ -724,6 +897,7 @@ def create_analysis_report(
     uptodate_filename=None,
     mode="public",
     phase="A",
+    dimension_errors=None,
 ):
     """Create analysis report with summary of changes."""
     report_lines = []
@@ -745,19 +919,54 @@ def create_analysis_report(
     optional_count = len(missing_params) - urgent_count
     renamed_count = len(renamed_replacements)
     extra_count = len(extra_params) if extra_params else 0
+    dimension_errors_count = len(dimension_errors) if dimension_errors else 0
 
-    # ACTION NEEDED section - critical/urgent parameters AND forbidden extra parameters
+    # ACTION NEEDED section - critical/urgent parameters, dimension errors, AND forbidden extra parameters
     # Categorise extra parameters to find forbidden ones
     forbidden_extras = []
     if extra_count > 0 and mode != "public":  # Only show forbidden extras in dev mode
         categorised = categorise_extra_parameters(extra_params)
         forbidden_extras = categorised["ACTION_NEEDED"]
 
-    total_action_needed = urgent_count + len(forbidden_extras)
+    total_action_needed = urgent_count + len(forbidden_extras) + dimension_errors_count
     has_action_items = total_action_needed > 0
 
     if has_action_items:
         report_lines.append("## ACTION NEEDED")
+
+        # Dimension mismatch errors - MOST CRITICAL
+        if dimension_errors_count > 0:
+            report_lines.append(
+                f"- Found ({dimension_errors_count}) vertical layer array dimension mismatch error(s):"
+            )
+            for path, expected_len, actual_len, nulls_added in dimension_errors:
+                array_name = path.split(".")[-1]
+                if nulls_added > 0:
+                    report_lines.append(
+                        f"-- {array_name}: has {actual_len} element(s), expected {expected_len}. Added nulls."
+                    )
+                    if "height" in array_name.lower():
+                        report_lines.append(
+                            f"   Suggested fix: Replace {nulls_added} null value(s) to match nlayer+1={expected_len}"
+                        )
+                    else:
+                        report_lines.append(
+                            f"   Suggested fix: Replace {nulls_added} null value(s) to match nlayer={expected_len}"
+                        )
+                else:
+                    # Array was too long
+                    report_lines.append(
+                        f"-- {array_name}: has {actual_len} element(s), expected {expected_len}"
+                    )
+                    if "height" in array_name.lower():
+                        report_lines.append(
+                            f"   Suggested fix: Remove {actual_len - expected_len} value(s) to match nlayer+1={expected_len}"
+                        )
+                    else:
+                        report_lines.append(
+                            f"   Suggested fix: Remove {actual_len - expected_len} value(s) to match nlayer={expected_len}"
+                        )
+            report_lines.append("")
 
         # Critical missing parameters
         if urgent_count > 0:
@@ -905,6 +1114,7 @@ def annotate_missing_parameters(
     report_file=None,
     mode="public",
     phase="A",
+    nlayer=None,
 ):
     try:
         with open(user_file, "r") as f:
@@ -921,11 +1131,26 @@ def annotate_missing_parameters(
     except yaml.YAMLError as e:
         print(f"Error: Invalid YAML - {e}")
         return
+
+    # Validate nlayer dimensions if nlayer is provided
+    dimension_errors = []
+    if nlayer is not None:
+        user_data, dimension_errors = validate_nlayer_dimensions(user_data, nlayer)
+        # user_data now contains padded arrays with nulls - we'll write this back
+
     missing_params = find_missing_parameters(user_data, standard_data)
     extra_params = find_extra_parameters(user_data, standard_data)
 
     # Generate content for both files
-    if missing_params or renamed_replacements or extra_params:
+    if missing_params or renamed_replacements or extra_params or dimension_errors:
+        # If dimension errors occurred, serialize the modified user_data with padded nulls
+        if dimension_errors:
+            # Convert modified user_data back to YAML string
+            import io
+            stream = io.StringIO()
+            yaml.dump(user_data, stream, default_flow_style=False, sort_keys=False, allow_unicode=True)
+            original_yaml_content = stream.getvalue()
+
         # Create uptodate YAML (clean, with NOT IN STANDARD markers)
         uptodate_content = create_uptodate_yaml_with_missing_params(
             original_yaml_content, missing_params, extra_params, mode
@@ -940,6 +1165,7 @@ def annotate_missing_parameters(
             uptodate_filename,
             mode,
             phase,
+            dimension_errors,
         )
     else:
         print("No missing in standard or renamed in standard parameters found!")
@@ -947,19 +1173,28 @@ def annotate_missing_parameters(
         uptodate_content = create_uptodate_yaml_header() + original_yaml_content
         uptodate_filename = os.path.basename(uptodate_file) if uptodate_file else None
         report_content = create_analysis_report(
-            [], [], [], uptodate_filename, mode, phase
+            [], [], [], uptodate_filename, mode, phase, []
         )
 
-    # Print clean terminal output based on critical parameters
+    # Print clean terminal output based on critical parameters and dimension errors
     critical_params = [
         (path, val, is_phys) for path, val, is_phys in missing_params if is_phys
     ]
 
-    if critical_params:
-        print(f"Action needed: CRITICAL parameters missing:")
-        for param_path, standard_value, _ in critical_params:
-            param_name = param_path.split(".")[-1]
-            print(f"  - {param_name}")
+    if critical_params or dimension_errors:
+        if critical_params:
+            print(f"Action needed: CRITICAL parameters missing:")
+            for param_path, standard_value, _ in critical_params:
+                param_name = param_path.split(".")[-1]
+                print(f"  - {param_name}")
+        if dimension_errors:
+            print(f"Action needed: DIMENSION MISMATCH errors:")
+            for path, expected, actual, nulls_added in dimension_errors:
+                array_name = path.split(".")[-1]
+                if nulls_added > 0:
+                    print(f"  - {array_name}: has {actual} elements, expected {expected}. Added {nulls_added} null(s).")
+                else:
+                    print(f"  - {array_name}: has {actual} elements, expected {expected}")
         print("")
         report_filename = (
             os.path.basename(report_file) if report_file else "report file"
@@ -1110,11 +1345,19 @@ def main():
     uptodate_file = os.path.join(dirname, uptodate_filename)
     report_file = os.path.join(dirname, report_filename)
 
+    # Detect nlayer from user YAML for dimension validation
+    try:
+        from .orchestrator import detect_nlayer_from_user_yaml
+        nlayer_value = detect_nlayer_from_user_yaml(user_file)
+    except Exception:
+        nlayer_value = 3  # Default to 3 if detection fails
+
     annotate_missing_parameters(
         user_file=user_file,
         standard_file=standard_file,
         uptodate_file=uptodate_file,
         report_file=report_file,
+        nlayer=nlayer_value,
     )
 
 

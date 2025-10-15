@@ -249,8 +249,9 @@ jobs:
       matrix:
         # Limited matrix (manylinux cp312) for PRs/master/nightly/manual
         # Full matrix (all platforms cp312) for production tags only
+        # IMPORTANT: Always use cp312 only for UMEP (QGIS 3.40 LTR compatibility)
         buildplat: ${{ (startsWith(github.ref, 'refs/tags/') && !contains(github.ref, 'dev')) && fromJson(needs.determine_matrix.outputs.buildplat) || fromJson(needs.determine_matrix.outputs.umep_buildplat) }}
-        python: ${{ (startsWith(github.ref, 'refs/tags/') && !contains(github.ref, 'dev')) && fromJson(needs.determine_matrix.outputs.python) || fromJson(needs.determine_matrix.outputs.umep_python) }}
+        python: ${{ fromJson(needs.determine_matrix.outputs.umep_python) }}
 
       fail-fast: false
 

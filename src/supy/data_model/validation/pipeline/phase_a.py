@@ -627,25 +627,27 @@ def create_null_roof_wall_template(reference_element: dict) -> dict:
 
     for key, value in reference_element.items():
         if isinstance(value, dict):
-            if 'value' in value:
+            if "value" in value:
                 # RefValue format
-                ref_value = value['value']
+                ref_value = value["value"]
                 if isinstance(ref_value, list):
                     # Array - create list of nulls with same length
-                    template[key] = {'value': [None] * len(ref_value)}
+                    template[key] = {"value": [None] * len(ref_value)}
                 else:
                     # Single value
-                    template[key] = {'value': None}
-            elif key == 'thermal_layers':
+                    template[key] = {"value": None}
+            elif key == "thermal_layers":
                 # Special handling for thermal_layers nested structure
                 thermal_template = {}
                 for thermal_key, thermal_value in value.items():
-                    if isinstance(thermal_value, dict) and 'value' in thermal_value:
-                        thermal_ref_value = thermal_value['value']
+                    if isinstance(thermal_value, dict) and "value" in thermal_value:
+                        thermal_ref_value = thermal_value["value"]
                         if isinstance(thermal_ref_value, list):
-                            thermal_template[thermal_key] = {'value': [None] * len(thermal_ref_value)}
+                            thermal_template[thermal_key] = {
+                                "value": [None] * len(thermal_ref_value)
+                            }
                         else:
-                            thermal_template[thermal_key] = {'value': None}
+                            thermal_template[thermal_key] = {"value": None}
                     else:
                         thermal_template[thermal_key] = None
                 template[key] = thermal_template
@@ -805,7 +807,9 @@ def validate_nlayer_dimensions(user_data: dict, nlayer: int) -> tuple:
                         if actual_len > 0:
                             reference_element = actual_arr[0]
                             for _ in range(nulls_added):
-                                null_template = create_null_roof_wall_template(reference_element)
+                                null_template = create_null_roof_wall_template(
+                                    reference_element
+                                )
                                 actual_arr.append(null_template)
                         else:
                             # No elements to use as reference - just add None
@@ -833,7 +837,7 @@ def validate_nlayer_dimensions(user_data: dict, nlayer: int) -> tuple:
                         dimension_errors.append((path, expected_len, actual_len, 0))
 
         # Check initial_states roofs/walls - these also need structural templates
-        initial_states = site.get('initial_states', {})
+        initial_states = site.get("initial_states", {})
         if isinstance(initial_states, dict):
             for array_name in nested_nlayer_arrays:
                 if array_name in initial_states:
@@ -856,7 +860,9 @@ def validate_nlayer_dimensions(user_data: dict, nlayer: int) -> tuple:
                             if actual_len > 0:
                                 reference_element = actual_arr[0]
                                 for _ in range(nulls_added):
-                                    null_template = create_null_roof_wall_template(reference_element)
+                                    null_template = create_null_roof_wall_template(
+                                        reference_element
+                                    )
                                     actual_arr.append(null_template)
                             else:
                                 # No elements to use as reference - just add None

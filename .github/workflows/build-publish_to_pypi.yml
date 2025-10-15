@@ -313,15 +313,16 @@ jobs:
     needs:
       - determine_matrix
       - build_wheels
-      - build_umep  # UMEP builds (.post1 variants)
+      - build_umep  # UMEP builds (rc1 variants)
       - create_nightly_tag  # Will be skipped for non-nightly builds
     # Only run for tagged releases WITHOUT 'dev' in the tag name
-    # Deploy if either standard OR UMEP build succeeds (or both)
+    # Deploy only if BOTH standard AND UMEP builds succeed (complete release)
     if: |
       always() &&
       startsWith(github.ref, 'refs/tags') &&
       !contains(github.ref, 'dev') &&
-      (needs.build_wheels.result == 'success' || needs.build_umep.result == 'success') &&
+      needs.build_wheels.result == 'success' &&
+      needs.build_umep.result == 'success' &&
       (needs.create_nightly_tag.result == 'success' || needs.create_nightly_tag.result == 'skipped')
 
     # Set up permissions for OIDC authentication

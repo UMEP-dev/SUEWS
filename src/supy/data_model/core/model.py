@@ -102,6 +102,7 @@ class StorageHeatMethod(Enum):
     4: ESTM - Element Surface Temperature Method (Offerle et al., 2005) - not recommended
     5: ESTM_EXTENDED - Extended ESTM with separate roof/wall/ground temperatures
     6: OHM_ENHANCED - OHM with enhanced parameterisation
+    7: STEBBS - use STEBBS storage heat flux for building, others use OHM
     """
 
     # EHC needs to be added
@@ -114,7 +115,7 @@ class StorageHeatMethod(Enum):
     ESTM = 4
     ESTM_EXTENDED = 5
     OHM_ENHANCED = 6
-
+    STEBBS = 7
     def __new__(cls, value):
         obj = object.__new__(cls)
         obj._value_ = value
@@ -446,7 +447,7 @@ class ModelPhysics(BaseModel):
     )
     storageheatmethod: FlexibleRefValue(StorageHeatMethod) = Field(
         default=StorageHeatMethod.OHM_WITHOUT_QF,
-        description="Method for calculating storage heat flux (ΔQS). Options: 0 (OBSERVED) = Uses observed ΔQS from forcing file; 1 (OHM_WITHOUT_QF) = Objective Hysteresis Model using Q* only; 3 (ANOHM) = Analytical OHM (not recommended); 4 (ESTM) = Element Surface Temperature Method (not recommended); 5 (ESTM_EXTENDED) = Extended ESTM with separate facet temps; 6 (OHM_ENHANCED) = Enhanced OHM parameterisation",
+        description="Method for calculating storage heat flux (ΔQS). Options: 0 (OBSERVED) = Uses observed ΔQS from forcing file; 1 (OHM_WITHOUT_QF) = Objective Hysteresis Model using Q* only; 3 (ANOHM) = Analytical OHM (not recommended); 4 (ESTM) = Element Surface Temperature Method (not recommended); 5 (ESTM_EXTENDED) = Extended ESTM with separate facet temps; 6 (OHM_ENHANCED) = Enhanced OHM parameterisation; 7 (STEBBS) = use STEBBS to calculate storage heat flux for building",
         json_schema_extra={"unit": "dimensionless"},
     )
     ohmincqf: FlexibleRefValue(OhmIncQf) = Field(

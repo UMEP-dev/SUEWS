@@ -3265,6 +3265,7 @@ CONTAINS
             tsfc_C => heatState%tsfc_C, &
             tot_chang_per_tstep => hydroState%tot_chang_per_tstep, &
             tsurf => heatState%tsurf, &
+            Tsfc_surf => heatState%Tsfc_surf, &
             UStar => atmState%UStar, &
             TStar => atmState%TStar, &
             wu_surf => hydroState%wu_surf, &
@@ -3327,7 +3328,7 @@ CONTAINS
                                qn_snowfree, qn_snow, SnowAlb, &
                                Qm, QmFreez, QmRain, swe, mwh, MwStore, chSnow_per_interval, &
                                SnowRemoval(1:2), &
-                               tsfc_C, t2_C, q2_gkg, avU10_ms, RH2_pct & ! surface-level diagonostics
+                               tsfc_C, t2_C, q2_gkg, avU10_ms, RH2_pct, Tsfc_surf & ! surface-level diagonostics
                                ]
             ! set invalid values to NAN
             ! dataOutLineSUEWS = set_nan(dataOutLineSUEWS)

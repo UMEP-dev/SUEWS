@@ -632,16 +632,16 @@ def validate_nlayer_dimensions(user_data: dict, nlayer: int) -> tuple:
     dimension_errors = []
 
     # Arrays that should have nlayer elements
-    nlayer_arrays = ['veg_frac', 'veg_scale', 'building_frac', 'building_scale']
+    nlayer_arrays = ["veg_frac", "veg_scale", "building_frac", "building_scale"]
     # Array that should have nlayer + 1 elements
-    nlayer_plus_one_arrays = ['height']
+    nlayer_plus_one_arrays = ["height"]
     # Nested arrays (roofs/walls) that should have nlayer elements each
-    nested_nlayer_arrays = ['roofs', 'walls']
+    nested_nlayer_arrays = ["roofs", "walls"]
 
-    if not user_data or 'sites' not in user_data:
+    if not user_data or "sites" not in user_data:
         return user_data, dimension_errors
 
-    sites = user_data.get('sites', [])
+    sites = user_data.get("sites", [])
     if not isinstance(sites, list):
         return user_data, dimension_errors
 
@@ -650,11 +650,11 @@ def validate_nlayer_dimensions(user_data: dict, nlayer: int) -> tuple:
             continue
 
         # Check vertical_layers arrays in properties
-        properties = site.get('properties', {})
+        properties = site.get("properties", {})
         if not isinstance(properties, dict):
             continue
 
-        vertical_layers = properties.get('vertical_layers', {})
+        vertical_layers = properties.get("vertical_layers", {})
         if not isinstance(vertical_layers, dict):
             continue
 
@@ -663,8 +663,8 @@ def validate_nlayer_dimensions(user_data: dict, nlayer: int) -> tuple:
             if array_name in vertical_layers:
                 arr = vertical_layers[array_name]
                 # Handle RefValue format
-                if isinstance(arr, dict) and 'value' in arr:
-                    actual_arr = arr['value']
+                if isinstance(arr, dict) and "value" in arr:
+                    actual_arr = arr["value"]
                     is_refvalue = True
                 else:
                     actual_arr = arr
@@ -679,14 +679,23 @@ def validate_nlayer_dimensions(user_data: dict, nlayer: int) -> tuple:
                         padding = [None] * nulls_added
                         actual_arr.extend(padding)
                         if is_refvalue:
-                            vertical_layers[array_name]['value'] = actual_arr
+                            vertical_layers[array_name]["value"] = actual_arr
                         else:
                             vertical_layers[array_name] = actual_arr
-                        path = f"sites[{site_idx}].properties.vertical_layers.{array_name}"
-                        dimension_errors.append((path, expected_len, actual_len, nulls_added))
+                        path = (
+                            f"sites[{site_idx}].properties.vertical_layers.{array_name}"
+                        )
+                        dimension_errors.append((
+                            path,
+                            expected_len,
+                            actual_len,
+                            nulls_added,
+                        ))
                     elif actual_len > expected_len:
                         # Too many elements - record error but don't modify
-                        path = f"sites[{site_idx}].properties.vertical_layers.{array_name}"
+                        path = (
+                            f"sites[{site_idx}].properties.vertical_layers.{array_name}"
+                        )
                         dimension_errors.append((path, expected_len, actual_len, 0))
 
         # Validate nlayer+1 arrays (height)
@@ -694,8 +703,8 @@ def validate_nlayer_dimensions(user_data: dict, nlayer: int) -> tuple:
             if array_name in vertical_layers:
                 arr = vertical_layers[array_name]
                 # Handle RefValue format
-                if isinstance(arr, dict) and 'value' in arr:
-                    actual_arr = arr['value']
+                if isinstance(arr, dict) and "value" in arr:
+                    actual_arr = arr["value"]
                     is_refvalue = True
                 else:
                     actual_arr = arr
@@ -710,14 +719,23 @@ def validate_nlayer_dimensions(user_data: dict, nlayer: int) -> tuple:
                         padding = [None] * nulls_added
                         actual_arr.extend(padding)
                         if is_refvalue:
-                            vertical_layers[array_name]['value'] = actual_arr
+                            vertical_layers[array_name]["value"] = actual_arr
                         else:
                             vertical_layers[array_name] = actual_arr
-                        path = f"sites[{site_idx}].properties.vertical_layers.{array_name}"
-                        dimension_errors.append((path, expected_len, actual_len, nulls_added))
+                        path = (
+                            f"sites[{site_idx}].properties.vertical_layers.{array_name}"
+                        )
+                        dimension_errors.append((
+                            path,
+                            expected_len,
+                            actual_len,
+                            nulls_added,
+                        ))
                     elif actual_len > expected_len:
                         # Too many elements - record error but don't modify
-                        path = f"sites[{site_idx}].properties.vertical_layers.{array_name}"
+                        path = (
+                            f"sites[{site_idx}].properties.vertical_layers.{array_name}"
+                        )
                         dimension_errors.append((path, expected_len, actual_len, 0))
 
         # Validate nested nlayer arrays (roofs/walls)
@@ -725,8 +743,8 @@ def validate_nlayer_dimensions(user_data: dict, nlayer: int) -> tuple:
             if array_name in vertical_layers:
                 arr = vertical_layers[array_name]
                 # Handle RefValue format
-                if isinstance(arr, dict) and 'value' in arr:
-                    actual_arr = arr['value']
+                if isinstance(arr, dict) and "value" in arr:
+                    actual_arr = arr["value"]
                     is_refvalue = True
                 else:
                     actual_arr = arr
@@ -741,25 +759,34 @@ def validate_nlayer_dimensions(user_data: dict, nlayer: int) -> tuple:
                         padding = [None] * nulls_added
                         actual_arr.extend(padding)
                         if is_refvalue:
-                            vertical_layers[array_name]['value'] = actual_arr
+                            vertical_layers[array_name]["value"] = actual_arr
                         else:
                             vertical_layers[array_name] = actual_arr
-                        path = f"sites[{site_idx}].properties.vertical_layers.{array_name}"
-                        dimension_errors.append((path, expected_len, actual_len, nulls_added))
+                        path = (
+                            f"sites[{site_idx}].properties.vertical_layers.{array_name}"
+                        )
+                        dimension_errors.append((
+                            path,
+                            expected_len,
+                            actual_len,
+                            nulls_added,
+                        ))
                     elif actual_len > expected_len:
                         # Too many elements - record error but don't modify
-                        path = f"sites[{site_idx}].properties.vertical_layers.{array_name}"
+                        path = (
+                            f"sites[{site_idx}].properties.vertical_layers.{array_name}"
+                        )
                         dimension_errors.append((path, expected_len, actual_len, 0))
 
         # Check initial_states roofs/walls
-        initial_states = site.get('initial_states', {})
+        initial_states = site.get("initial_states", {})
         if isinstance(initial_states, dict):
             for array_name in nested_nlayer_arrays:
                 if array_name in initial_states:
                     arr = initial_states[array_name]
                     # Handle RefValue format
-                    if isinstance(arr, dict) and 'value' in arr:
-                        actual_arr = arr['value']
+                    if isinstance(arr, dict) and "value" in arr:
+                        actual_arr = arr["value"]
                         is_refvalue = True
                     else:
                         actual_arr = arr
@@ -774,11 +801,16 @@ def validate_nlayer_dimensions(user_data: dict, nlayer: int) -> tuple:
                             padding = [None] * nulls_added
                             actual_arr.extend(padding)
                             if is_refvalue:
-                                initial_states[array_name]['value'] = actual_arr
+                                initial_states[array_name]["value"] = actual_arr
                             else:
                                 initial_states[array_name] = actual_arr
                             path = f"sites[{site_idx}].initial_states.{array_name}"
-                            dimension_errors.append((path, expected_len, actual_len, nulls_added))
+                            dimension_errors.append((
+                                path,
+                                expected_len,
+                                actual_len,
+                                nulls_added,
+                            ))
                         elif actual_len > expected_len:
                             # Too many elements - record error but don't modify
                             path = f"sites[{site_idx}].initial_states.{array_name}"
@@ -1147,8 +1179,15 @@ def annotate_missing_parameters(
         if dimension_errors:
             # Convert modified user_data back to YAML string
             import io
+
             stream = io.StringIO()
-            yaml.dump(user_data, stream, default_flow_style=False, sort_keys=False, allow_unicode=True)
+            yaml.dump(
+                user_data,
+                stream,
+                default_flow_style=False,
+                sort_keys=False,
+                allow_unicode=True,
+            )
             original_yaml_content = stream.getvalue()
 
         # Create uptodate YAML (clean, with NOT IN STANDARD markers)
@@ -1192,9 +1231,13 @@ def annotate_missing_parameters(
             for path, expected, actual, nulls_added in dimension_errors:
                 array_name = path.split(".")[-1]
                 if nulls_added > 0:
-                    print(f"  - {array_name}: has {actual} elements, expected {expected}. Added {nulls_added} null(s).")
+                    print(
+                        f"  - {array_name}: has {actual} elements, expected {expected}. Added {nulls_added} null(s)."
+                    )
                 else:
-                    print(f"  - {array_name}: has {actual} elements, expected {expected}")
+                    print(
+                        f"  - {array_name}: has {actual} elements, expected {expected}"
+                    )
         print("")
         report_filename = (
             os.path.basename(report_file) if report_file else "report file"
@@ -1348,6 +1391,7 @@ def main():
     # Detect nlayer from user YAML for dimension validation
     try:
         from .orchestrator import detect_nlayer_from_user_yaml
+
         nlayer_value = detect_nlayer_from_user_yaml(user_file)
     except Exception:
         nlayer_value = 3  # Default to 3 if detection fails

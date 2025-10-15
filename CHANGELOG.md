@@ -34,6 +34,15 @@
 
 ## 2025
 
+### 15 Oct 2025
+- [feature] Added automatic nlayer dimension validation in Phase A (#731)
+  - Automatically detects nlayer value from user configuration
+  - Validates all vertical layer arrays match expected dimensions (veg_frac, veg_scale, building_frac, building_scale: nlayer elements; height: nlayer+1 elements)
+  - Pads short arrays with null values to help users, but fails validation requiring user to replace nulls
+  - Creates complete null template structures for complex nested arrays (roofs/walls in vertical_layers and initial_states)
+  - Generates detailed reports distinguishing array types and levels with clear suggested fixes
+  - Added 5 comprehensive tests in test_validation.py covering simple arrays, multiple errors, and complex nested structures
+
 ### 1 Oct 2025
 - [improvement] Refactored SPARTACUS nlayer=1 handling in `SurfaceInitialState.from_df_state()` to use more robust try-except pattern
   - Replaced conditional logic based on nlayer value with EAFP (Easier to Ask Forgiveness than Permission) approach

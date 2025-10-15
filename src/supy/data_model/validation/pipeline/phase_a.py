@@ -614,6 +614,51 @@ def get_null_placeholder():
     return "null"
 
 
+def create_null_roof_wall_template(reference_element: dict) -> dict:
+    """Create a null template for roof/wall element based on reference structure.
+
+    Args:
+        reference_element: A roof or wall element to use as structural template
+
+    Returns:
+        A new element with same structure but all values set to null
+    """
+    template = {}
+
+    for key, value in reference_element.items():
+        if isinstance(value, dict):
+            if 'value' in value:
+                # RefValue format
+                ref_value = value['value']
+                if isinstance(ref_value, list):
+                    # Array - create list of nulls with same length
+                    template[key] = {'value': [None] * len(ref_value)}
+                else:
+                    # Single value
+                    template[key] = {'value': None}
+            elif key == 'thermal_layers':
+                # Special handling for thermal_layers nested structure
+                thermal_template = {}
+                for thermal_key, thermal_value in value.items():
+                    if isinstance(thermal_value, dict) and 'value' in thermal_value:
+                        thermal_ref_value = thermal_value['value']
+                        if isinstance(thermal_ref_value, list):
+                            thermal_template[thermal_key] = {'value': [None] * len(thermal_ref_value)}
+                        else:
+                            thermal_template[thermal_key] = {'value': None}
+                    else:
+                        thermal_template[thermal_key] = None
+                template[key] = thermal_template
+            else:
+                # Nested dict without 'value' key
+                template[key] = None
+        else:
+            # Direct value
+            template[key] = None
+
+    return template
+
+
 def validate_nlayer_dimensions(user_data: dict, nlayer: int) -> tuple:
     """Validate that vertical layer array dimensions match nlayer value.
 
@@ -720,7 +765,7 @@ def validate_nlayer_dimensions(user_data: dict, nlayer: int) -> tuple:
                         path = f"sites[{site_idx}].properties.vertical_layers.{array_name}"
                         dimension_errors.append((path, expected_len, actual_len, 0))
 
-        # Validate nested nlayer arrays (roofs/walls)
+        # Validate nested nlayer arrays (roofs/walls) - these need structural templates
         for array_name in nested_nlayer_arrays:
             if array_name in vertical_layers:
                 arr = vertical_layers[array_name]
@@ -736,10 +781,19 @@ def validate_nlayer_dimensions(user_data: dict, nlayer: int) -> tuple:
                     actual_len = len(actual_arr)
                     expected_len = nlayer
                     if actual_len < expected_len:
-                        # Pad with null and record error
+                        # Pad with null template structures and record error
                         nulls_added = expected_len - actual_len
-                        padding = [None] * nulls_added
-                        actual_arr.extend(padding)
+                        # Use first element as template for structure
+                        if actual_len > 0:
+                            reference_element = actual_arr[0]
+                            for _ in range(nulls_added):
+                                null_template = create_null_roof_wall_template(reference_element)
+                                actual_arr.append(null_template)
+                        else:
+                            # No elements to use as reference - just add None
+                            padding = [None] * nulls_added
+                            actual_arr.extend(padding)
+
                         if is_refvalue:
                             vertical_layers[array_name]['value'] = actual_arr
                         else:
@@ -751,7 +805,7 @@ def validate_nlayer_dimensions(user_data: dict, nlayer: int) -> tuple:
                         path = f"sites[{site_idx}].properties.vertical_layers.{array_name}"
                         dimension_errors.append((path, expected_len, actual_len, 0))
 
-        # Check initial_states roofs/walls
+        # Check initial_states roofs/walls - these also need structural templates
         initial_states = site.get('initial_states', {})
         if isinstance(initial_states, dict):
             for array_name in nested_nlayer_arrays:
@@ -769,10 +823,19 @@ def validate_nlayer_dimensions(user_data: dict, nlayer: int) -> tuple:
                         actual_len = len(actual_arr)
                         expected_len = nlayer
                         if actual_len < expected_len:
-                            # Pad with null and record error
+                            # Pad with null template structures and record error
                             nulls_added = expected_len - actual_len
-                            padding = [None] * nulls_added
-                            actual_arr.extend(padding)
+                            # Use first element as template for structure
+                            if actual_len > 0:
+                                reference_element = actual_arr[0]
+                                for _ in range(nulls_added):
+                                    null_template = create_null_roof_wall_template(reference_element)
+                                    actual_arr.append(null_template)
+                            else:
+                                # No elements to use as reference - just add None
+                                padding = [None] * nulls_added
+                                actual_arr.extend(padding)
+
                             if is_refvalue:
                                 initial_states[array_name]['value'] = actual_arr
                             else:

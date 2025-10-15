@@ -1063,9 +1063,7 @@ def create_analysis_report(
                     )
                     # For complex nested structures (roofs/walls), simplify the message
                     if array_name in ["roofs", "walls"]:
-                        report_lines.append(
-                            f"   Suggested fix: Replace null values."
-                        )
+                        report_lines.append(f"   Suggested fix: Replace null values.")
                     elif "height" in array_name.lower():
                         report_lines.append(
                             f"   Suggested fix: Replace {nulls_added} null value(s) to match nlayer+1={expected_len}"

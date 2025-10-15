@@ -953,7 +953,9 @@ def adjust_surface_temperatures(
                         tsfc_updated = False
                         tin_updated = False
 
-                        if "temperature" in element and isinstance(element["temperature"], dict):
+                        if "temperature" in element and isinstance(
+                            element["temperature"], dict
+                        ):
                             current_temp = element["temperature"].get("value")
                             if current_temp != [avg_temp] * 5:
                                 element["temperature"]["value"] = [avg_temp] * 5

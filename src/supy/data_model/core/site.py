@@ -1419,37 +1419,44 @@ class ArchetypeProperties(BaseModel):
     )
     # TODO: Add defaults below here
     InternalMassDensity: FlexibleRefValue(float) = Field(
-        default=0.0,
+        default=1000.0,  # Placeholder, needs to be changed into something reasonable
         description="Effective density of the internal mass [kg m-3]",
         json_schema_extra={"unit": "kg m^-3", "display_name": "Internalmassdensity"},
+        gt=0.0,
     )
     InternalMassCp: FlexibleRefValue(float) = Field(
-        default=0.0,
+        default=1000.0,  # Placeholder, needs to be changed into something reasonable
         description="Specific heat capacity of internal mass [J kg-1 K-1]",
         json_schema_extra={"unit": "J kg^-1 K^-1", "display_name": "Internalmasscp"},
+        gt=0.0,
     )
     InternalMassEmissivity: FlexibleRefValue(float) = Field(
-        default=0.0,
+        default=0.9,  # Placeholder, needs to be changed into something reasonable
         description="Emissivity of internal mass [-]",
         json_schema_extra={
             "unit": "dimensionless",
             "display_name": "Internalmassemissivity",
         },
+        ge=0.0,
+        le=1.0,
     )
     MaxHeatingPower: FlexibleRefValue(float) = Field(
-        default=0.0,
+        default=5000.0,  # Placeholder, needs to be changed into something reasonable
         description="Maximum power demand of heating system [W]",
         json_schema_extra={"unit": "W", "display_name": "Maxheatingpower"},
+        ge=0.0,
     )
     WaterTankWaterVolume: FlexibleRefValue(float) = Field(
-        default=0.0,
+        default=0.15,  # Placeholder, needs to be changed into something reasonable
         description="Volume of water in hot water tank [m3]",
         json_schema_extra={"unit": "m^3", "display_name": "Watertankwatervolume"},
+        gt=0.0,
     )
     MaximumHotWaterHeatingPower: FlexibleRefValue(float) = Field(
-        default=0.0,
+        default=3000.0,  # Placeholder, needs to be changed into something reasonable
         description="Maximum power demand of water heating system [W]",
         json_schema_extra={"unit": "W", "display_name": "Maximumhotwaterheatingpower"},
+        gt=0.0,
     )
     HeatingSetpointTemperature: FlexibleRefValue(float) = Field(
         default=0.0,

@@ -1079,7 +1079,22 @@ def create_analysis_report(
                     report_lines.append(
                         f"-- {display_name}: has {actual_len} element(s), expected {expected_len}"
                     )
-                    if "height" in array_name.lower():
+                    # For complex nested structures (roofs/walls), specify the substructure type
+                    if array_name in ["roofs", "walls"]:
+                        # Determine substructure type based on level
+                        if level_name == "vertical_layers":
+                            substructure = "alb substructure"
+                        elif level_name == "initial_states":
+                            substructure = "state substructure"
+                        else:
+                            substructure = "substructure"
+
+                        count = actual_len - expected_len
+                        plural_suffix = "" if count == 1 else "s"
+                        report_lines.append(
+                            f"   Suggested fix: Remove {count} {substructure}{plural_suffix} to match nlayer={expected_len}"
+                        )
+                    elif "height" in array_name.lower():
                         report_lines.append(
                             f"   Suggested fix: Remove {actual_len - expected_len} value(s) to match nlayer+1={expected_len}"
                         )

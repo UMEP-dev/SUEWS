@@ -198,19 +198,11 @@ def gen_csv_suews(path_csv):
     return list_csv_suews
 
 
-# determine latest version and release
-path_source = Path(".").resolve()
-list_ver = sorted([
-    x.stem
-    for x in list((path_source / "version-history").glob("v*rst"))
-    if "version" not in x.stem
-])
-
-
-# The short X.Y version
-version = list_ver[-1]
-# The full version, including alpha/beta/rc tags
-release = list_ver[-1]
+# Use git version for both version and release
+# This ensures the displayed version matches the actual codebase version
+# Previously used RST filenames from version-history/, which was outdated
+version = git_version_string
+release = git_version_string
 
 # There are two options for replacing |today|: either, you set today to some
 # non-false value, then it is used:

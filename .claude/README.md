@@ -67,35 +67,6 @@ This directory contains all Claude Code-specific documentation, plans, and confi
 
 Custom commands for streamlined workflows:
 
-### /worktree
-Comprehensive worktree management with four simple subcommands:
-
-- **`new`** - Start a new feature worktree
-  - Interactive setup with feature name, issue, and lead developer
-  - Creates worktree, plan, and environment automatically
-
-- **`sync`** - Synchronize with master
-  - Pull latest changes and update dependencies
-  - Show conflicts if any
-
-- **`pr`** - Create pull request
-  - Push changes and create PR via GitHub CLI
-  - Link to issue and show PR URL
-
-- **`finish`** - Complete or abandon worktree
-  - Option to finish via PR or abandon with reason
-  - Clean up and archive plan
-
-**Usage**: `/worktree [subcommand]`
-
-**Examples**:
-```bash
-/worktree new        # Start new feature
-/worktree sync       # Update from master
-/worktree pr         # Create pull request
-/worktree finish     # Complete feature
-```
-
 ### /log-changes
 Analyses recent code changes and updates documentation:
 

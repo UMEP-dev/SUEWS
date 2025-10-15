@@ -19,8 +19,7 @@ name: Build and Publish Python wheels to PyPI and TestPyPI
 #
 # 2. DEVELOPMENT RELEASES (TestPyPI only):
 #    - Nightly cron (2 AM UTC, master branch only): Creates YYYY.M.D.dev tag → TestPyPI
-#    - Any tag containing 'dev': Deploy to TestPyPI (standard wheels only)
-#    - Note: UMEP wheels built but not deployed (for continuous testing)
+#    - Any tag containing 'dev': Deploy to TestPyPI (standard wheels only, no UMEP)
 #    Installation:
 #      Latest dev: pip install -i https://test.pypi.org/simple/ supy
 #      Specific version: pip install -i https://test.pypi.org/simple/ supy==YYYY.M.D.dev0
@@ -80,11 +79,11 @@ name: Build and Publish Python wheels to PyPI and TestPyPI
 # - pyproject.toml modified for NumPy 1.x at build time
 # - Both wheel sets deployed to PyPI together (production tags only)
 # - UMEP builds use Python 3.12 only (aligned with QGIS 3.40 LTR bundled Python)
-# - UMEP build triggers (always runs for continuous NumPy 1.x compatibility testing):
-#   * PRs: manylinux cp312 (validation before merge)
-#   * Master/manual: manylinux cp312 (continuous testing)
-#   * Nightly (dev tags): manylinux cp312 (built but not deployed to TestPyPI)
+# - UMEP build triggers:
+#   * PRs: manylinux cp312 (quick NumPy 1.x validation)
+#   * Master/manual: manylinux cp312 (continuous UMEP compatibility testing)
 #   * Production tags: all platforms cp312 (complete distribution → PyPI)
+#   * Dev tags: skipped (nightly builds don't need UMEP variants)
 #
 # UMEP INTEGRATION:
 # - UMEP requirements specify: supy==2024.10.7rc1
@@ -233,11 +232,13 @@ jobs:
     name: Build UMEP wheel (rc1) for ${{ matrix.python }}-${{ matrix.buildplat[1] }} ${{ matrix.buildplat[2] }}
     runs-on: ${{ matrix.buildplat[0] }}
     needs: [determine_matrix, create_nightly_tag]
-    # Run for all triggers: PRs, master pushes, nightly (dev tags), manual, production tags
+    # Run for: PRs, master pushes, nightly, manual, and production tags
+    # Skip only for: dev tags
     if: |
       always() &&
       needs.determine_matrix.result == 'success' &&
-      (needs.create_nightly_tag.result == 'success' || needs.create_nightly_tag.result == 'skipped')
+      (needs.create_nightly_tag.result == 'success' || needs.create_nightly_tag.result == 'skipped') &&
+      !(startsWith(github.ref, 'refs/tags/') && contains(github.ref, 'dev'))
     strategy:
       matrix:
         # Limited matrix (manylinux cp312) for PRs/master/nightly/manual

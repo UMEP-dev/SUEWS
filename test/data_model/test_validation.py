@@ -1245,7 +1245,9 @@ def test_nlayer_veg_frac_array_dimension_error():
     assert nulls_added == 2  # Should have added 2 nulls
 
     # Check that array WAS modified with nulls
-    veg_frac_arr = modified_data["sites"][0]["properties"]["vertical_layers"]["veg_frac"]
+    veg_frac_arr = modified_data["sites"][0]["properties"]["vertical_layers"][
+        "veg_frac"
+    ]
     if isinstance(veg_frac_arr, dict) and "value" in veg_frac_arr:
         veg_frac_arr = veg_frac_arr["value"]
     assert len(veg_frac_arr) == 5  # Now padded to 5
@@ -1310,7 +1312,9 @@ def test_nlayer_no_errors_when_correct():
         nlayer = 3
 
     # Run validation with correct nlayer
-    modified_data, dimension_errors = validate_nlayer_dimensions(user_data, nlayer=nlayer)
+    modified_data, dimension_errors = validate_nlayer_dimensions(
+        user_data, nlayer=nlayer
+    )
 
     # No errors should be found
     assert len(dimension_errors) == 0
@@ -1337,8 +1341,16 @@ def test_nlayer_roofs_walls_dimension_error_with_templates():
     modified_data, dimension_errors = validate_nlayer_dimensions(user_data, nlayer=2)
 
     # Check that roofs and walls errors were detected
-    roof_errors = [err for err in dimension_errors if "roofs" in err[0] and "vertical_layers" in err[0]]
-    wall_errors = [err for err in dimension_errors if "walls" in err[0] and "vertical_layers" in err[0]]
+    roof_errors = [
+        err
+        for err in dimension_errors
+        if "roofs" in err[0] and "vertical_layers" in err[0]
+    ]
+    wall_errors = [
+        err
+        for err in dimension_errors
+        if "walls" in err[0] and "vertical_layers" in err[0]
+    ]
 
     assert len(roof_errors) == 1
     assert len(wall_errors) == 1

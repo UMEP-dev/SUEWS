@@ -2193,6 +2193,67 @@ class SUEWSConfig(BaseModel):
         return self
 
     @classmethod
+    def _transform_validation_error(
+        cls, error: ValidationError, config_data: dict
+    ) -> ValidationError:
+        """Transform Pydantic validation errors to use GRIDID instead of array indices.
+
+        Uses structured error data to avoid string replacement collisions when
+        GRIDID values overlap with array indices (e.g., site 0 has GRIDID=1).
+        """
+
+        # Extract GRIDID mapping from sites
+        sites = config_data.get("sites", [])
+        site_gridid_map = {}
+        for idx, site in enumerate(sites):
+            if isinstance(site, dict):
+                gridiv = site.get("gridiv")
+                if isinstance(gridiv, dict) and "value" in gridiv:
+                    site_gridid_map[idx] = gridiv["value"]
+                elif gridiv is not None:
+                    site_gridid_map[idx] = gridiv
+                else:
+                    site_gridid_map[idx] = idx  # Fallback to index
+            else:
+                site_gridid_map[idx] = idx  # Fallback to index
+
+        # Process structured errors (not string manipulation!)
+        modified_errors = []
+        for err in error.errors():
+            err_copy = err.copy()
+            loc_list = list(err_copy["loc"])
+
+            # Replace numeric site index with GRIDID in location tuple
+            if (
+                len(loc_list) >= 2
+                and loc_list[0] == "sites"
+                and isinstance(loc_list[1], int)
+            ):
+                site_idx = loc_list[1]
+                if site_idx in site_gridid_map:
+                    loc_list[1] = site_gridid_map[site_idx]
+
+            err_copy["loc"] = tuple(loc_list)
+            modified_errors.append(err_copy)
+
+        # Format into readable message
+        error_lines = [
+            f"{error.error_count()} validation error{'s' if error.error_count() > 1 else ''} for SUEWSConfig"
+        ]
+
+        for err in modified_errors:
+            loc_str = ".".join(str(x) for x in err["loc"])
+            error_lines.append(loc_str)
+            error_lines.append(
+                f"  {err['msg']} [type={err['type']}, input_value={err['input']}, input_type={type(err['input']).__name__}]"
+            )
+            if "url" in err:
+                error_lines.append(f"    For further information visit {err['url']}")
+
+        error_msg = "\n".join(error_lines)
+        raise ValueError(f"SUEWS Configuration Validation Error:\n{error_msg}")
+
+    @classmethod
     def from_yaml(
         cls,
         path: str,
@@ -2240,7 +2301,12 @@ class SUEWSConfig(BaseModel):
             logger_supy.info(
                 "Running comprehensive Pydantic validation with conditional checks."
             )
-            return cls(**config_data)
+            try:
+                return cls(**config_data)
+            except ValidationError as e:
+                # Transform Pydantic validation error messages to use GRIDID instead of array indices
+                transformed_error = cls._transform_validation_error(e, config_data)
+                raise transformed_error
         else:
             logger_supy.info("Validation disabled by user. Loading without checks.")
             return cls.model_construct(**config_data)

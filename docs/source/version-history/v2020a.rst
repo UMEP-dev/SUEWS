@@ -1,6 +1,4 @@
 
-.. _new_latest:
-
 .. _new_2020a:
 
 Version 2020a (released on 14 May 2020)

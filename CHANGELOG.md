@@ -21,7 +21,7 @@
 
 | Year | Features | Bugfixes | Changes | Maintenance | Docs | Total |
 |------|----------|----------|---------|-------------|------|-------|
-| 2025 | 27 | 13 | 3 | 29 | 13 | 85 |
+| 2025 | 36 | 22 | 13 | 33 | 15 | 119 |
 | 2024 | 12 | 17 | 1 | 12 | 1 | 43 |
 | 2023 | 11 | 14 | 3 | 9 | 1 | 38 |
 | 2022 | 15 | 18 | 0 | 7 | 0 | 40 |
@@ -42,6 +42,64 @@
   - Creates complete null template structures for complex nested arrays (roofs/walls in vertical_layers and initial_states)
   - Generates detailed reports distinguishing array types and levels with clear suggested fixes
   - Added 5 comprehensive tests in test_validation.py covering simple arrays, multiple errors, and complex nested structures
+- [feature] Enhanced UMEP/QGIS build system with nightly builds and improved version handling (cdb4273, 8f540b9, 636c1b9, 35510bb, 4a972c7)
+  - Enabled UMEP nightly builds with `.dev1` versioning strategy for continuous testing
+  - Explicitly excluded nightly builds from UMEP workflow to prevent conflicts
+  - Added UMEP builds to master/manual workflow runs
+  - Aligned UMEP builds with QGIS Python 3.12 requirements
+- [bugfix] Fixed sample output validation test to skip for NumPy 1.x builds (a4017cc)
+- [bugfix] Removed path filter from tag triggers to ensure all tagged builds are processed (1eb6667)
+- [maintenance] Performance improvement in Conductor setup by removing unnecessary build steps (ddedf96)
+
+### 14 Oct 2025
+- [bugfix] Fixed GRIDID collision test logic to correctly handle validation error messages (2880, f64292, 6320673, f80add7)
+  - Used tuple-based structured error data to avoid string replacement collisions
+  - Improved handling of RefValue objects in validation system
+  - Added comprehensive tests for GRIDID error handling
+- [bugfix] Transformed Pydantic validation errors to use GRIDID instead of array indices (3b73d69, 273e2e7)
+  - Grid IDs now properly displayed in validation reports and terminal outputs
+  - Improved user experience by showing meaningful grid identifiers
+- [feature] Comprehensive release automation and dual-build system for UMEP/QGIS compatibility (#721, d396e53, 04616de, b5c8f3b, 2e1ddda)
+  - Added automatic UMEP/QGIS compatible builds using `rc1` pre-release versioning
+  - Prevented `rc1` suffix for dev builds to maintain PEP 440 compliance
+  - Consolidated dual-build documentation into RELEASE_MANUAL
+  - Automated schema updates for releases (736ade9)
+- [bugfix] Fixed building height constraint validation in surface configuration (441420f)
+- [maintenance] Refactored CI/CD infrastructure for better maintainability (0905ad3, 89b7b15, 28b963c)
+  - Extracted CIBW configuration into reusable composite action
+  - Removed redundant test_numpy_compat job
+  - Cleaned up temporary test scripts after verification
+- [maintenance] Made pvlib optional to remove h5py build dependency (1139884, 629e5c3, 0c7544e)
+  - Prevented h5py source builds on macOS by preferring binary wheels
+  - Improved cross-platform build reliability
+- [maintenance] Removed hardcoded Claude model specification from CI (c665999)
+
+### 8 Oct 2025
+- [doc] Enhanced API documentation for configuration converter (15bd357, 3e2a007, a7c8a4c)
+  - Added Python API documentation for table format conversion
+  - Simplified docstrings and removed redundant examples
+- [doc] Restructured API reference into individual pages with improved navigation (4292d01, ade76d9, 3f7dfc7)
+  - Fixed section numbering and intersphinx mappings
+  - Enabled incremental builds in livehtml target for faster documentation development
+- [feature] Added automatic UMEP/QGIS compatible builds with `.post1` versioning (4c4588e)
+- [bugfix] Fixed Conductor workspace to activate virtual environment before running documentation server (5835239)
+
+### 4 Oct 2025
+- [bugfix] Fixed handling of heterogeneous site structures in multi-site configurations (91febb8)
+- [feature] Enhanced Conductor workspace management (#721)
+  - Added archive script to update parent repository when archiving Conductor worktrees
+  - Improved setup script with macOS-compatible remote cleanup
+
+### 3 Oct 2025
+- [feature] Added `make reinstall` target for fixing stale editable installs (#719, 9d92650)
+- [feature] Enhanced Conductor workspace scripts with setup and run commands (#718, 3520bd3)
+
+### 2 Oct 2025
+- [bugfix] Improved YAML validator documentation and report generation (#690)
+  - Fixed validation documentation to reflect actual command syntax and report structure
+  - Enhanced Phase B error reporting to provide comprehensive feedback even when initialisation fails
+  - Added support for `--mode dev` and `--mode public` distinctions in validator
+  - Improved Phase A reporting to show "Phase A passed" message on success
 
 ### 1 Oct 2025
 - [improvement] Refactored SPARTACUS nlayer=1 handling in `SurfaceInitialState.from_df_state()` to use more robust try-except pattern

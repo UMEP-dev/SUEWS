@@ -2,9 +2,72 @@
 
 import os
 import re
+import yaml
 
 # Use unified report title for all validation phases
 REPORT_TITLE = "SUEWS Validation Report"
+
+
+def convert_pydantic_location_to_gridid_path(loc_tuple, input_yaml_file):
+    """Convert Pydantic error location tuple to user-friendly GRIDID path.
+
+    Args:
+        loc_tuple: Tuple of location elements from Pydantic error (e.g., ('sites', 0, 'properties', 'lat'))
+        input_yaml_file: Path to original YAML file to extract GRIDID values
+
+    Returns:
+        str: User-friendly path with GRIDID (e.g., "sites.123.properties.lat")
+    """
+    if not loc_tuple:
+        return ""
+
+    path_parts = []
+
+    for i, part in enumerate(loc_tuple):
+        if (
+            part == "sites"
+            and i + 1 < len(loc_tuple)
+            and isinstance(loc_tuple[i + 1], int)
+        ):
+            # This is the sites array, next element is numeric index
+            site_index = loc_tuple[i + 1]
+            try:
+                # Load YAML to get the actual GRIDID
+                with open(input_yaml_file, "r") as f:
+                    yaml_data = yaml.safe_load(f)
+
+                if (
+                    "sites" in yaml_data
+                    and isinstance(yaml_data["sites"], list)
+                    and site_index < len(yaml_data["sites"])
+                    and isinstance(yaml_data["sites"][site_index], dict)
+                    and "gridiv" in yaml_data["sites"][site_index]
+                ):
+                    gridiv = yaml_data["sites"][site_index]["gridiv"]
+                    # Handle RefValue objects
+                    if isinstance(gridiv, dict) and "value" in gridiv:
+                        gridid = gridiv["value"]
+                    else:
+                        gridid = gridiv
+                    path_parts.append(f"sites.{gridid}")
+                    # Skip the numeric index in next iteration
+                    continue
+                else:
+                    # Fallback to original format if GRIDID not found
+                    path_parts.append(f"sites.{site_index}")
+                    continue
+            except Exception:
+                # Fallback to original format on any error
+                path_parts.append(f"sites.{site_index}")
+                continue
+        elif isinstance(part, int) and i > 0 and loc_tuple[i - 1] == "sites":
+            # Skip numeric indices that follow "sites" (already handled above)
+            continue
+        else:
+            # Regular path component
+            path_parts.append(str(part))
+
+    return ".".join(path_parts)
 
 
 def _parse_previous_phase_report(report_content: str):
@@ -157,7 +220,11 @@ def generate_phase_c_report(
     if pydantic_errors:
         for error in pydantic_errors:
             error_type = error.get("type", "unknown")
-            field_path = ".".join(str(loc) for loc in error.get("loc", []))
+            # Convert Pydantic location to GRIDID-friendly path
+            error_loc = error.get("loc", [])
+            field_path = convert_pydantic_location_to_gridid_path(
+                error_loc, input_yaml_file
+            )
             error_msg = error.get("msg", "Unknown error")
 
             if not field_path:
@@ -167,7 +234,28 @@ def generate_phase_c_report(
                 if field_match:
                     field_name = field_match.group(1)
                     if field_name in ["lat", "lon", "alt"]:
-                        field_path = f"sites[0].properties.{field_name}"
+                        # Try to get GRIDID for first site as fallback
+                        try:
+                            with open(input_yaml_file, "r") as f:
+                                yaml_data = yaml.safe_load(f)
+                            if (
+                                "sites" in yaml_data
+                                and isinstance(yaml_data["sites"], list)
+                                and len(yaml_data["sites"]) > 0
+                                and isinstance(yaml_data["sites"][0], dict)
+                                and "gridiv" in yaml_data["sites"][0]
+                            ):
+                                gridiv = yaml_data["sites"][0]["gridiv"]
+                                # Handle RefValue objects
+                                if isinstance(gridiv, dict) and "value" in gridiv:
+                                    gridid = gridiv["value"]
+                                else:
+                                    gridid = gridiv
+                                field_path = f"sites.{gridid}.properties.{field_name}"
+                            else:
+                                field_path = f"sites.0.properties.{field_name}"
+                        except Exception:
+                            field_path = f"sites.0.properties.{field_name}"
                     else:
                         field_path = f"model.{field_name}"
                 else:

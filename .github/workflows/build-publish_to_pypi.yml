@@ -13,16 +13,17 @@ name: Build and Publish Python wheels to PyPI and TestPyPI
 #
 # DEPLOYMENT STRATEGY:
 # 1. VALIDATION ONLY (no deployment):
-#    - Pull requests: Build and test all Python versions
-#    - Push to master: Build and test all Python versions
-#    - Manual workflow_dispatch: Build and test all Python versions
+#    - Pull requests: Build and test all Python versions (standard: all; UMEP: cp312 manylinux)
+#    - Push to master: Build and test all Python versions (standard: all; UMEP: cp312 manylinux)
+#    - Manual workflow_dispatch: Build and test all Python versions (standard: all; UMEP: cp312 manylinux)
 #
 # 2. DEVELOPMENT RELEASES (TestPyPI only):
 #    - Nightly cron (2 AM UTC, master branch only): Creates YYYY.M.D.dev tag → TestPyPI
-#    - Any tag containing 'dev': Deploy to TestPyPI
+#    - Builds TWO versions: standard (YYYY.M.D.dev0) + UMEP (YYYY.M.D.dev1)
+#    - Both deployed to TestPyPI for comprehensive nightly testing
 #    Installation:
-#      Latest dev: pip install -i https://test.pypi.org/simple/ supy
-#      Specific version: pip install -i https://test.pypi.org/simple/ supy==YYYY.M.D.dev0
+#      Latest dev (NumPy 2.x): pip install -i https://test.pypi.org/simple/ supy
+#      UMEP variant (NumPy 1.x): pip install -i https://test.pypi.org/simple/ supy==YYYY.M.D.dev1
 #
 # 3. PRODUCTION RELEASES (PyPI only):
 #    - Tags without 'dev': Deploy to PyPI
@@ -51,21 +52,61 @@ name: Build and Publish Python wheels to PyPI and TestPyPI
 # - Prevents gaps in nightly build sequence
 #
 # Build matrix: Always builds all Python versions (3.9-3.13) on all platforms
+#
+# ============================================================================
+# UMEP/QGIS COMPATIBILITY BUILDS (rc1 pre-release versions)
+# ============================================================================
+# Every formal release tag automatically creates TWO PyPI versions:
+#
+# 1. STANDARD BUILD (build_wheels job):
+#    - Tag: v2024.10.7
+#    - Version: 2024.10.7
+#    - NumPy: >=2.0 (build and runtime)
+#    - Target: Standalone Python users
+#    - Public facing, documented
+#    - pip install supy → gets this version
+#
+# 2. UMEP BUILD (build_umep job):
+#    - Tag: v2024.10.7 (same tag)
+#    - Version: 2024.10.7rc1
+#    - NumPy: oldest-supported-numpy (build), >=1.22,<2.0 (runtime)
+#    - Target: QGIS 3.40 LTR (NumPy 1.26.4) / UMEP plugin users
+#    - Undocumented publicly, for UMEP requirements files only
+#    - Pre-release tag (rc1) ensures pip skips it by default
+#
+# AUTOMATIC DUAL BUILD PROCESS:
+# - Jobs run in parallel for efficiency
+# - BUILD_UMEP_VARIANT env var triggers rc1 suffix in get_ver_git.py
+# - pyproject.toml modified for NumPy 1.x at build time
+# - Both wheel sets deployed to PyPI together (production tags only)
+# - UMEP builds use Python 3.12 only (aligned with QGIS 3.40 LTR bundled Python)
+# - UMEP build triggers (runs on ALL events for continuous NumPy 1.x testing):
+#   * PRs: manylinux cp312 (NumPy 1.x validation before merge)
+#   * Master/manual: manylinux cp312 (continuous UMEP compatibility testing)
+#   * Nightly/dev tags: manylinux cp312 (daily testing, uses .dev1 to avoid version collision)
+#   * Production tags: all platforms cp312 (complete distribution → PyPI, uses rc1 suffix)
+#
+# UMEP INTEGRATION:
+# - Production: UMEP requirements specify supy==2024.10.7rc1
+# - Nightly testing: UMEP developers can test with supy==2025.10.15.dev1
+# - UMEP users install via UMEP requirements, never see version details
+# - Versioning strategy (see get_ver_git.py):
+#   * Production: X.Y.Zrc1 (pre-release for QGIS compatibility)
+#   * Dev/nightly: X.Y.Z.dev1 (standard uses .dev0, UMEP uses .dev1)
+# - No coordination needed - rc1 always exists for every production release
+#
+# VERSIONING:
+# - rc1 is PEP 440 compliant pre-release version (release candidate 1)
+# - Pre-releases are skipped by default: pip install supy → 2024.10.7 (not rc1)
+# - Indicates alternative build config (NumPy 1.x), not unstable software
+# - See get_ver_git.py for version string logic
+# ============================================================================
 
 on:
   push:
     branches: [master]
     tags:
-      - '*'  # Trigger on any tag push
-    paths: # Push events containing matching files
-      - "src/suews/**"
-      - "src/supy/**"
-      - "src/supy_driver/**"
-      - ".github/workflows/build-publish_to_pypi.yml"
-      - "test/**"
-      - "pyproject.toml"
-      - "meson.build"
-      - "Makefile"
+      - '*'  # Trigger on any tag push (no path filter - tags = releases, build everything)
 
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
@@ -138,6 +179,8 @@ jobs:
     outputs:
       buildplat: ${{ steps.set-matrix.outputs.buildplat }}
       python: ${{ steps.set-matrix.outputs.python }}
+      umep_buildplat: ${{ steps.set-matrix.outputs.umep_buildplat }}
+      umep_python: ${{ steps.set-matrix.outputs.umep_python }}
     steps:
       - name: Set matrix based on draft status
         id: set-matrix
@@ -151,6 +194,13 @@ jobs:
             echo 'buildplat=[["ubuntu-latest", "manylinux", "x86_64"], ["macos-13", "macosx", "x86_64"], ["macos-latest", "macosx", "arm64"], ["windows-2025", "win", "AMD64"]]' >> $GITHUB_OUTPUT
             echo 'python=["cp39", "cp310", "cp311", "cp312", "cp313"]' >> $GITHUB_OUTPUT
           fi
+
+          # UMEP builds: Python 3.12 only (aligned with QGIS 3.40 LTR bundled Python)
+          # PR: manylinux only for quick validation
+          # Production: all platforms for complete UMEP distribution
+          echo "UMEP matrix: cp312 only (QGIS 3.40 LTR uses Python 3.12)"
+          echo 'umep_buildplat=[["ubuntu-latest", "manylinux", "x86_64"]]' >> $GITHUB_OUTPUT
+          echo 'umep_python=["cp312"]' >> $GITHUB_OUTPUT
 
   build_wheels:
     name: Build wheel for ${{ matrix.python }}-${{ matrix.buildplat[1] }} ${{ matrix.buildplat[2] }}
@@ -167,87 +217,58 @@ jobs:
         python: ${{ fromJson(needs.determine_matrix.outputs.python) }}
 
       fail-fast: false
-    env:
-      IS_32_BIT: ${{ matrix.buildplat[2] == 'x86' }}
-      WHEEL_NAME: ${{ matrix.python }}-${{ matrix.buildplat[1] }}-${{ matrix.buildplat[2] }}
-      CIBW_BUILD: ${{ matrix.python }}-${{ matrix.buildplat[1] }}*
-      CIBW_ARCHS: ${{ matrix.buildplat[2] }}
-      CIBW_ENVIRONMENT_PASS_LINUX: RUNNER_OS
-      # Use manylinux2014 for compatibility with older Linux systems (glibc 2.17+)
-      # This is critical for HPC clusters and older distributions
-      CIBW_MANYLINUX_X86_64_IMAGE: manylinux2014
-      CIBW_MANYLINUX_AARCH64_IMAGE: manylinux2014
-      # Configure pip to use binary wheels and avoid building from source
-      # For Python 3.13, allow building f90wrap from source since no wheels exist
-      # Also set Fortran flags for line length handling
-      CIBW_ENVIRONMENT_LINUX: >
-        PIP_PREFER_BINARY=1
-        PIP_ONLY_BINARY=${{ matrix.python == 'cp313' && 'pyarrow' || ':all:' }}
-        FCFLAGS="-fno-optimize-sibling-calls -ffree-line-length-none"
-        F90=gfortran
-      CIBW_BEFORE_ALL_LINUX: >
-        pip install --upgrade pip setuptools wheel &&
-        pip install oldest-supported-numpy &&
-        if [[ "${{ matrix.python }}" == "cp313" ]]; then
-          echo "Installing numpy for Python 3.13 f90wrap build" &&
-          pip install numpy;
-        fi
-      CIBW_BEFORE_ALL_MACOS: >
-        brew install gfortran &&
-        brew unlink gfortran &&
-        brew link gfortran
-      CIBW_BEFORE_ALL_WINDOWS: >
-        C:\msys64\usr\bin\bash.exe -lc "pacman -Syu --noconfirm" &&
-        C:\msys64\usr\bin\bash.exe -lc "pacman -S --needed --noconfirm mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-gcc-fortran mingw-w64-ucrt-x86_64-binutils mingw-w64-ucrt-x86_64-make mingw-w64-ucrt-x86_64-openblas"
-      CIBW_ENVIRONMENT_WINDOWS: >
-        PATH="C:\\msys64\\ucrt64\\bin;$PATH"
-        CC=gcc
-        CXX=g++
-        FC=gfortran
-        CFLAGS="-D__USE_MINGW_ANSI_STDIO=1 -mlong-double-64"
-        CXXFLAGS="-D__USE_MINGW_ANSI_STDIO=1 -mlong-double-64"
-        FCFLAGS="-fno-optimize-sibling-calls -ffree-line-length-none"
-        LDFLAGS="-lucrt -static-libgcc -static-libgfortran -LC:/msys64/ucrt64/lib -lsetjmp_compat"
-      CIBW_BEFORE_BUILD_WINDOWS: >
-        echo Creating setjmp compatibility library... &&
-        echo int _setjmpex(void* buf) { extern int __intrinsic_setjmpex(void*); return __intrinsic_setjmpex(buf); } > setjmp_compat.c &&
-        C:\msys64\ucrt64\bin\gcc.exe -c setjmp_compat.c -o setjmp_compat.o &&
-        C:\msys64\ucrt64\bin\ar.exe rcs libsetjmp_compat.a setjmp_compat.o &&
-        echo Library created, checking contents: &&
-        C:\msys64\ucrt64\bin\nm.exe libsetjmp_compat.a &&
-        echo Copying to standard locations: &&
-        copy libsetjmp_compat.a C:\msys64\ucrt64\lib\ &&
-        copy libsetjmp_compat.a C:\msys64\ucrt64\x86_64-w64-mingw32\lib\ &&
-        echo Verifying library locations: &&
-        dir C:\msys64\ucrt64\lib\libsetjmp_compat.a &&
-        dir C:\msys64\ucrt64\x86_64-w64-mingw32\lib\libsetjmp_compat.a &&
-        where python &&
-        where gcc &&
-        gcc --version &&
-        pip install delvewheel
-      CIBW_REPAIR_WHEEL_COMMAND_WINDOWS: "delvewheel repair -w {dest_dir} {wheel}"
-      CIBW_TEST_REQUIRES: pytest
-      CIBW_TEST_COMMAND: "python -m pytest {project}/test -v --tb=short --durations=10"
-      MACOSX_DEPLOYMENT_TARGET: ${{ matrix.buildplat[0] == 'macos-13' && '13.0' || '15.0' }}
 
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - name: Build SUEWS wheels (standard variant)
+        uses: ./.github/actions/build-suews
         with:
-            python-version: 3.12
+          buildplat: ${{ matrix.buildplat[0] }}
+          buildplat_name: ${{ matrix.buildplat[1] }}
+          buildplat_arch: ${{ matrix.buildplat[2] }}
+          python: ${{ matrix.python }}
+          is_umep_variant: 'false'
+          wheel_name_suffix: ''
 
-      - name: Build wheels
-        uses: pypa/cibuildwheel@v3.0.0
+  build_umep:
+    name: Build UMEP wheel (rc1/dev1) for ${{ matrix.python }}-${{ matrix.buildplat[1] }} ${{ matrix.buildplat[2] }}
+    runs-on: ${{ matrix.buildplat[0] }}
+    needs: [determine_matrix, create_nightly_tag]
+    # Run for all triggers: PRs, master, nightly (schedule), manual, and all tags
+    # UMEP versioning:
+    #   - Production tags: X.Y.Zrc1 (pre-release for QGIS)
+    #   - Dev/nightly: X.Y.Z.dev1 (incremented to avoid collision with standard .dev0)
+    if: |
+      always() &&
+      needs.determine_matrix.result == 'success' &&
+      (needs.create_nightly_tag.result == 'success' || needs.create_nightly_tag.result == 'skipped')
+    strategy:
+      matrix:
+        # Limited matrix (manylinux cp312) for PRs/master/nightly/manual
+        # Full matrix (all platforms cp312) for production tags only
+        # IMPORTANT: Always use cp312 only for UMEP (QGIS 3.40 LTR compatibility)
+        buildplat: ${{ (startsWith(github.ref, 'refs/tags/') && !contains(github.ref, 'dev')) && fromJson(needs.determine_matrix.outputs.buildplat) || fromJson(needs.determine_matrix.outputs.umep_buildplat) }}
+        python: ${{ fromJson(needs.determine_matrix.outputs.umep_python) }}
 
-      - name: upload wheels
-        uses: actions/upload-artifact@v4
+      fail-fast: false
+
+    steps:
+      - uses: actions/checkout@v4
         with:
-          name: ${{ env.WHEEL_NAME }}
-          path: ./wheelhouse/*.whl
+          fetch-depth: 0
+
+      - name: Build SUEWS wheels (UMEP variant)
+        uses: ./.github/actions/build-suews
+        with:
+          buildplat: ${{ matrix.buildplat[0] }}
+          buildplat_name: ${{ matrix.buildplat[1] }}
+          buildplat_arch: ${{ matrix.buildplat[2] }}
+          python: ${{ matrix.python }}
+          is_umep_variant: 'true'
+          wheel_name_suffix: '-umep'
 
   deploy_testpypi:
     name: Publish to TestPyPI
@@ -292,13 +313,15 @@ jobs:
     needs:
       - determine_matrix
       - build_wheels
+      - build_umep  # UMEP builds (.post1 variants)
       - create_nightly_tag  # Will be skipped for non-nightly builds
     # Only run for tagged releases WITHOUT 'dev' in the tag name
+    # Deploy if either standard OR UMEP build succeeds (or both)
     if: |
       always() &&
       startsWith(github.ref, 'refs/tags') &&
       !contains(github.ref, 'dev') &&
-      needs.build_wheels.result == 'success' &&
+      (needs.build_wheels.result == 'success' || needs.build_umep.result == 'success') &&
       (needs.create_nightly_tag.result == 'success' || needs.create_nightly_tag.result == 'skipped')
 
     # Set up permissions for OIDC authentication
@@ -306,7 +329,7 @@ jobs:
       id-token: write  # Required for Trusted Publishing
 
     steps:
-      - name: Download all the built wheels
+      - name: Download all the built wheels (standard + UMEP)
         uses: actions/download-artifact@v4
         with:
           path: dist/
@@ -318,4 +341,101 @@ jobs:
           packages-dir: dist/
           verbose: true
           skip-existing: true
+
+  create_github_release:
+    name: Create GitHub Release (triggers Zenodo)
+    runs-on: ubuntu-latest
+    needs:
+      - deploy_pypi
+    # Only run for production releases (not dev/rc)
+    if: |
+      needs.deploy_pypi.result == 'success' &&
+      startsWith(github.ref, 'refs/tags/') &&
+      !contains(github.ref, 'dev') &&
+      !contains(github.ref, 'rc')
+
+    permissions:
+      contents: write  # Required to create releases
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Extract version from tag
+        id: get_version
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/}
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Version: $VERSION"
+
+      - name: Extract changelog for this version
+        id: changelog
+        run: |
+          VERSION="${{ steps.get_version.outputs.version }}"
+
+          # Extract the date from version (YYYY.M.D format)
+          YEAR=$(echo $VERSION | cut -d. -f1)
+          MONTH=$(echo $VERSION | cut -d. -f2)
+          DAY=$(echo $VERSION | cut -d. -f3)
+
+          # Try different date formats in CHANGELOG.md
+          # Format: "### D MMM YYYY" or "### DD MMM YYYY"
+          MONTH_NAME=$(date -d "$YEAR-$MONTH-$DAY" +"%b" 2>/dev/null || date -j -f "%Y-%m-%d" "$YEAR-$MONTH-$DAY" +"%b" 2>/dev/null || echo "")
+
+          if [ -n "$MONTH_NAME" ]; then
+            # Try with and without leading zero
+            CHANGELOG_SECTION=$(awk "/^### $DAY $MONTH_NAME $YEAR/,/^### [0-9]/" CHANGELOG.md | sed '$d' || echo "")
+            if [ -z "$CHANGELOG_SECTION" ]; then
+              # Try with zero-padded day
+              DAY_PADDED=$(printf "%02d" $DAY)
+              CHANGELOG_SECTION=$(awk "/^### $DAY_PADDED $MONTH_NAME $YEAR/,/^### [0-9]/" CHANGELOG.md | sed '$d' || echo "")
+            fi
+          fi
+
+          if [ -z "$CHANGELOG_SECTION" ]; then
+            CHANGELOG_SECTION="See [CHANGELOG.md](https://github.com/UMEP-dev/SUEWS/blob/master/CHANGELOG.md) for details."
+          fi
+
+          # Save to file for multiline content
+          echo "$CHANGELOG_SECTION" > changelog_section.txt
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VERSION="${{ steps.get_version.outputs.version }}"
+          CHANGELOG=$(cat changelog_section.txt)
+
+          # Create release notes
+          cat << EOF > release_notes.md
+          ## Installation
+          \`\`\`bash
+          pip install --upgrade supy
+          \`\`\`
+
+          ## Changes
+
+          $CHANGELOG
+
+          ## Citation
+
+          This release is automatically archived on Zenodo and assigned a DOI for academic citation. The DOI will appear here once Zenodo processing is complete (usually within a few minutes).
+
+          ## Documentation
+
+          - [User Guide](https://suews.readthedocs.io)
+          - [CHANGELOG](https://github.com/UMEP-dev/SUEWS/blob/master/CHANGELOG.md)
+          - [GitHub Repository](https://github.com/UMEP-dev/SUEWS)
+          EOF
+
+          # Extract title from tag annotation if available
+          TITLE=$(git tag -l --format='%(contents:subject)' "$VERSION" || echo "SUEWS Release")
+
+          # Create the release
+          gh release create "$VERSION" \
+            --title "SUEWS v$VERSION: $TITLE" \
+            --notes-file release_notes.md \
+            --verify-tag
 

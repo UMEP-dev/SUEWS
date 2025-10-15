@@ -82,8 +82,6 @@ CONTAINS
       TYPE(SUEWS_STATE), INTENT(INOUT) :: modState
 
       ! INTEGER :: WaterUseMethod
-      INTEGER, PARAMETER :: BaseTMethod = 2 ! base t method [-]
-      REAL(KIND(1D0)), PARAMETER :: BaseT_HC = 18.2 !base temperature for heating degree dayb [degC] ! to be fully removed TODO
 
       ! TYPE(IRRIGATION_PRM), INTENT(IN) :: irrPrm
       ! INTEGER :: Ie_start !Starting time of water use (DOY)
@@ -503,12 +501,10 @@ CONTAINS
                ! regular update at all timesteps of a day
                IF (execute_subroutines) THEN
                   CALL update_DailyState_Day( &
-                     BaseTMethod, &
                      DayofWeek_id, &
                      avkdn, & !input
                      Tair, &
                      Precip, &
-                     BaseT_HC, &
                      BaseT_Heating, BaseT_Cooling, &
                      nsh_real, &
                      Tmin_id, Tmax_id, lenDay_id, & !inout
@@ -746,12 +742,10 @@ CONTAINS
    ! END SUBROUTINE update_DailyState_End
 
    SUBROUTINE update_DailyState_Day( &
-      BaseTMethod, &
       DayofWeek_id, &
       avkdn, & !input
       Tair, &
       Precip, &
-      BaseT_HC, &
       BaseT_Heating, BaseT_Cooling, &
       nsh_real, &
       Tmin_id, Tmax_id, lenDay_id, & !inout
@@ -759,13 +753,11 @@ CONTAINS
       ! use time, only: id, id_prev_t
       IMPLICIT NONE
 
-      INTEGER, INTENT(IN) :: BaseTMethod
       INTEGER, DIMENSION(3), INTENT(in) :: DayofWeek_id
 
       REAL(KIND(1D0)), INTENT(IN) :: avkdn
       REAL(KIND(1D0)), INTENT(IN) :: Tair ! Ambient air temperature [degC], this can be from either forcing or diagnostic
       REAL(KIND(1D0)), INTENT(IN) :: Precip
-      REAL(KIND(1D0)), INTENT(IN) :: BaseT_HC
       REAL(KIND(1D0)), DIMENSION(2), INTENT(IN) :: BaseT_Heating
       REAL(KIND(1D0)), DIMENSION(2), INTENT(IN) :: BaseT_Cooling
       REAL(KIND(1D0)), INTENT(IN) :: nsh_real
@@ -793,18 +785,9 @@ CONTAINS
       iu = 1 !Set to 1=weekday
       IF (DayofWeek_id(1) == 1 .OR. DayofWeek_id(1) == 7) iu = 2 !Set to 2=weekend
 
-      SELECT CASE (BaseTMethod)
-      CASE (1)
-         BaseT_Heating_use = BaseT_HC
-         BaseT_Cooling_use = BaseT_HC
-      CASE (2)
-         BaseT_Heating_use = BaseT_Heating(iu)
-         BaseT_Cooling_use = BaseT_Cooling(iu)
-
-      CASE default
-         CALL ErrorHint(75, "RunControl.nml", -999, -999, -999)
-
-      END SELECT
+      ! Use weekday/weekend-specific base temperatures for heating/cooling degree day calculations
+      BaseT_Heating_use = BaseT_Heating(iu)
+      BaseT_Cooling_use = BaseT_Cooling(iu)
 
       ! Daily min and max temp (these get updated through the day) ---------------------
       Tmin_id = MIN(Tair, Tmin_id) !Daily min T in column 3

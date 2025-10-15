@@ -1130,7 +1130,6 @@ MODULE data_in
 
    ! ---- Model options set in RunControl --------------------------------------------------------
    INTEGER :: EmissionsMethod, & ! anthropogenic emissions method
-              BaseTMethod, & ! base temperature method for HDD/CDD calculations used in QF module
               CBLuse, & !CBL slab model used (1) or not used (0)
               MultipleMetFiles, & !Indicates whether a single met file is used for all grids (0) or one for each grid (1)
               MultipleInitFiles, & !Indicates whether a single initial conditions file is used for all grids (0) or one for each grid (1)

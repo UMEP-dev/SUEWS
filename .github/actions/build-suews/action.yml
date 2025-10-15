@@ -46,6 +46,20 @@ runs:
       with:
         python-version: 3.12
 
+    - name: Generate version file from git
+      shell: bash
+      env:
+        BUILD_UMEP_VARIANT: ${{ inputs.is_umep_variant }}
+      run: |
+        # Generate version file on host (where git is available)
+        # This file will be copied into the cibuildwheel container
+        if [ "${{ inputs.is_umep_variant }}" = "true" ]; then
+          echo "Generating version for UMEP variant (rc1 suffix)"
+          export BUILD_UMEP_VARIANT=true
+        fi
+        python3 get_ver_git.py
+        echo "Generated version: $(cat src/supy/_version_scm.py | grep __version__)"
+
     - name: Build wheels
       uses: pypa/cibuildwheel@v3.0.0
       env:

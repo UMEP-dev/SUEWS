@@ -49,7 +49,8 @@ def get_version_from_git():
                 "--tags",
                 "--long",
                 "--match=[0-9]*",
-            ])
+            ],
+            stderr=subprocess.DEVNULL)
             .strip()
             .decode("utf-8")
         )
@@ -109,8 +110,20 @@ def get_version_from_git():
         return version
 
     except subprocess.CalledProcessError:
+        # Git not available (e.g., inside cibuildwheel container)
+        # Try to read version from previously generated file
+        version_file = "src/supy/_version_scm.py"
+        if os.path.exists(version_file):
+            with open(version_file) as f:
+                for line in f:
+                    if line.startswith("__version__"):
+                        # Extract version from: __version__ = version = '2025.10.15'
+                        version = line.split("=")[2].strip().strip("'\"")
+                        return version
         raise RuntimeError(
-            "Git command failed. Make sure you're running this script in a Git repository."
+            "Git command failed and no version file found. "
+            "Make sure you're running this script in a Git repository, "
+            "or that src/supy/_version_scm.py exists."
         )
     except Exception as e:
         raise RuntimeError(

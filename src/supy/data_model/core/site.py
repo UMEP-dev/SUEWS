@@ -1621,7 +1621,7 @@ class StebbsProperties(BaseModel):
         gt=0.0,
     )
     WallBuildingViewFactor: Optional[FlexibleRefValue(float)] = Field(
-        default=0.0,  
+        default=0.0,
         description="Building view factor of external walls [-]",
         json_schema_extra={
             "unit": "dimensionless",
@@ -1631,7 +1631,7 @@ class StebbsProperties(BaseModel):
         le=1.0,
     )
     WallGroundViewFactor: Optional[FlexibleRefValue(float)] = Field(
-        default=0.0,  
+        default=0.0,
         description="Ground view factor of external walls [-]",
         json_schema_extra={
             "unit": "dimensionless",
@@ -1641,7 +1641,7 @@ class StebbsProperties(BaseModel):
         le=1.0,
     )
     WallSkyViewFactor: Optional[FlexibleRefValue(float)] = Field(
-        default=0.0,  
+        default=0.0,
         description="Sky view factor of external walls [-]",
         json_schema_extra={
             "unit": "dimensionless",
@@ -1651,13 +1651,13 @@ class StebbsProperties(BaseModel):
         le=1.0,
     )
     MetabolicRate: Optional[FlexibleRefValue(float)] = Field(
-        default=0.0,  
+        default=0.0,
         description="Metabolic rate of building occupants [W]",
         json_schema_extra={"unit": "W", "display_name": "Metabolicrate"},
         ge=0.0,
     )
     LatentSensibleRatio: Optional[FlexibleRefValue(float)] = Field(
-        default=0.0,  
+        default=0.0,
         description="Latent-to-sensible ratio of metabolic energy release of occupants [-]",
         json_schema_extra={
             "unit": "dimensionless",
@@ -1672,7 +1672,7 @@ class StebbsProperties(BaseModel):
         ge=0.0,
     )
     TotalNumberofAppliances: Optional[FlexibleRefValue(float)] = Field(
-        default=0.0,  
+        default=0.0,
         description="Number of appliances present in building [-]",
         json_schema_extra={
             "unit": "dimensionless",
@@ -1681,7 +1681,7 @@ class StebbsProperties(BaseModel):
         ge=0.0,
     )
     ApplianceUsageFactor: Optional[FlexibleRefValue(float)] = Field(
-        default=0.0, 
+        default=0.0,
         description="Number of appliances in use [-]",
         json_schema_extra={
             "unit": "dimensionless",
@@ -1690,7 +1690,7 @@ class StebbsProperties(BaseModel):
         ge=0.0,
     )
     HeatingSystemEfficiency: Optional[FlexibleRefValue(float)] = Field(
-        default=0.0,  
+        default=0.0,
         description="Efficiency of space heating system [-]",
         json_schema_extra={
             "unit": "dimensionless",
@@ -1700,19 +1700,19 @@ class StebbsProperties(BaseModel):
         le=1.0,
     )
     MaxCoolingPower: Optional[FlexibleRefValue(float)] = Field(
-        default=0.0,  
+        default=0.0,
         description="Maximum power demand of cooling system [W]",
         json_schema_extra={"unit": "W", "display_name": "Maxcoolingpower"},
         ge=0.0,
     )
     CoolingSystemCOP: Optional[FlexibleRefValue(float)] = Field(
-        default=0.0, 
+        default=0.0,
         description="Coefficient of performance of cooling system [-]",
         json_schema_extra={"unit": "dimensionless", "display_name": "Coolingsystemcop"},
         ge=0.0,
     )
     VentilationRate: Optional[FlexibleRefValue(float)] = Field(
-        default=0.0,  
+        default=0.0,
         description="Ventilation rate (air changes per hour, ACH) [h-1]",
         json_schema_extra={"unit": "h^-1", "display_name": "Ventilationrate"},
         ge=0.0,
@@ -1826,7 +1826,7 @@ class StebbsProperties(BaseModel):
         gt=0.0,
     )
     HotWaterTankWallEmissivity: Optional[FlexibleRefValue(float)] = Field(
-        default=0.0,  
+        default=0.0,
         description="Effective external wall emissivity of the hot water tank [-]",
         json_schema_extra={
             "unit": "dimensionless",
@@ -1881,7 +1881,7 @@ class StebbsProperties(BaseModel):
         gt=0.0,
     )
     DHWVesselEmissivity: Optional[FlexibleRefValue(float)] = Field(
-        default=0.0, 
+        default=0.0,
         description="NEEDS CHECKED! NOT USED (assumed same as DHWVesselWallEmissivity) [-]",
         json_schema_extra={
             "unit": "dimensionless",
@@ -1951,7 +1951,7 @@ class StebbsProperties(BaseModel):
         gt=0.0,
     )
     HotWaterTankBuildingWallViewFactor: Optional[FlexibleRefValue(float)] = Field(
-        default=0.0,  
+        default=0.0,
         description="Water tank/vessel internal building wall/roof view factor [-]",
         json_schema_extra={
             "unit": "dimensionless",
@@ -1961,7 +1961,7 @@ class StebbsProperties(BaseModel):
         le=1.0,
     )
     HotWaterTankInternalMassViewFactor: Optional[FlexibleRefValue(float)] = Field(
-        default=0.0,  
+        default=0.0,
         description="Water tank/vessel building internal mass view factor [-]",
         json_schema_extra={
             "unit": "dimensionless",
@@ -2038,7 +2038,7 @@ class StebbsProperties(BaseModel):
         gt=0.0,
     )
     HotWaterHeatingEfficiency: Optional[FlexibleRefValue(float)] = Field(
-        default=0.0,  
+        default=0.0,
         description="Efficiency of hot water system [-]",
         json_schema_extra={
             "unit": "dimensionless",

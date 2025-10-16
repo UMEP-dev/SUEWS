@@ -1437,7 +1437,7 @@ class ArchetypeProperties(BaseModel):
         },
     )
     MaxHeatingPower: FlexibleRefValue(float) = Field(
-        default=5000.0,  # Placeholder, needs to be changed into something reasonable
+        default=0.0
         description="Maximum power demand of heating system [W]",
         json_schema_extra={"unit": "W", "display_name": "Maxheatingpower"},
         ge=0.0,
@@ -1621,7 +1621,7 @@ class StebbsProperties(BaseModel):
         gt=0.0,
     )
     WallBuildingViewFactor: Optional[FlexibleRefValue(float)] = Field(
-        default=0.3,  # Placeholder, needs to be changed into something reasonable
+        default=0.0,  
         description="Building view factor of external walls [-]",
         json_schema_extra={
             "unit": "dimensionless",
@@ -1631,7 +1631,7 @@ class StebbsProperties(BaseModel):
         le=1.0,
     )
     WallGroundViewFactor: Optional[FlexibleRefValue(float)] = Field(
-        default=0.3,  # Placeholder, needs to be changed into something reasonable
+        default=0.0,  
         description="Ground view factor of external walls [-]",
         json_schema_extra={
             "unit": "dimensionless",
@@ -1641,7 +1641,7 @@ class StebbsProperties(BaseModel):
         le=1.0,
     )
     WallSkyViewFactor: Optional[FlexibleRefValue(float)] = Field(
-        default=0.4,  # Placeholder, needs to be changed into something reasonable
+        default=0.0,  
         description="Sky view factor of external walls [-]",
         json_schema_extra={
             "unit": "dimensionless",
@@ -1651,13 +1651,13 @@ class StebbsProperties(BaseModel):
         le=1.0,
     )
     MetabolicRate: Optional[FlexibleRefValue(float)] = Field(
-        default=100.0,  # Placeholder, needs to be changed into something reasonable
+        default=0.0,  
         description="Metabolic rate of building occupants [W]",
         json_schema_extra={"unit": "W", "display_name": "Metabolicrate"},
         ge=0.0,
     )
     LatentSensibleRatio: Optional[FlexibleRefValue(float)] = Field(
-        default=0.5,  # Placeholder, needs to be changed into something reasonable
+        default=0.0,  
         description="Latent-to-sensible ratio of metabolic energy release of occupants [-]",
         json_schema_extra={
             "unit": "dimensionless",
@@ -1666,13 +1666,13 @@ class StebbsProperties(BaseModel):
         ge=0.0,
     )
     ApplianceRating: Optional[FlexibleRefValue(float)] = Field(
-        default=100.0,  # Placeholder, needs to be changed into something reasonable
+        default=0.0,
         description="Power demand of single appliance [W]",
         json_schema_extra={"unit": "W", "display_name": "Appliancerating"},
         ge=0.0,
     )
     TotalNumberofAppliances: Optional[FlexibleRefValue(float)] = Field(
-        default=10.0,  # Placeholder, needs to be changed into something reasonable
+        default=0.0,  
         description="Number of appliances present in building [-]",
         json_schema_extra={
             "unit": "dimensionless",
@@ -1681,7 +1681,7 @@ class StebbsProperties(BaseModel):
         ge=0.0,
     )
     ApplianceUsageFactor: Optional[FlexibleRefValue(float)] = Field(
-        default=0.5,  # Placeholder, needs to be changed into something reasonable
+        default=0.0, 
         description="Number of appliances in use [-]",
         json_schema_extra={
             "unit": "dimensionless",
@@ -1690,7 +1690,7 @@ class StebbsProperties(BaseModel):
         ge=0.0,
     )
     HeatingSystemEfficiency: Optional[FlexibleRefValue(float)] = Field(
-        default=0.85,  # Placeholder, needs to be changed into something reasonable
+        default=0.0,  
         description="Efficiency of space heating system [-]",
         json_schema_extra={
             "unit": "dimensionless",
@@ -1700,19 +1700,19 @@ class StebbsProperties(BaseModel):
         le=1.0,
     )
     MaxCoolingPower: Optional[FlexibleRefValue(float)] = Field(
-        default=3500.0,  # Placeholder, needs to be changed into something reasonable
+        default=0.0,  
         description="Maximum power demand of cooling system [W]",
         json_schema_extra={"unit": "W", "display_name": "Maxcoolingpower"},
         ge=0.0,
     )
     CoolingSystemCOP: Optional[FlexibleRefValue(float)] = Field(
-        default=3.0,  # Placeholder, needs to be changed into something reasonable
+        default=0.0, 
         description="Coefficient of performance of cooling system [-]",
         json_schema_extra={"unit": "dimensionless", "display_name": "Coolingsystemcop"},
         ge=0.0,
     )
     VentilationRate: Optional[FlexibleRefValue(float)] = Field(
-        default=0.5,  # Placeholder, needs to be changed into something reasonable
+        default=0.0,  
         description="Ventilation rate (air changes per hour, ACH) [h-1]",
         json_schema_extra={"unit": "h^-1", "display_name": "Ventilationrate"},
         ge=0.0,

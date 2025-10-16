@@ -35,6 +35,7 @@
 ## 2025
 
 ### 15 Oct 2025
+- [maintenance] Simplified GitHub Release creation conditions to prevent failures from context mismatches (047d9f67)
 - [feature] Enhanced UMEP/QGIS build system with nightly builds and improved version handling (cdb4273, 8f540b9, 636c1b9, 35510bb, 4a972c7)
   - Enabled UMEP nightly builds with `.dev1` versioning strategy for continuous testing
   - Explicitly excluded nightly builds from UMEP workflow to prevent conflicts

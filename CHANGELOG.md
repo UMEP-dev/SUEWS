@@ -21,7 +21,7 @@
 
 | Year | Features | Bugfixes | Changes | Maintenance | Docs | Total |
 |------|----------|----------|---------|-------------|------|-------|
-| 2025 | 35 | 22 | 13 | 33 | 15 | 118 |
+| 2025 | 36 | 22 | 13 | 33 | 15 | 119 |
 | 2024 | 12 | 17 | 1 | 12 | 1 | 43 |
 | 2023 | 11 | 14 | 3 | 9 | 1 | 38 |
 | 2022 | 15 | 18 | 0 | 7 | 0 | 40 |
@@ -33,6 +33,14 @@
 
 
 ## 2025
+
+### 16 Oct 2025
+- [feature] Added wind speed height correction for EPW data handling (#149)
+  - Introduced `correct_wind_height()` utility function in `supy.util._atm` for logarithmic wind profile corrections
+  - Enhanced `read_epw()` with optional `wind_height` and `z0m` parameters for automatic height adjustment
+  - Extended `convert_UMEPf2epw()` with height correction parameters to properly handle non-standard measurement heights
+  - Addresses issue where EPW standard height (10 m) differs from SUEWS forcing height configuration
+  - Comprehensive test coverage for height correction functionality
 
 ### 15 Oct 2025
 - [feature] Enhanced UMEP/QGIS build system with nightly builds and improved version handling (cdb4273, 8f540b9, 636c1b9, 35510bb, 4a972c7)

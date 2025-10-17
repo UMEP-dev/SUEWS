@@ -297,6 +297,47 @@ def find_missing_parameters(user_data, standard_data, current_path=""):
 
 def find_missing_parameters_in_lists(user_list, standard_list, current_path=""):
     missing_params = []
+
+    # Skip array element comparison for nlayer-dependent arrays
+    # These arrays have variable length based on user's nlayer value
+    nlayer_dependent_simple_arrays = [
+        "sites[0].properties.vertical_layers.height.value",
+        "sites[0].properties.vertical_layers.veg_frac.value",
+        "sites[0].properties.vertical_layers.veg_scale.value",
+        "sites[0].properties.vertical_layers.building_frac.value",
+        "sites[0].properties.vertical_layers.building_scale.value",
+    ]
+
+    # Nested structure arrays (roofs/walls) - these contain objects, not simple values
+    nlayer_dependent_nested_arrays = [
+        "sites[0].properties.vertical_layers.roofs",
+        "sites[0].properties.vertical_layers.walls",
+        "sites[0].initial_states.roofs",
+        "sites[0].initial_states.walls",
+    ]
+
+    # Check if current path matches any nlayer-dependent array
+    is_nlayer_dependent = (
+        any(current_path.startswith(arr) or current_path == arr
+            for arr in nlayer_dependent_simple_arrays)
+        or any(current_path.startswith(arr) or current_path == arr
+               for arr in nlayer_dependent_nested_arrays)
+    )
+
+    if is_nlayer_dependent:
+        # For nlayer-dependent arrays, don't compare lengths - user's length is correct
+        # Only compare elements that exist in both arrays
+        for i, standard_item in enumerate(standard_list):
+            if i < len(user_list):
+                item_path = f"{current_path}[{i}]" if current_path else f"[{i}]"
+                user_item = user_list[i]
+                nested_missing = find_missing_parameters(
+                    user_item, standard_item, item_path
+                )
+                missing_params.extend(nested_missing)
+        return missing_params
+
+    # For non-nlayer-dependent arrays, do normal comparison
     for i, standard_item in enumerate(standard_list):
         item_path = f"{current_path}[{i}]" if current_path else f"[{i}]"
         if i < len(user_list):
@@ -1192,9 +1233,9 @@ def create_analysis_report(
             )
             for param_path, standard_value, is_physics in missing_params:
                 if not is_physics:
-                    param_name = param_path.split(".")[-1]
+                    # Show full path instead of just the last component
                     report_lines.append(
-                        f"-- {param_name} added to the updated YAML and set to null"
+                        f"-- {param_path} added to the updated YAML and set to null"
                     )
             report_lines.append("")
 

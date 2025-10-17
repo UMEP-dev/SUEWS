@@ -339,9 +339,7 @@ def correct_wind_height(ws, z_meas, z_target, z0m=0.1, stability="neutral"):
 
     # logarithmic wind profile under neutral conditions
     # U(z) / U(z_ref) = ln((z + z0m) / z0m) / ln((z_ref + z0m) / z0m)
-    ws_corrected = ws * (
-        np.log((z_target + z0m) / z0m) / np.log((z_meas + z0m) / z0m)
-    )
+    ws_corrected = ws * (np.log((z_target + z0m) / z0m) / np.log((z_meas + z0m) / z0m))
 
     return ws_corrected
 

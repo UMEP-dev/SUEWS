@@ -1,0 +1,146 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "SUEWS Output Variables Metadata",
+  "description": "Variable definitions for SUEWS model outputs, extracted from source code and documentation",
+  "variables": {
+    "QN": {
+      "name": "Net All-wave Radiation",
+      "units": "W/m²",
+      "description": "Net radiation (incoming - outgoing)",
+      "type": "energy_flux",
+      "source": "suews_ctrl_const.f95"
+    },
+    "QF": {
+      "name": "Anthropogenic Heat Flux",
+      "units": "W/m²",
+      "description": "Heat from human activities",
+      "type": "energy_flux",
+      "source": "suews_ctrl_const.f95"
+    },
+    "QS": {
+      "name": "Storage Heat Flux",
+      "units": "W/m²",
+      "description": "Heat stored in urban materials",
+      "type": "energy_flux",
+      "source": "suews_ctrl_const.f95"
+    },
+    "QE": {
+      "name": "Latent Heat Flux",
+      "units": "W/m²",
+      "description": "Energy for evaporation/transpiration",
+      "type": "energy_flux",
+      "source": "suews_ctrl_const.f95"
+    },
+    "QH": {
+      "name": "Sensible Heat Flux",
+      "units": "W/m²",
+      "description": "Energy heating the air",
+      "type": "energy_flux",
+      "source": "suews_ctrl_const.f95"
+    },
+    "Runoff": {
+      "name": "Runoff",
+      "units": "mm",
+      "description": "Surface runoff water",
+      "type": "water_flux",
+      "source": "suews_phys_waterdist.f95"
+    },
+    "Rain": {
+      "name": "Precipitation",
+      "units": "mm",
+      "description": "Rainfall amount",
+      "type": "water_flux",
+      "source": "suews_ctrl_const.f95"
+    },
+    "T2": {
+      "name": "Air Temperature",
+      "units": "°C",
+      "description": "Air temperature at 2m height",
+      "type": "meteorological",
+      "source": "suews_ctrl_const.f95"
+    },
+    "RH2": {
+      "name": "Relative Humidity",
+      "units": "%",
+      "description": "Relative humidity at 2m height",
+      "type": "meteorological",
+      "source": "suews_ctrl_const.f95"
+    },
+    "SMD": {
+      "name": "Soil Moisture Deficit",
+      "units": "mm",
+      "description": "Volumetric water deficit (capacity - current storage). Indicates how much water is needed to reach field capacity. Increases with evaporation, decreases with rainfall. When SMD = 0, soil is at field capacity; drainage occurs when additional water is added.",
+      "type": "water_state",
+      "concept": "Standard hydrological measure of soil dryness",
+      "calculation": "SMD = θ_capacity - θ_current, where θ is volumetric water content",
+      "water_balance": "dSMD/dt = ET - P + D, where ET is evapotranspiration, P is precipitation, D is drainage",
+      "source": "suews_phys_waterdist.f95"
+    },
+    "SMDPaved": {
+      "name": "Soil Moisture Deficit (Paved)",
+      "units": "mm",
+      "description": "Water deficit in paved surface substrate (e.g., cracks, permeable sections). Represents storage capacity not currently filled.",
+      "type": "water_state",
+      "parent_concept": "SMD",
+      "source": "suews_phys_waterdist.f95"
+    },
+    "SMDGrass": {
+      "name": "Soil Moisture Deficit (Grass)",
+      "units": "mm",
+      "description": "Water deficit in grass/soil substrate. Controls vegetation water stress and actual evapotranspiration. High SMD reduces transpiration.",
+      "type": "water_state",
+      "parent_concept": "SMD",
+      "source": "suews_phys_waterdist.f95"
+    },
+    "SMDEveTr": {
+      "name": "Soil Moisture Deficit (Evergreen Trees)",
+      "units": "mm",
+      "description": "Water deficit in evergreen tree root zone. Affects tree transpiration and water stress throughout the year.",
+      "type": "water_state",
+      "parent_concept": "SMD",
+      "source": "suews_phys_waterdist.f95"
+    },
+    "SMDDecTr": {
+      "name": "Soil Moisture Deficit (Deciduous Trees)",
+      "units": "mm",
+      "description": "Water deficit in deciduous tree root zone. Influences seasonal transpiration patterns and leaf phenology.",
+      "type": "water_state",
+      "parent_concept": "SMD",
+      "source": "suews_phys_waterdist.f95"
+    },
+    "Drainage": {
+      "name": "Drainage",
+      "units": "mm",
+      "description": "Water draining from surface when storage exceeds capacity (SMD reaches zero). Occurs after intense rainfall when soil moisture reaches field capacity.",
+      "type": "water_flux",
+      "water_balance": "Occurs when: θ_current > θ_capacity, then Drainage = θ_current - θ_capacity",
+      "source": "suews_phys_waterdist.f95"
+    },
+    "Evap": {
+      "name": "Evaporation",
+      "units": "mm",
+      "description": "Total evaporation from all surfaces (soil evaporation + transpiration + interception evaporation). Increases SMD by removing water from storage.",
+      "type": "water_flux",
+      "components": ["soil_evaporation", "transpiration", "interception_evaporation"],
+      "source": "suews_phys_evap.f95"
+    }
+  },
+  "metadata": {
+    "version": "1.0.0",
+    "last_updated": "2025-01-17",
+    "extraction_method": "Manual curation from Fortran source code",
+    "validation_status": "Reviewed against SUEWS v2024a source",
+    "coverage": "Core variables (energy balance + water balance)"
+  },
+  "concepts": {
+    "energy_balance": {
+      "equation": "QN + QF = QS + QE + QH",
+      "description": "Energy balance closure equation for urban surfaces"
+    },
+    "water_balance": {
+      "equation": "dS/dt = P - ET - R - D",
+      "description": "Water balance where S is storage, P is precipitation, ET is evapotranspiration, R is runoff, D is drainage",
+      "smd_relation": "SMD = -S (deficit is negative storage relative to capacity)"
+    }
+  }
+}

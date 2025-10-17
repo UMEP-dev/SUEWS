@@ -1,0 +1,378 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "SUEWS MCP Evaluation Question Bank",
+  "description": "50 questions covering key SUEWS topics for comprehensive MCP evaluation",
+  "questions": [
+    {
+      "id": "Q001",
+      "category": "energy_balance",
+      "difficulty": "basic",
+      "question": "What is the energy balance equation in SUEWS?",
+      "topics": ["QN", "QF", "QS", "QE", "QH", "equation"]
+    },
+    {
+      "id": "Q002",
+      "category": "energy_balance",
+      "difficulty": "intermediate",
+      "question": "How does SUEWS calculate storage heat flux (QS)?",
+      "topics": ["OHM", "storage", "thermal_properties"]
+    },
+    {
+      "id": "Q003",
+      "category": "energy_balance",
+      "difficulty": "basic",
+      "question": "What is the difference between sensible heat (QH) and latent heat (QE)?",
+      "topics": ["QH", "QE", "flux_partitioning"]
+    },
+    {
+      "id": "Q004",
+      "category": "energy_balance",
+      "difficulty": "advanced",
+      "question": "What parameters control the OHM scheme and what do they represent?",
+      "topics": ["OHM", "a1", "a2", "a3", "calibration"]
+    },
+    {
+      "id": "Q005",
+      "category": "energy_balance",
+      "difficulty": "intermediate",
+      "question": "How is anthropogenic heat flux (QF) estimated in SUEWS?",
+      "topics": ["QF", "energy_use", "traffic", "metabolism"]
+    },
+    {
+      "id": "Q006",
+      "category": "water_balance",
+      "difficulty": "basic",
+      "question": "How is soil moisture calculated in SUEWS?",
+      "topics": ["SMD", "water_balance", "capacity"]
+    },
+    {
+      "id": "Q007",
+      "category": "water_balance",
+      "difficulty": "intermediate",
+      "question": "What happens when paved surfaces have too much water?",
+      "topics": ["runoff", "water_transfer", "overflow"]
+    },
+    {
+      "id": "Q008",
+      "category": "water_balance",
+      "difficulty": "basic",
+      "question": "What is the water balance equation in SUEWS?",
+      "topics": ["precipitation", "evaporation", "runoff", "drainage", "storage"]
+    },
+    {
+      "id": "Q009",
+      "category": "water_balance",
+      "difficulty": "advanced",
+      "question": "How does SUEWS handle water transfer between different surface types?",
+      "topics": ["water_distribution", "pipe_capacity", "surface_fractions"]
+    },
+    {
+      "id": "Q010",
+      "category": "water_balance",
+      "difficulty": "intermediate",
+      "question": "What controls drainage from soil in SUEWS?",
+      "topics": ["drainage", "saturation", "soil_properties"]
+    },
+    {
+      "id": "Q011",
+      "category": "land_cover",
+      "difficulty": "basic",
+      "question": "How many land cover types are there in SUEWS and what are they?",
+      "topics": ["surface_types", "classification"]
+    },
+    {
+      "id": "Q012",
+      "category": "land_cover",
+      "difficulty": "intermediate",
+      "question": "What surface properties are needed for each land cover type?",
+      "topics": ["albedo", "emissivity", "roughness", "thermal_properties"]
+    },
+    {
+      "id": "Q013",
+      "category": "land_cover",
+      "difficulty": "basic",
+      "question": "What is the difference between deciduous and evergreen vegetation in SUEWS?",
+      "topics": ["phenology", "LAI", "seasonality"]
+    },
+    {
+      "id": "Q014",
+      "category": "land_cover",
+      "difficulty": "intermediate",
+      "question": "How does SUEWS handle seasonal changes in vegetation?",
+      "topics": ["LAI", "albedo", "conductance", "phenology"]
+    },
+    {
+      "id": "Q015",
+      "category": "land_cover",
+      "difficulty": "advanced",
+      "question": "What is surface resistance and how is it calculated for different land covers?",
+      "topics": ["RS", "conductance", "vegetation", "stomatal_control"]
+    },
+    {
+      "id": "Q016",
+      "category": "radiation",
+      "difficulty": "basic",
+      "question": "What radiation schemes are available in SUEWS?",
+      "topics": ["shortwave", "longwave", "net_radiation"]
+    },
+    {
+      "id": "Q017",
+      "category": "radiation",
+      "difficulty": "intermediate",
+      "question": "How does SUEWS calculate net radiation (QN)?",
+      "topics": ["albedo", "emissivity", "incoming_radiation"]
+    },
+    {
+      "id": "Q018",
+      "category": "radiation",
+      "difficulty": "advanced",
+      "question": "How are shadows and canyon geometry handled in radiation calculations?",
+      "topics": ["NARP", "canyon", "SVF", "shading"]
+    },
+    {
+      "id": "Q019",
+      "category": "evaporation",
+      "difficulty": "intermediate",
+      "question": "How does SUEWS calculate evapotranspiration?",
+      "topics": ["Penman-Monteith", "QE", "conductance"]
+    },
+    {
+      "id": "Q020",
+      "category": "evaporation",
+      "difficulty": "advanced",
+      "question": "What is the Penman-Monteith equation used in SUEWS?",
+      "topics": ["equation", "aerodynamic_resistance", "surface_resistance"]
+    },
+    {
+      "id": "Q021",
+      "category": "evaporation",
+      "difficulty": "intermediate",
+      "question": "How does surface wetness affect evaporation in SUEWS?",
+      "topics": ["interception", "wet_surface", "state"]
+    },
+    {
+      "id": "Q022",
+      "category": "configuration",
+      "difficulty": "basic",
+      "question": "What are the required meteorological inputs for SUEWS?",
+      "topics": ["forcing_data", "weather", "input_requirements"]
+    },
+    {
+      "id": "Q023",
+      "category": "configuration",
+      "difficulty": "intermediate",
+      "question": "How do I configure the temporal resolution in SUEWS?",
+      "topics": ["timestep", "resolution", "namelist"]
+    },
+    {
+      "id": "Q024",
+      "category": "configuration",
+      "difficulty": "basic",
+      "question": "What file formats does SUEWS support for input data?",
+      "topics": ["file_format", "text", "netcdf"]
+    },
+    {
+      "id": "Q025",
+      "category": "configuration",
+      "difficulty": "advanced",
+      "question": "How do I set up a multi-grid simulation in SUEWS?",
+      "topics": ["grid", "spatial", "multiple_sites"]
+    },
+    {
+      "id": "Q026",
+      "category": "output",
+      "difficulty": "basic",
+      "question": "What output variables does SUEWS produce?",
+      "topics": ["output_files", "variables", "fluxes"]
+    },
+    {
+      "id": "Q027",
+      "category": "output",
+      "difficulty": "intermediate",
+      "question": "How can I get surface-specific outputs (e.g., separate fluxes for grass vs paved)?",
+      "topics": ["disaggregation", "surface_output", "SUEWS_SurfaceOutput"]
+    },
+    {
+      "id": "Q028",
+      "category": "output",
+      "difficulty": "basic",
+      "question": "What is the difference between kup and kdown in SUEWS output?",
+      "topics": ["radiation", "shortwave", "upward", "downward"]
+    },
+    {
+      "id": "Q029",
+      "category": "output",
+      "difficulty": "intermediate",
+      "question": "How do I interpret the runoff output from SUEWS?",
+      "topics": ["runoff", "surface_runoff", "units"]
+    },
+    {
+      "id": "Q030",
+      "category": "output",
+      "difficulty": "advanced",
+      "question": "What is the ESTM output and what does it represent?",
+      "topics": ["ESTM", "element_temperature", "facet"]
+    },
+    {
+      "id": "Q031",
+      "category": "physics_schemes",
+      "difficulty": "intermediate",
+      "question": "What water distribution methods are available in SUEWS?",
+      "topics": ["water_dist", "schemes", "approaches"]
+    },
+    {
+      "id": "Q032",
+      "category": "physics_schemes",
+      "difficulty": "advanced",
+      "question": "What is the difference between LUMPS and SUEWS mode?",
+      "topics": ["LUMPS", "SUEWS", "complexity", "differences"]
+    },
+    {
+      "id": "Q033",
+      "category": "physics_schemes",
+      "difficulty": "intermediate",
+      "question": "How does the conductance scheme work in SUEWS?",
+      "topics": ["conductance", "LAI", "humidity", "temperature"]
+    },
+    {
+      "id": "Q034",
+      "category": "physics_schemes",
+      "difficulty": "advanced",
+      "question": "What stability correction schemes are available for turbulent fluxes?",
+      "topics": ["stability", "Monin-Obukhov", "corrections"]
+    },
+    {
+      "id": "Q035",
+      "category": "calibration",
+      "difficulty": "intermediate",
+      "question": "What are the most sensitive parameters for energy balance calibration?",
+      "topics": ["sensitivity", "calibration", "parameters"]
+    },
+    {
+      "id": "Q036",
+      "category": "calibration",
+      "difficulty": "advanced",
+      "question": "How should I calibrate the OHM coefficients for my site?",
+      "topics": ["OHM", "optimization", "observations"]
+    },
+    {
+      "id": "Q037",
+      "category": "calibration",
+      "difficulty": "intermediate",
+      "question": "What observations are needed to calibrate SUEWS?",
+      "topics": ["flux_tower", "measurements", "validation"]
+    },
+    {
+      "id": "Q038",
+      "category": "troubleshooting",
+      "difficulty": "basic",
+      "question": "Why is my SUEWS simulation producing NaN values?",
+      "topics": ["errors", "NaN", "debugging"]
+    },
+    {
+      "id": "Q039",
+      "category": "troubleshooting",
+      "difficulty": "intermediate",
+      "question": "How do I diagnose energy balance closure problems?",
+      "topics": ["closure", "residual", "QN+QF", "QS+QE+QH"]
+    },
+    {
+      "id": "Q040",
+      "category": "troubleshooting",
+      "difficulty": "intermediate",
+      "question": "What causes unrealistic spikes in latent heat flux?",
+      "topics": ["QE", "spikes", "artifacts", "wetness"]
+    },
+    {
+      "id": "Q041",
+      "category": "advanced_physics",
+      "difficulty": "advanced",
+      "question": "How does SUEWS calculate aerodynamic resistance?",
+      "topics": ["RA", "roughness", "wind_profile", "logarithmic"]
+    },
+    {
+      "id": "Q042",
+      "category": "advanced_physics",
+      "difficulty": "advanced",
+      "question": "What is the element surface temperature model (ESTM)?",
+      "topics": ["ESTM", "temperature", "heat_conduction"]
+    },
+    {
+      "id": "Q043",
+      "category": "advanced_physics",
+      "difficulty": "advanced",
+      "question": "How does SUEWS represent urban canyon effects?",
+      "topics": ["canyon", "H/W", "trapping", "radiation"]
+    },
+    {
+      "id": "Q044",
+      "category": "workflow",
+      "difficulty": "basic",
+      "question": "How do I run SUEWS using the Python interface (SuPy)?",
+      "topics": ["SuPy", "Python", "API"]
+    },
+    {
+      "id": "Q045",
+      "category": "workflow",
+      "difficulty": "intermediate",
+      "question": "How can I use SUEWS for climate change impact studies?",
+      "topics": ["scenarios", "projections", "morphing"]
+    },
+    {
+      "id": "Q046",
+      "category": "workflow",
+      "difficulty": "intermediate",
+      "question": "How do I prepare land cover data for SUEWS from satellite imagery?",
+      "topics": ["preprocessing", "classification", "fractions"]
+    },
+    {
+      "id": "Q047",
+      "category": "technical",
+      "difficulty": "basic",
+      "question": "What units does SUEWS use for heat fluxes?",
+      "topics": ["units", "W/m2", "conventions"]
+    },
+    {
+      "id": "Q048",
+      "category": "technical",
+      "difficulty": "intermediate",
+      "question": "How does SUEWS handle missing meteorological data?",
+      "topics": ["missing_data", "gaps", "handling"]
+    },
+    {
+      "id": "Q049",
+      "category": "technical",
+      "difficulty": "advanced",
+      "question": "What is the spin-up period needed for SUEWS simulations?",
+      "topics": ["initialization", "spin-up", "equilibrium"]
+    },
+    {
+      "id": "Q050",
+      "category": "integration",
+      "difficulty": "advanced",
+      "question": "How can SUEWS be coupled with mesoscale atmospheric models like WRF?",
+      "topics": ["coupling", "WRF", "urban_parameterisation"]
+    }
+  ],
+  "categories": {
+    "energy_balance": "Energy fluxes and balance calculations",
+    "water_balance": "Hydrological processes and water distribution",
+    "land_cover": "Surface types and their properties",
+    "radiation": "Radiation schemes and calculations",
+    "evaporation": "Evapotranspiration and latent heat",
+    "configuration": "Model setup and input requirements",
+    "output": "Output variables and interpretation",
+    "physics_schemes": "Available physics scheme options",
+    "calibration": "Parameter calibration and sensitivity",
+    "troubleshooting": "Common problems and solutions",
+    "advanced_physics": "Advanced physical parameterisations",
+    "workflow": "Practical usage and workflows",
+    "technical": "Technical details and conventions",
+    "integration": "Coupling with other models"
+  },
+  "difficulty_levels": {
+    "basic": "Fundamental concepts and definitions",
+    "intermediate": "Practical application and configuration",
+    "advanced": "Deep physics understanding and complex topics"
+  }
+}

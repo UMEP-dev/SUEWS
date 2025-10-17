@@ -317,11 +317,12 @@ def find_missing_parameters_in_lists(user_list, standard_list, current_path=""):
     ]
 
     # Check if current path matches any nlayer-dependent array
-    is_nlayer_dependent = (
-        any(current_path.startswith(arr) or current_path == arr
-            for arr in nlayer_dependent_simple_arrays)
-        or any(current_path.startswith(arr) or current_path == arr
-               for arr in nlayer_dependent_nested_arrays)
+    is_nlayer_dependent = any(
+        current_path.startswith(arr) or current_path == arr
+        for arr in nlayer_dependent_simple_arrays
+    ) or any(
+        current_path.startswith(arr) or current_path == arr
+        for arr in nlayer_dependent_nested_arrays
     )
 
     if is_nlayer_dependent:

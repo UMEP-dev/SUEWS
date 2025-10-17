@@ -6,7 +6,7 @@ from pathlib import Path
 import pandas as pd
 import numpy as np
 
-from supy.mcp.tools.analyze import (
+from suews_mcp.tools.analyze import (
     load_results,
     compute_statistics,
     create_plot,

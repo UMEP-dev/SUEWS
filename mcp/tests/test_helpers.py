@@ -6,7 +6,7 @@ from pathlib import Path
 import yaml
 from pydantic import ValidationError
 
-from supy.mcp.utils.helpers import (
+from suews_mcp.utils.helpers import (
     load_yaml_file,
     save_yaml_file,
     format_validation_error,

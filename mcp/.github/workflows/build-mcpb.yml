@@ -1,0 +1,85 @@
+name: Build SUEWS MCP Bundle
+
+on:
+  push:
+    tags:
+      - 'mcp-v*'
+  workflow_dispatch:
+
+jobs:
+  build-mcpb:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download UV binaries
+        run: |
+          UV_VERSION="0.5.18"
+          BASE_URL="https://github.com/astral-sh/uv/releases/download/${UV_VERSION}"
+
+          mkdir -p mcp/bin
+
+          # Darwin ARM64
+          curl -L "${BASE_URL}/uv-aarch64-apple-darwin.tar.gz" | \
+            tar xz -C mcp/bin uv
+          mv mcp/bin/uv mcp/bin/uv-darwin-arm64
+
+          # Darwin x86_64
+          curl -L "${BASE_URL}/uv-x86_64-apple-darwin.tar.gz" | \
+            tar xz -C mcp/bin uv
+          mv mcp/bin/uv mcp/bin/uv-darwin-x86_64
+
+          # Windows x86_64
+          curl -L "${BASE_URL}/uv-x86_64-pc-windows-msvc.zip" -o uv-win.zip
+          unzip -j uv-win.zip uv.exe -d mcp/bin
+          mv mcp/bin/uv.exe mcp/bin/uv-windows-x86_64.exe
+
+          ls -lh mcp/bin
+
+      - name: Build MCPB bundle
+        run: |
+          cd mcp
+          mkdir -p build/bundle/src build/bundle/bin
+
+          # Copy MCP server code
+          cp -r src/suews_mcp build/bundle/src/
+
+          # Copy bootstrap and manifest
+          cp bootstrap.js manifest.json README.md build/bundle/
+
+          # Copy UV binaries
+          cp bin/* build/bundle/bin/
+
+          # Package as .mcpb
+          cd build/bundle
+          zip -r ../../suews-mcp.mcpb ./*
+
+          # Show result
+          cd ../..
+          ls -lh suews-mcp.mcpb
+
+      - name: Upload MCPB artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: suews-mcp-bundle
+          path: mcp/suews-mcp.mcpb
+
+      - name: Create Release
+        if: startsWith(github.ref, 'refs/tags/mcp-v')
+        uses: softprops/action-gh-release@v1
+        with:
+          files: mcp/suews-mcp.mcpb
+          body: |
+            ## SUEWS MCP Bundle
+
+            One-click installation for Claude Desktop.
+
+            ### Installation
+            1. Download `suews-mcp.mcpb`
+            2. Double-click to install in Claude Desktop
+            3. First use: automatic setup (30-60 seconds)
+
+            ### Requirements
+            - Claude Desktop (macOS or Windows)
+            - Internet connection (for first-time setup)

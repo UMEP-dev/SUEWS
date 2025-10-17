@@ -5,7 +5,7 @@ import tempfile
 from pathlib import Path
 import yaml
 
-from supy.mcp.tools.configure import (
+from suews_mcp.tools.configure import (
     validate_config,
     create_config,
     get_config_info,

@@ -67,7 +67,7 @@ Tools available: 10
 Test tool availability:
 
 ```python
-from supy.mcp.server import list_tools
+from suews_mcp.server import list_tools
 import asyncio
 
 tools = asyncio.run(list_tools())
@@ -109,10 +109,10 @@ Running the server standalone for testing:
 
 ```bash
 # Interactive mode (for debugging)
-python -m supy.mcp.server
+python -m suews_mcp.server
 
 # With example config
-echo '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' | python -m supy.mcp.server
+echo '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' | python -m suews_mcp.server
 ```
 
 ## See Also

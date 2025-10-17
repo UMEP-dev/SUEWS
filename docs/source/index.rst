@@ -134,6 +134,7 @@ How to support SUEWS?
    inputs/index
    output_files/output_files
    api
+   mcp-integration
    data-structures/supy-io
    integration/index
    troubleshooting

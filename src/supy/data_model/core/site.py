@@ -472,7 +472,7 @@ class VegetatedSurfaceProperties(SurfaceProperties):
     )
     beta_bioco2: Optional[FlexibleRefValue(float)] = Field(
         default=None,
-        description="Biogenic CO2 exchange coefficient",
+        description="Beta coefficient for modelling biogenic CO2 flux as a function of LAI and soil moisture. Used in photosynthesis calculations when CO2 modelling is enabled",
         json_schema_extra={"unit": "dimensionless", "display_name": "Beta Bioco2"},
     )
     beta_enh_bioco2: FlexibleRefValue(float) = Field(
@@ -482,7 +482,7 @@ class VegetatedSurfaceProperties(SurfaceProperties):
     )
     alpha_bioco2: Optional[FlexibleRefValue(float)] = Field(
         default=None,
-        description="Biogenic CO2 exchange coefficient",
+        description="Alpha coefficient for the light response curve in biogenic CO2 photosynthesis calculations. Represents initial slope of light response",
         json_schema_extra={"unit": "dimensionless", "display_name": "Alpha Bioco2"},
     )
     alpha_enh_bioco2: FlexibleRefValue(float) = Field(
@@ -492,17 +492,17 @@ class VegetatedSurfaceProperties(SurfaceProperties):
     )
     resp_a: Optional[FlexibleRefValue(float)] = Field(
         default=None,
-        description="Respiration coefficient",
+        description="Respiration coefficient a for modelling ecosystem respiration rate. Base respiration at reference temperature",
         json_schema_extra={"unit": "umol m^-2 s^-1", "display_name": "Resp A"},
     )
     resp_b: Optional[FlexibleRefValue(float)] = Field(
         default=None,
-        description="Respiration coefficient",
+        description="Respiration coefficient b for temperature dependence of ecosystem respiration. Exponential temperature sensitivity parameter",
         json_schema_extra={"unit": "dimensionless", "display_name": "Resp B"},
     )
     theta_bioco2: Optional[FlexibleRefValue(float)] = Field(
         default=None,
-        description="Biogenic CO2 exchange coefficient",
+        description="Theta coefficient for the light response curve curvature in biogenic CO2 calculations. Controls the transition from light-limited to light-saturated photosynthesis",
         json_schema_extra={"unit": "dimensionless", "display_name": "Theta Bioco2"},
     )
     maxconductance: FlexibleRefValue(float) = Field(
@@ -633,12 +633,12 @@ class EvetrProperties(VegetatedSurfaceProperties):  # TODO: Move waterdist VWD h
     )
     faievetree: Optional[FlexibleRefValue(float)] = Field(
         default=None,
-        description="Frontal area index of evergreen trees",
+        description="Frontal area index of evergreen trees. Ratio of tree frontal area to ground plan area, controlling wind drag and momentum exchange. Site-specific value typically derived from tree census data and average crown dimensions",
         json_schema_extra={"unit": "dimensionless", "display_name": "Faievetree"},
     )
     evetreeh: Optional[FlexibleRefValue(float)] = Field(
         default=None,
-        description="Evergreen tree height",
+        description="Mean height of evergreen trees. Representative height for roughness length and displacement height calculations. Site-specific value from tree surveys, LiDAR data, or local vegetation inventories",
         json_schema_extra={"unit": "m", "display_name": "Evetreeh"},
     )
     _surface_type: Literal[SurfaceType.EVETR] = SurfaceType.EVETR
@@ -726,12 +726,12 @@ class DectrProperties(VegetatedSurfaceProperties):
     )
     faidectree: Optional[FlexibleRefValue(float)] = Field(
         default=None,
-        description="Frontal area index of deciduous trees",
+        description="Frontal area index of deciduous trees. Ratio of tree frontal area to ground plan area, controlling wind drag and momentum exchange. Site-specific value typically derived from tree census data and average crown dimensions. Varies seasonally with leaf state",
         json_schema_extra={"unit": "dimensionless", "display_name": "Faidectree"},
     )
     dectreeh: Optional[FlexibleRefValue(float)] = Field(
         default=None,
-        description="Deciduous tree height",
+        description="Mean height of deciduous trees. Representative height for roughness length and displacement height calculations. Site-specific value from tree surveys, LiDAR data, or local vegetation inventories",
         json_schema_extra={"unit": "m", "display_name": "Dectreeh"},
     )
     pormin_dec: FlexibleRefValue(float) = Field(

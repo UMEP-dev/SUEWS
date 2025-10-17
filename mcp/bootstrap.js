@@ -61,7 +61,7 @@ function setupEnvironment() {
     os.platform() === 'win32' ? 'Scripts/python.exe' : 'bin/python'
   );
 
-  const setupCmd = `"${uv}" venv "${VENV_PATH}" && "${uv}" pip install --python "${venvPython}" supy`;
+  const setupCmd = `"${uv}" venv "${VENV_PATH}" && "${uv}" pip install --python "${venvPython}" supy "mcp>=0.9.0"`;
 
   exec(setupCmd, { shell: true }, (error, stdout, stderr) => {
     if (error) {

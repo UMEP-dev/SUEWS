@@ -13,16 +13,17 @@ name: Build and Publish Python wheels to PyPI and TestPyPI
 #
 # DEPLOYMENT STRATEGY:
 # 1. VALIDATION ONLY (no deployment):
-#    - Pull requests: Build and test all Python versions
-#    - Push to master: Build and test all Python versions
-#    - Manual workflow_dispatch: Build and test all Python versions
+#    - Pull requests: Build and test all Python versions (standard: all; UMEP: cp312 manylinux)
+#    - Push to master: Build and test all Python versions (standard: all; UMEP: cp312 manylinux)
+#    - Manual workflow_dispatch: Build and test all Python versions (standard: all; UMEP: cp312 manylinux)
 #
 # 2. DEVELOPMENT RELEASES (TestPyPI only):
 #    - Nightly cron (2 AM UTC, master branch only): Creates YYYY.M.D.dev tag → TestPyPI
-#    - Any tag containing 'dev': Deploy to TestPyPI
+#    - Builds TWO versions: standard (YYYY.M.D.dev0) + UMEP (YYYY.M.D.dev1)
+#    - Both deployed to TestPyPI for comprehensive nightly testing
 #    Installation:
-#      Latest dev: pip install -i https://test.pypi.org/simple/ supy
-#      Specific version: pip install -i https://test.pypi.org/simple/ supy==YYYY.M.D.dev0
+#      Latest dev (NumPy 2.x): pip install -i https://test.pypi.org/simple/ supy
+#      UMEP variant (NumPy 1.x): pip install -i https://test.pypi.org/simple/ supy==YYYY.M.D.dev1
 #
 # 3. PRODUCTION RELEASES (PyPI only):
 #    - Tags without 'dev': Deploy to PyPI
@@ -77,11 +78,21 @@ name: Build and Publish Python wheels to PyPI and TestPyPI
 # - Jobs run in parallel for efficiency
 # - BUILD_UMEP_VARIANT env var triggers rc1 suffix in get_ver_git.py
 # - pyproject.toml modified for NumPy 1.x at build time
-# - Both wheel sets deployed to PyPI together
+# - Both wheel sets deployed to PyPI together (production tags only)
+# - UMEP builds use Python 3.12 only (aligned with QGIS 3.40 LTR bundled Python)
+# - UMEP build triggers (runs on ALL events for continuous NumPy 1.x testing):
+#   * PRs: manylinux cp312 (NumPy 1.x validation before merge)
+#   * Master/manual: manylinux cp312 (continuous UMEP compatibility testing)
+#   * Nightly/dev tags: manylinux cp312 (daily testing, uses .dev1 to avoid version collision)
+#   * Production tags: all platforms cp312 (complete distribution → PyPI, uses rc1 suffix)
 #
 # UMEP INTEGRATION:
-# - UMEP requirements specify: supy==2024.10.7rc1
+# - Production: UMEP requirements specify supy==2024.10.7rc1
+# - Nightly testing: UMEP developers can test with supy==2025.10.15.dev1
 # - UMEP users install via UMEP requirements, never see version details
+# - Versioning strategy (see get_ver_git.py):
+#   * Production: X.Y.Zrc1 (pre-release for QGIS compatibility)
+#   * Dev/nightly: X.Y.Z.dev1 (standard uses .dev0, UMEP uses .dev1)
 # - No coordination needed - rc1 always exists for every production release
 #
 # VERSIONING:
@@ -95,16 +106,7 @@ on:
   push:
     branches: [master]
     tags:
-      - '*'  # Trigger on any tag push
-    paths: # Push events containing matching files
-      - "src/suews/**"
-      - "src/supy/**"
-      - "src/supy_driver/**"
-      - ".github/workflows/build-publish_to_pypi.yml"
-      - "test/**"
-      - "pyproject.toml"
-      - "meson.build"
-      - "Makefile"
+      - '*'  # Trigger on any tag push (no path filter - tags = releases, build everything)
 
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
@@ -177,19 +179,41 @@ jobs:
     outputs:
       buildplat: ${{ steps.set-matrix.outputs.buildplat }}
       python: ${{ steps.set-matrix.outputs.python }}
+      umep_buildplat: ${{ steps.set-matrix.outputs.umep_buildplat }}
+      umep_python: ${{ steps.set-matrix.outputs.umep_python }}
     steps:
-      - name: Set matrix based on draft status
+      - name: Set matrix based on trigger type
         id: set-matrix
         run: |
+          # Platform matrix
+          FULL_PLATFORMS='[["ubuntu-latest", "manylinux", "x86_64"], ["macos-13", "macosx", "x86_64"], ["macos-latest", "macosx", "arm64"], ["windows-2025", "win", "AMD64"]]'
+          MINIMAL_PLATFORMS='[["ubuntu-latest", "manylinux", "x86_64"]]'
+
+          # Python version strategies:
+          # - Draft PR: minimal (1 platform, bookend versions) for fastest feedback
+          # - PR/Master: reduced (all platforms, bookend versions) for speed with good coverage
+          # - Tags/Schedule/Manual: full (all platforms, all versions) for comprehensive testing
+
           if [[ "${{ github.event_name }}" == "pull_request" ]] && [[ "${{ github.event.pull_request.draft }}" == "true" ]]; then
-            echo "Running limited matrix for draft PR"
-            echo 'buildplat=[["ubuntu-latest", "manylinux", "x86_64"]]' >> $GITHUB_OUTPUT
+            echo "Running minimal matrix for draft PR (1 platform, bookend Python versions)"
+            echo "buildplat=$MINIMAL_PLATFORMS" >> $GITHUB_OUTPUT
+            echo 'python=["cp39", "cp313"]' >> $GITHUB_OUTPUT
+          elif [[ "${{ github.event_name }}" == "pull_request" ]] || [[ "${{ github.event_name }}" == "push" && "${{ github.ref }}" == "refs/heads/master" ]]; then
+            echo "Running reduced matrix for PR/master (all platforms, bookend Python versions)"
+            echo "buildplat=$FULL_PLATFORMS" >> $GITHUB_OUTPUT
             echo 'python=["cp39", "cp313"]' >> $GITHUB_OUTPUT
           else
-            echo "Running full matrix"
-            echo 'buildplat=[["ubuntu-latest", "manylinux", "x86_64"], ["macos-13", "macosx", "x86_64"], ["macos-latest", "macosx", "arm64"], ["windows-2025", "win", "AMD64"]]' >> $GITHUB_OUTPUT
+            echo "Running full matrix for tags/schedule/manual (all platforms, all Python versions)"
+            echo "buildplat=$FULL_PLATFORMS" >> $GITHUB_OUTPUT
             echo 'python=["cp39", "cp310", "cp311", "cp312", "cp313"]' >> $GITHUB_OUTPUT
           fi
+
+          # UMEP builds: Python 3.12 only (aligned with QGIS 3.40 LTR bundled Python)
+          # PR: manylinux only for quick validation
+          # Production: all platforms for complete UMEP distribution
+          echo "UMEP matrix: cp312 only (QGIS 3.40 LTR uses Python 3.12)"
+          echo 'umep_buildplat=[["ubuntu-latest", "manylinux", "x86_64"]]' >> $GITHUB_OUTPUT
+          echo 'umep_python=["cp312"]' >> $GITHUB_OUTPUT
 
   build_wheels:
     name: Build wheel for ${{ matrix.python }}-${{ matrix.buildplat[1] }} ${{ matrix.buildplat[2] }}
@@ -223,19 +247,24 @@ jobs:
           wheel_name_suffix: ''
 
   build_umep:
-    name: Build UMEP wheel (rc1) for ${{ matrix.python }}-${{ matrix.buildplat[1] }} ${{ matrix.buildplat[2] }}
+    name: Build UMEP wheel (rc1/dev1) for ${{ matrix.python }}-${{ matrix.buildplat[1] }} ${{ matrix.buildplat[2] }}
     runs-on: ${{ matrix.buildplat[0] }}
     needs: [determine_matrix, create_nightly_tag]
-    # Only run for production tags (not dev, not PRs, not nightly)
+    # Run for all triggers: PRs, master, nightly (schedule), manual, and all tags
+    # UMEP versioning:
+    #   - Production tags: X.Y.Zrc1 (pre-release for QGIS)
+    #   - Dev/nightly: X.Y.Z.dev1 (incremented to avoid collision with standard .dev0)
     if: |
-      startsWith(github.ref, 'refs/tags/') &&
-      !contains(github.ref, 'dev') &&
+      always() &&
       needs.determine_matrix.result == 'success' &&
       (needs.create_nightly_tag.result == 'success' || needs.create_nightly_tag.result == 'skipped')
     strategy:
       matrix:
-        buildplat: ${{ fromJson(needs.determine_matrix.outputs.buildplat) }}
-        python: ${{ fromJson(needs.determine_matrix.outputs.python) }}
+        # Limited matrix (manylinux cp312) for PRs/master/nightly/manual
+        # Full matrix (all platforms cp312) for production tags only
+        # IMPORTANT: Always use cp312 only for UMEP (QGIS 3.40 LTR compatibility)
+        buildplat: ${{ (startsWith(github.ref, 'refs/tags/') && !contains(github.ref, 'dev')) && fromJson(needs.determine_matrix.outputs.buildplat) || fromJson(needs.determine_matrix.outputs.umep_buildplat) }}
+        python: ${{ fromJson(needs.determine_matrix.outputs.umep_python) }}
 
       fail-fast: false
 
@@ -297,15 +326,16 @@ jobs:
     needs:
       - determine_matrix
       - build_wheels
-      - build_umep  # UMEP builds (.post1 variants)
+      - build_umep  # UMEP builds (rc1 variants)
       - create_nightly_tag  # Will be skipped for non-nightly builds
     # Only run for tagged releases WITHOUT 'dev' in the tag name
-    # Deploy if either standard OR UMEP build succeeds (or both)
+    # Deploy only if BOTH standard AND UMEP builds succeed (complete release)
     if: |
       always() &&
       startsWith(github.ref, 'refs/tags') &&
       !contains(github.ref, 'dev') &&
-      (needs.build_wheels.result == 'success' || needs.build_umep.result == 'success') &&
+      needs.build_wheels.result == 'success' &&
+      needs.build_umep.result == 'success' &&
       (needs.create_nightly_tag.result == 'success' || needs.create_nightly_tag.result == 'skipped')
 
     # Set up permissions for OIDC authentication
@@ -331,12 +361,8 @@ jobs:
     runs-on: ubuntu-latest
     needs:
       - deploy_pypi
-    # Only run for production releases (not dev/rc)
-    if: |
-      needs.deploy_pypi.result == 'success' &&
-      startsWith(github.ref, 'refs/tags/') &&
-      !contains(github.ref, 'dev') &&
-      !contains(github.ref, 'rc')
+    # Run whenever PyPI deployment succeeds (already ensures it's a production tag)
+    if: needs.deploy_pypi.result == 'success'
 
     permissions:
       contents: write  # Required to create releases

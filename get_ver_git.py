@@ -43,13 +43,16 @@ def get_version_from_git():
         # Get the most recent tag and the number of commits since that tag
         # Only match version tags (starting with digits)
         describe_output = (
-            subprocess.check_output([
-                "git",
-                "describe",
-                "--tags",
-                "--long",
-                "--match=[0-9]*",
-            ])
+            subprocess.check_output(
+                [
+                    "git",
+                    "describe",
+                    "--tags",
+                    "--long",
+                    "--match=[0-9]*",
+                ],
+                stderr=subprocess.DEVNULL,
+            )
             .strip()
             .decode("utf-8")
         )
@@ -93,17 +96,36 @@ def get_version_from_git():
 
         # Check for UMEP build variant (NumPy 1.x compatible build)
         # This is set by CI workflow for QGIS/UMEP compatible releases
-        # Using rc1 (pre-release) ensures pip install gets stable version by default
-        # IMPORTANT: Only add rc1 for production releases (no .dev in version)
-        # PEP 440 doesn't allow mixing .dev and rc suffixes (e.g., 2025.10.14.dev13rc1 is invalid)
-        if os.environ.get("BUILD_UMEP_VARIANT") == "true" and ".dev" not in version:
-            version = version + "rc1"
+        if os.environ.get("BUILD_UMEP_VARIANT") == "true":
+            if ".dev" in version:
+                # For dev/nightly builds: increment dev number to avoid version collision
+                # Standard: 2025.10.15.dev0 (NumPy 2.x)
+                # UMEP:     2025.10.15.dev1 (NumPy 1.x)
+                # This allows both to coexist on TestPyPI for testing
+                base, dev_num = version.rsplit(".dev", 1)
+                version = f"{base}.dev{int(dev_num) + 1}"
+            else:
+                # For production releases: use rc1 suffix
+                # rc1 (pre-release) ensures pip install gets stable version by default
+                version = version + "rc1"
 
         return version
 
     except subprocess.CalledProcessError:
+        # Git not available (e.g., inside cibuildwheel container)
+        # Try to read version from previously generated file
+        version_file = "src/supy/_version_scm.py"
+        if os.path.exists(version_file):
+            with open(version_file) as f:
+                for line in f:
+                    if line.startswith("__version__"):
+                        # Extract version from: __version__ = version = '2025.10.15'
+                        version = line.split("=")[2].strip().strip("'\"")
+                        return version
         raise RuntimeError(
-            "Git command failed. Make sure you're running this script in a Git repository."
+            "Git command failed and no version file found. "
+            "Make sure you're running this script in a Git repository, "
+            "or that src/supy/_version_scm.py exists."
         )
     except Exception as e:
         raise RuntimeError(
@@ -152,15 +174,46 @@ def get_commit_info():
 
 
 def parse_version_tuple(version_str):
-    parts = version_str.split(".")
-    major, minor, patch = map(int, parts[:3])
-    if "dev" in parts[-1]:
-        dev_part = parts[-1]
-    else:
-        dev_part = None
+    """
+    Parse version string into tuple for _version_scm.py
 
-    if dev_part:
-        return (major, minor, patch, dev_part)
+    Examples:
+        "2025.10.15" -> (2025, 10, 15)
+        "2025.10.15rc1" -> (2025, 10, 15, "rc1")
+        "2025.10.15.dev0" -> (2025, 10, 15, "dev0")
+    """
+    # Split by dots
+    parts = version_str.split(".")
+
+    # Extract major, minor versions (always numeric)
+    major = int(parts[0])
+    minor = int(parts[1])
+
+    # Handle patch and any suffix (dev, rc, etc.)
+    patch_str = parts[2]
+    suffix = None
+
+    # Check for suffixes in the patch component
+    if "dev" in patch_str:
+        # e.g., "15dev0" -> patch=15, suffix="dev0"
+        patch, suffix = patch_str.split("dev", 1)
+        patch = int(patch) if patch else 0
+        suffix = "dev" + suffix
+    elif "rc" in patch_str:
+        # e.g., "15rc1" -> patch=15, suffix="rc1"
+        patch, suffix = patch_str.split("rc", 1)
+        patch = int(patch)
+        suffix = "rc" + suffix
+    else:
+        # Plain numeric patch
+        patch = int(patch_str)
+
+    # Handle 4-component versions like "2025.10.15.dev0"
+    if len(parts) > 3:
+        suffix = parts[3]
+
+    if suffix:
+        return (major, minor, patch, suffix)
     else:
         return (major, minor, patch)
 

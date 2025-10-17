@@ -1,0 +1,39 @@
+
+.. _new_latest:
+
+.. _new_2025.10.15:
+
+Version 2025.10.15 (released on 15 October 2025)
+----------------------------------------------------
+
+This release introduces a modern YAML-based configuration system with comprehensive validation, marking a significant infrastructure upgrade for SUEWS.
+
+**Major Features:**
+
+- **YAML Configuration System**: Modern, human-readable configuration format with 697 documented parameters. See the :ref:`YAML configuration guide <yaml_input>` for migration from legacy table-based inputs.
+
+- **Schema Versioning**: Independent schema versions (1.0, 1.1, etc.) separate from model versions for cleaner configuration evolution. Use ``suews-schema info`` to check your configuration version.
+
+- **Three-Phase Validation Framework**:
+
+  - Structure validation: YAML syntax and schema compliance
+  - Physics validation: Scientific parameter constraints with CRU TS4.06 climatological data
+  - Model validation: SPARTACUS multi-layer configurations, STEBBS constraints
+
+  See :ref:`validation documentation <validation>` for details.
+
+- **JSON Schema Support**: IDE integration enabling autocomplete and inline validation in VS Code, PyCharm, Vim and other editors.
+
+- **CLI Tools**:
+
+  - ``suews-schema``: Schema management (info, validate, migrate, export)
+  - ``suews-convert``: Legacy table-to-YAML conversion
+  - ``suews-validate``: Configuration validation
+
+  Run with ``--help`` for usage information.
+
+- **Build System Improvements**: Automatic UMEP/QGIS compatible builds (rc1 variants) with NumPy 1.x for QGIS 3.40 LTR compatibility.
+
+- **Cross-Platform Enhancements**: Python 3.13 support, Linux manylinux2014 compatibility, Windows Unicode fixes.
+
+

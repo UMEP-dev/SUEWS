@@ -3,7 +3,7 @@
 import pytest
 from unittest.mock import patch, MagicMock
 
-from supy.mcp.tools.simulate import (
+from suews_mcp.tools.simulate import (
     estimate_runtime,
     run_simulation,
 )

@@ -8,11 +8,30 @@ SUEWS includes built-in support for the Model Context Protocol (MCP), enabling A
 Installation
 ------------
 
-Install SuPy with MCP support::
+**For AI Users (Recommended)**
 
-    pip install supy[mcp]
+Download the MCPB bundle from `GitHub Releases <https://github.com/UMEP-dev/SUEWS/releases>`_:
 
-This installs the MCP SDK along with the standard SUEWS dependencies.
+1. Download ``suews-mcp.mcpb`` from the latest release
+2. Double-click the file (or drag to Claude Desktop)
+3. First use: automatic setup (30-60 seconds)
+4. Ready to use!
+
+The MCPB bundle includes everything needed to run the SUEWS MCP server, including automatic Python environment setup.
+
+**For Python Developers**
+
+Install via pip::
+
+    pip install suews-mcp
+
+Then configure manually in Claude Desktop (see below).
+
+Requirements
+~~~~~~~~~~~~
+
+- **For MCPB**: Claude Desktop (macOS or Windows), Internet (first-time setup)
+- **For pip**: Python >=3.9, supy >=2025.10.15
 
 Available Tools
 ---------------
@@ -44,23 +63,27 @@ Analysis Tools
 Claude Desktop Setup
 ---------------------
 
-To use the SUEWS MCP server with Claude Desktop:
+MCPB Installation (Recommended)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-1. Install Claude Desktop
-~~~~~~~~~~~~~~~~~~~~~~~~~
+If you installed via MCPB (recommended for most users):
 
-Download and install Claude Desktop from https://claude.ai/download.
+1. Download ``suews-mcp.mcpb`` from `GitHub Releases <https://github.com/UMEP-dev/SUEWS/releases>`_
+2. Double-click the file or drag it to Claude Desktop
+3. Claude Desktop will automatically install and configure the server
+4. Restart Claude Desktop
 
-2. Configure MCP Server
-~~~~~~~~~~~~~~~~~~~~~~~
+No manual configuration required!
 
-Add the SUEWS MCP server to your Claude Desktop configuration file.
+Manual Installation (pip)
+~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-**Location:**
+If you installed via pip, add the SUEWS MCP server to your Claude Desktop configuration file.
+
+**Configuration File Location:**
 
 - **macOS**: ``~/Library/Application Support/Claude/claude_desktop_config.json``
 - **Windows**: ``%APPDATA%\Claude\claude_desktop_config.json``
-- **Linux**: ``~/.config/Claude/claude_desktop_config.json``
 
 **Configuration:**
 
@@ -69,33 +92,27 @@ Add the SUEWS MCP server to your Claude Desktop configuration file.
     {
       "mcpServers": {
         "suews": {
-          "command": "supy-mcp",
-          "env": {
-            "PYTHONPATH": "/path/to/your/environment"
-          }
+          "command": "suews-mcp"
         }
       }
     }
 
-If you're using a virtual environment, use the full path to the ``supy-mcp`` command:
+If using a virtual environment, use the full path:
 
 .. code-block:: json
 
     {
       "mcpServers": {
         "suews": {
-          "command": "/path/to/venv/bin/supy-mcp"
+          "command": "/path/to/venv/bin/suews-mcp"
         }
       }
     }
 
-3. Restart Claude Desktop
-~~~~~~~~~~~~~~~~~~~~~~~~~~
+After updating the configuration, restart Claude Desktop.
 
-After updating the configuration, restart Claude Desktop to load the SUEWS MCP server.
-
-4. Verify Installation
-~~~~~~~~~~~~~~~~~~~~~~
+Verify Installation
+~~~~~~~~~~~~~~~~~~~
 
 In Claude Desktop, you should see the SUEWS tools available. Try asking:
 
@@ -175,8 +192,16 @@ Troubleshooting
 Server Not Appearing
 ~~~~~~~~~~~~~~~~~~~~
 
+**For MCPB users:**
+
+- Ensure you dragged the ``.mcpb`` file to Claude Desktop
+- Check Claude Desktop logs (Help → View Logs)
+- Try restarting Claude Desktop
+
+**For pip users:**
+
 - Check the configuration file syntax (valid JSON)
-- Ensure ``supy-mcp`` is in your PATH or use the full path
+- Ensure ``suews-mcp`` is in your PATH or use the full path
 - Check Claude Desktop logs (Help → View Logs)
 
 Tool Execution Failures
@@ -189,9 +214,16 @@ Tool Execution Failures
 Import Errors
 ~~~~~~~~~~~~~
 
-- Verify that ``supy[mcp]`` is installed: ``pip list | grep mcp``
-- Check that the MCP SDK version is >= 0.9.0
-- Try reinstalling: ``pip install --upgrade --force-reinstall supy[mcp]``
+**For pip users:**
+
+- Verify that ``suews-mcp`` is installed: ``pip list | grep suews-mcp``
+- Check that ``supy`` version is >= 2025.10.15
+- Try reinstalling: ``pip install --upgrade --force-reinstall suews-mcp``
+
+**For MCPB users:**
+
+- Delete the ``.venv`` folder in the MCPB installation directory
+- Reinstall by double-clicking the ``.mcpb`` file again
 
 Technical Details
 -----------------
@@ -199,12 +231,30 @@ Technical Details
 Architecture
 ~~~~~~~~~~~~
 
-The SUEWS MCP server is implemented as part of the SuPy package:
+The SUEWS MCP server is implemented as a separate package ``suews-mcp``:
 
-- **Location**: ``src/supy/mcp/``
+- **Location**: Separate repository at ``mcp/src/suews_mcp/``
 - **Server**: Async MCP server using the MCP Python SDK
 - **Tools**: Direct access to SuPy internals and data models
 - **Validation**: Uses SUEWSConfig Pydantic models
+- **Distribution**: MCPB bundle with embedded UV for automatic setup
+
+MCPB Bundle Contents
+~~~~~~~~~~~~~~~~~~~~
+
+The MCPB bundle includes:
+
+- Bootstrap script (Node.js) for automatic setup
+- UV package manager binaries (macOS arm64/x64, Windows x64)
+- MCP server source code
+- Manifest file for Claude Desktop integration
+
+On first run, the bootstrap script:
+
+1. Detects platform and architecture
+2. Creates a Python virtual environment
+3. Installs ``supy`` and dependencies using UV
+4. Launches the MCP server
 
 Data Flow
 ~~~~~~~~~
@@ -222,6 +272,7 @@ Security Considerations
 - Configuration files are validated before execution
 - No network access is required (stdio communication only)
 - Simulation outputs are written with user permissions
+- MCPB bundles are verified by Claude Desktop before installation
 
 See Also
 --------

@@ -1,0 +1,31 @@
+{
+  "manifest_version": "0.2",
+  "name": "suews-mcp",
+  "version": "1.0.0",
+  "display_name": "SUEWS MCP",
+  "description": "SUEWS urban climate model integration",
+  "author": {
+    "name": "Ting Sun",
+    "email": "ting.sun@ucl.ac.uk"
+  },
+  "server": {
+    "type": "node",
+    "entry_point": "bootstrap.js",
+    "mcp_config": {
+      "command": "node",
+      "args": ["${__dirname}/bootstrap.js"]
+    }
+  },
+  "compatibility": {
+    "runtimes": {
+      "python": ">=3.9"
+    },
+    "platforms": ["darwin", "win32"]
+  },
+  "homepage": "https://suews.readthedocs.io",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/UMEP-dev/SUEWS"
+  },
+  "documentation": "https://suews.readthedocs.io/en/latest/mcp-integration.html"
+}

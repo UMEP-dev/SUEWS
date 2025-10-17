@@ -639,3 +639,8 @@ local-schema/
 # Temporary schema export directory
 public/
 docs/source/api/_autosummary/
+
+# MCP build artifacts
+mcp/bin/
+mcp/build/
+mcp/*.mcpb

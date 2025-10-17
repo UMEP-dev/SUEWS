@@ -188,11 +188,11 @@ jobs:
           if [[ "${{ github.event_name }}" == "pull_request" ]] && [[ "${{ github.event.pull_request.draft }}" == "true" ]]; then
             echo "Running limited matrix for draft PR"
             echo 'buildplat=[["ubuntu-latest", "manylinux", "x86_64"]]' >> $GITHUB_OUTPUT
-            echo 'python=["cp39", "cp313"]' >> $GITHUB_OUTPUT
+            echo 'python=["cp39", "cp314"]' >> $GITHUB_OUTPUT
           else
             echo "Running full matrix"
             echo 'buildplat=[["ubuntu-latest", "manylinux", "x86_64"], ["macos-13", "macosx", "x86_64"], ["macos-latest", "macosx", "arm64"], ["windows-2025", "win", "AMD64"]]' >> $GITHUB_OUTPUT
-            echo 'python=["cp39", "cp310", "cp311", "cp312", "cp313"]' >> $GITHUB_OUTPUT
+            echo 'python=["cp39", "cp310", "cp311", "cp312", "cp313", "cp314"]' >> $GITHUB_OUTPUT
           fi
 
           # UMEP builds: Python 3.12 only (aligned with QGIS 3.40 LTR bundled Python)

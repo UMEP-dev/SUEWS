@@ -37,8 +37,8 @@ dependencies = [
     "seaborn",
     "chardet",
     "click",
-    "pyarrow",
-    
+    "pyarrow; python_version < '3.14'",  # No wheels yet for 3.14
+
     # Scientific packages
     "atmosp",
     "scikit-learn",
@@ -70,6 +70,7 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Intended Audience :: Science/Research",
     "Intended Audience :: Education",
     "Operating System :: MacOS :: MacOS X",
@@ -78,6 +79,11 @@ classifiers = [
 ]
 
 [project.optional-dependencies]
+# Parquet file format support (for Python 3.14, automatic for older versions)
+parquet = [
+    "pyarrow",
+]
+
 # TMY/EPW generation support (requires pvlib which depends on h5py)
 tmy = [
     "pvlib",

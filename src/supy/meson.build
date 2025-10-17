@@ -96,6 +96,16 @@ py.install_sources(
             'data_model/schema/registry.py',
         ],
         [
+            'mcp/__init__.py',
+            'mcp/server.py',
+            'mcp/tools/__init__.py',
+            'mcp/tools/configure.py',
+            'mcp/tools/simulate.py',
+            'mcp/tools/analyze.py',
+            'mcp/utils/__init__.py',
+            'mcp/utils/helpers.py',
+        ],
+        [
             'ext_data/CRU_TS4.06_1991_2020.parquet',
         ],
     ],

@@ -84,6 +84,11 @@ tmy = [
     "pvlib",
 ]
 
+# MCP server integration
+mcp = [
+    "mcp>=0.9.0",
+]
+
 # Single dev group combining test + development tools
 dev = [
     # Testing
@@ -119,6 +124,7 @@ suews-run = "supy.cmd.SUEWS:SUEWS"
 suews-convert = "supy.cmd.table_converter:convert_table_cmd"
 suews-validate = "supy.cmd.validate_config:main"
 suews-schema = "supy.cmd.schema_cli:main"
+supy-mcp = "supy.mcp.server:main"
 
 [tool.pytest.ini_options]
 filterwarnings = [

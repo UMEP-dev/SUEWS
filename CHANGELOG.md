@@ -35,6 +35,7 @@
 ## 2025
 
 ### 15 Oct 2025
+- [maintenance] Simplified GitHub Release creation conditions to prevent failures from context mismatches (047d9f67)
 - [feature] Added automatic nlayer dimension validation in Phase A (#731)
   - Automatically detects nlayer value from user configuration
   - Validates all vertical layer arrays match expected dimensions (veg_frac, veg_scale, building_frac, building_scale: nlayer elements; height: nlayer+1 elements)

@@ -215,6 +215,9 @@ html_last_updated_fmt = today_fmt
 # determine if in RTD environment
 read_the_docs_build = os.environ.get("READTHEDOCS", None) == "True"
 
+# Define path to source directory
+path_source = Path(__file__).parent
+
 if read_the_docs_build:
     # Doxygen disabled to avoid Fortran documentation generation logs
     # subprocess.call("doxygen", shell=True)
@@ -380,7 +383,7 @@ default_role = "any"
 # Note: Development banner is now handled via html_theme_options["announcement"]
 # instead of rst_prolog to ensure proper display with sphinx_book_theme
 
-rst_prolog = f"""
+rst_prolog = rf"""
 .. |git_version| replace:: {git_version_string}
 .. |git_commit| replace:: {git_commit}
 

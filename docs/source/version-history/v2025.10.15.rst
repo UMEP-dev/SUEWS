@@ -36,5 +36,4 @@ This release introduces a modern YAML-based configuration system with comprehens
 
 - **Cross-Platform Enhancements**: Python 3.13 support, Linux manylinux2014 compatibility, Windows Unicode fixes.
 
-Recent developments can be found in the :ref:`development version history <dev>`.
 

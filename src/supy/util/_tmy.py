@@ -311,19 +311,50 @@ def conv_0to24(df_TMY):
 
 
 # function to read in EPW file
-def read_epw(path_epw: Path) -> pd.DataFrame:
+def read_epw(
+    path_epw: Path,
+    wind_height: float = None,
+    z0m: float = 0.1,
+) -> pd.DataFrame:
     """Read in `epw` file as a DataFrame
 
     Parameters
     ----------
     path_epw : Path
         path to `epw` file
+    wind_height : float, optional
+        Target height [m] to correct wind speed to, by default None.
+        EPW wind speed is measured at 10 m above ground level by standard.
+        If specified, wind speed will be corrected from 10 m to this height
+        using logarithmic wind profile under neutral conditions.
+    z0m : float, optional
+        Roughness length for momentum [m], by default 0.1.
+        Only used if wind_height is specified.
 
     Returns
     -------
     df_tmy: pd.DataFrame
-        TMY results of `epw` file
+        TMY results of `epw` file with optional wind speed height correction
+
+    Notes
+    -----
+    EPW files follow standard meteorological measurement heights:
+    - Wind speed: 10 m above ground level
+    - Temperature, relative humidity, dew point: 2 m above ground level
+
+    When using EPW data as forcing for SUEWS, consider whether wind height
+    correction is needed based on your forcing height configuration.
+
+    Examples
+    --------
+    >>> # Read EPW file without height correction
+    >>> df_epw = read_epw("weather.epw")
+
+    >>> # Read EPW file and correct wind speed to 50 m
+    >>> df_epw = read_epw("weather.epw", wind_height=50, z0m=0.1)
     """
+    from ._atm import correct_wind_height
+
     df_tmy = pd.read_csv(path_epw, skiprows=8, sep=",", header=None)
     df_tmy.columns = [x.strip() for x in header_EPW.split("\n")[1:-1]]
     df_tmy["DateTime"] = pd.to_datetime(
@@ -334,6 +365,18 @@ def read_epw(path_epw: Path) -> pd.DataFrame:
         + pd.to_timedelta(df_tmy["Hour"], unit="h")
     )
     df_tmy = df_tmy.set_index("DateTime")
+
+    # Apply wind speed height correction if requested
+    if wind_height is not None:
+        # EPW standard: wind speed at 10 m
+        z_meas_epw = 10.0
+        df_tmy["Wind Speed"] = correct_wind_height(
+            df_tmy["Wind Speed"],
+            z_meas=z_meas_epw,
+            z_target=wind_height,
+            z0m=z0m,
+        )
+
     return df_tmy
 
 

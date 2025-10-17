@@ -495,6 +495,10 @@ class RSTGenerator:
             "soildepth",
             "soilstorecap",
             "sathydraulicconduct",
+            "faievetree",
+            "faidectree",
+            "evetreeh",
+            "dectreeh",
         }
         is_site_specific = field_name in site_specific_fields
 

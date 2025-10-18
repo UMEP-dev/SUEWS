@@ -34,6 +34,14 @@
 
 ## 2025
 
+### 16 Oct 2025
+- [feature] Added wind speed height correction for EPW data handling (#149)
+  - Introduced `correct_wind_height()` utility function in `supy.util._atm` for logarithmic wind profile corrections
+  - Enhanced `read_epw()` with optional `wind_height` and `z0m` parameters for automatic height adjustment
+  - Extended `convert_UMEPf2epw()` with height correction parameters to properly handle non-standard measurement heights
+  - Addresses issue where EPW standard height (10 m) differs from SUEWS forcing height configuration
+  - Comprehensive test coverage for height correction functionality
+
 ### 15 Oct 2025
 - [maintenance] Simplified GitHub Release creation conditions to prevent failures from context mismatches (047d9f67)
 - [feature] Added automatic nlayer dimension validation in Phase A (#731)

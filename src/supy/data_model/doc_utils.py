@@ -536,6 +536,10 @@ class ModelDocExtractor:
             "bldg_height",
             "wall_area",
             "roof_area",
+            "fai",
+            "soildepth",
+            "soilstorecap",
+            "sathydraulicconduct",
         ]
 
         model_contexts = [

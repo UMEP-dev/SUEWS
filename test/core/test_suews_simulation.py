@@ -53,6 +53,42 @@ class TestConfig:
         with pytest.raises(FileNotFoundError):
             SUEWSSimulation("nonexistent.yml")
 
+    def test_update_config_nested_dict(self):
+        """Test nested dictionary update preserves Pydantic models (regression test for #756)."""
+        # Initialize with YAML config
+        yaml_path = files("supy").joinpath("sample_data/sample_config.yml")
+        sim = SUEWSSimulation(str(yaml_path))
+
+        # Update with nested dictionary (the problematic case from documentation)
+        sim.update_config({"model": {"control": {"tstep": 600}}})
+
+        # Verify the update worked
+        assert sim.config.model.control.tstep == 600
+
+        # Critical: verify control is still a Pydantic model, not a dict
+        assert hasattr(sim.config.model.control, "__dict__")
+        assert not isinstance(sim.config.model.control, dict)
+
+        # Verify other attributes on control are preserved
+        assert hasattr(sim.config.model.control, "forcing_file")
+        assert hasattr(sim.config.model.control, "diagnose")
+
+    def test_update_config_deeply_nested_dict(self):
+        """Test deeply nested updates work with arbitrary depth."""
+        yaml_path = files("supy").joinpath("sample_data/sample_config.yml")
+        sim = SUEWSSimulation(str(yaml_path))
+
+        # Test multi-level nested update
+        sim.update_config(
+            {"model": {"control": {"tstep": 900, "diagnose": 1}}}
+        )
+
+        assert sim.config.model.control.tstep == 900
+        assert sim.config.model.control.diagnose == 1
+
+        # Verify model.control is still a proper object
+        assert hasattr(sim.config.model.control, "__dict__")
+
 
 class TestForcing:
     """Test forcing data loading."""

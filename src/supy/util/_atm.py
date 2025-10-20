@@ -292,6 +292,58 @@ def cal_Lob(QH, UStar, Temp_C, RH_pct, Pres_hPa, g=9.8, k=0.4):
     return Lob
 
 
+# wind speed height correction
+def correct_wind_height(ws, z_meas, z_target, z0m=0.1, stability="neutral"):
+    """
+    Correct wind speed from measurement height to target height using logarithmic wind profile.
+
+    Parameters
+    ----------
+    ws : float or array-like
+        Wind speed at measurement height [m s-1]
+    z_meas : float
+        Measurement height above ground level [m]
+    z_target : float
+        Target height above ground level [m]
+    z0m : float, optional
+        Roughness length for momentum [m], by default 0.1
+    stability : str, optional
+        Atmospheric stability condition: 'neutral', 'stable', or 'unstable', by default 'neutral'
+        Note: stability corrections require additional parameters and are currently simplified
+
+    Returns
+    -------
+    float or array-like
+        Wind speed corrected to target height [m s-1]
+
+    Notes
+    -----
+    This function uses the logarithmic wind profile under neutral conditions:
+    U(z) / U(z_ref) = ln((z + z0m) / z0m) / ln((z_ref + z0m) / z0m)
+
+    For non-neutral conditions, stability corrections should be applied but are
+    currently simplified in this implementation.
+
+    Examples
+    --------
+    >>> # Correct wind speed from standard EPW height (10 m) to forcing height (50 m)
+    >>> ws_10m = 5.0  # m/s
+    >>> ws_50m = correct_wind_height(ws_10m, z_meas=10, z_target=50, z0m=0.1)
+
+    >>> # Correct from 2 m to 10 m
+    >>> ws_2m = 3.0
+    >>> ws_10m = correct_wind_height(ws_2m, z_meas=2, z_target=10)
+    """
+    # von Karman constant
+    k = 0.4
+
+    # logarithmic wind profile under neutral conditions
+    # U(z) / U(z_ref) = ln((z + z0m) / z0m) / ln((z_ref + z0m) / z0m)
+    ws_corrected = ws * (np.log((z_target + z0m) / z0m) / np.log((z_meas + z0m) / z0m))
+
+    return ws_corrected
+
+
 # aerodynamic resistance
 def cal_ra_obs(zm, zd, z0m, z0v, ws, Lob):
     """

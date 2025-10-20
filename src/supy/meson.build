@@ -94,6 +94,10 @@ py.install_sources(
             'data_model/schema/publisher.py',
             'data_model/schema/exporter.py',
             'data_model/schema/registry.py',
+            'data_model/output/__init__.py',
+            'data_model/output/variables.py',
+            'data_model/output/datetime_vars.py',
+            'data_model/output/suews_vars.py',
         ],
         [
             'ext_data/CRU_TS4.06_1991_2020.parquet',

@@ -121,6 +121,7 @@ class SUEWSSimulation:
 
     def _update_config_from_dict(self, updates: dict):
         """Apply dictionary updates to configuration."""
+
         def recursive_update(obj, upd):
             for key, value in upd.items():
                 if hasattr(obj, key):
@@ -130,7 +131,7 @@ class SUEWSSimulation:
                         recursive_update(attr, value)
                     else:
                         setattr(obj, key, value)
-    
+
         recursive_update(self._config, updates)
 
     def update_forcing(self, forcing_data):

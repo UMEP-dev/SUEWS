@@ -79,9 +79,7 @@ class TestConfig:
         sim = SUEWSSimulation(str(yaml_path))
 
         # Test multi-level nested update
-        sim.update_config(
-            {"model": {"control": {"tstep": 900, "diagnose": 1}}}
-        )
+        sim.update_config({"model": {"control": {"tstep": 900, "diagnose": 1}}})
 
         assert sim.config.model.control.tstep == 900
         assert sim.config.model.control.diagnose == 1

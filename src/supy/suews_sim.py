@@ -121,18 +121,17 @@ class SUEWSSimulation:
 
     def _update_config_from_dict(self, updates: dict):
         """Apply dictionary updates to configuration."""
-        # This is a simplified version - in practice would need deep merging
-        for key, value in updates.items():
-            if hasattr(self._config, key):
-                if isinstance(value, dict) and hasattr(
-                    getattr(self._config, key), "__dict__"
-                ):
-                    # Recursive update for nested objects
-                    for subkey, subvalue in value.items():
-                        if hasattr(getattr(self._config, key), subkey):
-                            setattr(getattr(self._config, key), subkey, subvalue)
-                else:
-                    setattr(self._config, key, value)
+        def recursive_update(obj, upd):
+            for key, value in upd.items():
+                if hasattr(obj, key):
+                    attr = getattr(obj, key)
+                    if isinstance(value, dict) and hasattr(attr, "__dict__"):
+                        # Recursive update for nested objects
+                        recursive_update(attr, value)
+                    else:
+                        setattr(obj, key, value)
+    
+        recursive_update(self._config, updates)
 
     def update_forcing(self, forcing_data):
         """

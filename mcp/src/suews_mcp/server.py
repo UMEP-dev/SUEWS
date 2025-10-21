@@ -10,7 +10,7 @@ from typing import Any, Dict
 from mcp.server import Server
 from mcp.types import Tool, TextContent
 
-from .tools import configure, simulate, analyze
+from .tools import configure, simulate, analyze, knowledge, utilities
 
 # Create MCP server instance
 app = Server("supy-mcp")
@@ -112,21 +112,134 @@ async def list_tools() -> list[Tool]:
                 "required": ["config_path"],
             },
         ),
+        # Knowledge tools - SUEWS domain knowledge
         Tool(
-            name="estimate_runtime",
-            description="Estimate simulation runtime based on configuration",
+            name="get_config_schema",
+            description="Get JSON Schema for SUEWS configuration from Pydantic data model",
+            inputSchema={
+                "type": "object",
+                "properties": {},
+            },
+        ),
+        Tool(
+            name="get_model_docs",
+            description="Get documentation for a specific Pydantic model (e.g., 'Site', 'Surface', 'OHM')",
             inputSchema={
                 "type": "object",
                 "properties": {
-                    "config_path": {
+                    "model_name": {
                         "type": "string",
-                        "description": "Path to configuration file",
+                        "description": "Name of model to document",
                     }
                 },
-                "required": ["config_path"],
+                "required": ["model_name"],
             },
         ),
-        # Analysis tools
+        Tool(
+            name="list_available_models",
+            description="List all available Pydantic models in SUEWS data model",
+            inputSchema={
+                "type": "object",
+                "properties": {},
+            },
+        ),
+        Tool(
+            name="get_variable_info",
+            description="Get information about SUEWS output variables (QH, QE, QS, etc.)",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "variable_name": {
+                        "type": "string",
+                        "description": "Optional variable name (e.g., 'QH', 'QE'). If not provided, lists all variables.",
+                    }
+                },
+            },
+        ),
+        Tool(
+            name="list_physics_schemes",
+            description="List available SUEWS physics schemes with descriptions and source files",
+            inputSchema={
+                "type": "object",
+                "properties": {},
+            },
+        ),
+        Tool(
+            name="get_physics_implementation",
+            description="Get actual Fortran source code for a physics scheme (OHM, water_balance, etc.)",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "scheme_name": {
+                        "type": "string",
+                        "description": "Name of physics scheme",
+                    }
+                },
+                "required": ["scheme_name"],
+            },
+        ),
+        # Utility tools - SUEWS-specific calculations
+        Tool(
+            name="calculate_ohm_coefficients",
+            description="Calculate OHM coefficients from observed storage heat flux and net radiation",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "results_path": {
+                        "type": "string",
+                        "description": "Path to results file with QS and QN observations",
+                    },
+                    "surface_type": {
+                        "type": "string",
+                        "description": "Optional surface type identifier",
+                    },
+                },
+                "required": ["results_path"],
+            },
+        ),
+        Tool(
+            name="calculate_surface_conductance",
+            description="Calculate surface conductance for calibrating SUEWS vegetation parameters",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "results_path": {
+                        "type": "string",
+                        "description": "Path to results file with meteorological and flux data",
+                    },
+                    "method": {
+                        "type": "string",
+                        "enum": ["suews", "observed"],
+                        "description": "Calculation method",
+                        "default": "suews",
+                    },
+                },
+                "required": ["results_path"],
+            },
+        ),
+        Tool(
+            name="calculate_roughness",
+            description="Calculate roughness length and displacement height from urban morphology",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "building_height": {
+                        "type": "number",
+                        "description": "Mean building height (m)",
+                    },
+                    "plan_area_fraction": {
+                        "type": "number",
+                        "description": "Building plan area fraction (0-1)",
+                    },
+                    "frontal_area_index": {
+                        "type": "number",
+                        "description": "Optional frontal area index",
+                    },
+                },
+                "required": ["building_height", "plan_area_fraction"],
+            },
+        ),
+        # Data access tools
         Tool(
             name="load_results",
             description="Load simulation results from file",
@@ -144,60 +257,6 @@ async def list_tools() -> list[Tool]:
                     },
                 },
                 "required": ["results_path"],
-            },
-        ),
-        Tool(
-            name="compute_statistics",
-            description="Compute statistics on simulation results",
-            inputSchema={
-                "type": "object",
-                "properties": {
-                    "results_path": {
-                        "type": "string",
-                        "description": "Path to results file",
-                    },
-                    "variables": {
-                        "type": "array",
-                        "items": {"type": "string"},
-                        "description": "Variables to analyze",
-                    },
-                    "aggregation": {
-                        "type": "string",
-                        "enum": ["mean", "sum", "min", "max", "std"],
-                        "description": "Aggregation method",
-                        "default": "mean",
-                    },
-                },
-                "required": ["results_path", "variables"],
-            },
-        ),
-        Tool(
-            name="create_plot",
-            description="Create a plot from simulation results",
-            inputSchema={
-                "type": "object",
-                "properties": {
-                    "results_path": {
-                        "type": "string",
-                        "description": "Path to results file",
-                    },
-                    "variables": {
-                        "type": "array",
-                        "items": {"type": "string"},
-                        "description": "Variables to plot",
-                    },
-                    "output_path": {
-                        "type": "string",
-                        "description": "Where to save plot",
-                    },
-                    "plot_type": {
-                        "type": "string",
-                        "enum": ["timeseries", "scatter", "histogram"],
-                        "description": "Type of plot",
-                        "default": "timeseries",
-                    },
-                },
-                "required": ["results_path", "variables", "output_path"],
             },
         ),
         Tool(
@@ -239,6 +298,7 @@ async def call_tool(name: str, arguments: Dict[str, Any]) -> list[TextContent]:
 
     try:
         # Route to appropriate tool function
+        # Configuration tools
         if name == "validate_config":
             result = await configure.validate_config(**arguments)
         elif name == "create_config":
@@ -247,16 +307,32 @@ async def call_tool(name: str, arguments: Dict[str, Any]) -> list[TextContent]:
             result = await configure.get_config_info(**arguments)
         elif name == "update_config":
             result = await configure.update_config(**arguments)
+        # Simulation tools
         elif name == "run_simulation":
             result = await simulate.run_simulation(**arguments)
-        elif name == "estimate_runtime":
-            result = await simulate.estimate_runtime(**arguments)
+        # Knowledge tools
+        elif name == "get_config_schema":
+            result = knowledge.get_config_schema(**arguments)
+        elif name == "get_model_docs":
+            result = knowledge.get_model_docs(**arguments)
+        elif name == "list_available_models":
+            result = knowledge.list_available_models(**arguments)
+        elif name == "get_variable_info":
+            result = knowledge.get_variable_info(**arguments)
+        elif name == "list_physics_schemes":
+            result = knowledge.list_physics_schemes(**arguments)
+        elif name == "get_physics_implementation":
+            result = knowledge.get_physics_implementation(**arguments)
+        # Utility tools
+        elif name == "calculate_ohm_coefficients":
+            result = utilities.calculate_ohm_coefficients(**arguments)
+        elif name == "calculate_surface_conductance":
+            result = utilities.calculate_surface_conductance(**arguments)
+        elif name == "calculate_roughness":
+            result = utilities.calculate_roughness(**arguments)
+        # Data access tools
         elif name == "load_results":
             result = await analyze.load_results(**arguments)
-        elif name == "compute_statistics":
-            result = await analyze.compute_statistics(**arguments)
-        elif name == "create_plot":
-            result = await analyze.create_plot(**arguments)
         elif name == "export_results":
             result = await analyze.export_results(**arguments)
         else:

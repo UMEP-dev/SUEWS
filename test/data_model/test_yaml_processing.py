@@ -1033,6 +1033,7 @@ from supy.data_model.validation.core.yaml_helpers import (
     SeasonCheck,
     collect_yaml_differences,
     get_mean_monthly_air_temperature,
+    get_mean_annual_air_temperature,
     get_value_safe,
     precheck_land_cover_fractions,
     precheck_model_option_rules,
@@ -2115,6 +2116,40 @@ def test_get_mean_monthly_air_temperature_invalid_latitude():
     """Test that get_mean_monthly_air_temperature raises ValueError for invalid latitude."""
     with pytest.raises(ValueError, match="Latitude must be between -90 and 90"):
         get_mean_monthly_air_temperature(95.0, 10.0, 7)
+
+
+def test_get_mean_annual_air_temperature_with_cru_data():
+    """Test that get_mean_annual_air_temperature works with CRU data when available."""
+    # This test verifies the function returns a reasonable annual temperature value
+    # when CRU data is available (development/test environments)
+    try:
+        temp = get_mean_annual_air_temperature(45.0, 10.0)
+        # Annual temperature for mid-latitudes should be reasonable (0-40°C range)
+        assert isinstance(temp, float), "Temperature should be a float"
+        assert -50 <= temp <= 50, (
+            f"Annual temperature {temp}°C seems unreasonable for lat=45°"
+        )
+        # Annual temp should be between coldest and warmest month
+        # For sanity check, compare with a summer month
+        summer_temp = get_mean_monthly_air_temperature(45.0, 10.0, 7)
+        assert temp < summer_temp, (
+            "Annual mean should be cooler than summer month"
+        )
+    except FileNotFoundError:
+        # If CRU data is not available, we expect this error - that's fine
+        pytest.skip("CRU data file not available in this environment")
+
+
+def test_get_mean_annual_air_temperature_invalid_latitude():
+    """Test that get_mean_annual_air_temperature raises ValueError for invalid latitude."""
+    with pytest.raises(ValueError, match="Latitude must be between -90 and 90"):
+        get_mean_annual_air_temperature(95.0, 10.0)
+
+
+def test_get_mean_annual_air_temperature_invalid_longitude():
+    """Test that get_mean_annual_air_temperature raises ValueError for invalid longitude."""
+    with pytest.raises(ValueError, match="Longitude must be between -180 and 180"):
+        get_mean_annual_air_temperature(45.0, 185.0)
 
 
 class TestPrecheckRefValueHandling:

@@ -428,6 +428,47 @@ def get_mean_monthly_air_temperature(
     return temperature
 
 
+def get_mean_annual_air_temperature(
+    lat: float, lon: float, spatial_res: float = 0.5
+) -> float:
+    """
+    Calculate mean annual air temperature using CRU TS4.06 climatological data.
+
+    This function uses the CRU TS4.06 cell monthly normals dataset (1991-2020)
+    to provide accurate location-specific temperature estimates by averaging all
+    12 monthly values. This provides a stable, long-term average annual temperature
+    suitable for initialising parameters that do not vary rapidly with seasons.
+
+    Args:
+        lat (float): Site latitude in degrees (positive for Northern Hemisphere, negative for Southern).
+        lon (float): Site longitude in degrees (-180 to 180).
+        spatial_res (float): Search spatial resolution for finding nearest CRU grid cell (degrees). Default 0.5.
+
+    Returns:
+        float: Mean annual air temperature based on 1991-2020 climate normals (°C).
+
+    Raises:
+        ValueError: If coordinates are invalid or no CRU data found within spatial resolution.
+        FileNotFoundError: If CRU data file is not found.
+    """
+    import numpy as np
+
+    # Validate inputs
+    if not (-90 <= lat <= 90):
+        raise ValueError(f"Latitude must be between -90 and 90, got {lat}")
+    if not (-180 <= lon <= 180):
+        raise ValueError(f"Longitude must be between -180 and 180, got {lon}")
+
+    # Get all 12 monthly temperatures and calculate the average
+    monthly_temps = []
+    for month in range(1, 13):
+        monthly_temp = get_mean_monthly_air_temperature(lat, lon, month, spatial_res)
+        monthly_temps.append(monthly_temp)
+
+    annual_temp = float(np.mean(monthly_temps))
+    return annual_temp
+
+
 def precheck_printing(data: dict) -> dict:
     """
     Log the start of the precheck process.

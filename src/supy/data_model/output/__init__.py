@@ -28,21 +28,27 @@ from .variables import (
 )
 from .datetime_vars import DATETIME_VARIABLES
 from .suews_vars import SUEWS_VARIABLES
+from .snow_vars import SNOW_VARIABLES
+from .estm_vars import ESTM_VARIABLES
+from .rsl_vars import RSL_VARIABLES
+from .dailystate_vars import DAILYSTATE_VARIABLES
+from .bl_vars import BL_VARIABLES
+from .beers_vars import BEERS_VARIABLES
+from .debug_vars import DEBUG_VARIABLES
 
 
 # Assemble the global registry from all variable modules
 OUTPUT_REGISTRY = OutputVariableRegistry(
     variables=(
         DATETIME_VARIABLES +
-        SUEWS_VARIABLES
-        # Additional groups will be added as they are implemented:
-        # + SNOW_VARIABLES
-        # + ESTM_VARIABLES
-        # + RSL_VARIABLES
-        # + DAILYSTATE_VARIABLES
-        # + BL_VARIABLES
-        # + BEERS_VARIABLES
-        # + DEBUG_VARIABLES
+        SUEWS_VARIABLES +
+        SNOW_VARIABLES +
+        ESTM_VARIABLES +
+        RSL_VARIABLES +
+        DAILYSTATE_VARIABLES +
+        BL_VARIABLES +
+        BEERS_VARIABLES +
+        DEBUG_VARIABLES
     )
 )
 

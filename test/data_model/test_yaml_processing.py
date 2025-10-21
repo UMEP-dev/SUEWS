@@ -2132,9 +2132,7 @@ def test_get_mean_annual_air_temperature_with_cru_data():
         # Annual temp should be between coldest and warmest month
         # For sanity check, compare with a summer month
         summer_temp = get_mean_monthly_air_temperature(45.0, 10.0, 7)
-        assert temp < summer_temp, (
-            "Annual mean should be cooler than summer month"
-        )
+        assert temp < summer_temp, "Annual mean should be cooler than summer month"
     except FileNotFoundError:
         # If CRU data is not available, we expect this error - that's fine
         pytest.skip("CRU data file not available in this environment")

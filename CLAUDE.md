@@ -8,7 +8,8 @@ This file is protected against accidental truncation or content loss via pre-com
 
 ## Style Guidelines
 
-- **Language**: Use British English for all documentation, code comments, and communication
+- **Language**: Use British English for all documentation, code comments, file names, and communication
+  - **Exception**: Technical terms follow scientific computing conventions (e.g., "analyze" not "analyse", following numpy/scipy/matplotlib standard)
 - **No emoji-like characters** in print/logging functions - use only plain ASCII characters
 
 ## Common Workflow

@@ -198,19 +198,11 @@ def gen_csv_suews(path_csv):
     return list_csv_suews
 
 
-# determine latest version and release
-path_source = Path(".").resolve()
-list_ver = sorted([
-    x.stem
-    for x in list((path_source / "version-history").glob("v*rst"))
-    if "version" not in x.stem
-])
-
-
-# The short X.Y version
-version = list_ver[-1]
-# The full version, including alpha/beta/rc tags
-release = list_ver[-1]
+# Use git version for both version and release
+# This ensures the displayed version matches the actual codebase version
+# Previously used RST filenames from version-history/, which was outdated
+version = git_version_string
+release = git_version_string
 
 # There are two options for replacing |today|: either, you set today to some
 # non-false value, then it is used:
@@ -222,6 +214,9 @@ html_last_updated_fmt = today_fmt
 
 # determine if in RTD environment
 read_the_docs_build = os.environ.get("READTHEDOCS", None) == "True"
+
+# Define path to source directory
+path_source = Path(__file__).parent
 
 if read_the_docs_build:
     # Doxygen disabled to avoid Fortran documentation generation logs
@@ -388,7 +383,7 @@ default_role = "any"
 # Note: Development banner is now handled via html_theme_options["announcement"]
 # instead of rst_prolog to ensure proper display with sphinx_book_theme
 
-rst_prolog = f"""
+rst_prolog = rf"""
 .. |git_version| replace:: {git_version_string}
 .. |git_commit| replace:: {git_commit}
 

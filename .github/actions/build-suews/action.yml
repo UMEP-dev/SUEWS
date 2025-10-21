@@ -46,6 +46,20 @@ runs:
       with:
         python-version: 3.12
 
+    - name: Generate version file from git
+      shell: bash
+      env:
+        BUILD_UMEP_VARIANT: ${{ inputs.is_umep_variant }}
+      run: |
+        # Generate version file on host (where git is available)
+        # This file will be copied into the cibuildwheel container
+        if [ "${{ inputs.is_umep_variant }}" = "true" ]; then
+          echo "Generating version for UMEP variant (rc1 suffix)"
+          export BUILD_UMEP_VARIANT=true
+        fi
+        python3 get_ver_git.py
+        echo "Generated version: $(cat src/supy/_version_scm.py | grep __version__)"
+
     - name: Build wheels
       uses: pypa/cibuildwheel@v3.0.0
       env:
@@ -66,7 +80,13 @@ runs:
           ${{ inputs.is_umep_variant == 'true' && 'BUILD_UMEP_VARIANT=true' || '' }}
         CIBW_BEFORE_ALL_LINUX: >
           pip install --upgrade pip setuptools wheel &&
-          pip install oldest-supported-numpy &&
+          if [[ "${{ inputs.is_umep_variant }}" == "true" ]]; then
+            echo "Installing oldest-supported-numpy for UMEP variant build" &&
+            pip install oldest-supported-numpy;
+          else
+            echo "Installing numpy>=2.0 for standard build" &&
+            pip install 'numpy>=2.0';
+          fi &&
           if [[ "${{ inputs.python }}" == "cp313" ]]; then
             echo "Installing numpy for Python 3.13 f90wrap build" &&
             pip install numpy;
@@ -106,7 +126,7 @@ runs:
           gcc --version &&
           pip install delvewheel
         CIBW_REPAIR_WHEEL_COMMAND_WINDOWS: "delvewheel repair -w {dest_dir} {wheel}"
-        CIBW_TEST_REQUIRES: pytest
+        CIBW_TEST_REQUIRES: ${{ inputs.is_umep_variant == 'true' && 'pytest oldest-supported-numpy' || 'pytest' }}
         CIBW_TEST_COMMAND: "python -m pytest {project}/test -v --tb=short --durations=10"
         MACOSX_DEPLOYMENT_TARGET: ${{ inputs.buildplat == 'macos-13' && '13.0' || '15.0' }}
 

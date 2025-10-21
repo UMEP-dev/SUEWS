@@ -1688,6 +1688,7 @@ class StebbsProperties(BaseModel):
             "display_name": "Applianceusagefactor",
         },
         ge=0.0,
+        le=1.0,
     )
     HeatingSystemEfficiency: Optional[FlexibleRefValue(float)] = Field(
         default=0.0,

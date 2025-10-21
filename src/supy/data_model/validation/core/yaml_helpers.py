@@ -453,17 +453,23 @@ def get_mean_annual_air_temperature(
     """
     import numpy as np
 
-    # Validate inputs
+    # Validate inputs (lat/lon validation also done by monthly function, but validate here for clarity)
     if not (-90 <= lat <= 90):
         raise ValueError(f"Latitude must be between -90 and 90, got {lat}")
     if not (-180 <= lon <= 180):
         raise ValueError(f"Longitude must be between -180 and 180, got {lon}")
 
     # Get all 12 monthly temperatures and calculate the average
+    # Note: get_mean_monthly_air_temperature validates month internally and raises ValueError/FileNotFoundError
+    # We let these exceptions propagate as they indicate fundamental data issues
     monthly_temps = []
-    for month in range(1, 13):
-        monthly_temp = get_mean_monthly_air_temperature(lat, lon, month, spatial_res)
-        monthly_temps.append(monthly_temp)
+    try:
+        for month in range(1, 13):
+            monthly_temp = get_mean_monthly_air_temperature(lat, lon, month, spatial_res)
+            monthly_temps.append(monthly_temp)
+    except (ValueError, FileNotFoundError) as e:
+        # Re-raise with context about which month failed
+        raise type(e)(f"Failed to calculate annual temperature: {e}") from e
 
     annual_temp = float(np.mean(monthly_temps))
     return annual_temp

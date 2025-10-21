@@ -22,10 +22,27 @@ from output.variables import (
 )
 from output.datetime_vars import DATETIME_VARIABLES
 from output.suews_vars import SUEWS_VARIABLES
+from output.snow_vars import SNOW_VARIABLES
+from output.estm_vars import ESTM_VARIABLES
+from output.rsl_vars import RSL_VARIABLES
+from output.dailystate_vars import DAILYSTATE_VARIABLES
+from output.bl_vars import BL_VARIABLES
+from output.beers_vars import BEERS_VARIABLES
+from output.debug_vars import DEBUG_VARIABLES
 
 # Assemble registry manually for testing
 OUTPUT_REGISTRY = OutputVariableRegistry(
-    variables=(DATETIME_VARIABLES + SUEWS_VARIABLES)
+    variables=(
+        DATETIME_VARIABLES +
+        SUEWS_VARIABLES +
+        SNOW_VARIABLES +
+        ESTM_VARIABLES +
+        RSL_VARIABLES +
+        DAILYSTATE_VARIABLES +
+        BL_VARIABLES +
+        BEERS_VARIABLES +
+        DEBUG_VARIABLES
+    )
 )
 
 
@@ -37,15 +54,42 @@ def test_registry_basic():
     assert len(OUTPUT_REGISTRY.variables) > 0, "Registry should not be empty"
     print(f"✓ Registry contains {len(OUTPUT_REGISTRY.variables)} variables")
 
-    # Check we have datetime variables
+    # Check all groups are present
     datetime_vars = OUTPUT_REGISTRY.by_group(OutputGroup.DATETIME)
-    assert len(datetime_vars) == 5, "Should have 5 datetime variables"
-    print(f"✓ Found {len(datetime_vars)} datetime variables")
+    assert len(datetime_vars) == 5, f"Should have 5 datetime variables, got {len(datetime_vars)}"
+    print(f"✓ datetime: {len(datetime_vars)} variables")
 
-    # Check we have SUEWS variables
     suews_vars = OUTPUT_REGISTRY.by_group(OutputGroup.SUEWS)
-    assert len(suews_vars) > 0, "Should have SUEWS variables"
-    print(f"✓ Found {len(suews_vars)} SUEWS variables")
+    assert len(suews_vars) == 85, f"Should have 85 SUEWS variables, got {len(suews_vars)}"
+    print(f"✓ SUEWS: {len(suews_vars)} variables")
+
+    snow_vars = OUTPUT_REGISTRY.by_group(OutputGroup.SNOW)
+    assert len(snow_vars) > 0, f"Should have snow variables, got {len(snow_vars)}"
+    print(f"✓ snow: {len(snow_vars)} variables")
+
+    estm_vars = OUTPUT_REGISTRY.by_group(OutputGroup.ESTM)
+    assert len(estm_vars) == 27, f"Should have 27 ESTM variables, got {len(estm_vars)}"
+    print(f"✓ ESTM: {len(estm_vars)} variables")
+
+    rsl_vars = OUTPUT_REGISTRY.by_group(OutputGroup.RSL)
+    assert len(rsl_vars) > 100, f"Should have >100 RSL variables, got {len(rsl_vars)}"
+    print(f"✓ RSL: {len(rsl_vars)} variables")
+
+    dailystate_vars = OUTPUT_REGISTRY.by_group(OutputGroup.DAILYSTATE)
+    assert len(dailystate_vars) == 47, f"Should have 47 DailyState variables, got {len(dailystate_vars)}"
+    print(f"✓ DailyState: {len(dailystate_vars)} variables")
+
+    bl_vars = OUTPUT_REGISTRY.by_group(OutputGroup.BL)
+    assert len(bl_vars) == 17, f"Should have 17 BL variables, got {len(bl_vars)}"
+    print(f"✓ BL: {len(bl_vars)} variables")
+
+    beers_vars = OUTPUT_REGISTRY.by_group(OutputGroup.BEERS)
+    assert len(beers_vars) == 29, f"Should have 29 BEERS variables, got {len(beers_vars)}"
+    print(f"✓ BEERS: {len(beers_vars)} variables")
+
+    debug_vars = OUTPUT_REGISTRY.by_group(OutputGroup.DEBUG)
+    assert len(debug_vars) > 0, f"Should have debug variables, got {len(debug_vars)}"
+    print(f"✓ debug: {len(debug_vars)} variables")
 
     print()
 
@@ -205,14 +249,20 @@ def main():
         print("✅ ALL TESTS PASSED!")
         print("=" * 70)
         print()
-        print("Summary:")
-        print(f"- Total variables in registry: {len(OUTPUT_REGISTRY.variables)}")
-        datetime_count = len(OUTPUT_REGISTRY.by_group(OutputGroup.DATETIME))
-        suews_count = len(OUTPUT_REGISTRY.by_group(OutputGroup.SUEWS))
-        print(f"- Datetime variables: {datetime_count}")
-        print(f"- SUEWS variables: {suews_count}")
+        print("Summary - Variable counts by group:")
+        print(f"  Total: {len(OUTPUT_REGISTRY.variables)} variables")
+        print(f"  - datetime: {len(OUTPUT_REGISTRY.by_group(OutputGroup.DATETIME))}")
+        print(f"  - SUEWS: {len(OUTPUT_REGISTRY.by_group(OutputGroup.SUEWS))}")
+        print(f"  - snow: {len(OUTPUT_REGISTRY.by_group(OutputGroup.SNOW))}")
+        print(f"  - ESTM: {len(OUTPUT_REGISTRY.by_group(OutputGroup.ESTM))}")
+        print(f"  - RSL: {len(OUTPUT_REGISTRY.by_group(OutputGroup.RSL))}")
+        print(f"  - DailyState: {len(OUTPUT_REGISTRY.by_group(OutputGroup.DAILYSTATE))}")
+        print(f"  - BL: {len(OUTPUT_REGISTRY.by_group(OutputGroup.BL))}")
+        print(f"  - BEERS: {len(OUTPUT_REGISTRY.by_group(OutputGroup.BEERS))}")
+        print(f"  - debug: {len(OUTPUT_REGISTRY.by_group(OutputGroup.DEBUG))}")
         print()
-        print("The Pydantic models are working correctly and ready for integration!")
+        print("✨ All SUEWS output variables successfully migrated to Python/Pydantic!")
+        print("The registry is ready for integration with SUEWS runtime.")
 
         return 0
 

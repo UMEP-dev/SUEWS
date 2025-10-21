@@ -421,9 +421,6 @@ test-quick.py
 df_water*.pkl
 quick-test.ipynb
 
-# SUEWS output files at root
-/*.parquet
-
 # Build output
 docs/build/
 docs/source/_static/suews-config-ui/
@@ -642,6 +639,5 @@ local-schema/
 # Temporary schema export directory
 public/
 docs/source/api/_autosummary/
-# Exclude large test data but track structure
-test/fixtures/gh846/*.zip
-
+# Auto-generated Fortran files (generated at build time)
+src/suews/src/varlist_generated.f95

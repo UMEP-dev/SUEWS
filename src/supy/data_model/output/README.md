@@ -26,10 +26,18 @@ This module provides **Python-first** definitions of SUEWS output variables usin
 - BEERS: 29 variables (detailed radiation)
 - debug: 85 variables (diagnostic outputs by surface)
 
+**Fortran Deprecation:**
+- ✅ Automatic Fortran code generation from Python OUTPUT_REGISTRY
+- ✅ Python is now the single source of truth
+- ✅ Build system integration (Makefile)
+- ✅ Eliminated ~1200 lines of duplicate Fortran DATA statements
+- See `.claude/reference/fortran-deprecation-strategy.md` for details
+
 **Next Steps:**
 - Update documentation generation to use Pydantic models
 - Full integration testing with compiled Fortran
 - Performance benchmarking
+- Migrate experimental groups (SPARTACUS, EHC, STEBBS, NHood) when needed
 
 ## Architecture
 

@@ -465,7 +465,9 @@ def get_mean_annual_air_temperature(
     monthly_temps = []
     try:
         for month in range(1, 13):
-            monthly_temp = get_mean_monthly_air_temperature(lat, lon, month, spatial_res)
+            monthly_temp = get_mean_monthly_air_temperature(
+                lat, lon, month, spatial_res
+            )
             monthly_temps.append(monthly_temp)
     except (ValueError, FileNotFoundError) as e:
         # Re-raise with context about which month failed

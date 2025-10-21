@@ -21,7 +21,7 @@
 
 | Year | Features | Bugfixes | Changes | Maintenance | Docs | Total |
 |------|----------|----------|---------|-------------|------|-------|
-| 2025 | 35 | 22 | 13 | 33 | 15 | 118 |
+| 2025 | 36 | 25 | 13 | 34 | 16 | 124 |
 | 2024 | 12 | 17 | 1 | 12 | 1 | 43 |
 | 2023 | 11 | 14 | 3 | 9 | 1 | 38 |
 | 2022 | 15 | 18 | 0 | 7 | 0 | 40 |
@@ -34,12 +34,37 @@
 
 ## 2025
 
+### 20 Oct 2025
+- [bugfix] Fixed recursive nested config updates in SUEWSSimulation (#756, 88a5202)
+  - Resolved issue where updating nested configuration settings converted parameters to dictionaries
+  - Implemented new function to handle any level of nesting properly
+  - Ensures df_state_init can be generated correctly after nested updates
+- [maintenance] Added comprehensive test coverage for nested config updates (07db1e6, #757)
+
+### 17 Oct 2025
+- [bugfix] Fixed nlayer nested structures detection in validation system (2e5922e, #731)
+  - Enhanced find_missing_parameters_in_lists to properly detect nlayer-dependent nested structures
+  - Improved validation for complex nested arrays in vertical layers configuration
+
+### 16 Oct 2025
+- [bugfix] Fixed Sphinx configuration errors preventing ReadTheDocs builds (648a83b)
+  - Defined path_source variable before use in RTD build section
+  - Converted rst_prolog to raw f-string to fix escape sequence warnings
+- [doc] Removed documentation status badge from index.rst (7d0b9e3)
+
 ### 15 Oct 2025
 - [bugfix] Fixed Phase B validation to update roofs/walls temperature fields in initial_states from CRU climate data
   - Extended `adjust_surface_temperatures()` to process `initial_states.roofs` and `initial_states.walls` arrays
   - Updates `temperature` (5-layer array), `tsfc`, and `tin` fields to monthly averages from CRU TS4.06 dataset
   - Ensures consistent temperature initialization across all surface types
 - [maintenance] Simplified GitHub Release creation conditions to prevent failures from context mismatches (047d9f67)
+- [feature] Added automatic nlayer dimension validation in Phase A (#731)
+  - Automatically detects nlayer value from user configuration
+  - Validates all vertical layer arrays match expected dimensions (veg_frac, veg_scale, building_frac, building_scale: nlayer elements; height: nlayer+1 elements)
+  - Pads short arrays with null values to help users, but fails validation requiring user to replace nulls
+  - Creates complete null template structures for complex nested arrays (roofs/walls in vertical_layers and initial_states)
+  - Generates detailed reports distinguishing array types and levels with clear suggested fixes
+  - Added 5 comprehensive tests in test_validation.py covering simple arrays, multiple errors, and complex nested structures
 - [feature] Enhanced UMEP/QGIS build system with nightly builds and improved version handling (cdb4273, 8f540b9, 636c1b9, 35510bb, 4a972c7)
   - Enabled UMEP nightly builds with `.dev1` versioning strategy for continuous testing
   - Explicitly excluded nightly builds from UMEP workflow to prevent conflicts

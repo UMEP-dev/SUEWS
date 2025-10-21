@@ -30,6 +30,52 @@ except ImportError as e:
     sys.exit(1)
 
 
+def detect_nlayer_from_user_yaml(user_yaml_file: str) -> int:
+    """Detect nlayer value from user YAML file.
+
+    Args:
+        user_yaml_file: Path to user YAML configuration file
+
+    Returns:
+        nlayer value (defaults to 3 if not found or on error)
+    """
+    try:
+        with open(user_yaml_file, "r") as f:
+            user_data = yaml.safe_load(f)
+
+        # Navigate: sites[0].properties.vertical_layers.nlayer.value
+        if not user_data or "sites" not in user_data:
+            return 3
+
+        sites = user_data.get("sites", [])
+        if not sites or not isinstance(sites, list):
+            return 3
+
+        first_site = sites[0]
+        if not isinstance(first_site, dict):
+            return 3
+
+        properties = first_site.get("properties", {})
+        if not isinstance(properties, dict):
+            return 3
+
+        vertical_layers = properties.get("vertical_layers", {})
+        if not isinstance(vertical_layers, dict):
+            return 3
+
+        nlayer = vertical_layers.get("nlayer", {})
+        if isinstance(nlayer, dict):
+            nlayer_value = nlayer.get("value", 3)
+        else:
+            nlayer_value = nlayer
+
+        return int(nlayer_value) if nlayer_value is not None else 3
+
+    except Exception:
+        # Silently default to 3 on any error
+        return 3
+
+
 def detect_pydantic_defaults(
     original_data: dict,
     processed_data: dict,
@@ -440,6 +486,9 @@ def run_phase_a(
     if not silent:
         print("Configuration structure check...")
 
+    # Detect nlayer from user YAML for dimension validation
+    nlayer_value = detect_nlayer_from_user_yaml(user_yaml_file)
+
     try:
         with redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()):
             annotate_missing_parameters(
@@ -449,6 +498,7 @@ def run_phase_a(
                 report_file=report_file,
                 mode=mode,
                 phase=phase,
+                nlayer=nlayer_value,
             )
 
         if not os.path.exists(uptodate_file):

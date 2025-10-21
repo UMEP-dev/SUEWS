@@ -1,0 +1,16 @@
+# Build artifacts
+*.o
+*.a
+*.so
+test_evap
+libsuews_evap.a
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Editor files
+*.swp
+*~
+.vscode/
+.idea/

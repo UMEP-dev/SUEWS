@@ -639,3 +639,5 @@ local-schema/
 # Temporary schema export directory
 public/
 docs/source/api/_autosummary/
+# Auto-generated Fortran files (generated at build time)
+src/suews/src/varlist_generated.f95

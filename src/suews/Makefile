@@ -331,17 +331,30 @@ exe: $(addprefix $(DIR_SRC_SUEWS), $(OTHERS) suews_program$(suffix_code))
 src/suews_phys_spartacus.o: src/suews_phys_spartacus.f95 libspartacus
 	$(FC) $(FCFLAGS) -c $< -o $@
 
+# special rule for output control module - depends on auto-generated varlist
+src/varlist_generated.f95: src/generate_varlist.py
+	@echo "Generating Fortran varlist from Python OUTPUT_REGISTRY..."
+	@python3 src/generate_varlist.py || (echo "WARNING: Failed to generate varlist, using existing file if available" && test -f src/varlist_generated.f95)
+
+src/suews_ctrl_output.o: src/suews_ctrl_output.f95 src/varlist_generated.f95
+	@echo "Compiling output control module (with auto-generated varlist)..."
+	$(FC) $(FCFLAGS) -c $< -o $@
+
 # rules for f95-->f90
 %.o: %$(suffix_code)
 	@echo $^
 	$(FC) $(FCFLAGS) -c $^ -o $@
 
-clean: clean-obj clean-mods clean-lib clean-bin clean-ext
+clean: clean-obj clean-mods clean-lib clean-bin clean-ext clean-generated
 
 # dist-clean: clean-tests clean-toplevel clean-utilities clean-mods dist-clean-doc
 
 clean-obj:
 	find . -name "*.o" -type f -delete
+
+clean-generated:
+	@echo "Cleaning auto-generated files..."
+	rm -f src/varlist_generated.f95 src/replace_data_statements.py
 
 
 clean-lib:

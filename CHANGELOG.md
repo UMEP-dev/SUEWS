@@ -34,6 +34,9 @@
 
 ## 2025
 
+### 21 Oct 2025
+- [feature] Added `get_mean_annual_air_temperature()` for stable parameter initialisation using CRU TS4.06 climate normals
+
 ### 20 Oct 2025
 - [bugfix] Fixed recursive nested config updates in SUEWSSimulation (#756, 88a5202)
   - Resolved issue where updating nested configuration settings converted parameters to dictionaries

@@ -1242,7 +1242,7 @@ class ArchetypeProperties(BaseModel):
         gt=0.0,
     )
     WallEffectiveConductivity: FlexibleRefValue(float) = Field(
-        default=60.0,
+        default=0.6,
         description="Effective thermal conductivity of walls and roofs (weighted) [W m-1 K-1]",
         json_schema_extra={
             "unit": "W m^-1 K^-1",

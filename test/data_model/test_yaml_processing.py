@@ -3432,19 +3432,13 @@ class TestPhaseBScienceCheck(TestProcessorFixtures):
 
     def test_cru_file_availability_error(self):
         """Test handling of missing CRU data file."""
-        with patch.object(science_check, "trv_supy_module") as mock_trv_module:
-            from unittest.mock import MagicMock
+        # Patch the imported function from yaml_helpers to raise FileNotFoundError
+        with patch.object(
+            science_check, "_get_mean_monthly_air_temperature"
+        ) as mock_func:
+            mock_func.side_effect = FileNotFoundError("CRU data file not found")
 
-            # Mock the path to simulate file not existing
-            mock_cru_resource = MagicMock()
-            mock_cru_resource.exists.return_value = False
-
-            # Set up the path chain: trv_supy_module / "ext_data" / "CRU_TS4.06_1991_2020.parquet"
-            mock_ext_data = MagicMock()
-            mock_ext_data.__truediv__.return_value = mock_cru_resource
-            mock_trv_module.__truediv__.return_value = mock_ext_data
-
-            # When CRU data is not available, the function should return None
+            # When CRU data is not available, the wrapper should return None
             # (for standalone mode compatibility) and log a warning
             result = science_check.get_mean_monthly_air_temperature(51.5, -0.12, 7)
             assert result is None  # Should return None when CRU data unavailable

@@ -778,14 +778,36 @@ def get_mean_monthly_air_temperature(
 
     Wrapper around yaml_helpers.get_mean_monthly_air_temperature that returns
     None if CRU data is not available (e.g., in standalone mode).
+
+    Raises:
+        ValueError: If input parameters are invalid (month, lat, lon out of range)
     """
+    # Validate parameters first - these errors should propagate
+    if not (1 <= month <= 12):
+        raise ValueError(f"Month must be between 1 and 12, got {month}")
+    if not (-90 <= lat <= 90):
+        raise ValueError(f"Latitude must be between -90 and 90, got {lat}")
+    if not (-180 <= lon <= 180):
+        raise ValueError(f"Longitude must be between -180 and 180, got {lon}")
+
+    # Only catch availability errors, not validation errors
     try:
         return _get_mean_monthly_air_temperature(lat, lon, month, spatial_res)
-    except (FileNotFoundError, ValueError) as e:
+    except (FileNotFoundError, IOError, OSError) as e:
         logger_supy.warning(
-            f"Could not get CRU temperature data: {e}. Temperature validation skipped."
+            f"CRU data file not available: {e}. Temperature validation skipped."
         )
         return None
+    except ValueError as e:
+        # Only catch data availability errors from CRU
+        if "CRU" in str(e) or "not found" in str(e).lower():
+            logger_supy.warning(
+                f"CRU data not available: {e}. Temperature validation skipped."
+            )
+            return None
+        else:
+            # Re-raise validation errors
+            raise
 
 
 def get_mean_annual_air_temperature(
@@ -804,14 +826,34 @@ def get_mean_annual_air_temperature(
     Returns:
         Annual mean temperature in Celsius based on 1991-2020 climate normals,
         or None if CRU data not available
+
+    Raises:
+        ValueError: If input parameters are invalid (lat, lon out of range)
     """
+    # Validate parameters first - these errors should propagate
+    if not (-90 <= lat <= 90):
+        raise ValueError(f"Latitude must be between -90 and 90, got {lat}")
+    if not (-180 <= lon <= 180):
+        raise ValueError(f"Longitude must be between -180 and 180, got {lon}")
+
+    # Only catch availability errors, not validation errors
     try:
         return _get_mean_annual_air_temperature(lat, lon, spatial_res)
-    except (FileNotFoundError, ValueError) as e:
+    except (FileNotFoundError, IOError, OSError) as e:
         logger_supy.warning(
-            f"Could not get CRU temperature data: {e}. Temperature validation skipped."
+            f"CRU data file not available: {e}. Temperature validation skipped."
         )
         return None
+    except ValueError as e:
+        # Only catch data availability errors from CRU
+        if "CRU" in str(e) or "not found" in str(e).lower():
+            logger_supy.warning(
+                f"CRU data not available: {e}. Temperature validation skipped."
+            )
+            return None
+        else:
+            # Re-raise validation errors
+            raise
 
 
 def update_temperature_parameters(

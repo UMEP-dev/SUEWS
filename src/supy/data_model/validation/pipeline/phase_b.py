@@ -814,6 +814,42 @@ def get_mean_annual_air_temperature(
         return None
 
 
+def update_temperature_parameters(
+    element: dict, avg_temp: float
+) -> Tuple[dict, List[str]]:
+    """
+    Update temperature, tsfc, and tin parameters in a dictionary element.
+
+    Args:
+        element: Dictionary containing temperature parameters
+        avg_temp: Target temperature value
+
+    Returns:
+        Tuple of (updated element dict, list of parameter names that were updated)
+    """
+    updated_params = []
+
+    if "temperature" in element and isinstance(element["temperature"], dict):
+        current_temp = element["temperature"].get("value")
+        if current_temp != [avg_temp] * 5:
+            element["temperature"]["value"] = [avg_temp] * 5
+            updated_params.append("temperature")
+
+    if "tsfc" in element and isinstance(element["tsfc"], dict):
+        current_tsfc = element["tsfc"].get("value")
+        if current_tsfc != avg_temp:
+            element["tsfc"]["value"] = avg_temp
+            updated_params.append("tsfc")
+
+    if "tin" in element and isinstance(element["tin"], dict):
+        current_tin = element["tin"].get("value")
+        if current_tin != avg_temp:
+            element["tin"]["value"] = avg_temp
+            updated_params.append("tin")
+
+    return element, updated_params
+
+
 def adjust_surface_temperatures(
     yaml_data: dict, start_date: str
 ) -> Tuple[dict, List[ScientificAdjustment]]:
@@ -856,39 +892,10 @@ def adjust_surface_temperatures(
             if not isinstance(surf, dict):
                 continue
 
-            temperature_updated = False
-            tsfc_updated = False
-            tin_updated = False
+            surf, updated_params = update_temperature_parameters(surf, avg_temp)
 
-            if "temperature" in surf and isinstance(surf["temperature"], dict):
-                current_temp = surf["temperature"].get("value")
-                if current_temp != [avg_temp] * 5:
-                    surf["temperature"]["value"] = [avg_temp] * 5
-                    temperature_updated = True
-
-            if "tsfc" in surf and isinstance(surf["tsfc"], dict):
-                current_tsfc = surf["tsfc"].get("value")
-                if current_tsfc != avg_temp:
-                    surf["tsfc"]["value"] = avg_temp
-                    tsfc_updated = True
-
-            if "tin" in surf and isinstance(surf["tin"], dict):
-                current_tin = surf["tin"].get("value")
-                if current_tin != avg_temp:
-                    surf["tin"]["value"] = avg_temp
-                    tin_updated = True
-
-            if temperature_updated or tsfc_updated or tin_updated:
-                updated_params = []
-                if temperature_updated:
-                    updated_params.append("temperature")
-                if tsfc_updated:
-                    updated_params.append("tsfc")
-                if tin_updated:
-                    updated_params.append("tin")
-
+            if updated_params:
                 param_list = ", ".join(updated_params)
-
                 adjustments.append(
                     ScientificAdjustment(
                         parameter=f"initial_states.{surface_type}",
@@ -918,6 +925,32 @@ def adjust_surface_temperatures(
                             reason=f"Set from CRU data for coordinates ({lat:.2f}, {lng:.2f}) for month {month}",
                         )
                     )
+
+        # Update temperatures in roofs and walls arrays
+        for array_name in ["roofs", "walls"]:
+            if array_name in initial_states:
+                array = initial_states[array_name]
+                if isinstance(array, list):
+                    for element_idx, element in enumerate(array):
+                        if not isinstance(element, dict):
+                            continue
+
+                        element, updated_params = update_temperature_parameters(
+                            element, avg_temp
+                        )
+
+                        if updated_params:
+                            param_list = ", ".join(updated_params)
+                            adjustments.append(
+                                ScientificAdjustment(
+                                    parameter=f"initial_states.{array_name}[{element_idx}]",
+                                    site_index=site_idx,
+                                    site_gridid=site_gridid,
+                                    old_value=param_list,
+                                    new_value=f"{avg_temp} C",
+                                    reason=f"Set from CRU data for coordinates ({lat:.2f}, {lng:.2f}) for month {month}",
+                                )
+                            )
 
         # Save back to site
         site["initial_states"] = initial_states

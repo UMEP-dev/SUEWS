@@ -21,3 +21,6 @@ suews-mcp = "suews_mcp.server:main"
 Homepage = "https://suews.readthedocs.io"
 Repository = "https://github.com/UMEP-dev/SUEWS"
 Documentation = "https://suews.readthedocs.io/en/latest/mcp-integration.html"
+
+[tool.setuptools.package-data]
+suews_mcp = ["data/*.json", "physics_code/*.f95"]

@@ -34,6 +34,12 @@
 
 ## 2025
 
+### 21 Oct 2025
+- [bugfix] Fixed Phase B validation to update roofs/walls temperature fields in initial_states from CRU climate data
+  - Extended `adjust_surface_temperatures()` to process `initial_states.roofs` and `initial_states.walls` arrays
+  - Updates `temperature` (5-layer array), `tsfc`, and `tin` fields to monthly averages from CRU TS4.06 dataset
+  - Ensures consistent temperature initialization across all surface types
+
 ### 20 Oct 2025
 - [bugfix] Fixed recursive nested config updates in SUEWSSimulation (#756, 88a5202)
   - Resolved issue where updating nested configuration settings converted parameters to dictionaries
@@ -53,10 +59,6 @@
 - [doc] Removed documentation status badge from index.rst (7d0b9e3)
 
 ### 15 Oct 2025
-- [bugfix] Fixed Phase B validation to update roofs/walls temperature fields in initial_states from CRU climate data
-  - Extended `adjust_surface_temperatures()` to process `initial_states.roofs` and `initial_states.walls` arrays
-  - Updates `temperature` (5-layer array), `tsfc`, and `tin` fields to monthly averages from CRU TS4.06 dataset
-  - Ensures consistent temperature initialization across all surface types
 - [maintenance] Simplified GitHub Release creation conditions to prevent failures from context mismatches (047d9f67)
 - [feature] Added automatic nlayer dimension validation in Phase A (#731)
   - Automatically detects nlayer value from user configuration

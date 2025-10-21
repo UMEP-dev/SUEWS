@@ -823,16 +823,16 @@ def get_mean_monthly_air_temperature(
     nearby_distances = distances[nearby_indices]
     closest_idx = nearby_distances.idxmin()
 
-    temperature = month_data.loc[closest_idx, "NormalTemperature"]
+    monthly_temperature = month_data.loc[closest_idx, "NormalTemperature"]
 
     closest_lat = month_data.loc[closest_idx, "Latitude"]
     closest_lon = month_data.loc[closest_idx, "Longitude"]
     logger_supy.debug(
         f"CRU temperature for ({lat:.2f}, {lon:.2f}) month {month}: "
-        f"{temperature:.2f} C from grid cell ({closest_lat:.2f}, {closest_lon:.2f})"
+        f"{monthly_temperature:.2f} C from grid cell ({closest_lat:.2f}, {closest_lon:.2f})"
     )
 
-    return float(temperature)
+    return float(monthly_temperature)
 
 
 def get_mean_annual_air_temperature(

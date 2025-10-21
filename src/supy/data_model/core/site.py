@@ -1236,7 +1236,7 @@ class ArchetypeProperties(BaseModel):
         le=1.0,
     )
     WallThickness: FlexibleRefValue(float) = Field(
-        default=20.0,
+        default=0.2,
         description="Thickness of external wall and roof (weighted) [m]",
         json_schema_extra={"unit": "m", "display_name": "Wallthickness"},
         gt=0.0,

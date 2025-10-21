@@ -1,0 +1,3502 @@
+[
+  {
+    "question_id": "Q001",
+    "question": "What is the energy balance equation in SUEWS?",
+    "category": "energy_balance",
+    "difficulty": "basic",
+    "scores": {
+      "haiku_mcp": {
+        "total_score": 1.25,
+        "component_scores": {
+          "length": 1.0,
+          "citations": 0.0,
+          "line_refs": 0.0,
+          "code_blocks": 0.0,
+          "equations": 1.0
+        },
+        "weights": {
+          "citations": 0.3,
+          "line_refs": 0.25,
+          "code_blocks": 0.2,
+          "equations": 0.15,
+          "length": 0.1
+        }
+      },
+      "sonnet_mcp": {
+        "total_score": 0.5,
+        "component_scores": {
+          "length": 1.0,
+          "citations": 0.0,
+          "line_refs": 0.0,
+          "code_blocks": 0.0,
+          "equations": 0.0
+        },
+        "weights": {
+          "citations": 0.3,
+          "line_refs": 0.25,
+          "code_blocks": 0.2,
+          "equations": 0.15,
+          "length": 0.1
+        }
+      },
+      "sonnet_baseline": {
+        "total_score": 0.5,
+        "component_scores": {
+          "length": 1.0,
+          "citations": 0.0,
+          "line_refs": 0.0,
+          "code_blocks": 0.0,
+          "equations": 0.0
+        },
+        "weights": {
+          "citations": 0.3,
+          "line_refs": 0.25,
+          "code_blocks": 0.2,
+          "equations": 0.15,
+          "length": 0.1
+        }
+      },
+      "reference": {
+        "total_score": 5.0,
+        "component_scores": {
+          "length": 1.0,
+          "citations": 1.0,
+          "line_refs": 1.0,
+          "code_blocks": 1.0,
+          "equations": 1.0
+        },
+        "weights": {}
+      }
+    }
+  },
+  {
+    "question_id": "Q002",
+    "question": "How does SUEWS calculate storage heat flux (QS)?",
+    "category": "energy_balance",
+    "difficulty": "intermediate",
+    "scores": {
+      "haiku_mcp": {
+        "total_score": 2.25,
+        "component_scores": {
+          "length": 1.0,
+          "citations": 0.0,
+          "line_refs": 0.0,
+          "code_blocks": 1.0,
+          "equations": 1.0
+        },
+        "weights": {
+          "citations": 0.3,
+          "line_refs": 0.25,
+          "code_blocks": 0.2,
+          "equations": 0.15,
+          "length": 0.1
+        }
+      },
+      "sonnet_mcp": {
+        "total_score": 2.25,
+        "component_scores": {
+          "length": 1.0,
+          "citations": 0.0,
+          "line_refs": 0.0,
+          "code_blocks": 1.0,
+          "equations": 1.0
+        },
+        "weights": {
+          "citations": 0.3,
+          "line_refs": 0.25,
+          "code_blocks": 0.2,
+          "equations": 0.15,
+          "length": 0.1
+        }
+      },
+      "sonnet_baseline": {
+        "total_score": 1.7500000000000002,
+        "component_scores": {
+          "length": 1.0,
+          "citations": 0.0,
+          "line_refs": 0.0,
+          "code_blocks": 1.0,
+          "equations": 0.3333333333333333
+        },
+        "weights": {
+          "citations": 0.3,
+          "line_refs": 0.25,
+          "code_blocks": 0.2,
+          "equations": 0.15,
+          "length": 0.1
+        }
+      },
+      "reference": {
+        "total_score": 5.0,
+        "component_scores": {
+          "length": 1.0,
+          "citations": 1.0,
+          "line_refs": 1.0,
+          "code_blocks": 1.0,
+          "equations": 1.0
+        },
+        "weights": {}
+      }
+    }
+  },
+  {
+    "question_id": "Q003",
+    "question": "What is the difference between sensible heat (QH) and latent heat (QE)?",
+    "category": "energy_balance",
+    "difficulty": "basic",
+    "scores": {
+      "haiku_mcp": {
+        "total_score": 0.5947208228379514,
+        "component_scores": {
+          "length": 0.8144416456759026,
+          "citations": 0.0,
+          "line_refs": 0.0,
+          "code_blocks": 0.0,
+          "equations": 0.25
+        },
+        "weights": {
+          "citations": 0.3,
+          "line_refs": 0.25,
+          "code_blocks": 0.2,
+          "equations": 0.15,
+          "length": 0.1
+        }
+      },
+      "sonnet_mcp": {
+        "total_score": 1.4574937027707806,
+        "component_scores": {
+          "length": 0.748320738874895,
+          "citations": 0.0,
+          "line_refs": 0.0,
+          "code_blocks": 0.3333333333333333,
+          "equations": 1.0
+        },
+        "weights": {
+          "citations": 0.3,
+          "line_refs": 0.25,
+          "code_blocks": 0.2,
+          "equations": 0.15,
+          "length": 0.1
+        }
+      },
+      "sonnet_baseline": {
+        "total_score": 0.35789252728799326,
+        "component_scores": {
+          "length": 0.7157850545759865,
+          "citations": 0.0,
+          "line_refs": 0.0,
+          "code_blocks": 0.0,
+          "equations": 0.0
+        },
+        "weights": {
+          "citations": 0.3,
+          "line_refs": 0.25,
+          "code_blocks": 0.2,
+          "equations": 0.15,
+          "length": 0.1
+        }
+      },
+      "reference": {
+        "total_score": 5.0,
+        "component_scores": {
+          "length": 1.0,
+          "citations": 1.0,
+          "line_refs": 1.0,
+          "code_blocks": 1.0,
+          "equations": 1.0
+        },
+        "weights": {}
+      }
+    }
+  },
+  {
+    "question_id": "Q004",
+    "question": "What parameters control the OHM scheme and what do they represent?",
+    "category": "energy_balance",
+    "difficulty": "advanced",
+    "scores": {
+      "haiku_mcp": {
+        "total_score": 1.95,
+        "component_scores": {
+          "length": 1.0,
+          "citations": 0.0,
+          "line_refs": 0.0,
+          "code_blocks": 0.5,
+          "equations": 1.0
+        },
+        "weights": {
+          "citations": 0.3,
+          "line_refs": 0.25,
+          "code_blocks": 0.2,
+          "equations": 0.15,
+          "length": 0.1
+        }
+      },
+      "sonnet_mcp": {
+        "total_score": 1.45,
+        "component_scores": {
+          "length": 1.0,
+          "citations": 0.0,
+          "line_refs": 0.0,
+          "code_blocks": 0.0,
+          "equations": 1.0
+        },
+        "weights": {
+          "citations": 0.3,
+          "line_refs": 0.25,
+          "code_blocks": 0.2,
+          "equations": 0.15,
+          "length": 0.1
+        }
+      },
+      "sonnet_baseline": {
+        "total_score": 0.9203376459450929,
+        "component_scores": {
+          "length": 0.6906752918901862,
+          "citations": 0.0,
+          "line_refs": 0.0,
+          "code_blocks": 0.0,
+          "equations": 0.5
+        },
+        "weights": {
+          "citations": 0.3,
+          "line_refs": 0.25,
+          "code_blocks": 0.2,
+          "equations": 0.15,
+          "length": 0.1
+        }
+      },
+      "reference": {
+        "total_score": 5.0,
+        "component_scores": {
+          "length": 1.0,
+          "citations": 1.0,
+          "line_refs": 1.0,
+          "code_blocks": 1.0,
+          "equations": 1.0
+        },
+        "weights": {}
+      }
+    }
+  },
+  {
+    "question_id": "Q005",
+    "question": "How is anthropogenic heat flux (QF) estimated in SUEWS?",
+    "category": "energy_balance",
+    "difficulty": "intermediate",
+    "scores": {
+      "haiku_mcp": {
+        "total_score": 1.2825178697271722,
+        "component_scores": {
+          "length": 0.9627630121816168,
+          "citations": 0.0,
+          "line_refs": 0.0,
+          "code_blocks": 0.36363636363636365,
+          "equations": 0.5833333333333334
+        },
+        "weights": {
+          "citations": 0.3,
+          "line_refs": 0.25,
+          "code_blocks": 0.2,
+          "equations": 0.15,
+          "length": 0.1
+        }
+      },
+      "sonnet_mcp": {
+        "total_score": 1.3409090909090908,
+        "component_scores": {
+          "length": 1.0,
+          "citations": 0.0,
+          "line_refs": 0.0,
+          "code_blocks": 0.09090909090909091,
+          "equations": 1.0
+        },
+        "weights": {
+          "citations": 0.3,
+          "line_refs": 0.25,
+          "code_blocks": 0.2,
+          "equations": 0.15,
+          "length": 0.1
+        }
+      },
+      "sonnet_baseline": {
+        "total_score": 0.27529761904761907,
+        "component_scores": {
+          "length": 0.550595238095238,
+          "citations": 0.0,
+          "line_refs": 0.0,
+          "code_blocks": 0.0,
+          "equations": 0.0
+        },
+        "weights": {
+          "citations": 0.3,
+          "line_refs": 0.25,
+          "code_blocks": 0.2,
+          "equations": 0.15,
+          "length": 0.1
+        }
+      },
+      "reference": {
+        "total_score": 5.0,
+        "component_scores": {
+          "length": 1.0,
+          "citations": 1.0,
+          "line_refs": 1.0,
+          "code_blocks": 1.0,
+          "equations": 1.0
+        },
+        "weights": {}
+      }
+    }
+  },
+  {
+    "question_id": "Q006",
+    "question": "How is soil moisture calculated in SUEWS?",
+    "category": "water_balance",
+    "difficulty": "basic",
+    "scores": {
+      "haiku_mcp": {
+        "total_score": 1.3830824854956698,
+        "component_scores": {
+          "length": 0.8733078281341966,
+          "citations": 0.0,
+          "line_refs": 0.0,
+          "code_blocks": 0.5714285714285714,
+          "equations": 0.5
+        },
+        "weights": {
+          "citations": 0.3,
+          "line_refs": 0.25,
+          "code_blocks": 0.2,
+          "equations": 0.15,
+          "length": 0.1
+        }
+      },
+      "sonnet_mcp": {
+        "total_score": 2.25,
+        "component_scores": {
+          "length": 1.0,
+          "citations": 0.0,
+          "line_refs": 0.0,
+          "code_blocks": 1.0,
+          "equations": 1.0
+        },
+        "weights": {
+          "citations": 0.3,
+          "line_refs": 0.25,
+          "code_blocks": 0.2,
+          "equations": 0.15,
+          "length": 0.1
+        }
+      },
+      "sonnet_baseline": {
+        "total_score": 0.4950422517447238,
+        "component_scores": {
+          "length": 0.5543702177751618,
+          "citations": 0.0,
+          "line_refs": 0.0,
+          "code_blocks": 0.14285714285714285,
+          "equations": 0.1
+        },
+        "weights": {
+          "citations": 0.3,
+          "line_refs": 0.25,
+          "code_blocks": 0.2,
+          "equations": 0.15,
+          "length": 0.1
+        }
+      },
+      "reference": {
+        "total_score": 5.0,
+        "component_scores": {
+          "length": 1.0,
+          "citations": 1.0,
+          "line_refs": 1.0,
+          "code_blocks": 1.0,
+          "equations": 1.0
+        },
+        "weights": {}
+      }
+    }
+  },
+  {
+    "question_id": "Q007",
+    "question": "What happens when paved surfaces have too much water?",
+    "category": "water_balance",
+    "difficulty": "intermediate",
+    "scores": {
+      "haiku_mcp": {
+        "total_score": 0.8232846562325322,
+        "component_scores": {
+          "length": 0.8590693124650642,
+          "citations": 0.0,
+          "line_refs": 0.0,
+          "code_blocks": 0.3,
+          "equations": 0.125
+        },
+        "weights": {
+          "citations": 0.3,
+          "line_refs": 0.25,
+          "code_blocks": 0.2,
+          "equations": 0.15,
+          "length": 0.1
+        }
+      },
+      "sonnet_mcp": {
+        "total_score": 0.6763799608719955,
+        "component_scores": {
+          "length": 0.565259921743991,
+          "citations": 0.0,
+          "line_refs": 0.0,
+          "code_blocks": 0.3,
+          "equations": 0.125
+        },
+        "weights": {
+          "citations": 0.3,
+          "line_refs": 0.25,
+          "code_blocks": 0.2,
+          "equations": 0.15,
+          "length": 0.1
+        }
+      },
+      "sonnet_baseline": {
+        "total_score": 0.20943963107881497,
+        "component_scores": {
+          "length": 0.41887926215762994,
+          "citations": 0.0,
+          "line_refs": 0.0,
+          "code_blocks": 0.0,
+          "equations": 0.0
+        },
+        "weights": {
+          "citations": 0.3,
+          "line_refs": 0.25,
+          "code_blocks": 0.2,
+          "equations": 0.15,
+          "length": 0.1
+        }
+      },
+      "reference": {
+        "total_score": 5.0,
+        "component_scores": {
+          "length": 1.0,
+          "citations": 1.0,
+          "line_refs": 1.0,
+          "code_blocks": 1.0,
+          "equations": 1.0
+        },
+        "weights": {}
+      }
+    }
+  },
+  {
+    "question_id": "Q008",
+    "question": "What is the water balance equation in SUEWS?",
+    "category": "water_balance",
+    "difficulty": "basic",
+    "scores": {
+      "haiku_mcp": {
+        "total_score": 1.6089512506239254,
+        "component_scores": {
+          "length": 0.8940158615717375,
+          "citations": 0.0,
+          "line_refs": 0.0,
+          "code_blocks": 0.8461538461538461,
+          "equations": 0.42105263157894735
+        },
+        "weights": {
+          "citations": 0.3,
+          "line_refs": 0.25,
+          "code_blocks": 0.2,
+          "equations": 0.15,
+          "length": 0.1
+        }
+      },
+      "sonnet_mcp": {
+        "total_score": 0.6345067753683471,
+        "component_scores": {
+          "length": 0.5746815669310261,
+          "citations": 0.0,
+          "line_refs": 0.0,
+          "code_blocks": 0.3076923076923077,
+          "equations": 0.05263157894736842
+        },
+        "weights": {
+          "citations": 0.3,
+          "line_refs": 0.25,
+          "code_blocks": 0.2,
+          "equations": 0.15,
+          "length": 0.1
+        }
+      },
+      "sonnet_baseline": {
+        "total_score": 0.4220509123176751,
+        "component_scores": {
+          "length": 0.37851478010093725,
+          "citations": 0.0,
+          "line_refs": 0.0,
+          "code_blocks": 0.15384615384615385,
+          "equations": 0.10526315789473684
+        },
+        "weights": {
+          "citations": 0.3,
+          "line_refs": 0.25,
+          "code_blocks": 0.2,
+          "equations": 0.15,
+          "length": 0.1
+        }
+      },
+      "reference": {
+        "total_score": 5.0,
+        "component_scores": {
+          "length": 1.0,
+          "citations": 1.0,
+          "line_refs": 1.0,
+          "code_blocks": 1.0,
+          "equations": 1.0
+        },
+        "weights": {}
+      }
+    }
+  },
+  {
+    "question_id": "Q009",
+    "question": "How does SUEWS handle water transfer between different surface types?",
+    "category": "water_balance",
+    "difficulty": "advanced",
+    "scores": {
+      "haiku_mcp": {
+        "total_score": 1.3329423264907136,
+        "component_scores": {
+          "length": 1.0,
+          "citations": 0.1111111111111111,
+          "line_refs": 0.0,
+          "code_blocks": 0.2727272727272727,
+          "equations": 0.25806451612903225
+        },
+        "weights": {
+          "citations": 0.3,
+          "line_refs": 0.25,
+          "code_blocks": 0.2,
+          "equations": 0.15,
+          "length": 0.1
+        }
+      },
+      "sonnet_mcp": {
+        "total_score": 0.5708386978112929,
+        "component_scores": {
+          "length": 0.7416773956225859,
+          "citations": 0.0,
+          "line_refs": 0.0,
+          "code_blocks": 0.0,
+          "equations": 0.0
+        },
+        "weights": {
+          "citations": 0.3,
+          "line_refs": 0.25,
+          "code_blocks": 0.2,
+          "equations": 0.15,
+          "length": 0.1
+        }
+      },
+      "sonnet_baseline": {
+        "total_score": 0.5751881050713128,
+        "component_scores": {
+          "length": 0.5685580283244436,
+          "citations": 0.0,
+          "line_refs": 0.0,
+          "code_blocks": 0.09090909090909091,
+          "equations": 0.0
+        },
+        "weights": {
+          "citations": 0.3,
+          "line_refs": 0.25,
+          "code_blocks": 0.2,
+          "equations": 0.15,
+          "length": 0.1
+        }
+      },
+      "reference": {
+        "total_score": 5.0,
+        "component_scores": {
+          "length": 1.0,
+          "citations": 1.0,
+          "line_refs": 1.0,
+          "code_blocks": 1.0,
+          "equations": 1.0
+        },
+        "weights": {}
+      }
+    }
+  },
+  {
+    "question_id": "Q010",
+    "question": "What controls drainage from soil in SUEWS?",
+    "category": "water_balance",
+    "difficulty": "intermediate",
+    "scores": {
+      "haiku_mcp": {
+        "total_score": 0.5867882117882118,
+        "component_scores": {
+          "length": 0.4235764235764236,
+          "citations": 0.0,
+          "line_refs": 0.0,
+          "code_blocks": 0.25,
+          "equations": 0.16666666666666666
+        },
+        "weights": {
+          "citations": 0.3,
+          "line_refs": 0.25,
+          "code_blocks": 0.2,
+          "equations": 0.15,
+          "length": 0.1
+        }
+      },
+      "sonnet_mcp": {
+        "total_score": 0.7069597069597069,
+        "component_scores": {
+          "length": 0.4972527472527472,
+          "citations": 0.0,
+          "line_refs": 0.0,
+          "code_blocks": 0.3333333333333333,
+          "equations": 0.16666666666666666
+        },
+        "weights": {
+          "citations": 0.3,
+          "line_refs": 0.25,
+          "code_blocks": 0.2,
+          "equations": 0.15,
+          "length": 0.1
+        }
+      },
+      "sonnet_baseline": {
+        "total_score": 0.40696803196803194,
+        "component_scores": {
+          "length": 0.31393606393606394,
+          "citations": 0.0,
+          "line_refs": 0.0,
+          "code_blocks": 0.0,
+          "equations": 0.3333333333333333
+        },
+        "weights": {
+          "citations": 0.3,
+          "line_refs": 0.25,
+          "code_blocks": 0.2,
+          "equations": 0.15,
+          "length": 0.1
+        }
+      },
+      "reference": {
+        "total_score": 5.0,
+        "component_scores": {
+          "length": 1.0,
+          "citations": 1.0,
+          "line_refs": 1.0,
+          "code_blocks": 1.0,
+          "equations": 1.0
+        },
+        "weights": {}
+      }
+    }
+  },
+  {
+    "question_id": "Q011",
+    "question": "How many land cover types are there in SUEWS and what are they?",
+    "category": "land_cover",
+    "difficulty": "basic",
+    "scores": {
+      "haiku_mcp": {
+        "total_score": 0.3739997499374844,
+        "component_scores": {
+          "length": 0.7479994998749687,
+          "citations": 0.0,
+          "line_refs": 0.0,
+          "code_blocks": 0.0,
+          "equations": 0.0
+        },
+        "weights": {
+          "citations": 0.3,
+          "line_refs": 0.25,
+          "code_blocks": 0.2,
+          "equations": 0.15,
+          "length": 0.1
+        }
+      },
+      "sonnet_mcp": {
+        "total_score": 0.14613028257064264,
+        "component_scores": {
+          "length": 0.2922605651412853,
+          "citations": 0.0,
+          "line_refs": 0.0,
+          "code_blocks": 0.0,
+          "equations": 0.0
+        },
+        "weights": {
+          "citations": 0.3,
+          "line_refs": 0.25,
+          "code_blocks": 0.2,
+          "equations": 0.15,
+          "length": 0.1
+        }
+      },
+      "sonnet_baseline": {
+        "total_score": 0.16222805701425355,
+        "component_scores": {
+          "length": 0.3244561140285071,
+          "citations": 0.0,
+          "line_refs": 0.0,
+          "code_blocks": 0.0,
+          "equations": 0.0
+        },
+        "weights": {
+          "citations": 0.3,
+          "line_refs": 0.25,
+          "code_blocks": 0.2,
+          "equations": 0.15,
+          "length": 0.1
+        }
+      },
+      "reference": {
+        "total_score": 5.0,
+        "component_scores": {
+          "length": 1.0,
+          "citations": 1.0,
+          "line_refs": 1.0,
+          "code_blocks": 1.0,
+          "equations": 1.0
+        },
+        "weights": {}
+      }
+    }
+  },
+  {
+    "question_id": "Q012",
+    "question": "What surface properties are needed for each land cover type?",
+    "category": "land_cover",
+    "difficulty": "intermediate",
+    "scores": {
+      "haiku_mcp": {
+        "total_score": 1.8863636363636362,
+        "component_scores": {
+          "length": 1.0,
+          "citations": 0.0,
+          "line_refs": 1.0,
+          "code_blocks": 0.0,
+          "equations": 0.18181818181818182
+        },
+        "weights": {
+          "citations": 0.3,
+          "line_refs": 0.25,
+          "code_blocks": 0.2,
+          "equations": 0.15,
+          "length": 0.1
+        }
+      },
+      "sonnet_mcp": {
+        "total_score": 1.75,
+        "component_scores": {
+          "length": 1.0,
+          "citations": 0.0,
+          "line_refs": 1.0,
+          "code_blocks": 0.0,
+          "equations": 0.0
+        },
+        "weights": {
+          "citations": 0.3,
+          "line_refs": 0.25,
+          "code_blocks": 0.2,
+          "equations": 0.15,
+          "length": 0.1
+        }
+      },
+      "sonnet_baseline": {
+        "total_score": 1.3890756302521008,
+        "component_scores": {
+          "length": 0.27815126050420164,
+          "citations": 0.0,
+          "line_refs": 1.0,
+          "code_blocks": 0.0,
+          "equations": 0.0
+        },
+        "weights": {
+          "citations": 0.3,
+          "line_refs": 0.25,
+          "code_blocks": 0.2,
+          "equations": 0.15,
+          "length": 0.1
+        }
+      },
+      "reference": {
+        "total_score": 5.0,
+        "component_scores": {
+          "length": 1.0,
+          "citations": 1.0,
+          "line_refs": 1.0,
+          "code_blocks": 1.0,
+          "equations": 1.0
+        },
+        "weights": {}
+      }
+    }
+  },
+  {
+    "question_id": "Q013",
+    "question": "What is the difference between deciduous and evergreen vegetation in SUEWS?",
+    "category": "land_cover",
+    "difficulty": "basic",
+    "scores": {
+      "haiku_mcp": {
+        "total_score": 0.55,
+        "component_scores": {
+          "length": 1.0,
+          "citations": 0.0,
+          "line_refs": 0.0,
+          "code_blocks": 0.0,
+          "equations": 0.06666666666666667
+        },
+        "weights": {
+          "citations": 0.3,
+          "line_refs": 0.25,
+          "code_blocks": 0.2,
+          "equations": 0.15,
+          "length": 0.1
+        }
+      },
+      "sonnet_mcp": {
+        "total_score": 0.4086852924686974,
+        "component_scores": {
+          "length": 0.8173705849373948,
+          "citations": 0.0,
+          "line_refs": 0.0,
+          "code_blocks": 0.0,
+          "equations": 0.0
+        },
+        "weights": {
+          "citations": 0.3,
+          "line_refs": 0.25,
+          "code_blocks": 0.2,
+          "equations": 0.15,
+          "length": 0.1
+        }
+      },
+      "sonnet_baseline": {
+        "total_score": 0.1971594094561764,
+        "component_scores": {
+          "length": 0.3943188189123528,
+          "citations": 0.0,
+          "line_refs": 0.0,
+          "code_blocks": 0.0,
+          "equations": 0.0
+        },
+        "weights": {
+          "citations": 0.3,
+          "line_refs": 0.25,
+          "code_blocks": 0.2,
+          "equations": 0.15,
+          "length": 0.1
+        }
+      },
+      "reference": {
+        "total_score": 5.0,
+        "component_scores": {
+          "length": 1.0,
+          "citations": 1.0,
+          "line_refs": 1.0,
+          "code_blocks": 1.0,
+          "equations": 1.0
+        },
+        "weights": {}
+      }
+    }
+  },
+  {
+    "question_id": "Q014",
+    "question": "How does SUEWS handle seasonal changes in vegetation?",
+    "category": "land_cover",
+    "difficulty": "intermediate",
+    "scores": {
+      "haiku_mcp": {
+        "total_score": 0.5521978021978022,
+        "component_scores": {
+          "length": 0.8901098901098901,
+          "citations": 0.0,
+          "line_refs": 0.0,
+          "code_blocks": 0.0,
+          "equations": 0.14285714285714285
+        },
+        "weights": {
+          "citations": 0.3,
+          "line_refs": 0.25,
+          "code_blocks": 0.2,
+          "equations": 0.15,
+          "length": 0.1
+        }
+      },
+      "sonnet_mcp": {
+        "total_score": 0.7926035502958579,
+        "component_scores": {
+          "length": 0.9852071005917159,
+          "citations": 0.2,
+          "line_refs": 0.0,
+          "code_blocks": 0.0,
+          "equations": 0.0
+        },
+        "weights": {
+          "citations": 0.3,
+          "line_refs": 0.25,
+          "code_blocks": 0.2,
+          "equations": 0.15,
+          "length": 0.1
+        }
+      },
+      "sonnet_baseline": {
+        "total_score": 0.30568469991546915,
+        "component_scores": {
+          "length": 0.46851225697379545,
+          "citations": 0.0,
+          "line_refs": 0.0,
+          "code_blocks": 0.07142857142857142,
+          "equations": 0.0
+        },
+        "weights": {
+          "citations": 0.3,
+          "line_refs": 0.25,
+          "code_blocks": 0.2,
+          "equations": 0.15,
+          "length": 0.1
+        }
+      },
+      "reference": {
+        "total_score": 5.0,
+        "component_scores": {
+          "length": 1.0,
+          "citations": 1.0,
+          "line_refs": 1.0,
+          "code_blocks": 1.0,
+          "equations": 1.0
+        },
+        "weights": {}
+      }
+    }
+  },
+  {
+    "question_id": "Q015",
+    "question": "What is surface resistance and how is it calculated for different land covers?",
+    "category": "land_cover",
+    "difficulty": "advanced",
+    "scores": {
+      "haiku_mcp": {
+        "total_score": 1.3657471758496336,
+        "component_scores": {
+          "length": 1.3167884693463257,
+          "citations": 0.0,
+          "line_refs": 0.0,
+          "code_blocks": 0.375,
+          "equations": 0.17647058823529413
+        },
+        "weights": {
+          "citations": 0.3,
+          "line_refs": 0.25,
+          "code_blocks": 0.2,
+          "equations": 0.15,
+          "length": 0.1
+        }
+      },
+      "sonnet_mcp": {
+        "total_score": 1.3076461035083948,
+        "component_scores": {
+          "length": 1.3476451481932603,
+          "citations": 0.0,
+          "line_refs": 0.0,
+          "code_blocks": 0.125,
+          "equations": 0.4117647058823529
+        },
+        "weights": {
+          "citations": 0.3,
+          "line_refs": 0.25,
+          "code_blocks": 0.2,
+          "equations": 0.15,
+          "length": 0.1
+        }
+      },
+      "sonnet_baseline": {
+        "total_score": 1.0382352941176471,
+        "component_scores": {
+          "length": 1.0,
+          "citations": 0.0,
+          "line_refs": 0.0,
+          "code_blocks": 0.25,
+          "equations": 0.11764705882352941
+        },
+        "weights": {
+          "citations": 0.3,
+          "line_refs": 0.25,
+          "code_blocks": 0.2,
+          "equations": 0.15,
+          "length": 0.1
+        }
+      },
+      "reference": {
+        "total_score": 5.0,
+        "component_scores": {
+          "length": 1.0,
+          "citations": 1.0,
+          "line_refs": 1.0,
+          "code_blocks": 1.0,
+          "equations": 1.0
+        },
+        "weights": {}
+      }
+    }
+  },
+  {
+    "question_id": "Q016",
+    "question": "What radiation schemes are available in SUEWS?",
+    "category": "radiation",
+    "difficulty": "basic",
+    "scores": {
+      "haiku_mcp": {
+        "total_score": 2.024214425995358,
+        "component_scores": {
+          "length": 0.8817621853240493,
+          "citations": 0.2222222222222222,
+          "line_refs": 1.0,
+          "code_blocks": 0.0,
+          "equations": 0.0
+        },
+        "weights": {
+          "citations": 0.3,
+          "line_refs": 0.25,
+          "code_blocks": 0.2,
+          "equations": 0.15,
+          "length": 0.1
+        }
+      },
+      "sonnet_mcp": {
+        "total_score": 1.9418630601678273,
+        "component_scores": {
+          "length": 0.7170594536689876,
+          "citations": 0.2222222222222222,
+          "line_refs": 1.0,
+          "code_blocks": 0.0,
+          "equations": 0.0
+        },
+        "weights": {
+          "citations": 0.3,
+          "line_refs": 0.25,
+          "code_blocks": 0.2,
+          "equations": 0.15,
+          "length": 0.1
+        }
+      },
+      "sonnet_baseline": {
+        "total_score": 1.7424343867166578,
+        "component_scores": {
+          "length": 0.9848687734333154,
+          "citations": 0.0,
+          "line_refs": 1.0,
+          "code_blocks": 0.0,
+          "equations": 0.0
+        },
+        "weights": {
+          "citations": 0.3,
+          "line_refs": 0.25,
+          "code_blocks": 0.2,
+          "equations": 0.15,
+          "length": 0.1
+        }
+      },
+      "reference": {
+        "total_score": 5.0,
+        "component_scores": {
+          "length": 1.0,
+          "citations": 1.0,
+          "line_refs": 1.0,
+          "code_blocks": 1.0,
+          "equations": 1.0
+        },
+        "weights": {}
+      }
+    }
+  },
+  {
+    "question_id": "Q017",
+    "question": "How does SUEWS calculate net radiation (QN)?",
+    "category": "radiation",
+    "difficulty": "intermediate",
+    "scores": {
+      "haiku_mcp": {
+        "total_score": 2.2901069518716577,
+        "component_scores": {
+          "length": 1.0,
+          "citations": 0.0,
+          "line_refs": 1.0,
+          "code_blocks": 0.36363636363636365,
+          "equations": 0.23529411764705882
+        },
+        "weights": {
+          "citations": 0.3,
+          "line_refs": 0.25,
+          "code_blocks": 0.2,
+          "equations": 0.15,
+          "length": 0.1
+        }
+      },
+      "sonnet_mcp": {
+        "total_score": 2.1911764705882355,
+        "component_scores": {
+          "length": 1.0,
+          "citations": 0.0,
+          "line_refs": 1.0,
+          "code_blocks": 0.0,
+          "equations": 0.5882352941176471
+        },
+        "weights": {
+          "citations": 0.3,
+          "line_refs": 0.25,
+          "code_blocks": 0.2,
+          "equations": 0.15,
+          "length": 0.1
+        }
+      },
+      "sonnet_baseline": {
+        "total_score": 1.7523781789943698,
+        "component_scores": {
+          "length": 0.6518151815181518,
+          "citations": 0.0,
+          "line_refs": 1.0,
+          "code_blocks": 0.0,
+          "equations": 0.23529411764705882
+        },
+        "weights": {
+          "citations": 0.3,
+          "line_refs": 0.25,
+          "code_blocks": 0.2,
+          "equations": 0.15,
+          "length": 0.1
+        }
+      },
+      "reference": {
+        "total_score": 5.0,
+        "component_scores": {
+          "length": 1.0,
+          "citations": 1.0,
+          "line_refs": 1.0,
+          "code_blocks": 1.0,
+          "equations": 1.0
+        },
+        "weights": {}
+      }
+    }
+  },
+  {
+    "question_id": "Q018",
+    "question": "How are shadows and canyon geometry handled in radiation calculations?",
+    "category": "radiation",
+    "difficulty": "advanced",
+    "scores": {
+      "haiku_mcp": {
+        "total_score": 3.6250000000000004,
+        "component_scores": {
+          "length": 1.25,
+          "citations": 0.0,
+          "line_refs": 1.0,
+          "code_blocks": 0.8,
+          "equations": 1.0
+        },
+        "weights": {
+          "citations": 0.3,
+          "line_refs": 0.25,
+          "code_blocks": 0.2,
+          "equations": 0.15,
+          "length": 0.1
+        }
+      },
+      "sonnet_mcp": {
+        "total_score": 3.6250000000000004,
+        "component_scores": {
+          "length": 1.25,
+          "citations": 0.0,
+          "line_refs": 1.0,
+          "code_blocks": 0.8,
+          "equations": 1.0
+        },
+        "weights": {
+          "citations": 0.3,
+          "line_refs": 0.25,
+          "code_blocks": 0.2,
+          "equations": 0.15,
+          "length": 0.1
+        }
+      },
+      "sonnet_baseline": {
+        "total_score": 3.6250000000000004,
+        "component_scores": {
+          "length": 1.25,
+          "citations": 0.0,
+          "line_refs": 1.0,
+          "code_blocks": 0.8,
+          "equations": 1.0
+        },
+        "weights": {
+          "citations": 0.3,
+          "line_refs": 0.25,
+          "code_blocks": 0.2,
+          "equations": 0.15,
+          "length": 0.1
+        }
+      },
+      "reference": {
+        "total_score": 5.0,
+        "component_scores": {
+          "length": 1.0,
+          "citations": 1.0,
+          "line_refs": 1.0,
+          "code_blocks": 1.0,
+          "equations": 1.0
+        },
+        "weights": {}
+      }
+    }
+  },
+  {
+    "question_id": "Q019",
+    "question": "How does SUEWS calculate evapotranspiration?",
+    "category": "evaporation",
+    "difficulty": "intermediate",
+    "scores": {
+      "haiku_mcp": {
+        "total_score": 2.1750000000000003,
+        "component_scores": {
+          "length": 1.25,
+          "citations": 0.0,
+          "line_refs": 0.0,
+          "code_blocks": 0.8,
+          "equations": 1.0
+        },
+        "weights": {
+          "citations": 0.3,
+          "line_refs": 0.25,
+          "code_blocks": 0.2,
+          "equations": 0.15,
+          "length": 0.1
+        }
+      },
+      "sonnet_mcp": {
+        "total_score": 2.375,
+        "component_scores": {
+          "length": 1.25,
+          "citations": 0.0,
+          "line_refs": 0.0,
+          "code_blocks": 1.0,
+          "equations": 1.0
+        },
+        "weights": {
+          "citations": 0.3,
+          "line_refs": 0.25,
+          "code_blocks": 0.2,
+          "equations": 0.15,
+          "length": 0.1
+        }
+      },
+      "sonnet_baseline": {
+        "total_score": 1.4250000000000003,
+        "component_scores": {
+          "length": 1.25,
+          "citations": 0.0,
+          "line_refs": 0.0,
+          "code_blocks": 0.8,
+          "equations": 0.0
+        },
+        "weights": {
+          "citations": 0.3,
+          "line_refs": 0.25,
+          "code_blocks": 0.2,
+          "equations": 0.15,
+          "length": 0.1
+        }
+      },
+      "reference": {
+        "total_score": 5.0,
+        "component_scores": {
+          "length": 1.0,
+          "citations": 1.0,
+          "line_refs": 1.0,
+          "code_blocks": 1.0,
+          "equations": 1.0
+        },
+        "weights": {}
+      }
+    }
+  },
+  {
+    "question_id": "Q020",
+    "question": "What is the Penman-Monteith equation used in SUEWS?",
+    "category": "evaporation",
+    "difficulty": "advanced",
+    "scores": {
+      "haiku_mcp": {
+        "total_score": 3.4000000000000004,
+        "component_scores": {
+          "length": 1.25,
+          "citations": 0.0,
+          "line_refs": 1.0,
+          "code_blocks": 0.8,
+          "equations": 0.7
+        },
+        "weights": {
+          "citations": 0.3,
+          "line_refs": 0.25,
+          "code_blocks": 0.2,
+          "equations": 0.15,
+          "length": 0.1
+        }
+      },
+      "sonnet_mcp": {
+        "total_score": 3.4000000000000004,
+        "component_scores": {
+          "length": 1.25,
+          "citations": 0.0,
+          "line_refs": 1.0,
+          "code_blocks": 0.8,
+          "equations": 0.7
+        },
+        "weights": {
+          "citations": 0.3,
+          "line_refs": 0.25,
+          "code_blocks": 0.2,
+          "equations": 0.15,
+          "length": 0.1
+        }
+      },
+      "sonnet_baseline": {
+        "total_score": 3.6250000000000004,
+        "component_scores": {
+          "length": 1.25,
+          "citations": 0.0,
+          "line_refs": 1.0,
+          "code_blocks": 0.8,
+          "equations": 1.0
+        },
+        "weights": {
+          "citations": 0.3,
+          "line_refs": 0.25,
+          "code_blocks": 0.2,
+          "equations": 0.15,
+          "length": 0.1
+        }
+      },
+      "reference": {
+        "total_score": 5.0,
+        "component_scores": {
+          "length": 1.0,
+          "citations": 1.0,
+          "line_refs": 1.0,
+          "code_blocks": 1.0,
+          "equations": 1.0
+        },
+        "weights": {}
+      }
+    }
+  },
+  {
+    "question_id": "Q021",
+    "question": "How does surface wetness affect evaporation in SUEWS?",
+    "category": "evaporation",
+    "difficulty": "intermediate",
+    "scores": {
+      "haiku_mcp": {
+        "total_score": 2.1750000000000003,
+        "component_scores": {
+          "length": 1.25,
+          "citations": 0.0,
+          "line_refs": 0.0,
+          "code_blocks": 0.8,
+          "equations": 1.0
+        },
+        "weights": {
+          "citations": 0.3,
+          "line_refs": 0.25,
+          "code_blocks": 0.2,
+          "equations": 0.15,
+          "length": 0.1
+        }
+      },
+      "sonnet_mcp": {
+        "total_score": 2.1750000000000003,
+        "component_scores": {
+          "length": 1.25,
+          "citations": 0.0,
+          "line_refs": 0.0,
+          "code_blocks": 0.8,
+          "equations": 1.0
+        },
+        "weights": {
+          "citations": 0.3,
+          "line_refs": 0.25,
+          "code_blocks": 0.2,
+          "equations": 0.15,
+          "length": 0.1
+        }
+      },
+      "sonnet_baseline": {
+        "total_score": 2.0,
+        "component_scores": {
+          "length": 1.25,
+          "citations": 0.0,
+          "line_refs": 0.0,
+          "code_blocks": 1.0,
+          "equations": 0.5
+        },
+        "weights": {
+          "citations": 0.3,
+          "line_refs": 0.25,
+          "code_blocks": 0.2,
+          "equations": 0.15,
+          "length": 0.1
+        }
+      },
+      "reference": {
+        "total_score": 5.0,
+        "component_scores": {
+          "length": 1.0,
+          "citations": 1.0,
+          "line_refs": 1.0,
+          "code_blocks": 1.0,
+          "equations": 1.0
+        },
+        "weights": {}
+      }
+    }
+  },
+  {
+    "question_id": "Q022",
+    "question": "What are the required meteorological inputs for SUEWS?",
+    "category": "configuration",
+    "difficulty": "basic",
+    "scores": {
+      "haiku_mcp": {
+        "total_score": 2.15,
+        "component_scores": {
+          "length": 1.25,
+          "citations": 0.0,
+          "line_refs": 0.0,
+          "code_blocks": 1.0,
+          "equations": 0.7
+        },
+        "weights": {
+          "citations": 0.3,
+          "line_refs": 0.25,
+          "code_blocks": 0.2,
+          "equations": 0.15,
+          "length": 0.1
+        }
+      },
+      "sonnet_mcp": {
+        "total_score": 1.9500000000000002,
+        "component_scores": {
+          "length": 1.25,
+          "citations": 0.0,
+          "line_refs": 0.0,
+          "code_blocks": 0.8,
+          "equations": 0.7
+        },
+        "weights": {
+          "citations": 0.3,
+          "line_refs": 0.25,
+          "code_blocks": 0.2,
+          "equations": 0.15,
+          "length": 0.1
+        }
+      },
+      "sonnet_baseline": {
+        "total_score": 2.375,
+        "component_scores": {
+          "length": 1.25,
+          "citations": 0.0,
+          "line_refs": 0.0,
+          "code_blocks": 1.0,
+          "equations": 1.0
+        },
+        "weights": {
+          "citations": 0.3,
+          "line_refs": 0.25,
+          "code_blocks": 0.2,
+          "equations": 0.15,
+          "length": 0.1
+        }
+      },
+      "reference": {
+        "total_score": 5.0,
+        "component_scores": {
+          "length": 1.0,
+          "citations": 1.0,
+          "line_refs": 1.0,
+          "code_blocks": 1.0,
+          "equations": 1.0
+        },
+        "weights": {}
+      }
+    }
+  },
+  {
+    "question_id": "Q023",
+    "question": "How do I configure the temporal resolution in SUEWS?",
+    "category": "configuration",
+    "difficulty": "intermediate",
+    "scores": {
+      "haiku_mcp": {
+        "total_score": 3.55,
+        "component_scores": {
+          "length": 1.25,
+          "citations": 1.0,
+          "line_refs": 0.5,
+          "code_blocks": 0.8,
+          "equations": 0.0
+        },
+        "weights": {
+          "citations": 0.3,
+          "line_refs": 0.25,
+          "code_blocks": 0.2,
+          "equations": 0.15,
+          "length": 0.1
+        }
+      },
+      "sonnet_mcp": {
+        "total_score": 4.3,
+        "component_scores": {
+          "length": 1.25,
+          "citations": 1.0,
+          "line_refs": 0.5,
+          "code_blocks": 0.8,
+          "equations": 1.0
+        },
+        "weights": {
+          "citations": 0.3,
+          "line_refs": 0.25,
+          "code_blocks": 0.2,
+          "equations": 0.15,
+          "length": 0.1
+        }
+      },
+      "sonnet_baseline": {
+        "total_score": 4.925,
+        "component_scores": {
+          "length": 1.25,
+          "citations": 1.0,
+          "line_refs": 1.0,
+          "code_blocks": 0.8,
+          "equations": 1.0
+        },
+        "weights": {
+          "citations": 0.3,
+          "line_refs": 0.25,
+          "code_blocks": 0.2,
+          "equations": 0.15,
+          "length": 0.1
+        }
+      },
+      "reference": {
+        "total_score": 5.0,
+        "component_scores": {
+          "length": 1.0,
+          "citations": 1.0,
+          "line_refs": 1.0,
+          "code_blocks": 1.0,
+          "equations": 1.0
+        },
+        "weights": {}
+      }
+    }
+  },
+  {
+    "question_id": "Q024",
+    "question": "What file formats does SUEWS support for input data?",
+    "category": "configuration",
+    "difficulty": "basic",
+    "scores": {
+      "haiku_mcp": {
+        "total_score": 4.925,
+        "component_scores": {
+          "length": 1.25,
+          "citations": 1.0,
+          "line_refs": 1.0,
+          "code_blocks": 0.8,
+          "equations": 1.0
+        },
+        "weights": {
+          "citations": 0.3,
+          "line_refs": 0.25,
+          "code_blocks": 0.2,
+          "equations": 0.15,
+          "length": 0.1
+        }
+      },
+      "sonnet_mcp": {
+        "total_score": 4.925,
+        "component_scores": {
+          "length": 1.25,
+          "citations": 1.0,
+          "line_refs": 1.0,
+          "code_blocks": 0.8,
+          "equations": 1.0
+        },
+        "weights": {
+          "citations": 0.3,
+          "line_refs": 0.25,
+          "code_blocks": 0.2,
+          "equations": 0.15,
+          "length": 0.1
+        }
+      },
+      "sonnet_baseline": {
+        "total_score": 5.125,
+        "component_scores": {
+          "length": 1.25,
+          "citations": 1.0,
+          "line_refs": 1.0,
+          "code_blocks": 1.0,
+          "equations": 1.0
+        },
+        "weights": {
+          "citations": 0.3,
+          "line_refs": 0.25,
+          "code_blocks": 0.2,
+          "equations": 0.15,
+          "length": 0.1
+        }
+      },
+      "reference": {
+        "total_score": 5.0,
+        "component_scores": {
+          "length": 1.0,
+          "citations": 1.0,
+          "line_refs": 1.0,
+          "code_blocks": 1.0,
+          "equations": 1.0
+        },
+        "weights": {}
+      }
+    }
+  },
+  {
+    "question_id": "Q025",
+    "question": "How do I set up a multi-grid simulation in SUEWS?",
+    "category": "configuration",
+    "difficulty": "advanced",
+    "scores": {
+      "haiku_mcp": {
+        "total_score": 2.1500000000000004,
+        "component_scores": {
+          "length": 1.25,
+          "citations": 0.0,
+          "line_refs": 0.0,
+          "code_blocks": 0.8,
+          "equations": 0.7
+        },
+        "weights": {
+          "citations": 0.3,
+          "line_refs": 0.25,
+          "code_blocks": 0.2,
+          "equations": 0.15,
+          "length": 0.1
+        }
+      },
+      "sonnet_mcp": {
+        "total_score": 2.1500000000000004,
+        "component_scores": {
+          "length": 1.25,
+          "citations": 0.0,
+          "line_refs": 0.0,
+          "code_blocks": 0.8,
+          "equations": 0.7
+        },
+        "weights": {
+          "citations": 0.3,
+          "line_refs": 0.25,
+          "code_blocks": 0.2,
+          "equations": 0.15,
+          "length": 0.1
+        }
+      },
+      "sonnet_baseline": {
+        "total_score": 2.1500000000000004,
+        "component_scores": {
+          "length": 1.25,
+          "citations": 0.0,
+          "line_refs": 0.0,
+          "code_blocks": 0.8,
+          "equations": 0.7
+        },
+        "weights": {
+          "citations": 0.3,
+          "line_refs": 0.25,
+          "code_blocks": 0.2,
+          "equations": 0.15,
+          "length": 0.1
+        }
+      },
+      "reference": {
+        "total_score": 5.0,
+        "component_scores": {
+          "length": 1.0,
+          "citations": 1.0,
+          "line_refs": 1.0,
+          "code_blocks": 1.0,
+          "equations": 1.0
+        },
+        "weights": {}
+      }
+    }
+  },
+  {
+    "question_id": "Q026",
+    "question": "What output variables does SUEWS produce?",
+    "category": "output",
+    "difficulty": "basic",
+    "scores": {
+      "haiku_mcp": {
+        "total_score": 2.15,
+        "component_scores": {
+          "length": 1.25,
+          "citations": 0.0,
+          "line_refs": 0.0,
+          "code_blocks": 1.0,
+          "equations": 0.7
+        },
+        "weights": {
+          "citations": 0.3,
+          "line_refs": 0.25,
+          "code_blocks": 0.2,
+          "equations": 0.15,
+          "length": 0.1
+        }
+      },
+      "sonnet_mcp": {
+        "total_score": 2.15,
+        "component_scores": {
+          "length": 1.25,
+          "citations": 0.0,
+          "line_refs": 0.0,
+          "code_blocks": 1.0,
+          "equations": 0.7
+        },
+        "weights": {
+          "citations": 0.3,
+          "line_refs": 0.25,
+          "code_blocks": 0.2,
+          "equations": 0.15,
+          "length": 0.1
+        }
+      },
+      "sonnet_baseline": {
+        "total_score": 2.375,
+        "component_scores": {
+          "length": 1.25,
+          "citations": 0.0,
+          "line_refs": 0.0,
+          "code_blocks": 1.0,
+          "equations": 1.0
+        },
+        "weights": {
+          "citations": 0.3,
+          "line_refs": 0.25,
+          "code_blocks": 0.2,
+          "equations": 0.15,
+          "length": 0.1
+        }
+      },
+      "reference": {
+        "total_score": 5.0,
+        "component_scores": {
+          "length": 1.0,
+          "citations": 1.0,
+          "line_refs": 1.0,
+          "code_blocks": 1.0,
+          "equations": 1.0
+        },
+        "weights": {}
+      }
+    }
+  },
+  {
+    "question_id": "Q027",
+    "question": "How can I get surface-specific outputs (e.g., separate fluxes for grass vs paved)?",
+    "category": "output",
+    "difficulty": "intermediate",
+    "scores": {
+      "haiku_mcp": {
+        "total_score": 4.175,
+        "component_scores": {
+          "length": 1.25,
+          "citations": 0.5,
+          "line_refs": 1.0,
+          "code_blocks": 0.8,
+          "equations": 1.0
+        },
+        "weights": {
+          "citations": 0.3,
+          "line_refs": 0.25,
+          "code_blocks": 0.2,
+          "equations": 0.15,
+          "length": 0.1
+        }
+      },
+      "sonnet_mcp": {
+        "total_score": 4.925,
+        "component_scores": {
+          "length": 1.25,
+          "citations": 1.0,
+          "line_refs": 1.0,
+          "code_blocks": 0.8,
+          "equations": 1.0
+        },
+        "weights": {
+          "citations": 0.3,
+          "line_refs": 0.25,
+          "code_blocks": 0.2,
+          "equations": 0.15,
+          "length": 0.1
+        }
+      },
+      "sonnet_baseline": {
+        "total_score": 4.925,
+        "component_scores": {
+          "length": 1.25,
+          "citations": 1.0,
+          "line_refs": 1.0,
+          "code_blocks": 0.8,
+          "equations": 1.0
+        },
+        "weights": {
+          "citations": 0.3,
+          "line_refs": 0.25,
+          "code_blocks": 0.2,
+          "equations": 0.15,
+          "length": 0.1
+        }
+      },
+      "reference": {
+        "total_score": 5.0,
+        "component_scores": {
+          "length": 1.0,
+          "citations": 1.0,
+          "line_refs": 1.0,
+          "code_blocks": 1.0,
+          "equations": 1.0
+        },
+        "weights": {}
+      }
+    }
+  },
+  {
+    "question_id": "Q028",
+    "question": "What is the difference between kup and kdown in SUEWS output?",
+    "category": "output",
+    "difficulty": "basic",
+    "scores": {
+      "haiku_mcp": {
+        "total_score": 4.375,
+        "component_scores": {
+          "length": 1.25,
+          "citations": 1.0,
+          "line_refs": 1.0,
+          "code_blocks": 1.0,
+          "equations": 0.0
+        },
+        "weights": {
+          "citations": 0.3,
+          "line_refs": 0.25,
+          "code_blocks": 0.2,
+          "equations": 0.15,
+          "length": 0.1
+        }
+      },
+      "sonnet_mcp": {
+        "total_score": 4.375,
+        "component_scores": {
+          "length": 1.25,
+          "citations": 1.0,
+          "line_refs": 1.0,
+          "code_blocks": 1.0,
+          "equations": 0.0
+        },
+        "weights": {
+          "citations": 0.3,
+          "line_refs": 0.25,
+          "code_blocks": 0.2,
+          "equations": 0.15,
+          "length": 0.1
+        }
+      },
+      "sonnet_baseline": {
+        "total_score": 4.425,
+        "component_scores": {
+          "length": 1.25,
+          "citations": 1.0,
+          "line_refs": 1.0,
+          "code_blocks": 0.8,
+          "equations": 0.3333333333333333
+        },
+        "weights": {
+          "citations": 0.3,
+          "line_refs": 0.25,
+          "code_blocks": 0.2,
+          "equations": 0.15,
+          "length": 0.1
+        }
+      },
+      "reference": {
+        "total_score": 5.0,
+        "component_scores": {
+          "length": 1.0,
+          "citations": 1.0,
+          "line_refs": 1.0,
+          "code_blocks": 1.0,
+          "equations": 1.0
+        },
+        "weights": {}
+      }
+    }
+  },
+  {
+    "question_id": "Q029",
+    "question": "How do I interpret the runoff output from SUEWS?",
+    "category": "output",
+    "difficulty": "intermediate",
+    "scores": {
+      "haiku_mcp": {
+        "total_score": 4.925,
+        "component_scores": {
+          "length": 1.25,
+          "citations": 1.0,
+          "line_refs": 1.0,
+          "code_blocks": 0.8,
+          "equations": 1.0
+        },
+        "weights": {
+          "citations": 0.3,
+          "line_refs": 0.25,
+          "code_blocks": 0.2,
+          "equations": 0.15,
+          "length": 0.1
+        }
+      },
+      "sonnet_mcp": {
+        "total_score": 4.375,
+        "component_scores": {
+          "length": 1.25,
+          "citations": 0.5,
+          "line_refs": 1.0,
+          "code_blocks": 1.0,
+          "equations": 1.0
+        },
+        "weights": {
+          "citations": 0.3,
+          "line_refs": 0.25,
+          "code_blocks": 0.2,
+          "equations": 0.15,
+          "length": 0.1
+        }
+      },
+      "sonnet_baseline": {
+        "total_score": 4.925,
+        "component_scores": {
+          "length": 1.25,
+          "citations": 1.0,
+          "line_refs": 1.0,
+          "code_blocks": 0.8,
+          "equations": 1.0
+        },
+        "weights": {
+          "citations": 0.3,
+          "line_refs": 0.25,
+          "code_blocks": 0.2,
+          "equations": 0.15,
+          "length": 0.1
+        }
+      },
+      "reference": {
+        "total_score": 5.0,
+        "component_scores": {
+          "length": 1.0,
+          "citations": 1.0,
+          "line_refs": 1.0,
+          "code_blocks": 1.0,
+          "equations": 1.0
+        },
+        "weights": {}
+      }
+    }
+  },
+  {
+    "question_id": "Q030",
+    "question": "What is the ESTM output and what does it represent?",
+    "category": "output",
+    "difficulty": "advanced",
+    "scores": {
+      "haiku_mcp": {
+        "total_score": 3.0956766917293232,
+        "component_scores": {
+          "length": 1.2913533834586466,
+          "citations": 0.0,
+          "line_refs": 1.0,
+          "code_blocks": 1.0,
+          "equations": 0.0
+        },
+        "weights": {
+          "citations": 0.3,
+          "line_refs": 0.25,
+          "code_blocks": 0.2,
+          "equations": 0.15,
+          "length": 0.1
+        }
+      },
+      "sonnet_mcp": {
+        "total_score": 3.075,
+        "component_scores": {
+          "length": 1.25,
+          "citations": 0.0,
+          "line_refs": 1.0,
+          "code_blocks": 1.0,
+          "equations": 0.0
+        },
+        "weights": {
+          "citations": 0.3,
+          "line_refs": 0.25,
+          "code_blocks": 0.2,
+          "equations": 0.15,
+          "length": 0.1
+        }
+      },
+      "sonnet_baseline": {
+        "total_score": 3.075,
+        "component_scores": {
+          "length": 1.25,
+          "citations": 0.0,
+          "line_refs": 1.0,
+          "code_blocks": 1.0,
+          "equations": 0.0
+        },
+        "weights": {
+          "citations": 0.3,
+          "line_refs": 0.25,
+          "code_blocks": 0.2,
+          "equations": 0.15,
+          "length": 0.1
+        }
+      },
+      "reference": {
+        "total_score": 5.0,
+        "component_scores": {
+          "length": 1.0,
+          "citations": 1.0,
+          "line_refs": 1.0,
+          "code_blocks": 1.0,
+          "equations": 1.0
+        },
+        "weights": {}
+      }
+    }
+  },
+  {
+    "question_id": "Q031",
+    "question": "What water distribution methods are available in SUEWS?",
+    "category": "physics_schemes",
+    "difficulty": "intermediate",
+    "scores": {
+      "haiku_mcp": {
+        "total_score": 4.9,
+        "component_scores": {
+          "length": 1.25,
+          "citations": 1.0,
+          "line_refs": 1.0,
+          "code_blocks": 1.0,
+          "equations": 0.7
+        },
+        "weights": {
+          "citations": 0.3,
+          "line_refs": 0.25,
+          "code_blocks": 0.2,
+          "equations": 0.15,
+          "length": 0.1
+        }
+      },
+      "sonnet_mcp": {
+        "total_score": 3.4000000000000004,
+        "component_scores": {
+          "length": 1.25,
+          "citations": 0.0,
+          "line_refs": 1.0,
+          "code_blocks": 1.0,
+          "equations": 0.7
+        },
+        "weights": {
+          "citations": 0.3,
+          "line_refs": 0.25,
+          "code_blocks": 0.2,
+          "equations": 0.15,
+          "length": 0.1
+        }
+      },
+      "sonnet_baseline": {
+        "total_score": 3.4000000000000004,
+        "component_scores": {
+          "length": 1.25,
+          "citations": 0.0,
+          "line_refs": 1.0,
+          "code_blocks": 1.0,
+          "equations": 0.7
+        },
+        "weights": {
+          "citations": 0.3,
+          "line_refs": 0.25,
+          "code_blocks": 0.2,
+          "equations": 0.15,
+          "length": 0.1
+        }
+      },
+      "reference": {
+        "total_score": 5.0,
+        "component_scores": {
+          "length": 1.0,
+          "citations": 1.0,
+          "line_refs": 1.0,
+          "code_blocks": 1.0,
+          "equations": 1.0
+        },
+        "weights": {}
+      }
+    }
+  },
+  {
+    "question_id": "Q032",
+    "question": "What is the difference between LUMPS and SUEWS mode?",
+    "category": "physics_schemes",
+    "difficulty": "advanced",
+    "scores": {
+      "haiku_mcp": {
+        "total_score": 4.9,
+        "component_scores": {
+          "length": 1.25,
+          "citations": 1.0,
+          "line_refs": 1.0,
+          "code_blocks": 0.8,
+          "equations": 0.7
+        },
+        "weights": {
+          "citations": 0.3,
+          "line_refs": 0.25,
+          "code_blocks": 0.2,
+          "equations": 0.15,
+          "length": 0.1
+        }
+      },
+      "sonnet_mcp": {
+        "total_score": 5.0,
+        "component_scores": {
+          "length": 1.25,
+          "citations": 1.0,
+          "line_refs": 1.0,
+          "code_blocks": 1.0,
+          "equations": 0.7
+        },
+        "weights": {
+          "citations": 0.3,
+          "line_refs": 0.25,
+          "code_blocks": 0.2,
+          "equations": 0.15,
+          "length": 0.1
+        }
+      },
+      "sonnet_baseline": {
+        "total_score": 5.0,
+        "component_scores": {
+          "length": 1.25,
+          "citations": 1.0,
+          "line_refs": 1.0,
+          "code_blocks": 1.0,
+          "equations": 1.0
+        },
+        "weights": {
+          "citations": 0.3,
+          "line_refs": 0.25,
+          "code_blocks": 0.2,
+          "equations": 0.15,
+          "length": 0.1
+        }
+      },
+      "reference": {
+        "total_score": 5.0,
+        "component_scores": {
+          "length": 1.0,
+          "citations": 1.0,
+          "line_refs": 1.0,
+          "code_blocks": 1.0,
+          "equations": 1.0
+        },
+        "weights": {}
+      }
+    }
+  },
+  {
+    "question_id": "Q033",
+    "question": "How does the conductance scheme work in SUEWS?",
+    "category": "physics_schemes",
+    "difficulty": "intermediate",
+    "scores": {
+      "haiku_mcp": {
+        "total_score": 3.675,
+        "component_scores": {
+          "length": 1.25,
+          "citations": 1.0,
+          "line_refs": 0.0,
+          "code_blocks": 0.8,
+          "equations": 1.0
+        },
+        "weights": {
+          "citations": 0.3,
+          "line_refs": 0.25,
+          "code_blocks": 0.2,
+          "equations": 0.15,
+          "length": 0.1
+        }
+      },
+      "sonnet_mcp": {
+        "total_score": 2.1750000000000003,
+        "component_scores": {
+          "length": 1.25,
+          "citations": 0.0,
+          "line_refs": 0.0,
+          "code_blocks": 0.8,
+          "equations": 1.0
+        },
+        "weights": {
+          "citations": 0.3,
+          "line_refs": 0.25,
+          "code_blocks": 0.2,
+          "equations": 0.15,
+          "length": 0.1
+        }
+      },
+      "sonnet_baseline": {
+        "total_score": 1.625,
+        "component_scores": {
+          "length": 1.25,
+          "citations": 0.0,
+          "line_refs": 0.0,
+          "code_blocks": 1.0,
+          "equations": 0.0
+        },
+        "weights": {
+          "citations": 0.3,
+          "line_refs": 0.25,
+          "code_blocks": 0.2,
+          "equations": 0.15,
+          "length": 0.1
+        }
+      },
+      "reference": {
+        "total_score": 5.0,
+        "component_scores": {
+          "length": 1.0,
+          "citations": 1.0,
+          "line_refs": 1.0,
+          "code_blocks": 1.0,
+          "equations": 1.0
+        },
+        "weights": {}
+      }
+    }
+  },
+  {
+    "question_id": "Q034",
+    "question": "What stability correction schemes are available for turbulent fluxes?",
+    "category": "physics_schemes",
+    "difficulty": "advanced",
+    "scores": {
+      "haiku_mcp": {
+        "total_score": 2.8750000000000004,
+        "component_scores": {
+          "length": 1.25,
+          "citations": 0.0,
+          "line_refs": 1.0,
+          "code_blocks": 0.8,
+          "equations": 0.0
+        },
+        "weights": {
+          "citations": 0.3,
+          "line_refs": 0.25,
+          "code_blocks": 0.2,
+          "equations": 0.15,
+          "length": 0.1
+        }
+      },
+      "sonnet_mcp": {
+        "total_score": 3.6250000000000004,
+        "component_scores": {
+          "length": 1.25,
+          "citations": 0.0,
+          "line_refs": 1.0,
+          "code_blocks": 0.8,
+          "equations": 1.0
+        },
+        "weights": {
+          "citations": 0.3,
+          "line_refs": 0.25,
+          "code_blocks": 0.2,
+          "equations": 0.15,
+          "length": 0.1
+        }
+      },
+      "sonnet_baseline": {
+        "total_score": 3.825,
+        "component_scores": {
+          "length": 1.25,
+          "citations": 0.0,
+          "line_refs": 1.0,
+          "code_blocks": 1.0,
+          "equations": 1.0
+        },
+        "weights": {
+          "citations": 0.3,
+          "line_refs": 0.25,
+          "code_blocks": 0.2,
+          "equations": 0.15,
+          "length": 0.1
+        }
+      },
+      "reference": {
+        "total_score": 5.0,
+        "component_scores": {
+          "length": 1.0,
+          "citations": 1.0,
+          "line_refs": 1.0,
+          "code_blocks": 1.0,
+          "equations": 1.0
+        },
+        "weights": {}
+      }
+    }
+  },
+  {
+    "question_id": "Q035",
+    "question": "What are the most sensitive parameters for energy balance calibration?",
+    "category": "calibration",
+    "difficulty": "intermediate",
+    "scores": {
+      "haiku_mcp": {
+        "total_score": 4.7,
+        "component_scores": {
+          "length": 1.25,
+          "citations": 1.0,
+          "line_refs": 1.0,
+          "code_blocks": 0.8,
+          "equations": 0.7
+        },
+        "weights": {
+          "citations": 0.3,
+          "line_refs": 0.25,
+          "code_blocks": 0.2,
+          "equations": 0.15,
+          "length": 0.1
+        }
+      },
+      "sonnet_mcp": {
+        "total_score": 4.9,
+        "component_scores": {
+          "length": 1.25,
+          "citations": 1.0,
+          "line_refs": 1.0,
+          "code_blocks": 1.0,
+          "equations": 0.7
+        },
+        "weights": {
+          "citations": 0.3,
+          "line_refs": 0.25,
+          "code_blocks": 0.2,
+          "equations": 0.15,
+          "length": 0.1
+        }
+      },
+      "sonnet_baseline": {
+        "total_score": 4.9,
+        "component_scores": {
+          "length": 1.25,
+          "citations": 1.0,
+          "line_refs": 1.0,
+          "code_blocks": 1.0,
+          "equations": 0.7
+        },
+        "weights": {
+          "citations": 0.3,
+          "line_refs": 0.25,
+          "code_blocks": 0.2,
+          "equations": 0.15,
+          "length": 0.1
+        }
+      },
+      "reference": {
+        "total_score": 5.0,
+        "component_scores": {
+          "length": 1.0,
+          "citations": 1.0,
+          "line_refs": 1.0,
+          "code_blocks": 1.0,
+          "equations": 1.0
+        },
+        "weights": {}
+      }
+    }
+  },
+  {
+    "question_id": "Q036",
+    "question": "How should I calibrate the OHM coefficients for my site?",
+    "category": "calibration",
+    "difficulty": "advanced",
+    "scores": {
+      "haiku_mcp": {
+        "total_score": 4.9750000000000005,
+        "component_scores": {
+          "length": 1.25,
+          "citations": 1.0,
+          "line_refs": 1.0,
+          "code_blocks": 0.8,
+          "equations": 0.8
+        },
+        "weights": {
+          "citations": 0.3,
+          "line_refs": 0.25,
+          "code_blocks": 0.2,
+          "equations": 0.15,
+          "length": 0.1
+        }
+      },
+      "sonnet_mcp": {
+        "total_score": 5.0,
+        "component_scores": {
+          "length": 1.25,
+          "citations": 1.0,
+          "line_refs": 1.0,
+          "code_blocks": 0.8,
+          "equations": 1.0
+        },
+        "weights": {
+          "citations": 0.3,
+          "line_refs": 0.25,
+          "code_blocks": 0.2,
+          "equations": 0.15,
+          "length": 0.1
+        }
+      },
+      "sonnet_baseline": {
+        "total_score": 5.0,
+        "component_scores": {
+          "length": 1.25,
+          "citations": 1.0,
+          "line_refs": 1.0,
+          "code_blocks": 1.0,
+          "equations": 1.0
+        },
+        "weights": {
+          "citations": 0.3,
+          "line_refs": 0.25,
+          "code_blocks": 0.2,
+          "equations": 0.15,
+          "length": 0.1
+        }
+      },
+      "reference": {
+        "total_score": 5.0,
+        "component_scores": {
+          "length": 1.0,
+          "citations": 1.0,
+          "line_refs": 1.0,
+          "code_blocks": 1.0,
+          "equations": 1.0
+        },
+        "weights": {}
+      }
+    }
+  },
+  {
+    "question_id": "Q037",
+    "question": "What observations are needed to calibrate SUEWS?",
+    "category": "calibration",
+    "difficulty": "intermediate",
+    "scores": {
+      "haiku_mcp": {
+        "total_score": 5.125,
+        "component_scores": {
+          "length": 1.25,
+          "citations": 1.0,
+          "line_refs": 1.0,
+          "code_blocks": 1.0,
+          "equations": 1.0
+        },
+        "weights": {
+          "citations": 0.3,
+          "line_refs": 0.25,
+          "code_blocks": 0.2,
+          "equations": 0.15,
+          "length": 0.1
+        }
+      },
+      "sonnet_mcp": {
+        "total_score": 4.9,
+        "component_scores": {
+          "length": 1.25,
+          "citations": 1.0,
+          "line_refs": 1.0,
+          "code_blocks": 1.0,
+          "equations": 0.7
+        },
+        "weights": {
+          "citations": 0.3,
+          "line_refs": 0.25,
+          "code_blocks": 0.2,
+          "equations": 0.15,
+          "length": 0.1
+        }
+      },
+      "sonnet_baseline": {
+        "total_score": 5.125,
+        "component_scores": {
+          "length": 1.25,
+          "citations": 1.0,
+          "line_refs": 1.0,
+          "code_blocks": 1.0,
+          "equations": 1.0
+        },
+        "weights": {
+          "citations": 0.3,
+          "line_refs": 0.25,
+          "code_blocks": 0.2,
+          "equations": 0.15,
+          "length": 0.1
+        }
+      },
+      "reference": {
+        "total_score": 5.0,
+        "component_scores": {
+          "length": 1.0,
+          "citations": 1.0,
+          "line_refs": 1.0,
+          "code_blocks": 1.0,
+          "equations": 1.0
+        },
+        "weights": {}
+      }
+    }
+  },
+  {
+    "question_id": "Q038",
+    "question": "Why is my SUEWS simulation producing NaN values?",
+    "category": "troubleshooting",
+    "difficulty": "basic",
+    "scores": {
+      "haiku_mcp": {
+        "total_score": 4.375,
+        "component_scores": {
+          "length": 1.25,
+          "citations": 1.0,
+          "line_refs": 1.0,
+          "code_blocks": 1.0,
+          "equations": 0.0
+        },
+        "weights": {
+          "citations": 0.3,
+          "line_refs": 0.25,
+          "code_blocks": 0.2,
+          "equations": 0.15,
+          "length": 0.1
+        }
+      },
+      "sonnet_mcp": {
+        "total_score": 4.75,
+        "component_scores": {
+          "length": 1.25,
+          "citations": 1.0,
+          "line_refs": 1.0,
+          "code_blocks": 1.0,
+          "equations": 0.5
+        },
+        "weights": {
+          "citations": 0.3,
+          "line_refs": 0.25,
+          "code_blocks": 0.2,
+          "equations": 0.15,
+          "length": 0.1
+        }
+      },
+      "sonnet_baseline": {
+        "total_score": 4.375,
+        "component_scores": {
+          "length": 1.25,
+          "citations": 1.0,
+          "line_refs": 1.0,
+          "code_blocks": 1.0,
+          "equations": 0.0
+        },
+        "weights": {
+          "citations": 0.3,
+          "line_refs": 0.25,
+          "code_blocks": 0.2,
+          "equations": 0.15,
+          "length": 0.1
+        }
+      },
+      "reference": {
+        "total_score": 5.0,
+        "component_scores": {
+          "length": 1.0,
+          "citations": 1.0,
+          "line_refs": 1.0,
+          "code_blocks": 1.0,
+          "equations": 1.0
+        },
+        "weights": {}
+      }
+    }
+  },
+  {
+    "question_id": "Q039",
+    "question": "How do I diagnose energy balance closure problems?",
+    "category": "troubleshooting",
+    "difficulty": "intermediate",
+    "scores": {
+      "haiku_mcp": {
+        "total_score": 4.7,
+        "component_scores": {
+          "length": 1.25,
+          "citations": 1.0,
+          "line_refs": 1.0,
+          "code_blocks": 0.8,
+          "equations": 0.7
+        },
+        "weights": {
+          "citations": 0.3,
+          "line_refs": 0.25,
+          "code_blocks": 0.2,
+          "equations": 0.15,
+          "length": 0.1
+        }
+      },
+      "sonnet_mcp": {
+        "total_score": 4.7,
+        "component_scores": {
+          "length": 1.25,
+          "citations": 1.0,
+          "line_refs": 1.0,
+          "code_blocks": 0.8,
+          "equations": 0.7
+        },
+        "weights": {
+          "citations": 0.3,
+          "line_refs": 0.25,
+          "code_blocks": 0.2,
+          "equations": 0.15,
+          "length": 0.1
+        }
+      },
+      "sonnet_baseline": {
+        "total_score": 4.7,
+        "component_scores": {
+          "length": 1.25,
+          "citations": 1.0,
+          "line_refs": 1.0,
+          "code_blocks": 0.8,
+          "equations": 0.7
+        },
+        "weights": {
+          "citations": 0.3,
+          "line_refs": 0.25,
+          "code_blocks": 0.2,
+          "equations": 0.15,
+          "length": 0.1
+        }
+      },
+      "reference": {
+        "total_score": 5.0,
+        "component_scores": {
+          "length": 1.0,
+          "citations": 1.0,
+          "line_refs": 1.0,
+          "code_blocks": 1.0,
+          "equations": 1.0
+        },
+        "weights": {}
+      }
+    }
+  },
+  {
+    "question_id": "Q040",
+    "question": "What causes unrealistic spikes in latent heat flux?",
+    "category": "troubleshooting",
+    "difficulty": "intermediate",
+    "scores": {
+      "haiku_mcp": {
+        "total_score": 4.9,
+        "component_scores": {
+          "length": 1.25,
+          "citations": 1.0,
+          "line_refs": 1.0,
+          "code_blocks": 1.0,
+          "equations": 0.7
+        },
+        "weights": {
+          "citations": 0.3,
+          "line_refs": 0.25,
+          "code_blocks": 0.2,
+          "equations": 0.15,
+          "length": 0.1
+        }
+      },
+      "sonnet_mcp": {
+        "total_score": 4.7,
+        "component_scores": {
+          "length": 1.25,
+          "citations": 1.0,
+          "line_refs": 1.0,
+          "code_blocks": 0.8,
+          "equations": 0.7
+        },
+        "weights": {
+          "citations": 0.3,
+          "line_refs": 0.25,
+          "code_blocks": 0.2,
+          "equations": 0.15,
+          "length": 0.1
+        }
+      },
+      "sonnet_baseline": {
+        "total_score": 5.125,
+        "component_scores": {
+          "length": 1.25,
+          "citations": 1.0,
+          "line_refs": 1.0,
+          "code_blocks": 1.0,
+          "equations": 1.0
+        },
+        "weights": {
+          "citations": 0.3,
+          "line_refs": 0.25,
+          "code_blocks": 0.2,
+          "equations": 0.15,
+          "length": 0.1
+        }
+      },
+      "reference": {
+        "total_score": 5.0,
+        "component_scores": {
+          "length": 1.0,
+          "citations": 1.0,
+          "line_refs": 1.0,
+          "code_blocks": 1.0,
+          "equations": 1.0
+        },
+        "weights": {}
+      }
+    }
+  },
+  {
+    "question_id": "Q041",
+    "question": "How does SUEWS calculate aerodynamic resistance?",
+    "category": "advanced_physics",
+    "difficulty": "advanced",
+    "scores": {
+      "haiku_mcp": {
+        "total_score": 1.8295454545454546,
+        "component_scores": {
+          "length": 1.25,
+          "citations": 0.0,
+          "line_refs": 0.0,
+          "code_blocks": 0.8,
+          "equations": 0.2727272727272727
+        },
+        "weights": {
+          "citations": 0.3,
+          "line_refs": 0.25,
+          "code_blocks": 0.2,
+          "equations": 0.15,
+          "length": 0.1
+        }
+      },
+      "sonnet_mcp": {
+        "total_score": 1.7613636363636365,
+        "component_scores": {
+          "length": 1.25,
+          "citations": 0.0,
+          "line_refs": 0.0,
+          "code_blocks": 0.8,
+          "equations": 0.18181818181818182
+        },
+        "weights": {
+          "citations": 0.3,
+          "line_refs": 0.25,
+          "code_blocks": 0.2,
+          "equations": 0.15,
+          "length": 0.1
+        }
+      },
+      "sonnet_baseline": {
+        "total_score": 1.6250000000000002,
+        "component_scores": {
+          "length": 1.25,
+          "citations": 0.0,
+          "line_refs": 0.0,
+          "code_blocks": 0.8,
+          "equations": 0.0
+        },
+        "weights": {
+          "citations": 0.3,
+          "line_refs": 0.25,
+          "code_blocks": 0.2,
+          "equations": 0.15,
+          "length": 0.1
+        }
+      },
+      "reference": {
+        "total_score": 5.0,
+        "component_scores": {
+          "length": 1.0,
+          "citations": 1.0,
+          "line_refs": 1.0,
+          "code_blocks": 1.0,
+          "equations": 1.0
+        },
+        "weights": {}
+      }
+    }
+  },
+  {
+    "question_id": "Q042",
+    "question": "What is the element surface temperature model (ESTM)?",
+    "category": "advanced_physics",
+    "difficulty": "advanced",
+    "scores": {
+      "haiku_mcp": {
+        "total_score": 3.075,
+        "component_scores": {
+          "length": 1.25,
+          "citations": 0.0,
+          "line_refs": 1.0,
+          "code_blocks": 1.0,
+          "equations": 0.0
+        },
+        "weights": {
+          "citations": 0.3,
+          "line_refs": 0.25,
+          "code_blocks": 0.2,
+          "equations": 0.15,
+          "length": 0.1
+        }
+      },
+      "sonnet_mcp": {
+        "total_score": 3.1250000000000004,
+        "component_scores": {
+          "length": 1.25,
+          "citations": 0.0,
+          "line_refs": 1.0,
+          "code_blocks": 0.8,
+          "equations": 0.3333333333333333
+        },
+        "weights": {
+          "citations": 0.3,
+          "line_refs": 0.25,
+          "code_blocks": 0.2,
+          "equations": 0.15,
+          "length": 0.1
+        }
+      },
+      "sonnet_baseline": {
+        "total_score": 3.6250000000000004,
+        "component_scores": {
+          "length": 1.25,
+          "citations": 0.0,
+          "line_refs": 1.0,
+          "code_blocks": 0.8,
+          "equations": 1.0
+        },
+        "weights": {
+          "citations": 0.3,
+          "line_refs": 0.25,
+          "code_blocks": 0.2,
+          "equations": 0.15,
+          "length": 0.1
+        }
+      },
+      "reference": {
+        "total_score": 5.0,
+        "component_scores": {
+          "length": 1.0,
+          "citations": 1.0,
+          "line_refs": 1.0,
+          "code_blocks": 1.0,
+          "equations": 1.0
+        },
+        "weights": {}
+      }
+    }
+  },
+  {
+    "question_id": "Q043",
+    "question": "How does SUEWS represent urban canyon effects?",
+    "category": "advanced_physics",
+    "difficulty": "advanced",
+    "scores": {
+      "haiku_mcp": {
+        "total_score": 3.825,
+        "component_scores": {
+          "length": 1.25,
+          "citations": 0.0,
+          "line_refs": 1.0,
+          "code_blocks": 1.0,
+          "equations": 1.0
+        },
+        "weights": {
+          "citations": 0.3,
+          "line_refs": 0.25,
+          "code_blocks": 0.2,
+          "equations": 0.15,
+          "length": 0.1
+        }
+      },
+      "sonnet_mcp": {
+        "total_score": 3.4000000000000004,
+        "component_scores": {
+          "length": 1.25,
+          "citations": 0.0,
+          "line_refs": 1.0,
+          "code_blocks": 0.8,
+          "equations": 0.7
+        },
+        "weights": {
+          "citations": 0.3,
+          "line_refs": 0.25,
+          "code_blocks": 0.2,
+          "equations": 0.15,
+          "length": 0.1
+        }
+      },
+      "sonnet_baseline": {
+        "total_score": 3.825,
+        "component_scores": {
+          "length": 1.25,
+          "citations": 0.0,
+          "line_refs": 1.0,
+          "code_blocks": 1.0,
+          "equations": 1.0
+        },
+        "weights": {
+          "citations": 0.3,
+          "line_refs": 0.25,
+          "code_blocks": 0.2,
+          "equations": 0.15,
+          "length": 0.1
+        }
+      },
+      "reference": {
+        "total_score": 5.0,
+        "component_scores": {
+          "length": 1.0,
+          "citations": 1.0,
+          "line_refs": 1.0,
+          "code_blocks": 1.0,
+          "equations": 1.0
+        },
+        "weights": {}
+      }
+    }
+  },
+  {
+    "question_id": "Q044",
+    "question": "How do I run SUEWS using the Python interface (SuPy)?",
+    "category": "workflow",
+    "difficulty": "basic",
+    "scores": {
+      "haiku_mcp": {
+        "total_score": 4.375,
+        "component_scores": {
+          "length": 1.25,
+          "citations": 1.0,
+          "line_refs": 1.0,
+          "code_blocks": 1.0,
+          "equations": 0.0
+        },
+        "weights": {
+          "citations": 0.3,
+          "line_refs": 0.25,
+          "code_blocks": 0.2,
+          "equations": 0.15,
+          "length": 0.1
+        }
+      },
+      "sonnet_mcp": {
+        "total_score": 5.125,
+        "component_scores": {
+          "length": 1.25,
+          "citations": 1.0,
+          "line_refs": 1.0,
+          "code_blocks": 1.0,
+          "equations": 1.0
+        },
+        "weights": {
+          "citations": 0.3,
+          "line_refs": 0.25,
+          "code_blocks": 0.2,
+          "equations": 0.15,
+          "length": 0.1
+        }
+      },
+      "sonnet_baseline": {
+        "total_score": 5.125,
+        "component_scores": {
+          "length": 1.25,
+          "citations": 1.0,
+          "line_refs": 1.0,
+          "code_blocks": 1.0,
+          "equations": 1.0
+        },
+        "weights": {
+          "citations": 0.3,
+          "line_refs": 0.25,
+          "code_blocks": 0.2,
+          "equations": 0.15,
+          "length": 0.1
+        }
+      },
+      "reference": {
+        "total_score": 5.0,
+        "component_scores": {
+          "length": 1.0,
+          "citations": 1.0,
+          "line_refs": 1.0,
+          "code_blocks": 1.0,
+          "equations": 1.0
+        },
+        "weights": {}
+      }
+    }
+  },
+  {
+    "question_id": "Q045",
+    "question": "How can I use SUEWS for climate change impact studies?",
+    "category": "workflow",
+    "difficulty": "intermediate",
+    "scores": {
+      "haiku_mcp": {
+        "total_score": 4.7,
+        "component_scores": {
+          "length": 1.25,
+          "citations": 1.0,
+          "line_refs": 1.0,
+          "code_blocks": 0.8,
+          "equations": 0.7
+        },
+        "weights": {
+          "citations": 0.3,
+          "line_refs": 0.25,
+          "code_blocks": 0.2,
+          "equations": 0.15,
+          "length": 0.1
+        }
+      },
+      "sonnet_mcp": {
+        "total_score": 4.7,
+        "component_scores": {
+          "length": 1.25,
+          "citations": 1.0,
+          "line_refs": 1.0,
+          "code_blocks": 0.8,
+          "equations": 0.7
+        },
+        "weights": {
+          "citations": 0.3,
+          "line_refs": 0.25,
+          "code_blocks": 0.2,
+          "equations": 0.15,
+          "length": 0.1
+        }
+      },
+      "sonnet_baseline": {
+        "total_score": 4.925,
+        "component_scores": {
+          "length": 1.25,
+          "citations": 1.0,
+          "line_refs": 1.0,
+          "code_blocks": 0.8,
+          "equations": 1.0
+        },
+        "weights": {
+          "citations": 0.3,
+          "line_refs": 0.25,
+          "code_blocks": 0.2,
+          "equations": 0.15,
+          "length": 0.1
+        }
+      },
+      "reference": {
+        "total_score": 5.0,
+        "component_scores": {
+          "length": 1.0,
+          "citations": 1.0,
+          "line_refs": 1.0,
+          "code_blocks": 1.0,
+          "equations": 1.0
+        },
+        "weights": {}
+      }
+    }
+  },
+  {
+    "question_id": "Q046",
+    "question": "How do I prepare land cover data for SUEWS from satellite imagery?",
+    "category": "workflow",
+    "difficulty": "intermediate",
+    "scores": {
+      "haiku_mcp": {
+        "total_score": 4.7,
+        "component_scores": {
+          "length": 1.25,
+          "citations": 1.0,
+          "line_refs": 1.0,
+          "code_blocks": 0.8,
+          "equations": 0.7
+        },
+        "weights": {
+          "citations": 0.3,
+          "line_refs": 0.25,
+          "code_blocks": 0.2,
+          "equations": 0.15,
+          "length": 0.1
+        }
+      },
+      "sonnet_mcp": {
+        "total_score": 4.7,
+        "component_scores": {
+          "length": 1.25,
+          "citations": 1.0,
+          "line_refs": 1.0,
+          "code_blocks": 0.8,
+          "equations": 0.7
+        },
+        "weights": {
+          "citations": 0.3,
+          "line_refs": 0.25,
+          "code_blocks": 0.2,
+          "equations": 0.15,
+          "length": 0.1
+        }
+      },
+      "sonnet_baseline": {
+        "total_score": 4.7,
+        "component_scores": {
+          "length": 1.25,
+          "citations": 1.0,
+          "line_refs": 1.0,
+          "code_blocks": 0.8,
+          "equations": 0.7
+        },
+        "weights": {
+          "citations": 0.3,
+          "line_refs": 0.25,
+          "code_blocks": 0.2,
+          "equations": 0.15,
+          "length": 0.1
+        }
+      },
+      "reference": {
+        "total_score": 5.0,
+        "component_scores": {
+          "length": 1.0,
+          "citations": 1.0,
+          "line_refs": 1.0,
+          "code_blocks": 1.0,
+          "equations": 1.0
+        },
+        "weights": {}
+      }
+    }
+  },
+  {
+    "question_id": "Q047",
+    "question": "What units does SUEWS use for heat fluxes?",
+    "category": "technical",
+    "difficulty": "basic",
+    "scores": {
+      "haiku_mcp": {
+        "total_score": 4.8129363449691995,
+        "component_scores": {
+          "length": 1.4758726899383983,
+          "citations": 1.0,
+          "line_refs": 1.0,
+          "code_blocks": 0.8,
+          "equations": 0.7
+        },
+        "weights": {
+          "citations": 0.3,
+          "line_refs": 0.25,
+          "code_blocks": 0.2,
+          "equations": 0.15,
+          "length": 0.1
+        }
+      },
+      "sonnet_mcp": {
+        "total_score": 4.722895277207392,
+        "component_scores": {
+          "length": 0.8957905544147844,
+          "citations": 1.0,
+          "line_refs": 1.0,
+          "code_blocks": 1.0,
+          "equations": 0.7
+        },
+        "weights": {
+          "citations": 0.3,
+          "line_refs": 0.25,
+          "code_blocks": 0.2,
+          "equations": 0.15,
+          "length": 0.1
+        }
+      },
+      "sonnet_baseline": {
+        "total_score": 4.823716632443532,
+        "component_scores": {
+          "length": 1.4974332648870636,
+          "citations": 1.0,
+          "line_refs": 1.0,
+          "code_blocks": 0.8,
+          "equations": 0.7
+        },
+        "weights": {
+          "citations": 0.3,
+          "line_refs": 0.25,
+          "code_blocks": 0.2,
+          "equations": 0.15,
+          "length": 0.1
+        }
+      },
+      "reference": {
+        "total_score": 5.0,
+        "component_scores": {
+          "length": 1.0,
+          "citations": 1.0,
+          "line_refs": 1.0,
+          "code_blocks": 1.0,
+          "equations": 1.0
+        },
+        "weights": {}
+      }
+    }
+  },
+  {
+    "question_id": "Q048",
+    "question": "How does SUEWS handle missing meteorological data?",
+    "category": "technical",
+    "difficulty": "intermediate",
+    "scores": {
+      "haiku_mcp": {
+        "total_score": 5.125,
+        "component_scores": {
+          "length": 1.25,
+          "citations": 1.0,
+          "line_refs": 1.0,
+          "code_blocks": 1.0,
+          "equations": 1.0
+        },
+        "weights": {
+          "citations": 0.3,
+          "line_refs": 0.25,
+          "code_blocks": 0.2,
+          "equations": 0.15,
+          "length": 0.1
+        }
+      },
+      "sonnet_mcp": {
+        "total_score": 4.9,
+        "component_scores": {
+          "length": 1.25,
+          "citations": 1.0,
+          "line_refs": 1.0,
+          "code_blocks": 1.0,
+          "equations": 0.7
+        },
+        "weights": {
+          "citations": 0.3,
+          "line_refs": 0.25,
+          "code_blocks": 0.2,
+          "equations": 0.15,
+          "length": 0.1
+        }
+      },
+      "sonnet_baseline": {
+        "total_score": 5.125,
+        "component_scores": {
+          "length": 1.25,
+          "citations": 1.0,
+          "line_refs": 1.0,
+          "code_blocks": 1.0,
+          "equations": 1.0
+        },
+        "weights": {
+          "citations": 0.3,
+          "line_refs": 0.25,
+          "code_blocks": 0.2,
+          "equations": 0.15,
+          "length": 0.1
+        }
+      },
+      "reference": {
+        "total_score": 5.0,
+        "component_scores": {
+          "length": 1.0,
+          "citations": 1.0,
+          "line_refs": 1.0,
+          "code_blocks": 1.0,
+          "equations": 1.0
+        },
+        "weights": {}
+      }
+    }
+  },
+  {
+    "question_id": "Q049",
+    "question": "What is the spin-up period needed for SUEWS simulations?",
+    "category": "technical",
+    "difficulty": "advanced",
+    "scores": {
+      "haiku_mcp": {
+        "total_score": 5.0,
+        "component_scores": {
+          "length": 1.25,
+          "citations": 1.0,
+          "line_refs": 1.0,
+          "code_blocks": 1.0,
+          "equations": 1.0
+        },
+        "weights": {
+          "citations": 0.3,
+          "line_refs": 0.25,
+          "code_blocks": 0.2,
+          "equations": 0.15,
+          "length": 0.1
+        }
+      },
+      "sonnet_mcp": {
+        "total_score": 5.0,
+        "component_scores": {
+          "length": 1.25,
+          "citations": 1.0,
+          "line_refs": 1.0,
+          "code_blocks": 1.0,
+          "equations": 1.0
+        },
+        "weights": {
+          "citations": 0.3,
+          "line_refs": 0.25,
+          "code_blocks": 0.2,
+          "equations": 0.15,
+          "length": 0.1
+        }
+      },
+      "sonnet_baseline": {
+        "total_score": 5.0,
+        "component_scores": {
+          "length": 1.25,
+          "citations": 1.0,
+          "line_refs": 1.0,
+          "code_blocks": 1.0,
+          "equations": 1.0
+        },
+        "weights": {
+          "citations": 0.3,
+          "line_refs": 0.25,
+          "code_blocks": 0.2,
+          "equations": 0.15,
+          "length": 0.1
+        }
+      },
+      "reference": {
+        "total_score": 5.0,
+        "component_scores": {
+          "length": 1.0,
+          "citations": 1.0,
+          "line_refs": 1.0,
+          "code_blocks": 1.0,
+          "equations": 1.0
+        },
+        "weights": {}
+      }
+    }
+  },
+  {
+    "question_id": "Q050",
+    "question": "How can SUEWS be coupled with mesoscale atmospheric models like WRF?",
+    "category": "integration",
+    "difficulty": "advanced",
+    "scores": {
+      "haiku_mcp": {
+        "total_score": 4.9,
+        "component_scores": {
+          "length": 1.25,
+          "citations": 1.0,
+          "line_refs": 1.0,
+          "code_blocks": 0.8,
+          "equations": 0.7
+        },
+        "weights": {
+          "citations": 0.3,
+          "line_refs": 0.25,
+          "code_blocks": 0.2,
+          "equations": 0.15,
+          "length": 0.1
+        }
+      },
+      "sonnet_mcp": {
+        "total_score": 4.9,
+        "component_scores": {
+          "length": 1.25,
+          "citations": 1.0,
+          "line_refs": 1.0,
+          "code_blocks": 0.8,
+          "equations": 0.7
+        },
+        "weights": {
+          "citations": 0.3,
+          "line_refs": 0.25,
+          "code_blocks": 0.2,
+          "equations": 0.15,
+          "length": 0.1
+        }
+      },
+      "sonnet_baseline": {
+        "total_score": 5.0,
+        "component_scores": {
+          "length": 1.25,
+          "citations": 1.0,
+          "line_refs": 1.0,
+          "code_blocks": 1.0,
+          "equations": 1.0
+        },
+        "weights": {
+          "citations": 0.3,
+          "line_refs": 0.25,
+          "code_blocks": 0.2,
+          "equations": 0.15,
+          "length": 0.1
+        }
+      },
+      "reference": {
+        "total_score": 5.0,
+        "component_scores": {
+          "length": 1.0,
+          "citations": 1.0,
+          "line_refs": 1.0,
+          "code_blocks": 1.0,
+          "equations": 1.0
+        },
+        "weights": {}
+      }
+    }
+  }
+]

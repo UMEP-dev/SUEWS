@@ -988,6 +988,7 @@ def adjust_surface_temperatures(
                                 ScientificAdjustment(
                                     parameter=f"initial_states.{array_name}[{element_idx}]",
                                     site_index=site_idx,
+                                    site_gridid=site_gridid,
                                     old_value=param_list,
                                     new_value=f"{avg_temp} C",
                                     reason=f"Set from CRU data for coordinates ({lat:.2f}, {lng:.2f}) for month {month}",

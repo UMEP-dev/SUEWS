@@ -835,6 +835,112 @@ def get_mean_monthly_air_temperature(
     return float(temperature)
 
 
+def get_mean_annual_air_temperature(
+    lat: float, lon: float, spatial_res: float = 0.5
+) -> Optional[float]:
+    """Calculate annual mean air temperature using CRU TS4.06 climate normals.
+
+    Computes the average of all 12 monthly climate normals (1991-2020 period)
+    for the location. This provides a stable, long-term average annual temperature
+    suitable for initialising parameters that do not vary rapidly with seasons.
+
+    Args:
+        lat: Latitude in degrees (-90 to 90)
+        lon: Longitude in degrees (-180 to 180)
+        spatial_res: Spatial resolution in degrees for finding nearest grid cell (default: 0.5)
+
+    Returns:
+        Annual mean temperature in Celsius based on 1991-2020 climate normals,
+        or None if CRU data not available
+    """
+    if not (-90 <= lat <= 90):
+        raise ValueError(f"Latitude must be between -90 and 90, got {lat}")
+    if not (-180 <= lon <= 180):
+        raise ValueError(f"Longitude must be between -180 and 180, got {lon}")
+
+    cru_resource = trv_supy_module / "ext_data" / "CRU_TS4.06_1991_2020.parquet"
+
+    # In standalone mode, CRU data might not be available
+    if not HAS_SUPY:
+        logger_supy.warning(
+            "Running in standalone mode - CRU climate data not available. "
+            "Skipping temperature validation."
+        )
+        return None
+
+    if not cru_resource.exists():
+        logger_supy.warning(
+            f"CRU data file not found at {cru_resource}. "
+            "Temperature validation will be skipped."
+        )
+        return None
+
+    try:
+        df = pd.read_parquet(cru_resource)
+    except Exception as e:
+        logger_supy.warning(
+            f"Could not read CRU data: {e}. Temperature validation skipped."
+        )
+        return None
+
+    required_cols = ["Month", "Latitude", "Longitude", "NormalTemperature"]
+    missing_cols = [col for col in required_cols if col not in df.columns]
+    if missing_cols:
+        raise ValueError(f"Missing required columns in CRU data: {missing_cols}")
+
+    # Get all 12 months of data for the location
+    monthly_temps = []
+    closest_lat = None
+    closest_lon = None
+
+    for month in range(1, 13):
+        month_data = df[df["Month"] == month]
+        if month_data.empty:
+            raise ValueError(f"No CRU data available for month {month}")
+
+        distances = np.sqrt(
+            (month_data["Latitude"] - lat) ** 2 + (month_data["Longitude"] - lon) ** 2
+        )
+
+        # Find nearest grid cell with expanding search radius
+        nearby_data = None
+        for spatial_res_expanded in [spatial_res, spatial_res * 2, spatial_res * 4]:
+            nearby_indices = distances <= spatial_res_expanded
+            nearby_data = month_data[nearby_indices]
+
+            if not nearby_data.empty:
+                break
+
+        if nearby_data is None or nearby_data.empty:
+            raise ValueError(
+                f"No CRU data found within {spatial_res * 4} degrees of coordinates "
+                f"({lat}, {lon}) for month {month}. Try increasing spatial resolution or "
+                f"check if coordinates are within CRU data coverage area."
+            )
+
+        nearby_distances = distances[nearby_indices]
+        closest_idx = nearby_distances.idxmin()
+
+        temperature = month_data.loc[closest_idx, "NormalTemperature"]
+        monthly_temps.append(temperature)
+
+        # Store grid cell location (same for all months)
+        if closest_lat is None:
+            closest_lat = month_data.loc[closest_idx, "Latitude"]
+            closest_lon = month_data.loc[closest_idx, "Longitude"]
+
+    # Calculate annual mean
+    annual_temp = float(np.mean(monthly_temps))
+
+    logger_supy.debug(
+        f"CRU annual temperature for ({lat:.2f}, {lon:.2f}): "
+        f"{annual_temp:.2f} C (mean of 12 months) from grid cell "
+        f"({closest_lat:.2f}, {closest_lon:.2f})"
+    )
+
+    return annual_temp
+
+
 def adjust_surface_temperatures(
     yaml_data: dict, start_date: str
 ) -> Tuple[dict, List[ScientificAdjustment]]:

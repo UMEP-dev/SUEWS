@@ -6,7 +6,7 @@ If you want to build SUEWS from source for local use, this guide covers prerequi
 
 - Python 3.9+
 - `gfortran` compiler
-- `uv` (recommended) or `pip`/`conda`/`mamba`
+- [`uv`](https://docs.astral.sh/uv/) (recommended) or `pip`/`conda`/`mamba`
 
 ## Quick Start
 

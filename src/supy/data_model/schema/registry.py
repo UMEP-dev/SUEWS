@@ -8,7 +8,6 @@ schema versions for SUEWS YAML configurations.
 import json
 from pathlib import Path
 from typing import Dict, List, Optional
-from datetime import datetime
 
 from .version import CURRENT_SCHEMA_VERSION, SCHEMA_VERSIONS
 
@@ -39,7 +38,6 @@ class SchemaRegistry:
         return {
             "versions": {},
             "current": CURRENT_SCHEMA_VERSION,
-            "updated": datetime.utcnow().isoformat(),
         }
 
     def register_version(
@@ -57,7 +55,6 @@ class SchemaRegistry:
             self._registry["versions"][version] = {
                 "path": schema_path,
                 "description": description or SCHEMA_VERSIONS.get(version, ""),
-                "added": datetime.utcnow().isoformat(),
                 "is_current": version == CURRENT_SCHEMA_VERSION,
             }
 
@@ -68,7 +65,6 @@ class SchemaRegistry:
             for v in self._registry["versions"]:
                 self._registry["versions"][v]["is_current"] = v == version
 
-        self._registry["updated"] = datetime.utcnow().isoformat()
         self._save_registry()
 
     def _save_registry(self):
@@ -125,7 +121,6 @@ class SchemaRegistry:
     <div class="version {card_class}">
         <h3>Version {version} {"(Current)" if is_current else ""}</h3>
         <p>{info.get("description", "")}</p>
-        <p class="meta">Added: {info.get("added", "Unknown")[:10]}</p>
         <p>
             <a href="{version}.json">View Schema</a> |
             <a href="latest.json">Latest</a> |
@@ -249,6 +244,5 @@ $schema: "{base_url}/schema/suews-config/0.1.json"</code></pre>
         <a href="https://suews.readthedocs.io/en/latest/inputs/yaml/schema_versioning.html">Documentation</a> |
         <a href="registry.json">Registry JSON</a>
     </p>
-    <p class="meta">Last updated: {self._registry.get("updated", "Unknown")[:19]}</p>
 </body>
 </html>"""

@@ -13,7 +13,6 @@ Usage:
 """
 
 import argparse
-from datetime import datetime, timezone
 import json
 import logging
 from pathlib import Path
@@ -129,7 +128,6 @@ def generate_schema(
         schema_with_headers = {
             "_comment": "AUTO-GENERATED FILE - DO NOT EDIT MANUALLY",
             "_generated_by": "github-actions[bot]",
-            "_generated_at": datetime.now(timezone.utc).isoformat(),
             "_source": ".github/scripts/generate_schema.py",
             "_schema_version": CURRENT_SCHEMA_VERSION,
             **schema

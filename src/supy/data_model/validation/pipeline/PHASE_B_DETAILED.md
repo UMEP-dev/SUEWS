@@ -40,7 +40,8 @@ Phase B implements a multi-layered scientific validation system that:
 - `validate_model_option_dependencies()`: Physics option consistency checking
 - `validate_land_cover_consistency()`: Surface fraction and parameter validation
 - `validate_geographic_parameters()`: Coordinate and location validation
-- `get_mean_monthly_air_temperature()`: CRU TS4.06 climatological temperature lookup
+- `get_mean_monthly_air_temperature()`: CRU TS4.06 monthly climatological temperature lookup
+- `get_mean_annual_air_temperature()`: CRU TS4.06 annual climatological temperature lookup (average of 12 months)
 - `run_scientific_adjustment_pipeline()`: Intelligent automatic parameter adjustments
 - `run_science_check()`: Main orchestration function for all validations
 
@@ -148,7 +149,11 @@ Location-dependent parameter validation (actual implemented checks):
 
 Phase B integrates CRU TS4.06 monthly climatological data (1991-2020) for accurate temperature initialisation of surface types and STEBBS parameters:
 
-### Function Purpose
+### Temperature Functions
+
+Phase B provides two CRU-based temperature functions for different use cases:
+
+#### Monthly Temperature (Season-Dependent Parameters)
 
 ```python
 def get_mean_monthly_air_temperature(
@@ -162,6 +167,27 @@ def get_mean_monthly_air_temperature(
     # Finds nearest grid cell within spatial resolution
     # Returns climatological mean temperature for specified month
 ```
+
+Used for initialising parameters that vary with seasons:
+- Surface temperatures (tsfc, tin, temperature arrays)
+- STEBBS outdoor surface temperatures
+- Initial state temperatures for all surface types
+
+#### Annual Temperature (Stable Parameters)
+
+```python
+def get_mean_annual_air_temperature(
+    lat: float,
+    lon: float,
+    spatial_res: float = 0.5
+) -> float:
+    """Calculate annual mean air temperature using CRU TS4.06 climate normals."""
+    # Computes average of all 12 monthly climate normals (1991-2020)
+    # Returns stable long-term average annual temperature
+    # Suitable for parameters that do not vary rapidly with seasons
+```
+
+Used for initialising stable, non-seasonal parameters that require representative annual values rather than month-specific temperatures.
 
 ### CRU Data Features
 
@@ -412,11 +438,13 @@ Final Output: updated_config.yml, report_config.txt
 
 Phase B includes comprehensive test coverage.
 
-### Example Test
+### Example Tests
+
+#### Monthly Temperature Test
 
 ```python
-def test_cru_temperature_integration():
-    """Test CRU climatological temperature integration."""
+def test_cru_monthly_temperature_integration():
+    """Test CRU monthly climatological temperature integration."""
     # Test known coordinates (London)
     lat, lng, month = 51.5074, -0.1278, 1
     temp = get_mean_monthly_air_temperature(lat, lng, month)
@@ -424,6 +452,23 @@ def test_cru_temperature_integration():
     # London January temperature should be reasonable
     assert 0 <= temp <= 20, f"Unrealistic temperature: {temp}°C"
     assert temp is not None, "CRU lookup should return valid temperature"
+```
+
+#### Annual Temperature Test
+
+```python
+def test_cru_annual_temperature_integration():
+    """Test CRU annual climatological temperature integration."""
+    # Test known coordinates (London)
+    lat, lng = 51.5074, -0.1278
+    annual_temp = get_mean_annual_air_temperature(lat, lng)
+
+    # London annual temperature should be reasonable
+    assert 0 <= annual_temp <= 20, f"Unrealistic annual temperature: {annual_temp}°C"
+
+    # Annual mean should be cooler than summer month
+    summer_temp = get_mean_monthly_air_temperature(lat, lng, 7)
+    assert annual_temp < summer_temp, "Annual mean should be cooler than summer"
 ```
 
 ## Best Practices

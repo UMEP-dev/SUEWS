@@ -54,7 +54,6 @@ def generate_json_schema(
 
     # Add metadata
     schema["$comment"] = {
-        "generated": datetime.utcnow().isoformat() + "Z",
         "generator": "supy.util.schema_publisher",
         "suews_version": _get_suews_version(),
         "schema_version": version or CURRENT_SCHEMA_VERSION,
@@ -273,7 +272,6 @@ Many IDEs support JSON Schema for YAML validation:
 
 - Version: {version}
 - Description: {SCHEMA_VERSIONS.get(version, "Current schema version")}
-- Generated: {datetime.utcnow().isoformat()}Z
 
 ## Online Validation
 

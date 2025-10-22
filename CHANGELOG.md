@@ -21,7 +21,7 @@
 
 | Year | Features | Bugfixes | Changes | Maintenance | Docs | Total |
 |------|----------|----------|---------|-------------|------|-------|
-| 2025 | 27 | 13 | 3 | 29 | 13 | 85 |
+| 2025 | 36 | 25 | 13 | 34 | 16 | 124 |
 | 2024 | 12 | 17 | 1 | 12 | 1 | 43 |
 | 2023 | 11 | 14 | 3 | 9 | 1 | 38 |
 | 2022 | 15 | 18 | 0 | 7 | 0 | 40 |
@@ -34,7 +34,152 @@
 
 ## 2025
 
+### 21 Oct 2025
+- [feature] Added `get_mean_annual_air_temperature()` for stable parameter initialisation using CRU TS4.06 climate normals
+- [bugfix] Fixed Phase B validation to update roofs/walls temperature fields in initial_states from CRU climate data
+  - Extended `adjust_surface_temperatures()` to process `initial_states.roofs` and `initial_states.walls` arrays
+  - Updates `temperature` (5-layer array), `tsfc`, and `tin` fields to monthly averages from CRU TS4.06 dataset
+  - Ensures consistent temperature initialization across all surface types
+
+### 20 Oct 2025
+- [bugfix] Fixed recursive nested config updates in SUEWSSimulation (#756, 88a5202)
+  - Resolved issue where updating nested configuration settings converted parameters to dictionaries
+  - Implemented new function to handle any level of nesting properly
+  - Ensures df_state_init can be generated correctly after nested updates
+- [maintenance] Added comprehensive test coverage for nested config updates (07db1e6, #757)
+
+### 17 Oct 2025
+- [bugfix] Fixed nlayer nested structures detection in validation system (2e5922e, #731)
+  - Enhanced find_missing_parameters_in_lists to properly detect nlayer-dependent nested structures
+  - Improved validation for complex nested arrays in vertical layers configuration
+
+### 16 Oct 2025
+- [bugfix] Fixed Sphinx configuration errors preventing ReadTheDocs builds (648a83b)
+  - Defined path_source variable before use in RTD build section
+  - Converted rst_prolog to raw f-string to fix escape sequence warnings
+- [doc] Removed documentation status badge from index.rst (7d0b9e3)
+
+### 15 Oct 2025
+- [maintenance] Simplified GitHub Release creation conditions to prevent failures from context mismatches (047d9f67)
+- [feature] Added automatic nlayer dimension validation in Phase A (#731)
+  - Automatically detects nlayer value from user configuration
+  - Validates all vertical layer arrays match expected dimensions (veg_frac, veg_scale, building_frac, building_scale: nlayer elements; height: nlayer+1 elements)
+  - Pads short arrays with null values to help users, but fails validation requiring user to replace nulls
+  - Creates complete null template structures for complex nested arrays (roofs/walls in vertical_layers and initial_states)
+  - Generates detailed reports distinguishing array types and levels with clear suggested fixes
+  - Added 5 comprehensive tests in test_validation.py covering simple arrays, multiple errors, and complex nested structures
+- [feature] Enhanced UMEP/QGIS build system with nightly builds and improved version handling (cdb4273, 8f540b9, 636c1b9, 35510bb, 4a972c7)
+  - Enabled UMEP nightly builds with `.dev1` versioning strategy for continuous testing
+  - Explicitly excluded nightly builds from UMEP workflow to prevent conflicts
+  - Added UMEP builds to master/manual workflow runs
+  - Aligned UMEP builds with QGIS Python 3.12 requirements
+- [bugfix] Fixed sample output validation test to skip for NumPy 1.x builds (a4017cc)
+- [bugfix] Removed path filter from tag triggers to ensure all tagged builds are processed (1eb6667)
+- [maintenance] Performance improvement in Conductor setup by removing unnecessary build steps (ddedf96)
+
+### 14 Oct 2025
+- [bugfix] Fixed GRIDID collision test logic to correctly handle validation error messages (2880, f64292, 6320673, f80add7)
+  - Used tuple-based structured error data to avoid string replacement collisions
+  - Improved handling of RefValue objects in validation system
+  - Added comprehensive tests for GRIDID error handling
+- [bugfix] Transformed Pydantic validation errors to use GRIDID instead of array indices (3b73d69, 273e2e7)
+  - Grid IDs now properly displayed in validation reports and terminal outputs
+  - Improved user experience by showing meaningful grid identifiers
+- [feature] Comprehensive release automation and dual-build system for UMEP/QGIS compatibility (#721, d396e53, 04616de, b5c8f3b, 2e1ddda)
+  - Added automatic UMEP/QGIS compatible builds using `rc1` pre-release versioning
+  - Prevented `rc1` suffix for dev builds to maintain PEP 440 compliance
+  - Consolidated dual-build documentation into RELEASE_MANUAL
+  - Automated schema updates for releases (736ade9)
+- [bugfix] Fixed building height constraint validation in surface configuration (441420f)
+- [maintenance] Refactored CI/CD infrastructure for better maintainability (0905ad3, 89b7b15, 28b963c)
+  - Extracted CIBW configuration into reusable composite action
+  - Removed redundant test_numpy_compat job
+  - Cleaned up temporary test scripts after verification
+- [maintenance] Made pvlib optional to remove h5py build dependency (1139884, 629e5c3, 0c7544e)
+  - Prevented h5py source builds on macOS by preferring binary wheels
+  - Improved cross-platform build reliability
+- [maintenance] Removed hardcoded Claude model specification from CI (c665999)
+
+### 8 Oct 2025
+- [doc] Enhanced API documentation for configuration converter (15bd357, 3e2a007, a7c8a4c)
+  - Added Python API documentation for table format conversion
+  - Simplified docstrings and removed redundant examples
+- [doc] Restructured API reference into individual pages with improved navigation (4292d01, ade76d9, 3f7dfc7)
+  - Fixed section numbering and intersphinx mappings
+  - Enabled incremental builds in livehtml target for faster documentation development
+- [feature] Added automatic UMEP/QGIS compatible builds with `.post1` versioning (4c4588e)
+- [bugfix] Fixed Conductor workspace to activate virtual environment before running documentation server (5835239)
+
+### 4 Oct 2025
+- [bugfix] Fixed handling of heterogeneous site structures in multi-site configurations (91febb8)
+- [feature] Enhanced Conductor workspace management (#721)
+  - Added archive script to update parent repository when archiving Conductor worktrees
+  - Improved setup script with macOS-compatible remote cleanup
+
+### 3 Oct 2025
+- [feature] Added `make reinstall` target for fixing stale editable installs (#719, 9d92650)
+- [feature] Enhanced Conductor workspace scripts with setup and run commands (#718, 3520bd3)
+
+### 2 Oct 2025
+- [bugfix] Improved YAML validator documentation and report generation (#690)
+  - Fixed validation documentation to reflect actual command syntax and report structure
+  - Enhanced Phase B error reporting to provide comprehensive feedback even when initialisation fails
+  - Added support for `--mode dev` and `--mode public` distinctions in validator
+  - Improved Phase A reporting to show "Phase A passed" message on success
+
+### 1 Oct 2025
+- [improvement] Refactored SPARTACUS nlayer=1 handling in `SurfaceInitialState.from_df_state()` to use more robust try-except pattern
+  - Replaced conditional logic based on nlayer value with EAFP (Easier to Ask Forgiveness than Permission) approach
+  - Method now automatically handles both array format `"(idx,)"` and scalar format `"idx"` for DataFrame columns
+  - Improved code maintainability and self-documentation with `safe_get_value()` helper function
+  - Enhanced error messages to aid debugging when column format issues occur
+- [bugfix] Fixed validation report consolidation bugs: properly merge NO ACTION NEEDED messages from all phases in multi-phase pipelines; BC pipeline now consolidates Phase B messages when Phase C fails; removed extra separator line between ACTION NEEDED and NO ACTION NEEDED sections
+- [change] Harmonised validation system output: standardised report headers without phase-specific references; all pipelines produce `updated_config.yml` and `report_config.txt`; removed "Suggestion:" messages; consistent terminal output format; phase names now descriptive (Structure/Scientific/Model validation) instead of A/B/C
+- [doc] Updated validation documentation (workflow.rst, validation.rst, README.md, ORCHESTRATOR.md, PHASE_A/B/C_DETAILED.md) to reflect consolidated reports, standardised file naming, deduplication features, and harmonised output format
+
+### 30 Sep 2025
+- [bugfix] Fixed SPARTACUS multi-layer configuration handling to correctly create roof/wall arrays matching nlayer value (#698, #706, #707, #708)
+  - Conversion now properly reads nlayer from GridLayoutKc.nml and creates matching number of roof/wall layers
+  - Initial states now correctly reflect the specified number of vertical layers
+  - Added defensive coding to handle missing layer data gracefully
+- [improvement] Added warning when nlayer parameter is missing from df_state, improving debugging visibility for configuration issues
+
+### 26 Sep 2025
+- [bugfix] Fixed path resolution bug in `suews-validate` CLI command that prevented validation from working when run from subdirectories
+
+### 23 Sep 2025
+- [bugfix] Fixed missing ANOHM parameter mappings in validation system (chanohm→ch_anohm, cpanohm→rho_cp_anohm, kkanohm→k_anohm)
+- [doc] Updated Phase A documentation (PHASE_A_DETAILED.md, README.md) to reflect complete ANOHM parameter mappings
+- [change] Replaced "Phase A/B/C passed" messages with descriptive validation status messages in all user-facing outputs
+- [change] Terminal output now shows "YAML structure checks" and "Physics checks" instead of generic phase letters for better user understanding
+- [change] Validation reports now display "YAML structure check passed", "Physics checks passed", and "Validation passed" instead of phase-based terminology
+- [change] Intermediate file descriptions in terminal output use user-friendly names (e.g., "YAML structure checks report" vs "Phase A report")
+- [change] Updated CLI help message to use "complete validation pipeline" instead of technical "A/B/C validation pipeline" for better user understanding
+- [doc] Updated validation.rst with authentic examples from real SUEWS validation reports, replacing placeholder text with actual parameter names and validation scenarios
+- [doc] Enhanced validation.rst to document intermediate files (updatedA_*, reportA_*, etc.) alongside final output files for complete workflow understanding
+- [maintenance] Updated PHASE_A_DETAILED.md documentation examples to reflect new descriptive validation messages
+- [maintenance] Updated technical documentation titles and descriptions in ORCHESTRATOR.md, PHASE_A_DETAILED.md, PHASE_B_DETAILED.md, and PHASE_C_DETAILED.md to use descriptive terminology while preserving technical implementation details
+- [doc] Added detailed documentation reference section to pipeline/README.md with clear navigation to ORCHESTRATOR.md, PHASE_A_DETAILED.md, PHASE_B_DETAILED.md, and PHASE_C_DETAILED.md for developers
+
+### 19 Sep 2025
+- [doc] Updated technical documentation (PHASE_B_DETAILED.md, PHASE_C_DETAILED.md, README.md) to describe STEBBS convection coefficients constraints in Phase C and automatic outdoor temperature updates using CRU monthly climatological data in Phase B
+- [bugfix] Phase A reports now display "Phase A passed" when validation completes successfully with no issues, improving clarity in multi-phase workflows
+- [bugfix] Phase B now generates comprehensive error reports even when initialization fails, ensuring users always receive actionable guidance
+- [bugfix] CLI validator now properly distinguishes between --mode dev and --mode public modes
+- [doc] Enhanced ReadTheDocs validation documentation (validation.rst) with accurate command syntax, correct report structure examples, and comprehensive --mode dev/public usage examples
+- [maintenance] Updated detailed technical documentation (PHASE_A_DETAILED.md, PHASE_B_DETAILED.md, ORCHESTRATOR.md) to reflect validator improvements and report generation enhancements
+
 ### 17 Sep 2025
+
+- [change] Moved snowuse parameter validation from Phase C to orchestrator.py for early detection of restricted model options ([PR #688](https://github.com/UMEP-dev/SUEWS/pull/688))
+- [change] Public mode now halts execution with clear error message when snowuse values != 0, preventing use of restricted development features
+- [change] Development mode allows snowuse values != 0, maintaining same behaviour as stebbsmethod for developer access
+- [doc] Updated ORCHESTRATOR.md and PHASE_A_DETAILED.md documentation to reflect snowuse restriction changes
+- [bugfix] Fixed parameter naming convention mismatch between sample_config.yml and data model in validation system ([PR #686](https://github.com/UMEP-dev/SUEWS/pull/686), fixes [#650](https://github.com/UMEP-dev/SUEWS/issues/650))
+- [bugfix] Added parameter name mapping in validation system to link different naming conventions between YAML and data model
+- [bugfix] Prevented parameter duplication in updated user YAML files when running Phase A validation
+- [maintenance] Added specific tests to test_yaml_processing.py to verify parameter naming convention fixes
+
 - [maintenance] Fixed Linux platform support for older systems by switching to manylinux2014 for broader glibc compatibility (GitHub issue #679)
 - [maintenance] Added Fortran line length compiler flag (-ffree-line-length-none) to handle long lines without manual breaking
 - [maintenance] Added fprettify configuration for consistent Fortran code formatting

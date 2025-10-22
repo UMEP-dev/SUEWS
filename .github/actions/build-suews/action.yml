@@ -1,0 +1,137 @@
+name: 'Build SUEWS Wheels'
+description: 'Build SUEWS wheels with cibuildwheel (standard or UMEP variant)'
+
+inputs:
+  buildplat:
+    description: 'Build platform (e.g., ubuntu-latest, macos-13, windows-2025)'
+    required: true
+  buildplat_name:
+    description: 'Platform name for wheel (e.g., manylinux, macosx, win)'
+    required: true
+  buildplat_arch:
+    description: 'Architecture (e.g., x86_64, arm64, AMD64)'
+    required: true
+  python:
+    description: 'Python version to build for (e.g., cp39, cp310)'
+    required: true
+  is_umep_variant:
+    description: 'Whether this is a UMEP variant build (true/false)'
+    required: true
+    default: 'false'
+  wheel_name_suffix:
+    description: 'Suffix for wheel artifact name (e.g., "", "-umep")'
+    required: false
+    default: ''
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Modify pyproject.toml for NumPy 1.x compatibility
+      if: inputs.is_umep_variant == 'true'
+      shell: bash
+      run: |
+        echo "Building UMEP variant with NumPy 1.x compatibility"
+
+        # Build-time: Use oldest-supported-numpy for binary compatibility
+        sed -i.bak 's/"numpy>=2\.0"/"oldest-supported-numpy"/g' pyproject.toml
+
+        # Runtime: Pin to NumPy 1.x (QGIS 3.40 LTR uses 1.26.4)
+        sed -i.bak 's/"numpy>=2\.0",/"numpy>=1.22,<2.0",/g' pyproject.toml
+
+        echo "Modified pyproject.toml for UMEP build:"
+        git diff pyproject.toml || true
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: 3.12
+
+    - name: Generate version file from git
+      shell: bash
+      env:
+        BUILD_UMEP_VARIANT: ${{ inputs.is_umep_variant }}
+      run: |
+        # Generate version file on host (where git is available)
+        # This file will be copied into the cibuildwheel container
+        if [ "${{ inputs.is_umep_variant }}" = "true" ]; then
+          echo "Generating version for UMEP variant (rc1 suffix)"
+          export BUILD_UMEP_VARIANT=true
+        fi
+        python3 get_ver_git.py
+        echo "Generated version: $(cat src/supy/_version_scm.py | grep __version__)"
+
+    - name: Build wheels
+      uses: pypa/cibuildwheel@v3.0.0
+      env:
+        IS_32_BIT: ${{ inputs.buildplat_arch == 'x86' }}
+        BUILD_UMEP_VARIANT: ${{ inputs.is_umep_variant }}
+        CIBW_BUILD: ${{ inputs.python }}-${{ inputs.buildplat_name }}*
+        CIBW_ARCHS: ${{ inputs.buildplat_arch }}
+        CIBW_ENVIRONMENT_PASS_LINUX: ${{ inputs.is_umep_variant == 'true' && 'RUNNER_OS BUILD_UMEP_VARIANT' || 'RUNNER_OS' }}
+        # Use manylinux2014 for compatibility with older Linux systems (glibc 2.17+)
+        CIBW_MANYLINUX_X86_64_IMAGE: manylinux2014
+        CIBW_MANYLINUX_AARCH64_IMAGE: manylinux2014
+        # Configure pip to use binary wheels and avoid building from source
+        CIBW_ENVIRONMENT_LINUX: >
+          PIP_PREFER_BINARY=1
+          PIP_ONLY_BINARY=${{ inputs.python == 'cp313' && 'pyarrow' || ':all:' }}
+          FCFLAGS="-fno-optimize-sibling-calls -ffree-line-length-none"
+          F90=gfortran
+          ${{ inputs.is_umep_variant == 'true' && 'BUILD_UMEP_VARIANT=true' || '' }}
+        CIBW_BEFORE_ALL_LINUX: >
+          pip install --upgrade pip setuptools wheel &&
+          if [[ "${{ inputs.is_umep_variant }}" == "true" ]]; then
+            echo "Installing oldest-supported-numpy for UMEP variant build" &&
+            pip install oldest-supported-numpy;
+          else
+            echo "Installing numpy>=2.0 for standard build" &&
+            pip install 'numpy>=2.0';
+          fi &&
+          if [[ "${{ inputs.python }}" == "cp313" ]]; then
+            echo "Installing numpy for Python 3.13 f90wrap build" &&
+            pip install numpy;
+          fi
+        CIBW_BEFORE_ALL_MACOS: >
+          brew install gfortran &&
+          brew unlink gfortran &&
+          brew link gfortran
+        CIBW_BEFORE_ALL_WINDOWS: >
+          C:\msys64\usr\bin\bash.exe -lc "pacman -Syu --noconfirm" &&
+          C:\msys64\usr\bin\bash.exe -lc "pacman -S --needed --noconfirm mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-gcc-fortran mingw-w64-ucrt-x86_64-binutils mingw-w64-ucrt-x86_64-make mingw-w64-ucrt-x86_64-openblas"
+        CIBW_ENVIRONMENT_WINDOWS: >
+          PATH="C:\\msys64\\ucrt64\\bin;$PATH"
+          CC=gcc
+          CXX=g++
+          FC=gfortran
+          CFLAGS="-D__USE_MINGW_ANSI_STDIO=1 -mlong-double-64"
+          CXXFLAGS="-D__USE_MINGW_ANSI_STDIO=1 -mlong-double-64"
+          FCFLAGS="-fno-optimize-sibling-calls -ffree-line-length-none"
+          LDFLAGS="-lucrt -static-libgcc -static-libgfortran -LC:/msys64/ucrt64/lib -lsetjmp_compat"
+          ${{ inputs.is_umep_variant == 'true' && 'BUILD_UMEP_VARIANT=true' || '' }}
+        CIBW_BEFORE_BUILD_WINDOWS: >
+          echo Creating setjmp compatibility library... &&
+          echo int _setjmpex(void* buf) { extern int __intrinsic_setjmpex(void*); return __intrinsic_setjmpex(buf); } > setjmp_compat.c &&
+          C:\msys64\ucrt64\bin\gcc.exe -c setjmp_compat.c -o setjmp_compat.o &&
+          C:\msys64\ucrt64\bin\ar.exe rcs libsetjmp_compat.a setjmp_compat.o &&
+          echo Library created, checking contents: &&
+          C:\msys64\ucrt64\bin\nm.exe libsetjmp_compat.a &&
+          echo Copying to standard locations: &&
+          copy libsetjmp_compat.a C:\msys64\ucrt64\lib\ &&
+          copy libsetjmp_compat.a C:\msys64\ucrt64\x86_64-w64-mingw32\lib\ &&
+          echo Verifying library locations: &&
+          dir C:\msys64\ucrt64\lib\libsetjmp_compat.a &&
+          dir C:\msys64\ucrt64\x86_64-w64-mingw32\lib\libsetjmp_compat.a &&
+          where python &&
+          where gcc &&
+          gcc --version &&
+          pip install delvewheel
+        CIBW_REPAIR_WHEEL_COMMAND_WINDOWS: "delvewheel repair -w {dest_dir} {wheel}"
+        CIBW_TEST_REQUIRES: ${{ inputs.is_umep_variant == 'true' && 'pytest oldest-supported-numpy' || 'pytest' }}
+        CIBW_TEST_COMMAND: "python -m pytest {project}/test -v --tb=short --durations=10"
+        MACOSX_DEPLOYMENT_TARGET: ${{ inputs.buildplat == 'macos-13' && '13.0' || '15.0' }}
+
+    - name: Upload wheels
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ inputs.python }}-${{ inputs.buildplat_name }}-${{ inputs.buildplat_arch }}${{ inputs.wheel_name_suffix }}
+        path: ./wheelhouse/*.whl

@@ -240,6 +240,89 @@ class TestSUEWSConfig(unittest.TestCase):
         self.assertTrue(b >= a)
 
 
+class TestGrididErrorTransformation(unittest.TestCase):
+    """Test GRIDID transformation in validation error messages."""
+
+    def setUp(self):
+        """Set up test environment."""
+        import tempfile
+        import shutil
+
+        self.temp_dir = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, self.temp_dir, ignore_errors=True)
+
+    def _create_invalid_config(self, gridid_values):
+        """Create invalid config with specified GRIDID values.
+
+        Only the first site is invalid (lat=None), others are valid.
+        This ensures each GRIDID appears exactly once in error messages.
+        """
+        import yaml
+
+        sites = [
+            {"gridiv": gid, "properties": {"lat": None if i == 0 else 51.5, "lng": 0.0}}
+            for i, gid in enumerate(gridid_values)
+        ]
+        config_path = Path(self.temp_dir) / "config_test.yml"
+        with open(config_path, "w") as f:
+            yaml.dump({"name": "Test Config", "sites": sites}, f)
+        return config_path
+
+    def test_gridid_collision_case(self):
+        """Test collision case where GRIDID equals another site's array index.
+
+        Tests the bug fix for string replacement collision:
+        Site 0 with GRIDID=1, Site 1 with GRIDID=200.
+        Old approach would replace sites.0 -> sites.1, then sites.1 -> sites.200,
+        resulting in site 0's error showing as sites.200 incorrectly.
+        """
+        config_path = self._create_invalid_config([1, 200])
+
+        with self.assertRaises(ValueError) as cm:
+            SUEWSConfig.from_yaml(config_path)
+
+        error_msg = str(cm.exception)
+        # Only site 0 (GRIDID=1) has invalid data, so should see sites.1
+        self.assertIn("sites.1", error_msg)
+        # Should NOT see sites.200 (site 1 is valid)
+        self.assertNotIn("sites.200", error_msg)
+        # Should NOT see sites.0 (array index should be replaced with GRIDID)
+        self.assertNotIn("sites.0", error_msg)
+
+    def test_gridid_substring_collision(self):
+        """Test substring collision: GRIDID=10 and GRIDID=100.
+
+        Tests that string replacement doesn't cause substring collisions.
+        With naive replacement, sites.1 might incorrectly match sites.10.
+        """
+        config_path = self._create_invalid_config([10, 100])
+
+        with self.assertRaises(ValueError) as cm:
+            SUEWSConfig.from_yaml(config_path)
+
+        error_msg = str(cm.exception)
+        # Only site 0 (GRIDID=10) has invalid data
+        self.assertIn("sites.10", error_msg)
+        # Should NOT see sites.100 (site 1 is valid)
+        self.assertNotIn("sites.100", error_msg)
+        # Should NOT see sites.0 (array index should be replaced)
+        self.assertNotIn("sites.0", error_msg)
+
+    def test_gridid_refvalue_format(self):
+        """Test GRIDID extraction from RefValue format."""
+        import yaml
+
+        sites = [{"gridiv": {"value": 777}, "properties": {"lat": None, "lng": 0.0}}]
+        config_path = Path(self.temp_dir) / "config_refvalue.yml"
+        with open(config_path, "w") as f:
+            yaml.dump({"name": "Test", "sites": sites}, f)
+
+        with self.assertRaises(ValueError) as cm:
+            SUEWSConfig.from_yaml(config_path)
+
+        self.assertIn("sites.777", str(cm.exception))
+
+
 if __name__ == "__main__":
     unittest.main()
 

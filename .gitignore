@@ -3,6 +3,9 @@
 # Created by https://www.toptal.com/developers/gitignore/api/macos,fortran,jupyternotebooks,pycharm,pydev,python
 # Edit at https://www.toptal.com/developers/gitignore?templates=macos,fortran,jupyternotebooks,pycharm,pydev,python
 
+# Test workspace for SPARTACUS layer issues
+spartacus_test_workspace/
+
 ### Fortran ###
 # Prerequisites
 *.d
@@ -635,3 +638,4 @@ local-schema/
 
 # Temporary schema export directory
 public/
+docs/source/api/_autosummary/

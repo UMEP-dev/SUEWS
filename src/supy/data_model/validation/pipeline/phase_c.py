@@ -1,17 +1,73 @@
-"""Phase C report generation for Pydantic validation errors."""
+"""Phase C report generation for configuration consistency validation errors."""
 
 import os
 import re
+import yaml
 
-PHASE_TITLES = {
-    "A": "SUEWS - Phase A (Up-to-date YAML check) Report",
-    "B": "SUEWS - Phase B (Scientific Validation) Report",
-    "C": "SUEWS - Phase C (Pydantic Validation) Report",
-    "AB": "SUEWS - Phase AB (Up-to-date YAML check and Scientific Validation) Report",
-    "AC": "SUEWS - Phase AC (Up-to-date YAML check and Pydantic Validation) Report",
-    "BC": "SUEWS - Phase BC (Scientific Validation and Pydantic Validation) Report",
-    "ABC": "SUEWS - Phase ABC (Up-to-date YAML check, Scientific Validation and Pydantic Validation) Report",
-}
+# Use unified report title for all validation phases
+REPORT_TITLE = "SUEWS Validation Report"
+
+
+def convert_pydantic_location_to_gridid_path(loc_tuple, input_yaml_file):
+    """Convert Pydantic error location tuple to user-friendly GRIDID path.
+
+    Args:
+        loc_tuple: Tuple of location elements from Pydantic error (e.g., ('sites', 0, 'properties', 'lat'))
+        input_yaml_file: Path to original YAML file to extract GRIDID values
+
+    Returns:
+        str: User-friendly path with GRIDID (e.g., "sites.123.properties.lat")
+    """
+    if not loc_tuple:
+        return ""
+
+    path_parts = []
+
+    for i, part in enumerate(loc_tuple):
+        if (
+            part == "sites"
+            and i + 1 < len(loc_tuple)
+            and isinstance(loc_tuple[i + 1], int)
+        ):
+            # This is the sites array, next element is numeric index
+            site_index = loc_tuple[i + 1]
+            try:
+                # Load YAML to get the actual GRIDID
+                with open(input_yaml_file, "r") as f:
+                    yaml_data = yaml.safe_load(f)
+
+                if (
+                    "sites" in yaml_data
+                    and isinstance(yaml_data["sites"], list)
+                    and site_index < len(yaml_data["sites"])
+                    and isinstance(yaml_data["sites"][site_index], dict)
+                    and "gridiv" in yaml_data["sites"][site_index]
+                ):
+                    gridiv = yaml_data["sites"][site_index]["gridiv"]
+                    # Handle RefValue objects
+                    if isinstance(gridiv, dict) and "value" in gridiv:
+                        gridid = gridiv["value"]
+                    else:
+                        gridid = gridiv
+                    path_parts.append(f"sites.{gridid}")
+                    # Skip the numeric index in next iteration
+                    continue
+                else:
+                    # Fallback to original format if GRIDID not found
+                    path_parts.append(f"sites.{site_index}")
+                    continue
+            except Exception:
+                # Fallback to original format on any error
+                path_parts.append(f"sites.{site_index}")
+                continue
+        elif isinstance(part, int) and i > 0 and loc_tuple[i - 1] == "sites":
+            # Skip numeric indices that follow "sites" (already handled above)
+            continue
+        else:
+            # Regular path component
+            path_parts.append(str(part))
+
+    return ".".join(path_parts)
 
 
 def _parse_previous_phase_report(report_content: str):
@@ -58,6 +114,50 @@ def _parse_previous_phase_report(report_content: str):
     )
 
 
+def _parse_consolidated_messages(messages: list):
+    """Parse consolidated messages to extract different categories."""
+    phase_a_renames = []
+    phase_a_optional_missing = []
+    phase_a_not_in_standard = []
+    phase_b_science_warnings = []
+    phase_b_updates = []
+
+    current_category = None
+    for line in messages:
+        line = line.strip()
+        if "Updated (" in line and "renamed parameter" in line:
+            current_category = "renames"
+        elif "Updated (" in line and "optional missing parameter" in line:
+            current_category = "optional"
+        elif "Updated (" in line and "parameter(s):" in line:
+            # This handles "Updated (X) parameter(s):" which are Phase B updates
+            current_category = "phase_b_updates"
+        elif "parameter(s) not in standard" in line:
+            current_category = "not_standard"
+        elif "scientific warning" in line or "Revise (" in line:
+            current_category = "warnings"
+        elif line.startswith("--"):
+            detail = line[2:].strip()
+            if current_category == "renames":
+                phase_a_renames.append(detail)
+            elif current_category == "optional":
+                phase_a_optional_missing.append(detail)
+            elif current_category == "not_standard":
+                phase_a_not_in_standard.append(detail)
+            elif current_category == "warnings":
+                phase_b_science_warnings.append(detail)
+            elif current_category == "phase_b_updates":
+                phase_b_updates.append(detail)
+
+    return (
+        phase_a_renames,
+        phase_a_optional_missing,
+        phase_a_not_in_standard,
+        phase_b_science_warnings,
+        phase_b_updates,
+    )
+
+
 def generate_phase_c_report(
     validation_error: Exception,
     input_yaml_file: str,
@@ -65,12 +165,13 @@ def generate_phase_c_report(
     mode: str = "public",
     phase_a_report_file: str = None,
     phases_run: list = None,
+    no_action_messages: list = None,
 ) -> None:
     """Generate Phase C validation report with previous phase consolidation."""
     report_lines = []
 
     phase_str = "".join(phases_run) if phases_run else "C"
-    title = PHASE_TITLES.get(phase_str, "SUEWS Phase C (Pydantic Validation) Report")
+    title = REPORT_TITLE
 
     report_lines.append(f"# {title}")
     report_lines.append("# " + "=" * 50)
@@ -84,8 +185,19 @@ def generate_phase_c_report(
     phase_a_optional_missing = []
     phase_a_not_in_standard = []
     phase_b_science_warnings = []
+    phase_b_updates = []
 
-    if phase_a_report_file and os.path.exists(phase_a_report_file):
+    # Use passed no_action_messages if available, otherwise try to read from file
+    if no_action_messages:
+        # Parse the consolidated messages directly
+        (
+            phase_a_renames,
+            phase_a_optional_missing,
+            phase_a_not_in_standard,
+            phase_b_science_warnings,
+            phase_b_updates,
+        ) = _parse_consolidated_messages(no_action_messages)
+    elif phase_a_report_file and os.path.exists(phase_a_report_file):
         try:
             with open(phase_a_report_file, "r") as f:
                 report_content = f.read()
@@ -108,7 +220,11 @@ def generate_phase_c_report(
     if pydantic_errors:
         for error in pydantic_errors:
             error_type = error.get("type", "unknown")
-            field_path = ".".join(str(loc) for loc in error.get("loc", []))
+            # Convert Pydantic location to GRIDID-friendly path
+            error_loc = error.get("loc", [])
+            field_path = convert_pydantic_location_to_gridid_path(
+                error_loc, input_yaml_file
+            )
             error_msg = error.get("msg", "Unknown error")
 
             if not field_path:
@@ -118,7 +234,28 @@ def generate_phase_c_report(
                 if field_match:
                     field_name = field_match.group(1)
                     if field_name in ["lat", "lon", "alt"]:
-                        field_path = f"sites[0].properties.{field_name}"
+                        # Try to get GRIDID for first site as fallback
+                        try:
+                            with open(input_yaml_file, "r") as f:
+                                yaml_data = yaml.safe_load(f)
+                            if (
+                                "sites" in yaml_data
+                                and isinstance(yaml_data["sites"], list)
+                                and len(yaml_data["sites"]) > 0
+                                and isinstance(yaml_data["sites"][0], dict)
+                                and "gridiv" in yaml_data["sites"][0]
+                            ):
+                                gridiv = yaml_data["sites"][0]["gridiv"]
+                                # Handle RefValue objects
+                                if isinstance(gridiv, dict) and "value" in gridiv:
+                                    gridid = gridiv["value"]
+                                else:
+                                    gridid = gridiv
+                                field_path = f"sites.{gridid}.properties.{field_name}"
+                            else:
+                                field_path = f"sites.0.properties.{field_name}"
+                        except Exception:
+                            field_path = f"sites.0.properties.{field_name}"
                     else:
                         field_path = f"model.{field_name}"
                 else:
@@ -288,7 +425,7 @@ def generate_phase_c_report(
     if action_needed_items:
         report_lines.append("## ACTION NEEDED")
         report_lines.append(
-            f"- Found ({len(action_needed_items)}) critical Pydantic validation error(s):"
+            f"- Found ({len(action_needed_items)}) critical configuration consistency error(s):"
         )
 
         for item in action_needed_items:
@@ -304,6 +441,7 @@ def generate_phase_c_report(
         (phase_a_renames, "renamed parameter(s) to current standards"),
         (phase_a_optional_missing, "optional missing parameter(s) with null values"),
         (phase_a_not_in_standard, "parameter(s) not in standard"),
+        (phase_b_updates, "parameter(s)"),
         (phase_b_science_warnings, "scientific warning(s) for information"),
     ]
 
@@ -311,7 +449,11 @@ def generate_phase_c_report(
         if items:
             action = (
                 "Updated"
-                if "renamed" in description or "optional" in description
+                if "renamed" in description
+                or "optional" in description
+                or description == "parameter(s)"
+                else "Revise"
+                if "warning" in description
                 else "Found"
             )
             previous_phase_items.append(f"- {action} ({len(items)}) {description}:")
@@ -323,7 +465,23 @@ def generate_phase_c_report(
         report_lines.append("")
 
     if not action_needed_items and not previous_phase_items:
-        report_lines.append(f"Phase {phase_str} passed")
+        # Map phase strings to descriptive messages
+        if phase_str == "A":
+            phase_message = "YAML structure check passed"
+        elif phase_str == "B":
+            phase_message = "Physics checks passed"
+        elif phase_str == "C":
+            phase_message = "Validation passed"
+        elif phase_str == "AB":
+            phase_message = "YAML structure check and Physics checks passed"
+        elif phase_str == "BC":
+            phase_message = "Physics checks and Validation passed"
+        elif phase_str == "ABC" or phase_str == "AC":
+            phase_message = "Validation passed"
+        else:
+            phase_message = f"Phase {phase_str} passed"  # fallback
+
+        report_lines.append(phase_message)
 
     report_lines.extend(["", "# " + "=" * 50])
 
@@ -338,14 +496,26 @@ def generate_fallback_report(
     mode: str = "public",
     phase_a_report_file: str = None,
     phases_run: list = None,
+    no_action_messages: list = None,
 ) -> None:
     """Generate simple fallback report when structured report generation fails."""
     phase_a_renames = []
     phase_a_optional_missing = []
     phase_a_not_in_standard = []
     phase_b_science_warnings = []
+    phase_b_updates = []
 
-    if phase_a_report_file and os.path.exists(phase_a_report_file):
+    # Use passed no_action_messages if available, otherwise try to read from file
+    if no_action_messages:
+        # Parse the consolidated messages directly
+        (
+            phase_a_renames,
+            phase_a_optional_missing,
+            phase_a_not_in_standard,
+            phase_b_science_warnings,
+            phase_b_updates,
+        ) = _parse_consolidated_messages(no_action_messages)
+    elif phase_a_report_file and os.path.exists(phase_a_report_file):
         try:
             with open(phase_a_report_file, "r") as f:
                 report_content = f.read()
@@ -364,6 +534,7 @@ def generate_fallback_report(
         (phase_a_renames, "renamed parameter(s) to current standards"),
         (phase_a_optional_missing, "optional missing parameter(s) with null values"),
         (phase_a_not_in_standard, "parameter(s) not in standard"),
+        (phase_b_updates, "parameter(s)"),
         (phase_b_science_warnings, "scientific warning(s) for information"),
     ]
 
@@ -371,7 +542,11 @@ def generate_fallback_report(
         if items:
             action = (
                 "Updated"
-                if "renamed" in description or "optional" in description
+                if "renamed" in description
+                or "optional" in description
+                or description == "parameter(s)"
+                else "Revise"
+                if "warning" in description
                 else "Found"
             )
             previous_phase_items.append(f"- {action} ({len(items)}) {description}:")
@@ -384,7 +559,7 @@ def generate_fallback_report(
     )
 
     phase_str = "".join(phases_run) if phases_run else "C"
-    title = PHASE_TITLES.get(phase_str, "SUEWS Phase C (Pydantic Validation) Report")
+    title = REPORT_TITLE
     mode_title = "Public" if mode.lower() == "public" else mode.title()
 
     error_report = f"""# {title}
@@ -393,7 +568,7 @@ def generate_fallback_report(
 # ============================================
 
 ## ACTION NEEDED
-- Found (1) critical Pydantic validation error(s):
+- Found (1) critical configuration consistency error(s):
 -- validation_error: {str(validation_error)}
    Suggested fix: Review and fix validation errors above
    Location: {input_yaml_file}{previous_phase_consolidation}

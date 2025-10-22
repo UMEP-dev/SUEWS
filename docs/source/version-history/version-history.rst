@@ -3,11 +3,18 @@
 Version History
 ================
 
+.. _dev:
+
+
+.. note::
+   For the latest development changes, bug fixes, and upcoming features, see `CHANGELOG.md <https://github.com/UMEP-dev/SUEWS/blob/master/CHANGELOG.md>`_ on GitHub.
+
+
 
 .. toctree::
    :maxdepth: 1
 
-   dev
+   v2025.10.15
    v2020a
    v2019a
    v2018c

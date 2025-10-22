@@ -10,6 +10,7 @@ from pydantic import (
 )
 
 from .type import RefValue, Reference, FlexibleRefValue, init_df_state, SurfaceType
+from ..._env import logger_supy
 
 
 class SurfaceInitialState(BaseModel):
@@ -190,7 +191,11 @@ class SurfaceInitialState(BaseModel):
 
     @classmethod
     def from_df_state(
-        cls, df: pd.DataFrame, grid_id: int, surf_idx: int, str_type: str = "surf"
+        cls,
+        df: pd.DataFrame,
+        grid_id: int,
+        surf_idx: int,
+        str_type: str = "surf",
     ) -> "SurfaceInitialState":
         """
         Reconstruct SurfaceInitialState from a DataFrame state format.
@@ -203,20 +208,49 @@ class SurfaceInitialState(BaseModel):
 
         Returns:
             SurfaceInitialState: Instance of SurfaceInitialState.
+
+        Note:
+            This method handles both column index formats:
+            - Standard array format: "(idx,)" for multi-element arrays
+            - Scalar format: "idx" for single-element arrays (e.g., when nlayer=1)
+            The method tries the standard format first and falls back to scalar format if needed.
         """
+
+        def safe_get_value(var_name: str, idx: int) -> float:
+            """
+            Safely retrieve value from DataFrame, trying both index formats.
+
+            DataFrame columns can use different index formats:
+            - "(idx,)" for arrays with multiple elements
+            - "idx" for single-element arrays (scalar-like)
+
+            This occurs when nlayer=1, where roof/wall arrays have only one element
+            and may be stored with scalar indexing convention.
+            """
+            # Try standard array format first
+            try:
+                return df.loc[grid_id, (var_name, f"({idx},)")]
+            except KeyError:
+                # Fall back to scalar format
+                try:
+                    return df.loc[grid_id, (var_name, str(idx))]
+                except KeyError:
+                    raise KeyError(
+                        f"Column ({var_name}, {idx}) not found in DataFrame. "
+                        f"Tried both '({idx},)' and '{idx}' formats."
+                    )
+
         # Base surface state parameters
-        state = RefValue(df.loc[grid_id, (f"state_{str_type}", f"({surf_idx},)")])
-        soilstore = RefValue(
-            df.loc[grid_id, (f"soilstore_{str_type}", f"({surf_idx},)")]
-        )
+        state = RefValue(safe_get_value(f"state_{str_type}", surf_idx))
+        soilstore = RefValue(safe_get_value(f"soilstore_{str_type}", surf_idx))
 
         # Snow/ice parameters
         if str_type not in ["roof", "wall"]:
-            snowfrac = RefValue(df.loc[grid_id, (f"snowfrac", f"({surf_idx},)")])
-            snowpack = RefValue(df.loc[grid_id, (f"snowpack", f"({surf_idx},)")])
-            icefrac = RefValue(df.loc[grid_id, (f"icefrac", f"({surf_idx},)")])
-            snowwater = RefValue(df.loc[grid_id, (f"snowwater", f"({surf_idx},)")])
-            snowdens = RefValue(df.loc[grid_id, (f"snowdens", f"({surf_idx},)")])
+            snowfrac = RefValue(safe_get_value("snowfrac", surf_idx))
+            snowpack = RefValue(safe_get_value("snowpack", surf_idx))
+            icefrac = RefValue(safe_get_value("icefrac", surf_idx))
+            snowwater = RefValue(safe_get_value("snowwater", surf_idx))
+            snowdens = RefValue(safe_get_value("snowdens", surf_idx))
         else:
             snowfrac = None
             snowpack = None
@@ -231,8 +265,8 @@ class SurfaceInitialState(BaseModel):
         ])
 
         # Exterior and interior surface temperature
-        tsfc = RefValue(df.loc[grid_id, (f"tsfc_{str_type}", f"({surf_idx},)")])
-        tin = RefValue(df.loc[grid_id, (f"tin_{str_type}", f"({surf_idx},)")])
+        tsfc = RefValue(safe_get_value(f"tsfc_{str_type}", surf_idx))
+        tin = RefValue(safe_get_value(f"tin_{str_type}", surf_idx))
 
         return cls(
             state=state,
@@ -1038,12 +1072,21 @@ class InitialStates(BaseModel):
                     break
             return layers
 
-        roofs = reconstruct_layers(
-            "roof", SurfaceInitialState, len(cls.model_fields["roofs"].default)
-        )
-        walls = reconstruct_layers(
-            "wall", SurfaceInitialState, len(cls.model_fields["walls"].default)
-        )
+        # Detect the actual number of layers
+        # First try to get nlayer directly from the dataframe
+        try:
+            n_layers = int(df.loc[grid_id, ("nlayer", "0")])
+        except (KeyError, ValueError, TypeError):
+            # If nlayer not available, use default with warning
+            n_layers = len(cls.model_fields["roofs"].default)
+            logger_supy.warning(
+                f"nlayer not found in df_state for grid {grid_id}, "
+                f"using default {n_layers} layers. "
+                f"Consider adding nlayer to your GridLayout configuration."
+            )
+
+        roofs = reconstruct_layers("roof", SurfaceInitialState, n_layers)
+        walls = reconstruct_layers("wall", SurfaceInitialState, n_layers)
 
         dqndt = df.loc[grid_id, ("dqndt", "0")]
         dqnsdt = df.loc[grid_id, ("dqnsdt", "0")]

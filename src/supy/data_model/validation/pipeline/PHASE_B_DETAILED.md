@@ -1,8 +1,8 @@
-# Phase B: Scientific Validation and Automatic Corrections Guide
+# Phase B: Physics Validation Checks Guide
 
 ## Overview
 
-Phase B is the scientific validation stage of SUEWS configuration processing that ensures model physics consistency and provides reasonable automatic corrections. This comprehensive guide covers all aspects of Phase B operation.
+Phase B performs physics validation checks to ensure model physics consistency and provides reasonable automatic corrections. This comprehensive guide covers all aspects of Phase B operation.
 
 ## Table of Contents
 
@@ -35,11 +35,13 @@ Phase B implements a multi-layered scientific validation system that:
 ### Core Functions
 
 - `validate_phase_b_inputs()`: Input file validation and loading
+- `extract_simulation_parameters()`: Extract and validate simulation parameters with comprehensive error collection
 - `validate_physics_parameters()`: Required physics parameter validation
 - `validate_model_option_dependencies()`: Physics option consistency checking
 - `validate_land_cover_consistency()`: Surface fraction and parameter validation
 - `validate_geographic_parameters()`: Coordinate and location validation
-- `get_mean_monthly_air_temperature()`: CRU TS4.06 climatological temperature lookup
+- `get_mean_monthly_air_temperature()`: CRU TS4.06 monthly climatological temperature lookup
+- `get_mean_annual_air_temperature()`: CRU TS4.06 annual climatological temperature lookup (average of 12 months)
 - `run_scientific_adjustment_pipeline()`: Intelligent automatic parameter adjustments
 - `run_science_check()`: Main orchestration function for all validations
 
@@ -145,9 +147,13 @@ Location-dependent parameter validation (actual implemented checks):
 
 ### CRU Temperature Initialisation System
 
-Phase B integrates CRU TS4.06 monthly climatological data (1991-2020) for accurate temperature initialisation:
+Phase B integrates CRU TS4.06 monthly climatological data (1991-2020) for accurate temperature initialisation of surface types and STEBBS parameters:
 
-### Function Purpose
+### Temperature Functions
+
+Phase B provides two CRU-based temperature functions for different use cases:
+
+#### Monthly Temperature (Season-Dependent Parameters)
 
 ```python
 def get_mean_monthly_air_temperature(
@@ -161,6 +167,27 @@ def get_mean_monthly_air_temperature(
     # Finds nearest grid cell within spatial resolution
     # Returns climatological mean temperature for specified month
 ```
+
+Used for initialising parameters that vary with seasons:
+- Surface temperatures (tsfc, tin, temperature arrays)
+- STEBBS outdoor surface temperatures
+- Initial state temperatures for all surface types
+
+#### Annual Temperature (Stable Parameters)
+
+```python
+def get_mean_annual_air_temperature(
+    lat: float,
+    lon: float,
+    spatial_res: float = 0.5
+) -> float:
+    """Calculate annual mean air temperature using CRU TS4.06 climate normals."""
+    # Computes average of all 12 monthly climate normals (1991-2020)
+    # Returns stable long-term average annual temperature
+    # Suitable for parameters that do not vary rapidly with seasons
+```
+
+Used for initialising stable, non-seasonal parameters that require representative annual values rather than month-specific temperatures.
 
 ### CRU Data Features
 
@@ -216,6 +243,8 @@ Phase B makes scientific adjustments that improve model realism without changing
 - **Conditional Logic**: When `stebbsmethod == 0`, nullifies STEBBS parameters
 - **Parameter Cleanup**: Removes unused STEBBS parameters for clarity
 - **Consistency**: Ensures STEBBS configuration matches selected method
+- **Temperature Initialisation**: When `stebbsmethod == 1`, automatically updates `WallOutdoorSurfaceTemperature` and `WindowOutdoorSurfaceTemperature` using CRU climatological data
+- **CRU-Based Updates**: Uses location-specific mean monthly air temperature from CRU TS4.06 dataset
 
 ### Parameter Validation Improvements
 
@@ -291,10 +320,10 @@ Phase B generates comprehensive reports with two main sections:
 - **ACTION NEEDED**: Critical physics issues requiring user attention (ERROR status validation results)
 - **NO ACTION NEEDED**: Automatic adjustments made by Phase B, warnings, and Phase A information
 
-### Scientific Validation Report (`reportB_<filename>.txt`)
+### Scientific Validation Report (Standalone Phase B)
 
 ```text
-# SUEWS - Phase B (Scientific Validation) Report
+# SUEWS Validation Report
 # ==================================================
 # Mode: Public
 # ==================================================
@@ -302,22 +331,48 @@ Phase B generates comprehensive reports with two main sections:
 ## ACTION NEEDED
 - Found (2) critical scientific parameter error(s):
 -- rslmethod-stabilitymethod: If rslmethod == 2, stabilitymethod must be 3
-   Suggested fix: Set stabilitymethod to 3
+   Location: model.physics.stabilitymethod
 -- storageheatmethod-ohmincqf: StorageHeatMethod is set to 1 and OhmIncQf is set to 1. You should switch to OhmIncQf=0.
-   Suggested fix: Set OhmIncQf to 0
+   Location: model.physics.ohmincqf
 
 ## NO ACTION NEEDED
-- Updated (9) parameter(s):
--- initial_states.paved: temperature, tsfc, tin → 12.4°C (Set from CRU data for coordinates (51.51, -0.13) for month 1)
--- initial_states.bldgs: temperature, tsfc, tin → 12.4°C (Set from CRU data for coordinates (51.51, -0.13) for month 1)
--- anthropogenic_emissions.startdls: 15.0 → 86 (Calculated DLS start for coordinates (51.51, -0.13))
--- anthropogenic_emissions.enddls: 12.0 → 303 (Calculated DLS end for coordinates (51.51, -0.13))
--- paved.sfr at site [0]: rounded to achieve sum of land cover fractions equal to 1.0 → tolerance level: 1.00e-08
+- Updated (11) parameter(s):
+-- initial_states.paved at site [0]: temperature, tsfc, tin → 12.4 C (Set from CRU data for coordinates (51.51, -0.13) for month 1)
+-- initial_states.bldgs at site [0]: temperature, tsfc, tin → 12.4 C (Set from CRU data for coordinates (51.51, -0.13) for month 1)
+-- stebbs.WallOutdoorSurfaceTemperature at site [0]: 20.0 → 12.4 C (Set from CRU data for coordinates (51.51, -0.13) for month 1)
+-- stebbs.WindowOutdoorSurfaceTemperature at site [0]: 20.0 → 12.4 C (Set from CRU data for coordinates (51.51, -0.13) for month 1)
+-- anthropogenic_emissions.startdls at site [0]: 15.0 → 86 (Calculated DLS start for coordinates (51.51, -0.13))
+-- anthropogenic_emissions.enddls at site [0]: 12.0 → 303 (Calculated DLS end for coordinates (51.51, -0.13))
+-- paved.sfr at site [0]: rounded to achieve sum of land cover fractions equal to 1.0
 
 # ==================================================
 ```
 
 ## Error Handling and Edge Cases
+
+### Initialization Error Handling (Enhanced)
+
+Phase B now provides comprehensive error collection and reporting for initialization failures:
+
+```python
+def extract_simulation_parameters(yaml_data: dict) -> Tuple[int, str, str]:
+    """Extract simulation parameters for validation."""
+    # Collect all validation errors instead of failing on first error
+    errors = []
+
+    if not isinstance(start_date, str) or "-" not in str(start_date):
+        errors.append("Missing or invalid 'start_time' in model.control - must be in 'YYYY-MM-DD' format")
+
+    if not isinstance(end_date, str) or "-" not in str(end_date):
+        errors.append("Missing or invalid 'end_time' in model.control - must be in 'YYYY-MM-DD' format")
+
+    # If we have errors, combine them into a single error message for proper handling
+    if errors:
+        error_msg = "; ".join(errors)
+        raise ValueError(error_msg)
+```
+
+When initialization fails, Phase B creates individual error reports for each issue and generates comprehensive reports even during failures, ensuring users always receive actionable guidance.
 
 ### CRU Data Availability (Actual Implementation)
 
@@ -353,16 +408,18 @@ Phase B output serves as input to subsequent phases in the validation pipeline:
 
 ### File Handoff
 
+When Phase B runs as part of multi-phase pipelines, its output is processed internally and consolidated:
+
 ```bash
-# Phase B processes input from Phase A or user files
-updatedA_user_config.yml     # ← Phase A output OR
-user_config.yml              # ← Direct user input
-↓
-updatedB_user_config.yml     # → Phase B output
-↓
-updatedAB_user_config.yml    # → AB workflow final output
-updatedBC_user_config.yml    # → BC workflow final output
-updatedABC_user_config.yml   # → Complete pipeline output
+# Phase B in multi-phase workflows
+User Input: config.yml
+    ↓
+Phase A (internal) → Phase B (internal) → ...
+    ↓
+Final Output: updated_config.yml, report_config.txt
+
+# The final report consolidates Phase B findings with other phases
+# File naming is standardised regardless of pipeline (AB, BC, ABC, etc.)
 ```
 
 ### Mode Integration
@@ -381,11 +438,13 @@ updatedABC_user_config.yml   # → Complete pipeline output
 
 Phase B includes comprehensive test coverage.
 
-### Example Test
+### Example Tests
+
+#### Monthly Temperature Test
 
 ```python
-def test_cru_temperature_integration():
-    """Test CRU climatological temperature integration."""
+def test_cru_monthly_temperature_integration():
+    """Test CRU monthly climatological temperature integration."""
     # Test known coordinates (London)
     lat, lng, month = 51.5074, -0.1278, 1
     temp = get_mean_monthly_air_temperature(lat, lng, month)
@@ -393,6 +452,23 @@ def test_cru_temperature_integration():
     # London January temperature should be reasonable
     assert 0 <= temp <= 20, f"Unrealistic temperature: {temp}°C"
     assert temp is not None, "CRU lookup should return valid temperature"
+```
+
+#### Annual Temperature Test
+
+```python
+def test_cru_annual_temperature_integration():
+    """Test CRU annual climatological temperature integration."""
+    # Test known coordinates (London)
+    lat, lng = 51.5074, -0.1278
+    annual_temp = get_mean_annual_air_temperature(lat, lng)
+
+    # London annual temperature should be reasonable
+    assert 0 <= annual_temp <= 20, f"Unrealistic annual temperature: {annual_temp}°C"
+
+    # Annual mean should be cooler than summer month
+    summer_temp = get_mean_monthly_air_temperature(lat, lng, 7)
+    assert annual_temp < summer_temp, "Annual mean should be cooler than summer"
 ```
 
 ## Best Practices

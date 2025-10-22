@@ -11,10 +11,13 @@ The ``suews-convert`` tool provides seamless conversion between different SUEWS 
 .. note::
   From v2025a onwards, SUEWS uses YAML format as the primary configuration method. The converter automatically determines the output format based on the target version.
 
-Usage
------
+.. tip::
+  **Python API Available**: For programmatic access (e.g., integrating with QGIS plugins or other tools), see the :doc:`/api/converter` documentation for direct Python function usage.
 
-.. code-block:: shell
+Command-Line Usage
+------------------
+
+.. code-block:: bash
 
    suews-convert -f FROM_VERSION -t TO_VERSION -i INPUT_PATH -o OUTPUT_PATH
 

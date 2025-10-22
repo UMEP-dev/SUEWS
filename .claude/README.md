@@ -7,14 +7,12 @@ This directory contains all Claude Code-specific documentation, plans, and confi
 ```
 .claude/
 ├── howto/               # Step-by-step guides
-│   ├── setup-worktree.md
-│   ├── setup-environment.md
-│   ├── parallel-development.md
-│   └── README.md
+│   └── setup-environment.md
 ├── reference/           # Technical documentation
-│   ├── build-isolation.md
-│   ├── environment-types.md
-│   ├── uv-adoption.md
+│   ├── quick-start.md
+│   ├── testing-guide.md
+│   ├── config-patterns.md
+│   ├── maintenance-principles.md
 │   └── README.md
 ├── templates/           # Reusable templates
 │   ├── feature-plan.md
@@ -22,25 +20,23 @@ This directory contains all Claude Code-specific documentation, plans, and confi
 │   └── README.md
 ├── commands/            # Custom slash commands
 │   └── log-changes.md
-├── settings.json        # Claude Code settings (committed)
-└── settings.local.json  # Local settings (ignored)
+├── scripts/             # Automation scripts
+└── agents/              # Custom agent definitions
 ```
 
 ## Directory Purposes
 
 ### howto/
 **Purpose**: Step-by-step guides for common tasks
-- Setting up worktrees with different tools
-- Managing Python environments (uv, venv, mamba)
-- Running parallel Claude Code agents
-- **Quick start with uv**: `make setup && source .venv/bin/activate && make dev`
-- **Quick start with mamba**: `mamba activate suews-dev && make dev`
+- `setup-environment.md` - Python environment setup options and troubleshooting
+- **Quick start**: See `reference/quick-start.md`
 
 ### reference/
 **Purpose**: Technical documentation and analysis
-- Build system architecture and isolation
-- Environment management comparison
-- Tool adoption strategies
+- `quick-start.md` - Canonical setup commands (single source of truth)
+- `testing-guide.md` - Testing requirements and benchmark details
+- `config-patterns.md` - Configuration design patterns
+- `maintenance-principles.md` - Documentation and code principles
 
 ### templates/
 **Purpose**: Reusable templates for consistency
@@ -64,43 +60,12 @@ This directory contains all Claude Code-specific documentation, plans, and confi
 
 1. Check current branch: `git branch --show-current`
 2. Check related GitHub issue or PR for context
-3. Read setup guide: `cat .claude/howto/setup-worktree.md`
+3. Environment setup: See `.claude/reference/quick-start.md`
 
 
 ## Slash Commands
 
 Custom commands for streamlined workflows:
-
-### /worktree
-Comprehensive worktree management with four simple subcommands:
-
-- **`new`** - Start a new feature worktree
-  - Interactive setup with feature name, issue, and lead developer
-  - Creates worktree, plan, and environment automatically
-
-- **`sync`** - Synchronize with master
-  - Pull latest changes and update dependencies
-  - Show conflicts if any
-
-- **`pr`** - Create pull request
-  - Push changes and create PR via GitHub CLI
-  - Link to issue and show PR URL
-
-- **`finish`** - Complete or abandon worktree
-  - Option to finish via PR or abandon with reason
-  - Clean up and archive plan
-
-**Usage**: `/worktree [subcommand]`
-
-**Examples**:
-```bash
-/worktree new        # Start new feature
-/worktree sync       # Update from master
-/worktree pr         # Create pull request
-/worktree finish     # Complete feature
-```
-
-See `.claude/howto/worktree-workflow.md` for detailed workflow guide.
 
 ### /log-changes
 Analyses recent code changes and updates documentation:

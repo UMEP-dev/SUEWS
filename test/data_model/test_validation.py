@@ -16,6 +16,7 @@ import tempfile
 from types import SimpleNamespace
 import warnings
 
+import supy as sp
 from supy.data_model.core import SUEWSConfig
 from supy.data_model.core.type import RefValue
 from supy.data_model.validation.core.utils import check_missing_params
@@ -1017,7 +1018,7 @@ sites:
 
 def test_phase_b_storageheatmethod_ohmincqf_validation():
     """Test StorageHeatMethod-OhmIncQf validation in Phase B."""
-    from supy.data_model.validation.pipeline.phase_b_science_check import (
+    from supy.data_model.validation.pipeline.phase_b import (
         validate_model_option_dependencies,
     )
 
@@ -1071,7 +1072,7 @@ def test_phase_b_storageheatmethod_ohmincqf_validation():
 
 def test_phase_b_rsl_stabilitymethod_validation():
     """Test that existing RSL-StabilityMethod validation still works in Phase B."""
-    from supy.data_model.validation.pipeline.phase_b_science_check import (
+    from supy.data_model.validation.pipeline.phase_b import (
         validate_model_option_dependencies,
     )
 
@@ -1097,7 +1098,7 @@ def test_phase_b_rsl_stabilitymethod_validation():
 
 def test_phase_b_model_option_dependencies_comprehensive():
     """Test validate_model_option_dependencies function with various configurations."""
-    from supy.data_model.validation.pipeline.phase_b_science_check import (
+    from supy.data_model.validation.pipeline.phase_b import (
         validate_model_option_dependencies,
     )
 
@@ -1165,3 +1166,223 @@ def test_phase_b_model_option_dependencies_comprehensive():
 
     # Should handle gracefully - may have default values or skip validation
     assert isinstance(results, list)  # Should return a list, not crash
+
+
+# =====================================================================
+# Phase A: nlayer dimension validation tests
+# =====================================================================
+
+
+def test_nlayer_height_array_dimension_error():
+    """Test that height array dimension mismatch is detected."""
+    from supy.data_model.validation.pipeline.phase_a import validate_nlayer_dimensions
+    import yaml
+
+    sample_data_dir = Path(sp.__file__).parent / "sample_data"
+    config_path = sample_data_dir / "sample_config.yml"
+
+    with open(config_path, "r") as f:
+        user_data = yaml.safe_load(f)
+
+    # Set nlayer=3 but truncate height array to 2 elements
+    vl = user_data["sites"][0]["properties"]["vertical_layers"]
+    vl["nlayer"]["value"] = 3
+    if isinstance(vl["height"], dict) and "value" in vl["height"]:
+        vl["height"]["value"] = vl["height"]["value"][:2]
+    else:
+        vl["height"] = vl["height"][:2]
+
+    # Run validation
+    modified_data, dimension_errors = validate_nlayer_dimensions(user_data, nlayer=3)
+
+    # Check that error was recorded
+    assert len(dimension_errors) > 0
+    height_errors = [err for err in dimension_errors if "height" in err[0]]
+    assert len(height_errors) == 1
+    path, expected_len, actual_len, nulls_added = height_errors[0]
+    assert expected_len == 4  # nlayer+1 = 3+1 = 4
+    assert actual_len == 2
+    assert nulls_added == 2  # Should have added 2 nulls
+
+    # Check that array WAS modified with nulls
+    height_arr = modified_data["sites"][0]["properties"]["vertical_layers"]["height"]
+    if isinstance(height_arr, dict) and "value" in height_arr:
+        height_arr = height_arr["value"]
+    assert len(height_arr) == 4  # Now padded to 4
+    # Check that nulls were added at the end
+    assert height_arr[2] is None
+    assert height_arr[3] is None
+
+
+def test_nlayer_veg_frac_array_dimension_error():
+    """Test that veg_frac array dimension mismatch is detected."""
+    from supy.data_model.validation.pipeline.phase_a import validate_nlayer_dimensions
+    import yaml
+
+    sample_data_dir = Path(sp.__file__).parent / "sample_data"
+    config_path = sample_data_dir / "sample_config.yml"
+
+    with open(config_path, "r") as f:
+        user_data = yaml.safe_load(f)
+
+    # Set nlayer=5 but truncate veg_frac to 3 elements
+    vl = user_data["sites"][0]["properties"]["vertical_layers"]
+    vl["nlayer"]["value"] = 5
+    if isinstance(vl["veg_frac"], dict) and "value" in vl["veg_frac"]:
+        vl["veg_frac"]["value"] = vl["veg_frac"]["value"][:3]
+    else:
+        vl["veg_frac"] = vl["veg_frac"][:3]
+
+    # Run validation
+    modified_data, dimension_errors = validate_nlayer_dimensions(user_data, nlayer=5)
+
+    # Check that veg_frac error was detected
+    veg_frac_errors = [err for err in dimension_errors if "veg_frac" in err[0]]
+    assert len(veg_frac_errors) == 1
+    path, expected_len, actual_len, nulls_added = veg_frac_errors[0]
+    assert expected_len == 5
+    assert actual_len == 3
+    assert nulls_added == 2  # Should have added 2 nulls
+
+    # Check that array WAS modified with nulls
+    veg_frac_arr = modified_data["sites"][0]["properties"]["vertical_layers"][
+        "veg_frac"
+    ]
+    if isinstance(veg_frac_arr, dict) and "value" in veg_frac_arr:
+        veg_frac_arr = veg_frac_arr["value"]
+    assert len(veg_frac_arr) == 5  # Now padded to 5
+    assert veg_frac_arr[3] is None
+    assert veg_frac_arr[4] is None
+
+
+def test_nlayer_multiple_arrays_dimension_errors():
+    """Test detecting dimension errors in multiple arrays."""
+    from supy.data_model.validation.pipeline.phase_a import validate_nlayer_dimensions
+    import yaml
+
+    sample_data_dir = Path(sp.__file__).parent / "sample_data"
+    config_path = sample_data_dir / "sample_config.yml"
+
+    with open(config_path, "r") as f:
+        user_data = yaml.safe_load(f)
+
+    # Set nlayer=4 but truncate multiple arrays
+    vl = user_data["sites"][0]["properties"]["vertical_layers"]
+    vl["nlayer"]["value"] = 4
+
+    if isinstance(vl["height"], dict) and "value" in vl["height"]:
+        vl["height"]["value"] = vl["height"]["value"][:2]
+    else:
+        vl["height"] = vl["height"][:2]
+
+    if isinstance(vl["veg_frac"], dict) and "value" in vl["veg_frac"]:
+        vl["veg_frac"]["value"] = vl["veg_frac"]["value"][:2]
+    else:
+        vl["veg_frac"] = vl["veg_frac"][:2]
+
+    # Run validation
+    modified_data, dimension_errors = validate_nlayer_dimensions(user_data, nlayer=4)
+
+    # Check that both height and veg_frac errors were detected
+    error_arrays = [err[0].split(".")[-1] for err in dimension_errors]
+    assert "height" in error_arrays
+    assert "veg_frac" in error_arrays
+    assert len(dimension_errors) > 2
+
+
+def test_nlayer_no_errors_when_correct():
+    """Test that correctly sized arrays produce no errors."""
+    from supy.data_model.validation.pipeline.phase_a import validate_nlayer_dimensions
+    import yaml
+
+    sample_data_dir = Path(sp.__file__).parent / "sample_data"
+    config_path = sample_data_dir / "sample_config.yml"
+
+    with open(config_path, "r") as f:
+        user_data = yaml.safe_load(f)
+
+    # Detect nlayer from the config
+    vl = user_data["sites"][0]["properties"]["vertical_layers"]
+    if "nlayer" in vl:
+        if isinstance(vl["nlayer"], dict) and "value" in vl["nlayer"]:
+            nlayer = vl["nlayer"]["value"]
+        else:
+            nlayer = vl["nlayer"]
+    else:
+        nlayer = 3
+
+    # Run validation with correct nlayer
+    modified_data, dimension_errors = validate_nlayer_dimensions(
+        user_data, nlayer=nlayer
+    )
+
+    # No errors should be found
+    assert len(dimension_errors) == 0
+
+
+def test_nlayer_roofs_walls_dimension_error_with_templates():
+    """Test that roofs/walls arrays get proper null template structures."""
+    from supy.data_model.validation.pipeline.phase_a import validate_nlayer_dimensions
+    import yaml
+
+    sample_data_dir = Path(sp.__file__).parent / "sample_data"
+    config_path = sample_data_dir / "sample_config.yml"
+
+    with open(config_path, "r") as f:
+        user_data = yaml.safe_load(f)
+
+    # Set nlayer to 2 but keep only 1 roof and 1 wall element
+    vl = user_data["sites"][0]["properties"]["vertical_layers"]
+    vl["nlayer"]["value"] = 2
+    vl["roofs"] = [vl["roofs"][0]]  # Keep only first element
+    vl["walls"] = [vl["walls"][0]]  # Keep only first element
+
+    # Run validation
+    modified_data, dimension_errors = validate_nlayer_dimensions(user_data, nlayer=2)
+
+    # Check that roofs and walls errors were detected
+    roof_errors = [
+        err
+        for err in dimension_errors
+        if "roofs" in err[0] and "vertical_layers" in err[0]
+    ]
+    wall_errors = [
+        err
+        for err in dimension_errors
+        if "walls" in err[0] and "vertical_layers" in err[0]
+    ]
+
+    assert len(roof_errors) == 1
+    assert len(wall_errors) == 1
+
+    # Verify nulls were added
+    path, expected_len, actual_len, nulls_added = roof_errors[0]
+    assert expected_len == 2
+    assert actual_len == 1
+    assert nulls_added == 1
+
+    # Check that roofs array now has 2 elements with proper structure
+    vl_modified = modified_data["sites"][0]["properties"]["vertical_layers"]
+    roofs_arr = vl_modified["roofs"]
+    assert len(roofs_arr) == 2
+
+    # Check that second roof element has null template structure
+    roof2 = roofs_arr[1]
+    assert roof2["alb"]["value"] is None
+    assert roof2["emis"]["value"] is None
+    assert roof2["statelimit"]["value"] is None
+
+    # Check thermal_layers structure
+    thermal = roof2["thermal_layers"]
+    assert isinstance(thermal["dz"]["value"], list)
+    assert len(thermal["dz"]["value"]) == 5  # Same length as reference
+    assert all(v is None for v in thermal["dz"]["value"])
+    assert all(v is None for v in thermal["k"]["value"])
+    assert all(v is None for v in thermal["rho_cp"]["value"])
+
+    # Check walls similarly
+    walls_arr = vl_modified["walls"]
+    assert len(walls_arr) == 2
+    wall2 = walls_arr[1]
+    assert wall2["alb"]["value"] is None
+    assert wall2["emis"]["value"] is None

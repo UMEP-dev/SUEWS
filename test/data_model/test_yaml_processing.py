@@ -42,7 +42,7 @@ except ImportError:
     from importlib_resources import as_file
 
 # Import the functions we want to test
-from supy.data_model.validation.pipeline.phase_a_parameter_update import (
+from supy.data_model.validation.pipeline.phase_a import (
     PHYSICS_OPTIONS,
     RENAMED_PARAMS,
     annotate_missing_parameters,
@@ -333,7 +333,7 @@ sites:
         report = create_analysis_report(missing_params, renamed_params, extra_params)
 
         # Should contain all sections
-        self.assertIn("SUEWS - Phase A", report)
+        self.assertIn("# SUEWS Validation Report", report)
         self.assertIn("## ACTION NEEDED", report)
         self.assertIn("critical missing parameter", report)
         # The report uses "Updated (1) renamed parameter(s):" format
@@ -390,7 +390,7 @@ sites:
             with open(report_file) as f:
                 report_content = f.read()
 
-            self.assertIn("SUEWS - Phase A", report_content)
+            self.assertIn("# SUEWS Validation Report", report_content)
             # In public mode, uses "critical" not "URGENT"
             self.assertIn("critical", report_content)
             self.assertIn("netradiationmethod", report_content)
@@ -741,7 +741,7 @@ sites:
                 report_content = f.read()
 
             # Should contain all sections
-            self.assertIn("SUEWS - Phase A", report_content)
+            self.assertIn("# SUEWS Validation Report", report_content)
             self.assertIn("## ACTION NEEDED", report_content)
             # The report uses "critical missing parameter(s):" format
             self.assertIn("critical missing parameter", report_content)
@@ -1033,6 +1033,7 @@ from supy.data_model.validation.core.yaml_helpers import (
     SeasonCheck,
     collect_yaml_differences,
     get_mean_monthly_air_temperature,
+    get_mean_annual_air_temperature,
     get_value_safe,
     precheck_land_cover_fractions,
     precheck_model_option_rules,
@@ -2117,6 +2118,38 @@ def test_get_mean_monthly_air_temperature_invalid_latitude():
         get_mean_monthly_air_temperature(95.0, 10.0, 7)
 
 
+def test_get_mean_annual_air_temperature_with_cru_data():
+    """Test that get_mean_annual_air_temperature works with CRU data when available."""
+    # This test verifies the function returns a reasonable annual temperature value
+    # when CRU data is available (development/test environments)
+    try:
+        temp = get_mean_annual_air_temperature(45.0, 10.0)
+        # Annual temperature for mid-latitudes should be reasonable (0-40°C range)
+        assert isinstance(temp, float), "Temperature should be a float"
+        assert -50 <= temp <= 50, (
+            f"Annual temperature {temp}°C seems unreasonable for lat=45°"
+        )
+        # Annual temp should be between coldest and warmest month
+        # For sanity check, compare with a summer month
+        summer_temp = get_mean_monthly_air_temperature(45.0, 10.0, 7)
+        assert temp < summer_temp, "Annual mean should be cooler than summer month"
+    except FileNotFoundError:
+        # If CRU data is not available, we expect this error - that's fine
+        pytest.skip("CRU data file not available in this environment")
+
+
+def test_get_mean_annual_air_temperature_invalid_latitude():
+    """Test that get_mean_annual_air_temperature raises ValueError for invalid latitude."""
+    with pytest.raises(ValueError, match="Latitude must be between -90 and 90"):
+        get_mean_annual_air_temperature(95.0, 10.0)
+
+
+def test_get_mean_annual_air_temperature_invalid_longitude():
+    """Test that get_mean_annual_air_temperature raises ValueError for invalid longitude."""
+    with pytest.raises(ValueError, match="Longitude must be between -180 and 180"):
+        get_mean_annual_air_temperature(45.0, 185.0)
+
+
 class TestPrecheckRefValueHandling:
     """Test cases for precheck RefValue handling bug fixes."""
 
@@ -2485,10 +2518,10 @@ def test_precheck_thermal_layer_cp_renaming_mixed_surfaces():
 Comprehensive Test Suite for SUEWS YAML Processor
 
 This test suite covers all five components of the SUEWS YAML processor:
-1. phase_a_parameter_update.py (Phase A functions)
-2. phase_b_science_check.py (Phase B functions)
+1. phase_a.py (Phase A functions)
+2. phase_b.py (Phase B functions)
 3. core.py (Phase C Pydantic validation)
-4. phase_c_pydantic_report.py (Phase C reporting)
+4. phase_c.py (Phase C reporting)
 5. orchestrator.py (orchestrator functions)
 
 Testing strategy:
@@ -2518,7 +2551,7 @@ suews_yaml_processor = None
 
 try:
     from supy.data_model.validation.pipeline import (
-        phase_a_parameter_update as uptodate_yaml,
+        phase_a as uptodate_yaml,
     )
 
     has_uptodate_yaml = True
@@ -2527,7 +2560,7 @@ except ImportError:
 
 try:
     from supy.data_model.validation.pipeline import (
-        phase_b_science_check as science_check,
+        phase_b as science_check,
     )
 
     has_science_check = True
@@ -2536,7 +2569,7 @@ except ImportError:
 
 try:
     from supy.data_model.validation.pipeline import (
-        phase_c_pydantic_report as phase_c_reports,
+        phase_c as phase_c_reports,
     )
 
     has_phase_c_reports = True
@@ -3327,7 +3360,7 @@ class TestPhaseBScienceCheck(TestProcessorFixtures):
         assert any("rslmethod" in result.message for result in results)
 
     @patch(
-        "supy.data_model.validation.pipeline.phase_b_science_check.get_mean_monthly_air_temperature"
+        "supy.data_model.validation.pipeline.phase_b.get_mean_monthly_air_temperature"
     )
     def test_cru_temperature_integration(self, mock_cru):
         """Test CRU temperature data integration."""
@@ -3399,19 +3432,13 @@ class TestPhaseBScienceCheck(TestProcessorFixtures):
 
     def test_cru_file_availability_error(self):
         """Test handling of missing CRU data file."""
-        with patch.object(science_check, "trv_supy_module") as mock_trv_module:
-            from unittest.mock import MagicMock
+        # Patch the imported function from yaml_helpers to raise FileNotFoundError
+        with patch.object(
+            science_check, "_get_mean_monthly_air_temperature"
+        ) as mock_func:
+            mock_func.side_effect = FileNotFoundError("CRU data file not found")
 
-            # Mock the path to simulate file not existing
-            mock_cru_resource = MagicMock()
-            mock_cru_resource.exists.return_value = False
-
-            # Set up the path chain: trv_supy_module / "ext_data" / "CRU_TS4.06_1991_2020.parquet"
-            mock_ext_data = MagicMock()
-            mock_ext_data.__truediv__.return_value = mock_cru_resource
-            mock_trv_module.__truediv__.return_value = mock_ext_data
-
-            # When CRU data is not available, the function should return None
+            # When CRU data is not available, the wrapper should return None
             # (for standalone mode compatibility) and log a warning
             result = science_check.get_mean_monthly_air_temperature(51.5, -0.12, 7)
             assert result is None  # Should return None when CRU data unavailable
@@ -3431,7 +3458,7 @@ class TestPhaseBScienceCheck(TestProcessorFixtures):
             science_check.get_mean_monthly_air_temperature(51.5, 185.0, 7)
 
     @patch(
-        "supy.data_model.validation.pipeline.phase_b_science_check.get_mean_monthly_air_temperature"
+        "supy.data_model.validation.pipeline.phase_b.get_mean_monthly_air_temperature"
     )
     def test_stebbs_temperature_parameter_updates(self, mock_cru):
         """Test STEBBS WallOutdoorSurfaceTemperature and WindowOutdoorSurfaceTemperature updates."""
@@ -3488,7 +3515,7 @@ class TestPhaseBScienceCheck(TestProcessorFixtures):
         )
 
     @patch(
-        "supy.data_model.validation.pipeline.phase_b_science_check.get_mean_monthly_air_temperature"
+        "supy.data_model.validation.pipeline.phase_b.get_mean_monthly_air_temperature"
     )
     def test_stebbs_temperature_updates_different_months(self, mock_cru):
         """Test STEBBS temperature updates for different months."""
@@ -3535,7 +3562,7 @@ class TestPhaseBScienceCheck(TestProcessorFixtures):
             assert stebbs_props["WindowOutdoorSurfaceTemperature"]["value"] == mock_temp
 
     @patch(
-        "supy.data_model.validation.pipeline.phase_b_science_check.get_mean_monthly_air_temperature"
+        "supy.data_model.validation.pipeline.phase_b.get_mean_monthly_air_temperature"
     )
     def test_stebbs_temperature_updates_multi_site(self, mock_cru):
         """Test STEBBS temperature updates for multiple sites with different coordinates."""
@@ -3596,7 +3623,7 @@ class TestPhaseBScienceCheck(TestProcessorFixtures):
         assert site1_stebbs["WindowOutdoorSurfaceTemperature"]["value"] == 5.1
 
     @patch(
-        "supy.data_model.validation.pipeline.phase_b_science_check.get_mean_monthly_air_temperature"
+        "supy.data_model.validation.pipeline.phase_b.get_mean_monthly_air_temperature"
     )
     def test_stebbs_temperature_updates_missing_parameters(self, mock_cru):
         """Test STEBBS temperature updates when some parameters are missing."""
@@ -3634,7 +3661,7 @@ class TestPhaseBScienceCheck(TestProcessorFixtures):
         assert stebbs_props["OtherParameter"]["value"] == 42.0
 
     @patch(
-        "supy.data_model.validation.pipeline.phase_b_science_check.get_mean_monthly_air_temperature"
+        "supy.data_model.validation.pipeline.phase_b.get_mean_monthly_air_temperature"
     )
     def test_stebbs_temperature_updates_no_change_needed(self, mock_cru):
         """Test STEBBS temperature updates when values already match CRU temperature."""
@@ -3927,7 +3954,7 @@ class TestPhaseCReporting(TestProcessorFixtures):
             with open(output_file) as f:
                 report_content = f.read()
 
-            assert "Phase C (Pydantic Validation) Report" in report_content
+            assert "# SUEWS Validation Report" in report_content
             assert "ACTION NEEDED" in report_content
             assert "netradiationmethod" in report_content
 
@@ -3970,7 +3997,7 @@ class TestPhaseCReporting(TestProcessorFixtures):
             with open(output_file) as f:
                 report_content = f.read()
 
-            assert "Phase C (Pydantic Validation) Report" in report_content
+            assert "# SUEWS Validation Report" in report_content
             # Should consolidate info from Phase A report if supported
             # (exact consolidation behavior depends on implementation)
 

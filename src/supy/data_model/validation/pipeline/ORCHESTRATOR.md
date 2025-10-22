@@ -32,12 +32,12 @@ def run_yaml_processor(
 
 The orchestrator supports seven distinct workflows:
 
-1. **A**: Up-to-date YAML check only
-2. **B**: Scientific validation only
-3. **C**: Pydantic validation only
-4. **AB**: Up-to-date check + Scientific validation
-5. **AC**: Up-to-date check + Pydantic validation
-6. **BC**: Scientific validation + Pydantic validation
+1. **A**: Configuration structure checks only
+2. **B**: Physics validation checks only
+3. **C**: Configuration consistency checks only
+4. **AB**: Configuration structure checks + Physics validation checks
+5. **AC**: Configuration structure checks + Configuration consistency checks
+6. **BC**: Physics validation checks + Configuration consistency checks
 7. **ABC**: Complete three-phase validation
 
 ### Execution Flow
@@ -57,95 +57,95 @@ phase_map = {
 
 ### File Flow Management
 
-Each phase generates specific files:
+Each phase processes the configuration internally, producing standardised final output:
 
 ```text
 User Input: config.yml
     ↓
-Phase A: updatedA_config.yml, reportA_config.txt
+Internal: Phase A → Phase B → Phase C
     ↓
-Phase B: updatedB_config.yml, reportB_config.txt
-    ↓
-Phase C: updatedC_config.yml, reportC_config.txt
-    ↓
-Final: updated{workflow}_config.yml, report{workflow}_config.txt
+Final Output: updated_config.yml, report_config.txt
 ```
 
 ## File Naming Conventions
 
-### Intermediate Files
-
-- **Phase A**: `updatedA_*.yml`, `reportA_*.txt`
-- **Phase B**: `updatedB_*.yml`, `reportB_*.txt`
-- **Phase C**: `updatedC_*.yml`, `reportC_*.txt`
-
 ### Final Output Files
 
-- **Workflow Output**: `updated{phase}_*.yml` (e.g., `updatedABC_config.yml`)
-- **Consolidated Report**: `report{phase}_*.txt` (e.g., `reportABC_config.txt`)
+All workflows produce standardised output files:
+
+- **Updated YAML**: `updated_config.yml` 
+- **Consolidated Report**: `report_config.txt` 
+
+The final YAML represents the output from the last successful validation phase(s). For example:
+- **AB pipeline**: If A succeeds but B fails, `updated_config.yml` contains Phase A output
+- **ABC pipeline**: If all phases succeed, `updated_config.yml` contains Phase A, B and C output
 
 ### Cleanup Strategy
 
+The orchestrator ensures only final user-facing files remain:
+
 ```python
-def cleanup_intermediate_files(base_name: str, phases_to_clean: List[str]):
-    """Remove intermediate files after successful workflow completion."""
-    # Only cleanup on success
-    # Preserve files on error for debugging
+def create_final_user_files(user_yaml_file, phase_yaml, phase_report):
+    """Move phase outputs to standardised final file names."""
+    # Standardise file names regardless of pipeline
+    # Ensure clean, consistent output for users
 ```
 
 ## Report Consolidation
 
 ### Report Merging Logic
 
-The orchestrator intelligently merges reports from multiple phases:
+The orchestrator consolidates reports from multiple phases into a single, unified document:
 
 ```python
-def consolidate_reports(reports: Dict[str, str], workflow: str) -> str:
-    """Merge multiple phase reports into single consolidated report."""
-    # Extract ACTION NEEDED from all phases
-    # Combine NO ACTION NEEDED sections
-    # Preserve phase-specific information
+def create_consolidated_report(phases_run, no_action_messages, final_report_file, mode):
+    """Create consolidated report combining findings from all validation phases."""
+    # Merge NO ACTION NEEDED messages from all successful phases
+    # Remove duplicate messages automatically
+    # Filter orphaned headers (headers with no content)
+    # Exclude generic "all passed" messages when specific changes exist
+    # Present unified view with consistent formatting
 ```
+
+**Consolidation Features:**
+
+1. **Deduplication**: Same message appearing in multiple phases is shown only once
+2. **Orphaned Header Removal**: Headers with no following content are filtered out
+3. **Generic Message Filtering**: Generic "all validations passed" messages excluded when specific changes are listed
+4. **Consistent Formatting**: Standardised header format across all pipelines
 
 ### Report Structure
 
+The consolidated report uses a harmonised format regardless of pipeline:
+
 ```text
-# SUEWS - Phase {workflow} Report
+# SUEWS Validation Report
 # ==================================================
 # Mode: {mode}
 # ==================================================
 
 ## ACTION NEEDED
-[Critical issues from all phases]
+[Critical issues requiring user attention]
 
 ## NO ACTION NEEDED
-[Automatic updates and information from all phases]
+[Automatic updates and informational items from all phases]
 
 # ==================================================
 ```
-
-## Error Handling
-
-### Phase Failure Behavior
-
-1. **Partial Success**: Earlier phase outputs preserved
-2. **Error Reporting**: Detailed error information in reports
-3. **File Retention**: Intermediate files kept for debugging
-4. **Graceful Degradation**: Best effort to complete validation
-
 ### Recovery Patterns
 
 ```python
 try:
-    result = phase_function(...)
-    if not result:
-        # Phase failed but continue with available data
-        preserve_intermediate_files()
-        generate_error_report()
+    phase_c_success = run_phase_c(...)
+    if not phase_c_success:
+        # Phase C failed - consolidate Phase B messages into Phase C error report
+        phase_b_messages = extract_no_action_messages_from_report(phase_b_report)
+        append_messages_to_report(phase_c_report, phase_b_messages)
+        create_final_user_files(user_yaml, phase_b_yaml, phase_c_report)
 except Exception as e:
-    # Unexpected error - preserve all files
+    # Unexpected error - preserve diagnostic information
     log_error(e)
-    preserve_all_files()
+    create_error_report()
 ```
 
 ## Mode-Specific Behavior
@@ -156,13 +156,15 @@ except Exception as e:
 - User-friendly error messages
 - Extra parameters reported as ACTION NEEDED
 - No experimental features
+- **Pre-validation checks**: Blocks execution if experimental features are detected (stebbsmethod ≠ 0, snowuse ≠ 0)
 
 ### Developer Mode
 
 - Same validation logic
 - Extra parameters allowed in specific locations
-- Experimental features enabled (STEBBS, SPARTACUS)
+- Experimental features enabled (STEBBS, Snow calculations, SPARTACUS)
 - Enhanced diagnostic information
+- **No pre-validation restrictions**: All experimental features allowed
 
 ## Integration Points
 
@@ -170,8 +172,8 @@ except Exception as e:
 
 ```python
 def run_phase_a(user_file, standard_file, output_file, report_file, mode):
-    """Execute Phase A: Up-to-date YAML check."""
-    from phase_a_parameter_update import annotate_missing_parameters
+    """Execute Phase A: Configuration structure checks and validation."""
+    from phase_a import annotate_missing_parameters
     return annotate_missing_parameters(...)
 ```
 
@@ -179,8 +181,8 @@ def run_phase_a(user_file, standard_file, output_file, report_file, mode):
 
 ```python
 def run_phase_b(input_file, output_file, report_file, mode):
-    """Execute Phase B: Scientific validation."""
-    from phase_b_science_check import run_science_check
+    """Execute Phase B: Physics validation checks."""
+    from phase_b import run_science_check
     return run_science_check(...)
 ```
 
@@ -188,8 +190,8 @@ def run_phase_b(input_file, output_file, report_file, mode):
 
 ```python
 def run_phase_c(input_file, output_file, report_file, mode):
-    """Execute Phase C: Pydantic validation."""
-    from phase_c_pydantic_report import run_pydantic_validation
+    """Execute Phase C: Configuration consistency checks and validation."""
+    from phase_c import run_pydantic_validation
     return run_pydantic_validation(...)
 ```
 
@@ -213,6 +215,43 @@ python orchestrator.py config.yml --mode dev
 - `--phase`: Select workflow (A, B, C, AB, AC, BC, ABC)
 - `--mode`: Select mode (public, dev)
 - `--standard`: Override standard config file path
+
+### Experimental Features Validation
+
+The CLI enforces experimental features restrictions in public mode, providing clear feedback when restricted features are detected:
+
+```bash
+$ suews-validate --pipeline ABC config.yml
+✗ Configuration contains experimental features restricted in public mode:
+  • STEBBS method is enabled (stebbsmethod != 0)
+
+Options to resolve:
+  1. Switch to dev mode: --mode dev
+  2. Disable experimental features in your YAML file and rerun
+     Example: Set stebbsmethod: {value: 0}
+```
+
+### Harmonised Terminal Output
+
+Terminal output has been standardised across all pipelines for consistency:
+
+**Success Output:**
+
+```bash
+$ suews-validate --pipeline AB config.yml
+✓ Validation successful
+Report: report_config.txt
+Updated YAML: updated_config.yml
+```
+
+**Failure Output (shows final file locations regardless of which phase failed):**
+
+```bash
+$ suews-validate --pipeline ABC config.yml
+✗ Validation failed
+Report: report_config.txt
+Updated YAML: updated_config.yml
+```
 
 ## Performance Considerations
 
@@ -255,7 +294,7 @@ def test_workflow_abc():
         mode="public"
     )
     assert result["success"]
-    assert os.path.exists("updatedABC_test_config.yml")
+    assert os.path.exists("updated_test_config.yml")
 ```
 
 ## Best Practices
@@ -298,6 +337,6 @@ register_phase("custom", CustomValidationPhase())
 ## Related Documentation
 
 - [README](README.md) - System overview
-- [Phase A Detailed](PHASE_A_DETAILED.md) - Parameter validation
-- [Phase B Detailed](PHASE_B_DETAILED.md) - Scientific validation
-- [Phase C Detailed](PHASE_C_DETAILED.md) - Pydantic validation
+- [Phase A Detailed](PHASE_A_DETAILED.md) - Configuration structure checks and validation
+- [Phase B Detailed](PHASE_B_DETAILED.md) - Physics validation checks
+- [Phase C Detailed](PHASE_C_DETAILED.md) - Configuration consistency checks and validation

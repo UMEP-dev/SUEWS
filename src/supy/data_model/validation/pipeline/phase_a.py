@@ -1007,11 +1007,22 @@ def validate_forcing_data(user_yaml_file: str) -> tuple:
             forcing_errors.append(f"Failed to read forcing file: {str(e)}")
             return forcing_errors, str(forcing_file_path)
 
-        # Run check_forcing validation
+        # Run check_forcing validation (suppress logger output)
         try:
-            issues = check_forcing(df_forcing, fix=False)
-            if issues:
-                forcing_errors.extend(issues)
+            import logging
+
+            # Temporarily disable SuPy logger
+            logger_supy = logging.getLogger('SuPy')
+            original_level = logger_supy.level
+            logger_supy.setLevel(logging.CRITICAL + 1)  # Disable all logging
+
+            try:
+                issues = check_forcing(df_forcing, fix=False)
+                if issues:
+                    forcing_errors.extend(issues)
+            finally:
+                # Restore logger level
+                logger_supy.setLevel(original_level)
         except Exception as e:
             forcing_errors.append(f"Forcing validation failed: {str(e)}")
 

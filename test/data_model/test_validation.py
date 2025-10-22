@@ -1901,55 +1901,63 @@ def test_forcing_validation_cli_integration():
         "wdir": [180.0] * 3,
     }
 
-    with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as f:
-        df = pd.DataFrame(forcing_data)
-        df.to_csv(f, sep=" ", index=False)
-        bad_forcing_path = f.name
-
-    # Create test config with bad forcing file
-    test_config_data = config_data.copy()
-    test_config_data["model"]["control"]["forcing_file"] = {"value": bad_forcing_path}
-
-    with tempfile.NamedTemporaryFile(mode="w", suffix=".yml", delete=False) as f:
-        yaml.dump(test_config_data, f)
-        test_config_path = f.name
-
     with tempfile.TemporaryDirectory() as tmpdir:
+        tmpdir_path = Path(tmpdir)
+
+        # Create forcing file with invalid data in tmpdir
+        bad_forcing_path = tmpdir_path / "forcing_bad.txt"
+        df = pd.DataFrame(forcing_data)
+        df.to_csv(bad_forcing_path, sep=" ", index=False)
+
+        # Create test config with bad forcing file in tmpdir
+        test_config_data = config_data.copy()
+        test_config_data["model"]["control"]["forcing_file"] = {
+            "value": str(bad_forcing_path)
+        }
+
+        test_config_path = tmpdir_path / "test_config.yml"
+        with open(test_config_path, "w") as f:
+            yaml.dump(test_config_data, f)
+
         try:
             # Test 1: Default behavior (forcing validation enabled)
             result = subprocess.run(
-                ["suews-validate", test_config_path],
+                ["suews-validate", str(test_config_path)],
                 capture_output=True,
                 text=True,
-                cwd=tmpdir,
             )
 
             # Should detect forcing errors in report
-            report_files = list(Path(tmpdir).glob("*_report.txt"))
-            assert len(report_files) == 1
+            report_files = list(tmpdir_path.glob("report_*.txt"))
+            assert len(report_files) == 1, f"Expected 1 report file, found {len(report_files)}: {list(tmpdir_path.iterdir())}"
             with open(report_files[0], "r") as f:
                 report_content = f.read()
-            assert "forcing data validation error" in report_content.lower()
+            assert "forcing data validation error" in report_content.lower(), (
+                f"Expected forcing validation error in report, but got:\n{report_content[:500]}"
+            )
 
             # Clean up for next test
-            for f in Path(tmpdir).iterdir():
+            for f in tmpdir_path.glob("report_*.txt"):
+                f.unlink()
+            for f in tmpdir_path.glob("updated_*.yml"):
                 f.unlink()
 
             # Test 2: Disable forcing validation with --forcing off
             result = subprocess.run(
-                ["suews-validate", "--forcing", "off", test_config_path],
+                ["suews-validate", "--forcing", "off", str(test_config_path)],
                 capture_output=True,
                 text=True,
-                cwd=tmpdir,
             )
 
             # Should NOT detect forcing errors
-            report_files = list(Path(tmpdir).glob("*_report.txt"))
-            assert len(report_files) == 1
+            report_files = list(tmpdir_path.glob("report_*.txt"))
+            assert len(report_files) == 1, f"Expected 1 report file, found {len(report_files)}"
             with open(report_files[0], "r") as f:
                 report_content = f.read()
-            assert "forcing data validation error" not in report_content.lower()
+            assert "forcing data validation error" not in report_content.lower(), (
+                f"Expected no forcing validation errors when disabled, but got:\n{report_content[:500]}"
+            )
 
         finally:
-            Path(test_config_path).unlink()
-            Path(bad_forcing_path).unlink()
+            # Cleanup happens automatically with TemporaryDirectory context manager
+            pass

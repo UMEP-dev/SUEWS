@@ -263,17 +263,35 @@ def convert_era5_to_suews(
     u10 = df_era5['u10']
     v10 = df_era5['v10']
 
-    df_forcing['wspeed'] = np.sqrt(u10**2 + v10**2)
-    df_forcing['wspeed'] = df_forcing['wspeed'].clip(lower=0.001)  # CRITICAL: Must be > 0 for SUEWS
+    df_forcing['U'] = np.sqrt(u10**2 + v10**2)
+    df_forcing['U'] = df_forcing['U'].clip(lower=0.001)  # CRITICAL: Must be > 0 for SUEWS
 
     # Wind direction: From u,v components (meteorological convention: 0=North, 90=East)
     df_forcing['wdir'] = (270 - np.arctan2(v10, u10) * 180/np.pi) % 360
 
-    # Replace any NaN with -999 (SUEWS missing value convention, except wind speed)
+    # Missing flux columns (not provided by ERA5 meteorological data)
+    df_forcing['qn'] = -999.0
+    df_forcing['qh'] = -999.0
+    df_forcing['qe'] = -999.0
+    df_forcing['qs'] = -999.0
+    df_forcing['qf'] = -999.0
+
+    # Snow (ERA5 tp is total precipitation, can't separate snow)
+    df_forcing['snow'] = 0.0
+
+    # Other optional columns not available from ERA5
+    df_forcing['fcld'] = -999.0     # Cloud fraction
+    df_forcing['wuh'] = -999.0      # External water use
+    df_forcing['xsmd'] = -999.0     # Soil moisture deficit
+    df_forcing['lai'] = -999.0      # Leaf area index
+    df_forcing['kdiff'] = -999.0    # Diffuse shortwave
+    df_forcing['kdir'] = -999.0     # Direct shortwave
+
+    # Replace any remaining NaN with -999 (SUEWS missing value convention, except wind speed)
     # Save wind speed separately since it can't be -999
-    wspeed_values = df_forcing['wspeed'].values
+    u_values = df_forcing['U'].values
     df_forcing = df_forcing.replace(np.nan, -999)
-    df_forcing['wspeed'] = wspeed_values  # Restore wind speed (with 0.001 minimum)
+    df_forcing['U'] = u_values  # Restore wind speed (with 0.001 minimum)
 
     # Ensure integer types for time columns
     df_forcing['iy'] = df_forcing['iy'].astype('int32')
@@ -281,14 +299,22 @@ def convert_era5_to_suews(
     df_forcing['it'] = df_forcing['it'].astype('int32')
     df_forcing['imin'] = df_forcing['imin'].astype('int32')
 
-    # Round to 2-3 decimal places to keep file size reasonable
-    decimal_cols = ['kdown', 'ldown', 'Tair', 'RH', 'pres', 'rain', 'wspeed', 'wdir']
+    # Round to 2 decimal places to keep file size reasonable
+    decimal_cols = ['kdown', 'ldown', 'Tair', 'RH', 'pres', 'rain', 'U', 'wdir']
     for col in decimal_cols:
         if col in df_forcing.columns:
             df_forcing[col] = df_forcing[col].round(2)
 
-    # Reorder columns to SUEWS format
-    suews_col_order = ['iy', 'id', 'it', 'imin', 'kdown', 'ldown', 'Tair', 'RH', 'pres', 'rain', 'wdir', 'wspeed']
+    # Reorder columns to match SUEWS forcing format (24 columns)
+    # Format: iy id it imin qn qh qe qs qf U RH Tair pres rain kdown snow ldown fcld wuh xsmd lai kdiff kdir wdir
+    suews_col_order = [
+        'iy', 'id', 'it', 'imin',           # Time columns
+        'qn', 'qh', 'qe', 'qs', 'qf',       # Flux columns (missing)
+        'U', 'RH', 'Tair', 'pres', 'rain',  # Met columns
+        'kdown', 'snow', 'ldown',           # Radiation and snow
+        'fcld', 'wuh', 'xsmd', 'lai',       # Optional columns (missing)
+        'kdiff', 'kdir', 'wdir'             # Additional radiation and wind
+    ]
     df_forcing = df_forcing[suews_col_order]
 
     # Save to SUEWS forcing format (space-separated, no header)

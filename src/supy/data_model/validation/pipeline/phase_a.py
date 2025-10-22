@@ -932,18 +932,113 @@ def validate_nlayer_dimensions(user_data: dict, nlayer: int) -> tuple:
     return user_data, dimension_errors
 
 
+def _validate_single_forcing_file(forcing_path: Path, yaml_dir: Path) -> list:
+    """Validate a single forcing data file.
+
+    Args:
+        forcing_path: Path to forcing file (relative or absolute)
+        yaml_dir: Directory containing the YAML config (for resolving relative paths)
+
+    Returns:
+        List of error messages (empty if valid)
+    """
+    import re
+    import logging
+
+    forcing_errors = []
+
+    # Resolve relative path from YAML location
+    if not forcing_path.is_absolute():
+        forcing_path = yaml_dir / forcing_path
+
+    # Check if forcing file exists
+    if not forcing_path.exists():
+        forcing_errors.append(f"Forcing file not found: {forcing_path}")
+        return forcing_errors
+
+    # Import check_forcing and loader from supy
+    try:
+        from supy._check import check_forcing
+        from supy._load import load_SUEWS_Forcing_met_df_yaml
+    except ImportError as e:
+        forcing_errors.append(f"Cannot import required functions from supy: {str(e)}")
+        return forcing_errors
+
+    # Load forcing data using the proper loader
+    try:
+        df_forcing = load_SUEWS_Forcing_met_df_yaml(str(forcing_path))
+    except Exception as e:
+        forcing_errors.append(
+            f"In '{forcing_path.name}': Failed to read forcing file: {str(e)}"
+        )
+        return forcing_errors
+
+    # Run check_forcing validation (suppress logger output)
+    try:
+        # Temporarily disable SuPy logger
+        logger_supy = logging.getLogger("SuPy")
+        original_level = logger_supy.level
+        logger_supy.setLevel(logging.CRITICAL + 1)  # Disable all logging
+
+        try:
+            issues = check_forcing(df_forcing, fix=False)
+            if issues:
+                # Clean up error messages: remove extra whitespace and newlines, clarify indices
+                cleaned_issues = []
+
+                for issue in issues:
+                    # Replace newlines with space and collapse multiple spaces
+                    cleaned = " ".join(issue.split())
+
+                    # Convert row indices to line numbers in .txt file
+                    # Format: "found at: [0, 5, 10]" -> "found at line(s): [2, 7, 12]"
+                    if "found at:" in cleaned:
+                        # Find the list of indices in brackets
+                        match = re.search(r"found at:\s*\[([^\]]+)\]", cleaned)
+                        if match:
+                            indices_str = match.group(1)
+                            # Parse indices and convert to line numbers (add 2: +1 for header, +1 for 1-based)
+                            indices = [
+                                int(x.strip()) for x in indices_str.split(",")
+                            ]
+                            line_numbers = [idx + 2 for idx in indices]
+                            # Format back to string
+                            line_numbers_str = ", ".join(map(str, line_numbers))
+                            # Replace in the message
+                            cleaned = re.sub(
+                                r"found at:\s*\[[^\]]+\]",
+                                f"found at line(s): [{line_numbers_str}]",
+                                cleaned,
+                            )
+
+                    # Add file path context to error message
+                    cleaned_with_context = f"In '{forcing_path.name}': {cleaned}"
+                    cleaned_issues.append(cleaned_with_context)
+
+                forcing_errors.extend(cleaned_issues)
+        finally:
+            # Restore logger level
+            logger_supy.setLevel(original_level)
+    except Exception as e:
+        forcing_errors.append(
+            f"In '{forcing_path.name}': Forcing validation failed: {str(e)}"
+        )
+
+    return forcing_errors
+
+
 def validate_forcing_data(user_yaml_file: str) -> tuple:
-    """Validate forcing data file referenced in user YAML.
+    """Validate forcing data file(s) referenced in user YAML.
 
     Args:
         user_yaml_file: Path to user YAML configuration file
 
     Returns:
-        Tuple of (forcing_errors, forcing_file_path) where forcing_errors is a list of error messages
-        and forcing_file_path is the path to the forcing file (or None if not found).
+        Tuple of (forcing_errors, forcing_file_paths) where forcing_errors is a list of error messages
+        and forcing_file_paths is the path(s) to the forcing file(s) (or None if not found).
     """
     forcing_errors = []
-    forcing_file_path = None
+    forcing_file_paths = None
 
     try:
         # Load user YAML to extract forcing file path
@@ -952,22 +1047,22 @@ def validate_forcing_data(user_yaml_file: str) -> tuple:
 
         # Navigate to model.control.forcing_file
         if not user_data or "model" not in user_data:
-            return forcing_errors, forcing_file_path
+            return forcing_errors, forcing_file_paths
 
         model = user_data.get("model", {})
         if not isinstance(model, dict):
-            return forcing_errors, forcing_file_path
+            return forcing_errors, forcing_file_paths
 
         control = model.get("control", {})
         if not isinstance(control, dict):
-            return forcing_errors, forcing_file_path
+            return forcing_errors, forcing_file_paths
 
         forcing_file = control.get("forcing_file", None)
         if forcing_file is None:
             forcing_errors.append(
                 "Forcing file path not found in model.control.forcing_file"
             )
-            return forcing_errors, forcing_file_path
+            return forcing_errors, forcing_file_paths
 
         # Handle RefValue format
         if isinstance(forcing_file, dict) and "value" in forcing_file:
@@ -975,97 +1070,35 @@ def validate_forcing_data(user_yaml_file: str) -> tuple:
         else:
             forcing_file_path = forcing_file
 
-        # Handle list of forcing files (take first one for validation)
+        # Handle list of forcing files - validate ALL files
         if isinstance(forcing_file_path, list):
-            if len(forcing_file_path) > 0:
-                forcing_file_path = forcing_file_path[0]
-            else:
+            if len(forcing_file_path) == 0:
                 forcing_errors.append("Forcing file list is empty")
                 return forcing_errors, None
 
-        # Resolve relative path from YAML location
+            forcing_file_paths = forcing_file_path
+            yaml_dir = Path(user_yaml_file).parent
+
+            # Validate all files in the list
+            for fpath in forcing_file_path:
+                file_errors = _validate_single_forcing_file(Path(fpath), yaml_dir)
+                forcing_errors.extend(file_errors)
+
+            return forcing_errors, forcing_file_paths
+
+        # Single file case
+        forcing_file_paths = forcing_file_path
         yaml_dir = Path(user_yaml_file).parent
-        forcing_path = Path(forcing_file_path)
-        if not forcing_path.is_absolute():
-            forcing_path = yaml_dir / forcing_path
+        file_errors = _validate_single_forcing_file(
+            Path(forcing_file_path), yaml_dir
+        )
+        forcing_errors.extend(file_errors)
 
-        # Check if forcing file exists
-        if not forcing_path.exists():
-            forcing_errors.append(f"Forcing file not found: {forcing_file_path}")
-            return forcing_errors, str(forcing_file_path)
-
-        # Import check_forcing and loader from supy
-        try:
-            from supy._check import check_forcing
-            from supy._load import load_SUEWS_Forcing_met_df_yaml
-        except ImportError as e:
-            forcing_errors.append(
-                f"Cannot import required functions from supy: {str(e)}"
-            )
-            return forcing_errors, str(forcing_file_path)
-
-        # Load forcing data using the proper loader
-        try:
-            df_forcing = load_SUEWS_Forcing_met_df_yaml(str(forcing_path))
-        except Exception as e:
-            forcing_errors.append(f"Failed to read forcing file: {str(e)}")
-            return forcing_errors, str(forcing_file_path)
-
-        # Run check_forcing validation (suppress logger output)
-        try:
-            import logging
-
-            # Temporarily disable SuPy logger
-            logger_supy = logging.getLogger("SuPy")
-            original_level = logger_supy.level
-            logger_supy.setLevel(logging.CRITICAL + 1)  # Disable all logging
-
-            try:
-                issues = check_forcing(df_forcing, fix=False)
-                if issues:
-                    # Clean up error messages: remove extra whitespace and newlines, clarify indices
-                    cleaned_issues = []
-
-                    for issue in issues:
-                        # Replace newlines with space and collapse multiple spaces
-                        cleaned = " ".join(issue.split())
-
-                        # Convert row indices to line numbers in .txt file
-                        # Format: "found at: [0, 5, 10]" -> "found at line(s): [2, 7, 12]"
-                        if "found at:" in cleaned:
-                            import re
-
-                            # Find the list of indices in brackets
-                            match = re.search(r"found at:\s*\[([^\]]+)\]", cleaned)
-                            if match:
-                                indices_str = match.group(1)
-                                # Parse indices and convert to line numbers (add 2: +1 for header, +1 for 1-based)
-                                indices = [
-                                    int(x.strip()) for x in indices_str.split(",")
-                                ]
-                                line_numbers = [idx + 2 for idx in indices]
-                                # Format back to string
-                                line_numbers_str = ", ".join(map(str, line_numbers))
-                                # Replace in the message
-                                cleaned = re.sub(
-                                    r"found at:\s*\[[^\]]+\]",
-                                    f"found at line(s): [{line_numbers_str}]",
-                                    cleaned,
-                                )
-                        cleaned_issues.append(cleaned)
-
-                    forcing_errors.extend(cleaned_issues)
-            finally:
-                # Restore logger level
-                logger_supy.setLevel(original_level)
-        except Exception as e:
-            forcing_errors.append(f"Forcing validation failed: {str(e)}")
-
-        return forcing_errors, str(forcing_file_path)
+        return forcing_errors, forcing_file_paths
 
     except Exception as e:
         forcing_errors.append(f"Error during forcing validation: {str(e)}")
-        return forcing_errors, forcing_file_path
+        return forcing_errors, forcing_file_paths
 
 
 def cleanup_renamed_comments(yaml_content):

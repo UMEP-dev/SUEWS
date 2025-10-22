@@ -38,8 +38,12 @@
 - [feature] Forcing data validation integrated into Phase A validator
   - Added automatic validation of meteorological forcing data in Phase A pipeline
   - Enabled by default; disable with `--forcing off` or `-f off` CLI flags
-  - Errors appear in ACTION NEEDED section with single-line formatting
-  - Added 6 integration tests in `test/data_model/test_validation.py` covering missing files, valid/invalid data, report integration, and enable/disable functionality
+  - Errors appear in ACTION NEEDED section with single-line formatting and include filename context
+  - Validates **all** forcing files when multiple files are provided (not just first)
+  - Line numbers in error messages match actual file line numbers for easy debugging
+  - Added 10 integration tests in `test/data_model/test_validation.py` covering:
+    - Missing files, valid/invalid data, report integration, enable/disable functionality
+    - Line number accuracy verification, RefValue format handling, multiple files validation, CLI integration
   - Updated documentation: `validation.rst`, `ORCHESTRATOR.md`, `PHASE_A_DETAILED.md`, `README.md`
 
 ### 21 Oct 2025

@@ -274,6 +274,7 @@ The forcing validation performs comprehensive checks:
    - Incoming shortwave: 0-1400 W/m²
    - Wind speed: ≥ 0.01 m/s (prevents division by zero)
    - And more...
+5. **Multiple File Support**: When a list of forcing files is provided, **all files are validated** (not just the first)
 
 ### Control Options
 
@@ -291,34 +292,49 @@ suews-validate -f off config.yml
 
 ### Report Integration
 
-Forcing errors appear in the **ACTION NEEDED** section:
+Forcing errors appear in the **ACTION NEEDED** section with filename context:
 
 ```text
 ## ACTION NEEDED
 - Found (3) forcing data validation error(s):
--- `pres` should be between [680, 1300] but 1 outliers are found at line(s): [8769]
--- `rain` should be between [0, inf] but 1 outliers are found at line(s): [8769]
--- `kdown` should be between [0, 1400] but 1 outliers are found at line(s): [8769]
+-- In 'forcing_data.txt': `pres` should be between [680, 1300] but 1 outliers are found at line(s): [8769]
+-- In 'forcing_data.txt': `rain` should be between [0, inf] but 1 outliers are found at line(s): [8769]
+-- In 'forcing_data.txt': `kdown` should be between [0, 1400] but 1 outliers are found at line(s): [8769]
    Suggested fix: Review and correct forcing data file
 
 Note: Line numbers are actual line numbers in the forcing .txt file (line 1 = header, line 2 = first data row)
+Note: When multiple forcing files are provided, all are validated and each error includes the filename
 ```
 
 ### Implementation Details
 
 ```python
-def validate_forcing_data(user_yaml_file: str) -> tuple:
-    """Validate forcing data file referenced in user YAML.
+def _validate_single_forcing_file(forcing_path: Path, yaml_dir: Path) -> list:
+    """Validate a single forcing data file.
 
     Returns:
-        Tuple of (forcing_errors, forcing_file_path)
+        List of error messages (empty if valid)
     """
-    # Extract forcing file path from YAML
-    # Handle RefValue format and relative paths
+    # Resolve relative path from YAML location
+    # Check file existence
     # Load forcing data using load_SUEWS_Forcing_met_df_yaml()
     # Run check_forcing() validation
-    # Clean up error messages for single-line formatting
-    # Return errors and file path
+    # Clean up error messages: single-line formatting, line number conversion
+    # Add filename context to each error message
+    # Return errors
+
+def validate_forcing_data(user_yaml_file: str) -> tuple:
+    """Validate forcing data file(s) referenced in user YAML.
+
+    Returns:
+        Tuple of (forcing_errors, forcing_file_paths)
+    """
+    # Extract forcing file path(s) from YAML
+    # Handle RefValue format (dict with "value" key)
+    # Handle both single file and list of files
+    # For each file, call _validate_single_forcing_file()
+    # Aggregate all errors
+    # Return errors and file path(s)
 ```
 
 ## Outdated Parameter Handling

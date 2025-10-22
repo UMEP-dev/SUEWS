@@ -1641,3 +1641,313 @@ def test_forcing_validation_can_be_disabled():
         # Cleanup temporary files
         Path(uptodate_path).unlink(missing_ok=True)
         Path(report_path).unlink(missing_ok=True)
+
+
+def test_forcing_validation_line_number_accuracy():
+    """Test that line numbers in error messages match actual file line numbers."""
+    from supy.data_model.validation.pipeline.phase_a import validate_forcing_data
+    import yaml
+    import pandas as pd
+
+    # Create forcing file with invalid value at specific rows
+    # Row 0 (DataFrame index) = Line 2 (file line: header=1, first data=2)
+    # Row 5 (DataFrame index) = Line 7 (file line)
+    forcing_data = {
+        "iy": [2011] * 10,
+        "id": [1] * 10,
+        "it": [0] * 10,
+        "imin": list(range(0, 50, 5)),
+        "qn": [100.0] * 10,
+        "qh": [50.0] * 10,
+        "qe": [30.0] * 10,
+        "qs": [20.0] * 10,
+        "qf": [10.0] * 10,
+        "U": [2.5] * 10,
+        "RH": [70.0] * 10,
+        "Tair": [15.0] * 10,
+        "pres": [100.0] * 10,
+        "rain": [0.0, 0.0, 0.0, 0.0, 0.0, -5.0, 0.0, 0.0, 0.0, 0.0],  # Error at index 5
+        "kdown": [200.0] * 10,
+        "snow": [0.0] * 10,
+        "ldown": [300.0] * 10,
+        "fcld": [0.5] * 10,
+        "wuh": [10.0] * 10,
+        "xsmd": [0.2] * 10,
+        "lai": [2.0] * 10,
+        "kdiff": [100.0] * 10,
+        "kdir": [100.0] * 10,
+        "wdir": [180.0] * 10,
+    }
+
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as f:
+        df = pd.DataFrame(forcing_data)
+        df.to_csv(f, sep=" ", index=False)
+        forcing_path = f.name
+
+    # Create test config
+    test_config = {"model": {"control": {"forcing_file": {"value": forcing_path}}}}
+
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".yml", delete=False) as f:
+        yaml.dump(test_config, f)
+        config_path = f.name
+
+    try:
+        forcing_errors, returned_path = validate_forcing_data(config_path)
+
+        # Should detect rain error at index 5 -> line 7 (header=1, index 0=line 2, so index 5=line 7)
+        assert len(forcing_errors) > 0
+        rain_errors = [err for err in forcing_errors if "rain" in err.lower()]
+        assert len(rain_errors) > 0
+
+        # Verify line number in error message
+        # DataFrame index 5 should map to file line 7 (1 header + 6 data rows)
+        rain_error = rain_errors[0]
+        assert "[7]" in rain_error, f"Expected line 7, but got: {rain_error}"
+
+        # Verify filename is included in error message
+        filename = Path(forcing_path).name
+        assert filename in rain_error, f"Expected filename '{filename}' in error: {rain_error}"
+
+    finally:
+        Path(config_path).unlink()
+        Path(forcing_path).unlink()
+
+
+def test_forcing_validation_refvalue_format():
+    """Test forcing validation handles RefValue format correctly."""
+    from supy.data_model.validation.pipeline.phase_a import validate_forcing_data
+    import yaml
+    import pandas as pd
+
+    # Create valid forcing file
+    forcing_data = {
+        "iy": [2011] * 3,
+        "id": [1] * 3,
+        "it": [0] * 3,
+        "imin": [0, 5, 10],
+        "qn": [100.0] * 3,
+        "qh": [50.0] * 3,
+        "qe": [30.0] * 3,
+        "qs": [20.0] * 3,
+        "qf": [10.0] * 3,
+        "U": [2.5] * 3,
+        "RH": [70.0] * 3,
+        "Tair": [15.0] * 3,
+        "pres": [100.0] * 3,
+        "rain": [0.0] * 3,
+        "kdown": [200.0] * 3,
+        "snow": [0.0] * 3,
+        "ldown": [300.0] * 3,
+        "fcld": [0.5] * 3,
+        "wuh": [10.0] * 3,
+        "xsmd": [0.2] * 3,
+        "lai": [2.0] * 3,
+        "kdiff": [100.0] * 3,
+        "kdir": [100.0] * 3,
+        "wdir": [180.0] * 3,
+    }
+
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as f:
+        df = pd.DataFrame(forcing_data)
+        df.to_csv(f, sep=" ", index=False)
+        forcing_path = f.name
+
+    # Create test config with RefValue format (dict with "value" key)
+    test_config = {
+        "model": {
+            "control": {
+                "forcing_file": {
+                    "value": forcing_path,
+                    "source": "user",
+                    "description": "Test forcing file",
+                }
+            }
+        }
+    }
+
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".yml", delete=False) as f:
+        yaml.dump(test_config, f)
+        config_path = f.name
+
+    try:
+        forcing_errors, returned_path = validate_forcing_data(config_path)
+
+        # Should have no errors for valid data
+        assert len(forcing_errors) == 0
+        assert returned_path == forcing_path
+
+    finally:
+        Path(config_path).unlink()
+        Path(forcing_path).unlink()
+
+
+def test_forcing_validation_multiple_files():
+    """Test that all forcing files in a list are validated."""
+    from supy.data_model.validation.pipeline.phase_a import validate_forcing_data
+    import yaml
+    import pandas as pd
+
+    # Create first forcing file (valid)
+    forcing_data1 = {
+        "iy": [2011] * 3,
+        "id": [1] * 3,
+        "it": [0] * 3,
+        "imin": [0, 5, 10],
+        "qn": [100.0] * 3,
+        "qh": [50.0] * 3,
+        "qe": [30.0] * 3,
+        "qs": [20.0] * 3,
+        "qf": [10.0] * 3,
+        "U": [2.5] * 3,
+        "RH": [70.0] * 3,
+        "Tair": [15.0] * 3,
+        "pres": [100.0] * 3,
+        "rain": [0.0] * 3,
+        "kdown": [200.0] * 3,
+        "snow": [0.0] * 3,
+        "ldown": [300.0] * 3,
+        "fcld": [0.5] * 3,
+        "wuh": [10.0] * 3,
+        "xsmd": [0.2] * 3,
+        "lai": [2.0] * 3,
+        "kdiff": [100.0] * 3,
+        "kdir": [100.0] * 3,
+        "wdir": [180.0] * 3,
+    }
+
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as f:
+        df1 = pd.DataFrame(forcing_data1)
+        df1.to_csv(f, sep=" ", index=False)
+        forcing_path1 = f.name
+
+    # Create second forcing file (invalid - negative rain)
+    forcing_data2 = forcing_data1.copy()
+    forcing_data2["rain"] = [-1.0, -2.0, -3.0]
+
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as f:
+        df2 = pd.DataFrame(forcing_data2)
+        df2.to_csv(f, sep=" ", index=False)
+        forcing_path2 = f.name
+
+    # Create test config with list of forcing files
+    test_config = {
+        "model": {"control": {"forcing_file": [forcing_path1, forcing_path2]}}
+    }
+
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".yml", delete=False) as f:
+        yaml.dump(test_config, f)
+        config_path = f.name
+
+    try:
+        forcing_errors, returned_paths = validate_forcing_data(config_path)
+
+        # Should detect errors in second file only
+        assert len(forcing_errors) > 0
+
+        # Check that errors mention the second file
+        file2_name = Path(forcing_path2).name
+        file2_errors = [err for err in forcing_errors if file2_name in err]
+        assert len(file2_errors) > 0, "Errors from second file should be detected"
+
+        # Verify returned paths is a list
+        assert returned_paths == [forcing_path1, forcing_path2]
+
+    finally:
+        Path(config_path).unlink()
+        Path(forcing_path1).unlink()
+        Path(forcing_path2).unlink()
+
+
+def test_forcing_validation_cli_integration():
+    """Test CLI integration: forcing validation can be enabled/disabled via --forcing flag."""
+    import subprocess
+    import yaml
+    import pandas as pd
+
+    sample_data_dir = Path(sp.__file__).parent / "sample_data"
+    sample_config = sample_data_dir / "sample_config.yml"
+
+    # Read sample config and get forcing file path
+    with open(sample_config, "r") as f:
+        config_data = yaml.safe_load(f)
+
+    # Create a temporary config with invalid forcing data
+    forcing_data = {
+        "iy": [2011] * 3,
+        "id": [1] * 3,
+        "it": [0] * 3,
+        "imin": [0, 5, 10],
+        "qn": [100.0] * 3,
+        "qh": [50.0] * 3,
+        "qe": [30.0] * 3,
+        "qs": [20.0] * 3,
+        "qf": [10.0] * 3,
+        "U": [2.5] * 3,
+        "RH": [70.0] * 3,
+        "Tair": [15.0] * 3,
+        "pres": [100.0] * 3,
+        "rain": [-1.0, -2.0, -3.0],  # Invalid: negative rain
+        "kdown": [200.0] * 3,
+        "snow": [0.0] * 3,
+        "ldown": [300.0] * 3,
+        "fcld": [0.5] * 3,
+        "wuh": [10.0] * 3,
+        "xsmd": [0.2] * 3,
+        "lai": [2.0] * 3,
+        "kdiff": [100.0] * 3,
+        "kdir": [100.0] * 3,
+        "wdir": [180.0] * 3,
+    }
+
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as f:
+        df = pd.DataFrame(forcing_data)
+        df.to_csv(f, sep=" ", index=False)
+        bad_forcing_path = f.name
+
+    # Create test config with bad forcing file
+    test_config_data = config_data.copy()
+    test_config_data["model"]["control"]["forcing_file"] = {"value": bad_forcing_path}
+
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".yml", delete=False) as f:
+        yaml.dump(test_config_data, f)
+        test_config_path = f.name
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        try:
+            # Test 1: Default behavior (forcing validation enabled)
+            result = subprocess.run(
+                ["suews-validate", test_config_path],
+                capture_output=True,
+                text=True,
+                cwd=tmpdir,
+            )
+
+            # Should detect forcing errors in report
+            report_files = list(Path(tmpdir).glob("*_report.txt"))
+            assert len(report_files) == 1
+            with open(report_files[0], "r") as f:
+                report_content = f.read()
+            assert "forcing data validation error" in report_content.lower()
+
+            # Clean up for next test
+            for f in Path(tmpdir).iterdir():
+                f.unlink()
+
+            # Test 2: Disable forcing validation with --forcing off
+            result = subprocess.run(
+                ["suews-validate", "--forcing", "off", test_config_path],
+                capture_output=True,
+                text=True,
+                cwd=tmpdir,
+            )
+
+            # Should NOT detect forcing errors
+            report_files = list(Path(tmpdir).glob("*_report.txt"))
+            assert len(report_files) == 1
+            with open(report_files[0], "r") as f:
+                report_content = f.read()
+            assert "forcing data validation error" not in report_content.lower()
+
+        finally:
+            Path(test_config_path).unlink()
+            Path(bad_forcing_path).unlink()

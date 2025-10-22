@@ -1929,7 +1929,9 @@ def test_forcing_validation_cli_integration():
 
             # Should detect forcing errors in report
             report_files = list(tmpdir_path.glob("report_*.txt"))
-            assert len(report_files) == 1, f"Expected 1 report file, found {len(report_files)}: {list(tmpdir_path.iterdir())}"
+            assert len(report_files) == 1, (
+                f"Expected 1 report file, found {len(report_files)}: {list(tmpdir_path.iterdir())}"
+            )
             with open(report_files[0], "r") as f:
                 report_content = f.read()
             assert "forcing data validation error" in report_content.lower(), (
@@ -1951,7 +1953,9 @@ def test_forcing_validation_cli_integration():
 
             # Should NOT detect forcing errors
             report_files = list(tmpdir_path.glob("report_*.txt"))
-            assert len(report_files) == 1, f"Expected 1 report file, found {len(report_files)}"
+            assert len(report_files) == 1, (
+                f"Expected 1 report file, found {len(report_files)}"
+            )
             with open(report_files[0], "r") as f:
                 report_content = f.read()
             assert "forcing data validation error" not in report_content.lower(), (

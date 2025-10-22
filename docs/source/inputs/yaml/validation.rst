@@ -8,7 +8,7 @@ What the Validator Does
 
 The validation system performs multiple checks on your configuration:
 
-- **Completeness Check**: Detects missing parameters and updates deprecated parameter names to current standards
+- **Completeness Check**: Detects missing parameters, updates deprecated parameter names to current standards and validates forcing data
 - **Scientific Validation**: Applies automatic scientific corrections and validates physics options compatibility
 - **Model Compatibility**: Ensures configuration compatibility with SUEWS computational engine
 
@@ -60,6 +60,12 @@ The validation report provides comprehensive details about every change made to 
     # ==================================================
 
     ## ACTION NEEDED
+    - Found (3) forcing data validation error(s):
+    -- `pres` should be between [680, 1300] but 1 outliers are found at: [8767]
+    -- `rain` should be between [0, inf] but 1 outliers are found at: [8767]
+    -- `kdown` should be between [0, 1400] but 1 outliers are found at: [8767]
+       Suggested fix: Review and correct forcing data file
+
     - Found (1) critical missing parameter(s):
     -- netradiationmethod has been added to updated YAML and set to null
        Location: model.physics.netradiationmethod

@@ -10,6 +10,7 @@ Phase A is the first stage of SUEWS configuration validation that performs confi
 - [Technical Implementation](#technical-implementation)
 - [Processing Modes and Behaviour](#processing-modes-and-behaviour)
 - [Parameter Classification Logic](#parameter-classification-logic)
+- [Forcing Data Validation](#forcing-data-validation)
 - [Outdated Parameter Handling](#outdated-parameter-handling)
 - [Not In Standard Parameter Handling](#not-in-standard-parameter-handling)
 - [Output Files Structure](#output-files-structure)
@@ -49,6 +50,7 @@ Phase A implements a systematic comparison algorithm that:
 - `validate_standard_file()`: **Git branch validation** and standard file consistency checks
 - `get_current_git_branch()`: Git branch detection for development workflow safety
 - `check_file_differs_from_master()`: File comparison against master branch version
+- `validate_forcing_data()`: **Forcing data validation** - validates meteorological forcing file for correct format, timestamps, and physical ranges
 
 ### Key Data Structures
 
@@ -247,6 +249,74 @@ NO ACTION NEEDED (Optional):
 ├── sites[0].properties.irrigation.wuprofm_24hr.holiday
 ├── sites[0].initial_states.soilstore_id
 └── model.control.output_file.groups
+```
+
+## Forcing Data Validation
+
+### Overview
+
+Phase A includes automatic validation of meteorological forcing data (enabled by default). This ensures forcing files contain valid data before model execution.
+
+### Validation Checks
+
+The forcing validation performs comprehensive checks:
+
+1. **File Existence**: Verifies forcing file path exists and is accessible
+2. **Column Validation**: Checks all required meteorological variables are present and in correct order
+3. **Timestamp Validation**:
+   - Must be DatetimeIndex
+   - No duplicate timestamps
+   - Monotonically increasing
+   - Valid frequency attribute
+4. **Physical Range Validation**: Each variable checked against scientific bounds
+   - Pressure: 680-1300 hPa
+   - Rain: ≥ 0 mm
+   - Incoming shortwave: 0-1400 W/m²
+   - Wind speed: ≥ 0.01 m/s (prevents division by zero)
+   - And more...
+
+### Control Options
+
+Forcing validation can be controlled via CLI:
+
+```bash
+# Default: forcing validation enabled
+suews-validate config.yml
+
+# Disable forcing validation
+suews-validate --forcing off config.yml
+# or shorthand:
+suews-validate -f off config.yml
+```
+
+### Report Integration
+
+Forcing errors appear in the **ACTION NEEDED** section:
+
+```text
+## ACTION NEEDED
+- Found (3) forcing data validation error(s):
+-- `pres` should be between [680, 1300] but 1 outliers are found at: [8767]
+-- `rain` should be between [0, inf] but 1 outliers are found at: [8767]
+-- `kdown` should be between [0, 1400] but 1 outliers are found at: [8767]
+   Suggested fix: Review and correct forcing data file
+```
+
+### Implementation Details
+
+```python
+def validate_forcing_data(user_yaml_file: str) -> tuple:
+    """Validate forcing data file referenced in user YAML.
+
+    Returns:
+        Tuple of (forcing_errors, forcing_file_path)
+    """
+    # Extract forcing file path from YAML
+    # Handle RefValue format and relative paths
+    # Load forcing data using load_SUEWS_Forcing_met_df_yaml()
+    # Run check_forcing() validation
+    # Clean up error messages for single-line formatting
+    # Return errors and file path
 ```
 
 ## Outdated Parameter Handling

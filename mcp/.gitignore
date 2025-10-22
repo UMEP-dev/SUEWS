@@ -1,0 +1,7 @@
+# Fortran physics source files - need proper bundling approach
+# These are copied from the main SUEWS build and should be included
+# via a packaging mechanism, not committed directly
+src/suews_mcp/physics_code/*.f95
+
+# Test outputs
+tests/output/

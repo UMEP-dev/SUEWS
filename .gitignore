@@ -360,6 +360,9 @@ test/code/quick-test.py
 # temporary test files
 test/BaseRun/2021a-gridlayout/
 test/meg/
+
+# Test fixture outputs
+test/fixtures/*/output/
 suews_ctrl_ver.f95
 supy-driver/supy_driver/version.py
 wheelhouse/

@@ -1706,7 +1706,9 @@ def test_forcing_validation_line_number_accuracy():
 
         # Verify filename is included in error message
         filename = Path(forcing_path).name
-        assert filename in rain_error, f"Expected filename '{filename}' in error: {rain_error}"
+        assert filename in rain_error, (
+            f"Expected filename '{filename}' in error: {rain_error}"
+        )
 
     finally:
         Path(config_path).unlink()

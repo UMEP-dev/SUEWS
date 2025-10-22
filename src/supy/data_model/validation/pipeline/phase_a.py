@@ -998,9 +998,7 @@ def _validate_single_forcing_file(forcing_path: Path, yaml_dir: Path) -> list:
                         if match:
                             indices_str = match.group(1)
                             # Parse indices and convert to line numbers (add 2: +1 for header, +1 for 1-based)
-                            indices = [
-                                int(x.strip()) for x in indices_str.split(",")
-                            ]
+                            indices = [int(x.strip()) for x in indices_str.split(",")]
                             line_numbers = [idx + 2 for idx in indices]
                             # Format back to string
                             line_numbers_str = ", ".join(map(str, line_numbers))
@@ -1089,9 +1087,7 @@ def validate_forcing_data(user_yaml_file: str) -> tuple:
         # Single file case
         forcing_file_paths = forcing_file_path
         yaml_dir = Path(user_yaml_file).parent
-        file_errors = _validate_single_forcing_file(
-            Path(forcing_file_path), yaml_dir
-        )
+        file_errors = _validate_single_forcing_file(Path(forcing_file_path), yaml_dir)
         forcing_errors.extend(file_errors)
 
         return forcing_errors, forcing_file_paths

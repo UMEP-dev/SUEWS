@@ -34,6 +34,14 @@
 
 ## 2025
 
+### 22 Oct 2025
+- [feature] Forcing data validation integrated into Phase A validator
+  - Added automatic validation of meteorological forcing data in Phase A pipeline
+  - Enabled by default; disable with `--forcing off` or `-f off` CLI flags
+  - Errors appear in ACTION NEEDED section with single-line formatting
+  - Added 6 integration tests in `test/data_model/test_validation.py` covering missing files, valid/invalid data, report integration, and enable/disable functionality
+  - Updated documentation: `validation.rst`, `ORCHESTRATOR.md`, `PHASE_A_DETAILED.md`, `README.md`
+
 ### 21 Oct 2025
 - [feature] Added `get_mean_annual_air_temperature()` for stable parameter initialisation using CRU TS4.06 climate normals
 - [bugfix] Fixed Phase B validation to update roofs/walls temperature fields in initial_states from CRU climate data

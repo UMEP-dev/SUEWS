@@ -964,7 +964,9 @@ def validate_forcing_data(user_yaml_file: str) -> tuple:
 
         forcing_file = control.get("forcing_file", None)
         if forcing_file is None:
-            forcing_errors.append("Forcing file path not found in model.control.forcing_file")
+            forcing_errors.append(
+                "Forcing file path not found in model.control.forcing_file"
+            )
             return forcing_errors, forcing_file_path
 
         # Handle RefValue format
@@ -997,7 +999,9 @@ def validate_forcing_data(user_yaml_file: str) -> tuple:
             from supy._check import check_forcing
             from supy._load import load_SUEWS_Forcing_met_df_yaml
         except ImportError as e:
-            forcing_errors.append(f"Cannot import required functions from supy: {str(e)}")
+            forcing_errors.append(
+                f"Cannot import required functions from supy: {str(e)}"
+            )
             return forcing_errors, str(forcing_file_path)
 
         # Load forcing data using the proper loader
@@ -1012,7 +1016,7 @@ def validate_forcing_data(user_yaml_file: str) -> tuple:
             import logging
 
             # Temporarily disable SuPy logger
-            logger_supy = logging.getLogger('SuPy')
+            logger_supy = logging.getLogger("SuPy")
             original_level = logger_supy.level
             logger_supy.setLevel(logging.CRITICAL + 1)  # Disable all logging
 
@@ -1023,7 +1027,7 @@ def validate_forcing_data(user_yaml_file: str) -> tuple:
                     cleaned_issues = []
                     for issue in issues:
                         # Replace newlines with space and collapse multiple spaces
-                        cleaned = ' '.join(issue.split())
+                        cleaned = " ".join(issue.split())
                         cleaned_issues.append(cleaned)
                     forcing_errors.extend(cleaned_issues)
             finally:
@@ -1182,7 +1186,12 @@ def create_analysis_report(
         categorised = categorise_extra_parameters(extra_params)
         forbidden_extras = categorised["ACTION_NEEDED"]
 
-    total_action_needed = urgent_count + len(forbidden_extras) + dimension_errors_count + forcing_errors_count
+    total_action_needed = (
+        urgent_count
+        + len(forbidden_extras)
+        + dimension_errors_count
+        + forcing_errors_count
+    )
     has_action_items = total_action_needed > 0
 
     if has_action_items:
@@ -1262,7 +1271,9 @@ def create_analysis_report(
             )
             for error_msg in forcing_errors:
                 report_lines.append(f"-- {error_msg}")
-            report_lines.append("   Suggested fix: Review and correct forcing data file")
+            report_lines.append(
+                "   Suggested fix: Review and correct forcing data file"
+            )
             report_lines.append("")
 
         # Critical missing parameters
@@ -1445,7 +1456,13 @@ def annotate_missing_parameters(
     extra_params = find_extra_parameters(user_data, standard_data)
 
     # Generate content for both files
-    if missing_params or renamed_replacements or extra_params or dimension_errors or forcing_errors:
+    if (
+        missing_params
+        or renamed_replacements
+        or extra_params
+        or dimension_errors
+        or forcing_errors
+    ):
         # If dimension errors occurred, serialize the modified user_data with padded nulls
         if dimension_errors:
             # Convert modified user_data back to YAML string

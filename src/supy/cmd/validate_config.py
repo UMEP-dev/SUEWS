@@ -374,7 +374,9 @@ def cli(ctx, files, pipeline, mode, dry_run, out_format, schema_version, forcing
                 "[red]✗ Provide exactly one YAML FILE for pipeline execution[/red]"
             )
             ctx.exit(2)
-        code = _execute_pipeline(file=files[0], pipeline=pipeline, mode=mode, forcing=forcing)
+        code = _execute_pipeline(
+            file=files[0], pipeline=pipeline, mode=mode, forcing=forcing
+        )
         ctx.exit(code)
 
 

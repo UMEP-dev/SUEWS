@@ -1438,7 +1438,8 @@ def test_forcing_validation_valid_forcing_file():
         "U": [2.5] * 5,
         "RH": [70.0] * 5,
         "Tair": [15.0] * 5,
-        "pres": [100.0] * 5,  # Will be converted to 1000 hPa (valid range: 680-1300 hPa)
+        "pres": [100.0]
+        * 5,  # Will be converted to 1000 hPa (valid range: 680-1300 hPa)
         "rain": [0.0] * 5,
         "kdown": [200.0] * 5,
         "snow": [0.0] * 5,

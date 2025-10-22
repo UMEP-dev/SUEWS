@@ -35,6 +35,7 @@
 ## 2025
 
 ### 21 Oct 2025
+- [feature] Added `get_mean_annual_air_temperature()` for stable parameter initialisation using CRU TS4.06 climate normals
 - [bugfix] Fixed Phase B validation to update roofs/walls temperature fields in initial_states from CRU climate data
   - Extended `adjust_surface_temperatures()` to process `initial_states.roofs` and `initial_states.walls` arrays
   - Updates `temperature` (5-layer array), `tsfc`, and `tin` fields to monthly averages from CRU TS4.06 dataset

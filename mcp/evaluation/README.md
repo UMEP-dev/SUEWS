@@ -26,21 +26,28 @@ This directory contains comprehensive analysis of SUEWS MCP server performance a
    - True correctness likely 80-85% (not 62%)
    - Need LLM-as-judge for accurate assessment
 
+3. **[GAP_ANALYSIS.md](GAP_ANALYSIS.md)** - **Actionable improvements**
+   - Specific root causes of each gap with concrete solutions
+   - Priority 1: LLM-as-judge scoring (+1.06 pts potential)
+   - Priority 2: File citation prompts (+0.47 pts potential)
+   - Priority 3: Dual-format equations (+0.36 pts potential)
+   - Expected: 62% → 94% with all improvements
+
 ### Supporting Analysis
 
-3. **[QUANTITATIVE_ANALYSIS.md](QUANTITATIVE_ANALYSIS.md)**
+4. **[QUANTITATIVE_ANALYSIS.md](QUANTITATIVE_ANALYSIS.md)**
    - Detailed metrics: length, citations, code blocks, equations
    - MCP 58% longer than baseline
    - Reference 26× more citations than MCP
    - Sonnet uses 19% more tools than Haiku with similar results
 
-4. **[SCORED_ANALYSIS.md](SCORED_ANALYSIS.md)**
+5. **[SCORED_ANALYSIS.md](SCORED_ANALYSIS.md)**
    - Format-based scoring results (0-5 scale)
    - Component weights: Citations 30%, Line refs 25%, Code 20%, Equations 15%, Length 10%
    - Shows modest MCP advantage (+3.5%)
    - Replaced by correctness-based scoring
 
-5. **[CONFIG_QUESTION_DIAGNOSIS.md](CONFIG_QUESTION_DIAGNOSIS.md)**
+6. **[CONFIG_QUESTION_DIAGNOSIS.md](CONFIG_QUESTION_DIAGNOSIS.md)**
    - Root cause analysis of MCP "underperformance" on config questions
    - Finding: Not wrong, just too verbose (5-7× reference length)
    - Format scoring penalized comprehensive answers
@@ -48,11 +55,11 @@ This directory contains comprehensive analysis of SUEWS MCP server performance a
 
 ### Legacy Files
 
-6. **[EVALUATION_SUMMARY.md](EVALUATION_SUMMARY.md)**
+7. **[EVALUATION_SUMMARY.md](EVALUATION_SUMMARY.md)**
    - Initial binary evaluation (100% success rate)
    - Superseded by quantitative and scored analyses
 
-7. **[YOUR_QUESTIONS.md](YOUR_QUESTIONS.md)**
+8. **[YOUR_QUESTIONS.md](YOUR_QUESTIONS.md)**
    - Original Q&A about evaluation setup
    - Historical reference
 
@@ -137,9 +144,10 @@ Raw results stored in `../evaluation_results/`:
 **For detailed understanding**:
 1. `CORRECTNESS_ANALYSIS.md` - Core finding (4× more value)
 2. `SCORING_LIMITATIONS.md` - Why 62% underestimates (likely 80-85%)
-3. `CONFIG_QUESTION_DIAGNOSIS.md` - Config "problem" explained
-4. `QUANTITATIVE_ANALYSIS.md` - Detailed metrics
-5. `SCORED_ANALYSIS.md` - Format-based scoring (for comparison)
+3. `GAP_ANALYSIS.md` - **NEW** Root causes and actionable improvements
+4. `CONFIG_QUESTION_DIAGNOSIS.md` - Config "problem" explained
+5. `QUANTITATIVE_ANALYSIS.md` - Detailed metrics
+6. `SCORED_ANALYSIS.md` - Format-based scoring (for comparison)
 
 **For historical context**:
 - `EVALUATION_SUMMARY.md` - Initial binary results

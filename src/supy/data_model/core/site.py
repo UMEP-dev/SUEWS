@@ -1544,6 +1544,8 @@ class StebbsProperties(BaseModel):
         json_schema_extra={
             "unit": "W m^-2 K^-1",
             "display_name": "Wallinternalconvectioncoefficient",
+            "default_description": "Default value calculated from the CIBSE GUIDE A, Table 3.47, Page 176",
+            "range_description": "Value must be greater than zero.",
         },
         gt=0.0,
     )
@@ -1843,7 +1845,12 @@ class StebbsProperties(BaseModel):
     DHWWaterVolume: Optional[FlexibleRefValue(float)] = Field(
         default=0.0,
         description="Volume of water held in use in building [m3]",
-        json_schema_extra={"unit": "m^3", "display_name": "Dhwwatervolume"},
+        json_schema_extra={
+            "unit": "m^3",
+            "display_name": "Dhwwatervolume",
+            "default_description": "Missing default explanation.",
+            "range_description": "Missing range explanation.",
+        },
     )
     DHWSurfaceArea: Optional[FlexibleRefValue(float)] = Field(
         default=0.0,

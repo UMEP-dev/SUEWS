@@ -1589,7 +1589,8 @@ def test_forcing_validation_report_integration():
     assert "Found (2) forcing data validation error(s):" in report
     assert "`pres` should be between [680, 1300]" in report
     assert "`rain` should be between [0, inf]" in report
-    assert "Suggested fix: Review and correct forcing data file" in report
+    assert "Required fix: Review and correct forcing data file." in report
+    assert "Suggestion: You may want to plot the time series of your input data." in report
 
     # Check single-line formatting
     lines = report.split("\n")

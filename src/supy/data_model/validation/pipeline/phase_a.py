@@ -1023,12 +1023,34 @@ def validate_forcing_data(user_yaml_file: str) -> tuple:
             try:
                 issues = check_forcing(df_forcing, fix=False)
                 if issues:
-                    # Clean up error messages: remove extra whitespace and newlines
+                    # Clean up error messages: remove extra whitespace and newlines, clarify indices
                     cleaned_issues = []
+
                     for issue in issues:
                         # Replace newlines with space and collapse multiple spaces
                         cleaned = " ".join(issue.split())
+
+                        # Convert row indices to line numbers in .txt file
+                        # Format: "found at: [0, 5, 10]" -> "found at line(s): [2, 7, 12]"
+                        if "found at:" in cleaned:
+                            import re
+                            # Find the list of indices in brackets
+                            match = re.search(r'found at:\s*\[([^\]]+)\]', cleaned)
+                            if match:
+                                indices_str = match.group(1)
+                                # Parse indices and convert to line numbers (add 2: +1 for header, +1 for 1-based)
+                                indices = [int(x.strip()) for x in indices_str.split(',')]
+                                line_numbers = [idx + 2 for idx in indices]
+                                # Format back to string
+                                line_numbers_str = ', '.join(map(str, line_numbers))
+                                # Replace in the message
+                                cleaned = re.sub(
+                                    r'found at:\s*\[[^\]]+\]',
+                                    f'found at line(s): [{line_numbers_str}]',
+                                    cleaned
+                                )
                         cleaned_issues.append(cleaned)
+
                     forcing_errors.extend(cleaned_issues)
             finally:
                 # Restore logger level
@@ -1272,7 +1294,10 @@ def create_analysis_report(
             for error_msg in forcing_errors:
                 report_lines.append(f"-- {error_msg}")
             report_lines.append(
-                "   Suggested fix: Review and correct forcing data file"
+                "   Required fix: Review and correct forcing data file."
+            )
+            report_lines.append(
+                "   Suggestion: You may want to plot the time series of your input data."
             )
             report_lines.append("")
 

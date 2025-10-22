@@ -296,10 +296,12 @@ Forcing errors appear in the **ACTION NEEDED** section:
 ```text
 ## ACTION NEEDED
 - Found (3) forcing data validation error(s):
--- `pres` should be between [680, 1300] but 1 outliers are found at: [8767]
--- `rain` should be between [0, inf] but 1 outliers are found at: [8767]
--- `kdown` should be between [0, 1400] but 1 outliers are found at: [8767]
+-- `pres` should be between [680, 1300] but 1 outliers are found at line(s): [8769]
+-- `rain` should be between [0, inf] but 1 outliers are found at line(s): [8769]
+-- `kdown` should be between [0, 1400] but 1 outliers are found at line(s): [8769]
    Suggested fix: Review and correct forcing data file
+
+Note: Line numbers are actual line numbers in the forcing .txt file (line 1 = header, line 2 = first data row)
 ```
 
 ### Implementation Details

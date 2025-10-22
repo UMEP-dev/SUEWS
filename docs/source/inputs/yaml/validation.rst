@@ -61,10 +61,13 @@ The validation report provides comprehensive details about every change made to 
 
     ## ACTION NEEDED
     - Found (3) forcing data validation error(s):
-    -- `pres` should be between [680, 1300] but 1 outliers are found at: [8767]
-    -- `rain` should be between [0, inf] but 1 outliers are found at: [8767]
-    -- `kdown` should be between [0, 1400] but 1 outliers are found at: [8767]
-       Suggested fix: Review and correct forcing data file
+    -- Wind speed (`U`) must be >= 0.01 m/s to avoid division by zero errors in atmospheric calculations. 1 values below 0.01 m/s found at line(s): [670]
+    -- `rh` should be between [0.0001, 105] but 25 outliers are found at line(s): [5, 118, 156, 157, ...]
+    -- `kdown` should be between [0, 1400] but 6 outliers are found at line(s): [176, 406, 655, 693, 847, 1558]
+       Required fix: Review and correct forcing data file.
+       Suggestion: You may want to plot the time series of your input data.
+
+    Note: Line numbers refer to actual lines in the forcing .txt file (including header)
 
     - Found (1) critical missing parameter(s):
     -- netradiationmethod has been added to updated YAML and set to null

@@ -317,14 +317,14 @@ def convert_era5_to_suews(
     ]
     df_forcing = df_forcing[suews_col_order]
 
-    # Save to SUEWS forcing format (space-separated, no header)
+    # Save to SUEWS forcing format (space-separated, with header)
     output_path = Path(output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
     df_forcing.to_csv(
         output_path,
         sep=' ',
-        header=False,
+        header=True,
         index=False,
         float_format='%.2f',
     )

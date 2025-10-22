@@ -155,8 +155,11 @@ def format_results_summary(results) -> Dict[str, Any]:
 
     # Basic statistics
     summary["shape"] = {"rows": len(df), "columns": len(df.columns)}
-    # Convert column names to strings to ensure JSON serializability
-    summary["columns"] = [str(col) for col in df.columns]
+    # Only include key column names in summary (not all 90!) to reduce response size
+    key_cols_to_show = ['QH', 'QE', 'QN', 'QS', 'Tsurf', 'Kdown', 'Ldown', 'Rain', 'Evap']
+    available_cols = [col for col in key_cols_to_show if col in df.columns]
+    summary["key_columns"] = available_cols
+    summary["total_columns"] = len(df.columns)
 
     # Time range if available
     if hasattr(index_for_stats, "min") and hasattr(index_for_stats, "max"):
@@ -166,13 +169,25 @@ def format_results_summary(results) -> Dict[str, Any]:
         }
 
     # Sample statistics for key variables
+    # Only compute stats for key energy balance variables to avoid timeout
     numeric_cols = df.select_dtypes(include=["number"]).columns
     if len(numeric_cols) > 0:
-        stats = df[numeric_cols].describe().to_dict()
-        # Limit to first few columns and convert all keys to strings
+        # Priority: key SUEWS energy balance variables
+        key_vars = ['QH', 'QE', 'QN', 'QS', 'Tsurf']
+        available_key_vars = [col for col in key_vars if col in numeric_cols]
+
+        if len(available_key_vars) > 0:
+            # Use key variables if available
+            cols_for_stats = available_key_vars
+        else:
+            # Fallback to first 3 numeric columns (faster than 5)
+            cols_for_stats = list(numeric_cols)[:3]
+
+        # Only compute stats for selected columns (not all 90!)
+        stats = df[cols_for_stats].describe().to_dict()
         summary["statistics"] = {
             str(col): {str(k): float(v) for k, v in stats[col].items()}
-            for col in list(numeric_cols)[:5]
+            for col in cols_for_stats
         }
 
     return summary

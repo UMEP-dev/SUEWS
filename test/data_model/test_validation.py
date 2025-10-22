@@ -1386,3 +1386,254 @@ def test_nlayer_roofs_walls_dimension_error_with_templates():
     wall2 = walls_arr[1]
     assert wall2["alb"]["value"] is None
     assert wall2["emis"]["value"] is None
+
+
+# =====================================================================
+# Phase A: Forcing data validation tests
+# =====================================================================
+
+
+def test_forcing_validation_missing_file():
+    """Test forcing validation detects missing forcing file."""
+    from supy.data_model.validation.pipeline.phase_a import validate_forcing_data
+    import yaml
+
+    # Create test config with non-existent forcing file
+    test_config = {
+        "model": {"control": {"forcing_file": {"value": "nonexistent_forcing.txt"}}}
+    }
+
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".yml", delete=False) as f:
+        yaml.dump(test_config, f)
+        config_path = f.name
+
+    try:
+        forcing_errors, forcing_path = validate_forcing_data(config_path)
+
+        # Should detect missing file
+        assert len(forcing_errors) > 0
+        assert any("not found" in err.lower() for err in forcing_errors)
+        assert forcing_path == "nonexistent_forcing.txt"
+    finally:
+        Path(config_path).unlink()
+
+
+def test_forcing_validation_valid_forcing_file():
+    """Test forcing validation passes with valid forcing data."""
+    from supy.data_model.validation.pipeline.phase_a import validate_forcing_data
+    import yaml
+    import pandas as pd
+
+    # Create valid forcing file
+    forcing_data = {
+        "iy": [2011] * 5,
+        "id": [1] * 5,
+        "it": [0] * 5,
+        "imin": [0, 5, 10, 15, 20],
+        "qn": [100.0] * 5,
+        "qh": [50.0] * 5,
+        "qe": [30.0] * 5,
+        "qs": [20.0] * 5,
+        "qf": [10.0] * 5,
+        "U": [2.5] * 5,
+        "RH": [70.0] * 5,
+        "Tair": [15.0] * 5,
+        "pres": [100.0] * 5,  # Will be converted to 1000 hPa (valid range: 680-1300 hPa)
+        "rain": [0.0] * 5,
+        "kdown": [200.0] * 5,
+        "snow": [0.0] * 5,
+        "ldown": [300.0] * 5,
+        "fcld": [0.5] * 5,
+        "wuh": [10.0] * 5,
+        "xsmd": [0.2] * 5,
+        "lai": [2.0] * 5,
+        "kdiff": [100.0] * 5,
+        "kdir": [100.0] * 5,
+        "wdir": [180.0] * 5,
+    }
+
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as f:
+        df = pd.DataFrame(forcing_data)
+        df.to_csv(f, sep=" ", index=False)
+        forcing_path = f.name
+
+    # Create test config
+    test_config = {"model": {"control": {"forcing_file": {"value": forcing_path}}}}
+
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".yml", delete=False) as f:
+        yaml.dump(test_config, f)
+        config_path = f.name
+
+    try:
+        forcing_errors, returned_path = validate_forcing_data(config_path)
+
+        # Should have no errors for valid data
+        assert len(forcing_errors) == 0
+        assert returned_path == forcing_path
+    finally:
+        Path(config_path).unlink()
+        Path(forcing_path).unlink()
+
+
+def test_forcing_validation_invalid_ranges():
+    """Test forcing validation detects out-of-range values."""
+    from supy.data_model.validation.pipeline.phase_a import validate_forcing_data
+    import yaml
+    import pandas as pd
+
+    # Create forcing file with invalid values
+    forcing_data = {
+        "iy": [2011] * 5,
+        "id": [1] * 5,
+        "it": [0] * 5,
+        "imin": [0, 5, 10, 15, 20],
+        "qn": [100.0] * 5,
+        "qh": [50.0] * 5,
+        "qe": [30.0] * 5,
+        "qs": [20.0] * 5,
+        "qf": [10.0] * 5,
+        "U": [2.5] * 5,
+        "RH": [70.0] * 5,
+        "Tair": [15.0] * 5,
+        "pres": [100.0, 100.0, 100.0, 100.0, 50.0],  # Bad: 50*10=500 hPa < 680
+        "rain": [0.0, 0.0, 0.0, 0.0, -1.0],  # Bad: negative rain
+        "kdown": [200.0, 200.0, 200.0, 200.0, 2000.0],  # Bad: 2000 > 1400
+        "snow": [0.0] * 5,
+        "ldown": [300.0] * 5,
+        "fcld": [0.5] * 5,
+        "wuh": [10.0] * 5,
+        "xsmd": [0.2] * 5,
+        "lai": [2.0] * 5,
+        "kdiff": [100.0] * 5,
+        "kdir": [100.0] * 5,
+        "wdir": [180.0] * 5,
+    }
+
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as f:
+        df = pd.DataFrame(forcing_data)
+        df.to_csv(f, sep=" ", index=False)
+        forcing_path = f.name
+
+    # Create test config
+    test_config = {"model": {"control": {"forcing_file": {"value": forcing_path}}}}
+
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".yml", delete=False) as f:
+        yaml.dump(test_config, f)
+        config_path = f.name
+
+    try:
+        forcing_errors, returned_path = validate_forcing_data(config_path)
+
+        # Should detect range violations
+        assert len(forcing_errors) == 3  # pres, rain, kdown
+        assert any("pres" in err for err in forcing_errors)
+        assert any("rain" in err for err in forcing_errors)
+        assert any("kdown" in err for err in forcing_errors)
+
+        # Check error messages are properly formatted (no extra newlines)
+        for err in forcing_errors:
+            assert "\n" not in err  # Should be single-line messages
+    finally:
+        Path(config_path).unlink()
+        Path(forcing_path).unlink()
+
+
+def test_forcing_validation_no_forcing_file_in_config():
+    """Test forcing validation handles missing forcing_file in config."""
+    from supy.data_model.validation.pipeline.phase_a import validate_forcing_data
+    import yaml
+
+    # Create config without forcing_file
+    test_config = {"model": {"control": {}}}
+
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".yml", delete=False) as f:
+        yaml.dump(test_config, f)
+        config_path = f.name
+
+    try:
+        forcing_errors, forcing_path = validate_forcing_data(config_path)
+
+        # Should detect missing forcing_file path
+        assert len(forcing_errors) > 0
+        assert any("not found" in err for err in forcing_errors)
+        assert forcing_path is None
+    finally:
+        Path(config_path).unlink()
+
+
+def test_forcing_validation_report_integration():
+    """Test forcing errors are properly integrated into Phase A report."""
+    from supy.data_model.validation.pipeline.phase_a import create_analysis_report
+
+    # Create test forcing errors
+    forcing_errors = [
+        "`pres` should be between [680, 1300] but 1 outliers are found at: [9]",
+        "`rain` should be between [0, inf] but 1 outliers are found at: [9]",
+    ]
+
+    # Generate report with forcing errors
+    report = create_analysis_report(
+        missing_params=[],
+        renamed_replacements=[],
+        extra_params=[],
+        uptodate_filename="test.yml",
+        mode="public",
+        phase="A",
+        dimension_errors=[],
+        forcing_errors=forcing_errors,
+    )
+
+    # Verify forcing errors appear in ACTION NEEDED section
+    assert "## ACTION NEEDED" in report
+    assert "Found (2) forcing data validation error(s):" in report
+    assert "`pres` should be between [680, 1300]" in report
+    assert "`rain` should be between [0, inf]" in report
+    assert "Suggested fix: Review and correct forcing data file" in report
+
+    # Check single-line formatting
+    lines = report.split("\n")
+    for line in lines:
+        if "`pres`" in line or "`rain`" in line:
+            # Error message should be on one line (starting with --)
+            if line.strip().startswith("--"):
+                # Check it includes the complete message
+                assert "[9]" in line  # Index should be on same line
+
+
+def test_forcing_validation_can_be_disabled():
+    """Test that forcing validation can be disabled via parameter."""
+    from supy.data_model.validation.pipeline.phase_a import (
+        annotate_missing_parameters,
+    )
+
+    sample_data_dir = Path(sp.__file__).parent / "sample_data"
+    config_path = sample_data_dir / "sample_config.yml"
+
+    # Create temporary output files
+    with tempfile.NamedTemporaryFile(suffix=".yml", delete=False) as uptodate_f:
+        uptodate_path = uptodate_f.name
+    with tempfile.NamedTemporaryFile(suffix=".txt", delete=False) as report_f:
+        report_path = report_f.name
+
+    try:
+        # Run Phase A validation with forcing="off"
+        annotate_missing_parameters(
+            user_file=str(config_path),
+            standard_file=str(config_path),
+            uptodate_file=uptodate_path,
+            report_file=report_path,
+            mode="public",
+            phase="A",
+            nlayer=3,
+            forcing="off",
+        )
+
+        # Verify report does not contain forcing validation errors
+        with open(report_path, "r") as f:
+            report_content = f.read()
+
+        assert "forcing data validation error" not in report_content.lower()
+    finally:
+        # Cleanup temporary files
+        Path(uptodate_path).unlink(missing_ok=True)
+        Path(report_path).unlink(missing_ok=True)

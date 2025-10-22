@@ -1,6 +1,8 @@
 import yaml
 import os
 import subprocess
+import pandas as pd
+from pathlib import Path
 
 RENAMED_PARAMS = {
     "cp": "rho_cp",
@@ -930,6 +932,96 @@ def validate_nlayer_dimensions(user_data: dict, nlayer: int) -> tuple:
     return user_data, dimension_errors
 
 
+def validate_forcing_data(user_yaml_file: str) -> tuple:
+    """Validate forcing data file referenced in user YAML.
+
+    Args:
+        user_yaml_file: Path to user YAML configuration file
+
+    Returns:
+        Tuple of (forcing_errors, forcing_file_path) where forcing_errors is a list of error messages
+        and forcing_file_path is the path to the forcing file (or None if not found).
+    """
+    forcing_errors = []
+    forcing_file_path = None
+
+    try:
+        # Load user YAML to extract forcing file path
+        with open(user_yaml_file, "r") as f:
+            user_data = yaml.safe_load(f)
+
+        # Navigate to model.control.forcing_file
+        if not user_data or "model" not in user_data:
+            return forcing_errors, forcing_file_path
+
+        model = user_data.get("model", {})
+        if not isinstance(model, dict):
+            return forcing_errors, forcing_file_path
+
+        control = model.get("control", {})
+        if not isinstance(control, dict):
+            return forcing_errors, forcing_file_path
+
+        forcing_file = control.get("forcing_file", None)
+        if forcing_file is None:
+            forcing_errors.append("Forcing file path not found in model.control.forcing_file")
+            return forcing_errors, forcing_file_path
+
+        # Handle RefValue format
+        if isinstance(forcing_file, dict) and "value" in forcing_file:
+            forcing_file_path = forcing_file["value"]
+        else:
+            forcing_file_path = forcing_file
+
+        # Handle list of forcing files (take first one for validation)
+        if isinstance(forcing_file_path, list):
+            if len(forcing_file_path) > 0:
+                forcing_file_path = forcing_file_path[0]
+            else:
+                forcing_errors.append("Forcing file list is empty")
+                return forcing_errors, None
+
+        # Resolve relative path from YAML location
+        yaml_dir = Path(user_yaml_file).parent
+        forcing_path = Path(forcing_file_path)
+        if not forcing_path.is_absolute():
+            forcing_path = yaml_dir / forcing_path
+
+        # Check if forcing file exists
+        if not forcing_path.exists():
+            forcing_errors.append(f"Forcing file not found: {forcing_file_path}")
+            return forcing_errors, str(forcing_file_path)
+
+        # Import check_forcing and loader from supy
+        try:
+            from supy._check import check_forcing
+            from supy._load import load_SUEWS_Forcing_met_df_yaml
+        except ImportError as e:
+            forcing_errors.append(f"Cannot import required functions from supy: {str(e)}")
+            return forcing_errors, str(forcing_file_path)
+
+        # Load forcing data using the proper loader
+        try:
+            df_forcing = load_SUEWS_Forcing_met_df_yaml(str(forcing_path))
+        except Exception as e:
+            forcing_errors.append(f"Failed to read forcing file: {str(e)}")
+            return forcing_errors, str(forcing_file_path)
+
+        # Run check_forcing validation
+        try:
+            issues = check_forcing(df_forcing, fix=False)
+            if issues:
+                forcing_errors.extend(issues)
+        except Exception as e:
+            forcing_errors.append(f"Forcing validation failed: {str(e)}")
+
+        return forcing_errors, str(forcing_file_path)
+
+    except Exception as e:
+        forcing_errors.append(f"Error during forcing validation: {str(e)}")
+        return forcing_errors, forcing_file_path
+
+
 def cleanup_renamed_comments(yaml_content):
     """Remove renamed in standard comments from YAML content for clean output."""
     lines = yaml_content.split("\n")
@@ -1041,6 +1133,7 @@ def create_analysis_report(
     mode="public",
     phase="A",
     dimension_errors=None,
+    forcing_errors=None,
 ):
     """Create analysis report with summary of changes."""
     report_lines = []
@@ -1063,15 +1156,16 @@ def create_analysis_report(
     renamed_count = len(renamed_replacements)
     extra_count = len(extra_params) if extra_params else 0
     dimension_errors_count = len(dimension_errors) if dimension_errors else 0
+    forcing_errors_count = len(forcing_errors) if forcing_errors else 0
 
-    # ACTION NEEDED section - critical/urgent parameters, dimension errors, AND forbidden extra parameters
+    # ACTION NEEDED section - critical/urgent parameters, dimension errors, forcing errors, AND forbidden extra parameters
     # Categorise extra parameters to find forbidden ones
     forbidden_extras = []
     if extra_count > 0 and mode != "public":  # Only show forbidden extras in dev mode
         categorised = categorise_extra_parameters(extra_params)
         forbidden_extras = categorised["ACTION_NEEDED"]
 
-    total_action_needed = urgent_count + len(forbidden_extras) + dimension_errors_count
+    total_action_needed = urgent_count + len(forbidden_extras) + dimension_errors_count + forcing_errors_count
     has_action_items = total_action_needed > 0
 
     if has_action_items:
@@ -1142,6 +1236,16 @@ def create_analysis_report(
                         report_lines.append(
                             f"   Suggested fix: Remove {actual_len - expected_len} value(s) to match nlayer={expected_len}"
                         )
+            report_lines.append("")
+
+        # Forcing data errors - CRITICAL
+        if forcing_errors_count > 0:
+            report_lines.append(
+                f"- Found ({forcing_errors_count}) forcing data validation error(s):"
+            )
+            for error_msg in forcing_errors:
+                report_lines.append(f"-- {error_msg}")
+            report_lines.append("   Suggested fix: Review and correct forcing data file")
             report_lines.append("")
 
         # Critical missing parameters
@@ -1291,6 +1395,7 @@ def annotate_missing_parameters(
     mode="public",
     phase="A",
     nlayer=None,
+    forcing="on",
 ):
     try:
         with open(user_file, "r") as f:
@@ -1314,11 +1419,16 @@ def annotate_missing_parameters(
         user_data, dimension_errors = validate_nlayer_dimensions(user_data, nlayer)
         # user_data now contains padded arrays with nulls - we'll write this back
 
+    # Validate forcing data if enabled
+    forcing_errors = []
+    if forcing == "on":
+        forcing_errors, _ = validate_forcing_data(user_file)
+
     missing_params = find_missing_parameters(user_data, standard_data)
     extra_params = find_extra_parameters(user_data, standard_data)
 
     # Generate content for both files
-    if missing_params or renamed_replacements or extra_params or dimension_errors:
+    if missing_params or renamed_replacements or extra_params or dimension_errors or forcing_errors:
         # If dimension errors occurred, serialize the modified user_data with padded nulls
         if dimension_errors:
             # Convert modified user_data back to YAML string
@@ -1349,6 +1459,7 @@ def annotate_missing_parameters(
             mode,
             phase,
             dimension_errors,
+            forcing_errors,
         )
     else:
         print("No missing in standard or renamed in standard parameters found!")
@@ -1356,15 +1467,15 @@ def annotate_missing_parameters(
         uptodate_content = create_uptodate_yaml_header() + original_yaml_content
         uptodate_filename = os.path.basename(uptodate_file) if uptodate_file else None
         report_content = create_analysis_report(
-            [], [], [], uptodate_filename, mode, phase, []
+            [], [], [], uptodate_filename, mode, phase, [], forcing_errors
         )
 
-    # Print clean terminal output based on critical parameters and dimension errors
+    # Print clean terminal output based on critical parameters, dimension errors, and forcing errors
     critical_params = [
         (path, val, is_phys) for path, val, is_phys in missing_params if is_phys
     ]
 
-    if critical_params or dimension_errors:
+    if critical_params or dimension_errors or forcing_errors:
         if critical_params:
             print(f"Action needed: CRITICAL parameters missing:")
             for param_path, standard_value, _ in critical_params:
@@ -1382,6 +1493,12 @@ def annotate_missing_parameters(
                     print(
                         f"  - {array_name}: has {actual} elements, expected {expected}"
                     )
+        if forcing_errors:
+            print(f"Action needed: FORCING DATA validation errors:")
+            for error_msg in forcing_errors[:3]:  # Show first 3 errors
+                print(f"  - {error_msg}")
+            if len(forcing_errors) > 3:
+                print(f"  ... and {len(forcing_errors) - 3} more error(s)")
         print("")
         report_filename = (
             os.path.basename(report_file) if report_file else "report file"

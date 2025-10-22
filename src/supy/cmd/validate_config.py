@@ -217,8 +217,15 @@ def validate_single_file(
     "--schema-version",
     help="Schema version to validate against in --dry-run",
 )
+@click.option(
+    "--forcing",
+    "-f",
+    type=click.Choice(["on", "off"]),
+    default="on",
+    help="Enable/disable forcing data validation (default: on)",
+)
 @click.pass_context
-def cli(ctx, files, pipeline, mode, dry_run, out_format, schema_version):
+def cli(ctx, files, pipeline, mode, dry_run, out_format, schema_version, forcing):
     """SUEWS Configuration Validator.
 
     Default behavior: run the complete validation pipeline on FILE. Use subcommands
@@ -367,7 +374,7 @@ def cli(ctx, files, pipeline, mode, dry_run, out_format, schema_version):
                 "[red]✗ Provide exactly one YAML FILE for pipeline execution[/red]"
             )
             ctx.exit(2)
-        code = _execute_pipeline(file=files[0], pipeline=pipeline, mode=mode)
+        code = _execute_pipeline(file=files[0], pipeline=pipeline, mode=mode, forcing=forcing)
         ctx.exit(code)
 
 
@@ -755,7 +762,7 @@ def _format_phase_output(
     return None
 
 
-def _execute_pipeline(file, pipeline, mode):
+def _execute_pipeline(file, pipeline, mode, forcing="on"):
     """Run YAML validation pipeline to validate and generate reports/YAML.
 
     The validation system uses multiple internal phases:
@@ -816,6 +823,7 @@ def _execute_pipeline(file, pipeline, mode):
             mode=mode,
             phase="A",
             silent=True,
+            forcing=forcing,
         )
         console.print(
             "[green]✓ Validation completed[/green]"
@@ -896,6 +904,7 @@ def _execute_pipeline(file, pipeline, mode):
             mode=mode,
             phase="AB",
             silent=True,
+            forcing=forcing,
         )
         if not a_ok:
             # Phase A failed in AB workflow - create final user files from Phase A outputs
@@ -1007,6 +1016,7 @@ def _execute_pipeline(file, pipeline, mode):
             mode=mode,
             phase="AC",
             silent=True,
+            forcing=forcing,
         )
         if not a_ok:
             # Phase A failed in AC workflow - create final user files from Phase A outputs
@@ -1271,6 +1281,7 @@ def _execute_pipeline(file, pipeline, mode):
         mode=mode,
         phase="ABC",
         silent=True,
+        forcing=forcing,
     )
     if not a_ok:
         # Phase A failed in ABC - create final files from Phase A outputs

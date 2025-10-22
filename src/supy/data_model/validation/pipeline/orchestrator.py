@@ -481,6 +481,7 @@ def run_phase_a(
     mode: str = "public",
     phase: str = "A",
     silent: bool = False,
+    forcing: str = "on",
 ) -> bool:
     """Execute Phase A: Configuration structure checks and parameter updates."""
     if not silent:
@@ -499,6 +500,7 @@ def run_phase_a(
                 mode=mode,
                 phase=phase,
                 nlayer=nlayer_value,
+                forcing=forcing,
             )
 
         if not os.path.exists(uptodate_file):

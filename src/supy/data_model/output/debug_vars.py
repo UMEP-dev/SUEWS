@@ -16,7 +16,13 @@ from .variables import (
 SURFACE_TYPES = ["Paved", "Bldgs", "EveTr", "DecTr", "Grass", "BSoil", "Water"]
 
 
-def make_debug_surface_vars(base_name, unit, description_template, aggregation=AggregationMethod.AVERAGE, format_spec="f104"):
+def make_debug_surface_vars(
+    base_name,
+    unit,
+    description_template,
+    aggregation=AggregationMethod.AVERAGE,
+    format_spec="f104",
+):
     """Helper to create debug variables for all surface types.
 
     Args:
@@ -68,68 +74,61 @@ FLAG_VAR = [
 
 # Surface temperature by surface type
 TS_VARS = make_debug_surface_vars(
-    "Ts", "degC", "Surface temperature for {}",
-    AggregationMethod.AVERAGE, "f104"
+    "Ts", "degC", "Surface temperature for {}", AggregationMethod.AVERAGE, "f104"
 )
 
 # Net radiation by surface type
 QN_VARS = make_debug_surface_vars(
-    "QN", "W m-2", "Net all-wave radiation for {}",
-    AggregationMethod.AVERAGE, "f104"
+    "QN", "W m-2", "Net all-wave radiation for {}", AggregationMethod.AVERAGE, "f104"
 )
 
 # Storage heat flux by surface type
 QS_VARS = make_debug_surface_vars(
-    "QS", "W m-2", "Storage heat flux for {}",
-    AggregationMethod.AVERAGE, "f104"
+    "QS", "W m-2", "Storage heat flux for {}", AggregationMethod.AVERAGE, "f104"
 )
 
 # Latent heat flux from PM by surface type
 QE0_VARS = make_debug_surface_vars(
-    "QE0", "W m-2", "Latent heat flux from PM for {}",
-    AggregationMethod.AVERAGE, "f104"
+    "QE0", "W m-2", "Latent heat flux from PM for {}", AggregationMethod.AVERAGE, "f104"
 )
 
 # Latent heat flux by surface type
 QE_VARS = make_debug_surface_vars(
-    "QE", "W m-2", "Latent heat flux for {}",
-    AggregationMethod.AVERAGE, "f104"
+    "QE", "W m-2", "Latent heat flux for {}", AggregationMethod.AVERAGE, "f104"
 )
 
 # Sensible heat flux by surface type
 QH_VARS = make_debug_surface_vars(
-    "QH", "W m-2", "Sensible heat flux for {}",
-    AggregationMethod.AVERAGE, "f104"
+    "QH", "W m-2", "Sensible heat flux for {}", AggregationMethod.AVERAGE, "f104"
 )
 
 # Water use by surface type
 WU_VARS = make_debug_surface_vars(
-    "wu", "mm", "Water use for {}",
-    AggregationMethod.AVERAGE, "f104"
+    "wu", "mm", "Water use for {}", AggregationMethod.AVERAGE, "f104"
 )
 
 # Evapotranspiration from PM by surface type
 EV0_VARS = make_debug_surface_vars(
-    "ev0", "mm", "Evapotranspiration from PM for {}",
-    AggregationMethod.AVERAGE, "f104"
+    "ev0", "mm", "Evapotranspiration from PM for {}", AggregationMethod.AVERAGE, "f104"
 )
 
 # Evapotranspiration by surface type
 EV_VARS = make_debug_surface_vars(
-    "ev", "mm", "Evapotranspiration for {}",
-    AggregationMethod.AVERAGE, "f104"
+    "ev", "mm", "Evapotranspiration for {}", AggregationMethod.AVERAGE, "f104"
 )
 
 # Drainage by surface type
 DRAIN_VARS = make_debug_surface_vars(
-    "drain", "mm", "Drainage for {}",
-    AggregationMethod.AVERAGE, "f104"
+    "drain", "mm", "Drainage for {}", AggregationMethod.AVERAGE, "f104"
 )
 
 # Surface wetness (previous timestep) by surface type
 ST_PREV_VARS = make_debug_surface_vars(
-    "st", "mm", "Surface wetness (previous timestep) for {}",
-    AggregationMethod.AVERAGE, "f104"
+    "st",
+    "mm",
+    "Surface wetness (previous timestep) for {}",
+    AggregationMethod.AVERAGE,
+    "f104",
 )
 # Rename to add _prev suffix
 for var in ST_PREV_VARS:
@@ -141,8 +140,11 @@ for var in ST_PREV_VARS:
 
 # Surface wetness (next timestep) by surface type
 ST_NEXT_VARS = make_debug_surface_vars(
-    "st", "mm", "Surface wetness (next timestep) for {}",
-    AggregationMethod.AVERAGE, "f104"
+    "st",
+    "mm",
+    "Surface wetness (next timestep) for {}",
+    AggregationMethod.AVERAGE,
+    "f104",
 )
 # Rename to add _next suffix
 for var in ST_NEXT_VARS:
@@ -152,17 +154,17 @@ for var in ST_NEXT_VARS:
 
 # Combine all debug variables
 DEBUG_VARIABLES = (
-    FLAG_VAR +
-    TS_VARS +
-    QN_VARS +
-    QS_VARS +
-    QE0_VARS +
-    QE_VARS +
-    QH_VARS +
-    WU_VARS +
-    EV0_VARS +
-    EV_VARS +
-    DRAIN_VARS +
-    ST_PREV_VARS +
-    ST_NEXT_VARS
+    FLAG_VAR
+    + TS_VARS
+    + QN_VARS
+    + QS_VARS
+    + QE0_VARS
+    + QE_VARS
+    + QH_VARS
+    + WU_VARS
+    + EV0_VARS
+    + EV_VARS
+    + DRAIN_VARS
+    + ST_PREV_VARS
+    + ST_NEXT_VARS
 )

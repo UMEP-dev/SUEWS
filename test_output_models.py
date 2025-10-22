@@ -9,7 +9,7 @@ import sys
 import os
 
 # Add src/supy/data_model directly to path to avoid importing full supy package
-data_model_path = os.path.join(os.path.dirname(__file__), 'src', 'supy', 'data_model')
+data_model_path = os.path.join(os.path.dirname(__file__), "src", "supy", "data_model")
 sys.path.insert(0, data_model_path)
 
 # Direct import from output module
@@ -33,15 +33,15 @@ from output.debug_vars import DEBUG_VARIABLES
 # Assemble registry manually for testing
 OUTPUT_REGISTRY = OutputVariableRegistry(
     variables=(
-        DATETIME_VARIABLES +
-        SUEWS_VARIABLES +
-        SNOW_VARIABLES +
-        ESTM_VARIABLES +
-        RSL_VARIABLES +
-        DAILYSTATE_VARIABLES +
-        BL_VARIABLES +
-        BEERS_VARIABLES +
-        DEBUG_VARIABLES
+        DATETIME_VARIABLES
+        + SUEWS_VARIABLES
+        + SNOW_VARIABLES
+        + ESTM_VARIABLES
+        + RSL_VARIABLES
+        + DAILYSTATE_VARIABLES
+        + BL_VARIABLES
+        + BEERS_VARIABLES
+        + DEBUG_VARIABLES
     )
 )
 
@@ -56,11 +56,15 @@ def test_registry_basic():
 
     # Check all groups are present
     datetime_vars = OUTPUT_REGISTRY.by_group(OutputGroup.DATETIME)
-    assert len(datetime_vars) == 5, f"Should have 5 datetime variables, got {len(datetime_vars)}"
+    assert len(datetime_vars) == 5, (
+        f"Should have 5 datetime variables, got {len(datetime_vars)}"
+    )
     print(f"✓ datetime: {len(datetime_vars)} variables")
 
     suews_vars = OUTPUT_REGISTRY.by_group(OutputGroup.SUEWS)
-    assert len(suews_vars) == 85, f"Should have 85 SUEWS variables, got {len(suews_vars)}"
+    assert len(suews_vars) == 85, (
+        f"Should have 85 SUEWS variables, got {len(suews_vars)}"
+    )
     print(f"✓ SUEWS: {len(suews_vars)} variables")
 
     snow_vars = OUTPUT_REGISTRY.by_group(OutputGroup.SNOW)
@@ -76,7 +80,9 @@ def test_registry_basic():
     print(f"✓ RSL: {len(rsl_vars)} variables")
 
     dailystate_vars = OUTPUT_REGISTRY.by_group(OutputGroup.DAILYSTATE)
-    assert len(dailystate_vars) == 47, f"Should have 47 DailyState variables, got {len(dailystate_vars)}"
+    assert len(dailystate_vars) == 47, (
+        f"Should have 47 DailyState variables, got {len(dailystate_vars)}"
+    )
     print(f"✓ DailyState: {len(dailystate_vars)} variables")
 
     bl_vars = OUTPUT_REGISTRY.by_group(OutputGroup.BL)
@@ -84,7 +90,9 @@ def test_registry_basic():
     print(f"✓ BL: {len(bl_vars)} variables")
 
     beers_vars = OUTPUT_REGISTRY.by_group(OutputGroup.BEERS)
-    assert len(beers_vars) == 29, f"Should have 29 BEERS variables, got {len(beers_vars)}"
+    assert len(beers_vars) == 29, (
+        f"Should have 29 BEERS variables, got {len(beers_vars)}"
+    )
     print(f"✓ BEERS: {len(beers_vars)} variables")
 
     debug_vars = OUTPUT_REGISTRY.by_group(OutputGroup.DEBUG)
@@ -102,7 +110,9 @@ def test_specific_variables():
     qh = OUTPUT_REGISTRY.by_name("QH")
     assert qh is not None, "QH variable should exist"
     assert qh.unit == "W m-2", f"QH unit should be 'W m-2', got '{qh.unit}'"
-    assert qh.aggregation == AggregationMethod.AVERAGE, "QH should use AVERAGE aggregation"
+    assert qh.aggregation == AggregationMethod.AVERAGE, (
+        "QH should use AVERAGE aggregation"
+    )
     assert qh.group == OutputGroup.SUEWS, "QH should be in SUEWS group"
     assert qh.level == OutputLevel.DEFAULT, "QH should be DEFAULT level"
     print(f"✓ QH: {qh.description} [{qh.unit}]")
@@ -111,7 +121,9 @@ def test_specific_variables():
     t2 = OUTPUT_REGISTRY.by_name("T2")
     assert t2 is not None, "T2 variable should exist"
     assert t2.unit == "degC", f"T2 unit should be 'degC', got '{t2.unit}'"
-    assert t2.aggregation == AggregationMethod.AVERAGE, "T2 should use AVERAGE aggregation"
+    assert t2.aggregation == AggregationMethod.AVERAGE, (
+        "T2 should use AVERAGE aggregation"
+    )
     print(f"✓ T2: {t2.description} [{t2.unit}]")
 
     # Test Rain (precipitation)
@@ -146,7 +158,9 @@ def test_output_levels():
     print(f"✓ Up to SNOW_DETAILED level: {len(all_vars)} variables")
 
     # DEFAULT should be subset of EXTENDED
-    assert len(default_vars) <= len(extended_vars), "DEFAULT should be subset of EXTENDED"
+    assert len(default_vars) <= len(extended_vars), (
+        "DEFAULT should be subset of EXTENDED"
+    )
     # EXTENDED should be subset of all
     assert len(extended_vars) <= len(all_vars), "EXTENDED should be subset of all"
 
@@ -256,7 +270,9 @@ def main():
         print(f"  - snow: {len(OUTPUT_REGISTRY.by_group(OutputGroup.SNOW))}")
         print(f"  - ESTM: {len(OUTPUT_REGISTRY.by_group(OutputGroup.ESTM))}")
         print(f"  - RSL: {len(OUTPUT_REGISTRY.by_group(OutputGroup.RSL))}")
-        print(f"  - DailyState: {len(OUTPUT_REGISTRY.by_group(OutputGroup.DAILYSTATE))}")
+        print(
+            f"  - DailyState: {len(OUTPUT_REGISTRY.by_group(OutputGroup.DAILYSTATE))}"
+        )
         print(f"  - BL: {len(OUTPUT_REGISTRY.by_group(OutputGroup.BL))}")
         print(f"  - BEERS: {len(OUTPUT_REGISTRY.by_group(OutputGroup.BEERS))}")
         print(f"  - debug: {len(OUTPUT_REGISTRY.by_group(OutputGroup.DEBUG))}")
@@ -277,6 +293,7 @@ def main():
         print("=" * 70)
         print(f"❌ UNEXPECTED ERROR: {e}")
         import traceback
+
         traceback.print_exc()
         print("=" * 70)
         return 1

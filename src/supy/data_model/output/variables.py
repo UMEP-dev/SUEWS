@@ -20,6 +20,7 @@ class AggregationMethod(str, Enum):
         SUM: Cumulative sum over period
         LAST: Last value in the period
     """
+
     TIME = "T"
     AVERAGE = "A"
     SUM = "S"
@@ -34,6 +35,7 @@ class OutputLevel(int, Enum):
         EXTENDED: Extended variable set (level 1)
         SNOW_DETAILED: Snow-specific detailed output (level 2)
     """
+
     DEFAULT = 0
     EXTENDED = 1
     SNOW_DETAILED = 2
@@ -53,6 +55,7 @@ class OutputGroup(str, Enum):
         BEERS: BEERS radiation model outputs
         DAILYSTATE: Daily accumulated state variables
     """
+
     DATETIME = "datetime"
     SUEWS = "SUEWS"
     SNOW = "snow"
@@ -76,6 +79,7 @@ class OutputVariable(BaseModel):
         level: Output priority level
         format: Fortran format specifier (for compatibility)
     """
+
     name: str = Field(description="Variable name (column header)")
     unit: str = Field(description="Physical units")
     description: str = Field(description="Long-form description")
@@ -94,9 +98,9 @@ class OutputVariableRegistry(BaseModel):
     This class provides the central registry for all SUEWS output variables,
     replacing the Fortran-based runtime extraction with Python-first definitions.
     """
+
     variables: List[OutputVariable] = Field(
-        default_factory=list,
-        description="All registered output variables"
+        default_factory=list, description="All registered output variables"
     )
 
     def by_group(self, group: OutputGroup) -> List[OutputVariable]:
@@ -122,8 +126,10 @@ class OutputVariableRegistry(BaseModel):
         # Handle both enum and int values (Pydantic may convert with use_enum_values)
         max_val = max_level.value if isinstance(max_level, OutputLevel) else max_level
         return [
-            v for v in self.variables
-            if (v.level.value if isinstance(v.level, OutputLevel) else v.level) <= max_val
+            v
+            for v in self.variables
+            if (v.level.value if isinstance(v.level, OutputLevel) else v.level)
+            <= max_val
         ]
 
     def by_name(self, name: str) -> Optional[OutputVariable]:
@@ -151,7 +157,8 @@ class OutputVariableRegistry(BaseModel):
                 group_key = group.value if isinstance(group, OutputGroup) else group
                 dict_var_aggm[group_key] = {
                     v.name: self._get_agg_func(
-                        v.aggregation if isinstance(v.aggregation, AggregationMethod)
+                        v.aggregation
+                        if isinstance(v.aggregation, AggregationMethod)
                         else AggregationMethod(v.aggregation)
                     )
                     for v in group_vars
@@ -185,9 +192,17 @@ class OutputVariableRegistry(BaseModel):
         data = []
         for var in self.variables:
             # Handle both enum and primitive values (Pydantic may convert with use_enum_values)
-            group_val = var.group.value if isinstance(var.group, OutputGroup) else var.group
-            aggm_val = var.aggregation.value if isinstance(var.aggregation, AggregationMethod) else var.aggregation
-            level_val = var.level.value if isinstance(var.level, OutputLevel) else var.level
+            group_val = (
+                var.group.value if isinstance(var.group, OutputGroup) else var.group
+            )
+            aggm_val = (
+                var.aggregation.value
+                if isinstance(var.aggregation, AggregationMethod)
+                else var.aggregation
+            )
+            level_val = (
+                var.level.value if isinstance(var.level, OutputLevel) else var.level
+            )
 
             data.append({
                 "group": group_val,

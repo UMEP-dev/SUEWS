@@ -40,15 +40,15 @@ from .debug_vars import DEBUG_VARIABLES
 # Assemble the global registry from all variable modules
 OUTPUT_REGISTRY = OutputVariableRegistry(
     variables=(
-        DATETIME_VARIABLES +
-        SUEWS_VARIABLES +
-        SNOW_VARIABLES +
-        ESTM_VARIABLES +
-        RSL_VARIABLES +
-        DAILYSTATE_VARIABLES +
-        BL_VARIABLES +
-        BEERS_VARIABLES +
-        DEBUG_VARIABLES
+        DATETIME_VARIABLES
+        + SUEWS_VARIABLES
+        + SNOW_VARIABLES
+        + ESTM_VARIABLES
+        + RSL_VARIABLES
+        + DAILYSTATE_VARIABLES
+        + BL_VARIABLES
+        + BEERS_VARIABLES
+        + DEBUG_VARIABLES
     )
 )
 

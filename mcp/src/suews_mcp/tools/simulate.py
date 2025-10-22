@@ -22,12 +22,27 @@ async def run_simulation(
         Dictionary with simulation results and summary
     """
     try:
-        # Import SuPy components
-        from supy import run_supy
+        # Import SUEWSSimulation class
+        from supy import SUEWSSimulation
 
-        # Load and validate config
-        config_data = load_yaml_file(config_path)
-        config = SUEWSConfig.model_validate(config_data)
+        # Create simulation from config
+        # This loads config, creates df_state_init, and tries to load forcing
+        sim = SUEWSSimulation(config_path)
+
+        # Check if forcing data is loaded
+        if sim.forcing is None:
+            return {
+                "success": False,
+                "error": "No forcing data available. Please specify forcing file in config or use update_forcing()",
+            }
+
+        # Extract start and end dates from config
+        start_date = None
+        end_date = None
+        if hasattr(sim.config, 'model') and hasattr(sim.config.model, 'control'):
+            control = sim.config.model.control
+            start_date = getattr(control, 'start_time', None)
+            end_date = getattr(control, 'end_time', None)
 
         # Set up output directory
         if output_dir is None:
@@ -35,24 +50,61 @@ async def run_simulation(
         output_dir = Path(output_dir)
         output_dir.mkdir(parents=True, exist_ok=True)
 
-        # Run simulation using SuPy
-        # Note: run_supy interface may vary - adjust as needed
-        results = run_supy(config)
+        # Run simulation with config dates
+        try:
+            df_output = sim.run(start_date=start_date, end_date=end_date)
+        except IndexError as e:
+            # This typically means forcing data doesn't cover requested period
+            # Get forcing data time range for helpful error message
+            forcing_start = sim.forcing.index.min()
+            forcing_end = sim.forcing.index.max()
 
-        # Generate summary
+            return {
+                "success": False,
+                "error": "Forcing data does not cover the requested simulation period",
+                "details": {
+                    "requested_period": {
+                        "start": str(start_date) if start_date else "not specified",
+                        "end": str(end_date) if end_date else "not specified",
+                    },
+                    "available_forcing_data": {
+                        "start": str(forcing_start),
+                        "end": str(forcing_end),
+                    },
+                    "suggestion": "Update config start_time and end_time to match forcing data period, or provide forcing data that covers the requested period",
+                },
+                "original_error": str(e),
+            }
+
+        # Save results
+        saved_files = sim.save(output_dir)
+
+        # Generate summary (convert all Path objects to strings for JSON serialization)
         summary = {
             "success": True,
             "message": "Simulation completed successfully",
-            "config": config.name,
+            "config": sim.config.name if sim.config else "Unknown",
             "output_dir": str(output_dir),
+            "num_timesteps": len(df_output) if df_output is not None else 0,
+            "saved_files": [str(f) for f in saved_files] if saved_files else [],
         }
 
-        # Add results summary if available
-        if results is not None:
-            summary["results"] = format_results_summary(results)
+        # Add basic results statistics
+        if df_output is not None:
+            summary["results_summary"] = format_results_summary(df_output)
 
         return summary
 
+    except FileNotFoundError as e:
+        return {
+            "success": False,
+            "error": f"File not found: {str(e)}",
+        }
+    except RuntimeError as e:
+        return {
+            "success": False,
+            "error": f"Runtime error: {str(e)}",
+        }
     except Exception as e:
         return {
             "success": False,

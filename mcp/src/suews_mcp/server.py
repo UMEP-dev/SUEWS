@@ -10,7 +10,7 @@ from typing import Any, Dict
 from mcp.server import Server
 from mcp.types import Tool, TextContent
 
-from .tools import configure, simulate, analyze, knowledge, utilities
+from .tools import configure, simulate, analyze, knowledge, utilities, forcing
 
 # Create MCP server instance
 app = Server("supy-mcp")
@@ -122,17 +122,17 @@ async def list_tools() -> list[Tool]:
             },
         ),
         Tool(
-            name="get_model_docs",
-            description="Get documentation for a specific Pydantic model (e.g., 'Site', 'Surface', 'OHM')",
+            name="get_config_docs",
+            description="Get configuration parameter documentation for SUEWS models (e.g., 'Site', 'OHM', 'SurfaceProperties'). Returns what you can configure, not physics implementation.",
             inputSchema={
                 "type": "object",
                 "properties": {
-                    "model_name": {
+                    "config_name": {
                         "type": "string",
-                        "description": "Name of model to document",
+                        "description": "Name of configuration model to document",
                     }
                 },
-                "required": ["model_name"],
+                "required": ["config_name"],
             },
         ),
         Tool(
@@ -178,6 +178,58 @@ async def list_tools() -> list[Tool]:
                 "required": ["scheme_name"],
             },
         ),
+        Tool(
+            name="get_forcing_format_guide",
+            description="Get comprehensive guidance for converting meteorological data to SUEWS forcing format. Returns format specifications, Python conversion templates, unit conversions, and validation scripts.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "source_format": {
+                        "type": "string",
+                        "description": "Optional hint about source data format (e.g., 'csv', 'netcdf', 'weather_station')",
+                    },
+                    "variables_available": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "Optional list of available variable names in source data",
+                    },
+                },
+            },
+        ),
+        Tool(
+            name="get_era5_forcing",
+            description="Retrieve ERA5 reanalysis data and convert to SUEWS forcing format. Downloads meteorological data for any location on Earth (1940-present) using the optimized ERA5 time series API. Requires CDS API credentials.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "lat": {
+                        "type": "number",
+                        "description": "Latitude in decimal degrees (-90 to 90)",
+                    },
+                    "lon": {
+                        "type": "number",
+                        "description": "Longitude in decimal degrees (-180 to 180)",
+                    },
+                    "start_date": {
+                        "type": "string",
+                        "description": "Start date in YYYY-MM-DD format",
+                    },
+                    "end_date": {
+                        "type": "string",
+                        "description": "End date in YYYY-MM-DD format",
+                    },
+                    "output_path": {
+                        "type": "string",
+                        "description": "Path where to save the SUEWS forcing file",
+                    },
+                    "api_key": {
+                        "type": "string",
+                        "description": "Optional CDS API key (if not configured in ~/.cdsapirc)",
+                    },
+                },
+                "required": ["lat", "lon", "start_date", "end_date", "output_path"],
+            },
+        ),
         # Utility tools - SUEWS-specific calculations
         Tool(
             name="calculate_ohm_coefficients",
@@ -215,28 +267,6 @@ async def list_tools() -> list[Tool]:
                     },
                 },
                 "required": ["results_path"],
-            },
-        ),
-        Tool(
-            name="calculate_roughness",
-            description="Calculate roughness length and displacement height from urban morphology",
-            inputSchema={
-                "type": "object",
-                "properties": {
-                    "building_height": {
-                        "type": "number",
-                        "description": "Mean building height (m)",
-                    },
-                    "plan_area_fraction": {
-                        "type": "number",
-                        "description": "Building plan area fraction (0-1)",
-                    },
-                    "frontal_area_index": {
-                        "type": "number",
-                        "description": "Optional frontal area index",
-                    },
-                },
-                "required": ["building_height", "plan_area_fraction"],
             },
         ),
         # Data access tools
@@ -313,8 +343,8 @@ async def call_tool(name: str, arguments: Dict[str, Any]) -> list[TextContent]:
         # Knowledge tools
         elif name == "get_config_schema":
             result = knowledge.get_config_schema(**arguments)
-        elif name == "get_model_docs":
-            result = knowledge.get_model_docs(**arguments)
+        elif name == "get_config_docs":
+            result = knowledge.get_config_docs(**arguments)
         elif name == "list_available_models":
             result = knowledge.list_available_models(**arguments)
         elif name == "get_variable_info":
@@ -323,13 +353,16 @@ async def call_tool(name: str, arguments: Dict[str, Any]) -> list[TextContent]:
             result = knowledge.list_physics_schemes(**arguments)
         elif name == "get_physics_implementation":
             result = knowledge.get_physics_implementation(**arguments)
+        elif name == "get_forcing_format_guide":
+            result = knowledge.get_forcing_format_guide(**arguments)
+        # Forcing data tools
+        elif name == "get_era5_forcing":
+            result = await forcing.get_era5_forcing(**arguments)
         # Utility tools
         elif name == "calculate_ohm_coefficients":
             result = utilities.calculate_ohm_coefficients(**arguments)
         elif name == "calculate_surface_conductance":
             result = utilities.calculate_surface_conductance(**arguments)
-        elif name == "calculate_roughness":
-            result = utilities.calculate_roughness(**arguments)
         # Data access tools
         elif name == "load_results":
             result = await analyze.load_results(**arguments)

@@ -511,6 +511,10 @@ CONTAINS
             IF (config%flag_test .AND. PRESENT(debugState)) THEN
                debugState%state_15_beers = modState
             END IF
+            !==============Use dyOHM storage heat flux to convert surface temperature
+            CALL suews_update_tsurf_dyohm( &
+               timer, config, forcing, siteInfo, & ! input
+               modState) ! input/output:
 
 
             !==============translation of  output variables into output array===========
@@ -762,6 +766,77 @@ CONTAINS
       END ASSOCIATE
 
    END SUBROUTINE suews_update_tsurf
+
+   SUBROUTINE suews_update_tsurf_dyohm( &
+      timer, config, forcing, siteInfo, & ! input
+      modState) ! input/output:
+
+      USE SUEWS_DEF_DTS, ONLY: SUEWS_CONFIG, SUEWS_FORCING, SUEWS_TIMER, SUEWS_SITE, LC_PAVED_PRM, LC_BLDG_PRM, &
+                               LC_EVETR_PRM, LC_DECTR_PRM, LC_GRASS_PRM, &
+                               LC_BSOIL_PRM, LC_WATER_PRM, HEAT_STATE, flag_STATE, &
+                               SUEWS_STATE
+      TYPE(SUEWS_CONFIG), INTENT(IN) :: config
+      TYPE(SUEWS_TIMER), INTENT(IN) :: timer
+      TYPE(SUEWS_FORCING), INTENT(IN) :: forcing
+      TYPE(SUEWS_SITE), INTENT(IN) :: siteInfo
+
+      TYPE(SUEWS_STATE), INTENT(inout) :: modState
+
+      INTEGER :: i_surf, i_layer, nz
+      REAL(KIND(1D0)) :: dif_tsfc_iter, ratio_iter
+      REAL(KIND(1D0)) :: T_bottom
+      REAL(KIND(1D0)), DIMENSION(5) :: z
+      REAL(KIND(1D0)), ALLOCATABLE :: prev_profile(:), next_profile(:)
+      ASSOCIATE ( &
+         timestep => timer%tstep, &
+         flagState => modState%flagState, &
+         heatState => modState%heatState, &
+         atmState => modState%atmState, &
+         ehcPrm => siteInfo%ehc &
+         )
+
+         ASSOCIATE ( &
+            flag_converge => flagState%flag_converge, &
+            diagnose => config%diagnose, &
+            StorageHeatMethod => config%StorageHeatMethod, &
+            nlayer => siteInfo%nlayer, &
+            avdens => atmState%avdens, &
+            avcp => atmState%avcp, &
+            TSfc_C => heatState%TSfc_C, &
+            temp_surf_in => heatState%temp_surf_dyohm, &
+            temp_surf_dyohm => heatState%temp_surf_dyohm, &
+            temp_c => forcing%temp_c, &
+            QS_surf => heatState%qs_surf, &
+            k_surf => ehcPrm%k_surf, &
+            cp_surf => ehcPrm%cp_surf &
+            )
+
+            !============= calculate surface specific QS and Tsfc ===============
+            nz = 5
+            T_bottom = 11.1D0 !annual mean air temperature in London 2012
+            z = (/ 0.0D0, 0.03D0, 0.1D0, 1.5D0, 3.0D0 /)
+            ! Loop over surfaces
+            DO i_surf = 1, nsurf
+               ALLOCATE(prev_profile(nz), next_profile(nz))
+               prev_profile = heatState%temp_surf_dyohm(i_surf, :)
+
+               next_profile = cal_tsfc_dyohm( &
+                  Temp_in = prev_profile, &
+                  Qs      = QS_surf(i_surf), &
+                  K       = k_surf(i_surf, 1), &
+                  C       = cp_surf(i_surf, 1), &
+                  z       = z, nz = nz, &
+                  T_bottom = T_bottom, dt = timestep )
+
+               heatState%temp_surf_dyohm(i_surf, :) = next_profile
+               !save the surface temperature
+               heatState%tsfc_surf_dyohm(i_surf) = next_profile(1)
+               DEALLOCATE(prev_profile, next_profile)
+            END DO
+         END ASSOCIATE
+      END ASSOCIATE
+
+   END SUBROUTINE suews_update_tsurf_dyohm
 
 ! ===================ANTHROPOGENIC HEAT + CO2 FLUX================================
    SUBROUTINE SUEWS_cal_AnthropogenicEmission( &
@@ -1224,12 +1299,11 @@ CONTAINS
             qn_roof => heatState%qn_roof, &
             qn_wall => heatState%qn_wall, &
             Tsurf_ind => heatState%Tsurf_ind, &
-            tsfc_surf => heatState%tsfc_surf, &
+            !tsfc_surf => heatState%tsfc_surf, &
+            tsfc_surf => heatState%tsfc_surf_dyohm, &
             buildings => stebbsState%buildings, &
             !tsfc_roof => heatState%tsfc_roof, &
-            !tsfc_wall => heatState%tsfc_wall, &   
-            !tsfc_roof => stebbsState%Textroof_C, &
-            !tsfc_wall => stebbsState%Textwall_C, &                  
+            !tsfc_wall => heatState%tsfc_wall, &                   
             spartacusPrm => siteInfo%spartacus, &
             spartacusLayerPrm => siteInfo%spartacus_layer, &
             NARP_TRANS_SITE => siteInfo%NARP_TRANS_SITE, &
@@ -1506,6 +1580,24 @@ CONTAINS
             a1_bldg => ohmState%a1_bldg, &
             a2_bldg => ohmState%a2_bldg, &
             a3_bldg => ohmState%a3_bldg, &
+            a1_paved => ohmState%a1_paved, &
+            a2_paved => ohmState%a2_paved, &
+            a3_paved => ohmState%a3_paved, &
+            a1_evetr => ohmState%a1_evetr, &
+            a2_evetr => ohmState%a2_evetr, &
+            a3_evetr => ohmState%a3_evetr, &             
+            a1_dectr => ohmState%a1_dectr, &
+            a2_dectr => ohmState%a2_dectr, &
+            a3_dectr => ohmState%a3_dectr, &        
+            a1_grass => ohmState%a1_grass, &
+            a2_grass => ohmState%a2_grass, &
+            a3_grass => ohmState%a3_grass, &   
+            a1_bsoil => ohmState%a1_bsoil, &
+            a2_bsoil => ohmState%a2_bsoil, &
+            a3_bsoil => ohmState%a3_bsoil, &   
+            a1_water => ohmState%a1_water, &
+            a2_water => ohmState%a2_water, &
+            a3_water => ohmState%a3_water, &
             t2_prev => ohmState%t2_prev, &
             ws_rav => ohmState%ws_rav, &
             qn_rav => ohmState%qn_rav, &
@@ -1532,25 +1624,24 @@ CONTAINS
                )
 
                ! sfr_surf = [pavedPrm%sfr, bldgPrm%sfr, evetrPrm%sfr, dectrPrm%sfr, grassPrm%sfr, bsoilPrm%sfr, waterPrm%sfr]
-
-               OHM_coef(1, 1, 1) = pavedPrm%ohm%ohm_coef_lc(1)%summer_wet
-               OHM_coef(1, 2, 1) = pavedPrm%ohm%ohm_coef_lc(1)%summer_dry
-               OHM_coef(1, 3, 1) = pavedPrm%ohm%ohm_coef_lc(1)%winter_wet
-               OHM_coef(1, 4, 1) = pavedPrm%ohm%ohm_coef_lc(1)%winter_dry
-               !WRITE (*, *) 'OHM_coef_paved(1)%winter_dry', OHM_coef_paved(1)%winter_dry
-               !WRITE (*, *) 'OHM_coef(1, 4, 1)', OHM_coef(1, 4, 1)
-
-               OHM_coef(1, 1, 2) = pavedPrm%ohm%ohm_coef_lc(2)%summer_wet
-               OHM_coef(1, 2, 2) = pavedPrm%ohm%ohm_coef_lc(2)%summer_dry
-               OHM_coef(1, 3, 2) = pavedPrm%ohm%ohm_coef_lc(2)%winter_wet
-               OHM_coef(1, 4, 2) = pavedPrm%ohm%ohm_coef_lc(2)%winter_dry
-
-               OHM_coef(1, 1, 3) = pavedPrm%ohm%ohm_coef_lc(3)%summer_wet
-               OHM_coef(1, 2, 3) = pavedPrm%ohm%ohm_coef_lc(3)%summer_dry
-               OHM_coef(1, 3, 3) = pavedPrm%ohm%ohm_coef_lc(3)%winter_wet
-               OHM_coef(1, 4, 3) = pavedPrm%ohm%ohm_coef_lc(3)%winter_dry
-
                IF (storageheatmethod /= 6 .AND. storageheatmethod /= 7) THEN
+                  OHM_coef(1, 1, 1) = pavedPrm%ohm%ohm_coef_lc(1)%summer_wet
+                  OHM_coef(1, 2, 1) = pavedPrm%ohm%ohm_coef_lc(1)%summer_dry
+                  OHM_coef(1, 3, 1) = pavedPrm%ohm%ohm_coef_lc(1)%winter_wet
+                  OHM_coef(1, 4, 1) = pavedPrm%ohm%ohm_coef_lc(1)%winter_dry
+                  !WRITE (*, *) 'OHM_coef_paved(1)%winter_dry', OHM_coef_paved(1)%winter_dry
+                  !WRITE (*, *) 'OHM_coef(1, 4, 1)', OHM_coef(1, 4, 1)
+
+                  OHM_coef(1, 1, 2) = pavedPrm%ohm%ohm_coef_lc(2)%summer_wet
+                  OHM_coef(1, 2, 2) = pavedPrm%ohm%ohm_coef_lc(2)%summer_dry
+                  OHM_coef(1, 3, 2) = pavedPrm%ohm%ohm_coef_lc(2)%winter_wet
+                  OHM_coef(1, 4, 2) = pavedPrm%ohm%ohm_coef_lc(2)%winter_dry
+
+                  OHM_coef(1, 1, 3) = pavedPrm%ohm%ohm_coef_lc(3)%summer_wet
+                  OHM_coef(1, 2, 3) = pavedPrm%ohm%ohm_coef_lc(3)%summer_dry
+                  OHM_coef(1, 3, 3) = pavedPrm%ohm%ohm_coef_lc(3)%winter_wet
+                  OHM_coef(1, 4, 3) = pavedPrm%ohm%ohm_coef_lc(3)%winter_dry
+
                   OHM_coef(2, 1, 1) = bldgPrm%ohm%ohm_coef_lc(1)%summer_wet
                   OHM_coef(2, 2, 1) = bldgPrm%ohm%ohm_coef_lc(1)%summer_dry
                   OHM_coef(2, 3, 1) = bldgPrm%ohm%ohm_coef_lc(1)%winter_wet
@@ -1565,99 +1656,82 @@ CONTAINS
                   OHM_coef(2, 2, 3) = bldgPrm%ohm%ohm_coef_lc(3)%summer_dry
                   OHM_coef(2, 3, 3) = bldgPrm%ohm%ohm_coef_lc(3)%winter_wet
                   OHM_coef(2, 4, 3) = bldgPrm%ohm%ohm_coef_lc(3)%winter_dry
-               ELSEIF (storageheatmethod == 7) THEN
-                  OHM_coef(2, 1, 1) = 0
-                  OHM_coef(2, 2, 1) = 0
-                  OHM_coef(2, 3, 1) = 0
-                  OHM_coef(2, 4, 1) = 0
 
-                  OHM_coef(2, 1, 2) = 0
-                  OHM_coef(2, 2, 2) = 0
-                  OHM_coef(2, 3, 2) = 0
-                  OHM_coef(2, 4, 2) = 0
+                  OHM_coef(3, 1, 1) = evetrPrm%ohm%ohm_coef_lc(1)%summer_wet
+                  OHM_coef(3, 2, 1) = evetrPrm%ohm%ohm_coef_lc(1)%summer_dry
+                  OHM_coef(3, 3, 1) = evetrPrm%ohm%ohm_coef_lc(1)%winter_wet
+                  OHM_coef(3, 4, 1) = evetrPrm%ohm%ohm_coef_lc(1)%winter_dry
 
-                  OHM_coef(2, 1, 3) = 0
-                  OHM_coef(2, 2, 3) = 0
-                  OHM_coef(2, 3, 3) = 0
-                  OHM_coef(2, 4, 3) = 0
+                  OHM_coef(3, 1, 2) = evetrPrm%ohm%ohm_coef_lc(2)%summer_wet
+                  OHM_coef(3, 2, 2) = evetrPrm%ohm%ohm_coef_lc(2)%summer_dry
+                  OHM_coef(3, 3, 2) = evetrPrm%ohm%ohm_coef_lc(2)%winter_wet
+                  OHM_coef(3, 4, 2) = evetrPrm%ohm%ohm_coef_lc(2)%winter_dry
 
+                  OHM_coef(3, 1, 3) = evetrPrm%ohm%ohm_coef_lc(3)%summer_wet
+                  OHM_coef(3, 2, 3) = evetrPrm%ohm%ohm_coef_lc(3)%summer_dry
+                  OHM_coef(3, 3, 3) = evetrPrm%ohm%ohm_coef_lc(3)%winter_wet
+                  OHM_coef(3, 4, 3) = evetrPrm%ohm%ohm_coef_lc(3)%winter_dry
+
+                  OHM_coef(4, 1, 1) = dectrPrm%ohm%ohm_coef_lc(1)%summer_wet
+                  OHM_coef(4, 2, 1) = dectrPrm%ohm%ohm_coef_lc(1)%summer_dry
+                  OHM_coef(4, 3, 1) = dectrPrm%ohm%ohm_coef_lc(1)%winter_wet
+                  OHM_coef(4, 4, 1) = dectrPrm%ohm%ohm_coef_lc(1)%winter_dry
+
+                  OHM_coef(4, 1, 2) = dectrPrm%ohm%ohm_coef_lc(2)%summer_wet
+                  OHM_coef(4, 2, 2) = dectrPrm%ohm%ohm_coef_lc(2)%summer_dry
+                  OHM_coef(4, 3, 2) = dectrPrm%ohm%ohm_coef_lc(2)%winter_wet
+                  OHM_coef(4, 4, 2) = dectrPrm%ohm%ohm_coef_lc(2)%winter_dry
+
+                  OHM_coef(4, 1, 3) = dectrPrm%ohm%ohm_coef_lc(3)%summer_wet
+                  OHM_coef(4, 2, 3) = dectrPrm%ohm%ohm_coef_lc(3)%summer_dry
+                  OHM_coef(4, 3, 3) = dectrPrm%ohm%ohm_coef_lc(3)%winter_wet
+                  OHM_coef(4, 4, 3) = dectrPrm%ohm%ohm_coef_lc(3)%winter_dry
+
+                  OHM_coef(5, 1, 1) = grassPrm%ohm%ohm_coef_lc(1)%summer_wet
+                  OHM_coef(5, 2, 1) = grassPrm%ohm%ohm_coef_lc(1)%summer_dry
+                  OHM_coef(5, 3, 1) = grassPrm%ohm%ohm_coef_lc(1)%winter_wet
+                  OHM_coef(5, 4, 1) = grassPrm%ohm%ohm_coef_lc(1)%winter_dry
+
+                  OHM_coef(5, 1, 2) = grassPrm%ohm%ohm_coef_lc(2)%summer_wet
+                  OHM_coef(5, 2, 2) = grassPrm%ohm%ohm_coef_lc(2)%summer_dry
+                  OHM_coef(5, 3, 2) = grassPrm%ohm%ohm_coef_lc(2)%winter_wet
+                  OHM_coef(5, 4, 2) = grassPrm%ohm%ohm_coef_lc(2)%winter_dry
+
+                  OHM_coef(5, 1, 3) = grassPrm%ohm%ohm_coef_lc(3)%summer_wet
+                  OHM_coef(5, 2, 3) = grassPrm%ohm%ohm_coef_lc(3)%summer_dry
+                  OHM_coef(5, 3, 3) = grassPrm%ohm%ohm_coef_lc(3)%winter_wet
+                  OHM_coef(5, 4, 3) = grassPrm%ohm%ohm_coef_lc(3)%winter_dry
+
+                  OHM_coef(6, 1, 1) = bsoilPrm%ohm%ohm_coef_lc(1)%summer_wet
+                  OHM_coef(6, 2, 1) = bsoilPrm%ohm%ohm_coef_lc(1)%summer_dry
+                  OHM_coef(6, 3, 1) = bsoilPrm%ohm%ohm_coef_lc(1)%winter_wet
+                  OHM_coef(6, 4, 1) = bsoilPrm%ohm%ohm_coef_lc(1)%winter_dry
+
+                  OHM_coef(6, 1, 2) = bsoilPrm%ohm%ohm_coef_lc(2)%summer_wet
+                  OHM_coef(6, 2, 2) = bsoilPrm%ohm%ohm_coef_lc(2)%summer_dry
+                  OHM_coef(6, 3, 2) = bsoilPrm%ohm%ohm_coef_lc(2)%winter_wet
+                  OHM_coef(6, 4, 2) = bsoilPrm%ohm%ohm_coef_lc(2)%winter_dry
+
+                  OHM_coef(6, 1, 3) = bsoilPrm%ohm%ohm_coef_lc(3)%summer_wet
+                  OHM_coef(6, 2, 3) = bsoilPrm%ohm%ohm_coef_lc(3)%summer_dry
+                  OHM_coef(6, 3, 3) = bsoilPrm%ohm%ohm_coef_lc(3)%winter_wet
+                  OHM_coef(6, 4, 3) = bsoilPrm%ohm%ohm_coef_lc(3)%winter_dry
+
+                  OHM_coef(7, 1, 1) = waterPrm%ohm%ohm_coef_lc(1)%summer_wet
+                  OHM_coef(7, 2, 1) = waterPrm%ohm%ohm_coef_lc(1)%summer_dry
+                  OHM_coef(7, 3, 1) = waterPrm%ohm%ohm_coef_lc(1)%winter_wet
+                  OHM_coef(7, 4, 1) = waterPrm%ohm%ohm_coef_lc(1)%winter_dry
+
+                  OHM_coef(7, 1, 2) = waterPrm%ohm%ohm_coef_lc(2)%summer_wet
+                  OHM_coef(7, 2, 2) = waterPrm%ohm%ohm_coef_lc(2)%summer_dry
+                  OHM_coef(7, 3, 2) = waterPrm%ohm%ohm_coef_lc(2)%winter_wet
+                  OHM_coef(7, 4, 2) = waterPrm%ohm%ohm_coef_lc(2)%winter_dry
+
+                  OHM_coef(7, 1, 3) = waterPrm%ohm%ohm_coef_lc(3)%summer_wet
+                  OHM_coef(7, 2, 3) = waterPrm%ohm%ohm_coef_lc(3)%summer_dry
+                  OHM_coef(7, 3, 3) = waterPrm%ohm%ohm_coef_lc(3)%winter_wet
+                  OHM_coef(7, 4, 3) = waterPrm%ohm%ohm_coef_lc(3)%winter_dry
                END IF
-
-               OHM_coef(3, 1, 1) = evetrPrm%ohm%ohm_coef_lc(1)%summer_wet
-               OHM_coef(3, 2, 1) = evetrPrm%ohm%ohm_coef_lc(1)%summer_dry
-               OHM_coef(3, 3, 1) = evetrPrm%ohm%ohm_coef_lc(1)%winter_wet
-               OHM_coef(3, 4, 1) = evetrPrm%ohm%ohm_coef_lc(1)%winter_dry
-
-               OHM_coef(3, 1, 2) = evetrPrm%ohm%ohm_coef_lc(2)%summer_wet
-               OHM_coef(3, 2, 2) = evetrPrm%ohm%ohm_coef_lc(2)%summer_dry
-               OHM_coef(3, 3, 2) = evetrPrm%ohm%ohm_coef_lc(2)%winter_wet
-               OHM_coef(3, 4, 2) = evetrPrm%ohm%ohm_coef_lc(2)%winter_dry
-
-               OHM_coef(3, 1, 3) = evetrPrm%ohm%ohm_coef_lc(3)%summer_wet
-               OHM_coef(3, 2, 3) = evetrPrm%ohm%ohm_coef_lc(3)%summer_dry
-               OHM_coef(3, 3, 3) = evetrPrm%ohm%ohm_coef_lc(3)%winter_wet
-               OHM_coef(3, 4, 3) = evetrPrm%ohm%ohm_coef_lc(3)%winter_dry
-
-               OHM_coef(4, 1, 1) = dectrPrm%ohm%ohm_coef_lc(1)%summer_wet
-               OHM_coef(4, 2, 1) = dectrPrm%ohm%ohm_coef_lc(1)%summer_dry
-               OHM_coef(4, 3, 1) = dectrPrm%ohm%ohm_coef_lc(1)%winter_wet
-               OHM_coef(4, 4, 1) = dectrPrm%ohm%ohm_coef_lc(1)%winter_dry
-
-               OHM_coef(4, 1, 2) = dectrPrm%ohm%ohm_coef_lc(2)%summer_wet
-               OHM_coef(4, 2, 2) = dectrPrm%ohm%ohm_coef_lc(2)%summer_dry
-               OHM_coef(4, 3, 2) = dectrPrm%ohm%ohm_coef_lc(2)%winter_wet
-               OHM_coef(4, 4, 2) = dectrPrm%ohm%ohm_coef_lc(2)%winter_dry
-
-               OHM_coef(4, 1, 3) = dectrPrm%ohm%ohm_coef_lc(3)%summer_wet
-               OHM_coef(4, 2, 3) = dectrPrm%ohm%ohm_coef_lc(3)%summer_dry
-               OHM_coef(4, 3, 3) = dectrPrm%ohm%ohm_coef_lc(3)%winter_wet
-               OHM_coef(4, 4, 3) = dectrPrm%ohm%ohm_coef_lc(3)%winter_dry
-
-               OHM_coef(5, 1, 1) = grassPrm%ohm%ohm_coef_lc(1)%summer_wet
-               OHM_coef(5, 2, 1) = grassPrm%ohm%ohm_coef_lc(1)%summer_dry
-               OHM_coef(5, 3, 1) = grassPrm%ohm%ohm_coef_lc(1)%winter_wet
-               OHM_coef(5, 4, 1) = grassPrm%ohm%ohm_coef_lc(1)%winter_dry
-
-               OHM_coef(5, 1, 2) = grassPrm%ohm%ohm_coef_lc(2)%summer_wet
-               OHM_coef(5, 2, 2) = grassPrm%ohm%ohm_coef_lc(2)%summer_dry
-               OHM_coef(5, 3, 2) = grassPrm%ohm%ohm_coef_lc(2)%winter_wet
-               OHM_coef(5, 4, 2) = grassPrm%ohm%ohm_coef_lc(2)%winter_dry
-
-               OHM_coef(5, 1, 3) = grassPrm%ohm%ohm_coef_lc(3)%summer_wet
-               OHM_coef(5, 2, 3) = grassPrm%ohm%ohm_coef_lc(3)%summer_dry
-               OHM_coef(5, 3, 3) = grassPrm%ohm%ohm_coef_lc(3)%winter_wet
-               OHM_coef(5, 4, 3) = grassPrm%ohm%ohm_coef_lc(3)%winter_dry
-
-               OHM_coef(6, 1, 1) = bsoilPrm%ohm%ohm_coef_lc(1)%summer_wet
-               OHM_coef(6, 2, 1) = bsoilPrm%ohm%ohm_coef_lc(1)%summer_dry
-               OHM_coef(6, 3, 1) = bsoilPrm%ohm%ohm_coef_lc(1)%winter_wet
-               OHM_coef(6, 4, 1) = bsoilPrm%ohm%ohm_coef_lc(1)%winter_dry
-
-               OHM_coef(6, 1, 2) = bsoilPrm%ohm%ohm_coef_lc(2)%summer_wet
-               OHM_coef(6, 2, 2) = bsoilPrm%ohm%ohm_coef_lc(2)%summer_dry
-               OHM_coef(6, 3, 2) = bsoilPrm%ohm%ohm_coef_lc(2)%winter_wet
-               OHM_coef(6, 4, 2) = bsoilPrm%ohm%ohm_coef_lc(2)%winter_dry
-
-               OHM_coef(6, 1, 3) = bsoilPrm%ohm%ohm_coef_lc(3)%summer_wet
-               OHM_coef(6, 2, 3) = bsoilPrm%ohm%ohm_coef_lc(3)%summer_dry
-               OHM_coef(6, 3, 3) = bsoilPrm%ohm%ohm_coef_lc(3)%winter_wet
-               OHM_coef(6, 4, 3) = bsoilPrm%ohm%ohm_coef_lc(3)%winter_dry
-
-               OHM_coef(7, 1, 1) = waterPrm%ohm%ohm_coef_lc(1)%summer_wet
-               OHM_coef(7, 2, 1) = waterPrm%ohm%ohm_coef_lc(1)%summer_dry
-               OHM_coef(7, 3, 1) = waterPrm%ohm%ohm_coef_lc(1)%winter_wet
-               OHM_coef(7, 4, 1) = waterPrm%ohm%ohm_coef_lc(1)%winter_dry
-
-               OHM_coef(7, 1, 2) = waterPrm%ohm%ohm_coef_lc(2)%summer_wet
-               OHM_coef(7, 2, 2) = waterPrm%ohm%ohm_coef_lc(2)%summer_dry
-               OHM_coef(7, 3, 2) = waterPrm%ohm%ohm_coef_lc(2)%winter_wet
-               OHM_coef(7, 4, 2) = waterPrm%ohm%ohm_coef_lc(2)%winter_dry
-
-               OHM_coef(7, 1, 3) = waterPrm%ohm%ohm_coef_lc(3)%summer_wet
-               OHM_coef(7, 2, 3) = waterPrm%ohm%ohm_coef_lc(3)%summer_dry
-               OHM_coef(7, 3, 3) = waterPrm%ohm%ohm_coef_lc(3)%winter_wet
-               OHM_coef(7, 4, 3) = waterPrm%ohm%ohm_coef_lc(3)%winter_dry
-
                OHM_coef(8, 1, 1) = 0.0
                OHM_coef(8, 2, 1) = 0.0
                OHM_coef(8, 3, 1) = 0.0
@@ -1772,9 +1846,16 @@ CONTAINS
                            ws_rav, qn_rav, nlayer, &
                            dz_roof, cp_roof, k_roof, &
                            dz_wall, cp_wall, k_wall, &
+                           dz_surf, cp_surf, k_surf, &
                            lambda_c, &
                            StorageHeatMethod, DiagQS, timer, &
                            a1_bldg, a2_bldg, a3_bldg, &
+                           a1_paved, a2_paved, a3_paved, &
+                           a1_evetr, a2_evetr, a3_evetr, &
+                           a1_dectr, a2_dectr, a3_dectr, &
+                           a1_grass, a2_grass, a3_grass, &
+                           a1_bsoil, a2_bsoil, a3_bsoil, &
+                           a1_water, a2_water, a3_water, & 
                            a1, a2, a3, qs, deltaQi)
                   QS_surf = qs
                   QS_roof = qs
@@ -3266,6 +3347,7 @@ CONTAINS
             tot_chang_per_tstep => hydroState%tot_chang_per_tstep, &
             tsurf => heatState%tsurf, &
             Tsfc_surf => heatState%Tsfc_surf, &
+            Tsfc_surf_dyohm => heatState%Tsfc_surf_dyohm, &
             UStar => atmState%UStar, &
             TStar => atmState%TStar, &
             wu_surf => hydroState%wu_surf, &
@@ -3328,7 +3410,7 @@ CONTAINS
                                qn_snowfree, qn_snow, SnowAlb, &
                                Qm, QmFreez, QmRain, swe, mwh, MwStore, chSnow_per_interval, &
                                SnowRemoval(1:2), &
-                               tsfc_C, t2_C, q2_gkg, avU10_ms, RH2_pct, Tsfc_surf & ! surface-level diagonostics
+                               tsfc_C, t2_C, q2_gkg, avU10_ms, RH2_pct, Tsfc_surf, Tsfc_surf_dyohm & ! surface-level diagonostics
                                ]
             ! set invalid values to NAN
             ! dataOutLineSUEWS = set_nan(dataOutLineSUEWS)
@@ -4068,8 +4150,9 @@ CONTAINS
       REAL(KIND(1D0)), DIMENSION(nlayer, ndepth), INTENT(INOUT) :: temp_wall !interface temperature between depth layers in wall [degC]
       REAL(KIND(1D0)), DIMENSION(nlayer), INTENT(INOUT) :: tsfc_wall !wall surface temperature [degC]
       REAL(KIND(1D0)), DIMENSION(nsurf), INTENT(INOUT) :: tsfc_surf !surface temperature [degC]
+      !REAL(KIND(1D0)), DIMENSION(nsurf), INTENT(OUT) :: tsfc_surf_dyohm !surface temperature [degC]
       REAL(KIND(1D0)), DIMENSION(nsurf, ndepth), INTENT(INOUT) :: temp_surf !interface temperature between depth layers [degC]
-
+      !REAL(KIND(1D0)), DIMENSION(nsurf, ndepth), INTENT(OUT) :: temp_surf_dyohm !interface temperature between depth layers [degC]
       ! ---OHM related states
       TYPE(OHM_STATE) :: ohmState
       REAL(KIND(1D0)), INTENT(INOUT) :: qn_av ! weighted average of net all-wave radiation [W m-2]
@@ -4085,7 +4168,24 @@ CONTAINS
       REAL(KIND(1D0)) :: a1_bldg ! Dynamic OHM coefficients of buildings
       REAL(KIND(1D0)) :: a2_bldg ! Dynamic OHM coefficients of buildings
       REAL(KIND(1D0)) :: a3_bldg ! Dynamic OHM coefficients of buildings
-
+      REAL(KIND(1D0)) :: a1_paved ! Dynamic OHM coefficients of paved
+      REAL(KIND(1D0)) :: a2_paved ! Dynamic OHM coefficients of paved
+      REAL(KIND(1D0)) :: a3_paved ! Dynamic OHM coefficients of paved
+      REAL(KIND(1D0)) :: a1_evetr ! Dynamic OHM coefficients of evetree
+      REAL(KIND(1D0)) :: a2_evetr ! Dynamic OHM coefficients of evetree
+      REAL(KIND(1D0)) :: a3_evetr ! Dynamic OHM coefficients of evetree
+      REAL(KIND(1D0)) :: a1_dectr ! Dynamic OHM coefficients of dectree
+      REAL(KIND(1D0)) :: a2_dectr ! Dynamic OHM coefficients of dectree
+      REAL(KIND(1D0)) :: a3_dectr ! Dynamic OHM coefficients of dectree
+      REAL(KIND(1D0)) :: a1_grass ! Dynamic OHM coefficients of grass
+      REAL(KIND(1D0)) :: a2_grass ! Dynamic OHM coefficients of grass
+      REAL(KIND(1D0)) :: a3_grass ! Dynamic OHM coefficients of grass
+      REAL(KIND(1D0)) :: a1_bsoil ! Dynamic OHM coefficients of bare soil
+      REAL(KIND(1D0)) :: a2_bsoil ! Dynamic OHM coefficients of bare soil
+      REAL(KIND(1D0)) :: a3_bsoil ! Dynamic OHM coefficients of bare soil
+      REAL(KIND(1D0)) :: a1_water ! Dynamic OHM coefficients of water
+      REAL(KIND(1D0)) :: a2_water ! Dynamic OHM coefficients of water
+      REAL(KIND(1D0)) :: a3_water ! Dynamic OHM coefficients of water    
       ! ---snow related states
       TYPE(SNOW_STATE) :: snowState
       REAL(KIND(1D0)), INTENT(INOUT) :: SnowfallCum !cumulated snow falling [mm]
@@ -4946,9 +5046,11 @@ CONTAINS
       heatState%temp_roof = temp_roof
       heatState%temp_wall = temp_wall
       heatState%temp_surf = temp_surf
+      heatState%temp_surf_dyohm = MetForcingBlock(1, 12) !initialised temperature
       heatState%tsfc_roof = tsfc_roof
       heatState%tsfc_wall = tsfc_wall
       heatState%tsfc_surf = tsfc_surf
+      heatState%tsfc_surf_dyohm = MetForcingBlock(1, 12) !initialised temperature
 
       ! OHM related:
       ohmState%qn_av = qn_av
@@ -4963,6 +5065,24 @@ CONTAINS
       ohmState%a1_bldg = 0.0 ! Dynamic OHM coefficients of buildings
       ohmState%a2_bldg = 0.0 ! Dynamic OHM coefficients of buildings
       ohmState%a3_bldg = 0.0 ! Dynamic OHM coefficients of buildings
+      ohmState%a1_paved = 0.0 ! Dynamic OHM coefficients 
+      ohmState%a2_paved = 0.0 ! Dynamic OHM coefficients 
+      ohmState%a3_paved = 0.0 ! Dynamic OHM coefficients 
+      ohmState%a1_evetr = 0.0 ! Dynamic OHM coefficients 
+      ohmState%a2_evetr = 0.0 ! Dynamic OHM coefficients 
+      ohmState%a3_evetr = 0.0 ! Dynamic OHM coefficients 
+      ohmState%a1_dectr = 0.0 ! Dynamic OHM coefficients 
+      ohmState%a2_dectr = 0.0 ! Dynamic OHM coefficients 
+      ohmState%a3_dectr = 0.0 ! Dynamic OHM coefficients 
+      ohmState%a1_grass = 0.0 ! Dynamic OHM coefficients 
+      ohmState%a2_grass = 0.0 ! Dynamic OHM coefficients 
+      ohmState%a3_grass = 0.0 ! Dynamic OHM coefficients 
+      ohmState%a1_bsoil = 0.0 ! Dynamic OHM coefficients 
+      ohmState%a2_bsoil = 0.0 ! Dynamic OHM coefficients 
+      ohmState%a3_bsoil = 0.0 ! Dynamic OHM coefficients 
+      ohmState%a1_water = 0.0 ! Dynamic OHM coefficients 
+      ohmState%a2_water = 0.0 ! Dynamic OHM coefficients 
+      ohmState%a3_water = 0.0 ! Dynamic OHM coefficients       
 
       ! snow related:
       snowState%snowfallCum = SnowfallCum
@@ -5414,6 +5534,81 @@ CONTAINS
 
       tsfc_C = qh/(dens_air*vcp_air)*RA + temp_C
    END FUNCTION cal_tsfc
+
+FUNCTION cal_tsfc_dyohm(Temp_in, Qs, K, C, z, nz, T_bottom, dt) RESULT(Temp_out)
+    !--------------------------------------------------------------------
+    ! Updates the soil temperature profile for one timestep using an
+    ! explicit finite-difference scheme under prescribed surface heat flux
+    ! and fixed deep-soil temperature.
+    !
+    ! Inputs:
+    !   K           - thermal conductivity [W/m K]
+    !   C           - volumetric heat capacity [J/m3 K]
+    !   z(nz)       - depth coordinates [m], start=0, increasing downward
+    !   Qs          - storage heat flux/conductive heat flux at top [W/m2], positive downward
+    !   T_bottom    - fixed temperature of deep ground[°C]
+    !   dt          - timestep [s]
+    ! 
+    ! Input:
+    !   Temp_in(nz)    - soil temperature profile from previous timestep [°C]
+    !
+    ! Result:
+    !   Temp_out(nz) - soil temperature profile for next timestep [°C]
+    !
+    ! Notes:
+    !   Stability criterion: alpha*dt/dz_min^2 ≤ 0.5
+    !--------------------------------------------------------------------
+    IMPLICIT NONE
+    INTEGER, INTENT(IN) :: nz, dt
+    REAL(KIND(1D0)), INTENT(IN) :: Temp_in(nz)
+    REAL(KIND(1D0)), INTENT(IN) :: K, C, z(nz), Qs, T_bottom
+    REAL(KIND(1D0)) :: Temp_out(nz)
+    REAL(KIND(1D0)) :: alpha, dz_up, dz_down, dz_tot, dz_surface, dz_min, d2Tdz2
+    INTEGER :: i
+
+    !----------------------------------------------------------
+    ! Compute thermal diffusivity [m/s]
+    !----------------------------------------------------------
+    alpha = K / C
+
+    !----------------------------------------------------------
+    ! Stability check
+    !----------------------------------------------------------
+    dz_min = MINVAL(z(2:nz) - z(1:nz-1))
+    IF (alpha * dt / (dz_min**2) > 0.5D0) THEN
+        PRINT *, '⚠️ Warning: time step may be too large for stability.'
+        PRINT '(A,ES12.4,2X,A,I8,2X,A,F8.4)', 'alpha=', alpha, 'dt=', dt, 'dz_min=', dz_min
+    END IF
+
+    ! Initialize output
+    Temp_out = Temp_in
+
+    !----------------------------------------------------------
+    ! Interior nodes
+    !----------------------------------------------------------
+    DO i = 2, nz - 1
+        dz_up   = z(i)   - z(i - 1)
+        dz_down = z(i+1) - z(i)
+        dz_tot  = z(i+1) - z(i-1)
+
+        d2Tdz2 = (2.0D0 / dz_tot) * ((Temp_in(i+1) - Temp_in(i)) / dz_down - &
+                                     (Temp_in(i) - Temp_in(i-1)) / dz_up)
+
+        Temp_out(i) = Temp_in(i) + alpha * dt * d2Tdz2
+    END DO
+
+    !----------------------------------------------------------
+    ! Top boundary: prescribed flux (positive downward)
+    !----------------------------------------------------------
+    dz_surface = z(2) - z(1)
+    Temp_out(1) = Temp_out(2) + (Qs * dz_surface / K)
+
+    !----------------------------------------------------------
+    ! Bottom boundary: fixed deep-soil temperature
+    !----------------------------------------------------------
+    Temp_out(nz) = T_bottom
+
+END FUNCTION cal_tsfc_dyohm
 
    SUBROUTINE restore_state(mod_state, mod_state_stepstart)
       ! restore model state from the beginning of the time step while keeping the surface temperature updated from last iteration

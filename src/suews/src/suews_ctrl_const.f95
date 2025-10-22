@@ -80,7 +80,7 @@ MODULE allocateArray
    INTEGER, PARAMETER :: ncolsESTMdata = 13 !ESTM input file (_ESTM_Ts_data.txt))
 
    ! ---- Set number of columns in output files ---------------------------------------------------
-   INTEGER, PARAMETER :: ncolumnsDataOutSUEWS = 90 + 7, & !Main output file (_5.txt). dataOutSUEWS created in SUEWS_Calculations.f95
+   INTEGER, PARAMETER :: ncolumnsDataOutSUEWS = 90 + 7 + 7, & !Main output file (_5.txt). dataOutSUEWS created in SUEWS_Calculations.f95
                          ncolumnsDataOutSnow = 103, &
                          ncolumnsdataOutSOLWEIG = 31, &
                          ncolumnsDataOutBEERS = 34, &

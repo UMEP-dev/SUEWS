@@ -23,9 +23,16 @@ CONTAINS
                   ws_rav, qn_rav, nlayer, &
                   dz_roof, cp_roof, k_roof, &
                   dz_wall, cp_wall, k_wall, &
+                  dz_surf, cp_surf, k_surf, &
                   lambda_c, &
                   StorageHeatMethod, DiagQS, timer, &
                   a1_bldg, a2_bldg, a3_bldg, &
+                  a1_paved, a2_paved, a3_paved, &
+                  a1_evetr, a2_evetr, a3_evetr, &
+                  a1_dectr, a2_dectr, a3_dectr, &
+                  a1_grass, a2_grass, a3_grass, &
+                  a1_bsoil, a2_bsoil, a3_bsoil, &
+                  a1_water, a2_water, a3_water, & 
                   a1, a2, a3, qs, deltaQi)
       ! Made by HCW Jan 2015 to replace OHMnew (no longer needed).
       ! Calculates net storage heat flux (QS) from Eq 4, Grimmond et al. 1991, Atm Env.
@@ -116,10 +123,21 @@ CONTAINS
       REAL(KIND(1D0)), DIMENSION(nlayer, ndepth), INTENT(in) :: k_wall
       REAL(KIND(1D0)), DIMENSION(nlayer, ndepth), INTENT(in) :: cp_wall
       REAL(KIND(1D0)), DIMENSION(nlayer, ndepth), INTENT(in) :: dz_wall
+      !Material property of surface types
+      REAL(KIND(1D0)), DIMENSION(nsurf, ndepth), INTENT(in) :: k_surf
+      REAL(KIND(1D0)), DIMENSION(nsurf, ndepth), INTENT(in) :: cp_surf
+      REAL(KIND(1D0)), DIMENSION(nsurf, ndepth), INTENT(in) :: dz_surf
 
       REAL(KIND(1D0)), INTENT(IN) :: lambda_c ! Building surface to plan area ratio [-]
-
+      REAL(KIND(1D0)) :: lambda_c1 = 1.0D0
+      REAL(KIND(1D0)) :: ws0 = 0.0D0
       REAL(KIND(1D0)), INTENT(INOUT) :: a1_bldg, a2_bldg, a3_bldg ! Dynamic OHM coefficients of buildings
+      REAL(KIND(1D0)), INTENT(INOUT) :: a1_paved, a2_paved, a3_paved, &
+                                          a1_evetr, a2_evetr, a3_evetr, &
+                                          a1_dectr, a2_dectr, a3_dectr, &
+                                          a1_grass, a2_grass, a3_grass, &
+                                          a1_bsoil, a2_bsoil, a3_bsoil, &
+                                          a1_water, a2_water, a3_water ! Dynamic OHM coefficients of other 6 surface types
       REAL(KIND(1D0)), INTENT(out) :: a1, a2, a3 ! OHM coefficients of grid
 
       ! REAL(KIND(1d0)):: nsh_nna ! number of timesteps per hour with non -999 values (used for spinup)
@@ -136,8 +154,9 @@ CONTAINS
       !real(kind(1d0)):: OHM_TForSummer = 10  !Use summer coefficients if 5-day Tair >= 10 degC - modified for UK HCW 14 Dec 2015
       !real(kind(1d0)):: OHM_SMForWet = 0.9  !Use wet coefficients if SM close to soil capacity
 
-      IF (StorageHeatMethod == 6) THEN
+      IF (StorageHeatMethod == 6 .OR. storageheatmethod == 7) THEN
          ! MP 14/04/2025
+         ! YL 16/10/2025 test using DyOHM for all surface types
          ! get timestamps
          ASSOCIATE ( &
             iy => timer%iy, &
@@ -175,6 +194,43 @@ CONTAINS
                                dz_wall(1, 1), cp_wall(1, 1), k_wall(1, 1), lambda_c, &
                                a1_bldg, a2_bldg, a3_bldg & ! Output
                                )
+               !test: using dyOHM for other surface types, assume WS=0 at ground level, lambda_c=1
+               CALL OHM_yl_cal(dt_since_start, &
+                               ws0, T_hbh_C, T_prev, qn_rav, & ! Input
+                               dz_surf(1, 1), cp_surf(1, 1), k_surf(1, 1), lambda_c1, &
+                               a1_paved, a2_paved, a3_paved & ! Output
+                               )         
+               CALL OHM_yl_cal(dt_since_start, &
+                               ws0, T_hbh_C, T_prev, qn_rav, & ! Input
+                               dz_surf(3, 1), cp_surf(3, 1), k_surf(3, 1), lambda_c1, &
+                               a1_evetr, a2_evetr, a3_evetr & ! Output
+                               )    
+               CALL OHM_yl_cal(dt_since_start, &
+                               ws0, T_hbh_C, T_prev, qn_rav, & ! Input
+                               dz_surf(4, 1), cp_surf(4, 1), k_surf(4, 1), lambda_c1, &
+                               a1_dectr, a2_dectr, a3_dectr & ! Output
+                               )                                                                                                                               
+               CALL OHM_yl_cal(dt_since_start, &
+                               ws0, T_hbh_C, T_prev, qn_rav, & ! Input
+                               dz_surf(5, 1), cp_surf(5, 1), k_surf(5, 1), lambda_c1, &
+                               a1_grass, a2_grass, a3_grass & ! Output
+                               )  
+               CALL OHM_yl_cal(dt_since_start, &
+                               ws0, T_hbh_C, T_prev, qn_rav, & ! Input
+                               dz_surf(6, 1), cp_surf(6, 1), k_surf(6, 1), lambda_c1, &
+                               a1_bsoil, a2_bsoil, a3_bsoil & ! Output
+                               )  
+               CALL OHM_yl_cal(dt_since_start, &
+                               ws0, T_hbh_C, T_prev, qn_rav, & ! Input
+                               dz_surf(7, 1), cp_surf(7, 1), k_surf(7, 1), lambda_c1, &
+                               a1_water, a2_water, a3_water & ! Output
+                               )                                 
+               PRINT '(A, F8.4, 2X, A, F8.4, 2X, A, F8.4)', &
+                  'Paved:  a1 = ', a1_paved, 'a2 = ', a2_paved, 'a3 = ', a3_paved            
+               PRINT '(A, F8.4, 2X, A, F8.4, 2X, A, F8.4)', &
+                  'dectr:  a1 = ', a1_dectr, 'a2 = ', a2_dectr, 'a3 = ', a3_dectr               
+               PRINT '(A, F8.4, 2X, A, F8.4, 2X, A, F8.4)', &
+                  'evetr:  a1 = ', a1_evetr, 'a2 = ', a2_evetr, 'a3 = ', a3_evetr                                                                                                                                                                                                                         
                new_day = 0
                T_prev = T_hbh_C
             ELSE IF (last_tstep_Q) THEN
@@ -184,20 +240,128 @@ CONTAINS
             dt_since_start_prev = dt_since_start
          END ASSOCIATE
 
-         OHM_coef(2, 1, 1) = a1_bldg
-         OHM_coef(2, 2, 1) = a1_bldg
-         OHM_coef(2, 3, 1) = a1_bldg
-         OHM_coef(2, 4, 1) = a1_bldg
+         IF (StorageHeatMethod == 6) THEN !all surface types use DyOHM
+            OHM_coef(2, 1, 1) = a1_bldg
+            OHM_coef(2, 2, 1) = a1_bldg
+            OHM_coef(2, 3, 1) = a1_bldg
+            OHM_coef(2, 4, 1) = a1_bldg
 
-         OHM_coef(2, 1, 2) = a2_bldg
-         OHM_coef(2, 2, 2) = a2_bldg
-         OHM_coef(2, 3, 2) = a2_bldg
-         OHM_coef(2, 4, 2) = a2_bldg
+            OHM_coef(2, 1, 2) = a2_bldg
+            OHM_coef(2, 2, 2) = a2_bldg
+            OHM_coef(2, 3, 2) = a2_bldg
+            OHM_coef(2, 4, 2) = a2_bldg
 
-         OHM_coef(2, 1, 3) = a3_bldg
-         OHM_coef(2, 2, 3) = a3_bldg
-         OHM_coef(2, 3, 3) = a3_bldg
-         OHM_coef(2, 4, 3) = a3_bldg
+            OHM_coef(2, 1, 3) = a3_bldg
+            OHM_coef(2, 2, 3) = a3_bldg
+            OHM_coef(2, 3, 3) = a3_bldg
+            OHM_coef(2, 4, 3) = a3_bldg
+         ELSE ! STEBBS provide building QS
+            OHM_coef(2, 1, 1) = 0
+            OHM_coef(2, 2, 1) = 0
+            OHM_coef(2, 3, 1) = 0
+            OHM_coef(2, 4, 1) = 0
+
+            OHM_coef(2, 1, 2) = 0
+            OHM_coef(2, 2, 2) = 0
+            OHM_coef(2, 3, 2) = 0
+            OHM_coef(2, 4, 2) = 0
+
+            OHM_coef(2, 1, 3) = 0
+            OHM_coef(2, 2, 3) = 0
+            OHM_coef(2, 3, 3) = 0
+            OHM_coef(2, 4, 3) = 0
+         END IF 
+
+
+         OHM_coef(1, 1, 1) = a1_paved
+         OHM_coef(1, 2, 1) = a1_paved
+         OHM_coef(1, 3, 1) = a1_paved
+         OHM_coef(1, 4, 1) = a1_paved
+
+         OHM_coef(1, 1, 2) = a2_paved
+         OHM_coef(1, 2, 2) = a2_paved
+         OHM_coef(1, 3, 2) = a2_paved
+         OHM_coef(1, 4, 2) = a2_paved
+
+         OHM_coef(1, 1, 3) = a3_paved
+         OHM_coef(1, 2, 3) = a3_paved
+         OHM_coef(1, 3, 3) = a3_paved
+         OHM_coef(1, 4, 3) = a3_paved
+
+         OHM_coef(3, 1, 1) = a1_evetr
+         OHM_coef(3, 2, 1) = a1_evetr
+         OHM_coef(3, 3, 1) = a1_evetr
+         OHM_coef(3, 4, 1) = a1_evetr
+
+         OHM_coef(3, 1, 2) = a2_evetr
+         OHM_coef(3, 2, 2) = a2_evetr
+         OHM_coef(3, 3, 2) = a2_evetr
+         OHM_coef(3, 4, 2) = a2_evetr
+
+         OHM_coef(3, 1, 3) = a3_evetr
+         OHM_coef(3, 2, 3) = a3_evetr
+         OHM_coef(3, 3, 3) = a3_evetr
+         OHM_coef(3, 4, 3) = a3_evetr   
+
+         OHM_coef(4, 1, 1) = a1_dectr
+         OHM_coef(4, 2, 1) = a1_dectr
+         OHM_coef(4, 3, 1) = a1_dectr
+         OHM_coef(4, 4, 1) = a1_dectr
+
+         OHM_coef(4, 1, 2) = a2_dectr
+         OHM_coef(4, 2, 2) = a2_dectr
+         OHM_coef(4, 3, 2) = a2_dectr
+         OHM_coef(4, 4, 2) = a2_dectr
+
+         OHM_coef(4, 1, 3) = a3_dectr
+         OHM_coef(4, 2, 3) = a3_dectr
+         OHM_coef(4, 3, 3) = a3_dectr
+         OHM_coef(4, 4, 3) = a3_dectr  
+
+         OHM_coef(5, 1, 1) = a1_grass
+         OHM_coef(5, 2, 1) = a1_grass
+         OHM_coef(5, 3, 1) = a1_grass
+         OHM_coef(5, 4, 1) = a1_grass
+
+         OHM_coef(5, 1, 2) = a2_grass
+         OHM_coef(5, 2, 2) = a2_grass
+         OHM_coef(5, 3, 2) = a2_grass
+         OHM_coef(5, 4, 2) = a2_grass
+
+         OHM_coef(5, 1, 3) = a3_grass
+         OHM_coef(5, 2, 3) = a3_grass
+         OHM_coef(5, 3, 3) = a3_grass
+         OHM_coef(5, 4, 3) = a3_grass    
+
+         OHM_coef(6, 1, 1) = a1_bsoil
+         OHM_coef(6, 2, 1) = a1_bsoil
+         OHM_coef(6, 3, 1) = a1_bsoil
+         OHM_coef(6, 4, 1) = a1_bsoil
+
+         OHM_coef(6, 1, 2) = a2_bsoil
+         OHM_coef(6, 2, 2) = a2_bsoil
+         OHM_coef(6, 3, 2) = a2_bsoil
+         OHM_coef(6, 4, 2) = a2_bsoil
+
+         OHM_coef(6, 1, 3) = a3_bsoil
+         OHM_coef(6, 2, 3) = a3_bsoil
+         OHM_coef(6, 3, 3) = a3_bsoil
+         OHM_coef(6, 4, 3) = a3_bsoil    
+
+         OHM_coef(7, 1, 1) = a1_water
+         OHM_coef(7, 2, 1) = a1_water
+         OHM_coef(7, 3, 1) = a1_water
+         OHM_coef(7, 4, 1) = a1_water
+
+         OHM_coef(7, 1, 2) = a2_water
+         OHM_coef(7, 2, 2) = a2_water
+         OHM_coef(7, 3, 2) = a2_water
+         OHM_coef(7, 4, 2) = a2_water
+
+         OHM_coef(7, 1, 3) = a3_water
+         OHM_coef(7, 2, 3) = a3_water
+         OHM_coef(7, 3, 3) = a3_water
+         OHM_coef(7, 4, 3) = a3_water   
 
       END IF
 

@@ -171,7 +171,14 @@ MODULE ctrl_output
       varAttr('Ts_DecTr', 'degC', f104, 'surface temperature of deciduous tree surface', aA, 'SUEWS', 0), &
       varAttr('Ts_Grass', 'degC', f104, 'surface temperature of grass surface', aA, 'SUEWS', 0), &
       varAttr('Ts_BSoil', 'degC', f104, 'surface temperature of bare soil surface', aA, 'SUEWS', 0), &
-      varAttr('Ts_Water', 'degC', f104, 'surface temperature of water surface', aA, 'SUEWS', 0) &
+      varAttr('Ts_Water', 'degC', f104, 'surface temperature of water surface', aA, 'SUEWS', 0), &
+      varAttr('Ts_Paved_dyohm', 'degC', f104, 'surface temperature of paved surface', aA, 'SUEWS', 0), &
+      varAttr('Ts_Bldgs_dyohm', 'degC', f104, 'surface temperature of building surface', aA, 'SUEWS', 0), &
+      varAttr('Ts_EveTr_dyohm', 'degC', f104, 'surface temperature of evergreen tree surface', aA, 'SUEWS', 0), &
+      varAttr('Ts_DecTr_dyohm', 'degC', f104, 'surface temperature of deciduous tree surface', aA, 'SUEWS', 0), &
+      varAttr('Ts_Grass_dyohm', 'degC', f104, 'surface temperature of grass surface', aA, 'SUEWS', 0), &
+      varAttr('Ts_BSoil_dyohm', 'degC', f104, 'surface temperature of bare soil surface', aA, 'SUEWS', 0), &
+      varAttr('Ts_Water_dyohm', 'degC', f104, 'surface temperature of water surface', aA, 'SUEWS', 0) &
       /
 
    ! BEERS (successor of SOLWEIG):

@@ -660,7 +660,24 @@ MODULE SUEWS_DEF_DTS
       REAL(KIND(1D0)) :: a1_bldg = 0.0D0 ! Dynamic OHM coefficients of buildings
       REAL(KIND(1D0)) :: a2_bldg = 0.0D0 ! Dynamic OHM coefficients of buildings
       REAL(KIND(1D0)) :: a3_bldg = 0.0D0 ! Dynamic OHM coefficients of buildings
-
+      REAL(KIND(1D0)) :: a1_paved = 0.0D0! Dynamic OHM coefficients of paved
+      REAL(KIND(1D0)) :: a2_paved = 0.0D0! Dynamic OHM coefficients of paved
+      REAL(KIND(1D0)) :: a3_paved = 0.0D0! Dynamic OHM coefficients of paved
+      REAL(KIND(1D0)) :: a1_evetr = 0.0D0! Dynamic OHM coefficients of evetree
+      REAL(KIND(1D0)) :: a2_evetr = 0.0D0! Dynamic OHM coefficients of evetree
+      REAL(KIND(1D0)) :: a3_evetr = 0.0D0! Dynamic OHM coefficients of evetree
+      REAL(KIND(1D0)) :: a1_dectr = 0.0D0! Dynamic OHM coefficients of dectree
+      REAL(KIND(1D0)) :: a2_dectr = 0.0D0! Dynamic OHM coefficients of dectree
+      REAL(KIND(1D0)) :: a3_dectr = 0.0D0! Dynamic OHM coefficients of dectree
+      REAL(KIND(1D0)) :: a1_grass = 0.0D0! Dynamic OHM coefficients of grass
+      REAL(KIND(1D0)) :: a2_grass = 0.0D0! Dynamic OHM coefficients of grass
+      REAL(KIND(1D0)) :: a3_grass = 0.0D0! Dynamic OHM coefficients of grass
+      REAL(KIND(1D0)) :: a1_bsoil = 0.0D0! Dynamic OHM coefficients of bare soil
+      REAL(KIND(1D0)) :: a2_bsoil = 0.0D0! Dynamic OHM coefficients of bare soil
+      REAL(KIND(1D0)) :: a3_bsoil = 0.0D0! Dynamic OHM coefficients of bare soil
+      REAL(KIND(1D0)) :: a1_water = 0.0D0! Dynamic OHM coefficients of water
+      REAL(KIND(1D0)) :: a2_water = 0.0D0! Dynamic OHM coefficients of water
+      REAL(KIND(1D0)) :: a3_water = 0.0D0! Dynamic OHM coefficients of water
       ! flag for iteration safety - YES
       LOGICAL :: iter_safe = .TRUE.
    END TYPE OHM_STATE
@@ -858,10 +875,11 @@ MODULE SUEWS_DEF_DTS
       REAL(KIND(1D0)), DIMENSION(:, :), ALLOCATABLE :: temp_roof ! interface temperature between depth layers in roof [degC]
       REAL(KIND(1D0)), DIMENSION(:, :), ALLOCATABLE :: temp_wall ! interface temperature between depth layers in wall [degC]
       REAL(KIND(1D0)), DIMENSION(:, :), ALLOCATABLE :: temp_surf ! interface temperature between depth layers [degC]
+      REAL(KIND(1D0)), DIMENSION(:, :), ALLOCATABLE :: temp_surf_dyohm ! interface temperature between depth layers [degC]
       REAL(KIND(1D0)), DIMENSION(:), ALLOCATABLE :: tsfc_roof ! roof surface temperature [degC]
       REAL(KIND(1D0)), DIMENSION(:), ALLOCATABLE :: tsfc_wall ! wall surface temperature [degC]
       REAL(KIND(1D0)), DIMENSION(:), ALLOCATABLE :: tsfc_surf ! surface temperature [degC]
-
+      REAL(KIND(1D0)), DIMENSION(:), ALLOCATABLE :: tsfc_surf_dyohm! surface temperature [degC]
       ! surface temperature saved at the beginning of the time step - not updated during the time step
       REAL(KIND(1D0)), DIMENSION(:), ALLOCATABLE :: tsfc_roof_stepstart !surface temperature of roof saved at the beginning of the time step [degC]
       REAL(KIND(1D0)), DIMENSION(:), ALLOCATABLE :: tsfc_wall_stepstart !surface temperature of wall saved at the beginning of the time step [degC]
@@ -1575,10 +1593,12 @@ CONTAINS
       ALLOCATE (self%temp_roof(num_layer, num_depth))
       ALLOCATE (self%temp_wall(num_layer, num_depth))
       ALLOCATE (self%temp_surf(num_surf, num_depth))
+      ALLOCATE (self%temp_surf_dyohm(num_surf, num_depth))
 
       ALLOCATE (self%tsfc_roof(num_layer))
       ALLOCATE (self%tsfc_wall(num_layer))
       ALLOCATE (self%tsfc_surf(num_surf))
+      ALLOCATE (self%tsfc_surf_dyohm(num_surf))
 
       ALLOCATE (self%tsfc_roof_stepstart(num_layer))
       ALLOCATE (self%tsfc_wall_stepstart(num_layer))
@@ -1607,10 +1627,12 @@ CONTAINS
       IF (ALLOCATED(self%tsfc_roof)) DEALLOCATE (self%tsfc_roof)
       IF (ALLOCATED(self%tsfc_wall)) DEALLOCATE (self%tsfc_wall)
       IF (ALLOCATED(self%tsfc_surf)) DEALLOCATE (self%tsfc_surf)
+      IF (ALLOCATED(self%tsfc_surf_dyohm)) DEALLOCATE (self%tsfc_surf_dyohm)
       IF (ALLOCATED(self%tsfc_roof_stepstart)) DEALLOCATE (self%tsfc_roof_stepstart)
       IF (ALLOCATED(self%tsfc_wall_stepstart)) DEALLOCATE (self%tsfc_wall_stepstart)
       IF (ALLOCATED(self%tsfc_surf_stepstart)) DEALLOCATE (self%tsfc_surf_stepstart)
       IF (ALLOCATED(self%temp_surf)) DEALLOCATE (self%temp_surf)
+      IF (ALLOCATED(self%temp_surf_dyOHM)) DEALLOCATE (self%temp_surf_dyOHM)
       IF (ALLOCATED(self%QS_roof)) DEALLOCATE (self%QS_roof)
       IF (ALLOCATED(self%QN_roof)) DEALLOCATE (self%QN_roof)
       IF (ALLOCATED(self%qe_roof)) DEALLOCATE (self%qe_roof)

@@ -20,11 +20,11 @@ def calculate_ohm_coefficients(
         Dictionary with OHM coefficients (a1, a2, a3) and fit statistics
     """
     try:
-        import pandas as pd
         from supy.util import derive_ohm_coef
+        from ..utils.helpers import load_results_file
 
-        # Load results
-        df = pd.read_csv(results_path, index_col=0, parse_dates=True)
+        # Load results (supports .pkl, .parquet, .csv, .nc)
+        df = load_results_file(results_path)
 
         # Check required variables
         if "QS" not in df.columns or "QN" not in df.columns:
@@ -80,11 +80,11 @@ def calculate_surface_conductance(
         Dictionary with surface conductance values and statistics
     """
     try:
-        import pandas as pd
         from supy import util
+        from ..utils.helpers import load_results_file
 
-        # Load results
-        df = pd.read_csv(results_path, index_col=0, parse_dates=True)
+        # Load results (supports .pkl, .parquet, .csv, .nc)
+        df = load_results_file(results_path)
 
         # Check required variables (depends on method)
         required_vars = {

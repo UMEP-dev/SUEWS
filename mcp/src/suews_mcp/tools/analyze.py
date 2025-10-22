@@ -24,18 +24,13 @@ async def load_results(
         if not results_path.exists():
             return {"error": f"Results file not found: {results_path}"}
 
-        # Load based on file extension
-        if results_path.suffix == ".csv":
-            df = pd.read_csv(results_path)
-        elif results_path.suffix in [".nc", ".nc4"]:
-            import xarray as xr
+        # Load based on file extension (using common helper)
+        from ..utils.helpers import load_results_file
 
-            ds = xr.open_dataset(results_path)
-            if variables:
-                ds = ds[variables]
-            df = ds.to_dataframe()
-        else:
-            return {"error": f"Unsupported file format: {results_path.suffix}"}
+        try:
+            df = load_results_file(results_path)
+        except ValueError as e:
+            return {"error": str(e)}
 
         # Filter variables if requested
         if variables:
@@ -201,12 +196,10 @@ async def export_results(
         Dictionary with export results
     """
     try:
-        # Load results
-        results_path = Path(results_path)
-        if results_path.suffix == ".csv":
-            df = pd.read_csv(results_path, index_col=0, parse_dates=True)
-        else:
-            return {"error": "Source format not supported"}
+        from ..utils.helpers import load_results_file
+
+        # Load results (supports .pkl, .parquet, .csv, .nc)
+        df = load_results_file(results_path)
 
         # Filter variables if requested
         if variables:

@@ -71,11 +71,22 @@ async def create_config(
             config.name = name
             config.description = description
         else:
-            # Create minimal config
+            # Create minimal config with one default site
+            # SUEWSConfig requires at least one site
+            from supy.data_model.core.site import Site
+
+            minimal_site = Site(
+                name="default_site",
+                lat=51.5,  # London coordinates as example
+                lon=-0.1,
+                alt=10.0,
+                timezone=0,
+            )
+
             config = SUEWSConfig(
                 name=name,
                 description=description,
-                sites=[],  # User will need to add sites
+                sites=[minimal_site],
             )
 
         # Save to file (use mode='json' to ensure enums are strings)
@@ -124,28 +135,61 @@ async def get_config_info(config_path: str) -> Dict[str, Any]:
         return {"error": str(e)}
 
 
+def _recursive_update(obj, updates: dict):
+    """Apply dictionary updates recursively to a configuration object.
+
+    This function handles nested configuration updates properly, matching
+    the implementation in SUEWSSimulation._update_config_from_dict.
+
+    Args:
+        obj: Configuration object to update
+        updates: Dictionary of updates to apply
+    """
+    for key, value in updates.items():
+        if hasattr(obj, key):
+            attr = getattr(obj, key)
+            if isinstance(value, dict) and hasattr(attr, "__dict__"):
+                # Recursive update for nested objects
+                _recursive_update(attr, value)
+            else:
+                setattr(obj, key, value)
+
+
 async def update_config(
     config_path: str,
     updates: Dict[str, Any],
 ) -> Dict[str, Any]:
     """Update an existing configuration file.
 
+    Supports nested updates using dot notation or nested dictionaries:
+    - Nested dict: {"model": {"time": {"resolution": 3600}}}
+    - Updates are applied recursively to handle any level of nesting
+
     Args:
         config_path: Path to configuration file
-        updates: Dictionary of updates to apply
+        updates: Dictionary of updates to apply (supports nested structures)
 
     Returns:
         Dictionary with update results
+
+    Examples:
+        >>> # Update top-level field
+        >>> update_config("config.yaml", {"name": "New Name"})
+
+        >>> # Update nested field
+        >>> update_config("config.yaml", {
+        ...     "model": {
+        ...         "time": {"resolution": 3600}
+        ...     }
+        ... })
     """
     try:
         # Load existing config
         config_data = load_yaml_file(config_path)
         config = SUEWSConfig.model_validate(config_data)
 
-        # Apply updates
-        for key, value in updates.items():
-            if hasattr(config, key):
-                setattr(config, key, value)
+        # Apply updates recursively
+        _recursive_update(config, updates)
 
         # Validate updated config
         config = SUEWSConfig.model_validate(config.model_dump())
@@ -156,6 +200,7 @@ async def update_config(
         return {
             "success": True,
             "message": f"Configuration updated at {config_path}",
+            "updates_applied": updates,
         }
 
     except Exception as e:

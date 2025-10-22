@@ -4,7 +4,13 @@ This directory contains comprehensive analysis of SUEWS MCP server performance a
 
 ## Quick Navigation
 
-**Start here**: [`EXECUTIVE_SUMMARY.md`](EXECUTIVE_SUMMARY.md)
+**For presentations/talks**: [`TALK_SUMMARY.md`](TALK_SUMMARY.md) 🎤
+- Slide-ready format with key findings
+- Visual-friendly tables and metrics
+- Three root causes with solutions
+- Ready for conference/seminar presentation
+
+**For comprehensive review**: [`EXECUTIVE_SUMMARY.md`](EXECUTIVE_SUMMARY.md)
 - Overall findings and recommendations
 - Key metrics and comparisons
 - Deployment strategy
@@ -53,15 +59,13 @@ This directory contains comprehensive analysis of SUEWS MCP server performance a
    - Format scoring penalized comprehensive answers
    - Correctness scoring shows MCP equal to baseline on config
 
-### Legacy Files
+### Legacy Files (Archived)
 
-7. **[EVALUATION_SUMMARY.md](EVALUATION_SUMMARY.md)**
-   - Initial binary evaluation (100% success rate)
-   - Superseded by quantitative and scored analyses
-
-8. **[YOUR_QUESTIONS.md](YOUR_QUESTIONS.md)**
-   - Original Q&A about evaluation setup
-   - Historical reference
+All intermediate files moved to `archive/`:
+- Scripts and monitoring tools → `archive/scripts/`
+- Evaluation logs → `archive/logs/`
+- Intermediate results → `archive/intermediate_results/`
+- Legacy docs (EVALUATION_SUMMARY.md, YOUR_QUESTIONS.md) → `archive/`
 
 ## Evaluation Data
 
@@ -139,19 +143,23 @@ Raw results stored in `../evaluation_results/`:
 
 ## Reading Order
 
-**For quick overview**: Read `EXECUTIVE_SUMMARY.md`
+**For presentations/talks**: `TALK_SUMMARY.md` 🎤
+- Slide-ready format
+- Key findings, three root causes, recommendations
+- Visual-friendly tables
+
+**For quick overview**: `EXECUTIVE_SUMMARY.md`
+- Complete findings and deployment strategy
 
 **For detailed understanding**:
 1. `CORRECTNESS_ANALYSIS.md` - Core finding (4× more value)
 2. `SCORING_LIMITATIONS.md` - Why 62% underestimates (likely 80-85%)
-3. `GAP_ANALYSIS.md` - **NEW** Root causes and actionable improvements
+3. `GAP_ANALYSIS.md` - Root causes and actionable improvements
 4. `CONFIG_QUESTION_DIAGNOSIS.md` - Config "problem" explained
 5. `QUANTITATIVE_ANALYSIS.md` - Detailed metrics
 6. `SCORED_ANALYSIS.md` - Format-based scoring (for comparison)
 
-**For historical context**:
-- `EVALUATION_SUMMARY.md` - Initial binary results
-- `YOUR_QUESTIONS.md` - Original Q&A
+**For historical context**: See `archive/`
 
 ---
 

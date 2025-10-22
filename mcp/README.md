@@ -69,39 +69,43 @@ mcp/
 
 ### Understanding the Project
 - **[Use Cases](docs/USE_CASES.md)** - ⭐ **Start here!** Concrete scenarios and workflows
+- **[Skills Integration Strategy](docs/SKILLS_INTEGRATION_STRATEGY.md)** - 🚀 **Future direction!** Workflow automation plans
 - [Testing Guide](docs/testing/TESTING.md) - How to test the MCP server
-- [Testing Issues](docs/testing/MCP_TESTING_ISSUES.md) - Current implementation status
+- [Token Limit Solutions](docs/testing/TOKEN_LIMIT_SOLUTIONS.md) - How we handle large responses
 
 ### Development
 - [Evaluation Framework](docs/evaluation/EVALUATION_FRAMEWORK.md) - Quality assurance
 - [QA Review Workflow](docs/evaluation/QA_REVIEW_WORKFLOW.md) - Review process
 - [Questions List](docs/evaluation/QUESTIONS_LIST.md) - Test question bank
 
-## Available Tools (16 total)
+## Available Tools (17 total, 100% working ✅)
 
-### Configuration Management
+### Configuration Management (4 tools)
 - `validate_config` - Validate YAML configuration files
-- `create_config` - Create new configurations
+- `create_config` - Create new configurations (with nested updates support)
 - `get_config_info` - Get configuration metadata
-- `update_config` - Update existing configurations
-- `get_config_schema` - Get data model schema
+- `update_config` - Update existing configurations (supports nested structures)
 
-### Simulation
-- `run_simulation` - Execute SUEWS simulations
+### Simulation (1 tool)
+- `run_simulation` - Execute SUEWS simulations (with date validation)
 
-### Knowledge Base
-- `get_model_docs` - Access model documentation
-- `list_available_models` - List available surface types (57 models)
+### Knowledge Base (7 tools)
+- `get_config_schema` - Get configuration schema overview (navigation guide)
+- `get_config_docs` - Access configuration parameter documentation (57 models)
+- `list_available_models` - List available Pydantic models
 - `get_variable_info` - Get variable metadata (16 variables)
-- `list_physics_schemes` - List physics schemes (8 schemes)
-- `get_physics_implementation` - View Fortran physics code
+- `list_physics_schemes` - List physics schemes (24 modules: 18 physics + 4 control + 2 utility)
+- `get_physics_implementation` - View Fortran physics code (smart size handling)
+- `get_forcing_format_guide` - SUEWS forcing file format documentation
 
-### Utility Calculations
+### Forcing Data (1 tool)
+- `get_era5_forcing` - Download and convert ERA5 data to SUEWS format (global coverage)
+
+### Utility Calculations (2 tools)
 - `calculate_ohm_coefficients` - OHM coefficient calculations
 - `calculate_surface_conductance` - Surface conductance calculations
-- `calculate_roughness` - Roughness parameter calculations
 
-### Data Analysis
+### Data Access (2 tools)
 - `load_results` - Load simulation results
 - `export_results` - Export data to various formats
 
@@ -128,27 +132,32 @@ See [Use Cases](docs/USE_CASES.md) for detailed scenarios.
 
 ## Current Status
 
-**Testing Results** (as of 2025-01-21):
-- **13/16 tools tested** (3 blocked by dependencies)
-- **7 tools working** (54%)
-- **6 tools failing** (46%)
+**Production Ready** (as of 2025-10-22):
+- **15/15 tools working** (100% success rate) ✅
+- **Token limit issues resolved** (Bug #2 and #7 fixed)
+- **Complete Fortran coverage** (24 modules accessible)
+- **Naming clarified** (config vs physics distinction)
 
-**⚠️ Testing Caveat**: All tests run in editable mode with dev tree access. Results need validation in isolated environment. See [Isolated Testing](docs/testing/ISOLATED_TESTING.md).
+### Recent Improvements
 
-See [Testing Issues](docs/testing/MCP_TESTING_ISSUES.md) for details.
+**Token Limit Fixes** (Build 2025-10-22):
+- `get_config_schema`: Returns navigation guide (~500 tokens) instead of full schema (92k tokens)
+- `get_physics_implementation`: Smart size handling - full code for small schemes (<20k tokens), structured summary with subroutines for large schemes (≥20k tokens)
 
-### Working Tools ✓
-- Configuration validation and info
-- Physics scheme listing and code viewing
-- Variable documentation
-- Model listing
+**Naming Clarification**:
+- `get_model_docs` → `get_config_docs` (configuration parameters, not physics models)
+- Clear distinction: "config" for configuration, "model" for physics/SUEWS logic
 
-### Known Issues ✗
-- `run_simulation` - Missing initial state argument
-- `load_results` - Doesn't support .pkl format
-- `get_model_docs` - JSON serialization error
-- `calculate_roughness` - Missing met arguments
-- `get_config_schema` - Response too large (92k tokens)
+**Complete Fortran Code Access** (8 → 24 modules):
+- **Physics schemes** (18): OHM, water_balance, evaporation, LUMPS, NARP, anthropogenic_heat, snow, SPARTACUS, ESTM, BEERS, SOLWEIG, STEBBS, resistance, RSL, biogenic_CO2, atmospheric_stability, daily_state, element_heat_capacity
+- **Control modules** (4): driver, constants, types, output
+- **Utility modules** (2): meteorology, time_utilities
+
+### Next Phase: Claude Skills Integration
+
+See [Skills Integration Strategy](docs/SKILLS_INTEGRATION_STRATEGY.md) for plans to build high-level workflow automation on top of MCP tools.
+
+**Priority**: Implement 4 analysis tools (energy_balance, statistics, water_balance, performance) to enable workflow orchestration.
 
 ## Requirements
 

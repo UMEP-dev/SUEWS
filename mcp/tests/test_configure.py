@@ -16,7 +16,28 @@ from suews_mcp.tools.configure import (
 @pytest.fixture
 def sample_config_path():
     """Path to the sample configuration file."""
-    return "src/supy/sample_data/sample_config.yml"
+    # Try multiple paths to find the sample config
+    import os
+    candidates = [
+        "src/supy/sample_data/sample_config.yml",  # From root
+        "../src/supy/sample_data/sample_config.yml",  # From mcp/
+    ]
+
+    # Also try installed version
+    try:
+        import supy
+        pkg_path = Path(supy.__file__).parent / "sample_data" / "sample_config.yml"
+        if pkg_path.exists():
+            return str(pkg_path)
+    except ImportError:
+        pass
+
+    for candidate in candidates:
+        if os.path.exists(candidate):
+            return candidate
+
+    # If none found, return the first candidate (will fail with clear error)
+    return candidates[0]
 
 
 @pytest.fixture
@@ -150,3 +171,80 @@ async def test_update_config_nonexistent():
 
     assert result["success"] is False
     assert "error" in result
+
+
+@pytest.mark.asyncio
+async def test_update_config_nested(sample_config_path, temp_dir):
+    """Test nested configuration updates.
+
+    Verifies that the recursive update functionality works correctly
+    for nested configuration structures, matching the implementation
+    in SUEWSSimulation._update_config_from_dict.
+    """
+    import shutil
+
+    # Copy sample config to temp directory
+    temp_config = temp_dir / "config_nested_update.yml"
+    shutil.copy(sample_config_path, temp_config)
+
+    # Test nested update: model.control.tstep
+    result = await update_config(
+        config_path=str(temp_config),
+        updates={
+            "model": {
+                "control": {
+                    "tstep": 600  # Change from 300 to 600
+                }
+            }
+        },
+    )
+
+    assert result["success"] is True
+    assert "updates_applied" in result
+
+    # Verify the nested update by loading the config
+    with open(temp_config) as f:
+        updated_config = yaml.safe_load(f)
+
+    assert updated_config["model"]["control"]["tstep"] == 600
+
+    # Verify other fields are unchanged (this ensures we didn't replace the entire model dict)
+    # The sample config should still have other control fields intact
+    assert "start_time" in updated_config["model"]["control"]
+    assert "end_time" in updated_config["model"]["control"]
+    # Verify physics section is still there (wasn't replaced by control update)
+    assert "physics" in updated_config["model"]
+
+
+@pytest.mark.asyncio
+async def test_update_config_nested_multiple_levels(sample_config_path, temp_dir):
+    """Test deeply nested configuration updates at multiple levels."""
+    import shutil
+
+    # Copy sample config to temp directory
+    temp_config = temp_dir / "config_multi_nested_update.yml"
+    shutil.copy(sample_config_path, temp_config)
+
+    # Test updating multiple nested fields simultaneously
+    result = await update_config(
+        config_path=str(temp_config),
+        updates={
+            "description": "Updated top level",
+            "model": {
+                "control": {
+                    "tstep": 600
+                }
+            }
+        },
+    )
+
+    assert result["success"] is True
+
+    # Verify both updates applied
+    with open(temp_config) as f:
+        updated_config = yaml.safe_load(f)
+
+    assert updated_config["description"] == "Updated top level"
+    assert updated_config["model"]["control"]["tstep"] == 600
+    # Verify other model sections still exist
+    assert "physics" in updated_config["model"]

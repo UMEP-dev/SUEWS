@@ -1034,20 +1034,23 @@ def validate_forcing_data(user_yaml_file: str) -> tuple:
                         # Format: "found at: [0, 5, 10]" -> "found at line(s): [2, 7, 12]"
                         if "found at:" in cleaned:
                             import re
+
                             # Find the list of indices in brackets
-                            match = re.search(r'found at:\s*\[([^\]]+)\]', cleaned)
+                            match = re.search(r"found at:\s*\[([^\]]+)\]", cleaned)
                             if match:
                                 indices_str = match.group(1)
                                 # Parse indices and convert to line numbers (add 2: +1 for header, +1 for 1-based)
-                                indices = [int(x.strip()) for x in indices_str.split(',')]
+                                indices = [
+                                    int(x.strip()) for x in indices_str.split(",")
+                                ]
                                 line_numbers = [idx + 2 for idx in indices]
                                 # Format back to string
-                                line_numbers_str = ', '.join(map(str, line_numbers))
+                                line_numbers_str = ", ".join(map(str, line_numbers))
                                 # Replace in the message
                                 cleaned = re.sub(
-                                    r'found at:\s*\[[^\]]+\]',
-                                    f'found at line(s): [{line_numbers_str}]',
-                                    cleaned
+                                    r"found at:\s*\[[^\]]+\]",
+                                    f"found at line(s): [{line_numbers_str}]",
+                                    cleaned,
                                 )
                         cleaned_issues.append(cleaned)
 

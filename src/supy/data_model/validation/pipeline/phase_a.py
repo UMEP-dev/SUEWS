@@ -1019,7 +1019,13 @@ def validate_forcing_data(user_yaml_file: str) -> tuple:
             try:
                 issues = check_forcing(df_forcing, fix=False)
                 if issues:
-                    forcing_errors.extend(issues)
+                    # Clean up error messages: remove extra whitespace and newlines
+                    cleaned_issues = []
+                    for issue in issues:
+                        # Replace newlines with space and collapse multiple spaces
+                        cleaned = ' '.join(issue.split())
+                        cleaned_issues.append(cleaned)
+                    forcing_errors.extend(cleaned_issues)
             finally:
                 # Restore logger level
                 logger_supy.setLevel(original_level)

@@ -9001,8 +9001,10 @@
             }
           ],
           "default": 7.69,
+          "default_description": "Default value calculated from the CIBSE GUIDE A, Table 3.47, Page 176",
           "description": "Internal convection coefficient of walls and roof [W m-2 K-1]",
           "display_name": "Wallinternalconvectioncoefficient",
+          "range_description": "Value must be greater than zero.",
           "title": "Wallinternalconvectioncoefficient",
           "unit": "W m^-2 K^-1"
         },
@@ -9782,8 +9784,10 @@
             }
           ],
           "default": 0.0,
+          "default_description": "Missing default explanation.",
           "description": "Volume of water held in use in building [m3]",
           "display_name": "Dhwwatervolume",
+          "range_description": "Missing range explanation.",
           "title": "Dhwwatervolume",
           "unit": "m^3"
         },

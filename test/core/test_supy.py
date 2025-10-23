@@ -14,14 +14,15 @@ import supy as sp
 
 # Import debug utilities
 try:
-    from .debug_utils import (
+    from test.debug_utils import (
         capture_test_artifacts,
         debug_dataframe_output,
         debug_on_ci,
         debug_water_balance,
+        extract_soil_store_columns,
     )
 except ImportError:
-    # Fallback if decorators not available
+    # Fallback if decorators or helpers are not available
     def debug_on_ci(func):
         return func
 
@@ -33,6 +34,9 @@ except ImportError:
 
     def capture_test_artifacts(name):
         return lambda func: func
+
+    def extract_soil_store_columns(df_debug):
+        return df_debug.filter(regex="ss_.*_next$")
 
 
 # Get the test data directory from the environment variable
@@ -415,7 +419,8 @@ class TestSuPy(TestCase):
         df_output, df_state = sp.run_supy(df_forcing_part, df_state_init)
 
         # get soilstore
-        df_soilstore = df_output.loc[1, "debug"].filter(regex="^ss_.*_next$")
+        df_debug = df_output.loc[1, "debug"]
+        df_soilstore = extract_soil_store_columns(df_debug)
         ser_sfr_surf = df_state_init.sfr_surf.iloc[0]
         ser_soilstore = df_soilstore.dot(ser_sfr_surf.values)
 

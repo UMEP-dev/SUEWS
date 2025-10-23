@@ -1,11 +1,16 @@
 """Test decorators for enhanced debugging output."""
 
+from __future__ import annotations
+
 import functools
+import re
 import sys
 import traceback
+from datetime import datetime
+from typing import Iterable, Sequence
+
 import numpy as np
 import pandas as pd
-from datetime import datetime
 
 
 def debug_on_ci(func):
@@ -426,3 +431,75 @@ def analyze_dailystate_nan(func):
         return result
 
     return wrapper
+
+
+_SURFACE_ORDER: Sequence[str] = ("Paved", "Bldgs", "EveTr", "DecTr", "Grass", "BSoil", "Water")
+
+
+def _flatten_columns(columns: pd.Index | pd.MultiIndex) -> pd.Index:
+    """Return a flat Index of string labels for any column structure."""
+    if isinstance(columns, pd.MultiIndex):
+        flattened = ["__".join(str(part) for part in tup if str(part) not in {"", "None"}) for tup in columns]
+        return pd.Index(flattened)
+    return pd.Index(columns.astype(str))
+
+
+def _rename_soilstore_columns(labels: Iterable[str], pattern: re.Pattern[str]) -> list[str]:
+    """Extract canonical soil store column names (e.g., ss_Paved_next) from flattened labels."""
+    renamed: list[str] = []
+    for label in labels:
+        match = pattern.search(label)
+        renamed.append(match.group(1) if match else label)
+    return renamed
+
+
+def _order_soilstore_columns(columns: Iterable[str]) -> list[str]:
+    """Return soil store columns sorted to match the standard surface order."""
+    order_map = {surface.lower(): idx for idx, surface in enumerate(_SURFACE_ORDER)}
+
+    def sort_key(name: str) -> int:
+        lower_name = name.lower()
+        for surface, idx in order_map.items():
+            if surface in lower_name:
+                return idx
+        return len(order_map)
+
+    return sorted(columns, key=sort_key)
+
+
+def extract_soil_store_columns(df_debug: pd.DataFrame | pd.Series) -> pd.DataFrame:
+    """
+    Extract soil store (``ss_*_next``) columns from SUEWS debug output.
+
+    The debug refactor in late 2025 introduced multi-level column structures.
+    Older tests expected a flat wide table with columns such as ``ss_Paved_next``.
+    This helper detects both layouts, flattens multi-level columns when needed,
+    and returns a DataFrame whose columns are ordered to match the surface
+    fraction vector (Paved → Water).
+    """
+    if isinstance(df_debug, pd.Series):
+        df_debug = df_debug.to_frame().T
+
+    flat_cols = _flatten_columns(df_debug.columns)
+    patterns = (
+        re.compile(r"(ss_[A-Za-z0-9]+_next)"),
+        re.compile(r"(soilstore_[A-Za-z0-9]+_next)"),
+    )
+
+    for pattern in patterns:
+        matches = [idx for idx, label in enumerate(flat_cols) if pattern.search(label)]
+        if matches:
+            df_candidate = df_debug.iloc[:, matches].copy()
+            df_candidate.columns = _rename_soilstore_columns(flat_cols[matches], pattern)
+            df_candidate = df_candidate.loc[:, ~df_candidate.columns.duplicated()]
+            ordered_cols = [col for col in _order_soilstore_columns(df_candidate.columns) if col in df_candidate.columns]
+            if ordered_cols:
+                return df_candidate[ordered_cols]
+            return df_candidate
+
+    # No soil store columns found – raise informative error for debugging
+    preview = flat_cols[:20].tolist()
+    raise KeyError(
+        "Could not locate soil store columns matching 'ss_*_next' or 'soilstore_*_next'. "
+        f"Available columns sample: {preview}"
+    )

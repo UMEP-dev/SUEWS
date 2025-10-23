@@ -100,6 +100,7 @@ def generate_fortran_data_statements() -> str:
         OutputGroup.SUEWS,
         OutputGroup.SNOW,
         OutputGroup.ESTM,
+        OutputGroup.EHC,
         OutputGroup.RSL,
         OutputGroup.DAILYSTATE,
         OutputGroup.BL,

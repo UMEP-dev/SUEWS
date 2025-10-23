@@ -47,21 +47,29 @@ class OutputGroup(str, Enum):
         SUEWS: Core SUEWS energy and water balance outputs
         SNOW: Snow-specific outputs (per surface type)
         ESTM: Element Surface Temperature Model outputs
+        EHC: Element Heat Capacity model outputs (roof/wall layers)
         RSL: Roughness Sublayer profile outputs
         BL: Boundary Layer outputs
         DEBUG: Debug and diagnostic outputs
         BEERS: BEERS radiation model outputs
         DAILYSTATE: Daily accumulated state variables
+        SPARTACUS: SPARTACUS radiation model outputs (experimental)
+        STEBBS: STEBBS outputs (experimental)
+        NHOOD: Neighbourhood outputs (experimental)
     """
     DATETIME = "datetime"
     SUEWS = "SUEWS"
     SNOW = "snow"
     ESTM = "ESTM"
+    EHC = "EHC"
     RSL = "RSL"
     BL = "BL"
     DEBUG = "debug"
     BEERS = "BEERS"
     DAILYSTATE = "DailyState"
+    SPARTACUS = "SPARTACUS"
+    STEBBS = "STEBBS"
+    NHOOD = "NHood"
 
 
 class OutputVariable(BaseModel):

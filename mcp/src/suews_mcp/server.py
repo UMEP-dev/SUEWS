@@ -37,7 +37,7 @@ async def list_tools() -> list[Tool]:
         ),
         Tool(
             name="create_config",
-            description="Create a new SUEWS configuration file",
+            description="Create a new SUEWS configuration file. Uses comprehensive sample_config.yml as base template (2356 lines with all physics parameters). Optional parameters override template defaults for site location.",
             inputSchema={
                 "type": "object",
                 "properties": {
@@ -55,7 +55,27 @@ async def list_tools() -> list[Tool]:
                     },
                     "template": {
                         "type": "string",
-                        "description": "Optional template file to base config on",
+                        "description": "Optional custom template file (default: uses built-in sample_config.yml)",
+                    },
+                    "lat": {
+                        "type": "number",
+                        "description": "Site latitude in decimal degrees (default: from template, 51.5 for London)",
+                    },
+                    "lon": {
+                        "type": "number",
+                        "description": "Site longitude in decimal degrees (default: from template, -0.1 for London)",
+                    },
+                    "alt": {
+                        "type": "number",
+                        "description": "Site altitude in meters (default: from template, 10.0)",
+                    },
+                    "timezone": {
+                        "type": "integer",
+                        "description": "Timezone offset from UTC in hours (default: from template, 0)",
+                    },
+                    "site_name": {
+                        "type": "string",
+                        "description": "Name for the default site (default: from template, 'KCL')",
                     },
                 },
                 "required": ["name", "description", "output_path"],

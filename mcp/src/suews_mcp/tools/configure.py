@@ -51,43 +51,62 @@ async def create_config(
     description: str,
     output_path: str,
     template: Optional[str] = None,
+    lat: Optional[float] = None,
+    lon: Optional[float] = None,
+    alt: Optional[float] = None,
+    timezone: Optional[int] = None,
+    site_name: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Create a new SUEWS configuration file.
+
+    Always uses the comprehensive sample_config.yml as the base template to ensure
+    all required parameters are present. User-provided parameters override defaults.
 
     Args:
         name: Configuration name
         description: Configuration description
         output_path: Path where config will be saved
-        template: Optional template to base config on
+        template: Optional custom template to base config on (default: uses sample_config.yml)
+        lat: Site latitude in decimal degrees (default: from template, typically 51.5 for London)
+        lon: Site longitude in decimal degrees (default: from template, typically -0.1 for London)
+        alt: Site altitude in meters (default: from template, typically 10.0)
+        timezone: Timezone offset from UTC in hours (default: from template, typically 0)
+        site_name: Name for the default site (default: from template, typically 'KCL')
 
     Returns:
-        Dictionary with creation results
+        Dictionary with creation results including path to created file
     """
     try:
+        # Determine template to use
         if template:
-            # Load template and modify
-            config_data = load_yaml_file(template)
-            config = SUEWSConfig.model_validate(config_data)
-            config.name = name
-            config.description = description
+            # Use custom template if provided
+            template_path = template
         else:
-            # Create minimal config with one default site
-            # SUEWSConfig requires at least one site
-            from supy.data_model.core.site import Site
+            # Use built-in sample config as default template
+            import supy
+            template_path = str(Path(supy.__file__).parent / 'sample_data' / 'sample_config.yml')
 
-            minimal_site = Site(
-                name="default_site",
-                lat=51.5,  # London coordinates as example
-                lon=-0.1,
-                alt=10.0,
-                timezone=0,
-            )
+        # Load template
+        config_data = load_yaml_file(template_path)
+        config = SUEWSConfig.model_validate(config_data)
 
-            config = SUEWSConfig(
-                name=name,
-                description=description,
-                sites=[minimal_site],
-            )
+        # Update top-level metadata
+        config.name = name
+        config.description = description
+
+        # Update site-specific parameters if provided
+        if config.sites:
+            site = config.sites[0]  # Update first site
+            if site_name is not None:
+                site.name = site_name
+            if lat is not None:
+                site.properties.lat.value = lat
+            if lon is not None:
+                site.properties.lng.value = lon
+            if alt is not None:
+                site.properties.alt.value = alt
+            if timezone is not None:
+                site.properties.timezone.value = timezone
 
         # Save to file (use mode='json' to ensure enums are strings)
         config_dict = config.model_dump(exclude_none=True, mode='json')
@@ -96,10 +115,13 @@ async def create_config(
         return {
             "success": True,
             "message": f"Configuration created at {output_path}",
+            "template_used": "sample_config.yml" if not template else template,
             "config": {
                 "name": config.name,
                 "description": config.description,
                 "path": str(output_path),
+                "num_sites": len(config.sites),
+                "site_names": [site.name for site in config.sites],
             },
         }
 

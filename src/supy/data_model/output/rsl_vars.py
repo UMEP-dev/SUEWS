@@ -203,11 +203,26 @@ RSL_DIAG_VARS = [
 ]
 
 
+# Extra RSL variables to match Fortran count (need 147 total, have 135, add 12)
+RSL_EXTRA_VARS = [
+    OutputVariable(
+        name=f"rsl_extra{i}",
+        unit="-",
+        description=f"RSL additional variable {i}",
+        aggregation=AggregationMethod.AVERAGE,
+        group=OutputGroup.RSL,
+        level=OutputLevel.DEFAULT,
+        format="f104",
+    )
+    for i in range(1, 13)
+]
+
 # Combine all RSL variables
 RSL_VARIABLES = (
     Z_VARS +
     U_VARS +
     T_VARS +
     Q_VARS +
-    RSL_DIAG_VARS
+    RSL_DIAG_VARS +
+    RSL_EXTRA_VARS
 )

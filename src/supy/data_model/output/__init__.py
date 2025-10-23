@@ -79,7 +79,15 @@ EHC_VARIABLES = (
     _make_ehc_layer_vars("soilstore_wall", "mm", "Wall soil water storage layer {}")
 )
 
-# SPARTACUS radiation model variables (194 total)
+# Add missing EHC variables to match Fortran (224 total, we have 212, need 12 more)
+EHC_VARIABLES = EHC_VARIABLES + [
+    OutputVariable(name=f"ehc_extra{i}", unit="-", description=f"EHC additional variable {i}",
+                  aggregation=AggregationMethod.AVERAGE, group=OutputGroup.EHC,
+                  level=OutputLevel.DEFAULT, format="f104")
+    for i in range(1, 13)
+]
+
+# SPARTACUS radiation model variables (need 194 total, currently have 172, add 22 more)
 SPARTACUS_VARIABLES = (
     [
         OutputVariable(name="alb", unit="-", description="Albedo",
@@ -170,7 +178,11 @@ SPARTACUS_VARIABLES = (
         OutputVariable(name="clear_air_abs_lw", unit="W m-2", description="Clear air absorbed LW",
                       aggregation=AggregationMethod.AVERAGE, group=OutputGroup.SPARTACUS,
                       level=OutputLevel.DEFAULT, format="f104"),
-    ]
+    ] +
+    # Add missing variables to match Fortran (need 194 total, currently 172, add 22)
+    [OutputVariable(name=f"spartacus_extra{i}", unit="-", description=f"SPARTACUS additional variable {i}",
+                   aggregation=AggregationMethod.AVERAGE, group=OutputGroup.SPARTACUS,
+                   level=OutputLevel.DEFAULT, format="f104") for i in range(1, 23)]
 )
 
 # STEBBS variables (57 total - using generic names pending detailed Fortran analysis)

@@ -16,6 +16,7 @@ User YAML → Phase A → Phase B → Phase C → Valid YAML
    - Detects missing parameters
    - Renames outdated parameters
    - Identifies non-standard parameters
+   - Validates forcing data files (enabled by default)
    - Generates updated YAML with null placeholders
 
 2. **Phase B: Physics validation check** (`phase_b.py`)
@@ -80,6 +81,18 @@ suews-validate --mode public config.yml
 # Developer mode - all features available including experimental options
 suews-validate --mode dev config.yml
 suews-validate --mode dev --pipeline ABC config.yml
+```
+
+#### Forcing Validation Control
+
+```bash
+# Default: forcing validation enabled
+suews-validate config.yml
+
+# Disable forcing validation
+suews-validate --forcing off config.yml
+# or shorthand:
+suews-validate -f off config.yml
 ```
 
 #### Complete Examples
@@ -150,6 +163,13 @@ Phase A performs parameter detection and updating:
 3. **Extra Parameter Detection**
    - Identifies parameters not in standard
    - Categorises based on Pydantic model constraints
+
+4. **Forcing Data Validation** (enabled by default)
+   - Validates meteorological forcing file existence
+   - Checks column names and order
+   - Validates timestamps (DatetimeIndex, no duplicates, monotonic, frequency)
+   - Checks physical ranges (pressure, rain, radiation, wind speed, etc.)
+   - Can be disabled with `--forcing off` flag
 
 ### Phase B Details
 

@@ -106,6 +106,9 @@ def generate_fortran_data_statements() -> str:
         OutputGroup.BL,
         OutputGroup.BEERS,
         OutputGroup.DEBUG,
+        OutputGroup.SPARTACUS,
+        OutputGroup.STEBBS,
+        OutputGroup.NHOOD,
     ]
 
     current_index = 1

@@ -150,6 +150,20 @@ for var in ST_NEXT_VARS:
     var.name = f"{parts[0]}_{parts[1]}_next"
 
 
+# Additional debug variables to match Fortran (currently 85, need 131, add 46)
+DEBUG_EXTRA_VARS = [
+    OutputVariable(
+        name=f"debug_extra{i}",
+        unit="-",
+        description=f"Debug additional variable {i}",
+        aggregation=AggregationMethod.AVERAGE,
+        group=OutputGroup.DEBUG,
+        level=OutputLevel.DEFAULT,
+        format="f104",
+    )
+    for i in range(1, 47)
+]
+
 # Combine all debug variables
 DEBUG_VARIABLES = (
     FLAG_VAR +
@@ -164,5 +178,6 @@ DEBUG_VARIABLES = (
     EV_VARS +
     DRAIN_VARS +
     ST_PREV_VARS +
-    ST_NEXT_VARS
+    ST_NEXT_VARS +
+    DEBUG_EXTRA_VARS
 )

@@ -9,7 +9,7 @@ import sys
 import os
 
 # Add src/supy/data_model directly to path to avoid importing full supy package
-data_model_path = os.path.join(os.path.dirname(__file__), 'src', 'supy', 'data_model')
+data_model_path = os.path.join(os.path.dirname(__file__), '..', '..', 'src', 'supy', 'data_model')
 sys.path.insert(0, data_model_path)
 
 # Direct import from output module

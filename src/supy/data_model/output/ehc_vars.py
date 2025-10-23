@@ -1,9 +1,4 @@
-"""EHC (Element Heat Capacity) output variables.
-
-These variables provide detailed thermal and hydrological states
-for roof and wall elements with 15 vertical layers each.
-"""
-
+"""Legacy EHC output variables with headers matching suews_ctrl_output.f95"""
 from .variables import (
     OutputVariable,
     AggregationMethod,
@@ -11,113 +6,242 @@ from .variables import (
     OutputLevel,
 )
 
-
-def make_layer_vars_roof(base_name, unit, description_template):
-    """Helper to create roof variables for 15 layers.
-
-    Args:
-        base_name: Base variable name (e.g., "Tsfc_roof")
-        unit: Physical unit
-        description_template: Description with {} placeholder for layer number
-
-    Returns:
-        List of OutputVariable instances for layers 1-15
-    """
-    return [
-        OutputVariable(
-            name=f"{base_name}{i}",
-            unit=unit,
-            description=description_template.format(i),
-            aggregation=AggregationMethod.AVERAGE,
-            group=OutputGroup.EHC,
-            level=OutputLevel.DEFAULT,
-            format="f104",
-        )
-        for i in range(1, 16)
-    ]
-
-
-def make_layer_vars_wall(base_name, unit, description_template):
-    """Helper to create wall variables for 15 layers.
-
-    Args:
-        base_name: Base variable name (e.g., "Tsfc_wall")
-        unit: Physical unit
-        description_template: Description with {} placeholder for layer number
-
-    Returns:
-        List of OutputVariable instances for layers 1-15
-    """
-    return [
-        OutputVariable(
-            name=f"{base_name}{i}",
-            unit=unit,
-            description=description_template.format(i),
-            aggregation=AggregationMethod.AVERAGE,
-            group=OutputGroup.EHC,
-            level=OutputLevel.DEFAULT,
-            format="f104",
-        )
-        for i in range(1, 16)
-    ]
-
-
-# Surface-level variables (scalars)
-SURFACE_VARS = [
-    OutputVariable(
-        name="Tsfc_surf",
-        unit="degK",
-        description="Surface temperature (aggregated)",
-        aggregation=AggregationMethod.AVERAGE,
-        group=OutputGroup.EHC,
-        level=OutputLevel.DEFAULT,
-        format="f104",
-    ),
-    OutputVariable(
-        name="QS_surf",
-        unit="W m-2",
-        description="Storage heat flux at surface (aggregated)",
-        aggregation=AggregationMethod.AVERAGE,
-        group=OutputGroup.EHC,
-        level=OutputLevel.DEFAULT,
-        format="f104",
-    ),
+LEGACY_EHC_DEFS = [
+    ('Ts_Paved', 'degC', 'f104', 'surface temperature of paved surface', 0),
+    ('Ts_Bldgs', 'degC', 'f104', 'surface temperature of building surface', 0),
+    ('Ts_EveTr', 'degC', 'f104', 'surface temperature of evergreen tree surface', 0),
+    ('Ts_DecTr', 'degC', 'f104', 'surface temperature of deciduous tree surface', 0),
+    ('Ts_Grass', 'degC', 'f104', 'surface temperature of grass surface', 0),
+    ('Ts_BSoil', 'degC', 'f104', 'surface temperature of bare soil surface', 0),
+    ('Ts_Water', 'degC', 'f104', 'surface temperature of water surface', 0),
+    ('QS_Paved', 'W m-2', 'f104', 'storage heat flux of paved surface', 0),
+    ('QS_Bldgs', 'W m-2', 'f104', 'storage heat flux of building surface', 0),
+    ('QS_EveTr', 'W m-2', 'f104', 'storage heat flux of evergreen tree surface', 0),
+    ('QS_DecTr', 'W m-2', 'f104', 'storage heat flux of deciduous tree surface', 0),
+    ('QS_Grass', 'W m-2', 'f104', 'storage heat flux of grass surface', 0),
+    ('QS_BSoil', 'W m-2', 'f104', 'storage heat flux of bare soil surface', 0),
+    ('QS_Water', 'W m-2', 'f104', 'storage heat flux of water surface', 0),
+    ('Ts_Roof_1', 'degC', 'f104', 'surface temperature of roof level 1', 0),
+    ('Ts_Roof_2', 'degC', 'f104', 'surface temperature of roof level 2', 0),
+    ('Ts_Roof_3', 'degC', 'f104', 'surface temperature of roof level 3', 0),
+    ('Ts_Roof_4', 'degC', 'f104', 'surface temperature of roof level 4', 0),
+    ('Ts_Roof_5', 'degC', 'f104', 'surface temperature of roof level 5', 0),
+    ('Ts_Roof_6', 'degC', 'f104', 'surface temperature of roof level 6', 0),
+    ('Ts_Roof_7', 'degC', 'f104', 'surface temperature of roof level 7', 0),
+    ('Ts_Roof_8', 'degC', 'f104', 'surface temperature of roof level 8', 0),
+    ('Ts_Roof_9', 'degC', 'f104', 'surface temperature of roof level 9', 0),
+    ('Ts_Roof_10', 'degC', 'f104', 'surface temperature of roof level 10', 0),
+    ('Ts_Roof_11', 'degC', 'f104', 'surface temperature of roof level 11', 0),
+    ('Ts_Roof_12', 'degC', 'f104', 'surface temperature of roof level 12', 0),
+    ('Ts_Roof_13', 'degC', 'f104', 'surface temperature of roof level 13', 0),
+    ('Ts_Roof_14', 'degC', 'f104', 'surface temperature of roof level 14', 0),
+    ('Ts_Roof_15', 'degC', 'f104', 'surface temperature of roof level 15', 0),
+    ('QN_Roof_1', 'degC', 'f104', 'net all-wave radiation of roof level 1', 0),
+    ('QN_Roof_2', 'degC', 'f104', 'net all-wave radiation of roof level 2', 0),
+    ('QN_Roof_3', 'degC', 'f104', 'net all-wave radiation of roof level 3', 0),
+    ('QN_Roof_4', 'degC', 'f104', 'net all-wave radiation of roof level 4', 0),
+    ('QN_Roof_5', 'degC', 'f104', 'net all-wave radiation of roof level 5', 0),
+    ('QN_Roof_6', 'degC', 'f104', 'net all-wave radiation of roof level 6', 0),
+    ('QN_Roof_7', 'degC', 'f104', 'net all-wave radiation of roof level 7', 0),
+    ('QN_Roof_8', 'degC', 'f104', 'net all-wave radiation of roof level 8', 0),
+    ('QN_Roof_9', 'degC', 'f104', 'net all-wave radiation of roof level 9', 0),
+    ('QN_Roof_10', 'degC', 'f104', 'net all-wave radiation of roof level 10', 0),
+    ('QN_Roof_11', 'degC', 'f104', 'net all-wave radiation of roof level 11', 0),
+    ('QN_Roof_12', 'degC', 'f104', 'net all-wave radiation of roof level 12', 0),
+    ('QN_Roof_13', 'degC', 'f104', 'net all-wave radiation of roof level 13', 0),
+    ('QN_Roof_14', 'degC', 'f104', 'net all-wave radiation of roof level 14', 0),
+    ('QN_Roof_15', 'degC', 'f104', 'net all-wave radiation of roof level 15', 0),
+    ('QS_Roof_1', 'degC', 'f104', 'storage heat flux of roof level 1', 0),
+    ('QS_Roof_2', 'degC', 'f104', 'storage heat flux of roof level 2', 0),
+    ('QS_Roof_3', 'degC', 'f104', 'storage heat flux of roof level 3', 0),
+    ('QS_Roof_4', 'degC', 'f104', 'storage heat flux of roof level 4', 0),
+    ('QS_Roof_5', 'degC', 'f104', 'storage heat flux of roof level 5', 0),
+    ('QS_Roof_6', 'degC', 'f104', 'storage heat flux of roof level 6', 0),
+    ('QS_Roof_7', 'degC', 'f104', 'storage heat flux of roof level 7', 0),
+    ('QS_Roof_8', 'degC', 'f104', 'storage heat flux of roof level 8', 0),
+    ('QS_Roof_9', 'degC', 'f104', 'storage heat flux of roof level 9', 0),
+    ('QS_Roof_10', 'degC', 'f104', 'storage heat flux of roof level 10', 0),
+    ('QS_Roof_11', 'degC', 'f104', 'storage heat flux of roof level 11', 0),
+    ('QS_Roof_12', 'degC', 'f104', 'storage heat flux of roof level 12', 0),
+    ('QS_Roof_13', 'degC', 'f104', 'storage heat flux of roof level 13', 0),
+    ('QS_Roof_14', 'degC', 'f104', 'storage heat flux of roof level 14', 0),
+    ('QS_Roof_15', 'degC', 'f104', 'storage heat flux of roof level 15', 0),
+    ('QE_Roof_1', 'degC', 'f104', 'latent heat flux of roof level 1', 0),
+    ('QE_Roof_2', 'degC', 'f104', 'latent heat flux of roof level 2', 0),
+    ('QE_Roof_3', 'degC', 'f104', 'latent heat flux of roof level 3', 0),
+    ('QE_Roof_4', 'degC', 'f104', 'latent heat flux of roof level 4', 0),
+    ('QE_Roof_5', 'degC', 'f104', 'latent heat flux of roof level 5', 0),
+    ('QE_Roof_6', 'degC', 'f104', 'latent heat flux of roof level 6', 0),
+    ('QE_Roof_7', 'degC', 'f104', 'latent heat flux of roof level 7', 0),
+    ('QE_Roof_8', 'degC', 'f104', 'latent heat flux of roof level 8', 0),
+    ('QE_Roof_9', 'degC', 'f104', 'latent heat flux of roof level 9', 0),
+    ('QE_Roof_10', 'degC', 'f104', 'latent heat flux of roof level 10', 0),
+    ('QE_Roof_11', 'degC', 'f104', 'latent heat flux of roof level 11', 0),
+    ('QE_Roof_12', 'degC', 'f104', 'latent heat flux of roof level 12', 0),
+    ('QE_Roof_13', 'degC', 'f104', 'latent heat flux of roof level 13', 0),
+    ('QE_Roof_14', 'degC', 'f104', 'latent heat flux of roof level 14', 0),
+    ('QE_Roof_15', 'degC', 'f104', 'latent heat flux of roof level 15', 0),
+    ('QH_Roof_1', 'degC', 'f104', 'sensible heat flux of roof level 1', 0),
+    ('QH_Roof_2', 'degC', 'f104', 'sensible heat flux of roof level 2', 0),
+    ('QH_Roof_3', 'degC', 'f104', 'sensible heat flux of roof level 3', 0),
+    ('QH_Roof_4', 'degC', 'f104', 'sensible heat flux of roof level 4', 0),
+    ('QH_Roof_5', 'degC', 'f104', 'sensible heat flux of roof level 5', 0),
+    ('QH_Roof_6', 'degC', 'f104', 'sensible heat flux of roof level 6', 0),
+    ('QH_Roof_7', 'degC', 'f104', 'sensible heat flux of roof level 7', 0),
+    ('QH_Roof_8', 'degC', 'f104', 'sensible heat flux of roof level 8', 0),
+    ('QH_Roof_9', 'degC', 'f104', 'sensible heat flux of roof level 9', 0),
+    ('QH_Roof_10', 'degC', 'f104', 'sensible heat flux of roof level 10', 0),
+    ('QH_Roof_11', 'degC', 'f104', 'sensible heat flux of roof level 11', 0),
+    ('QH_Roof_12', 'degC', 'f104', 'sensible heat flux of roof level 12', 0),
+    ('QH_Roof_13', 'degC', 'f104', 'sensible heat flux of roof level 13', 0),
+    ('QH_Roof_14', 'degC', 'f104', 'sensible heat flux of roof level 14', 0),
+    ('QH_Roof_15', 'degC', 'f104', 'sensible heat flux of roof level 15', 0),
+    ('St_Roof_1', 'mm', 'f104', 'surface state of roof level 1', 0),
+    ('St_Roof_2', 'mm', 'f104', 'surface state of roof level 2', 0),
+    ('St_Roof_3', 'mm', 'f104', 'surface state of roof level 3', 0),
+    ('St_Roof_4', 'mm', 'f104', 'surface state of roof level 4', 0),
+    ('St_Roof_5', 'mm', 'f104', 'surface state of roof level 5', 0),
+    ('St_Roof_6', 'mm', 'f104', 'surface state of roof level 6', 0),
+    ('St_Roof_7', 'mm', 'f104', 'surface state of roof level 7', 0),
+    ('St_Roof_8', 'mm', 'f104', 'surface state of roof level 8', 0),
+    ('St_Roof_9', 'mm', 'f104', 'surface state of roof level 9', 0),
+    ('St_Roof_10', 'mm', 'f104', 'surface state of roof level 10', 0),
+    ('St_Roof_11', 'mm', 'f104', 'surface state of roof level 11', 0),
+    ('St_Roof_12', 'mm', 'f104', 'surface state of roof level 12', 0),
+    ('St_Roof_13', 'mm', 'f104', 'surface state of roof level 13', 0),
+    ('St_Roof_14', 'mm', 'f104', 'surface state of roof level 14', 0),
+    ('St_Roof_15', 'mm', 'f104', 'surface state of roof level 15', 0),
+    ('SS_Roof_1', 'mm', 'f104', 'soil store of roof level 1', 0),
+    ('SS_Roof_2', 'mm', 'f104', 'soil store of roof level 2', 0),
+    ('SS_Roof_3', 'mm', 'f104', 'soil store of roof level 3', 0),
+    ('SS_Roof_4', 'mm', 'f104', 'soil store of roof level 4', 0),
+    ('SS_Roof_5', 'mm', 'f104', 'soil store of roof level 5', 0),
+    ('SS_Roof_6', 'mm', 'f104', 'soil store of roof level 6', 0),
+    ('SS_Roof_7', 'mm', 'f104', 'soil store of roof level 7', 0),
+    ('SS_Roof_8', 'mm', 'f104', 'soil store of roof level 8', 0),
+    ('SS_Roof_9', 'mm', 'f104', 'soil store of roof level 9', 0),
+    ('SS_Roof_10', 'mm', 'f104', 'soil store of roof level 10', 0),
+    ('SS_Roof_11', 'mm', 'f104', 'soil store of roof level 11', 0),
+    ('SS_Roof_12', 'mm', 'f104', 'soil store of roof level 12', 0),
+    ('SS_Roof_13', 'mm', 'f104', 'soil store of roof level 13', 0),
+    ('SS_Roof_14', 'mm', 'f104', 'soil store of roof level 14', 0),
+    ('SS_Roof_15', 'mm', 'f104', 'soil store of roof level 15', 0),
+    ('Ts_Wall_1', 'degC', 'f104', 'surface temperature of wall level 1', 0),
+    ('Ts_Wall_2', 'degC', 'f104', 'surface temperature of wall level 2', 0),
+    ('Ts_Wall_3', 'degC', 'f104', 'surface temperature of wall level 3', 0),
+    ('Ts_Wall_4', 'degC', 'f104', 'surface temperature of wall level 4', 0),
+    ('Ts_Wall_5', 'degC', 'f104', 'surface temperature of wall level 5', 0),
+    ('Ts_Wall_6', 'degC', 'f104', 'surface temperature of wall level 6', 0),
+    ('Ts_Wall_7', 'degC', 'f104', 'surface temperature of wall level 7', 0),
+    ('Ts_Wall_8', 'degC', 'f104', 'surface temperature of wall level 8', 0),
+    ('Ts_Wall_9', 'degC', 'f104', 'surface temperature of wall level 9', 0),
+    ('Ts_Wall_10', 'degC', 'f104', 'surface temperature of wall level 10', 0),
+    ('Ts_Wall_11', 'degC', 'f104', 'surface temperature of wall level 11', 0),
+    ('Ts_Wall_12', 'degC', 'f104', 'surface temperature of wall level 12', 0),
+    ('Ts_Wall_13', 'degC', 'f104', 'surface temperature of wall level 13', 0),
+    ('Ts_Wall_14', 'degC', 'f104', 'surface temperature of wall level 14', 0),
+    ('Ts_Wall_15', 'degC', 'f104', 'surface temperature of wall level 15', 0),
+    ('QN_Wall_1', 'degC', 'f104', 'net all-wave radiation of wall level 1', 0),
+    ('QN_Wall_2', 'degC', 'f104', 'net all-wave radiation of wall level 2', 0),
+    ('QN_Wall_3', 'degC', 'f104', 'net all-wave radiation of wall level 3', 0),
+    ('QN_Wall_4', 'degC', 'f104', 'net all-wave radiation of wall level 4', 0),
+    ('QN_Wall_5', 'degC', 'f104', 'net all-wave radiation of wall level 5', 0),
+    ('QN_Wall_6', 'degC', 'f104', 'net all-wave radiation of wall level 6', 0),
+    ('QN_Wall_7', 'degC', 'f104', 'net all-wave radiation of wall level 7', 0),
+    ('QN_Wall_8', 'degC', 'f104', 'net all-wave radiation of wall level 8', 0),
+    ('QN_Wall_9', 'degC', 'f104', 'net all-wave radiation of wall level 9', 0),
+    ('QN_Wall_10', 'degC', 'f104', 'net all-wave radiation of wall level 10', 0),
+    ('QN_Wall_11', 'degC', 'f104', 'net all-wave radiation of wall level 11', 0),
+    ('QN_Wall_12', 'degC', 'f104', 'net all-wave radiation of wall level 12', 0),
+    ('QN_Wall_13', 'degC', 'f104', 'net all-wave radiation of wall level 13', 0),
+    ('QN_Wall_14', 'degC', 'f104', 'net all-wave radiation of wall level 14', 0),
+    ('QN_Wall_15', 'degC', 'f104', 'net all-wave radiation of wall level 15', 0),
+    ('QS_Wall_1', 'degC', 'f104', 'storage heat flux of wall level 1', 0),
+    ('QS_Wall_2', 'degC', 'f104', 'storage heat flux of wall level 2', 0),
+    ('QS_Wall_3', 'degC', 'f104', 'storage heat flux of wall level 3', 0),
+    ('QS_Wall_4', 'degC', 'f104', 'storage heat flux of wall level 4', 0),
+    ('QS_Wall_5', 'degC', 'f104', 'storage heat flux of wall level 5', 0),
+    ('QS_Wall_6', 'degC', 'f104', 'storage heat flux of wall level 6', 0),
+    ('QS_Wall_7', 'degC', 'f104', 'storage heat flux of wall level 7', 0),
+    ('QS_Wall_8', 'degC', 'f104', 'storage heat flux of wall level 8', 0),
+    ('QS_Wall_9', 'degC', 'f104', 'storage heat flux of wall level 9', 0),
+    ('QS_Wall_10', 'degC', 'f104', 'storage heat flux of wall level 10', 0),
+    ('QS_Wall_11', 'degC', 'f104', 'storage heat flux of wall level 11', 0),
+    ('QS_Wall_12', 'degC', 'f104', 'storage heat flux of wall level 12', 0),
+    ('QS_Wall_13', 'degC', 'f104', 'storage heat flux of wall level 13', 0),
+    ('QS_Wall_14', 'degC', 'f104', 'storage heat flux of wall level 14', 0),
+    ('QS_Wall_15', 'degC', 'f104', 'storage heat flux of wall level 15', 0),
+    ('QE_Wall_1', 'degC', 'f104', 'latent heat flux of wall level 1', 0),
+    ('QE_Wall_2', 'degC', 'f104', 'latent heat flux of wall level 2', 0),
+    ('QE_Wall_3', 'degC', 'f104', 'latent heat flux of wall level 3', 0),
+    ('QE_Wall_4', 'degC', 'f104', 'latent heat flux of wall level 4', 0),
+    ('QE_Wall_5', 'degC', 'f104', 'latent heat flux of wall level 5', 0),
+    ('QE_Wall_6', 'degC', 'f104', 'latent heat flux of wall level 6', 0),
+    ('QE_Wall_7', 'degC', 'f104', 'latent heat flux of wall level 7', 0),
+    ('QE_Wall_8', 'degC', 'f104', 'latent heat flux of wall level 8', 0),
+    ('QE_Wall_9', 'degC', 'f104', 'latent heat flux of wall level 9', 0),
+    ('QE_Wall_10', 'degC', 'f104', 'latent heat flux of wall level 10', 0),
+    ('QE_Wall_11', 'degC', 'f104', 'latent heat flux of wall level 11', 0),
+    ('QE_Wall_12', 'degC', 'f104', 'latent heat flux of wall level 12', 0),
+    ('QE_Wall_13', 'degC', 'f104', 'latent heat flux of wall level 13', 0),
+    ('QE_Wall_14', 'degC', 'f104', 'latent heat flux of wall level 14', 0),
+    ('QE_Wall_15', 'degC', 'f104', 'latent heat flux of wall level 15', 0),
+    ('QH_Wall_1', 'degC', 'f104', 'sensible heat flux of wall level 1', 0),
+    ('QH_Wall_2', 'degC', 'f104', 'sensible heat flux of wall level 2', 0),
+    ('QH_Wall_3', 'degC', 'f104', 'sensible heat flux of wall level 3', 0),
+    ('QH_Wall_4', 'degC', 'f104', 'sensible heat flux of wall level 4', 0),
+    ('QH_Wall_5', 'degC', 'f104', 'sensible heat flux of wall level 5', 0),
+    ('QH_Wall_6', 'degC', 'f104', 'sensible heat flux of wall level 6', 0),
+    ('QH_Wall_7', 'degC', 'f104', 'sensible heat flux of wall level 7', 0),
+    ('QH_Wall_8', 'degC', 'f104', 'sensible heat flux of wall level 8', 0),
+    ('QH_Wall_9', 'degC', 'f104', 'sensible heat flux of wall level 9', 0),
+    ('QH_Wall_10', 'degC', 'f104', 'sensible heat flux of wall level 10', 0),
+    ('QH_Wall_11', 'degC', 'f104', 'sensible heat flux of wall level 11', 0),
+    ('QH_Wall_12', 'degC', 'f104', 'sensible heat flux of wall level 12', 0),
+    ('QH_Wall_13', 'degC', 'f104', 'sensible heat flux of wall level 13', 0),
+    ('QH_Wall_14', 'degC', 'f104', 'sensible heat flux of wall level 14', 0),
+    ('QH_Wall_15', 'degC', 'f104', 'sensible heat flux of wall level 15', 0),
+    ('St_Wall_1', 'mm', 'f104', 'surface state of wall level 1', 0),
+    ('St_Wall_2', 'mm', 'f104', 'surface state of wall level 2', 0),
+    ('St_Wall_3', 'mm', 'f104', 'surface state of wall level 3', 0),
+    ('St_Wall_4', 'mm', 'f104', 'surface state of wall level 4', 0),
+    ('St_Wall_5', 'mm', 'f104', 'surface state of wall level 5', 0),
+    ('St_Wall_6', 'mm', 'f104', 'surface state of wall level 6', 0),
+    ('St_Wall_7', 'mm', 'f104', 'surface state of wall level 7', 0),
+    ('St_Wall_8', 'mm', 'f104', 'surface state of wall level 8', 0),
+    ('St_Wall_9', 'mm', 'f104', 'surface state of wall level 9', 0),
+    ('St_Wall_10', 'mm', 'f104', 'surface state of wall level 10', 0),
+    ('St_Wall_11', 'mm', 'f104', 'surface state of wall level 11', 0),
+    ('St_Wall_12', 'mm', 'f104', 'surface state of wall level 12', 0),
+    ('St_Wall_13', 'mm', 'f104', 'surface state of wall level 13', 0),
+    ('St_Wall_14', 'mm', 'f104', 'surface state of wall level 14', 0),
+    ('St_Wall_15', 'mm', 'f104', 'surface state of wall level 15', 0),
+    ('SS_Wall_1', 'mm', 'f104', 'soil store of wall level 1', 0),
+    ('SS_Wall_2', 'mm', 'f104', 'soil store of wall level 2', 0),
+    ('SS_Wall_3', 'mm', 'f104', 'soil store of wall level 3', 0),
+    ('SS_Wall_4', 'mm', 'f104', 'soil store of wall level 4', 0),
+    ('SS_Wall_5', 'mm', 'f104', 'soil store of wall level 5', 0),
+    ('SS_Wall_6', 'mm', 'f104', 'soil store of wall level 6', 0),
+    ('SS_Wall_7', 'mm', 'f104', 'soil store of wall level 7', 0),
+    ('SS_Wall_8', 'mm', 'f104', 'soil store of wall level 8', 0),
+    ('SS_Wall_9', 'mm', 'f104', 'soil store of wall level 9', 0),
+    ('SS_Wall_10', 'mm', 'f104', 'soil store of wall level 10', 0),
+    ('SS_Wall_11', 'mm', 'f104', 'soil store of wall level 11', 0),
+    ('SS_Wall_12', 'mm', 'f104', 'soil store of wall level 12', 0),
+    ('SS_Wall_13', 'mm', 'f104', 'soil store of wall level 13', 0),
+    ('SS_Wall_14', 'mm', 'f104', 'soil store of wall level 14', 0),
+    ('SS_Wall_15', 'mm', 'f104', 'soil store of wall level 15', 0),
 ]
 
-# Roof variables (15 layers each)
-TSFC_ROOF_VARS = make_layer_vars_roof("Tsfc_roof", "degK", "Roof surface temperature layer {}")
-QN_ROOF_VARS = make_layer_vars_roof("Qn_roof", "W m-2", "Roof net radiation layer {}")
-QS_ROOF_VARS = make_layer_vars_roof("QS_roof", "W m-2", "Roof storage heat flux layer {}")
-QE_ROOF_VARS = make_layer_vars_roof("QE_roof", "W m-2", "Roof latent heat flux layer {}")
-QH_ROOF_VARS = make_layer_vars_roof("QH_roof", "W m-2", "Roof sensible heat flux layer {}")
-STATE_ROOF_VARS = make_layer_vars_roof("state_roof", "mm", "Roof water state layer {}")
-SOILSTORE_ROOF_VARS = make_layer_vars_roof("soilstore_roof", "mm", "Roof soil water storage layer {}")
-
-# Wall variables (15 layers each)
-TSFC_WALL_VARS = make_layer_vars_wall("Tsfc_wall", "degK", "Wall surface temperature layer {}")
-QN_WALL_VARS = make_layer_vars_wall("Qn_wall", "W m-2", "Wall net radiation layer {}")
-QS_WALL_VARS = make_layer_vars_wall("QS_wall", "W m-2", "Wall storage heat flux layer {}")
-QE_WALL_VARS = make_layer_vars_wall("QE_wall", "W m-2", "Wall latent heat flux layer {}")
-QH_WALL_VARS = make_layer_vars_wall("QH_wall", "W m-2", "Wall sensible heat flux layer {}")
-STATE_WALL_VARS = make_layer_vars_wall("state_wall", "mm", "Wall water state layer {}")
-SOILSTORE_WALL_VARS = make_layer_vars_wall("soilstore_wall", "mm", "Wall soil water storage layer {}")
-
-
-# Combine all EHC variables
-EHC_VARIABLES = (
-    SURFACE_VARS +
-    TSFC_ROOF_VARS +
-    QN_ROOF_VARS +
-    QS_ROOF_VARS +
-    QE_ROOF_VARS +
-    QH_ROOF_VARS +
-    STATE_ROOF_VARS +
-    SOILSTORE_ROOF_VARS +
-    TSFC_WALL_VARS +
-    QN_WALL_VARS +
-    QS_WALL_VARS +
-    QE_WALL_VARS +
-    QH_WALL_VARS +
-    STATE_WALL_VARS +
-    SOILSTORE_WALL_VARS
-)
+EHC_VARIABLES = [
+    OutputVariable(
+        name=name,
+        unit=unit,
+        description=description,
+        aggregation=AggregationMethod.AVERAGE,
+        group=OutputGroup.EHC,
+        level=OutputLevel.DEFAULT if level == 0 else OutputLevel(level),
+        format=fmt,
+    )
+    for name, unit, fmt, description, level in LEGACY_EHC_DEFS
+]

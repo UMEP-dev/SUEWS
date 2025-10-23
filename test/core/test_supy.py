@@ -16,14 +16,15 @@ from supy import SUEWSSimulation
 
 # Import debug utilities
 try:
-    from .debug_utils import (
+    from test.debug_utils import (
         capture_test_artifacts,
         debug_dataframe_output,
         debug_on_ci,
         debug_water_balance,
+        extract_soil_store_columns,
     )
 except ImportError:
-    # Fallback if decorators not available
+    # Fallback if decorators or helpers are not available
     def debug_on_ci(func):
         return func
 
@@ -35,6 +36,9 @@ except ImportError:
 
     def capture_test_artifacts(name):
         return lambda func: func
+
+    def extract_soil_store_columns(df_debug):
+        return df_debug.filter(regex="ss_.*_next$")
 
 
 # Get the test data directory from the environment variable

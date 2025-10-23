@@ -26,6 +26,7 @@ import numpy as np
 import pandas as pd
 
 import supy as sp
+from test.debug_utils import extract_soil_store_columns
 
 
 class TestPhysicalValidation(TestCase):
@@ -171,7 +172,7 @@ class TestPhysicalValidation(TestCase):
         df_debug = df_out.loc[1, "debug"]
 
         # Get soil store for each surface type
-        df_soilstore = df_debug.filter(regex="^ss_.*_next$")
+        df_soilstore = extract_soil_store_columns(df_debug)
 
         # Get surface fractions
         ser_sfr_surf = self.df_state_init.sfr_surf.iloc[0]

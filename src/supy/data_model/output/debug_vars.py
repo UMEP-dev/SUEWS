@@ -150,18 +150,138 @@ for var in ST_NEXT_VARS:
     var.name = f"{parts[0]}_{parts[1]}_next"
 
 
-# Additional debug variables to match Fortran (currently 85, need 131, add 46)
-DEBUG_EXTRA_VARS = [
-    OutputVariable(
-        name=f"debug_extra{i}",
-        unit="-",
-        description=f"Debug additional variable {i}",
-        aggregation=AggregationMethod.AVERAGE,
-        group=OutputGroup.DEBUG,
-        level=OutputLevel.DEFAULT,
-        format="f104",
-    )
-    for i in range(1, 47)
+# Soil moisture store (previous timestep) by surface type
+SS_PREV_VARS = make_debug_surface_vars(
+    "ss", "mm", "Soil moisture store (previous timestep) for {}",
+    AggregationMethod.AVERAGE, "f104"
+)
+# Rename to add _prev suffix
+for var in SS_PREV_VARS:
+    parts = var.name.split("_")
+    var.name = f"{parts[0]}_{parts[1]}_prev"
+
+# Soil moisture store (next timestep) by surface type
+SS_NEXT_VARS = make_debug_surface_vars(
+    "ss", "mm", "Soil moisture store (next timestep) for {}",
+    AggregationMethod.AVERAGE, "f104"
+)
+# Rename to add _next suffix
+for var in SS_NEXT_VARS:
+    parts = var.name.split("_")
+    var.name = f"{parts[0]}_{parts[1]}_next"
+
+# Resistance and atmospheric variables (scalars)
+RESISTANCE_VARS = [
+    OutputVariable(name="RS", unit="s m-1", description="Surface resistance",
+                  aggregation=AggregationMethod.AVERAGE, group=OutputGroup.DEBUG,
+                  level=OutputLevel.DEFAULT, format="f104"),
+    OutputVariable(name="RA_h", unit="s m-1", description="Aerodynamic resistance for heat",
+                  aggregation=AggregationMethod.AVERAGE, group=OutputGroup.DEBUG,
+                  level=OutputLevel.DEFAULT, format="f104"),
+    OutputVariable(name="RB", unit="s m-1", description="Boundary layer resistance",
+                  aggregation=AggregationMethod.AVERAGE, group=OutputGroup.DEBUG,
+                  level=OutputLevel.DEFAULT, format="f104"),
+    OutputVariable(name="RAsnow", unit="s m-1", description="Aerodynamic resistance for snow",
+                  aggregation=AggregationMethod.AVERAGE, group=OutputGroup.DEBUG,
+                  level=OutputLevel.DEFAULT, format="f104"),
+]
+
+# Surface resistance by surface type
+RSS_VARS = make_debug_surface_vars(
+    "rss", "s m-1", "Surface resistance for {}",
+    AggregationMethod.AVERAGE, "f104"
+)
+
+# Volumetric soil moisture deficit by surface type
+VSMD_VARS = make_debug_surface_vars(
+    "vsmd", "m3 m-3", "Volumetric soil moisture deficit for {}",
+    AggregationMethod.AVERAGE, "f104"
+)
+
+# Conductance parameters by surface type
+COND_S1S2_VARS = make_debug_surface_vars(
+    "cond_s1s2", "-", "Conductance parameter S1/G_sm + S2 for {}",
+    AggregationMethod.AVERAGE, "f104"
+)
+
+COND_GSM_VARS = make_debug_surface_vars(
+    "cond_gsm", "-", "Conductance parameter G_sm for {}",
+    AggregationMethod.AVERAGE, "f104"
+)
+
+COND_CALC_VARS = make_debug_surface_vars(
+    "cond_calc", "-", "Conductance calculation term for {}",
+    AggregationMethod.AVERAGE, "f104"
+)
+
+# Stomatal conductance modifiers by surface type
+G_KDOWN_VARS = make_debug_surface_vars(
+    "g_kdown", "-", "Kdown modifier for stomatal conductance for {}",
+    AggregationMethod.AVERAGE, "f104"
+)
+
+G_DQ_VARS = make_debug_surface_vars(
+    "g_dq", "-", "Specific humidity deficit modifier for stomatal conductance for {}",
+    AggregationMethod.AVERAGE, "f104"
+)
+
+G_TA_VARS = make_debug_surface_vars(
+    "g_ta", "-", "Air temperature modifier for stomatal conductance for {}",
+    AggregationMethod.AVERAGE, "f104"
+)
+
+G_SMD_VARS = make_debug_surface_vars(
+    "g_smd", "-", "Soil moisture deficit modifier for stomatal conductance for {}",
+    AggregationMethod.AVERAGE, "f104"
+)
+
+G_LAI_VARS = make_debug_surface_vars(
+    "g_lai", "-", "LAI modifier for stomatal conductance for {}",
+    AggregationMethod.AVERAGE, "f104"
+)
+
+# Additional atmospheric scalars
+ATMOS_VARS = [
+    OutputVariable(name="vpd_hPa", unit="hPa", description="Vapour pressure deficit",
+                  aggregation=AggregationMethod.AVERAGE, group=OutputGroup.DEBUG,
+                  level=OutputLevel.DEFAULT, format="f104"),
+    OutputVariable(name="lv_J_kg", unit="J kg-1", description="Latent heat of vaporisation",
+                  aggregation=AggregationMethod.AVERAGE, group=OutputGroup.DEBUG,
+                  level=OutputLevel.DEFAULT, format="f104"),
+    OutputVariable(name="avdens", unit="kg m-3", description="Air density",
+                  aggregation=AggregationMethod.AVERAGE, group=OutputGroup.DEBUG,
+                  level=OutputLevel.DEFAULT, format="f104"),
+    OutputVariable(name="avcp", unit="J kg-1 K-1", description="Air specific heat capacity",
+                  aggregation=AggregationMethod.AVERAGE, group=OutputGroup.DEBUG,
+                  level=OutputLevel.DEFAULT, format="f104"),
+    OutputVariable(name="s_hPa", unit="hPa K-1", description="Slope of saturation vapour pressure curve",
+                  aggregation=AggregationMethod.AVERAGE, group=OutputGroup.DEBUG,
+                  level=OutputLevel.DEFAULT, format="f104"),
+    OutputVariable(name="psyc_hPa", unit="hPa K-1", description="Psychrometric constant",
+                  aggregation=AggregationMethod.AVERAGE, group=OutputGroup.DEBUG,
+                  level=OutputLevel.DEFAULT, format="f104"),
+]
+
+# Iteration and FAI variables
+MISC_VARS = [
+    OutputVariable(name="i_iter", unit="-", description="Number of iterations in convergence loop",
+                  aggregation=AggregationMethod.AVERAGE, group=OutputGroup.DEBUG,
+                  level=OutputLevel.DEFAULT, format="f104"),
+    OutputVariable(name="FAIBldg_use", unit="-", description="Building frontal area index used",
+                  aggregation=AggregationMethod.AVERAGE, group=OutputGroup.DEBUG,
+                  level=OutputLevel.DEFAULT, format="f104"),
+    OutputVariable(name="FAIEveTree_use", unit="-", description="Evergreen tree frontal area index used",
+                  aggregation=AggregationMethod.AVERAGE, group=OutputGroup.DEBUG,
+                  level=OutputLevel.DEFAULT, format="f104"),
+    OutputVariable(name="FAIDecTree_use", unit="-", description="Deciduous tree frontal area index used",
+                  aggregation=AggregationMethod.AVERAGE, group=OutputGroup.DEBUG,
+                  level=OutputLevel.DEFAULT, format="f104"),
+    OutputVariable(name="FAI", unit="-", description="Total frontal area index",
+                  aggregation=AggregationMethod.AVERAGE, group=OutputGroup.DEBUG,
+                  level=OutputLevel.DEFAULT, format="f104"),
+    OutputVariable(name="dqndt", unit="W m-2", description="Rate of change of net radiation",
+                  aggregation=AggregationMethod.AVERAGE, group=OutputGroup.DEBUG,
+                  level=OutputLevel.DEFAULT, format="f104"),
 ]
 
 # Combine all debug variables
@@ -179,5 +299,19 @@ DEBUG_VARIABLES = (
     DRAIN_VARS +
     ST_PREV_VARS +
     ST_NEXT_VARS +
-    DEBUG_EXTRA_VARS
+    SS_PREV_VARS +
+    SS_NEXT_VARS +
+    RESISTANCE_VARS +
+    RSS_VARS +
+    VSMD_VARS +
+    COND_S1S2_VARS +
+    COND_GSM_VARS +
+    COND_CALC_VARS +
+    G_KDOWN_VARS +
+    G_DQ_VARS +
+    G_TA_VARS +
+    G_SMD_VARS +
+    G_LAI_VARS +
+    ATMOS_VARS +
+    MISC_VARS
 )

@@ -14,7 +14,7 @@ import pandas as pd
 from ._run import run_supy_ser
 
 # Import SuPy components directly
-from ._supy_module import save_supy
+from ._supy_module import _save_supy
 from .data_model import RefValue
 from .data_model.core import SUEWSConfig
 from .util._io import read_forcing
@@ -378,7 +378,7 @@ class SUEWSSimulation:
         output_path : str or Path, optional
             Output directory path. If None, uses current directory.
         save_kwargs : dict
-            Additional keyword arguments passed to save_supy.
+            Additional keyword arguments forwarded to the internal `_save_supy` helper.
 
         Returns
         -------
@@ -435,8 +435,8 @@ class SUEWSSimulation:
         if "format" in save_kwargs:  # TODO: When yaml format working, make elif
             output_format = save_kwargs["format"]
 
-        # Use save_supy for all formats
-        list_path_save = save_supy(
+        # Use internal save helper for all formats
+        list_path_save = _save_supy(
             df_output=self._df_output,
             df_state_final=self._df_state_final,
             freq_s=int(freq_s),
@@ -453,6 +453,46 @@ class SUEWSSimulation:
         self._df_output = None
         self._df_state_final = None
         self._run_completed = False
+
+    @classmethod
+    def from_sample_data(cls):
+        """Create SUEWSSimulation instance with built-in sample data.
+
+        This factory method provides a quick way to create a simulation object
+        pre-loaded with sample configuration and forcing data, ideal for tutorials,
+        testing, and learning the SUEWS workflow.
+
+        Returns
+        -------
+        SUEWSSimulation
+            Simulation instance ready to run with sample data loaded.
+
+        Examples
+        --------
+        Quick start with sample data:
+
+        >>> from supy import SUEWSSimulation
+        >>> sim = SUEWSSimulation.from_sample_data()
+        >>> sim.run()
+        >>> results = sim.results
+
+        This is equivalent to the functional approach:
+
+        >>> import supy as sp
+        >>> df_state, df_forcing = sp.load_sample_data()
+        >>> df_output, df_final = sp.run_supy(df_forcing, df_state)
+
+        See Also
+        --------
+        load_sample_data : Load sample data as DataFrames (functional approach)
+        """
+        from ._supy_module import _load_sample_data
+
+        df_state_init, df_forcing = _load_sample_data()
+        sim = cls()
+        sim._df_state_init = df_state_init
+        sim._df_forcing = df_forcing
+        return sim
 
     @property
     def config(self) -> Optional[Any]:

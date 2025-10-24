@@ -52,20 +52,16 @@ Quick Start: Sample Data Tutorial
 
 .. code-block:: python
 
-   # Load built-in sample data - no configuration needed!
-   df_state_init, df_forcing = sp.load_sample_data()
-   
-   # Examine the sample data
-   print("📊 Sample forcing data:")
-   print(f"Period: {df_forcing.index[0]} to {df_forcing.index[-1]}")
-   print(f"Variables: {list(df_forcing.columns)}")
-   print(f"Location: Example urban site")
-   
-   # Run SUEWS simulation  
-   df_output, df_state_final = sp.run_supy(df_forcing, df_state_init)
-   
-   print("\n🎉 Congratulations! You've run your first urban climate simulation.")
-   print(f"Generated {len(df_output)} time steps of urban climate data")
+   from supy import SUEWSSimulation
+
+   # Create simulation with built-in sample data
+   sim = SUEWSSimulation.from_sample_data()
+
+   # Run simulation
+   sim.run()
+
+   print("🎉 Congratulations! You've run your first urban climate simulation.")
+   print(f"Generated {len(sim.results)} time steps of urban climate data")
 
 **Step 2: Explore your results**
 
@@ -74,7 +70,7 @@ Quick Start: Sample Data Tutorial
    # Quick overview of results
    print("📈 Key output variables:")
    key_vars = ['QN', 'QF', 'QS', 'QE', 'QH', 'Runoff', 'T2']
-   print(df_output[key_vars].describe().round(2))
+   print(sim.results[key_vars].describe().round(2))
 
 **Step 3: Create your first urban climate visualisation**
 
@@ -82,10 +78,10 @@ Quick Start: Sample Data Tutorial
 
    # Plot energy balance components
    fig, axes = plt.subplots(2, 2, figsize=(15, 10))
-   
+
    # Daily energy fluxes
    energy_cols = ['QN', 'QF', 'QS', 'QE', 'QH']
-   df_energy = df_output[energy_cols]
+   df_energy = sim.results[energy_cols]
    daily_energy = df_energy.resample('D').mean()
    
    daily_energy.plot(ax=axes[0,0], title='Daily Mean Energy Fluxes')
@@ -99,19 +95,20 @@ Quick Start: Sample Data Tutorial
    axes[0,1].set_xlabel('Month')
    
    # Diurnal patterns (summer months)
+   df_output = sim.results  # Get results DataFrame
    summer_data = df_output[df_output.index.month.isin([6,7,8])]
    hourly_temp = summer_data.groupby(summer_data.index.hour)['T2'].mean()
    hourly_temp.plot(ax=axes[1,0], title='Summer Diurnal Temperature Cycle', marker='o')
    axes[1,0].set_ylabel('Air Temperature (°C)')
    axes[1,0].set_xlabel('Hour of Day')
    axes[1,0].grid(True, alpha=0.3)
-   
+
    # Runoff vs Precipitation
    daily_water = df_output[['Rain', 'Runoff']].resample('D').sum()
    daily_water.plot(ax=axes[1,1], title='Daily Water Balance')
    axes[1,1].set_ylabel('Water (mm/day)')
    axes[1,1].legend()
-   
+
    plt.tight_layout()
    plt.show()
 
@@ -276,45 +273,25 @@ This comprehensive notebook covers:
 Using Your Configuration
 ^^^^^^^^^^^^^^^^^^^^^^^^
 
-Once you have a YAML configuration file, you can use either the traditional functional approach or the new object-oriented interface:
-
-**Object-Oriented Approach (New):**
+Once you have a YAML configuration file, use the `SUEWSSimulation` class:
 
 .. code-block:: python
 
    from supy import SUEWSSimulation
-   
+
    # Create simulation from YAML configuration
-   sim = SUEWSSimulation.from_yaml("path/to/your/config_suews.yml")
-   
-   # Setup forcing data
-   sim.setup_forcing("path/to/forcing_data.txt")
-   
-   # Run simulation
+   sim = SUEWSSimulation("path/to/your/config_suews.yml")
+
+   # Run simulation (forcing data loaded from config)
    sim.run()
-   
+
    # Access results
-   results = sim.get_results()
-   print(sim.summary())
-   
+   print(sim.results)
+
    # Save outputs
-   sim.save("outputs.csv")
+   sim.save("output_directory/")
 
-**Traditional Functional Approach:**
-
-.. code-block:: python
-
-   import supy as sp
-   
-   # The functional API uses DataFrames for configuration
-   # YAML loading is available through the SUEWSSimulation class (see above)
-   df_state_init, df_forcing = sp.load_sample_data()  # Start with sample data
-   # Then modify parameters as needed using pandas operations
-   
-   # Run simulation for your site
-   df_output, df_state_final = sp.run_supy(df_forcing, df_state_init)
-
-For detailed examples of the new SUEWSSimulation class, see :doc:`/sub-tutorials/suews-simulation-tutorial`.
+For detailed examples, see :doc:`/sub-tutorials/suews-simulation-tutorial`.
 
 Data Requirements and Quality
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -348,48 +325,35 @@ Multi-Site and Comparative Studies
 
 .. code-block:: python
 
-   import supy as sp
+   from supy import SUEWSSimulation
    from multiprocessing import Pool
    import pandas as pd
-   
-   # Load sample data and modify for different sites
-   def create_site_config(site_name, lat, lng, urban_fraction):
-       """Create configuration for a single site"""
-       df_state, df_forcing = sp.load_sample_data()
-       
-       # Modify site characteristics
-       # Note: This uses pandas operations until YAML config API is available
-       # df_state.loc[:, ('lat', 0)] = lat
-       # df_state.loc[:, ('lng', 0)] = lng
-       # df_state.loc[:, ('sfr_surf', slice(None))] = urban_fraction
-       
-       return site_name, df_state, df_forcing
-   
-   def run_single_site(site_data):
-       """Run SUEWS for a single site"""
-       site_name, df_state, df_forcing = site_data
-       df_output, df_final = sp.run_supy(df_forcing, df_state)
-       return site_name, df_output
-   
-   # Create configurations for multiple sites
+
+   def run_site(config_file):
+       """Run SUEWS for a single site configuration"""
+       sim = SUEWSSimulation(config_file)
+       sim.run()
+       return config_file, sim.results
+
+   # Configuration files for different sites
    site_configs = [
-       create_site_config("London", 51.51, -0.12, [0.4, 0.4, 0.1, 0.1, 0.0, 0.0, 0.0]),
-       create_site_config("Manchester", 53.48, -2.24, [0.3, 0.5, 0.1, 0.1, 0.0, 0.0, 0.0]),
-       create_site_config("Birmingham", 52.48, -1.90, [0.35, 0.45, 0.1, 0.1, 0.0, 0.0, 0.0])
+       "config_london.yml",
+       "config_manchester.yml",
+       "config_birmingham.yml"
    ]
-   
+
    # Parallel execution across all sites
    with Pool() as pool:
-       results = pool.map(run_single_site, site_configs)
-   
+       results = pool.map(run_site, site_configs)
+
    # Combine results for comparative analysis
    site_outputs = {name: output for name, output in results}
-   
+
    # Example: Compare urban heat island intensities
    monthly_temps = {}
    for site, df in site_outputs.items():
        monthly_temps[site] = df.groupby(df.index.month)['T2'].mean()
-   
+
    temp_comparison = pd.DataFrame(monthly_temps)
    temp_comparison.plot(kind='bar', title='Monthly Temperature Comparison')
 
@@ -400,35 +364,31 @@ Climate Change Impact Studies
 
 .. code-block:: python
 
-   # Climate scenario analysis
+   from supy import SUEWSSimulation
+
+   # Define climate scenarios with different forcing files
    scenarios = {
-       'baseline': 'historical_met_data.csv',
-       'rcp45_2050': 'rcp45_2050_met_data.csv', 
-       'rcp85_2050': 'rcp85_2050_met_data.csv'
+       'baseline': 'config_baseline.yml',
+       'rcp45_2050': 'config_rcp45.yml',
+       'rcp85_2050': 'config_rcp85.yml'
    }
-   
+
    scenario_results = {}
-   
-   for scenario_name, met_file in scenarios.items():
-       # Load base configuration with sample data
-       df_state, df_forcing = sp.load_sample_data()
-       
-       # Replace meteorological forcing with scenario data
-       # df_forcing = pd.read_csv(met_file)  # Load scenario-specific met data
-       # Note: Actual implementation would load and format the scenario data
-       
-       # Run simulation
-       df_output, _ = sp.run_supy(df_forcing, df_state)
-       scenario_results[scenario_name] = df_output
-   
+
+   for scenario_name, config_file in scenarios.items():
+       # Run simulation for each scenario
+       sim = SUEWSSimulation(config_file)
+       sim.run()
+       scenario_results[scenario_name] = sim.results
+
    # Calculate climate change impacts
    baseline = scenario_results['baseline']
    rcp85 = scenario_results['rcp85_2050']
-   
+
    # Temperature changes
    temp_change = rcp85['T2'].mean() - baseline['T2'].mean()
    print(f"Projected temperature increase: {temp_change:.1f}°C")
-   
+
    # Energy flux changes
    flux_changes = {
        'Sensible Heat': rcp85['QH'].mean() - baseline['QH'].mean(),
@@ -542,19 +502,17 @@ Migration Process
 
 .. code-block:: python
 
-   # For now, manually test configuration changes
-   # Future: config = sp.load_config("migrated_config.yml")
-   # Future: df_state, df_forcing = sp.prepare_inputs(config)
-   
-   # Current approach: Load sample data and verify structure
-   df_state, df_forcing = sp.load_sample_data()
-   
-   # Short validation run
-   df_output, _ = sp.run_supy(df_forcing.head(144), df_state)  # 1 day
-   
+   from supy import SUEWSSimulation
+
+   # Test migrated configuration
+   sim = SUEWSSimulation("migrated_config.yml")
+
+   # Short validation run (24 hours)
+   sim.run(end_date="2012-01-02")
+
    # Check energy balance
    print("✅ Migration validation:")
-   print(df_output[['QE', 'QH', 'QS', 'QF']].describe())
+   print(sim.results[['QE', 'QH', 'QS', 'QF']].describe())
 
 Getting Support and Community
 -----------------------------

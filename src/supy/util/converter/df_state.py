@@ -24,10 +24,10 @@ def _get_current_df_state_template() -> pd.DataFrame:
         DataFrame with current df_state structure
     """
     # We're inside supy, so we can import directly
-    from ..._supy_module import load_sample_data
+    from ..._supy_module import _load_sample_data
 
     logger.debug("Loading current df_state template from sample data")
-    df_template, _ = load_sample_data()
+    df_template, _ = _load_sample_data()
     return df_template
 
 

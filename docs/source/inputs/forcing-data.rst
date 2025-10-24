@@ -282,10 +282,10 @@ SUEWS provides the ``check_forcing()`` function to validate your forcing data fi
      - Energy flux physical limits
    * - snow
      - 0 - 1
-     - Fraction (0-100%)
+     - Fraction (0-1, or 0-100%)
    * - fcld
-     - 0 - 10 tenths
-     - Cloud cover oktas
+     - 0 - 10
+     - Cloud cover (oktas, 0-10 tenths)
    * - xsmd
      - 0 - 1 m³/m³
      - Volumetric soil moisture

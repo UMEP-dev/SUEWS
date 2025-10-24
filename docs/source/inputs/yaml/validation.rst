@@ -12,6 +12,39 @@ The validation system performs multiple checks on your configuration:
 - **Scientific Validation**: Applies automatic scientific corrections and validates physics options compatibility
 - **Model Compatibility**: Ensures configuration compatibility with SUEWS computational engine
 
+Before You Start
+----------------
+
+To ensure the validator works correctly with all features, follow these steps:
+
+1. **Use the master branch**: Ensure you are on the master branch to access the latest validation features
+
+   .. code-block:: bash
+
+      git checkout master
+      git pull
+
+2. **Install or update SUEWS**: Make sure you have the current version installed
+
+   .. code-block:: bash
+
+      # For development installations
+      make clean
+      make dev
+
+      # For standard installations, see:
+      # https://suews.readthedocs.io/latest/installation.html
+
+   See :doc:`/installation` for complete installation instructions.
+
+3. **Verify installation**: Check that the validator is available
+
+   .. code-block:: bash
+
+      suews-validate --version
+
+If the validator command is not found, your installation may not be complete. Refer to the installation guide for troubleshooting.
+
 Basic Usage
 -----------
 

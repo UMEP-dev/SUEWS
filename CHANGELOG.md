@@ -34,6 +34,12 @@
 
 ## 2025
 
+### 24 Oct 2025 (dayantur/feature/validator/stebbs-parameters-checks)
+- [feature] Added physical range validation for 50+ STEBBS building model parameters in `ArchetypeProperties`
+  - Dimensionless parameters (emissivity, transmissivity, absorptivity, reflectivity, ratios) constrained to [0.0, 1.0]
+  - Physical properties (thickness, conductivity, density, heat capacity) constrained to positive values
+  - Updated defaults: WallThickness (0.2 m), WallEffectiveConductivity (0.6 W/m/K), ApplianceUsageFactor ([0.0, 1.0])
+
 ### 22 Oct 2025
 - [feature] Forcing data validation integrated into Phase A validator
   - Added automatic validation of meteorological forcing data in Phase A pipeline

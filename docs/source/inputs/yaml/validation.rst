@@ -8,7 +8,7 @@ What the Validator Does
 
 The validation system performs multiple checks on your configuration:
 
-- **Completeness Check**: Detects missing parameters, updates deprecated parameter names to current standards and validates forcing data
+- **Completeness Check**: Detects missing parameters, updates deprecated parameter names to current standards and validates forcing data (see :doc:`/inputs/forcing-data` for detailed reference on forcing data validation)
 - **Scientific Validation**: Applies automatic scientific corrections and validates physics options compatibility
 - **Model Compatibility**: Ensures configuration compatibility with SUEWS computational engine
 

@@ -40,6 +40,11 @@
   - Installation/update steps with `make clean && make dev` for development setup
   - Verification step with `suews-validate --version`
   - Cross-references to installation documentation
+- [doc] Added comprehensive documentation for forcing data validation functions
+  - New "Validating Forcing Data" section in `forcing-data.rst` with complete reference
+  - Documents `check_forcing()` function: what it validates, physical ranges for 20 variables, usage examples
+  - Includes Python usage examples and integration with `suews-validate` command
+  - Cross-references validation system documentation
 
 ### 22 Oct 2025
 - [feature] Forcing data validation integrated into Phase A validator

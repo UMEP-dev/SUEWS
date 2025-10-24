@@ -19,6 +19,7 @@ import os
 from pathlib import Path
 import sys
 import time
+import warnings
 from typing import Optional
 
 import numpy as np
@@ -53,10 +54,32 @@ from .data_model import init_config_from_yaml
 logger_supy.setLevel(logging.INFO)
 
 
+_FUNCTIONAL_DEPRECATIONS = {
+    "init_supy": "the object-oriented `SUEWSSimulation` interface (see `supy.suews_sim.SUEWSSimulation`)",
+    "load_forcing_grid": "`SUEWSSimulation.update_forcing` or `read_forcing` utilities",
+    "load_sample_data": "`SUEWSSimulation` helpers (e.g., `SUEWSSimulation('sample_config.yml')`)",
+    "run_supy": "`SUEWSSimulation.run`",
+    "run_supy_sample": "`SUEWSSimulation` sample workflows",
+    "save_supy": "`SUEWSSimulation.save`",
+    "init_config": "`SUEWSSimulation` or `SUEWSConfig` constructors",
+}
+
+
+def _warn_functional_deprecation(name: str) -> None:
+    """Emit a standardized deprecation warning for the legacy functional API."""
+    replacement = _FUNCTIONAL_DEPRECATIONS.get(name, "the object-oriented API")
+    warnings.warn(
+        f"`supy.{name}` is deprecated and will be removed in a future release. "
+        f"Please migrate to {replacement}.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+
+
 ##############################################################################
 # 1. compact wrapper for loading SUEWS settings
 # @functools.lru_cache(maxsize=16)
-def init_supy(
+def _init_supy(
     path_init: str,
     force_reload=True,
     check_input=False,
@@ -153,9 +176,21 @@ def init_supy(
 #     pass
 
 
+def init_supy(
+    path_init: str,
+    force_reload=True,
+    check_input=False,
+) -> pd.DataFrame:
+    _warn_functional_deprecation("init_supy")
+    return _init_supy(path_init, force_reload=force_reload, check_input=check_input)
+
+
+init_supy.__doc__ = _init_supy.__doc__
+
+
 # TODO:
 # to be superseded by a more generic wrapper: load_forcing
-def load_forcing_grid(
+def _load_forcing_grid(
     path_init: str,
     grid: int,
     check_input=False,
@@ -313,15 +348,38 @@ def load_forcing_grid(
 
 # load sample data for quickly starting a demo run
 # TODO: to deprecate this by renaming for case consistency: load_SampleData-->load_sample_data
+
+
+def load_forcing_grid(
+    path_init: str,
+    grid: int,
+    check_input=False,
+    force_reload=True,
+    df_state_init: pd.DataFrame = None,
+    config=None,
+) -> pd.DataFrame:
+    _warn_functional_deprecation("load_forcing_grid")
+    return _load_forcing_grid(
+        path_init=path_init,
+        grid=grid,
+        check_input=check_input,
+        force_reload=force_reload,
+        df_state_init=df_state_init,
+        config=config,
+    )
+
+
+load_forcing_grid.__doc__ = _load_forcing_grid.__doc__
+
 def load_SampleData() -> tuple[pandas.DataFrame, pandas.DataFrame]:
     logger_supy.warning(
         "This function name will be deprecated. Please use `load_sample_data()` instead.",
         stacklevel=2,
     )
-    return load_sample_data()
+    return _load_sample_data()
 
 
-def load_sample_data() -> tuple[pandas.DataFrame, pandas.DataFrame]:
+def _load_sample_data() -> tuple[pandas.DataFrame, pandas.DataFrame]:
     """Load sample data for quickly starting a demo run.
 
     Returns
@@ -338,11 +396,19 @@ def load_sample_data() -> tuple[pandas.DataFrame, pandas.DataFrame]:
     trv_sample_data = trv_supy_module / "sample_data"
     path_config_default = trv_sample_data / "sample_config.yml"
     # path_config_default = trv_sample_data / "RunControl.nml" # TODO: to be deprecated - but keep for now to pass tests
-    df_state_init = init_supy(path_config_default, force_reload=False)
-    df_forcing = load_forcing_grid(
+    df_state_init = _init_supy(path_config_default, force_reload=False)
+    df_forcing = _load_forcing_grid(
         path_config_default, df_state_init.index[0], df_state_init=df_state_init
     )
     return df_state_init, df_forcing
+
+
+def load_sample_data() -> tuple[pandas.DataFrame, pandas.DataFrame]:
+    _warn_functional_deprecation("load_sample_data")
+    return _load_sample_data()
+
+
+load_sample_data.__doc__ = _load_sample_data.__doc__
 
 
 def load_config_from_df(df_state: pd.DataFrame):
@@ -371,7 +437,7 @@ def load_config_from_df(df_state: pd.DataFrame):
     return config
 
 
-def init_config(df_state: pd.DataFrame = None):
+def _init_config(df_state: pd.DataFrame = None):
     """Initialise SUEWS configuration object either from existing df_state dataframe or as the default configuration."""
     if df_state is None:
         from .util._config import SUEWSConfig
@@ -379,6 +445,14 @@ def init_config(df_state: pd.DataFrame = None):
         return SUEWSConfig()
 
     return load_config_from_df(df_state)
+
+
+def init_config(df_state: pd.DataFrame = None):
+    _warn_functional_deprecation("init_config")
+    return _init_config(df_state)
+
+
+init_config.__doc__ = _init_config.__doc__
 
 
 # input processing code end here
@@ -389,7 +463,7 @@ def init_config(df_state: pd.DataFrame = None):
 # 2. compact wrapper for running a whole simulation
 # # main calculation
 # input as DataFrame
-def run_supy(
+def _run_supy(
     df_forcing: pandas.DataFrame,
     df_state_init: pandas.DataFrame,
     save_state=False,
@@ -520,9 +594,35 @@ def run_supy(
         return df_output, df_state_final
 
 
+def run_supy(
+    df_forcing: pandas.DataFrame,
+    df_state_init: pandas.DataFrame,
+    save_state=False,
+    chunk_day=3660,
+    logging_level=logging.INFO,
+    check_input=False,
+    serial_mode=False,
+    debug_mode=False,
+) -> tuple[pandas.DataFrame, pandas.DataFrame]:
+    _warn_functional_deprecation("run_supy")
+    return _run_supy(
+        df_forcing=df_forcing,
+        df_state_init=df_state_init,
+        save_state=save_state,
+        chunk_day=chunk_day,
+        logging_level=logging_level,
+        check_input=check_input,
+        serial_mode=serial_mode,
+        debug_mode=debug_mode,
+    )
+
+
+run_supy.__doc__ = _run_supy.__doc__
+
+
 ##############################################################################
 # 3. save results of a supy run
-def save_supy(
+def _save_supy(
     df_output: pandas.DataFrame,
     df_state_final: pandas.DataFrame,
     freq_s: int = 3600,
@@ -689,7 +789,41 @@ def save_supy(
     return list_path_save
 
 
-def run_supy_sample(
+def save_supy(
+    df_output: pandas.DataFrame,
+    df_state_final: pandas.DataFrame,
+    freq_s: int = 3600,
+    site: str = "",
+    path_dir_save: str = Path("."),
+    path_runcontrol: Optional[str] = None,
+    save_tstep=False,
+    logging_level=50,
+    output_level=1,
+    debug=False,
+    output_config=None,
+    output_format="txt",
+) -> list:
+    _warn_functional_deprecation("save_supy")
+    return _save_supy(
+        df_output=df_output,
+        df_state_final=df_state_final,
+        freq_s=freq_s,
+        site=site,
+        path_dir_save=path_dir_save,
+        path_runcontrol=path_runcontrol,
+        save_tstep=save_tstep,
+        logging_level=logging_level,
+        output_level=output_level,
+        debug=debug,
+        output_config=output_config,
+        output_format=output_format,
+    )
+
+
+save_supy.__doc__ = _save_supy.__doc__
+
+
+def _run_supy_sample(
     start=None,
     end=None,
     save_state=False,
@@ -736,7 +870,7 @@ def run_supy_sample(
     >>> df_output, df_state_final = supy.run_supy_sample()
     """
     # Load sample data
-    df_state_init, df_forcing = load_sample_data()
+    df_state_init, df_forcing = _load_sample_data()
 
     # subset forcing data
     if start is not None:
@@ -747,7 +881,7 @@ def run_supy_sample(
         df_forcing = df_forcing[start:end]
 
     # Run SuPy with the sample data
-    res_supy = run_supy(
+    res_supy = _run_supy(
         df_forcing=df_forcing,
         df_state_init=df_state_init,
         save_state=save_state,
@@ -763,3 +897,29 @@ def run_supy_sample(
     else:
         df_output, df_state_final = res_supy
         return df_output, df_state_final
+
+
+def run_supy_sample(
+    start=None,
+    end=None,
+    save_state=False,
+    chunk_day=3660,
+    logging_level=logging.INFO,
+    check_input=False,
+    serial_mode=False,
+    debug_mode=False,
+) -> tuple[pandas.DataFrame, pandas.DataFrame, pandas.DataFrame]:
+    _warn_functional_deprecation("run_supy_sample")
+    return _run_supy_sample(
+        start=start,
+        end=end,
+        save_state=save_state,
+        chunk_day=chunk_day,
+        logging_level=logging_level,
+        check_input=check_input,
+        serial_mode=serial_mode,
+        debug_mode=debug_mode,
+    )
+
+
+run_supy_sample.__doc__ = _run_supy_sample.__doc__

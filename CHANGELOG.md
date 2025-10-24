@@ -21,7 +21,7 @@
 
 | Year | Features | Bugfixes | Changes | Maintenance | Docs | Total |
 |------|----------|----------|---------|-------------|------|-------|
-| 2025 | 36 | 25 | 13 | 34 | 16 | 124 |
+| 2025 | 37 | 25 | 13 | 34 | 17 | 124 |
 | 2024 | 12 | 17 | 1 | 12 | 1 | 43 |
 | 2023 | 11 | 14 | 3 | 9 | 1 | 38 |
 | 2022 | 15 | 18 | 0 | 7 | 0 | 40 |
@@ -34,11 +34,16 @@
 
 ## 2025
 
-### 24 Oct 2025 (dayantur/feature/validator/stebbs-parameters-checks)
+### 24 Oct 2025
 - [feature] Added physical range validation for 50+ STEBBS building model parameters in `ArchetypeProperties`
   - Dimensionless parameters (emissivity, transmissivity, absorptivity, reflectivity, ratios) constrained to [0.0, 1.0]
   - Physical properties (thickness, conductivity, density, heat capacity) constrained to positive values
   - Updated defaults: WallThickness (0.2 m), WallEffectiveConductivity (0.6 W/m/K), ApplianceUsageFactor ([0.0, 1.0])
+- [doc] Added comprehensive documentation for forcing data validation functions
+  - New "Validating Forcing Data" section in `forcing-data.rst` with complete reference
+  - Documents `check_forcing()` function: what it validates, physical ranges for 20 variables, usage examples
+  - Includes Python usage examples and integration with `suews-validate` command
+  - Cross-references validation system documentation
 
 ### 22 Oct 2025
 - [feature] Forcing data validation integrated into Phase A validator

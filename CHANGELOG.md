@@ -21,7 +21,7 @@
 
 | Year | Features | Bugfixes | Changes | Maintenance | Docs | Total |
 |------|----------|----------|---------|-------------|------|-------|
-| 2025 | 36 | 25 | 13 | 34 | 16 | 124 |
+| 2025 | 36 | 25 | 13 | 34 | 17 | 124 |
 | 2024 | 12 | 17 | 1 | 12 | 1 | 43 |
 | 2023 | 11 | 14 | 3 | 9 | 1 | 38 |
 | 2022 | 15 | 18 | 0 | 7 | 0 | 40 |
@@ -33,6 +33,13 @@
 
 
 ## 2025
+
+### 24 Oct 2025
+- [doc] Added "Before You Start" section in `validation.rst` with prerequisites for running the validator
+  - Instructions to ensure users are on master branch with latest code
+  - Installation/update steps with `make clean && make dev` for development setup
+  - Verification step with `suews-validate --version`
+  - Cross-references to installation documentation
 
 ### 22 Oct 2025
 - [feature] Forcing data validation integrated into Phase A validator

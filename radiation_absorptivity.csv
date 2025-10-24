@@ -1,3 +1,3 @@
-Parameter Name,Path,Value,Context/Description
-WallAbsorbtivity,sites.0.properties.building_archetype.WallAbsorbtivity,0.8,STEBBS building model
-WindowAbsorbtivity,sites.0.properties.building_archetype.WindowAbsorbtivity,0.09,STEBBS building model
+Parameter Name,Path,Context/Description
+WallAbsorbtivity,sites.0.properties.building_archetype.WallAbsorbtivity,STEBBS building model
+WindowAbsorbtivity,sites.0.properties.building_archetype.WindowAbsorbtivity,STEBBS building model

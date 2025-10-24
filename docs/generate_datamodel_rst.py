@@ -296,6 +296,16 @@ class RSTGenerator:
         if default_label is not None and default_value is not None:
             lines.append(f"   :{default_label}: {default_value}")
 
+        # Add default description if available
+        default_desc = field_doc.get("default_description")
+        if default_desc:
+            lines.append(f"   :Default Description: {default_desc}")
+
+        # Add range description if available
+        range_desc = field_doc.get("range_description")
+        if range_desc:
+            lines.append(f"   :Range Description: {range_desc}")
+
         # Add reference field for RefValue types
         if type_info.get("is_ref_value"):
             lines.append(

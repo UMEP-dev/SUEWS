@@ -34,6 +34,25 @@
 
 ## 2025
 
+### 22 Oct 2025
+- [feature] Forcing data validation integrated into Phase A validator
+  - Added automatic validation of meteorological forcing data in Phase A pipeline
+  - Enabled by default; disable with `--forcing off` or `-f off` CLI flags
+  - Errors appear in ACTION NEEDED section with single-line formatting and include filename context
+  - Validates **all** forcing files when multiple files are provided (not just first)
+  - Line numbers in error messages match actual file line numbers for easy debugging
+  - Added 10 integration tests in `test/data_model/test_validation.py` covering:
+    - Missing files, valid/invalid data, report integration, enable/disable functionality
+    - Line number accuracy verification, RefValue format handling, multiple files validation, CLI integration
+  - Updated documentation: `validation.rst`, `ORCHESTRATOR.md`, `PHASE_A_DETAILED.md`, `README.md`
+
+### 21 Oct 2025
+- [feature] Added `get_mean_annual_air_temperature()` for stable parameter initialisation using CRU TS4.06 climate normals
+- [bugfix] Fixed Phase B validation to update roofs/walls temperature fields in initial_states from CRU climate data
+  - Extended `adjust_surface_temperatures()` to process `initial_states.roofs` and `initial_states.walls` arrays
+  - Updates `temperature` (5-layer array), `tsfc`, and `tin` fields to monthly averages from CRU TS4.06 dataset
+  - Ensures consistent temperature initialization across all surface types
+
 ### 20 Oct 2025
 - [bugfix] Fixed recursive nested config updates in SUEWSSimulation (#756, 88a5202)
   - Resolved issue where updating nested configuration settings converted parameters to dictionaries

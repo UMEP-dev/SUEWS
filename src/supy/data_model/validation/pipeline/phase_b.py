@@ -59,6 +59,10 @@ except ImportError:
 # Try to import from supy if available, otherwise use standalone mode
 try:
     from supy._env import logger_supy, trv_supy_module
+    from supy.data_model.validation.core.yaml_helpers import (
+        get_mean_monthly_air_temperature as _get_mean_monthly_air_temperature,
+        get_mean_annual_air_temperature as _get_mean_annual_air_temperature,
+    )
 
     HAS_SUPY = True
 except ImportError:
@@ -100,6 +104,19 @@ except ImportError:
 
     trv_supy_module = MockTraversable()
     HAS_SUPY = False
+
+    # Create stub functions for standalone mode
+    def _get_mean_monthly_air_temperature(
+        lat: float, lon: float, month: int, spatial_res: float = 0.5
+    ) -> float:
+        """Stub function - raises error in standalone mode."""
+        raise FileNotFoundError("CRU data not available in standalone mode")
+
+    def _get_mean_annual_air_temperature(
+        lat: float, lon: float, spatial_res: float = 0.5
+    ) -> float:
+        """Stub function - raises error in standalone mode."""
+        raise FileNotFoundError("CRU data not available in standalone mode")
 
 
 @dataclass
@@ -759,8 +776,13 @@ def get_mean_monthly_air_temperature(
 ) -> Optional[float]:
     """Calculate monthly air temperature using CRU TS4.06 data.
 
-    Returns None if CRU data is not available (e.g., in standalone mode).
+    Wrapper around yaml_helpers.get_mean_monthly_air_temperature that returns
+    None if CRU data is not available (e.g., in standalone mode).
+
+    Raises:
+        ValueError: If input parameters are invalid (month, lat, lon out of range)
     """
+    # Validate parameters first - these errors should propagate
     if not (1 <= month <= 12):
         raise ValueError(f"Month must be between 1 and 12, got {month}")
     if not (-90 <= lat <= 90):
@@ -768,71 +790,106 @@ def get_mean_monthly_air_temperature(
     if not (-180 <= lon <= 180):
         raise ValueError(f"Longitude must be between -180 and 180, got {lon}")
 
-    cru_resource = trv_supy_module / "ext_data" / "CRU_TS4.06_1991_2020.parquet"
-
-    # In standalone mode, CRU data might not be available
-    if not HAS_SUPY:
-        logger_supy.warning(
-            "Running in standalone mode - CRU climate data not available. "
-            "Skipping temperature validation."
-        )
-        return None
-
-    if not cru_resource.exists():
-        logger_supy.warning(
-            f"CRU data file not found at {cru_resource}. "
-            "Temperature validation will be skipped."
-        )
-        return None
-
+    # Only catch availability errors, not validation errors
     try:
-        df = pd.read_parquet(cru_resource)
-    except Exception as e:
+        return _get_mean_monthly_air_temperature(lat, lon, month, spatial_res)
+    except (FileNotFoundError, IOError, OSError) as e:
         logger_supy.warning(
-            f"Could not read CRU data: {e}. Temperature validation skipped."
+            f"CRU data file not available: {e}. Temperature validation skipped."
         )
         return None
-
-    required_cols = ["Month", "Latitude", "Longitude", "NormalTemperature"]
-    missing_cols = [col for col in required_cols if col not in df.columns]
-    if missing_cols:
-        raise ValueError(f"Missing required columns in CRU data: {missing_cols}")
-
-    month_data = df[df["Month"] == month]
-    if month_data.empty:
-        raise ValueError(f"No CRU data available for month {month}")
-
-    distances = np.sqrt(
-        (month_data["Latitude"] - lat) ** 2 + (month_data["Longitude"] - lon) ** 2
-    )
-
-    for spatial_res_expanded in [spatial_res, spatial_res * 2, spatial_res * 4]:
-        nearby_indices = distances <= spatial_res_expanded
-        nearby_data = month_data[nearby_indices]
-
-        if not nearby_data.empty:
-            break
-
-        if nearby_data.empty:
-            raise ValueError(
-                f"No CRU data found within {spatial_res_expanded} degrees of coordinates "
-                f"({lat}, {lon}) for month {month}. Try increasing spatial resolution or "
-                f"check if coordinates are within CRU data coverage area."
+    except ValueError as e:
+        # Only catch data availability errors from CRU
+        if "CRU" in str(e) or "not found" in str(e).lower():
+            logger_supy.warning(
+                f"CRU data not available: {e}. Temperature validation skipped."
             )
+            return None
+        else:
+            # Re-raise validation errors
+            raise
 
-    nearby_distances = distances[nearby_indices]
-    closest_idx = nearby_distances.idxmin()
 
-    temperature = month_data.loc[closest_idx, "NormalTemperature"]
+def get_mean_annual_air_temperature(
+    lat: float, lon: float, spatial_res: float = 0.5
+) -> Optional[float]:
+    """Calculate annual mean air temperature using CRU TS4.06 climate normals.
 
-    closest_lat = month_data.loc[closest_idx, "Latitude"]
-    closest_lon = month_data.loc[closest_idx, "Longitude"]
-    logger_supy.debug(
-        f"CRU temperature for ({lat:.2f}, {lon:.2f}) month {month}: "
-        f"{temperature:.2f} C from grid cell ({closest_lat:.2f}, {closest_lon:.2f})"
-    )
+    Wrapper around yaml_helpers.get_mean_annual_air_temperature that returns
+    None if CRU data is not available (e.g., in standalone mode).
 
-    return float(temperature)
+    Args:
+        lat: Latitude in degrees (-90 to 90)
+        lon: Longitude in degrees (-180 to 180)
+        spatial_res: Spatial resolution in degrees for finding nearest grid cell (default: 0.5)
+
+    Returns:
+        Annual mean temperature in Celsius based on 1991-2020 climate normals,
+        or None if CRU data not available
+
+    Raises:
+        ValueError: If input parameters are invalid (lat, lon out of range)
+    """
+    # Validate parameters first - these errors should propagate
+    if not (-90 <= lat <= 90):
+        raise ValueError(f"Latitude must be between -90 and 90, got {lat}")
+    if not (-180 <= lon <= 180):
+        raise ValueError(f"Longitude must be between -180 and 180, got {lon}")
+
+    # Only catch availability errors, not validation errors
+    try:
+        return _get_mean_annual_air_temperature(lat, lon, spatial_res)
+    except (FileNotFoundError, IOError, OSError) as e:
+        logger_supy.warning(
+            f"CRU data file not available: {e}. Temperature validation skipped."
+        )
+        return None
+    except ValueError as e:
+        # Only catch data availability errors from CRU
+        if "CRU" in str(e) or "not found" in str(e).lower():
+            logger_supy.warning(
+                f"CRU data not available: {e}. Temperature validation skipped."
+            )
+            return None
+        else:
+            # Re-raise validation errors
+            raise
+
+
+def update_temperature_parameters(
+    element: dict, avg_temp: float
+) -> Tuple[dict, List[str]]:
+    """
+    Update temperature, tsfc, and tin parameters in a dictionary element.
+
+    Args:
+        element: Dictionary containing temperature parameters
+        avg_temp: Target temperature value
+
+    Returns:
+        Tuple of (updated element dict, list of parameter names that were updated)
+    """
+    updated_params = []
+
+    if "temperature" in element and isinstance(element["temperature"], dict):
+        current_temp = element["temperature"].get("value")
+        if current_temp != [avg_temp] * 5:
+            element["temperature"]["value"] = [avg_temp] * 5
+            updated_params.append("temperature")
+
+    if "tsfc" in element and isinstance(element["tsfc"], dict):
+        current_tsfc = element["tsfc"].get("value")
+        if current_tsfc != avg_temp:
+            element["tsfc"]["value"] = avg_temp
+            updated_params.append("tsfc")
+
+    if "tin" in element and isinstance(element["tin"], dict):
+        current_tin = element["tin"].get("value")
+        if current_tin != avg_temp:
+            element["tin"]["value"] = avg_temp
+            updated_params.append("tin")
+
+    return element, updated_params
 
 
 def adjust_surface_temperatures(
@@ -877,39 +934,10 @@ def adjust_surface_temperatures(
             if not isinstance(surf, dict):
                 continue
 
-            temperature_updated = False
-            tsfc_updated = False
-            tin_updated = False
+            surf, updated_params = update_temperature_parameters(surf, avg_temp)
 
-            if "temperature" in surf and isinstance(surf["temperature"], dict):
-                current_temp = surf["temperature"].get("value")
-                if current_temp != [avg_temp] * 5:
-                    surf["temperature"]["value"] = [avg_temp] * 5
-                    temperature_updated = True
-
-            if "tsfc" in surf and isinstance(surf["tsfc"], dict):
-                current_tsfc = surf["tsfc"].get("value")
-                if current_tsfc != avg_temp:
-                    surf["tsfc"]["value"] = avg_temp
-                    tsfc_updated = True
-
-            if "tin" in surf and isinstance(surf["tin"], dict):
-                current_tin = surf["tin"].get("value")
-                if current_tin != avg_temp:
-                    surf["tin"]["value"] = avg_temp
-                    tin_updated = True
-
-            if temperature_updated or tsfc_updated or tin_updated:
-                updated_params = []
-                if temperature_updated:
-                    updated_params.append("temperature")
-                if tsfc_updated:
-                    updated_params.append("tsfc")
-                if tin_updated:
-                    updated_params.append("tin")
-
+            if updated_params:
                 param_list = ", ".join(updated_params)
-
                 adjustments.append(
                     ScientificAdjustment(
                         parameter=f"initial_states.{surface_type}",
@@ -939,6 +967,32 @@ def adjust_surface_temperatures(
                             reason=f"Set from CRU data for coordinates ({lat:.2f}, {lng:.2f}) for month {month}",
                         )
                     )
+
+        # Update temperatures in roofs and walls arrays
+        for array_name in ["roofs", "walls"]:
+            if array_name in initial_states:
+                array = initial_states[array_name]
+                if isinstance(array, list):
+                    for element_idx, element in enumerate(array):
+                        if not isinstance(element, dict):
+                            continue
+
+                        element, updated_params = update_temperature_parameters(
+                            element, avg_temp
+                        )
+
+                        if updated_params:
+                            param_list = ", ".join(updated_params)
+                            adjustments.append(
+                                ScientificAdjustment(
+                                    parameter=f"initial_states.{array_name}[{element_idx}]",
+                                    site_index=site_idx,
+                                    site_gridid=site_gridid,
+                                    old_value=param_list,
+                                    new_value=f"{avg_temp} C",
+                                    reason=f"Set from CRU data for coordinates ({lat:.2f}, {lng:.2f}) for month {month}",
+                                )
+                            )
 
         # Save back to site
         site["initial_states"] = initial_states

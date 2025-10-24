@@ -1,0 +1,22 @@
+Parameter Name,Path,Value,Context/Description
+emis,sites.0.properties.land_cover.bsoil.emis,0.94,Land cover (bare soil)
+emis,sites.0.properties.land_cover.bldgs.emis,0.91,Land cover (buildings)
+emis,sites.0.properties.land_cover.dectr.emis,0.98,Land cover (deciduous trees)
+emis,sites.0.properties.land_cover.evetr.emis,0.98,Land cover (evergreen trees)
+emis,sites.0.properties.land_cover.grass.emis,0.93,Land cover (grass)
+emis,sites.0.properties.land_cover.paved.emis,0.95,Land cover (paved)
+emis,sites.0.properties.land_cover.water.emis,0.95,Land cover (water)
+emis,sites.0.properties.vertical_layers.roofs.0.emis,0.95,SPARTACUS vertical layers (roofs)
+emis,sites.0.properties.vertical_layers.roofs.1.emis,0.95,SPARTACUS vertical layers (roofs)
+emis,sites.0.properties.vertical_layers.roofs.2.emis,0.95,SPARTACUS vertical layers (roofs)
+emis,sites.0.properties.vertical_layers.walls.0.emis,0.95,SPARTACUS vertical layers (walls)
+emis,sites.0.properties.vertical_layers.walls.1.emis,0.95,SPARTACUS vertical layers (walls)
+emis,sites.0.properties.vertical_layers.walls.2.emis,0.95,SPARTACUS vertical layers (walls)
+DHWVesselEmissivity,sites.0.properties.stebbs.DHWVesselEmissivity,0.8,STEBBS building model
+DHWVesselWallEmissivity,sites.0.properties.stebbs.DHWVesselWallEmissivity,0.8,STEBBS building model
+HotWaterTankWallEmissivity,sites.0.properties.stebbs.HotWaterTankWallEmissivity,0.8,STEBBS building model
+InternalMassEmissivity,sites.0.properties.building_archetype.InternalMassEmissivity,0.8,STEBBS building model
+WallExternalEmissivity,sites.0.properties.building_archetype.WallExternalEmissivity,0.85,STEBBS building model
+WallInternalEmissivity,sites.0.properties.building_archetype.WallInternalEmissivity,0.85,STEBBS building model
+WindowExternalEmissivity,sites.0.properties.building_archetype.WindowExternalEmissivity,0.7,STEBBS building model
+WindowInternalEmissivity,sites.0.properties.building_archetype.WindowInternalEmissivity,0.7,STEBBS building model

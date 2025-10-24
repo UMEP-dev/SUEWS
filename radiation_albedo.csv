@@ -1,0 +1,35 @@
+Parameter Name,Path,Value,Context/Description
+alb_id,sites.0.initial_states.evetr.alb_id,0.1,Initial states
+alb_id,sites.0.initial_states.dectr.alb_id,0.12,Initial states
+alb_id,sites.0.initial_states.grass.alb_id,0.18,Initial states
+snowalb,sites.0.initial_states.snowalb,0.0,Initial states
+alb,sites.0.properties.land_cover.bsoil.alb,0.18,Land cover (bare soil)
+alb,sites.0.properties.land_cover.bldgs.alb,0.12,Land cover (buildings)
+alb,sites.0.properties.land_cover.dectr.alb,0.18,Land cover (deciduous trees)
+alb_max,sites.0.properties.land_cover.dectr.alb_max,0.18,Land cover (deciduous trees)
+alb_min,sites.0.properties.land_cover.dectr.alb_min,0.12,Land cover (deciduous trees)
+alb,sites.0.properties.land_cover.evetr.alb,0.1,Land cover (evergreen trees)
+alb_max,sites.0.properties.land_cover.evetr.alb_max,0.1,Land cover (evergreen trees)
+alb_min,sites.0.properties.land_cover.evetr.alb_min,0.1,Land cover (evergreen trees)
+alb,sites.0.properties.land_cover.grass.alb,0.21,Land cover (grass)
+alb_max,sites.0.properties.land_cover.grass.alb_max,0.21,Land cover (grass)
+alb_min,sites.0.properties.land_cover.grass.alb_min,0.18,Land cover (grass)
+alb,sites.0.properties.land_cover.paved.alb,0.1,Land cover (paved)
+alb,sites.0.properties.land_cover.water.alb,0.1,Land cover (water)
+ground_albedo_dir_mult_fact,sites.0.properties.spartacus.ground_albedo_dir_mult_fact,1.0,Other
+use_sw_direct_albedo,sites.0.properties.spartacus.use_sw_direct_albedo,0.0,Other
+alb,sites.0.properties.vertical_layers.roofs.0.alb,0.5,SPARTACUS vertical layers (roofs)
+alb,sites.0.properties.vertical_layers.roofs.1.alb,0.5,SPARTACUS vertical layers (roofs)
+alb,sites.0.properties.vertical_layers.roofs.2.alb,0.2,SPARTACUS vertical layers (roofs)
+roof_albedo_dir_mult_fact,sites.0.properties.vertical_layers.roofs.0.roof_albedo_dir_mult_fact,1.0,SPARTACUS vertical layers (roofs)
+roof_albedo_dir_mult_fact,sites.0.properties.vertical_layers.roofs.1.roof_albedo_dir_mult_fact,1.0,SPARTACUS vertical layers (roofs)
+roof_albedo_dir_mult_fact,sites.0.properties.vertical_layers.roofs.2.roof_albedo_dir_mult_fact,1.0,SPARTACUS vertical layers (roofs)
+alb,sites.0.properties.vertical_layers.walls.0.alb,0.5,SPARTACUS vertical layers (walls)
+alb,sites.0.properties.vertical_layers.walls.1.alb,0.5,SPARTACUS vertical layers (walls)
+alb,sites.0.properties.vertical_layers.walls.2.alb,0.5,SPARTACUS vertical layers (walls)
+roof_albedo_dir_mult_fact,sites.0.properties.vertical_layers.walls.0.roof_albedo_dir_mult_fact,0.1,SPARTACUS vertical layers (walls)
+roof_albedo_dir_mult_fact,sites.0.properties.vertical_layers.walls.1.roof_albedo_dir_mult_fact,0.1,SPARTACUS vertical layers (walls)
+roof_albedo_dir_mult_fact,sites.0.properties.vertical_layers.walls.2.roof_albedo_dir_mult_fact,0.1,SPARTACUS vertical layers (walls)
+preciplimitalb,sites.0.properties.snow.preciplimitalb,2.0,Snow parameters
+snowalbmax,sites.0.properties.snow.snowalbmax,0.8,Snow parameters
+snowalbmin,sites.0.properties.snow.snowalbmin,0.18,Snow parameters

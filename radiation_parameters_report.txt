@@ -1,0 +1,425 @@
+====================================================================================================
+RADIATION PARAMETERS IN sample_config.yml
+====================================================================================================
+
+Line   | Parameter Name                 | Full Path                                                    | Category                      
+------------------------------------------------------------------------------------------------------------------------------------------------------
+87     | air_ssa_lw                     | sites.0.properties.spartacus.air_ssa_lw                      | SPARTACUS radiation model     
+89     | air_ssa_sw                     | sites.0.properties.spartacus.air_ssa_sw                      | SPARTACUS radiation model     
+91     | ground_albedo_dir_mult_fact    | sites.0.properties.spartacus.ground_albedo_dir_mult_fact     | SPARTACUS radiation model     
+101    | use_sw_direct_albedo           | sites.0.properties.spartacus.use_sw_direct_albedo            | SPARTACUS radiation model     
+107    | veg_ssa_lw                     | sites.0.properties.spartacus.veg_ssa_lw                      | SPARTACUS radiation model     
+109    | veg_ssa_sw                     | sites.0.properties.spartacus.veg_ssa_sw                      | SPARTACUS radiation model     
+186    | HotWaterTankWallEmissivity     | sites.0.properties.stebbs.HotWaterTankWallEmissivity         | STEBBS building model         
+200    | DHWVesselEmissivity            | sites.0.properties.stebbs.DHWVesselEmissivity                | STEBBS building model         
+234    | DHWVesselWallEmissivity        | sites.0.properties.stebbs.DHWVesselWallEmissivity            | STEBBS building model         
+267    | WallExternalEmissivity         | sites.0.properties.building_archetype.WallExternalEmissivity | STEBBS building model         
+269    | WallInternalEmissivity         | sites.0.properties.building_archetype.WallInternalEmissivity | STEBBS building model         
+271    | WallTransmissivity             | sites.0.properties.building_archetype.WallTransmissivity     | STEBBS building model         
+273    | WallAbsorbtivity               | sites.0.properties.building_archetype.WallAbsorbtivity       | STEBBS building model         
+275    | WallReflectivity               | sites.0.properties.building_archetype.WallReflectivity       | STEBBS building model         
+293    | WindowExternalEmissivity       | sites.0.properties.building_archetype.WindowExternalEmissivity | STEBBS building model         
+295    | WindowInternalEmissivity       | sites.0.properties.building_archetype.WindowInternalEmissivity | STEBBS building model         
+297    | WindowTransmissivity           | sites.0.properties.building_archetype.WindowTransmissivity   | STEBBS building model         
+299    | WindowAbsorbtivity             | sites.0.properties.building_archetype.WindowAbsorbtivity     | STEBBS building model         
+301    | WindowReflectivity             | sites.0.properties.building_archetype.WindowReflectivity     | STEBBS building model         
+307    | InternalMassEmissivity         | sites.0.properties.building_archetype.InternalMassEmissivity | STEBBS building model         
+747    | narp_emis_snow                 | sites.0.properties.snow.narp_emis_snow                       | Snow parameters               
+751    | preciplimitalb                 | sites.0.properties.snow.preciplimitalb                       | Snow parameters               
+753    | snowalbmax                     | sites.0.properties.snow.snowalbmax                           | Snow parameters               
+755    | snowalbmin                     | sites.0.properties.snow.snowalbmin                           | Snow parameters               
+830    | emis                           | sites.0.properties.land_cover.paved.emis                     | Land cover surface            
+830    | emis                           | sites.0.properties.land_cover.bldgs.emis                     | Land cover surface            
+830    | emis                           | sites.0.properties.land_cover.dectr.emis                     | Land cover surface            
+830    | emis                           | sites.0.properties.land_cover.evetr.emis                     | Land cover surface            
+830    | emis                           | sites.0.properties.land_cover.grass.emis                     | Land cover surface            
+830    | emis                           | sites.0.properties.land_cover.bsoil.emis                     | Land cover surface            
+830    | emis                           | sites.0.properties.land_cover.water.emis                     | Land cover surface            
+830    | emis                           | sites.0.properties.vertical_layers.roofs.0.emis              | Vertical layers (SPARTACUS)   
+830    | emis                           | sites.0.properties.vertical_layers.roofs.1.emis              | Vertical layers (SPARTACUS)   
+830    | emis                           | sites.0.properties.vertical_layers.roofs.2.emis              | Vertical layers (SPARTACUS)   
+830    | emis                           | sites.0.properties.vertical_layers.walls.0.emis              | Vertical layers (SPARTACUS)   
+830    | emis                           | sites.0.properties.vertical_layers.walls.1.emis              | Vertical layers (SPARTACUS)   
+830    | emis                           | sites.0.properties.vertical_layers.walls.2.emis              | Vertical layers (SPARTACUS)   
+935    | alb                            | sites.0.properties.land_cover.paved.alb                      | Land cover surface            
+935    | alb                            | sites.0.properties.land_cover.bldgs.alb                      | Land cover surface            
+935    | alb                            | sites.0.properties.land_cover.dectr.alb                      | Land cover surface            
+935    | alb                            | sites.0.properties.land_cover.evetr.alb                      | Land cover surface            
+935    | alb                            | sites.0.properties.land_cover.grass.alb                      | Land cover surface            
+935    | alb                            | sites.0.properties.land_cover.bsoil.alb                      | Land cover surface            
+935    | alb                            | sites.0.properties.land_cover.water.alb                      | Land cover surface            
+935    | alb                            | sites.0.properties.vertical_layers.roofs.0.alb               | Vertical layers (SPARTACUS)   
+935    | alb                            | sites.0.properties.vertical_layers.roofs.1.alb               | Vertical layers (SPARTACUS)   
+935    | alb                            | sites.0.properties.vertical_layers.roofs.2.alb               | Vertical layers (SPARTACUS)   
+935    | alb                            | sites.0.properties.vertical_layers.walls.0.alb               | Vertical layers (SPARTACUS)   
+935    | alb                            | sites.0.properties.vertical_layers.walls.1.alb               | Vertical layers (SPARTACUS)   
+935    | alb                            | sites.0.properties.vertical_layers.walls.2.alb               | Vertical layers (SPARTACUS)   
+1161   | alb_min                        | sites.0.properties.land_cover.dectr.alb_min                  | Land cover surface            
+1161   | alb_min                        | sites.0.properties.land_cover.evetr.alb_min                  | Land cover surface            
+1161   | alb_min                        | sites.0.properties.land_cover.grass.alb_min                  | Land cover surface            
+1163   | alb_max                        | sites.0.properties.land_cover.dectr.alb_max                  | Land cover surface            
+1163   | alb_max                        | sites.0.properties.land_cover.evetr.alb_max                  | Land cover surface            
+1163   | alb_max                        | sites.0.properties.land_cover.grass.alb_max                  | Land cover surface            
+1816   | roof_albedo_dir_mult_fact      | sites.0.properties.vertical_layers.roofs.0.roof_albedo_dir_mult_fact | Vertical layers (SPARTACUS)   
+1816   | roof_albedo_dir_mult_fact      | sites.0.properties.vertical_layers.roofs.1.roof_albedo_dir_mult_fact | Vertical layers (SPARTACUS)   
+1816   | roof_albedo_dir_mult_fact      | sites.0.properties.vertical_layers.roofs.2.roof_albedo_dir_mult_fact | Vertical layers (SPARTACUS)   
+1816   | roof_albedo_dir_mult_fact      | sites.0.properties.vertical_layers.walls.0.roof_albedo_dir_mult_fact | Vertical layers (SPARTACUS)   
+1816   | roof_albedo_dir_mult_fact      | sites.0.properties.vertical_layers.walls.1.roof_albedo_dir_mult_fact | Vertical layers (SPARTACUS)   
+1816   | roof_albedo_dir_mult_fact      | sites.0.properties.vertical_layers.walls.2.roof_albedo_dir_mult_fact | Vertical layers (SPARTACUS)   
+2008   | snowalb                        | sites.0.initial_states.snowalb                               | Snow parameters               
+2088   | alb_id                         | sites.0.initial_states.evetr.alb_id                          | Initial states                
+2088   | alb_id                         | sites.0.initial_states.dectr.alb_id                          | Initial states                
+2088   | alb_id                         | sites.0.initial_states.grass.alb_id                          | Initial states                
+
+====================================================================================================
+DETAILED INFORMATION BY CATEGORY
+====================================================================================================
+
+
+====================================================================================================
+CATEGORY: Initial states
+====================================================================================================
+
+Line 2088: alb_id
+  Path: sites.0.initial_states.evetr.alb_id
+  Surface Type: Evergreen trees
+  Description: Initial albedo state
+
+Line 2088: alb_id
+  Path: sites.0.initial_states.dectr.alb_id
+  Surface Type: Deciduous trees
+  Description: Initial albedo state
+
+Line 2088: alb_id
+  Path: sites.0.initial_states.grass.alb_id
+  Surface Type: Grass
+  Description: Initial albedo state
+
+
+====================================================================================================
+CATEGORY: Land cover surface
+====================================================================================================
+
+Line 830: emis
+  Path: sites.0.properties.land_cover.paved.emis
+  Surface Type: Paved
+  Description: Surface emissivity
+
+Line 830: emis
+  Path: sites.0.properties.land_cover.bldgs.emis
+  Surface Type: Buildings
+  Description: Surface emissivity
+
+Line 830: emis
+  Path: sites.0.properties.land_cover.dectr.emis
+  Surface Type: Deciduous trees
+  Description: Surface emissivity
+
+Line 830: emis
+  Path: sites.0.properties.land_cover.evetr.emis
+  Surface Type: Evergreen trees
+  Description: Surface emissivity
+
+Line 830: emis
+  Path: sites.0.properties.land_cover.grass.emis
+  Surface Type: Grass
+  Description: Surface emissivity
+
+Line 830: emis
+  Path: sites.0.properties.land_cover.bsoil.emis
+  Surface Type: Bare soil
+  Description: Surface emissivity
+
+Line 830: emis
+  Path: sites.0.properties.land_cover.water.emis
+  Surface Type: Water
+  Description: Surface emissivity
+
+Line 935: alb
+  Path: sites.0.properties.land_cover.paved.alb
+  Surface Type: Paved
+  Description: Surface albedo
+
+Line 935: alb
+  Path: sites.0.properties.land_cover.bldgs.alb
+  Surface Type: Buildings
+  Description: Surface albedo
+
+Line 935: alb
+  Path: sites.0.properties.land_cover.dectr.alb
+  Surface Type: Deciduous trees
+  Description: Surface albedo
+
+Line 935: alb
+  Path: sites.0.properties.land_cover.evetr.alb
+  Surface Type: Evergreen trees
+  Description: Surface albedo
+
+Line 935: alb
+  Path: sites.0.properties.land_cover.grass.alb
+  Surface Type: Grass
+  Description: Surface albedo
+
+Line 935: alb
+  Path: sites.0.properties.land_cover.bsoil.alb
+  Surface Type: Bare soil
+  Description: Surface albedo
+
+Line 935: alb
+  Path: sites.0.properties.land_cover.water.alb
+  Surface Type: Water
+  Description: Surface albedo
+
+Line 1161: alb_min
+  Path: sites.0.properties.land_cover.dectr.alb_min
+  Surface Type: Deciduous trees
+  Description: Minimum albedo
+
+Line 1161: alb_min
+  Path: sites.0.properties.land_cover.evetr.alb_min
+  Surface Type: Evergreen trees
+  Description: Minimum albedo
+
+Line 1161: alb_min
+  Path: sites.0.properties.land_cover.grass.alb_min
+  Surface Type: Grass
+  Description: Minimum albedo
+
+Line 1163: alb_max
+  Path: sites.0.properties.land_cover.dectr.alb_max
+  Surface Type: Deciduous trees
+  Description: Maximum albedo
+
+Line 1163: alb_max
+  Path: sites.0.properties.land_cover.evetr.alb_max
+  Surface Type: Evergreen trees
+  Description: Maximum albedo
+
+Line 1163: alb_max
+  Path: sites.0.properties.land_cover.grass.alb_max
+  Surface Type: Grass
+  Description: Maximum albedo
+
+
+====================================================================================================
+CATEGORY: SPARTACUS radiation model
+====================================================================================================
+
+Line 87: air_ssa_lw
+  Path: sites.0.properties.spartacus.air_ssa_lw
+  Description: Air single scattering albedo
+
+Line 89: air_ssa_sw
+  Path: sites.0.properties.spartacus.air_ssa_sw
+  Description: Air single scattering albedo
+
+Line 91: ground_albedo_dir_mult_fact
+  Path: sites.0.properties.spartacus.ground_albedo_dir_mult_fact
+  Description: Ground albedo multiplication factor
+
+Line 101: use_sw_direct_albedo
+  Path: sites.0.properties.spartacus.use_sw_direct_albedo
+  Description: Use direct shortwave albedo
+
+Line 107: veg_ssa_lw
+  Path: sites.0.properties.spartacus.veg_ssa_lw
+  Description: Vegetation single scattering albedo
+
+Line 109: veg_ssa_sw
+  Path: sites.0.properties.spartacus.veg_ssa_sw
+  Description: Vegetation single scattering albedo
+
+
+====================================================================================================
+CATEGORY: STEBBS building model
+====================================================================================================
+
+Line 186: HotWaterTankWallEmissivity
+  Path: sites.0.properties.stebbs.HotWaterTankWallEmissivity
+  Description: Hot water tank emissivity
+
+Line 200: DHWVesselEmissivity
+  Path: sites.0.properties.stebbs.DHWVesselEmissivity
+  Description: 
+
+Line 234: DHWVesselWallEmissivity
+  Path: sites.0.properties.stebbs.DHWVesselWallEmissivity
+  Description: 
+
+Line 267: WallExternalEmissivity
+  Path: sites.0.properties.building_archetype.WallExternalEmissivity
+  Description: External wall emissivity
+
+Line 269: WallInternalEmissivity
+  Path: sites.0.properties.building_archetype.WallInternalEmissivity
+  Description: Internal wall emissivity
+
+Line 271: WallTransmissivity
+  Path: sites.0.properties.building_archetype.WallTransmissivity
+  Description: Wall transmissivity for solar radiation
+
+Line 273: WallAbsorbtivity
+  Path: sites.0.properties.building_archetype.WallAbsorbtivity
+  Description: Wall absorptivity for solar radiation
+
+Line 275: WallReflectivity
+  Path: sites.0.properties.building_archetype.WallReflectivity
+  Description: Wall reflectivity for solar radiation
+
+Line 293: WindowExternalEmissivity
+  Path: sites.0.properties.building_archetype.WindowExternalEmissivity
+  Description: External window emissivity
+
+Line 295: WindowInternalEmissivity
+  Path: sites.0.properties.building_archetype.WindowInternalEmissivity
+  Description: Internal window emissivity
+
+Line 297: WindowTransmissivity
+  Path: sites.0.properties.building_archetype.WindowTransmissivity
+  Description: Window transmissivity for solar radiation
+
+Line 299: WindowAbsorbtivity
+  Path: sites.0.properties.building_archetype.WindowAbsorbtivity
+  Description: Window absorptivity for solar radiation
+
+Line 301: WindowReflectivity
+  Path: sites.0.properties.building_archetype.WindowReflectivity
+  Description: Window reflectivity for solar radiation
+
+Line 307: InternalMassEmissivity
+  Path: sites.0.properties.building_archetype.InternalMassEmissivity
+  Description: Internal mass emissivity
+
+
+====================================================================================================
+CATEGORY: Snow parameters
+====================================================================================================
+
+Line 747: narp_emis_snow
+  Path: sites.0.properties.snow.narp_emis_snow
+  Description: Snow emissivity for NARP radiation model
+
+Line 751: preciplimitalb
+  Path: sites.0.properties.snow.preciplimitalb
+  Description: Precipitation limit for albedo change
+
+Line 753: snowalbmax
+  Path: sites.0.properties.snow.snowalbmax
+  Description: Maximum snow albedo
+
+Line 755: snowalbmin
+  Path: sites.0.properties.snow.snowalbmin
+  Description: Minimum snow albedo
+
+Line 2008: snowalb
+  Path: sites.0.initial_states.snowalb
+  Description: 
+
+
+====================================================================================================
+CATEGORY: Vertical layers (SPARTACUS)
+====================================================================================================
+
+Line 830: emis
+  Path: sites.0.properties.vertical_layers.roofs.0.emis
+  Surface Type: Roof layers
+  Description: Roof emissivity
+
+Line 830: emis
+  Path: sites.0.properties.vertical_layers.roofs.1.emis
+  Surface Type: Roof layers
+  Description: Roof emissivity
+
+Line 830: emis
+  Path: sites.0.properties.vertical_layers.roofs.2.emis
+  Surface Type: Roof layers
+  Description: Roof emissivity
+
+Line 830: emis
+  Path: sites.0.properties.vertical_layers.walls.0.emis
+  Surface Type: Wall layers
+  Description: Wall emissivity
+
+Line 830: emis
+  Path: sites.0.properties.vertical_layers.walls.1.emis
+  Surface Type: Wall layers
+  Description: Wall emissivity
+
+Line 830: emis
+  Path: sites.0.properties.vertical_layers.walls.2.emis
+  Surface Type: Wall layers
+  Description: Wall emissivity
+
+Line 935: alb
+  Path: sites.0.properties.vertical_layers.roofs.0.alb
+  Surface Type: Roof layers
+  Description: Roof albedo
+
+Line 935: alb
+  Path: sites.0.properties.vertical_layers.roofs.1.alb
+  Surface Type: Roof layers
+  Description: Roof albedo
+
+Line 935: alb
+  Path: sites.0.properties.vertical_layers.roofs.2.alb
+  Surface Type: Roof layers
+  Description: Roof albedo
+
+Line 935: alb
+  Path: sites.0.properties.vertical_layers.walls.0.alb
+  Surface Type: Wall layers
+  Description: Wall albedo
+
+Line 935: alb
+  Path: sites.0.properties.vertical_layers.walls.1.alb
+  Surface Type: Wall layers
+  Description: Wall albedo
+
+Line 935: alb
+  Path: sites.0.properties.vertical_layers.walls.2.alb
+  Surface Type: Wall layers
+  Description: Wall albedo
+
+Line 1816: roof_albedo_dir_mult_fact
+  Path: sites.0.properties.vertical_layers.roofs.0.roof_albedo_dir_mult_fact
+  Surface Type: Roof layers
+  Description: Roof albedo direct multiplication factor
+
+Line 1816: roof_albedo_dir_mult_fact
+  Path: sites.0.properties.vertical_layers.roofs.1.roof_albedo_dir_mult_fact
+  Surface Type: Roof layers
+  Description: Roof albedo direct multiplication factor
+
+Line 1816: roof_albedo_dir_mult_fact
+  Path: sites.0.properties.vertical_layers.roofs.2.roof_albedo_dir_mult_fact
+  Surface Type: Roof layers
+  Description: Roof albedo direct multiplication factor
+
+Line 1816: roof_albedo_dir_mult_fact
+  Path: sites.0.properties.vertical_layers.walls.0.roof_albedo_dir_mult_fact
+  Surface Type: Wall layers
+  Description: Wall albedo direct multiplication factor (legacy naming)
+
+Line 1816: roof_albedo_dir_mult_fact
+  Path: sites.0.properties.vertical_layers.walls.1.roof_albedo_dir_mult_fact
+  Surface Type: Wall layers
+  Description: Wall albedo direct multiplication factor (legacy naming)
+
+Line 1816: roof_albedo_dir_mult_fact
+  Path: sites.0.properties.vertical_layers.walls.2.roof_albedo_dir_mult_fact
+  Surface Type: Wall layers
+  Description: Wall albedo direct multiplication factor (legacy naming)
+
+====================================================================================================
+SUMMARY STATISTICS
+====================================================================================================
+Total radiation parameters found: 66
+Categories:
+  - Initial states: 3 parameters
+  - Land cover surface: 20 parameters
+  - SPARTACUS radiation model: 6 parameters
+  - STEBBS building model: 14 parameters
+  - Snow parameters: 5 parameters
+  - Vertical layers (SPARTACUS): 18 parameters
+
+Report saved to: radiation_parameters_report.txt

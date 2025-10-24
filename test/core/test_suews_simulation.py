@@ -30,6 +30,37 @@ class TestInit:
         assert sim.config is not None
         assert sim._df_state_init is not None
 
+    def test_from_sample_data(self):
+        """Test initialization from sample data factory method."""
+        sim = SUEWSSimulation.from_sample_data()
+        assert sim._df_state_init is not None
+        assert sim._df_forcing is not None
+        assert sim._df_state_init.shape == (1, 1398)
+        assert sim._df_forcing.shape == (105408, 25)
+
+    def test_from_sample_data_matches_load_sample_data(self):
+        """Test that from_sample_data() produces equivalent data to load_sample_data()."""
+        # Factory method approach
+        sim = SUEWSSimulation.from_sample_data()
+
+        # Functional approach
+        df_state, df_forcing = sp.load_sample_data()
+
+        # Should have same shapes
+        assert sim._df_state_init.shape == df_state.shape
+        assert sim._df_forcing.shape == df_forcing.shape
+
+    def test_from_sample_data_can_run(self):
+        """Test that simulation created from sample data can run successfully."""
+        sim = SUEWSSimulation.from_sample_data()
+
+        # Run with first 24 timesteps (2 hours)
+        results = sim.run(end_date=sim._df_forcing.index[23])
+
+        assert results is not None
+        assert len(results) == 24
+        assert sim._run_completed is True
+
 
 class TestConfig:
     """Test configuration updates."""

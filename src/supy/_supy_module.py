@@ -371,6 +371,7 @@ def load_forcing_grid(
 
 load_forcing_grid.__doc__ = _load_forcing_grid.__doc__
 
+
 def load_SampleData() -> tuple[pandas.DataFrame, pandas.DataFrame]:
     logger_supy.warning(
         "This function name will be deprecated. Please use `load_sample_data()` instead.",

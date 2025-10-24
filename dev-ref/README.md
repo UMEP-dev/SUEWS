@@ -44,9 +44,6 @@ This directory contains internal documentation for SUEWS core developers.
   - Release checklist
   - Distribution to PyPI
 
-### Additional Resources
-- **[Documentation Reorganisation Proposal](DOCUMENTATION_REORGANISATION_PROPOSAL.md)** - Current documentation cleanup plan
-
 ## External Links
 - [GitHub Repository](https://github.com/UMEP-dev/SUEWS)
 - [User Documentation](https://suews.readthedocs.io)

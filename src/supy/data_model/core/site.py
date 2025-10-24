@@ -2044,6 +2044,7 @@ class StebbsProperties(BaseModel):
             "display_name": "Dhwvesselwallemissivity",
         },
         gt=0.0,
+        le=1.0,
     )
     HotWaterHeatingEfficiency: Optional[FlexibleRefValue(float)] = Field(
         default=0.0,

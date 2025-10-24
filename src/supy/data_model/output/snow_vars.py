@@ -23,7 +23,9 @@ from .variables import (
 SURFACE_TYPES = ["Paved", "Bldgs", "EveTr", "DecTr", "Grass", "BSoil", "Water"]
 
 
-def make_surface_vars(base_name, unit, description_template, aggregation, format_spec="f106"):
+def make_surface_vars(
+    base_name, unit, description_template, aggregation, format_spec="f106"
+):
     """Helper to create variables for all surface types.
 
     Args:
@@ -62,50 +64,54 @@ def make_surface_vars(base_name, unit, description_template, aggregation, format
 
 # Snow water equivalent by surface
 SWE_VARS = make_surface_vars(
-    "SWE", "mm", "Snow water equivalent for {}",
-    AggregationMethod.AVERAGE, "f106"
+    "SWE", "mm", "Snow water equivalent for {}", AggregationMethod.AVERAGE, "f106"
 )
 
 # Meltwater by surface
 MW_VARS = make_surface_vars(
-    "Mw", "mm", "Meltwater for {}",
-    AggregationMethod.SUM, "f106"
+    "Mw", "mm", "Meltwater for {}", AggregationMethod.SUM, "f106"
 )
 
 # Snow-related heat exchange by surface
 QM_VARS = make_surface_vars(
-    "Qm", "W m-2", "Snow-related heat exchange for {}",
-    AggregationMethod.AVERAGE, "f106"
+    "Qm",
+    "W m-2",
+    "Snow-related heat exchange for {}",
+    AggregationMethod.AVERAGE,
+    "f106",
 )
 
 # Advective heat by surface
 QA_VARS = make_surface_vars(
-    "Qa", "W m-2", "Advective heat for {}",
-    AggregationMethod.AVERAGE, "f106"
+    "Qa", "W m-2", "Advective heat for {}", AggregationMethod.AVERAGE, "f106"
 )
 
 # Heat related to freezing by surface
 QMFR_VARS = make_surface_vars(
-    "QmFr", "W m-2", "Heat related to freezing for {}",
-    AggregationMethod.AVERAGE, "f146"
+    "QmFr",
+    "W m-2",
+    "Heat related to freezing for {}",
+    AggregationMethod.AVERAGE,
+    "f146",
 )
 
 # Fraction of snow by surface (excluding Water)
 FR_VARS = make_surface_vars(
-    "fr", "1", "Fraction of snow for {}",
-    AggregationMethod.AVERAGE, "f106"
+    "fr", "1", "Fraction of snow for {}", AggregationMethod.AVERAGE, "f106"
 )[:-1]  # No fr_Water
 
 # Rain on snow by surface
 RAINSN_VARS = make_surface_vars(
-    "RainSn", "mm", "Rain on snow for {}",
-    AggregationMethod.SUM, "f146"
+    "RainSn", "mm", "Rain on snow for {}", AggregationMethod.SUM, "f146"
 )
 
 # Net radiation for snow surface
 QN_SNOW_VARS = make_surface_vars(
-    "Qn", "W m-2", "Net all-wave radiation for snow {}",
-    AggregationMethod.AVERAGE, "f146"
+    "Qn",
+    "W m-2",
+    "Net all-wave radiation for snow {}",
+    AggregationMethod.AVERAGE,
+    "f146",
 )
 # Rename to match Fortran naming (e.g., Qn_PavedSnow)
 for var in QN_SNOW_VARS:
@@ -116,8 +122,9 @@ QN_SNOW_VARS = [
     OutputVariable(
         name=f"Qn_{surf}Snow",
         unit="W m-2",
-        description=f"Net all-wave radiation for snow {surf.lower()} surface" if surf != "Bldgs"
-                    else "Net all-wave radiation for snow building surface",
+        description=f"Net all-wave radiation for snow {surf.lower()} surface"
+        if surf != "Bldgs"
+        else "Net all-wave radiation for snow building surface",
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.SNOW,
         level=OutputLevel.DEFAULT,
@@ -131,8 +138,9 @@ KUP_SNOW_VARS = [
     OutputVariable(
         name=f"kup_{surf}Snow",
         unit="W m-2",
-        description=f"Reflected shortwave radiation for snow {surf.lower()} surface" if surf != "Bldgs"
-                    else "Reflected shortwave radiation for snow building surface",
+        description=f"Reflected shortwave radiation for snow {surf.lower()} surface"
+        if surf != "Bldgs"
+        else "Reflected shortwave radiation for snow building surface",
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.SNOW,
         level=OutputLevel.DEFAULT,
@@ -143,32 +151,35 @@ KUP_SNOW_VARS = [
 
 # Amount of freezing melt water by surface
 FRMELT_VARS = make_surface_vars(
-    "frMelt", "mm", "Amount of freezing melt water for {}",
-    AggregationMethod.AVERAGE, "f146"
+    "frMelt",
+    "mm",
+    "Amount of freezing melt water for {}",
+    AggregationMethod.AVERAGE,
+    "f146",
 )
 
 # Meltwater store by surface
 MWSTORE_VARS = make_surface_vars(
-    "MwStore", "mm", "Meltwater store for {}",
-    AggregationMethod.AVERAGE, "f146"
+    "MwStore", "mm", "Meltwater store for {}", AggregationMethod.AVERAGE, "f146"
 )
 
 # Snow density by surface
 DENSSNOW_VARS = make_surface_vars(
-    "DensSnow", "kg m-3", "Snow density for {}",
-    AggregationMethod.AVERAGE, "f146"
+    "DensSnow", "kg m-3", "Snow density for {}", AggregationMethod.AVERAGE, "f146"
 )
 
 # Snow depth by surface
 SD_VARS = make_surface_vars(
-    "Sd", "mm", "Snow depth for {}",
-    AggregationMethod.AVERAGE, "f106"
+    "Sd", "mm", "Snow depth for {}", AggregationMethod.AVERAGE, "f106"
 )
 
 # Snow surface temperature by surface
 TSNOW_VARS = make_surface_vars(
-    "Tsnow", "degC", "Snow surface temperature for {}",
-    AggregationMethod.AVERAGE, "f146"
+    "Tsnow",
+    "degC",
+    "Snow surface temperature for {}",
+    AggregationMethod.AVERAGE,
+    "f146",
 )
 
 # Single snow albedo variable
@@ -187,19 +198,19 @@ SNOW_ALB_VAR = [
 
 # Combine all snow variables
 SNOW_VARIABLES = (
-    SWE_VARS +
-    MW_VARS +
-    QM_VARS +
-    QA_VARS +
-    QMFR_VARS +
-    FR_VARS +
-    RAINSN_VARS +
-    QN_SNOW_VARS +
-    KUP_SNOW_VARS +
-    FRMELT_VARS +
-    MWSTORE_VARS +
-    DENSSNOW_VARS +
-    SD_VARS +
-    TSNOW_VARS +
-    SNOW_ALB_VAR
+    SWE_VARS
+    + MW_VARS
+    + QM_VARS
+    + QA_VARS
+    + QMFR_VARS
+    + FR_VARS
+    + RAINSN_VARS
+    + QN_SNOW_VARS
+    + KUP_SNOW_VARS
+    + FRMELT_VARS
+    + MWSTORE_VARS
+    + DENSSNOW_VARS
+    + SD_VARS
+    + TSNOW_VARS
+    + SNOW_ALB_VAR
 )

@@ -50,7 +50,6 @@ DAILYSTATE_VARIABLES = [
         level=OutputLevel.DEFAULT,
         format="f104",
     ),
-
     # Precipitation and days since rain
     OutputVariable(
         name="P_day",
@@ -70,7 +69,6 @@ DAILYSTATE_VARIABLES = [
         level=OutputLevel.DEFAULT,
         format="f104",
     ),
-
     # Growing Degree Days by vegetation type
     OutputVariable(
         name="GDD_EveTr",
@@ -99,7 +97,6 @@ DAILYSTATE_VARIABLES = [
         level=OutputLevel.DEFAULT,
         format="f104",
     ),
-
     # Senescence Degree Days by vegetation type
     OutputVariable(
         name="SDD_EveTr",
@@ -128,7 +125,6 @@ DAILYSTATE_VARIABLES = [
         level=OutputLevel.DEFAULT,
         format="f104",
     ),
-
     # Temperature extremes
     OutputVariable(
         name="Tmin",
@@ -148,7 +144,6 @@ DAILYSTATE_VARIABLES = [
         level=OutputLevel.DEFAULT,
         format="f104",
     ),
-
     # Daylight hours
     OutputVariable(
         name="DLHrs",
@@ -159,7 +154,6 @@ DAILYSTATE_VARIABLES = [
         level=OutputLevel.DEFAULT,
         format="f104",
     ),
-
     # LAI by vegetation type
     OutputVariable(
         name="LAI_EveTr",
@@ -188,7 +182,6 @@ DAILYSTATE_VARIABLES = [
         level=OutputLevel.DEFAULT,
         format="f104",
     ),
-
     # Vegetation properties
     OutputVariable(
         name="DecidCap",
@@ -208,7 +201,6 @@ DAILYSTATE_VARIABLES = [
         level=OutputLevel.DEFAULT,
         format="f104",
     ),
-
     # Albedo by vegetation type
     OutputVariable(
         name="AlbEveTr",
@@ -237,7 +229,6 @@ DAILYSTATE_VARIABLES = [
         level=OutputLevel.DEFAULT,
         format="f104",
     ),
-
     # Water use coefficients by vegetation type (3 levels each)
     OutputVariable(
         name="WU_EveTr1",
@@ -320,7 +311,6 @@ DAILYSTATE_VARIABLES = [
         level=OutputLevel.DEFAULT,
         format="f104",
     ),
-
     # LUMPS LAI
     OutputVariable(
         name="LAIlumps",
@@ -331,7 +321,6 @@ DAILYSTATE_VARIABLES = [
         level=OutputLevel.DEFAULT,
         format="f104",
     ),
-
     # Snow albedo
     OutputVariable(
         name="AlbSnow",
@@ -342,7 +331,6 @@ DAILYSTATE_VARIABLES = [
         level=OutputLevel.DEFAULT,
         format="f104",
     ),
-
     # Snow density by surface type
     OutputVariable(
         name="DensSnow_Paved",
@@ -407,7 +395,6 @@ DAILYSTATE_VARIABLES = [
         level=OutputLevel.DEFAULT,
         format="f146",
     ),
-
     # OHM coefficients
     OutputVariable(
         name="a1",

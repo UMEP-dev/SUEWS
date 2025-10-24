@@ -433,18 +433,31 @@ def analyze_dailystate_nan(func):
     return wrapper
 
 
-_SURFACE_ORDER: Sequence[str] = ("Paved", "Bldgs", "EveTr", "DecTr", "Grass", "BSoil", "Water")
+_SURFACE_ORDER: Sequence[str] = (
+    "Paved",
+    "Bldgs",
+    "EveTr",
+    "DecTr",
+    "Grass",
+    "BSoil",
+    "Water",
+)
 
 
 def _flatten_columns(columns: pd.Index | pd.MultiIndex) -> pd.Index:
     """Return a flat Index of string labels for any column structure."""
     if isinstance(columns, pd.MultiIndex):
-        flattened = ["__".join(str(part) for part in tup if str(part) not in {"", "None"}) for tup in columns]
+        flattened = [
+            "__".join(str(part) for part in tup if str(part) not in {"", "None"})
+            for tup in columns
+        ]
         return pd.Index(flattened)
     return pd.Index(columns.astype(str))
 
 
-def _rename_soilstore_columns(labels: Iterable[str], pattern: re.Pattern[str]) -> list[str]:
+def _rename_soilstore_columns(
+    labels: Iterable[str], pattern: re.Pattern[str]
+) -> list[str]:
     """Extract canonical soil store column names (e.g., ss_Paved_next) from flattened labels."""
     renamed: list[str] = []
     for label in labels:
@@ -490,9 +503,15 @@ def extract_soil_store_columns(df_debug: pd.DataFrame | pd.Series) -> pd.DataFra
         matches = [idx for idx, label in enumerate(flat_cols) if pattern.search(label)]
         if matches:
             df_candidate = df_debug.iloc[:, matches].copy()
-            df_candidate.columns = _rename_soilstore_columns(flat_cols[matches], pattern)
+            df_candidate.columns = _rename_soilstore_columns(
+                flat_cols[matches], pattern
+            )
             df_candidate = df_candidate.loc[:, ~df_candidate.columns.duplicated()]
-            ordered_cols = [col for col in _order_soilstore_columns(df_candidate.columns) if col in df_candidate.columns]
+            ordered_cols = [
+                col
+                for col in _order_soilstore_columns(df_candidate.columns)
+                if col in df_candidate.columns
+            ]
             if ordered_cols:
                 return df_candidate[ordered_cols]
             return df_candidate

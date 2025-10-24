@@ -59,7 +59,6 @@ SUEWS_VARIABLES = [
         level=OutputLevel.DEFAULT,
         format="f104",
     ),
-
     # Energy balance components
     OutputVariable(
         name="QN",
@@ -142,7 +141,6 @@ SUEWS_VARIABLES = [
         level=OutputLevel.EXTENDED,
         format="f104",
     ),
-
     # Water balance components
     OutputVariable(
         name="Rain",
@@ -234,7 +232,6 @@ SUEWS_VARIABLES = [
         level=OutputLevel.DEFAULT,
         format="f94",
     ),
-
     # Additional water balance (extended)
     OutputVariable(
         name="FlowCh",
@@ -299,7 +296,6 @@ SUEWS_VARIABLES = [
         level=OutputLevel.EXTENDED,
         format="f104",
     ),
-
     # Water use by vegetation type
     OutputVariable(
         name="WUInt",
@@ -337,7 +333,6 @@ SUEWS_VARIABLES = [
         level=OutputLevel.EXTENDED,
         format="f94",
     ),
-
     # Soil moisture deficit by surface type
     OutputVariable(
         name="SMDPaved",
@@ -393,7 +388,6 @@ SUEWS_VARIABLES = [
         level=OutputLevel.EXTENDED,
         format="f94",
     ),
-
     # Surface wetness state by surface type
     OutputVariable(
         name="StPaved",
@@ -458,7 +452,6 @@ SUEWS_VARIABLES = [
         level=OutputLevel.EXTENDED,
         format="f104",
     ),
-
     # Solar geometry and surface properties
     OutputVariable(
         name="Zenith",
@@ -505,7 +498,6 @@ SUEWS_VARIABLES = [
         level=OutputLevel.DEFAULT,
         format="f94",
     ),
-
     # Turbulence and surface characteristics
     OutputVariable(
         name="z0m",
@@ -579,7 +571,6 @@ SUEWS_VARIABLES = [
         level=OutputLevel.EXTENDED,
         format="f104",
     ),
-
     # Carbon fluxes
     OutputVariable(
         name="Fc",
@@ -644,7 +635,6 @@ SUEWS_VARIABLES = [
         level=OutputLevel.EXTENDED,
         format="f94",
     ),
-
     # Snow-related (basic level in SUEWS group)
     OutputVariable(
         name="QNSnowFr",
@@ -754,7 +744,6 @@ SUEWS_VARIABLES = [
         level=OutputLevel.SNOW_DETAILED,
         format="f94",
     ),
-
     # Meteorological outputs at standard heights
     OutputVariable(
         name="Ts",

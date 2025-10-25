@@ -68,6 +68,20 @@ to run the model.
 Note that the parameters and states included in this file may not match the current schema as are based on the legacy
 configuration.
 
+Output Variable Reference
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+For detailed documentation of all available output variables organised by output group:
+
+.. grid:: 1
+   :gutter: 2
+
+   .. grid-item-card:: Complete Output Variable Reference
+      :link: variables/index
+      :link-type: doc
+
+      Browse all 1100+ output variables organised by group (SUEWS, SNOW, ESTM, RSL, etc.) with detailed metadata including units, aggregation methods, and output levels.
+
 Output Format Options
 ~~~~~~~~~~~~~~~~~~~~~
 
@@ -300,3 +314,8 @@ Example Python code to read parquet output::
    # Access specific variable
    qh = df_output[('SUEWS', 'QH')]
 
+.. toctree::
+   :hidden:
+   :maxdepth: 2
+
+   variables/index

@@ -346,7 +346,7 @@ src/suews_phys_spartacus.o: src/suews_phys_spartacus.f95 libspartacus
 # special rule for output control module - depends on auto-generated varlist
 src/varlist_generated.f95: src/generate_varlist.py
 	@echo "Generating Fortran varlist from Python OUTPUT_REGISTRY..."
-	@python3 src/generate_varlist.py || (echo "WARNING: Failed to generate varlist, using existing file if available" && test -f src/varlist_generated.f95)
+	@python3 src/generate_varlist.py || { echo "WARNING: Failed to generate varlist, using existing file if available"; test -f src/varlist_generated.f95 || exit 1; }
 
 src/suews_ctrl_output.o: src/suews_ctrl_output.f95 src/varlist_generated.f95
 	@echo "Compiling output control module (with auto-generated varlist)..."

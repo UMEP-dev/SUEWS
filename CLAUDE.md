@@ -76,6 +76,42 @@ For benchmark test details and debugging guidance, see `.claude/reference/testin
 - **After conversation compaction**, remember to `source .venv/bin/activate` if venv exists
 - **Documentation generation**: Only modify `generate_datamodel_rst.py` script, not the generated YAML RST files directly
 
+## Dual-Source Pattern for Input/Output Variables
+
+**IMPORTANT**: Both input and output variable definitions follow a dual-source pattern (manual Fortran + manual Python).
+
+### Output Variables (varAttr)
+- **Fortran source**: `src/suews/src/suews_ctrl_output.f95`
+  - varAttr TYPE defined in `src/suews/src/suews_ctrl_type.f95`
+  - varListAll array with manual DATA statements in `suews_ctrl_output.f95`
+  - Used by Fortran runtime for output formatting and file writing
+- **Python source**: `src/supy/data_model/output/`
+  - OUTPUT_REGISTRY with Pydantic models
+  - Used for Python API, validation, and documentation generation
+  - Documentation RST generated via `docs/generate_output_variable_rst.py`
+
+### Input Configuration (Pydantic models)
+- **Fortran source**: `src/suews/src/suews_ctrl_type.f95`
+  - TYPE definitions (SUEWS_CONFIG, SUEWS_SITE, etc.)
+  - Used by Fortran runtime for calculations
+- **Python source**: `src/supy/data_model/`
+  - Pydantic models matching Fortran TYPEs
+  - Used for YAML parsing, validation, and schema generation
+  - Configuration RST generated via `docs/generate_datamodel_rst.py`
+
+### When Adding New Variables
+**MUST update BOTH sources** for consistency:
+1. Add variable to Fortran (TYPE or DATA statement)
+2. Add variable to Python (Pydantic model or OUTPUT_REGISTRY)
+3. Update documentation if needed (usually auto-generated)
+4. Ensure names, types, and descriptions match between sources
+
+### Why Dual-Source?
+- **Fortran independence**: Fortran can build without Python dependencies
+- **Type safety**: Pydantic provides validation and IDE support
+- **Documentation**: Auto-generated docs from Python metadata
+- **Proven pattern**: Already works well for input configuration
+
 ## Configuration Pattern
 
 When implementing features with configuration objects, follow strict separation of concerns between configuration parsing (high-level) and implementation (low-level).

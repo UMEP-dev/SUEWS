@@ -31,6 +31,7 @@ MODULE ctrl_output
    USE sues_data
    USE time
    USE strings
+   USE SUEWS_DEF_DTS, ONLY: varAttr
 
    IMPLICIT NONE
 
@@ -53,35 +54,1196 @@ MODULE ctrl_output
 
    CHARACTER(len=3) :: itext
 
-   ! define type: variable attributes
-   TYPE varAttr
-      CHARACTER(len=20) :: header ! short name in headers
-      CHARACTER(len=12) :: unit ! unit
-      CHARACTER(len=10) :: fmt ! output format
-      CHARACTER(len=100) :: longNm ! long name for detailed description
-      CHARACTER(len=1) :: aggreg ! aggregation method
-      CHARACTER(len=10) :: group ! group: datetime, default, ESTM, Snow, etc.
-      INTEGER :: level ! output priority level: 0 for highest (defualt output)
-   END TYPE varAttr
-
-   ! initialise valist
+   ! =========================================================================
+   ! Output variable list array
+   ! NOTE: Dual-source pattern (must be maintained in BOTH places):
+   !   - Fortran: varListAll array with DATA statements (this file)
+   !   - Python: OUTPUT_REGISTRY in src/supy/data_model/output/
+   ! When adding new variables, update BOTH sources.
+   ! The varAttr TYPE is defined in suews_ctrl_type.f95
+   ! =========================================================================
    TYPE(varAttr) :: varListAll(1400)
 
    ! =========================================================================
-   ! Variable definitions now auto-generated from Python OUTPUT_REGISTRY
-   ! Source: src/supy/data_model/output/__init__.py
-   ! Generator: src/suews/src/generate_varlist.py
-   ! =========================================================================
-   ! NOTE: The following groups are not yet migrated to Python:
-   !   - SPARTACUS (experimental radiation model)
-   !   - EHC (experimental heat capacity model)
-   !   - STEBBS (experimental energy balance model)
-   !   - NHood (neighbourhood iteration diagnostics)
-   ! These will continue to use Fortran-only definitions until migrated.
+   ! Output variable DATA statements
+   ! NOTE: These definitions are manually maintained (do not auto-generate)
+   ! When adding new variables, update BOTH:
+   !   - Fortran: These DATA statements below
+   !   - Python: OUTPUT_REGISTRY in src/supy/data_model/output/
+   ! Source: Manually maintained from Python OUTPUT_REGISTRY definitions
    ! =========================================================================
 
-   INCLUDE 'varlist_generated.f95'
+   ! datetime variables (5 variables)
+   DATA(varListAll(n), &
+        n=1, 5)/ &
+      varAttr('Year', 'YYYY', 'i0004', 'Year', 'T', 'datetime', 0), &
+      varAttr('DOY', 'DOY', 'i0004', 'Day of Year', 'T', 'datetime', 0), &
+      varAttr('Hour', 'HH', 'i0004', 'Hour', 'T', 'datetime', 0), &
+      varAttr('Min', 'MM', 'i0004', 'Minute', 'T', 'datetime', 0), &
+      varAttr('Dectime', '-', 'f08.4', 'Decimal time', 'T', 'datetime', 0) &
+      /
 
+   ! SUEWS variables (85 variables)
+   DATA(varListAll(n), &
+        n=6, 90)/ &
+      varAttr('Kdown', 'W m-2', 'f104', 'Incoming shortwave radiation', 'A', 'SUEWS', 0), &
+      varAttr('Kup', 'W m-2', 'f104', 'Outgoing shortwave radiation', 'A', 'SUEWS', 0), &
+      varAttr('Ldown', 'W m-2', 'f104', 'Incoming longwave radiation', 'A', 'SUEWS', 0), &
+      varAttr('Lup', 'W m-2', 'f104', 'Outgoing longwave radiation', 'A', 'SUEWS', 0), &
+      varAttr('Tsurf', 'degC', 'f104', 'Bulk surface temperature', 'A', 'SUEWS', 0), &
+      varAttr('QN', 'W m-2', 'f104', 'Net all-wave radiation', 'A', 'SUEWS', 0), &
+      varAttr('QF', 'W m-2', 'f104', 'Anthropogenic heat flux', 'A', 'SUEWS', 0), &
+      varAttr('QS', 'W m-2', 'f104', 'Net storage heat flux', 'A', 'SUEWS', 0), &
+      varAttr('QH', 'W m-2', 'f104', 'Sensible heat flux', 'A', 'SUEWS', 0), &
+      varAttr('QE', 'W m-2', 'f104', 'Latent heat flux', 'A', 'SUEWS', 0), &
+      varAttr('QHlumps', 'W m-2', 'f104', 'Sensible heat flux (using LUMPS)', 'A', 'SUEWS', 1), &
+      varAttr('QElumps', 'W m-2', 'f104', 'Latent heat flux (using LUMPS)', 'A', 'SUEWS', 1), &
+      varAttr('QHinit', 'W m-2', 'f104', 'Init Sensible heat flux for TStar', 'A', 'SUEWS', 1), &
+      varAttr('QHresis', 'W m-2', 'f104', 'Sensible heat flux (resistance method)', 'A', 'SUEWS', 1), &
+      varAttr('Rain', 'mm', 'f104', 'Rain', 'S', 'SUEWS', 0), &
+      varAttr('Irr', 'mm', 'f104', 'Irrigation', 'S', 'SUEWS', 0), &
+      varAttr('Evap', 'mm', 'f104', 'Evaporation', 'S', 'SUEWS', 0), &
+      varAttr('RO', 'mm', 'f104', 'Runoff', 'S', 'SUEWS', 0), &
+      varAttr('TotCh', 'mm', 'f146', 'Surface and soil moisture change', 'S', 'SUEWS', 0), &
+      varAttr('SurfCh', 'mm', 'f146', 'Surface moisture change', 'S', 'SUEWS', 0), &
+      varAttr('State', 'mm', 'f104', 'Surface Wetness State', 'L', 'SUEWS', 0), &
+      varAttr('NWtrState', 'mm', 'f104', 'Surface wetness state (non-water surfaces)', 'L', 'SUEWS', 0), &
+      varAttr('Drainage', 'mm', 'f104', 'Drainage', 'S', 'SUEWS', 0), &
+      varAttr('SMD', 'mm', 'f94', 'Soil Moisture Deficit', 'L', 'SUEWS', 0), &
+      varAttr('FlowCh', 'mm', 'f104', 'Additional flow into water body', 'S', 'SUEWS', 1), &
+      varAttr('AddWater', 'mm', 'f104', 'Additional water from other grids', 'S', 'SUEWS', 1), &
+      varAttr('ROSoil', 'mm', 'f104', 'Runoff to soil', 'S', 'SUEWS', 1), &
+      varAttr('ROPipe', 'mm', 'f104', 'Runoff to pipes', 'S', 'SUEWS', 1), &
+      varAttr('ROImp', 'mm', 'f104', 'Runoff over impervious surfaces', 'S', 'SUEWS', 1), &
+      varAttr('ROVeg', 'mm', 'f104', 'Runoff over vegetated surfaces', 'S', 'SUEWS', 1), &
+      varAttr('ROWater', 'mm', 'f104', 'Runoff for water surface', 'S', 'SUEWS', 1), &
+      varAttr('WUInt', 'mm', 'f94', 'Internal water use', 'S', 'SUEWS', 1), &
+      varAttr('WUEveTr', 'mm', 'f94', 'Water use for evergreen trees', 'S', 'SUEWS', 1), &
+      varAttr('WUDecTr', 'mm', 'f94', 'Water use for deciduous trees', 'S', 'SUEWS', 1), &
+      varAttr('WUGrass', 'mm', 'f94', 'Water use for grass', 'S', 'SUEWS', 1), &
+      varAttr('SMDPaved', 'mm', 'f94', 'Soil moisture deficit for paved surface', 'L', 'SUEWS', 1), &
+      varAttr('SMDBldgs', 'mm', 'f94', 'Soil moisture deficit for building surface', 'L', 'SUEWS', 1), &
+      varAttr('SMDEveTr', 'mm', 'f94', 'Soil moisture deficit for evergreen tree surface', 'L', 'SUEWS', 1), &
+      varAttr('SMDDecTr', 'mm', 'f94', 'Soil moisture deficit for deciduous tree surface', 'L', 'SUEWS', 1), &
+      varAttr('SMDGrass', 'mm', 'f94', 'Soil moisture deficit for grass surface', 'L', 'SUEWS', 1), &
+      varAttr('SMDBSoil', 'mm', 'f94', 'Soil moisture deficit for bare soil surface', 'L', 'SUEWS', 1), &
+      varAttr('StPaved', 'mm', 'f94', 'Surface wetness state for paved surface', 'L', 'SUEWS', 1), &
+      varAttr('StBldgs', 'mm', 'f94', 'Surface wetness state for building surface', 'L', 'SUEWS', 1), &
+      varAttr('StEveTr', 'mm', 'f94', 'Surface wetness state for evergreen tree surface', 'L', 'SUEWS', 1), &
+      varAttr('StDecTr', 'mm', 'f94', 'Surface wetness state for deciduous tree surface', 'L', 'SUEWS', 1), &
+      varAttr('StGrass', 'mm', 'f94', 'Surface wetness state for grass surface', 'L', 'SUEWS', 1), &
+      varAttr('StBSoil', 'mm', 'f94', 'Surface wetness state for bare soil surface', 'L', 'SUEWS', 1), &
+      varAttr('StWater', 'mm', 'f104', 'Surface wetness state for water surface', 'L', 'SUEWS', 1), &
+      varAttr('Zenith', 'degree', 'f104', 'Solar zenith angle', 'L', 'SUEWS', 0), &
+      varAttr('Azimuth', 'degree', 'f94', 'Solar azimuth angle', 'L', 'SUEWS', 0), &
+      varAttr('AlbBulk', '1', 'f94', 'Bulk albedo', 'A', 'SUEWS', 0), &
+      varAttr('Fcld', '1', 'f94', 'Cloud fraction', 'A', 'SUEWS', 0), &
+      varAttr('LAI', 'm2 m-2', 'f94', 'Leaf area index', 'A', 'SUEWS', 0), &
+      varAttr('z0m', 'm', 'f94', 'Roughness length for momentum', 'A', 'SUEWS', 1), &
+      varAttr('zdm', 'm', 'f94', 'Zero-plane displacement height', 'A', 'SUEWS', 1), &
+      varAttr('zL', '-', 'f94', 'Stability scale', 'A', 'SUEWS', 1), &
+      varAttr('UStar', 'm s-1', 'f94', 'Friction velocity', 'A', 'SUEWS', 0), &
+      varAttr('TStar', 'm s-1', 'f94', 'Temperature scale', 'A', 'SUEWS', 0), &
+      varAttr('Lob', 'm', 'f146', 'Obukhov length', 'A', 'SUEWS', 0), &
+      varAttr('RA', 's m-1', 'f104', 'Aerodynamic resistance', 'A', 'SUEWS', 1), &
+      varAttr('RS', 's m-1', 'f104', 'Surface resistance', 'A', 'SUEWS', 1), &
+      varAttr('Fc', 'umol m-2 s-1', 'f94', 'CO2 flux', 'A', 'SUEWS', 0), &
+      varAttr('FcPhoto', 'umol m-2 s-1', 'f94', 'CO2 flux from photosynthesis', 'A', 'SUEWS', 1), &
+      varAttr('FcRespi', 'umol m-2 s-1', 'f94', 'CO2 flux from respiration', 'A', 'SUEWS', 1), &
+      varAttr('FcMetab', 'umol m-2 s-1', 'f94', 'CO2 flux from metabolism', 'A', 'SUEWS', 1), &
+      varAttr('FcTraff', 'umol m-2 s-1', 'f94', 'CO2 flux from traffic', 'A', 'SUEWS', 1), &
+      varAttr('FcBuild', 'umol m-2 s-1', 'f94', 'CO2 flux from buildings', 'A', 'SUEWS', 1), &
+      varAttr('FcPoint', 'umol m-2 s-1', 'f94', 'CO2 flux from point source', 'A', 'SUEWS', 1), &
+      varAttr('QNSnowFr', 'W m-2', 'f94', 'Net all-wave radiation for non-snow area', 'A', 'SUEWS', 2), &
+      varAttr('QNSnow', 'W m-2', 'f94', 'Net all-wave radiation for snow area', 'A', 'SUEWS', 2), &
+      varAttr('AlbSnow', '-', 'f94', 'Snow albedo', 'A', 'SUEWS', 2), &
+      varAttr('QM', 'W m-2', 'f106', 'Snow-related heat exchange', 'A', 'SUEWS', 2), &
+      varAttr('QMFreeze', 'W m-2', 'f146', 'Internal energy change', 'A', 'SUEWS', 2), &
+      varAttr('QMRain', 'W m-2', 'f106', 'Heat released by rain on snow', 'A', 'SUEWS', 2), &
+      varAttr('SWE', 'mm', 'f104', 'Snow water equivalent', 'A', 'SUEWS', 2), &
+      varAttr('MeltWater', 'mm', 'f104', 'Meltwater', 'A', 'SUEWS', 2), &
+      varAttr('MeltWStore', 'mm', 'f104', 'Meltwater store', 'A', 'SUEWS', 2), &
+      varAttr('SnowCh', 'mm', 'f104', 'Change in snow pack', 'S', 'SUEWS', 2), &
+      varAttr('SnowRPaved', 'mm', 'f94', 'Snow removed from paved surface', 'S', 'SUEWS', 2), &
+      varAttr('SnowRBldgs', 'mm', 'f94', 'Snow removed from building surface', 'S', 'SUEWS', 2), &
+      varAttr('Ts', 'degC', 'f94', 'Skin temperature', 'A', 'SUEWS', 0), &
+      varAttr('T2', 'degC', 'f94', 'Air temperature at 2 m', 'A', 'SUEWS', 0), &
+      varAttr('Q2', 'g kg-1', 'f94', 'Specific humidity at 2 m', 'A', 'SUEWS', 0), &
+      varAttr('U10', 'm s-1', 'f94', 'Wind speed at 10 m', 'A', 'SUEWS', 0), &
+      varAttr('RH2', '%', 'f94', 'Relative humidity at 2 m', 'A', 'SUEWS', 0) &
+      /
+
+   ! snow variables (98 variables)
+   DATA(varListAll(n), &
+        n=91, 188)/ &
+      varAttr('SWE_Paved', 'mm', 'f106', 'Snow water equivalent for paved surface', 'A', 'snow', 0), &
+      varAttr('SWE_Bldgs', 'mm', 'f106', 'Snow water equivalent for building surface', 'A', 'snow', 0), &
+      varAttr('SWE_EveTr', 'mm', 'f106', 'Snow water equivalent for evergreen tree surface', 'A', 'snow', 0), &
+      varAttr('SWE_DecTr', 'mm', 'f106', 'Snow water equivalent for deciduous tree surface', 'A', 'snow', 0), &
+      varAttr('SWE_Grass', 'mm', 'f106', 'Snow water equivalent for grass surface', 'A', 'snow', 0), &
+      varAttr('SWE_BSoil', 'mm', 'f106', 'Snow water equivalent for bare soil surface', 'A', 'snow', 0), &
+      varAttr('SWE_Water', 'mm', 'f106', 'Snow water equivalent for water surface', 'A', 'snow', 0), &
+      varAttr('Mw_Paved', 'mm', 'f106', 'Meltwater for paved surface', 'S', 'snow', 0), &
+      varAttr('Mw_Bldgs', 'mm', 'f106', 'Meltwater for building surface', 'S', 'snow', 0), &
+      varAttr('Mw_EveTr', 'mm', 'f106', 'Meltwater for evergreen tree surface', 'S', 'snow', 0), &
+      varAttr('Mw_DecTr', 'mm', 'f106', 'Meltwater for deciduous tree surface', 'S', 'snow', 0), &
+      varAttr('Mw_Grass', 'mm', 'f106', 'Meltwater for grass surface', 'S', 'snow', 0), &
+      varAttr('Mw_BSoil', 'mm', 'f106', 'Meltwater for bare soil surface', 'S', 'snow', 0), &
+      varAttr('Mw_Water', 'mm', 'f106', 'Meltwater for water surface', 'S', 'snow', 0), &
+      varAttr('Qm_Paved', 'W m-2', 'f106', 'Snow-related heat exchange for paved surface', 'A', 'snow', 0), &
+      varAttr('Qm_Bldgs', 'W m-2', 'f106', 'Snow-related heat exchange for building surface', 'A', 'snow', 0), &
+      varAttr('Qm_EveTr', 'W m-2', 'f106', 'Snow-related heat exchange for evergreen tree surface', 'A', 'snow', 0), &
+      varAttr('Qm_DecTr', 'W m-2', 'f106', 'Snow-related heat exchange for deciduous tree surface', 'A', 'snow', 0), &
+      varAttr('Qm_Grass', 'W m-2', 'f106', 'Snow-related heat exchange for grass surface', 'A', 'snow', 0), &
+      varAttr('Qm_BSoil', 'W m-2', 'f106', 'Snow-related heat exchange for bare soil surface', 'A', 'snow', 0), &
+      varAttr('Qm_Water', 'W m-2', 'f106', 'Snow-related heat exchange for water surface', 'A', 'snow', 0), &
+      varAttr('Qa_Paved', 'W m-2', 'f106', 'Advective heat for paved surface', 'A', 'snow', 0), &
+      varAttr('Qa_Bldgs', 'W m-2', 'f106', 'Advective heat for building surface', 'A', 'snow', 0), &
+      varAttr('Qa_EveTr', 'W m-2', 'f106', 'Advective heat for evergreen tree surface', 'A', 'snow', 0), &
+      varAttr('Qa_DecTr', 'W m-2', 'f106', 'Advective heat for deciduous tree surface', 'A', 'snow', 0), &
+      varAttr('Qa_Grass', 'W m-2', 'f106', 'Advective heat for grass surface', 'A', 'snow', 0), &
+      varAttr('Qa_BSoil', 'W m-2', 'f106', 'Advective heat for bare soil surface', 'A', 'snow', 0), &
+      varAttr('Qa_Water', 'W m-2', 'f106', 'Advective heat for water surface', 'A', 'snow', 0), &
+      varAttr('QmFr_Paved', 'W m-2', 'f146', 'Heat related to freezing for paved surface', 'A', 'snow', 0), &
+      varAttr('QmFr_Bldgs', 'W m-2', 'f146', 'Heat related to freezing for building surface', 'A', 'snow', 0), &
+      varAttr('QmFr_EveTr', 'W m-2', 'f146', 'Heat related to freezing for evergreen tree surface', 'A', 'snow', 0), &
+      varAttr('QmFr_DecTr', 'W m-2', 'f146', 'Heat related to freezing for deciduous tree surface', 'A', 'snow', 0), &
+      varAttr('QmFr_Grass', 'W m-2', 'f146', 'Heat related to freezing for grass surface', 'A', 'snow', 0), &
+      varAttr('QmFr_BSoil', 'W m-2', 'f146', 'Heat related to freezing for bare soil surface', 'A', 'snow', 0), &
+      varAttr('QmFr_Water', 'W m-2', 'f146', 'Heat related to freezing for water surface', 'A', 'snow', 0), &
+      varAttr('fr_Paved', '1', 'f106', 'Fraction of snow for paved surface', 'A', 'snow', 0), &
+      varAttr('fr_Bldgs', '1', 'f106', 'Fraction of snow for building surface', 'A', 'snow', 0), &
+      varAttr('fr_EveTr', '1', 'f106', 'Fraction of snow for evergreen tree surface', 'A', 'snow', 0), &
+      varAttr('fr_DecTr', '1', 'f106', 'Fraction of snow for deciduous tree surface', 'A', 'snow', 0), &
+      varAttr('fr_Grass', '1', 'f106', 'Fraction of snow for grass surface', 'A', 'snow', 0), &
+      varAttr('fr_BSoil', '1', 'f106', 'Fraction of snow for bare soil surface', 'A', 'snow', 0), &
+      varAttr('RainSn_Paved', 'mm', 'f146', 'Rain on snow for paved surface', 'S', 'snow', 0), &
+      varAttr('RainSn_Bldgs', 'mm', 'f146', 'Rain on snow for building surface', 'S', 'snow', 0), &
+      varAttr('RainSn_EveTr', 'mm', 'f146', 'Rain on snow for evergreen tree surface', 'S', 'snow', 0), &
+      varAttr('RainSn_DecTr', 'mm', 'f146', 'Rain on snow for deciduous tree surface', 'S', 'snow', 0), &
+      varAttr('RainSn_Grass', 'mm', 'f146', 'Rain on snow for grass surface', 'S', 'snow', 0), &
+      varAttr('RainSn_BSoil', 'mm', 'f146', 'Rain on snow for bare soil surface', 'S', 'snow', 0), &
+      varAttr('RainSn_Water', 'mm', 'f146', 'Rain on snow for water surface', 'S', 'snow', 0), &
+      varAttr('Qn_PavedSnow', 'W m-2', 'f146', 'Net all-wave radiation for snow paved surface', 'A', 'snow', 0), &
+      varAttr('Qn_BldgsSnow', 'W m-2', 'f146', 'Net all-wave radiation for snow building surface', 'A', 'snow', 0), &
+      varAttr('Qn_EveTrSnow', 'W m-2', 'f146', 'Net all-wave radiation for snow evetr surface', 'A', 'snow', 0), &
+      varAttr('Qn_DecTrSnow', 'W m-2', 'f146', 'Net all-wave radiation for snow dectr surface', 'A', 'snow', 0), &
+      varAttr('Qn_GrassSnow', 'W m-2', 'f146', 'Net all-wave radiation for snow grass surface', 'A', 'snow', 0), &
+      varAttr('Qn_BSoilSnow', 'W m-2', 'f146', 'Net all-wave radiation for snow bsoil surface', 'A', 'snow', 0), &
+      varAttr('Qn_WaterSnow', 'W m-2', 'f146', 'Net all-wave radiation for snow water surface', 'A', 'snow', 0), &
+      varAttr('kup_PavedSnow', 'W m-2', 'f146', 'Reflected shortwave radiation for snow paved surface', 'A', 'snow', 0), &
+      varAttr('kup_BldgsSnow', 'W m-2', 'f146', 'Reflected shortwave radiation for snow building surface', 'A', 'snow', 0), &
+      varAttr('kup_EveTrSnow', 'W m-2', 'f146', 'Reflected shortwave radiation for snow evetr surface', 'A', 'snow', 0), &
+      varAttr('kup_DecTrSnow', 'W m-2', 'f146', 'Reflected shortwave radiation for snow dectr surface', 'A', 'snow', 0), &
+      varAttr('kup_GrassSnow', 'W m-2', 'f146', 'Reflected shortwave radiation for snow grass surface', 'A', 'snow', 0), &
+      varAttr('kup_BSoilSnow', 'W m-2', 'f146', 'Reflected shortwave radiation for snow bsoil surface', 'A', 'snow', 0), &
+      varAttr('kup_WaterSnow', 'W m-2', 'f146', 'Reflected shortwave radiation for snow water surface', 'A', 'snow', 0), &
+      varAttr('frMelt_Paved', 'mm', 'f146', 'Amount of freezing melt water for paved surface', 'A', 'snow', 0), &
+      varAttr('frMelt_Bldgs', 'mm', 'f146', 'Amount of freezing melt water for building surface', 'A', 'snow', 0), &
+      varAttr('frMelt_EveTr', 'mm', 'f146', 'Amount of freezing melt water for evergreen tree surface', 'A', 'snow', 0), &
+      varAttr('frMelt_DecTr', 'mm', 'f146', 'Amount of freezing melt water for deciduous tree surface', 'A', 'snow', 0), &
+      varAttr('frMelt_Grass', 'mm', 'f146', 'Amount of freezing melt water for grass surface', 'A', 'snow', 0), &
+      varAttr('frMelt_BSoil', 'mm', 'f146', 'Amount of freezing melt water for bare soil surface', 'A', 'snow', 0), &
+      varAttr('frMelt_Water', 'mm', 'f146', 'Amount of freezing melt water for water surface', 'A', 'snow', 0), &
+      varAttr('MwStore_Paved', 'mm', 'f146', 'Meltwater store for paved surface', 'A', 'snow', 0), &
+      varAttr('MwStore_Bldgs', 'mm', 'f146', 'Meltwater store for building surface', 'A', 'snow', 0), &
+      varAttr('MwStore_EveTr', 'mm', 'f146', 'Meltwater store for evergreen tree surface', 'A', 'snow', 0), &
+      varAttr('MwStore_DecTr', 'mm', 'f146', 'Meltwater store for deciduous tree surface', 'A', 'snow', 0), &
+      varAttr('MwStore_Grass', 'mm', 'f146', 'Meltwater store for grass surface', 'A', 'snow', 0), &
+      varAttr('MwStore_BSoil', 'mm', 'f146', 'Meltwater store for bare soil surface', 'A', 'snow', 0), &
+      varAttr('MwStore_Water', 'mm', 'f146', 'Meltwater store for water surface', 'A', 'snow', 0), &
+      varAttr('DensSnow_Paved', 'kg m-3', 'f146', 'Snow density for paved surface', 'A', 'snow', 0), &
+      varAttr('DensSnow_Bldgs', 'kg m-3', 'f146', 'Snow density for building surface', 'A', 'snow', 0), &
+      varAttr('DensSnow_EveTr', 'kg m-3', 'f146', 'Snow density for evergreen tree surface', 'A', 'snow', 0), &
+      varAttr('DensSnow_DecTr', 'kg m-3', 'f146', 'Snow density for deciduous tree surface', 'A', 'snow', 0), &
+      varAttr('DensSnow_Grass', 'kg m-3', 'f146', 'Snow density for grass surface', 'A', 'snow', 0), &
+      varAttr('DensSnow_BSoil', 'kg m-3', 'f146', 'Snow density for bare soil surface', 'A', 'snow', 0), &
+      varAttr('DensSnow_Water', 'kg m-3', 'f146', 'Snow density for water surface', 'A', 'snow', 0), &
+      varAttr('Sd_Paved', 'mm', 'f106', 'Snow depth for paved surface', 'A', 'snow', 0), &
+      varAttr('Sd_Bldgs', 'mm', 'f106', 'Snow depth for building surface', 'A', 'snow', 0), &
+      varAttr('Sd_EveTr', 'mm', 'f106', 'Snow depth for evergreen tree surface', 'A', 'snow', 0), &
+      varAttr('Sd_DecTr', 'mm', 'f106', 'Snow depth for deciduous tree surface', 'A', 'snow', 0), &
+      varAttr('Sd_Grass', 'mm', 'f106', 'Snow depth for grass surface', 'A', 'snow', 0), &
+      varAttr('Sd_BSoil', 'mm', 'f106', 'Snow depth for bare soil surface', 'A', 'snow', 0), &
+      varAttr('Sd_Water', 'mm', 'f106', 'Snow depth for water surface', 'A', 'snow', 0), &
+      varAttr('Tsnow_Paved', 'degC', 'f146', 'Snow surface temperature for paved surface', 'A', 'snow', 0), &
+      varAttr('Tsnow_Bldgs', 'degC', 'f146', 'Snow surface temperature for building surface', 'A', 'snow', 0), &
+      varAttr('Tsnow_EveTr', 'degC', 'f146', 'Snow surface temperature for evergreen tree surface', 'A', 'snow', 0), &
+      varAttr('Tsnow_DecTr', 'degC', 'f146', 'Snow surface temperature for deciduous tree surface', 'A', 'snow', 0), &
+      varAttr('Tsnow_Grass', 'degC', 'f146', 'Snow surface temperature for grass surface', 'A', 'snow', 0), &
+      varAttr('Tsnow_BSoil', 'degC', 'f146', 'Snow surface temperature for bare soil surface', 'A', 'snow', 0), &
+      varAttr('Tsnow_Water', 'degC', 'f146', 'Snow surface temperature for water surface', 'A', 'snow', 0), &
+      varAttr('SnowAlb', '-', 'f146', 'Surface albedo for snow/ice', 'A', 'snow', 0) &
+      /
+
+   ! ESTM variables (27 variables)
+   DATA(varListAll(n), &
+        n=189, 215)/ &
+      varAttr('QS', 'W m-2', 'f104', 'Total storage heat flux', 'A', 'ESTM', 0), &
+      varAttr('QSAir', 'W m-2', 'f104', 'Storage air', 'A', 'ESTM', 0), &
+      varAttr('QSWall', 'W m-2', 'f104', 'Storage wall', 'A', 'ESTM', 0), &
+      varAttr('QSRoof', 'W m-2', 'f104', 'Storage roof', 'A', 'ESTM', 0), &
+      varAttr('QSGround', 'W m-2', 'f104', 'Storage ground', 'A', 'ESTM', 0), &
+      varAttr('QSIBld', 'W m-2', 'f104', 'Storage internal building', 'A', 'ESTM', 0), &
+      varAttr('TWALL1', 'degK', 'f104', 'Temperature in wall layer 1', 'A', 'ESTM', 0), &
+      varAttr('TWALL2', 'degK', 'f104', 'Temperature in wall layer 2', 'A', 'ESTM', 0), &
+      varAttr('TWALL3', 'degK', 'f104', 'Temperature in wall layer 3', 'A', 'ESTM', 0), &
+      varAttr('TWALL4', 'degK', 'f104', 'Temperature in wall layer 4', 'A', 'ESTM', 0), &
+      varAttr('TWALL5', 'degK', 'f104', 'Temperature in wall layer 5', 'A', 'ESTM', 0), &
+      varAttr('TROOF1', 'degK', 'f104', 'Temperature in roof layer 1', 'A', 'ESTM', 0), &
+      varAttr('TROOF2', 'degK', 'f104', 'Temperature in roof layer 2', 'A', 'ESTM', 0), &
+      varAttr('TROOF3', 'degK', 'f104', 'Temperature in roof layer 3', 'A', 'ESTM', 0), &
+      varAttr('TROOF4', 'degK', 'f104', 'Temperature in roof layer 4', 'A', 'ESTM', 0), &
+      varAttr('TROOF5', 'degK', 'f104', 'Temperature in roof layer 5', 'A', 'ESTM', 0), &
+      varAttr('TGROUND1', 'degK', 'f104', 'Temperature in ground layer 1', 'A', 'ESTM', 0), &
+      varAttr('TGROUND2', 'degK', 'f104', 'Temperature in ground layer 2', 'A', 'ESTM', 0), &
+      varAttr('TGROUND3', 'degK', 'f104', 'Temperature in ground layer 3', 'A', 'ESTM', 0), &
+      varAttr('TGROUND4', 'degK', 'f104', 'Temperature in ground layer 4', 'A', 'ESTM', 0), &
+      varAttr('TGROUND5', 'degK', 'f104', 'Temperature in ground layer 5', 'A', 'ESTM', 0), &
+      varAttr('TiBLD1', 'degK', 'f104', 'Temperature in internal building layer 1', 'A', 'ESTM', 0), &
+      varAttr('TiBLD2', 'degK', 'f104', 'Temperature in internal building layer 2', 'A', 'ESTM', 0), &
+      varAttr('TiBLD3', 'degK', 'f104', 'Temperature in internal building layer 3', 'A', 'ESTM', 0), &
+      varAttr('TiBLD4', 'degK', 'f104', 'Temperature in internal building layer 4', 'A', 'ESTM', 0), &
+      varAttr('TiBLD5', 'degK', 'f104', 'Temperature in internal building layer 5', 'A', 'ESTM', 0), &
+      varAttr('TaBLD', 'degK', 'f104', 'Indoor air temperature', 'A', 'ESTM', 0) &
+      /
+
+   ! EHC variables (224 variables)
+   DATA(varListAll(n), &
+        n=216, 439)/ &
+      varAttr('Ts_Paved', 'degC', 'f104', 'surface temperature of paved surface', 'A', 'EHC', 0), &
+      varAttr('Ts_Bldgs', 'degC', 'f104', 'surface temperature of building surface', 'A', 'EHC', 0), &
+      varAttr('Ts_EveTr', 'degC', 'f104', 'surface temperature of evergreen tree surface', 'A', 'EHC', 0), &
+      varAttr('Ts_DecTr', 'degC', 'f104', 'surface temperature of deciduous tree surface', 'A', 'EHC', 0), &
+      varAttr('Ts_Grass', 'degC', 'f104', 'surface temperature of grass surface', 'A', 'EHC', 0), &
+      varAttr('Ts_BSoil', 'degC', 'f104', 'surface temperature of bare soil surface', 'A', 'EHC', 0), &
+      varAttr('Ts_Water', 'degC', 'f104', 'surface temperature of water surface', 'A', 'EHC', 0), &
+      varAttr('QS_Paved', 'W m-2', 'f104', 'storage heat flux of paved surface', 'A', 'EHC', 0), &
+      varAttr('QS_Bldgs', 'W m-2', 'f104', 'storage heat flux of building surface', 'A', 'EHC', 0), &
+      varAttr('QS_EveTr', 'W m-2', 'f104', 'storage heat flux of evergreen tree surface', 'A', 'EHC', 0), &
+      varAttr('QS_DecTr', 'W m-2', 'f104', 'storage heat flux of deciduous tree surface', 'A', 'EHC', 0), &
+      varAttr('QS_Grass', 'W m-2', 'f104', 'storage heat flux of grass surface', 'A', 'EHC', 0), &
+      varAttr('QS_BSoil', 'W m-2', 'f104', 'storage heat flux of bare soil surface', 'A', 'EHC', 0), &
+      varAttr('QS_Water', 'W m-2', 'f104', 'storage heat flux of water surface', 'A', 'EHC', 0), &
+      varAttr('Ts_Roof_1', 'degC', 'f104', 'surface temperature of roof level 1', 'A', 'EHC', 0), &
+      varAttr('Ts_Roof_2', 'degC', 'f104', 'surface temperature of roof level 2', 'A', 'EHC', 0), &
+      varAttr('Ts_Roof_3', 'degC', 'f104', 'surface temperature of roof level 3', 'A', 'EHC', 0), &
+      varAttr('Ts_Roof_4', 'degC', 'f104', 'surface temperature of roof level 4', 'A', 'EHC', 0), &
+      varAttr('Ts_Roof_5', 'degC', 'f104', 'surface temperature of roof level 5', 'A', 'EHC', 0), &
+      varAttr('Ts_Roof_6', 'degC', 'f104', 'surface temperature of roof level 6', 'A', 'EHC', 0), &
+      varAttr('Ts_Roof_7', 'degC', 'f104', 'surface temperature of roof level 7', 'A', 'EHC', 0), &
+      varAttr('Ts_Roof_8', 'degC', 'f104', 'surface temperature of roof level 8', 'A', 'EHC', 0), &
+      varAttr('Ts_Roof_9', 'degC', 'f104', 'surface temperature of roof level 9', 'A', 'EHC', 0), &
+      varAttr('Ts_Roof_10', 'degC', 'f104', 'surface temperature of roof level 10', 'A', 'EHC', 0), &
+      varAttr('Ts_Roof_11', 'degC', 'f104', 'surface temperature of roof level 11', 'A', 'EHC', 0), &
+      varAttr('Ts_Roof_12', 'degC', 'f104', 'surface temperature of roof level 12', 'A', 'EHC', 0), &
+      varAttr('Ts_Roof_13', 'degC', 'f104', 'surface temperature of roof level 13', 'A', 'EHC', 0), &
+      varAttr('Ts_Roof_14', 'degC', 'f104', 'surface temperature of roof level 14', 'A', 'EHC', 0), &
+      varAttr('Ts_Roof_15', 'degC', 'f104', 'surface temperature of roof level 15', 'A', 'EHC', 0), &
+      varAttr('QN_Roof_1', 'degC', 'f104', 'net all-wave radiation of roof level 1', 'A', 'EHC', 0), &
+      varAttr('QN_Roof_2', 'degC', 'f104', 'net all-wave radiation of roof level 2', 'A', 'EHC', 0), &
+      varAttr('QN_Roof_3', 'degC', 'f104', 'net all-wave radiation of roof level 3', 'A', 'EHC', 0), &
+      varAttr('QN_Roof_4', 'degC', 'f104', 'net all-wave radiation of roof level 4', 'A', 'EHC', 0), &
+      varAttr('QN_Roof_5', 'degC', 'f104', 'net all-wave radiation of roof level 5', 'A', 'EHC', 0), &
+      varAttr('QN_Roof_6', 'degC', 'f104', 'net all-wave radiation of roof level 6', 'A', 'EHC', 0), &
+      varAttr('QN_Roof_7', 'degC', 'f104', 'net all-wave radiation of roof level 7', 'A', 'EHC', 0), &
+      varAttr('QN_Roof_8', 'degC', 'f104', 'net all-wave radiation of roof level 8', 'A', 'EHC', 0), &
+      varAttr('QN_Roof_9', 'degC', 'f104', 'net all-wave radiation of roof level 9', 'A', 'EHC', 0), &
+      varAttr('QN_Roof_10', 'degC', 'f104', 'net all-wave radiation of roof level 10', 'A', 'EHC', 0), &
+      varAttr('QN_Roof_11', 'degC', 'f104', 'net all-wave radiation of roof level 11', 'A', 'EHC', 0), &
+      varAttr('QN_Roof_12', 'degC', 'f104', 'net all-wave radiation of roof level 12', 'A', 'EHC', 0), &
+      varAttr('QN_Roof_13', 'degC', 'f104', 'net all-wave radiation of roof level 13', 'A', 'EHC', 0), &
+      varAttr('QN_Roof_14', 'degC', 'f104', 'net all-wave radiation of roof level 14', 'A', 'EHC', 0), &
+      varAttr('QN_Roof_15', 'degC', 'f104', 'net all-wave radiation of roof level 15', 'A', 'EHC', 0), &
+      varAttr('QS_Roof_1', 'degC', 'f104', 'storage heat flux of roof level 1', 'A', 'EHC', 0), &
+      varAttr('QS_Roof_2', 'degC', 'f104', 'storage heat flux of roof level 2', 'A', 'EHC', 0), &
+      varAttr('QS_Roof_3', 'degC', 'f104', 'storage heat flux of roof level 3', 'A', 'EHC', 0), &
+      varAttr('QS_Roof_4', 'degC', 'f104', 'storage heat flux of roof level 4', 'A', 'EHC', 0), &
+      varAttr('QS_Roof_5', 'degC', 'f104', 'storage heat flux of roof level 5', 'A', 'EHC', 0), &
+      varAttr('QS_Roof_6', 'degC', 'f104', 'storage heat flux of roof level 6', 'A', 'EHC', 0), &
+      varAttr('QS_Roof_7', 'degC', 'f104', 'storage heat flux of roof level 7', 'A', 'EHC', 0), &
+      varAttr('QS_Roof_8', 'degC', 'f104', 'storage heat flux of roof level 8', 'A', 'EHC', 0), &
+      varAttr('QS_Roof_9', 'degC', 'f104', 'storage heat flux of roof level 9', 'A', 'EHC', 0), &
+      varAttr('QS_Roof_10', 'degC', 'f104', 'storage heat flux of roof level 10', 'A', 'EHC', 0), &
+      varAttr('QS_Roof_11', 'degC', 'f104', 'storage heat flux of roof level 11', 'A', 'EHC', 0), &
+      varAttr('QS_Roof_12', 'degC', 'f104', 'storage heat flux of roof level 12', 'A', 'EHC', 0), &
+      varAttr('QS_Roof_13', 'degC', 'f104', 'storage heat flux of roof level 13', 'A', 'EHC', 0), &
+      varAttr('QS_Roof_14', 'degC', 'f104', 'storage heat flux of roof level 14', 'A', 'EHC', 0), &
+      varAttr('QS_Roof_15', 'degC', 'f104', 'storage heat flux of roof level 15', 'A', 'EHC', 0), &
+      varAttr('QE_Roof_1', 'degC', 'f104', 'latent heat flux of roof level 1', 'A', 'EHC', 0), &
+      varAttr('QE_Roof_2', 'degC', 'f104', 'latent heat flux of roof level 2', 'A', 'EHC', 0), &
+      varAttr('QE_Roof_3', 'degC', 'f104', 'latent heat flux of roof level 3', 'A', 'EHC', 0), &
+      varAttr('QE_Roof_4', 'degC', 'f104', 'latent heat flux of roof level 4', 'A', 'EHC', 0), &
+      varAttr('QE_Roof_5', 'degC', 'f104', 'latent heat flux of roof level 5', 'A', 'EHC', 0), &
+      varAttr('QE_Roof_6', 'degC', 'f104', 'latent heat flux of roof level 6', 'A', 'EHC', 0), &
+      varAttr('QE_Roof_7', 'degC', 'f104', 'latent heat flux of roof level 7', 'A', 'EHC', 0), &
+      varAttr('QE_Roof_8', 'degC', 'f104', 'latent heat flux of roof level 8', 'A', 'EHC', 0), &
+      varAttr('QE_Roof_9', 'degC', 'f104', 'latent heat flux of roof level 9', 'A', 'EHC', 0), &
+      varAttr('QE_Roof_10', 'degC', 'f104', 'latent heat flux of roof level 10', 'A', 'EHC', 0), &
+      varAttr('QE_Roof_11', 'degC', 'f104', 'latent heat flux of roof level 11', 'A', 'EHC', 0), &
+      varAttr('QE_Roof_12', 'degC', 'f104', 'latent heat flux of roof level 12', 'A', 'EHC', 0), &
+      varAttr('QE_Roof_13', 'degC', 'f104', 'latent heat flux of roof level 13', 'A', 'EHC', 0), &
+      varAttr('QE_Roof_14', 'degC', 'f104', 'latent heat flux of roof level 14', 'A', 'EHC', 0), &
+      varAttr('QE_Roof_15', 'degC', 'f104', 'latent heat flux of roof level 15', 'A', 'EHC', 0), &
+      varAttr('QH_Roof_1', 'degC', 'f104', 'sensible heat flux of roof level 1', 'A', 'EHC', 0), &
+      varAttr('QH_Roof_2', 'degC', 'f104', 'sensible heat flux of roof level 2', 'A', 'EHC', 0), &
+      varAttr('QH_Roof_3', 'degC', 'f104', 'sensible heat flux of roof level 3', 'A', 'EHC', 0), &
+      varAttr('QH_Roof_4', 'degC', 'f104', 'sensible heat flux of roof level 4', 'A', 'EHC', 0), &
+      varAttr('QH_Roof_5', 'degC', 'f104', 'sensible heat flux of roof level 5', 'A', 'EHC', 0), &
+      varAttr('QH_Roof_6', 'degC', 'f104', 'sensible heat flux of roof level 6', 'A', 'EHC', 0), &
+      varAttr('QH_Roof_7', 'degC', 'f104', 'sensible heat flux of roof level 7', 'A', 'EHC', 0), &
+      varAttr('QH_Roof_8', 'degC', 'f104', 'sensible heat flux of roof level 8', 'A', 'EHC', 0), &
+      varAttr('QH_Roof_9', 'degC', 'f104', 'sensible heat flux of roof level 9', 'A', 'EHC', 0), &
+      varAttr('QH_Roof_10', 'degC', 'f104', 'sensible heat flux of roof level 10', 'A', 'EHC', 0), &
+      varAttr('QH_Roof_11', 'degC', 'f104', 'sensible heat flux of roof level 11', 'A', 'EHC', 0), &
+      varAttr('QH_Roof_12', 'degC', 'f104', 'sensible heat flux of roof level 12', 'A', 'EHC', 0), &
+      varAttr('QH_Roof_13', 'degC', 'f104', 'sensible heat flux of roof level 13', 'A', 'EHC', 0), &
+      varAttr('QH_Roof_14', 'degC', 'f104', 'sensible heat flux of roof level 14', 'A', 'EHC', 0), &
+      varAttr('QH_Roof_15', 'degC', 'f104', 'sensible heat flux of roof level 15', 'A', 'EHC', 0), &
+      varAttr('St_Roof_1', 'mm', 'f104', 'surface state of roof level 1', 'A', 'EHC', 0), &
+      varAttr('St_Roof_2', 'mm', 'f104', 'surface state of roof level 2', 'A', 'EHC', 0), &
+      varAttr('St_Roof_3', 'mm', 'f104', 'surface state of roof level 3', 'A', 'EHC', 0), &
+      varAttr('St_Roof_4', 'mm', 'f104', 'surface state of roof level 4', 'A', 'EHC', 0), &
+      varAttr('St_Roof_5', 'mm', 'f104', 'surface state of roof level 5', 'A', 'EHC', 0), &
+      varAttr('St_Roof_6', 'mm', 'f104', 'surface state of roof level 6', 'A', 'EHC', 0), &
+      varAttr('St_Roof_7', 'mm', 'f104', 'surface state of roof level 7', 'A', 'EHC', 0), &
+      varAttr('St_Roof_8', 'mm', 'f104', 'surface state of roof level 8', 'A', 'EHC', 0), &
+      varAttr('St_Roof_9', 'mm', 'f104', 'surface state of roof level 9', 'A', 'EHC', 0), &
+      varAttr('St_Roof_10', 'mm', 'f104', 'surface state of roof level 10', 'A', 'EHC', 0), &
+      varAttr('St_Roof_11', 'mm', 'f104', 'surface state of roof level 11', 'A', 'EHC', 0), &
+      varAttr('St_Roof_12', 'mm', 'f104', 'surface state of roof level 12', 'A', 'EHC', 0), &
+      varAttr('St_Roof_13', 'mm', 'f104', 'surface state of roof level 13', 'A', 'EHC', 0), &
+      varAttr('St_Roof_14', 'mm', 'f104', 'surface state of roof level 14', 'A', 'EHC', 0), &
+      varAttr('St_Roof_15', 'mm', 'f104', 'surface state of roof level 15', 'A', 'EHC', 0), &
+      varAttr('SS_Roof_1', 'mm', 'f104', 'soil store of roof level 1', 'A', 'EHC', 0), &
+      varAttr('SS_Roof_2', 'mm', 'f104', 'soil store of roof level 2', 'A', 'EHC', 0), &
+      varAttr('SS_Roof_3', 'mm', 'f104', 'soil store of roof level 3', 'A', 'EHC', 0), &
+      varAttr('SS_Roof_4', 'mm', 'f104', 'soil store of roof level 4', 'A', 'EHC', 0), &
+      varAttr('SS_Roof_5', 'mm', 'f104', 'soil store of roof level 5', 'A', 'EHC', 0), &
+      varAttr('SS_Roof_6', 'mm', 'f104', 'soil store of roof level 6', 'A', 'EHC', 0), &
+      varAttr('SS_Roof_7', 'mm', 'f104', 'soil store of roof level 7', 'A', 'EHC', 0), &
+      varAttr('SS_Roof_8', 'mm', 'f104', 'soil store of roof level 8', 'A', 'EHC', 0), &
+      varAttr('SS_Roof_9', 'mm', 'f104', 'soil store of roof level 9', 'A', 'EHC', 0), &
+      varAttr('SS_Roof_10', 'mm', 'f104', 'soil store of roof level 10', 'A', 'EHC', 0), &
+      varAttr('SS_Roof_11', 'mm', 'f104', 'soil store of roof level 11', 'A', 'EHC', 0), &
+      varAttr('SS_Roof_12', 'mm', 'f104', 'soil store of roof level 12', 'A', 'EHC', 0), &
+      varAttr('SS_Roof_13', 'mm', 'f104', 'soil store of roof level 13', 'A', 'EHC', 0), &
+      varAttr('SS_Roof_14', 'mm', 'f104', 'soil store of roof level 14', 'A', 'EHC', 0), &
+      varAttr('SS_Roof_15', 'mm', 'f104', 'soil store of roof level 15', 'A', 'EHC', 0), &
+      varAttr('Ts_Wall_1', 'degC', 'f104', 'surface temperature of wall level 1', 'A', 'EHC', 0), &
+      varAttr('Ts_Wall_2', 'degC', 'f104', 'surface temperature of wall level 2', 'A', 'EHC', 0), &
+      varAttr('Ts_Wall_3', 'degC', 'f104', 'surface temperature of wall level 3', 'A', 'EHC', 0), &
+      varAttr('Ts_Wall_4', 'degC', 'f104', 'surface temperature of wall level 4', 'A', 'EHC', 0), &
+      varAttr('Ts_Wall_5', 'degC', 'f104', 'surface temperature of wall level 5', 'A', 'EHC', 0), &
+      varAttr('Ts_Wall_6', 'degC', 'f104', 'surface temperature of wall level 6', 'A', 'EHC', 0), &
+      varAttr('Ts_Wall_7', 'degC', 'f104', 'surface temperature of wall level 7', 'A', 'EHC', 0), &
+      varAttr('Ts_Wall_8', 'degC', 'f104', 'surface temperature of wall level 8', 'A', 'EHC', 0), &
+      varAttr('Ts_Wall_9', 'degC', 'f104', 'surface temperature of wall level 9', 'A', 'EHC', 0), &
+      varAttr('Ts_Wall_10', 'degC', 'f104', 'surface temperature of wall level 10', 'A', 'EHC', 0), &
+      varAttr('Ts_Wall_11', 'degC', 'f104', 'surface temperature of wall level 11', 'A', 'EHC', 0), &
+      varAttr('Ts_Wall_12', 'degC', 'f104', 'surface temperature of wall level 12', 'A', 'EHC', 0), &
+      varAttr('Ts_Wall_13', 'degC', 'f104', 'surface temperature of wall level 13', 'A', 'EHC', 0), &
+      varAttr('Ts_Wall_14', 'degC', 'f104', 'surface temperature of wall level 14', 'A', 'EHC', 0), &
+      varAttr('Ts_Wall_15', 'degC', 'f104', 'surface temperature of wall level 15', 'A', 'EHC', 0), &
+      varAttr('QN_Wall_1', 'degC', 'f104', 'net all-wave radiation of wall level 1', 'A', 'EHC', 0), &
+      varAttr('QN_Wall_2', 'degC', 'f104', 'net all-wave radiation of wall level 2', 'A', 'EHC', 0), &
+      varAttr('QN_Wall_3', 'degC', 'f104', 'net all-wave radiation of wall level 3', 'A', 'EHC', 0), &
+      varAttr('QN_Wall_4', 'degC', 'f104', 'net all-wave radiation of wall level 4', 'A', 'EHC', 0), &
+      varAttr('QN_Wall_5', 'degC', 'f104', 'net all-wave radiation of wall level 5', 'A', 'EHC', 0), &
+      varAttr('QN_Wall_6', 'degC', 'f104', 'net all-wave radiation of wall level 6', 'A', 'EHC', 0), &
+      varAttr('QN_Wall_7', 'degC', 'f104', 'net all-wave radiation of wall level 7', 'A', 'EHC', 0), &
+      varAttr('QN_Wall_8', 'degC', 'f104', 'net all-wave radiation of wall level 8', 'A', 'EHC', 0), &
+      varAttr('QN_Wall_9', 'degC', 'f104', 'net all-wave radiation of wall level 9', 'A', 'EHC', 0), &
+      varAttr('QN_Wall_10', 'degC', 'f104', 'net all-wave radiation of wall level 10', 'A', 'EHC', 0), &
+      varAttr('QN_Wall_11', 'degC', 'f104', 'net all-wave radiation of wall level 11', 'A', 'EHC', 0), &
+      varAttr('QN_Wall_12', 'degC', 'f104', 'net all-wave radiation of wall level 12', 'A', 'EHC', 0), &
+      varAttr('QN_Wall_13', 'degC', 'f104', 'net all-wave radiation of wall level 13', 'A', 'EHC', 0), &
+      varAttr('QN_Wall_14', 'degC', 'f104', 'net all-wave radiation of wall level 14', 'A', 'EHC', 0), &
+      varAttr('QN_Wall_15', 'degC', 'f104', 'net all-wave radiation of wall level 15', 'A', 'EHC', 0), &
+      varAttr('QS_Wall_1', 'degC', 'f104', 'storage heat flux of wall level 1', 'A', 'EHC', 0), &
+      varAttr('QS_Wall_2', 'degC', 'f104', 'storage heat flux of wall level 2', 'A', 'EHC', 0), &
+      varAttr('QS_Wall_3', 'degC', 'f104', 'storage heat flux of wall level 3', 'A', 'EHC', 0), &
+      varAttr('QS_Wall_4', 'degC', 'f104', 'storage heat flux of wall level 4', 'A', 'EHC', 0), &
+      varAttr('QS_Wall_5', 'degC', 'f104', 'storage heat flux of wall level 5', 'A', 'EHC', 0), &
+      varAttr('QS_Wall_6', 'degC', 'f104', 'storage heat flux of wall level 6', 'A', 'EHC', 0), &
+      varAttr('QS_Wall_7', 'degC', 'f104', 'storage heat flux of wall level 7', 'A', 'EHC', 0), &
+      varAttr('QS_Wall_8', 'degC', 'f104', 'storage heat flux of wall level 8', 'A', 'EHC', 0), &
+      varAttr('QS_Wall_9', 'degC', 'f104', 'storage heat flux of wall level 9', 'A', 'EHC', 0), &
+      varAttr('QS_Wall_10', 'degC', 'f104', 'storage heat flux of wall level 10', 'A', 'EHC', 0), &
+      varAttr('QS_Wall_11', 'degC', 'f104', 'storage heat flux of wall level 11', 'A', 'EHC', 0), &
+      varAttr('QS_Wall_12', 'degC', 'f104', 'storage heat flux of wall level 12', 'A', 'EHC', 0), &
+      varAttr('QS_Wall_13', 'degC', 'f104', 'storage heat flux of wall level 13', 'A', 'EHC', 0), &
+      varAttr('QS_Wall_14', 'degC', 'f104', 'storage heat flux of wall level 14', 'A', 'EHC', 0), &
+      varAttr('QS_Wall_15', 'degC', 'f104', 'storage heat flux of wall level 15', 'A', 'EHC', 0), &
+      varAttr('QE_Wall_1', 'degC', 'f104', 'latent heat flux of wall level 1', 'A', 'EHC', 0), &
+      varAttr('QE_Wall_2', 'degC', 'f104', 'latent heat flux of wall level 2', 'A', 'EHC', 0), &
+      varAttr('QE_Wall_3', 'degC', 'f104', 'latent heat flux of wall level 3', 'A', 'EHC', 0), &
+      varAttr('QE_Wall_4', 'degC', 'f104', 'latent heat flux of wall level 4', 'A', 'EHC', 0), &
+      varAttr('QE_Wall_5', 'degC', 'f104', 'latent heat flux of wall level 5', 'A', 'EHC', 0), &
+      varAttr('QE_Wall_6', 'degC', 'f104', 'latent heat flux of wall level 6', 'A', 'EHC', 0), &
+      varAttr('QE_Wall_7', 'degC', 'f104', 'latent heat flux of wall level 7', 'A', 'EHC', 0), &
+      varAttr('QE_Wall_8', 'degC', 'f104', 'latent heat flux of wall level 8', 'A', 'EHC', 0), &
+      varAttr('QE_Wall_9', 'degC', 'f104', 'latent heat flux of wall level 9', 'A', 'EHC', 0), &
+      varAttr('QE_Wall_10', 'degC', 'f104', 'latent heat flux of wall level 10', 'A', 'EHC', 0), &
+      varAttr('QE_Wall_11', 'degC', 'f104', 'latent heat flux of wall level 11', 'A', 'EHC', 0), &
+      varAttr('QE_Wall_12', 'degC', 'f104', 'latent heat flux of wall level 12', 'A', 'EHC', 0), &
+      varAttr('QE_Wall_13', 'degC', 'f104', 'latent heat flux of wall level 13', 'A', 'EHC', 0), &
+      varAttr('QE_Wall_14', 'degC', 'f104', 'latent heat flux of wall level 14', 'A', 'EHC', 0), &
+      varAttr('QE_Wall_15', 'degC', 'f104', 'latent heat flux of wall level 15', 'A', 'EHC', 0), &
+      varAttr('QH_Wall_1', 'degC', 'f104', 'sensible heat flux of wall level 1', 'A', 'EHC', 0), &
+      varAttr('QH_Wall_2', 'degC', 'f104', 'sensible heat flux of wall level 2', 'A', 'EHC', 0), &
+      varAttr('QH_Wall_3', 'degC', 'f104', 'sensible heat flux of wall level 3', 'A', 'EHC', 0), &
+      varAttr('QH_Wall_4', 'degC', 'f104', 'sensible heat flux of wall level 4', 'A', 'EHC', 0), &
+      varAttr('QH_Wall_5', 'degC', 'f104', 'sensible heat flux of wall level 5', 'A', 'EHC', 0), &
+      varAttr('QH_Wall_6', 'degC', 'f104', 'sensible heat flux of wall level 6', 'A', 'EHC', 0), &
+      varAttr('QH_Wall_7', 'degC', 'f104', 'sensible heat flux of wall level 7', 'A', 'EHC', 0), &
+      varAttr('QH_Wall_8', 'degC', 'f104', 'sensible heat flux of wall level 8', 'A', 'EHC', 0), &
+      varAttr('QH_Wall_9', 'degC', 'f104', 'sensible heat flux of wall level 9', 'A', 'EHC', 0), &
+      varAttr('QH_Wall_10', 'degC', 'f104', 'sensible heat flux of wall level 10', 'A', 'EHC', 0), &
+      varAttr('QH_Wall_11', 'degC', 'f104', 'sensible heat flux of wall level 11', 'A', 'EHC', 0), &
+      varAttr('QH_Wall_12', 'degC', 'f104', 'sensible heat flux of wall level 12', 'A', 'EHC', 0), &
+      varAttr('QH_Wall_13', 'degC', 'f104', 'sensible heat flux of wall level 13', 'A', 'EHC', 0), &
+      varAttr('QH_Wall_14', 'degC', 'f104', 'sensible heat flux of wall level 14', 'A', 'EHC', 0), &
+      varAttr('QH_Wall_15', 'degC', 'f104', 'sensible heat flux of wall level 15', 'A', 'EHC', 0), &
+      varAttr('St_Wall_1', 'mm', 'f104', 'surface state of wall level 1', 'A', 'EHC', 0), &
+      varAttr('St_Wall_2', 'mm', 'f104', 'surface state of wall level 2', 'A', 'EHC', 0), &
+      varAttr('St_Wall_3', 'mm', 'f104', 'surface state of wall level 3', 'A', 'EHC', 0), &
+      varAttr('St_Wall_4', 'mm', 'f104', 'surface state of wall level 4', 'A', 'EHC', 0), &
+      varAttr('St_Wall_5', 'mm', 'f104', 'surface state of wall level 5', 'A', 'EHC', 0), &
+      varAttr('St_Wall_6', 'mm', 'f104', 'surface state of wall level 6', 'A', 'EHC', 0), &
+      varAttr('St_Wall_7', 'mm', 'f104', 'surface state of wall level 7', 'A', 'EHC', 0), &
+      varAttr('St_Wall_8', 'mm', 'f104', 'surface state of wall level 8', 'A', 'EHC', 0), &
+      varAttr('St_Wall_9', 'mm', 'f104', 'surface state of wall level 9', 'A', 'EHC', 0), &
+      varAttr('St_Wall_10', 'mm', 'f104', 'surface state of wall level 10', 'A', 'EHC', 0), &
+      varAttr('St_Wall_11', 'mm', 'f104', 'surface state of wall level 11', 'A', 'EHC', 0), &
+      varAttr('St_Wall_12', 'mm', 'f104', 'surface state of wall level 12', 'A', 'EHC', 0), &
+      varAttr('St_Wall_13', 'mm', 'f104', 'surface state of wall level 13', 'A', 'EHC', 0), &
+      varAttr('St_Wall_14', 'mm', 'f104', 'surface state of wall level 14', 'A', 'EHC', 0), &
+      varAttr('St_Wall_15', 'mm', 'f104', 'surface state of wall level 15', 'A', 'EHC', 0), &
+      varAttr('SS_Wall_1', 'mm', 'f104', 'soil store of wall level 1', 'A', 'EHC', 0), &
+      varAttr('SS_Wall_2', 'mm', 'f104', 'soil store of wall level 2', 'A', 'EHC', 0), &
+      varAttr('SS_Wall_3', 'mm', 'f104', 'soil store of wall level 3', 'A', 'EHC', 0), &
+      varAttr('SS_Wall_4', 'mm', 'f104', 'soil store of wall level 4', 'A', 'EHC', 0), &
+      varAttr('SS_Wall_5', 'mm', 'f104', 'soil store of wall level 5', 'A', 'EHC', 0), &
+      varAttr('SS_Wall_6', 'mm', 'f104', 'soil store of wall level 6', 'A', 'EHC', 0), &
+      varAttr('SS_Wall_7', 'mm', 'f104', 'soil store of wall level 7', 'A', 'EHC', 0), &
+      varAttr('SS_Wall_8', 'mm', 'f104', 'soil store of wall level 8', 'A', 'EHC', 0), &
+      varAttr('SS_Wall_9', 'mm', 'f104', 'soil store of wall level 9', 'A', 'EHC', 0), &
+      varAttr('SS_Wall_10', 'mm', 'f104', 'soil store of wall level 10', 'A', 'EHC', 0), &
+      varAttr('SS_Wall_11', 'mm', 'f104', 'soil store of wall level 11', 'A', 'EHC', 0), &
+      varAttr('SS_Wall_12', 'mm', 'f104', 'soil store of wall level 12', 'A', 'EHC', 0), &
+      varAttr('SS_Wall_13', 'mm', 'f104', 'soil store of wall level 13', 'A', 'EHC', 0), &
+      varAttr('SS_Wall_14', 'mm', 'f104', 'soil store of wall level 14', 'A', 'EHC', 0), &
+      varAttr('SS_Wall_15', 'mm', 'f104', 'soil store of wall level 15', 'A', 'EHC', 0) &
+      /
+
+   ! RSL variables (135 variables)
+   DATA(varListAll(n), &
+        n=440, 574)/ &
+      varAttr('z_1', 'm', 'f104', '0.1Zh', 'A', 'RSL', 0), &
+      varAttr('z_2', 'm', 'f104', '0.2Zh', 'A', 'RSL', 0), &
+      varAttr('z_3', 'm', 'f104', '0.3Zh', 'A', 'RSL', 0), &
+      varAttr('z_4', 'm', 'f104', '0.4Zh', 'A', 'RSL', 0), &
+      varAttr('z_5', 'm', 'f104', '0.5Zh', 'A', 'RSL', 0), &
+      varAttr('z_6', 'm', 'f104', '0.6Zh', 'A', 'RSL', 0), &
+      varAttr('z_7', 'm', 'f104', '0.7Zh', 'A', 'RSL', 0), &
+      varAttr('z_8', 'm', 'f104', '0.8Zh', 'A', 'RSL', 0), &
+      varAttr('z_9', 'm', 'f104', '0.9Zh', 'A', 'RSL', 0), &
+      varAttr('z_10', 'm', 'f104', 'Zh', 'A', 'RSL', 0), &
+      varAttr('z_11', 'm', 'f104', '1.1Zh', 'A', 'RSL', 0), &
+      varAttr('z_12', 'm', 'f104', '1.2Zh', 'A', 'RSL', 0), &
+      varAttr('z_13', 'm', 'f104', '1.3Zh', 'A', 'RSL', 0), &
+      varAttr('z_14', 'm', 'f146', '1.4Zh', 'A', 'RSL', 0), &
+      varAttr('z_15', 'm', 'f104', '1.5Zh', 'A', 'RSL', 0), &
+      varAttr('z_16', 'm', 'f104', '1.6Zh', 'A', 'RSL', 0), &
+      varAttr('z_17', 'm', 'f104', '1.7Zh', 'A', 'RSL', 0), &
+      varAttr('z_18', 'm', 'f104', '1.8Zh', 'A', 'RSL', 0), &
+      varAttr('z_19', 'm', 'f104', '1.9Zh', 'A', 'RSL', 0), &
+      varAttr('z_20', 'm', 'f104', '2.0Zh', 'A', 'RSL', 0), &
+      varAttr('z_21', 'm', 'f146', '2.1Zh', 'A', 'RSL', 0), &
+      varAttr('z_22', 'm', 'f104', '2.2Zh', 'A', 'RSL', 0), &
+      varAttr('z_23', 'm', 'f104', '2.3Zh', 'A', 'RSL', 0), &
+      varAttr('z_24', 'm', 'f104', '2.4Zh', 'A', 'RSL', 0), &
+      varAttr('z_25', 'm', 'f104', '2.5Zh', 'A', 'RSL', 0), &
+      varAttr('z_26', 'm', 'f104', '2.6Zh', 'A', 'RSL', 0), &
+      varAttr('z_27', 'm', 'f104', '2.7Zh', 'A', 'RSL', 0), &
+      varAttr('z_28', 'm', 'f104', '2.8Zh', 'A', 'RSL', 0), &
+      varAttr('z_29', 'm', 'f104', '2.9Zh', 'A', 'RSL', 0), &
+      varAttr('z_30', 'm', 'f104', '3.0Zh', 'A', 'RSL', 0), &
+      varAttr('U_1', 'm s-1', 'f104', 'U at 0.1Zh', 'A', 'RSL', 0), &
+      varAttr('U_2', 'm s-1', 'f104', 'U at 0.2Zh', 'A', 'RSL', 0), &
+      varAttr('U_3', 'm s-1', 'f104', 'U at 0.3Zh', 'A', 'RSL', 0), &
+      varAttr('U_4', 'm s-1', 'f104', 'U at 0.4Zh', 'A', 'RSL', 0), &
+      varAttr('U_5', 'm s-1', 'f104', 'U at 0.5Zh', 'A', 'RSL', 0), &
+      varAttr('U_6', 'm s-1', 'f104', 'U at 0.6Zh', 'A', 'RSL', 0), &
+      varAttr('U_7', 'm s-1', 'f104', 'U at 0.7Zh', 'A', 'RSL', 0), &
+      varAttr('U_8', 'm s-1', 'f104', 'U at 0.8Zh', 'A', 'RSL', 0), &
+      varAttr('U_9', 'm s-1', 'f104', 'U at 0.9Zh', 'A', 'RSL', 0), &
+      varAttr('U_10', 'm s-1', 'f104', 'U at Zh', 'A', 'RSL', 0), &
+      varAttr('U_11', 'm s-1', 'f104', 'U at 1.1Zh', 'A', 'RSL', 0), &
+      varAttr('U_12', 'm s-1', 'f104', 'U at 1.2Zh', 'A', 'RSL', 0), &
+      varAttr('U_13', 'm s-1', 'f104', 'U at 1.3Zh', 'A', 'RSL', 0), &
+      varAttr('U_14', 'm s-1', 'f146', 'U at 1.4Zh', 'A', 'RSL', 0), &
+      varAttr('U_15', 'm s-1', 'f104', 'U at 1.5Zh', 'A', 'RSL', 0), &
+      varAttr('U_16', 'm s-1', 'f104', 'U at 1.6Zh', 'A', 'RSL', 0), &
+      varAttr('U_17', 'm s-1', 'f104', 'U at 1.7Zh', 'A', 'RSL', 0), &
+      varAttr('U_18', 'm s-1', 'f104', 'U at 1.8Zh', 'A', 'RSL', 0), &
+      varAttr('U_19', 'm s-1', 'f104', 'U at 1.9Zh', 'A', 'RSL', 0), &
+      varAttr('U_20', 'm s-1', 'f104', 'U at 2.0Zh', 'A', 'RSL', 0), &
+      varAttr('U_21', 'm s-1', 'f146', 'U at 2.1Zh', 'A', 'RSL', 0), &
+      varAttr('U_22', 'm s-1', 'f104', 'U at 2.2Zh', 'A', 'RSL', 0), &
+      varAttr('U_23', 'm s-1', 'f104', 'U at 2.3Zh', 'A', 'RSL', 0), &
+      varAttr('U_24', 'm s-1', 'f104', 'U at 2.4Zh', 'A', 'RSL', 0), &
+      varAttr('U_25', 'm s-1', 'f104', 'U at 2.5Zh', 'A', 'RSL', 0), &
+      varAttr('U_26', 'm s-1', 'f104', 'U at 2.6Zh', 'A', 'RSL', 0), &
+      varAttr('U_27', 'm s-1', 'f104', 'U at 2.7Zh', 'A', 'RSL', 0), &
+      varAttr('U_28', 'm s-1', 'f104', 'U at 2.8Zh', 'A', 'RSL', 0), &
+      varAttr('U_29', 'm s-1', 'f104', 'U at 2.9Zh', 'A', 'RSL', 0), &
+      varAttr('U_30', 'm s-1', 'f104', 'U at 3.0Zh', 'A', 'RSL', 0), &
+      varAttr('T_1', 'degC', 'f104', 'T at 0.1Zh', 'A', 'RSL', 0), &
+      varAttr('T_2', 'degC', 'f104', 'T at 0.2Zh', 'A', 'RSL', 0), &
+      varAttr('T_3', 'degC', 'f104', 'T at 0.3Zh', 'A', 'RSL', 0), &
+      varAttr('T_4', 'degC', 'f104', 'T at 0.4Zh', 'A', 'RSL', 0), &
+      varAttr('T_5', 'degC', 'f104', 'T at 0.5Zh', 'A', 'RSL', 0), &
+      varAttr('T_6', 'degC', 'f104', 'T at 0.6Zh', 'A', 'RSL', 0), &
+      varAttr('T_7', 'degC', 'f104', 'T at 0.7Zh', 'A', 'RSL', 0), &
+      varAttr('T_8', 'degC', 'f104', 'T at 0.8Zh', 'A', 'RSL', 0), &
+      varAttr('T_9', 'degC', 'f104', 'T at 0.9Zh', 'A', 'RSL', 0), &
+      varAttr('T_10', 'degC', 'f104', 'T at Zh', 'A', 'RSL', 0), &
+      varAttr('T_11', 'degC', 'f104', 'T at 1.1Zh', 'A', 'RSL', 0), &
+      varAttr('T_12', 'degC', 'f104', 'T at 1.2Zh', 'A', 'RSL', 0), &
+      varAttr('T_13', 'degC', 'f104', 'T at 1.3Zh', 'A', 'RSL', 0), &
+      varAttr('T_14', 'degC', 'f146', 'T at 1.4Zh', 'A', 'RSL', 0), &
+      varAttr('T_15', 'degC', 'f104', 'T at 1.5Zh', 'A', 'RSL', 0), &
+      varAttr('T_16', 'degC', 'f104', 'T at 1.6Zh', 'A', 'RSL', 0), &
+      varAttr('T_17', 'degC', 'f104', 'T at 1.7Zh', 'A', 'RSL', 0), &
+      varAttr('T_18', 'degC', 'f104', 'T at 1.8Zh', 'A', 'RSL', 0), &
+      varAttr('T_19', 'degC', 'f104', 'T at 1.9Zh', 'A', 'RSL', 0), &
+      varAttr('T_20', 'degC', 'f104', 'T at 2.0Zh', 'A', 'RSL', 0), &
+      varAttr('T_21', 'degC', 'f146', 'T at 2.1Zh', 'A', 'RSL', 0), &
+      varAttr('T_22', 'degC', 'f104', 'T at 2.2Zh', 'A', 'RSL', 0), &
+      varAttr('T_23', 'degC', 'f104', 'T at 2.3Zh', 'A', 'RSL', 0), &
+      varAttr('T_24', 'degC', 'f104', 'T at 2.4Zh', 'A', 'RSL', 0), &
+      varAttr('T_25', 'degC', 'f104', 'T at 2.5Zh', 'A', 'RSL', 0), &
+      varAttr('T_26', 'degC', 'f104', 'T at 2.6Zh', 'A', 'RSL', 0), &
+      varAttr('T_27', 'degC', 'f104', 'T at 2.7Zh', 'A', 'RSL', 0), &
+      varAttr('T_28', 'degC', 'f104', 'T at 2.8Zh', 'A', 'RSL', 0), &
+      varAttr('T_29', 'degC', 'f104', 'T at 2.9Zh', 'A', 'RSL', 0), &
+      varAttr('T_30', 'degC', 'f104', 'T at 3.0Zh', 'A', 'RSL', 0), &
+      varAttr('q_1', 'g kg-1', 'f104', 'q at 0.1Zh', 'A', 'RSL', 0), &
+      varAttr('q_2', 'g kg-1', 'f104', 'q at 0.2Zh', 'A', 'RSL', 0), &
+      varAttr('q_3', 'g kg-1', 'f104', 'q at 0.3Zh', 'A', 'RSL', 0), &
+      varAttr('q_4', 'g kg-1', 'f104', 'q at 0.4Zh', 'A', 'RSL', 0), &
+      varAttr('q_5', 'g kg-1', 'f104', 'q at 0.5Zh', 'A', 'RSL', 0), &
+      varAttr('q_6', 'g kg-1', 'f104', 'q at 0.6Zh', 'A', 'RSL', 0), &
+      varAttr('q_7', 'g kg-1', 'f104', 'q at 0.7Zh', 'A', 'RSL', 0), &
+      varAttr('q_8', 'g kg-1', 'f104', 'q at 0.8Zh', 'A', 'RSL', 0), &
+      varAttr('q_9', 'g kg-1', 'f104', 'q at 0.9Zh', 'A', 'RSL', 0), &
+      varAttr('q_10', 'g kg-1', 'f104', 'q at Zh', 'A', 'RSL', 0), &
+      varAttr('q_11', 'g kg-1', 'f104', 'q at 1.1Zh', 'A', 'RSL', 0), &
+      varAttr('q_12', 'g kg-1', 'f104', 'q at 1.2Zh', 'A', 'RSL', 0), &
+      varAttr('q_13', 'g kg-1', 'f104', 'q at 1.3Zh', 'A', 'RSL', 0), &
+      varAttr('q_14', 'g kg-1', 'f146', 'q at 1.4Zh', 'A', 'RSL', 0), &
+      varAttr('q_15', 'g kg-1', 'f104', 'q at 1.5Zh', 'A', 'RSL', 0), &
+      varAttr('q_16', 'g kg-1', 'f104', 'q at 1.6Zh', 'A', 'RSL', 0), &
+      varAttr('q_17', 'g kg-1', 'f104', 'q at 1.7Zh', 'A', 'RSL', 0), &
+      varAttr('q_18', 'g kg-1', 'f104', 'q at 1.8Zh', 'A', 'RSL', 0), &
+      varAttr('q_19', 'g kg-1', 'f104', 'q at 1.9Zh', 'A', 'RSL', 0), &
+      varAttr('q_20', 'g kg-1', 'f104', 'q at 2.0Zh', 'A', 'RSL', 0), &
+      varAttr('q_21', 'g kg-1', 'f146', 'q at 2.1Zh', 'A', 'RSL', 0), &
+      varAttr('q_22', 'g kg-1', 'f104', 'q at 2.2Zh', 'A', 'RSL', 0), &
+      varAttr('q_23', 'g kg-1', 'f104', 'q at 2.3Zh', 'A', 'RSL', 0), &
+      varAttr('q_24', 'g kg-1', 'f104', 'q at 2.4Zh', 'A', 'RSL', 0), &
+      varAttr('q_25', 'g kg-1', 'f104', 'q at 2.5Zh', 'A', 'RSL', 0), &
+      varAttr('q_26', 'g kg-1', 'f104', 'q at 2.6Zh', 'A', 'RSL', 0), &
+      varAttr('q_27', 'g kg-1', 'f104', 'q at 2.7Zh', 'A', 'RSL', 0), &
+      varAttr('q_28', 'g kg-1', 'f104', 'q at 2.8Zh', 'A', 'RSL', 0), &
+      varAttr('q_29', 'g kg-1', 'f104', 'q at 2.9Zh', 'A', 'RSL', 0), &
+      varAttr('q_30', 'g kg-1', 'f104', 'q at 3.0Zh', 'A', 'RSL', 0), &
+      varAttr('L_MOD_RSL', 'm', 'f104', 'Obukhov length', 'A', 'RSL', 0), &
+      varAttr('zH_RSL', 'm', 'f104', 'Canyon depth', 'A', 'RSL', 0), &
+      varAttr('Lc', 'm', 'f104', 'Canopy drag length scale', 'A', 'RSL', 0), &
+      varAttr('beta', 'm', 'f104', 'Beta coefficient from Harman 2012', 'A', 'RSL', 0), &
+      varAttr('zd_RSL', 'm', 'f104', 'Displacement height', 'A', 'RSL', 0), &
+      varAttr('z0_RSL', 'm', 'f104', 'Roughness length', 'A', 'RSL', 0), &
+      varAttr('elm', 'm', 'f104', 'Mixing length', 'A', 'RSL', 0), &
+      varAttr('Scc', '-', 'f104', 'Schmidt number for temperature and humidity', 'A', 'RSL', 0), &
+      varAttr('f', 'g kg-1', 'f104', 'H&F07 and H&F08 constants', 'A', 'RSL', 0), &
+      varAttr('UStar_RSL', 'm s-1', 'f104', 'Friction velocity used in RSL', 'A', 'RSL', 0), &
+      varAttr('UStar_heat', 'm s-1', 'f104', 'Friction velocity implied by RA_h', 'A', 'RSL', 0), &
+      varAttr('TStar_RSL', 'K', 'f104', 'Friction temperature used in RSL', 'A', 'RSL', 0), &
+      varAttr('FAI', '-', 'f104', 'Frontal area index', 'A', 'RSL', 0), &
+      varAttr('PAI', '-', 'f104', 'Plan area index', 'A', 'RSL', 0), &
+      varAttr('flag_RSL', '-', 'f104', 'Flag for RSL', 'A', 'RSL', 0) &
+      /
+
+   ! DailyState variables (47 variables)
+   DATA(varListAll(n), &
+        n=575, 621)/ &
+      varAttr('HDD1_h', 'degC', 'f104', 'Heating degree days (accumulation during calculation)', 'L', 'DailyState', 0), &
+      varAttr('HDD2_c', 'degC', 'f104', 'Cooling degree days', 'L', 'DailyState', 0), &
+      varAttr('HDD3_Tmean', 'degC', 'f104', 'Heating degree days based on mean temperature', 'L', 'DailyState', 0), &
+      varAttr('HDD4_T5d', 'degC', 'f104', 'Heating degree days based on 5-day running mean temperature', 'L', 'DailyState', 0), &
+      varAttr('P_day', 'mm', 'f104', 'Daily precipitation', 'L', 'DailyState', 0), &
+      varAttr('DaysSR', 'days', 'f104', 'Days since rain', 'L', 'DailyState', 0), &
+      varAttr('GDD_EveTr', 'degC', 'f104', 'Growing degree days for evergreen trees', 'L', 'DailyState', 0), &
+      varAttr('GDD_DecTr', 'degC', 'f104', 'Growing degree days for deciduous trees', 'L', 'DailyState', 0), &
+      varAttr('GDD_Grass', 'degC', 'f104', 'Growing degree days for grass', 'L', 'DailyState', 0), &
+      varAttr('SDD_EveTr', 'degC', 'f104', 'Senescence degree days for evergreen trees', 'L', 'DailyState', 0), &
+      varAttr('SDD_DecTr', 'degC', 'f104', 'Senescence degree days for deciduous trees', 'L', 'DailyState', 0), &
+      varAttr('SDD_Grass', 'degC', 'f104', 'Senescence degree days for grass', 'L', 'DailyState', 0), &
+      varAttr('Tmin', 'degC', 'f104', 'Daily minimum temperature', 'L', 'DailyState', 0), &
+      varAttr('Tmax', 'degC', 'f104', 'Daily maximum temperature', 'L', 'DailyState', 0), &
+      varAttr('DLHrs', 'hours', 'f104', 'Daylight hours', 'L', 'DailyState', 0), &
+      varAttr('LAI_EveTr', 'm2 m-2', 'f104', 'Leaf area index for evergreen trees', 'L', 'DailyState', 0), &
+      varAttr('LAI_DecTr', 'm2 m-2', 'f104', 'Leaf area index for deciduous trees', 'L', 'DailyState', 0), &
+      varAttr('LAI_Grass', 'm2 m-2', 'f104', 'Leaf area index for grass', 'L', 'DailyState', 0), &
+      varAttr('DecidCap', '1', 'f104', 'Deciduous canopy capacity', 'L', 'DailyState', 0), &
+      varAttr('Porosity', '1', 'f104', 'Surface porosity', 'L', 'DailyState', 0), &
+      varAttr('AlbEveTr', '1', 'f104', 'Albedo for evergreen trees', 'L', 'DailyState', 0), &
+      varAttr('AlbDecTr', '1', 'f104', 'Albedo for deciduous trees', 'L', 'DailyState', 0), &
+      varAttr('AlbGrass', '1', 'f104', 'Albedo for grass', 'L', 'DailyState', 0), &
+      varAttr('WU_EveTr1', '1', 'f104', 'Water use coefficient 1 for evergreen trees', 'L', 'DailyState', 0), &
+      varAttr('WU_EveTr2', '1', 'f104', 'Water use coefficient 2 for evergreen trees', 'L', 'DailyState', 0), &
+      varAttr('WU_EveTr3', '1', 'f104', 'Water use coefficient 3 for evergreen trees', 'L', 'DailyState', 0), &
+      varAttr('WU_DecTr1', '1', 'f104', 'Water use coefficient 1 for deciduous trees', 'L', 'DailyState', 0), &
+      varAttr('WU_DecTr2', '1', 'f104', 'Water use coefficient 2 for deciduous trees', 'L', 'DailyState', 0), &
+      varAttr('WU_DecTr3', '1', 'f104', 'Water use coefficient 3 for deciduous trees', 'L', 'DailyState', 0), &
+      varAttr('WU_Grass1', '1', 'f104', 'Water use coefficient 1 for grass', 'L', 'DailyState', 0), &
+      varAttr('WU_Grass2', '1', 'f104', 'Water use coefficient 2 for grass', 'L', 'DailyState', 0), &
+      varAttr('WU_Grass3', '1', 'f104', 'Water use coefficient 3 for grass', 'L', 'DailyState', 0), &
+      varAttr('LAIlumps', 'm2 m-2', 'f104', 'Leaf area index (LUMPS calculation)', 'L', 'DailyState', 0), &
+      varAttr('AlbSnow', '1', 'f104', 'Snow albedo', 'L', 'DailyState', 0), &
+      varAttr('DensSnow_Paved', 'kg m-3', 'f146', 'Snow density for paved surface', 'L', 'DailyState', 0), &
+      varAttr('DensSnow_Bldgs', 'kg m-3', 'f146', 'Snow density for building surface', 'L', 'DailyState', 0), &
+      varAttr('DensSnow_EveTr', 'kg m-3', 'f146', 'Snow density for evergreen tree surface', 'L', 'DailyState', 0), &
+      varAttr('DensSnow_DecTr', 'kg m-3', 'f146', 'Snow density for deciduous tree surface', 'L', 'DailyState', 0), &
+      varAttr('DensSnow_Grass', 'kg m-3', 'f146', 'Snow density for grass surface', 'L', 'DailyState', 0), &
+      varAttr('DensSnow_BSoil', 'kg m-3', 'f146', 'Snow density for bare soil surface', 'L', 'DailyState', 0), &
+      varAttr('DensSnow_Water', 'kg m-3', 'f146', 'Snow density for water surface', 'L', 'DailyState', 0), &
+      varAttr('a1', '1', 'f104', 'OHM coefficient a1', 'L', 'DailyState', 0), &
+      varAttr('a2', 'W m-2', 'f104', 'OHM coefficient a2', 'L', 'DailyState', 0), &
+      varAttr('a3', 'W m-2 K-1', 'f104', 'OHM coefficient a3', 'L', 'DailyState', 0), &
+      varAttr('a1_bldg', '1', 'f104', 'OHM coefficient a1 for buildings', 'L', 'DailyState', 0), &
+      varAttr('a2_bldg', 'W m-2', 'f104', 'OHM coefficient a2 for buildings', 'L', 'DailyState', 0), &
+      varAttr('a3_bldg', 'W m-2 K-1', 'f104', 'OHM coefficient a3 for buildings', 'L', 'DailyState', 0) &
+      /
+
+   ! BL variables (17 variables)
+   DATA(varListAll(n), &
+        n=622, 638)/ &
+      varAttr('z', 'm', 'f104', 'Height', 'A', 'BL', 0), &
+      varAttr('theta', 'K', 'f104', 'Potential temperature', 'A', 'BL', 0), &
+      varAttr('q', 'g kg-1', 'f104', 'Specific humidity', 'A', 'BL', 0), &
+      varAttr('theta+', 'K', 'f104', 'Temperature excess', 'A', 'BL', 0), &
+      varAttr('q+', 'g kg-1', 'f104', 'Humidity excess', 'A', 'BL', 0), &
+      varAttr('Temp_C', 'degC', 'f104', 'Temperature in Celsius', 'A', 'BL', 0), &
+      varAttr('rh', '%', 'f104', 'Relative humidity', 'A', 'BL', 0), &
+      varAttr('QH_use', 'W m-2', 'f104', 'Sensible heat flux used', 'A', 'BL', 0), &
+      varAttr('QE_use', 'W m-2', 'f104', 'Latent heat flux used', 'A', 'BL', 0), &
+      varAttr('Press_hPa', 'hPa', 'f104', 'Pressure', 'A', 'BL', 0), &
+      varAttr('avu1', 'm s-1', 'f104', 'Average wind speed', 'A', 'BL', 0), &
+      varAttr('UStar', 'm s-1', 'f104', 'Friction velocity', 'A', 'BL', 0), &
+      varAttr('avdens', 'kg m-3', 'f104', 'Average density', 'A', 'BL', 0), &
+      varAttr('lv_J_kg', 'J kg-1', 'f146', 'Latent heat of vaporisation', 'A', 'BL', 0), &
+      varAttr('avcp', 'J kg-1 K-1', 'f104', 'Average specific heat capacity', 'A', 'BL', 0), &
+      varAttr('gamt', 'K m-1', 'f104', 'Temperature lapse rate', 'A', 'BL', 0), &
+      varAttr('gamq', 'kg kg-1 m-1', 'f104', 'Humidity lapse rate', 'A', 'BL', 0) &
+      /
+
+   ! BEERS variables (29 variables)
+   DATA(varListAll(n), &
+        n=639, 667)/ &
+      varAttr('azimuth', 'degrees', 'f106', 'Solar azimuth angle', 'A', 'BEERS', 0), &
+      varAttr('altitude', 'degrees', 'f106', 'Solar altitude angle', 'A', 'BEERS', 0), &
+      varAttr('GlobalRad', 'W m-2', 'f106', 'Global irradiance', 'A', 'BEERS', 0), &
+      varAttr('DiffuseRad', 'W m-2', 'f106', 'Diffuse radiation', 'A', 'BEERS', 0), &
+      varAttr('DirectRad', 'W m-2', 'f106', 'Direct radiation', 'A', 'BEERS', 0), &
+      varAttr('Kdown2d', 'W m-2', 'f106', 'Incoming shortwave radiation at POI', 'A', 'BEERS', 0), &
+      varAttr('Kup2d', 'W m-2', 'f106', 'Outgoing shortwave radiation at POI', 'A', 'BEERS', 0), &
+      varAttr('Ksouth', 'W m-2', 'f106', 'Shortwave radiation from south at POI', 'A', 'BEERS', 0), &
+      varAttr('Kwest', 'W m-2', 'f106', 'Shortwave radiation from west at POI', 'A', 'BEERS', 0), &
+      varAttr('Knorth', 'W m-2', 'f106', 'Shortwave radiation from north at POI', 'A', 'BEERS', 0), &
+      varAttr('Keast', 'W m-2', 'f106', 'Shortwave radiation from east at POI', 'A', 'BEERS', 0), &
+      varAttr('Ldown2d', 'W m-2', 'f106', 'Incoming longwave radiation at POI', 'A', 'BEERS', 0), &
+      varAttr('Lup2d', 'W m-2', 'f106', 'Outgoing longwave radiation at POI', 'A', 'BEERS', 0), &
+      varAttr('Lsouth', 'W m-2', 'f106', 'Longwave radiation from south at POI', 'A', 'BEERS', 0), &
+      varAttr('Lwest', 'W m-2', 'f106', 'Longwave radiation from west at POI', 'A', 'BEERS', 0), &
+      varAttr('Lnorth', 'W m-2', 'f106', 'Longwave radiation from north at POI', 'A', 'BEERS', 0), &
+      varAttr('Least', 'W m-2', 'f106', 'Longwave radiation from east at POI', 'A', 'BEERS', 0), &
+      varAttr('Tmrt', 'degC', 'f106', 'Mean radiant temperature', 'A', 'BEERS', 0), &
+      varAttr('I0', 'W m-2', 'f106', 'Theoretical value of maximum incoming solar radiation', 'A', 'BEERS', 0), &
+      varAttr('CI', '-', 'f106', 'Clearness index for Ldown', 'A', 'BEERS', 0), &
+      varAttr('SH_Ground', '-', 'f106', 'Shadow ground', 'A', 'BEERS', 0), &
+      varAttr('SH_Walls', '-', 'f106', 'Shadow walls', 'A', 'BEERS', 0), &
+      varAttr('SVF_Ground', '-', 'f106', 'Sky view factor from ground', 'A', 'BEERS', 0), &
+      varAttr('SVF_Roof', '-', 'f106', 'Sky view factor from roof', 'A', 'BEERS', 0), &
+      varAttr('SVF_BdVeg', '-', 'f106', 'Sky view factor from buildings and vegetation', 'A', 'BEERS', 0), &
+      varAttr('Emis_Sky', '-', 'f106', 'Clear-sky emissivity from Prata (1996)', 'A', 'BEERS', 0), &
+      varAttr('Ta', 'degC', 'f104', 'Air temperature', 'A', 'BEERS', 0), &
+      varAttr('Tg', 'degC', 'f104', 'Ground surface temperature', 'A', 'BEERS', 0), &
+      varAttr('Tw', 'degC', 'f104', 'Wall surface temperature', 'A', 'BEERS', 0) &
+      /
+
+   ! debug variables (185 variables)
+   DATA(varListAll(n), &
+        n=668, 852)/ &
+      varAttr('flag_test', '-', 'f104', 'Flag for testing', 'A', 'debug', 0), &
+      varAttr('Ts_Paved', 'degC', 'f104', 'Surface temperature for paved surface', 'A', 'debug', 0), &
+      varAttr('Ts_Bldgs', 'degC', 'f104', 'Surface temperature for building surface', 'A', 'debug', 0), &
+      varAttr('Ts_EveTr', 'degC', 'f104', 'Surface temperature for evergreen tree surface', 'A', 'debug', 0), &
+      varAttr('Ts_DecTr', 'degC', 'f104', 'Surface temperature for deciduous tree surface', 'A', 'debug', 0), &
+      varAttr('Ts_Grass', 'degC', 'f104', 'Surface temperature for grass surface', 'A', 'debug', 0), &
+      varAttr('Ts_BSoil', 'degC', 'f104', 'Surface temperature for bare soil surface', 'A', 'debug', 0), &
+      varAttr('Ts_Water', 'degC', 'f104', 'Surface temperature for water surface', 'A', 'debug', 0), &
+      varAttr('QN_Paved', 'W m-2', 'f104', 'Net all-wave radiation for paved surface', 'A', 'debug', 0), &
+      varAttr('QN_Bldgs', 'W m-2', 'f104', 'Net all-wave radiation for building surface', 'A', 'debug', 0), &
+      varAttr('QN_EveTr', 'W m-2', 'f104', 'Net all-wave radiation for evergreen tree surface', 'A', 'debug', 0), &
+      varAttr('QN_DecTr', 'W m-2', 'f104', 'Net all-wave radiation for deciduous tree surface', 'A', 'debug', 0), &
+      varAttr('QN_Grass', 'W m-2', 'f104', 'Net all-wave radiation for grass surface', 'A', 'debug', 0), &
+      varAttr('QN_BSoil', 'W m-2', 'f104', 'Net all-wave radiation for bare soil surface', 'A', 'debug', 0), &
+      varAttr('QN_Water', 'W m-2', 'f104', 'Net all-wave radiation for water surface', 'A', 'debug', 0), &
+      varAttr('QS_Paved', 'W m-2', 'f104', 'Storage heat flux for paved surface', 'A', 'debug', 0), &
+      varAttr('QS_Bldgs', 'W m-2', 'f104', 'Storage heat flux for building surface', 'A', 'debug', 0), &
+      varAttr('QS_EveTr', 'W m-2', 'f104', 'Storage heat flux for evergreen tree surface', 'A', 'debug', 0), &
+      varAttr('QS_DecTr', 'W m-2', 'f104', 'Storage heat flux for deciduous tree surface', 'A', 'debug', 0), &
+      varAttr('QS_Grass', 'W m-2', 'f104', 'Storage heat flux for grass surface', 'A', 'debug', 0), &
+      varAttr('QS_BSoil', 'W m-2', 'f104', 'Storage heat flux for bare soil surface', 'A', 'debug', 0), &
+      varAttr('QS_Water', 'W m-2', 'f104', 'Storage heat flux for water surface', 'A', 'debug', 0), &
+      varAttr('QE0_Paved', 'W m-2', 'f104', 'Latent heat flux from PM for paved surface', 'A', 'debug', 0), &
+      varAttr('QE0_Bldgs', 'W m-2', 'f104', 'Latent heat flux from PM for building surface', 'A', 'debug', 0), &
+      varAttr('QE0_EveTr', 'W m-2', 'f104', 'Latent heat flux from PM for evergreen tree surface', 'A', 'debug', 0), &
+      varAttr('QE0_DecTr', 'W m-2', 'f104', 'Latent heat flux from PM for deciduous tree surface', 'A', 'debug', 0), &
+      varAttr('QE0_Grass', 'W m-2', 'f104', 'Latent heat flux from PM for grass surface', 'A', 'debug', 0), &
+      varAttr('QE0_BSoil', 'W m-2', 'f104', 'Latent heat flux from PM for bare soil surface', 'A', 'debug', 0), &
+      varAttr('QE0_Water', 'W m-2', 'f104', 'Latent heat flux from PM for water surface', 'A', 'debug', 0), &
+      varAttr('QE_Paved', 'W m-2', 'f104', 'Latent heat flux for paved surface', 'A', 'debug', 0), &
+      varAttr('QE_Bldgs', 'W m-2', 'f104', 'Latent heat flux for building surface', 'A', 'debug', 0), &
+      varAttr('QE_EveTr', 'W m-2', 'f104', 'Latent heat flux for evergreen tree surface', 'A', 'debug', 0), &
+      varAttr('QE_DecTr', 'W m-2', 'f104', 'Latent heat flux for deciduous tree surface', 'A', 'debug', 0), &
+      varAttr('QE_Grass', 'W m-2', 'f104', 'Latent heat flux for grass surface', 'A', 'debug', 0), &
+      varAttr('QE_BSoil', 'W m-2', 'f104', 'Latent heat flux for bare soil surface', 'A', 'debug', 0), &
+      varAttr('QE_Water', 'W m-2', 'f104', 'Latent heat flux for water surface', 'A', 'debug', 0), &
+      varAttr('QH_Paved', 'W m-2', 'f104', 'Sensible heat flux for paved surface', 'A', 'debug', 0), &
+      varAttr('QH_Bldgs', 'W m-2', 'f104', 'Sensible heat flux for building surface', 'A', 'debug', 0), &
+      varAttr('QH_EveTr', 'W m-2', 'f104', 'Sensible heat flux for evergreen tree surface', 'A', 'debug', 0), &
+      varAttr('QH_DecTr', 'W m-2', 'f104', 'Sensible heat flux for deciduous tree surface', 'A', 'debug', 0), &
+      varAttr('QH_Grass', 'W m-2', 'f104', 'Sensible heat flux for grass surface', 'A', 'debug', 0), &
+      varAttr('QH_BSoil', 'W m-2', 'f104', 'Sensible heat flux for bare soil surface', 'A', 'debug', 0), &
+      varAttr('QH_Water', 'W m-2', 'f104', 'Sensible heat flux for water surface', 'A', 'debug', 0), &
+      varAttr('wu_Paved', 'mm', 'f104', 'Water use for paved surface', 'A', 'debug', 0), &
+      varAttr('wu_Bldgs', 'mm', 'f104', 'Water use for building surface', 'A', 'debug', 0), &
+      varAttr('wu_EveTr', 'mm', 'f104', 'Water use for evergreen tree surface', 'A', 'debug', 0), &
+      varAttr('wu_DecTr', 'mm', 'f104', 'Water use for deciduous tree surface', 'A', 'debug', 0), &
+      varAttr('wu_Grass', 'mm', 'f104', 'Water use for grass surface', 'A', 'debug', 0), &
+      varAttr('wu_BSoil', 'mm', 'f104', 'Water use for bare soil surface', 'A', 'debug', 0), &
+      varAttr('wu_Water', 'mm', 'f104', 'Water use for water surface', 'A', 'debug', 0), &
+      varAttr('ev0_Paved', 'mm', 'f104', 'Evapotranspiration from PM for paved surface', 'A', 'debug', 0), &
+      varAttr('ev0_Bldgs', 'mm', 'f104', 'Evapotranspiration from PM for building surface', 'A', 'debug', 0), &
+      varAttr('ev0_EveTr', 'mm', 'f104', 'Evapotranspiration from PM for evergreen tree surface', 'A', 'debug', 0), &
+      varAttr('ev0_DecTr', 'mm', 'f104', 'Evapotranspiration from PM for deciduous tree surface', 'A', 'debug', 0), &
+      varAttr('ev0_Grass', 'mm', 'f104', 'Evapotranspiration from PM for grass surface', 'A', 'debug', 0), &
+      varAttr('ev0_BSoil', 'mm', 'f104', 'Evapotranspiration from PM for bare soil surface', 'A', 'debug', 0), &
+      varAttr('ev0_Water', 'mm', 'f104', 'Evapotranspiration from PM for water surface', 'A', 'debug', 0), &
+      varAttr('ev_Paved', 'mm', 'f104', 'Evapotranspiration for paved surface', 'A', 'debug', 0), &
+      varAttr('ev_Bldgs', 'mm', 'f104', 'Evapotranspiration for building surface', 'A', 'debug', 0), &
+      varAttr('ev_EveTr', 'mm', 'f104', 'Evapotranspiration for evergreen tree surface', 'A', 'debug', 0), &
+      varAttr('ev_DecTr', 'mm', 'f104', 'Evapotranspiration for deciduous tree surface', 'A', 'debug', 0), &
+      varAttr('ev_Grass', 'mm', 'f104', 'Evapotranspiration for grass surface', 'A', 'debug', 0), &
+      varAttr('ev_BSoil', 'mm', 'f104', 'Evapotranspiration for bare soil surface', 'A', 'debug', 0), &
+      varAttr('ev_Water', 'mm', 'f104', 'Evapotranspiration for water surface', 'A', 'debug', 0), &
+      varAttr('drain_Paved', 'mm', 'f104', 'Drainage for paved surface', 'A', 'debug', 0), &
+      varAttr('drain_Bldgs', 'mm', 'f104', 'Drainage for building surface', 'A', 'debug', 0), &
+      varAttr('drain_EveTr', 'mm', 'f104', 'Drainage for evergreen tree surface', 'A', 'debug', 0), &
+      varAttr('drain_DecTr', 'mm', 'f104', 'Drainage for deciduous tree surface', 'A', 'debug', 0), &
+      varAttr('drain_Grass', 'mm', 'f104', 'Drainage for grass surface', 'A', 'debug', 0), &
+      varAttr('drain_BSoil', 'mm', 'f104', 'Drainage for bare soil surface', 'A', 'debug', 0), &
+      varAttr('drain_Water', 'mm', 'f104', 'Drainage for water surface', 'A', 'debug', 0), &
+      varAttr('st_Paved_prev', 'mm', 'f104', 'Surface wetness (previous timestep) for paved surface', 'A', 'debug', 0), &
+      varAttr('st_Bldgs_prev', 'mm', 'f104', 'Surface wetness (previous timestep) for building surface', 'A', 'debug', 0), &
+      varAttr('st_EveTr_prev', 'mm', 'f104', 'Surface wetness (previous timestep) for evergreen tree surface', 'A', 'debug', 0), &
+      varAttr('st_DecTr_prev', 'mm', 'f104', 'Surface wetness (previous timestep) for deciduous tree surface', 'A', 'debug', 0), &
+      varAttr('st_Grass_prev', 'mm', 'f104', 'Surface wetness (previous timestep) for grass surface', 'A', 'debug', 0), &
+      varAttr('st_BSoil_prev', 'mm', 'f104', 'Surface wetness (previous timestep) for bare soil surface', 'A', 'debug', 0), &
+      varAttr('st_Water_prev', 'mm', 'f104', 'Surface wetness (previous timestep) for water surface', 'A', 'debug', 0), &
+      varAttr('st_Paved_next', 'mm', 'f104', 'Surface wetness (next timestep) for paved surface', 'A', 'debug', 0), &
+      varAttr('st_Bldgs_next', 'mm', 'f104', 'Surface wetness (next timestep) for building surface', 'A', 'debug', 0), &
+      varAttr('st_EveTr_next', 'mm', 'f104', 'Surface wetness (next timestep) for evergreen tree surface', 'A', 'debug', 0), &
+      varAttr('st_DecTr_next', 'mm', 'f104', 'Surface wetness (next timestep) for deciduous tree surface', 'A', 'debug', 0), &
+      varAttr('st_Grass_next', 'mm', 'f104', 'Surface wetness (next timestep) for grass surface', 'A', 'debug', 0), &
+      varAttr('st_BSoil_next', 'mm', 'f104', 'Surface wetness (next timestep) for bare soil surface', 'A', 'debug', 0), &
+      varAttr('st_Water_next', 'mm', 'f104', 'Surface wetness (next timestep) for water surface', 'A', 'debug', 0), &
+      varAttr('ss_Paved_prev', 'mm', 'f104', 'Soil moisture store (previous timestep) for paved surface', 'A', 'debug', 0), &
+      varAttr('ss_Bldgs_prev', 'mm', 'f104', 'Soil moisture store (previous timestep) for building surface', 'A', 'debug', 0), &
+      varAttr('ss_EveTr_prev', 'mm', 'f104', 'Soil moisture store (previous timestep) for evergreen tree surface', 'A', 'debug', 0), &
+      varAttr('ss_DecTr_prev', 'mm', 'f104', 'Soil moisture store (previous timestep) for deciduous tree surface', 'A', 'debug', 0), &
+      varAttr('ss_Grass_prev', 'mm', 'f104', 'Soil moisture store (previous timestep) for grass surface', 'A', 'debug', 0), &
+      varAttr('ss_BSoil_prev', 'mm', 'f104', 'Soil moisture store (previous timestep) for bare soil surface', 'A', 'debug', 0), &
+      varAttr('ss_Water_prev', 'mm', 'f104', 'Soil moisture store (previous timestep) for water surface', 'A', 'debug', 0), &
+      varAttr('ss_Paved_next', 'mm', 'f104', 'Soil moisture store (next timestep) for paved surface', 'A', 'debug', 0), &
+      varAttr('ss_Bldgs_next', 'mm', 'f104', 'Soil moisture store (next timestep) for building surface', 'A', 'debug', 0), &
+      varAttr('ss_EveTr_next', 'mm', 'f104', 'Soil moisture store (next timestep) for evergreen tree surface', 'A', 'debug', 0), &
+      varAttr('ss_DecTr_next', 'mm', 'f104', 'Soil moisture store (next timestep) for deciduous tree surface', 'A', 'debug', 0), &
+      varAttr('ss_Grass_next', 'mm', 'f104', 'Soil moisture store (next timestep) for grass surface', 'A', 'debug', 0), &
+      varAttr('ss_BSoil_next', 'mm', 'f104', 'Soil moisture store (next timestep) for bare soil surface', 'A', 'debug', 0), &
+      varAttr('ss_Water_next', 'mm', 'f104', 'Soil moisture store (next timestep) for water surface', 'A', 'debug', 0), &
+      varAttr('RS', 's m-1', 'f104', 'Surface resistance', 'A', 'debug', 0), &
+      varAttr('RA_h', 's m-1', 'f104', 'Aerodynamic resistance for heat', 'A', 'debug', 0), &
+      varAttr('RB', 's m-1', 'f104', 'Boundary layer resistance', 'A', 'debug', 0), &
+      varAttr('RAsnow', 's m-1', 'f104', 'Aerodynamic resistance for snow', 'A', 'debug', 0), &
+      varAttr('rss_Paved', 's m-1', 'f104', 'Surface resistance for paved surface', 'A', 'debug', 0), &
+      varAttr('rss_Bldgs', 's m-1', 'f104', 'Surface resistance for building surface', 'A', 'debug', 0), &
+      varAttr('rss_EveTr', 's m-1', 'f104', 'Surface resistance for evergreen tree surface', 'A', 'debug', 0), &
+      varAttr('rss_DecTr', 's m-1', 'f104', 'Surface resistance for deciduous tree surface', 'A', 'debug', 0), &
+      varAttr('rss_Grass', 's m-1', 'f104', 'Surface resistance for grass surface', 'A', 'debug', 0), &
+      varAttr('rss_BSoil', 's m-1', 'f104', 'Surface resistance for bare soil surface', 'A', 'debug', 0), &
+      varAttr('rss_Water', 's m-1', 'f104', 'Surface resistance for water surface', 'A', 'debug', 0), &
+      varAttr('vsmd_Paved', 'm3 m-3', 'f104', 'Volumetric soil moisture deficit for paved surface', 'A', 'debug', 0), &
+      varAttr('vsmd_Bldgs', 'm3 m-3', 'f104', 'Volumetric soil moisture deficit for building surface', 'A', 'debug', 0), &
+      varAttr('vsmd_EveTr', 'm3 m-3', 'f104', 'Volumetric soil moisture deficit for evergreen tree surface', 'A', 'debug', 0), &
+      varAttr('vsmd_DecTr', 'm3 m-3', 'f104', 'Volumetric soil moisture deficit for deciduous tree surface', 'A', 'debug', 0), &
+      varAttr('vsmd_Grass', 'm3 m-3', 'f104', 'Volumetric soil moisture deficit for grass surface', 'A', 'debug', 0), &
+      varAttr('vsmd_BSoil', 'm3 m-3', 'f104', 'Volumetric soil moisture deficit for bare soil surface', 'A', 'debug', 0), &
+      varAttr('vsmd_Water', 'm3 m-3', 'f104', 'Volumetric soil moisture deficit for water surface', 'A', 'debug', 0), &
+      varAttr('cond_s1s2_Paved', '-', 'f104', 'Conductance parameter S1/G_sm + S2 for paved surface', 'A', 'debug', 0), &
+      varAttr('cond_s1s2_Bldgs', '-', 'f104', 'Conductance parameter S1/G_sm + S2 for building surface', 'A', 'debug', 0), &
+      varAttr('cond_s1s2_EveTr', '-', 'f104', 'Conductance parameter S1/G_sm + S2 for evergreen tree surface', 'A', 'debug', 0), &
+      varAttr('cond_s1s2_DecTr', '-', 'f104', 'Conductance parameter S1/G_sm + S2 for deciduous tree surface', 'A', 'debug', 0), &
+      varAttr('cond_s1s2_Grass', '-', 'f104', 'Conductance parameter S1/G_sm + S2 for grass surface', 'A', 'debug', 0), &
+      varAttr('cond_s1s2_BSoil', '-', 'f104', 'Conductance parameter S1/G_sm + S2 for bare soil surface', 'A', 'debug', 0), &
+      varAttr('cond_s1s2_Water', '-', 'f104', 'Conductance parameter S1/G_sm + S2 for water surface', 'A', 'debug', 0), &
+      varAttr('cond_gsm_Paved', '-', 'f104', 'Conductance parameter G_sm for paved surface', 'A', 'debug', 0), &
+      varAttr('cond_gsm_Bldgs', '-', 'f104', 'Conductance parameter G_sm for building surface', 'A', 'debug', 0), &
+      varAttr('cond_gsm_EveTr', '-', 'f104', 'Conductance parameter G_sm for evergreen tree surface', 'A', 'debug', 0), &
+      varAttr('cond_gsm_DecTr', '-', 'f104', 'Conductance parameter G_sm for deciduous tree surface', 'A', 'debug', 0), &
+      varAttr('cond_gsm_Grass', '-', 'f104', 'Conductance parameter G_sm for grass surface', 'A', 'debug', 0), &
+      varAttr('cond_gsm_BSoil', '-', 'f104', 'Conductance parameter G_sm for bare soil surface', 'A', 'debug', 0), &
+      varAttr('cond_gsm_Water', '-', 'f104', 'Conductance parameter G_sm for water surface', 'A', 'debug', 0), &
+      varAttr('cond_calc_Paved', '-', 'f104', 'Conductance calculation term for paved surface', 'A', 'debug', 0), &
+      varAttr('cond_calc_Bldgs', '-', 'f104', 'Conductance calculation term for building surface', 'A', 'debug', 0), &
+      varAttr('cond_calc_EveTr', '-', 'f104', 'Conductance calculation term for evergreen tree surface', 'A', 'debug', 0), &
+      varAttr('cond_calc_DecTr', '-', 'f104', 'Conductance calculation term for deciduous tree surface', 'A', 'debug', 0), &
+      varAttr('cond_calc_Grass', '-', 'f104', 'Conductance calculation term for grass surface', 'A', 'debug', 0), &
+      varAttr('cond_calc_BSoil', '-', 'f104', 'Conductance calculation term for bare soil surface', 'A', 'debug', 0), &
+      varAttr('cond_calc_Water', '-', 'f104', 'Conductance calculation term for water surface', 'A', 'debug', 0), &
+      varAttr('g_kdown_Paved', '-', 'f104', 'Kdown modifier for stomatal conductance for paved surface', 'A', 'debug', 0), &
+      varAttr('g_kdown_Bldgs', '-', 'f104', 'Kdown modifier for stomatal conductance for building surface', 'A', 'debug', 0), &
+      varAttr('g_kdown_EveTr', '-', 'f104', 'Kdown modifier for stomatal conductance for evergreen tree surface', 'A', 'debug', 0), &
+      varAttr('g_kdown_DecTr', '-', 'f104', 'Kdown modifier for stomatal conductance for deciduous tree surface', 'A', 'debug', 0), &
+      varAttr('g_kdown_Grass', '-', 'f104', 'Kdown modifier for stomatal conductance for grass surface', 'A', 'debug', 0), &
+      varAttr('g_kdown_BSoil', '-', 'f104', 'Kdown modifier for stomatal conductance for bare soil surface', 'A', 'debug', 0), &
+      varAttr('g_kdown_Water', '-', 'f104', 'Kdown modifier for stomatal conductance for water surface', 'A', 'debug', 0), &
+      varAttr('g_dq_Paved', '-', 'f104', 'Specific humidity deficit modifier for stomatal conductance for paved surface', 'A', 'debug', 0), &
+      varAttr('g_dq_Bldgs', '-', 'f104', 'Specific humidity deficit modifier for stomatal conductance for building surface', 'A', 'debug', 0), &
+      varAttr('g_dq_EveTr', '-', 'f104', 'Specific humidity deficit modifier for stomatal conductance for evergreen tree surface', 'A', 'debug', 0), &
+      varAttr('g_dq_DecTr', '-', 'f104', 'Specific humidity deficit modifier for stomatal conductance for deciduous tree surface', 'A', 'debug', 0), &
+      varAttr('g_dq_Grass', '-', 'f104', 'Specific humidity deficit modifier for stomatal conductance for grass surface', 'A', 'debug', 0), &
+      varAttr('g_dq_BSoil', '-', 'f104', 'Specific humidity deficit modifier for stomatal conductance for bare soil surface', 'A', 'debug', 0), &
+      varAttr('g_dq_Water', '-', 'f104', 'Specific humidity deficit modifier for stomatal conductance for water surface', 'A', 'debug', 0), &
+      varAttr('g_ta_Paved', '-', 'f104', 'Air temperature modifier for stomatal conductance for paved surface', 'A', 'debug', 0), &
+      varAttr('g_ta_Bldgs', '-', 'f104', 'Air temperature modifier for stomatal conductance for building surface', 'A', 'debug', 0), &
+      varAttr('g_ta_EveTr', '-', 'f104', 'Air temperature modifier for stomatal conductance for evergreen tree surface', 'A', 'debug', 0), &
+      varAttr('g_ta_DecTr', '-', 'f104', 'Air temperature modifier for stomatal conductance for deciduous tree surface', 'A', 'debug', 0), &
+      varAttr('g_ta_Grass', '-', 'f104', 'Air temperature modifier for stomatal conductance for grass surface', 'A', 'debug', 0), &
+      varAttr('g_ta_BSoil', '-', 'f104', 'Air temperature modifier for stomatal conductance for bare soil surface', 'A', 'debug', 0), &
+      varAttr('g_ta_Water', '-', 'f104', 'Air temperature modifier for stomatal conductance for water surface', 'A', 'debug', 0), &
+      varAttr('g_smd_Paved', '-', 'f104', 'Soil moisture deficit modifier for stomatal conductance for paved surface', 'A', 'debug', 0), &
+      varAttr('g_smd_Bldgs', '-', 'f104', 'Soil moisture deficit modifier for stomatal conductance for building surface', 'A', 'debug', 0), &
+      varAttr('g_smd_EveTr', '-', 'f104', 'Soil moisture deficit modifier for stomatal conductance for evergreen tree surface', 'A', 'debug', 0), &
+      varAttr('g_smd_DecTr', '-', 'f104', 'Soil moisture deficit modifier for stomatal conductance for deciduous tree surface', 'A', 'debug', 0), &
+      varAttr('g_smd_Grass', '-', 'f104', 'Soil moisture deficit modifier for stomatal conductance for grass surface', 'A', 'debug', 0), &
+      varAttr('g_smd_BSoil', '-', 'f104', 'Soil moisture deficit modifier for stomatal conductance for bare soil surface', 'A', 'debug', 0), &
+      varAttr('g_smd_Water', '-', 'f104', 'Soil moisture deficit modifier for stomatal conductance for water surface', 'A', 'debug', 0), &
+      varAttr('g_lai_Paved', '-', 'f104', 'LAI modifier for stomatal conductance for paved surface', 'A', 'debug', 0), &
+      varAttr('g_lai_Bldgs', '-', 'f104', 'LAI modifier for stomatal conductance for building surface', 'A', 'debug', 0), &
+      varAttr('g_lai_EveTr', '-', 'f104', 'LAI modifier for stomatal conductance for evergreen tree surface', 'A', 'debug', 0), &
+      varAttr('g_lai_DecTr', '-', 'f104', 'LAI modifier for stomatal conductance for deciduous tree surface', 'A', 'debug', 0), &
+      varAttr('g_lai_Grass', '-', 'f104', 'LAI modifier for stomatal conductance for grass surface', 'A', 'debug', 0), &
+      varAttr('g_lai_BSoil', '-', 'f104', 'LAI modifier for stomatal conductance for bare soil surface', 'A', 'debug', 0), &
+      varAttr('g_lai_Water', '-', 'f104', 'LAI modifier for stomatal conductance for water surface', 'A', 'debug', 0), &
+      varAttr('vpd_hPa', 'hPa', 'f104', 'Vapour pressure deficit', 'A', 'debug', 0), &
+      varAttr('lv_J_kg', 'J kg-1', 'f104', 'Latent heat of vaporisation', 'A', 'debug', 0), &
+      varAttr('avdens', 'kg m-3', 'f104', 'Air density', 'A', 'debug', 0), &
+      varAttr('avcp', 'J kg-1 K-1', 'f104', 'Air specific heat capacity', 'A', 'debug', 0), &
+      varAttr('s_hPa', 'hPa K-1', 'f104', 'Slope of saturation vapour pressure curve', 'A', 'debug', 0), &
+      varAttr('psyc_hPa', 'hPa K-1', 'f104', 'Psychrometric constant', 'A', 'debug', 0), &
+      varAttr('i_iter', '-', 'f104', 'Number of iterations in convergence loop', 'A', 'debug', 0), &
+      varAttr('FAIBldg_use', '-', 'f104', 'Building frontal area index used', 'A', 'debug', 0), &
+      varAttr('FAIEveTree_use', '-', 'f104', 'Evergreen tree frontal area index used', 'A', 'debug', 0), &
+      varAttr('FAIDecTree_use', '-', 'f104', 'Deciduous tree frontal area index used', 'A', 'debug', 0), &
+      varAttr('FAI', '-', 'f104', 'Total frontal area index', 'A', 'debug', 0), &
+      varAttr('dqndt', 'W m-2', 'f104', 'Rate of change of net radiation', 'A', 'debug', 0) &
+      /
+
+   ! SPARTACUS variables (194 variables)
+   DATA(varListAll(n), &
+        n=853, 1046)/ &
+      varAttr('alb', '-', 'f104', 'bulk albedo from spartacus', 'A', 'SPARTACUS', 0), &
+      varAttr('emis', '-', 'f104', 'bulk emissivity from spartacus', 'A', 'SPARTACUS', 0), &
+      varAttr('KTopDnDir', 'W m-2', 'f104', 'sw downwelling direct radiation at top-of-canopy', 'A', 'SPARTACUS', 0), &
+      varAttr('Kup', 'W m-2', 'f104', 'bulk albedo from spartacus', 'A', 'SPARTACUS', 0), &
+      varAttr('LTopDn', 'W m-2', 'f104', 'lw downwelling radiation at top-of-canopy', 'A', 'SPARTACUS', 0), &
+      varAttr('Lup', 'W m-2', 'f104', 'lw upward flux from spartacus', 'A', 'SPARTACUS', 0), &
+      varAttr('Qn', 'W m-2', 'f104', 'net all-wave radiation from spartacus', 'A', 'SPARTACUS', 0), &
+      varAttr('KTopNet', 'W m-2', 'f104', 'sw net radiation at top-of-canopy', 'A', 'SPARTACUS', 0), &
+      varAttr('LTopNet', 'W m-2', 'f104', 'lw net radiation at top-of-canopy', 'A', 'SPARTACUS', 0), &
+      varAttr('Lemission', 'W m-2', 'f104', 'lw emission from spartacus', 'A', 'SPARTACUS', 0), &
+      varAttr('KDnDir_Grnd', 'W m-2', 'f104', 'sw downwelling direct radiation at ground', 'A', 'SPARTACUS', 0), &
+      varAttr('KVtlDif_Grnd', 'W m-2', 'f104', 'sw diffuse flux at ground into a vertical surface', 'A', 'SPARTACUS', 0), &
+      varAttr('KNet_Grnd', 'W m-2', 'f104', 'sw net radiation at ground', 'A', 'SPARTACUS', 0), &
+      varAttr('LNet_Grnd', 'W m-2', 'f104', 'lw net radiation at ground', 'A', 'SPARTACUS', 0), &
+      varAttr('KIn_Roof_1', 'W m-2', 'f104', 'sw radiation into roof - SPARTACUS level 1', 'A', 'SPARTACUS', 0), &
+      varAttr('KIn_Roof_2', 'W m-2', 'f104', 'sw radiation into roof - SPARTACUS level 2', 'A', 'SPARTACUS', 0), &
+      varAttr('KIn_Roof_3', 'W m-2', 'f104', 'sw radiation into roof - SPARTACUS level 3', 'A', 'SPARTACUS', 0), &
+      varAttr('KIn_Roof_4', 'W m-2', 'f104', 'sw radiation into roof - SPARTACUS level 4', 'A', 'SPARTACUS', 0), &
+      varAttr('KIn_Roof_5', 'W m-2', 'f104', 'sw radiation into roof - SPARTACUS level 5', 'A', 'SPARTACUS', 0), &
+      varAttr('KIn_Roof_6', 'W m-2', 'f104', 'sw radiation into roof - SPARTACUS level 6', 'A', 'SPARTACUS', 0), &
+      varAttr('KIn_Roof_7', 'W m-2', 'f104', 'sw radiation into roof - SPARTACUS level 7', 'A', 'SPARTACUS', 0), &
+      varAttr('KIn_Roof_8', 'W m-2', 'f104', 'sw radiation into roof - SPARTACUS level 8', 'A', 'SPARTACUS', 0), &
+      varAttr('KIn_Roof_9', 'W m-2', 'f104', 'sw radiation into roof - SPARTACUS level 9', 'A', 'SPARTACUS', 0), &
+      varAttr('KIn_Roof_10', 'W m-2', 'f104', 'sw radiation into roof - SPARTACUS level 10', 'A', 'SPARTACUS', 0), &
+      varAttr('KIn_Roof_11', 'W m-2', 'f104', 'sw radiation into roof - SPARTACUS level 11', 'A', 'SPARTACUS', 0), &
+      varAttr('KIn_Roof_12', 'W m-2', 'f104', 'sw radiation into roof - SPARTACUS level 12', 'A', 'SPARTACUS', 0), &
+      varAttr('KIn_Roof_13', 'W m-2', 'f104', 'sw radiation into roof - SPARTACUS level 13', 'A', 'SPARTACUS', 0), &
+      varAttr('KIn_Roof_14', 'W m-2', 'f104', 'sw radiation into roof - SPARTACUS level 14', 'A', 'SPARTACUS', 0), &
+      varAttr('KIn_Roof_15', 'W m-2', 'f104', 'sw radiation into roof - SPARTACUS level 15', 'A', 'SPARTACUS', 0), &
+      varAttr('KNet_Roof_1', 'W m-2', 'f104', 'sw net radiation at roof - SPARTACUS level 1', 'A', 'SPARTACUS', 0), &
+      varAttr('KNet_Roof_2', 'W m-2', 'f104', 'sw net radiation at roof - SPARTACUS level 2', 'A', 'SPARTACUS', 0), &
+      varAttr('KNet_Roof_3', 'W m-2', 'f104', 'sw net radiation at roof - SPARTACUS level 3', 'A', 'SPARTACUS', 0), &
+      varAttr('KNet_Roof_4', 'W m-2', 'f104', 'sw net radiation at roof - SPARTACUS level 4', 'A', 'SPARTACUS', 0), &
+      varAttr('KNet_Roof_5', 'W m-2', 'f104', 'sw net radiation at roof - SPARTACUS level 5', 'A', 'SPARTACUS', 0), &
+      varAttr('KNet_Roof_6', 'W m-2', 'f104', 'sw net radiation at roof - SPARTACUS level 6', 'A', 'SPARTACUS', 0), &
+      varAttr('KNet_Roof_7', 'W m-2', 'f104', 'sw net radiation at roof - SPARTACUS level 7', 'A', 'SPARTACUS', 0), &
+      varAttr('KNet_Roof_8', 'W m-2', 'f104', 'sw net radiation at roof - SPARTACUS level 8', 'A', 'SPARTACUS', 0), &
+      varAttr('KNet_Roof_9', 'W m-2', 'f104', 'sw net radiation at roof - SPARTACUS level 9', 'A', 'SPARTACUS', 0), &
+      varAttr('KNet_Roof_10', 'W m-2', 'f104', 'sw net radiation at roof - SPARTACUS level 10', 'A', 'SPARTACUS', 0), &
+      varAttr('KNet_Roof_11', 'W m-2', 'f104', 'sw net radiation at roof - SPARTACUS level 11', 'A', 'SPARTACUS', 0), &
+      varAttr('KNet_Roof_12', 'W m-2', 'f104', 'sw net radiation at roof - SPARTACUS level 12', 'A', 'SPARTACUS', 0), &
+      varAttr('KNet_Roof_13', 'W m-2', 'f104', 'sw net radiation at roof - SPARTACUS level 13', 'A', 'SPARTACUS', 0), &
+      varAttr('KNet_Roof_14', 'W m-2', 'f104', 'sw net radiation at roof - SPARTACUS level 14', 'A', 'SPARTACUS', 0), &
+      varAttr('KNet_Roof_15', 'W m-2', 'f104', 'sw net radiation at roof - SPARTACUS level 15', 'A', 'SPARTACUS', 0), &
+      varAttr('KIn_Wall_1', 'W m-2', 'f104', 'sw radiation into wall - SPARTACUS level 1', 'A', 'SPARTACUS', 0), &
+      varAttr('KIn_Wall_2', 'W m-2', 'f104', 'sw radiation into wall - SPARTACUS level 2', 'A', 'SPARTACUS', 0), &
+      varAttr('KIn_Wall_3', 'W m-2', 'f104', 'sw radiation into wall - SPARTACUS level 3', 'A', 'SPARTACUS', 0), &
+      varAttr('KIn_Wall_4', 'W m-2', 'f104', 'sw radiation into wall - SPARTACUS level 4', 'A', 'SPARTACUS', 0), &
+      varAttr('KIn_Wall_5', 'W m-2', 'f104', 'sw radiation into wall - SPARTACUS level 5', 'A', 'SPARTACUS', 0), &
+      varAttr('KIn_Wall_6', 'W m-2', 'f104', 'sw radiation into wall - SPARTACUS level 6', 'A', 'SPARTACUS', 0), &
+      varAttr('KIn_Wall_7', 'W m-2', 'f104', 'sw radiation into wall - SPARTACUS level 7', 'A', 'SPARTACUS', 0), &
+      varAttr('KIn_Wall_8', 'W m-2', 'f104', 'sw radiation into wall - SPARTACUS level 8', 'A', 'SPARTACUS', 0), &
+      varAttr('KIn_Wall_9', 'W m-2', 'f104', 'sw radiation into wall - SPARTACUS level 9', 'A', 'SPARTACUS', 0), &
+      varAttr('KIn_Wall_10', 'W m-2', 'f104', 'sw radiation into wall - SPARTACUS level 10', 'A', 'SPARTACUS', 0), &
+      varAttr('KIn_Wall_11', 'W m-2', 'f104', 'sw radiation into wall - SPARTACUS level 11', 'A', 'SPARTACUS', 0), &
+      varAttr('KIn_Wall_12', 'W m-2', 'f104', 'sw radiation into wall - SPARTACUS level 12', 'A', 'SPARTACUS', 0), &
+      varAttr('KIn_Wall_13', 'W m-2', 'f104', 'sw radiation into wall - SPARTACUS level 13', 'A', 'SPARTACUS', 0), &
+      varAttr('KIn_Wall_14', 'W m-2', 'f104', 'sw radiation into wall - SPARTACUS level 14', 'A', 'SPARTACUS', 0), &
+      varAttr('KIn_Wall_15', 'W m-2', 'f104', 'sw radiation into wall - SPARTACUS level 15', 'A', 'SPARTACUS', 0), &
+      varAttr('KNet_Wall_1', 'W m-2', 'f104', 'sw net radiation at wall - SPARTACUS level 1', 'A', 'SPARTACUS', 0), &
+      varAttr('KNet_Wall_2', 'W m-2', 'f104', 'sw net radiation at wall - SPARTACUS level 2', 'A', 'SPARTACUS', 0), &
+      varAttr('KNet_Wall_3', 'W m-2', 'f104', 'sw net radiation at wall - SPARTACUS level 3', 'A', 'SPARTACUS', 0), &
+      varAttr('KNet_Wall_4', 'W m-2', 'f104', 'sw net radiation at wall - SPARTACUS level 4', 'A', 'SPARTACUS', 0), &
+      varAttr('KNet_Wall_5', 'W m-2', 'f104', 'sw net radiation at wall - SPARTACUS level 5', 'A', 'SPARTACUS', 0), &
+      varAttr('KNet_Wall_6', 'W m-2', 'f104', 'sw net radiation at wall - SPARTACUS level 6', 'A', 'SPARTACUS', 0), &
+      varAttr('KNet_Wall_7', 'W m-2', 'f104', 'sw net radiation at wall - SPARTACUS level 7', 'A', 'SPARTACUS', 0), &
+      varAttr('KNet_Wall_8', 'W m-2', 'f104', 'sw net radiation at wall - SPARTACUS level 8', 'A', 'SPARTACUS', 0), &
+      varAttr('KNet_Wall_9', 'W m-2', 'f104', 'sw net radiation at wall - SPARTACUS level 9', 'A', 'SPARTACUS', 0), &
+      varAttr('KNet_Wall_10', 'W m-2', 'f104', 'sw net radiation at wall - SPARTACUS level 10', 'A', 'SPARTACUS', 0), &
+      varAttr('KNet_Wall_11', 'W m-2', 'f104', 'sw net radiation at wall - SPARTACUS level 11', 'A', 'SPARTACUS', 0), &
+      varAttr('KNet_Wall_12', 'W m-2', 'f104', 'sw net radiation at wall - SPARTACUS level 12', 'A', 'SPARTACUS', 0), &
+      varAttr('KNet_Wall_13', 'W m-2', 'f104', 'sw net radiation at wall - SPARTACUS level 13', 'A', 'SPARTACUS', 0), &
+      varAttr('KNet_Wall_14', 'W m-2', 'f104', 'sw net radiation at wall - SPARTACUS level 14', 'A', 'SPARTACUS', 0), &
+      varAttr('KNet_Wall_15', 'W m-2', 'f104', 'sw net radiation at wall - SPARTACUS level 15', 'A', 'SPARTACUS', 0), &
+      varAttr('KCAAbs_1', 'W m-2', 'f104', 'sw clear air absorption - SPARTACUS level 1', 'A', 'SPARTACUS', 0), &
+      varAttr('KCAAbs_2', 'W m-2', 'f104', 'sw clear air absorption - SPARTACUS level 2', 'A', 'SPARTACUS', 0), &
+      varAttr('KCAAbs_3', 'W m-2', 'f104', 'sw clear air absorption - SPARTACUS level 3', 'A', 'SPARTACUS', 0), &
+      varAttr('KCAAbs_4', 'W m-2', 'f104', 'sw clear air absorption - SPARTACUS level 4', 'A', 'SPARTACUS', 0), &
+      varAttr('KCAAbs_5', 'W m-2', 'f104', 'sw clear air absorption - SPARTACUS level 5', 'A', 'SPARTACUS', 0), &
+      varAttr('KCAAbs_6', 'W m-2', 'f104', 'sw clear air absorption - SPARTACUS level 6', 'A', 'SPARTACUS', 0), &
+      varAttr('KCAAbs_7', 'W m-2', 'f104', 'sw clear air absorption - SPARTACUS level 7', 'A', 'SPARTACUS', 0), &
+      varAttr('KCAAbs_8', 'W m-2', 'f104', 'sw clear air absorption - SPARTACUS level 8', 'A', 'SPARTACUS', 0), &
+      varAttr('KCAAbs_9', 'W m-2', 'f104', 'sw clear air absorption - SPARTACUS level 9', 'A', 'SPARTACUS', 0), &
+      varAttr('KCAAbs_10', 'W m-2', 'f104', 'sw clear air absorption - SPARTACUS level 10', 'A', 'SPARTACUS', 0), &
+      varAttr('KCAAbs_11', 'W m-2', 'f104', 'sw clear air absorption - SPARTACUS level 11', 'A', 'SPARTACUS', 0), &
+      varAttr('KCAAbs_12', 'W m-2', 'f104', 'sw clear air absorption - SPARTACUS level 12', 'A', 'SPARTACUS', 0), &
+      varAttr('KCAAbs_13', 'W m-2', 'f104', 'sw clear air absorption - SPARTACUS level 13', 'A', 'SPARTACUS', 0), &
+      varAttr('KCAAbs_14', 'W m-2', 'f104', 'sw clear air absorption - SPARTACUS level 14', 'A', 'SPARTACUS', 0), &
+      varAttr('KCAAbs_15', 'W m-2', 'f104', 'sw clear air absorption - SPARTACUS level 15', 'A', 'SPARTACUS', 0), &
+      varAttr('LIn_Roof_1', 'W m-2', 'f104', 'lw radiation into roof - SPARTACUS level 1', 'A', 'SPARTACUS', 0), &
+      varAttr('LIn_Roof_2', 'W m-2', 'f104', 'lw radiation into roof - SPARTACUS level 2', 'A', 'SPARTACUS', 0), &
+      varAttr('LIn_Roof_3', 'W m-2', 'f104', 'lw radiation into roof - SPARTACUS level 3', 'A', 'SPARTACUS', 0), &
+      varAttr('LIn_Roof_4', 'W m-2', 'f104', 'lw radiation into roof - SPARTACUS level 4', 'A', 'SPARTACUS', 0), &
+      varAttr('LIn_Roof_5', 'W m-2', 'f104', 'lw radiation into roof - SPARTACUS level 5', 'A', 'SPARTACUS', 0), &
+      varAttr('LIn_Roof_6', 'W m-2', 'f104', 'lw radiation into roof - SPARTACUS level 6', 'A', 'SPARTACUS', 0), &
+      varAttr('LIn_Roof_7', 'W m-2', 'f104', 'lw radiation into roof - SPARTACUS level 7', 'A', 'SPARTACUS', 0), &
+      varAttr('LIn_Roof_8', 'W m-2', 'f104', 'lw radiation into roof - SPARTACUS level 8', 'A', 'SPARTACUS', 0), &
+      varAttr('LIn_Roof_9', 'W m-2', 'f104', 'lw radiation into roof - SPARTACUS level 9', 'A', 'SPARTACUS', 0), &
+      varAttr('LIn_Roof_10', 'W m-2', 'f104', 'lw radiation into roof - SPARTACUS level 10', 'A', 'SPARTACUS', 0), &
+      varAttr('LIn_Roof_11', 'W m-2', 'f104', 'lw radiation into roof - SPARTACUS level 11', 'A', 'SPARTACUS', 0), &
+      varAttr('LIn_Roof_12', 'W m-2', 'f104', 'lw radiation into roof - SPARTACUS level 12', 'A', 'SPARTACUS', 0), &
+      varAttr('LIn_Roof_13', 'W m-2', 'f104', 'lw radiation into roof - SPARTACUS level 13', 'A', 'SPARTACUS', 0), &
+      varAttr('LIn_Roof_14', 'W m-2', 'f104', 'lw radiation into roof - SPARTACUS level 14', 'A', 'SPARTACUS', 0), &
+      varAttr('LIn_Roof_15', 'W m-2', 'f104', 'lw radiation into roof - SPARTACUS level 15', 'A', 'SPARTACUS', 0), &
+      varAttr('LNet_Roof_1', 'W m-2', 'f104', 'lw net radiation at roof - SPARTACUS level 1', 'A', 'SPARTACUS', 0), &
+      varAttr('LNet_Roof_2', 'W m-2', 'f104', 'lw net radiation at roof - SPARTACUS level 2', 'A', 'SPARTACUS', 0), &
+      varAttr('LNet_Roof_3', 'W m-2', 'f104', 'lw net radiation at roof - SPARTACUS level 3', 'A', 'SPARTACUS', 0), &
+      varAttr('LNet_Roof_4', 'W m-2', 'f104', 'lw net radiation at roof - SPARTACUS level 4', 'A', 'SPARTACUS', 0), &
+      varAttr('LNet_Roof_5', 'W m-2', 'f104', 'lw net radiation at roof - SPARTACUS level 5', 'A', 'SPARTACUS', 0), &
+      varAttr('LNet_Roof_6', 'W m-2', 'f104', 'lw net radiation at roof - SPARTACUS level 6', 'A', 'SPARTACUS', 0), &
+      varAttr('LNet_Roof_7', 'W m-2', 'f104', 'lw net radiation at roof - SPARTACUS level 7', 'A', 'SPARTACUS', 0), &
+      varAttr('LNet_Roof_8', 'W m-2', 'f104', 'lw net radiation at roof - SPARTACUS level 8', 'A', 'SPARTACUS', 0), &
+      varAttr('LNet_Roof_9', 'W m-2', 'f104', 'lw net radiation at roof - SPARTACUS level 9', 'A', 'SPARTACUS', 0), &
+      varAttr('LNet_Roof_10', 'W m-2', 'f104', 'lw net radiation at roof - SPARTACUS level 10', 'A', 'SPARTACUS', 0), &
+      varAttr('LNet_Roof_11', 'W m-2', 'f104', 'lw net radiation at roof - SPARTACUS level 11', 'A', 'SPARTACUS', 0), &
+      varAttr('LNet_Roof_12', 'W m-2', 'f104', 'lw net radiation at roof - SPARTACUS level 12', 'A', 'SPARTACUS', 0), &
+      varAttr('LNet_Roof_13', 'W m-2', 'f104', 'lw net radiation at roof - SPARTACUS level 13', 'A', 'SPARTACUS', 0), &
+      varAttr('LNet_Roof_14', 'W m-2', 'f104', 'lw net radiation at roof - SPARTACUS level 14', 'A', 'SPARTACUS', 0), &
+      varAttr('LNet_Roof_15', 'W m-2', 'f104', 'lw net radiation at roof - SPARTACUS level 15', 'A', 'SPARTACUS', 0), &
+      varAttr('LIn_Wall_1', 'W m-2', 'f104', 'lw radiation into wall - SPARTACUS level 1', 'A', 'SPARTACUS', 0), &
+      varAttr('LIn_Wall_2', 'W m-2', 'f104', 'lw radiation into wall - SPARTACUS level 2', 'A', 'SPARTACUS', 0), &
+      varAttr('LIn_Wall_3', 'W m-2', 'f104', 'lw radiation into wall - SPARTACUS level 3', 'A', 'SPARTACUS', 0), &
+      varAttr('LIn_Wall_4', 'W m-2', 'f104', 'lw radiation into wall - SPARTACUS level 4', 'A', 'SPARTACUS', 0), &
+      varAttr('LIn_Wall_5', 'W m-2', 'f104', 'lw radiation into wall - SPARTACUS level 5', 'A', 'SPARTACUS', 0), &
+      varAttr('LIn_Wall_6', 'W m-2', 'f104', 'lw radiation into wall - SPARTACUS level 6', 'A', 'SPARTACUS', 0), &
+      varAttr('LIn_Wall_7', 'W m-2', 'f104', 'lw radiation into wall - SPARTACUS level 7', 'A', 'SPARTACUS', 0), &
+      varAttr('LIn_Wall_8', 'W m-2', 'f104', 'lw radiation into wall - SPARTACUS level 8', 'A', 'SPARTACUS', 0), &
+      varAttr('LIn_Wall_9', 'W m-2', 'f104', 'lw radiation into wall - SPARTACUS level 9', 'A', 'SPARTACUS', 0), &
+      varAttr('LIn_Wall_10', 'W m-2', 'f104', 'lw radiation into wall - SPARTACUS level 10', 'A', 'SPARTACUS', 0), &
+      varAttr('LIn_Wall_11', 'W m-2', 'f104', 'lw radiation into wall - SPARTACUS level 11', 'A', 'SPARTACUS', 0), &
+      varAttr('LIn_Wall_12', 'W m-2', 'f104', 'lw radiation into wall - SPARTACUS level 12', 'A', 'SPARTACUS', 0), &
+      varAttr('LIn_Wall_13', 'W m-2', 'f104', 'lw radiation into wall - SPARTACUS level 13', 'A', 'SPARTACUS', 0), &
+      varAttr('LIn_Wall_14', 'W m-2', 'f104', 'lw radiation into wall - SPARTACUS level 14', 'A', 'SPARTACUS', 0), &
+      varAttr('LIn_Wall_15', 'W m-2', 'f104', 'lw radiation into wall - SPARTACUS level 15', 'A', 'SPARTACUS', 0), &
+      varAttr('LNet_Wall_1', 'W m-2', 'f104', 'lw net radiation at wall - SPARTACUS level 1', 'A', 'SPARTACUS', 0), &
+      varAttr('LNet_Wall_2', 'W m-2', 'f104', 'lw net radiation at wall - SPARTACUS level 2', 'A', 'SPARTACUS', 0), &
+      varAttr('LNet_Wall_3', 'W m-2', 'f104', 'lw net radiation at wall - SPARTACUS level 3', 'A', 'SPARTACUS', 0), &
+      varAttr('LNet_Wall_4', 'W m-2', 'f104', 'lw net radiation at wall - SPARTACUS level 4', 'A', 'SPARTACUS', 0), &
+      varAttr('LNet_Wall_5', 'W m-2', 'f104', 'lw net radiation at wall - SPARTACUS level 5', 'A', 'SPARTACUS', 0), &
+      varAttr('LNet_Wall_6', 'W m-2', 'f104', 'lw net radiation at wall - SPARTACUS level 6', 'A', 'SPARTACUS', 0), &
+      varAttr('LNet_Wall_7', 'W m-2', 'f104', 'lw net radiation at wall - SPARTACUS level 7', 'A', 'SPARTACUS', 0), &
+      varAttr('LNet_Wall_8', 'W m-2', 'f104', 'lw net radiation at wall - SPARTACUS level 8', 'A', 'SPARTACUS', 0), &
+      varAttr('LNet_Wall_9', 'W m-2', 'f104', 'lw net radiation at wall - SPARTACUS level 9', 'A', 'SPARTACUS', 0), &
+      varAttr('LNet_Wall_10', 'W m-2', 'f104', 'lw net radiation at wall - SPARTACUS level 10', 'A', 'SPARTACUS', 0), &
+      varAttr('LNet_Wall_11', 'W m-2', 'f104', 'lw net radiation at wall - SPARTACUS level 11', 'A', 'SPARTACUS', 0), &
+      varAttr('LNet_Wall_12', 'W m-2', 'f104', 'lw net radiation at wall - SPARTACUS level 12', 'A', 'SPARTACUS', 0), &
+      varAttr('LNet_Wall_13', 'W m-2', 'f104', 'lw net radiation at wall - SPARTACUS level 13', 'A', 'SPARTACUS', 0), &
+      varAttr('LNet_Wall_14', 'W m-2', 'f104', 'lw net radiation at wall - SPARTACUS level 14', 'A', 'SPARTACUS', 0), &
+      varAttr('LNet_Wall_15', 'W m-2', 'f104', 'lw net radiation at wall - SPARTACUS level 15', 'A', 'SPARTACUS', 0), &
+      varAttr('sfr_Roof_1', '-', 'f104', 'surface coverage of roof - SPARTACUS level 1', 'A', 'SPARTACUS', 0), &
+      varAttr('sfr_Roof_2', '-', 'f104', 'surface coverage of roof - SPARTACUS level 2', 'A', 'SPARTACUS', 0), &
+      varAttr('sfr_Roof_3', '-', 'f104', 'surface coverage of roof - SPARTACUS level 3', 'A', 'SPARTACUS', 0), &
+      varAttr('sfr_Roof_4', '-', 'f104', 'surface coverage of roof - SPARTACUS level 4', 'A', 'SPARTACUS', 0), &
+      varAttr('sfr_Roof_5', '-', 'f104', 'surface coverage of roof - SPARTACUS level 5', 'A', 'SPARTACUS', 0), &
+      varAttr('sfr_Roof_6', '-', 'f104', 'surface coverage of roof - SPARTACUS level 6', 'A', 'SPARTACUS', 0), &
+      varAttr('sfr_Roof_7', '-', 'f104', 'surface coverage of roof - SPARTACUS level 7', 'A', 'SPARTACUS', 0), &
+      varAttr('sfr_Roof_8', '-', 'f104', 'surface coverage of roof - SPARTACUS level 8', 'A', 'SPARTACUS', 0), &
+      varAttr('sfr_Roof_9', '-', 'f104', 'surface coverage of roof - SPARTACUS level 9', 'A', 'SPARTACUS', 0), &
+      varAttr('sfr_Roof_10', '-', 'f104', 'surface coverage of roof - SPARTACUS level 10', 'A', 'SPARTACUS', 0), &
+      varAttr('sfr_Roof_11', '-', 'f104', 'surface coverage of roof - SPARTACUS level 11', 'A', 'SPARTACUS', 0), &
+      varAttr('sfr_Roof_12', '-', 'f104', 'surface coverage of roof - SPARTACUS level 12', 'A', 'SPARTACUS', 0), &
+      varAttr('sfr_Roof_13', '-', 'f104', 'surface coverage of roof - SPARTACUS level 13', 'A', 'SPARTACUS', 0), &
+      varAttr('sfr_Roof_14', '-', 'f104', 'surface coverage of roof - SPARTACUS level 14', 'A', 'SPARTACUS', 0), &
+      varAttr('sfr_Roof_15', '-', 'f104', 'surface coverage of roof - SPARTACUS level 15', 'A', 'SPARTACUS', 0), &
+      varAttr('sfr_Wall_1', '-', 'f104', 'surface coverage of wall - SPARTACUS level 1', 'A', 'SPARTACUS', 0), &
+      varAttr('sfr_Wall_2', '-', 'f104', 'surface coverage of wall - SPARTACUS level 2', 'A', 'SPARTACUS', 0), &
+      varAttr('sfr_Wall_3', '-', 'f104', 'surface coverage of wall - SPARTACUS level 3', 'A', 'SPARTACUS', 0), &
+      varAttr('sfr_Wall_4', '-', 'f104', 'surface coverage of wall - SPARTACUS level 4', 'A', 'SPARTACUS', 0), &
+      varAttr('sfr_Wall_5', '-', 'f104', 'surface coverage of wall - SPARTACUS level 5', 'A', 'SPARTACUS', 0), &
+      varAttr('sfr_Wall_6', '-', 'f104', 'surface coverage of wall - SPARTACUS level 6', 'A', 'SPARTACUS', 0), &
+      varAttr('sfr_Wall_7', '-', 'f104', 'surface coverage of wall - SPARTACUS level 7', 'A', 'SPARTACUS', 0), &
+      varAttr('sfr_Wall_8', '-', 'f104', 'surface coverage of wall - SPARTACUS level 8', 'A', 'SPARTACUS', 0), &
+      varAttr('sfr_Wall_9', '-', 'f104', 'surface coverage of wall - SPARTACUS level 9', 'A', 'SPARTACUS', 0), &
+      varAttr('sfr_Wall_10', '-', 'f104', 'surface coverage of wall - SPARTACUS level 10', 'A', 'SPARTACUS', 0), &
+      varAttr('sfr_Wall_11', '-', 'f104', 'surface coverage of wall - SPARTACUS level 11', 'A', 'SPARTACUS', 0), &
+      varAttr('sfr_Wall_12', '-', 'f104', 'surface coverage of wall - SPARTACUS level 12', 'A', 'SPARTACUS', 0), &
+      varAttr('sfr_Wall_13', '-', 'f104', 'surface coverage of wall - SPARTACUS level 13', 'A', 'SPARTACUS', 0), &
+      varAttr('sfr_Wall_14', '-', 'f104', 'surface coverage of wall - SPARTACUS level 14', 'A', 'SPARTACUS', 0), &
+      varAttr('sfr_Wall_15', '-', 'f104', 'surface coverage of wall - SPARTACUS level 15', 'A', 'SPARTACUS', 0), &
+      varAttr('LCAAbs_1', 'W m-2', 'f104', 'lw clear air absorption - SPARTACUS level 1', 'A', 'SPARTACUS', 0), &
+      varAttr('LCAAbs_2', 'W m-2', 'f104', 'lw clear air absorption - SPARTACUS level 2', 'A', 'SPARTACUS', 0), &
+      varAttr('LCAAbs_3', 'W m-2', 'f104', 'lw clear air absorption - SPARTACUS level 3', 'A', 'SPARTACUS', 0), &
+      varAttr('LCAAbs_4', 'W m-2', 'f104', 'lw clear air absorption - SPARTACUS level 4', 'A', 'SPARTACUS', 0), &
+      varAttr('LCAAbs_5', 'W m-2', 'f104', 'lw clear air absorption - SPARTACUS level 5', 'A', 'SPARTACUS', 0), &
+      varAttr('LCAAbs_6', 'W m-2', 'f104', 'lw clear air absorption - SPARTACUS level 6', 'A', 'SPARTACUS', 0), &
+      varAttr('LCAAbs_7', 'W m-2', 'f104', 'lw clear air absorption - SPARTACUS level 7', 'A', 'SPARTACUS', 0), &
+      varAttr('LCAAbs_8', 'W m-2', 'f104', 'lw clear air absorption - SPARTACUS level 8', 'A', 'SPARTACUS', 0), &
+      varAttr('LCAAbs_9', 'W m-2', 'f104', 'lw clear air absorption - SPARTACUS level 9', 'A', 'SPARTACUS', 0), &
+      varAttr('LCAAbs_10', 'W m-2', 'f104', 'lw clear air absorption - SPARTACUS level 10', 'A', 'SPARTACUS', 0), &
+      varAttr('LCAAbs_11', 'W m-2', 'f104', 'lw clear air absorption - SPARTACUS level 11', 'A', 'SPARTACUS', 0), &
+      varAttr('LCAAbs_12', 'W m-2', 'f104', 'lw clear air absorption - SPARTACUS level 12', 'A', 'SPARTACUS', 0), &
+      varAttr('LCAAbs_13', 'W m-2', 'f104', 'lw clear air absorption - SPARTACUS level 13', 'A', 'SPARTACUS', 0), &
+      varAttr('LCAAbs_14', 'W m-2', 'f104', 'lw clear air absorption - SPARTACUS level 14', 'A', 'SPARTACUS', 0), &
+      varAttr('LCAAbs_15', 'W m-2', 'f104', 'lw clear air absorption - SPARTACUS level 15', 'A', 'SPARTACUS', 0) &
+      /
+
+   ! STEBBS variables (57 variables)
+   DATA(varListAll(n), &
+        n=1047, 1103)/ &
+      varAttr('ws', 'm s-1', 'f104', 'Wind speed', 'A', 'STEBBS', 0), &
+      varAttr('Tair_sout', 'degC', 'f104', 'Air temperature', 'A', 'STEBBS', 0), &
+      varAttr('Tsurf_sout', 'degC', 'f104', 'Surface temperature', 'A', 'STEBBS', 0), &
+      varAttr('Kroof_sout', 'W m-2', 'f104', 'Shortwave radiation on roof', 'A', 'STEBBS', 0), &
+      varAttr('Lroof_sout', 'W m-2', 'f104', 'Longwave radiation on roof', 'A', 'STEBBS', 0), &
+      varAttr('Kwall_sout', 'W m-2', 'f104', 'Shortwave radiation on wall', 'A', 'STEBBS', 0), &
+      varAttr('Lwall_sout', 'W m-2', 'f104', 'Longwave radiation on wall', 'A', 'STEBBS', 0), &
+      varAttr('Tair_ind', 'degC', 'f104', 'Indoor air temperature', 'A', 'STEBBS', 0), &
+      varAttr('Tindoormass', 'degC', 'f104', 'Indoor mass temperature', 'A', 'STEBBS', 0), &
+      varAttr('Tintwallroof', 'degC', 'f104', 'Internal wall/roof temperature', 'A', 'STEBBS', 0), &
+      varAttr('Textwallroof', 'degC', 'f104', 'External wall/roof temperature', 'A', 'STEBBS', 0), &
+      varAttr('Tintwindow', 'degC', 'f104', 'Internal window temperature', 'A', 'STEBBS', 0), &
+      varAttr('Textwindow', 'degC', 'f104', 'External window temperature', 'A', 'STEBBS', 0), &
+      varAttr('Tintgrndflr', 'degC', 'f104', 'Internal ground floor temperature', 'A', 'STEBBS', 0), &
+      varAttr('Textgrndflr', 'degC', 'f104', 'External ground floor temperature', 'A', 'STEBBS', 0), &
+      varAttr('Qtotal_heat', 'W', 'f104', 'Total heating', 'A', 'STEBBS', 0), &
+      varAttr('Qtotal_cool', 'W', 'f104', 'Total cooling', 'A', 'STEBBS', 0), &
+      varAttr('Qsw_trans_win', 'W', 'f104', 'Shortwave transmitted through window', 'A', 'STEBBS', 0), &
+      varAttr('Qsw_abs_win', 'W', 'f104', 'Shortwave absorbed by window', 'A', 'STEBBS', 0), &
+      varAttr('Qsw_abs_wall', 'W', 'f104', 'Shortwave absorbed by wall/roof', 'A', 'STEBBS', 0), &
+      varAttr('Qconv_indair', 'W', 'f104', 'Convective heat from indoor air to indoor mass', 'A', 'STEBBS', 0), &
+      varAttr('Qlw_net_intwall', 'W', 'f104', 'Net longwave from internal wall/roof to other indoor surfaces', 'A', 'STEBBS', 0), &
+      varAttr('Qlw_net_intwin', 'W', 'f104', 'Net longwave from internal window to other indoor surfaces', 'A', 'STEBBS', 0), &
+      varAttr('Qlw_net_intgrnd', 'W', 'f104', 'Net longwave from internal ground floor to other indoor surfaces', 'A', 'STEBBS', 0), &
+      varAttr('Q_appliance', 'W', 'f104', 'Appliance heat', 'A', 'STEBBS', 0), &
+      varAttr('Q_ventilation', 'W', 'f104', 'Ventilation heat', 'A', 'STEBBS', 0), &
+      varAttr('Qconv_indwall', 'W', 'f104', 'Convective heat from indoor air to internal wall/roof', 'A', 'STEBBS', 0), &
+      varAttr('Qconv_indwin', 'W', 'f104', 'Convective heat from indoor air to internal window', 'A', 'STEBBS', 0), &
+      varAttr('Qconv_indgrnd', 'W', 'f104', 'Convective heat from indoor air to internal ground floor', 'A', 'STEBBS', 0), &
+      varAttr('Qloss_eff_heat', 'W', 'f104', 'Heat loss efficiency', 'A', 'STEBBS', 0), &
+      varAttr('Qcond_wall', 'W', 'f104', 'Conductive heat through wall/roof', 'A', 'STEBBS', 0), &
+      varAttr('Qcond_window', 'W', 'f104', 'Conductive heat through window', 'A', 'STEBBS', 0), &
+      varAttr('Qcond_grndflr', 'W', 'f104', 'Conductive heat through ground floor', 'A', 'STEBBS', 0), &
+      varAttr('Qcond_ground', 'W', 'f104', 'Conductive heat through ground', 'A', 'STEBBS', 0), &
+      varAttr('Qlw_net_extwall', 'W', 'f104', 'Net longwave from external wall/roof to outdoor air', 'A', 'STEBBS', 0), &
+      varAttr('Qlw_net_extwin', 'W', 'f104', 'Net longwave from external window to outdoor air', 'A', 'STEBBS', 0), &
+      varAttr('Qconv_extwall', 'W', 'f104', 'Convective heat from external wall/roof to outdoor air', 'A', 'STEBBS', 0), &
+      varAttr('Qconv_extwin', 'W', 'f104', 'Convective heat from external window to outdoor air', 'A', 'STEBBS', 0), &
+      varAttr('q_cooling', 'W', 'f104', 'Cooling', 'A', 'STEBBS', 0), &
+      varAttr('Qtotal_water', 'W', 'f104', 'Total water tank heat', 'A', 'STEBBS', 0), &
+      varAttr('Qloss_drain', 'W', 'f104', 'Drain heat loss', 'A', 'STEBBS', 0), &
+      varAttr('Twater_tank', 'degC', 'f104', 'Water tank temperature', 'A', 'STEBBS', 0), &
+      varAttr('Tintwall_tank', 'degC', 'f104', 'Internal wall temperature of tank', 'A', 'STEBBS', 0), &
+      varAttr('Textwall_tank', 'degC', 'f104', 'External wall temperature of tank', 'A', 'STEBBS', 0), &
+      varAttr('Twater_vessel', 'degC', 'f104', 'Water vessel temperature', 'A', 'STEBBS', 0), &
+      varAttr('Tintwall_vessel', 'degC', 'f104', 'Internal wall temperature of vessel', 'A', 'STEBBS', 0), &
+      varAttr('Textwall_vessel', 'degC', 'f104', 'External wall temperature of vessel', 'A', 'STEBBS', 0), &
+      varAttr('Vwater_vessel', 'm3', 'f104', 'Volume of water in vessel', 'A', 'STEBBS', 0), &
+      varAttr('Awater_vessel', 'm2', 'f104', 'Area of water in vessel', 'A', 'STEBBS', 0), &
+      varAttr('Vwall_vessel', 'm3', 'f104', 'Volume of wall in vessel', 'A', 'STEBBS', 0), &
+      varAttr('qsensible', 'W', 'f104', 'Sensible heat', 'A', 'STEBBS', 0), &
+      varAttr('qlatent', 'W', 'f104', 'Latent heat', 'A', 'STEBBS', 0), &
+      varAttr('QS_total', 'W', 'f104', 'Storage heat flux', 'A', 'STEBBS', 0), &
+      varAttr('QS_fabric', 'W', 'f104', 'Storage heat flux in fabric', 'A', 'STEBBS', 0), &
+      varAttr('QS_air', 'W', 'f104', 'Storage heat flux in air', 'A', 'STEBBS', 0), &
+      varAttr('Vwall_tank', 'm3', 'f104', 'Volume of wall in tank', 'A', 'STEBBS', 0), &
+      varAttr('Vwater_tank', 'm3', 'f104', 'Volume of water in tank', 'A', 'STEBBS', 0) &
+      /
+
+   ! NHood variables (1 variables)
+   DATA(varListAll(n), &
+        n=1104, 1104)/ &
+      varAttr('iter_count', '-', 'f104', 'iteration count of convergence loop', 'A', 'NHood', 0) &
+      /
+
+   ! Total variables defined: 1104
+   ! Array size: 1104 (rest unused)
 CONTAINS
    ! main wrapper that handles both txt and nc files
    SUBROUTINE SUEWS_Output(irMax, iv, Gridiv, iyr)

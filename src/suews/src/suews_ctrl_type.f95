@@ -286,6 +286,23 @@ MODULE module_ctrl_type
       PROCEDURE :: init => init_suews_state_block
    END TYPE SUEWS_STATE_BLOCK
 
+   ! =========================================================================
+   ! Output variable attributes type
+   ! Used to define metadata for output variables in both Fortran and Python
+   ! NOTE: This is maintained in BOTH places (dual-source pattern):
+   !   - Fortran: varListAll array initialized with DATA statements
+   !   - Python: OUTPUT_REGISTRY in src/supy/data_model/output/
+   ! =========================================================================
+   TYPE, PUBLIC :: varAttr
+      CHARACTER(len=20) :: header ! short name in headers
+      CHARACTER(len=12) :: unit ! unit
+      CHARACTER(len=10) :: fmt ! output format
+      CHARACTER(len=100) :: longNm ! long name for detailed description
+      CHARACTER(len=1) :: aggreg ! aggregation method
+      CHARACTER(len=10) :: group ! group: datetime, default, ESTM, Snow, etc.
+      INTEGER :: level ! output priority level: 0 for highest (default output)
+   END TYPE varAttr
+
 CONTAINS
 
    SUBROUTINE init_suews_state_block(self, nlayer, ndepth, len_sim)

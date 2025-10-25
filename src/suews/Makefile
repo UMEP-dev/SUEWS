@@ -343,13 +343,9 @@ exe: $(addprefix $(DIR_SRC_SUEWS), $(OTHERS) suews_program$(suffix_code))
 src/suews_phys_spartacus.o: src/suews_phys_spartacus.f95 libspartacus
 	$(FC) $(FCFLAGS) -c $< -o $@
 
-# special rule for output control module - depends on auto-generated varlist
-src/varlist_generated.f95: src/generate_varlist.py
-	@echo "Generating Fortran varlist from Python OUTPUT_REGISTRY..."
-	@python3 src/generate_varlist.py || { echo "WARNING: Failed to generate varlist, using existing file if available"; test -f src/varlist_generated.f95 || exit 1; }
-
-src/suews_ctrl_output.o: src/suews_ctrl_output.f95 src/varlist_generated.f95
-	@echo "Compiling output control module (with auto-generated varlist)..."
+# special rule for output control module - uses manually maintained varlist
+src/suews_ctrl_output.o: src/suews_ctrl_output.f95
+	@echo "Compiling output control module (with manually maintained varlist)..."
 	$(FC) $(FCFLAGS) -c $< -o $@
 
 # rules for f95-->f90

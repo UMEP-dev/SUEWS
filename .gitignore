@@ -595,6 +595,11 @@ docs/source/_autosummary/
 
 # Auto-generated RST files from data model
 docs/source/inputs/yaml/config-reference/*.rst
+docs/source/inputs/yaml/config-reference/.generated.stamp
+
+# Auto-generated RST files for output variables
+docs/source/output_files/variables/*.rst
+docs/source/output_files/variables/.generated.stamp
 
 
 # Git worktrees directory for Claude Code access
@@ -639,3 +644,5 @@ local-schema/
 # Temporary schema export directory
 public/
 docs/source/api/_autosummary/
+# Auto-generated Fortran files (generated at build time)
+src/suews/src/varlist_generated.f95

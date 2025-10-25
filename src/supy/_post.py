@@ -8,8 +8,38 @@ from ._env import logger_supy
 
 ##############################################################################
 # post-processing part
-# get variable information from Fortran
-def get_output_info_df():
+
+
+def _get_output_info_from_registry():
+    """Get output variable metadata from Python Pydantic registry.
+
+    This is the new Python-first approach that provides type-safe,
+    self-documenting variable definitions.
+
+    Returns:
+        DataFrame with MultiIndex (group, var) and columns (aggm, outlevel, func)
+    """
+    try:
+        from .data_model.output import OUTPUT_REGISTRY
+
+        # Convert registry to DataFrame format compatible with old code
+        df_var = OUTPUT_REGISTRY.to_dataframe()
+        return df_var
+    except ImportError as e:
+        # If data_model.output not available, raise to trigger fallback
+        logger_supy.debug(f"Pydantic registry not available: {e}")
+        raise
+
+
+def _get_output_info_from_fortran():
+    """Get output variable metadata from Fortran (legacy implementation).
+
+    This is the original Fortran-first approach using f90wrap bindings.
+    Kept for backward compatibility and validation.
+
+    Returns:
+        DataFrame with MultiIndex (group, var) and columns (aggm, outlevel)
+    """
     from packaging.version import parse as LooseVersion
 
     size_var_list = sd.output_size()
@@ -28,27 +58,47 @@ def get_output_info_df():
 
     df_var_list_x = df_var_list.replace(r"^\s*$", np.nan, regex=True).dropna()
     df_var_dfm = df_var_list_x.set_index(["group", "var"])
+
+    # Add func column for compatibility
+    dict_func_aggm = {
+        "T": lambda x: x.iloc[-1] if len(x) > 0 else np.nan,  # last value
+        "A": "mean",
+        "S": "sum",
+        "L": lambda x: x.iloc[-1] if len(x) > 0 else np.nan,  # last value
+    }
+    df_var_dfm["func"] = df_var_dfm.aggm.apply(lambda x: dict_func_aggm[x])
+
     return df_var_dfm
 
 
-# get variable info as a DataFrame
+def get_output_info_df():
+    """Get output variable metadata (Pydantic-first with Fortran fallback).
+
+    Attempts to load variable metadata from Python Pydantic registry first.
+    Falls back to Fortran extraction if Pydantic registry is not available.
+
+    Returns:
+        DataFrame with MultiIndex (group, var) and columns (aggm, outlevel, func)
+    """
+    try:
+        # Try Python registry first (new approach)
+        df_var = _get_output_info_from_registry()
+        logger_supy.debug("Using Pydantic output variable registry")
+        return df_var
+    except (ImportError, Exception) as e:
+        # Fallback to Fortran extraction (legacy)
+        logger_supy.debug(f"Falling back to Fortran metadata extraction: {e}")
+        return _get_output_info_from_fortran()
+
+
+# Get variable info as a DataFrame
 # save `df_var` for later use
 df_var = get_output_info_df()
 
 # dict as df_var but keys in lowercase
 dict_var_lower = {group.lower(): group for group in df_var.index.levels[0].str.strip()}
 
-#  generate dict of functions to apply for each variable
-# Use lambda for 'last' to avoid pandas compatibility issues
-dict_func_aggm = {
-    "T": lambda x: x.iloc[-1] if len(x) > 0 else np.nan,  # last value
-    "A": "mean",
-    "S": "sum",
-    "L": lambda x: x.iloc[-1] if len(x) > 0 else np.nan,  # last value
-}
-df_var["func"] = df_var.aggm.apply(lambda x: dict_func_aggm[x])
-
-# dict of resampling ruls:
+# dict of resampling rules:
 #  {group: {var: agg_method}}
 dict_var_aggm = {
     group: df_var.loc[group, "func"].to_dict() for group in df_var.index.levels[0]

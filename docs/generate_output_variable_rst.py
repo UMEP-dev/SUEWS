@@ -19,9 +19,16 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 try:
     from supy.data_model.output import OUTPUT_REGISTRY
-    from supy.data_model.output.variables import OutputGroup, OutputLevel, AggregationMethod
+    from supy.data_model.output.variables import (
+        OutputGroup,
+        OutputLevel,
+        AggregationMethod,
+    )
 except ImportError as e:
-    print("ERROR: Cannot import supy. Documentation build requires supy to be installed.", file=sys.stderr)
+    print(
+        "ERROR: Cannot import supy. Documentation build requires supy to be installed.",
+        file=sys.stderr,
+    )
     print("Please run: make dev", file=sys.stderr)
     print(f"Import error: {e}", file=sys.stderr)
     sys.exit(1)
@@ -34,9 +41,7 @@ class OutputVariableRSTGenerator:
         """Initialize the RST generator."""
         self.registry = OUTPUT_REGISTRY
 
-    def generate_all_rst(
-        self, output_dir: Path, style: str = "tabbed"
-    ) -> None:
+    def generate_all_rst(self, output_dir: Path, style: str = "tabbed") -> None:
         """
         Generate RST files for all output variable groups.
 
@@ -137,7 +142,7 @@ class OutputVariableRSTGenerator:
         lines = []
 
         # Get group value (handle both enum and string)
-        group_val = var.group.value if hasattr(var.group, 'value') else var.group
+        group_val = var.group.value if hasattr(var.group, "value") else var.group
 
         # Add index entries
         lines.extend([
@@ -185,9 +190,9 @@ class OutputVariableRSTGenerator:
         # Normalise hyphen-style exponents to caret-style for consistent processing
         # Convert patterns like "m-2" to "m^-2", "s-1" to "s^-1", "m2" to "m^2", etc.
         # Match letter followed by hyphen and digit(s) for negative exponents
-        unit = re.sub(r'([a-zA-Z])(\d*)-(\d+)', r'\1\2^-\3', unit)
+        unit = re.sub(r"([a-zA-Z])(\d*)-(\d+)", r"\1\2^-\3", unit)
         # Match letter followed directly by digit(s) for positive exponents (e.g., m2 -> m^2)
-        unit = re.sub(r'([a-zA-Z])(\d+)(?!\^)', r'\1^\2', unit)
+        unit = re.sub(r"([a-zA-Z])(\d+)(?!\^)", r"\1^\2", unit)
 
         # Convert to RST substitution format for proper rendering
         unit = unit.replace("³", "^3").replace("²", "^2").replace("⁻", "^-")
@@ -216,9 +221,24 @@ class OutputVariableRSTGenerator:
     def _process_unit_part(part: str) -> str:
         """Process a single unit part."""
         known_patterns = [
-            "km^-1", "mm^-1", "m^-1", "m^-2", "m^-3", "m^2", "m^3",
-            "s^-1", "kg^-1", "K^-1", "J^-1", "W^-1", "h^-1",
-            "day^-1", "cap^-1", "ha^-1", "d^-1", "d^-2",
+            "km^-1",
+            "mm^-1",
+            "m^-1",
+            "m^-2",
+            "m^-3",
+            "m^2",
+            "m^3",
+            "s^-1",
+            "kg^-1",
+            "K^-1",
+            "J^-1",
+            "W^-1",
+            "h^-1",
+            "day^-1",
+            "cap^-1",
+            "ha^-1",
+            "d^-1",
+            "d^-2",
         ]
 
         if part in known_patterns:
@@ -229,7 +249,10 @@ class OutputVariableRSTGenerator:
         formatted = []
         for word in words:
             if word in known_patterns or (
-                "^" in word and any(word.startswith(b) for b in ["m", "s", "kg", "K", "W", "h", "d"])
+                "^" in word
+                and any(
+                    word.startswith(b) for b in ["m", "s", "kg", "K", "W", "h", "d"]
+                )
             ):
                 formatted.append(f"|{word}|")
             else:
@@ -244,7 +267,7 @@ class OutputVariableRSTGenerator:
         if isinstance(method, str):
             method_val = method
         else:
-            method_val = method.value if hasattr(method, 'value') else str(method)
+            method_val = method.value if hasattr(method, "value") else str(method)
 
         descriptions = {
             "T": "Time (timestamp only, no aggregation)",
@@ -261,7 +284,7 @@ class OutputVariableRSTGenerator:
         if isinstance(level, int):
             level_val = level
         else:
-            level_val = level.value if hasattr(level, 'value') else int(level)
+            level_val = level.value if hasattr(level, "value") else int(level)
 
         descriptions = {
             0: "Default (level 0 - always included)",
@@ -277,7 +300,7 @@ class OutputVariableRSTGenerator:
         if isinstance(group, str):
             group_val = group
         else:
-            group_val = group.value if hasattr(group, 'value') else str(group)
+            group_val = group.value if hasattr(group, "value") else str(group)
 
         descriptions = {
             "datetime": "Date and time information for output records.",
@@ -318,7 +341,9 @@ class OutputVariableRSTGenerator:
                 continue
 
             group_name = group.value
-            lines.append(f"* :doc:`{group_name} <{group_name.lower()}>` - {len(variables)} variables")
+            lines.append(
+                f"* :doc:`{group_name} <{group_name.lower()}>` - {len(variables)} variables"
+            )
             lines.append("")
 
         # Add toctree
@@ -368,7 +393,9 @@ class OutputVariableRSTGenerator:
                 lines.append(f"   {group_desc}")
                 lines.append("")
 
-            lines.append(f"   :doc:`View {group_name} variables <{group_name.lower()}>`")
+            lines.append(
+                f"   :doc:`View {group_name} variables <{group_name.lower()}>`"
+            )
             lines.append("")
 
         # Add toctree
@@ -416,7 +443,9 @@ class OutputVariableRSTGenerator:
                 lines.append(f"      {group_desc}")
                 lines.append("")
 
-            lines.append(f"      **{len(variables)} variables** - :doc:`View details <{group_name.lower()}>`")
+            lines.append(
+                f"      **{len(variables)} variables** - :doc:`View details <{group_name.lower()}>`"
+            )
             lines.append("")
 
         # Add toctree

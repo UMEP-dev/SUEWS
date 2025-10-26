@@ -487,9 +487,20 @@ class SUEWSSimulation:
         load_sample_data : Load sample data as DataFrames (functional approach)
         """
         from ._supy_module import _load_sample_data
+        from ._env import trv_supy_module
 
         df_state_init, df_forcing = _load_sample_data()
+        sample_config_path = Path(trv_supy_module / "sample_data" / "sample_config.yml")
+
         sim = cls()
+        try:
+            sim.update_config(sample_config_path)
+        except Exception as exc:
+            warnings.warn(
+                f"Could not load sample configuration metadata: {exc}",
+                stacklevel=2,
+            )
+
         sim._df_state_init = df_state_init
         sim._df_forcing = df_forcing
         return sim

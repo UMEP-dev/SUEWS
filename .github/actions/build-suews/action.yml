@@ -67,6 +67,7 @@ runs:
         BUILD_UMEP_VARIANT: ${{ inputs.is_umep_variant }}
         CIBW_BUILD: ${{ inputs.python }}-${{ inputs.buildplat_name }}*
         CIBW_ARCHS: ${{ inputs.buildplat_arch }}
+        CIBW_ENABLE: ${{ inputs.python == 'cp314' && 'cp314' || '' }}
         CIBW_ENVIRONMENT_PASS_LINUX: ${{ inputs.is_umep_variant == 'true' && 'RUNNER_OS BUILD_UMEP_VARIANT' || 'RUNNER_OS' }}
         # Use manylinux2014 for compatibility with older Linux systems (glibc 2.17+)
         CIBW_MANYLINUX_X86_64_IMAGE: manylinux2014
@@ -74,7 +75,7 @@ runs:
         # Configure pip to use binary wheels and avoid building from source
         CIBW_ENVIRONMENT_LINUX: >
           PIP_PREFER_BINARY=1
-          PIP_ONLY_BINARY=${{ inputs.python == 'cp313' && 'pyarrow' || ':all:' }}
+          PIP_ONLY_BINARY=:all:
           FCFLAGS="-fno-optimize-sibling-calls -ffree-line-length-none"
           F90=gfortran
           ${{ inputs.is_umep_variant == 'true' && 'BUILD_UMEP_VARIANT=true' || '' }}
@@ -87,8 +88,8 @@ runs:
             echo "Installing numpy>=2.0 for standard build" &&
             pip install 'numpy>=2.0';
           fi &&
-          if [[ "${{ inputs.python }}" == "cp313" ]]; then
-            echo "Installing numpy for Python 3.13 f90wrap build" &&
+          if [[ "${{ inputs.python }}" == "cp313" ]] || [[ "${{ inputs.python }}" == "cp314" ]]; then
+            echo "Installing numpy for Python ${{ inputs.python }} f90wrap build" &&
             pip install numpy;
           fi
         CIBW_BEFORE_ALL_MACOS: >

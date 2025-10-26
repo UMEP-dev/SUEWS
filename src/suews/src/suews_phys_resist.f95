@@ -1,4 +1,5 @@
-MODULE resist_module
+! Main module following naming standard: matches filename
+MODULE suews_phys_resist
    IMPLICIT NONE
 
 CONTAINS
@@ -736,4 +737,10 @@ CONTAINS
 
    END FUNCTION sigmoid
 
+END MODULE suews_phys_resist
+
+! Backward compatibility alias (deprecated - will be removed in future version)
+! TODO: Remove in version 2026.1.0 (deprecated since 2025.10.0)
+MODULE resist_module
+   USE suews_phys_resist
 END MODULE resist_module

@@ -72,7 +72,7 @@ def _warn_functional_deprecation(name: str) -> None:
         f"`supy.{name}` is deprecated and will be removed in a future release. "
         f"Please migrate to {replacement}.",
         DeprecationWarning,
-        stacklevel=2,
+        stacklevel=3,
     )
 
 

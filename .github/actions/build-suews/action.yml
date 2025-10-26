@@ -69,9 +69,9 @@ runs:
         CIBW_ARCHS: ${{ inputs.buildplat_arch }}
         # CIBW_ENABLE: ${{ inputs.python == 'cp314' && 'cp314' || '' }}
         CIBW_ENVIRONMENT_PASS_LINUX: ${{ inputs.is_umep_variant == 'true' && 'RUNNER_OS BUILD_UMEP_VARIANT' || 'RUNNER_OS' }}
-        # Use manylinux2014 for compatibility with older Linux systems (glibc 2.17+)
-        CIBW_MANYLINUX_X86_64_IMAGE: manylinux2014
-        CIBW_MANYLINUX_AARCH64_IMAGE: manylinux2014
+        # Use manylinux_2_28 for Python 3.14 (numpy requires it), manylinux2014 for older versions
+        CIBW_MANYLINUX_X86_64_IMAGE: ${{ inputs.python == 'cp314' && 'manylinux_2_28' || 'manylinux2014' }}
+        CIBW_MANYLINUX_AARCH64_IMAGE: ${{ inputs.python == 'cp314' && 'manylinux_2_28' || 'manylinux2014' }}
         # Configure pip to use binary wheels and avoid building from source
         CIBW_ENVIRONMENT_LINUX: >
           PIP_PREFER_BINARY=1

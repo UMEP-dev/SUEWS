@@ -1,6 +1,6 @@
 ! Main module following naming standard: matches filename
 MODULE suews_phys_snow
-   USE evap_module, ONLY: cal_evap
+   USE suews_phys_evap, ONLY: cal_evap
    USE allocateArray, ONLY: nsurf, PavSurf, BldgSurf, ConifSurf, BSoilSurf, WaterSurf, ncolumnsDataOutSnow
 
    IMPLICIT NONE

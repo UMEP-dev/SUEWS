@@ -32,14 +32,14 @@ MODULE SUEWS_Driver
    USE NARP_MODULE, ONLY: NARP_cal_SunPosition
    USE SPARTACUS_MODULE, ONLY: SPARTACUS
    ! USE AnOHM_module, ONLY: AnOHM
-   USE resist_module, ONLY: AerodynamicResistance, BoundaryLayerResistance, SurfaceResistance, &
+   USE suews_phys_resist, ONLY: AerodynamicResistance, BoundaryLayerResistance, SurfaceResistance, &
                             SUEWS_cal_RoughnessParameters
-   USE OHM_module, ONLY: OHM
+   USE suews_phys_ohm, ONLY: OHM
    USE ESTM_module, ONLY: ESTM
    USE EHC_module, ONLY: EHC
    USE suews_phys_snow, ONLY: SnowCalc, MeltHeat, SnowUpdate, update_snow_albedo, update_snow_dens
-   USE DailyState_module, ONLY: update_DailyStateLine_DTS, SUEWS_cal_DailyState
-   USE WaterDist_module, ONLY: &
+   USE suews_phys_dailystate, ONLY: update_DailyStateLine_DTS, SUEWS_cal_DailyState
+   USE suews_phys_waterdist, ONLY: &
       drainage, cal_water_storage_surf, &
       cal_water_storage_building, &
       SUEWS_cal_SoilState, &

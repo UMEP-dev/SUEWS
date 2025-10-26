@@ -1,4 +1,5 @@
-MODULE DailyState_module
+! Main module following naming standard: matches filename
+MODULE suews_phys_dailystate
    USE allocateArray, ONLY: &
       ndays, nsurf, nvegsurf, ivConif, ivDecid, ivGrass, DecidSurf, ncolumnsDataOutDailyState
 
@@ -1380,4 +1381,10 @@ CONTAINS
 
    END SUBROUTINE update_DailyStateLine_DTS
 
+END MODULE suews_phys_dailystate
+
+! Backward compatibility alias (deprecated - will be removed in future version)
+! TODO: Remove in version 2026.1.0 (deprecated since 2025.10.0)
+MODULE DailyState_module
+   USE suews_phys_dailystate
 END MODULE DailyState_module

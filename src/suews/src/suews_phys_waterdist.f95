@@ -1,4 +1,5 @@
-MODULE WaterDist_module
+! Main module following naming standard: matches filename
+MODULE suews_phys_waterdist
    USE allocateArray, ONLY: nsurf, &
                             PavSurf, BldgSurf, &
                             ConifSurf, DecidSurf, GrassSurf, &
@@ -2576,4 +2577,10 @@ CONTAINS
 
    END FUNCTION get_Prof_SpecTime_sum
 
+END MODULE suews_phys_waterdist
+
+! Backward compatibility alias (deprecated - will be removed in future version)
+! TODO: Remove in version 2026.1.0 (deprecated since 2025.10.0)
+MODULE WaterDist_module
+   USE suews_phys_waterdist
 END MODULE WaterDist_module

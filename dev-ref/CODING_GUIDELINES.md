@@ -134,10 +134,12 @@ except Exception:
 
 ## Fortran Guidelines
 
+**Complete naming conventions**: See **[FORTRAN_NAMING_CONVENTIONS.md](FORTRAN_NAMING_CONVENTIONS.md)** for comprehensive guidelines.
+
 ### 3.1 Module Structure
 
 ```fortran
-MODULE module_name
+MODULE suews_<category>_<name>
     USE other_module
     IMPLICIT NONE
 
@@ -151,19 +153,33 @@ MODULE module_name
 
 CONTAINS
     ! Subroutines and functions
-END MODULE module_name
+END MODULE suews_<category>_<name>
 ```
 
-### 3.2 Naming Conventions
+### 3.2 Naming Conventions (Summary)
+
+**Effective from October 2025** - All new code must follow these standards:
 
 | Type | Convention | Example |
 |------|------------|---------|
-| Modules | Descriptive with `_module` suffix | `AtmMoistStab_module` |
-| Subroutines | Mixed case with underscores | `SUEWS_update_atmState` |
-| Functions | Mixed case with underscores | `sat_vap_press` |
-| Parameters | UPPERCASE with underscores | `MOLMASS_AIR` |
-| Variables | lowercase with underscores | `dens_dry`, `temp_c` |
-| Types | Mixed case | `OHM_STATE` |
+| **Files** | `suews_<category>_<name>.f95` | `suews_phys_snow.f95` |
+| **Modules** | Match file name: `suews_<category>_<name>` | `suews_phys_snow` |
+| **Subroutines** | snake_case | `update_snow_state` |
+| **Functions** | snake_case | `calc_density` |
+| **Parameters** | UPPERCASE_UNDERSCORES | `STEFAN_BOLTZMANN` |
+| **Variables** | lowercase_underscores | `air_temperature` |
+| **Types** | snake_case with `_t` suffix | `snow_state_t` |
+| **Type components** | lowercase_underscores | `surface_temperature` |
+
+**Key principles**:
+- **One case style**: Everything uses snake_case (except UPPERCASE for constants)
+- File naming is already consistent (✅ established pattern)
+- Module names should match file names for easy discovery
+- One module per file preferred; use suffixes (`_const`, `_types`, `_ops`) if multiple needed
+- Consistent with scientific Python conventions (NumPy, SciPy, pandas)
+- Always document physical units in comments: `! [K]`, `! [W m-2]`
+
+**Migration**: Legacy code uses multiple patterns. See [FORTRAN_NAMING_CONVENTIONS.md](FORTRAN_NAMING_CONVENTIONS.md) for migration strategy and backward compatibility approach.
 
 ### 3.3 Variable Declarations
 

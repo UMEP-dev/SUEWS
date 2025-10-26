@@ -33,7 +33,10 @@ def _load_warn_helper():
             targets = [t.id for t in node.targets if isinstance(t, ast.Name)]
             if "_FUNCTIONAL_DEPRECATIONS" in targets:
                 deprecations = literal_eval(node.value)
-        elif isinstance(node, ast.FunctionDef) and node.name == "_warn_functional_deprecation":
+        elif (
+            isinstance(node, ast.FunctionDef)
+            and node.name == "_warn_functional_deprecation"
+        ):
             warn_func_node = node
 
     if deprecations is None or warn_func_node is None:

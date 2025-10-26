@@ -61,20 +61,23 @@ runs:
         echo "Generated version: $(cat src/supy/_version_scm.py | grep __version__)"
 
     - name: Build wheels
-      uses: pypa/cibuildwheel@v3.0.0
+      uses: pypa/cibuildwheel@v3.2
       env:
         IS_32_BIT: ${{ inputs.buildplat_arch == 'x86' }}
         BUILD_UMEP_VARIANT: ${{ inputs.is_umep_variant }}
         CIBW_BUILD: ${{ inputs.python }}-${{ inputs.buildplat_name }}*
         CIBW_ARCHS: ${{ inputs.buildplat_arch }}
+        # CIBW_ENABLE: ${{ inputs.python == 'cp314' && 'cp314' || '' }}
         CIBW_ENVIRONMENT_PASS_LINUX: ${{ inputs.is_umep_variant == 'true' && 'RUNNER_OS BUILD_UMEP_VARIANT' || 'RUNNER_OS' }}
-        # Use manylinux2014 for compatibility with older Linux systems (glibc 2.17+)
-        CIBW_MANYLINUX_X86_64_IMAGE: manylinux2014
-        CIBW_MANYLINUX_AARCH64_IMAGE: manylinux2014
+        # Use manylinux_2_28 for Python 3.14 (numpy requires it), manylinux2014 for older versions
+        CIBW_MANYLINUX_X86_64_IMAGE: ${{ inputs.python == 'cp314' && 'manylinux_2_28' || 'manylinux2014' }}
+        CIBW_MANYLINUX_AARCH64_IMAGE: ${{ inputs.python == 'cp314' && 'manylinux_2_28' || 'manylinux2014' }}
         # Configure pip to use binary wheels and avoid building from source
+        # Python 3.14: Allow f90wrap to build from source (no wheels yet)
         CIBW_ENVIRONMENT_LINUX: >
           PIP_PREFER_BINARY=1
-          PIP_ONLY_BINARY=${{ inputs.python == 'cp313' && 'pyarrow' || ':all:' }}
+          PIP_ONLY_BINARY=:all:
+          ${{ inputs.python == 'cp314' && 'PIP_NO_BINARY=f90wrap' || '' }}
           FCFLAGS="-fno-optimize-sibling-calls -ffree-line-length-none"
           F90=gfortran
           ${{ inputs.is_umep_variant == 'true' && 'BUILD_UMEP_VARIANT=true' || '' }}
@@ -87,8 +90,8 @@ runs:
             echo "Installing numpy>=2.0 for standard build" &&
             pip install 'numpy>=2.0';
           fi &&
-          if [[ "${{ inputs.python }}" == "cp313" ]]; then
-            echo "Installing numpy for Python 3.13 f90wrap build" &&
+          if [[ "${{ inputs.python }}" == "cp313" ]] || [[ "${{ inputs.python }}" == "cp314" ]]; then
+            echo "Installing numpy for Python ${{ inputs.python }} f90wrap build" &&
             pip install numpy;
           fi
         CIBW_BEFORE_ALL_MACOS: >

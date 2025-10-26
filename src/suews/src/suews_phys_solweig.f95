@@ -1,7 +1,7 @@
 MODULE solweig_module
    ! USE data_in
    ! USE gis_data
-   USE time_module, ONLY: DAYLEN
+   USE suews_util_time, ONLY: DAYLEN
    USE allocateArray, ONLY: ncolumnsdataOutSOLWEIG, deg2rad, rad2deg
    ! USE InitialCond
    ! USE sues_data

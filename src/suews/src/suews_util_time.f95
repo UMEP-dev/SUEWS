@@ -19,7 +19,8 @@
 !
 !sg feb 2012 - moved all time related subroutines together
 !===============================================================================
-MODULE time_module
+! Main module following naming standard: matches filename
+MODULE suews_util_time
    IMPLICIT NONE
 
 CONTAINS
@@ -447,4 +448,10 @@ CONTAINS
 
    END SUBROUTINE SUEWS_cal_DLS_DTS
 
+END MODULE suews_util_time
+
+! Backward compatibility alias (deprecated - will be removed in future version)
+! TODO: Remove in version 2026.1.0 (deprecated since 2025.10.0)
+MODULE time_module
+   USE suews_util_time
 END MODULE time_module

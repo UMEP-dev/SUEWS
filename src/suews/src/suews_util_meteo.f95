@@ -1,5 +1,6 @@
 !===================================================================================
-MODULE METEO
+! Main module following naming standard: matches filename
+MODULE suews_util_meteo
 
    USE MathConstants
    IMPLICIT NONE
@@ -557,4 +558,10 @@ CONTAINS
 
    END FUNCTION qa2RH
 
+END MODULE suews_util_meteo
+
+! Backward compatibility alias (deprecated - will be removed in future version)
+! TODO: Remove in version 2026.1.0 (deprecated since 2025.10.0)
+MODULE METEO
+   USE suews_util_meteo
 END MODULE METEO

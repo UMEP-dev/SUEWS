@@ -1,4 +1,5 @@
-MODULE Snow_module
+! Main module following naming standard: matches filename
+MODULE suews_phys_snow
    USE evap_module, ONLY: cal_evap
    USE allocateArray, ONLY: nsurf, PavSurf, BldgSurf, ConifSurf, BSoilSurf, WaterSurf, ncolumnsDataOutSnow
 
@@ -1554,4 +1555,10 @@ CONTAINS
 
    END FUNCTION update_snow_dens
 
+END MODULE suews_phys_snow
+
+! Backward compatibility alias (deprecated - will be removed in future version)
+! TODO: Remove in version 2026.1.0 (deprecated since 2025.10.0)
+MODULE Snow_module
+   USE suews_phys_snow
 END MODULE Snow_module

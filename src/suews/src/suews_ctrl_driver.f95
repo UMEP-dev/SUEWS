@@ -37,7 +37,7 @@ MODULE SUEWS_Driver
    USE OHM_module, ONLY: OHM
    USE ESTM_module, ONLY: ESTM
    USE EHC_module, ONLY: EHC
-   USE Snow_module, ONLY: SnowCalc, MeltHeat, SnowUpdate, update_snow_albedo, update_snow_dens
+   USE suews_phys_snow, ONLY: SnowCalc, MeltHeat, SnowUpdate, update_snow_albedo, update_snow_dens
    USE DailyState_module, ONLY: update_DailyStateLine_DTS, SUEWS_cal_DailyState
    USE WaterDist_module, ONLY: &
       drainage, cal_water_storage_surf, &
@@ -67,7 +67,7 @@ MODULE SUEWS_Driver
    USE beers_module, ONLY: BEERS_cal_main, BEERS_cal_main_DTS
    USE stebbs_module, ONLY: stebbsonlinecouple
    USE version, ONLY: git_commit, compiler_ver ! these are automatically generated during compilation time
-   USE time_module, ONLY: SUEWS_cal_dectime_DTS, SUEWS_cal_tstep_DTS, SUEWS_cal_weekday_DTS, &
+   USE suews_util_time, ONLY: SUEWS_cal_dectime_DTS, SUEWS_cal_tstep_DTS, SUEWS_cal_weekday_DTS, &
                           SUEWS_cal_DLS_DTS
 
    IMPLICIT NONE

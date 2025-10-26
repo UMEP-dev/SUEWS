@@ -36,7 +36,7 @@ MODULE NARP_MODULE
 
    !==============================================================================================
    ! USE allocateArray
-   USE time_module, ONLY: day2month, dectime_to_timevec
+   USE suews_util_time, ONLY: day2month, dectime_to_timevec
 
    IMPLICIT NONE
 

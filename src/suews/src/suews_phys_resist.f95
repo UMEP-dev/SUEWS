@@ -1,5 +1,5 @@
 ! Main module following naming standard: matches filename
-MODULE suews_phys_resist
+MODULE module_phys_resist
    IMPLICIT NONE
 
 CONTAINS
@@ -37,7 +37,7 @@ CONTAINS
       !         VegFraction = Fraction of vegetation
       !               (changed from veg_fr which also includes water surface by HCW 05 Nov 2015)
 
-      USE suews_phys_atmmoiststab, ONLY: stab_psi_heat, stab_psi_mom
+      USE module_phys_atmmoiststab, ONLY: stab_psi_heat, stab_psi_mom
       USE sues_data, ONLY: psih
 
       IMPLICIT NONE
@@ -737,10 +737,10 @@ CONTAINS
 
    END FUNCTION sigmoid
 
-END MODULE suews_phys_resist
+END MODULE module_phys_resist
 
 ! Backward compatibility alias (deprecated - will be removed in future version)
 ! TODO: Remove in version 2026.1.0 (deprecated since 2025.10.0)
 MODULE resist_module
-   USE suews_phys_resist
+   USE module_phys_resist
 END MODULE resist_module

@@ -1,5 +1,5 @@
 ! Main module following naming standard: matches filename
-MODULE suews_phys_ohm
+MODULE module_phys_ohm
    ! USE allocateArray
    ! USE data_in
    ! USE defaultNotUsed
@@ -641,10 +641,10 @@ CONTAINS
 
    END SUBROUTINE calculate_a3
 
-END MODULE suews_phys_ohm
+END MODULE module_phys_ohm
 
 ! Backward compatibility alias (deprecated - will be removed in future version)
 ! TODO: Remove in version 2026.1.0 (deprecated since 2025.10.0)
 MODULE OHM_module
-   USE suews_phys_ohm
+   USE module_phys_ohm
 END MODULE OHM_module

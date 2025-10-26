@@ -1,5 +1,5 @@
 ! Main module following naming standard: matches filename
-MODULE suews_ctrl_output
+MODULE module_ctrl_output
    !===========================================================================================
    ! generic output functions for SUEWS
    ! authors: Ting Sun (ting.sun@reading.ac.uk)
@@ -2564,9 +2564,9 @@ CONTAINS
 !    END SUBROUTINE check
 ! #endif
 
-END MODULE suews_ctrl_output
+END MODULE module_ctrl_output
 
 ! Backward compatibility alias
 MODULE ctrl_output
-   USE suews_ctrl_output
+   USE module_ctrl_output
 END MODULE ctrl_output

@@ -4,7 +4,7 @@
 ! TS 11 Jun 2018: modified according to recent SUEWS development
 
 ! Main module following naming standard: matches filename
-MODULE suews_ctrl_sumin
+MODULE module_ctrl_sumin
    USE SUEWS_Driver, ONLY: SUEWS_cal_Main, &
                            PavSurf, BldgSurf, ConifSurf, DecidSurf, GrassSurf, BSoilSurf, WaterSurf, &
                            ivConif, ivDecid, ivGrass, &
@@ -621,9 +621,9 @@ CONTAINS
 
    END SUBROUTINE SuMin
 
-END MODULE suews_ctrl_sumin
+END MODULE module_ctrl_sumin
 
 ! Backward compatibility alias
 MODULE SuMin_Module
-   USE suews_ctrl_sumin
+   USE module_ctrl_sumin
 END MODULE SuMin_Module

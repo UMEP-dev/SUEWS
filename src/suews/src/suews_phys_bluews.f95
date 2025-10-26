@@ -1,6 +1,6 @@
 !======================================================================================================
 ! Main module following naming standard: matches filename
-MODULE suews_phys_bluews_cbl
+MODULE module_phys_bluews_cbl
 
    INTEGER :: EntrainmentType, & ! Entrainment type choice
               CO2_included, & ! CO2 included
@@ -52,17 +52,17 @@ MODULE suews_phys_bluews_cbl
    REAL(KIND(1D0)), DIMENSION(0:500, 2) :: gtheta, ghum ! Vertical gradient of theta and specific humidity from sonde data
    REAL(KIND(1D0)), DIMENSION(6) :: y ! NT set from 4 to 6
 
-END MODULE suews_phys_bluews_cbl
+END MODULE module_phys_bluews_cbl
 
 ! Backward compatibility alias (deprecated - will be removed in future version)
 ! TODO: Remove in version 2026.1.0 (deprecated since 2025.10.0)
 MODULE cbl_MODULE
-   USE suews_phys_bluews_cbl
+   USE module_phys_bluews_cbl
 END MODULE cbl_MODULE
 !===================================================================================
 
-MODULE suews_phys_bluews
-   USE suews_phys_bluews_cbl
+MODULE module_phys_bluews
+   USE module_phys_bluews_cbl
    USE meteo, ONLY: qsatf, sat_vap_press_x
 
    IMPLICIT NONE
@@ -368,7 +368,7 @@ CONTAINS
    SUBROUTINE CBL_initial(qh_use, qe_use, tm_K_zm, qm_gkg_zm, startflag, ir, Gridiv)
 
       USE mod_z
-      USE suews_phys_atmmoiststab, ONLY: k
+      USE module_phys_atmmoiststab, ONLY: k
       USE gas
       USE time
       USE data_in
@@ -920,10 +920,10 @@ CONTAINS
 
    END SUBROUTINE gamma_sonde
 
-END MODULE suews_phys_bluews
+END MODULE module_phys_bluews
 
 ! Backward compatibility alias (deprecated - will be removed in future version)
 ! TODO: Remove in version 2026.1.0 (deprecated since 2025.10.0)
 MODULE BLUEWS_module
-   USE suews_phys_bluews
+   USE module_phys_bluews
 END MODULE BLUEWS_module

@@ -13,8 +13,8 @@
 ! 20170825: improved Bowen calculation
 !========================================================================================
 ! Main module following naming standard: matches filename
-MODULE suews_phys_anohm
-   USE suews_phys_ohm, ONLY: OHM_dqndt_cal_X, OHM_QS_cal
+MODULE module_phys_anohm
+   USE module_phys_ohm, ONLY: OHM_dqndt_cal_X, OHM_QS_cal
 
    IMPLICIT NONE
 CONTAINS
@@ -1448,10 +1448,10 @@ CONTAINS
    END FUNCTION qa_fn
    !========================================================================================
 
-END MODULE suews_phys_anohm
+END MODULE module_phys_anohm
 
 ! Backward compatibility alias (deprecated - will be removed in future version)
 ! TODO: Remove in version 2026.1.0 (deprecated since 2025.10.0)
 MODULE AnOHM_module
-   USE suews_phys_anohm
+   USE module_phys_anohm
 END MODULE AnOHM_module

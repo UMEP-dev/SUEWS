@@ -7,7 +7,7 @@
 ! Made F conformant by Walt Brainerd
 
 ! Main module following naming standard: matches filename
-MODULE suews_util_qsort
+MODULE module_util_qsort
 
    IMPLICIT NONE
    PUBLIC :: QsortC
@@ -63,9 +63,9 @@ CONTAINS
 
    END SUBROUTINE Partition
 
-END MODULE suews_util_qsort
+END MODULE module_util_qsort
 
 ! Backward compatibility alias
 MODULE qsort_c_module
-   USE suews_util_qsort
+   USE module_util_qsort
 END MODULE qsort_c_module

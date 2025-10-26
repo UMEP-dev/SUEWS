@@ -26,20 +26,20 @@ MODULE SUEWS_Driver
                             SUEWS_STATE_BLOCK, &
                             output_line, output_block
    USE meteo, ONLY: qsatf, RH2qa, qa2RH
-   USE suews_phys_atmmoiststab, ONLY: cal_AtmMoist, cal_Stab, stab_psi_heat, stab_psi_mom, SUEWS_update_atmState
-   USE suews_phys_narp, ONLY: NARP_cal_SunPosition, NARP_cal_SunPosition_DTS
-   USE suews_phys_atmmoiststab, ONLY: cal_AtmMoist, cal_Stab, stab_psi_heat, stab_psi_mom
-   USE suews_phys_narp, ONLY: NARP_cal_SunPosition
-   USE suews_phys_spartacus, ONLY: SPARTACUS
+   USE module_phys_atmmoiststab, ONLY: cal_AtmMoist, cal_Stab, stab_psi_heat, stab_psi_mom, SUEWS_update_atmState
+   USE module_phys_narp, ONLY: NARP_cal_SunPosition, NARP_cal_SunPosition_DTS
+   USE module_phys_atmmoiststab, ONLY: cal_AtmMoist, cal_Stab, stab_psi_heat, stab_psi_mom
+   USE module_phys_narp, ONLY: NARP_cal_SunPosition
+   USE module_phys_spartacus, ONLY: SPARTACUS
    ! USE AnOHM_module, ONLY: AnOHM
-   USE suews_phys_resist, ONLY: AerodynamicResistance, BoundaryLayerResistance, SurfaceResistance, &
+   USE module_phys_resist, ONLY: AerodynamicResistance, BoundaryLayerResistance, SurfaceResistance, &
                             SUEWS_cal_RoughnessParameters
-   USE suews_phys_ohm, ONLY: OHM
+   USE module_phys_ohm, ONLY: OHM
    USE ESTM_module, ONLY: ESTM
-   USE suews_phys_ehc, ONLY: EHC
-   USE suews_phys_snow, ONLY: SnowCalc, MeltHeat, SnowUpdate, update_snow_albedo, update_snow_dens
-   USE suews_phys_dailystate, ONLY: update_DailyStateLine_DTS, SUEWS_cal_DailyState
-   USE suews_phys_waterdist, ONLY: &
+   USE module_phys_ehc, ONLY: EHC
+   USE module_phys_snow, ONLY: SnowCalc, MeltHeat, SnowUpdate, update_snow_albedo, update_snow_dens
+   USE module_phys_dailystate, ONLY: update_DailyStateLine_DTS, SUEWS_cal_DailyState
+   USE module_phys_waterdist, ONLY: &
       drainage, cal_water_storage_surf, &
       cal_water_storage_building, &
       SUEWS_cal_SoilState, &
@@ -47,12 +47,12 @@ MODULE SUEWS_Driver
       ReDistributeWater, SUEWS_cal_HorizontalSoilWater, &
       SUEWS_cal_HorizontalSoilWater_DTS, &
       SUEWS_cal_WaterUse
-   USE suews_ctrl_output, ONLY: varListAll
-   USE suews_phys_lumps, ONLY: LUMPS_cal_QHQE_DTS
-   USE suews_phys_evap, ONLY: cal_evap_multi
-   USE suews_phys_rslprof, ONLY: RSLProfile, RSLProfile_DTS
-   USE suews_phys_anthro, ONLY: AnthropogenicEmissions
-   USE suews_phys_biogenco2, ONLY: CO2_biogen
+   USE module_ctrl_output, ONLY: varListAll
+   USE module_phys_lumps, ONLY: LUMPS_cal_QHQE_DTS
+   USE module_phys_evap, ONLY: cal_evap_multi
+   USE module_phys_rslprof, ONLY: RSLProfile, RSLProfile_DTS
+   USE module_phys_anthro, ONLY: AnthropogenicEmissions
+   USE module_phys_biogenco2, ONLY: CO2_biogen
    USE allocateArray, ONLY: &
       nsurf, nvegsurf, ndepth, nspec, &
       PavSurf, BldgSurf, ConifSurf, DecidSurf, GrassSurf, BSoilSurf, WaterSurf, &
@@ -63,11 +63,11 @@ MODULE SUEWS_Driver
       ncolumnsDataOutDebug, ncolumnsDataOutSPARTACUS, ncolumnsDataOutEHC, &
       ncolumnsDataOutSTEBBS, ncolumnsDataOutNHood
    USE moist, ONLY: avcp, avdens, lv_J_kg
-   USE suews_phys_solweig, ONLY: SOLWEIG_cal_main
-   USE suews_phys_beers, ONLY: BEERS_cal_main, BEERS_cal_main_DTS
-   USE suews_phys_stebbs, ONLY: stebbsonlinecouple
+   USE module_phys_solweig, ONLY: SOLWEIG_cal_main
+   USE module_phys_beers, ONLY: BEERS_cal_main, BEERS_cal_main_DTS
+   USE module_phys_stebbs, ONLY: stebbsonlinecouple
    USE version, ONLY: git_commit, compiler_ver ! these are automatically generated during compilation time
-   USE suews_util_time, ONLY: SUEWS_cal_dectime_DTS, SUEWS_cal_tstep_DTS, SUEWS_cal_weekday_DTS, &
+   USE module_util_time, ONLY: SUEWS_cal_dectime_DTS, SUEWS_cal_tstep_DTS, SUEWS_cal_weekday_DTS, &
                           SUEWS_cal_DLS_DTS
 
    IMPLICIT NONE
@@ -1146,8 +1146,8 @@ CONTAINS
       timer, config, forcing, siteInfo, & ! input
       modState, & ! input/output:
       dataOutLineSPARTACUS) ! output
-      USE suews_phys_narp, ONLY: RadMethod, NARP
-      USE suews_phys_spartacus, ONLY: SPARTACUS
+      USE module_phys_narp, ONLY: RadMethod, NARP
+      USE module_phys_spartacus, ONLY: SPARTACUS
       USE SUEWS_DEF_DTS, ONLY: SUEWS_SITE, SUEWS_TIMER, SUEWS_CONFIG, SUEWS_FORCING
       USE SUEWS_DEF_DTS, ONLY: SUEWS_CONFIG, SUEWS_TIMER, SNOW_STATE, SNOW_PRM, &
                                SUEWS_FORCING, SUEWS_SITE, &

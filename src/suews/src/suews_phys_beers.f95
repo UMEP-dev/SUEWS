@@ -21,13 +21,13 @@
 !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
 ! Main module following naming standard: matches filename
-MODULE suews_phys_beers
+MODULE module_phys_beers
 
    ! USE allocateArray, only: ncolumnsDataOutSol, deg2rad, rad2deg
    ! USE defaultNotUsed, only: notUsed, notUsedI
-   USE suews_phys_narp, ONLY: NARP_cal_SunPosition
+   USE module_phys_narp, ONLY: NARP_cal_SunPosition
    USE allocateArray, ONLY: ncolumnsDataOutBEERS
-   USE suews_util_time, ONLY: DAYLEN, SUEWS_cal_weekday, SUEWS_cal_dectime, &
+   USE module_util_time, ONLY: DAYLEN, SUEWS_cal_weekday, SUEWS_cal_dectime, &
                           Day_Of_Week, SUEWS_cal_DLS, Days_of_Year, LeapYearCalc, day2month, &
                           SUEWS_cal_tstep, month2day, dectime_to_timevec
 
@@ -1962,9 +1962,9 @@ CONTAINS
    END FUNCTION set_nan
 !========================================================================
 
-END MODULE suews_phys_beers
+END MODULE module_phys_beers
 
 ! Backward compatibility alias
 MODULE beers_module
-   USE suews_phys_beers
+   USE module_phys_beers
 END MODULE beers_module

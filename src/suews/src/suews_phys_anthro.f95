@@ -1,5 +1,5 @@
 ! Main module following naming standard: matches filename
-MODULE suews_phys_anthro
+MODULE module_phys_anthro
    USE get_prof_module, ONLY: get_Prof_SpecTime_inst, get_Prof_SpecTime_mean
 
    IMPLICIT NONE
@@ -345,10 +345,10 @@ CONTAINS
       RETURN
    END SUBROUTINE AnthropogenicEmissions
 
-END MODULE suews_phys_anthro
+END MODULE module_phys_anthro
 
 ! Backward compatibility alias
 MODULE AnEmsn_module
-   USE suews_phys_anthro
+   USE module_phys_anthro
 END MODULE AnEmsn_module
 !========================================================================================

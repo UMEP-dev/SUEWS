@@ -785,7 +785,7 @@ CONTAINS
          tin_surf, tin_surf_grids, &
          nspec
       USE data_in, ONLY: FileInputPath, filecode
-      USE suews_util_stringmod, ONLY: writenum
+      USE module_util_stringmod, ONLY: writenum
       IMPLICIT NONE
       INTEGER, INTENT(IN) :: gridIV
       INTEGER, INTENT(IN) :: diagnose
@@ -1729,7 +1729,7 @@ CONTAINS
       ! USE modSolarCalc !!FO!! :modsolarcalc.f95
       ! USE MathConstants !!FO!! :MathConstants_module.f95
       USE PhysConstants, ONLY: c2k, SBConst
-      USE suews_phys_ehc_heatflux, ONLY: heatcond1d
+      USE heatflux, ONLY: heatcond1d
       USE ESTM_data
 
       IMPLICIT NONE

@@ -1,4 +1,5 @@
-MODULE heatflux
+! EHC heatflux calculations module
+MODULE suews_phys_ehc_heatflux
    IMPLICIT NONE
 CONTAINS
    SUBROUTINE thomas_triMat(lw, diag, up, rhs, n, x)
@@ -356,9 +357,15 @@ CONTAINS
       ! END IF
    END SUBROUTINE heatcond1d_CN_dense
 
+END MODULE suews_phys_ehc_heatflux
+
+! Backward compatibility alias
+MODULE heatflux
+   USE suews_phys_ehc_heatflux
 END MODULE heatflux
 
-MODULE EHC_module
+! Main module following naming standard: matches filename
+MODULE suews_phys_ehc
    !===============================================================================
    ! revision history:
    ! TS 09 Oct 2017: re-organised ESTM subroutines into a module
@@ -385,7 +392,7 @@ CONTAINS
       USE allocateArray, ONLY: &
          nsurf, ndepth, &
          PavSurf, BldgSurf, ConifSurf, DecidSurf, GrassSurf, BSoilSurf, WaterSurf
-      USE heatflux, ONLY: heatcond1d_vstep, heatcond1d_CN, heatcond1d_CN_dense
+      USE suews_phys_ehc_heatflux, ONLY: heatcond1d_vstep, heatcond1d_CN, heatcond1d_CN_dense
 
       IMPLICIT NONE
       INTEGER, INTENT(in) :: tstep
@@ -738,4 +745,9 @@ CONTAINS
 
    END SUBROUTINE EHC
 
+END MODULE suews_phys_ehc
+
+! Backward compatibility alias
+MODULE EHC_module
+   USE suews_phys_ehc
 END MODULE EHC_module

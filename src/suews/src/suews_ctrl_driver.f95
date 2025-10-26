@@ -26,9 +26,9 @@ MODULE SUEWS_Driver
                             SUEWS_STATE_BLOCK, &
                             output_line, output_block
    USE meteo, ONLY: qsatf, RH2qa, qa2RH
-   USE AtmMoistStab_module, ONLY: cal_AtmMoist, cal_Stab, stab_psi_heat, stab_psi_mom, SUEWS_update_atmState
+   USE suews_phys_atmmoiststab, ONLY: cal_AtmMoist, cal_Stab, stab_psi_heat, stab_psi_mom, SUEWS_update_atmState
    USE suews_phys_narp, ONLY: NARP_cal_SunPosition, NARP_cal_SunPosition_DTS
-   USE AtmMoistStab_module, ONLY: cal_AtmMoist, cal_Stab, stab_psi_heat, stab_psi_mom
+   USE suews_phys_atmmoiststab, ONLY: cal_AtmMoist, cal_Stab, stab_psi_heat, stab_psi_mom
    USE suews_phys_narp, ONLY: NARP_cal_SunPosition
    USE suews_phys_spartacus, ONLY: SPARTACUS
    ! USE AnOHM_module, ONLY: AnOHM
@@ -36,7 +36,7 @@ MODULE SUEWS_Driver
                             SUEWS_cal_RoughnessParameters
    USE suews_phys_ohm, ONLY: OHM
    USE ESTM_module, ONLY: ESTM
-   USE EHC_module, ONLY: EHC
+   USE suews_phys_ehc, ONLY: EHC
    USE suews_phys_snow, ONLY: SnowCalc, MeltHeat, SnowUpdate, update_snow_albedo, update_snow_dens
    USE suews_phys_dailystate, ONLY: update_DailyStateLine_DTS, SUEWS_cal_DailyState
    USE suews_phys_waterdist, ONLY: &
@@ -52,7 +52,7 @@ MODULE SUEWS_Driver
    USE evap_module, ONLY: cal_evap_multi
    USE rsl_module, ONLY: RSLProfile, RSLProfile_DTS
    USE anemsn_module, ONLY: AnthropogenicEmissions
-   USE CO2_module, ONLY: CO2_biogen
+   USE suews_phys_biogenco2, ONLY: CO2_biogen
    USE allocateArray, ONLY: &
       nsurf, nvegsurf, ndepth, nspec, &
       PavSurf, BldgSurf, ConifSurf, DecidSurf, GrassSurf, BSoilSurf, WaterSurf, &

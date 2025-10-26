@@ -1,4 +1,5 @@
-MODULE AtmMoistStab_module
+! Main module following naming standard: matches filename
+MODULE suews_phys_atmmoiststab
    USE SUEWS_DEF_DTS, ONLY: atm_state, SUEWS_FORCING, SUEWS_TIMER, SUEWS_STATE
    USE PhysConstants, ONLY: eps_fp
    IMPLICIT NONE
@@ -1227,4 +1228,9 @@ CONTAINS
    !    RETURN
    ! END FUNCTION stab_fn_rou
 
+END MODULE suews_phys_atmmoiststab
+
+! Backward compatibility alias
+MODULE AtmMoistStab_module
+   USE suews_phys_atmmoiststab
 END MODULE AtmMoistStab_module

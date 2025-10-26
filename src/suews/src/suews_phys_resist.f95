@@ -37,7 +37,7 @@ CONTAINS
       !         VegFraction = Fraction of vegetation
       !               (changed from veg_fr which also includes water surface by HCW 05 Nov 2015)
 
-      USE AtmMoistStab_module, ONLY: stab_psi_heat, stab_psi_mom
+      USE suews_phys_atmmoiststab, ONLY: stab_psi_heat, stab_psi_mom
       USE sues_data, ONLY: psih
 
       IMPLICIT NONE

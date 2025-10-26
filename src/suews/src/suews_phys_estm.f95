@@ -1729,7 +1729,7 @@ CONTAINS
       ! USE modSolarCalc !!FO!! :modsolarcalc.f95
       ! USE MathConstants !!FO!! :MathConstants_module.f95
       USE PhysConstants, ONLY: c2k, SBConst
-      USE heatflux, ONLY: heatcond1d
+      USE suews_phys_ehc_heatflux, ONLY: heatcond1d
       USE ESTM_data
 
       IMPLICIT NONE

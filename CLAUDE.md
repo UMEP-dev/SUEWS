@@ -76,41 +76,60 @@ For benchmark test details and debugging guidance, see `.claude/reference/testin
 - **After conversation compaction**, remember to `source .venv/bin/activate` if venv exists
 - **Documentation generation**: Only modify `generate_datamodel_rst.py` script, not the generated YAML RST files directly
 
-## Dual-Source Pattern for Input/Output Variables
+## Variable Definition Patterns
 
-**IMPORTANT**: Both input and output variable definitions follow a dual-source pattern (manual Fortran + manual Python).
+**IMPORTANT**: Input and output variables use different source-of-truth patterns.
 
-### Output Variables (varAttr)
-- **Fortran source**: `src/suews/src/suews_ctrl_output.f95`
-  - varAttr TYPE defined in `src/suews/src/suews_ctrl_type.f95`
-  - varListAll array with manual DATA statements in `suews_ctrl_output.f95`
-  - Used by Fortran runtime for output formatting and file writing
-- **Python source**: `src/supy/data_model/output/`
+### Output Variables - Python-Only (Single Source)
+
+**Source of truth**: `src/supy/data_model/output/` - Python Pydantic OUTPUT_REGISTRY
+
+- **Python source** (ONLY source):
   - OUTPUT_REGISTRY with Pydantic models
+  - Complete metadata: names, units, descriptions, aggregation methods
   - Used for Python API, validation, and documentation generation
   - Documentation RST generated via `docs/generate_output_variable_rst.py`
 
-### Input Configuration (Pydantic models)
+- **Fortran**: No output variable metadata (legacy `varAttr` TYPE exists but unused)
+  - Fortran kernel produces raw numerical arrays
+  - Python wraps and labels output using OUTPUT_REGISTRY
+
+**When adding output variables**:
+1. Add variable to Python OUTPUT_REGISTRY (e.g., in `src/supy/data_model/output/suews_vars.py`)
+2. Update documentation if needed (usually auto-generated from Pydantic models)
+3. Rebuild: `make dev` or `pip install -e .`
+
+### Input Configuration - Dual-Source (Manual Sync)
+
+**IMPORTANT**: Input configuration requires manual synchronisation between Fortran and Python.
+
 - **Fortran source**: `src/suews/src/suews_ctrl_type.f95`
   - TYPE definitions (SUEWS_CONFIG, SUEWS_SITE, etc.)
   - Used by Fortran runtime for calculations
+
 - **Python source**: `src/supy/data_model/`
   - Pydantic models matching Fortran TYPEs
   - Used for YAML parsing, validation, and schema generation
   - Configuration RST generated via `docs/generate_datamodel_rst.py`
 
-### When Adding New Variables
-**MUST update BOTH sources** for consistency:
-1. Add variable to Fortran (TYPE or DATA statement)
-2. Add variable to Python (Pydantic model or OUTPUT_REGISTRY)
+**When adding input configuration variables**:
+1. Add variable to Fortran TYPE definition
+2. Add variable to corresponding Python Pydantic model
 3. Update documentation if needed (usually auto-generated)
 4. Ensure names, types, and descriptions match between sources
 
-### Why Dual-Source?
-- **Fortran independence**: Fortran can build without Python dependencies
-- **Type safety**: Pydantic provides validation and IDE support
-- **Documentation**: Auto-generated docs from Python metadata
-- **Proven pattern**: Already works well for input configuration
+### Why Different Patterns?
+
+**Output (Python-only)**:
+- Python developers primarily add new outputs
+- Single source eliminates sync burden
+- Auto-generated documentation from rich metadata
+- Fortran kernel is data-agnostic (just produces arrays)
+
+**Input (Dual-source)**:
+- Fortran must parse and use configuration directly
+- Fortran independence maintained for legacy workflows
+- Python provides modern YAML interface and validation
 
 ## Configuration Pattern
 

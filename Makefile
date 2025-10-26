@@ -59,19 +59,37 @@ dev:
 		exit 1; \
 	fi
 	@echo "Installing SUEWS in editable mode..."
-	@# Uninstall first if build directory is missing (post-clean state)
-	@if [ ! -d "build" ]; then \
-		echo "Build directory missing - performing clean reinstall..."; \
+	@# Check if build directory exists for current Python version
+	@NEEDS_REINSTALL=false; \
+	PY_TAG=$$(python -c "import sys; print(f'cp{sys.version_info.major}{sys.version_info.minor}')"); \
+	if [ -d "build" ] && [ ! -d "build/$$PY_TAG" ]; then \
+		echo "Build directory for $$PY_TAG not found (stale build detected)"; \
+		echo "Cleaning build directory and uninstalling..."; \
+		rm -rf build; \
+		NEEDS_REINSTALL=true; \
+	elif ! [ -d "build" ]; then \
 		if command -v uv >/dev/null 2>&1; then \
-			uv pip uninstall supy || true; \
-		else \
-			$(PYTHON) -m pip uninstall supy -y || true; \
+			if uv pip list | grep -q "^supy "; then \
+				echo "Package installed but build directory missing (stale install detected)"; \
+				echo "Uninstalling..."; \
+				NEEDS_REINSTALL=true; \
+			fi \
+		elif python -m pip list | grep -q "^supy "; then \
+			echo "Package installed but build directory missing (stale install detected)"; \
+			echo "Uninstalling..."; \
+			NEEDS_REINSTALL=true; \
 		fi \
-	fi
-	@# Install build dependencies first (required for --no-build-isolation)
-	@if command -v uv >/dev/null 2>&1; then \
+	fi; \
+	if command -v uv >/dev/null 2>&1; then \
 		echo "Using uv for fast installation..."; \
+		if [ "$$NEEDS_REINSTALL" = "true" ]; then \
+			uv pip uninstall supy || true; \
+		fi; \
 		uv pip install wheel pytest "f90wrap==0.2.16" "numpy>=2.0" "meson-python>=0.12.0"; \
+		if ! [ -d "build/$$PY_TAG" ]; then \
+			echo "Initializing build directory for $$PY_TAG..."; \
+			python -m mesonbuild.mesonmain setup build/$$PY_TAG --buildtype=release; \
+		fi; \
 		if [ -x "/opt/homebrew/bin/gfortran" ]; then \
 			echo "Using Homebrew gfortran for macOS compatibility"; \
 			bash -c 'FC=/opt/homebrew/bin/gfortran uv pip install --no-build-isolation -e ".[dev]"'; \
@@ -79,7 +97,14 @@ dev:
 			uv pip install --no-build-isolation -e ".[dev]"; \
 		fi \
 	else \
+		if [ "$$NEEDS_REINSTALL" = "true" ]; then \
+			$(PYTHON) -m pip uninstall supy -y || true; \
+		fi; \
 		$(PYTHON) -m pip install wheel pytest "f90wrap==0.2.16" "numpy>=2.0" "meson-python>=0.12.0"; \
+		if ! [ -d "build/$$PY_TAG" ]; then \
+			echo "Initializing build directory for $$PY_TAG..."; \
+			python -m mesonbuild.mesonmain setup build/$$PY_TAG --buildtype=release; \
+		fi; \
 		if [ -x "/opt/homebrew/bin/gfortran" ]; then \
 			FC=/opt/homebrew/bin/gfortran $(PYTHON) -m pip install --no-build-isolation -e ".[dev]"; \
 		else \

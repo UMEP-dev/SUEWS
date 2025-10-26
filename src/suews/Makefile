@@ -189,7 +189,6 @@ PHYS =	suews_phys_narp.o \
 	suews_phys_ehc.o \
 	suews_phys_estm.o \
 	suews_ctrl_ver.o \
-	suews_ctrl_output.o \
 	suews_phys_ohm.o \
 	suews_phys_anohm.o \
 	suews_phys_lumps.o \
@@ -343,27 +342,17 @@ exe: $(addprefix $(DIR_SRC_SUEWS), $(OTHERS) suews_program$(suffix_code))
 src/suews_phys_spartacus.o: src/suews_phys_spartacus.f95 libspartacus
 	$(FC) $(FCFLAGS) -c $< -o $@
 
-# special rule for output control module - uses manually maintained varlist
-src/suews_ctrl_output.o: src/suews_ctrl_output.f95
-	@echo "Compiling output control module (with manually maintained varlist)..."
-	$(FC) $(FCFLAGS) -c $< -o $@
-
 # rules for f95-->f90
 %.o: %$(suffix_code)
 	@echo $^
 	$(FC) $(FCFLAGS) -c $^ -o $@
 
-clean: clean-obj clean-mods clean-lib clean-bin clean-ext clean-generated
+clean: clean-obj clean-mods clean-lib clean-bin clean-ext
 
 # dist-clean: clean-tests clean-toplevel clean-utilities clean-mods dist-clean-doc
 
 clean-obj:
 	find . -name "*.o" -type f -delete
-
-clean-generated:
-	@echo "Cleaning auto-generated files..."
-	rm -f src/varlist_generated.f95 src/replace_data_statements.py
-
 
 clean-lib:
 	find . -name "lib*.a" -type f -delete

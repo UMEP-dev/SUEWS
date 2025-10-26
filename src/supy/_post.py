@@ -10,85 +10,28 @@ from ._env import logger_supy
 # post-processing part
 
 
-def _get_output_info_from_registry():
-    """Get output variable metadata from Python Pydantic registry.
-
-    This is the new Python-first approach that provides type-safe,
-    self-documenting variable definitions.
-
-    Returns:
-        DataFrame with MultiIndex (group, var) and columns (aggm, outlevel, func)
-    """
-    try:
-        from .data_model.output import OUTPUT_REGISTRY
-
-        # Convert registry to DataFrame format compatible with old code
-        df_var = OUTPUT_REGISTRY.to_dataframe()
-        return df_var
-    except ImportError as e:
-        # If data_model.output not available, raise to trigger fallback
-        logger_supy.debug(f"Pydantic registry not available: {e}")
-        raise
-
-
-def _get_output_info_from_fortran():
-    """Get output variable metadata from Fortran (legacy implementation).
-
-    This is the original Fortran-first approach using f90wrap bindings.
-    Kept for backward compatibility and validation.
-
-    Returns:
-        DataFrame with MultiIndex (group, var) and columns (aggm, outlevel)
-    """
-    from packaging.version import parse as LooseVersion
-
-    size_var_list = sd.output_size()
-    list_var_x = [np.array(sd.output_name_n(i)) for i in np.arange(size_var_list) + 1]
-
-    df_var_list = pd.DataFrame(list_var_x, columns=["var", "group", "aggm", "outlevel"])
-
-    # strip leading and trailing spaces
-    fun_strip = lambda x: x.decode().strip()
-    if LooseVersion(pd.__version__) >= LooseVersion("2.1.0"):
-        # if pandas version is 2.1.0 or above, we can use `df.map`
-        df_var_list = df_var_list.map(fun_strip)
-    else:
-        # otherwise, we need to use `df.applymap`
-        df_var_list = df_var_list.applymap(fun_strip)
-
-    df_var_list_x = df_var_list.replace(r"^\s*$", np.nan, regex=True).dropna()
-    df_var_dfm = df_var_list_x.set_index(["group", "var"])
-
-    # Add func column for compatibility
-    dict_func_aggm = {
-        "T": lambda x: x.iloc[-1] if len(x) > 0 else np.nan,  # last value
-        "A": "mean",
-        "S": "sum",
-        "L": lambda x: x.iloc[-1] if len(x) > 0 else np.nan,  # last value
-    }
-    df_var_dfm["func"] = df_var_dfm.aggm.apply(lambda x: dict_func_aggm[x])
-
-    return df_var_dfm
 
 
 def get_output_info_df():
-    """Get output variable metadata (Pydantic-first with Fortran fallback).
+    """Get output variable metadata from Python Pydantic OUTPUT_REGISTRY.
 
-    Attempts to load variable metadata from Python Pydantic registry first.
-    Falls back to Fortran extraction if Pydantic registry is not available.
+    This function loads variable metadata from the Python-first Pydantic registry,
+    which is the single source of truth for output variable definitions.
 
     Returns:
         DataFrame with MultiIndex (group, var) and columns (aggm, outlevel, func)
+
+    Raises:
+        ImportError: If OUTPUT_REGISTRY cannot be imported (e.g., missing data_model.output)
     """
-    try:
-        # Try Python registry first (new approach)
-        df_var = _get_output_info_from_registry()
-        logger_supy.debug("Using Pydantic output variable registry")
-        return df_var
-    except (ImportError, Exception) as e:
-        # Fallback to Fortran extraction (legacy)
-        logger_supy.debug(f"Falling back to Fortran metadata extraction: {e}")
-        return _get_output_info_from_fortran()
+    from .data_model.output import OUTPUT_REGISTRY
+
+    # Convert registry to DataFrame format compatible with existing code
+    df_var = OUTPUT_REGISTRY.to_dataframe()
+    logger_supy.debug(
+        f"Using Pydantic OUTPUT_REGISTRY: {len(OUTPUT_REGISTRY.variables)} variables"
+    )
+    return df_var
 
 
 # Get variable info as a DataFrame

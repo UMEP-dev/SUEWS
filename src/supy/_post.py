@@ -9,8 +9,6 @@ from ._env import logger_supy
 # post-processing part
 
 
-
-
 def get_output_info_df():
     """Get output variable metadata from Python Pydantic OUTPUT_REGISTRY.
 

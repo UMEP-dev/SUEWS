@@ -1,4 +1,5 @@
-MODULE solweig_module
+! Main module following naming standard: matches filename
+MODULE suews_phys_solweig
    ! USE data_in
    ! USE gis_data
    USE suews_util_time, ONLY: DAYLEN
@@ -2131,4 +2132,9 @@ CONTAINS
 
    ! END SUBROUTINE wallinsun_veg
 
+END MODULE suews_phys_solweig
+
+! Backward compatibility alias
+MODULE solweig_module
+   USE suews_phys_solweig
 END MODULE solweig_module

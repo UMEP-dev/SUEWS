@@ -20,7 +20,8 @@
 !Added TODO:s throughout the code
 !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
-MODULE beers_module
+! Main module following naming standard: matches filename
+MODULE suews_phys_beers
 
    ! USE allocateArray, only: ncolumnsDataOutSol, deg2rad, rad2deg
    ! USE defaultNotUsed, only: notUsed, notUsedI
@@ -1961,4 +1962,9 @@ CONTAINS
    END FUNCTION set_nan
 !========================================================================
 
+END MODULE suews_phys_beers
+
+! Backward compatibility alias
+MODULE beers_module
+   USE suews_phys_beers
 END MODULE beers_module

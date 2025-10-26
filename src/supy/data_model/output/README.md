@@ -8,36 +8,39 @@ This module provides **Python-first** definitions of SUEWS output variables usin
 
 **Implementation:**
 - ✅ Core Pydantic models with full metadata
-- ✅ **All 528 variables implemented** across 9 groups
+- ✅ **All 1,104 variables implemented** across 13 groups
 - ✅ Type-safe variable registry
 - ✅ Backward-compatible DataFrame conversion
 - ✅ Aggregation rules generation
-- ✅ Integration with `_post.py` (dual implementation with Fortran fallback)
+- ✅ Integration with `_post.py` (Python-only, single source of truth)
 - ✅ Comprehensive test suite (all tests passing)
 
 **Variable Coverage:**
-- datetime: 5 variables
+- datetime: 5 variables (Year, DOY, Hour, Min, Dectime)
 - SUEWS: 85 variables (core energy, water, met, carbon)
 - snow: 98 variables (snow properties by surface type)
 - ESTM: 27 variables (element surface temperatures)
+- EHC: 224 variables (element heat capacity: 2 surface + 7×15 roof + 7×15 wall)
 - RSL: 135 variables (roughness sublayer profiles)
 - DailyState: 47 variables (daily accumulated states)
 - BL: 17 variables (boundary layer profiles)
 - BEERS: 29 variables (detailed radiation)
-- debug: 85 variables (diagnostic outputs by surface)
+- debug: 185 variables (diagnostic outputs with soil store and atmospheric vars)
+- SPARTACUS: 194 variables (SPARTACUS radiation model: 10 scalars + 12×15 layers)
+- STEBBS: 57 variables (building energy model)
+- NHood: 1 variable (neighbourhood iteration count)
 
-**Fortran Deprecation:**
-- ✅ Automatic Fortran code generation from Python OUTPUT_REGISTRY
-- ✅ Python is now the single source of truth
-- ✅ Build system integration (Makefile)
-- ✅ Eliminated ~1200 lines of duplicate Fortran DATA statements
-- See `.claude/reference/fortran-deprecation-strategy.md` for details
+**Architecture:**
+- ✅ Python OUTPUT_REGISTRY is the **single source of truth** for all output metadata
+- ✅ Fortran removed: suews_ctrl_output.f95 deleted (2,566 lines eliminated)
+- ✅ No code generation needed - Python defines, Fortran produces raw arrays
+- ✅ Eliminated manual synchronisation burden between Fortran and Python
+- ✅ Documentation auto-generated from Pydantic models via `docs/generate_output_variable_rst.py`
 
-**Next Steps:**
-- Update documentation generation to use Pydantic models
-- Full integration testing with compiled Fortran
-- Performance benchmarking
-- Migrate experimental groups (SPARTACUS, EHC, STEBBS, NHood) when needed
+**Completed:**
+- ✅ All variable groups migrated (including experimental: SPARTACUS, EHC, STEBBS, NHood)
+- ✅ Full integration testing with compiled Fortran
+- ✅ Water balance tests passing (including soil store variables)
 
 ## Architecture
 

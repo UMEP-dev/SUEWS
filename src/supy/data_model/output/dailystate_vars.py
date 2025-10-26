@@ -185,7 +185,7 @@ DAILYSTATE_VARIABLES = [
     # Vegetation properties
     OutputVariable(
         name="DecidCap",
-        unit="1",
+        unit="dimensionless",
         description="Deciduous canopy capacity",
         aggregation=AggregationMethod.LAST,
         group=OutputGroup.DAILYSTATE,
@@ -194,7 +194,7 @@ DAILYSTATE_VARIABLES = [
     ),
     OutputVariable(
         name="Porosity",
-        unit="1",
+        unit="dimensionless",
         description="Surface porosity",
         aggregation=AggregationMethod.LAST,
         group=OutputGroup.DAILYSTATE,
@@ -204,7 +204,7 @@ DAILYSTATE_VARIABLES = [
     # Albedo by vegetation type
     OutputVariable(
         name="AlbEveTr",
-        unit="1",
+        unit="dimensionless",
         description="Albedo for evergreen trees",
         aggregation=AggregationMethod.LAST,
         group=OutputGroup.DAILYSTATE,
@@ -213,7 +213,7 @@ DAILYSTATE_VARIABLES = [
     ),
     OutputVariable(
         name="AlbDecTr",
-        unit="1",
+        unit="dimensionless",
         description="Albedo for deciduous trees",
         aggregation=AggregationMethod.LAST,
         group=OutputGroup.DAILYSTATE,
@@ -222,7 +222,7 @@ DAILYSTATE_VARIABLES = [
     ),
     OutputVariable(
         name="AlbGrass",
-        unit="1",
+        unit="dimensionless",
         description="Albedo for grass",
         aggregation=AggregationMethod.LAST,
         group=OutputGroup.DAILYSTATE,
@@ -232,7 +232,7 @@ DAILYSTATE_VARIABLES = [
     # Water use coefficients by vegetation type (3 levels each)
     OutputVariable(
         name="WU_EveTr1",
-        unit="1",
+        unit="dimensionless",
         description="Water use coefficient 1 for evergreen trees",
         aggregation=AggregationMethod.LAST,
         group=OutputGroup.DAILYSTATE,
@@ -241,7 +241,7 @@ DAILYSTATE_VARIABLES = [
     ),
     OutputVariable(
         name="WU_EveTr2",
-        unit="1",
+        unit="dimensionless",
         description="Water use coefficient 2 for evergreen trees",
         aggregation=AggregationMethod.LAST,
         group=OutputGroup.DAILYSTATE,
@@ -250,7 +250,7 @@ DAILYSTATE_VARIABLES = [
     ),
     OutputVariable(
         name="WU_EveTr3",
-        unit="1",
+        unit="dimensionless",
         description="Water use coefficient 3 for evergreen trees",
         aggregation=AggregationMethod.LAST,
         group=OutputGroup.DAILYSTATE,
@@ -259,7 +259,7 @@ DAILYSTATE_VARIABLES = [
     ),
     OutputVariable(
         name="WU_DecTr1",
-        unit="1",
+        unit="dimensionless",
         description="Water use coefficient 1 for deciduous trees",
         aggregation=AggregationMethod.LAST,
         group=OutputGroup.DAILYSTATE,
@@ -268,7 +268,7 @@ DAILYSTATE_VARIABLES = [
     ),
     OutputVariable(
         name="WU_DecTr2",
-        unit="1",
+        unit="dimensionless",
         description="Water use coefficient 2 for deciduous trees",
         aggregation=AggregationMethod.LAST,
         group=OutputGroup.DAILYSTATE,
@@ -277,7 +277,7 @@ DAILYSTATE_VARIABLES = [
     ),
     OutputVariable(
         name="WU_DecTr3",
-        unit="1",
+        unit="dimensionless",
         description="Water use coefficient 3 for deciduous trees",
         aggregation=AggregationMethod.LAST,
         group=OutputGroup.DAILYSTATE,
@@ -286,7 +286,7 @@ DAILYSTATE_VARIABLES = [
     ),
     OutputVariable(
         name="WU_Grass1",
-        unit="1",
+        unit="dimensionless",
         description="Water use coefficient 1 for grass",
         aggregation=AggregationMethod.LAST,
         group=OutputGroup.DAILYSTATE,
@@ -295,7 +295,7 @@ DAILYSTATE_VARIABLES = [
     ),
     OutputVariable(
         name="WU_Grass2",
-        unit="1",
+        unit="dimensionless",
         description="Water use coefficient 2 for grass",
         aggregation=AggregationMethod.LAST,
         group=OutputGroup.DAILYSTATE,
@@ -304,7 +304,7 @@ DAILYSTATE_VARIABLES = [
     ),
     OutputVariable(
         name="WU_Grass3",
-        unit="1",
+        unit="dimensionless",
         description="Water use coefficient 3 for grass",
         aggregation=AggregationMethod.LAST,
         group=OutputGroup.DAILYSTATE,
@@ -324,7 +324,7 @@ DAILYSTATE_VARIABLES = [
     # Snow albedo
     OutputVariable(
         name="AlbSnow",
-        unit="1",
+        unit="dimensionless",
         description="Snow albedo",
         aggregation=AggregationMethod.LAST,
         group=OutputGroup.DAILYSTATE,
@@ -398,7 +398,7 @@ DAILYSTATE_VARIABLES = [
     # OHM coefficients
     OutputVariable(
         name="a1",
-        unit="1",
+        unit="dimensionless",
         description="OHM coefficient a1",
         aggregation=AggregationMethod.LAST,
         group=OutputGroup.DAILYSTATE,
@@ -425,7 +425,7 @@ DAILYSTATE_VARIABLES = [
     ),
     OutputVariable(
         name="a1_bldg",
-        unit="1",
+        unit="dimensionless",
         description="OHM coefficient a1 for buildings",
         aggregation=AggregationMethod.LAST,
         group=OutputGroup.DAILYSTATE,

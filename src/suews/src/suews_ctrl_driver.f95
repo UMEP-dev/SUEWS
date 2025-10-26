@@ -48,10 +48,10 @@ MODULE SUEWS_Driver
       SUEWS_cal_HorizontalSoilWater_DTS, &
       SUEWS_cal_WaterUse
    USE suews_ctrl_output, ONLY: varListAll
-   USE lumps_module, ONLY: LUMPS_cal_QHQE_DTS
-   USE evap_module, ONLY: cal_evap_multi
-   USE rsl_module, ONLY: RSLProfile, RSLProfile_DTS
-   USE anemsn_module, ONLY: AnthropogenicEmissions
+   USE suews_phys_lumps, ONLY: LUMPS_cal_QHQE_DTS
+   USE suews_phys_evap, ONLY: cal_evap_multi
+   USE suews_phys_rslprof, ONLY: RSLProfile, RSLProfile_DTS
+   USE suews_phys_anthro, ONLY: AnthropogenicEmissions
    USE suews_phys_biogenco2, ONLY: CO2_biogen
    USE allocateArray, ONLY: &
       nsurf, nvegsurf, ndepth, nspec, &

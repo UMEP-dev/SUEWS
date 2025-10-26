@@ -1,4 +1,5 @@
-MODULE rsl_module
+! Main module following naming standard: matches filename
+MODULE suews_phys_rslprof
    USE suews_phys_atmmoiststab, ONLY: neut_limit, cal_Stab, stab_psi_mom, stab_psi_heat, stab_phi_heat, stab_phi_mom
    USE meteo, ONLY: RH2qa, qa2RH
    USE allocateArray, ONLY: &
@@ -2184,5 +2185,10 @@ CONTAINS
 
    END FUNCTION cal_beta_lc
 
+END MODULE suews_phys_rslprof
+
+! Backward compatibility alias
+MODULE rsl_module
+   USE suews_phys_rslprof
 END MODULE rsl_module
 

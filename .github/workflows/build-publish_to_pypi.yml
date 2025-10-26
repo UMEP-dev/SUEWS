@@ -51,7 +51,7 @@ name: Build and Publish Python wheels to PyPI and TestPyPI
 # - TestPyPI deployment proceeds with available wheels
 # - Prevents gaps in nightly build sequence
 #
-# Build matrix: Always builds all Python versions (3.9-3.13) on all platforms
+# Build matrix: Always builds all Python versions (3.9-3.14) on all platforms
 #
 # ============================================================================
 # UMEP/QGIS COMPATIBILITY BUILDS (rc1 pre-release versions)
@@ -197,15 +197,15 @@ jobs:
           if [[ "${{ github.event_name }}" == "pull_request" ]] && [[ "${{ github.event.pull_request.draft }}" == "true" ]]; then
             echo "Running minimal matrix for draft PR (1 platform, bookend Python versions)"
             echo "buildplat=$MINIMAL_PLATFORMS" >> $GITHUB_OUTPUT
-            echo 'python=["cp39", "cp313"]' >> $GITHUB_OUTPUT
+            echo 'python=["cp39", "cp314"]' >> $GITHUB_OUTPUT
           elif [[ "${{ github.event_name }}" == "pull_request" ]] || [[ "${{ github.event_name }}" == "push" && "${{ github.ref }}" == "refs/heads/master" ]]; then
             echo "Running reduced matrix for PR/master (all platforms, bookend Python versions)"
             echo "buildplat=$FULL_PLATFORMS" >> $GITHUB_OUTPUT
-            echo 'python=["cp39", "cp313"]' >> $GITHUB_OUTPUT
+            echo 'python=["cp39", "cp314"]' >> $GITHUB_OUTPUT
           else
             echo "Running full matrix for tags/schedule/manual (all platforms, all Python versions)"
             echo "buildplat=$FULL_PLATFORMS" >> $GITHUB_OUTPUT
-            echo 'python=["cp39", "cp310", "cp311", "cp312", "cp313"]' >> $GITHUB_OUTPUT
+            echo 'python=["cp39", "cp310", "cp311", "cp312", "cp313", "cp314"]' >> $GITHUB_OUTPUT
           fi
 
           # UMEP builds: Python 3.12 only (aligned with QGIS 3.40 LTR bundled Python)

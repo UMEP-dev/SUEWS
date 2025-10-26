@@ -785,7 +785,7 @@ CONTAINS
          tin_surf, tin_surf_grids, &
          nspec
       USE data_in, ONLY: FileInputPath, filecode
-      USE strings, ONLY: writenum
+      USE suews_util_stringmod, ONLY: writenum
       IMPLICIT NONE
       INTEGER, INTENT(IN) :: gridIV
       INTEGER, INTENT(IN) :: diagnose

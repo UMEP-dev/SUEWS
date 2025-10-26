@@ -47,7 +47,7 @@ MODULE SUEWS_Driver
       ReDistributeWater, SUEWS_cal_HorizontalSoilWater, &
       SUEWS_cal_HorizontalSoilWater_DTS, &
       SUEWS_cal_WaterUse
-   USE ctrl_output, ONLY: varListAll
+   USE suews_ctrl_output, ONLY: varListAll
    USE lumps_module, ONLY: LUMPS_cal_QHQE_DTS
    USE evap_module, ONLY: cal_evap_multi
    USE rsl_module, ONLY: RSLProfile, RSLProfile_DTS

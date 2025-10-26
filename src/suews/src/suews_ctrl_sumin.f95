@@ -3,7 +3,8 @@
 ! TS 22 Apr 2018: initial
 ! TS 11 Jun 2018: modified according to recent SUEWS development
 
-MODULE SuMin_Module
+! Main module following naming standard: matches filename
+MODULE suews_ctrl_sumin
    USE SUEWS_Driver, ONLY: SUEWS_cal_Main, &
                            PavSurf, BldgSurf, ConifSurf, DecidSurf, GrassSurf, BSoilSurf, WaterSurf, &
                            ivConif, ivDecid, ivGrass, &
@@ -620,4 +621,9 @@ CONTAINS
 
    END SUBROUTINE SuMin
 
+END MODULE suews_ctrl_sumin
+
+! Backward compatibility alias
+MODULE SuMin_Module
+   USE suews_ctrl_sumin
 END MODULE SuMin_Module

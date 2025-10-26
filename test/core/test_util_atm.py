@@ -323,9 +323,7 @@ class TestWindHeightCorrection(TestCase):
         ws_original = 5.0
         z0m = 0.1
 
-        ws_corrected = correct_wind_height(
-            ws_original, z_meas=10, z_target=10, z0m=z0m
-        )
+        ws_corrected = correct_wind_height(ws_original, z_meas=10, z_target=10, z0m=z0m)
 
         self.assertAlmostEqual(ws_corrected, ws_original, delta=1e-10)
 

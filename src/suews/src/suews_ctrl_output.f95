@@ -22,15 +22,15 @@ MODULE module_ctrl_output
    ! TS 20171017: combined txt and nc wrappers into one: reduced duplicate code at two places
    !===========================================================================================
 
-   USE allocateArray
+   USE module_ctrl_const_allocate
    USE cbl_module
-   USE data_in
-   ! USE defaultNotUsed
-   ! USE ESTM_data
-   USE gis_data
+   USE module_ctrl_const_datain
+   ! USE module_ctrl_const_default
+   ! USE module_phys_estm_data
+   USE module_ctrl_const_gis
    ! USE initial
-   USE sues_data
-   USE time
+   USE module_ctrl_const_sues
+   USE module_ctrl_const_time
    USE strings
 
    IMPLICIT NONE
@@ -1796,7 +1796,7 @@ CONTAINS
    END SUBROUTINE SUEWS_Write_txt
 
    SUBROUTINE filename_gen(dataOutX, varList, iyr, Gridiv, FileOutX, opt_fmt)
-      USE datetime_module
+      USE module_util_datetime
 
       IMPLICIT NONE
       REAL(KIND(1D0)), DIMENSION(:, :), INTENT(in) :: dataOutX ! to determine year & output frequency

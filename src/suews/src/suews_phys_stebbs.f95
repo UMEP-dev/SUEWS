@@ -632,7 +632,7 @@ CONTAINS
       USE module_phys_stebbs_core, ONLY: blds, cases, resolution
       USE module_phys_stebbs_couple, ONLY: sout ! Defines sout
       USE module_phys_stebbs_precision, ONLY: rprc ! Defines rprc as REAL64
-      USE allocateArray, ONLY: ncolumnsDataOutSTEBBS
+      USE module_ctrl_const_allocate, ONLY: ncolumnsDataOutSTEBBS
       USE SUEWS_DEF_DTS, ONLY: SUEWS_CONFIG, SUEWS_TIMER, SUEWS_FORCING, LC_PAVED_PRM, LC_BLDG_PRM, &
                                LC_EVETR_PRM, LC_DECTR_PRM, LC_GRASS_PRM, &
                                LC_BSOIL_PRM, LC_WATER_PRM, &

@@ -367,18 +367,18 @@ CONTAINS
    !-----------------------------------------------------------------------
    SUBROUTINE CBL_initial(qh_use, qe_use, tm_K_zm, qm_gkg_zm, startflag, ir, Gridiv)
 
-      USE mod_z
+      USE module_ctrl_const_z
       USE module_phys_atmmoiststab, ONLY: k
-      USE gas
-      USE time
-      USE data_in
-      USE sues_data
-      USE moist
-      USE allocateArray
-      USE defaultNotUsed
+      USE module_ctrl_const_gas
+      USE module_ctrl_const_time
+      USE module_ctrl_const_datain
+      USE module_ctrl_const_sues
+      USE module_ctrl_const_moist
+      USE module_ctrl_const_allocate
+      USE module_ctrl_const_default
       USE cbl_module
-      USE gis_data
-      USE WhereWhen
+      USE module_ctrl_const_gis
+      USE module_ctrl_const_wherewhen
       USE meteo, ONLY: sat_vap_press_x
 
       IMPLICIT NONE
@@ -721,13 +721,13 @@ CONTAINS
       !       y(2) = t = potential temp(K)
       !       y(3) = q = specific humidity(kg/kg)
       !       y(4) = c = CO2 concentration
-      ! USE data_in
-      ! USE sues_data
+      ! USE module_ctrl_const_datain
+      ! USE module_ctrl_const_sues
       !    use allocateArray
-      USE time
+      USE module_ctrl_const_time
       USE CBL_MODULE
       USE defaultnotUsed
-      USE mod_grav
+      USE module_ctrl_const_grav
 
       IMPLICIT NONE
       REAL(KIND(1D0)), DIMENSION(neqn) :: dyds, y1
@@ -860,7 +860,7 @@ CONTAINS
    SUBROUTINE sonde(id)
       ! read sonde or vertical profile data - when available
       !use allocateArray
-      USE data_in
+      USE module_ctrl_const_datain
       USE cbl_module
       IMPLICIT NONE
       INTEGER :: i, fn = 101, izm = 500, notUsedI = -9999, id

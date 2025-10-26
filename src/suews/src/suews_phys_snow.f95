@@ -1,7 +1,7 @@
 ! Main module following naming standard: matches filename
 MODULE module_phys_snow
    USE module_phys_evap, ONLY: cal_evap
-   USE allocateArray, ONLY: nsurf, PavSurf, BldgSurf, ConifSurf, BSoilSurf, WaterSurf, ncolumnsDataOutSnow
+   USE module_ctrl_const_allocate, ONLY: nsurf, PavSurf, BldgSurf, ConifSurf, BSoilSurf, WaterSurf, ncolumnsDataOutSnow
 
    IMPLICIT NONE
 
@@ -1314,7 +1314,7 @@ CONTAINS
       !       swe  Snow water content
       !       sweD Limit for
 
-      USE allocateArray
+      USE module_ctrl_const_allocate
 
       IMPLICIT NONE
 

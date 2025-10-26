@@ -36,16 +36,16 @@ MODULE module_phys_spartacus
    ! sg feb 2012 - Allocatable array module added
 
    !==============================================================================================
-   USE allocateArray, ONLY: NSURF, NVegSurf, nspec, nsw, nlw, ncol, &
+   USE module_ctrl_const_allocate, ONLY: NSURF, NVegSurf, nspec, nsw, nlw, ncol, &
                             ConifSurf, DecidSurf, BldgSurf, PavSurf, GrassSurf, BSoilSurf, WaterSurf
-   USE PhysConstants, ONLY: SBConst, eps_fp
+   USE module_ctrl_const_physconst, ONLY: SBConst, eps_fp
 
    IMPLICIT NONE
 
 CONTAINS
    SUBROUTINE SPARTACUS_Initialise
-      USE data_in, ONLY: fileinputpath
-      USE allocateArray
+      USE module_ctrl_const_datain, ONLY: fileinputpath
+      USE module_ctrl_const_allocate
       IMPLICIT NONE
       ! INTEGER :: n_vegetation_region_urban, &
       !            n_stream_sw_urban, n_stream_lw_urban
@@ -94,8 +94,8 @@ CONTAINS
       USE radsurf_boundary_conds_out, ONLY: boundary_conds_out_type
       USE radsurf_canopy_flux, ONLY: canopy_flux_type
       USE radsurf_simple_spectrum, ONLY: calc_simple_spectrum_lw
-      ! USE data_in, ONLY: fileinputpath
-      USE allocateArray, ONLY: ncolumnsDataOutSPARTACUS
+      ! USE module_ctrl_const_datain, ONLY: fileinputpath
+      USE module_ctrl_const_allocate, ONLY: ncolumnsDataOutSPARTACUS
 
       IMPLICIT NONE
 

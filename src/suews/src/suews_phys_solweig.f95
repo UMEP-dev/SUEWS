@@ -1,12 +1,12 @@
 ! Main module following naming standard: matches filename
 MODULE module_phys_solweig
-   ! USE data_in
-   ! USE gis_data
+   ! USE module_ctrl_const_datain
+   ! USE module_ctrl_const_gis
    USE module_util_time, ONLY: DAYLEN
-   USE allocateArray, ONLY: ncolumnsdataOutSOLWEIG, deg2rad, rad2deg
-   ! USE InitialCond
-   ! USE sues_data
-   USE defaultNotUsed, ONLY: notUsed, notUsedI
+   USE module_ctrl_const_allocate, ONLY: ncolumnsdataOutSOLWEIG, deg2rad, rad2deg
+   ! USE module_ctrl_const_initialcond
+   ! USE module_ctrl_const_sues
+   USE module_ctrl_const_default, ONLY: notUsed, notUsedI
 
    IMPLICIT NONE
 

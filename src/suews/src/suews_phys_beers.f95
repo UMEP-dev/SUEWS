@@ -23,10 +23,10 @@
 ! Main module following naming standard: matches filename
 MODULE module_phys_beers
 
-   ! USE allocateArray, only: ncolumnsDataOutSol, deg2rad, rad2deg
-   ! USE defaultNotUsed, only: notUsed, notUsedI
+   ! USE module_ctrl_const_allocate, only: ncolumnsDataOutSol, deg2rad, rad2deg
+   ! USE module_ctrl_const_default, only: notUsed, notUsedI
    USE module_phys_narp, ONLY: NARP_cal_SunPosition
-   USE allocateArray, ONLY: ncolumnsDataOutBEERS
+   USE module_ctrl_const_allocate, ONLY: ncolumnsDataOutBEERS
    USE module_util_time, ONLY: DAYLEN, SUEWS_cal_weekday, SUEWS_cal_dectime, &
                           Day_Of_Week, SUEWS_cal_DLS, Days_of_Year, LeapYearCalc, day2month, &
                           SUEWS_cal_tstep, month2day, dectime_to_timevec

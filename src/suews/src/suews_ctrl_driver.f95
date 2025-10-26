@@ -35,7 +35,7 @@ MODULE SUEWS_Driver
    USE module_phys_resist, ONLY: AerodynamicResistance, BoundaryLayerResistance, SurfaceResistance, &
                             SUEWS_cal_RoughnessParameters
    USE module_phys_ohm, ONLY: OHM
-   USE ESTM_module, ONLY: ESTM
+   USE module_phys_estm, ONLY: ESTM
    USE module_phys_ehc, ONLY: EHC
    USE module_phys_snow, ONLY: SnowCalc, MeltHeat, SnowUpdate, update_snow_albedo, update_snow_dens
    USE module_phys_dailystate, ONLY: update_DailyStateLine_DTS, SUEWS_cal_DailyState
@@ -53,7 +53,7 @@ MODULE SUEWS_Driver
    USE module_phys_rslprof, ONLY: RSLProfile, RSLProfile_DTS
    USE module_phys_anthro, ONLY: AnthropogenicEmissions
    USE module_phys_biogenco2, ONLY: CO2_biogen
-   USE allocateArray, ONLY: &
+   USE module_ctrl_const_allocate, ONLY: &
       nsurf, nvegsurf, ndepth, nspec, &
       PavSurf, BldgSurf, ConifSurf, DecidSurf, GrassSurf, BSoilSurf, WaterSurf, &
       ivConif, ivDecid, ivGrass, &
@@ -62,7 +62,7 @@ MODULE SUEWS_Driver
       ncolumnsDataOutRSL, ncolumnsdataOutSOLWEIG, ncolumnsDataOutBEERS, &
       ncolumnsDataOutDebug, ncolumnsDataOutSPARTACUS, ncolumnsDataOutEHC, &
       ncolumnsDataOutSTEBBS, ncolumnsDataOutNHood
-   USE moist, ONLY: avcp, avdens, lv_J_kg
+   USE module_ctrl_const_moist, ONLY: avcp, avdens, lv_J_kg
    USE module_phys_solweig, ONLY: SOLWEIG_cal_main
    USE module_phys_beers, ONLY: BEERS_cal_main, BEERS_cal_main_DTS
    USE module_phys_stebbs, ONLY: stebbsonlinecouple

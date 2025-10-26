@@ -1,7 +1,7 @@
 ! Main module following naming standard: matches filename
 MODULE module_phys_atmmoiststab
    USE SUEWS_DEF_DTS, ONLY: atm_state, SUEWS_FORCING, SUEWS_TIMER, SUEWS_STATE
-   USE PhysConstants, ONLY: eps_fp
+   USE module_ctrl_const_physconst, ONLY: eps_fp
    IMPLICIT NONE
    REAL(KIND(1D0)), PARAMETER :: neut_limit = 1.E-4 !Limit for neutral stability
    REAL(KIND(1D0)), PARAMETER :: k = 0.4 !Von Karman's contant
@@ -973,7 +973,7 @@ CONTAINS
    !    !Modified by LJ Mar 2010
    !    !Input:Used stability method, stability (z-d)/L, zeta (either (z-d)/L or z0/L)
 
-   !    ! USE mod_z
+   !    ! USE module_ctrl_const_z
    !    ! USE mod_k
 
    !    IMPLICIT NONE

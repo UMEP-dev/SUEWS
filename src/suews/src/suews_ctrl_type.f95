@@ -1,5 +1,5 @@
 MODULE SUEWS_DEF_DTS
-   USE allocateArray, ONLY: &
+   USE module_ctrl_const_allocate, ONLY: &
       nsurf, nvegsurf, nspec, &
       PavSurf, BldgSurf, ConifSurf, DecidSurf, GrassSurf, BSoilSurf, WaterSurf, &
       ivConif, ivDecid, ivGrass, &

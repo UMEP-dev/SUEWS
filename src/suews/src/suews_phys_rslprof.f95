@@ -2,9 +2,9 @@
 MODULE module_phys_rslprof
    USE module_phys_atmmoiststab, ONLY: neut_limit, cal_Stab, stab_psi_mom, stab_psi_heat, stab_phi_heat, stab_phi_mom
    USE meteo, ONLY: RH2qa, qa2RH
-   USE allocateArray, ONLY: &
+   USE module_ctrl_const_allocate, ONLY: &
       nsurf, BldgSurf, ConifSurf, DecidSurf, ncolumnsDataOutRSL
-   USE PhysConstants, ONLY: eps_fp
+   USE module_ctrl_const_physconst, ONLY: eps_fp
    IMPLICIT NONE
 
    INTEGER, PARAMETER :: nz = 30 ! number of levels 10 levels in canopy plus 20 (3 x Zh) above the canopy

@@ -389,7 +389,7 @@ CONTAINS
       temp_out_wall, QS_wall, & !output
       temp_out_surf, QS_surf, & !output
       QS) !output
-      USE allocateArray, ONLY: &
+      USE module_ctrl_const_allocate, ONLY: &
          nsurf, ndepth, &
          PavSurf, BldgSurf, ConifSurf, DecidSurf, GrassSurf, BSoilSurf, WaterSurf
       USE module_phys_ehc_heatflux, ONLY: heatcond1d_vstep, heatcond1d_CN, heatcond1d_CN_dense

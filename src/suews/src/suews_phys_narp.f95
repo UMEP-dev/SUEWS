@@ -36,7 +36,7 @@ MODULE module_phys_narp
    ! sg feb 2012 - Allocatable array module added
 
    !==============================================================================================
-   ! USE allocateArray
+   ! USE module_ctrl_const_allocate
    USE module_util_time, ONLY: day2month, dectime_to_timevec
 
    IMPLICIT NONE
@@ -178,7 +178,7 @@ CONTAINS
       !Modified by LJ to calcuate snow free and SnowPack components (May 2013)
       !Modified to define variables in data_in module
       !-------------------------------------------------------------------------------
-      ! USE allocateArray
+      ! USE module_ctrl_const_allocate
       ! use gis_data
       ! use data_in ! Included 20140701, FL
       ! use moist   ! Included 20140701, FL

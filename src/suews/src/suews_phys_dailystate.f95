@@ -1,6 +1,6 @@
 ! Main module following naming standard: matches filename
 MODULE module_phys_dailystate
-   USE allocateArray, ONLY: &
+   USE module_ctrl_const_allocate, ONLY: &
       ndays, nsurf, nvegsurf, ivConif, ivDecid, ivGrass, DecidSurf, ncolumnsDataOutDailyState
 
    IMPLICIT NONE
@@ -65,7 +65,7 @@ CONTAINS
       ! hydroState) !inout
 
       ! USE Snow_module, ONLY: SnowUpdate
-      USE datetime_module, ONLY: datetime, timedelta
+      USE module_util_datetime, ONLY: datetime, timedelta
       USE SUEWS_DEF_DTS, ONLY: SUEWS_SITE, SUEWS_TIMER, SUEWS_FORCING, anthroEMIS_PRM, &
                                PHENOLOGY_STATE, anthroEmis_STATE, SUEWS_CONFIG, &
                                IRRIGATION_PRM, LC_PAVED_PRM, LC_BLDG_PRM, &

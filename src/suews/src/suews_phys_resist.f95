@@ -38,7 +38,7 @@ CONTAINS
       !               (changed from veg_fr which also includes water surface by HCW 05 Nov 2015)
 
       USE module_phys_atmmoiststab, ONLY: stab_psi_heat, stab_psi_mom
-      USE sues_data, ONLY: psih
+      USE module_ctrl_const_sues, ONLY: psih
 
       IMPLICIT NONE
 
@@ -128,13 +128,13 @@ CONTAINS
       ! LJ  24 Apr 2013: Added impact of snow fraction in LAI and in soil moisture deficit
       ! -------------------------------------------------------------------
 
-      ! USE allocateArray
-      ! USE data_in
-      ! USE defaultNotUsed
-      ! USE gis_data
-      ! USE moist
-      ! USE resist
-      ! USE sues_data
+      ! USE module_ctrl_const_allocate
+      ! USE module_ctrl_const_datain
+      ! USE module_ctrl_const_default
+      ! USE module_ctrl_const_gis
+      ! USE module_ctrl_const_moist
+      ! USE module_ctrl_const_resist
+      ! USE module_ctrl_const_sues
 
       IMPLICIT NONE
       ! INTEGER,PARAMETER::BldgSurf=2

@@ -1,6 +1,6 @@
 ! Main module following naming standard: matches filename
 MODULE module_phys_waterdist
-   USE allocateArray, ONLY: nsurf, &
+   USE module_ctrl_const_allocate, ONLY: nsurf, &
                             PavSurf, BldgSurf, &
                             ConifSurf, DecidSurf, GrassSurf, &
                             BSoilSurf, WaterSurf, ExcessSurf

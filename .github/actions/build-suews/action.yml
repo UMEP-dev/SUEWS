@@ -73,9 +73,11 @@ runs:
         CIBW_MANYLINUX_X86_64_IMAGE: ${{ inputs.python == 'cp314' && 'manylinux_2_28' || 'manylinux2014' }}
         CIBW_MANYLINUX_AARCH64_IMAGE: ${{ inputs.python == 'cp314' && 'manylinux_2_28' || 'manylinux2014' }}
         # Configure pip to use binary wheels and avoid building from source
+        # Python 3.14: Allow f90wrap to build from source (no wheels yet)
         CIBW_ENVIRONMENT_LINUX: >
           PIP_PREFER_BINARY=1
           PIP_ONLY_BINARY=:all:
+          ${{ inputs.python == 'cp314' && 'PIP_NO_BINARY=f90wrap' || '' }}
           FCFLAGS="-fno-optimize-sibling-calls -ffree-line-length-none"
           F90=gfortran
           ${{ inputs.is_umep_variant == 'true' && 'BUILD_UMEP_VARIANT=true' || '' }}

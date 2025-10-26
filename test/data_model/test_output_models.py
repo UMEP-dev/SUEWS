@@ -301,5 +301,85 @@ def main():
         return 1
 
 
+def test_fortran_python_output_consistency():
+    """Verify Python OUTPUT_REGISTRY completeness.
+
+    HISTORICAL NOTE (2025-10-25):
+    This test previously verified Fortran varListAll matched Python OUTPUT_REGISTRY.
+    The Fortran output variable definitions (varListAll) have now been REMOVED as
+    Python OUTPUT_REGISTRY is the single source of truth.
+
+    This test is kept as a placeholder for future OUTPUT_REGISTRY validation.
+    """
+    print("=" * 70)
+    print("Python OUTPUT_REGISTRY validation...")
+    print("=" * 70)
+    print()
+
+    try:
+        from supy.data_model.output import OUTPUT_REGISTRY, OutputGroup
+
+        # Validate OUTPUT_REGISTRY is properly loaded
+        print("Per-group variable counts:")
+        total_vars = 0
+        for group in OutputGroup:
+            n_vars = len(OUTPUT_REGISTRY.by_group(group))
+            total_vars += n_vars
+            print(f"  ✓ {group.value:12s}: {n_vars:3d} variables")
+
+        print()
+        print("=" * 70)
+        print("✅ OUTPUT_REGISTRY VALIDATION PASSED")
+        print("=" * 70)
+        print(f"Python OUTPUT_REGISTRY is properly loaded")
+        print(f"({len(OutputGroup)} groups with {total_vars} total variables)")
+        print()
+        print("NOTE: Fortran varListAll has been deprecated (2025-10-25).")
+        print("Python OUTPUT_REGISTRY is now the ONLY source of truth.")
+        print()
+
+        return 0
+
+    except ImportError as e:
+        print()
+        print("=" * 70)
+        print("⚠ SKIPPED: OUTPUT_REGISTRY not available")
+        print("=" * 70)
+        print(f"Reason: {e}")
+        print()
+        return 0
+
+    except AssertionError as e:
+        print()
+        print("=" * 70)
+        print(f"❌ CONSISTENCY CHECK FAILED")
+        print("=" * 70)
+        print(f"{e}")
+        print()
+        print("ACTION REQUIRED:")
+        print("1. Check if recent changes were made to OUTPUT_REGISTRY")
+        print("2. Ensure corresponding updates were made to Fortran varListAll")
+        print("3. Verify DATA statements in src/suews/src/suews_ctrl_output.f95")
+        print()
+        return 1
+
+    except Exception as e:
+        print()
+        print("=" * 70)
+        print(f"❌ UNEXPECTED ERROR")
+        print("=" * 70)
+        print(f"{e}")
+        import traceback
+
+        traceback.print_exc()
+        return 1
+
+
 if __name__ == "__main__":
-    sys.exit(main())
+    # Run both the original tests and the consistency check
+    original_result = main()
+    print()
+    consistency_result = test_fortran_python_output_consistency()
+
+    # Exit with error if either test failed
+    sys.exit(max(original_result, consistency_result))

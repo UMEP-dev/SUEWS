@@ -1381,7 +1381,7 @@ MODULE MetDisagg
    USE ColNamesInputFiles
    USE Data_In
    USE Initial
-   USE NARP_MODULE, ONLY: NARP_cal_SunPosition
+   USE suews_phys_narp, ONLY: NARP_cal_SunPosition
 
    IMPLICIT NONE
 

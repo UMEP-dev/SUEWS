@@ -27,10 +27,10 @@ MODULE SUEWS_Driver
                             output_line, output_block
    USE meteo, ONLY: qsatf, RH2qa, qa2RH
    USE AtmMoistStab_module, ONLY: cal_AtmMoist, cal_Stab, stab_psi_heat, stab_psi_mom, SUEWS_update_atmState
-   USE NARP_MODULE, ONLY: NARP_cal_SunPosition, NARP_cal_SunPosition_DTS
+   USE suews_phys_narp, ONLY: NARP_cal_SunPosition, NARP_cal_SunPosition_DTS
    USE AtmMoistStab_module, ONLY: cal_AtmMoist, cal_Stab, stab_psi_heat, stab_psi_mom
-   USE NARP_MODULE, ONLY: NARP_cal_SunPosition
-   USE SPARTACUS_MODULE, ONLY: SPARTACUS
+   USE suews_phys_narp, ONLY: NARP_cal_SunPosition
+   USE suews_phys_spartacus, ONLY: SPARTACUS
    ! USE AnOHM_module, ONLY: AnOHM
    USE suews_phys_resist, ONLY: AerodynamicResistance, BoundaryLayerResistance, SurfaceResistance, &
                             SUEWS_cal_RoughnessParameters
@@ -1146,8 +1146,8 @@ CONTAINS
       timer, config, forcing, siteInfo, & ! input
       modState, & ! input/output:
       dataOutLineSPARTACUS) ! output
-      USE NARP_MODULE, ONLY: RadMethod, NARP
-      USE SPARTACUS_MODULE, ONLY: SPARTACUS
+      USE suews_phys_narp, ONLY: RadMethod, NARP
+      USE suews_phys_spartacus, ONLY: SPARTACUS
       USE SUEWS_DEF_DTS, ONLY: SUEWS_SITE, SUEWS_TIMER, SUEWS_CONFIG, SUEWS_FORCING
       USE SUEWS_DEF_DTS, ONLY: SUEWS_CONFIG, SUEWS_TIMER, SNOW_STATE, SNOW_PRM, &
                                SUEWS_FORCING, SUEWS_SITE, &

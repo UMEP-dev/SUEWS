@@ -24,7 +24,7 @@ MODULE beers_module
 
    ! USE allocateArray, only: ncolumnsDataOutSol, deg2rad, rad2deg
    ! USE defaultNotUsed, only: notUsed, notUsedI
-   USE NARP_MODULE, ONLY: NARP_cal_SunPosition
+   USE suews_phys_narp, ONLY: NARP_cal_SunPosition
    USE allocateArray, ONLY: ncolumnsDataOutBEERS
    USE suews_util_time, ONLY: DAYLEN, SUEWS_cal_weekday, SUEWS_cal_dectime, &
                           Day_Of_Week, SUEWS_cal_DLS, Days_of_Year, LeapYearCalc, day2month, &

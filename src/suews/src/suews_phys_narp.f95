@@ -1,4 +1,5 @@
-MODULE NARP_MODULE
+! Main module following naming standard: matches filename
+MODULE suews_phys_narp
    !==============================================================================
    !NET ALL WAVE RADIATION PARAMETERIZATION ROUTINES
    !B. OFFERLE
@@ -1617,4 +1618,10 @@ CONTAINS
       trans = TrTpg*Tw*Ta !bulk atmospheric transmissivity
    END FUNCTION transmissivity
    !===============================================================================
+END MODULE suews_phys_narp
+
+! Backward compatibility alias (deprecated - will be removed in future version)
+! TODO: Remove in version 2026.1.0 (deprecated since 2025.10.0)
+MODULE NARP_MODULE
+   USE suews_phys_narp
 END MODULE NARP_MODULE

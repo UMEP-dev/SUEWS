@@ -1,4 +1,5 @@
-MODULE SPARTACUS_MODULE
+! Main module following naming standard: matches filename
+MODULE suews_phys_spartacus
    !==============================================================================
    !NET ALL WAVE RADIATION PARAMETERIZATION ROUTINES
    !B. OFFERLE
@@ -699,4 +700,10 @@ CONTAINS
 
    END SUBROUTINE SPARTACUS
 
+END MODULE suews_phys_spartacus
+
+! Backward compatibility alias (deprecated - will be removed in future version)
+! TODO: Remove in version 2026.1.0 (deprecated since 2025.10.0)
+MODULE SPARTACUS_MODULE
+   USE suews_phys_spartacus
 END MODULE SPARTACUS_MODULE

@@ -10,7 +10,7 @@
 ! - tstep_prev: Allows adaptive timesteps (in standalone: always equals tstep)
 ! - Additional atmospheric variables passed from WRF
 !========================================================================================
-MODULE module_ctrl_driver
+MODULE SUEWS_Driver
    ! only the following immutable objects are imported:
    ! 1. functions/subroutines
    ! 2. constant variables
@@ -5365,9 +5365,4 @@ CONTAINS
 
    END SUBROUTINE restore_state
 
-END MODULE module_ctrl_driver
-
-! Backward compatibility alias
-MODULE SUEWS_Driver
-   USE module_ctrl_driver
 END MODULE SUEWS_Driver

@@ -19,6 +19,7 @@ from supy.util._atm import (
     cal_lat_vap,
     cal_qa,
     cal_rh,
+    correct_wind_height,
 )
 
 
@@ -250,6 +251,125 @@ class TestAtmosphericEdgeCases(TestCase):
 
         print(f"✓ qa at sea level: {qa_sea * 1000:.3f} g/kg")
         print(f"✓ qa at 3000m: {qa_alt * 1000:.3f} g/kg")
+
+
+class TestWindHeightCorrection(TestCase):
+    """Test wind speed height correction function."""
+
+    def test_wind_height_correction_basic(self):
+        """Test basic wind speed height correction."""
+        print("\n========================================")
+        print("Testing wind speed height correction...")
+
+        # Test correction from 10 m to 50 m
+        ws_10m = 5.0  # m/s
+        z0m = 0.1  # m
+
+        ws_50m = correct_wind_height(ws_10m, z_meas=10, z_target=50, z0m=z0m)
+
+        # Wind speed should increase with height
+        self.assertGreater(ws_50m, ws_10m)
+        # Should be physically reasonable (not more than 2x at these heights)
+        self.assertLess(ws_50m, ws_10m * 2)
+
+        print(f"✓ Wind speed at 10 m: {ws_10m:.2f} m/s")
+        print(f"✓ Wind speed at 50 m: {ws_50m:.2f} m/s")
+        print(f"✓ Ratio: {ws_50m / ws_10m:.2f}")
+
+    def test_wind_height_correction_epw_standard(self):
+        """Test correction from EPW standard height (10 m) to 2 m."""
+        print("\n========================================")
+        print("Testing EPW to screen height correction...")
+
+        ws_10m = 5.0
+        z0m = 0.1
+
+        # Correct down to 2 m (screen height)
+        ws_2m = correct_wind_height(ws_10m, z_meas=10, z_target=2, z0m=z0m)
+
+        # Wind speed should decrease when going down
+        self.assertLess(ws_2m, ws_10m)
+        self.assertGreater(ws_2m, 0)
+
+        print(f"✓ Wind speed at 10 m (EPW): {ws_10m:.2f} m/s")
+        print(f"✓ Wind speed at 2 m (screen): {ws_2m:.2f} m/s")
+
+    def test_wind_height_correction_reversibility(self):
+        """Test that forward and reverse corrections are consistent."""
+        print("\n========================================")
+        print("Testing wind height correction reversibility...")
+
+        ws_10m_original = 5.0
+        z0m = 0.1
+
+        # Correct from 10 m to 50 m
+        ws_50m = correct_wind_height(ws_10m_original, z_meas=10, z_target=50, z0m=z0m)
+
+        # Correct back from 50 m to 10 m
+        ws_10m_back = correct_wind_height(ws_50m, z_meas=50, z_target=10, z0m=z0m)
+
+        # Should get back approximately the original value
+        self.assertAlmostEqual(ws_10m_back, ws_10m_original, delta=1e-6)
+
+        print(f"✓ Original wind speed at 10 m: {ws_10m_original:.6f} m/s")
+        print(f"✓ After correction to 50 m and back: {ws_10m_back:.6f} m/s")
+        print(f"✓ Difference: {abs(ws_10m_back - ws_10m_original):.10f} m/s")
+
+    def test_wind_height_correction_same_height(self):
+        """Test that correction to same height returns original value."""
+        print("\n========================================")
+        print("Testing wind height correction with same height...")
+
+        ws_original = 5.0
+        z0m = 0.1
+
+        ws_corrected = correct_wind_height(ws_original, z_meas=10, z_target=10, z0m=z0m)
+
+        self.assertAlmostEqual(ws_corrected, ws_original, delta=1e-10)
+
+        print(f"✓ Original wind speed: {ws_original:.2f} m/s")
+        print(f"✓ Corrected (same height): {ws_corrected:.2f} m/s")
+
+    def test_wind_height_correction_array(self):
+        """Test wind speed height correction with array inputs."""
+        print("\n========================================")
+        print("Testing wind speed height correction with arrays...")
+
+        # Create array of wind speeds
+        ws_10m_array = np.array([3.0, 5.0, 7.0, 10.0])
+        z0m = 0.1
+
+        ws_50m_array = correct_wind_height(
+            ws_10m_array, z_meas=10, z_target=50, z0m=z0m
+        )
+
+        # All values should increase
+        self.assertTrue(np.all(ws_50m_array > ws_10m_array))
+        # Shape should be preserved
+        self.assertEqual(ws_50m_array.shape, ws_10m_array.shape)
+
+        print(f"✓ Wind speeds at 10 m: {ws_10m_array}")
+        print(f"✓ Wind speeds at 50 m: {ws_50m_array}")
+
+    def test_wind_height_correction_roughness(self):
+        """Test effect of different roughness lengths."""
+        print("\n========================================")
+        print("Testing wind height correction with different roughness...")
+
+        ws_10m = 5.0
+
+        # Urban surface (higher roughness)
+        ws_50m_urban = correct_wind_height(ws_10m, z_meas=10, z_target=50, z0m=1.0)
+
+        # Grass surface (lower roughness)
+        ws_50m_grass = correct_wind_height(ws_10m, z_meas=10, z_target=50, z0m=0.01)
+
+        # Higher roughness should lead to larger wind speed increase with height
+        self.assertGreater(ws_50m_urban, ws_50m_grass)
+
+        print(f"✓ Wind speed at 10 m: {ws_10m:.2f} m/s")
+        print(f"✓ Wind speed at 50 m (urban, z0m=1.0): {ws_50m_urban:.2f} m/s")
+        print(f"✓ Wind speed at 50 m (grass, z0m=0.01): {ws_50m_grass:.2f} m/s")
 
 
 if __name__ == "__main__":

@@ -310,10 +310,15 @@ libdriver: $(addprefix $(DIR_SRC_SUEWS), $(C_MODULE) $(UTILS) $(PHYS) $(DRIVER))
 # special rule for generating version info file
 src/suews_ctrl_ver.f95: force
 	@echo "generating version info file..."
-	@echo "MODULE version" > $@
+	@echo "MODULE module_ctrl_version" > $@
 	@echo "IMPLICIT NONE" >> $@
 	@echo "CHARACTER(len=90) :: git_commit = '$(GIT_COMMIT)' " >> $@
 	@echo "CHARACTER(len=90) :: compiler_ver = '$(FC_VER)' " >> $@
+	@echo "END MODULE module_ctrl_version" >> $@
+	@echo "" >> $@
+	@echo "! Backward compatibility alias" >> $@
+	@echo "MODULE version" >> $@
+	@echo "   USE module_ctrl_version" >> $@
 	@echo "END MODULE version" >> $@
 
 

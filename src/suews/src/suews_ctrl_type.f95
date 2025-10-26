@@ -1632,7 +1632,7 @@ CONTAINS
 
 END MODULE module_ctrl_type
 
-\! Backward compatibility alias
+! Backward compatibility alias
 MODULE SUEWS_DEF_DTS
    USE module_ctrl_type
 END MODULE SUEWS_DEF_DTS

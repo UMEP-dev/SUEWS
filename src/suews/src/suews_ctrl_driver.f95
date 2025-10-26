@@ -5367,7 +5367,7 @@ CONTAINS
 
 END MODULE module_ctrl_driver
 
-\! Backward compatibility alias
+! Backward compatibility alias
 MODULE SUEWS_Driver
    USE module_ctrl_driver
 END MODULE SUEWS_Driver

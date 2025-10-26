@@ -633,7 +633,7 @@ CONTAINS
       USE module_phys_stebbs_couple, ONLY: sout ! Defines sout
       USE module_phys_stebbs_precision, ONLY: rprc ! Defines rprc as REAL64
       USE module_ctrl_const_allocate, ONLY: ncolumnsDataOutSTEBBS
-      USE SUEWS_DEF_DTS, ONLY: SUEWS_CONFIG, SUEWS_TIMER, SUEWS_FORCING, LC_PAVED_PRM, LC_BLDG_PRM, &
+      USE module_ctrl_type, ONLY: SUEWS_CONFIG, SUEWS_TIMER, SUEWS_FORCING, LC_PAVED_PRM, LC_BLDG_PRM, &
                                LC_EVETR_PRM, LC_DECTR_PRM, LC_GRASS_PRM, &
                                LC_BSOIL_PRM, LC_WATER_PRM, &
                                SUEWS_SITE, atm_state, ROUGHNESS_STATE, &
@@ -2005,7 +2005,7 @@ END SUBROUTINE reinitialiseTemperatures
 SUBROUTINE gen_building(stebbsState, stebbsPrm, building_archtype, self)
 
    USE module_phys_stebbs_core, ONLY: LBM
-   USE SUEWS_DEF_DTS, ONLY: BUILDING_ARCHETYPE_PRM, STEBBS_STATE, STEBBS_PRM
+   USE module_ctrl_type, ONLY: BUILDING_ARCHETYPE_PRM, STEBBS_STATE, STEBBS_PRM
    IMPLICIT NONE
    TYPE(LBM) :: self
 

@@ -66,7 +66,7 @@ CONTAINS
 
       ! USE Snow_module, ONLY: SnowUpdate
       USE module_util_datetime, ONLY: datetime, timedelta
-      USE SUEWS_DEF_DTS, ONLY: SUEWS_SITE, SUEWS_TIMER, SUEWS_FORCING, anthroEMIS_PRM, &
+      USE module_ctrl_type, ONLY: SUEWS_SITE, SUEWS_TIMER, SUEWS_FORCING, anthroEMIS_PRM, &
                                PHENOLOGY_STATE, anthroEmis_STATE, SUEWS_CONFIG, &
                                IRRIGATION_PRM, LC_PAVED_PRM, LC_BLDG_PRM, &
                                LC_EVETR_PRM, LC_DECTR_PRM, LC_GRASS_PRM, &
@@ -1303,7 +1303,7 @@ CONTAINS
       modState, & ! input/output:
       DailyStateLine) !out
 
-      USE SUEWS_DEF_DTS, ONLY: &
+      USE module_ctrl_type, ONLY: &
          SUEWS_SITE, SUEWS_TIMER, SUEWS_CONFIG, SUEWS_FORCING, &
          PHENOLOGY_STATE, anthroEmis_STATE, &
          SNOW_STATE, SUEWS_TIMER, HYDRO_STATE, &

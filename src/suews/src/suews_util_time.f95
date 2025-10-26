@@ -289,7 +289,7 @@ CONTAINS
    SUBROUTINE SUEWS_cal_dectime_DTS( &
       timer, & ! input
       dectime) ! output
-      USE SUEWS_DEF_DTS, ONLY: SUEWS_TIMER
+      USE module_ctrl_type, ONLY: SUEWS_TIMER
 
       IMPLICIT NONE
       ! INTEGER, INTENT(in) :: id, it, imin, isec
@@ -333,7 +333,7 @@ CONTAINS
    SUBROUTINE SUEWS_cal_tstep_DTS( &
       timer, & ! input
       nsh, nsh_real, tstep_real) ! output
-      USE SUEWS_DEF_DTS, ONLY: SUEWS_TIMER
+      USE module_ctrl_type, ONLY: SUEWS_TIMER
 
       IMPLICIT NONE
 
@@ -381,7 +381,7 @@ CONTAINS
       timer, siteInfo, & !input
       dayofWeek_id) !output
 
-      USE SUEWS_DEF_DTS, ONLY: SUEWS_TIMER, SUEWS_SITE
+      USE module_ctrl_type, ONLY: SUEWS_TIMER, SUEWS_SITE
 
       IMPLICIT NONE
 
@@ -429,7 +429,7 @@ CONTAINS
       timer, ahemisPrm, & !input
       DLS) !output
 
-      USE SUEWS_DEF_DTS, ONLY: SUEWS_TIMER, anthroEMIS_PRM
+      USE module_ctrl_type, ONLY: SUEWS_TIMER, anthroEMIS_PRM
 
       IMPLICIT NONE
 

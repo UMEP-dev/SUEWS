@@ -54,7 +54,7 @@ CONTAINS
 
       USE module_ctrl_const_allocate, ONLY: ndepth
       USE module_util_datetime, ONLY: datetime, timedelta
-      USE SUEWS_DEF_DTS, ONLY: SUEWS_TIMER
+      USE module_ctrl_type, ONLY: SUEWS_TIMER
 
       IMPLICIT NONE
       TYPE(SUEWS_TIMER) :: timer

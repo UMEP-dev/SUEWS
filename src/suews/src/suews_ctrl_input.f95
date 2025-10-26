@@ -190,12 +190,12 @@ END SUBROUTINE MetRead
 !------------------------------------------------------------
 
 !Information for the run
-MODULE run_info
+MODULE module_ctrl_input_runinfo
    IMPLICIT NONE
    CHARACTER(len=90), DIMENSION(14) :: text
    INTEGER :: lim0 = 0, lim1 = 1, lim2 = 2, lim4 = 4, lim3 = 3, lim6 = 6, lim8 = 8, lim12 = 12, lfn_us
    LOGICAL :: file_qs
-END MODULE run_info
+END MODULE module_ctrl_input_runinfo
 
 ! run_control
 ! called from: LUMPS_initial
@@ -203,7 +203,7 @@ END MODULE run_info
 SUBROUTINE run_control(eval, LowerLimit, Upperlimit)
    ! ver - determines if value to be read is an integer or real and returns the value
    ! if ver=-9 - then use integer
-   USE run_info
+   USE module_ctrl_input_runinfo
    IMPLICIT NONE
    INTEGER :: eval, i, lowerlimit, upperlimit
    CHARACTER(len=4) :: check
@@ -739,7 +739,7 @@ END SUBROUTINE InputHeaderCheck
 !
 ! endsubroutine SUEWS_InterpHourlyProfiles
 !===================================================================================
-MODULE get_prof_module
+MODULE module_ctrl_input_profile
    IMPLICIT NONE
 
 CONTAINS
@@ -831,7 +831,7 @@ CONTAINS
 
    END FUNCTION get_Prof_SpecTime_sum
 
-END MODULE get_prof_module
+END MODULE module_ctrl_input_profile
 
 !===================================================================================
 ! TODO: #79 all the parameter tables can be stored using a custom dictionary for easier and more consistent access:
@@ -1359,7 +1359,7 @@ SUBROUTINE CodeMatchBiogen(Gridiv, SurfaceCharCodeCol)
 END SUBROUTINE CodeMatchBiogen
 ! ---------------------------------------------------------
 
-MODULE MetDisagg
+MODULE module_ctrl_input_metdisagg
    !========================================================================================
    ! Disaggregation of meteorological forcing data
    !  Code to disaggregate met forcing data from resolution provided to the model time-step
@@ -2195,5 +2195,18 @@ CONTAINS
    END FUNCTION RandomSamples
    !======================================================================================
 
-END MODULE MetDisagg
+END MODULE module_ctrl_input_metdisagg
 !========================================================================================
+
+! Backward compatibility aliases
+MODULE run_info
+   USE module_ctrl_input_runinfo
+END MODULE run_info
+
+MODULE get_prof_module
+   USE module_ctrl_input_profile
+END MODULE get_prof_module
+
+MODULE MetDisagg
+   USE module_ctrl_input_metdisagg
+END MODULE MetDisagg

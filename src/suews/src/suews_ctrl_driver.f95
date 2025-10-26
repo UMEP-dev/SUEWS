@@ -10,11 +10,11 @@
 ! - tstep_prev: Allows adaptive timesteps (in standalone: always equals tstep)
 ! - Additional atmospheric variables passed from WRF
 !========================================================================================
-MODULE SUEWS_Driver
+MODULE module_ctrl_driver
    ! only the following immutable objects are imported:
    ! 1. functions/subroutines
    ! 2. constant variables
-   USE SUEWS_DEF_DTS, ONLY: SUEWS_CONFIG, SURF_STORE_PRM, WATER_DIST_PRM, bioCO2_PRM, CONDUCTANCE_PRM, &
+   USE module_ctrl_type, ONLY: SUEWS_CONFIG, SURF_STORE_PRM, WATER_DIST_PRM, bioCO2_PRM, CONDUCTANCE_PRM, &
                             LAI_PRM, OHM_COEF_LC, OHM_PRM, SOIL_PRM, anthroHEAT_PRM, IRRIG_daywater, &
                             IRRIGATION_PRM, anthroEMIS_PRM, SNOW_PRM, SPARTACUS_PRM, SPARTACUS_LAYER_PRM, &
                             SUEWS_SITE, LUMPS_PRM, EHC_PRM, LC_PAVED_PRM, LC_BLDG_PRM, LC_DECTR_PRM, LC_EVETR_PRM, &
@@ -66,7 +66,7 @@ MODULE SUEWS_Driver
    USE module_phys_solweig, ONLY: SOLWEIG_cal_main
    USE module_phys_beers, ONLY: BEERS_cal_main, BEERS_cal_main_DTS
    USE module_phys_stebbs, ONLY: stebbsonlinecouple
-   USE version, ONLY: git_commit, compiler_ver ! these are automatically generated during compilation time
+   USE module_ctrl_version, ONLY: git_commit, compiler_ver ! these are automatically generated during compilation time
    USE module_util_time, ONLY: SUEWS_cal_dectime_DTS, SUEWS_cal_tstep_DTS, SUEWS_cal_weekday_DTS, &
                           SUEWS_cal_DLS_DTS
 
@@ -590,7 +590,7 @@ CONTAINS
       modState, & ! inout
       dataoutlineDebug) ! output
 
-      USE SUEWS_DEF_DTS, ONLY: SUEWS_CONFIG, SUEWS_FORCING, SUEWS_TIMER, SUEWS_SITE, LC_PAVED_PRM, LC_BLDG_PRM, &
+      USE module_ctrl_type, ONLY: SUEWS_CONFIG, SUEWS_FORCING, SUEWS_TIMER, SUEWS_SITE, LC_PAVED_PRM, LC_BLDG_PRM, &
                                LC_EVETR_PRM, LC_DECTR_PRM, LC_GRASS_PRM, &
                                LC_BSOIL_PRM, LC_WATER_PRM, HEAT_STATE, flag_STATE
       TYPE(SUEWS_CONFIG), INTENT(IN) :: config
@@ -681,7 +681,7 @@ CONTAINS
       timer, config, forcing, siteInfo, & ! input
       modState) ! input/output:
 
-      USE SUEWS_DEF_DTS, ONLY: SUEWS_CONFIG, SUEWS_FORCING, SUEWS_TIMER, SUEWS_SITE, LC_PAVED_PRM, LC_BLDG_PRM, &
+      USE module_ctrl_type, ONLY: SUEWS_CONFIG, SUEWS_FORCING, SUEWS_TIMER, SUEWS_SITE, LC_PAVED_PRM, LC_BLDG_PRM, &
                                LC_EVETR_PRM, LC_DECTR_PRM, LC_GRASS_PRM, &
                                LC_BSOIL_PRM, LC_WATER_PRM, HEAT_STATE, flag_STATE, &
                                SUEWS_STATE
@@ -784,7 +784,7 @@ CONTAINS
       timer, config, forcing, siteInfo, & ! input
       modState) ! input/output:
 
-      USE SUEWS_DEF_DTS, ONLY: SUEWS_SITE, SUEWS_TIMER, SUEWS_CONFIG, SUEWS_FORCING, &
+      USE module_ctrl_type, ONLY: SUEWS_SITE, SUEWS_TIMER, SUEWS_CONFIG, SUEWS_FORCING, &
                                anthroEmis_STATE, atm_state, SUEWS_STATE
 
       IMPLICIT NONE
@@ -958,7 +958,7 @@ CONTAINS
 !       timer, config, forcing, siteInfo, & ! input
 !       modState) ! input/output:
 !
-!       USE SUEWS_DEF_DTS, ONLY: LC_EVETR_PRM, LC_DECTR_PRM, LC_GRASS_PRM, &
+!       USE module_ctrl_type, ONLY: LC_EVETR_PRM, LC_DECTR_PRM, LC_GRASS_PRM, &
 !                                SUEWS_CONFIG, CONDUCTANCE_PRM, SUEWS_FORCING, &
 !                                SUEWS_TIMER, PHENOLOGY_STATE, SNOW_STATE, atm_state, &
 !                                SUEWS_STATE
@@ -1148,8 +1148,8 @@ CONTAINS
       dataOutLineSPARTACUS) ! output
       USE module_phys_narp, ONLY: RadMethod, NARP
       USE module_phys_spartacus, ONLY: SPARTACUS
-      USE SUEWS_DEF_DTS, ONLY: SUEWS_SITE, SUEWS_TIMER, SUEWS_CONFIG, SUEWS_FORCING
-      USE SUEWS_DEF_DTS, ONLY: SUEWS_CONFIG, SUEWS_TIMER, SNOW_STATE, SNOW_PRM, &
+      USE module_ctrl_type, ONLY: SUEWS_SITE, SUEWS_TIMER, SUEWS_CONFIG, SUEWS_FORCING
+      USE module_ctrl_type, ONLY: SUEWS_CONFIG, SUEWS_TIMER, SNOW_STATE, SNOW_PRM, &
                                SUEWS_FORCING, SUEWS_SITE, &
                                LC_PAVED_PRM, LC_BLDG_PRM, LC_EVETR_PRM, LC_DECTR_PRM, &
                                LC_GRASS_PRM, LC_BSOIL_PRM, LC_WATER_PRM, &
@@ -1403,7 +1403,7 @@ CONTAINS
       modState, & ! input/output:
       dataOutLineESTM)
 
-      USE SUEWS_DEF_DTS, ONLY: SUEWS_CONFIG, SUEWS_FORCING, SUEWS_SITE, SUEWS_TIMER, &
+      USE module_ctrl_type, ONLY: SUEWS_CONFIG, SUEWS_FORCING, SUEWS_SITE, SUEWS_TIMER, &
                                SNOW_STATE, EHC_PRM, &
                                anthroEmis_STATE, PHENOLOGY_STATE, OHM_STATE, &
                                LC_PAVED_PRM, LC_BLDG_PRM, LC_EVETR_PRM, LC_DECTR_PRM, &
@@ -1840,7 +1840,7 @@ CONTAINS
       timer, config, forcing, siteInfo, & ! input
       modState) ! input/output:
 
-      USE SUEWS_DEF_DTS, ONLY: SUEWS_CONFIG, PHENOLOGY_STATE, &
+      USE module_ctrl_type, ONLY: SUEWS_CONFIG, PHENOLOGY_STATE, &
                                LC_PAVED_PRM, LC_BLDG_PRM, LC_EVETR_PRM, LC_DECTR_PRM, &
                                LC_GRASS_PRM, LC_BSOIL_PRM, LC_WATER_PRM, HYDRO_STATE, &
                                SUEWS_STATE
@@ -2019,7 +2019,7 @@ CONTAINS
       modState, &
       dataOutLineSnow)
 
-      USE SUEWS_DEF_DTS, ONLY: SUEWS_CONFIG, SUEWS_TIMER, SNOW_PRM, &
+      USE module_ctrl_type, ONLY: SUEWS_CONFIG, SUEWS_TIMER, SNOW_PRM, &
                                SUEWS_FORCING, PHENOLOGY_STATE, &
                                LC_PAVED_PRM, LC_BLDG_PRM, LC_EVETR_PRM, &
                                LC_DECTR_PRM, LC_GRASS_PRM, LC_BSOIL_PRM, &
@@ -2406,7 +2406,7 @@ CONTAINS
       timer, config, forcing, siteInfo, & ! input
       modState) ! input/output:
 
-      USE SUEWS_DEF_DTS, ONLY: SUEWS_CONFIG, SUEWS_TIMER, SUEWS_FORCING, &
+      USE module_ctrl_type, ONLY: SUEWS_CONFIG, SUEWS_TIMER, SUEWS_FORCING, &
                                SUEWS_SITE, EHC_PRM, &
                                LC_PAVED_PRM, LC_BLDG_PRM, &
                                LC_EVETR_PRM, LC_DECTR_PRM, LC_GRASS_PRM, &
@@ -2780,7 +2780,7 @@ CONTAINS
    SUBROUTINE SUEWS_cal_QH( &
       timer, config, forcing, siteInfo, & ! input
       modState) ! input/output:
-      USE SUEWS_DEF_DTS, ONLY: SUEWS_CONFIG, SUEWS_FORCING, SUEWS_TIMER, SUEWS_SITE, LC_PAVED_PRM, LC_BLDG_PRM, &
+      USE module_ctrl_type, ONLY: SUEWS_CONFIG, SUEWS_FORCING, SUEWS_TIMER, SUEWS_SITE, LC_PAVED_PRM, LC_BLDG_PRM, &
                                LC_EVETR_PRM, LC_DECTR_PRM, LC_GRASS_PRM, &
                                LC_BSOIL_PRM, LC_WATER_PRM, HEAT_STATE, &
                                SUEWS_STATE
@@ -2937,7 +2937,7 @@ CONTAINS
       timer, config, forcing, siteInfo, & ! input
       modState) ! input/output:
 
-      USE SUEWS_DEF_DTS, ONLY: SUEWS_CONFIG, SUEWS_TIMER, CONDUCTANCE_PRM, &
+      USE module_ctrl_type, ONLY: SUEWS_CONFIG, SUEWS_TIMER, CONDUCTANCE_PRM, &
                                SUEWS_FORCING, &
                                LC_PAVED_PRM, LC_BLDG_PRM, &
                                LC_EVETR_PRM, LC_DECTR_PRM, LC_GRASS_PRM, &
@@ -3117,7 +3117,7 @@ CONTAINS
       modState, & ! input/output:
       datetimeLine, dataOutLineSUEWS) !output
 
-      USE SUEWS_DEF_DTS, ONLY: SUEWS_SITE, SUEWS_TIMER, SUEWS_CONFIG, SUEWS_FORCING, &
+      USE module_ctrl_type, ONLY: SUEWS_SITE, SUEWS_TIMER, SUEWS_CONFIG, SUEWS_FORCING, &
                                LC_PAVED_PRM, LC_BLDG_PRM, LC_EVETR_PRM, LC_DECTR_PRM, &
                                LC_GRASS_PRM, LC_BSOIL_PRM, LC_WATER_PRM, &
                                HYDRO_STATE, SUEWS_STATE
@@ -3310,7 +3310,7 @@ CONTAINS
       modState, & ! input/output:
       datetimeLine, dataOutLineEHC) !output
 
-      USE SUEWS_DEF_DTS, ONLY: SUEWS_TIMER, HEAT_STATE, HYDRO_STATE, SUEWS_STATE
+      USE module_ctrl_type, ONLY: SUEWS_TIMER, HEAT_STATE, HYDRO_STATE, SUEWS_STATE
 
       IMPLICIT NONE
 
@@ -5365,4 +5365,9 @@ CONTAINS
 
    END SUBROUTINE restore_state
 
+END MODULE module_ctrl_driver
+
+\! Backward compatibility alias
+MODULE SUEWS_Driver
+   USE module_ctrl_driver
 END MODULE SUEWS_Driver

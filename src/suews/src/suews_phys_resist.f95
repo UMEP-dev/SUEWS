@@ -456,7 +456,7 @@ CONTAINS
       ! sg feb 2012 - made separate subroutine
       !--------------------------------------------------------------------------------
 
-      USE SUEWS_DEF_DTS, ONLY: SUEWS_SITE, SUEWS_TIMER, SUEWS_CONFIG, SUEWS_FORCING, &
+      USE module_ctrl_type, ONLY: SUEWS_SITE, SUEWS_TIMER, SUEWS_CONFIG, SUEWS_FORCING, &
                                LC_PAVED_PRM, LC_BLDG_PRM, LC_EVETR_PRM, LC_DECTR_PRM, &
                                LC_GRASS_PRM, LC_BSOIL_PRM, LC_WATER_PRM, &
                                IRRIGATION_PRM, anthroEmis_STATE, &

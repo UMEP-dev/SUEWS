@@ -196,7 +196,7 @@ CONTAINS
       ! SG Feb 2012     - added some comments
       ! --------------------------------------------------------------
       USE meteo, ONLY: psyc_const, slope_svp, slopeice_svp
-      USE SUEWS_DEF_DTS, ONLY: LUMPS_PRM, SUEWS_TIMER, SUEWS_SITE, SUEWS_CONFIG, SUEWS_FORCING, &
+      USE module_ctrl_type, ONLY: LUMPS_PRM, SUEWS_TIMER, SUEWS_SITE, SUEWS_CONFIG, SUEWS_FORCING, &
                                LC_PAVED_PRM, LC_BLDG_PRM, LC_EVETR_PRM, LC_DECTR_PRM, &
                                LC_GRASS_PRM, LC_BSOIL_PRM, LC_WATER_PRM, &
                                PHENOLOGY_STATE, atm_state, HEAT_STATE, SUEWS_STATE

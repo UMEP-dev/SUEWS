@@ -973,7 +973,7 @@ CONTAINS
       modState) ! input/output:
       ! hydroState)
 
-      USE SUEWS_DEF_DTS, ONLY: SUEWS_SITE, SUEWS_TIMER, SUEWS_CONFIG, SUEWS_FORCING, &
+      USE module_ctrl_type, ONLY: SUEWS_SITE, SUEWS_TIMER, SUEWS_CONFIG, SUEWS_FORCING, &
                                LC_PAVED_PRM, LC_BLDG_PRM, LC_EVETR_PRM, LC_DECTR_PRM, &
                                LC_GRASS_PRM, LC_BSOIL_PRM, LC_WATER_PRM, &
                                HYDRO_STATE, SUEWS_STATE
@@ -1173,7 +1173,7 @@ CONTAINS
    !    timer, config, forcing, siteInfo, & ! input
    !    hydroState, hydroState_prev) !output
 
-   !    USE SUEWS_DEF_DTS, ONLY: SUEWS_CONFIG, SUEWS_FORCING, SUEWS_TIMER, SUEWS_SITE, &
+   !    USE module_ctrl_type, ONLY: SUEWS_CONFIG, SUEWS_FORCING, SUEWS_TIMER, SUEWS_SITE, &
    !                             LC_PAVED_PRM, LC_BLDG_PRM, &
    !                             LC_EVETR_PRM, LC_DECTR_PRM, LC_GRASS_PRM, &
    !                             LC_BSOIL_PRM, LC_WATER_PRM, HYDRO_STATE
@@ -1564,7 +1564,7 @@ CONTAINS
       ! use time
       ! use allocateArray
 
-      USE SUEWS_DEF_DTS, ONLY: SUEWS_CONFIG, SUEWS_TIMER, SUEWS_FORCING, &
+      USE module_ctrl_type, ONLY: SUEWS_CONFIG, SUEWS_TIMER, SUEWS_FORCING, &
                                LC_PAVED_PRM, LC_BLDG_PRM, &
                                LC_EVETR_PRM, LC_DECTR_PRM, LC_GRASS_PRM, &
                                LC_BSOIL_PRM, LC_WATER_PRM, SUEWS_SITE, HYDRO_STATE
@@ -2311,7 +2311,7 @@ CONTAINS
       ! To Do:
       !        - Add functionality for water on paved surfaces (street cleaning, fountains)
 
-      USE SUEWS_DEF_DTS, ONLY: SUEWS_SITE, SUEWS_TIMER, SUEWS_CONFIG, SUEWS_FORCING, &
+      USE module_ctrl_type, ONLY: SUEWS_SITE, SUEWS_TIMER, SUEWS_CONFIG, SUEWS_FORCING, &
                                LC_PAVED_PRM, LC_BLDG_PRM, LC_EVETR_PRM, LC_DECTR_PRM, &
                                LC_GRASS_PRM, LC_BSOIL_PRM, LC_WATER_PRM, &
                                IRRIGATION_PRM, anthroEmis_STATE, &

@@ -5,7 +5,7 @@
 
 ! Main module following naming standard: matches filename
 MODULE module_ctrl_sumin
-   USE SUEWS_Driver, ONLY: SUEWS_cal_Main, &
+   USE module_ctrl_driver, ONLY: SUEWS_cal_Main, &
                            PavSurf, BldgSurf, ConifSurf, DecidSurf, GrassSurf, BSoilSurf, WaterSurf, &
                            ivConif, ivDecid, ivGrass, &
                            ncolumnsDataOutSUEWS, ncolumnsDataOutSnow, &

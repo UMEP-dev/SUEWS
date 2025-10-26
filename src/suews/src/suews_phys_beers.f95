@@ -345,7 +345,7 @@ CONTAINS
       modState, & ! input/output:
       dataOutLineBEERS) ! output
 
-      USE SUEWS_DEF_DTS, ONLY: SUEWS_CONFIG, SUEWS_TIMER, SUEWS_FORCING, SUEWS_SITE, &
+      USE module_ctrl_type, ONLY: SUEWS_CONFIG, SUEWS_TIMER, SUEWS_FORCING, SUEWS_SITE, &
                                PHENOLOGY_STATE, LC_PAVED_PRM, LC_BLDG_PRM, &
                                ROUGHNESS_STATE, HEAT_STATE, solar_State, &
                                SUEWS_STATE, BldgSurf, STEBBS_STATE

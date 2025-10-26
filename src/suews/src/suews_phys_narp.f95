@@ -634,7 +634,7 @@ CONTAINS
       ! solarState)
       ! sunazimuth, sunzenith)
 
-      USE SUEWS_DEF_DTS, ONLY: &
+      USE module_ctrl_type, ONLY: &
          SUEWS_TIMER, SUEWS_SITE, SUEWS_CONFIG, SUEWS_FORCING, &
          solar_State, SUEWS_STATE
 

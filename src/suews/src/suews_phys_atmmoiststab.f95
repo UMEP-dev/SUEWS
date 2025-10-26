@@ -1,6 +1,6 @@
 ! Main module following naming standard: matches filename
 MODULE module_phys_atmmoiststab
-   USE SUEWS_DEF_DTS, ONLY: atm_state, SUEWS_FORCING, SUEWS_TIMER, SUEWS_STATE
+   USE module_ctrl_type, ONLY: atm_state, SUEWS_FORCING, SUEWS_TIMER, SUEWS_STATE
    USE module_ctrl_const_physconst, ONLY: eps_fp
    IMPLICIT NONE
    REAL(KIND(1D0)), PARAMETER :: neut_limit = 1.E-4 !Limit for neutral stability

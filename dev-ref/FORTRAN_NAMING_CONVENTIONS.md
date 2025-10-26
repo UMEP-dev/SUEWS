@@ -76,67 +76,93 @@ suews_util_meteo.f95      - Meteorological calculations
 
 ### Pattern
 ```fortran
-MODULE suews_<category>_<name>
+MODULE module_<category>_<name>
 ```
 
+### File vs Module Naming
+- **Files**: Keep `suews_` prefix (e.g., `suews_phys_snow.f95`) to indicate SUEWS project ownership
+- **Modules**: Use `module_` prefix (e.g., `MODULE module_phys_snow`) for simpler, clearer code
+
 ### Rationale
-Aligning module names with file names provides:
-- **Perfect correlation**: `suews_phys_snow.f95` contains `MODULE suews_phys_snow`
-- **Easy grepping**: Search for module by file name pattern
-- **Clear ownership**: One module per file as default
-- **Namespace clarity**: All SUEWS modules share `suews_` prefix
+- **Project ownership**: File names with `suews_` clearly indicate these belong to SUEWS
+- **Code clarity**: Module names with `module_` are simpler and more readable in USE statements
+- **Category organisation**: Both maintain `<category>` for clear structure
+- **One module per scheme**: Each physics scheme should have ONE consolidated module
 
 ### Examples
 
 #### Single Module per File (Preferred)
 ```fortran
 ! File: suews_phys_snow.f95
-MODULE suews_phys_snow
+MODULE module_phys_snow
     IMPLICIT NONE
-    ! Snow physics implementation
+    ! Snow physics implementation - all snow-related code in ONE module
 CONTAINS
     SUBROUTINE update_snow_state(...)
     END SUBROUTINE update_snow_state
-END MODULE suews_phys_snow
+END MODULE module_phys_snow
 ```
 
-#### Multiple Modules per File (When Necessary)
+#### Principle: ONE Module Per Physics Scheme
+
+**Avoid creating sub-modules** unless absolutely necessary. If code logically belongs to the same physics scheme or utility, merge it into ONE module.
+
+**Bad example** (too many sub-modules):
 ```fortran
-! File: suews_util_datetime.f95
-
-! Main datetime functionality
-MODULE suews_util_datetime
-    IMPLICIT NONE
-    ! Primary datetime operations
-END MODULE suews_util_datetime
-
-! Supporting constants (if can't be inside main module)
-MODULE suews_util_datetime_const
-    IMPLICIT NONE
-    ! Constants used by datetime module
-END MODULE suews_util_datetime_const
-
-! Optional helper types
-MODULE suews_util_datetime_types
-    IMPLICIT NONE
-    ! Type definitions for datetime
-END MODULE suews_util_datetime_types
+! File: suews_phys_stebbs.f95
+MODULE module_phys_stebbs_precision
+MODULE module_phys_stebbs_core
+MODULE module_phys_stebbs_func
+MODULE module_phys_stebbs_couple
+MODULE module_phys_stebbs  ! Main interface
 ```
 
-**Suffix convention** when multiple modules required:
-- `_const` - Constants and parameters
-- `_types` - Type definitions
-- `_ops` - Operations/functions
-- `_io` - Input/output routines
-- `_util` - Helper utilities
+**Good example** (consolidated):
+```fortran
+! File: suews_phys_stebbs.f95
+MODULE module_phys_stebbs
+    USE ISO_FORTRAN_ENV, ONLY: REAL64
+    IMPLICIT NONE
+
+    ! Precision definitions (merged in)
+    INTEGER, PARAMETER :: rprc = REAL64
+
+    ! Data structures (merged in)
+    TYPE :: LBM
+        ! ... building data structure
+    END TYPE
+
+CONTAINS
+    ! All functions merged into main module
+    SUBROUTINE stebbsonlinecouple(...)
+    FUNCTION ext_conv_coeff(...) RESULT(hc)
+END MODULE module_phys_stebbs
+```
+
+#### Multiple Modules Only When Serving Different Purposes
+
+General-purpose utilities that serve MULTIPLE physics schemes may stay separate:
+
+```fortran
+! File: suews_util_meteo.f95
+MODULE module_util_meteo
+    ! Meteorological calculations used by snow, OHM, LUMPS, etc.
+END MODULE module_util_meteo
+
+! File: suews_util_time.f95
+MODULE module_util_time
+    ! Time utilities used by multiple modules
+END MODULE module_util_time
+```
 
 ### Comparison with Current Codebase
 
-| File | Current Module(s) | Proposed Module |
-|------|------------------|-----------------|
-| `suews_phys_snow.f95` | `Snow_module` | `suews_phys_snow` |
-| `suews_util_datetime.f95` | `mod_datetime`, `mod_strftime`, `mod_timedelta`, `mod_constants` | `suews_util_datetime` (consolidate or use `_const`, `_ops` suffixes) |
-| `suews_ctrl_const.f95` | `allocateArray`, `Initial`, `data_in`, `snowMod` | Split into separate files OR use `suews_ctrl_const`, `suews_ctrl_const_arrays`, etc. |
+| File | Current Module(s) | New Module |
+|------|------------------|------------|
+| `suews_phys_snow.f95` | `Snow_module` | `module_phys_snow` |
+| `suews_phys_stebbs.f95` | `modulestebbsprecision`, `modulestebbs`, `modulestebbsfunc`, etc. (5 modules) | `module_phys_stebbs` (ONE consolidated module) |
+| `suews_util_meteo.f95` | `METEO` | `module_util_meteo` |
+| `suews_util_time.f95` | `time_module` | `module_util_time` |
 
 ---
 
@@ -284,54 +310,63 @@ REAL(KIND(1D0)) :: fraction = 0.0D0      ! [-] dimensionless
 
 ## Type Naming
 
-### User-Defined Types
-**Pattern**: `snake_case` with `_t` suffix to indicate it's a type
+### User-Defined Types (Derived Types)
+**Pattern**: `dts_<name>` where `dts` = "derived type"
 
-**Rationale**: Consistent with all other naming. The `_t` suffix makes it clear it's a type definition.
+**Rationale**:
+- `dts` is proper Fortran terminology for user-defined types
+- Prefix pattern (not suffix) makes types immediately recognizable
+- Consistent with scientific programming conventions
 
 ```fortran
-TYPE :: snow_state_t
+TYPE :: dts_snow_state
     REAL(KIND(1D0)) :: depth = 0.0D0              ! [m]
     REAL(KIND(1D0)) :: density = 100.0D0          ! [kg m-3]
     REAL(KIND(1D0)) :: albedo = 0.8D0             ! [-]
     REAL(KIND(1D0)) :: temperature = 273.15D0     ! [K]
     INTEGER :: age_days = 0                        ! [days]
-END TYPE snow_state_t
+END TYPE dts_snow_state
 
-TYPE :: atmospheric_forcing_t
+TYPE :: dts_forcing
     REAL(KIND(1D0)) :: temperature   ! [K]
     REAL(KIND(1D0)) :: pressure      ! [Pa]
     REAL(KIND(1D0)) :: humidity      ! [kg kg-1]
     REAL(KIND(1D0)) :: wind_speed    ! [m s-1]
-END TYPE atmospheric_forcing_t
+END TYPE dts_forcing
 
-TYPE :: surface_fluxes_t
+TYPE :: dts_fluxes
     REAL(KIND(1D0)) :: sensible_heat  ! [W m-2]
     REAL(KIND(1D0)) :: latent_heat    ! [W m-2]
     REAL(KIND(1D0)) :: ground_heat    ! [W m-2]
     REAL(KIND(1D0)) :: net_radiation  ! [W m-2]
-END TYPE surface_fluxes_t
+END TYPE dts_fluxes
 ```
 
 ### Type Components
 Use `lowercase_with_underscores` (same as variables):
 ```fortran
-TYPE :: ohm_state_t
+TYPE :: dts_ohm_state
     REAL(KIND(1D0)) :: storage_heat_flux        ! [W m-2]
     REAL(KIND(1D0)) :: hysteresis_coef          ! [-]
     REAL(KIND(1D0)) :: thermal_time_constant    ! [s]
-END TYPE ohm_state_t
+END TYPE dts_ohm_state
 ```
 
-### Alternative: No Suffix
-If the `_t` suffix feels redundant in context, you can omit it:
+### Examples of Type Usage
 ```fortran
-TYPE :: snow_state
-TYPE :: atmospheric_forcing
-TYPE :: surface_fluxes
-```
+MODULE module_phys_snow
+    TYPE :: dts_snow_state
+        REAL(KIND(1D0)) :: depth
+        REAL(KIND(1D0)) :: density
+    END TYPE dts_snow_state
 
-Choose one convention (with or without `_t`) and be consistent throughout the codebase.
+CONTAINS
+    SUBROUTINE update_snow(state)
+        TYPE(dts_snow_state), INTENT(INOUT) :: state
+        ! Update snow state
+    END SUBROUTINE update_snow
+END MODULE module_phys_snow
+```
 
 ---
 
@@ -339,18 +374,22 @@ Choose one convention (with or without `_t`) and be consistent throughout the co
 
 ### For New Code (Effective Immediately)
 All new Fortran code must follow these conventions:
-- New modules: `MODULE suews_<category>_<name>`
-- New files: One module per file preferred
-- New subroutines/functions: Follow public/private patterns
-- New variables: Follow case conventions
+- New modules: `MODULE module_<category>_<name>` (in file `suews_<category>_<name>.f95`)
+- New types: `TYPE :: dts_<name>`
+- One module per physics scheme (consolidate sub-modules)
+- New subroutines/functions: `snake_case`
+- New variables: `snake_case` with units in comments
 
 ### For Existing Code (Gradual Migration)
 
-#### Phase 1: High-Priority Files (2025-2026)
-Files actively being modified or with poor current naming:
-1. Create module aliases for backward compatibility
-2. Rename module to new convention
-3. Update all `USE` statements in codebase
+#### Phase 1: Module Consolidation and Renaming (2025)
+**Current status**: In progress
+1. **Consolidate sub-modules** into ONE module per physics scheme
+   - Example: STEBBS 5 modules → 1 module
+2. **Rename modules** from old patterns to `module_<category>_<name>`
+3. **Create backward compatibility aliases** for all old module names
+4. **Update all USE statements** to use new module names
+5. **Test builds** after each batch
 4. Remove aliases after one minor version
 
 #### Phase 2: Medium-Priority Files (2026-2027)

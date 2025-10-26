@@ -473,7 +473,7 @@ SUEWS_VARIABLES = [
     ),
     OutputVariable(
         name="AlbBulk",
-        unit="1",
+        unit="dimensionless",
         description="Bulk albedo",
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.SUEWS,
@@ -482,7 +482,7 @@ SUEWS_VARIABLES = [
     ),
     OutputVariable(
         name="Fcld",
-        unit="1",
+        unit="dimensionless",
         description="Cloud fraction",
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.SUEWS,

@@ -1,6 +1,7 @@
 """Datetime output variables.
 
-These variables represent the timestamp information in SUEWS output files.
+These variables provide temporal information and are included in all output groups
+as the first columns to identify the timestamp of each record.
 """
 
 from .variables import (
@@ -14,47 +15,42 @@ from .variables import (
 DATETIME_VARIABLES = [
     OutputVariable(
         name="Year",
-        unit="YYYY",
-        description="Year",
+        unit="-",
+        description="Year (4-digit integer)",
         aggregation=AggregationMethod.TIME,
         group=OutputGroup.DATETIME,
         level=OutputLevel.DEFAULT,
-        format="i0004",
     ),
     OutputVariable(
         name="DOY",
-        unit="DOY",
-        description="Day of Year",
+        unit="-",
+        description="Day of year (1-366)",
         aggregation=AggregationMethod.TIME,
         group=OutputGroup.DATETIME,
         level=OutputLevel.DEFAULT,
-        format="i0004",
     ),
     OutputVariable(
         name="Hour",
-        unit="HH",
-        description="Hour",
+        unit="-",
+        description="Hour of day (0-23)",
         aggregation=AggregationMethod.TIME,
         group=OutputGroup.DATETIME,
         level=OutputLevel.DEFAULT,
-        format="i0004",
     ),
     OutputVariable(
         name="Min",
-        unit="MM",
-        description="Minute",
+        unit="-",
+        description="Minute of hour (0-59)",
         aggregation=AggregationMethod.TIME,
         group=OutputGroup.DATETIME,
         level=OutputLevel.DEFAULT,
-        format="i0004",
     ),
     OutputVariable(
         name="Dectime",
         unit="-",
-        description="Decimal time",
+        description="Decimal time (fractional day of year)",
         aggregation=AggregationMethod.TIME,
         group=OutputGroup.DATETIME,
         level=OutputLevel.DEFAULT,
-        format="f08.4",
     ),
 ]

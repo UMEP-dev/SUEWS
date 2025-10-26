@@ -121,12 +121,6 @@ class OutputVariableRSTGenerator:
         lines.append(f"This group contains {len(variables)} output variables.")
         lines.append("")
 
-        # Add variables section with unique label
-        variables_heading = f"{group_name} Variables List"
-        lines.append(variables_heading)
-        lines.append("-" * len(variables_heading))
-        lines.append("")
-
         # Sort variables by name
         sorted_vars = sorted(variables, key=lambda v: v.name)
 
@@ -162,8 +156,11 @@ class OutputVariableRSTGenerator:
             lines.append("")
 
         # Add metadata
+        # Skip Unit and Output Level for datetime variables (they're temporal indices, not physical quantities)
+        is_datetime = group_val.lower() == "datetime"
+
         # Unit
-        if var.unit:
+        if var.unit and not is_datetime:
             formatted_unit = self._format_unit(var.unit)
             lines.append(f"   :Unit: {formatted_unit}")
 
@@ -171,9 +168,10 @@ class OutputVariableRSTGenerator:
         agg_desc = self._get_aggregation_description(var.aggregation)
         lines.append(f"   :Aggregation: {agg_desc}")
 
-        # Output level
-        level_desc = self._get_level_description(var.level)
-        lines.append(f"   :Output Level: {level_desc}")
+        # Output level (skip for datetime variables)
+        if not is_datetime:
+            level_desc = self._get_level_description(var.level)
+            lines.append(f"   :Output Level: {level_desc}")
 
         # Format (for advanced users)
         if var.format and var.format != "f104":

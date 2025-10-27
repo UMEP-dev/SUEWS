@@ -450,7 +450,9 @@ class RSTGenerator:
         return " ".join(formatted)
 
     @staticmethod
-    def _format_default(field_doc: dict[str, Any], model_name: str = "") -> tuple[str, str]:  # noqa: PLR0912
+    def _format_default(
+        field_doc: dict[str, Any], model_name: str = ""
+    ) -> tuple[str, str]:  # noqa: PLR0912
         """Format default value for display with consistent labeling.
 
         Returns appropriate label-value pair based on field characteristics:

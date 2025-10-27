@@ -394,6 +394,26 @@ CONTAINS
       hc = hn + Rf*(hcglass - hn)
    END FUNCTION ext_conv_coeff
 
+   FUNCTION int_conv_coeff(dT, surf_type) RESULT(h)
+      !TARP Algorithm, derived from Walton (1983)
+      !surf-type == 1: vertical surface, wall or windows
+      !surf_type == 2: horizontal surface, roof, downward (internal side)
+      !surf_type == 3: horizontal surface, floor, upward
+      !dT = surface temperature  -  air temperature
+      USE modulestebbsprecision
+      IMPLICIT NONE
+      integer, INTENT(in) :: surf_type
+      REAL(KIND(1D0)), INTENT(in) :: dT
+      REAL(KIND(1D0)) :: h
+      IF (surf_type == 1) THEN
+         h = 1.31*(ABS(dT)**(1.0/3.0))
+      ELSE IF ((surf_type == 2 .and. dT >= 0) .or. (surf_type == 3 .and. dT <= 0)) THEN
+         h = (9.482 * ABS(dT)**(1.0/3.0)) / 7.238
+      ELSE
+         h = (1.810 * ABS(dT)**(1.0/3.0)) / 1.382
+      END IF 
+   END FUNCTION int_conv_coeff   
+
    FUNCTION calculate_x1(d, cp, rho, d_ext, cp_ext, rho_ext, k_ext) RESULT(x1)
       IMPLICIT NONE
       ! Input parameters
@@ -871,7 +891,7 @@ Qsw_absorbed_window_tstepFA, Qsw_absorbed_wall_tstepFA, Qsw_absorbed_roof_tstepF
 
    USE modulestebbsprecision
    USE modulestebbs, ONLY: resolution
-   USE modulestebbsfunc, ONLY: ext_conv_coeff
+   USE modulestebbsfunc, ONLY: ext_conv_coeff, int_conv_coeff
    USE modulesuewsstebbscouple, ONLY: &
       sout, &
       Tair_out, Tair_out_bh, Tair_out_hbh, ws_out_bh, ws_out_hbh, Tground_deep, Tsurf, density_air_out, &
@@ -988,8 +1008,13 @@ Qsw_absorbed_window_tstepFA, Qsw_absorbed_wall_tstepFA, Qsw_absorbed_roof_tstepF
       END IF
       !use updated temperature to calculate new coefficients
       self%h_o(1) = ext_conv_coeff(ws_out_hbh, self%Textwall - Tair_out_hbh) !wall
-      self%h_o(2) = ext_conv_coeff(ws_out_hbh, self%Textwindow - Tair_out_hbh) !new function is needed for winodws (smooth)
-      self%h_o(3) = ext_conv_coeff(ws_out_bh, self%Textroof - Tair_out_bh) !new function is needed to horizontal roof
+      self%h_o(2) = ext_conv_coeff(ws_out_hbh, self%Textwindow - Tair_out_hbh) !new function maybe needed for windiws (smooth)
+      self%h_o(3) = ext_conv_coeff(ws_out_bh, self%Textroof - Tair_out_bh) !new function maybe needed for horizontal roof
+      self%h_i(1) = int_conv_coeff(dT = (self%Tintwall - self%Tair_ind), surf_type = 1) !wall
+      self%h_i(2) = int_conv_coeff(dT = (self%Tintwindow - self%Tair_ind), surf_type = 1) !windows
+      self%h_i(3) = int_conv_coeff(dT = (self%Tintroof - self%Tair_ind), surf_type = 2) !roof
+      self%h_i(4) = int_conv_coeff(dT = (self%Tintgroundfloor - self%Tair_ind), surf_type = 3) !floor
+      self%h_i(5) = int_conv_coeff(dT = (self%Tindoormass - self%Tair_ind), surf_type = 1) !nternal mass,assume vertical
       !print*, 'dt=', self%Textwall - sout%Tair_exch_hbh, 'ho=',self%h_o(1)
       CALL timeStepCalculation(self, Tair_out, Tair_out_bh, Tair_out_hbh, Tground_deep, Tsurf, &
                                density_air_out, cp_air_out, &
@@ -1159,10 +1184,11 @@ SUBROUTINE timeStepCalculation(self, Tair_out, Tair_out_bh, Tair_out_hbh, Tgroun
       self%QHload_heating_tstepFA, self%QHload_cooling_tstepFA, &
       self%height_building, self%ratio_window_wall, self%thickness_wall, self%thickness_roof, &
       self%thickness_groundfloor, self%depth_ground, self%thickness_window, &
-      self%conv_coeff_intwall, self%conv_coeff_introof, self%conv_coeff_indoormass, &
-      self%conv_coeff_intgroundfloor, self%conv_coeff_intwindow, &
+      !self%conv_coeff_intwall, self%conv_coeff_introof, self%conv_coeff_indoormass, &
+      !self%conv_coeff_intgroundfloor, self%conv_coeff_intwindow, &
       ! self%conv_coeff_extwallroof, self%conv_coeff_extwindow,                               &
       self%h_o(1), self%h_o(2), self%h_o(3), &
+      self%h_i(1), self%h_i(2), self%h_i(3), self%h_i(4), self%h_i(5),&
       self%conductivity_wall, self%conductivity_roof, self%conductivity_groundfloor, &
       self%conductivity_window, self%conductivity_ground, &
       self%density_wall, self%density_roof, self%density_groundfloor, &
@@ -1174,8 +1200,8 @@ SUBROUTINE timeStepCalculation(self, Tair_out, Tair_out_bh, Tair_out_hbh, Tgroun
       self%windowTransmissivity, self%windowAbsorbtivity, self%windowReflectivity, &
       self%wallTransmisivity, self%wallAbsorbtivity, self%wallReflectivity, &
       self%roofTransmisivity, self%roofAbsorbtivity, self%roofReflectivity, &
-      self%BVF_extwall, self%GVF_extwall, self%SVF_extwall, &
-      self%BVF_extroof, self%GVF_extroof, self%SVF_extroof, &
+      !self%BVF_extwall, self%GVF_extwall, self%SVF_extwall, &
+      !self%BVF_extroof, self%GVF_extroof, self%SVF_extroof, &
       self%occupants, self%metabolic_rate, self%ratio_metabolic_latent_sensible, &
       self%appliance_power_rating, self%appliance_usage_factor, &
       self%maxheatingpower_air, self%heating_efficiency_air, &
@@ -1261,11 +1287,11 @@ SUBROUTINE tstep( &
    QHload_heating_tstepFA, QHload_cooling_tstepFA, & !IO
    height_building, ratio_window_wall, thickness_wall, thickness_roof, &
    thickness_groundfloor, depth_ground, thickness_window, &
-   conv_coeff_intwall, conv_coeff_introof, conv_coeff_indoormass, &
-   conv_coeff_intgroundfloor, conv_coeff_intwindow, &
    conv_coeff_extwall, conv_coeff_extroof, conv_coeff_extwindow, &
+   conv_coeff_intwall, conv_coeff_introof, conv_coeff_intwindow, &
+   conv_coeff_intgroundfloor, conv_coeff_indoormass, &
    conductivity_wall, conductivity_roof, conductivity_groundfloor, &
-   conductivity_window, conductivity_ground, &
+   conductivity_window, conductivity_ground, & 
    density_wall, density_roof, density_groundfloor, &
    density_window, density_indoormass, density_air_ind, &
    cp_wall, cp_roof, cp_groundfloor, cp_window, cp_indoormass, cp_air_ind, &
@@ -1274,8 +1300,8 @@ SUBROUTINE tstep( &
    windowTransmissivity, windowAbsorbtivity, windowReflectivity, &
    wallTransmisivity, wallAbsorbtivity, wallReflectivity, &
    roofTransmisivity, roofAbsorbtivity, roofReflectivity, &
-   BVF_extwall, GVF_extwall, SVF_extwall, &
-   BVF_extroof, GVF_extroof, SVF_extroof, &
+   !BVF_extwall, GVF_extwall, SVF_extwall, &
+   !BVF_extroof, GVF_extroof, SVF_extroof, &
    occupants, metabolic_rate, ratio_metabolic_latent_sensible, &
    appliance_power_rating, appliance_usage_factor, &
    maxheatingpower_air, heating_efficiency_air, &
@@ -1411,9 +1437,9 @@ SUBROUTINE tstep( &
                       emissivity_indoormass, emissivity_extwindow, emissivity_intwindow, & ! [-], [-], [-]
                       windowTransmissivity, windowAbsorbtivity, windowReflectivity, & ! [-], [-], [-]
                       wallTransmisivity, wallAbsorbtivity, wallReflectivity, & ! [-], [-], [-]
-                 roofTransmisivity, roofAbsorbtivity, roofReflectivity, & ! [-], [-], [-]
-                      BVF_extwall, GVF_extwall, SVF_extwall, & ! [-], [-], [-]
-                 BVF_extroof, GVF_extroof, SVF_extroof ! [-], [-], [-]
+                 roofTransmisivity, roofAbsorbtivity, roofReflectivity ! [-], [-], [-]
+                      !BVF_extwall, GVF_extwall, SVF_extwall, & ! [-], [-], [-]
+                 !BVF_extroof, GVF_extroof, SVF_extroof ! [-], [-], [-]
    REAL(KIND(1D0)) :: occupants ! Number of occupants [-]
    REAL(KIND(1D0)) :: metabolic_rate, ratio_metabolic_latent_sensible, & ! [W], [-]
                       appliance_power_rating ! [W]
@@ -1597,7 +1623,6 @@ SUBROUTINE tstep( &
          Qsw_absorbed_roof = wallInsolation(Qsw_dn_extroof, roofA, Aroof) !//roof
          Qsw_reflected_wall = wallInsolation(Qsw_dn_extwall, walR, Awall) !//reflected SW for wall
          Qsw_reflected_roof = wallInsolation(Qsw_dn_extroof, roofR, Aroof) !//reflected SW for roof         
-         QHconv_indair_to_indoormass = internalConvectionHeatTransfer(conv_coeff_indoormass, Aindoormass, Tindoormass, Tair_ind)
          Qlw_net_intwall_to_allotherindoorsurfaces = indoorRadiativeHeatTransfer() ! //  for wall internal radiative exchange
          Qlw_net_introof_to_allotherindoorsurfaces = indoorRadiativeHeatTransfer() ! //  for roof internal radiative exchange
          Qlw_net_intwindow_to_allotherindoorsurfaces = indoorRadiativeHeatTransfer() ! //  for window internal radiative exchange - TODO: currently no distinction in internal radiative exchanges
@@ -1614,6 +1639,9 @@ SUBROUTINE tstep( &
             indoorConvectionHeatTransfer(conv_coeff_intwindow, Awindow, Tintwindow, Tair_ind)
          QHconv_indair_to_intgroundfloor = &
             indoorConvectionHeatTransfer(conv_coeff_intgroundfloor, Afootprint, Tintgroundfloor, Tair_ind)
+         QHconv_indair_to_indoormass = &
+            internalConvectionHeatTransfer(conv_coeff_indoormass, Aindoormass, Tindoormass, Tair_ind)
+
          QHload_heating_timestep = heating(Ts(1), Tair_ind, heating_efficiency_air, maxheatingpower_air)
          QHload_cooling_timestep = cooling(Ts(2), Tair_ind, coeff_performance_cooling, maxcoolingpower_air)
 
@@ -2098,12 +2126,12 @@ SUBROUTINE gen_building(stebbsState, stebbsPrm, building_archtype, self, num_lay
    self%roofTransmisivity = building_archtype%RoofTransmissivity
    self%roofAbsorbtivity = building_archtype%RoofAbsorbtivity
    self%roofReflectivity = building_archtype%RoofReflectivity
-   self%BVF_extwall = stebbsPrm%WallBuildingViewFactor
-   self%GVF_extwall = stebbsPrm%WallGroundViewFactor
-   self%SVF_extwall = stebbsPrm%WallSkyViewFactor
-   self%BVF_extroof = stebbsPrm%RoofBuildingViewFactor
-   self%GVF_extroof = stebbsPrm%RoofGroundViewFactor
-   self%SVF_extroof = stebbsPrm%RoofSkyViewFactor
+   !self%BVF_extwall = stebbsPrm%WallBuildingViewFactor !View factor for external envelope are not required
+   !self%GVF_extwall = stebbsPrm%WallGroundViewFactor
+   !self%SVF_extwall = stebbsPrm%WallSkyViewFactor
+   !self%BVF_extroof = stebbsPrm%RoofBuildingViewFactor
+   !self%GVF_extroof = stebbsPrm%RoofGroundViewFactor
+   !self%SVF_extroof = stebbsPrm%RoofSkyViewFactor
    self%occupants = building_archtype%Occupants
    self%metabolic_rate = stebbsPrm%MetabolicRate
    self%ratio_metabolic_latent_sensible = stebbsPrm%LatentSensibleRatio
@@ -2127,8 +2155,8 @@ SUBROUTINE gen_building(stebbsState, stebbsPrm, building_archtype, self, num_lay
    self%Vwindow = self%Awindow*self%thickness_window
    self%Vindoormass = self%Vair_ind*self%ratioInternalVolume ! # Multiplied by factor that accounts for internal mass as proportion of total air volume
    self%Aindoormass = 6*(self%Vindoormass**(2./3.)) ! # Assumed internal mass as a cube
-   self%h_i = (/self%conv_coeff_intwall, self%conv_coeff_introof, self%conv_coeff_indoormass, &
-                self%conv_coeff_intgroundfloor, self%conv_coeff_intwindow/)
+   self%h_i = (/self%conv_coeff_intwall, self%conv_coeff_introof, self%conv_coeff_intwindow, self%conv_coeff_intgroundfloor , &
+                self%conv_coeff_indoormass/)
 
    self%h_o = (/self%conv_coeff_extwall, self%conv_coeff_extroof, self%conv_coeff_extwindow/)
    self%k_eff = (/self%conductivity_wall, self%conductivity_roof, self%conductivity_groundfloor, &
@@ -2145,8 +2173,8 @@ SUBROUTINE gen_building(stebbsState, stebbsPrm, building_archtype, self, num_lay
    self%wiTAR = (/self%windowTransmissivity, self%windowAbsorbtivity, self%windowReflectivity/)
    self%waTAR = (/self%wallTransmisivity, self%wallAbsorbtivity, self%wallReflectivity/)
    self%roofTAR = (/self%roofTransmisivity, self%roofAbsorbtivity, self%roofReflectivity/)
-
-   self%viewFactors = (/self%BVF_extwall, self%GVF_extwall, self%SVF_extwall, self%BVF_extroof, self%GVF_extroof, self%SVF_extroof/) !  # Building, ground, and sky view factors
+   !View factor for external envelope is not required
+   !self%viewFactors = (/self%BVF_extwall, self%GVF_extwall, self%SVF_extwall, self%BVF_extroof, self%GVF_extroof, self%SVF_extroof/) !  # Building, ground, and sky view factors
    self%occupantData = (/self%occupants, self%metabolic_rate, &
                          self%ratio_metabolic_latent_sensible/)
 
@@ -2344,8 +2372,8 @@ SUBROUTINE create_building(CASE, self, icase)
    self%Vwindow = self%Awindow*self%thickness_window
    self%Vindoormass = self%Vair_ind*self%ratioInternalVolume ! # Multiplied by factor that accounts for internal mass as proportion of total air volume
    self%Aindoormass = 6*(self%Vindoormass**(2./3.)) ! # Assumed internal mass as a cube
-   self%h_i = (/self%conv_coeff_intwall, self%conv_coeff_introof, self%conv_coeff_indoormass, &
-                self%conv_coeff_intgroundfloor, self%conv_coeff_intwindow/)
+   self%h_i = (/self%conv_coeff_intwall, self%conv_coeff_introof, self%conv_coeff_intwindow, self%conv_coeff_intgroundfloor , &
+                self%conv_coeff_indoormass/)
 
    self%h_o = (/self%conv_coeff_extwall, self%conv_coeff_extroof, self%conv_coeff_extwindow/)
    self%k_eff = (/self%conductivity_wall, self%conductivity_roof, self%conductivity_groundfloor, &
@@ -2362,7 +2390,7 @@ SUBROUTINE create_building(CASE, self, icase)
    self%wiTAR = (/self%windowTransmissivity, self%windowAbsorbtivity, self%windowReflectivity/)
    self%waTAR = (/self%wallTransmisivity, self%wallAbsorbtivity, self%wallReflectivity/)
    self%roofTAR = (/self%roofTransmisivity, self%roofAbsorbtivity, self%roofReflectivity/)
-   self%viewFactors = (/self%BVF_extwall, self%GVF_extwall, self%SVF_extwall, self%BVF_extroof, self%GVF_extroof, self%SVF_extroof/) !  # Building, ground, and sky view factors
+   !self%viewFactors = (/self%BVF_extwall, self%GVF_extwall, self%SVF_extwall, self%BVF_extroof, self%GVF_extroof, self%SVF_extroof/) !  # Building, ground, and sky view factors
    self%occupantData = (/self%occupants, self%metabolic_rate, &
                          self%ratio_metabolic_latent_sensible/)
 

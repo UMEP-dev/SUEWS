@@ -224,13 +224,7 @@ CONTAINS
                                ws0, T_hbh_C, T_prev, qn_rav, & ! Input
                                dz_surf(7, 1), cp_surf(7, 1), k_surf(7, 1), lambda_c1, &
                                a1_water, a2_water, a3_water & ! Output
-                               )                                 
-               PRINT '(A, F8.4, 2X, A, F8.4, 2X, A, F8.4)', &
-                  'Paved:  a1 = ', a1_paved, 'a2 = ', a2_paved, 'a3 = ', a3_paved            
-               PRINT '(A, F8.4, 2X, A, F8.4, 2X, A, F8.4)', &
-                  'dectr:  a1 = ', a1_dectr, 'a2 = ', a2_dectr, 'a3 = ', a3_dectr               
-               PRINT '(A, F8.4, 2X, A, F8.4, 2X, A, F8.4)', &
-                  'evetr:  a1 = ', a1_evetr, 'a2 = ', a2_evetr, 'a3 = ', a3_evetr                                                                                                                                                                                                                         
+                               )                                                                                                                                                                                                                                                      
                new_day = 0
                T_prev = T_hbh_C
             ELSE IF (last_tstep_Q) THEN

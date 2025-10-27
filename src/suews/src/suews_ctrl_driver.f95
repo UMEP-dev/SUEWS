@@ -3807,8 +3807,8 @@ CONTAINS
       FloorInternalConvectionCoefficient, WindowInternalConvectionCoefficient, &
       WallExternalConvectionCoefficient, RoofExternalConvectionCoefficient, WindowExternalConvectionCoefficient, &
       GroundDepth, ExternalGroundConductivity, IndoorAirDensity, IndoorAirCp, &
-      WallBuildingViewFactor, WallGroundViewFactor, WallSkyViewFactor, &
-      RoofBuildingViewFactor, RoofGroundViewFactor, RoofSkyViewFactor, &
+      !WallBuildingViewFactor, WallGroundViewFactor, WallSkyViewFactor, &
+      !RoofBuildingViewFactor, RoofGroundViewFactor, RoofSkyViewFactor, &
       MetabolicRate, LatentSensibleRatio, ApplianceRating, &
       TotalNumberofAppliances, ApplianceUsageFactor, HeatingSystemEfficiency, &
       MaxCoolingPower, CoolingSystemCOP, VentilationRate, IndoorAirStartTemperature, OutdoorAirStartTemperature,&
@@ -4226,12 +4226,12 @@ CONTAINS
       REAL(KIND(1D0)) :: ExternalGroundConductivity
       REAL(KIND(1D0)) :: IndoorAirDensity
       REAL(KIND(1D0)) :: IndoorAirCp
-      REAL(KIND(1D0)) :: WallBuildingViewFactor
-      REAL(KIND(1D0)) :: WallGroundViewFactor
-      REAL(KIND(1D0)) :: WallSkyViewFactor
-      REAL(KIND(1D0)) :: RoofBuildingViewFactor
-      REAL(KIND(1D0)) :: RoofGroundViewFactor
-      REAL(KIND(1D0)) :: RoofSkyViewFactor
+      !REAL(KIND(1D0)) :: WallBuildingViewFactor
+      !REAL(KIND(1D0)) :: WallGroundViewFactor
+      !REAL(KIND(1D0)) :: WallSkyViewFactor
+      !REAL(KIND(1D0)) :: RoofBuildingViewFactor
+      !REAL(KIND(1D0)) :: RoofGroundViewFactor
+      !REAL(KIND(1D0)) :: RoofSkyViewFactor
       REAL(KIND(1D0)) :: MetabolicRate
       REAL(KIND(1D0)) :: LatentSensibleRatio
       REAL(KIND(1D0)) :: ApplianceRating
@@ -5122,12 +5122,12 @@ CONTAINS
       stebbsPrm%ExternalGroundConductivity = ExternalGroundConductivity
       stebbsPrm%IndoorAirDensity = IndoorAirDensity
       stebbsPrm%IndoorAirCp = IndoorAirCp
-      stebbsPrm%WallBuildingViewFactor = WallBuildingViewFactor
-      stebbsPrm%WallGroundViewFactor = WallGroundViewFactor
-      stebbsPrm%WallSkyViewFactor = WallSkyViewFactor
-      stebbsPrm%RoofBuildingViewFactor = RoofBuildingViewFactor
-      stebbsPrm%RoofGroundViewFactor = RoofGroundViewFactor
-      stebbsPrm%RoofSkyViewFactor = RoofSkyViewFactor
+      !stebbsPrm%WallBuildingViewFactor = WallBuildingViewFactor
+      !stebbsPrm%WallGroundViewFactor = WallGroundViewFactor
+      !stebbsPrm%WallSkyViewFactor = WallSkyViewFactor
+      !stebbsPrm%RoofBuildingViewFactor = RoofBuildingViewFactor
+      !stebbsPrm%RoofGroundViewFactor = RoofGroundViewFactor
+      !stebbsPrm%RoofSkyViewFactor = RoofSkyViewFactor
       stebbsPrm%MetabolicRate = MetabolicRate
       stebbsPrm%LatentSensibleRatio = LatentSensibleRatio
       stebbsPrm%ApplianceRating = ApplianceRating

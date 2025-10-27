@@ -126,18 +126,18 @@ class SUEWSSimulation:
                 if hasattr(obj, key):
                     attr = getattr(obj, key)
                     if isinstance(value, dict) and hasattr(attr, "__dict__"):
-                        # Recursive to read nested dictionairies
+                        # Recursive to read nested dictionaries
                         recursive_update(attr, value)
                     else:
                         # Check whether site index or site name is provided
                         if isinstance(attr, list):
                             site_key = list(value.keys())[0]
                             site_value = value[site_key]
-                            if type(site_key)==int:
+                            if isinstance(site_key, int):
                                 # Select site on index
                                 attr = attr[site_key]
                                 recursive_update(attr, site_value)
-                            elif type(site_key)==str:
+                            elif isinstance(site_key, str):
                                 # Select site on name
                                 attr_site = next((item for item in attr if item.name == site_key), None)
                                 if attr_site:
@@ -145,7 +145,14 @@ class SUEWSSimulation:
                                 elif len(attr)==1:
                                     # Without name or index and only one site
                                     attr_site = attr[0]
-                                    recursive_update(attr_site, value)
+                                    # Distinguish site name pattern from shorthand
+                                    # If site_key is an attribute on the site object, it's shorthand
+                                    if hasattr(attr_site, site_key):
+                                        # Shorthand pattern: {'name': 'test'} or {'properties': {...}}
+                                        recursive_update(attr_site, value)
+                                    else:
+                                        # Site name pattern: {'NonExistent': {'gridiv': 99}}
+                                        recursive_update(attr_site, site_value)
                                 else:
                                     # Otherwise skip these parameters
                                     continue

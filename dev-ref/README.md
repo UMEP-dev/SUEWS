@@ -16,7 +16,12 @@ This directory contains internal documentation for SUEWS core developers.
 - **[Coding Guidelines](CODING_GUIDELINES.md)** - Code style and conventions
   - Python and Fortran standards
   - Naming conventions and best practices
-  
+
+- **[Fortran Naming Conventions](FORTRAN_NAMING_CONVENTIONS.md)** - Comprehensive Fortran naming standards
+  - File, module, and function naming patterns
+  - Migration strategy from legacy code
+  - Validation tools and enforcement
+
 - **[Review Process](REVIEW_PROCESS.md)** - Pull request review procedures
   - How we review code
   - What to look for in reviews

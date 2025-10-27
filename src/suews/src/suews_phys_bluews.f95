@@ -1,5 +1,6 @@
 !======================================================================================================
-MODULE cbl_MODULE
+! Main module following naming standard: matches filename
+MODULE module_phys_bluews_cbl
 
    INTEGER :: EntrainmentType, & ! Entrainment type choice
               CO2_included, & ! CO2 included
@@ -51,11 +52,17 @@ MODULE cbl_MODULE
    REAL(KIND(1D0)), DIMENSION(0:500, 2) :: gtheta, ghum ! Vertical gradient of theta and specific humidity from sonde data
    REAL(KIND(1D0)), DIMENSION(6) :: y ! NT set from 4 to 6
 
+END MODULE module_phys_bluews_cbl
+
+! Backward compatibility alias (deprecated - will be removed in future version)
+! TODO: Remove in version 2026.1.0 (deprecated since 2025.10.0)
+MODULE cbl_MODULE
+   USE module_phys_bluews_cbl
 END MODULE cbl_MODULE
 !===================================================================================
 
-MODULE BLUEWS_module
-   USE cbl_module
+MODULE module_phys_bluews
+   USE module_phys_bluews_cbl
    USE meteo, ONLY: qsatf, sat_vap_press_x
 
    IMPLICIT NONE
@@ -360,18 +367,18 @@ CONTAINS
    !-----------------------------------------------------------------------
    SUBROUTINE CBL_initial(qh_use, qe_use, tm_K_zm, qm_gkg_zm, startflag, ir, Gridiv)
 
-      USE mod_z
-      USE AtmMoistStab_module, ONLY: k
-      USE gas
-      USE time
-      USE data_in
-      USE sues_data
-      USE moist
-      USE allocateArray
-      USE defaultNotUsed
+      USE module_ctrl_const_z
+      USE module_phys_atmmoiststab, ONLY: k
+      USE module_ctrl_const_gas
+      USE module_ctrl_const_time
+      USE module_ctrl_const_datain
+      USE module_ctrl_const_sues
+      USE module_ctrl_const_moist
+      USE module_ctrl_const_allocate
+      USE module_ctrl_const_default
       USE cbl_module
-      USE gis_data
-      USE WhereWhen
+      USE module_ctrl_const_gis
+      USE module_ctrl_const_wherewhen
       USE meteo, ONLY: sat_vap_press_x
 
       IMPLICIT NONE
@@ -714,13 +721,13 @@ CONTAINS
       !       y(2) = t = potential temp(K)
       !       y(3) = q = specific humidity(kg/kg)
       !       y(4) = c = CO2 concentration
-      ! USE data_in
-      ! USE sues_data
+      ! USE module_ctrl_const_datain
+      ! USE module_ctrl_const_sues
       !    use allocateArray
-      USE time
+      USE module_ctrl_const_time
       USE CBL_MODULE
       USE defaultnotUsed
-      USE mod_grav
+      USE module_ctrl_const_grav
 
       IMPLICIT NONE
       REAL(KIND(1D0)), DIMENSION(neqn) :: dyds, y1
@@ -853,7 +860,7 @@ CONTAINS
    SUBROUTINE sonde(id)
       ! read sonde or vertical profile data - when available
       !use allocateArray
-      USE data_in
+      USE module_ctrl_const_datain
       USE cbl_module
       IMPLICIT NONE
       INTEGER :: i, fn = 101, izm = 500, notUsedI = -9999, id
@@ -913,4 +920,10 @@ CONTAINS
 
    END SUBROUTINE gamma_sonde
 
+END MODULE module_phys_bluews
+
+! Backward compatibility alias (deprecated - will be removed in future version)
+! TODO: Remove in version 2026.1.0 (deprecated since 2025.10.0)
+MODULE BLUEWS_module
+   USE module_phys_bluews
 END MODULE BLUEWS_module

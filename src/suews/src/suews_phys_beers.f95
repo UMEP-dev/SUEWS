@@ -20,13 +20,14 @@
 !Added TODO:s throughout the code
 !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
-MODULE beers_module
+! Main module following naming standard: matches filename
+MODULE module_phys_beers
 
-   ! USE allocateArray, only: ncolumnsDataOutSol, deg2rad, rad2deg
-   ! USE defaultNotUsed, only: notUsed, notUsedI
-   USE NARP_MODULE, ONLY: NARP_cal_SunPosition
-   USE allocateArray, ONLY: ncolumnsDataOutBEERS
-   USE time_module, ONLY: DAYLEN, SUEWS_cal_weekday, SUEWS_cal_dectime, &
+   ! USE module_ctrl_const_allocate, only: ncolumnsDataOutSol, deg2rad, rad2deg
+   ! USE module_ctrl_const_default, only: notUsed, notUsedI
+   USE module_phys_narp, ONLY: NARP_cal_SunPosition
+   USE module_ctrl_const_allocate, ONLY: ncolumnsDataOutBEERS
+   USE module_util_time, ONLY: DAYLEN, SUEWS_cal_weekday, SUEWS_cal_dectime, &
                           Day_Of_Week, SUEWS_cal_DLS, Days_of_Year, LeapYearCalc, day2month, &
                           SUEWS_cal_tstep, month2day, dectime_to_timevec
 
@@ -344,7 +345,7 @@ CONTAINS
       modState, & ! input/output:
       dataOutLineBEERS) ! output
 
-      USE SUEWS_DEF_DTS, ONLY: SUEWS_CONFIG, SUEWS_TIMER, SUEWS_FORCING, SUEWS_SITE, &
+      USE module_ctrl_type, ONLY: SUEWS_CONFIG, SUEWS_TIMER, SUEWS_FORCING, SUEWS_SITE, &
                                PHENOLOGY_STATE, LC_PAVED_PRM, LC_BLDG_PRM, &
                                ROUGHNESS_STATE, HEAT_STATE, solar_State, &
                                SUEWS_STATE, BldgSurf, STEBBS_STATE
@@ -1961,4 +1962,9 @@ CONTAINS
    END FUNCTION set_nan
 !========================================================================
 
+END MODULE module_phys_beers
+
+! Backward compatibility alias
+MODULE beers_module
+   USE module_phys_beers
 END MODULE beers_module

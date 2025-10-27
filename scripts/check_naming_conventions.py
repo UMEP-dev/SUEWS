@@ -61,9 +61,7 @@ class FortranNamingChecker:
     CATEGORIES = {"ctrl", "phys", "util"}
 
     # Module naming: MODULE suews_<category>_<name>
-    MODULE_PATTERN = re.compile(
-        r"^\s*MODULE\s+([a-zA-Z][a-zA-Z0-9_]*)", re.IGNORECASE
-    )
+    MODULE_PATTERN = re.compile(r"^\s*MODULE\s+([a-zA-Z][a-zA-Z0-9_]*)", re.IGNORECASE)
 
     # Subroutine/Function patterns
     SUBROUTINE_PATTERN = re.compile(
@@ -169,7 +167,9 @@ class FortranNamingChecker:
                             suggestion=f"Use one of: {', '.join(sorted(self.CATEGORIES))}",
                         )
                     )
-                elif not re.match(r"^[a-z][a-z0-9_]*$", parts[1] if len(parts) > 1 else ""):
+                elif not re.match(
+                    r"^[a-z][a-z0-9_]*$", parts[1] if len(parts) > 1 else ""
+                ):
                     result.errors.append(
                         NamingViolation(
                             file=filepath,
@@ -239,7 +239,9 @@ class FortranNamingChecker:
                         )
                     else:
                         # Check if it's a valid multi-module suffix
-                        if module_name.lower().startswith(expected_module.lower() + "_"):
+                        if module_name.lower().startswith(
+                            expected_module.lower() + "_"
+                        ):
                             suffix = module_name.lower()[len(expected_module) + 1 :]
                             if suffix in self.ALLOWED_SUFFIXES:
                                 result.info.append(

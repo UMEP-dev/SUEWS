@@ -1,54 +1,44 @@
 import numpy as np
 import pandas as pd
 import copy
-from .supy_driver import suews_driver as sd
 from .supy_driver import suews_def_dts as sd_dts
 from ._env import logger_supy
 
 
 ##############################################################################
 # post-processing part
-# get variable information from Fortran
+
+
 def get_output_info_df():
-    from packaging.version import parse as LooseVersion
+    """Get output variable metadata from Python Pydantic OUTPUT_REGISTRY.
 
-    size_var_list = sd.output_size()
-    list_var_x = [np.array(sd.output_name_n(i)) for i in np.arange(size_var_list) + 1]
+    This function loads variable metadata from the Python-first Pydantic registry,
+    which is the single source of truth for output variable definitions.
 
-    df_var_list = pd.DataFrame(list_var_x, columns=["var", "group", "aggm", "outlevel"])
+    Returns:
+        DataFrame with MultiIndex (group, var) and columns (aggm, outlevel, func)
 
-    # strip leading and trailing spaces
-    fun_strip = lambda x: x.decode().strip()
-    if LooseVersion(pd.__version__) >= LooseVersion("2.1.0"):
-        # if pandas version is 2.1.0 or above, we can use `df.map`
-        df_var_list = df_var_list.map(fun_strip)
-    else:
-        # otherwise, we need to use `df.applymap`
-        df_var_list = df_var_list.applymap(fun_strip)
+    Raises:
+        ImportError: If OUTPUT_REGISTRY cannot be imported (e.g., missing data_model.output)
+    """
+    from .data_model.output import OUTPUT_REGISTRY
 
-    df_var_list_x = df_var_list.replace(r"^\s*$", np.nan, regex=True).dropna()
-    df_var_dfm = df_var_list_x.set_index(["group", "var"])
-    return df_var_dfm
+    # Convert registry to DataFrame format compatible with existing code
+    df_var = OUTPUT_REGISTRY.to_dataframe()
+    logger_supy.debug(
+        f"Using Pydantic OUTPUT_REGISTRY: {len(OUTPUT_REGISTRY.variables)} variables"
+    )
+    return df_var
 
 
-# get variable info as a DataFrame
+# Get variable info as a DataFrame
 # save `df_var` for later use
 df_var = get_output_info_df()
 
 # dict as df_var but keys in lowercase
 dict_var_lower = {group.lower(): group for group in df_var.index.levels[0].str.strip()}
 
-#  generate dict of functions to apply for each variable
-# Use lambda for 'last' to avoid pandas compatibility issues
-dict_func_aggm = {
-    "T": lambda x: x.iloc[-1] if len(x) > 0 else np.nan,  # last value
-    "A": "mean",
-    "S": "sum",
-    "L": lambda x: x.iloc[-1] if len(x) > 0 else np.nan,  # last value
-}
-df_var["func"] = df_var.aggm.apply(lambda x: dict_func_aggm[x])
-
-# dict of resampling ruls:
+# dict of resampling rules:
 #  {group: {var: agg_method}}
 dict_var_aggm = {
     group: df_var.loc[group, "func"].to_dict() for group in df_var.index.levels[0]

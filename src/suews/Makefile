@@ -179,7 +179,6 @@ PHYS =	suews_phys_narp.o \
 	suews_phys_estm.o \
 	suews_phys_ehc.o \
 	suews_ctrl_ver.o \
-	suews_ctrl_output.o \
 	suews_phys_ohm.o \
 	suews_phys_anohm.o \
 	suews_phys_lumps.o \
@@ -342,7 +341,6 @@ clean: clean-obj clean-mods clean-lib clean-bin clean-ext
 
 clean-obj:
 	find . -name "*.o" -type f -delete
-
 
 clean-lib:
 	find . -name "lib*.a" -type f -delete

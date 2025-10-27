@@ -1520,6 +1520,7 @@ CONTAINS
          hydroState => modState%hydroState, &
          anthroEmisState => modState%anthroEmisState, &
          phenState => modState%phenState, &
+         stebbsState => modState%stebbsState, &
          ohmState => modState%ohmState &
          )
 
@@ -1566,6 +1567,7 @@ CONTAINS
             QS_roof => heatState%QS_roof, &
             QS_wall => heatState%QS_wall, &
             QS_surf => heatState%QS_surf, &
+            QS_stebbs => stebbsState%QS_stebbs, &
             qn_snow => snowState%qn_snow, &
             deltaQi => snowState%deltaQi, &
             SnowFrac => snowState%SnowFrac, &
@@ -1937,7 +1939,7 @@ CONTAINS
                      datetimeLine, nlayer, & ! input
                      dataOutLineSTEBBS) ! output
                   IF (StorageHeatMethod == 7) THEN
-                     qs = qs + dataOutLineSTEBBS(65) * sfr_surf(2) ! note 65 may be changed by stebbs output.can be replaced by association
+                     qs = qs + QS_stebbs * sfr_surf(2) ! note 65 may be changed by stebbs output.can be replaced by association
                   END IF 
                END IF
             
@@ -3784,7 +3786,7 @@ CONTAINS
       veg_fsd_const, veg_contact_fraction_const, &
       ground_albedo_dir_mult_fact, use_sw_direct_albedo, &
       lambda_c, & !input
-      stebbsmethod, & ! stebbs building input
+      stebbsmethod, rcmethod, & ! stebbs building input
       buildingname, buildingtype, &
       BuildingCount, Occupants, &
       ! hhs0, age_0_4, age_5_11, age_12_18, age_19_64, age_65plus, ! NOT USED
@@ -3912,6 +3914,7 @@ CONTAINS
       INTEGER, INTENT(IN) :: OHMIncQF ! Determines whether the storage heat flux calculation uses Q* or ( Q* +QF) [-]
       ! INTEGER, INTENT(IN) :: nbtype ! number of building types [-] STEBBS
       INTEGER, INTENT(IN) :: stebbsmethod ! method to calculate building energy use [-] STEBBS
+      INTEGER, INTENT(IN) :: rcmethod ! method to split building envelope heat capacity in STEBBS [-] STEBBS
 
       ! ---lumps-related variables
       TYPE(LUMPS_PRM) :: lumpsPrm
@@ -4510,6 +4513,7 @@ CONTAINS
       config%EvapMethod = 2
       config%LAImethod = 1
       config%stebbsmethod = stebbsmethod
+      config%rcmethod = rcmethod
 
       ! testing flag
       config%flag_test = flag_test
@@ -5281,7 +5285,7 @@ CONTAINS
       siteInfo%building_archtype = building_archtype
 
       IF (mod_state%flagState%stebbs_bldg_init == 0) THEN
-         CALL gen_building(mod_state%stebbsState, siteInfo%stebbs, siteInfo%building_archtype, mod_state%stebbsState%buildings(1), nlayer)
+         CALL gen_building(mod_state%stebbsState, siteInfo%stebbs, siteInfo%building_archtype, config, mod_state%stebbsState%buildings(1), nlayer)
          mod_state%flagState%stebbs_bldg_init = 1
       END IF 
 

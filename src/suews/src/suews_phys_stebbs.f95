@@ -665,7 +665,7 @@ CONTAINS
       REAL(KIND(1D0)) :: Vwall_vessel
       REAL(KIND(1D0)) :: QH_metabolism_tstepFA
       REAL(KIND(1D0)) :: QE_metabolism_tstepFA
-      REAL(KIND(1D0)) :: QS_tstepFA
+      REAL(KIND(1D0)) :: QS_tstepFA 
       REAL(KIND(1D0)) :: QS_wall_tstepFA
       REAL(KIND(1D0)) :: QS_roof_tstepFA
       REAL(KIND(1D0)) :: QS_air_tstepFA
@@ -711,8 +711,6 @@ CONTAINS
             Lwest => stebbsState%Lwest, &
             Tground_deep_sout => stebbsState%OutdoorAirAnnualTemperature, &
             ss_height => spartacus_Prm%height, &
-            !Textwall_C =>stebbsState%Textwall_C, &
-            !Textroof_C =>stebbsState%Textroof_C &
             z0m => roughnessState%z0m, &
             zdm => roughnessState%zdm &
             )
@@ -732,7 +730,7 @@ CONTAINS
             sout%ntstep = 1
             resolution = 1
             IF (stebbs_bldg_init == 0) THEN
-               CALL gen_building(stebbsState, stebbsPrm, building_archtype, buildings(1), nlayer)
+               CALL gen_building(stebbsState, stebbsPrm, building_archtype, config, buildings(1), nlayer)
                stebbs_bldg_init = 1
             END IF
 
@@ -824,6 +822,8 @@ CONTAINS
                buildings(1)%textwall_c(i_layer) = Textwall - 273.15
                buildings(1)%textroof_c(i_layer) = Textroof - 273.15               
             END DO
+
+            stebbsState%QS_stebbs = QS_tstepFA 
             dataOutLineSTEBBS = [ &
                                 ! Forcing
                                 ws, ws_bh, ws_hbh, Tair_sout, Tair_bh, Tair_hbh, Tsurf_sout, &
@@ -2038,14 +2038,14 @@ END SUBROUTINE tstep
 SUBROUTINE reinitialiseTemperatures
 END SUBROUTINE reinitialiseTemperatures
 
-SUBROUTINE gen_building(stebbsState, stebbsPrm, building_archtype, self, num_layer)
-
-   USE SUEWS_DEF_DTS, ONLY: BUILDING_ARCHETYPE_PRM, STEBBS_STATE, STEBBS_PRM, STEBBS_BLDG
+SUBROUTINE gen_building(stebbsState, stebbsPrm, building_archtype, config, self, num_layer)
+   
+   USE SUEWS_DEF_DTS, ONLY: BUILDING_ARCHETYPE_PRM, STEBBS_STATE, STEBBS_PRM, STEBBS_BLDG, SUEWS_CONFIG
    USE modulestebbsfunc, ONLY: calculate_x1
    IMPLICIT NONE
 
    TYPE(STEBBS_BLDG) :: self
-
+   TYPE(SUEWS_CONFIG), INTENT(IN) :: config
    TYPE(STEBBS_STATE), INTENT(IN) :: stebbsState
    TYPE(BUILDING_ARCHETYPE_PRM), INTENT(IN) :: building_archtype
    TYPE(STEBBS_PRM), INTENT(IN) :: stebbsPrm
@@ -2258,17 +2258,20 @@ SUBROUTINE gen_building(stebbsState, stebbsPrm, building_archtype, self, num_lay
    self%HWPowerAverage = (/30000, 30000, 30000/)
    self%weighting_factor_heatcapacity_wall = building_archtype%Wallx1
    self%weighting_factor_heatcapacity_roof = building_archtype%Roofx1
-   !recalculate the weighting factor for splitting heat capacity (x1)
-   self%weighting_factor_heatcapacity_wall = calculate_x1(self%thickness_wall, self%cp_wall, self%density_wall, &
-                                           self%thickness_wallext, self%cp_wallext, self%density_wallext, self%conductivity_wallext)
-   self%weighting_factor_heatcapacity_roof = calculate_x1(self%thickness_roof, self%cp_roof, self%density_roof, &
-                                           self%thickness_roofext, self%cp_roofext, self%density_roofext, self%conductivity_roofext)
-   IF ((self%weighting_factor_heatcapacity_wall>1) .OR. (self%weighting_factor_heatcapacity_wall>1)) THEN
-      print*, "x1_wall = ", self%weighting_factor_heatcapacity_wall, 'parameterisation should not be used'
-   END IF   
-   IF ((self%weighting_factor_heatcapacity_roof>1) .OR. (self%weighting_factor_heatcapacity_roof>1)) THEN
-      print*, "x1_roof = ", self%weighting_factor_heatcapacity_roof, 'parameterisation should not be used'
-   END IF                                                     
+
+   IF (config%rcmethod  == 1) THEN
+      !recalculate the weighting factor for splitting heat capacity (x1)
+      self%weighting_factor_heatcapacity_wall = calculate_x1(self%thickness_wall, self%cp_wall, self%density_wall, &
+                                             self%thickness_wallext, self%cp_wallext, self%density_wallext, self%conductivity_wallext)
+      self%weighting_factor_heatcapacity_roof = calculate_x1(self%thickness_roof, self%cp_roof, self%density_roof, &
+                                             self%thickness_roofext, self%cp_roofext, self%density_roofext, self%conductivity_roofext)
+      IF ((self%weighting_factor_heatcapacity_wall>1) .OR. (self%weighting_factor_heatcapacity_wall>1)) THEN
+         print*, "x1_wall = ", self%weighting_factor_heatcapacity_wall, 'parameterisation should not be used'
+      END IF   
+      IF ((self%weighting_factor_heatcapacity_roof>1) .OR. (self%weighting_factor_heatcapacity_roof>1)) THEN
+         print*, "x1_roof = ", self%weighting_factor_heatcapacity_roof, 'parameterisation should not be used'
+      END IF  
+   END IF                                                    
 END SUBROUTINE gen_building
 
 SUBROUTINE create_building(CASE, self, icase)

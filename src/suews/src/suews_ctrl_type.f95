@@ -33,6 +33,7 @@ MODULE SUEWS_DEF_DTS
       INTEGER :: LAImethod = 0 ! boolean to determine if calculate LAI [-]
       INTEGER :: localClimateMethod = 0 ! method to choose local climate variables [-] 0: not use; 1: use local climate variables
       INTEGER :: stebbsmethod = 0 ! method to calculate building energy [-]
+      INTEGER :: rcmethod = 0 ! method to split building envelope heat capacity in STEBBS [-]
       LOGICAL :: flag_test = .FALSE. ! FOR DEBUGGING ONLY: boolean to test specific functions [-]
    END TYPE SUEWS_CONFIG
 
@@ -1196,6 +1197,7 @@ MODULE SUEWS_DEF_DTS
       REAL(KIND(1D0)) :: DomesticHotWaterTemperatureInUseInBuilding = 0.0D0 ! Initial water temperature of water held in use in building [degC]
       REAL(KIND(1D0)) :: InternalWallDHWVesselTemperature = 0.0D0 ! Initial hot water vessel internal wall temperature [degC]
       REAL(KIND(1D0)) :: ExternalWallDHWVesselTemperature = 0.0D0 ! Initial hot water vessel external wall temperature [degC]
+      REAL(KIND(1D0)) :: QS_stebbs = 0.0D0 ! storage heat flux per footprint area[W m-2]
       TYPE(STEBBS_BLDG), ALLOCATABLE, DIMENSION(:) :: buildings ! Array holding all buildings states for STEBBS [-]
 
       !REAL(KIND(1D0)), DIMENSION(6) :: Textwall_C = 0.0D0 ! Wall external surface temperature from STEBBS[K]

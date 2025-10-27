@@ -510,7 +510,11 @@ class ModelPhysics(BaseModel):
         description="Surface Temperature Energy Balance Based Scheme (STEBBS) for facet temperatures. Options: 0 (NONE) = STEBBS disabled; 1 (DEFAULT) = STEBBS with default parameters; 2 (PROVIDED) = STEBBS with user-specified parameters",
         json_schema_extra={"unit": "dimensionless"},
     )
-
+    rcmethod: FlexibleRefValue(StebbsMethod) = Field(
+        default=StebbsMethod.NONE,
+        description="method to split heat capacity of building envelope in STEBBS. Options: 0 = input weighting factor x1; 1 = use parameterised weighting factor by building material property",
+        json_schema_extra={"unit": "dimensionless"},
+    )
     ref: Optional[Reference] = None
 
     # We then need to set to 0 (or None) all the CO2-related parameters or rules
@@ -545,6 +549,7 @@ class ModelPhysics(BaseModel):
             "gsmodel",
             "snowuse",
             "stebbsmethod",
+            "rcmethod",
         ]
         for attr in list_attr:
             if attr == "rslmethod":
@@ -587,6 +592,7 @@ class ModelPhysics(BaseModel):
             "gsmodel",
             "snowuse",
             "stebbsmethod",
+            "rcmethod",
         ]
 
         for attr in list_attr:

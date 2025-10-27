@@ -1241,9 +1241,6 @@ CONTAINS
 
       REAL(KIND(1D0)), DIMENSION(ncolumnsDataOutSPARTACUS - 5), INTENT(OUT) :: dataOutLineSPARTACUS
 
-      REAL(KIND(1D0)), DIMENSION(siteInfo%nlayer) :: tsfc_roof ! Wall external surface temperature from STEBBS[K]
-      REAL(KIND(1D0)), DIMENSION(siteInfo%nlayer) :: tsfc_wall ! Roof external surface temperature from STEBBS[K]
-
 
       INTEGER, PARAMETER :: DiagQN = 0 ! flag for printing diagnostic info for QN module during runtime [N/A] ! not used and will be removed
 
@@ -1297,11 +1294,7 @@ CONTAINS
             qn_roof => heatState%qn_roof, &
             qn_wall => heatState%qn_wall, &
             Tsurf_ind => heatState%Tsurf_ind, &
-            !tsfc_surf => heatState%tsfc_surf, &
-            tsfc_surf => heatState%tsfc_surf_dyohm, &
-            buildings => stebbsState%buildings, &
-            !tsfc_roof => heatState%tsfc_roof, &
-            !tsfc_wall => heatState%tsfc_wall, &                   
+            buildings => stebbsState%buildings, &          
             spartacusPrm => siteInfo%spartacus, &
             spartacusLayerPrm => siteInfo%spartacus_layer, &
             NARP_TRANS_SITE => siteInfo%NARP_TRANS_SITE, &
@@ -1351,12 +1344,12 @@ CONTAINS
                roof_in_sw_spc => heatState%roof_in_sw_spc, &
                roof_in_lw_spc => heatState%roof_in_lw_spc, &
                wall_in_sw_spc => heatState%wall_in_sw_spc, &
-               wall_in_lw_spc => heatState%wall_in_lw_spc &
+               wall_in_lw_spc => heatState%wall_in_lw_spc, &
+               tsfc_surf => MERGE(heatState%tsfc_surf_dyohm, heatState%tsfc_surf, (storageheatmethod == 6 .OR. storageheatmethod == 7)), &
+               tsfc_roof => MERGE(buildings(1)%Textroof_C, heatState%tsfc_roof, storageheatmethod == 7), &
+               tsfc_wall => MERGE(buildings(1)%Textwall_C, heatState%tsfc_wall, storageheatmethod == 7) &               
                )
-               tsfc_roof = buildings(1)%Textroof_C
-               tsfc_wall = buildings(1)%Textwall_C
 
-               
                emis = [pavedPrm%emis, bldgPrm%emis, evetrPrm%emis, dectrPrm%emis, &
                        grassPrm%emis, bsoilPrm%emis, waterPrm%emis]
                ! translate values

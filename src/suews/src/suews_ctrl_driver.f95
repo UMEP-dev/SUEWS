@@ -784,7 +784,6 @@ CONTAINS
 
       INTEGER :: i_surf, i_layer, nz
       REAL(KIND(1D0)) :: dif_tsfc_iter, ratio_iter
-      REAL(KIND(1D0)) :: T_bottom
       REAL(KIND(1D0)), DIMENSION(5) :: z
       REAL(KIND(1D0)), ALLOCATABLE :: prev_profile(:), next_profile(:)
       ASSOCIATE ( &
@@ -792,6 +791,7 @@ CONTAINS
          flagState => modState%flagState, &
          heatState => modState%heatState, &
          atmState => modState%atmState, &
+         stebbsState => modState%stebbsState, &
          ehcPrm => siteInfo%ehc &
          )
 
@@ -800,18 +800,16 @@ CONTAINS
             diagnose => config%diagnose, &
             StorageHeatMethod => config%StorageHeatMethod, &
             nlayer => siteInfo%nlayer, &
-            avdens => atmState%avdens, &
-            avcp => atmState%avcp, &
-            TSfc_C => heatState%TSfc_C, &
             temp_surf_in => heatState%temp_surf_dyohm, &
             temp_surf_dyohm => heatState%temp_surf_dyohm, &
             temp_c => forcing%temp_c, &
             QS_surf => heatState%qs_surf, &
             k_surf => ehcPrm%k_surf, &
-            cp_surf => ehcPrm%cp_surf &
+            cp_surf => ehcPrm%cp_surf, &
+            T_bottom => stebbsState%OutdoorAirAnnualTemperature &
             )
 
-            !============= calculate surface specific QS and Tsfc ===============
+            !============= calculate surface temperature based on QS ===============
             nz = 5
             T_bottom = 11.1D0 !annual mean air temperature in London 2012
             z = (/ 0.0D0, 0.03D0, 0.1D0, 1.5D0, 3.0D0 /)
@@ -3811,7 +3809,7 @@ CONTAINS
       !RoofBuildingViewFactor, RoofGroundViewFactor, RoofSkyViewFactor, &
       MetabolicRate, LatentSensibleRatio, ApplianceRating, &
       TotalNumberofAppliances, ApplianceUsageFactor, HeatingSystemEfficiency, &
-      MaxCoolingPower, CoolingSystemCOP, VentilationRate, IndoorAirStartTemperature, OutdoorAirStartTemperature,&
+      MaxCoolingPower, CoolingSystemCOP, VentilationRate, OutdoorAirAnnualTemperature, OutdoorAirStartTemperature, IndoorAirStartTemperature, &
       IndoorMassStartTemperature, WallIndoorSurfaceTemperature, RoofIndoorSurfaceTemperature, &
       WallOutdoorSurfaceTemperature, RoofOutdoorSurfaceTemperature, WindowIndoorSurfaceTemperature, &
       WindowOutdoorSurfaceTemperature, GroundFloorIndoorSurfaceTemperature, &
@@ -4241,8 +4239,9 @@ CONTAINS
       REAL(KIND(1D0)) :: MaxCoolingPower
       REAL(KIND(1D0)) :: CoolingSystemCOP
       REAL(KIND(1D0)) :: VentilationRate
-      REAL(KIND(1D0)) :: IndoorAirStartTemperature
+      REAL(KIND(1D0)) :: OutdoorAirAnnualTemperature
       REAL(KIND(1D0)) :: OutdoorAirStartTemperature
+      REAL(KIND(1D0)) :: IndoorAirStartTemperature
       REAL(KIND(1D0)) :: IndoorMassStartTemperature
       REAL(KIND(1D0)) :: WallIndoorSurfaceTemperature
       REAL(KIND(1D0)) :: WallOutdoorSurfaceTemperature
@@ -4302,6 +4301,7 @@ CONTAINS
       ! REAL(KIND(1D0)) :: age_19_64
       ! REAL(KIND(1D0)) :: age_65plus
       REAL(KIND(1D0)) :: stebbs_Height
+      REAL(KIND(1D0)) :: Ta_annual
       REAL(KIND(1D0)) :: FootprintArea
       REAL(KIND(1D0)) :: WallExternalArea
       REAL(KIND(1D0)) :: RatioInternalVolume
@@ -5168,6 +5168,7 @@ CONTAINS
       ! states - updated during the simulation
       ! TODO: STEBBS States act as parameters for building generation (move all but allocation?)
       CALL stebbsState%ALLOCATE(nbtypes, nlayer)
+      stebbsState%OutdoorAirAnnualTemperature = OutdoorAirAnnualTemperature
       stebbsState%OutdoorAirStartTemperature = OutdoorAirStartTemperature
       stebbsState%IndoorAirStartTemperature = IndoorAirStartTemperature
       stebbsState%IndoorMassStartTemperature = IndoorMassStartTemperature

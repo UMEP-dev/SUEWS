@@ -129,8 +129,8 @@ CONTAINS
       REAL(KIND(1D0)), DIMENSION(nsurf, ndepth), INTENT(in) :: dz_surf
 
       REAL(KIND(1D0)), INTENT(IN) :: lambda_c ! Building surface to plan area ratio [-]
-      REAL(KIND(1D0)) :: lambda_c1 = 1.0D0
-      REAL(KIND(1D0)) :: ws0 = 0.0D0
+      REAL(KIND(1D0)) :: lambda_c1 = 1.0D0 !constant 1 for land cover
+      REAL(KIND(1D0)) :: ws0 = 0.0D0 !assume wind speed is 0 at ground level
       REAL(KIND(1D0)), INTENT(INOUT) :: a1_bldg, a2_bldg, a3_bldg ! Dynamic OHM coefficients of buildings
       REAL(KIND(1D0)), INTENT(INOUT) :: a1_paved, a2_paved, a3_paved, &
                                           a1_evetr, a2_evetr, a3_evetr, &

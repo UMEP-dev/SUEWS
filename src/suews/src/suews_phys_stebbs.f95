@@ -496,6 +496,7 @@ MODULE modulesuewsstebbscouple
       ! REAL(KIND(1D0)), ALLOCATABLE, DIMENSION(:) :: Tair, Tsurf, Kwall, Kroof, ws, Lroof, Lwall
       REAL(KIND(1D0)) :: Tair
       REAL(KIND(1D0)) :: Tsurf
+      REAL(KIND(1D0)) :: Tground_deep
       REAL(KIND(1D0)) :: Kwall
       REAL(KIND(1D0)) :: Kroof
       REAL(KIND(1D0)) :: ws
@@ -596,6 +597,7 @@ CONTAINS
       REAL(KIND(1D0)) :: Tair_bh
       REAL(KIND(1D0)) :: Tair_hbh
       REAL(KIND(1D0)) :: Tsurf_sout
+      REAL(KIND(1D0)) :: Tground_deep_sout
       REAL(KIND(1D0)) :: Kroof_sout
       REAL(KIND(1D0)) :: Lroof_sout
       REAL(KIND(1D0)) :: Kwall_sout
@@ -707,6 +709,7 @@ CONTAINS
             Lsouth => stebbsState%Lsouth, &
             Least => stebbsState%Least, &
             Lwest => stebbsState%Lwest, &
+            Tground_deep_sout => stebbsState%OutdoorAirAnnualTemperature, &
             ss_height => spartacus_Prm%height, &
             !Textwall_C =>stebbsState%Textwall_C, &
             !Textroof_C =>stebbsState%Textroof_C &
@@ -772,7 +775,7 @@ CONTAINS
             sout%Tsurf_exch = Tsurf_sout
             sout%ws = ws
             sout%ws_exch = ws
-
+            sout%Tground_deep = Tground_deep_sout
             IF (dt_start < timestep) THEN !initialisation before getting RSL output
                ws_bh = forcing%U * (LOG((buildings(1)%height_building + z0m) / z0m) / LOG((height_forcing + z0m) / z0m)) !archetype height
                ws_hbh = forcing%U * (LOG((buildings(1)%height_building/2 + z0m) / z0m) / LOG((height_forcing + z0m) / z0m)) !half archetype height
@@ -991,7 +994,7 @@ Qsw_absorbed_window_tstepFA, Qsw_absorbed_wall_tstepFA, Qsw_absorbed_roof_tstepF
       Tair_out = sout%Tair + 273.15
       Tair_out_bh = sout%Tair_exch_bh + 273.15
       Tair_out_hbh = sout%Tair_exch_hbh + 273.15
-      Tground_deep = 273.15 + 10.0
+      Tground_deep = 273.15 + sout%Tground_deep
       Tsurf = sout%Tsurf + 273.15
       ws_out_bh = sout%ws_exch_bh
       ws_out_hbh = sout%ws_exch_hbh    
@@ -2343,12 +2346,12 @@ SUBROUTINE create_building(CASE, self, icase)
    self%roofTransmisivity = 0.0
    self%roofAbsorbtivity = 0.5
    self%roofReflectivity = 0.5
-   self%BVF_extwall = 0.4
-   self%GVF_extwall = 0.2
-   self%SVF_extwall = 0.4
-   self%BVF_extroof = 0.3
-   self%GVF_extroof = 0.0
-   self%SVF_extroof = 0.7
+   !self%BVF_extwall = 0.4
+   !self%GVF_extwall = 0.2
+   !self%SVF_extwall = 0.4
+   !self%BVF_extroof = 0.3
+   !self%GVF_extroof = 0.0
+   !self%SVF_extroof = 0.7
    self%occupants = 15
    self%metabolic_rate = 250
    self%ratio_metabolic_latent_sensible = 0.8

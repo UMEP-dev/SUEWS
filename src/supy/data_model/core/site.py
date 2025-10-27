@@ -1814,6 +1814,11 @@ class StebbsProperties(BaseModel):
         description="Ventilation rate (air changes per hour, ACH) [h-1]",
         json_schema_extra={"unit": "h^-1", "display_name": "Ventilationrate"},
     )
+    OutdoorAirAnnualTemperature: FlexibleRefValue(float) = Field(
+        description="Annual mean air temperature, which can be used as deep soil temperature",
+        json_schema_extra={"unit": "degC", "display_name": "Annual mean air temperature"},
+        default=10.0,
+    )    
     OutdoorAirStartTemperature: Optional[FlexibleRefValue(float)] = Field(
         default=0.0,
         description="Initial outdoor air temperature [degC]",

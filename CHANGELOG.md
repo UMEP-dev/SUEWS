@@ -203,7 +203,8 @@
 - [maintenance] Added Fortran line length compiler flag (-ffree-line-length-none) to handle long lines without manual breaking
 - [maintenance] Added fprettify configuration for consistent Fortran code formatting
 - [maintenance] Fixed pyarrow installation on Linux CI by configuring pip to use binary wheels instead of building from source
-  - Added PIP_PREFER_BINARY=1 and PIP_ONLY_BINARY=":all:" to ensure manylinux2014 wheels are used
+  - Added pyarrow pinning: `>=20,<21` for Linux Python <3.14 (manylinux2014 wheels), `>=20` for other platforms, and `>=22` for Python ≥3.14 (manylinux_2_28 wheels)
+  - Kept PIP_PREFER_BINARY=1 in cibuildwheel to bias toward wheels; pyarrow pins guarantee compatible binaries
   - pyarrow remains a required dependency for SUEWS output functionality
 - [maintenance] Enabled f90wrap build from source for Python 3.13 on Linux
   - f90wrap 0.2.16 doesn't provide Python 3.13 wheels yet

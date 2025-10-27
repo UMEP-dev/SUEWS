@@ -69,14 +69,12 @@ runs:
         CIBW_ARCHS: ${{ inputs.buildplat_arch }}
         # CIBW_ENABLE: ${{ inputs.python == 'cp314' && 'cp314' || '' }}
         CIBW_ENVIRONMENT_PASS_LINUX: ${{ inputs.is_umep_variant == 'true' && 'RUNNER_OS BUILD_UMEP_VARIANT' || 'RUNNER_OS' }}
-        # Use manylinux_2_28 for Python 3.14 (numpy requires it), manylinux2014 for older versions
-        CIBW_MANYLINUX_X86_64_IMAGE: ${{ inputs.python == 'cp314' && 'manylinux_2_28' || 'manylinux2014' }}
-        CIBW_MANYLINUX_AARCH64_IMAGE: ${{ inputs.python == 'cp314' && 'manylinux_2_28' || 'manylinux2014' }}
-        # Configure pip for all platforms - prefer binary wheels, build f90wrap from source for Python 3.13+
+        # Use manylinux_2_28 for Python 3.13+ (newer dependencies require it), manylinux2014 for 3.9-3.12 (older Linux compatibility)
+        CIBW_MANYLINUX_X86_64_IMAGE: ${{ (inputs.python == 'cp313' || inputs.python == 'cp314') && 'manylinux_2_28' || 'manylinux2014' }}
+        CIBW_MANYLINUX_AARCH64_IMAGE: ${{ (inputs.python == 'cp313' || inputs.python == 'cp314') && 'manylinux_2_28' || 'manylinux2014' }}
+        # Configure pip for all platforms - prefer binary wheels
         CIBW_ENVIRONMENT: >
           PIP_PREFER_BINARY=1
-          PIP_ONLY_BINARY=:all:
-          ${{ (inputs.python == 'cp313' || inputs.python == 'cp314') && 'PIP_NO_BINARY=f90wrap' || '' }}
           ${{ inputs.is_umep_variant == 'true' && 'BUILD_UMEP_VARIANT=true' || '' }}
         # Platform-specific: Linux Fortran compiler settings
         CIBW_ENVIRONMENT_LINUX: >

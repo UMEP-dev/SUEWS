@@ -69,18 +69,17 @@ runs:
         CIBW_ARCHS: ${{ inputs.buildplat_arch }}
         # CIBW_ENABLE: ${{ inputs.python == 'cp314' && 'cp314' || '' }}
         CIBW_ENVIRONMENT_PASS_LINUX: ${{ inputs.is_umep_variant == 'true' && 'RUNNER_OS BUILD_UMEP_VARIANT' || 'RUNNER_OS' }}
-        # Use manylinux_2_28 for Python 3.14 (numpy requires it), manylinux2014 for older versions
-        CIBW_MANYLINUX_X86_64_IMAGE: ${{ inputs.python == 'cp314' && 'manylinux_2_28' || 'manylinux2014' }}
-        CIBW_MANYLINUX_AARCH64_IMAGE: ${{ inputs.python == 'cp314' && 'manylinux_2_28' || 'manylinux2014' }}
-        # Configure pip to use binary wheels and avoid building from source
-        # Python 3.14: Allow f90wrap to build from source (no wheels yet)
-        CIBW_ENVIRONMENT_LINUX: >
+        # Use manylinux_2_28 for Python 3.13+ (newer dependencies require it), manylinux2014 for 3.9-3.12 (older Linux compatibility)
+        CIBW_MANYLINUX_X86_64_IMAGE: ${{ (inputs.python == 'cp313' || inputs.python == 'cp314') && 'manylinux_2_28' || 'manylinux2014' }}
+        CIBW_MANYLINUX_AARCH64_IMAGE: ${{ (inputs.python == 'cp313' || inputs.python == 'cp314') && 'manylinux_2_28' || 'manylinux2014' }}
+        # Configure pip for all platforms - prefer binary wheels
+        CIBW_ENVIRONMENT: >
           PIP_PREFER_BINARY=1
-          PIP_ONLY_BINARY=:all:
-          ${{ inputs.python == 'cp314' && 'PIP_NO_BINARY=f90wrap' || '' }}
+          ${{ inputs.is_umep_variant == 'true' && 'BUILD_UMEP_VARIANT=true' || '' }}
+        # Platform-specific: Linux Fortran compiler settings
+        CIBW_ENVIRONMENT_LINUX: >
           FCFLAGS="-fno-optimize-sibling-calls -ffree-line-length-none"
           F90=gfortran
-          ${{ inputs.is_umep_variant == 'true' && 'BUILD_UMEP_VARIANT=true' || '' }}
         CIBW_BEFORE_ALL_LINUX: >
           pip install --upgrade pip setuptools wheel &&
           if [[ "${{ inputs.is_umep_variant }}" == "true" ]]; then
@@ -101,6 +100,7 @@ runs:
         CIBW_BEFORE_ALL_WINDOWS: >
           C:\msys64\usr\bin\bash.exe -lc "pacman -Syu --noconfirm" &&
           C:\msys64\usr\bin\bash.exe -lc "pacman -S --needed --noconfirm mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-gcc-fortran mingw-w64-ucrt-x86_64-binutils mingw-w64-ucrt-x86_64-make mingw-w64-ucrt-x86_64-openblas"
+        # Platform-specific: Windows compiler and toolchain settings
         CIBW_ENVIRONMENT_WINDOWS: >
           PATH="C:\\msys64\\ucrt64\\bin;$PATH"
           CC=gcc
@@ -110,7 +110,6 @@ runs:
           CXXFLAGS="-D__USE_MINGW_ANSI_STDIO=1 -mlong-double-64"
           FCFLAGS="-fno-optimize-sibling-calls -ffree-line-length-none"
           LDFLAGS="-lucrt -static-libgcc -static-libgfortran -LC:/msys64/ucrt64/lib -lsetjmp_compat"
-          ${{ inputs.is_umep_variant == 'true' && 'BUILD_UMEP_VARIANT=true' || '' }}
         CIBW_BEFORE_BUILD_WINDOWS: >
           echo Creating setjmp compatibility library... &&
           echo int _setjmpex(void* buf) { extern int __intrinsic_setjmpex(void*); return __intrinsic_setjmpex(buf); } > setjmp_compat.c &&

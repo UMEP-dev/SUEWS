@@ -448,4 +448,3 @@ jobs:
             --title "SUEWS v$VERSION: $TITLE" \
             --notes-file release_notes.md \
             --verify-tag
-

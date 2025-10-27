@@ -190,19 +190,11 @@ jobs:
           MINIMAL_PLATFORMS='[["ubuntu-latest", "manylinux", "x86_64"]]'
 
           # Python version strategies:
-          # - TEMPORARY: sunt05/fix-manylinux-wheel branch always runs full matrix (PR #788)
           # - Draft PR: minimal (1 platform, bookend versions) for fastest feedback
           # - PR/Master: reduced (all platforms, bookend versions) for speed with good coverage
           # - Tags/Schedule/Manual: full (all platforms, all versions) for comprehensive testing
 
-          # TEMPORARY: Full matrix for sunt05/fix-manylinux-wheel branch (remove after PR #788)
-          if [[ ("${{ github.event_name }}" == "pull_request" && "${{ github.head_ref }}" == "sunt05/fix-manylinux-wheel") || \
-                ("${{ github.event_name }}" == "push" && "${{ github.ref }}" == "refs/heads/sunt05/fix-manylinux-wheel") ]]; then
-            echo "TEMPORARY: Running full matrix for sunt05/fix-manylinux-wheel branch (PR #788)"
-            echo "buildplat=$FULL_PLATFORMS" >> $GITHUB_OUTPUT
-            echo 'python=["cp39", "cp310", "cp311", "cp312", "cp313", "cp314"]' >> $GITHUB_OUTPUT
-          # Draft PR: minimal matrix
-          elif [[ "${{ github.event_name }}" == "pull_request" ]] && [[ "${{ github.event.pull_request.draft }}" == "true" ]]; then
+          if [[ "${{ github.event_name }}" == "pull_request" ]] && [[ "${{ github.event.pull_request.draft }}" == "true" ]]; then
             echo "Running minimal matrix for draft PR (1 platform, bookend Python versions)"
             echo "buildplat=$MINIMAL_PLATFORMS" >> $GITHUB_OUTPUT
             echo 'python=["cp39", "cp314"]' >> $GITHUB_OUTPUT

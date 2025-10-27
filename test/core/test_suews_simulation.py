@@ -87,6 +87,45 @@ class TestConfig:
         # Verify model.control is still a proper object
         assert hasattr(sim.config.model.control, "__dict__")
 
+    def test_update_config_in_sites_length_1(self):
+        """Test changes in the sites parameters with only one site."""
+        yaml_path = files("supy").joinpath("sample_data/sample_config.yml")
+        sim = SUEWSSimulation(str(yaml_path))
+
+        # Test multi-level nested update
+        sim.update_config({'sites' : {'name' : 'test'}})
+
+        assert sim.config.sites[0].name == 'test'
+
+        # Verify sites is still a proper object
+        assert hasattr(sim.config.sites[0], "__dict__")
+
+    def test_update_config_in_sites_name(self):
+        """Test changes in the sites parameters with only one site."""
+        yaml_path = files("supy").joinpath("sample_data/sample_config.yml")
+        sim = SUEWSSimulation(str(yaml_path))
+
+        # Test multi-level nested update
+        sim.update_config({'sites': {'KCL' : {'name' : 'test'}}})
+        changed_site = next((item for item in sim.config.sites if item.name == 'test'), None)
+
+        assert changed_site.name == 'test'
+
+        # Verify sites is still a proper object
+        assert hasattr(changed_site, "__dict__")
+
+    def test_update_config_in_sites_index(self):
+        """Test changes in the sites parameters with only one site."""
+        yaml_path = files("supy").joinpath("sample_data/sample_config.yml")
+        sim = SUEWSSimulation(str(yaml_path))
+
+        # Test multi-level nested update
+        sim.update_config({'sites': {0 : {'name' : 'test'}}})
+
+        assert sim.config.sites[0].name == 'test'
+
+        # Verify sites is still a proper object
+        assert hasattr(sim.config.sites[0], "__dict__")
 
 class TestForcing:
     """Test forcing data loading."""

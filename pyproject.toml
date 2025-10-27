@@ -28,7 +28,6 @@ dependencies = [
     "dask",
     
     # Model requirements
-    "f90wrap==0.2.16",
     "pydantic",
     "f90nml",
     
@@ -37,7 +36,9 @@ dependencies = [
     "seaborn",
     "chardet",
     "click",
-    "pyarrow",
+    "pyarrow>=20,<21; python_version < '3.14' and platform_system == 'Linux'",  # Linux needs manylinux2014 wheels on CPython 3.9-3.13
+    "pyarrow>=20; python_version < '3.14' and platform_system != 'Linux'",  # Non-Linux platforms may use newer pyarrow binaries
+    "pyarrow>=22; python_version >= '3.14'",  # 22.x provides cp314 wheels on manylinux_2_28/macOS/Windows
 
     # Scientific packages
     "atmosp",

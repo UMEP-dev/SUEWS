@@ -199,9 +199,9 @@ jobs:
             echo "buildplat=$MINIMAL_PLATFORMS" >> $GITHUB_OUTPUT
             echo 'python=["cp39", "cp314"]' >> $GITHUB_OUTPUT
           elif [[ "${{ github.event_name }}" == "pull_request" ]] || [[ "${{ github.event_name }}" == "push" && "${{ github.ref }}" == "refs/heads/master" ]]; then
-            echo "Running reduced matrix for PR/master (all platforms, bookend Python versions)"
+            echo "Running full matrix for PR/master (temporary full coverage run)"
             echo "buildplat=$FULL_PLATFORMS" >> $GITHUB_OUTPUT
-            echo 'python=["cp39", "cp314"]' >> $GITHUB_OUTPUT
+            echo 'python=["cp39", "cp310", "cp311", "cp312", "cp313", "cp314"]' >> $GITHUB_OUTPUT
           else
             echo "Running full matrix for tags/schedule/manual (all platforms, all Python versions)"
             echo "buildplat=$FULL_PLATFORMS" >> $GITHUB_OUTPUT
@@ -448,4 +448,3 @@ jobs:
             --title "SUEWS v$VERSION: $TITLE" \
             --notes-file release_notes.md \
             --verify-tag
-

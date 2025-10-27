@@ -93,9 +93,9 @@ class TestConfig:
         sim = SUEWSSimulation(str(yaml_path))
 
         # Test multi-level nested update
-        sim.update_config({'sites' : {'name' : 'test'}})
+        sim.update_config({"sites": {"name": "test"}})
 
-        assert sim.config.sites[0].name == 'test'
+        assert sim.config.sites[0].name == "test"
 
         # Verify sites is still a proper object
         assert hasattr(sim.config.sites[0], "__dict__")
@@ -106,10 +106,12 @@ class TestConfig:
         sim = SUEWSSimulation(str(yaml_path))
 
         # Test multi-level nested update
-        sim.update_config({'sites': {'KCL' : {'name' : 'test'}}})
-        changed_site = next((item for item in sim.config.sites if item.name == 'test'), None)
+        sim.update_config({"sites": {"KCL": {"name": "test"}}})
+        changed_site = next(
+            (item for item in sim.config.sites if item.name == "test"), None
+        )
 
-        assert changed_site.name == 'test'
+        assert changed_site.name == "test"
 
         # Verify sites is still a proper object
         assert hasattr(changed_site, "__dict__")
@@ -120,9 +122,9 @@ class TestConfig:
         sim = SUEWSSimulation(str(yaml_path))
 
         # Test multi-level nested update
-        sim.update_config({'sites': {0 : {'name' : 'test'}}})
+        sim.update_config({"sites": {0: {"name": "test"}}})
 
-        assert sim.config.sites[0].name == 'test'
+        assert sim.config.sites[0].name == "test"
 
         # Verify sites is still a proper object
         assert hasattr(sim.config.sites[0], "__dict__")
@@ -153,6 +155,7 @@ class TestConfigSitesUpdate:
         """
         # Add a second site programmatically
         import copy
+
         site2 = copy.deepcopy(sim_single_site.config.sites[0])
         site2.name = "Swindon"
         sim_single_site.config.sites.append(site2)
@@ -161,53 +164,43 @@ class TestConfigSitesUpdate:
     # ===== Test 1: Single-site shorthand access =====
     def test_single_site_shorthand_shallow(self, sim_single_site):
         """Test updating top-level site attribute using single-site shorthand."""
-        sim_single_site.update_config({'sites': {'name': 'NewName'}})
-        assert sim_single_site.config.sites[0].name == 'NewName'
+        sim_single_site.update_config({"sites": {"name": "NewName"}})
+        assert sim_single_site.config.sites[0].name == "NewName"
 
     def test_single_site_shorthand_deep_nested(self, sim_single_site):
         """Test updating deeply nested site attribute using single-site shorthand."""
         original_lat = sim_single_site.config.sites[0].properties.lat.value
 
         sim_single_site.update_config({
-            'sites': {
-                'properties': {
-                    'lat': {'value': 52.5}
-                }
-            }
+            "sites": {"properties": {"lat": {"value": 52.5}}}
         })
 
         assert sim_single_site.config.sites[0].properties.lat.value == 52.5
         assert sim_single_site.config.sites[0].properties.lat.value != original_lat
         # Verify other properties unchanged
-        assert hasattr(sim_single_site.config.sites[0].properties, 'lng')
+        assert hasattr(sim_single_site.config.sites[0].properties, "lng")
 
     def test_single_site_shorthand_multiple_attrs(self, sim_single_site):
         """Test updating multiple attributes at once using single-site shorthand."""
-        sim_single_site.update_config({
-            'sites': {
-                'name': 'UpdatedSite',
-                'gridiv': 2
-            }
-        })
+        sim_single_site.update_config({"sites": {"name": "UpdatedSite", "gridiv": 2}})
 
-        assert sim_single_site.config.sites[0].name == 'UpdatedSite'
+        assert sim_single_site.config.sites[0].name == "UpdatedSite"
         assert sim_single_site.config.sites[0].gridiv == 2
 
     # ===== Test 2: Site name lookup =====
     def test_site_name_shallow(self, sim_single_site):
         """Test updating top-level site attribute by site name."""
-        sim_single_site.update_config({'sites': {'KCL': {'name': 'KingsCollegeLondon'}}})
-        assert sim_single_site.config.sites[0].name == 'KingsCollegeLondon'
+        sim_single_site.update_config({
+            "sites": {"KCL": {"name": "KingsCollegeLondon"}}
+        })
+        assert sim_single_site.config.sites[0].name == "KingsCollegeLondon"
 
     def test_site_name_deep_nested(self, sim_single_site):
         """Test updating deeply nested site attribute by site name."""
         sim_single_site.update_config({
-            'sites': {
-                'KCL': {
-                    'properties': {
-                        'lat': {'value': 51.52},
-                        'lng': {'value': -0.13}
-                    }
+            "sites": {
+                "KCL": {
+                    "properties": {"lat": {"value": 51.52}, "lng": {"value": -0.13}}
                 }
             }
         })
@@ -221,7 +214,9 @@ class TestConfigSitesUpdate:
         original_name2 = sim_multi_site.config.sites[1].name
 
         # Update with non-existent site name should be skipped
-        sim_multi_site.update_config({'sites': {'NonExistent': {'name': 'ShouldNotApply'}}})
+        sim_multi_site.update_config({
+            "sites": {"NonExistent": {"name": "ShouldNotApply"}}
+        })
 
         # Both sites should remain unchanged
         assert sim_multi_site.config.sites[0].name == original_name1
@@ -229,7 +224,7 @@ class TestConfigSitesUpdate:
 
     def test_site_name_multi_site_selective(self, sim_multi_site):
         """Test updating only one site by name when multiple sites exist."""
-        sim_multi_site.update_config({'sites': {'Swindon': {'gridiv': 5}}})
+        sim_multi_site.update_config({"sites": {"Swindon": {"gridiv": 5}}})
 
         # Only second site should be updated
         assert sim_multi_site.config.sites[0].gridiv == 1  # unchanged
@@ -238,67 +233,66 @@ class TestConfigSitesUpdate:
     # ===== Test 3: Site index access =====
     def test_site_index_shallow(self, sim_single_site):
         """Test updating top-level site attribute by integer index."""
-        sim_single_site.update_config({'sites': {0: {'name': 'IndexedName'}}})
-        assert sim_single_site.config.sites[0].name == 'IndexedName'
+        sim_single_site.update_config({"sites": {0: {"name": "IndexedName"}}})
+        assert sim_single_site.config.sites[0].name == "IndexedName"
 
     def test_site_index_deep_nested(self, sim_single_site):
         """Test updating deeply nested site attribute by integer index."""
         sim_single_site.update_config({
-            'sites': {
-                0: {
-                    'properties': {
-                        'alt': {'value': 25.0}
-                    }
-                }
-            }
+            "sites": {0: {"properties": {"alt": {"value": 25.0}}}}
         })
 
         assert sim_single_site.config.sites[0].properties.alt.value == 25.0
 
     def test_site_index_multi_site_selective(self, sim_multi_site):
         """Test updating specific site by index when multiple sites exist."""
-        sim_multi_site.update_config({'sites': {1: {'name': 'Site2Updated'}}})
+        sim_multi_site.update_config({"sites": {1: {"name": "Site2Updated"}}})
 
         # Only second site should be updated
-        assert sim_multi_site.config.sites[0].name == 'KCL'  # unchanged
-        assert sim_multi_site.config.sites[1].name == 'Site2Updated'  # updated
+        assert sim_multi_site.config.sites[0].name == "KCL"  # unchanged
+        assert sim_multi_site.config.sites[1].name == "Site2Updated"  # updated
 
     # ===== Test 4: Type preservation and structure integrity =====
     def test_site_update_preserves_pydantic_models(self, sim_single_site):
         """Test that site updates preserve Pydantic model structure."""
-        sim_single_site.update_config({'sites': {0: {'name': 'Test'}}})
+        sim_single_site.update_config({"sites": {0: {"name": "Test"}}})
 
         # Site should still be a proper Pydantic model, not a dict
-        assert hasattr(sim_single_site.config.sites[0], '__dict__')
+        assert hasattr(sim_single_site.config.sites[0], "__dict__")
         assert not isinstance(sim_single_site.config.sites[0], dict)
 
         # Other attributes should be preserved
-        assert hasattr(sim_single_site.config.sites[0], 'properties')
-        assert hasattr(sim_single_site.config.sites[0], 'gridiv')
+        assert hasattr(sim_single_site.config.sites[0], "properties")
+        assert hasattr(sim_single_site.config.sites[0], "gridiv")
 
     def test_site_update_preserves_nested_models(self, sim_single_site):
         """Test that nested structure remains intact after partial update."""
         sim_single_site.update_config({
-            'sites': {0: {'properties': {'lat': {'value': 50.0}}}}
+            "sites": {0: {"properties": {"lat": {"value": 50.0}}}}
         })
 
         # Properties should still be a model, not replaced by dict
-        assert hasattr(sim_single_site.config.sites[0].properties, '__dict__')
+        assert hasattr(sim_single_site.config.sites[0].properties, "__dict__")
         # Other nested properties should be preserved
-        assert hasattr(sim_single_site.config.sites[0].properties, 'lng')
-        assert hasattr(sim_single_site.config.sites[0].properties, 'alt')
+        assert hasattr(sim_single_site.config.sites[0].properties, "lng")
+        assert hasattr(sim_single_site.config.sites[0].properties, "alt")
 
     # ===== Test 5: Edge cases and robustness =====
-    @pytest.mark.parametrize("access_method,update_dict", [
-        ("shorthand", {'sites': {'name': 'A'}}),
-        ("name", {'sites': {'KCL': {'name': 'B'}}}),
-        ("index", {'sites': {0: {'name': 'C'}}}),
-    ])
-    def test_all_access_methods_equivalent_single_site(self, sim_single_site, access_method, update_dict):
+    @pytest.mark.parametrize(
+        "access_method,update_dict",
+        [
+            ("shorthand", {"sites": {"name": "A"}}),
+            ("name", {"sites": {"KCL": {"name": "B"}}}),
+            ("index", {"sites": {0: {"name": "C"}}}),
+        ],
+    )
+    def test_all_access_methods_equivalent_single_site(
+        self, sim_single_site, access_method, update_dict
+    ):
         """Test that all three access methods work for single-site configs."""
         # Should not raise any exception
         sim_single_site.update_config(update_dict)
-        assert sim_single_site.config.sites[0].name in ['A', 'B', 'C']
+        assert sim_single_site.config.sites[0].name in ["A", "B", "C"]
 
     def test_single_site_shorthand_fails_gracefully_multi_site(self, sim_multi_site):
         """Test that single-site shorthand behaviour is clear with multiple sites.
@@ -311,7 +305,7 @@ class TestConfigSitesUpdate:
         original_name = sim_multi_site.config.sites[0].name
 
         # Shorthand without site key - behaviour depends on implementation choice
-        sim_multi_site.update_config({'sites': {'name': 'Ambiguous'}})
+        sim_multi_site.update_config({"sites": {"name": "Ambiguous"}})
 
         # Document current behaviour (may need to be adjusted)
         # Either: skip update (safe), or apply to first (convenient), or raise error (explicit)
@@ -333,18 +327,13 @@ class TestConfigSitesUpdate:
 
         # Provide non-existent site name with single site
         # Should fall back to updating the only available site
-        sim_single_site.update_config({
-            'sites': {
-                'NonExistentSite': {
-                    'gridiv': 99
-                }
-            }
-        })
+        sim_single_site.update_config({"sites": {"NonExistentSite": {"gridiv": 99}}})
 
         # The fallback should work correctly
         # If line 148 bug exists, gridiv will still be original value
-        assert sim_single_site.config.sites[0].gridiv == 99, \
+        assert sim_single_site.config.sites[0].gridiv == 99, (
             "Bug detected: Single-site fallback not working (line 148 uses 'value' instead of 'site_value')"
+        )
 
 
 class TestForcing:

@@ -121,6 +121,7 @@ class SUEWSSimulation:
 
     def _update_config_from_dict(self, updates: dict):
         """Apply dictionary updates to configuration."""
+
         def recursive_update(obj, upd):
             for key, value in upd.items():
                 if hasattr(obj, key):
@@ -139,10 +140,13 @@ class SUEWSSimulation:
                                 recursive_update(attr, site_value)
                             elif isinstance(site_key, str):
                                 # Select site on name
-                                attr_site = next((item for item in attr if item.name == site_key), None)
+                                attr_site = next(
+                                    (item for item in attr if item.name == site_key),
+                                    None,
+                                )
                                 if attr_site:
                                     recursive_update(attr_site, site_value)
-                                elif len(attr)==1:
+                                elif len(attr) == 1:
                                     # Without name or index and only one site
                                     attr_site = attr[0]
                                     # Distinguish site name pattern from shorthand
@@ -158,7 +162,7 @@ class SUEWSSimulation:
                                     continue
                         else:
                             setattr(obj, key, value)
-    
+
         recursive_update(self._config, updates)
 
     def update_forcing(self, forcing_data):

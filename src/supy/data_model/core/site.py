@@ -1757,45 +1757,6 @@ class StebbsProperties(BaseModel):
         description="Specific heat capacity of indoor air [J kg-1 K-1]",
         json_schema_extra={"unit": "J kg^-1 K^-1", "display_name": "Indooraircp"},
     )
-    WallBuildingViewFactor: Optional[FlexibleRefValue(float)] = Field(
-        default=0.0,
-        description="Building view factor of external walls [-]",
-        json_schema_extra={
-            "unit": "dimensionless",
-            "display_name": "Wallbuildingviewfactor",
-        },
-    )
-    WallGroundViewFactor: Optional[FlexibleRefValue(float)] = Field(
-        default=0.0,
-        description="Ground view factor of external walls [-]",
-        json_schema_extra={
-            "unit": "dimensionless",
-            "display_name": "Wallgroundviewfactor",
-        },
-    )
-    WallSkyViewFactor: Optional[FlexibleRefValue(float)] = Field(
-        default=0.0,
-        description="Sky view factor of external walls [-]",
-        json_schema_extra={
-            "unit": "dimensionless",
-            "display_name": "Wallskyviewfactor",
-        },
-    )
-    RoofBuildingViewFactor: Optional[FlexibleRefValue(float)] = Field(
-        default=0.0,
-        description="Building view factor of roof [-]",
-        json_schema_extra={"unit": "dimensionless", "display_name": "Roofbuildingviewfactor"},
-    )
-    RoofGroundViewFactor: Optional[FlexibleRefValue(float)] = Field(
-        default=0.0,
-        description="Ground view factor of roof [-]",
-        json_schema_extra={"unit": "dimensionless", "display_name": "Roofgroundviewfactor"},
-    )
-    RoofSkyViewFactor: Optional[FlexibleRefValue(float)] = Field(
-        default=0.0,
-        description="Sky view factor of roof [-]",
-        json_schema_extra={"unit": "dimensionless", "display_name": "Roofskyviewfactor"},
-    )  
     MetabolicRate: Optional[FlexibleRefValue(float)] = Field(
         default=0.0,
         description="Metabolic rate of building occupants [W]",

@@ -28,6 +28,7 @@ dependencies = [
     "dask",
     
     # Model requirements
+    "f90wrap==0.2.16",  # Required at runtime by generated supy_driver code
     "pydantic",
     "f90nml",
     

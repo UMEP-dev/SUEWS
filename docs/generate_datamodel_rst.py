@@ -263,13 +263,14 @@ class RSTGenerator:
         return lines
 
     def _format_field_metadata(
-        self, field_doc: dict[str, Any], type_info: dict[str, Any]
+        self, field_doc: dict[str, Any], type_info: dict[str, Any], model_name: str = ""
     ) -> list[str]:
         """Format metadata sections (options, unit, default, constraints).
 
         Args:
             field_doc: Field documentation dictionary
             type_info: Type information dictionary
+            model_name: Name of the containing model (for context)
 
         Returns
         -------
@@ -292,9 +293,19 @@ class RSTGenerator:
             lines.append(f"   :Unit: {formatted_unit}")
 
         # Add default/sample value
-        default_label, default_value = self._format_default(field_doc)
+        default_label, default_value = self._format_default(field_doc, model_name)
         if default_label is not None and default_value is not None:
             lines.append(f"   :{default_label}: {default_value}")
+
+        # Add default description if available
+        default_desc = field_doc.get("default_description")
+        if default_desc:
+            lines.append(f"   :Default Description: {default_desc}")
+
+        # Add range description if available
+        range_desc = field_doc.get("range_description")
+        if range_desc:
+            lines.append(f"   :Range Description: {range_desc}")
 
         # Add reference field for RefValue types
         if type_info.get("is_ref_value"):
@@ -331,7 +342,7 @@ class RSTGenerator:
         lines.extend(self._format_ref_value_hint(field_name, field_doc, type_info))
 
         # Add metadata (options, unit, default, constraints)
-        lines.extend(self._format_field_metadata(field_doc, type_info))
+        lines.extend(self._format_field_metadata(field_doc, type_info, model_name))
 
         # Add link to nested model documentation
         nested_model = field_doc.get("nested_model")
@@ -439,7 +450,9 @@ class RSTGenerator:
         return " ".join(formatted)
 
     @staticmethod
-    def _format_default(field_doc: dict[str, Any]) -> tuple[str, str]:  # noqa: PLR0912
+    def _format_default(
+        field_doc: dict[str, Any], model_name: str = ""
+    ) -> tuple[str, str]:  # noqa: PLR0912
         """Format default value for display with consistent labeling.
 
         Returns appropriate label-value pair based on field characteristics:
@@ -447,6 +460,10 @@ class RSTGenerator:
         - Optional with defaults: ("Default", "value") or ("Example", "value")
         - Optional without defaults: ("Default", "None (optional)")
         - Nested models: (None, None) to skip display
+
+        Args:
+            field_doc: Field documentation dictionary
+            model_name: Name of the containing model (for context)
         """
         nested_model = field_doc.get("nested_model")
 
@@ -478,25 +495,20 @@ class RSTGenerator:
                 return "Default", "None (optional)"
 
         # We have a non-None default value - format it
-        # Determine if this is a site-specific field
-        field_name = field_doc.get("name", "")
-        site_specific_fields = {
-            "sfr",
-            "lat",
-            "lon",
-            "alt",
-            "gridiv",
-            "name",
-            "coord_x",
-            "coord_y",
-            "coord_z",
-            "emis",
-            "alb",
-            "soildepth",
-            "soilstorecap",
-            "sathydraulicconduct",
+        # Determine if this is a site/surface-specific model
+        # These models contain fields that vary by site or surface type
+        site_surface_models = {
+            "Site",
+            "SiteProperties",
+            "PavedProperties",
+            "BldgsProperties",
+            "EvetrProperties",
+            "DectrProperties",
+            "GrassProperties",
+            "BsoilProperties",
+            "WaterProperties",
         }
-        is_site_specific = field_name in site_specific_fields
+        is_site_specific = model_name in site_surface_models
 
         # Format the value for display
         if isinstance(default, (str, int, float, bool)):

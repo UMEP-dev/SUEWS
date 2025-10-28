@@ -47,7 +47,7 @@ def main():
     # Move generated files to the output directory
     try:
         subprocess.check_call([
-            "python",
+            sys.executable,
             os.path.join(current_source_dir, "move_output_gen.py"),
             *output_files,
             output_dir,

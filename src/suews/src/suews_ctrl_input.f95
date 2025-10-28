@@ -13,7 +13,7 @@
 SUBROUTINE MetRead(lfn, MetArray, InputmetFormat, ldown_option, NetRadiationMethod, &
                    SnowUse, SMDMethod, SoilDepthMeas, SoilRocks, SoilDensity, SmCap)
 
-   USE defaultNotUsed
+   USE module_ctrl_const_default
 
    IMPLICIT NONE
 
@@ -190,12 +190,12 @@ END SUBROUTINE MetRead
 !------------------------------------------------------------
 
 !Information for the run
-MODULE run_info
+MODULE module_ctrl_input_runinfo
    IMPLICIT NONE
    CHARACTER(len=90), DIMENSION(14) :: text
    INTEGER :: lim0 = 0, lim1 = 1, lim2 = 2, lim4 = 4, lim3 = 3, lim6 = 6, lim8 = 8, lim12 = 12, lfn_us
    LOGICAL :: file_qs
-END MODULE run_info
+END MODULE module_ctrl_input_runinfo
 
 ! run_control
 ! called from: LUMPS_initial
@@ -203,7 +203,7 @@ END MODULE run_info
 SUBROUTINE run_control(eval, LowerLimit, Upperlimit)
    ! ver - determines if value to be read is an integer or real and returns the value
    ! if ver=-9 - then use integer
-   USE run_info
+   USE module_ctrl_input_runinfo
    IMPLICIT NONE
    INTEGER :: eval, i, lowerlimit, upperlimit
    CHARACTER(len=4) :: check
@@ -267,9 +267,9 @@ SUBROUTINE InputHeaderCheck(FileName)
    !   HCW 12 Nov 2014
    !-------------------------------------------------------------------------
 
-   USE allocateArray
-   USE ColNamesInputFiles
-   USE defaultNotUsed
+   USE module_ctrl_const_allocate
+   USE module_ctrl_const_colnames_input
+   USE module_ctrl_const_default
 
    IMPLICIT NONE
 
@@ -713,9 +713,9 @@ END SUBROUTINE InputHeaderCheck
 !===================================================================================
 ! SUBROUTINE SUEWS_InterpHourlyProfiles(Gridiv,TstepP_ID,SurfChar_HrProf)
 !
-!   USE allocateArray
-!   USE ColNamesInputFiles
-!   USE sues_data
+!   USE module_ctrl_const_allocate
+!   USE module_ctrl_const_colnames_input
+!   USE module_ctrl_const_sues
 !
 !   IMPLICIT NONE
 !
@@ -739,7 +739,7 @@ END SUBROUTINE InputHeaderCheck
 !
 ! endsubroutine SUEWS_InterpHourlyProfiles
 !===================================================================================
-MODULE get_prof_module
+MODULE module_ctrl_input_profile
    IMPLICIT NONE
 
 CONTAINS
@@ -831,7 +831,7 @@ CONTAINS
 
    END FUNCTION get_Prof_SpecTime_sum
 
-END MODULE get_prof_module
+END MODULE module_ctrl_input_profile
 
 !===================================================================================
 ! TODO: #79 all the parameter tables can be stored using a custom dictionary for easier and more consistent access:
@@ -846,10 +846,10 @@ SUBROUTINE CodeMatchOHM(Gridiv, is, SWWD)
    ! HCW 03 Nov 2014
    ! ---------------------------------------------------------
 
-   USE allocateArray
-   USE Initial
-   USE ColNamesInputFiles
-   USE defaultNotUsed
+   USE module_ctrl_const_allocate
+   USE module_ctrl_const_initial
+   USE module_ctrl_const_colnames_input
+   USE module_ctrl_const_default
 
    IMPLICIT NONE
 
@@ -924,10 +924,10 @@ SUBROUTINE CodeMatchESTM(Gridiv, is)
    ! S.O. 04 Feb 2016
    ! ---------------------------------------------------------
 
-   USE allocateArray
-   USE Initial
-   USE ColNamesInputFiles
-   USE defaultNotUsed
+   USE module_ctrl_const_allocate
+   USE module_ctrl_const_initial
+   USE module_ctrl_const_colnames_input
+   USE module_ctrl_const_default
 
    IMPLICIT NONE
 
@@ -955,10 +955,10 @@ SUBROUTINE CodeMatchESTM_Class(Gridiv, is, ii)
    ! HCW 16 Jun 2016
    ! ---------------------------------------------------------
 
-   USE allocateArray
-   USE Initial
-   USE ColNamesInputFiles
-   USE defaultNotUsed
+   USE module_ctrl_const_allocate
+   USE module_ctrl_const_initial
+   USE module_ctrl_const_colnames_input
+   USE module_ctrl_const_default
 
    IMPLICIT NONE
 
@@ -1002,10 +1002,10 @@ SUBROUTINE CodeMatchProf(Gridiv, SurfaceCharCodeCol)
    ! HCW 20 Nov 2014
    ! ---------------------------------------------------------
 
-   USE allocateArray
-   USE Initial
-   USE ColNamesInputFiles
-   USE defaultNotUsed
+   USE module_ctrl_const_allocate
+   USE module_ctrl_const_initial
+   USE module_ctrl_const_colnames_input
+   USE module_ctrl_const_default
 
    IMPLICIT NONE
 
@@ -1034,10 +1034,10 @@ SUBROUTINE CodeMatchDist(rr, CodeCol, codeColSameSurf)
    ! HCW 10 Nov 2014
    ! ---------------------------------------------------------
 
-   USE allocateArray
-   USE Initial
-   USE ColNamesInputFiles
-   USE defaultNotUsed
+   USE module_ctrl_const_allocate
+   USE module_ctrl_const_initial
+   USE module_ctrl_const_colnames_input
+   USE module_ctrl_const_default
 
    IMPLICIT NONE
 
@@ -1091,10 +1091,10 @@ SUBROUTINE CodeMatchNonVeg(rr, CodeCol)
    ! HCW 20 Nov 2014
    ! ---------------------------------------------------------
 
-   USE allocateArray
-   USE Initial
-   USE ColNamesInputFiles
-   USE defaultNotUsed
+   USE module_ctrl_const_allocate
+   USE module_ctrl_const_initial
+   USE module_ctrl_const_colnames_input
+   USE module_ctrl_const_default
 
    IMPLICIT NONE
 
@@ -1121,10 +1121,10 @@ SUBROUTINE CodeMatchVeg(rr, CodeCol)
    ! HCW 20 Nov 2014
    ! ---------------------------------------------------------
 
-   USE allocateArray
-   USE Initial
-   USE ColNamesInputFiles
-   USE defaultNotUsed
+   USE module_ctrl_const_allocate
+   USE module_ctrl_const_initial
+   USE module_ctrl_const_colnames_input
+   USE module_ctrl_const_default
 
    IMPLICIT NONE
 
@@ -1151,10 +1151,10 @@ SUBROUTINE CodeMatchWater(rr, CodeCol)
    ! HCW 20 Nov 2014
    ! ---------------------------------------------------------
 
-   USE allocateArray
-   USE Initial
-   USE ColNamesInputFiles
-   USE defaultNotUsed
+   USE module_ctrl_const_allocate
+   USE module_ctrl_const_initial
+   USE module_ctrl_const_colnames_input
+   USE module_ctrl_const_default
 
    IMPLICIT NONE
 
@@ -1181,10 +1181,10 @@ SUBROUTINE CodeMatchSnow(rr, CodeCol)
    ! HCW 20 Nov 2014
    ! ---------------------------------------------------------
 
-   USE allocateArray
-   USE Initial
-   USE ColNamesInputFiles
-   USE defaultNotUsed
+   USE module_ctrl_const_allocate
+   USE module_ctrl_const_initial
+   USE module_ctrl_const_colnames_input
+   USE module_ctrl_const_default
 
    IMPLICIT NONE
 
@@ -1211,10 +1211,10 @@ SUBROUTINE CodeMatchConductance(rr, CodeCol)
    ! HCW 20 Nov 2014
    ! ---------------------------------------------------------
 
-   USE allocateArray
-   USE Initial
-   USE ColNamesInputFiles
-   USE defaultNotUsed
+   USE module_ctrl_const_allocate
+   USE module_ctrl_const_initial
+   USE module_ctrl_const_colnames_input
+   USE module_ctrl_const_default
 
    IMPLICIT NONE
 
@@ -1242,10 +1242,10 @@ SUBROUTINE CodeMatchAnthropogenic(rr, CodeCol)
    ! MH 21 Jun 2017
    ! ---------------------------------------------------------
 
-   USE allocateArray
-   USE Initial
-   USE ColNamesInputFiles
-   USE defaultNotUsed
+   USE module_ctrl_const_allocate
+   USE module_ctrl_const_initial
+   USE module_ctrl_const_colnames_input
+   USE module_ctrl_const_default
 
    IMPLICIT NONE
 
@@ -1274,10 +1274,10 @@ SUBROUTINE CodeMatchIrrigation(rr, CodeCol)
    ! HCW 20 Nov 2014
    ! ---------------------------------------------------------
 
-   USE allocateArray
-   USE Initial
-   USE ColNamesInputFiles
-   USE defaultNotUsed
+   USE module_ctrl_const_allocate
+   USE module_ctrl_const_initial
+   USE module_ctrl_const_colnames_input
+   USE module_ctrl_const_default
 
    IMPLICIT NONE
 
@@ -1304,10 +1304,10 @@ SUBROUTINE CodeMatchSoil(Gridiv, SurfaceCharCodeCol)
    ! HCW 20 Nov 2014
    ! ---------------------------------------------------------
 
-   USE allocateArray
-   USE Initial
-   USE ColNamesInputFiles
-   USE defaultNotUsed
+   USE module_ctrl_const_allocate
+   USE module_ctrl_const_initial
+   USE module_ctrl_const_colnames_input
+   USE module_ctrl_const_default
 
    IMPLICIT NONE
 
@@ -1334,10 +1334,10 @@ SUBROUTINE CodeMatchBiogen(Gridiv, SurfaceCharCodeCol)
    ! MH 16 Jun 2017
    ! ---------------------------------------------------------
 
-   USE allocateArray
-   USE Initial
-   USE ColNamesInputFiles
-   USE defaultNotUsed
+   USE module_ctrl_const_allocate
+   USE module_ctrl_const_initial
+   USE module_ctrl_const_colnames_input
+   USE module_ctrl_const_default
 
    IMPLICIT NONE
 
@@ -1359,7 +1359,7 @@ SUBROUTINE CodeMatchBiogen(Gridiv, SurfaceCharCodeCol)
 END SUBROUTINE CodeMatchBiogen
 ! ---------------------------------------------------------
 
-MODULE MetDisagg
+MODULE module_ctrl_input_metdisagg
    !========================================================================================
    ! Disaggregation of meteorological forcing data
    !  Code to disaggregate met forcing data from resolution provided to the model time-step
@@ -1378,10 +1378,10 @@ MODULE MetDisagg
    !========================================================================================
 
    USE AllocateArray
-   USE ColNamesInputFiles
+   USE module_ctrl_const_colnames_input
    USE Data_In
-   USE Initial
-   USE NARP_MODULE, ONLY: NARP_cal_SunPosition
+   USE module_ctrl_const_initial
+   USE module_phys_narp, ONLY: NARP_cal_SunPosition
 
    IMPLICIT NONE
 
@@ -1866,7 +1866,7 @@ CONTAINS
 
    !======================================================================================
    SUBROUTINE DisaggregateDateTime(DateTimeForDisagg, tstep, Nper, ReadLinesOrigMetDataMax, DateTimeDscd)
-      USE datetime_module, ONLY: daysInYear
+      USE module_util_datetime, ONLY: daysInYear
       IMPLICIT NONE
       INTEGER, INTENT(in) :: tstep, Nper, ReadLinesOrigMetDataMax
       REAL(KIND(1D0)), DIMENSION(ReadLinesOrigMetData, 4), INTENT(in) :: DateTimeForDisagg
@@ -1922,7 +1922,7 @@ CONTAINS
    FUNCTION Disagg_Lin(Slow, SlowPrev, SlowNext, DisaggType, Nper_loc, ReadLinesOrig_loc, ReadLinesOrigMax_loc, iBlock) RESULT(Fast)
 
       USE DefaultNotUsed
-      USE sues_data
+      USE module_ctrl_const_sues
 
       IMPLICIT NONE
 
@@ -2032,7 +2032,7 @@ CONTAINS
       !======================================================================================
 
       USE DefaultNotUsed
-      USE sues_data
+      USE module_ctrl_const_sues
 
       IMPLICIT NONE
 
@@ -2090,7 +2090,7 @@ CONTAINS
       !======================================================================================
 
       USE DefaultNotUsed
-      USE sues_data
+      USE module_ctrl_const_sues
 
       IMPLICIT NONE
 
@@ -2195,5 +2195,18 @@ CONTAINS
    END FUNCTION RandomSamples
    !======================================================================================
 
-END MODULE MetDisagg
+END MODULE module_ctrl_input_metdisagg
 !========================================================================================
+
+! Backward compatibility aliases
+MODULE run_info
+   USE module_ctrl_input_runinfo
+END MODULE run_info
+
+MODULE get_prof_module
+   USE module_ctrl_input_profile
+END MODULE get_prof_module
+
+MODULE MetDisagg
+   USE module_ctrl_input_metdisagg
+END MODULE MetDisagg

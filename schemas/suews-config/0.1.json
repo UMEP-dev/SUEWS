@@ -287,7 +287,7 @@
               "type": "number"
             }
           ],
-          "default": 20.0,
+          "default": 0.2,
           "description": "Thickness of external wall and roof (weighted) [m]",
           "display_name": "Wallthickness",
           "gt": 0.0,
@@ -303,7 +303,7 @@
               "type": "number"
             }
           ],
-          "default": 60.0,
+          "default": 0.6,
           "description": "Effective thermal conductivity of walls and roofs (weighted) [W m-1 K-1]",
           "display_name": "Walleffectiveconductivity",
           "gt": 0.0,
@@ -714,6 +714,7 @@
           "default": 0.0,
           "description": "Maximum power demand of heating system [W]",
           "display_name": "Maxheatingpower",
+          "ge": 0.0,
           "title": "Maxheatingpower",
           "unit": "W"
         },
@@ -726,9 +727,10 @@
               "type": "number"
             }
           ],
-          "default": 0.0,
+          "default": 0.15,
           "description": "Volume of water in hot water tank [m3]",
           "display_name": "Watertankwatervolume",
+          "gt": 0.0,
           "title": "Watertankwatervolume",
           "unit": "m^3"
         },
@@ -741,9 +743,10 @@
               "type": "number"
             }
           ],
-          "default": 0.0,
+          "default": 3000.0,
           "description": "Maximum power demand of water heating system [W]",
           "display_name": "Maximumhotwaterheatingpower",
+          "gt": 0.0,
           "title": "Maximumhotwaterheatingpower",
           "unit": "W"
         },
@@ -9001,8 +9004,10 @@
             }
           ],
           "default": 7.69,
+          "default_description": "Default value calculated from the CIBSE GUIDE A, Table 3.47, Page 176",
           "description": "Internal convection coefficient of walls and roof [W m-2 K-1]",
           "display_name": "Wallinternalconvectioncoefficient",
+          "range_description": "Value must be greater than zero.",
           "title": "Wallinternalconvectioncoefficient",
           "unit": "W m^-2 K^-1"
         },
@@ -9160,16 +9165,21 @@
         "IndoorAirDensity": {
           "anyOf": [
             {
-              "$ref": "#/$defs/RefValue_float_"
-            },
-            {
-              "type": "number"
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/RefValue_float_"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "gt": 0.0
             },
             {
               "type": "null"
             }
           ],
-          "default": 0.0,
+          "default": 1.2,
           "description": "Density of indoor air [kg m-3]",
           "display_name": "Indoorairdensity",
           "title": "Indoorairdensity",
@@ -9178,16 +9188,21 @@
         "IndoorAirCp": {
           "anyOf": [
             {
-              "$ref": "#/$defs/RefValue_float_"
-            },
-            {
-              "type": "number"
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/RefValue_float_"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "gt": 0.0
             },
             {
               "type": "null"
             }
           ],
-          "default": 0.0,
+          "default": 1005.0,
           "description": "Specific heat capacity of indoor air [J kg-1 K-1]",
           "display_name": "Indooraircp",
           "title": "Indooraircp",
@@ -9196,10 +9211,16 @@
         "WallBuildingViewFactor": {
           "anyOf": [
             {
-              "$ref": "#/$defs/RefValue_float_"
-            },
-            {
-              "type": "number"
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/RefValue_float_"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "ge": 0.0,
+              "le": 1.0
             },
             {
               "type": "null"
@@ -9214,10 +9235,16 @@
         "WallGroundViewFactor": {
           "anyOf": [
             {
-              "$ref": "#/$defs/RefValue_float_"
-            },
-            {
-              "type": "number"
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/RefValue_float_"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "ge": 0.0,
+              "le": 1.0
             },
             {
               "type": "null"
@@ -9232,10 +9259,16 @@
         "WallSkyViewFactor": {
           "anyOf": [
             {
-              "$ref": "#/$defs/RefValue_float_"
-            },
-            {
-              "type": "number"
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/RefValue_float_"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "ge": 0.0,
+              "le": 1.0
             },
             {
               "type": "null"
@@ -9250,10 +9283,15 @@
         "MetabolicRate": {
           "anyOf": [
             {
-              "$ref": "#/$defs/RefValue_float_"
-            },
-            {
-              "type": "number"
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/RefValue_float_"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "ge": 0.0
             },
             {
               "type": "null"
@@ -9268,10 +9306,15 @@
         "LatentSensibleRatio": {
           "anyOf": [
             {
-              "$ref": "#/$defs/RefValue_float_"
-            },
-            {
-              "type": "number"
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/RefValue_float_"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "ge": 0.0
             },
             {
               "type": "null"
@@ -9286,10 +9329,15 @@
         "ApplianceRating": {
           "anyOf": [
             {
-              "$ref": "#/$defs/RefValue_float_"
-            },
-            {
-              "type": "number"
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/RefValue_float_"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "ge": 0.0
             },
             {
               "type": "null"
@@ -9304,10 +9352,15 @@
         "TotalNumberofAppliances": {
           "anyOf": [
             {
-              "$ref": "#/$defs/RefValue_float_"
-            },
-            {
-              "type": "number"
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/RefValue_float_"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "ge": 0.0
             },
             {
               "type": "null"
@@ -9322,10 +9375,16 @@
         "ApplianceUsageFactor": {
           "anyOf": [
             {
-              "$ref": "#/$defs/RefValue_float_"
-            },
-            {
-              "type": "number"
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/RefValue_float_"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "ge": 0.0,
+              "le": 1.0
             },
             {
               "type": "null"
@@ -9340,10 +9399,16 @@
         "HeatingSystemEfficiency": {
           "anyOf": [
             {
-              "$ref": "#/$defs/RefValue_float_"
-            },
-            {
-              "type": "number"
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/RefValue_float_"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "ge": 0.0,
+              "le": 1.0
             },
             {
               "type": "null"
@@ -9358,10 +9423,15 @@
         "MaxCoolingPower": {
           "anyOf": [
             {
-              "$ref": "#/$defs/RefValue_float_"
-            },
-            {
-              "type": "number"
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/RefValue_float_"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "ge": 0.0
             },
             {
               "type": "null"
@@ -9376,10 +9446,15 @@
         "CoolingSystemCOP": {
           "anyOf": [
             {
-              "$ref": "#/$defs/RefValue_float_"
-            },
-            {
-              "type": "number"
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/RefValue_float_"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "ge": 0.0
             },
             {
               "type": "null"
@@ -9394,10 +9469,15 @@
         "VentilationRate": {
           "anyOf": [
             {
-              "$ref": "#/$defs/RefValue_float_"
-            },
-            {
-              "type": "number"
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/RefValue_float_"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "ge": 0.0
             },
             {
               "type": "null"
@@ -9556,16 +9636,21 @@
         "WaterTankTemperature": {
           "anyOf": [
             {
-              "$ref": "#/$defs/RefValue_float_"
-            },
-            {
-              "type": "number"
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/RefValue_float_"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "gt": 0.0
             },
             {
               "type": "null"
             }
           ],
-          "default": 0.0,
+          "default": 50.0,
           "description": "Initial water temperature in hot water tank [degC]",
           "display_name": "Watertanktemperature",
           "title": "Watertanktemperature",
@@ -9610,16 +9695,21 @@
         "WaterTankWallThickness": {
           "anyOf": [
             {
-              "$ref": "#/$defs/RefValue_float_"
-            },
-            {
-              "type": "number"
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/RefValue_float_"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "gt": 0.0
             },
             {
               "type": "null"
             }
           ],
-          "default": 0.0,
+          "default": 0.01,
           "description": "Hot water tank wall thickness [m]",
           "display_name": "Watertankwallthickness",
           "title": "Watertankwallthickness",
@@ -9664,16 +9754,21 @@
         "HotWaterHeatingSetpointTemperature": {
           "anyOf": [
             {
-              "$ref": "#/$defs/RefValue_float_"
-            },
-            {
-              "type": "number"
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/RefValue_float_"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "gt": 0.0
             },
             {
               "type": "null"
             }
           ],
-          "default": 0.0,
+          "default": 60.0,
           "description": "Water tank setpoint temperature [degC]",
           "display_name": "Hotwaterheatingsetpointtemperature",
           "title": "Hotwaterheatingsetpointtemperature",
@@ -9682,10 +9777,16 @@
         "HotWaterTankWallEmissivity": {
           "anyOf": [
             {
-              "$ref": "#/$defs/RefValue_float_"
-            },
-            {
-              "type": "number"
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/RefValue_float_"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "ge": 0.0,
+              "le": 1.0
             },
             {
               "type": "null"
@@ -9700,16 +9801,21 @@
         "DomesticHotWaterTemperatureInUseInBuilding": {
           "anyOf": [
             {
-              "$ref": "#/$defs/RefValue_float_"
-            },
-            {
-              "type": "number"
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/RefValue_float_"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "gt": 0.0
             },
             {
               "type": "null"
             }
           ],
-          "default": 0.0,
+          "default": 40.0,
           "description": "Initial water temperature of water held in use in building [degC]",
           "display_name": "Domestichotwatertemperatureinuseinbuilding",
           "title": "Domestichotwatertemperatureinuseinbuilding",
@@ -9754,16 +9860,21 @@
         "DHWVesselWallThickness": {
           "anyOf": [
             {
-              "$ref": "#/$defs/RefValue_float_"
-            },
-            {
-              "type": "number"
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/RefValue_float_"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "gt": 0.0
             },
             {
               "type": "null"
             }
           ],
-          "default": 0.0,
+          "default": 0.005,
           "description": "Hot water vessel wall thickness [m]",
           "display_name": "Dhwvesselwallthickness",
           "title": "Dhwvesselwallthickness",
@@ -9772,34 +9883,46 @@
         "DHWWaterVolume": {
           "anyOf": [
             {
-              "$ref": "#/$defs/RefValue_float_"
-            },
-            {
-              "type": "number"
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/RefValue_float_"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "gt": 0.0
             },
             {
               "type": "null"
             }
           ],
-          "default": 0.0,
+          "default": 0.05,
+          "default_description": "Missing default explanation.",
           "description": "Volume of water held in use in building [m3]",
           "display_name": "Dhwwatervolume",
+          "range_description": "Missing range explanation.",
           "title": "Dhwwatervolume",
           "unit": "m^3"
         },
         "DHWSurfaceArea": {
           "anyOf": [
             {
-              "$ref": "#/$defs/RefValue_float_"
-            },
-            {
-              "type": "number"
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/RefValue_float_"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "gt": 0.0
             },
             {
               "type": "null"
             }
           ],
-          "default": 0.0,
+          "default": 0.5,
           "description": "Surface area of hot water in vessels in building [m2]",
           "display_name": "Dhwsurfacearea",
           "title": "Dhwsurfacearea",
@@ -9808,10 +9931,16 @@
         "DHWVesselEmissivity": {
           "anyOf": [
             {
-              "$ref": "#/$defs/RefValue_float_"
-            },
-            {
-              "type": "number"
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/RefValue_float_"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "ge": 0.0,
+              "le": 1.0
             },
             {
               "type": "null"
@@ -9826,10 +9955,15 @@
         "HotWaterFlowRate": {
           "anyOf": [
             {
-              "$ref": "#/$defs/RefValue_float_"
-            },
-            {
-              "type": "number"
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/RefValue_float_"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "ge": 0.0
             },
             {
               "type": "null"
@@ -9844,10 +9978,15 @@
         "DHWDrainFlowRate": {
           "anyOf": [
             {
-              "$ref": "#/$defs/RefValue_float_"
-            },
-            {
-              "type": "number"
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/RefValue_float_"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "ge": 0.0
             },
             {
               "type": "null"
@@ -9862,16 +10001,21 @@
         "DHWSpecificHeatCapacity": {
           "anyOf": [
             {
-              "$ref": "#/$defs/RefValue_float_"
-            },
-            {
-              "type": "number"
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/RefValue_float_"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "gt": 0.0
             },
             {
               "type": "null"
             }
           ],
-          "default": 0.0,
+          "default": 4186.0,
           "description": "Specific heat capacity of hot water [J kg-1 K-1]",
           "display_name": "Dhwspecificheatcapacity",
           "title": "Dhwspecificheatcapacity",
@@ -9880,16 +10024,21 @@
         "HotWaterTankSpecificHeatCapacity": {
           "anyOf": [
             {
-              "$ref": "#/$defs/RefValue_float_"
-            },
-            {
-              "type": "number"
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/RefValue_float_"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "gt": 0.0
             },
             {
               "type": "null"
             }
           ],
-          "default": 0.0,
+          "default": 500.0,
           "description": "Specific heat capacity of hot water tank wal [J kg-1 K-1]",
           "display_name": "Hotwatertankspecificheatcapacity",
           "title": "Hotwatertankspecificheatcapacity",
@@ -9898,16 +10047,21 @@
         "DHWVesselSpecificHeatCapacity": {
           "anyOf": [
             {
-              "$ref": "#/$defs/RefValue_float_"
-            },
-            {
-              "type": "number"
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/RefValue_float_"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "gt": 0.0
             },
             {
               "type": "null"
             }
           ],
-          "default": 0.0,
+          "default": 500.0,
           "description": "Specific heat capacity of vessels containing hot water in use in buildings [J kg-1 K-1]",
           "display_name": "Dhwvesselspecificheatcapacity",
           "title": "Dhwvesselspecificheatcapacity",
@@ -9916,16 +10070,21 @@
         "DHWDensity": {
           "anyOf": [
             {
-              "$ref": "#/$defs/RefValue_float_"
-            },
-            {
-              "type": "number"
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/RefValue_float_"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "gt": 0.0
             },
             {
               "type": "null"
             }
           ],
-          "default": 0.0,
+          "default": 1000.0,
           "description": "Density of hot water in use [kg m-3]",
           "display_name": "Dhwdensity",
           "title": "Dhwdensity",
@@ -9934,16 +10093,21 @@
         "HotWaterTankWallDensity": {
           "anyOf": [
             {
-              "$ref": "#/$defs/RefValue_float_"
-            },
-            {
-              "type": "number"
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/RefValue_float_"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "gt": 0.0
             },
             {
               "type": "null"
             }
           ],
-          "default": 0.0,
+          "default": 2500.0,
           "description": "Density of hot water tank wall [kg m-3]",
           "display_name": "Hotwatertankwalldensity",
           "title": "Hotwatertankwalldensity",
@@ -9952,16 +10116,21 @@
         "DHWVesselDensity": {
           "anyOf": [
             {
-              "$ref": "#/$defs/RefValue_float_"
-            },
-            {
-              "type": "number"
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/RefValue_float_"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "gt": 0.0
             },
             {
               "type": "null"
             }
           ],
-          "default": 0.0,
+          "default": 2500.0,
           "description": "Density of vessels containing hot water in use [kg m-3]",
           "display_name": "Dhwvesseldensity",
           "title": "Dhwvesseldensity",
@@ -9970,10 +10139,16 @@
         "HotWaterTankBuildingWallViewFactor": {
           "anyOf": [
             {
-              "$ref": "#/$defs/RefValue_float_"
-            },
-            {
-              "type": "number"
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/RefValue_float_"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "ge": 0.0,
+              "le": 1.0
             },
             {
               "type": "null"
@@ -9988,10 +10163,16 @@
         "HotWaterTankInternalMassViewFactor": {
           "anyOf": [
             {
-              "$ref": "#/$defs/RefValue_float_"
-            },
-            {
-              "type": "number"
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/RefValue_float_"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "ge": 0.0,
+              "le": 1.0
             },
             {
               "type": "null"
@@ -10006,16 +10187,21 @@
         "HotWaterTankWallConductivity": {
           "anyOf": [
             {
-              "$ref": "#/$defs/RefValue_float_"
-            },
-            {
-              "type": "number"
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/RefValue_float_"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "gt": 0.0
             },
             {
               "type": "null"
             }
           ],
-          "default": 0.0,
+          "default": 0.5,
           "description": "Effective wall conductivity of the hot water tank [W m-1 K-1]",
           "display_name": "Hotwatertankwallconductivity",
           "title": "Hotwatertankwallconductivity",
@@ -10060,16 +10246,21 @@
         "DHWVesselWallConductivity": {
           "anyOf": [
             {
-              "$ref": "#/$defs/RefValue_float_"
-            },
-            {
-              "type": "number"
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/RefValue_float_"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "gt": 0.0
             },
             {
               "type": "null"
             }
           ],
-          "default": 0.0,
+          "default": 0.5,
           "description": "Effective wall conductivity of the hot water tank [W m-1 K-1]",
           "display_name": "Dhwvesselwallconductivity",
           "title": "Dhwvesselwallconductivity",
@@ -10114,16 +10305,22 @@
         "DHWVesselWallEmissivity": {
           "anyOf": [
             {
-              "$ref": "#/$defs/RefValue_float_"
-            },
-            {
-              "type": "number"
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/RefValue_float_"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "gt": 0.0,
+              "le": 1.0
             },
             {
               "type": "null"
             }
           ],
-          "default": 0.0,
+          "default": 0.9,
           "description": "Effective external wall emissivity of hot water being used within building [-]",
           "display_name": "Dhwvesselwallemissivity",
           "title": "Dhwvesselwallemissivity",
@@ -10132,10 +10329,16 @@
         "HotWaterHeatingEfficiency": {
           "anyOf": [
             {
-              "$ref": "#/$defs/RefValue_float_"
-            },
-            {
-              "type": "number"
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/RefValue_float_"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "ge": 0.0,
+              "le": 1.0
             },
             {
               "type": "null"
@@ -10150,10 +10353,15 @@
         "MinimumVolumeOfDHWinUse": {
           "anyOf": [
             {
-              "$ref": "#/$defs/RefValue_float_"
-            },
-            {
-              "type": "number"
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/RefValue_float_"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "ge": 0.0
             },
             {
               "type": "null"

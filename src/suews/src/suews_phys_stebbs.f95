@@ -1,4 +1,4 @@
-MODULE modulestebbsprecision
+MODULE module_phys_stebbs_precision
 
    USE ISO_FORTRAN_ENV, ONLY: REAL64
 
@@ -8,9 +8,9 @@ MODULE modulestebbsprecision
 
 END MODULE
 
-MODULE modulestebbs
+MODULE module_phys_stebbs_core
 
-   USE modulestebbsprecision
+   USE module_phys_stebbs_precision
 
    REAL(rprc), PARAMETER :: sigma = 5.670E-8
 
@@ -21,9 +21,9 @@ MODULE modulestebbs
    INTEGER :: nbtype
    CHARACTER(len=256), ALLOCATABLE, DIMENSION(:) :: fnmls, cases
 
-END MODULE modulestebbs
-MODULE modulestebbsfunc
-   USE modulestebbsprecision
+END MODULE module_phys_stebbs_core
+MODULE module_phys_stebbs_func
+   USE module_phys_stebbs_precision
    IMPLICIT NONE
 CONTAINS
    !-------------------------------------------------------------------
@@ -38,7 +38,7 @@ CONTAINS
    !   q_wt - energy lost to drains [J]
    !-------------------------------------------------------------------
    FUNCTION waterUseEnergyLossToDrains(rho, Cp, vFRo, Tout, timeResolution) RESULT(q_wt)
-      USE modulestebbsprecision
+      USE module_phys_stebbs_precision
       IMPLICIT NONE
       INTEGER, INTENT(in) :: timeResolution
       REAL(KIND(1D0)), INTENT(in) :: rho, Cp, vFRo, Tout
@@ -57,7 +57,7 @@ CONTAINS
    !   ind_cht - [W]
    !-------------------------------------------------------------------
    FUNCTION indoorConvectionHeatTransfer(h, A, Twi, Ti) RESULT(ind_cht)
-      USE modulestebbsprecision
+      USE module_phys_stebbs_precision
       IMPLICIT NONE
       REAL(KIND(1D0)), INTENT(in) :: h, A, Twi, Ti
       REAL(KIND(1D0)) :: ind_cht
@@ -75,7 +75,7 @@ CONTAINS
    !   int_cht - heat transfer to internal objects [W]
    !-------------------------------------------------------------------
    FUNCTION internalConvectionHeatTransfer(h, A, Tio, Ti) RESULT(int_cht)
-      USE modulestebbsprecision
+      USE module_phys_stebbs_precision
       IMPLICIT NONE
       REAL(KIND(1D0)), INTENT(in) :: h, A, Tio, Ti
       REAL(KIND(1D0)) :: int_cht
@@ -89,7 +89,7 @@ CONTAINS
    !   q -
    !-------------------------------------------------------------------
    FUNCTION indoorRadiativeHeatTransfer() RESULT(q)
-      USE modulestebbsprecision
+      USE module_phys_stebbs_precision
       IMPLICIT NONE
       REAL(KIND(1D0)) :: q
       q = 0.0
@@ -107,7 +107,7 @@ CONTAINS
    !   out_cht - [W]
    !-------------------------------------------------------------------
    FUNCTION outdoorConvectionHeatTransfer(h, A, Two, Ta) RESULT(out_cht)
-      USE modulestebbsprecision
+      USE module_phys_stebbs_precision
       IMPLICIT NONE
       REAL(KIND(1D0)), INTENT(in) :: h, A, Two, Ta
       REAL(KIND(1D0)) :: out_cht
@@ -127,8 +127,8 @@ CONTAINS
    !   out_cht - [W]
    !-------------------------------------------------------------------
    FUNCTION outdoorRadiativeHeatTransfer(f, A, emis, Two, Ts) RESULT(q)
-      USE modulestebbsprecision
-      USE modulestebbs, ONLY: sigma
+      USE module_phys_stebbs_precision
+      USE module_phys_stebbs_core, ONLY: sigma
       IMPLICIT NONE
       REAL(KIND(1D0)), INTENT(in) :: f, A, emis, Two, Ts
       REAL(KIND(1D0)) :: q
@@ -147,8 +147,8 @@ CONTAINS
    !   q - Longwave radiative heat transfer [W]
    !-------------------------------------------------------------------
    FUNCTION lwoutdoorRadiativeHeatTransfer(A, emis, Two, lw) RESULT(q)
-      USE modulestebbsprecision
-      USE modulestebbs, ONLY: sigma
+      USE module_phys_stebbs_precision
+      USE module_phys_stebbs_core, ONLY: sigma
       IMPLICIT NONE
       REAL(KIND(1D0)), INTENT(in) :: A, emis, Two, lw
       REAL(KIND(1D0)) :: q
@@ -158,8 +158,8 @@ CONTAINS
 
    FUNCTION lwoutgoingradiation(A, emis, Two, lw) RESULT(q)
       !calculate only longwave outgoing radiation only
-      USE modulestebbsprecision
-      USE modulestebbs, ONLY: sigma
+      USE module_phys_stebbs_precision
+      USE module_phys_stebbs_core, ONLY: sigma
       IMPLICIT NONE
       REAL(KIND(1D0)), INTENT(in) :: A, emis, Two, lw
       REAL(KIND(1D0)) :: q
@@ -177,7 +177,7 @@ CONTAINS
    !   wi_in - Window Insolation [W]
    !-------------------------------------------------------------------
    FUNCTION windowInsolation(Irr, Tr, A) RESULT(wi_in)
-      USE modulestebbsprecision
+      USE module_phys_stebbs_precision
       IMPLICIT NONE
       REAL(KIND(1D0)), INTENT(in) :: Irr, Tr, A
       REAL(KIND(1D0)) :: wi_in
@@ -195,7 +195,7 @@ CONTAINS
    !   wa_in - [W]
    !-------------------------------------------------------------------
    FUNCTION wallInsolation(Irr, Ab, A) RESULT(wa_in)
-      USE modulestebbsprecision
+      USE module_phys_stebbs_precision
       IMPLICIT NONE
       REAL(KIND(1D0)), INTENT(in) :: Irr, Ab, A
       REAL(KIND(1D0)) :: wa_in
@@ -215,7 +215,7 @@ CONTAINS
    !   wa_co - [W]
    !-------------------------------------------------------------------
    FUNCTION wallConduction(k_eff, A, Twi, Two, L) RESULT(wa_co)
-      USE modulestebbsprecision
+      USE module_phys_stebbs_precision
       IMPLICIT NONE
       REAL(KIND(1D0)), INTENT(in) :: k_eff, Twi, Two, A, L
       REAL(KIND(1D0)) :: wa_co
@@ -234,7 +234,7 @@ CONTAINS
    !   wi_co - [W]
    !-------------------------------------------------------------------
    FUNCTION windowConduction(k_eff, A, Twi, Two, L) RESULT(wi_co)
-      USE modulestebbsprecision
+      USE module_phys_stebbs_precision
       IMPLICIT NONE
       REAL(KIND(1D0)), INTENT(in) :: k_eff, Twi, Two, A, L
       REAL(KIND(1D0)) :: wi_co
@@ -252,7 +252,7 @@ CONTAINS
    !   q_heating - [W]
    !-------------------------------------------------------------------
    FUNCTION heating(Ts, Ti, epsilon, P) RESULT(q_heating)
-      USE modulestebbsprecision
+      USE module_phys_stebbs_precision
       IMPLICIT NONE
       REAL(KIND(1D0)), INTENT(in) :: Ts, Ti, epsilon, P
       REAL(KIND(1D0)) :: q_heating
@@ -274,7 +274,7 @@ CONTAINS
    !   q_in - the heat flux resulting in the building [W]
    !-------------------------------------------------------------------
    FUNCTION ventilationHeatTransfer(rho, Cp, V, To, Ti) RESULT(q_in)
-      USE modulestebbsprecision
+      USE module_phys_stebbs_precision
       IMPLICIT NONE
       REAL(KIND(1D0)), INTENT(in) :: rho, Cp, V, To, Ti
       REAL(KIND(1D0)) :: q_in
@@ -290,7 +290,7 @@ CONTAINS
    !   qH_additional - additional heating energy [W]
    !-------------------------------------------------------------------
    FUNCTION additionalSystemHeatingEnergy(q_heating, epsilon) RESULT(qH_additional)
-      USE modulestebbsprecision
+      USE module_phys_stebbs_precision
       IMPLICIT NONE
       REAL(KIND(1D0)), INTENT(in) :: q_heating, epsilon
       REAL(KIND(1D0)) :: qH_additional
@@ -309,7 +309,7 @@ CONTAINS
    !   q_cooling - [W]
    !-------------------------------------------------------------------
    FUNCTION cooling(Ts, Ti, COP, P) RESULT(q_cooling)
-      USE modulestebbsprecision
+      USE module_phys_stebbs_precision
       IMPLICIT NONE
       REAL(KIND(1D0)), INTENT(in) :: Ts, Ti, COP, P
       REAL(KIND(1D0)) :: q_cooling
@@ -328,7 +328,7 @@ CONTAINS
    !   qC_additional - additional cooling energy [W]
    !-------------------------------------------------------------------
    FUNCTION additionalSystemCoolingEnergy(q_cooling, COP) RESULT(qC_additional)
-      USE modulestebbsprecision
+      USE module_phys_stebbs_precision
       IMPLICIT NONE
       REAL(KIND(1D0)), INTENT(in) :: q_cooling, COP
       REAL(KIND(1D0)) :: qC_additional
@@ -345,7 +345,7 @@ CONTAINS
    !   qSL - latent heat and sensible heat from all occupants [W]
    !-------------------------------------------------------------------
    FUNCTION internalOccupancyGains(Occupants, metRate, LSR) RESULT(qSL)
-      USE modulestebbsprecision
+      USE module_phys_stebbs_precision
       IMPLICIT NONE
       REAL(KIND(1D0)), INTENT(in) :: Occupants, metRate, LSR
       REAL(KIND(1D0)) :: qSen, qLat
@@ -364,7 +364,7 @@ CONTAINS
    !   qapp - total energy of appliances - assume all goes to heat (sensible) [W]
    !-------------------------------------------------------------------
    FUNCTION internalApplianceGains(P, f, n) RESULT(qapp)
-      USE modulestebbsprecision
+      USE module_phys_stebbs_precision
       IMPLICIT NONE
       INTEGER, INTENT(in) :: n
       REAL(KIND(1D0)), INTENT(in) :: P, f
@@ -382,7 +382,7 @@ CONTAINS
    !-------------------------------------------------------------------
    FUNCTION ext_conv_coeff(wind_speed, dT) RESULT(hc)
 
-      USE modulestebbsprecision
+      USE module_phys_stebbs_precision
       IMPLICIT NONE
       REAL(KIND(1D0)), INTENT(in) :: wind_speed, dT
       REAL(KIND(1D0)) :: hn, a, b, Rf, hcglass, hc
@@ -400,7 +400,7 @@ CONTAINS
       !surf_type == 2: horizontal surface, roof, downward (internal side)
       !surf_type == 3: horizontal surface, floor, upward
       !dT = surface temperature  -  air temperature
-      USE modulestebbsprecision
+      USE module_phys_stebbs_precision
       IMPLICIT NONE
       integer, INTENT(in) :: surf_type
       REAL(KIND(1D0)), INTENT(in) :: dT
@@ -461,7 +461,7 @@ CONTAINS
 
    FUNCTION indoor_airdensity(Ta_outdoor, Ta_indoor, P_hpa, RH_outdoor) RESULT(air_dens)
       !assume indoor and outdoor vapour pressure are identical
-      USE modulestebbsprecision
+      USE module_phys_stebbs_precision
       IMPLICIT NONE
       REAL(KIND(1D0)), INTENT(in) :: Ta_outdoor, Ta_indoor, P_hpa, RH_outdoor
       REAL(KIND(1D0)) :: Rd = 287.058   ! gas constant for dry air
@@ -499,9 +499,9 @@ CONTAINS
       END DO
    END FUNCTION find_layer
 
-END MODULE modulestebbsfunc
-MODULE modulesuewsstebbscouple
-   USE modulestebbsprecision
+END MODULE module_phys_stebbs_func
+MODULE module_phys_stebbs_couple
+   USE module_phys_stebbs_precision
    IMPLICIT NONE
    REAL(KIND(1D0)) :: Tair_out, Tair_out_bh, Tair_out_hbh, ws_out_bh, ws_out_hbh, Tsurf, Tground_deep, pres, RH, &
                       density_air_out, cp_air_out, &
@@ -540,10 +540,10 @@ MODULE modulesuewsstebbscouple
       REAL(KIND(1D0)) :: pres_exch, RH_exch
    END TYPE
    TYPE(suewsprop) :: sout
-END MODULE modulesuewsstebbscouple
+END MODULE module_phys_stebbs_couple
 SUBROUTINE setdatetime(datetimeLine)
-   USE modulestebbsprecision
-   USE modulesuewsstebbscouple, ONLY: sout
+   USE module_phys_stebbs_precision
+   USE module_phys_stebbs_couple, ONLY: sout
    IMPLICIT NONE
    REAL(KIND(1D0)), DIMENSION(5), INTENT(in) :: datetimeLine
    INTEGER :: i
@@ -575,9 +575,9 @@ SUBROUTINE setdatetime(datetimeLine)
    sout%hourmin = TRIM(chour//':'//cmin//':'//csec)
    RETURN
 END SUBROUTINE setdatetime
-MODULE stebbs_module
+MODULE module_phys_stebbs
 
-   USE modulestebbsprecision, ONLY: rprc
+   USE module_phys_stebbs_precision, ONLY: rprc
    ! use modulestebbs, ONLY: blds, cases, resolution
 
 CONTAINS
@@ -587,10 +587,10 @@ CONTAINS
       modState, & ! Input/Output
       datetimeLine, nlayer, &
       dataOutLineSTEBBS) ! Output
-      USE modulestebbsfunc, ONLY: find_layer
-      USE modulestebbs, ONLY: cases, resolution
-      USE modulesuewsstebbscouple, ONLY: sout ! Defines sout
-      USE modulestebbsprecision, ONLY: rprc ! Defines rprc as REAL64
+      USE module_phys_stebbs_func, ONLY: find_layer
+      USE module_phys_stebbs_core, ONLY: cases, resolution
+      USE module_phys_stebbs_couple, ONLY: sout ! Defines sout
+      USE module_phys_stebbs_precision, ONLY: rprc ! Defines rprc as REAL64
       USE allocateArray, ONLY: ncolumnsDataOutSTEBBS
       USE rsl_module, ONLY: interp_z
       USE SUEWS_DEF_DTS, ONLY: SUEWS_CONFIG, SUEWS_TIMER, SUEWS_FORCING, LC_PAVED_PRM, LC_BLDG_PRM, &
@@ -891,7 +891,7 @@ CONTAINS
       END ASSOCIATE
 
    END SUBROUTINE stebbsonlinecouple
-END MODULE stebbs_module
+END MODULE module_phys_stebbs
 
 SUBROUTINE suewsstebbscouple(self, datetimeLine, &
                            Tair_ind, Tindoormass, Tintwall, Tintroof, Textwall, Textroof, Tintwindow, Textwindow, Tintgroundfloor, &
@@ -916,10 +916,10 @@ Qsw_absorbed_window_tstepFA, Qsw_absorbed_wall_tstepFA, Qsw_absorbed_roof_tstepF
                              Vwall_tank, Vwater_tank &
                              ) ! Output
 
-   USE modulestebbsprecision
-   USE modulestebbs, ONLY: resolution
-   USE modulestebbsfunc, ONLY: ext_conv_coeff, int_conv_coeff, indoor_airdensity
-   USE modulesuewsstebbscouple, ONLY: &
+   USE module_phys_stebbs_precision
+   USE module_phys_stebbs_core, ONLY: resolution
+   USE module_phys_stebbs_func, ONLY: ext_conv_coeff, int_conv_coeff, indoor_airdensity
+   USE module_phys_stebbs_couple, ONLY: &
       sout, &
       Tair_out, Tair_out_bh, Tair_out_hbh, ws_out_bh, ws_out_hbh, Tground_deep, Tsurf, density_air_out, &
       cp_air_out, &
@@ -1187,7 +1187,7 @@ SUBROUTINE timeStepCalculation(self, Tair_out, Tair_out_bh, Tair_out_hbh, Tgroun
                                timestep, resolution, datetimeLine &
                               !  flginit &
                                )
-   USE modulestebbsprecision
+   USE module_phys_stebbs_precision
    USE SUEWS_DEF_DTS, ONLY: STEBBS_BLDG
    IMPLICIT NONE
    INTEGER :: timestep, resolution
@@ -1389,8 +1389,8 @@ SUBROUTINE tstep( &
    Qlw_up_wall_tstepSA, Qlw_up_roof_tstepSA, &
    Qloss_drain, & !qhwtDrain
    QH_metabolism_tstepFA, QE_metabolism_tstepFA) !Qmetabolic_sensible, Qmetabolic_latent
-   USE modulestebbsprecision
-   USE modulestebbsfunc
+   USE module_phys_stebbs_precision
+   USE module_phys_stebbs_func
    IMPLICIT NONE
    ! INTEGER, INTENT(in) :: flginit
    REAL(KIND(1D0)), DIMENSION(5), INTENT(in) :: datetimeLine
@@ -2067,7 +2067,7 @@ END SUBROUTINE reinitialiseTemperatures
 SUBROUTINE gen_building(stebbsState, stebbsPrm, building_archtype, config, self, num_layer)
    
    USE SUEWS_DEF_DTS, ONLY: BUILDING_ARCHETYPE_PRM, STEBBS_STATE, STEBBS_PRM, STEBBS_BLDG, SUEWS_CONFIG
-   USE modulestebbsfunc, ONLY: calculate_x1
+   USE module_phys_stebbs_func, ONLY: calculate_x1
    IMPLICIT NONE
 
    TYPE(STEBBS_BLDG) :: self

@@ -1287,7 +1287,7 @@ class ArchetypeProperties(BaseModel):
         description="Effective specific heat capacity of layers external to insulation in walls [J kg-1 K-1]",
         json_schema_extra={"unit": "J kg^-1 K^-1", "display_name": "Wallextcp"},
         gt=0.0,
-    )    
+    )
     Wallx1: FlexibleRefValue(float) = Field(
         default=1.0,
         description="Weighting factor for heat capacity of walls [-]",
@@ -1391,7 +1391,7 @@ class ArchetypeProperties(BaseModel):
         description="Effective specific heat capacity of layers external to insulation in roof [J kg-1 K-1]",
         json_schema_extra={"unit": "J kg^-1 K^-1", "display_name": "Roofextcp"},
         gt=0.0,
-    )    
+    )
     Roofx1: FlexibleRefValue(float) = Field(
         default=1.0,
         description="Weighting factor for heat capacity of roof [-]",
@@ -1674,20 +1674,23 @@ class StebbsProperties(BaseModel):
     WallInternalConvectionCoefficient: Optional[FlexibleRefValue(float)] = Field(
         default=7.69,  # Default value calculated from the CIBSE GUIDE A, Table 3.47, Page 176
         description="Internal convection coefficient of walls [W m-2 K-1]",
-    json_schema_extra={
+        json_schema_extra={
             "unit": "W m^-2 K^-1",
             "display_name": "Wallinternalconvectioncoefficient",
             "default_description": "Default value calculated from the CIBSE GUIDE A, Table 3.47, Page 176",
             "range_description": "Value must be greater than zero.",
         },
-        gt=0.0,    
+        gt=0.0,
     )
     RoofInternalConvectionCoefficient: Optional[FlexibleRefValue(float)] = Field(
-        default=10.0, # Default value calculated from the CIBSE GUIDE A, Table 3.47, Page 176
+        default=10.0,  # Default value calculated from the CIBSE GUIDE A, Table 3.47, Page 176
         description="Internal convection coefficient of roof [W m-2 K-1]",
-    json_schema_extra={"unit": "W m^-2 K^-1", "display_name": "Roofinternalconvectioncoefficient"},    
+        json_schema_extra={
+            "unit": "W m^-2 K^-1",
+            "display_name": "Roofinternalconvectioncoefficient",
+        },
         gt=0.0,
-    )   
+    )
     InternalMassConvectionCoefficient: Optional[FlexibleRefValue(float)] = Field(
         default=7.69,  # Default value calculated from the CIBSE GUIDE A, Table 3.47, Page 176
         description="Convection coefficient of internal mass [W m-2 K-1]",
@@ -1725,9 +1728,12 @@ class StebbsProperties(BaseModel):
         gt=0.0,
     )
     RoofExternalConvectionCoefficient: Optional[FlexibleRefValue(float)] = Field(
-        default=25.0, # Default value calculated from the CIBSE GUIDE A, Table 3.47, Page 176
+        default=25.0,  # Default value calculated from the CIBSE GUIDE A, Table 3.47, Page 176
         description="Initial external convection coefficient of roof [W m-2 K-1]",
-        json_schema_extra={"unit": "W m^-2 K^-1", "display_name": "Roofexternalconvectioncoefficient"},
+        json_schema_extra={
+            "unit": "W m^-2 K^-1",
+            "display_name": "Roofexternalconvectioncoefficient",
+        },
         gt=0.0,
     )
     WindowExternalConvectionCoefficient: Optional[FlexibleRefValue(float)] = Field(
@@ -1864,13 +1870,19 @@ class StebbsProperties(BaseModel):
     )
     OutdoorAirAnnualTemperature: FlexibleRefValue(float) = Field(
         description="Annual mean air temperature, which can be used as deep soil temperature",
-        json_schema_extra={"unit": "degC", "display_name": "Annual mean air temperature"},
+        json_schema_extra={
+            "unit": "degC",
+            "display_name": "Annual mean air temperature",
+        },
         default=10.0,
-    )    
+    )
     OutdoorAirStartTemperature: Optional[FlexibleRefValue(float)] = Field(
         default=0.0,
         description="Initial outdoor air temperature [degC]",
-        json_schema_extra={"unit": "degC", "display_name": "Outdoorairstarttemperature"},
+        json_schema_extra={
+            "unit": "degC",
+            "display_name": "Outdoorairstarttemperature",
+        },
     )
     IndoorAirStartTemperature: Optional[FlexibleRefValue(float)] = Field(
         default=0.0,

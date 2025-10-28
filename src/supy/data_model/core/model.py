@@ -116,6 +116,7 @@ class StorageHeatMethod(Enum):
     ESTM_EXTENDED = 5
     OHM_ENHANCED = 6
     STEBBS = 7
+
     def __new__(cls, value):
         obj = object.__new__(cls)
         obj._value_ = value
@@ -366,6 +367,7 @@ class StebbsMethod(Enum):
     def __repr__(self):
         return str(self.value)
 
+
 class RCMethod(Enum):
     """
     Method to split building envelope heat capacity in STEBBS.
@@ -373,16 +375,17 @@ class RCMethod(Enum):
     1: PROVIDED - use user defined value (fractional x1) between 0 and 1
     2: PARAMETERISE - use building material thermal property to parameterise the weighting factor x1
     """
+
     NONE = 0
     PROVIDED = 1
     PARAMETERISE = 2
-    
 
     def __int__(self):
         return self.value
 
     def __repr__(self):
         return str(self.value)
+
 
 class SnowUse(Enum):
     """

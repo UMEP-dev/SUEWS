@@ -13,7 +13,9 @@ import supy as sp
 from supy.suews_sim import SUEWSSimulation
 
 # Skip all tests in this file due to STEBBS debug issues in YL/fixstebbs-rebase branch
-pytestmark = pytest.mark.skip(reason="Skipping SUEWS simulation tests due to debug structure issues in YL/fixstebbs-rebase branch")
+pytestmark = pytest.mark.skip(
+    reason="Skipping SUEWS simulation tests due to debug structure issues in YL/fixstebbs-rebase branch"
+)
 
 
 class TestInit:

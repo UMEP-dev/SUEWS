@@ -54,11 +54,6 @@ Contributors
     - RSL improvements
     - v2024a – onwards
     -
-  * - Keisuke Nakao
-    - Central Research Institute of Electric Power Industry, Japan
-    - Wind speed profile parameterisation, RSL
-    - v2024a – onwards
-    -
   * - Dr Yuanyuan Liu
     - University of Reading, UK
     - OHM improvements

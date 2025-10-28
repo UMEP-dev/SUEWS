@@ -1,4 +1,4 @@
-MODULE module_phys_estm_data
+MODULE ESTM_data !S.O. and FO
 
    ! =======ESTMinput.nml==============================
    INTEGER :: evolveTibld, &
@@ -174,15 +174,11 @@ MODULE module_phys_estm_data
    REAL(KIND(1D0)) :: sumalb, &
                       sumemis
 
-END MODULE module_phys_estm_data
-
-! Backward compatibility alias
-MODULE ESTM_data
-   USE module_phys_estm_data
 END MODULE ESTM_data
 
 !==============================================================================
-MODULE module_phys_estm_interp
+MODULE mod_interp
+   !     Created on Thu Jan 22 00:06:32 2004
    IMPLICIT NONE
 
 CONTAINS
@@ -196,18 +192,14 @@ CONTAINS
       b0 = y1 - b1*x1
       yi = b0 + b1*xi
    END FUNCTION interp1d
-END MODULE module_phys_estm_interp
-
-! Backward compatibility alias
-MODULE mod_interp
-   USE module_phys_estm_interp
 END MODULE mod_interp
 
 !=============================================================================
-MODULE module_phys_estm_solver
+MODULE mod_solver
+   !     Created on Thu Jan 22 07:50:01 2004
    !     Copyright (c) 2001 MyCompany. All rights reserved.
 
-   USE module_ctrl_const_physconst, ONLY: eps_fp
+   USE PhysConstants, ONLY: eps_fp
    IMPLICIT NONE
 
 CONTAINS
@@ -257,17 +249,12 @@ CONTAINS
          x = x0
       END IF
    END FUNCTION NewtonPolynomial
-END MODULE module_phys_estm_solver
-
-! Backward compatibility alias
-MODULE mod_solver
-   USE module_phys_estm_solver
 END MODULE mod_solver
 !==============================================================================
 
 !==============================================================================
-MODULE module_phys_estm_solarcalc
-   USE module_ctrl_const_mathconst
+MODULE modSolarCalc
+   USE MathConstants
    IMPLICIT NONE
 
 CONTAINS
@@ -483,11 +470,6 @@ CONTAINS
 
    END FUNCTION solar_ESdist
 
-END MODULE module_phys_estm_solarcalc
-
-! Backward compatibility alias
-MODULE modSolarCalc
-   USE module_phys_estm_solarcalc
 END MODULE modSolarCalc
 
 !=====================================================================================
@@ -638,7 +620,8 @@ END MODULE heatflux
 
 !==================================================================================
 
-MODULE module_phys_estm
+MODULE ESTM_module
+   !===============================================================================
    ! revision history:
    ! TS 09 Oct 2017: re-organised ESTM subroutines into a module
    !===============================================================================
@@ -650,11 +633,11 @@ CONTAINS
    ! Subroutine to read in ESTM data in the same way as met data (SUEWS_InitializeMetData)
    ! HCW 30 Jun 2016
    SUBROUTINE SUEWS_GetESTMData(lunit)
-      USE module_ctrl_const_allocate, ONLY: ncolsestmdata, estmforcingdata
-      USE module_ctrl_const_datain, ONLY: fileestmts, skipheadermet
-      USE module_ctrl_const_sues, ONLY: tstep_real, tstep
+      USE allocateArray, ONLY: ncolsestmdata, estmforcingdata
+      USE data_in, ONLY: fileestmts, skipheadermet
+      USE sues_data, ONLY: tstep_real, tstep
       USE defaultnotUsed, ONLY: notused, ios_out
-      USE module_ctrl_const_initial, ONLY: skippedlines, readlinesmetdata, gridcounter
+      USE Initial, ONLY: skippedlines, readlinesmetdata, gridcounter
 
       IMPLICIT NONE
 
@@ -717,12 +700,12 @@ CONTAINS
       !                                 ESTM_initials now only runs once per run at the very start.
       ! Last modified HCW 15 Jun 2016 - code now reads in 5-min file (interpolation done beforehand, outside of SUEWS itself)
 
-      USE module_ctrl_const_default
-      USE module_ctrl_const_physconst, ONLY: c2k
-      USE module_phys_estm_data
-      USE module_ctrl_const_allocate
-      USE module_ctrl_const_datain, ONLY: fileinputpath
-      USE module_ctrl_const_initial, ONLY: numberofgrids
+      USE defaultNotUsed
+      USE PhysConstants, ONLY: c2k
+      USE ESTM_data
+      USE allocateArray
+      USE data_in, ONLY: fileinputpath
+      USE Initial, ONLY: numberofgrids
 
       IMPLICIT NONE
 
@@ -759,7 +742,7 @@ CONTAINS
    END SUBROUTINE ESTM_initials
    !======================================================================================
    SUBROUTINE load_GridLayout(gridIV, MultipleLayoutFiles, diagnose)
-      USE module_ctrl_const_allocate, ONLY: &
+      USE allocateArray, ONLY: &
          ndepth, &
          nlayer, nlayer_grids, &
          height, height_grids, &
@@ -801,8 +784,8 @@ CONTAINS
          cp_surf, cp_surf_grids, &
          tin_surf, tin_surf_grids, &
          nspec
-      USE module_ctrl_const_datain, ONLY: FileInputPath, filecode
-      USE module_util_stringmod, ONLY: writenum
+      USE data_in, ONLY: FileInputPath, filecode
+      USE strings, ONLY: writenum
       IMPLICIT NONE
       INTEGER, INTENT(IN) :: gridIV
       INTEGER, INTENT(IN) :: diagnose
@@ -1135,12 +1118,12 @@ CONTAINS
       !                                 ESTM_initials now only runs once per run at the very start.
       ! Last modified HCW 15 Jun 2016 - code now reads in 5-min file (interpolation done beforehand, outside of SUEWS itself)
 
-      ! USE module_ctrl_const_default
-      USE module_ctrl_const_physconst, ONLY: c2k
-      ! USE module_phys_estm_data
-      USE module_ctrl_const_allocate
-      USE module_ctrl_const_datain, ONLY: MultipleLayoutFiles, Diagnose
-      USE module_ctrl_const_initial, ONLY: numberofgrids
+      ! USE defaultNotUsed
+      USE PhysConstants, ONLY: c2k
+      ! USE ESTM_data
+      USE allocateArray
+      USE data_in, ONLY: MultipleLayoutFiles, Diagnose
+      USE Initial, ONLY: numberofgrids
 
       IMPLICIT NONE
       LOGICAL :: flag_mutiple_layout_files
@@ -1210,7 +1193,7 @@ CONTAINS
    END SUBROUTINE ESTM_ehc_initialise
 
    SUBROUTINE ESTM_ehc_finalise
-      USE module_ctrl_const_allocate
+      USE allocateArray
       IMPLICIT NONE
 
       IF (ALLOCATED(nlayer_grids)) DEALLOCATE (nlayer_grids)
@@ -1263,12 +1246,12 @@ CONTAINS
    SUBROUTINE ESTM_translate(Gridiv)
       ! HCW 30 Jun 2016
 
-      USE module_ctrl_const_default, ONLY: nan
-      USE module_ctrl_const_physconst, ONLY: c2k, sbconst, eps_fp
-      USE module_phys_estm_data
-      USE module_ctrl_const_allocate
-      USE module_ctrl_const_gis, ONLY: bldgh
-      USE module_ctrl_const_initial, ONLY: numberofgrids
+      USE defaultNotUsed, ONLY: nan
+      USE PhysConstants, ONLY: c2k, sbconst, eps_fp
+      USE ESTM_data
+      USE allocateArray
+      USE gis_data, ONLY: bldgh
+      USE Initial, ONLY: numberofgrids
 
       IMPLICIT NONE
       INTEGER :: i
@@ -1742,12 +1725,12 @@ CONTAINS
       !===============================================================================
 
       USE meteo, ONLY: pi, heatcapacity_air
-      USE module_phys_estm_solver, ONLY: NewtonPolynomial
-      ! USE module_phys_estm_solarcalc !!FO!! :modsolarcalc.f95
-      ! USE module_ctrl_const_mathconst !!FO!! :MathConstants_module.f95
-      USE module_ctrl_const_physconst, ONLY: c2k, SBConst
+      USE mod_solver, ONLY: NewtonPolynomial
+      ! USE modSolarCalc !!FO!! :modsolarcalc.f95
+      ! USE MathConstants !!FO!! :MathConstants_module.f95
+      USE PhysConstants, ONLY: c2k, SBConst
       USE heatflux, ONLY: heatcond1d
-      USE module_phys_estm_data
+      USE ESTM_data
 
       IMPLICIT NONE
       INTEGER, PARAMETER :: ncolsESTMdata = 13
@@ -2255,7 +2238,7 @@ CONTAINS
    !    temp_out_wall, QS_wall, & !output
    !    temp_out_surf, QS_surf, & !output
    !    QS) !output
-   !    USE module_ctrl_const_allocate, ONLY: &
+   !    USE allocateArray, ONLY: &
    !       nsurf, ndepth, &
    !       PavSurf, BldgSurf, ConifSurf, DecidSurf, GrassSurf, BSoilSurf, WaterSurf
    !    USE heatflux, ONLY: heatcond1d_ext, heatcond1d_vstep
@@ -2609,9 +2592,4 @@ CONTAINS
    END FUNCTION set_nan
    !========================================================================
 
-END MODULE module_phys_estm
-
-! Backward compatibility alias
-MODULE ESTM_module
-   USE module_phys_estm
 END MODULE ESTM_module

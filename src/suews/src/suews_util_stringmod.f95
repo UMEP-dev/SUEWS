@@ -1,7 +1,6 @@
 ! curtesy by George via http://gbenthien.net/strings/index.php
 
-! Precision definitions for string module
-MODULE module_util_stringmod_precision
+MODULE PRECISION
 
 ! Real kinds
 
@@ -18,17 +17,11 @@ MODULE module_util_stringmod_precision
    INTEGER, PARAMETER :: kc4 = kr4 ! single precision complex
    INTEGER, PARAMETER :: kc8 = kr8 ! double precision complex
 
-END MODULE module_util_stringmod_precision
-
-! Backward compatibility alias
-MODULE PRECISION
-   USE module_util_stringmod_precision
 END MODULE PRECISION
 
-! Main module following naming standard: matches filename
-MODULE module_util_stringmod
+MODULE strings
 
-   USE module_util_stringmod_precision
+   USE PRECISION
 
    PRIVATE :: value_dr, value_sr, value_di, value_si
    PRIVATE :: write_dr, write_sr, write_di, write_si
@@ -807,9 +800,4 @@ CONTAINS
 
 !**********************************************************************
 
-END MODULE module_util_stringmod
-
-! Backward compatibility alias
-MODULE strings
-   USE module_util_stringmod
 END MODULE strings

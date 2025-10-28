@@ -1,5 +1,5 @@
-MODULE module_ctrl_type
-   USE module_ctrl_const_allocate, ONLY: &
+MODULE SUEWS_DEF_DTS
+   USE allocateArray, ONLY: &
       nsurf, nvegsurf, nspec, &
       PavSurf, BldgSurf, ConifSurf, DecidSurf, GrassSurf, BSoilSurf, WaterSurf, &
       ivConif, ivDecid, ivGrass, &
@@ -1928,9 +1928,4 @@ CONTAINS
       END IF
    END SUBROUTINE check_and_reset_unsafe_states
 
-END MODULE module_ctrl_type
-
-! Backward compatibility alias
-MODULE SUEWS_DEF_DTS
-   USE module_ctrl_type
 END MODULE SUEWS_DEF_DTS

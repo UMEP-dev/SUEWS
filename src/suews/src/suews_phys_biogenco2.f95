@@ -1,5 +1,4 @@
-! Main module following naming standard: matches filename
-MODULE module_phys_biogenco2
+MODULE CO2_module
    IMPLICIT NONE
 
 CONTAINS
@@ -231,9 +230,4 @@ CONTAINS
    END SUBROUTINE CO2_biogen
 !========================================================================================
 
-END MODULE module_phys_biogenco2
-
-! Backward compatibility alias
-MODULE CO2_module
-   USE module_phys_biogenco2
 END MODULE CO2_module

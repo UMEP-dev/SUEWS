@@ -8,7 +8,8 @@
 !
 ! Licensed under the BSD 3-clause license. See LICENSE for details.
 !
-MODULE module_util_datetime_strftime
+MODULE mod_strftime
+!=======================================================================
 !
 ! mod_strftime: Interfaces to strftime and strptime procedures from
 ! from C/C++ standard library.
@@ -91,11 +92,6 @@ MODULE module_util_datetime_strftime
 
    END INTERFACE
 !=======================================================================
-END MODULE module_util_datetime_strftime
-
-! Backward compatibility alias
-MODULE mod_strftime
-   USE module_util_datetime_strftime
 END MODULE mod_strftime
 
 !
@@ -105,7 +101,8 @@ END MODULE mod_strftime
 !
 ! Licensed under the BSD-3 clause license. See LICENSE for details.
 !
-MODULE module_util_datetime_const
+MODULE mod_constants
+!=======================================================================
 !
 ! mod_constants: Basic constants and time conversion factors.
 !
@@ -141,11 +138,6 @@ MODULE module_util_datetime_const
    INTEGER, PARAMETER :: MAXSTRLEN = 99
 
 !=======================================================================
-END MODULE module_util_datetime_const
-
-! Backward compatibility alias
-MODULE mod_constants
-   USE module_util_datetime_const
 END MODULE mod_constants
 
 !
@@ -155,7 +147,8 @@ END MODULE mod_constants
 !
 ! Licensed under the BSD 3-clause license. See LICENSE for details.
 !
-MODULE module_util_datetime_timedelta
+MODULE mod_timedelta
+!=======================================================================
 !
 ! mod_timedelta: Module that provides the timedelta class and its
 !                type-bound methods and operators.
@@ -440,11 +433,6 @@ CONTAINS
 
    END FUNCTION le
 !=======================================================================
-END MODULE module_util_datetime_timedelta
-
-! Backward compatibility alias
-MODULE mod_timedelta
-   USE module_util_datetime_timedelta
 END MODULE mod_timedelta
 
 !
@@ -454,7 +442,8 @@ END MODULE mod_timedelta
 !
 ! Licensed under the BSD 3-clause license. See LICENSE for details.
 !
-MODULE module_util_datetime_core
+MODULE mod_datetime
+!=======================================================================
 !
 ! mod_datetime: Module that provides the datetime class and its
 !               type-bound methods and operators. At the time being,
@@ -465,9 +454,9 @@ MODULE module_util_datetime_core
 
    USE, INTRINSIC :: ISO_FORTRAN_ENV, ONLY: REAL32, REAL64
    USE, INTRINSIC :: ISO_C_BINDING, ONLY: C_CHAR, C_INT, C_NULL_CHAR
-   USE module_util_datetime_timedelta, ONLY: timedelta
-   USE module_util_datetime_strftime, ONLY: tm_struct, c_strftime, c_strptime
-   USE module_util_datetime_const
+   USE mod_timedelta, ONLY: timedelta
+   USE mod_strftime, ONLY: tm_struct, c_strftime, c_strptime
+   USE mod_constants
 
    IMPLICIT NONE
 
@@ -1660,11 +1649,6 @@ CONTAINS
 
    END FUNCTION int2str
 !=======================================================================
-END MODULE module_util_datetime_core
-
-! Backward compatibility alias
-MODULE mod_datetime
-   USE module_util_datetime_core
 END MODULE mod_datetime
 
 !
@@ -1674,7 +1658,8 @@ END MODULE mod_datetime
 !
 ! Licensed under the BSD 3-clause license. See LICENSE for details.
 !
-MODULE module_util_datetime_clock
+MODULE mod_clock
+!=======================================================================
 !
 ! mod_clock
 !
@@ -1682,8 +1667,8 @@ MODULE module_util_datetime_clock
 
    USE, INTRINSIC :: ISO_FORTRAN_ENV, ONLY: REAL32, REAL64
    USE, INTRINSIC :: ISO_C_BINDING, ONLY: C_CHAR, C_INT, C_NULL_CHAR
-   USE module_util_datetime_core, ONLY: datetime
-   USE module_util_datetime_timedelta, ONLY: timedelta
+   USE mod_datetime, ONLY: datetime
+   USE mod_timedelta, ONLY: timedelta
 
    IMPLICIT NONE
 
@@ -1759,11 +1744,6 @@ CONTAINS
 
    END SUBROUTINE tick
 !=======================================================================
-END MODULE module_util_datetime_clock
-
-! Backward compatibility alias
-MODULE mod_clock
-   USE module_util_datetime_clock
 END MODULE mod_clock
 
 ! datetime-fortran - A Fortran library for date and time manipulation
@@ -1772,17 +1752,14 @@ END MODULE mod_clock
 !
 ! Licensed under the BSD-3 clause license. See LICENSE for details.
 !
-MODULE module_util_datetime
+MODULE datetime_module
+
+!! Provides entry point to all items defined in datetime, timedelta,
 !! clock and strftime modules.
 
-   USE module_util_datetime_core
-   USE module_util_datetime_timedelta
-   USE module_util_datetime_clock
-   USE module_util_datetime_strftime
+   USE mod_datetime
+   USE mod_timedelta
+   USE mod_clock
+   USE mod_strftime
 
-END MODULE module_util_datetime
-
-! Backward compatibility alias
-MODULE datetime_module
-   USE module_util_datetime
 END MODULE datetime_module

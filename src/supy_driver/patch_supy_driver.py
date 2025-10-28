@@ -35,7 +35,7 @@ def main():
         output_dir = sys.argv[3]
         try:
             subprocess.check_call([
-                sys.executable,
+                "python",
                 os.path.join(current_source_dir, "move_output_gen.py"),
                 fn_supy_driver,
                 output_dir,

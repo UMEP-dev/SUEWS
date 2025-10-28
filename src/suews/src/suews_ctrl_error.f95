@@ -14,9 +14,9 @@ SUBROUTINE ErrorHint(errh, ProblemFile, VALUE, value2, valueI)
    ! LJ  08 Feb 2013
    !--------------------------------------------------------------------
 
-   USE module_ctrl_const_datain
-   USE module_ctrl_const_default
-   ! USE module_ctrl_const_wherewhen
+   USE data_in
+   USE defaultNotUsed
+   ! USE WhereWhen
 
    IMPLICIT NONE
 

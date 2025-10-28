@@ -1,8 +1,7 @@
 !===================================================================================
-! Main module following naming standard: matches filename
-MODULE module_util_meteo
+MODULE METEO
 
-   USE module_ctrl_const_mathconst
+   USE MathConstants
    IMPLICIT NONE
 
    ! REAL (KIND(1d0)),PARAMETER ::  PI=3.141592654
@@ -147,7 +146,7 @@ CONTAINS
    !For water different equations in cold and warm temperatures
 
    FUNCTION sat_vap_press_x(Temp_c, PRESS_hPa, from, dectime) RESULT(es_hPa)
-      ! USE module_ctrl_const_time
+      ! USE time
       ! USE defaultnotUsed
       IMPLICIT NONE
 
@@ -194,7 +193,7 @@ CONTAINS
    END FUNCTION sat_vap_press_x
 
    FUNCTION sat_vap_pressIce(Temp_c, PRESS_hPa, from, dectime) RESULT(es_hPa)
-      ! USE module_ctrl_const_time
+      ! USE time
       ! USE defaultnotUsed
       IMPLICIT NONE
 
@@ -234,7 +233,7 @@ CONTAINS
    !Output: specific humidity deficit in g/kg
    !Input: Dry air density and air pressure in hPa
    FUNCTION spec_hum_def(vpd_hPa, press_hPa) RESULT(dq)
-      ! USE module_ctrl_const_gas
+      ! USE gas
       IMPLICIT NONE
       REAL(KIND(1D0)) :: press_hPa, vpd_hPa, dq
       REAL(KIND(1D0)), PARAMETER :: epsil_gkg = 621.97 !ratio molecular weight of water vapor/dry air in g/kg
@@ -279,7 +278,7 @@ CONTAINS
       !Input: Air temperature, Water vapour pressure, Air pressure, heat capacity
       !Output: latent heat of vaporization
 
-      ! USE module_ctrl_const_time
+      ! USE time
       ! USE SnowMod
       ! USE defaultnotUsed
 
@@ -350,7 +349,7 @@ CONTAINS
       !Input: Air temperature, Water vapour pressure, Air pressure, heat capacity
       !Output: latent heat of sublimation in units J/kg
 
-      ! USE module_ctrl_const_time
+      ! USE time
 
       IMPLICIT NONE
 
@@ -408,7 +407,7 @@ CONTAINS
    !calculate psyc - psychrometic constant Fritschen and Gay (1979)
 
    FUNCTION psyc_const(cp, Press_hPa, lv_J_kg) RESULT(psyc_hPa) !In units hPa/K
-      USE module_ctrl_const_gas
+      USE gas
 
       IMPLICIT NONE
       REAL(KIND(1D0)) :: cp, lv_J_kg, press_hPa, psyc_hpa
@@ -558,10 +557,4 @@ CONTAINS
 
    END FUNCTION qa2RH
 
-END MODULE module_util_meteo
-
-! Backward compatibility alias (deprecated - will be removed in future version)
-! TODO: Remove in version 2026.1.0 (deprecated since 2025.10.0)
-MODULE METEO
-   USE module_util_meteo
 END MODULE METEO

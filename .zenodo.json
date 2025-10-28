@@ -11,75 +11,21 @@
       "github-id": "suegrimmond"
     },
     {
-      "name": "Sun, Ting",
-      "affiliation": "University College London",
-      "orcid": "0000-0002-2486-6146",
-      "github-id": "sunt05"
-    },
-    {
-      "name": "Blunn, Lewis",
-      "affiliation": "Met Office",
-      "orcid": "0000-0002-3207-5002",
-      "github-id": "LewisB7"
-    },
-    {
-      "name": "Lavor, Vitor",
-      "affiliation": "University of Reading",
-      "orcid": "0000-0001-9346-7694"
-    },
-    {
-      "name": "Lindberg, Fredrik",
-      "affiliation": "University of Gothenburg",
-      "orcid": "0000-0002-9648-4542",
-      "github-id": "biglimp"
-    },
-    {
-      "name": "Liu, Yiqing",
-      "affiliation": "University of Reading",
-      "orcid": "0000-0001-5159-9197",
-      "github-id": "yiqing1021"
-    },
-    {
-      "name": "Nakao, Keisuke",
-      "affiliation": "Central Research Institute of Electric Power Industry",
-      "orcid": "0000-0002-5260-1110"
-    },
-    {
-      "name": "Paskin, Matthew",
-      "affiliation": "University of Reading",
-      "orcid": "0009-0007-1782-7150",
-      "github-id": "MatthewPaskin"
-    },
-    {
-      "name": "Rognone, Silvia",
-      "affiliation": "University of Reading",
-      "orcid": "0000-0002-0319-8812",
-      "github-id": "dayantur"
-    },
-    {
-      "name": "Xie, Xiaoxiong",
-      "affiliation": "University of Plymouth",
-      "orcid": "0000-0003-2280-1768",
-      "github-id": "XiaoxiongXie"
-    },
-    {
       "name": "Järvi, Leena",
       "affiliation": "University of Helsinki",
       "orcid": "0000-0002-5224-3448",
       "github-id": "ljarvi"
     },
     {
-      "name": "Li, Zhenkun",
-      "affiliation": "Shanghai Climate Centre, Shanghai, China",
-      "github-id": "zhenkunl"
+      "name": "Ward, Helen",
+      "affiliation": "University of Reading",
+      "orcid": "0000-0001-8881-185X"
     },
     {
-      "name": "Loridan, Thomas",
-      "affiliation": "King's College London"
-    },
-    {
-      "name": "Offerle, Brian D.",
-      "affiliation": "Indiana University"
+      "name": "Sun, Ting",
+      "affiliation": "University College London",
+      "orcid": "0000-0002-2486-6146",
+      "github-id": "sunt05"
     },
     {
       "name": "Omidvar, Hamidreza",
@@ -88,9 +34,45 @@
       "github-id": "hamidrezaomidvar"
     },
     {
-      "name": "Ward, Helen",
+      "name": "Blunn, Lewis",
+      "affiliation": "Met Office",
+      "orcid": "0000-0002-3207-5002",
+      "github-id": "LewisB7"
+    },
+    {
+      "name": "Lindberg, Fredrik",
+      "affiliation": "University of Gothenburg",
+      "orcid": "0000-0002-9648-4542",
+      "github-id": "biglimp"
+    },
+    {
+      "name": "Li, Zhenkun",
+      "affiliation": "Shanghai Climate Centre, Shanghai, China",
+      "github-id": "zhenkunl"
+    },
+    {
+      "name": "Liu, Yiqing",
       "affiliation": "University of Reading",
-      "orcid": "0000-0001-8881-185X"
+      "orcid": "0000-0001-5159-9197",
+      "github-id": "yiqing1021"
+    },
+    {
+      "name": "Xie, Xiaoxiong",
+      "affiliation": "University of Plymouth",
+      "orcid": "0000-0003-2280-1768",
+      "github-id": "XiaoxiongXie"
+    },
+    {
+      "name": "Rognone, Silvia",
+      "affiliation": "University of Reading",
+      "orcid": "0000-0002-0319-8812",
+      "github-id": "dayantur"
+    },
+    {
+      "name": "Paskin, Matthew",
+      "affiliation": "University of Reading",
+      "orcid": "0009-0007-1782-7150",
+      "github-id": "MatthewPaskin"
     }
   ],
   "keywords": [

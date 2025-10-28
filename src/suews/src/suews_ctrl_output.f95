@@ -1,5 +1,4 @@
-! Main module following naming standard: matches filename
-MODULE module_ctrl_output
+MODULE ctrl_output
    !===========================================================================================
    ! generic output functions for SUEWS
    ! authors: Ting Sun (ting.sun@reading.ac.uk)
@@ -22,15 +21,15 @@ MODULE module_ctrl_output
    ! TS 20171017: combined txt and nc wrappers into one: reduced duplicate code at two places
    !===========================================================================================
 
-   USE module_ctrl_const_allocate
+   USE allocateArray
    USE cbl_module
-   USE module_ctrl_const_datain
-   ! USE module_ctrl_const_default
-   ! USE module_phys_estm_data
-   USE module_ctrl_const_gis
+   USE data_in
+   ! USE defaultNotUsed
+   ! USE ESTM_data
+   USE gis_data
    ! USE initial
-   USE module_ctrl_const_sues
-   USE module_ctrl_const_time
+   USE sues_data
+   USE time
    USE strings
 
    IMPLICIT NONE
@@ -1831,7 +1830,7 @@ CONTAINS
    END SUBROUTINE SUEWS_Write_txt
 
    SUBROUTINE filename_gen(dataOutX, varList, iyr, Gridiv, FileOutX, opt_fmt)
-      USE module_util_datetime
+      USE datetime_module
 
       IMPLICIT NONE
       REAL(KIND(1D0)), DIMENSION(:, :), INTENT(in) :: dataOutX ! to determine year & output frequency
@@ -2599,9 +2598,4 @@ CONTAINS
 !    END SUBROUTINE check
 ! #endif
 
-END MODULE module_ctrl_output
-
-! Backward compatibility alias
-MODULE ctrl_output
-   USE module_ctrl_output
 END MODULE ctrl_output

@@ -13,15 +13,24 @@ def main():
     output_files = input_output_files[-2:]
     # output_files = sys.argv[5:]  # List of output file paths
 
+    # Force UTF-8 encoding on Windows to handle Unicode characters in generated code
+    env = os.environ.copy()
+    if sys.platform == "win32":
+        env["PYTHONUTF8"] = "1"
+        env["PYTHONIOENCODING"] = "utf-8"
+
     # Call f2py to generate the modules
     try:
-        subprocess.check_call([
-            f2py_executable,
-            "-m",
-            module_name,
-            *input_files,
-            "--lower",
-        ])
+        subprocess.check_call(
+            [
+                f2py_executable,
+                "-m",
+                module_name,
+                *input_files,
+                "--lower",
+            ],
+            env=env,
+        )
         print("f2py call successful")
     except subprocess.CalledProcessError as e:
         print(f"Error calling f2py: {e}")

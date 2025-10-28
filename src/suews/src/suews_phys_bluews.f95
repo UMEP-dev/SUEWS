@@ -723,7 +723,7 @@ CONTAINS
       !       y(4) = c = CO2 concentration
       ! USE module_ctrl_const_datain
       ! USE module_ctrl_const_sues
-      !    use allocateArray
+      !    USE module_ctrl_const_allocate
       USE module_ctrl_const_time
       USE CBL_MODULE
       USE defaultnotUsed
@@ -859,7 +859,7 @@ CONTAINS
    !--------------------------------------------------------------------------
    SUBROUTINE sonde(id)
       ! read sonde or vertical profile data - when available
-      !use allocateArray
+      !USE module_ctrl_const_allocate
       USE module_ctrl_const_datain
       USE cbl_module
       IMPLICIT NONE
@@ -893,7 +893,7 @@ CONTAINS
    !------------------------------------------------------------------------------
    SUBROUTINE gamma_sonde
       USE cbl_module
-      !use allocateArray
+      !USE module_ctrl_const_allocate
 
       IMPLICIT NONE
       REAL(KIND(1D0)) :: gamtt, gamqq

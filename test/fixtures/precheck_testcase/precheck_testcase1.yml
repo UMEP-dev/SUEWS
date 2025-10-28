@@ -42,6 +42,8 @@ model:
       value: 0
     stebbsmethod:
       value: 0
+    rcmethod:
+      value: 0
 sites:
 - name: test site
   gridiv: 09_22_01_02

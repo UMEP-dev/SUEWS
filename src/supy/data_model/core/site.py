@@ -1237,13 +1237,13 @@ class ArchetypeProperties(BaseModel):
     )
     WallThickness: FlexibleRefValue(float) = Field(
         default=0.2,
-        description="Thickness of external wall and roof (weighted) [m]",
+        description="Thickness of external wall [m]",
         json_schema_extra={"unit": "m", "display_name": "Wallthickness"},
         gt=0.0,
     )
     WallEffectiveConductivity: FlexibleRefValue(float) = Field(
         default=0.6,
-        description="Effective thermal conductivity of walls and roofs (weighted) [W m-1 K-1]",
+        description="Effective thermal conductivity of walls [W m-1 K-1]",
         json_schema_extra={
             "unit": "W m^-1 K^-1",
             "display_name": "Walleffectiveconductivity",
@@ -1252,26 +1252,52 @@ class ArchetypeProperties(BaseModel):
     )
     WallDensity: FlexibleRefValue(float) = Field(
         default=1600.0,
-        description="Effective density of the walls and roof (weighted) [kg m-3]",
+        description="Effective density of the walls [kg m-3]",
         json_schema_extra={"unit": "kg m^-3", "display_name": "Walldensity"},
         gt=0.0,
     )
     WallCp: FlexibleRefValue(float) = Field(
         default=850.0,
-        description="Effective specific heat capacity of walls and roof (weighted) [J kg-1 K-1]",
-        json_schema_extra={"unit": "J kg^-1 K^-1", "display_name": "Wallcp"},
+        description="Effective specific heat capacity of walls [J kg-1 K-1]",
+        gt=0.0,
+    )
+    WallextThickness: FlexibleRefValue(float) = Field(
+        default=20.0,
+        description="Thickness of layers external to insulation in external wall [m]",
+        json_schema_extra={"unit": "m", "display_name": "Wallextthickness"},
+        gt=0.0,
+    )
+    WallextEffectiveConductivity: FlexibleRefValue(float) = Field(
+        default=60.0,
+        description="Effective thermal conductivity of layers external to insulation in walls [W m-1 K-1]",
+        json_schema_extra={
+            "unit": "W m^-1 K^-1",
+            "display_name": "Walleffectiveconductivity",
+        },
+        gt=0.0,
+    )
+    WallextDensity: FlexibleRefValue(float) = Field(
+        default=1600.0,
+        description="Effective density of layers external to insulation in the walls [kg m-3]",
+        json_schema_extra={"unit": "kg m^-3", "display_name": "Wallextdensity"},
+        gt=0.0,
+    )
+    WallextCp: FlexibleRefValue(float) = Field(
+        default=850.0,
+        description="Effective specific heat capacity of layers external to insulation in walls [J kg-1 K-1]",
+        json_schema_extra={"unit": "J kg^-1 K^-1", "display_name": "Wallextcp"},
         gt=0.0,
     )
     Wallx1: FlexibleRefValue(float) = Field(
         default=1.0,
-        description="Weighting factor for heat capacity of walls and roof [-]",
+        description="Weighting factor for heat capacity of walls [-]",
         json_schema_extra={"unit": "dimensionless", "display_name": "Wallx1"},
         ge=0.0,
         le=1.0,
     )
     WallExternalEmissivity: FlexibleRefValue(float) = Field(
         default=0.9,
-        description="Emissivity of the external surface of walls and roof [-]",
+        description="Emissivity of the external surface of walls [-]",
         json_schema_extra={
             "unit": "dimensionless",
             "display_name": "Wallexternalemissivity",
@@ -1281,7 +1307,7 @@ class ArchetypeProperties(BaseModel):
     )
     WallInternalEmissivity: FlexibleRefValue(float) = Field(
         default=0.9,
-        description="Emissivity of the internal surface of walls and roof [-]",
+        description="Emissivity of the internal surface of walls [-]",
         json_schema_extra={
             "unit": "dimensionless",
             "display_name": "Wallinternalemissivity",
@@ -1291,7 +1317,7 @@ class ArchetypeProperties(BaseModel):
     )
     WallTransmissivity: FlexibleRefValue(float) = Field(
         default=0.0,
-        description="Transmissivity of walls and roof [-]",
+        description="Transmissivity of walls [-]",
         json_schema_extra={
             "unit": "dimensionless",
             "display_name": "Walltransmissivity",
@@ -1301,15 +1327,119 @@ class ArchetypeProperties(BaseModel):
     )
     WallAbsorbtivity: FlexibleRefValue(float) = Field(
         default=0.8,
-        description="Absorbtivity of walls and roof [-]",
+        description="Absorbtivity of walls [-]",
         json_schema_extra={"unit": "dimensionless", "display_name": "Wallabsorbtivity"},
         ge=0.0,
         le=1.0,
     )
     WallReflectivity: FlexibleRefValue(float) = Field(
         default=0.2,
-        description="Reflectivity of the external surface of walls and roof [-]",
+        description="Reflectivity of the external surface of walls [-]",
         json_schema_extra={"unit": "dimensionless", "display_name": "Wallreflectivity"},
+        ge=0.0,
+        le=1.0,
+    )
+    RoofThickness: FlexibleRefValue(float) = Field(
+        default=20.0,
+        description="Thickness of roof [m]",
+        json_schema_extra={"unit": "m", "display_name": "Roofthickness"},
+        gt=0.0,
+    )
+    RoofEffectiveConductivity: FlexibleRefValue(float) = Field(
+        default=60.0,
+        description="Effective thermal conductivity of roof [W m-1 K-1]",
+        json_schema_extra={
+            "unit": "W m^-1 K^-1",
+            "display_name": "Roofeffectiveconductivity",
+        },
+        gt=0.0,
+    )
+    RoofDensity: FlexibleRefValue(float) = Field(
+        default=1600.0,
+        description="Effective density of the roof [kg m-3]",
+        json_schema_extra={"unit": "kg m^-3", "display_name": "Roofdensity"},
+        gt=0.0,
+    )
+    RoofCp: FlexibleRefValue(float) = Field(
+        default=850.0,
+        description="Effective specific heat capacity of roof [J kg-1 K-1]",
+        gt=0.0,
+    )
+    RoofextThickness: FlexibleRefValue(float) = Field(
+        default=20.0,
+        description="Thickness of layers external to insulation in roof [m]",
+        json_schema_extra={"unit": "m", "display_name": "Roofextthickness"},
+        gt=0.0,
+    )
+    RoofextEffectiveConductivity: FlexibleRefValue(float) = Field(
+        default=60.0,
+        description="Effective thermal conductivity of layers external to insulation in roof [W m-1 K-1]",
+        json_schema_extra={
+            "unit": "W m^-1 K^-1",
+            "display_name": "Roofeffectiveconductivity",
+        },
+        gt=0.0,
+    )
+    RoofextDensity: FlexibleRefValue(float) = Field(
+        default=1600.0,
+        description="Effective density of layers external to insulation in the roof [kg m-3]",
+        json_schema_extra={"unit": "kg m^-3", "display_name": "Roofextdensity"},
+        gt=0.0,
+    )
+    RoofextCp: FlexibleRefValue(float) = Field(
+        default=850.0,
+        description="Effective specific heat capacity of layers external to insulation in roof [J kg-1 K-1]",
+        json_schema_extra={"unit": "J kg^-1 K^-1", "display_name": "Roofextcp"},
+        gt=0.0,
+    )
+    Roofx1: FlexibleRefValue(float) = Field(
+        default=1.0,
+        description="Weighting factor for heat capacity of roof [-]",
+        json_schema_extra={"unit": "dimensionless", "display_name": "Roofx1"},
+        ge=0.0,
+        le=1.0,
+    )
+    RoofExternalEmissivity: FlexibleRefValue(float) = Field(
+        default=0.9,
+        description="Emissivity of the external surface of roof [-]",
+        json_schema_extra={
+            "unit": "dimensionless",
+            "display_name": "Roofexternalemissivity",
+        },
+        ge=0.0,
+        le=1.0,
+    )
+    RoofInternalEmissivity: FlexibleRefValue(float) = Field(
+        default=0.9,
+        description="Emissivity of the internal surface of roof [-]",
+        json_schema_extra={
+            "unit": "dimensionless",
+            "display_name": "Roofinternalemissivity",
+        },
+        ge=0.0,
+        le=1.0,
+    )
+    RoofTransmissivity: FlexibleRefValue(float) = Field(
+        default=0.0,
+        description="Transmissivity of roof [-]",
+        json_schema_extra={
+            "unit": "dimensionless",
+            "display_name": "Rooftransmissivity",
+        },
+        ge=0.0,
+        le=1.0,
+    )
+    RoofAbsorbtivity: FlexibleRefValue(float) = Field(
+        default=0.8,
+        description="Absorbtivity of roof [-]",
+        json_schema_extra={"unit": "dimensionless", "display_name": "Roofabsorbtivity"},
+        ge=0.0,
+        le=1.0,
+    )
+    RoofReflectivity: FlexibleRefValue(float) = Field(
+        default=0.2,
+        description="Reflectivity of the external surface of roof [-]",
+        json_schema_extra={"unit": "dimensionless", "display_name": "RoofReflectivity"},
         ge=0.0,
         le=1.0,
     )
@@ -1543,12 +1673,21 @@ class StebbsProperties(BaseModel):
 
     WallInternalConvectionCoefficient: Optional[FlexibleRefValue(float)] = Field(
         default=7.69,  # Default value calculated from the CIBSE GUIDE A, Table 3.47, Page 176
-        description="Internal convection coefficient of walls and roof [W m-2 K-1]",
+        description="Internal convection coefficient of walls [W m-2 K-1]",
         json_schema_extra={
             "unit": "W m^-2 K^-1",
             "display_name": "Wallinternalconvectioncoefficient",
             "default_description": "Default value calculated from the CIBSE GUIDE A, Table 3.47, Page 176",
             "range_description": "Value must be greater than zero.",
+        },
+        gt=0.0,
+    )
+    RoofInternalConvectionCoefficient: Optional[FlexibleRefValue(float)] = Field(
+        default=10.0,  # Default value calculated from the CIBSE GUIDE A, Table 3.47, Page 176
+        description="Internal convection coefficient of roof [W m-2 K-1]",
+        json_schema_extra={
+            "unit": "W m^-2 K^-1",
+            "display_name": "Roofinternalconvectioncoefficient",
         },
         gt=0.0,
     )
@@ -1585,6 +1724,15 @@ class StebbsProperties(BaseModel):
         json_schema_extra={
             "unit": "W m^-2 K^-1",
             "display_name": "Wallexternalconvectioncoefficient",
+        },
+        gt=0.0,
+    )
+    RoofExternalConvectionCoefficient: Optional[FlexibleRefValue(float)] = Field(
+        default=25.0,  # Default value calculated from the CIBSE GUIDE A, Table 3.47, Page 176
+        description="Initial external convection coefficient of roof [W m-2 K-1]",
+        json_schema_extra={
+            "unit": "W m^-2 K^-1",
+            "display_name": "Roofexternalconvectioncoefficient",
         },
         gt=0.0,
     )
@@ -1720,6 +1868,22 @@ class StebbsProperties(BaseModel):
         json_schema_extra={"unit": "h^-1", "display_name": "Ventilationrate"},
         ge=0.0,
     )
+    OutdoorAirAnnualTemperature: FlexibleRefValue(float) = Field(
+        description="Annual mean air temperature, which can be used as deep soil temperature",
+        json_schema_extra={
+            "unit": "degC",
+            "display_name": "Annual mean air temperature",
+        },
+        default=10.0,
+    )
+    OutdoorAirStartTemperature: Optional[FlexibleRefValue(float)] = Field(
+        default=0.0,
+        description="Initial outdoor air temperature [degC]",
+        json_schema_extra={
+            "unit": "degC",
+            "display_name": "Outdoorairstarttemperature",
+        },
+    )
     IndoorAirStartTemperature: Optional[FlexibleRefValue(float)] = Field(
         default=0.0,
         description="Initial indoor air temperature [degC]",
@@ -1735,7 +1899,7 @@ class StebbsProperties(BaseModel):
     )
     WallIndoorSurfaceTemperature: Optional[FlexibleRefValue(float)] = Field(
         default=0.0,
-        description="Initial wall/roof indoor surface temperature [degC]",
+        description="Initial wall indoor surface temperature [degC]",
         json_schema_extra={
             "unit": "degC",
             "display_name": "Wallindoorsurfacetemperature",
@@ -1743,10 +1907,26 @@ class StebbsProperties(BaseModel):
     )
     WallOutdoorSurfaceTemperature: Optional[FlexibleRefValue(float)] = Field(
         default=0.0,
-        description="Initial wall/roof outdoor surface temperature [degC]",
+        description="Initial wall outdoor surface temperature [degC]",
         json_schema_extra={
             "unit": "degC",
             "display_name": "Walloutdoorsurfacetemperature",
+        },
+    )
+    RoofIndoorSurfaceTemperature: Optional[FlexibleRefValue(float)] = Field(
+        default=0.0,
+        description="Initial roof indoor surface temperature [degC]",
+        json_schema_extra={
+            "unit": "degC",
+            "display_name": "Roofindoorsurfacetemperature",
+        },
+    )
+    RoofOutdoorSurfaceTemperature: Optional[FlexibleRefValue(float)] = Field(
+        default=0.0,
+        description="Initial roof outdoor surface temperature [degC]",
+        json_schema_extra={
+            "unit": "degC",
+            "display_name": "Roofoutdoorsurfacetemperature",
         },
     )
     WindowIndoorSurfaceTemperature: Optional[FlexibleRefValue(float)] = Field(

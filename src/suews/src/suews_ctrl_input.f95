@@ -1377,7 +1377,7 @@ MODULE module_ctrl_input_metdisagg
    !
    !========================================================================================
 
-   USE AllocateArray
+   USE module_ctrl_const_allocate
    USE module_ctrl_const_colnames_input
    USE Data_In
    USE module_ctrl_const_initial

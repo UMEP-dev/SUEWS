@@ -1,6 +1,7 @@
 From,To,Action,File,Variable,Column,Value
 2024a,2025a,Add,SUEWS_SiteSelect.txt,h_std,107,5.0
 2024a,2025a,Add,SUEWS_SiteSelect.txt,n_buildings,106,150
+2024a,2025a,Add,RunControl.nml,rcmethod,-999,0
 2023a,2024a,Add,RunControl.nml,diagmethod,-999,0
 2023a,2024a,Add,RunControl.nml,localclimatemethod,-999,0
 2023a,2024a,Add,RunControl.nml,faimethod,-999,0

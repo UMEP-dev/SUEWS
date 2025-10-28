@@ -102,6 +102,7 @@ class StorageHeatMethod(Enum):
     4: ESTM - Element Surface Temperature Method (Offerle et al., 2005) - not recommended
     5: ESTM_EXTENDED - Extended ESTM with separate roof/wall/ground temperatures
     6: OHM_ENHANCED - OHM with enhanced parameterisation
+    7: STEBBS - use STEBBS storage heat flux for building, others use OHM
     """
 
     # EHC needs to be added
@@ -114,6 +115,7 @@ class StorageHeatMethod(Enum):
     ESTM = 4
     ESTM_EXTENDED = 5
     OHM_ENHANCED = 6
+    STEBBS = 7
 
     def __new__(cls, value):
         obj = object.__new__(cls)
@@ -366,6 +368,25 @@ class StebbsMethod(Enum):
         return str(self.value)
 
 
+class RCMethod(Enum):
+    """
+    Method to split building envelope heat capacity in STEBBS.
+    0: NONE
+    1: PROVIDED - use user defined value (fractional x1) between 0 and 1
+    2: PARAMETERISE - use building material thermal property to parameterise the weighting factor x1
+    """
+
+    NONE = 0
+    PROVIDED = 1
+    PARAMETERISE = 2
+
+    def __int__(self):
+        return self.value
+
+    def __repr__(self):
+        return str(self.value)
+
+
 class SnowUse(Enum):
     """
     Controls snow process calculations.
@@ -414,6 +435,7 @@ for enum_class in [
     RSLLevel,
     GSModel,
     StebbsMethod,
+    RCMethod,
     SnowUse,
     OhmIncQf,
 ]:
@@ -446,7 +468,7 @@ class ModelPhysics(BaseModel):
     )
     storageheatmethod: FlexibleRefValue(StorageHeatMethod) = Field(
         default=StorageHeatMethod.OHM_WITHOUT_QF,
-        description="Method for calculating storage heat flux (ΔQS). Options: 0 (OBSERVED) = Uses observed ΔQS from forcing file; 1 (OHM_WITHOUT_QF) = Objective Hysteresis Model using Q* only; 3 (ANOHM) = Analytical OHM (not recommended); 4 (ESTM) = Element Surface Temperature Method (not recommended); 5 (ESTM_EXTENDED) = Extended ESTM with separate facet temps; 6 (OHM_ENHANCED) = Enhanced OHM parameterisation",
+        description="Method for calculating storage heat flux (ΔQS). Options: 0 (OBSERVED) = Uses observed ΔQS from forcing file; 1 (OHM_WITHOUT_QF) = Objective Hysteresis Model using Q* only; 3 (ANOHM) = Analytical OHM (not recommended); 4 (ESTM) = Element Surface Temperature Method (not recommended); 5 (ESTM_EXTENDED) = Extended ESTM with separate facet temps; 6 (OHM_ENHANCED) = Enhanced OHM parameterisation; 7 (STEBBS) = use STEBBS to calculate storage heat flux for building",
         json_schema_extra={"unit": "dimensionless"},
     )
     ohmincqf: FlexibleRefValue(OhmIncQf) = Field(
@@ -509,7 +531,11 @@ class ModelPhysics(BaseModel):
         description="Surface Temperature Energy Balance Based Scheme (STEBBS) for facet temperatures. Options: 0 (NONE) = STEBBS disabled; 1 (DEFAULT) = STEBBS with default parameters; 2 (PROVIDED) = STEBBS with user-specified parameters",
         json_schema_extra={"unit": "dimensionless"},
     )
-
+    rcmethod: FlexibleRefValue(RCMethod) = Field(
+        default=RCMethod.NONE,
+        description="method to split heat capacity of building envelope in STEBBS. Options: 0 = NONE; 1 = input weighting factor x1; 2 = use parameterised weighting factor by building material property",
+        json_schema_extra={"unit": "dimensionless"},
+    )
     ref: Optional[Reference] = None
 
     # We then need to set to 0 (or None) all the CO2-related parameters or rules
@@ -544,6 +570,7 @@ class ModelPhysics(BaseModel):
             "gsmodel",
             "snowuse",
             "stebbsmethod",
+            "rcmethod",
         ]
         for attr in list_attr:
             if attr == "rslmethod":
@@ -586,6 +613,7 @@ class ModelPhysics(BaseModel):
             "gsmodel",
             "snowuse",
             "stebbsmethod",
+            "rcmethod",
         ]
 
         for attr in list_attr:

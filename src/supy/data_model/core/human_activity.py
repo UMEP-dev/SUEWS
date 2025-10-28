@@ -251,6 +251,7 @@ class AnthropogenicHeat(
             "unit": "people ha^-1",
             "display_name": "Nighttime Population Density",
         },
+        gt=0.0,
     )
     popprof_24hr: HourlyProfile = Field(
         description="24-hour profile of population density",

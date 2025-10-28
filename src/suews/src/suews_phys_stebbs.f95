@@ -2285,7 +2285,7 @@ SUBROUTINE gen_building(stebbsState, stebbsPrm, building_archtype, config, self,
    self%weighting_factor_heatcapacity_wall = building_archtype%Wallx1
    self%weighting_factor_heatcapacity_roof = building_archtype%Roofx1
 
-   IF (config%rcmethod  == 1) THEN
+   IF (config%rcmethod  == 2) THEN
       !recalculate the weighting factor for splitting heat capacity (x1)
       self%weighting_factor_heatcapacity_wall = calculate_x1(self%thickness_wall, self%cp_wall, self%density_wall, &
                                              self%thickness_wallext, self%cp_wallext, self%density_wallext, self%conductivity_wallext)

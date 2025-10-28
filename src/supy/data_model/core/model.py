@@ -366,6 +366,23 @@ class StebbsMethod(Enum):
     def __repr__(self):
         return str(self.value)
 
+class RCMethod(Enum):
+    """
+    Method to split building envelope heat capacity in STEBBS.
+    0: NONE
+    1: PROVIDED - use user defined value (fractional x1) between 0 and 1
+    2: PARAMETERISE - use building material thermal property to parameterise the weighting factor x1
+    """
+    NONE = 0
+    PROVIDED = 1
+    PARAMETERISE = 2
+    
+
+    def __int__(self):
+        return self.value
+
+    def __repr__(self):
+        return str(self.value)
 
 class SnowUse(Enum):
     """
@@ -415,6 +432,7 @@ for enum_class in [
     RSLLevel,
     GSModel,
     StebbsMethod,
+    RCMethod,
     SnowUse,
     OhmIncQf,
 ]:
@@ -510,9 +528,9 @@ class ModelPhysics(BaseModel):
         description="Surface Temperature Energy Balance Based Scheme (STEBBS) for facet temperatures. Options: 0 (NONE) = STEBBS disabled; 1 (DEFAULT) = STEBBS with default parameters; 2 (PROVIDED) = STEBBS with user-specified parameters",
         json_schema_extra={"unit": "dimensionless"},
     )
-    rcmethod: FlexibleRefValue(StebbsMethod) = Field(
-        default=StebbsMethod.NONE,
-        description="method to split heat capacity of building envelope in STEBBS. Options: 0 = input weighting factor x1; 1 = use parameterised weighting factor by building material property",
+    rcmethod: FlexibleRefValue(RCMethod) = Field(
+        default=RCMethod.NONE,
+        description="method to split heat capacity of building envelope in STEBBS. Options: 0 = NONE; 1 = input weighting factor x1; 2 = use parameterised weighting factor by building material property",
         json_schema_extra={"unit": "dimensionless"},
     )
     ref: Optional[Reference] = None

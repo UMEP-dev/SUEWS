@@ -32,6 +32,8 @@ class IrrigationParams(
             "unit": "dimensionless",
             "display_name": "Automatic Fraction",
         },
+        ge=0.0,
+        le=1.0,
     )
     ie_start: Optional[FlexibleRefValue(float)] = Field(
         default=None,
@@ -382,6 +384,8 @@ class CO2Params(BaseModel):  # TODO: May need to add the RefValue to the profile
             "unit": "dimensionless",
             "display_name": "Fossil Fuel Fraction Heating",
         },
+        ge=0.0,
+        le=1.0,
     )
     frfossilfuel_nonheat: Optional[FlexibleRefValue(float)] = Field(
         default=None,
@@ -390,6 +394,8 @@ class CO2Params(BaseModel):  # TODO: May need to add the RefValue to the profile
             "unit": "dimensionless",
             "display_name": "Fossil Fuel Fraction Non-Heating",
         },
+        ge=0.0,
+        le=1.0,
     )
     maxfcmetab: Optional[FlexibleRefValue(float)] = Field(
         default=None,

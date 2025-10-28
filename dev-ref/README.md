@@ -22,6 +22,11 @@ This directory contains internal documentation for SUEWS core developers.
   - Migration strategy from legacy code
   - Validation tools and enforcement
 
+- **[Feature Development Workflow](FEATURE_DEVELOPMENT_WORKFLOW.md)** - Managing large features with incremental PRs
+  - Breaking down features into reviewable chunks
+  - Stacked and parallel PR strategies
+  - Git worktree for parallel development
+
 - **[Review Process](REVIEW_PROCESS.md)** - Pull request review procedures
   - How we review code
   - What to look for in reviews

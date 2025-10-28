@@ -16,7 +16,11 @@ model:
     end_time: '2017-08-27'
     forcing_file:
       value: test_2017_data_15_mp.txt
-    output_file: output.txt
+    output_file:
+      format: txt
+      groups:
+        - SUEWS
+        - STEBBS
     diagnose: 0
   physics:
     netradiationmethod:

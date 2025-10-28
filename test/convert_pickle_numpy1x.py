@@ -60,4 +60,6 @@ df_verify = pd.read_pickle(p_df_sample)
 assert df.shape == df_verify.shape, "Shape mismatch after reload"
 print("Verification successful!")
 
-print("\nConversion complete. The new pickle file should work with both NumPy 1.x and 2.x")
+print(
+    "\nConversion complete. The new pickle file should work with both NumPy 1.x and 2.x"
+)

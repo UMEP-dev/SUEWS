@@ -20,7 +20,7 @@ print(f"Pickle file: {p_df_sample}")
 with open(p_df_sample, "rb") as f:
     # Read first byte to get protocol version
     first_byte = f.read(1)
-    if first_byte == b'\x80':  # Pickle protocol marker
+    if first_byte == b"\x80":  # Pickle protocol marker
         protocol = f.read(1)[0]
         print(f"Pickle protocol version: {protocol}")
         if protocol <= 4:
@@ -47,7 +47,7 @@ try:
 
     # Serialize and check for numpy._core references
     test_pickle = pickle.dumps(df.iloc[0])
-    if b'numpy._core' in test_pickle or b'numpy.core' in test_pickle:
+    if b"numpy._core" in test_pickle or b"numpy.core" in test_pickle:
         print("⚠ Warning: Found NumPy internal module references")
     else:
         print("✓ No NumPy internal module references found")

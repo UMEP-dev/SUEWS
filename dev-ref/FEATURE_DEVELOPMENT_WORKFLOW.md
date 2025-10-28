@@ -1,7 +1,9 @@
 # Feature Development Workflow
 
 > **Purpose**: Guide for managing large features through incremental PRs and effective branch strategies
+> 
 > **Audience**: Core developers and contributors working on substantial features
+>
 > **Last Updated**: 28 October 2025
 
 ## Overview

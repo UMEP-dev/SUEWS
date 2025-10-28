@@ -623,7 +623,9 @@ class TestSTEBBSOutput(TestCase):
         print("=" * 70)
 
         # Load STEBBS test configuration
-        stebbs_test_dir = Path(__file__).parent.parent / "fixtures" / "data_test" / "stebbs_test"
+        stebbs_test_dir = (
+            Path(__file__).parent.parent / "fixtures" / "data_test" / "stebbs_test"
+        )
         config_path = stebbs_test_dir / "sample_config.yml"
         reference_output_path = stebbs_test_dir / "sample_output_stebbs.csv"
 
@@ -635,13 +637,11 @@ class TestSTEBBSOutput(TestCase):
 
         print("Loading forcing data...")
         df_forcing_full = sp.load_forcing_grid(
-            str(config_path),
-            df_state_init.index[0],
-            df_state_init=df_state_init
+            str(config_path), df_state_init.index[0], df_state_init=df_state_init
         )
 
         # Subset forcing data to match config period (2017-08-26 to 2017-08-27)
-        df_forcing = df_forcing_full.loc['2017-08-26':'2017-08-27']
+        df_forcing = df_forcing_full.loc["2017-08-26":"2017-08-27"]
 
         print(f"Running STEBBS simulation ({len(df_forcing)} timesteps, 2 days)...")
         df_output, df_state = sp.run_supy(df_forcing, df_state_init)
@@ -655,7 +655,6 @@ class TestSTEBBSOutput(TestCase):
         stebbs_variables = {
             # Indoor conditions - affected by complex heat transfer
             "Tair_ind": {"rtol": 0.02, "atol": 0.5},  # 2% / 0.5K tolerance
-
             # Building loads - higher tolerance due to control logic
             "Qload_heating_F": {"rtol": 0.05, "atol": 5.0},  # 5% / 5W tolerance
             "Qload_cooling_F": {"rtol": 0.05, "atol": 5.0},  # 5% / 5W tolerance

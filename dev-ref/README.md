@@ -16,7 +16,17 @@ This directory contains internal documentation for SUEWS core developers.
 - **[Coding Guidelines](CODING_GUIDELINES.md)** - Code style and conventions
   - Python and Fortran standards
   - Naming conventions and best practices
-  
+
+- **[Fortran Naming Conventions](FORTRAN_NAMING_CONVENTIONS.md)** - Comprehensive Fortran naming standards
+  - File, module, and function naming patterns
+  - Migration strategy from legacy code
+  - Validation tools and enforcement
+
+- **[Feature Development Workflow](FEATURE_DEVELOPMENT_WORKFLOW.md)** - Managing large features with incremental PRs
+  - Breaking down features into reviewable chunks
+  - Stacked and parallel PR strategies
+  - Git worktree for parallel development
+
 - **[Review Process](REVIEW_PROCESS.md)** - Pull request review procedures
   - How we review code
   - What to look for in reviews
@@ -43,9 +53,6 @@ This directory contains internal documentation for SUEWS core developers.
   - Version numbering
   - Release checklist
   - Distribution to PyPI
-
-### Additional Resources
-- **[Documentation Reorganisation Proposal](DOCUMENTATION_REORGANISATION_PROPOSAL.md)** - Current documentation cleanup plan
 
 ## External Links
 - [GitHub Repository](https://github.com/UMEP-dev/SUEWS)

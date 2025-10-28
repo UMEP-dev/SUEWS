@@ -1,10 +1,11 @@
-MODULE OHM_module
-   ! USE allocateArray
-   ! USE data_in
-   ! USE defaultNotUsed
-   ! USE gis_data
-   ! USE sues_data
-   ! USE time
+! Main module following naming standard: matches filename
+MODULE module_phys_ohm
+   ! USE module_ctrl_const_allocate
+   ! USE module_ctrl_const_datain
+   ! USE module_ctrl_const_default
+   ! USE module_ctrl_const_gis
+   ! USE module_ctrl_const_sues
+   ! USE module_ctrl_const_time
 
    IMPLICIT NONE
 CONTAINS
@@ -58,9 +59,9 @@ CONTAINS
       !   - No canyons implemented at the moment [OHM_coef(nsurf+1,,)]
       !========================================================================================
 
-      USE allocateArray, ONLY: ndepth
-      USE datetime_module, ONLY: datetime, timedelta
-      USE SUEWS_DEF_DTS, ONLY: SUEWS_TIMER
+      USE module_ctrl_const_allocate, ONLY: ndepth
+      USE module_util_datetime, ONLY: datetime, timedelta
+      USE module_ctrl_type, ONLY: SUEWS_TIMER
 
       IMPLICIT NONE
       TYPE(SUEWS_TIMER) :: timer
@@ -798,4 +799,10 @@ CONTAINS
 
    END SUBROUTINE calculate_a3
 
+END MODULE module_phys_ohm
+
+! Backward compatibility alias (deprecated - will be removed in future version)
+! TODO: Remove in version 2026.1.0 (deprecated since 2025.10.0)
+MODULE OHM_module
+   USE module_phys_ohm
 END MODULE OHM_module

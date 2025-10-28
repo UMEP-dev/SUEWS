@@ -421,10 +421,11 @@ rst_prolog = rf"""
     .. tip::
 
       1. Need help? Please let us know in the `UMEP Community`_.
-      2. Please report issues with the manual on the `GitHub Issues`_.
+      2. Please report issues with the manual on `GitHub Issues`_ (or use `Report Issue for This Page`_ for page-specific feedback).
       3. Please cite SUEWS with proper information from our `Zenodo page`_.
 
-.. _UMEP Community : https://github.com/UMEP-dev/UMEP/discussions/
+.. _UMEP Community: https://github.com/UMEP-dev/UMEP/discussions/
+.. _GitHub Issues: https://github.com/UMEP-dev/SUEWS/issues
 .. _SUEWS download page: https://forms.office.com/r/4qGfYu8LaR
 
 """
@@ -682,8 +683,9 @@ def source_read_handler(app, docname, source):
 """
     str_query_body = urllib.parse.urlencode({"body": str_body})
     str_url = f"https://github.com/UMEP-dev/SUEWS/issues/new?assignees=&labels=docs&template=docs-issue-report.md&{str_query_body}&title=[Docs]{docname}"
+    # Use unique link name to avoid conflict with global "GitHub Issues" in rst_prolog
     str_GHPage = f"""
-.. _GitHub Issues: {str_url}
+.. _Report Issue for This Page: {str_url}
 """
     rendered = "\n".join([str_GHPage, deprecation_warning, src])
     source[0] = rendered.rstrip("\n")

@@ -20,7 +20,7 @@ from .supy_driver import suews_driver as sd
 import copy
 
 # these are used in debug mode to save extra outputs
-from .supy_driver import suews_def_dts as sd_dts
+from .supy_driver import module_ctrl_type as sd_dts
 
 from ._load import (
     df_var_info,

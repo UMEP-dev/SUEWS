@@ -8,7 +8,7 @@ What the Validator Does
 
 The validation system performs multiple checks on your configuration:
 
-- **Completeness Check**: Detects missing parameters and updates deprecated parameter names to current standards
+- **Completeness Check**: Detects missing parameters, updates deprecated parameter names to current standards and validates forcing data (see :doc:`/inputs/forcing-data` for detailed reference on forcing data validation)
 - **Scientific Validation**: Applies automatic scientific corrections and validates physics options compatibility
 - **Model Compatibility**: Ensures configuration compatibility with SUEWS computational engine
 
@@ -60,6 +60,16 @@ The validation report provides comprehensive details about every change made to 
     # ==================================================
 
     ## ACTION NEEDED
+    - Found (3) forcing data validation error(s):
+    -- In 'forcing_data.txt': Wind speed (`U`) must be >= 0.01 m/s to avoid division by zero errors in atmospheric calculations. 1 values below 0.01 m/s found at line(s): [670]
+    -- In 'forcing_data.txt': `rh` should be between [0.0001, 105] but 25 outliers are found at line(s): [5, 118, 156, 157, ...]
+    -- In 'forcing_data.txt': `kdown` should be between [0, 1400] but 6 outliers are found at line(s): [176, 406, 655, 693, 847, 1558]
+       Required fix: Review and correct forcing data file.
+       Suggestion: You may want to plot the time series of your input data.
+
+    Note: Line numbers refer to actual lines in the forcing .txt file (including header)
+    Note: When multiple forcing files are provided, all files are validated and errors include the filename
+
     - Found (1) critical missing parameter(s):
     -- netradiationmethod has been added to updated YAML and set to null
        Location: model.physics.netradiationmethod

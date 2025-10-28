@@ -1,4 +1,5 @@
-MODULE evap_module
+! Main module following naming standard: matches filename
+MODULE module_phys_evap
    IMPLICIT NONE
 
 CONTAINS
@@ -171,4 +172,10 @@ CONTAINS
 
    END SUBROUTINE cal_evap_multi
 
+END MODULE module_phys_evap
+
+! Backward compatibility alias (deprecated - will be removed in future version)
+! TODO: Remove in version 2026.1.0 (deprecated since 2025.10.0)
+MODULE evap_module
+   USE module_phys_evap
 END MODULE evap_module

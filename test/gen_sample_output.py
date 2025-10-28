@@ -31,4 +31,6 @@ df_output_s, df_state_s = sp.run_supy(df_forcing_part, df_state_init)
 # Save as CSV with gzip compression (transparent format, no NumPy version issues)
 print(f"Saving sample output to: {p_df_sample.as_posix()}")
 df_output_s.SUEWS.to_csv(p_df_sample, compression="gzip")
-print(f"✓ Saved {df_output_s.SUEWS.shape[0]} rows × {df_output_s.SUEWS.shape[1]} columns")
+print(
+    f"✓ Saved {df_output_s.SUEWS.shape[0]} rows × {df_output_s.SUEWS.shape[1]} columns"
+)

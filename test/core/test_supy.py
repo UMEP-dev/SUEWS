@@ -4,7 +4,7 @@ import platform
 import sys
 import tempfile
 from time import time
-from unittest import TestCase
+from unittest import TestCase, skipIf
 import warnings
 
 import numpy as np

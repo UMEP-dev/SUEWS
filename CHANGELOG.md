@@ -21,7 +21,7 @@
 
 | Year | Features | Bugfixes | Changes | Maintenance | Docs | Total |
 |------|----------|----------|---------|-------------|------|-------|
-| 2025 | 36 | 25 | 13 | 34 | 16 | 124 |
+| 2025 | 37 | 25 | 13 | 34 | 17 | 124 |
 | 2024 | 12 | 17 | 1 | 12 | 1 | 43 |
 | 2023 | 11 | 14 | 3 | 9 | 1 | 38 |
 | 2022 | 15 | 18 | 0 | 7 | 0 | 40 |
@@ -33,6 +33,29 @@
 
 
 ## 2025
+
+### 24 Oct 2025
+- [feature] Added physical range validation for 50+ STEBBS building model parameters in `ArchetypeProperties`
+  - Dimensionless parameters (emissivity, transmissivity, absorptivity, reflectivity, ratios) constrained to [0.0, 1.0]
+  - Physical properties (thickness, conductivity, density, heat capacity) constrained to positive values
+  - Updated defaults: WallThickness (0.2 m), WallEffectiveConductivity (0.6 W/m/K), ApplianceUsageFactor ([0.0, 1.0])
+- [doc] Added comprehensive documentation for forcing data validation functions
+  - New "Validating Forcing Data" section in `forcing-data.rst` with complete reference
+  - Documents `check_forcing()` function: what it validates, physical ranges for 20 variables, usage examples
+  - Includes Python usage examples and integration with `suews-validate` command
+  - Cross-references validation system documentation
+
+### 22 Oct 2025
+- [feature] Forcing data validation integrated into Phase A validator
+  - Added automatic validation of meteorological forcing data in Phase A pipeline
+  - Enabled by default; disable with `--forcing off` or `-f off` CLI flags
+  - Errors appear in ACTION NEEDED section with single-line formatting and include filename context
+  - Validates **all** forcing files when multiple files are provided (not just first)
+  - Line numbers in error messages match actual file line numbers for easy debugging
+  - Added 10 integration tests in `test/data_model/test_validation.py` covering:
+    - Missing files, valid/invalid data, report integration, enable/disable functionality
+    - Line number accuracy verification, RefValue format handling, multiple files validation, CLI integration
+  - Updated documentation: `validation.rst`, `ORCHESTRATOR.md`, `PHASE_A_DETAILED.md`, `README.md`
 
 ### 21 Oct 2025
 - [feature] Added `get_mean_annual_air_temperature()` for stable parameter initialisation using CRU TS4.06 climate normals
@@ -184,7 +207,8 @@
 - [maintenance] Added Fortran line length compiler flag (-ffree-line-length-none) to handle long lines without manual breaking
 - [maintenance] Added fprettify configuration for consistent Fortran code formatting
 - [maintenance] Fixed pyarrow installation on Linux CI by configuring pip to use binary wheels instead of building from source
-  - Added PIP_PREFER_BINARY=1 and PIP_ONLY_BINARY=":all:" to ensure manylinux2014 wheels are used
+  - Added pyarrow pinning: `>=20,<21` for Linux Python <3.14 (manylinux2014 wheels), `>=20` for other platforms, and `>=22` for Python ≥3.14 (manylinux_2_28 wheels)
+  - Kept PIP_PREFER_BINARY=1 in cibuildwheel to bias toward wheels; pyarrow pins guarantee compatible binaries
   - pyarrow remains a required dependency for SUEWS output functionality
 - [maintenance] Enabled f90wrap build from source for Python 3.13 on Linux
   - f90wrap 0.2.16 doesn't provide Python 3.13 wheels yet

@@ -1,5 +1,6 @@
-MODULE DailyState_module
-   USE allocateArray, ONLY: &
+! Main module following naming standard: matches filename
+MODULE module_phys_dailystate
+   USE module_ctrl_const_allocate, ONLY: &
       ndays, nsurf, nvegsurf, ivConif, ivDecid, ivGrass, DecidSurf, ncolumnsDataOutDailyState
 
    IMPLICIT NONE
@@ -64,8 +65,8 @@ CONTAINS
       ! hydroState) !inout
 
       ! USE Snow_module, ONLY: SnowUpdate
-      USE datetime_module, ONLY: datetime, timedelta
-      USE SUEWS_DEF_DTS, ONLY: SUEWS_SITE, SUEWS_TIMER, SUEWS_FORCING, anthroEMIS_PRM, &
+      USE module_util_datetime, ONLY: datetime, timedelta
+      USE module_ctrl_type, ONLY: SUEWS_SITE, SUEWS_TIMER, SUEWS_FORCING, anthroEMIS_PRM, &
                                PHENOLOGY_STATE, anthroEmis_STATE, SUEWS_CONFIG, &
                                IRRIGATION_PRM, LC_PAVED_PRM, LC_BLDG_PRM, &
                                LC_EVETR_PRM, LC_DECTR_PRM, LC_GRASS_PRM, &
@@ -1302,7 +1303,7 @@ CONTAINS
       modState, & ! input/output:
       DailyStateLine) !out
 
-      USE SUEWS_DEF_DTS, ONLY: &
+      USE module_ctrl_type, ONLY: &
          SUEWS_SITE, SUEWS_TIMER, SUEWS_CONFIG, SUEWS_FORCING, &
          PHENOLOGY_STATE, anthroEmis_STATE, &
          SNOW_STATE, SUEWS_TIMER, HYDRO_STATE, &
@@ -1380,4 +1381,10 @@ CONTAINS
 
    END SUBROUTINE update_DailyStateLine_DTS
 
+END MODULE module_phys_dailystate
+
+! Backward compatibility alias (deprecated - will be removed in future version)
+! TODO: Remove in version 2026.1.0 (deprecated since 2025.10.0)
+MODULE DailyState_module
+   USE module_phys_dailystate
 END MODULE DailyState_module

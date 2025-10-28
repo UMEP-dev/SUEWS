@@ -92,7 +92,7 @@ class TestCsvFileConversion:
 
         # Check structure
         assert len(df_new) == len(df_old)
-        assert len(df_new.columns) == 1420  # New format has 1420 columns
+        assert len(df_new.columns) == 1423  # New format has 1423 columns (1420 + 3 view factors from master)
 
         # Check old columns removed
         col_names = {

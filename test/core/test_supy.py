@@ -338,7 +338,7 @@ class TestSuPy(TestCase):
         smd_veg_correct = np.dot(surf_veg, smd_veg)
 
         # test SMD_veg
-        from supy.supy_driver import Waterdist_Module as wm
+        from supy.supy_driver import module_phys_waterdist as wm
 
         smd_veg_test = wm.cal_smd_veg(soilstorecap, soilstore_id, sfr_surf)
 

@@ -15,9 +15,9 @@ def main():
 
     # Force UTF-8 encoding on Windows to handle Unicode characters in generated code
     env = os.environ.copy()
-    if sys.platform == 'win32':
-        env['PYTHONUTF8'] = '1'
-        env['PYTHONIOENCODING'] = 'utf-8'
+    if sys.platform == "win32":
+        env["PYTHONUTF8"] = "1"
+        env["PYTHONIOENCODING"] = "utf-8"
 
     # Call f2py to generate the modules
     try:

@@ -1758,7 +1758,7 @@ class StebbsProperties(BaseModel):
         description="Density of indoor air [kg m-3]",
         json_schema_extra={"unit": "kg m^-3", "display_name": "Indoorairdensity"},
     )
-    IndoorAirCp: Optional[FlexibleRefValue(float)] = Field( 
+    IndoorAirCp: Optional[FlexibleRefValue(float)] = Field(
         default=0.0,
         description="Specific heat capacity of indoor air [J kg-1 K-1]",
         json_schema_extra={"unit": "J kg^-1 K^-1", "display_name": "Indooraircp"},

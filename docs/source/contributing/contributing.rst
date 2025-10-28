@@ -4,7 +4,7 @@ Contributing Guide
 ====================================
 
 
-.. note:: **Code development is handled by the SUEWS core team.** For detailed development documentation, see the `Developer Documentation <https://github.com/UMEP-dev/SUEWS/blob/master/dev-ref/README.md>`_ on GitHub.
+.. note:: **Code development is handled by the SUEWS core team.** For detailed development documentation, see the `Developer Documentation <https://github.com/UMEP-dev/SUEWS/tree/master/dev-ref>`_ on GitHub.
 
 
 Community Contributions

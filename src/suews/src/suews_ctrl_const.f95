@@ -15,7 +15,7 @@
 ! MH 21 Jun 2017 - Added anthropogenic CO2 and edited Site_Select
 
 !==================================================================================================
-MODULE module_ctrl_const_allocate
+MODULE allocateArray
 
    IMPLICIT NONE
 
@@ -1052,16 +1052,11 @@ MODULE module_ctrl_const_allocate
    INTEGER, PARAMETER :: cTs_Twall_s = 12
    INTEGER, PARAMETER :: cTs_Twall_w = 13
 
-END MODULE module_ctrl_const_allocate
-
-! Backward compatibility alias
-MODULE allocateArray
-   USE module_ctrl_const_allocate
 END MODULE allocateArray
 !==================================================================================================
 
 !==================================================================================================
-MODULE module_ctrl_const_initial
+MODULE Initial
 
    IMPLICIT NONE
 
@@ -1102,16 +1097,11 @@ MODULE module_ctrl_const_initial
               SkippedLinesOrigESTM, & !Number of lines to skip over before reading each block of data from original ESTM file
               iv5 !Counter for code matching.
 
-END MODULE module_ctrl_const_initial
-
-! Backward compatibility alias
-MODULE Initial
-   USE module_ctrl_const_initial
 END MODULE Initial
 !==================================================================================================
 
 !==================================================================================================
-MODULE module_ctrl_const_datain
+MODULE data_in
 
    IMPLICIT NONE
 
@@ -1363,15 +1353,10 @@ MODULE module_ctrl_const_datain
    !--------- AnOHM related variables----------------------------------
    ! to be added here
 
-END MODULE module_ctrl_const_datain
-
-! Backward compatibility alias
-MODULE data_in
-   USE module_ctrl_const_datain
 END MODULE data_in
 !==================================================================================================
 
-MODULE module_ctrl_const_snow
+MODULE snowMod
    IMPLICIT NONE
 
    REAL(KIND(1D0)) :: AdjMeltFact, & !Factor between melt and freezing factors
@@ -1411,30 +1396,20 @@ MODULE module_ctrl_const_snow
 
    INTEGER :: SnowFractionChoice = 2 !Choice how fraction of snow is calculated
 
-END MODULE module_ctrl_const_snow
-
-! Backward compatibility alias
-MODULE snowMod
-   USE module_ctrl_const_snow
 END MODULE snowMod
 !===================================================================================
 
 !==================================================================================================
-MODULE module_ctrl_const_default
+MODULE defaultNotUsed
    IMPLICIT NONE
    REAL(KIND(1D0)) :: notUsed = -55.55, reall, NAN = -999, pNAN = 999
    INTEGER :: notUsedI = -55, ios_out
    INTEGER :: errorChoice, warningChoice !errorChoice/warningChoice defines if problems.txt/warnings.txt is opened for the first time
-END MODULE module_ctrl_const_default
-
-! Backward compatibility alias
-MODULE defaultNotUsed
-   USE module_ctrl_const_default
 END MODULE defaultNotUsed
 !==================================================================================================
 
 !==================================================================================================
-MODULE module_ctrl_const_time
+MODULE time
    INTEGER :: iy, & !Year
               id, & !Day of year
               it, & !Hour
@@ -1449,39 +1424,25 @@ MODULE module_ctrl_const_time
 
    INTEGER :: iy_prev_t, id_prev_t !Value of iy and id at previous timestep
 
-END MODULE module_ctrl_const_time
-
-! Backward compatibility alias
-MODULE time
-   USE module_ctrl_const_time
 END MODULE time
 !==================================================================================================
 
 !===================================================================================
-MODULE module_ctrl_const_grav
-   REAL(KIND(1D0)) :: grav = 9.80665 !g - gravity - physics today august 1987
-END MODULE module_ctrl_const_grav
-
-! Backward compatibility alias
 MODULE mod_grav
-   USE module_ctrl_const_grav
+   REAL(KIND(1D0)) :: grav = 9.80665 !g - gravity - physics today august 1987
 END MODULE mod_grav
 
 !===================================================================================
 
 !===================================================================================
-MODULE module_ctrl_const_thresh
+MODULE Thresh
    REAL(KIND(1D0)) :: IPThreshold_mmhr = 10 !Threshold for intense precipitation [mm hr-1]
 
-END MODULE module_ctrl_const_thresh
-
-! Backward compatibility alias
-MODULE Thresh
-   USE module_ctrl_const_thresh
 END MODULE Thresh
 
 !===================================================================================
-MODULE module_ctrl_const_gas
+MODULE gas
+   !   press (mb) ea (mb)
    IMPLICIT NONE
    REAL(KIND(1D0)) :: comp = 0.9995
    REAL(KIND(1D0)) :: epsil = 0.62197 !ratio molecular weight of water vapor/dry air (kg/mol/kg/mol)
@@ -1492,15 +1453,10 @@ MODULE module_ctrl_const_gas
    REAL(KIND(1D0)) :: molar_wat_vap = 0.0180153 !Molar fraction of water vapor in kg/mol
    REAL(KIND(1D0)) :: gas_ct_dry = 8.31451/0.028965 !j/kg/k=dry_gas/molar
    REAL(KIND(1D0)) :: gas_ct_wv = 8.31451/0.0180153 !j/kg/kdry_gas/molar_wat_vap
-END MODULE module_ctrl_const_gas
-
-! Backward compatibility alias
-MODULE gas
-   USE module_ctrl_const_gas
 END MODULE gas
 
 !**********************************************
-MODULE module_ctrl_const_z
+MODULE mod_z
    REAL(KIND(1D0)) :: zzd, & !Active measurement height (meas. height-displac. height)
                       z0m, & !Aerodynamic roughness length
                       zdm, & !Displacement height
@@ -1508,15 +1464,10 @@ MODULE module_ctrl_const_z
                       zdm_in, & !Displacement height set in SiteSelect
                       z !Windspeed height
    REAL(KIND(1E10)) :: z0V !Roughness length for vapour
-END MODULE module_ctrl_const_z
-
-! Backward compatibility alias
-MODULE mod_z
-   USE module_ctrl_const_z
 END MODULE mod_z
 
 !**********************************************
-MODULE module_ctrl_const_resist
+MODULE resist !Variables related surface resistance calculations (P. 1744 in G&O1991)
    IMPLICIT NONE
    REAL(KIND(1D0)) :: th, & !Maximum temperature limit
                       tl, & !Minimum temperature limit
@@ -1526,15 +1477,10 @@ MODULE module_ctrl_const_resist
                       tc, & !Temperature parameter 1
                       tc2 !Temperature parameter 2
    INTEGER :: gsModel !Choice of gs parameterisation (1 = Ja11, 2 = Wa16)
-END MODULE module_ctrl_const_resist
-
-! Backward compatibility alias
-MODULE resist
-   USE module_ctrl_const_resist
 END MODULE resist
 
 !**********************************************
-MODULE module_ctrl_const_moist
+MODULE moist
    IMPLICIT NONE
 
    REAL(KIND(1D0)) :: avcp, & !Specific heat capacity
@@ -1554,15 +1500,10 @@ MODULE module_ctrl_const_moist
                       vpd_pa, & !Vapour pressure deficit in Pa
                       waterDens = 999.8395 !Density of water in 0 cel deg
 
-END MODULE module_ctrl_const_moist
-
-! Backward compatibility alias
-MODULE moist
-   USE module_ctrl_const_moist
 END MODULE moist
 !**********************************************
 
-MODULE module_ctrl_const_gis
+MODULE gis_data
    IMPLICIT NONE
 
    REAL(KIND(1D0)) :: areaunir, & !Unirrigated area
@@ -1590,15 +1531,10 @@ MODULE module_ctrl_const_gis
               itgis, & !
               Veg_type = 1 !Defines how vegetation is calculated for LUMPS
 
-END MODULE module_ctrl_const_gis
-
-! Backward compatibility alias
-MODULE gis_data
-   USE module_ctrl_const_gis
 END MODULE gis_data
 
 !************************************************************
-MODULE module_ctrl_const_sues
+MODULE sues_data
    IMPLICIT NONE
 
    INTEGER :: tstep, & !Timestep [s] at which the model is run (set in RunControl)
@@ -1756,35 +1692,20 @@ MODULE module_ctrl_const_sues
 
    REAL(KIND(1D0)), DIMENSION(3) :: Ie_a, Ie_m !Coefficients for automatic and manual irrigation models
 
-END MODULE module_ctrl_const_sues
-
-! Backward compatibility alias
-MODULE sues_data
-   USE module_ctrl_const_sues
 END MODULE sues_data
 
 !**********************************************
 !===================================================================================
-MODULE module_ctrl_const_phenology
+MODULE VegPhenogy
    IMPLICIT NONE
    REAL(KIND(1D0)) :: VegPhenLumps, deltaLAI
-END MODULE module_ctrl_const_phenology
-
-! Backward compatibility alias
-MODULE VegPhenogy
-   USE module_ctrl_const_phenology
 END MODULE VegPhenogy
 
-MODULE module_ctrl_const_filename
-   CHARACTER(len=90) :: smithfile !file for NARP
-END MODULE module_ctrl_const_filename
-
-! Backward compatibility alias
 MODULE filename
-   USE module_ctrl_const_filename
+   CHARACTER(len=90) :: smithfile !file for NARP
 END MODULE filename
 
-MODULE module_ctrl_const_initialcond
+MODULE InitialCond
 
    REAL(KIND(1D0)) :: LAIinitialEveTr, &
                       LAIinitialDecTr, &
@@ -1822,18 +1743,13 @@ MODULE module_ctrl_const_initialcond
 
    INTEGER :: ID_Prev
 
-END MODULE module_ctrl_const_initialcond
-
-! Backward compatibility alias
-MODULE InitialCond
-   USE module_ctrl_const_initialcond
 END MODULE InitialCond
 
 !-------------------------------------------------
 !New modules for the column numbers
 
 !-------------------------------------------------------------------------
-MODULE module_ctrl_const_colnames_daily
+MODULE ColNamesModelDailyState
 
    IMPLICIT NONE
 
@@ -1871,15 +1787,10 @@ MODULE module_ctrl_const_colnames_daily
               cMDS_a2AnOHM = 32, & ! a2 of AnOHM, added by TS
               cMDS_a3AnOHM = 33 ! a3 of AnOHM, added by TS
 
-END MODULE module_ctrl_const_colnames_daily
-
-! Backward compatibility alias
-MODULE ColNamesModelDailyState
-   USE module_ctrl_const_colnames_daily
 END MODULE ColNamesModelDailyState
 
 !-------------------------------------------------------------------------
-MODULE module_ctrl_const_colnames_input
+MODULE ColNamesInputFiles
 
    IMPLICIT NONE
 
@@ -2303,44 +2214,30 @@ MODULE module_ctrl_const_colnames_input
               cB_resp_b = 8, &
               cB_min_r = 9
 
-END MODULE module_ctrl_const_colnames_input
-
-! Backward compatibility alias
-MODULE ColNamesInputFiles
-   USE module_ctrl_const_colnames_input
 END MODULE ColNamesInputFiles
 
 !----------------------------------------------------------------------------------------
 
 !----------------------------------------------------------------------------------
-MODULE module_ctrl_const_wherewhen
+MODULE WhereWhen
+   ! Stores grid and datetime info
 
    INTEGER :: GridID !Grid number (as specified in SUEWS_SiteSelect.txt)
    CHARACTER(LEN=10) :: GridID_text !Grid number as a text string
    CHARACTER(LEN=15) :: datetime ! YYYY DOY HH MM
 
-END MODULE module_ctrl_const_wherewhen
-
-! Backward compatibility alias
-MODULE WhereWhen
-   USE module_ctrl_const_wherewhen
 END MODULE WhereWhen
 
 !----------------------------------------------------------------------------------
-MODULE module_ctrl_const_mathconst
+MODULE MathConstants
 
    REAL(KIND(1D0)), PARAMETER :: pi = 3.14159265359
    REAL(KIND(1D0)), PARAMETER :: dtr = 0.0174532925, rtd = 57.2957795
 
-END MODULE module_ctrl_const_mathconst
-
-! Backward compatibility alias
-MODULE MathConstants
-   USE module_ctrl_const_mathconst
 END MODULE MathConstants
 
 !----------------------------------------------------------------------------------
-MODULE module_ctrl_const_physconst
+MODULE PhysConstants
 
    REAL(KIND(1D0)), PARAMETER :: C2K = 273.15 !Celsius to Kelvin
    REAL(KIND(1D0)), PARAMETER :: SBConst = 5.67051E-8 !Stefan Boltzmann constant [W m-2 K-4]
@@ -2348,9 +2245,4 @@ MODULE module_ctrl_const_physconst
    REAL(KIND(1D0)), PARAMETER :: KdntoPAR = 0.46 ! Conversion from Kdn to PAR, originally from Tsubo and Walker (2005), used in Bellucco et al. (2017)
    REAL(KIND(1D0)), PARAMETER :: eps_fp = 1.0E-12 !Epsilon for floating-point near-zero comparisons
 
-END MODULE module_ctrl_const_physconst
-
-! Backward compatibility alias
-MODULE PhysConstants
-   USE module_ctrl_const_physconst
 END MODULE PhysConstants

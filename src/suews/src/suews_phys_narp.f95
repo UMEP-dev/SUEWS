@@ -1,5 +1,4 @@
-! Main module following naming standard: matches filename
-MODULE module_phys_narp
+MODULE NARP_MODULE
    !==============================================================================
    !NET ALL WAVE RADIATION PARAMETERIZATION ROUTINES
    !B. OFFERLE
@@ -36,8 +35,8 @@ MODULE module_phys_narp
    ! sg feb 2012 - Allocatable array module added
 
    !==============================================================================================
-   ! USE module_ctrl_const_allocate
-   USE module_util_time, ONLY: day2month, dectime_to_timevec
+   ! USE allocateArray
+   USE time_module, ONLY: day2month, dectime_to_timevec
 
    IMPLICIT NONE
 
@@ -178,7 +177,7 @@ CONTAINS
       !Modified by LJ to calcuate snow free and SnowPack components (May 2013)
       !Modified to define variables in data_in module
       !-------------------------------------------------------------------------------
-      ! USE module_ctrl_const_allocate
+      ! USE allocateArray
       ! use gis_data
       ! use data_in ! Included 20140701, FL
       ! use moist   ! Included 20140701, FL
@@ -634,7 +633,7 @@ CONTAINS
       ! solarState)
       ! sunazimuth, sunzenith)
 
-      USE module_ctrl_type, ONLY: &
+      USE SUEWS_DEF_DTS, ONLY: &
          SUEWS_TIMER, SUEWS_SITE, SUEWS_CONFIG, SUEWS_FORCING, &
          solar_State, SUEWS_STATE
 
@@ -1618,10 +1617,4 @@ CONTAINS
       trans = TrTpg*Tw*Ta !bulk atmospheric transmissivity
    END FUNCTION transmissivity
    !===============================================================================
-END MODULE module_phys_narp
-
-! Backward compatibility alias (deprecated - will be removed in future version)
-! TODO: Remove in version 2026.1.0 (deprecated since 2025.10.0)
-MODULE NARP_MODULE
-   USE module_phys_narp
 END MODULE NARP_MODULE

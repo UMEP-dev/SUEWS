@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 import copy
 from .supy_driver import suews_driver as sd
-from .supy_driver import module_ctrl_type as sd_dts
+from .supy_driver import suews_def_dts as sd_dts
 from ._env import logger_supy
 
 

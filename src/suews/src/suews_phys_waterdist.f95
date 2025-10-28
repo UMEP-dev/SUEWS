@@ -1,6 +1,5 @@
-! Main module following naming standard: matches filename
-MODULE module_phys_waterdist
-   USE module_ctrl_const_allocate, ONLY: nsurf, &
+MODULE WaterDist_module
+   USE allocateArray, ONLY: nsurf, &
                             PavSurf, BldgSurf, &
                             ConifSurf, DecidSurf, GrassSurf, &
                             BSoilSurf, WaterSurf, ExcessSurf
@@ -973,7 +972,7 @@ CONTAINS
       modState) ! input/output:
       ! hydroState)
 
-      USE module_ctrl_type, ONLY: SUEWS_SITE, SUEWS_TIMER, SUEWS_CONFIG, SUEWS_FORCING, &
+      USE SUEWS_DEF_DTS, ONLY: SUEWS_SITE, SUEWS_TIMER, SUEWS_CONFIG, SUEWS_FORCING, &
                                LC_PAVED_PRM, LC_BLDG_PRM, LC_EVETR_PRM, LC_DECTR_PRM, &
                                LC_GRASS_PRM, LC_BSOIL_PRM, LC_WATER_PRM, &
                                HYDRO_STATE, SUEWS_STATE
@@ -1173,7 +1172,7 @@ CONTAINS
    !    timer, config, forcing, siteInfo, & ! input
    !    hydroState, hydroState_prev) !output
 
-   !    USE module_ctrl_type, ONLY: SUEWS_CONFIG, SUEWS_FORCING, SUEWS_TIMER, SUEWS_SITE, &
+   !    USE SUEWS_DEF_DTS, ONLY: SUEWS_CONFIG, SUEWS_FORCING, SUEWS_TIMER, SUEWS_SITE, &
    !                             LC_PAVED_PRM, LC_BLDG_PRM, &
    !                             LC_EVETR_PRM, LC_DECTR_PRM, LC_GRASS_PRM, &
    !                             LC_BSOIL_PRM, LC_WATER_PRM, HYDRO_STATE
@@ -1564,7 +1563,7 @@ CONTAINS
       ! use time
       ! use allocateArray
 
-      USE module_ctrl_type, ONLY: SUEWS_CONFIG, SUEWS_TIMER, SUEWS_FORCING, &
+      USE SUEWS_DEF_DTS, ONLY: SUEWS_CONFIG, SUEWS_TIMER, SUEWS_FORCING, &
                                LC_PAVED_PRM, LC_BLDG_PRM, &
                                LC_EVETR_PRM, LC_DECTR_PRM, LC_GRASS_PRM, &
                                LC_BSOIL_PRM, LC_WATER_PRM, SUEWS_SITE, HYDRO_STATE
@@ -2311,7 +2310,7 @@ CONTAINS
       ! To Do:
       !        - Add functionality for water on paved surfaces (street cleaning, fountains)
 
-      USE module_ctrl_type, ONLY: SUEWS_SITE, SUEWS_TIMER, SUEWS_CONFIG, SUEWS_FORCING, &
+      USE SUEWS_DEF_DTS, ONLY: SUEWS_SITE, SUEWS_TIMER, SUEWS_CONFIG, SUEWS_FORCING, &
                                LC_PAVED_PRM, LC_BLDG_PRM, LC_EVETR_PRM, LC_DECTR_PRM, &
                                LC_GRASS_PRM, LC_BSOIL_PRM, LC_WATER_PRM, &
                                IRRIGATION_PRM, anthroEmis_STATE, &
@@ -2577,10 +2576,4 @@ CONTAINS
 
    END FUNCTION get_Prof_SpecTime_sum
 
-END MODULE module_phys_waterdist
-
-! Backward compatibility alias (deprecated - will be removed in future version)
-! TODO: Remove in version 2026.1.0 (deprecated since 2025.10.0)
-MODULE WaterDist_module
-   USE module_phys_waterdist
 END MODULE WaterDist_module

@@ -1,12 +1,11 @@
-! Main module following naming standard: matches filename
-MODULE module_phys_solweig
-   ! USE module_ctrl_const_datain
-   ! USE module_ctrl_const_gis
-   USE module_util_time, ONLY: DAYLEN
-   USE module_ctrl_const_allocate, ONLY: ncolumnsdataOutSOLWEIG, deg2rad, rad2deg
-   ! USE module_ctrl_const_initialcond
-   ! USE module_ctrl_const_sues
-   USE module_ctrl_const_default, ONLY: notUsed, notUsedI
+MODULE solweig_module
+   ! USE data_in
+   ! USE gis_data
+   USE time_module, ONLY: DAYLEN
+   USE allocateArray, ONLY: ncolumnsdataOutSOLWEIG, deg2rad, rad2deg
+   ! USE InitialCond
+   ! USE sues_data
+   USE defaultNotUsed, ONLY: notUsed, notUsedI
 
    IMPLICIT NONE
 
@@ -2132,9 +2131,4 @@ CONTAINS
 
    ! END SUBROUTINE wallinsun_veg
 
-END MODULE module_phys_solweig
-
-! Backward compatibility alias
-MODULE solweig_module
-   USE module_phys_solweig
 END MODULE solweig_module

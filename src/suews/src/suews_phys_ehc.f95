@@ -1,5 +1,4 @@
-! EHC heatflux calculations module
-MODULE module_phys_ehc_heatflux
+MODULE heatflux
    IMPLICIT NONE
 CONTAINS
    SUBROUTINE thomas_triMat(lw, diag, up, rhs, n, x)
@@ -357,15 +356,9 @@ CONTAINS
       ! END IF
    END SUBROUTINE heatcond1d_CN_dense
 
-END MODULE module_phys_ehc_heatflux
-
-! Backward compatibility alias
-MODULE heatflux
-   USE module_phys_ehc_heatflux
 END MODULE heatflux
 
-! Main module following naming standard: matches filename
-MODULE module_phys_ehc
+MODULE EHC_module
    !===============================================================================
    ! revision history:
    ! TS 09 Oct 2017: re-organised ESTM subroutines into a module
@@ -389,10 +382,10 @@ CONTAINS
       temp_out_wall, QS_wall, & !output
       temp_out_surf, QS_surf, & !output
       QS) !output
-      USE module_ctrl_const_allocate, ONLY: &
+      USE allocateArray, ONLY: &
          nsurf, ndepth, &
          PavSurf, BldgSurf, ConifSurf, DecidSurf, GrassSurf, BSoilSurf, WaterSurf
-      USE module_phys_ehc_heatflux, ONLY: heatcond1d_vstep, heatcond1d_CN, heatcond1d_CN_dense
+      USE heatflux, ONLY: heatcond1d_vstep, heatcond1d_CN, heatcond1d_CN_dense
 
       IMPLICIT NONE
       INTEGER, INTENT(in) :: tstep
@@ -745,9 +738,4 @@ CONTAINS
 
    END SUBROUTINE EHC
 
-END MODULE module_phys_ehc
-
-! Backward compatibility alias
-MODULE EHC_module
-   USE module_phys_ehc
 END MODULE EHC_module

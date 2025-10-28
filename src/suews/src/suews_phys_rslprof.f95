@@ -1,10 +1,9 @@
-! Main module following naming standard: matches filename
-MODULE module_phys_rslprof
-   USE module_phys_atmmoiststab, ONLY: neut_limit, cal_Stab, stab_psi_mom, stab_psi_heat, stab_phi_heat, stab_phi_mom
+MODULE rsl_module
+   USE AtmMoistStab_module, ONLY: neut_limit, cal_Stab, stab_psi_mom, stab_psi_heat, stab_phi_heat, stab_phi_mom
    USE meteo, ONLY: RH2qa, qa2RH
-   USE module_ctrl_const_allocate, ONLY: &
+   USE allocateArray, ONLY: &
       nsurf, BldgSurf, ConifSurf, DecidSurf, ncolumnsDataOutRSL
-   USE module_ctrl_const_physconst, ONLY: eps_fp
+   USE PhysConstants, ONLY: eps_fp
    IMPLICIT NONE
 
    INTEGER, PARAMETER :: nz = 30 ! number of levels 10 levels in canopy plus 20 (3 x Zh) above the canopy
@@ -919,7 +918,7 @@ CONTAINS
       ! TODO how to improve the speed of this code
       !
       !-----------------------------------------------------
-      USE module_ctrl_type, ONLY: SUEWS_CONFIG, SUEWS_TIMER, SUEWS_FORCING, LC_PAVED_PRM, LC_BLDG_PRM, &
+      USE SUEWS_DEF_DTS, ONLY: SUEWS_CONFIG, SUEWS_TIMER, SUEWS_FORCING, LC_PAVED_PRM, LC_BLDG_PRM, &
                                LC_EVETR_PRM, LC_DECTR_PRM, LC_GRASS_PRM, &
                                LC_BSOIL_PRM, LC_WATER_PRM, &
                                SUEWS_SITE, atm_state, ROUGHNESS_STATE, &
@@ -2189,10 +2188,5 @@ CONTAINS
 
    END FUNCTION cal_beta_lc
 
-END MODULE module_phys_rslprof
-
-! Backward compatibility alias
-MODULE rsl_module
-   USE module_phys_rslprof
 END MODULE rsl_module
 

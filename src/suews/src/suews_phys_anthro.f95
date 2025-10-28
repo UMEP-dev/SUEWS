@@ -1,6 +1,5 @@
-! Main module following naming standard: matches filename
-MODULE module_phys_anthro
-   USE module_ctrl_input_profile, ONLY: get_Prof_SpecTime_inst, get_Prof_SpecTime_mean
+MODULE AnEmsn_module
+   USE get_prof_module, ONLY: get_Prof_SpecTime_inst, get_Prof_SpecTime_mean
 
    IMPLICIT NONE
 
@@ -345,10 +344,5 @@ CONTAINS
       RETURN
    END SUBROUTINE AnthropogenicEmissions
 
-END MODULE module_phys_anthro
-
-! Backward compatibility alias
-MODULE AnEmsn_module
-   USE module_phys_anthro
 END MODULE AnEmsn_module
 !========================================================================================

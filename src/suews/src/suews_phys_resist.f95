@@ -1,5 +1,4 @@
-! Main module following naming standard: matches filename
-MODULE module_phys_resist
+MODULE resist_module
    IMPLICIT NONE
 
 CONTAINS
@@ -37,8 +36,8 @@ CONTAINS
       !         VegFraction = Fraction of vegetation
       !               (changed from veg_fr which also includes water surface by HCW 05 Nov 2015)
 
-      USE module_phys_atmmoiststab, ONLY: stab_psi_heat, stab_psi_mom
-      USE module_ctrl_const_sues, ONLY: psih
+      USE AtmMoistStab_module, ONLY: stab_psi_heat, stab_psi_mom
+      USE sues_data, ONLY: psih
 
       IMPLICIT NONE
 
@@ -128,13 +127,13 @@ CONTAINS
       ! LJ  24 Apr 2013: Added impact of snow fraction in LAI and in soil moisture deficit
       ! -------------------------------------------------------------------
 
-      ! USE module_ctrl_const_allocate
-      ! USE module_ctrl_const_datain
-      ! USE module_ctrl_const_default
-      ! USE module_ctrl_const_gis
-      ! USE module_ctrl_const_moist
-      ! USE module_ctrl_const_resist
-      ! USE module_ctrl_const_sues
+      ! USE allocateArray
+      ! USE data_in
+      ! USE defaultNotUsed
+      ! USE gis_data
+      ! USE moist
+      ! USE resist
+      ! USE sues_data
 
       IMPLICIT NONE
       ! INTEGER,PARAMETER::BldgSurf=2
@@ -456,7 +455,7 @@ CONTAINS
       ! sg feb 2012 - made separate subroutine
       !--------------------------------------------------------------------------------
 
-      USE module_ctrl_type, ONLY: SUEWS_SITE, SUEWS_TIMER, SUEWS_CONFIG, SUEWS_FORCING, &
+      USE SUEWS_DEF_DTS, ONLY: SUEWS_SITE, SUEWS_TIMER, SUEWS_CONFIG, SUEWS_FORCING, &
                                LC_PAVED_PRM, LC_BLDG_PRM, LC_EVETR_PRM, LC_DECTR_PRM, &
                                LC_GRASS_PRM, LC_BSOIL_PRM, LC_WATER_PRM, &
                                IRRIGATION_PRM, anthroEmis_STATE, &
@@ -737,10 +736,4 @@ CONTAINS
 
    END FUNCTION sigmoid
 
-END MODULE module_phys_resist
-
-! Backward compatibility alias (deprecated - will be removed in future version)
-! TODO: Remove in version 2026.1.0 (deprecated since 2025.10.0)
-MODULE resist_module
-   USE module_phys_resist
 END MODULE resist_module

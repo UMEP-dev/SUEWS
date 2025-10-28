@@ -1,6 +1,5 @@
 import zipfile
-from ..supy_driver import module_phys_atmmoiststab as atmmoiststab_module
-from ..supy_driver import module_phys_rslprof as rsl_module
+from ..supy_driver import atmmoiststab_module, rsl_module
 import pandas as pd
 
 

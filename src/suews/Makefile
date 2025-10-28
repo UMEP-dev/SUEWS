@@ -176,8 +176,8 @@ PHYS =	suews_phys_narp.o \
 	suews_phys_evap.o \
 	suews_phys_snow.o \
 	suews_phys_dailystate.o \
-	suews_phys_ehc.o \
 	suews_phys_estm.o \
+	suews_phys_ehc.o \
 	suews_ctrl_ver.o \
 	suews_ctrl_output.o \
 	suews_phys_ohm.o \
@@ -310,15 +310,10 @@ libdriver: $(addprefix $(DIR_SRC_SUEWS), $(C_MODULE) $(UTILS) $(PHYS) $(DRIVER))
 # special rule for generating version info file
 src/suews_ctrl_ver.f95: force
 	@echo "generating version info file..."
-	@echo "MODULE module_ctrl_version" > $@
+	@echo "MODULE version" > $@
 	@echo "IMPLICIT NONE" >> $@
 	@echo "CHARACTER(len=90) :: git_commit = '$(GIT_COMMIT)' " >> $@
 	@echo "CHARACTER(len=90) :: compiler_ver = '$(FC_VER)' " >> $@
-	@echo "END MODULE module_ctrl_version" >> $@
-	@echo "" >> $@
-	@echo "! Backward compatibility alias" >> $@
-	@echo "MODULE version" >> $@
-	@echo "   USE module_ctrl_version" >> $@
 	@echo "END MODULE version" >> $@
 
 

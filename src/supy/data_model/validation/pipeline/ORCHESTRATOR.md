@@ -171,14 +171,10 @@ except Exception as e:
 ### Phase A Integration
 
 ```python
-def run_phase_a(user_file, standard_file, output_file, report_file, mode, forcing="on"):
-    """Execute Phase A: Configuration structure checks and validation.
-
-    Args:
-        forcing: Enable/disable forcing data validation ("on" or "off")
-    """
+def run_phase_a(user_file, standard_file, output_file, report_file, mode):
+    """Execute Phase A: Configuration structure checks and validation."""
     from phase_a import annotate_missing_parameters
-    return annotate_missing_parameters(..., forcing=forcing)
+    return annotate_missing_parameters(...)
 ```
 
 ### Phase B Integration
@@ -218,7 +214,6 @@ python orchestrator.py config.yml --mode dev
 
 - `--phase`: Select workflow (A, B, C, AB, AC, BC, ABC)
 - `--mode`: Select mode (public, dev)
-- `--forcing`: Enable/disable forcing data validation (on, off) - default: on
 - `--standard`: Override standard config file path
 
 ### Experimental Features Validation

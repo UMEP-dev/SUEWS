@@ -1,5 +1,4 @@
-! Main module following naming standard: matches filename
-MODULE module_phys_spartacus
+MODULE SPARTACUS_MODULE
    !==============================================================================
    !NET ALL WAVE RADIATION PARAMETERIZATION ROUTINES
    !B. OFFERLE
@@ -36,16 +35,16 @@ MODULE module_phys_spartacus
    ! sg feb 2012 - Allocatable array module added
 
    !==============================================================================================
-   USE module_ctrl_const_allocate, ONLY: NSURF, NVegSurf, nspec, nsw, nlw, ncol, &
+   USE allocateArray, ONLY: NSURF, NVegSurf, nspec, nsw, nlw, ncol, &
                             ConifSurf, DecidSurf, BldgSurf, PavSurf, GrassSurf, BSoilSurf, WaterSurf
-   USE module_ctrl_const_physconst, ONLY: SBConst, eps_fp
+   USE PhysConstants, ONLY: SBConst, eps_fp
 
    IMPLICIT NONE
 
 CONTAINS
    SUBROUTINE SPARTACUS_Initialise
-      USE module_ctrl_const_datain, ONLY: fileinputpath
-      USE module_ctrl_const_allocate
+      USE data_in, ONLY: fileinputpath
+      USE allocateArray
       IMPLICIT NONE
       ! INTEGER :: n_vegetation_region_urban, &
       !            n_stream_sw_urban, n_stream_lw_urban
@@ -96,8 +95,8 @@ CONTAINS
       USE radsurf_boundary_conds_out, ONLY: boundary_conds_out_type
       USE radsurf_canopy_flux, ONLY: canopy_flux_type
       USE radsurf_simple_spectrum, ONLY: calc_simple_spectrum_lw
-      ! USE module_ctrl_const_datain, ONLY: fileinputpath
-      USE module_ctrl_const_allocate, ONLY: ncolumnsDataOutSPARTACUS
+      ! USE data_in, ONLY: fileinputpath
+      USE allocateArray, ONLY: ncolumnsDataOutSPARTACUS
 
       IMPLICIT NONE
 
@@ -714,10 +713,4 @@ CONTAINS
 
    END SUBROUTINE SPARTACUS
 
-END MODULE module_phys_spartacus
-
-! Backward compatibility alias (deprecated - will be removed in future version)
-! TODO: Remove in version 2026.1.0 (deprecated since 2025.10.0)
-MODULE SPARTACUS_MODULE
-   USE module_phys_spartacus
 END MODULE SPARTACUS_MODULE

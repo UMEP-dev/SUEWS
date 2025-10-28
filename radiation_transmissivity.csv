@@ -1,0 +1,3 @@
+Parameter Name,Path,Context/Description
+WallTransmissivity,sites.0.properties.building_archetype.WallTransmissivity,STEBBS building model
+WindowTransmissivity,sites.0.properties.building_archetype.WindowTransmissivity,STEBBS building model

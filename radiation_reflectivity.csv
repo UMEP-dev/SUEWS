@@ -1,0 +1,3 @@
+Parameter Name,Path,Context/Description
+WallReflectivity,sites.0.properties.building_archetype.WallReflectivity,STEBBS building model
+WindowReflectivity,sites.0.properties.building_archetype.WindowReflectivity,STEBBS building model

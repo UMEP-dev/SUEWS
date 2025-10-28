@@ -1932,7 +1932,7 @@ CONTAINS
                      datetimeLine, nlayer, & ! input
                      dataOutLineSTEBBS) ! output
                   IF (StorageHeatMethod == 7) THEN
-                     qs = qs + QS_stebbs * sfr_surf(2) ! note 65 may be changed by stebbs output.can be replaced by association
+                     qs = qs + QS_stebbs * sfr_surf(2)
                   END IF 
                END IF
             

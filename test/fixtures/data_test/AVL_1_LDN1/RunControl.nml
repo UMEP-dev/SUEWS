@@ -32,4 +32,5 @@ SuppressWarnings=1      !NEW
 DiagMethod=2 ! (0=MOST, 1=RSL, 2=Auto, RSL+MOST)
 KdownZen=0
 diagnose=0
+remethod=1
 /

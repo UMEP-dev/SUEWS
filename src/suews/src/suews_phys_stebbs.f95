@@ -459,6 +459,25 @@ CONTAINS
       END IF
    END FUNCTION calculate_x1
 
+   FUNCTION indoor_airdensity(Ta_outdoor, Ta_indoor, P_hpa, RH_outdoor) RESULT(air_dens)
+      !assume indoor and outdoor vapour pressure are identical
+      USE modulestebbsprecision
+      IMPLICIT NONE
+      REAL(KIND(1D0)), INTENT(in) :: Ta_outdoor, Ta_indoor, P_hpa, RH_outdoor
+      REAL(KIND(1D0)) :: Rd = 287.058   ! gas constant for dry air
+      REAL(KIND(1D0)) :: Rv = 461.495   ! water vapour
+      REAL(KIND(1D0)) :: es, e, Pd
+      REAL(KIND(1D0)) :: air_dens !indoor air densiy
+      !Saturation vapour pressure over water in Pa
+      es = 610.94 * exp( (17.625*Ta_outdoor) / (Ta_outdoor + 243.04) )
+      !Vapour pressure of water in Pa
+      e = RH_outdoor/100*es
+      !Partial pressure of dry air
+      Pd = P_hpa * 100 - e
+      !Air density in kg/m3
+      air_dens = Pd /  (Rd * (Ta_indoor + 273.15)) + e / (Rv * (Ta_indoor + 273.15))
+   END FUNCTION indoor_airdensity
+
    Function find_layer(h, layer_h, nlayer) RESULT(i_layer)
       IMPLICIT NONE
    !calculate the location (vertical layer)of wall and roof in spartacus
@@ -484,7 +503,7 @@ END MODULE modulestebbsfunc
 MODULE modulesuewsstebbscouple
    USE modulestebbsprecision
    IMPLICIT NONE
-   REAL(KIND(1D0)) :: Tair_out, Tair_out_bh, Tair_out_hbh, ws_out_bh, ws_out_hbh, Tsurf, Tground_deep, &
+   REAL(KIND(1D0)) :: Tair_out, Tair_out_bh, Tair_out_hbh, ws_out_bh, ws_out_hbh, Tsurf, Tground_deep, pres, RH, &
                       density_air_out, cp_air_out, &
                       Qsw_dn_extroof, Qsw_dn_extwall, &
                       Qlw_dn_extwall, Qlw_dn_extroof
@@ -518,6 +537,7 @@ MODULE modulesuewsstebbscouple
       REAL(KIND(1D0)) :: ws_exch_hbh
       REAL(KIND(1D0)) :: Lroof_exch
       REAL(KIND(1D0)) :: Lwall_exch
+      REAL(KIND(1D0)) :: pres_exch, RH_exch
    END TYPE
    TYPE(suewsprop) :: sout
 END MODULE modulesuewsstebbscouple
@@ -710,6 +730,8 @@ CONTAINS
             Least => stebbsState%Least, &
             Lwest => stebbsState%Lwest, &
             Tground_deep_sout => stebbsState%OutdoorAirAnnualTemperature, &
+            pres => forcing%pres, &
+            RH => forcing%RH, &
             ss_height => spartacus_Prm%height, &
             z0m => roughnessState%z0m, &
             zdm => roughnessState%zdm &
@@ -774,6 +796,8 @@ CONTAINS
             sout%ws = ws
             sout%ws_exch = ws
             sout%Tground_deep = Tground_deep_sout
+            sout%RH_exch = RH
+            sout%pres_exch = pres            
             IF (dt_start < timestep) THEN !initialisation before getting RSL output
                ws_bh = forcing%U * (LOG((buildings(1)%height_building + z0m) / z0m) / LOG((height_forcing + z0m) / z0m)) !archetype height
                ws_hbh = forcing%U * (LOG((buildings(1)%height_building/2 + z0m) / z0m) / LOG((height_forcing + z0m) / z0m)) !half archetype height
@@ -894,7 +918,7 @@ Qsw_absorbed_window_tstepFA, Qsw_absorbed_wall_tstepFA, Qsw_absorbed_roof_tstepF
 
    USE modulestebbsprecision
    USE modulestebbs, ONLY: resolution
-   USE modulestebbsfunc, ONLY: ext_conv_coeff, int_conv_coeff
+   USE modulestebbsfunc, ONLY: ext_conv_coeff, int_conv_coeff, indoor_airdensity
    USE modulesuewsstebbscouple, ONLY: &
       sout, &
       Tair_out, Tair_out_bh, Tair_out_hbh, ws_out_bh, ws_out_hbh, Tground_deep, Tsurf, density_air_out, &
@@ -988,6 +1012,7 @@ Qsw_absorbed_window_tstepFA, Qsw_absorbed_wall_tstepFA, Qsw_absorbed_roof_tstepF
    REAL(KIND(1D0)), DIMENSION(5), INTENT(in) :: datetimeLine
    CHARACTER(len=256) :: debug_array_dir
 
+   
    ! CASE = self%CASE
    Area = self%Afootprint
    DO tstep = 1, sout%ntstep, 1
@@ -997,7 +1022,8 @@ Qsw_absorbed_window_tstepFA, Qsw_absorbed_wall_tstepFA, Qsw_absorbed_roof_tstepF
       Tground_deep = 273.15 + sout%Tground_deep
       Tsurf = sout%Tsurf + 273.15
       ws_out_bh = sout%ws_exch_bh
-      ws_out_hbh = sout%ws_exch_hbh    
+      ws_out_hbh = sout%ws_exch_hbh
+      density_air_out = indoor_airdensity(sout%Tair_exch_hbh, self%Tair_ind - 273.15, sout%pres_exch, sout%RH_exch)   
       density_air_out = 1.225
       cp_air_out = 1005.0
       Qsw_dn_extroof = sout%Kroof

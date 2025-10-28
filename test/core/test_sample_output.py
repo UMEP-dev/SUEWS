@@ -663,6 +663,16 @@ class TestSTEBBSOutput(TestCase):
         print(f"\nValidating STEBBS variables: {', '.join(stebbs_variables.keys())}")
         print("=" * 70)
 
+        # Extract only 2017-08-27 data from simulation output to match reference
+        # Reference contains data for 2017-08-27 00:00 to 23:55 (288 timesteps)
+        # Simulation output contains 2 days (576 timesteps), so we take the second day (indices 288:576)
+        # df_output has MultiIndex columns, so we slice the second day of data
+        df_output_day2 = df_output.iloc[288:576]
+
+        print(f"\nFiltered output to match reference period (2017-08-27):")
+        print(f"  Simulation output (2nd day) length: {len(df_output_day2)}")
+        print(f"  Reference data length: {len(df_reference)}")
+
         # Compare each variable
         all_passed = True
         full_report = []
@@ -670,7 +680,7 @@ class TestSTEBBSOutput(TestCase):
 
         for var, tolerance in stebbs_variables.items():
             # Get data from output
-            if var not in df_output.STEBBS.columns:
+            if var not in df_output_day2.STEBBS.columns:
                 report = f"\n[ERROR] Variable {var} not found in STEBBS output!"
                 full_report.append(report)
                 print(report)
@@ -686,10 +696,10 @@ class TestSTEBBSOutput(TestCase):
                 failed_variables.append(var)
                 continue
 
-            actual = df_output.STEBBS[var].values
+            actual = df_output_day2.STEBBS[var].values
             expected = df_reference[var].values
 
-            # Handle length mismatch
+            # Handle length mismatch (should not occur after filtering)
             if len(actual) != len(expected):
                 print(
                     f"\n[WARNING] Length mismatch for {var}: {len(actual)} vs {len(expected)}"
@@ -697,6 +707,13 @@ class TestSTEBBSOutput(TestCase):
                 min_len = min(len(actual), len(expected))
                 actual = actual[:min_len]
                 expected = expected[:min_len]
+
+            # Skip variables where reference is all NaN (e.g., cooling loads in winter)
+            if np.all(np.isnan(expected)):
+                report = f"\n[SKIP] {var}: Reference data is all NaN (not tested)"
+                full_report.append(report)
+                print(report)
+                continue
 
             # Compare
             passed, report = compare_arrays_with_tolerance(

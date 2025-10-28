@@ -25,7 +25,7 @@ class SurfaceInitialState(BaseModel):
         ge=0,
     )  # Default set to 0.0 means dry surface.
     soilstore: FlexibleRefValue(float) = Field(
-        description="Initial soil store (inverted to become Soil Moisture Deficit in the model)", 
+        description="Initial soil store (inverted to become Soil Moisture Deficit in the model)",
         json_schema_extra={"unit": "mm", "display_name": "Soilstore"},
         default=150.0,
         ge=10,

@@ -64,7 +64,7 @@ CONTAINS
       ! anthroEmisState, & !inout
       ! hydroState) !inout
 
-      ! USE Snow_module, ONLY: SnowUpdate
+      ! USE module_phys_snow, ONLY: SnowUpdate
       USE module_util_datetime, ONLY: datetime, timedelta
       USE module_ctrl_type, ONLY: SUEWS_SITE, SUEWS_TIMER, SUEWS_FORCING, anthroEMIS_PRM, &
                                PHENOLOGY_STATE, anthroEmis_STATE, SUEWS_CONFIG, &

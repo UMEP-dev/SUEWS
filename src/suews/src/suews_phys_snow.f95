@@ -503,7 +503,7 @@ CONTAINS
       !  HCW 26 Jan 2015 - Added weekday/weekend option for snow clearing profiles
       !  LJ in 24 May 2013
       !========================================================================
-      USE WaterDist_module, ONLY: updateFlood
+      USE module_phys_waterdist, ONLY: updateFlood
 
       IMPLICIT NONE
       ! INTEGER, PARAMETER::nsurf = 7! number of surface types

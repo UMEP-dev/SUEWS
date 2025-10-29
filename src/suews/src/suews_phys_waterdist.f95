@@ -1331,7 +1331,7 @@ CONTAINS
       ! use SUES_data
       ! use gis_data
       ! use time
-      ! use allocateArray
+      ! USE module_ctrl_const_allocate
 
       IMPLICIT NONE
 
@@ -1562,7 +1562,7 @@ CONTAINS
       ! use SUES_data
       ! use gis_data
       ! use time
-      ! use allocateArray
+      ! USE module_ctrl_const_allocate
 
       USE module_ctrl_type, ONLY: SUEWS_CONFIG, SUEWS_TIMER, SUEWS_FORCING, &
                                LC_PAVED_PRM, LC_BLDG_PRM, &

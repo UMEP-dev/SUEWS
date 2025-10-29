@@ -181,7 +181,7 @@ CONTAINS
       ! USE module_ctrl_const_allocate
       ! use gis_data
       ! use data_in ! Included 20140701, FL
-      ! use moist   ! Included 20140701, FL
+      ! USE module_ctrl_const_moist   ! Included 20140701, FL
       ! use time    ! Included 20140701, FL
       REAL(KIND(1D0)), DIMENSION(nsurf), INTENT(in) :: sfr_surf
       REAL(KIND(1D0)), DIMENSION(nsurf), INTENT(in) :: tsfc_surf

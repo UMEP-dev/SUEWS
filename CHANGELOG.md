@@ -34,6 +34,12 @@
 
 ## 2025
 
+### 29 Oct 2025
+- [feature] Phase B validator now automatically populates `OutdoorAirAnnualTemperature` from CRU dataset
+  - Uses CRU TS4.06 1991-2020 climate normals to set annual mean air temperature for STEBBS building model
+  - Consistent with existing monthly temperature handling for other STEBBS parameters
+  - Adjustment recorded in validation report with CRU data provenance
+
 ### 24 Oct 2025
 - [feature] Added physical range validation for 50+ STEBBS building model parameters in `ArchetypeProperties`
   - Dimensionless parameters (emissivity, transmissivity, absorptivity, reflectivity, ratios) constrained to [0.0, 1.0]

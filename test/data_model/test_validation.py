@@ -1168,6 +1168,162 @@ def test_phase_b_model_option_dependencies_comprehensive():
     assert isinstance(results, list)  # Should return a list, not crash
 
 
+def test_phase_b_outdoor_air_annual_temperature_from_cru():
+    """Test that OutdoorAirAnnualTemperature is populated from CRU annual mean data."""
+    from supy.data_model.validation.pipeline.phase_b import (
+        adjust_surface_temperatures,
+        get_mean_annual_air_temperature,
+    )
+
+    # Test coordinates (London)
+    test_lat = 51.5
+    test_lon = -0.1
+    start_date = "2020-01-15"
+
+    # Verify CRU data is available for test coordinates
+    annual_temp = get_mean_annual_air_temperature(test_lat, test_lon)
+    if annual_temp is None:
+        # Skip test if CRU data not available
+        import pytest
+
+        pytest.skip("CRU data not available")
+
+    # Create test YAML data with STEBBS configuration
+    yaml_data = {
+        "sites": [
+            {
+                "properties": {
+                    "lat": {"value": test_lat},
+                    "lng": {"value": test_lon},
+                    "stebbs": {
+                        "OutdoorAirAnnualTemperature": {
+                            "value": 999.0
+                        },  # Wrong value to be updated
+                        "OutdoorAirStartTemperature": {
+                            "value": 999.0
+                        },  # Will be updated with monthly temp
+                    },
+                },
+                "initial_states": {},
+            }
+        ]
+    }
+
+    # Run adjustment
+    updated_data, adjustments = adjust_surface_temperatures(yaml_data, start_date)
+
+    # Check that OutdoorAirAnnualTemperature was updated
+    updated_annual_temp = updated_data["sites"][0]["properties"]["stebbs"][
+        "OutdoorAirAnnualTemperature"
+    ]["value"]
+    assert updated_annual_temp == annual_temp, (
+        f"Expected {annual_temp}, got {updated_annual_temp}"
+    )
+
+    # Check that adjustment was recorded
+    annual_temp_adjustments = [
+        adj
+        for adj in adjustments
+        if adj.parameter == "stebbs.OutdoorAirAnnualTemperature"
+    ]
+    assert len(annual_temp_adjustments) == 1
+    adj = annual_temp_adjustments[0]
+    assert adj.old_value == "999.0"
+    assert f"{annual_temp}" in adj.new_value
+    assert "CRU annual mean" in adj.reason
+    assert "1991-2020" in adj.reason
+
+
+def test_phase_b_outdoor_air_annual_temperature_no_update_if_same():
+    """Test that OutdoorAirAnnualTemperature is not updated if already correct."""
+    from supy.data_model.validation.pipeline.phase_b import (
+        adjust_surface_temperatures,
+        get_mean_annual_air_temperature,
+    )
+
+    # Test coordinates
+    test_lat = 51.5
+    test_lon = -0.1
+    start_date = "2020-01-15"
+
+    # Get correct annual temp
+    annual_temp = get_mean_annual_air_temperature(test_lat, test_lon)
+    if annual_temp is None:
+        # Skip test if CRU data not available
+        import pytest
+
+        pytest.skip("CRU data not available")
+
+    # Create test YAML with already-correct value
+    yaml_data = {
+        "sites": [
+            {
+                "properties": {
+                    "lat": {"value": test_lat},
+                    "lng": {"value": test_lon},
+                    "stebbs": {
+                        "OutdoorAirAnnualTemperature": {
+                            "value": annual_temp
+                        },  # Already correct
+                    },
+                },
+                "initial_states": {},
+            }
+        ]
+    }
+
+    # Run adjustment
+    updated_data, adjustments = adjust_surface_temperatures(yaml_data, start_date)
+
+    # Check that NO adjustment was made (value already correct)
+    annual_temp_adjustments = [
+        adj
+        for adj in adjustments
+        if adj.parameter == "stebbs.OutdoorAirAnnualTemperature"
+    ]
+    assert len(annual_temp_adjustments) == 0, "Should not adjust if value already correct"
+
+
+def test_phase_b_outdoor_air_annual_temperature_missing_stebbs():
+    """Test graceful handling when OutdoorAirAnnualTemperature is not in stebbs."""
+    from supy.data_model.validation.pipeline.phase_b import adjust_surface_temperatures
+
+    # Test coordinates
+    test_lat = 51.5
+    test_lon = -0.1
+    start_date = "2020-01-15"
+
+    # Create test YAML without OutdoorAirAnnualTemperature
+    yaml_data = {
+        "sites": [
+            {
+                "properties": {
+                    "lat": {"value": test_lat},
+                    "lng": {"value": test_lon},
+                    "stebbs": {
+                        "OutdoorAirStartTemperature": {
+                            "value": 10.0
+                        },  # Other param present
+                        # OutdoorAirAnnualTemperature NOT present
+                    },
+                },
+                "initial_states": {},
+            }
+        ]
+    }
+
+    # Run adjustment - should not crash
+    updated_data, adjustments = adjust_surface_temperatures(yaml_data, start_date)
+
+    # Check that no OutdoorAirAnnualTemperature adjustment was attempted
+    annual_temp_adjustments = [
+        adj
+        for adj in adjustments
+        if adj.parameter == "stebbs.OutdoorAirAnnualTemperature"
+    ]
+    assert len(annual_temp_adjustments) == 0
+
+
 # =====================================================================
 # Phase A: nlayer dimension validation tests
 # =====================================================================

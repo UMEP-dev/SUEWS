@@ -20,7 +20,7 @@ CURRENT_SCHEMA_VERSION = "0.2"
 # Schema version history and descriptions
 SCHEMA_VERSIONS: dict[str, str] = {
     "0.1": "Initial YAML schema with full Pydantic data model (2025.8)",
-    "0.2": "Schema update with enhanced validation (2025.10)"
+    "0.2": "Schema update with enhanced validation (2025.10)",
     # Future examples:
     # "1.0": "First stable release with complete validation"
     # "1.1": "Added optional field X for feature Y (2025.10)"

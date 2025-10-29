@@ -34,6 +34,17 @@
 
 ## 2025
 
+### 29 Oct 2025
+- [feature] Phase B validator now automatically populates `OutdoorAirAnnualTemperature` from CRU dataset
+  - Uses CRU TS4.06 1991-2020 climate normals to set annual mean air temperature for STEBBS building model
+  - Consistent with existing monthly temperature handling for other STEBBS parameters
+  - Adjustment recorded in validation report with CRU data provenance
+- [maintenance] Added validation constraints for human activity parameters (issue #392)
+  - Irrigation: `faut` within [0, 1]; `ie_start`, `ie_end` between 0-24 hours
+  - CO2: `frfossilfuel_heat`, `frfossilfuel_nonheat` within [0, 1]
+  - Anthropogenic heat: `popdensnighttime` must be > 0
+  - Fixed widespread data bug in test fixtures: `ie_end` incorrectly set to 366 (day-of-year) instead of valid hour (0-24)
+
 ### 24 Oct 2025
 - [feature] Added physical range validation for 50+ STEBBS building model parameters in `ArchetypeProperties`
   - Dimensionless parameters (emissivity, transmissivity, absorptivity, reflectivity, ratios) constrained to [0.0, 1.0]

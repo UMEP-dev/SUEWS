@@ -34,6 +34,15 @@
 
 ## 2025
 
+### 29 Oct 2025
+- [feature] Added validation constraints for human activity parameters
+  - `faut`: Fraction of irrigated area using automatic systems [0.0, 1.0]
+  - `frfossilfuel_heat`, `frfossilfuel_nonheat`: Fossil fuel fractions [0.0, 1.0]
+  - `popdensnighttime`: Population density must be => 0.0 (persons/ha)
+- [bugfix] Fixed irrigation parameter: `ie_start` and `ie_end` now correctly identified as Day of Year (DOY) instead of hours
+  - Corrected Python data model to match Fortran source code and documentation (DOY units, not hours)
+  - Fixed pre-existing documentation bug where these parameters were incorrectly labelled as "hour" units
+
 ### 24 Oct 2025
 - [feature] Added physical range validation for 50+ STEBBS building model parameters in `ArchetypeProperties`
   - Dimensionless parameters (emissivity, transmissivity, absorptivity, reflectivity, ratios) constrained to [0.0, 1.0]

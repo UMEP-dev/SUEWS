@@ -37,17 +37,13 @@ class IrrigationParams(
     )
     ie_start: Optional[FlexibleRefValue(float)] = Field(
         default=None,
-        description="Start time of irrigation",
-        json_schema_extra={"unit": "hour", "display_name": "Irrigation Start Hour"},
-        ge=0.0,
-        le=24.0,
+        description="Day of year when irrigation starts",
+        json_schema_extra={"unit": "DOY", "display_name": "Irrigation Start Day"},
     )
     ie_end: Optional[FlexibleRefValue(float)] = Field(
         default=None,
-        description="End time of irrigation",
-        json_schema_extra={"unit": "hour", "display_name": "Irrigation End Hour"},
-        ge=0.0,
-        le=24.0,
+        description="Day of year when irrigation ends",
+        json_schema_extra={"unit": "DOY", "display_name": "Irrigation End Day"},
     )
     internalwateruse_h: Optional[FlexibleRefValue(float)] = Field(
         default=None,

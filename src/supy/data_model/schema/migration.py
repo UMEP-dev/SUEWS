@@ -31,6 +31,7 @@ class SchemaMigrator:
         self.migration_handlers: Dict[tuple, Callable] = {
             # Example future migrations:
             ("0.0", "0.1"): self._migrate_0_0_to_0_1,
+            ("0.1", "0.2"): self._migrate_0_1_to_0_2,
             # ("1.0", "1.1"): self._migrate_1_0_to_1_1,
             # ("1.1", "2.0"): self._migrate_1_1_to_2_0,
         }
@@ -201,6 +202,18 @@ class SchemaMigrator:
         config["schema_version"] = "0.1"
 
         logger.info("Migrated from dual-version system to schema version 0.1")
+        return config
+
+    def _migrate_0_1_to_0_2(self, config: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Migrate from schema version 0.1 to 0.2.
+
+        This is a minor version update with enhanced validation.
+        """
+        # Update schema version
+        config["schema_version"] = "0.2"
+
+        logger.info("Migrated from schema version 0.1 to 0.2")
         return config
 
     # Future migration examples:

@@ -228,8 +228,8 @@ $schema: "{base_url}/schema/suews-config/{self._registry.get("current", CURRENT_
 $schema: "{base_url}/schema/suews-config/latest.json"
 
 # For older versions (if needed for compatibility):
-schema_version: "0.1"
-$schema: "{base_url}/schema/suews-config/0.1.json"</code></pre>
+schema_version: "0.2"
+$schema: "{base_url}/schema/suews-config/0.2.json"</code></pre>
 
     <h2>Version Policy</h2>
     <ul>

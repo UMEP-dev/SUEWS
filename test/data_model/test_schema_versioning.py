@@ -216,7 +216,7 @@ class TestSchemaVersionUtility:
         assert increment_schema_version("1.3", "major") == "2.0"
 
         # Invalid format returns default
-        assert increment_schema_version("invalid", "minor") == "0.1"
+        assert increment_schema_version("invalid", "minor") == "0.2"
 
     def test_update_yaml_schema_version(self):
         """Test updating schema version in YAML file."""

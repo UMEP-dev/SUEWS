@@ -466,7 +466,7 @@ CONTAINS
       REAL(KIND(1D0)), PARAMETER :: b = 2.5
       REAL(KIND(1D0)) :: zl, psim
 
-      IF (ABS(zL) < neut_limit) THEN
+      IF (ABS(zL) <= neut_limit) THEN
          psim = 0
       ELSEIF (zL < -neut_limit) THEN
          ! Jimenez et al. (2012), eqn 17
@@ -484,7 +484,7 @@ CONTAINS
       ! equations below are derived from related original formulations
       REAL(KIND(1D0)) :: zl, phim
 
-      IF (ABS(zL) < neut_limit) THEN
+      IF (ABS(zL) <= neut_limit) THEN
          phim = 1
       ELSEIF (zL < -neut_limit) THEN
          ! derivative of eqn 17 in Jimenez et al. (2012)
@@ -500,7 +500,7 @@ CONTAINS
       ! Jimenez et al. (2012), eqn 17 and 19
       REAL(KIND(1D0)) :: zl, psih
 
-      IF (ABS(zL) < neut_limit) THEN
+      IF (ABS(zL) <= neut_limit) THEN
          psih = 0
       ELSEIF (zL < -neut_limit) THEN
          ! Jimenez et al. (2012), eqn 17
@@ -516,7 +516,7 @@ CONTAINS
    FUNCTION phi_heat_J12(ZL) RESULT(phih)
       REAL(KIND(1D0)) :: zl, phih
 
-      IF (ABS(zL) < neut_limit) THEN
+      IF (ABS(zL) <= neut_limit) THEN
          phih = 1
       ELSEIF (zL < -neut_limit) THEN
          phih = phi_heat_G00(ZL)
@@ -540,7 +540,7 @@ CONTAINS
       REAL(KIND(1D0)) :: psim_k
       REAL(KIND(1D0)) :: psim_c
 
-      IF (ABS(zL) < neut_limit) THEN
+      IF (ABS(zL) <= neut_limit) THEN
          psim = 0
       ELSEIF (zL < -neut_limit) THEN
          ! Kansas part:
@@ -563,7 +563,7 @@ CONTAINS
       REAL(KIND(1D0)) :: psih_k
       REAL(KIND(1D0)) :: psih_c
 
-      IF (ABS(zL) < neut_limit) THEN
+      IF (ABS(zL) <= neut_limit) THEN
          psih = 0
       ELSEIF (zL < -neut_limit) THEN
          ! Kansas part:
@@ -593,7 +593,7 @@ CONTAINS
       REAL(KIND(1D0)) :: phim_C ! convective part
       ! REAL(KIND(1D0)):: psim_C ! convective part
 
-      IF (ABS(zL) < neut_limit) THEN
+      IF (ABS(zL) <= neut_limit) THEN
          phim = 1
       ELSEIF (zL < -neut_limit) THEN
          ! kansas
@@ -623,7 +623,7 @@ CONTAINS
       REAL(KIND(1D0)) :: phih_C ! convective part
       ! REAL(KIND(1D0)):: psih_C ! convective part
 
-      IF (ABS(zL) < neut_limit) THEN
+      IF (ABS(zL) <= neut_limit) THEN
          phih = 1
       ELSEIF (zL < -neut_limit) THEN
          ! kansas
@@ -707,7 +707,7 @@ CONTAINS
       REAL(KIND(1D0)), PARAMETER :: b = 2.5
       REAL(KIND(1D0)) :: zl, psim
 
-      IF (ABS(zL) < neut_limit) THEN
+      IF (ABS(zL) <= neut_limit) THEN
          psim = 0
       ELSEIF (zL > neut_limit) THEN
          psim = psi_CB05(ZL, a, b)
@@ -721,7 +721,7 @@ CONTAINS
       REAL(KIND(1D0)), PARAMETER :: d = 1.1
       REAL(KIND(1D0)) :: zl, psih
 
-      IF (ABS(zL) < neut_limit) THEN
+      IF (ABS(zL) <= neut_limit) THEN
          psih = 0
       ELSEIF (zL > neut_limit) THEN
          psih = psi_CB05(ZL, c, d)
@@ -745,7 +745,7 @@ CONTAINS
       REAL(KIND(1D0)), PARAMETER :: b = 2.5
       REAL(KIND(1D0)) :: zl, phim
 
-      IF (ABS(zL) < neut_limit) THEN
+      IF (ABS(zL) <= neut_limit) THEN
          phim = 1
       ELSEIF (zL > neut_limit) THEN
          phim = phi_CB05(ZL, a, b)
@@ -759,7 +759,7 @@ CONTAINS
       REAL(KIND(1D0)), PARAMETER :: d = 1.1
       REAL(KIND(1D0)) :: zl, phih, zld
 
-      IF (ABS(zL) < neut_limit) THEN
+      IF (ABS(zL) <= neut_limit) THEN
          phih = 1
       ELSEIF (zL > neut_limit) THEN
          zld = zl**d
@@ -776,7 +776,7 @@ CONTAINS
       ! Kondo (1975) adopted by Campbell & Norman eqn 7.22 and 7.23 p 97
       REAL(KIND(1D0)) :: zl, phim
 
-      IF (ABS(zL) < neut_limit) THEN
+      IF (ABS(zL) <= neut_limit) THEN
          phim = 1
       ELSEIF (zL < -neut_limit) THEN
          phim = 1/(1 - 16*zl)**.25
@@ -790,7 +790,7 @@ CONTAINS
       ! Kondo (1975) adopted by Campbell & Norman eqn 7.22 and 7.23 p 97
       REAL(KIND(1D0)) :: zl, phih
 
-      IF (ABS(zL) < neut_limit) THEN
+      IF (ABS(zL) <= neut_limit) THEN
          phih = 1
       ELSEIF (zL < -neut_limit) THEN
          phih = phi_mom_K75(zl)**2
@@ -804,7 +804,7 @@ CONTAINS
       ! Kondo (1975) adopted by Campbell & Norman eqn 7.26 and 7.27 p 97
       REAL(KIND(1D0)) :: zl, psim
 
-      IF (ABS(zL) < neut_limit) THEN
+      IF (ABS(zL) <= neut_limit) THEN
          psim = 0
       ELSEIF (zL < -neut_limit) THEN
          psim = 0.6*psi_heat_K75(ZL)
@@ -818,7 +818,7 @@ CONTAINS
       ! Kondo (1975) adopted by Campbell & Norman eqn 7.26 and 7.27 p 97
       REAL(KIND(1D0)) :: zl, psih
 
-      IF (ABS(zL) < neut_limit) THEN
+      IF (ABS(zL) <= neut_limit) THEN
          psih = 0
       ELSEIF (zL < -neut_limit) THEN
          psih = (2)*LOG((1 + (1 - 16*zl)**0.5)/2)
@@ -837,7 +837,7 @@ CONTAINS
       ! modified by Hogstrom (1988): see Table VI
       REAL(KIND(1D0)) :: zl, phim
 
-      IF (ABS(zL) < neut_limit) THEN
+      IF (ABS(zL) <= neut_limit) THEN
          phim = 1
       ELSEIF (zL < -neut_limit) THEN
          phim = (1.-19.3*zl)**(-0.25)
@@ -852,7 +852,7 @@ CONTAINS
       ! modified by Hogstrom (1988): see Table VII
       REAL(KIND(1D0)) :: zl, phih
 
-      IF (ABS(zL) < neut_limit) THEN
+      IF (ABS(zL) <= neut_limit) THEN
          phih = 1
       ELSEIF (zL < -neut_limit) THEN
          phih = 0.95*(1.-11.6*zl)**(-0.5)
@@ -867,7 +867,7 @@ CONTAINS
       REAL(KIND(1D0)), PARAMETER :: PIOVER2 = ACOS(-1.)/2.
       REAL(KIND(1D0)) :: zl, psim, x, x2
 
-      IF (ABS(zL) < neut_limit) THEN
+      IF (ABS(zL) <= neut_limit) THEN
          psim = 0
       ELSEIF (zL < -neut_limit) THEN
          x = (1 - 19.3*zl)**(0.25)
@@ -884,7 +884,7 @@ CONTAINS
       ! integral form of phi_heat_B71
       REAL(KIND(1D0)) :: zl, psih, x
 
-      IF (ABS(zL) < neut_limit) THEN
+      IF (ABS(zL) <= neut_limit) THEN
          psih = 0
       ELSEIF (zL < -neut_limit) THEN
          x = 0.95*(1.-11.6*zl)**(0.5)
@@ -918,7 +918,7 @@ CONTAINS
 
       PIOVER2 = ACOS(-1.)/2.
       !PRINT*,StabilityMethod,zl,"stab_fn_mom:" ! Original print statement commented out
-      IF (ABS(zL) < neut_limit) THEN
+      IF (ABS(zL) <= neut_limit) THEN
          psym = 0
       ELSEIF (zL < -neut_limit) THEN !Unstable
          !Dyer (1974)(1-16z/L)**.25' k=0.41  mod. Hogstrom (1988)v15.2
@@ -949,7 +949,7 @@ CONTAINS
       ! REAL (KIND(1d0)), PARAMETER :: neut_limit = 1.E-4 ! Limit for neutral stability (Assumed from context)
       REAL(KIND(1D0)) :: zl, psyh, x
 
-      IF (ABS(zl) < neut_limit) THEN !Neutral
+      IF (ABS(zL) <= neut_limit) THEN !Neutral
          psyh = 0
       ELSEIF (zL < -neut_limit) THEN ! Unstable
          ! Dyer 1974 X=(1.-(16.*ZL))**(0.5)modified Hosgstrom

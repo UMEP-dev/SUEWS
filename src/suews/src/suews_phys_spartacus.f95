@@ -83,6 +83,8 @@ CONTAINS
       alb_roof, emis_roof, alb_wall, emis_wall, &
       roof_albedo_dir_mult_fact, wall_specular_frac, &
       qn, kup, lup, qn_roof, qn_wall, qn_surf, & !output:
+      roof_in_sw_spc, roof_in_lw_spc, &
+      wall_in_sw_spc, wall_in_lw_spc, &
       dataOutLineSPARTACUS)
       USE parkind1, ONLY: jpim, jprb
       USE radsurf_interface, ONLY: radsurf
@@ -164,12 +166,12 @@ CONTAINS
       REAL(KIND(1D0)) :: grnd_vertical_diff
       REAL(KIND(1D0)), DIMENSION(15) :: clear_air_abs_lw_spc
       REAL(KIND(1D0)), DIMENSION(15) :: clear_air_abs_sw_spc
-      REAL(KIND(1D0)), DIMENSION(15) :: roof_in_sw_spc
-      REAL(KIND(1D0)), DIMENSION(15) :: roof_in_lw_spc
+      REAL(KIND(1D0)), DIMENSION(15), INTENT(OUT) :: roof_in_sw_spc
+      REAL(KIND(1D0)), DIMENSION(15), INTENT(OUT) :: roof_in_lw_spc
       REAL(KIND(1D0)), DIMENSION(15) :: roof_net_sw_spc
       REAL(KIND(1D0)), DIMENSION(15) :: roof_net_lw_spc
-      REAL(KIND(1D0)), DIMENSION(15) :: wall_in_sw_spc
-      REAL(KIND(1D0)), DIMENSION(15) :: wall_in_lw_spc
+      REAL(KIND(1D0)), DIMENSION(15), INTENT(OUT) :: wall_in_sw_spc
+      REAL(KIND(1D0)), DIMENSION(15), INTENT(OUT) :: wall_in_lw_spc
       REAL(KIND(1D0)), DIMENSION(15) :: wall_net_sw_spc
       REAL(KIND(1D0)), DIMENSION(15) :: wall_net_lw_spc
       REAL(KIND(1D0)), DIMENSION(15) :: sfr_roof_spc
@@ -579,6 +581,17 @@ CONTAINS
       grnd_net_sw_spc = sw_flux%ground_net(nspec, ncol)
       grnd_vertical_diff = sw_flux%ground_vertical_diff(nspec, ncol)
 
+      ! De-normalise the fluxes
+      wall_in_sw_spc(:nlayer) = wall_in_sw_spc(:nlayer)/sfr_wall_spc(:nlayer)
+      wall_net_sw_spc(:nlayer) = wall_net_sw_spc(:nlayer)/sfr_wall_spc(:nlayer)
+      roof_in_sw_spc(:nlayer) = roof_in_sw_spc(:nlayer)/sfr_roof_spc(:nlayer)
+      roof_net_sw_spc(:nlayer) = roof_net_sw_spc(:nlayer)/sfr_roof_spc(:nlayer)
+
+      wall_in_lw_spc(:nlayer) = wall_in_lw_spc(:nlayer)/sfr_wall_spc(:nlayer)
+      wall_net_lw_spc(:nlayer) = wall_net_lw_spc(:nlayer)/sfr_wall_spc(:nlayer)
+      roof_in_lw_spc(:nlayer) = roof_in_lw_spc(:nlayer)/sfr_roof_spc(:nlayer)
+      roof_net_lw_spc(:nlayer) = roof_net_lw_spc(:nlayer)/sfr_roof_spc(:nlayer)
+
       !!!!!!!!!!!!!! Bulk KUP, LUP, QSTAR for SUEWS !!!!!!!!!!!!!!
 
       lup = lw_up_spc
@@ -597,10 +610,11 @@ CONTAINS
 
       ! de-normalise net radiation for roof/wall - these will be used in other SUEWS calculations
       ! note the orignal results from above SS calcuations are normalised by the whole grid area
+      ! MP 03/06/25: denormalised lw and sw separately - no need for qn now
       ! roof: need to de-normalise by dividing the building/roof fraction
-      qn_roof = qn_roof/sfr_roof(:nlayer)
+      ! qn_roof = qn_roof/sfr_roof(:nlayer)
       ! wall: need to de-normalise by dividing the building/wall fraction
-      qn_wall = qn_wall/sfr_wall(:nlayer)
+      ! qn_wall = qn_wall/sfr_wall(:nlayer)
 
       ! ============================================================
       ! net radiation for ground surfaces

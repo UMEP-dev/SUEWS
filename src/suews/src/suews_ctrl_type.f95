@@ -33,6 +33,7 @@ MODULE module_ctrl_type
       INTEGER :: LAImethod = 0 ! boolean to determine if calculate LAI [-]
       INTEGER :: localClimateMethod = 0 ! method to choose local climate variables [-] 0: not use; 1: use local climate variables
       INTEGER :: stebbsmethod = 0 ! method to calculate building energy [-]
+      INTEGER :: rcmethod = 0 ! method to split building envelope heat capacity in STEBBS [-]
       LOGICAL :: flag_test = .FALSE. ! FOR DEBUGGING ONLY: boolean to test specific functions [-]
    END TYPE SUEWS_CONFIG
 
@@ -428,16 +429,34 @@ MODULE module_ctrl_type
       REAL(KIND(1D0)) :: WallExternalArea = 0.0D0 ! External wall area (including window area) [m2]
       REAL(KIND(1D0)) :: RatioInternalVolume = 0.0D0 ! Ratio of internal mass volume to total building volume [-]
       REAL(KIND(1D0)) :: WWR = 0.0D0 ! window to wall ratio [-]
-      REAL(KIND(1D0)) :: WallThickness = 0.0D0 ! Thickness of external wall and roof (weighted) [m]
-      REAL(KIND(1D0)) :: WallEffectiveConductivity = 0.0D0 ! Effective thermal conductivity of walls and roofs (weighted) [W m-1 K-1]
-      REAL(KIND(1D0)) :: WallDensity = 0.0D0 ! Effective density of the walls and roof (weighted) [kg m-3]
-      REAL(KIND(1D0)) :: WallCp = 0.0D0 ! Effective specific heat capacity of walls and roof (weighted) [J kg-1 K-1]
-      REAL(KIND(1D0)) :: Wallx1 = 0.0D0 ! Weighting factor for heat capacity of walls and roof [-]
-      REAL(KIND(1D0)) :: WallExternalEmissivity = 0.0D0 ! Emissivity of the external surface of walls and roof [-]
-      REAL(KIND(1D0)) :: WallInternalEmissivity = 0.0D0 ! Emissivity of the internal surface of walls and roof [-]
-      REAL(KIND(1D0)) :: WallTransmissivity = 0.0D0 ! Transmissivity of walls and roof [-]
-      REAL(KIND(1D0)) :: WallAbsorbtivity = 0.0D0 ! Absorbtivity of walls and roof [-]
-      REAL(KIND(1D0)) :: WallReflectivity = 0.0D0 ! Reflectivity of the external surface of walls and roof [-]
+      REAL(KIND(1D0)) :: WallThickness = 0.0D0 ! Thickness of external wall [m]
+      REAL(KIND(1D0)) :: WallEffectiveConductivity = 0.0D0 ! Effective thermal conductivity of walls [W m-1 K-1]
+      REAL(KIND(1D0)) :: WallDensity = 0.0D0 ! Effective density of the walls [kg m-3]
+      REAL(KIND(1D0)) :: WallCp = 0.0D0 ! Effective specific heat capacity of walls [J kg-1 K-1]
+      REAL(KIND(1D0)) :: WallextThickness = 0.0D0 ! Thickness of layers external to insulation in external wall [m]
+      REAL(KIND(1D0)) :: WallextEffectiveConductivity = 0.0D0 ! Effective thermal conductivity of layers external to insulation inof walls [W m-1 K-1]
+      REAL(KIND(1D0)) :: WallextDensity = 0.0D0 ! Effective density of layers external to insulation in the walls [kg m-3]
+      REAL(KIND(1D0)) :: WallextCp = 0.0D0 ! Effective specific heat capacity of layers external to insulation in walls [J kg-1 K-1]
+      REAL(KIND(1D0)) :: Wallx1 = 0.0D0 ! Weighting factor for heat capacity of walls [-]
+      REAL(KIND(1D0)) :: WallExternalEmissivity = 0.0D0 ! Emissivity of the external surface of walls [-]
+      REAL(KIND(1D0)) :: WallInternalEmissivity = 0.0D0 ! Emissivity of the internal surface of walls [-]
+      REAL(KIND(1D0)) :: WallTransmissivity = 0.0D0 ! Transmissivity of walls [-]
+      REAL(KIND(1D0)) :: WallAbsorbtivity = 0.0D0 ! Absorbtivity of walls [-]
+      REAL(KIND(1D0)) :: WallReflectivity = 0.0D0 ! Reflectivity of the external surface of walls [-]
+      REAL(KIND(1D0)) :: RoofThickness = 0.0D0 ! Thickness of external roof [m]
+      REAL(KIND(1D0)) :: RoofEffectiveConductivity = 0.0D0 ! Effective thermal conductivity of roofs (weighted) [W m-1 K-1]
+      REAL(KIND(1D0)) :: RoofDensity = 0.0D0 ! Effective density of the roof  [kg m-3]
+      REAL(KIND(1D0)) :: RoofCp = 0.0D0 ! Effective specific heat capacity of layers external to insulation in roof  [J kg-1 K-1]
+      REAL(KIND(1D0)) :: RoofextThickness = 0.0D0 ! Thickness of external  layers external to insulation roof [m]
+      REAL(KIND(1D0)) :: RoofextEffectiveConductivity = 0.0D0 ! Effective thermal conductivity of  layers external to insulation roofs (weighted) [W m-1 K-1]
+      REAL(KIND(1D0)) :: RoofextDensity = 0.0D0 ! Effective density of the  layers external to insulation roof [kg m-3]
+      REAL(KIND(1D0)) :: RoofextCp = 0.0D0 ! Effective specific heat capacity of layers external to insulation in roof  [J kg-1 K-1]
+      REAL(KIND(1D0)) :: Roofx1 = 0.0D0 ! Weighting factor for heat capacity of roof [-]
+      REAL(KIND(1D0)) :: RoofExternalEmissivity = 0.0D0 ! Emissivity of the external surface of roof [-]
+      REAL(KIND(1D0)) :: RoofInternalEmissivity = 0.0D0 ! Emissivity of the internal surface of roof [-]
+      REAL(KIND(1D0)) :: RoofTransmissivity = 0.0D0 ! Transmissivity of walls roof [-]
+      REAL(KIND(1D0)) :: RoofAbsorbtivity = 0.0D0 ! Absorbtivity of walls roof [-]
+      REAL(KIND(1D0)) :: RoofReflectivity = 0.0D0 ! Reflectivity of the external surface of roof [-]
       REAL(KIND(1D0)) :: FloorThickness = 0.0D0 ! Thickness of ground floor [m]
       REAL(KIND(1D0)) :: GroundFloorEffectiveConductivity = 0.0D0 ! Effective thermal conductivity of ground floor [W m-1 K-1]
       REAL(KIND(1D0)) :: GroundFloorDensity = 0.0D0 ! Density of the ground floor [kg m-3]
@@ -459,23 +478,30 @@ MODULE module_ctrl_type
       REAL(KIND(1D0)) :: MaximumHotWaterHeatingPower = 0.0D0 ! Maximum power demand of water heating system [W]
       REAL(KIND(1D0)) :: HeatingSetpointTemperature = 0.0D0 ! Heating setpoint temperature [degC]
       REAL(KIND(1D0)) :: CoolingSetpointTemperature = 0.0D0 ! Cooling setpoint temperature [degC]
+      ! flag for iteration safety - YES - as we this should be updated every iteration
+      LOGICAL :: iter_safe = .TRUE.
    END TYPE BUILDING_ARCHETYPE_PRM
 
    TYPE, PUBLIC :: STEBBS_PRM
       ! Collect general parameters for STEBBS
-      REAL(KIND(1D0)) :: WallInternalConvectionCoefficient = 0.0D0 ! Internal convection coefficient of walls and roof [W m-2 K-1]
+      REAL(KIND(1D0)) :: WallInternalConvectionCoefficient = 0.0D0 ! Internal convection coefficient of walls  [W m-2 K-1]
+      REAL(KIND(1D0)) :: RoofInternalConvectionCoefficient = 0.0D0 ! Internal convection coefficient of roof [W m-2 K-1]
       REAL(KIND(1D0)) :: InternalMassConvectionCoefficient = 0.0D0 ! Convection coefficient of internal mass [W m-2 K-1]
       REAL(KIND(1D0)) :: FloorInternalConvectionCoefficient = 0.0D0 ! Internal convection coefficient of ground floor [W m-2 K-1]
       REAL(KIND(1D0)) :: WindowInternalConvectionCoefficient = 0.0D0 ! Internal convection coefficient of windows [W m-2 K-1]
-      REAL(KIND(1D0)) :: WallExternalConvectionCoefficient = 0.0D0 ! Initial external convection coefficient of walls and roof [W m-2 K-1]
+      REAL(KIND(1D0)) :: WallExternalConvectionCoefficient = 0.0D0 ! Initial external convection coefficient of walls [W m-2 K-1]
+      REAL(KIND(1D0)) :: RoofExternalConvectionCoefficient = 0.0D0 ! Initial external convection coefficient of roof [W m-2 K-1]
       REAL(KIND(1D0)) :: WindowExternalConvectionCoefficient = 0.0D0 ! Initial external convection coefficient of windows [W m-2 K-1]
       REAL(KIND(1D0)) :: GroundDepth = 0.0D0 ! Depth of external ground (deep soil) [m]
       REAL(KIND(1D0)) :: ExternalGroundConductivity = 0.0D0
       REAL(KIND(1D0)) :: IndoorAirDensity = 0.0D0 ! Density of indoor air [kg m-3]
       REAL(KIND(1D0)) :: IndoorAirCp = 0.0D0 ! Specific heat capacity of indoor air [J kg-1 K-1]
-      REAL(KIND(1D0)) :: WallBuildingViewFactor = 0.0D0 ! Building view factor of external walls [-]
-      REAL(KIND(1D0)) :: WallGroundViewFactor = 0.0D0 ! Ground view factor of external walls [-]
-      REAL(KIND(1D0)) :: WallSkyViewFactor = 0.0D0 ! Sky view factor of external walls [-]
+      !REAL(KIND(1D0)) :: WallBuildingViewFactor = 0.0D0 ! Building view factor of external walls [-]
+      !REAL(KIND(1D0)) :: WallGroundViewFactor = 0.0D0 ! Ground view factor of external walls [-]
+      !REAL(KIND(1D0)) :: WallSkyViewFactor = 0.0D0 ! Sky view factor of external roofs [-]
+      !REAL(KIND(1D0)) :: RoofBuildingViewFactor = 0.0D0 ! Building view factor of external roofs [-]
+      !REAL(KIND(1D0)) :: RoofGroundViewFactor = 0.0D0 ! Ground view factor of external roofs [-]
+      !REAL(KIND(1D0)) :: RoofSkyViewFactor = 0.0D0 ! Sky view factor of external roofs [-]
       REAL(KIND(1D0)) :: MetabolicRate = 0.0D0 ! Metabolic rate of building occupants [W]
       REAL(KIND(1D0)) :: LatentSensibleRatio = 0.0D0 ! Latent-to-sensible ratio of metabolic energy release of occupants [-]
       REAL(KIND(1D0)) :: ApplianceRating = 0.0D0 ! Power demand of single appliance [W]
@@ -512,7 +538,8 @@ MODULE module_ctrl_type
       REAL(KIND(1D0)) :: DHWVesselWallEmissivity = 0.0D0 ! Effective external wall emissivity of hot water being used within building [-]
       REAL(KIND(1D0)) :: HotWaterHeatingEfficiency = 0.0D0 ! Efficiency of hot water system [-]
       REAL(KIND(1D0)) :: MinimumVolumeOfDHWinUse = 0.0D0 ! Minimum volume of hot water in use [m3]
-
+      ! flag for iteration safety - YES - as we this should be updated every iteration
+      LOGICAL :: iter_safe = .TRUE.
    END TYPE STEBBS_PRM
 
    TYPE, PUBLIC :: SUEWS_SITE
@@ -576,6 +603,7 @@ MODULE module_ctrl_type
    TYPE, PUBLIC :: flag_STATE
       LOGICAL :: flag_converge = .FALSE. ! flag for convergence of surface temperature
       INTEGER :: i_iter = 0 ! number of iterations for convergence
+      INTEGER :: stebbs_bldg_init = 0 ! stebbs flag for building initialization
 
       ! flag for iteration safety - YES - as we this should be updated every iteration
       LOGICAL :: iter_safe = .TRUE.
@@ -633,7 +661,24 @@ MODULE module_ctrl_type
       REAL(KIND(1D0)) :: a1_bldg = 0.0D0 ! Dynamic OHM coefficients of buildings
       REAL(KIND(1D0)) :: a2_bldg = 0.0D0 ! Dynamic OHM coefficients of buildings
       REAL(KIND(1D0)) :: a3_bldg = 0.0D0 ! Dynamic OHM coefficients of buildings
-
+      REAL(KIND(1D0)) :: a1_paved = 0.0D0! Dynamic OHM coefficients of paved
+      REAL(KIND(1D0)) :: a2_paved = 0.0D0! Dynamic OHM coefficients of paved
+      REAL(KIND(1D0)) :: a3_paved = 0.0D0! Dynamic OHM coefficients of paved
+      REAL(KIND(1D0)) :: a1_evetr = 0.0D0! Dynamic OHM coefficients of evetree
+      REAL(KIND(1D0)) :: a2_evetr = 0.0D0! Dynamic OHM coefficients of evetree
+      REAL(KIND(1D0)) :: a3_evetr = 0.0D0! Dynamic OHM coefficients of evetree
+      REAL(KIND(1D0)) :: a1_dectr = 0.0D0! Dynamic OHM coefficients of dectree
+      REAL(KIND(1D0)) :: a2_dectr = 0.0D0! Dynamic OHM coefficients of dectree
+      REAL(KIND(1D0)) :: a3_dectr = 0.0D0! Dynamic OHM coefficients of dectree
+      REAL(KIND(1D0)) :: a1_grass = 0.0D0! Dynamic OHM coefficients of grass
+      REAL(KIND(1D0)) :: a2_grass = 0.0D0! Dynamic OHM coefficients of grass
+      REAL(KIND(1D0)) :: a3_grass = 0.0D0! Dynamic OHM coefficients of grass
+      REAL(KIND(1D0)) :: a1_bsoil = 0.0D0! Dynamic OHM coefficients of bare soil
+      REAL(KIND(1D0)) :: a2_bsoil = 0.0D0! Dynamic OHM coefficients of bare soil
+      REAL(KIND(1D0)) :: a3_bsoil = 0.0D0! Dynamic OHM coefficients of bare soil
+      REAL(KIND(1D0)) :: a1_water = 0.0D0! Dynamic OHM coefficients of water
+      REAL(KIND(1D0)) :: a2_water = 0.0D0! Dynamic OHM coefficients of water
+      REAL(KIND(1D0)) :: a3_water = 0.0D0! Dynamic OHM coefficients of water
       ! flag for iteration safety - YES
       LOGICAL :: iter_safe = .TRUE.
    END TYPE OHM_STATE
@@ -831,10 +876,11 @@ MODULE module_ctrl_type
       REAL(KIND(1D0)), DIMENSION(:, :), ALLOCATABLE :: temp_roof ! interface temperature between depth layers in roof [degC]
       REAL(KIND(1D0)), DIMENSION(:, :), ALLOCATABLE :: temp_wall ! interface temperature between depth layers in wall [degC]
       REAL(KIND(1D0)), DIMENSION(:, :), ALLOCATABLE :: temp_surf ! interface temperature between depth layers [degC]
+      REAL(KIND(1D0)), DIMENSION(:, :), ALLOCATABLE :: temp_surf_dyohm ! interface temperature between depth layers [degC]
       REAL(KIND(1D0)), DIMENSION(:), ALLOCATABLE :: tsfc_roof ! roof surface temperature [degC]
       REAL(KIND(1D0)), DIMENSION(:), ALLOCATABLE :: tsfc_wall ! wall surface temperature [degC]
       REAL(KIND(1D0)), DIMENSION(:), ALLOCATABLE :: tsfc_surf ! surface temperature [degC]
-
+      REAL(KIND(1D0)), DIMENSION(:), ALLOCATABLE :: tsfc_surf_dyohm! surface temperature [degC]
       ! surface temperature saved at the beginning of the time step - not updated during the time step
       REAL(KIND(1D0)), DIMENSION(:), ALLOCATABLE :: tsfc_roof_stepstart !surface temperature of roof saved at the beginning of the time step [degC]
       REAL(KIND(1D0)), DIMENSION(:), ALLOCATABLE :: tsfc_wall_stepstart !surface temperature of wall saved at the beginning of the time step [degC]
@@ -883,6 +929,11 @@ MODULE module_ctrl_type
       REAL(KIND(1D0)) :: tsurf = 0.0D0 !surface temperatue [degC]
       REAL(KIND(1D0)) :: QH_Init = 0.0D0 !initialised sensible heat flux [W m-2]
 
+      REAL(KIND(1D0)), DIMENSION(15) :: roof_in_sw_spc ! incoming shortwave radiation on roof surface [W m-2]
+      REAL(KIND(1D0)), DIMENSION(15) :: roof_in_lw_spc ! incoming longwave radiation on roof surface [W m-2]
+      REAL(KIND(1D0)), DIMENSION(15) :: wall_in_sw_spc ! incoming shortwave radiation on wall surface [W m-2]
+      REAL(KIND(1D0)), DIMENSION(15) :: wall_in_lw_spc ! incoming longwave radiation on wall surface [W m-2]
+
       ! flag for iteration safety - YES
       ! all variables are intensive and thus can be used for iteration safety
       LOGICAL :: iter_safe = .TRUE.
@@ -913,6 +964,200 @@ MODULE module_ctrl_type
 
    END TYPE ROUGHNESS_STATE
 
+   TYPE :: STEBBS_BLDG
+      ! MP TODO: Add initialisation values e.g. =0
+      CHARACTER(len=256) :: BuildingType = 'Default'
+      CHARACTER(len=256) :: BuildingName= 'Default'
+      CHARACTER(len=256) :: fnmlLBM = 'Default'
+      CHARACTER(len=256) :: CASE = 'Default'
+      INTEGER :: idLBM = 0 
+      INTEGER :: appliance_totalnumber = 0
+
+      REAL(KIND(1D0)) :: QHload_heating_tstepFA = 0.0D0 
+      REAL(KIND(1D0)) :: QHload_cooling_tstepFA = 0.0D0 
+      REAL(KIND(1D0)) :: QH_metabolism = 0.0D0 
+      REAL(KIND(1D0)) :: QE_metabolism = 0.0D0 
+      REAL(KIND(1D0)) :: Qtotal_water_tank = 0.0D0 
+      REAL(KIND(1D0)) :: qhwtDrain = 0.0D0 
+      REAL(KIND(1D0)) :: ratio_window_wall = 0.0D0 
+      REAL(KIND(1D0)) :: Afootprint = 0.0D0 
+      REAL(KIND(1D0)) :: height_building = 0.0D0 
+      REAL(KIND(1D0)) :: wallExternalArea = 0.0D0 
+      REAL(KIND(1D0)) :: ratioInternalVolume = 0.0D0 
+      REAL(KIND(1D0)) :: thickness_wall = 0.0D0 
+      REAL(KIND(1D0)) :: thickness_wallext = 0.0D0 
+      REAL(KIND(1D0)) :: thickness_roof = 0.0D0 
+      REAL(KIND(1D0)) :: thickness_roofext = 0.0D0 
+      REAL(KIND(1D0)) :: thickness_groundfloor = 0.0D0 
+      REAL(KIND(1D0)) :: depth_ground = 0.0D0 
+      REAL(KIND(1D0)) :: thickness_window = 0.0D0 
+      REAL(KIND(1D0)) :: conv_coeff_intwall = 0.0D0 
+      REAL(KIND(1D0)) :: conv_coeff_introof = 0.0D0 
+      REAL(KIND(1D0)) :: conv_coeff_indoormass = 0.0D0 
+      REAL(KIND(1D0)) :: conv_coeff_intgroundfloor = 0.0D0 
+      REAL(KIND(1D0)) :: conv_coeff_intwindow = 0.0D0 
+      REAL(KIND(1D0)) :: conv_coeff_extwall = 0.0D0 
+      REAL(KIND(1D0)) :: conv_coeff_extroof = 0.0D0 
+      REAL(KIND(1D0)) :: conv_coeff_extwindow = 0.0D0 
+      REAL(KIND(1D0)) :: conductivity_wall = 0.0D0 
+      REAL(KIND(1D0)) :: conductivity_wallext = 0.0D0 
+      REAL(KIND(1D0)) :: conductivity_roof = 0.0D0 
+      REAL(KIND(1D0)) :: conductivity_roofext = 0.0D0 
+      REAL(KIND(1D0)) :: conductivity_groundfloor = 0.0D0 
+      REAL(KIND(1D0)) :: conductivity_window = 0.0D0 
+      REAL(KIND(1D0)) :: conductivity_ground = 0.0D0 
+      REAL(KIND(1D0)) :: density_wall = 0.0D0 
+      REAL(KIND(1D0)) :: density_wallext = 0.0D0 
+      REAL(KIND(1D0)) :: density_roof = 0.0D0 
+      REAL(KIND(1D0)) :: density_roofext = 0.0D0 
+      REAL(KIND(1D0)) :: weighting_factor_heatcapacity_wall = 0.0D0 
+      REAL(KIND(1D0)) :: weighting_factor_heatcapacity_roof = 0.0D0 
+      REAL(KIND(1D0)) :: density_groundfloor = 0.0D0 
+      REAL(KIND(1D0)) :: density_window = 0.0D0 
+      REAL(KIND(1D0)) :: density_indoormass = 0.0D0 
+      REAL(KIND(1D0)) :: density_air_ind = 0.0D0 
+      REAL(KIND(1D0)) :: cp_wall = 0.0D0 
+      REAL(KIND(1D0)) :: cp_wallext = 0.0D0 
+      REAL(KIND(1D0)) :: cp_roof = 0.0D0 
+      REAL(KIND(1D0)) :: cp_roofext = 0.0D0 
+      REAL(KIND(1D0)) :: cp_groundfloor = 0.0D0 
+      REAL(KIND(1D0)) :: cp_window = 0.0D0 
+      REAL(KIND(1D0)) :: cp_indoormass = 0.0D0 
+      REAL(KIND(1D0)) :: cp_air_ind = 0.0D0 
+      REAL(KIND(1D0)) :: emissivity_extwall = 0.0D0 
+      REAL(KIND(1D0)) :: emissivity_extroof = 0.0D0 
+      REAL(KIND(1D0)) :: emissivity_intwall = 0.0D0 
+      REAL(KIND(1D0)) :: emissivity_introof = 0.0D0 
+      REAL(KIND(1D0)) :: emissivity_indoormass = 0.0D0 
+      REAL(KIND(1D0)) :: emissivity_extwindow = 0.0D0 
+      REAL(KIND(1D0)) :: emissivity_intwindow = 0.0D0 
+      REAL(KIND(1D0)) :: windowTransmissivity = 0.0D0 
+      REAL(KIND(1D0)) :: windowAbsorbtivity = 0.0D0 
+      REAL(KIND(1D0)) :: windowReflectivity = 0.0D0 
+      REAL(KIND(1D0)) :: wallTransmisivity = 0.0D0 
+      REAL(KIND(1D0)) :: wallAbsorbtivity = 0.0D0 
+      REAL(KIND(1D0)) :: wallReflectivity = 0.0D0 
+      REAL(KIND(1D0)) :: roofTransmisivity = 0.0D0 
+      REAL(KIND(1D0)) :: roofAbsorbtivity = 0.0D0 
+      REAL(KIND(1D0)) :: roofReflectivity = 0.0D0 
+      !REAL(KIND(1D0)) :: BVF_extwall = 0.0D0 
+      !REAL(KIND(1D0)) :: GVF_extwall = 0.0D0 
+      !REAL(KIND(1D0)) :: SVF_extwall = 0.0D0 
+      !REAL(KIND(1D0)) :: BVF_extroof = 0.0D0 
+      !REAL(KIND(1D0)) :: GVF_extroof = 0.0D0 
+      !REAL(KIND(1D0)) :: SVF_extroof = 0.0D0 
+      REAL(KIND(1D0)) :: occupants = 0.0D0 
+      REAL(KIND(1D0)) :: metabolic_rate = 0.0D0 
+      REAL(KIND(1D0)) :: ratio_metabolic_latent_sensible = 0.0D0 
+      REAL(KIND(1D0)) :: appliance_power_rating = 0.0D0 
+      REAL(KIND(1D0)) :: appliance_usage_factor = 0.0D0 
+      REAL(KIND(1D0)) :: maxheatingpower_air = 0.0D0 
+      REAL(KIND(1D0)) :: heating_efficiency_air = 0.0D0 
+      REAL(KIND(1D0)) :: maxcoolingpower_air = 0.0D0 
+      REAL(KIND(1D0)) :: coeff_performance_cooling = 0.0D0 
+      REAL(KIND(1D0)) :: Vair_ind = 0.0D0 
+      REAL(KIND(1D0)) :: ventilation_rate = 0.0D0 
+      REAL(KIND(1D0)) :: Awall = 0.0D0 
+      REAL(KIND(1D0)) :: Aroof = 0.0D0 
+      REAL(KIND(1D0)) :: Vwall = 0.0D0 
+      REAL(KIND(1D0)) :: Vroof = 0.0D0 
+      REAL(KIND(1D0)) :: Vgroundfloor = 0.0D0 
+      REAL(KIND(1D0)) :: Awindow = 0.0D0 
+      REAL(KIND(1D0)) :: Vwindow = 0.0D0 
+      REAL(KIND(1D0)) :: Vindoormass = 0.0D0 
+      REAL(KIND(1D0)) :: Aindoormass = 0.0D0 
+      REAL(KIND(1D0)) :: Tair_ind = 0.0D0 
+      REAL(KIND(1D0)) :: Tindoormass = 0.0D0 
+      REAL(KIND(1D0)) :: Tintwall = 0.0D0 
+      REAL(KIND(1D0)) :: Tintroof = 0.0D0 
+      REAL(KIND(1D0)) :: Textwall = 0.0D0 
+      REAL(KIND(1D0)) :: Textroof = 0.0D0 
+      REAL(KIND(1D0)) :: Tintwindow = 0.0D0 
+      REAL(KIND(1D0)) :: Textwindow = 0.0D0 
+      REAL(KIND(1D0)) :: Tintgroundfloor = 0.0D0 
+      REAL(KIND(1D0)) :: Textgroundfloor = 0.0D0 
+      REAL(KIND(1D0)) :: Twater_tank = 0.0D0 
+      REAL(KIND(1D0)) :: Tintwall_tank = 0.0D0 
+      REAL(KIND(1D0)) :: Textwall_tank = 0.0D0 
+      REAL(KIND(1D0)) :: thickness_tankwall = 0.0D0 
+      REAL(KIND(1D0)) :: Tincomingwater_tank = 0.0D0 
+      REAL(KIND(1D0)) :: Vwater_tank = 0.0D0 
+      REAL(KIND(1D0)) :: Asurf_tank = 0.0D0 
+      REAL(KIND(1D0)) :: Vwall_tank = 0.0D0 
+      REAL(KIND(1D0)) :: setTwater_tank = 0.0D0 
+      REAL(KIND(1D0)) :: init_wtTs = 0.0D0 
+      REAL(KIND(1D0)) :: Twater_vessel = 0.0D0 
+      REAL(KIND(1D0)) :: Tintwall_vessel = 0.0D0 
+      REAL(KIND(1D0)) :: Textwall_vessel = 0.0D0 
+      REAL(KIND(1D0)) :: thickness_wall_vessel = 0.0D0 
+      REAL(KIND(1D0)) :: Vwater_vessel = 0.0D0 
+      REAL(KIND(1D0)) :: Awater_vessel = 0.0D0 
+      REAL(KIND(1D0)) :: Vwall_vessel = 0.0D0 
+      REAL(KIND(1D0)) :: flowrate_water_supply = 0.0D0 
+      REAL(KIND(1D0)) :: flowrate_water_drain = 0.0D0 
+      REAL(KIND(1D0)) :: single_flowrate_water_supply = 0.0D0 
+      REAL(KIND(1D0)) :: single_flowrate_water_drain = 0.0D0 
+      REAL(KIND(1D0)) :: cp_water = 0.0D0 
+      REAL(KIND(1D0)) :: cp_wall_tank = 0.0D0 
+      REAL(KIND(1D0)) :: cp_wall_vessel = 0.0D0 
+      REAL(KIND(1D0)) :: density_water = 0.0D0 
+      REAL(KIND(1D0)) :: density_wall_tank = 0.0D0 
+      REAL(KIND(1D0)) :: density_wall_vessel = 0.0D0 
+      REAL(KIND(1D0)) :: BVF_tank = 0.0D0 
+      REAL(KIND(1D0)) :: MVF_tank = 0.0D0 
+      REAL(KIND(1D0)) :: conductivity_wall_tank = 0.0D0 
+      REAL(KIND(1D0)) :: conv_coeff_intwall_tank = 0.0D0 
+      REAL(KIND(1D0)) :: conv_coeff_extwall_tank = 0.0D0 
+      REAL(KIND(1D0)) :: emissivity_extwall_tank = 0.0D0 
+      REAL(KIND(1D0)) :: conductivity_wall_vessel = 0.0D0 
+      REAL(KIND(1D0)) :: conv_coeff_intwall_vessel = 0.0D0 
+      REAL(KIND(1D0)) :: conv_coeff_extwall_vessel = 0.0D0 
+      REAL(KIND(1D0)) :: emissivity_extwall_vessel = 0.0D0 
+      REAL(KIND(1D0)) :: maxheatingpower_water = 0.0D0 
+      REAL(KIND(1D0)) :: heating_efficiency_water = 0.0D0 
+      REAL(KIND(1D0)) :: minVwater_vessel = 0.0D0 
+      REAL(KIND(1D0)) :: minHeatingPower_DHW = 0.0D0 
+      REAL(KIND(1D0)) :: HeatingPower_DHW = 0.0D0 
+
+      REAL(KIND(1D0)) :: qfm_dom = 0.0D0 ! Metabolic sensible and latent heat
+      REAL(KIND(1D0)) :: qheat_dom = 0.0D0  ! Hourly heating load  [W]
+      REAL(KIND(1D0)) :: qcool_dom = 0.0D0  ! Hourly cooling load  [W]
+      REAL(KIND(1D0)) :: qfb_hw_dom = 0.0D0  ! Hot water
+      REAL(KIND(1D0)) :: qfb_dom_air = 0.0D0  ! Sensible heat to air [W]
+      REAL(KIND(1D0)) :: dom_temp = 0.0D0  ! Domain temperature   [W]
+      REAL(KIND(1D0)) :: QStar = 0.0D0  ! Net radiation        [W m-2]
+      REAL(KIND(1D0)) :: QEC = 0.0D0  ! Energy use           [W m-2]
+      REAL(KIND(1D0)) :: QH = 0.0D0  ! Sensible heat flux   [W m-2]
+      REAL(KIND(1D0)) :: QS = 0.0D0  ! Storage heat flux    [W m-2]
+      REAL(KIND(1D0)) :: QBAE = 0.0D0  ! Building exchange    [W m-2]
+      REAL(KIND(1D0)) :: QWaste = 0.0D0  ! Waste heating        [W m-2]
+
+      REAL(KIND(1D0)), DIMENSION(2) :: Ts, initTs = 0.0D0 
+      REAL(KIND(1D0)), DIMENSION(5) :: h_i, k_eff = 0.0D0 
+      REAL(KIND(1D0)), DIMENSION(3) :: h_o = 0.0D0 
+      REAL(KIND(1D0)), DIMENSION(6) :: rho = 0.0D0 
+      REAL(KIND(1D0)), DIMENSION(6) :: Cp = 0.0D0 
+      REAL(KIND(1D0)), DIMENSION(7) :: emis = 0.0D0 
+      REAL(KIND(1D0)), DIMENSION(3) :: wiTAR, waTAR, roofTAR = 0.0D0 
+      !REAL(KIND(1D0)), DIMENSION(6) :: viewFactors = 0.0D0 
+      REAL(KIND(1D0)), DIMENSION(3) :: occupantData = 0.0D0 
+      REAL(KIND(1D0)), DIMENSION(3) :: HTsAverage, HWTsAverage = 0.0D0 
+      REAL(KIND(1D0)), DIMENSION(3) :: HWPowerAverage = 0.0D0 
+      REAL(KIND(1D0)), DIMENSION(40) :: EnergyExchanges = 0.0D0 
+
+      REAL(KIND(1D0)), DIMENSION(:), ALLOCATABLE :: Textwall_C  ! Wall external surface temperature from STEBBS[K]
+      REAL(KIND(1D0)), DIMENSION(:), ALLOCATABLE :: Textroof_C ! Roof external surface temperature from STEBBS[K]
+
+      ! flag for iteration safety - YES
+      ! all variables are intensive and thus can be used for iteration safety
+      LOGICAL :: iter_safe = .FALSE.
+
+   CONTAINS
+   PROCEDURE :: ALLOCATE => allocSTEBBS_bldgState
+   PROCEDURE :: DEALLOCATE => deallocSTEBBS_bldgState    
+
+   END TYPE
+
    TYPE, PUBLIC :: STEBBS_STATE
 
       ! Beers output for STEBBS - TODO: these should be kept in the HEAT_STATE type -
@@ -928,12 +1173,19 @@ MODULE module_ctrl_type
       REAL(KIND(1D0)) :: Lsouth = 0.0D0 ! incoming longwave radiation from south [W m-2]
       REAL(KIND(1D0)) :: Lnorth = 0.0D0 ! incoming longwave radiation from north [W m-2]
       REAL(KIND(1D0)) :: Least = 0.0D0 ! incoming longwave radiation from east [W m-2]
-
+      REAL(KIND(1D0)), DIMENSION(30) :: zarray = -999 !RSL layer heights
+      REAL(KIND(1D0)), DIMENSION(30) :: dataoutLineURSL = -999 ! wind speed array from RSL [m s-1]
+      REAL(KIND(1D0)), DIMENSION(30) :: dataoutLineTRSL = -999 ! Temperature array from RSL[C]
+      REAL(KIND(1D0)), DIMENSION(30) :: dataoutLineqRSL = -999 ! Specific humidity array from RSL[g kg-1]
       ! Initial conditions that are updated during runtime
+      REAL(KIND(1D0)) :: OutdoorAirAnnualTemperature = 0.0D0 ! Annual mean air temperature [C]
+      REAL(KIND(1D0)) :: OutdoorAirStartTemperature = 0.0D0 ! Initial outdoor air temperature [degC]
       REAL(KIND(1D0)) :: IndoorAirStartTemperature = 0.0D0 ! Initial indoor air temperature [degC]
       REAL(KIND(1D0)) :: IndoorMassStartTemperature = 0.0D0 ! Initial indoor mass temperature [degC]
-      REAL(KIND(1D0)) :: WallIndoorSurfaceTemperature = 0.0D0 ! Initial wall/roof indoor surface temperature [degC]
-      REAL(KIND(1D0)) :: WallOutdoorSurfaceTemperature = 0.0D0 ! Initial wall/roof outdoor surface temperature [degC]
+      REAL(KIND(1D0)) :: WallIndoorSurfaceTemperature = 0.0D0 ! Initial wall indoor surface temperature [degC]
+      REAL(KIND(1D0)) :: WallOutdoorSurfaceTemperature = 0.0D0 ! Initial walloutdoor surface temperature [degC]
+      REAL(KIND(1D0)) :: RoofIndoorSurfaceTemperature = 0.0D0 ! Initial roof indoor surface temperature [degC]
+      REAL(KIND(1D0)) :: RoofOutdoorSurfaceTemperature = 0.0D0 ! Initial roof outdoor surface temperature [degC]
       REAL(KIND(1D0)) :: WindowIndoorSurfaceTemperature = 0.0D0 ! Initial window indoor surface temperature [degC]
       REAL(KIND(1D0)) :: WindowOutdoorSurfaceTemperature = 0.0D0 ! Initial window outdoor surface temperature [degC]
       REAL(KIND(1D0)) :: GroundFloorIndoorSurfaceTemperature = 0.0D0 ! Initial ground floor indoor surface temperature [degC]
@@ -945,10 +1197,18 @@ MODULE module_ctrl_type
       REAL(KIND(1D0)) :: DomesticHotWaterTemperatureInUseInBuilding = 0.0D0 ! Initial water temperature of water held in use in building [degC]
       REAL(KIND(1D0)) :: InternalWallDHWVesselTemperature = 0.0D0 ! Initial hot water vessel internal wall temperature [degC]
       REAL(KIND(1D0)) :: ExternalWallDHWVesselTemperature = 0.0D0 ! Initial hot water vessel external wall temperature [degC]
+      REAL(KIND(1D0)) :: QS_stebbs = 0.0D0 ! storage heat flux per footprint area[W m-2]
+      TYPE(STEBBS_BLDG), ALLOCATABLE, DIMENSION(:) :: buildings ! Array holding all buildings states for STEBBS [-]
 
+      !REAL(KIND(1D0)), DIMENSION(6) :: Textwall_C = 0.0D0 ! Wall external surface temperature from STEBBS[K]
+      !REAL(KIND(1D0)), DIMENSION(6) :: Textroof_C = 0.0D0! Roof external surface temperature from STEBBS[K]      
       ! flag for iteration safety - YES
       ! all variables are intensive and thus can be used for iteration safety
-      LOGICAL :: iter_safe = .TRUE.
+      LOGICAL :: iter_safe = .FALSE.
+
+   CONTAINS
+      PROCEDURE :: ALLOCATE => allocSTEBBS_bldg
+      PROCEDURE :: DEALLOCATE => deallocSTEBBS_bldg
 
    END TYPE STEBBS_STATE
 
@@ -1067,9 +1327,6 @@ MODULE module_ctrl_type
       REAL(KIND(1D0)), DIMENSION(ncolumnsDataOutSTEBBS) :: dataOutLineSTEBBS = -999
       REAL(KIND(1D0)), DIMENSION(ncolumnsDataOutNHood) :: dataOutLineNHood = -999
 
-      REAL(KIND(1D0)), DIMENSION(30) :: dataoutLineURSL = -999 ! wind speed array [m s-1]
-      REAL(KIND(1D0)), DIMENSION(30) :: dataoutLineTRSL = -999 ! Temperature array [C]
-      REAL(KIND(1D0)), DIMENSION(30) :: dataoutLineqRSL = -999 ! Specific humidity array [g kg-1]
    CONTAINS
       ! Procedures
       PROCEDURE :: init => output_line_init
@@ -1164,11 +1421,6 @@ CONTAINS
       self%dataOutLineESTM = -999.0
       self%dataOutLineEHC = -999.0
       self%dataOutLineRSL = -999.0
-      ! Assign dataOutLineURSL, TRSL, qRSL
-      self%dataOutLineURSL = -999.0
-      self%dataOutLineTRSL = -999.0
-      self%dataOutLineqRSL = -999.0
-
       self%dataOutLineBEERS = -999.0
       self%dataOutLineDebug = -999.0
       self%dataOutLineSPARTACUS = -999.0
@@ -1344,10 +1596,12 @@ CONTAINS
       ALLOCATE (self%temp_roof(num_layer, num_depth))
       ALLOCATE (self%temp_wall(num_layer, num_depth))
       ALLOCATE (self%temp_surf(num_surf, num_depth))
+      ALLOCATE (self%temp_surf_dyohm(num_surf, num_depth))
 
       ALLOCATE (self%tsfc_roof(num_layer))
       ALLOCATE (self%tsfc_wall(num_layer))
       ALLOCATE (self%tsfc_surf(num_surf))
+      ALLOCATE (self%tsfc_surf_dyohm(num_surf))
 
       ALLOCATE (self%tsfc_roof_stepstart(num_layer))
       ALLOCATE (self%tsfc_wall_stepstart(num_layer))
@@ -1363,7 +1617,7 @@ CONTAINS
       ALLOCATE (self%qe_wall(num_layer))
       ALLOCATE (self%qh_wall(num_layer))
       ALLOCATE (self%qh_resist_wall(num_layer))
-      !
+
    END SUBROUTINE allocHeatState_c
 
    SUBROUTINE deallocHeatState_c(self)
@@ -1376,10 +1630,12 @@ CONTAINS
       IF (ALLOCATED(self%tsfc_roof)) DEALLOCATE (self%tsfc_roof)
       IF (ALLOCATED(self%tsfc_wall)) DEALLOCATE (self%tsfc_wall)
       IF (ALLOCATED(self%tsfc_surf)) DEALLOCATE (self%tsfc_surf)
+      IF (ALLOCATED(self%tsfc_surf_dyohm)) DEALLOCATE (self%tsfc_surf_dyohm)
       IF (ALLOCATED(self%tsfc_roof_stepstart)) DEALLOCATE (self%tsfc_roof_stepstart)
       IF (ALLOCATED(self%tsfc_wall_stepstart)) DEALLOCATE (self%tsfc_wall_stepstart)
       IF (ALLOCATED(self%tsfc_surf_stepstart)) DEALLOCATE (self%tsfc_surf_stepstart)
       IF (ALLOCATED(self%temp_surf)) DEALLOCATE (self%temp_surf)
+      IF (ALLOCATED(self%temp_surf_dyOHM)) DEALLOCATE (self%temp_surf_dyOHM)
       IF (ALLOCATED(self%QS_roof)) DEALLOCATE (self%QS_roof)
       IF (ALLOCATED(self%QN_roof)) DEALLOCATE (self%QN_roof)
       IF (ALLOCATED(self%qe_roof)) DEALLOCATE (self%qe_roof)
@@ -1463,6 +1719,48 @@ CONTAINS
       IF (ALLOCATED(self%sfr_wall)) DEALLOCATE (self%sfr_wall)
 
    END SUBROUTINE deallocate_site_prm_c
+
+   SUBROUTINE allocSTEBBS_bldg(self, ntypes, num_layer)
+      IMPLICIT NONE
+
+      CLASS(STEBBS_STATE), INTENT(INOUT) :: self
+      INTEGER, INTENT(IN) :: ntypes, num_layer
+
+      CALL self%DEALLOCATE()
+      ALLOCATE (self%buildings(ntypes))
+
+   END SUBROUTINE allocSTEBBS_bldg
+
+   SUBROUTINE deallocSTEBBS_bldg(self)
+      IMPLICIT NONE
+
+      CLASS(STEBBS_STATE), INTENT(INOUT) :: self
+      IF (ALLOCATED(self%buildings)) DEALLOCATE (self%buildings)
+
+   END SUBROUTINE deallocSTEBBS_bldg
+
+   SUBROUTINE allocSTEBBS_bldgState(self, num_layer)
+      IMPLICIT NONE
+
+      CLASS(STEBBS_BLDG), INTENT(INOUT) :: self
+      INTEGER, INTENT(IN) :: num_layer
+
+      CALL self%DEALLOCATE()
+      ! ALLOCATE (self%buildings(ntypes))
+      ALLOCATE (self%Textroof_C(num_layer))
+      ALLOCATE (self%Textwall_C(num_layer))
+
+   END SUBROUTINE allocSTEBBS_bldgState
+
+   SUBROUTINE deallocSTEBBS_bldgState(self)
+      IMPLICIT NONE
+
+      CLASS(STEBBS_BLDG), INTENT(INOUT) :: self
+      ! IF (ALLOCATED(self%buildings)) DEALLOCATE (self%buildings)
+      IF (ALLOCATED(self%Textroof_C)) DEALLOCATE (self%Textroof_C)
+      IF (ALLOCATED(self%Textwall_C)) DEALLOCATE (self%Textwall_C)
+
+   END SUBROUTINE deallocSTEBBS_bldgState
 
    SUBROUTINE SUEWS_cal_surf_DTS( &
       self, & !inout

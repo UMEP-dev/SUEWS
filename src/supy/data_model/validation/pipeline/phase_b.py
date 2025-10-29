@@ -952,7 +952,12 @@ def adjust_surface_temperatures(
             initial_states[surface_type] = surf
 
         # Update STEBBS temperature parameter values to avg_temp
-        for key in ("WallOutdoorSurfaceTemperature", "WindowOutdoorSurfaceTemperature"):
+        for key in (
+            "WallOutdoorSurfaceTemperature",
+            "RoofOutdoorSurfaceTemperature",
+            "WindowOutdoorSurfaceTemperature",
+            "OutdoorAirStartTemperature",
+        ):
             if key in stebbs and isinstance(stebbs[key], dict):
                 old_val = stebbs[key].get("value")
                 if old_val != avg_temp:
@@ -965,6 +970,24 @@ def adjust_surface_temperatures(
                             old_value=str(old_val),
                             new_value=f"{avg_temp} C",
                             reason=f"Set from CRU data for coordinates ({lat:.2f}, {lng:.2f}) for month {month}",
+                        )
+                    )
+
+        # Update STEBBS OutdoorAirAnnualTemperature using annual mean from CRU data
+        annual_temp = get_mean_annual_air_temperature(lat, lng)
+        if annual_temp is not None and "OutdoorAirAnnualTemperature" in stebbs:
+            if isinstance(stebbs["OutdoorAirAnnualTemperature"], dict):
+                old_annual_val = stebbs["OutdoorAirAnnualTemperature"].get("value")
+                if old_annual_val != annual_temp:
+                    stebbs["OutdoorAirAnnualTemperature"]["value"] = annual_temp
+                    adjustments.append(
+                        ScientificAdjustment(
+                            parameter="stebbs.OutdoorAirAnnualTemperature",
+                            site_index=site_idx,
+                            site_gridid=site_gridid,
+                            old_value=str(old_annual_val),
+                            new_value=f"{annual_temp} C",
+                            reason=f"Set from CRU annual mean (1991-2020 normals) for coordinates ({lat:.2f}, {lng:.2f})",
                         )
                     )
 

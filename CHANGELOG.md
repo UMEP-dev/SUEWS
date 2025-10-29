@@ -42,6 +42,10 @@
 - [bugfix] Fixed irrigation parameter: `ie_start` and `ie_end` now correctly identified as Day of Year (DOY) instead of hours
   - Corrected Python data model to match Fortran source code and documentation (DOY units, not hours)
   - Fixed pre-existing documentation bug where these parameters were incorrectly labelled as "hour" units
+- [feature] Phase B validator now automatically populates `OutdoorAirAnnualTemperature` from CRU dataset
+  - Uses CRU TS4.06 1991-2020 climate normals to set annual mean air temperature for STEBBS building model
+  - Consistent with existing monthly temperature handling for other STEBBS parameters
+  - Adjustment recorded in validation report with CRU data provenance
 
 ### 24 Oct 2025
 - [feature] Added physical range validation for 50+ STEBBS building model parameters in `ArchetypeProperties`

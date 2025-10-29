@@ -75,7 +75,7 @@ CONTAINS
       dataOutLineSOLWEIG) ! output
 
       ! USE matsize
-      ! USE solweig_module
+      ! USE module_phys_solweig
 
       IMPLICIT NONE
 

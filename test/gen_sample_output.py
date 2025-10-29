@@ -23,7 +23,7 @@ if p_df_sample.exists():
 print("\n========================================")
 print("Generating sample output for testing")
 df_state_init, df_forcing_tstep = sp.load_SampleData()
-df_forcing_part = df_forcing_tstep.iloc[: 288 * 365]
+df_forcing_part = df_forcing_tstep.iloc[: 288 * 366]  # One year (2012 is a leap year)
 
 # single-step results
 df_output_s, df_state_s = sp.run_supy(df_forcing_part, df_state_init)

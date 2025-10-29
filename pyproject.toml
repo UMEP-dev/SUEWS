@@ -113,7 +113,7 @@ dev = [
     "sphinx-click",             # CLI documentation
     "sphinx_comments",          # Comments (may be re-enabled)
     "docutils>=0.16,<0.17",     # Version pinned for compatibility
-    "jinja2>=3.0,<3.1",         # Version pinned for compatibility
+    "jinja2>=3.0",         # Version pinned for compatibility - # MP removed upper limit
 ]
 
 [project.scripts]

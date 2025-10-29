@@ -1281,7 +1281,9 @@ def test_phase_b_outdoor_air_annual_temperature_no_update_if_same():
         for adj in adjustments
         if adj.parameter == "stebbs.OutdoorAirAnnualTemperature"
     ]
-    assert len(annual_temp_adjustments) == 0, "Should not adjust if value already correct"
+    assert len(annual_temp_adjustments) == 0, (
+        "Should not adjust if value already correct"
+    )
 
 
 def test_phase_b_outdoor_air_annual_temperature_missing_stebbs():

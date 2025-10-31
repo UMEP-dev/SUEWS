@@ -32,16 +32,18 @@ class IrrigationParams(
             "unit": "dimensionless",
             "display_name": "Automatic Fraction",
         },
+        ge=0.0,
+        le=1.0,
     )
     ie_start: Optional[FlexibleRefValue(float)] = Field(
         default=None,
-        description="Start time of irrigation",
-        json_schema_extra={"unit": "hour", "display_name": "Irrigation Start Hour"},
+        description="Day of year when irrigation starts",
+        json_schema_extra={"unit": "DOY", "display_name": "Irrigation Start Day"},
     )
     ie_end: Optional[FlexibleRefValue(float)] = Field(
         default=None,
-        description="End time of irrigation",
-        json_schema_extra={"unit": "hour", "display_name": "Irrigation End Hour"},
+        description="Day of year when irrigation ends",
+        json_schema_extra={"unit": "DOY", "display_name": "Irrigation End Day"},
     )
     internalwateruse_h: Optional[FlexibleRefValue(float)] = Field(
         default=None,
@@ -245,6 +247,7 @@ class AnthropogenicHeat(
             "unit": "people ha^-1",
             "display_name": "Nighttime Population Density",
         },
+        ge=0.0,
     )
     popprof_24hr: HourlyProfile = Field(
         description="24-hour profile of population density",
@@ -382,6 +385,8 @@ class CO2Params(BaseModel):  # TODO: May need to add the RefValue to the profile
             "unit": "dimensionless",
             "display_name": "Fossil Fuel Fraction Heating",
         },
+        ge=0.0,
+        le=1.0,
     )
     frfossilfuel_nonheat: Optional[FlexibleRefValue(float)] = Field(
         default=None,
@@ -390,6 +395,8 @@ class CO2Params(BaseModel):  # TODO: May need to add the RefValue to the profile
             "unit": "dimensionless",
             "display_name": "Fossil Fuel Fraction Non-Heating",
         },
+        ge=0.0,
+        le=1.0,
     )
     maxfcmetab: Optional[FlexibleRefValue(float)] = Field(
         default=None,

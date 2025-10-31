@@ -350,7 +350,7 @@ sites:
       ie_start:
         value: 1.0
       ie_end:
-        value: 366.0
+        value: 21.0
       internalwateruse_h:
         value: 0.0
       daywatper:

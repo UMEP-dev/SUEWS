@@ -1517,36 +1517,6 @@ def test_lai_id_set_in_fall():
     )  # (1.0 + 5.0) / 2
 
 
-def test_lai_id_nullified_if_no_dectr_surface():
-    yaml_input = {
-        "sites": [
-            {
-                "properties": {
-                    "lat": {"value": 51.5},
-                    "land_cover": {
-                        "dectr": {
-                            "sfr": {"value": 0.0},
-                            "lai": {
-                                "laimin": {"value": 1.0},
-                                "laimax": {"value": 5.0},
-                            },
-                        }
-                    },
-                },
-                "initial_states": {
-                    "dectr": {
-                        "lai_id": {"value": 999.0}  # Dummy old value to be nullified
-                    }
-                },
-            }
-        ]
-    }
-    result = precheck_site_season_adjustments(
-        deepcopy(yaml_input), "2025-07-01", model_year=2025
-    )
-    assert result["sites"][0]["initial_states"]["dectr"]["lai_id"]["value"] is None
-
-
 def test_precheck_dls_assignment():
     data = {
         "sites": [

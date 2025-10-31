@@ -133,7 +133,7 @@ def validate_model_option_dependencies(yaml_data: dict) -> List[ValidationResult
 Comprehensive validation and adjustment of surface types and parameters:
 
 - **Surface Fraction Totals**: Must sum to 1.0 for each site - automatically adjusted if needed
-- **Seasonal LAI Adjustments**: Automatic LAI calculation for deciduous trees based on season
+- **Seasonal LAI Adjustments**: Automatic LAI calculation for deciduous trees based on season (only when surface fraction > 0)
 
 ### Geographic Parameter Validation
 
@@ -236,7 +236,7 @@ Phase B makes scientific adjustments that improve model realism without changing
 ### Land Cover Adjustments
 
 - **Fraction Normalisation**: Adjusts surface fractions to sum to 1.0 by rounding the surface with maximum fraction value
-- **Seasonal LAI Adjustments**: Calculates LAI for deciduous trees based on seasonal parameters (laimin, laimax)
+- **Seasonal LAI Adjustments**: Calculates LAI for deciduous trees based on seasonal parameters (laimin, laimax) when surface fraction > 0. When surface fraction is 0, existing lai_id values are preserved and validation is skipped with a warning
 
 ### STEBBS Method Integration
 

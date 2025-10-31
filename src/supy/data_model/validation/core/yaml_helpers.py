@@ -766,10 +766,8 @@ def precheck_site_season_adjustments(
                     logger_supy.debug(
                         f"[site #{i}] Set lai_id to {lai_val} for season {season}"
                     )
-        else:
-            if "dectr" in initial_states:
-                initial_states["dectr"]["lai_id"] = {"value": None}
-                logger_supy.debug(f"[site #{i}] Nullified lai_id (no dectr surface)")
+        # Note: When sfr=0, we don't nullify lai_id - we simply skip validation
+        # The warning "Parameters not checked because surface fraction is 0" covers this
 
         # --------------------------------------
         # 3. DLS Check (timezone and DST start/end days)

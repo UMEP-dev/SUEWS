@@ -34,6 +34,20 @@
 
 ## 2025
 
+### 31 Oct 2025
+- [bugfix] Fixed Phase B validator to not nullify `lai_id` when surface fraction is zero
+  - Removed logic that set `lai_id: null` for vegetation surfaces (dectr, evetr, grass) when `sfr=0`
+  - Preserves user-provided initial state values even when surface is not active
+  - Existing warning "Parameters not checked because surface fraction is 0" adequately covers validation skipping
+  - Prevents crashes when users later change surface fraction from 0 to non-zero values
+  - Fixed in both `phase_b.py` (Phase B pipeline) and `yaml_helpers.py` (precheck functions)
+- [bugfix] Added `rcmethod` to required physics options in validation system
+  - Fixed Phase A validation to check that `rcmethod` parameter is present in configuration files
+  - Prevents runtime crashes when STEBBS resistance calculation method is missing or set to null
+  - Updated validation pipelines: Phase A (`PHYSICS_OPTIONS`), Phase B (`required_physics_params`), orchestrator (`CRITICAL_PHYSICS_PARAMS`)
+  - Updated tests in `test_yaml_processing.py` to include `rcmethod` in physics options validation
+  - `rcmethod` controls method for splitting building envelope heat capacity in STEBBS (0=NONE, 1=PROVIDED, 2=PARAMETERISE)
+
 ### 29 Oct 2025
 - [feature] Phase B validator now automatically populates `OutdoorAirAnnualTemperature` from CRU dataset
   - Uses CRU TS4.06 1991-2020 climate normals to set annual mean air temperature for STEBBS building model

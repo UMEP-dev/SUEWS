@@ -61,7 +61,7 @@ PHYSICS_OPTIONS = {
     'ohmincqf', 'roughlenmommethod', 'roughlenheatmethod',
     'stabilitymethod', 'smdmethod', 'waterusemethod',
     'rslmethod', 'faimethod', 'rsllevel',
-    'gsmodel', 'snowuse', 'stebbsmethod'
+    'gsmodel', 'snowuse', 'stebbsmethod', 'rcmethod'
 }
 
 # Outdated parameter mappings

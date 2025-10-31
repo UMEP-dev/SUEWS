@@ -28,6 +28,7 @@ PHYSICS_OPTIONS = {
     "gsmodel",
     "snowuse",
     "stebbsmethod",
+    "rcmethod",
 }
 
 

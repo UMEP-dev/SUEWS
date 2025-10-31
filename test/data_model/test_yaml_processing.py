@@ -3208,6 +3208,7 @@ class TestPhaseAUptoDateYaml(TestProcessorFixtures):
             "gsmodel",
             "snowuse",
             "stebbsmethod",
+            "rcmethod",
         }
 
         # Should match the synchronized list from Phase A and B
@@ -3251,6 +3252,7 @@ class TestPhaseBScienceCheck(TestProcessorFixtures):
             "gsmodel",
             "snowuse",
             "stebbsmethod",
+            "rcmethod",
         }
 
         valid_yaml = {
@@ -3318,6 +3320,7 @@ class TestPhaseBScienceCheck(TestProcessorFixtures):
             "gsmodel",
             "snowuse",
             "stebbsmethod",
+            "rcmethod",
         }
 
         null_yaml = {
@@ -3759,6 +3762,7 @@ class TestPhaseCPydanticValidation(TestProcessorFixtures):
             "gsmodel",
             "snowuse",
             "stebbsmethod",
+            "rcmethod",
         }
 
         complete_config = {
@@ -3846,6 +3850,7 @@ class TestPhaseCPydanticValidation(TestProcessorFixtures):
             "gsmodel",
             "snowuse",
             "stebbsmethod",
+            "rcmethod",
         }
 
         rsl_config = {

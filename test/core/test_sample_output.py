@@ -59,7 +59,7 @@ import supy as sp
 
 # Get the test data directory
 test_data_dir = Path(__file__).parent.parent / "fixtures" / "data_test"
-p_df_sample = Path(test_data_dir) / "sample_output.pkl"
+p_df_sample = Path(test_data_dir) / "sample_output.csv.gz"
 
 
 # ============================================================================
@@ -398,10 +398,6 @@ class TestSampleOutput(TestCase):
         for file in saved_files:
             print(f"   - {file}")
 
-    @pytest.mark.skipif(
-        int(np.__version__.split(".")[0]) < 2,
-        reason="Test reference data incompatible with NumPy 1.x (pickle format mismatch). See issue for long-term fix.",
-    )
     def test_sample_output_validation(self):
         """
         Test SUEWS output against reference data with appropriate tolerances.
@@ -462,9 +458,11 @@ class TestSampleOutput(TestCase):
         print("Running SUEWS model...")
         df_output, df_state = sp.run_supy(df_forcing_part, df_state_init)
 
-        # Load reference output
+        # Load reference output (CSV format for transparency and compatibility)
         print("Loading reference output...")
-        df_sample = pd.read_pickle(p_df_sample)
+        df_sample = pd.read_csv(
+            p_df_sample, compression="gzip", index_col=[0, 1], parse_dates=[1]
+        )
 
         # Variables to test - these are the key model outputs that:
         # 1. Are most sensitive to numerical differences

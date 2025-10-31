@@ -34,6 +34,12 @@
 
 ## 2025
 
+### 31 Oct 2025
+- [bugfix] Added `rcmethod` to required physics options in validation system
+  - Updated validation pipelines: Phase A (`PHYSICS_OPTIONS`), Phase B (`required_physics_params`), orchestrator (`CRITICAL_PHYSICS_PARAMS`)
+  - Updated tests in `test_yaml_processing.py` to include `rcmethod` in physics options validation
+  - `rcmethod` controls method for splitting building envelope heat capacity in STEBBS (0=NONE, 1=PROVIDED, 2=PARAMETERISE)
+
 ### 29 Oct 2025
 - [feature] Phase B validator now automatically populates `OutdoorAirAnnualTemperature` from CRU dataset
   - Uses CRU TS4.06 1991-2020 climate normals to set annual mean air temperature for STEBBS building model

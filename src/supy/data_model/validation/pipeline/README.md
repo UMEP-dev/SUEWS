@@ -224,7 +224,7 @@ PHYSICS_OPTIONS = {
     'ohmincqf', 'roughlenmommethod', 'roughlenheatmethod',
     'stabilitymethod', 'smdmethod', 'waterusemethod',
     'rslmethod', 'faimethod', 'rsllevel', 'gsmodel',
-    'snowuse', 'stebbsmethod'
+    'snowuse', 'stebbsmethod', 'rcmethod'
 }
 ```
 

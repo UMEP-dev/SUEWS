@@ -43,6 +43,10 @@
   - Fixed in both `phase_b.py` (Phase B pipeline) and `yaml_helpers.py` (precheck functions)
   - Removed obsolete test `test_lai_id_nullified_if_no_dectr_surface` from `test_yaml_processing.py`
   - Updated documentation in `PHASE_B_DETAILED.md` to reflect new behaviour
+- [bugfix] Added `rcmethod` to required physics options in validation system
+  - Updated validation pipelines: Phase A (`PHYSICS_OPTIONS`), Phase B (`required_physics_params`), orchestrator (`CRITICAL_PHYSICS_PARAMS`)
+  - Updated tests in `test_yaml_processing.py` to include `rcmethod` in physics options validation
+  - `rcmethod` controls method for splitting building envelope heat capacity in STEBBS (0=NONE, 1=PROVIDED, 2=PARAMETERISE)
 
 ### 29 Oct 2025
 - [feature] Phase B validator now automatically populates `OutdoorAirAnnualTemperature` from CRU dataset

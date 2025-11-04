@@ -100,6 +100,7 @@ def detect_pydantic_defaults(
         "gsmodel",
         "snowuse",
         "stebbsmethod",
+        "rcmethod",
     ]
 
     # Internal parameters that are not used by SUEWS and should not be reported to users

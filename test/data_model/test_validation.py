@@ -309,7 +309,7 @@ def test_validate_land_cover_fractions_sum_too_high():
     assert cfg._validation_summary["total_warnings"] >= 1
     assert "Land cover fraction validation" in cfg._validation_summary["issue_types"]
     assert any(
-        "must sum to 1.0 (got 1.400000)" in msg
+        "must sum to 1.0 within tolerance" in msg and "got 1.400000" in msg
         for msg in cfg._validation_summary["detailed_messages"]
     )
 
@@ -333,7 +333,7 @@ def test_validate_land_cover_fractions_sum_too_low():
     assert cfg._validation_summary["total_warnings"] >= 1
     assert "Land cover fraction validation" in cfg._validation_summary["issue_types"]
     assert any(
-        "must sum to 1.0 (got 0.600000)" in msg
+        "must sum to 1.0 within tolerance" in msg and "got 0.600000" in msg
         for msg in cfg._validation_summary["detailed_messages"]
     )
 

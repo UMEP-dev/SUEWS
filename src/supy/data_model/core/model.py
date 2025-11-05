@@ -152,9 +152,9 @@ class OhmIncQf(Enum):
         return str(self.value)
 
 
-class RoughnessMethod(Enum):
+class MomentumRoughnessMethod(Enum):
     """
-    Method for calculating aerodynamic roughness length (z0m).
+    Method for calculating momentum roughness length (z0m).
 
     1: FIXED - Fixed roughness length from site parameters
     2: VARIABLE - Variable based on vegetation LAI using rule of thumb (Grimmond & Oke 1999)
@@ -450,7 +450,7 @@ for enum_class in [
     NetRadiationMethod,
     EmissionsMethod,
     StorageHeatMethod,
-    RoughnessMethod,
+    MomentumRoughnessMethod,
     HeatRoughnessMethod,
     StabilityMethod,
     SMDMethod,
@@ -501,8 +501,8 @@ class ModelPhysics(BaseModel):
         description="Controls inclusion of anthropogenic heat flux in OHM storage heat calculations. Options: 0 (EXCLUDE) = Use Q* only (required when StorageHeatMethod=1); 1 (INCLUDE) = Use Q*+QF (required when StorageHeatMethod=2)",
         json_schema_extra={"unit": "dimensionless"},
     )
-    roughlenmommethod: FlexibleRefValue(RoughnessMethod) = Field(
-        default=RoughnessMethod.VARIABLE,
+    roughlenmommethod: FlexibleRefValue(MomentumRoughnessMethod) = Field(
+        default=MomentumRoughnessMethod.VARIABLE,
         description="Method for calculating momentum roughness length (z0m). Options: 1 (FIXED) = Fixed from site parameters; 2 (VARIABLE) = Varies with vegetation LAI; 3 (MACDONALD) = MacDonald et al. 1998 morphometric method; 4 (LAMBDAP_DEPENDENT) = Varies with plan area fraction; 5 (ALTERNATIVE) = Alternative variable method",
         json_schema_extra={"unit": "dimensionless"},
     )

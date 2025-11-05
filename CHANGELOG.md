@@ -63,6 +63,13 @@
   - `rcmethod` controls method for splitting building envelope heat capacity in STEBBS (0=NONE, 1=PROVIDED, 2=PARAMETERISE)
 
 ### 29 Oct 2025
+- [feature] Added validation constraints for human activity parameters
+  - `faut`: Fraction of irrigated area using automatic systems [0.0, 1.0]
+  - `frfossilfuel_heat`, `frfossilfuel_nonheat`: Fossil fuel fractions [0.0, 1.0]
+  - `popdensnighttime`: Population density must be => 0.0 (persons/ha)
+- [bugfix] Fixed irrigation parameter: `ie_start` and `ie_end` now correctly identified as Day of Year (DOY) instead of hours
+  - Corrected Python data model to match Fortran source code and documentation (DOY units, not hours)
+  - Fixed pre-existing documentation bug where these parameters were incorrectly labelled as "hour" units
 - [feature] Phase B validator now automatically populates `OutdoorAirAnnualTemperature` from CRU dataset
   - Uses CRU TS4.06 1991-2020 climate normals to set annual mean air temperature for STEBBS building model
   - Consistent with existing monthly temperature handling for other STEBBS parameters

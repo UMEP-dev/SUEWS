@@ -397,16 +397,12 @@ class SUEWSSimulation:
         if output_path is None:
             # Check if path is specified in config
             config_path = None
-            if (
-                self._config
-                and hasattr(self._config, "model")
-                and hasattr(self._config.model, "control")
-                and hasattr(self._config.model.control, "output_file")
-                and not isinstance(self._config.model.control.output_file, str)
-                and hasattr(self._config.model.control.output_file, "path")
-                and self._config.model.control.output_file.path is not None
-            ):
-                config_path = self._config.model.control.output_file.path
+            try:
+                output_file = self._config.model.control.output_file
+                if not isinstance(output_file, str) and output_file.path:
+                    config_path = output_file.path
+            except AttributeError:
+                pass
 
             output_path = Path(config_path) if config_path else Path(".")
         else:

@@ -669,7 +669,7 @@ class OutputConfig(BaseModel):
     )
     path: Optional[str] = Field(
         default=None,
-        description="Output directory path where result files will be saved. If not specified, defaults to current working directory. This replaces the FileOutputPath parameter from RunControl.nml and is essential for UMEP integration.",
+        description="Output directory path where result files will be saved. If not specified, defaults to current working directory.",
     )
 
     @field_validator("groups")

@@ -4072,6 +4072,18 @@
       "title": "Heating Degree Days",
       "type": "object"
     },
+    "HeatRoughnessMethod": {
+      "description": "Method for calculating thermal roughness length (z0h).\n\n1: BRUTSAERT - Brutsaert (1982) z0h = z0m/10 (see Grimmond & Oke 1986)\n2: KAWAI - Kawai et al. (2009) formulation\n3: VOOGT_GRIMMOND - Voogt and Grimmond (2000) formulation\n4: KANDA - Kanda et al. (2007) formulation\n5: ADAPTIVE - Adaptively using z0m based on pervious coverage: if fully pervious, use method 1; otherwise, use method 2",
+      "enum": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "title": "HeatRoughnessMethod",
+      "type": "integer"
+    },
     "HourlyProfile": {
       "description": "24-hour profile for diurnal variations.",
       "properties": {
@@ -6904,10 +6916,10 @@
         "roughlenmommethod": {
           "anyOf": [
             {
-              "$ref": "#/$defs/RefValue_RoughnessMethod_"
+              "$ref": "#/$defs/RefValue_MomentumRoughnessMethod_"
             },
             {
-              "$ref": "#/$defs/RoughnessMethod"
+              "$ref": "#/$defs/MomentumRoughnessMethod"
             }
           ],
           "default": 2,
@@ -6918,14 +6930,14 @@
         "roughlenheatmethod": {
           "anyOf": [
             {
-              "$ref": "#/$defs/RefValue_RoughnessMethod_"
+              "$ref": "#/$defs/RefValue_HeatRoughnessMethod_"
             },
             {
-              "$ref": "#/$defs/RoughnessMethod"
+              "$ref": "#/$defs/HeatRoughnessMethod"
             }
           ],
           "default": 2,
-          "description": "Method for calculating thermal roughness length (z0h). Options: 1 (FIXED) = Fixed from site parameters; 2 (VARIABLE) = Varies with vegetation LAI; 3 (MACDONALD) = MacDonald et al. 1998 morphometric method; 4 (LAMBDAP_DEPENDENT) = Varies with plan area fraction; 5 (ALTERNATIVE) = Alternative variable method",
+          "description": "Method for calculating thermal roughness length (z0h). Options: 1 (BRUTSAERT) = Brutsaert (1982) z0h = z0m/10; 2 (KAWAI) = Kawai et al. (2009); 3 (VOOGT_GRIMMOND) = Voogt and Grimmond (2000); 4 (KANDA) = Kanda et al. (2007); 5 (ADAPTIVE) = Adaptive method based on surface coverage",
           "title": "Roughlenheatmethod",
           "unit": "dimensionless"
         },
@@ -7083,6 +7095,18 @@
       },
       "title": "Physics Methods",
       "type": "object"
+    },
+    "MomentumRoughnessMethod": {
+      "description": "Method for calculating momentum roughness length (z0m).\n\n1: FIXED - Fixed roughness length from site parameters\n2: VARIABLE - Variable based on vegetation LAI using rule of thumb (Grimmond & Oke 1999)\n3: MACDONALD - MacDonald et al. (1998) morphometric method based on building geometry\n4: LAMBDAP_DEPENDENT - Varies with plan area fraction \u03bbp (Grimmond & Oke 1999)\n5: ALTERNATIVE - Alternative variable method",
+      "enum": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "title": "MomentumRoughnessMethod",
+      "type": "integer"
     },
     "NetRadiationMethod": {
       "description": "Method for calculating net all-wave radiation (Q*).\n\n0: OBSERVED - Uses observed Q* values from forcing file\n1: LDOWN_OBSERVED - Models Q* using observed longwave down radiation (L\u2193) from forcing file\n2: LDOWN_CLOUD - Models Q* with L\u2193 estimated from cloud cover fraction\n3: LDOWN_AIR - Models Q* with L\u2193 estimated from air temperature and relative humidity (recommended for basic runs)\n11-13: Surface temperature variants of methods 1-3 (not recommended)\n100-300: Zenith angle correction variants with NARP output (not recommended)\n1001-1003: SPARTACUS-Surface integration variants (experimental)",
@@ -7698,6 +7722,36 @@
       "title": "RefValue[GSModel]",
       "type": "object"
     },
+    "RefValue_HeatRoughnessMethod_": {
+      "properties": {
+        "value": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/HeatRoughnessMethod"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "ref": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Reference"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "value"
+      ],
+      "title": "RefValue[HeatRoughnessMethod]",
+      "type": "object"
+    },
     "RefValue_List_Union_float__NoneType___": {
       "properties": {
         "value": {
@@ -7805,6 +7859,36 @@
         "value"
       ],
       "title": "RefValue[List[str]]",
+      "type": "object"
+    },
+    "RefValue_MomentumRoughnessMethod_": {
+      "properties": {
+        "value": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/MomentumRoughnessMethod"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "ref": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Reference"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "value"
+      ],
+      "title": "RefValue[MomentumRoughnessMethod]",
       "type": "object"
     },
     "RefValue_NetRadiationMethod_": {
@@ -7955,36 +8039,6 @@
         "value"
       ],
       "title": "RefValue[RSLMethod]",
-      "type": "object"
-    },
-    "RefValue_RoughnessMethod_": {
-      "properties": {
-        "value": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/RoughnessMethod"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "ref": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/Reference"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null
-        }
-      },
-      "required": [
-        "value"
-      ],
-      "title": "RefValue[RoughnessMethod]",
       "type": "object"
     },
     "RefValue_SMDMethod_": {
@@ -8478,18 +8532,6 @@
       },
       "title": "RoofLayer",
       "type": "object"
-    },
-    "RoughnessMethod": {
-      "description": "Method for calculating aerodynamic roughness length (z0m) and thermal roughness length (z0h).\n\n1: FIXED - Fixed roughness length from site parameters\n2: VARIABLE - Variable based on vegetation LAI using rule of thumb (Grimmond & Oke 1999)\n3: MACDONALD - MacDonald et al. (1998) morphometric method based on building geometry\n4: LAMBDAP_DEPENDENT - Varies with plan area fraction \u03bbp (Grimmond & Oke 1999)\n5: ALTERNATIVE - Alternative variable method",
-      "enum": [
-        1,
-        2,
-        3,
-        4,
-        5
-      ],
-      "title": "RoughnessMethod",
-      "type": "integer"
     },
     "SMDMethod": {
       "description": "Method for determining soil moisture deficit (SMD).\n\n0: MODELLED - SMD calculated from water balance using soil parameters\n1: OBSERVED_VOLUMETRIC - Uses observed volumetric soil moisture content (m\u00b3/m\u00b3) from forcing file\n2: OBSERVED_GRAVIMETRIC - Uses observed gravimetric soil moisture content (kg/kg) from forcing file",

@@ -14,7 +14,7 @@ import warnings
 import logging
 
 from ...core.model import (
-    RoughnessMethod,
+    MomentumRoughnessMethod,
     NetRadiationMethod,
     EmissionsMethod,
     StorageHeatMethod,
@@ -74,12 +74,12 @@ class ValidationController(BaseModel):
                 roughmethod_val = roughmethod_val.get("value", 1)
 
             # Convert to enum if it's not already
-            if isinstance(roughmethod_val, RoughnessMethod):
+            if isinstance(roughmethod_val, MomentumRoughnessMethod):
                 roughmethod = roughmethod_val
             else:
-                roughmethod = RoughnessMethod(roughmethod_val)
+                roughmethod = MomentumRoughnessMethod(roughmethod_val)
 
-            if roughmethod == RoughnessMethod.VARIABLE:
+            if roughmethod == MomentumRoughnessMethod.VARIABLE:
                 self.roughness_variable_enabled = True
 
             # Analyze net radiation method for SPARTACUS
@@ -159,7 +159,7 @@ class ValidationController(BaseModel):
             result.validated_methods.add("VARIABLE_ROUGHNESS")
         else:
             result.skipped.append(
-                "Variable roughness validation (RoughnessMethod != VARIABLE)"
+                "Variable roughness validation (MomentumRoughnessMethod != VARIABLE)"
             )
             result.skipped_methods.add("VARIABLE_ROUGHNESS")
 

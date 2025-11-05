@@ -34,6 +34,12 @@
 
 ## 2025
 
+### 05 Nov 2025
+- [feature] Added physics-specific forcing data validation (Issue #818)
+  - `check_forcing()` validates required forcing columns (qn, qf, qs, ldown, fcld, xsmd) based on physics configuration
+  - Integrated with Phase A validation pipeline; backwards compatible
+  - Added helpful error messages with documentation links
+
 ### 31 Oct 2025
 - [bugfix] Added `rcmethod` to required physics options in validation system
   - Updated validation pipelines: Phase A (`PHYSICS_OPTIONS`), Phase B (`required_physics_params`), orchestrator (`CRITICAL_PHYSICS_PARAMS`)

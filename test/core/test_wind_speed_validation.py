@@ -1,9 +1,9 @@
-"""Test wind speed validation in forcing data."""
+"""Test wind speed validation and physics-specific forcing data validation."""
 
 import pytest
 import pandas as pd
 import numpy as np
-from supy._check import check_forcing, check_range
+from supy._check import check_forcing, check_range, FORCING_REQUIREMENTS
 from supy._check import dict_rules_indiv
 
 
@@ -226,3 +226,108 @@ class TestWindSpeedValidation:
         assert (df_fixed["U"] >= 0.01).all()
         # Verify the number of modified values
         assert (df_fixed["U"] == 0.01).sum() == n_invalid
+
+
+class TestPhysicsSpecificValidation:
+    """Test class for physics-specific forcing data validation (Issue #818)."""
+
+    def create_base_forcing_df(self, n_timesteps=24):
+        """Create a base forcing DataFrame with all required columns."""
+        dates = pd.date_range("2021-01-01", periods=n_timesteps, freq="h")
+        df = pd.DataFrame(
+            {
+                "iy": dates.year,
+                "id": dates.dayofyear,
+                "it": dates.hour,
+                "imin": dates.minute,
+                "qn": -999,
+                "qh": -999,
+                "qe": -999,
+                "qs": -999,
+                "qf": -999,
+                "U": 2.0,
+                "RH": 60,
+                "Tair": 20,
+                "pres": 1013,
+                "rain": 0,
+                "kdown": 100,
+                "snow": -999,
+                "ldown": -999,
+                "fcld": -999,
+                "Wuh": -999,
+                "xsmd": -999,
+                "lai": -999,
+                "kdiff": -999,
+                "kdir": -999,
+                "wdir": -999,
+                "isec": 0,
+            },
+            index=dates,
+        )
+        return df
+
+    def test_requirements_mapping_exists(self):
+        """Test that FORCING_REQUIREMENTS mapping is defined."""
+        assert FORCING_REQUIREMENTS is not None
+        assert len(FORCING_REQUIREMENTS) > 0
+
+    def test_netradiationmethod_0_requires_qn(self):
+        """Test that netradiationmethod=0 requires valid qn data."""
+        df_forcing = self.create_base_forcing_df()
+        physics = {"netradiationmethod": 0}
+        issues = check_forcing(df_forcing, fix=False, physics=physics)
+        assert any(
+            "netradiationmethod=0" in issue and "qn" in issue for issue in issues
+        )
+
+    def test_netradiationmethod_0_passes_with_valid_qn(self):
+        """Test that netradiationmethod=0 passes with valid qn data."""
+        df_forcing = self.create_base_forcing_df()
+        df_forcing["qn"] = 100
+        physics = {"netradiationmethod": 0}
+        issues = check_forcing(df_forcing, fix=False, physics=physics)
+        if issues:
+            assert not any(
+                "netradiationmethod=0" in issue and "qn" in issue for issue in issues
+            )
+
+    def test_emissionsmethod_0_error_includes_zero_hint(self):
+        """Test that emissionsmethod=0 error includes hint about setting to zero."""
+        df_forcing = self.create_base_forcing_df()
+        physics = {"emissionsmethod": 0}
+        issues = check_forcing(df_forcing, fix=False, physics=physics)
+        qf_issues = [
+            issue for issue in issues if "emissionsmethod=0" in issue and "qf" in issue
+        ]
+        assert len(qf_issues) > 0
+        assert any("set values to zero" in issue for issue in qf_issues)
+
+    def test_multiple_physics_options_validated(self):
+        """Test that multiple physics options are validated together."""
+        df_forcing = self.create_base_forcing_df()
+        physics = {
+            "netradiationmethod": 0,
+            "storageheatmethod": 0,
+            "emissionsmethod": 0,
+        }
+        issues = check_forcing(df_forcing, fix=False, physics=physics)
+        assert any("qn" in issue for issue in issues)
+        assert any("qs" in issue for issue in issues)
+        assert any("qf" in issue for issue in issues)
+
+    def test_no_physics_parameter_skips_validation(self):
+        """Test that validation is skipped when physics parameter is not provided."""
+        df_forcing = self.create_base_forcing_df()
+        issues = check_forcing(df_forcing, fix=False, physics=None)
+        if issues:
+            assert not any("netradiationmethod" in issue for issue in issues)
+
+    def test_handles_dict_with_value_key(self):
+        """Test that validation handles dict with 'value' key (YAML structure)."""
+        df_forcing = self.create_base_forcing_df()
+        # Simulate YAML structure with nested 'value' key
+        physics = {"netradiationmethod": {"value": 0}}
+        issues = check_forcing(df_forcing, fix=False, physics=physics)
+        assert any(
+            "netradiationmethod=0" in issue and "qn" in issue for issue in issues
+        )

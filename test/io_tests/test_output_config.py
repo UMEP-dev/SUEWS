@@ -20,6 +20,7 @@ def test_output_config_creation():
     assert config.format == OutputFormat.TXT
     assert config.freq is None
     assert config.groups is None
+    assert config.path is None
 
     # Custom config
     config = OutputConfig(
@@ -28,6 +29,15 @@ def test_output_config_creation():
     assert config.format == OutputFormat.PARQUET
     assert config.freq == 1800
     assert config.groups == ["SUEWS", "DailyState", "ESTM"]
+    assert config.path is None
+
+    # Custom config with path
+    config = OutputConfig(
+        format=OutputFormat.TXT, freq=3600, path="./output_dir"
+    )
+    assert config.format == OutputFormat.TXT
+    assert config.freq == 3600
+    assert config.path == "./output_dir"
 
 
 def test_output_config_validation():
@@ -103,6 +113,35 @@ model:
     assert config.model.control.output_file.format == OutputFormat.PARQUET
     assert config.model.control.output_file.freq == 1800
     assert config.model.control.output_file.groups == ["SUEWS", "DailyState", "ESTM"]
+    assert config.model.control.output_file.path is None
+
+
+def test_yaml_output_config_with_path():
+    """Test loading output config with path from YAML"""
+    yaml_content = """
+model:
+  control:
+    tstep: 300
+    output_file:
+      format: txt
+      freq: 3600
+      path: "./Output"
+      groups:
+        - SUEWS
+        - DailyState
+"""
+
+    from supy.data_model.core import SUEWSConfig
+
+    config_dict = yaml.safe_load(yaml_content)
+    config = SUEWSConfig(**config_dict)
+
+    # Pydantic automatically converts the dict to OutputConfig
+    assert isinstance(config.model.control.output_file, OutputConfig)
+    assert config.model.control.output_file.format == OutputFormat.TXT
+    assert config.model.control.output_file.freq == 3600
+    assert config.model.control.output_file.path == "./Output"
+    assert config.model.control.output_file.groups == ["SUEWS", "DailyState"]
 
 
 def test_yaml_backward_compatibility():

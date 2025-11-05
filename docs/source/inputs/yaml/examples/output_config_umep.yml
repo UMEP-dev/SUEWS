@@ -1,0 +1,27 @@
+# Example: UMEP-compatible output configuration
+# This example shows how to configure output path for UMEP integration
+# Replaces the FileOutputPath parameter from RunControl.nml
+
+model:
+  control:
+    tstep: 300  # 5-minute timestep
+    forcing_file: "forcing_2020.txt"
+    
+    # Output configuration with explicit path for UMEP
+    output_file:
+      format: txt           # Traditional text files for UMEP compatibility
+      freq: 3600            # Hourly output (1 hour = 3600 s)
+      path: "./Output"      # Output directory - equivalent to FileOutputPath in RunControl.nml
+      groups:               # Standard groups for UMEP analysis
+        - SUEWS             # Main SUEWS output
+        - DailyState        # Daily state variables
+      
+  physics:
+    netradiationmethod: 3
+    emissionsmethod: 2
+
+sites:
+  - name: "UMEP_Site"
+    latitude: 51.5
+    longitude: -0.1
+    # ... other site parameters

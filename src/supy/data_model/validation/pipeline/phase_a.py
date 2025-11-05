@@ -28,6 +28,7 @@ PHYSICS_OPTIONS = {
     "gsmodel",
     "snowuse",
     "stebbsmethod",
+    "rcmethod",
 }
 
 
@@ -932,12 +933,15 @@ def validate_nlayer_dimensions(user_data: dict, nlayer: int) -> tuple:
     return user_data, dimension_errors
 
 
-def _validate_single_forcing_file(forcing_path: Path, yaml_dir: Path) -> list:
+def _validate_single_forcing_file(
+    forcing_path: Path, yaml_dir: Path, physics: dict = None
+) -> list:
     """Validate a single forcing data file.
 
     Args:
         forcing_path: Path to forcing file (relative or absolute)
         yaml_dir: Directory containing the YAML config (for resolving relative paths)
+        physics: Optional physics configuration dict for physics-specific validation
 
     Returns:
         List of error messages (empty if valid)
@@ -981,7 +985,7 @@ def _validate_single_forcing_file(forcing_path: Path, yaml_dir: Path) -> list:
         logger_supy.setLevel(logging.CRITICAL + 1)  # Disable all logging
 
         try:
-            issues = check_forcing(df_forcing, fix=False)
+            issues = check_forcing(df_forcing, fix=False, physics=physics)
             if issues:
                 # Clean up error messages: remove extra whitespace and newlines, clarify indices
                 cleaned_issues = []
@@ -1025,11 +1029,12 @@ def _validate_single_forcing_file(forcing_path: Path, yaml_dir: Path) -> list:
     return forcing_errors
 
 
-def validate_forcing_data(user_yaml_file: str) -> tuple:
+def validate_forcing_data(user_yaml_file: str, physics: dict = None) -> tuple:
     """Validate forcing data file(s) referenced in user YAML.
 
     Args:
         user_yaml_file: Path to user YAML configuration file
+        physics: Optional physics configuration dict for physics-specific validation
 
     Returns:
         Tuple of (forcing_errors, forcing_file_paths) where forcing_errors is a list of error messages
@@ -1079,7 +1084,9 @@ def validate_forcing_data(user_yaml_file: str) -> tuple:
 
             # Validate all files in the list
             for fpath in forcing_file_path:
-                file_errors = _validate_single_forcing_file(Path(fpath), yaml_dir)
+                file_errors = _validate_single_forcing_file(
+                    Path(fpath), yaml_dir, physics=physics
+                )
                 forcing_errors.extend(file_errors)
 
             return forcing_errors, forcing_file_paths
@@ -1087,7 +1094,9 @@ def validate_forcing_data(user_yaml_file: str) -> tuple:
         # Single file case
         forcing_file_paths = forcing_file_path
         yaml_dir = Path(user_yaml_file).parent
-        file_errors = _validate_single_forcing_file(Path(forcing_file_path), yaml_dir)
+        file_errors = _validate_single_forcing_file(
+            Path(forcing_file_path), yaml_dir, physics=physics
+        )
         forcing_errors.extend(file_errors)
 
         return forcing_errors, forcing_file_paths
@@ -1507,7 +1516,11 @@ def annotate_missing_parameters(
     # Validate forcing data if enabled
     forcing_errors = []
     if forcing == "on":
-        forcing_errors, _ = validate_forcing_data(user_file)
+        # Extract physics configuration if available
+        physics_config = None
+        if user_data and "model" in user_data and "physics" in user_data["model"]:
+            physics_config = user_data["model"]["physics"]
+        forcing_errors, _ = validate_forcing_data(user_file, physics=physics_config)
 
     missing_params = find_missing_parameters(user_data, standard_data)
     extra_params = find_extra_parameters(user_data, standard_data)

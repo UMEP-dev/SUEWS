@@ -241,11 +241,12 @@ Check your data for:
 Validating Forcing Data
 -----------------------
 
-SUEWS provides the ``check_forcing()`` function to validate your forcing data files before running simulations. The validation performs three main checks:
+SUEWS provides the ``check_forcing()`` function to validate your forcing data files before running simulations. The validation performs four main checks:
 
 1. **Column completeness**: Verifies all expected columns are present
 2. **Timestamp validity**: Checks for proper DatetimeIndex, no duplicates, monotonic increasing
 3. **Physical ranges**: Validates values are within physically plausible ranges
+4. **Physics-specific requirements**: Ensures required data columns contain valid values based on selected model physics options (see below)
 
 **Variables and Physical Ranges**
 
@@ -350,9 +351,47 @@ The validation report shows any issues found:
 
 For comprehensive quality control, combine ``check_forcing()`` with visual inspection of time series plots.
 
+Physics-Specific Data Requirements
+-----------------------------------
+
+Certain model physics options require specific forcing data columns to contain valid (non-missing) values.
+
+.. list-table::
+   :header-rows: 1
+   :widths: 30 20 50
+
+   * - Physics Option
+     - Required Column
+     - Description
+   * - ``netradiationmethod: 0``
+     - ``qn``
+     - Uses observed net radiation
+   * - ``netradiationmethod: 1``
+     - ``ldown``
+     - Models Q* with observed incoming longwave
+   * - ``netradiationmethod: 2``
+     - ``kdown``, ``fcld``
+     - Models Q* and L↓ using cloud fraction
+   * - ``netradiationmethod: 3``
+     - ``kdown``
+     - Models L↓ from Tair and RH
+   * - ``storageheatmethod: 0``
+     - ``qs``
+     - Uses observed storage heat flux
+   * - ``emissionsmethod: 0``
+     - ``qf``
+     - Uses observed anthropogenic heat flux
+   * - ``smdmethod: 1``
+     - ``xsmd``
+     - Uses observed volumetric soil moisture
+   * - ``smdmethod: 2``
+     - ``xsmd``
+     - Uses observed gravimetric soil moisture
+
 See Also
 --------
 
 - :doc:`/inputs/yaml/index` - YAML configuration including forcing file specification
 - :doc:`/inputs/yaml/validation` - Complete validation system documentation
+- :doc:`/input_files/RunControl/RunControl` - Model physics options reference
 - :doc:`/troubleshooting` - Common forcing data issues and solutions

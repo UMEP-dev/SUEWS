@@ -34,6 +34,34 @@
 
 ## 2025
 
+
+### 05 Nov 2025
+- [feature] Added physics-specific forcing data validation (Issue #818)
+  - `check_forcing()` validates required forcing columns (qn, qf, qs, ldown, fcld, xsmd) based on physics configuration
+  - Integrated with Phase A validation pipeline; backwards compatible
+  - Added helpful error messages with documentation links
+
+### 4 Nov 2025
+- [bugfix] Fixed land cover fraction validation to use floating-point tolerance
+  - Changed from exact equality check (`total_fraction != 1.0`) to tolerance-based check (`abs(total_fraction - 1.0) > 1e-6`)
+  - Uses same tolerance (1e-6) as Phase B fraction normalisation
+  - Improved error messages to show tolerance level and actual difference from 1.0
+
+
+### 31 Oct 2025
+- [bugfix] Fixed Phase B validator to not nullify `lai_id` when surface fraction is zero
+  - Removed logic that set `lai_id: null` for vegetation surfaces (dectr, evetr, grass) when `sfr=0`
+  - Preserves user-provided initial state values even when surface is not active
+  - Existing warning "Parameters not checked because surface fraction is 0" adequately covers validation skipping
+  - Prevents crashes when users later change surface fraction from 0 to non-zero values
+  - Fixed in both `phase_b.py` (Phase B pipeline) and `yaml_helpers.py` (precheck functions)
+  - Removed obsolete test `test_lai_id_nullified_if_no_dectr_surface` from `test_yaml_processing.py`
+  - Updated documentation in `PHASE_B_DETAILED.md` to reflect new behaviour
+- [bugfix] Added `rcmethod` to required physics options in validation system
+  - Updated validation pipelines: Phase A (`PHYSICS_OPTIONS`), Phase B (`required_physics_params`), orchestrator (`CRITICAL_PHYSICS_PARAMS`)
+  - Updated tests in `test_yaml_processing.py` to include `rcmethod` in physics options validation
+  - `rcmethod` controls method for splitting building envelope heat capacity in STEBBS (0=NONE, 1=PROVIDED, 2=PARAMETERISE)
+
 ### 29 Oct 2025
 - [feature] Added validation constraints for human activity parameters
   - `faut`: Fraction of irrigated area using automatic systems [0.0, 1.0]

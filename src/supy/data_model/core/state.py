@@ -25,7 +25,7 @@ class SurfaceInitialState(BaseModel):
         ge=0,
     )  # Default set to 0.0 means dry surface.
     soilstore: FlexibleRefValue(float) = Field(
-        description="Initial soil store (essential for QE)",
+        description="Initial soil store. Related to Soil Moisture Deficit (SMD) as SMD = soilstorecap - soilstore.",
         json_schema_extra={"unit": "mm", "display_name": "Soilstore"},
         default=150.0,
         ge=10,

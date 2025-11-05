@@ -124,7 +124,26 @@ def check_method(ser_to_check: pd.Series, rule_var: dict) -> Tuple:
 list_col_forcing = list(dict_var_type_forcing.keys())
 
 
-def check_forcing(df_forcing: pd.DataFrame, fix=False):
+# Requirements mapping: links physics options to required forcing columns
+# Format: (physics_option_name, option_value): [list of required columns]
+# Reference: https://suews.readthedocs.io/en/latest/input_files/RunControl/RunControl.html#scheme-options
+# and https://suews.readthedocs.io/en/latest/input_files/met_forcing.html
+FORCING_REQUIREMENTS = {
+    ("netradiationmethod", 0): ["qn"],  # Uses observed Q*
+    ("netradiationmethod", 1): ["ldown"],  # Q* modelled with L↓ observations
+    ("netradiationmethod", 2): [
+        "kdown",
+        "fcld",
+    ],  # Q* modelled with L↓ from cloud fraction
+    ("netradiationmethod", 3): ["kdown"],  # Q* modelled with L↓ from Tair and RH
+    ("storageheatmethod", 0): ["qs"],  # Uses observed storage heat flux
+    ("emissionsmethod", 0): ["qf"],  # Uses observed anthropogenic heat flux
+    ("smdmethod", 1): ["xsmd"],  # Uses observed volumetric soil moisture
+    ("smdmethod", 2): ["xsmd"],  # Uses observed gravimetric soil moisture
+}
+
+
+def check_forcing(df_forcing: pd.DataFrame, fix=False, physics=None):
     if fix:
         df_forcing_fix = df_forcing.copy()
     logger_supy.info("SuPy is validating `df_forcing`...")
@@ -193,6 +212,57 @@ def check_forcing(df_forcing: pd.DataFrame, fix=False):
                     max_v = dict_rules_indiv[var_check]["param"]["max"]
                     ser_var = ser_var.clip(lower=min_v, upper=max_v)
                     df_forcing_fix.loc[:, var] = ser_var.values
+
+    # 4. check physics-specific requirements if physics dict is provided
+    if physics is not None:
+        for (option_name, option_value), required_cols in FORCING_REQUIREMENTS.items():
+            # Get the actual value from physics dict
+            if option_name in physics:
+                actual_value = physics[option_name]
+
+                # Handle dict with 'value' key (YAML structure)
+                if isinstance(actual_value, dict) and "value" in actual_value:
+                    actual_value = actual_value["value"]
+
+                # Handle RefValue wrappers (objects with .value attribute)
+                if hasattr(actual_value, "value"):
+                    actual_value = actual_value.value
+
+                # Handle enum types
+                if hasattr(actual_value, "__class__") and hasattr(
+                    actual_value.__class__, "__name__"
+                ):
+                    if "Enum" in str(actual_value.__class__.__bases__):
+                        actual_value = actual_value.value
+
+                # Check if this physics option requires specific columns
+                if actual_value == option_value:
+                    for col in required_cols:
+                        if col in df_forcing.columns:
+                            # Check if column contains only missing data (-999)
+                            col_data = df_forcing[col]
+                            is_all_missing = (col_data == -999).all()
+
+                            if is_all_missing:
+                                # Add helpful note for emissionsmethod about setting to zero
+                                if (
+                                    option_name == "emissionsmethod"
+                                    and option_value == 0
+                                ):
+                                    extra_help = " If you do not want to include QF in the surface energy balance calculation, set values to zero in the forcing file instead of -999."
+                                else:
+                                    extra_help = ""
+
+                                str_issue = (
+                                    f"Physics option '{option_name}={option_value}' requires "
+                                    f"valid data in column '{col}', but it contains only missing "
+                                    f"values (-999). Please provide valid forcing data or change "
+                                    f"the physics option.{extra_help} "
+                                    f"See documentation: "
+                                    f"https://suews.readthedocs.io/en/latest/input_files/RunControl/RunControl.html#scheme-options"
+                                )
+                                list_issues.append(str_issue)
+                                flag_valid = False
 
     if not flag_valid:
         str_issue = "\n".join(["Issues found in `df_forcing`:"] + list_issues)

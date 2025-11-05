@@ -129,6 +129,7 @@
           "default": 10.0,
           "description": "Nighttime population density",
           "display_name": "Nighttime Population Density",
+          "minimum": 0.0,
           "title": "Popdensnighttime",
           "type": "number",
           "unit": "people ha^-1"
@@ -288,7 +289,7 @@
             }
           ],
           "default": 0.2,
-          "description": "Thickness of external wall and roof (weighted) [m]",
+          "description": "Thickness of external wall [m]",
           "display_name": "Wallthickness",
           "gt": 0.0,
           "title": "Wallthickness",
@@ -304,7 +305,7 @@
             }
           ],
           "default": 0.6,
-          "description": "Effective thermal conductivity of walls and roofs (weighted) [W m-1 K-1]",
+          "description": "Effective thermal conductivity of walls [W m-1 K-1]",
           "display_name": "Walleffectiveconductivity",
           "gt": 0.0,
           "title": "Walleffectiveconductivity",
@@ -320,7 +321,7 @@
             }
           ],
           "default": 1600.0,
-          "description": "Effective density of the walls and roof (weighted) [kg m-3]",
+          "description": "Effective density of the walls [kg m-3]",
           "display_name": "Walldensity",
           "gt": 0.0,
           "title": "Walldensity",
@@ -336,10 +337,72 @@
             }
           ],
           "default": 850.0,
-          "description": "Effective specific heat capacity of walls and roof (weighted) [J kg-1 K-1]",
-          "display_name": "Wallcp",
+          "description": "Effective specific heat capacity of walls [J kg-1 K-1]",
           "gt": 0.0,
-          "title": "Wallcp",
+          "title": "Wallcp"
+        },
+        "WallextThickness": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RefValue_float_"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "default": 20.0,
+          "description": "Thickness of layers external to insulation in external wall [m]",
+          "display_name": "Wallextthickness",
+          "gt": 0.0,
+          "title": "Wallextthickness",
+          "unit": "m"
+        },
+        "WallextEffectiveConductivity": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RefValue_float_"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "default": 60.0,
+          "description": "Effective thermal conductivity of layers external to insulation in walls [W m-1 K-1]",
+          "display_name": "Walleffectiveconductivity",
+          "gt": 0.0,
+          "title": "Wallexteffectiveconductivity",
+          "unit": "W m^-1 K^-1"
+        },
+        "WallextDensity": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RefValue_float_"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "default": 1600.0,
+          "description": "Effective density of layers external to insulation in the walls [kg m-3]",
+          "display_name": "Wallextdensity",
+          "gt": 0.0,
+          "title": "Wallextdensity",
+          "unit": "kg m^-3"
+        },
+        "WallextCp": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RefValue_float_"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "default": 850.0,
+          "description": "Effective specific heat capacity of layers external to insulation in walls [J kg-1 K-1]",
+          "display_name": "Wallextcp",
+          "gt": 0.0,
+          "title": "Wallextcp",
           "unit": "J kg^-1 K^-1"
         },
         "Wallx1": {
@@ -352,7 +415,7 @@
             }
           ],
           "default": 1.0,
-          "description": "Weighting factor for heat capacity of walls and roof [-]",
+          "description": "Weighting factor for heat capacity of walls [-]",
           "display_name": "Wallx1",
           "ge": 0.0,
           "le": 1.0,
@@ -369,7 +432,7 @@
             }
           ],
           "default": 0.9,
-          "description": "Emissivity of the external surface of walls and roof [-]",
+          "description": "Emissivity of the external surface of walls [-]",
           "display_name": "Wallexternalemissivity",
           "ge": 0.0,
           "le": 1.0,
@@ -386,7 +449,7 @@
             }
           ],
           "default": 0.9,
-          "description": "Emissivity of the internal surface of walls and roof [-]",
+          "description": "Emissivity of the internal surface of walls [-]",
           "display_name": "Wallinternalemissivity",
           "ge": 0.0,
           "le": 1.0,
@@ -403,7 +466,7 @@
             }
           ],
           "default": 0.0,
-          "description": "Transmissivity of walls and roof [-]",
+          "description": "Transmissivity of walls [-]",
           "display_name": "Walltransmissivity",
           "ge": 0.0,
           "le": 1.0,
@@ -420,7 +483,7 @@
             }
           ],
           "default": 0.8,
-          "description": "Absorbtivity of walls and roof [-]",
+          "description": "Absorbtivity of walls [-]",
           "display_name": "Wallabsorbtivity",
           "ge": 0.0,
           "le": 1.0,
@@ -437,11 +500,239 @@
             }
           ],
           "default": 0.2,
-          "description": "Reflectivity of the external surface of walls and roof [-]",
+          "description": "Reflectivity of the external surface of walls [-]",
           "display_name": "Wallreflectivity",
           "ge": 0.0,
           "le": 1.0,
           "title": "Wallreflectivity",
+          "unit": "dimensionless"
+        },
+        "RoofThickness": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RefValue_float_"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "default": 20.0,
+          "description": "Thickness of roof [m]",
+          "display_name": "Roofthickness",
+          "gt": 0.0,
+          "title": "Roofthickness",
+          "unit": "m"
+        },
+        "RoofEffectiveConductivity": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RefValue_float_"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "default": 60.0,
+          "description": "Effective thermal conductivity of roof [W m-1 K-1]",
+          "display_name": "Roofeffectiveconductivity",
+          "gt": 0.0,
+          "title": "Roofeffectiveconductivity",
+          "unit": "W m^-1 K^-1"
+        },
+        "RoofDensity": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RefValue_float_"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "default": 1600.0,
+          "description": "Effective density of the roof [kg m-3]",
+          "display_name": "Roofdensity",
+          "gt": 0.0,
+          "title": "Roofdensity",
+          "unit": "kg m^-3"
+        },
+        "RoofCp": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RefValue_float_"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "default": 850.0,
+          "description": "Effective specific heat capacity of roof [J kg-1 K-1]",
+          "gt": 0.0,
+          "title": "Roofcp"
+        },
+        "RoofextThickness": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RefValue_float_"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "default": 20.0,
+          "description": "Thickness of layers external to insulation in roof [m]",
+          "display_name": "Roofextthickness",
+          "gt": 0.0,
+          "title": "Roofextthickness",
+          "unit": "m"
+        },
+        "RoofextEffectiveConductivity": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RefValue_float_"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "default": 60.0,
+          "description": "Effective thermal conductivity of layers external to insulation in roof [W m-1 K-1]",
+          "display_name": "Roofeffectiveconductivity",
+          "gt": 0.0,
+          "title": "Roofexteffectiveconductivity",
+          "unit": "W m^-1 K^-1"
+        },
+        "RoofextDensity": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RefValue_float_"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "default": 1600.0,
+          "description": "Effective density of layers external to insulation in the roof [kg m-3]",
+          "display_name": "Roofextdensity",
+          "gt": 0.0,
+          "title": "Roofextdensity",
+          "unit": "kg m^-3"
+        },
+        "RoofextCp": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RefValue_float_"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "default": 850.0,
+          "description": "Effective specific heat capacity of layers external to insulation in roof [J kg-1 K-1]",
+          "display_name": "Roofextcp",
+          "gt": 0.0,
+          "title": "Roofextcp",
+          "unit": "J kg^-1 K^-1"
+        },
+        "Roofx1": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RefValue_float_"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "default": 1.0,
+          "description": "Weighting factor for heat capacity of roof [-]",
+          "display_name": "Roofx1",
+          "ge": 0.0,
+          "le": 1.0,
+          "title": "Roofx1",
+          "unit": "dimensionless"
+        },
+        "RoofExternalEmissivity": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RefValue_float_"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "default": 0.9,
+          "description": "Emissivity of the external surface of roof [-]",
+          "display_name": "Roofexternalemissivity",
+          "ge": 0.0,
+          "le": 1.0,
+          "title": "Roofexternalemissivity",
+          "unit": "dimensionless"
+        },
+        "RoofInternalEmissivity": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RefValue_float_"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "default": 0.9,
+          "description": "Emissivity of the internal surface of roof [-]",
+          "display_name": "Roofinternalemissivity",
+          "ge": 0.0,
+          "le": 1.0,
+          "title": "Roofinternalemissivity",
+          "unit": "dimensionless"
+        },
+        "RoofTransmissivity": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RefValue_float_"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "default": 0.0,
+          "description": "Transmissivity of roof [-]",
+          "display_name": "Rooftransmissivity",
+          "ge": 0.0,
+          "le": 1.0,
+          "title": "Rooftransmissivity",
+          "unit": "dimensionless"
+        },
+        "RoofAbsorbtivity": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RefValue_float_"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "default": 0.8,
+          "description": "Absorbtivity of roof [-]",
+          "display_name": "Roofabsorbtivity",
+          "ge": 0.0,
+          "le": 1.0,
+          "title": "Roofabsorbtivity",
+          "unit": "dimensionless"
+        },
+        "RoofReflectivity": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RefValue_float_"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "default": 0.2,
+          "description": "Reflectivity of the external surface of roof [-]",
+          "display_name": "RoofReflectivity",
+          "ge": 0.0,
+          "le": 1.0,
+          "title": "Roofreflectivity",
           "unit": "dimensionless"
         },
         "FloorThickness": {
@@ -1515,10 +1806,16 @@
         "frfossilfuel_heat": {
           "anyOf": [
             {
-              "$ref": "#/$defs/RefValue_float_"
-            },
-            {
-              "type": "number"
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/RefValue_float_"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "ge": 0.0,
+              "le": 1.0
             },
             {
               "type": "null"
@@ -1533,10 +1830,16 @@
         "frfossilfuel_nonheat": {
           "anyOf": [
             {
-              "$ref": "#/$defs/RefValue_float_"
-            },
-            {
-              "type": "number"
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/RefValue_float_"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "ge": 0.0,
+              "le": 1.0
             },
             {
               "type": "null"
@@ -3833,7 +4136,7 @@
             }
           ],
           "default": 150.0,
-          "description": "Initial soil store (essential for QE)",
+          "description": "Initial soil store. Related to Soil Moisture Deficit (SMD) as SMD = soilstorecap - soilstore.",
           "display_name": "Soilstore",
           "ge": 10,
           "title": "Soilstore",
@@ -4059,7 +4362,7 @@
             }
           ],
           "default": 150.0,
-          "description": "Initial soil store (essential for QE)",
+          "description": "Initial soil store. Related to Soil Moisture Deficit (SMD) as SMD = soilstorecap - soilstore.",
           "display_name": "Soilstore",
           "ge": 10,
           "title": "Soilstore",
@@ -4286,7 +4589,7 @@
             }
           ],
           "default": 150.0,
-          "description": "Initial soil store (essential for QE)",
+          "description": "Initial soil store. Related to Soil Moisture Deficit (SMD) as SMD = soilstorecap - soilstore.",
           "display_name": "Soilstore",
           "ge": 10,
           "title": "Soilstore",
@@ -4610,7 +4913,7 @@
             }
           ],
           "default": 150.0,
-          "description": "Initial soil store (essential for QE)",
+          "description": "Initial soil store. Related to Soil Moisture Deficit (SMD) as SMD = soilstorecap - soilstore.",
           "display_name": "Soilstore",
           "ge": 10,
           "title": "Soilstore",
@@ -4901,7 +5204,7 @@
             }
           ],
           "default": 150.0,
-          "description": "Initial soil store (essential for QE)",
+          "description": "Initial soil store. Related to Soil Moisture Deficit (SMD) as SMD = soilstorecap - soilstore.",
           "display_name": "Soilstore",
           "ge": 10,
           "title": "Soilstore",
@@ -5191,7 +5494,7 @@
             }
           ],
           "default": 150.0,
-          "description": "Initial soil store (essential for QE)",
+          "description": "Initial soil store. Related to Soil Moisture Deficit (SMD) as SMD = soilstorecap - soilstore.",
           "display_name": "Soilstore",
           "ge": 10,
           "title": "Soilstore",
@@ -5952,6 +6255,8 @@
           "default": 0.0,
           "description": "Fraction of automatic irrigation",
           "display_name": "Automatic Fraction",
+          "ge": 0.0,
+          "le": 1.0,
           "title": "Faut",
           "unit": "dimensionless"
         },
@@ -5968,10 +6273,10 @@
             }
           ],
           "default": null,
-          "description": "Start time of irrigation",
-          "display_name": "Irrigation Start Hour",
+          "description": "Day of year when irrigation starts",
+          "display_name": "Irrigation Start Day",
           "title": "Ie Start",
-          "unit": "hour"
+          "unit": "DOY"
         },
         "ie_end": {
           "anyOf": [
@@ -5986,10 +6291,10 @@
             }
           ],
           "default": null,
-          "description": "End time of irrigation",
-          "display_name": "Irrigation End Hour",
+          "description": "Day of year when irrigation ends",
+          "display_name": "Irrigation End Day",
           "title": "Ie End",
-          "unit": "hour"
+          "unit": "DOY"
         },
         "internalwateruse_h": {
           "anyOf": [
@@ -6578,7 +6883,7 @@
             }
           ],
           "default": 1,
-          "description": "Method for calculating storage heat flux (\u0394QS). Options: 0 (OBSERVED) = Uses observed \u0394QS from forcing file; 1 (OHM_WITHOUT_QF) = Objective Hysteresis Model using Q* only; 3 (ANOHM) = Analytical OHM (not recommended); 4 (ESTM) = Element Surface Temperature Method (not recommended); 5 (ESTM_EXTENDED) = Extended ESTM with separate facet temps; 6 (OHM_ENHANCED) = Enhanced OHM parameterisation",
+          "description": "Method for calculating storage heat flux (\u0394QS). Options: 0 (OBSERVED) = Uses observed \u0394QS from forcing file; 1 (OHM_WITHOUT_QF) = Objective Hysteresis Model using Q* only; 3 (ANOHM) = Analytical OHM (not recommended); 4 (ESTM) = Element Surface Temperature Method (not recommended); 5 (ESTM_EXTENDED) = Extended ESTM with separate facet temps; 6 (OHM_ENHANCED) = Enhanced OHM parameterisation; 7 (STEBBS) = use STEBBS to calculate storage heat flux for building",
           "title": "Storageheatmethod",
           "unit": "dimensionless"
         },
@@ -6748,6 +7053,20 @@
           "default": 0,
           "description": "Surface Temperature Energy Balance Based Scheme (STEBBS) for facet temperatures. Options: 0 (NONE) = STEBBS disabled; 1 (DEFAULT) = STEBBS with default parameters; 2 (PROVIDED) = STEBBS with user-specified parameters",
           "title": "Stebbsmethod",
+          "unit": "dimensionless"
+        },
+        "rcmethod": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RefValue_RCMethod_"
+            },
+            {
+              "$ref": "#/$defs/RCMethod"
+            }
+          ],
+          "default": 0,
+          "description": "method to split heat capacity of building envelope in STEBBS. Options: 0 = NONE; 1 = input weighting factor x1; 2 = use parameterised weighting factor by building material property",
+          "title": "Rcmethod",
           "unit": "dimensionless"
         },
         "ref": {
@@ -7259,6 +7578,16 @@
       "title": "Paved Surfaces",
       "type": "object"
     },
+    "RCMethod": {
+      "description": "Method to split building envelope heat capacity in STEBBS.\n0: NONE\n1: PROVIDED - use user defined value (fractional x1) between 0 and 1\n2: PARAMETERISE - use building material thermal property to parameterise the weighting factor x1",
+      "enum": [
+        0,
+        1,
+        2
+      ],
+      "title": "RCMethod",
+      "type": "integer"
+    },
     "RSLLevel": {
       "description": "Method for incorporating local environmental feedbacks on surface processes, particularly vegetation phenology\nand evapotranspiration responses to urban heat island effects.\n\n0: NONE - No local climate adjustments; use forcing file meteorology directly\n1: BASIC - Simple adjustments for urban temperature effects on leaf area index (LAI) and growing degree days\n2: DETAILED - Comprehensive feedbacks including moisture stress, urban CO2 dome effects, and modified phenology cycles",
       "enum": [
@@ -7536,6 +7865,36 @@
         "value"
       ],
       "title": "RefValue[OhmIncQf]",
+      "type": "object"
+    },
+    "RefValue_RCMethod_": {
+      "properties": {
+        "value": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RCMethod"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "ref": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Reference"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "value"
+      ],
+      "title": "RefValue[RCMethod]",
       "type": "object"
     },
     "RefValue_RSLLevel_": {
@@ -9005,10 +9364,33 @@
           ],
           "default": 7.69,
           "default_description": "Default value calculated from the CIBSE GUIDE A, Table 3.47, Page 176",
-          "description": "Internal convection coefficient of walls and roof [W m-2 K-1]",
+          "description": "Internal convection coefficient of walls [W m-2 K-1]",
           "display_name": "Wallinternalconvectioncoefficient",
           "range_description": "Value must be greater than zero.",
           "title": "Wallinternalconvectioncoefficient",
+          "unit": "W m^-2 K^-1"
+        },
+        "RoofInternalConvectionCoefficient": {
+          "anyOf": [
+            {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/RefValue_float_"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "gt": 0.0
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": 10.0,
+          "description": "Internal convection coefficient of roof [W m-2 K-1]",
+          "display_name": "Roofinternalconvectioncoefficient",
+          "title": "Roofinternalconvectioncoefficient",
           "unit": "W m^-2 K^-1"
         },
         "InternalMassConvectionCoefficient": {
@@ -9101,6 +9483,29 @@
           "description": "Initial external convection coefficient of walls and roof [W m-2 K-1]",
           "display_name": "Wallexternalconvectioncoefficient",
           "title": "Wallexternalconvectioncoefficient",
+          "unit": "W m^-2 K^-1"
+        },
+        "RoofExternalConvectionCoefficient": {
+          "anyOf": [
+            {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/RefValue_float_"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "gt": 0.0
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": 25.0,
+          "description": "Initial external convection coefficient of roof [W m-2 K-1]",
+          "display_name": "Roofexternalconvectioncoefficient",
+          "title": "Roofexternalconvectioncoefficient",
           "unit": "W m^-2 K^-1"
         },
         "WindowExternalConvectionCoefficient": {
@@ -9489,6 +9894,39 @@
           "title": "Ventilationrate",
           "unit": "h^-1"
         },
+        "OutdoorAirAnnualTemperature": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RefValue_float_"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "default": 10.0,
+          "description": "Annual mean air temperature, which can be used as deep soil temperature",
+          "display_name": "Annual mean air temperature",
+          "title": "Outdoorairannualtemperature",
+          "unit": "degC"
+        },
+        "OutdoorAirStartTemperature": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RefValue_float_"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": 0.0,
+          "description": "Initial outdoor air temperature [degC]",
+          "display_name": "Outdoorairstarttemperature",
+          "title": "Outdoorairstarttemperature",
+          "unit": "degC"
+        },
         "IndoorAirStartTemperature": {
           "anyOf": [
             {
@@ -9538,7 +9976,7 @@
             }
           ],
           "default": 0.0,
-          "description": "Initial wall/roof indoor surface temperature [degC]",
+          "description": "Initial wall indoor surface temperature [degC]",
           "display_name": "Wallindoorsurfacetemperature",
           "title": "Wallindoorsurfacetemperature",
           "unit": "degC"
@@ -9556,9 +9994,45 @@
             }
           ],
           "default": 0.0,
-          "description": "Initial wall/roof outdoor surface temperature [degC]",
+          "description": "Initial wall outdoor surface temperature [degC]",
           "display_name": "Walloutdoorsurfacetemperature",
           "title": "Walloutdoorsurfacetemperature",
+          "unit": "degC"
+        },
+        "RoofIndoorSurfaceTemperature": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RefValue_float_"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": 0.0,
+          "description": "Initial roof indoor surface temperature [degC]",
+          "display_name": "Roofindoorsurfacetemperature",
+          "title": "Roofindoorsurfacetemperature",
+          "unit": "degC"
+        },
+        "RoofOutdoorSurfaceTemperature": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RefValue_float_"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": 0.0,
+          "description": "Initial roof outdoor surface temperature [degC]",
+          "display_name": "Roofoutdoorsurfacetemperature",
+          "title": "Roofoutdoorsurfacetemperature",
           "unit": "degC"
         },
         "WindowIndoorSurfaceTemperature": {
@@ -10520,14 +10994,15 @@
       "type": "object"
     },
     "StorageHeatMethod": {
-      "description": "Method for calculating storage heat flux (\u0394QS).\n\n0: OBSERVED - Uses observed \u0394QS values from forcing file\n1: OHM_WITHOUT_QF - Objective Hysteresis Model using Q* only (use with OhmIncQf=0)\n3: ANOHM - Analytical OHM (Sun et al., 2017) - not recommended\n4: ESTM - Element Surface Temperature Method (Offerle et al., 2005) - not recommended\n5: ESTM_EXTENDED - Extended ESTM with separate roof/wall/ground temperatures\n6: OHM_ENHANCED - OHM with enhanced parameterisation",
+      "description": "Method for calculating storage heat flux (\u0394QS).\n\n0: OBSERVED - Uses observed \u0394QS values from forcing file\n1: OHM_WITHOUT_QF - Objective Hysteresis Model using Q* only (use with OhmIncQf=0)\n3: ANOHM - Analytical OHM (Sun et al., 2017) - not recommended\n4: ESTM - Element Surface Temperature Method (Offerle et al., 2005) - not recommended\n5: ESTM_EXTENDED - Extended ESTM with separate roof/wall/ground temperatures\n6: OHM_ENHANCED - OHM with enhanced parameterisation\n7: STEBBS - use STEBBS storage heat flux for building, others use OHM",
       "enum": [
         0,
         1,
         3,
         4,
         5,
-        6
+        6,
+        7
       ],
       "title": "StorageHeatMethod",
       "type": "integer"
@@ -10561,7 +11036,7 @@
             }
           ],
           "default": 150.0,
-          "description": "Initial soil store (essential for QE)",
+          "description": "Initial soil store. Related to Soil Moisture Deficit (SMD) as SMD = soilstorecap - soilstore.",
           "display_name": "Soilstore",
           "ge": 10,
           "title": "Soilstore",

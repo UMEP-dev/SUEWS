@@ -276,7 +276,9 @@ class TestPhysicsSpecificValidation:
         df_forcing = self.create_base_forcing_df()
         physics = {"netradiationmethod": 0}
         issues = check_forcing(df_forcing, fix=False, physics=physics)
-        assert any("netradiationmethod=0" in issue and "qn" in issue for issue in issues)
+        assert any(
+            "netradiationmethod=0" in issue and "qn" in issue for issue in issues
+        )
 
     def test_netradiationmethod_0_passes_with_valid_qn(self):
         """Test that netradiationmethod=0 passes with valid qn data."""
@@ -285,14 +287,18 @@ class TestPhysicsSpecificValidation:
         physics = {"netradiationmethod": 0}
         issues = check_forcing(df_forcing, fix=False, physics=physics)
         if issues:
-            assert not any("netradiationmethod=0" in issue and "qn" in issue for issue in issues)
+            assert not any(
+                "netradiationmethod=0" in issue and "qn" in issue for issue in issues
+            )
 
     def test_emissionsmethod_0_error_includes_zero_hint(self):
         """Test that emissionsmethod=0 error includes hint about setting to zero."""
         df_forcing = self.create_base_forcing_df()
         physics = {"emissionsmethod": 0}
         issues = check_forcing(df_forcing, fix=False, physics=physics)
-        qf_issues = [issue for issue in issues if "emissionsmethod=0" in issue and "qf" in issue]
+        qf_issues = [
+            issue for issue in issues if "emissionsmethod=0" in issue and "qf" in issue
+        ]
         assert len(qf_issues) > 0
         assert any("set values to zero" in issue for issue in qf_issues)
 
@@ -322,4 +328,6 @@ class TestPhysicsSpecificValidation:
         # Simulate YAML structure with nested 'value' key
         physics = {"netradiationmethod": {"value": 0}}
         issues = check_forcing(df_forcing, fix=False, physics=physics)
-        assert any("netradiationmethod=0" in issue and "qn" in issue for issue in issues)
+        assert any(
+            "netradiationmethod=0" in issue and "qn" in issue for issue in issues
+        )

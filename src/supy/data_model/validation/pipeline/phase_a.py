@@ -933,7 +933,9 @@ def validate_nlayer_dimensions(user_data: dict, nlayer: int) -> tuple:
     return user_data, dimension_errors
 
 
-def _validate_single_forcing_file(forcing_path: Path, yaml_dir: Path, physics: dict = None) -> list:
+def _validate_single_forcing_file(
+    forcing_path: Path, yaml_dir: Path, physics: dict = None
+) -> list:
     """Validate a single forcing data file.
 
     Args:
@@ -1082,7 +1084,9 @@ def validate_forcing_data(user_yaml_file: str, physics: dict = None) -> tuple:
 
             # Validate all files in the list
             for fpath in forcing_file_path:
-                file_errors = _validate_single_forcing_file(Path(fpath), yaml_dir, physics=physics)
+                file_errors = _validate_single_forcing_file(
+                    Path(fpath), yaml_dir, physics=physics
+                )
                 forcing_errors.extend(file_errors)
 
             return forcing_errors, forcing_file_paths
@@ -1090,7 +1094,9 @@ def validate_forcing_data(user_yaml_file: str, physics: dict = None) -> tuple:
         # Single file case
         forcing_file_paths = forcing_file_path
         yaml_dir = Path(user_yaml_file).parent
-        file_errors = _validate_single_forcing_file(Path(forcing_file_path), yaml_dir, physics=physics)
+        file_errors = _validate_single_forcing_file(
+            Path(forcing_file_path), yaml_dir, physics=physics
+        )
         forcing_errors.extend(file_errors)
 
         return forcing_errors, forcing_file_paths

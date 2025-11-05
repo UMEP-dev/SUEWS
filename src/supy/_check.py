@@ -129,14 +129,17 @@ list_col_forcing = list(dict_var_type_forcing.keys())
 # Reference: https://suews.readthedocs.io/en/latest/input_files/RunControl/RunControl.html#scheme-options
 # and https://suews.readthedocs.io/en/latest/input_files/met_forcing.html
 FORCING_REQUIREMENTS = {
-    ('netradiationmethod', 0): ['qn'],  # Uses observed Q*
-    ('netradiationmethod', 1): ['ldown'],  # Q* modelled with L↓ observations
-    ('netradiationmethod', 2): ['kdown', 'fcld'],  # Q* modelled with L↓ from cloud fraction
-    ('netradiationmethod', 3): ['kdown'],  # Q* modelled with L↓ from Tair and RH
-    ('storageheatmethod', 0): ['qs'],  # Uses observed storage heat flux
-    ('emissionsmethod', 0): ['qf'],  # Uses observed anthropogenic heat flux
-    ('smdmethod', 1): ['xsmd'],  # Uses observed volumetric soil moisture
-    ('smdmethod', 2): ['xsmd'],  # Uses observed gravimetric soil moisture
+    ("netradiationmethod", 0): ["qn"],  # Uses observed Q*
+    ("netradiationmethod", 1): ["ldown"],  # Q* modelled with L↓ observations
+    ("netradiationmethod", 2): [
+        "kdown",
+        "fcld",
+    ],  # Q* modelled with L↓ from cloud fraction
+    ("netradiationmethod", 3): ["kdown"],  # Q* modelled with L↓ from Tair and RH
+    ("storageheatmethod", 0): ["qs"],  # Uses observed storage heat flux
+    ("emissionsmethod", 0): ["qf"],  # Uses observed anthropogenic heat flux
+    ("smdmethod", 1): ["xsmd"],  # Uses observed volumetric soil moisture
+    ("smdmethod", 2): ["xsmd"],  # Uses observed gravimetric soil moisture
 }
 
 
@@ -218,16 +221,18 @@ def check_forcing(df_forcing: pd.DataFrame, fix=False, physics=None):
                 actual_value = physics[option_name]
 
                 # Handle dict with 'value' key (YAML structure)
-                if isinstance(actual_value, dict) and 'value' in actual_value:
-                    actual_value = actual_value['value']
+                if isinstance(actual_value, dict) and "value" in actual_value:
+                    actual_value = actual_value["value"]
 
                 # Handle RefValue wrappers (objects with .value attribute)
-                if hasattr(actual_value, 'value'):
+                if hasattr(actual_value, "value"):
                     actual_value = actual_value.value
 
                 # Handle enum types
-                if hasattr(actual_value, '__class__') and hasattr(actual_value.__class__, '__name__'):
-                    if 'Enum' in str(actual_value.__class__.__bases__):
+                if hasattr(actual_value, "__class__") and hasattr(
+                    actual_value.__class__, "__name__"
+                ):
+                    if "Enum" in str(actual_value.__class__.__bases__):
                         actual_value = actual_value.value
 
                 # Check if this physics option requires specific columns
@@ -240,7 +245,10 @@ def check_forcing(df_forcing: pd.DataFrame, fix=False, physics=None):
 
                             if is_all_missing:
                                 # Add helpful note for emissionsmethod about setting to zero
-                                if option_name == 'emissionsmethod' and option_value == 0:
+                                if (
+                                    option_name == "emissionsmethod"
+                                    and option_value == 0
+                                ):
                                     extra_help = " If you do not want to include QF in the surface energy balance calculation, set values to zero in the forcing file instead of -999."
                                 else:
                                     extra_help = ""

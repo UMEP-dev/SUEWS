@@ -49,6 +49,14 @@
 
 
 ### 31 Oct 2025
+- [bugfix] Fixed Phase B validator to not nullify `lai_id` when surface fraction is zero
+  - Removed logic that set `lai_id: null` for vegetation surfaces (dectr, evetr, grass) when `sfr=0`
+  - Preserves user-provided initial state values even when surface is not active
+  - Existing warning "Parameters not checked because surface fraction is 0" adequately covers validation skipping
+  - Prevents crashes when users later change surface fraction from 0 to non-zero values
+  - Fixed in both `phase_b.py` (Phase B pipeline) and `yaml_helpers.py` (precheck functions)
+  - Removed obsolete test `test_lai_id_nullified_if_no_dectr_surface` from `test_yaml_processing.py`
+  - Updated documentation in `PHASE_B_DETAILED.md` to reflect new behaviour
 - [bugfix] Added `rcmethod` to required physics options in validation system
   - Updated validation pipelines: Phase A (`PHYSICS_OPTIONS`), Phase B (`required_physics_params`), orchestrator (`CRITICAL_PHYSICS_PARAMS`)
   - Updated tests in `test_yaml_processing.py` to include `rcmethod` in physics options validation

@@ -1301,23 +1301,8 @@ def adjust_seasonal_parameters(
                                 reason=f"Set seasonal LAI for {season} (laimin={laimin}, laimax={laimax})",
                             )
                         )
-            else:
-                if (
-                    "dectr" in initial_states
-                    and initial_states["dectr"].get("lai_id", {}).get("value")
-                    is not None
-                ):
-                    initial_states["dectr"]["lai_id"] = {"value": None}
-                    adjustments.append(
-                        ScientificAdjustment(
-                            parameter="dectr.lai_id",
-                            site_index=site_idx,
-                            site_gridid=site_gridid,
-                            old_value="previous value",
-                            new_value="null",
-                            reason="Nullified (no deciduous trees: sfr=0)",
-                        )
-                    )
+            # Note: When sfr=0, we don't nullify lai_id - we simply skip validation
+            # The warning "Parameters not checked because surface fraction is 0" covers this
 
         if lat is not None and lng is not None:
             try:

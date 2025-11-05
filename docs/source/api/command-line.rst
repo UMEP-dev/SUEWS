@@ -54,6 +54,7 @@ Display and export SUEWS configuration schema for validation and tooling.
 Related Documentation
 ---------------------
 
+- :doc:`python-cli-equivalents` - Python API equivalents for all CLI commands
 - :doc:`/workflow` - Complete workflow guide
 - :doc:`/inputs/converter` - Configuration converter guide
 - :doc:`/inputs/yaml/index` - YAML configuration reference

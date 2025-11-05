@@ -315,3 +315,11 @@ class TestPhysicsSpecificValidation:
         issues = check_forcing(df_forcing, fix=False, physics=None)
         if issues:
             assert not any("netradiationmethod" in issue for issue in issues)
+
+    def test_handles_dict_with_value_key(self):
+        """Test that validation handles dict with 'value' key (YAML structure)."""
+        df_forcing = self.create_base_forcing_df()
+        # Simulate YAML structure with nested 'value' key
+        physics = {"netradiationmethod": {"value": 0}}
+        issues = check_forcing(df_forcing, fix=False, physics=physics)
+        assert any("netradiationmethod=0" in issue and "qn" in issue for issue in issues)

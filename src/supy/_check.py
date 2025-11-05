@@ -217,6 +217,10 @@ def check_forcing(df_forcing: pd.DataFrame, fix=False, physics=None):
             if option_name in physics:
                 actual_value = physics[option_name]
 
+                # Handle dict with 'value' key (YAML structure)
+                if isinstance(actual_value, dict) and 'value' in actual_value:
+                    actual_value = actual_value['value']
+
                 # Handle RefValue wrappers (objects with .value attribute)
                 if hasattr(actual_value, 'value'):
                     actual_value = actual_value.value

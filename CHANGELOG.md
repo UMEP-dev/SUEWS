@@ -34,6 +34,12 @@
 
 ## 2025
 
+### 4 Nov 2025
+- [bugfix] Fixed land cover fraction validation to use floating-point tolerance
+  - Changed from exact equality check (`total_fraction != 1.0`) to tolerance-based check (`abs(total_fraction - 1.0) > 1e-6`)
+  - Uses same tolerance (1e-6) as Phase B fraction normalisation
+  - Improved error messages to show tolerance level and actual difference from 1.0
+
 ### 31 Oct 2025
 - [bugfix] Added `rcmethod` to required physics options in validation system
   - Updated validation pipelines: Phase A (`PHYSICS_OPTIONS`), Phase B (`required_physics_params`), orchestrator (`CRITICAL_PHYSICS_PARAMS`)

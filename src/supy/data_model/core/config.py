@@ -1073,10 +1073,11 @@ class SUEWSConfig(BaseModel):
             else:
                 fractions[surface_type] = 0.0
 
-        # Check if fractions sum to exactly 1.0
+        # Check if fractions sum to exactly 1.0 (with tolerance for floating-point errors)
         total_fraction = sum(fractions.values())
+        tolerance = 1e-6
 
-        if total_fraction != 1.0:
+        if abs(total_fraction - 1.0) > tolerance:
             self._validation_summary["total_warnings"] += 1
             self._validation_summary["issue_types"].add(
                 "Land cover fraction validation"
@@ -1084,8 +1085,9 @@ class SUEWSConfig(BaseModel):
 
             # Create detailed message with breakdown
             fraction_details = ", ".join([f"{k}={v:.3f}" for k, v in fractions.items()])
+            difference = abs(total_fraction - 1.0)
             self._validation_summary["detailed_messages"].append(
-                f"{site_name}: Land cover fractions must sum to 1.0 (got {total_fraction:.6f}): {fraction_details}"
+                f"{site_name}: Land cover fractions must sum to 1.0 within tolerance {tolerance} (got {total_fraction:.6f}, difference {difference:.2e}): {fraction_details}"
             )
             has_issues = True
 
@@ -1798,14 +1800,16 @@ class SUEWSConfig(BaseModel):
                 fractions[surface_type] = 0.0
 
         total_fraction = sum(fractions.values())
+        tolerance = 1e-6
 
-        if total_fraction != 1.0:
+        if abs(total_fraction - 1.0) > tolerance:
             fraction_details = ", ".join([f"{k}={v:.3f}" for k, v in fractions.items()])
+            difference = abs(total_fraction - 1.0)
             annotator.add_issue(
                 path=f"sites[{site_index}]/properties/land_cover",
                 param="surface_fractions",
-                message=f"Land cover fractions must sum to 1.0 (got {total_fraction:.6f}): {fraction_details}",
-                fix="Adjust surface fractions so they sum to exactly 1.0",
+                message=f"Land cover fractions must sum to 1.0 within tolerance {tolerance} (got {total_fraction:.6f}, difference {difference:.2e}): {fraction_details}",
+                fix=f"Adjust surface fractions so they sum to 1.0 within tolerance {tolerance}",
                 level="WARNING",
             )
 

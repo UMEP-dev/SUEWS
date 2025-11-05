@@ -407,7 +407,7 @@ class SUEWSSimulation:
                 and self._config.model.control.output_file.path is not None
             ):
                 config_path = self._config.model.control.output_file.path
-            
+
             output_path = Path(config_path) if config_path else Path(".")
         else:
             output_path = Path(output_path)

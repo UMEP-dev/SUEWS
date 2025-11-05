@@ -32,9 +32,7 @@ def test_output_config_creation():
     assert config.path is None
 
     # Custom config with path
-    config = OutputConfig(
-        format=OutputFormat.TXT, freq=3600, path="./output_dir"
-    )
+    config = OutputConfig(format=OutputFormat.TXT, freq=3600, path="./output_dir")
     assert config.format == OutputFormat.TXT
     assert config.freq == 3600
     assert config.path == "./output_dir"

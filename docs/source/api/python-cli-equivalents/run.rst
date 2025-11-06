@@ -8,10 +8,17 @@ CLI Command
 
 .. code-block:: bash
 
-    suews-run -p RunControl.nml
+    # If RunControl.nml is in current directory (default)
+    suews-run
+
+    # Or specify path to namelist file
+    suews-run -p path/to/RunControl.nml
 
 .. note::
-   The CLI command ``suews-run`` only supports legacy namelist (RunControl.nml) format.
+   The CLI command ``suews-run`` only supports legacy namelist format.
+
+   RunControl.nml is the control file from the original Fortran SUEWS, specifying
+   simulation settings and input file locations.
 
    **For YAML configurations**, use the Python API with ``SUEWSSimulation`` class (examples below).
    To convert existing namelist files to YAML, see :doc:`conversion`.

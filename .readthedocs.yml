@@ -4,7 +4,7 @@
 #
 # Build strategy: Aligned with GitHub Actions workflow
 # - Uses system gfortran via apt (like GHA manylinux)
-# - Uses uv for fast Python package management (installed into RTD virtualenv)
+# - Uses pip with verbose output to prevent inactivity timeouts during Fortran compilation
 # - Standard non-editable install (RTD doesn't need -e flag)
 # - Removed conda dependency for consistency with GHA build process
 
@@ -25,12 +25,12 @@ build:
       - git fetch --tags || true
       - git update-index --assume-unchanged docs/source/conf.py
     post_create_environment:
-      # Install uv in the RTD virtualenv
-      - python -m pip install uv
       # Install build dependencies
-      - uv pip install wheel "numpy>=2.0" "meson-python>=0.17.0" "f90wrap==0.2.16"
+      - python -m pip install wheel "numpy>=2.0" "meson-python>=0.17.0" "f90wrap==0.2.16"
       # Install package with dev extras
-      - uv pip install ".[dev]"
+      # Use pip with verbose output to prevent RTD inactivity timeout during Fortran compilation
+      # pip provides better progress reporting than uv for long-running builds
+      - python -m pip install -v --progress-bar on ".[dev]"
     post_install:
       # Generate RST files after package is installed
       - cd docs && make generate-rst

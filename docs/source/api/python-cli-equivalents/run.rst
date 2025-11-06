@@ -1,13 +1,28 @@
 Running SUEWS Simulations
 -------------------------
 
-Executing SUEWS simulations using YAML configuration files.
+Executing SUEWS simulations from the command line or Python.
 
 .. note::
    SUEWS now uses YAML configuration files. The legacy namelist format (RunControl.nml)
    is deprecated.
 
    To convert existing namelist files to YAML, see :doc:`conversion`.
+
+CLI Command
+~~~~~~~~~~~
+
+.. code-block:: bash
+
+    # Using namelist format (deprecated)
+    suews-run
+    suews-run -p path/to/RunControl.nml
+
+.. note::
+   The CLI command currently only supports the deprecated namelist format.
+   YAML support is being added - see `Issue #834 <https://github.com/UMEP-dev/SUEWS/issues/834>`_.
+
+   For YAML configurations, use the Python API below.
 
 Python API
 ~~~~~~~~~~

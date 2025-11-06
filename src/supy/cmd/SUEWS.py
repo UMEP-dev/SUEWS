@@ -238,11 +238,9 @@ def SUEWS(config_file, path_runcontrol):
     click.echo(
         f"""
 ===========================================
-Running SUEWS via SuPy ...
-supy version: {__version__}
+SUEWS version: {__version__}
 
-Documentation sites:
-SUEWS: https://suews.readthedocs.io/
+Documentation: https://suews.readthedocs.io/
 ===========================================
     """
     )

@@ -1,6 +1,12 @@
 # .readthedocs.yaml
 # Read the Docs configuration file
 # See https://docs.readthedocs.io/en/stable/config-file/v2.html for details
+#
+# Build strategy: Aligned with GitHub Actions workflow
+# - Uses system gfortran via apt (like GHA manylinux)
+# - Uses uv for fast Python package management
+# - Standard non-editable install (RTD doesn't need -e flag)
+# - Removed conda dependency for consistency with GHA build process
 
 # Required
 version: 2
@@ -8,31 +14,32 @@ version: 2
 build:
   os: ubuntu-22.04
   tools:
-    python: "mambaforge-latest"
+    python: "3.13"
+  apt_packages:
+    - gfortran  # Fortran compiler for building from source
+    - build-essential  # Ensure full build toolchain available
   jobs:
     pre_install:
       # Fetch all tags for proper version detection
       - git fetch --unshallow || true
       - git fetch --tags || true
-      - git update-index --assume-unchanged env.yml docs/source/conf.py
-      - make dev
-    pre_build:
-      # Generate RST files for data model documentation
+      - git update-index --assume-unchanged docs/source/conf.py
+      # Install uv for fast package management
+      - curl -LsSf https://astral.sh/uv/install.sh | sh
+    post_create_environment:
+      # Install package using uv (faster than pip, aligns with local dev)
+      - $HOME/.local/bin/uv pip install wheel "numpy>=2.0" "meson-python>=0.17.0" "f90wrap==0.2.16"
+      - $HOME/.local/bin/uv pip install ".[dev]"
+    post_install:
+      # Generate RST files after package is installed
       - cd docs && make generate-rst
-
-conda:
-  environment: env.yml
 
 # Build documentation in the docs/ directory with Sphinx
 sphinx:
   configuration: docs/source/conf.py
+  builder: html
+  fail_on_warning: false
 
 # Build documentation formats
 # Only HTML format (no PDF or ePub to avoid compatibility issues)
 formats: []
-
-# install the package in the docs/ directory
-python:
-  install:
-    - method: pip
-      path: .

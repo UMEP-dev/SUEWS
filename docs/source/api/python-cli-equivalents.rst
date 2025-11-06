@@ -17,8 +17,6 @@ This guide shows Python equivalents for common SUEWS command-line operations, en
 
 .. include:: python-cli-equivalents/schema.rst
 
-.. include:: python-cli-equivalents/integration.rst
-
 See Also
 --------
 

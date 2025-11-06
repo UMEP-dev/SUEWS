@@ -1,32 +1,18 @@
 Running SUEWS Simulations
 -------------------------
 
-Executing SUEWS simulations from the command line or Python.
-
-CLI Command
-~~~~~~~~~~~
-
-.. code-block:: bash
-
-    # If RunControl.nml is in current directory (default)
-    suews-run
-
-    # Or specify path to namelist file
-    suews-run -p path/to/RunControl.nml
+Executing SUEWS simulations using YAML configuration files.
 
 .. note::
-   The CLI command ``suews-run`` only supports legacy namelist format.
+   SUEWS now uses YAML configuration files. The legacy namelist format (RunControl.nml)
+   is deprecated.
 
-   RunControl.nml is the control file from the original Fortran SUEWS, specifying
-   simulation settings and input file locations.
-
-   **For YAML configurations**, use the Python API with ``SUEWSSimulation`` class (examples below).
    To convert existing namelist files to YAML, see :doc:`conversion`.
 
-Python API (Recommended)
-~~~~~~~~~~~~~~~~~~~~~~~~~
+Python API
+~~~~~~~~~~
 
-The modern approach uses YAML configuration files with the ``SUEWSSimulation`` class.
+Run SUEWS simulations using YAML configuration files with the ``SUEWSSimulation`` class.
 
 Basic Simulation
 ~~~~~~~~~~~~~~~~

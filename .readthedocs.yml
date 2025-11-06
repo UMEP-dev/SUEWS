@@ -30,7 +30,8 @@ build:
       # Install package with dev extras
       # Use pip with verbose output to prevent RTD inactivity timeout during Fortran compilation
       # pip provides better progress reporting than uv for long-running builds
-      - python -m pip install -v --progress-bar on ".[dev]"
+      # Enable fast_build for faster compilation (removes -fcheck=all, uses -O1)
+      - python -m pip install -v --progress-bar on --config-settings=setup-args="-Dfast_build=true" ".[dev]"
     post_install:
       # Generate RST files after package is installed
       - cd docs && make generate-rst

@@ -356,6 +356,42 @@ jobs:
           verbose: true
           skip-existing: true
 
+  # Verification gate for branch protection
+  # This job always runs for PRs and provides a single stable check name
+  # that branch protection can require, avoiding issues with conditional builds
+  verify_builds:
+    name: Verify builds for merge
+    runs-on: ubuntu-latest
+    needs: [build_wheels, build_umep]
+    # Always run for pull requests
+    if: always() && github.event_name == 'pull_request'
+    steps:
+      - name: Check build results
+        run: |
+          BUILD_WHEELS_RESULT="${{ needs.build_wheels.result }}"
+          BUILD_UMEP_RESULT="${{ needs.build_umep.result }}"
+
+          echo "build_wheels result: $BUILD_WHEELS_RESULT"
+          echo "build_umep result: $BUILD_UMEP_RESULT"
+
+          # Pass if both builds succeeded
+          if [[ "$BUILD_WHEELS_RESULT" == "success" ]] && [[ "$BUILD_UMEP_RESULT" == "success" ]]; then
+            echo "✓ All builds passed"
+            exit 0
+          fi
+
+          # Pass if both builds were skipped (doc-only changes)
+          if [[ "$BUILD_WHEELS_RESULT" == "skipped" ]] && [[ "$BUILD_UMEP_RESULT" == "skipped" ]]; then
+            echo "✓ Builds skipped (likely doc-only changes) - allowing merge"
+            exit 0
+          fi
+
+          # Fail in all other cases (failure, cancelled, mixed results)
+          echo "✗ Builds failed or incomplete - blocking merge"
+          echo "  build_wheels: $BUILD_WHEELS_RESULT"
+          echo "  build_umep: $BUILD_UMEP_RESULT"
+          exit 1
+
   create_github_release:
     name: Create GitHub Release (triggers Zenodo)
     runs-on: ubuntu-latest

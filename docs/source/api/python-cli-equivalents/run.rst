@@ -1,26 +1,18 @@
 Running SUEWS Simulations
 -------------------------
 
-Executing SUEWS simulations programmatically.
-
-CLI Command
-~~~~~~~~~~~
-
-.. code-block:: bash
-
-    suews-run -p RunControl.nml  # For namelist configuration only
+Executing SUEWS simulations programmatically using YAML configuration files.
 
 .. note::
-   The CLI command ``suews-run`` only supports namelist (RunControl.nml) format.
-   For YAML configuration, use the Python API with ``SUEWSSimulation`` class.
+   The modern approach uses YAML configuration files with the ``SUEWSSimulation`` class.
+   For converting legacy namelist (RunControl.nml) files to YAML, see :doc:`conversion`.
 
-Python Equivalent (YAML Configuration)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Basic Simulation
+~~~~~~~~~~~~~~~~
 
 .. code-block:: python
 
     from supy import SUEWSSimulation
-    from pathlib import Path
 
     # Create simulation from YAML configuration
     sim = SUEWSSimulation("config.yml")
@@ -33,66 +25,71 @@ Python Equivalent (YAML Configuration)
 
     print("Simulation completed successfully!")
 
-Python Equivalent (Namelist Configuration)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Accessing Results
+~~~~~~~~~~~~~~~~~
 
 .. code-block:: python
 
-    import supy
-    from pathlib import Path
-
-    # Initialise SUEWS with namelist
-    path_runcontrol = Path("RunControl.nml").resolve()
-    df_state_init = supy.init_supy(path_runcontrol)
-
-    # Load forcing data
-    grid = df_state_init.index[0]  # Use first grid
-    df_forcing = supy.load_forcing_grid(path_runcontrol, grid)
+    from supy import SUEWSSimulation
 
     # Run simulation
-    df_output, df_state_final = supy.run_supy(df_forcing, df_state_init)
+    sim = SUEWSSimulation("config.yml")
+    sim.run()
 
-    # Save results
-    list_output_files = supy.save_supy(
-        df_output,
-        df_state_final,
-        path_runcontrol=path_runcontrol
-    )
+    # Access simulation results
+    results = sim.results  # DataFrame with simulation output
 
-    print("Output files created:")
-    for file in list_output_files:
-        print(f"  {file}")
+    # Access configuration
+    config = sim.config
 
-Multi-Grid Simulations
+    # Access forcing data
+    forcing = sim.forcing
+
+    # Perform custom analysis
+    print(f"Mean QH: {results['QH'].mean():.2f} W/m²")
+    print(f"Max QE: {results['QE'].max():.2f} W/m²")
+
+Updating Configuration
 ~~~~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: python
 
-    import supy
+    from supy import SUEWSSimulation
+
+    # Load base configuration
+    sim = SUEWSSimulation("base_config.yml")
+
+    # Update specific parameters
+    sim.update_config({
+        "model": {
+            "control": {
+                "tstep": 300  # Change to 5-minute timestep
+            }
+        }
+    })
+
+    # Reset and run with new configuration
+    sim.reset()
+    sim.run()
+    sim.save("./output_modified")
+
+Custom Forcing Data
+~~~~~~~~~~~~~~~~~~~
+
+.. code-block:: python
+
+    from supy import SUEWSSimulation
     import pandas as pd
-    from pathlib import Path
 
-    # Initialise for multiple grids
-    path_runcontrol = Path("RunControl.nml").resolve()
-    df_state_init = supy.init_supy(path_runcontrol)
+    # Create simulation
+    sim = SUEWSSimulation("config.yml")
 
-    print(f"Processing {df_state_init.index.size} grids")
+    # Load custom forcing data
+    df_forcing = pd.read_csv("custom_forcing.csv", index_col=0, parse_dates=True)
 
-    # Process each grid
-    results = []
-    for grid in df_state_init.index:
-        # Load grid-specific forcing
-        df_forcing = supy.load_forcing_grid(path_runcontrol, grid)
-        df_state_grid = df_state_init.loc[[grid]]
+    # Update forcing
+    sim.update_forcing(df_forcing)
 
-        # Run simulation for this grid
-        df_output, df_state_final = supy.run_supy(df_forcing, df_state_grid)
-        results.append((df_output, df_state_final))
-
-    # Combine results
-    list_df_output, list_df_state_final = zip(*results)
-    df_output_combined = pd.concat(list_df_output, names=["grid", "datetime"])
-    df_state_combined = pd.concat(list_df_state_final, names=["grid", "datetime"])
-
-    # Save combined results
-    supy.save_supy(df_output_combined, df_state_combined, path_runcontrol=path_runcontrol)
+    # Run with custom forcing
+    sim.run()
+    sim.save("./output_custom_forcing")

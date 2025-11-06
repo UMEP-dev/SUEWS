@@ -18,6 +18,12 @@ jobs:
   verify-builds:
     name: Verify builds for merge
     runs-on: ubuntu-latest
+    # Only run for PRs or when build workflow completes from a PR
+    # Skip workflow_run events from schedule/push/tags to avoid wasted CI
+    if: |
+      github.event_name == 'pull_request' ||
+      (github.event_name == 'workflow_run' &&
+       github.event.workflow_run.event == 'pull_request')
     steps:
       - name: Check if build workflow was triggered
         id: check-builds

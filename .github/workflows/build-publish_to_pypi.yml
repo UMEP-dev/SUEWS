@@ -110,15 +110,9 @@ on:
 
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
-    paths: # PR events containing matching files
-      - "src/suews/**"
-      - "src/supy/**"
-      - "src/supy_driver/**"
-      - ".github/workflows/build-publish_to_pypi.yml"
-      - "test/**"
-      - "pyproject.toml"
-      - "meson.build"
-      - "Makefile"
+    # No path filters - workflow must always run to provide verification gate
+    # Build matrix logic (lines 197-204) already minimizes builds for PRs
+    # This ensures the verification gate job always runs for branch protection
 
   schedule:
     # Run nightly builds at 2 AM UTC

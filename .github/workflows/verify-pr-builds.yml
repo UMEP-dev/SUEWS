@@ -1,0 +1,79 @@
+name: Verify PR Builds
+
+# This workflow provides a stable check for branch protection.
+# It ALWAYS runs for PRs (no path filters) to provide a consistent gate,
+# while the actual build workflow keeps its path filters to save CI resources.
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    # NO path filters - must always run to provide gate for branch protection
+
+  # Also run when build workflow completes to update status quickly
+  workflow_run:
+    workflows: ["Build and Publish Python wheels to PyPI and TestPyPI"]
+    types: [completed]
+
+jobs:
+  verify-builds:
+    name: Verify builds for merge
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check if build workflow was triggered
+        id: check-builds
+        uses: actions/github-script@v7
+        with:
+          script: |
+            // Determine the commit SHA to check
+            let sha;
+            if (context.eventName === 'pull_request') {
+              sha = context.payload.pull_request.head.sha;
+            } else if (context.eventName === 'workflow_run') {
+              sha = context.payload.workflow_run.head_sha;
+            } else {
+              core.setFailed('Unexpected event type');
+              return;
+            }
+
+            const { owner, repo } = context.repo;
+
+            // Get all workflow runs for this commit
+            const { data: runs } = await github.rest.actions.listWorkflowRunsForRepo({
+              owner,
+              repo,
+              head_sha: sha,
+              per_page: 100
+            });
+
+            // Find the build workflow run
+            const buildWorkflow = runs.workflow_runs.find(run =>
+              run.name === 'Build and Publish Python wheels to PyPI and TestPyPI' &&
+              run.event === 'pull_request'
+            );
+
+            if (!buildWorkflow) {
+              console.log('✓ Build workflow not triggered (doc-only changes) - allowing merge');
+              return;
+            }
+
+            console.log(`Build workflow found: ${buildWorkflow.html_url}`);
+            console.log(`Status: ${buildWorkflow.status}, Conclusion: ${buildWorkflow.conclusion}`);
+
+            // If workflow is still running, we need to wait or fail
+            if (buildWorkflow.status !== 'completed') {
+              console.log('Build workflow is still running...');
+              core.setFailed('Build workflow is still running. This check will pass once builds complete successfully.');
+              return;
+            }
+
+            // Check the conclusion
+            if (buildWorkflow.conclusion === 'success') {
+              console.log('✓ All builds passed');
+              return;
+            } else if (buildWorkflow.conclusion === 'skipped') {
+              console.log('✓ Builds skipped - allowing merge');
+              return;
+            } else {
+              console.log(`✗ Builds ${buildWorkflow.conclusion}`);
+              core.setFailed(`Build workflow failed with conclusion: ${buildWorkflow.conclusion}`);
+            }

@@ -10,8 +10,9 @@ on:
     # NO path filters - must always run to provide gate for branch protection
 
   # Also run when build workflow completes to update status quickly
+  # Use filename (stable) not name (mutable - a PR could change it)
   workflow_run:
-    workflows: ["Build and Publish Python wheels to PyPI and TestPyPI"]
+    workflows: ["build-publish_to_pypi.yml"]
     types: [completed]
 
 jobs:
@@ -71,22 +72,43 @@ jobs:
 
             const { owner, repo } = context.repo;
 
-            // Get all workflow runs for this commit
-            const { data: runs } = await github.rest.actions.listWorkflowRunsForRepo({
-              owner,
-              repo,
-              head_sha: sha,
-              per_page: 100
-            });
+            // Poll for build workflow run (handles race condition at PR open)
+            // GitHub may not have queued the build yet when we first check
+            const MAX_POLL_TIME = 120000; // 2 minutes
+            const POLL_INTERVAL = 10000;  // 10 seconds
+            let buildWorkflow = null;
+            let pollAttempts = 0;
+            const maxAttempts = Math.floor(MAX_POLL_TIME / POLL_INTERVAL);
 
-            // Find the build workflow run by PATH (stable identifier, not mutable name)
-            const buildWorkflow = runs.workflow_runs.find(run =>
-              run.path === BUILD_WORKFLOW_PATH &&
-              run.event === 'pull_request'
-            );
+            while (pollAttempts < maxAttempts) {
+              const { data: runs } = await github.rest.actions.listWorkflowRunsForRepo({
+                owner,
+                repo,
+                head_sha: sha,
+                per_page: 100
+              });
+
+              // Find the build workflow run by PATH (stable identifier, not mutable name)
+              buildWorkflow = runs.workflow_runs.find(run =>
+                run.path === BUILD_WORKFLOW_PATH &&
+                run.event === 'pull_request'
+              );
+
+              if (buildWorkflow) {
+                console.log(`Build workflow found after ${pollAttempts * POLL_INTERVAL / 1000}s`);
+                break;
+              }
+
+              pollAttempts++;
+
+              if (pollAttempts < maxAttempts) {
+                console.log(`Attempt ${pollAttempts}/${maxAttempts}: No build workflow yet, waiting ${POLL_INTERVAL / 1000}s...`);
+                await new Promise(resolve => setTimeout(resolve, POLL_INTERVAL));
+              }
+            }
 
             if (!buildWorkflow) {
-              console.log('⚠️  No build workflow run found for this commit');
+              console.log(`⚠️  No build workflow run found after ${MAX_POLL_TIME / 1000}s of polling`);
 
               // SECURITY: Verify this is truly a doc-only PR
               // A malicious PR could disable builds, so we must check the file list

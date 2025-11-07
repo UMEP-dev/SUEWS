@@ -185,10 +185,15 @@ jobs:
               - 'src/supy/**'
               - 'src/supy_driver/**'
               - '.github/workflows/build-publish_to_pypi.yml'
+              - '.github/actions/build-suews/**'
               - 'test/**'
+              - 'scripts/**'
+              - 'schemas/**'
               - 'pyproject.toml'
               - 'meson.build'
+              - 'meson_options.txt'
               - 'Makefile'
+              - 'get_ver_git.py'
 
   # Determine if we should run limited or full matrix
   determine_matrix:
@@ -308,6 +313,42 @@ jobs:
           python: ${{ matrix.python }}
           is_umep_variant: 'true'
           wheel_name_suffix: '-umep'
+
+  # PR gate: single consolidated check for branch protection
+  # This job ALWAYS runs for PRs and reports pass/fail based on build results
+  pr-gate:
+    name: PR build validation
+    runs-on: ubuntu-latest
+    # Only run for pull requests, but ALWAYS run (even if builds skip)
+    if: always() && github.event_name == 'pull_request'
+    needs: [build_wheels, build_umep, detect-changes]
+    steps:
+      - name: Check build results
+        run: |
+          echo "Build wheels result: ${{ needs.build_wheels.result }}"
+          echo "Build UMEP result: ${{ needs.build_umep.result }}"
+          echo "Detect changes result: ${{ needs.detect-changes.result }}"
+          echo "Needs build: ${{ needs.detect-changes.outputs.needs-build }}"
+
+          # Both builds succeeded → PASS
+          if [[ "${{ needs.build_wheels.result }}" == "success" ]] && \
+             [[ "${{ needs.build_umep.result }}" == "success" ]]; then
+            echo "✓ All builds passed"
+            exit 0
+          fi
+
+          # Both builds skipped (doc-only PR) → PASS
+          if [[ "${{ needs.build_wheels.result }}" == "skipped" ]] && \
+             [[ "${{ needs.build_umep.result }}" == "skipped" ]]; then
+            echo "✓ Builds skipped (documentation-only changes)"
+            exit 0
+          fi
+
+          # Any other combination (failure, cancelled, mixed) → FAIL
+          echo "✗ Builds failed or incomplete"
+          echo "  build_wheels: ${{ needs.build_wheels.result }}"
+          echo "  build_umep: ${{ needs.build_umep.result }}"
+          exit 1
 
   deploy_testpypi:
     name: Publish to TestPyPI

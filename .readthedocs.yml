@@ -2,11 +2,11 @@
 # Read the Docs configuration file
 # See https://docs.readthedocs.io/en/stable/config-file/v2.html for details
 #
-# Build strategy: Aligned with GitHub Actions workflow
-# - Uses system gfortran via apt (like GHA manylinux)
-# - Uses pip with verbose output to prevent inactivity timeouts during Fortran compilation
-# - Standard non-editable install (RTD doesn't need -e flag)
-# - Removed conda dependency for consistency with GHA build process
+# Build strategy: Use pre-built wheels from PyPI instead of building from source
+# - For formal releases: Use standard PyPI (pip install supy)
+# - For dev versions: Use Test PyPI (pip install -i https://test.pypi.org/simple/ supy)
+# - Much faster than building from source (~30 seconds vs 2-3 minutes)
+# - No need for gfortran or build toolchain
 
 # Required
 version: 2
@@ -15,9 +15,6 @@ build:
   os: ubuntu-22.04
   tools:
     python: "3.13"
-  apt_packages:
-    - gfortran  # Fortran compiler for building from source
-    - build-essential  # Ensure full build toolchain available
   jobs:
     pre_install:
       # Fetch all tags for proper version detection
@@ -25,13 +22,18 @@ build:
       - git fetch --tags || true
       - git update-index --assume-unchanged docs/source/conf.py
     post_create_environment:
-      # Install build dependencies
-      - python -m pip install wheel "numpy>=2.0" "meson-python>=0.17.0" "f90wrap==0.2.16"
-      # Install package with dev extras
-      # Use pip with verbose output to prevent RTD inactivity timeout during Fortran compilation
-      # pip provides better progress reporting than uv for long-running builds
-      # Enable fast_build for faster compilation (removes -fcheck=all, uses -O1)
-      - python -m pip install -v --progress-bar on --config-settings=setup-args="-Dfast_build=true" ".[dev]"
+      # Detect version type and install appropriate pre-built wheel
+      - |
+        SUPY_VERSION=$(python get_ver_git.py 2>/dev/null || echo "unknown")
+        echo "Detected SuPy version: $SUPY_VERSION"
+
+        if [[ "$SUPY_VERSION" == *".dev"* ]] || [[ "$SUPY_VERSION" == "unknown" ]]; then
+          echo "Installing dev version from Test PyPI..."
+          python -m pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ "supy[dev]"
+        else
+          echo "Installing release version from PyPI..."
+          python -m pip install "supy[dev]"
+        fi
     post_install:
       # Generate RST files after package is installed
       - cd docs && make generate-rst

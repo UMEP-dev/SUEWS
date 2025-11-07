@@ -325,30 +325,60 @@ jobs:
     steps:
       - name: Check build results
         run: |
-          echo "Build wheels result: ${{ needs.build_wheels.result }}"
-          echo "Build UMEP result: ${{ needs.build_umep.result }}"
-          echo "Detect changes result: ${{ needs.detect-changes.result }}"
-          echo "Needs build: ${{ needs.detect-changes.outputs.needs-build }}"
+          echo "=== Job Results ==="
+          echo "detect-changes: ${{ needs.detect-changes.result }}"
+          echo "build_wheels: ${{ needs.build_wheels.result }}"
+          echo "build_umep: ${{ needs.build_umep.result }}"
+          echo "needs-build: ${{ needs.detect-changes.outputs.needs-build }}"
+          echo ""
 
-          # Both builds succeeded → PASS
-          if [[ "${{ needs.build_wheels.result }}" == "success" ]] && \
-             [[ "${{ needs.build_umep.result }}" == "success" ]]; then
-            echo "✓ All builds passed"
-            exit 0
+          # STEP 1: Verify detect-changes succeeded
+          if [[ "${{ needs.detect-changes.result }}" != "success" ]]; then
+            echo "✗ Path detection failed - cannot verify PR safety"
+            echo "  detect-changes result: ${{ needs.detect-changes.result }}"
+            exit 1
           fi
 
-          # Both builds skipped (doc-only PR) → PASS
-          if [[ "${{ needs.build_wheels.result }}" == "skipped" ]] && \
-             [[ "${{ needs.build_umep.result }}" == "skipped" ]]; then
-            echo "✓ Builds skipped (documentation-only changes)"
-            exit 0
-          fi
+          # STEP 2: Check if code changes require builds
+          NEEDS_BUILD="${{ needs.detect-changes.outputs.needs-build }}"
 
-          # Any other combination (failure, cancelled, mixed) → FAIL
-          echo "✗ Builds failed or incomplete"
-          echo "  build_wheels: ${{ needs.build_wheels.result }}"
-          echo "  build_umep: ${{ needs.build_umep.result }}"
-          exit 1
+          if [[ "$NEEDS_BUILD" == "true" ]]; then
+            # Code changes detected - builds must run and pass
+            echo "Code changes detected - validating builds..."
+
+            if [[ "${{ needs.build_wheels.result }}" == "success" ]] && \
+               [[ "${{ needs.build_umep.result }}" == "success" ]]; then
+              echo "✓ All builds passed"
+              exit 0
+            else
+              echo "✗ Builds failed or incomplete"
+              echo "  build_wheels: ${{ needs.build_wheels.result }}"
+              echo "  build_umep: ${{ needs.build_umep.result }}"
+              exit 1
+            fi
+
+          else
+            # Documentation-only changes - builds should skip
+            echo "Documentation-only changes - builds not required"
+
+            if [[ "${{ needs.build_wheels.result }}" == "skipped" ]] && \
+               [[ "${{ needs.build_umep.result }}" == "skipped" ]]; then
+              echo "✓ Builds correctly skipped"
+              exit 0
+            else
+              echo "⚠ Unexpected: builds ran for doc-only PR"
+              echo "  build_wheels: ${{ needs.build_wheels.result }}"
+              echo "  build_umep: ${{ needs.build_umep.result }}"
+              # Still pass if builds succeeded (conservative)
+              if [[ "${{ needs.build_wheels.result }}" == "success" ]] && \
+                 [[ "${{ needs.build_umep.result }}" == "success" ]]; then
+                echo "✓ Builds passed anyway"
+                exit 0
+              else
+                exit 1
+              fi
+            fi
+          fi
 
   deploy_testpypi:
     name: Publish to TestPyPI

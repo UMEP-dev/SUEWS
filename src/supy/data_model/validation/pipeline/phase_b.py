@@ -763,13 +763,19 @@ def validate_irrigation_doy(
     site_name: str,
 ) -> List[ValidationResult]:
     """
-    Validate irrigation DOY parameters with leap year and hemisphere awareness.
+    Validate irrigation DOY parameters with leap year, hemisphere, and tropical awareness.
 
     This validator ensures irrigation timing parameters are logically consistent
-    and appropriate for the site's hemisphere. It checks:
+    and appropriate for the site's location. It checks:
     1. DOY values are within valid range (1-365 or 1-366 for leap years)
     2. Both parameters are set together or both disabled
-    3. Seasonal appropriateness based on hemisphere
+    3. Warm season appropriateness based on hemisphere and latitude:
+       - Tropical regions (|lat| < 23.5): No restrictions, irrigation allowed year-round
+       - Northern Hemisphere (lat >= 23.5): Warm season is May-September (DOY 121-273)
+       - Southern Hemisphere (lat <= -23.5): Warm season is November-March (DOY 305-90)
+
+    Note: Warm season ranges are fixed and independent of the get_season() function,
+    which defines meteorological seasons differently.
 
     Valid configurations:
     - Both None/0: Irrigation disabled (valid)
@@ -779,7 +785,7 @@ def validate_irrigation_doy(
     Args:
         ie_start: Irrigation start day of year
         ie_end: Irrigation end day of year
-        lat: Site latitude (for hemisphere detection)
+        lat: Site latitude (for hemisphere and tropical detection)
         model_year: Simulation year (for leap year detection)
         site_name: Site identifier for error messages
 
@@ -835,40 +841,49 @@ def validate_irrigation_doy(
                 )
             )
 
-    # Hemisphere-aware seasonal validation
-    is_northern_hemisphere = lat >= 0
-    crosses_year_boundary = ie_end < ie_start
+    # Seasonal validation based on hemisphere and latitude
+    abs_lat = abs(lat)
 
-    if is_northern_hemisphere:
-        # NH: Continuous period is normal, year-wrapping is unusual
-        if crosses_year_boundary:
-            results.append(
-                ValidationResult(
-                    status="WARNING",
-                    category="IRRIGATION",
-                    parameter=f"sites.{site_name}.initial_conditions.human_activity.irrigation",
-                    message=f"Irrigation period crosses year boundary (DOY {int(ie_start)} to {int(ie_end)}). "
-                    f"For Northern Hemisphere sites (lat={lat:.2f}), irrigation typically occurs "
-                    f"during continuous warm-season months (e.g., May-September, DOY 120-240), "
-                    f"not spanning winter. Verify this configuration is intentional.",
-                    suggested_value="Consider continuous warm-season period (e.g., 120-240)",
-                )
+    # Tropical regions (within Tropic of Cancer/Capricorn): irrigation allowed all year
+    if abs_lat < 23.5:
+        return results
+
+    # Helper function to check if DOY is in warm season
+    def is_in_warm_season(doy: float, latitude: float) -> bool:
+        """
+        Check if a DOY falls within the warm season for the given hemisphere.
+
+        Warm season definitions:
+        - Northern Hemisphere (lat >= 23.5): May-September (DOY 121-273)
+        - Southern Hemisphere (lat <= -23.5): November-March (DOY 305-90, wraps year boundary)
+        """
+        if latitude >= 0:  # Northern Hemisphere
+            # May to September (DOY 121-273)
+            return 121 <= doy <= 273
+        else:  # Southern Hemisphere
+            # November to March (DOY 305-365/366 or 1-90)
+            return doy >= 305 or doy <= 90
+
+    # Check if ie_start and ie_end are within warm season
+    start_in_warm_season = is_in_warm_season(ie_start, lat)
+    end_in_warm_season = is_in_warm_season(ie_end, lat)
+
+    if not start_in_warm_season or not end_in_warm_season:
+        hemisphere = "Northern" if lat >= 0 else "Southern"
+        season_range = "May-September (DOY 121-273)" if lat >= 0 else "November-March (DOY 305-90)"
+
+        results.append(
+            ValidationResult(
+                status="WARNING",
+                category="IRRIGATION",
+                parameter=f"sites.{site_name}.initial_conditions.human_activity.irrigation",
+                message=f"Irrigation period (DOY {int(ie_start)} to {int(ie_end)}) falls outside "
+                f"the typical warm season for {hemisphere} Hemisphere sites (lat={lat:.2f}). "
+                f"Irrigation typically occurs during warm season: {season_range}. "
+                f"Verify this configuration is intentional.",
+                suggested_value=f"Consider adjusting to warm season: {season_range}",
             )
-    else:
-        # SH: Year-wrapping is normal, continuous period is unusual
-        if not crosses_year_boundary:
-            results.append(
-                ValidationResult(
-                    status="WARNING",
-                    category="IRRIGATION",
-                    parameter=f"sites.{site_name}.initial_conditions.human_activity.irrigation",
-                    message=f"Irrigation period does not cross year boundary (DOY {int(ie_start)} to {int(ie_end)}). "
-                    f"For Southern Hemisphere sites (lat={lat:.2f}), irrigation typically occurs "
-                    f"during summer months spanning the year boundary (e.g., November-March, DOY 330-90). "
-                    f"Current period appears to be during winter months. Verify this is intentional.",
-                    suggested_value="Consider year-spanning summer period (e.g., 330-90)",
-                )
-            )
+        )
 
     return results
 
@@ -1345,13 +1360,17 @@ def adjust_model_dependent_nullification(
     return yaml_data, adjustments
 
 
-def get_season(start_date: str, lat: float) -> str:
-    """Determine season based on start date and latitude."""
-    try:
-        start = datetime.strptime(start_date, "%Y-%m-%d").timetuple().tm_yday
-    except ValueError:
-        raise ValueError("start_date must be in YYYY-MM-DD format")
+def get_season_from_doy(doy: int, lat: float) -> str:
+    """
+    Determine season based on day of year and latitude.
 
+    Args:
+        doy: Day of year (1-365/366)
+        lat: Latitude in degrees
+
+    Returns:
+        Season string: 'equatorial', 'tropical', 'summer', 'winter', 'spring', 'fall'
+    """
     abs_lat = abs(lat)
 
     if abs_lat <= 10:
@@ -1360,23 +1379,33 @@ def get_season(start_date: str, lat: float) -> str:
         return "tropical"
 
     if lat >= 0:  # Northern Hemisphere
-        if 150 < start < 250:
+        if 150 < doy < 250:
             return "summer"
-        elif 60 < start <= 150:
+        elif 60 < doy <= 150:
             return "spring"
-        elif 250 <= start < 335:
+        elif 250 <= doy < 335:
             return "fall"
         else:
             return "winter"
     else:  # Southern Hemisphere
-        if 150 < start < 250:
+        if 150 < doy < 250:
             return "winter"
-        elif 60 < start <= 150:
+        elif 60 < doy <= 150:
             return "fall"
-        elif 250 <= start < 335:
+        elif 250 <= doy < 335:
             return "spring"
         else:
             return "summer"
+
+
+def get_season(start_date: str, lat: float) -> str:
+    """Determine season based on start date and latitude."""
+    try:
+        start = datetime.strptime(start_date, "%Y-%m-%d").timetuple().tm_yday
+    except ValueError:
+        raise ValueError("start_date must be in YYYY-MM-DD format")
+
+    return get_season_from_doy(start, lat)
 
 
 def adjust_seasonal_parameters(

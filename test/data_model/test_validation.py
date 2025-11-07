@@ -2163,25 +2163,48 @@ def test_irrigation_doy_disabled():
 
 
 def test_irrigation_hemisphere_warnings():
-    """Test hemisphere-aware seasonal warnings."""
+    """Test hemisphere and tropical-aware warm season warnings."""
     from supy.data_model.validation.pipeline.phase_b import validate_irrigation_doy
 
-    # NH: continuous period (normal) = no warning
-    results = validate_irrigation_doy(120, 240, 51.5, 2023, "test")
+    # NH: warm season (May-Sept, DOY 121-273) = no warning
+    results = validate_irrigation_doy(150, 250, 51.5, 2023, "test")
     assert not any(r.status == "WARNING" for r in results)
 
-    # NH: year-wrapping (unusual) = warning
+    results = validate_irrigation_doy(121, 273, 51.5, 2023, "test")
+    assert not any(r.status == "WARNING" for r in results)
+
+    # NH: outside warm season = warning
     results = validate_irrigation_doy(350, 30, 51.5, 2023, "test")
     warnings = [r for r in results if r.status == "WARNING"]
     assert len(warnings) == 1
     assert "Northern Hemisphere" in warnings[0].message
+    assert "May-September" in warnings[0].message
 
-    # SH: year-wrapping (normal) = no warning
+    # NH: partial overlap with warm season = warning
+    results = validate_irrigation_doy(100, 200, 51.5, 2023, "test")
+    warnings = [r for r in results if r.status == "WARNING"]
+    assert len(warnings) == 1  # Start (100) is outside warm season (121-273)
+
+    # SH: warm season (Nov-March, DOY 305-90, year-wrapping) = no warning
     results = validate_irrigation_doy(330, 60, -33.9, 2023, "test")
     assert not any(r.status == "WARNING" for r in results)
 
-    # SH: continuous period (unusual) = warning
-    results = validate_irrigation_doy(120, 240, -33.9, 2023, "test")
+    results = validate_irrigation_doy(305, 90, -33.9, 2023, "test")
+    assert not any(r.status == "WARNING" for r in results)
+
+    # SH: outside warm season (winter) = warning
+    results = validate_irrigation_doy(180, 220, -33.9, 2023, "test")
     warnings = [r for r in results if r.status == "WARNING"]
     assert len(warnings) == 1
     assert "Southern Hemisphere" in warnings[0].message
+    assert "November-March" in warnings[0].message
+
+    # Tropical: any period = no warning (irrigation allowed year-round)
+    results = validate_irrigation_doy(1, 365, 15.0, 2023, "test")
+    assert not any(r.status == "WARNING" for r in results)
+
+    results = validate_irrigation_doy(100, 200, 20.0, 2023, "test")
+    assert not any(r.status == "WARNING" for r in results)
+
+    results = validate_irrigation_doy(300, 50, -20.0, 2023, "test")
+    assert not any(r.status == "WARNING" for r in results)

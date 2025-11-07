@@ -14,6 +14,7 @@ from .._load import load_SUEWS_nml_simple
 # Import YAML-based simulation class
 try:
     from ..suews_sim import SUEWSSimulation
+
     YAML_SUPPORT = True
 except ImportError:
     YAML_SUPPORT = False
@@ -33,13 +34,13 @@ def _detect_config_format(config_path):
         Format type: 'yaml' or 'namelist'
     """
     suffix = config_path.suffix.lower()
-    if suffix in ['.yml', '.yaml']:
-        return 'yaml'
-    elif suffix in ['.nml']:
-        return 'namelist'
+    if suffix in [".yml", ".yaml"]:
+        return "yaml"
+    elif suffix in [".nml"]:
+        return "namelist"
     else:
         # Default to namelist for backward compatibility
-        return 'namelist'
+        return "namelist"
 
 
 def _run_with_yaml(config_path):
@@ -51,7 +52,10 @@ def _run_with_yaml(config_path):
         Path to YAML configuration file
     """
     if not YAML_SUPPORT:
-        click.echo("Error: YAML support not available. Please install required dependencies.", err=True)
+        click.echo(
+            "Error: YAML support not available. Please install required dependencies.",
+            err=True,
+        )
         sys.exit(1)
 
     try:
@@ -62,7 +66,10 @@ def _run_with_yaml(config_path):
         # Check if forcing is loaded
         if sim.forcing is None:
             click.echo("Error: No forcing data found in configuration.", err=True)
-            click.echo("Please ensure 'forcing_file' is specified in the YAML config.", err=True)
+            click.echo(
+                "Please ensure 'forcing_file' is specified in the YAML config.",
+                err=True,
+            )
             sys.exit(1)
 
         # Display simulation info
@@ -113,7 +120,7 @@ def _run_with_namelist(path_runcontrol):
         "For more information, see: https://suews.readthedocs.io/\n"
         "=" * 60,
         DeprecationWarning,
-        stacklevel=3
+        stacklevel=3,
     )
 
     try:
@@ -221,7 +228,7 @@ For more information, see: https://suews.readthedocs.io/
 """,
 )
 @click.argument(
-    'config_file',
+    "config_file",
     type=click.Path(exists=True),
     required=False,
 )
@@ -252,7 +259,7 @@ Documentation: https://suews.readthedocs.io/
             "Use positional argument instead:\n"
             f"  suews-run {Path(path_runcontrol).name}\n",
             DeprecationWarning,
-            stacklevel=2
+            stacklevel=2,
         )
         config_file = path_runcontrol
 
@@ -274,7 +281,7 @@ Documentation: https://suews.readthedocs.io/
                 "Please provide a config file or create one of:\n"
                 "  - config.yml (recommended)\n"
                 "  - RunControl.nml (deprecated)\n",
-                err=True
+                err=True,
             )
             sys.exit(1)
     else:
@@ -283,7 +290,7 @@ Documentation: https://suews.readthedocs.io/
     # Auto-detect format and run appropriate workflow
     config_format = _detect_config_format(config_file)
 
-    if config_format == 'yaml':
+    if config_format == "yaml":
         _run_with_yaml(config_file)
     else:
         _run_with_namelist(config_file)

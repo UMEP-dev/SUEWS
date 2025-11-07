@@ -209,7 +209,9 @@ sites:
     # ========== INTEGRATION TESTS ==========
 
     @pytest.mark.skipif(
-        not (Path(__file__).parent.parent / "fixtures/benchmark1/benchmark1_short.yml").exists(),
+        not (
+            Path(__file__).parent.parent / "fixtures/benchmark1/benchmark1_short.yml"
+        ).exists(),
         reason="Benchmark data not available",
     )
     def test_yaml_full_simulation(self, benchmark_dir, tmp_path):

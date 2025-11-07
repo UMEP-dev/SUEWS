@@ -7,14 +7,14 @@ name: Build and Publish Python wheels to PyPI and TestPyPI
 #
 # TRIGGERS:
 # - Nightly: 2 AM UTC daily for development releases
-# - Push: To master branch or any tag
-# - PR: On pull requests for validation
+# - Tags: Any tag push (for releases to PyPI/TestPyPI)
+# - PR: On pull requests for validation (strict mode ensures up-to-date)
 # - Manual: Via workflow_dispatch
+# - Master push: SKIPPED (PR already validated, no deployment needed)
 #
 # DEPLOYMENT STRATEGY:
 # 1. VALIDATION ONLY (no deployment):
-#    - Pull requests: Build and test all Python versions (standard: all; UMEP: cp312 manylinux)
-#    - Push to master: Build and test all Python versions (standard: all; UMEP: cp312 manylinux)
+#    - Pull requests: Build and test (strict mode ensures code is current with master)
 #    - Manual workflow_dispatch: Build and test all Python versions (standard: all; UMEP: cp312 manylinux)
 #
 # 2. DEVELOPMENT RELEASES (TestPyPI only):
@@ -104,7 +104,8 @@ name: Build and Publish Python wheels to PyPI and TestPyPI
 
 on:
   push:
-    branches: [master]
+    # Skip builds for regular master pushes - PR already validated code
+    # Only build when deploying: tags trigger builds for PyPI/TestPyPI
     tags:
       - '*'  # Trigger on any tag push (no path filter - tags = releases, build everything)
 

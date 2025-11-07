@@ -8,7 +8,6 @@ import subprocess
 import tempfile
 from pathlib import Path
 import pytest
-import warnings
 
 
 class TestCLIRun:
@@ -127,9 +126,7 @@ sites:
 
     def test_namelist_with_p_option(self, sample_nml):
         """Test running with namelist using -p option (deprecated)."""
-        with warnings.catch_warnings(record=True):
-            warnings.simplefilter("always")
-            result = self.run_suews_run("-p", str(sample_nml), check=True)
+        result = self.run_suews_run("-p", str(sample_nml), check=True)
 
         assert result.returncode == 0
         assert "successfully done" in result.stdout
@@ -139,9 +136,7 @@ sites:
 
     def test_namelist_positional_argument(self, sample_nml):
         """Test running with namelist as positional argument."""
-        with warnings.catch_warnings(record=True):
-            warnings.simplefilter("always")
-            result = self.run_suews_run(str(sample_nml), check=True)
+        result = self.run_suews_run(str(sample_nml), check=True)
 
         assert result.returncode == 0
         # Should show namelist deprecation warning

@@ -3,7 +3,6 @@ import os
 import dask.bag as db
 import click
 import sys
-import warnings
 
 from .._supy_module import init_supy, run_supy, save_supy, load_forcing_grid, pd, Path
 
@@ -109,8 +108,8 @@ def _run_with_namelist(path_runcontrol):
     path_runcontrol : Path
         Path to RunControl.nml file
     """
-    # Issue deprecation warning
-    warnings.warn(
+    # Issue deprecation warning to stderr
+    click.echo(
         "\n"
         "=" * 60 + "\n"
         "DEPRECATION WARNING: Namelist format is deprecated.\n"
@@ -118,9 +117,8 @@ def _run_with_namelist(path_runcontrol):
         f"  1. Convert: suews-convert -i {path_runcontrol.name} -o config.yml\n"
         "  2. Run:     suews-run config.yml\n\n"
         "For more information, see: https://suews.readthedocs.io/\n"
-        "=" * 60,
-        DeprecationWarning,
-        stacklevel=3,
+        "=" * 60 + "\n",
+        err=True,
     )
 
     try:
@@ -254,12 +252,11 @@ Documentation: https://suews.readthedocs.io/
 
     # Handle backward compatibility with -p option
     if path_runcontrol is not None:
-        warnings.warn(
-            "\nThe '-p/--path_runcontrol' option is deprecated. "
+        click.echo(
+            "\nDEPRECATION: The '-p/--path_runcontrol' option is deprecated. "
             "Use positional argument instead:\n"
             f"  suews-run {Path(path_runcontrol).name}\n",
-            DeprecationWarning,
-            stacklevel=2,
+            err=True,
         )
         config_file = path_runcontrol
 

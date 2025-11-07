@@ -214,8 +214,8 @@ Namelist Configuration (Deprecated):
     $ suews-run -p /path/to/RunControl.nml
 
 The format is auto-detected based on file extension:
-- .yml, .yaml → YAML format (modern, recommended)
-- .nml → Namelist format (legacy, deprecated)
+- .yml, .yaml: YAML format (modern, recommended)
+- .nml: Namelist format (legacy, deprecated)
 
 To migrate from namelist to YAML:
 

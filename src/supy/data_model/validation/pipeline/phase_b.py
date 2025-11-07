@@ -870,7 +870,9 @@ def validate_irrigation_doy(
 
     if not start_in_warm_season or not end_in_warm_season:
         hemisphere = "Northern" if lat >= 0 else "Southern"
-        season_range = "May-September (DOY 121-273)" if lat >= 0 else "November-March (DOY 305-90)"
+        season_range = (
+            "May-September (DOY 121-273)" if lat >= 0 else "November-March (DOY 305-90)"
+        )
 
         results.append(
             ValidationResult(

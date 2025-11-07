@@ -132,19 +132,17 @@ src_f95_sub = [
   # 'suews_ctrl_const.f95',
   'suews_ctrl_type.f95',
   'suews_ctrl_driver.f95',
-  # Physics modules below are NOT used by Python - only wrapped unnecessarily
-  # Removing them reduces f90wrap overhead by ~20-30 seconds
-  # 'suews_phys_anthro.f95',
-  'suews_phys_atmmoiststab.f95',  # Used by util/_debug.py::diag_rsl() -> atmmoiststab_module.cal_atmmoist()
-  # 'suews_phys_dailystate.f95',
-  # 'suews_phys_evap.f95',
-  # 'suews_phys_narp.f95',
-  # 'suews_phys_resist.f95',
-  'suews_phys_rslprof.f95',  # Used by util/_debug.py::diag_rsl() -> rsl_module.rslprofile()
-  # 'suews_phys_spartacus.f95',
+  'suews_phys_anthro.f95',
+  'suews_phys_atmmoiststab.f95',
+  'suews_phys_dailystate.f95',
+  'suews_phys_evap.f95',
+  'suews_phys_narp.f95',
+  'suews_phys_resist.f95',
+  'suews_phys_rslprof.f95',
+  'suews_phys_spartacus.f95',
   #'suews_phys_stebbs.f95',
-  # 'suews_phys_waterdist.f95',
-  # 'suews_util_meteo.f95',
+  'suews_phys_waterdist.f95',
+  'suews_util_meteo.f95',
 ]
 src_to_wrap = src_f95_sub
 

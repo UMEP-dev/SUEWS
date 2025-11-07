@@ -9,7 +9,6 @@ import warnings
 
 import numpy as np
 import pandas as pd
-import pytest
 
 import supy as sp
 
@@ -326,9 +325,6 @@ class TestSuPy(TestCase):
     # for better diagnostics and platform-specific tolerance handling
 
     # test if the weighted SMD of vegetated surfaces are properly calculated
-    @pytest.mark.skip(
-        reason="module_phys_waterdist removed from f90wrap to optimize build time"
-    )
     def test_is_smd_veg_weighted(self):
         print("\n========================================")
         print("Testing if SMD of vegetated surfaces are properly calculated...")

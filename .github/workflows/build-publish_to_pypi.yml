@@ -14,8 +14,9 @@ name: Build and Publish Python wheels to PyPI and TestPyPI
 #
 # DEPLOYMENT STRATEGY:
 # 1. VALIDATION ONLY (no deployment):
-#    - Pull requests: Build and test (strict mode ensures code is current with master)
-#    - Manual workflow_dispatch: Build and test all Python versions (standard: all; UMEP: cp312 manylinux)
+#    - Pull requests (draft): Minimal matrix (manylinux only, bookend Python 3.9 + 3.14)
+#    - Pull requests (ready): Reduced matrix (ARM Mac + Linux + Windows, Python 3.9 + 3.14)
+#    - Manual workflow_dispatch: Full matrix (all platforms + Python 3.9-3.14)
 #
 # 2. DEVELOPMENT RELEASES (TestPyPI only):
 #    - Nightly cron (2 AM UTC, master branch only): Creates YYYY.M.D.dev tag → TestPyPI
@@ -51,7 +52,11 @@ name: Build and Publish Python wheels to PyPI and TestPyPI
 # - TestPyPI deployment proceeds with available wheels
 # - Prevents gaps in nightly build sequence
 #
-# Build matrix: Always builds all Python versions (3.9-3.13) on all platforms
+# BUILD MATRIX STRATEGY:
+# - Draft PR: Minimal (manylinux only, Python 3.9 + 3.14) for fastest feedback
+# - Ready PR: Reduced (ARM Mac + Linux + Windows, Python 3.9 + 3.14) for speed with coverage
+# - Tags/Nightly/Manual: Full (all platforms including x86_64 Mac, Python 3.9-3.14) for releases
+# - UMEP builds: Python 3.12 only on all platforms (aligned with QGIS 3.40 LTR)
 #
 # ============================================================================
 # UMEP/QGIS COMPATIBILITY BUILDS (rc1 pre-release versions)

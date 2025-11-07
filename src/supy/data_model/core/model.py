@@ -152,9 +152,9 @@ class OhmIncQf(Enum):
         return str(self.value)
 
 
-class RoughnessMethod(Enum):
+class MomentumRoughnessMethod(Enum):
     """
-    Method for calculating aerodynamic roughness length (z0m) and thermal roughness length (z0h).
+    Method for calculating momentum roughness length (z0m).
 
     1: FIXED - Fixed roughness length from site parameters
     2: VARIABLE - Variable based on vegetation LAI using rule of thumb (Grimmond & Oke 1999)
@@ -178,6 +178,30 @@ class RoughnessMethod(Enum):
         else:
             obj._internal = False
         return obj
+
+    def __int__(self):
+        return self.value
+
+    def __repr__(self):
+        return str(self.value)
+
+
+class HeatRoughnessMethod(Enum):
+    """
+    Method for calculating thermal roughness length (z0h).
+
+    1: BRUTSAERT - Brutsaert (1982) z0h = z0m/10 (see Grimmond & Oke 1986)
+    2: KAWAI - Kawai et al. (2009) formulation
+    3: VOOGT_GRIMMOND - Voogt and Grimmond (2000) formulation
+    4: KANDA - Kanda et al. (2007) formulation
+    5: ADAPTIVE - Adaptively using z0m based on pervious coverage: if fully pervious, use method 1; otherwise, use method 2
+    """
+
+    BRUTSAERT = 1  # z0h = z0m/10
+    KAWAI = 2  # Kawai et al. (2009)
+    VOOGT_GRIMMOND = 3  # Voogt and Grimmond (2000)
+    KANDA = 4  # Kanda et al. (2007)
+    ADAPTIVE = 5  # Adaptive method based on surface coverage
 
     def __int__(self):
         return self.value
@@ -426,7 +450,8 @@ for enum_class in [
     NetRadiationMethod,
     EmissionsMethod,
     StorageHeatMethod,
-    RoughnessMethod,
+    MomentumRoughnessMethod,
+    HeatRoughnessMethod,
     StabilityMethod,
     SMDMethod,
     WaterUseMethod,
@@ -476,14 +501,14 @@ class ModelPhysics(BaseModel):
         description="Controls inclusion of anthropogenic heat flux in OHM storage heat calculations. Options: 0 (EXCLUDE) = Use Q* only (required when StorageHeatMethod=1); 1 (INCLUDE) = Use Q*+QF (required when StorageHeatMethod=2)",
         json_schema_extra={"unit": "dimensionless"},
     )
-    roughlenmommethod: FlexibleRefValue(RoughnessMethod) = Field(
-        default=RoughnessMethod.VARIABLE,
+    roughlenmommethod: FlexibleRefValue(MomentumRoughnessMethod) = Field(
+        default=MomentumRoughnessMethod.VARIABLE,
         description="Method for calculating momentum roughness length (z0m). Options: 1 (FIXED) = Fixed from site parameters; 2 (VARIABLE) = Varies with vegetation LAI; 3 (MACDONALD) = MacDonald et al. 1998 morphometric method; 4 (LAMBDAP_DEPENDENT) = Varies with plan area fraction; 5 (ALTERNATIVE) = Alternative variable method",
         json_schema_extra={"unit": "dimensionless"},
     )
-    roughlenheatmethod: FlexibleRefValue(RoughnessMethod) = Field(
-        default=RoughnessMethod.VARIABLE,
-        description="Method for calculating thermal roughness length (z0h). Options: 1 (FIXED) = Fixed from site parameters; 2 (VARIABLE) = Varies with vegetation LAI; 3 (MACDONALD) = MacDonald et al. 1998 morphometric method; 4 (LAMBDAP_DEPENDENT) = Varies with plan area fraction; 5 (ALTERNATIVE) = Alternative variable method",
+    roughlenheatmethod: FlexibleRefValue(HeatRoughnessMethod) = Field(
+        default=HeatRoughnessMethod.KAWAI,
+        description="Method for calculating thermal roughness length (z0h). Options: 1 (BRUTSAERT) = Brutsaert (1982) z0h = z0m/10; 2 (KAWAI) = Kawai et al. (2009); 3 (VOOGT_GRIMMOND) = Voogt and Grimmond (2000); 4 (KANDA) = Kanda et al. (2007); 5 (ADAPTIVE) = Adaptive method based on surface coverage",
         json_schema_extra={"unit": "dimensionless"},
     )
     stabilitymethod: FlexibleRefValue(StabilityMethod) = Field(

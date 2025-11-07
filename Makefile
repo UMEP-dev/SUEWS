@@ -9,7 +9,7 @@ help:
 	@echo ""
 	@echo "  setup     - Create virtual environment (if using uv)"
 	@echo "  dev       - Install in editable mode"
-	@echo "  reinstall - Fix stale editable install (uninstall + reinstall)"
+	@echo "  reinstall - Fix stale/broken install (clean + reinstall)"
 	@echo "  test      - Run test suite"
 	@echo "  docs      - Build documentation"
 	@echo "  clean     - Smart clean (keeps .venv if active)"
@@ -18,6 +18,8 @@ help:
 	@echo "Quick start:"
 	@echo "  With uv:    make setup && source .venv/bin/activate && make dev"
 	@echo "  With conda: conda activate suews-dev && make dev"
+	@echo ""
+	@echo "After 'make clean', run 'make reinstall' (not 'make dev')"
 
 # Setup virtual environment (for uv users)
 setup:
@@ -67,7 +69,19 @@ reinstall:
 	else \
 		$(PYTHON) -m pip uninstall supy -y || true; \
 	fi
+	@rm -rf build
 	@$(MAKE) dev
+	@$(MAKE) rebuild-meson
+
+# Initialize meson build after clean (fixes editable install)
+rebuild-meson:
+	@PYVER=$$($(PYTHON) -c "import sys; print(f'cp{sys.version_info.major}{sys.version_info.minor}')"); \
+	if [ ! -d "build/$$PYVER" ]; then \
+		echo "Initializing meson build directory for $$PYVER..."; \
+		mkdir -p "build/$$PYVER"; \
+		cd "build/$$PYVER" && meson setup ../.. --prefix=$$VIRTUAL_ENV; \
+		echo "✓ Build directory initialized"; \
+	fi
 
 # Run tests
 test:

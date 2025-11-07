@@ -755,6 +755,165 @@ def validate_geographic_parameters(yaml_data: dict) -> List[ValidationResult]:
     return results
 
 
+def validate_irrigation_doy(
+    ie_start: Optional[float],
+    ie_end: Optional[float],
+    lat: float,
+    model_year: int,
+    site_name: str,
+) -> List[ValidationResult]:
+    """
+    Validate irrigation DOY parameters with leap year and hemisphere awareness.
+
+    This validator ensures irrigation timing parameters are logically consistent
+    and appropriate for the site's hemisphere. It checks:
+    1. DOY values are within valid range (1-365 or 1-366 for leap years)
+    2. Both parameters are set together or both disabled
+    3. Seasonal appropriateness based on hemisphere
+
+    Valid configurations:
+    - Both None/0: Irrigation disabled (valid)
+    - Both 1-365/366: Irrigation enabled with valid DOY range
+    - One set, one None/0: Invalid (inconsistent)
+
+    Args:
+        ie_start: Irrigation start day of year
+        ie_end: Irrigation end day of year
+        lat: Site latitude (for hemisphere detection)
+        model_year: Simulation year (for leap year detection)
+        site_name: Site identifier for error messages
+
+    Returns:
+        List of ValidationResult objects (errors, warnings, or empty)
+    """
+    results = []
+
+    # Helper: treat 0 and None as equivalent (both mean "disabled")
+    def is_disabled(value):
+        return value is None or value == 0 or value == 0.0
+
+    start_disabled = is_disabled(ie_start)
+    end_disabled = is_disabled(ie_end)
+
+    # Case 1: Both disabled = valid (irrigation not configured)
+    if start_disabled and end_disabled:
+        return results
+
+    # Case 2: One disabled, one enabled = ERROR (inconsistent)
+    if start_disabled != end_disabled:
+        results.append(
+            ValidationResult(
+                status="ERROR",
+                category="IRRIGATION",
+                parameter=f"sites.{site_name}.initial_conditions.human_activity.irrigation",
+                message="Both ie_start and ie_end must be specified together (both set to valid DOY), "
+                "or both left as None/0 (irrigation disabled). "
+                f"Currently: ie_start={'disabled' if start_disabled else ie_start}, "
+                f"ie_end={'disabled' if end_disabled else ie_end}",
+                suggested_value="Set both to valid DOY (1-365/366) or both to None/0",
+            )
+        )
+        return results
+
+    # Case 3: Both enabled = validate DOY range and hemisphere logic
+    # Leap year check (no import needed!)
+    is_leap = model_year % 400 == 0 or (
+        model_year % 4 == 0 and model_year % 100 != 0
+    )
+    max_doy = 366 if is_leap else 365
+
+    # Validate DOY range (must be 1-365/366, not 0)
+    for param_name, param_value in [("ie_start", ie_start), ("ie_end", ie_end)]:
+        if param_value < 1 or param_value > max_doy:
+            results.append(
+                ValidationResult(
+                    status="ERROR",
+                    category="IRRIGATION",
+                    parameter=f"sites.{site_name}.initial_conditions.human_activity.irrigation.{param_name}",
+                    message=f"{param_name}={param_value} is invalid. "
+                    f"Must be between 1 and {max_doy} for {'leap' if is_leap else 'non-leap'} "
+                    f"year {model_year}, or 0/None to disable irrigation",
+                    suggested_value=f"Valid range: 1-{max_doy}, or 0/None to disable",
+                )
+            )
+
+    # Hemisphere-aware seasonal validation
+    is_northern_hemisphere = lat >= 0
+    crosses_year_boundary = ie_end < ie_start
+
+    if is_northern_hemisphere:
+        # NH: Continuous period is normal, year-wrapping is unusual
+        if crosses_year_boundary:
+            results.append(
+                ValidationResult(
+                    status="WARNING",
+                    category="IRRIGATION",
+                    parameter=f"sites.{site_name}.initial_conditions.human_activity.irrigation",
+                    message=f"Irrigation period crosses year boundary (DOY {int(ie_start)} to {int(ie_end)}). "
+                    f"For Northern Hemisphere sites (lat={lat:.2f}), irrigation typically occurs "
+                    f"during continuous warm-season months (e.g., May-September, DOY 120-240), "
+                    f"not spanning winter. Verify this configuration is intentional.",
+                    suggested_value="Consider continuous warm-season period (e.g., 120-240)",
+                )
+            )
+    else:
+        # SH: Year-wrapping is normal, continuous period is unusual
+        if not crosses_year_boundary:
+            results.append(
+                ValidationResult(
+                    status="WARNING",
+                    category="IRRIGATION",
+                    parameter=f"sites.{site_name}.initial_conditions.human_activity.irrigation",
+                    message=f"Irrigation period does not cross year boundary (DOY {int(ie_start)} to {int(ie_end)}). "
+                    f"For Southern Hemisphere sites (lat={lat:.2f}), irrigation typically occurs "
+                    f"during summer months spanning the year boundary (e.g., November-March, DOY 330-90). "
+                    f"Current period appears to be during winter months. Verify this is intentional.",
+                    suggested_value="Consider year-spanning summer period (e.g., 330-90)",
+                )
+            )
+
+    return results
+
+
+def validate_irrigation_parameters(
+    yaml_data: dict, model_year: int
+) -> List[ValidationResult]:
+    """
+    Validate irrigation DOY parameters for all sites.
+
+    Extracts irrigation parameters from each site configuration and validates
+    them using context-aware checks (leap year, hemisphere).
+
+    Args:
+        yaml_data: Complete YAML configuration
+        model_year: Simulation year for leap year detection
+
+    Returns:
+        List of ValidationResult objects for all sites
+    """
+    results = []
+    sites = yaml_data.get("sites", {})
+
+    for site_name, site_data in sites.items():
+        # Extract latitude
+        lat = get_value_safe(site_data, "lat", 0.0)
+
+        # Extract irrigation parameters
+        initial_cond = site_data.get("initial_conditions", {})
+        human_activity = initial_cond.get("human_activity", {})
+        irrigation = human_activity.get("irrigation", {})
+
+        ie_start = get_value_safe(irrigation, "ie_start")
+        ie_end = get_value_safe(irrigation, "ie_end")
+
+        # Run validation
+        results.extend(
+            validate_irrigation_doy(ie_start, ie_end, lat, model_year, site_name)
+        )
+
+    return results
+
+
 def run_scientific_validation_pipeline(
     yaml_data: dict, start_date: str, model_year: int
 ) -> List[ValidationResult]:
@@ -768,6 +927,8 @@ def run_scientific_validation_pipeline(
     validation_results.extend(validate_land_cover_consistency(yaml_data))
 
     validation_results.extend(validate_geographic_parameters(yaml_data))
+
+    validation_results.extend(validate_irrigation_parameters(yaml_data, model_year))
 
     return validation_results
 

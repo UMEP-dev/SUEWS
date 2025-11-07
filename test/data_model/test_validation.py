@@ -2123,3 +2123,65 @@ def test_forcing_validation_cli_integration():
         finally:
             # Cleanup happens automatically with TemporaryDirectory context manager
             pass
+
+
+# ============================================================================
+# Irrigation DOY Validation Tests (Issue #811)
+# ============================================================================
+
+
+def test_irrigation_doy_leap_year():
+    """Test DOY 366 validation for leap vs non-leap years."""
+    from supy.data_model.validation.pipeline.phase_b import validate_irrigation_doy
+
+    # Leap year: DOY 366 valid
+    results = validate_irrigation_doy(120, 366, 51.5, 2024, "test_site")
+    assert not any(r.status == "ERROR" for r in results)
+
+    # Non-leap year: DOY 366 invalid
+    results = validate_irrigation_doy(120, 366, 51.5, 2023, "test_site")
+    errors = [r for r in results if r.status == "ERROR"]
+    assert len(errors) == 1
+    assert "365" in errors[0].message
+
+
+def test_irrigation_doy_disabled():
+    """Test irrigation disabled configurations (None/0)."""
+    from supy.data_model.validation.pipeline.phase_b import validate_irrigation_doy
+
+    # Both None = valid
+    assert len(validate_irrigation_doy(None, None, 51.5, 2023, "test")) == 0
+
+    # Both 0 = valid
+    assert len(validate_irrigation_doy(0, 0, 51.5, 2023, "test")) == 0
+
+    # One set, one None = error
+    results = validate_irrigation_doy(120, None, 51.5, 2023, "test")
+    errors = [r for r in results if r.status == "ERROR"]
+    assert len(errors) == 1
+    assert "must be specified together" in errors[0].message
+
+
+def test_irrigation_hemisphere_warnings():
+    """Test hemisphere-aware seasonal warnings."""
+    from supy.data_model.validation.pipeline.phase_b import validate_irrigation_doy
+
+    # NH: continuous period (normal) = no warning
+    results = validate_irrigation_doy(120, 240, 51.5, 2023, "test")
+    assert not any(r.status == "WARNING" for r in results)
+
+    # NH: year-wrapping (unusual) = warning
+    results = validate_irrigation_doy(350, 30, 51.5, 2023, "test")
+    warnings = [r for r in results if r.status == "WARNING"]
+    assert len(warnings) == 1
+    assert "Northern Hemisphere" in warnings[0].message
+
+    # SH: year-wrapping (normal) = no warning
+    results = validate_irrigation_doy(330, 60, -33.9, 2023, "test")
+    assert not any(r.status == "WARNING" for r in results)
+
+    # SH: continuous period (unusual) = warning
+    results = validate_irrigation_doy(120, 240, -33.9, 2023, "test")
+    warnings = [r for r in results if r.status == "WARNING"]
+    assert len(warnings) == 1
+    assert "Southern Hemisphere" in warnings[0].message

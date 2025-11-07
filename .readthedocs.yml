@@ -27,16 +27,20 @@ build:
         SUPY_VERSION=$(python get_ver_git.py 2>/dev/null || echo "unknown")
         echo "Detected SuPy version: $SUPY_VERSION"
 
-        if [[ "$SUPY_VERSION" == *".dev"* ]] || [[ "$SUPY_VERSION" == "unknown" ]]; then
-          echo "Installing dev version from Test PyPI..."
-          # --extra-index-url: Fallback to PyPI for dependencies (numpy, sphinx, etc.) not on Test PyPI
-          # [dev]: Includes Sphinx and documentation dependencies (see pyproject.toml)
-          python -m pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ "supy[dev]"
-        else
-          echo "Installing release version from PyPI..."
-          # [dev]: Includes Sphinx and documentation dependencies needed for RTD build
-          python -m pip install "supy[dev]"
-        fi
+        # Use POSIX-compliant case statement (not bash-specific [[)
+        case "$SUPY_VERSION" in
+          *".dev"*|"unknown")
+            echo "Installing dev version from Test PyPI..."
+            # --extra-index-url: Fallback to PyPI for dependencies (numpy, sphinx, etc.) not on Test PyPI
+            # [dev]: Includes Sphinx and documentation dependencies (see pyproject.toml)
+            python -m pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ "supy[dev]"
+            ;;
+          *)
+            echo "Installing release version from PyPI..."
+            # [dev]: Includes Sphinx and documentation dependencies needed for RTD build
+            python -m pip install "supy[dev]"
+            ;;
+        esac
     post_install:
       # Generate RST files after package is installed
       - cd docs && make generate-rst

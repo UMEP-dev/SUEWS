@@ -7283,6 +7283,19 @@
           "default": null,
           "description": "List of output groups to save (only applies to txt format). Available groups: 'SUEWS', 'DailyState', 'snow', 'ESTM', 'RSL', 'BL', 'debug'. If not specified, defaults to ['SUEWS', 'DailyState']",
           "title": "Groups"
+        },
+        "path": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Output directory path where result files will be saved. If not specified, defaults to current working directory.",
+          "title": "Path"
         }
       },
       "title": "Output Configuration",

@@ -393,9 +393,18 @@ class SUEWSSimulation:
         if not self._run_completed:
             raise RuntimeError("No simulation results available. Run simulation first.")
 
-        # Set default path
+        # Set default path with priority: parameter > config > current directory
         if output_path is None:
-            output_path = Path(".")
+            # Check if path is specified in config
+            config_path = None
+            try:
+                output_file = self._config.model.control.output_file
+                if not isinstance(output_file, str) and output_file.path:
+                    config_path = output_file.path
+            except AttributeError:
+                pass
+
+            output_path = Path(config_path) if config_path else Path(".")
         else:
             output_path = Path(output_path)
 

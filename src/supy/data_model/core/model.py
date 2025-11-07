@@ -692,6 +692,10 @@ class OutputConfig(BaseModel):
         default=None,
         description="List of output groups to save (only applies to txt format). Available groups: 'SUEWS', 'DailyState', 'snow', 'ESTM', 'RSL', 'BL', 'debug'. If not specified, defaults to ['SUEWS', 'DailyState']",
     )
+    path: Optional[str] = Field(
+        default=None,
+        description="Output directory path where result files will be saved. If not specified, defaults to current working directory.",
+    )
 
     @field_validator("groups")
     def validate_groups(cls, v):

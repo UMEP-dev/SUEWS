@@ -110,15 +110,8 @@ on:
 
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
-    paths: # PR events containing matching files
-      - "src/suews/**"
-      - "src/supy/**"
-      - "src/supy_driver/**"
-      - ".github/workflows/build-publish_to_pypi.yml"
-      - "test/**"
-      - "pyproject.toml"
-      - "meson.build"
-      - "Makefile"
+    # No path filters - workflow ALWAYS runs for branch protection
+    # Path detection happens in detect-changes job (secure, inside workflow)
 
   schedule:
     # Run nightly builds at 2 AM UTC
@@ -172,6 +165,31 @@ jobs:
             echo "Successfully created and pushed tag ${DEV_TAG}"
           fi
 
+  # Detect if code changes require builds (PR branch protection security)
+  detect-changes:
+    name: Detect code changes
+    runs-on: ubuntu-latest
+    # Only run for pull requests (push/tag/schedule always build)
+    if: github.event_name == 'pull_request'
+    outputs:
+      needs-build: ${{ steps.filter.outputs.code }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            code:
+              - 'src/suews/**'
+              - 'src/supy/**'
+              - 'src/supy_driver/**'
+              - '.github/workflows/build-publish_to_pypi.yml'
+              - 'test/**'
+              - 'pyproject.toml'
+              - 'meson.build'
+              - 'Makefile'
+
   # Determine if we should run limited or full matrix
   determine_matrix:
     name: Determine build matrix
@@ -218,12 +236,16 @@ jobs:
   build_wheels:
     name: Build wheel for ${{ matrix.python }}-${{ matrix.buildplat[1] }} ${{ matrix.buildplat[2] }}
     runs-on: ${{ matrix.buildplat[0] }}
-    needs: [determine_matrix, create_nightly_tag]
-    # Run if: not a scheduled build, OR if it's scheduled and tag was created/skipped
+    needs: [determine_matrix, create_nightly_tag, detect-changes]
+    # Run if:
+    # 1. Not a PR (push/tag/schedule always build), OR
+    # 2. PR with code changes (detect-changes.outputs.needs-build == 'true')
+    # 3. AND other dependencies succeeded/skipped
     if: |
       always() &&
       needs.determine_matrix.result == 'success' &&
-      (needs.create_nightly_tag.result == 'success' || needs.create_nightly_tag.result == 'skipped')
+      (needs.create_nightly_tag.result == 'success' || needs.create_nightly_tag.result == 'skipped') &&
+      (needs.detect-changes.result == 'skipped' || needs.detect-changes.outputs.needs-build == 'true')
     strategy:
       matrix:
         buildplat: ${{ fromJson(needs.determine_matrix.outputs.buildplat) }}
@@ -249,15 +271,19 @@ jobs:
   build_umep:
     name: Build UMEP wheel (rc1/dev1) for ${{ matrix.python }}-${{ matrix.buildplat[1] }} ${{ matrix.buildplat[2] }}
     runs-on: ${{ matrix.buildplat[0] }}
-    needs: [determine_matrix, create_nightly_tag]
-    # Run for all triggers: PRs, master, nightly (schedule), manual, and all tags
+    needs: [determine_matrix, create_nightly_tag, detect-changes]
+    # Run if:
+    # 1. Not a PR (push/tag/schedule always build), OR
+    # 2. PR with code changes (detect-changes.outputs.needs-build == 'true')
+    # 3. AND other dependencies succeeded/skipped
     # UMEP versioning:
     #   - Production tags: X.Y.Zrc1 (pre-release for QGIS)
     #   - Dev/nightly: X.Y.Z.dev1 (incremented to avoid collision with standard .dev0)
     if: |
       always() &&
       needs.determine_matrix.result == 'success' &&
-      (needs.create_nightly_tag.result == 'success' || needs.create_nightly_tag.result == 'skipped')
+      (needs.create_nightly_tag.result == 'success' || needs.create_nightly_tag.result == 'skipped') &&
+      (needs.detect-changes.result == 'skipped' || needs.detect-changes.outputs.needs-build == 'true')
     strategy:
       matrix:
         # Limited matrix (manylinux cp312) for PRs/master/nightly/manual

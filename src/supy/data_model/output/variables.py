@@ -94,7 +94,7 @@ class OutputVariable(BaseModel):
     aggregation: AggregationMethod = Field(description="Resampling aggregation method")
     group: OutputGroup = Field(description="Output group membership")
     level: OutputLevel = Field(description="Output priority level")
-    format: str = Field(default="f104", description="Fortran format specifier")
+    format: str = Field(default="f104", description="Legacy Fortran format specifier (maintained for compatibility)")
 
     class Config:
         use_enum_values = True

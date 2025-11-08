@@ -1238,6 +1238,141 @@ class SUEWSConfig(BaseModel):
 
         return issues
 
+    def _needs_rcmethod_validation(self) -> bool:
+        """
+        Return True if rcmethod validation should be performed.
+        Only applies when stebbsmethod >= 1 (STEBBS is enabled).
+        """
+        if not hasattr(self.model, "physics"):
+            return False
+
+        physics = self.model.physics
+
+        # Check if stebbsmethod exists and is enabled (>= 1)
+        if not hasattr(physics, "stebbsmethod"):
+            return False
+
+        stebbsmethod = physics.stebbsmethod
+        if hasattr(stebbsmethod, "value"):
+            stebbsmethod = stebbsmethod.value
+        if hasattr(stebbsmethod, "__int__"):
+            stebbsmethod = int(stebbsmethod)
+        if isinstance(stebbsmethod, str):
+            try:
+                stebbsmethod = int(stebbsmethod)
+            except ValueError:
+                return False
+
+        # Only validate if STEBBS is enabled
+        if stebbsmethod < 1:
+            return False
+
+        # Check if rcmethod exists and is not NONE
+        if not hasattr(physics, "rcmethod"):
+            return False
+
+        rcmethod = physics.rcmethod
+        if hasattr(rcmethod, "value"):
+            rcmethod = rcmethod.value
+        if hasattr(rcmethod, "__int__"):
+            rcmethod = int(rcmethod)
+        if isinstance(rcmethod, str):
+            try:
+                rcmethod = int(rcmethod)
+            except ValueError:
+                return False
+
+        # Validate if rcmethod is explicitly set (not NONE)
+        return rcmethod > 0
+
+    def _validate_rcmethod(self, site: Site, site_index: int) -> List[str]:
+        """
+        Validate rcmethod parameter requirements based on the selected method.
+
+        If rcmethod==1 (PROVIDED), enforce that site.properties.stebbs.x1
+        is present with a valid fractional value between 0 and 1.
+
+        If rcmethod==2 (PARAMETERISE), building material thermal properties
+        are expected to be available (validated elsewhere).
+        """
+        issues: List[str] = []
+
+        # Get rcmethod value
+        if not hasattr(self.model, "physics") or not hasattr(
+            self.model.physics, "rcmethod"
+        ):
+            return issues
+
+        rcmethod = self.model.physics.rcmethod
+        if hasattr(rcmethod, "value"):
+            rcmethod = rcmethod.value
+        if hasattr(rcmethod, "__int__"):
+            rcmethod = int(rcmethod)
+        if isinstance(rcmethod, str):
+            try:
+                rcmethod = int(rcmethod)
+            except ValueError:
+                return issues
+
+        # Only validate if rcmethod is PROVIDED (1)
+        if rcmethod != 1:
+            return issues
+
+        # Check if properties exists
+        if not hasattr(site, "properties") or site.properties is None:
+            issues.append(
+                "Missing 'properties' section (required for rcmethod=1 validation)"
+            )
+            return issues
+
+        props = site.properties
+
+        # Must have a stebbs block
+        if not hasattr(props, "stebbs") or props.stebbs is None:
+            issues.append(
+                "Missing 'stebbs' section (required when rcmethod=1 for x1 parameter)"
+            )
+            return issues
+
+        stebbs = props.stebbs
+
+        # Check if x1 parameter exists
+        if not hasattr(stebbs, "x1"):
+            issues.append(
+                "Missing 'x1' parameter in stebbs section (required when rcmethod=1)"
+            )
+            return issues
+
+        # Get x1 value
+        x1_obj = getattr(stebbs, "x1")
+
+        # Check if x1 has a value attribute that is None
+        if hasattr(x1_obj, "value"):
+            x1_value = x1_obj.value
+        else:
+            x1_value = x1_obj
+
+        # If x1 is None
+        if x1_value is None:
+            issues.append(
+                "Parameter 'x1' must have a value when rcmethod=1 (cannot be null)"
+            )
+            return issues
+
+        # Validate x1 is a fractional value between 0 and 1
+        try:
+            x1_float = float(x1_value)
+            if not (0.0 <= x1_float <= 1.0):
+                issues.append(
+                    f"Parameter 'x1' must be between 0 and 1 (got {x1_float})"
+                )
+        except (TypeError, ValueError):
+            issues.append(
+                f"Parameter 'x1' must be a numeric value (got {type(x1_value).__name__})"
+            )
+
+        return issues
+
     def _needs_rsl_validation(self) -> bool:
         """
         Return True if RSL diagnostic method is explicitly enabled.
@@ -1388,11 +1523,12 @@ class SUEWSConfig(BaseModel):
 
         # Determine which checks to run once up front
         needs_stebbs = self._needs_stebbs_validation()
+        needs_rcmethod = self._needs_rcmethod_validation()
         needs_rsl = self._needs_rsl_validation()
         needs_storage = self._needs_storage_validation()
 
         # Nothing to do?
-        if not (needs_stebbs or needs_rsl or needs_storage):
+        if not (needs_stebbs or needs_rcmethod or needs_rsl or needs_storage):
             return all_issues
 
         for idx, site in enumerate(self.sites):
@@ -1406,6 +1542,15 @@ class SUEWSConfig(BaseModel):
                     if site_name not in self._validation_summary["sites_with_issues"]:
                         self._validation_summary["sites_with_issues"].append(site_name)
                     all_issues.extend(stebbs_issues)
+
+            # RCMethod (heat capacity splitting)
+            if needs_rcmethod:
+                rcmethod_issues = self._validate_rcmethod(site, idx)
+                if rcmethod_issues:
+                    self._validation_summary["issue_types"].add("RCMethod parameters")
+                    if site_name not in self._validation_summary["sites_with_issues"]:
+                        self._validation_summary["sites_with_issues"].append(site_name)
+                    all_issues.extend(rcmethod_issues)
 
             # RSL
             if needs_rsl:

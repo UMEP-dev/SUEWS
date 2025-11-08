@@ -6,7 +6,7 @@ SUEWS: Surface Urban Energy and Water Balance Scheme
 What is SUEWS?
 ---------------
 
-Surface Urban Energy and Water Balance Scheme (**SUEWS**) :cite:`J11,W16` is a neighbourhood/local-scale urban land surface model delivered through **SuPy**, a comprehensive Python interface that integrates seamlessly with the scientific Python ecosystem.
+Surface Urban Energy and Water Balance Scheme (**SUEWS**) :cite:`J11,W16` is a neighbourhood/local-scale urban land surface model delivered through **SuPy** :cite:`SG19`, a comprehensive Python interface that integrates seamlessly with the scientific Python ecosystem.
 
 SUEWS simulates the urban radiation, energy and water balances using only commonly measured meteorological variables and information about the surface cover. The model utilises an evaporation-interception approach :cite:`GO91`, similar to that used in forests, to model evaporation from urban surfaces.
 

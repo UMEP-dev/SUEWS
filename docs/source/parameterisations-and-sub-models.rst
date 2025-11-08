@@ -138,42 +138,51 @@ Runoff Generation
 
 SUEWS generates surface runoff through two primary mechanisms, both calculated at each model timestep:
 
-1. **Infiltration Capacity Exceedance (Hortonian Runoff)**
-   
-   When the precipitation rate exceeds the infiltration threshold (default: 10 mm hr⁻¹), the excess precipitation becomes runoff:
-   
+1. **Infiltration Excess Runoff (Hortonian Overland Flow)**
+
+   When the precipitation rate exceeds the infiltration capacity (default: 10 mm hr⁻¹), the excess precipitation becomes runoff:
+
    .. math::
-      
-      \text{Runoff}_{\text{Hortonian}} = P - \text{IPThreshold}
-   
+
+      R_\text{I} = P - I_\text{th}
+
    where:
-   
+
+   - :math:`R_\text{I}` is the infiltration excess runoff rate
    - :math:`P` is the precipitation rate at the current timestep
-   - :math:`\text{IPThreshold}` is the infiltration threshold (adjusted for timestep duration)
-   
+   - :math:`I_\text{th}` is the infiltration capacity threshold (adjusted for timestep duration)
+
    This mechanism applies to all surface types (impervious and pervious).
 
 2. **Saturation Excess Runoff**
-   
+
    Runoff is generated when surface or soil storage capacities are exceeded:
-   
+
    - **Impervious surfaces** (paved, buildings): When surface water storage exceeds the maximum storage capacity
    - **Pervious surfaces** (vegetation, bare soil): When soil moisture storage exceeds the soil storage capacity
    - **Water bodies**: When water level exceeds the defined state limit
-   
+
    For pervious surfaces, the saturation excess is calculated as:
-   
+
    .. math::
-      
-      \text{Runoff}_{\text{saturation}} = \max(0, \text{SoilStore} - \text{SoilStoreCap})
+
+      R_\text{S} = \max(0, S - S_\text{max})
+
+   where:
+
+   - :math:`R_\text{S}` is the saturation excess runoff
+   - :math:`S` is the current soil moisture storage
+   - :math:`S_\text{max}` is the soil storage capacity
 
 **Timestep Considerations**
 
 All runoff calculations are performed at the model timestep (typically 5 minutes to 1 hour). The infiltration threshold is automatically adjusted based on the timestep duration to maintain consistency:
 
 .. math::
-   
-   \text{IPThreshold}_{\text{timestep}} = \frac{\text{IPThreshold}_{\text{hourly}}}{\text{timesteps per hour}}
+
+   I_\text{th}(\Delta t) = \frac{I_\text{th,hourly}}{n}
+
+where :math:`n` is the number of timesteps per hour.
 
 **Water Routing**
 

@@ -394,15 +394,19 @@ class StebbsMethod(Enum):
 
 class RCMethod(Enum):
     """
-    Method to split building envelope heat capacity in STEBBS.
-    0: NONE
-    1: PROVIDED - use user defined value (fractional x1) between 0 and 1
-    2: PARAMETERISE - use building material thermal property to parameterise the weighting factor x1
+    Method to split building envelope heat capacity in STEBBS building energy balance.
+
+    The heat capacity splitting determines the thermal response of building envelopes using
+    a weighting factor x1 that partitions capacity between internal and external thermal masses.
+
+    0: NONE - Heat capacity splitting disabled (only applies when stebbsmethod=0)
+    1: PROVIDED - Use user-defined weighting factor x1 (fractional value 0-1, requires site parameter)
+    2: PARAMETERISE - Auto-calculate x1 from building material thermal properties
     """
 
-    NONE = 0
-    PROVIDED = 1
-    PARAMETERISE = 2
+    NONE = 0  # Disabled (default when STEBBS is not active)
+    PROVIDED = 1  # User-provided weighting factor x1
+    PARAMETERISE = 2  # Auto-parameterised from material properties
 
     def __int__(self):
         return self.value

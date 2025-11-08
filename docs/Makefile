@@ -26,6 +26,14 @@ clean:
 
 # Live-reloading server with incremental builds
 livehtml: $(RST_STAMP)
+	@# Build HTML first if not already built
+	@if [ ! -d "$(BUILDDIR)/html" ]; then \
+		echo "No HTML build found - building documentation first..."; \
+		$(MAKE) html; \
+		echo ""; \
+	fi
+	@# Kill any existing sphinx-autobuild on port 8000
+	@lsof -ti:8000 | xargs kill -9 2>/dev/null || true
 	@echo "Starting live-reload server with incremental builds..."
 	@echo "Tip: Edit .rst files and see changes instantly (2-5s rebuilds)"
 	@echo "     Data model RST auto-regenerates when Python sources change"

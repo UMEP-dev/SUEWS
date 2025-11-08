@@ -31,8 +31,41 @@ from output.dailystate_vars import DAILYSTATE_VARIABLES
 from output.bl_vars import BL_VARIABLES
 from output.beers_vars import BEERS_VARIABLES
 from output.debug_vars import DEBUG_VARIABLES
+from output.ehc_vars import EHC_VARIABLES
+from output.spartacus_vars import SPARTACUS_VARIABLES
+from output.stebbs_vars import STEBBS_VARIABLES
 
-# Assemble registry manually for testing
+# NHood variables (defined here to match production __init__.py)
+NHOOD_VARIABLES = [
+    OutputVariable(
+        name="iter_count",
+        unit="-",
+        description="iteration count of convergence loop",
+        aggregation=AggregationMethod.AVERAGE,
+        group=OutputGroup.NHOOD,
+        level=OutputLevel.DEFAULT,
+        format="f104",
+    ),
+]
+
+# Expected variable counts (for test stability during development)
+EXPECTED_COUNTS = {
+    OutputGroup.DATETIME: 5,
+    OutputGroup.SUEWS: 85,
+    OutputGroup.SNOW: 98,  # Approximate, can vary by surface types
+    OutputGroup.ESTM: 27,
+    OutputGroup.RSL: 135,  # Approximate, depends on levels
+    OutputGroup.DAILYSTATE: 47,
+    OutputGroup.BL: 17,  # Corrected count from review feedback
+    OutputGroup.BEERS: 29,
+    OutputGroup.DEBUG: 185,  # Approximate, may vary
+    OutputGroup.EHC: 224,  # 2 + 7×15 roof + 7×15 wall
+    OutputGroup.SPARTACUS: 194,  # 10 scalars + 12×15 layers
+    OutputGroup.STEBBS: 57,
+    OutputGroup.NHOOD: 1,
+}
+
+# Assemble registry manually for testing (matching production)
 OUTPUT_REGISTRY = OutputVariableRegistry(
     variables=(
         DATETIME_VARIABLES
@@ -44,6 +77,10 @@ OUTPUT_REGISTRY = OutputVariableRegistry(
         + BL_VARIABLES
         + BEERS_VARIABLES
         + DEBUG_VARIABLES
+        + EHC_VARIABLES
+        + SPARTACUS_VARIABLES
+        + STEBBS_VARIABLES
+        + NHOOD_VARIABLES
     )
 )
 
@@ -56,50 +93,27 @@ def test_registry_basic():
     assert len(OUTPUT_REGISTRY.variables) > 0, "Registry should not be empty"
     print(f"✓ Registry contains {len(OUTPUT_REGISTRY.variables)} variables")
 
-    # Check all groups are present
-    datetime_vars = OUTPUT_REGISTRY.by_group(OutputGroup.DATETIME)
-    assert len(datetime_vars) == 5, (
-        f"Should have 5 datetime variables, got {len(datetime_vars)}"
-    )
-    print(f"✓ datetime: {len(datetime_vars)} variables")
-
-    suews_vars = OUTPUT_REGISTRY.by_group(OutputGroup.SUEWS)
-    assert len(suews_vars) == 85, (
-        f"Should have 85 SUEWS variables, got {len(suews_vars)}"
-    )
-    print(f"✓ SUEWS: {len(suews_vars)} variables")
-
-    snow_vars = OUTPUT_REGISTRY.by_group(OutputGroup.SNOW)
-    assert len(snow_vars) > 0, f"Should have snow variables, got {len(snow_vars)}"
-    print(f"✓ snow: {len(snow_vars)} variables")
-
-    estm_vars = OUTPUT_REGISTRY.by_group(OutputGroup.ESTM)
-    assert len(estm_vars) == 27, f"Should have 27 ESTM variables, got {len(estm_vars)}"
-    print(f"✓ ESTM: {len(estm_vars)} variables")
-
-    rsl_vars = OUTPUT_REGISTRY.by_group(OutputGroup.RSL)
-    assert len(rsl_vars) > 100, f"Should have >100 RSL variables, got {len(rsl_vars)}"
-    print(f"✓ RSL: {len(rsl_vars)} variables")
-
-    dailystate_vars = OUTPUT_REGISTRY.by_group(OutputGroup.DAILYSTATE)
-    assert len(dailystate_vars) == 47, (
-        f"Should have 47 DailyState variables, got {len(dailystate_vars)}"
-    )
-    print(f"✓ DailyState: {len(dailystate_vars)} variables")
-
-    bl_vars = OUTPUT_REGISTRY.by_group(OutputGroup.BL)
-    assert len(bl_vars) == 17, f"Should have 17 BL variables, got {len(bl_vars)}"
-    print(f"✓ BL: {len(bl_vars)} variables")
-
-    beers_vars = OUTPUT_REGISTRY.by_group(OutputGroup.BEERS)
-    assert len(beers_vars) == 29, (
-        f"Should have 29 BEERS variables, got {len(beers_vars)}"
-    )
-    print(f"✓ BEERS: {len(beers_vars)} variables")
-
-    debug_vars = OUTPUT_REGISTRY.by_group(OutputGroup.DEBUG)
-    assert len(debug_vars) > 0, f"Should have debug variables, got {len(debug_vars)}"
-    print(f"✓ debug: {len(debug_vars)} variables")
+    # Check all groups are present using centralised expected counts
+    for group, expected_count in EXPECTED_COUNTS.items():
+        group_vars = OUTPUT_REGISTRY.by_group(group)
+        actual_count = len(group_vars)
+        
+        # For groups with variable counts, use tolerance-based checking
+        if group in [OutputGroup.SNOW, OutputGroup.RSL, OutputGroup.DEBUG]:
+            # Allow ±10% tolerance for groups that may vary
+            tolerance = max(1, int(expected_count * 0.1))
+            assert abs(actual_count - expected_count) <= tolerance, (
+                f"{group.value} should have ~{expected_count} variables "
+                f"(±{tolerance}), got {actual_count}"
+            )
+            print(f"✓ {group.value}: {actual_count} variables (~{expected_count} expected)")
+        else:
+            # Exact count for stable groups
+            assert actual_count == expected_count, (
+                f"{group.value} should have exactly {expected_count} variables, "
+                f"got {actual_count}"
+            )
+            print(f"✓ {group.value}: {actual_count} variables")
 
     print()
 
@@ -278,6 +292,10 @@ def main():
         print(f"  - BL: {len(OUTPUT_REGISTRY.by_group(OutputGroup.BL))}")
         print(f"  - BEERS: {len(OUTPUT_REGISTRY.by_group(OutputGroup.BEERS))}")
         print(f"  - debug: {len(OUTPUT_REGISTRY.by_group(OutputGroup.DEBUG))}")
+        print(f"  - EHC: {len(OUTPUT_REGISTRY.by_group(OutputGroup.EHC))}")
+        print(f"  - SPARTACUS: {len(OUTPUT_REGISTRY.by_group(OutputGroup.SPARTACUS))}")
+        print(f"  - STEBBS: {len(OUTPUT_REGISTRY.by_group(OutputGroup.STEBBS))}")
+        print(f"  - NHOOD: {len(OUTPUT_REGISTRY.by_group(OutputGroup.NHOOD))}")
         print()
         print("✨ All SUEWS output variables successfully migrated to Python/Pydantic!")
         print("The registry is ready for integration with SUEWS runtime.")

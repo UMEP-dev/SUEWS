@@ -106,6 +106,7 @@ src_f95_all = [
   'suews_util_datetime.f95',
   'suews_phys_waterdist.f95',
   'suews_phys_narp.f95',
+  'suews_phys_radiation3d.f95',
   'suews_phys_beers.f95',
   'suews_phys_atmmoiststab.f95',
   'suews_phys_resist.f95',

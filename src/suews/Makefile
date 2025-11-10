@@ -175,7 +175,8 @@ UTILS = suews_ctrl_const.o \
 	suews_util_minpack.o
 
 # SUEWS physics modules
-PHYS =	suews_phys_narp.o \
+PHYS =	suews_phys_radiation3d.o \
+	suews_phys_narp.o \
 	suews_phys_spartacus.o \
 	suews_phys_atmmoiststab.o \
 	suews_phys_resist.o \

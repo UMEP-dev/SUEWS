@@ -38,6 +38,7 @@ MODULE module_phys_narp
    !==============================================================================================
    ! USE module_ctrl_const_allocate
    USE module_util_time, ONLY: day2month, dectime_to_timevec
+   USE module_phys_radiation3d  ! Mei et al. (2025) 3D morphological radiation scheme
 
    IMPLICIT NONE
 
@@ -84,12 +85,29 @@ CONTAINS
             ! IF (NetRadiationMethod == 3) ldown_option = 3
             ! NetRadiationMethod_use = NetRadiationMethod
 
-         ELSEIF (NetRadiationMethod >= 100 .AND. NetRadiationMethod < 1000) THEN
+         ELSEIF (NetRadiationMethod >= 100 .AND. NetRadiationMethod < 400) THEN
             AlbedoChoice = 1
             IF (NetRadiationMethod == 100) ldown_option = 1
             IF (NetRadiationMethod == 200) ldown_option = 2
             IF (NetRadiationMethod == 300) ldown_option = 3
             NetRadiationMethod_use = NetRadiationMethod/100
+
+         ELSEIF (NetRadiationMethod >= 400 .AND. NetRadiationMethod < 700) THEN
+            ! 3D morphological radiation scheme (Mei et al. 2025)
+            AlbedoChoice = 2  ! morphology-dependent albedo
+            IF (NetRadiationMethod >= 400 .AND. NetRadiationMethod < 500) THEN
+               ! 400 series: 3D morphological with observed LDOWN
+               ldown_option = 1
+               NetRadiationMethod_use = NetRadiationMethod - 399  ! 401->2, 402->3, 403->4
+            ELSEIF (NetRadiationMethod >= 500 .AND. NetRadiationMethod < 600) THEN
+               ! 500 series: 3D morphological with LDOWN from observed FCLD
+               ldown_option = 2
+               NetRadiationMethod_use = NetRadiationMethod - 499  ! 501->2, 502->3, 503->4
+            ELSEIF (NetRadiationMethod >= 600 .AND. NetRadiationMethod < 700) THEN
+               ! 600 series: 3D morphological with LDOWN modelled from RH,TA
+               ldown_option = 3
+               NetRadiationMethod_use = NetRadiationMethod - 599  ! 601->2, 602->3, 603->4
+            END IF
 
             !choose Ldown method for Spartacus
          ELSEIF (NetRadiationMethod > 1000) THEN

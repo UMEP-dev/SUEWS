@@ -774,14 +774,6 @@ def validate_irrigation_doy(
        - Northern Hemisphere (lat >= 23.5): Warm season is May-September (DOY 121-273)
        - Southern Hemisphere (lat <= -23.5): Warm season is November-March (DOY 305-90)
 
-    Note: Warm season ranges are fixed and independent of the get_season() function,
-    which defines meteorological seasons differently.
-
-    Valid configurations:
-    - Both None/0: Irrigation disabled (valid)
-    - Both 1-365/366: Irrigation enabled with valid DOY range
-    - One set, one None/0: Invalid (inconsistent)
-
     Args:
         ie_start: Irrigation start day of year
         ie_end: Irrigation end day of year
@@ -822,7 +814,6 @@ def validate_irrigation_doy(
         return results
 
     # Case 3: Both enabled = validate DOY range and hemisphere logic
-    # Leap year check (no import needed!)
     is_leap = model_year % 400 == 0 or (model_year % 4 == 0 and model_year % 100 != 0)
     max_doy = 366 if is_leap else 365
 

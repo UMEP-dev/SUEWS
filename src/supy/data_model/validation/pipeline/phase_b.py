@@ -803,7 +803,7 @@ def validate_irrigation_doy(
             ValidationResult(
                 status="ERROR",
                 category="IRRIGATION",
-                parameter=f"sites.{site_name}.initial_conditions.human_activity.irrigation",
+                parameter=f"irrigation in site {site_name}",
                 message="Both ie_start and ie_end must be specified together (both set to valid DOY), "
                 "or both left as None/0 (irrigation disabled). "
                 f"Currently: ie_start={'disabled' if start_disabled else ie_start}, "
@@ -824,7 +824,7 @@ def validate_irrigation_doy(
                 ValidationResult(
                     status="ERROR",
                     category="IRRIGATION",
-                    parameter=f"sites.{site_name}.initial_conditions.human_activity.irrigation.{param_name}",
+                    parameter=f"{param_name} in site {site_name}",
                     message=f"{param_name}={param_value} is invalid. "
                     f"Must be between 1 and {max_doy} for {'leap' if is_leap else 'non-leap'} "
                     f"year {model_year}, or 0/None to disable irrigation",
@@ -869,7 +869,7 @@ def validate_irrigation_doy(
             ValidationResult(
                 status="WARNING",
                 category="IRRIGATION",
-                parameter=f"sites.{site_name}.initial_conditions.human_activity.irrigation",
+                parameter=f"irrigation in site {site_name}",
                 message=f"Irrigation period (DOY {int(ie_start)} to {int(ie_end)}) falls outside "
                 f"the typical warm season for {hemisphere} Hemisphere sites (lat={lat:.2f}). "
                 f"Irrigation typically occurs during warm season: {season_range}. "
@@ -898,17 +898,25 @@ def validate_irrigation_parameters(
         List of ValidationResult objects for all sites
     """
     results = []
-    sites = yaml_data.get("sites", {})
+    sites = yaml_data.get("sites", [])
 
-    for site_name, site_data in sites.items():
-        # Extract latitude
-        lat = get_value_safe(site_data, "lat", 0.0)
+    # Handle both list and dict formats for sites
+    if isinstance(sites, dict):
+        # Dict format: {site_name: {lat: ..., ...}, ...}
+        sites_list = [(site_name, site_data) for site_name, site_data in sites.items()]
+    elif isinstance(sites, list):
+        # List format: [{name: site_name, lat: ..., ...}, ...]
+        sites_list = [(site.get("name", f"site_{idx}"), site) for idx, site in enumerate(sites)]
+    else:
+        return results  # No valid sites structure
 
-        # Extract irrigation parameters
-        initial_cond = site_data.get("initial_conditions", {})
-        human_activity = initial_cond.get("human_activity", {})
-        irrigation = human_activity.get("irrigation", {})
+    for site_name, site_data in sites_list:
+        # Extract latitude from properties
+        properties = site_data.get("properties", {})
+        lat = get_value_safe(properties, "lat", 0.0)
 
+        # Extract irrigation parameters from properties
+        irrigation = properties.get("irrigation", {})
         ie_start = get_value_safe(irrigation, "ie_start")
         ie_end = get_value_safe(irrigation, "ie_end")
 

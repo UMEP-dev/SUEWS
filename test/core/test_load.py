@@ -454,8 +454,7 @@ FileOutputPath="./Output/"
         # Verify SPARTACUS.nml does NOT exist (like in the original bug)
         spartacus_path = fixture_path / "Inputbarb_v7" / "SUEWS_SPARTACUS.nml"
         self.assertFalse(
-            spartacus_path.exists(),
-            "SPARTACUS.nml should not exist in 2017 data"
+            spartacus_path.exists(), "SPARTACUS.nml should not exist in 2017 data"
         )
 
         # This should work without crashing
@@ -471,7 +470,9 @@ FileOutputPath="./Output/"
 
             # Most importantly: verify we didn't crash with NoneType error
             # This confirms the missing SPARTACUS.nml was handled gracefully
-            print("✓ Successfully loaded real URBANFLUXES 2017 data without SPARTACUS.nml")
+            print(
+                "✓ Successfully loaded real URBANFLUXES 2017 data without SPARTACUS.nml"
+            )
 
         except AttributeError as e:
             if "'NoneType'" in str(e) and "'items'" in str(e):

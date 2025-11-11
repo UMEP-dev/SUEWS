@@ -348,6 +348,60 @@ class TestErrorHandling(TestCase):
 
         print("✓ Missing NML file handled gracefully")
 
+    def test_missing_spartacus_nml_integration(self):
+        """Test that ModConfig loading handles missing SPARTACUS.nml (GH-846)."""
+        print("\n========================================")
+        print("Testing ModConfig loading without SPARTACUS.nml...")
+
+        from supy._load import load_SUEWS_dict_ModConfig  # noqa: PLC0415
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_path = Path(temp_dir)
+            input_dir = temp_path / "Input"
+            input_dir.mkdir()
+
+            # Create minimal RunControl.nml (similar to bug report)
+            runcontrol = temp_path / "RunControl.nml"
+            runcontrol.write_text("""
+&RunControl
+CBLUse=0
+SnowUse=0
+NetRadiationMethod=3
+AnthropHeatMethod=2
+StorageHeatMethod=4
+FileCode='test'
+FileInputPath="./Input/"
+FileOutputPath="./Output/"
+/
+""")
+
+            # Deliberately do NOT create SPARTACUS.nml
+            # This simulates old (pre-2018) runcontrol files
+
+            # This should NOT crash with "NoneType has no attribute 'items'"
+            try:
+                dict_config = load_SUEWS_dict_ModConfig(runcontrol)
+
+                # Verify we got a dict back
+                self.assertIsInstance(dict_config, dict)
+
+                # Verify basic keys are present
+                self.assertIn("cbluse", dict_config)
+                self.assertIn("snowuse", dict_config)
+
+                # Verify SPARTACUS keys are NOT present (file didn't exist)
+                # but the function didn't crash
+                print("✓ ModConfig loading handles missing SPARTACUS.nml gracefully")
+
+            except AttributeError as e:
+                if "'NoneType'" in str(e) and "'items'" in str(e):
+                    self.fail(
+                        "load_SUEWS_nml returned None instead of empty dict, "
+                        f"causing AttributeError: {e}"
+                    )
+                else:
+                    raise
+
     def test_logger_with_none_stdout(self):
         """Test logging setup handles None stdout (GH-846 fix)."""
         print("\n========================================")

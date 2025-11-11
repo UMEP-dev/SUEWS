@@ -562,7 +562,7 @@ class ModelPhysics(BaseModel):
     )
     rcmethod: FlexibleRefValue(RCMethod) = Field(
         default=RCMethod.NONE,
-        description="Method to split building envelope heat capacity in STEBBS. Options: 0 (NONE) = STEBBS split disabled; 1 (PROVIDED) = use user-defined fractional weighting factor x1 between 0 and 1; 2 (PARAMETERISE) = use building material thermal property to parameterise the weighting factor x1",
+        description="Method to split heat capacity of building envelope in STEBBS. See RCMethod for detailed options.",
         json_schema_extra={"unit": "dimensionless"},
     )
     ref: Optional[Reference] = None

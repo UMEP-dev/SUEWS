@@ -89,7 +89,11 @@ test:
 	@echo "NOTE: Slow tests (e.g., Fortran state persistence ~3-4 min) are skipped."
 	@echo "      These run automatically in CI. To run manually: pytest test -m slow -v"
 	@echo ""
-	$(PYTHON) -m pytest test -m "not slow" -v --tb=short --durations=10
+	@if command -v uv >/dev/null 2>&1; then \
+		uv run pytest test -m "not slow" -v --tb=short --durations=10; \
+	else \
+		$(PYTHON) -m pytest test -m "not slow" -v --tb=short --durations=10; \
+	fi
 
 # Build documentation
 docs:
@@ -99,17 +103,32 @@ docs:
 		echo "supy not installed - installing from pre-built wheels..."; \
 		SUPY_VERSION=$$($(PYTHON) get_ver_git.py 2>/dev/null || echo "unknown"); \
 		echo "Detected version: $$SUPY_VERSION"; \
-		case "$$SUPY_VERSION" in \
-			*".dev"*|"unknown") \
-				PYPI_VERSION=$$(echo "$$SUPY_VERSION" | sed 's/\.dev[0-9]*/\.dev1/'); \
-				echo "Installing dev version from Test PyPI: $$PYPI_VERSION"; \
-				$(PYTHON) -m pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ "supy[dev]==$$PYPI_VERSION"; \
-				;; \
-			*) \
-				echo "Installing release version from PyPI: $$SUPY_VERSION"; \
-				$(PYTHON) -m pip install "supy[dev]==$$SUPY_VERSION"; \
-				;; \
-		esac; \
+		if command -v uv >/dev/null 2>&1; then \
+			echo "Using uv for fast installation..."; \
+			case "$$SUPY_VERSION" in \
+				*".dev"*|"unknown") \
+					PYPI_VERSION=$$(echo "$$SUPY_VERSION" | sed 's/\.dev[0-9]*/\.dev0/'); \
+					echo "Installing dev version from Test PyPI: $$PYPI_VERSION"; \
+					uv pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ "supy[dev]==$$PYPI_VERSION"; \
+					;; \
+				*) \
+					echo "Installing release version from PyPI: $$SUPY_VERSION"; \
+					uv pip install "supy[dev]==$$SUPY_VERSION"; \
+					;; \
+			esac; \
+		else \
+			case "$$SUPY_VERSION" in \
+				*".dev"*|"unknown") \
+					PYPI_VERSION=$$(echo "$$SUPY_VERSION" | sed 's/\.dev[0-9]*/\.dev0/'); \
+					echo "Installing dev version from Test PyPI: $$PYPI_VERSION"; \
+					$(PYTHON) -m pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ "supy[dev]==$$PYPI_VERSION"; \
+					;; \
+				*) \
+					echo "Installing release version from PyPI: $$SUPY_VERSION"; \
+					$(PYTHON) -m pip install "supy[dev]==$$SUPY_VERSION"; \
+					;; \
+			esac; \
+		fi; \
 	fi
 	@$(MAKE) -C docs html
 	@echo "✓ Documentation built successfully"

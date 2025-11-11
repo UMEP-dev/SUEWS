@@ -437,6 +437,50 @@ FileOutputPath="./Output/"
 
         print("✓ Logger handles None stdout correctly")
 
+    def test_real_urbanfluxes_data_gh846(self):
+        """Test with actual URBANFLUXES (2017) data from GH-846."""
+        print("\n========================================")
+        print("Testing with real URBANFLUXES 2017 data (GH-846)...")
+
+        from supy._load import load_SUEWS_dict_ModConfig  # noqa: PLC0415
+
+        # Use the actual data from the bug report
+        fixture_path = Path(__file__).parent.parent / "fixtures" / "gh846"
+        runcontrol_path = fixture_path / "RunControl.nml"
+
+        if not runcontrol_path.exists():
+            self.skipTest("GH-846 fixture data not available")
+
+        # Verify SPARTACUS.nml does NOT exist (like in the original bug)
+        spartacus_path = fixture_path / "Inputbarb_v7" / "SUEWS_SPARTACUS.nml"
+        self.assertFalse(
+            spartacus_path.exists(),
+            "SPARTACUS.nml should not exist in 2017 data"
+        )
+
+        # This should work without crashing
+        try:
+            dict_config = load_SUEWS_dict_ModConfig(runcontrol_path)
+            self.assertIsInstance(dict_config, dict)
+
+            # Verify basic config loaded (keys are lowercase in dict)
+            self.assertIn("cbluse", dict_config)
+            self.assertIn("snowuse", dict_config)
+            self.assertEqual(dict_config.get("cbluse"), 0)
+            self.assertEqual(dict_config.get("snowuse"), 0)
+
+            # Most importantly: verify we didn't crash with NoneType error
+            # This confirms the missing SPARTACUS.nml was handled gracefully
+            print("✓ Successfully loaded real URBANFLUXES 2017 data without SPARTACUS.nml")
+
+        except AttributeError as e:
+            if "'NoneType'" in str(e) and "'items'" in str(e):
+                self.fail(
+                    f"GH-846 regression: load_SUEWS_nml returned None. Error: {e}"
+                )
+            else:
+                raise
+
     def test_malformed_data(self):
         """Test handling of malformed data."""
         print("\n========================================")

@@ -642,3 +642,7 @@ local-schema/
 # Temporary schema export directory
 public/
 docs/source/api/_autosummary/
+# Exclude large test data but track structure
+test/fixtures/gh846/*.zip
+test/fixtures/gh846/Inputbarb_v7/*.txt
+

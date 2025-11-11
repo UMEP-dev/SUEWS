@@ -100,21 +100,21 @@ class StorageHeatMethod(Enum):
     1: OHM_WITHOUT_QF - Objective Hysteresis Model using Q* only (use with OhmIncQf=0)
     3: ANOHM - Analytical OHM (Sun et al., 2017) - not recommended
     4: ESTM - Element Surface Temperature Method (Offerle et al., 2005) - not recommended
-    5: ESTM_EXTENDED - Extended ESTM with separate roof/wall/ground temperatures
-    6: OHM_ENHANCED - OHM with enhanced parameterisation
+    5: EHC - Explicit Heat Conduction model with separate roof/wall/ground temperatures
+    6: DyOHM - Dynamic Objective Hysteresis Model (Liu et al., 2025) with dynamic coefficients
     7: STEBBS - use STEBBS storage heat flux for building, others use OHM
     """
 
-    # EHC needs to be added
-    # What is OHM_ENHANCED? Is it DyOHM? If yes, change. If not, need to add DyOhm.
+    # Note: EHC (option 5) implements explicit heat conduction
+    # Note: DyOHM (option 6) calculates OHM coefficients dynamically based on material properties and meteorology
     # Put STEBBSoption here to turn on STEBBS storage heat flux, internal temperature, etc.
 
     OBSERVED = 0
     OHM_WITHOUT_QF = 1
     ANOHM = 3
     ESTM = 4
-    ESTM_EXTENDED = 5
-    OHM_ENHANCED = 6
+    EHC = 5
+    DyOHM = 6
     STEBBS = 7
 
     def __new__(cls, value):
@@ -493,7 +493,7 @@ class ModelPhysics(BaseModel):
     )
     storageheatmethod: FlexibleRefValue(StorageHeatMethod) = Field(
         default=StorageHeatMethod.OHM_WITHOUT_QF,
-        description="Method for calculating storage heat flux (ΔQS). Options: 0 (OBSERVED) = Uses observed ΔQS from forcing file; 1 (OHM_WITHOUT_QF) = Objective Hysteresis Model using Q* only; 3 (ANOHM) = Analytical OHM (not recommended); 4 (ESTM) = Element Surface Temperature Method (not recommended); 5 (ESTM_EXTENDED) = Extended ESTM with separate facet temps; 6 (OHM_ENHANCED) = Enhanced OHM parameterisation; 7 (STEBBS) = use STEBBS to calculate storage heat flux for building",
+        description="Method for calculating storage heat flux (ΔQS). Options: 0 (OBSERVED) = Uses observed ΔQS from forcing file; 1 (OHM_WITHOUT_QF) = Objective Hysteresis Model using Q* only; 3 (ANOHM) = Analytical OHM (not recommended); 4 (ESTM) = Element Surface Temperature Method (not recommended); 5 (EHC) = Explicit Heat Conduction model with separate roof/wall/ground temperatures; 6 (DyOHM) = Dynamic Objective Hysteresis Model with dynamic coefficients; 7 (STEBBS) = use STEBBS to calculate storage heat flux for building",
         json_schema_extra={"unit": "dimensionless"},
     )
     ohmincqf: FlexibleRefValue(OhmIncQf) = Field(

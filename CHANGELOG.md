@@ -46,10 +46,13 @@
   - Integrated into Phase B scientific validation pipeline
 
 ### 11 Nov 2025
-- [bugfix] Fixed YAML converter errors in GUI environments (Issue #846)
+- [bugfix] Fixed YAML converter errors with legacy data (Issue #846)
   - Fixed logging errors when sys.stdout is None (e.g., in QGIS)
-  - Fixed missing SPARTACUS.nml file handling to return empty dict instead of crashing
-  - Added tests for both fixes
+  - Fixed missing NML file handling (SPARTACUS, ESTM) to return empty containers
+  - Added graceful handling of legacy profile file formats (2017 data)
+  - Added automatic placeholder generation for missing lookup codes
+  - Fixed column count mismatches in legacy table files
+  - Added comprehensive tests with real URBANFLUXES 2017 data
 
 ### 05 Nov 2025
 - [feature] Added physics-specific forcing data validation 

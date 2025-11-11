@@ -266,7 +266,8 @@ def load_SUEWS_nml_simple(path_file):
         df_res = pd.DataFrame(f90nml.read(str_file))
         return df_res
     except FileNotFoundError:
-        logger_supy.exception(f"{path_file} does not exists!")
+        logger_supy.warning(f"{path_file} does not exist! Returning empty DataFrame.")
+        return pd.DataFrame()
 
 
 @functools.lru_cache(maxsize=128)
@@ -283,7 +284,8 @@ def load_SUEWS_nml(p_nml):
             dict_nml.update(expand_entry(k, v))
         return dict_nml
     except FileNotFoundError:
-        logger_supy.exception(f"{p_nml} does not exists!")
+        logger_supy.warning(f"{p_nml} does not exist! Returning empty dict.")
+        return {}
 
 
 # load all tables (xgrid.e., txt files)

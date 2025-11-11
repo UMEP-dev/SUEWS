@@ -334,6 +334,55 @@ class TestErrorHandling(TestCase):
 
         print("✓ Error handling works correctly")
 
+    def test_missing_nml_file_handling(self):
+        """Test graceful handling of missing NML files."""
+        print("\n========================================")
+        print("Testing missing NML file handling...")
+
+        from supy._load import load_SUEWS_nml  # noqa: PLC0415
+
+        # Test that missing NML file returns empty dict instead of crashing
+        result = load_SUEWS_nml("nonexistent_file.nml")
+        self.assertIsInstance(result, dict)
+        self.assertEqual(len(result), 0)
+
+        print("✓ Missing NML file handled gracefully")
+
+    def test_logger_with_none_stdout(self):
+        """Test logging setup handles None stdout (GH-846 fix)."""
+        print("\n========================================")
+        print("Testing logger with None stdout...")
+
+        import sys
+        from supy._env import get_console_handler  # noqa: PLC0415
+
+        # Save original stdout
+        original_stdout = sys.stdout
+
+        try:
+            # Simulate QGIS environment where stdout is None
+            sys.stdout = None
+
+            # Test that handler creation doesn't crash
+            handler = get_console_handler()
+            self.assertIsNotNone(handler)
+
+            # Test that logging doesn't crash
+            import logging  # noqa: PLC0415
+
+            test_logger = logging.getLogger("test_none_stdout")
+            test_logger.addHandler(handler)
+            test_logger.setLevel(logging.INFO)
+
+            # This should not raise an error
+            test_logger.info("Test message with None stdout")
+
+        finally:
+            # Restore original stdout
+            sys.stdout = original_stdout
+
+        print("✓ Logger handles None stdout correctly")
+
     def test_malformed_data(self):
         """Test handling of malformed data."""
         print("\n========================================")

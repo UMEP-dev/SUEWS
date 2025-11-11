@@ -82,10 +82,16 @@ class SUEWSSimulation:
             - Dictionary with parameters (can be partial)
             - SUEWSConfig object
 
+        Returns
+        -------
+        SUEWSSimulation
+            Self, for method chaining.
+
         Examples
         --------
         >>> sim.update_config("new_config.yaml")
         >>> sim.update_config({"model": {"control": {"tstep": 300}}})
+        >>> sim.update_config("config.yaml").update_forcing("forcing.txt")
         """
         if isinstance(config, (str, Path)):
             # Load from YAML file
@@ -119,6 +125,8 @@ class SUEWSSimulation:
             self._config = config
             self._df_state_init = self._config.to_df_state()
 
+        return self
+
     def _update_config_from_dict(self, updates: dict):
         """Apply dictionary updates to configuration."""
 
@@ -129,39 +137,38 @@ class SUEWSSimulation:
                     if isinstance(value, dict) and hasattr(attr, "__dict__"):
                         # Recursive to read nested dictionaries
                         recursive_update(attr, value)
-                    else:
-                        # Check whether site index or site name is provided
-                        if isinstance(attr, list):
-                            site_key = list(value.keys())[0]
-                            site_value = value[site_key]
-                            if isinstance(site_key, int):
-                                # Select site on index
-                                attr = attr[site_key]
-                                recursive_update(attr, site_value)
-                            elif isinstance(site_key, str):
-                                # Select site on name
-                                attr_site = next(
-                                    (item for item in attr if item.name == site_key),
-                                    None,
-                                )
-                                if attr_site:
-                                    recursive_update(attr_site, site_value)
-                                elif len(attr) == 1:
-                                    # Without name or index and only one site
-                                    attr_site = attr[0]
-                                    # Distinguish site name pattern from shorthand
-                                    # If site_key is an attribute on the site object, it's shorthand
-                                    if hasattr(attr_site, site_key):
-                                        # Shorthand pattern: {'name': 'test'} or {'properties': {...}}
-                                        recursive_update(attr_site, value)
-                                    else:
-                                        # Site name pattern: {'NonExistent': {'gridiv': 99}}
-                                        recursive_update(attr_site, site_value)
+                    # Check whether site index or site name is provided
+                    elif isinstance(attr, list):
+                        site_key = list(value.keys())[0]
+                        site_value = value[site_key]
+                        if isinstance(site_key, int):
+                            # Select site on index
+                            attr = attr[site_key]
+                            recursive_update(attr, site_value)
+                        elif isinstance(site_key, str):
+                            # Select site on name
+                            attr_site = next(
+                                (item for item in attr if item.name == site_key),
+                                None,
+                            )
+                            if attr_site:
+                                recursive_update(attr_site, site_value)
+                            elif len(attr) == 1:
+                                # Without name or index and only one site
+                                attr_site = attr[0]
+                                # Distinguish site name pattern from shorthand
+                                # If site_key is an attribute on the site object, it's shorthand
+                                if hasattr(attr_site, site_key):
+                                    # Shorthand pattern: {'name': 'test'} or {'properties': {...}}
+                                    recursive_update(attr_site, value)
                                 else:
-                                    # Otherwise skip these parameters
-                                    continue
-                        else:
-                            setattr(obj, key, value)
+                                    # Site name pattern: {'NonExistent': {'gridiv': 99}}
+                                    recursive_update(attr_site, site_value)
+                            else:
+                                # Otherwise skip these parameters
+                                continue
+                    else:
+                        setattr(obj, key, value)
 
         recursive_update(self._config, updates)
 
@@ -178,11 +185,17 @@ class SUEWSSimulation:
             - Path to directory containing forcing files (deprecated)
             - DataFrame with forcing data
 
+        Returns
+        -------
+        SUEWSSimulation
+            Self, for method chaining.
+
         Examples
         --------
         >>> sim.update_forcing("forcing_2023.txt")
         >>> sim.update_forcing(["forcing_2023.txt", "forcing_2024.txt"])
         >>> sim.update_forcing(df_forcing)
+        >>> sim.update_config(cfg).update_forcing(forcing).run()
         """
         if isinstance(forcing_data, RefValue):
             forcing_data = forcing_data.value
@@ -198,6 +211,8 @@ class SUEWSSimulation:
             self._df_forcing = SUEWSSimulation._load_forcing_file(forcing_path)
         else:
             raise ValueError(f"Unsupported forcing data type: {type(forcing_data)}")
+
+        return self
 
     def _try_load_forcing_from_config(self):
         """Try to load forcing data from configuration if not explicitly provided."""
@@ -449,10 +464,22 @@ class SUEWSSimulation:
         return list_path_save
 
     def reset(self):
-        """Reset simulation to initial state, clearing results."""
+        """Reset simulation to initial state, clearing results.
+
+        Returns
+        -------
+        SUEWSSimulation
+            Self, for method chaining.
+
+        Examples
+        --------
+        >>> sim.run()
+        >>> sim.reset().run()  # Re-run with same configuration
+        """
         self._df_output = None
         self._df_state_final = None
         self._run_completed = False
+        return self
 
     @classmethod
     def from_sample_data(cls):
@@ -486,8 +513,8 @@ class SUEWSSimulation:
         --------
         load_sample_data : Load sample data as DataFrames (functional approach)
         """
-        from ._supy_module import _load_sample_data
         from ._env import trv_supy_module
+        from ._supy_module import _load_sample_data
 
         df_state_init, df_forcing = _load_sample_data()
         sample_config_path = Path(trv_supy_module / "sample_data" / "sample_config.yml")
@@ -505,6 +532,200 @@ class SUEWSSimulation:
         sim._df_forcing = df_forcing
         return sim
 
+    def __repr__(self) -> str:
+        """Concise representation showing simulation status.
+
+        Returns
+        -------
+        str
+            Status indicator: Complete, Ready, or Not configured
+
+        Examples
+        --------
+        >>> sim = SUEWSSimulation()
+        >>> sim
+        SUEWSSimulation(Not configured)
+
+        >>> sim = SUEWSSimulation.from_sample_data()
+        >>> sim
+        SUEWSSimulation(Ready: 1 site, 105408 timesteps)
+
+        >>> sim.run()
+        >>> sim
+        SUEWSSimulation(Complete: 105408 results)
+        """
+        if self._run_completed:
+            n_results = len(self._df_output) if self._df_output is not None else 0
+            return f"SUEWSSimulation(Complete: {n_results} results)"
+        elif self._df_state_init is not None and self._df_forcing is not None:
+            n_sites = len(self._df_state_init)
+            n_timesteps = len(self._df_forcing)
+            return f"SUEWSSimulation(Ready: {n_sites} site(s), {n_timesteps} timesteps)"
+        else:
+            missing = []
+            if self._df_state_init is None:
+                missing.append("config")
+            if self._df_forcing is None:
+                missing.append("forcing")
+            return f"SUEWSSimulation(Not configured: missing {', '.join(missing)})"
+
+    def is_ready(self) -> bool:
+        """Check if simulation is configured and ready to run.
+
+        Returns
+        -------
+        bool
+            True if both configuration and forcing data are loaded.
+
+        Examples
+        --------
+        >>> sim = SUEWSSimulation()
+        >>> sim.is_ready()
+        False
+
+        >>> sim = SUEWSSimulation.from_sample_data()
+        >>> sim.is_ready()
+        True
+        """
+        return self._df_state_init is not None and self._df_forcing is not None
+
+    def is_complete(self) -> bool:
+        """Check if simulation has been run successfully.
+
+        Returns
+        -------
+        bool
+            True if simulation has completed and results are available.
+
+        Examples
+        --------
+        >>> sim = SUEWSSimulation.from_sample_data()
+        >>> sim.is_complete()
+        False
+
+        >>> sim.run()
+        >>> sim.is_complete()
+        True
+        """
+        return self._run_completed
+
+    def get_variable(
+        self,
+        var_name: str,
+        group: Optional[str] = None,
+        site: Optional[Union[int, str]] = None,
+    ) -> pd.DataFrame:
+        """Extract specific variable from simulation results.
+
+        Convenience method to extract variables from the MultiIndex column structure
+        without needing to understand the internal data layout.
+
+        Parameters
+        ----------
+        var_name : str
+            Variable name to extract (e.g., 'QH', 'QE', 'Tair').
+        group : str, optional
+            Output group name if variable appears in multiple groups.
+            If None and variable is in multiple groups, raises ValueError.
+        site : int or str, optional
+            Site index or name. If None, returns all sites.
+
+        Returns
+        -------
+        pandas.DataFrame
+            DataFrame with selected variable(s), indexed by time.
+
+        Raises
+        ------
+        RuntimeError
+            If simulation hasn't been run yet.
+        ValueError
+            If variable name not found in results, or if variable is ambiguous
+            (appears in multiple groups) and no group specified.
+
+        Examples
+        --------
+        Extract sensible heat flux:
+
+        >>> sim = SUEWSSimulation.from_sample_data()
+        >>> sim.run()
+        >>> qh = sim.get_variable("QH")
+        >>> qh.plot()  # Quick visualisation
+
+        Handle variables in multiple groups:
+
+        >>> # If 'Tair' appears in both 'forcing' and 'output' groups:
+        >>> tair = sim.get_variable("Tair", group="output")
+
+        See Also
+        --------
+        results : Full simulation output DataFrame
+        """
+        if not self._run_completed:
+            raise RuntimeError("No results available. Run simulation first.")
+
+        if self._df_output is None:
+            raise RuntimeError("Results DataFrame is None")
+
+        # Check if variable exists in results
+        all_vars = self._df_output.columns.get_level_values("var").unique()
+        if var_name not in all_vars:
+            raise ValueError(
+                f"Variable '{var_name}' not found. "
+                f"Available variables: {', '.join(all_vars[:10])}"
+                + ("..." if len(all_vars) > 10 else "")
+            )
+
+        # Check if variable appears in multiple groups
+        matching_groups = []
+        for grp in self._df_output.columns.get_level_values("group").unique():
+            try:
+                # Check if this group contains the variable
+                _ = self._df_output.xs((grp, var_name), level=("group", "var"), axis=1)
+                matching_groups.append(grp)
+            except KeyError:
+                continue
+
+        if len(matching_groups) == 0:
+            # Should not happen if var_name was found above
+            raise ValueError(f"Variable '{var_name}' not found in any group")
+
+        elif len(matching_groups) > 1:
+            # Variable is ambiguous - need group specification
+            if group is None:
+                raise ValueError(
+                    f"Variable '{var_name}' appears in multiple groups: "
+                    f"{', '.join(matching_groups)}. "
+                    f"Specify group parameter (e.g., group='{matching_groups[0]}')"
+                )
+            elif group not in matching_groups:
+                raise ValueError(
+                    f"Variable '{var_name}' not found in group '{group}'. "
+                    f"Available groups for this variable: {', '.join(matching_groups)}"
+                )
+            # Extract from specified group
+            result = self._df_output.xs(
+                (group, var_name), level=("group", "var"), axis=1
+            )
+
+        else:
+            # Variable is in only one group
+            if group is not None and group != matching_groups[0]:
+                raise ValueError(
+                    f"Variable '{var_name}' only exists in group '{matching_groups[0]}', "
+                    f"not in '{group}'"
+                )
+            result = self._df_output.xs(var_name, level="var", axis=1)
+
+        # Filter by site if requested
+        if site is not None:
+            if isinstance(site, str):
+                result = result[site]
+            else:
+                result = result.iloc[:, site]
+
+        return result
+
     @property
     def config(self) -> Optional[Any]:
         """Access to simulation configuration."""
@@ -519,3 +740,47 @@ class SUEWSSimulation:
     def results(self) -> Optional[pd.DataFrame]:
         """Access to simulation results DataFrame."""
         return self._df_output
+
+    @property
+    def state_init(self) -> Optional[pd.DataFrame]:
+        """Initial state DataFrame for simulation.
+
+        Returns
+        -------
+        pandas.DataFrame or None
+            Initial state with surface characteristics and parameters.
+            None if no configuration loaded.
+
+        Examples
+        --------
+        >>> sim = SUEWSSimulation.from_sample_data()
+        >>> sim.state_init.shape
+        (1, 1423)
+        """
+        return self._df_state_init
+
+    @property
+    def state_final(self) -> Optional[pd.DataFrame]:
+        """Final state DataFrame after simulation.
+
+        Available only after running simulation. Contains evolved
+        state variables that can be used to continue simulation.
+
+        Returns
+        -------
+        pandas.DataFrame or None
+            Final state after simulation run.
+            None if simulation hasn't been run yet.
+
+        Examples
+        --------
+        >>> sim = SUEWSSimulation.from_sample_data()
+        >>> sim.run()
+        >>> sim.state_final is not None
+        True
+
+        See Also
+        --------
+        reset : Clear results and reset to initial state
+        """
+        return self._df_state_final

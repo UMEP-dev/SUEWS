@@ -806,8 +806,7 @@ def validate_irrigation_doy(
                 parameter=f"irrigation in site {site_name}",
                 message="Both ie_start and ie_end must be specified together (both set to valid DOY), "
                 "or both left as None/0 (irrigation disabled). "
-                f"Currently: ie_start={'disabled' if start_disabled else ie_start}, "
-                f"ie_end={'disabled' if end_disabled else ie_end}",
+                f"Currently: ie_start={ie_start}, ie_end={ie_end}",
                 suggested_value="Set both to valid DOY (1-365/366) or both to None/0",
             )
         )

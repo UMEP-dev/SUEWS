@@ -757,14 +757,25 @@ def clean_legacy_table(file_path, output_path=None):
 
         # For the header rows (first 2 non-empty lines), establish column count
         if line_count < 2:
-            if header_col_count is None:
-                header_col_count = len(fields)
-                logger_supy.debug(
-                    f"Header column count set to {header_col_count} at line {i + 1}"
-                )
             # Store header line
             header_lines.append(" ".join(fields))
             line_count += 1
+
+            # Set column count from the SECOND line (column names), not first
+            # First line may have trailing empty fields from tabs
+            if line_count == 2:
+                header_col_count = len(fields)
+                logger_supy.debug(
+                    f"Header column count set to {header_col_count} from column names line"
+                )
+                # Adjust first header line if needed
+                if len(header_lines[0].split()) != header_col_count:
+                    first_line_fields = header_lines[0].split()
+                    if len(first_line_fields) > header_col_count:
+                        header_lines[0] = " ".join(first_line_fields[:header_col_count])
+                        logger_supy.debug(
+                            f"Adjusted first header line from {len(first_line_fields)} to {header_col_count} fields"
+                        )
             continue
 
         # For data lines

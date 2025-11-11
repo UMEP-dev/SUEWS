@@ -295,7 +295,8 @@ def load_SUEWS_table(path_file):
     try:
         path_file = path_file.resolve()
     except FileNotFoundError:
-        logger_supy.exception(f"{path_file} does not exists!")
+        logger_supy.warning(f"{path_file} does not exist! Returning empty DataFrame.")
+        return pd.DataFrame()
     else:
         try:
             rawdata = pd.read_csv(
@@ -311,7 +312,10 @@ def load_SUEWS_table(path_file):
             rawdata.index = rawdata.index.astype(int)
             return rawdata
         except Exception as err:
-            logger_supy.exception(f"error {err} in reading {path_file}!")
+            logger_supy.warning(
+                f"Error {err} reading {path_file}! Returning empty DataFrame."
+            )
+            return pd.DataFrame()
 
 
 # load all tables into variables staring with 'lib_' and filename
@@ -978,23 +982,56 @@ def build_code_df(code, path_input, df_base):
 
     try:
         df_code = df_code0.loc[list_code, list_keys]
-    except Exception as e:
-        logger_supy.exception(f"Entries missing from {lib_code}")
+    except KeyError as e:
+        # Handle missing codes by creating placeholder entries
         list_missing_code = [code for code in list_code if code not in df_code0.index]
         list_missing_key = [key for key in list_keys if key not in df_code0.columns]
+
         if list_missing_code:
-            logger_supy.exception(f"missing code:\n {list_missing_code}")
-        if list_missing_key:
+            logger_supy.warning(f"Missing codes in {lib_code}: {list_missing_code}")
+            logger_supy.warning("Creating placeholder entries with default values")
+
+            # Create placeholder rows for missing codes
+            for missing_code in list_missing_code:
+                # Create a row with default values (1.0 for profiles, 0 for others)
+                if "Prof" in code or keys_code == {":"}:
+                    # Profile data: uniform distribution
+                    default_values = [1.0] * len(df_code0.columns)
+                else:
+                    # Other data: zeros
+                    default_values = [0.0] * len(df_code0.columns)
+
+                # Add the placeholder row
+                df_code0.loc[missing_code] = default_values
+                logger_supy.info(f"Created placeholder for code {missing_code}")
+
+            # Retry the lookup with placeholders added
+            try:
+                df_code = df_code0.loc[list_code, list_keys]
+            except KeyError as e2:
+                # Still failing - check for missing keys
+                list_missing_key = [key for key in list_keys if key not in df_code0.columns]
+                if list_missing_key:
+                    logger_supy.exception(f"missing key:\n {list_missing_key}")
+                    # dump data for debugging
+                    path_dump = Path.cwd() / "df_code0.pkl"
+                    df_code0.to_pickle(path_dump)
+                    logger_supy.exception(
+                        f"`df_code0` has been dumped into {path_dump.resolve()} for debugging!"
+                    )
+                raise e2
+        elif list_missing_key:
             logger_supy.exception(f"missing key:\n {list_missing_key}")
-
-        # dump data for debugging
-        path_dump = Path.cwd() / "df_code0.pkl"
-        df_code0.to_pickle(path_dump)
-        logger_supy.exception(
-            f"`df_code0` has been dumped into {path_dump.resolve()} for debugging!"
-        )
-
-        raise e
+            # dump data for debugging
+            path_dump = Path.cwd() / "df_code0.pkl"
+            df_code0.to_pickle(path_dump)
+            logger_supy.exception(
+                f"`df_code0` has been dumped into {path_dump.resolve()} for debugging!"
+            )
+            raise e
+        else:
+            # Unknown error
+            raise e
 
     df_code.index = df_base.index
     # recover outmost level code if profile values are extracted

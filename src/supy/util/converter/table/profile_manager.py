@@ -61,9 +61,22 @@ class ProfileManager:
     def load_profiles(self):
         """Load existing profiles from SUEWS_Profiles.txt."""
         try:
+            # Try reading with first row as header
             self.profile_data = pd.read_csv(
                 self.profiles_path, sep=r"\s+", comment="!", header=0, index_col=0
             )
+            # Convert index to integers to ensure type consistency
+            try:
+                self.profile_data.index = self.profile_data.index.astype(int)
+            except (ValueError, TypeError):
+                # Legacy format has extra line at top - skip it
+                logger.info("Detected legacy profile format, retrying with skiprows=1")
+                self.profile_data = pd.read_csv(
+                    self.profiles_path, sep=r"\s+", comment="!", header=0, index_col=0,
+                    skiprows=1
+                )
+                self.profile_data.index = self.profile_data.index.astype(int)
+
             self.available_profiles = set(self.profile_data.index)
             logger.info(f"Loaded {len(self.available_profiles)} profiles")
         except Exception as e:
@@ -95,13 +108,18 @@ class ProfileManager:
         self.missing_profiles.add(code)
 
         # Log warning
+        replacement_code = self.DEFAULT_PROFILES["DEFAULT"]
         logger.warning(
             f"Profile code {code} not found for field '{field_name}'. "
-            f"Using default profile {self.DEFAULT_PROFILES['DEFAULT']}"
+            f"Using default profile {replacement_code}"
         )
 
+        # Also track the replacement code if it doesn't exist
+        if replacement_code not in self.available_profiles:
+            self.missing_profiles.add(replacement_code)
+
         # Return default replacement
-        return False, self.DEFAULT_PROFILES["DEFAULT"]
+        return False, replacement_code
 
     def create_default_profile(self, code: int) -> pd.Series:
         """Create a default profile with uniform distribution.
@@ -146,9 +164,12 @@ class ProfileManager:
         # Sort by index
         profiles_df = profiles_df.sort_index()
 
-        # Write to file with proper header
+        # Write to file with proper header (matching load_SUEWS_table format)
         with open(profiles_file, "w") as f:
-            # Write header
+            # Write first line: column numbers (load_SUEWS_table skips this line)
+            f.write("    ".join([str(i) for i in range(1, 26)]) + "\n")
+
+            # Write second line: header with Code and hour columns
             f.write("Code    " + "    ".join([f"Hr{i:02d}" for i in range(24)]) + "\n")
 
             # Write profiles

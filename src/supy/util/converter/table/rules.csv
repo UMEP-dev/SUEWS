@@ -7,7 +7,6 @@ From,To,Action,File,Variable,Column,Value
 2023a,2024a,Add,RunControl.nml,faimethod,-999,0
 2021a,2023a,Delete,RunControl.nml,DiagQS,-999,-999
 2021a,2023a,Delete,RunControl.nml,DiagQN,-999,-999
-2021a,2023a,Delete,SUEWS_AnthropogenicEmission.txt,BaseT_HC,-999,-999
 2020a,2021a,Keep,-999,-999,-999,-999
 2019b,2020a,Add,SUEWS_Irrigation.txt,H_maintain,6,-999
 2019b,2020a,Add,RunControl.nml,BaseTMethod,-999,1

@@ -135,8 +135,16 @@ class ProfileManager:
             Profile data as pandas Series
         """
         # Create uniform distribution (same value for all 24 hours)
-        profile_data = pd.Series([1.0] * 24, name=code)
-        profile_data.index = range(24)
+        # Use -999 as placeholder value (matches SUEWS convention)
+        profile_data = pd.Series([-999.0] * 24, name=code)
+
+        # Set index to match existing profile columns if available
+        if self.profile_data is not None and len(self.profile_data.columns) >= 24:
+            profile_data.index = self.profile_data.columns[:24]
+        else:
+            # Default to hour numbers as strings
+            profile_data.index = [str(i) for i in range(24)]
+
         return profile_data
 
     def ensure_required_profiles(self, output_path: Path):

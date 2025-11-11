@@ -906,7 +906,9 @@ def validate_irrigation_parameters(
         sites_list = [(site_name, site_data) for site_name, site_data in sites.items()]
     elif isinstance(sites, list):
         # List format: [{name: site_name, lat: ..., ...}, ...]
-        sites_list = [(site.get("name", f"site_{idx}"), site) for idx, site in enumerate(sites)]
+        sites_list = [
+            (site.get("name", f"site_{idx}"), site) for idx, site in enumerate(sites)
+        ]
     else:
         return results  # No valid sites structure
 

@@ -72,8 +72,12 @@ class ProfileManager:
                 # Legacy format has extra line at top - skip it
                 logger.info("Detected legacy profile format, retrying with skiprows=1")
                 self.profile_data = pd.read_csv(
-                    self.profiles_path, sep=r"\s+", comment="!", header=0, index_col=0,
-                    skiprows=1
+                    self.profiles_path,
+                    sep=r"\s+",
+                    comment="!",
+                    header=0,
+                    index_col=0,
+                    skiprows=1,
                 )
                 self.profile_data.index = self.profile_data.index.astype(int)
 

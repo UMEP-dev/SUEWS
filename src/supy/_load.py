@@ -1010,7 +1010,9 @@ def build_code_df(code, path_input, df_base):
                 df_code = df_code0.loc[list_code, list_keys]
             except KeyError as e2:
                 # Still failing - check for missing keys
-                list_missing_key = [key for key in list_keys if key not in df_code0.columns]
+                list_missing_key = [
+                    key for key in list_keys if key not in df_code0.columns
+                ]
                 if list_missing_key:
                     logger_supy.exception(f"missing key:\n {list_missing_key}")
                     # dump data for debugging

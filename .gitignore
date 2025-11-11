@@ -421,6 +421,9 @@ test-quick.py
 df_water*.pkl
 quick-test.ipynb
 
+# SUEWS output files at root
+/*.parquet
+
 # Build output
 docs/build/
 docs/source/_static/suews-config-ui/

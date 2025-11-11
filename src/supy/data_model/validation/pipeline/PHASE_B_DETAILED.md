@@ -27,8 +27,9 @@ Phase B implements a multi-layered scientific validation system that:
 2. **Checks Model Dependencies**: Validates internal consistency between physics options
 3. **Validates Land Cover**: Checks surface fraction totals and parameter consistency
 4. **Validates Geographic Parameters**: Ensures coordinates and location-dependent parameters are realistic
-5. **Applies CRU Integration**: Uses CRU TS4.06 climatological data for temperature initialisation
-6. **Makes Scientific Corrections**: Automatic adjustments that improve model realism
+5. **Validates Irrigation Parameters**: Checks irrigation timing for consistency and climatological appropriateness
+6. **Applies CRU Integration**: Uses CRU TS4.06 climatological data for temperature initialisation
+7. **Makes Scientific Corrections**: Automatic adjustments that improve model realism
 
 ## Technical Implementation
 
@@ -40,6 +41,8 @@ Phase B implements a multi-layered scientific validation system that:
 - `validate_model_option_dependencies()`: Physics option consistency checking
 - `validate_land_cover_consistency()`: Surface fraction and parameter validation
 - `validate_geographic_parameters()`: Coordinate and location validation
+- `validate_irrigation_doy()`: Irrigation timing validation with hemisphere and leap year awareness
+- `validate_irrigation_parameters()`: Site-level irrigation parameter validation
 - `get_mean_monthly_air_temperature()`: CRU TS4.06 monthly climatological temperature lookup
 - `get_mean_annual_air_temperature()`: CRU TS4.06 annual climatological temperature lookup (average of 12 months)
 - `run_scientific_adjustment_pipeline()`: Intelligent automatic parameter adjustments
@@ -142,6 +145,18 @@ Location-dependent parameter validation (actual implemented checks):
 - **Coordinate Validity**: Latitude (-90 to 90°), longitude (-180 to 180°) with numeric type validation
 - **Timezone Parameter**: Warns if missing, can be calculated automatically from coordinates
 - **Daylight Saving Parameters**: Warns if DLS parameters missing, calculated from geographic location
+
+### Irrigation Parameter Validation
+
+Validates irrigation timing parameters (`ie_start` and `ie_end`) for consistency and climatological appropriateness:
+
+- **Day-of-Year Range**: Must be 1-365 (non-leap) or 1-366 (leap year), or both 0/None to disable
+- **Consistency Check**: Both parameters must be set together or both disabled
+- **Hemisphere-Aware Seasonal Check**:
+  - Northern Hemisphere (lat ≥ 23.5°): Warm season May-September (DOY 121-273)
+  - Southern Hemisphere (lat ≤ -23.5°): Warm season November-March (DOY 305-90)
+  - Tropical regions (|lat| < 23.5°): No seasonal restrictions
+- **Error Handling**: Invalid DOY generates ERROR, out-of-season generates WARNING
 
 ## CRU TS4.06 Climatological Integration
 

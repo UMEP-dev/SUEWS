@@ -151,66 +151,127 @@ def categorize_parameter(param_name: str) -> str:
     # Physics model option category (check FIRST before other categories)
     # These are parameters that control which physics methods/models to use
     physics_option_params = {
-        'emissionsmethod', 'faimethod', 'gsmodel', 'netradiationmethod', 'ohmincqf',
-        'rcmethod', 'roughlenheatmethod', 'roughlenmommethod', 'rsllevel', 'rslmethod',
-        'smdmethod', 'snowuse', 'stabilitymethod', 'stebbsmethod', 'storageheatmethod',
-        'waterusemethod'
+        "emissionsmethod",
+        "faimethod",
+        "gsmodel",
+        "netradiationmethod",
+        "ohmincqf",
+        "rcmethod",
+        "roughlenheatmethod",
+        "roughlenmommethod",
+        "rsllevel",
+        "rslmethod",
+        "smdmethod",
+        "snowuse",
+        "stabilitymethod",
+        "stebbsmethod",
+        "storageheatmethod",
+        "waterusemethod",
     }
     # Check exact parameter names or parameters ending with "method" (physics options)
-    if param_lower in physics_option_params or param_lower.endswith('method'):
-        return 'physics_model_option'
+    if param_lower in physics_option_params or param_lower.endswith("method"):
+        return "physics_model_option"
 
     # Radiation category
-    radiation_keywords = ['alb', 'emis', 'radiation', 'kdown', 'ldown', 'fcld', 'zen']
+    radiation_keywords = ["alb", "emis", "radiation", "kdown", "ldown", "fcld", "zen"]
     if any(kw in param_lower for kw in radiation_keywords):
-        return 'radiation'
+        return "radiation"
 
     # Carbon/vegetation category (removed 'gsmodel' as it's now in physics_model_option)
-    carbon_keywords = ['co2', 'lai', 'photo', 'respir', 'capmax', 'capmin',
-                       'pormax', 'pormin', 'basete', 'baset', 'gddfull', 'sddfull',
-                       'leafgrowthpower', 'leafoffpower']
+    carbon_keywords = [
+        "co2",
+        "lai",
+        "photo",
+        "respir",
+        "capmax",
+        "capmin",
+        "pormax",
+        "pormin",
+        "basete",
+        "baset",
+        "gddfull",
+        "sddfull",
+        "leafgrowthpower",
+        "leafoffpower",
+    ]
     if any(kw in param_lower for kw in carbon_keywords):
-        return 'carbon'
+        return "carbon"
 
     # Irrigation category
-    irrigation_keywords = ['ie_start', 'ie_end', 'irrig', 'internalwateruse',
-                          'frautowat', 'capmaxirr', 'capminirr']
+    irrigation_keywords = [
+        "ie_start",
+        "ie_end",
+        "irrig",
+        "internalwateruse",
+        "frautowat",
+        "capmaxirr",
+        "capminirr",
+    ]
     if any(kw in param_lower for kw in irrigation_keywords):
-        return 'irrigation'
+        return "irrigation"
 
     # Morphology category (removed 'fai' as faimethod is now in physics_model_option)
     # Note: 'fai' for frontal area index stays here
-    morphology_keywords = ['height', 'pai', 'ztree', 'zwall', 'building_scale',
-                          'building_frac', 'terrain_coverage', 'veg_frac', 'width', 'length',
-                          'zdm', 'z0m', 'surfacearea', 'porosity', 'chanohm',
-                          'cpanohm', 'frontal_area', 'plan_area', 'svf', 'ivf']
+    morphology_keywords = [
+        "height",
+        "pai",
+        "ztree",
+        "zwall",
+        "building_scale",
+        "building_frac",
+        "terrain_coverage",
+        "veg_frac",
+        "width",
+        "length",
+        "zdm",
+        "z0m",
+        "surfacearea",
+        "porosity",
+        "chanohm",
+        "cpanohm",
+        "frontal_area",
+        "plan_area",
+        "svf",
+        "ivf",
+    ]
     # Check for 'fai' but exclude 'faimethod'
-    if param_lower != 'faimethod' and 'fai' in param_lower:
-        return 'morphology'
+    if param_lower != "faimethod" and "fai" in param_lower:
+        return "morphology"
     if any(kw in param_lower for kw in morphology_keywords):
-        return 'morphology'
+        return "morphology"
     # Special handling for surface fraction and roughness length
-    if 'sfr' in param_lower or 'roughlen' in param_lower:
-        return 'morphology'
+    if "sfr" in param_lower or "roughlen" in param_lower:
+        return "morphology"
 
     # Thermal property category
-    thermal_keywords = ['conductivity', 'capacity', 'thermal', 'temperature',
-                       'tsfc', 'tsurf', 'tin', 'lambda_c', 'lambda_f', 'rho_cp', 'cp']
+    thermal_keywords = [
+        "conductivity",
+        "capacity",
+        "thermal",
+        "temperature",
+        "tsfc",
+        "tsurf",
+        "tin",
+        "lambda_c",
+        "lambda_f",
+        "rho_cp",
+        "cp",
+    ]
     # Special case: standalone 'k' or 'dz' are thermal properties
-    if param_name in ['k', 'dz'] or any(kw in param_lower for kw in thermal_keywords):
-        return 'thermal_property'
+    if param_name in ["k", "dz"] or any(kw in param_lower for kw in thermal_keywords):
+        return "thermal_property"
 
     # Snow category (removed 'snow' from keywords as 'snowuse' is now in physics_model_option)
     # Check if it's specifically snowuse (already handled above)
-    if param_lower == 'snowuse':
-        return 'physics_model_option'
+    if param_lower == "snowuse":
+        return "physics_model_option"
     # Other snow parameters
-    snow_keywords = ['snow', 'meltwater', 'crwmin', 'crwmax', 'precip', 'narp_trans']
+    snow_keywords = ["snow", "meltwater", "crwmin", "crwmax", "precip", "narp_trans"]
     if any(kw in param_lower for kw in snow_keywords):
-        return 'snow'
+        return "snow"
 
     # Default: not defined
-    return 'nd'
+    return "nd"
 
 
 def find_mother_class(model_class: type[BaseModel], field_name: str) -> str:
@@ -518,7 +579,9 @@ def generate_csv(output_path: Path):
     # Scan all modules
     for module_name, source_file in modules:
         print(f"Scanning {module_name}...")
-        rules = scan_module(module_name, source_file, c2_mapping, rule_name_to_type, existing_categories)
+        rules = scan_module(
+            module_name, source_file, c2_mapping, rule_name_to_type, existing_categories
+        )
         all_rules.extend(rules)
         print(f"  Found {len(rules)} fields")
 
@@ -618,7 +681,19 @@ def generate_csv(output_path: Path):
 
         # Top-level header row - only show group name once, rest empty for cleaner look
         # (Can be manually merged in Excel/Google Sheets for visual grouping)
-        writer.writerow(["params_info", "", "", "", "", "", "rules_info", "", "", "", ""])
+        writer.writerow([
+            "params_info",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "rules_info",
+            "",
+            "",
+            "",
+            "",
+        ])
 
         # Column headers - with category between parameter_name and model
         writer.writerow([

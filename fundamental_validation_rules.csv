@@ -1,4 +1,4 @@
-parameter_name,mother_class,inherited_by,source_file,rule_class,formula,class,model
+parameter_name,mother_class,inherited_by,source_file,rule_type,formula,rule_class,model
 co2,AnthropogenicEmissions,AnthropogenicEmissions,human_activity,,,CM,SUEWS
 enddls,AnthropogenicEmissions,AnthropogenicEmissions,human_activity,,,CM,SUEWS
 heat,AnthropogenicEmissions,AnthropogenicEmissions,human_activity,,,CM,SUEWS
@@ -283,36 +283,36 @@ WindowExternalConvectionCoefficient,StebbsProperties,StebbsProperties,site,posit
 WindowIndoorSurfaceTemperature,StebbsProperties,StebbsProperties,site,,,CM,STEBBS
 WindowInternalConvectionCoefficient,StebbsProperties,StebbsProperties,site,positive,>0,C1,STEBBS
 WindowOutdoorSurfaceTemperature,StebbsProperties,StebbsProperties,site,,,CM,STEBBS
-emis,SurfaceProperties,BldgsProperties; BsoilProperties; DectrProperties; EvetrProperties; GrassProperties; NonVegetatedSurfaceProperties; PavedProperties; VegetatedSurfaceProperties; WaterProperties,site,fraction_0_1,"[0,1]",C1,SUEWS
-irrfrac,SurfaceProperties,BldgsProperties; BsoilProperties; DectrProperties; EvetrProperties; GrassProperties; NonVegetatedSurfaceProperties; PavedProperties; VegetatedSurfaceProperties; WaterProperties,site,,,CM,SUEWS
-ohm_coef,SurfaceProperties,BldgsProperties; BsoilProperties; DectrProperties; EvetrProperties; GrassProperties; NonVegetatedSurfaceProperties; PavedProperties; VegetatedSurfaceProperties; WaterProperties,site,,,CM,SUEWS
-ohm_threshsw,SurfaceProperties,BldgsProperties; BsoilProperties; DectrProperties; EvetrProperties; GrassProperties; NonVegetatedSurfaceProperties; PavedProperties; VegetatedSurfaceProperties; WaterProperties,site,,,CM,SUEWS
-ohm_threshwd,SurfaceProperties,BldgsProperties; BsoilProperties; DectrProperties; EvetrProperties; GrassProperties; NonVegetatedSurfaceProperties; PavedProperties; VegetatedSurfaceProperties; WaterProperties,site,,,CM,SUEWS
-sathydraulicconduct,SurfaceProperties,BldgsProperties; BsoilProperties; DectrProperties; EvetrProperties; GrassProperties; NonVegetatedSurfaceProperties; PavedProperties; VegetatedSurfaceProperties; WaterProperties,site,,,CM,SUEWS
-sfr,SurfaceProperties,BldgsProperties; BsoilProperties; DectrProperties; EvetrProperties; GrassProperties; NonVegetatedSurfaceProperties; PavedProperties; VegetatedSurfaceProperties; WaterProperties,site,fraction_0_1,"[0,1]",C1,SUEWS
-snowpacklimit,SurfaceProperties,BldgsProperties; BsoilProperties; DectrProperties; EvetrProperties; GrassProperties; NonVegetatedSurfaceProperties; PavedProperties; VegetatedSurfaceProperties; WaterProperties,site,,,CM,SUEWS
-soildepth,SurfaceProperties,BldgsProperties; BsoilProperties; DectrProperties; EvetrProperties; GrassProperties; NonVegetatedSurfaceProperties; PavedProperties; VegetatedSurfaceProperties; WaterProperties,site,,,CM,SUEWS
-soilstorecap,SurfaceProperties,BldgsProperties; BsoilProperties; DectrProperties; EvetrProperties; GrassProperties; NonVegetatedSurfaceProperties; PavedProperties; VegetatedSurfaceProperties; WaterProperties,site,,,CM,SUEWS
-statelimit,SurfaceProperties,BldgsProperties; BsoilProperties; DectrProperties; EvetrProperties; GrassProperties; NonVegetatedSurfaceProperties; PavedProperties; VegetatedSurfaceProperties; WaterProperties,site,,,CM,SUEWS
-storedrainprm,SurfaceProperties,BldgsProperties; BsoilProperties; DectrProperties; EvetrProperties; GrassProperties; NonVegetatedSurfaceProperties; PavedProperties; VegetatedSurfaceProperties; WaterProperties,site,,,CM,SUEWS
-thermal_layers,SurfaceProperties,BldgsProperties; BsoilProperties; DectrProperties; EvetrProperties; GrassProperties; NonVegetatedSurfaceProperties; PavedProperties; VegetatedSurfaceProperties; WaterProperties,site,,,CM,SUEWS
-waterdist,SurfaceProperties,BldgsProperties; BsoilProperties; DectrProperties; EvetrProperties; GrassProperties; NonVegetatedSurfaceProperties; PavedProperties; VegetatedSurfaceProperties; WaterProperties,site,,,CM,SUEWS
-wetthresh,SurfaceProperties,BldgsProperties; BsoilProperties; DectrProperties; EvetrProperties; GrassProperties; NonVegetatedSurfaceProperties; PavedProperties; VegetatedSurfaceProperties; WaterProperties,site,,,CM,SUEWS
-alb,VegetatedSurfaceProperties,DectrProperties; EvetrProperties; GrassProperties,site,fraction_0_1,"[0,1]",C1,SUEWS
-alb_max,VegetatedSurfaceProperties,DectrProperties; EvetrProperties; GrassProperties,site,fraction_0_1,"[0,1]",C1,SUEWS
-alb_min,VegetatedSurfaceProperties,DectrProperties; EvetrProperties; GrassProperties,site,fraction_0_1,"[0,1]",C1,SUEWS
-alpha_bioco2,VegetatedSurfaceProperties,DectrProperties; EvetrProperties; GrassProperties,site,,,CM,SUEWS
-alpha_enh_bioco2,VegetatedSurfaceProperties,DectrProperties; EvetrProperties; GrassProperties,site,,,CM,SUEWS
-beta_bioco2,VegetatedSurfaceProperties,DectrProperties; EvetrProperties; GrassProperties,site,,,CM,SUEWS
-beta_enh_bioco2,VegetatedSurfaceProperties,DectrProperties; EvetrProperties; GrassProperties,site,,,CM,SUEWS
-ie_a,VegetatedSurfaceProperties,DectrProperties; EvetrProperties; GrassProperties,site,,,CM,SUEWS
-ie_m,VegetatedSurfaceProperties,DectrProperties; EvetrProperties; GrassProperties,site,,,CM,SUEWS
-lai,VegetatedSurfaceProperties,DectrProperties; EvetrProperties; GrassProperties,site,,,CM,SUEWS
-maxconductance,VegetatedSurfaceProperties,DectrProperties; EvetrProperties; GrassProperties,site,,,CM,SUEWS
-min_res_bioco2,VegetatedSurfaceProperties,DectrProperties; EvetrProperties; GrassProperties,site,,,CM,SUEWS
-resp_a,VegetatedSurfaceProperties,DectrProperties; EvetrProperties; GrassProperties,site,,,CM,SUEWS
-resp_b,VegetatedSurfaceProperties,DectrProperties; EvetrProperties; GrassProperties,site,,,CM,SUEWS
-theta_bioco2,VegetatedSurfaceProperties,DectrProperties; EvetrProperties; GrassProperties,site,,,CM,SUEWS
+emis,SurfaceProperties,BldgsProperties; BsoilProperties; DectrProperties; EvetrProperties; GrassProperties; NonVegetatedSurfaceProperties; PavedProperties; SurfaceProperties; VegetatedSurfaceProperties; WaterProperties,site,fraction_0_1,"[0,1]",C1,SUEWS
+irrfrac,SurfaceProperties,BldgsProperties; BsoilProperties; DectrProperties; EvetrProperties; GrassProperties; NonVegetatedSurfaceProperties; PavedProperties; SurfaceProperties; VegetatedSurfaceProperties; WaterProperties,site,,,CM,SUEWS
+ohm_coef,SurfaceProperties,BldgsProperties; BsoilProperties; DectrProperties; EvetrProperties; GrassProperties; NonVegetatedSurfaceProperties; PavedProperties; SurfaceProperties; VegetatedSurfaceProperties; WaterProperties,site,,,CM,SUEWS
+ohm_threshsw,SurfaceProperties,BldgsProperties; BsoilProperties; DectrProperties; EvetrProperties; GrassProperties; NonVegetatedSurfaceProperties; PavedProperties; SurfaceProperties; VegetatedSurfaceProperties; WaterProperties,site,,,CM,SUEWS
+ohm_threshwd,SurfaceProperties,BldgsProperties; BsoilProperties; DectrProperties; EvetrProperties; GrassProperties; NonVegetatedSurfaceProperties; PavedProperties; SurfaceProperties; VegetatedSurfaceProperties; WaterProperties,site,,,CM,SUEWS
+sathydraulicconduct,SurfaceProperties,BldgsProperties; BsoilProperties; DectrProperties; EvetrProperties; GrassProperties; NonVegetatedSurfaceProperties; PavedProperties; SurfaceProperties; VegetatedSurfaceProperties; WaterProperties,site,,,CM,SUEWS
+sfr,SurfaceProperties,BldgsProperties; BsoilProperties; DectrProperties; EvetrProperties; GrassProperties; NonVegetatedSurfaceProperties; PavedProperties; SurfaceProperties; VegetatedSurfaceProperties; WaterProperties,site,fraction_0_1,"[0,1]",C1,SUEWS
+snowpacklimit,SurfaceProperties,BldgsProperties; BsoilProperties; DectrProperties; EvetrProperties; GrassProperties; NonVegetatedSurfaceProperties; PavedProperties; SurfaceProperties; VegetatedSurfaceProperties; WaterProperties,site,,,CM,SUEWS
+soildepth,SurfaceProperties,BldgsProperties; BsoilProperties; DectrProperties; EvetrProperties; GrassProperties; NonVegetatedSurfaceProperties; PavedProperties; SurfaceProperties; VegetatedSurfaceProperties; WaterProperties,site,,,CM,SUEWS
+soilstorecap,SurfaceProperties,BldgsProperties; BsoilProperties; DectrProperties; EvetrProperties; GrassProperties; NonVegetatedSurfaceProperties; PavedProperties; SurfaceProperties; VegetatedSurfaceProperties; WaterProperties,site,,,CM,SUEWS
+statelimit,SurfaceProperties,BldgsProperties; BsoilProperties; DectrProperties; EvetrProperties; GrassProperties; NonVegetatedSurfaceProperties; PavedProperties; SurfaceProperties; VegetatedSurfaceProperties; WaterProperties,site,,,CM,SUEWS
+storedrainprm,SurfaceProperties,BldgsProperties; BsoilProperties; DectrProperties; EvetrProperties; GrassProperties; NonVegetatedSurfaceProperties; PavedProperties; SurfaceProperties; VegetatedSurfaceProperties; WaterProperties,site,,,CM,SUEWS
+thermal_layers,SurfaceProperties,BldgsProperties; BsoilProperties; DectrProperties; EvetrProperties; GrassProperties; NonVegetatedSurfaceProperties; PavedProperties; SurfaceProperties; VegetatedSurfaceProperties; WaterProperties,site,,,CM,SUEWS
+waterdist,SurfaceProperties,BldgsProperties; BsoilProperties; DectrProperties; EvetrProperties; GrassProperties; NonVegetatedSurfaceProperties; PavedProperties; SurfaceProperties; VegetatedSurfaceProperties; WaterProperties,site,,,CM,SUEWS
+wetthresh,SurfaceProperties,BldgsProperties; BsoilProperties; DectrProperties; EvetrProperties; GrassProperties; NonVegetatedSurfaceProperties; PavedProperties; SurfaceProperties; VegetatedSurfaceProperties; WaterProperties,site,,,CM,SUEWS
+alb,VegetatedSurfaceProperties,DectrProperties; EvetrProperties; GrassProperties; VegetatedSurfaceProperties,site,fraction_0_1,"[0,1]",C1,SUEWS
+alb_max,VegetatedSurfaceProperties,DectrProperties; EvetrProperties; GrassProperties; VegetatedSurfaceProperties,site,fraction_0_1,"[0,1]",C1,SUEWS
+alb_min,VegetatedSurfaceProperties,DectrProperties; EvetrProperties; GrassProperties; VegetatedSurfaceProperties,site,fraction_0_1,"[0,1]",C1,SUEWS
+alpha_bioco2,VegetatedSurfaceProperties,DectrProperties; EvetrProperties; GrassProperties; VegetatedSurfaceProperties,site,,,CM,SUEWS
+alpha_enh_bioco2,VegetatedSurfaceProperties,DectrProperties; EvetrProperties; GrassProperties; VegetatedSurfaceProperties,site,,,CM,SUEWS
+beta_bioco2,VegetatedSurfaceProperties,DectrProperties; EvetrProperties; GrassProperties; VegetatedSurfaceProperties,site,,,CM,SUEWS
+beta_enh_bioco2,VegetatedSurfaceProperties,DectrProperties; EvetrProperties; GrassProperties; VegetatedSurfaceProperties,site,,,CM,SUEWS
+ie_a,VegetatedSurfaceProperties,DectrProperties; EvetrProperties; GrassProperties; VegetatedSurfaceProperties,site,,,CM,SUEWS
+ie_m,VegetatedSurfaceProperties,DectrProperties; EvetrProperties; GrassProperties; VegetatedSurfaceProperties,site,,,CM,SUEWS
+lai,VegetatedSurfaceProperties,DectrProperties; EvetrProperties; GrassProperties; VegetatedSurfaceProperties,site,,,CM,SUEWS
+maxconductance,VegetatedSurfaceProperties,DectrProperties; EvetrProperties; GrassProperties; VegetatedSurfaceProperties,site,,,CM,SUEWS
+min_res_bioco2,VegetatedSurfaceProperties,DectrProperties; EvetrProperties; GrassProperties; VegetatedSurfaceProperties,site,,,CM,SUEWS
+resp_a,VegetatedSurfaceProperties,DectrProperties; EvetrProperties; GrassProperties; VegetatedSurfaceProperties,site,,,CM,SUEWS
+resp_b,VegetatedSurfaceProperties,DectrProperties; EvetrProperties; GrassProperties; VegetatedSurfaceProperties,site,,,CM,SUEWS
+theta_bioco2,VegetatedSurfaceProperties,DectrProperties; EvetrProperties; GrassProperties; VegetatedSurfaceProperties,site,,,CM,SUEWS
 gdd_id,VegetationParams,VegetationParams,site,,,CM,SUEWS
 ie_a,VegetationParams,VegetationParams,site,,,CM,SUEWS
 ie_m,VegetationParams,VegetationParams,site,,,CM,SUEWS
@@ -321,45 +321,43 @@ porosity_id,VegetationParams,VegetationParams,site,,,CM,SUEWS
 sdd_id,VegetationParams,VegetationParams,site,,,CM,SUEWS
 decidcap_id,InitialStateDectr,InitialStateDectr,state,non_negative,>=0,C1,SUEWS
 porosity_id,InitialStateDectr,InitialStateDectr,state,fraction_0_1,"[0,1]",C1,SUEWS
-alb_id,InitialStateVeg,InitialStateDectr; InitialStateEvetr; InitialStateGrass,state,,,CM,SUEWS
-gdd_id,InitialStateVeg,InitialStateDectr; InitialStateEvetr; InitialStateGrass,state,,,CM,SUEWS
-lai_id,InitialStateVeg,InitialStateDectr; InitialStateEvetr; InitialStateGrass,state,,,CM,SUEWS
-sdd_id,InitialStateVeg,InitialStateDectr; InitialStateEvetr; InitialStateGrass,state,,,CM,SUEWS
-wu,InitialStateVeg,InitialStateDectr; InitialStateEvetr; InitialStateGrass,state,,,CM,SUEWS
+alb_id,InitialStateVeg,InitialStateDectr; InitialStateEvetr; InitialStateGrass; InitialStateVeg,state,,,CM,SUEWS
+gdd_id,InitialStateVeg,InitialStateDectr; InitialStateEvetr; InitialStateGrass; InitialStateVeg,state,,,CM,SUEWS
+lai_id,InitialStateVeg,InitialStateDectr; InitialStateEvetr; InitialStateGrass; InitialStateVeg,state,,,CM,SUEWS
+sdd_id,InitialStateVeg,InitialStateDectr; InitialStateEvetr; InitialStateGrass; InitialStateVeg,state,,,CM,SUEWS
+wu,InitialStateVeg,InitialStateDectr; InitialStateEvetr; InitialStateGrass; InitialStateVeg,state,,,CM,SUEWS
 bldgs,InitialStates,InitialStates,state,,,CM,SUEWS
 bsoil,InitialStates,InitialStates,state,,,CM,SUEWS
 dectr,InitialStates,InitialStates,state,,,CM,SUEWS
 evetr,InitialStates,InitialStates,state,,,CM,SUEWS
 grass,InitialStates,InitialStates,state,,,CM,SUEWS
 paved,InitialStates,InitialStates,state,,,CM,SUEWS
-roofs,InitialStates,InitialStates,state,,,CM,SUEWS
 snowalb,InitialStates,InitialStates,state,fraction_0_1,"[0,1]",C1,SUEWS
-walls,InitialStates,InitialStates,state,,,CM,SUEWS
 water,InitialStates,InitialStates,state,,,CM,SUEWS
-icefrac,SurfaceInitialState,InitialStateBldgs; InitialStateBsoil; InitialStateDectr; InitialStateEvetr; InitialStateGrass; InitialStatePaved; InitialStateVeg; InitialStateWater,state,fraction_0_1,"[0,1]",C1,SUEWS
-snowdens,SurfaceInitialState,InitialStateBldgs; InitialStateBsoil; InitialStateDectr; InitialStateEvetr; InitialStateGrass; InitialStatePaved; InitialStateVeg; InitialStateWater,state,non_negative,>=0,C1,SUEWS
-snowfrac,SurfaceInitialState,InitialStateBldgs; InitialStateBsoil; InitialStateDectr; InitialStateEvetr; InitialStateGrass; InitialStatePaved; InitialStateVeg; InitialStateWater,state,fraction_0_1,"[0,1]",C1,SUEWS
-snowpack,SurfaceInitialState,InitialStateBldgs; InitialStateBsoil; InitialStateDectr; InitialStateEvetr; InitialStateGrass; InitialStatePaved; InitialStateVeg; InitialStateWater,state,non_negative,>=0,C1,SUEWS
-snowwater,SurfaceInitialState,InitialStateBldgs; InitialStateBsoil; InitialStateDectr; InitialStateEvetr; InitialStateGrass; InitialStatePaved; InitialStateVeg; InitialStateWater,state,non_negative,>=0,C1,SUEWS
-soilstore,SurfaceInitialState,InitialStateBldgs; InitialStateBsoil; InitialStateDectr; InitialStateEvetr; InitialStateGrass; InitialStatePaved; InitialStateVeg; InitialStateWater,state,,,C2,SUEWS
-state,SurfaceInitialState,InitialStateBldgs; InitialStateBsoil; InitialStateDectr; InitialStateEvetr; InitialStateGrass; InitialStatePaved; InitialStateVeg; InitialStateWater,state,non_negative,>=0,C1,SUEWS
-temperature,SurfaceInitialState,InitialStateBldgs; InitialStateBsoil; InitialStateDectr; InitialStateEvetr; InitialStateGrass; InitialStatePaved; InitialStateVeg; InitialStateWater,state,,,CM,SUEWS
-tin,SurfaceInitialState,InitialStateBldgs; InitialStateBsoil; InitialStateDectr; InitialStateEvetr; InitialStateGrass; InitialStatePaved; InitialStateVeg; InitialStateWater,state,,,CM,SUEWS
-tsfc,SurfaceInitialState,InitialStateBldgs; InitialStateBsoil; InitialStateDectr; InitialStateEvetr; InitialStateGrass; InitialStatePaved; InitialStateVeg; InitialStateWater,state,,,CM,SUEWS
+icefrac,SurfaceInitialState,InitialStateBldgs; InitialStateBsoil; InitialStateDectr; InitialStateEvetr; InitialStateGrass; InitialStatePaved; InitialStateVeg; InitialStateWater; SurfaceInitialState,state,fraction_0_1,"[0,1]",C1,SUEWS
+snowdens,SurfaceInitialState,InitialStateBldgs; InitialStateBsoil; InitialStateDectr; InitialStateEvetr; InitialStateGrass; InitialStatePaved; InitialStateVeg; InitialStateWater; SurfaceInitialState,state,non_negative,>=0,C1,SUEWS
+snowfrac,SurfaceInitialState,InitialStateBldgs; InitialStateBsoil; InitialStateDectr; InitialStateEvetr; InitialStateGrass; InitialStatePaved; InitialStateVeg; InitialStateWater; SurfaceInitialState,state,fraction_0_1,"[0,1]",C1,SUEWS
+snowpack,SurfaceInitialState,InitialStateBldgs; InitialStateBsoil; InitialStateDectr; InitialStateEvetr; InitialStateGrass; InitialStatePaved; InitialStateVeg; InitialStateWater; SurfaceInitialState,state,non_negative,>=0,C1,SUEWS
+snowwater,SurfaceInitialState,InitialStateBldgs; InitialStateBsoil; InitialStateDectr; InitialStateEvetr; InitialStateGrass; InitialStatePaved; InitialStateVeg; InitialStateWater; SurfaceInitialState,state,non_negative,>=0,C1,SUEWS
+soilstore,SurfaceInitialState,InitialStateBldgs; InitialStateBsoil; InitialStateDectr; InitialStateEvetr; InitialStateGrass; InitialStatePaved; InitialStateVeg; InitialStateWater; SurfaceInitialState,state,,,C2,SUEWS
+state,SurfaceInitialState,InitialStateBldgs; InitialStateBsoil; InitialStateDectr; InitialStateEvetr; InitialStateGrass; InitialStatePaved; InitialStateVeg; InitialStateWater; SurfaceInitialState,state,non_negative,>=0,C1,SUEWS
+temperature,SurfaceInitialState,InitialStateBldgs; InitialStateBsoil; InitialStateDectr; InitialStateEvetr; InitialStateGrass; InitialStatePaved; InitialStateVeg; InitialStateWater; SurfaceInitialState,state,,,CM,SUEWS
+tin,SurfaceInitialState,InitialStateBldgs; InitialStateBsoil; InitialStateDectr; InitialStateEvetr; InitialStateGrass; InitialStatePaved; InitialStateVeg; InitialStateWater; SurfaceInitialState,state,,,CM,SUEWS
+tsfc,SurfaceInitialState,InitialStateBldgs; InitialStateBsoil; InitialStateDectr; InitialStateEvetr; InitialStateGrass; InitialStatePaved; InitialStateVeg; InitialStateWater; SurfaceInitialState,state,,,CM,SUEWS
 wu_auto,WaterUse,WaterUse,state,non_negative,>=0,C1,SUEWS
 wu_manual,WaterUse,WaterUse,state,non_negative,>=0,C1,SUEWS
 wu_total,WaterUse,WaterUse,state,non_negative,>=0,C1,SUEWS
 bldgh,BldgsProperties,BldgsProperties,surface,non_negative,>=0,C1,SUEWS
 faibldg,BldgsProperties,BldgsProperties,surface,non_negative,>=0,C1,SUEWS
-alb,BuildingLayer,RoofLayer; WallLayer,surface,fraction_0_1,"[0,1]",C1,SUEWS
-emis,BuildingLayer,RoofLayer; WallLayer,surface,fraction_0_1,"[0,1]",C1,SUEWS
-roof_albedo_dir_mult_fact,BuildingLayer,RoofLayer; WallLayer,surface,,,CM,SUEWS
-soilstorecap,BuildingLayer,RoofLayer; WallLayer,surface,,,CM,SUEWS
-statelimit,BuildingLayer,RoofLayer; WallLayer,surface,,,CM,SUEWS
-thermal_layers,BuildingLayer,RoofLayer; WallLayer,surface,,,CM,SUEWS
-wall_specular_frac,BuildingLayer,RoofLayer; WallLayer,surface,,,CM,SUEWS
-wetthresh,BuildingLayer,RoofLayer; WallLayer,surface,,,CM,SUEWS
-alb,NonVegetatedSurfaceProperties,BldgsProperties; BsoilProperties; PavedProperties; WaterProperties,surface,fraction_0_1,"[0,1]",C1,SUEWS
+alb,BuildingLayer,BuildingLayer; RoofLayer; WallLayer,surface,fraction_0_1,"[0,1]",C1,SUEWS
+emis,BuildingLayer,BuildingLayer; RoofLayer; WallLayer,surface,fraction_0_1,"[0,1]",C1,SUEWS
+roof_albedo_dir_mult_fact,BuildingLayer,BuildingLayer; RoofLayer; WallLayer,surface,,,CM,SUEWS
+soilstorecap,BuildingLayer,BuildingLayer; RoofLayer; WallLayer,surface,,,CM,SUEWS
+statelimit,BuildingLayer,BuildingLayer; RoofLayer; WallLayer,surface,,,CM,SUEWS
+thermal_layers,BuildingLayer,BuildingLayer; RoofLayer; WallLayer,surface,,,CM,SUEWS
+wall_specular_frac,BuildingLayer,BuildingLayer; RoofLayer; WallLayer,surface,,,CM,SUEWS
+wetthresh,BuildingLayer,BuildingLayer; RoofLayer; WallLayer,surface,,,CM,SUEWS
+alb,NonVegetatedSurfaceProperties,BldgsProperties; BsoilProperties; NonVegetatedSurfaceProperties; PavedProperties; WaterProperties,surface,fraction_0_1,"[0,1]",C1,SUEWS
 dz,ThermalLayers,ThermalLayers,surface,,,CM,SUEWS
 k,ThermalLayers,ThermalLayers,surface,,,CM,SUEWS
 rho_cp,ThermalLayers,ThermalLayers,surface,,,CM,SUEWS
@@ -367,8 +365,6 @@ building_frac,VerticalLayers,VerticalLayers,surface,,,CM,SUEWS
 building_scale,VerticalLayers,VerticalLayers,surface,,,CM,SUEWS
 height,VerticalLayers,VerticalLayers,surface,,,CM,SUEWS
 nlayer,VerticalLayers,VerticalLayers,surface,,,CM,SUEWS
-roofs,VerticalLayers,VerticalLayers,surface,,,CM,SUEWS
 veg_frac,VerticalLayers,VerticalLayers,surface,,,CM,SUEWS
 veg_scale,VerticalLayers,VerticalLayers,surface,,,CM,SUEWS
-walls,VerticalLayers,VerticalLayers,surface,,,CM,SUEWS
 flowchange,WaterProperties,WaterProperties,surface,,,CM,SUEWS

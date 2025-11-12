@@ -61,10 +61,10 @@ def classify_rule(constraints: Dict[str, Any]) -> tuple[str, str, str]:
     Classify the validation rule based on constraint values.
 
     Returns:
-        Tuple of (rule_class, formula, class_level) where:
-        - C1: fundamental rules (fraction_0_1, positive, non_negative)
-        - C2: non-fundamental rules (physical assumptions, constrained ranges)
-        - CM: no validation rules
+        Tuple of (rule_type, formula, rule_class) where:
+        - rule_type: fraction_0_1, positive, non_negative (empty for C2/CM)
+        - formula: [0,1], >0, >=0 (empty for C2/CM)
+        - rule_class: C1 (fundamental), C2 (non-fundamental), CM (no validation)
     """
     # No constraints at all -> CM (class missing)
     if not constraints:
@@ -137,6 +137,40 @@ def find_mother_class(model_class: type[BaseModel], field_name: str) -> str:
     return model_class.__name__
 
 
+def is_container_field(field_info) -> bool:
+    """
+    Check if a field is a container (List, Dict, etc.) rather than a leaf parameter.
+
+    Container fields hold collections of objects and are not themselves
+    user-configurable leaf parameters.
+    """
+    import typing
+
+    # Get the annotation (type) of the field
+    annotation = field_info.annotation
+
+    # Handle Optional types
+    origin = typing.get_origin(annotation)
+    if origin is typing.Union:
+        # For Optional[X], get X
+        args = typing.get_args(annotation)
+        # Filter out NoneType
+        non_none_args = [arg for arg in args if arg is not type(None)]
+        if non_none_args:
+            annotation = non_none_args[0]
+            origin = typing.get_origin(annotation)
+
+    # Check if it's a List
+    if origin is list:
+        return True
+
+    # Check if it's typing.List
+    if hasattr(typing, 'List') and origin is typing.List:
+        return True
+
+    return False
+
+
 def is_metadata_field(field_name: str, field_info) -> bool:
     """
     Check if a field is metadata/internal (not a user-configurable parameter).
@@ -172,10 +206,14 @@ def extract_rules_from_model(
         if is_metadata_field(field_name, field_info):
             continue
 
+        # Skip container fields (lists, dicts, etc.)
+        if is_container_field(field_info):
+            continue
+
         constraints = get_constraint_values(field_info)
 
         # Classify all fields (C1, C2, or CM)
-        rule_class, formula, class_level = classify_rule(constraints)
+        rule_type, formula, rule_class = classify_rule(constraints)
         mother_class = find_mother_class(model_class, field_name)
         model_type = get_model_type(model_class_name)
 
@@ -184,9 +222,9 @@ def extract_rules_from_model(
             mother_class,
             model_class_name,
             source_file,
-            rule_class,
+            rule_type,
             formula,
-            class_level,
+            rule_class,
             model_type
         ))
 
@@ -243,7 +281,7 @@ def generate_csv(output_path: Path):
 
     for rule in all_rules:
         (param_name, mother_class, child_class, source_file,
-         rule_class, formula, class_level, model_type) = rule
+         rule_type, formula, rule_class, model_type) = rule
 
         key = (param_name, mother_class)
 
@@ -251,9 +289,9 @@ def generate_csv(output_path: Path):
             param_groups[key] = {
                 'child_classes': set(),
                 'source_file': source_file,
-                'rule_class': rule_class,
+                'rule_type': rule_type,
                 'formula': formula,
-                'class_level': class_level,
+                'rule_class': rule_class,
                 'model_type': model_type
             }
 
@@ -263,37 +301,35 @@ def generate_csv(output_path: Path):
     # Convert to list format for CSV
     unique_rules = []
     for (param_name, mother_class), info in param_groups.items():
-        # Remove mother class from child_classes if present
-        child_classes = info['child_classes'] - {mother_class}
+        # Keep all classes including mother class
+        # Mother class being present means it's used directly (e.g., in List[MotherClass])
+        # not just as a base for inheritance
+        child_classes = info['child_classes']
 
         # Sort child classes and join with semicolon
-        # If no child classes (only defined in mother), show mother class
-        if child_classes:
-            child_classes_str = '; '.join(sorted(child_classes))
-        else:
-            child_classes_str = mother_class
+        child_classes_str = '; '.join(sorted(child_classes))
 
         unique_rules.append((
             param_name,
             mother_class,
             child_classes_str,
             info['source_file'],
-            info['rule_class'],
+            info['rule_type'],
             info['formula'],
-            info['class_level'],
+            info['rule_class'],
             info['model_type']
         ))
 
     print(f"Unique parameters (by mother class): {len(unique_rules)}")
 
-    # Count by class level
-    class_counts = {}
-    for _, _, _, _, _, _, class_level, _ in unique_rules:
-        class_counts[class_level] = class_counts.get(class_level, 0) + 1
+    # Count by rule_class (C1/C2/CM)
+    rule_class_counts = {}
+    for _, _, _, _, _, _, rule_class, _ in unique_rules:
+        rule_class_counts[rule_class] = rule_class_counts.get(rule_class, 0) + 1
 
-    print(f"  C1 (fundamental): {class_counts.get('C1', 0)}")
-    print(f"  C2 (non-fundamental): {class_counts.get('C2', 0)}")
-    print(f"  CM (no validation): {class_counts.get('CM', 0)}")
+    print(f"  C1 (fundamental): {rule_class_counts.get('C1', 0)}")
+    print(f"  C2 (non-fundamental): {rule_class_counts.get('C2', 0)}")
+    print(f"  CM (no validation): {rule_class_counts.get('CM', 0)}")
 
     # Sort unique rules by source_file, then mother_class, then parameter_name
     unique_rules.sort(key=lambda x: (x[3], x[1], x[0]))
@@ -301,32 +337,32 @@ def generate_csv(output_path: Path):
     # Write to CSV
     with open(output_path, 'w', newline='') as csvfile:
         writer = csv.writer(csvfile)
-        writer.writerow(['parameter_name', 'mother_class', 'inherited_by', 'source_file', 'rule_class', 'formula', 'class', 'model'])
+        writer.writerow(['parameter_name', 'mother_class', 'inherited_by', 'source_file', 'rule_type', 'formula', 'rule_class', 'model'])
 
-        for param_name, mother_class, inherited_by, source_file, rule_class, formula, class_level, model_type in unique_rules:
+        for param_name, mother_class, inherited_by, source_file, rule_type, formula, rule_class, model_type in unique_rules:
             writer.writerow([
                 param_name,
                 mother_class,
                 inherited_by,
                 source_file,
-                rule_class,
+                rule_type,
                 formula,
-                class_level,
+                rule_class,
                 model_type
             ])
 
     print(f"\nTotal: {len(unique_rules)} parameters")
     print(f"Output written to: {output_path}")
 
-    # Print summary by rule class (only for C1)
-    rule_counts = {}
-    for _, _, _, _, rule_class, _, class_level, _ in unique_rules:
-        if class_level == 'C1' and rule_class:
-            rule_counts[rule_class] = rule_counts.get(rule_class, 0) + 1
+    # Print summary by rule_type (only for C1)
+    rule_type_counts = {}
+    for _, _, _, _, rule_type, _, rule_class, _ in unique_rules:
+        if rule_class == 'C1' and rule_type:
+            rule_type_counts[rule_type] = rule_type_counts.get(rule_type, 0) + 1
 
-    print("\nBreakdown by rule class (C1 only):")
-    for rule_class, count in sorted(rule_counts.items(), key=lambda x: -x[1]):
-        print(f"  {rule_class}: {count}")
+    print("\nBreakdown by rule type (C1 only):")
+    for rule_type, count in sorted(rule_type_counts.items(), key=lambda x: -x[1]):
+        print(f"  {rule_type}: {count}")
 
     # Print summary by model type
     model_counts = {}
@@ -337,15 +373,15 @@ def generate_csv(output_path: Path):
     for model_type, count in sorted(model_counts.items()):
         print(f"  {model_type}: {count}")
 
-    # Print summary by class level
-    class_level_counts = {}
-    for _, _, _, _, _, _, class_level, _ in unique_rules:
-        class_level_counts[class_level] = class_level_counts.get(class_level, 0) + 1
+    # Print summary by rule_class (C1/C2/CM)
+    final_rule_class_counts = {}
+    for _, _, _, _, _, _, rule_class, _ in unique_rules:
+        final_rule_class_counts[rule_class] = final_rule_class_counts.get(rule_class, 0) + 1
 
     print("\nBreakdown by validation class:")
-    for class_level in ['C1', 'C2', 'CM']:
-        count = class_level_counts.get(class_level, 0)
-        print(f"  {class_level}: {count}")
+    for rule_class in ['C1', 'C2', 'CM']:
+        count = final_rule_class_counts.get(rule_class, 0)
+        print(f"  {rule_class}: {count}")
 
 
 def main():

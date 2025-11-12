@@ -5,15 +5,14 @@ Generate a CSV file containing all validation rules from Pydantic models.
 This script scans all Pydantic model classes in src/supy/data_model/core/ and extracts
 all fields, classifying them into three categories:
 
-Class C1 (Fundamental rules) - based on basic mathematical concepts:
+Class C0 (Fundamental rules) - based on basic mathematical concepts:
 - fraction_0_1: Values in [0, 1] - albedo, emissivity, fractions
 - non_negative: Values >= 0 - heights, capacities, rates
 - positive: Values > 0 - thicknesses, conductivities, densities
 
-Class C2 (Non-fundamental rules) - based on physical assumptions:
-- Constrained ranges (e.g., [0.1, 0.9])
-- Physical assumptions (e.g., temperature ranges, >= 10)
-- Geographical coordinates with specific ranges
+Class C1 (Non-fundamental rules) - based on physical assumptions:
+- range: Bounded constraints [a,b] or (a,b]
+- min_value: Minimum constraints >=a (where a > 0)
 
 Class CM (Class Missing) - no validation rules defined
 """
@@ -62,9 +61,9 @@ def classify_rule(constraints: Dict[str, Any]) -> tuple[str, str, str]:
 
     Returns:
         Tuple of (rule_type, formula, rule_class) where:
-        - rule_type: fraction_0_1, positive, non_negative (empty for C2/CM)
-        - formula: [0,1], >0, >=0 (empty for C2/CM)
-        - rule_class: C1 (fundamental), C2 (non-fundamental), CM (no validation)
+        - rule_type: fraction_0_1, positive, non_negative (empty for C1/CM)
+        - formula: [0,1], >0, >=0 (empty for C1/CM)
+        - rule_class: C0 (fundamental), C1 (non-fundamental), CM (no validation)
     """
     # No constraints at all -> CM (class missing)
     if not constraints:
@@ -75,26 +74,47 @@ def classify_rule(constraints: Dict[str, Any]) -> tuple[str, str, str]:
     gt = constraints.get('gt')
     lt = constraints.get('lt')
 
-    # FUNDAMENTAL RULES (C1)
+    # FUNDAMENTAL RULES (C0)
 
     # Fraction 0-1
     if ge == 0.0 and le == 1.0 and not gt and not lt:
-        return ('fraction_0_1', '[0,1]', 'C1')
+        return ('fraction_0_1', '[0,1]', 'C0')
 
     # Positive (> 0)
     if gt == 0.0 and not ge and not le and not lt:
-        return ('positive', '>0', 'C1')
+        return ('positive', '>0', 'C0')
 
     # Non-negative (>= 0)
     if ge == 0.0 and not le and not gt and not lt:
-        return ('non_negative', '>=0', 'C1')
+        return ('non_negative', '>=0', 'C0')
 
-    # NON-FUNDAMENTAL RULES (C2)
-    # - Constrained fractions (e.g., 0.1 to 0.9)
-    # - Specific ranges (e.g., lat/lng, temperature ranges)
-    # - Minimum values other than 0 (e.g., >= 10)
-    # - Physical assumptions
-    return ('', '', 'C2')
+    # NON-FUNDAMENTAL RULES (C1)
+    # Simplified to just 2 types: range (bounded) and min_value (minimum only)
+
+    # Bounded ranges [a, b] or (a, b]
+    if ge is not None and le is not None and not gt and not lt:
+        # Format as integers if they're whole numbers
+        ge_formatted = int(ge) if ge == int(ge) else ge
+        le_formatted = int(le) if le == int(le) else le
+        formula = f'[{ge_formatted},{le_formatted}]'
+        return ('range', formula, 'C1')
+
+    # Range (a, b] - exclusive lower bound, inclusive upper bound
+    if gt is not None and le is not None and not ge and not lt:
+        # Format as integers if they're whole numbers
+        gt_formatted = int(gt) if gt == int(gt) else gt
+        le_formatted = int(le) if le == int(le) else le
+        formula = f'({gt_formatted},{le_formatted}]'
+        return ('range', formula, 'C1')
+
+    # Minimum value constraints (>= a where a > 0)
+    if ge is not None and ge > 0 and not le and not gt and not lt:
+        # Format as integer if it's a whole number
+        ge_formatted = int(ge) if ge == int(ge) else ge
+        return ('min_value', f'>={ge_formatted}', 'C1')
+
+    # If we get here, it's some other C1 constraint
+    return ('', '', 'C1')
 
 
 def get_model_type(model_class_name: str) -> str:
@@ -322,13 +342,13 @@ def generate_csv(output_path: Path):
 
     print(f"Unique parameters (by mother class): {len(unique_rules)}")
 
-    # Count by rule_class (C1/C2/CM)
+    # Count by rule_class (C0/C1/CM)
     rule_class_counts = {}
     for _, _, _, _, _, _, rule_class, _ in unique_rules:
         rule_class_counts[rule_class] = rule_class_counts.get(rule_class, 0) + 1
 
-    print(f"  C1 (fundamental): {rule_class_counts.get('C1', 0)}")
-    print(f"  C2 (non-fundamental): {rule_class_counts.get('C2', 0)}")
+    print(f"  C0 (fundamental): {rule_class_counts.get('C0', 0)}")
+    print(f"  C1 (non-fundamental): {rule_class_counts.get('C1', 0)}")
     print(f"  CM (no validation): {rule_class_counts.get('CM', 0)}")
 
     # Sort unique rules by source_file, then mother_class, then parameter_name
@@ -354,13 +374,13 @@ def generate_csv(output_path: Path):
     print(f"\nTotal: {len(unique_rules)} parameters")
     print(f"Output written to: {output_path}")
 
-    # Print summary by rule_type (only for C1)
+    # Print summary by rule_type (only for C0)
     rule_type_counts = {}
     for _, _, _, _, rule_type, _, rule_class, _ in unique_rules:
-        if rule_class == 'C1' and rule_type:
+        if rule_class == 'C0' and rule_type:
             rule_type_counts[rule_type] = rule_type_counts.get(rule_type, 0) + 1
 
-    print("\nBreakdown by rule type (C1 only):")
+    print("\nBreakdown by rule type (C0 only):")
     for rule_type, count in sorted(rule_type_counts.items(), key=lambda x: -x[1]):
         print(f"  {rule_type}: {count}")
 
@@ -373,13 +393,13 @@ def generate_csv(output_path: Path):
     for model_type, count in sorted(model_counts.items()):
         print(f"  {model_type}: {count}")
 
-    # Print summary by rule_class (C1/C2/CM)
+    # Print summary by rule_class (C0/C1/CM)
     final_rule_class_counts = {}
     for _, _, _, _, _, _, rule_class, _ in unique_rules:
         final_rule_class_counts[rule_class] = final_rule_class_counts.get(rule_class, 0) + 1
 
     print("\nBreakdown by validation class:")
-    for rule_class in ['C1', 'C2', 'CM']:
+    for rule_class in ['C0', 'C1', 'CM']:
         count = final_rule_class_counts.get(rule_class, 0)
         print(f"  {rule_class}: {count}")
 

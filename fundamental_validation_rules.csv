@@ -10,7 +10,7 @@ ahprof_24hr,AnthropogenicHeat,AnthropogenicHeat,human_activity,,,CM,SUEWS
 baset_cooling,AnthropogenicHeat,AnthropogenicHeat,human_activity,,,CM,SUEWS
 baset_heating,AnthropogenicHeat,AnthropogenicHeat,human_activity,,,CM,SUEWS
 popdensdaytime,AnthropogenicHeat,AnthropogenicHeat,human_activity,,,CM,SUEWS
-popdensnighttime,AnthropogenicHeat,AnthropogenicHeat,human_activity,non_negative,>=0,C1,SUEWS
+popdensnighttime,AnthropogenicHeat,AnthropogenicHeat,human_activity,non_negative,>=0,C0,SUEWS
 popprof_24hr,AnthropogenicHeat,AnthropogenicHeat,human_activity,,,CM,SUEWS
 qf0_beu,AnthropogenicHeat,AnthropogenicHeat,human_activity,,,CM,SUEWS
 qf_a,AnthropogenicHeat,AnthropogenicHeat,human_activity,,,CM,SUEWS
@@ -20,8 +20,8 @@ co2pointsource,CO2Params,CO2Params,human_activity,,,CM,SUEWS
 ef_umolco2perj,CO2Params,CO2Params,human_activity,,,CM,SUEWS
 enef_v_jkm,CO2Params,CO2Params,human_activity,,,CM,SUEWS
 fcef_v_kgkm,CO2Params,CO2Params,human_activity,,,CM,SUEWS
-frfossilfuel_heat,CO2Params,CO2Params,human_activity,fraction_0_1,"[0,1]",C1,SUEWS
-frfossilfuel_nonheat,CO2Params,CO2Params,human_activity,fraction_0_1,"[0,1]",C1,SUEWS
+frfossilfuel_heat,CO2Params,CO2Params,human_activity,fraction_0_1,"[0,1]",C0,SUEWS
+frfossilfuel_nonheat,CO2Params,CO2Params,human_activity,fraction_0_1,"[0,1]",C0,SUEWS
 humactivity_24hr,CO2Params,CO2Params,human_activity,,,CM,SUEWS
 maxfcmetab,CO2Params,CO2Params,human_activity,,,CM,SUEWS
 maxqfmetab,CO2Params,CO2Params,human_activity,,,CM,SUEWS
@@ -32,7 +32,7 @@ trafficunits,CO2Params,CO2Params,human_activity,,,CM,SUEWS
 traffprof_24hr,CO2Params,CO2Params,human_activity,,,CM,SUEWS
 daywat,IrrigationParams,IrrigationParams,human_activity,,,CM,SUEWS
 daywatper,IrrigationParams,IrrigationParams,human_activity,,,CM,SUEWS
-faut,IrrigationParams,IrrigationParams,human_activity,fraction_0_1,"[0,1]",C1,SUEWS
+faut,IrrigationParams,IrrigationParams,human_activity,fraction_0_1,"[0,1]",C0,SUEWS
 h_maintain,IrrigationParams,IrrigationParams,human_activity,,,CM,SUEWS
 ie_end,IrrigationParams,IrrigationParams,human_activity,,,CM,SUEWS
 ie_start,IrrigationParams,IrrigationParams,human_activity,,,CM,SUEWS
@@ -42,76 +42,76 @@ wuprofm_24hr,IrrigationParams,IrrigationParams,human_activity,,,CM,SUEWS
 drain_coef_1,StorageDrainParams,StorageDrainParams,hydro,,,CM,SUEWS
 drain_coef_2,StorageDrainParams,StorageDrainParams,hydro,,,CM,SUEWS
 drain_eq,StorageDrainParams,StorageDrainParams,hydro,,,CM,SUEWS
-store_cap,StorageDrainParams,StorageDrainParams,hydro,non_negative,>=0,C1,SUEWS
-store_max,StorageDrainParams,StorageDrainParams,hydro,non_negative,>=0,C1,SUEWS
-store_min,StorageDrainParams,StorageDrainParams,hydro,non_negative,>=0,C1,SUEWS
-to_bldgs,WaterDistribution,WaterDistribution,hydro,fraction_0_1,"[0,1]",C1,SUEWS
-to_bsoil,WaterDistribution,WaterDistribution,hydro,fraction_0_1,"[0,1]",C1,SUEWS
-to_dectr,WaterDistribution,WaterDistribution,hydro,fraction_0_1,"[0,1]",C1,SUEWS
-to_evetr,WaterDistribution,WaterDistribution,hydro,fraction_0_1,"[0,1]",C1,SUEWS
-to_grass,WaterDistribution,WaterDistribution,hydro,fraction_0_1,"[0,1]",C1,SUEWS
-to_paved,WaterDistribution,WaterDistribution,hydro,fraction_0_1,"[0,1]",C1,SUEWS
-to_runoff,WaterDistribution,WaterDistribution,hydro,fraction_0_1,"[0,1]",C1,SUEWS
-to_soilstore,WaterDistribution,WaterDistribution,hydro,fraction_0_1,"[0,1]",C1,SUEWS
-to_water,WaterDistribution,WaterDistribution,hydro,fraction_0_1,"[0,1]",C1,SUEWS
+store_cap,StorageDrainParams,StorageDrainParams,hydro,non_negative,>=0,C0,SUEWS
+store_max,StorageDrainParams,StorageDrainParams,hydro,non_negative,>=0,C0,SUEWS
+store_min,StorageDrainParams,StorageDrainParams,hydro,non_negative,>=0,C0,SUEWS
+to_bldgs,WaterDistribution,WaterDistribution,hydro,fraction_0_1,"[0,1]",C0,SUEWS
+to_bsoil,WaterDistribution,WaterDistribution,hydro,fraction_0_1,"[0,1]",C0,SUEWS
+to_dectr,WaterDistribution,WaterDistribution,hydro,fraction_0_1,"[0,1]",C0,SUEWS
+to_evetr,WaterDistribution,WaterDistribution,hydro,fraction_0_1,"[0,1]",C0,SUEWS
+to_grass,WaterDistribution,WaterDistribution,hydro,fraction_0_1,"[0,1]",C0,SUEWS
+to_paved,WaterDistribution,WaterDistribution,hydro,fraction_0_1,"[0,1]",C0,SUEWS
+to_runoff,WaterDistribution,WaterDistribution,hydro,fraction_0_1,"[0,1]",C0,SUEWS
+to_soilstore,WaterDistribution,WaterDistribution,hydro,fraction_0_1,"[0,1]",C0,SUEWS
+to_water,WaterDistribution,WaterDistribution,hydro,fraction_0_1,"[0,1]",C0,SUEWS
 BuildingCount,ArchetypeProperties,ArchetypeProperties,site,,,CM,STEBBS
 BuildingName,ArchetypeProperties,ArchetypeProperties,site,,,CM,STEBBS
 BuildingType,ArchetypeProperties,ArchetypeProperties,site,,,CM,STEBBS
 CoolingSetpointTemperature,ArchetypeProperties,ArchetypeProperties,site,,,CM,STEBBS
-FloorThickness,ArchetypeProperties,ArchetypeProperties,site,positive,>0,C1,STEBBS
-FootprintArea,ArchetypeProperties,ArchetypeProperties,site,positive,>0,C1,STEBBS
-GroundFloorCp,ArchetypeProperties,ArchetypeProperties,site,positive,>0,C1,STEBBS
-GroundFloorDensity,ArchetypeProperties,ArchetypeProperties,site,positive,>0,C1,STEBBS
-GroundFloorEffectiveConductivity,ArchetypeProperties,ArchetypeProperties,site,positive,>0,C1,STEBBS
+FloorThickness,ArchetypeProperties,ArchetypeProperties,site,positive,>0,C0,STEBBS
+FootprintArea,ArchetypeProperties,ArchetypeProperties,site,positive,>0,C0,STEBBS
+GroundFloorCp,ArchetypeProperties,ArchetypeProperties,site,positive,>0,C0,STEBBS
+GroundFloorDensity,ArchetypeProperties,ArchetypeProperties,site,positive,>0,C0,STEBBS
+GroundFloorEffectiveConductivity,ArchetypeProperties,ArchetypeProperties,site,positive,>0,C0,STEBBS
 HeatingSetpointTemperature,ArchetypeProperties,ArchetypeProperties,site,,,CM,STEBBS
 InternalMassCp,ArchetypeProperties,ArchetypeProperties,site,,,CM,STEBBS
 InternalMassDensity,ArchetypeProperties,ArchetypeProperties,site,,,CM,STEBBS
 InternalMassEmissivity,ArchetypeProperties,ArchetypeProperties,site,,,CM,STEBBS
-MaxHeatingPower,ArchetypeProperties,ArchetypeProperties,site,non_negative,>=0,C1,STEBBS
-MaximumHotWaterHeatingPower,ArchetypeProperties,ArchetypeProperties,site,positive,>0,C1,STEBBS
+MaxHeatingPower,ArchetypeProperties,ArchetypeProperties,site,non_negative,>=0,C0,STEBBS
+MaximumHotWaterHeatingPower,ArchetypeProperties,ArchetypeProperties,site,positive,>0,C0,STEBBS
 Occupants,ArchetypeProperties,ArchetypeProperties,site,,,CM,STEBBS
-RatioInternalVolume,ArchetypeProperties,ArchetypeProperties,site,fraction_0_1,"[0,1]",C1,STEBBS
-RoofAbsorbtivity,ArchetypeProperties,ArchetypeProperties,site,fraction_0_1,"[0,1]",C1,STEBBS
-RoofCp,ArchetypeProperties,ArchetypeProperties,site,positive,>0,C1,STEBBS
-RoofDensity,ArchetypeProperties,ArchetypeProperties,site,positive,>0,C1,STEBBS
-RoofEffectiveConductivity,ArchetypeProperties,ArchetypeProperties,site,positive,>0,C1,STEBBS
-RoofExternalEmissivity,ArchetypeProperties,ArchetypeProperties,site,fraction_0_1,"[0,1]",C1,STEBBS
-RoofInternalEmissivity,ArchetypeProperties,ArchetypeProperties,site,fraction_0_1,"[0,1]",C1,STEBBS
-RoofReflectivity,ArchetypeProperties,ArchetypeProperties,site,fraction_0_1,"[0,1]",C1,STEBBS
-RoofThickness,ArchetypeProperties,ArchetypeProperties,site,positive,>0,C1,STEBBS
-RoofTransmissivity,ArchetypeProperties,ArchetypeProperties,site,fraction_0_1,"[0,1]",C1,STEBBS
-RoofextCp,ArchetypeProperties,ArchetypeProperties,site,positive,>0,C1,STEBBS
-RoofextDensity,ArchetypeProperties,ArchetypeProperties,site,positive,>0,C1,STEBBS
-RoofextEffectiveConductivity,ArchetypeProperties,ArchetypeProperties,site,positive,>0,C1,STEBBS
-RoofextThickness,ArchetypeProperties,ArchetypeProperties,site,positive,>0,C1,STEBBS
-Roofx1,ArchetypeProperties,ArchetypeProperties,site,fraction_0_1,"[0,1]",C1,STEBBS
-WWR,ArchetypeProperties,ArchetypeProperties,site,fraction_0_1,"[0,1]",C1,STEBBS
-WallAbsorbtivity,ArchetypeProperties,ArchetypeProperties,site,fraction_0_1,"[0,1]",C1,STEBBS
-WallCp,ArchetypeProperties,ArchetypeProperties,site,positive,>0,C1,STEBBS
-WallDensity,ArchetypeProperties,ArchetypeProperties,site,positive,>0,C1,STEBBS
-WallEffectiveConductivity,ArchetypeProperties,ArchetypeProperties,site,positive,>0,C1,STEBBS
-WallExternalArea,ArchetypeProperties,ArchetypeProperties,site,positive,>0,C1,STEBBS
-WallExternalEmissivity,ArchetypeProperties,ArchetypeProperties,site,fraction_0_1,"[0,1]",C1,STEBBS
-WallInternalEmissivity,ArchetypeProperties,ArchetypeProperties,site,fraction_0_1,"[0,1]",C1,STEBBS
-WallReflectivity,ArchetypeProperties,ArchetypeProperties,site,fraction_0_1,"[0,1]",C1,STEBBS
-WallThickness,ArchetypeProperties,ArchetypeProperties,site,positive,>0,C1,STEBBS
-WallTransmissivity,ArchetypeProperties,ArchetypeProperties,site,fraction_0_1,"[0,1]",C1,STEBBS
-WallextCp,ArchetypeProperties,ArchetypeProperties,site,positive,>0,C1,STEBBS
-WallextDensity,ArchetypeProperties,ArchetypeProperties,site,positive,>0,C1,STEBBS
-WallextEffectiveConductivity,ArchetypeProperties,ArchetypeProperties,site,positive,>0,C1,STEBBS
-WallextThickness,ArchetypeProperties,ArchetypeProperties,site,positive,>0,C1,STEBBS
-Wallx1,ArchetypeProperties,ArchetypeProperties,site,fraction_0_1,"[0,1]",C1,STEBBS
-WaterTankWaterVolume,ArchetypeProperties,ArchetypeProperties,site,positive,>0,C1,STEBBS
-WindowAbsorbtivity,ArchetypeProperties,ArchetypeProperties,site,fraction_0_1,"[0,1]",C1,STEBBS
-WindowCp,ArchetypeProperties,ArchetypeProperties,site,positive,>0,C1,STEBBS
-WindowDensity,ArchetypeProperties,ArchetypeProperties,site,positive,>0,C1,STEBBS
-WindowEffectiveConductivity,ArchetypeProperties,ArchetypeProperties,site,positive,>0,C1,STEBBS
-WindowExternalEmissivity,ArchetypeProperties,ArchetypeProperties,site,fraction_0_1,"[0,1]",C1,STEBBS
-WindowInternalEmissivity,ArchetypeProperties,ArchetypeProperties,site,fraction_0_1,"[0,1]",C1,STEBBS
-WindowReflectivity,ArchetypeProperties,ArchetypeProperties,site,fraction_0_1,"[0,1]",C1,STEBBS
-WindowThickness,ArchetypeProperties,ArchetypeProperties,site,positive,>0,C1,STEBBS
-WindowTransmissivity,ArchetypeProperties,ArchetypeProperties,site,fraction_0_1,"[0,1]",C1,STEBBS
-stebbs_Height,ArchetypeProperties,ArchetypeProperties,site,positive,>0,C1,STEBBS
+RatioInternalVolume,ArchetypeProperties,ArchetypeProperties,site,fraction_0_1,"[0,1]",C0,STEBBS
+RoofAbsorbtivity,ArchetypeProperties,ArchetypeProperties,site,fraction_0_1,"[0,1]",C0,STEBBS
+RoofCp,ArchetypeProperties,ArchetypeProperties,site,positive,>0,C0,STEBBS
+RoofDensity,ArchetypeProperties,ArchetypeProperties,site,positive,>0,C0,STEBBS
+RoofEffectiveConductivity,ArchetypeProperties,ArchetypeProperties,site,positive,>0,C0,STEBBS
+RoofExternalEmissivity,ArchetypeProperties,ArchetypeProperties,site,fraction_0_1,"[0,1]",C0,STEBBS
+RoofInternalEmissivity,ArchetypeProperties,ArchetypeProperties,site,fraction_0_1,"[0,1]",C0,STEBBS
+RoofReflectivity,ArchetypeProperties,ArchetypeProperties,site,fraction_0_1,"[0,1]",C0,STEBBS
+RoofThickness,ArchetypeProperties,ArchetypeProperties,site,positive,>0,C0,STEBBS
+RoofTransmissivity,ArchetypeProperties,ArchetypeProperties,site,fraction_0_1,"[0,1]",C0,STEBBS
+RoofextCp,ArchetypeProperties,ArchetypeProperties,site,positive,>0,C0,STEBBS
+RoofextDensity,ArchetypeProperties,ArchetypeProperties,site,positive,>0,C0,STEBBS
+RoofextEffectiveConductivity,ArchetypeProperties,ArchetypeProperties,site,positive,>0,C0,STEBBS
+RoofextThickness,ArchetypeProperties,ArchetypeProperties,site,positive,>0,C0,STEBBS
+Roofx1,ArchetypeProperties,ArchetypeProperties,site,fraction_0_1,"[0,1]",C0,STEBBS
+WWR,ArchetypeProperties,ArchetypeProperties,site,fraction_0_1,"[0,1]",C0,STEBBS
+WallAbsorbtivity,ArchetypeProperties,ArchetypeProperties,site,fraction_0_1,"[0,1]",C0,STEBBS
+WallCp,ArchetypeProperties,ArchetypeProperties,site,positive,>0,C0,STEBBS
+WallDensity,ArchetypeProperties,ArchetypeProperties,site,positive,>0,C0,STEBBS
+WallEffectiveConductivity,ArchetypeProperties,ArchetypeProperties,site,positive,>0,C0,STEBBS
+WallExternalArea,ArchetypeProperties,ArchetypeProperties,site,positive,>0,C0,STEBBS
+WallExternalEmissivity,ArchetypeProperties,ArchetypeProperties,site,fraction_0_1,"[0,1]",C0,STEBBS
+WallInternalEmissivity,ArchetypeProperties,ArchetypeProperties,site,fraction_0_1,"[0,1]",C0,STEBBS
+WallReflectivity,ArchetypeProperties,ArchetypeProperties,site,fraction_0_1,"[0,1]",C0,STEBBS
+WallThickness,ArchetypeProperties,ArchetypeProperties,site,positive,>0,C0,STEBBS
+WallTransmissivity,ArchetypeProperties,ArchetypeProperties,site,fraction_0_1,"[0,1]",C0,STEBBS
+WallextCp,ArchetypeProperties,ArchetypeProperties,site,positive,>0,C0,STEBBS
+WallextDensity,ArchetypeProperties,ArchetypeProperties,site,positive,>0,C0,STEBBS
+WallextEffectiveConductivity,ArchetypeProperties,ArchetypeProperties,site,positive,>0,C0,STEBBS
+WallextThickness,ArchetypeProperties,ArchetypeProperties,site,positive,>0,C0,STEBBS
+Wallx1,ArchetypeProperties,ArchetypeProperties,site,fraction_0_1,"[0,1]",C0,STEBBS
+WaterTankWaterVolume,ArchetypeProperties,ArchetypeProperties,site,positive,>0,C0,STEBBS
+WindowAbsorbtivity,ArchetypeProperties,ArchetypeProperties,site,fraction_0_1,"[0,1]",C0,STEBBS
+WindowCp,ArchetypeProperties,ArchetypeProperties,site,positive,>0,C0,STEBBS
+WindowDensity,ArchetypeProperties,ArchetypeProperties,site,positive,>0,C0,STEBBS
+WindowEffectiveConductivity,ArchetypeProperties,ArchetypeProperties,site,positive,>0,C0,STEBBS
+WindowExternalEmissivity,ArchetypeProperties,ArchetypeProperties,site,fraction_0_1,"[0,1]",C0,STEBBS
+WindowInternalEmissivity,ArchetypeProperties,ArchetypeProperties,site,fraction_0_1,"[0,1]",C0,STEBBS
+WindowReflectivity,ArchetypeProperties,ArchetypeProperties,site,fraction_0_1,"[0,1]",C0,STEBBS
+WindowThickness,ArchetypeProperties,ArchetypeProperties,site,positive,>0,C0,STEBBS
+WindowTransmissivity,ArchetypeProperties,ArchetypeProperties,site,fraction_0_1,"[0,1]",C0,STEBBS
+stebbs_Height,ArchetypeProperties,ArchetypeProperties,site,positive,>0,C0,STEBBS
 g_k,Conductance,Conductance,site,,,CM,SUEWS
 g_max,Conductance,Conductance,site,,,CM,SUEWS
 g_q_base,Conductance,Conductance,site,,,CM,SUEWS
@@ -127,8 +127,8 @@ capmax_dec,DectrProperties,DectrProperties,site,,,CM,SUEWS
 capmin_dec,DectrProperties,DectrProperties,site,,,CM,SUEWS
 dectreeh,DectrProperties,DectrProperties,site,,,CM,SUEWS
 faidectree,DectrProperties,DectrProperties,site,,,CM,SUEWS
-pormax_dec,DectrProperties,DectrProperties,site,,,C2,SUEWS
-pormin_dec,DectrProperties,DectrProperties,site,,,C2,SUEWS
+pormax_dec,DectrProperties,DectrProperties,site,range,"[0.1,0.9]",C1,SUEWS
+pormin_dec,DectrProperties,DectrProperties,site,range,"[0.1,0.9]",C1,SUEWS
 evetreeh,EvetrProperties,EvetrProperties,site,,,CM,SUEWS
 faievetree,EvetrProperties,EvetrProperties,site,,,CM,SUEWS
 baset,LAIParams,LAIParams,site,,,CM,SUEWS
@@ -143,9 +143,9 @@ growth_gdd,LAIPowerCoefficients,LAIPowerCoefficients,site,,,CM,SUEWS
 growth_lai,LAIPowerCoefficients,LAIPowerCoefficients,site,,,CM,SUEWS
 senescence_lai,LAIPowerCoefficients,LAIPowerCoefficients,site,,,CM,SUEWS
 senescence_sdd,LAIPowerCoefficients,LAIPowerCoefficients,site,,,CM,SUEWS
-drainrt,LUMPSParams,LUMPSParams,site,fraction_0_1,"[0,1]",C1,SUEWS
-raincover,LUMPSParams,LUMPSParams,site,fraction_0_1,"[0,1]",C1,SUEWS
-rainmaxres,LUMPSParams,LUMPSParams,site,,,C2,SUEWS
+drainrt,LUMPSParams,LUMPSParams,site,fraction_0_1,"[0,1]",C0,SUEWS
+raincover,LUMPSParams,LUMPSParams,site,fraction_0_1,"[0,1]",C0,SUEWS
+rainmaxres,LUMPSParams,LUMPSParams,site,range,"[0,20]",C1,SUEWS
 veg_type,LUMPSParams,LUMPSParams,site,,,CM,SUEWS
 bldgs,LandCover,LandCover,site,,,CM,SUEWS
 bsoil,LandCover,LandCover,site,,,CM,SUEWS
@@ -172,30 +172,30 @@ gridiv,Site,Site,site,,,CM,SUEWS
 initial_states,Site,Site,site,,,CM,SUEWS
 name,Site,Site,site,,,CM,SUEWS
 properties,Site,Site,site,,,CM,SUEWS
-alt,SiteProperties,SiteProperties,site,positive,>0,C1,SUEWS
+alt,SiteProperties,SiteProperties,site,positive,>0,C0,SUEWS
 anthropogenic_emissions,SiteProperties,SiteProperties,site,,,CM,SUEWS
 building_archetype,SiteProperties,SiteProperties,site,,,CM,SUEWS
 conductance,SiteProperties,SiteProperties,site,,,CM,SUEWS
 h_std,SiteProperties,SiteProperties,site,,,CM,SUEWS
 irrigation,SiteProperties,SiteProperties,site,,,CM,SUEWS
-lambda_c,SiteProperties,SiteProperties,site,non_negative,>=0,C1,SUEWS
+lambda_c,SiteProperties,SiteProperties,site,non_negative,>=0,C0,SUEWS
 land_cover,SiteProperties,SiteProperties,site,,,CM,SUEWS
-lat,SiteProperties,SiteProperties,site,,,C2,SUEWS
-lng,SiteProperties,SiteProperties,site,,,C2,SUEWS
+lat,SiteProperties,SiteProperties,site,range,"[-90,90]",C1,SUEWS
+lng,SiteProperties,SiteProperties,site,range,"[-180,180]",C1,SUEWS
 lumps,SiteProperties,SiteProperties,site,,,CM,SUEWS
 n_buildings,SiteProperties,SiteProperties,site,,,CM,SUEWS
 narp_trans_site,SiteProperties,SiteProperties,site,,,CM,SUEWS
-pipecapacity,SiteProperties,SiteProperties,site,positive,>0,C1,SUEWS
-runofftowater,SiteProperties,SiteProperties,site,fraction_0_1,"[0,1]",C1,SUEWS
+pipecapacity,SiteProperties,SiteProperties,site,positive,>0,C0,SUEWS
+runofftowater,SiteProperties,SiteProperties,site,fraction_0_1,"[0,1]",C0,SUEWS
 snow,SiteProperties,SiteProperties,site,,,CM,SUEWS
 spartacus,SiteProperties,SiteProperties,site,,,CM,SUEWS
 stebbs,SiteProperties,SiteProperties,site,,,CM,SUEWS
-surfacearea,SiteProperties,SiteProperties,site,positive,>0,C1,SUEWS
+surfacearea,SiteProperties,SiteProperties,site,positive,>0,C0,SUEWS
 timezone,SiteProperties,SiteProperties,site,,,CM,SUEWS
 vertical_layers,SiteProperties,SiteProperties,site,,,CM,SUEWS
-z,SiteProperties,SiteProperties,site,positive,>0,C1,SUEWS
-z0m_in,SiteProperties,SiteProperties,site,positive,>0,C1,SUEWS
-zdm_in,SiteProperties,SiteProperties,site,positive,>0,C1,SUEWS
+z,SiteProperties,SiteProperties,site,positive,>0,C0,SUEWS
+z0m_in,SiteProperties,SiteProperties,site,positive,>0,C0,SUEWS
+zdm_in,SiteProperties,SiteProperties,site,positive,>0,C0,SUEWS
 crwmax,SnowParams,SnowParams,site,,,CM,SUEWS
 crwmin,SnowParams,SnowParams,site,,,CM,SUEWS
 narp_emis_snow,SnowParams,SnowParams,site,,,CM,SUEWS
@@ -213,83 +213,83 @@ tau_a,SnowParams,SnowParams,site,,,CM,SUEWS
 tau_f,SnowParams,SnowParams,site,,,CM,SUEWS
 tau_r,SnowParams,SnowParams,site,,,CM,SUEWS
 tempmeltfact,SnowParams,SnowParams,site,,,CM,SUEWS
-ApplianceRating,StebbsProperties,StebbsProperties,site,non_negative,>=0,C1,STEBBS
-ApplianceUsageFactor,StebbsProperties,StebbsProperties,site,fraction_0_1,"[0,1]",C1,STEBBS
-CoolingSystemCOP,StebbsProperties,StebbsProperties,site,non_negative,>=0,C1,STEBBS
-DHWDensity,StebbsProperties,StebbsProperties,site,positive,>0,C1,STEBBS
-DHWDrainFlowRate,StebbsProperties,StebbsProperties,site,non_negative,>=0,C1,STEBBS
-DHWSpecificHeatCapacity,StebbsProperties,StebbsProperties,site,positive,>0,C1,STEBBS
-DHWSurfaceArea,StebbsProperties,StebbsProperties,site,positive,>0,C1,STEBBS
-DHWVesselDensity,StebbsProperties,StebbsProperties,site,positive,>0,C1,STEBBS
-DHWVesselEmissivity,StebbsProperties,StebbsProperties,site,fraction_0_1,"[0,1]",C1,STEBBS
+ApplianceRating,StebbsProperties,StebbsProperties,site,non_negative,>=0,C0,STEBBS
+ApplianceUsageFactor,StebbsProperties,StebbsProperties,site,fraction_0_1,"[0,1]",C0,STEBBS
+CoolingSystemCOP,StebbsProperties,StebbsProperties,site,non_negative,>=0,C0,STEBBS
+DHWDensity,StebbsProperties,StebbsProperties,site,positive,>0,C0,STEBBS
+DHWDrainFlowRate,StebbsProperties,StebbsProperties,site,non_negative,>=0,C0,STEBBS
+DHWSpecificHeatCapacity,StebbsProperties,StebbsProperties,site,positive,>0,C0,STEBBS
+DHWSurfaceArea,StebbsProperties,StebbsProperties,site,positive,>0,C0,STEBBS
+DHWVesselDensity,StebbsProperties,StebbsProperties,site,positive,>0,C0,STEBBS
+DHWVesselEmissivity,StebbsProperties,StebbsProperties,site,fraction_0_1,"[0,1]",C0,STEBBS
 DHWVesselExternalWallConvectionCoefficient,StebbsProperties,StebbsProperties,site,,,CM,STEBBS
 DHWVesselInternalWallConvectionCoefficient,StebbsProperties,StebbsProperties,site,,,CM,STEBBS
-DHWVesselSpecificHeatCapacity,StebbsProperties,StebbsProperties,site,positive,>0,C1,STEBBS
-DHWVesselWallConductivity,StebbsProperties,StebbsProperties,site,positive,>0,C1,STEBBS
-DHWVesselWallEmissivity,StebbsProperties,StebbsProperties,site,,,C2,STEBBS
-DHWVesselWallThickness,StebbsProperties,StebbsProperties,site,positive,>0,C1,STEBBS
-DHWWaterVolume,StebbsProperties,StebbsProperties,site,positive,>0,C1,STEBBS
-DomesticHotWaterTemperatureInUseInBuilding,StebbsProperties,StebbsProperties,site,positive,>0,C1,STEBBS
+DHWVesselSpecificHeatCapacity,StebbsProperties,StebbsProperties,site,positive,>0,C0,STEBBS
+DHWVesselWallConductivity,StebbsProperties,StebbsProperties,site,positive,>0,C0,STEBBS
+DHWVesselWallEmissivity,StebbsProperties,StebbsProperties,site,range,"(0,1]",C1,STEBBS
+DHWVesselWallThickness,StebbsProperties,StebbsProperties,site,positive,>0,C0,STEBBS
+DHWWaterVolume,StebbsProperties,StebbsProperties,site,positive,>0,C0,STEBBS
+DomesticHotWaterTemperatureInUseInBuilding,StebbsProperties,StebbsProperties,site,positive,>0,C0,STEBBS
 ExternalGroundConductivity,StebbsProperties,StebbsProperties,site,,,CM,STEBBS
 ExternalWallDHWVesselTemperature,StebbsProperties,StebbsProperties,site,,,CM,STEBBS
 ExternalWallWaterTankTemperature,StebbsProperties,StebbsProperties,site,,,CM,STEBBS
-FloorInternalConvectionCoefficient,StebbsProperties,StebbsProperties,site,positive,>0,C1,STEBBS
+FloorInternalConvectionCoefficient,StebbsProperties,StebbsProperties,site,positive,>0,C0,STEBBS
 GroundDepth,StebbsProperties,StebbsProperties,site,,,CM,STEBBS
 GroundFloorIndoorSurfaceTemperature,StebbsProperties,StebbsProperties,site,,,CM,STEBBS
 GroundFloorOutdoorSurfaceTemperature,StebbsProperties,StebbsProperties,site,,,CM,STEBBS
-HeatingSystemEfficiency,StebbsProperties,StebbsProperties,site,fraction_0_1,"[0,1]",C1,STEBBS
-HotWaterFlowRate,StebbsProperties,StebbsProperties,site,non_negative,>=0,C1,STEBBS
-HotWaterHeatingEfficiency,StebbsProperties,StebbsProperties,site,fraction_0_1,"[0,1]",C1,STEBBS
-HotWaterHeatingSetpointTemperature,StebbsProperties,StebbsProperties,site,positive,>0,C1,STEBBS
-HotWaterTankBuildingWallViewFactor,StebbsProperties,StebbsProperties,site,fraction_0_1,"[0,1]",C1,STEBBS
+HeatingSystemEfficiency,StebbsProperties,StebbsProperties,site,fraction_0_1,"[0,1]",C0,STEBBS
+HotWaterFlowRate,StebbsProperties,StebbsProperties,site,non_negative,>=0,C0,STEBBS
+HotWaterHeatingEfficiency,StebbsProperties,StebbsProperties,site,fraction_0_1,"[0,1]",C0,STEBBS
+HotWaterHeatingSetpointTemperature,StebbsProperties,StebbsProperties,site,positive,>0,C0,STEBBS
+HotWaterTankBuildingWallViewFactor,StebbsProperties,StebbsProperties,site,fraction_0_1,"[0,1]",C0,STEBBS
 HotWaterTankExternalWallConvectionCoefficient,StebbsProperties,StebbsProperties,site,,,CM,STEBBS
-HotWaterTankInternalMassViewFactor,StebbsProperties,StebbsProperties,site,fraction_0_1,"[0,1]",C1,STEBBS
+HotWaterTankInternalMassViewFactor,StebbsProperties,StebbsProperties,site,fraction_0_1,"[0,1]",C0,STEBBS
 HotWaterTankInternalWallConvectionCoefficient,StebbsProperties,StebbsProperties,site,,,CM,STEBBS
-HotWaterTankSpecificHeatCapacity,StebbsProperties,StebbsProperties,site,positive,>0,C1,STEBBS
-HotWaterTankWallConductivity,StebbsProperties,StebbsProperties,site,positive,>0,C1,STEBBS
-HotWaterTankWallDensity,StebbsProperties,StebbsProperties,site,positive,>0,C1,STEBBS
-HotWaterTankWallEmissivity,StebbsProperties,StebbsProperties,site,fraction_0_1,"[0,1]",C1,STEBBS
-IndoorAirCp,StebbsProperties,StebbsProperties,site,positive,>0,C1,STEBBS
-IndoorAirDensity,StebbsProperties,StebbsProperties,site,positive,>0,C1,STEBBS
+HotWaterTankSpecificHeatCapacity,StebbsProperties,StebbsProperties,site,positive,>0,C0,STEBBS
+HotWaterTankWallConductivity,StebbsProperties,StebbsProperties,site,positive,>0,C0,STEBBS
+HotWaterTankWallDensity,StebbsProperties,StebbsProperties,site,positive,>0,C0,STEBBS
+HotWaterTankWallEmissivity,StebbsProperties,StebbsProperties,site,fraction_0_1,"[0,1]",C0,STEBBS
+IndoorAirCp,StebbsProperties,StebbsProperties,site,positive,>0,C0,STEBBS
+IndoorAirDensity,StebbsProperties,StebbsProperties,site,positive,>0,C0,STEBBS
 IndoorAirStartTemperature,StebbsProperties,StebbsProperties,site,,,CM,STEBBS
 IndoorMassStartTemperature,StebbsProperties,StebbsProperties,site,,,CM,STEBBS
-InternalMassConvectionCoefficient,StebbsProperties,StebbsProperties,site,positive,>0,C1,STEBBS
+InternalMassConvectionCoefficient,StebbsProperties,StebbsProperties,site,positive,>0,C0,STEBBS
 InternalWallDHWVesselTemperature,StebbsProperties,StebbsProperties,site,,,CM,STEBBS
 InternalWallWaterTankTemperature,StebbsProperties,StebbsProperties,site,,,CM,STEBBS
-LatentSensibleRatio,StebbsProperties,StebbsProperties,site,non_negative,>=0,C1,STEBBS
+LatentSensibleRatio,StebbsProperties,StebbsProperties,site,non_negative,>=0,C0,STEBBS
 MainsWaterTemperature,StebbsProperties,StebbsProperties,site,,,CM,STEBBS
-MaxCoolingPower,StebbsProperties,StebbsProperties,site,non_negative,>=0,C1,STEBBS
-MetabolicRate,StebbsProperties,StebbsProperties,site,non_negative,>=0,C1,STEBBS
-MinimumVolumeOfDHWinUse,StebbsProperties,StebbsProperties,site,non_negative,>=0,C1,STEBBS
+MaxCoolingPower,StebbsProperties,StebbsProperties,site,non_negative,>=0,C0,STEBBS
+MetabolicRate,StebbsProperties,StebbsProperties,site,non_negative,>=0,C0,STEBBS
+MinimumVolumeOfDHWinUse,StebbsProperties,StebbsProperties,site,non_negative,>=0,C0,STEBBS
 OutdoorAirAnnualTemperature,StebbsProperties,StebbsProperties,site,,,CM,STEBBS
 OutdoorAirStartTemperature,StebbsProperties,StebbsProperties,site,,,CM,STEBBS
-RoofExternalConvectionCoefficient,StebbsProperties,StebbsProperties,site,positive,>0,C1,STEBBS
+RoofExternalConvectionCoefficient,StebbsProperties,StebbsProperties,site,positive,>0,C0,STEBBS
 RoofIndoorSurfaceTemperature,StebbsProperties,StebbsProperties,site,,,CM,STEBBS
-RoofInternalConvectionCoefficient,StebbsProperties,StebbsProperties,site,positive,>0,C1,STEBBS
+RoofInternalConvectionCoefficient,StebbsProperties,StebbsProperties,site,positive,>0,C0,STEBBS
 RoofOutdoorSurfaceTemperature,StebbsProperties,StebbsProperties,site,,,CM,STEBBS
-TotalNumberofAppliances,StebbsProperties,StebbsProperties,site,non_negative,>=0,C1,STEBBS
-VentilationRate,StebbsProperties,StebbsProperties,site,non_negative,>=0,C1,STEBBS
-WallBuildingViewFactor,StebbsProperties,StebbsProperties,site,fraction_0_1,"[0,1]",C1,STEBBS
-WallExternalConvectionCoefficient,StebbsProperties,StebbsProperties,site,positive,>0,C1,STEBBS
-WallGroundViewFactor,StebbsProperties,StebbsProperties,site,fraction_0_1,"[0,1]",C1,STEBBS
+TotalNumberofAppliances,StebbsProperties,StebbsProperties,site,non_negative,>=0,C0,STEBBS
+VentilationRate,StebbsProperties,StebbsProperties,site,non_negative,>=0,C0,STEBBS
+WallBuildingViewFactor,StebbsProperties,StebbsProperties,site,fraction_0_1,"[0,1]",C0,STEBBS
+WallExternalConvectionCoefficient,StebbsProperties,StebbsProperties,site,positive,>0,C0,STEBBS
+WallGroundViewFactor,StebbsProperties,StebbsProperties,site,fraction_0_1,"[0,1]",C0,STEBBS
 WallIndoorSurfaceTemperature,StebbsProperties,StebbsProperties,site,,,CM,STEBBS
-WallInternalConvectionCoefficient,StebbsProperties,StebbsProperties,site,positive,>0,C1,STEBBS
+WallInternalConvectionCoefficient,StebbsProperties,StebbsProperties,site,positive,>0,C0,STEBBS
 WallOutdoorSurfaceTemperature,StebbsProperties,StebbsProperties,site,,,CM,STEBBS
-WallSkyViewFactor,StebbsProperties,StebbsProperties,site,fraction_0_1,"[0,1]",C1,STEBBS
+WallSkyViewFactor,StebbsProperties,StebbsProperties,site,fraction_0_1,"[0,1]",C0,STEBBS
 WaterTankSurfaceArea,StebbsProperties,StebbsProperties,site,,,CM,STEBBS
-WaterTankTemperature,StebbsProperties,StebbsProperties,site,positive,>0,C1,STEBBS
-WaterTankWallThickness,StebbsProperties,StebbsProperties,site,positive,>0,C1,STEBBS
-WindowExternalConvectionCoefficient,StebbsProperties,StebbsProperties,site,positive,>0,C1,STEBBS
+WaterTankTemperature,StebbsProperties,StebbsProperties,site,positive,>0,C0,STEBBS
+WaterTankWallThickness,StebbsProperties,StebbsProperties,site,positive,>0,C0,STEBBS
+WindowExternalConvectionCoefficient,StebbsProperties,StebbsProperties,site,positive,>0,C0,STEBBS
 WindowIndoorSurfaceTemperature,StebbsProperties,StebbsProperties,site,,,CM,STEBBS
-WindowInternalConvectionCoefficient,StebbsProperties,StebbsProperties,site,positive,>0,C1,STEBBS
+WindowInternalConvectionCoefficient,StebbsProperties,StebbsProperties,site,positive,>0,C0,STEBBS
 WindowOutdoorSurfaceTemperature,StebbsProperties,StebbsProperties,site,,,CM,STEBBS
-emis,SurfaceProperties,BldgsProperties; BsoilProperties; DectrProperties; EvetrProperties; GrassProperties; NonVegetatedSurfaceProperties; PavedProperties; SurfaceProperties; VegetatedSurfaceProperties; WaterProperties,site,fraction_0_1,"[0,1]",C1,SUEWS
+emis,SurfaceProperties,BldgsProperties; BsoilProperties; DectrProperties; EvetrProperties; GrassProperties; NonVegetatedSurfaceProperties; PavedProperties; SurfaceProperties; VegetatedSurfaceProperties; WaterProperties,site,fraction_0_1,"[0,1]",C0,SUEWS
 irrfrac,SurfaceProperties,BldgsProperties; BsoilProperties; DectrProperties; EvetrProperties; GrassProperties; NonVegetatedSurfaceProperties; PavedProperties; SurfaceProperties; VegetatedSurfaceProperties; WaterProperties,site,,,CM,SUEWS
 ohm_coef,SurfaceProperties,BldgsProperties; BsoilProperties; DectrProperties; EvetrProperties; GrassProperties; NonVegetatedSurfaceProperties; PavedProperties; SurfaceProperties; VegetatedSurfaceProperties; WaterProperties,site,,,CM,SUEWS
 ohm_threshsw,SurfaceProperties,BldgsProperties; BsoilProperties; DectrProperties; EvetrProperties; GrassProperties; NonVegetatedSurfaceProperties; PavedProperties; SurfaceProperties; VegetatedSurfaceProperties; WaterProperties,site,,,CM,SUEWS
 ohm_threshwd,SurfaceProperties,BldgsProperties; BsoilProperties; DectrProperties; EvetrProperties; GrassProperties; NonVegetatedSurfaceProperties; PavedProperties; SurfaceProperties; VegetatedSurfaceProperties; WaterProperties,site,,,CM,SUEWS
 sathydraulicconduct,SurfaceProperties,BldgsProperties; BsoilProperties; DectrProperties; EvetrProperties; GrassProperties; NonVegetatedSurfaceProperties; PavedProperties; SurfaceProperties; VegetatedSurfaceProperties; WaterProperties,site,,,CM,SUEWS
-sfr,SurfaceProperties,BldgsProperties; BsoilProperties; DectrProperties; EvetrProperties; GrassProperties; NonVegetatedSurfaceProperties; PavedProperties; SurfaceProperties; VegetatedSurfaceProperties; WaterProperties,site,fraction_0_1,"[0,1]",C1,SUEWS
+sfr,SurfaceProperties,BldgsProperties; BsoilProperties; DectrProperties; EvetrProperties; GrassProperties; NonVegetatedSurfaceProperties; PavedProperties; SurfaceProperties; VegetatedSurfaceProperties; WaterProperties,site,fraction_0_1,"[0,1]",C0,SUEWS
 snowpacklimit,SurfaceProperties,BldgsProperties; BsoilProperties; DectrProperties; EvetrProperties; GrassProperties; NonVegetatedSurfaceProperties; PavedProperties; SurfaceProperties; VegetatedSurfaceProperties; WaterProperties,site,,,CM,SUEWS
 soildepth,SurfaceProperties,BldgsProperties; BsoilProperties; DectrProperties; EvetrProperties; GrassProperties; NonVegetatedSurfaceProperties; PavedProperties; SurfaceProperties; VegetatedSurfaceProperties; WaterProperties,site,,,CM,SUEWS
 soilstorecap,SurfaceProperties,BldgsProperties; BsoilProperties; DectrProperties; EvetrProperties; GrassProperties; NonVegetatedSurfaceProperties; PavedProperties; SurfaceProperties; VegetatedSurfaceProperties; WaterProperties,site,,,CM,SUEWS
@@ -298,9 +298,9 @@ storedrainprm,SurfaceProperties,BldgsProperties; BsoilProperties; DectrPropertie
 thermal_layers,SurfaceProperties,BldgsProperties; BsoilProperties; DectrProperties; EvetrProperties; GrassProperties; NonVegetatedSurfaceProperties; PavedProperties; SurfaceProperties; VegetatedSurfaceProperties; WaterProperties,site,,,CM,SUEWS
 waterdist,SurfaceProperties,BldgsProperties; BsoilProperties; DectrProperties; EvetrProperties; GrassProperties; NonVegetatedSurfaceProperties; PavedProperties; SurfaceProperties; VegetatedSurfaceProperties; WaterProperties,site,,,CM,SUEWS
 wetthresh,SurfaceProperties,BldgsProperties; BsoilProperties; DectrProperties; EvetrProperties; GrassProperties; NonVegetatedSurfaceProperties; PavedProperties; SurfaceProperties; VegetatedSurfaceProperties; WaterProperties,site,,,CM,SUEWS
-alb,VegetatedSurfaceProperties,DectrProperties; EvetrProperties; GrassProperties; VegetatedSurfaceProperties,site,fraction_0_1,"[0,1]",C1,SUEWS
-alb_max,VegetatedSurfaceProperties,DectrProperties; EvetrProperties; GrassProperties; VegetatedSurfaceProperties,site,fraction_0_1,"[0,1]",C1,SUEWS
-alb_min,VegetatedSurfaceProperties,DectrProperties; EvetrProperties; GrassProperties; VegetatedSurfaceProperties,site,fraction_0_1,"[0,1]",C1,SUEWS
+alb,VegetatedSurfaceProperties,DectrProperties; EvetrProperties; GrassProperties; VegetatedSurfaceProperties,site,fraction_0_1,"[0,1]",C0,SUEWS
+alb_max,VegetatedSurfaceProperties,DectrProperties; EvetrProperties; GrassProperties; VegetatedSurfaceProperties,site,fraction_0_1,"[0,1]",C0,SUEWS
+alb_min,VegetatedSurfaceProperties,DectrProperties; EvetrProperties; GrassProperties; VegetatedSurfaceProperties,site,fraction_0_1,"[0,1]",C0,SUEWS
 alpha_bioco2,VegetatedSurfaceProperties,DectrProperties; EvetrProperties; GrassProperties; VegetatedSurfaceProperties,site,,,CM,SUEWS
 alpha_enh_bioco2,VegetatedSurfaceProperties,DectrProperties; EvetrProperties; GrassProperties; VegetatedSurfaceProperties,site,,,CM,SUEWS
 beta_bioco2,VegetatedSurfaceProperties,DectrProperties; EvetrProperties; GrassProperties; VegetatedSurfaceProperties,site,,,CM,SUEWS
@@ -319,8 +319,8 @@ ie_m,VegetationParams,VegetationParams,site,,,CM,SUEWS
 lai,VegetationParams,VegetationParams,site,,,CM,SUEWS
 porosity_id,VegetationParams,VegetationParams,site,,,CM,SUEWS
 sdd_id,VegetationParams,VegetationParams,site,,,CM,SUEWS
-decidcap_id,InitialStateDectr,InitialStateDectr,state,non_negative,>=0,C1,SUEWS
-porosity_id,InitialStateDectr,InitialStateDectr,state,fraction_0_1,"[0,1]",C1,SUEWS
+decidcap_id,InitialStateDectr,InitialStateDectr,state,non_negative,>=0,C0,SUEWS
+porosity_id,InitialStateDectr,InitialStateDectr,state,fraction_0_1,"[0,1]",C0,SUEWS
 alb_id,InitialStateVeg,InitialStateDectr; InitialStateEvetr; InitialStateGrass; InitialStateVeg,state,,,CM,SUEWS
 gdd_id,InitialStateVeg,InitialStateDectr; InitialStateEvetr; InitialStateGrass; InitialStateVeg,state,,,CM,SUEWS
 lai_id,InitialStateVeg,InitialStateDectr; InitialStateEvetr; InitialStateGrass; InitialStateVeg,state,,,CM,SUEWS
@@ -332,32 +332,32 @@ dectr,InitialStates,InitialStates,state,,,CM,SUEWS
 evetr,InitialStates,InitialStates,state,,,CM,SUEWS
 grass,InitialStates,InitialStates,state,,,CM,SUEWS
 paved,InitialStates,InitialStates,state,,,CM,SUEWS
-snowalb,InitialStates,InitialStates,state,fraction_0_1,"[0,1]",C1,SUEWS
+snowalb,InitialStates,InitialStates,state,fraction_0_1,"[0,1]",C0,SUEWS
 water,InitialStates,InitialStates,state,,,CM,SUEWS
-icefrac,SurfaceInitialState,InitialStateBldgs; InitialStateBsoil; InitialStateDectr; InitialStateEvetr; InitialStateGrass; InitialStatePaved; InitialStateVeg; InitialStateWater; SurfaceInitialState,state,fraction_0_1,"[0,1]",C1,SUEWS
-snowdens,SurfaceInitialState,InitialStateBldgs; InitialStateBsoil; InitialStateDectr; InitialStateEvetr; InitialStateGrass; InitialStatePaved; InitialStateVeg; InitialStateWater; SurfaceInitialState,state,non_negative,>=0,C1,SUEWS
-snowfrac,SurfaceInitialState,InitialStateBldgs; InitialStateBsoil; InitialStateDectr; InitialStateEvetr; InitialStateGrass; InitialStatePaved; InitialStateVeg; InitialStateWater; SurfaceInitialState,state,fraction_0_1,"[0,1]",C1,SUEWS
-snowpack,SurfaceInitialState,InitialStateBldgs; InitialStateBsoil; InitialStateDectr; InitialStateEvetr; InitialStateGrass; InitialStatePaved; InitialStateVeg; InitialStateWater; SurfaceInitialState,state,non_negative,>=0,C1,SUEWS
-snowwater,SurfaceInitialState,InitialStateBldgs; InitialStateBsoil; InitialStateDectr; InitialStateEvetr; InitialStateGrass; InitialStatePaved; InitialStateVeg; InitialStateWater; SurfaceInitialState,state,non_negative,>=0,C1,SUEWS
-soilstore,SurfaceInitialState,InitialStateBldgs; InitialStateBsoil; InitialStateDectr; InitialStateEvetr; InitialStateGrass; InitialStatePaved; InitialStateVeg; InitialStateWater; SurfaceInitialState,state,,,C2,SUEWS
-state,SurfaceInitialState,InitialStateBldgs; InitialStateBsoil; InitialStateDectr; InitialStateEvetr; InitialStateGrass; InitialStatePaved; InitialStateVeg; InitialStateWater; SurfaceInitialState,state,non_negative,>=0,C1,SUEWS
+icefrac,SurfaceInitialState,InitialStateBldgs; InitialStateBsoil; InitialStateDectr; InitialStateEvetr; InitialStateGrass; InitialStatePaved; InitialStateVeg; InitialStateWater; SurfaceInitialState,state,fraction_0_1,"[0,1]",C0,SUEWS
+snowdens,SurfaceInitialState,InitialStateBldgs; InitialStateBsoil; InitialStateDectr; InitialStateEvetr; InitialStateGrass; InitialStatePaved; InitialStateVeg; InitialStateWater; SurfaceInitialState,state,non_negative,>=0,C0,SUEWS
+snowfrac,SurfaceInitialState,InitialStateBldgs; InitialStateBsoil; InitialStateDectr; InitialStateEvetr; InitialStateGrass; InitialStatePaved; InitialStateVeg; InitialStateWater; SurfaceInitialState,state,fraction_0_1,"[0,1]",C0,SUEWS
+snowpack,SurfaceInitialState,InitialStateBldgs; InitialStateBsoil; InitialStateDectr; InitialStateEvetr; InitialStateGrass; InitialStatePaved; InitialStateVeg; InitialStateWater; SurfaceInitialState,state,non_negative,>=0,C0,SUEWS
+snowwater,SurfaceInitialState,InitialStateBldgs; InitialStateBsoil; InitialStateDectr; InitialStateEvetr; InitialStateGrass; InitialStatePaved; InitialStateVeg; InitialStateWater; SurfaceInitialState,state,non_negative,>=0,C0,SUEWS
+soilstore,SurfaceInitialState,InitialStateBldgs; InitialStateBsoil; InitialStateDectr; InitialStateEvetr; InitialStateGrass; InitialStatePaved; InitialStateVeg; InitialStateWater; SurfaceInitialState,state,min_value,>=10,C1,SUEWS
+state,SurfaceInitialState,InitialStateBldgs; InitialStateBsoil; InitialStateDectr; InitialStateEvetr; InitialStateGrass; InitialStatePaved; InitialStateVeg; InitialStateWater; SurfaceInitialState,state,non_negative,>=0,C0,SUEWS
 temperature,SurfaceInitialState,InitialStateBldgs; InitialStateBsoil; InitialStateDectr; InitialStateEvetr; InitialStateGrass; InitialStatePaved; InitialStateVeg; InitialStateWater; SurfaceInitialState,state,,,CM,SUEWS
 tin,SurfaceInitialState,InitialStateBldgs; InitialStateBsoil; InitialStateDectr; InitialStateEvetr; InitialStateGrass; InitialStatePaved; InitialStateVeg; InitialStateWater; SurfaceInitialState,state,,,CM,SUEWS
 tsfc,SurfaceInitialState,InitialStateBldgs; InitialStateBsoil; InitialStateDectr; InitialStateEvetr; InitialStateGrass; InitialStatePaved; InitialStateVeg; InitialStateWater; SurfaceInitialState,state,,,CM,SUEWS
-wu_auto,WaterUse,WaterUse,state,non_negative,>=0,C1,SUEWS
-wu_manual,WaterUse,WaterUse,state,non_negative,>=0,C1,SUEWS
-wu_total,WaterUse,WaterUse,state,non_negative,>=0,C1,SUEWS
-bldgh,BldgsProperties,BldgsProperties,surface,non_negative,>=0,C1,SUEWS
-faibldg,BldgsProperties,BldgsProperties,surface,non_negative,>=0,C1,SUEWS
-alb,BuildingLayer,BuildingLayer; RoofLayer; WallLayer,surface,fraction_0_1,"[0,1]",C1,SUEWS
-emis,BuildingLayer,BuildingLayer; RoofLayer; WallLayer,surface,fraction_0_1,"[0,1]",C1,SUEWS
+wu_auto,WaterUse,WaterUse,state,non_negative,>=0,C0,SUEWS
+wu_manual,WaterUse,WaterUse,state,non_negative,>=0,C0,SUEWS
+wu_total,WaterUse,WaterUse,state,non_negative,>=0,C0,SUEWS
+bldgh,BldgsProperties,BldgsProperties,surface,non_negative,>=0,C0,SUEWS
+faibldg,BldgsProperties,BldgsProperties,surface,non_negative,>=0,C0,SUEWS
+alb,BuildingLayer,BuildingLayer; RoofLayer; WallLayer,surface,fraction_0_1,"[0,1]",C0,SUEWS
+emis,BuildingLayer,BuildingLayer; RoofLayer; WallLayer,surface,fraction_0_1,"[0,1]",C0,SUEWS
 roof_albedo_dir_mult_fact,BuildingLayer,BuildingLayer; RoofLayer; WallLayer,surface,,,CM,SUEWS
 soilstorecap,BuildingLayer,BuildingLayer; RoofLayer; WallLayer,surface,,,CM,SUEWS
 statelimit,BuildingLayer,BuildingLayer; RoofLayer; WallLayer,surface,,,CM,SUEWS
 thermal_layers,BuildingLayer,BuildingLayer; RoofLayer; WallLayer,surface,,,CM,SUEWS
 wall_specular_frac,BuildingLayer,BuildingLayer; RoofLayer; WallLayer,surface,,,CM,SUEWS
 wetthresh,BuildingLayer,BuildingLayer; RoofLayer; WallLayer,surface,,,CM,SUEWS
-alb,NonVegetatedSurfaceProperties,BldgsProperties; BsoilProperties; NonVegetatedSurfaceProperties; PavedProperties; WaterProperties,surface,fraction_0_1,"[0,1]",C1,SUEWS
+alb,NonVegetatedSurfaceProperties,BldgsProperties; BsoilProperties; NonVegetatedSurfaceProperties; PavedProperties; WaterProperties,surface,fraction_0_1,"[0,1]",C0,SUEWS
 dz,ThermalLayers,ThermalLayers,surface,,,CM,SUEWS
 k,ThermalLayers,ThermalLayers,surface,,,CM,SUEWS
 rho_cp,ThermalLayers,ThermalLayers,surface,,,CM,SUEWS

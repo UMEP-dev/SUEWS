@@ -132,6 +132,87 @@ def get_model_type(model_class_name: str) -> str:
     return "STEBBS" if model_class_name in stebbs_classes else "SUEWS"
 
 
+def categorize_parameter(param_name: str) -> str:
+    """
+    Categorise parameter based on its name and typical usage.
+
+    Categories:
+    - physics_model_option: model physics method selection parameters
+    - radiation: albedo, emissivity, radiation-related
+    - carbon: CO2, photosynthesis, vegetation growth
+    - irrigation: irrigation parameters
+    - morphology: surface geometry, fractions, heights
+    - thermal_property: thermal conductivity, heat capacity, temperature
+    - snow: snow-related parameters
+    - nd: not defined (doesn't fit clear category)
+    """
+    param_lower = param_name.lower()
+
+    # Physics model option category (check FIRST before other categories)
+    # These are parameters that control which physics methods/models to use
+    physics_option_params = {
+        'emissionsmethod', 'faimethod', 'gsmodel', 'netradiationmethod', 'ohmincqf',
+        'rcmethod', 'roughlenheatmethod', 'roughlenmommethod', 'rsllevel', 'rslmethod',
+        'smdmethod', 'snowuse', 'stabilitymethod', 'stebbsmethod', 'storageheatmethod',
+        'waterusemethod'
+    }
+    # Check exact parameter names or parameters ending with "method" (physics options)
+    if param_lower in physics_option_params or param_lower.endswith('method'):
+        return 'physics_model_option'
+
+    # Radiation category
+    radiation_keywords = ['alb', 'emis', 'radiation', 'kdown', 'ldown', 'fcld', 'zen']
+    if any(kw in param_lower for kw in radiation_keywords):
+        return 'radiation'
+
+    # Carbon/vegetation category (removed 'gsmodel' as it's now in physics_model_option)
+    carbon_keywords = ['co2', 'lai', 'photo', 'respir', 'capmax', 'capmin',
+                       'pormax', 'pormin', 'basete', 'baset', 'gddfull', 'sddfull',
+                       'leafgrowthpower', 'leafoffpower']
+    if any(kw in param_lower for kw in carbon_keywords):
+        return 'carbon'
+
+    # Irrigation category
+    irrigation_keywords = ['ie_start', 'ie_end', 'irrig', 'internalwateruse',
+                          'frautowat', 'capmaxirr', 'capminirr']
+    if any(kw in param_lower for kw in irrigation_keywords):
+        return 'irrigation'
+
+    # Morphology category (removed 'fai' as faimethod is now in physics_model_option)
+    # Note: 'fai' for frontal area index stays here
+    morphology_keywords = ['height', 'pai', 'ztree', 'zwall', 'building_scale',
+                          'building_frac', 'terrain_coverage', 'veg_frac', 'width', 'length',
+                          'zdm', 'z0m', 'surfacearea', 'porosity', 'chanohm',
+                          'cpanohm', 'frontal_area', 'plan_area', 'svf', 'ivf']
+    # Check for 'fai' but exclude 'faimethod'
+    if param_lower != 'faimethod' and 'fai' in param_lower:
+        return 'morphology'
+    if any(kw in param_lower for kw in morphology_keywords):
+        return 'morphology'
+    # Special handling for surface fraction and roughness length
+    if 'sfr' in param_lower or 'roughlen' in param_lower:
+        return 'morphology'
+
+    # Thermal property category
+    thermal_keywords = ['conductivity', 'capacity', 'thermal', 'temperature',
+                       'tsfc', 'tsurf', 'tin', 'lambda_c', 'lambda_f', 'rho_cp', 'cp']
+    # Special case: standalone 'k' or 'dz' are thermal properties
+    if param_name in ['k', 'dz'] or any(kw in param_lower for kw in thermal_keywords):
+        return 'thermal_property'
+
+    # Snow category (removed 'snow' from keywords as 'snowuse' is now in physics_model_option)
+    # Check if it's specifically snowuse (already handled above)
+    if param_lower == 'snowuse':
+        return 'physics_model_option'
+    # Other snow parameters
+    snow_keywords = ['snow', 'meltwater', 'crwmin', 'crwmax', 'precip', 'narp_trans']
+    if any(kw in param_lower for kw in snow_keywords):
+        return 'snow'
+
+    # Default: not defined
+    return 'nd'
+
+
 def find_mother_class(model_class: type[BaseModel], field_name: str) -> str:
     """
     Find the 'mother class' where a field is originally defined.
@@ -271,7 +352,8 @@ def extract_rules_from_model(
     source_file: str,
     c2_mapping: Dict[str, Set[str]],
     rule_name_to_type: Dict[str, str],
-) -> List[Tuple[str, str, str, str, str, str, str, str, str]]:
+    existing_categories: Dict[str, str],
+) -> List[Tuple[str, str, str, str, str, str, str, str, str, str]]:
     """Extract ALL validation rules from a Pydantic model class (C0, C1, C2, and CM)."""
     rules = []
     model_class_name = model_class.__name__
@@ -292,6 +374,9 @@ def extract_rules_from_model(
         rule_type, formula, rule_class = classify_rule(constraints)
         mother_class = find_mother_class(model_class, field_name)
         model_type = get_model_type(model_class_name)
+
+        # Use existing category if available (preserves manual edits), otherwise auto-categorize
+        category = existing_categories.get(field_name, categorize_parameter(field_name))
 
         # Check if this parameter has C2 rules
         c2_rule_names = c2_mapping.get(field_name, set())
@@ -323,6 +408,7 @@ def extract_rules_from_model(
 
         rules.append((
             field_name,
+            category,
             mother_class,
             model_class_name,
             source_file,
@@ -341,7 +427,8 @@ def scan_module(
     source_file: str,
     c2_mapping: Dict[str, Set[str]],
     rule_name_to_type: Dict[str, str],
-) -> List[Tuple[str, str, str, str, str, str, str, str, str]]:
+    existing_categories: Dict[str, str],
+) -> List[Tuple[str, str, str, str, str, str, str, str, str, str]]:
     """Scan a Python module for Pydantic models with validation rules."""
     try:
         module = importlib.import_module(module_name)
@@ -358,15 +445,57 @@ def scan_module(
             # Only process models defined in this module
             if obj.__module__ == module_name:
                 model_rules = extract_rules_from_model(
-                    obj, source_file, c2_mapping, rule_name_to_type
+                    obj, source_file, c2_mapping, rule_name_to_type, existing_categories
                 )
                 rules.extend(model_rules)
 
     return rules
 
 
+def load_existing_categories(csv_path: Path) -> Dict[str, str]:
+    """
+    Load existing category assignments from the CSV file.
+
+    This preserves manual edits to the category column when regenerating.
+
+    Returns:
+        Dict mapping parameter_name to category
+    """
+    existing_categories = {}
+
+    if not csv_path.exists():
+        return existing_categories
+
+    try:
+        with open(csv_path, "r", newline="") as csvfile:
+            reader = csv.reader(csvfile)
+            # Skip the two header rows
+            next(reader)  # Skip "params_info" row
+            header = next(reader)  # Read column names
+
+            # Find the column indices
+            param_idx = header.index("parameter_name")
+            category_idx = header.index("category")
+
+            for row in reader:
+                if len(row) > max(param_idx, category_idx):
+                    param_name = row[param_idx]
+                    category = row[category_idx]
+                    if param_name and category:  # Only store non-empty categories
+                        existing_categories[param_name] = category
+
+        print(f"Loaded {len(existing_categories)} existing category assignments")
+    except Exception as e:
+        print(f"Warning: Could not load existing categories: {e}", file=sys.stderr)
+
+    return existing_categories
+
+
 def generate_csv(output_path: Path):
     """Generate the CSV file with validation parameters overview."""
+    # Load existing category assignments (preserves manual edits)
+    existing_categories = load_existing_categories(output_path)
+
     # Load C2 rules mapping
     project_root = output_path.parent
     c2_rules_path = project_root / "validation_c2_rules_catalog.csv"
@@ -389,7 +518,7 @@ def generate_csv(output_path: Path):
     # Scan all modules
     for module_name, source_file in modules:
         print(f"Scanning {module_name}...")
-        rules = scan_module(module_name, source_file, c2_mapping, rule_name_to_type)
+        rules = scan_module(module_name, source_file, c2_mapping, rule_name_to_type, existing_categories)
         all_rules.extend(rules)
         print(f"  Found {len(rules)} fields")
 
@@ -402,6 +531,7 @@ def generate_csv(output_path: Path):
     for rule in all_rules:
         (
             param_name,
+            category,
             mother_class,
             child_class,
             source_file,
@@ -417,6 +547,7 @@ def generate_csv(output_path: Path):
         if key not in param_groups:
             param_groups[key] = {
                 "child_classes": set(),
+                "category": category,
                 "source_file": source_file,
                 "rule_type": rule_type,
                 "formula": formula,
@@ -441,6 +572,7 @@ def generate_csv(output_path: Path):
 
         unique_rules.append((
             param_name,
+            info["category"],
             mother_class,
             child_classes_str,
             info["source_file"],
@@ -458,7 +590,7 @@ def generate_csv(output_path: Path):
     rule_class_counts = {"C0": 0, "C1": 0, "C2": 0, "CM": 0}
     combined_count = 0
 
-    for _, _, _, _, _, _, rule_class, _, _ in unique_rules:
+    for _, _, _, _, _, _, _, rule_class, _, _ in unique_rules:
         # Split by semicolon for combined classes
         classes = [c.strip() for c in rule_class.split(";")] if rule_class else []
 
@@ -478,7 +610,7 @@ def generate_csv(output_path: Path):
         print(f"  Combined (C0/C1 + C2): {combined_count} parameters")
 
     # Sort unique rules by source_file, then mother_class, then parameter_name
-    unique_rules.sort(key=lambda x: (x[3], x[1], x[0]))
+    unique_rules.sort(key=lambda x: (x[4], x[2], x[0]))
 
     # Write to CSV
     with open(output_path, "w", newline="") as csvfile:
@@ -486,11 +618,12 @@ def generate_csv(output_path: Path):
 
         # Top-level header row - only show group name once, rest empty for cleaner look
         # (Can be manually merged in Excel/Google Sheets for visual grouping)
-        writer.writerow(["params_info", "", "", "", "", "rules_info", "", "", "", ""])
+        writer.writerow(["params_info", "", "", "", "", "", "rules_info", "", "", "", ""])
 
-        # Column headers - swapped formula and rule_name
+        # Column headers - with category between parameter_name and model
         writer.writerow([
             "parameter_name",
+            "category",
             "model",
             "source_file",
             "mother_class",
@@ -504,6 +637,7 @@ def generate_csv(output_path: Path):
 
         for (
             param_name,
+            category,
             mother_class,
             inherited_by,
             source_file,
@@ -522,6 +656,7 @@ def generate_csv(output_path: Path):
 
             writer.writerow([
                 param_name,
+                category,
                 model_type,
                 source_file,
                 mother_class,
@@ -538,7 +673,7 @@ def generate_csv(output_path: Path):
 
     # Print summary by rule_type (only for C0)
     rule_type_counts = {}
-    for _, _, _, _, rule_type, _, rule_class, _, _ in unique_rules:
+    for _, _, _, _, _, rule_type, _, rule_class, _, _ in unique_rules:
         if rule_class == "C0" and rule_type:
             rule_type_counts[rule_type] = rule_type_counts.get(rule_type, 0) + 1
 
@@ -546,9 +681,18 @@ def generate_csv(output_path: Path):
     for rule_type, count in sorted(rule_type_counts.items(), key=lambda x: -x[1]):
         print(f"  {rule_type}: {count}")
 
+    # Print summary by category
+    category_counts = {}
+    for _, category, _, _, _, _, _, _, _, _ in unique_rules:
+        category_counts[category] = category_counts.get(category, 0) + 1
+
+    print("\nBreakdown by category:")
+    for category, count in sorted(category_counts.items(), key=lambda x: -x[1]):
+        print(f"  {category}: {count}")
+
     # Print summary by model type
     model_counts = {}
-    for _, _, _, _, _, _, _, model_type, _ in unique_rules:
+    for _, _, _, _, _, _, _, _, model_type, _ in unique_rules:
         model_counts[model_type] = model_counts.get(model_type, 0) + 1
 
     print("\nBreakdown by model:")
@@ -559,7 +703,7 @@ def generate_csv(output_path: Path):
     final_rule_class_counts = {"C0": 0, "C1": 0, "C2": 0, "CM": 0}
     final_combined_count = 0
 
-    for _, _, _, _, _, _, rule_class, _, _ in unique_rules:
+    for _, _, _, _, _, _, _, rule_class, _, _ in unique_rules:
         # Split by semicolon for combined classes
         classes = [c.strip() for c in rule_class.split(";")] if rule_class else []
 

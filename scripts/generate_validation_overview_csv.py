@@ -359,10 +359,10 @@ def scan_module(module_name: str, source_file: str, c2_mapping: Dict[str, Set[st
 
 
 def generate_csv(output_path: Path):
-    """Generate the CSV file with fundamental validation rules."""
+    """Generate the CSV file with validation parameters overview."""
     # Load C2 rules mapping
     project_root = output_path.parent
-    c2_rules_path = project_root / 'complex_validation_rules.csv'
+    c2_rules_path = project_root / 'validation_c2_rules_catalog.csv'
     c2_mapping, rule_name_to_type = load_c2_rules_mapping(c2_rules_path)
     print(f"Loaded C2 rules for {len(c2_mapping)} parameters")
 
@@ -552,9 +552,9 @@ def main():
     sys.path.insert(0, str(project_root / 'src'))
 
     # Output path
-    output_path = project_root / 'fundamental_validation_rules.csv'
+    output_path = project_root / 'validation_parameters_overview.csv'
 
-    print("Generating fundamental validation rules CSV...")
+    print("Generating validation parameters overview CSV...")
     print(f"Project root: {project_root}")
     print()
 

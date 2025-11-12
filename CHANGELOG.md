@@ -34,8 +34,13 @@
 
 ## 2025
 
+### 12 Nov 2025
+- [feature] Added irrigation year-wrapping pattern detection
+  - Warns for unusual patterns (NH: ie_start > ie_end; SH: ie_start < ie_end)
+  - Integrated into Phase B scientific validation pipeline
+
 ### 11 Nov 2025
-- [feature] Added irrigation parameter validation 
+- [feature] Added irrigation parameter validation
   - Validates `ie_start` and `ie_end` for DOY range, consistency, and hemisphere-aware seasonal appropriateness
   - NH (lat ≥ 23.5°): warm season DOY 121-273; SH (lat ≤ -23.5°): DOY 305-90; Tropics (|lat| < 23.5°): year-round
   - Integrated into Phase B scientific validation pipeline

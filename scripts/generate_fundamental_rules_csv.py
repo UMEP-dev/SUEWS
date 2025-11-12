@@ -357,18 +357,18 @@ def generate_csv(output_path: Path):
     # Write to CSV
     with open(output_path, 'w', newline='') as csvfile:
         writer = csv.writer(csvfile)
-        writer.writerow(['parameter_name', 'mother_class', 'inherited_by', 'source_file', 'rule_type', 'formula', 'rule_class', 'model'])
+        writer.writerow(['parameter_name', 'model', 'source_file', 'mother_class', 'inherited_by', 'rule_class', 'rule_type', 'formula'])
 
         for param_name, mother_class, inherited_by, source_file, rule_type, formula, rule_class, model_type in unique_rules:
             writer.writerow([
                 param_name,
+                model_type,
+                source_file,
                 mother_class,
                 inherited_by,
-                source_file,
-                rule_type,
-                formula,
                 rule_class,
-                model_type
+                rule_type,
+                formula
             ])
 
     print(f"\nTotal: {len(unique_rules)} parameters")

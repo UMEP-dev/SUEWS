@@ -58,33 +58,33 @@ to_water,SUEWS,hydro,WaterDistribution,WaterDistribution,C/Pydantic,C0,fraction_
 control,SUEWS,model,Model,Model,,CM,,,
 physics,SUEWS,model,Model,Model,,CM,,,
 end_time,SUEWS,model,ModelControl,ModelControl,,CM,,,
-forcing_file,SUEWS,model,ModelControl,ModelControl,C/Pydantic,C2,radiation_forcing_compatibility,radiation_forcing_compatibility,
+forcing_file,SUEWS,model,ModelControl,ModelControl,C/Pydantic,C2,cross_parameter,radiation_forcing_compatibility,
 output_file,SUEWS,model,ModelControl,ModelControl,,CM,,,
 start_time,SUEWS,model,ModelControl,ModelControl,,CM,,,
-tstep,SUEWS,model,ModelControl,ModelControl,C/Pydantic,C2,numeric_type_conversion; output_config_validation,numeric_type_conversion; output_config_validation,
-emissionsmethod,SUEWS,model,ModelPhysics,ModelPhysics,C/Pydantic,C2,critical_physics_nonnull,critical_physics_nonnull,
-faimethod,SUEWS,model,ModelPhysics,ModelPhysics,C/Pydantic,C2,critical_physics_nonnull,critical_physics_nonnull,
-gsmodel,SUEWS,model,ModelPhysics,ModelPhysics,C/Pydantic,C2,critical_physics_nonnull,critical_physics_nonnull,
-netradiationmethod,SUEWS,model,ModelPhysics,ModelPhysics,C/Pydantic,C2,critical_physics_nonnull; radiation_forcing_compatibility,critical_physics_nonnull; radiation_forcing_compatibility,
-ohmincqf,SUEWS,model,ModelPhysics,ModelPhysics,C/Pydantic,C2,critical_physics_nonnull,critical_physics_nonnull,
+tstep,SUEWS,model,ModelControl,ModelControl,C/Pydantic,C2,field_transformation; physical_constraint,numeric_type_conversion; output_config_validation,
+emissionsmethod,SUEWS,model,ModelPhysics,ModelPhysics,C/Pydantic,C2,conditional_required,critical_physics_nonnull,
+faimethod,SUEWS,model,ModelPhysics,ModelPhysics,C/Pydantic,C2,conditional_required,critical_physics_nonnull,
+gsmodel,SUEWS,model,ModelPhysics,ModelPhysics,C/Pydantic,C2,conditional_required,critical_physics_nonnull,
+netradiationmethod,SUEWS,model,ModelPhysics,ModelPhysics,C/Pydantic,C2,conditional_required; cross_parameter,critical_physics_nonnull; radiation_forcing_compatibility,
+ohmincqf,SUEWS,model,ModelPhysics,ModelPhysics,C/Pydantic,C2,conditional_required,critical_physics_nonnull,
 rcmethod,SUEWS,model,ModelPhysics,ModelPhysics,,CM,,,
-roughlenheatmethod,SUEWS,model,ModelPhysics,ModelPhysics,C/Pydantic,C2,critical_physics_nonnull,critical_physics_nonnull,
-roughlenmommethod,SUEWS,model,ModelPhysics,ModelPhysics,C/Pydantic,C2,critical_physics_nonnull,critical_physics_nonnull,
-rsllevel,SUEWS,model,ModelPhysics,ModelPhysics,C/Pydantic,C2,critical_physics_nonnull,critical_physics_nonnull,
-rslmethod,SUEWS,model,ModelPhysics,ModelPhysics,C/Pydantic,C2,critical_physics_nonnull,critical_physics_nonnull,
-smdmethod,SUEWS,model,ModelPhysics,ModelPhysics,C/Pydantic,C2,critical_physics_nonnull,critical_physics_nonnull,
-snowuse,SUEWS,model,ModelPhysics,ModelPhysics,C/Pydantic,C2,critical_physics_nonnull,critical_physics_nonnull,
-stabilitymethod,SUEWS,model,ModelPhysics,ModelPhysics,C/Pydantic,C2,critical_physics_nonnull,critical_physics_nonnull,
-stebbsmethod,SUEWS,model,ModelPhysics,ModelPhysics,C/Pydantic,C2,critical_physics_nonnull,critical_physics_nonnull,
-storageheatmethod,SUEWS,model,ModelPhysics,ModelPhysics,C/Pydantic,C2,critical_physics_nonnull,critical_physics_nonnull,
-waterusemethod,SUEWS,model,ModelPhysics,ModelPhysics,C/Pydantic,C2,critical_physics_nonnull,critical_physics_nonnull,
+roughlenheatmethod,SUEWS,model,ModelPhysics,ModelPhysics,C/Pydantic,C2,conditional_required,critical_physics_nonnull,
+roughlenmommethod,SUEWS,model,ModelPhysics,ModelPhysics,C/Pydantic,C2,conditional_required,critical_physics_nonnull,
+rsllevel,SUEWS,model,ModelPhysics,ModelPhysics,C/Pydantic,C2,conditional_required,critical_physics_nonnull,
+rslmethod,SUEWS,model,ModelPhysics,ModelPhysics,C/Pydantic,C2,conditional_required,critical_physics_nonnull,
+smdmethod,SUEWS,model,ModelPhysics,ModelPhysics,C/Pydantic,C2,conditional_required,critical_physics_nonnull,
+snowuse,SUEWS,model,ModelPhysics,ModelPhysics,C/Pydantic,C2,conditional_required,critical_physics_nonnull,
+stabilitymethod,SUEWS,model,ModelPhysics,ModelPhysics,C/Pydantic,C2,conditional_required,critical_physics_nonnull,
+stebbsmethod,SUEWS,model,ModelPhysics,ModelPhysics,C/Pydantic,C2,conditional_required,critical_physics_nonnull,
+storageheatmethod,SUEWS,model,ModelPhysics,ModelPhysics,C/Pydantic,C2,conditional_required,critical_physics_nonnull,
+waterusemethod,SUEWS,model,ModelPhysics,ModelPhysics,C/Pydantic,C2,conditional_required,critical_physics_nonnull,
 format,SUEWS,model,OutputConfig,OutputConfig,,CM,,,
-freq,SUEWS,model,OutputConfig,OutputConfig,C/Pydantic,C2,output_config_validation,output_config_validation,
+freq,SUEWS,model,OutputConfig,OutputConfig,C/Pydantic,C2,physical_constraint,output_config_validation,
 path,SUEWS,model,OutputConfig,OutputConfig,,CM,,,
-holiday,SUEWS,profile,DayProfile,DayProfile,C/Pydantic,C2,schedule_validation,schedule_validation,
-working_day,SUEWS,profile,DayProfile,DayProfile,C/Pydantic,C2,schedule_validation,schedule_validation,
-holiday,SUEWS,profile,HourlyProfile,HourlyProfile,C/Pydantic,C2,schedule_validation,schedule_validation,
-working_day,SUEWS,profile,HourlyProfile,HourlyProfile,C/Pydantic,C2,schedule_validation,schedule_validation,
+holiday,SUEWS,profile,DayProfile,DayProfile,C/Pydantic,C2,field_transformation,schedule_validation,
+working_day,SUEWS,profile,DayProfile,DayProfile,C/Pydantic,C2,field_transformation,schedule_validation,
+holiday,SUEWS,profile,HourlyProfile,HourlyProfile,C/Pydantic,C2,field_transformation,schedule_validation,
+working_day,SUEWS,profile,HourlyProfile,HourlyProfile,C/Pydantic,C2,field_transformation,schedule_validation,
 friday,SUEWS,profile,WeeklyProfile,WeeklyProfile,,CM,,,
 monday,SUEWS,profile,WeeklyProfile,WeeklyProfile,,CM,,,
 saturday,SUEWS,profile,WeeklyProfile,WeeklyProfile,,CM,,,
@@ -210,16 +210,16 @@ gridiv,SUEWS,site,Site,Site,,CM,,,
 initial_states,SUEWS,site,Site,Site,,CM,,,
 name,SUEWS,site,Site,Site,,CM,,,
 properties,SUEWS,site,Site,Site,,CM,,,
-alt,SUEWS,site,SiteProperties,SiteProperties,C/Pydantic,C0; C2,positive; site_required_fields,site_required_fields,>0
+alt,SUEWS,site,SiteProperties,SiteProperties,C/Pydantic,C0; C2,positive; conditional_required,site_required_fields,>0
 anthropogenic_emissions,SUEWS,site,SiteProperties,SiteProperties,,CM,,,
 building_archetype,SUEWS,site,SiteProperties,SiteProperties,,CM,,,
 conductance,SUEWS,site,SiteProperties,SiteProperties,,CM,,,
 h_std,SUEWS,site,SiteProperties,SiteProperties,,CM,,,
 irrigation,SUEWS,site,SiteProperties,SiteProperties,,CM,,,
-lambda_c,SUEWS,site,SiteProperties,SiteProperties,C/Pydantic,C0; C2,non_negative; storage_validation,storage_validation,>=0
+lambda_c,SUEWS,site,SiteProperties,SiteProperties,C/Pydantic,C0; C2,non_negative; conditional_required,storage_validation,>=0
 land_cover,SUEWS,site,SiteProperties,SiteProperties,,CM,,,
-lat,SUEWS,site,SiteProperties,SiteProperties,C/Pydantic,C1; C2,range; site_required_fields,site_required_fields,"[-90,90]"
-lng,SUEWS,site,SiteProperties,SiteProperties,C/Pydantic,C1; C2,range; site_required_fields,site_required_fields,"[-180,180]"
+lat,SUEWS,site,SiteProperties,SiteProperties,C/Pydantic,C1; C2,range; conditional_required,site_required_fields,"[-90,90]"
+lng,SUEWS,site,SiteProperties,SiteProperties,C/Pydantic,C1; C2,range; conditional_required,site_required_fields,"[-180,180]"
 lumps,SUEWS,site,SiteProperties,SiteProperties,,CM,,,
 n_buildings,SUEWS,site,SiteProperties,SiteProperties,,CM,,,
 narp_trans_site,SUEWS,site,SiteProperties,SiteProperties,,CM,,,
@@ -229,11 +229,11 @@ snow,SUEWS,site,SiteProperties,SiteProperties,,CM,,,
 spartacus,SUEWS,site,SiteProperties,SiteProperties,,CM,,,
 stebbs,SUEWS,site,SiteProperties,SiteProperties,,CM,,,
 surfacearea,SUEWS,site,SiteProperties,SiteProperties,C/Pydantic,C0,positive,,>0
-timezone,SUEWS,site,SiteProperties,SiteProperties,C/Pydantic,C2,site_required_fields; timezone_enum_conversion,site_required_fields; timezone_enum_conversion,
+timezone,SUEWS,site,SiteProperties,SiteProperties,C/Pydantic,C2,conditional_required; field_transformation,site_required_fields; timezone_enum_conversion,
 vertical_layers,SUEWS,site,SiteProperties,SiteProperties,,CM,,,
 z,SUEWS,site,SiteProperties,SiteProperties,C/Pydantic,C0,positive,,>0
-z0m_in,SUEWS,site,SiteProperties,SiteProperties,C/Pydantic,C0; C2,positive; site_required_fields,site_required_fields,>0
-zdm_in,SUEWS,site,SiteProperties,SiteProperties,C/Pydantic,C0; C2,positive; site_required_fields,site_required_fields,>0
+z0m_in,SUEWS,site,SiteProperties,SiteProperties,C/Pydantic,C0; C2,positive; conditional_required,site_required_fields,>0
+zdm_in,SUEWS,site,SiteProperties,SiteProperties,C/Pydantic,C0; C2,positive; conditional_required,site_required_fields,>0
 crwmax,SUEWS,site,SnowParams,SnowParams,,CM,,,
 crwmin,SUEWS,site,SnowParams,SnowParams,,CM,,,
 narp_emis_snow,SUEWS,site,SnowParams,SnowParams,,CM,,,
@@ -251,76 +251,76 @@ tau_a,SUEWS,site,SnowParams,SnowParams,,CM,,,
 tau_f,SUEWS,site,SnowParams,SnowParams,,CM,,,
 tau_r,SUEWS,site,SnowParams,SnowParams,,CM,,,
 tempmeltfact,SUEWS,site,SnowParams,SnowParams,,CM,,,
-ApplianceRating,STEBBS,site,StebbsProperties,StebbsProperties,C/Pydantic,C0; C2,non_negative; stebbs_completeness,stebbs_completeness,>=0
-ApplianceUsageFactor,STEBBS,site,StebbsProperties,StebbsProperties,C/Pydantic,C0; C2,fraction_0_1; stebbs_completeness,stebbs_completeness,"[0,1]"
-CoolingSystemCOP,STEBBS,site,StebbsProperties,StebbsProperties,C/Pydantic,C0; C2,non_negative; stebbs_completeness,stebbs_completeness,>=0
-DHWDensity,STEBBS,site,StebbsProperties,StebbsProperties,C/Pydantic,C0; C2,positive; stebbs_completeness,stebbs_completeness,>0
-DHWDrainFlowRate,STEBBS,site,StebbsProperties,StebbsProperties,C/Pydantic,C0; C2,non_negative; stebbs_completeness,stebbs_completeness,>=0
-DHWSpecificHeatCapacity,STEBBS,site,StebbsProperties,StebbsProperties,C/Pydantic,C0; C2,positive; stebbs_completeness,stebbs_completeness,>0
-DHWSurfaceArea,STEBBS,site,StebbsProperties,StebbsProperties,C/Pydantic,C0; C2,positive; stebbs_completeness,stebbs_completeness,>0
-DHWVesselDensity,STEBBS,site,StebbsProperties,StebbsProperties,C/Pydantic,C0; C2,positive; stebbs_completeness,stebbs_completeness,>0
-DHWVesselEmissivity,STEBBS,site,StebbsProperties,StebbsProperties,C/Pydantic,C0; C2,fraction_0_1; stebbs_completeness,stebbs_completeness,"[0,1]"
-DHWVesselExternalWallConvectionCoefficient,STEBBS,site,StebbsProperties,StebbsProperties,C/Pydantic,C2,stebbs_completeness,stebbs_completeness,
-DHWVesselInternalWallConvectionCoefficient,STEBBS,site,StebbsProperties,StebbsProperties,C/Pydantic,C2,stebbs_completeness,stebbs_completeness,
-DHWVesselSpecificHeatCapacity,STEBBS,site,StebbsProperties,StebbsProperties,C/Pydantic,C0; C2,positive; stebbs_completeness,stebbs_completeness,>0
-DHWVesselWallConductivity,STEBBS,site,StebbsProperties,StebbsProperties,C/Pydantic,C0; C2,positive; stebbs_completeness,stebbs_completeness,>0
-DHWVesselWallEmissivity,STEBBS,site,StebbsProperties,StebbsProperties,C/Pydantic,C1; C2,range; stebbs_completeness,stebbs_completeness,"(0,1]"
-DHWVesselWallThickness,STEBBS,site,StebbsProperties,StebbsProperties,C/Pydantic,C0; C2,positive; stebbs_completeness,stebbs_completeness,>0
-DHWWaterVolume,STEBBS,site,StebbsProperties,StebbsProperties,C/Pydantic,C0; C2,positive; stebbs_completeness,stebbs_completeness,>0
-DomesticHotWaterTemperatureInUseInBuilding,STEBBS,site,StebbsProperties,StebbsProperties,C/Pydantic,C0; C2,positive; stebbs_completeness,stebbs_completeness,>0
-ExternalGroundConductivity,STEBBS,site,StebbsProperties,StebbsProperties,C/Pydantic,C2,stebbs_completeness,stebbs_completeness,
-ExternalWallDHWVesselTemperature,STEBBS,site,StebbsProperties,StebbsProperties,C/Pydantic,C2,stebbs_completeness,stebbs_completeness,
-ExternalWallWaterTankTemperature,STEBBS,site,StebbsProperties,StebbsProperties,C/Pydantic,C2,stebbs_completeness,stebbs_completeness,
-FloorInternalConvectionCoefficient,STEBBS,site,StebbsProperties,StebbsProperties,C/Pydantic,C0; C2,positive; stebbs_completeness,stebbs_completeness,>0
-GroundDepth,STEBBS,site,StebbsProperties,StebbsProperties,C/Pydantic,C2,stebbs_completeness,stebbs_completeness,
-GroundFloorIndoorSurfaceTemperature,STEBBS,site,StebbsProperties,StebbsProperties,C/Pydantic,C2,stebbs_completeness,stebbs_completeness,
-GroundFloorOutdoorSurfaceTemperature,STEBBS,site,StebbsProperties,StebbsProperties,C/Pydantic,C2,stebbs_completeness,stebbs_completeness,
-HeatingSystemEfficiency,STEBBS,site,StebbsProperties,StebbsProperties,C/Pydantic,C0; C2,fraction_0_1; stebbs_completeness,stebbs_completeness,"[0,1]"
-HotWaterFlowRate,STEBBS,site,StebbsProperties,StebbsProperties,C/Pydantic,C0; C2,non_negative; stebbs_completeness,stebbs_completeness,>=0
-HotWaterHeatingEfficiency,STEBBS,site,StebbsProperties,StebbsProperties,C/Pydantic,C0; C2,fraction_0_1; stebbs_completeness,stebbs_completeness,"[0,1]"
-HotWaterHeatingSetpointTemperature,STEBBS,site,StebbsProperties,StebbsProperties,C/Pydantic,C0; C2,positive; stebbs_completeness,stebbs_completeness,>0
-HotWaterTankBuildingWallViewFactor,STEBBS,site,StebbsProperties,StebbsProperties,C/Pydantic,C0; C2,fraction_0_1; stebbs_completeness,stebbs_completeness,"[0,1]"
-HotWaterTankExternalWallConvectionCoefficient,STEBBS,site,StebbsProperties,StebbsProperties,C/Pydantic,C2,stebbs_completeness,stebbs_completeness,
-HotWaterTankInternalMassViewFactor,STEBBS,site,StebbsProperties,StebbsProperties,C/Pydantic,C0; C2,fraction_0_1; stebbs_completeness,stebbs_completeness,"[0,1]"
-HotWaterTankInternalWallConvectionCoefficient,STEBBS,site,StebbsProperties,StebbsProperties,C/Pydantic,C2,stebbs_completeness,stebbs_completeness,
-HotWaterTankSpecificHeatCapacity,STEBBS,site,StebbsProperties,StebbsProperties,C/Pydantic,C0; C2,positive; stebbs_completeness,stebbs_completeness,>0
-HotWaterTankWallConductivity,STEBBS,site,StebbsProperties,StebbsProperties,C/Pydantic,C0; C2,positive; stebbs_completeness,stebbs_completeness,>0
-HotWaterTankWallDensity,STEBBS,site,StebbsProperties,StebbsProperties,C/Pydantic,C0; C2,positive; stebbs_completeness,stebbs_completeness,>0
-HotWaterTankWallEmissivity,STEBBS,site,StebbsProperties,StebbsProperties,C/Pydantic,C0; C2,fraction_0_1; stebbs_completeness,stebbs_completeness,"[0,1]"
-IndoorAirCp,STEBBS,site,StebbsProperties,StebbsProperties,C/Pydantic,C0; C2,positive; stebbs_completeness,stebbs_completeness,>0
-IndoorAirDensity,STEBBS,site,StebbsProperties,StebbsProperties,C/Pydantic,C0; C2,positive; stebbs_completeness,stebbs_completeness,>0
-IndoorAirStartTemperature,STEBBS,site,StebbsProperties,StebbsProperties,C/Pydantic,C2,stebbs_completeness,stebbs_completeness,
-IndoorMassStartTemperature,STEBBS,site,StebbsProperties,StebbsProperties,C/Pydantic,C2,stebbs_completeness,stebbs_completeness,
-InternalMassConvectionCoefficient,STEBBS,site,StebbsProperties,StebbsProperties,C/Pydantic,C0; C2,positive; stebbs_completeness,stebbs_completeness,>0
-InternalWallDHWVesselTemperature,STEBBS,site,StebbsProperties,StebbsProperties,C/Pydantic,C2,stebbs_completeness,stebbs_completeness,
-InternalWallWaterTankTemperature,STEBBS,site,StebbsProperties,StebbsProperties,C/Pydantic,C2,stebbs_completeness,stebbs_completeness,
-LatentSensibleRatio,STEBBS,site,StebbsProperties,StebbsProperties,C/Pydantic,C0; C2,non_negative; stebbs_completeness,stebbs_completeness,>=0
-MainsWaterTemperature,STEBBS,site,StebbsProperties,StebbsProperties,C/Pydantic,C2,stebbs_completeness,stebbs_completeness,
-MaxCoolingPower,STEBBS,site,StebbsProperties,StebbsProperties,C/Pydantic,C0; C2,non_negative; stebbs_completeness,stebbs_completeness,>=0
-MetabolicRate,STEBBS,site,StebbsProperties,StebbsProperties,C/Pydantic,C0; C2,non_negative; stebbs_completeness,stebbs_completeness,>=0
-MinimumVolumeOfDHWinUse,STEBBS,site,StebbsProperties,StebbsProperties,C/Pydantic,C0; C2,non_negative; stebbs_completeness,stebbs_completeness,>=0
+ApplianceRating,STEBBS,site,StebbsProperties,StebbsProperties,C/Pydantic,C0; C2,non_negative; conditional_required,stebbs_completeness,>=0
+ApplianceUsageFactor,STEBBS,site,StebbsProperties,StebbsProperties,C/Pydantic,C0; C2,fraction_0_1; conditional_required,stebbs_completeness,"[0,1]"
+CoolingSystemCOP,STEBBS,site,StebbsProperties,StebbsProperties,C/Pydantic,C0; C2,non_negative; conditional_required,stebbs_completeness,>=0
+DHWDensity,STEBBS,site,StebbsProperties,StebbsProperties,C/Pydantic,C0; C2,positive; conditional_required,stebbs_completeness,>0
+DHWDrainFlowRate,STEBBS,site,StebbsProperties,StebbsProperties,C/Pydantic,C0; C2,non_negative; conditional_required,stebbs_completeness,>=0
+DHWSpecificHeatCapacity,STEBBS,site,StebbsProperties,StebbsProperties,C/Pydantic,C0; C2,positive; conditional_required,stebbs_completeness,>0
+DHWSurfaceArea,STEBBS,site,StebbsProperties,StebbsProperties,C/Pydantic,C0; C2,positive; conditional_required,stebbs_completeness,>0
+DHWVesselDensity,STEBBS,site,StebbsProperties,StebbsProperties,C/Pydantic,C0; C2,positive; conditional_required,stebbs_completeness,>0
+DHWVesselEmissivity,STEBBS,site,StebbsProperties,StebbsProperties,C/Pydantic,C0; C2,fraction_0_1; conditional_required,stebbs_completeness,"[0,1]"
+DHWVesselExternalWallConvectionCoefficient,STEBBS,site,StebbsProperties,StebbsProperties,C/Pydantic,C2,conditional_required,stebbs_completeness,
+DHWVesselInternalWallConvectionCoefficient,STEBBS,site,StebbsProperties,StebbsProperties,C/Pydantic,C2,conditional_required,stebbs_completeness,
+DHWVesselSpecificHeatCapacity,STEBBS,site,StebbsProperties,StebbsProperties,C/Pydantic,C0; C2,positive; conditional_required,stebbs_completeness,>0
+DHWVesselWallConductivity,STEBBS,site,StebbsProperties,StebbsProperties,C/Pydantic,C0; C2,positive; conditional_required,stebbs_completeness,>0
+DHWVesselWallEmissivity,STEBBS,site,StebbsProperties,StebbsProperties,C/Pydantic,C1; C2,range; conditional_required,stebbs_completeness,"(0,1]"
+DHWVesselWallThickness,STEBBS,site,StebbsProperties,StebbsProperties,C/Pydantic,C0; C2,positive; conditional_required,stebbs_completeness,>0
+DHWWaterVolume,STEBBS,site,StebbsProperties,StebbsProperties,C/Pydantic,C0; C2,positive; conditional_required,stebbs_completeness,>0
+DomesticHotWaterTemperatureInUseInBuilding,STEBBS,site,StebbsProperties,StebbsProperties,C/Pydantic,C0; C2,positive; conditional_required,stebbs_completeness,>0
+ExternalGroundConductivity,STEBBS,site,StebbsProperties,StebbsProperties,C/Pydantic,C2,conditional_required,stebbs_completeness,
+ExternalWallDHWVesselTemperature,STEBBS,site,StebbsProperties,StebbsProperties,C/Pydantic,C2,conditional_required,stebbs_completeness,
+ExternalWallWaterTankTemperature,STEBBS,site,StebbsProperties,StebbsProperties,C/Pydantic,C2,conditional_required,stebbs_completeness,
+FloorInternalConvectionCoefficient,STEBBS,site,StebbsProperties,StebbsProperties,C/Pydantic,C0; C2,positive; conditional_required,stebbs_completeness,>0
+GroundDepth,STEBBS,site,StebbsProperties,StebbsProperties,C/Pydantic,C2,conditional_required,stebbs_completeness,
+GroundFloorIndoorSurfaceTemperature,STEBBS,site,StebbsProperties,StebbsProperties,C/Pydantic,C2,conditional_required,stebbs_completeness,
+GroundFloorOutdoorSurfaceTemperature,STEBBS,site,StebbsProperties,StebbsProperties,C/Pydantic,C2,conditional_required,stebbs_completeness,
+HeatingSystemEfficiency,STEBBS,site,StebbsProperties,StebbsProperties,C/Pydantic,C0; C2,fraction_0_1; conditional_required,stebbs_completeness,"[0,1]"
+HotWaterFlowRate,STEBBS,site,StebbsProperties,StebbsProperties,C/Pydantic,C0; C2,non_negative; conditional_required,stebbs_completeness,>=0
+HotWaterHeatingEfficiency,STEBBS,site,StebbsProperties,StebbsProperties,C/Pydantic,C0; C2,fraction_0_1; conditional_required,stebbs_completeness,"[0,1]"
+HotWaterHeatingSetpointTemperature,STEBBS,site,StebbsProperties,StebbsProperties,C/Pydantic,C0; C2,positive; conditional_required,stebbs_completeness,>0
+HotWaterTankBuildingWallViewFactor,STEBBS,site,StebbsProperties,StebbsProperties,C/Pydantic,C0; C2,fraction_0_1; conditional_required,stebbs_completeness,"[0,1]"
+HotWaterTankExternalWallConvectionCoefficient,STEBBS,site,StebbsProperties,StebbsProperties,C/Pydantic,C2,conditional_required,stebbs_completeness,
+HotWaterTankInternalMassViewFactor,STEBBS,site,StebbsProperties,StebbsProperties,C/Pydantic,C0; C2,fraction_0_1; conditional_required,stebbs_completeness,"[0,1]"
+HotWaterTankInternalWallConvectionCoefficient,STEBBS,site,StebbsProperties,StebbsProperties,C/Pydantic,C2,conditional_required,stebbs_completeness,
+HotWaterTankSpecificHeatCapacity,STEBBS,site,StebbsProperties,StebbsProperties,C/Pydantic,C0; C2,positive; conditional_required,stebbs_completeness,>0
+HotWaterTankWallConductivity,STEBBS,site,StebbsProperties,StebbsProperties,C/Pydantic,C0; C2,positive; conditional_required,stebbs_completeness,>0
+HotWaterTankWallDensity,STEBBS,site,StebbsProperties,StebbsProperties,C/Pydantic,C0; C2,positive; conditional_required,stebbs_completeness,>0
+HotWaterTankWallEmissivity,STEBBS,site,StebbsProperties,StebbsProperties,C/Pydantic,C0; C2,fraction_0_1; conditional_required,stebbs_completeness,"[0,1]"
+IndoorAirCp,STEBBS,site,StebbsProperties,StebbsProperties,C/Pydantic,C0; C2,positive; conditional_required,stebbs_completeness,>0
+IndoorAirDensity,STEBBS,site,StebbsProperties,StebbsProperties,C/Pydantic,C0; C2,positive; conditional_required,stebbs_completeness,>0
+IndoorAirStartTemperature,STEBBS,site,StebbsProperties,StebbsProperties,C/Pydantic,C2,conditional_required,stebbs_completeness,
+IndoorMassStartTemperature,STEBBS,site,StebbsProperties,StebbsProperties,C/Pydantic,C2,conditional_required,stebbs_completeness,
+InternalMassConvectionCoefficient,STEBBS,site,StebbsProperties,StebbsProperties,C/Pydantic,C0; C2,positive; conditional_required,stebbs_completeness,>0
+InternalWallDHWVesselTemperature,STEBBS,site,StebbsProperties,StebbsProperties,C/Pydantic,C2,conditional_required,stebbs_completeness,
+InternalWallWaterTankTemperature,STEBBS,site,StebbsProperties,StebbsProperties,C/Pydantic,C2,conditional_required,stebbs_completeness,
+LatentSensibleRatio,STEBBS,site,StebbsProperties,StebbsProperties,C/Pydantic,C0; C2,non_negative; conditional_required,stebbs_completeness,>=0
+MainsWaterTemperature,STEBBS,site,StebbsProperties,StebbsProperties,C/Pydantic,C2,conditional_required,stebbs_completeness,
+MaxCoolingPower,STEBBS,site,StebbsProperties,StebbsProperties,C/Pydantic,C0; C2,non_negative; conditional_required,stebbs_completeness,>=0
+MetabolicRate,STEBBS,site,StebbsProperties,StebbsProperties,C/Pydantic,C0; C2,non_negative; conditional_required,stebbs_completeness,>=0
+MinimumVolumeOfDHWinUse,STEBBS,site,StebbsProperties,StebbsProperties,C/Pydantic,C0; C2,non_negative; conditional_required,stebbs_completeness,>=0
 OutdoorAirAnnualTemperature,STEBBS,site,StebbsProperties,StebbsProperties,,CM,,,
 OutdoorAirStartTemperature,STEBBS,site,StebbsProperties,StebbsProperties,,CM,,,
 RoofExternalConvectionCoefficient,STEBBS,site,StebbsProperties,StebbsProperties,C/Pydantic,C0,positive,,>0
 RoofIndoorSurfaceTemperature,STEBBS,site,StebbsProperties,StebbsProperties,,CM,,,
 RoofInternalConvectionCoefficient,STEBBS,site,StebbsProperties,StebbsProperties,C/Pydantic,C0,positive,,>0
 RoofOutdoorSurfaceTemperature,STEBBS,site,StebbsProperties,StebbsProperties,,CM,,,
-TotalNumberofAppliances,STEBBS,site,StebbsProperties,StebbsProperties,C/Pydantic,C0; C2,non_negative; stebbs_completeness,stebbs_completeness,>=0
-VentilationRate,STEBBS,site,StebbsProperties,StebbsProperties,C/Pydantic,C0; C2,non_negative; stebbs_completeness,stebbs_completeness,>=0
-WallBuildingViewFactor,STEBBS,site,StebbsProperties,StebbsProperties,C/Pydantic,C0; C2,fraction_0_1; stebbs_completeness,stebbs_completeness,"[0,1]"
-WallExternalConvectionCoefficient,STEBBS,site,StebbsProperties,StebbsProperties,C/Pydantic,C0; C2,positive; stebbs_completeness,stebbs_completeness,>0
-WallGroundViewFactor,STEBBS,site,StebbsProperties,StebbsProperties,C/Pydantic,C0; C2,fraction_0_1; stebbs_completeness,stebbs_completeness,"[0,1]"
-WallIndoorSurfaceTemperature,STEBBS,site,StebbsProperties,StebbsProperties,C/Pydantic,C2,stebbs_completeness,stebbs_completeness,
-WallInternalConvectionCoefficient,STEBBS,site,StebbsProperties,StebbsProperties,C/Pydantic,C0; C2,positive; stebbs_completeness,stebbs_completeness,>0
-WallOutdoorSurfaceTemperature,STEBBS,site,StebbsProperties,StebbsProperties,C/Pydantic,C2,stebbs_completeness,stebbs_completeness,
-WallSkyViewFactor,STEBBS,site,StebbsProperties,StebbsProperties,C/Pydantic,C0; C2,fraction_0_1; stebbs_completeness,stebbs_completeness,"[0,1]"
-WaterTankSurfaceArea,STEBBS,site,StebbsProperties,StebbsProperties,C/Pydantic,C2,stebbs_completeness,stebbs_completeness,
-WaterTankTemperature,STEBBS,site,StebbsProperties,StebbsProperties,C/Pydantic,C0; C2,positive; stebbs_completeness,stebbs_completeness,>0
-WaterTankWallThickness,STEBBS,site,StebbsProperties,StebbsProperties,C/Pydantic,C0; C2,positive; stebbs_completeness,stebbs_completeness,>0
-WindowExternalConvectionCoefficient,STEBBS,site,StebbsProperties,StebbsProperties,C/Pydantic,C0; C2,positive; stebbs_completeness,stebbs_completeness,>0
-WindowIndoorSurfaceTemperature,STEBBS,site,StebbsProperties,StebbsProperties,C/Pydantic,C2,stebbs_completeness,stebbs_completeness,
-WindowInternalConvectionCoefficient,STEBBS,site,StebbsProperties,StebbsProperties,C/Pydantic,C0; C2,positive; stebbs_completeness,stebbs_completeness,>0
-WindowOutdoorSurfaceTemperature,STEBBS,site,StebbsProperties,StebbsProperties,C/Pydantic,C2,stebbs_completeness,stebbs_completeness,
+TotalNumberofAppliances,STEBBS,site,StebbsProperties,StebbsProperties,C/Pydantic,C0; C2,non_negative; conditional_required,stebbs_completeness,>=0
+VentilationRate,STEBBS,site,StebbsProperties,StebbsProperties,C/Pydantic,C0; C2,non_negative; conditional_required,stebbs_completeness,>=0
+WallBuildingViewFactor,STEBBS,site,StebbsProperties,StebbsProperties,C/Pydantic,C0; C2,fraction_0_1; conditional_required,stebbs_completeness,"[0,1]"
+WallExternalConvectionCoefficient,STEBBS,site,StebbsProperties,StebbsProperties,C/Pydantic,C0; C2,positive; conditional_required,stebbs_completeness,>0
+WallGroundViewFactor,STEBBS,site,StebbsProperties,StebbsProperties,C/Pydantic,C0; C2,fraction_0_1; conditional_required,stebbs_completeness,"[0,1]"
+WallIndoorSurfaceTemperature,STEBBS,site,StebbsProperties,StebbsProperties,C/Pydantic,C2,conditional_required,stebbs_completeness,
+WallInternalConvectionCoefficient,STEBBS,site,StebbsProperties,StebbsProperties,C/Pydantic,C0; C2,positive; conditional_required,stebbs_completeness,>0
+WallOutdoorSurfaceTemperature,STEBBS,site,StebbsProperties,StebbsProperties,C/Pydantic,C2,conditional_required,stebbs_completeness,
+WallSkyViewFactor,STEBBS,site,StebbsProperties,StebbsProperties,C/Pydantic,C0; C2,fraction_0_1; conditional_required,stebbs_completeness,"[0,1]"
+WaterTankSurfaceArea,STEBBS,site,StebbsProperties,StebbsProperties,C/Pydantic,C2,conditional_required,stebbs_completeness,
+WaterTankTemperature,STEBBS,site,StebbsProperties,StebbsProperties,C/Pydantic,C0; C2,positive; conditional_required,stebbs_completeness,>0
+WaterTankWallThickness,STEBBS,site,StebbsProperties,StebbsProperties,C/Pydantic,C0; C2,positive; conditional_required,stebbs_completeness,>0
+WindowExternalConvectionCoefficient,STEBBS,site,StebbsProperties,StebbsProperties,C/Pydantic,C0; C2,positive; conditional_required,stebbs_completeness,>0
+WindowIndoorSurfaceTemperature,STEBBS,site,StebbsProperties,StebbsProperties,C/Pydantic,C2,conditional_required,stebbs_completeness,
+WindowInternalConvectionCoefficient,STEBBS,site,StebbsProperties,StebbsProperties,C/Pydantic,C0; C2,positive; conditional_required,stebbs_completeness,>0
+WindowOutdoorSurfaceTemperature,STEBBS,site,StebbsProperties,StebbsProperties,C/Pydantic,C2,conditional_required,stebbs_completeness,
 emis,SUEWS,site,SurfaceProperties,BldgsProperties; BsoilProperties; DectrProperties; EvetrProperties; GrassProperties; NonVegetatedSurfaceProperties; PavedProperties; SurfaceProperties; VegetatedSurfaceProperties; WaterProperties,C/Pydantic,C0,fraction_0_1,,"[0,1]"
 irrfrac,SUEWS,site,SurfaceProperties,BldgsProperties; BsoilProperties; DectrProperties; EvetrProperties; GrassProperties; NonVegetatedSurfaceProperties; PavedProperties; SurfaceProperties; VegetatedSurfaceProperties; WaterProperties,,CM,,,
 ohm_coef,SUEWS,site,SurfaceProperties,BldgsProperties; BsoilProperties; DectrProperties; EvetrProperties; GrassProperties; NonVegetatedSurfaceProperties; PavedProperties; SurfaceProperties; VegetatedSurfaceProperties; WaterProperties,,CM,,,
@@ -379,14 +379,14 @@ snowpack,SUEWS,state,SurfaceInitialState,InitialStateBldgs; InitialStateBsoil; I
 snowwater,SUEWS,state,SurfaceInitialState,InitialStateBldgs; InitialStateBsoil; InitialStateDectr; InitialStateEvetr; InitialStateGrass; InitialStatePaved; InitialStateVeg; InitialStateWater; SurfaceInitialState,C/Pydantic,C0,non_negative,,>=0
 soilstore,SUEWS,state,SurfaceInitialState,InitialStateBldgs; InitialStateBsoil; InitialStateDectr; InitialStateEvetr; InitialStateGrass; InitialStatePaved; InitialStateVeg; InitialStateWater; SurfaceInitialState,C/Pydantic,C1,min_value,,>=10
 state,SUEWS,state,SurfaceInitialState,InitialStateBldgs; InitialStateBsoil; InitialStateDectr; InitialStateEvetr; InitialStateGrass; InitialStatePaved; InitialStateVeg; InitialStateWater; SurfaceInitialState,C/Pydantic,C0,non_negative,,>=0
-temperature,SUEWS,state,SurfaceInitialState,InitialStateBldgs; InitialStateBsoil; InitialStateDectr; InitialStateEvetr; InitialStateGrass; InitialStatePaved; InitialStateVeg; InitialStateWater; SurfaceInitialState,C/Pydantic,C2,temperature_array_handling,temperature_array_handling,
+temperature,SUEWS,state,SurfaceInitialState,InitialStateBldgs; InitialStateBsoil; InitialStateDectr; InitialStateEvetr; InitialStateGrass; InitialStatePaved; InitialStateVeg; InitialStateWater; SurfaceInitialState,C/Pydantic,C2,field_transformation,temperature_array_handling,
 tin,SUEWS,state,SurfaceInitialState,InitialStateBldgs; InitialStateBsoil; InitialStateDectr; InitialStateEvetr; InitialStateGrass; InitialStatePaved; InitialStateVeg; InitialStateWater; SurfaceInitialState,,CM,,,
 tsfc,SUEWS,state,SurfaceInitialState,InitialStateBldgs; InitialStateBsoil; InitialStateDectr; InitialStateEvetr; InitialStateGrass; InitialStatePaved; InitialStateVeg; InitialStateWater; SurfaceInitialState,,CM,,,
 wu_auto,SUEWS,state,WaterUse,WaterUse,C/Pydantic,C0,non_negative,,>=0
 wu_manual,SUEWS,state,WaterUse,WaterUse,C/Pydantic,C0,non_negative,,>=0
 wu_total,SUEWS,state,WaterUse,WaterUse,C/Pydantic,C0,non_negative,,>=0
 bldgh,SUEWS,surface,BldgsProperties,BldgsProperties,C/Pydantic,C0,non_negative,,>=0
-faibldg,SUEWS,surface,BldgsProperties,BldgsProperties,C/Pydantic,C0; C2,non_negative; rsl_faibldg_required,rsl_faibldg_required,>=0
+faibldg,SUEWS,surface,BldgsProperties,BldgsProperties,C/Pydantic,C0; C2,non_negative; conditional_required,rsl_faibldg_required,>=0
 alb,SUEWS,surface,BuildingLayer,BuildingLayer; RoofLayer; WallLayer,C/Pydantic,C0,fraction_0_1,,"[0,1]"
 emis,SUEWS,surface,BuildingLayer,BuildingLayer; RoofLayer; WallLayer,C/Pydantic,C0,fraction_0_1,,"[0,1]"
 roof_albedo_dir_mult_fact,SUEWS,surface,BuildingLayer,BuildingLayer; RoofLayer; WallLayer,,CM,,,
@@ -396,9 +396,9 @@ thermal_layers,SUEWS,surface,BuildingLayer,BuildingLayer; RoofLayer; WallLayer,,
 wall_specular_frac,SUEWS,surface,BuildingLayer,BuildingLayer; RoofLayer; WallLayer,,CM,,,
 wetthresh,SUEWS,surface,BuildingLayer,BuildingLayer; RoofLayer; WallLayer,,CM,,,
 alb,SUEWS,surface,NonVegetatedSurfaceProperties,BldgsProperties; BsoilProperties; NonVegetatedSurfaceProperties; PavedProperties; WaterProperties,C/Pydantic,C0,fraction_0_1,,"[0,1]"
-dz,SUEWS,surface,ThermalLayers,ThermalLayers,C/Pydantic,C2,storage_validation,storage_validation,
-k,SUEWS,surface,ThermalLayers,ThermalLayers,C/Pydantic,C2,storage_validation,storage_validation,
-rho_cp,SUEWS,surface,ThermalLayers,ThermalLayers,C/Pydantic,C2,storage_validation,storage_validation,
+dz,SUEWS,surface,ThermalLayers,ThermalLayers,C/Pydantic,C2,conditional_required,storage_validation,
+k,SUEWS,surface,ThermalLayers,ThermalLayers,C/Pydantic,C2,conditional_required,storage_validation,
+rho_cp,SUEWS,surface,ThermalLayers,ThermalLayers,C/Pydantic,C2,conditional_required,storage_validation,
 building_frac,SUEWS,surface,VerticalLayers,VerticalLayers,,CM,,,
 building_scale,SUEWS,surface,VerticalLayers,VerticalLayers,,CM,,,
 height,SUEWS,surface,VerticalLayers,VerticalLayers,,CM,,,

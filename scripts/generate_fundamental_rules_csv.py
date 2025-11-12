@@ -212,24 +212,31 @@ def is_metadata_field(field_name: str, field_info) -> bool:
     return False
 
 
-def load_c2_rules_mapping(csv_path: Path) -> Dict[str, Set[str]]:
+def load_c2_rules_mapping(csv_path: Path) -> Tuple[Dict[str, Set[str]], Dict[str, str]]:
     """
     Load complex validation rules CSV and build mapping of parameter -> rule_names.
 
     Returns:
-        Dict mapping parameter_name to set of rule_names that affect it
+        Tuple of:
+        - Dict mapping parameter_name to set of rule_names that affect it
+        - Dict mapping rule_name to rule_type
     """
     param_to_rules = {}
+    rule_name_to_type = {}
 
     if not csv_path.exists():
         print(f"Warning: C2 rules file not found at {csv_path}", file=sys.stderr)
-        return param_to_rules
+        return param_to_rules, rule_name_to_type
 
     with open(csv_path, 'r', newline='') as csvfile:
         reader = csv.DictReader(csvfile)
         for row in reader:
             rule_name = row['rule_name']
+            rule_type = row['rule_type']
             params_affected = row['parameters_affected']
+
+            # Store rule_name -> rule_type mapping
+            rule_name_to_type[rule_name] = rule_type
 
             # Parse the parameters_affected column (comma-separated list)
             # Handle both simple names and complex patterns
@@ -256,13 +263,14 @@ def load_c2_rules_mapping(csv_path: Path) -> Dict[str, Set[str]]:
                     param_to_rules[param] = set()
                 param_to_rules[param].add(rule_name)
 
-    return param_to_rules
+    return param_to_rules, rule_name_to_type
 
 
 def extract_rules_from_model(
     model_class: type[BaseModel],
     source_file: str,
-    c2_mapping: Dict[str, Set[str]]
+    c2_mapping: Dict[str, Set[str]],
+    rule_name_to_type: Dict[str, str]
 ) -> List[Tuple[str, str, str, str, str, str, str, str, str]]:
     """Extract ALL validation rules from a Pydantic model class (C0, C1, C2, and CM)."""
     rules = []
@@ -294,17 +302,24 @@ def extract_rules_from_model(
             # Always populate rule_name column with C2 rules
             rule_name = '; '.join(sorted(c2_rule_names))
 
+            # Get the C2 rule_types (not rule_names) for this parameter
+            c2_rule_types = set()
+            for rname in c2_rule_names:
+                if rname in rule_name_to_type:
+                    c2_rule_types.add(rule_name_to_type[rname])
+
             # If parameter has NO C0/C1 rules (i.e., rule_class == 'CM'),
-            # then set rule_class to C2 and use C2 rule names as rule_type
+            # then set rule_class to C2 and use C2 rule_types as rule_type
             if rule_class == 'CM':
                 rule_class = 'C2'
-                rule_type = '; '.join(sorted(c2_rule_names))
+                rule_type = '; '.join(sorted(c2_rule_types))
             else:
                 # Parameter has BOTH field-level (C0/C1) AND complex validation (C2)
                 # Append C2 to rule_class: "C0; C2" or "C1; C2"
                 rule_class = f'{rule_class}; C2'
-                # Also append C2 rule names to rule_type
-                rule_type = f'{rule_type}; {"; ".join(sorted(c2_rule_names))}'
+                # Also append C2 rule_types to rule_type
+                if c2_rule_types:
+                    rule_type = f'{rule_type}; {"; ".join(sorted(c2_rule_types))}'
 
         rules.append((
             field_name,
@@ -321,7 +336,7 @@ def extract_rules_from_model(
     return rules
 
 
-def scan_module(module_name: str, source_file: str, c2_mapping: Dict[str, Set[str]]) -> List[Tuple[str, str, str, str, str, str, str, str, str]]:
+def scan_module(module_name: str, source_file: str, c2_mapping: Dict[str, Set[str]], rule_name_to_type: Dict[str, str]) -> List[Tuple[str, str, str, str, str, str, str, str, str]]:
     """Scan a Python module for Pydantic models with validation rules."""
     try:
         module = importlib.import_module(module_name)
@@ -337,7 +352,7 @@ def scan_module(module_name: str, source_file: str, c2_mapping: Dict[str, Set[st
         if issubclass(obj, BaseModel) and obj is not BaseModel:
             # Only process models defined in this module
             if obj.__module__ == module_name:
-                model_rules = extract_rules_from_model(obj, source_file, c2_mapping)
+                model_rules = extract_rules_from_model(obj, source_file, c2_mapping, rule_name_to_type)
                 rules.extend(model_rules)
 
     return rules
@@ -348,7 +363,7 @@ def generate_csv(output_path: Path):
     # Load C2 rules mapping
     project_root = output_path.parent
     c2_rules_path = project_root / 'complex_validation_rules.csv'
-    c2_mapping = load_c2_rules_mapping(c2_rules_path)
+    c2_mapping, rule_name_to_type = load_c2_rules_mapping(c2_rules_path)
     print(f"Loaded C2 rules for {len(c2_mapping)} parameters")
 
     # Define the modules to scan
@@ -367,7 +382,7 @@ def generate_csv(output_path: Path):
     # Scan all modules
     for module_name, source_file in modules:
         print(f"Scanning {module_name}...")
-        rules = scan_module(module_name, source_file, c2_mapping)
+        rules = scan_module(module_name, source_file, c2_mapping, rule_name_to_type)
         all_rules.extend(rules)
         print(f"  Found {len(rules)} fields")
 

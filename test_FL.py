@@ -38,22 +38,28 @@ def get_limits_from_json_schema(variable_name: str, schema: dict = None) -> dict
                     "default": prop.get("default"),
                     "description": prop.get("description", ""),
                     "unit": prop.get("unit", ""),
-                    "display_name": prop.get("display_name", "")
+                    "display_name": prop.get("display_name", ""),
                 }
 
                 # Print message if limits are missing
                 if min_val is None and max_val is None:
-                    print(f"NOTE: Variable '{variable_name}' in {def_name} has no min/max limits defined.")
+                    print(
+                        f"NOTE: Variable '{variable_name}' in {def_name} has no min/max limits defined."
+                    )
                 elif min_val is None:
-                    print(f"NOTE: Variable '{variable_name}' in {def_name} has no minimum limit (only max={max_val}).")
+                    print(
+                        f"NOTE: Variable '{variable_name}' in {def_name} has no minimum limit (only max={max_val})."
+                    )
                 elif max_val is None:
-                    print(f"NOTE: Variable '{variable_name}' in {def_name} has no maximum limit (only min={min_val}).")
+                    print(
+                        f"NOTE: Variable '{variable_name}' in {def_name} has no maximum limit (only min={min_val})."
+                    )
 
                 break
 
     return result
 
 
-laimax_name="laimax"
+laimax_name = "laimax"
 laimax_value = get_limits_from_json_schema(laimax_name, None)
 print(laimax_value)

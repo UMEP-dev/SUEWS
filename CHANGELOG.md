@@ -21,7 +21,7 @@
 
 | Year | Features | Bugfixes | Changes | Maintenance | Docs | Total |
 |------|----------|----------|---------|-------------|------|-------|
-| 2025 | 37 | 25 | 13 | 34 | 17 | 124 |
+| 2025 | 38 | 25 | 13 | 34 | 17 | 125 |
 | 2024 | 12 | 17 | 1 | 12 | 1 | 43 |
 | 2023 | 11 | 14 | 3 | 9 | 1 | 38 |
 | 2022 | 15 | 18 | 0 | 7 | 0 | 40 |
@@ -34,9 +34,19 @@
 
 ## 2025
 
+### 12 Nov 2025
+- [feature] Added irrigation year-wrapping pattern detection
+  - Warns for unusual patterns (NH: ie_start > ie_end; SH: ie_start < ie_end)
+  - Integrated into Phase B scientific validation pipeline
+
+### 11 Nov 2025
+- [feature] Added irrigation parameter validation
+  - Validates `ie_start` and `ie_end` for DOY range, consistency, and hemisphere-aware seasonal appropriateness
+  - NH (lat ≥ 23.5°): warm season DOY 121-273; SH (lat ≤ -23.5°): DOY 305-90; Tropics (|lat| < 23.5°): year-round
+  - Integrated into Phase B scientific validation pipeline
 
 ### 05 Nov 2025
-- [feature] Added physics-specific forcing data validation (Issue #818)
+- [feature] Added physics-specific forcing data validation 
   - `check_forcing()` validates required forcing columns (qn, qf, qs, ldown, fcld, xsmd) based on physics configuration
   - Integrated with Phase A validation pipeline; backwards compatible
   - Added helpful error messages with documentation links

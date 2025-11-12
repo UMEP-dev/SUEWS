@@ -2123,3 +2123,124 @@ def test_forcing_validation_cli_integration():
         finally:
             # Cleanup happens automatically with TemporaryDirectory context manager
             pass
+
+
+# ============================================================================
+# Irrigation DOY Validation Tests (Issue #811)
+# ============================================================================
+
+
+def test_irrigation_doy_leap_year():
+    """Test DOY 366 validation for leap vs non-leap years."""
+    from supy.data_model.validation.pipeline.phase_b import validate_irrigation_doy
+
+    # Leap year: DOY 366 valid
+    results = validate_irrigation_doy(120, 366, 51.5, 2024, "test_site")
+    assert not any(r.status == "ERROR" for r in results)
+
+    # Non-leap year: DOY 366 invalid
+    results = validate_irrigation_doy(120, 366, 51.5, 2023, "test_site")
+    errors = [r for r in results if r.status == "ERROR"]
+    assert len(errors) == 1
+    assert "365" in errors[0].message
+
+
+def test_irrigation_doy_disabled():
+    """Test irrigation disabled configurations (None/0)."""
+    from supy.data_model.validation.pipeline.phase_b import validate_irrigation_doy
+
+    # Both None = valid
+    assert len(validate_irrigation_doy(None, None, 51.5, 2023, "test")) == 0
+
+    # Both 0 = valid
+    assert len(validate_irrigation_doy(0, 0, 51.5, 2023, "test")) == 0
+
+    # One set, one None = error
+    results = validate_irrigation_doy(120, None, 51.5, 2023, "test")
+    errors = [r for r in results if r.status == "ERROR"]
+    assert len(errors) == 1
+    assert "must be specified together" in errors[0].message
+
+
+def test_irrigation_hemisphere_warnings():
+    """Test hemisphere and tropical-aware warm season warnings."""
+    from supy.data_model.validation.pipeline.phase_b import validate_irrigation_doy
+
+    # NH: warm season (May-Sept, DOY 121-273) = no warning
+    results = validate_irrigation_doy(150, 250, 51.5, 2023, "test")
+    assert not any(r.status == "WARNING" for r in results)
+
+    results = validate_irrigation_doy(121, 273, 51.5, 2023, "test")
+    assert not any(r.status == "WARNING" for r in results)
+
+    # NH: outside warm season = warning (also warns about year-wrapping)
+    results = validate_irrigation_doy(350, 30, 51.5, 2023, "test")
+    warnings = [r for r in results if r.status == "WARNING"]
+    assert len(warnings) == 2
+    assert any(
+        "Northern Hemisphere" in w.message and "May-September" in w.message
+        for w in warnings
+    )
+    assert any("wraps year boundary" in w.message for w in warnings)
+
+    # NH: partial overlap with warm season = warning
+    results = validate_irrigation_doy(100, 200, 51.5, 2023, "test")
+    warnings = [r for r in results if r.status == "WARNING"]
+    assert len(warnings) == 1  # Start (100) is outside warm season (121-273)
+
+    # SH: warm season (Nov-March, DOY 305-90, year-wrapping) = no warning
+    results = validate_irrigation_doy(330, 60, -33.9, 2023, "test")
+    assert not any(r.status == "WARNING" for r in results)
+
+    results = validate_irrigation_doy(305, 90, -33.9, 2023, "test")
+    assert not any(r.status == "WARNING" for r in results)
+
+    # SH: outside warm season (winter) = warning (also warns about not wrapping)
+    results = validate_irrigation_doy(180, 220, -33.9, 2023, "test")
+    warnings = [r for r in results if r.status == "WARNING"]
+    assert len(warnings) == 2
+    assert any(
+        "Southern Hemisphere" in w.message and "November-March" in w.message
+        for w in warnings
+    )
+    assert any("does not wrap year boundary" in w.message for w in warnings)
+
+    # Tropical: any period = no warning (irrigation allowed year-round)
+    results = validate_irrigation_doy(1, 365, 15.0, 2023, "test")
+    assert not any(r.status == "WARNING" for r in results)
+
+    results = validate_irrigation_doy(100, 200, 20.0, 2023, "test")
+    assert not any(r.status == "WARNING" for r in results)
+
+    results = validate_irrigation_doy(300, 50, -20.0, 2023, "test")
+    assert not any(r.status == "WARNING" for r in results)
+
+
+def test_irrigation_year_wrapping():
+    """Test year-wrapping irrigation period validation (ie_start > ie_end)."""
+    from supy.data_model.validation.pipeline.phase_b import validate_irrigation_doy
+
+    # Year-wrapping period in NH (winter irrigation - unusual)
+    results = validate_irrigation_doy(300, 50, 51.5, 2023, "test")
+    # Should warn about both: outside warm season AND year-wrapping
+    warnings = [r for r in results if r.status == "WARNING"]
+    assert len(warnings) == 2
+    assert any("wraps year boundary" in w.message for w in warnings)
+    assert any("falls outside" in w.message for w in warnings)
+
+    # Year-wrapping period in SH (summer irrigation - expected)
+    results = validate_irrigation_doy(330, 60, -33.9, 2023, "test")
+    # Should NOT warn about year-wrapping (it's normal for SH warm season)
+    warnings = [r for r in results if r.status == "WARNING"]
+    wrapping_warnings = [
+        w for w in warnings if "does not wrap year boundary" in w.message
+    ]
+    assert len(wrapping_warnings) == 0
+
+    # Non-wrapping period in SH (winter irrigation - unusual)
+    results = validate_irrigation_doy(150, 250, -33.9, 2023, "test")
+    # Should warn about both: outside warm season AND not wrapping
+    warnings = [r for r in results if r.status == "WARNING"]
+    assert len(warnings) == 2
+    assert any("does not wrap year boundary" in w.message for w in warnings)
+    assert any("falls outside" in w.message for w in warnings)

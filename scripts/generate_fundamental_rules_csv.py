@@ -357,15 +357,29 @@ def generate_csv(output_path: Path):
     # Write to CSV
     with open(output_path, 'w', newline='') as csvfile:
         writer = csv.writer(csvfile)
-        writer.writerow(['parameter_name', 'model', 'source_file', 'mother_class', 'inherited_by', 'rule_class', 'rule_type', 'formula'])
+
+        # Top-level header row - only show group name once, rest empty for cleaner look
+        # (Can be manually merged in Excel/Google Sheets for visual grouping)
+        writer.writerow(['params_info', '', '', '', '', 'rules_info', '', '', ''])
+
+        # Column headers
+        writer.writerow(['parameter_name', 'model', 'source_file', 'mother_class', 'inherited_by', 'pipeline', 'rule_class', 'rule_type', 'formula'])
 
         for param_name, mother_class, inherited_by, source_file, rule_type, formula, rule_class, model_type in unique_rules:
+            # Only parameters with actual rules (C0 or C1) have pipeline assigned
+            # CM (no validation) has empty pipeline
+            if rule_class in ['C0', 'C1']:
+                pipeline = 'C/Pydantic'
+            else:
+                pipeline = ''
+
             writer.writerow([
                 param_name,
                 model_type,
                 source_file,
                 mother_class,
                 inherited_by,
+                pipeline,
                 rule_class,
                 rule_type,
                 formula

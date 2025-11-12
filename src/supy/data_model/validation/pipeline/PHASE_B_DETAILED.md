@@ -156,7 +156,11 @@ Validates irrigation timing parameters (`ie_start` and `ie_end`) for consistency
   - Northern Hemisphere (lat ≥ 23.5°): Warm season May-September (DOY 121-273)
   - Southern Hemisphere (lat ≤ -23.5°): Warm season November-March (DOY 305-90)
   - Tropical regions (|lat| < 23.5°): No seasonal restrictions
-- **Error Handling**: Invalid DOY generates ERROR, out-of-season generates WARNING
+- **Year-Wrapping Pattern Detection**:
+  - Northern Hemisphere: Warns if `ie_start > ie_end` (unusual cold-season irrigation)
+  - Southern Hemisphere: Warns if `ie_start < ie_end` (should wrap for warm season, e.g., DOY 305→60)
+  - Helps identify potentially swapped start/end values
+- **Error Handling**: Invalid DOY generates ERROR, out-of-season generates WARNING, unusual year-wrapping patterns generate WARNING
 
 ## CRU TS4.06 Climatological Integration
 

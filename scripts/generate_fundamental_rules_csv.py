@@ -22,7 +22,7 @@ import importlib
 import inspect
 import sys
 from pathlib import Path
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Tuple, Set
 
 from pydantic import BaseModel
 from pydantic.fields import FieldInfo
@@ -212,11 +212,59 @@ def is_metadata_field(field_name: str, field_info) -> bool:
     return False
 
 
+def load_c2_rules_mapping(csv_path: Path) -> Dict[str, Set[str]]:
+    """
+    Load complex validation rules CSV and build mapping of parameter -> rule_names.
+
+    Returns:
+        Dict mapping parameter_name to set of rule_names that affect it
+    """
+    param_to_rules = {}
+
+    if not csv_path.exists():
+        print(f"Warning: C2 rules file not found at {csv_path}", file=sys.stderr)
+        return param_to_rules
+
+    with open(csv_path, 'r', newline='') as csvfile:
+        reader = csv.DictReader(csvfile)
+        for row in reader:
+            rule_name = row['rule_name']
+            params_affected = row['parameters_affected']
+
+            # Parse the parameters_affected column (comma-separated list)
+            # Handle both simple names and complex patterns
+            if not params_affected or params_affected.strip() == '':
+                continue
+
+            # Split by comma and clean up each parameter name
+            param_list = [p.strip() for p in params_affected.split(',')]
+
+            for param in param_list:
+                # Handle special cases like "site.properties.*", "all stebbs.* parameters", etc.
+                if '*' in param or 'all ' in param.lower() or '(' in param:
+                    # Skip wildcard/aggregate entries for now
+                    # These would need special handling to match against actual parameters
+                    continue
+
+                # Extract just the parameter name (remove prefixes like "bldgs.", "output_file.")
+                # but keep the last part
+                if '.' in param:
+                    param = param.split('.')[-1]
+
+                # Add to mapping
+                if param not in param_to_rules:
+                    param_to_rules[param] = set()
+                param_to_rules[param].add(rule_name)
+
+    return param_to_rules
+
+
 def extract_rules_from_model(
     model_class: type[BaseModel],
-    source_file: str
-) -> List[Tuple[str, str, str, str, str, str, str, str]]:
-    """Extract ALL validation rules from a Pydantic model class (C1, C2, and CM)."""
+    source_file: str,
+    c2_mapping: Dict[str, Set[str]]
+) -> List[Tuple[str, str, str, str, str, str, str, str, str]]:
+    """Extract ALL validation rules from a Pydantic model class (C0, C1, C2, and CM)."""
     rules = []
     model_class_name = model_class.__name__
 
@@ -232,10 +280,31 @@ def extract_rules_from_model(
 
         constraints = get_constraint_values(field_info)
 
-        # Classify all fields (C1, C2, or CM)
+        # Classify all fields (C0, C1, or CM)
         rule_type, formula, rule_class = classify_rule(constraints)
         mother_class = find_mother_class(model_class, field_name)
         model_type = get_model_type(model_class_name)
+
+        # Check if this parameter has C2 rules
+        c2_rule_names = c2_mapping.get(field_name, set())
+        rule_name = ''
+
+        if c2_rule_names:
+            # Parameter participates in C2 validation rules
+            # Always populate rule_name column with C2 rules
+            rule_name = '; '.join(sorted(c2_rule_names))
+
+            # If parameter has NO C0/C1 rules (i.e., rule_class == 'CM'),
+            # then set rule_class to C2 and use C2 rule names as rule_type
+            if rule_class == 'CM':
+                rule_class = 'C2'
+                rule_type = '; '.join(sorted(c2_rule_names))
+            else:
+                # Parameter has BOTH field-level (C0/C1) AND complex validation (C2)
+                # Append C2 to rule_class: "C0; C2" or "C1; C2"
+                rule_class = f'{rule_class}; C2'
+                # Also append C2 rule names to rule_type
+                rule_type = f'{rule_type}; {"; ".join(sorted(c2_rule_names))}'
 
         rules.append((
             field_name,
@@ -245,13 +314,14 @@ def extract_rules_from_model(
             rule_type,
             formula,
             rule_class,
-            model_type
+            model_type,
+            rule_name
         ))
 
     return rules
 
 
-def scan_module(module_name: str, source_file: str) -> List[Tuple[str, str, str, str, str, str, str, str]]:
+def scan_module(module_name: str, source_file: str, c2_mapping: Dict[str, Set[str]]) -> List[Tuple[str, str, str, str, str, str, str, str, str]]:
     """Scan a Python module for Pydantic models with validation rules."""
     try:
         module = importlib.import_module(module_name)
@@ -267,7 +337,7 @@ def scan_module(module_name: str, source_file: str) -> List[Tuple[str, str, str,
         if issubclass(obj, BaseModel) and obj is not BaseModel:
             # Only process models defined in this module
             if obj.__module__ == module_name:
-                model_rules = extract_rules_from_model(obj, source_file)
+                model_rules = extract_rules_from_model(obj, source_file, c2_mapping)
                 rules.extend(model_rules)
 
     return rules
@@ -275,10 +345,18 @@ def scan_module(module_name: str, source_file: str) -> List[Tuple[str, str, str,
 
 def generate_csv(output_path: Path):
     """Generate the CSV file with fundamental validation rules."""
+    # Load C2 rules mapping
+    project_root = output_path.parent
+    c2_rules_path = project_root / 'complex_validation_rules.csv'
+    c2_mapping = load_c2_rules_mapping(c2_rules_path)
+    print(f"Loaded C2 rules for {len(c2_mapping)} parameters")
+
     # Define the modules to scan
     modules = [
         ('supy.data_model.core.human_activity', 'human_activity'),
         ('supy.data_model.core.hydro', 'hydro'),
+        ('supy.data_model.core.model', 'model'),
+        ('supy.data_model.core.profile', 'profile'),
         ('supy.data_model.core.site', 'site'),
         ('supy.data_model.core.state', 'state'),
         ('supy.data_model.core.surface', 'surface'),
@@ -289,9 +367,9 @@ def generate_csv(output_path: Path):
     # Scan all modules
     for module_name, source_file in modules:
         print(f"Scanning {module_name}...")
-        rules = scan_module(module_name, source_file)
+        rules = scan_module(module_name, source_file, c2_mapping)
         all_rules.extend(rules)
-        print(f"  Found {len(rules)} fields with fundamental constraints")
+        print(f"  Found {len(rules)} fields")
 
     print(f"\nTotal fields found (including duplicates): {len(all_rules)}")
 
@@ -301,7 +379,7 @@ def generate_csv(output_path: Path):
 
     for rule in all_rules:
         (param_name, mother_class, child_class, source_file,
-         rule_type, formula, rule_class, model_type) = rule
+         rule_type, formula, rule_class, model_type, rule_name) = rule
 
         key = (param_name, mother_class)
 
@@ -312,7 +390,8 @@ def generate_csv(output_path: Path):
                 'rule_type': rule_type,
                 'formula': formula,
                 'rule_class': rule_class,
-                'model_type': model_type
+                'model_type': model_type,
+                'rule_name': rule_name
             }
 
         # Add child class to the set
@@ -337,19 +416,35 @@ def generate_csv(output_path: Path):
             info['rule_type'],
             info['formula'],
             info['rule_class'],
-            info['model_type']
+            info['model_type'],
+            info['rule_name']
         ))
 
     print(f"Unique parameters (by mother class): {len(unique_rules)}")
 
-    # Count by rule_class (C0/C1/CM)
-    rule_class_counts = {}
-    for _, _, _, _, _, _, rule_class, _ in unique_rules:
-        rule_class_counts[rule_class] = rule_class_counts.get(rule_class, 0) + 1
+    # Count by rule_class (C0/C1/C2/CM)
+    # Handle combined classes like "C0; C2" by counting each separately
+    rule_class_counts = {'C0': 0, 'C1': 0, 'C2': 0, 'CM': 0}
+    combined_count = 0
 
-    print(f"  C0 (fundamental): {rule_class_counts.get('C0', 0)}")
-    print(f"  C1 (non-fundamental): {rule_class_counts.get('C1', 0)}")
-    print(f"  CM (no validation): {rule_class_counts.get('CM', 0)}")
+    for _, _, _, _, _, _, rule_class, _, _ in unique_rules:
+        # Split by semicolon for combined classes
+        classes = [c.strip() for c in rule_class.split(';')] if rule_class else []
+
+        for cls in classes:
+            if cls in rule_class_counts:
+                rule_class_counts[cls] += 1
+
+        # Count combined entries (C0; C2 or C1; C2)
+        if len(classes) > 1:
+            combined_count += 1
+
+    print(f"  C0 (fundamental): {rule_class_counts['C0']} total")
+    print(f"  C1 (non-fundamental simple): {rule_class_counts['C1']} total")
+    print(f"  C2 (complex validation): {rule_class_counts['C2']} total")
+    print(f"  CM (no validation): {rule_class_counts['CM']}")
+    if combined_count > 0:
+        print(f"  Combined (C0/C1 + C2): {combined_count} parameters")
 
     # Sort unique rules by source_file, then mother_class, then parameter_name
     unique_rules.sort(key=lambda x: (x[3], x[1], x[0]))
@@ -360,15 +455,15 @@ def generate_csv(output_path: Path):
 
         # Top-level header row - only show group name once, rest empty for cleaner look
         # (Can be manually merged in Excel/Google Sheets for visual grouping)
-        writer.writerow(['params_info', '', '', '', '', 'rules_info', '', '', ''])
+        writer.writerow(['params_info', '', '', '', '', 'rules_info', '', '', '', ''])
 
-        # Column headers
-        writer.writerow(['parameter_name', 'model', 'source_file', 'mother_class', 'inherited_by', 'pipeline', 'rule_class', 'rule_type', 'formula'])
+        # Column headers - swapped formula and rule_name
+        writer.writerow(['parameter_name', 'model', 'source_file', 'mother_class', 'inherited_by', 'pipeline', 'rule_class', 'rule_type', 'rule_name', 'formula'])
 
-        for param_name, mother_class, inherited_by, source_file, rule_type, formula, rule_class, model_type in unique_rules:
-            # Only parameters with actual rules (C0 or C1) have pipeline assigned
+        for param_name, mother_class, inherited_by, source_file, rule_type, formula, rule_class, model_type, rule_name in unique_rules:
+            # Parameters with actual rules (C0, C1, C2, or combinations) have pipeline assigned
             # CM (no validation) has empty pipeline
-            if rule_class in ['C0', 'C1']:
+            if rule_class and rule_class != 'CM':
                 pipeline = 'C/Pydantic'
             else:
                 pipeline = ''
@@ -382,6 +477,7 @@ def generate_csv(output_path: Path):
                 pipeline,
                 rule_class,
                 rule_type,
+                rule_name,  # Swapped with formula
                 formula
             ])
 
@@ -390,7 +486,7 @@ def generate_csv(output_path: Path):
 
     # Print summary by rule_type (only for C0)
     rule_type_counts = {}
-    for _, _, _, _, rule_type, _, rule_class, _ in unique_rules:
+    for _, _, _, _, rule_type, _, rule_class, _, _ in unique_rules:
         if rule_class == 'C0' and rule_type:
             rule_type_counts[rule_type] = rule_type_counts.get(rule_type, 0) + 1
 
@@ -400,22 +496,35 @@ def generate_csv(output_path: Path):
 
     # Print summary by model type
     model_counts = {}
-    for _, _, _, _, _, _, _, model_type in unique_rules:
+    for _, _, _, _, _, _, _, model_type, _ in unique_rules:
         model_counts[model_type] = model_counts.get(model_type, 0) + 1
 
     print("\nBreakdown by model:")
     for model_type, count in sorted(model_counts.items()):
         print(f"  {model_type}: {count}")
 
-    # Print summary by rule_class (C0/C1/CM)
-    final_rule_class_counts = {}
-    for _, _, _, _, _, _, rule_class, _ in unique_rules:
-        final_rule_class_counts[rule_class] = final_rule_class_counts.get(rule_class, 0) + 1
+    # Print summary by rule_class (C0/C1/C2/CM)
+    final_rule_class_counts = {'C0': 0, 'C1': 0, 'C2': 0, 'CM': 0}
+    final_combined_count = 0
+
+    for _, _, _, _, _, _, rule_class, _, _ in unique_rules:
+        # Split by semicolon for combined classes
+        classes = [c.strip() for c in rule_class.split(';')] if rule_class else []
+
+        for cls in classes:
+            if cls in final_rule_class_counts:
+                final_rule_class_counts[cls] += 1
+
+        # Count combined entries
+        if len(classes) > 1:
+            final_combined_count += 1
 
     print("\nBreakdown by validation class:")
-    for rule_class in ['C0', 'C1', 'CM']:
-        count = final_rule_class_counts.get(rule_class, 0)
+    for rule_class in ['C0', 'C1', 'C2', 'CM']:
+        count = final_rule_class_counts[rule_class]
         print(f"  {rule_class}: {count}")
+    if final_combined_count > 0:
+        print(f"  Combined (C0/C1 + C2): {final_combined_count}")
 
 
 def main():

@@ -6895,7 +6895,7 @@
             }
           ],
           "default": 1,
-          "description": "Method for calculating storage heat flux (\u0394QS). Options: 0 (OBSERVED) = Uses observed \u0394QS from forcing file; 1 (OHM_WITHOUT_QF) = Objective Hysteresis Model using Q* only; 3 (ANOHM) = Analytical OHM (not recommended); 4 (ESTM) = Element Surface Temperature Method (not recommended); 5 (ESTM_EXTENDED) = Extended ESTM with separate facet temps; 6 (OHM_ENHANCED) = Enhanced OHM parameterisation; 7 (STEBBS) = use STEBBS to calculate storage heat flux for building",
+          "description": "Method for calculating storage heat flux (\u0394QS). Options: 0 (OBSERVED) = Uses observed \u0394QS from forcing file; 1 (OHM_WITHOUT_QF) = Objective Hysteresis Model using Q* only; 3 (ANOHM) = Analytical OHM (not recommended); 4 (ESTM) = Element Surface Temperature Method (not recommended); 5 (EHC) = Explicit Heat Conduction model with separate roof/wall/ground temperatures; 6 (DyOHM) = Dynamic Objective Hysteresis Model with dynamic coefficients; 7 (STEBBS) = use STEBBS to calculate storage heat flux for building",
           "title": "Storageheatmethod",
           "unit": "dimensionless"
         },
@@ -7077,7 +7077,7 @@
             }
           ],
           "default": 0,
-          "description": "method to split heat capacity of building envelope in STEBBS. Options: 0 = NONE; 1 = input weighting factor x1; 2 = use parameterised weighting factor by building material property",
+          "description": "Method to split building envelope heat capacity in STEBBS. Options: 0 (NONE) = STEBBS split disabled; 1 (PROVIDED) = use user-defined fractional weighting factor x1 between 0 and 1; 2 (PARAMETERISE) = use building material thermal property to parameterise the weighting factor x1",
           "title": "Rcmethod",
           "unit": "dimensionless"
         },
@@ -7283,6 +7283,19 @@
           "default": null,
           "description": "List of output groups to save (only applies to txt format). Available groups: 'SUEWS', 'DailyState', 'snow', 'ESTM', 'RSL', 'BL', 'debug'. If not specified, defaults to ['SUEWS', 'DailyState']",
           "title": "Groups"
+        },
+        "path": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Output directory path where result files will be saved. If not specified, defaults to current working directory.",
+          "title": "Path"
         }
       },
       "title": "Output Configuration",
@@ -11036,7 +11049,7 @@
       "type": "object"
     },
     "StorageHeatMethod": {
-      "description": "Method for calculating storage heat flux (\u0394QS).\n\n0: OBSERVED - Uses observed \u0394QS values from forcing file\n1: OHM_WITHOUT_QF - Objective Hysteresis Model using Q* only (use with OhmIncQf=0)\n3: ANOHM - Analytical OHM (Sun et al., 2017) - not recommended\n4: ESTM - Element Surface Temperature Method (Offerle et al., 2005) - not recommended\n5: ESTM_EXTENDED - Extended ESTM with separate roof/wall/ground temperatures\n6: OHM_ENHANCED - OHM with enhanced parameterisation\n7: STEBBS - use STEBBS storage heat flux for building, others use OHM",
+      "description": "Method for calculating storage heat flux (\u0394QS).\n\n0: OBSERVED - Uses observed \u0394QS values from forcing file\n1: OHM_WITHOUT_QF - Objective Hysteresis Model using Q* only (use with OhmIncQf=0)\n3: ANOHM - Analytical OHM (Sun et al., 2017) - not recommended\n4: ESTM - Element Surface Temperature Method (Offerle et al., 2005) - not recommended\n5: EHC - Explicit Heat Conduction model with separate roof/wall/ground temperatures\n6: DyOHM - Dynamic Objective Hysteresis Model (Liu et al., 2025) with dynamic coefficients\n7: STEBBS - use STEBBS storage heat flux for building, others use OHM",
       "enum": [
         0,
         1,

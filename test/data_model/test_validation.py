@@ -2177,7 +2177,10 @@ def test_irrigation_hemisphere_warnings():
     results = validate_irrigation_doy(350, 30, 51.5, 2023, "test")
     warnings = [r for r in results if r.status == "WARNING"]
     assert len(warnings) == 2
-    assert any("Northern Hemisphere" in w.message and "May-September" in w.message for w in warnings)
+    assert any(
+        "Northern Hemisphere" in w.message and "May-September" in w.message
+        for w in warnings
+    )
     assert any("wraps year boundary" in w.message for w in warnings)
 
     # NH: partial overlap with warm season = warning
@@ -2196,7 +2199,10 @@ def test_irrigation_hemisphere_warnings():
     results = validate_irrigation_doy(180, 220, -33.9, 2023, "test")
     warnings = [r for r in results if r.status == "WARNING"]
     assert len(warnings) == 2
-    assert any("Southern Hemisphere" in w.message and "November-March" in w.message for w in warnings)
+    assert any(
+        "Southern Hemisphere" in w.message and "November-March" in w.message
+        for w in warnings
+    )
     assert any("does not wrap year boundary" in w.message for w in warnings)
 
     # Tropical: any period = no warning (irrigation allowed year-round)
@@ -2226,7 +2232,9 @@ def test_irrigation_year_wrapping():
     results = validate_irrigation_doy(330, 60, -33.9, 2023, "test")
     # Should NOT warn about year-wrapping (it's normal for SH warm season)
     warnings = [r for r in results if r.status == "WARNING"]
-    wrapping_warnings = [w for w in warnings if "does not wrap year boundary" in w.message]
+    wrapping_warnings = [
+        w for w in warnings if "does not wrap year boundary" in w.message
+    ]
     assert len(wrapping_warnings) == 0
 
     # Non-wrapping period in SH (winter irrigation - unusual)

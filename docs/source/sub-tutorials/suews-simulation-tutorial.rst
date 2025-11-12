@@ -69,31 +69,53 @@ Working with Results
 3. Accessing Output Variables
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Results are returned as multi-level pandas DataFrames:
+Results are returned as multi-level pandas DataFrames with columns organised by (group, variable):
 
 .. code-block:: python
 
     # Access results property
     results = sim.results
-    
-    # Access specific variables using (group, variable) syntax
-    qh = results[('SUEWS', 'QH')]        # Sensible heat flux
-    qe = results[('SUEWS', 'QE')]        # Latent heat flux
+
+    # Method 1: Use get_variable() (recommended for simple access)
+    qh = sim.get_variable('QH')          # Sensible heat flux
+    qe = sim.get_variable('QE')          # Latent heat flux
+
+    # Method 2: Direct access using (group, variable) syntax
     qs = results[('SUEWS', 'QS')]        # Storage heat flux
     t2 = results[('SUEWS', 'T2')]        # 2m air temperature
-    
+
     # Calculate daily averages using pandas
     qh_daily = qh.resample('D').mean()
-    
+
     # Plot energy balance
     import matplotlib.pyplot as plt
-    
+
     energy_vars = ['QH', 'QE', 'QS', 'QF']
     for var in energy_vars:
-        results[('SUEWS', var)].plot(label=var)
+        sim.get_variable(var).plot(label=var)
     plt.legend()
     plt.ylabel('Energy flux (W/m²)')
     plt.show()
+
+**Handling variables in multiple groups:**
+
+Some variables appear in multiple output groups (e.g., ``AlbSnow`` in both ``SUEWS`` and ``DailyState``, ``Kup`` in both ``SUEWS`` and ``SPARTACUS``). The ``get_variable()`` method handles this safely:
+
+.. code-block:: python
+
+    # For ambiguous variables, specify the group
+    try:
+        albedo = sim.get_variable('AlbSnow')  # Raises error if ambiguous
+    except ValueError as e:
+        print(e)  # "Variable 'AlbSnow' appears in multiple groups: SUEWS, DailyState..."
+
+    # Resolve by specifying group
+    albedo_suews = sim.get_variable('AlbSnow', group='SUEWS')
+    albedo_daily = sim.get_variable('AlbSnow', group='DailyState')
+
+    # Alternative: direct MultiIndex access
+    kup_suews = results[('SUEWS', 'Kup')]
+    kup_spartacus = results[('SPARTACUS', 'Kup')]
 
 4. Saving Results
 ~~~~~~~~~~~~~~~~~

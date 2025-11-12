@@ -877,6 +877,32 @@ def validate_irrigation_doy(
             )
         )
 
+    # Check for unusual year-wrapping irrigation patterns
+    # This helps catch likely user errors where start/end are swapped
+    if lat >= 23.5 and ie_start > ie_end:  # NH with year-wrapping
+        results.append(
+            ValidationResult(
+                status="WARNING",
+                category="IRRIGATION",
+                parameter=f"irrigation in site {site_name}",
+                message=f"Irrigation period wraps year boundary (DOY {int(ie_start)} to {int(ie_end)}). "
+                f"This means irrigation spans {365 - int(ie_start) + int(ie_end)} days including cold season. "
+                f"Verify this is intentional for Northern Hemisphere.",
+                suggested_value="Check if ie_start should be less than ie_end",
+            )
+        )
+    elif lat <= -23.5 and ie_start < ie_end:  # SH without year-wrapping
+        results.append(
+            ValidationResult(
+                status="WARNING",
+                category="IRRIGATION",
+                parameter=f"irrigation in site {site_name}",
+                message=f"Irrigation period does not wrap year boundary (DOY {int(ie_start)} to {int(ie_end)}). "
+                f"In Southern Hemisphere, warm season typically spans November-March (year-wrapping).",
+                suggested_value="Check if ie_start should be greater than ie_end",
+            )
+        )
+
     return results
 
 

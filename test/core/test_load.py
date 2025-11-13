@@ -513,16 +513,16 @@ FileOutputPath="./Output/"
 
             input_dir = Path(temp_dir) / "Inputbarb_v7"
             expected_grid = input_dir / "GridLayoutbarb.nml"
-            self.assertFalse(
+            self.assertTrue(
                 expected_grid.exists(),
-                "GridLayoutbarb.nml should not be auto-generated for legacy datasets",
+                "GridLayoutbarb.nml placeholder should be generated for legacy datasets",
             )
 
-            grid_files = sorted(f.name for f in input_dir.glob("GridLayout*.nml"))
-            self.assertGreaterEqual(
-                len(grid_files),
-                1,
-                "Conversion should still preserve placeholder GridLayout files for debugging",
+            placeholder_text = expected_grid.read_text(encoding="utf-8")
+            self.assertIn(
+                "Placeholder GridLayout generated",
+                placeholder_text,
+                "Placeholder GridLayout should include provenance comment",
             )
 
         print("✓ Legacy conversion leaves unmatched GridLayout files untouched")

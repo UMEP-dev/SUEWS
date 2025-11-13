@@ -10,7 +10,7 @@ import f90nml
 
 from ..._load import load_InitialCond_grid_df
 from ...data_model.core import SUEWSConfig
-from ...data_model.core.model import OhmIncQf, OutputConfig, StorageHeatMethod
+from ...data_model.core.model import OutputConfig
 from .table import convert_table
 
 
@@ -116,53 +116,30 @@ def _configure_forcing_and_output(
     resolutionfilesout = runcontrol.get("resolutionfilesout", 3600)
 
     # Create OutputConfig based on RunControl settings
+    output_path_setting = runcontrol.get("fileoutputpath", "./Output/")
+
+    def _resolve_output_dir(value: str) -> Path:
+        if os.path.isabs(value):
+            return Path(value).resolve()
+        return (path_runcontrol.parent / value).resolve()
+
+    resolved_output_dir = _resolve_output_dir(output_path_setting)
+    try:
+        output_path_relative = os.path.relpath(resolved_output_dir, output_dir)
+    except ValueError:
+        output_path_relative = str(resolved_output_dir)
+
     output_config = OutputConfig(
         format="txt",  # Default to txt format for compatibility
         freq=resolutionfilesout if resolutionfilesout > 0 else 3600,
         groups=["SUEWS", "DailyState"],  # Default groups
+        path=output_path_relative,
     )
 
     config.model.control.output_file = output_config
     click.echo(
         f"  - Set output configuration: format={output_config.format}, freq={output_config.freq}s"
     )
-
-
-def _coerce_supported_storage_method(config: SUEWSConfig) -> bool:
-    """Downgrade unsupported storage heat methods for YAML-based workflows."""
-
-    physics = getattr(getattr(config, "model", None), "physics", None)
-    if physics is None or not hasattr(physics, "storageheatmethod"):
-        return False
-
-    storage_field = physics.storageheatmethod
-    storage_value = getattr(storage_field, "value", storage_field)
-
-    if hasattr(storage_value, "value") and not isinstance(
-        storage_value, (int, float, str)
-    ):
-        storage_value = storage_value.value
-
-    if storage_value != StorageHeatMethod.ESTM.value:
-        return False
-
-    replacement = StorageHeatMethod.OHM_WITHOUT_QF
-    if hasattr(storage_field, "value"):
-        storage_field.value = replacement
-    else:
-        physics.storageheatmethod = replacement
-
-    ohm_field = getattr(physics, "ohmincqf", None)
-    if ohm_field is not None:
-        replacement_ohm = OhmIncQf.EXCLUDE
-        if hasattr(ohm_field, "value"):
-            ohm_field.value = replacement_ohm
-        else:
-            physics.ohmincqf = replacement_ohm
-
-    return True
-
-
 def convert_to_yaml(
     input_file: str,
     output_file: str,
@@ -273,13 +250,6 @@ def convert_to_yaml(
                 ) from e
         else:
             raise click.ClickException(f"Unexpected input type: {input_type}")
-
-        downgraded_storage = _coerce_supported_storage_method(config)
-        if downgraded_storage:
-            click.echo(
-                "  - StorageHeatMethod=4 detected; "
-                "downgrading to StorageHeatMethod=1 (OHM) for YAML compatibility."
-            )
 
         # Save to YAML
         click.echo(f"Saving to: {output_path}")

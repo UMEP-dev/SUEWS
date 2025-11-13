@@ -539,10 +539,12 @@ class ModelPhysics(BaseModel):
 
     Key method interactions:
 
-    - diagmethod: Determines HOW near-surface values (2m temp, 10m wind) are calculated from forcing data
-    - stabilitymethod: Provides stability correction functions used BY diagmethod calculations
-    - localclimatemethod: Uses the near-surface values FROM diagmethod to modify vegetation processes
-    - gsmodel: Stomatal conductance model that may be influenced by localclimatemethod adjustments
+    - rslmethod: Determines HOW near-surface values (2m temp, 10m wind) are calculated from forcing data
+    - stabilitymethod: Provides stability correction functions used BY rslmethod calculations
+    - rsllevel: Uses the near-surface values FROM rslmethod to modify vegetation processes
+    - gsmodel: Stomatal conductance model that may be influenced by rsllevel adjustments
+
+    Note: Legacy df_state uses old names (diagmethod→rslmethod, localclimatemethod→rsllevel)
     """
 
     model_config = ConfigDict(title="Physics Methods")

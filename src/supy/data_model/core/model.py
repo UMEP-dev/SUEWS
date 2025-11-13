@@ -111,9 +111,15 @@ class NetRadiationMethod(Enum):
     1: LDOWN_OBSERVED - Models Q* using NARP (Net All-wave Radiation Parameterization; Offerle et al. 2003, Loridan et al. 2011) with observed longwave down radiation (L↓) from forcing file
     2: LDOWN_CLOUD - Models Q* using NARP with L↓ estimated from cloud cover fraction
     3: LDOWN_AIR - Models Q* using NARP with L↓ estimated from air temperature and relative humidity
-    11-13: Surface temperature variants of methods 1-3 (not recommended)
-    100-300: Zenith angle correction variants with NARP output (not recommended)
-    1001-1003: SPARTACUS-Surface integration variants (experimental)
+    11: LDOWN_SURFACE - Surface temperature variant of method 1 (not recommended)
+    12: LDOWN_CLOUD_SURFACE - Surface temperature variant of method 2 (not recommended)
+    13: LDOWN_AIR_SURFACE - Surface temperature variant of method 3 (not recommended)
+    100: LDOWN_ZENITH - Zenith angle correction variant of method 1 (not recommended)
+    200: LDOWN_CLOUD_ZENITH - Zenith angle correction variant of method 2 (not recommended)
+    300: LDOWN_AIR_ZENITH - Zenith angle correction variant of method 3 (not recommended)
+    1001: LDOWN_SS_OBSERVED - SPARTACUS-Surface integration with observed L↓ (experimental)
+    1002: LDOWN_SS_CLOUD - SPARTACUS-Surface integration with L↓ from cloud fraction (experimental)
+    1003: LDOWN_SS_AIR - SPARTACUS-Surface integration with L↓ from air temperature/humidity (experimental)
     """
 
     OBSERVED = 0
@@ -387,8 +393,7 @@ class FAIMethod(Enum):
 
 class RSLLevel(Enum):
     """
-    Method for incorporating local environmental feedbacks on surface processes, particularly vegetation phenology
-    and evapotranspiration responses to urban heat island effects.
+    Method for incorporating local environmental feedbacks on surface processes, particularly vegetation phenology and evapotranspiration responses to urban heat island effects.
 
     0: NONE - No local climate adjustments; use forcing file meteorology directly
     1: BASIC - Simple adjustments for urban temperature effects on leaf area index (LAI) and growing degree days

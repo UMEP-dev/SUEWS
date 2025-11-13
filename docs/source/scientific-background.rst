@@ -1,7 +1,7 @@
-.. _physics_schemes:
+.. _scientific_background:
 
-Model Physics and Processes
-============================
+Scientific Background
+=====================
 
 Overview
 --------
@@ -36,15 +36,20 @@ where:
 - :math:`\Delta S` is the change in water storage
 - :math:`R` is runoff
 
+Model Components
+----------------
+
 Each component can be calculated using different parameterisations or provided as observed input. The choice of parameterisation is controlled through the ``ModelPhysics`` configuration object. Some schemes are alternatives (e.g., NARP vs BEERS vs SPARTACUS for radiation), whilst others are complementary (e.g., different stability correction functions).
 
 Supporting schemes provide essential inputs to these balance calculations, including leaf area index (LAI), atmospheric stability corrections, and diagnostic meteorological profiles.
 
-.. toctree::
-   :maxdepth: 2
-   :caption: Physics Components:
+Documentation Structure
+-----------------------
 
-   physics/radiation-schemes
-   physics/heat-fluxes
-   physics/water-balance
-   physics/supporting-schemes
+The following pages provide detailed information on:
+
+- :ref:`energy_balance`: Components of the surface energy balance (Q*, QF, ΔQS, QH, QE)
+- :ref:`water_balance`: Components of the surface water balance (P, I, E, ΔS, R)
+- :ref:`supporting_processes`: Supporting processes and schemes (LAI, stability, RSL, CBL, CO2)
+- :ref:`suews_publications`: Core SUEWS publications from the development team
+- :ref:`refs`: General scientific references

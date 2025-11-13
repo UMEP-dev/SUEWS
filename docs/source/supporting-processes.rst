@@ -1,6 +1,6 @@
-.. _supporting_schemes:
+.. _supporting_processes:
 
-Supporting Schemes and Diagnostics
+Supporting Processes and Schemes
 ===================================
 
 This section describes the supporting schemes that provide essential inputs to the energy and water balance calculations, as well as diagnostic meteorological profiles.

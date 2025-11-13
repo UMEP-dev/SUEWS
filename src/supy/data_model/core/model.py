@@ -49,15 +49,19 @@ def _enum_description(enum_class: type[Enum]) -> str:
     summary = " ".join(summary_lines)
 
     # Format options for Field description
+    # Expected format for doc_utils: "0 (NAME) = Description; 1 (NAME2) = Description2"
     if option_lines:
-        # Convert multi-line option format to single-line format
+        import re
         options_formatted = []
+
         for opt_line in option_lines:
             # Handle patterns like "0: NAME - Description" or "1-3: Description"
-            if ":" in opt_line:
-                options_formatted.append(
-                    opt_line.replace(": ", " = ").replace(" - ", ": ")
-                )
+            # Extract: number(s), name, and description
+            match = re.match(r'^(\d+(?:-\d+)?)\s*:\s*(\w+)\s*-\s*(.+)$', opt_line)
+            if match:
+                num, name, desc = match.groups()
+                # Format as: "NUMBER (NAME) = Description"
+                options_formatted.append(f"{num} ({name}) = {desc}")
 
         if options_formatted:
             options_text = "; ".join(options_formatted)

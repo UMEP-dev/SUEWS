@@ -4,9 +4,64 @@ import numpy as np
 from pydantic import ConfigDict, BaseModel, Field, field_validator, model_validator
 import pandas as pd
 from enum import Enum
+import inspect
 
 from .type import RefValue, Reference, FlexibleRefValue
 from .type import init_df_state
+
+
+def _enum_description(enum_class: type[Enum]) -> str:
+    """
+    Extract and format enum docstring for Field description.
+
+    This makes enum docstrings the single source of truth for method documentation.
+    The docstring is formatted to work with both RTD and JSON Schema generation.
+
+    Args:
+        enum_class: The Enum class to extract documentation from
+
+    Returns:
+        Formatted description string suitable for Field(description=...)
+    """
+    if not enum_class.__doc__:
+        return ""
+
+    # Clean and extract docstring
+    doc = inspect.cleandoc(enum_class.__doc__)
+
+    # Split into summary and options
+    lines = doc.split('\n')
+
+    # Find the summary (first paragraph before blank line or options)
+    summary_lines = []
+    option_lines = []
+    in_options = False
+
+    for line in lines:
+        if not line.strip():
+            in_options = True
+            continue
+        if in_options:
+            option_lines.append(line.strip())
+        else:
+            summary_lines.append(line.strip())
+
+    summary = ' '.join(summary_lines)
+
+    # Format options for Field description
+    if option_lines:
+        # Convert multi-line option format to single-line format
+        options_formatted = []
+        for opt_line in option_lines:
+            # Handle patterns like "0: NAME - Description" or "1-3: Description"
+            if ':' in opt_line:
+                options_formatted.append(opt_line.replace(': ', ' = ').replace(' - ', ': '))
+
+        if options_formatted:
+            options_text = '; '.join(options_formatted)
+            return f"{summary} Options: {options_text}"
+
+    return summary
 
 
 class EmissionsMethod(Enum):
@@ -483,82 +538,82 @@ class ModelPhysics(BaseModel):
 
     netradiationmethod: FlexibleRefValue(NetRadiationMethod) = Field(
         default=NetRadiationMethod.LDOWN_AIR,
-        description="Method for calculating net all-wave radiation (Q*). Options: 0 (OBSERVED) = Uses observed Q* from forcing file; 1 (LDOWN_OBSERVED) = Models Q* using observed L↓; 2 (LDOWN_CLOUD) = Models Q* with L↓ from cloud cover; 3 (LDOWN_AIR) = Models Q* with L↓ from air temp and RH (recommended); 11 (LDOWN_SURFACE) = Surface temp variant of method 1 (not recommended); 12 (LDOWN_CLOUD_SURFACE) = Surface temp variant of method 2 (not recommended); 13 (LDOWN_AIR_SURFACE) = Surface temp variant of method 3 (not recommended); 100 (LDOWN_ZENITH) = Zenith angle variant of method 1; 200 (LDOWN_CLOUD_ZENITH) = Zenith angle variant of method 2; 300 (LDOWN_AIR_ZENITH) = Zenith angle variant of method 3; 1001 (LDOWN_SS_OBSERVED) = SPARTACUS-Surface variant of method 1 (experimental); 1002 (LDOWN_SS_CLOUD) = SPARTACUS-Surface variant of method 2 (experimental); 1003 (LDOWN_SS_AIR) = SPARTACUS-Surface variant of method 3 (experimental)",
+        description=_enum_description(NetRadiationMethod),
         json_schema_extra={"unit": "dimensionless"},
     )
     emissionsmethod: FlexibleRefValue(EmissionsMethod) = Field(
         default=EmissionsMethod.J11,
-        description="Method for calculating anthropogenic heat flux (QF) and CO2 emissions. Options: 0 (NO_EMISSIONS) = Observed QF from forcing file; 1 (L11) = Loridan et al. 2011 linear temp relation; 2 (J11) = Järvi et al. 2011 with HDD/CDD; 3 (L11_UPDATED) = Loridan with daily mean temp; 4 (J19) = Järvi et al. 2019 including metabolism and traffic; 5 (J19_UPDATED) = As 4 with CO2 emissions",
+        description=_enum_description(EmissionsMethod),
         json_schema_extra={"unit": "dimensionless"},
     )
     storageheatmethod: FlexibleRefValue(StorageHeatMethod) = Field(
         default=StorageHeatMethod.OHM_WITHOUT_QF,
-        description="Method for calculating storage heat flux (ΔQS). Options: 0 (OBSERVED) = Uses observed ΔQS from forcing file; 1 (OHM_WITHOUT_QF) = Objective Hysteresis Model using Q* only; 3 (ANOHM) = Analytical OHM (not recommended); 4 (ESTM) = Element Surface Temperature Method (not recommended); 5 (EHC) = Explicit Heat Conduction model with separate roof/wall/ground temperatures; 6 (DyOHM) = Dynamic Objective Hysteresis Model with dynamic coefficients; 7 (STEBBS) = use STEBBS to calculate storage heat flux for building",
+        description=_enum_description(StorageHeatMethod),
         json_schema_extra={"unit": "dimensionless"},
     )
     ohmincqf: FlexibleRefValue(OhmIncQf) = Field(
         default=OhmIncQf.EXCLUDE,
-        description="Controls inclusion of anthropogenic heat flux in OHM storage heat calculations. Options: 0 (EXCLUDE) = Use Q* only (required when StorageHeatMethod=1); 1 (INCLUDE) = Use Q*+QF (required when StorageHeatMethod=2)",
+        description=_enum_description(OhmIncQf),
         json_schema_extra={"unit": "dimensionless"},
     )
     roughlenmommethod: FlexibleRefValue(MomentumRoughnessMethod) = Field(
         default=MomentumRoughnessMethod.VARIABLE,
-        description="Method for calculating momentum roughness length (z0m). Options: 1 (FIXED) = Fixed from site parameters; 2 (VARIABLE) = Varies with vegetation LAI; 3 (MACDONALD) = MacDonald et al. 1998 morphometric method; 4 (LAMBDAP_DEPENDENT) = Varies with plan area fraction; 5 (ALTERNATIVE) = Alternative variable method",
+        description=_enum_description(MomentumRoughnessMethod),
         json_schema_extra={"unit": "dimensionless"},
     )
     roughlenheatmethod: FlexibleRefValue(HeatRoughnessMethod) = Field(
         default=HeatRoughnessMethod.KAWAI,
-        description="Method for calculating thermal roughness length (z0h). Options: 1 (BRUTSAERT) = Brutsaert (1982) z0h = z0m/10; 2 (KAWAI) = Kawai et al. (2009); 3 (VOOGT_GRIMMOND) = Voogt and Grimmond (2000); 4 (KANDA) = Kanda et al. (2007); 5 (ADAPTIVE) = Adaptive method based on surface coverage",
+        description=_enum_description(HeatRoughnessMethod),
         json_schema_extra={"unit": "dimensionless"},
     )
     stabilitymethod: FlexibleRefValue(StabilityMethod) = Field(
         default=StabilityMethod.CAMPBELL_NORMAN,
-        description="Atmospheric stability correction functions for momentum and heat fluxes. Options: 0 = Reserved; 1 = Reserved; 2 (HOEGSTROM) = Dyer/Högström formulations (not recommended); 3 (CAMPBELL_NORMAN) = Campbell & Norman 1998 formulations (recommended); 4 (BUSINGER_HOEGSTROM) = Businger/Högström formulations (not recommended)",
+        description=_enum_description(StabilityMethod),
         json_schema_extra={"unit": "dimensionless"},
     )
     smdmethod: FlexibleRefValue(SMDMethod) = Field(
         default=SMDMethod.MODELLED,
-        description="Method for determining soil moisture deficit (SMD). Options: 0 (MODELLED) = Calculated from water balance using soil parameters; 1 (OBSERVED_VOLUMETRIC) = Uses observed volumetric soil moisture (m³/m³) from forcing file; 2 (OBSERVED_GRAVIMETRIC) = Uses observed gravimetric soil moisture (kg/kg) from forcing file",
+        description=_enum_description(SMDMethod),
         json_schema_extra={"unit": "dimensionless"},
     )
     waterusemethod: FlexibleRefValue(WaterUseMethod) = Field(
         default=WaterUseMethod.MODELLED,
-        description="Method for determining external water use (irrigation). Options: 0 (MODELLED) = Calculated based on soil moisture deficit and irrigation parameters; 1 (OBSERVED) = Uses observed water use values from forcing file",
+        description=_enum_description(WaterUseMethod),
         json_schema_extra={"unit": "dimensionless"},
     )
     rslmethod: FlexibleRefValue(RSLMethod) = Field(
         default=RSLMethod.VARIABLE,
-        description="Method for calculating near-surface meteorological diagnostics (2m temperature, 2m humidity, 10m wind speed). Options: 0 (MOST) = Monin-Obukhov Similarity Theory for homogeneous surfaces; 1 (RST) = Roughness Sublayer Theory for heterogeneous urban surfaces; 2 (VARIABLE) = Automatic selection based on surface morphology (plan area index, frontal area index, and roughness element heights)",
+        description=_enum_description(RSLMethod),
         json_schema_extra={"unit": "dimensionless"},
     )
     faimethod: FlexibleRefValue(FAIMethod) = Field(
         default=FAIMethod.USE_PROVIDED,
-        description="Method for calculating frontal area index (FAI) - the ratio of frontal area to plan area. Options: 0 (USE_PROVIDED) = Use FAI values provided in site parameters; 1 (SIMPLE_SCHEME) = Calculate FAI using simple scheme based on surface fractions and heights",
+        description=_enum_description(FAIMethod),
         json_schema_extra={"unit": "dimensionless"},
     )
     rsllevel: FlexibleRefValue(RSLLevel) = Field(
         default=RSLLevel.NONE,
-        description="Method for incorporating urban microclimate feedbacks on vegetation and evapotranspiration. Options: 0 (NONE) = No local climate adjustments, use forcing file meteorology directly; 1 (BASIC) = Simple adjustments for urban temperature effects on leaf area index and growing degree days; 2 (DETAILED) = Comprehensive feedbacks including moisture stress, urban CO2 dome effects, and modified phenology cycles",
+        description=_enum_description(RSLLevel),
         json_schema_extra={"unit": "dimensionless"},
     )
     gsmodel: FlexibleRefValue(GSModel) = Field(
         default=GSModel.WARD,
-        description="Stomatal conductance parameterisation method for vegetation surfaces. Options: 1 (JARVI) = Original parameterisation (Järvi et al. 2011) based on environmental controls; 2 (WARD) = Updated parameterisation (Ward et al. 2016) with improved temperature and VPD responses",
+        description=_enum_description(GSModel),
         json_schema_extra={"unit": "dimensionless"},
     )
     snowuse: FlexibleRefValue(SnowUse) = Field(
         default=SnowUse.DISABLED,
-        description="Controls snow process calculations. Options: 0 (DISABLED) = Snow processes not included; 1 (ENABLED) = Snow accumulation, melt, and albedo effects included",
+        description=_enum_description(SnowUse),
         json_schema_extra={"unit": "dimensionless"},
     )
     stebbsmethod: FlexibleRefValue(StebbsMethod) = Field(
         default=StebbsMethod.NONE,
-        description="Surface Temperature Energy Balance Based Scheme (STEBBS) for facet temperatures. Options: 0 (NONE) = STEBBS disabled; 1 (DEFAULT) = STEBBS with default parameters; 2 (PROVIDED) = STEBBS with user-specified parameters",
+        description=_enum_description(StebbsMethod),
         json_schema_extra={"unit": "dimensionless"},
     )
     rcmethod: FlexibleRefValue(RCMethod) = Field(
         default=RCMethod.NONE,
-        description="Method to split building envelope heat capacity in STEBBS. Options: 0 (NONE) = STEBBS split disabled; 1 (PROVIDED) = use user-defined fractional weighting factor x1 between 0 and 1; 2 (PARAMETERISE) = use building material thermal property to parameterise the weighting factor x1",
+        description=_enum_description(RCMethod),
         json_schema_extra={"unit": "dimensionless"},
     )
     ref: Optional[Reference] = None

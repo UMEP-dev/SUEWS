@@ -16,6 +16,8 @@ import tempfile
 from types import SimpleNamespace
 import warnings
 
+import pytest
+
 import supy as sp
 from supy.data_model.core import SUEWSConfig
 from supy.data_model.core.type import RefValue
@@ -71,6 +73,72 @@ def test_validate_stebbs_missing_parameters():
     msgs = SUEWSConfig._validate_stebbs(cfg, site, site_index=0)
     # Should mention at least one of the required params
     assert msgs and msgs[0].startswith("Missing required STEBBS parameters:")
+
+
+@pytest.mark.parametrize(
+    "stebbsmethod,rcmethod,should_validate",
+    [
+        (0, 1, False),  # STEBBS disabled, rcmethod irrelevant
+        (1, 0, False),  # STEBBS enabled but rcmethod=NONE
+        (1, 1, True),  # STEBBS enabled, rcmethod=PROVIDED
+        (2, 2, True),  # STEBBS enabled, rcmethod=PARAMETERISE
+    ],
+)
+def test_needs_rcmethod_validation_requires_stebbs_enabled(
+    stebbsmethod, rcmethod, should_validate
+):
+    """Test that rcmethod validation only applies when stebbsmethod >= 1 and rcmethod > 0."""
+    cfg = make_cfg(stebbsmethod=stebbsmethod, rcmethod=rcmethod)
+    assert cfg._needs_rcmethod_validation() is should_validate
+
+
+@pytest.mark.parametrize(
+    "props,expected_error",
+    [
+        (None, "Missing 'properties' section"),
+        (SimpleNamespace(stebbs=None), "Missing 'stebbs' section"),
+        (SimpleNamespace(stebbs=SimpleNamespace()), "Missing 'x1' parameter"),
+        (
+            SimpleNamespace(stebbs=SimpleNamespace(x1=SimpleNamespace(value=None))),
+            "cannot be null",
+        ),
+    ],
+)
+def test_validate_rcmethod_x1_unavailable(props, expected_error):
+    """Test rcmethod=1 requires valid x1 parameter through various error paths."""
+    cfg = make_cfg(stebbsmethod=1, rcmethod=1)
+    site = DummySite(properties=props, name="MySite")
+    msgs = SUEWSConfig._validate_rcmethod(cfg, site, site_index=0)
+    assert len(msgs) == 1 and expected_error in msgs[0]
+
+
+@pytest.mark.parametrize(
+    "x1_value,should_pass",
+    [
+        (-0.1, False),  # Below range
+        (0.0, True),  # Boundary: minimum
+        (0.5, True),  # Valid middle value
+        (1.0, True),  # Boundary: maximum
+        (1.5, False),  # Above range
+    ],
+)
+def test_validate_rcmethod_x1_range(x1_value, should_pass):
+    """Test x1 must be between 0 and 1 (inclusive)."""
+    cfg = make_cfg(stebbsmethod=1, rcmethod=1)
+    props = SimpleNamespace(stebbs=SimpleNamespace(x1=SimpleNamespace(value=x1_value)))
+    site = DummySite(properties=props, name="MySite")
+    msgs = SUEWSConfig._validate_rcmethod(cfg, site, site_index=0)
+    assert (len(msgs) == 0) == should_pass
+
+
+def test_validate_rcmethod_parameterise_no_validation():
+    """Test that rcmethod=2 (PARAMETERISE) doesn't require x1."""
+    cfg = make_cfg(stebbsmethod=1, rcmethod=2)
+    # Empty stebbs without x1 should be fine for rcmethod=2
+    props = SimpleNamespace(stebbs=SimpleNamespace())
+    site = DummySite(properties=props, name="MySite")
+    msgs = SUEWSConfig._validate_rcmethod(cfg, site, site_index=0)
+    assert msgs == []
 
 
 def test_needs_rsl_validation_true_and_false():

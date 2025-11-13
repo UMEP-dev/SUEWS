@@ -67,10 +67,18 @@ Quick Start: Sample Data Tutorial
 
 .. code-block:: python
 
-   # Quick overview of results
-   print("📈 Key output variables:")
-   key_vars = ['QN', 'QF', 'QS', 'QE', 'QH', 'Runoff', 'T2']
-   print(sim.results[key_vars].describe().round(2))
+   # Quick overview of results structure
+   print("📈 Results structure:")
+   print(f"Time steps: {len(sim.results)}")
+   print(f"Output groups: {sim.results.columns.get_level_values('group').unique().tolist()}")
+
+   # Extract key variables using get_variable() helper
+   # (Results use MultiIndex columns with (group, variable) structure)
+   qn = sim.get_variable('QN', group='SUEWS')
+   qh = sim.get_variable('QH', group='SUEWS')
+   print("\nSample energy flux statistics:")
+   print(f"Net radiation (QN): {qn.mean().values[0]:.1f} W/m²")
+   print(f"Sensible heat (QH): {qh.mean().values[0]:.1f} W/m²")
 
 **Step 3: Create your first urban climate visualisation**
 
@@ -79,32 +87,51 @@ Quick Start: Sample Data Tutorial
    # Plot energy balance components
    fig, axes = plt.subplots(2, 2, figsize=(15, 10))
 
-   # Daily energy fluxes
-   energy_cols = ['QN', 'QF', 'QS', 'QE', 'QH']
-   df_energy = sim.results[energy_cols]
+   # Daily energy fluxes - extract variables using get_variable()
+   qn = sim.get_variable('QN', group='SUEWS')
+   qf = sim.get_variable('QF', group='SUEWS')
+   qs = sim.get_variable('QS', group='SUEWS')
+   qe = sim.get_variable('QE', group='SUEWS')
+   qh = sim.get_variable('QH', group='SUEWS')
+
+   # Combine into DataFrame for plotting
+   df_energy = pd.DataFrame({
+       'QN': qn.iloc[:, 0],
+       'QF': qf.iloc[:, 0],
+       'QS': qs.iloc[:, 0],
+       'QE': qe.iloc[:, 0],
+       'QH': qh.iloc[:, 0]
+   })
    daily_energy = df_energy.resample('D').mean()
-   
+
    daily_energy.plot(ax=axes[0,0], title='Daily Mean Energy Fluxes')
    axes[0,0].set_ylabel('Energy Flux (W/m²)')
    axes[0,0].legend(bbox_to_anchor=(1.05, 1), loc='upper left')
-   
+
    # Monthly patterns
    monthly_energy = df_energy.groupby(df_energy.index.month).mean()
    monthly_energy.plot(kind='bar', ax=axes[0,1], title='Monthly Energy Balance')
    axes[0,1].set_ylabel('Energy Flux (W/m²)')
    axes[0,1].set_xlabel('Month')
-   
+
    # Diurnal patterns (summer months)
-   df_output = sim.results  # Get results DataFrame
-   summer_data = df_output[df_output.index.month.isin([6,7,8])]
-   hourly_temp = summer_data.groupby(summer_data.index.hour)['T2'].mean()
-   hourly_temp.plot(ax=axes[1,0], title='Summer Diurnal Temperature Cycle', marker='o')
+   t2 = sim.get_variable('T2', group='SUEWS')
+   summer_mask = t2.index.month.isin([6,7,8])
+   summer_temp = t2[summer_mask]
+   hourly_temp = summer_temp.groupby(summer_temp.index.hour).mean()
+   hourly_temp.iloc[:, 0].plot(ax=axes[1,0], title='Summer Diurnal Temperature Cycle', marker='o')
    axes[1,0].set_ylabel('Air Temperature (°C)')
    axes[1,0].set_xlabel('Hour of Day')
    axes[1,0].grid(True, alpha=0.3)
 
    # Runoff vs Precipitation
-   daily_water = df_output[['Rain', 'Runoff']].resample('D').sum()
+   rain = sim.get_variable('Rain', group='SUEWS')
+   runoff = sim.get_variable('Runoff', group='SUEWS')
+   df_water = pd.DataFrame({
+       'Rain': rain.iloc[:, 0],
+       'Runoff': runoff.iloc[:, 0]
+   })
+   daily_water = df_water.resample('D').sum()
    daily_water.plot(ax=axes[1,1], title='Daily Water Balance')
    axes[1,1].set_ylabel('Water (mm/day)')
    axes[1,1].legend()
@@ -152,8 +179,30 @@ The simulation produces comprehensive urban climate data:
 .. note::
 
    **Energy Balance**: The fundamental equation is QN + QF = QS + QE + QH
-   
+
    This shows how incoming energy (radiation + anthropogenic) is partitioned between storage in urban materials, evaporation, and heating the air.
+
+**Working with Results (Important!)**
+
+Results are stored with MultiIndex columns ``(group, variable)``. Always use ``sim.get_variable()`` to extract data:
+
+.. code-block:: python
+
+   # ✅ Correct way to access results
+   qh = sim.get_variable('QH', group='SUEWS')
+   t2 = sim.get_variable('T2', group='SUEWS')
+
+   # Helper function for multiple variables
+   def get_variables(sim, var_names, group='SUEWS'):
+       """Extract multiple variables into a simple DataFrame"""
+       return pd.DataFrame({
+           var: sim.get_variable(var, group=group).iloc[:, 0]
+           for var in var_names
+       })
+
+   # Use the helper
+   energy = get_variables(sim, ['QN', 'QF', 'QS', 'QE', 'QH'])
+   print(energy.describe())
 
 **Complete Interactive Tutorial**
 
@@ -333,7 +382,7 @@ Multi-Site and Comparative Studies
        """Run SUEWS for a single site configuration"""
        sim = SUEWSSimulation(config_file)
        sim.run()
-       return config_file, sim.results
+       return config_file, (sim.results, sim.state_final)
 
    # Configuration files for different sites
    site_configs = [
@@ -346,13 +395,19 @@ Multi-Site and Comparative Studies
    with Pool() as pool:
        results = pool.map(run_site, site_configs)
 
-   # Combine results for comparative analysis
-   site_outputs = {name: output for name, output in results}
+   # Note: Each result tuple contains (df_output, df_state_final)
+   # We need to access variables using the simulation object or helper
 
-   # Example: Compare urban heat island intensities
+   # Create simulations from stored states to access get_variable()
    monthly_temps = {}
-   for site, df in site_outputs.items():
-       monthly_temps[site] = df.groupby(df.index.month)['T2'].mean()
+   for name, (output, state) in results:
+       # Recreate sim with results for get_variable() access
+       sim_temp = SUEWSSimulation()
+       sim_temp._df_output = output
+       sim_temp._run_completed = True
+
+       t2 = sim_temp.get_variable('T2', group='SUEWS')
+       monthly_temps[name] = t2.iloc[:, 0].groupby(t2.index.month).mean()
 
    temp_comparison = pd.DataFrame(monthly_temps)
    temp_comparison.plot(kind='bar', title='Monthly Temperature Comparison')
@@ -379,21 +434,33 @@ Climate Change Impact Studies
        # Run simulation for each scenario
        sim = SUEWSSimulation(config_file)
        sim.run()
-       scenario_results[scenario_name] = sim.results
+       scenario_results[scenario_name] = sim
 
-   # Calculate climate change impacts
+   # Calculate climate change impacts using the helper from earlier
+   def get_variables(sim, var_names, group='SUEWS'):
+       """Extract multiple variables into a simple DataFrame"""
+       return pd.DataFrame({
+           var: sim.get_variable(var, group=group).iloc[:, 0]
+           for var in var_names
+       })
+
    baseline = scenario_results['baseline']
    rcp85 = scenario_results['rcp85_2050']
 
    # Temperature changes
-   temp_change = rcp85['T2'].mean() - baseline['T2'].mean()
+   temp_baseline = baseline.get_variable('T2', group='SUEWS').iloc[:, 0]
+   temp_rcp85 = rcp85.get_variable('T2', group='SUEWS').iloc[:, 0]
+   temp_change = temp_rcp85.mean() - temp_baseline.mean()
    print(f"Projected temperature increase: {temp_change:.1f}°C")
 
    # Energy flux changes
+   baseline_fluxes = get_variables(baseline, ['QH', 'QE', 'QS'])
+   rcp85_fluxes = get_variables(rcp85, ['QH', 'QE', 'QS'])
+
    flux_changes = {
-       'Sensible Heat': rcp85['QH'].mean() - baseline['QH'].mean(),
-       'Latent Heat': rcp85['QE'].mean() - baseline['QE'].mean(),
-       'Storage Heat': rcp85['QS'].mean() - baseline['QS'].mean()
+       'Sensible Heat': rcp85_fluxes['QH'].mean() - baseline_fluxes['QH'].mean(),
+       'Latent Heat': rcp85_fluxes['QE'].mean() - baseline_fluxes['QE'].mean(),
+       'Storage Heat': rcp85_fluxes['QS'].mean() - baseline_fluxes['QS'].mean()
    }
 
 **Complete Tutorial**: :doc:`Impact Studies <tutorials/python/impact-studies>`
@@ -406,18 +473,29 @@ SuPy enables integration with other atmospheric and urban models:
 .. code-block:: python
 
    # Example: Prepare SUEWS output for WRF coupling
-   def prepare_wrf_coupling(df_suews, grid_config):
-       """Prepare SUEWS output for WRF model coupling"""
-       
+   def prepare_wrf_coupling(sim, grid_config):
+       """Prepare SUEWS output for WRF model coupling
+
+       Parameters
+       ----------
+       sim : SUEWSSimulation
+           Completed SUEWS simulation
+       grid_config : dict
+           WRF grid configuration
+       """
+       # Helper to extract variables
+       def get_var(name):
+           return sim.get_variable(name, group='SUEWS').iloc[:, 0]
+
        # Extract surface fluxes for WRF
        wrf_fluxes = pd.DataFrame({
-           'sensible_heat': df_suews['QH'],
-           'latent_heat': df_suews['QE'],
-           'ground_heat': df_suews['QS'],
-           'momentum_flux': df_suews['Tau'],
-           'surface_temp': df_suews['TSurf']
+           'sensible_heat': get_var('QH'),
+           'latent_heat': get_var('QE'),
+           'ground_heat': get_var('QS'),
+           'momentum_flux': get_var('Tau'),
+           'surface_temp': get_var('TSurf')
        })
-       
+
        return wrf_fluxes
 
 **Complete Tutorial**: :doc:`External Model Integration <integration/external-interaction>`
@@ -430,43 +508,64 @@ Advanced Analysis Patterns
 .. code-block:: python
 
    # Compare urban vs rural sites
-   def calculate_uhi_intensity(urban_output, rural_output):
-       """Calculate urban heat island intensity"""
-       
-       urban_temp = urban_output['T2']
-       rural_temp = rural_output['T2']
-       
+   def calculate_uhi_intensity(urban_sim, rural_sim):
+       """Calculate urban heat island intensity
+
+       Parameters
+       ----------
+       urban_sim, rural_sim : SUEWSSimulation
+           Completed simulations for urban and rural sites
+       """
+       # Extract temperature using get_variable()
+       urban_temp = urban_sim.get_variable('T2', group='SUEWS').iloc[:, 0]
+       rural_temp = rural_sim.get_variable('T2', group='SUEWS').iloc[:, 0]
+
        # UHI intensity by time of day
        uhi_diurnal = urban_temp.groupby(urban_temp.index.hour).mean() - \
                      rural_temp.groupby(rural_temp.index.hour).mean()
-       
+
        # Seasonal UHI patterns
        uhi_seasonal = urban_temp.groupby(urban_temp.index.month).mean() - \
                       rural_temp.groupby(rural_temp.index.month).mean()
-       
+
        return uhi_diurnal, uhi_seasonal
 
 **Energy Balance Analysis:**
 
 .. code-block:: python
 
-   def analyse_energy_balance(df_output):
-       """Comprehensive energy balance analysis"""
-       
+   def analyse_energy_balance(sim):
+       """Comprehensive energy balance analysis
+
+       Parameters
+       ----------
+       sim : SUEWSSimulation
+           Completed simulation
+       """
+       # Helper to extract variables
+       def get_var(name):
+           return sim.get_variable(name, group='SUEWS').iloc[:, 0]
+
        # Energy balance components
-       energy_in = df_output['QN'] + df_output['QF']
-       energy_out = df_output['QS'] + df_output['QE'] + df_output['QH']
-       
+       qn = get_var('QN')
+       qf = get_var('QF')
+       qs = get_var('QS')
+       qe = get_var('QE')
+       qh = get_var('QH')
+
+       energy_in = qn + qf
+       energy_out = qs + qe + qh
+
        # Balance closure
        balance_error = energy_in - energy_out
-       
+
        # Seasonal energy partitioning
-       seasonal_partition = df_output.groupby(df_output.index.month)[
-           ['QS', 'QE', 'QH']].mean()
-       
+       df_fluxes = pd.DataFrame({'QS': qs, 'QE': qe, 'QH': qh})
+       seasonal_partition = df_fluxes.groupby(df_fluxes.index.month).mean()
+
        # Bowen ratio (sensible/latent heat)
-       bowen_ratio = df_output['QH'] / df_output['QE']
-       
+       bowen_ratio = qh / qe
+
        return {
            'balance_closure': balance_error.std(),
            'seasonal_partitioning': seasonal_partition,
@@ -510,9 +609,15 @@ Migration Process
    # Short validation run (24 hours)
    sim.run(end_date="2012-01-02")
 
-   # Check energy balance
+   # Check energy balance using get_variable()
    print("✅ Migration validation:")
-   print(sim.results[['QE', 'QH', 'QS', 'QF']].describe())
+   energy_fluxes = pd.DataFrame({
+       'QE': sim.get_variable('QE', group='SUEWS').iloc[:, 0],
+       'QH': sim.get_variable('QH', group='SUEWS').iloc[:, 0],
+       'QS': sim.get_variable('QS', group='SUEWS').iloc[:, 0],
+       'QF': sim.get_variable('QF', group='SUEWS').iloc[:, 0]
+   })
+   print(energy_fluxes.describe())
 
 Getting Support and Community
 -----------------------------

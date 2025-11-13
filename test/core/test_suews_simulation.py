@@ -329,22 +329,25 @@ class TestConfigSitesUpdate:
         assert sim_single_site.config.sites[0].name in ["A", "B", "C"]
 
     def test_single_site_shorthand_fails_gracefully_multi_site(self, sim_multi_site):
-        """Test that single-site shorthand behaviour is clear with multiple sites.
+        """Test that single-site shorthand is safely ignored with multiple sites.
 
-        Note: Current implementation applies to first site when len==1 check fails.
-        This test documents expected behaviour - may need adjustment based on design decision.
+        When multiple sites exist and shorthand syntax is used (e.g., {"name": "value"}
+        without site key), the update should be skipped rather than applied ambiguously.
+        This prevents accidental updates to the wrong site.
         """
-        # This is a design question: should shorthand work with multi-sites?
-        # Current implementation only works if len(attr)==1, otherwise requires key
-        original_name = sim_multi_site.config.sites[0].name
+        # Record original names
+        original_name_site0 = sim_multi_site.config.sites[0].name
+        original_name_site1 = sim_multi_site.config.sites[1].name
 
-        # Shorthand without site key - behaviour depends on implementation choice
-        sim_multi_site.update_config({"sites": {"name": "Ambiguous"}})
+        # Shorthand syntax with multiple sites - should be skipped
+        sim_multi_site.update_config({"sites": {"name": "AmbiguousName"}})
 
-        # Document current behaviour (may need to be adjusted)
-        # Either: skip update (safe), or apply to first (convenient), or raise error (explicit)
-        # Currently: will likely not update due to dict key check failing
-        # This test helps clarify the expected behaviour
+        # ASSERTION: Both sites should remain unchanged (shorthand skipped)
+        # Rationale: With multiple sites, shorthand is ambiguous and should not apply
+        assert sim_multi_site.config.sites[0].name == original_name_site0, \
+            "Site 0 name should not change when shorthand used with multiple sites"
+        assert sim_multi_site.config.sites[1].name == original_name_site1, \
+            "Site 1 name should not change when shorthand used with multiple sites"
 
     def test_nonexistent_site_name_single_site_fallback(self, sim_single_site):
         """Test fallback behaviour when site name doesn't match but only one site exists.
@@ -616,3 +619,87 @@ class TestGetVariable:
         # QH exists but not in a non-existent group
         with pytest.raises(ValueError, match="not found in group"):
             sim.get_variable("QH", group="NONEXISTENT_GROUP")
+
+
+class TestPathResolution:
+    """Test forcing file path resolution."""
+
+    def test_resolve_absolute_path_unchanged(self, tmp_path):
+        """Test that absolute paths are returned unchanged."""
+        # Create config file
+        config_file = tmp_path / "config.yml"
+        config_file.write_text("sites:\n  - name: test\n")
+
+        sim = SUEWSSimulation()
+        sim._config_path = config_file
+
+        # Absolute path should be returned as-is
+        abs_path = "/absolute/path/to/forcing.txt"
+        result = sim._resolve_single_path(abs_path)
+        assert result == abs_path
+
+    def test_resolve_relative_path_to_config(self, tmp_path):
+        """Test that relative paths are resolved relative to config file."""
+        # Create config file and forcing file
+        config_file = tmp_path / "config.yml"
+        config_file.write_text("sites:\n  - name: test\n")
+        forcing_file = tmp_path / "forcing.txt"
+        forcing_file.write_text("# forcing data")
+
+        sim = SUEWSSimulation()
+        sim._config_path = config_file
+
+        # Relative path should be resolved relative to config directory
+        result = sim._resolve_single_path("forcing.txt")
+        assert result == str(tmp_path / "forcing.txt")
+
+    def test_resolve_relative_path_list(self, tmp_path):
+        """Test that list of relative paths are all resolved."""
+        config_file = tmp_path / "config.yml"
+        config_file.write_text("sites:\n  - name: test\n")
+
+        sim = SUEWSSimulation()
+        sim._config_path = config_file
+
+        paths = ["forcing1.txt", "forcing2.txt"]
+        result = sim._resolve_forcing_paths(paths)
+
+        assert isinstance(result, list)
+        assert len(result) == 2
+        assert result[0] == str(tmp_path / "forcing1.txt")
+        assert result[1] == str(tmp_path / "forcing2.txt")
+
+    def test_resolve_mixed_absolute_relative_list(self, tmp_path):
+        """Test list with mixed absolute and relative paths."""
+        config_file = tmp_path / "config.yml"
+        config_file.write_text("sites:\n  - name: test\n")
+
+        sim = SUEWSSimulation()
+        sim._config_path = config_file
+
+        paths = ["/absolute/path/forcing.txt", "relative_forcing.txt"]
+        result = sim._resolve_forcing_paths(paths)
+
+        assert result[0] == "/absolute/path/forcing.txt"  # unchanged
+        assert result[1] == str(tmp_path / "relative_forcing.txt")  # resolved
+
+    def test_resolve_path_with_parent_references(self, tmp_path):
+        """Test that paths with '..' work correctly (intentionally allowed)."""
+        # Create nested directory structure
+        config_dir = tmp_path / "configs"
+        config_dir.mkdir()
+        forcing_dir = tmp_path / "forcing"
+        forcing_dir.mkdir()
+
+        config_file = config_dir / "config.yml"
+        config_file.write_text("sites:\n  - name: test\n")
+
+        sim = SUEWSSimulation()
+        sim._config_path = config_file
+
+        # Path using '..' to go up and into sibling directory
+        result = sim._resolve_single_path("../forcing/data.txt")
+
+        # Should resolve correctly (not blocked by security check)
+        expected = (forcing_dir / "data.txt").resolve()
+        assert Path(result).resolve() == expected

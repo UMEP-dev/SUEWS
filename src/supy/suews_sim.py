@@ -19,6 +19,10 @@ from .data_model import RefValue
 from .data_model.core import SUEWSConfig
 from .util._io import read_forcing
 
+# Constants
+DEFAULT_OUTPUT_FREQ_SECONDS = 3600  # Default hourly output frequency
+DEFAULT_FORCING_FILE_PATTERNS = ["*.txt", "*.csv", "*.met"]  # Valid forcing file extensions
+
 
 class SUEWSSimulation:
     """
@@ -68,7 +72,9 @@ class SUEWSSimulation:
         if config is not None:
             self.update_config(config)
 
-    def update_config(self, config):
+    def update_config(
+        self, config: Union[str, Path, dict, SUEWSConfig], auto_load_forcing: bool = True
+    ) -> "SUEWSSimulation":
         """
         Update simulation configuration.
 
@@ -81,6 +87,15 @@ class SUEWSSimulation:
             - Path to YAML file
             - Dictionary with parameters (can be partial)
             - SUEWSConfig object
+        auto_load_forcing : bool, optional
+            If True (default), automatically load forcing data specified in the
+            config file. If False, forcing must be loaded explicitly using
+            ``update_forcing()``.
+
+            Set to False when:
+            - You want explicit control over forcing data loading
+            - Forcing file paths in config are placeholders
+            - You plan to provide forcing data programmatically
 
         Returns
         -------
@@ -92,6 +107,11 @@ class SUEWSSimulation:
         >>> sim.update_config("new_config.yaml")
         >>> sim.update_config({"model": {"control": {"tstep": 300}}})
         >>> sim.update_config("config.yaml").update_forcing("forcing.txt")
+
+        Explicit forcing control:
+
+        >>> sim.update_config("config.yaml", auto_load_forcing=False)
+        >>> sim.update_forcing("custom_forcing.txt")
         """
         if isinstance(config, (str, Path)):
             # Load from YAML file
@@ -106,8 +126,9 @@ class SUEWSSimulation:
             # Convert to initial state DataFrame
             self._df_state_init = self._config.to_df_state()
 
-            # Try to load forcing from config
-            self._try_load_forcing_from_config()
+            # Optionally try to load forcing from config
+            if auto_load_forcing:
+                self._try_load_forcing_from_config()
 
         elif isinstance(config, dict):
             # Update existing config with dictionary
@@ -172,7 +193,9 @@ class SUEWSSimulation:
 
         recursive_update(self._config, updates)
 
-    def update_forcing(self, forcing_data):
+    def update_forcing(
+        self, forcing_data: Union[str, Path, list, pd.DataFrame]
+    ) -> "SUEWSSimulation":
         """
         Update meteorological forcing data.
 
@@ -277,12 +300,24 @@ class SUEWSSimulation:
         -------
         str
             Resolved path. Absolute paths are returned unchanged.
+
+        Notes
+        -----
+        Relative paths can use '..' to reference parent directories. This is
+        intentional to allow flexible file organization. Path traversal restrictions
+        are not enforced since:
+        1. Config files are created by the user themselves
+        2. Code runs on the user's own machine
+        3. No untrusted external input is involved
         """
-        if Path(path).is_absolute():
+        path_obj = Path(path)
+
+        if path_obj.is_absolute():
             return path
         else:
             # Relative path - resolve relative to config file location
-            return str(self._config_path.parent / path)
+            # Using resolve() handles '..' and normalizes the path
+            return str((self._config_path.parent / path).resolve())
 
     @staticmethod
     def _load_forcing_from_list(forcing_list: list[Union[str, Path]]) -> pd.DataFrame:
@@ -321,9 +356,8 @@ class SUEWSSimulation:
             )
 
             # Find forcing files in directory
-            patterns = ["*.txt", "*.csv", "*.met"]
             forcing_files = []
-            for pattern in patterns:
+            for pattern in DEFAULT_FORCING_FILE_PATTERNS:
                 forcing_files.extend(sorted(forcing_path.glob(pattern)))
 
             if not forcing_files:
@@ -347,14 +381,21 @@ class SUEWSSimulation:
         Parameters
         ----------
         start_date : str, optional
-            Start date for simulation.
+            Start date for simulation (inclusive).
         end_date : str, optional
-            End date for simulation.
+            End date for simulation (inclusive).
         run_kwargs : dict
-            Additional keyword arguments passed to run_supy.
-            Common options:
-            - save_state: Save state at each timestep (default False)
-            - chunk_day: Days per chunk for memory efficiency (default 3660)
+            **Note**: Additional keyword arguments are currently not supported
+            due to underlying function signature constraints. This parameter
+            is reserved for future use.
+
+            In a future version, the following options may be supported:
+            - save_state: bool - Save state at each timestep (planned)
+            - chunk_day: int - Days per chunk for memory efficiency (planned)
+
+            For now, simulations use default settings:
+            - save_state=False (states not saved at each step)
+            - chunk_day=3660 (approximately 10 years per chunk)
 
         Returns
         -------
@@ -365,6 +406,12 @@ class SUEWSSimulation:
         ------
         RuntimeError
             If configuration or forcing data is missing.
+
+        Notes
+        -----
+        The simulation runs with fixed internal settings. For advanced control
+        over simulation parameters, consider using the lower-level functional
+        API (though it is deprecated).
         """
         # Validate inputs
         if self._df_state_init is None:
@@ -384,7 +431,9 @@ class SUEWSSimulation:
         self._run_completed = True
         return self._df_output
 
-    def save(self, output_path=None, **save_kwargs):
+    def save(
+        self, output_path: Optional[Union[str, Path]] = None, **save_kwargs
+    ) -> list[str]:
         """
         Save simulation results according to OutputConfig settings.
 
@@ -393,7 +442,24 @@ class SUEWSSimulation:
         output_path : str or Path, optional
             Output directory path. If None, uses current directory.
         save_kwargs : dict
-            Additional keyword arguments forwarded to the internal `_save_supy` helper.
+            Additional keyword arguments for customising output.
+
+            **Currently supported kwargs:**
+
+            - **format** : str
+                Output format: 'txt' (default) or 'parquet'.
+                Note: This overrides config file settings.
+
+            **Not currently supported** (due to internal constraints):
+
+            - freq_s: Controlled by config.model.control.output_file.freq
+            - site: Derived from config.sites[0].name
+            - save_tstep: Not configurable via OOP interface
+            - output_level: Not configurable via OOP interface
+
+            These parameters are determined by the configuration object.
+            To change them, update your configuration file or use
+            ``update_config()`` before running the simulation.
 
         Returns
         -------
@@ -404,6 +470,18 @@ class SUEWSSimulation:
         ------
         RuntimeError
             If no simulation results are available.
+
+        Examples
+        --------
+        Save with default settings from config:
+
+        >>> sim.run()
+        >>> paths = sim.save()
+
+        Save to specific directory with custom format:
+
+        >>> sim.run()
+        >>> paths = sim.save("output/", format="parquet")
         """
         if not self._run_completed:
             raise RuntimeError("No simulation results available. Run simulation first.")
@@ -426,7 +504,7 @@ class SUEWSSimulation:
         # Extract parameters from config
         output_format = None
         output_config = None
-        freq_s = 3600  # default hourly
+        freq_s = DEFAULT_OUTPUT_FREQ_SECONDS
         site = ""
 
         if self._config:
@@ -463,7 +541,7 @@ class SUEWSSimulation:
         )
         return list_path_save
 
-    def reset(self):
+    def reset(self) -> "SUEWSSimulation":
         """Reset simulation to initial state, clearing results.
 
         Returns
@@ -516,18 +594,34 @@ class SUEWSSimulation:
         from ._env import trv_supy_module
         from ._supy_module import _load_sample_data
 
+        # Load core simulation data (state and forcing)
         df_state_init, df_forcing = _load_sample_data()
         sample_config_path = Path(trv_supy_module / "sample_data" / "sample_config.yml")
 
         sim = cls()
+
+        # Try to load config for metadata (non-critical)
+        # The actual state is set from df_state_init below, so config is optional
         try:
             sim.update_config(sample_config_path)
-        except Exception as exc:
+        except (FileNotFoundError, IOError) as exc:
+            # File access issues - warn but continue
             warnings.warn(
-                f"Could not load sample configuration metadata: {exc}",
+                f"Could not load sample configuration file: {exc}\n"
+                "Simulation will use data from df_state_init instead.",
+                UserWarning,
+                stacklevel=2,
+            )
+        except Exception as exc:
+            # Other unexpected errors - warn but continue
+            warnings.warn(
+                f"Unexpected error loading sample configuration: {exc}\n"
+                "Simulation will use data from df_state_init instead.",
+                UserWarning,
                 stacklevel=2,
             )
 
+        # Set core simulation data (overrides any config-derived state)
         sim._df_state_init = df_state_init
         sim._df_forcing = df_forcing
         return sim

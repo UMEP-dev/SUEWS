@@ -318,7 +318,9 @@ class SUEWSSimulation:
         """
         path_obj = Path(path)
 
-        if path_obj.is_absolute():
+        # Check for absolute paths: both platform-native (C:\...) and Unix-style (/...)
+        # Unix-style paths may appear in tests and config files for cross-platform compatibility
+        if path_obj.is_absolute() or path.startswith("/"):
             return path
         else:
             # Relative path - resolve relative to config file location

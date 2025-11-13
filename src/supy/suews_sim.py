@@ -17,6 +17,7 @@ from ._run import run_supy_ser
 from ._supy_module import save_supy
 from .data_model import RefValue
 from .data_model.core import SUEWSConfig
+from .data_model.core.model import StorageHeatMethod
 from .util._io import read_forcing
 
 
@@ -99,6 +100,7 @@ class SUEWSSimulation:
 
             # Convert to initial state DataFrame
             self._df_state_init = self._config.to_df_state()
+            self._apply_runtime_workarounds()
 
             # Try to load forcing from config
             self._try_load_forcing_from_config()
@@ -113,11 +115,13 @@ class SUEWSSimulation:
 
             # Regenerate state DataFrame
             self._df_state_init = self._config.to_df_state()
+            self._apply_runtime_workarounds()
 
         else:
             # Assume it's a SUEWSConfig object
             self._config = config
             self._df_state_init = self._config.to_df_state()
+            self._apply_runtime_workarounds()
 
     def _update_config_from_dict(self, updates: dict):
         """Apply dictionary updates to configuration."""
@@ -468,3 +472,41 @@ class SUEWSSimulation:
     def results(self) -> Optional[pd.DataFrame]:
         """Access to simulation results DataFrame."""
         return self._df_output
+
+    def _apply_runtime_workarounds(self):
+        """Apply temporary runtime adjustments for unsupported features."""
+        if (
+            self._config is None
+            or not hasattr(self._config, "model")
+            or not hasattr(self._config.model, "physics")
+            or not hasattr(self._config.model.physics, "storageheatmethod")
+        ):
+            return
+
+        storage_field = self._config.model.physics.storageheatmethod
+        storage_method = self._resolve_config_value(storage_field)
+
+        if storage_method == StorageHeatMethod.ESTM.value:
+            warnings.warn(
+                "StorageHeatMethod=4 (ESTM) is not yet supported in the Python runner; "
+                "falling back to StorageHeatMethod=1 (OHM) so the simulation can proceed.",
+                RuntimeWarning,
+            )
+            new_method = StorageHeatMethod.OHM_WITHOUT_QF
+            if hasattr(storage_field, "value"):
+                storage_field.value = new_method
+            else:
+                self._config.model.physics.storageheatmethod = new_method
+            self._df_state_init = self._config.to_df_state()
+
+    @staticmethod
+    def _resolve_config_value(value):
+        """Unwrap nested RefValue/Enum containers down to plain scalars."""
+        resolved = value
+        seen = set()
+        while hasattr(resolved, "value") and not isinstance(resolved, (int, float, str)):
+            if id(resolved) in seen:
+                break
+            seen.add(id(resolved))
+            resolved = resolved.value
+        return resolved

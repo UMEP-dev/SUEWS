@@ -1,5 +1,6 @@
 """YAML conversion functionality for SUEWS configuration."""
 
+import os
 from pathlib import Path
 import tempfile
 from typing import Optional
@@ -9,7 +10,7 @@ import f90nml
 
 from ..._load import load_InitialCond_grid_df
 from ...data_model.core import SUEWSConfig
-from ...data_model.core.model import OutputConfig
+from ...data_model.core.model import OhmIncQf, OutputConfig, StorageHeatMethod
 from .table import convert_table
 
 
@@ -49,6 +50,7 @@ def _configure_forcing_and_output(
     config: SUEWSConfig,
     path_runcontrol: Path,
     input_dir: str,
+    output_dir: Path,
 ) -> None:
     """Configure forcing file and output settings based on RunControl."""
     runcontrol_data = f90nml.read(str(path_runcontrol))
@@ -59,18 +61,48 @@ def _configure_forcing_and_output(
     filecode = runcontrol.get("filecode", "forcing")
 
     # Look for forcing files matching the pattern
+    fileinputpath = runcontrol.get("fileinputpath", "./Input/")
+
+    def _resolve_search_dir(base: Path) -> Path:
+        if os.path.isabs(fileinputpath):
+            return Path(fileinputpath)
+        return (base / fileinputpath).resolve()
+
     input_path = Path(input_dir)
-    input_subdir = (
-        input_path / "Input" if (input_path / "Input").exists() else input_path
-    )
+    search_dirs = []
+    for base in {input_path.resolve(), path_runcontrol.parent.resolve()}:
+        search_dirs.append(base)
+        search_dirs.append(_resolve_search_dir(base))
+        default_input = base / "Input"
+        if default_input.exists():
+            search_dirs.append(default_input.resolve())
+
+    # Deduplicate while preserving order
+    seen = set()
+    unique_search_dirs = []
+    for directory in search_dirs:
+        if directory and directory not in seen and directory.exists():
+            unique_search_dirs.append(directory)
+            seen.add(directory)
 
     # Pattern: {filecode}_{year}_data_{resolution}.txt
-    forcing_files = list(input_subdir.glob(f"{filecode}_*_data_*.txt"))
+    forcing_files = []
+    for directory in unique_search_dirs:
+        forcing_files.extend(sorted(directory.glob(f"{filecode}_*_data_*.txt")))
+        if forcing_files:
+            break
 
     if forcing_files:
-        # Use the first matching file
-        forcing_file = forcing_files[0].name
-        config.model.control.forcing_file = forcing_file
+        # Prefer non-ESTM forcing files if available
+        forcing_file = next(
+            (f for f in forcing_files if "ESTM" not in f.name.upper()),
+            forcing_files[0],
+        )
+        try:
+            rel_path = os.path.relpath(forcing_file, output_dir)
+        except ValueError:
+            rel_path = str(forcing_file)
+        config.model.control.forcing_file = rel_path
         click.echo(
             f"  - Set forcing file to: {forcing_file} (from FileCode='{filecode}')"
         )
@@ -94,6 +126,41 @@ def _configure_forcing_and_output(
     click.echo(
         f"  - Set output configuration: format={output_config.format}, freq={output_config.freq}s"
     )
+
+
+def _coerce_supported_storage_method(config: SUEWSConfig) -> bool:
+    """Downgrade unsupported storage heat methods for YAML-based workflows."""
+
+    physics = getattr(getattr(config, "model", None), "physics", None)
+    if physics is None or not hasattr(physics, "storageheatmethod"):
+        return False
+
+    storage_field = physics.storageheatmethod
+    storage_value = getattr(storage_field, "value", storage_field)
+
+    if hasattr(storage_value, "value") and not isinstance(
+        storage_value, (int, float, str)
+    ):
+        storage_value = storage_value.value
+
+    if storage_value != StorageHeatMethod.ESTM.value:
+        return False
+
+    replacement = StorageHeatMethod.OHM_WITHOUT_QF
+    if hasattr(storage_field, "value"):
+        storage_field.value = replacement
+    else:
+        physics.storageheatmethod = replacement
+
+    ohm_field = getattr(physics, "ohmincqf", None)
+    if ohm_field is not None:
+        replacement_ohm = OhmIncQf.EXCLUDE
+        if hasattr(ohm_field, "value"):
+            ohm_field.value = replacement_ohm
+        else:
+            physics.ohmincqf = replacement_ohm
+
+    return True
 
 
 def convert_to_yaml(
@@ -196,7 +263,9 @@ def convert_to_yaml(
                 config = SUEWSConfig.from_df_state(df_state)
 
                 # Configure forcing file and output settings
-                _configure_forcing_and_output(config, path_runcontrol, str(table_dir))
+                _configure_forcing_and_output(
+                    config, path_runcontrol, str(table_dir), output_path.parent
+                )
 
             except Exception as e:
                 raise click.ClickException(
@@ -204,6 +273,13 @@ def convert_to_yaml(
                 ) from e
         else:
             raise click.ClickException(f"Unexpected input type: {input_type}")
+
+        downgraded_storage = _coerce_supported_storage_method(config)
+        if downgraded_storage:
+            click.echo(
+                "  - StorageHeatMethod=4 detected; "
+                "downgrading to StorageHeatMethod=1 (OHM) for YAML compatibility."
+            )
 
         # Save to YAML
         click.echo(f"Saving to: {output_path}")

@@ -135,16 +135,8 @@ class ProfileManager:
             Profile data as pandas Series
         """
         # Create uniform distribution (same value for all 24 hours)
-        # Use -999 as placeholder value (matches SUEWS convention)
-        profile_data = pd.Series([-999.0] * 24, name=code)
-
-        # Set index to match existing profile columns if available
-        if self.profile_data is not None and len(self.profile_data.columns) >= 24:
-            profile_data.index = self.profile_data.columns[:24]
-        else:
-            # Default to hour numbers as strings
-            profile_data.index = [str(i) for i in range(24)]
-
+        profile_data = pd.Series([1.0] * 24, name=code)
+        profile_data.index = range(24)
         return profile_data
 
     def ensure_required_profiles(self, output_path: Path):
@@ -176,13 +168,13 @@ class ProfileManager:
         # Sort by index
         profiles_df = profiles_df.sort_index()
 
-        # Write to file with proper header (matching load_SUEWS_table format)
+        # Write to file with proper header (matching legacy column naming 0-23)
         with open(profiles_file, "w") as f:
             # Write first line: column numbers (load_SUEWS_table skips this line)
             f.write("    ".join([str(i) for i in range(1, 26)]) + "\n")
 
             # Write second line: header with Code and hour columns
-            f.write("Code    " + "    ".join([f"Hr{i:02d}" for i in range(24)]) + "\n")
+            f.write("Code    " + "    ".join([str(i) for i in range(24)]) + "\n")
 
             # Write profiles
             for code, row in profiles_df.iterrows():

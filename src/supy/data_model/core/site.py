@@ -735,19 +735,17 @@ class DectrProperties(VegetatedSurfaceProperties):
         json_schema_extra={"unit": "m", "display_name": "Dectreeh"},
     )
     pormin_dec: FlexibleRefValue(float) = Field(
-        ge=0.1,
-        le=0.9,
+        ge=0.0,
         default=0.2,
         description="Minimum porosity",
         json_schema_extra={"unit": "dimensionless", "display_name": "Pormin Dec"},
-    )  # pormin_dec cannot be less than 0.1 and greater than 0.9
+    )
     pormax_dec: FlexibleRefValue(float) = Field(
-        ge=0.1,
-        le=0.9,
+        ge=0.0,
         default=0.6,
         description="Maximum porosity",
         json_schema_extra={"unit": "dimensionless", "display_name": "Pormax Dec"},
-    )  # pormax_dec cannot be less than 0.1 and greater than 0.9
+    )
     capmax_dec: FlexibleRefValue(float) = Field(
         default=100.0,
         description="Maximum water capacity",
@@ -2578,7 +2576,7 @@ class SiteProperties(BaseModel):
         default=-0.13,
     )
     alt: FlexibleRefValue(float) = Field(
-        gt=0,
+        ge=0,
         description="Altitude of the site above sea level",
         json_schema_extra={"unit": "m", "display_name": "Altitude"},
         default=40.0,

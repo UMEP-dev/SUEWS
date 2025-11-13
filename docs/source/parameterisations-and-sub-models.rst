@@ -1,7 +1,7 @@
 .. _physics_schemes:
 
-Parameterisations and sub-models within SUEWS
-=============================================
+Model Physics and Processes
+============================
 
 Overview
 --------
@@ -56,7 +56,7 @@ incoming shortwave radiation to be provided.
    provided as input, instead of incoming longwave being calculated by
    the model.
 #. Other data can be provided as input, such as cloud fraction (see
-   options in `RunControl.nml`).
+   :ref:`forcing data configuration <forcing-data>`).
 #. **NARP** (Net All-wave Radiation Parameterization) :cite:`O03,L11` scheme calculates outgoing
    shortwave and incoming and outgoing longwave radiation components
    based on incoming shortwave radiation, temperature, relative humidity
@@ -222,7 +222,7 @@ SUEWS-SS Implementation
 
 -  Inputs from SUEWS: ``sfr``, ``zenith_deg``, ``TSfc_C``, ``avKdn``, ``ldown``, ``temp_c``, ``alb_next``, ``emis``, ``LAI_id``.
 
--  SS specific input parameters: read in from `SUEWS_SPARTACUS.nml`.
+-  SS specific input parameters: configured in the ``spartacus`` section of the YAML configuration.
 
 -  Outputs used by SUEWS: alb_spc, emis_spc, lw_emission_spc.
 
@@ -273,11 +273,11 @@ How to use SUEWS-SS
 Inputs
 ^^^^^^
 
-To run SUEWS-SS the SS specific files that need to be modified are:
+To run SUEWS-SS the configuration parameters that need to be set are:
 
-- `RunControl.nml` (see `NetRadiationMethod`)
+- ``net_radiation_method`` in model physics configuration (see :ref:`ModelPhysics <modelphysics>`)
 
-- `SUEWS_SPARTACUS.nml`
+- SPARTACUS-specific parameters in ``spartacus`` configuration section
 
 .. note::
 
@@ -307,7 +307,7 @@ Given reflectance :math:`r` and transmittance :math:`t` spectra the SSA is calcu
 
 .. math:: \text{SSA} = \ \frac{\int_{\sim 400\ \text{nm}}^{\sim 2200\ \text{nm}}{r \times S}\text{dλ}}{\int_{\sim 400\ \text{nm}}^{\sim 2200\ \text{nm}}S\text{dλ}} + \frac{\int_{\sim 400\ \text{nm}}^{\sim 2200\ \text{nm}}{t \times S}\text{dλ}}{\int_{\sim 400\ \text{nm}}^{\sim 2200\ \text{nm}}S\text{dλ}}
 
-where :math:`S` clear-sky surface spectrum :numfig:`rami5`.
+where :math:`S` clear-sky surface spectrum :numref:`rami5`.
 
 The integrals are performed between 400 nm and 2200 nm because this is the spectral range that RAMI5\ :sup:`5` Järvselja birch stand forest spectra are available.
 This is a reasonable approximation since it is where the majority of incoming SW energy resides (as seen from the clear-sky surface spectrum in Fig. 6).
@@ -346,20 +346,18 @@ In SUEWS-SS this is calculated as::
 
 where 𝛼 is either the ground albedo or emissivity.
 
-𝛼 values for the surfaces should be set by specifying surface codes in `SUEWS_SiteSelect.txt`.
-Codes should correspond to existing appropriate surfaces in `SUEWS_NonVeg.txt` and `SUEWS_NonVeg.txt`.
-Alternatively, new surfaces can be made in `SUEWS_NonVeg.txt` and `SUEWS_NonVeg.txt` with 𝛼 values obtained for example from the spectral library.
+𝛼 values for the surfaces should be configured in the surface properties section of the YAML configuration (albedo and emissivity parameters for paved, grass, bare soil, and water surfaces).
 
 Consistency of SUEWS and SS parameters
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-SUEWS building and tree (evergreen+deciduous) fractions in `SUEWS_SiteSelect.txt` should be consistent with the `SUEWS_SPARTACUS.nml` `building_frac` and `veg_frac` of the lowest model layer.
+SUEWS building and tree (evergreen+deciduous) surface fractions should be consistent with the ``building_frac`` and ``veg_frac`` parameters in the ``spartacus`` configuration for the lowest model layer.
 
-Leaf area index (LAI)
-^^^^^^^^^^^^^^^^^^^^^^^^
+LAI in SPARTACUS-Surface
+^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 The total vertically integrated LAI provided by SUEWS is used in SS to determine the LAI and vegetation extinction coefficient in each layer.
-Surface codes in `SUEWS_SiteSelect.txt` should correspond to appropriate LAI values in `SUEWS_veg.txt`.
+LAI values should be configured in the vegetation properties section of the YAML configuration.
 
 Anthropogenic heat flux, Q\ :sub:`F`
 ------------------------------------
@@ -407,9 +405,6 @@ For more details see ``Differences_between_SUEWS_LUMPS_and_FRAISE``.
 
 Water Balance Components
 =========================
-
-Overview
---------
 
 The running water balance at each time step is based on the urban water balance model of :cite:t:`G86` and urban evaporation-interception scheme of :cite:t:`GO91`.
 
@@ -532,7 +527,7 @@ The snowmelt model is described in :cite:t:`J14`.
 Changes since v2016a:
 1) previously all surface states could freeze in 1-h time step, now the freezing surface state is
 calculated similarly as melt water and can freeze within the snow pack.
-2) Snowmelt-related coefficients have also slightly changed (see `SUEWS_Snow.txt`).
+2) Snowmelt-related coefficients can be configured in the snow parameters section of the YAML configuration.
 
 Supporting Schemes and Diagnostics
 ===================================
@@ -553,7 +548,7 @@ Leaf area index (LAI) is a critical parameter that affects both energy and water
 - Evaporation from vegetation surfaces
 
 SUEWS can use:
-- Fixed LAI values specified in ``SUEWS_Veg.txt``
+- Fixed LAI values configured in the vegetation properties section
 - Dynamic LAI from observations or models
 - LAI profiles for multi-layer schemes (SPARTACUS-Surface)
 

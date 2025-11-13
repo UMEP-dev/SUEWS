@@ -21,7 +21,11 @@ from .util._io import read_forcing
 
 # Constants
 DEFAULT_OUTPUT_FREQ_SECONDS = 3600  # Default hourly output frequency
-DEFAULT_FORCING_FILE_PATTERNS = ["*.txt", "*.csv", "*.met"]  # Valid forcing file extensions
+DEFAULT_FORCING_FILE_PATTERNS = [
+    "*.txt",
+    "*.csv",
+    "*.met",
+]  # Valid forcing file extensions
 
 
 class SUEWSSimulation:
@@ -73,7 +77,9 @@ class SUEWSSimulation:
             self.update_config(config)
 
     def update_config(
-        self, config: Union[str, Path, dict, SUEWSConfig], auto_load_forcing: bool = True
+        self,
+        config: Union[str, Path, dict, SUEWSConfig],
+        auto_load_forcing: bool = True,
     ) -> "SUEWSSimulation":
         """
         Update simulation configuration.

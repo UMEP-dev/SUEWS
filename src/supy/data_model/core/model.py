@@ -30,7 +30,7 @@ def _enum_description(enum_class: type[Enum]) -> str:
     doc = inspect.cleandoc(enum_class.__doc__)
 
     # Split into summary and options
-    lines = doc.split('\n')
+    lines = doc.split("\n")
 
     # Find the summary (first paragraph before blank line or options)
     summary_lines = []
@@ -46,7 +46,7 @@ def _enum_description(enum_class: type[Enum]) -> str:
         else:
             summary_lines.append(line.strip())
 
-    summary = ' '.join(summary_lines)
+    summary = " ".join(summary_lines)
 
     # Format options for Field description
     if option_lines:
@@ -54,11 +54,13 @@ def _enum_description(enum_class: type[Enum]) -> str:
         options_formatted = []
         for opt_line in option_lines:
             # Handle patterns like "0: NAME - Description" or "1-3: Description"
-            if ':' in opt_line:
-                options_formatted.append(opt_line.replace(': ', ' = ').replace(' - ', ': '))
+            if ":" in opt_line:
+                options_formatted.append(
+                    opt_line.replace(": ", " = ").replace(" - ", ": ")
+                )
 
         if options_formatted:
-            options_text = '; '.join(options_formatted)
+            options_text = "; ".join(options_formatted)
             return f"{summary} Options: {options_text}"
 
     return summary

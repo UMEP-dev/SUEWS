@@ -13,7 +13,7 @@ class EmissionsMethod(Enum):
     """
     Method for calculating anthropogenic heat flux (QF) and CO2 emissions.
 
-    0: NO_EMISSIONS - Uses observed QF values from forcing file. Set to zero in forcing file to exclude QF from energy balance
+    0: OBSERVED - Uses observed QF values from forcing file. Set to zero in forcing file to exclude QF from energy balance
     1: L11 - Loridan et al. (2011) SAHP method. Linear relation with air temperature, weekday/weekend profiles, scales with population density
     2: J11 - Järvi et al. (2011) SAHP_2 method. Uses heating/cooling degree days, weekday/weekend differences via profiles and coefficients
     3: L11_UPDATED - Modified Loridan method using daily mean air temperature instead of instantaneous values
@@ -22,7 +22,7 @@ class EmissionsMethod(Enum):
     """
 
     # just a demo to show how to use Enum for emissionsmethod
-    NO_EMISSIONS = 0
+    OBSERVED = 0
     L11 = 1
     J11 = 2
     L11_UPDATED = 3
@@ -53,9 +53,9 @@ class NetRadiationMethod(Enum):
     Method for calculating net all-wave radiation (Q*).
 
     0: OBSERVED - Uses observed Q* values from forcing file
-    1: LDOWN_OBSERVED - Models Q* using observed longwave down radiation (L↓) from forcing file
-    2: LDOWN_CLOUD - Models Q* with L↓ estimated from cloud cover fraction
-    3: LDOWN_AIR - Models Q* with L↓ estimated from air temperature and relative humidity (recommended for basic runs)
+    1: LDOWN_OBSERVED - Models Q* using NARP (Net All-wave Radiation Parameterization; Offerle et al. 2003, Loridan et al. 2011) with observed longwave down radiation (L↓) from forcing file
+    2: LDOWN_CLOUD - Models Q* using NARP with L↓ estimated from cloud cover fraction
+    3: LDOWN_AIR - Models Q* using NARP with L↓ estimated from air temperature and relative humidity
     11-13: Surface temperature variants of methods 1-3 (not recommended)
     100-300: Zenith angle correction variants with NARP output (not recommended)
     1001-1003: SPARTACUS-Surface integration variants (experimental)
@@ -139,7 +139,7 @@ class OhmIncQf(Enum):
     Controls inclusion of anthropogenic heat flux in OHM storage heat calculations.
 
     0: EXCLUDE - Use Q* only (required when StorageHeatMethod=1)
-    1: INCLUDE - Use Q*+QF (required when StorageHeatMethod=2)
+    1: INCLUDE - Use Q*+QF (for other OHM-based storage heat methods)
     """
 
     EXCLUDE = 0
@@ -217,7 +217,7 @@ class StabilityMethod(Enum):
     0: NOT_USED - Reserved
     1: NOT_USED2 - Reserved
     2: HOEGSTROM - Dyer (1974)/Högström (1988) for momentum, Van Ulden & Holtslag (1985) for stable conditions (not recommended)
-    3: CAMPBELL_NORMAN - Campbell & Norman (1998) formulations for both momentum and heat (recommended)
+    3: CAMPBELL_NORMAN - Campbell & Norman (1998) formulations for both momentum and heat
     4: BUSINGER_HOEGSTROM - Businger et al. (1971)/Högström (1988) formulations (not recommended)
     """
 
@@ -287,7 +287,7 @@ class RSLMethod(Enum):
     Method for calculating near-surface meteorological diagnostics (2m temperature, 2m humidity, 10m wind speed).
 
     0: MOST (Monin-Obukhov Similarity Theory) - Appropriate for relatively homogeneous, flat surfaces
-    1: RST (Roughness Sublayer Theory) - Appropriate for heterogeneous urban surfaces with tall roughness elements
+    1: RST (Roughness Sublayer Theory; Theeuwes et al. 2019) - Appropriate for heterogeneous urban surfaces with tall roughness elements
     2: VARIABLE - Automatically selects between MOST and RST based on surface morphology (plan area index, frontal area index, and roughness element heights)
     """
 
@@ -413,7 +413,7 @@ class RCMethod(Enum):
 
 class SnowUse(Enum):
     """
-    Controls snow process calculations.
+    Controls snow process calculations (Järvi et al. 2014).
 
     0: DISABLED - Snow processes not included
     1: ENABLED - Snow accumulation, melt, and albedo effects included

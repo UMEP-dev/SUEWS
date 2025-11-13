@@ -573,24 +573,24 @@ class SUEWSConfig(BaseModel):
             pormin_dec_val = _unwrap_value(dectr_props.pormin_dec)
             pormax_dec_val = _unwrap_value(dectr_props.pormax_dec)
 
-            # Validate physical bounds for porosity with warnings (legacy tables may exceed [0, 1])
+            # Validate physical bounds for porosity
             if not (0 <= pormin_dec_val <= 1):
-                warnings.warn(
-                    f"{site_name} deciduous trees: pormin_dec ({pormin_dec_val}) outside [0, 1]; proceeding with legacy value",
-                    stacklevel=2,
+                errors.append(
+                    f"{site_name} deciduous trees: pormin_dec ({pormin_dec_val}) must be in range [0, 1]"
                 )
             if not (0 <= pormax_dec_val <= 1):
-                warnings.warn(
-                    f"{site_name} deciduous trees: pormax_dec ({pormax_dec_val}) outside [0, 1]; proceeding with legacy value",
-                    stacklevel=2,
+                errors.append(
+                    f"{site_name} deciduous trees: pormax_dec ({pormax_dec_val}) must be in range [0, 1]"
                 )
 
-            # Validate porosity range but only warn to preserve legacy compatibility
+            # Validate porosity range
             if pormin_dec_val >= pormax_dec_val:
-                warnings.warn(
-                    f"{site_name} deciduous trees: pormin_dec ({pormin_dec_val}) not less than pormax_dec ({pormax_dec_val}); proceeding with legacy ordering",
-                    stacklevel=2,
+                errors.append(
+                    f"{site_name} deciduous trees: pormin_dec ({pormin_dec_val}) must be less than pormax_dec ({pormax_dec_val})"
                 )
+
+        if errors:
+            raise ValueError("; ".join(errors))
 
         return self
 

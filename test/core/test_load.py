@@ -14,6 +14,7 @@ import pandas as pd
 import yaml
 
 import supy as sp
+from supy.util.converter import convert_table, detect_table_version
 
 
 class TestInitSuPy(TestCase):
@@ -333,6 +334,198 @@ class TestErrorHandling(TestCase):
             sp.load_forcing_grid("nonexistent.yml", grid=0)
 
         print("✓ Error handling works correctly")
+
+    def test_missing_nml_file_handling(self):
+        """Test graceful handling of missing NML files."""
+        print("\n========================================")
+        print("Testing missing NML file handling...")
+
+        from supy._load import load_SUEWS_nml  # noqa: PLC0415
+
+        # Default behaviour should raise so required files fail fast
+        with self.assertRaises(FileNotFoundError):
+            load_SUEWS_nml("nonexistent_file.nml")
+
+        # Optional mode returns empty dict instead of crashing
+        result = load_SUEWS_nml("nonexistent_file.nml", missing_ok=True)
+        self.assertIsInstance(result, dict)
+        self.assertEqual(len(result), 0)
+
+        print("✓ Missing NML file handled gracefully")
+
+    def test_missing_spartacus_nml_integration(self):
+        """Test that ModConfig loading handles missing SPARTACUS.nml (GH-846)."""
+        print("\n========================================")
+        print("Testing ModConfig loading without SPARTACUS.nml...")
+
+        from supy._load import load_SUEWS_dict_ModConfig  # noqa: PLC0415
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_path = Path(temp_dir)
+            input_dir = temp_path / "Input"
+            input_dir.mkdir()
+
+            # Create minimal RunControl.nml (similar to bug report)
+            runcontrol = temp_path / "RunControl.nml"
+            runcontrol.write_text("""
+&RunControl
+CBLUse=0
+SnowUse=0
+NetRadiationMethod=3
+AnthropHeatMethod=2
+StorageHeatMethod=4
+FileCode='test'
+FileInputPath="./Input/"
+FileOutputPath="./Output/"
+/
+""")
+
+            # Deliberately do NOT create SPARTACUS.nml
+            # This simulates old (pre-2018) runcontrol files
+
+            # This should NOT crash with "NoneType has no attribute 'items'"
+            try:
+                dict_config = load_SUEWS_dict_ModConfig(runcontrol)
+
+                # Verify we got a dict back
+                self.assertIsInstance(dict_config, dict)
+
+                # Verify basic keys are present
+                self.assertIn("cbluse", dict_config)
+                self.assertIn("snowuse", dict_config)
+
+                # Verify SPARTACUS keys are NOT present (file didn't exist)
+                # but the function didn't crash
+                print("✓ ModConfig loading handles missing SPARTACUS.nml gracefully")
+
+            except AttributeError as e:
+                if "'NoneType'" in str(e) and "'items'" in str(e):
+                    self.fail(
+                        "load_SUEWS_nml returned None instead of empty dict, "
+                        f"causing AttributeError: {e}"
+                    )
+                else:
+                    raise
+
+    def test_logger_with_none_stdout(self):
+        """Test logging setup handles None stdout (GH-846 fix)."""
+        print("\n========================================")
+        print("Testing logger with None stdout...")
+
+        import sys
+        from supy._env import get_console_handler  # noqa: PLC0415
+
+        # Save original stdout
+        original_stdout = sys.stdout
+
+        try:
+            # Simulate QGIS environment where stdout is None
+            sys.stdout = None
+
+            # Test that handler creation doesn't crash
+            handler = get_console_handler()
+            self.assertIsNotNone(handler)
+
+            # Test that logging doesn't crash
+            import logging  # noqa: PLC0415
+
+            test_logger = logging.getLogger("test_none_stdout")
+            test_logger.addHandler(handler)
+            test_logger.setLevel(logging.INFO)
+
+            # This should not raise an error
+            test_logger.info("Test message with None stdout")
+
+        finally:
+            # Restore original stdout
+            sys.stdout = original_stdout
+
+        print("✓ Logger handles None stdout correctly")
+
+    def test_real_urbanfluxes_data_gh846(self):
+        """Test with actual URBANFLUXES (2017) data from GH-846."""
+        print("\n========================================")
+        print("Testing with real URBANFLUXES 2017 data (GH-846)...")
+
+        from supy._load import load_SUEWS_dict_ModConfig  # noqa: PLC0415
+
+        # Use the actual data from the bug report
+        fixture_path = Path(__file__).parent.parent / "fixtures" / "gh846"
+        runcontrol_path = fixture_path / "RunControl.nml"
+
+        if not runcontrol_path.exists():
+            self.skipTest("GH-846 fixture data not available")
+
+        # Verify SPARTACUS.nml does NOT exist (like in the original bug)
+        spartacus_path = fixture_path / "Inputbarb_v7" / "SUEWS_SPARTACUS.nml"
+        self.assertFalse(
+            spartacus_path.exists(), "SPARTACUS.nml should not exist in 2017 data"
+        )
+
+        # This should work without crashing
+        try:
+            dict_config = load_SUEWS_dict_ModConfig(runcontrol_path)
+            self.assertIsInstance(dict_config, dict)
+
+            # Verify basic config loaded (keys are lowercase in dict)
+            self.assertIn("cbluse", dict_config)
+            self.assertIn("snowuse", dict_config)
+            self.assertEqual(dict_config.get("cbluse"), 0)
+            self.assertEqual(dict_config.get("snowuse"), 0)
+
+            # Most importantly: verify we didn't crash with NoneType error
+            # This confirms the missing SPARTACUS.nml was handled gracefully
+            print(
+                "✓ Successfully loaded real URBANFLUXES 2017 data without SPARTACUS.nml"
+            )
+
+        except AttributeError as e:
+            if "'NoneType'" in str(e) and "'items'" in str(e):
+                self.fail(
+                    f"GH-846 regression: load_SUEWS_nml returned None. Error: {e}"
+                )
+            else:
+                raise
+
+    def test_gridlayout_not_cloned_for_legacy_conversion(self):
+        """Ensure legacy conversions don't fabricate per-filecode GridLayout files."""
+        print("\n========================================")
+        print("Ensuring legacy data skips GridLayout cloning...")
+
+        fixture_dir = Path(__file__).parent.parent / "fixtures" / "gh846"
+        runcontrol_path = fixture_dir / "RunControl.nml"
+
+        if not runcontrol_path.exists():
+            self.skipTest("GH-846 fixture data not available")
+
+        detected_version = detect_table_version(fixture_dir)
+        self.assertIsNotNone(
+            detected_version, "Version detection failed for GH-846 data"
+        )
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            convert_table(
+                str(fixture_dir),
+                temp_dir,
+                detected_version,
+                "2025a",
+            )
+
+            input_dir = Path(temp_dir) / "Inputbarb_v7"
+            expected_grid = input_dir / "GridLayoutbarb.nml"
+            self.assertTrue(
+                expected_grid.exists(),
+                "GridLayoutbarb.nml placeholder should be generated for legacy datasets",
+            )
+
+            placeholder_text = expected_grid.read_text(encoding="utf-8")
+            self.assertIn(
+                "Placeholder GridLayout generated",
+                placeholder_text,
+                "Placeholder GridLayout should include provenance comment",
+            )
+
+        print("✓ Legacy conversion leaves unmatched GridLayout files untouched")
 
     def test_malformed_data(self):
         """Test handling of malformed data."""

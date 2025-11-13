@@ -2578,7 +2578,7 @@ class SiteProperties(BaseModel):
         default=-0.13,
     )
     alt: FlexibleRefValue(float) = Field(
-        gt=0,
+        ge=0,
         description="Altitude of the site above sea level",
         json_schema_extra={"unit": "m", "display_name": "Altitude"},
         default=40.0,

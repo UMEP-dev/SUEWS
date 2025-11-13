@@ -1003,9 +1003,7 @@ def build_code_df(code, path_input, df_base):
         df_code = df_code0.loc[list_code, list_keys]
     except KeyError as e:
         list_missing_code = [code for code in list_code if code not in df_code0.index]
-        keys_for_logging = (
-            list_keys if isinstance(list_keys, list) else [list_keys]
-        )
+        keys_for_logging = list_keys if isinstance(list_keys, list) else [list_keys]
         list_missing_key = [
             key for key in keys_for_logging if key not in df_code0.columns
         ]
@@ -1434,8 +1432,7 @@ def load_SUEWS_dict_ModConfig(path_runcontrol, dict_default=dict_RunControl_defa
     )
 
     dict_RunControl_x = {
-        k[0]: v
-        for k, v in load_SUEWS_nml(path_spartacus, missing_ok=True).items()
+        k[0]: v for k, v in load_SUEWS_nml(path_spartacus, missing_ok=True).items()
     }
     dict_RunControl.update(dict_RunControl_x)
 
@@ -2001,9 +1998,9 @@ def fix_invalid_defaults(df_init):
         if min_col in df_init.columns and max_col in df_init.columns:
             mask = df_init[min_col] >= df_init[max_col]
             if mask.any():
-                df_init.loc[mask, min_col] = (
-                    df_init.loc[mask, max_col] - buffer
-                ).clip(lower=0.0)
+                df_init.loc[mask, min_col] = (df_init.loc[mask, max_col] - buffer).clip(
+                    lower=0.0
+                )
 
     _enforce_porosity_range(("pormin_dec", "0"), ("pormax_dec", "0"))
     _enforce_porosity_range(("pormin_evetr", "0"), ("pormax_evetr", "0"))

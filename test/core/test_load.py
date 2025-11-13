@@ -499,7 +499,9 @@ FileOutputPath="./Output/"
             self.skipTest("GH-846 fixture data not available")
 
         detected_version = detect_table_version(fixture_dir)
-        self.assertIsNotNone(detected_version, "Version detection failed for GH-846 data")
+        self.assertIsNotNone(
+            detected_version, "Version detection failed for GH-846 data"
+        )
 
         with tempfile.TemporaryDirectory() as temp_dir:
             convert_table(

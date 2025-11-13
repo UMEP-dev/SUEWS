@@ -504,7 +504,9 @@ class SUEWSSimulation:
         """Unwrap nested RefValue/Enum containers down to plain scalars."""
         resolved = value
         seen = set()
-        while hasattr(resolved, "value") and not isinstance(resolved, (int, float, str)):
+        while hasattr(resolved, "value") and not isinstance(
+            resolved, (int, float, str)
+        ):
             if id(resolved) in seen:
                 break
             seen.add(id(resolved))

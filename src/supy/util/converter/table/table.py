@@ -1816,7 +1816,11 @@ def convert_table(
             grid_candidates = sorted(path_input.glob("GridLayout*.nml"))
             normalized = expected_grid.lower()
             matched_candidate = next(
-                (candidate for candidate in grid_candidates if candidate.name.lower() == normalized),
+                (
+                    candidate
+                    for candidate in grid_candidates
+                    if candidate.name.lower() == normalized
+                ),
                 None,
             )
 
@@ -1826,7 +1830,9 @@ def convert_table(
                     f"Created {expected_grid} from {matched_candidate.name} to match RunControl filecode"
                 )
             elif grid_candidates:
-                candidate_names = ", ".join(candidate.name for candidate in grid_candidates)
+                candidate_names = ", ".join(
+                    candidate.name for candidate in grid_candidates
+                )
                 logger_supy.warning(
                     f"Expected {expected_grid} but found non-matching GridLayout files ({candidate_names}); "
                     "leaving legacy dataset without a dedicated layout file."

@@ -52,6 +52,7 @@
   - Added graceful handling of legacy profile file formats (2017 data)
   - Added automatic placeholder generation for missing lookup codes
   - Fixed column count mismatches in legacy table files
+  - Preserved `BaseT_HC` during 2021a→2023a table conversion (SUEWS still reads this column)
   - Added comprehensive tests with real URBANFLUXES 2017 data
 
 ### 05 Nov 2025

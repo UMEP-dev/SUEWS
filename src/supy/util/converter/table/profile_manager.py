@@ -65,11 +65,14 @@ class ProfileManager:
             self.profile_data = pd.read_csv(
                 self.profiles_path, sep=r"\s+", comment="!", header=0, index_col=0
             )
-            # Convert index to integers to ensure type consistency
-            try:
-                self.profile_data.index = self.profile_data.index.astype(int)
-            except (ValueError, TypeError):
-                # Legacy format has extra line at top - skip it
+            first_index = (
+                str(self.profile_data.index[0]).strip()
+                if not self.profile_data.index.empty
+                else ""
+            )
+            is_legacy_header = not first_index.lstrip("-").isdigit()
+
+            if is_legacy_header:
                 logger.info("Detected legacy profile format, retrying with skiprows=1")
                 self.profile_data = pd.read_csv(
                     self.profiles_path,
@@ -79,7 +82,9 @@ class ProfileManager:
                     index_col=0,
                     skiprows=1,
                 )
-                self.profile_data.index = self.profile_data.index.astype(int)
+
+            # Convert index to integers to ensure type consistency
+            self.profile_data.index = self.profile_data.index.astype(int)
 
             self.available_profiles = set(self.profile_data.index)
             logger.info(f"Loaded {len(self.available_profiles)} profiles")

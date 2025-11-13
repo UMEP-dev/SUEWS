@@ -653,35 +653,35 @@ class RSTGenerator:
         for line in lines:
             # Add cross-references to method names
             modified_line = line
-            if "- diagmethod:" in modified_line:
+            if "- rslmethod:" in modified_line:
                 modified_line = modified_line.replace(
-                    "- diagmethod:", "- :ref:`diagmethod <diagmethod>`:"
+                    "- rslmethod:", "- :ref:`rslmethod <rslmethod>`:"
                 )
                 modified_line = modified_line.replace(
-                    "diagmethod calculations", "``diagmethod`` calculations"
+                    "rslmethod calculations", "``rslmethod`` calculations"
                 )
             elif "- stabilitymethod:" in modified_line:
                 modified_line = modified_line.replace(
                     "- stabilitymethod:", "- :ref:`stabilitymethod <stabilitymethod>`:"
                 )
                 modified_line = modified_line.replace(
-                    "BY diagmethod", "**BY** ``diagmethod``"
+                    "BY rslmethod", "**BY** ``rslmethod``"
                 )
-            elif "- localclimatemethod:" in modified_line:
+            elif "- rsllevel:" in modified_line:
                 modified_line = modified_line.replace(
-                    "- localclimatemethod:",
-                    "- :ref:`localclimatemethod <localclimatemethod>`:",
+                    "- rsllevel:",
+                    "- :ref:`rsllevel <rsllevel>`:",
                 )
                 modified_line = modified_line.replace(
-                    "FROM diagmethod", "**FROM** ``diagmethod``"
+                    "FROM rslmethod", "**FROM** ``rslmethod``"
                 )
             elif "- gsmodel:" in modified_line:
                 modified_line = modified_line.replace(
                     "- gsmodel:", "- :ref:`gsmodel <gsmodel>`:"
                 )
                 modified_line = modified_line.replace(
-                    "localclimatemethod adjustments",
-                    "``localclimatemethod`` adjustments",
+                    "rsllevel adjustments",
+                    "``rsllevel`` adjustments",
                 )
 
             # Add bold for emphasis

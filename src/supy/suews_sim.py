@@ -5,7 +5,7 @@ Modern, object-oriented interface for SUEWS urban climate model simulations.
 Provides a user-friendly wrapper around the existing SuPy infrastructure.
 """
 
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Any, Optional, Union
 import warnings
 
@@ -316,11 +316,9 @@ class SUEWSSimulation:
         2. Code runs on the user's own machine
         3. No untrusted external input is involved
         """
-        path_obj = Path(path)
-
-        # Check for absolute paths: both platform-native (C:\...) and Unix-style (/...)
-        # Unix-style paths may appear in tests and config files for cross-platform compatibility
-        if path_obj.is_absolute() or path.startswith("/"):
+        # Check both platform-native and Unix-style absolute paths
+        # PurePosixPath handles Unix-style paths (/...) on all platforms
+        if Path(path).is_absolute() or PurePosixPath(path).is_absolute():
             return path
         else:
             # Relative path - resolve relative to config file location

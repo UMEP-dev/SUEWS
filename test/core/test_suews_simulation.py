@@ -344,10 +344,12 @@ class TestConfigSitesUpdate:
 
         # ASSERTION: Both sites should remain unchanged (shorthand skipped)
         # Rationale: With multiple sites, shorthand is ambiguous and should not apply
-        assert sim_multi_site.config.sites[0].name == original_name_site0, \
+        assert sim_multi_site.config.sites[0].name == original_name_site0, (
             "Site 0 name should not change when shorthand used with multiple sites"
-        assert sim_multi_site.config.sites[1].name == original_name_site1, \
+        )
+        assert sim_multi_site.config.sites[1].name == original_name_site1, (
             "Site 1 name should not change when shorthand used with multiple sites"
+        )
 
     def test_nonexistent_site_name_single_site_fallback(self, sim_single_site):
         """Test fallback behaviour when site name doesn't match but only one site exists.

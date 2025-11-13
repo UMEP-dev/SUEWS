@@ -36,12 +36,17 @@ class TestPublicAPIFunctionality:
             df_state, df_forcing = func()
 
             # Verify deprecation warning was emitted
-            assert any(issubclass(warning.category, DeprecationWarning) for warning in w), \
-                "load_sample_data should emit DeprecationWarning"
+            assert any(
+                issubclass(warning.category, DeprecationWarning) for warning in w
+            ), "load_sample_data should emit DeprecationWarning"
 
             # Verify return types and shapes
-            assert isinstance(df_state, pd.DataFrame), "Should return DataFrame for state"
-            assert isinstance(df_forcing, pd.DataFrame), "Should return DataFrame for forcing"
+            assert isinstance(df_state, pd.DataFrame), (
+                "Should return DataFrame for state"
+            )
+            assert isinstance(df_forcing, pd.DataFrame), (
+                "Should return DataFrame for forcing"
+            )
             assert df_state.shape[0] >= 1, "Should have at least one site"
             assert df_forcing.shape[0] > 1000, "Should have substantial forcing data"
 
@@ -51,6 +56,7 @@ class TestPublicAPIFunctionality:
 
         # Use sample config
         from supy._env import trv_supy_module
+
         config_path = trv_supy_module / "sample_data" / "sample_config.yml"
 
         with warnings.catch_warnings(record=True) as w:
@@ -58,8 +64,9 @@ class TestPublicAPIFunctionality:
             df_state = func(str(config_path))
 
             # Verify deprecation warning
-            assert any(issubclass(warning.category, DeprecationWarning) for warning in w), \
-                "init_supy should emit DeprecationWarning"
+            assert any(
+                issubclass(warning.category, DeprecationWarning) for warning in w
+            ), "init_supy should emit DeprecationWarning"
 
             # Verify result
             assert isinstance(df_state, pd.DataFrame)
@@ -82,14 +89,15 @@ class TestPublicAPIFunctionality:
             df_output, df_state_final = run_func(df_forcing_subset, df_state)
 
             # Verify deprecation warning
-            assert any(issubclass(warning.category, DeprecationWarning) for warning in w), \
-                "run_supy should emit DeprecationWarning"
+            assert any(
+                issubclass(warning.category, DeprecationWarning) for warning in w
+            ), "run_supy should emit DeprecationWarning"
 
             # Verify results
             assert isinstance(df_output, pd.DataFrame)
             assert isinstance(df_state_final, pd.DataFrame)
             assert len(df_output) == 24, "Should have 24 output timesteps"
-            assert ('SUEWS', 'QH') in df_output.columns, "Should have SUEWS/QH column"
+            assert ("SUEWS", "QH") in df_output.columns, "Should have SUEWS/QH column"
 
     def test_save_supy_works(self, tmp_path):
         """Test save_supy writes files correctly."""
@@ -107,8 +115,9 @@ class TestPublicAPIFunctionality:
             paths = save_func(df_output, df_state_final, path_dir_save=str(tmp_path))
 
             # Verify deprecation warning
-            assert any(issubclass(warning.category, DeprecationWarning) for warning in w), \
-                "save_supy should emit DeprecationWarning"
+            assert any(
+                issubclass(warning.category, DeprecationWarning) for warning in w
+            ), "save_supy should emit DeprecationWarning"
 
             # Verify files were created
             assert isinstance(paths, list)
@@ -146,7 +155,7 @@ class TestPublicAPIEquivalence:
             df_output_oop,
             check_exact=False,
             rtol=1e-6,  # Relative tolerance for floating point
-            check_names=False
+            check_names=False,
         )
 
         # State comparison (allowing for small numerical differences)
@@ -155,7 +164,7 @@ class TestPublicAPIEquivalence:
             df_state_final_oop,
             check_exact=False,
             rtol=1e-6,
-            check_names=False
+            check_names=False,
         )
 
 
@@ -172,7 +181,8 @@ class TestPublicAPIDeprecationMessages:
 
             # Find the deprecation warning
             dep_warnings = [
-                warning for warning in w
+                warning
+                for warning in w
                 if issubclass(warning.category, DeprecationWarning)
             ]
             assert len(dep_warnings) > 0, "Should emit deprecation warning"
@@ -180,15 +190,19 @@ class TestPublicAPIDeprecationMessages:
             # Check message is helpful
             message = str(dep_warnings[0].message)
             assert "deprecated" in message.lower()
-            assert "SUEWSSimulation" in message or "migration" in message.lower(), \
+            assert "SUEWSSimulation" in message or "migration" in message.lower(), (
                 "Should mention migration path"
+            )
 
-    @pytest.mark.parametrize("func_name", [
-        "load_sample_data",
-        "init_supy",
-        "run_supy",
-        "save_supy",
-    ])
+    @pytest.mark.parametrize(
+        "func_name",
+        [
+            "load_sample_data",
+            "init_supy",
+            "run_supy",
+            "save_supy",
+        ],
+    )
     def test_all_functions_emit_warnings(self, func_name, tmp_path):
         """Test each deprecated function emits a warning."""
         # Setup minimal data for testing (use monkeypatched for speed)
@@ -214,6 +228,7 @@ class TestPublicAPIDeprecationMessages:
                 func()
             elif func_name == "init_supy":
                 from supy._env import trv_supy_module
+
                 config_path = trv_supy_module / "sample_data" / "sample_config.yml"
                 func(str(config_path))
             elif func_name == "run_supy":
@@ -222,5 +237,6 @@ class TestPublicAPIDeprecationMessages:
                 func(df_output, df_state_final, path_dir_save=str(tmp_path))
 
             # Verify warning was emitted
-            assert any(issubclass(warning.category, DeprecationWarning) for warning in w), \
-                f"{func_name} should emit DeprecationWarning"
+            assert any(
+                issubclass(warning.category, DeprecationWarning) for warning in w
+            ), f"{func_name} should emit DeprecationWarning"

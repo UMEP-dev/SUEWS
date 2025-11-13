@@ -537,13 +537,6 @@ class ModelPhysics(BaseModel):
     """
     Model physics configuration options.
 
-    Key method interactions:
-
-    - rslmethod: Determines HOW near-surface values (2m temp, 10m wind) are calculated from forcing data
-    - stabilitymethod: Provides stability correction functions used BY rslmethod calculations
-    - rsllevel: Uses the near-surface values FROM rslmethod to modify vegetation processes
-    - gsmodel: Stomatal conductance model that may be influenced by rsllevel adjustments
-
     Note: Legacy df_state uses old names (diagmethod→rslmethod, localclimatemethod→rsllevel)
     """
 
@@ -582,7 +575,11 @@ class ModelPhysics(BaseModel):
     stabilitymethod: FlexibleRefValue(StabilityMethod) = Field(
         default=StabilityMethod.CAMPBELL_NORMAN,
         description=_enum_description(StabilityMethod),
-        json_schema_extra={"unit": "dimensionless"},
+        json_schema_extra={
+            "unit": "dimensionless",
+            "used_by": ["rslmethod"],
+            "note": "Provides stability correction functions used by rslmethod calculations",
+        },
     )
     smdmethod: FlexibleRefValue(SMDMethod) = Field(
         default=SMDMethod.MODELLED,
@@ -597,7 +594,12 @@ class ModelPhysics(BaseModel):
     rslmethod: FlexibleRefValue(RSLMethod) = Field(
         default=RSLMethod.VARIABLE,
         description=_enum_description(RSLMethod),
-        json_schema_extra={"unit": "dimensionless"},
+        json_schema_extra={
+            "unit": "dimensionless",
+            "depends_on": ["stabilitymethod"],
+            "provides_to": ["rsllevel"],
+            "note": "Determines how near-surface values (2m temp, 10m wind) are calculated from forcing data",
+        },
     )
     faimethod: FlexibleRefValue(FAIMethod) = Field(
         default=FAIMethod.USE_PROVIDED,
@@ -607,12 +609,21 @@ class ModelPhysics(BaseModel):
     rsllevel: FlexibleRefValue(RSLLevel) = Field(
         default=RSLLevel.NONE,
         description=_enum_description(RSLLevel),
-        json_schema_extra={"unit": "dimensionless"},
+        json_schema_extra={
+            "unit": "dimensionless",
+            "depends_on": ["rslmethod"],
+            "provides_to": ["gsmodel"],
+            "note": "Uses near-surface values from rslmethod to modify vegetation processes",
+        },
     )
     gsmodel: FlexibleRefValue(GSModel) = Field(
         default=GSModel.WARD,
         description=_enum_description(GSModel),
-        json_schema_extra={"unit": "dimensionless"},
+        json_schema_extra={
+            "unit": "dimensionless",
+            "depends_on": ["rsllevel"],
+            "note": "Stomatal conductance model influenced by rsllevel adjustments",
+        },
     )
     snowuse: FlexibleRefValue(SnowUse) = Field(
         default=SnowUse.DISABLED,

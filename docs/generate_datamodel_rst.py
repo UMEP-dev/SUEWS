@@ -124,12 +124,6 @@ class RSTGenerator:
         # Add description
         description = model_doc.get("description", "")
         if description:
-            # Special handling for ModelPhysics
-            if (
-                model_name == "ModelPhysics"
-                and "Key method interactions:" in description
-            ):
-                description = self._process_model_physics_description(description)
             lines.append(description)
             lines.append("")
 
@@ -319,6 +313,38 @@ class RSTGenerator:
             constraint_str = self._format_constraints(constraints)
             if constraint_str:
                 lines.append(f"   :Constraints: {constraint_str}")
+
+        # Add method relationships
+        relationships = field_doc.get("relationships")
+        if relationships:
+            lines.append("")
+            lines.append("   .. admonition:: Method Interactions")
+            lines.append("      :class: note")
+            lines.append("")
+
+            # Add note if present
+            note = relationships.get("note")
+            if note:
+                lines.append(f"      {note}")
+                lines.append("")
+
+            # Add depends_on
+            depends = relationships.get("depends_on", [])
+            if depends:
+                refs = ", ".join(f":ref:`{d} <{d}>`" for d in depends)
+                lines.append(f"      **Depends on:** {refs}")
+
+            # Add provides_to
+            provides = relationships.get("provides_to", [])
+            if provides:
+                refs = ", ".join(f":ref:`{p} <{p}>`" for p in provides)
+                lines.append(f"      **Provides to:** {refs}")
+
+            # Add used_by
+            used_by = relationships.get("used_by", [])
+            if used_by:
+                refs = ", ".join(f":ref:`{u} <{u}>`" for u in used_by)
+                lines.append(f"      **Used by:** {refs}")
 
         return lines
 
@@ -644,59 +670,6 @@ class RSTGenerator:
 
         return message
 
-    @staticmethod
-    def _process_model_physics_description(description: str) -> str:
-        """Add cross-references to ModelPhysics description."""
-        lines = description.split("\n")
-        processed = []
-
-        for line in lines:
-            # Add cross-references to method names
-            modified_line = line
-            if "- rslmethod:" in modified_line:
-                modified_line = modified_line.replace(
-                    "- rslmethod:", "- :ref:`rslmethod <rslmethod>`:"
-                )
-                modified_line = modified_line.replace(
-                    "rslmethod calculations", "``rslmethod`` calculations"
-                )
-            elif "- stabilitymethod:" in modified_line:
-                modified_line = modified_line.replace(
-                    "- stabilitymethod:", "- :ref:`stabilitymethod <stabilitymethod>`:"
-                )
-                modified_line = modified_line.replace(
-                    "BY rslmethod", "**BY** ``rslmethod``"
-                )
-            elif "- rsllevel:" in modified_line:
-                modified_line = modified_line.replace(
-                    "- rsllevel:",
-                    "- :ref:`rsllevel <rsllevel>`:",
-                )
-                modified_line = modified_line.replace(
-                    "FROM rslmethod", "**FROM** ``rslmethod``"
-                )
-            elif "- gsmodel:" in modified_line:
-                modified_line = modified_line.replace(
-                    "- gsmodel:", "- :ref:`gsmodel <gsmodel>`:"
-                )
-                modified_line = modified_line.replace(
-                    "rsllevel adjustments",
-                    "``rsllevel`` adjustments",
-                )
-
-            # Add bold for emphasis
-            modified_line = modified_line.replace(" HOW ", " **HOW** ")
-
-            processed.append(modified_line)
-
-        description = "\n".join(processed)
-
-        # Ensure proper formatting
-        description = description.replace(
-            "Key method interactions:", "**Key method interactions:**\n"
-        )
-
-        return description
 
     def _generate_index_dropdown(self) -> str:
         """Generate index.rst with collapsible dropdown sections (mixed approach)."""

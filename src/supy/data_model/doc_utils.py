@@ -189,6 +189,14 @@ class ModelDocExtractor:
             if range_description:
                 field_doc["range_description"] = range_description
 
+            # Extract relationship metadata
+            relationships = {}
+            for key in ["depends_on", "used_by", "provides_to", "note"]:
+                if key in field_info.json_schema_extra:
+                    relationships[key] = field_info.json_schema_extra[key]
+            if relationships:
+                field_doc["relationships"] = relationships
+
         # Extract enum options
         enum_class = self._get_enum_class(field_info, field_type)
         if enum_class:

@@ -256,7 +256,7 @@ df_var_info = df_info_suews_cal_multitsteps.set_index("name")
 # load configurations: mod_config
 # process RunControl.nml
 # this function can handle all SUEWS nml files
-def load_SUEWS_nml_simple(path_file):
+def load_SUEWS_nml_simple(path_file, *, missing_ok=False):
     # remove case issues
     # xfile = path_insensitive(xfile)
     try:
@@ -266,11 +266,17 @@ def load_SUEWS_nml_simple(path_file):
         df_res = pd.DataFrame(f90nml.read(str_file))
         return df_res
     except FileNotFoundError:
+        if missing_ok:
+            logger_supy.warning(
+                f"{path_file} does not exist! Returning empty DataFrame."
+            )
+            return pd.DataFrame()
         logger_supy.exception(f"{path_file} does not exists!")
+        raise
 
 
 @functools.lru_cache(maxsize=128)
-def load_SUEWS_nml(p_nml):
+def load_SUEWS_nml(p_nml, *, missing_ok=False):
     try:
         p_nml = Path(path_insensitive(str(p_nml))).resolve()
         parser = f90nml.Parser()
@@ -283,17 +289,27 @@ def load_SUEWS_nml(p_nml):
             dict_nml.update(expand_entry(k, v))
         return dict_nml
     except FileNotFoundError:
+        if missing_ok:
+            logger_supy.warning(f"{p_nml} does not exist! Returning empty dict.")
+            return {}
         logger_supy.exception(f"{p_nml} does not exists!")
+        raise
 
 
 # load all tables (xgrid.e., txt files)
 @functools.lru_cache(maxsize=128)
-def load_SUEWS_table(path_file):
+def load_SUEWS_table(path_file, *, missing_ok=False):
     # remove case issues
     try:
         path_file = path_file.resolve()
     except FileNotFoundError:
+        if missing_ok:
+            logger_supy.warning(
+                f"{path_file} does not exist! Returning empty DataFrame."
+            )
+            return pd.DataFrame()
         logger_supy.exception(f"{path_file} does not exists!")
+        raise
     else:
         try:
             rawdata = pd.read_csv(
@@ -309,7 +325,13 @@ def load_SUEWS_table(path_file):
             rawdata.index = rawdata.index.astype(int)
             return rawdata
         except Exception as err:
+            if missing_ok:
+                logger_supy.warning(
+                    f"Error {err} in reading {path_file}! Returning empty DataFrame."
+                )
+                return pd.DataFrame()
             logger_supy.exception(f"error {err} in reading {path_file}!")
+            raise
 
 
 # load all tables into variables staring with 'lib_' and filename
@@ -711,6 +733,9 @@ def set_index_dt(df_raw: pd.DataFrame) -> pd.DataFrame:
         datetime-aware DataFrame
     """
 
+    # drop rows with missing timestamp information (e.g., footer lines with -9)
+    df_raw = df_raw.dropna(subset=df_raw.columns[:4])
+
     # set timestamp as index
     idx_dt = pd.date_range(
         *df_raw.iloc[[0, -1], :4]
@@ -976,23 +1001,41 @@ def build_code_df(code, path_input, df_base):
 
     try:
         df_code = df_code0.loc[list_code, list_keys]
-    except Exception as e:
-        logger_supy.exception(f"Entries missing from {lib_code}")
+    except KeyError as e:
         list_missing_code = [code for code in list_code if code not in df_code0.index]
-        list_missing_key = [key for key in list_keys if key not in df_code0.columns]
-        if list_missing_code:
-            logger_supy.exception(f"missing code:\n {list_missing_code}")
-        if list_missing_key:
-            logger_supy.exception(f"missing key:\n {list_missing_key}")
+        keys_for_logging = list_keys if isinstance(list_keys, list) else [list_keys]
+        list_missing_key = [
+            key for key in keys_for_logging if key not in df_code0.columns
+        ]
 
-        # dump data for debugging
-        path_dump = Path.cwd() / "df_code0.pkl"
-        df_code0.to_pickle(path_dump)
-        logger_supy.exception(
-            f"`df_code0` has been dumped into {path_dump.resolve()} for debugging!"
-        )
+        # Special handling: some legacy datasets reference profile codes (e.g., 999)
+        # that were never present in SUEWS_Profiles.txt. Create safe defaults so
+        # conversion can proceed, and rely on ProfileManager to persist them.
+        if list_missing_code and str_lib == "lib_Profiles":
+            for missing_code in list_missing_code:
+                default_series = pd.Series(1.0, index=df_code0.columns, dtype=float)
+                df_code0.loc[missing_code] = default_series.values
+                logger_supy.warning(
+                    f"{lib_code}: created uniform placeholder profile for missing "
+                    f"code {missing_code}"
+                )
+            df_code0.sort_index(inplace=True)
+            df_code = df_code0.loc[list_code, list_keys]
+        else:
+            logger_supy.exception(f"Entries missing from {lib_code}")
+            if list_missing_code:
+                logger_supy.exception(f"missing code:\n {list_missing_code}")
+            if list_missing_key:
+                logger_supy.exception(f"missing key:\n {list_missing_key}")
 
-        raise e
+            # dump data for debugging
+            path_dump = Path.cwd() / "df_code0.pkl"
+            df_code0.to_pickle(path_dump)
+            logger_supy.exception(
+                f"`df_code0` has been dumped into {path_dump.resolve()} for debugging!"
+            )
+
+            raise e
 
     df_code.index = df_base.index
     # recover outmost level code if profile values are extracted
@@ -1388,7 +1431,9 @@ def load_SUEWS_dict_ModConfig(path_runcontrol, dict_default=dict_RunControl_defa
         / "SUEWS_SPARTACUS.nml"
     )
 
-    dict_RunControl_x = {k[0]: v for k, v in load_SUEWS_nml(path_spartacus).items()}
+    dict_RunControl_x = {
+        k[0]: v for k, v in load_SUEWS_nml(path_spartacus, missing_ok=True).items()
+    }
     dict_RunControl.update(dict_RunControl_x)
 
     return dict_RunControl
@@ -1934,6 +1979,32 @@ def fix_invalid_defaults(df_init):
     if ("pormax_dec", "0") in df_init.columns:
         mask = df_init[("pormax_dec", "0")] == -999
         df_init.loc[mask, ("pormax_dec", "0")] = 0.9
+
+    def _clamp_porosity(col):
+        if col in df_init.columns:
+            df_init[col] = df_init[col].clip(lower=0.0, upper=1.0)
+
+    for col in [
+        ("pormin_dec", "0"),
+        ("pormax_dec", "0"),
+        ("pormin_evetr", "0"),
+        ("pormax_evetr", "0"),
+        ("pormin_grass", "0"),
+        ("pormax_grass", "0"),
+    ]:
+        _clamp_porosity(col)
+
+    def _enforce_porosity_range(min_col, max_col, buffer=0.01):
+        if min_col in df_init.columns and max_col in df_init.columns:
+            mask = df_init[min_col] >= df_init[max_col]
+            if mask.any():
+                df_init.loc[mask, min_col] = (df_init.loc[mask, max_col] - buffer).clip(
+                    lower=0.0
+                )
+
+    _enforce_porosity_range(("pormin_dec", "0"), ("pormax_dec", "0"))
+    _enforce_porosity_range(("pormin_evetr", "0"), ("pormax_evetr", "0"))
+    _enforce_porosity_range(("pormin_grass", "0"), ("pormax_grass", "0"))
 
     # pormin_evetr and pormax_evetr: Porosity min/max for evergreen trees
     if ("pormin_evetr", "0") in df_init.columns:

@@ -21,7 +21,7 @@
 
 | Year | Features | Bugfixes | Changes | Maintenance | Docs | Total |
 |------|----------|----------|---------|-------------|------|-------|
-| 2025 | 38 | 25 | 13 | 34 | 17 | 125 |
+| 2025 | 38 | 26 | 13 | 34 | 17 | 128 |
 | 2024 | 12 | 17 | 1 | 12 | 1 | 43 |
 | 2023 | 11 | 14 | 3 | 9 | 1 | 38 |
 | 2022 | 15 | 18 | 0 | 7 | 0 | 40 |
@@ -44,6 +44,16 @@
   - Validates `ie_start` and `ie_end` for DOY range, consistency, and hemisphere-aware seasonal appropriateness
   - NH (lat ≥ 23.5°): warm season DOY 121-273; SH (lat ≤ -23.5°): DOY 305-90; Tropics (|lat| < 23.5°): year-round
   - Integrated into Phase B scientific validation pipeline
+
+### 11 Nov 2025
+- [bugfix] Fixed YAML converter errors with legacy data (Issue #846)
+  - Fixed logging errors when sys.stdout is None (e.g., in QGIS)
+  - Fixed missing NML file handling (SPARTACUS, ESTM) to return empty containers
+  - Added graceful handling of legacy profile file formats (2017 data)
+  - Added automatic placeholder generation for missing lookup codes
+  - Fixed column count mismatches in legacy table files
+  - Preserved `BaseT_HC` during 2021a→2023a table conversion (SUEWS still reads this column)
+  - Added comprehensive tests with real URBANFLUXES 2017 data
 
 ### 05 Nov 2025
 - [feature] Added physics-specific forcing data validation 

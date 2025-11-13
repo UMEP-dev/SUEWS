@@ -316,14 +316,15 @@ class SUEWSSimulation:
         2. Code runs on the user's own machine
         3. No untrusted external input is involved
         """
-        # Check both platform-native and Unix-style absolute paths
-        # PurePosixPath handles Unix-style paths (/...) on all platforms
-        if Path(path).is_absolute() or PurePosixPath(path).is_absolute():
-            return path
-        else:
-            # Relative path - resolve relative to config file location
-            # Using resolve() handles '..' and normalizes the path
-            return str((self._config_path.parent / path).resolve())
+        path_str = str(path)
+
+        # Treat platform-native absolute paths as literal
+        if Path(path_str).is_absolute() or PurePosixPath(path_str).is_absolute():
+            return path_str
+
+        # Relative path - resolve relative to config file location
+        # Using resolve() handles '..' and normalizes the path
+        return str((self._config_path.parent / Path(path_str)).resolve())
 
     @staticmethod
     def _load_forcing_from_list(forcing_list: list[Union[str, Path]]) -> pd.DataFrame:

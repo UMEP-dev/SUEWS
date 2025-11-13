@@ -636,7 +636,7 @@ class TestPathResolution:
         sim._config_path = config_file
 
         # Absolute path should be returned as-is
-        abs_path = "/absolute/path/to/forcing.txt"
+        abs_path = str((tmp_path / "forcing.txt").resolve())
         result = sim._resolve_single_path(abs_path)
         assert result == abs_path
 
@@ -679,10 +679,10 @@ class TestPathResolution:
         sim = SUEWSSimulation()
         sim._config_path = config_file
 
-        paths = ["/absolute/path/forcing.txt", "relative_forcing.txt"]
+        paths = [str((tmp_path / "forcing.txt").resolve()), "relative_forcing.txt"]
         result = sim._resolve_forcing_paths(paths)
 
-        assert result[0] == "/absolute/path/forcing.txt"  # unchanged
+        assert result[0] == paths[0]  # unchanged
         assert result[1] == str(tmp_path / "relative_forcing.txt")  # resolved
 
     def test_resolve_path_with_parent_references(self, tmp_path):

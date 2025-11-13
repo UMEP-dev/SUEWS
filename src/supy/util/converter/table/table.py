@@ -42,6 +42,41 @@ rules = pd.read_csv(trv_supy_module / "util" / "converter" / "table" / "rules.cs
 list_ver_from = rules["From"].unique().tolist()
 list_ver_to = rules["To"].unique().tolist()
 
+# Canonical ordering from oldest → newest to support version comparisons
+VERSION_SEQUENCE = [
+    "2016a",
+    "2017a",
+    "2018a",
+    "2018b",
+    "2018c",
+    "2019a",
+    "2019b",
+    "2020a",
+    "2021a",
+    "2023a",
+    "2024a",
+    "2025a",
+]
+
+
+def _version_index(version):
+    """Return the index of a version string within VERSION_SEQUENCE."""
+    if version is None:
+        return None
+    try:
+        return VERSION_SEQUENCE.index(version)
+    except ValueError:
+        return None
+
+
+def _requires_grid_layout(version):
+    """Determine if the target version needs GridLayout*.nml support."""
+    version_idx = _version_index(version)
+    grid_idx = _version_index("2024a")
+    if version_idx is None or grid_idx is None:
+        return False
+    return version_idx >= grid_idx
+
 
 def _check_required_files(input_path, required_files):
     """Check if all required files exist."""
@@ -626,18 +661,27 @@ def delete_var_nml(toFile, toVar, _toVal):
 
 def _should_skip_line(line):
     """Check if a line should be skipped during cleaning."""
+    stripped = line.strip()
     # Skip empty lines and full-line comments
-    if not line or line.strip().startswith("#"):
+    if not stripped or stripped.startswith("#"):
         return True
 
+    # Detect whether this looks like a data line (starts with numeric code)
+    first_token = stripped.split()[0]
+    is_data_line = first_token.lstrip("-").isdigit()
+
     # Skip lines that contain triple quotes or problematic quoted comments
-    if '"""' in line or (
-        '"' in line and ("Vegetation (average)" in line or "used for" in line)
+    if '"""' in line:
+        return True
+    if (
+        '"' in line
+        and not is_data_line
+        and ("Vegetation (average)" in line or "used for" in line)
     ):
         return True
 
     # Skip lines starting with -9 (legacy footers)
-    return line.strip().startswith("-9")
+    return stripped.startswith("-9")
 
 
 def _process_line(line):
@@ -1763,6 +1807,35 @@ def convert_table(
                 )
 
         move(fileX.resolve(), path_input / target_name)
+
+    # Ensure expected grid layout file exists (legacy datasets may ship with mismatched names)
+    if _requires_grid_layout(toVer):
+        expected_grid = f"GridLayout{ser_nml['filecode']}.nml"
+        path_expected_grid = path_input / expected_grid
+        if not path_expected_grid.exists():
+            grid_candidates = sorted(path_input.glob("GridLayout*.nml"))
+            normalized = expected_grid.lower()
+            matched_candidate = next(
+                (candidate for candidate in grid_candidates if candidate.name.lower() == normalized),
+                None,
+            )
+
+            if matched_candidate is not None:
+                shutil.copy2(matched_candidate, path_expected_grid)
+                logger_supy.info(
+                    f"Created {expected_grid} from {matched_candidate.name} to match RunControl filecode"
+                )
+            elif grid_candidates:
+                candidate_names = ", ".join(candidate.name for candidate in grid_candidates)
+                logger_supy.warning(
+                    f"Expected {expected_grid} but found non-matching GridLayout files ({candidate_names}); "
+                    "leaving legacy dataset without a dedicated layout file."
+                )
+            else:
+                logger_supy.info(
+                    f"No GridLayout*.nml files found for filecode {ser_nml['filecode']}; "
+                    "legacy configurations often omit layout files when storage heat geometry is unused."
+                )
 
 
 # get file encoding type

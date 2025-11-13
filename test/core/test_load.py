@@ -14,6 +14,7 @@ import pandas as pd
 import yaml
 
 import supy as sp
+from supy.util.converter import convert_table, detect_table_version
 
 
 class TestInitSuPy(TestCase):
@@ -341,8 +342,12 @@ class TestErrorHandling(TestCase):
 
         from supy._load import load_SUEWS_nml  # noqa: PLC0415
 
-        # Test that missing NML file returns empty dict instead of crashing
-        result = load_SUEWS_nml("nonexistent_file.nml")
+        # Default behaviour should raise so required files fail fast
+        with self.assertRaises(FileNotFoundError):
+            load_SUEWS_nml("nonexistent_file.nml")
+
+        # Optional mode returns empty dict instead of crashing
+        result = load_SUEWS_nml("nonexistent_file.nml", missing_ok=True)
         self.assertIsInstance(result, dict)
         self.assertEqual(len(result), 0)
 
@@ -481,6 +486,44 @@ FileOutputPath="./Output/"
                 )
             else:
                 raise
+
+    def test_gridlayout_not_cloned_for_legacy_conversion(self):
+        """Ensure legacy conversions don't fabricate per-filecode GridLayout files."""
+        print("\n========================================")
+        print("Ensuring legacy data skips GridLayout cloning...")
+
+        fixture_dir = Path(__file__).parent.parent / "fixtures" / "gh846"
+        runcontrol_path = fixture_dir / "RunControl.nml"
+
+        if not runcontrol_path.exists():
+            self.skipTest("GH-846 fixture data not available")
+
+        detected_version = detect_table_version(fixture_dir)
+        self.assertIsNotNone(detected_version, "Version detection failed for GH-846 data")
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            convert_table(
+                str(fixture_dir),
+                temp_dir,
+                detected_version,
+                "2025a",
+            )
+
+            input_dir = Path(temp_dir) / "Inputbarb_v7"
+            expected_grid = input_dir / "GridLayoutbarb.nml"
+            self.assertFalse(
+                expected_grid.exists(),
+                "GridLayoutbarb.nml should not be auto-generated for legacy datasets",
+            )
+
+            grid_files = sorted(f.name for f in input_dir.glob("GridLayout*.nml"))
+            self.assertGreaterEqual(
+                len(grid_files),
+                1,
+                "Conversion should still preserve placeholder GridLayout files for debugging",
+            )
+
+        print("✓ Legacy conversion leaves unmatched GridLayout files untouched")
 
     def test_malformed_data(self):
         """Test handling of malformed data."""

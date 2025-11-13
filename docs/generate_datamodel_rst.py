@@ -670,7 +670,6 @@ class RSTGenerator:
 
         return message
 
-
     def _generate_index_dropdown(self) -> str:
         """Generate index.rst with collapsible dropdown sections (mixed approach)."""
         lines = [

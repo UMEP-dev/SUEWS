@@ -3,6 +3,46 @@
 Parameterisations and sub-models within SUEWS
 =============================================
 
+Overview
+--------
+
+The Surface Urban Energy and Water Balance Scheme (SUEWS) simulates the urban surface energy and water balances at neighbourhood to local scales. The model solves two coupled balance equations:
+
+**Energy Balance:**
+
+.. math::
+
+   Q^* + Q_F = \Delta Q_S + Q_H + Q_E
+
+where:
+
+- :math:`Q^*` is the net all-wave radiation
+- :math:`Q_F` is the anthropogenic heat flux
+- :math:`\Delta Q_S` is the net storage heat flux
+- :math:`Q_H` is the turbulent sensible heat flux
+- :math:`Q_E` is the turbulent latent heat flux
+
+**Water Balance:**
+
+.. math::
+
+   P + I = E + \Delta S + R
+
+where:
+
+- :math:`P` is precipitation
+- :math:`I` is irrigation (optional)
+- :math:`E` is evapotranspiration (related to :math:`Q_E`)
+- :math:`\Delta S` is the change in water storage
+- :math:`R` is runoff
+
+Each component can be calculated using different parameterisations or provided as observed input. The choice of parameterisation is controlled through the ``ModelPhysics`` configuration object. Some schemes are alternatives (e.g., NARP vs BEERS vs SPARTACUS for radiation), whilst others are complementary (e.g., different stability correction functions).
+
+Supporting schemes provide essential inputs to these balance calculations, including leaf area index (LAI), atmospheric stability corrections, and diagnostic meteorological profiles.
+
+Energy Balance Components
+=========================
+
 Net all-wave radiation, Q\*
 ---------------------------
 
@@ -24,10 +64,23 @@ incoming shortwave radiation to be provided.
 #. `SPARTACUS-Surface (SS)` computes the 3D interaction of shortwave and longwave radiation with complex surface canopies, including vegetated and urban canopies (with or without vegetation). More details can be found in the `SPARTACUS-Surface (SS)` section.
 #. **BEERS** (Building Envelope Energy Radiation Scheme) calculates detailed radiation components for urban surfaces including point-specific radiation analysis. More details can be found in the ``BEERS`` section.
 
+NARP (Net All-wave Radiation Parameterization)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+**NARP** :cite:`O03,L11` is the standard radiation scheme in SUEWS, implemented in the Fortran module ``suews_phys_narp.f95``. It calculates outgoing shortwave and incoming and outgoing longwave radiation components based on:
+
+- Incoming shortwave radiation (required meteorological forcing)
+- Air temperature and relative humidity
+- Surface characteristics (albedo, emissivity)
+
+The scheme uses empirically-derived relations to estimate radiation components when they are not directly observed. NARP provides a computationally efficient approach suitable for most applications.
+
 BEERS (Building Envelope Energy Radiation Scheme)
---------------------------------------------------
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 **BEERS** is the successor to SOLWEIG and provides advanced radiation modelling for urban environments. BEERS calculates detailed radiation components at specific points of interest (POI) within urban areas, considering the complex 3D geometry of buildings and vegetation.
+
+**Module:** ``suews_phys_beers.f95``
 
 **Key Features:**
 
@@ -43,7 +96,7 @@ BEERS provides comprehensive radiation output including:
 
 - **Incoming/Outgoing Radiation:** Shortwave (Kdown2d, Kup2d) and longwave (Ldown2d, Lup2d) at POI
 - **Directional Components:** Radiation from north, south, east, west directions
-- **Shadow Information:** Shadow patterns on ground (SH_Ground) and walls (SH_Walls)  
+- **Shadow Information:** Shadow patterns on ground (SH_Ground) and walls (SH_Walls)
 - **Sky View Factors:** From ground (SVF_Ground), roof (SVF_Roof), and buildings/vegetation (SVF_BdVeg)
 - **Surface Temperatures:** Ground (Tg), wall (Tw), and air (Ta) temperatures
 - **Comfort Metrics:** Mean radiant temperature (Tmrt) for thermal comfort assessment
@@ -78,205 +131,8 @@ BEERS can be enabled in SUEWS through the model physics settings. Required input
 .. note::
    BEERS provides detailed radiation output that is particularly valuable for applications requiring point-specific radiation analysis or human thermal comfort assessment in urban environments.
 
-Anthropogenic heat flux, Q\ :sub:`F`
-------------------------------------
-
-
-#. Two simple anthropogenic heat flux sub-models exist within SUEWS:
-
-   -  :cite:t:`J11` approach, based on heating and cooling degree days and population density (allows distinction between weekdays and weekends).
-   -  :cite:t:`L11` approach, based on a linear piece-wise relation with air temperature.
-
-#. Pre-calculated values can be supplied with the meteorological forcing data, either derived from knowledge of the study site, or obtained from other models, for example:
-
-   -  **LUCY** :cite:`A11,L13`. A new version has been now included in UMEP. To distinguish it is referred to as `LQF`_
-   -  **GreaterQF** :cite:`I11`. A new version has been now included in UMEP. To distinguish it is referred to as `GQF`_
-
-Storage heat flux, ΔQ\ :sub:`S`
--------------------------------
-
-#. Three sub-models are available to estimate the storage heat flux:
-
-   -  **OHM** (Objective Hysteresis Model) :cite:`G91,GO99,GO02`. Storage heat heat flux is calculated using empirically-fitted relations with net all-wave radiation and the rate of change in net all-wave radiation.
-   -  **AnOHM** (Analytical Objective Hysteresis Model) :cite:`S17`. OHM approach using analytically-derived coefficients. |NotRecmd|
-   -  **ESTM** (Element Surface Temperature Method) :cite:`O05`. Heat transfer through urban facets (roof, wall, road, interior) is calculated from surface temperature measurements and knowledge of material properties. |NotRecmd|
-
-#. Alternatively, 'observed' storage heat flux can be supplied with the meteorological forcing data.
-
-Turbulent heat fluxes, Q\ :sub:`H` and Q\ :sub:`E`
---------------------------------------------------
-
-#. **LUMPS** (Local-scale Urban Meteorological Parameterization Scheme) :cite:`GO02` provides a simple means of estimating sensible and latent heat fluxes based on the proportion of vegetation in the study area.
-
-#. **SUEWS** adopts a more biophysical approach to calculate the latent heat flux; the sensible heat flux is then calculated as the residual of the energy balance.
-   The initial estimate of stability is based on the LUMPS calculations of sensible and latent heat flux.
-   Future versions will have alternative sensible heat and storage heat flux options.
-
-Sensible and latent heat fluxes from both LUMPS and SUEWS are provided in the `output_files`.
-Whether the turbulent heat fluxes are calculated using LUMPS or SUEWS can have a major impact on the results.
-For SUEWS, an appropriate surface conductance parameterisation is also critical :cite:`J11` :cite:`W16`.
-For more details see ``Differences_between_SUEWS_LUMPS_and_FRAISE``.
-
-Water balance
--------------
-
-The running water balance at each time step is based on the urban water balance model of :cite:t:`G86` and urban evaporation-interception scheme of :cite:t:`GO91`.
-
--  Precipitation is a required variable in the meteorological forcing file.
--  Irrigation can be modelled :cite:`J11` or observed values can be provided if data are available.
--  Drainage equations and coefficients to use must be specified in the input files.
--  Soil moisture can be calculated by the model.
--  Runoff is permitted:
-
-   -  between surface types within each model grid
-   -  between model grids (|NotAvail|)
-   -  to deep soil
-   -  to pipes.
-
-Runoff Generation
-^^^^^^^^^^^^^^^^^
-
-SUEWS generates surface runoff through two primary mechanisms, both calculated at each model timestep:
-
-1. **Infiltration Excess Runoff (Hortonian Overland Flow)**
-
-   When the precipitation rate exceeds the infiltration capacity (default: 10 mm hr⁻¹), the excess precipitation becomes runoff:
-
-   .. math::
-
-      R_\text{I} = P - I_\text{th}
-
-   where:
-
-   - :math:`R_\text{I}` is the infiltration excess runoff rate
-   - :math:`P` is the precipitation rate at the current timestep
-   - :math:`I_\text{th}` is the infiltration capacity threshold (adjusted for timestep duration)
-
-   This mechanism applies to all surface types (impervious and pervious).
-
-2. **Saturation Excess Runoff**
-
-   Runoff is generated when surface or soil storage capacities are exceeded:
-
-   - **Impervious surfaces** (paved, buildings): When surface water storage exceeds the maximum storage capacity
-   - **Pervious surfaces** (vegetation, bare soil): When soil moisture storage exceeds the soil storage capacity
-   - **Water bodies**: When water level exceeds the defined state limit
-
-   For pervious surfaces, the saturation excess is calculated as:
-
-   .. math::
-
-      R_\text{S} = \max(0, S - S_\text{max})
-
-   where:
-
-   - :math:`R_\text{S}` is the saturation excess runoff
-   - :math:`S` is the current soil moisture storage
-   - :math:`S_\text{max}` is the soil storage capacity
-
-**Timestep Considerations**
-
-All runoff calculations are performed at the model timestep (typically 5 minutes to 1 hour). The infiltration threshold is automatically adjusted based on the timestep duration to maintain consistency:
-
-.. math::
-
-   I_\text{th}(\Delta t) = \frac{I_\text{th,hourly}}{n}
-
-where :math:`n` is the number of timesteps per hour.
-
-**Water Routing**
-
-After generation, runoff is routed according to the water distribution matrix (``WaterDist``), which specifies:
-
-- Fractions going directly to runoff pipes
-- Fractions redistributed between surfaces
-- Fractions directed to soil storage (for pervious surfaces)
-- Overflow routing to water bodies via the ``RunoffToWater`` parameter
-
-The total runoff from a grid cell includes contributions from all surface types, subject to pipe capacity limitations.
-
-Snowmelt
---------
-
-The snowmelt model is described in :cite:t:`J14`.
-Changes since v2016a:
-1) previously all surface states could freeze in 1-h time step, now the freezing surface state is
-calculated similarly as melt water and can freeze within the snow pack.
-2) Snowmelt-related coefficients have also slightly changed (see `SUEWS_Snow.txt`).
-
-Convective boundary layer
--------------------------
-
-A convective boundary layer (CBL) slab model :cite:`CG01` calculates the CBL height, temperature and humidity during daytime :cite:`O15`.
-
-.. SOLWEIG is fully removed since 2019a
-
-.. Thermal comfort
-.. ---------------
-
-.. **SOLWEIG** (Solar and longwave environmental irradiance geometry model,
-.. Lindberg et al. 2008 :cite:`F08`, Lindberg and Grimmond 2011 :cite:`FG11`) is a 2D
-.. radiation model to estimate mean radiant temperature.
-
-.. .. figure:: /assets/img/Bluews_2.jpg
-..     :alt:  Overview of scales. Source: Onomura et al. (2015) :cite:`O15`
-
-..     Overview of scales. Source: Onomura et al. (2015) :cite:`O15`
-
-
-
-
-.. _LQF: http://umep-docs.readthedocs.io/en/latest/OtherManuals/LQF_Manual.html
-.. _GQF: http://umep-docs.readthedocs.io/en/latest/OtherManuals/GQF_Manual.html
-
-.. _rsl_mod:
-
-Wind, Temperature and Humidity Profiles in the Roughness Sublayer
-----------------------------------------------------------------------------
-A dignostic RSL scheme for calculating the wind, temperature and humidity profiles in the roughness sublayer is implemented in 2020a following :cite:t:`HF07, HF08` and :cite:t:`T19`.
-An recent application of this RSL scheme can be found in :cite:t:`T21`.
-
-The diagnostic profiles are outputed in 30 uneven levels between the ground and forcing height, which are divided into two groups:
-
-- One group of levels are evenly distributed within the urban canopy layer characterised by mean height of roughness elements (e.g. buildings, trees, etc.) :math:`z_H`, which determines the number of layers within urban canopy :math:`n_{can}`:
-
-.. math::
-   :nowrap:
-
-   \[
-         n_{can} =
-   \begin{cases}
-      3 & \text{if } z_H \leq \text{2 m} \\
-      10 & \text{if } \text{2 m} \lt z_H \leq \text{10 m} \\
-      15 & \text{if } z_H \gt \text{10 m} \\
-
-   \end{cases}
-   \]
-
-- The other levels are evenly distributed between the urban canopy layer top and forcing height.
-
-
-.. note::
-
-   All the diagnostic profiles (wind speed, temperature and humidity) are calculated
-   from the forcing data down into the canopy.
-   Therefore it is assumed that the forcing temperature and humidity
-   are above the blending height.
-
-
-
-Common near-surface diagnostics:
-
-   -  T2: air temperature at 2 m agl
-   -  Q2: air specific humidity at 2 m agl
-   -  RH2: air relative humidity at 2 m agl
-   -  U10: wind speed at 10 m agl
-
-are calculated by the `RSL scheme <rsl_mod>` by interpolating RSL profile results to the corresponding diagnostic heights.
-
-
 SPARTACUS-Surface (SS)
-----------------------
+^^^^^^^^^^^^^^^^^^^^^^
 
 .. warning:: This module is highly experimental and not yet fully tested: description here is not yet complete, either. Please refer to the original `SPARTACUS-Surface page <https://github.com/ecmwf/spartacus-surface>`_ for more details, which may differ from the coupled version in SUEWS described below due to possibly different implementations.
 
@@ -294,6 +150,7 @@ Introduction to SS
 
 The `SPARTACUS-Surface module <https://github.com/ecmwf/spartacus-surface>`_ computes the 3D interaction of shortwave and longwave radiation with complex surface canopies, including vegetated and urban canopies (with or without vegetation).
 
+**Module:** ``suews_phys_spartacus.f95``
 
 .. _SPARTACUS-Surface:
 .. figure:: /assets/img/SUEWS002.jpg
@@ -504,7 +361,324 @@ Leaf area index (LAI)
 The total vertically integrated LAI provided by SUEWS is used in SS to determine the LAI and vegetation extinction coefficient in each layer.
 Surface codes in `SUEWS_SiteSelect.txt` should correspond to appropriate LAI values in `SUEWS_veg.txt`.
 
+Anthropogenic heat flux, Q\ :sub:`F`
+------------------------------------
 
+**Modules:** ``suews_phys_anthro.f95``
+
+#. Two simple anthropogenic heat flux sub-models exist within SUEWS:
+
+   -  :cite:t:`J11` approach, based on heating and cooling degree days and population density (allows distinction between weekdays and weekends).
+   -  :cite:t:`L11` approach, based on a linear piece-wise relation with air temperature.
+
+#. Pre-calculated values can be supplied with the meteorological forcing data, either derived from knowledge of the study site, or obtained from other models, for example:
+
+   -  **LUCY** :cite:`A11,L13`. A new version has been now included in UMEP. To distinguish it is referred to as `LQF`_
+   -  **GreaterQF** :cite:`I11`. A new version has been now included in UMEP. To distinguish it is referred to as `GQF`_
+
+Storage heat flux, ΔQ\ :sub:`S`
+-------------------------------
+
+**Modules:** ``suews_phys_ohm.f95``, ``suews_phys_anohm.f95``, ``suews_phys_estm.f95``, ``suews_phys_ehc.f95``, ``suews_phys_stebbs.f95``
+
+#. Three sub-models are available to estimate the storage heat flux:
+
+   -  **OHM** (Objective Hysteresis Model) :cite:`G91,GO99,GO02`. Storage heat heat flux is calculated using empirically-fitted relations with net all-wave radiation and the rate of change in net all-wave radiation.
+   -  **AnOHM** (Analytical Objective Hysteresis Model) :cite:`S17`. OHM approach using analytically-derived coefficients. |NotRecmd|
+   -  **ESTM** (Element Surface Temperature Method) :cite:`O05`. Heat transfer through urban facets (roof, wall, road, interior) is calculated from surface temperature measurements and knowledge of material properties. |NotRecmd|
+
+#. Alternatively, 'observed' storage heat flux can be supplied with the meteorological forcing data.
+
+Turbulent heat fluxes, Q\ :sub:`H` and Q\ :sub:`E`
+--------------------------------------------------
+
+**Modules:** ``suews_phys_lumps.f95``, ``suews_phys_resist.f95``, ``suews_phys_evap.f95``
+
+#. **LUMPS** (Local-scale Urban Meteorological Parameterization Scheme) :cite:`GO02` provides a simple means of estimating sensible and latent heat fluxes based on the proportion of vegetation in the study area.
+
+#. **SUEWS** adopts a more biophysical approach to calculate the latent heat flux; the sensible heat flux is then calculated as the residual of the energy balance.
+   The initial estimate of stability is based on the LUMPS calculations of sensible and latent heat flux.
+   Future versions will have alternative sensible heat and storage heat flux options.
+
+Sensible and latent heat fluxes from both LUMPS and SUEWS are provided in the `output_files`.
+Whether the turbulent heat fluxes are calculated using LUMPS or SUEWS can have a major impact on the results.
+For SUEWS, an appropriate surface conductance parameterisation is also critical :cite:`J11` :cite:`W16`.
+For more details see ``Differences_between_SUEWS_LUMPS_and_FRAISE``.
+
+Water Balance Components
+=========================
+
+Overview
+--------
+
+The running water balance at each time step is based on the urban water balance model of :cite:t:`G86` and urban evaporation-interception scheme of :cite:t:`GO91`.
+
+The water balance equation is:
+
+.. math::
+
+   P + I = E + \Delta S + R
+
+where:
+
+- :math:`P` is precipitation (required meteorological forcing)
+- :math:`I` is irrigation (modelled or observed)
+- :math:`E` is evapotranspiration (linked to latent heat flux :math:`Q_E`)
+- :math:`\Delta S` is the change in canopy and soil water storage
+- :math:`R` is runoff
+
+Key features:
+
+-  Precipitation is a required variable in the meteorological forcing file.
+-  Irrigation can be modelled :cite:`J11` or observed values can be provided if data are available.
+-  Drainage equations and coefficients to use must be specified in the input files.
+-  Soil moisture can be calculated by the model.
+-  Runoff is permitted:
+
+   -  between surface types within each model grid
+   -  between model grids (|NotAvail|)
+   -  to deep soil
+   -  to pipes.
+
+Evapotranspiration
+------------------
+
+Evapotranspiration (:math:`E`) is directly related to the latent heat flux (:math:`Q_E`) in the energy balance through:
+
+.. math::
+
+   Q_E = \lambda E
+
+where :math:`\lambda` is the latent heat of vaporisation.
+
+SUEWS calculates evapotranspiration using the Penman-Monteith equation, accounting for:
+
+- Evaporation from wet surfaces (interception storage)
+- Transpiration from vegetation through stomatal control
+- Evaporation from soil and water surfaces
+
+The surface conductance parameterisation is critical for accurately simulating evapotranspiration :cite:`J11,W16`. See the turbulent heat fluxes section for details on the LUMPS and SUEWS approaches.
+
+Runoff Generation
+-----------------
+
+**Module:** ``suews_phys_waterdist.f95``
+
+SUEWS generates surface runoff through two primary mechanisms, both calculated at each model timestep:
+
+1. **Infiltration Excess Runoff (Hortonian Overland Flow)**
+
+   When the precipitation rate exceeds the infiltration capacity (default: 10 mm hr⁻¹), the excess precipitation becomes runoff:
+
+   .. math::
+
+      R_\text{I} = P - I_\text{th}
+
+   where:
+
+   - :math:`R_\text{I}` is the infiltration excess runoff rate
+   - :math:`P` is the precipitation rate at the current timestep
+   - :math:`I_\text{th}` is the infiltration capacity threshold (adjusted for timestep duration)
+
+   This mechanism applies to all surface types (impervious and pervious).
+
+2. **Saturation Excess Runoff**
+
+   Runoff is generated when surface or soil storage capacities are exceeded:
+
+   - **Impervious surfaces** (paved, buildings): When surface water storage exceeds the maximum storage capacity
+   - **Pervious surfaces** (vegetation, bare soil): When soil moisture storage exceeds the soil storage capacity
+   - **Water bodies**: When water level exceeds the defined state limit
+
+   For pervious surfaces, the saturation excess is calculated as:
+
+   .. math::
+
+      R_\text{S} = \max(0, S - S_\text{max})
+
+   where:
+
+   - :math:`R_\text{S}` is the saturation excess runoff
+   - :math:`S` is the current soil moisture storage
+   - :math:`S_\text{max}` is the soil storage capacity
+
+**Timestep Considerations**
+
+All runoff calculations are performed at the model timestep (typically 5 minutes to 1 hour). The infiltration threshold is automatically adjusted based on the timestep duration to maintain consistency:
+
+.. math::
+
+   I_\text{th}(\Delta t) = \frac{I_\text{th,hourly}}{n}
+
+where :math:`n` is the number of timesteps per hour.
+
+**Water Routing**
+
+After generation, runoff is routed according to the water distribution matrix (``WaterDist``), which specifies:
+
+- Fractions going directly to runoff pipes
+- Fractions redistributed between surfaces
+- Fractions directed to soil storage (for pervious surfaces)
+- Overflow routing to water bodies via the ``RunoffToWater`` parameter
+
+The total runoff from a grid cell includes contributions from all surface types, subject to pipe capacity limitations.
+
+Snowmelt
+--------
+
+**Module:** ``suews_phys_snow.f95``
+
+The snowmelt model is described in :cite:t:`J14`.
+Changes since v2016a:
+1) previously all surface states could freeze in 1-h time step, now the freezing surface state is
+calculated similarly as melt water and can freeze within the snow pack.
+2) Snowmelt-related coefficients have also slightly changed (see `SUEWS_Snow.txt`).
+
+Supporting Schemes and Diagnostics
+===================================
+
+Leaf Area Index (LAI)
+---------------------
+
+Leaf area index (LAI) is a critical parameter that affects both energy and water balance calculations:
+
+**Energy balance impacts:**
+- Surface albedo (vegetation reflectance)
+- Aerodynamic roughness (affects turbulent fluxes)
+- Radiation interception (particularly in SPARTACUS-Surface)
+
+**Water balance impacts:**
+- Interception storage capacity
+- Transpiration through stomatal conductance
+- Evaporation from vegetation surfaces
+
+SUEWS can use:
+- Fixed LAI values specified in ``SUEWS_Veg.txt``
+- Dynamic LAI from observations or models
+- LAI profiles for multi-layer schemes (SPARTACUS-Surface)
+
+For SPARTACUS-Surface, the total vertically integrated LAI is distributed across layers to determine vegetation extinction coefficients in each layer.
+
+Atmospheric Stability
+---------------------
+
+**Module:** ``suews_phys_atmmoiststab.f95``
+
+Atmospheric stability affects the calculation of turbulent heat fluxes (:math:`Q_H` and :math:`Q_E`) through stability correction functions. SUEWS supports multiple stability parameterisations:
+
+- **Högström** (1988): Standard stability corrections
+- **Campbell-Norman**: Alternative formulation
+- **Businger-Högström**: Combined approach
+
+The stability state is determined from the Obukhov length, which relates:
+- Surface heat flux
+- Friction velocity
+- Air temperature
+
+Stability corrections modify the aerodynamic and boundary layer resistances used in the Penman-Monteith equation and sensible heat flux calculations.
+
+.. _rsl_mod:
+
+Wind, Temperature and Humidity Profiles in the Roughness Sublayer
+------------------------------------------------------------------
+
+**Module:** ``suews_phys_rslprof.f95``
+
+A diagnostic RSL scheme for calculating the wind, temperature and humidity profiles in the roughness sublayer is implemented in 2020a following :cite:t:`HF07, HF08` and :cite:t:`T19`.
+An recent application of this RSL scheme can be found in :cite:t:`T21`.
+
+The diagnostic profiles are outputed in 30 uneven levels between the ground and forcing height, which are divided into two groups:
+
+- One group of levels are evenly distributed within the urban canopy layer characterised by mean height of roughness elements (e.g. buildings, trees, etc.) :math:`z_H`, which determines the number of layers within urban canopy :math:`n_{can}`:
+
+.. math::
+   :nowrap:
+
+   \[
+         n_{can} =
+   \begin{cases}
+      3 & \text{if } z_H \leq \text{2 m} \\
+      10 & \text{if } \text{2 m} \lt z_H \leq \text{10 m} \\
+      15 & \text{if } z_H \gt \text{10 m} \\
+
+   \end{cases}
+   \]
+
+- The other levels are evenly distributed between the urban canopy layer top and forcing height.
+
+
+.. note::
+
+   All the diagnostic profiles (wind speed, temperature and humidity) are calculated
+   from the forcing data down into the canopy.
+   Therefore it is assumed that the forcing temperature and humidity
+   are above the blending height.
+
+
+
+Common near-surface diagnostics:
+
+   -  T2: air temperature at 2 m agl
+   -  Q2: air specific humidity at 2 m agl
+   -  RH2: air relative humidity at 2 m agl
+   -  U10: wind speed at 10 m agl
+
+are calculated by the `RSL scheme <rsl_mod>` by interpolating RSL profile results to the corresponding diagnostic heights.
+
+Convective Boundary Layer
+--------------------------
+
+**Module:** ``suews_phys_bluews.f95``
+
+A convective boundary layer (CBL) slab model :cite:`CG01` calculates the CBL height, temperature and humidity during daytime :cite:`O15`.
+
+Biogenic CO2 Fluxes
+-------------------
+
+**Module:** ``suews_phys_biogenco2.f95``
+
+SUEWS can optionally calculate biogenic CO2 fluxes from vegetation, accounting for:
+
+- Photosynthetic CO2 uptake during daytime
+- Respiration CO2 release
+- Temperature and light dependencies
+- Vegetation type and LAI effects
+
+These calculations are independent of the energy and water balances but provide additional diagnostic information for carbon cycle studies.
+
+Daily State Calculations
+-------------------------
+
+**Module:** ``suews_phys_dailystate.f95``
+
+The daily state module tracks and updates various parameters that change on a daily timescale:
+
+- Accumulated heating and cooling degree days (for anthropogenic heat calculations)
+- Daily maximum and minimum temperatures
+- Growing degree days (for LAI and phenology models)
+- Daily water balance totals
+
+These daily aggregations support sub-models that operate on diurnal or longer timescales.
+
+.. SOLWEIG is fully removed since 2019a
+
+.. Thermal comfort
+.. ---------------
+
+.. **SOLWEIG** (Solar and longwave environmental irradiance geometry model,
+.. Lindberg et al. 2008 :cite:`F08`, Lindberg and Grimmond 2011 :cite:`FG11`) is a 2D
+.. radiation model to estimate mean radiant temperature.
+
+.. .. figure:: /assets/img/Bluews_2.jpg
+..     :alt:  Overview of scales. Source: Onomura et al. (2015) :cite:`O15`
+
+..     Overview of scales. Source: Onomura et al. (2015) :cite:`O15`
+
+
+
+
+.. _LQF: http://umep-docs.readthedocs.io/en/latest/OtherManuals/LQF_Manual.html
+.. _GQF: http://umep-docs.readthedocs.io/en/latest/OtherManuals/GQF_Manual.html
 
 .. References
 .. ******************

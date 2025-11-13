@@ -351,7 +351,7 @@ class WaterUseMethod(Enum):
 
 class RSLMethod(Enum):
     """
-    Method for calculating near-surface meteorological diagnostics (2m temperature, 2m humidity, 10m wind speed).
+    Roughness Sublayer (RSL) method for calculating near-surface meteorological diagnostics (2m temperature, 2m humidity, 10m wind speed).
 
     0: MOST (Monin-Obukhov Similarity Theory) - Appropriate for relatively homogeneous, flat surfaces
     1: RST (Roughness Sublayer Theory; Theeuwes et al. 2019) - Appropriate for heterogeneous urban surfaces with tall roughness elements

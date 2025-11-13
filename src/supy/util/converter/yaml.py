@@ -140,6 +140,8 @@ def _configure_forcing_and_output(
     click.echo(
         f"  - Set output configuration: format={output_config.format}, freq={output_config.freq}s"
     )
+
+
 def convert_to_yaml(
     input_file: str,
     output_file: str,

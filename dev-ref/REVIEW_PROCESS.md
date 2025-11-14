@@ -119,7 +119,7 @@ Module labels remain unchanged and are used to identify which physics components
 - `module:estm` - Element Surface Temperature Method
 - `module:stebbs` - Surface Temperature Energy Balance
 - `module:lumps` - LUMPS energy balance
-- `module:narp` - Net All-wave Radiation parameterisation
+- `module:narp` - Net All-wave Radiation Parameterisation
 - `module:spartacus` - SPARTACUS radiation
 - `module:solweig` - Solar and longwave radiation
 - `module:beers` - Building radiation

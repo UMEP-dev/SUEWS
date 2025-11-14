@@ -49,10 +49,10 @@ Notation
      Leaf area index
 
    LUMPS
-     Local-scale Urban Meteorological Parameterization Scheme :cite:`L11`
+     Local-scale Urban Meteorological Parameterisation Scheme :cite:`L11`
 
    NARP
-     Net All-wave Radiation Parameterization :cite:`O03,L11`
+     Net All-wave Radiation Parameterisation :cite:`O03,L11`
 
    OHM
      Objective Hysteresis Model :cite:`G91,GO99,GO02`

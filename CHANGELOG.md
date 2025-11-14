@@ -34,6 +34,12 @@
 
 ## 2025
 
+### 14 Nov 2025
+- [feature] Added Phase C validation for daylight saving time parameters
+  - Four validation layers: (1) basic range [1, 366], (2) consistency (both set or both None), (3) leap year (DOY 366 only in leap years), (4) hemisphere pattern check (NH/SH typical ranges)
+  - First three layers raise ERROR; hemisphere check adds INFO to report "NO ACTION NEEDED" section
+  - Useful when Phase C runs standalone or via `SUEWSConfig.from_yaml()` (Phase B auto-corrects values in full pipeline)
+
 ### 12 Nov 2025
 - [feature] Added irrigation year-wrapping pattern detection
   - Warns for unusual patterns (NH: ie_start > ie_end; SH: ie_start < ie_end)

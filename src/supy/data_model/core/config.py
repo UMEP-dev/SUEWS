@@ -2312,9 +2312,7 @@ class SUEWSConfig(BaseModel):
                             f"startdls={int(startdls_val)} (typical: {typical_start_range[0]}-{typical_start_range[1]})"
                         )
 
-                    if not (
-                        typical_end_range[0] <= enddls_val <= typical_end_range[1]
-                    ):
+                    if not (typical_end_range[0] <= enddls_val <= typical_end_range[1]):
                         unusual_patterns.append(
                             f"enddls={int(enddls_val)} (typical: {typical_end_range[0]}-{typical_end_range[1]})"
                         )

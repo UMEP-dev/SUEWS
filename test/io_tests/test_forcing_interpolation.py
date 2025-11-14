@@ -167,7 +167,7 @@ class TestForcingInterpolation:
     def test_average_variable_interpolation_shift(self):
         """Test that average variables are correctly shifted during interpolation.
 
-        This verifies the shift behaviour mentioned in the issue for average variables.
+        This verifies the shift behavior mentioned in the issue for average variables.
         """
         # Create test forcing data at 600s intervals
         time_index = pd.date_range("2023-01-01 00:00:00", periods=6, freq="600s")

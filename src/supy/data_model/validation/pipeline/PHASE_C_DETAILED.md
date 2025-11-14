@@ -251,7 +251,7 @@ def _check_land_cover_fractions(self, land_cover, site_name: str) -> bool:
 
 Phase C implements **conditional validation systems** that apply based on physics options and configuration content.
 
-> **Important Behaviour Change**: Conditional validation is now **disabled by default** unless physics parameters are explicitly configured by the user. This prevents unexpected validation failures from default physics values (e.g., `rslmethod` defaults to 2, which would otherwise trigger RSL validation). Conditional validation only applies when users explicitly set physics methods that require additional parameters.
+> **Important Behavior Change**: Conditional validation is now **disabled by default** unless physics parameters are explicitly configured by the user. This prevents unexpected validation failures from default physics values (e.g., `rslmethod` defaults to 2, which would otherwise trigger RSL validation). Conditional validation only applies when users explicitly set physics methods that require additional parameters.
 
 ### 1. RSL Method Validation
 

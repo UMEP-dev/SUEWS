@@ -29,7 +29,7 @@ The script will:
 4. Generate a Table of Contents with links to each year
 5. Create an annual statistics table showing counts by category
 6. Convert all #xxx and PR #xxx references to clickable GitHub links
-7. Organise entries by year with proper heading hierarchy
+7. Organize entries by year with proper heading hierarchy
 8. Group entries by category within each date
 9. Create a backup file (CHANGELOG.md.backup)
 10. Save the enhanced CHANGELOG.md

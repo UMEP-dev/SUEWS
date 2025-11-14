@@ -148,7 +148,7 @@ except Exception as e:
     create_error_report()
 ```
 
-## Mode-Specific Behaviour
+## Mode-Specific Behavior
 
 ### Public Mode
 
@@ -260,7 +260,7 @@ Updated YAML: updated_config.yml
 
 ## Performance Considerations
 
-### Optimisation Strategies
+### Optimization Strategies
 
 1. **Lazy Loading**: Import phases only when needed
 2. **File Caching**: Reuse parsed YAML across phases

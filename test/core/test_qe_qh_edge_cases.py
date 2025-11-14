@@ -68,7 +68,7 @@ class TestQEQHEdgeCases:
         """
         Verify that repeated runs produce identical results.
 
-        This ensures no random state pollution or non-deterministic behaviour.
+        This ensures no random state pollution or non-deterministic behavior.
         Quick version - only 2 runs with 6 timesteps each.
         """
         df_state_init, df_forcing = sample_data

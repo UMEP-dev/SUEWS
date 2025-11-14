@@ -52,7 +52,7 @@ Every SUEWS release automatically creates **two PyPI versions** from a single gi
 | Standard | `2024.10.7` | ≥2.0 | Standalone Python users |
 | UMEP | `2024.10.7rc1` | 1.x | QGIS/UMEP plugin users |
 
-### pip Install Behaviour
+### pip Install Behavior
 
 - `pip install supy` → Gets `2024.10.7` (standard, NumPy 2.0)
 - `pip install supy==2024.10.7rc1` → Gets `2024.10.7rc1` (UMEP, NumPy 1.x)

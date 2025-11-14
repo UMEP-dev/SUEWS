@@ -2147,7 +2147,7 @@ def test_forcing_validation_cli_integration():
             yaml.dump(test_config_data, f)
 
         try:
-            # Test 1: Default behaviour (forcing validation enabled)
+            # Test 1: Default behavior (forcing validation enabled)
             result = subprocess.run(
                 ["suews-validate", str(test_config_path)],
                 capture_output=True,

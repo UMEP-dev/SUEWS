@@ -15,7 +15,7 @@ Test Categories:
 3. Physical Relationships - Expected correlations between outputs
 4. Numerical Stability - Robustness under extreme conditions
 
-These tests catch unphysical behavior that might pass numerical tests.
+These tests catch unphysical behaviour that might pass numerical tests.
 """
 
 import warnings
@@ -410,7 +410,7 @@ class TestNumericalStability(TestCase):
         """
         Test model stability with zero/minimal forcing.
 
-        Tests model behavior under minimal forcing conditions:
+        Tests model behaviour under minimal forcing conditions:
         - No solar radiation (night-time)
         - Minimal wind
         - Constant temperature and humidity

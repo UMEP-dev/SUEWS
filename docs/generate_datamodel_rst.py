@@ -1442,7 +1442,7 @@ class RSTGenerator:
             lines.extend(field_lines)
             lines.append("")
         else:
-            # Has nested children or no fields - keep original behavior
+            # Has nested children or no fields - keep original behaviour
             lines.append(f"{indent}      :doc:`{tab_name} <{child_model.lower()}>`")
             lines.append("")
 

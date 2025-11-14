@@ -228,7 +228,7 @@ def validate_single_file(
 def cli(ctx, files, pipeline, mode, dry_run, out_format, schema_version, forcing):
     """SUEWS Configuration Validator.
 
-    Default behavior: run the complete validation pipeline on FILE. Use subcommands
+    Default behaviour: run the complete validation pipeline on FILE. Use subcommands
     for specific operations (validate, schema, migrate, export).
     """
     # If invoked without a subcommand, run the pipeline workflow

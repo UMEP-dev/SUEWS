@@ -2512,7 +2512,7 @@ class SiteProperties(BaseModel):
     )
     lumps: LUMPSParams = Field(
         default_factory=LUMPSParams,
-        description="Parameters for Local-scale Urban Meteorological Parameterization Scheme",
+        description="Parameters for Local-scale Urban Meteorological Parameterisation Scheme",
     )
     spartacus: SPARTACUSParams = Field(
         default_factory=SPARTACUSParams,

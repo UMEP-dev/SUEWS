@@ -478,7 +478,7 @@ class TestErrorHandling(TestCase):
         )
 
         # resample_output expects grids to exist, so it will raise an error
-        # This is expected behavior - empty dataframes should not be resampled
+        # This is expected behaviour - empty dataframes should not be resampled
         with self.assertRaises((ValueError, KeyError, IndexError)):
             resample_output(df_empty, freq="60min", dict_aggm=dict_var_aggm)
 

@@ -69,7 +69,7 @@ This means the program cannot find the file paths defined in RunControl.nml file
 
 .. code-block:: text
 
-    ===="%sat_vap_press.f temp=0.0000 pressure dectime"==== Temperature is zero in the calculation of water vapour pressure parameterization.
+    ===="%sat_vap_press.f temp=0.0000 pressure dectime"==== Temperature is zero in the calculation of water vapour pressure parameterisation.
 
 -  You don’t need to worry if the temperature should be (is) 0°C.
 -  If it should not be 0°C this suggests that there is a problem with the data.

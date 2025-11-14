@@ -930,7 +930,7 @@ def _save_supy(
             save_tstep,
         )
     else:
-        # Save as text files (existing behavior)
+        # Save as text files (existing behaviour)
         list_path_save = save_df_output(
             df_output,
             freq_s,

@@ -97,7 +97,7 @@ class RefValue(BaseModel, Generic[T]):
             else:
                 # If no reference, just return the value directly
                 return self.value
-        # For other modes, use default behavior
+        # For other modes, use default behaviour
         return super().model_dump(**kwargs)
 
     @classmethod

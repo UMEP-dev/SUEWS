@@ -85,9 +85,9 @@ class TestSaveSuPy:
             # Save only DailyState group
             # Note: Currently dict-based output_config doesn't support groups filtering
             # This would require using the OutputConfig class from data_model
-            # For now, we'll test that the default behavior works
+            # For now, we'll test that the default behaviour works
 
-            # Test default behavior (should include SUEWS)
+            # Test default behaviour (should include SUEWS)
             list_files = sp.save_supy(
                 df_output, df_state_final, path_dir_save=tmpdir, site="test"
             )

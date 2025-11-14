@@ -97,7 +97,7 @@ TOLERANCE_CONFIG = {
 
 # Platform-specific adjustments (if needed in future)
 PLATFORM_ADJUSTMENTS = {
-    # Python 3.13 may have slightly different numerical behavior
+    # Python 3.13 may have slightly different numerical behaviour
     "linux-x86_64": {
         "QS": {
             "rtol": 0.010,
@@ -151,7 +151,7 @@ def get_tolerance_for_variable(
     # Apply Python version-specific adjustments for newer versions
     py_version = sys.version_info
     if py_version >= (3, 13):
-        # Python 3.13+ may have different numerical behavior
+        # Python 3.13+ may have different numerical behaviour
         tolerance["rtol"] = min(
             tolerance["rtol"] * 1.5, 0.015
         )  # Increase by 50% but cap at 1.5%

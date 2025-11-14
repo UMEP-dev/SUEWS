@@ -43,6 +43,7 @@ Phase B implements a multi-layered scientific validation system that:
 - `validate_geographic_parameters()`: Coordinate and location validation
 - `validate_irrigation_doy()`: Irrigation timing validation with hemisphere and leap year awareness
 - `validate_irrigation_parameters()`: Site-level irrigation parameter validation
+- `validate_dls_doy()`: Daylight saving time parameter validation with leap year and hemisphere awareness
 - `get_mean_monthly_air_temperature()`: CRU TS4.06 monthly climatological temperature lookup
 - `get_mean_annual_air_temperature()`: CRU TS4.06 annual climatological temperature lookup (average of 12 months)
 - `run_scientific_adjustment_pipeline()`: Intelligent automatic parameter adjustments
@@ -144,7 +145,9 @@ Location-dependent parameter validation (actual implemented checks):
 
 - **Coordinate Validity**: Latitude (-90 to 90°), longitude (-180 to 180°) with numeric type validation
 - **Timezone Parameter**: Warns if missing, can be calculated automatically from coordinates
-- **Daylight Saving Parameters**: Warns if DLS parameters missing, calculated from geographic location
+- **Daylight Saving Parameters**: Automatically calculated using accurate timezone data (`DLSCheck` class with `pytz` and `timezonefinder`)
+  - If `startdls` and `enddls` are None/incorrect, Phase B calculates them automatically based on geographic coordinates
+  - **Note**: Phase C (Pydantic) validates DOY range [1, 366] for cases when users do not run phase B or complete pipeline.
 
 ### Irrigation Parameter Validation
 

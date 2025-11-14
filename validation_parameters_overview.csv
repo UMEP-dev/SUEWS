@@ -55,7 +55,7 @@ to_soilstore,nd,SUEWS,hydro,WaterDistribution,WaterDistribution,C/Pydantic,C0,fr
 to_water,nd,SUEWS,hydro,WaterDistribution,WaterDistribution,C/Pydantic,C0,fraction_0_1,,"[0,1]"
 diagnose,nd,SUEWS,model,ModelControl,ModelControl,C/Pydantic,C2,field_transformation,numeric_type_conversion,
 end_time,nd,SUEWS,model,ModelControl,ModelControl,,CM,,,
-forcing_file,nd,SUEWS,model,ModelControl,ModelControl,C/Pydantic,C2,cross_parameter,radiation_forcing_compatibility,
+forcing_file,nd,SUEWS,model,ModelControl,ModelControl,A; C/Pydantic,C2,data_validation; cross_parameter,forcing_data_validation; radiation_forcing_compatibility,
 kdownzen,radiation,SUEWS,model,ModelControl,ModelControl,,CM,,,
 start_time,nd,SUEWS,model,ModelControl,ModelControl,,CM,,,
 tstep,nd,SUEWS,model,ModelControl,ModelControl,C/Pydantic,C2,field_transformation; physical_constraint,numeric_type_conversion; output_config_validation,
@@ -397,10 +397,10 @@ alb,radiation,SUEWS,surface,NonVegetatedSurfaceProperties,BldgsProperties; Bsoil
 dz,thermal_property,SUEWS,surface,ThermalLayers,ThermalLayers,C/Pydantic,C2,conditional_required,storage_validation,
 k,thermal_property,SUEWS,surface,ThermalLayers,ThermalLayers,C/Pydantic,C2,conditional_required,storage_validation,
 rho_cp,thermal_property,SUEWS,surface,ThermalLayers,ThermalLayers,C/Pydantic,C2,conditional_required,storage_validation,
-building_frac,morphology,SUEWS,surface,VerticalLayers,VerticalLayers,,CM,,,
-building_scale,morphology,SUEWS,surface,VerticalLayers,VerticalLayers,,CM,,,
-height,morphology,SUEWS,surface,VerticalLayers,VerticalLayers,,CM,,,
-nlayer,nd,SUEWS,surface,VerticalLayers,VerticalLayers,,CM,,,
-veg_frac,morphology,SUEWS,surface,VerticalLayers,VerticalLayers,,CM,,,
-veg_scale,nd,SUEWS,surface,VerticalLayers,VerticalLayers,,CM,,,
+building_frac,morphology,SUEWS,surface,VerticalLayers,VerticalLayers,A,C2,cross_parameter,nlayer_dimension_match,length(building_frac)==nlayer
+building_scale,morphology,SUEWS,surface,VerticalLayers,VerticalLayers,A,C2,cross_parameter,nlayer_dimension_match,length(building_scale)==nlayer
+height,morphology,SUEWS,surface,VerticalLayers,VerticalLayers,A,C2,cross_parameter,nlayer_dimension_match,length(height)==nlayer+1
+nlayer,nd,SUEWS,surface,VerticalLayers,VerticalLayers,A,C2,cross_parameter,nlayer_dimension_match,reference parameter
+veg_frac,morphology,SUEWS,surface,VerticalLayers,VerticalLayers,A,C2,cross_parameter,nlayer_dimension_match,length(veg_frac)==nlayer
+veg_scale,nd,SUEWS,surface,VerticalLayers,VerticalLayers,A,C2,cross_parameter,nlayer_dimension_match,length(veg_scale)==nlayer
 flowchange,nd,SUEWS,surface,WaterProperties,WaterProperties,,CM,,,

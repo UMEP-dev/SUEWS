@@ -123,7 +123,7 @@ class TestCRUDataLoading:
         )
 
     def test_cru_extreme_locations(self):
-        """Test CRU behaviour at extreme/remote locations."""
+        """Test CRU behavior at extreme/remote locations."""
         # Arctic location (might be outside coverage)
         try:
             arctic_temp = get_mean_monthly_air_temperature(85.0, 0.0, 1)

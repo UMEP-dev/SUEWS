@@ -13,7 +13,7 @@ A clear and concise description of what the bug is.
 **To Reproduce**
 Attach your input files that can reproduce the bug.
 
-**Expected behaviour**
+**Expected behavior**
 A clear and concise description of what you expected to happen.
 
 **Screenshots**

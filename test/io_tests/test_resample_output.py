@@ -233,7 +233,7 @@ class TestResampleOutput:
         assert not df_resampled.empty
 
     def test_resample_missing_dict_aggm_entry(self):
-        """Test behaviour when dict_aggm doesn't contain DailyState."""
+        """Test behavior when dict_aggm doesn't contain DailyState."""
         # Create test data
         dates = pd.date_range("2023-01-01", periods=288, freq="5min")
         grids = ["grid1"]

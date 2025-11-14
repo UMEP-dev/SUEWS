@@ -176,7 +176,7 @@ def _extract_nested_model_type(annotation):
 def _allows_extra_parameters(model_class):
     """Check if a model class allows extra parameters."""
     if not hasattr(model_class, "model_config"):
-        return True  # Default Pydantic behaviour allows extra parameters
+        return True  # Default Pydantic behavior allows extra parameters
 
     config = model_class.model_config
     # Handle both ConfigDict and dict cases
@@ -1448,7 +1448,7 @@ def create_analysis_report(
         # NOT IN STANDARD parameters - Dev mode handling only
         if extra_count > 0 and mode != "public":
             # In public mode, extra parameters are handled in ACTION NEEDED section above
-            # In dev mode, show found parameters (current behaviour)
+            # In dev mode, show found parameters (current behavior)
             categorised = categorise_extra_parameters(extra_params)
             no_action_extras = categorised["NO_ACTION_NEEDED"]
 

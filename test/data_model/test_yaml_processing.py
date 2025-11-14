@@ -400,7 +400,7 @@ sites:
             self.assertIn("netradiationmethod", report_content)
 
     def test_no_missing_parameters_scenario(self):
-        """Test behaviour when no parameters are missing."""
+        """Test behavior when no parameters are missing."""
         # Use complete YAML with all required parameters
         missing_params = find_missing_parameters(self.complete_yaml, self.standard_data)
 
@@ -2724,7 +2724,7 @@ Testing strategy:
 - Unit tests for individual functions in each module
 - Integration tests for phase workflows (A, B, C, AB, AC, BC, ABC)
 - Error handling and edge case validation
-- Mode-specific behaviour testing (public vs developer)
+- Mode-specific behavior testing (public vs developer)
 - Cross-phase data consistency validation
 - Regression testing with known configurations
 
@@ -3208,7 +3208,7 @@ class TestPhaseAUptoDateYaml(TestProcessorFixtures):
         class NoConfigModel(BaseModel):
             field: str = "value"
 
-        # Test default behaviour allows extra
+        # Test default behavior allows extra
         assert uptodate_yaml._allows_extra_parameters(DefaultModel) == True
 
         # Test explicit forbid
@@ -3217,7 +3217,7 @@ class TestPhaseAUptoDateYaml(TestProcessorFixtures):
         # Test explicit allow
         assert uptodate_yaml._allows_extra_parameters(AllowModel) == True
 
-        # Test no config (default behaviour)
+        # Test no config (default behavior)
         assert uptodate_yaml._allows_extra_parameters(NoConfigModel) == True
 
     def test_dynamic_vs_static_consistency(self):
@@ -3354,7 +3354,7 @@ class TestPhaseAUptoDateYaml(TestProcessorFixtures):
         assert os.path.exists(output_file), "Updated YAML file should be created"
         assert os.path.exists(report_file), "Report file should be created"
 
-        # Check output file content for mode-dependent behaviour
+        # Check output file content for mode-dependent behavior
         with open(output_file) as f:
             output_data = yaml.safe_load(f)
 
@@ -3362,8 +3362,8 @@ class TestPhaseAUptoDateYaml(TestProcessorFixtures):
             "preserves_but_warns_extra_params",
             "removes_extra_params",
         ]:
-            # Both old and new public mode behaviour: extra parameters are PRESERVED
-            # (behaviour was changed from removing to preserving but warning)
+            # Both old and new public mode behavior: extra parameters are PRESERVED
+            # (behavior was changed from removing to preserving but warning)
             assert "custom_param" in output_data.get("model", {}).get("control", {}), (
                 "Custom param should be preserved in public mode (but reported as ACTION NEEDED)"
             )
@@ -4084,10 +4084,10 @@ class TestPhaseCPydanticValidation(TestProcessorFixtures):
             from supy.data_model.core import SUEWSConfig
 
             # Test that validation occurs - may not specifically mention faibldg
-            # but should have some validation behaviour
+            # but should have some validation behavior
             try:
                 result = SUEWSConfig.model_validate(rsl_config)
-                # If validation succeeds, that's also valid behaviour
+                # If validation succeeds, that's also valid behavior
                 assert result is not None
             except ValidationError as e:
                 # If it raises validation errors, check if it mentions relevant issues
@@ -4183,7 +4183,7 @@ class TestPhaseCReporting(TestProcessorFixtures):
 
             assert "# SUEWS Validation Report" in report_content
             # Should consolidate info from Phase A report if supported
-            # (exact consolidation behaviour depends on implementation)
+            # (exact consolidation behavior depends on implementation)
 
         except ImportError:
             pytest.skip("Phase C reporting dependencies not available")

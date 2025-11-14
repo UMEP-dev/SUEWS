@@ -18,6 +18,7 @@ without duplicating parameter detection or YAML structure validation.
 
 import yaml
 import os
+import calendar
 from typing import Dict, List, Optional, Union, Any, Tuple
 from dataclasses import dataclass
 from datetime import datetime
@@ -813,7 +814,7 @@ def validate_irrigation_doy(
         return results
 
     # Case 3: Both enabled = validate DOY range and hemisphere logic
-    is_leap = model_year % 400 == 0 or (model_year % 4 == 0 and model_year % 100 != 0)
+    is_leap = calendar.isleap(model_year)
     max_doy = 366 if is_leap else 365
 
     # Validate DOY range (must be 1-365/366, not 0)

@@ -17,6 +17,7 @@ from types import SimpleNamespace
 import warnings
 
 import supy as sp
+from supy._env import trv_supy_module
 from supy.data_model.core import SUEWSConfig
 from supy.data_model.core.type import RefValue
 from supy.data_model.validation.core.utils import check_missing_params
@@ -2335,17 +2336,10 @@ def test_dls_consistency_validation_in_suews_config():
     from supy.data_model.core import SUEWSConfig
 
     # Load a valid sample configuration
-    from pathlib import Path
     import yaml
 
-    sample_path = (
-        Path(__file__).parent.parent.parent
-        / "src"
-        / "supy"
-        / "sample_data"
-        / "sample_config.yml"
-    )
-    with open(sample_path) as f:
+    sample_path = trv_supy_module / "sample_data" / "sample_config.yml"
+    with sample_path.open() as f:
         config_data = yaml.safe_load(f)
 
     # Test 1: Both None - valid
@@ -2378,18 +2372,11 @@ def test_dls_consistency_validation_in_suews_config():
 def test_dls_leap_year_validation_in_suews_config():
     """Test DLS leap year refinement in SUEWSConfig."""
     import pytest
-    from pathlib import Path
     import yaml
     from supy.data_model.core import SUEWSConfig
 
-    sample_path = (
-        Path(__file__).parent.parent.parent
-        / "src"
-        / "supy"
-        / "sample_data"
-        / "sample_config.yml"
-    )
-    with open(sample_path) as f:
+    sample_path = trv_supy_module / "sample_data" / "sample_config.yml"
+    with sample_path.open() as f:
         config_data = yaml.safe_load(f)
 
     # Set DLS values
@@ -2412,18 +2399,11 @@ def test_dls_leap_year_validation_in_suews_config():
 def test_dls_hemisphere_informational_messages_in_suews_config():
     """Test DLS hemisphere informational messages are collected in validation_summary."""
     import pytest
-    from pathlib import Path
     import yaml
     from supy.data_model.core import SUEWSConfig
 
-    sample_path = (
-        Path(__file__).parent.parent.parent
-        / "src"
-        / "supy"
-        / "sample_data"
-        / "sample_config.yml"
-    )
-    with open(sample_path) as f:
+    sample_path = trv_supy_module / "sample_data" / "sample_config.yml"
+    with sample_path.open() as f:
         config_data = yaml.safe_load(f)
 
     # Set year to avoid leap year issues

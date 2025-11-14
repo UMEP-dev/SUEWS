@@ -26,6 +26,7 @@ import pandas as pd
 import yaml
 import ast
 
+import calendar
 import csv
 import os
 from copy import deepcopy
@@ -2217,19 +2218,12 @@ class SUEWSConfig(BaseModel):
 
         # Get simulation year from model.control.start_time
         try:
-            start_time_str = str(self.model.control.start_time)
-            year = int(start_time_str[:4])
+            year = int(str(self.model.control.start_time)[:4])
         except (AttributeError, ValueError, IndexError):
-            # Cannot determine year, skip leap year check
-            year = None
+            year = None  # Cannot determine year, skip leap year check
 
-        # Manual leap year calculation (same logic as phase_b)
-        if year:
-            is_leap = (year % 4 == 0 and year % 100 != 0) or (year % 400 == 0)
-            max_doy = 366 if is_leap else 365
-        else:
-            is_leap = None
-            max_doy = 366
+        is_leap = calendar.isleap(year) if year else None
+        max_doy = 366 if (is_leap or year is None) else 365
 
         errors = []
 

@@ -390,9 +390,7 @@ def detect_table_version(input_dir):
             # SPARTACUS files are part of 2024a specification
             "file_exists": ["SUEWS_SPARTACUS.nml", "GridLayoutKc.nml"],
             # Also has new parameters in RunControl
-            "check_nml": {
-                "RunControl.nml": ["rslmethod", "rsllevel", "faimethod"]
-            },
+            "check_nml": {"RunControl.nml": ["rslmethod", "rsllevel", "faimethod"]},
         },
         # 2023a: Removed DiagQS/DiagQN from RunControl, removed BaseT_HC from AnthropogenicEmission
         "2023a": {

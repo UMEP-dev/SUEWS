@@ -677,8 +677,12 @@ class AnthropogenicEmissions(BaseModel):
         Returns:
             AnthropogenicEmissions: Instance of AnthropogenicEmissions.
         """
-        startdls = RefValue(df.loc[grid_id, ("startdls", "0")])
-        enddls = RefValue(df.loc[grid_id, ("enddls", "0")])
+        # Treat 0.0 as None (since to_df_state writes None as 0.0)
+        startdls_val = df.loc[grid_id, ("startdls", "0")]
+        enddls_val = df.loc[grid_id, ("enddls", "0")]
+
+        startdls = None if startdls_val == 0.0 else RefValue(startdls_val)
+        enddls = None if enddls_val == 0.0 else RefValue(enddls_val)
 
         # Reconstruct heat parameters
         heat = AnthropogenicHeat.from_df_state(df, grid_id)

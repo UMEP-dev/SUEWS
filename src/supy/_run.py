@@ -41,6 +41,7 @@ from ._post import (
 
 
 from ._env import logger_supy
+from ._soil_obs import convert_observed_soil_moisture
 
 from .util._debug import save_zip_debug
 
@@ -390,6 +391,9 @@ def run_supy_ser(
         "ts5mindata_ir",
     ]
     df_forcing = df_forcing.loc[:, list_var_forcing]
+
+    # Convert observed soil moisture to deficits (if required)
+    df_forcing = convert_observed_soil_moisture(df_forcing, df_init)
 
     # grid list determined by initial states
     list_grid = df_init.index

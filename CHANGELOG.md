@@ -34,6 +34,12 @@
 
 ## 2025
 
+### 13 Nov 2025
+- [bugfix] Enabled observed soil moisture forcing (GH-3)
+  - Added soil observation metadata fields (`obs_sm_depth`, `obs_sm_cap`, `obs_soil_not_rocks`, `soildensity`) to the land-cover definition
+  - SuPy now converts observed volumetric/gravimetric `xsmd` data to soil moisture deficits before calling the SUEWS kernel
+  - Documentation updated to reflect the required inputs when `SMDMethod` = 1 or 2
+
 ### 12 Nov 2025
 - [feature] Added irrigation year-wrapping pattern detection
   - Warns for unusual patterns (NH: ie_start > ie_end; SH: ie_start < ie_end)

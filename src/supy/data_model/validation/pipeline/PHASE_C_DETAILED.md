@@ -376,9 +376,25 @@ def convert_keys_to_str(cls, v: Dict) -> Dict[str, float]:
     """Convert hourly profile keys to strings."""
 ```
 
-**Location**: `profile.py`  
-**Function**: Hourly profile key standardisation  
+**Location**: `profile.py`
+**Function**: Hourly profile key standardisation
 **Validates**: Ensures consistent string keys for 24-hour profiles
+
+### Daylight Saving Time Parameters
+
+**Field Constraints** (`human_activity.py`): DOY range [1, 366], allows None
+
+**Cross-Model Validator** (`config.py:2196-2338`): `SUEWSConfig.validate_dls_parameters`
+
+**Validation Layers**:
+
+1. **Basic Range** (field-level): `ge=1, le=366` - catches invalid values (negative, zero, >366, placeholders)
+2. **Consistency** (cross-model): Both set or both None - **ERROR** if only one parameter set
+3. **Leap Year** (cross-model): DOY 366 only valid in leap years - **ERROR** if DOY 366 in non-leap year
+4. **Hemisphere Pattern** (cross-model): Unusual DST patterns - **INFO** in report "NO ACTION NEEDED" section
+   - NH typical: start 60-120, end 270-330; SH typical: start 250-310, end 60-120
+
+**Note**: Phase B automatically calculates/corrects DLS values using timezone data (whether None or incorrect)
 
 ### Timezone Validation
 

@@ -34,6 +34,12 @@
 
 ## 2025
 
+### 14 Nov 2025
+- [feature] Added Phase C validation for daylight saving time parameters
+  - Four validation layers: (1) basic range [1, 366], (2) consistency (both set or both None), (3) leap year (DOY 366 only in leap years), (4) hemisphere pattern check (NH/SH typical ranges)
+  - First three layers raise ERROR; hemisphere check adds INFO to report "NO ACTION NEEDED" section
+  - Useful when Phase C runs standalone or via `SUEWSConfig.from_yaml()` (Phase B auto-corrects values in full pipeline)
+
 ### 12 Nov 2025
 - [feature] Added irrigation year-wrapping pattern detection
   - Warns for unusual patterns (NH: ie_start > ie_end; SH: ie_start < ie_end)
@@ -44,8 +50,6 @@
   - Validates `ie_start` and `ie_end` for DOY range, consistency, and hemisphere-aware seasonal appropriateness
   - NH (lat ≥ 23.5°): warm season DOY 121-273; SH (lat ≤ -23.5°): DOY 305-90; Tropics (|lat| < 23.5°): year-round
   - Integrated into Phase B scientific validation pipeline
-
-### 11 Nov 2025
 - [bugfix] Fixed YAML converter errors with legacy data (Issue #846)
   - Fixed logging errors when sys.stdout is None (e.g., in QGIS)
   - Fixed missing NML file handling (SPARTACUS, ESTM) to return empty containers

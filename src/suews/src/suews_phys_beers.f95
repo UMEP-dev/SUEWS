@@ -466,7 +466,7 @@ CONTAINS
             dectime => timer%dectime, &
             SMDMethod => config%SMDMethod, &
             storageheatmethod => config%StorageHeatMethod, &
-            DiagMethod => config%DiagMethod, &
+            RSLMethod => config%RSLMethod, &
             StabilityMethod => config%StabilityMethod, &
             EmissionsMethod => config%EmissionsMethod, &
             Diagnose => config%Diagnose, &

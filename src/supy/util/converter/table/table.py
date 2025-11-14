@@ -391,7 +391,7 @@ def detect_table_version(input_dir):
             "file_exists": ["SUEWS_SPARTACUS.nml", "GridLayoutKc.nml"],
             # Also has new parameters in RunControl
             "check_nml": {
-                "RunControl.nml": ["diagmethod", "localclimatemethod", "faimethod"]
+                "RunControl.nml": ["rslmethod", "rsllevel", "faimethod"]
             },
         },
         # 2023a: Removed DiagQS/DiagQN from RunControl, removed BaseT_HC from AnthropogenicEmission

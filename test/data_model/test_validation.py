@@ -2357,14 +2357,14 @@ def test_dls_consistency_validation_in_suews_config():
     # Test 3: Only startdls set - ERROR
     config_data["sites"][0]["properties"]["anthropogenic_emissions"]["startdls"] = 86
     config_data["sites"][0]["properties"]["anthropogenic_emissions"]["enddls"] = None
-    with pytest.raises(ValueError) as exc_info:
+    with pytest.raises(ValidationError) as exc_info:
         SUEWSConfig(**config_data)
     assert "must both be set or both be None" in str(exc_info.value)
 
     # Test 4: Only enddls set - ERROR
     config_data["sites"][0]["properties"]["anthropogenic_emissions"]["startdls"] = None
     config_data["sites"][0]["properties"]["anthropogenic_emissions"]["enddls"] = 303
-    with pytest.raises(ValueError) as exc_info:
+    with pytest.raises(ValidationError) as exc_info:
         SUEWSConfig(**config_data)
     assert "must both be set or both be None" in str(exc_info.value)
 
@@ -2373,6 +2373,7 @@ def test_dls_leap_year_validation_in_suews_config():
     """Test DLS leap year refinement in SUEWSConfig."""
     import pytest
     import yaml
+    from pydantic import ValidationError
     from supy.data_model.core import SUEWSConfig
 
     sample_path = trv_supy_module / "sample_data" / "sample_config.yml"
@@ -2390,7 +2391,7 @@ def test_dls_leap_year_validation_in_suews_config():
 
     # Test 2: Non-leap year 2025 - DOY 366 is ERROR
     config_data["model"]["control"]["start_time"] = "2025-01-01T00:00:00"
-    with pytest.raises(ValueError) as exc_info:
+    with pytest.raises(ValidationError) as exc_info:
         SUEWSConfig(**config_data)
     assert "non-leap year 2025" in str(exc_info.value)
     assert "366" in str(exc_info.value)

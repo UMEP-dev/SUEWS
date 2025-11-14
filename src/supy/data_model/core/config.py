@@ -223,7 +223,8 @@ class SUEWSConfig(BaseModel):
             "sites_with_issues": [],
             "issue_types": set(),
             "yaml_path": getattr(self, "_yaml_path", None),
-            "detailed_messages": [],  ## Add this line to store detailed messages
+            "detailed_messages": [],
+            "info_messages": [],
         }
 
         ### 2) Run the standard site-by-site checks
@@ -922,6 +923,7 @@ class SUEWSConfig(BaseModel):
                 "issue_types": set(),
                 "yaml_path": getattr(self, "_yaml_path", None),
                 "detailed_messages": [],
+                "info_messages": [],
             }
 
         # Return early if no land cover
@@ -1050,6 +1052,7 @@ class SUEWSConfig(BaseModel):
                 "issue_types": set(),
                 "yaml_path": getattr(self, "_yaml_path", None),
                 "detailed_messages": [],
+                "info_messages": [],
             }
 
         # Return early if no land cover
@@ -2214,6 +2217,7 @@ class SUEWSConfig(BaseModel):
                 "issue_types": set(),
                 "yaml_path": getattr(self, "_yaml_path", None),
                 "detailed_messages": [],
+                "info_messages": [],
             }
 
         # Get simulation year from model.control.start_time
@@ -2318,6 +2322,7 @@ class SUEWSConfig(BaseModel):
                             f"Please verify these values are correct for your location."
                         )
                         self._validation_summary["detailed_messages"].append(info_msg)
+                        self._validation_summary["info_messages"].append(info_msg)
 
             except (AttributeError, TypeError):
                 # Cannot access latitude, skip hemisphere check

@@ -50,8 +50,6 @@
   - Validates `ie_start` and `ie_end` for DOY range, consistency, and hemisphere-aware seasonal appropriateness
   - NH (lat ≥ 23.5°): warm season DOY 121-273; SH (lat ≤ -23.5°): DOY 305-90; Tropics (|lat| < 23.5°): year-round
   - Integrated into Phase B scientific validation pipeline
-
-### 11 Nov 2025
 - [bugfix] Fixed YAML converter errors with legacy data (Issue #846)
   - Fixed logging errors when sys.stdout is None (e.g., in QGIS)
   - Fixed missing NML file handling (SPARTACUS, ESTM) to return empty containers

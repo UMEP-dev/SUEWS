@@ -50,7 +50,9 @@ def _make_state(
         data.append(soil_densities.get(surf))
 
     multi_cols = pd.MultiIndex.from_tuples(columns)
-    df_state = pd.DataFrame([data], columns=multi_cols, index=pd.Index([1], name="grid"))
+    df_state = pd.DataFrame(
+        [data], columns=multi_cols, index=pd.Index([1], name="grid")
+    )
     return df_state
 
 

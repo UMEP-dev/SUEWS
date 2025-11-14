@@ -122,7 +122,10 @@ def _metadata_close(a: SoilObservationMetadata, b: SoilObservationMetadata) -> b
     """Check whether two metadata objects are numerically equivalent."""
 
     attrs = ("depth_mm", "smcap", "soil_density", "soil_not_rocks")
-    return all(np.isclose(getattr(a, att), getattr(b, att), rtol=1e-6, atol=1e-9) for att in attrs)
+    return all(
+        np.isclose(getattr(a, att), getattr(b, att), rtol=1e-6, atol=1e-9)
+        for att in attrs
+    )
 
 
 def _convert_xsmd_series(
@@ -184,7 +187,9 @@ def _extract_soil_obs_metadata(row: pd.Series, grid: int) -> SoilObservationMeta
         )
 
     if depth <= 0:
-        raise ValueError(f"`obs_sm_depth` must be positive for grid {grid}. Got {depth}.")
+        raise ValueError(
+            f"`obs_sm_depth` must be positive for grid {grid}. Got {depth}."
+        )
     if not (0 < soil_not_rocks <= 1):
         raise ValueError(
             f"`obs_soil_not_rocks` must be within (0, 1]. Grid {grid} has {soil_not_rocks}."
@@ -192,7 +197,9 @@ def _extract_soil_obs_metadata(row: pd.Series, grid: int) -> SoilObservationMeta
     if smcap <= 0:
         raise ValueError(f"`obs_sm_cap` must be positive for grid {grid}. Got {smcap}.")
     if soil_density <= 0:
-        raise ValueError(f"`soildensity` must be positive for grid {grid}. Got {soil_density}.")
+        raise ValueError(
+            f"`soildensity` must be positive for grid {grid}. Got {soil_density}."
+        )
 
     return SoilObservationMetadata(
         depth_mm=float(depth),

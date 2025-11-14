@@ -305,6 +305,9 @@ def is_container_field(field_info) -> bool:
 
     Container fields hold collections of objects and are not themselves
     user-configurable leaf parameters.
+
+    Note: List[str], List[int], etc. (lists of primitives) are treated as LEAF parameters
+    because they are user-configurable values in the YAML.
     """
     import typing
 
@@ -323,14 +326,48 @@ def is_container_field(field_info) -> bool:
             origin = typing.get_origin(annotation)
 
     # Check if it's a List
-    if origin is list:
-        return True
-
-    # Check if it's typing.List
-    if hasattr(typing, "List") and origin is typing.List:
+    if origin is list or (hasattr(typing, "List") and origin is typing.List):
+        # Get the element type
+        args = typing.get_args(annotation)
+        if args:
+            element_type = args[0]
+            # If it's a list of primitives (str, int, float, bool), it's a LEAF
+            if element_type in (str, int, float, bool):
+                return False
+            # Otherwise it's a container (list of model objects)
+            return True
+        # No type args means it's a generic list, treat as container
         return True
 
     return False
+
+
+def is_structural_field(field_name: str) -> bool:
+    """
+    Check if a field is a structural/parent container (not a leaf parameter).
+
+    Structural fields are intermediate nodes in the YAML tree that contain other parameters.
+    They should not be included in the overview CSV as they're not user-configurable values.
+    """
+    # Known structural parent fields
+    structural_fields = {
+        # Top-level structure
+        "model", "sites", "control", "physics", "output_file",
+        # Site-level structure
+        "properties", "initial_states", "anthropogenic_emissions",
+        "conductance", "building_archetype",
+        # Profile containers
+        "friday", "monday", "saturday", "sunday", "thursday", "tuesday", "wednesday",
+        "holiday", "working_day",
+        # State containers (surface types)
+        "bldgs", "bsoil", "dectr", "evetr", "grass", "paved", "water",
+        # AnthropogenicEmissions children (parent container)
+        "co2", "heat",
+        # Property containers
+        "thermal_layers", "lai",
+    }
+
+    return field_name in structural_fields
 
 
 def is_metadata_field(field_name: str, field_info) -> bool:
@@ -339,17 +376,20 @@ def is_metadata_field(field_name: str, field_info) -> bool:
 
     Metadata fields include:
     - ref: Reference information (citations, DOI)
-    - Other internal/private fields
+
+    Note: internal_only parameters are now INCLUDED because they appear in sample_config.yml
+    and are user-configurable even if marked as internal.
     """
     # Check if field is 'ref' (reference metadata)
     if field_name == "ref":
         return True
 
-    # Check if field has internal_only marker
-    if hasattr(field_info, "json_schema_extra"):
-        json_extra = field_info.json_schema_extra
-        if isinstance(json_extra, dict) and json_extra.get("internal_only"):
-            return True
+    # Check if field is a structural container
+    if is_structural_field(field_name):
+        return True
+
+    # NOTE: Removed internal_only exclusion - these params are in sample_config.yml
+    # and should be documented even if marked as internal
 
     return False
 
@@ -568,6 +608,7 @@ def generate_csv(output_path: Path):
         ("supy.data_model.core.human_activity", "human_activity"),
         ("supy.data_model.core.hydro", "hydro"),
         ("supy.data_model.core.model", "model"),
+        ("supy.data_model.core.ohm", "ohm"),
         ("supy.data_model.core.profile", "profile"),
         ("supy.data_model.core.site", "site"),
         ("supy.data_model.core.state", "state"),

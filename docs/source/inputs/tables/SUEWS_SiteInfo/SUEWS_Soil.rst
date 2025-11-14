@@ -12,11 +12,19 @@ Each of the non-water surface types need to link to soil characteristics specifi
 If the soil characteristics are assumed to be the same for all surface types, use a single code value to link the characteristics here with the SoilTypeCode columns in `SUEWS_NonVeg.txt` and `SUEWS_Veg.txt`.
 
 Soil moisture can either be provided using observational data in the met
-forcing file (the `xsmd` column when `SMDMethod` = 1 or 2 in `RunControl.nml`) and providing some soil properties here, or modelled by SUEWS (`SMDMethod` = 0 in `RunControl.nml`).
+forcing file (the `xsmd` column when `SMDMethod` = 1 or 2 in `RunControl.nml`) together with additional soil observation metadata below, or modelled by SUEWS (`SMDMethod` = 0 in `RunControl.nml`).
 
+.. note::
 
-.. .. caution::
-..   The option to use observational data is not operational in the current release!
+   From v2025.11.13 onwards, observed soil moisture is fully supported in SuPy.
+   When ``SMDMethod`` is set to 1 (volumetric) or 2 (gravimetric) you **must** provide the following fields in :file:`SUEWS_Soil.txt` for every non-water soil code that participates in the observation:
+
+   - ``OBS_SMDepth`` – depth of the instrumented soil layer [mm]
+   - ``OBS_SMCap`` – maximum observed soil moisture (volumetric or gravimetric)
+   - ``OBS_SoilNotRocks`` – fraction of the sampled volume that is soil (not rocks)
+   - ``SoilDensity`` – soil bulk density (use g cm\ :sup:`-3` for historical datasets)
+
+   These properties are used to convert the observed values in ``xsmd`` to a soil moisture deficit before they are passed to the SUEWS kernel.
 
 
 .. DON'T manually modify the csv file below

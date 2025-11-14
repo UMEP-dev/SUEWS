@@ -254,6 +254,32 @@ class SurfaceProperties(BaseModel):
             "display_name": "Saturated Hydraulic Conductivity",
         },
     )
+    soildensity: Optional[FlexibleRefValue(float)] = Field(
+        default=None,
+        description="Bulk soil density used for gravimetric observations",
+        json_schema_extra={
+            "unit": "g cm^-3",
+            "display_name": "Soil Density",
+        },
+    )
+    obs_sm_depth: Optional[FlexibleRefValue(float)] = Field(
+        default=None,
+        description="Depth of the observed soil moisture measurement",
+        json_schema_extra={"unit": "mm", "display_name": "Observed SM Depth"},
+    )
+    obs_sm_cap: Optional[FlexibleRefValue(float)] = Field(
+        default=None,
+        description="Maximum observed soil moisture (volumetric or gravimetric)",
+        json_schema_extra={"unit": "fraction", "display_name": "Observed SM Capacity"},
+    )
+    obs_soil_not_rocks: Optional[FlexibleRefValue(float)] = Field(
+        default=None,
+        description="Fraction of soil volume that is not rocks at the observation point",
+        json_schema_extra={
+            "unit": "dimensionless",
+            "display_name": "Observed Soil (No Rocks)",
+        },
+    )
     waterdist: Optional[WaterDistribution] = Field(
         default=None,  # TODO: Can this be None?
         description="Water distribution parameters",
@@ -346,6 +372,10 @@ class SurfaceProperties(BaseModel):
             "statelimit",
             "wetthresh",
             "sathydraulicconduct",
+            "soildensity",
+            "obs_sm_depth",
+            "obs_sm_cap",
+            "obs_soil_not_rocks",
             "waterdist",
             "storedrainprm",
             "snowpacklimit",
@@ -464,6 +494,10 @@ class SurfaceProperties(BaseModel):
             "statelimit",
             "wetthresh",
             "sathydraulicconduct",
+            "soildensity",
+            "obs_sm_depth",
+            "obs_sm_cap",
+            "obs_soil_not_rocks",
             "waterdist",
             "storedrainprm",
             "snowpacklimit",

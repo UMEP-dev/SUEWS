@@ -4429,6 +4429,19 @@ CONTAINS
 
       TYPE(output_block), INTENT(OUT) :: output_block_suews
 
+      ! Initialize output arrays to zero to avoid uninitialized memory
+      dataOutBlockSUEWS_X = 0.0D0
+      dataOutBlockSnow_X = 0.0D0
+      dataOutBlockESTM_X = 0.0D0
+      dataOutBlockEHC_X = 0.0D0
+      dataOutBlockRSL_X = 0.0D0
+      dataOutBlockBEERS_X = 0.0D0
+      dataOutBlockDebug_X = 0.0D0
+      dataOutBlockSPARTACUS_X = 0.0D0
+      dataOutBlockDailyState_X = 0.0D0
+      dataOutBlockSTEBBS_X = 0.0D0
+      dataOutBlockNHood_X = 0.0D0
+
       IF (flag_test .AND. PRESENT(block_mod_state)) THEN
 
          CALL block_mod_state%init(nlayer, ndepth, len_sim)

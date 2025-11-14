@@ -459,12 +459,12 @@ def upgrade_df_state(df_state: pd.DataFrame) -> pd.DataFrame:
 
     # if so, upgrade it
     if flag_deprecated:
-        from ._supy_module import init_supy
+        from ._supy_module import _init_supy
 
         # load base df_state
         path_SampleData = trv_supy_module.joinpath("sample_data")
         path_runcontrol = path_SampleData / "RunControl.nml"
-        df_state_base = init_supy(path_runcontrol, force_reload=False)
+        df_state_base = _init_supy(path_runcontrol, force_reload=False)
 
         # rename columns
         list_col_rename = [

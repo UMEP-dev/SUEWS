@@ -76,7 +76,7 @@ SUEWS uses YAML configuration files for type-safe, hierarchical parameter manage
 - **Command-line wizard**: A configuration wizard tool is in development
 
 **Data Integration:**
-- **Built-in sample data**: ``sp.load_sample_data()`` for immediate use
+- **Built-in sample data**: ``SUEWSSimulation.from_sample_data()`` for immediate use
 - **pandas DataFrames**: Native integration for analysis and visualization
 - **Multiple formats**: Support for CSV, netCDF, and scientific data formats
 

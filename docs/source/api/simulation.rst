@@ -34,20 +34,31 @@ Quick Example
 .. code-block:: python
 
     from supy import SUEWSSimulation
-    
+
     # Create and run simulation
     sim = SUEWSSimulation('config.yml')
     sim.update_forcing('forcing_data.txt')
     sim.run()
-    
-    # Access and save results
-    results = sim.results
+
+    # Access results - use get_variable() for safe extraction
+    qh = sim.get_variable('QH')              # Sensible heat flux
+    qe = sim.get_variable('QE')              # Latent heat flux
+
+    # For variables in multiple groups, specify which one
+    albedo = sim.get_variable('AlbSnow', group='SUEWS')
+
+    # Save results
     sim.save('output_dir/')
-    
+
     # Update configuration and re-run
     sim.update_config({'model': {'control': {'tstep': 600}}})
     sim.reset()
     sim.run()
+
+.. note::
+
+   Some variables appear in multiple output groups (e.g., ``AlbSnow`` in both ``SUEWS`` and ``DailyState``).
+   Use the ``get_variable()`` method with the ``group`` parameter to disambiguate. See the tutorial for details.
 
 Related Documentation
 ---------------------

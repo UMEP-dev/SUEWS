@@ -10,7 +10,7 @@ Surface Urban Energy and Water Balance Scheme (**SUEWS**) :cite:`J11,W16` is a n
 
 SUEWS simulates the urban radiation, energy and water balances using only commonly measured meteorological variables and information about the surface cover. The model utilises an evaporation-interception approach :cite:`GO91`, similar to that used in forests, to model evaporation from urban surfaces.
 
-**SuPy** (SUEWS in Python) provides the modern interface for SUEWS with powerful data analysis capabilities, interactive configuration tools, and seamless integration with pandas, matplotlib, and the broader scientific Python stack.
+**SuPy** (SUEWS in Python) :cite:`SG19` provides the modern interface for SUEWS with powerful data analysis capabilities, interactive configuration tools, and seamless integration with pandas, matplotlib, and the broader scientific Python stack.
 
 
 .. figure:: /assets/img/SUEWS_Overview_s.png

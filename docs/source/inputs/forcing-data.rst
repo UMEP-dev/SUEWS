@@ -77,6 +77,7 @@ The columns must appear in this exact order:
    iy  id  it  imin  qn  qh  qe  qs  qf  U  RH  Tair  pres  rain  kdown  snow  ldown  fcld  Wuh  xsmd  lai  kdiff  kdir  wdir
 
 Where:
+
 - Columns 1-4: Time stamps (required)
 - Columns 5-9: Energy fluxes (optional, use -999)
 - Columns 10-15: Essential meteorological variables (required)
@@ -86,6 +87,7 @@ Where:
 
 .. code-block:: text
 
+   iy  id  it  imin  qn  qh  qe  qs  qf  U  RH  Tair  pres  rain  kdown  snow  ldown  fcld  Wuh  xsmd  lai  kdiff  kdir  wdir
    2020  1  1   0  -999  -999  -999  -999  -999  2.1  85  5.2  101.3  0.0  0  -999  315  -999  -999  -999  -999  -999  -999  -999
    2020  1  1  60  -999  -999  -999  -999  -999  2.3  84  5.3  101.3  0.2  0  -999  318  -999  -999  -999  -999  -999  -999  -999
    2020  1  2   0  -999  -999  -999  -999  -999  2.0  86  5.1  101.2  0.0  0  -999  312  -999  -999  -999  -999  -999  -999  -999

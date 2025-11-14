@@ -124,12 +124,6 @@ class RSTGenerator:
         # Add description
         description = model_doc.get("description", "")
         if description:
-            # Special handling for ModelPhysics
-            if (
-                model_name == "ModelPhysics"
-                and "Key method interactions:" in description
-            ):
-                description = self._process_model_physics_description(description)
             lines.append(description)
             lines.append("")
 
@@ -187,11 +181,12 @@ class RSTGenerator:
             "",
         ]
 
-        # Add reference label for special method fields
+        # Add reference label for physics method fields with relationships
+        # Note: diagmethod→rslmethod, localclimatemethod→rsllevel (legacy rename)
         if field_name in {
-            "diagmethod",
             "stabilitymethod",
-            "localclimatemethod",
+            "rslmethod",  # was diagmethod
+            "rsllevel",  # was localclimatemethod
             "gsmodel",
         }:
             lines.append(f".. _{field_name}:")
@@ -319,6 +314,32 @@ class RSTGenerator:
             constraint_str = self._format_constraints(constraints)
             if constraint_str:
                 lines.append(f"   :Constraints: {constraint_str}")
+
+        # Add method relationships
+        relationships = field_doc.get("relationships")
+        if relationships:
+            lines.append("")
+            lines.append("   .. admonition:: Method Interactions")
+            lines.append("      :class: note")
+            lines.append("")
+
+            # Add note if present
+            note = relationships.get("note")
+            if note:
+                lines.append(f"      {note}")
+                lines.append("")
+
+            # Add depends_on
+            depends = relationships.get("depends_on", [])
+            if depends:
+                refs = ", ".join(f":ref:`{d} <{d}>`" for d in depends)
+                lines.append(f"      **Depends on:** {refs}")
+
+            # Add provides_to
+            provides = relationships.get("provides_to", [])
+            if provides:
+                refs = ", ".join(f":ref:`{p} <{p}>`" for p in provides)
+                lines.append(f"      **Provides to:** {refs}")
 
         return lines
 
@@ -643,60 +664,6 @@ class RSTGenerator:
             )
 
         return message
-
-    @staticmethod
-    def _process_model_physics_description(description: str) -> str:
-        """Add cross-references to ModelPhysics description."""
-        lines = description.split("\n")
-        processed = []
-
-        for line in lines:
-            # Add cross-references to method names
-            modified_line = line
-            if "- diagmethod:" in modified_line:
-                modified_line = modified_line.replace(
-                    "- diagmethod:", "- :ref:`diagmethod <diagmethod>`:"
-                )
-                modified_line = modified_line.replace(
-                    "diagmethod calculations", "``diagmethod`` calculations"
-                )
-            elif "- stabilitymethod:" in modified_line:
-                modified_line = modified_line.replace(
-                    "- stabilitymethod:", "- :ref:`stabilitymethod <stabilitymethod>`:"
-                )
-                modified_line = modified_line.replace(
-                    "BY diagmethod", "**BY** ``diagmethod``"
-                )
-            elif "- localclimatemethod:" in modified_line:
-                modified_line = modified_line.replace(
-                    "- localclimatemethod:",
-                    "- :ref:`localclimatemethod <localclimatemethod>`:",
-                )
-                modified_line = modified_line.replace(
-                    "FROM diagmethod", "**FROM** ``diagmethod``"
-                )
-            elif "- gsmodel:" in modified_line:
-                modified_line = modified_line.replace(
-                    "- gsmodel:", "- :ref:`gsmodel <gsmodel>`:"
-                )
-                modified_line = modified_line.replace(
-                    "localclimatemethod adjustments",
-                    "``localclimatemethod`` adjustments",
-                )
-
-            # Add bold for emphasis
-            modified_line = modified_line.replace(" HOW ", " **HOW** ")
-
-            processed.append(modified_line)
-
-        description = "\n".join(processed)
-
-        # Ensure proper formatting
-        description = description.replace(
-            "Key method interactions:", "**Key method interactions:**\n"
-        )
-
-        return description
 
     def _generate_index_dropdown(self) -> str:
         """Generate index.rst with collapsible dropdown sections (mixed approach)."""

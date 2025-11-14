@@ -181,11 +181,12 @@ class RSTGenerator:
             "",
         ]
 
-        # Add reference label for special method fields
+        # Add reference label for physics method fields with relationships
+        # Note: diagmethod→rslmethod, localclimatemethod→rsllevel (legacy rename)
         if field_name in {
-            "diagmethod",
             "stabilitymethod",
-            "localclimatemethod",
+            "rslmethod",  # was diagmethod
+            "rsllevel",  # was localclimatemethod
             "gsmodel",
         }:
             lines.append(f".. _{field_name}:")
@@ -339,12 +340,6 @@ class RSTGenerator:
             if provides:
                 refs = ", ".join(f":ref:`{p} <{p}>`" for p in provides)
                 lines.append(f"      **Provides to:** {refs}")
-
-            # Add used_by
-            used_by = relationships.get("used_by", [])
-            if used_by:
-                refs = ", ".join(f":ref:`{u} <{u}>`" for u in used_by)
-                lines.append(f"      **Used by:** {refs}")
 
         return lines
 

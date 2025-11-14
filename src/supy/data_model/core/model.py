@@ -462,9 +462,10 @@ class StebbsMethod(Enum):
 class RCMethod(Enum):
     """
     Method to split building envelope heat capacity in STEBBS.
-    0: NONE
-    1: PROVIDED - use user defined value (fractional x1) between 0 and 1
-    2: PARAMETERISE - use building material thermal property to parameterise the weighting factor x1
+
+    0: NONE - No heat capacity splitting applied
+    1: PROVIDED - Use user defined value (fractional x1) between 0 and 1
+    2: PARAMETERISE - Use building material thermal property to parameterise the weighting factor x1
     """
 
     NONE = 0
@@ -578,7 +579,7 @@ class ModelPhysics(BaseModel):
         description=_enum_description(StabilityMethod),
         json_schema_extra={
             "unit": "dimensionless",
-            "used_by": ["rslmethod"],
+            "provides_to": ["rslmethod"],
             "note": "Provides stability correction functions used by rslmethod calculations",
         },
     )

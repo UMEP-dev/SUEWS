@@ -191,7 +191,7 @@ class ModelDocExtractor:
 
             # Extract relationship metadata
             relationships = {}
-            for key in ["depends_on", "used_by", "provides_to", "note"]:
+            for key in ["depends_on", "provides_to", "note"]:
                 if key in field_info.json_schema_extra:
                     relationships[key] = field_info.json_schema_extra[key]
             if relationships:

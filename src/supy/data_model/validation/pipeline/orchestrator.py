@@ -758,9 +758,7 @@ def run_phase_c(
 
                 # Add any validation summary messages from Phase C (e.g., hemisphere warnings)
                 if hasattr(config, "_validation_summary"):
-                    info_messages = config._validation_summary.get(
-                        "info_messages", []
-                    )
+                    info_messages = config._validation_summary.get("info_messages", [])
                     for msg in info_messages:
                         consolidated_no_action.append(f"- {msg}")
 

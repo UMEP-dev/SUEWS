@@ -2326,3 +2326,132 @@ def test_startdls_enddls_range_validation():
     emissions = AnthropogenicEmissions(startdls=86.5, enddls=303.75)
     assert emissions.startdls == 86.5
     assert emissions.enddls == 303.75
+
+
+def test_dls_consistency_validation_in_suews_config():
+    """Test DLS consistency check in SUEWSConfig: both set or both None."""
+    import pytest
+    from pydantic import ValidationError
+    from supy.data_model.core import SUEWSConfig
+
+    # Load a valid sample configuration
+    from pathlib import Path
+    import yaml
+
+    sample_path = Path(__file__).parent.parent.parent / "src" / "supy" / "sample_data" / "sample_config.yml"
+    with open(sample_path) as f:
+        config_data = yaml.safe_load(f)
+
+    # Test 1: Both None - valid
+    config_data["sites"][0]["properties"]["anthropogenic_emissions"]["startdls"] = None
+    config_data["sites"][0]["properties"]["anthropogenic_emissions"]["enddls"] = None
+    config = SUEWSConfig(**config_data)
+    assert config is not None
+
+    # Test 2: Both set - valid
+    config_data["sites"][0]["properties"]["anthropogenic_emissions"]["startdls"] = 86
+    config_data["sites"][0]["properties"]["anthropogenic_emissions"]["enddls"] = 303
+    config = SUEWSConfig(**config_data)
+    assert config is not None
+
+    # Test 3: Only startdls set - ERROR
+    config_data["sites"][0]["properties"]["anthropogenic_emissions"]["startdls"] = 86
+    config_data["sites"][0]["properties"]["anthropogenic_emissions"]["enddls"] = None
+    with pytest.raises(ValueError) as exc_info:
+        SUEWSConfig(**config_data)
+    assert "must both be set or both be None" in str(exc_info.value)
+
+    # Test 4: Only enddls set - ERROR
+    config_data["sites"][0]["properties"]["anthropogenic_emissions"]["startdls"] = None
+    config_data["sites"][0]["properties"]["anthropogenic_emissions"]["enddls"] = 303
+    with pytest.raises(ValueError) as exc_info:
+        SUEWSConfig(**config_data)
+    assert "must both be set or both be None" in str(exc_info.value)
+
+
+def test_dls_leap_year_validation_in_suews_config():
+    """Test DLS leap year refinement in SUEWSConfig."""
+    import pytest
+    from pathlib import Path
+    import yaml
+    from supy.data_model.core import SUEWSConfig
+
+    sample_path = Path(__file__).parent.parent.parent / "src" / "supy" / "sample_data" / "sample_config.yml"
+    with open(sample_path) as f:
+        config_data = yaml.safe_load(f)
+
+    # Set DLS values
+    config_data["sites"][0]["properties"]["anthropogenic_emissions"]["startdls"] = 86
+    config_data["sites"][0]["properties"]["anthropogenic_emissions"]["enddls"] = 366
+
+    # Test 1: Leap year 2024 - DOY 366 is valid
+    config_data["model"]["control"]["start_time"] = "2024-01-01T00:00:00"
+    config = SUEWSConfig(**config_data)
+    assert config is not None
+
+    # Test 2: Non-leap year 2025 - DOY 366 is ERROR
+    config_data["model"]["control"]["start_time"] = "2025-01-01T00:00:00"
+    with pytest.raises(ValueError) as exc_info:
+        SUEWSConfig(**config_data)
+    assert "non-leap year 2025" in str(exc_info.value)
+    assert "366" in str(exc_info.value)
+
+
+def test_dls_hemisphere_informational_messages_in_suews_config():
+    """Test DLS hemisphere informational messages are collected in validation_summary."""
+    import pytest
+    from pathlib import Path
+    import yaml
+    from supy.data_model.core import SUEWSConfig
+
+    sample_path = Path(__file__).parent.parent.parent / "src" / "supy" / "sample_data" / "sample_config.yml"
+    with open(sample_path) as f:
+        config_data = yaml.safe_load(f)
+
+    # Set year to avoid leap year issues
+    config_data["model"]["control"]["start_time"] = "2024-01-01T00:00:00"
+
+    # Test 1: Northern Hemisphere with typical DST pattern (no info message)
+    config_data["sites"][0]["properties"]["lat"] = 51.5  # London
+    config_data["sites"][0]["properties"]["anthropogenic_emissions"]["startdls"] = 86  # Late March (typical for NH)
+    config_data["sites"][0]["properties"]["anthropogenic_emissions"]["enddls"] = 300  # Late October (typical for NH)
+
+    config = SUEWSConfig(**config_data)
+    assert config is not None
+
+    # Check that no hemisphere warnings were generated (values are typical)
+    if hasattr(config, "_validation_summary"):
+        detailed_messages = config._validation_summary.get("detailed_messages", [])
+        hemisphere_messages = [msg for msg in detailed_messages if "Unusual DST pattern" in msg]
+        assert len(hemisphere_messages) == 0, "Should not generate message for typical NH DST pattern"
+
+    # Test 2: Northern Hemisphere with unusual DST pattern (should generate info message)
+    config_data["sites"][0]["properties"]["lat"] = 51.5  # London
+    config_data["sites"][0]["properties"]["anthropogenic_emissions"]["startdls"] = 200  # July (unusual for NH start)
+    config_data["sites"][0]["properties"]["anthropogenic_emissions"]["enddls"] = 150  # May (unusual for NH end)
+
+    config = SUEWSConfig(**config_data)
+    assert config is not None
+
+    # Check that hemisphere info messages were generated
+    assert hasattr(config, "_validation_summary")
+    detailed_messages = config._validation_summary.get("detailed_messages", [])
+    hemisphere_messages = [msg for msg in detailed_messages if "Unusual DST pattern" in msg]
+    assert len(hemisphere_messages) > 0, "Should generate info message for unusual NH DST pattern"
+    assert "Northern Hemisphere" in hemisphere_messages[0]
+    assert "startdls=200" in hemisphere_messages[0]
+    assert "enddls=150" in hemisphere_messages[0]
+
+    # Test 3: Southern Hemisphere with unusual DST pattern
+    config_data["sites"][0]["properties"]["lat"] = -33.9  # Sydney
+    config_data["sites"][0]["properties"]["anthropogenic_emissions"]["startdls"] = 86  # Late March (unusual for SH start, typical for NH)
+    config_data["sites"][0]["properties"]["anthropogenic_emissions"]["enddls"] = 300  # Late October (unusual for SH end, typical for NH)
+
+    config = SUEWSConfig(**config_data)
+    assert config is not None
+
+    # Check that hemisphere info messages were generated
+    detailed_messages = config._validation_summary.get("detailed_messages", [])
+    hemisphere_messages = [msg for msg in detailed_messages if "Unusual DST pattern" in msg]
+    assert len(hemisphere_messages) > 0, "Should generate info message for unusual SH DST pattern"
+    assert "Southern Hemisphere" in hemisphere_messages[0]

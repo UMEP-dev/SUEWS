@@ -2193,6 +2193,150 @@ class SUEWSConfig(BaseModel):
 
         return self
 
+    @model_validator(mode="after")
+    def validate_dls_parameters(self) -> "SUEWSConfig":
+        """Validate daylight saving time parameters across all sites.
+
+        Performs validation checks:
+        1. Consistency: both startdls and enddls set, or both None (ERROR)
+        2. Leap year refinement: DOY 366 only valid in leap years (ERROR)
+        3. Hemisphere-aware pattern check: Informs about unusual DST patterns (INFO)
+
+        These validations are particularly useful when Phase C runs standalone
+        or when loading YAML directly via SUEWSConfig.from_yaml().
+        """
+        # Initialize validation summary if not already present
+        if not hasattr(self, "_validation_summary"):
+            self._validation_summary = {
+                "total_warnings": 0,
+                "sites_with_issues": [],
+                "issue_types": set(),
+                "yaml_path": getattr(self, "_yaml_path", None),
+                "detailed_messages": [],
+            }
+
+        # Get simulation year from model.control.start_time
+        try:
+            start_time_str = str(self.model.control.start_time)
+            year = int(start_time_str[:4])
+        except (AttributeError, ValueError, IndexError):
+            # Cannot determine year, skip leap year check
+            year = None
+
+        # Manual leap year calculation (same logic as phase_b)
+        if year:
+            is_leap = (year % 4 == 0 and year % 100 != 0) or (year % 400 == 0)
+            max_doy = 366 if is_leap else 365
+        else:
+            is_leap = None
+            max_doy = 366
+
+        errors = []
+
+        for site_index, site in enumerate(self.sites):
+            site_name = f"Site {site_index + 1}" if len(self.sites) > 1 else "Site"
+
+            if not (site.properties and site.properties.anthropogenic_emissions):
+                continue
+
+            anthro = site.properties.anthropogenic_emissions
+
+            # Extract values (handle RefValue wrapper)
+            startdls_val = (
+                anthro.startdls.value
+                if hasattr(anthro.startdls, "value")
+                else anthro.startdls
+            )
+            enddls_val = (
+                anthro.enddls.value
+                if hasattr(anthro.enddls, "value")
+                else anthro.enddls
+            )
+
+            # 1. Consistency check: both set or both None
+            if (startdls_val is None) != (enddls_val is None):
+                errors.append(
+                    f"{site_name}: startdls and enddls must both be set or both be None. "
+                    "Cannot have only one parameter set."
+                )
+                continue  # Skip other checks if inconsistent
+
+            # If both None, skip remaining checks
+            if startdls_val is None and enddls_val is None:
+                continue
+
+            # 2. Leap year refinement
+            if year:
+                if startdls_val > max_doy:
+                    errors.append(
+                        f"{site_name}: startdls DOY {int(startdls_val)} invalid for "
+                        f"{'leap' if is_leap else 'non-leap'} year {year}. "
+                        f"Must be in range [1, {max_doy}]"
+                    )
+
+                if enddls_val > max_doy:
+                    errors.append(
+                        f"{site_name}: enddls DOY {int(enddls_val)} invalid for "
+                        f"{'leap' if is_leap else 'non-leap'} year {year}. "
+                        f"Must be in range [1, {max_doy}]"
+                    )
+
+            # 3. Hemisphere-aware pattern check (informational only, no errors)
+            # Get latitude for hemisphere determination
+            try:
+                lat_val = (
+                    site.properties.lat.value
+                    if hasattr(site.properties.lat, "value")
+                    else site.properties.lat
+                )
+
+                if lat_val is not None:
+                    # Determine hemisphere and typical DST ranges
+                    if lat_val > 0:
+                        # Northern Hemisphere
+                        hemisphere = "Northern"
+                        typical_start_range = (60, 120)  # ~March-April
+                        typical_end_range = (270, 330)  # ~October-November
+                    else:
+                        # Southern Hemisphere
+                        hemisphere = "Southern"
+                        typical_start_range = (250, 310)  # ~September-November
+                        typical_end_range = (60, 120)  # ~March-April
+
+                    # Check if values are outside typical ranges
+                    unusual_patterns = []
+                    if not (
+                        typical_start_range[0] <= startdls_val <= typical_start_range[1]
+                    ):
+                        unusual_patterns.append(
+                            f"startdls={int(startdls_val)} (typical: {typical_start_range[0]}-{typical_start_range[1]})"
+                        )
+
+                    if not (
+                        typical_end_range[0] <= enddls_val <= typical_end_range[1]
+                    ):
+                        unusual_patterns.append(
+                            f"enddls={int(enddls_val)} (typical: {typical_end_range[0]}-{typical_end_range[1]})"
+                        )
+
+                    if unusual_patterns:
+                        info_msg = (
+                            f"{site_name} ({hemisphere} Hemisphere, lat={lat_val:.2f}): "
+                            f"Unusual DST pattern detected: {', '.join(unusual_patterns)}. "
+                            f"Please verify these values are correct for your location."
+                        )
+                        self._validation_summary["detailed_messages"].append(info_msg)
+
+            except (AttributeError, TypeError):
+                # Cannot access latitude, skip hemisphere check
+                pass
+
+        # Raise errors if any
+        if errors:
+            raise ValueError("\n".join(errors))
+
+        return self
+
     @classmethod
     def _transform_validation_error(
         cls, error: ValidationError, config_data: dict

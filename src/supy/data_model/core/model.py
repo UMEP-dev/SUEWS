@@ -115,7 +115,7 @@ class NetRadiationMethod(Enum):
     Method for calculating net all-wave radiation (Q*).
 
     0: OBSERVED - Uses observed Q* values from forcing file
-    1: LDOWN_OBSERVED - Models Q* using NARP (Net All-wave Radiation Parameterization; Offerle et al. 2003, Loridan et al. 2011) with observed longwave down radiation (L↓) from forcing file
+    1: LDOWN_OBSERVED - Models Q* using NARP (Net All-wave Radiation Parameterisation; Offerle et al. 2003, Loridan et al. 2011) with observed longwave down radiation (L↓) from forcing file
     2: LDOWN_CLOUD - Models Q* using NARP with L↓ estimated from cloud cover fraction
     3: LDOWN_AIR - Models Q* using NARP with L↓ estimated from air temperature and relative humidity
     11: LDOWN_SURFACE - Surface temperature variant of method 1 (not recommended)

@@ -357,7 +357,7 @@ test/physics/test_energy_balance/
 ### 4. Documentation
 - Document the physics being tested
 - Reference equations or papers
-- Explain expected behavior
+- Explain expected behaviour
 
 ### 5. Performance Considerations
 - Minimize Python-Fortran transitions

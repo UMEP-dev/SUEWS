@@ -12,7 +12,7 @@ class TestNoSpuriousWarnings:
         """Test that importing SUEWSConfig doesn't generate warnings."""
         with warnings.catch_warnings(record=True) as w:
             warnings.simplefilter("always")
-            # Force reimport to test import-time behavior
+            # Force reimport to test import-time behaviour
             import importlib
 
             import supy.data_model

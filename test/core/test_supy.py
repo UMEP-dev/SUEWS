@@ -369,7 +369,7 @@ class TestSuPy(TestCase):
         df_dailystate = df_output.xs("DailyState", level="group", axis=1)
 
         # More robust check: Count rows that have at least one non-NaN value
-        # This avoids issues with dropna() behavior across pandas versions
+        # This avoids issues with dropna() behaviour across pandas versions
         mask_has_data = df_dailystate.notna().any(axis=1)
         n_days_with_data = mask_has_data.sum()
 

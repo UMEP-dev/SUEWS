@@ -333,7 +333,7 @@
   - Dry-run capability for safe migration preview
   - Automatic backup creation during updates and migrations
   - Designed for integration with future suews-wizard ([#544](https://github.com/UMEP-dev/SUEWS/issues/544))
-  - Rich console output with progress tracking and color-coded status
+  - Rich console output with progress tracking and colour-coded status
 
 ### 15 Aug 2025
 - [feature] Added YAML configuration schema versioning for structure evolution tracking ([#576](https://github.com/UMEP-dev/SUEWS/issues/576))

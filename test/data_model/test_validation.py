@@ -2244,3 +2244,85 @@ def test_irrigation_year_wrapping():
     assert len(warnings) == 2
     assert any("does not wrap year boundary" in w.message for w in warnings)
     assert any("falls outside" in w.message for w in warnings)
+
+
+def test_startdls_enddls_range_validation():
+    """Test Pydantic validation for startdls and enddls DOY range constraints."""
+    import pytest
+    from supy.data_model.core.human_activity import AnthropogenicEmissions
+    from pydantic import ValidationError
+
+    # Valid cases
+    # Both None (no DST)
+    emissions = AnthropogenicEmissions(startdls=None, enddls=None)
+    assert emissions.startdls is None
+    assert emissions.enddls is None
+
+    # Valid DOY values
+    emissions = AnthropogenicEmissions(startdls=1, enddls=366)
+    assert emissions.startdls == 1
+    assert emissions.enddls == 366
+
+    # Typical NH DST
+    emissions = AnthropogenicEmissions(startdls=86, enddls=303)
+    assert emissions.startdls == 86
+    assert emissions.enddls == 303
+
+    # Typical SH DST
+    emissions = AnthropogenicEmissions(startdls=274, enddls=97)
+    assert emissions.startdls == 274
+    assert emissions.enddls == 97
+
+    # Invalid cases - startdls too small
+    with pytest.raises(ValidationError) as exc_info:
+        AnthropogenicEmissions(startdls=0, enddls=100)
+    assert "greater than or equal to 1" in str(exc_info.value).lower()
+
+    # Invalid cases - startdls negative
+    with pytest.raises(ValidationError) as exc_info:
+        AnthropogenicEmissions(startdls=-50, enddls=100)
+    assert "greater than or equal to 1" in str(exc_info.value).lower()
+
+    # Invalid cases - startdls too large
+    with pytest.raises(ValidationError) as exc_info:
+        AnthropogenicEmissions(startdls=400, enddls=100)
+    assert "less than or equal to 366" in str(exc_info.value).lower()
+
+    # Invalid cases - startdls placeholder value
+    with pytest.raises(ValidationError) as exc_info:
+        AnthropogenicEmissions(startdls=999, enddls=100)
+    assert "less than or equal to 366" in str(exc_info.value).lower()
+
+    # Invalid cases - enddls too small
+    with pytest.raises(ValidationError) as exc_info:
+        AnthropogenicEmissions(startdls=100, enddls=0)
+    assert "greater than or equal to 1" in str(exc_info.value).lower()
+
+    # Invalid cases - enddls negative
+    with pytest.raises(ValidationError) as exc_info:
+        AnthropogenicEmissions(startdls=100, enddls=-20)
+    assert "greater than or equal to 1" in str(exc_info.value).lower()
+
+    # Invalid cases - enddls too large
+    with pytest.raises(ValidationError) as exc_info:
+        AnthropogenicEmissions(startdls=100, enddls=500)
+    assert "less than or equal to 366" in str(exc_info.value).lower()
+
+    # Invalid cases - enddls placeholder value
+    with pytest.raises(ValidationError) as exc_info:
+        AnthropogenicEmissions(startdls=100, enddls=999)
+    assert "less than or equal to 366" in str(exc_info.value).lower()
+
+    # Edge cases - boundary values
+    emissions = AnthropogenicEmissions(startdls=1, enddls=1)
+    assert emissions.startdls == 1
+    assert emissions.enddls == 1
+
+    emissions = AnthropogenicEmissions(startdls=366, enddls=366)
+    assert emissions.startdls == 366
+    assert emissions.enddls == 366
+
+    # Decimal values (DOY can be decimal)
+    emissions = AnthropogenicEmissions(startdls=86.5, enddls=303.75)
+    assert emissions.startdls == 86.5
+    assert emissions.enddls == 303.75

@@ -599,11 +599,15 @@ class AnthropogenicEmissions(BaseModel):
 
     startdls: Optional[FlexibleRefValue(float)] = Field(
         default=None,
+        ge=1,
+        le=366,
         description="Start of daylight savings time in decimal day of year",
         json_schema_extra={"unit": "day", "display_name": "Daylight Saving Start"},
     )
     enddls: Optional[FlexibleRefValue(float)] = Field(
         default=None,
+        ge=1,
+        le=366,
         description="End of daylight savings time in decimal day of year",
         json_schema_extra={"unit": "day", "display_name": "Daylight Saving End"},
     )

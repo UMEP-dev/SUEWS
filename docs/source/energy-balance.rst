@@ -25,14 +25,14 @@ Net all-wave radiation (Q*) is a fundamental component of the surface energy bal
    the model.
 #. Other data can be provided as input, such as cloud fraction (see
    :ref:`forcing data configuration <forcing-data>`).
-#. **NARP** (Net All-wave Radiation parameterisation) :cite:`O03,L11` scheme calculates outgoing
+#. **NARP** (Net All-wave Radiation Parameterisation) :cite:`O03,L11` scheme calculates outgoing
    shortwave and incoming and outgoing longwave radiation components
    based on incoming shortwave radiation, temperature, relative humidity
    and surface characteristics (albedo, emissivity).
 #. `SPARTACUS-Surface`_ computes the 3D interaction of shortwave and longwave radiation with complex surface canopies, including vegetated and urban canopies (with or without vegetation).
 #. **BEERS** (Building Envelope Energy Radiation Scheme) calculates detailed radiation components for urban surfaces including point-specific radiation analysis.
 
-NARP (Net All-wave Radiation parameterisation)
+NARP (Net All-wave Radiation Parameterisation)
 -----------------------------------------------
 
 **NARP** :cite:`O03,L11` is the standard radiation scheme in SUEWS, implemented in the Fortran module ``suews_phys_narp.f95``. It calculates outgoing shortwave and incoming and outgoing longwave radiation components based on:

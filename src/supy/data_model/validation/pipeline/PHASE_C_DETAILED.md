@@ -376,9 +376,36 @@ def convert_keys_to_str(cls, v: Dict) -> Dict[str, float]:
     """Convert hourly profile keys to strings."""
 ```
 
-**Location**: `profile.py`  
-**Function**: Hourly profile key standardisation  
+**Location**: `profile.py`
+**Function**: Hourly profile key standardisation
 **Validates**: Ensures consistent string keys for 24-hour profiles
+
+### Daylight Saving Time Parameters
+
+```python
+startdls: Optional[FlexibleRefValue(float)] = Field(
+    default=None,
+    ge=1,
+    le=366,
+    description="Start of daylight savings time in decimal day of year"
+)
+enddls: Optional[FlexibleRefValue(float)] = Field(
+    default=None,
+    ge=1,
+    le=366,
+    description="End of daylight savings time in decimal day of year"
+)
+```
+
+**Location**: `human_activity.py` (AnthropogenicEmissions)
+**Function**: Daylight saving time DOY range validation
+**Validates**:
+- Valid DOY range [1, 366] for both startdls and enddls
+- Catches fundamentally invalid values (negative, zero, >366)
+- Rejects placeholder values (e.g., 999)
+- Allows None values (no DST)
+
+**Note**: Phase B performs additional context-dependent validation (leap year refinement, hemisphere-appropriate ranges, consistency checks)
 
 ### Timezone Validation
 

@@ -382,30 +382,19 @@ def convert_keys_to_str(cls, v: Dict) -> Dict[str, float]:
 
 ### Daylight Saving Time Parameters
 
-```python
-startdls: Optional[FlexibleRefValue(float)] = Field(
-    default=None,
-    ge=1,
-    le=366,
-    description="Start of daylight savings time in decimal day of year"
-)
-enddls: Optional[FlexibleRefValue(float)] = Field(
-    default=None,
-    ge=1,
-    le=366,
-    description="End of daylight savings time in decimal day of year"
-)
-```
+**Field Constraints** (`human_activity.py`): DOY range [1, 366], allows None
 
-**Location**: `human_activity.py` (AnthropogenicEmissions)
-**Function**: Daylight saving time DOY range validation
-**Validates**:
-- Valid DOY range [1, 366] for both startdls and enddls
-- Catches fundamentally invalid values (negative, zero, >366)
-- Rejects placeholder values (e.g., 999)
-- Allows None values (no DST)
+**Cross-Model Validator** (`config.py:2196-2338`): `SUEWSConfig.validate_dls_parameters`
 
-**Note**: Phase B performs additional context-dependent validation (leap year refinement, hemisphere-appropriate ranges, consistency checks)
+**Validation Layers**:
+
+1. **Basic Range** (field-level): `ge=1, le=366` - catches invalid values (negative, zero, >366, placeholders)
+2. **Consistency** (cross-model): Both set or both None - **ERROR** if only one parameter set
+3. **Leap Year** (cross-model): DOY 366 only valid in leap years - **ERROR** if DOY 366 in non-leap year
+4. **Hemisphere Pattern** (cross-model): Unusual DST patterns - **INFO** in report "NO ACTION NEEDED" section
+   - NH typical: start 60-120, end 270-330; SH typical: start 250-310, end 60-120
+
+**Note**: Phase B automatically calculates/corrects DLS values using timezone data (whether None or incorrect)
 
 ### Timezone Validation
 

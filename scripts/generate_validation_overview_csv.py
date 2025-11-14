@@ -352,19 +352,41 @@ def is_structural_field(field_name: str) -> bool:
     # Known structural parent fields
     structural_fields = {
         # Top-level structure
-        "model", "sites", "control", "physics", "output_file",
+        "model",
+        "sites",
+        "control",
+        "physics",
+        "output_file",
         # Site-level structure
-        "properties", "initial_states", "anthropogenic_emissions",
-        "conductance", "building_archetype",
+        "properties",
+        "initial_states",
+        "anthropogenic_emissions",
+        "conductance",
+        "building_archetype",
         # Profile containers
-        "friday", "monday", "saturday", "sunday", "thursday", "tuesday", "wednesday",
-        "holiday", "working_day",
+        "friday",
+        "monday",
+        "saturday",
+        "sunday",
+        "thursday",
+        "tuesday",
+        "wednesday",
+        "holiday",
+        "working_day",
         # State containers (surface types)
-        "bldgs", "bsoil", "dectr", "evetr", "grass", "paved", "water",
+        "bldgs",
+        "bsoil",
+        "dectr",
+        "evetr",
+        "grass",
+        "paved",
+        "water",
         # AnthropogenicEmissions children (parent container)
-        "co2", "heat",
+        "co2",
+        "heat",
         # Property containers
-        "thermal_layers", "lai",
+        "thermal_layers",
+        "lai",
     }
 
     return field_name in structural_fields

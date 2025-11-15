@@ -48,8 +48,8 @@ Documentation Structure
 
 The following pages provide detailed information on:
 
-- :ref:`energy_balance`: Components of the surface energy balance (Q*, QF, ΔQS, QH, QE)
-- :ref:`water_balance`: Components of the surface water balance (P, I, E, ΔS, R)
+- :ref:`energy_balance`: Components of the surface energy balance (:math:`Q^*`, :math:`Q_F`, :math:`\Delta Q_S`, :math:`Q_H`, :math:`Q_E`)
+- :ref:`water_balance`: Components of the surface water balance (:math:`P`, :math:`I`, :math:`E`, :math:`\Delta S`, :math:`R`)
 - :ref:`supporting_processes`: Supporting processes and schemes (LAI, stability, RSL, CBL, CO2)
 - :ref:`suews_publications`: Core SUEWS publications from the development team
 - :ref:`refs`: General scientific references

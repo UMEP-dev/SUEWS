@@ -254,6 +254,32 @@ class SurfaceProperties(BaseModel):
             "display_name": "Saturated Hydraulic Conductivity",
         },
     )
+    soildensity: Optional[FlexibleRefValue(float)] = Field(
+        default=None,
+        description="Bulk soil density used for gravimetric observations",
+        json_schema_extra={
+            "unit": "g cm^-3",
+            "display_name": "Soil Density",
+        },
+    )
+    obs_sm_depth: Optional[FlexibleRefValue(float)] = Field(
+        default=None,
+        description="Depth of the observed soil moisture measurement",
+        json_schema_extra={"unit": "mm", "display_name": "Observed SM Depth"},
+    )
+    obs_sm_cap: Optional[FlexibleRefValue(float)] = Field(
+        default=None,
+        description="Maximum observed soil moisture (volumetric or gravimetric)",
+        json_schema_extra={"unit": "fraction", "display_name": "Observed SM Capacity"},
+    )
+    obs_soil_not_rocks: Optional[FlexibleRefValue(float)] = Field(
+        default=None,
+        description="Fraction of soil volume that is not rocks at the observation point",
+        json_schema_extra={
+            "unit": "dimensionless",
+            "display_name": "Observed Soil (No Rocks)",
+        },
+    )
     waterdist: Optional[WaterDistribution] = Field(
         default=None,  # TODO: Can this be None?
         description="Water distribution parameters",
@@ -346,6 +372,10 @@ class SurfaceProperties(BaseModel):
             "statelimit",
             "wetthresh",
             "sathydraulicconduct",
+            "soildensity",
+            "obs_sm_depth",
+            "obs_sm_cap",
+            "obs_soil_not_rocks",
             "waterdist",
             "storedrainprm",
             "snowpacklimit",
@@ -414,7 +444,16 @@ class SurfaceProperties(BaseModel):
                         "soildepth": 150.0,
                         "sathydraulicconduct": 0.0001,
                     }
-                    value = defaults.get(property, 0.0)
+                    # Soil observation fields use -999 when not available
+                    if property in [
+                        "soildensity",
+                        "obs_sm_depth",
+                        "obs_sm_cap",
+                        "obs_soil_not_rocks",
+                    ]:
+                        value = -999.0
+                    else:
+                        value = defaults.get(property, 0.0)
                 set_df_value(property, value)
             # except Exception as e:
             #     print(f"Warning: Could not set property {property}: {str(e)}")
@@ -464,6 +503,10 @@ class SurfaceProperties(BaseModel):
             "statelimit",
             "wetthresh",
             "sathydraulicconduct",
+            "soildensity",
+            "obs_sm_depth",
+            "obs_sm_cap",
+            "obs_soil_not_rocks",
             "waterdist",
             "storedrainprm",
             "snowpacklimit",
@@ -521,8 +564,17 @@ class SurfaceProperties(BaseModel):
                 value = df.loc[grid_id, ("kkanohm", f"({surf_idx},)")]
                 property_values["k_anohm"] = RefValue(value)
             else:
-                value = df.loc[grid_id, (property, f"({surf_idx},)")]
-                property_values[property] = RefValue(value)
+                # Check if column exists (for backwards compatibility with old tables)
+                col_key = (property, f"({surf_idx},)")
+                if col_key in df.columns:
+                    value = df.loc[grid_id, col_key]
+                    property_values[property] = RefValue(value)
+                else:
+                    # Column doesn't exist - skip if optional, raise if required
+                    field_info = cls.model_fields.get(property)
+                    if field_info and not field_info.is_required():
+                        property_values[property] = None
+                    # If required, let Pydantic validation catch it later
 
         return cls(**property_values)
 

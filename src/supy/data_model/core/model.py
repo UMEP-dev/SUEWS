@@ -535,6 +535,26 @@ for enum_class in [
     yaml.add_representer(enum_class, yaml_equivalent_of_default)
 
 
+def _unwrap_method_value(value) -> int | None:
+    """
+    Return the primitive value from FlexibleRefValue/Enum wrappers.
+
+    Recursively unwraps nested RefValue wrappers and extracts the underlying
+    integer value from Enum instances. Returns None if the input is None.
+
+    Examples:
+        _unwrap_method_value(NetRadiationMethod.LDOWN_AIR) -> 0
+        _unwrap_method_value(RefValue(value=StorageHeatMethod.EHC)) -> 5
+        _unwrap_method_value(None) -> None
+    """
+
+    if isinstance(value, RefValue):
+        return _unwrap_method_value(value.value)
+    if isinstance(value, Enum):
+        return value.value
+    return value
+
+
 class ModelPhysics(BaseModel):
     """
     Model physics configuration options.
@@ -545,40 +565,73 @@ class ModelPhysics(BaseModel):
     netradiationmethod: FlexibleRefValue(NetRadiationMethod) = Field(
         default=NetRadiationMethod.LDOWN_AIR,
         description=_enum_description(NetRadiationMethod),
-        json_schema_extra={"unit": "dimensionless"},
+        json_schema_extra={
+            "unit": "dimensionless",
+            "depends_on": ["snowuse"],
+            "provides_to": ["storageheatmethod"],
+            "note": (
+                "SPARTACUS variants (>1000) supply facet-level radiation required by the EHC storage heat scheme, "
+                "and every option accounts for snow albedo changes when snowuse=1."
+            ),
+        },
     )
     emissionsmethod: FlexibleRefValue(EmissionsMethod) = Field(
         default=EmissionsMethod.J11,
         description=_enum_description(EmissionsMethod),
-        json_schema_extra={"unit": "dimensionless"},
+        json_schema_extra={
+            "unit": "dimensionless",
+            "provides_to": ["ohmincqf"],
+            "note": "Generates anthropogenic heat flux (QF) that ohmIncQf can blend into OHM-based storage heat methods.",
+        },
     )
     storageheatmethod: FlexibleRefValue(StorageHeatMethod) = Field(
         default=StorageHeatMethod.OHM_WITHOUT_QF,
         description=_enum_description(StorageHeatMethod),
-        json_schema_extra={"unit": "dimensionless"},
+        json_schema_extra={
+            "unit": "dimensionless",
+            "depends_on": ["ohmincqf", "snowuse"],
+            "note": (
+                "OHM variants use ohmIncQf to decide whether QF augments Q*, EHC (option 5) requires SPARTACUS "
+                "netradiationmethod values (>1000), and STEBBS coupling (option 7) requires stebbsmethod > 0."
+            ),
+        },
     )
     ohmincqf: FlexibleRefValue(OhmIncQf) = Field(
         default=OhmIncQf.EXCLUDE,
         description=_enum_description(OhmIncQf),
-        json_schema_extra={"unit": "dimensionless"},
+        json_schema_extra={
+            "unit": "dimensionless",
+            "depends_on": ["emissionsmethod", "storageheatmethod"],
+            "provides_to": ["storageheatmethod"],
+            "note": "Toggles whether QF from emissionsmethod augments OHM-based storage heat calculations.",
+        },
     )
     roughlenmommethod: FlexibleRefValue(MomentumRoughnessMethod) = Field(
         default=MomentumRoughnessMethod.VARIABLE,
         description=_enum_description(MomentumRoughnessMethod),
-        json_schema_extra={"unit": "dimensionless"},
+        json_schema_extra={
+            "unit": "dimensionless",
+            "provides_to": ["roughlenheatmethod", "stabilitymethod"],
+            "note": "Supplies momentum roughness length (z0m) used to derive z0h and in subsequent stability corrections.",
+        },
     )
     roughlenheatmethod: FlexibleRefValue(HeatRoughnessMethod) = Field(
         default=HeatRoughnessMethod.KAWAI,
         description=_enum_description(HeatRoughnessMethod),
-        json_schema_extra={"unit": "dimensionless"},
+        json_schema_extra={
+            "unit": "dimensionless",
+            "depends_on": ["roughlenmommethod"],
+            "provides_to": ["stabilitymethod"],
+            "note": "Transforms z0m into heat roughness length (z0h) before applying stabilitymethod corrections.",
+        },
     )
     stabilitymethod: FlexibleRefValue(StabilityMethod) = Field(
         default=StabilityMethod.CAMPBELL_NORMAN,
         description=_enum_description(StabilityMethod),
         json_schema_extra={
             "unit": "dimensionless",
-            "provides_to": ["rslmethod"],
-            "note": "Provides stability correction functions used by rslmethod calculations",
+            "provides_to": ["rslmethod", "roughlenmommethod", "roughlenheatmethod"],
+            "note": "Provides Monin-Obukhov stability corrections used by roughness length calculations and downstream rslmethod logic.",
         },
     )
     smdmethod: FlexibleRefValue(SMDMethod) = Field(
@@ -628,19 +681,118 @@ class ModelPhysics(BaseModel):
     snowuse: FlexibleRefValue(SnowUse) = Field(
         default=SnowUse.DISABLED,
         description=_enum_description(SnowUse),
-        json_schema_extra={"unit": "dimensionless"},
+        json_schema_extra={
+            "unit": "dimensionless",
+            "provides_to": ["netradiationmethod", "storageheatmethod", "rsllevel"],
+            "note": "Snow fractions adjust radiation, storage heat conduction, and local climate feedbacks.",
+        },
     )
     stebbsmethod: FlexibleRefValue(StebbsMethod) = Field(
         default=StebbsMethod.NONE,
         description=_enum_description(StebbsMethod),
-        json_schema_extra={"unit": "dimensionless"},
+        json_schema_extra={
+            "unit": "dimensionless",
+            "depends_on": ["storageheatmethod"],
+            "provides_to": ["rcmethod"],
+            "note": "Only active when storageheatmethod=7 (STEBBS storage heat); enables RC split when >0.",
+        },
     )
     rcmethod: FlexibleRefValue(RCMethod) = Field(
         default=RCMethod.NONE,
         description=_enum_description(RCMethod),
-        json_schema_extra={"unit": "dimensionless"},
+        json_schema_extra={
+            "unit": "dimensionless",
+            "depends_on": ["stebbsmethod"],
+            "note": "Splits building heat capacity only when STEBBS is enabled (stebbsmethod∈{1,2}).",
+        },
     )
     ref: Optional[Reference] = None
+
+    @model_validator(mode="after")
+    def validate_method_dependencies(self) -> "ModelPhysics":
+        """Enforce critical compatibility rules between physics methods."""
+
+        def _coerce(enum_cls, raw):
+            if raw is None:
+                return None
+            try:
+                return enum_cls(raw)
+            except ValueError:
+                return None
+
+        storage_raw = _unwrap_method_value(self.storageheatmethod)
+        netrad_raw = _unwrap_method_value(self.netradiationmethod)
+        stebbs_raw = _unwrap_method_value(self.stebbsmethod)
+        rc_raw = _unwrap_method_value(self.rcmethod)
+        ohm_raw = _unwrap_method_value(self.ohmincqf)
+
+        storage_enum = _coerce(StorageHeatMethod, storage_raw)
+        stebbs_enum = _coerce(StebbsMethod, stebbs_raw)
+        rc_enum = _coerce(RCMethod, rc_raw)
+        ohm_enum = _coerce(OhmIncQf, ohm_raw)
+
+        errors: list[str] = []
+
+        # EHC storage heat requires SPARTACUS net radiation (>= 1000)
+        if storage_enum == StorageHeatMethod.EHC:
+            if netrad_raw is None or netrad_raw < 1000:
+                errors.append(
+                    "StorageHeatMethod=5 (EHC) requires NetRadiationMethod >= 1000 (SPARTACUS) to provide facet radiation."
+                )
+
+        # SPARTACUS net radiation requires EHC storage heat
+        if netrad_raw is not None and netrad_raw >= 1000:
+            if storage_enum is None:
+                errors.append(
+                    "NetRadiationMethod >= 1000 (SPARTACUS) requires a valid StorageHeatMethod."
+                )
+            elif storage_enum != StorageHeatMethod.EHC:
+                errors.append(
+                    "NetRadiationMethod >= 1000 (SPARTACUS) must be coupled with StorageHeatMethod=5 (EHC)."
+                )
+
+        # STEBBS storage heat requires active stebbsmethod
+        if storage_enum == StorageHeatMethod.STEBBS:
+            if stebbs_enum is None:
+                errors.append(
+                    "StorageHeatMethod=7 (STEBBS) requires a valid stebbsmethod value."
+                )
+            elif stebbs_enum not in {StebbsMethod.DEFAULT, StebbsMethod.PROVIDED}:
+                errors.append(
+                    "StorageHeatMethod=7 (STEBBS) requires stebbsmethod to be DEFAULT or PROVIDED."
+                )
+
+        # RC method requires active STEBBS
+        if rc_enum not in {None, RCMethod.NONE}:
+            if stebbs_enum is None:
+                errors.append("RCMethod>0 requires a valid stebbsmethod value.")
+            elif stebbs_enum not in {StebbsMethod.DEFAULT, StebbsMethod.PROVIDED}:
+                errors.append("RCMethod>0 requires stebbsmethod to be DEFAULT or PROVIDED.")
+
+        # OhmIncQf can only be used with OHM-based storage heat methods
+        if ohm_enum == OhmIncQf.INCLUDE:
+            if storage_enum is None:
+                errors.append(
+                    "ohmIncQf=1 (include QF) requires a valid StorageHeatMethod."
+                )
+            elif storage_enum not in {
+                StorageHeatMethod.OHM_WITHOUT_QF,
+                StorageHeatMethod.DyOHM,
+                StorageHeatMethod.STEBBS,
+            }:
+                errors.append(
+                    "ohmIncQf=1 (include QF) is only valid for OHM-based storage heat methods (1, 6, or 7)."
+                )
+
+        if errors:
+            if len(errors) == 1:
+                raise ValueError(errors[0])
+            else:
+                # Format multiple errors with numbered list for clarity
+                formatted_errors = "\n  ".join(f"{i+1}. {err}" for i, err in enumerate(errors))
+                raise ValueError(f"Multiple configuration errors found:\n  {formatted_errors}")
+
+        return self
 
     # We then need to set to 0 (or None) all the CO2-related parameters or rules
     # in the code and return them accordingly in the yml file.

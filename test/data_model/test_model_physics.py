@@ -1,27 +1,12 @@
-from pathlib import Path
-import sys
-import types
-
 import pytest
-
-SRC_ROOT = Path(__file__).resolve().parents[2] / "src"
-if str(SRC_ROOT) not in sys.path:
-    sys.path.insert(0, str(SRC_ROOT))
-
-try:
-    import supy  # type: ignore
-except ImportError:  # pragma: no cover
-    supy = types.ModuleType("supy")
-    supy.__path__ = [str(SRC_ROOT / "supy")]
-    sys.modules["supy"] = supy
 
 from supy.data_model.core.model import (
     ModelPhysics,
     NetRadiationMethod,
-    StorageHeatMethod,
-    StebbsMethod,
-    RCMethod,
     OhmIncQf,
+    RCMethod,
+    StebbsMethod,
+    StorageHeatMethod,
 )
 
 

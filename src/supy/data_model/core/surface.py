@@ -445,7 +445,12 @@ class SurfaceProperties(BaseModel):
                         "sathydraulicconduct": 0.0001,
                     }
                     # Soil observation fields use -999 when not available
-                    if property in ["soildensity", "obs_sm_depth", "obs_sm_cap", "obs_soil_not_rocks"]:
+                    if property in [
+                        "soildensity",
+                        "obs_sm_depth",
+                        "obs_sm_cap",
+                        "obs_soil_not_rocks",
+                    ]:
                         value = -999.0
                     else:
                         value = defaults.get(property, 0.0)

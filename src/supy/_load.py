@@ -1404,7 +1404,7 @@ dict_RunControl_default = {
     "disaggmethod": 1,
     "disaggmethodestm": 1,
     "raindisaggmethod": 100,
-    "localclimatemethod": 0,  # 0: use forcing data; 1: use local climate - modelled
+    "rsllevel": 0,  # 0: use forcing data; 1: use local climate - modelled
     "rainamongn": -999,
     "multrainamongn": -999,
     "multrainamongnupperi": -999,

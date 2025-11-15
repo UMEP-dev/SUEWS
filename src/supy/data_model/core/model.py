@@ -538,8 +538,6 @@ for enum_class in [
 class ModelPhysics(BaseModel):
     """
     Model physics configuration options.
-
-    Note: Legacy df_state uses old names (diagmethod→rslmethod, localclimatemethod→rsllevel)
     """
 
     model_config = ConfigDict(title="Physics Methods")
@@ -679,12 +677,6 @@ class ModelPhysics(BaseModel):
             "rcmethod",
         ]
         for attr in list_attr:
-            if attr == "rslmethod":
-                set_df_value("diagmethod", getattr(self, attr))
-                continue
-            if attr == "rsllevel":
-                set_df_value("localclimatemethod", getattr(self, attr))
-                continue
             set_df_value(attr, getattr(self, attr))
         return df_state
 
@@ -724,16 +716,6 @@ class ModelPhysics(BaseModel):
 
         for attr in list_attr:
             try:
-                if attr == "rslmethod":
-                    properties[attr] = RefValue(
-                        int(df.loc[grid_id, ("diagmethod", "0")])
-                    )
-                    continue
-                if attr == "rsllevel":
-                    properties[attr] = RefValue(
-                        int(df.loc[grid_id, ("localclimatemethod", "0")])
-                    )
-                    continue
                 properties[attr] = RefValue(int(df.loc[grid_id, (attr, "0")]))
             except KeyError:
                 raise ValueError(f"Missing attribute '{attr}' in the DataFrame")

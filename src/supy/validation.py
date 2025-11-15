@@ -46,9 +46,9 @@ def analyze_config_methods(config_data: Dict[str, Any]) -> Dict[str, bool]:
         physics = config_data.get("model", {}).get("physics", {})
 
         # Extract method values
-        diagmethod_val = physics.get("diagmethod", 0)
-        if isinstance(diagmethod_val, dict):
-            diagmethod_val = diagmethod_val.get("value", 0)
+        rslmethod_val = physics.get("rslmethod", 0)
+        if isinstance(rslmethod_val, dict):
+            rslmethod_val = rslmethod_val.get("value", 0)
 
         roughmethod_val = physics.get("roughlenmommethod", 1)
         if isinstance(roughmethod_val, dict):
@@ -68,19 +68,19 @@ def analyze_config_methods(config_data: Dict[str, Any]) -> Dict[str, bool]:
 
         # Determine active methods
         methods = {
-            "diagmethod_most": diagmethod_val == 0,
-            "diagmethod_rst": diagmethod_val == 1,
-            "diagmethod_variable": diagmethod_val == 2,
+            "rslmethod_most": rslmethod_val == 0,
+            "rslmethod_rst": rslmethod_val == 1,
+            "rslmethod_variable": rslmethod_val == 2,
             "roughness_variable": roughmethod_val == 2,
             "netradiation_spartacus": netrad_val >= 1000,
             "emissions_advanced": emissions_val >= 4,
             "storage_estm": storage_val in [4, 5],
         }
 
-        # Variable diagmethod uses both MOST and RST
-        if methods["diagmethod_variable"]:
-            methods["diagmethod_most"] = True
-            methods["diagmethod_rst"] = True
+        # Variable rslmethod uses both MOST and RST
+        if methods["rslmethod_variable"]:
+            methods["rslmethod_most"] = True
+            methods["rslmethod_rst"] = True
 
         return methods
 
@@ -320,29 +320,29 @@ def validate_suews_config_conditional(
     physics = config_data.get("model", {}).get("physics", {})
 
     # Diagnostic method validation
-    if methods.get("diagmethod_most") and not methods.get("diagmethod_variable"):
+    if methods.get("rslmethod_most") and not methods.get("rslmethod_variable"):
         if verbose:
             print("DiagMethod MOST: validating MOST parameters")
         errors.extend(validate_most_parameters(sites))
         validated_methods.add("MOST")
         skipped_methods.add("RST")  # RST is skipped when only MOST is enabled
         skipped_methods.add("VARIABLE_ROUGHNESS")
-    elif not methods.get("diagmethod_most"):
+    elif not methods.get("rslmethod_most"):
         skipped.append("MOST parameter validation (DiagMethod != MOST)")
         skipped_methods.add("MOST")
 
-    if methods.get("diagmethod_rst"):
+    if methods.get("rslmethod_rst"):
         if verbose:
             print("DiagMethod RST: validating RST parameters")
         errors.extend(validate_rst_parameters(sites))
         validated_methods.add("RST")
-        if not methods.get("diagmethod_variable"):
+        if not methods.get("rslmethod_variable"):
             skipped_methods.add("MOST")  # MOST is skipped when only RST is enabled
     else:
         skipped.append("RST parameter validation (DiagMethod != RST)")
         skipped_methods.add("RST")
 
-    if methods.get("diagmethod_variable"):
+    if methods.get("rslmethod_variable"):
         if verbose:
             print("DiagMethod VARIABLE: validating both MOST and RST")
         # Variable method validates both MOST and RST

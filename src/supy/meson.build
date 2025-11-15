@@ -11,6 +11,7 @@ py.install_sources(
         '_post.py',
         '_run.py',
         '_save.py',
+        '_soil_obs.py',
         '_supy_driver_wrapper.py',
         '_supy_module.py',
         '_version.py',

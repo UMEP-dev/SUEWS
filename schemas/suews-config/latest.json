@@ -9,10 +9,16 @@
         "startdls": {
           "anyOf": [
             {
-              "$ref": "#/$defs/RefValue_float_"
-            },
-            {
-              "type": "number"
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/RefValue_float_"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "ge": 1,
+              "le": 366
             },
             {
               "type": "null"
@@ -27,10 +33,16 @@
         "enddls": {
           "anyOf": [
             {
-              "$ref": "#/$defs/RefValue_float_"
-            },
-            {
-              "type": "number"
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/RefValue_float_"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "ge": 1,
+              "le": 366
             },
             {
               "type": "null"
@@ -2845,7 +2857,7 @@
       "type": "object"
     },
     "EmissionsMethod": {
-      "description": "Method for calculating anthropogenic heat flux (QF) and CO2 emissions.\n\n0: NO_EMISSIONS - Uses observed QF values from forcing file. Set to zero in forcing file to exclude QF from energy balance\n1: L11 - Loridan et al. (2011) SAHP method. Linear relation with air temperature, weekday/weekend profiles, scales with population density\n2: J11 - J\u00e4rvi et al. (2011) SAHP_2 method. Uses heating/cooling degree days, weekday/weekend differences via profiles and coefficients\n3: L11_UPDATED - Modified Loridan method using daily mean air temperature instead of instantaneous values\n4: J19 - J\u00e4rvi et al. (2019) method. Includes building energy use, human metabolism, and traffic contributions\n5: J19_UPDATED - As method 4 but also calculates CO2 emissions (biogenic and anthropogenic components)",
+      "description": "Method for calculating anthropogenic heat flux (QF) and CO2 emissions.\n\n0: OBSERVED - Uses observed QF values from forcing file. Set to zero in forcing file to exclude QF from energy balance\n1: L11 - Loridan et al. (2011) SAHP method. Linear relation with air temperature, weekday/weekend profiles, scales with population density\n2: J11 - J\u00e4rvi et al. (2011) SAHP_2 method. Uses heating/cooling degree days, weekday/weekend differences via profiles and coefficients\n3: L11_UPDATED - Modified Loridan method using daily mean air temperature instead of instantaneous values\n4: J19 - J\u00e4rvi et al. (2019) method. Includes building energy use, human metabolism, and traffic contributions\n5: J19_UPDATED - As method 4 but also calculates CO2 emissions (biogenic and anthropogenic components)",
       "enum": [
         0,
         1,
@@ -6855,7 +6867,7 @@
       "type": "object"
     },
     "ModelPhysics": {
-      "description": "Model physics configuration options.\n\nKey method interactions:\n\n- diagmethod: Determines HOW near-surface values (2m temp, 10m wind) are calculated from forcing data\n- stabilitymethod: Provides stability correction functions used BY diagmethod calculations\n- localclimatemethod: Uses the near-surface values FROM diagmethod to modify vegetation processes\n- gsmodel: Stomatal conductance model that may be influenced by localclimatemethod adjustments",
+      "description": "Model physics configuration options.\n\nNote: Legacy df_state uses old names (diagmethod\u2192rslmethod, localclimatemethod\u2192rsllevel)",
       "properties": {
         "netradiationmethod": {
           "anyOf": [
@@ -6867,7 +6879,7 @@
             }
           ],
           "default": 3,
-          "description": "Method for calculating net all-wave radiation (Q*). Options: 0 (OBSERVED) = Uses observed Q* from forcing file; 1 (LDOWN_OBSERVED) = Models Q* using observed L\u2193; 2 (LDOWN_CLOUD) = Models Q* with L\u2193 from cloud cover; 3 (LDOWN_AIR) = Models Q* with L\u2193 from air temp and RH (recommended); 11 (LDOWN_SURFACE) = Surface temp variant of method 1 (not recommended); 12 (LDOWN_CLOUD_SURFACE) = Surface temp variant of method 2 (not recommended); 13 (LDOWN_AIR_SURFACE) = Surface temp variant of method 3 (not recommended); 100 (LDOWN_ZENITH) = Zenith angle variant of method 1; 200 (LDOWN_CLOUD_ZENITH) = Zenith angle variant of method 2; 300 (LDOWN_AIR_ZENITH) = Zenith angle variant of method 3; 1001 (LDOWN_SS_OBSERVED) = SPARTACUS-Surface variant of method 1 (experimental); 1002 (LDOWN_SS_CLOUD) = SPARTACUS-Surface variant of method 2 (experimental); 1003 (LDOWN_SS_AIR) = SPARTACUS-Surface variant of method 3 (experimental)",
+          "description": "Method for calculating net all-wave radiation (Q*). Options: 0 (OBSERVED) = Uses observed Q* values from forcing file; 1 (LDOWN_OBSERVED) = Models Q* using NARP (Net All-wave Radiation Parameterization; Offerle et al. 2003, Loridan et al. 2011) with observed longwave down radiation (L\u2193) from forcing file; 2 (LDOWN_CLOUD) = Models Q* using NARP with L\u2193 estimated from cloud cover fraction; 3 (LDOWN_AIR) = Models Q* using NARP with L\u2193 estimated from air temperature and relative humidity; 11 (LDOWN_SURFACE) = Surface temperature variant of method 1 (not recommended); 12 (LDOWN_CLOUD_SURFACE) = Surface temperature variant of method 2 (not recommended); 13 (LDOWN_AIR_SURFACE) = Surface temperature variant of method 3 (not recommended); 100 (LDOWN_ZENITH) = Zenith angle correction variant of method 1 (not recommended); 200 (LDOWN_CLOUD_ZENITH) = Zenith angle correction variant of method 2 (not recommended); 300 (LDOWN_AIR_ZENITH) = Zenith angle correction variant of method 3 (not recommended); 1001 (LDOWN_SS_OBSERVED) = SPARTACUS-Surface integration with observed L\u2193 (experimental); 1002 (LDOWN_SS_CLOUD) = SPARTACUS-Surface integration with L\u2193 from cloud fraction (experimental); 1003 (LDOWN_SS_AIR) = SPARTACUS-Surface integration with L\u2193 from air temperature/humidity (experimental)",
           "title": "Netradiationmethod",
           "unit": "dimensionless"
         },
@@ -6881,7 +6893,7 @@
             }
           ],
           "default": 2,
-          "description": "Method for calculating anthropogenic heat flux (QF) and CO2 emissions. Options: 0 (NO_EMISSIONS) = Observed QF from forcing file; 1 (L11) = Loridan et al. 2011 linear temp relation; 2 (J11) = J\u00e4rvi et al. 2011 with HDD/CDD; 3 (L11_UPDATED) = Loridan with daily mean temp; 4 (J19) = J\u00e4rvi et al. 2019 including metabolism and traffic; 5 (J19_UPDATED) = As 4 with CO2 emissions",
+          "description": "Method for calculating anthropogenic heat flux (QF) and CO2 emissions. Options: 0 (OBSERVED) = Uses observed QF values from forcing file. Set to zero in forcing file to exclude QF from energy balance; 1 (L11) = Loridan et al. (2011) SAHP method. Linear relation with air temperature, weekday/weekend profiles, scales with population density; 2 (J11) = J\u00e4rvi et al. (2011) SAHP_2 method. Uses heating/cooling degree days, weekday/weekend differences via profiles and coefficients; 3 (L11_UPDATED) = Modified Loridan method using daily mean air temperature instead of instantaneous values; 4 (J19) = J\u00e4rvi et al. (2019) method. Includes building energy use, human metabolism, and traffic contributions; 5 (J19_UPDATED) = As method 4 but also calculates CO2 emissions (biogenic and anthropogenic components)",
           "title": "Emissionsmethod",
           "unit": "dimensionless"
         },
@@ -6895,7 +6907,7 @@
             }
           ],
           "default": 1,
-          "description": "Method for calculating storage heat flux (\u0394QS). Options: 0 (OBSERVED) = Uses observed \u0394QS from forcing file; 1 (OHM_WITHOUT_QF) = Objective Hysteresis Model using Q* only; 3 (ANOHM) = Analytical OHM (not recommended); 4 (ESTM) = Element Surface Temperature Method (not recommended); 5 (ESTM_EXTENDED) = Extended ESTM with separate facet temps; 6 (OHM_ENHANCED) = Enhanced OHM parameterisation; 7 (STEBBS) = use STEBBS to calculate storage heat flux for building",
+          "description": "Method for calculating storage heat flux (\u0394QS). Options: 0 (OBSERVED) = Uses observed \u0394QS values from forcing file; 1 (OHM_WITHOUT_QF) = Objective Hysteresis Model using Q* only (use with OhmIncQf=0); 3 (ANOHM) = Analytical OHM (Sun et al., 2017) - not recommended; 4 (ESTM) = Element Surface Temperature Method (Offerle et al., 2005) - not recommended; 5 (EHC) = Explicit Heat Conduction model with separate roof/wall/ground temperatures; 6 (DyOHM) = Dynamic Objective Hysteresis Model (Liu et al., 2025) with dynamic coefficients; 7 (STEBBS) = use STEBBS storage heat flux for building, others use OHM",
           "title": "Storageheatmethod",
           "unit": "dimensionless"
         },
@@ -6909,7 +6921,7 @@
             }
           ],
           "default": 0,
-          "description": "Controls inclusion of anthropogenic heat flux in OHM storage heat calculations. Options: 0 (EXCLUDE) = Use Q* only (required when StorageHeatMethod=1); 1 (INCLUDE) = Use Q*+QF (required when StorageHeatMethod=2)",
+          "description": "Controls inclusion of anthropogenic heat flux in OHM storage heat calculations. Options: 0 (EXCLUDE) = Use Q* only (required when StorageHeatMethod=1); 1 (INCLUDE) = Use Q*+QF (for other OHM-based storage heat methods)",
           "title": "Ohmincqf",
           "unit": "dimensionless"
         },
@@ -6923,7 +6935,7 @@
             }
           ],
           "default": 2,
-          "description": "Method for calculating momentum roughness length (z0m). Options: 1 (FIXED) = Fixed from site parameters; 2 (VARIABLE) = Varies with vegetation LAI; 3 (MACDONALD) = MacDonald et al. 1998 morphometric method; 4 (LAMBDAP_DEPENDENT) = Varies with plan area fraction; 5 (ALTERNATIVE) = Alternative variable method",
+          "description": "Method for calculating momentum roughness length (z0m). Options: 1 (FIXED) = Fixed roughness length from site parameters; 2 (VARIABLE) = Variable based on vegetation LAI using rule of thumb (Grimmond & Oke 1999); 3 (MACDONALD) = MacDonald et al. (1998) morphometric method based on building geometry; 4 (LAMBDAP_DEPENDENT) = Varies with plan area fraction \u03bbp (Grimmond & Oke 1999); 5 (ALTERNATIVE) = Alternative variable method",
           "title": "Roughlenmommethod",
           "unit": "dimensionless"
         },
@@ -6937,7 +6949,7 @@
             }
           ],
           "default": 2,
-          "description": "Method for calculating thermal roughness length (z0h). Options: 1 (BRUTSAERT) = Brutsaert (1982) z0h = z0m/10; 2 (KAWAI) = Kawai et al. (2009); 3 (VOOGT_GRIMMOND) = Voogt and Grimmond (2000); 4 (KANDA) = Kanda et al. (2007); 5 (ADAPTIVE) = Adaptive method based on surface coverage",
+          "description": "Method for calculating thermal roughness length (z0h). Options: 1 (BRUTSAERT) = Brutsaert (1982) z0h = z0m/10 (see Grimmond & Oke 1986); 2 (KAWAI) = Kawai et al. (2009) formulation; 3 (VOOGT_GRIMMOND) = Voogt and Grimmond (2000) formulation; 4 (KANDA) = Kanda et al. (2007) formulation; 5 (ADAPTIVE) = Adaptively using z0m based on pervious coverage: if fully pervious, use method 1; otherwise, use method 2",
           "title": "Roughlenheatmethod",
           "unit": "dimensionless"
         },
@@ -6951,7 +6963,11 @@
             }
           ],
           "default": 3,
-          "description": "Atmospheric stability correction functions for momentum and heat fluxes. Options: 0 = Reserved; 1 = Reserved; 2 (HOEGSTROM) = Dyer/H\u00f6gstr\u00f6m formulations (not recommended); 3 (CAMPBELL_NORMAN) = Campbell & Norman 1998 formulations (recommended); 4 (BUSINGER_HOEGSTROM) = Businger/H\u00f6gstr\u00f6m formulations (not recommended)",
+          "description": "Atmospheric stability correction functions for momentum and heat fluxes. Options: 0 (NOT_USED) = Reserved; 1 (NOT_USED2) = Reserved; 2 (HOEGSTROM) = Dyer (1974)/H\u00f6gstr\u00f6m (1988) for momentum, Van Ulden & Holtslag (1985) for stable conditions (not recommended); 3 (CAMPBELL_NORMAN) = Campbell & Norman (1998) formulations for both momentum and heat; 4 (BUSINGER_HOEGSTROM) = Businger et al. (1971)/H\u00f6gstr\u00f6m (1988) formulations (not recommended)",
+          "note": "Provides stability correction functions used by rslmethod calculations",
+          "provides_to": [
+            "rslmethod"
+          ],
           "title": "Stabilitymethod",
           "unit": "dimensionless"
         },
@@ -6965,7 +6981,7 @@
             }
           ],
           "default": 0,
-          "description": "Method for determining soil moisture deficit (SMD). Options: 0 (MODELLED) = Calculated from water balance using soil parameters; 1 (OBSERVED_VOLUMETRIC) = Uses observed volumetric soil moisture (m\u00b3/m\u00b3) from forcing file; 2 (OBSERVED_GRAVIMETRIC) = Uses observed gravimetric soil moisture (kg/kg) from forcing file",
+          "description": "Method for determining soil moisture deficit (SMD). Options: 0 (MODELLED) = SMD calculated from water balance using soil parameters; 1 (OBSERVED_VOLUMETRIC) = Uses observed volumetric soil moisture content (m\u00b3/m\u00b3) from forcing file; 2 (OBSERVED_GRAVIMETRIC) = Uses observed gravimetric soil moisture content (kg/kg) from forcing file",
           "title": "Smdmethod",
           "unit": "dimensionless"
         },
@@ -6979,7 +6995,7 @@
             }
           ],
           "default": 0,
-          "description": "Method for determining external water use (irrigation). Options: 0 (MODELLED) = Calculated based on soil moisture deficit and irrigation parameters; 1 (OBSERVED) = Uses observed water use values from forcing file",
+          "description": "Method for determining external water use (irrigation). Options: 0 (MODELLED) = Water use calculated based on soil moisture deficit and irrigation parameters; 1 (OBSERVED) = Uses observed water use values from forcing file",
           "title": "Waterusemethod",
           "unit": "dimensionless"
         },
@@ -6993,7 +7009,14 @@
             }
           ],
           "default": 2,
-          "description": "Method for calculating near-surface meteorological diagnostics (2m temperature, 2m humidity, 10m wind speed). Options: 0 (MOST) = Monin-Obukhov Similarity Theory for homogeneous surfaces; 1 (RST) = Roughness Sublayer Theory for heterogeneous urban surfaces; 2 (VARIABLE) = Automatic selection based on surface morphology (plan area index, frontal area index, and roughness element heights)",
+          "depends_on": [
+            "stabilitymethod"
+          ],
+          "description": "Roughness Sublayer (RSL) method for calculating near-surface meteorological diagnostics (2m temperature, 2m humidity, 10m wind speed). Options: 2 (VARIABLE) = Automatically selects between MOST and RST based on surface morphology (plan area index, frontal area index, and roughness element heights)",
+          "note": "Determines how near-surface values (2m temp, 10m wind) are calculated from forcing data",
+          "provides_to": [
+            "rsllevel"
+          ],
           "title": "Rslmethod",
           "unit": "dimensionless"
         },
@@ -7007,7 +7030,7 @@
             }
           ],
           "default": 0,
-          "description": "Method for calculating frontal area index (FAI) - the ratio of frontal area to plan area. Options: 0 (USE_PROVIDED) = Use FAI values provided in site parameters; 1 (SIMPLE_SCHEME) = Calculate FAI using simple scheme based on surface fractions and heights",
+          "description": "Method for calculating frontal area index (FAI) - the ratio of frontal area to plan area. Options: 0 (USE_PROVIDED) = Use FAI values provided in site parameters (FAIBldg, FAIEveTree, FAIDecTree); 1 (SIMPLE_SCHEME) = Calculate FAI using simple scheme based on surface fractions and heights (see issue #192)",
           "title": "Faimethod",
           "unit": "dimensionless"
         },
@@ -7021,7 +7044,14 @@
             }
           ],
           "default": 0,
-          "description": "Method for incorporating urban microclimate feedbacks on vegetation and evapotranspiration. Options: 0 (NONE) = No local climate adjustments, use forcing file meteorology directly; 1 (BASIC) = Simple adjustments for urban temperature effects on leaf area index and growing degree days; 2 (DETAILED) = Comprehensive feedbacks including moisture stress, urban CO2 dome effects, and modified phenology cycles",
+          "depends_on": [
+            "rslmethod"
+          ],
+          "description": "Method for incorporating local environmental feedbacks on surface processes, particularly vegetation phenology and evapotranspiration responses to urban heat island effects. Options: 0 (NONE) = No local climate adjustments; use forcing file meteorology directly; 1 (BASIC) = Simple adjustments for urban temperature effects on leaf area index (LAI) and growing degree days; 2 (DETAILED) = Comprehensive feedbacks including moisture stress, urban CO2 dome effects, and modified phenology cycles",
+          "note": "Uses near-surface values from rslmethod to modify vegetation processes",
+          "provides_to": [
+            "gsmodel"
+          ],
           "title": "Rsllevel",
           "unit": "dimensionless"
         },
@@ -7035,7 +7065,11 @@
             }
           ],
           "default": 2,
+          "depends_on": [
+            "rsllevel"
+          ],
           "description": "Stomatal conductance parameterisation method for vegetation surfaces. Options: 1 (JARVI) = Original parameterisation (J\u00e4rvi et al. 2011) based on environmental controls; 2 (WARD) = Updated parameterisation (Ward et al. 2016) with improved temperature and VPD responses",
+          "note": "Stomatal conductance model influenced by rsllevel adjustments",
           "title": "Gsmodel",
           "unit": "dimensionless"
         },
@@ -7049,7 +7083,7 @@
             }
           ],
           "default": 0,
-          "description": "Controls snow process calculations. Options: 0 (DISABLED) = Snow processes not included; 1 (ENABLED) = Snow accumulation, melt, and albedo effects included",
+          "description": "Controls snow process calculations (J\u00e4rvi et al. 2014). Options: 0 (DISABLED) = Snow processes not included; 1 (ENABLED) = Snow accumulation, melt, and albedo effects included",
           "title": "Snowuse",
           "unit": "dimensionless"
         },
@@ -7063,7 +7097,7 @@
             }
           ],
           "default": 0,
-          "description": "Surface Temperature Energy Balance Based Scheme (STEBBS) for facet temperatures. Options: 0 (NONE) = STEBBS disabled; 1 (DEFAULT) = STEBBS with default parameters; 2 (PROVIDED) = STEBBS with user-specified parameters",
+          "description": "Surface Temperature Energy Balance Based Scheme (STEBBS) for facet temperatures. Options: 0 (NONE) = STEBBS calculations disabled; 1 (DEFAULT) = STEBBS enabled with default parameters; 2 (PROVIDED) = STEBBS enabled with user-specified parameters",
           "title": "Stebbsmethod",
           "unit": "dimensionless"
         },
@@ -7077,7 +7111,7 @@
             }
           ],
           "default": 0,
-          "description": "method to split heat capacity of building envelope in STEBBS. Options: 0 = NONE; 1 = input weighting factor x1; 2 = use parameterised weighting factor by building material property",
+          "description": "Method to split building envelope heat capacity in STEBBS. Options: 0 (NONE) = No heat capacity splitting applied; 1 (PROVIDED) = Use user defined value (fractional x1) between 0 and 1; 2 (PARAMETERISE) = Use building material thermal property to parameterise the weighting factor x1",
           "title": "Rcmethod",
           "unit": "dimensionless"
         },
@@ -7109,7 +7143,7 @@
       "type": "integer"
     },
     "NetRadiationMethod": {
-      "description": "Method for calculating net all-wave radiation (Q*).\n\n0: OBSERVED - Uses observed Q* values from forcing file\n1: LDOWN_OBSERVED - Models Q* using observed longwave down radiation (L\u2193) from forcing file\n2: LDOWN_CLOUD - Models Q* with L\u2193 estimated from cloud cover fraction\n3: LDOWN_AIR - Models Q* with L\u2193 estimated from air temperature and relative humidity (recommended for basic runs)\n11-13: Surface temperature variants of methods 1-3 (not recommended)\n100-300: Zenith angle correction variants with NARP output (not recommended)\n1001-1003: SPARTACUS-Surface integration variants (experimental)",
+      "description": "Method for calculating net all-wave radiation (Q*).\n\n0: OBSERVED - Uses observed Q* values from forcing file\n1: LDOWN_OBSERVED - Models Q* using NARP (Net All-wave Radiation Parameterization; Offerle et al. 2003, Loridan et al. 2011) with observed longwave down radiation (L\u2193) from forcing file\n2: LDOWN_CLOUD - Models Q* using NARP with L\u2193 estimated from cloud cover fraction\n3: LDOWN_AIR - Models Q* using NARP with L\u2193 estimated from air temperature and relative humidity\n11: LDOWN_SURFACE - Surface temperature variant of method 1 (not recommended)\n12: LDOWN_CLOUD_SURFACE - Surface temperature variant of method 2 (not recommended)\n13: LDOWN_AIR_SURFACE - Surface temperature variant of method 3 (not recommended)\n100: LDOWN_ZENITH - Zenith angle correction variant of method 1 (not recommended)\n200: LDOWN_CLOUD_ZENITH - Zenith angle correction variant of method 2 (not recommended)\n300: LDOWN_AIR_ZENITH - Zenith angle correction variant of method 3 (not recommended)\n1001: LDOWN_SS_OBSERVED - SPARTACUS-Surface integration with observed L\u2193 (experimental)\n1002: LDOWN_SS_CLOUD - SPARTACUS-Surface integration with L\u2193 from cloud fraction (experimental)\n1003: LDOWN_SS_AIR - SPARTACUS-Surface integration with L\u2193 from air temperature/humidity (experimental)",
       "enum": [
         0,
         1,
@@ -7239,7 +7273,7 @@
       "type": "object"
     },
     "OhmIncQf": {
-      "description": "Controls inclusion of anthropogenic heat flux in OHM storage heat calculations.\n\n0: EXCLUDE - Use Q* only (required when StorageHeatMethod=1)\n1: INCLUDE - Use Q*+QF (required when StorageHeatMethod=2)",
+      "description": "Controls inclusion of anthropogenic heat flux in OHM storage heat calculations.\n\n0: EXCLUDE - Use Q* only (required when StorageHeatMethod=1)\n1: INCLUDE - Use Q*+QF (for other OHM-based storage heat methods)",
       "enum": [
         0,
         1
@@ -7283,6 +7317,19 @@
           "default": null,
           "description": "List of output groups to save (only applies to txt format). Available groups: 'SUEWS', 'DailyState', 'snow', 'ESTM', 'RSL', 'BL', 'debug'. If not specified, defaults to ['SUEWS', 'DailyState']",
           "title": "Groups"
+        },
+        "path": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Output directory path where result files will be saved. If not specified, defaults to current working directory.",
+          "title": "Path"
         }
       },
       "title": "Output Configuration",
@@ -7603,7 +7650,7 @@
       "type": "object"
     },
     "RCMethod": {
-      "description": "Method to split building envelope heat capacity in STEBBS.\n0: NONE\n1: PROVIDED - use user defined value (fractional x1) between 0 and 1\n2: PARAMETERISE - use building material thermal property to parameterise the weighting factor x1",
+      "description": "Method to split building envelope heat capacity in STEBBS.\n\n0: NONE - No heat capacity splitting applied\n1: PROVIDED - Use user defined value (fractional x1) between 0 and 1\n2: PARAMETERISE - Use building material thermal property to parameterise the weighting factor x1",
       "enum": [
         0,
         1,
@@ -7613,7 +7660,7 @@
       "type": "integer"
     },
     "RSLLevel": {
-      "description": "Method for incorporating local environmental feedbacks on surface processes, particularly vegetation phenology\nand evapotranspiration responses to urban heat island effects.\n\n0: NONE - No local climate adjustments; use forcing file meteorology directly\n1: BASIC - Simple adjustments for urban temperature effects on leaf area index (LAI) and growing degree days\n2: DETAILED - Comprehensive feedbacks including moisture stress, urban CO2 dome effects, and modified phenology cycles",
+      "description": "Method for incorporating local environmental feedbacks on surface processes, particularly vegetation phenology and evapotranspiration responses to urban heat island effects.\n\n0: NONE - No local climate adjustments; use forcing file meteorology directly\n1: BASIC - Simple adjustments for urban temperature effects on leaf area index (LAI) and growing degree days\n2: DETAILED - Comprehensive feedbacks including moisture stress, urban CO2 dome effects, and modified phenology cycles",
       "enum": [
         0,
         1,
@@ -7623,7 +7670,7 @@
       "type": "integer"
     },
     "RSLMethod": {
-      "description": "Method for calculating near-surface meteorological diagnostics (2m temperature, 2m humidity, 10m wind speed).\n\n0: MOST (Monin-Obukhov Similarity Theory) - Appropriate for relatively homogeneous, flat surfaces\n1: RST (Roughness Sublayer Theory) - Appropriate for heterogeneous urban surfaces with tall roughness elements\n2: VARIABLE - Automatically selects between MOST and RST based on surface morphology (plan area index, frontal area index, and roughness element heights)",
+      "description": "Roughness Sublayer (RSL) method for calculating near-surface meteorological diagnostics (2m temperature, 2m humidity, 10m wind speed).\n\n0: MOST (Monin-Obukhov Similarity Theory) - Appropriate for relatively homogeneous, flat surfaces\n1: RST (Roughness Sublayer Theory; Theeuwes et al. 2019) - Appropriate for heterogeneous urban surfaces with tall roughness elements\n2: VARIABLE - Automatically selects between MOST and RST based on surface morphology (plan area index, frontal area index, and roughness element heights)",
       "enum": [
         0,
         1,
@@ -8848,7 +8895,7 @@
           "default": 40.0,
           "description": "Altitude of the site above sea level",
           "display_name": "Altitude",
-          "gt": 0,
+          "ge": 0,
           "title": "Alt",
           "unit": "m"
         },
@@ -9354,7 +9401,7 @@
       "type": "object"
     },
     "SnowUse": {
-      "description": "Controls snow process calculations.\n\n0: DISABLED - Snow processes not included\n1: ENABLED - Snow accumulation, melt, and albedo effects included",
+      "description": "Controls snow process calculations (J\u00e4rvi et al. 2014).\n\n0: DISABLED - Snow processes not included\n1: ENABLED - Snow accumulation, melt, and albedo effects included",
       "enum": [
         0,
         1
@@ -9363,7 +9410,7 @@
       "type": "integer"
     },
     "StabilityMethod": {
-      "description": "Atmospheric stability correction functions for momentum and heat fluxes.\n\n0: NOT_USED - Reserved\n1: NOT_USED2 - Reserved\n2: HOEGSTROM - Dyer (1974)/H\u00f6gstr\u00f6m (1988) for momentum, Van Ulden & Holtslag (1985) for stable conditions (not recommended)\n3: CAMPBELL_NORMAN - Campbell & Norman (1998) formulations for both momentum and heat (recommended)\n4: BUSINGER_HOEGSTROM - Businger et al. (1971)/H\u00f6gstr\u00f6m (1988) formulations (not recommended)",
+      "description": "Atmospheric stability correction functions for momentum and heat fluxes.\n\n0: NOT_USED - Reserved\n1: NOT_USED2 - Reserved\n2: HOEGSTROM - Dyer (1974)/H\u00f6gstr\u00f6m (1988) for momentum, Van Ulden & Holtslag (1985) for stable conditions (not recommended)\n3: CAMPBELL_NORMAN - Campbell & Norman (1998) formulations for both momentum and heat\n4: BUSINGER_HOEGSTROM - Businger et al. (1971)/H\u00f6gstr\u00f6m (1988) formulations (not recommended)",
       "enum": [
         0,
         1,
@@ -11036,7 +11083,7 @@
       "type": "object"
     },
     "StorageHeatMethod": {
-      "description": "Method for calculating storage heat flux (\u0394QS).\n\n0: OBSERVED - Uses observed \u0394QS values from forcing file\n1: OHM_WITHOUT_QF - Objective Hysteresis Model using Q* only (use with OhmIncQf=0)\n3: ANOHM - Analytical OHM (Sun et al., 2017) - not recommended\n4: ESTM - Element Surface Temperature Method (Offerle et al., 2005) - not recommended\n5: ESTM_EXTENDED - Extended ESTM with separate roof/wall/ground temperatures\n6: OHM_ENHANCED - OHM with enhanced parameterisation\n7: STEBBS - use STEBBS storage heat flux for building, others use OHM",
+      "description": "Method for calculating storage heat flux (\u0394QS).\n\n0: OBSERVED - Uses observed \u0394QS values from forcing file\n1: OHM_WITHOUT_QF - Objective Hysteresis Model using Q* only (use with OhmIncQf=0)\n3: ANOHM - Analytical OHM (Sun et al., 2017) - not recommended\n4: ESTM - Element Surface Temperature Method (Offerle et al., 2005) - not recommended\n5: EHC - Explicit Heat Conduction model with separate roof/wall/ground temperatures\n6: DyOHM - Dynamic Objective Hysteresis Model (Liu et al., 2025) with dynamic coefficients\n7: STEBBS - use STEBBS storage heat flux for building, others use OHM",
       "enum": [
         0,
         1,

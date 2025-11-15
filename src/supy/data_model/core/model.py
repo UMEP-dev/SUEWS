@@ -767,7 +767,9 @@ class ModelPhysics(BaseModel):
             if stebbs_enum is None:
                 errors.append("RCMethod>0 requires a valid stebbsmethod value.")
             elif stebbs_enum not in {StebbsMethod.DEFAULT, StebbsMethod.PROVIDED}:
-                errors.append("RCMethod>0 requires stebbsmethod to be DEFAULT or PROVIDED.")
+                errors.append(
+                    "RCMethod>0 requires stebbsmethod to be DEFAULT or PROVIDED."
+                )
 
         # OhmIncQf can only be used with OHM-based storage heat methods
         if ohm_enum == OhmIncQf.INCLUDE:
@@ -789,8 +791,12 @@ class ModelPhysics(BaseModel):
                 raise ValueError(errors[0])
             else:
                 # Format multiple errors with numbered list for clarity
-                formatted_errors = "\n  ".join(f"{i+1}. {err}" for i, err in enumerate(errors))
-                raise ValueError(f"Multiple configuration errors found:\n  {formatted_errors}")
+                formatted_errors = "\n  ".join(
+                    f"{i + 1}. {err}" for i, err in enumerate(errors)
+                )
+                raise ValueError(
+                    f"Multiple configuration errors found:\n  {formatted_errors}"
+                )
 
         return self
 

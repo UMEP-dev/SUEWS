@@ -39,8 +39,9 @@ def test_spartacus_requires_ehc_storage():
     """SPARTACUS radiation options should only be paired with EHC storage heat."""
 
     # Verify that the test uses a valid SPARTACUS option (>= 1000)
-    assert NetRadiationMethod.LDOWN_SS_OBSERVED.value >= 1000, \
+    assert NetRadiationMethod.LDOWN_SS_OBSERVED.value >= 1000, (
         f"NetRadiationMethod.LDOWN_SS_OBSERVED should be >= 1000, got {NetRadiationMethod.LDOWN_SS_OBSERVED.value}"
+    )
 
     with pytest.raises(ValueError, match="must be coupled with StorageHeatMethod=5"):
         ModelPhysics(
@@ -77,8 +78,9 @@ def test_valid_combinations_pass():
     """A configuration satisfying all constraints should instantiate cleanly."""
 
     # Verify that the test uses a valid SPARTACUS option (>= 1000) for EHC
-    assert NetRadiationMethod.LDOWN_SS_CLOUD.value >= 1000, \
+    assert NetRadiationMethod.LDOWN_SS_CLOUD.value >= 1000, (
         f"NetRadiationMethod.LDOWN_SS_CLOUD should be >= 1000, got {NetRadiationMethod.LDOWN_SS_CLOUD.value}"
+    )
 
     config = ModelPhysics(
         storageheatmethod=StorageHeatMethod.EHC,

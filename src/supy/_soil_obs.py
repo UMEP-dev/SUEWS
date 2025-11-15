@@ -16,7 +16,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import logging
-from typing import Dict, Iterable, Tuple
+from typing import Dict, Iterable, Optional, Tuple
 
 import numpy as np
 import pandas as pd
@@ -27,7 +27,9 @@ except ImportError:  # pragma: no cover
     logger_supy = logging.getLogger("SuPy")
 
 MISSING_VALUE = -999.0
-NON_WATER_SURFACE_INDICES: Tuple[int, ...] = tuple(range(6))  # 0-5 are paved..bare soil
+# SUEWS surface type indices: 0=paved, 1=buildings, 2=evergreen, 3=deciduous,
+# 4=grass, 5=bare soil, 6=water. Soil moisture only applies to surfaces 0-5.
+NON_WATER_SURFACE_INDICES: Tuple[int, ...] = tuple(range(6))
 
 
 @dataclass(frozen=True)
@@ -93,8 +95,10 @@ def convert_observed_soil_moisture(
             raise ValueError(
                 "Observed soil moisture metadata differ between grids, "
                 "but SuPy currently feeds a single forcing dataframe to all grids. "
-                "Please run each grid separately or harmonise the soil observation "
-                f"settings. Grid {grid} differs from the baseline."
+                f"Grid {grid} differs from the baseline. "
+                "Solution: Call `run_supy_ser()` separately for each grid group "
+                "with matching soil observation settings, or harmonise the metadata "
+                "in your soil configuration files (SUEWS_Soil.txt or YAML config)."
             )
 
     if "xsmd" not in df_forcing.columns:
@@ -104,17 +108,28 @@ def convert_observed_soil_moisture(
         )
 
     df_result = df_forcing.copy()
+    original_values = df_result["xsmd"].copy()
     df_result["xsmd"] = _convert_xsmd_series(
         df_result["xsmd"],
         first_meta,
         smd_method,
     )
-    logger_supy.info(
-        "Converted observed soil moisture (`xsmd`) to deficits using "
-        f"SMDMethod={smd_method}. depth={first_meta.depth_mm} mm, "
-        f"smcap={first_meta.smcap}, soil_density={first_meta.soil_density}, "
-        f"soil_not_rocks={first_meta.soil_not_rocks}"
-    )
+
+    # Log conversion summary
+    valid_mask = original_values > (MISSING_VALUE + 1)
+    if np.any(valid_mask):
+        converted = df_result["xsmd"][valid_mask]
+        logger_supy.info(
+            f"Converted observed soil moisture (`xsmd`) to deficits using "
+            f"SMDMethod={smd_method}. depth={first_meta.depth_mm} mm, "
+            f"smcap={first_meta.smcap}, soil_density={first_meta.soil_density}, "
+            f"soil_not_rocks={first_meta.soil_not_rocks}"
+        )
+        logger_supy.debug(
+            f"Deficit statistics: min={converted.min():.2f} mm, "
+            f"max={converted.max():.2f} mm, mean={converted.mean():.2f} mm, "
+            f"n_valid={valid_mask.sum()}/{len(original_values)}"
+        )
     return df_result
 
 
@@ -133,19 +148,27 @@ def _convert_xsmd_series(
     meta: SoilObservationMetadata,
     smd_method: int,
 ) -> pd.Series:
-    """Convert volumetric/gravimetric xsmd measurements to a soil moisture deficit."""
+    """Convert volumetric/gravimetric xsmd measurements to a soil moisture deficit.
+
+    Dimensional analysis:
+    - SMDMethod=1 (volumetric): [fraction] × [mm] × [fraction] = [mm]
+    - SMDMethod=2 (gravimetric): [g/g] × [g/cm³] × [mm] × [fraction] = [mm]
+    """
 
     values = xsmd.to_numpy(dtype=float, copy=True)
-    mask_valid = values > (MISSING_VALUE + 1)  # treat > -998 as real data
+    # Tolerance of 1.0 allows for slight numerical variations above -999
+    # while ensuring truly missing data (exactly -999) are excluded
+    mask_valid = values > (MISSING_VALUE + 1)
     if not np.any(mask_valid):
         return xsmd
 
     clipped = values[mask_valid].copy()
     if smd_method == 1:
-        # volumetric, ensure within [0, smcap]
+        # Volumetric: deficit [mm] = (θ_max - θ_obs) [fraction] × depth [mm] × soil_fraction
         clipped = np.clip(clipped, 0.0, meta.smcap)
         deficit = (meta.smcap - clipped) * meta.depth_mm * meta.soil_not_rocks
     elif smd_method == 2:
+        # Gravimetric: deficit [mm] = (w_max - w_obs) [g/g] × ρ_soil [g/cm³] × depth [mm] × soil_fraction
         clipped = np.clip(clipped, 0.0, meta.smcap)
         deficit = (
             (meta.smcap - clipped)
@@ -233,7 +256,7 @@ def _weighted_average(
     row: pd.Series,
     column: str,
     weights: Dict[int, float],
-) -> float | None:
+) -> Optional[float]:
     """Weighted average across surfaces, ignoring missing values."""
 
     totals = []

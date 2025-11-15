@@ -18,7 +18,7 @@ def test_wind_speeds_always_positive_most_profile():
     df_state_init, df_forcing = sp.load_SampleData()
 
     # Force MOST method (no RSL)
-    df_state_init.loc[:, "diagmethod"] = 0
+    df_state_init.loc[:, "rslmethod"] = 0
     df_state_init.loc[:, "stabilitymethod"] = 2  # Use method 2 as in issue report
 
     # Test with various displacement heights and roughness lengths that might cause issues

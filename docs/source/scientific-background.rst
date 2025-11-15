@@ -51,5 +51,5 @@ The following pages provide detailed information on:
 - :ref:`energy_balance`: Components of the surface energy balance (:math:`Q^*`, :math:`Q_F`, :math:`\Delta Q_S`, :math:`Q_H`, :math:`Q_E`)
 - :ref:`water_balance`: Components of the surface water balance (:math:`P`, :math:`I`, :math:`E`, :math:`\Delta S`, :math:`R`)
 - :ref:`supporting_processes`: Supporting processes and schemes (LAI, stability, RSL, CBL, CO2)
-- :ref:`suews_publications`: Core SUEWS publications from the development team
-- :ref:`refs`: General scientific references
+
+More information on the scientific background of SUEWS, please refer to :ref:`suews_publications` while more general urban climate and hydrology references are available in the :ref:`refs` section.

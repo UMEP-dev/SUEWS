@@ -139,7 +139,9 @@ def test_xsmd_with_nan_values():
     assert pytest.approx(df_result["xsmd"].iloc[0], rel=1e-6) == 36.0
     assert pd.isna(df_result["xsmd"].iloc[1])  # NaN should remain NaN
     assert pytest.approx(df_result["xsmd"].iloc[2], rel=1e-6) == 12.0
-    assert pytest.approx(df_result["xsmd"].iloc[3], rel=1e-6) == -999.0  # Missing value preserved
+    assert (
+        pytest.approx(df_result["xsmd"].iloc[3], rel=1e-6) == -999.0
+    )  # Missing value preserved
 
 
 def test_xsmd_exceeding_smcap():

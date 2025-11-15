@@ -346,12 +346,14 @@ class RSTGenerator:
             if depends:
                 refs = ", ".join(f":ref:`{d} <{d}>`" for d in depends)
                 lines.append(f"      **Depends on:** {refs}")
+                lines.append("")
 
             # Add provides_to
             provides = relationships.get("provides_to", [])
             if provides:
                 refs = ", ".join(f":ref:`{p} <{p}>`" for p in provides)
                 lines.append(f"      **Provides to:** {refs}")
+                lines.append("")
 
         return lines
 

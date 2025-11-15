@@ -33,7 +33,7 @@ Net all-wave radiation (Q*) is a fundamental component of the surface energy bal
 #. **BEERS** (Building Envelope Energy Radiation Scheme) calculates detailed radiation components for urban surfaces including point-specific radiation analysis.
 
 NARP (Net All-wave Radiation Parameterization)
------------------------------------------------
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 **NARP** :cite:`O03,L11` is the standard radiation scheme in SUEWS, implemented in the Fortran module ``suews_phys_narp.f95``. It calculates outgoing shortwave and incoming and outgoing longwave radiation components based on:
 
@@ -44,14 +44,14 @@ NARP (Net All-wave Radiation Parameterization)
 The scheme uses empirically-derived relations to estimate radiation components when they are not directly observed. NARP provides a computationally efficient approach suitable for most applications.
 
 BEERS (Building Envelope Energy Radiation Scheme)
---------------------------------------------------
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 **BEERS** is the successor to SOLWEIG and provides advanced radiation modelling for urban environments. BEERS calculates detailed radiation components at specific points of interest (POI) within urban areas, considering the complex 3D geometry of buildings and vegetation.
 
 **Module:** ``suews_phys_beers.f95``
 
 Key Features
-^^^^^^^^^^^^
+""""""""""""
 
 - **Point-specific Analysis:** Calculates radiation at specific points rather than grid averages
 - **Directional Radiation:** Provides radiation from cardinal directions (north, south, east, west)
@@ -60,7 +60,7 @@ Key Features
 - **Shadow Analysis:** Models shadows cast by buildings and vegetation on ground and walls
 
 Output Variables
-^^^^^^^^^^^^^^^^
+""""""""""""""""
 
 BEERS provides comprehensive radiation output including:
 
@@ -72,7 +72,7 @@ BEERS provides comprehensive radiation output including:
 - **Comfort Metrics:** Mean radiant temperature (Tmrt) for thermal comfort assessment
 
 Physical Basis
-^^^^^^^^^^^^^^
+""""""""""""""
 
 BEERS solves the urban radiation balance by:
 
@@ -83,7 +83,7 @@ BEERS solves the urban radiation balance by:
 5. **Thermal Comfort:** Computes mean radiant temperature for human comfort studies
 
 Applications
-^^^^^^^^^^^^
+""""""""""""
 
 - Urban climate analysis and heat island studies
 - Building energy assessment in urban contexts
@@ -92,7 +92,7 @@ Applications
 - Microclimate analysis for specific locations
 
 Configuration
-^^^^^^^^^^^^^
+"""""""""""""
 
 BEERS can be enabled in SUEWS through the model physics settings. Required inputs include:
 
@@ -105,7 +105,7 @@ BEERS can be enabled in SUEWS through the model physics settings. Required input
    BEERS provides detailed radiation output that is particularly valuable for applications requiring point-specific radiation analysis or human thermal comfort assessment in urban environments.
 
 SPARTACUS-Surface
------------------
+^^^^^^^^^^^^^^^^^
 
 .. warning:: This module is highly experimental and not yet fully tested: description here is not yet complete, either. Please refer to the original `SPARTACUS-Surface page <https://github.com/ecmwf/spartacus-surface>`_ for more details, which may differ from the coupled version in SUEWS described below due to possibly different implementations.
 
@@ -119,7 +119,7 @@ SPARTACUS-Surface
    -  Include snow
 
 Introduction
-^^^^^^^^^^^^
+""""""""""""
 
 The `SPARTACUS-Surface module <https://github.com/ecmwf/spartacus-surface>`_ computes the 3D interaction of shortwave and longwave radiation with complex surface canopies, including vegetated and urban canopies (with or without vegetation).
 
@@ -161,7 +161,7 @@ Each time light is intercepted it can undergo diffuse or specular reflection, be
 The probabilities for buildings and the ground are determined by albedos and emissivities, and for trees are determined by extinction coefficients and single scattering albedos.
 
 SUEWS-SPARTACUS Implementation
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+"""""""""""""""""""""""""""""""
 
 -  Maximum of 15 vertical layers.
 
@@ -211,7 +211,7 @@ SUEWS-SPARTACUS Implementation
 
 
 Canopy Representation Comparison
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+"""""""""""""""""""""""""""""""""
 
 **RSL (Roughness Sublayer) Profile:**
 
@@ -242,7 +242,7 @@ The buildings are allowed to vary in height.
 .. .. |SUEWS005|
 
 Configuration and Usage
-^^^^^^^^^^^^^^^^^^^^^^^
+"""""""""""""""""""""""
 
 To run SUEWS-SPARTACUS the configuration parameters that need to be set are:
 
@@ -264,10 +264,10 @@ See output file ``SSss_YYYY_SPARTACUS_TT.txt``.
 .. _spartacus_parameters:
 
 Parameter Details
-^^^^^^^^^^^^^^^^^
+"""""""""""""""""
 
 Vegetation Single Scattering Albedo (SSA)
-""""""""""""""""""""""""""""""""""""""""""
+''''''''''''''''''''''''''''''''''''''''''
 
 The **shortwave** broadband SSA is equal to the sum of the broadband reflectance :math:`R` and broadband transmittance :math:`T` :cite:`Yang2020Sep`.
 Given reflectance :math:`r` and transmittance :math:`t` spectra the SSA is calculated to modify equation
@@ -299,13 +299,13 @@ The peak in the thermal infra-red is ~10 𝜇m.
 Based on inspection of r profiles for several tree species SSA=0.06 is the default value.
 
 Building Albedo and Emissivity
-"""""""""""""""""""""""""""""""
+'''''''''''''''''''''''''''''''
 
 Use broadband values in Table C.1 of :cite:t:`Kotthaus2014Aug`.
 Full spectra can be found in the `spectral library documentation <http://micromet.reading.ac.uk/spectral-library/>`__.
 
 Ground Albedo and Emissivity
-"""""""""""""""""""""""""""""
+'''''''''''''''''''''''''''''
 
 In SUEWS-SS this is calculated as::
 
@@ -316,12 +316,12 @@ where 𝛼 is either the ground albedo or emissivity.
 𝛼 values for the surfaces should be configured in the surface properties section of the YAML configuration (albedo and emissivity parameters for paved, grass, bare soil, and water surfaces).
 
 Parameter Consistency
-"""""""""""""""""""""
+'''''''''''''''''''''
 
 SUEWS building and tree (evergreen+deciduous) surface fractions should be consistent with the ``building_frac`` and ``veg_frac`` parameters in the ``spartacus`` configuration for the lowest model layer.
 
 Leaf Area Index (LAI)
-""""""""""""""""""""""
+''''''''''''''''''''''
 
 The total vertically integrated LAI provided by SUEWS is used in SS to determine the LAI and vegetation extinction coefficient in each layer.
 LAI values should be configured in the vegetation properties section of the YAML configuration.

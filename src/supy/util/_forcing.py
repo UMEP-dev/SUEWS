@@ -22,7 +22,7 @@ import numpy as np
 import pandas as pd
 
 try:  # pragma: no cover - fallback used only during isolated tests
-    from ._env import logger_supy
+    from .._env import logger_supy
 except ImportError:  # pragma: no cover
     logger_supy = logging.getLogger("SuPy")
 

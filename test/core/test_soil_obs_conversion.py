@@ -6,8 +6,8 @@ import pandas as pd
 import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-MODULE_PATH = REPO_ROOT / "src" / "supy" / "_soil_obs.py"
-spec = importlib.util.spec_from_file_location("_soil_obs", MODULE_PATH)
+MODULE_PATH = REPO_ROOT / "src" / "supy" / "util" / "_forcing.py"
+spec = importlib.util.spec_from_file_location("util._forcing", MODULE_PATH)
 soil_obs = importlib.util.module_from_spec(spec)
 assert spec.loader is not None
 sys.modules[spec.name] = soil_obs

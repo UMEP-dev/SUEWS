@@ -253,6 +253,11 @@
   - Same functionality, lighter dependencies
   - Consolidates all parallel processing to one library
 
+### 16 Nov 2025
+- [maintenance] Reorganised soil observation conversion logic from top-level `_soil_obs.py` to `util/_forcing.py`
+  - Follows SuPy's established pattern where specialized utilities live in the `util/` subdirectory
+  - No functional changes; purely organisational refactoring for better code structure
+
 ### 14 Nov 2025
 
 - [feature] Added `SUEWSSimulation.from_sample_data()` factory method and comprehensive OOP enhancements (#779)

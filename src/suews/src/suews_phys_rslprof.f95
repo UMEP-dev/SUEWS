@@ -12,7 +12,7 @@ MODULE module_phys_rslprof
 CONTAINS
 
    SUBROUTINE RSLProfile( &
-      DiagMethod, &
+      RSLMethod, &
       Zh, z0m, zdm, z0v, &
       L_MOD, sfr_surf, FAI, PAI, &
       StabilityMethod, RA_h, &
@@ -56,7 +56,7 @@ CONTAINS
       ! REAL(KIND(1D0)), INTENT(in) :: porosity_dectr ! porosity of deciduous trees [-]
 
       INTEGER, INTENT(in) :: StabilityMethod
-      INTEGER, INTENT(in) :: DiagMethod
+      INTEGER, INTENT(in) :: RSLMethod
 
       REAL(KIND(1D0)), INTENT(out) :: T2_C ! Air temperature at 2 m [C]
       REAL(KIND(1D0)), INTENT(out) :: q2_gkg ! Air specific humidity at 2 m [g kg-1]
@@ -148,13 +148,13 @@ CONTAINS
 
       ! Step 1: determine if RSL should be used
 
-      IF (DiagMethod == 0) THEN
+      IF (RSLMethod == 0) THEN
          ! force MOST to be used
          flag_RSL = .FALSE.
-      ELSEIF (DiagMethod == 1) THEN
+      ELSEIF (RSLMethod == 1) THEN
          ! force RSL to be used
          flag_RSL = .TRUE.
-      ELSEIF (DiagMethod == 2) THEN
+      ELSEIF (RSLMethod == 2) THEN
 
          flag_RSL = &
             ! zd>0 subject to FAI > beta**2*(1-PAI); also beta<0.5;
@@ -533,7 +533,7 @@ CONTAINS
    END SUBROUTINE setup_RSL_heights
 
 !    SUBROUTINE RSLProfile_DTS( &
-!       DiagMethod, &
+!       RSLMethod, &
 !       Zh, z0m, zdm, z0v, &
 !       L_MOD, &
 !       sfr_paved, sfr_bldg, sfr_evetr, sfr_dectr, sfr_grass, sfr_bsoil, sfr_water, &
@@ -587,7 +587,7 @@ CONTAINS
 !       ! REAL(KIND(1D0)), INTENT(in) :: porosity_dectr ! porosity of deciduous trees [-]
 
 !       INTEGER, INTENT(in) :: StabilityMethod
-!       INTEGER, INTENT(in) :: DiagMethod
+!       INTEGER, INTENT(in) :: RSLMethod
 
 !       REAL(KIND(1D0)), INTENT(out) :: T2_C ! Air temperature at 2 m [C]
 !       REAL(KIND(1D0)), INTENT(out) :: q2_gkg ! Air specific humidity at 2 m [g kg-1]
@@ -678,13 +678,13 @@ CONTAINS
 !       ! Step 1: determine if RSL should be used
 !       sfr_surf = [sfr_paved, sfr_bldg, sfr_evetr, sfr_dectr, sfr_grass, sfr_bsoil, sfr_water]
 
-!       IF (DiagMethod == 0) THEN
+!       IF (RSLMethod == 0) THEN
 !          ! force MOST to be used
 !          flag_RSL = .FALSE.
-!       ELSEIF (DiagMethod == 1) THEN
+!       ELSEIF (RSLMethod == 1) THEN
 !          ! force RSL to be used
 !          flag_RSL = .TRUE.
-!       ELSEIF (DiagMethod == 2) THEN
+!       ELSEIF (RSLMethod == 2) THEN
 
 !          flag_RSL = &
 !             ! zd>0 subject to FAI > beta**2*(1-PAI); also beta<0.5;
@@ -970,7 +970,7 @@ CONTAINS
       ! REAL(KIND(1D0)), INTENT(in) :: porosity_dectr ! porosity of deciduous trees [-]
 
       ! INTEGER :: StabilityMethod
-      ! INTEGER :: DiagMethod
+      ! INTEGER :: RSLMethod
 
       ! REAL(KIND(1D0)), INTENT(out) :: T2_C ! Air temperature at 2 m [C]
       ! REAL(KIND(1D0)), INTENT(out) :: q2_gkg ! Air specific humidity at 2 m [g kg-1]
@@ -1124,7 +1124,7 @@ CONTAINS
             qe => heatState%qe, &
             SMDMethod => config%SMDMethod, &
             storageheatmethod => config%StorageHeatMethod, &
-            DiagMethod => config%DiagMethod, &
+            RSLMethod => config%RSLMethod, &
             StabilityMethod => config%StabilityMethod, &
             Diagnose => config%Diagnose, &
             zarray => stebbsState%zarray, &
@@ -1133,7 +1133,7 @@ CONTAINS
             dataoutLineqRSL => stebbsState%dataoutLineqRSL &
             )
 
-            ! DiagMethod = config%DiagMethod
+            ! RSLMethod = config%RSLMethod
             ! StabilityMethod = config%StabilityMethod
 
             ! Temp_C = forcing%Temp_C
@@ -1146,13 +1146,13 @@ CONTAINS
             ! Step 1: determine if RSL should be used
             ! sfr_surf = [pavedPrm%sfr, bldgPrm%sfr, evetrPrm%sfr, dectrPrm%sfr, grassPrm%sfr, bsoilPrm%sfr, waterPrm%sfr]
 
-            IF (DiagMethod == 0) THEN
+            IF (RSLMethod == 0) THEN
                ! force MOST to be used
                flag_RSL = .FALSE.
-            ELSEIF (DiagMethod == 1) THEN
+            ELSEIF (RSLMethod == 1) THEN
                ! force RSL to be used
                flag_RSL = .TRUE.
-            ELSEIF (DiagMethod == 2) THEN
+            ELSEIF (RSLMethod == 2) THEN
 
                flag_RSL = &
                   ! zd>0 subject to FAI > beta**2*(1-PAI); also beta<0.5;

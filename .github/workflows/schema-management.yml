@@ -221,10 +221,13 @@ jobs:
         id: deployment
       
       # Create PR if schemas changed (master only, for version control)
+      # Uses PAT if available to trigger CI workflows, otherwise uses GITHUB_TOKEN
       - name: Create PR for schema updates
         if: github.event_name == 'push' && github.ref == 'refs/heads/master'
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Try to use PAT first (triggers workflows), fall back to GITHUB_TOKEN
+          # PAT should have 'repo' and 'workflow' scopes
+          GH_TOKEN: ${{ secrets.SCHEMA_UPDATE_PAT || secrets.GITHUB_TOKEN }}
         run: |
           if ! git diff --quiet schemas/; then
             BRANCH="auto/schemas-$(date +%Y%m%d-%H%M%S)"
@@ -234,12 +237,24 @@ jobs:
             git add schemas/
             git commit -m "chore: Update schemas [auto-generated]"
             git push origin "$BRANCH"
-            
-            gh pr create \
+
+            PR_URL=$(gh pr create \
               --base master \
               --head "$BRANCH" \
               --title "🤖 Update schemas" \
-              --body "Auto-generated schema update. Already deployed to GitHub Pages."
+              --body "Auto-generated schema update. Already deployed to GitHub Pages.")
+
+            PR_NUMBER=$(echo "$PR_URL" | grep -oE '[0-9]+$')
+            echo "Created PR #$PR_NUMBER: $PR_URL"
+
+            # Check if we used PAT (which triggers workflows) or GITHUB_TOKEN
+            if [ -n "${{ secrets.SCHEMA_UPDATE_PAT }}" ]; then
+              echo "✓ PR created with PAT - CI workflows will run automatically"
+            else
+              echo "⚠ PR created with GITHUB_TOKEN - CI workflows won't trigger automatically"
+              echo "To enable automatic CI: add SCHEMA_UPDATE_PAT secret with 'repo' and 'workflow' scopes"
+              echo "For now, please manually trigger CI or close/reopen the PR"
+            fi
           fi
       
       # Comment on PR with preview URL

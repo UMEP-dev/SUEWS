@@ -1,0 +1,143 @@
+name: Schema PR Validation
+
+# Lightweight validation for schema-only PRs created by bots
+# These PRs don't trigger the main build workflow (GitHub security feature)
+# This workflow provides the required "PR build validation" check for schema updates
+
+on:
+  pull_request_target:
+    paths:
+      - 'schemas/**'
+
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: 'PR number to validate'
+        required: true
+        type: number
+
+permissions:
+  contents: read
+  pull-requests: read
+  statuses: write
+
+jobs:
+  validate-schema-pr:
+    name: PR build validation
+    runs-on: ubuntu-latest
+    # Only run for bot-created PRs or manual dispatch
+    # Regular PRs are handled by build-publish_to_pypi.yml
+    if: |
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'pull_request_target' &&
+       (github.event.pull_request.user.login == 'github-actions[bot]' ||
+        github.event.pull_request.user.type == 'Bot'))
+    steps:
+      - name: Get PR information
+        id: pr-info
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            PR_NUMBER="${{ inputs.pr_number }}"
+          else
+            PR_NUMBER="${{ github.event.pull_request.number }}"
+          fi
+
+          echo "pr_number=$PR_NUMBER" >> $GITHUB_OUTPUT
+          echo "Validating PR #$PR_NUMBER"
+
+          # Get PR details
+          gh pr view "$PR_NUMBER" --json author,title,headRefName,files --repo ${{ github.repository }} > pr.json
+          cat pr.json
+
+          echo "author=$(jq -r '.author.login' pr.json)" >> $GITHUB_OUTPUT
+          echo "title=$(jq -r '.title' pr.json)" >> $GITHUB_OUTPUT
+          echo "branch=$(jq -r '.headRefName' pr.json)" >> $GITHUB_OUTPUT
+
+      - name: Checkout PR branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.pr-info.outputs.branch }}
+
+      - name: Validate schema files
+        run: |
+          echo "=== Schema Validation ==="
+          echo "PR #${{ steps.pr-info.outputs.pr_number }}: ${{ steps.pr-info.outputs.title }}"
+          echo "Author: ${{ steps.pr-info.outputs.author }}"
+          echo ""
+
+          # Check if this is a schema-only PR
+          SCHEMA_CHANGES=$(git diff --name-only origin/master... | grep '^schemas/' | wc -l)
+          TOTAL_CHANGES=$(git diff --name-only origin/master... | wc -l)
+
+          echo "Files changed in schemas/: $SCHEMA_CHANGES"
+          echo "Total files changed: $TOTAL_CHANGES"
+          echo ""
+
+          # Validate JSON syntax in changed schema files
+          echo "Validating JSON syntax..."
+          INVALID_COUNT=0
+          for file in $(git diff --name-only origin/master... | grep '\.json$'); do
+            if [ -f "$file" ]; then
+              echo "Checking $file..."
+              if python -m json.tool "$file" > /dev/null 2>&1; then
+                echo "  ✓ Valid JSON"
+              else
+                echo "  ✗ Invalid JSON"
+                INVALID_COUNT=$((INVALID_COUNT + 1))
+              fi
+            fi
+          done
+
+          if [ $INVALID_COUNT -gt 0 ]; then
+            echo ""
+            echo "✗ Found $INVALID_COUNT invalid JSON file(s)"
+            exit 1
+          fi
+
+          echo ""
+          echo "=== Validation Result ==="
+          if [ "$SCHEMA_CHANGES" -eq "$TOTAL_CHANGES" ]; then
+            echo "✓ Schema-only PR - all JSON files valid"
+            echo "✓ No code changes require building/testing"
+            echo "✓ Schemas already deployed to GitHub Pages"
+            exit 0
+          else
+            echo "⚠ PR contains non-schema changes"
+            echo "This workflow only validates schema changes."
+            echo "Code changes should trigger the main build workflow."
+            echo ""
+            echo "If you see this message on a bot-created PR, the main build"
+            echo "workflow didn't trigger due to GitHub security restrictions."
+            echo "Please close and reopen the PR, or add SCHEMA_UPDATE_PAT secret."
+            exit 1
+          fi
+
+      - name: Post validation comment
+        if: always() && github.event_name == 'pull_request_target'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const jobStatus = '${{ job.status }}';
+            const symbol = jobStatus === 'success' ? '✓' : '✗';
+            const color = jobStatus === 'success' ? '🟢' : '🔴';
+
+            const body = `${color} **Schema PR Validation ${symbol}**
+
+            This PR was validated by the lightweight schema-only workflow because
+            the main build workflow didn't trigger (bot-created PRs don't trigger workflows).
+
+            **Status**: ${jobStatus === 'success' ? 'All schema files valid ✓' : 'Validation failed ✗'}
+
+            ${jobStatus === 'success' ?
+              'Schemas have already been deployed to GitHub Pages. Safe to merge.' :
+              'Please check the workflow logs for validation errors.'}
+            `;
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.payload.pull_request.number,
+              body
+            });

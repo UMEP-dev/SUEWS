@@ -194,7 +194,8 @@ jobs:
               - '.github/actions/build-suews/**'
               - 'test/**'
               - 'scripts/**'
-              - 'schemas/**'
+              # NOTE: schemas/** excluded - JSON metadata files don't require builds
+              # Bot-created schema PRs use schema-pr-validation.yml instead
               - 'pyproject.toml'
               - 'meson.build'
               - 'meson_options.txt'

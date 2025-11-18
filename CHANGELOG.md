@@ -46,6 +46,11 @@
   - Timeseries only works with surface-level variables (requires `simple_mode=True`)
   - To use traditional gridded ERA5, explicitly set `data_source="gridded"`
   - `hgt_agl_diag` parameter remains functional for extrapolating to measurement height
+- [change] Made xarray optional dependency (only needed for gridded ERA5)
+  - CSV timeseries path now uses pure pandas (no xarray conversion)
+  - Significantly faster for timeseries: 1.2s vs 10-15s for test case
+  - ~10x speed improvement by eliminating pandas → xarray → pandas round-trip
+  - For gridded ERA5, install with: `pip install xarray`
 
 ### 14 Nov 2025
 - [feature] Added Phase C validation for daylight saving time parameters

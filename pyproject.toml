@@ -24,8 +24,7 @@ dependencies = [
     "pandas",
     "numpy>=2.0",
     "scipy",
-    "xarray",
-    "dask",
+    "dask",  # xarray removed - only needed for gridded ERA5 (install separately)
     
     # Model requirements
     "f90wrap==0.2.16",  # Required at runtime by generated supy_driver code

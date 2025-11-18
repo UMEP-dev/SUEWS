@@ -1024,61 +1024,37 @@ def gen_forcing_era5(
             logging_level,
         )
 
-    # load data from `sfc` files
-    # handle both CSV (timeseries) and netCDF (gridded) formats
+    # CSV (timeseries) vs netCDF (gridded) - use different paths to avoid xarray for CSV
     if list_fn_sfc[0].endswith('.csv'):
-        # load CSV timeseries data
-        df_era5 = pd.read_csv(list_fn_sfc[0])
-        df_era5['valid_time'] = pd.to_datetime(df_era5['valid_time'])
-        df_era5 = df_era5.set_index('valid_time')
-        df_era5.index.name = 'time'  # rename index to match netCDF convention
+        # === CSV TIMESERIES PATH (pandas-only, no xarray) ===
 
-        # map CSV abbreviated column names to netCDF variable names
-        csv_to_netcdf_map = {
-            'u10': 'u10',    # 10m u-component of wind
-            'v10': 'v10',    # 10m v-component of wind
-            'd2m': 'd2m',    # 2m dewpoint temperature
-            't2m': 't2m',    # 2m temperature
-            'sp': 'sp',      # surface pressure
-            'ssrd': 'ssrd',  # surface solar radiation downwards
-            'strd': 'strd',  # surface thermal radiation downwards
-            'tp': 'tp',      # total precipitation
-        }
+        # generate diagnostics directly from CSV (stays in pandas)
+        df_forcing_raw = gen_df_diag_era5_csv(list_fn_sfc[0], hgt_agl_diag)
 
-        # rename columns to expected names (keeping abbreviated names for compatibility)
-        df_era5_renamed = df_era5.rename(columns={
-            k: v for k, v in csv_to_netcdf_map.items() if k in df_era5.columns
-        })
+        # extract coordinates from DataFrame attributes
+        lat = df_forcing_raw.attrs['latitude']
+        lon = df_forcing_raw.attrs['longitude']
 
-        # convert to xarray Dataset
-        ds_sfc = xr.Dataset({
-            col: (["time"], df_era5_renamed[col].values)
-            for col in df_era5_renamed.columns
-            if col not in ['latitude', 'longitude']
-        })
-        ds_sfc = ds_sfc.assign_coords(
-            time=df_era5.index,
-            latitude=df_era5['latitude'].iloc[0],
-            longitude=df_era5['longitude'].iloc[0]
-        )
+        # format to SUEWS convention
+        df_forcing = format_df_forcing(df_forcing_raw)
 
-        # timeseries dataset doesn't include geopotential - use approximate altitude
-        # assume near sea level (0m) as default for timeseries data
-        import numpy as np
-        ds_sfc['z'] = xr.DataArray(
-            np.zeros_like(ds_sfc.sp.values),
-            dims=['time'],
-            coords={'time': ds_sfc.time}
-        )
-
-        # timeseries dataset doesn't include heat fluxes and surface properties
-        # these will be handled below with default values for simple_mode
-        ds_sfc['sshf'] = xr.DataArray(np.zeros_like(ds_sfc.sp.values), dims=['time'], coords={'time': ds_sfc.time})
-        ds_sfc['slhf'] = xr.DataArray(np.zeros_like(ds_sfc.sp.values), dims=['time'], coords={'time': ds_sfc.time})
-        ds_sfc['fsr'] = xr.DataArray(np.full_like(ds_sfc.sp.values, 0.1), dims=['time'], coords={'time': ds_sfc.time})  # default roughness 0.1m
-        ds_sfc['zust'] = xr.DataArray(np.zeros_like(ds_sfc.sp.values), dims=['time'], coords={'time': ds_sfc.time})
+        # add latitude/longitude to index to match gridded data structure
+        df_forcing['latitude'] = lat
+        df_forcing['longitude'] = lon
+        # reorder index: [latitude, longitude, time]
+        df_forcing = df_forcing.reset_index().set_index(['latitude', 'longitude', 'time'])
 
     else:
+        # === netCDF GRIDDED PATH (requires xarray) ===
+        try:
+            import xarray as xr
+        except ImportError:
+            raise ImportError(
+                "Gridded ERA5 data source requires xarray for multi-dimensional data processing.\n"
+                "Install with: pip install xarray\n"
+                "Alternatively, use data_source='timeseries' for lightweight CSV-based downloads (no xarray needed)."
+            )
+
         # load netCDF gridded data
         ds_sfc = xr.open_mfdataset(
             list_fn_sfc,
@@ -1088,35 +1064,33 @@ def gen_forcing_era5(
         # close dangling handlers
         ds_sfc.close()
 
-    if pressure_level is None:
-        # generate diagnostics at a higher level
-        ds_diag = gen_ds_diag_era5(list_fn_sfc, list_fn_ml, hgt_agl_diag, simple_mode)
-    else:
-        # directly retrieve data at specified pressure level
-        ds_diag = get_era5_pressure_level(list_fn_ml, pressure_level)
+        if pressure_level is None:
+            # generate diagnostics at a higher level
+            ds_diag = gen_ds_diag_era5(list_fn_sfc, list_fn_ml, hgt_agl_diag, simple_mode)
+        else:
+            # directly retrieve data at specified pressure level
+            ds_diag = get_era5_pressure_level(list_fn_ml, pressure_level)
 
-    # merge diagnostics above with surface variables
-    ds_forcing_era5 = ds_sfc.merge(ds_diag)
+        # merge diagnostics above with surface variables
+        ds_forcing_era5 = ds_sfc.merge(ds_diag)
 
-    # convert to dataframe for further processing
-    df_forcing_raw = ds_forcing_era5[
-        [
-            "ssrd",
-            "strd",
-            "sshf",
-            "slhf",
-            "tp",
-            "uv_z",
-            "t_z",
-            "q_z",
-            "p_z",
-            "alt_z",
-            "RH_z",
-        ]
-    ].to_dataframe()
+        # convert to dataframe for further processing
+        df_forcing_raw = ds_forcing_era5[
+            [
+                "ssrd",
+                "strd",
+                "sshf",
+                "slhf",
+                "tp",
+                "uv_z",
+                "t_z",
+                "q_z",
+                "p_z",
+                "alt_z",
+                "RH_z",
+            ]
+        ].to_dataframe()
 
-    # check if latitude/longitude are in the index (gridded data) or scalars (timeseries data)
-    if "latitude" in df_forcing_raw.index.names and "longitude" in df_forcing_raw.index.names:
         # gridded data: split based on grid coordinates
         grp_grid = df_forcing_raw.groupby(level=["latitude", "longitude"])
         df_forcing = grp_grid.apply(
@@ -1124,16 +1098,6 @@ def gen_forcing_era5(
                 df.reset_index(["latitude", "longitude"], drop=True)
             )
         )
-    else:
-        # timeseries data: single point, no grouping needed
-        df_forcing = format_df_forcing(df_forcing_raw)
-        # add latitude/longitude from dataset coordinates to the index
-        lat = float(ds_forcing_era5.latitude.values)
-        lon = float(ds_forcing_era5.longitude.values)
-        df_forcing['latitude'] = lat
-        df_forcing['longitude'] = lon
-        # reorder index to match gridded data: [latitude, longitude, time]
-        df_forcing = df_forcing.reset_index().set_index(['latitude', 'longitude', 'time'])
 
     # save results as SUEWS met input files
     list_fn = save_forcing_era5(df_forcing, dir_save)
@@ -1211,6 +1175,86 @@ def format_df_forcing(df_forcing_raw):
     df_forcing_grid = df_forcing_grid.replace(np.nan, -999).asfreq("1h")
 
     return df_forcing_grid
+
+
+# pandas-only version for CSV timeseries (no xarray dependency)
+def gen_df_diag_era5_csv(fn_csv, hgt_agl_diag=100):
+    """Generate diagnostics from CSV timeseries data using pandas only.
+
+    This function avoids xarray dependency for the common timeseries use case.
+    Only supports simple_mode=True (log law + lapse rate).
+    """
+    from atmosp import calculate as ac
+
+    # load CSV timeseries data
+    df = pd.read_csv(fn_csv)
+    df['valid_time'] = pd.to_datetime(df['valid_time'])
+    df = df.set_index('valid_time')
+    df.index.name = 'time'
+
+    # extract coordinates
+    lat = df['latitude'].iloc[0]
+    lon = df['longitude'].iloc[0]
+
+    # extract variables (using abbreviated CSV column names)
+    pres_z0 = df['sp']  # surface pressure [Pa]
+    u10 = df['u10']     # 10m u-wind [m/s]
+    v10 = df['v10']     # 10m v-wind [m/s]
+    t2 = df['t2m']      # 2m temperature [K]
+    d2 = df['d2m']      # 2m dewpoint [K]
+
+    # computed variables
+    uv10 = np.sqrt(u10**2 + v10**2)  # wind speed
+    q2 = ac("qv", Td=d2, T=t2, p=pres_z0)  # specific humidity
+
+    # default values for missing variables (timeseries doesn't provide these)
+    alt_z0 = 0.0  # assume sea level
+    z0m = 0.1     # default roughness [m]
+
+    # constants for diagnostics
+    env_lapse = 6.5 / 1000.0  # environmental lapse rate [K m^-1]
+    grav = 9.80616            # gravity [m s^-2]
+    rd = 287.04               # gas constant for dry air [J K^-1 kg^-1]
+    z = hgt_agl_diag          # diagnostic height [m]
+
+    # --- Compute diagnostics at height z using simple mode ---
+
+    # temperature correction using lapse rate
+    t_z = t2 - (z - 2) * env_lapse
+
+    # barometric equation with varying temperature
+    p_z = pres_z0 * (t_z / t2) ** (grav / (rd * env_lapse))
+
+    # humidity assuming invariable relative humidity
+    RH_z = ac("RH", qv=q2, p=pres_z0, T=t2)
+    q_z = ac("qv", RH=RH_z, p=p_z, T=t_z)
+
+    # wind speed using log law (neutral condition)
+    uv_z = uv10 * (np.log((z + z0m) / z0m) / np.log((10 + z0m) / z0m))
+
+    # altitude at diagnostic height
+    alt_z = alt_z0 + z
+
+    # create DataFrame with diagnostics
+    df_diag = pd.DataFrame({
+        'uv_z': uv_z,
+        't_z': t_z,
+        'q_z': q_z,
+        'RH_z': RH_z,
+        'p_z': p_z,
+        'alt_z': alt_z,
+        # also include surface variables needed downstream
+        'ssrd': df['ssrd'],
+        'strd': df['strd'],
+        'tp': df['tp'],
+        'sshf': 0.0,  # not available in timeseries
+        'slhf': 0.0,  # not available in timeseries
+    }, index=df.index)
+
+    # add coordinates as attributes (will be used for filename)
+    df_diag.attrs = {'latitude': lat, 'longitude': lon}
+
+    return df_diag
 
 
 # generate supy forcing using ERA-5 data

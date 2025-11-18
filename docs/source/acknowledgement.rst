@@ -54,7 +54,7 @@ Contributors
     - RSL improvements
     - v2024a – onwards
     -
-  * - Keisuke Nakao
+  * - Dr Keisuke Nakao
     - Central Research Institute of Electric Power Industry, Japan
     - Wind speed profile parameterisation, RSL
     - v2024a – onwards
@@ -74,7 +74,7 @@ Contributors
     - WRF-SUEWS coupling; Documentation system
     - v2018c – v2019a
     - Major contributor to WRF(v4.0)-SUEWS(v2018c) coupling
-  * - Minttu P. Havu
+  * - Dr Minttu P. Havu
     - University of Helsinki, Finland
     - CO2
     - v2018c – v2019a

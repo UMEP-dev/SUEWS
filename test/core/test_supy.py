@@ -191,6 +191,20 @@ class TestSuPy(TestCase):
         # check if `flag_test` in `df_output.debug` equals 1.0
         self.assertTrue((df_output.debug.flag_test == 1.0).all())
 
+    def test_is_version_saved(self):
+        print("\n========================================")
+        print("Testing if current SuPy version is saved...")
+
+        # Load sample data
+        df_state_init, df_forcing_tstep = sp.load_SampleData()
+
+        # Run only 1 hour (12 timesteps) instead of 8 hours
+        df_forcing_part = df_forcing_tstep.iloc[:12]
+        df_output, df_state = sp.run_supy(
+            df_forcing_part, df_state_init, save_state=True
+        )
+        self.assertTrue(all(df_state[("supy_version", "0")] == sp.__version__))
+
     # # test if single-tstep and multi-tstep modes can produce the same SUEWS results
     # @skipUnless(flag_full_test, "Full test is not required.")
     # def test_is_supy_euqal_mode(self):

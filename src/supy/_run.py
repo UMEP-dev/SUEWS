@@ -810,19 +810,6 @@ def pack_df_state_final(df_state_end, df_state_start):
 
     dict_packed = {}
     for var in df_state_end.to_dict():
-        # MP: Skipping meta data reshape leads to arrays in the df not strings (therefore required)
-        # Skip string metadata variables that don't need reshaping
-        # if var in ["config", "description", "supy_version"]:
-        #     # For metadata, just keep the single value for each grid
-        #     val_flatten = np.concatenate(df_state_end[var].values).ravel()
-        #     col_names = ser_col_multi[var].values
-        #     val = df_state_end[var].values.reshape(-1, 1).T
-        #     dict_var = dict(zip(col_names, val))
-        #     dict_packed.update(dict_var)
-        # else:
-        # print(var)
-        # print(df_state_end[var].values.shape)
-        # reshape values to (number of columns, number of grids)
         val_flatten = np.concatenate(df_state_end[var].values).ravel()
         val = val_flatten.reshape((size_idx, -1)).T
         col_names = ser_col_multi[var].values

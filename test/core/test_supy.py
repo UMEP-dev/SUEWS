@@ -191,7 +191,23 @@ class TestSuPy(TestCase):
         # check if `flag_test` in `df_output.debug` equals 1.0
         self.assertTrue((df_output.debug.flag_test == 1.0).all())
 
-    def test_is_version_saved(self):
+    def test_run_with_version(self):
+        print("\n========================================")
+        print("Testing if state_init with version can be loaded...")
+
+        # Load sample data
+        df_state_init, df_forcing_tstep = sp.load_SampleData()
+        df_state_init[("supy_version", "0")] = sp.__version__
+
+        df_forcing_part = df_forcing_tstep.iloc[:12]
+        df_output, df_state = sp.run_supy(
+            df_forcing_part, df_state_init,
+        )
+
+        self.assertFalse(df_output.empty)
+        self.assertFalse(df_state.empty)
+
+    def test_is_runtime_version_saved(self):
         print("\n========================================")
         print("Testing if current SuPy version is saved...")
 
@@ -204,6 +220,7 @@ class TestSuPy(TestCase):
             df_forcing_part, df_state_init, save_state=True
         )
         self.assertTrue(all(df_state[("supy_version", "0")] == sp.__version__))
+    
 
     # # test if single-tstep and multi-tstep modes can produce the same SUEWS results
     # @skipUnless(flag_full_test, "Full test is not required.")

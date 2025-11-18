@@ -90,7 +90,7 @@ class TestCsvFileConversion:
         assert len(df_new) == len(df_old)
         assert (
             len(df_new.columns) == 1424
-        )  # New format has 1423 columns (1420 + 3 view factors from master) + 1 (supy version)
+        )  # New format has 1423 columns (1420 + 3 view factors + 1 supy version)
 
         # Check old columns removed
         col_names = {

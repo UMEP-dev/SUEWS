@@ -51,8 +51,7 @@ dependencies = [
     "platypus-opt==1.0.4",
     
     # Data access
-    "cdsapi",
-    "earthkit-data",  # Faster ERA5 timeseries API (now default)
+    "cdsapi",  # ERA5 data download (timeseries uses CSV, gridded requires optional h5netcdf)
 
     # Time/location
     "tzfpy>=1.0.0",  # Faster timezone finder with Windows wheels

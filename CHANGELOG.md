@@ -35,14 +35,17 @@
 ## 2025
 
 ### 18 Nov 2025
-- [change] **BREAKING**: earthkit.data is now the default ERA5 download method (GH-832)
-  - `data_source` parameter in `gen_forcing_era5()` now defaults to "earthkit" (was "cdsapi")
-  - earthkit source provides much faster downloads (~26s for 30 years vs several minutes)
-  - Only works with surface-level variables (requires `simple_mode=True`)
-  - Point location only (no spatial grid support)
-  - To use traditional CDS API, explicitly set `data_source="cdsapi"`
+- [change] **BREAKING**: Simplified ERA5 download implementation and renamed `data_source` parameter values
+  - Removed earthkit.data dependency - both download methods now use cdsapi directly
+  - `data_source` parameter values renamed for clarity:
+    - `"timeseries"` (new default, was "earthkit"): Fast ERA5 timeseries dataset for point locations
+    - `"gridded"` (was "cdsapi"): Traditional gridded ERA5 with model levels and spatial grids
+  - Timeseries downloads CSV directly and loads in-memory (zero extra dependencies!)
+  - Gridded path requires optional h5netcdf for netCDF4 reading (install separately: `pip install h5netcdf`)
+  - Same fast performance for timeseries (~26s for 30 years) with minimal dependencies
+  - Timeseries only works with surface-level variables (requires `simple_mode=True`)
+  - To use traditional gridded ERA5, explicitly set `data_source="gridded"`
   - `hgt_agl_diag` parameter remains functional for extrapolating to measurement height
-  - earthkit-data moved from optional to core dependency
 
 ### 14 Nov 2025
 - [feature] Added Phase C validation for daylight saving time parameters

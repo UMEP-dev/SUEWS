@@ -219,7 +219,7 @@ SUEWS provides built-in support for downloading and processing ERA5 reanalysis d
 
 **Quick Start (Recommended - Fast Method)**
 
-By default, SUEWS uses the fast earthkit.data timeseries API:
+By default, SUEWS uses the fast ERA5 timeseries dataset via CDS API:
 
 .. code-block:: python
 
@@ -241,16 +241,16 @@ By default, SUEWS uses the fast earthkit.data timeseries API:
 - Surface-level variables only
 - Automatically extrapolates to measurement height using ``hgt_agl_diag`` parameter (default 100m)
 
-**Using Traditional CDS API**
+**Using Traditional Gridded ERA5**
 
-For model-level data or spatial grids, use the traditional method:
+For model-level data or spatial grids, use the gridded dataset:
 
 .. code-block:: python
 
    list_fn = sp.util.gen_forcing_era5(
        55.68, 12.57,
        "1991-01-01", "2020-12-31",
-       data_source="cdsapi",      # Use traditional CDS API
+       data_source="gridded",     # Use gridded ERA5 dataset
        simple_mode=False,         # Complex MOST diagnostics
        scale=1                    # Spatial grid (3x3 for scale=1)
    )

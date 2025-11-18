@@ -461,7 +461,7 @@ def download_cds(fn, dict_req):
         time.sleep(0.0100)
 
 
-def download_era5_earthkit(
+def download_era5_timeseries(
     lat_x: float,
     lon_x: float,
     start: str,
@@ -469,10 +469,10 @@ def download_era5_earthkit(
     dir_save=Path("."),
     logging_level=logging.INFO,
 ) -> str:
-    """Download ERA5 data using earthkit.data timeseries API.
+    """Download ERA5 data using CDS API timeseries dataset.
 
-    This function uses the new ERA5 timeseries access method which is faster
-    than the traditional CDS API but only provides surface-level variables.
+    This function uses the ERA5 timeseries dataset which is optimised for
+    fast retrieval of point location data. Only provides surface-level variables.
 
     Parameters
     ----------
@@ -492,26 +492,24 @@ def download_era5_earthkit(
     Returns
     -------
     str
-        Path to the downloaded netCDF file.
+        Path to the downloaded CSV file.
 
     Note
     ----
     1. This method only provides surface-level variables and should be used with simple_mode=True.
-    2. earthkit.data is installed as a core dependency with supy (separate package from cdsapi).
-    3. Much faster than CDS API (~26s for 30 years vs several minutes).
+    2. Uses CDS API timeseries dataset for fast point location downloads.
+    3. Much faster than traditional gridded ERA5 (~26s for 30 years vs several minutes).
     4. Only works for point locations (no spatial grid).
+    5. Downloads CSV format directly (no netCDF dependencies needed).
+    6. Requires CDS API credentials configured: https://cds.climate.copernicus.eu/api-how-to
 
     Reference
     ---------
     ERA5 timeseries documentation: https://cds.climate.copernicus.eu/datasets/reanalysis-era5-single-levels-timeseries
     """
-    try:
-        import earthkit.data
-    except ImportError:
-        raise ImportError(
-            "earthkit.data is a core dependency but not found. "
-            "Reinstall supy to get the required dependencies: pip install --upgrade supy"
-        )
+    import cdsapi
+    import zipfile
+    import tempfile
 
     # adjust logging level
     logger_supy.setLevel(logging_level)
@@ -521,22 +519,19 @@ def download_era5_earthkit(
     if not path_dir_save.exists():
         path_dir_save.mkdir(parents=True)
 
-    # define variables required by SUEWS
+    # define variables available in ERA5 timeseries dataset
+    # NOTE: This dataset only provides basic surface variables (16 total).
+    # Advanced variables (geopotential, heat fluxes, surface properties) are NOT available.
+    # These must be obtained from the gridded ERA5 dataset if needed.
     variables = [
         "2m_dewpoint_temperature",
         "2m_temperature",
         "10m_u_component_of_wind",
         "10m_v_component_of_wind",
         "surface_pressure",
-        "geopotential",
         "surface_solar_radiation_downwards",
         "surface_thermal_radiation_downwards",
-        "surface_sensible_heat_flux",
-        "surface_latent_heat_flux",
         "total_precipitation",
-        "forecast_albedo",
-        "forecast_surface_roughness",
-        "friction_velocity",
     ]
 
     # format location coordinates in filename
@@ -548,32 +543,50 @@ def download_era5_earthkit(
     date_end = pd.to_datetime(end).strftime("%Y-%m-%d")
     year_start = pd.to_datetime(start).year
 
-    # construct filename
-    fn = f"{lat_c}{lon_c}-{year_start}-sfc-earthkit.nc"
+    # construct filename (CSV format)
+    fn = f"{lat_c}{lon_c}-{year_start}-sfc-timeseries.csv"
     path_fn = path_dir_save / fn
 
     if path_fn.exists():
         logger_supy.warning(f"{fn} exists!")
     else:
-        logger_supy.info(f"Downloading ERA5 timeseries data using earthkit.data...")
+        logger_supy.info(f"Downloading ERA5 timeseries data using CDS API...")
         logger_supy.info(f"Location: ({lat_x}, {lon_x})")
         logger_supy.info(f"Period: {date_start} to {date_end}")
 
-        # define request parameters
+        # define request parameters (CSV - no netCDF dependencies needed)
         dataset = "reanalysis-era5-single-levels-timeseries"
         request = {
             "variable": variables,
-            "date": [date_start, date_end],
             "location": {"longitude": lon_x, "latitude": lat_x},
-            "data_format": "netcdf",
+            "date": [f"{date_start}/{date_end}"],
+            "data_format": "csv",
         }
 
-        # retrieve data
+        # retrieve data to temporary file (CDS API returns zip archives)
         t0 = time.time()
-        ekds = earthkit.data.from_source("cds", dataset, request).to_xarray()
+        client = cdsapi.Client()
 
-        # save to netcdf
-        ekds.to_netcdf(path_fn)
+        with tempfile.NamedTemporaryFile(delete=False, suffix='.zip') as tmp_file:
+            tmp_path = Path(tmp_file.name)
+            client.retrieve(dataset, request).download(str(tmp_path))
+
+        # extract CSV from zip archive
+        with zipfile.ZipFile(tmp_path, 'r') as zip_ref:
+            # find the CSV file in the archive
+            csv_files = [f for f in zip_ref.namelist() if f.endswith('.csv')]
+            if not csv_files:
+                raise ValueError(f"No CSV file found in downloaded archive")
+
+            # extract the first CSV file
+            zip_ref.extract(csv_files[0], path_dir_save)
+            extracted_path = path_dir_save / csv_files[0]
+
+            # rename to expected filename
+            extracted_path.rename(path_fn)
+
+        # clean up temporary zip file
+        tmp_path.unlink()
 
         t1 = time.time()
         logger_supy.info(f"Download completed in {t1 - t0:.1f} seconds")
@@ -593,10 +606,10 @@ def download_era5_cdsapi(
     force_download=True,
     logging_level=logging.INFO,
 ) -> tuple:
-    """Download ERA5 data using traditional CDS API.
+    """Download ERA5 data using traditional gridded CDS API.
 
     This function uses the traditional CDS API which supports both surface
-    and model level data, as well as spatial grids. Slower than earthkit.data
+    and model level data, as well as spatial grids. Slower than CDS timeseries
     but more flexible for advanced use cases.
 
     Parameters
@@ -631,9 +644,10 @@ def download_era5_cdsapi(
     Note
     ----
     1. Requires CDS API credentials configured.
-    2. Supports model level data for complex diagnostics.
-    3. Can download spatial grids (scale > 0).
-    4. Slower than earthkit.data timeseries API.
+    2. Requires h5netcdf for reading netCDF4 files (install with: pip install h5netcdf).
+    3. Supports model level data for complex diagnostics.
+    4. Can download spatial grids (scale > 0).
+    5. Slower than CDS timeseries API for point locations.
 
     Reference
     ---------
@@ -868,7 +882,7 @@ def gen_forcing_era5(
     force_download=True,
     simple_mode=True,
     pressure_level=None,
-    data_source="earthkit",
+    data_source="timeseries",
     logging_level=logging.INFO,
 ) -> list:
     """Generate SUEWS forcing files using ERA-5 data.
@@ -904,11 +918,11 @@ def gen_forcing_era5(
         If ``None``, this option is ignored.
         If not ``None``, calculations implied by ``simple_mode`` will be skipped: the data at specified pressure level will be used as forcing data and the mean altitude of the pressure level between specified ``start`` and ``end`` will be assumed to be the forcing height (i.e., ``hgt_agl_diag`` will be ignored if set).
     data_source : str, optional
-        data source for downloading ERA5 data, by default "earthkit".
+        ERA5 dataset type to download, by default "timeseries".
         Options:
-        - "earthkit": ERA5 timeseries API using earthkit.data (surface data only, much faster, ~26s for 30 years)
-        - "cdsapi": Traditional CDS API (supports both surface and model level data, slower)
-        Note: "earthkit" source only works with ``simple_mode=True`` and ``scale=0`` (point locations only).
+        - "timeseries": ERA5 timeseries dataset (surface data only, much faster, ~26s for 30 years)
+        - "gridded": Traditional gridded ERA5 (supports both surface and model level data, slower)
+        Note: "timeseries" only works with ``simple_mode=True`` and ``scale=0`` (point locations only).
     logging_level : int, optional
         one of these values [50 (CRITICAL), 40 (ERROR), 30 (WARNING), 20 (INFO), 10 (DEBUG)].
         A lower value informs SuPy for more verbose logging info.
@@ -921,21 +935,21 @@ def gen_forcing_era5(
 
     Note
     ----
-        1. By default, this function uses earthkit.data for fast ERA5 timeseries download. For CDS API configuration (if using ``data_source="cdsapi"``), see: https://cds.climate.copernicus.eu/api-how-to
+        1. By default, this function uses the ERA5 timeseries dataset for fast point location downloads. For CDS API configuration, see: https://cds.climate.copernicus.eu/api-how-to
         2. The generated forcing files can be imported using ``supy.util.read_forcing`` to get simulation-ready ``pandas.DataFrame`` s.
         3. See Section 3.10.2 and 3.10.3 in the reference for details of diagnostics calculation.
         4. For ``start``/``end``, it is recommended to use the format ``YYYY-MM-DD`` to avoid confusion in day/month-first convensions (`an upstream known issue <https://pandas.pydata.org/docs/reference/api/pandas.to_datetime.html#pandas.to_datetime>`_ due to the ``dateutil`` behavior)
-        5. The default ``data_source="earthkit"`` only works with ``simple_mode=True`` (surface data). For model level data or complex diagnostics, use ``data_source="cdsapi"`` with ``simple_mode=False``.
+        5. The default ``data_source="timeseries"`` only works with ``simple_mode=True`` (surface data). For model level data or complex diagnostics, use ``data_source="gridded"`` with ``simple_mode=False``.
 
     Examples
     --------
-    Using earthkit.data timeseries API (default, fast):
+    Using ERA5 timeseries dataset (default, fast for point locations):
 
     >>> list_fn = gen_forcing_era5(
     ...     50.86, 4.35, "2020-01-01", "2020-01-31", simple_mode=True
     ... )
 
-    Using traditional CDS API (for model level data or spatial grids):
+    Using traditional gridded ERA5 (for model level data or spatial grids):
 
     >>> list_fn = gen_forcing_era5(
     ...     50.86,
@@ -943,7 +957,7 @@ def gen_forcing_era5(
     ...     "2020-01-01",
     ...     "2020-01-31",
     ...     simple_mode=False,
-    ...     data_source="cdsapi",
+    ...     data_source="gridded",
     ... )
 
     Reference
@@ -959,35 +973,44 @@ def gen_forcing_era5(
     # adjust logging level
     logger_supy.setLevel(logging_level)
 
-    # validate earthkit data source requirements
-    if data_source == "earthkit":
+    # validate timeseries data source requirements
+    if data_source == "timeseries":
         if not simple_mode:
             raise ValueError(
-                "earthkit data source only works with simple_mode=True. "
-                "The ERA5 timeseries API only provides surface-level variables."
+                "timeseries data source only works with simple_mode=True. "
+                "The ERA5 timeseries dataset only provides surface-level variables."
             )
         if scale != 0:
             logger_supy.warning(
-                "earthkit data source only supports point locations (scale=0). "
+                "timeseries data source only supports point locations (scale=0). "
                 f"Ignoring scale={scale} and using scale=0."
             )
             scale = 0
         if pressure_level is not None:
             raise ValueError(
-                "earthkit data source does not support pressure_level parameter. "
+                "timeseries data source does not support pressure_level parameter. "
                 "Only surface-level data is available."
             )
 
     # download data
-    if data_source == "earthkit":
-        # use earthkit.data timeseries API (surface data only)
-        fn_sfc = download_era5_earthkit(
+    if data_source == "timeseries":
+        # use CDS API timeseries dataset (surface data only)
+        fn_sfc = download_era5_timeseries(
             lat_x, lon_x, start, end, dir_save, logging_level
         )
         list_fn_sfc = [fn_sfc]
         list_fn_ml = []
     else:
-        # use traditional CDS API
+        # use traditional gridded CDS API (requires h5netcdf)
+        try:
+            import h5netcdf
+        except ImportError:
+            raise ImportError(
+                "Gridded ERA5 data source requires h5netcdf for reading netCDF4 files.\n"
+                "Install with: pip install h5netcdf\n"
+                "Alternatively, use data_source='timeseries' for lightweight CSV-based downloads."
+            )
+
         list_fn_sfc, list_fn_ml = download_era5_cdsapi(
             lat_x,
             lon_x,
@@ -1001,14 +1024,69 @@ def gen_forcing_era5(
             logging_level,
         )
 
-    # load data from from `sfc` files
-    ds_sfc = xr.open_mfdataset(
-        list_fn_sfc,
-        concat_dim="time",
-        combine="nested",
-    ).load()
-    # close dangling handlers
-    ds_sfc.close()
+    # load data from `sfc` files
+    # handle both CSV (timeseries) and netCDF (gridded) formats
+    if list_fn_sfc[0].endswith('.csv'):
+        # load CSV timeseries data
+        df_era5 = pd.read_csv(list_fn_sfc[0])
+        df_era5['valid_time'] = pd.to_datetime(df_era5['valid_time'])
+        df_era5 = df_era5.set_index('valid_time')
+        df_era5.index.name = 'time'  # rename index to match netCDF convention
+
+        # map CSV abbreviated column names to netCDF variable names
+        csv_to_netcdf_map = {
+            'u10': 'u10',    # 10m u-component of wind
+            'v10': 'v10',    # 10m v-component of wind
+            'd2m': 'd2m',    # 2m dewpoint temperature
+            't2m': 't2m',    # 2m temperature
+            'sp': 'sp',      # surface pressure
+            'ssrd': 'ssrd',  # surface solar radiation downwards
+            'strd': 'strd',  # surface thermal radiation downwards
+            'tp': 'tp',      # total precipitation
+        }
+
+        # rename columns to expected names (keeping abbreviated names for compatibility)
+        df_era5_renamed = df_era5.rename(columns={
+            k: v for k, v in csv_to_netcdf_map.items() if k in df_era5.columns
+        })
+
+        # convert to xarray Dataset
+        ds_sfc = xr.Dataset({
+            col: (["time"], df_era5_renamed[col].values)
+            for col in df_era5_renamed.columns
+            if col not in ['latitude', 'longitude']
+        })
+        ds_sfc = ds_sfc.assign_coords(
+            time=df_era5.index,
+            latitude=df_era5['latitude'].iloc[0],
+            longitude=df_era5['longitude'].iloc[0]
+        )
+
+        # timeseries dataset doesn't include geopotential - use approximate altitude
+        # assume near sea level (0m) as default for timeseries data
+        import numpy as np
+        ds_sfc['z'] = xr.DataArray(
+            np.zeros_like(ds_sfc.sp.values),
+            dims=['time'],
+            coords={'time': ds_sfc.time}
+        )
+
+        # timeseries dataset doesn't include heat fluxes and surface properties
+        # these will be handled below with default values for simple_mode
+        ds_sfc['sshf'] = xr.DataArray(np.zeros_like(ds_sfc.sp.values), dims=['time'], coords={'time': ds_sfc.time})
+        ds_sfc['slhf'] = xr.DataArray(np.zeros_like(ds_sfc.sp.values), dims=['time'], coords={'time': ds_sfc.time})
+        ds_sfc['fsr'] = xr.DataArray(np.full_like(ds_sfc.sp.values, 0.1), dims=['time'], coords={'time': ds_sfc.time})  # default roughness 0.1m
+        ds_sfc['zust'] = xr.DataArray(np.zeros_like(ds_sfc.sp.values), dims=['time'], coords={'time': ds_sfc.time})
+
+    else:
+        # load netCDF gridded data
+        ds_sfc = xr.open_mfdataset(
+            list_fn_sfc,
+            concat_dim="time",
+            combine="nested",
+        ).load()
+        # close dangling handlers
+        ds_sfc.close()
 
     if pressure_level is None:
         # generate diagnostics at a higher level
@@ -1037,15 +1115,25 @@ def gen_forcing_era5(
         ]
     ].to_dataframe()
 
-    # split based on grid coordinates
-    grp_grid = df_forcing_raw.groupby(level=["latitude", "longitude"])
-
-    # generate dataframe acceptable by supy
-    df_forcing = grp_grid.apply(
-        lambda df: format_df_forcing(
-            df.reset_index(["latitude", "longitude"], drop=True)
+    # check if latitude/longitude are in the index (gridded data) or scalars (timeseries data)
+    if "latitude" in df_forcing_raw.index.names and "longitude" in df_forcing_raw.index.names:
+        # gridded data: split based on grid coordinates
+        grp_grid = df_forcing_raw.groupby(level=["latitude", "longitude"])
+        df_forcing = grp_grid.apply(
+            lambda df: format_df_forcing(
+                df.reset_index(["latitude", "longitude"], drop=True)
+            )
         )
-    )
+    else:
+        # timeseries data: single point, no grouping needed
+        df_forcing = format_df_forcing(df_forcing_raw)
+        # add latitude/longitude from dataset coordinates to the index
+        lat = float(ds_forcing_era5.latitude.values)
+        lon = float(ds_forcing_era5.longitude.values)
+        df_forcing['latitude'] = lat
+        df_forcing['longitude'] = lon
+        # reorder index to match gridded data: [latitude, longitude, time]
+        df_forcing = df_forcing.reset_index().set_index(['latitude', 'longitude', 'time'])
 
     # save results as SUEWS met input files
     list_fn = save_forcing_era5(df_forcing, dir_save)
@@ -1130,14 +1218,69 @@ def gen_ds_diag_era5(list_fn_sfc, list_fn_ml, hgt_agl_diag=100, simple_mode=True
     import xarray as xr
     from atmosp import calculate as ac
 
-    # load data from from `sfc` files
-    ds_sfc = xr.open_mfdataset(
-        list_fn_sfc,
-        concat_dim="time",
-        combine="nested",
-    ).load()
-    # close dangling handlers
-    ds_sfc.close()
+    # load data from `sfc` files
+    # handle both CSV (timeseries) and netCDF (gridded) formats
+    if list_fn_sfc[0].endswith('.csv'):
+        # load CSV timeseries data
+        df_era5 = pd.read_csv(list_fn_sfc[0])
+        df_era5['valid_time'] = pd.to_datetime(df_era5['valid_time'])
+        df_era5 = df_era5.set_index('valid_time')
+        df_era5.index.name = 'time'  # rename index to match netCDF convention
+
+        # map CSV abbreviated column names to netCDF variable names
+        csv_to_netcdf_map = {
+            'u10': 'u10',    # 10m u-component of wind
+            'v10': 'v10',    # 10m v-component of wind
+            'd2m': 'd2m',    # 2m dewpoint temperature
+            't2m': 't2m',    # 2m temperature
+            'sp': 'sp',      # surface pressure
+            'ssrd': 'ssrd',  # surface solar radiation downwards
+            'strd': 'strd',  # surface thermal radiation downwards
+            'tp': 'tp',      # total precipitation
+        }
+
+        # rename columns to expected names (keeping abbreviated names for compatibility)
+        df_era5_renamed = df_era5.rename(columns={
+            k: v for k, v in csv_to_netcdf_map.items() if k in df_era5.columns
+        })
+
+        # convert to xarray Dataset
+        ds_sfc = xr.Dataset({
+            col: (["time"], df_era5_renamed[col].values)
+            for col in df_era5_renamed.columns
+            if col not in ['latitude', 'longitude']
+        })
+        ds_sfc = ds_sfc.assign_coords(
+            time=df_era5.index,
+            latitude=df_era5['latitude'].iloc[0],
+            longitude=df_era5['longitude'].iloc[0]
+        )
+
+        # timeseries dataset doesn't include geopotential - use approximate altitude
+        # assume near sea level (0m) as default for timeseries data
+        import numpy as np
+        ds_sfc['z'] = xr.DataArray(
+            np.zeros_like(ds_sfc.sp.values),
+            dims=['time'],
+            coords={'time': ds_sfc.time}
+        )
+
+        # timeseries dataset doesn't include heat fluxes and surface properties
+        # these will be handled below with default values for simple_mode
+        ds_sfc['sshf'] = xr.DataArray(np.zeros_like(ds_sfc.sp.values), dims=['time'], coords={'time': ds_sfc.time})
+        ds_sfc['slhf'] = xr.DataArray(np.zeros_like(ds_sfc.sp.values), dims=['time'], coords={'time': ds_sfc.time})
+        ds_sfc['fsr'] = xr.DataArray(np.full_like(ds_sfc.sp.values, 0.1), dims=['time'], coords={'time': ds_sfc.time})  # default roughness 0.1m
+        ds_sfc['zust'] = xr.DataArray(np.zeros_like(ds_sfc.sp.values), dims=['time'], coords={'time': ds_sfc.time})
+
+    else:
+        # load netCDF gridded data
+        ds_sfc = xr.open_mfdataset(
+            list_fn_sfc,
+            concat_dim="time",
+            combine="nested",
+        ).load()
+        # close dangling handlers
+        ds_sfc.close()
 
     # surface level atmospheric pressure
     pres_z0 = ds_sfc.sp

@@ -461,6 +461,126 @@ def download_cds(fn, dict_req):
         time.sleep(0.0100)
 
 
+def download_era5_earthkit(
+    lat_x: float,
+    lon_x: float,
+    start: str,
+    end: str,
+    dir_save=Path("."),
+    logging_level=logging.INFO,
+) -> str:
+    """Download ERA5 data using earthkit.data timeseries API.
+
+    This function uses the new ERA5 timeseries access method which is faster
+    than the traditional CDS API but only provides surface-level variables.
+
+    Parameters
+    ----------
+    lat_x : float
+        Latitude of the point of interest.
+    lon_x : float
+        Longitude of the point of interest.
+    start : str
+        Start date in format 'YYYY-MM-DD'.
+    end : str
+        End date in format 'YYYY-MM-DD'.
+    dir_save : Path or str, optional
+        Directory to save downloaded file, by default Path(".").
+    logging_level : int, optional
+        Logging level, by default logging.INFO.
+
+    Returns
+    -------
+    str
+        Path to the downloaded netCDF file.
+
+    Note
+    ----
+    1. This method only provides surface-level variables and should be used with simple_mode=True.
+    2. earthkit.data is installed as a core dependency with supy (separate package from cdsapi).
+    3. Much faster than CDS API (~26s for 30 years vs several minutes).
+    4. Only works for point locations (no spatial grid).
+
+    Reference
+    ---------
+    ERA5 timeseries documentation: https://cds.climate.copernicus.eu/datasets/reanalysis-era5-single-levels-timeseries
+    """
+    try:
+        import earthkit.data
+    except ImportError:
+        raise ImportError(
+            "earthkit.data is a core dependency but not found. "
+            "Reinstall supy to get the required dependencies: pip install --upgrade supy"
+        )
+
+    # adjust logging level
+    logger_supy.setLevel(logging_level)
+
+    # parse and create (if needed) the saving directory
+    path_dir_save = Path(dir_save).expanduser().resolve()
+    if not path_dir_save.exists():
+        path_dir_save.mkdir(parents=True)
+
+    # define variables required by SUEWS
+    variables = [
+        "2m_dewpoint_temperature",
+        "2m_temperature",
+        "10m_u_component_of_wind",
+        "10m_v_component_of_wind",
+        "surface_pressure",
+        "geopotential",
+        "surface_solar_radiation_downwards",
+        "surface_thermal_radiation_downwards",
+        "surface_sensible_heat_flux",
+        "surface_latent_heat_flux",
+        "total_precipitation",
+        "forecast_albedo",
+        "forecast_surface_roughness",
+        "friction_velocity",
+    ]
+
+    # format location coordinates in filename
+    lat_c = f"{lat_x}N" if lat_x > 0 else f"{-lat_x}S"
+    lon_c = f"{lon_x}E" if lon_x > 0 else f"{-lon_x}W"
+
+    # parse dates
+    date_start = pd.to_datetime(start).strftime("%Y-%m-%d")
+    date_end = pd.to_datetime(end).strftime("%Y-%m-%d")
+    year_start = pd.to_datetime(start).year
+
+    # construct filename
+    fn = f"{lat_c}{lon_c}-{year_start}-sfc-earthkit.nc"
+    path_fn = path_dir_save / fn
+
+    if path_fn.exists():
+        logger_supy.warning(f"{fn} exists!")
+    else:
+        logger_supy.info(f"Downloading ERA5 timeseries data using earthkit.data...")
+        logger_supy.info(f"Location: ({lat_x}, {lon_x})")
+        logger_supy.info(f"Period: {date_start} to {date_end}")
+
+        # define request parameters
+        dataset = "reanalysis-era5-single-levels-timeseries"
+        request = {
+            "variable": variables,
+            "date": [date_start, date_end],
+            "location": {"longitude": lon_x, "latitude": lat_x},
+            "data_format": "netcdf",
+        }
+
+        # retrieve data
+        t0 = time.time()
+        ekds = earthkit.data.from_source("cds", dataset, request).to_xarray()
+
+        # save to netcdf
+        ekds.to_netcdf(path_fn)
+
+        t1 = time.time()
+        logger_supy.info(f"Download completed in {t1 - t0:.1f} seconds")
+
+    return str(path_fn)
+
+
 def download_era5(
     lat_x: float,
     lon_x: float,
@@ -667,6 +787,7 @@ def gen_forcing_era5(
     force_download=True,
     simple_mode=True,
     pressure_level=None,
+    data_source="earthkit",
     logging_level=logging.INFO,
 ) -> list:
     """Generate SUEWS forcing files using ERA-5 data.
@@ -701,6 +822,12 @@ def gen_forcing_era5(
         pressure level to retrieve ERA5 atmospheric data, by default None.
         If ``None``, this option is ignored.
         If not ``None``, calculations implied by ``simple_mode`` will be skipped: the data at specified pressure level will be used as forcing data and the mean altitude of the pressure level between specified ``start`` and ``end`` will be assumed to be the forcing height (i.e., ``hgt_agl_diag`` will be ignored if set).
+    data_source : str, optional
+        data source for downloading ERA5 data, by default "earthkit".
+        Options:
+        - "earthkit": ERA5 timeseries API using earthkit.data (surface data only, much faster, ~26s for 30 years)
+        - "cdsapi": Traditional CDS API (supports both surface and model level data, slower)
+        Note: "earthkit" source only works with ``simple_mode=True`` and ``scale=0`` (point locations only).
     logging_level : int, optional
         one of these values [50 (CRITICAL), 40 (ERROR), 30 (WARNING), 20 (INFO), 10 (DEBUG)].
         A lower value informs SuPy for more verbose logging info.
@@ -713,10 +840,26 @@ def gen_forcing_era5(
 
     Note
     ----
-        1. This function uses CDS API to download ERA5 data; follow this for configuration first: https://cds.climate.copernicus.eu/api-how-to
+        1. By default, this function uses earthkit.data for fast ERA5 timeseries download. For CDS API configuration (if using ``data_source="cdsapi"``), see: https://cds.climate.copernicus.eu/api-how-to
         2. The generated forcing files can be imported using ``supy.util.read_forcing`` to get simulation-ready ``pandas.DataFrame`` s.
         3. See Section 3.10.2 and 3.10.3 in the reference for details of diagnostics calculation.
         4. For ``start``/``end``, it is recommended to use the format ``YYYY-MM-DD`` to avoid confusion in day/month-first convensions (`an upstream known issue <https://pandas.pydata.org/docs/reference/api/pandas.to_datetime.html#pandas.to_datetime>`_ due to the ``dateutil`` behavior)
+        5. The default ``data_source="earthkit"`` only works with ``simple_mode=True`` (surface data). For model level data or complex diagnostics, use ``data_source="cdsapi"`` with ``simple_mode=False``.
+
+    Examples
+    --------
+    Using earthkit.data timeseries API (default, fast):
+
+    >>> list_fn = gen_forcing_era5(
+    ...     50.86, 4.35, "2020-01-01", "2020-01-31", simple_mode=True
+    ... )
+
+    Using traditional CDS API (for model level data or spatial grids):
+
+    >>> list_fn = gen_forcing_era5(
+    ...     50.86, 4.35, "2020-01-01", "2020-01-31",
+    ...     simple_mode=False, data_source="cdsapi"
+    ... )
 
     Reference
     ---------
@@ -731,19 +874,47 @@ def gen_forcing_era5(
     # adjust logging level
     logger_supy.setLevel(logging_level)
 
+    # validate earthkit data source requirements
+    if data_source == "earthkit":
+        if not simple_mode:
+            raise ValueError(
+                "earthkit data source only works with simple_mode=True. "
+                "The ERA5 timeseries API only provides surface-level variables."
+            )
+        if scale != 0:
+            logger_supy.warning(
+                "earthkit data source only supports point locations (scale=0). "
+                f"Ignoring scale={scale} and using scale=0."
+            )
+            scale = 0
+        if pressure_level is not None:
+            raise ValueError(
+                "earthkit data source does not support pressure_level parameter. "
+                "Only surface-level data is available."
+            )
+
     # download data
-    list_fn_sfc, list_fn_ml = load_filelist_era5(
-        lat_x,
-        lon_x,
-        start,
-        end,
-        simple_mode,
-        grid,
-        scale,
-        dir_save,
-        force_download,
-        logging_level,
-    )
+    if data_source == "earthkit":
+        # use new earthkit.data timeseries API (surface data only)
+        fn_sfc = download_era5_earthkit(
+            lat_x, lon_x, start, end, dir_save, logging_level
+        )
+        list_fn_sfc = [fn_sfc]
+        list_fn_ml = []
+    else:
+        # use traditional CDS API
+        list_fn_sfc, list_fn_ml = load_filelist_era5(
+            lat_x,
+            lon_x,
+            start,
+            end,
+            simple_mode,
+            grid,
+            scale,
+            dir_save,
+            force_download,
+            logging_level,
+        )
 
     # load data from from `sfc` files
     ds_sfc = xr.open_mfdataset(

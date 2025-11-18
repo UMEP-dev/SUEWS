@@ -212,17 +212,66 @@ These additional variables can enhance model performance but are not required:
      - wdir
      - Currently not used
 
+Generating Forcing Data from ERA5
+----------------------------------
+
+SUEWS provides built-in support for downloading and processing ERA5 reanalysis data into forcing files using the :func:`~supy.util.gen_forcing_era5` function.
+
+**Quick Start (Recommended - Fast Method)**
+
+By default, SUEWS uses the fast earthkit.data timeseries API:
+
+.. code-block:: python
+
+   import supy as sp
+
+   # Download 30 years of ERA5 data for Copenhagen (~26 seconds!)
+   list_fn = sp.util.gen_forcing_era5(
+       55.68, 12.57,              # Latitude, longitude
+       "1991-01-01", "2020-12-31",  # Date range
+       dir_save="./forcing_data"
+   )
+
+   # Files are ready to use in your YAML config
+   print(f"Generated {len(list_fn)} forcing files")
+
+**Features:**
+
+- Fast download for point locations
+- Surface-level variables only
+- Automatically extrapolates to measurement height using ``hgt_agl_diag`` parameter (default 100m)
+
+**Using Traditional CDS API**
+
+For model-level data or spatial grids, use the traditional method:
+
+.. code-block:: python
+
+   list_fn = sp.util.gen_forcing_era5(
+       55.68, 12.57,
+       "1991-01-01", "2020-12-31",
+       data_source="cdsapi",      # Use traditional CDS API
+       simple_mode=False,         # Complex MOST diagnostics
+       scale=1                    # Spatial grid (3x3 for scale=1)
+   )
+
+**Requirements:**
+
+- CDS API credentials configured (see `CDS API setup <https://cds.climate.copernicus.eu/api-how-to>`_)
+
+See :func:`~supy.util.gen_forcing_era5` API documentation for all options.
+
 Data Preparation Tips
 ---------------------
 
 **Gap Filling**
 
-If your data has gaps, you must fill them before use. Common approaches:
+If your data has gaps, you must fill them before use. SuPy provides :func:`~supy.util.fill_gap_all` for automatic gap filling using neighbouring time periods. Common approaches:
 
+- Use :func:`~supy.util.fill_gap_all` for automated filling from similar days
 - Linear interpolation for short gaps (< 2 hours)
 - Use data from nearby stations
-- Use reanalysis data (e.g., ERA5)
-- Repeat patterns from similar days
+- Use reanalysis data (ERA5 - see section above)
 
 **Quality Control**
 

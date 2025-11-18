@@ -21,7 +21,7 @@
 
 | Year | Features | Bugfixes | Changes | Maintenance | Docs | Total |
 |------|----------|----------|---------|-------------|------|-------|
-| 2025 | 38 | 26 | 13 | 34 | 17 | 128 |
+| 2025 | 38 | 26 | 14 | 34 | 17 | 129 |
 | 2024 | 12 | 17 | 1 | 12 | 1 | 43 |
 | 2023 | 11 | 14 | 3 | 9 | 1 | 38 |
 | 2022 | 15 | 18 | 0 | 7 | 0 | 40 |
@@ -33,6 +33,16 @@
 
 
 ## 2025
+
+### 18 Nov 2025
+- [change] **BREAKING**: earthkit.data is now the default ERA5 download method (GH-832)
+  - `data_source` parameter in `gen_forcing_era5()` now defaults to "earthkit" (was "cdsapi")
+  - earthkit source provides much faster downloads (~26s for 30 years vs several minutes)
+  - Only works with surface-level variables (requires `simple_mode=True`)
+  - Point location only (no spatial grid support)
+  - To use traditional CDS API, explicitly set `data_source="cdsapi"`
+  - `hgt_agl_diag` parameter remains functional for extrapolating to measurement height
+  - earthkit-data moved from optional to core dependency
 
 ### 14 Nov 2025
 - [feature] Added Phase C validation for daylight saving time parameters

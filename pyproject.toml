@@ -52,7 +52,8 @@ dependencies = [
     
     # Data access
     "cdsapi",
-    
+    "earthkit-data",  # Faster ERA5 timeseries API (now default)
+
     # Time/location
     "tzfpy>=1.0.0",  # Faster timezone finder with Windows wheels
     "pytz",

@@ -2508,7 +2508,6 @@ class SUEWSConfig(BaseModel):
             # Add metadata columns directly to maintain MultiIndex structure
             df[("config", "0")] = self.name
             df[("description", "0")] = self.description
-            df[("schema_ver", "0")] = self.schema_version
         except Exception as e:
             if use_conditional_validation and not strict:
                 warnings.warn(

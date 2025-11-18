@@ -857,8 +857,12 @@ def gen_forcing_era5(
     Using traditional CDS API (for model level data or spatial grids):
 
     >>> list_fn = gen_forcing_era5(
-    ...     50.86, 4.35, "2020-01-01", "2020-01-31",
-    ...     simple_mode=False, data_source="cdsapi"
+    ...     50.86,
+    ...     4.35,
+    ...     "2020-01-01",
+    ...     "2020-01-31",
+    ...     simple_mode=False,
+    ...     data_source="cdsapi",
     ... )
 
     Reference

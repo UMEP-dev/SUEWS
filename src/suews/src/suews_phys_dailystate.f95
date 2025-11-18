@@ -493,9 +493,9 @@ CONTAINS
 
                ! --------------------------------------------------------------------------------
                !> assign Tair with either the forcing air temperature or the local diagnostic air temperature
-               IF (config%localClimateMethod == 1) THEN
+               IF (config%RSLLevel == 1) THEN
                   Tair = atmState%t2_C
-               ELSE IF (config%localClimateMethod == 2) THEN
+               ELSE IF (config%RSLLevel == 2) THEN
                   Tair = atmState%T_hbh_C
                ELSE
                   Tair = Temp_C

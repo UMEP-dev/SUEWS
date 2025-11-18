@@ -4,7 +4,14 @@ import dask.bag as db
 import click
 import sys
 
-from .._supy_module import init_supy, run_supy, save_supy, load_forcing_grid, pd, Path
+from .._supy_module import (
+    _init_supy,
+    _run_supy,
+    _save_supy,
+    _load_forcing_grid,
+    pd,
+    Path,
+)
 
 from .._version import show_version, __version__
 
@@ -125,7 +132,7 @@ def _run_with_namelist(path_runcontrol):
         path_runcontrol = Path(path_runcontrol).resolve()
         # init supy
         click.echo("Initialising ...")
-        df_state_init = init_supy(path_runcontrol)
+        df_state_init = _init_supy(path_runcontrol)
 
         # load forcing
         list_grid = df_state_init.index
@@ -137,10 +144,10 @@ def _run_with_namelist(path_runcontrol):
             click.echo("\nGrid-specific forcing conditions will be used.")
             # multiple met forcing conditions according to grids:
             list_df_forcing = [
-                load_forcing_grid(path_runcontrol, grid) for grid in list_grid
+                _load_forcing_grid(path_runcontrol, grid) for grid in list_grid
             ]
             list_input = [
-                (load_forcing_grid(path_runcontrol, grid), df_state_init.loc[[grid]])
+                (_load_forcing_grid(path_runcontrol, grid), df_state_init.loc[[grid]])
                 for grid in list_grid
             ]
             click.echo("\nSimulation periods:")
@@ -152,7 +159,7 @@ def _run_with_namelist(path_runcontrol):
             method_parallel = "threads"
             list_res = (
                 db.from_sequence(list_input)
-                .map(lambda input_grid: run_supy(*input_grid))
+                .map(lambda input_grid: _run_supy(*input_grid))
                 .compute(scheduler=method_parallel)
             )
             try:
@@ -168,17 +175,17 @@ def _run_with_namelist(path_runcontrol):
         else:
             # uniform met forcing condition across grids:
             grid = list_grid[0]
-            df_forcing = load_forcing_grid(path_runcontrol, grid)
+            df_forcing = _load_forcing_grid(path_runcontrol, grid)
             click.echo("\nSame forcing conditions will be used for all grids.")
             click.echo("\nSimulation period:")
             idx_dt = df_forcing.index
             start, end = idx_dt.min(), idx_dt.max()
             click.echo(f"{start} - {end}")
             # run supy
-            df_output, df_state_final = run_supy(df_forcing, df_state_init)
+            df_output, df_state_final = _run_supy(df_forcing, df_state_init)
 
         # save result
-        list_out_files = save_supy(
+        list_out_files = _save_supy(
             df_output, df_state_final, path_runcontrol=path_runcontrol
         )
 

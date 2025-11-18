@@ -599,11 +599,15 @@ class AnthropogenicEmissions(BaseModel):
 
     startdls: Optional[FlexibleRefValue(float)] = Field(
         default=None,
+        ge=1,
+        le=366,
         description="Start of daylight savings time in decimal day of year",
         json_schema_extra={"unit": "day", "display_name": "Daylight Saving Start"},
     )
     enddls: Optional[FlexibleRefValue(float)] = Field(
         default=None,
+        ge=1,
+        le=366,
         description="End of daylight savings time in decimal day of year",
         json_schema_extra={"unit": "day", "display_name": "Daylight Saving End"},
     )
@@ -673,8 +677,12 @@ class AnthropogenicEmissions(BaseModel):
         Returns:
             AnthropogenicEmissions: Instance of AnthropogenicEmissions.
         """
-        startdls = RefValue(df.loc[grid_id, ("startdls", "0")])
-        enddls = RefValue(df.loc[grid_id, ("enddls", "0")])
+        # Treat 0.0 as None (since to_df_state writes None as 0.0)
+        startdls_val = df.loc[grid_id, ("startdls", "0")]
+        enddls_val = df.loc[grid_id, ("enddls", "0")]
+
+        startdls = None if startdls_val == 0.0 else RefValue(startdls_val)
+        enddls = None if enddls_val == 0.0 else RefValue(enddls_val)
 
         # Reconstruct heat parameters
         heat = AnthropogenicHeat.from_df_state(df, grid_id)

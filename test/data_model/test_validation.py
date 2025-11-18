@@ -17,6 +17,7 @@ from types import SimpleNamespace
 import warnings
 
 import supy as sp
+from supy._env import trv_supy_module
 from supy.data_model.core import SUEWSConfig
 from supy.data_model.core.type import RefValue
 from supy.data_model.validation.core.utils import check_missing_params
@@ -2123,3 +2124,357 @@ def test_forcing_validation_cli_integration():
         finally:
             # Cleanup happens automatically with TemporaryDirectory context manager
             pass
+
+
+# ============================================================================
+# Irrigation DOY Validation Tests (Issue #811)
+# ============================================================================
+
+
+def test_irrigation_doy_leap_year():
+    """Test DOY 366 validation for leap vs non-leap years."""
+    from supy.data_model.validation.pipeline.phase_b import validate_irrigation_doy
+
+    # Leap year: DOY 366 valid
+    results = validate_irrigation_doy(120, 366, 51.5, 2024, "test_site")
+    assert not any(r.status == "ERROR" for r in results)
+
+    # Non-leap year: DOY 366 invalid
+    results = validate_irrigation_doy(120, 366, 51.5, 2023, "test_site")
+    errors = [r for r in results if r.status == "ERROR"]
+    assert len(errors) == 1
+    assert "365" in errors[0].message
+
+
+def test_irrigation_doy_disabled():
+    """Test irrigation disabled configurations (None/0)."""
+    from supy.data_model.validation.pipeline.phase_b import validate_irrigation_doy
+
+    # Both None = valid
+    assert len(validate_irrigation_doy(None, None, 51.5, 2023, "test")) == 0
+
+    # Both 0 = valid
+    assert len(validate_irrigation_doy(0, 0, 51.5, 2023, "test")) == 0
+
+    # One set, one None = error
+    results = validate_irrigation_doy(120, None, 51.5, 2023, "test")
+    errors = [r for r in results if r.status == "ERROR"]
+    assert len(errors) == 1
+    assert "must be specified together" in errors[0].message
+
+
+def test_irrigation_hemisphere_warnings():
+    """Test hemisphere and tropical-aware warm season warnings."""
+    from supy.data_model.validation.pipeline.phase_b import validate_irrigation_doy
+
+    # NH: warm season (May-Sept, DOY 121-273) = no warning
+    results = validate_irrigation_doy(150, 250, 51.5, 2023, "test")
+    assert not any(r.status == "WARNING" for r in results)
+
+    results = validate_irrigation_doy(121, 273, 51.5, 2023, "test")
+    assert not any(r.status == "WARNING" for r in results)
+
+    # NH: outside warm season = warning (also warns about year-wrapping)
+    results = validate_irrigation_doy(350, 30, 51.5, 2023, "test")
+    warnings = [r for r in results if r.status == "WARNING"]
+    assert len(warnings) == 2
+    assert any(
+        "Northern Hemisphere" in w.message and "May-September" in w.message
+        for w in warnings
+    )
+    assert any("wraps year boundary" in w.message for w in warnings)
+
+    # NH: partial overlap with warm season = warning
+    results = validate_irrigation_doy(100, 200, 51.5, 2023, "test")
+    warnings = [r for r in results if r.status == "WARNING"]
+    assert len(warnings) == 1  # Start (100) is outside warm season (121-273)
+
+    # SH: warm season (Nov-March, DOY 305-90, year-wrapping) = no warning
+    results = validate_irrigation_doy(330, 60, -33.9, 2023, "test")
+    assert not any(r.status == "WARNING" for r in results)
+
+    results = validate_irrigation_doy(305, 90, -33.9, 2023, "test")
+    assert not any(r.status == "WARNING" for r in results)
+
+    # SH: outside warm season (winter) = warning (also warns about not wrapping)
+    results = validate_irrigation_doy(180, 220, -33.9, 2023, "test")
+    warnings = [r for r in results if r.status == "WARNING"]
+    assert len(warnings) == 2
+    assert any(
+        "Southern Hemisphere" in w.message and "November-March" in w.message
+        for w in warnings
+    )
+    assert any("does not wrap year boundary" in w.message for w in warnings)
+
+    # Tropical: any period = no warning (irrigation allowed year-round)
+    results = validate_irrigation_doy(1, 365, 15.0, 2023, "test")
+    assert not any(r.status == "WARNING" for r in results)
+
+    results = validate_irrigation_doy(100, 200, 20.0, 2023, "test")
+    assert not any(r.status == "WARNING" for r in results)
+
+    results = validate_irrigation_doy(300, 50, -20.0, 2023, "test")
+    assert not any(r.status == "WARNING" for r in results)
+
+
+def test_irrigation_year_wrapping():
+    """Test year-wrapping irrigation period validation (ie_start > ie_end)."""
+    from supy.data_model.validation.pipeline.phase_b import validate_irrigation_doy
+
+    # Year-wrapping period in NH (winter irrigation - unusual)
+    results = validate_irrigation_doy(300, 50, 51.5, 2023, "test")
+    # Should warn about both: outside warm season AND year-wrapping
+    warnings = [r for r in results if r.status == "WARNING"]
+    assert len(warnings) == 2
+    assert any("wraps year boundary" in w.message for w in warnings)
+    assert any("falls outside" in w.message for w in warnings)
+
+    # Year-wrapping period in SH (summer irrigation - expected)
+    results = validate_irrigation_doy(330, 60, -33.9, 2023, "test")
+    # Should NOT warn about year-wrapping (it's normal for SH warm season)
+    warnings = [r for r in results if r.status == "WARNING"]
+    wrapping_warnings = [
+        w for w in warnings if "does not wrap year boundary" in w.message
+    ]
+    assert len(wrapping_warnings) == 0
+
+    # Non-wrapping period in SH (winter irrigation - unusual)
+    results = validate_irrigation_doy(150, 250, -33.9, 2023, "test")
+    # Should warn about both: outside warm season AND not wrapping
+    warnings = [r for r in results if r.status == "WARNING"]
+    assert len(warnings) == 2
+    assert any("does not wrap year boundary" in w.message for w in warnings)
+    assert any("falls outside" in w.message for w in warnings)
+
+
+def test_startdls_enddls_range_validation():
+    """Test Pydantic validation for startdls and enddls DOY range constraints."""
+    import pytest
+    from supy.data_model.core.human_activity import AnthropogenicEmissions
+    from pydantic import ValidationError
+
+    # Valid cases
+    # Both None (no DST)
+    emissions = AnthropogenicEmissions(startdls=None, enddls=None)
+    assert emissions.startdls is None
+    assert emissions.enddls is None
+
+    # Valid DOY values
+    emissions = AnthropogenicEmissions(startdls=1, enddls=366)
+    assert emissions.startdls == 1
+    assert emissions.enddls == 366
+
+    # Typical NH DST
+    emissions = AnthropogenicEmissions(startdls=86, enddls=303)
+    assert emissions.startdls == 86
+    assert emissions.enddls == 303
+
+    # Typical SH DST
+    emissions = AnthropogenicEmissions(startdls=274, enddls=97)
+    assert emissions.startdls == 274
+    assert emissions.enddls == 97
+
+    # Invalid cases - startdls too small
+    with pytest.raises(ValidationError) as exc_info:
+        AnthropogenicEmissions(startdls=0, enddls=100)
+    assert "greater than or equal to 1" in str(exc_info.value).lower()
+
+    # Invalid cases - startdls negative
+    with pytest.raises(ValidationError) as exc_info:
+        AnthropogenicEmissions(startdls=-50, enddls=100)
+    assert "greater than or equal to 1" in str(exc_info.value).lower()
+
+    # Invalid cases - startdls too large
+    with pytest.raises(ValidationError) as exc_info:
+        AnthropogenicEmissions(startdls=400, enddls=100)
+    assert "less than or equal to 366" in str(exc_info.value).lower()
+
+    # Invalid cases - startdls placeholder value
+    with pytest.raises(ValidationError) as exc_info:
+        AnthropogenicEmissions(startdls=999, enddls=100)
+    assert "less than or equal to 366" in str(exc_info.value).lower()
+
+    # Invalid cases - enddls too small
+    with pytest.raises(ValidationError) as exc_info:
+        AnthropogenicEmissions(startdls=100, enddls=0)
+    assert "greater than or equal to 1" in str(exc_info.value).lower()
+
+    # Invalid cases - enddls negative
+    with pytest.raises(ValidationError) as exc_info:
+        AnthropogenicEmissions(startdls=100, enddls=-20)
+    assert "greater than or equal to 1" in str(exc_info.value).lower()
+
+    # Invalid cases - enddls too large
+    with pytest.raises(ValidationError) as exc_info:
+        AnthropogenicEmissions(startdls=100, enddls=500)
+    assert "less than or equal to 366" in str(exc_info.value).lower()
+
+    # Invalid cases - enddls placeholder value
+    with pytest.raises(ValidationError) as exc_info:
+        AnthropogenicEmissions(startdls=100, enddls=999)
+    assert "less than or equal to 366" in str(exc_info.value).lower()
+
+    # Edge cases - boundary values
+    emissions = AnthropogenicEmissions(startdls=1, enddls=1)
+    assert emissions.startdls == 1
+    assert emissions.enddls == 1
+
+    emissions = AnthropogenicEmissions(startdls=366, enddls=366)
+    assert emissions.startdls == 366
+    assert emissions.enddls == 366
+
+    # Decimal values (DOY can be decimal)
+    emissions = AnthropogenicEmissions(startdls=86.5, enddls=303.75)
+    assert emissions.startdls == 86.5
+    assert emissions.enddls == 303.75
+
+
+def test_dls_consistency_validation_in_suews_config():
+    """Test DLS consistency check in SUEWSConfig: both set or both None."""
+    import pytest
+    from pydantic import ValidationError
+    from supy.data_model.core import SUEWSConfig
+
+    # Load a valid sample configuration
+    import yaml
+
+    sample_path = trv_supy_module / "sample_data" / "sample_config.yml"
+    with sample_path.open() as f:
+        config_data = yaml.safe_load(f)
+
+    # Test 1: Both None - valid
+    config_data["sites"][0]["properties"]["anthropogenic_emissions"]["startdls"] = None
+    config_data["sites"][0]["properties"]["anthropogenic_emissions"]["enddls"] = None
+    config = SUEWSConfig(**config_data)
+    assert config is not None
+
+    # Test 2: Both set - valid
+    config_data["sites"][0]["properties"]["anthropogenic_emissions"]["startdls"] = 86
+    config_data["sites"][0]["properties"]["anthropogenic_emissions"]["enddls"] = 303
+    config = SUEWSConfig(**config_data)
+    assert config is not None
+
+    # Test 3: Only startdls set - ERROR
+    config_data["sites"][0]["properties"]["anthropogenic_emissions"]["startdls"] = 86
+    config_data["sites"][0]["properties"]["anthropogenic_emissions"]["enddls"] = None
+    with pytest.raises(ValidationError) as exc_info:
+        SUEWSConfig(**config_data)
+    assert "must both be set or both be None" in str(exc_info.value)
+
+    # Test 4: Only enddls set - ERROR
+    config_data["sites"][0]["properties"]["anthropogenic_emissions"]["startdls"] = None
+    config_data["sites"][0]["properties"]["anthropogenic_emissions"]["enddls"] = 303
+    with pytest.raises(ValidationError) as exc_info:
+        SUEWSConfig(**config_data)
+    assert "must both be set or both be None" in str(exc_info.value)
+
+
+def test_dls_leap_year_validation_in_suews_config():
+    """Test DLS leap year refinement in SUEWSConfig."""
+    import pytest
+    import yaml
+    from pydantic import ValidationError
+    from supy.data_model.core import SUEWSConfig
+
+    sample_path = trv_supy_module / "sample_data" / "sample_config.yml"
+    with sample_path.open() as f:
+        config_data = yaml.safe_load(f)
+
+    # Set DLS values
+    config_data["sites"][0]["properties"]["anthropogenic_emissions"]["startdls"] = 86
+    config_data["sites"][0]["properties"]["anthropogenic_emissions"]["enddls"] = 366
+
+    # Test 1: Leap year 2024 - DOY 366 is valid
+    config_data["model"]["control"]["start_time"] = "2024-01-01T00:00:00"
+    config = SUEWSConfig(**config_data)
+    assert config is not None
+
+    # Test 2: Non-leap year 2025 - DOY 366 is ERROR
+    config_data["model"]["control"]["start_time"] = "2025-01-01T00:00:00"
+    with pytest.raises(ValidationError) as exc_info:
+        SUEWSConfig(**config_data)
+    assert "non-leap year 2025" in str(exc_info.value)
+    assert "366" in str(exc_info.value)
+
+
+def test_dls_hemisphere_informational_messages_in_suews_config():
+    """Test DLS hemisphere informational messages are collected in validation_summary."""
+    import pytest
+    import yaml
+    from supy.data_model.core import SUEWSConfig
+
+    sample_path = trv_supy_module / "sample_data" / "sample_config.yml"
+    with sample_path.open() as f:
+        config_data = yaml.safe_load(f)
+
+    # Set year to avoid leap year issues
+    config_data["model"]["control"]["start_time"] = "2024-01-01T00:00:00"
+
+    # Test 1: Northern Hemisphere with typical DST pattern (no info message)
+    config_data["sites"][0]["properties"]["lat"] = 51.5  # London
+    config_data["sites"][0]["properties"]["anthropogenic_emissions"]["startdls"] = (
+        86  # Late March (typical for NH)
+    )
+    config_data["sites"][0]["properties"]["anthropogenic_emissions"]["enddls"] = (
+        300  # Late October (typical for NH)
+    )
+
+    config = SUEWSConfig(**config_data)
+    assert config is not None
+
+    # Check that no hemisphere warnings were generated (values are typical)
+    if hasattr(config, "_validation_summary"):
+        detailed_messages = config._validation_summary.get("detailed_messages", [])
+        hemisphere_messages = [
+            msg for msg in detailed_messages if "Unusual DST pattern" in msg
+        ]
+        assert len(hemisphere_messages) == 0, (
+            "Should not generate message for typical NH DST pattern"
+        )
+
+    # Test 2: Northern Hemisphere with unusual DST pattern (should generate info message)
+    config_data["sites"][0]["properties"]["lat"] = 51.5  # London
+    config_data["sites"][0]["properties"]["anthropogenic_emissions"]["startdls"] = (
+        200  # July (unusual for NH start)
+    )
+    config_data["sites"][0]["properties"]["anthropogenic_emissions"]["enddls"] = (
+        150  # May (unusual for NH end)
+    )
+
+    config = SUEWSConfig(**config_data)
+    assert config is not None
+
+    # Check that hemisphere info messages were generated
+    assert hasattr(config, "_validation_summary")
+    detailed_messages = config._validation_summary.get("detailed_messages", [])
+    hemisphere_messages = [
+        msg for msg in detailed_messages if "Unusual DST pattern" in msg
+    ]
+    assert len(hemisphere_messages) > 0, (
+        "Should generate info message for unusual NH DST pattern"
+    )
+    assert "Northern Hemisphere" in hemisphere_messages[0]
+    assert "startdls=200" in hemisphere_messages[0]
+    assert "enddls=150" in hemisphere_messages[0]
+
+    # Test 3: Southern Hemisphere with unusual DST pattern
+    config_data["sites"][0]["properties"]["lat"] = -33.9  # Sydney
+    config_data["sites"][0]["properties"]["anthropogenic_emissions"]["startdls"] = (
+        86  # Late March (unusual for SH start, typical for NH)
+    )
+    config_data["sites"][0]["properties"]["anthropogenic_emissions"]["enddls"] = (
+        300  # Late October (unusual for SH end, typical for NH)
+    )
+
+    config = SUEWSConfig(**config_data)
+    assert config is not None
+
+    # Check that hemisphere info messages were generated
+    detailed_messages = config._validation_summary.get("detailed_messages", [])
+    hemisphere_messages = [
+        msg for msg in detailed_messages if "Unusual DST pattern" in msg
+    ]
+    assert len(hemisphere_messages) > 0, (
+        "Should generate info message for unusual SH DST pattern"
+    )
+    assert "Southern Hemisphere" in hemisphere_messages[0]

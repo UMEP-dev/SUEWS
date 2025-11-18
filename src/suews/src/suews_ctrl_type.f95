@@ -14,7 +14,7 @@ MODULE module_ctrl_type
 
    ! ********** SUEWS_parameters schema (basic) **********
    TYPE, PUBLIC :: SUEWS_CONFIG
-      INTEGER :: DiagMethod = 0 ! Defines how near surface diagnostics are calculated
+      INTEGER :: RSLMethod = 0 ! Defines how near surface diagnostics are calculated
       INTEGER :: EmissionsMethod = 0 ! method to calculate anthropogenic heat [-]
       INTEGER :: RoughLenHeatMethod = 0 ! method to calculate heat roughness length [-]
       INTEGER :: RoughLenMomMethod = 0 ! Determines how aerodynamic roughness length (z0m) and zero displacement height (zdm) are calculated [-]
@@ -31,7 +31,7 @@ MODULE module_ctrl_type
       INTEGER :: DiagQS = 0 ! flag for printing diagnostic info for QS module during runtime [N/A] ! not used and will be removed
       INTEGER :: EvapMethod = 0 ! Evaporation calculated according to Rutter (1) or Shuttleworth (2) [-]
       INTEGER :: LAImethod = 0 ! boolean to determine if calculate LAI [-]
-      INTEGER :: localClimateMethod = 0 ! method to choose local climate variables [-] 0: not use; 1: use local climate variables
+      INTEGER :: RSLLevel = 0 ! method to choose local climate variables [-] 0: not use; 1: use local climate variables
       INTEGER :: stebbsmethod = 0 ! method to calculate building energy [-]
       INTEGER :: rcmethod = 0 ! method to split building envelope heat capacity in STEBBS [-]
       LOGICAL :: flag_test = .FALSE. ! FOR DEBUGGING ONLY: boolean to test specific functions [-]

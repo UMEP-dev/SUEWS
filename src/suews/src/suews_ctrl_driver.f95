@@ -903,7 +903,7 @@ CONTAINS
 
             ASSOCIATE ( &
                EmissionsMethod => config%EmissionsMethod, &
-               localClimateMethod => config%localClimateMethod, &
+               RSLLevel => config%RSLLevel, &
                EF_umolCO2perJ => ahemisPrm%EF_umolCO2perJ, &
                EnEF_v_Jkm => ahemisPrm%EnEF_v_Jkm, &
                FcEF_v_kgkm => ahemisPrm%FcEF_v_kgkm, &
@@ -971,7 +971,7 @@ CONTAINS
                   qf = QF_obs
                ELSEIF ((EmissionsMethod > 0 .AND. EmissionsMethod <= 6) .OR. EmissionsMethod >= 11) THEN
                   ! choose temperature for anthropogenic heat flux calculation
-                  Tair = MERGE(T_hbh_C, MERGE(T2_C, Temp_C, localClimateMethod == 1), localClimateMethod == 2)
+                  Tair = MERGE(T_hbh_C, MERGE(T2_C, Temp_C, RSLLevel == 1), RSLLevel == 2)
 
                   CALL AnthropogenicEmissions( &
                      CO2PointSource, EmissionsMethod, &
@@ -1102,7 +1102,7 @@ CONTAINS
 !             SnowFrac => snowState%SnowFrac, &
 !             SMDMethod => config%SMDMethod, &
 !             storageheatmethod => config%StorageHeatMethod, &
-!             DiagMethod => config%DiagMethod, &
+!             RSLMethod => config%RSLMethod, &
 !             StabilityMethod => config%StabilityMethod, &
 !             EmissionsMethod => config%EmissionsMethod, &
 !             Diagnose => config%Diagnose &
@@ -3126,7 +3126,7 @@ CONTAINS
             Diagnose => config%Diagnose, &
             StabilityMethod => config%StabilityMethod, &
             RoughLenHeatMethod => config%RoughLenHeatMethod, &
-            localClimateMethod => config%localClimateMethod, &
+            RSLLevel => config%RSLLevel, &
             SnowUse => config%SnowUse, &
             SMDMethod => config%SMDMethod &
             )
@@ -3196,7 +3196,7 @@ CONTAINS
 
                IF (Diagnose == 1) WRITE (*, *) 'Calling SurfaceResistance...'
                ! CALL SurfaceResistance(id,it)   !qsc and surface resistance out
-               Tair = MERGE(T_hbh_C, MERGE(T2_C, Temp_C, localClimateMethod == 1), localClimateMethod == 2)
+               Tair = MERGE(T_hbh_C, MERGE(T2_C, Temp_C, RSLLevel == 1), RSLLevel == 2)
                CALL SurfaceResistance( &
                   id, it, & ! input:
                   SMDMethod, SnowFrac, sfr_surf, avkdn, Tair, dq, xsmd, vsmd, MaxConductance, &
@@ -3751,7 +3751,7 @@ CONTAINS
       alpha_bioCO2, alpha_enh_bioCO2, alt, BaseT, BaseTe, &
       beta_bioCO2, beta_enh_bioCO2, bldgH, CapMax_dec, CapMin_dec, &
       chAnOHM, CO2PointSource, cpAnOHM, CRWmax, CRWmin, DayWat, DayWatPer, &
-      DecTreeH, DiagMethod, Diagnose, DRAINRT, &
+      DecTreeH, RSLMethod, Diagnose, DRAINRT, &
       dt_since_start, dqndt, qn_av, dqnsdt, qn_s_av, &
       EF_umolCO2perJ, emis, EmissionsMethod, EnEF_v_Jkm, endDLS, EveTreeH, FAIBldg, &
       FAIDecTree, FAIEveTree, FAIMethod, Faut, FcEF_v_kgkm, FlowChange, &
@@ -3763,7 +3763,7 @@ CONTAINS
       IrrFracEveTr, IrrFracDecTr, IrrFracGrass, &
       IrrFracBSoil, IrrFracWater, &
       kkAnOHM, Kmax, LAI_id, LAIMax, LAIMin, &
-      LAIPower, LAIType, lat, lng, localClimateMethod, MaxConductance, MaxFCMetab, MaxQFMetab, &
+      LAIPower, LAIType, lat, lng, RSLLevel, MaxConductance, MaxFCMetab, MaxQFMetab, &
       SnowWater, MinFCMetab, MinQFMetab, min_res_bioCO2, &
       NARP_EMIS_SNOW, NARP_TRANS_SITE, NetRadiationMethod, &
       OHM_coef, OHMIncQF, OHM_threshSW, &
@@ -3891,14 +3891,14 @@ CONTAINS
       ! ---method-related variables
       TYPE(SUEWS_CONFIG) :: config
       INTEGER, INTENT(INOUT) :: Diagnose ! flag for printing diagnostic info during runtime [N/A]C
-      INTEGER, INTENT(in) :: DiagMethod !Defines how near surface diagnostics are calculated
+      INTEGER, INTENT(in) :: RSLMethod !Defines how near surface diagnostics are calculated
       INTEGER, INTENT(IN) :: EmissionsMethod !method to calculate anthropogenic heat [-]
       INTEGER, INTENT(IN) :: RoughLenHeatMethod ! method to calculate heat roughness length [-]
       INTEGER, INTENT(IN) :: RoughLenMomMethod ! Determines how aerodynamic roughness length (z0m) and zero displacement height (zdm) are calculated [-]
       INTEGER, INTENT(IN) :: FAIMethod !Determines how FAI is calculated [-]
       INTEGER, INTENT(IN) :: SMDMethod ! Determines method for calculating soil moisture deficit [-]
       INTEGER, INTENT(IN) :: WaterUseMethod !Defines how external water use is calculated[-]
-      INTEGER, INTENT(IN) :: localClimateMethod !
+      INTEGER, INTENT(IN) :: RSLLevel !
       INTEGER, INTENT(IN) :: NetRadiationMethod ! method for calculation of radiation fluxes [-]
       INTEGER, INTENT(IN) :: StabilityMethod !method to calculate atmospheric stability [-]
       INTEGER, INTENT(IN) :: StorageHeatMethod
@@ -4429,6 +4429,19 @@ CONTAINS
 
       TYPE(output_block), INTENT(OUT) :: output_block_suews
 
+      ! Initialize output arrays to zero to avoid uninitialized memory
+      dataOutBlockSUEWS_X = 0.0D0
+      dataOutBlockSnow_X = 0.0D0
+      dataOutBlockESTM_X = 0.0D0
+      dataOutBlockEHC_X = 0.0D0
+      dataOutBlockRSL_X = 0.0D0
+      dataOutBlockBEERS_X = 0.0D0
+      dataOutBlockDebug_X = 0.0D0
+      dataOutBlockSPARTACUS_X = 0.0D0
+      dataOutBlockDailyState_X = 0.0D0
+      dataOutBlockSTEBBS_X = 0.0D0
+      dataOutBlockNHood_X = 0.0D0
+
       IF (flag_test .AND. PRESENT(block_mod_state)) THEN
 
          CALL block_mod_state%init(nlayer, ndepth, len_sim)
@@ -4487,7 +4500,7 @@ CONTAINS
       timer%dt_since_start_prev = 0
 
       config%Diagnose = Diagnose
-      config%DiagMethod = DiagMethod
+      config%RSLMethod = RSLMethod
       config%EmissionsMethod = EmissionsMethod
       config%RoughLenHeatMethod = RoughLenHeatMethod
       config%RoughLenMomMethod = RoughLenMomMethod
@@ -4500,7 +4513,7 @@ CONTAINS
       config%SnowUse = SnowUse
       config%use_sw_direct_albedo = use_sw_direct_albedo
       config%ohmIncQF = OHMIncQF
-      config%localClimateMethod = localClimateMethod
+      config%RSLLevel = RSLLevel
       ! these options are fixed
       config%DiagQS = 0
       config%EvapMethod = 2

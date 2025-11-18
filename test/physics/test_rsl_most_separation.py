@@ -28,7 +28,7 @@ class TestRSLMOSTSeparation:
         # Test multiple building heights including tall buildings
         for bldgh in [2.0, 10.0, 50.0]:
             df_state_init.loc[:, "bldgh"] = bldgh
-            df_state_init.loc[:, "diagmethod"] = 0  # MOST diagnostic
+            df_state_init.loc[:, "rslmethod"] = 0  # MOST diagnostic
 
             df_output, _ = sp.run_supy(df_forcing, df_state_init)
 
@@ -49,12 +49,12 @@ class TestRSLMOSTSeparation:
         df_state_init.loc[:, "bldgh"] = 10.0
 
         # Test MOST
-        df_state_init.loc[:, "diagmethod"] = 0  # MOST
+        df_state_init.loc[:, "rslmethod"] = 0  # MOST
         df_output_most, _ = sp.run_supy(df_forcing, df_state_init)
         assert not df_output_most.empty, "MOST failed to run"
 
         # Test RSL
-        df_state_init.loc[:, "diagmethod"] = 1  # RSL
+        df_state_init.loc[:, "rslmethod"] = 1  # RSL
         df_output_rsl, _ = sp.run_supy(df_forcing, df_state_init)
         assert not df_output_rsl.empty, "RSL failed to run"
 
@@ -69,7 +69,7 @@ class TestRSLMOSTSeparation:
         df_state_init.loc[:, "z0m_in"] = 5.0
         df_state_init.loc[:, "zdm_in"] = 35.0
         df_state_init.loc[:, "z"] = 60.0  # Measurement height ABOVE building height
-        df_state_init.loc[:, "diagmethod"] = 0  # MOST
+        df_state_init.loc[:, "rslmethod"] = 0  # MOST
 
         df_output, _ = sp.run_supy(df_forcing, df_state_init)
 

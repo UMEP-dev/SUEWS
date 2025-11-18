@@ -28,9 +28,14 @@ LOG_FILE = "SuPy.log"
 
 
 def get_console_handler():
-    console_handler = logging.StreamHandler(sys.stdout)
-    console_handler.setFormatter(FORMATTER)
-    return console_handler
+    # Check if stdout is available (can be None in GUI environments like QGIS)
+    if sys.stdout is not None:
+        console_handler = logging.StreamHandler(sys.stdout)
+        console_handler.setFormatter(FORMATTER)
+        return console_handler
+    else:
+        # Return NullHandler if stdout is not available
+        return logging.NullHandler()
 
 
 def get_file_handler():

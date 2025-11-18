@@ -62,7 +62,7 @@ df_state_SSss.csv
 ^^^^^^^^^^^^^^^^^
 
 SUEWS will automatically output a df_state_SSss.csv file. This file contains information on the model configuration,
-initial and final states as well as some meta data related to the simmulation such as the SuPy/schema version used
+initial and final states as well as some meta data related to the simulation such as the SuPy/schema version used
 to run/configure the model.
 
 Note that the parameters and states included in this file may not match the current schema as are based on the legacy

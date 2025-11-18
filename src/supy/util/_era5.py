@@ -581,6 +581,87 @@ def download_era5_earthkit(
     return str(path_fn)
 
 
+def download_era5_cdsapi(
+    lat_x: float,
+    lon_x: float,
+    start: str,
+    end: str,
+    simple_mode: bool,
+    dir_save=Path("."),
+    grid=None,
+    scale=0,
+    force_download=True,
+    logging_level=logging.INFO,
+) -> tuple:
+    """Download ERA5 data using traditional CDS API.
+
+    This function uses the traditional CDS API which supports both surface
+    and model level data, as well as spatial grids. Slower than earthkit.data
+    but more flexible for advanced use cases.
+
+    Parameters
+    ----------
+    lat_x : float
+        Latitude of centre at the area of interest.
+    lon_x : float
+        Longitude of centre at the area of interest.
+    start : str
+        Start date that can be parsed by pandas.date_range().
+    end : str
+        End date that can be parsed by pandas.date_range().
+    simple_mode : bool
+        If True, uses simple diagnostics (lapse rate, log law).
+        If False, uses MOST with stability corrections.
+    dir_save : Path or str, optional
+        Directory to save downloaded files, by default Path(".").
+    grid : list, optional
+        Grid size for CDS request, by default [0.125, 0.125].
+    scale : int, optional
+        Scaling factor for spatial area (area=grid[0]*scale), by default 0.
+    force_download : bool, optional
+        If True, download files even if they exist, by default True.
+    logging_level : int, optional
+        Logging level, by default logging.INFO.
+
+    Returns
+    -------
+    tuple
+        (list_fn_sfc, list_fn_ml): Lists of surface and model level file paths.
+
+    Note
+    ----
+    1. Requires CDS API credentials configured.
+    2. Supports model level data for complex diagnostics.
+    3. Can download spatial grids (scale > 0).
+    4. Slower than earthkit.data timeseries API.
+
+    Reference
+    ---------
+    CDS API setup: https://cds.climate.copernicus.eu/api-how-to
+    """
+    if grid is None:
+        grid = [0.125, 0.125]
+
+    # adjust logging level
+    logger_supy.setLevel(logging_level)
+
+    # use existing load_filelist_era5 function
+    list_fn_sfc, list_fn_ml = load_filelist_era5(
+        lat_x,
+        lon_x,
+        start,
+        end,
+        simple_mode,
+        grid,
+        scale,
+        dir_save,
+        force_download,
+        logging_level,
+    )
+
+    return list_fn_sfc, list_fn_ml
+
+
 def download_era5(
     lat_x: float,
     lon_x: float,
@@ -899,7 +980,7 @@ def gen_forcing_era5(
 
     # download data
     if data_source == "earthkit":
-        # use new earthkit.data timeseries API (surface data only)
+        # use earthkit.data timeseries API (surface data only)
         fn_sfc = download_era5_earthkit(
             lat_x, lon_x, start, end, dir_save, logging_level
         )
@@ -907,15 +988,15 @@ def gen_forcing_era5(
         list_fn_ml = []
     else:
         # use traditional CDS API
-        list_fn_sfc, list_fn_ml = load_filelist_era5(
+        list_fn_sfc, list_fn_ml = download_era5_cdsapi(
             lat_x,
             lon_x,
             start,
             end,
             simple_mode,
+            dir_save,
             grid,
             scale,
-            dir_save,
             force_download,
             logging_level,
         )

@@ -4,13 +4,13 @@
 
 This directory contains three CSV files documenting all validation rules for SUEWS parameters:
 
-1. **validation_parameters_overview.csv** - Complete parameter inventory with validation rules
-2. **validation_c2_rules_catalog.csv** - Detailed C2 (complex) rule descriptions
-3. **validation_rules_reference.csv** - Rule type and rule name definitions
+1. **main_rulebook.csv** - Complete parameter inventory with validation rules
+2. **c2_rulebook.csv** - Detailed C2 (complex) rule descriptions
+3. **descriptions_rulebook.csv** - Rule type and rule name definitions
 
 ## File Descriptions
 
-### 1. validation_parameters_overview.csv
+### 1. main_rulebook.csv
 
 **Purpose**: Central inventory of all 393 unique SUEWS parameters with their validation rules.
 
@@ -34,7 +34,7 @@ This directory contains three CSV files documenting all validation rules for SUE
 
 **Usage**: Look up any parameter to see all its validation rules and constraints.
 
-### 2. validation_c2_rules_catalog.csv
+### 2. c2_rulebook.csv
 
 **Purpose**: Detailed documentation of all 25 C2 (complex) validation rules across validation pipelines.
 
@@ -56,11 +56,11 @@ This directory contains three CSV files documenting all validation rules for SUE
 - **Phase B (8 rules)**: Scientific adjustments and physics validation
 - **Phase C/Pydantic (15 rules)**: Pydantic field validation and transformations
 
-**Usage**: Look up detailed logic for any C2 rule referenced in the overview CSV.
+**Usage**: Look up detailed logic for any C2 rule referenced in the main rulebook.
 
-### 3. validation_rules_reference.csv
+### 3. descriptions_rulebook.csv
 
-**Purpose**: Dictionary defining all rule types and rule names used in the overview CSV.
+**Purpose**: Dictionary defining all rule types and rule names used in the main rulebook.
 
 **Structure**:
 - **Header row**: Column names
@@ -82,24 +82,24 @@ This directory contains three CSV files documenting all validation rules for SUE
 
 ## How the Files Are Linked
 
-1. **Start with validation_parameters_overview.csv** to find parameters and their validation rules
-2. **For rule_type or rule_name definitions**, consult validation_rules_reference.csv
-3. **For detailed C2 rule logic**, look up the rule_name in validation_c2_rules_catalog.csv
+1. **Start with main_rulebook.csv** to find parameters and their validation rules
+2. **For rule_type or rule_name definitions**, consult descriptions_rulebook.csv
+3. **For detailed C2 rule logic**, look up the rule_name in c2_rulebook.csv
 
 ### Example Workflow:
 
 **Question**: What validation rules apply to parameter `ie_start`?
 
-1. Look up `ie_start` in **validation_parameters_overview.csv**:
+1. Look up `ie_start` in **main_rulebook.csv**:
    - pipeline: B
    - rule_class: C2
    - rule_type: cross_parameter
    - rule_name: irrigation_validation
 
-2. Check **validation_rules_reference.csv** for `cross_parameter`:
+2. Check **descriptions_rulebook.csv** for `cross_parameter`:
    - "Validation rules that check relationships or consistency between multiple parameters"
 
-3. Find `irrigation_validation` in **validation_c2_rules_catalog.csv**:
+3. Find `irrigation_validation` in **c2_rulebook.csv**:
    - Detailed logic: "validates irrigation timing: DOY range (1-365/366), both params must be set together or both disabled, hemisphere-aware seasonal restrictions"
    - Also affects: ie_end, lat
 

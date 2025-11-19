@@ -384,15 +384,17 @@ def convert_keys_to_str(cls, v: Dict) -> Dict[str, float]:
 
 **Field Constraints** (`human_activity.py`): DOY range [1, 366], allows None
 
-**Cross-Model Validator** (`config.py:2196-2338`): `SUEWSConfig.validate_dls_parameters`
+**Cross-Model Validator** (`config.py:validate_dls_parameters`): Multi-level validation with error and informational reporting
 
 **Validation Layers**:
 
 1. **Basic Range** (field-level): `ge=1, le=366` - catches invalid values (negative, zero, >366, placeholders)
 2. **Consistency** (cross-model): Both set or both None - **ERROR** if only one parameter set
 3. **Leap Year** (cross-model): DOY 366 only valid in leap years - **ERROR** if DOY 366 in non-leap year
-4. **Hemisphere Pattern** (cross-model): Unusual DST patterns - **INFO** in report "NO ACTION NEEDED" section
-   - NH typical: start 60-120, end 270-330; SH typical: start 250-310, end 60-120
+4. **Location-Based Comparison** (cross-model): Compares user values with calculated DLS - **INFO** in report "NO ACTION NEEDED" section
+   - Calculates precise DLS transitions using site coordinates (`DLSCheck` class from `yaml_helpers.py`)
+   - Provides parameter-specific recommendations: "startdls for site {name}: DLS values differ from calculated values based on your location (lat={lat}, lng={lng}). Check your value ({user_value}) against the calculated one ({calculated_value}). You might need to change your startdls."
+   - Separate messages generated for startdls and enddls when values differ
 
 **Note**: Phase B automatically calculates/corrects DLS values using timezone data (whether None or incorrect)
 
@@ -583,9 +585,11 @@ sites:
 -- initial_states.bldgs at site [123]: temperature, tsfc, tin → 4.793333530426025 C (Set from CRU data for coordinates (51.51, -0.12) for month 1)
 -- anthropogenic_emissions.startdls at site [0]: 15.0 → 86 (Calculated DLS start for coordinates (51.51, -0.12))
 
-- Revise (2) warnings:
+- Revise (4) warnings/info messages:
 -- land_cover.evetr at site [0]: Parameters under sites.properties.land_cover.evetr are not checked because 'evetr' surface fraction is 0.
 -- land_cover.bsoil at site [0]: Parameters under sites.properties.land_cover.bsoil are not checked because 'bsoil' surface fraction is 0.
+-- startdls for site KCL: DLS values differ from calculated values based on your location (lat=51.51, lng=-0.12). Check your value (15) against the calculated one (86). You might need to change your startdls.
+-- enddls for site KCL: DLS values differ from calculated values based on your location (lat=51.51, lng=-0.12). Check your value (20) against the calculated one (300). You might need to change your enddls.
 
 # ==================================================
 ```

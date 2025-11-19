@@ -23,10 +23,66 @@ Class Reference
 
 .. currentmodule:: supy
 
+
+Core Properties
+^^^^^^^^^^^^^^^
+
+.. autosummary::
+    :nosignatures:
+
+    ~SUEWSSimulation.config
+    ~SUEWSSimulation.forcing
+    ~SUEWSSimulation.results
+    ~SUEWSSimulation.is_ready
+    ~SUEWSSimulation.is_complete
+
+Advanced Properties
+^^^^^^^^^^^^^^^^^^^
+
+For spin-up runs, state continuation, and deep model inspection.
+
+.. autosummary::
+    :nosignatures:
+
+    ~SUEWSSimulation.state_init
+    ~SUEWSSimulation.state_final
+
+Setup Methods
+^^^^^^^^^^^^^
+
+.. autosummary::
+    :nosignatures:
+
+    ~SUEWSSimulation.__init__
+    ~SUEWSSimulation.update_config
+    ~SUEWSSimulation.update_forcing
+    ~SUEWSSimulation.from_sample_data
+    ~SUEWSSimulation.from_state
+
+Execution Methods
+^^^^^^^^^^^^^^^^^
+
+.. autosummary::
+    :nosignatures:
+
+    ~SUEWSSimulation.run
+    ~SUEWSSimulation.reset
+
+Output Methods
+^^^^^^^^^^^^^^
+
+.. autosummary::
+    :nosignatures:
+
+    ~SUEWSSimulation.save
+    ~SUEWSSimulation.get_variable
+
 .. autoclass:: SUEWSSimulation
     :members:
-    :undoc-members:
+    :member-order: groupwise
     :show-inheritance:
+    :exclude-members: __weakref__, __dict__
+
 
 Quick Example
 -------------

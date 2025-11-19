@@ -544,7 +544,7 @@ def download_era5_timeseries(
     year_start = pd.to_datetime(start).year
 
     # construct filename (CSV format)
-    fn = f"{lat_c}{lon_c}-{year_start}-sfc-timeseries.csv"
+    fn = f"{lat_c}{lon_c}-{year_start}-sfc.csv"
     path_fn = path_dir_save / fn
 
     if path_fn.exists():
@@ -1697,7 +1697,9 @@ def save_forcing_era5(df_forcing_era5, dir_save):
             df_year = grp_year.get_group(year)
             idx_year = df_year.index
             s_year = idx_year[0].year
-            s_freq = idx_year.freq / pd.Timedelta("1T")
+            # Calculate frequency from actual time differences (groupby loses freq metadata)
+            time_diff = (idx_year[1] - idx_year[0]) if len(idx_year) > 1 else pd.Timedelta("60T")
+            s_freq = time_diff / pd.Timedelta("1T")
             s_fn = f"ERA5_UTC-{s_lat}-{s_lon}-{s_alt}_{s_year}_data_{s_freq:.0f}.txt"
             path_fn = path_dir_save / s_fn
             df_year.to_csv(path_fn, sep=" ", index=False)

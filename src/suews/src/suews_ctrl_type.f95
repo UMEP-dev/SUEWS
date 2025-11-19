@@ -51,6 +51,8 @@ MODULE module_ctrl_type
       solar_State, atm_state
 
    IMPLICIT NONE
+   INTEGER, PARAMETER, PUBLIC :: ANOHM_MAX_SAMPLES = 48
+   INTEGER, PARAMETER, PUBLIC :: ANOHM_MIN_VALID_SAMPLES = 6
    ! in the following, the type definitions starting with `SUEWS_` are used in the main program
 
    ! ********** SUEWS_parameters schema (basic) **********

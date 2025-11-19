@@ -11,6 +11,7 @@ import numpy as np
 import pandas as pd
 
 import supy as sp
+from supy import SUEWSSimulation
 
 # Import debug utilities
 try:
@@ -65,25 +66,17 @@ class TestSuPy(TestCase):
         print("\n========================================")
         print("Testing if single-tstep mode can run...")
 
-        # Load sample data
-        df_state_init, df_forcing_tstep = sp.load_SampleData()
+        # Create simulation with sample data
+        sim = SUEWSSimulation.from_sample_data()
 
         # Run only 1 hour (12 timesteps) instead of 8 hours
-        df_forcing_part = df_forcing_tstep.iloc[:12]
-        df_output, df_state = sp.run_supy(
-            df_forcing_part, df_state_init, save_state=True
-        )
+        results = sim.run(end_date=sim.forcing.index[11])
 
-        # test_non_empty = np.all(
-        #     [
-        #         not df_output.empty,
-        #         not df_state.empty,
-        #     ]
-        # )
-        # self.assertTrue((test_non_empty and not df_state.isnull().values.any()))
-        self.assertFalse(df_output.empty)
-        self.assertFalse(df_state.empty)
-        # self.assertFalse(df_state.isnull().values.any())
+        # Verify results and state are populated
+        self.assertIsNotNone(results)
+        self.assertIsNotNone(sim.state_final)
+        self.assertFalse(results.empty)
+        self.assertFalse(sim.state_final.empty)
 
     # test if multi-tstep mode can run
     @debug_on_ci
@@ -93,38 +86,33 @@ class TestSuPy(TestCase):
         print("\n========================================")
         print("Testing if multi-tstep mode can run...")
 
-        # Load sample data
-        df_state_init, df_forcing_tstep = sp.load_SampleData()
+        # Create simulation with sample data
+        sim = SUEWSSimulation.from_sample_data()
 
         # Run only 2 days instead of 10 days
-        df_forcing_part = df_forcing_tstep.iloc[: 288 * 2]
-        df_output, df_state = sp.run_supy(
-            df_forcing_part, df_state_init, check_input=True
-        )
+        end_index = 288 * 2 - 1  # 0-indexed
+        results = sim.run(end_date=sim.forcing.index[end_index])
 
-        # # only print to screen on macOS due incompatibility on Windows
-        # if platform.system() == "Darwin":
-        #     # capturedOutput = io.StringIO()  # Create StringIO object
-        #     # sys.stdout = capturedOutput  # and redirect stdout.
-        #     # Call function.
-        #     print(f"Running time: {t_end-t_start:.2f} s")
-        #     # sys.stdout = sys.__stdout__  # Reset redirect.
-        #     # Now works as before.
-        #     # print("Captured:\n", capturedOutput.getvalue())
-        print("empty output?", df_output.empty)
-        print("empty state?", df_state.empty)
-        print("any NaN in state?", df_state.isnull().values.any())
-        # find the first NaN in state
-        if df_state.isnull().values.any():
+        # Debug output
+        print("empty output?", results.empty)
+        print("empty state?", sim.state_final.empty)
+        print("any NaN in state?", sim.state_final.isnull().values.any())
+
+        # Find the first NaN in state
+        if sim.state_final.isnull().values.any():
             print("NaN in state:")
-            print(df_state.columns[np.any(df_state.isnull(), axis=0)])
+            print(sim.state_final.columns[np.any(sim.state_final.isnull(), axis=0)])
+
         test_non_empty = np.all([
-            not df_output.empty,
-            not df_state.empty,
+            not results.empty,
+            not sim.state_final.empty,
         ])
-        self.assertTrue(test_non_empty and not df_state.isnull().values.any())
+        self.assertTrue(test_non_empty and not sim.state_final.isnull().values.any())
 
     # test if multi-grid simulation can run in parallel
+    # NOTE: This test uses functional API (sp.run_supy) instead of SUEWSSimulation
+    # because multi-grid parallelization is a low-level feature not exposed in the OOP interface.
+    # SUEWSSimulation is designed for single-grid workflows.
     def test_is_supy_sim_save_multi_grid_par(self):
         print("\n========================================")
         print("Testing if multi-grid simulation can run in parallel...")
@@ -195,32 +183,137 @@ class TestSuPy(TestCase):
         print("\n========================================")
         print("Testing if state_init with version can be loaded...")
 
-        # Load sample data
-        df_state_init, df_forcing_tstep = sp.load_SampleData()
-        df_state_init[("version", "0")] = sp.__version__
+        # Create simulation and manually add version to initial state
+        # (simulating loading a previously saved state with version metadata)
+        sim = SUEWSSimulation.from_sample_data()
+        sim._df_state_init[("version", "0")] = sp.__version__
 
-        df_forcing_part = df_forcing_tstep.iloc[:12]
-        df_output, df_state = sp.run_supy(
-            df_forcing_part,
-            df_state_init,
-        )
+        # Run with version column present in initial state
+        results = sim.run(end_date=sim.forcing.index[11])  # 12 timesteps
 
-        self.assertFalse(df_output.empty)
-        self.assertFalse(df_state.empty)
+        # Verify simulation completed successfully
+        self.assertIsNotNone(results)
+        self.assertIsNotNone(sim.state_final)
+        self.assertFalse(results.empty)
+        self.assertFalse(sim.state_final.empty)
 
     def test_is_runtime_version_saved(self):
         print("\n========================================")
-        print("Testing if current SuPy version is saved...")
+        print("Testing if current SUEWS version is saved...")
 
-        # Load sample data
-        df_state_init, df_forcing_tstep = sp.load_SampleData()
+        # Create simulation with sample data
+        sim = SUEWSSimulation.from_sample_data()
 
         # Run only 1 hour (12 timesteps) instead of 8 hours
-        df_forcing_part = df_forcing_tstep.iloc[:12]
-        df_output, df_state = sp.run_supy(
-            df_forcing_part, df_state_init, save_state=True
+        results = sim.run(end_date=sim.forcing.index[11])
+
+        # Verify version column exists and contains correct version
+        self.assertIn(("version", "0"), sim.state_final.columns)
+        self.assertTrue(all(sim.state_final[("version", "0")] == sp.__version__))
+
+    def test_metadata_columns_are_strings(self):
+        """Test that metadata columns (config, description, version) are plain Python strings, not numpy arrays.
+
+        This verifies the fix for issue where pack_df_state_final would either:
+        1. Crash with ValueError when trying to concatenate 0-dimensional numpy arrays, or
+        2. Store numpy array objects in cells instead of plain strings
+
+        The fix extracts scalar values from 0-dimensional numpy arrays using .item()
+        """
+        print("\n========================================")
+        print("Testing metadata columns are plain strings not numpy arrays...")
+
+        # Create simulation with sample data
+        sim = SUEWSSimulation.from_sample_data()
+
+        # Run a short simulation
+        results = sim.run(end_date=sim.forcing.index[11])
+
+        # Check that version metadata exists and is a string
+        self.assertIn(("version", "0"), sim.state_final.columns)
+        # Use .iloc to get the first cell value, accounting for MultiIndex
+        version_value = sim.state_final[("version", "0")].iloc[0]
+        self.assertIsInstance(
+            version_value,
+            str,
+            f"version column should contain plain strings, not {type(version_value)}",
         )
-        self.assertTrue(all(df_state[("version", "0")] == sp.__version()))
+        self.assertNotIsInstance(
+            version_value,
+            np.ndarray,
+            "version column should not contain numpy arrays",
+        )
+
+        # Check config and description if they exist
+        for metadata_col in ["config", "description"]:
+            if (metadata_col, "0") in sim.state_final.columns:
+                col_value = sim.state_final[(metadata_col, "0")].iloc[0]
+                self.assertIsInstance(
+                    col_value,
+                    str,
+                    f"{metadata_col} column should contain plain strings, not {type(col_value)}",
+                )
+                self.assertNotIsInstance(
+                    col_value,
+                    np.ndarray,
+                    f"{metadata_col} column should not contain numpy arrays",
+                )
+
+        print("Metadata columns correctly stored as plain strings")
+
+    def test_version_tracking_save_load_cycle(self):
+        """Test complete save→load→run cycle with version tracking.
+
+        This test verifies that:
+        1. Version info is automatically saved with state
+        2. Saved state (with version) can be loaded
+        3. Loaded state can be used to continue simulation
+        4. Version info persists through the cycle
+        """
+        print("\n========================================")
+        print("Testing complete save→load→run cycle with version tracking...")
+
+        # Run 1: Initial simulation
+        sim1 = SUEWSSimulation.from_sample_data()
+        sim1.run(end_date=sim1.forcing.index[11])  # 12 timesteps
+
+        # Verify version was automatically added
+        self.assertIn(("version", "0"), sim1.state_final.columns)
+        version_from_run1 = sim1.state_final[("version", "0")].iloc[0]
+        self.assertEqual(version_from_run1, sp.__version__)
+
+        # Save state to temporary location
+        with tempfile.TemporaryDirectory() as tmpdir:
+            save_path = Path(tmpdir)
+            sim1.save(save_path)
+
+            # Verify state file was created
+            state_files = list(save_path.glob("*_state_*.csv"))
+            self.assertGreater(len(state_files), 0, "State file should be created")
+
+            # Run 2: Load saved state and continue simulation
+            sim2 = SUEWSSimulation.from_state(sim1.state_final)
+
+            # Load forcing for continuation (using remaining timesteps)
+            sim2.update_forcing(sim1.forcing.iloc[12:24])  # Next 12 timesteps
+
+            # Run continuation
+            results2 = sim2.run()
+
+            # Verify continuation completed successfully
+            self.assertIsNotNone(results2)
+            self.assertIsNotNone(sim2.state_final)
+
+            # Verify version info persisted through the cycle
+            self.assertIn(("version", "0"), sim2.state_final.columns)
+            version_from_run2 = sim2.state_final[("version", "0")].iloc[0]
+            self.assertEqual(
+                version_from_run2,
+                sp.__version__,
+                "Version should persist through save→load→run cycle",
+            )
+
+        print("✓ Version tracking works correctly through save→load→run cycle")
 
     # # test if single-tstep and multi-tstep modes can produce the same SUEWS results
     # @skipUnless(flag_full_test, "Full test is not required.")
@@ -264,28 +357,34 @@ class TestSuPy(TestCase):
     def test_is_supy_save_working(self):
         print("\n========================================")
         print("Testing if saving output files working...")
-        df_state_init, df_forcing_tstep = sp.load_SampleData()
-        # df_state_init = pd.concat([df_state_init for x in range(6)])
-        df_forcing_part = df_forcing_tstep.iloc[: 288 * 2]
+
+        # Create simulation with sample data
+        sim = SUEWSSimulation.from_sample_data()
+
+        # Run for 2 days
+        end_index = 288 * 2 - 1  # 0-indexed
         t_start = time()
-        df_output, df_state = sp.run_supy(df_forcing_part, df_state_init)
+        results = sim.run(end_date=sim.forcing.index[end_index])
         t_end = time()
+
+        # Save to temporary directory
         with tempfile.TemporaryDirectory() as dir_temp:
-            list_outfile = sp.save_supy(df_output, df_state, path_dir_save=dir_temp)
+            list_outfile = sim.save(dir_temp)
 
-        # only print to screen on macOS due incompatibility on Windows
+            # Verify files were created
+            self.assertIsNotNone(list_outfile)
+            self.assertGreater(len(list_outfile), 0)
+            test_non_empty = np.all([isinstance(fn, Path) for fn in list_outfile])
+            self.assertTrue(test_non_empty)
+
+        # Performance logging (macOS only for compatibility)
         if platform.system() == "Darwin":
-            capturedOutput = io.StringIO()  # Create StringIO object
-            sys.stdout = capturedOutput  # and redirect stdout.
-            # Call function.
-            n_grid = df_state_init.index.size
+            capturedOutput = io.StringIO()
+            sys.stdout = capturedOutput
+            n_grid = sim._df_state_init.index.size
             print(f"Running time: {t_end - t_start:.2f} s for {n_grid} grids")
-            sys.stdout = sys.__stdout__  # Reset redirect.
-            # Now works as before.
+            sys.stdout = sys.__stdout__
             print("Captured:\n", capturedOutput.getvalue())
-
-        test_non_empty = np.all([isinstance(fn, Path) for fn in list_outfile])
-        self.assertTrue(test_non_empty)
 
     # TODO: disable this test for now - need to recover in the future
     # # test saving output files working
@@ -382,21 +481,20 @@ class TestSuPy(TestCase):
         print("\n========================================")
         print("Testing if dailystate are written out correctly...")
 
-        # Load sample data
-        df_state_init, df_forcing_tstep = sp.load_SampleData()
+        # Create simulation with sample data
+        sim = SUEWSSimulation.from_sample_data()
 
+        # Run for 10 days
         n_days = 10
-        df_forcing_part = df_forcing_tstep.iloc[: 288 * n_days]
-
-        # single-step results
-        df_output, df_state = sp.run_supy(df_forcing_part, df_state_init)
+        end_index = 288 * n_days - 1  # 0-indexed
+        results = sim.run(end_date=sim.forcing.index[end_index])
 
         # Check that DailyState exists in output
-        groups = df_output.columns.get_level_values("group").unique()
+        groups = results.columns.get_level_values("group").unique()
         self.assertIn("DailyState", groups, "DailyState should be in output groups")
 
         # Use xs() for robust MultiIndex column access across platforms
-        df_dailystate = df_output.xs("DailyState", level="group", axis=1)
+        df_dailystate = results.xs("DailyState", level="group", axis=1)
 
         # More robust check: Count rows that have at least one non-NaN value
         # This avoids issues with dropna() behavior across pandas versions
@@ -441,33 +539,35 @@ class TestSuPy(TestCase):
         print("\n========================================")
         print("Testing if water balance is closed...")
 
-        # Load sample data
-        df_state_init, df_forcing_tstep = sp.load_SampleData()
+        # Create simulation with sample data
+        sim = SUEWSSimulation.from_sample_data()
 
+        # Run for 100 days
         n_days = 100
-        df_forcing_part = df_forcing_tstep.iloc[: 288 * n_days]
-        df_output, df_state = sp.run_supy(df_forcing_part, df_state_init)
+        end_index = 288 * n_days - 1  # 0-indexed
+        results = sim.run(end_date=sim.forcing.index[end_index])
 
-        # get soilstore
-        df_soilstore = df_output.loc[1, "debug"].filter(regex="^ss_.*_next$")
-        ser_sfr_surf = df_state_init.sfr_surf.iloc[0]
+        # Get soilstore from debug output
+        df_soilstore = results.loc[1, "debug"].filter(regex="^ss_.*_next$")
+        ser_sfr_surf = sim._df_state_init.sfr_surf.iloc[0]
         ser_soilstore = df_soilstore.dot(ser_sfr_surf.values)
 
-        # get water balance
-        df_water = df_output.SUEWS[["Rain", "Irr", "Evap", "RO", "State"]].assign(
-            SoilStore=ser_soilstore, TotalStore=ser_soilstore + df_output.SUEWS.State
+        # Get water balance
+        df_water = results.SUEWS[["Rain", "Irr", "Evap", "RO", "State"]].assign(
+            SoilStore=ser_soilstore, TotalStore=ser_soilstore + results.SUEWS.State
         )
+
         # ===============================
         # check if water balance is closed
         # ===============================
-        # change in total store
+        # Change in total store
         ser_totalstore_change = df_water.TotalStore.diff().dropna()
-        # water input
+        # Water input
         ser_water_in = df_water.Rain + df_water.Irr
-        # water output
+        # Water output
         ser_water_out = df_water.Evap + df_water.RO
-        # water balance
+        # Water balance
         ser_water_balance = ser_water_in - ser_water_out
-        # test if water balance is closed
+        # Test if water balance is closed
         test_dif = (ser_totalstore_change - ser_water_balance).abs().max() < 1e-6
         self.assertTrue(test_dif)

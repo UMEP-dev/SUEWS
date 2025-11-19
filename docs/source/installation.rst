@@ -111,7 +111,7 @@ Development versions are published to `test.pypi.org <https://test.pypi.org/proj
 
 5. **Verify installation**::
 
-    python -c "import supy; print(f'SuPy version: {supy.__version__}')"
+    python -c "import supy; print(f'SUEWS version: {supy.__version__}')"
     # Should show: 2025.9.16.dev0
 
 **For future use:**

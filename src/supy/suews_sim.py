@@ -712,7 +712,9 @@ class SUEWSSimulation:
 
             # Load based on file extension
             if state_path.suffix == ".csv":
-                df_state_saved = pd.read_csv(state_path, header=[0, 1], index_col=0)
+                df_state_saved = pd.read_csv(
+                    state_path, header=[0, 1], index_col=[0, 1], parse_dates=[0]
+                )
             elif state_path.suffix == ".parquet":
                 df_state_saved = pd.read_parquet(state_path)
             else:
@@ -726,8 +728,14 @@ class SUEWSSimulation:
             )
 
         # Extract last timestep as initial state for continuation
-        if "datetime" in df_state_saved.index.names:
-            df_state_init = df_state_saved.iloc[[-1]].copy()
+        idx_names = list(df_state_saved.index.names)
+        if "datetime" in idx_names:
+            datetime_level = idx_names.index("datetime")
+            last_datetime = df_state_saved.index.get_level_values(datetime_level).max()
+            if isinstance(df_state_saved.index, pd.MultiIndex):
+                df_state_init = df_state_saved.xs(last_datetime, level="datetime").copy()
+            else:
+                df_state_init = df_state_saved.loc[[last_datetime]].copy()
         else:
             # Already single-timestep state
             df_state_init = df_state_saved.copy()

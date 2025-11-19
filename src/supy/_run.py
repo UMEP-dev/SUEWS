@@ -810,8 +810,22 @@ def pack_df_state_final(df_state_end, df_state_start):
 
     dict_packed = {}
     for var in df_state_end.to_dict():
-        val_flatten = np.concatenate(df_state_end[var].values).ravel()
-        val = val_flatten.reshape((size_idx, -1)).T
+        values = df_state_end[var].values
+
+        first_val = values[0] if len(values) else None
+        if isinstance(first_val, np.ndarray) and first_val.ndim > 0:
+            # Normal state variables: concatenate and reshape as before
+            val_flatten = np.concatenate(values).ravel()
+            val = val_flatten.reshape((size_idx, -1)).T
+        else:
+            # Metadata columns (strings/scalars) must bypass concatenate; ensure we
+            # extract scalar values from any 0-D numpy arrays before reshaping.
+            scalars = [
+                v.item() if isinstance(v, np.ndarray) and getattr(v, "ndim", 0) == 0 else v
+                for v in values
+            ]
+            val = np.array(scalars, dtype=object).reshape((size_idx, -1)).T
+
         col_names = ser_col_multi[var].values
         dict_var = dict(zip(col_names, val))
         dict_packed.update(dict_var)

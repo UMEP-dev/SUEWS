@@ -671,9 +671,9 @@ def save_forcing_era5(df_forcing_era5, dir_save):
             time_diff = (
                 (idx_year[1] - idx_year[0])
                 if len(idx_year) > 1
-                else pd.Timedelta("60T")
+                else pd.Timedelta("60min")
             )
-            s_freq = time_diff / pd.Timedelta("1T")
+            s_freq = time_diff / pd.Timedelta("1min")
             s_fn = f"ERA5_UTC-{s_lat}-{s_lon}-{s_alt}_{s_year}_data_{s_freq:.0f}.txt"
             path_fn = path_dir_save / s_fn
             df_year.to_csv(path_fn, sep=" ", index=False)

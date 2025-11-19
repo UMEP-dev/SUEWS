@@ -882,7 +882,7 @@ def gen_forcing_era5(
     """Generate SUEWS forcing files using ERA-5 timeseries data.
 
     Downloads ERA5 surface timeseries data from CDS API and converts to SUEWS forcing format.
-    Uses simple diagnostics: environmental lapse rate (6.5 K/km) for temperature and 
+    Uses simple diagnostics: environmental lapse rate (6.5 K/km) for temperature and
     neutral MOST for wind speed.
 
     Parameters
@@ -917,19 +917,17 @@ def gen_forcing_era5(
     Examples
     --------
     >>> list_fn = gen_forcing_era5(50.86, 4.35, "2020-01-01", "2020-01-31")
-    
+
     Reference
     ---------
-    ECMWF, S. P. (2016). In IFS documentation CY41R2 Part IV: Physical Processes. 
+    ECMWF, S. P. (2016). In IFS documentation CY41R2 Part IV: Physical Processes.
     ECMWF: Reading, UK, 111-113. https://www.ecmwf.int/en/elibrary/16648-part-iv-physical-processes
     """
     # adjust logging level
     logger_supy.setLevel(logging_level)
 
     # download ERA5 timeseries CSV
-    fn_sfc = download_era5_timeseries(
-        lat_x, lon_x, start, end, dir_save, logging_level
-    )
+    fn_sfc = download_era5_timeseries(lat_x, lon_x, start, end, dir_save, logging_level)
 
     # generate diagnostics from CSV
     df_forcing_raw = gen_df_diag_era5_csv(fn_sfc, hgt_agl_diag)
@@ -950,8 +948,6 @@ def gen_forcing_era5(
     list_fn = save_forcing_era5(df_forcing, dir_save)
 
     return list_fn
-
-
 
 
 # format dataframe to SUEWS convention

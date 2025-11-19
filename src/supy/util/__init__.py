@@ -4,7 +4,7 @@
 from ._tmy import gen_epw, read_epw
 
 
-from ._era5 import download_era5, gen_forcing_era5
+from ._era5 import gen_forcing_era5
 
 from ._gap_filler import fill_gap_all
 

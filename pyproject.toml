@@ -24,12 +24,13 @@ dependencies = [
     "pandas",
     "numpy>=2.0",
     "scipy",
-    "xarray",
-    "dask",
-    
+    # xarray removed - only needed for gridded ERA5 (install separately)
+    # dask removed - was redundant with multiprocess (see Parallel processing below)
+
     # Model requirements
     "f90wrap==0.2.16",  # Required at runtime by generated supy_driver code
     "pydantic",
+    "pyyaml",  # YAML configuration parsing (used in data_model/core/config.py)
     "f90nml",
     
     # Utilities
@@ -51,8 +52,8 @@ dependencies = [
     "platypus-opt==1.0.4",
     
     # Data access
-    "cdsapi",
-    
+    "cdsapi",  # ERA5 data download (timeseries uses CSV, gridded requires optional h5netcdf)
+
     # Time/location
     "tzfpy>=1.0.0",  # Faster timezone finder with Windows wheels
     "pytz",
@@ -63,6 +64,9 @@ dependencies = [
     # Schema validation (for YAML configs)
     "jsonschema",
     "rich",
+
+    # Version checking (pandas compatibility in _load.py)
+    "packaging",
 ]
 
 classifiers = [
@@ -84,6 +88,7 @@ classifiers = [
 # TMY/EPW generation support (requires pvlib which depends on h5py)
 tmy = [
     "pvlib",
+    "metpy",  # Required for UMEP EPW conversion (util/_UMEP2epw.py)
 ]
 
 # Single dev group combining test + development tools

@@ -2332,6 +2332,12 @@ class SUEWSConfig(BaseModel):
                                 info_msg
                             )
                             self._validation_summary["info_messages"].append(info_msg)
+                elif lat_val is not None and lng_val is not None:
+                    info_msg = (
+                        f"{site_name}: Cannot compare DLS values because simulation year "
+                        f"is not specified. Consider setting model.control.start_time."
+                    )
+                    self._validation_summary["info_messages"].append(info_msg)
 
             except (AttributeError, TypeError, ImportError):
                 # Cannot calculate DLS, skip comparison

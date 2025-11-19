@@ -10,6 +10,8 @@ MODULE module_ctrl_type
       ncolumnsDataOutSTEBBS, ncolumnsDataOutNHood
 
    IMPLICIT NONE
+   INTEGER, PARAMETER, PUBLIC :: ANOHM_MAX_SAMPLES = 48
+   INTEGER, PARAMETER, PUBLIC :: ANOHM_MIN_VALID_SAMPLES = 6
    ! in the following, the type definitions starting with `SUEWS_` are used in the main program
 
    ! ********** SUEWS_parameters schema (basic) **********
@@ -679,6 +681,28 @@ MODULE module_ctrl_type
       REAL(KIND(1D0)) :: a1_water = 0.0D0! Dynamic OHM coefficients of water
       REAL(KIND(1D0)) :: a2_water = 0.0D0! Dynamic OHM coefficients of water
       REAL(KIND(1D0)) :: a3_water = 0.0D0! Dynamic OHM coefficients of water
+      INTEGER :: anohm_working_day = -999
+      INTEGER :: anohm_working_count = 0
+      REAL(KIND(1D0)), DIMENSION(ANOHM_MAX_SAMPLES) :: anohm_working_tHr = -999.0D0
+      REAL(KIND(1D0)), DIMENSION(ANOHM_MAX_SAMPLES) :: anohm_working_sd = -999.0D0
+      REAL(KIND(1D0)), DIMENSION(ANOHM_MAX_SAMPLES) :: anohm_working_ta = -999.0D0
+      REAL(KIND(1D0)), DIMENSION(ANOHM_MAX_SAMPLES) :: anohm_working_rh = -999.0D0
+      REAL(KIND(1D0)), DIMENSION(ANOHM_MAX_SAMPLES) :: anohm_working_pres = -999.0D0
+      REAL(KIND(1D0)), DIMENSION(ANOHM_MAX_SAMPLES) :: anohm_working_ws = -999.0D0
+      REAL(KIND(1D0)), DIMENSION(ANOHM_MAX_SAMPLES) :: anohm_working_ah = -999.0D0
+      INTEGER :: anohm_coeff_day = -999
+      INTEGER :: anohm_coeff_count = 0
+      LOGICAL :: anohm_coeff_ready = .FALSE.
+      REAL(KIND(1D0)), DIMENSION(ANOHM_MAX_SAMPLES) :: anohm_coeff_tHr = -999.0D0
+      REAL(KIND(1D0)), DIMENSION(ANOHM_MAX_SAMPLES) :: anohm_coeff_sd = -999.0D0
+      REAL(KIND(1D0)), DIMENSION(ANOHM_MAX_SAMPLES) :: anohm_coeff_ta = -999.0D0
+      REAL(KIND(1D0)), DIMENSION(ANOHM_MAX_SAMPLES) :: anohm_coeff_rh = -999.0D0
+      REAL(KIND(1D0)), DIMENSION(ANOHM_MAX_SAMPLES) :: anohm_coeff_pres = -999.0D0
+      REAL(KIND(1D0)), DIMENSION(ANOHM_MAX_SAMPLES) :: anohm_coeff_ws = -999.0D0
+      REAL(KIND(1D0)), DIMENSION(ANOHM_MAX_SAMPLES) :: anohm_coeff_ah = -999.0D0
+      REAL(KIND(1D0)), DIMENSION(nsurf) :: anohm_a1_surf = 0.0D0
+      REAL(KIND(1D0)), DIMENSION(nsurf) :: anohm_a2_surf = 0.0D0
+      REAL(KIND(1D0)), DIMENSION(nsurf) :: anohm_a3_surf = 0.0D0
       ! flag for iteration safety - YES
       LOGICAL :: iter_safe = .TRUE.
    END TYPE OHM_STATE

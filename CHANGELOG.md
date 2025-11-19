@@ -56,6 +56,12 @@
   - Same functionality, lighter dependencies
   - Consolidates all parallel processing to one library
 
+### 16 Nov 2025
+- [feature] Re-enabled AnOHM without requiring future forcing data
+  - Added rolling 24-hour forcing buffers to `OHM_STATE` and `SUEWS_cal_Qs` so StorageHeatMethod 3 now diagnoses coefficients from the most recently completed day
+  - Refactored `module_phys_anohm` to consume buffered shortwave, meteorology, and anthropogenic heat series directly (removed the legacy `MetForcingData_grid` dependency)
+  - Updated StorageHeatMethod documentation to clarify the trailing-day workflow and avoid confusion about forcing requirements
+
 ### 14 Nov 2025
 - [feature] Added Phase C validation for daylight saving time parameters
   - Four validation layers: (1) basic range [1, 366], (2) consistency (both set or both None), (3) leap year (DOY 366 only in leap years), (4) hemisphere pattern check (NH/SH typical ranges)

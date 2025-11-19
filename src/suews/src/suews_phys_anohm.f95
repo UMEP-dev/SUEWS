@@ -29,10 +29,11 @@ CONTAINS
    !! -# grid ensemble OHM coefficients: a1, a2 and a3
    SUBROUTINE AnOHM( &
       tstep, dt_since_start, &
-      qn1, qn_av_prev, dqndt_prev, qf, &
-      MetForcingData_grid, moist_surf, &
+      qn1, qn_av_prev, dqndt_prev, &
+      Sd_series, Ta_series, RH_series, pres_series, WS_series, AH_series, tHr_series, &
+      moist_surf, &
       alb, emis, cpAnOHM, kkAnOHM, chAnOHM, & ! input
-      sfr_surf, nsurf, EmissionsMethod, id, Gridiv, &
+      sfr_surf, nsurf, forcing_day, Gridiv, &
       qn_av_next, dqndt_next, &
       a1, a2, a3, qs, deltaQi) ! output
 
@@ -40,10 +41,14 @@ CONTAINS
       INTEGER, INTENT(in) :: tstep ! time step [s]
       INTEGER, INTENT(in) :: dt_since_start ! time since simulation starts [s]
 
-      REAL(KIND(1D0)), INTENT(in), DIMENSION(:, :) :: MetForcingData_grid !< met forcing array of grid
-
       REAL(KIND(1D0)), INTENT(in) :: qn1 !< net all-wave radiation [W m-2]
-      REAL(KIND(1D0)), INTENT(in) :: qf !< anthropogenic heat flux [W m-2]
+      REAL(KIND(1D0)), DIMENSION(:), INTENT(in) :: Sd_series !< shortwave radiation time series [W m-2]
+      REAL(KIND(1D0)), DIMENSION(:), INTENT(in) :: Ta_series !< air temperature series [degC]
+      REAL(KIND(1D0)), DIMENSION(:), INTENT(in) :: RH_series !< relative humidity series [%]
+      REAL(KIND(1D0)), DIMENSION(:), INTENT(in) :: pres_series !< pressure series [hPa]
+      REAL(KIND(1D0)), DIMENSION(:), INTENT(in) :: WS_series !< wind speed series [m s-1]
+      REAL(KIND(1D0)), DIMENSION(:), INTENT(in) :: AH_series !< anthropogenic heat series [W m-2]
+      REAL(KIND(1D0)), DIMENSION(:), INTENT(in) :: tHr_series !< time of day series [h]
       REAL(KIND(1D0)), INTENT(in) :: sfr_surf(nsurf) !< surface fraction (0-1) [-]
       REAL(KIND(1D0)), INTENT(in) :: moist_surf(nsurf) !< non-dimensional surface wetness status (0-1) [-]
 
@@ -53,9 +58,8 @@ CONTAINS
       REAL(KIND(1D0)), INTENT(in), DIMENSION(:) :: kkAnOHM !< thermal conductivity [W m-1 K-1]
       REAL(KIND(1D0)), INTENT(in), DIMENSION(:) :: chAnOHM !< bulk transfer coef [J m-3 K-1]
 
-      INTEGER, INTENT(in) :: id !< day of year [-]
+      INTEGER, INTENT(in) :: forcing_day !< day of year that forcing series represents [-]
       INTEGER, INTENT(in) :: Gridiv !< grid id [-]
-      INTEGER, INTENT(in) :: EmissionsMethod !< AnthropHeat option [-]
       INTEGER, INTENT(in) :: nsurf !< number of surfaces [-]
       ! INTEGER,INTENT(in):: nsh               !< number of timesteps in one hour [-]
 
@@ -74,7 +78,7 @@ CONTAINS
       REAL(KIND(1D0)), INTENT(out) :: deltaQi(nsurf) !< storage heat flux of snow surfaces
 
       INTEGER :: is, xid !< @var qn1 net all-wave radiation
-      INTEGER, SAVE :: id_save ! store index of the valid day with enough data ! TODO: Remove SAVE states from the model
+      INTEGER, SAVE :: id_save = -999 ! store index of the valid day with enough data ! TODO: Remove SAVE states from the model
       REAL(KIND(1D0)), PARAMETER :: NotUsed = -55.5 !< @var qn1 net all-wave radiation
       INTEGER, PARAMETER :: notUsedI = -55 !< @var qn1 net all-wave radiation
       LOGICAL :: idQ ! whether id contains enough data
@@ -93,26 +97,28 @@ CONTAINS
       ! to test if the current met block contains enough data for AnOHM
       ! TODO: more robust selection should be implemented
       ! daylight hours >= 6
-      idQ = COUNT(MetForcingData_grid(:, 2) == id .AND. & ! day of year
-                  MetForcingData_grid(:, 4) == 0 .AND. & ! minutes
-                  MetForcingData_grid(:, 15) > 0) & ! Sd
-            >= 6
+      idQ = COUNT(Sd_series > 5.0D0) >= 6
 
       ! PRINT*, idQ
       IF (idQ) THEN
          ! given enough data, calculate coefficients of day `id`
-         xid = id
-         id_save = id ! store index of the valid day with enough data
-      ELSE
-         ! otherwise calculate coefficients of yesterday: `id-1`
+         xid = forcing_day
+         id_save = forcing_day ! store index of the valid day with enough data
+      ELSEIF (id_save /= -999) THEN
+         ! otherwise use coefficients stored for the last valid day
          xid = id_save
+      ELSE
+         xid = forcing_day
       END IF
 
       DO is = 1, nsurf
          !   call AnOHM to calculate the coefs.
-         CALL AnOHM_coef(is, xid, Gridiv, MetForcingData_grid, moist_surf, EmissionsMethod, qf, & !input
-                         alb, emis, cpAnOHM, kkAnOHM, chAnOHM, & ! input
-                         xa1(is), xa2(is), xa3(is)) ! output
+         CALL AnOHM_coef( &
+            is, xid, Gridiv, &
+            Sd_series, Ta_series, RH_series, pres_series, WS_series, AH_series, tHr_series, &
+            moist_surf, &
+            alb, emis, cpAnOHM, kkAnOHM, chAnOHM, &
+            xa1(is), xa2(is), xa3(is))
          ! print*, 'AnOHM_coef are: ',xa1,xa2,xa3
       END DO
 
@@ -148,7 +154,8 @@ CONTAINS
    !! -# OHM coefficients of a given surface type: a1, a2 and a3
    SUBROUTINE AnOHM_coef( &
       sfc_typ, xid, xgrid, & !input
-      MetForcingData_grid, moist, EmissionsMethod, qf, & !input
+      Sd_series, Ta_series, RH_series, pres_series, WS_series, AH_series, tHr_series, & !input
+      moist, &
       alb, emis, cpAnOHM, kkAnOHM, chAnOHM, & ! input
       xa1, xa2, xa3) ! output
 
@@ -158,16 +165,20 @@ CONTAINS
       INTEGER, INTENT(in) :: sfc_typ !< surface type [-]
       INTEGER, INTENT(in) :: xid !< day of year [-]
       INTEGER, INTENT(in) :: xgrid !< grid id [-]
-      INTEGER, INTENT(in) :: EmissionsMethod !< AnthropHeat option [-]
 
-      REAL(KIND(1D0)), INTENT(in) :: qf !< anthropogenic heat flux [W m-2]
+      REAL(KIND(1D0)), DIMENSION(:), INTENT(in) :: Sd_series !< incoming solar radiation [W m-2]
+      REAL(KIND(1D0)), DIMENSION(:), INTENT(in) :: Ta_series !< air temperature [degC]
+      REAL(KIND(1D0)), DIMENSION(:), INTENT(in) :: RH_series !< relative humidity [%]
+      REAL(KIND(1D0)), DIMENSION(:), INTENT(in) :: pres_series !< Atmospheric pressure [hPa]
+      REAL(KIND(1D0)), DIMENSION(:), INTENT(in) :: WS_series ! wind speed [m s-1]
+      REAL(KIND(1D0)), DIMENSION(:), INTENT(in) :: AH_series ! anthropogenic heat [W m-2]
+      REAL(KIND(1D0)), DIMENSION(:), INTENT(in) :: tHr_series ! local time [hr]
       REAL(KIND(1D0)), INTENT(in), DIMENSION(:) :: alb !< albedo [-]
       REAL(KIND(1D0)), INTENT(in), DIMENSION(:) :: emis !< emissivity [-]
       REAL(KIND(1D0)), INTENT(in), DIMENSION(:) :: cpAnOHM !< heat capacity [J m-3 K-1]
       REAL(KIND(1D0)), INTENT(in), DIMENSION(:) :: kkAnOHM !< thermal conductivity [W m-1 K-1]
       REAL(KIND(1D0)), INTENT(in), DIMENSION(:) :: chAnOHM !< bulk transfer coef [J m-3 K-1]
       REAL(KIND(1D0)), INTENT(in), DIMENSION(:) :: moist !< surface wetness status [-]
-      REAL(KIND(1D0)), INTENT(in), DIMENSION(:, :) :: MetForcingData_grid !< met forcing array of grid
 
       ! output
       REAL(KIND(1D0)), INTENT(out) :: xa1 !< AnOHM coefficients of grid [-]
@@ -186,14 +197,7 @@ CONTAINS
       REAL(KIND(1D0)) :: mWS, mWF, mAH !< mean values of WS, WF and AH
 
       !   forcings:
-      REAL(KIND(1D0)), DIMENSION(:), ALLOCATABLE :: Sd ! incoming solar radiation [W m-2]
-      REAL(KIND(1D0)), DIMENSION(:), ALLOCATABLE :: Ta ! air temperature [degC]
-      REAL(KIND(1D0)), DIMENSION(:), ALLOCATABLE :: RH ! relative humidity [%]
-      REAL(KIND(1D0)), DIMENSION(:), ALLOCATABLE :: pres ! air pressure [hPa]
-      REAL(KIND(1D0)), DIMENSION(:), ALLOCATABLE :: WS ! wind speed [m s-1]
-      REAL(KIND(1D0)), DIMENSION(:), ALLOCATABLE :: WF ! water flux density [m3 s-1 m-2]
-      REAL(KIND(1D0)), DIMENSION(:), ALLOCATABLE :: AH ! anthropogenic heat [W m-2]
-      REAL(KIND(1D0)), DIMENSION(:), ALLOCATABLE :: tHr ! time [hr]
+      REAL(KIND(1D0)), DIMENSION(SIZE(Sd_series)) :: WF_series ! water flux density [m3 s-1 m-2]
 
       !   sfc. properties:
       REAL(KIND(1D0)) :: xalb ! albedo,
@@ -209,7 +213,7 @@ CONTAINS
       ! locally saved variables:
       ! if coefficients have been calculated, just reload them
       ! otherwise, do the calculation
-      INTEGER, SAVE :: id_save, grid_save
+      INTEGER, SAVE :: id_save = -999, grid_save = -999
       REAL(KIND(1D0)), SAVE :: coeff_grid_day(7, 3) = -999.
 
       ! PRINT*, 'xid,id_save',xid,id_save
@@ -224,15 +228,11 @@ CONTAINS
          xa3 = coeff_grid_day(sfc_typ, 3)
       ELSE
 
-         ! load forcing characteristics:
-         CALL AnOHM_Fc( &
-            xid, MetForcingData_grid, EmissionsMethod, qf, & ! input
-            ASd, mSd, tSd, ATa, mTa, tTa, tau, mWS, mWF, mAH) ! output
-
-         ! load forcing variables:
-         CALL AnOHM_FcLoad( &
-            xid, MetForcingData_grid, EmissionsMethod, qf, & ! input
-            Sd, Ta, RH, pres, WS, WF, AH, tHr) ! output
+         ! load forcing characteristics from provided series:
+         WF_series = 0.0D0
+         CALL AnOHM_FcCal( &
+            Sd_series, Ta_series, WS_series, WF_series, AH_series, tHr_series, &
+            ASd, mSd, tSd, ATa, mTa, tTa, tau, mWS, mWF, mAH)
 
          ! load sfc. properties:
          xalb = alb(sfc_typ)
@@ -246,7 +246,7 @@ CONTAINS
          ! calculate Bowen ratio:
          CALL AnOHM_Bo_cal( &
             sfc_typ, &
-            Sd, Ta, RH, pres, tHr, & ! input: forcing
+            Sd_series, Ta_series, RH_series, pres_series, tHr_series, & ! input: forcing
             ASd, mSd, ATa, mTa, tau, mWS, mWF, mAH, & ! input: forcing
             xalb, xemis, xcp, xk, xch, xmoist, & ! input: sfc properties
             tSd, & ! input: peaking time of Sd in hour
@@ -661,145 +661,6 @@ CONTAINS
       ! print*, 'a1,a2,a3:', xa1,xa2,xa3
 
    END SUBROUTINE AnOHM_coef_water_cal
-   !========================================================================================
-
-   !========================================================================================
-   SUBROUTINE AnOHM_Fc( &
-      xid, MetForcingData_grid, EmissionsMethod, qf, & ! input
-      ASd, mSd, tSd, ATa, mTa, tTa, tau, mWS, mWF, mAH) ! output
-
-      IMPLICIT NONE
-
-      !   input
-      INTEGER, INTENT(in) :: xid
-      INTEGER, INTENT(in) :: EmissionsMethod
-      REAL(KIND(1D0)), INTENT(in), DIMENSION(:, :) :: MetForcingData_grid
-      REAL(KIND(1D0)), INTENT(in) :: qf !< anthropogenic heat flux [W m-2]
-
-      !   output
-      REAL(KIND(1D0)), INTENT(out) :: ASd !< daily amplitude of solar radiation [W m-2]
-      REAL(KIND(1D0)), INTENT(out) :: mSd !< daily mean solar radiation [W m-2]
-      REAL(KIND(1D0)), INTENT(out) :: tSd !< local peaking time of solar radiation [hr]
-      REAL(KIND(1D0)), INTENT(out) :: ATa !< daily amplitude of air temperature [degC]
-      REAL(KIND(1D0)), INTENT(out) :: mTa !< daily mean air temperature [degC]
-      REAL(KIND(1D0)), INTENT(out) :: tTa !< local peaking time of air temperature [hour]
-      REAL(KIND(1D0)), INTENT(out) :: tau !< phase lag between Sd and Ta (Ta-Sd) [rad]
-      REAL(KIND(1D0)), INTENT(out) :: mWS !< daily mean wind speed [m s-1]
-      REAL(KIND(1D0)), INTENT(out) :: mWF !< daily mean underground moisture flux [m3 s-1 m-2]
-      REAL(KIND(1D0)), INTENT(out) :: mAH !< daily mean anthropogenic heat flux [W m-2]
-
-      !   forcings:
-      REAL(KIND(1D0)), DIMENSION(:), ALLOCATABLE :: Sd !< incoming solar radiation [W m-2]
-      REAL(KIND(1D0)), DIMENSION(:), ALLOCATABLE :: Ta !< air temperature [degC]
-      REAL(KIND(1D0)), DIMENSION(:), ALLOCATABLE :: RH !< relative humidity [%]
-      REAL(KIND(1D0)), DIMENSION(:), ALLOCATABLE :: pres !< Atmospheric pressure [hPa]
-      REAL(KIND(1D0)), DIMENSION(:), ALLOCATABLE :: WS ! wind speed [m s-1]
-      REAL(KIND(1D0)), DIMENSION(:), ALLOCATABLE :: WF ! water flux density [m3 s-1 m-2]
-      REAL(KIND(1D0)), DIMENSION(:), ALLOCATABLE :: AH ! anthropogenic heat [W m-2]
-      REAL(KIND(1D0)), DIMENSION(:), ALLOCATABLE :: tHr ! local time [hr]
-
-      ! load forcing variables:
-      CALL AnOHM_FcLoad(xid, MetForcingData_grid, EmissionsMethod, qf, Sd, Ta, RH, pres, WS, WF, AH, tHr)
-      ! calculate forcing scales for AnOHM:
-      CALL AnOHM_FcCal(Sd, Ta, WS, WF, AH, tHr, ASd, mSd, tSd, ATa, mTa, tTa, tau, mWS, mWF, mAH)
-
-      ! CALL r8vec_print(SIZE(sd, dim=1),sd,'Sd')
-      ! PRINT*, ASd,mSd,tSd
-
-      ! CALL r8vec_print(SIZE(ta, dim=1),ta,'Ta')
-      ! PRINT*, ATa,mTa,tTa
-
-   END SUBROUTINE AnOHM_Fc
-   !========================================================================================
-
-   !========================================================================================
-   !> load forcing series for AnOHM_FcCal
-   SUBROUTINE AnOHM_FcLoad( &
-      xid, MetForcingData_grid, EmissionsMethod, qf, & ! input
-      Sd, Ta, RH, pres, WS, WF, AH, tHr) ! output
-
-      IMPLICIT NONE
-
-      !   input
-      INTEGER, INTENT(in) :: xid !< day of year
-      INTEGER, INTENT(in) :: EmissionsMethod !< AnthropHeat option
-      REAL(KIND(1D0)), INTENT(in), DIMENSION(:, :) :: MetForcingData_grid !< met forcing array of grid
-      REAL(KIND(1D0)), INTENT(in) :: qf !< anthropogenic heat flux [W m-2]
-
-      !   output
-      REAL(KIND(1D0)), DIMENSION(:), INTENT(out), ALLOCATABLE :: Sd !< incoming solar radiation [W m-2]
-      REAL(KIND(1D0)), DIMENSION(:), INTENT(out), ALLOCATABLE :: Ta !< air temperature [degC]
-      REAL(KIND(1D0)), DIMENSION(:), INTENT(out), ALLOCATABLE :: RH !< relative humidity [%]
-      REAL(KIND(1D0)), DIMENSION(:), INTENT(out), ALLOCATABLE :: pres !< atmospheric pressure [mbar]
-      REAL(KIND(1D0)), DIMENSION(:), INTENT(out), ALLOCATABLE :: WS !< wind speed [m s-1]
-      REAL(KIND(1D0)), DIMENSION(:), INTENT(out), ALLOCATABLE :: WF !< water flux density [m3 s-1 m-2]
-      REAL(KIND(1D0)), DIMENSION(:), INTENT(out), ALLOCATABLE :: AH !< anthropogenic heat [W m-2]
-      REAL(KIND(1D0)), DIMENSION(:), INTENT(out), ALLOCATABLE :: tHr !< local time  [hr]
-
-      !   local variables:
-      REAL(KIND(1D0)), DIMENSION(:, :), ALLOCATABLE :: subMet ! subset array of daytime series
-
-      INTEGER :: err
-      INTEGER :: lenMetData, nVar
-
-      LOGICAL, ALLOCATABLE :: metMask(:)
-
-      ! construct mask
-      IF (ALLOCATED(metMask)) DEALLOCATE (metMask, stat=err)
-      ALLOCATE (metMask(SIZE(MetForcingData_grid, dim=1)))
-      metMask = (MetForcingData_grid(:, 2) == xid & ! day=xid
-                 .AND. MetForcingData_grid(:, 4) == 0) ! tmin=0
-
-      ! determine the length of subset
-      lenMetData = COUNT(metMask)
-
-      ! construct array for time and met variables
-      nVar = 8 ! number of variables to retrieve
-      ! print*, 'good 1'
-      ! allocate subMet:
-      IF (ALLOCATED(subMet)) DEALLOCATE (subMet, stat=err)
-      ALLOCATE (subMet(lenMetData, nVar))
-      subMet = RESHAPE(PACK(MetForcingData_grid(:, (/3, & !time: hour
-                                                     15, 12, 11, 13, 10, 12, 9/)), & ! met: Sd, Ta, RH, pres, WS, WF, AH
-                            ! NB: WF not used: a placeholder
-                            SPREAD(metMask, dim=2, ncopies=nVar)), & ! replicate mask vector to 2D array
-                       (/lenMetData, nVar/)) ! convert to target shape
-
-      ! re-allocate arrays as their sizes may change during passing
-      IF (ALLOCATED(tHr)) DEALLOCATE (tHr, stat=err)
-      ALLOCATE (tHr(lenMetData))
-      IF (ALLOCATED(Sd)) DEALLOCATE (Sd, stat=err)
-      ALLOCATE (Sd(lenMetData))
-      IF (ALLOCATED(Ta)) DEALLOCATE (Ta, stat=err)
-      ALLOCATE (Ta(lenMetData))
-      IF (ALLOCATED(RH)) DEALLOCATE (RH, stat=err)
-      ALLOCATE (RH(lenMetData))
-      IF (ALLOCATED(pres)) DEALLOCATE (pres, stat=err)
-      ALLOCATE (pres(lenMetData))
-      IF (ALLOCATED(WS)) DEALLOCATE (WS, stat=err)
-      ALLOCATE (WS(lenMetData))
-      IF (ALLOCATED(WF)) DEALLOCATE (WF, stat=err)
-      ALLOCATE (WF(lenMetData))
-      IF (ALLOCATED(AH)) DEALLOCATE (AH, stat=err)
-      ALLOCATE (AH(lenMetData))
-
-      ! load the sublist into forcing variables
-      tHr = subMet(:, 1) ! time in hour
-      Sd = subMet(:, 2)
-      Ta = subMet(:, 3)
-      RH = subMet(:, 4)
-      pres = subMet(:, 5)
-      WS = subMet(:, 6)
-      WF = 0 ! set as 0 for the moment
-      IF (EmissionsMethod == 0) THEN
-         AH = subMet(:, 8) ! read in from MetForcingData_grid,
-      ELSE
-         ! AH = 0 ! temporarily change to zero;
-         AH = qf ! use modelled value
-         !  AH = mAH_grids(xid-1,xgrid)
-      END IF
-
-   END SUBROUTINE AnOHM_FcLoad
    !========================================================================================
 
    !========================================================================================

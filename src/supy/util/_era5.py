@@ -965,7 +965,7 @@ def gen_forcing_era5(
         ECMWF, S. P. (2016). In IFS documentation CY41R2 Part IV: Physical Processes. ECMWF: Reading, UK, 111-113. https://www.ecmwf.int/en/elibrary/16648-part-iv-physical-processes
 
     """
-    import xarray as xr
+    # Note: xarray is imported conditionally below (only needed for gridded data, not timeseries)
 
     if grid is None:
         grid = [0.125, 0.125]

@@ -14,6 +14,7 @@ from ._version_scm import __version__, __version_tuple__
 
 import pandas as pd
 
+
 def show_version(mode="simple", as_json=False):
     """
     Display SUEWS version and system dependency information.
@@ -59,7 +60,7 @@ def show_version(mode="simple", as_json=False):
 
     Display full version and system information:
 
-    >>> sp.show_version(mode='full')
+    >>> sp.show_version(mode="full")
     SUEWS VERSION: 2025.6.2.dev99
     -------------
 
@@ -68,7 +69,7 @@ def show_version(mode="simple", as_json=False):
 
     Export version information to JSON:
 
-    >>> sp.show_version(as_json='version_info.json')
+    >>> sp.show_version(as_json="version_info.json")
 
     Notes
     -----

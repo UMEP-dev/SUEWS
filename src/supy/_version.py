@@ -14,24 +14,6 @@ from ._version_scm import __version__, __version_tuple__
 
 import pandas as pd
 
-# ser_ver = pd.read_json(
-#     path_supy_module / "supy_version.json", typ="series", convert_dates=False
-# )
-# __version__ = "-".join(
-#     list(
-#         filter(
-#             None,
-#             [
-#                 ser_ver.version,
-#                 ser_ver.iter,
-#                 ser_ver.git_commit,
-#             ],
-#         )
-#     )
-# )
-# __version_driver__ = sd_ver
-
-
 def show_version(mode="simple", as_json=False):
     """Print SUEWS version information."""
     dict_info_supy = {}

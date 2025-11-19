@@ -10,7 +10,7 @@
    
    For the modern YAML configuration, specify your forcing file path using ``model.control.forcing_file`` in your configuration.
    
-   Data structure of ``df_forcing`` is explained :ref:`here <data-structures/supy-io:df_forcing: forcing data>`.
+   Data structure of ``df_forcing`` is explained `here <supy-io.html#df_forcing:-forcing-data>`_.
 
 .. option:: RH
 

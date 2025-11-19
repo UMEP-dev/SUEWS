@@ -1875,7 +1875,8 @@ class SUEWSConfig(BaseModel):
         from .type import RefValue  # Import here to avoid circular import
 
         for site_index, site in enumerate(self.sites):
-            site_name = f"Site {site_index + 1}"
+            # Get site name (Site class has name field with default "test site")
+            site_name = getattr(site, "name", f"Site {site_index + 1}")
 
             # Get vertical layers (building validation is on vertical layers, not bldgs)
             if not site.properties or not site.properties.vertical_layers:
@@ -1957,7 +1958,8 @@ class SUEWSConfig(BaseModel):
         from .type import SurfaceType  # Import here to avoid circular import
 
         for site_index, site in enumerate(self.sites):
-            site_name = f"Site {site_index + 1}"
+            # Get site name (Site class has name field with default "test site")
+            site_name = getattr(site, "name", f"Site {site_index + 1}")
 
             # Get initial states
             if not site.initial_states:
@@ -2099,7 +2101,8 @@ class SUEWSConfig(BaseModel):
         Migrated from HourlyProfile.validate_hours for centralized validation.
         """
         for site_index, site in enumerate(self.sites):
-            site_name = f"Site {site_index + 1}" if len(self.sites) > 1 else "Site"
+            # Get site name (Site class has name field with default "test site")
+            site_name = getattr(site, "name", f"Site {site_index + 1}")
             errors = []
 
             # Collect all HourlyProfile instances from this site
@@ -2204,7 +2207,7 @@ class SUEWSConfig(BaseModel):
         Performs validation checks:
         1. Consistency: both startdls and enddls set, or both None (ERROR)
         2. Leap year refinement: DOY 366 only valid in leap years (ERROR)
-        3. Hemisphere-aware pattern check: Informs about unusual DST patterns (INFO)
+        3. Compare user values with calculated DLS: Informs if values differ from location-based calculations (INFO)
 
         These validations are particularly useful when Phase C runs standalone
         or when loading YAML directly via SUEWSConfig.from_yaml().
@@ -2232,7 +2235,8 @@ class SUEWSConfig(BaseModel):
         errors = []
 
         for site_index, site in enumerate(self.sites):
-            site_name = f"Site {site_index + 1}" if len(self.sites) > 1 else "Site"
+            # Get site name (Site class has name field with default "test site")
+            site_name = getattr(site, "name", f"Site {site_index + 1}")
 
             if not (site.properties and site.properties.anthropogenic_emissions):
                 continue
@@ -2279,53 +2283,54 @@ class SUEWSConfig(BaseModel):
                         f"Must be in range [1, {max_doy}]"
                     )
 
-            # 3. Hemisphere-aware pattern check (informational only, no errors)
-            # Get latitude for hemisphere determination
+            # 3. Compare user values with calculated DLS values (informational only)
+            # Get latitude and longitude for DLS calculation
             try:
                 lat_val = (
                     site.properties.lat.value
                     if hasattr(site.properties.lat, "value")
                     else site.properties.lat
                 )
+                lng_val = (
+                    site.properties.lng.value
+                    if hasattr(site.properties.lng, "value")
+                    else site.properties.lng
+                )
 
-                if lat_val is not None:
-                    # Determine hemisphere and typical DST ranges
-                    if lat_val > 0:
-                        # Northern Hemisphere
-                        hemisphere = "Northern"
-                        typical_start_range = (60, 120)  # ~March-April
-                        typical_end_range = (270, 330)  # ~October-November
-                    else:
-                        # Southern Hemisphere
-                        hemisphere = "Southern"
-                        typical_start_range = (250, 310)  # ~September-November
-                        typical_end_range = (60, 120)  # ~March-April
+                if lat_val is not None and lng_val is not None and year:
+                    # Import DLSCheck dynamically to avoid circular imports
+                    from ..validation.core.yaml_helpers import DLSCheck
 
-                    # Check if values are outside typical ranges
-                    unusual_patterns = []
-                    if not (
-                        typical_start_range[0] <= startdls_val <= typical_start_range[1]
-                    ):
-                        unusual_patterns.append(
-                            f"startdls={int(startdls_val)} (typical: {typical_start_range[0]}-{typical_start_range[1]})"
-                        )
+                    # Calculate what DLS values should be
+                    dls = DLSCheck(lat=lat_val, lng=lng_val, year=year)
+                    calculated_start, calculated_end, _ = dls.compute_dst_transitions()
 
-                    if not (typical_end_range[0] <= enddls_val <= typical_end_range[1]):
-                        unusual_patterns.append(
-                            f"enddls={int(enddls_val)} (typical: {typical_end_range[0]}-{typical_end_range[1]})"
-                        )
+                    if calculated_start and calculated_end:
+                        # Compare user values with calculated values
+                        # Create separate messages for each parameter
 
-                    if unusual_patterns:
-                        info_msg = (
-                            f"{site_name} ({hemisphere} Hemisphere, lat={lat_val:.2f}): "
-                            f"Unusual DST pattern detected: {', '.join(unusual_patterns)}. "
-                            f"Please verify these values are correct for your location."
-                        )
-                        self._validation_summary["detailed_messages"].append(info_msg)
-                        self._validation_summary["info_messages"].append(info_msg)
+                        if calculated_start != startdls_val:
+                            info_msg = (
+                                f"startdls for site {site_name}: DLS values differ from calculated "
+                                f"values based on your location (lat={lat_val:.2f}, lng={lng_val:.2f}). "
+                                f"Check your value ({int(startdls_val)}) against the calculated one "
+                                f"({int(calculated_start)}). You might need to change your startdls."
+                            )
+                            self._validation_summary["detailed_messages"].append(info_msg)
+                            self._validation_summary["info_messages"].append(info_msg)
 
-            except (AttributeError, TypeError):
-                # Cannot access latitude, skip hemisphere check
+                        if calculated_end != enddls_val:
+                            info_msg = (
+                                f"enddls for site {site_name}: DLS values differ from calculated "
+                                f"values based on your location (lat={lat_val:.2f}, lng={lng_val:.2f}). "
+                                f"Check your value ({int(enddls_val)}) against the calculated one "
+                                f"({int(calculated_end)}). You might need to change your enddls."
+                            )
+                            self._validation_summary["detailed_messages"].append(info_msg)
+                            self._validation_summary["info_messages"].append(info_msg)
+
+            except (AttributeError, TypeError, ImportError):
+                # Cannot calculate DLS, skip comparison
                 pass
 
         # Raise errors if any

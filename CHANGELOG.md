@@ -33,7 +33,7 @@
 
 ## 2025
 
-## 19 Nov 2025
+### 19 Nov 2025
 - [bugfix] Fixed last layer of validation for DLS startdls and endls parameters. 
   - Instead of hemisphere pattern check (NH/SH typical ranges), now phase C provide NO ACTION NEEDED info to user with calculated DLS startdls and endls (to compare against user values).
   - Useful when Phase C runs standalone or via `SUEWSConfig.from_yaml()` (Phase B auto-corrects values in full pipeline)

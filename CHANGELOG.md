@@ -21,7 +21,7 @@
 
 | Year | Features | Bugfixes | Changes | Maintenance | Docs | Total |
 |------|----------|----------|---------|-------------|------|-------|
-| 2025 | 38 | 26 | 14 | 34 | 17 | 129 |
+| 2025 | 38 | 27 | 14 | 34 | 17 | 130 |
 | 2024 | 12 | 17 | 1 | 12 | 1 | 43 |
 | 2023 | 11 | 14 | 3 | 9 | 1 | 38 |
 | 2022 | 15 | 18 | 0 | 7 | 0 | 40 |
@@ -31,8 +31,12 @@
 | 2018 | 7 | 1 | 6 | 5 | 0 | 19 |
 | 2017 | 9 | 0 | 3 | 2 | 0 | 14 |
 
-
 ## 2025
+
+### 19 Nov 2025
+- [bugfix] Fixed last layer of validation for DLS startdls and endls parameters. 
+  - Instead of hemisphere pattern check (NH/SH typical ranges), now phase C provide NO ACTION NEEDED info to user with calculated DLS startdls and endls (to compare against user values).
+  - Useful when Phase C runs standalone or via `SUEWSConfig.from_yaml()` (Phase B auto-corrects values in full pipeline)
 
 ### 18 Nov 2025
 - [change] **BREAKING**: Simplified ERA5 download implementation and renamed `data_source` parameter values

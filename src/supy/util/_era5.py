@@ -876,239 +876,82 @@ def gen_forcing_era5(
     start: str,
     end: str,
     dir_save=Path("."),
-    grid=None,
     hgt_agl_diag=100.0,
-    scale=0,
-    force_download=True,
-    simple_mode=True,
-    pressure_level=None,
-    data_source="timeseries",
     logging_level=logging.INFO,
 ) -> list:
-    """Generate SUEWS forcing files using ERA-5 data.
+    """Generate SUEWS forcing files using ERA-5 timeseries data.
+
+    Downloads ERA5 surface timeseries data from CDS API and converts to SUEWS forcing format.
+    Uses simple diagnostics: environmental lapse rate (6.5 K/km) for temperature and 
+    neutral MOST for wind speed.
 
     Parameters
     ----------
     lat_x : float
-        Latitude of centre at the area of interest.
+        Latitude of the location.
     lon_x : float
-        Longitude of centre at the area of interest.
+        Longitude of the location.
     start : str
-        Any datetime-like string that can be parsed by ``pandas.date_range()``.
+        Start date (e.g., "2020-01-01").
     end : str
-        Any datetime-like string that can be parsed by ``pandas.date_range()``.
+        End date (e.g., "2020-12-31").
     dir_save : pathlib.Path or str, optional
-        path to directory for saving downloaded ERA5 netCDF files, by default Path(".").
-    grid : list, optional
-        grid size used in CDS request API, by default [0.125, 0.125].
+        Directory for saving ERA5 CSV files, by default Path(".").
     hgt_agl_diag : float, optional
-        height above ground level to diagnose forcing variables, by default 100; the ground level is taken from ERA5 grid altitude.
-    scale : int, optional
-        scaling factor that determines the area of interest (i.e., ``area=grid[0]*scale``),
-        by default 0
-    force_download : bool, optional
-        flag to determine whether to download required ERA5 netCDF files; if ``False``, all ERA5-related nc files in ``dir_save`` will be picked up for generation.
-        by default True.
-    simple_mode : bool, optional
-        if use the *simple* mode for diagnosing the forcing variables, by default ``True``.
-        In the simple mode, temperature is diagnosed using environmental lapse rate 6.5 K/km and wind speed using MOST under neutral condition.
-        If ``False``, MOST with consideration of stability conditions will be used to diagnose forcing variables.
-    pressure_level : float, optional
-        pressure level to retrieve ERA5 atmospheric data, by default None.
-        If ``None``, this option is ignored.
-        If not ``None``, calculations implied by ``simple_mode`` will be skipped: the data at specified pressure level will be used as forcing data and the mean altitude of the pressure level between specified ``start`` and ``end`` will be assumed to be the forcing height (i.e., ``hgt_agl_diag`` will be ignored if set).
-    data_source : str, optional
-        ERA5 dataset type to download, by default "timeseries".
-        Options:
-        - "timeseries": ERA5 timeseries dataset (surface data only, much faster, ~26s for 30 years)
-        - "gridded": Traditional gridded ERA5 (supports both surface and model level data, slower)
-        Note: "timeseries" only works with ``simple_mode=True`` and ``scale=0`` (point locations only).
+        Height above ground level for diagnostics (m), by default 100.
     logging_level : int, optional
-        one of these values [50 (CRITICAL), 40 (ERROR), 30 (WARNING), 20 (INFO), 10 (DEBUG)].
-        A lower value informs SuPy for more verbose logging info.
-
+        Logging level [50=CRITICAL, 40=ERROR, 30=WARNING, 20=INFO, 10=DEBUG].
 
     Returns
     -------
-    List
-        A list of files in SUEWS forcing input format.
+    list
+        List of SUEWS forcing file paths.
 
     Note
     ----
-        1. By default, this function uses the ERA5 timeseries dataset for fast point location downloads. For CDS API configuration, see: https://cds.climate.copernicus.eu/api-how-to
-        2. The generated forcing files can be imported using ``supy.util.read_forcing`` to get simulation-ready ``pandas.DataFrame`` s.
-        3. See Section 3.10.2 and 3.10.3 in the reference for details of diagnostics calculation.
-        4. For ``start``/``end``, it is recommended to use the format ``YYYY-MM-DD`` to avoid confusion in day/month-first convensions (`an upstream known issue <https://pandas.pydata.org/docs/reference/api/pandas.to_datetime.html#pandas.to_datetime>`_ due to the ``dateutil`` behavior)
-        5. The default ``data_source="timeseries"`` only works with ``simple_mode=True`` (surface data). For model level data or complex diagnostics, use ``data_source="gridded"`` with ``simple_mode=False``.
+    1. Requires CDS API configuration: https://cds.climate.copernicus.eu/api-how-to
+    2. Uses ERA5 timeseries dataset (surface data, ~26s for 30 years)
+    3. Point location only (no spatial grids)
+    4. Use supy.util.read_forcing() to import generated files
 
     Examples
     --------
-    Using ERA5 timeseries dataset (default, fast for point locations):
-
-    >>> list_fn = gen_forcing_era5(
-    ...     50.86, 4.35, "2020-01-01", "2020-01-31", simple_mode=True
-    ... )
-
-    Using traditional gridded ERA5 (for model level data or spatial grids):
-
-    >>> list_fn = gen_forcing_era5(
-    ...     50.86,
-    ...     4.35,
-    ...     "2020-01-01",
-    ...     "2020-01-31",
-    ...     simple_mode=False,
-    ...     data_source="gridded",
-    ... )
-
+    >>> list_fn = gen_forcing_era5(50.86, 4.35, "2020-01-01", "2020-01-31")
+    
     Reference
     ---------
-        ECMWF, S. P. (2016). In IFS documentation CY41R2 Part IV: Physical Processes. ECMWF: Reading, UK, 111-113. https://www.ecmwf.int/en/elibrary/16648-part-iv-physical-processes
-
+    ECMWF, S. P. (2016). In IFS documentation CY41R2 Part IV: Physical Processes. 
+    ECMWF: Reading, UK, 111-113. https://www.ecmwf.int/en/elibrary/16648-part-iv-physical-processes
     """
-    # Note: xarray is imported conditionally below (only needed for gridded data, not timeseries)
-
-    if grid is None:
-        grid = [0.125, 0.125]
-
     # adjust logging level
     logger_supy.setLevel(logging_level)
 
-    # validate timeseries data source requirements
-    if data_source == "timeseries":
-        if not simple_mode:
-            raise ValueError(
-                "timeseries data source only works with simple_mode=True. "
-                "The ERA5 timeseries dataset only provides surface-level variables."
-            )
-        if scale != 0:
-            logger_supy.warning(
-                "timeseries data source only supports point locations (scale=0). "
-                f"Ignoring scale={scale} and using scale=0."
-            )
-            scale = 0
-        if pressure_level is not None:
-            raise ValueError(
-                "timeseries data source does not support pressure_level parameter. "
-                "Only surface-level data is available."
-            )
+    # download ERA5 timeseries CSV
+    fn_sfc = download_era5_timeseries(
+        lat_x, lon_x, start, end, dir_save, logging_level
+    )
 
-    # download data
-    if data_source == "timeseries":
-        # use CDS API timeseries dataset (surface data only)
-        fn_sfc = download_era5_timeseries(
-            lat_x, lon_x, start, end, dir_save, logging_level
-        )
-        list_fn_sfc = [fn_sfc]
-        list_fn_ml = []
-    else:
-        # use traditional gridded CDS API (requires h5netcdf)
-        try:
-            import h5netcdf
-        except ImportError:
-            raise ImportError(
-                "Gridded ERA5 data source requires h5netcdf for reading netCDF4 files.\n"
-                "Install with: pip install h5netcdf\n"
-                "Alternatively, use data_source='timeseries' for lightweight CSV-based downloads."
-            )
+    # generate diagnostics from CSV
+    df_forcing_raw = gen_df_diag_era5_csv(fn_sfc, hgt_agl_diag)
 
-        list_fn_sfc, list_fn_ml = download_era5_cdsapi(
-            lat_x,
-            lon_x,
-            start,
-            end,
-            simple_mode,
-            dir_save,
-            grid,
-            scale,
-            force_download,
-            logging_level,
-        )
+    # extract coordinates
+    lat = df_forcing_raw.attrs["latitude"]
+    lon = df_forcing_raw.attrs["longitude"]
 
-    # CSV (timeseries) vs netCDF (gridded) - use different paths to avoid xarray for CSV
-    if list_fn_sfc[0].endswith(".csv"):
-        # === CSV TIMESERIES PATH (pandas-only, no xarray) ===
+    # format to SUEWS convention
+    df_forcing = format_df_forcing(df_forcing_raw)
 
-        # generate diagnostics directly from CSV (stays in pandas)
-        df_forcing_raw = gen_df_diag_era5_csv(list_fn_sfc[0], hgt_agl_diag)
-
-        # extract coordinates from DataFrame attributes
-        lat = df_forcing_raw.attrs["latitude"]
-        lon = df_forcing_raw.attrs["longitude"]
-
-        # format to SUEWS convention
-        df_forcing = format_df_forcing(df_forcing_raw)
-
-        # add latitude/longitude to index to match gridded data structure
-        df_forcing["latitude"] = lat
-        df_forcing["longitude"] = lon
-        # reorder index: [latitude, longitude, time]
-        df_forcing = df_forcing.reset_index().set_index([
-            "latitude",
-            "longitude",
-            "time",
-        ])
-
-    else:
-        # === netCDF GRIDDED PATH (requires xarray) ===
-        try:
-            import xarray as xr
-        except ImportError:
-            raise ImportError(
-                "Gridded ERA5 data source requires xarray for multi-dimensional data processing.\n"
-                "Install with: pip install xarray\n"
-                "Alternatively, use data_source='timeseries' for lightweight CSV-based downloads (no xarray needed)."
-            )
-
-        # load netCDF gridded data
-        ds_sfc = xr.open_mfdataset(
-            list_fn_sfc,
-            concat_dim="time",
-            combine="nested",
-        ).load()
-        # close dangling handlers
-        ds_sfc.close()
-
-        if pressure_level is None:
-            # generate diagnostics at a higher level
-            ds_diag = gen_ds_diag_era5(
-                list_fn_sfc, list_fn_ml, hgt_agl_diag, simple_mode
-            )
-        else:
-            # directly retrieve data at specified pressure level
-            ds_diag = get_era5_pressure_level(list_fn_ml, pressure_level)
-
-        # merge diagnostics above with surface variables
-        ds_forcing_era5 = ds_sfc.merge(ds_diag)
-
-        # convert to dataframe for further processing
-        df_forcing_raw = ds_forcing_era5[
-            [
-                "ssrd",
-                "strd",
-                "sshf",
-                "slhf",
-                "tp",
-                "uv_z",
-                "t_z",
-                "q_z",
-                "p_z",
-                "alt_z",
-                "RH_z",
-            ]
-        ].to_dataframe()
-
-        # gridded data: split based on grid coordinates
-        grp_grid = df_forcing_raw.groupby(level=["latitude", "longitude"])
-        df_forcing = grp_grid.apply(
-            lambda df: format_df_forcing(
-                df.reset_index(["latitude", "longitude"], drop=True)
-            )
-        )
+    # add coordinates to match expected structure
+    df_forcing["latitude"] = lat
+    df_forcing["longitude"] = lon
+    df_forcing = df_forcing.reset_index().set_index(["latitude", "longitude", "time"])
 
     # save results as SUEWS met input files
     list_fn = save_forcing_era5(df_forcing, dir_save)
 
     return list_fn
+
+
 
 
 # format dataframe to SUEWS convention

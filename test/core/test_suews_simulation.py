@@ -705,3 +705,118 @@ class TestPathResolution:
         # Should resolve correctly (not blocked by security check)
         expected = (forcing_dir / "data.txt").resolve()
         assert Path(result).resolve() == expected
+
+
+class TestContinuationRuns:
+    """Test continuation runs using from_state() method."""
+
+    def test_from_state_csv(self, tmp_path):
+        """Test loading state from CSV for continuation."""
+        # Run initial simulation
+        sim1 = SUEWSSimulation.from_sample_data()
+        df_forcing = sim1.forcing.iloc[:288]  # First day only
+        sim1.update_forcing(df_forcing)
+        sim1.run()
+
+        # Save state
+        paths = sim1.save(str(tmp_path))
+
+        # Find state file
+        state_file = [p for p in paths if "df_state" in str(p)][0]
+        assert Path(state_file).exists()
+
+        # Load state for continuation
+        sim2 = SUEWSSimulation.from_state(state_file)
+        assert sim2._df_state_init is not None
+        assert sim2.is_ready() is False  # No forcing yet
+
+        # Add forcing and run continuation
+        df_forcing_2 = sim1.forcing.iloc[288:576]  # Second day
+        sim2.update_forcing(df_forcing_2)
+        assert sim2.is_ready() is True
+
+        sim2.run()
+        assert sim2.is_complete() is True
+
+    def test_from_state_parquet(self, tmp_path):
+        """Test loading state from Parquet for continuation."""
+        pytest.importorskip("pyarrow", reason="Parquet support requires pyarrow")
+
+        # Run initial simulation
+        sim1 = SUEWSSimulation.from_sample_data()
+        df_forcing = sim1.forcing.iloc[:288]  # First day only
+        sim1.update_forcing(df_forcing)
+        sim1.run()
+
+        # Save state in Parquet format
+        paths = sim1.save(str(tmp_path), format="parquet")
+
+        # Find state file
+        state_file = [p for p in paths if "state_final.parquet" in str(p)][0]
+        assert Path(state_file).exists()
+
+        # Load state for continuation
+        sim2 = SUEWSSimulation.from_state(state_file)
+        assert sim2._df_state_init is not None
+
+        # Continue simulation
+        df_forcing_2 = sim1.forcing.iloc[288:576]  # Second day
+        sim2.update_forcing(df_forcing_2)
+        sim2.run()
+        assert sim2.is_complete() is True
+
+    def test_from_state_dataframe(self):
+        """Test loading state from DataFrame directly."""
+        # Run initial simulation
+        sim1 = SUEWSSimulation.from_sample_data()
+        df_forcing = sim1.forcing.iloc[:288]
+        sim1.update_forcing(df_forcing)
+        sim1.run()
+
+        # Get state DataFrame directly
+        df_state_final = sim1.state_final
+
+        # Create new simulation from DataFrame
+        sim2 = SUEWSSimulation.from_state(df_state_final)
+        assert sim2._df_state_init is not None
+        assert sim2.is_ready() is False  # No forcing yet
+
+        # Continue simulation
+        df_forcing_2 = sim1.forcing.iloc[288:576]
+        sim2.update_forcing(df_forcing_2)
+        sim2.run()
+        assert sim2.is_complete() is True
+
+    def test_from_state_version_warning(self, tmp_path):
+        """Test version compatibility warning."""
+        import pandas as pd
+
+        # Create a state file with different version
+        sim1 = SUEWSSimulation.from_sample_data()
+        df_state = sim1.state_init.copy()
+
+        # Modify version to trigger warning
+        df_state[("supy_version", "0")] = "9999.99.99"
+
+        # Save modified state
+        state_file = tmp_path / "df_state_old.csv"
+        df_state.to_csv(state_file)
+
+        # Loading should trigger version warning
+        with pytest.warns(UserWarning, match="compatibility issues"):
+            sim2 = SUEWSSimulation.from_state(state_file)
+
+        assert sim2._df_state_init is not None
+
+    def test_from_state_file_not_found(self):
+        """Test error handling for missing state file."""
+        with pytest.raises(FileNotFoundError):
+            SUEWSSimulation.from_state("nonexistent_state.csv")
+
+    def test_from_state_unsupported_format(self, tmp_path):
+        """Test error handling for unsupported file format."""
+        invalid_file = tmp_path / "state.txt"
+        invalid_file.write_text("dummy content")
+
+        with pytest.raises(ValueError, match="Unsupported state file format"):
+            SUEWSSimulation.from_state(invalid_file)

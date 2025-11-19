@@ -1,7 +1,7 @@
 .. _api_simulation:
 
-SUEWSSimulation Class
-=====================
+`SUEWSSimulation` Class
+=======================
 
 .. currentmodule:: supy
 

@@ -54,8 +54,8 @@ def show_version(mode="simple", as_json=False):
             ser_json = pd.concat([ser_info_supy, ser_json], axis=0)
             ser_json.to_json(path_json, orient="index")
     else:
-        print(f"SUEWS version: {__version__}")
-        print("-------------")
+        version_text = f"SUEWS version: {__version__}"
+        print(version_text)
         # print(f"supy_driver: {__version_driver__}")
         if mode == "full":
             print("\n=================")

@@ -6,7 +6,7 @@
 
 
 
-.. note:: Data structure of ``df_output`` is explained :ref:`here </data-structure/supy-io.ipynb#df_output:-model-output-results>`.
+.. note:: Data structure of ``df_output`` is explained :ref:`here <data-structures/supy-io:df_output: model output results>`.
 
 .. option:: AddWater
 

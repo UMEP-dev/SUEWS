@@ -148,8 +148,6 @@ class SUEWSConfig(BaseModel):
         "WindowExternalConvectionCoefficient",
         "GroundDepth",
         "ExternalGroundConductivity",
-        "IndoorAirDensity",
-        "IndoorAirCp",
         "MetabolicRate",
         "LatentSensibleRatio",
         "ApplianceRating",

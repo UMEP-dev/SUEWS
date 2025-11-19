@@ -57,13 +57,13 @@ class TestERA5Import:
         """
         from supy.util._era5 import gen_df_diag_era5_csv
 
-        # Use fixture data (24h sample from London, Jan 2020)
+        # Use fixture data (real ERA5 download: London, 2020-01-01, 24h)
         fixture_path = (
             Path(__file__).parent.parent
             / "fixtures"
             / "data_test"
             / "era5"
-            / "era5_sample_24h.csv"
+            / "era5_london_2020-01-01.csv"
         )
 
         # Test with two different diagnostic heights
@@ -113,9 +113,9 @@ class TestERA5Import:
             f"Altitude difference should be 50m, got {alt_diff:.2f}m"
         )
 
-        # Verify coordinates preserved in attrs
+        # Verify coordinates preserved in attrs (longitude rounded to 0.0 by CDS API)
         assert df_50m.attrs["latitude"] == 51.5
-        assert df_50m.attrs["longitude"] == -0.1
+        assert df_50m.attrs["longitude"] == 0.0
 
 
 @pytest.mark.skipif(

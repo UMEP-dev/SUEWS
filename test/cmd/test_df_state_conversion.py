@@ -62,12 +62,8 @@ class TestCsvFileConversion:
     @pytest.fixture
     def old_csv_path(self):
         """Path to the provided old format CSV."""
-        # Use the fixture file in the test directory
-        csv_path = Path("test/fixtures/legacy_format/old_df_state.csv")
-        if csv_path.exists():
-            return csv_path
-        else:
-            pytest.skip("Test CSV file not available")
+        # Use __file__-based path to work regardless of CWD
+        return Path(__file__).parent.parent / "fixtures/legacy_format/old_df_state.csv"
 
     def test_load_old_csv(self, old_csv_path):
         """Test loading the provided old CSV file."""

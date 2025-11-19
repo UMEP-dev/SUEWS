@@ -1758,48 +1758,6 @@ class StebbsProperties(BaseModel):
             "display_name": "Externalgroundconductivity",
         },
     )
-    IndoorAirDensity: Optional[FlexibleRefValue(float)] = Field(
-        default=1.2,
-        description="Density of indoor air [kg m-3]",
-        json_schema_extra={"unit": "kg m^-3", "display_name": "Indoorairdensity"},
-        gt=0.0,
-    )
-    IndoorAirCp: Optional[FlexibleRefValue(float)] = Field(
-        default=1005.0,
-        description="Specific heat capacity of indoor air [J kg-1 K-1]",
-        json_schema_extra={"unit": "J kg^-1 K^-1", "display_name": "Indooraircp"},
-        gt=0.0,
-    )
-    WallBuildingViewFactor: Optional[FlexibleRefValue(float)] = Field(
-        default=0.0,
-        description="Building view factor of external walls [-]",
-        json_schema_extra={
-            "unit": "dimensionless",
-            "display_name": "Wallbuildingviewfactor",
-        },
-        ge=0.0,
-        le=1.0,
-    )
-    WallGroundViewFactor: Optional[FlexibleRefValue(float)] = Field(
-        default=0.0,
-        description="Ground view factor of external walls [-]",
-        json_schema_extra={
-            "unit": "dimensionless",
-            "display_name": "Wallgroundviewfactor",
-        },
-        ge=0.0,
-        le=1.0,
-    )
-    WallSkyViewFactor: Optional[FlexibleRefValue(float)] = Field(
-        default=0.0,
-        description="Sky view factor of external walls [-]",
-        json_schema_extra={
-            "unit": "dimensionless",
-            "display_name": "Wallskyviewfactor",
-        },
-        ge=0.0,
-        le=1.0,
-    )
     MetabolicRate: Optional[FlexibleRefValue(float)] = Field(
         default=0.0,
         description="Metabolic rate of building occupants [W]",

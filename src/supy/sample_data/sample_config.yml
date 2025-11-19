@@ -127,16 +127,6 @@ sites:
         value: 1.0
       ExternalGroundConductivity:
         value: 3.0
-      IndoorAirDensity:
-        value: 1.0
-      IndoorAirCp:
-        value: 1000.0
-      WallBuildingViewFactor:
-        value: 0.5
-      WallGroundViewFactor:
-        value: 0.2
-      WallSkyViewFactor:
-        value: 0.3
       MetabolicRate:
         value: 50.0
       LatentSensibleRatio:

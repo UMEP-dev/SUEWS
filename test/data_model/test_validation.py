@@ -2424,9 +2424,7 @@ def test_dls_location_based_informational_messages_in_suews_config():
     # Check that no DLS comparison messages were generated (values match calculated)
     if hasattr(config, "_validation_summary"):
         info_messages = config._validation_summary.get("info_messages", [])
-        dls_messages = [
-            msg for msg in info_messages if "DLS values differ" in msg
-        ]
+        dls_messages = [msg for msg in info_messages if "DLS values differ" in msg]
         assert len(dls_messages) == 0, (
             "Should not generate message when user values match calculated values"
         )
@@ -2441,9 +2439,7 @@ def test_dls_location_based_informational_messages_in_suews_config():
     # Check that DLS comparison info messages were generated
     assert hasattr(config, "_validation_summary")
     info_messages = config._validation_summary.get("info_messages", [])
-    dls_messages = [
-        msg for msg in info_messages if "DLS values differ" in msg
-    ]
+    dls_messages = [msg for msg in info_messages if "DLS values differ" in msg]
     assert len(dls_messages) == 2, (
         "Should generate separate info messages for startdls and enddls"
     )
@@ -2466,15 +2462,15 @@ def test_dls_location_based_informational_messages_in_suews_config():
 
     # Test 3: Only startdls differs (should generate only one info message)
     config_data["sites"][0]["properties"]["anthropogenic_emissions"]["startdls"] = 50
-    config_data["sites"][0]["properties"]["anthropogenic_emissions"]["enddls"] = 301  # Correct
+    config_data["sites"][0]["properties"]["anthropogenic_emissions"]["enddls"] = (
+        301  # Correct
+    )
 
     config = SUEWSConfig(**config_data)
     assert config is not None
 
     info_messages = config._validation_summary.get("info_messages", [])
-    dls_messages = [
-        msg for msg in info_messages if "DLS values differ" in msg
-    ]
+    dls_messages = [msg for msg in info_messages if "DLS values differ" in msg]
     assert len(dls_messages) == 1, (
         "Should generate only one message when only startdls differs"
     )

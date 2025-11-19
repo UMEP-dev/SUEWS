@@ -2316,7 +2316,9 @@ class SUEWSConfig(BaseModel):
                                 f"Check your value ({int(startdls_val)}) against the calculated one "
                                 f"({int(calculated_start)}). You might need to change your startdls."
                             )
-                            self._validation_summary["detailed_messages"].append(info_msg)
+                            self._validation_summary["detailed_messages"].append(
+                                info_msg
+                            )
                             self._validation_summary["info_messages"].append(info_msg)
 
                         if calculated_end != enddls_val:
@@ -2326,7 +2328,9 @@ class SUEWSConfig(BaseModel):
                                 f"Check your value ({int(enddls_val)}) against the calculated one "
                                 f"({int(calculated_end)}). You might need to change your enddls."
                             )
-                            self._validation_summary["detailed_messages"].append(info_msg)
+                            self._validation_summary["detailed_messages"].append(
+                                info_msg
+                            )
                             self._validation_summary["info_messages"].append(info_msg)
 
             except (AttributeError, TypeError, ImportError):

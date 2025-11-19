@@ -311,7 +311,6 @@ class TestSuPy(TestCase):
                 "20030101",
                 "20031231",
                 dir_save=p_data_test.as_posix(),
-                force_download=False,
             )
             df_forcing = sp.util.read_suews(list_fn_fc[0])
             ser_tair = df_forcing.Tair

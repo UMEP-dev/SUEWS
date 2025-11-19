@@ -1698,7 +1698,11 @@ def save_forcing_era5(df_forcing_era5, dir_save):
             idx_year = df_year.index
             s_year = idx_year[0].year
             # Calculate frequency from actual time differences (groupby loses freq metadata)
-            time_diff = (idx_year[1] - idx_year[0]) if len(idx_year) > 1 else pd.Timedelta("60T")
+            time_diff = (
+                (idx_year[1] - idx_year[0])
+                if len(idx_year) > 1
+                else pd.Timedelta("60T")
+            )
             s_freq = time_diff / pd.Timedelta("1T")
             s_fn = f"ERA5_UTC-{s_lat}-{s_lon}-{s_alt}_{s_year}_data_{s_freq:.0f}.txt"
             path_fn = path_dir_save / s_fn

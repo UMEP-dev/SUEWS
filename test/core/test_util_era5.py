@@ -42,7 +42,9 @@ class TestERA5Import:
         assert "scale" not in params
 
 
-@pytest.mark.skipif(not has_cds_credentials(), reason="Requires CDS API credentials (~/.cdsapirc)")
+@pytest.mark.skipif(
+    not has_cds_credentials(), reason="Requires CDS API credentials (~/.cdsapirc)"
+)
 class TestERA5Integration:
     """Integration tests for ERA5 forcing generation.
 
@@ -106,10 +108,26 @@ class TestERA5Integration:
 
         # Read one file to verify structure
         import pandas as pd
+
         df = pd.read_csv(list_fn[0], sep=" ")
 
         # Verify required SUEWS forcing columns exist
-        required_cols = ["iy", "id", "it", "imin", "qn", "qh", "qe",
-                        "qs", "qf", "U", "RH", "Tair", "pres", "rain", "kdown"]
+        required_cols = [
+            "iy",
+            "id",
+            "it",
+            "imin",
+            "qn",
+            "qh",
+            "qe",
+            "qs",
+            "qf",
+            "U",
+            "RH",
+            "Tair",
+            "pres",
+            "rain",
+            "kdown",
+        ]
         for col in required_cols:
             assert col in df.columns, f"Missing column: {col}"

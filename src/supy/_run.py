@@ -821,7 +821,9 @@ def pack_df_state_final(df_state_end, df_state_start):
             # Metadata columns (strings/scalars) must bypass concatenate; ensure we
             # extract scalar values from any 0-D numpy arrays before reshaping.
             scalars = [
-                v.item() if isinstance(v, np.ndarray) and getattr(v, "ndim", 0) == 0 else v
+                v.item()
+                if isinstance(v, np.ndarray) and getattr(v, "ndim", 0) == 0
+                else v
                 for v in values
             ]
             val = np.array(scalars, dtype=object).reshape((size_idx, -1)).T

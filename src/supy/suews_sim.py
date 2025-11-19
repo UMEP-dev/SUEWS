@@ -733,7 +733,9 @@ class SUEWSSimulation:
             datetime_level = idx_names.index("datetime")
             last_datetime = df_state_saved.index.get_level_values(datetime_level).max()
             if isinstance(df_state_saved.index, pd.MultiIndex):
-                df_state_init = df_state_saved.xs(last_datetime, level="datetime").copy()
+                df_state_init = df_state_saved.xs(
+                    last_datetime, level="datetime"
+                ).copy()
             else:
                 df_state_init = df_state_saved.loc[[last_datetime]].copy()
         else:

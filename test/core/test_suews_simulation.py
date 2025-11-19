@@ -742,7 +742,9 @@ class TestContinuationRuns:
         sim2.run()
         assert sim2.is_complete() is True
 
-    @pytest.mark.skip(reason="Parquet format parameter not being passed correctly - pre-existing issue")
+    @pytest.mark.skip(
+        reason="Parquet format parameter not being passed correctly - pre-existing issue"
+    )
     def test_from_state_parquet(self, tmp_path):
         """Test loading state from Parquet for continuation."""
         pytest.importorskip("pyarrow", reason="Parquet support requires pyarrow")

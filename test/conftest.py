@@ -52,9 +52,8 @@ def pytest_collection_modifyitems(items):
 
     for item in items:
         # Priority 1: test_sample_output.py must run first
-        if (
-            "test_sample_output" in str(item.fspath)
-            or "core/test_sample_output" in str(item.fspath)
+        if "test_sample_output" in str(item.fspath) or "core/test_sample_output" in str(
+            item.fspath
         ):
             sample_output_tests.append(item)
         # Priority 2: API equivalence tests need clean state but less critical

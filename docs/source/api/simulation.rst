@@ -53,7 +53,6 @@ Setup Methods
 .. autosummary::
     :nosignatures:
 
-    ~SUEWSSimulation.__init__
     ~SUEWSSimulation.update_config
     ~SUEWSSimulation.update_forcing
     ~SUEWSSimulation.from_sample_data
@@ -76,6 +75,10 @@ Output Methods
 
     ~SUEWSSimulation.save
     ~SUEWSSimulation.get_variable
+
+
+Full Class Reference
+^^^^^^^^^^^^^^^^^^^^
 
 .. autoclass:: SUEWSSimulation
     :members:

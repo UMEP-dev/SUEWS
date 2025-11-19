@@ -21,7 +21,7 @@
 
 | Year | Features | Bugfixes | Changes | Maintenance | Docs | Total |
 |------|----------|----------|---------|-------------|------|-------|
-| 2025 | 38 | 27 | 13 | 34 | 17 | 129 |
+| 2025 | 38 | 27 | 14 | 34 | 17 | 130 |
 | 2024 | 12 | 17 | 1 | 12 | 1 | 43 |
 | 2023 | 11 | 14 | 3 | 9 | 1 | 38 |
 | 2022 | 15 | 18 | 0 | 7 | 0 | 40 |
@@ -37,6 +37,28 @@
 - [bugfix] Fixed last layer of validation for DLS startdls and endls parameters. 
   - Instead of hemisphere pattern check (NH/SH typical ranges), now phase C provide NO ACTION NEEDED info to user with calculated DLS startdls and endls (to compare against user values).
   - Useful when Phase C runs standalone or via `SUEWSConfig.from_yaml()` (Phase B auto-corrects values in full pipeline)
+
+### 18 Nov 2025
+- [change] **BREAKING**: Simplified ERA5 download implementation and renamed `data_source` parameter values
+  - Removed earthkit.data dependency - both download methods now use cdsapi directly
+  - `data_source` parameter values renamed for clarity:
+    - `"timeseries"` (new default, was "earthkit"): Fast ERA5 timeseries dataset for point locations
+    - `"gridded"` (was "cdsapi"): Traditional gridded ERA5 with model levels and spatial grids
+  - Timeseries downloads CSV directly and loads in-memory (zero extra dependencies!)
+  - Gridded path requires optional h5netcdf for netCDF4 reading (install separately: `pip install h5netcdf`)
+  - Same fast performance for timeseries (~26s for 30 years) with minimal dependencies
+  - Timeseries only works with surface-level variables (requires `simple_mode=True`)
+  - To use traditional gridded ERA5, explicitly set `data_source="gridded"`
+  - `hgt_agl_diag` parameter remains functional for extrapolating to measurement height
+- [change] Made xarray optional dependency (only needed for gridded ERA5)
+  - CSV timeseries path now uses pure pandas (no xarray conversion)
+  - Significantly faster for timeseries: 1.2s vs 10-15s for test case
+  - ~10x speed improvement by eliminating pandas → xarray → pandas round-trip
+  - For gridded ERA5, install with: `pip install xarray`
+- [change] Removed dask dependency (was redundant with multiprocess)
+  - CLI now uses `multiprocess.pool.ThreadPool` for parallel batch simulations
+  - Same functionality, lighter dependencies
+  - Consolidates all parallel processing to one library
 
 ### 14 Nov 2025
 - [feature] Added Phase C validation for daylight saving time parameters

@@ -1,8 +1,8 @@
 # command line tools
 import os
-import dask.bag as db
 import click
 import sys
+from multiprocess.pool import ThreadPool
 
 from .._supy_module import (
     _init_supy,
@@ -155,13 +155,9 @@ def _run_with_namelist(path_runcontrol):
                 idx_dt = df_forcing.index
                 start, end = idx_dt.min(), idx_dt.max()
                 click.echo(f"grid {grid}: {start} - {end}")
-            # daemonic processes only support `threads` method
-            method_parallel = "threads"
-            list_res = (
-                db.from_sequence(list_input)
-                .map(lambda input_grid: _run_supy(*input_grid))
-                .compute(scheduler=method_parallel)
-            )
+            # use thread-based parallelization for multi-grid simulations
+            with ThreadPool() as pool:
+                list_res = pool.starmap(_run_supy, list_input)
             try:
                 list_df_output, list_df_state_final = zip(*list_res)
                 df_output = pd.concat(list_df_output, names=["grid", "datetime"])

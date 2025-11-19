@@ -301,7 +301,7 @@ class TestSuPy(TestCase):
         # test forcing generation
 
         # skip this test if under cibuild environment where the test data is not available
-        p_data_test = Path("test/fixtures/data_test/multi-grid")
+        p_data_test = Path("test/fixtures/data_test/era5")
         if not p_data_test.exists():
             self.assertTrue(True)
         else:
@@ -311,7 +311,6 @@ class TestSuPy(TestCase):
                 "20030101",
                 "20031231",
                 dir_save=p_data_test.as_posix(),
-                force_download=False,
             )
             df_forcing = sp.util.read_suews(list_fn_fc[0])
             ser_tair = df_forcing.Tair

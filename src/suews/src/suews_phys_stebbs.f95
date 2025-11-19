@@ -503,7 +503,7 @@ END MODULE module_phys_stebbs_func
 MODULE module_phys_stebbs_couple
    USE module_phys_stebbs_precision
    IMPLICIT NONE
-   REAL(KIND(1D0)) :: Tair_out, Tair_out_bh, Tair_out_hbh, ws_out_bh, ws_out_hbh, Tsurf, Tground_deep, pres, RH, cp_air, &
+   REAL(KIND(1D0)) :: Tair_out, Tair_out_bh, Tair_out_hbh, ws_out_bh, ws_out_hbh, Tsurf, Tground_deep, pres, RH, &
                       density_air_out, cp_air_out, &
                       Qsw_dn_extroof, Qsw_dn_extwall, &
                       Qlw_dn_extwall, Qlw_dn_extroof
@@ -537,7 +537,7 @@ MODULE module_phys_stebbs_couple
       REAL(KIND(1D0)) :: ws_exch_hbh
       REAL(KIND(1D0)) :: Lroof_exch
       REAL(KIND(1D0)) :: Lwall_exch
-      REAL(KIND(1D0)) :: pres_exch, RH_exch, cp_air_exch
+      REAL(KIND(1D0)) :: pres_exch, RH_exch, cp_air_exch, density_air_exch
    END TYPE
    TYPE(suewsprop) :: sout
 END MODULE module_phys_stebbs_couple
@@ -733,6 +733,7 @@ CONTAINS
             pres => forcing%pres, &
             RH => forcing%RH, &
             cp_air => atmState%avcp, &
+            density_air => atmState%avdens, &
             ss_height => spartacus_Prm%height, &
             z0m => roughnessState%z0m, &
             zdm => roughnessState%zdm &
@@ -799,6 +800,7 @@ CONTAINS
             sout%Tground_deep = Tground_deep_sout
             sout%RH_exch = RH
             sout%cp_air_exch = cp_air
+            sout%density_air_exch = density_air
             sout%pres_exch = pres            
             IF (dt_start < timestep) THEN !initialisation before getting RSL output
                ws_bh = forcing%U * (LOG((buildings(1)%height_building + z0m) / z0m) / LOG((height_forcing + z0m) / z0m)) !archetype height
@@ -1025,10 +1027,8 @@ Qsw_absorbed_window_tstepFA, Qsw_absorbed_wall_tstepFA, Qsw_absorbed_roof_tstepF
       Tsurf = sout%Tsurf + 273.15
       ws_out_bh = sout%ws_exch_bh
       ws_out_hbh = sout%ws_exch_hbh
-      density_air_out = indoor_airdensity(sout%Tair_exch_hbh, self%Tair_ind - 273.15, sout%pres_exch, sout%RH_exch)   
+      density_air_out = sout%density_air_exch
       cp_air_out = sout%cp_air_exch
-      !density_air_out = 1.225
-      !cp_air_out = 1005.0
       Qsw_dn_extroof = sout%Kroof
       Qsw_dn_extwall = sout%Kwall
       Qlw_dn_extwall = sout%Lwall
@@ -1047,7 +1047,10 @@ Qsw_absorbed_window_tstepFA, Qsw_absorbed_wall_tstepFA, Qsw_absorbed_roof_tstepF
       self%h_i(3) = int_conv_coeff(dT = (self%Tintroof - self%Tair_ind), surf_type = 2) !roof
       self%h_i(4) = int_conv_coeff(dT = (self%Tintgroundfloor - self%Tair_ind), surf_type = 3) !floor
       self%h_i(5) = int_conv_coeff(dT = (self%Tindoormass - self%Tair_ind), surf_type = 1) !nternal mass,assume vertical
-      !print*, 'dt=', self%Textwall - sout%Tair_exch_hbh, 'ho=',self%h_o(1)
+      !calculate indoor air density
+      self%density_air_ind = indoor_airdensity(sout%Tair_exch_hbh, self%Tair_ind - 273.15, sout%pres_exch, sout%RH_exch) 
+      !Assume indoor/outdoor specific heat capacity are identical  
+      self%cp_air_ind = cp_air_out
       CALL timeStepCalculation(self, Tair_out, Tair_out_bh, Tair_out_hbh, Tground_deep, Tsurf, &
                                density_air_out, cp_air_out, &
                                Qsw_dn_extroof, Qsw_dn_extwall, &

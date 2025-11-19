@@ -70,102 +70,50 @@ Urban environments present unique challenges for radiation modelling due to:
 - Thermal mass effects influencing longwave emission
 - Anthropogenic heat modifying the radiation balance
 
-Modelling Approaches
-^^^^^^^^^^^^^^^^^^^^
+Available Radiation Schemes
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-SUEWS provides three radiation modelling schemes of increasing complexity to accommodate different data availability and application requirements:
+SUEWS provides three radiation modelling schemes of increasing complexity to accommodate different data availability and application requirements. Each scheme represents a different trade-off between computational cost, input data requirements, and physical fidelity.
 
-**NARP (Net All-wave Radiation Parameterisation):**
-A computationally efficient bulk scheme using empirical relations to estimate radiation components from basic meteorological inputs. Suitable for grid-scale applications where computational efficiency is important and detailed 3D geometry is not available.
+For detailed information on each scheme, selection guidance, and comparison tables, see :ref:`Radiation Schemes <radiation_schemes>`.
 
-**BEERS (Building Envelope Energy Radiation Scheme):**
-An advanced scheme for point-specific radiation analysis considering 3D urban geometry, directional radiation, and human thermal comfort. Ideal for microclimate studies, building energy assessment, and thermal comfort applications requiring detailed spatial information.
+**Quick Overview:**
 
-**SPARTACUS-Surface:**
-A state-of-the-art multi-layer radiation transfer scheme solving 3D radiative transfer through complex canopies with statistical representation of horizontal heterogeneity. Designed for research applications requiring high physical fidelity in representing radiation-vegetation-building interactions.
+- :ref:`NARP <narp>` - Bulk parameterisation for grid-scale applications (computationally efficient, minimal input data)
+- :ref:`BEERS <beers>` - Point-specific radiation analysis for microclimate and thermal comfort studies
+- :ref:`SPARTACUS-Surface <spartacus_surface>` - Multi-layer radiative transfer for research applications (experimental)
 
-The choice of scheme depends on the application, available input data, and computational resources. All schemes can optionally use observed radiation components when available.
-
-Radiation Data Options
-^^^^^^^^^^^^^^^^^^^^^^^
-
-SUEWS offers flexibility in radiation data usage depending on availability:
-
-#. Observed net all-wave radiation can be provided as input instead of
-   being calculated by the model.
-#. Observed incoming shortwave and incoming longwave components can be
-   provided as input, instead of incoming longwave being calculated by
-   the model.
-#. Other data can be provided as input, such as cloud fraction (see
-   :ref:`forcing data configuration <forcing-data>`).
-#. **NARP** (Net All-wave Radiation Parameterization) :cite:`O03,L11` scheme calculates outgoing
-   shortwave and incoming and outgoing longwave radiation components
-   based on incoming shortwave radiation, temperature, relative humidity
-   and surface characteristics (albedo, emissivity).
-#. `SPARTACUS-Surface`_ computes the 3D interaction of shortwave and longwave radiation with complex surface canopies, including vegetated and urban canopies (with or without vegetation).
-#. **BEERS** (Building Envelope Energy Radiation Scheme) calculates detailed radiation components for urban surfaces including point-specific radiation analysis.
-
-NARP (Net All-wave Radiation Parameterisation)
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-**NARP** :cite:`O03,L11` is the standard radiation scheme in SUEWS, providing a computationally efficient bulk parameterisation for calculating radiation components using empirically-derived relations. NARP calculates outgoing shortwave and incoming/outgoing longwave radiation from basic meteorological inputs (incoming shortwave, temperature, humidity) and surface characteristics (albedo, emissivity).
-
-**Best for:** Grid-scale applications, long-term simulations, limited input data
-
-**Module:** ``suews_phys_narp.f95``
-
-:ref:`Read more about NARP → <narp>`
-
-BEERS (Building Envelope Energy Radiation Scheme)
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-**BEERS** is an advanced radiation scheme (successor to SOLWEIG) that calculates detailed radiation components at specific points of interest within urban areas, considering 3D geometry of buildings and vegetation. BEERS provides directional radiation, surface temperatures, shadow patterns, and mean radiant temperature for thermal comfort assessment.
-
-**Best for:** Microclimate studies, thermal comfort analysis, building energy assessment, urban design optimisation
-
-**Module:** ``suews_phys_beers.f95``
-
-:ref:`Read more about BEERS → <beers>`
-
-SPARTACUS-Surface
-^^^^^^^^^^^^^^^^^
-
-.. warning:: This module is highly experimental and not yet fully tested.
-
-**SPARTACUS-Surface** is a state-of-the-art multi-layer radiation transfer scheme that solves 3D radiative transfer through complex urban-vegetation canopies using statistical representation of horizontal heterogeneity. The scheme uses up to 15 vertical layers to compute detailed radiation interactions including multiple scattering, absorption, transmission, and thermal emission.
-
-**Best for:** Research applications, model development, detailed radiation physics studies, canopy-atmosphere interaction research
-
-**Module:** ``suews_phys_spartacus.f95``
-
-:ref:`Read more about SPARTACUS-Surface → <spartacus_surface>`
+All schemes can optionally use observed radiation components when available (see :ref:`forcing data configuration <forcing-data>`).
 
 Detailed Radiation Scheme Documentation
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-.. toctree::
-   :maxdepth: 2
-   :hidden:
+For comprehensive information on each radiation scheme, including:
 
-   radiation-schemes/narp
-   radiation-schemes/beers
-   radiation-schemes/spartacus-surface
+- Physical basis and governing equations
+- Implementation details and assumptions
+- Configuration examples and required parameters
+- Applications and limitations
+- Scheme comparison and selection guidance
+
+See the :ref:`Radiation Schemes <radiation_schemes>` section.
 
 
 Anthropogenic Heat Flux (:math:`Q_F`)
 --------------------------------------
 
+Anthropogenic heat flux represents heat released by human activities, including building energy consumption, transportation, and human metabolism. SUEWS provides four methods ranging from simple observed inputs to component-based parameterisations.
+
+**Available Schemes:**
+
+- :ref:`Observed <anthropogenic_observed>` - Use pre-calculated values from external models (LUCY, GreaterQF, inventories)
+- :ref:`L11 <anthropogenic_l11>` - Simple temperature-based parameterisation (heating only)
+- :ref:`J11 <anthropogenic_j11>` - Degree day-based (heating + cooling, seasonal adaptation)
+- :ref:`J19 <anthropogenic_j19>` - Component-based (buildings/traffic/metabolism, CO₂ co-calculation)
+
+For detailed information on each scheme, selection guidance, and comparison tables, see :ref:`Anthropogenic Heat Schemes <anthropogenic_schemes>`.
+
 **Module:** ``suews_phys_anthro.f95``
-
-#. Two simple anthropogenic heat flux sub-models exist within SUEWS:
-
-   -  :cite:t:`J11` approach, based on heating and cooling degree days and population density (allows distinction between weekdays and weekends).
-   -  :cite:t:`L11` approach, based on a linear piece-wise relation with air temperature.
-
-#. Pre-calculated values can be supplied with the meteorological forcing data, either derived from knowledge of the study site, or obtained from other models, for example:
-
-   -  **LUCY** :cite:`A11,L13`. A new version has been now included in UMEP. To distinguish it is referred to as `LQF`_
-   -  **GreaterQF** :cite:`I11`. A new version has been now included in UMEP. To distinguish it is referred to as `GQF`_
 
 Storage Heat Flux (:math:`\Delta Q_S`)
 ---------------------------------------

@@ -58,6 +58,16 @@ For each run, the model parameters specified in the input files are written out 
 Model output files
 ------------------
 
+df_state_SSss.csv
+^^^^^^^^^^^^^^^^^
+
+SUEWS will automatically output a df_state_SSss.csv file. This file contains information on the model configuration,
+initial and final states as well as some meta data related to the simulation such as the SUEWS version used
+to run the model.
+
+Note that the parameters and states included in this file may not match the current schema as are based on the legacy
+configuration.
+
 Output Format Options
 ~~~~~~~~~~~~~~~~~~~~~
 

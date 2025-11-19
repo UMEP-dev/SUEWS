@@ -660,7 +660,7 @@ def save_df_output_parquet(
         "output_frequency_s": freq_s,
         "save_tstep": save_tstep,
         "creation_time": pd.Timestamp.now().isoformat(),
-        "supy_version": __version__,
+        "version": __version__,
     }
 
     # Write output data

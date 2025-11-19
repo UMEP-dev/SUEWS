@@ -218,7 +218,7 @@ uv pip install --extra-index-url https://test.pypi.org/simple/ \
 
 **5. Verify installation:**
 ```bash
-python -c "import supy; print(f'SuPy version: {supy.__version__}')"
+python -c "import supy; print(f'SUEWS version: {supy.__version__}')"
 # Should show: 2025.9.16.dev0 (or your installed version)
 ```
 

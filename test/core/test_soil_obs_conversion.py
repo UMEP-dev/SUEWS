@@ -1,18 +1,7 @@
-import sys
-from pathlib import Path
-import importlib.util
-
 import pandas as pd
 import pytest
 
-REPO_ROOT = Path(__file__).resolve().parents[2]
-MODULE_PATH = REPO_ROOT / "src" / "supy" / "util" / "_forcing.py"
-spec = importlib.util.spec_from_file_location("util._forcing", MODULE_PATH)
-soil_obs = importlib.util.module_from_spec(spec)
-assert spec.loader is not None
-sys.modules[spec.name] = soil_obs
-spec.loader.exec_module(soil_obs)
-convert_observed_soil_moisture = soil_obs.convert_observed_soil_moisture
+from supy.util._forcing import convert_observed_soil_moisture
 
 
 def _make_state(

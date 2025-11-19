@@ -8943,8 +8943,8 @@
             }
           ],
           "default": 10.0,
-          "description": "Measurement height",
-          "display_name": "Measurement height",
+          "description": "Forcing height",
+          "display_name": "Forcing height",
           "gt": 0,
           "title": "Z",
           "unit": "m"

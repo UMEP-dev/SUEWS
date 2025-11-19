@@ -40,9 +40,9 @@ Installation and Setup
    import pandas as pd
    import matplotlib.pyplot as plt
    import numpy as np
-   
+
    # Verify installation
-   print(f"SuPy version: {sp.__version__}")
+   print(f"SUEWS version: {sp.__version__}")
    print("✅ SUEWS is ready to use!")
 
 Quick Start: Sample Data Tutorial

@@ -109,18 +109,22 @@ def convert_df_state_format(df_old: pd.DataFrame) -> pd.DataFrame:
     - Keep all common columns with their values
     - Add missing columns with sensible defaults
     - Remove extra columns not in current format
+    - Add version column with current SuPy version
 
     Args:
         df_old: DataFrame in old/different df_state format
 
     Returns
     -------
-        DataFrame in current df_state format
+        DataFrame in current df_state format (includes version column)
     """
     logger.info("Converting df_state to current format...")
 
     # Get template for current version
     df_template = _get_current_df_state_template()
+
+    # Import version here to match runtime behaviour
+    from ..._version import __version__ as sp_version
 
     # Create new DataFrame with correct structure
     df_new = pd.DataFrame(index=df_old.index, columns=df_template.columns)
@@ -196,6 +200,10 @@ def convert_df_state_format(df_old: pd.DataFrame) -> pd.DataFrame:
         )
         if len(extra_cols) > 10:
             logger.info(f"  ... and {len(extra_cols) - 10} more")
+
+    # Add version column to match runtime behaviour (added in _run.py)
+    df_new[("version", "0")] = sp_version
+    logger.info(f"Added version column: {sp_version}")
 
     logger.info("Conversion complete")
     return df_new

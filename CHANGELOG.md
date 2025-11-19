@@ -51,6 +51,10 @@
   - Significantly faster for timeseries: 1.2s vs 10-15s for test case
   - ~10x speed improvement by eliminating pandas → xarray → pandas round-trip
   - For gridded ERA5, install with: `pip install xarray`
+- [change] Removed dask dependency (was redundant with multiprocess)
+  - CLI now uses `multiprocess.pool.ThreadPool` for parallel batch simulations
+  - Same functionality, lighter dependencies
+  - Consolidates all parallel processing to one library
 
 ### 14 Nov 2025
 - [feature] Added Phase C validation for daylight saving time parameters

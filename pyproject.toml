@@ -24,7 +24,8 @@ dependencies = [
     "pandas",
     "numpy>=2.0",
     "scipy",
-    "dask",  # xarray removed - only needed for gridded ERA5 (install separately)
+    # xarray removed - only needed for gridded ERA5 (install separately)
+    # dask removed - was redundant with multiprocess (see Parallel processing below)
     
     # Model requirements
     "f90wrap==0.2.16",  # Required at runtime by generated supy_driver code

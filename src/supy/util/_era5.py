@@ -404,8 +404,6 @@ def download_era5_timeseries(
     return str(path_fn)
 
 
-
-
 # generate requests
 # load downloaded files
 # generate supy forcing using ERA-5 data
@@ -644,8 +642,6 @@ def gen_df_diag_era5_csv(fn_csv, hgt_agl_diag=100):
     return df_diag
 
 
-
-
 # diagnose ISL variable using MOST
 # diagnose ISL variable using MOST
 # save ERA5 forcing dataframe to SUEWS-simulation ready txt files
@@ -686,5 +682,3 @@ def save_forcing_era5(df_forcing_era5, dir_save):
             list_fn.append(str(path_fn))
 
     return list_fn
-
-

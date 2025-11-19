@@ -32,29 +32,39 @@ def pytest_configure():
 
 
 def pytest_collection_modifyitems(items):
-    """Ensure test_sample_output and API equivalence tests run first to avoid Fortran state interference.
+    """Ensure test_sample_output runs first, then API equivalence tests, to avoid Fortran state interference.
 
-    The sample output validation test and API equivalence tests must run before other tests because:
+    The sample output validation test must run FIRST before any other tests because:
     - The Fortran model maintains internal state between test runs
-    - Other tests can leave the model in a different state
+    - Even API equivalence tests can pollute the Fortran state
     - This causes small numerical differences that accumulate over simulations
     - Uninitialized memory from previous runs can pollute output arrays
+
+    Test ordering:
+    1. test_sample_output.py tests (highest priority - must be completely clean)
+    2. API equivalence tests (need clean state, but less critical than sample output)
+    3. All other tests
     """
-    # Separate clean-state tests from others
-    clean_state_tests = []
+    # Separate into three priority groups
+    sample_output_tests = []
+    api_equivalence_tests = []
     other_tests = []
 
     for item in items:
-        # Tests that need clean Fortran state
-        if (
-            "test_sample_output" in str(item.fspath)
-            or "core/test_sample_output" in str(item.fspath)
-            or "test_functional_matches_oop" in item.nodeid
+        # Priority 1: test_sample_output.py must run first
+        if "test_sample_output" in str(item.fspath) or "core/test_sample_output" in str(
+            item.fspath
+        ):
+            sample_output_tests.append(item)
+        # Priority 2: API equivalence tests need clean state but less critical
+        elif (
+            "test_functional_matches_oop" in item.nodeid
             or "TestPublicAPIEquivalence" in item.nodeid
         ):
-            clean_state_tests.append(item)
+            api_equivalence_tests.append(item)
+        # Priority 3: All other tests
         else:
             other_tests.append(item)
 
-    # Run clean-state tests first, then others
-    items[:] = clean_state_tests + other_tests
+    # Run in priority order: sample_output → API equivalence → others
+    items[:] = sample_output_tests + api_equivalence_tests + other_tests

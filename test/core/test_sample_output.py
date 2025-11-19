@@ -337,7 +337,7 @@ class TestSampleOutput(TestCase):
             "python_implementation": platform.python_implementation(),
             "numpy_version": np.__version__,
             "pandas_version": pd.__version__,
-            "supy_version": sp.__version__ if hasattr(sp, "__version__") else "unknown",
+            "version": sp.__version__ if hasattr(sp, "__version__") else "unknown",
         }
 
     def save_debug_artifacts(

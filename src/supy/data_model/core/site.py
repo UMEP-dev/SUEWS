@@ -2596,10 +2596,10 @@ class SiteProperties(BaseModel):
     )
     z: FlexibleRefValue(float) = Field(
         gt=0,
-        description="Forcing or measurement height",
+        description="Forcing height",
         json_schema_extra={
             "unit": "m",
-            "display_name": "Forcing or measurement height",
+            "display_name": "Forcing height",
         },
         default=10.0,
     )

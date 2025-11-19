@@ -197,7 +197,7 @@ class TestSuPy(TestCase):
 
         # Load sample data
         df_state_init, df_forcing_tstep = sp.load_SampleData()
-        df_state_init[("supy_version", "0")] = sp.__version__
+        df_state_init[("version", "0")] = sp.__version__
 
         df_forcing_part = df_forcing_tstep.iloc[:12]
         df_output, df_state = sp.run_supy(
@@ -220,7 +220,7 @@ class TestSuPy(TestCase):
         df_output, df_state = sp.run_supy(
             df_forcing_part, df_state_init, save_state=True
         )
-        self.assertTrue(all(df_state[("supy_version", "0")] == sp.__version__))
+        self.assertTrue(all(df_state[("version", "0")] == sp.__version()))
 
     # # test if single-tstep and multi-tstep modes can produce the same SUEWS results
     # @skipUnless(flag_full_test, "Full test is not required.")

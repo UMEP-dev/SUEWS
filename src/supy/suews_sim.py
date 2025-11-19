@@ -733,8 +733,8 @@ class SUEWSSimulation:
             df_state_init = df_state_saved.copy()
 
         # Check version compatibility
-        if ("supy_version", "0") in df_state_saved.columns:
-            saved_version = df_state_saved[("supy_version", "0")].iloc[0]
+        if ("version", "0") in df_state_saved.columns:
+            saved_version = df_state_saved[("version", "0")].iloc[0]
             if saved_version != current_version:
                 warnings.warn(
                     f"State was saved with SUEWS version {saved_version}, "

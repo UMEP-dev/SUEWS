@@ -796,7 +796,7 @@ class TestContinuationRuns:
         df_state = sim1.state_init.copy()
 
         # Modify version to trigger warning
-        df_state[("supy_version", "0")] = "9999.99.99"
+        df_state[("version", "0")] = "9999.99.99"
 
         # Save modified state
         state_file = tmp_path / "df_state_old.csv"

@@ -314,7 +314,7 @@ def run_supy_ser(
     # save df_init without changing its original data
     # df.copy() in pandas works as a standard python deepcopy
     df_init = df_state_init.copy()
-    df_init[("supy_version", "0")] = sp_version
+    df_init[("version", "0")] = sp_version
 
     # retrieve the last temporal record as `df_init`
     # if a `datetime` level existing in the index

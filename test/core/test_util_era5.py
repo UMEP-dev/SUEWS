@@ -57,13 +57,13 @@ class TestERA5Import:
         """
         from supy.util._era5 import gen_df_diag_era5_csv
 
-        # Use fixture data (real ERA5 download: London, 2020-01-01, 24h)
+        # Use fixture data (real ERA5 download: Copenhagen, 2003, full year)
         fixture_path = (
             Path(__file__).parent.parent
             / "fixtures"
             / "data_test"
             / "era5"
-            / "era5_london_2020-01-01.csv"
+            / "57.7081N11.9653E-2003-sfc.csv"
         )
 
         # Test with two different diagnostic heights
@@ -88,8 +88,8 @@ class TestERA5Import:
             assert col in df_50m.columns, f"Missing column in 50m output: {col}"
             assert col in df_100m.columns, f"Missing column in 100m output: {col}"
 
-        # Verify same number of timesteps
-        assert len(df_50m) == len(df_100m) == 24
+        # Verify same number of timesteps (full year 2003: 8760 hours)
+        assert len(df_50m) == len(df_100m) == 8760
 
         # Verify vertical extrapolation works correctly
         # Temperature should DECREASE with height (lapse rate ~6.5 K/km)
@@ -113,9 +113,9 @@ class TestERA5Import:
             f"Altitude difference should be 50m, got {alt_diff:.2f}m"
         )
 
-        # Verify coordinates preserved in attrs (longitude rounded to 0.0 by CDS API)
-        assert df_50m.attrs["latitude"] == 51.5
-        assert df_50m.attrs["longitude"] == 0.0
+        # Verify coordinates preserved in attrs (Copenhagen location)
+        assert df_50m.attrs["latitude"] == 57.75
+        assert df_50m.attrs["longitude"] == 12.0
 
 
 @pytest.mark.skipif(

@@ -833,6 +833,10 @@ sites:
             handler = logging.StreamHandler(log_capture)
             handler.setLevel(logging.WARNING)
             logger = logging.getLogger("SuPy")
+
+            # Ensure logger level allows WARNING messages
+            original_level = logger.level
+            logger.setLevel(logging.WARNING)
             logger.addHandler(handler)
 
             # Load config
@@ -845,6 +849,7 @@ sites:
             assert "generate_annotated_yaml" in log_output
 
             logger.removeHandler(handler)
+            logger.setLevel(original_level)
 
         finally:
             yaml_path.unlink()

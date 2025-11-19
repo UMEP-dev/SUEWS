@@ -301,7 +301,7 @@ class TestSuPy(TestCase):
         # test forcing generation
 
         # skip this test if under cibuild environment where the test data is not available
-        p_data_test = Path("test/fixtures/data_test/multi-grid")
+        p_data_test = Path("test/fixtures/data_test/era5/copenhagen")
         if not p_data_test.exists():
             self.assertTrue(True)
         else:

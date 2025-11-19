@@ -97,7 +97,7 @@ def test_registry_basic():
     for group, expected_count in EXPECTED_COUNTS.items():
         group_vars = OUTPUT_REGISTRY.by_group(group)
         actual_count = len(group_vars)
-        
+
         # For groups with variable counts, use tolerance-based checking
         if group in [OutputGroup.SNOW, OutputGroup.RSL, OutputGroup.DEBUG]:
             # Allow ±10% tolerance for groups that may vary
@@ -106,7 +106,9 @@ def test_registry_basic():
                 f"{group.value} should have ~{expected_count} variables "
                 f"(±{tolerance}), got {actual_count}"
             )
-            print(f"✓ {group.value}: {actual_count} variables (~{expected_count} expected)")
+            print(
+                f"✓ {group.value}: {actual_count} variables (~{expected_count} expected)"
+            )
         else:
             # Exact count for stable groups
             assert actual_count == expected_count, (

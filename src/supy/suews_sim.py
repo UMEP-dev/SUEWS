@@ -588,15 +588,6 @@ class SUEWSSimulation:
         >>> sim.run()
         >>> results = sim.results
 
-        This is equivalent to the functional approach:
-
-        >>> import supy as sp
-        >>> df_state, df_forcing = sp.load_sample_data()
-        >>> df_output, df_final = sp.run_supy(df_forcing, df_state)
-
-        See Also
-        --------
-        load_sample_data : Load sample data as DataFrames (functional approach)
         """
         from ._env import trv_supy_module
         from ._supy_module import _load_sample_data

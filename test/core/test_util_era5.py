@@ -58,14 +58,32 @@ class TestERA5Import:
         from supy.util._era5 import gen_df_diag_era5_csv
 
         # Use fixture data (24h sample from London, Jan 2020)
-        fixture_path = Path(__file__).parent.parent / "fixtures" / "data_test" / "era5" / "era5_sample_24h.csv"
+        fixture_path = (
+            Path(__file__).parent.parent
+            / "fixtures"
+            / "data_test"
+            / "era5"
+            / "era5_sample_24h.csv"
+        )
 
         # Test with two different diagnostic heights
         df_50m = gen_df_diag_era5_csv(fixture_path, hgt_agl_diag=50.0)
         df_100m = gen_df_diag_era5_csv(fixture_path, hgt_agl_diag=100.0)
 
         # Verify output structure
-        required_cols = ["uv_z", "t_z", "q_z", "RH_z", "p_z", "alt_z", "ssrd", "strd", "tp", "sshf", "slhf"]
+        required_cols = [
+            "uv_z",
+            "t_z",
+            "q_z",
+            "RH_z",
+            "p_z",
+            "alt_z",
+            "ssrd",
+            "strd",
+            "tp",
+            "sshf",
+            "slhf",
+        ]
         for col in required_cols:
             assert col in df_50m.columns, f"Missing column in 50m output: {col}"
             assert col in df_100m.columns, f"Missing column in 100m output: {col}"
@@ -77,7 +95,9 @@ class TestERA5Import:
         # Temperature should DECREASE with height (lapse rate ~6.5 K/km)
         # 50m difference should give ~0.325K difference
         temp_diff = (df_50m["t_z"] - df_100m["t_z"]).mean()
-        assert 0.2 < temp_diff < 0.5, f"Temperature lapse rate incorrect: {temp_diff:.3f}K (expected ~0.325K)"
+        assert 0.2 < temp_diff < 0.5, (
+            f"Temperature lapse rate incorrect: {temp_diff:.3f}K (expected ~0.325K)"
+        )
 
         # Wind speed should INCREASE with height (log law)
         wind_diff = (df_100m["uv_z"] - df_50m["uv_z"]).mean()
@@ -89,7 +109,9 @@ class TestERA5Import:
 
         # Altitude should differ by exactly 50m
         alt_diff = (df_100m["alt_z"] - df_50m["alt_z"]).mean()
-        assert abs(alt_diff - 50.0) < 0.01, f"Altitude difference should be 50m, got {alt_diff:.2f}m"
+        assert abs(alt_diff - 50.0) < 0.01, (
+            f"Altitude difference should be 50m, got {alt_diff:.2f}m"
+        )
 
         # Verify coordinates preserved in attrs
         assert df_50m.attrs["latitude"] == 51.5

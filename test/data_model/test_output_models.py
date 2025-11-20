@@ -379,7 +379,6 @@ def test_fortran_python_output_consistency():
         print("ACTION REQUIRED:")
         print("1. Check if recent changes were made to OUTPUT_REGISTRY")
         print("2. Ensure corresponding updates were made to Fortran varListAll")
-        print("3. Verify DATA statements in src/suews/src/suews_ctrl_output.f95")
         print()
         return 1
 

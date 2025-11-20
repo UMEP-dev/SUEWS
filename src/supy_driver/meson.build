@@ -43,8 +43,6 @@ if fortran_compiler.get_id() == 'gcc'
       '-fPIC',
       '-fconvert=big-endian',
       '-ffree-line-length-none',  # Allow unlimited line length
-      '-g',
-      '-O0',
       '-fcheck=all',
       '-Wno-missing-include-dirs',  # Suppress f2py-generated spurious include path warnings
     ]
@@ -57,21 +55,10 @@ endif
 add_global_arguments(f90flags, language: 'fortran')
 
 c_compiler = meson.get_compiler('c')
-if fast_build
-  cflags = [
-    '-fPIC',
-    '-D_POSIX_C_SOURCE=200809L',
-    '-g',
-    '-O1',  # Faster than -O0
-  ]
-else
-  cflags = [
-    '-fPIC',
-    '-D_POSIX_C_SOURCE=200809L',
-    '-g',
-    '-O0',
-  ]
-endif
+cflags = [
+  '-fPIC',
+  '-D_POSIX_C_SOURCE=200809L',
+]
 if c_compiler.get_id() == 'clang'
   cflags += ['-fbracket-depth=1024']
 endif

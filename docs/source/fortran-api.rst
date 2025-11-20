@@ -71,9 +71,9 @@ Main Driver Subroutine
 
 - ``suews_ctrl_driver``: Main computation wrapper and physics orchestration
 - ``suews_ctrl_input``: Input data processing, validation, and forcing interpolation
-- ``suews_ctrl_output``: Output formatting, variable selection, and file I/O
 - ``suews_ctrl_error``: Error handling and diagnostic message management
 - ``suews_ctrl_type``: Data type definitions and derived type structures
+- **Output handling**: Implemented in the Python data model layer (Fortran ``suews_ctrl_output`` removed)
 
 **Utility Modules** (``suews_util_*``)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

@@ -242,6 +242,6 @@ Future additions:
 ## References
 
 - **Migration plan**: `.claude/reference/output-variables-migration.md`
-- **Fortran definitions**: `src/suews/src/suews_ctrl_output.f95`
+- **Legacy Fortran definitions**: `src/suews/src/suews_ctrl_output.f95` (removed)
 - **Integration point**: `src/supy/_post.py`
 - **Test script**: `test_output_models.py`

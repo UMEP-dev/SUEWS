@@ -19,7 +19,8 @@ assignees: ''
 ## Create Release
 
 - [ ] **Update CHANGELOG.md**: Add entry under today's date with `[feature]`, `[bugfix]`, `[change]` tags + issue links
-- [ ] **Commit & push**: `git add CHANGELOG.md && git commit -m "docs: update changelog for YYYY.M.D" && git push`
+- [ ] **Create version history page**: Create `docs/source/version-history/vYYYY.M.D.rst` and add to toctree in `version-history.rst`
+- [ ] **Commit & push**: `git add CHANGELOG.md docs/source/version-history/ && git commit -m "docs: update changelog and version history for YYYY.M.D" && git push`
 - [ ] **Tag & push**:
 ```bash
 VERSION="YYYY.M.D"

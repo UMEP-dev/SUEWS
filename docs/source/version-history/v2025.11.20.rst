@@ -1,0 +1,72 @@
+
+.. _new_latest:
+
+.. _new_2025.11.20:
+
+Version 2025.11.20 (released on 20 November 2025)
+--------------------------------------------------
+
+This release focuses on comprehensive validation improvements, legacy data compatibility, and API modernisation, making SUEWS more accessible and robust.
+
+**Major Features:**
+
+- **Enhanced Validation System**: Comprehensive physics-aware validation for irrigation parameters, daylight saving time (DLS), and STEBBS building model parameters (50+ parameters). The system now performs hemisphere-aware seasonal checks and provides detailed validation reports. See :ref:`validation documentation <validation>` for details.
+
+- **Legacy Data Support**: Fixed YAML converter to handle legacy SUEWS configuration files from 2017+, including graceful handling of missing NML files, legacy profile formats, and column count mismatches. Enables seamless migration from historical datasets to modern YAML format. (#846)
+
+- **Modern OOP API**: New ``SUEWSSimulation.from_sample_data()`` factory method provides a cleaner onboarding experience with visual feedback (``__repr__``), state properties (``state_init``, ``state_final``), validation methods (``is_ready()``, ``is_complete()``), method chaining, and variable extraction helper (``get_variable()``). The functional API remains fully supported with deprecation warnings. (#779)
+
+- **ERA5 Download Refactoring**: Simplified implementation using new CDS API timeseries data source with zero extra dependencies for point locations. Removed earthkit.data dependency, made xarray and dask optional (only needed for gridded ERA5), achieving ~10x speed improvement for timeseries workflows. (#874)
+
+**API Enhancements:**
+
+- **Quick Start Pattern**: Get started with SUEWS in 3 lines:
+
+  .. code-block:: python
+
+      from supy import SUEWSSimulation
+      sim = SUEWSSimulation.from_sample_data()
+      sim.run()
+
+- **Variable Extraction**: New ``get_variable()`` method simplifies working with MultiIndex results:
+
+  .. code-block:: python
+
+      qh = sim.get_variable('QH')  # Sensible heat flux
+      qe = sim.get_variable('QE')  # Latent heat flux
+
+- **State Access**: Access initial and final states for continuation workflows:
+
+  .. code-block:: python
+
+      initial = sim.state_init   # Initial state DataFrame
+      final = sim.state_final    # Final state after simulation
+
+**Validation Improvements:**
+
+- **Irrigation Parameters**: Validates DOY ranges, consistency, and hemisphere-aware seasonal patterns (NH/SH/Tropics)
+- **Daylight Saving Time**: Four-layer validation including leap year checks and hemisphere pattern detection
+- **STEBBS Parameters**: Physical range constraints for 50+ building model parameters
+- **Forcing Data**: Physics-specific validation for required meteorological variables
+
+**Breaking Changes:**
+
+- ERA5 ``data_source`` parameter values renamed for clarity:
+  - ``"timeseries"`` (new default, was "earthkit"): Fast point location downloads
+  - ``"gridded"`` (was "cdsapi"): Traditional gridded ERA5
+- For gridded ERA5, explicitly set ``data_source="gridded"`` and install optional dependencies: ``pip install xarray h5netcdf``
+
+**Dependencies:**
+
+- Made xarray optional (only needed for gridded ERA5)
+- Made dask optional (removed in favour of multiprocess for CLI)
+- Removed earthkit.data dependency
+
+**Documentation Updates:**
+
+- Updated all tutorials to use modern OOP interface
+- Added comprehensive OOP API documentation
+- Updated workflow examples with ``from_sample_data()`` pattern
+
+For complete details, see the `CHANGELOG <https://github.com/UMEP-dev/SUEWS/blob/master/CHANGELOG.md>`_.
+

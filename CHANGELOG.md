@@ -21,7 +21,7 @@
 
 | Year | Features | Bugfixes | Changes | Maintenance | Docs | Total |
 |------|----------|----------|---------|-------------|------|-------|
-| 2025 | 38 | 27 | 14 | 34 | 17 | 130 |
+| 2025 | 39 | 27 | 14 | 34 | 18 | 132 |
 | 2024 | 12 | 17 | 1 | 12 | 1 | 43 |
 | 2023 | 11 | 14 | 3 | 9 | 1 | 38 |
 | 2022 | 15 | 18 | 0 | 7 | 0 | 40 |
@@ -33,8 +33,14 @@
 
 ## 2025
 
+### 20 Nov 2025
+- [doc] Updated tutorials and API documentation to use modern OOP interface (#881)
+  - Updated impact-studies.ipynb, quick-start.ipynb, setup-own-site.ipynb to use `SUEWSSimulation.from_sample_data()`
+  - Updated data-structures.rst code examples
+  - Completed modernisation started in #779
+
 ### 19 Nov 2025
-- [bugfix] Fixed last layer of validation for DLS startdls and endls parameters. 
+- [bugfix] Fixed last layer of validation for DLS startdls and endls parameters.
   - Instead of hemisphere pattern check (NH/SH typical ranges), now phase C provide NO ACTION NEEDED info to user with calculated DLS startdls and endls (to compare against user values).
   - Useful when Phase C runs standalone or via `SUEWSConfig.from_yaml()` (Phase B auto-corrects values in full pipeline)
 
@@ -61,6 +67,15 @@
   - Consolidates all parallel processing to one library
 
 ### 14 Nov 2025
+- [feature] Added `SUEWSSimulation.from_sample_data()` factory method and comprehensive OOP enhancements (#779)
+  - New factory method for cleaner OOP workflow: `sim = SUEWSSimulation.from_sample_data()`
+  - Added visual feedback with `__repr__()` showing simulation status (Not configured, Ready, Complete)
+  - Added state access properties: `state_init` and `state_final`
+  - Added validation methods: `is_ready()` and `is_complete()`
+  - Enabled method chaining for fluent interface (`update_config()`, `update_forcing()`, `reset()` return self)
+  - Added `get_variable()` helper for extracting specific variables from MultiIndex results
+  - Implemented deprecation infrastructure for functional API (maintains backward compatibility)
+  - Updated workflow documentation to exclusively showcase OOP interface
 - [feature] Added Phase C validation for daylight saving time parameters
   - Four validation layers: (1) basic range [1, 366], (2) consistency (both set or both None), (3) leap year (DOY 366 only in leap years), (4) hemisphere pattern check (NH/SH typical ranges)
   - First three layers raise ERROR; hemisphere check adds INFO to report "NO ACTION NEEDED" section

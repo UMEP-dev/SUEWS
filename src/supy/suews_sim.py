@@ -41,15 +41,18 @@ class SUEWSSimulation:
     Examples
     --------
     Basic usage:
+
     >>> sim = SUEWSSimulation("config.yaml")
     >>> sim.update_forcing("forcing.txt")
     >>> sim.run()
     >>> sim.save("output_dir/")
 
     Updating configuration:
+
     >>> sim.update_config({"model": {"control": {"tstep": 600}}})
     >>> sim.reset()
     >>> sim.run()
+
     """
 
     def __init__(self, config: Union[str, Path, dict, Any] = None):
@@ -588,15 +591,6 @@ class SUEWSSimulation:
         >>> sim.run()
         >>> results = sim.results
 
-        This is equivalent to the functional approach:
-
-        >>> import supy as sp
-        >>> df_state, df_forcing = sp.load_sample_data()
-        >>> df_output, df_final = sp.run_supy(df_forcing, df_state)
-
-        See Also
-        --------
-        load_sample_data : Load sample data as DataFrames (functional approach)
         """
         from ._env import trv_supy_module
         from ._supy_module import _load_sample_data
@@ -645,9 +639,10 @@ class SUEWSSimulation:
         ----------
         state : str, Path, or pandas.DataFrame
             State to load for continuation. Can be:
-            - Path to CSV file: 'df_state.csv' or 'df_state_{site}.csv'
-            - Path to Parquet file: '{site}_SUEWS_state_final.parquet'
-            - DataFrame: df_state_final from previous simulation
+
+            - Path to CSV file: `df_state.csv` or `df_state_{site}.csv`
+            - Path to Parquet file: `{site}_SUEWS_state_final.parquet`
+            - DataFrame: `df_state_final` from previous simulation
 
         Returns
         -------
@@ -955,18 +950,55 @@ class SUEWSSimulation:
         return result
 
     @property
-    def config(self) -> Optional[Any]:
-        """Access to simulation configuration."""
+    def config(self) -> Optional[SUEWSConfig]:
+        """Access to simulation configuration.
+
+        Returns
+        -------
+        SUEWSConfig or None
+            Complete SUEWS configuration object.
+            None if no configuration loaded.
+
+        See Also
+        --------
+        update_config : Load or update configuration
+        state_init : Access initial state derived from configuration
+        """
         return self._config
 
     @property
     def forcing(self) -> Optional[pd.DataFrame]:
-        """Access to forcing data DataFrame."""
+        """Access to forcing data DataFrame.
+
+        Returns
+        -------
+        pandas.DataFrame or None
+            Meteorological forcing data with required variables.
+            None if no forcing loaded.
+
+        See Also
+        --------
+        :ref:`df_forcing_var` : Complete forcing data structure and variable descriptions
+        update_forcing : Load forcing data from files or DataFrames
+        """
         return self._df_forcing
 
     @property
     def results(self) -> Optional[pd.DataFrame]:
-        """Access to simulation results DataFrame."""
+        """Access to simulation results DataFrame.
+
+        Returns
+        -------
+        pandas.DataFrame or None
+            Complete simulation output with all variable groups.
+            None if simulation hasn't been run yet.
+
+        See Also
+        --------
+        :ref:`df_output_var` : Complete output data structure and variable descriptions
+        get_variable : Extract specific variables from output groups
+        save : Save results to files
+        """
         return self._df_output
 
     @property
@@ -978,6 +1010,12 @@ class SUEWSSimulation:
         pandas.DataFrame or None
             Initial state with surface characteristics and parameters.
             None if no configuration loaded.
+
+        See Also
+        --------
+        :ref:`df_state_var` : Complete state data structure and variable descriptions
+        state_final : Final state after simulation
+        from_state : Create simulation from existing state
 
         Examples
         --------
@@ -1000,15 +1038,18 @@ class SUEWSSimulation:
             Final state after simulation run.
             None if simulation hasn't been run yet.
 
+        See Also
+        --------
+        :ref:`df_state_var` : Complete state data structure and variable descriptions
+        state_init : Initial state before simulation
+        reset : Clear results and reset to initial state
+        from_state : Create new simulation from this final state
+
         Examples
         --------
         >>> sim = SUEWSSimulation.from_sample_data()
         >>> sim.run()
         >>> sim.state_final is not None
         True
-
-        See Also
-        --------
-        reset : Clear results and reset to initial state
         """
         return self._df_state_final

@@ -2448,14 +2448,14 @@ class SUEWSConfig(BaseModel):
             if message:
                 logger_supy.info(message)
         else:
-            logger_supy.info(
+            logger_supy.debug(
                 f"No schema version specified, assuming current ({CURRENT_SCHEMA_VERSION})"
             )
             # Set default schema version
             config_data["schema_version"] = CURRENT_SCHEMA_VERSION
 
         if use_conditional_validation:
-            logger_supy.info(
+            logger_supy.debug(
                 "Running comprehensive Pydantic validation with conditional checks."
             )
             try:

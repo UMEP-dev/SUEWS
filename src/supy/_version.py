@@ -14,26 +14,76 @@ from ._version_scm import __version__, __version_tuple__
 
 import pandas as pd
 
-# ser_ver = pd.read_json(
-#     path_supy_module / "supy_version.json", typ="series", convert_dates=False
-# )
-# __version__ = "-".join(
-#     list(
-#         filter(
-#             None,
-#             [
-#                 ser_ver.version,
-#                 ser_ver.iter,
-#                 ser_ver.git_commit,
-#             ],
-#         )
-#     )
-# )
-# __version_driver__ = sd_ver
-
 
 def show_version(mode="simple", as_json=False):
-    """Print SUEWS version information."""
+    """
+    Display SUEWS version and system dependency information.
+
+    This function prints version information for SuPy and optionally for system
+    dependencies. Output can be displayed as plain text or exported as JSON.
+
+    Parameters
+    ----------
+    mode : str, optional
+        Display mode for version information. Options are:
+
+        - 'simple' (default): Print only the SuPy version number
+        - 'full': Print SuPy version and complete system dependency information
+
+    as_json : bool or str, optional
+        Controls JSON output format. Options are:
+
+        - False (default): Display as plain text
+        - True: Print version information as JSON to stdout
+        - str: Path to JSON file where version information will be saved
+
+        When a file path is provided, the function appends SuPy version
+        information to pandas system information in the specified file.
+
+    Returns
+    -------
+    None
+        This function prints to stdout or writes to file; it does not return a value.
+
+    Raises
+    ------
+    ValueError
+        If mode is not 'simple' or 'full'.
+
+    Examples
+    --------
+    Display simple version information:
+
+    >>> import supy as sp
+    >>> sp.show_version()
+    2025.6.2.dev99
+
+    Display full version and system information:
+
+    >>> sp.show_version(mode="full")
+    SUEWS VERSION: 2025.6.2.dev99
+    -------------
+
+    SYSTEM DEPENDENCY
+    [System dependency information follows...]
+
+    Export version information to JSON:
+
+    >>> sp.show_version(as_json="version_info.json")
+
+    Notes
+    -----
+    The full mode leverages pandas.show_versions() to display comprehensive
+    information about installed dependencies, which is useful for debugging
+    and issue reporting.
+
+    When using JSON output with a file path, the function reads existing pandas
+    version information and prepends SuPy-specific version data.
+
+    See Also
+    --------
+    pandas.show_versions : Display pandas version and dependency information
+    """
     dict_info_supy = {}
     dict_info_supy["supy"] = __version__
     # dict_info_supy["supy_driver"] = __version_driver__
@@ -54,10 +104,14 @@ def show_version(mode="simple", as_json=False):
             ser_json = pd.concat([ser_info_supy, ser_json], axis=0)
             ser_json.to_json(path_json, orient="index")
     else:
-        print(f"SUEWS version: {__version__}")
-        print("-------------")
-        # print(f"supy_driver: {__version_driver__}")
-        if mode == "full":
-            print("\n=================")
+        if mode == "simple":
+            version_text = f"{__version__}"
+            print(version_text)
+        elif mode == "full":
+            version_text = f"SUEWS VERSION: {__version__}"
+            print(version_text)
+            print("-" * len(version_text) + "\n")
             print("SYSTEM DEPENDENCY")
             pd.show_versions()
+        else:
+            raise ValueError(f"Invalid mode: {mode}")

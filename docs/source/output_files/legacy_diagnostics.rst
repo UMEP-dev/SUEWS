@@ -1,11 +1,12 @@
 .. _output_legacy_diagnostics:
 
-Legacy Diagnostic Files (Standalone Fortran Program)
-=====================================================
+Diagnostic Files
+================
 
 .. note::
-   The files described in this section are from the legacy standalone Fortran program workflow.
-   Modern YAML-based workflows use Python logging instead of these text files.
+   These diagnostic files are produced by the SUEWS Fortran kernel during runtime.
+   When running through SuPy (Python interface), these files are still created but their contents
+   are also captured and logged via Python's logging system for convenience.
 
 Runtime diagnostic information
 -------------------------------
@@ -54,7 +55,11 @@ Warning messages: warnings.txt
 
 .. _file_choices:
 
-Summary of model parameters: SS_FileChoices.txt
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Summary of model parameters: SS_FileChoices.txt (Legacy)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-For each run, the model parameters specified in the input files are written out to the file SS_FileChoices.txt.
+.. deprecated::
+   This file is no longer produced by the current version of SUEWS.
+   Use the YAML configuration files and Python logging for parameter summaries.
+
+In older versions, model parameters specified in the input files were written out to the file SS_FileChoices.txt.

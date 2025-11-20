@@ -27,6 +27,6 @@ SUEWS produces output data in two formats, each with different trade-offs:
 
 .. toctree::
    :maxdepth: 1
-   :caption: Legacy Files (Standalone Fortran Program)
+   :caption: Diagnostic Files
 
    legacy_diagnostics

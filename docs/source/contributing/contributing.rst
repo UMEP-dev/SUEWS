@@ -37,4 +37,3 @@ Getting Help
 - **Discussions**: `GitHub Discussions <https://github.com/UMEP-dev/UMEP/discussions>`_
 - **Documentation**: `ReadTheDocs <https://suews.readthedocs.io>`_
 
-.. _UMEP Community: https://github.com/UMEP-dev/UMEP/discussions

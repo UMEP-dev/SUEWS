@@ -95,7 +95,7 @@ Command-Line Migration
    python -m supy.util.schema_migration config.yml --to-version 1.0
 
 Versioning Python API
-~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: python
 

@@ -72,7 +72,7 @@ SUEWS provides a user-friendly validation tool:
    suews-validate migrate old_config.yml --output new_config.yml
 
 Publishing Python API
-~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: python
 

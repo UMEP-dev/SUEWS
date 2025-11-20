@@ -25,8 +25,6 @@ This group contains 29 output variables.
 
    :Unit: -
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
-   :Format: ``f106``
 
 .. index::
    single: DiffuseRad (output variable)
@@ -38,8 +36,6 @@ This group contains 29 output variables.
 
    :Unit: W |m^-2|
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
-   :Format: ``f106``
 
 .. index::
    single: DirectRad (output variable)
@@ -51,8 +47,6 @@ This group contains 29 output variables.
 
    :Unit: W |m^-2|
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
-   :Format: ``f106``
 
 .. index::
    single: Emis_Sky (output variable)
@@ -64,8 +58,6 @@ This group contains 29 output variables.
 
    :Unit: -
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
-   :Format: ``f106``
 
 .. index::
    single: GlobalRad (output variable)
@@ -77,8 +69,6 @@ This group contains 29 output variables.
 
    :Unit: W |m^-2|
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
-   :Format: ``f106``
 
 .. index::
    single: I0 (output variable)
@@ -90,8 +80,6 @@ This group contains 29 output variables.
 
    :Unit: W |m^-2|
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
-   :Format: ``f106``
 
 .. index::
    single: Kdown2d (output variable)
@@ -103,8 +91,6 @@ This group contains 29 output variables.
 
    :Unit: W |m^-2|
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
-   :Format: ``f106``
 
 .. index::
    single: Keast (output variable)
@@ -116,8 +102,6 @@ This group contains 29 output variables.
 
    :Unit: W |m^-2|
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
-   :Format: ``f106``
 
 .. index::
    single: Knorth (output variable)
@@ -129,8 +113,6 @@ This group contains 29 output variables.
 
    :Unit: W |m^-2|
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
-   :Format: ``f106``
 
 .. index::
    single: Ksouth (output variable)
@@ -142,8 +124,6 @@ This group contains 29 output variables.
 
    :Unit: W |m^-2|
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
-   :Format: ``f106``
 
 .. index::
    single: Kup2d (output variable)
@@ -155,8 +135,6 @@ This group contains 29 output variables.
 
    :Unit: W |m^-2|
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
-   :Format: ``f106``
 
 .. index::
    single: Kwest (output variable)
@@ -168,8 +146,6 @@ This group contains 29 output variables.
 
    :Unit: W |m^-2|
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
-   :Format: ``f106``
 
 .. index::
    single: Ldown2d (output variable)
@@ -181,8 +157,6 @@ This group contains 29 output variables.
 
    :Unit: W |m^-2|
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
-   :Format: ``f106``
 
 .. index::
    single: Least (output variable)
@@ -194,8 +168,6 @@ This group contains 29 output variables.
 
    :Unit: W |m^-2|
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
-   :Format: ``f106``
 
 .. index::
    single: Lnorth (output variable)
@@ -207,8 +179,6 @@ This group contains 29 output variables.
 
    :Unit: W |m^-2|
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
-   :Format: ``f106``
 
 .. index::
    single: Lsouth (output variable)
@@ -220,8 +190,6 @@ This group contains 29 output variables.
 
    :Unit: W |m^-2|
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
-   :Format: ``f106``
 
 .. index::
    single: Lup2d (output variable)
@@ -233,8 +201,6 @@ This group contains 29 output variables.
 
    :Unit: W |m^-2|
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
-   :Format: ``f106``
 
 .. index::
    single: Lwest (output variable)
@@ -246,8 +212,6 @@ This group contains 29 output variables.
 
    :Unit: W |m^-2|
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
-   :Format: ``f106``
 
 .. index::
    single: SH_Ground (output variable)
@@ -259,8 +223,6 @@ This group contains 29 output variables.
 
    :Unit: -
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
-   :Format: ``f106``
 
 .. index::
    single: SH_Walls (output variable)
@@ -272,8 +234,6 @@ This group contains 29 output variables.
 
    :Unit: -
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
-   :Format: ``f106``
 
 .. index::
    single: SVF_BdVeg (output variable)
@@ -285,8 +245,6 @@ This group contains 29 output variables.
 
    :Unit: -
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
-   :Format: ``f106``
 
 .. index::
    single: SVF_Ground (output variable)
@@ -298,8 +256,6 @@ This group contains 29 output variables.
 
    :Unit: -
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
-   :Format: ``f106``
 
 .. index::
    single: SVF_Roof (output variable)
@@ -311,8 +267,6 @@ This group contains 29 output variables.
 
    :Unit: -
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
-   :Format: ``f106``
 
 .. index::
    single: Ta (output variable)
@@ -324,7 +278,6 @@ This group contains 29 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: Tg (output variable)
@@ -336,7 +289,6 @@ This group contains 29 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: Tmrt (output variable)
@@ -348,8 +300,6 @@ This group contains 29 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
-   :Format: ``f106``
 
 .. index::
    single: Tw (output variable)
@@ -361,7 +311,6 @@ This group contains 29 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: altitude (output variable)
@@ -373,8 +322,6 @@ This group contains 29 output variables.
 
    :Unit: degrees
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
-   :Format: ``f106``
 
 .. index::
    single: azimuth (output variable)
@@ -386,5 +333,3 @@ This group contains 29 output variables.
 
    :Unit: degrees
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
-   :Format: ``f106``

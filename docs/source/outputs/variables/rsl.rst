@@ -25,7 +25,6 @@ This group contains 135 output variables.
 
    :Unit: -
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: L_MOD_RSL (output variable)
@@ -37,7 +36,6 @@ This group contains 135 output variables.
 
    :Unit: m
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: Lc (output variable)
@@ -49,7 +47,6 @@ This group contains 135 output variables.
 
    :Unit: m
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: PAI (output variable)
@@ -61,7 +58,6 @@ This group contains 135 output variables.
 
    :Unit: -
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: Scc (output variable)
@@ -73,7 +69,6 @@ This group contains 135 output variables.
 
    :Unit: -
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: TStar_RSL (output variable)
@@ -85,7 +80,6 @@ This group contains 135 output variables.
 
    :Unit: K
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: T_1 (output variable)
@@ -97,7 +91,6 @@ This group contains 135 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: T_10 (output variable)
@@ -109,7 +102,6 @@ This group contains 135 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: T_11 (output variable)
@@ -121,7 +113,6 @@ This group contains 135 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: T_12 (output variable)
@@ -133,7 +124,6 @@ This group contains 135 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: T_13 (output variable)
@@ -145,7 +135,6 @@ This group contains 135 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: T_14 (output variable)
@@ -157,8 +146,6 @@ This group contains 135 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
-   :Format: ``f146``
 
 .. index::
    single: T_15 (output variable)
@@ -170,7 +157,6 @@ This group contains 135 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: T_16 (output variable)
@@ -182,7 +168,6 @@ This group contains 135 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: T_17 (output variable)
@@ -194,7 +179,6 @@ This group contains 135 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: T_18 (output variable)
@@ -206,7 +190,6 @@ This group contains 135 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: T_19 (output variable)
@@ -218,7 +201,6 @@ This group contains 135 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: T_2 (output variable)
@@ -230,7 +212,6 @@ This group contains 135 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: T_20 (output variable)
@@ -242,7 +223,6 @@ This group contains 135 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: T_21 (output variable)
@@ -254,8 +234,6 @@ This group contains 135 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
-   :Format: ``f146``
 
 .. index::
    single: T_22 (output variable)
@@ -267,7 +245,6 @@ This group contains 135 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: T_23 (output variable)
@@ -279,7 +256,6 @@ This group contains 135 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: T_24 (output variable)
@@ -291,7 +267,6 @@ This group contains 135 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: T_25 (output variable)
@@ -303,7 +278,6 @@ This group contains 135 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: T_26 (output variable)
@@ -315,7 +289,6 @@ This group contains 135 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: T_27 (output variable)
@@ -327,7 +300,6 @@ This group contains 135 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: T_28 (output variable)
@@ -339,7 +311,6 @@ This group contains 135 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: T_29 (output variable)
@@ -351,7 +322,6 @@ This group contains 135 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: T_3 (output variable)
@@ -363,7 +333,6 @@ This group contains 135 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: T_30 (output variable)
@@ -375,7 +344,6 @@ This group contains 135 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: T_4 (output variable)
@@ -387,7 +355,6 @@ This group contains 135 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: T_5 (output variable)
@@ -399,7 +366,6 @@ This group contains 135 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: T_6 (output variable)
@@ -411,7 +377,6 @@ This group contains 135 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: T_7 (output variable)
@@ -423,7 +388,6 @@ This group contains 135 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: T_8 (output variable)
@@ -435,7 +399,6 @@ This group contains 135 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: T_9 (output variable)
@@ -447,7 +410,6 @@ This group contains 135 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: UStar_RSL (output variable)
@@ -459,7 +421,6 @@ This group contains 135 output variables.
 
    :Unit: m |s^-1|
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: UStar_heat (output variable)
@@ -471,7 +432,6 @@ This group contains 135 output variables.
 
    :Unit: m |s^-1|
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: U_1 (output variable)
@@ -483,7 +443,6 @@ This group contains 135 output variables.
 
    :Unit: m |s^-1|
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: U_10 (output variable)
@@ -495,7 +454,6 @@ This group contains 135 output variables.
 
    :Unit: m |s^-1|
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: U_11 (output variable)
@@ -507,7 +465,6 @@ This group contains 135 output variables.
 
    :Unit: m |s^-1|
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: U_12 (output variable)
@@ -519,7 +476,6 @@ This group contains 135 output variables.
 
    :Unit: m |s^-1|
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: U_13 (output variable)
@@ -531,7 +487,6 @@ This group contains 135 output variables.
 
    :Unit: m |s^-1|
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: U_14 (output variable)
@@ -543,8 +498,6 @@ This group contains 135 output variables.
 
    :Unit: m |s^-1|
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
-   :Format: ``f146``
 
 .. index::
    single: U_15 (output variable)
@@ -556,7 +509,6 @@ This group contains 135 output variables.
 
    :Unit: m |s^-1|
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: U_16 (output variable)
@@ -568,7 +520,6 @@ This group contains 135 output variables.
 
    :Unit: m |s^-1|
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: U_17 (output variable)
@@ -580,7 +531,6 @@ This group contains 135 output variables.
 
    :Unit: m |s^-1|
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: U_18 (output variable)
@@ -592,7 +542,6 @@ This group contains 135 output variables.
 
    :Unit: m |s^-1|
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: U_19 (output variable)
@@ -604,7 +553,6 @@ This group contains 135 output variables.
 
    :Unit: m |s^-1|
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: U_2 (output variable)
@@ -616,7 +564,6 @@ This group contains 135 output variables.
 
    :Unit: m |s^-1|
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: U_20 (output variable)
@@ -628,7 +575,6 @@ This group contains 135 output variables.
 
    :Unit: m |s^-1|
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: U_21 (output variable)
@@ -640,8 +586,6 @@ This group contains 135 output variables.
 
    :Unit: m |s^-1|
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
-   :Format: ``f146``
 
 .. index::
    single: U_22 (output variable)
@@ -653,7 +597,6 @@ This group contains 135 output variables.
 
    :Unit: m |s^-1|
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: U_23 (output variable)
@@ -665,7 +608,6 @@ This group contains 135 output variables.
 
    :Unit: m |s^-1|
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: U_24 (output variable)
@@ -677,7 +619,6 @@ This group contains 135 output variables.
 
    :Unit: m |s^-1|
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: U_25 (output variable)
@@ -689,7 +630,6 @@ This group contains 135 output variables.
 
    :Unit: m |s^-1|
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: U_26 (output variable)
@@ -701,7 +641,6 @@ This group contains 135 output variables.
 
    :Unit: m |s^-1|
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: U_27 (output variable)
@@ -713,7 +652,6 @@ This group contains 135 output variables.
 
    :Unit: m |s^-1|
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: U_28 (output variable)
@@ -725,7 +663,6 @@ This group contains 135 output variables.
 
    :Unit: m |s^-1|
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: U_29 (output variable)
@@ -737,7 +674,6 @@ This group contains 135 output variables.
 
    :Unit: m |s^-1|
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: U_3 (output variable)
@@ -749,7 +685,6 @@ This group contains 135 output variables.
 
    :Unit: m |s^-1|
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: U_30 (output variable)
@@ -761,7 +696,6 @@ This group contains 135 output variables.
 
    :Unit: m |s^-1|
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: U_4 (output variable)
@@ -773,7 +707,6 @@ This group contains 135 output variables.
 
    :Unit: m |s^-1|
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: U_5 (output variable)
@@ -785,7 +718,6 @@ This group contains 135 output variables.
 
    :Unit: m |s^-1|
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: U_6 (output variable)
@@ -797,7 +729,6 @@ This group contains 135 output variables.
 
    :Unit: m |s^-1|
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: U_7 (output variable)
@@ -809,7 +740,6 @@ This group contains 135 output variables.
 
    :Unit: m |s^-1|
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: U_8 (output variable)
@@ -821,7 +751,6 @@ This group contains 135 output variables.
 
    :Unit: m |s^-1|
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: U_9 (output variable)
@@ -833,7 +762,6 @@ This group contains 135 output variables.
 
    :Unit: m |s^-1|
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: beta (output variable)
@@ -845,7 +773,6 @@ This group contains 135 output variables.
 
    :Unit: m
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: elm (output variable)
@@ -857,7 +784,6 @@ This group contains 135 output variables.
 
    :Unit: m
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: f (output variable)
@@ -869,7 +795,6 @@ This group contains 135 output variables.
 
    :Unit: g |kg^-1|
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: flag_RSL (output variable)
@@ -881,7 +806,6 @@ This group contains 135 output variables.
 
    :Unit: -
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: q_1 (output variable)
@@ -893,7 +817,6 @@ This group contains 135 output variables.
 
    :Unit: g |kg^-1|
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: q_10 (output variable)
@@ -905,7 +828,6 @@ This group contains 135 output variables.
 
    :Unit: g |kg^-1|
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: q_11 (output variable)
@@ -917,7 +839,6 @@ This group contains 135 output variables.
 
    :Unit: g |kg^-1|
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: q_12 (output variable)
@@ -929,7 +850,6 @@ This group contains 135 output variables.
 
    :Unit: g |kg^-1|
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: q_13 (output variable)
@@ -941,7 +861,6 @@ This group contains 135 output variables.
 
    :Unit: g |kg^-1|
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: q_14 (output variable)
@@ -953,8 +872,6 @@ This group contains 135 output variables.
 
    :Unit: g |kg^-1|
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
-   :Format: ``f146``
 
 .. index::
    single: q_15 (output variable)
@@ -966,7 +883,6 @@ This group contains 135 output variables.
 
    :Unit: g |kg^-1|
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: q_16 (output variable)
@@ -978,7 +894,6 @@ This group contains 135 output variables.
 
    :Unit: g |kg^-1|
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: q_17 (output variable)
@@ -990,7 +905,6 @@ This group contains 135 output variables.
 
    :Unit: g |kg^-1|
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: q_18 (output variable)
@@ -1002,7 +916,6 @@ This group contains 135 output variables.
 
    :Unit: g |kg^-1|
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: q_19 (output variable)
@@ -1014,7 +927,6 @@ This group contains 135 output variables.
 
    :Unit: g |kg^-1|
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: q_2 (output variable)
@@ -1026,7 +938,6 @@ This group contains 135 output variables.
 
    :Unit: g |kg^-1|
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: q_20 (output variable)
@@ -1038,7 +949,6 @@ This group contains 135 output variables.
 
    :Unit: g |kg^-1|
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: q_21 (output variable)
@@ -1050,8 +960,6 @@ This group contains 135 output variables.
 
    :Unit: g |kg^-1|
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
-   :Format: ``f146``
 
 .. index::
    single: q_22 (output variable)
@@ -1063,7 +971,6 @@ This group contains 135 output variables.
 
    :Unit: g |kg^-1|
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: q_23 (output variable)
@@ -1075,7 +982,6 @@ This group contains 135 output variables.
 
    :Unit: g |kg^-1|
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: q_24 (output variable)
@@ -1087,7 +993,6 @@ This group contains 135 output variables.
 
    :Unit: g |kg^-1|
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: q_25 (output variable)
@@ -1099,7 +1004,6 @@ This group contains 135 output variables.
 
    :Unit: g |kg^-1|
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: q_26 (output variable)
@@ -1111,7 +1015,6 @@ This group contains 135 output variables.
 
    :Unit: g |kg^-1|
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: q_27 (output variable)
@@ -1123,7 +1026,6 @@ This group contains 135 output variables.
 
    :Unit: g |kg^-1|
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: q_28 (output variable)
@@ -1135,7 +1037,6 @@ This group contains 135 output variables.
 
    :Unit: g |kg^-1|
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: q_29 (output variable)
@@ -1147,7 +1048,6 @@ This group contains 135 output variables.
 
    :Unit: g |kg^-1|
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: q_3 (output variable)
@@ -1159,7 +1059,6 @@ This group contains 135 output variables.
 
    :Unit: g |kg^-1|
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: q_30 (output variable)
@@ -1171,7 +1070,6 @@ This group contains 135 output variables.
 
    :Unit: g |kg^-1|
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: q_4 (output variable)
@@ -1183,7 +1081,6 @@ This group contains 135 output variables.
 
    :Unit: g |kg^-1|
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: q_5 (output variable)
@@ -1195,7 +1092,6 @@ This group contains 135 output variables.
 
    :Unit: g |kg^-1|
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: q_6 (output variable)
@@ -1207,7 +1103,6 @@ This group contains 135 output variables.
 
    :Unit: g |kg^-1|
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: q_7 (output variable)
@@ -1219,7 +1114,6 @@ This group contains 135 output variables.
 
    :Unit: g |kg^-1|
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: q_8 (output variable)
@@ -1231,7 +1125,6 @@ This group contains 135 output variables.
 
    :Unit: g |kg^-1|
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: q_9 (output variable)
@@ -1243,7 +1136,6 @@ This group contains 135 output variables.
 
    :Unit: g |kg^-1|
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: z0_RSL (output variable)
@@ -1255,7 +1147,6 @@ This group contains 135 output variables.
 
    :Unit: m
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: zH_RSL (output variable)
@@ -1267,7 +1158,6 @@ This group contains 135 output variables.
 
    :Unit: m
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: z_1 (output variable)
@@ -1279,7 +1169,6 @@ This group contains 135 output variables.
 
    :Unit: m
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: z_10 (output variable)
@@ -1291,7 +1180,6 @@ This group contains 135 output variables.
 
    :Unit: m
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: z_11 (output variable)
@@ -1303,7 +1191,6 @@ This group contains 135 output variables.
 
    :Unit: m
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: z_12 (output variable)
@@ -1315,7 +1202,6 @@ This group contains 135 output variables.
 
    :Unit: m
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: z_13 (output variable)
@@ -1327,7 +1213,6 @@ This group contains 135 output variables.
 
    :Unit: m
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: z_14 (output variable)
@@ -1339,8 +1224,6 @@ This group contains 135 output variables.
 
    :Unit: m
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
-   :Format: ``f146``
 
 .. index::
    single: z_15 (output variable)
@@ -1352,7 +1235,6 @@ This group contains 135 output variables.
 
    :Unit: m
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: z_16 (output variable)
@@ -1364,7 +1246,6 @@ This group contains 135 output variables.
 
    :Unit: m
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: z_17 (output variable)
@@ -1376,7 +1257,6 @@ This group contains 135 output variables.
 
    :Unit: m
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: z_18 (output variable)
@@ -1388,7 +1268,6 @@ This group contains 135 output variables.
 
    :Unit: m
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: z_19 (output variable)
@@ -1400,7 +1279,6 @@ This group contains 135 output variables.
 
    :Unit: m
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: z_2 (output variable)
@@ -1412,7 +1290,6 @@ This group contains 135 output variables.
 
    :Unit: m
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: z_20 (output variable)
@@ -1424,7 +1301,6 @@ This group contains 135 output variables.
 
    :Unit: m
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: z_21 (output variable)
@@ -1436,8 +1312,6 @@ This group contains 135 output variables.
 
    :Unit: m
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
-   :Format: ``f146``
 
 .. index::
    single: z_22 (output variable)
@@ -1449,7 +1323,6 @@ This group contains 135 output variables.
 
    :Unit: m
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: z_23 (output variable)
@@ -1461,7 +1334,6 @@ This group contains 135 output variables.
 
    :Unit: m
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: z_24 (output variable)
@@ -1473,7 +1345,6 @@ This group contains 135 output variables.
 
    :Unit: m
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: z_25 (output variable)
@@ -1485,7 +1356,6 @@ This group contains 135 output variables.
 
    :Unit: m
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: z_26 (output variable)
@@ -1497,7 +1367,6 @@ This group contains 135 output variables.
 
    :Unit: m
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: z_27 (output variable)
@@ -1509,7 +1378,6 @@ This group contains 135 output variables.
 
    :Unit: m
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: z_28 (output variable)
@@ -1521,7 +1389,6 @@ This group contains 135 output variables.
 
    :Unit: m
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: z_29 (output variable)
@@ -1533,7 +1400,6 @@ This group contains 135 output variables.
 
    :Unit: m
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: z_3 (output variable)
@@ -1545,7 +1411,6 @@ This group contains 135 output variables.
 
    :Unit: m
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: z_30 (output variable)
@@ -1557,7 +1422,6 @@ This group contains 135 output variables.
 
    :Unit: m
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: z_4 (output variable)
@@ -1569,7 +1433,6 @@ This group contains 135 output variables.
 
    :Unit: m
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: z_5 (output variable)
@@ -1581,7 +1444,6 @@ This group contains 135 output variables.
 
    :Unit: m
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: z_6 (output variable)
@@ -1593,7 +1455,6 @@ This group contains 135 output variables.
 
    :Unit: m
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: z_7 (output variable)
@@ -1605,7 +1466,6 @@ This group contains 135 output variables.
 
    :Unit: m
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: z_8 (output variable)
@@ -1617,7 +1477,6 @@ This group contains 135 output variables.
 
    :Unit: m
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: z_9 (output variable)
@@ -1629,7 +1488,6 @@ This group contains 135 output variables.
 
    :Unit: m
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: zd_RSL (output variable)
@@ -1641,4 +1499,3 @@ This group contains 135 output variables.
 
    :Unit: m
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)

@@ -25,7 +25,6 @@ This group contains 17 output variables.
 
    :Unit: hPa
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: QE_use (output variable)
@@ -37,7 +36,6 @@ This group contains 17 output variables.
 
    :Unit: W |m^-2|
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: QH_use (output variable)
@@ -49,7 +47,6 @@ This group contains 17 output variables.
 
    :Unit: W |m^-2|
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: Temp_C (output variable)
@@ -61,7 +58,6 @@ This group contains 17 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: UStar (output variable)
@@ -73,7 +69,6 @@ This group contains 17 output variables.
 
    :Unit: m |s^-1|
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: avcp (output variable)
@@ -85,7 +80,6 @@ This group contains 17 output variables.
 
    :Unit: J |kg^-1| |K^-1|
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: avdens (output variable)
@@ -97,7 +91,6 @@ This group contains 17 output variables.
 
    :Unit: kg |m^-3|
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: avu1 (output variable)
@@ -109,7 +102,6 @@ This group contains 17 output variables.
 
    :Unit: m |s^-1|
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: gamq (output variable)
@@ -121,7 +113,6 @@ This group contains 17 output variables.
 
    :Unit: kg |kg^-1| |m^-1|
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: gamt (output variable)
@@ -133,7 +124,6 @@ This group contains 17 output variables.
 
    :Unit: K |m^-1|
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: lv_J_kg (output variable)
@@ -145,8 +135,6 @@ This group contains 17 output variables.
 
    :Unit: J |kg^-1|
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
-   :Format: ``f146``
 
 .. index::
    single: q (output variable)
@@ -158,7 +146,6 @@ This group contains 17 output variables.
 
    :Unit: g |kg^-1|
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: q+ (output variable)
@@ -170,7 +157,6 @@ This group contains 17 output variables.
 
    :Unit: g |kg^-1|
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: rh (output variable)
@@ -182,7 +168,6 @@ This group contains 17 output variables.
 
    :Unit: %
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: theta (output variable)
@@ -194,7 +179,6 @@ This group contains 17 output variables.
 
    :Unit: K
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: theta+ (output variable)
@@ -206,7 +190,6 @@ This group contains 17 output variables.
 
    :Unit: K
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: z (output variable)
@@ -218,4 +201,3 @@ This group contains 17 output variables.
 
    :Unit: m
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)

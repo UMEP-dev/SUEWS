@@ -25,7 +25,6 @@ This group contains 224 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: QE_Roof_10 (output variable)
@@ -37,7 +36,6 @@ This group contains 224 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: QE_Roof_11 (output variable)
@@ -49,7 +47,6 @@ This group contains 224 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: QE_Roof_12 (output variable)
@@ -61,7 +58,6 @@ This group contains 224 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: QE_Roof_13 (output variable)
@@ -73,7 +69,6 @@ This group contains 224 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: QE_Roof_14 (output variable)
@@ -85,7 +80,6 @@ This group contains 224 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: QE_Roof_15 (output variable)
@@ -97,7 +91,6 @@ This group contains 224 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: QE_Roof_2 (output variable)
@@ -109,7 +102,6 @@ This group contains 224 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: QE_Roof_3 (output variable)
@@ -121,7 +113,6 @@ This group contains 224 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: QE_Roof_4 (output variable)
@@ -133,7 +124,6 @@ This group contains 224 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: QE_Roof_5 (output variable)
@@ -145,7 +135,6 @@ This group contains 224 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: QE_Roof_6 (output variable)
@@ -157,7 +146,6 @@ This group contains 224 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: QE_Roof_7 (output variable)
@@ -169,7 +157,6 @@ This group contains 224 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: QE_Roof_8 (output variable)
@@ -181,7 +168,6 @@ This group contains 224 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: QE_Roof_9 (output variable)
@@ -193,7 +179,6 @@ This group contains 224 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: QE_Wall_1 (output variable)
@@ -205,7 +190,6 @@ This group contains 224 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: QE_Wall_10 (output variable)
@@ -217,7 +201,6 @@ This group contains 224 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: QE_Wall_11 (output variable)
@@ -229,7 +212,6 @@ This group contains 224 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: QE_Wall_12 (output variable)
@@ -241,7 +223,6 @@ This group contains 224 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: QE_Wall_13 (output variable)
@@ -253,7 +234,6 @@ This group contains 224 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: QE_Wall_14 (output variable)
@@ -265,7 +245,6 @@ This group contains 224 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: QE_Wall_15 (output variable)
@@ -277,7 +256,6 @@ This group contains 224 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: QE_Wall_2 (output variable)
@@ -289,7 +267,6 @@ This group contains 224 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: QE_Wall_3 (output variable)
@@ -301,7 +278,6 @@ This group contains 224 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: QE_Wall_4 (output variable)
@@ -313,7 +289,6 @@ This group contains 224 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: QE_Wall_5 (output variable)
@@ -325,7 +300,6 @@ This group contains 224 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: QE_Wall_6 (output variable)
@@ -337,7 +311,6 @@ This group contains 224 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: QE_Wall_7 (output variable)
@@ -349,7 +322,6 @@ This group contains 224 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: QE_Wall_8 (output variable)
@@ -361,7 +333,6 @@ This group contains 224 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: QE_Wall_9 (output variable)
@@ -373,7 +344,6 @@ This group contains 224 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: QH_Roof_1 (output variable)
@@ -385,7 +355,6 @@ This group contains 224 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: QH_Roof_10 (output variable)
@@ -397,7 +366,6 @@ This group contains 224 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: QH_Roof_11 (output variable)
@@ -409,7 +377,6 @@ This group contains 224 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: QH_Roof_12 (output variable)
@@ -421,7 +388,6 @@ This group contains 224 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: QH_Roof_13 (output variable)
@@ -433,7 +399,6 @@ This group contains 224 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: QH_Roof_14 (output variable)
@@ -445,7 +410,6 @@ This group contains 224 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: QH_Roof_15 (output variable)
@@ -457,7 +421,6 @@ This group contains 224 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: QH_Roof_2 (output variable)
@@ -469,7 +432,6 @@ This group contains 224 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: QH_Roof_3 (output variable)
@@ -481,7 +443,6 @@ This group contains 224 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: QH_Roof_4 (output variable)
@@ -493,7 +454,6 @@ This group contains 224 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: QH_Roof_5 (output variable)
@@ -505,7 +465,6 @@ This group contains 224 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: QH_Roof_6 (output variable)
@@ -517,7 +476,6 @@ This group contains 224 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: QH_Roof_7 (output variable)
@@ -529,7 +487,6 @@ This group contains 224 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: QH_Roof_8 (output variable)
@@ -541,7 +498,6 @@ This group contains 224 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: QH_Roof_9 (output variable)
@@ -553,7 +509,6 @@ This group contains 224 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: QH_Wall_1 (output variable)
@@ -565,7 +520,6 @@ This group contains 224 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: QH_Wall_10 (output variable)
@@ -577,7 +531,6 @@ This group contains 224 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: QH_Wall_11 (output variable)
@@ -589,7 +542,6 @@ This group contains 224 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: QH_Wall_12 (output variable)
@@ -601,7 +553,6 @@ This group contains 224 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: QH_Wall_13 (output variable)
@@ -613,7 +564,6 @@ This group contains 224 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: QH_Wall_14 (output variable)
@@ -625,7 +575,6 @@ This group contains 224 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: QH_Wall_15 (output variable)
@@ -637,7 +586,6 @@ This group contains 224 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: QH_Wall_2 (output variable)
@@ -649,7 +597,6 @@ This group contains 224 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: QH_Wall_3 (output variable)
@@ -661,7 +608,6 @@ This group contains 224 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: QH_Wall_4 (output variable)
@@ -673,7 +619,6 @@ This group contains 224 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: QH_Wall_5 (output variable)
@@ -685,7 +630,6 @@ This group contains 224 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: QH_Wall_6 (output variable)
@@ -697,7 +641,6 @@ This group contains 224 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: QH_Wall_7 (output variable)
@@ -709,7 +652,6 @@ This group contains 224 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: QH_Wall_8 (output variable)
@@ -721,7 +663,6 @@ This group contains 224 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: QH_Wall_9 (output variable)
@@ -733,7 +674,6 @@ This group contains 224 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: QN_Roof_1 (output variable)
@@ -745,7 +685,6 @@ This group contains 224 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: QN_Roof_10 (output variable)
@@ -757,7 +696,6 @@ This group contains 224 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: QN_Roof_11 (output variable)
@@ -769,7 +707,6 @@ This group contains 224 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: QN_Roof_12 (output variable)
@@ -781,7 +718,6 @@ This group contains 224 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: QN_Roof_13 (output variable)
@@ -793,7 +729,6 @@ This group contains 224 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: QN_Roof_14 (output variable)
@@ -805,7 +740,6 @@ This group contains 224 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: QN_Roof_15 (output variable)
@@ -817,7 +751,6 @@ This group contains 224 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: QN_Roof_2 (output variable)
@@ -829,7 +762,6 @@ This group contains 224 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: QN_Roof_3 (output variable)
@@ -841,7 +773,6 @@ This group contains 224 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: QN_Roof_4 (output variable)
@@ -853,7 +784,6 @@ This group contains 224 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: QN_Roof_5 (output variable)
@@ -865,7 +795,6 @@ This group contains 224 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: QN_Roof_6 (output variable)
@@ -877,7 +806,6 @@ This group contains 224 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: QN_Roof_7 (output variable)
@@ -889,7 +817,6 @@ This group contains 224 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: QN_Roof_8 (output variable)
@@ -901,7 +828,6 @@ This group contains 224 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: QN_Roof_9 (output variable)
@@ -913,7 +839,6 @@ This group contains 224 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: QN_Wall_1 (output variable)
@@ -925,7 +850,6 @@ This group contains 224 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: QN_Wall_10 (output variable)
@@ -937,7 +861,6 @@ This group contains 224 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: QN_Wall_11 (output variable)
@@ -949,7 +872,6 @@ This group contains 224 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: QN_Wall_12 (output variable)
@@ -961,7 +883,6 @@ This group contains 224 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: QN_Wall_13 (output variable)
@@ -973,7 +894,6 @@ This group contains 224 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: QN_Wall_14 (output variable)
@@ -985,7 +905,6 @@ This group contains 224 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: QN_Wall_15 (output variable)
@@ -997,7 +916,6 @@ This group contains 224 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: QN_Wall_2 (output variable)
@@ -1009,7 +927,6 @@ This group contains 224 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: QN_Wall_3 (output variable)
@@ -1021,7 +938,6 @@ This group contains 224 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: QN_Wall_4 (output variable)
@@ -1033,7 +949,6 @@ This group contains 224 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: QN_Wall_5 (output variable)
@@ -1045,7 +960,6 @@ This group contains 224 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: QN_Wall_6 (output variable)
@@ -1057,7 +971,6 @@ This group contains 224 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: QN_Wall_7 (output variable)
@@ -1069,7 +982,6 @@ This group contains 224 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: QN_Wall_8 (output variable)
@@ -1081,7 +993,6 @@ This group contains 224 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: QN_Wall_9 (output variable)
@@ -1093,7 +1004,6 @@ This group contains 224 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: QS_BSoil (output variable)
@@ -1105,7 +1015,6 @@ This group contains 224 output variables.
 
    :Unit: W |m^-2|
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: QS_Bldgs (output variable)
@@ -1117,7 +1026,6 @@ This group contains 224 output variables.
 
    :Unit: W |m^-2|
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: QS_DecTr (output variable)
@@ -1129,7 +1037,6 @@ This group contains 224 output variables.
 
    :Unit: W |m^-2|
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: QS_EveTr (output variable)
@@ -1141,7 +1048,6 @@ This group contains 224 output variables.
 
    :Unit: W |m^-2|
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: QS_Grass (output variable)
@@ -1153,7 +1059,6 @@ This group contains 224 output variables.
 
    :Unit: W |m^-2|
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: QS_Paved (output variable)
@@ -1165,7 +1070,6 @@ This group contains 224 output variables.
 
    :Unit: W |m^-2|
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: QS_Roof_1 (output variable)
@@ -1177,7 +1081,6 @@ This group contains 224 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: QS_Roof_10 (output variable)
@@ -1189,7 +1092,6 @@ This group contains 224 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: QS_Roof_11 (output variable)
@@ -1201,7 +1103,6 @@ This group contains 224 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: QS_Roof_12 (output variable)
@@ -1213,7 +1114,6 @@ This group contains 224 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: QS_Roof_13 (output variable)
@@ -1225,7 +1125,6 @@ This group contains 224 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: QS_Roof_14 (output variable)
@@ -1237,7 +1136,6 @@ This group contains 224 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: QS_Roof_15 (output variable)
@@ -1249,7 +1147,6 @@ This group contains 224 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: QS_Roof_2 (output variable)
@@ -1261,7 +1158,6 @@ This group contains 224 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: QS_Roof_3 (output variable)
@@ -1273,7 +1169,6 @@ This group contains 224 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: QS_Roof_4 (output variable)
@@ -1285,7 +1180,6 @@ This group contains 224 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: QS_Roof_5 (output variable)
@@ -1297,7 +1191,6 @@ This group contains 224 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: QS_Roof_6 (output variable)
@@ -1309,7 +1202,6 @@ This group contains 224 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: QS_Roof_7 (output variable)
@@ -1321,7 +1213,6 @@ This group contains 224 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: QS_Roof_8 (output variable)
@@ -1333,7 +1224,6 @@ This group contains 224 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: QS_Roof_9 (output variable)
@@ -1345,7 +1235,6 @@ This group contains 224 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: QS_Wall_1 (output variable)
@@ -1357,7 +1246,6 @@ This group contains 224 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: QS_Wall_10 (output variable)
@@ -1369,7 +1257,6 @@ This group contains 224 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: QS_Wall_11 (output variable)
@@ -1381,7 +1268,6 @@ This group contains 224 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: QS_Wall_12 (output variable)
@@ -1393,7 +1279,6 @@ This group contains 224 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: QS_Wall_13 (output variable)
@@ -1405,7 +1290,6 @@ This group contains 224 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: QS_Wall_14 (output variable)
@@ -1417,7 +1301,6 @@ This group contains 224 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: QS_Wall_15 (output variable)
@@ -1429,7 +1312,6 @@ This group contains 224 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: QS_Wall_2 (output variable)
@@ -1441,7 +1323,6 @@ This group contains 224 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: QS_Wall_3 (output variable)
@@ -1453,7 +1334,6 @@ This group contains 224 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: QS_Wall_4 (output variable)
@@ -1465,7 +1345,6 @@ This group contains 224 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: QS_Wall_5 (output variable)
@@ -1477,7 +1356,6 @@ This group contains 224 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: QS_Wall_6 (output variable)
@@ -1489,7 +1367,6 @@ This group contains 224 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: QS_Wall_7 (output variable)
@@ -1501,7 +1378,6 @@ This group contains 224 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: QS_Wall_8 (output variable)
@@ -1513,7 +1389,6 @@ This group contains 224 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: QS_Wall_9 (output variable)
@@ -1525,7 +1400,6 @@ This group contains 224 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: QS_Water (output variable)
@@ -1537,7 +1411,6 @@ This group contains 224 output variables.
 
    :Unit: W |m^-2|
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: SS_Roof_1 (output variable)
@@ -1549,7 +1422,6 @@ This group contains 224 output variables.
 
    :Unit: mm
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: SS_Roof_10 (output variable)
@@ -1561,7 +1433,6 @@ This group contains 224 output variables.
 
    :Unit: mm
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: SS_Roof_11 (output variable)
@@ -1573,7 +1444,6 @@ This group contains 224 output variables.
 
    :Unit: mm
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: SS_Roof_12 (output variable)
@@ -1585,7 +1455,6 @@ This group contains 224 output variables.
 
    :Unit: mm
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: SS_Roof_13 (output variable)
@@ -1597,7 +1466,6 @@ This group contains 224 output variables.
 
    :Unit: mm
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: SS_Roof_14 (output variable)
@@ -1609,7 +1477,6 @@ This group contains 224 output variables.
 
    :Unit: mm
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: SS_Roof_15 (output variable)
@@ -1621,7 +1488,6 @@ This group contains 224 output variables.
 
    :Unit: mm
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: SS_Roof_2 (output variable)
@@ -1633,7 +1499,6 @@ This group contains 224 output variables.
 
    :Unit: mm
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: SS_Roof_3 (output variable)
@@ -1645,7 +1510,6 @@ This group contains 224 output variables.
 
    :Unit: mm
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: SS_Roof_4 (output variable)
@@ -1657,7 +1521,6 @@ This group contains 224 output variables.
 
    :Unit: mm
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: SS_Roof_5 (output variable)
@@ -1669,7 +1532,6 @@ This group contains 224 output variables.
 
    :Unit: mm
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: SS_Roof_6 (output variable)
@@ -1681,7 +1543,6 @@ This group contains 224 output variables.
 
    :Unit: mm
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: SS_Roof_7 (output variable)
@@ -1693,7 +1554,6 @@ This group contains 224 output variables.
 
    :Unit: mm
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: SS_Roof_8 (output variable)
@@ -1705,7 +1565,6 @@ This group contains 224 output variables.
 
    :Unit: mm
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: SS_Roof_9 (output variable)
@@ -1717,7 +1576,6 @@ This group contains 224 output variables.
 
    :Unit: mm
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: SS_Wall_1 (output variable)
@@ -1729,7 +1587,6 @@ This group contains 224 output variables.
 
    :Unit: mm
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: SS_Wall_10 (output variable)
@@ -1741,7 +1598,6 @@ This group contains 224 output variables.
 
    :Unit: mm
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: SS_Wall_11 (output variable)
@@ -1753,7 +1609,6 @@ This group contains 224 output variables.
 
    :Unit: mm
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: SS_Wall_12 (output variable)
@@ -1765,7 +1620,6 @@ This group contains 224 output variables.
 
    :Unit: mm
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: SS_Wall_13 (output variable)
@@ -1777,7 +1631,6 @@ This group contains 224 output variables.
 
    :Unit: mm
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: SS_Wall_14 (output variable)
@@ -1789,7 +1642,6 @@ This group contains 224 output variables.
 
    :Unit: mm
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: SS_Wall_15 (output variable)
@@ -1801,7 +1653,6 @@ This group contains 224 output variables.
 
    :Unit: mm
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: SS_Wall_2 (output variable)
@@ -1813,7 +1664,6 @@ This group contains 224 output variables.
 
    :Unit: mm
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: SS_Wall_3 (output variable)
@@ -1825,7 +1675,6 @@ This group contains 224 output variables.
 
    :Unit: mm
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: SS_Wall_4 (output variable)
@@ -1837,7 +1686,6 @@ This group contains 224 output variables.
 
    :Unit: mm
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: SS_Wall_5 (output variable)
@@ -1849,7 +1697,6 @@ This group contains 224 output variables.
 
    :Unit: mm
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: SS_Wall_6 (output variable)
@@ -1861,7 +1708,6 @@ This group contains 224 output variables.
 
    :Unit: mm
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: SS_Wall_7 (output variable)
@@ -1873,7 +1719,6 @@ This group contains 224 output variables.
 
    :Unit: mm
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: SS_Wall_8 (output variable)
@@ -1885,7 +1730,6 @@ This group contains 224 output variables.
 
    :Unit: mm
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: SS_Wall_9 (output variable)
@@ -1897,7 +1741,6 @@ This group contains 224 output variables.
 
    :Unit: mm
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: St_Roof_1 (output variable)
@@ -1909,7 +1752,6 @@ This group contains 224 output variables.
 
    :Unit: mm
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: St_Roof_10 (output variable)
@@ -1921,7 +1763,6 @@ This group contains 224 output variables.
 
    :Unit: mm
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: St_Roof_11 (output variable)
@@ -1933,7 +1774,6 @@ This group contains 224 output variables.
 
    :Unit: mm
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: St_Roof_12 (output variable)
@@ -1945,7 +1785,6 @@ This group contains 224 output variables.
 
    :Unit: mm
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: St_Roof_13 (output variable)
@@ -1957,7 +1796,6 @@ This group contains 224 output variables.
 
    :Unit: mm
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: St_Roof_14 (output variable)
@@ -1969,7 +1807,6 @@ This group contains 224 output variables.
 
    :Unit: mm
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: St_Roof_15 (output variable)
@@ -1981,7 +1818,6 @@ This group contains 224 output variables.
 
    :Unit: mm
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: St_Roof_2 (output variable)
@@ -1993,7 +1829,6 @@ This group contains 224 output variables.
 
    :Unit: mm
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: St_Roof_3 (output variable)
@@ -2005,7 +1840,6 @@ This group contains 224 output variables.
 
    :Unit: mm
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: St_Roof_4 (output variable)
@@ -2017,7 +1851,6 @@ This group contains 224 output variables.
 
    :Unit: mm
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: St_Roof_5 (output variable)
@@ -2029,7 +1862,6 @@ This group contains 224 output variables.
 
    :Unit: mm
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: St_Roof_6 (output variable)
@@ -2041,7 +1873,6 @@ This group contains 224 output variables.
 
    :Unit: mm
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: St_Roof_7 (output variable)
@@ -2053,7 +1884,6 @@ This group contains 224 output variables.
 
    :Unit: mm
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: St_Roof_8 (output variable)
@@ -2065,7 +1895,6 @@ This group contains 224 output variables.
 
    :Unit: mm
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: St_Roof_9 (output variable)
@@ -2077,7 +1906,6 @@ This group contains 224 output variables.
 
    :Unit: mm
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: St_Wall_1 (output variable)
@@ -2089,7 +1917,6 @@ This group contains 224 output variables.
 
    :Unit: mm
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: St_Wall_10 (output variable)
@@ -2101,7 +1928,6 @@ This group contains 224 output variables.
 
    :Unit: mm
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: St_Wall_11 (output variable)
@@ -2113,7 +1939,6 @@ This group contains 224 output variables.
 
    :Unit: mm
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: St_Wall_12 (output variable)
@@ -2125,7 +1950,6 @@ This group contains 224 output variables.
 
    :Unit: mm
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: St_Wall_13 (output variable)
@@ -2137,7 +1961,6 @@ This group contains 224 output variables.
 
    :Unit: mm
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: St_Wall_14 (output variable)
@@ -2149,7 +1972,6 @@ This group contains 224 output variables.
 
    :Unit: mm
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: St_Wall_15 (output variable)
@@ -2161,7 +1983,6 @@ This group contains 224 output variables.
 
    :Unit: mm
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: St_Wall_2 (output variable)
@@ -2173,7 +1994,6 @@ This group contains 224 output variables.
 
    :Unit: mm
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: St_Wall_3 (output variable)
@@ -2185,7 +2005,6 @@ This group contains 224 output variables.
 
    :Unit: mm
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: St_Wall_4 (output variable)
@@ -2197,7 +2016,6 @@ This group contains 224 output variables.
 
    :Unit: mm
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: St_Wall_5 (output variable)
@@ -2209,7 +2027,6 @@ This group contains 224 output variables.
 
    :Unit: mm
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: St_Wall_6 (output variable)
@@ -2221,7 +2038,6 @@ This group contains 224 output variables.
 
    :Unit: mm
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: St_Wall_7 (output variable)
@@ -2233,7 +2049,6 @@ This group contains 224 output variables.
 
    :Unit: mm
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: St_Wall_8 (output variable)
@@ -2245,7 +2060,6 @@ This group contains 224 output variables.
 
    :Unit: mm
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: St_Wall_9 (output variable)
@@ -2257,7 +2071,6 @@ This group contains 224 output variables.
 
    :Unit: mm
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: Ts_BSoil (output variable)
@@ -2269,7 +2082,6 @@ This group contains 224 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: Ts_Bldgs (output variable)
@@ -2281,7 +2093,6 @@ This group contains 224 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: Ts_DecTr (output variable)
@@ -2293,7 +2104,6 @@ This group contains 224 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: Ts_EveTr (output variable)
@@ -2305,7 +2115,6 @@ This group contains 224 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: Ts_Grass (output variable)
@@ -2317,7 +2126,6 @@ This group contains 224 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: Ts_Paved (output variable)
@@ -2329,7 +2137,6 @@ This group contains 224 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: Ts_Roof_1 (output variable)
@@ -2341,7 +2148,6 @@ This group contains 224 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: Ts_Roof_10 (output variable)
@@ -2353,7 +2159,6 @@ This group contains 224 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: Ts_Roof_11 (output variable)
@@ -2365,7 +2170,6 @@ This group contains 224 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: Ts_Roof_12 (output variable)
@@ -2377,7 +2181,6 @@ This group contains 224 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: Ts_Roof_13 (output variable)
@@ -2389,7 +2192,6 @@ This group contains 224 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: Ts_Roof_14 (output variable)
@@ -2401,7 +2203,6 @@ This group contains 224 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: Ts_Roof_15 (output variable)
@@ -2413,7 +2214,6 @@ This group contains 224 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: Ts_Roof_2 (output variable)
@@ -2425,7 +2225,6 @@ This group contains 224 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: Ts_Roof_3 (output variable)
@@ -2437,7 +2236,6 @@ This group contains 224 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: Ts_Roof_4 (output variable)
@@ -2449,7 +2247,6 @@ This group contains 224 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: Ts_Roof_5 (output variable)
@@ -2461,7 +2258,6 @@ This group contains 224 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: Ts_Roof_6 (output variable)
@@ -2473,7 +2269,6 @@ This group contains 224 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: Ts_Roof_7 (output variable)
@@ -2485,7 +2280,6 @@ This group contains 224 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: Ts_Roof_8 (output variable)
@@ -2497,7 +2291,6 @@ This group contains 224 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: Ts_Roof_9 (output variable)
@@ -2509,7 +2302,6 @@ This group contains 224 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: Ts_Wall_1 (output variable)
@@ -2521,7 +2313,6 @@ This group contains 224 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: Ts_Wall_10 (output variable)
@@ -2533,7 +2324,6 @@ This group contains 224 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: Ts_Wall_11 (output variable)
@@ -2545,7 +2335,6 @@ This group contains 224 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: Ts_Wall_12 (output variable)
@@ -2557,7 +2346,6 @@ This group contains 224 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: Ts_Wall_13 (output variable)
@@ -2569,7 +2357,6 @@ This group contains 224 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: Ts_Wall_14 (output variable)
@@ -2581,7 +2368,6 @@ This group contains 224 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: Ts_Wall_15 (output variable)
@@ -2593,7 +2379,6 @@ This group contains 224 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: Ts_Wall_2 (output variable)
@@ -2605,7 +2390,6 @@ This group contains 224 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: Ts_Wall_3 (output variable)
@@ -2617,7 +2401,6 @@ This group contains 224 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: Ts_Wall_4 (output variable)
@@ -2629,7 +2412,6 @@ This group contains 224 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: Ts_Wall_5 (output variable)
@@ -2641,7 +2423,6 @@ This group contains 224 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: Ts_Wall_6 (output variable)
@@ -2653,7 +2434,6 @@ This group contains 224 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: Ts_Wall_7 (output variable)
@@ -2665,7 +2445,6 @@ This group contains 224 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: Ts_Wall_8 (output variable)
@@ -2677,7 +2456,6 @@ This group contains 224 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: Ts_Wall_9 (output variable)
@@ -2689,7 +2467,6 @@ This group contains 224 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: Ts_Water (output variable)
@@ -2701,4 +2478,3 @@ This group contains 224 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)

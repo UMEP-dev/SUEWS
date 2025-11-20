@@ -25,7 +25,6 @@ This group contains 85 output variables.
 
    :Unit: mm
    :Aggregation: Sum (cumulative over period)
-   :Output Level: Extended (level 1 - optional extended output)
 
 .. index::
    single: AlbBulk (output variable)
@@ -37,8 +36,6 @@ This group contains 85 output variables.
 
    :Unit: dimensionless
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
-   :Format: ``f94``
 
 .. index::
    single: AlbSnow (output variable)
@@ -50,8 +47,6 @@ This group contains 85 output variables.
 
    :Unit: -
    :Aggregation: Average (mean over period)
-   :Output Level: Snow Detailed (level 2 - snow-specific detailed output)
-   :Format: ``f94``
 
 .. index::
    single: Azimuth (output variable)
@@ -63,8 +58,6 @@ This group contains 85 output variables.
 
    :Unit: degree
    :Aggregation: Last (final value in period)
-   :Output Level: Default (level 0 - always included)
-   :Format: ``f94``
 
 .. index::
    single: Drainage (output variable)
@@ -76,7 +69,6 @@ This group contains 85 output variables.
 
    :Unit: mm
    :Aggregation: Sum (cumulative over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: Evap (output variable)
@@ -88,7 +80,6 @@ This group contains 85 output variables.
 
    :Unit: mm
    :Aggregation: Sum (cumulative over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: Fc (output variable)
@@ -100,8 +91,6 @@ This group contains 85 output variables.
 
    :Unit: umol |m^-2| |s^-1|
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
-   :Format: ``f94``
 
 .. index::
    single: FcBuild (output variable)
@@ -113,8 +102,6 @@ This group contains 85 output variables.
 
    :Unit: umol |m^-2| |s^-1|
    :Aggregation: Average (mean over period)
-   :Output Level: Extended (level 1 - optional extended output)
-   :Format: ``f94``
 
 .. index::
    single: FcMetab (output variable)
@@ -126,8 +113,6 @@ This group contains 85 output variables.
 
    :Unit: umol |m^-2| |s^-1|
    :Aggregation: Average (mean over period)
-   :Output Level: Extended (level 1 - optional extended output)
-   :Format: ``f94``
 
 .. index::
    single: FcPhoto (output variable)
@@ -139,8 +124,6 @@ This group contains 85 output variables.
 
    :Unit: umol |m^-2| |s^-1|
    :Aggregation: Average (mean over period)
-   :Output Level: Extended (level 1 - optional extended output)
-   :Format: ``f94``
 
 .. index::
    single: FcPoint (output variable)
@@ -152,8 +135,6 @@ This group contains 85 output variables.
 
    :Unit: umol |m^-2| |s^-1|
    :Aggregation: Average (mean over period)
-   :Output Level: Extended (level 1 - optional extended output)
-   :Format: ``f94``
 
 .. index::
    single: FcRespi (output variable)
@@ -165,8 +146,6 @@ This group contains 85 output variables.
 
    :Unit: umol |m^-2| |s^-1|
    :Aggregation: Average (mean over period)
-   :Output Level: Extended (level 1 - optional extended output)
-   :Format: ``f94``
 
 .. index::
    single: FcTraff (output variable)
@@ -178,8 +157,6 @@ This group contains 85 output variables.
 
    :Unit: umol |m^-2| |s^-1|
    :Aggregation: Average (mean over period)
-   :Output Level: Extended (level 1 - optional extended output)
-   :Format: ``f94``
 
 .. index::
    single: Fcld (output variable)
@@ -191,8 +168,6 @@ This group contains 85 output variables.
 
    :Unit: dimensionless
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
-   :Format: ``f94``
 
 .. index::
    single: FlowCh (output variable)
@@ -204,7 +179,6 @@ This group contains 85 output variables.
 
    :Unit: mm
    :Aggregation: Sum (cumulative over period)
-   :Output Level: Extended (level 1 - optional extended output)
 
 .. index::
    single: Irr (output variable)
@@ -216,7 +190,6 @@ This group contains 85 output variables.
 
    :Unit: mm
    :Aggregation: Sum (cumulative over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: Kdown (output variable)
@@ -228,7 +201,6 @@ This group contains 85 output variables.
 
    :Unit: W |m^-2|
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: Kup (output variable)
@@ -240,7 +212,6 @@ This group contains 85 output variables.
 
    :Unit: W |m^-2|
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: LAI (output variable)
@@ -252,8 +223,6 @@ This group contains 85 output variables.
 
    :Unit: |m^2| |m^-2|
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
-   :Format: ``f94``
 
 .. index::
    single: Ldown (output variable)
@@ -265,7 +234,6 @@ This group contains 85 output variables.
 
    :Unit: W |m^-2|
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: Lob (output variable)
@@ -277,8 +245,6 @@ This group contains 85 output variables.
 
    :Unit: m
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
-   :Format: ``f146``
 
 .. index::
    single: Lup (output variable)
@@ -290,7 +256,6 @@ This group contains 85 output variables.
 
    :Unit: W |m^-2|
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: MeltWStore (output variable)
@@ -302,7 +267,6 @@ This group contains 85 output variables.
 
    :Unit: mm
    :Aggregation: Average (mean over period)
-   :Output Level: Snow Detailed (level 2 - snow-specific detailed output)
 
 .. index::
    single: MeltWater (output variable)
@@ -314,7 +278,6 @@ This group contains 85 output variables.
 
    :Unit: mm
    :Aggregation: Average (mean over period)
-   :Output Level: Snow Detailed (level 2 - snow-specific detailed output)
 
 .. index::
    single: NWtrState (output variable)
@@ -326,7 +289,6 @@ This group contains 85 output variables.
 
    :Unit: mm
    :Aggregation: Last (final value in period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: Q2 (output variable)
@@ -338,8 +300,6 @@ This group contains 85 output variables.
 
    :Unit: g |kg^-1|
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
-   :Format: ``f94``
 
 .. index::
    single: QE (output variable)
@@ -351,7 +311,6 @@ This group contains 85 output variables.
 
    :Unit: W |m^-2|
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: QElumps (output variable)
@@ -363,7 +322,6 @@ This group contains 85 output variables.
 
    :Unit: W |m^-2|
    :Aggregation: Average (mean over period)
-   :Output Level: Extended (level 1 - optional extended output)
 
 .. index::
    single: QF (output variable)
@@ -375,7 +333,6 @@ This group contains 85 output variables.
 
    :Unit: W |m^-2|
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: QH (output variable)
@@ -387,7 +344,6 @@ This group contains 85 output variables.
 
    :Unit: W |m^-2|
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: QHinit (output variable)
@@ -399,7 +355,6 @@ This group contains 85 output variables.
 
    :Unit: W |m^-2|
    :Aggregation: Average (mean over period)
-   :Output Level: Extended (level 1 - optional extended output)
 
 .. index::
    single: QHlumps (output variable)
@@ -411,7 +366,6 @@ This group contains 85 output variables.
 
    :Unit: W |m^-2|
    :Aggregation: Average (mean over period)
-   :Output Level: Extended (level 1 - optional extended output)
 
 .. index::
    single: QHresis (output variable)
@@ -423,7 +377,6 @@ This group contains 85 output variables.
 
    :Unit: W |m^-2|
    :Aggregation: Average (mean over period)
-   :Output Level: Extended (level 1 - optional extended output)
 
 .. index::
    single: QM (output variable)
@@ -435,8 +388,6 @@ This group contains 85 output variables.
 
    :Unit: W |m^-2|
    :Aggregation: Average (mean over period)
-   :Output Level: Snow Detailed (level 2 - snow-specific detailed output)
-   :Format: ``f106``
 
 .. index::
    single: QMFreeze (output variable)
@@ -448,8 +399,6 @@ This group contains 85 output variables.
 
    :Unit: W |m^-2|
    :Aggregation: Average (mean over period)
-   :Output Level: Snow Detailed (level 2 - snow-specific detailed output)
-   :Format: ``f146``
 
 .. index::
    single: QMRain (output variable)
@@ -461,8 +410,6 @@ This group contains 85 output variables.
 
    :Unit: W |m^-2|
    :Aggregation: Average (mean over period)
-   :Output Level: Snow Detailed (level 2 - snow-specific detailed output)
-   :Format: ``f106``
 
 .. index::
    single: QN (output variable)
@@ -474,7 +421,6 @@ This group contains 85 output variables.
 
    :Unit: W |m^-2|
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: QNSnow (output variable)
@@ -486,8 +432,6 @@ This group contains 85 output variables.
 
    :Unit: W |m^-2|
    :Aggregation: Average (mean over period)
-   :Output Level: Snow Detailed (level 2 - snow-specific detailed output)
-   :Format: ``f94``
 
 .. index::
    single: QNSnowFr (output variable)
@@ -499,8 +443,6 @@ This group contains 85 output variables.
 
    :Unit: W |m^-2|
    :Aggregation: Average (mean over period)
-   :Output Level: Snow Detailed (level 2 - snow-specific detailed output)
-   :Format: ``f94``
 
 .. index::
    single: QS (output variable)
@@ -512,7 +454,6 @@ This group contains 85 output variables.
 
    :Unit: W |m^-2|
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: RA (output variable)
@@ -524,7 +465,6 @@ This group contains 85 output variables.
 
    :Unit: s |m^-1|
    :Aggregation: Average (mean over period)
-   :Output Level: Extended (level 1 - optional extended output)
 
 .. index::
    single: RH2 (output variable)
@@ -536,8 +476,6 @@ This group contains 85 output variables.
 
    :Unit: %
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
-   :Format: ``f94``
 
 .. index::
    single: RO (output variable)
@@ -549,7 +487,6 @@ This group contains 85 output variables.
 
    :Unit: mm
    :Aggregation: Sum (cumulative over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: ROImp (output variable)
@@ -561,7 +498,6 @@ This group contains 85 output variables.
 
    :Unit: mm
    :Aggregation: Sum (cumulative over period)
-   :Output Level: Extended (level 1 - optional extended output)
 
 .. index::
    single: ROPipe (output variable)
@@ -573,7 +509,6 @@ This group contains 85 output variables.
 
    :Unit: mm
    :Aggregation: Sum (cumulative over period)
-   :Output Level: Extended (level 1 - optional extended output)
 
 .. index::
    single: ROSoil (output variable)
@@ -585,7 +520,6 @@ This group contains 85 output variables.
 
    :Unit: mm
    :Aggregation: Sum (cumulative over period)
-   :Output Level: Extended (level 1 - optional extended output)
 
 .. index::
    single: ROVeg (output variable)
@@ -597,7 +531,6 @@ This group contains 85 output variables.
 
    :Unit: mm
    :Aggregation: Sum (cumulative over period)
-   :Output Level: Extended (level 1 - optional extended output)
 
 .. index::
    single: ROWater (output variable)
@@ -609,7 +542,6 @@ This group contains 85 output variables.
 
    :Unit: mm
    :Aggregation: Sum (cumulative over period)
-   :Output Level: Extended (level 1 - optional extended output)
 
 .. index::
    single: RS (output variable)
@@ -621,7 +553,6 @@ This group contains 85 output variables.
 
    :Unit: s |m^-1|
    :Aggregation: Average (mean over period)
-   :Output Level: Extended (level 1 - optional extended output)
 
 .. index::
    single: Rain (output variable)
@@ -633,7 +564,6 @@ This group contains 85 output variables.
 
    :Unit: mm
    :Aggregation: Sum (cumulative over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: SMD (output variable)
@@ -645,8 +575,6 @@ This group contains 85 output variables.
 
    :Unit: mm
    :Aggregation: Last (final value in period)
-   :Output Level: Default (level 0 - always included)
-   :Format: ``f94``
 
 .. index::
    single: SMDBSoil (output variable)
@@ -658,8 +586,6 @@ This group contains 85 output variables.
 
    :Unit: mm
    :Aggregation: Last (final value in period)
-   :Output Level: Extended (level 1 - optional extended output)
-   :Format: ``f94``
 
 .. index::
    single: SMDBldgs (output variable)
@@ -671,8 +597,6 @@ This group contains 85 output variables.
 
    :Unit: mm
    :Aggregation: Last (final value in period)
-   :Output Level: Extended (level 1 - optional extended output)
-   :Format: ``f94``
 
 .. index::
    single: SMDDecTr (output variable)
@@ -684,8 +608,6 @@ This group contains 85 output variables.
 
    :Unit: mm
    :Aggregation: Last (final value in period)
-   :Output Level: Extended (level 1 - optional extended output)
-   :Format: ``f94``
 
 .. index::
    single: SMDEveTr (output variable)
@@ -697,8 +619,6 @@ This group contains 85 output variables.
 
    :Unit: mm
    :Aggregation: Last (final value in period)
-   :Output Level: Extended (level 1 - optional extended output)
-   :Format: ``f94``
 
 .. index::
    single: SMDGrass (output variable)
@@ -710,8 +630,6 @@ This group contains 85 output variables.
 
    :Unit: mm
    :Aggregation: Last (final value in period)
-   :Output Level: Extended (level 1 - optional extended output)
-   :Format: ``f94``
 
 .. index::
    single: SMDPaved (output variable)
@@ -723,8 +641,6 @@ This group contains 85 output variables.
 
    :Unit: mm
    :Aggregation: Last (final value in period)
-   :Output Level: Extended (level 1 - optional extended output)
-   :Format: ``f94``
 
 .. index::
    single: SWE (output variable)
@@ -736,7 +652,6 @@ This group contains 85 output variables.
 
    :Unit: mm
    :Aggregation: Average (mean over period)
-   :Output Level: Snow Detailed (level 2 - snow-specific detailed output)
 
 .. index::
    single: SnowCh (output variable)
@@ -748,7 +663,6 @@ This group contains 85 output variables.
 
    :Unit: mm
    :Aggregation: Sum (cumulative over period)
-   :Output Level: Snow Detailed (level 2 - snow-specific detailed output)
 
 .. index::
    single: SnowRBldgs (output variable)
@@ -760,8 +674,6 @@ This group contains 85 output variables.
 
    :Unit: mm
    :Aggregation: Sum (cumulative over period)
-   :Output Level: Snow Detailed (level 2 - snow-specific detailed output)
-   :Format: ``f94``
 
 .. index::
    single: SnowRPaved (output variable)
@@ -773,8 +685,6 @@ This group contains 85 output variables.
 
    :Unit: mm
    :Aggregation: Sum (cumulative over period)
-   :Output Level: Snow Detailed (level 2 - snow-specific detailed output)
-   :Format: ``f94``
 
 .. index::
    single: StBSoil (output variable)
@@ -786,8 +696,6 @@ This group contains 85 output variables.
 
    :Unit: mm
    :Aggregation: Last (final value in period)
-   :Output Level: Extended (level 1 - optional extended output)
-   :Format: ``f94``
 
 .. index::
    single: StBldgs (output variable)
@@ -799,8 +707,6 @@ This group contains 85 output variables.
 
    :Unit: mm
    :Aggregation: Last (final value in period)
-   :Output Level: Extended (level 1 - optional extended output)
-   :Format: ``f94``
 
 .. index::
    single: StDecTr (output variable)
@@ -812,8 +718,6 @@ This group contains 85 output variables.
 
    :Unit: mm
    :Aggregation: Last (final value in period)
-   :Output Level: Extended (level 1 - optional extended output)
-   :Format: ``f94``
 
 .. index::
    single: StEveTr (output variable)
@@ -825,8 +729,6 @@ This group contains 85 output variables.
 
    :Unit: mm
    :Aggregation: Last (final value in period)
-   :Output Level: Extended (level 1 - optional extended output)
-   :Format: ``f94``
 
 .. index::
    single: StGrass (output variable)
@@ -838,8 +740,6 @@ This group contains 85 output variables.
 
    :Unit: mm
    :Aggregation: Last (final value in period)
-   :Output Level: Extended (level 1 - optional extended output)
-   :Format: ``f94``
 
 .. index::
    single: StPaved (output variable)
@@ -851,8 +751,6 @@ This group contains 85 output variables.
 
    :Unit: mm
    :Aggregation: Last (final value in period)
-   :Output Level: Extended (level 1 - optional extended output)
-   :Format: ``f94``
 
 .. index::
    single: StWater (output variable)
@@ -864,7 +762,6 @@ This group contains 85 output variables.
 
    :Unit: mm
    :Aggregation: Last (final value in period)
-   :Output Level: Extended (level 1 - optional extended output)
 
 .. index::
    single: State (output variable)
@@ -876,7 +773,6 @@ This group contains 85 output variables.
 
    :Unit: mm
    :Aggregation: Last (final value in period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: SurfCh (output variable)
@@ -888,8 +784,6 @@ This group contains 85 output variables.
 
    :Unit: mm
    :Aggregation: Sum (cumulative over period)
-   :Output Level: Default (level 0 - always included)
-   :Format: ``f146``
 
 .. index::
    single: T2 (output variable)
@@ -901,8 +795,6 @@ This group contains 85 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
-   :Format: ``f94``
 
 .. index::
    single: TStar (output variable)
@@ -914,8 +806,6 @@ This group contains 85 output variables.
 
    :Unit: m |s^-1|
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
-   :Format: ``f94``
 
 .. index::
    single: TotCh (output variable)
@@ -927,8 +817,6 @@ This group contains 85 output variables.
 
    :Unit: mm
    :Aggregation: Sum (cumulative over period)
-   :Output Level: Default (level 0 - always included)
-   :Format: ``f146``
 
 .. index::
    single: Ts (output variable)
@@ -940,8 +828,6 @@ This group contains 85 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
-   :Format: ``f94``
 
 .. index::
    single: Tsurf (output variable)
@@ -953,7 +839,6 @@ This group contains 85 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: U10 (output variable)
@@ -965,8 +850,6 @@ This group contains 85 output variables.
 
    :Unit: m |s^-1|
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
-   :Format: ``f94``
 
 .. index::
    single: UStar (output variable)
@@ -978,8 +861,6 @@ This group contains 85 output variables.
 
    :Unit: m |s^-1|
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
-   :Format: ``f94``
 
 .. index::
    single: WUDecTr (output variable)
@@ -991,8 +872,6 @@ This group contains 85 output variables.
 
    :Unit: mm
    :Aggregation: Sum (cumulative over period)
-   :Output Level: Extended (level 1 - optional extended output)
-   :Format: ``f94``
 
 .. index::
    single: WUEveTr (output variable)
@@ -1004,8 +883,6 @@ This group contains 85 output variables.
 
    :Unit: mm
    :Aggregation: Sum (cumulative over period)
-   :Output Level: Extended (level 1 - optional extended output)
-   :Format: ``f94``
 
 .. index::
    single: WUGrass (output variable)
@@ -1017,8 +894,6 @@ This group contains 85 output variables.
 
    :Unit: mm
    :Aggregation: Sum (cumulative over period)
-   :Output Level: Extended (level 1 - optional extended output)
-   :Format: ``f94``
 
 .. index::
    single: WUInt (output variable)
@@ -1030,8 +905,6 @@ This group contains 85 output variables.
 
    :Unit: mm
    :Aggregation: Sum (cumulative over period)
-   :Output Level: Extended (level 1 - optional extended output)
-   :Format: ``f94``
 
 .. index::
    single: Zenith (output variable)
@@ -1043,7 +916,6 @@ This group contains 85 output variables.
 
    :Unit: degree
    :Aggregation: Last (final value in period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: z0m (output variable)
@@ -1055,8 +927,6 @@ This group contains 85 output variables.
 
    :Unit: m
    :Aggregation: Average (mean over period)
-   :Output Level: Extended (level 1 - optional extended output)
-   :Format: ``f94``
 
 .. index::
    single: zL (output variable)
@@ -1068,8 +938,6 @@ This group contains 85 output variables.
 
    :Unit: -
    :Aggregation: Average (mean over period)
-   :Output Level: Extended (level 1 - optional extended output)
-   :Format: ``f94``
 
 .. index::
    single: zdm (output variable)
@@ -1081,5 +949,3 @@ This group contains 85 output variables.
 
    :Unit: m
    :Aggregation: Average (mean over period)
-   :Output Level: Extended (level 1 - optional extended output)
-   :Format: ``f94``

@@ -25,4 +25,3 @@ This group contains 1 output variables.
 
    :Unit: -
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)

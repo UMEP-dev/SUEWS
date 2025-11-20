@@ -25,7 +25,6 @@ This group contains 47 output variables.
 
    :Unit: dimensionless
    :Aggregation: Last (final value in period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: AlbEveTr (output variable)
@@ -37,7 +36,6 @@ This group contains 47 output variables.
 
    :Unit: dimensionless
    :Aggregation: Last (final value in period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: AlbGrass (output variable)
@@ -49,7 +47,6 @@ This group contains 47 output variables.
 
    :Unit: dimensionless
    :Aggregation: Last (final value in period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: AlbSnow (output variable)
@@ -61,7 +58,6 @@ This group contains 47 output variables.
 
    :Unit: dimensionless
    :Aggregation: Last (final value in period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: DLHrs (output variable)
@@ -73,7 +69,6 @@ This group contains 47 output variables.
 
    :Unit: hours
    :Aggregation: Last (final value in period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: DaysSR (output variable)
@@ -85,7 +80,6 @@ This group contains 47 output variables.
 
    :Unit: days
    :Aggregation: Last (final value in period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: DecidCap (output variable)
@@ -97,7 +91,6 @@ This group contains 47 output variables.
 
    :Unit: dimensionless
    :Aggregation: Last (final value in period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: DensSnow_BSoil (output variable)
@@ -109,8 +102,6 @@ This group contains 47 output variables.
 
    :Unit: kg |m^-3|
    :Aggregation: Last (final value in period)
-   :Output Level: Default (level 0 - always included)
-   :Format: ``f146``
 
 .. index::
    single: DensSnow_Bldgs (output variable)
@@ -122,8 +113,6 @@ This group contains 47 output variables.
 
    :Unit: kg |m^-3|
    :Aggregation: Last (final value in period)
-   :Output Level: Default (level 0 - always included)
-   :Format: ``f146``
 
 .. index::
    single: DensSnow_DecTr (output variable)
@@ -135,8 +124,6 @@ This group contains 47 output variables.
 
    :Unit: kg |m^-3|
    :Aggregation: Last (final value in period)
-   :Output Level: Default (level 0 - always included)
-   :Format: ``f146``
 
 .. index::
    single: DensSnow_EveTr (output variable)
@@ -148,8 +135,6 @@ This group contains 47 output variables.
 
    :Unit: kg |m^-3|
    :Aggregation: Last (final value in period)
-   :Output Level: Default (level 0 - always included)
-   :Format: ``f146``
 
 .. index::
    single: DensSnow_Grass (output variable)
@@ -161,8 +146,6 @@ This group contains 47 output variables.
 
    :Unit: kg |m^-3|
    :Aggregation: Last (final value in period)
-   :Output Level: Default (level 0 - always included)
-   :Format: ``f146``
 
 .. index::
    single: DensSnow_Paved (output variable)
@@ -174,8 +157,6 @@ This group contains 47 output variables.
 
    :Unit: kg |m^-3|
    :Aggregation: Last (final value in period)
-   :Output Level: Default (level 0 - always included)
-   :Format: ``f146``
 
 .. index::
    single: DensSnow_Water (output variable)
@@ -187,8 +168,6 @@ This group contains 47 output variables.
 
    :Unit: kg |m^-3|
    :Aggregation: Last (final value in period)
-   :Output Level: Default (level 0 - always included)
-   :Format: ``f146``
 
 .. index::
    single: GDD_DecTr (output variable)
@@ -200,7 +179,6 @@ This group contains 47 output variables.
 
    :Unit: degC
    :Aggregation: Last (final value in period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: GDD_EveTr (output variable)
@@ -212,7 +190,6 @@ This group contains 47 output variables.
 
    :Unit: degC
    :Aggregation: Last (final value in period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: GDD_Grass (output variable)
@@ -224,7 +201,6 @@ This group contains 47 output variables.
 
    :Unit: degC
    :Aggregation: Last (final value in period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: HDD1_h (output variable)
@@ -236,7 +212,6 @@ This group contains 47 output variables.
 
    :Unit: degC
    :Aggregation: Last (final value in period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: HDD2_c (output variable)
@@ -248,7 +223,6 @@ This group contains 47 output variables.
 
    :Unit: degC
    :Aggregation: Last (final value in period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: HDD3_Tmean (output variable)
@@ -260,7 +234,6 @@ This group contains 47 output variables.
 
    :Unit: degC
    :Aggregation: Last (final value in period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: HDD4_T5d (output variable)
@@ -272,7 +245,6 @@ This group contains 47 output variables.
 
    :Unit: degC
    :Aggregation: Last (final value in period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: LAI_DecTr (output variable)
@@ -284,7 +256,6 @@ This group contains 47 output variables.
 
    :Unit: |m^2| |m^-2|
    :Aggregation: Last (final value in period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: LAI_EveTr (output variable)
@@ -296,7 +267,6 @@ This group contains 47 output variables.
 
    :Unit: |m^2| |m^-2|
    :Aggregation: Last (final value in period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: LAI_Grass (output variable)
@@ -308,7 +278,6 @@ This group contains 47 output variables.
 
    :Unit: |m^2| |m^-2|
    :Aggregation: Last (final value in period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: LAIlumps (output variable)
@@ -320,7 +289,6 @@ This group contains 47 output variables.
 
    :Unit: |m^2| |m^-2|
    :Aggregation: Last (final value in period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: P_day (output variable)
@@ -332,7 +300,6 @@ This group contains 47 output variables.
 
    :Unit: mm
    :Aggregation: Last (final value in period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: Porosity (output variable)
@@ -344,7 +311,6 @@ This group contains 47 output variables.
 
    :Unit: dimensionless
    :Aggregation: Last (final value in period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: SDD_DecTr (output variable)
@@ -356,7 +322,6 @@ This group contains 47 output variables.
 
    :Unit: degC
    :Aggregation: Last (final value in period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: SDD_EveTr (output variable)
@@ -368,7 +333,6 @@ This group contains 47 output variables.
 
    :Unit: degC
    :Aggregation: Last (final value in period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: SDD_Grass (output variable)
@@ -380,7 +344,6 @@ This group contains 47 output variables.
 
    :Unit: degC
    :Aggregation: Last (final value in period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: Tmax (output variable)
@@ -392,7 +355,6 @@ This group contains 47 output variables.
 
    :Unit: degC
    :Aggregation: Last (final value in period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: Tmin (output variable)
@@ -404,7 +366,6 @@ This group contains 47 output variables.
 
    :Unit: degC
    :Aggregation: Last (final value in period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: WU_DecTr1 (output variable)
@@ -416,7 +377,6 @@ This group contains 47 output variables.
 
    :Unit: dimensionless
    :Aggregation: Last (final value in period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: WU_DecTr2 (output variable)
@@ -428,7 +388,6 @@ This group contains 47 output variables.
 
    :Unit: dimensionless
    :Aggregation: Last (final value in period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: WU_DecTr3 (output variable)
@@ -440,7 +399,6 @@ This group contains 47 output variables.
 
    :Unit: dimensionless
    :Aggregation: Last (final value in period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: WU_EveTr1 (output variable)
@@ -452,7 +410,6 @@ This group contains 47 output variables.
 
    :Unit: dimensionless
    :Aggregation: Last (final value in period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: WU_EveTr2 (output variable)
@@ -464,7 +421,6 @@ This group contains 47 output variables.
 
    :Unit: dimensionless
    :Aggregation: Last (final value in period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: WU_EveTr3 (output variable)
@@ -476,7 +432,6 @@ This group contains 47 output variables.
 
    :Unit: dimensionless
    :Aggregation: Last (final value in period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: WU_Grass1 (output variable)
@@ -488,7 +443,6 @@ This group contains 47 output variables.
 
    :Unit: dimensionless
    :Aggregation: Last (final value in period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: WU_Grass2 (output variable)
@@ -500,7 +454,6 @@ This group contains 47 output variables.
 
    :Unit: dimensionless
    :Aggregation: Last (final value in period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: WU_Grass3 (output variable)
@@ -512,7 +465,6 @@ This group contains 47 output variables.
 
    :Unit: dimensionless
    :Aggregation: Last (final value in period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: a1 (output variable)
@@ -524,7 +476,6 @@ This group contains 47 output variables.
 
    :Unit: dimensionless
    :Aggregation: Last (final value in period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: a1_bldg (output variable)
@@ -536,7 +487,6 @@ This group contains 47 output variables.
 
    :Unit: dimensionless
    :Aggregation: Last (final value in period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: a2 (output variable)
@@ -548,7 +498,6 @@ This group contains 47 output variables.
 
    :Unit: W |m^-2|
    :Aggregation: Last (final value in period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: a2_bldg (output variable)
@@ -560,7 +509,6 @@ This group contains 47 output variables.
 
    :Unit: W |m^-2|
    :Aggregation: Last (final value in period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: a3 (output variable)
@@ -572,7 +520,6 @@ This group contains 47 output variables.
 
    :Unit: W |m^-2| |K^-1|
    :Aggregation: Last (final value in period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: a3_bldg (output variable)
@@ -584,4 +531,3 @@ This group contains 47 output variables.
 
    :Unit: W |m^-2| |K^-1|
    :Aggregation: Last (final value in period)
-   :Output Level: Default (level 0 - always included)

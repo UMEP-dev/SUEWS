@@ -25,7 +25,6 @@ This group contains 57 output variables.
 
    :Unit: |m^2|
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: Kroof_sout (output variable)
@@ -37,7 +36,6 @@ This group contains 57 output variables.
 
    :Unit: W |m^-2|
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: Kwall_sout (output variable)
@@ -49,7 +47,6 @@ This group contains 57 output variables.
 
    :Unit: W |m^-2|
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: Lroof_sout (output variable)
@@ -61,7 +58,6 @@ This group contains 57 output variables.
 
    :Unit: W |m^-2|
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: Lwall_sout (output variable)
@@ -73,7 +69,6 @@ This group contains 57 output variables.
 
    :Unit: W |m^-2|
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: QS_air (output variable)
@@ -85,7 +80,6 @@ This group contains 57 output variables.
 
    :Unit: W
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: QS_fabric (output variable)
@@ -97,7 +91,6 @@ This group contains 57 output variables.
 
    :Unit: W
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: QS_total (output variable)
@@ -109,7 +102,6 @@ This group contains 57 output variables.
 
    :Unit: W
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: Q_appliance (output variable)
@@ -121,7 +113,6 @@ This group contains 57 output variables.
 
    :Unit: W
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: Q_ventilation (output variable)
@@ -133,7 +124,6 @@ This group contains 57 output variables.
 
    :Unit: W
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: Qcond_grndflr (output variable)
@@ -145,7 +135,6 @@ This group contains 57 output variables.
 
    :Unit: W
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: Qcond_ground (output variable)
@@ -157,7 +146,6 @@ This group contains 57 output variables.
 
    :Unit: W
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: Qcond_wall (output variable)
@@ -169,7 +157,6 @@ This group contains 57 output variables.
 
    :Unit: W
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: Qcond_window (output variable)
@@ -181,7 +168,6 @@ This group contains 57 output variables.
 
    :Unit: W
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: Qconv_extwall (output variable)
@@ -193,7 +179,6 @@ This group contains 57 output variables.
 
    :Unit: W
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: Qconv_extwin (output variable)
@@ -205,7 +190,6 @@ This group contains 57 output variables.
 
    :Unit: W
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: Qconv_indair (output variable)
@@ -217,7 +201,6 @@ This group contains 57 output variables.
 
    :Unit: W
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: Qconv_indgrnd (output variable)
@@ -229,7 +212,6 @@ This group contains 57 output variables.
 
    :Unit: W
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: Qconv_indwall (output variable)
@@ -241,7 +223,6 @@ This group contains 57 output variables.
 
    :Unit: W
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: Qconv_indwin (output variable)
@@ -253,7 +234,6 @@ This group contains 57 output variables.
 
    :Unit: W
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: Qloss_drain (output variable)
@@ -265,7 +245,6 @@ This group contains 57 output variables.
 
    :Unit: W
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: Qloss_eff_heat (output variable)
@@ -277,7 +256,6 @@ This group contains 57 output variables.
 
    :Unit: W
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: Qlw_net_extwall (output variable)
@@ -289,7 +267,6 @@ This group contains 57 output variables.
 
    :Unit: W
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: Qlw_net_extwin (output variable)
@@ -301,7 +278,6 @@ This group contains 57 output variables.
 
    :Unit: W
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: Qlw_net_intgrnd (output variable)
@@ -313,7 +289,6 @@ This group contains 57 output variables.
 
    :Unit: W
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: Qlw_net_intwall (output variable)
@@ -325,7 +300,6 @@ This group contains 57 output variables.
 
    :Unit: W
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: Qlw_net_intwin (output variable)
@@ -337,7 +311,6 @@ This group contains 57 output variables.
 
    :Unit: W
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: Qsw_abs_wall (output variable)
@@ -349,7 +322,6 @@ This group contains 57 output variables.
 
    :Unit: W
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: Qsw_abs_win (output variable)
@@ -361,7 +333,6 @@ This group contains 57 output variables.
 
    :Unit: W
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: Qsw_trans_win (output variable)
@@ -373,7 +344,6 @@ This group contains 57 output variables.
 
    :Unit: W
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: Qtotal_cool (output variable)
@@ -385,7 +355,6 @@ This group contains 57 output variables.
 
    :Unit: W
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: Qtotal_heat (output variable)
@@ -397,7 +366,6 @@ This group contains 57 output variables.
 
    :Unit: W
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: Qtotal_water (output variable)
@@ -409,7 +377,6 @@ This group contains 57 output variables.
 
    :Unit: W
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: Tair_ind (output variable)
@@ -421,7 +388,6 @@ This group contains 57 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: Tair_sout (output variable)
@@ -433,7 +399,6 @@ This group contains 57 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: Textgrndflr (output variable)
@@ -445,7 +410,6 @@ This group contains 57 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: Textwall_tank (output variable)
@@ -457,7 +421,6 @@ This group contains 57 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: Textwall_vessel (output variable)
@@ -469,7 +432,6 @@ This group contains 57 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: Textwallroof (output variable)
@@ -481,7 +443,6 @@ This group contains 57 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: Textwindow (output variable)
@@ -493,7 +454,6 @@ This group contains 57 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: Tindoormass (output variable)
@@ -505,7 +465,6 @@ This group contains 57 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: Tintgrndflr (output variable)
@@ -517,7 +476,6 @@ This group contains 57 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: Tintwall_tank (output variable)
@@ -529,7 +487,6 @@ This group contains 57 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: Tintwall_vessel (output variable)
@@ -541,7 +498,6 @@ This group contains 57 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: Tintwallroof (output variable)
@@ -553,7 +509,6 @@ This group contains 57 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: Tintwindow (output variable)
@@ -565,7 +520,6 @@ This group contains 57 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: Tsurf_sout (output variable)
@@ -577,7 +531,6 @@ This group contains 57 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: Twater_tank (output variable)
@@ -589,7 +542,6 @@ This group contains 57 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: Twater_vessel (output variable)
@@ -601,7 +553,6 @@ This group contains 57 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: Vwall_tank (output variable)
@@ -613,7 +564,6 @@ This group contains 57 output variables.
 
    :Unit: |m^3|
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: Vwall_vessel (output variable)
@@ -625,7 +575,6 @@ This group contains 57 output variables.
 
    :Unit: |m^3|
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: Vwater_tank (output variable)
@@ -637,7 +586,6 @@ This group contains 57 output variables.
 
    :Unit: |m^3|
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: Vwater_vessel (output variable)
@@ -649,7 +597,6 @@ This group contains 57 output variables.
 
    :Unit: |m^3|
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: q_cooling (output variable)
@@ -661,7 +608,6 @@ This group contains 57 output variables.
 
    :Unit: W
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: qlatent (output variable)
@@ -673,7 +619,6 @@ This group contains 57 output variables.
 
    :Unit: W
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: qsensible (output variable)
@@ -685,7 +630,6 @@ This group contains 57 output variables.
 
    :Unit: W
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: ws (output variable)
@@ -697,4 +641,3 @@ This group contains 57 output variables.
 
    :Unit: m |s^-1|
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)

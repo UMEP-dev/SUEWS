@@ -25,8 +25,6 @@ This group contains 98 output variables.
 
    :Unit: kg |m^-3|
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
-   :Format: ``f146``
 
 .. index::
    single: DensSnow_Bldgs (output variable)
@@ -38,8 +36,6 @@ This group contains 98 output variables.
 
    :Unit: kg |m^-3|
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
-   :Format: ``f146``
 
 .. index::
    single: DensSnow_DecTr (output variable)
@@ -51,8 +47,6 @@ This group contains 98 output variables.
 
    :Unit: kg |m^-3|
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
-   :Format: ``f146``
 
 .. index::
    single: DensSnow_EveTr (output variable)
@@ -64,8 +58,6 @@ This group contains 98 output variables.
 
    :Unit: kg |m^-3|
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
-   :Format: ``f146``
 
 .. index::
    single: DensSnow_Grass (output variable)
@@ -77,8 +69,6 @@ This group contains 98 output variables.
 
    :Unit: kg |m^-3|
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
-   :Format: ``f146``
 
 .. index::
    single: DensSnow_Paved (output variable)
@@ -90,8 +80,6 @@ This group contains 98 output variables.
 
    :Unit: kg |m^-3|
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
-   :Format: ``f146``
 
 .. index::
    single: DensSnow_Water (output variable)
@@ -103,8 +91,6 @@ This group contains 98 output variables.
 
    :Unit: kg |m^-3|
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
-   :Format: ``f146``
 
 .. index::
    single: MwStore_BSoil (output variable)
@@ -116,8 +102,6 @@ This group contains 98 output variables.
 
    :Unit: mm
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
-   :Format: ``f146``
 
 .. index::
    single: MwStore_Bldgs (output variable)
@@ -129,8 +113,6 @@ This group contains 98 output variables.
 
    :Unit: mm
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
-   :Format: ``f146``
 
 .. index::
    single: MwStore_DecTr (output variable)
@@ -142,8 +124,6 @@ This group contains 98 output variables.
 
    :Unit: mm
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
-   :Format: ``f146``
 
 .. index::
    single: MwStore_EveTr (output variable)
@@ -155,8 +135,6 @@ This group contains 98 output variables.
 
    :Unit: mm
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
-   :Format: ``f146``
 
 .. index::
    single: MwStore_Grass (output variable)
@@ -168,8 +146,6 @@ This group contains 98 output variables.
 
    :Unit: mm
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
-   :Format: ``f146``
 
 .. index::
    single: MwStore_Paved (output variable)
@@ -181,8 +157,6 @@ This group contains 98 output variables.
 
    :Unit: mm
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
-   :Format: ``f146``
 
 .. index::
    single: MwStore_Water (output variable)
@@ -194,8 +168,6 @@ This group contains 98 output variables.
 
    :Unit: mm
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
-   :Format: ``f146``
 
 .. index::
    single: Mw_BSoil (output variable)
@@ -207,8 +179,6 @@ This group contains 98 output variables.
 
    :Unit: mm
    :Aggregation: Sum (cumulative over period)
-   :Output Level: Default (level 0 - always included)
-   :Format: ``f106``
 
 .. index::
    single: Mw_Bldgs (output variable)
@@ -220,8 +190,6 @@ This group contains 98 output variables.
 
    :Unit: mm
    :Aggregation: Sum (cumulative over period)
-   :Output Level: Default (level 0 - always included)
-   :Format: ``f106``
 
 .. index::
    single: Mw_DecTr (output variable)
@@ -233,8 +201,6 @@ This group contains 98 output variables.
 
    :Unit: mm
    :Aggregation: Sum (cumulative over period)
-   :Output Level: Default (level 0 - always included)
-   :Format: ``f106``
 
 .. index::
    single: Mw_EveTr (output variable)
@@ -246,8 +212,6 @@ This group contains 98 output variables.
 
    :Unit: mm
    :Aggregation: Sum (cumulative over period)
-   :Output Level: Default (level 0 - always included)
-   :Format: ``f106``
 
 .. index::
    single: Mw_Grass (output variable)
@@ -259,8 +223,6 @@ This group contains 98 output variables.
 
    :Unit: mm
    :Aggregation: Sum (cumulative over period)
-   :Output Level: Default (level 0 - always included)
-   :Format: ``f106``
 
 .. index::
    single: Mw_Paved (output variable)
@@ -272,8 +234,6 @@ This group contains 98 output variables.
 
    :Unit: mm
    :Aggregation: Sum (cumulative over period)
-   :Output Level: Default (level 0 - always included)
-   :Format: ``f106``
 
 .. index::
    single: Mw_Water (output variable)
@@ -285,8 +245,6 @@ This group contains 98 output variables.
 
    :Unit: mm
    :Aggregation: Sum (cumulative over period)
-   :Output Level: Default (level 0 - always included)
-   :Format: ``f106``
 
 .. index::
    single: Qa_BSoil (output variable)
@@ -298,8 +256,6 @@ This group contains 98 output variables.
 
    :Unit: W |m^-2|
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
-   :Format: ``f106``
 
 .. index::
    single: Qa_Bldgs (output variable)
@@ -311,8 +267,6 @@ This group contains 98 output variables.
 
    :Unit: W |m^-2|
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
-   :Format: ``f106``
 
 .. index::
    single: Qa_DecTr (output variable)
@@ -324,8 +278,6 @@ This group contains 98 output variables.
 
    :Unit: W |m^-2|
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
-   :Format: ``f106``
 
 .. index::
    single: Qa_EveTr (output variable)
@@ -337,8 +289,6 @@ This group contains 98 output variables.
 
    :Unit: W |m^-2|
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
-   :Format: ``f106``
 
 .. index::
    single: Qa_Grass (output variable)
@@ -350,8 +300,6 @@ This group contains 98 output variables.
 
    :Unit: W |m^-2|
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
-   :Format: ``f106``
 
 .. index::
    single: Qa_Paved (output variable)
@@ -363,8 +311,6 @@ This group contains 98 output variables.
 
    :Unit: W |m^-2|
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
-   :Format: ``f106``
 
 .. index::
    single: Qa_Water (output variable)
@@ -376,8 +322,6 @@ This group contains 98 output variables.
 
    :Unit: W |m^-2|
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
-   :Format: ``f106``
 
 .. index::
    single: QmFr_BSoil (output variable)
@@ -389,8 +333,6 @@ This group contains 98 output variables.
 
    :Unit: W |m^-2|
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
-   :Format: ``f146``
 
 .. index::
    single: QmFr_Bldgs (output variable)
@@ -402,8 +344,6 @@ This group contains 98 output variables.
 
    :Unit: W |m^-2|
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
-   :Format: ``f146``
 
 .. index::
    single: QmFr_DecTr (output variable)
@@ -415,8 +355,6 @@ This group contains 98 output variables.
 
    :Unit: W |m^-2|
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
-   :Format: ``f146``
 
 .. index::
    single: QmFr_EveTr (output variable)
@@ -428,8 +366,6 @@ This group contains 98 output variables.
 
    :Unit: W |m^-2|
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
-   :Format: ``f146``
 
 .. index::
    single: QmFr_Grass (output variable)
@@ -441,8 +377,6 @@ This group contains 98 output variables.
 
    :Unit: W |m^-2|
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
-   :Format: ``f146``
 
 .. index::
    single: QmFr_Paved (output variable)
@@ -454,8 +388,6 @@ This group contains 98 output variables.
 
    :Unit: W |m^-2|
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
-   :Format: ``f146``
 
 .. index::
    single: QmFr_Water (output variable)
@@ -467,8 +399,6 @@ This group contains 98 output variables.
 
    :Unit: W |m^-2|
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
-   :Format: ``f146``
 
 .. index::
    single: Qm_BSoil (output variable)
@@ -480,8 +410,6 @@ This group contains 98 output variables.
 
    :Unit: W |m^-2|
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
-   :Format: ``f106``
 
 .. index::
    single: Qm_Bldgs (output variable)
@@ -493,8 +421,6 @@ This group contains 98 output variables.
 
    :Unit: W |m^-2|
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
-   :Format: ``f106``
 
 .. index::
    single: Qm_DecTr (output variable)
@@ -506,8 +432,6 @@ This group contains 98 output variables.
 
    :Unit: W |m^-2|
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
-   :Format: ``f106``
 
 .. index::
    single: Qm_EveTr (output variable)
@@ -519,8 +443,6 @@ This group contains 98 output variables.
 
    :Unit: W |m^-2|
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
-   :Format: ``f106``
 
 .. index::
    single: Qm_Grass (output variable)
@@ -532,8 +454,6 @@ This group contains 98 output variables.
 
    :Unit: W |m^-2|
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
-   :Format: ``f106``
 
 .. index::
    single: Qm_Paved (output variable)
@@ -545,8 +465,6 @@ This group contains 98 output variables.
 
    :Unit: W |m^-2|
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
-   :Format: ``f106``
 
 .. index::
    single: Qm_Water (output variable)
@@ -558,8 +476,6 @@ This group contains 98 output variables.
 
    :Unit: W |m^-2|
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
-   :Format: ``f106``
 
 .. index::
    single: Qn_BSoilSnow (output variable)
@@ -571,8 +487,6 @@ This group contains 98 output variables.
 
    :Unit: W |m^-2|
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
-   :Format: ``f146``
 
 .. index::
    single: Qn_BldgsSnow (output variable)
@@ -584,8 +498,6 @@ This group contains 98 output variables.
 
    :Unit: W |m^-2|
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
-   :Format: ``f146``
 
 .. index::
    single: Qn_DecTrSnow (output variable)
@@ -597,8 +509,6 @@ This group contains 98 output variables.
 
    :Unit: W |m^-2|
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
-   :Format: ``f146``
 
 .. index::
    single: Qn_EveTrSnow (output variable)
@@ -610,8 +520,6 @@ This group contains 98 output variables.
 
    :Unit: W |m^-2|
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
-   :Format: ``f146``
 
 .. index::
    single: Qn_GrassSnow (output variable)
@@ -623,8 +531,6 @@ This group contains 98 output variables.
 
    :Unit: W |m^-2|
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
-   :Format: ``f146``
 
 .. index::
    single: Qn_PavedSnow (output variable)
@@ -636,8 +542,6 @@ This group contains 98 output variables.
 
    :Unit: W |m^-2|
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
-   :Format: ``f146``
 
 .. index::
    single: Qn_WaterSnow (output variable)
@@ -649,8 +553,6 @@ This group contains 98 output variables.
 
    :Unit: W |m^-2|
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
-   :Format: ``f146``
 
 .. index::
    single: RainSn_BSoil (output variable)
@@ -662,8 +564,6 @@ This group contains 98 output variables.
 
    :Unit: mm
    :Aggregation: Sum (cumulative over period)
-   :Output Level: Default (level 0 - always included)
-   :Format: ``f146``
 
 .. index::
    single: RainSn_Bldgs (output variable)
@@ -675,8 +575,6 @@ This group contains 98 output variables.
 
    :Unit: mm
    :Aggregation: Sum (cumulative over period)
-   :Output Level: Default (level 0 - always included)
-   :Format: ``f146``
 
 .. index::
    single: RainSn_DecTr (output variable)
@@ -688,8 +586,6 @@ This group contains 98 output variables.
 
    :Unit: mm
    :Aggregation: Sum (cumulative over period)
-   :Output Level: Default (level 0 - always included)
-   :Format: ``f146``
 
 .. index::
    single: RainSn_EveTr (output variable)
@@ -701,8 +597,6 @@ This group contains 98 output variables.
 
    :Unit: mm
    :Aggregation: Sum (cumulative over period)
-   :Output Level: Default (level 0 - always included)
-   :Format: ``f146``
 
 .. index::
    single: RainSn_Grass (output variable)
@@ -714,8 +608,6 @@ This group contains 98 output variables.
 
    :Unit: mm
    :Aggregation: Sum (cumulative over period)
-   :Output Level: Default (level 0 - always included)
-   :Format: ``f146``
 
 .. index::
    single: RainSn_Paved (output variable)
@@ -727,8 +619,6 @@ This group contains 98 output variables.
 
    :Unit: mm
    :Aggregation: Sum (cumulative over period)
-   :Output Level: Default (level 0 - always included)
-   :Format: ``f146``
 
 .. index::
    single: RainSn_Water (output variable)
@@ -740,8 +630,6 @@ This group contains 98 output variables.
 
    :Unit: mm
    :Aggregation: Sum (cumulative over period)
-   :Output Level: Default (level 0 - always included)
-   :Format: ``f146``
 
 .. index::
    single: SWE_BSoil (output variable)
@@ -753,8 +641,6 @@ This group contains 98 output variables.
 
    :Unit: mm
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
-   :Format: ``f106``
 
 .. index::
    single: SWE_Bldgs (output variable)
@@ -766,8 +652,6 @@ This group contains 98 output variables.
 
    :Unit: mm
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
-   :Format: ``f106``
 
 .. index::
    single: SWE_DecTr (output variable)
@@ -779,8 +663,6 @@ This group contains 98 output variables.
 
    :Unit: mm
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
-   :Format: ``f106``
 
 .. index::
    single: SWE_EveTr (output variable)
@@ -792,8 +674,6 @@ This group contains 98 output variables.
 
    :Unit: mm
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
-   :Format: ``f106``
 
 .. index::
    single: SWE_Grass (output variable)
@@ -805,8 +685,6 @@ This group contains 98 output variables.
 
    :Unit: mm
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
-   :Format: ``f106``
 
 .. index::
    single: SWE_Paved (output variable)
@@ -818,8 +696,6 @@ This group contains 98 output variables.
 
    :Unit: mm
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
-   :Format: ``f106``
 
 .. index::
    single: SWE_Water (output variable)
@@ -831,8 +707,6 @@ This group contains 98 output variables.
 
    :Unit: mm
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
-   :Format: ``f106``
 
 .. index::
    single: Sd_BSoil (output variable)
@@ -844,8 +718,6 @@ This group contains 98 output variables.
 
    :Unit: mm
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
-   :Format: ``f106``
 
 .. index::
    single: Sd_Bldgs (output variable)
@@ -857,8 +729,6 @@ This group contains 98 output variables.
 
    :Unit: mm
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
-   :Format: ``f106``
 
 .. index::
    single: Sd_DecTr (output variable)
@@ -870,8 +740,6 @@ This group contains 98 output variables.
 
    :Unit: mm
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
-   :Format: ``f106``
 
 .. index::
    single: Sd_EveTr (output variable)
@@ -883,8 +751,6 @@ This group contains 98 output variables.
 
    :Unit: mm
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
-   :Format: ``f106``
 
 .. index::
    single: Sd_Grass (output variable)
@@ -896,8 +762,6 @@ This group contains 98 output variables.
 
    :Unit: mm
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
-   :Format: ``f106``
 
 .. index::
    single: Sd_Paved (output variable)
@@ -909,8 +773,6 @@ This group contains 98 output variables.
 
    :Unit: mm
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
-   :Format: ``f106``
 
 .. index::
    single: Sd_Water (output variable)
@@ -922,8 +784,6 @@ This group contains 98 output variables.
 
    :Unit: mm
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
-   :Format: ``f106``
 
 .. index::
    single: SnowAlb (output variable)
@@ -935,8 +795,6 @@ This group contains 98 output variables.
 
    :Unit: -
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
-   :Format: ``f146``
 
 .. index::
    single: Tsnow_BSoil (output variable)
@@ -948,8 +806,6 @@ This group contains 98 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
-   :Format: ``f146``
 
 .. index::
    single: Tsnow_Bldgs (output variable)
@@ -961,8 +817,6 @@ This group contains 98 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
-   :Format: ``f146``
 
 .. index::
    single: Tsnow_DecTr (output variable)
@@ -974,8 +828,6 @@ This group contains 98 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
-   :Format: ``f146``
 
 .. index::
    single: Tsnow_EveTr (output variable)
@@ -987,8 +839,6 @@ This group contains 98 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
-   :Format: ``f146``
 
 .. index::
    single: Tsnow_Grass (output variable)
@@ -1000,8 +850,6 @@ This group contains 98 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
-   :Format: ``f146``
 
 .. index::
    single: Tsnow_Paved (output variable)
@@ -1013,8 +861,6 @@ This group contains 98 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
-   :Format: ``f146``
 
 .. index::
    single: Tsnow_Water (output variable)
@@ -1026,8 +872,6 @@ This group contains 98 output variables.
 
    :Unit: degC
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
-   :Format: ``f146``
 
 .. index::
    single: frMelt_BSoil (output variable)
@@ -1039,8 +883,6 @@ This group contains 98 output variables.
 
    :Unit: mm
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
-   :Format: ``f146``
 
 .. index::
    single: frMelt_Bldgs (output variable)
@@ -1052,8 +894,6 @@ This group contains 98 output variables.
 
    :Unit: mm
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
-   :Format: ``f146``
 
 .. index::
    single: frMelt_DecTr (output variable)
@@ -1065,8 +905,6 @@ This group contains 98 output variables.
 
    :Unit: mm
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
-   :Format: ``f146``
 
 .. index::
    single: frMelt_EveTr (output variable)
@@ -1078,8 +916,6 @@ This group contains 98 output variables.
 
    :Unit: mm
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
-   :Format: ``f146``
 
 .. index::
    single: frMelt_Grass (output variable)
@@ -1091,8 +927,6 @@ This group contains 98 output variables.
 
    :Unit: mm
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
-   :Format: ``f146``
 
 .. index::
    single: frMelt_Paved (output variable)
@@ -1104,8 +938,6 @@ This group contains 98 output variables.
 
    :Unit: mm
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
-   :Format: ``f146``
 
 .. index::
    single: frMelt_Water (output variable)
@@ -1117,8 +949,6 @@ This group contains 98 output variables.
 
    :Unit: mm
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
-   :Format: ``f146``
 
 .. index::
    single: fr_BSoil (output variable)
@@ -1130,8 +960,6 @@ This group contains 98 output variables.
 
    :Unit: 1
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
-   :Format: ``f106``
 
 .. index::
    single: fr_Bldgs (output variable)
@@ -1143,8 +971,6 @@ This group contains 98 output variables.
 
    :Unit: 1
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
-   :Format: ``f106``
 
 .. index::
    single: fr_DecTr (output variable)
@@ -1156,8 +982,6 @@ This group contains 98 output variables.
 
    :Unit: 1
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
-   :Format: ``f106``
 
 .. index::
    single: fr_EveTr (output variable)
@@ -1169,8 +993,6 @@ This group contains 98 output variables.
 
    :Unit: 1
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
-   :Format: ``f106``
 
 .. index::
    single: fr_Grass (output variable)
@@ -1182,8 +1004,6 @@ This group contains 98 output variables.
 
    :Unit: 1
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
-   :Format: ``f106``
 
 .. index::
    single: fr_Paved (output variable)
@@ -1195,8 +1015,6 @@ This group contains 98 output variables.
 
    :Unit: 1
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
-   :Format: ``f106``
 
 .. index::
    single: kup_BSoilSnow (output variable)
@@ -1208,8 +1026,6 @@ This group contains 98 output variables.
 
    :Unit: W |m^-2|
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
-   :Format: ``f146``
 
 .. index::
    single: kup_BldgsSnow (output variable)
@@ -1221,8 +1037,6 @@ This group contains 98 output variables.
 
    :Unit: W |m^-2|
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
-   :Format: ``f146``
 
 .. index::
    single: kup_DecTrSnow (output variable)
@@ -1234,8 +1048,6 @@ This group contains 98 output variables.
 
    :Unit: W |m^-2|
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
-   :Format: ``f146``
 
 .. index::
    single: kup_EveTrSnow (output variable)
@@ -1247,8 +1059,6 @@ This group contains 98 output variables.
 
    :Unit: W |m^-2|
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
-   :Format: ``f146``
 
 .. index::
    single: kup_GrassSnow (output variable)
@@ -1260,8 +1070,6 @@ This group contains 98 output variables.
 
    :Unit: W |m^-2|
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
-   :Format: ``f146``
 
 .. index::
    single: kup_PavedSnow (output variable)
@@ -1273,8 +1081,6 @@ This group contains 98 output variables.
 
    :Unit: W |m^-2|
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
-   :Format: ``f146``
 
 .. index::
    single: kup_WaterSnow (output variable)
@@ -1286,5 +1092,3 @@ This group contains 98 output variables.
 
    :Unit: W |m^-2|
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
-   :Format: ``f146``

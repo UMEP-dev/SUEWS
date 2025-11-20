@@ -21,7 +21,6 @@ try:
     from supy.data_model.output import OUTPUT_REGISTRY
     from supy.data_model.output.variables import (
         OutputGroup,
-        OutputLevel,
         AggregationMethod,
     )
 except ImportError as e:
@@ -156,7 +155,7 @@ class OutputVariableRSTGenerator:
             lines.append("")
 
         # Add metadata
-        # Skip Unit and Output Level for datetime variables (they're temporal indices, not physical quantities)
+        # Skip Unit for datetime variables (they're temporal indices, not physical quantities)
         is_datetime = group_val.lower() == "datetime"
 
         # Unit
@@ -167,15 +166,6 @@ class OutputVariableRSTGenerator:
         # Aggregation method
         agg_desc = self._get_aggregation_description(var.aggregation)
         lines.append(f"   :Aggregation: {agg_desc}")
-
-        # Output level (skip for datetime variables)
-        if not is_datetime:
-            level_desc = self._get_level_description(var.level)
-            lines.append(f"   :Output Level: {level_desc}")
-
-        # Format (for advanced users)
-        if var.format and var.format != "f104":
-            lines.append(f"   :Format: ``{var.format}``")
 
         return lines
 
@@ -275,21 +265,6 @@ class OutputVariableRSTGenerator:
         }
         return descriptions.get(method_val, str(method))
 
-    @staticmethod
-    def _get_level_description(level: Any) -> str:
-        """Get human-readable description of output level."""
-        # Handle both enum and int values
-        if isinstance(level, int):
-            level_val = level
-        else:
-            level_val = level.value if hasattr(level, "value") else int(level)
-
-        descriptions = {
-            0: "Default (level 0 - always included)",
-            1: "Extended (level 1 - optional extended output)",
-            2: "Snow Detailed (level 2 - snow-specific detailed output)",
-        }
-        return descriptions.get(level_val, f"Level {level_val}")
 
     @staticmethod
     def _get_group_description(group: Any) -> str:

@@ -14,9 +14,15 @@ import pytest
 import supy as sp
 from supy import SUEWSSimulation
 
-# Debug utilities (debug_on_ci, debug_dataframe_output, debug_water_balance,
-# capture_test_artifacts, extract_soil_store_columns) are now available from
-# conftest.py and automatically loaded by pytest
+# Import debug utilities from conftest.py
+# Note: When used as decorators, they must be explicitly imported
+from conftest import (
+    debug_on_ci,
+    debug_dataframe_output,
+    debug_water_balance,
+    capture_test_artifacts,
+    extract_soil_store_columns,
+)
 
 
 # Get the test data directory from the environment variable

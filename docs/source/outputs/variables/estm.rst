@@ -25,7 +25,6 @@ This group contains 27 output variables.
 
    :Unit: W |m^-2|
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: QSAir (output variable)
@@ -37,7 +36,6 @@ This group contains 27 output variables.
 
    :Unit: W |m^-2|
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: QSGround (output variable)
@@ -49,7 +47,6 @@ This group contains 27 output variables.
 
    :Unit: W |m^-2|
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: QSIBld (output variable)
@@ -61,7 +58,6 @@ This group contains 27 output variables.
 
    :Unit: W |m^-2|
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: QSRoof (output variable)
@@ -73,7 +69,6 @@ This group contains 27 output variables.
 
    :Unit: W |m^-2|
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: QSWall (output variable)
@@ -85,7 +80,6 @@ This group contains 27 output variables.
 
    :Unit: W |m^-2|
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: TGROUND1 (output variable)
@@ -97,7 +91,6 @@ This group contains 27 output variables.
 
    :Unit: degK
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: TGROUND2 (output variable)
@@ -109,7 +102,6 @@ This group contains 27 output variables.
 
    :Unit: degK
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: TGROUND3 (output variable)
@@ -121,7 +113,6 @@ This group contains 27 output variables.
 
    :Unit: degK
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: TGROUND4 (output variable)
@@ -133,7 +124,6 @@ This group contains 27 output variables.
 
    :Unit: degK
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: TGROUND5 (output variable)
@@ -145,7 +135,6 @@ This group contains 27 output variables.
 
    :Unit: degK
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: TROOF1 (output variable)
@@ -157,7 +146,6 @@ This group contains 27 output variables.
 
    :Unit: degK
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: TROOF2 (output variable)
@@ -169,7 +157,6 @@ This group contains 27 output variables.
 
    :Unit: degK
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: TROOF3 (output variable)
@@ -181,7 +168,6 @@ This group contains 27 output variables.
 
    :Unit: degK
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: TROOF4 (output variable)
@@ -193,7 +179,6 @@ This group contains 27 output variables.
 
    :Unit: degK
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: TROOF5 (output variable)
@@ -205,7 +190,6 @@ This group contains 27 output variables.
 
    :Unit: degK
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: TWALL1 (output variable)
@@ -217,7 +201,6 @@ This group contains 27 output variables.
 
    :Unit: degK
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: TWALL2 (output variable)
@@ -229,7 +212,6 @@ This group contains 27 output variables.
 
    :Unit: degK
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: TWALL3 (output variable)
@@ -241,7 +223,6 @@ This group contains 27 output variables.
 
    :Unit: degK
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: TWALL4 (output variable)
@@ -253,7 +234,6 @@ This group contains 27 output variables.
 
    :Unit: degK
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: TWALL5 (output variable)
@@ -265,7 +245,6 @@ This group contains 27 output variables.
 
    :Unit: degK
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: TaBLD (output variable)
@@ -277,7 +256,6 @@ This group contains 27 output variables.
 
    :Unit: degK
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: TiBLD1 (output variable)
@@ -289,7 +267,6 @@ This group contains 27 output variables.
 
    :Unit: degK
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: TiBLD2 (output variable)
@@ -301,7 +278,6 @@ This group contains 27 output variables.
 
    :Unit: degK
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: TiBLD3 (output variable)
@@ -313,7 +289,6 @@ This group contains 27 output variables.
 
    :Unit: degK
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: TiBLD4 (output variable)
@@ -325,7 +300,6 @@ This group contains 27 output variables.
 
    :Unit: degK
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)
 
 .. index::
    single: TiBLD5 (output variable)
@@ -337,4 +311,3 @@ This group contains 27 output variables.
 
    :Unit: degK
    :Aggregation: Average (mean over period)
-   :Output Level: Default (level 0 - always included)

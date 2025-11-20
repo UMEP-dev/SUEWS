@@ -470,7 +470,7 @@ def main():
     parser.add_argument(
         "--output-dir",
         type=Path,
-        help="Output directory for RST files (default: docs/source/output_files/variables)",
+        help="Output directory for RST files (default: docs/source/outputs/variables)",
     )
     parser.add_argument(
         "--style",
@@ -486,7 +486,7 @@ def main():
         output_dir = args.output_dir
     else:
         docs_source_path = PROJECT_ROOT / "docs" / "source"
-        output_dir = docs_source_path / "output_files" / "variables"
+        output_dir = docs_source_path / "outputs" / "variables"
 
     # Generate RST files
     print(f"Generating RST files in {output_dir}...")

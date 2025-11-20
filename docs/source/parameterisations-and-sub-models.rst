@@ -112,7 +112,7 @@ Turbulent heat fluxes, Q\ :sub:`H` and Q\ :sub:`E`
    The initial estimate of stability is based on the LUMPS calculations of sensible and latent heat flux.
    Future versions will have alternative sensible heat and storage heat flux options.
 
-Sensible and latent heat fluxes from both LUMPS and SUEWS are provided in the `output_files`.
+Sensible and latent heat fluxes from both LUMPS and SUEWS are provided in the :ref:`outputs`.
 Whether the turbulent heat fluxes are calculated using LUMPS or SUEWS can have a major impact on the results.
 For SUEWS, an appropriate surface conductance parameterisation is also critical :cite:`J11` :cite:`W16`.
 For more details see ``Differences_between_SUEWS_LUMPS_and_FRAISE``.

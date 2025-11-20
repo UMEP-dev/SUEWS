@@ -132,7 +132,7 @@ How to support SUEWS?
    workflow
    sub-tutorials/tutorials
    inputs/index
-   output_files/index
+   outputs/index
    api
    data-structures/supy-io
    integration/index

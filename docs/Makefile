@@ -23,7 +23,7 @@ PYTHON        = $(shell \
 RST_OUTDIR    = $(SOURCEDIR)/inputs/yaml/config-reference
 RST_STAMP     = $(RST_OUTDIR)/.generated.stamp
 # Output variable RST generation
-OUTPUT_VAR_RST_OUTDIR = $(SOURCEDIR)/output_files/variables
+OUTPUT_VAR_RST_OUTDIR = $(SOURCEDIR)/outputs/variables
 OUTPUT_VAR_RST_STAMP  = $(OUTPUT_VAR_RST_OUTDIR)/.generated.stamp
 # Data model sources that affect generated RST
 DM_SRC        = $(shell find ../src/supy/data_model -type f -name '*.py' 2>/dev/null)

@@ -26,7 +26,8 @@ import numpy as np
 import pandas as pd
 
 import supy as sp
-from test.debug_utils import extract_soil_store_columns
+
+# extract_soil_store_columns is now available from conftest.py
 
 
 class TestPhysicalValidation(TestCase):

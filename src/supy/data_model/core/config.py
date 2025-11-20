@@ -2440,7 +2440,7 @@ class SUEWSConfig(BaseModel):
         from ..schema import CURRENT_SCHEMA_VERSION, get_schema_compatibility_message
 
         if "schema_version" in config_data:
-            logger_supy.debug(
+            logger_supy.info(
                 f"Loading config with schema version: {config_data['schema_version']}"
             )
             # Check compatibility and log any concerns

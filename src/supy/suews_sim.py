@@ -792,7 +792,6 @@ class SUEWSSimulation:
                 missing.append("forcing")
             return f"SUEWSSimulation(Not configured: missing {', '.join(missing)})"
 
-    @property
     def is_ready(self) -> bool:
         """Check if simulation is configured and ready to run.
 
@@ -804,16 +803,15 @@ class SUEWSSimulation:
         Examples
         --------
         >>> sim = SUEWSSimulation()
-        >>> sim.is_ready
+        >>> sim.is_ready()
         False
 
         >>> sim = SUEWSSimulation.from_sample_data()
-        >>> sim.is_ready
+        >>> sim.is_ready()
         True
         """
         return self._df_state_init is not None and self._df_forcing is not None
 
-    @property
     def is_complete(self) -> bool:
         """Check if simulation has been run successfully.
 
@@ -825,11 +823,11 @@ class SUEWSSimulation:
         Examples
         --------
         >>> sim = SUEWSSimulation.from_sample_data()
-        >>> sim.is_complete
+        >>> sim.is_complete()
         False
 
         >>> sim.run()
-        >>> sim.is_complete
+        >>> sim.is_complete()
         True
         """
         return self._run_completed

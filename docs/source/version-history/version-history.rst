@@ -3,9 +3,6 @@
 Version History
 ================
 
-.. _dev:
-
-
 .. note::
    For the latest development changes, bug fixes, and upcoming features, see `CHANGELOG.md <https://github.com/UMEP-dev/SUEWS/blob/master/CHANGELOG.md>`_ on GitHub.
 

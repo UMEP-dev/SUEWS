@@ -52,8 +52,9 @@ This release focuses on comprehensive validation improvements, legacy data compa
 **Breaking Changes:**
 
 - ERA5 ``data_source`` parameter values renamed for clarity:
-  - ``"timeseries"`` (new default, was "earthkit"): Fast point location downloads
-  - ``"gridded"`` (was "cdsapi"): Traditional gridded ERA5
+  - ``"timeseries"`` (new default, replaces "earthkit"): Fast ERA5 timeseries dataset for point locations
+  - ``"gridded"`` (replaces "cdsapi"): Traditional gridded ERA5 with model levels and spatial grids
+- Removed earthkit.data dependency - both download methods now use cdsapi directly
 - For gridded ERA5, explicitly set ``data_source="gridded"`` and install optional dependencies: ``pip install xarray h5netcdf``
 
 **Dependencies:**

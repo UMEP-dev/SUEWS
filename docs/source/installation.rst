@@ -137,8 +137,8 @@ Development build
 
 .. warning::
 
-The development build can be highly unstable and is not recommended for production use.
-However, it is automatically constructed every week for testing purposes and we are happy to receive feedback on the development build.
+   The development build can be highly unstable and is not recommended for production use.
+   However, it is automatically constructed every week for testing purposes and we are happy to receive feedback on the development build.
 
 
 To install the development build of SUEWS, you need to install ``supy`` in the development mode:

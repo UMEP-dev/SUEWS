@@ -53,10 +53,23 @@ make test
 ## Makefile Commands
 
 - `make setup` - Create virtual environment with uv (if available)
-- `make dev` - Install SUEWS in editable mode
+- `make dev` - Install SUEWS in editable mode (self-healing, works after clean)
 - `make test` - Run test suite
 - `make clean` - Smart clean (keeps .venv if active)
 - `make format` - Format Python and Fortran code
+
+## Common Workflows
+
+```bash
+# Fresh start (most common for troubleshooting)
+make clean && make dev
+
+# Update code and rebuild
+git pull && make dev
+
+# Build and test changes
+make dev && make test
+```
 
 ## Package Name Differences
 

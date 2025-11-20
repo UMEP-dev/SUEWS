@@ -467,7 +467,7 @@ jobs:
     needs:
       - deploy_pypi
     # Run whenever PyPI deployment succeeds (already ensures it's a production tag)
-    if: needs.deploy_pypi.result == 'success'
+    if: always() && needs.deploy_pypi.result == 'success'
 
     permissions:
       contents: write  # Required to create releases

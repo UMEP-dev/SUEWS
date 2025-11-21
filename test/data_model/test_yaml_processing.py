@@ -3434,7 +3434,7 @@ class TestPhaseBScienceCheck(TestProcessorFixtures):
         "supy.data_model.validation.pipeline.phase_b.get_mean_monthly_air_temperature"
     )
     def test_stebbs_temperature_parameter_updates(self, mock_cru):
-        """Test STEBBS WallOutdoorSurfaceTemperature and WindowOutdoorSurfaceTemperature updates."""
+        """Test STEBBS InitialOutdoorTemperature updates."""
         if not has_science_check:
             pytest.skip("science_check module not available")
 
@@ -3448,8 +3448,7 @@ class TestPhaseBScienceCheck(TestProcessorFixtures):
                         "lat": {"value": 51.5},
                         "lng": {"value": -0.12},
                         "stebbs": {
-                            "WallOutdoorSurfaceTemperature": {"value": 25.0},
-                            "WindowOutdoorSurfaceTemperature": {"value": 20.0},
+                            "InitialOutdoorTemperature": {"value": 25.0},
                             "WallInternalConvectionCoefficient": {
                                 "value": 5.0
                             },  # Control parameter
@@ -3467,24 +3466,18 @@ class TestPhaseBScienceCheck(TestProcessorFixtures):
         # Check that CRU temperature function was called
         mock_cru.assert_called_with(51.5, -0.12, 1)  # lat, lng, month=1 (January)
 
-        # Verify that STEBBS temperature parameters were updated
+        # Verify that STEBBS InitialOutdoorTemperature was updated
         stebbs_props = result["sites"][0]["properties"]["stebbs"]
-        assert stebbs_props["WallOutdoorSurfaceTemperature"]["value"] == 12.5
-        assert stebbs_props["WindowOutdoorSurfaceTemperature"]["value"] == 12.5
+        assert stebbs_props["InitialOutdoorTemperature"]["value"] == 12.5
 
         # Verify control parameter unchanged
         assert stebbs_props["WallInternalConvectionCoefficient"]["value"] == 5.0
 
-        # Verify adjustments recorded
+        # Verify adjustments recorded (single parameter)
         stebbs_adjustments = [adj for adj in adjustments if "stebbs" in adj.parameter]
-        assert len(stebbs_adjustments) == 2
+        assert len(stebbs_adjustments) == 1
         assert any(
-            "WallOutdoorSurfaceTemperature" in adj.parameter
-            for adj in stebbs_adjustments
-        )
-        assert any(
-            "WindowOutdoorSurfaceTemperature" in adj.parameter
-            for adj in stebbs_adjustments
+            "InitialOutdoorTemperature" in adj.parameter for adj in stebbs_adjustments
         )
 
     @patch(
@@ -3514,8 +3507,7 @@ class TestPhaseBScienceCheck(TestProcessorFixtures):
                             "lat": {"value": 52.0},
                             "lng": {"value": 1.0},
                             "stebbs": {
-                                "WallOutdoorSurfaceTemperature": {"value": 999.0},
-                                "WindowOutdoorSurfaceTemperature": {"value": 888.0},
+                                "InitialOutdoorTemperature": {"value": 999.0},
                             },
                         }
                     }
@@ -3531,8 +3523,7 @@ class TestPhaseBScienceCheck(TestProcessorFixtures):
 
             # Verify temperature values updated
             stebbs_props = result["sites"][0]["properties"]["stebbs"]
-            assert stebbs_props["WallOutdoorSurfaceTemperature"]["value"] == mock_temp
-            assert stebbs_props["WindowOutdoorSurfaceTemperature"]["value"] == mock_temp
+            assert stebbs_props["InitialOutdoorTemperature"]["value"] == mock_temp
 
     @patch(
         "supy.data_model.validation.pipeline.phase_b.get_mean_monthly_air_temperature"
@@ -3561,8 +3552,7 @@ class TestPhaseBScienceCheck(TestProcessorFixtures):
                         "lat": {"value": 51.5},
                         "lng": {"value": -0.12},
                         "stebbs": {
-                            "WallOutdoorSurfaceTemperature": {"value": 100.0},
-                            "WindowOutdoorSurfaceTemperature": {"value": 200.0},
+                            "InitialOutdoorTemperature": {"value": 100.0},
                         },
                     }
                 },
@@ -3571,8 +3561,7 @@ class TestPhaseBScienceCheck(TestProcessorFixtures):
                         "lat": {"value": 55.8},
                         "lng": {"value": -4.25},
                         "stebbs": {
-                            "WallOutdoorSurfaceTemperature": {"value": 300.0},
-                            "WindowOutdoorSurfaceTemperature": {"value": 400.0},
+                            "InitialOutdoorTemperature": {"value": 300.0},
                         },
                     }
                 },
@@ -3588,12 +3577,10 @@ class TestPhaseBScienceCheck(TestProcessorFixtures):
 
         # Verify each site gets appropriate temperature
         site0_stebbs = result["sites"][0]["properties"]["stebbs"]
-        assert site0_stebbs["WallOutdoorSurfaceTemperature"]["value"] == 8.2
-        assert site0_stebbs["WindowOutdoorSurfaceTemperature"]["value"] == 8.2
+        assert site0_stebbs["InitialOutdoorTemperature"]["value"] == 8.2
 
         site1_stebbs = result["sites"][1]["properties"]["stebbs"]
-        assert site1_stebbs["WallOutdoorSurfaceTemperature"]["value"] == 5.1
-        assert site1_stebbs["WindowOutdoorSurfaceTemperature"]["value"] == 5.1
+        assert site1_stebbs["InitialOutdoorTemperature"]["value"] == 5.1
 
     @patch(
         "supy.data_model.validation.pipeline.phase_b.get_mean_monthly_air_temperature"
@@ -3612,8 +3599,8 @@ class TestPhaseBScienceCheck(TestProcessorFixtures):
                         "lat": {"value": 50.0},
                         "lng": {"value": 2.0},
                         "stebbs": {
-                            "WallOutdoorSurfaceTemperature": {"value": 99.0},
-                            # WindowOutdoorSurfaceTemperature missing
+                            "InitialOutdoorTemperature": {"value": 99.0},
+                            # OtherParameter present
                             "OtherParameter": {"value": 42.0},
                         },
                     }
@@ -3625,10 +3612,12 @@ class TestPhaseBScienceCheck(TestProcessorFixtures):
 
         # Verify available parameter was updated
         stebbs_props = result["sites"][0]["properties"]["stebbs"]
-        assert stebbs_props["WallOutdoorSurfaceTemperature"]["value"] == 15.8
+        assert stebbs_props["InitialOutdoorTemperature"]["value"] == 15.8
 
-        # Verify missing parameter wasn't added
+        # Verify legacy parameters were not added
         assert "WindowOutdoorSurfaceTemperature" not in stebbs_props
+        assert "WallOutdoorSurfaceTemperature" not in stebbs_props
+        assert "RoofOutdoorSurfaceTemperature" not in stebbs_props
 
         # Verify other parameters unchanged
         assert stebbs_props["OtherParameter"]["value"] == 42.0
@@ -3651,12 +3640,7 @@ class TestPhaseBScienceCheck(TestProcessorFixtures):
                         "lat": {"value": 45.0},
                         "lng": {"value": 5.0},
                         "stebbs": {
-                            "WallOutdoorSurfaceTemperature": {
-                                "value": cru_temp
-                            },  # Already correct
-                            "WindowOutdoorSurfaceTemperature": {
-                                "value": cru_temp
-                            },  # Already correct
+                            "InitialOutdoorTemperature": {"value": cru_temp},
                         },
                     }
                 }
@@ -3667,10 +3651,9 @@ class TestPhaseBScienceCheck(TestProcessorFixtures):
             yaml_input, "2025-05-01"
         )
 
-        # Verify values remain correct (no change needed)
+        # Verify value remains correct (no change needed)
         stebbs_props = result["sites"][0]["properties"]["stebbs"]
-        assert stebbs_props["WallOutdoorSurfaceTemperature"]["value"] == cru_temp
-        assert stebbs_props["WindowOutdoorSurfaceTemperature"]["value"] == cru_temp
+        assert stebbs_props["InitialOutdoorTemperature"]["value"] == cru_temp
 
         # Verify no adjustments were made
         stebbs_adjustments = [adj for adj in adjustments if "stebbs" in adj.parameter]

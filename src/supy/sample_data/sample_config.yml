@@ -151,11 +151,13 @@ sites:
         value: 22.0
       WallIndoorSurfaceTemperature:
         value: 22.0
-      WallOutdoorSurfaceTemperature:
-        value: 22.0
+      # WallOutdoorSurfaceTemperature:
+      #   value: 22.0
       WindowIndoorSurfaceTemperature:
         value: 22.0
-      WindowOutdoorSurfaceTemperature:
+      # WindowOutdoorSurfaceTemperature:
+      #   value: 22.0
+      InitialOutdoorTemperature:
         value: 22.0
       GroundFloorIndoorSurfaceTemperature:
         value: 22.0

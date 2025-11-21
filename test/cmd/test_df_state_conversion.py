@@ -131,6 +131,13 @@ class TestCsvFileConversion:
         ):
             assert removed not in new_names
 
+        # old deep soil parameter removed
+        for removed in (
+            "groundflooroutdoorsurfacetemperature",
+            "outdoorairannualtemperature",
+        ):
+            assert removed not in new_names
+
         # Check old columns removed
         col_names = {
             col[0] if isinstance(col, tuple) else col for col in df_new.columns

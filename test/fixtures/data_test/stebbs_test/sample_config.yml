@@ -158,14 +158,12 @@ sites:
         value: 3.4
       VentilationRate:
         value: 0.6
-      OutdoorAirAnnualTemperature:
-        value: 10   
       InitialOutdoorTemperature:
         value: 17.540002822875977
       InitialIndoorTemperature:
-        value: 20.0        
-      GroundFloorOutdoorSurfaceTemperature:
-        value: 10.0
+        value: 20.0
+      DeepSoilTemperature:
+        value: 10.0        
       WaterTankWallThickness:
         value: 0.055
       MainsWaterTemperature:

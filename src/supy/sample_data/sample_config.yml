@@ -149,8 +149,8 @@ sites:
         value: 22.0
       InitialIndoorTemperature:
         value: 22.0
-      GroundFloorOutdoorSurfaceTemperature:
-        value: 22.0
+      DeepSoilTemperature:
+        value: 10.0
       WaterTankWallThickness:
         value: 0.03
       MainsWaterTemperature:

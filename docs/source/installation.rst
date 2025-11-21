@@ -111,7 +111,7 @@ Development versions are published to `test.pypi.org <https://test.pypi.org/proj
 
 5. **Verify installation**::
 
-    python -c "import supy; print(f'SuPy version: {supy.__version__}')"
+    python -c "import supy; print(f'SUEWS version: {supy.__version__}')"
     # Should show: 2025.9.16.dev0
 
 **For future use:**
@@ -137,8 +137,8 @@ Development build
 
 .. warning::
 
-The development build can be highly unstable and is not recommended for production use.
-However, it is automatically constructed every week for testing purposes and we are happy to receive feedback on the development build.
+   The development build can be highly unstable and is not recommended for production use.
+   However, it is automatically constructed every week for testing purposes and we are happy to receive feedback on the development build.
 
 
 To install the development build of SUEWS, you need to install ``supy`` in the development mode:

@@ -41,15 +41,18 @@ class SUEWSSimulation:
     Examples
     --------
     Basic usage:
+
     >>> sim = SUEWSSimulation("config.yaml")
     >>> sim.update_forcing("forcing.txt")
     >>> sim.run()
     >>> sim.save("output_dir/")
 
     Updating configuration:
+
     >>> sim.update_config({"model": {"control": {"tstep": 600}}})
     >>> sim.reset()
     >>> sim.run()
+
     """
 
     def __init__(self, config: Union[str, Path, dict, Any] = None):
@@ -588,15 +591,6 @@ class SUEWSSimulation:
         >>> sim.run()
         >>> results = sim.results
 
-        This is equivalent to the functional approach:
-
-        >>> import supy as sp
-        >>> df_state, df_forcing = sp.load_sample_data()
-        >>> df_output, df_final = sp.run_supy(df_forcing, df_state)
-
-        See Also
-        --------
-        load_sample_data : Load sample data as DataFrames (functional approach)
         """
         from ._env import trv_supy_module
         from ._supy_module import _load_sample_data
@@ -631,6 +625,134 @@ class SUEWSSimulation:
         # Set core simulation data (overrides any config-derived state)
         sim._df_state_init = df_state_init
         sim._df_forcing = df_forcing
+        return sim
+
+    @classmethod
+    def from_state(cls, state: Union[str, Path, pd.DataFrame]):
+        """Create SUEWSSimulation from saved state for continuation runs.
+
+        Load a previously saved model state to continue simulation from where
+        it left off. Useful for multi-period runs or scenario testing with
+        different forcing data.
+
+        Parameters
+        ----------
+        state : str, Path, or pandas.DataFrame
+            State to load for continuation. Can be:
+
+            - Path to CSV file: `df_state.csv` or `df_state_{site}.csv`
+            - Path to Parquet file: `{site}_SUEWS_state_final.parquet`
+            - DataFrame: `df_state_final` from previous simulation
+
+        Returns
+        -------
+        SUEWSSimulation
+            Simulation instance initialised with loaded state, ready for
+            new forcing data and run.
+
+        Warnings
+        --------
+        If the saved state was created with a different SUEWS version,
+        a warning is issued about potential compatibility issues.
+
+        Examples
+        --------
+        Continue from saved file:
+
+        >>> # Period 1
+        >>> sim1 = SUEWSSimulation("config.yaml")
+        >>> sim1.update_forcing("forcing_2023.txt")
+        >>> sim1.run()
+        >>> paths = sim1.save("output/")
+
+        >>> # Period 2 - continue from saved state
+        >>> sim2 = SUEWSSimulation.from_state("output/df_state.csv")
+        >>> sim2.update_forcing("forcing_2024.txt")
+        >>> sim2.run()
+
+        Continue from DataFrame directly:
+
+        >>> # In-memory continuation without saving to file
+        >>> sim1 = SUEWSSimulation.from_sample_data()
+        >>> sim1.run()
+        >>> df_state_final = sim1.state_final
+        >>>
+        >>> # Continue with new forcing
+        >>> sim2 = SUEWSSimulation.from_state(df_state_final)
+        >>> sim2.update_forcing("forcing_2024.txt")
+        >>> sim2.run()
+
+        Load from Parquet format:
+
+        >>> sim2 = SUEWSSimulation.from_state(
+        ...     "output/TestSite_SUEWS_state_final.parquet"
+        ... )
+
+        See Also
+        --------
+        save : Save simulation results and state
+        reset : Clear results and reset to initial state
+        state_final : Access final state from completed simulation
+        """
+        from ._version import __version__ as current_version
+
+        # Load state from file or use DataFrame directly
+        if isinstance(state, pd.DataFrame):
+            df_state_saved = state.copy()
+        elif isinstance(state, (str, Path)):
+            state_path = Path(state).expanduser().resolve()
+
+            if not state_path.exists():
+                raise FileNotFoundError(f"State file not found: {state_path}")
+
+            # Load based on file extension
+            if state_path.suffix == ".csv":
+                df_state_saved = pd.read_csv(
+                    state_path, header=[0, 1], index_col=[0, 1], parse_dates=[0]
+                )
+            elif state_path.suffix == ".parquet":
+                df_state_saved = pd.read_parquet(state_path)
+            else:
+                raise ValueError(
+                    f"Unsupported state file format: {state_path.suffix}. "
+                    "Expected .csv or .parquet"
+                )
+        else:
+            raise TypeError(
+                f"state must be str, Path, or DataFrame, got {type(state).__name__}"
+            )
+
+        # Extract last timestep as initial state for continuation
+        idx_names = list(df_state_saved.index.names)
+        if "datetime" in idx_names:
+            datetime_level = idx_names.index("datetime")
+            last_datetime = df_state_saved.index.get_level_values(datetime_level).max()
+            if isinstance(df_state_saved.index, pd.MultiIndex):
+                df_state_init = df_state_saved.xs(
+                    last_datetime, level="datetime"
+                ).copy()
+            else:
+                df_state_init = df_state_saved.loc[[last_datetime]].copy()
+        else:
+            # Already single-timestep state
+            df_state_init = df_state_saved.copy()
+
+        # Check version compatibility
+        if ("version", "0") in df_state_saved.columns:
+            saved_version = df_state_saved[("version", "0")].iloc[0]
+            if saved_version != current_version:
+                warnings.warn(
+                    f"State was saved with SUEWS version {saved_version}, "
+                    f"but current version is {current_version}. "
+                    "This may cause compatibility issues.",
+                    UserWarning,
+                    stacklevel=2,
+                )
+
+        # Create simulation instance with loaded state
+        sim = cls()
+        sim._df_state_init = df_state_init
+
         return sim
 
     def __repr__(self) -> str:
@@ -828,18 +950,55 @@ class SUEWSSimulation:
         return result
 
     @property
-    def config(self) -> Optional[Any]:
-        """Access to simulation configuration."""
+    def config(self) -> Optional[SUEWSConfig]:
+        """Access to simulation configuration.
+
+        Returns
+        -------
+        SUEWSConfig or None
+            Complete SUEWS configuration object.
+            None if no configuration loaded.
+
+        See Also
+        --------
+        update_config : Load or update configuration
+        state_init : Access initial state derived from configuration
+        """
         return self._config
 
     @property
     def forcing(self) -> Optional[pd.DataFrame]:
-        """Access to forcing data DataFrame."""
+        """Access to forcing data DataFrame.
+
+        Returns
+        -------
+        pandas.DataFrame or None
+            Meteorological forcing data with required variables.
+            None if no forcing loaded.
+
+        See Also
+        --------
+        :ref:`df_forcing_var` : Complete forcing data structure and variable descriptions
+        update_forcing : Load forcing data from files or DataFrames
+        """
         return self._df_forcing
 
     @property
     def results(self) -> Optional[pd.DataFrame]:
-        """Access to simulation results DataFrame."""
+        """Access to simulation results DataFrame.
+
+        Returns
+        -------
+        pandas.DataFrame or None
+            Complete simulation output with all variable groups.
+            None if simulation hasn't been run yet.
+
+        See Also
+        --------
+        :ref:`df_output_var` : Complete output data structure and variable descriptions
+        get_variable : Extract specific variables from output groups
+        save : Save results to files
+        """
         return self._df_output
 
     @property
@@ -851,6 +1010,12 @@ class SUEWSSimulation:
         pandas.DataFrame or None
             Initial state with surface characteristics and parameters.
             None if no configuration loaded.
+
+        See Also
+        --------
+        :ref:`df_state_var` : Complete state data structure and variable descriptions
+        state_final : Final state after simulation
+        from_state : Create simulation from existing state
 
         Examples
         --------
@@ -873,15 +1038,18 @@ class SUEWSSimulation:
             Final state after simulation run.
             None if simulation hasn't been run yet.
 
+        See Also
+        --------
+        :ref:`df_state_var` : Complete state data structure and variable descriptions
+        state_init : Initial state before simulation
+        reset : Clear results and reset to initial state
+        from_state : Create new simulation from this final state
+
         Examples
         --------
         >>> sim = SUEWSSimulation.from_sample_data()
         >>> sim.run()
         >>> sim.state_final is not None
         True
-
-        See Also
-        --------
-        reset : Clear results and reset to initial state
         """
         return self._df_state_final

@@ -8,8 +8,7 @@ help:
 	@echo "SUEWS Development - Essential Commands"
 	@echo ""
 	@echo "  setup     - Create virtual environment (if using uv)"
-	@echo "  dev       - Install in editable mode"
-	@echo "  reinstall - Fix stale/broken install (clean + reinstall)"
+	@echo "  dev       - Install in editable mode (self-healing, works after clean)"
 	@echo "  test      - Run test suite"
 	@echo "  docs      - Build documentation"
 	@echo "  clean     - Smart clean (keeps .venv if active)"
@@ -17,9 +16,12 @@ help:
 	@echo ""
 	@echo "Quick start:"
 	@echo "  With uv:    make setup && source .venv/bin/activate && make dev"
-	@echo "  With conda: conda activate suews-dev && make dev"
+	@echo "  With conda: mamba env create -f env.yml && mamba activate suews-dev && make dev"
 	@echo ""
-	@echo "After 'make clean', run 'make reinstall' (not 'make dev')"
+	@echo "Common workflows:"
+	@echo "  Fresh start:     make clean && make dev"
+	@echo "  Update code:     git pull && make dev"
+	@echo "  Test changes:    make dev && make test"
 
 # Setup virtual environment (for uv users)
 setup:
@@ -38,9 +40,18 @@ setup:
 		exit 1; \
 	fi
 
-# Install in editable mode
+# Install in editable mode (self-healing - works after clean)
 dev:
 	@echo "Installing SUEWS in editable mode..."
+	@# Uninstall first if build directory is missing (post-clean state)
+	@if [ ! -d "build" ]; then \
+		echo "Build directory missing - performing clean reinstall..."; \
+		if command -v uv >/dev/null 2>&1; then \
+			uv pip uninstall supy || true; \
+		else \
+			$(PYTHON) -m pip uninstall supy -y || true; \
+		fi \
+	fi
 	@# Install build dependencies first (required for --no-build-isolation)
 	@if command -v uv >/dev/null 2>&1; then \
 		echo "Using uv for fast installation..."; \
@@ -59,19 +70,16 @@ dev:
 			$(PYTHON) -m pip install --force-reinstall --no-build-isolation -e ".[dev]"; \
 		fi \
 	fi
+	@# Ensure meson build directory is initialized (fixes post-clean state)
+	@$(MAKE) rebuild-meson
 	@echo "✓ Installation complete"
 
-# Fix stale editable install
+# Deprecated: use 'make clean && make dev' instead (kept for backwards compatibility)
 reinstall:
-	@echo "Fixing stale editable install..."
-	@if command -v uv >/dev/null 2>&1; then \
-		uv pip uninstall supy || true; \
-	else \
-		$(PYTHON) -m pip uninstall supy -y || true; \
-	fi
+	@echo "Note: 'make reinstall' is deprecated. Use 'make clean && make dev' instead."
+	@echo "Forcing clean reinstall..."
 	@rm -rf build
 	@$(MAKE) dev
-	@$(MAKE) rebuild-meson
 
 # Initialize meson build after clean (fixes editable install)
 rebuild-meson:
@@ -105,7 +113,7 @@ clean:
 	@$(MAKE) -C docs clean 2>/dev/null || true
 	@if [ -n "$$VIRTUAL_ENV" ] && [ -d ".venv" ]; then \
 		echo "✓ Cleaned (keeping .venv - you're using it)"; \
-		echo "→ Next run 'make dev' to rebuild"; \
+		echo "→ Run 'make dev' to rebuild"; \
 	elif [ -d ".venv" ]; then \
 		echo "Removing .venv (not active)..."; \
 		rm -rf .venv; \
@@ -118,4 +126,3 @@ clean:
 format:
 	ruff format src test
 	fprettify --config .fprettify.rc src/suews/src/*.f95 2>/dev/null || true
-

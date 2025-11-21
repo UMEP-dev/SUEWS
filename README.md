@@ -116,12 +116,13 @@ For local development without containerisation, follow these steps:
 
 5. **Build SUEWS**:
    ```bash
-   # Quick development build (recommended)
+   # Fast editable install (recommended)
    make dev
 
-   # Or full build with tests
-   make
+   # Optional: run tests
+   make test
    ```
+   *Running `make` with no target just prints the help summary.*
 
 6. **Verify installation**:
    ```bash
@@ -133,13 +134,19 @@ For local development without containerisation, follow these steps:
 
 * **Build commands**:
   ```bash
-  make dev          # Fast development build
-  make              # Full build with tests
+  make dev          # Install in editable mode (self-healing, works after clean)
   make test         # Run test suite only
-  make clean        # Clean build artifacts
-  make wheel        # Build distribution wheels
+  make clean        # Clean build artifacts (smart - keeps .venv if active)
   make docs         # Build documentation
   make livehtml     # Live documentation preview
+  make              # Show help summary (default target)
+  ```
+
+* **Common workflows**:
+  ```bash
+  make clean && make dev    # Fresh start (most common for troubleshooting)
+  git pull && make dev      # Update code and rebuild
+  make dev && make test     # Build and test changes
   ```
 
 * **Environment management**:
@@ -149,7 +156,7 @@ For local development without containerisation, follow these steps:
   ```
 
 * **Common issues**:
-  - **Build conflicts**: Run `make clean` before rebuilding
+  - **Build conflicts**: Run `make clean && make dev` (most reliable)
   - **Import errors**: Ensure you're in the `suews-dev` environment
   - **Permission errors on Windows**: Right-click project folder → Properties → Security → Edit → Everyone → Allow
 
@@ -218,7 +225,7 @@ uv pip install --extra-index-url https://test.pypi.org/simple/ \
 
 **5. Verify installation:**
 ```bash
-python -c "import supy; print(f'SuPy version: {supy.__version__}')"
+python -c "import supy; print(f'SUEWS version: {supy.__version__}')"
 # Should show: 2025.9.16.dev0 (or your installed version)
 ```
 

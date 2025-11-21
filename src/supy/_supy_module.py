@@ -181,11 +181,56 @@ def init_supy(
     force_reload=True,
     check_input=False,
 ) -> pd.DataFrame:
+    """Initialise supy by loading initial model states.
+
+    .. deprecated:: 2025.11.20
+        This function is deprecated and will be removed in a future release.
+        Please migrate to the object-oriented `SUEWSSimulation` interface
+        (see `supy.suews_sim.SUEWSSimulation`).
+
+    Parameters
+    ----------
+    path_init : str
+        Path to a file that can initialise SuPy, which can be either of the follows:
+            * SUEWS :ref:`RunControl.nml<suews:RunControl.nml>`: a namelist file for SUEWS configurations
+            * SuPy `df_state.csv`: a CSV file including model states produced by a SuPy run via :py:func:`supy.save_supy`
+
+    force_reload: bool, optional
+        Flag to force reload all initialisation files by clearing all cached states, with default value `True` (i.e., force reload all files).
+        Note: If the number of simulation grids is large (e.g., > 100), `force_reload=False` is strongly recommended for better performance.
+
+    check_input: bool, optional
+        flag for checking validity of input: `df_forcing` and `df_state_init`.
+        If set to `True`, any detected invalid input will stop SuPy simulation;
+        a `False` flag will bypass such validation and may incur kernel error if any invalid input.
+        *Note: such checking procedure may take some time if the input is large.*
+        (the default is `False`, which bypasses the validation).
+
+    Returns
+    -------
+    df_state_init: pandas.DataFrame
+        Initial model states.
+        See `df_state_var` for details.
+
+    See Also
+    --------
+    supy.suews_sim.SUEWSSimulation : Modern object-oriented interface (recommended)
+
+    Examples
+    --------
+    1. Use :ref:`RunControl.nml<suews:RunControl.nml>` to initialise SuPy
+
+    >>> path_init = "~/SUEWS_sims/RunControl.nml"
+    >>> df_state_init = supy.init_supy(path_init)
+
+    2. Use ``df_state.csv`` to initialise SuPy
+
+    >>> path_init = "~/SuPy_res/df_state_test.csv"
+    >>> df_state_init = supy.init_supy(path_init)
+
+    """
     _warn_functional_deprecation("init_supy")
     return _init_supy(path_init, force_reload=force_reload, check_input=check_input)
-
-
-init_supy.__doc__ = _init_supy.__doc__
 
 
 # TODO:
@@ -358,6 +403,48 @@ def load_forcing_grid(
     df_state_init: pd.DataFrame = None,
     config=None,
 ) -> pd.DataFrame:
+    """Load forcing data for a specific grid included in the index of `df_state_init </data-structure/supy-io.ipynb#df_state_init:-model-initial-states>`.
+
+    .. deprecated:: 2025.11.20
+        This function is deprecated and will be removed in a future release.
+        Please migrate to `SUEWSSimulation.update_forcing` or `read_forcing` utilities.
+
+    Parameters
+    ----------
+    path_runcontrol : str
+        Path to SUEWS :ref:`RunControl.nml <suews:RunControl.nml>`
+    grid : int
+        Grid number
+    check_input : bool, optional
+        flag for checking validity of input: `df_forcing` and `df_state_init`.
+        If set to `True`, any detected invalid input will stop SuPy simulation;
+        a `False` flag will bypass such validation and may incur kernel error if any invalid input.
+        *Note: such checking procedure may take some time if the input is large.*
+        (the default is `False`, which bypasses the validation).
+
+    Returns
+    -------
+    df_forcing: pandas.DataFrame
+        Forcing data. See `df_forcing_var` for details.
+
+    See Also
+    --------
+    supy.suews_sim.SUEWSSimulation.update_forcing : Modern interface for loading forcing data (recommended)
+
+    Examples
+    --------
+    >>> path_runcontrol = (
+    ...     "~/SUEWS_sims/RunControl.nml"  # a valid path to `RunControl.nml`
+    ... )
+    >>> df_state_init = supy.init_supy(path_runcontrol)  # get `df_state_init`
+    >>> grid = df_state_init.index[
+    ...     0
+    ... ]  # first grid number included in `df_state_init`
+    >>> df_forcing = supy.load_forcing_grid(
+    ...     path_runcontrol, grid
+    ... )  # get df_forcing
+
+    """
     _warn_functional_deprecation("load_forcing_grid")
     return _load_forcing_grid(
         path_init=path_init,
@@ -367,9 +454,6 @@ def load_forcing_grid(
         df_state_init=df_state_init,
         config=config,
     )
-
-
-load_forcing_grid.__doc__ = _load_forcing_grid.__doc__
 
 
 def load_SampleData() -> tuple[pandas.DataFrame, pandas.DataFrame]:
@@ -405,11 +489,29 @@ def _load_sample_data() -> tuple[pandas.DataFrame, pandas.DataFrame]:
 
 
 def load_sample_data() -> tuple[pandas.DataFrame, pandas.DataFrame]:
+    """Load sample data for quickly starting a demo run.
+
+    .. deprecated:: 2025.11.20
+        This function is deprecated and will be removed in a future release.
+        Please migrate to `SUEWSSimulation` helpers (e.g., `SUEWSSimulation('sample_config.yml')`).
+
+    Returns
+    -------
+    df_state_init, df_forcing: Tuple[pandas.DataFrame, pandas.DataFrame]
+        - df_state_init: `initial model states <df_state_var>`
+        - df_forcing: `forcing data <df_forcing_var>`
+
+    See Also
+    --------
+    supy.suews_sim.SUEWSSimulation : Modern object-oriented interface (recommended)
+
+    Examples
+    --------
+    >>> df_state_init, df_forcing = supy.load_sample_data()
+
+    """
     _warn_functional_deprecation("load_sample_data")
     return _load_sample_data()
-
-
-load_sample_data.__doc__ = _load_sample_data.__doc__
 
 
 def load_config_from_df(df_state: pd.DataFrame):
@@ -449,11 +551,30 @@ def _init_config(df_state: pd.DataFrame = None):
 
 
 def init_config(df_state: pd.DataFrame = None):
+    """Initialise SUEWS configuration object either from existing df_state dataframe or as the default configuration.
+
+    .. deprecated:: 2025.11.20
+        This function is deprecated and will be removed in a future release.
+        Please migrate to `SUEWSSimulation` or `SUEWSConfig` constructors.
+
+    Parameters
+    ----------
+    df_state : pandas.DataFrame, optional
+        DataFrame of model states. If None, returns default configuration.
+
+    Returns
+    -------
+    config : SUEWSConfig
+        SUEWS configuration object.
+
+    See Also
+    --------
+    supy.suews_sim.SUEWSSimulation : Modern object-oriented interface (recommended)
+    supy.util._config.SUEWSConfig : Configuration class
+
+    """
     _warn_functional_deprecation("init_config")
     return _init_config(df_state)
-
-
-init_config.__doc__ = _init_config.__doc__
 
 
 # input processing code end here
@@ -605,6 +726,56 @@ def run_supy(
     serial_mode=False,
     debug_mode=False,
 ) -> tuple[pandas.DataFrame, pandas.DataFrame]:
+    """Perform supy simulation.
+
+    .. deprecated:: 2025.11.20
+        This function is deprecated and will be removed in a future release.
+        Please migrate to `SUEWSSimulation.run`.
+
+    Parameters
+    ----------
+    df_forcing : pandas.DataFrame
+        forcing data for all grids in `df_state_init`.
+    df_state_init : pandas.DataFrame
+        initial model states;
+        or a collection of model states with multiple timestamps, whose last temporal record will be used as the initial model states.
+    save_state : bool, optional
+        flag for saving model states at each time step, which can be useful in diagnosing model runtime performance or performing a restart run.
+        (the default is False, which instructs supy not to save runtime model states).
+    chunk_day : int, optional
+        chunk size (`chunk_day` days) to split simulation periods so memory usage can be reduced.
+        (the default is 3660, which implies ~10-year forcing chunks used in simulations).
+    logging_level: logging level
+        one of these values [50 (CRITICAL), 40 (ERROR), 30 (WARNING), 20 (INFO), 10 (DEBUG)].
+        A lower value informs SuPy for more verbose logging info.
+    check_input : bool, optional
+        flag for checking validity of input: `df_forcing` and `df_state_init`.
+        If set to `True`, any detected invalid input will stop SuPy simulation;
+        a `False` flag will bypass such validation and may incur kernel error if any invalid input.
+        *Note: such checking procedure may take some time if the input is large.*
+        (the default is `False`, which bypasses the validation).
+    serial_mode : bool, optional
+        If set to `True`, SuPy simulation will be conducted in serial mode;
+        a `False` flag will try parallel simulation if possible (Windows not supported, i.e., always serial).
+        (the default is `False`).
+    debug_mode : bool, optional
+        If set to `True`, SuPy simulation will be conducted in debug mode, which will write out additional information for debugging purposes.
+
+    Returns
+    -------
+    df_output, df_state_final : Tuple[pandas.DataFrame, pandas.DataFrame]
+        - df_output: `output results <df_output_var>`
+        - df_state_final: `final model states <df_state_var>`
+
+    See Also
+    --------
+    supy.suews_sim.SUEWSSimulation.run : Modern interface for running simulations (recommended)
+
+    Examples
+    --------
+    >>> df_output, df_state_final = supy.run_supy(df_forcing, df_state_init)
+
+    """
     _warn_functional_deprecation("run_supy")
     return _run_supy(
         df_forcing=df_forcing,
@@ -616,9 +787,6 @@ def run_supy(
         serial_mode=serial_mode,
         debug_mode=debug_mode,
     )
-
-
-run_supy.__doc__ = _run_supy.__doc__
 
 
 ##############################################################################
@@ -804,6 +972,72 @@ def save_supy(
     output_config=None,
     output_format="txt",
 ) -> list:
+    """Save SuPy run results to files.
+
+    .. deprecated:: 2025.11.20
+        This function is deprecated and will be removed in a future release.
+        Please migrate to `SUEWSSimulation.save`.
+
+    Parameters
+    ----------
+    df_output : pandas.DataFrame
+        DataFrame of output
+    df_state_final : pandas.DataFrame
+        DataFrame of final model states
+    freq_s : int, optional
+        Output frequency in seconds (the default is 3600, which indicates hourly output)
+    site : str, optional
+        Site identifier (the default is '', which indicates site identifier will be left empty)
+    path_dir_save : str, optional
+        Path to directory to saving the files (the default is Path('.'), which indicates the current working directory)
+    path_runcontrol : str, optional
+        Path to SUEWS :ref:`RunControl.nml <suews:RunControl.nml>`, which, if set, will be preferably used to derive `freq_s`, `site` and `path_dir_save`.
+        (the default is None, which is unset)
+    save_tstep : bool, optional
+        whether to save results in temporal resolution as in simulation (which may result very large files and slow progress), by default False.
+    logging_level: logging level
+        one of these values [50 (CRITICAL), 40 (ERROR), 30 (WARNING), 20 (INFO), 10 (DEBUG)].
+        A lower value informs SuPy for more verbose logging info.
+    output_level : integer, optional
+        option to determine selection of output variables, by default 1.
+        Notes: 0 for all but snow-related; 1 for all; 2 for a minimal set without land cover specific information.
+    debug : bool, optional
+        whether to enable debug mode (e.g., writing out in serial mode, and other debug uses), by default False.
+    output_config : OutputConfig, optional
+        Output configuration object specifying format, frequency, and groups to save. If provided, overrides freq_s parameter.
+
+    Returns
+    -------
+    list
+        a list of paths of saved files
+
+    See Also
+    --------
+    supy.suews_sim.SUEWSSimulation.save : Modern interface for saving results (recommended)
+
+    Examples
+    --------
+    1. save results of a supy run to the current working directory with default settings
+
+    >>> list_path_save = supy.save_supy(df_output, df_state_final)
+
+    2. save results according to settings in :ref:`RunControl.nml <suews:RunControl.nml>`
+
+    >>> list_path_save = supy.save_supy(
+    ...     df_output, df_state_final, path_runcontrol="path/to/RunControl.nml"
+    ... )
+
+    3. save results of a supy run at resampling frequency of 1800 s (i.e., half-hourly results) under the site code ``Test`` to a customised location 'path/to/some/dir'
+
+    >>> list_path_save = supy.save_supy(
+    ...     df_output,
+    ...     df_state_final,
+    ...     freq_s=1800,
+    ...     site="Test",
+    ...     path_dir_save="path/to/some/dir",
+    ... )
+
+    """
     _warn_functional_deprecation("save_supy")
     return _save_supy(
         df_output=df_output,
@@ -819,9 +1053,6 @@ def save_supy(
         output_config=output_config,
         output_format=output_format,
     )
-
-
-save_supy.__doc__ = _save_supy.__doc__
 
 
 def _run_supy_sample(
@@ -910,6 +1141,51 @@ def run_supy_sample(
     serial_mode=False,
     debug_mode=False,
 ) -> tuple[pandas.DataFrame, pandas.DataFrame, pandas.DataFrame]:
+    """Quickly run SuPy with sample data and return output dataframes.
+
+    .. deprecated:: 2025.11.20
+        This function is deprecated and will be removed in a future release.
+        Please migrate to `SUEWSSimulation` sample workflows.
+
+    This function loads sample data and runs SuPy simulation in one step,
+    returning the output and final state dataframes.
+
+    Parameters
+    ----------
+    save_state : bool, optional
+        Flag for saving model states at each time step.
+        (the default is False)
+    chunk_day : int, optional
+        Chunk size (days) to split simulation periods.
+        (the default is 3660)
+    logging_level : int, optional
+        Logging level for verbosity control.
+        (the default is logging.INFO)
+    check_input : bool, optional
+        Flag for checking validity of input.
+        (the default is False)
+    serial_mode : bool, optional
+        If True, run in serial mode; otherwise try parallel if possible.
+        (the default is False)
+    debug_mode : bool, optional
+        If True, run in debug mode with additional information.
+        (the default is False)
+
+    Returns
+    -------
+    df_output, df_state_final : Tuple[pandas.DataFrame, pandas.DataFrame]
+        - df_output: Output results from the simulation
+        - df_state_final: Final model states
+
+    See Also
+    --------
+    supy.suews_sim.SUEWSSimulation : Modern object-oriented interface (recommended)
+
+    Examples
+    --------
+    >>> df_output, df_state_final = supy.run_supy_sample()
+
+    """
     _warn_functional_deprecation("run_supy_sample")
     return _run_supy_sample(
         start=start,
@@ -921,6 +1197,3 @@ def run_supy_sample(
         serial_mode=serial_mode,
         debug_mode=debug_mode,
     )
-
-
-run_supy_sample.__doc__ = _run_supy_sample.__doc__

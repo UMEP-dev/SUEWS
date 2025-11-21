@@ -21,7 +21,7 @@
 
 | Year | Features | Bugfixes | Changes | Maintenance | Docs | Total |
 |------|----------|----------|---------|-------------|------|-------|
-| 2025 | 38 | 26 | 13 | 34 | 17 | 128 |
+| 2025 | 39 | 27 | 14 | 34 | 18 | 132 |
 | 2024 | 12 | 17 | 1 | 12 | 1 | 43 |
 | 2023 | 11 | 14 | 3 | 9 | 1 | 38 |
 | 2022 | 15 | 18 | 0 | 7 | 0 | 40 |
@@ -31,26 +31,67 @@
 | 2018 | 7 | 1 | 6 | 5 | 0 | 19 |
 | 2017 | 9 | 0 | 3 | 2 | 0 | 14 |
 
-
 ## 2025
 
+### 20 Nov 2025
+- [doc] Updated tutorials and API documentation to use modern OOP interface (#881)
+  - Updated impact-studies.ipynb, quick-start.ipynb, setup-own-site.ipynb to use `SUEWSSimulation.from_sample_data()`
+  - Updated data-structures.rst code examples
+  - Completed modernisation started in #779
+
+### 19 Nov 2025
+- [bugfix] Fixed last layer of validation for DLS startdls and endls parameters (#877)
+  - Instead of hemisphere pattern check (NH/SH typical ranges), now phase C provide NO ACTION NEEDED info to user with calculated DLS startdls and endls (to compare against user values).
+  - Useful when Phase C runs standalone or via `SUEWSConfig.from_yaml()` (Phase B auto-corrects values in full pipeline)
+
+### 18 Nov 2025
+- [change] **BREAKING**: Simplified ERA5 download implementation and renamed `data_source` parameter values (#874)
+  - Removed earthkit.data dependency - both download methods now use cdsapi directly
+  - `data_source` parameter values renamed for clarity:
+    - `"timeseries"` (new default, was "earthkit"): Fast ERA5 timeseries dataset for point locations
+    - `"gridded"` (was "cdsapi"): Traditional gridded ERA5 with model levels and spatial grids
+  - Timeseries downloads CSV directly and loads in-memory (zero extra dependencies!)
+  - Gridded path requires optional h5netcdf for netCDF4 reading (install separately: `pip install h5netcdf`)
+  - Same fast performance for timeseries (~26s for 30 years) with minimal dependencies
+  - Timeseries only works with surface-level variables (requires `simple_mode=True`)
+  - To use traditional gridded ERA5, explicitly set `data_source="gridded"`
+  - `hgt_agl_diag` parameter remains functional for extrapolating to measurement height
+- [change] Made xarray optional dependency (only needed for gridded ERA5) (#874)
+  - CSV timeseries path now uses pure pandas (no xarray conversion)
+  - Significantly faster for timeseries: 1.2s vs 10-15s for test case
+  - ~10x speed improvement by eliminating pandas → xarray → pandas round-trip
+  - For gridded ERA5, install with: `pip install xarray`
+- [change] Removed dask dependency (was redundant with multiprocess) (#874)
+  - CLI now uses `multiprocess.pool.ThreadPool` for parallel batch simulations
+  - Same functionality, lighter dependencies
+  - Consolidates all parallel processing to one library
+
 ### 14 Nov 2025
-- [feature] Added Phase C validation for daylight saving time parameters
+- [feature] Added `SUEWSSimulation.from_sample_data()` factory method and comprehensive OOP enhancements (#779)
+  - New factory method for cleaner OOP workflow: `sim = SUEWSSimulation.from_sample_data()`
+  - Added visual feedback with `__repr__()` showing simulation status (Not configured, Ready, Complete)
+  - Added state access properties: `state_init` and `state_final`
+  - Added validation methods: `is_ready()` and `is_complete()`
+  - Enabled method chaining for fluent interface (`update_config()`, `update_forcing()`, `reset()` return self)
+  - Added `get_variable()` helper for extracting specific variables from MultiIndex results
+  - Implemented deprecation infrastructure for functional API (maintains backward compatibility)
+  - Updated workflow documentation to exclusively showcase OOP interface
+- [feature] Added Phase C validation for daylight saving time parameters (#857)
   - Four validation layers: (1) basic range [1, 366], (2) consistency (both set or both None), (3) leap year (DOY 366 only in leap years), (4) hemisphere pattern check (NH/SH typical ranges)
   - First three layers raise ERROR; hemisphere check adds INFO to report "NO ACTION NEEDED" section
   - Useful when Phase C runs standalone or via `SUEWSConfig.from_yaml()` (Phase B auto-corrects values in full pipeline)
 
 ### 12 Nov 2025
-- [feature] Added irrigation year-wrapping pattern detection
+- [feature] Added irrigation year-wrapping pattern detection (#843)
   - Warns for unusual patterns (NH: ie_start > ie_end; SH: ie_start < ie_end)
   - Integrated into Phase B scientific validation pipeline
 
 ### 11 Nov 2025
-- [feature] Added irrigation parameter validation
+- [feature] Added irrigation parameter validation (#843)
   - Validates `ie_start` and `ie_end` for DOY range, consistency, and hemisphere-aware seasonal appropriateness
   - NH (lat ≥ 23.5°): warm season DOY 121-273; SH (lat ≤ -23.5°): DOY 305-90; Tropics (|lat| < 23.5°): year-round
   - Integrated into Phase B scientific validation pipeline
-- [bugfix] Fixed YAML converter errors with legacy data (Issue #846)
+- [bugfix] Fixed YAML converter errors with legacy data (#846)
   - Fixed logging errors when sys.stdout is None (e.g., in QGIS)
   - Fixed missing NML file handling (SPARTACUS, ESTM) to return empty containers
   - Added graceful handling of legacy profile file formats (2017 data)
@@ -60,20 +101,20 @@
   - Added comprehensive tests with real URBANFLUXES 2017 data
 
 ### 05 Nov 2025
-- [feature] Added physics-specific forcing data validation 
+- [feature] Added physics-specific forcing data validation (#824)
   - `check_forcing()` validates required forcing columns (qn, qf, qs, ldown, fcld, xsmd) based on physics configuration
   - Integrated with Phase A validation pipeline; backwards compatible
   - Added helpful error messages with documentation links
 
 ### 4 Nov 2025
-- [bugfix] Fixed land cover fraction validation to use floating-point tolerance
+- [bugfix] Fixed land cover fraction validation to use floating-point tolerance (#820)
   - Changed from exact equality check (`total_fraction != 1.0`) to tolerance-based check (`abs(total_fraction - 1.0) > 1e-6`)
   - Uses same tolerance (1e-6) as Phase B fraction normalisation
   - Improved error messages to show tolerance level and actual difference from 1.0
 
 
 ### 31 Oct 2025
-- [bugfix] Fixed Phase B validator to not nullify `lai_id` when surface fraction is zero
+- [bugfix] Fixed Phase B validator to not nullify `lai_id` when surface fraction is zero (#815)
   - Removed logic that set `lai_id: null` for vegetation surfaces (dectr, evetr, grass) when `sfr=0`
   - Preserves user-provided initial state values even when surface is not active
   - Existing warning "Parameters not checked because surface fraction is 0" adequately covers validation skipping
@@ -81,37 +122,37 @@
   - Fixed in both `phase_b.py` (Phase B pipeline) and `yaml_helpers.py` (precheck functions)
   - Removed obsolete test `test_lai_id_nullified_if_no_dectr_surface` from `test_yaml_processing.py`
   - Updated documentation in `PHASE_B_DETAILED.md` to reflect new behaviour
-- [bugfix] Added `rcmethod` to required physics options in validation system
+- [bugfix] Added `rcmethod` to required physics options in validation system (#814)
   - Updated validation pipelines: Phase A (`PHYSICS_OPTIONS`), Phase B (`required_physics_params`), orchestrator (`CRITICAL_PHYSICS_PARAMS`)
   - Updated tests in `test_yaml_processing.py` to include `rcmethod` in physics options validation
   - `rcmethod` controls method for splitting building envelope heat capacity in STEBBS (0=NONE, 1=PROVIDED, 2=PARAMETERISE)
 
 ### 29 Oct 2025
-- [feature] Added validation constraints for human activity parameters
+- [feature] Added validation constraints for human activity parameters (#798)
   - `faut`: Fraction of irrigated area using automatic systems [0.0, 1.0]
   - `frfossilfuel_heat`, `frfossilfuel_nonheat`: Fossil fuel fractions [0.0, 1.0]
   - `popdensnighttime`: Population density must be => 0.0 (persons/ha)
-- [bugfix] Fixed irrigation parameter: `ie_start` and `ie_end` now correctly identified as Day of Year (DOY) instead of hours
+- [bugfix] Fixed irrigation parameter: `ie_start` and `ie_end` now correctly identified as Day of Year (DOY) instead of hours (#843)
   - Corrected Python data model to match Fortran source code and documentation (DOY units, not hours)
   - Fixed pre-existing documentation bug where these parameters were incorrectly labelled as "hour" units
-- [feature] Phase B validator now automatically populates `OutdoorAirAnnualTemperature` from CRU dataset
+- [feature] Phase B validator now automatically populates `OutdoorAirAnnualTemperature` from CRU dataset (#808)
   - Uses CRU TS4.06 1991-2020 climate normals to set annual mean air temperature for STEBBS building model
   - Consistent with existing monthly temperature handling for other STEBBS parameters
   - Adjustment recorded in validation report with CRU data provenance
 
 ### 24 Oct 2025
-- [feature] Added physical range validation for 50+ STEBBS building model parameters in `ArchetypeProperties`
+- [feature] Added physical range validation for 50+ STEBBS building model parameters in `ArchetypeProperties` (#746)
   - Dimensionless parameters (emissivity, transmissivity, absorptivity, reflectivity, ratios) constrained to [0.0, 1.0]
   - Physical properties (thickness, conductivity, density, heat capacity) constrained to positive values
   - Updated defaults: WallThickness (0.2 m), WallEffectiveConductivity (0.6 W/m/K), ApplianceUsageFactor ([0.0, 1.0])
-- [doc] Added comprehensive documentation for forcing data validation functions
+- [doc] Added comprehensive documentation for forcing data validation functions (#773)
   - New "Validating Forcing Data" section in `forcing-data.rst` with complete reference
   - Documents `check_forcing()` function: what it validates, physical ranges for 20 variables, usage examples
   - Includes Python usage examples and integration with `suews-validate` command
   - Cross-references validation system documentation
 
 ### 22 Oct 2025
-- [feature] Forcing data validation integrated into Phase A validator
+- [feature] Forcing data validation integrated into Phase A validator (#767)
   - Added automatic validation of meteorological forcing data in Phase A pipeline
   - Enabled by default; disable with `--forcing off` or `-f off` CLI flags
   - Errors appear in ACTION NEEDED section with single-line formatting and include filename context
@@ -123,8 +164,8 @@
   - Updated documentation: `validation.rst`, `ORCHESTRATOR.md`, `PHASE_A_DETAILED.md`, `README.md`
 
 ### 21 Oct 2025
-- [feature] Added `get_mean_annual_air_temperature()` for stable parameter initialisation using CRU TS4.06 climate normals
-- [bugfix] Fixed Phase B validation to update roofs/walls temperature fields in initial_states from CRU climate data
+- [feature] Added `get_mean_annual_air_temperature()` for stable parameter initialisation using CRU TS4.06 climate normals (#762)
+- [bugfix] Fixed Phase B validation to update roofs/walls temperature fields in initial_states from CRU climate data (#736)
   - Extended `adjust_surface_temperatures()` to process `initial_states.roofs` and `initial_states.walls` arrays
   - Updates `temperature` (5-layer array), `tsfc`, and `tin` fields to monthly averages from CRU TS4.06 dataset
   - Ensures consistent temperature initialization across all surface types
@@ -216,7 +257,7 @@
   - Improved Phase A reporting to show "Phase A passed" message on success
 
 ### 1 Oct 2025
-- [improvement] Refactored SPARTACUS nlayer=1 handling in `SurfaceInitialState.from_df_state()` to use more robust try-except pattern
+- [maintenance] Refactored SPARTACUS nlayer=1 handling in `SurfaceInitialState.from_df_state()` to use more robust try-except pattern
   - Replaced conditional logic based on nlayer value with EAFP (Easier to Ask Forgiveness than Permission) approach
   - Method now automatically handles both array format `"(idx,)"` and scalar format `"idx"` for DataFrame columns
   - Improved code maintainability and self-documentation with `safe_get_value()` helper function
@@ -230,7 +271,7 @@
   - Conversion now properly reads nlayer from GridLayoutKc.nml and creates matching number of roof/wall layers
   - Initial states now correctly reflect the specified number of vertical layers
   - Added defensive coding to handle missing layer data gracefully
-- [improvement] Added warning when nlayer parameter is missing from df_state, improving debugging visibility for configuration issues
+- [feature] Added warning when nlayer parameter is missing from df_state, improving debugging visibility for configuration issues
 
 ### 26 Sep 2025
 - [bugfix] Fixed path resolution bug in `suews-validate` CLI command that prevented validation from working when run from subdirectories
@@ -259,16 +300,16 @@
 
 ### 17 Sep 2025
 
-- [change] Moved snowuse parameter validation from Phase C to orchestrator.py for early detection of restricted model options ([PR #688](https://github.com/UMEP-dev/SUEWS/pull/688))
+- [change] Moved snowuse parameter validation from Phase C to orchestrator.py for early detection of restricted model options (#688)
 - [change] Public mode now halts execution with clear error message when snowuse values != 0, preventing use of restricted development features
 - [change] Development mode allows snowuse values != 0, maintaining same behaviour as stebbsmethod for developer access
 - [doc] Updated ORCHESTRATOR.md and PHASE_A_DETAILED.md documentation to reflect snowuse restriction changes
-- [bugfix] Fixed parameter naming convention mismatch between sample_config.yml and data model in validation system ([PR #686](https://github.com/UMEP-dev/SUEWS/pull/686), fixes [#650](https://github.com/UMEP-dev/SUEWS/issues/650))
+- [bugfix] Fixed parameter naming convention mismatch between sample_config.yml and data model in validation system (#686, fixes #650)
 - [bugfix] Added parameter name mapping in validation system to link different naming conventions between YAML and data model
 - [bugfix] Prevented parameter duplication in updated user YAML files when running Phase A validation
 - [maintenance] Added specific tests to test_yaml_processing.py to verify parameter naming convention fixes
 
-- [maintenance] Fixed Linux platform support for older systems by switching to manylinux2014 for broader glibc compatibility (GitHub issue #679)
+- [maintenance] Fixed Linux platform support for older systems by switching to manylinux2014 for broader glibc compatibility (#679)
 - [maintenance] Added Fortran line length compiler flag (-ffree-line-length-none) to handle long lines without manual breaking
 - [maintenance] Added fprettify configuration for consistent Fortran code formatting
 - [maintenance] Fixed pyarrow installation on Linux CI by configuring pip to use binary wheels instead of building from source
@@ -285,17 +326,17 @@
   - Replaced Unicode checkmark characters (✓) with ASCII alternatives ([OK])
   - Fixes UnicodeEncodeError on Windows console that cannot handle UTF-8 characters
   - Affects table conversion logging and CLI output messages
-- [bugfix] Replaced timezonefinder with tzfpy to fix Windows installation failure ([#681](https://github.com/UMEP-dev/SUEWS/issues/681))
+- [bugfix] Replaced timezonefinder with tzfpy to fix Windows installation failure (#681)
   - Switched from timezonefinder to tzfpy which provides pre-built Windows wheels
   - Maintains full DST calculation functionality on all platforms
   - Added compatibility wrapper to preserve existing API
   - Falls back to timezonefinder if tzfpy not available for backward compatibility
-- [bugfix] Fixed SUEWS-SS to YAML conversion failure for single-layer configurations ([#650](https://github.com/UMEP-dev/SUEWS/issues/650))
+- [bugfix] Fixed SUEWS-SS to YAML conversion failure for single-layer configurations (#650)
   - Fixed index format mismatch in `VerticalLayers.from_df_state` and `BuildingLayer.from_df_state`
   - Single-layer configurations now correctly use index format '0' instead of '(0,)'
   - Multi-layer configurations continue to use '(0,)', '(1,)' format
   - Enables successful conversion of urban-only SUEWS-SS simulations without vegetation
-- [doc] Added simple instructions for testing development versions ([#652](https://github.com/UMEP-dev/SUEWS/issues/652))
+- [doc] Added simple instructions for testing development versions (#652)
   - Added concise section in README.md for developers to test pre-release versions from test.pypi.org
   - Included uv-based installation method to resolve dependency issues
   - Provided clear steps for creating fresh environment and verifying installation
@@ -329,18 +370,18 @@
   - Updated all imports and meson.build to reflect new structure
 
 ### 19 Aug 2025
-- [feature] Added unified `suews-schema` CLI for comprehensive schema management ([#612](https://github.com/UMEP-dev/SUEWS/issues/612), [#613](https://github.com/UMEP-dev/SUEWS/issues/613))
+- [feature] Added unified `suews-schema` CLI for comprehensive schema management (#612, (#613)
   - Consolidated schema version checking, validation, and migration into single command
   - Subcommands: `info`, `version`, `validate`, `migrate`, `export`
   - Supports batch operations on multiple YAML files
   - CI/CD friendly with `--strict` mode and multiple output formats (json, yaml, table)
   - Dry-run capability for safe migration preview
   - Automatic backup creation during updates and migrations
-  - Designed for integration with future suews-wizard ([#544](https://github.com/UMEP-dev/SUEWS/issues/544))
+  - Designed for integration with future suews-wizard (#544)
   - Rich console output with progress tracking and color-coded status
 
 ### 15 Aug 2025
-- [feature] Added YAML configuration schema versioning for structure evolution tracking ([#576](https://github.com/UMEP-dev/SUEWS/issues/576))
+- [feature] Added YAML configuration schema versioning for structure evolution tracking (#576)
   - Single `schema_version` field tracks configuration structure changes (e.g., '1.0', '1.1', '2.0')
   - Schema versions are independent of SUEWS model versions for cleaner separation of concerns
   - Automatic compatibility checking with clear warnings for version mismatches
@@ -358,7 +399,7 @@
   - IDE integration support (VS Code, PyCharm, Vim, etc.)
   - Enables autocomplete, inline validation, and documentation in editors
   - Comprehensive documentation for schema usage and integration
-- [bugfix] Fix forcing path resolution to be relative to config file location (#573)
+- [bugfix] Fixed forcing path resolution to be relative to config file location (#573)
   - SUEWSSimulation now correctly resolves relative forcing paths relative to the config file
   - Previously, relative paths were resolved relative to the current working directory
   - Added comprehensive tests to ensure forcing paths work correctly in all scenarios
@@ -375,7 +416,7 @@
   - Ensures tests work correctly in different directory structures (local vs CI)
 
 ### 13 Aug 2025
-- [maintenance] Marked ANOHM-specific fields as internal to exclude from user documentation ([#598](https://github.com/UMEP-dev/SUEWS/pull/598))
+- [maintenance] Marked ANOHM-specific fields as internal to exclude from user documentation (#598)
   - Added `internal_only` flag to ANOHM-specific fields (ch_anohm, rho_cp_anohm, k_anohm)
   - These fields are only used by the deprecated ANOHM method (StorageHeatMethod=3)
   - OHM fields remain visible as OHM methods (1, 6) are still valid user options
@@ -397,7 +438,7 @@
   - Enhanced technical documentation in `phase_a_detailed.rst` with implementation details
 
 ### 11 Aug 2025
-- [doc] Added comprehensive parameter documentation for YAML configuration ([#577](https://github.com/UMEP-dev/SUEWS/issues/577), [#598](https://github.com/UMEP-dev/SUEWS/pull/598))
+- [doc] Added comprehensive parameter documentation for YAML configuration (#577, (#598)
   - Created user-friendly Parameter Configuration Guide organized by use cases
   - Added practical guidance for essential parameters, physics methods, and urban morphology
   - Included common configuration examples for urban, suburban, and park sites
@@ -412,7 +453,7 @@
   - Will be replaced by a forthcoming command-line wizard tool
 
 ### 8 Aug 2025
-- [maintenance] Formalised release management plan for SUEWS ([#592](https://github.com/UMEP-dev/SUEWS/issues/592))
+- [maintenance] Formalised release management plan for SUEWS (#592)
   - Established semantic versioning strategy with year-based major versions
   - Defined three release channels: Stable, Preview (beta/rc), and Development
   - Created quarterly release cadence aligned with academic calendar
@@ -557,46 +598,46 @@
   - Provides 10x faster feedback during development while ensuring full coverage when ready
 
 ### 5 Aug 2025
-- [doc] Fixed FAIMethod option descriptions inconsistency ([#578](https://github.com/UMEP-dev/SUEWS/issues/578))
+- [doc] Fixed FAIMethod option descriptions inconsistency (#578)
   - Updated Python data model FAIMethod enum to match Fortran implementation
   - Changed enum names from ZERO/FIXED to USE_PROVIDED/SIMPLE_SCHEME
   - Removed VARIABLE option (value 2) as it's not implemented in Fortran code
   - Clarified that option 0 uses provided FAI values, option 1 calculates using simple scheme
   - Updated Field description to reflect actual implementation behaviour
   - Aligned default value with Fortran code (FAIMethod.USE_PROVIDED = 0)
-- [bugfix] Fixed missing to_yaml module ([#566](https://github.com/UMEP-dev/SUEWS/issues/566))
+- [bugfix] Fixed missing to_yaml module (#566)
   - Added missing import of `to_yaml` function in `supy.cmd.__init__.py`
   - Added `suews-to-yaml` console script entry point in pyproject.toml
   - Moved supy imports to be lazy-loaded inside the function to avoid circular import issues
   - Note: `python -m supy.cmd.to_yaml` requires supy to be fully installed first
 
 ### 25 Jul 2025
-- [bugfix] Fixed NaN QF (anthropogenic heat flux) when population density is zero ([#240](https://github.com/UMEP-dev/SUEWS/issues/240))
+- [bugfix] Fixed NaN QF (anthropogenic heat flux) when population density is zero (#240)
   - Added check to prevent division by zero in QF_build calculation
   - When population density is zero, building energy flux is now correctly set to zero
   - Added tests to verify correct behaviour with zero population density
-- [bugfix] Fixed timezone field to use enum for valid timezone offsets ([PR #554](https://github.com/UMEP-dev/SUEWS/pull/554), fixes [#552](https://github.com/UMEP-dev/SUEWS/issues/552))
+- [bugfix] Fixed timezone field to use enum for valid timezone offsets (#554, fixes #552)
   - Changed timezone field from `FlexibleRefValue(int)` to `FlexibleRefValue(Union[TimezoneOffset, float])`
   - Created `TimezoneOffset` enum with all valid global timezone offsets
   - Enables support for fractional timezone offsets (e.g., 5.5 for India, 5.75 for Nepal)
   - Validates input against standard timezone offsets only (no arbitrary floats)
   - Automatically converts numeric inputs to appropriate enum values
   - Critical for accurate solar geometry calculations in regions with non-integer offsets
-- [doc] Added comprehensive documentation for runoff generation mechanisms ([#212](https://github.com/UMEP-dev/SUEWS/issues/212))
+- [doc] Added comprehensive documentation for runoff generation mechanisms (#212)
   - Explained infiltration capacity exceedance (Hortonian runoff)
   - Documented saturation excess runoff for different surface types
   - Clarified timestep considerations for runoff calculations
   - Added mathematical formulations and water routing details
-- [bugfix] Fixed unnecessary interpolation when tstep equals resolutionfilesin ([#161](https://github.com/UMEP-dev/SUEWS/issues/161))
+- [bugfix] Fixed unnecessary interpolation when tstep equals resolutionfilesin (#161)
   - Added conditional check to skip interpolation when model timestep matches input data resolution
   - Prevents incorrect interpolation of averaged variables like kdown
   - Ensures forcing data passes through unchanged when no resampling is needed
-- [doc] Improved clarity of tstep_prev purpose for WRF-SUEWS coupling ([#551](https://github.com/UMEP-dev/SUEWS/issues/551), [#553](https://github.com/UMEP-dev/SUEWS/issues/553))
+- [doc] Improved clarity of tstep_prev purpose for WRF-SUEWS coupling (#551, (#553)
   - Added explanatory comments at all tstep_prev usage sites
   - Enhanced type definition documentation in SUEWS_TIMER
   - Added module-level documentation explaining WRF coupling support
   - Clarified that tstep_prev equals tstep in standalone SUEWS but allows adaptive timesteps in WRF
-- [feature] Separated RSL and MOST height array generation ([PR #541](https://github.com/UMEP-dev/SUEWS/pull/541))
+- [feature] Separated RSL and MOST height array generation (#541)
   - Fixed interpolation errors by completely separating RSL and MOST approaches
   - Improved height array generation for different atmospheric stability methods
 - [maintenance] Updated PyPI/TestPyPI deployment strategy
@@ -638,7 +679,7 @@
   - Identifies documentation files that need updating based on code changes
   - Runs documentation generation scripts when data models or schemas change
   - Uses Claude Code's built-in slash command system with metadata and bash integration
-- [maintenance] Created CHANGELOG management scripts ([PR #547](https://github.com/UMEP-dev/SUEWS/pull/547))
+- [maintenance] Created CHANGELOG management scripts (#547)
   - Added `.claude/scripts/changelog_restructure.py` for parsing, cleaning, and sorting entries
   - Restructured entire CHANGELOG.md file with proper reverse chronological ordering
   - Extended historical coverage from 65 to 117 dates by analyzing git commit history
@@ -654,15 +695,15 @@
 ### 22 Jul 2025
 - [feature] Enhanced CI workflow to trigger on tag pushes
   - Build workflow now triggers on version tag pushes for release automation
-- [bugfix] Fixed input validation for zero wind speed ([PR #545](https://github.com/UMEP-dev/SUEWS/pull/545), fixes [#314](https://github.com/UMEP-dev/SUEWS/issues/314))
+- [bugfix] Fixed input validation for zero wind speed (#545, fixes #314)
   - Added validation to prevent division by zero in atmospheric calculations
   - Fixed wind speed validation test to use correct forcing data structure
   - Prevents model crashes when wind speed approaches zero
-- [bugfix] Fixed snow warning spam ([PR #542](https://github.com/UMEP-dev/SUEWS/pull/542), fixes [#528](https://github.com/UMEP-dev/SUEWS/issues/528))
+- [bugfix] Fixed snow warning spam (#542, fixes #528)
   - Limited snow warning message to appear only once per simulation run
   - Added module-level flag to track warning display status
   - Prevents console spam when SnowUse=1 is enabled
-- [maintenance] Migrated all model validators to SUEWSConfig ([PR #546](https://github.com/UMEP-dev/SUEWS/pull/546))
+- [maintenance] Migrated all model validators to SUEWSConfig (#546)
   - Completed systematic migration of 12 model validators from individual Pydantic classes
   - Centralised all validation logic in SUEWSConfig for better maintainability
   - Added 99 comprehensive tests for migrated validators
@@ -674,7 +715,7 @@
   - Added scientific review process documentation
 
 ### 21 Jul 2025
-- [feature] Allow lists under RefValue for forcing data ([PR #540](https://github.com/UMEP-dev/SUEWS/pull/540), fixes [#538](https://github.com/UMEP-dev/SUEWS/issues/538))
+- [feature] Allow lists under RefValue for forcing data (#540, fixes #538)
   - Added iteration functionality to RefValue when value is a list
   - Enables more flexible configuration of forcing data parameters
   - Added comprehensive test coverage for list handling in RefValue
@@ -696,7 +737,7 @@
   - Fixed conflicting .fprettify.yml file
 
 ### 18 Jul 2025
-- [feature] Added comprehensive testing improvements (PRs [#525](https://github.com/UMEP-dev/SUEWS/issues/525), [#526](https://github.com/UMEP-dev/SUEWS/issues/526))
+- [feature] Added comprehensive testing improvements (PRs (#525), (#526))
   - Added extensive utility tests for core functionality
   - Added comprehensive coding guidelines and testing documentation
   - Implemented automatic code formatting on master branch
@@ -706,13 +747,13 @@
 - [maintenance] Removed WRF-SUEWS integration utilities
 
 ### 17 Jul 2025
-- [feature] Added cibuildwheel debug workflow with SSH access ([PR #522](https://github.com/UMEP-dev/SUEWS/pull/522))
+- [feature] Added cibuildwheel debug workflow with SSH access (#522)
 - [maintenance] Enhanced Claude workflows with skip functionality
   - Added ability to skip reviews based on PR title keywords
   - Converted Claude code review to manual workflow dispatch
 - [maintenance] Test suite improvements
   - Added pytest-order to dev dependencies
-  - Enabled all tests on all platforms ([PR #513](https://github.com/UMEP-dev/SUEWS/pull/513))
+  - Enabled all tests on all platforms (#513)
   - Reorganised test suite by functionality
 
 ### 16 Jul 2025
@@ -728,34 +769,34 @@
   - Updated pydantic data model validation
 
 ### 13 Jul 2025
-- [maintenance] Improved Claude Code review formatting ([PR #474](https://github.com/UMEP-dev/SUEWS/pull/474))
+- [maintenance] Improved Claude Code review formatting (#474)
   - Added collapsible HTML sections for better organisation
   - Enhanced review structure with categorised feedback
 
 ### 11 Jul 2025
-- [maintenance] Added Claude Code GitHub Actions workflows (PRs [#466](https://github.com/UMEP-dev/SUEWS/issues/466), [#467](https://github.com/UMEP-dev/SUEWS/issues/467))
+- [maintenance] Added Claude Code GitHub Actions workflows (PRs (#466), (#467))
   - Added Claude PR Assistant workflow for automated reviews
   - Preserved security checks for authorised users
   - Added worktree command for Claude Code integration
 
 ### 10 Jul 2025
-- [bugfix] Fixed version tag preservation ([PR #465](https://github.com/UMEP-dev/SUEWS/pull/465))
+- [bugfix] Fixed version tag preservation (#465)
 
 ### 08 Jul 2025
-- [feature] Added conditional validation for model options ([PR #460](https://github.com/UMEP-dev/SUEWS/pull/460))
+- [feature] Added conditional validation for model options (#460)
   - Implemented validation for storage, RSL, and STEBBS options
   - Added comprehensive test coverage for conditional validation
   - Improved validation error messages with detailed issues
 
 ### 05 Jul 2025
-- [feature] Simplified SUEWSSimulation API ([PR #463](https://github.com/UMEP-dev/SUEWS/pull/463))
+- [feature] Simplified SUEWSSimulation API (#463)
   - Refactored class for cleaner, more intuitive interface
-  - Fixed forcing file path handling issues ([#458](https://github.com/UMEP-dev/SUEWS/issues/458), [#459](https://github.com/UMEP-dev/SUEWS/issues/459))
+  - Fixed forcing file path handling issues (#458, (#459)
   - Added comprehensive tests for various forcing scenarios
   - Updated documentation for new API
 
 ### 04 Jul 2025
-- [feature] Enhanced SUEWS configuration builder ([PR #455](https://github.com/UMEP-dev/SUEWS/pull/455))
+- [feature] Enhanced SUEWS configuration builder (#455)
   - Added unsaved changes warning
   - Implemented field-specific UI controls
   - Fixed radio button styling and type conversion
@@ -764,7 +805,7 @@
   - Modularised config-builder.js for better maintainability
 
 ### 03 Jul 2025
-- [change] Added DailyState resampling option ([PR #456](https://github.com/UMEP-dev/SUEWS/pull/456))
+- [change] Added DailyState resampling option (#456)
   - Improved resampling implementation for DailyState outputs
   - Enhanced output flexibility for different temporal resolutions
 
@@ -774,7 +815,7 @@
   - Marks missing parameters with [ERROR] MISSING: and provides [TIP] ADD HERE: suggestions
   - Includes parameter descriptions and expected types for each missing field
   - Significantly improves user experience when creating configuration files
-- [bugfix] Fixed parameter validation false positives and improved validation messages ([#448](https://github.com/UMEP-dev/SUEWS/issues/448))
+- [bugfix] Fixed parameter validation false positives and improved validation messages (#448)
   - Resolved spurious warnings during normal operations
   - Made validation messages clearer and more actionable
   - Fixed platform-specific test failures on Windows, Linux, and macOS
@@ -854,7 +895,7 @@
 - [doc] Updated CLAUDE.md with comprehensive changelog management guidelines and development workflow documentation
 
 ### 13 Jun 2025
-- [feature] Added YAML-based configuration system with comprehensive conversion tools and interactive web UI ([#343](https://github.com/UMEP-dev/SUEWS/issues/343))
+- [feature] Added YAML-based configuration system with comprehensive conversion tools and interactive web UI (#343)
 - [feature] Implemented `to_yaml.py` command-line tool for converting legacy table-based inputs to modern YAML format with optional version upgrade support
 - [feature] Created interactive web-based configuration builder with real-time validation, Bootstrap UI, and YAML/JSON export capabilities
 - [feature] Added automatic JSON Schema generation from Pydantic data models for configuration validation and UI integration
@@ -864,10 +905,10 @@
 - [doc] Enhanced documentation system with modernised structure and comprehensive migration guides from table-based to YAML-based configuration
 
 ### 06 Jun 2025
-- [doc] Added comprehensive unit documentation to all RefValue parameters in data model, improving dimensional consistency and user understanding of expected parameter scales and ranges ([#398](https://github.com/UMEP-dev/SUEWS/issues/398))
+- [doc] Added comprehensive unit documentation to all RefValue parameters in data model, improving dimensional consistency and user understanding of expected parameter scales and ranges (#398)
 
 ### 30 Jan 2025
-- [feature] Major STEBBS (Spatially-Resolving Building Energy Balance Scheme) enhancements ([PR #309](https://github.com/UMEP-dev/SUEWS/pull/309))
+- [feature] Major STEBBS (Spatially-Resolving Building Energy Balance Scheme) enhancements (#309)
   - Refactored STEBBS parameter handling and building state types
   - Added comprehensive STEBBS configuration support in YAML format
   - Updated STEBBS outputs and namelist file expectations
@@ -883,12 +924,12 @@
   - Added automated fprettify source code formatting
 
 ### 28 Jan 2025
-- [feature] Python 3.13 support (PRs [#341](https://github.com/UMEP-dev/SUEWS/issues/341), [#342](https://github.com/UMEP-dev/SUEWS/issues/342))
+- [feature] Python 3.13 support (PRs (#341), (#342))
   - Added full test coverage for Python 3.13 on linux_x86_64
   - Updated cibuildwheel to v2.20 for Python 3.13 compatibility
   - Fixed macOS wheel building for multiple Python versions
   - Enhanced CI matrix configuration for broader platform support
-- [bugfix] Fixed atmospheric stability calculations (issue [#296](https://github.com/UMEP-dev/SUEWS/issues/296))
+- [bugfix] Fixed atmospheric stability calculations (issue (#296))
   - Modified neut_limit parameter handling
   - Changed L_MOD to L_MOD_RSL for psihath calculations
 - [maintenance] Improved macOS build configuration
@@ -904,7 +945,7 @@
   - Updated cibuildwheel configuration for better cross-platform compatibility
 
 ### 23 Jan 2025
-- [feature] Added a pydantic-based input structure to ease the input of model parameters ([#324](https://github.com/UMEP-dev/SUEWS/issues/324))
+- [feature] Added a pydantic-based input structure to ease the input of model parameters (#324)
 
 ### 21 Jan 2025
 - [feature] Enhanced configuration system with Pydantic validation
@@ -919,7 +960,7 @@
   - Improved STEBBS configuration variable organization
 
 ### 8 Jan 2025
-- [bugfix] Fixed STEBBS parameter type handling (PRs [#321](https://github.com/UMEP-dev/SUEWS/issues/321), [#323](https://github.com/UMEP-dev/SUEWS/issues/323), fixes [#319](https://github.com/UMEP-dev/SUEWS/issues/319))
+- [bugfix] Fixed STEBBS parameter type handling (PRs (#321), (#323), fixes (#319))
   - Fixed string/numeric type handling in pack_var function
   - Ensured consistent output types for error handling
   - Removed DAVE-specific parameters from STEBBS
@@ -946,7 +987,7 @@
   - Restored threshold-based approach for moisture stress calculations
 
 ### 9 Dec 2024
-- [bugfix] Fixed soil water state calculations ([PR #317](https://github.com/UMEP-dev/SUEWS/pull/317), fixes [#316](https://github.com/UMEP-dev/SUEWS/issues/316))
+- [bugfix] Fixed soil water state calculations (#317, fixes #316)
   - Corrected soil water state initialization issues
   - Updated moisture stress calculations
 - [maintenance] Development environment improvements
@@ -954,14 +995,14 @@
   - Enhanced support for easier testing of development changes
 
 ### 8 Dec 2024
-- [feature] YAML configuration system enhancements ([PR #315](https://github.com/UMEP-dev/SUEWS/pull/315), fixes [#298](https://github.com/UMEP-dev/SUEWS/issues/298))
+- [feature] YAML configuration system enhancements (#315, fixes #298)
   - Merged default YAML generator into def_config_suews function
   - Added field rules and validators for STEBBS properties
   - Enhanced configuration validation for storage heat methods
   - Generated new config-suews.yml with STEBBS parameters
 
 ### 3 Dec 2024
-- [bugfix] Fixed wind speed handling in RSL calculations ([PR #307](https://github.com/UMEP-dev/SUEWS/pull/307), fixes [#283](https://github.com/UMEP-dev/SUEWS/issues/283))
+- [bugfix] Fixed wind speed handling in RSL calculations (#307, fixes #283)
   - Modified RSL calculations to avoid negative wind speeds
   - Prevented negative zero displacement height (zd) values
   - Added error catching for negative wind speed conditions
@@ -976,17 +1017,17 @@
   - Corrected parameter indexing in surface properties
 
 ### 20 Nov 2024
-- [feature] YAML to DataFrame converter implementation (PRs [#305](https://github.com/UMEP-dev/SUEWS/issues/305), [#306](https://github.com/UMEP-dev/SUEWS/issues/306), fixes [#304](https://github.com/UMEP-dev/SUEWS/issues/304))
+- [feature] YAML to DataFrame converter implementation (PRs (#305), (#306), fixes (#304))
   - Created converter for YAML configurations to df_state format
   - Updated config schema for SUEWS
   - Enhanced DataFrame structure with default values
   - Added support for vertical layers, roofs, and walls configuration
 
 ### 12 Nov 2024
-- [bugfix] Critical error reporting enhancement ([PR #295](https://github.com/UMEP-dev/SUEWS/pull/295), fixes [#294](https://github.com/UMEP-dev/SUEWS/issues/294))
+- [bugfix] Critical error reporting enhancement (#295, fixes #294)
   - Created error report system for critical issues
   - Improved error handling in data processing module
-- [maintenance] Build system improvements ([PR #293](https://github.com/UMEP-dev/SUEWS/pull/293), fixes [#285](https://github.com/UMEP-dev/SUEWS/issues/285))
+- [maintenance] Build system improvements (#293, fixes #285)
   - Updated Makefile to install without dependencies
   - Restored albedo value range checks in update_Veg subroutine
   - Fixed typos in documentation
@@ -1007,7 +1048,7 @@
   - Enhanced building energy balance calculations
 
 ### 6 Aug 2024
-- [bugfix] Fixed parallel running mode issues ([PR #282](https://github.com/UMEP-dev/SUEWS/pull/282))
+- [bugfix] Fixed parallel running mode issues (#282)
   - Resolved issues with df_debug in parallel execution mode
   - Improved thread safety for debug output
   - Preserved .dev suffix in version tags
@@ -1015,50 +1056,50 @@
   - Applied dropna only to DailyState group in resample_output
 
 ### 06 Aug 2024
-- [bugfix] Fixed issue with unassociated `avcp` parameter causing model instability ([PR #282](https://github.com/UMEP-dev/SUEWS/pull/282))
+- [bugfix] Fixed issue with unassociated `avcp` parameter causing model instability (#282)
 - [maintenance] Simplified SuPy module's serial mode implementation for better performance
 
 ### 02 Aug 2024
-- [bugfix] Fixed a bug in the calculation of the surface temperature ([#281](https://github.com/UMEP-dev/SUEWS/issues/281))
+- [bugfix] Fixed a bug in the calculation of the surface temperature (#281)
 
 ### 05 Jul 2024
-- [feature] Added an option to consider the local feedback of near-surface temperature on the surface energy balance ([#132](https://github.com/UMEP-dev/SUEWS/issues/132))
-- [feature] Implemented debug mode to help with model troubleshooting ([#275](https://github.com/UMEP-dev/SUEWS/issues/275))
-- [bugfix] Restored full test for the DTS-based version ([#264](https://github.com/UMEP-dev/SUEWS/issues/264))
-- [bugfix] Fixed the goto part in snow code implementation ([#128](https://github.com/UMEP-dev/SUEWS/issues/128))
-- [maintenance] Enhanced the ability to auto-fix missing parameters in df_state ([#276](https://github.com/UMEP-dev/SUEWS/issues/276))
+- [feature] Added an option to consider the local feedback of near-surface temperature on the surface energy balance (#132)
+- [feature] Implemented debug mode to help with model troubleshooting (#275)
+- [bugfix] Restored full test for the DTS-based version (#264)
+- [bugfix] Fixed the goto part in snow code implementation (#128)
+- [maintenance] Enhanced the ability to auto-fix missing parameters in df_state (#276)
 - [maintenance] Updated SSss_YYYY_SUEWS_TT.csv output tables
 
 ### 04 Jul 2024
-- [bugfix] Fixed a bug causing an abrupt change in results due to a less smooth transition in `z0` from surfaces without roughness elements to those with them. ([#271](https://github.com/UMEP-dev/SUEWS/issues/271))
-- [bugfix] Improved the discretisation of the vertical levels in the RSL scheme for better interpolation of surface diagnostics (e.g. `T2`) ([#271](https://github.com/UMEP-dev/SUEWS/issues/271))
-- [maintenance] Added support for NumPy 2.0 ([#271](https://github.com/UMEP-dev/SUEWS/issues/271))
+- [bugfix] Fixed a bug causing an abrupt change in results due to a less smooth transition in `z0` from surfaces without roughness elements to those with them. (#271)
+- [bugfix] Improved the discretisation of the vertical levels in the RSL scheme for better interpolation of surface diagnostics (e.g. `T2`) (#271)
+- [maintenance] Added support for NumPy 2.0 (#271)
 
 ### 13 Jun 2024
-- [bugfix] Fixed SUEWS-SS issue with more than 7 layers ([#268](https://github.com/UMEP-dev/SUEWS/issues/268))
+- [bugfix] Fixed SUEWS-SS issue with more than 7 layers (#268)
 
 ### 09 Jun 2024
-- [bugfix] Fixed SUEWS-SS issue when same building fractions were used ([#266](https://github.com/UMEP-dev/SUEWS/issues/266))
+- [bugfix] Fixed SUEWS-SS issue when same building fractions were used (#266)
 
 ### 31 May 2024
-- [feature] Added `dict_debug` an optional output of `run_supy` to help debug the model (for developers: add a `debug` flag to `df_state` to activate this feature) ([#233](https://github.com/UMEP-dev/SUEWS/issues/233))
+- [feature] Added `dict_debug` an optional output of `run_supy` to help debug the model (for developers: add a `debug` flag to `df_state` to activate this feature) (#233)
 
 ### 23 May 2024
 - [bugfix] Fixed string type issue on Python 3.9
-- [maintenance] Added support for Python 3.9 to Python 3.12 ([#257](https://github.com/UMEP-dev/SUEWS/issues/257))
+- [maintenance] Added support for Python 3.9 to Python 3.12 (#257)
 - [maintenance] Updated test suite for consistency and readability
 
 ### 17 May 2024
-- [maintenance] Changed the python build backend to `meson` and `ninja` for faster builds ([#257](https://github.com/UMEP-dev/SUEWS/issues/257))
+- [maintenance] Changed the python build backend to `meson` and `ninja` for faster builds (#257)
 
 ### 09 May 2024
-- [feature] Added CITATION file for academic referencing ([#258](https://github.com/UMEP-dev/SUEWS/issues/258))
+- [feature] Added CITATION file for academic referencing (#258)
 - [bugfix] Fixed Windows build issues
 - [maintenance] Updated GitHub Actions for upload/download and EndBug/add-and-commit
 - [maintenance] Removed unnecessary files and updated build configuration
 
 ### 01 Mar 2024
-- [bugfix] Fixed table converter error due to issue in `rule.csv` ([#249](https://github.com/UMEP-dev/SUEWS/issues/249))
+- [bugfix] Fixed table converter error due to issue in `rule.csv` (#249)
 - [change] Updated update_DailyStateLine_DTS function to include additional input parameters
 
 ### 01 Feb 2024
@@ -1078,53 +1119,53 @@
 - [change] Refactored soil moisture calculations to use hydroState instead of hydroState_prev
 
 ### 21 Nov 2023
-- [bugfix] Fixed various issues reported in [#237](https://github.com/UMEP-dev/SUEWS/issues/237) and [#238](https://github.com/UMEP-dev/SUEWS/issues/238)
+- [bugfix] Fixed various issues reported in (#237) and (#238)
 
 ### 18 Oct 2023
 - [change] `Snow` is temporarily turned off for easier implementation of other functionalities; will be brought back in the future.
 
 ### 17 Oct 2023
-- [bugfix] Fixed issue in calculating irrigation ([#228](https://github.com/UMEP-dev/SUEWS/issues/228))
+- [bugfix] Fixed issue in calculating irrigation (#228)
 
 ### 15 Oct 2023
-- [bugfix] Fixed installation of specific SuPy version ([#229](https://github.com/UMEP-dev/SUEWS/issues/229))
+- [bugfix] Fixed installation of specific SuPy version (#229)
 - [bugfix] Fixed potential initialisation issue in water use calculation that might lead to NaN values
 - [maintenance] Multiple contributions merged from @ljarvi (patches 10-23)
 
 ### 07 Oct 2023
 - [maintenance] Updated build script and full testing requirements to Python 3.11
-- [doc] Updated CO2 related documentation pages ([#226](https://github.com/UMEP-dev/SUEWS/issues/226))
+- [doc] Updated CO2 related documentation pages (#226)
 
 ### 14 Aug 2023
 - [feature] Added allocation/deallocation subroutines to SPARTACUS_LAYER_PRM
-- [bugfix] Fixed oscillation issue in EHC ([#210](https://github.com/UMEP-dev/SUEWS/issues/210))
+- [bugfix] Fixed oscillation issue in EHC (#210)
 - [maintenance] Fixed LooseVersion deprecation issues
 - [maintenance] Updated to 2nd DTS-based interface
 
 ### 01 Jul 2023
 - [feature] Added a function `supy.util.get_spinup_state` to retrieve the spin-up state for the model, which can be used for debugging and initialising the model for simulation.
-- [feature] Implemented fast spin-up for large-scale simulations ([#200](https://github.com/UMEP-dev/SUEWS/issues/200))
+- [feature] Implemented fast spin-up for large-scale simulations (#200)
 - [feature] Added Crank-Nicholson-based heat conduction solver
 - [maintenance] Updated DTS procedures and functions
 
 ### 28 Jun 2023
-- [bugfix] Fixed RSS problem due to incorrect porosity ([#197](https://github.com/UMEP-dev/SUEWS/issues/197))
+- [bugfix] Fixed RSS problem due to incorrect porosity (#197)
 
 ### 05 Jun 2023
-- [feature] added `FAIMethod` to help determine the FAI ([#192](https://github.com/UMEP-dev/SUEWS/issues/192))
-- [bugfix] Fixed NaN in ESTM_ext surface temperature ([#182](https://github.com/UMEP-dev/SUEWS/issues/182))
+- [feature] added `FAIMethod` to help determine the FAI (#192)
+- [bugfix] Fixed NaN in ESTM_ext surface temperature (#182)
 - [maintenance] Updated default porosity range to avoid issues in roughness calculations
 
 ### 03 Jun 2023
-- [bugfix] fixed a bug in writing out `DailyState` - all rows were written as zero ([#190](https://github.com/UMEP-dev/SUEWS/issues/190))
+- [bugfix] fixed a bug in writing out `DailyState` - all rows were written as zero (#190)
 
 ### 15 May 2023
-- [bugfix] fixed a bug in heat flux calculation ([#182](https://github.com/UMEP-dev/SUEWS/issues/182))
-- [bugfix] fixed a bug in `table-converter` ([#186](https://github.com/UMEP-dev/SUEWS/issues/186))
+- [bugfix] fixed a bug in heat flux calculation (#182)
+- [bugfix] fixed a bug in `table-converter` (#186)
 
 ### 13 Apr 2023
 - [feature] added more upgrade options to the `upgrade_df_state` function
-- [bugfix] fixed a bug in the calculation of the soil moisture deficit weighted by vegetation fractions ([#174](https://github.com/UMEP-dev/SUEWS/issues/174))
+- [bugfix] fixed a bug in the calculation of the soil moisture deficit weighted by vegetation fractions (#174)
 - [change] removed `deltaLAI` from the `DailyState` output group as related info is already in `LAI` columns of all vegetated surfaces
 - [maintenance] added [script](src/supy/gen_sample_output.py) to update sample output for testing
 
@@ -1133,21 +1174,21 @@
 - [maintenance] re-organised file structure
 
 ### 16 Feb 2023
-- [bugfix] Fixed issues with model stability and water balance calculations ([#142](https://github.com/UMEP-dev/SUEWS/issues/142), [#143](https://github.com/UMEP-dev/SUEWS/issues/143))
+- [bugfix] Fixed issues with model stability and water balance calculations (#142, (#143)
 
 ### 10 Feb 2023
-- [bugfix] Fixed build system and dependency issues ([#82](https://github.com/UMEP-dev/SUEWS/issues/82))
+- [bugfix] Fixed build system and dependency issues (#82)
 
 ### 27 Jan 2023
-- [feature] Added EPW (EnergyPlus Weather) file header support ([#69](https://github.com/UMEP-dev/SUEWS/issues/69))
-- [bugfix] Fixed various test and CI pipeline issues ([#75](https://github.com/UMEP-dev/SUEWS/issues/75), [#76](https://github.com/UMEP-dev/SUEWS/issues/76))
+- [feature] Added EPW (EnergyPlus Weather) file header support (#69)
+- [bugfix] Fixed various test and CI pipeline issues (#75, (#76)
 
 
 ## 2022
 
 ### 09 Sep 2022
 - [bugfix] Fixed QGIS compatibility issue with scipy/pandas dependencies
-- [maintenance] Improved build system and wheel generation for releases ([#134](https://github.com/UMEP-dev/SUEWS/issues/134))
+- [maintenance] Improved build system and wheel generation for releases (#134)
 
 ### 06 Sep 2022
 - [feature] Enhanced snow module with improved debugging output
@@ -1158,7 +1199,7 @@
 - [feature] Enhanced water balance debugging with additional output variables
 
 ### 29 Aug 2022
-- [bugfix] Fixed abnormal snow fraction handling when snow module is off ([#67](https://github.com/UMEP-dev/SUEWS/issues/67), [#131](https://github.com/UMEP-dev/SUEWS/issues/131))
+- [bugfix] Fixed abnormal snow fraction handling when snow module is off (#67, (#131)
 - [bugfix] Fixed fraction calculations for surface types
 
 ### 25 Aug 2022
@@ -1166,7 +1207,7 @@
 - [maintenance] Reorganised snow module code structure
 
 ### 24 Aug 2022
-- [bugfix] Fixed critical issues when snow module is enabled ([#127](https://github.com/UMEP-dev/SUEWS/issues/127), [#129](https://github.com/UMEP-dev/SUEWS/issues/129))
+- [bugfix] Fixed critical issues when snow module is enabled (#127, (#129)
 - [bugfix] Fixed snow-related initial condition loading
 
 ### 30 Jun 2022
@@ -1174,14 +1215,14 @@
 - [feature] Enhanced RSL calculation logic
 
 ### 29 May 2022
-- [bugfix] Fixed longwave flux issues in SUEWS-SPARTACUS coupling ([#99](https://github.com/UMEP-dev/SUEWS/issues/99))
+- [bugfix] Fixed longwave flux issues in SUEWS-SPARTACUS coupling (#99)
 
 ### 25 May 2022
-- [feature] Added diffuse radiation at ground level output for SUEWS-SPARTACUS ([#98](https://github.com/UMEP-dev/SUEWS/issues/98))
+- [feature] Added diffuse radiation at ground level output for SUEWS-SPARTACUS (#98)
 
 ### 24 May 2022
-- [feature] Added incoming radiation into facets output for SUEWS-SPARTACUS ([#97](https://github.com/UMEP-dev/SUEWS/issues/97))
-- [maintenance] Reorganised SPARTACUS output structure ([#101](https://github.com/UMEP-dev/SUEWS/issues/101))
+- [feature] Added incoming radiation into facets output for SUEWS-SPARTACUS (#97)
+- [maintenance] Reorganised SPARTACUS output structure (#101)
 
 ### 14 May 2022
 - [bugfix] Fixed improper hydrology calculations over roofs and walls
@@ -1195,7 +1236,7 @@
 - [bugfix] Fixed multi-grid and multi-year run issues due to OHM averages in Qn
 
 ### 07 Apr 2022
-- [feature] Added water-related results output for ESTM_ext module ([#93](https://github.com/UMEP-dev/SUEWS/issues/93))
+- [feature] Added water-related results output for ESTM_ext module (#93)
 - [bugfix] Fixed storage heat method switch issues
 
 ### 03 Apr 2022
@@ -1211,7 +1252,7 @@
 ### 24 Mar 2022
 - [feature] Added `diagmethod` option for T2, RH2 and U10 calculations
 - [bugfix] Fixed FAI calculation from areal mean to sum
-- [bugfix] Fixed negative zd_RSL issue with small FAI and large Lc ([#88](https://github.com/UMEP-dev/SUEWS/issues/88))
+- [bugfix] Fixed negative zd_RSL issue with small FAI and large Lc (#88)
 
 ### 16 Mar 2022
 - [bugfix] Fixed height/level calculation bug in RSL module
@@ -1230,27 +1271,27 @@
 
 ### 07 Feb 2022
 - [feature] Performance improvements in data loading
-- [bugfix] Improved file loading procedure to handle encoding issues ([#42](https://github.com/UMEP-dev/SUEWS/issues/42))
+- [bugfix] Improved file loading procedure to handle encoding issues (#42)
 
 ### 24 Jan 2022
 - [feature] Added skeleton code for ESTM coupling (experimental)
 
 ### 17 Jan 2022
-- [maintenance] Moved SPARTACUS-specific output files to output section ([#77](https://github.com/UMEP-dev/SUEWS/issues/77))
+- [maintenance] Moved SPARTACUS-specific output files to output section (#77)
 
 
 ## 2021
 
 ### 11 Dec 2021
-- [doc] Restructured documentation around QF calculations ([#26](https://github.com/UMEP-dev/SUEWS/issues/26))
-- [doc] Improved documentation for RSL module ([#56](https://github.com/UMEP-dev/SUEWS/issues/56))
-- [doc] Enhanced spinup documentation ([#27](https://github.com/UMEP-dev/SUEWS/issues/27))
-- [doc] Clarified XSMD description in meteorological input file ([#9](https://github.com/UMEP-dev/SUEWS/issues/9))
+- [doc] Restructured documentation around QF calculations (#26)
+- [doc] Improved documentation for RSL module (#56)
+- [doc] Enhanced spinup documentation (#27)
+- [doc] Clarified XSMD description in meteorological input file (#9)
 
 ### 23 Nov 2021
 - [feature] Added Python 3.10 support
 - [bugfix] Fixed test issues for Python 3.10 by removing deprecated nose test
-- [bugfix] Fixed pressure and relative humidity units issue ([#38](https://github.com/UMEP-dev/SUEWS/issues/38))
+- [bugfix] Fixed pressure and relative humidity units issue (#38)
 - [maintenance] Updated gfortran to v11 for testing
 - [maintenance] Fixed Linux and manylinux build recipes
 
@@ -1307,21 +1348,21 @@
 
 ### 14 Jul 2020
 - [bugfix] Fixed argument list issue in GFORTRAN v10
-- [maintenance] Improved computational stability in RSL diagnostics ([#130](https://github.com/UMEP-dev/SUEWS/issues/130))
+- [maintenance] Improved computational stability in RSL diagnostics (#130)
 
 ### 01 Jul 2020
-- [feature] Added option to use existing ERA5 files for forcing generation ([#165](https://github.com/UMEP-dev/SUEWS/issues/165))
-- [doc] Updated tutorials for UMEP workshop ([#169](https://github.com/UMEP-dev/SUEWS/issues/169))
+- [feature] Added option to use existing ERA5 files for forcing generation (#165)
+- [doc] Updated tutorials for UMEP workshop (#169)
 
 ### 26 Jun 2020
 - [feature] Version 2020a2 release with RSL improvements
-- [bugfix] Fixed QF parameter issues in sample data ([#163](https://github.com/UMEP-dev/SUEWS/issues/163))
+- [bugfix] Fixed QF parameter issues in sample data (#163)
 
 ### 15 May 2020
-- [feature] Version 2020a release ([#114](https://github.com/UMEP-dev/SUEWS/issues/114))
+- [feature] Version 2020a release (#114)
   - Added RSL (Roughness Sublayer) model for within-canyon diagnostics
   - Enhanced forcing data resampling with different methods for different variables
-  - Added plotting function for RSL output ([#144](https://github.com/UMEP-dev/SUEWS/issues/144))
+  - Added plotting function for RSL output (#144)
   - Improved ERA5 downloader functionality
 
 ### 10 May 2020
@@ -1329,7 +1370,7 @@
 - [maintenance] Updated sample data to match Ward et al. (2016, Urban Climate)
 
 ### 28 Feb 2020
-- [bugfix] Fixed ERA5 data download permission issues ([#127](https://github.com/UMEP-dev/SUEWS/issues/127))
+- [bugfix] Fixed ERA5 data download permission issues (#127)
 
 ### 02 Feb 2020
 - [feature] Added Python 3.8 support

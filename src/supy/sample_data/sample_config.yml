@@ -145,30 +145,28 @@ sites:
         value: 5.0
       VentilationRate:
         value: 0.4
-      IndoorAirStartTemperature:
-        value: 18.0
-      IndoorMassStartTemperature:
-        value: 22.0
-      WallIndoorSurfaceTemperature:
-        value: 22.0
-      # WallOutdoorSurfaceTemperature:
+      # IndoorAirStartTemperature:
+      #   value: 18.0
+      # IndoorMassStartTemperature:
       #   value: 22.0
-      WindowIndoorSurfaceTemperature:
-        value: 22.0
-      # WindowOutdoorSurfaceTemperature:
+      # WallIndoorSurfaceTemperature:
+      #   value: 22.0
+      # WindowIndoorSurfaceTemperature:
       #   value: 22.0
       InitialOutdoorTemperature:
         value: 22.0
-      GroundFloorIndoorSurfaceTemperature:
+      InitialIndoorTemperature:
         value: 22.0
+      # GroundFloorIndoorSurfaceTemperature:
+      #   value: 22.0
       GroundFloorOutdoorSurfaceTemperature:
         value: 22.0
       WaterTankTemperature:
         value: 25.0
       InternalWallWaterTankTemperature:
         value: 25.0
-      ExternalWallWaterTankTemperature:
-        value: 25.0
+      # ExternalWallWaterTankTemperature:
+      #   value: 25.0
       WaterTankWallThickness:
         value: 0.03
       MainsWaterTemperature:
@@ -183,8 +181,8 @@ sites:
         value: 35.0
       InternalWallDHWVesselTemperature:
         value: 25.0
-      ExternalWallDHWVesselTemperature:
-        value: 18.0
+      # ExternalWallDHWVesselTemperature:
+      #   value: 18.0
       DHWVesselWallThickness:
         value: 0.01
       DHWWaterVolume:

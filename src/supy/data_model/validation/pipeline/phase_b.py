@@ -1180,14 +1180,14 @@ def adjust_surface_temperatures(
 
         # Update STEBBS OutdoorAirAnnualTemperature using annual mean from CRU data
         annual_temp = get_mean_annual_air_temperature(lat, lng)
-        if annual_temp is not None and "OutdoorAirAnnualTemperature" in stebbs:
-            if isinstance(stebbs["OutdoorAirAnnualTemperature"], dict):
-                old_annual_val = stebbs["OutdoorAirAnnualTemperature"].get("value")
+        if annual_temp is not None and "DeepSoilTemperature" in stebbs:
+            if isinstance(stebbs["DeepSoilTemperature"], dict):
+                old_annual_val = stebbs["DeepSoilTemperature"].get("value")
                 if old_annual_val != annual_temp:
-                    stebbs["OutdoorAirAnnualTemperature"]["value"] = annual_temp
+                    stebbs["DeepSoilTemperature"]["value"] = annual_temp
                     adjustments.append(
                         ScientificAdjustment(
-                            parameter="stebbs.OutdoorAirAnnualTemperature",
+                            parameter="stebbs.DeepSoilTemperature",
                             site_index=site_idx,
                             site_gridid=site_gridid,
                             old_value=str(old_annual_val),

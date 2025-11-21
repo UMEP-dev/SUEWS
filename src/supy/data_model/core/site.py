@@ -1857,7 +1857,7 @@ class StebbsProperties(BaseModel):
             "unit": "degC",
             "display_name": "Deepsoiltemperature",
         },
-    )    
+    )
     # GroundFloorOutdoorSurfaceTemperature: Optional[FlexibleRefValue(float)] = Field(
     #     default=0.0,
     #     description="Initial ground floor outdoor surface temperature [degC]",

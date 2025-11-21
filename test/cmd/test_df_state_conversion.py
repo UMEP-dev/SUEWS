@@ -88,9 +88,22 @@ class TestCsvFileConversion:
 
         # Check structure
         assert len(df_new) == len(df_old)
-        assert (
-            len(df_new.columns) == 1415
-        )  # New format has 1415 columns (after removing 3 STEBBS params)
+        # Avoid brittle total-column assertions or add here a more robust/reproducible logic to calculate len df_new columns. 
+        # Verify specific expected changes:
+        def top_name(col):
+            return (col[0] if isinstance(col, tuple) else col).lower()
+
+        new_names = {top_name(c) for c in df_new.columns}
+        # consolidated parameter present
+        assert "initialoutdoortemperature" in new_names
+        # old per-surface parameters removed
+        for removed in (
+            "walloutdoorsurfacetemperature",
+            "windowoutdoorsurfacetemperature",
+            "roofoutdoorsurfacetemperature",
+            "outdoorairstarttemperature",
+        ):
+            assert removed not in new_names
 
         # Check old columns removed
         col_names = {

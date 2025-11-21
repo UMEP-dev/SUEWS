@@ -88,7 +88,8 @@ class TestCsvFileConversion:
 
         # Check structure
         assert len(df_new) == len(df_old)
-        # Avoid brittle total-column assertions or add here a more robust/reproducible logic to calculate len df_new columns. 
+
+        # Avoid brittle total-column assertions or add here a more robust/reproducible logic to calculate len df_new columns.
         # Verify specific expected changes:
         def top_name(col):
             return (col[0] if isinstance(col, tuple) else col).lower()

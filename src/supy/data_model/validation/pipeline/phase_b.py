@@ -1157,10 +1157,11 @@ def adjust_surface_temperatures(
 
         # Update STEBBS temperature parameter values to avg_temp
         for key in (
-            "WallOutdoorSurfaceTemperature",
-            "RoofOutdoorSurfaceTemperature",
-            "WindowOutdoorSurfaceTemperature",
-            "OutdoorAirStartTemperature",
+            # "WallOutdoorSurfaceTemperature",
+            # "RoofOutdoorSurfaceTemperature",
+            # "WindowOutdoorSurfaceTemperature",
+            # "OutdoorAirStartTemperature",
+            "InitialOutdoorTemperature",
         ):
             if key in stebbs and isinstance(stebbs[key], dict):
                 old_val = stebbs[key].get("value")

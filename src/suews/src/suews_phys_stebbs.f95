@@ -729,7 +729,7 @@ CONTAINS
             Lsouth => stebbsState%Lsouth, &
             Least => stebbsState%Least, &
             Lwest => stebbsState%Lwest, &
-            Tground_deep_sout => stebbsState%OutdoorAirAnnualTemperature, &
+            Tground_deep_sout => stebbsState%DeepSoilTemperature, &
             pres => forcing%pres, &
             RH => forcing%RH, &
             cp_air => atmState%avcp, &

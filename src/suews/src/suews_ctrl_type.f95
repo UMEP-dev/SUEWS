@@ -1170,7 +1170,7 @@ MODULE module_ctrl_type
       REAL(KIND(1D0)), DIMENSION(30) :: dataoutLineTRSL = -999 ! Temperature array from RSL[C]
       REAL(KIND(1D0)), DIMENSION(30) :: dataoutLineqRSL = -999 ! Specific humidity array from RSL[g kg-1]
       ! Initial conditions that are updated during runtime
-      REAL(KIND(1D0)) :: OutdoorAirAnnualTemperature = 0.0D0 ! Annual mean air temperature [C]
+      REAL(KIND(1D0)) :: DeepSoilTemperature = 0.0D0 ! Deep soil temperature [C]
       REAL(KIND(1D0)) :: OutdoorAirStartTemperature = 0.0D0 ! Initial outdoor air temperature [degC]
       REAL(KIND(1D0)) :: IndoorAirStartTemperature = 0.0D0 ! Initial indoor air temperature [degC]
       REAL(KIND(1D0)) :: IndoorMassStartTemperature = 0.0D0 ! Initial indoor mass temperature [degC]

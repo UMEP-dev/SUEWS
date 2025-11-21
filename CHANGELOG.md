@@ -21,7 +21,7 @@
 
 | Year | Features | Bugfixes | Changes | Maintenance | Docs | Total |
 |------|----------|----------|---------|-------------|------|-------|
-| 2025 | 39 | 27 | 14 | 34 | 18 | 132 |
+| 2025 | 39 | 27 | 15 | 34 | 19 | 134 |
 | 2024 | 12 | 17 | 1 | 12 | 1 | 43 |
 | 2023 | 11 | 14 | 3 | 9 | 1 | 38 |
 | 2022 | 15 | 18 | 0 | 7 | 0 | 40 |
@@ -32,6 +32,13 @@
 | 2017 | 9 | 0 | 3 | 2 | 0 | 14 |
 
 ## 2025
+
+### 21 Nov 2025
+- [change] Consolidate STEBBS initial temperatures and related params
+  - Replaced many per-surface STEBBS start parameters with four consolidated parameters: InitialOutdoorTemperature, InitialIndoorTemperature, HotWaterHeatingSetpointTemperature, DeepSoilTemperature
+  - Phase B CRU-based initialisation now reads/writes the consolidated keys.
+  - Tests updated: YAML processing tests now expect consolidated keys
+- [doc] Documentation: PHASE_B_DETAILED.md updated to reflect CRU integration and STEBBS consolidation.
 
 ### 20 Nov 2025
 - [doc] Updated tutorials and API documentation to use modern OOP interface (#881)

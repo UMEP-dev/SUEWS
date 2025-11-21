@@ -165,35 +165,29 @@ sites:
       OutdoorAirAnnualTemperature:
         value: 10   
       InitialOutdoorTemperature:
-        value: 17.540002822875977        
-      # OutdoorAirStartTemperature:
-      #   value: 17.540002822875977
-      IndoorAirStartTemperature:
-        value: 15.0
-      IndoorMassStartTemperature:
-        value: 15.0
-      WallIndoorSurfaceTemperature:
-        value: 15.0
-      # WallOutdoorSurfaceTemperature:
-      #   value: 17.540002822875977
-      RoofIndoorSurfaceTemperature:
-        value: 17.5
-      # RoofOutdoorSurfaceTemperature:
-      #   value: 17.540002822875977
-      WindowIndoorSurfaceTemperature:
-        value: 15.0
-      # WindowOutdoorSurfaceTemperature:
-      #   value: 17.540002822875977
-      GroundFloorIndoorSurfaceTemperature:
-        value: 15.0
+        value: 17.540002822875977
+      InitialIndoorTemperature:
+        value: 20.0        
+      # IndoorAirStartTemperature:
+      #   value: 15.0
+      # IndoorMassStartTemperature:
+      #   value: 15.0
+      # WallIndoorSurfaceTemperature:
+      #   value: 15.0
+      # RoofIndoorSurfaceTemperature:
+      #   value: 17.5
+      # WindowIndoorSurfaceTemperature:
+      #   value: 15.0
+      # GroundFloorIndoorSurfaceTemperature:
+      #   value: 15.0
       GroundFloorOutdoorSurfaceTemperature:
         value: 10.0
       WaterTankTemperature:
         value: 20.0
       InternalWallWaterTankTemperature:
         value: 20.0
-      ExternalWallWaterTankTemperature:
-        value: 20.0
+      # ExternalWallWaterTankTemperature:
+      #   value: 20.0
       WaterTankWallThickness:
         value: 0.055
       MainsWaterTemperature:
@@ -208,8 +202,8 @@ sites:
         value: 20.0
       InternalWallDHWVesselTemperature:
         value: 20.0
-      ExternalWallDHWVesselTemperature:
-        value: 20.0
+      # ExternalWallDHWVesselTemperature:
+      #   value: 20.0
       DHWVesselWallThickness:
         value: 0.01
       DHWWaterVolume:

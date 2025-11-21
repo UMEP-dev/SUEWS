@@ -122,6 +122,15 @@ class TestCsvFileConversion:
         ):
             assert removed not in new_names
 
+        # old hot water INDOOR parameters removed
+        for removed in (
+            "domestichotwatertemperatureinuseinbuilding",
+            "internalwalldhwvesseltemperature",
+            "watertanktemperature",
+            "internalwallwatertanktemperature",
+        ):
+            assert removed not in new_names
+
         # Check old columns removed
         col_names = {
             col[0] if isinstance(col, tuple) else col for col in df_new.columns

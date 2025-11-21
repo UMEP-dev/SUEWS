@@ -1834,35 +1834,35 @@ class StebbsProperties(BaseModel):
         },
         default=10.0,
     )
-    IndoorAirStartTemperature: Optional[FlexibleRefValue(float)] = Field(
-        default=0.0,
-        description="Initial indoor air temperature [degC]",
-        json_schema_extra={"unit": "degC", "display_name": "Indoorairstarttemperature"},
-    )
-    IndoorMassStartTemperature: Optional[FlexibleRefValue(float)] = Field(
-        default=0.0,
-        description="Initial indoor mass temperature [degC]",
-        json_schema_extra={
-            "unit": "degC",
-            "display_name": "Indoormassstarttemperature",
-        },
-    )
-    WallIndoorSurfaceTemperature: Optional[FlexibleRefValue(float)] = Field(
-        default=0.0,
-        description="Initial wall indoor surface temperature [degC]",
-        json_schema_extra={
-            "unit": "degC",
-            "display_name": "Wallindoorsurfacetemperature",
-        },
-    )
-    RoofIndoorSurfaceTemperature: Optional[FlexibleRefValue(float)] = Field(
-        default=0.0,
-        description="Initial roof indoor surface temperature [degC]",
-        json_schema_extra={
-            "unit": "degC",
-            "display_name": "Roofindoorsurfacetemperature",
-        },
-    )
+    # IndoorAirStartTemperature: Optional[FlexibleRefValue(float)] = Field(
+    #     default=0.0,
+    #     description="Initial indoor air temperature [degC]",
+    #     json_schema_extra={"unit": "degC", "display_name": "Indoorairstarttemperature"},
+    # )
+    # IndoorMassStartTemperature: Optional[FlexibleRefValue(float)] = Field(
+    #     default=0.0,
+    #     description="Initial indoor mass temperature [degC]",
+    #     json_schema_extra={
+    #         "unit": "degC",
+    #         "display_name": "Indoormassstarttemperature",
+    #     },
+    # )
+    # WallIndoorSurfaceTemperature: Optional[FlexibleRefValue(float)] = Field(
+    #     default=0.0,
+    #     description="Initial wall indoor surface temperature [degC]",
+    #     json_schema_extra={
+    #         "unit": "degC",
+    #         "display_name": "Wallindoorsurfacetemperature",
+    #     },
+    # )
+    # RoofIndoorSurfaceTemperature: Optional[FlexibleRefValue(float)] = Field(
+    #     default=0.0,
+    #     description="Initial roof indoor surface temperature [degC]",
+    #     json_schema_extra={
+    #         "unit": "degC",
+    #         "display_name": "Roofindoorsurfacetemperature",
+    #     },
+    # )
     InitialOutdoorTemperature: Optional[FlexibleRefValue(float)] = Field(
         default=0.0,
         description="Initial outdoor temperature [degC]",
@@ -1871,22 +1871,30 @@ class StebbsProperties(BaseModel):
             "display_name": "Initialoutdoortemperature",
         },
     )
-    WindowIndoorSurfaceTemperature: Optional[FlexibleRefValue(float)] = Field(
+    InitialIndoorTemperature: Optional[FlexibleRefValue(float)] = Field(
         default=0.0,
-        description="Initial window indoor surface temperature [degC]",
+        description="Initial indoor temperature [degC]",
         json_schema_extra={
             "unit": "degC",
-            "display_name": "Windowindoorsurfacetemperature",
+            "display_name": "Initialindoortemperature",
         },
     )
-    GroundFloorIndoorSurfaceTemperature: Optional[FlexibleRefValue(float)] = Field(
-        default=0.0,
-        description="Initial ground floor indoor surface temperature [degC]",
-        json_schema_extra={
-            "unit": "degC",
-            "display_name": "Groundfloorindoorsurfacetemperature",
-        },
-    )
+    # WindowIndoorSurfaceTemperature: Optional[FlexibleRefValue(float)] = Field(
+    #     default=0.0,
+    #     description="Initial window indoor surface temperature [degC]",
+    #     json_schema_extra={
+    #         "unit": "degC",
+    #         "display_name": "Windowindoorsurfacetemperature",
+    #     },
+    # )
+    # GroundFloorIndoorSurfaceTemperature: Optional[FlexibleRefValue(float)] = Field(
+    #     default=0.0,
+    #     description="Initial ground floor indoor surface temperature [degC]",
+    #     json_schema_extra={
+    #         "unit": "degC",
+    #         "display_name": "Groundfloorindoorsurfacetemperature",
+    #     },
+    # )
     GroundFloorOutdoorSurfaceTemperature: Optional[FlexibleRefValue(float)] = Field(
         default=0.0,
         description="Initial ground floor outdoor surface temperature [degC]",
@@ -1909,14 +1917,14 @@ class StebbsProperties(BaseModel):
             "display_name": "Internalwallwatertanktemperature",
         },
     )
-    ExternalWallWaterTankTemperature: Optional[FlexibleRefValue(float)] = Field(
-        default=0.0,
-        description="Initial hot water tank external wall temperature [degC]",
-        json_schema_extra={
-            "unit": "degC",
-            "display_name": "Externalwallwatertanktemperature",
-        },
-    )
+    # ExternalWallWaterTankTemperature: Optional[FlexibleRefValue(float)] = Field(
+    #     default=0.0,
+    #     description="Initial hot water tank external wall temperature [degC]",
+    #     json_schema_extra={
+    #         "unit": "degC",
+    #         "display_name": "Externalwallwatertanktemperature",
+    #     },
+    # )
     WaterTankWallThickness: Optional[FlexibleRefValue(float)] = Field(
         default=0.01,
         description="Hot water tank wall thickness [m]",
@@ -1971,14 +1979,14 @@ class StebbsProperties(BaseModel):
             "display_name": "Internalwalldhwvesseltemperature",
         },
     )
-    ExternalWallDHWVesselTemperature: Optional[FlexibleRefValue(float)] = Field(
-        default=0.0,
-        description="Initial hot water vessel external wall temperature [degC]",
-        json_schema_extra={
-            "unit": "degC",
-            "display_name": "Externalwalldhwvesseltemperature",
-        },
-    )
+    # ExternalWallDHWVesselTemperature: Optional[FlexibleRefValue(float)] = Field(
+    #     default=0.0,
+    #     description="Initial hot water vessel external wall temperature [degC]",
+    #     json_schema_extra={
+    #         "unit": "degC",
+    #         "display_name": "Externalwalldhwvesseltemperature",
+    #     },
+    # )
     DHWVesselWallThickness: Optional[FlexibleRefValue(float)] = Field(
         default=0.005,
         description="Hot water vessel wall thickness [m]",

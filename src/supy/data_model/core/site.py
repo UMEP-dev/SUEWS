@@ -1871,7 +1871,7 @@ class StebbsProperties(BaseModel):
             "display_name": "Intialoutdoortemperature",
         },
     )
-        # OutdoorAirStartTemperature: Optional[FlexibleRefValue(float)] = Field(
+    # OutdoorAirStartTemperature: Optional[FlexibleRefValue(float)] = Field(
     #     default=0.0,
     #     description="Initial outdoor air temperature [degC]",
     #     json_schema_extra={
@@ -1879,7 +1879,7 @@ class StebbsProperties(BaseModel):
     #         "display_name": "Outdoorairstarttemperature",
     #     },
     # )
-        # WallOutdoorSurfaceTemperature: Optional[FlexibleRefValue(float)] = Field(
+    # WallOutdoorSurfaceTemperature: Optional[FlexibleRefValue(float)] = Field(
     #     default=0.0,
     #     description="Initial wall outdoor surface temperature [degC]",
     #     json_schema_extra={

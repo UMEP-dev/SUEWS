@@ -10,6 +10,7 @@ model:
     output_file:
       format: txt
       freq: 3600
+      path: "./Output"
       groups:
         - "SUEWS"
     diagnose: 0

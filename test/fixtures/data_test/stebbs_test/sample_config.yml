@@ -140,10 +140,10 @@ sites:
         value: 2.0
       ExternalGroundConductivity:
         value: 0.193
-      IndoorAirDensity:
-        value: 1.2754
-      IndoorAirCp:
-        value: 1005
+      # IndoorAirDensity:
+      #   value: 1.2754
+      # IndoorAirCp:
+      #   value: 1005
       MetabolicRate:
         value: 100.0
       LatentSensibleRatio:

@@ -95,14 +95,30 @@ class TestCsvFileConversion:
             return (col[0] if isinstance(col, tuple) else col).lower()
 
         new_names = {top_name(c) for c in df_new.columns}
-        # consolidated parameter present
+
+        # consolidated outdoor parameter present
         assert "initialoutdoortemperature" in new_names
-        # old per-surface parameters removed
+        # consolidated indoor parameter present
+        assert "initialindoortemperature" in new_names
+
+        # old per-surface OUTDOOR parameters removed
         for removed in (
             "walloutdoorsurfacetemperature",
             "windowoutdoorsurfacetemperature",
             "roofoutdoorsurfacetemperature",
             "outdoorairstarttemperature",
+        ):
+            assert removed not in new_names
+        # old per-surface INDOOR parameters removed
+        for removed in (
+            "indoorairstarttemperature",
+            "externalwalldhwvesseltemperature",
+            "externalwallwatertanktemperature",
+            "groundfloorindoorsurfacetemperature",
+            "indoormassstarttemperature",
+            "roofindoorsurfacetemperature",
+            "wallindoorsurfacetemperature",
+            "windowindoorsurfacetemperature",
         ):
             assert removed not in new_names
 

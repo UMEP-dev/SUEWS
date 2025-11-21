@@ -89,8 +89,8 @@ class TestCsvFileConversion:
         # Check structure
         assert len(df_new) == len(df_old)
         assert (
-            len(df_new.columns) == 1418
-        )  # New format has 1418 columns (after removing IndoorAirDensity, IndoorAirCp, and 3 other STEBBS params)
+            len(df_new.columns) == 1415
+        )  # New format has 1415 columns (after removing 3 STEBBS params)
 
         # Check old columns removed
         col_names = {

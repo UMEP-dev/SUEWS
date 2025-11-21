@@ -47,8 +47,7 @@ pip install -e .
 
 ### Development
 - `make setup` - Create virtual environment (requires `uv`)
-- `make dev` - Install SUEWS in editable mode
-- `make reinstall` - Fix stale editable install (uninstall + reinstall)
+- `make dev` - Install SUEWS in editable mode (self-healing, works after clean)
 
 ### Testing
 - `make test` - Run test suite (excludes slow tests ~3-4 min)
@@ -62,6 +61,19 @@ pip install -e .
 - `make clean` - Smart clean (preserves active `.venv`)
 - `make format` - Format Python (ruff) and Fortran (fprettify)
 - `make help` - Show all available commands
+
+### Common Workflows
+
+```bash
+# Fresh start (most common for troubleshooting)
+make clean && make dev
+
+# Update code and rebuild
+git pull && make dev
+
+# Build and test changes
+make dev && make test
+```
 
 ## Additional Notes
 

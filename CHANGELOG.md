@@ -21,7 +21,7 @@
 
 | Year | Features | Bugfixes | Changes | Maintenance | Docs | Total |
 |------|----------|----------|---------|-------------|------|-------|
-| 2025 | 39 | 27 | 14 | 34 | 18 | 132 |
+| 2025 | 39 | 27 | 14 | 35 | 18 | 133 |
 | 2024 | 12 | 17 | 1 | 12 | 1 | 43 |
 | 2023 | 11 | 14 | 3 | 9 | 1 | 38 |
 | 2022 | 15 | 18 | 0 | 7 | 0 | 40 |
@@ -32,6 +32,12 @@
 | 2017 | 9 | 0 | 3 | 2 | 0 | 14 |
 
 ## 2025
+
+### 22 Nov 2025
+- [maintenance] Removed unused WRF coupling file `suews_ctrl_sumin.f95` and related Makefile rules
+  - New WRF-SUEWS coupling framework uses precompiled `libsuews.a` for linking
+  - Cleaner and easier integration without legacy SuMin interface
+  - Removed `WRF` variable and build rules from Makefile
 
 ### 20 Nov 2025
 - [doc] Updated tutorials and API documentation to use modern OOP interface (#881)

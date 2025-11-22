@@ -142,9 +142,6 @@ export LIBS    = $(DEBUGFLAGS) $(LDFLAGS) \
 clean: suffix :=
 clean: TARGET := $(strip $(TARGET))$(strip $(suffix))
 
-# WRF coupling (SuMin) related options
-sumin: FFLAGS += -Dwrf=1
-
 
 ###################################
 ###  -- SOURCE CODE GROUPS  --  ###
@@ -201,9 +198,6 @@ DRIVER = suews_ctrl_driver.o
 
 # modules under rapid development
 TEST =
-
-# modules for WRF coupling
-WRF =  suews_ctrl_sumin.o
 
 #############################
 ### --- EXTERNAL LIBS --- ###
@@ -376,10 +370,6 @@ $(OTHERS): $(UTILS) $(PHYS) $(subst .o,$(suffix_code), $(OTHERS))
 
 # If TEST have changed, compile them again
 $(TEST): $(subst .o,$(suffix_code), $(TEST))
-
-# WRF coupling required files
-$(WRF): $(subst .o,$(suffix_code), $(WRF))
-
 
 
 .PHONY: libutil libphys libdriver exe clean-toplevel test force

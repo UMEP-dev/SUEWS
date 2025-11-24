@@ -33,6 +33,7 @@ class TestSUEWSConfig(unittest.TestCase):
         )
         self.config = SUEWSConfig.from_yaml(self.path_sample_config)
 
+    @pytest.mark.smoke
     def test_config_conversion_cycle(self):
         """Test if SUEWS configuration can be correctly converted between YAML and DataFrame formats."""
         print("\n========================================")
@@ -192,50 +193,50 @@ class TestSUEWSConfig(unittest.TestCase):
         self.assertEqual(len(config_reconst.sites), 3)
         self.assertEqual([site.gridiv for site in config_reconst.sites], [0, 1, 2])
 
-    def test_wrap_numeric(self):
-        """Test that wrap creates a RefValue from a plain numeric."""
-        rv = RefValue.wrap(5.0)
-        self.assertIsInstance(rv, RefValue)
-        self.assertEqual(rv.value, 5.0)
+    @pytest.mark.parametrize(
+        "input_value,expected_value,should_be_same_object",
+        [
+            (5.0, 5.0, False),  # Plain numeric -> new RefValue
+            (10.0, 10.0, False),  # Another plain numeric
+            (RefValue(7.0), 7.0, True),  # Existing RefValue -> same object
+        ],
+    )
+    def test_refvalue_wrap(self, input_value, expected_value, should_be_same_object):
+        """Test that wrap creates RefValue from numeric or returns existing RefValue."""
+        wrapped = RefValue.wrap(input_value)
+        self.assertIsInstance(wrapped, RefValue)
+        self.assertEqual(wrapped.value, expected_value)
+        if should_be_same_object:
+            self.assertIs(wrapped, input_value)
 
-    def test_wrap_existing_refvalue(self):
-        """Test that wrap leaves an existing RefValue unchanged."""
-        original = RefValue(10.0)
-        wrapped = RefValue.wrap(original)
-        self.assertIs(wrapped, original)
+    @pytest.mark.parametrize(
+        "value_a,value_b,should_equal",
+        [
+            (RefValue(5.0), RefValue(5.0), True),  # RefValue == RefValue (same value)
+            (RefValue(5.0), RefValue(10.0), False),  # RefValue != RefValue (diff value)
+            (RefValue(5.0), 5.0, True),  # RefValue == plain value
+            (RefValue(5.0), 10.0, False),  # RefValue != plain value
+        ],
+    )
+    def test_refvalue_equality(self, value_a, value_b, should_equal):
+        """Test equality comparisons for RefValue."""
+        if should_equal:
+            self.assertEqual(value_a, value_b)
+        else:
+            self.assertNotEqual(value_a, value_b)
 
-    def test_equality_between_refvalues(self):
-        """Test equality and inequality between RefValues."""
-        a = RefValue(5.0)
-        b = RefValue(5.0)
-        c = RefValue(10.0)
-        self.assertEqual(a, b)
-        self.assertNotEqual(a, c)
-
-    def test_equality_with_plain_value(self):
-        """Test equality comparison between RefValue and plain value."""
-        a = RefValue(5.0)
-        self.assertEqual(a, 5.0)
-        self.assertNotEqual(a, 10.0)
-
-    def test_comparison_with_none_returns_true(self):
-        """Test that comparison with None always returns True."""
+    def test_refvalue_comparison_with_none(self):
+        """Test that comparison with None always returns True (for conditional validation)."""
         a = RefValue(None)
         b = RefValue(5.0)
 
-        # Less than
+        # All comparisons with None should return True
         self.assertTrue(a < b)
         self.assertTrue(b < a)
-
-        # Less than or equal
         self.assertTrue(a <= b)
         self.assertTrue(b <= a)
-
-        # Greater than
         self.assertTrue(a > b)
         self.assertTrue(b > a)
-
-        # Greater than or equal
         self.assertTrue(a >= b)
         self.assertTrue(b >= a)
 

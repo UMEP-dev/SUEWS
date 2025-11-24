@@ -131,8 +131,12 @@ suews-schema = "supy.cmd.schema_cli:main"
 filterwarnings = [
     "ignore::UserWarning:pydantic.main",
 ]
-# Test markers
+# Test markers for tiered CI testing
+# Tier 1 (smoke): Fast critical tests for CI wheel validation (~30-60 sec)
+# Tier 2 (default): Standard tests excluding slow (~2-3 min)
+# Tier 3 (slow): Comprehensive tests including state persistence (~4-5 min)
 markers = [
+    "smoke: marks tests for fast CI smoke testing (critical path only)",
     "slow: marks tests as slow (e.g., Fortran state persistence tests taking ~3-4 minutes)",
 ]
 

@@ -1,5 +1,5 @@
 # SUEWS Simplified Makefile - Essential recipes only
-.PHONY: help setup dev reinstall test docs clean format
+.PHONY: help setup dev reinstall test test-smoke test-all docs clean format
 
 # Default Python
 PYTHON := python
@@ -7,12 +7,14 @@ PYTHON := python
 help:
 	@echo "SUEWS Development - Essential Commands"
 	@echo ""
-	@echo "  setup     - Create virtual environment (if using uv)"
-	@echo "  dev       - Install in editable mode (self-healing, works after clean)"
-	@echo "  test      - Run test suite"
-	@echo "  docs      - Build documentation"
-	@echo "  clean     - Smart clean (keeps .venv if active)"
-	@echo "  format    - Format Python and Fortran code"
+	@echo "  setup      - Create virtual environment (if using uv)"
+	@echo "  dev        - Install in editable mode (self-healing, works after clean)"
+	@echo "  test       - Run standard tests (excludes slow, ~2-3 min)"
+	@echo "  test-smoke - Run smoke tests only (fast CI validation, ~30-60 sec)"
+	@echo "  test-all   - Run ALL tests including slow (~4-5 min)"
+	@echo "  docs       - Build documentation"
+	@echo "  clean      - Smart clean (keeps .venv if active)"
+	@echo "  format     - Format Python and Fortran code"
 	@echo ""
 	@echo "Quick start:"
 	@echo "  With uv:    make setup && source .venv/bin/activate && make dev"
@@ -22,6 +24,7 @@ help:
 	@echo "  Fresh start:     make clean && make dev"
 	@echo "  Update code:     git pull && make dev"
 	@echo "  Test changes:    make dev && make test"
+	@echo "  CI validation:   make test-smoke"
 
 # Setup virtual environment (for uv users)
 setup:
@@ -95,13 +98,30 @@ rebuild-meson:
 		echo "✓ Fortran extension rebuilt"; \
 	fi
 
-# Run tests
+# Run tests - Three tiers available:
+# - test-smoke: Fast critical tests (~30-60 sec) - used in CI wheel validation
+# - test: Standard tests excluding slow (~2-3 min) - default for development
+# - test-all: All tests including slow (~4-5 min) - comprehensive validation
 test:
-	@echo "Running tests (excluding slow tests)..."
+	@echo "Running standard tests (excluding slow tests)..."
 	@echo "NOTE: Slow tests (e.g., Fortran state persistence ~3-4 min) are skipped."
-	@echo "      These run automatically in CI. To run manually: pytest test -m slow -v"
+	@echo "      Run 'make test-all' for comprehensive testing."
 	@echo ""
 	$(PYTHON) -m pytest test -m "not slow" -v --tb=short --durations=10
+
+# Smoke tests - fast critical path tests for CI
+test-smoke:
+	@echo "Running smoke tests (critical path only)..."
+	@echo "This is the fastest test tier for CI wheel validation."
+	@echo ""
+	$(PYTHON) -m pytest test -m "smoke" -v --tb=short --durations=10
+
+# All tests including slow tests
+test-all:
+	@echo "Running ALL tests including slow tests..."
+	@echo "This may take 4-5 minutes."
+	@echo ""
+	$(PYTHON) -m pytest test -v --tb=short --durations=10
 
 # Build documentation
 docs:

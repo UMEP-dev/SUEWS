@@ -163,9 +163,7 @@ class TestERA5FileCleanup:
             return td
 
         with patch("cdsapi.Client", return_value=mock_client):
-            with patch(
-                "tempfile.TemporaryDirectory", side_effect=track_tempdir
-            ):
+            with patch("tempfile.TemporaryDirectory", side_effect=track_tempdir):
                 # Call the download function
                 result_path = download_era5_timeseries(
                     lat_x=51.5,

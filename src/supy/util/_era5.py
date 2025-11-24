@@ -377,26 +377,24 @@ def download_era5_timeseries(
         t0 = time.time()
         client = cdsapi.Client()
 
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".zip") as tmp_file:
-            tmp_path = Path(tmp_file.name)
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            tmp_path = Path(tmp_dir) / "download.zip"
             client.retrieve(dataset, request).download(str(tmp_path))
 
-        # extract CSV from zip archive
-        with zipfile.ZipFile(tmp_path, "r") as zip_ref:
-            # find the CSV file in the archive
-            csv_files = [f for f in zip_ref.namelist() if f.endswith(".csv")]
-            if not csv_files:
-                raise ValueError(f"No CSV file found in downloaded archive")
+            # extract CSV from zip archive
+            with zipfile.ZipFile(tmp_path, "r") as zip_ref:
+                # find the CSV file in the archive
+                csv_files = [f for f in zip_ref.namelist() if f.endswith(".csv")]
+                if not csv_files:
+                    raise ValueError(f"No CSV file found in downloaded archive")
 
-            # extract the first CSV file
-            zip_ref.extract(csv_files[0], path_dir_save)
-            extracted_path = path_dir_save / csv_files[0]
+                # extract the first CSV file
+                zip_ref.extract(csv_files[0], path_dir_save)
+                extracted_path = path_dir_save / csv_files[0]
 
-            # rename to expected filename
-            extracted_path.rename(path_fn)
-
-        # clean up temporary zip file
-        tmp_path.unlink()
+                # rename to expected filename
+                extracted_path.rename(path_fn)
+            # cleanup happens automatically when tmp_dir context exits
 
         t1 = time.time()
         logger_supy.info(f"Download completed in {t1 - t0:.1f} seconds")

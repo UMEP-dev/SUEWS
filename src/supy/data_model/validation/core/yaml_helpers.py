@@ -1250,7 +1250,7 @@ def precheck_model_option_rules(data: dict) -> dict:
 
     # --- EMISSIONS / CO2 RULE: when emissionsmethod 0..4, CO2 is not computed, nullify co2 params ---
     emissionsmethod = get_value_safe(physics, "emissionsmethod")
-    if emissionsmethod < 5:
+    if emissionsmethod is not None and emissionsmethod in (0, 1, 2, 3, 4):
         logger_supy.info(
             "[precheck] emissionsmethod 0..4 detected → nullifying 'anthropogenic_emissions.co2' values."
         )

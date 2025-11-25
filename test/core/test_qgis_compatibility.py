@@ -1,12 +1,12 @@
 """
-Tests for SUEWS/SuPy compatibility with UMEP plugin in QGIS environment (GH-901).
+Tests for SUEWS compatibility with UMEP plugin in QGIS environment (GH-901).
 
 This module tests the functions and APIs used by UMEP plugins in QGIS:
 - UMEP Pre-processor: SUEWS Database Manager, SUEWS Database Prepare, Download ERA5
 - UMEP Processor: SUEWS model runs
 - UMEP Post-processor: Output path handling
 
-These tests ensure SUEWS/SuPy functions work correctly in the QGIS environment.
+These tests ensure SUEWS functions work correctly in the QGIS environment.
 Target environment: Windows + Python 3.12 (QGIS 3.40 LTR bundled Python).
 
 See: https://github.com/UMEP-dev/SUEWS/issues/901
@@ -177,7 +177,7 @@ class TestERA5DownloadAPI(TestCase):
         params = list(sig.parameters.keys())
 
         # Check expected parameters used by UMEP
-        # Note: supy uses lat_x/lon_x, but UMEP may call with positional args
+        # Note: SUEWS uses lat_x/lon_x, but UMEP may call with positional args
         self.assertTrue(
             "lat" in params or "lat_x" in params,
             f"Expected latitude parameter (lat or lat_x), got: {params}",
@@ -357,8 +357,8 @@ class TestQGISEnvironment(TestCase):
     especially in the Python console.
     """
 
-    def test_supy_import_with_none_stdout(self):
-        """Test that supy imports correctly when stdout is None."""
+    def test_suews_import_with_none_stdout(self):
+        """Test that SUEWS imports correctly when stdout is None."""
         original_stdout = sys.stdout
 
         try:
@@ -432,14 +432,14 @@ class TestOutputPathHandling(TestCase):
 class TestImportPaths(TestCase):
     """Test that all UMEP-used import paths work correctly."""
 
-    def test_import_supy(self):
-        """Test basic supy import."""
+    def test_import_suews(self):
+        """Test basic SUEWS package import."""
         import supy
 
         self.assertIsNotNone(supy)
 
-    def test_import_supy_data_model(self):
-        """Test supy.data_model import."""
+    def test_import_suews_data_model(self):
+        """Test SUEWS data_model import."""
         from supy import data_model
 
         self.assertIsNotNone(data_model)

@@ -1265,37 +1265,44 @@ def precheck_model_option_rules(data: dict) -> dict:
                 anth_emis["co2"] = co2_block
                 props["anthropogenic_emissions"] = anth_emis
 
-            # Also handle trafficrate which can be a plain mapping like:
-            # trafficrate:
-            #   working_day: 0.01
-            #   holiday: 0.01
-            traffic_block = anth_emis.get("trafficrate", None)
-            if isinstance(traffic_block, dict):
-                # If trafficrate uses RefValue style with "value" leaves, reuse recursive nullify
-                if "value" in traffic_block:
-                    _recursive_nullify(traffic_block)
-                else:
-                    # Plain mapping: set all numeric or nested leaves to None
-                    def _nullify_plain_mapping(m):
-                        for k, v in list(m.items()):
-                            if isinstance(v, dict):
-                                # nested dict: nullify its leaves
-                                for kk, vv in list(v.items()):
-                                    if isinstance(vv, dict) and "value" in vv:
-                                        vv["value"] = None
-                                    else:
-                                        v[kk] = None
+            # Generic nullifier that handles both RefValue-style leaves ("value")
+            # and plain mappings/lists by setting scalar leaves to None and
+            # list elements to None (or recursively nullifying dict items).
+            def _recursive_nullify_any(obj):
+                if isinstance(obj, dict):
+                    for k, v in list(obj.items()):
+                        if isinstance(v, dict) and "value" in v:
+                            # Leaf with "value"
+                            val = v["value"]
+                            if isinstance(val, list):
+                                v["value"] = [None] * len(val)
                             else:
-                                m[k] = None
-
-                    _nullify_plain_mapping(traffic_block)
-
-                anth_emis["trafficrate"] = traffic_block
-                props["anthropogenic_emissions"] = anth_emis
-            elif traffic_block is not None:
-                # If trafficrate is a scalar (unlikely), nullify it
-                anth_emis["trafficrate"] = None
-                props["anthropogenic_emissions"] = anth_emis
+                                v["value"] = None
+                        elif isinstance(v, dict):
+                            # Nested dict: recurse
+                            _recursive_nullify_any(v)
+                        elif isinstance(v, list):
+                            # List of items: nullify scalars, recurse for dicts
+                            new_list = []
+                            for item in v:
+                                if isinstance(item, dict):
+                                    _recursive_nullify_any(item)
+                                    new_list.append(item)
+                                else:
+                                    new_list.append(None)
+                            obj[k] = new_list
+                        else:
+                            # Scalar leaf: nullify
+                            obj[k] = None
+                elif isinstance(obj, list):
+                    for i, item in enumerate(obj):
+                        if isinstance(item, dict):
+                            _recursive_nullify_any(item)
+                        else:
+                            obj[i] = None
+                            # Nullify entire anthropogenic_emissions (includes trafficrate, co2, etc.)
+                            _recursive_nullify_any(anth_emis)
+                            props["anthropogenic_emissions"] = anth_emis
 
     return data
 

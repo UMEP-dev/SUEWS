@@ -1826,14 +1826,6 @@ class StebbsProperties(BaseModel):
         json_schema_extra={"unit": "h^-1", "display_name": "Ventilationrate"},
         ge=0.0,
     )
-    # OutdoorAirAnnualTemperature: FlexibleRefValue(float) = Field(
-    #     description="Annual mean air temperature, which can be used as deep soil temperature",
-    #     json_schema_extra={
-    #         "unit": "degC",
-    #         "display_name": "Annual mean air temperature",
-    #     },
-    #     default=10.0,
-    # )
     InitialOutdoorTemperature: Optional[FlexibleRefValue(float)] = Field(
         default=0.0,
         description="Initial outdoor temperature [degC]",
@@ -1858,14 +1850,6 @@ class StebbsProperties(BaseModel):
             "display_name": "Deepsoiltemperature",
         },
     )
-    # GroundFloorOutdoorSurfaceTemperature: Optional[FlexibleRefValue(float)] = Field(
-    #     default=0.0,
-    #     description="Initial ground floor outdoor surface temperature [degC]",
-    #     json_schema_extra={
-    #         "unit": "degC",
-    #         "display_name": "Groundflooroutdoorsurfacetemperature",
-    #     },
-    # )
     WaterTankWallThickness: Optional[FlexibleRefValue(float)] = Field(
         default=0.01,
         description="Hot water tank wall thickness [m]",

@@ -51,7 +51,7 @@ git push origin $VERSION
 
 ## Announce (Optional)
 
-- [ ] [UMEP Discussions](https://github.com/UMEP-dev/UMEP/discussions)
+- [ ] [SUEWS Discussions](https://github.com/UMEP-dev/SUEWS/discussions)
 
 ---
 

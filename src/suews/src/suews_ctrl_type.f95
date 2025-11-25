@@ -908,7 +908,7 @@ MODULE module_ctrl_type
 
       REAL(KIND(1D0)) :: qe = 0.0D0 !turbuent latent heat flux [W m-2]
       REAL(KIND(1D0)) :: qf = 0.0D0 !anthropogenic heat flux [W m-2]
-      REAL(KIND(1D0)) :: QF_SAHP = 0.0D0 !total anthropogeic heat flux when EmissionMethod is not 0 [W m-2]
+      REAL(KIND(1D0)) :: QF_SAHP = 0.0D0 !total anthropogeic heat flux when EmissionsMethod is not 0 [W m-2]
       REAL(KIND(1D0)) :: qh = 0.0D0 !turbulent sensible heat flux [W m-2]
       REAL(KIND(1D0)) :: qh_residual = 0.0D0 ! residual based sensible heat flux [W m-2]
       REAL(KIND(1D0)) :: qh_resist = 0.0D0 !resistance bnased sensible heat flux [W m-2]

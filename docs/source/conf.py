@@ -391,11 +391,11 @@ rst_prolog = rf"""
 
     .. tip::
 
-      1. Need help? Please let us know in the `UMEP Community`_.
+      1. Need help? Please let us know in the `SUEWS Discussion Channel`_.
       2. Please report issues with the manual on `GitHub Issues`_ (or use `Report Issue for This Page`_ for page-specific feedback).
       3. Please cite SUEWS with proper information from our `Zenodo page`_.
 
-.. _UMEP Community: https://github.com/UMEP-dev/UMEP/discussions/
+.. _SUEWS Discussion Channel: https://github.com/UMEP-dev/SUEWS/discussions/
 .. _GitHub Issues: https://github.com/UMEP-dev/SUEWS/issues
 .. _SUEWS download page: https://forms.office.com/r/4qGfYu8LaR
 

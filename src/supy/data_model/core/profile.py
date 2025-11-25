@@ -13,7 +13,9 @@ class DayProfile(BaseModel):
     working_day: Optional[float] = Field(
         default=1.0, json_schema_extra={"display_name": "Working Day"}
     )
-    holiday: Optional[float] = Field(default=0.0, json_schema_extra={"display_name": "Holiday"})
+    holiday: Optional[float] = Field(
+        default=0.0, json_schema_extra={"display_name": "Holiday"}
+    )
 
     ref: Optional[Reference] = None
 

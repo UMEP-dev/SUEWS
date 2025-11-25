@@ -77,9 +77,7 @@ class TestCRUDataLoading:
         temp = get_mean_monthly_air_temperature(lat, lon, month)
 
         # Basic sanity checks
-        assert isinstance(temp, float), (
-            f"Temperature should be float, got {type(temp)}"
-        )
+        assert isinstance(temp, float), f"Temperature should be float, got {type(temp)}"
         assert -50 <= temp <= 50, f"Temperature {temp}°C out of realistic range"
 
         # Seasonal checks for Northern Hemisphere cities

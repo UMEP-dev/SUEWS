@@ -134,7 +134,7 @@ filterwarnings = [
 # Test markers
 markers = [
     "slow: marks tests as slow (e.g., Fortran state persistence tests taking ~3-4 minutes)",
-    "qgis: marks tests for UMEP plugin compatibility in QGIS environment (GH-901)",
+    "qgis: marks UMEP plugin compatibility tests (Windows + Python 3.12 only, GH-901)",
 ]
 
 [tool.ruff]

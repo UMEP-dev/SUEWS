@@ -10,10 +10,10 @@ class DayProfile(BaseModel):
 
     model_config = ConfigDict(title="Daily Profile")
 
-    working_day: float = Field(
+    working_day: Optional[float] = Field(
         default=1.0, json_schema_extra={"display_name": "Working Day"}
     )
-    holiday: float = Field(default=0.0, json_schema_extra={"display_name": "Holiday"})
+    holiday: Optional[float] = Field(default=0.0, json_schema_extra={"display_name": "Holiday"})
 
     ref: Optional[Reference] = None
 
@@ -79,13 +79,13 @@ class WeeklyProfile(BaseModel):
 
     model_config = ConfigDict(title="Weekly Profile")
 
-    monday: float = 0.0
-    tuesday: float = 0.0
-    wednesday: float = 0.0
-    thursday: float = 0.0
-    friday: float = 0.0
-    saturday: float = 0.0
-    sunday: float = 0.0
+    monday: Optional[float] = 0.0
+    tuesday: Optional[float] = 0.0
+    wednesday: Optional[float] = 0.0
+    thursday: Optional[float] = 0.0
+    friday: Optional[float] = 0.0
+    saturday: Optional[float] = 0.0
+    sunday: Optional[float] = 0.0
 
     ref: Optional[Reference] = None
 
@@ -157,8 +157,8 @@ class HourlyProfile(BaseModel):
 
     model_config = ConfigDict(title="Hourly Profile")
 
-    working_day: Dict[str, float]
-    holiday: Dict[str, float]
+    working_day: Optional[Dict[str, Optional[float]]] = None
+    holiday: Optional[Dict[str, Optional[float]]] = None
 
     ref: Optional[Reference] = None
 
@@ -185,9 +185,26 @@ class HourlyProfile(BaseModel):
         super().__init__(**data)
 
     @field_validator("working_day", "holiday", mode="before")
-    def convert_keys_to_str(cls, v: Dict) -> Dict[str, float]:
+    def convert_keys_to_str(cls, v: Dict) -> Dict[str, Optional[float]]:
+        # Accept dicts that can contain None and preserve None values.
         if isinstance(v, dict):
-            return {str(k): float(v) for k, v in v.items()}
+            out = {}
+            for k, val in v.items():
+                if val is None:
+                    out[str(k)] = None
+                else:
+                    # If value is pandas NA / numpy nan, treat as None
+                    try:
+                        # float(np.nan) is nan, but we may want None; convert nan->None
+                        f = float(val)
+                        if f != f:  # nan check
+                            out[str(k)] = None
+                        else:
+                            out[str(k)] = f
+                    except (TypeError, ValueError):
+                        # If conversion fails, preserve original or set None
+                        out[str(k)] = None
+            return out
         return v
 
     def to_df_state(self, grid_id: int, param_name: str) -> pd.DataFrame:

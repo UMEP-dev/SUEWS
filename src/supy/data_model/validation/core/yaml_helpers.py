@@ -1257,10 +1257,44 @@ def precheck_model_option_rules(data: dict) -> dict:
         for site_idx, site in enumerate(data.get("sites", [])):
             props = site.get("properties", {}) or {}
             anth_emis = props.get("anthropogenic_emissions", {}) or {}
+
+            # Nullify co2 block (existing behaviour)
             co2_block = anth_emis.get("co2", {}) or {}
             if isinstance(co2_block, dict):
                 _recursive_nullify(co2_block)
                 anth_emis["co2"] = co2_block
+                props["anthropogenic_emissions"] = anth_emis
+
+            # Also handle trafficrate which can be a plain mapping like:
+            # trafficrate:
+            #   working_day: 0.01
+            #   holiday: 0.01
+            traffic_block = anth_emis.get("trafficrate", None)
+            if isinstance(traffic_block, dict):
+                # If trafficrate uses RefValue style with "value" leaves, reuse recursive nullify
+                if "value" in traffic_block:
+                    _recursive_nullify(traffic_block)
+                else:
+                    # Plain mapping: set all numeric or nested leaves to None
+                    def _nullify_plain_mapping(m):
+                        for k, v in list(m.items()):
+                            if isinstance(v, dict):
+                                # nested dict: nullify its leaves
+                                for kk, vv in list(v.items()):
+                                    if isinstance(vv, dict) and "value" in vv:
+                                        vv["value"] = None
+                                    else:
+                                        v[kk] = None
+                            else:
+                                m[k] = None
+
+                    _nullify_plain_mapping(traffic_block)
+
+                anth_emis["trafficrate"] = traffic_block
+                props["anthropogenic_emissions"] = anth_emis
+            elif traffic_block is not None:
+                # If trafficrate is a scalar (unlikely), nullify it
+                anth_emis["trafficrate"] = None
                 props["anthropogenic_emissions"] = anth_emis
 
     return data

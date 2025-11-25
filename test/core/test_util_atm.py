@@ -49,7 +49,9 @@ class TestAtmosphericCalculations:
         lv = cal_lat_vap(qa, self.TA_K, self.PRES_HPA)
 
         # Typical range: 2.4-2.6 MJ/kg
-        assert 2.4e6 < lv < 2.6e6, f"Latent heat {lv/1e6:.2f} MJ/kg outside expected range"
+        assert 2.4e6 < lv < 2.6e6, (
+            f"Latent heat {lv / 1e6:.2f} MJ/kg outside expected range"
+        )
 
     @pytest.mark.parametrize(
         "rh,expected_behaviour",

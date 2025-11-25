@@ -65,9 +65,13 @@ class TestOHMCalculations:
         qn = pd.Series(400 * np.maximum(0, np.sin(np.pi * (hours - 6) / 12)), index=idx)
 
         # Urban: high storage, large phase lag
-        qs_urban = pd.Series(200 * np.maximum(0, np.sin(np.pi * (hours - 3) / 12)), index=idx)
+        qs_urban = pd.Series(
+            200 * np.maximum(0, np.sin(np.pi * (hours - 3) / 12)), index=idx
+        )
         # Grass: low storage, small phase lag
-        qs_grass = pd.Series(50 * np.maximum(0, np.sin(np.pi * (hours - 5.5) / 12)), index=idx)
+        qs_grass = pd.Series(
+            50 * np.maximum(0, np.sin(np.pi * (hours - 5.5) / 12)), index=idx
+        )
 
         a1_urban, _, _ = derive_ohm_coef(qs_urban, qn)
         a1_grass, _, _ = derive_ohm_coef(qs_grass, qn)

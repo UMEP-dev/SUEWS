@@ -20,8 +20,12 @@ class TestSurfaceConductance:
 
     def test_method_comparison(self):
         """Test iPM and FG methods give consistent, reasonable results."""
-        rs_ipm = cal_rs_obs(self.QH, self.QE, self.TA, self.RH, self.PA, self.RA, method="iPM")
-        rs_fg = cal_rs_obs(self.QH, self.QE, self.TA, self.RH, self.PA, self.RA, method="FG")
+        rs_ipm = cal_rs_obs(
+            self.QH, self.QE, self.TA, self.RH, self.PA, self.RA, method="iPM"
+        )
+        rs_fg = cal_rs_obs(
+            self.QH, self.QE, self.TA, self.RH, self.PA, self.RA, method="FG"
+        )
 
         # Both should give positive, reasonable values
         assert rs_ipm > 0, "iPM method gave non-positive rs"

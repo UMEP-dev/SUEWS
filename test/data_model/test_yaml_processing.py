@@ -1929,6 +1929,24 @@ def test_stebbsmethod1_leaves_stebbs_untouched():
     out = result["sites"][0]["properties"]["stebbs"]
     assert out["WallInternalConvectionCoefficient"]["value"] == 5.0
 
+def _build_site_with_co2(co2_block):
+    return {"properties": {"anthropogenic_emissions": {"co2": co2_block}}}
+
+def test_emissionsmethod_less_than_5_nullifies_co2_block():
+    co2_block = {
+        "co2pointsource": {"value": 0.1},
+        "nested": {"ef_umolco2perj": {"value": 2.0}},
+    }
+    data = {
+        "model": {"physics": {"emissionsmethod": 0}},  # < 5 => CO2 disabled
+        "sites": [_build_site_with_co2(co2_block)],
+    }
+    result = precheck_model_option_rules(deepcopy(data))
+
+    out = result["sites"][0]["properties"]["anthropogenic_emissions"]["co2"]
+    assert out["co2pointsource"]["value"] is None
+    assert out["nested"]["ef_umolco2perj"]["value"] is None
+
 
 def test_collect_yaml_differences_simple():
     original = {

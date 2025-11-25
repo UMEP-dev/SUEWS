@@ -1929,8 +1929,10 @@ def test_stebbsmethod1_leaves_stebbs_untouched():
     out = result["sites"][0]["properties"]["stebbs"]
     assert out["WallInternalConvectionCoefficient"]["value"] == 5.0
 
+
 def _build_site_with_co2(co2_block):
     return {"properties": {"anthropogenic_emissions": {"co2": co2_block}}}
+
 
 def test_emissionsmethod_less_than_5_nullifies_co2_block():
     co2_block = {

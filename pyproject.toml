@@ -1,7 +1,7 @@
 [build-system]
 requires = [
     "wheel",
-    "f90wrap==0.2.16",  # Build-time only: generates wrapper code (runtime is vendored)
+    "f90wrap==0.2.16",
     "numpy>=2.0",
     "meson-python>=0.12.0",
 ]
@@ -25,16 +25,14 @@ dependencies = [
     "numpy>=2.0",
     "scipy",
     # xarray removed - only needed for gridded ERA5 (install separately)
-    # dask removed - stdlib multiprocessing used for parallelisation
+    # dask removed - was redundant with multiprocess (see Parallel processing below)
 
     # Model requirements
-    # NOTE: f90wrap is NO LONGER a runtime dependency!
-    # The f90wrap runtime is vendored into supy._vendor.f90wrap
-    # This eliminates the need for f90wrap wheels on Python 3.13+
+    "f90wrap==0.2.16",  # Required at runtime by generated supy_driver code
     "pydantic",
     "pyyaml",  # YAML configuration parsing (used in data_model/core/config.py)
     "f90nml",
-
+    
     # Utilities
     "matplotlib",
     "seaborn",
@@ -45,23 +43,24 @@ dependencies = [
     "pyarrow>=22; python_version >= '3.14'",  # 22.x provides cp314 wheels on manylinux_2_28/macOS/Windows
 
     # Scientific packages
-    "atmosp==0.2.16",
+    "atmosp",
     "scikit-learn",
-
+    
     # Optimization
     "lmfit",
     "numdifftools",
     "platypus-opt==1.0.4",
-
+    
     # Data access
     "cdsapi",  # ERA5 data download (timeseries uses CSV, gridded requires optional h5netcdf)
 
     # Time/location
     "tzfpy>=1.0.0",  # Faster timezone finder with Windows wheels
     "pytz",
-
-    # Parallel processing: uses stdlib multiprocessing (no external dependency needed)
-
+    
+    # Parallel processing
+    "multiprocess",
+    
     # Schema validation (for YAML configs)
     "jsonschema",
     "rich",
@@ -97,14 +96,14 @@ dev = [
     # Testing
     "pytest",
     "pytest-cov",
-
+    
     # Code formatting
     "ruff",
     "fprettify",
-
+    
     # Development
     "ipykernel",
-
+    
     # Documentation - Essential only (based on conf.py usage)
     "sphinx>=4.0,<8.2",
     "sphinx-autobuild",
@@ -129,14 +128,13 @@ suews-validate = "supy.cmd.validate_config:main"
 suews-schema = "supy.cmd.schema_cli:main"
 
 [tool.pytest.ini_options]
-# Test markers for tiered CI testing
+filterwarnings = [
+    "ignore::UserWarning:pydantic.main",
+]
+# Test markers
 markers = [
-    "smoke: Minimal wheel validation (~6 tests, ~60s)",
-    "core: Core physics & logic tests (Fortran, driver)",
-    "util: Utility function tests (non-critical)",
-    "cfg: Config/schema validation tests",
-    "slow: Tests taking >30s individually",
-    "qgis: UMEP plugin tests (Windows + Python 3.12 only)",
+    "slow: marks tests as slow (e.g., Fortran state persistence tests taking ~3-4 minutes)",
+    "qgis: marks tests for UMEP plugin compatibility in QGIS environment (GH-901)",
 ]
 
 [tool.ruff]

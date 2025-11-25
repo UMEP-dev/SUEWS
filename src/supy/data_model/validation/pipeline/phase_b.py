@@ -1342,7 +1342,6 @@ def adjust_model_dependent_nullification(
     adjustments = []
     physics = yaml_data.get("model", {}).get("physics", {})
 
-
     # --- STEBBS ---
     stebbsmethod = get_value_safe(physics, "stebbsmethod")
 
@@ -1434,7 +1433,6 @@ def adjust_model_dependent_nullification(
                 props["anthropogenic_emissions"] = anth_emis
                 site["properties"] = props
                 yaml_data["sites"][site_idx] = site
-
 
     return yaml_data, adjustments
 

@@ -265,7 +265,7 @@ Phase B makes scientific adjustments that improve model realism without changing
 - **Conditional Logic**: When `stebbsmethod == 0`, nullifies STEBBS parameters
 - **Parameter Cleanup**: Removes unused STEBBS parameters for clarity
 - **Consistency**: Ensures STEBBS configuration matches selected method
-- **Temperature Initialisation**: When `stebbsmethod == 1`, automatically updates `WallOutdoorSurfaceTemperature` and `WindowOutdoorSurfaceTemperature` using CRU climatological data
+- **Temperature Initialisation**: When `stebbsmethod == 1`, automatically updates `InitialOutdoorTemperature` using CRU climatological data
 - **CRU-Based Updates**: Uses location-specific mean monthly air temperature from CRU TS4.06 dataset
 
 ### Parameter Validation Improvements
@@ -361,8 +361,7 @@ Phase B generates comprehensive reports with two main sections:
 - Updated (11) parameter(s):
 -- initial_states.paved at site [0]: temperature, tsfc, tin → 12.4 C (Set from CRU data for coordinates (51.51, -0.13) for month 1)
 -- initial_states.bldgs at site [0]: temperature, tsfc, tin → 12.4 C (Set from CRU data for coordinates (51.51, -0.13) for month 1)
--- stebbs.WallOutdoorSurfaceTemperature at site [0]: 20.0 → 12.4 C (Set from CRU data for coordinates (51.51, -0.13) for month 1)
--- stebbs.WindowOutdoorSurfaceTemperature at site [0]: 20.0 → 12.4 C (Set from CRU data for coordinates (51.51, -0.13) for month 1)
+-- stebbs.InitialOutdoorTemperature at site [0]: 20.0 → 12.4 C (Set from CRU data for coordinates (51.51, -0.13) for month 1)
 -- anthropogenic_emissions.startdls at site [0]: 15.0 → 86 (Calculated DLS start for coordinates (51.51, -0.13))
 -- anthropogenic_emissions.enddls at site [0]: 12.0 → 303 (Calculated DLS end for coordinates (51.51, -0.13))
 -- paved.sfr at site [0]: rounded to achieve sum of land cover fractions equal to 1.0

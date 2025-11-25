@@ -494,14 +494,6 @@ MODULE module_ctrl_type
       REAL(KIND(1D0)) :: WindowExternalConvectionCoefficient = 0.0D0 ! Initial external convection coefficient of windows [W m-2 K-1]
       REAL(KIND(1D0)) :: GroundDepth = 0.0D0 ! Depth of external ground (deep soil) [m]
       REAL(KIND(1D0)) :: ExternalGroundConductivity = 0.0D0
-      REAL(KIND(1D0)) :: IndoorAirDensity = 0.0D0 ! Density of indoor air [kg m-3]
-      REAL(KIND(1D0)) :: IndoorAirCp = 0.0D0 ! Specific heat capacity of indoor air [J kg-1 K-1]
-      !REAL(KIND(1D0)) :: WallBuildingViewFactor = 0.0D0 ! Building view factor of external walls [-]
-      !REAL(KIND(1D0)) :: WallGroundViewFactor = 0.0D0 ! Ground view factor of external walls [-]
-      !REAL(KIND(1D0)) :: WallSkyViewFactor = 0.0D0 ! Sky view factor of external roofs [-]
-      !REAL(KIND(1D0)) :: RoofBuildingViewFactor = 0.0D0 ! Building view factor of external roofs [-]
-      !REAL(KIND(1D0)) :: RoofGroundViewFactor = 0.0D0 ! Ground view factor of external roofs [-]
-      !REAL(KIND(1D0)) :: RoofSkyViewFactor = 0.0D0 ! Sky view factor of external roofs [-]
       REAL(KIND(1D0)) :: MetabolicRate = 0.0D0 ! Metabolic rate of building occupants [W]
       REAL(KIND(1D0)) :: LatentSensibleRatio = 0.0D0 ! Latent-to-sensible ratio of metabolic energy release of occupants [-]
       REAL(KIND(1D0)) :: ApplianceRating = 0.0D0 ! Power demand of single appliance [W]
@@ -1178,7 +1170,7 @@ MODULE module_ctrl_type
       REAL(KIND(1D0)), DIMENSION(30) :: dataoutLineTRSL = -999 ! Temperature array from RSL[C]
       REAL(KIND(1D0)), DIMENSION(30) :: dataoutLineqRSL = -999 ! Specific humidity array from RSL[g kg-1]
       ! Initial conditions that are updated during runtime
-      REAL(KIND(1D0)) :: OutdoorAirAnnualTemperature = 0.0D0 ! Annual mean air temperature [C]
+      REAL(KIND(1D0)) :: DeepSoilTemperature = 0.0D0 ! Deep soil temperature [C]
       REAL(KIND(1D0)) :: OutdoorAirStartTemperature = 0.0D0 ! Initial outdoor air temperature [degC]
       REAL(KIND(1D0)) :: IndoorAirStartTemperature = 0.0D0 ! Initial indoor air temperature [degC]
       REAL(KIND(1D0)) :: IndoorMassStartTemperature = 0.0D0 ! Initial indoor mass temperature [degC]

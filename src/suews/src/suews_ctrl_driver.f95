@@ -806,7 +806,7 @@ CONTAINS
             QS_surf => heatState%qs_surf, &
             k_surf => ehcPrm%k_surf, &
             cp_surf => ehcPrm%cp_surf, &
-            T_bottom => stebbsState%OutdoorAirAnnualTemperature &
+            T_bottom => stebbsState%DeepSoilTemperature &
             )
 
             !============= calculate surface temperature based on QS ===============
@@ -3799,21 +3799,13 @@ CONTAINS
       WallInternalConvectionCoefficient, RoofInternalConvectionCoefficient, InternalMassConvectionCoefficient, & ! stebbs general input
       FloorInternalConvectionCoefficient, WindowInternalConvectionCoefficient, &
       WallExternalConvectionCoefficient, RoofExternalConvectionCoefficient, WindowExternalConvectionCoefficient, &
-      GroundDepth, ExternalGroundConductivity, IndoorAirDensity, IndoorAirCp, &
-      !WallBuildingViewFactor, WallGroundViewFactor, WallSkyViewFactor, &
-      !RoofBuildingViewFactor, RoofGroundViewFactor, RoofSkyViewFactor, &
+      GroundDepth, ExternalGroundConductivity, &
       MetabolicRate, LatentSensibleRatio, ApplianceRating, &
       TotalNumberofAppliances, ApplianceUsageFactor, HeatingSystemEfficiency, &
-      MaxCoolingPower, CoolingSystemCOP, VentilationRate, OutdoorAirAnnualTemperature, OutdoorAirStartTemperature, IndoorAirStartTemperature, &
-      IndoorMassStartTemperature, WallIndoorSurfaceTemperature, RoofIndoorSurfaceTemperature, &
-      WallOutdoorSurfaceTemperature, RoofOutdoorSurfaceTemperature, WindowIndoorSurfaceTemperature, &
-      WindowOutdoorSurfaceTemperature, GroundFloorIndoorSurfaceTemperature, &
-      GroundFloorOutdoorSurfaceTemperature, WaterTankTemperature, &
-      InternalWallWaterTankTemperature, ExternalWallWaterTankTemperature, &
+      MaxCoolingPower, CoolingSystemCOP, VentilationRate, DeepSoilTemperature, InitialOutdoorTemperature, InitialIndoorTemperature, &
       WaterTankWallThickness, MainsWaterTemperature, WaterTankSurfaceArea, &
       HotWaterHeatingSetpointTemperature, HotWaterTankWallEmissivity, &
-      DomesticHotWaterTemperatureInUseInBuilding, InternalWallDHWVesselTemperature, &
-      ExternalWallDHWVesselTemperature, DHWVesselWallThickness, DHWWaterVolume, &
+      DHWVesselWallThickness, DHWWaterVolume, &
       DHWSurfaceArea, DHWVesselEmissivity, HotWaterFlowRate, DHWDrainFlowRate, &
       DHWSpecificHeatCapacity, HotWaterTankSpecificHeatCapacity, DHWVesselSpecificHeatCapacity, &
       DHWDensity, HotWaterTankWallDensity, DHWVesselDensity, HotWaterTankBuildingWallViewFactor, &
@@ -4218,14 +4210,6 @@ CONTAINS
       REAL(KIND(1D0)) :: WindowExternalConvectionCoefficient
       REAL(KIND(1D0)) :: GroundDepth
       REAL(KIND(1D0)) :: ExternalGroundConductivity
-      REAL(KIND(1D0)) :: IndoorAirDensity
-      REAL(KIND(1D0)) :: IndoorAirCp
-      !REAL(KIND(1D0)) :: WallBuildingViewFactor
-      !REAL(KIND(1D0)) :: WallGroundViewFactor
-      !REAL(KIND(1D0)) :: WallSkyViewFactor
-      !REAL(KIND(1D0)) :: RoofBuildingViewFactor
-      !REAL(KIND(1D0)) :: RoofGroundViewFactor
-      !REAL(KIND(1D0)) :: RoofSkyViewFactor
       REAL(KIND(1D0)) :: MetabolicRate
       REAL(KIND(1D0)) :: LatentSensibleRatio
       REAL(KIND(1D0)) :: ApplianceRating
@@ -4235,29 +4219,14 @@ CONTAINS
       REAL(KIND(1D0)) :: MaxCoolingPower
       REAL(KIND(1D0)) :: CoolingSystemCOP
       REAL(KIND(1D0)) :: VentilationRate
-      REAL(KIND(1D0)) :: OutdoorAirAnnualTemperature
-      REAL(KIND(1D0)) :: OutdoorAirStartTemperature
-      REAL(KIND(1D0)) :: IndoorAirStartTemperature
-      REAL(KIND(1D0)) :: IndoorMassStartTemperature
-      REAL(KIND(1D0)) :: WallIndoorSurfaceTemperature
-      REAL(KIND(1D0)) :: WallOutdoorSurfaceTemperature
-      REAL(KIND(1D0)) :: RoofIndoorSurfaceTemperature
-      REAL(KIND(1D0)) :: RoofOutdoorSurfaceTemperature
-      REAL(KIND(1D0)) :: WindowIndoorSurfaceTemperature
-      REAL(KIND(1D0)) :: WindowOutdoorSurfaceTemperature
-      REAL(KIND(1D0)) :: GroundFloorIndoorSurfaceTemperature
-      REAL(KIND(1D0)) :: GroundFloorOutdoorSurfaceTemperature
-      REAL(KIND(1D0)) :: WaterTankTemperature
-      REAL(KIND(1D0)) :: InternalWallWaterTankTemperature
-      REAL(KIND(1D0)) :: ExternalWallWaterTankTemperature
+      REAL(KIND(1D0)) :: DeepSoilTemperature
+      REAL(KIND(1D0)) :: InitialOutdoorTemperature
+      REAL(KIND(1D0)) :: InitialIndoorTemperature
       REAL(KIND(1D0)) :: WaterTankWallThickness
       REAL(KIND(1D0)) :: MainsWaterTemperature
       REAL(KIND(1D0)) :: WaterTankSurfaceArea
       REAL(KIND(1D0)) :: HotWaterHeatingSetpointTemperature
       REAL(KIND(1D0)) :: HotWaterTankWallEmissivity
-      REAL(KIND(1D0)) :: DomesticHotWaterTemperatureInUseInBuilding
-      REAL(KIND(1D0)) :: InternalWallDHWVesselTemperature
-      REAL(KIND(1D0)) :: ExternalWallDHWVesselTemperature
       REAL(KIND(1D0)) :: DHWVesselWallThickness
       REAL(KIND(1D0)) :: DHWWaterVolume
       REAL(KIND(1D0)) :: DHWSurfaceArea
@@ -5130,14 +5099,6 @@ CONTAINS
       stebbsPrm%WindowExternalConvectionCoefficient = WindowExternalConvectionCoefficient
       stebbsPrm%GroundDepth = GroundDepth
       stebbsPrm%ExternalGroundConductivity = ExternalGroundConductivity
-      stebbsPrm%IndoorAirDensity = IndoorAirDensity
-      stebbsPrm%IndoorAirCp = IndoorAirCp
-      !stebbsPrm%WallBuildingViewFactor = WallBuildingViewFactor
-      !stebbsPrm%WallGroundViewFactor = WallGroundViewFactor
-      !stebbsPrm%WallSkyViewFactor = WallSkyViewFactor
-      !stebbsPrm%RoofBuildingViewFactor = RoofBuildingViewFactor
-      !stebbsPrm%RoofGroundViewFactor = RoofGroundViewFactor
-      !stebbsPrm%RoofSkyViewFactor = RoofSkyViewFactor
       stebbsPrm%MetabolicRate = MetabolicRate
       stebbsPrm%LatentSensibleRatio = LatentSensibleRatio
       stebbsPrm%ApplianceRating = ApplianceRating
@@ -5178,27 +5139,25 @@ CONTAINS
       ! states - updated during the simulation
       ! TODO: STEBBS States act as parameters for building generation (move all but allocation?)
       CALL stebbsState%ALLOCATE(nbtypes, nlayer)
-      stebbsState%OutdoorAirAnnualTemperature = OutdoorAirAnnualTemperature
-      stebbsState%OutdoorAirStartTemperature = OutdoorAirStartTemperature
-      stebbsState%IndoorAirStartTemperature = IndoorAirStartTemperature
-      stebbsState%IndoorMassStartTemperature = IndoorMassStartTemperature
-      stebbsState%WallIndoorSurfaceTemperature = WallIndoorSurfaceTemperature
-      stebbsState%WallOutdoorSurfaceTemperature = WallOutdoorSurfaceTemperature
-      stebbsState%RoofIndoorSurfaceTemperature = RoofIndoorSurfaceTemperature
-      stebbsState%RoofOutdoorSurfaceTemperature = RoofOutdoorSurfaceTemperature
-      stebbsState%WindowIndoorSurfaceTemperature = WindowIndoorSurfaceTemperature
-      stebbsState%WindowOutdoorSurfaceTemperature = WindowOutdoorSurfaceTemperature
-      stebbsState%GroundFloorIndoorSurfaceTemperature = GroundFloorIndoorSurfaceTemperature
-      stebbsState%GroundFloorOutdoorSurfaceTemperature = GroundFloorOutdoorSurfaceTemperature
-      stebbsState%WaterTankTemperature = WaterTankTemperature
-      stebbsState%InternalWallWaterTankTemperature = InternalWallWaterTankTemperature
-      stebbsState%ExternalWallWaterTankTemperature = ExternalWallWaterTankTemperature
+      stebbsState%DeepSoilTemperature = DeepSoilTemperature
+      stebbsState%OutdoorAirStartTemperature = InitialOutdoorTemperature
+      stebbsState%IndoorAirStartTemperature = InitialIndoorTemperature
+      stebbsState%IndoorMassStartTemperature = InitialIndoorTemperature
+      stebbsState%WallIndoorSurfaceTemperature = InitialIndoorTemperature
+      stebbsState%WallOutdoorSurfaceTemperature = InitialOutdoorTemperature
+      stebbsState%RoofIndoorSurfaceTemperature = InitialIndoorTemperature
+      stebbsState%RoofOutdoorSurfaceTemperature = InitialOutdoorTemperature
+      stebbsState%WindowIndoorSurfaceTemperature = InitialIndoorTemperature
+      stebbsState%WindowOutdoorSurfaceTemperature = InitialOutdoorTemperature
+      stebbsState%GroundFloorIndoorSurfaceTemperature = InitialIndoorTemperature
+      stebbsState%GroundFloorOutdoorSurfaceTemperature = DeepSoilTemperature
+      stebbsState%WaterTankTemperature = HotWaterHeatingSetpointTemperature
+      stebbsState%InternalWallWaterTankTemperature = HotWaterHeatingSetpointTemperature
+      stebbsState%ExternalWallWaterTankTemperature = InitialIndoorTemperature
       stebbsState%MainsWaterTemperature = MainsWaterTemperature
-      stebbsState%DomesticHotWaterTemperatureInUseInBuilding = DomesticHotWaterTemperatureInUseInBuilding
-      stebbsState%InternalWallDHWVesselTemperature = InternalWallDHWVesselTemperature
-      stebbsState%ExternalWallDHWVesselTemperature = ExternalWallDHWVesselTemperature
-      !stebbsState%Textroof_C(:) =  RoofOutdoorSurfaceTemperature
-      !stebbsState%Textwall_C(:) =  WallOutdoorSurfaceTemperature
+      stebbsState%DomesticHotWaterTemperatureInUseInBuilding = HotWaterHeatingSetpointTemperature
+      stebbsState%InternalWallDHWVesselTemperature = HotWaterHeatingSetpointTemperature
+      stebbsState%ExternalWallDHWVesselTemperature = InitialIndoorTemperature
 
       ! ! transfer states into modState
       mod_State%anthroemisState = anthroEmisState

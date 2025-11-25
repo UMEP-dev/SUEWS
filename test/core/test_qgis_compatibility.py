@@ -1,13 +1,13 @@
 """
-Tests for SUEWS/SuPy compatibility with QGIS/UMEP environment (GH-901).
+Tests for SUEWS/SuPy compatibility with UMEP plugin in QGIS environment (GH-901).
 
 This module tests the functions and APIs used by UMEP plugins in QGIS:
 - UMEP Pre-processor: SUEWS Database Manager, SUEWS Database Prepare, Download ERA5
 - UMEP Processor: SUEWS model runs
 - UMEP Post-processor: Output path handling
 
-These tests ensure SUEWS/SuPy functions work correctly in the QGIS environment,
-especially on Windows where QGIS ships with its own Python distribution.
+These tests ensure SUEWS/SuPy functions work correctly in the QGIS environment.
+Target environment: Windows + Python 3.12 (QGIS 3.40 LTR bundled Python).
 
 See: https://github.com/UMEP-dev/SUEWS/issues/901
 """
@@ -23,8 +23,19 @@ import pytest
 import supy as sp
 
 
-# Mark all tests in this module with 'qgis' marker
-pytestmark = pytest.mark.qgis
+# Target environment: Windows + Python 3.12 (QGIS 3.40 LTR)
+_IS_WINDOWS = sys.platform == "win32"
+_IS_PY312 = sys.version_info[:2] == (3, 12)
+_IS_QGIS_TARGET = _IS_WINDOWS and _IS_PY312
+
+# Mark all tests in this module with 'qgis' marker and skip on non-target platforms
+pytestmark = [
+    pytest.mark.qgis,
+    pytest.mark.skipif(
+        not _IS_QGIS_TARGET,
+        reason="QGIS compatibility tests only run on Windows + Python 3.12 (QGIS 3.40 LTR)",
+    ),
+]
 
 
 class TestDatabaseManagerAPI(TestCase):

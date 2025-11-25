@@ -1,8 +1,11 @@
 """Tests for ERA5 utility functions."""
 
 import pytest
+import tempfile
+import zipfile
 from pathlib import Path
-from supy.util._era5 import gen_forcing_era5
+from unittest.mock import Mock, patch
+from supy.util._era5 import gen_forcing_era5, download_era5_timeseries
 
 
 def has_cds_credentials():
@@ -116,6 +119,117 @@ class TestERA5Import:
         # Verify coordinates preserved in attrs (Copenhagen location)
         assert df_50m.attrs["latitude"] == 57.75
         assert df_50m.attrs["longitude"] == 12.0
+
+
+class TestERA5FileCleanup:
+    """Test file cleanup behaviour (cross-platform, including Windows)."""
+
+    def test_download_timeseries_cleanup(self, tmp_path):
+        """Test that temporary files are properly cleaned up after download.
+
+        This test verifies the fix for GH-891 where Windows file locking
+        prevented cleanup of temporary zip files. The TemporaryDirectory
+        pattern ensures automatic cleanup on all platforms.
+        """
+        import pandas as pd
+        import io
+
+        # Create mock CSV data matching ERA5 timeseries format
+        csv_data = """valid_time,latitude,longitude,sp,u10,v10,t2m,d2m,ssrd,strd,tp
+2020-01-01 00:00:00,51.5,-0.1,101325,2.5,1.5,280.15,275.15,0,250,0
+2020-01-01 01:00:00,51.5,-0.1,101320,2.6,1.6,280.25,275.25,50,255,0.001
+"""
+
+        # Create a mock zip file with the CSV data
+        def create_mock_download(download_path):
+            """Mock CDS client download that creates a zip with CSV."""
+            zip_path = Path(download_path)
+            with zipfile.ZipFile(zip_path, "w") as zf:
+                zf.writestr("data.csv", csv_data)
+
+        # Mock the CDS client
+        mock_client = Mock()
+        mock_retrieve = Mock()
+        mock_client.retrieve.return_value = mock_retrieve
+        mock_retrieve.download.side_effect = create_mock_download
+
+        # Track temporary directories created during test
+        temp_dirs_created = []
+        original_tempdir = tempfile.TemporaryDirectory
+
+        def track_tempdir(*args, **kwargs):
+            td = original_tempdir(*args, **kwargs)
+            temp_dirs_created.append(Path(td.name))
+            return td
+
+        with patch("cdsapi.Client", return_value=mock_client):
+            with patch("tempfile.TemporaryDirectory", side_effect=track_tempdir):
+                # Call the download function
+                result_path = download_era5_timeseries(
+                    lat_x=51.5,
+                    lon_x=-0.1,
+                    start="2020-01-01",
+                    end="2020-01-02",
+                    dir_save=tmp_path,
+                )
+
+        # Verify the output CSV was created
+        assert Path(result_path).exists()
+        assert result_path.endswith(".csv")
+
+        # Verify all temporary directories were cleaned up
+        for temp_dir in temp_dirs_created:
+            assert not temp_dir.exists(), (
+                f"Temporary directory not cleaned up: {temp_dir} "
+                "(this would cause WinError 32 on Windows)"
+            )
+
+    def test_download_timeseries_no_leftover_files(self, tmp_path):
+        """Test that no temporary files leak into system temp directory.
+
+        Specifically checks that TemporaryDirectory pattern doesn't leave
+        behind .zip files that would accumulate over time.
+        """
+        import pandas as pd
+
+        csv_data = """valid_time,latitude,longitude,sp,u10,v10,t2m,d2m,ssrd,strd,tp
+2020-01-01 00:00:00,51.5,-0.1,101325,2.5,1.5,280.15,275.15,0,250,0
+"""
+
+        def create_mock_download(download_path):
+            zip_path = Path(download_path)
+            with zipfile.ZipFile(zip_path, "w") as zf:
+                zf.writestr("data.csv", csv_data)
+
+        mock_client = Mock()
+        mock_retrieve = Mock()
+        mock_client.retrieve.return_value = mock_retrieve
+        mock_retrieve.download.side_effect = create_mock_download
+
+        # Get system temp directory
+        system_temp = Path(tempfile.gettempdir())
+
+        # Count .zip files before test
+        zip_files_before = list(system_temp.glob("*.zip"))
+
+        with patch("cdsapi.Client", return_value=mock_client):
+            download_era5_timeseries(
+                lat_x=51.5,
+                lon_x=-0.1,
+                start="2020-01-01",
+                end="2020-01-02",
+                dir_save=tmp_path,
+            )
+
+        # Count .zip files after test
+        zip_files_after = list(system_temp.glob("*.zip"))
+
+        # Should not have created any new .zip files in system temp
+        new_zip_files = set(zip_files_after) - set(zip_files_before)
+        assert len(new_zip_files) == 0, (
+            f"Temporary .zip files leaked: {new_zip_files} "
+            "(TemporaryDirectory should clean these up)"
+        )
 
 
 @pytest.mark.skipif(

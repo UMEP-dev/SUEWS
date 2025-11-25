@@ -86,9 +86,9 @@ name: Build and Publish Python wheels to PyPI and TestPyPI
 # - Both wheel sets deployed to PyPI together (production tags only)
 # - UMEP builds use Python 3.12 only (aligned with QGIS 3.40 LTR bundled Python)
 # - UMEP build triggers (runs on ALL events for continuous NumPy 1.x testing):
-#   * PRs: manylinux cp312 (NumPy 1.x validation before merge)
-#   * Master/manual: manylinux cp312 (continuous UMEP compatibility testing)
-#   * Nightly/dev tags: manylinux cp312 (daily testing, uses .dev1 to avoid version collision)
+#   * PRs: win cp312 (NumPy 1.x validation before merge, Windows = QGIS primary platform)
+#   * Master/manual: win cp312 (continuous UMEP compatibility testing)
+#   * Nightly/dev tags: win cp312 (daily testing, uses .dev1 to avoid version collision)
 #   * Production tags: all platforms cp312 (complete distribution → PyPI, uses rc1 suffix)
 #
 # UMEP INTEGRATION:
@@ -240,10 +240,10 @@ jobs:
           fi
 
           # UMEP builds: Python 3.12 only (aligned with QGIS 3.40 LTR bundled Python)
-          # PR: manylinux only for quick validation
+          # PR/nightly: Windows only (QGIS primary platform) for quick validation
           # Production: all platforms for complete UMEP distribution
           echo "UMEP matrix: cp312 only (QGIS 3.40 LTR uses Python 3.12)"
-          echo 'umep_buildplat=[["ubuntu-latest", "manylinux", "x86_64"]]' >> $GITHUB_OUTPUT
+          echo 'umep_buildplat=[["windows-2025", "win", "AMD64"]]' >> $GITHUB_OUTPUT
           echo 'umep_python=["cp312"]' >> $GITHUB_OUTPUT
 
   build_wheels:

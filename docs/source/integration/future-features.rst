@@ -44,7 +44,7 @@ The SUEWS community welcomes contributions of integration examples and coupling 
 Please see :doc:`../contributing/contributing` for guidelines on contributing integration code and documentation.
 
 **Discussion and Support:**
-- `GitHub Discussions <https://github.com/UMEP-dev/UMEP/discussions/>`_: Community Q&A and feature requests
+- `GitHub Discussions <https://github.com/UMEP-dev/SUEWS/discussions/>`_: Community Q&A and feature requests
 - `GitHub Issues <https://github.com/UMEP-dev/SUEWS/issues>`_: Bug reports and development tracking
 
 Research Collaboration

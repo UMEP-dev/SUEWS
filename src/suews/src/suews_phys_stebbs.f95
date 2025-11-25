@@ -537,7 +537,7 @@ MODULE module_phys_stebbs_couple
       REAL(KIND(1D0)) :: ws_exch_hbh
       REAL(KIND(1D0)) :: Lroof_exch
       REAL(KIND(1D0)) :: Lwall_exch
-      REAL(KIND(1D0)) :: pres_exch, RH_exch
+      REAL(KIND(1D0)) :: pres_exch, RH_exch, cp_air_exch, density_air_exch
    END TYPE
    TYPE(suewsprop) :: sout
 END MODULE module_phys_stebbs_couple
@@ -729,9 +729,11 @@ CONTAINS
             Lsouth => stebbsState%Lsouth, &
             Least => stebbsState%Least, &
             Lwest => stebbsState%Lwest, &
-            Tground_deep_sout => stebbsState%OutdoorAirAnnualTemperature, &
+            Tground_deep_sout => stebbsState%DeepSoilTemperature, &
             pres => forcing%pres, &
             RH => forcing%RH, &
+            cp_air => atmState%avcp, &
+            density_air => atmState%avdens, &
             ss_height => spartacus_Prm%height, &
             z0m => roughnessState%z0m, &
             zdm => roughnessState%zdm &
@@ -797,6 +799,8 @@ CONTAINS
             sout%ws_exch = ws
             sout%Tground_deep = Tground_deep_sout
             sout%RH_exch = RH
+            sout%cp_air_exch = cp_air
+            sout%density_air_exch = density_air
             sout%pres_exch = pres            
             IF (dt_start < timestep) THEN !initialisation before getting RSL output
                ws_bh = forcing%U * (LOG((buildings(1)%height_building + z0m) / z0m) / LOG((height_forcing + z0m) / z0m)) !archetype height
@@ -1023,9 +1027,8 @@ Qsw_absorbed_window_tstepFA, Qsw_absorbed_wall_tstepFA, Qsw_absorbed_roof_tstepF
       Tsurf = sout%Tsurf + 273.15
       ws_out_bh = sout%ws_exch_bh
       ws_out_hbh = sout%ws_exch_hbh
-      density_air_out = indoor_airdensity(sout%Tair_exch_hbh, self%Tair_ind - 273.15, sout%pres_exch, sout%RH_exch)   
-      density_air_out = 1.225
-      cp_air_out = 1005.0
+      density_air_out = sout%density_air_exch
+      cp_air_out = sout%cp_air_exch
       Qsw_dn_extroof = sout%Kroof
       Qsw_dn_extwall = sout%Kwall
       Qlw_dn_extwall = sout%Lwall
@@ -1044,7 +1047,10 @@ Qsw_absorbed_window_tstepFA, Qsw_absorbed_wall_tstepFA, Qsw_absorbed_roof_tstepF
       self%h_i(3) = int_conv_coeff(dT = (self%Tintroof - self%Tair_ind), surf_type = 2) !roof
       self%h_i(4) = int_conv_coeff(dT = (self%Tintgroundfloor - self%Tair_ind), surf_type = 3) !floor
       self%h_i(5) = int_conv_coeff(dT = (self%Tindoormass - self%Tair_ind), surf_type = 1) !nternal mass,assume vertical
-      !print*, 'dt=', self%Textwall - sout%Tair_exch_hbh, 'ho=',self%h_o(1)
+      !calculate indoor air density
+      self%density_air_ind = indoor_airdensity(sout%Tair_exch_hbh, self%Tair_ind - 273.15, sout%pres_exch, sout%RH_exch) 
+      !Assume indoor/outdoor specific heat capacity are identical  
+      self%cp_air_ind = cp_air_out
       CALL timeStepCalculation(self, Tair_out, Tair_out_bh, Tair_out_hbh, Tground_deep, Tsurf, &
                                density_air_out, cp_air_out, &
                                Qsw_dn_extroof, Qsw_dn_extwall, &
@@ -1229,8 +1235,6 @@ SUBROUTINE timeStepCalculation(self, Tair_out, Tair_out_bh, Tair_out_hbh, Tgroun
       self%windowTransmissivity, self%windowAbsorbtivity, self%windowReflectivity, &
       self%wallTransmisivity, self%wallAbsorbtivity, self%wallReflectivity, &
       self%roofTransmisivity, self%roofAbsorbtivity, self%roofReflectivity, &
-      !self%BVF_extwall, self%GVF_extwall, self%SVF_extwall, &
-      !self%BVF_extroof, self%GVF_extroof, self%SVF_extroof, &
       self%occupants, self%metabolic_rate, self%ratio_metabolic_latent_sensible, &
       self%appliance_power_rating, self%appliance_usage_factor, &
       self%maxheatingpower_air, self%heating_efficiency_air, &
@@ -1329,8 +1333,6 @@ SUBROUTINE tstep( &
    windowTransmissivity, windowAbsorbtivity, windowReflectivity, &
    wallTransmisivity, wallAbsorbtivity, wallReflectivity, &
    roofTransmisivity, roofAbsorbtivity, roofReflectivity, &
-   !BVF_extwall, GVF_extwall, SVF_extwall, &
-   !BVF_extroof, GVF_extroof, SVF_extroof, &
    occupants, metabolic_rate, ratio_metabolic_latent_sensible, &
    appliance_power_rating, appliance_usage_factor, &
    maxheatingpower_air, heating_efficiency_air, &
@@ -1467,8 +1469,6 @@ SUBROUTINE tstep( &
                       windowTransmissivity, windowAbsorbtivity, windowReflectivity, & ! [-], [-], [-]
                       wallTransmisivity, wallAbsorbtivity, wallReflectivity, & ! [-], [-], [-]
                  roofTransmisivity, roofAbsorbtivity, roofReflectivity ! [-], [-], [-]
-                      !BVF_extwall, GVF_extwall, SVF_extwall, & ! [-], [-], [-]
-                 !BVF_extroof, GVF_extroof, SVF_extroof ! [-], [-], [-]
    REAL(KIND(1D0)) :: occupants ! Number of occupants [-]
    REAL(KIND(1D0)) :: metabolic_rate, ratio_metabolic_latent_sensible, & ! [W], [-]
                       appliance_power_rating ! [W]
@@ -2130,7 +2130,6 @@ SUBROUTINE gen_building(stebbsState, stebbsPrm, building_archtype, config, self,
    self%density_groundfloor = building_archtype%GroundFloorDensity
    self%density_window = building_archtype%WindowDensity
    self%density_indoormass = building_archtype%InternalMassDensity
-   self%density_air_ind = stebbsPrm%IndoorAirDensity
    self%cp_wall = building_archtype%WallCp
    self%cp_wallext = building_archtype%WallextCp
    self%cp_roof = building_archtype%RoofCp
@@ -2138,7 +2137,6 @@ SUBROUTINE gen_building(stebbsState, stebbsPrm, building_archtype, config, self,
    self%cp_groundfloor = building_archtype%GroundFloorCp
    self%cp_window = building_archtype%WindowCp
    self%cp_indoormass = building_archtype%InternalMassCp
-   self%cp_air_ind = stebbsPrm%IndoorAirCp
    self%emissivity_extwall = building_archtype%WallExternalEmissivity
    self%emissivity_intwall = building_archtype%WallInternalEmissivity
    self%emissivity_extroof = building_archtype%RoofExternalEmissivity
@@ -2155,12 +2153,6 @@ SUBROUTINE gen_building(stebbsState, stebbsPrm, building_archtype, config, self,
    self%roofTransmisivity = building_archtype%RoofTransmissivity
    self%roofAbsorbtivity = building_archtype%RoofAbsorbtivity
    self%roofReflectivity = building_archtype%RoofReflectivity
-   !self%BVF_extwall = stebbsPrm%WallBuildingViewFactor !View factor for external envelope are not required
-   !self%GVF_extwall = stebbsPrm%WallGroundViewFactor
-   !self%SVF_extwall = stebbsPrm%WallSkyViewFactor
-   !self%BVF_extroof = stebbsPrm%RoofBuildingViewFactor
-   !self%GVF_extroof = stebbsPrm%RoofGroundViewFactor
-   !self%SVF_extroof = stebbsPrm%RoofSkyViewFactor
    self%occupants = building_archtype%Occupants
    self%metabolic_rate = stebbsPrm%MetabolicRate
    self%ratio_metabolic_latent_sensible = stebbsPrm%LatentSensibleRatio
@@ -2202,8 +2194,6 @@ SUBROUTINE gen_building(stebbsState, stebbsPrm, building_archtype, config, self,
    self%wiTAR = (/self%windowTransmissivity, self%windowAbsorbtivity, self%windowReflectivity/)
    self%waTAR = (/self%wallTransmisivity, self%wallAbsorbtivity, self%wallReflectivity/)
    self%roofTAR = (/self%roofTransmisivity, self%roofAbsorbtivity, self%roofReflectivity/)
-   !View factor for external envelope is not required
-   !self%viewFactors = (/self%BVF_extwall, self%GVF_extwall, self%SVF_extwall, self%BVF_extroof, self%GVF_extroof, self%SVF_extroof/) !  # Building, ground, and sky view factors
    self%occupantData = (/self%occupants, self%metabolic_rate, &
                          self%ratio_metabolic_latent_sensible/)
 

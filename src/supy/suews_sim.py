@@ -1021,7 +1021,7 @@ class SUEWSSimulation:
         --------
         >>> sim = SUEWSSimulation.from_sample_data()
         >>> sim.state_init.shape
-        (1, 1423)
+        (1, 1403)
         """
         return self._df_state_init
 
